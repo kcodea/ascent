@@ -372,7 +372,14 @@ Per-wave ratings are now trustworthy (synthetic all-wave pool); the run's par Li
 
 ### Run identity
 The career surface exists; deepen what a finished run *remembers*.
-- **Round-by-round + replay view — TABLED, rebuild as state-replay (see [replay-v2-handoff.md](replay-v2-handoff.md)).**
+- **Replay v2 — SHIPPED 2026-08-19** (same PR as the spec): state-replay capture + pure-renderer playback +
+  round rail + metrics drawer + Watch on the leaderboard/Recent Games. Phase E polish deferred: shop timer
+  ticks visually during playback; seek-into-combat renders the resolved world (final fight plays through).
+- **Round-by-round + replay view — was TABLED, now REBUILT as state-replay above (see [replay-v2-handoff.md](replay-v2-handoff.md)).**
+  *(Spec extended 2026-08-19: a left-hand ROUND RAIL — click round 8, seek to its shop opening — plus a
+  METRICS DRAWER that slides out of the rail: gold spent / actions this turn / shop tier at start, per round.
+  Board power was considered and CUT. All of it is a fold over the recorded frames — no new capture beyond a
+  per-frame `spent`/`earned`; see §7.)*
   A full action-replay spectator was built (watch any player's run through the live UI, from the leaderboard /
   a recent-matches feed) on branch `feat/replay-driver` and **killed 2026-08-11**: action-replay re-derives the
   run from `{seed,actions}`, and a mid-run combat RNG/uid drift makes real runs diverge completely (a recorded

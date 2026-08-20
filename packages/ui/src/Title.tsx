@@ -5,6 +5,7 @@ import { getTitleText, subscribeTitleText, titleContinueNote } from './titleText
 import { Icon } from './Icon';
 import { sfx } from './sfx';
 import { useGame, tempHandle } from './store';
+import { startReplay } from './replay/replayPlayer';
 import { getCourseProgress, skipCourse } from './tutorial/tutorialProfile';
 
 /**
@@ -59,6 +60,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   const account = useGame((s) => s.account);
   const openAccountPanel = useGame((s) => s.openAccountPanel);
   const savedRun = useGame((s) => s.savedRun);
+  const lastReplay = useGame((s) => s.lastReplay);
   const continueRun = useGame((s) => s.continueRun);
   const clearRun = useGame((s) => s.clearRun);
   const rating = useGame((s) => s.profile.rating); // shown on the Play card
@@ -204,6 +206,15 @@ export function Title({ onSettings }: { onSettings: () => void }) {
           <button onClick={() => { sfx.pulse(); toggleBook(); }} title="Compendium — browse every card">Compendium</button>
           <span className="tsdot">·</span>
           <button onClick={() => { sfx.pulse(); openBalance(); }} title="Balance Report — real player offer / pick / win rates">Balance Report</button>
+          {/* REPLAY VIEWER (v2): watch back the last run finished this session (frames aren't persisted, so
+              the offer only appears once a run has ended since launch). The full spectate entry points —
+              recent matches + leaderboard Watch — are Phase C. */}
+          {lastReplay && (
+            <>
+              <span className="tsdot">·</span>
+              <button onClick={() => { sfx.pulse(); startReplay(lastReplay); }} title="Watch back your last finished game">Rewatch Last Game</button>
+            </>
+          )}
           {import.meta.env.DEV && (
             <>
               <span className="tsdot">·</span>

@@ -7,6 +7,7 @@ import { liveBoardView } from './instView';
 import { heroArt } from './art';
 import { Icon } from './Icon';
 import { useGame } from './store';
+import { startReplay } from './replay/replayPlayer';
 
 /** A live `CardView` for a final-warband minion — shared with the final-board capture (see `liveBoardView`),
  *  so scaling cards show their *accumulated* magnitude at run's end, not the printed base. */
@@ -55,6 +56,9 @@ function LobbyEndScreen({ lobby, run, onPlayAgain }: {
   // The placement's rating change (the ladder's ONLY rating source since 2026-07-31) — lands a tick after the
   // phase flips, so this renders reactively: nothing, then the number counts in.
   const lastRating = useGame((s) => s.lastRating);
+  // REPLAY VIEWER (v2): the just-finished run's state replay — stashed by the run-end block a tick after the
+  // phase flips (same deferral as the rating), so the Rewatch button pops in once it lands.
+  const lastReplay = useGame((s) => s.lastReplay);
   return (
     <div className={`heroselect endscreen lobbyend${won ? ' won' : ''}`}>
       <div className="hsbox endbox">
@@ -77,6 +81,10 @@ function LobbyEndScreen({ lobby, run, onPlayAgain }: {
             : run.board.map((m) => <Card key={m.uid} card={boardView(m, run)} suppressPop />)}
         </div>
         <button className="endplay pressable" onClick={onPlayAgain}>Play Again</button>
+        {/* Watch back the run that just ended — exiting the replay restores this end screen untouched. */}
+        {lastReplay && lastReplay.seed === run.seed && (
+          <button className="endplay pressable ghost" onClick={() => startReplay(lastReplay)}>Rewatch</button>
+        )}
       </div>
     </div>
   );

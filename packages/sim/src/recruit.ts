@@ -8160,6 +8160,13 @@ export function fireShopRally(state: RunState, card: BoardCard): void {
   }
   const spellWeld = card.rallySpellWeld ?? 0;
   if (spellWeld > 0) conjureToHand(state, poolOf(state).spells.filter((c) => !c.token), spellWeld);
+  // A SHOP rally is a Rally TRIGGER (owner ruling 2026-08-20) — it advances the `rally` quest objective and
+  // the Author's Hand rally half exactly like a combat one. Counted HERE, at the single chokepoint every
+  // shop rally passes through, for the same reason combat hooks everything at `bumpRally`: one definition of
+  // "a Rally", never two drifting ones. The reducer consumes `lastRallyFires` per action (the
+  // `lastShoutFires` pattern); Rune of the Herding Horn pays inline, as its combat half does.
+  state.lastRallyFires = (state.lastRallyFires ?? 0) + 1;
+  if (state.questFlags?.runeHerdingHorn) { procRuneId(state, 'rune_herding_horn'); state.freeRolls += 1; }
 }
 
 /**

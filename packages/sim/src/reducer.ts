@@ -854,6 +854,13 @@ export function reduce(state: RunState, action: Action): RunState {
       advanceQuestsBy(next, (o) => o.event === 'deathrattle', next.lastEchoFires!);
       bumpAuthorsHand(next, 'echo', next.lastEchoFires!);
     }
+    // A SHOP Rally (Rune of Lasting Cadence) is a Rally TRIGGER: it advances the `rally` objective and the
+    // Author's Hand rally half like a combat one (owner ruling 2026-08-20). `lastRallyFires` accumulated in
+    // `fireShopRally` — the one chokepoint every shop rally passes through.
+    if ((next.lastRallyFires ?? 0) > 0) {
+      advanceQuestsBy(next, (o) => o.event === 'rally', next.lastRallyFires!);
+      bumpAuthorsHand(next, 'rally', next.lastRallyFires!);
+    }
     if (action.type === 'play') {
       const played = state.hand.find((c) => c.uid === action.uid);
       const pdef = played ? CARD_INDEX[played.cardId] : undefined;
@@ -1045,6 +1052,7 @@ function reduceCore(state: RunState, action: Action): RunState {
   stampSharedSpoils(s); // Rune of Shared Spoils rides the same stateless addBuff hook, from the same draft
   s.lastShoutFires = 0; // transient per-action Shout-fire count (set by a Battlecry play → read by the Shout quest tick)
   s.lastEchoFires = 0; // transient per-action out-of-combat Echo-fire count (set by fireRecruitDeathrattles → read by the deathrattle quest tick)
+  s.lastRallyFires = 0; // transient per-action SHOP-Rally-fire count (set by fireShopRally → read by the rally quest tick)
   s.questTendrilFx = []; // transient per-action list of quest-triggered units (read by the tendril FX)
   s.lastEotFires = 0; // transient per-action End-of-Turn-fire count (set by applyEndOfTurn → read by the EoT quest tick)
   // The consume swirl is a PER-ACTION payload too. It used to be cleared only by the handful of call sites that

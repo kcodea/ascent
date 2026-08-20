@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { CARD_INDEX } from '@game/content';
-import { createRun, projectEndOfTurnSteps, questEndOfTurnBeats, type RunState } from './index';
+import { createRun, projectEndOfTurnSteps, questEndOfTurnBeats, reduce, type RunState } from './index';
 import { applyEndOfTurn, canRallyInShop, fireRallies, ralliersOf } from './recruit';
 
 /**
@@ -212,5 +212,38 @@ describe('the broadcast does not over-fire an own-trigger effect', () => {
     const alesBefore = s.hand.length;
     applyEndOfTurn(s);
     expect(s.hand.length - alesBefore, 'three rallies fired, but only its own pours an Ale').toBe(1);
+  });
+});
+
+describe('a SHOP Rally is a Rally TRIGGER for the quest tallies (owner ruling 2026-08-20)', () => {
+  // Overclocked Core is the live `rally`-objective quest ("Trigger 9 Rallies"). Drive the REAL faceOmen
+  // action so the whole chain is exercised: applyEndOfTurn → fireShopRally → lastRallyFires → the reducer's
+  // per-action quest tick — not a hand-called helper that could pass while the wiring is broken.
+  const rally = (uid: string) => bc(uid, 'd2_cinderchef', { keywords: ['RL'] });
+  const armed = (over: Partial<RunState> = {}): RunState => run(
+    [rally('r1'), rally('r2'), rally('r3')],
+    {
+      runeLastingCadence: true,
+      activeQuests: [{ questId: 'q_overclocked_core', progress: 0, completed: false }],
+      ...over,
+    } as Partial<RunState>,
+  );
+
+  it('End of Turn under Lasting Cadence advances the rally objective by one per fired Rally', () => {
+    const next = reduce(armed(), { type: 'faceOmen' });
+    const q = next.activeQuests!.find((a) => a.questId === 'q_overclocked_core')!;
+    expect(q.progress, 'three shop rallies = three Rally triggers').toBe(3);
+  });
+
+  it('without the rune, ending the turn advances nothing', () => {
+    const next = reduce(armed({ runeLastingCadence: undefined }), { type: 'faceOmen' });
+    expect(next.activeQuests!.find((a) => a.questId === 'q_overclocked_core')!.progress).toBe(0);
+  });
+
+  it('Rune of the Herding Horn pays its refresh on a SHOP rally too — one definition of "a Rally"', () => {
+    // Its combat half hooks bumpRally so it "counts exactly what the rally quest objective counts"; the shop
+    // chokepoint honours the same sentence.
+    const next = reduce(armed({ questFlags: { runeHerdingHorn: true }, freeRolls: 0 } as never), { type: 'faceOmen' });
+    expect(next.freeRolls, 'three rallies bank three refreshes for next turn').toBe(3);
   });
 });

@@ -1,5 +1,21 @@
 # ASCENT — development log
 
+## 2026-08-20 — a SHOP Rally is a Rally TRIGGER (owner ruling)
+
+The Rally-family migration flagged that a shop rally (Rune of Lasting Cadence) did not advance the Rally quest
+tallies — no recruit-side channel existed. Owner ruling: "it should progress these."
+
+Wired via the exact pattern the codebase already uses for the other two trigger families: `fireShopRally` (the
+ONE chokepoint every shop rally passes through) bumps a transient `lastRallyFires`, and the reducer's per-action
+quest tick consumes it — the `lastShoutFires` / `lastEchoFires` pattern, zeroed per action beside them. It
+advances the `rally` objective (Overclocked Core), the Author's Hand rally half, and — for the same reason
+combat hooks everything at `bumpRally` — **Rune of the Herding Horn pays its free refresh on a shop rally
+too**: its combat comment promises it "counts exactly what the rally quest objective counts", and one
+definition of "a Rally" beats two drifting ones.
+
+Coverage: three end-to-end cases in `rallyDispatch.test.ts` driving the REAL `faceOmen` action (not a helper),
+verified RED without the wiring. Gates: typecheck ✅ lint 0 errors ✅ 6143 tests / 372 files ✅ build:web ✅.
+
 ## 2026-08-20 — the RALLY FAMILY reaches the shop (Effect Arena Steps 3.4 + 4), and Rune of Lasting Cadence pays out where it reads
 
 **The whole Rally family is one implementation now.** 40 `onAttack` bodies (across 44 cards) moved out of

@@ -1402,6 +1402,10 @@ export interface RunState {
   /** Transient: how many times the LAST played Battlecry fired (Drakko + shout-repeat rewards + charges) — set
    *  during the play, read by the reducer's Shout quest tick so it counts triggers without re-consuming. */
   lastShoutFires?: number;
+  /** Transient per-action count of SHOP Rally fires (Rune of Lasting Cadence) — set by `fireShopRally`,
+   *  read by the reducer's rally quest tick, zeroed per action like `lastShoutFires`. A shop rally counts
+   *  toward the `rally` objective + Author's Hand exactly like a combat one (owner ruling 2026-08-20). */
+  lastRallyFires?: number;
   /** Transient: how many Echoes (Deathrattles) fired OUT OF COMBAT this action (Grave Robber / Gravetwin / Crypt
    *  Broker / Sylus re-fires) — accumulated by `fireRecruitDeathrattles`, drained by the reducer's `deathrattle`
    *  quest tick so a recruit-phase Echo counts toward Echo quests just like a combat one. */

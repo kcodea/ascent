@@ -47,7 +47,7 @@ export interface HeroPanelConfig {
 // Owner-tuned by eye in the 🧍 tuner and baked as the shipped look (2026-07-16). Mirror changes into the
 // styles.css `var(--hpn-*, …)` fallbacks.
 const DEFAULTS: HeroPanelConfig = {
-  panelX: 54, panelY: -106, panelScale: 3.1, panelW: 87, panelH: 89,
+  panelX: 58, panelY: -109, panelScale: 3.1, panelW: 87, panelH: 89,
   portraitX: 0, portraitY: 0, portraitScale: 1.2,
   playerNameX: -200, playerNameY: -200, playerNameScale: 0.4,
   heroNameX: 0, heroNameY: -9, heroNameScale: 0.6,

@@ -165,7 +165,11 @@ export function Game() {
   // window. Set pre-paint + on every resize. (CSS can't turn a length into a unitless ratio, hence JS.)
   useLayoutEffect(() => {
     const apply = (): void => {
-      const gh = Math.min(window.innerHeight, (window.innerWidth * 9) / 16); // matches the CSS --gh (16:9 stage)
+      // Cap at 1440 to match the PINNED CSS `--gh` (min(..., 1440px)): the stage never grows past the tuned
+      // 2560×1440 reference, so `--scale` tops out at 1.0 in lockstep. Without this cap the CSS stage pinned but
+      // JS still drove --scale above 1.0 on tall windows, so anything mixing `--bar` position (capped) with
+      // `--scale` size (uncapped) — the hero panel: portrait, Health pill, rune chains — drifted off the board.
+      const gh = Math.min(window.innerHeight, (window.innerWidth * 9) / 16, 1440); // matches the CSS --gh (16:9 stage, pinned)
       // No meaningful floor: a phone's landscape stage is only ~380-460px tall (true ratio ~0.27-0.32), and
       // flooring at 0.45 oversized everything 1.5× → overlapping HUD/hero/shop (owner's iPhone report). The
       // whole point of the uniform scale is that the layout stays proportional at ANY size.

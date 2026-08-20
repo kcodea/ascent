@@ -1,5 +1,29 @@
 # ASCENT — development log
 
+## 2026-08-20 — Pin the board at its tuned size + re-anchor the hero panel to the art
+
+Owner ask: the board must stop shifting when the window is resized. Two changes make it hold:
+
+**Pinned stage.** The 16:9 stage now caps at the tuned 2560×1440 reference — `--gw`/`--gh` gain a `min(…,
+2560px)` / `min(…, 1440px)`, and the JS that drives `--scale` gets the matching `min(…, 1440)` so `--scale`
+tops out at 1.0 in lockstep (without that, the CSS stage pinned but JS still drove scale above 1.0 on tall
+windows). Net: a window bigger/taller than the reference stops the board ZOOMING up and just gains backdrop
+margin (nothing moves); a smaller window still shrinks the whole board uniformly to fit (one locked unit).
+
+**Hero-panel re-anchor.** The hero panel (portrait, Health pill, rune chains) was anchored to the 16:9 STAGE
+corner, but its frames are painted on the board ART — which is board-zoomed ~25% WIDER/taller than the stage,
+an overflow that scales with `--gh`. So when the board scaled below 1.0 (short/windowed) the panel slid off its
+frame — vertically the worst, ~67px at a 900px-tall window. `.statusbar` now anchors to the ART's bottom-left,
+expressed as a fixed fraction of the art size (`--_artw`/`--_arth` exposed at :root), so it tracks the frame at
+every scale. Coefficients (0.391888 / 0.389444) keep the position byte-identical to the old `--bar` anchor at
+the tuned size, verified: old anchor's art-fraction drifted 0.108→0.115 (X) / 0.111→0.121 (Y) from gh 1440→600
+while the new one holds constant.
+
+Plus small owner re-tunes of that region after the re-anchor: Rune Sheen chain seat (chx 127→129, chy -3→-5)
+and Hero Panel (panelX 54→58, panelY -106→-109) — defs + styles.css fallbacks together.
+
+Verified: typecheck + build:web green; owner eyeballed at fullscreen + short/windowed sizes.
+
 ## 2026-08-20 — Layout Lab bake: shop/warband spacing + shop-controls seat
 
 Owner-tuned Layout Lab values baked into the shipped defaults. Moved from where they sat: shop card gap 20->16

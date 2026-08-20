@@ -33,7 +33,12 @@
      Esc-menu resolution scaler can still cap the box to a fixed pixel size (see [data-res]). */
   /* `dvh` (dynamic viewport height) instead of `vh` so the stage tracks the mobile browser's shrinking/growing
      address bar and fills the real visible area on phones. */
-  --gw: min(100vw, calc(100dvh * 16 / 9)); --gh: min(100dvh, calc(100vw * 9 / 16));
+  /* PINNED stage cap (owner ask 2026-08-20): the 16:9 stage never grows past 2560×1440 — the tuned reference
+     size. So a window bigger/taller than that stops the board ZOOMING up and just gains backdrop margin around
+     it (nothing moves), while a smaller window still shrinks the whole board uniformly to fit (one locked unit,
+     no drift). `--scale` (= --gh/1440, clamped) therefore tops out at 1.0, its tuned value. Mirrors the old
+     `[data-res="r2560"]` cap, now always-on. Bump both caps together (keep 16:9) to re-pin at a larger size. */
+  --gw: min(100vw, calc(100dvh * 16 / 9), 2560px); --gh: min(100dvh, calc(100vw * 9 / 16), 1440px);
   --bar-x: calc((100vw - var(--gw)) / 2); --bar-y: calc((100dvh - var(--gh)) / 2);
   /* The in-game board backdrop — ONE source art, drawn on `.boardbg` (a full-viewport layer behind the 16:9
      stage): scaled to the stage height + centred, so the ornate frame stays locked to the 16:9 UI. The default
@@ -51,6 +56,13 @@
      1.0132 (= 2.389/2.3578), exactly the art size a 3440x1440 fullscreen used to produce, which is what the
      button offsets were tuned against. */
   --board-fill: 1;
+  /* The board ART's on-screen size (matches `--_board-w` on `.boardbg`), exposed at :root so the hero panel can
+     anchor to the ART rather than the 16:9 STAGE. The art is board-zoomed ~25% WIDER than the stage, and that
+     overflow scales with `--gh`; anchoring the hero panel (portrait / Health pill / rune chains) to the stage
+     let it slide off its painted frame when the board scaled below 1.0 (short/windowed). `--_arth` = the art
+     HEIGHT (width ÷ intrinsic aspect). See `.statusbar`. */
+  --_artw: calc(var(--gh) * var(--board-zoom, 1.25) * var(--board-mobile-zoom, 1) * var(--board-aspect) * var(--board-fill, 1.0132));
+  --_arth: calc(var(--_artw) / var(--board-aspect));
   /* Ultrawide side-blend (owner ask 2026-08-18). The 16:9 default board can't fill a window WIDER than 16:9, so
      the bare `--bg` (#8c857a tan) shows in the side margins there — see `.boardbg`, which lays a `--board-edge-col`
      gradient over those margins that fades INTO the art edges so the two meet seamlessly. `--board-edge-col` is
@@ -2755,7 +2767,13 @@ body.modalup .app { z-index: auto; }
 /* The status tray, tucked into the bottom-LEFT corner so the hand owns the whole
    bottom-centre: Embers + Hero on the top row, the Resolve HP bar across the bottom.
    Still click-through (only the hero/Embers capture, and even they go through mid-drag). */
-.statusbar { position: fixed; bottom: calc(var(--bar-y) + 14px + env(safe-area-inset-bottom)); left: calc(var(--bar-x) + 16px + env(safe-area-inset-left)); display: flex; flex-direction: column; align-items: stretch; gap: 7px; z-index: 40; pointer-events: none; padding: 7px 10px 9px; }
+/* Anchored to the BOARD ART's bottom-left, not the 16:9 stage corner — see `--_artw`/`--_arth`. The coefficients
+   keep the position IDENTICAL to the old `--bar` anchor at the tuned size (--scale 1, --gh 1440, board-zoom 1.25,
+   aspect 1.7919, fill 1): 0.391888 = (1440·8/9 − 16px) ÷ art-width(1440); 0.389444 = (1440/2 − 14px) ÷
+   art-height(1440). Expressed as a fraction of the art, so the panel now tracks the art's overflow at EVERY
+   scale instead of drifting off its frame when the board shrinks below 1.0. If the board zoom/aspect/fill is
+   re-baked, re-derive the two coefficients. */
+.statusbar { position: fixed; bottom: calc(50% - 0.389444 * var(--_arth) - var(--board-y, 5px) * var(--scale) + env(safe-area-inset-bottom)); left: calc(50% - 0.391888 * var(--_artw) + var(--board-x, 0px) * var(--scale) + env(safe-area-inset-left)); display: flex; flex-direction: column; align-items: stretch; gap: 7px; z-index: 40; pointer-events: none; padding: 7px 10px 9px; }
 /* Player name — a small white box above the hero panel; black text (mirrors the opponent name up top). */
 /* Player name — a pill eclipsing the TOP edge of the hero box (mirrors the opponent's `.opp-name` on its frame):
    absolutely centered on the top border, nudged up so it half-overlaps. Cream/gold to read as friendly (the
@@ -2805,7 +2823,7 @@ body.modalup .app { z-index: auto; }
 /* Chains draped over the LOCKED third rune slot — same 3rd-node anchor + counter-scale as the sheen so it stays
    glued to the slot through the Quest-nodes Scale slider; its own `--rch-*` nudge from the 💠 Rune Sheen tuner.
    Sits ABOVE the sheen (z 6) and does not blend — it reads as solid chains over the empty slot. */
-.questbadges .rune-chains { position: absolute; left: 0; top: 0; z-index: 6; pointer-events: none; -webkit-user-drag: none; height: auto; transform-origin: 50% 50%; width: calc(var(--rch-w, 54) * var(--u-base)); transform: translate(calc(var(--rch-x, 127) * var(--u) + var(--qb3-x, 30px) * var(--scale)), calc(var(--rch-y, -3) * var(--u) + var(--qb3-y, 23px) * var(--scale))) scale(calc(1 / var(--qb-s, 1.09))); }
+.questbadges .rune-chains { position: absolute; left: 0; top: 0; z-index: 6; pointer-events: none; -webkit-user-drag: none; height: auto; transform-origin: 50% 50%; width: calc(var(--rch-w, 54) * var(--u-base)); transform: translate(calc(var(--rch-x, 129) * var(--u) + var(--qb3-x, 30px) * var(--scale)), calc(var(--rch-y, -5) * var(--u) + var(--qb3-y, 23px) * var(--scale))) scale(calc(1 / var(--qb-s, 1.09))); }
 /* Reserve one rune-row's height while the 3rd slot is chained, so the bottom-anchored row doesn't grow (and slide
    the chains) as the first two runes arrive — the chains hold one spot from turn 1 onward. */
 .questbadges.hasrunelock { min-height: calc(53 * var(--u)); }
@@ -2928,7 +2946,7 @@ body.dragging .statusbar .hero { pointer-events: none; }
   /* The 🧍 tuner's whole-panel transform lives HERE (the hero square), NOT on .statusbar — a transform on
      .statusbar would become the containing block for the power diamond's `position: fixed` and break its
      stage pinning. Identity fallback matches the shipped defaults in heroPanelConfig.ts. */
-  transform: var(--hpn-panel-t, translate(calc(54px * var(--scale)), calc(-106px * var(--scale))) scale(3.1)); transform-origin: bottom left;
+  transform: var(--hpn-panel-t, translate(calc(58px * var(--scale)), calc(-109px * var(--scale))) scale(3.1)); transform-origin: bottom left;
   /* Square dimensions — the 🧍 tuner's width/height dials (design px × --u); unset (0) = the snug
      default square. The portrait FILLS the square (inset by the padding), so a resize never ejects it. */
   width: var(--hpn-panel-w, calc(87 * var(--u))); height: var(--hpn-panel-h, calc(89 * var(--u)));

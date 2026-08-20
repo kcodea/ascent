@@ -414,6 +414,21 @@ export function procRune(s: RunState, kind: string, times = 1): void {
  * entry carrying its own `sourceId`, so the id is right there — one stamp at the payout chokepoint covers all
  * eight, correctly attributed.
  */
+/** Is this buff `source` label a RUNE's? Rune buffs almost all label themselves `'Rune …'`; the handful that
+ *  use a flavor label are listed explicitly. Used to drive the `rune-buff-unit` FX on any minion a rune buffs
+ *  (owner ask 2026-08-19). Cheap string test — buffs carry their source label on `card.buffs`. */
+export function isRuneBuffSource(source: string): boolean {
+  return source.startsWith('Rune') || source === 'Twin Sun Oath';
+}
+
+/** Total rune-sourced buff magnitude (Σ attack+health) on a card — the diff of this across an action is what
+ *  tells the UI a rune just buffed the minion. */
+export function runeBuffMagnitude(card: { buffs?: { source: string; attack: number; health: number }[] }): number {
+  let m = 0;
+  for (const b of card.buffs ?? []) if (isRuneBuffSource(b.source)) m += b.attack + b.health;
+  return m;
+}
+
 export function procRuneId(s: RunState, id: string | undefined, times = 1): void {
   // `id` is optional because a threshold entry restored from an older save may predate `sourceId`; an
   // unattributable proc is simply not stamped rather than crashing the shop.
@@ -1294,6 +1309,11 @@ export interface RunState {
    *  by diffing the channel, so any future card or quest that raises it animates with no extra wiring. */
   shopBuffAllFx?: ShopBuffAllFx;
   shopBuffAllFxSeq?: number;
+  /** Board/hand uids a RUNE buffed this action (shop phase) — the UI plays `rune-buff-unit` on each. Diffed
+   *  from `runeBuffMagnitude` so any rune buff, from any of the ~30 sites, animates with no per-site wiring.
+   *  Seq-gated like the other FX payloads. Combat + End-of-Turn rune buffs ride their own channels. */
+  runeBuffFxUnits?: string[];
+  runeBuffFxSeq?: number;
   /** Quest/rune End-of-Turn rewards that TRIGGERED a specific unit this action — one entry per proc, in fire
    *  order. The UI draws a gold tendril from that quest's node to the unit it hit (owner ask 2026-07-21).
    *  Source is the effect id (the node is looked up from it), not the quest id, because runes grant these too

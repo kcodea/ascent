@@ -13,7 +13,7 @@ import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard, oppKey } from './opponents';
 import type { BoardSnapshot } from './snapshot';
 import { noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, roundedSpellbookCostOf, buyoutCostOf, commissionOffer, COMMISSION_DELAY, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, rubyStatBonus, consumeGrimoireCharge, countRubyAsShopSpell, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
-import { handCap, mixSeed, reservedHandSlots, TAG, henchmanOffer, type Action, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type ShopCard, type CiaSuit, type Commission, type CommissionKind, type RunState, type RubyLandedFx, procRune, procRuneId } from './state';
+import { handCap, mixSeed, reservedHandSlots, TAG, henchmanOffer, type Action, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type ShopCard, type CiaSuit, type Commission, type CommissionKind, type RunState, type RubyLandedFx, procRune, procRuneId, runeBuffMagnitude } from './state';
 import { alignmentsOf } from './alignment';
 import { spellFizzles } from './spellFizzle';
 import { MATCHMAKING } from './matchmaking';
@@ -950,6 +950,21 @@ export function reduce(state: RunState, action: Action): RunState {
     if (da > 0 || dh > 0) {
       next.shopBuffAllFx = { uids: next.shop.map((o) => o.uid), attack: Math.max(0, da), health: Math.max(0, dh) };
       next.shopBuffAllFxSeq = (next.shopBuffAllFxSeq ?? 0) + 1;
+    }
+  }
+  // RUNE-BUFF-UNIT FX: any board/hand minion whose RUNE-sourced buff total ROSE this action gets the
+  // `rune-buff-unit` sparkle (owner ask 2026-08-19). Diffed off `runeBuffMagnitude` — the buff's source label
+  // is on `card.buffs`, so this one place covers every rune that buffs a unit in the shop, with no per-site
+  // wiring. Recruit-phase only: a combat-earned rune buff carried back at settle animates in the fight, and an
+  // End-of-Turn rune buff plays on its own beat — both would double here otherwise.
+  if (next !== state && state.phase === 'recruit' && next.phase === 'recruit') {
+    const before = new Map<string, number>();
+    for (const c of [...state.board, ...state.hand]) before.set(c.uid, runeBuffMagnitude(c));
+    const hit: string[] = [];
+    for (const c of [...next.board, ...next.hand]) if (runeBuffMagnitude(c) > (before.get(c.uid) ?? 0)) hit.push(c.uid);
+    if (hit.length > 0) {
+      next.runeBuffFxUnits = hit;
+      next.runeBuffFxSeq = (next.runeBuffFxSeq ?? 0) + 1;
     }
   }
   return next;

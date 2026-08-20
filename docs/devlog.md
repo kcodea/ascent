@@ -1,5 +1,29 @@
 # ASCENT — development log
 
+## 2026-08-19 — `rune-buff-unit`: a sparkle on any minion a rune buffs (shop path)
+
+Owner-authored def (burst + shockwave, both `target`-anchored) that plays ON a minion whenever a rune buffs
+it. Shop/Start-of-Turn path wired here; combat and End-of-Turn are the next two hooks.
+
+The signal needs no per-rune wiring: every buff records its SOURCE label on `card.buffs`, and rune buffs label
+themselves `'Rune …'` (plus the one flavor label `'Twin Sun Oath'`). So the reducer's post-action block diffs
+each board/hand minion's `runeBuffMagnitude` (Σ of rune-sourced buff stats) and lists any that ROSE into
+`runeBuffFxUnits` + a seq. One place covers all ~30 rune-buff sites. Gated to recruit→recruit so a
+combat-earned buff carried back at settle (animates in the fight) and an End-of-Turn buff (its own beat) don't
+double here.
+
+The UI fires `playDef('rune-buff-unit')` on each listed unit's DOM centre on the next frame (post-layout, like
+every other on-unit cue).
+
+Known gaps in this pass: three factory runes label their buff with the minion's own name rather than
+`'Rune …'` (Den Mother, Vaultkeeper, Blart), so they aren't caught by the source test — a follow-up can relabel
+them or extend the predicate. Combat rune buffs (Ruins, Aftershocks, Wild Hunt, Inheritance, Hatchery's stat
+grant) and End-of-Turn rune buffs (Spending, Action, Lassoing) need their own hooks — coming next.
+
+Verified: typecheck + lint (0 errors) + `npm test` (5809 passed) + build. New `runeBuffUnitFx.test.ts` covers
+the predicate, the magnitude sum, and the sell-triggered Seller's Market diff. The direct-call census + its
+frozen id list were updated for the new literal `playDef` site.
+
 ## 2026-08-19 — The last three End-of-Turn runes burst (Recollection, Quick Study, Recurrence)
 
 The non-unit-targeting `recurringEndOfTurn` runes the quest-tendril path misses, now stamped: Recollection

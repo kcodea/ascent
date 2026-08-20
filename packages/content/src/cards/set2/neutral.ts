@@ -172,7 +172,7 @@ export const SET2_NEUTRAL: CardDef[] = [
     // behind it. That is why `goldSpentScaleSelf` is a SYNCED enchant rather than a `goldSpent` threshold.
     id: 'n2_wanderer',
     name: 'Ancient Wanderer',
-    tribe: 'neutral',
+    tribe: 'mech',
     tier: 5,
     attack: 1,
     health: 1,
@@ -191,7 +191,7 @@ export const SET2_NEUTRAL: CardDef[] = [
     // instead of promising a Tier 7 the run can never reach.
     id: 'n2_clockwork',
     name: 'Clockwork Assistant',
-    tribe: 'neutral',
+    tribe: 'mech',
     tier: 4,
     attack: 3,
     health: 3,
@@ -206,7 +206,7 @@ export const SET2_NEUTRAL: CardDef[] = [
     // with a real `onPlay` (`hasBattlecry`), the same definition the rune rewards' `randomFilter` uses.
     id: 'n2_muckslinger',
     name: 'Muckslinger',
-    tribe: 'neutral',
+    tribe: 'beast',
     tier: 4,
     attack: 5,
     health: 5,
@@ -272,7 +272,7 @@ export const SET2_NEUTRAL: CardDef[] = [
     // current line into every surface (the hard live-text rule).
     id: 'n2_muster',
     name: 'Muster General',
-    tribe: 'neutral',
+    tribe: 'dwarf',
     tier: 5,
     attack: 6,
     health: 6,

@@ -1134,7 +1134,7 @@ export type QuestReward =
   | { kind: 'runeVaultkeeper' }
   // Aug-11 economy runes (recruit-phase flags).
   | { kind: 'runeSellersMarket' }   // whenever you sell a minion, give your minions +4/+3
-  | { kind: 'runeFreshPages' }      // Start of Turn: Discover a Shop spell
+  | { kind: 'runeFreshPages' }      // Discover a Shop spell, repeated every Start of Turn
   | { kind: 'runeStrangeCaravan' }  // Start of Turn: get a random minion from a type you do NOT control
   | { kind: 'runeWindowShopping' }  // your first 4 Refreshes each turn are free
   | { kind: 'runeOpenEnrollment' }  // after you Refresh, the Shop offers an extra minion of your most common type

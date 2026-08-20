@@ -5090,7 +5090,12 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
       s.runeVaultkeeper = true; // Rune of the Vaultkeeper: Vaultkeeper also buffs an adjacent minion
       break;
     case 'runeSellersMarket': s.runeSellersMarket = true; break; // sell → board +4/+3
-    case 'runeFreshPages': s.runeFreshPages = true; break;       // Start of Turn: Discover a Shop spell
+    case 'runeFreshPages':
+      s.runeFreshPages = true; // Discover a Shop spell, repeated every Start of Turn
+      // Owner reword 2026-08-20 ("Discover a spell. Repeat at start of turn."), same shape as
+      // `runeLongShift`: the first Discover fires on purchase instead of making you wait a turn.
+      queueDiscover(s, { kind: 'spell' });
+      break;
     case 'runeStrangeCaravan': s.runeStrangeCaravan = true; break; // Start of Turn: uncontrolled-type minion
     case 'runeWindowShopping': s.runeWindowShopping = true; break; // first 3 Refreshes each turn are free
     case 'runeOpenEnrollment': s.runeOpenEnrollment = true; break; // Refresh offers an extra dominant-type minion

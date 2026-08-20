@@ -97,3 +97,20 @@ describe('Rune of the Long Shift — the first pair is immediate, then it repeat
     expect(RUNE_INDEX['rune_long_shift']!.text).toBe('Discover **2 Shop Spells**. Repeat every **Start of Turn**.');
   });
 });
+
+// ── RUNE OF FRESH PAGES ──────────────────────────────────────────────────────────────────────────────────────
+// Owner reword 2026-08-20: "Discover a spell. Repeat at start of turn." Same fix as the Long Shift above — the
+// rune used to be inert on the turn you bought it.
+describe('Rune of Fresh Pages — the first Discover is immediate, then it repeats', () => {
+  it('taking it opens a Shop-spell Discover straight away', () => {
+    const s = reduce(base(), { type: 'devGrant', kind: 'rune', id: 'rune_fresh_pages' });
+    expect(s.runeFreshPages, 'the Start-of-Turn repeat must still be armed').toBe(true);
+    expect(s.discover?.length, 'the Discover should be OPEN, not merely queued').toBeGreaterThan(0);
+    for (const id of s.discover ?? []) expect(CARD_INDEX[id]?.spell, `${id} should be a spell`).toBe(true);
+    expect(s.discoverQueue ?? [], 'exactly one Discover — nothing left waiting').toEqual([]);
+  });
+
+  it('the text says what it does', () => {
+    expect(RUNE_INDEX['rune_fresh_pages']!.text).toBe('Discover a **Shop Spell**. Repeat at **Start of Turn**.');
+  });
+});

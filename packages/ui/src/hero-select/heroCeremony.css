@@ -83,6 +83,40 @@
   mask-image: radial-gradient(115% 115% at 50% 42%, #000 62%, transparent 96%);
 }
 
+/* ---- The circular-portrait FLASH (owner ask 2026-08-21): the ring appears, the art clips to a circle
+   inside it, and a one-shot bloom sells the snap. The clip-path change is a one-shot TRANSITION (not a loop)
+   and the flash animates opacity/transform only — the bloom's gradient is static paint. */
+.hsc-portrait { transition: clip-path 0.28s ease; }
+.hsc-portrait.hsc-circular img {
+  /* The rectangular soft mask would fight the circle — the clip owns the edge once circular. */
+  -webkit-mask-image: none; mask-image: none;
+  border-radius: 0;
+}
+.hsc-ring {
+  position: fixed; z-index: 11; /* over the portrait (10-ish), under the identity block (12) */
+  pointer-events: none; -webkit-user-drag: none;
+  opacity: 0;
+  animation: hscRingIn 0.32s ease forwards;
+}
+@keyframes hscRingIn {
+  from { opacity: 0; transform: scale(1.12); }
+  to   { opacity: 1; transform: scale(1); }
+}
+.hsc-flash {
+  position: fixed; z-index: 13;
+  width: calc(var(--hsc-flash-r, 260px) * 2); height: calc(var(--hsc-flash-r, 260px) * 2);
+  margin-left: calc(var(--hsc-flash-r, 260px) * -1); margin-top: calc(var(--hsc-flash-r, 260px) * -1);
+  border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle, rgba(255, 250, 235, 0.95) 0%, rgba(246, 224, 168, 0.5) 38%, transparent 70%);
+  opacity: 0;
+  animation: hscFlash 0.5s ease-out forwards;
+}
+@keyframes hscFlash {
+  0%   { opacity: 0; transform: scale(0.6); }
+  18%  { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.25); }
+}
+
 /* ---- §14: identity + confirmation. Fixed under the portrait; each piece enters on its own CSS delay
    (offsets from the materializing beat, injected from the timing object). */
 .hsc-identity {

@@ -42,7 +42,29 @@ const SPECS: Record<keyof HscTunerConfig, [string, TunerUnit | undefined, string
   btnX:              ['Button horizontal', 'px', 'Nudge Start Game off center.', 'Button'],
   btnY:              ['Button vertical', 'px', 'Negative lifts the button toward the name.', 'Button'],
   btnScale:          ['Button size', '×', 'Scales the whole button — text and padding together.', 'Button'],
+  songOn:            ['Song', undefined, 'asiansong.mp3 — the ceremonial sting.', 'SFX — Song'],
+  songAtMs:          ['Song at', 'ms', 'When the song starts (from the hero click).', 'SFX — Song'],
+  songVol:           ['Song volume', '×', 'Multiplier on the ceremony bus gain.', 'SFX — Song'],
+  woosh1On:          ['Woosh 1', undefined, 'woosh1.mp3 — the unselected cards yielding.', 'SFX — Woosh 1'],
+  woosh1AtMs:        ['Woosh 1 at', 'ms', 'When woosh 1 plays.', 'SFX — Woosh 1'],
+  woosh1Vol:         ['Woosh 1 volume', '×', 'Multiplier on the ceremony bus gain.', 'SFX — Woosh 1'],
+  woosh2On:          ['Woosh 2', undefined, 'woosh2.mp3 — the clone’s travel/settle.', 'SFX — Woosh 2'],
+  woosh2AtMs:        ['Woosh 2 at', 'ms', 'When woosh 2 plays.', 'SFX — Woosh 2'],
+  woosh2Vol:         ['Woosh 2 volume', '×', 'Multiplier on the ceremony bus gain.', 'SFX — Woosh 2'],
+  revealOn:          ['Reveal', undefined, 'ceremonyrevealsound.mp3 — the circular-portrait flash.', 'SFX — Reveal'],
+  revealAtMs:        ['Reveal at', 'ms', 'When the reveal sound plays (pair it with Flash at).', 'SFX — Reveal'],
+  revealVol:         ['Reveal volume', '×', 'Multiplier on the ceremony bus gain.', 'SFX — Reveal'],
+  flashAtMs:         ['Flash at', 'ms', 'When the flash fires: portrait snaps circular inside the ring.', 'Flash'],
+  portraitX:         ['Art horizontal', 'px', 'Nudge the materialized hero artwork off center.', 'Hero art'],
+  portraitY:         ['Art vertical', 'px', 'Negative lifts the artwork.', 'Hero art'],
+  portraitScale:     ['Art size', '×', 'Scales the artwork’s final bounds around its center.', 'Hero art'],
+  ringX:             ['Ring horizontal', 'px', 'Nudge the ring off the portrait center.', 'Ring'],
+  ringY:             ['Ring vertical', 'px', 'Negative lifts the ring.', 'Ring'],
+  ringSize:          ['Ring size', 'px', 'The ring’s diameter — the circular portrait clips just inside it.', 'Ring'],
 };
+
+/** The four per-sound gates render as switches, not sliders. */
+const TOGGLES = new Set<keyof HscTunerConfig>(['songOn', 'woosh1On', 'woosh2On', 'revealOn']);
 
 /** Declaration order IS render order; groups render together under their heading. */
 const ORDER: (keyof HscTunerConfig)[] = [
@@ -53,6 +75,13 @@ const ORDER: (keyof HscTunerConfig)[] = [
   'transformAtMs', 'transformMs',
   'identityAtMs', 'readyAtMs', 'readyMs',
   'launchCoverMs', 'launchRevealMs',
+  'songOn', 'songAtMs', 'songVol',
+  'woosh1On', 'woosh1AtMs', 'woosh1Vol',
+  'woosh2On', 'woosh2AtMs', 'woosh2Vol',
+  'revealOn', 'revealAtMs', 'revealVol',
+  'flashAtMs',
+  'portraitX', 'portraitY', 'portraitScale',
+  'ringX', 'ringY', 'ringSize',
   'nameX', 'nameY', 'nameSize',
   'powerX', 'powerY', 'powerSize',
   'btnX', 'btnY', 'btnScale',
@@ -61,6 +90,7 @@ const ORDER: (keyof HscTunerConfig)[] = [
 const controls: TunerControl<Extract<keyof HscTunerConfig, string>>[] = ORDER.map((key) => {
   const [label, unit, hint, group] = SPECS[key];
   const [min, max, step] = HSC_RANGES[key];
+  if (TOGGLES.has(key)) return { key, label, hint, group, kind: 'toggle' as const, min, max, step, onOffLabels: ['on', 'off'] as [string, string] };
   return { key, label, unit, hint, group, min, max, step };
 });
 

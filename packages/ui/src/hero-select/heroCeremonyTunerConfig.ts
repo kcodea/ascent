@@ -35,16 +35,49 @@ export interface HscLayout {
   btnScale: number;
 }
 
+/** Ceremony STINGERS (owner assets 2026-08-21: audio/ceremony/*) + the circular-portrait FLASH. Unlike the
+ *  layout knobs these are read by the ceremony COMPONENT (scheduling + geometry math), not CSS — so they work
+ *  in prod at their defaults with no var plumbing. Each sound: an on/off gate, a timeline mark (ms from the
+ *  hero click, same clock as everything else) and a volume multiplier on the ceremony bus gain. */
+export interface HscFx {
+  /** asiansong.mp3 — the ceremonial sting. */
+  songOn: number; songAtMs: number; songVol: number;
+  /** woosh1.mp3 — the unselected cards yielding. */
+  woosh1On: number; woosh1AtMs: number; woosh1Vol: number;
+  /** woosh2.mp3 — the clone's travel/settle. */
+  woosh2On: number; woosh2AtMs: number; woosh2Vol: number;
+  /** ceremonyrevealsound.mp3 — the circular-portrait flash. */
+  revealOn: number; revealAtMs: number; revealVol: number;
+  /** When the FLASH fires: the portrait snaps circular inside the ring, the ring appears (ms from click). */
+  flashAtMs: number;
+  /** Hero artwork (the materialized portrait) — offsets (px) + scale (×) on its computed final bounds. */
+  portraitX: number; portraitY: number; portraitScale: number;
+  /** The heroportrait ring image — offsets (px) off the portrait center + diameter (px). */
+  ringX: number; ringY: number; ringSize: number;
+}
+
 /** One config object so the panel stays one panel: the timing keys flow into `setCeremonyTiming`, the
  *  layout keys into CSS vars — `apply()` routes by key. */
-export type HscTunerConfig = HeroCeremonyTiming & HscLayout;
+export type HscTunerConfig = HeroCeremonyTiming & HscLayout & HscFx;
 
 // Owner-tuned 2026-08-21: the identity block reads much closer to the portrait than the first cut — name
 // and power lifted ~190px, the button up with them at 1.23×.
 const LAYOUT_DEFAULTS: HscLayout = { nameX: 0, nameY: -188, nameSize: 53, powerX: 0, powerY: -194, powerSize: 16, btnX: 0, btnY: -161, btnScale: 1.23 };
+
+/** First-guess placements (owner will dial them): song from the click, wooshes on the exits and the settle,
+ *  reveal + flash together mid-transform, ring sized to hug the grown portrait. */
+const FX_DEFAULTS: HscFx = {
+  songOn: 1, songAtMs: 0, songVol: 0.7,
+  woosh1On: 1, woosh1AtMs: 100, woosh1Vol: 0.9,
+  woosh2On: 1, woosh2AtMs: 640, woosh2Vol: 0.9,
+  revealOn: 1, revealAtMs: 1250, revealVol: 1,
+  flashAtMs: 1250,
+  portraitX: 0, portraitY: 0, portraitScale: 1,
+  ringX: 0, ringY: 0, ringSize: 380,
+};
 const LAYOUT_KEYS = Object.keys(LAYOUT_DEFAULTS) as (keyof HscLayout)[];
 
-export const HSC_DEFAULTS: HscTunerConfig = { ...HERO_CEREMONY_TIMING, ...LAYOUT_DEFAULTS };
+export const HSC_DEFAULTS: HscTunerConfig = { ...HERO_CEREMONY_TIMING, ...LAYOUT_DEFAULTS, ...FX_DEFAULTS };
 
 /** Slider bounds — [min, max, step] per key. Wide enough to explore, bounded enough to stay a ceremony. */
 export const HSC_RANGES: Record<keyof HscTunerConfig, [number, number, number]> = {
@@ -74,6 +107,13 @@ export const HSC_RANGES: Record<keyof HscTunerConfig, [number, number, number]> 
   btnX: [-400, 400, 1],
   btnY: [-200, 300, 1],
   btnScale: [0.6, 1.6, 0.01],
+  songOn: [0, 1, 1], songAtMs: [0, 3000, 10], songVol: [0, 1, 0.01],
+  woosh1On: [0, 1, 1], woosh1AtMs: [0, 3000, 10], woosh1Vol: [0, 1, 0.01],
+  woosh2On: [0, 1, 1], woosh2AtMs: [0, 3000, 10], woosh2Vol: [0, 1, 0.01],
+  revealOn: [0, 1, 1], revealAtMs: [0, 3000, 10], revealVol: [0, 1, 0.01],
+  flashAtMs: [400, 2600, 10],
+  portraitX: [-400, 400, 1], portraitY: [-400, 400, 1], portraitScale: [0.5, 2, 0.01],
+  ringX: [-400, 400, 1], ringY: [-400, 400, 1], ringSize: [120, 900, 2],
 };
 
 const KEY = 'ascent.heroceremony';

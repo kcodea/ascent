@@ -38,11 +38,8 @@ The five buckets below are ordered by when we intend to act, not by size:
 - **Quest/rune-granting heroes should wear the GRANTED art** on their power button: Fi, Coran, Runesmith,
   Guardian (the `cia-<suit>` / `cassen-<kind>` variant-art pattern already does exactly this).
 
-- **FX workbench — seamless-loop controls** (owner ask 2026-08-20, alongside the card-following `cia-hp`
-  enchant treatment that shipped). A looped def currently re-emits only once the previous pass fully finishes,
-  which reads as a pause between cycles; the workbench should expose loop-overlap / cross-fade so a continuous
-  emit loops without a visible seam. Also: **delete the now-dead `ciaEnchantedFx.ts` and the unused
-  `.enchantwisp` CSS**, both superseded by the `cia-hp` def.
+- **Delete the now-dead `ciaEnchantedFx.ts` and the unused `.enchantwisp` CSS**, both superseded by the
+  `cia-hp` def (follow-up from the 2026-08-20 card-following enchant treatment).
 
 - **PERF FIRST: `pixiFx.buffGust` redraws a `Graphics` EVERY FRAME** and is ~half of all jank — 16 of 599
   buckets carry 492 of 989 jank frames, and fps inside them collapses from ~230 to ~87. Build the geometry

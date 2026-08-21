@@ -2,6 +2,7 @@
   "version": 1,
   "id": "cia-hp",
   "duration": 900,
+  "loopMode": "seamless",
   "layers": [
     {
       "primitive": "emitter",

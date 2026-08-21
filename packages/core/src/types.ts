@@ -2369,6 +2369,10 @@ export interface CombatContext {
   deathrattleTally(side: Side): number;
   log(event: CombatEvent): void;
   living(side: Side): Minion[];
+  /** Like {@link living}, but RETAINS a body already at ≤0 HP whose death is being deferred across a multi-
+   *  volley Echo (Fel Spikes) — so a later volley / re-fire re-hits the same accumulating set. Equals
+   *  {@link living} outside a deferred-death scope. */
+  onBoard(side: Side): Minion[];
   getCard(id: string): CardDef;
   /** Every card definition the run knows about — for effects that pick a random card matching a
    *  property rather than a fixed id (Junkyard Titan → a random Magnetic minion). */

@@ -1,5 +1,39 @@
 # ASCENT — development log
 
+## 2026-08-20 — ENGINE: ANY multi-fire Echo accumulates — one deferred-death scope across every fire
+
+> ⚠️ Touches `packages/core` (Kevin's engine seam) + shifts balance — built on the owner's explicit go-ahead
+> (2026-08-20: "any amount of multi fires for any reason should be treated the same way we are treating the
+> multi fire from a gilded fel spike … units causing that dmg to aggregate should stay on board even if their
+> hp tally is at zero or below if a multifire is in mid-process"). Flagging for Kevin.
+
+The prior entry deferred deaths only for a gilded `mul` (one firing, N passes). But **Sylus / Funeral Engine /
+a golden Echohorn** re-fire the whole Deathrattle as SEPARATE triggers (`playerEchoExtras`), each re-capturing
+the board — so a Void Panther that died on the base firing had its fresh cubs mown down by the Sylus re-fire.
+This generalizes the fix so EVERY reason a rattle fires more than once accumulates identically.
+
+- **A combat-level deferred-death scope** (`withEchoDefer` / `echoDeferDepth` / `echoDeferredDeaths`) wraps a
+  death's OWN rattle firing — the base Echo (via the `onDeath` bus) **and** every `playerEchoExtras` re-fire,
+  in BOTH firing paths (the non-Rise inline block + `fireOwnDeathrattles` for Rise/Bone Throne/forced). While a
+  scope is open, `resolveEchoDeath` QUEUES a ≤0 victim; the OUTERMOST scope flushes the queue in capture order
+  once all firing is done. Only Fel-Spikes-style effects ever call `resolveEchoDeath`, so the scope is a
+  **byte-identical no-op for every other death** (proven by the determinism harness).
+- **New `ctx.onBoard(side)`** — `living` but RETAINS a ≤0-not-yet-dead body — so each fire (and gilded pass)
+  re-captures the SAME accumulating set, including bodies an earlier fire already dropped. That is what makes a
+  later volley/re-fire re-hit the dying Panther instead of skipping to its fresh cubs.
+- Net: gilded, Sylus, golden Echohorn, and any COMBINATION all pile onto one set whose combined deaths resolve
+  ONCE after the last fire (#1). A victim stays on the board at ≤0 HP for the whole multifire (#2b — "stay on
+  board even if hp ≤ 0 mid-process"), reading every volley and procing the per-volley reactors (Axeman / Leech).
+
+Verified: new `simulate.test.ts` case — a NON-gilded Fel Spikes + a Sylus vs a Void Panther: the Panther eats
+two SEPARATE fires (base + Sylus re-fire), both cubs summon, and the spray never touches a cub. Full suite
+(5933) + determinism harness (identical) + typecheck (pkgs + web) + lint (0 errors) + build:web all green.
+
+STILL PENDING (presentation, Mike's seam — needs the owner's eye at 1×): (2a) the damage NUMBER aggregating
+per fire to the final sum — the sim emits N `dmg` events (4 each), so the reads currently pop per-volley rather
+than climbing to one combined 8; and the victim deaths now land in a POST-volley step (the flush) rather than
+inside the last wave, so the replay timing my earlier FX commits tuned wants an eyeball on a live board.
+
 ## 2026-08-20 — ENGINE: Fel Spikes' multi-volley Echo accumulates — deaths defer to the last volley
 
 > ⚠️ Touches `packages/core` (Kevin's engine seam) + shifts balance — built on the owner's explicit go-ahead

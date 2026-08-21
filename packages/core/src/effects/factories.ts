@@ -3715,14 +3715,16 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     if (amount <= 0) return;
     const exc = str(params.exceptTribe);
     const passes = mul(self); // gilded → 2 sprays; each Echo re-trigger (Sylus / Echohorn) calls this again
-    // CAPTURE the victims ONCE, up front. Each spray hits this SAME set, and every death is DEFERRED to the last
-    // wave — so a body that summons tokens on death (Void Panther → two Void Cubs) creates them AFTER all the
-    // damage, and a later volley can't catch them; a low-HP victim reads EVERY volley's number and procs the
-    // per-volley demon reactors (Axeman / Leech) instead of dying to the first and vanishing (owner ruling
-    // 2026-08-20). The victims take the FULL passes × amount, one combined death at the end.
+    // CAPTURE the victims for THIS fire from what's still on the board — INCLUDING bodies a prior fire already
+    // dropped to ≤0 (their deaths are deferred by the surrounding echo scope, so `onBoard` still lists them).
+    // That is what makes ANY multi-fire accumulate: gilded's two passes and every Echo re-trigger (Sylus /
+    // golden Echohorn) all pile onto the SAME set, whose combined deaths resolve ONCE after the last fire — so
+    // a body that summons tokens on death (Void Panther → two Void Cubs) creates them AFTER all the damage and
+    // no volley can catch them, and a low-HP victim reads EVERY volley's number and procs the per-volley demon
+    // reactors (Axeman / Leech) instead of dying to the first and vanishing (owner ruling 2026-08-20).
     const victims: Minion[] = [];
     for (const sideKey of ['player', 'enemy'] as Side[]) {
-      for (const m of ctx.living(sideKey)) {
+      for (const m of ctx.onBoard(sideKey)) {
         if (sideKey === self.side && exc && (m.tribe === exc || m.tribe2 === exc || ctx.getCard(m.cardId)?.universalTribe)) continue;
         victims.push(m);
       }

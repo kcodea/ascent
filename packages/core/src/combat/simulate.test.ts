@@ -113,6 +113,35 @@ describe('simulate (handoff A.3)', () => {
     expect(felToCubs).toHaveLength(0);
   });
 
+  it("Fel Spikes' Echo defers death across a SEPARATE re-fire too — a Sylus re-trigger accumulates like gilded", () => {
+    // #1: ANY multi-fire accumulates, not just gilded. A plain (non-gilded) Fel Spikes beside a Sylus fires its
+    // Deathrattle twice as SEPARATE Echo triggers (base + 1 Sylus). The Void Panther must eat BOTH fires (the
+    // full 8) and die ONCE — its cubs summon after, and the second fire (which re-captures the board) hits the
+    // still-≤0 Panther, NOT the fresh cubs. Before the cross-fire deferral: fire 1 killed the Panther, its cubs
+    // spawned, and the Sylus re-fire sprayed the cubs.
+    const p: BoardMinion[] = [
+      { cardId: 'dm_felspikes', attack: 4, health: 1 }, // NOT gilded — one base spray…
+      { cardId: 'sylus', attack: 1, health: 50 },       // …but Sylus re-fires the whole Deathrattle once more
+      { cardId: 'sandbag', attack: 0, health: 50 },     // a non-Demon ally the spray also hits
+    ];
+    const e: BoardMinion[] = [
+      { cardId: 'manasaber', attack: 0, health: 1 }, // Void Panther — dies to the spray, summons 2 cubs
+      { cardId: 'sandbag', attack: 10, health: 50 }, // kills Fel Spikes
+    ];
+    const r = run(p, e, 3);
+    const fs = r.initial.player.find((m) => m.cardId === 'dm_felspikes')!;
+    const panther = r.initial.enemy.find((m) => m.cardId === 'manasaber')!;
+    const felToPanther = r.events.filter((ev) => ev.type === 'dmg' && ev.target === panther.uid && ev.source === fs.uid);
+    expect(felToPanther).toHaveLength(2); // base + Sylus re-fire, both landing on the SAME Panther
+    const cubSummons = r.events.filter(
+      (ev): ev is Extract<CombatEvent, { type: 'summon' }> => ev.type === 'summon' && ev.minion.cardId === 'sabercub',
+    );
+    const cubUids = new Set(cubSummons.map((ev) => ev.minion.uid));
+    expect(cubSummons).toHaveLength(2);
+    const felToCubs = r.events.filter((ev) => ev.type === 'dmg' && cubUids.has(ev.target) && ev.source === fs.uid);
+    expect(felToCubs).toHaveLength(0); // the Sylus re-fire hit the ≤0 Panther, never the fresh cubs
+  });
+
   it('Bloodlust weld: a bloodlustRally attacker gives a friendly minion its Attack on each of its own swings', () => {
     const p: BoardMinion[] = [
       { cardId: 'pack', attack: 5, health: 30, bloodlustRally: true }, // the Bloodlust target

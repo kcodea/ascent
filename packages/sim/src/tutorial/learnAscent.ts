@@ -141,7 +141,11 @@ function heroPowerReminderStep(id: string): TutorialStep {
   return {
     id, phase: 'shop', focusMode: 'action', title: 'Use Your Power',
     body: 'Preparation is free — spend it before you fight. It recharges every other turn, so use it whenever it is lit.',
-    anchors: [{ kind: 'ui', id: 'hero-power' }],
+    // Light the WARBAND too, with the arrow running power → board (owner 2026-08-21). The power is only half
+    // the instruction: it is targeted, so a player who taps it still has to know the buff goes onto one of
+    // their own minions. Spotlighting the button alone left the second half unsaid.
+    anchors: [{ kind: 'ui', id: 'hero-power' }, { kind: 'ui', id: 'warband' }],
+    connector: { from: { kind: 'ui', id: 'hero-power' }, to: { kind: 'ui', id: 'warband' }, style: 'drag' },
     gate: 'soft',
     completion: { kind: 'any', of: [{ kind: 'heroPowerUsed' }, { kind: 'not', of: { kind: 'heroPowerReady' } }] },
   };

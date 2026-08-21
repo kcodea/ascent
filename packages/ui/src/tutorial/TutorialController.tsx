@@ -422,7 +422,14 @@ export function TutorialController(): JSX.Element | null {
     // the coach panel still shows, but the whole board stays at full clarity (same treatment as combat-watch).
     const noScrim = !combatAnimating && (!!step.noScrim || anchoredButUnresolved);
     const clearScreen = combatAnimating || noScrim;
-    const bottomAnchor = combatAnimating ? new DOMRect(window.innerWidth / 2 - 1, window.innerHeight - 46, 2, 26) : null;
+    // A MODAL OWNS THE CENTRE (owner 2026-08-21: "step 36 obstructs the player's choices", "step 57 is
+    // obstructing in the middle"). While a Discover / Choose-One picker is open it fills the middle of the
+    // screen, and the coach panel — centred when a step has no anchor, or flipped up off the hand when it does
+    // — landed straight on top of the cards the player has to choose between. Park it at the bottom instead,
+    // the same treatment combat already uses, so the choice is never covered.
+    const modalOpen = !!run.discover?.length || !!run.chooseOne;
+    const parkAtBottom = combatAnimating || modalOpen;
+    const bottomAnchor = parkAtBottom ? new DOMRect(window.innerWidth / 2 - 1, window.innerHeight - 46, 2, 26) : null;
     // A dismissible free-play step whose panel the player closed with "Got it": hide the panel, keep everything
     // else (no scrim, gate still open) so they can play until they End Turn.
     const panelDismissed = !!step.dismissible && dismissed;
@@ -441,7 +448,7 @@ export function TutorialController(): JSX.Element | null {
       combat: step.phase === 'combat',
       dim: clearScreen ? 0 : undefined,
       panel: panelDismissed || heldForCombat ? undefined : {
-        anchorRect: combatAnimating ? bottomAnchor : primaryRect, // parked at the bottom while the fight plays
+        anchorRect: parkAtBottom ? bottomAnchor : primaryRect, // parked at the bottom during a fight or an open picker
         title: step.title,
         body: step.body,
         why: step.why,

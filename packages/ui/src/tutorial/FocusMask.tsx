@@ -41,9 +41,24 @@ function radiusFor(cutout: FocusCutout, w: number, h: number): number {
   }
 }
 
+/**
+ * Breathing room around a spotlit element (owner 2026-08-21: "increase the size of the spotlights, a lot of
+ * them don't fully cover certain things"). 14px was tight enough that a card's own glow/shadow, a pill's
+ * outline, or a row's overflow sat OUTSIDE the hole and stayed dimmed — the highlight read as missing the
+ * thing it was pointing at. Scales with the stage so it stays proportional at every resolution.
+ */
+const BASE_PAD = 26;
+
+/** The stage scale the rest of the UI multiplies its authored sizes by (`--scale`, set by Game.tsx). */
+function stageScale(): number {
+  if (typeof document === 'undefined') return 1;
+  const v = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--scale'));
+  return Number.isFinite(v) && v > 0 ? v : 1;
+}
+
 /** Expand a rect by its padding into the {x,y,w,h,r} the SVG rects consume. */
-function padded(cutout: FocusCutout): { x: number; y: number; w: number; h: number; r: number } {
-  const pad = cutout.padding ?? 14;
+function padded(cutout: FocusCutout, scale = 1): { x: number; y: number; w: number; h: number; r: number } {
+  const pad = (cutout.padding ?? BASE_PAD) * scale;
   const x = cutout.rect.left - pad;
   const y = cutout.rect.top - pad;
   const w = cutout.rect.width + pad * 2;
@@ -75,10 +90,13 @@ export function FocusMask({
   const scrim = combat ? Math.min(dim, 0.55) : dim;
   // A stable-enough mask id per mount; the holes are addressed within this SVG only.
   const maskId = 'tut-focus-mask';
-  const holes = cutouts.map(padded);
-  // FEATHER: the hole edges are Gaussian-blurred inside the mask, so the scrim FADES into the cutout instead of
-  // ending on a hard square line. ~11px reads as a soft vignette without letting the dim creep over the target.
-  const FEATHER = 11;
+  // FEATHER: the hole edges are Gaussian-blurred inside the mask, so the scrim FADES into the cutout instead
+  // of ending on a hard square line. A SOFTER edge than the original 11 (owner 2026-08-21: "feather more, not
+  // such harsh lines") — the blur is what turns a punched hole into a gradient rather than a cut-out
+  // rectangle. Both it and the padding scale with the stage, so the softness stays proportional.
+  const scale = stageScale();
+  const FEATHER = 22 * scale;
+  const holes = cutouts.map((c) => padded(c, scale));
 
   return (
     <div
@@ -89,11 +107,11 @@ export function FocusMask({
       <svg className="tut-focus-svg" width="100%" height="100%" preserveAspectRatio="none">
         <defs>
           {/* Generous region so the blur isn't clipped at the SVG/object bounds. */}
-          <filter id="tut-feather" x="-30%" y="-30%" width="160%" height="160%">
+          <filter id="tut-feather" x="-50%" y="-50%" width="200%" height="200%">
             <feGaussianBlur stdDeviation={FEATHER} />
           </filter>
-          <filter id="tut-feather-ring" x="-30%" y="-30%" width="160%" height="160%">
-            <feGaussianBlur stdDeviation={3} />
+          <filter id="tut-feather-ring" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur stdDeviation={6 * scale} />
           </filter>
           <mask id={maskId}>
             {/* White = visible scrim; black rounded-rects = punched-out holes, blurred for a soft feathered edge. */}

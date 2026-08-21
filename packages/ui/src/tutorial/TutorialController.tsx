@@ -144,7 +144,7 @@ export function verbsForPredicate(c: TutorialPredicate): string[] {
     case 'cardAtSlot': case 'reordered': return ['reposition'];
     case 'discovered': return []; // picking is always allowed (a sub-choice within an allowed action)
     // Board-state goals need the verbs that change the board; a spend goal needs the ways to spend.
-    case 'cardOnBoard': case 'boardCount': return ['buy', 'play'];
+    case 'cardOnBoard': case 'boardCount': return ['buy', 'play', 'sell']; // a count goal moves either way
     case 'goldSpentToZero': return ['buy', 'roll', 'upgrade', 'freeze'];
     // A KIND WE DO NOT KNOW must fall OPEN, never shut. `[]` means "block every player verb", so a predicate
     // added to the contract without a branch here would hard-lock its step — the exact failure that shipped
@@ -413,6 +413,8 @@ export function TutorialController(): JSX.Element | null {
     // step). The scrim + spotlight return for the post-combat debrief once the fight has settled. The coach
     // panel drops to the bottom of the screen so it never covers the fighting minions it's asking you to watch.
     const combatAnimating = step.phase === 'combat' && !run.combatSettled;
+    // A Discover / Choose-One picker owns the centre of the screen while it is open.
+    const modalOpen = !!run.discover?.length || !!run.chooseOne;
     // A step that ASKED for a spotlight but resolved none — a phase mismatch, or an anchor whose card is not
     // on screen — used to dim the entire board at 0.7 with nothing highlighted, which is indistinguishable
     // from a broken overlay and is exactly the state a stranded step terminates in. Keep the panel, drop the
@@ -420,9 +422,17 @@ export function TutorialController(): JSX.Element | null {
     const anchoredButUnresolved = step.anchors.length > 0 && cutouts.length === 0;
     // NO-SCRIM steps (the independence rounds): the player is driving, so drop the dim + spotlight entirely —
     // the coach panel still shows, but the whole board stays at full clarity (same treatment as combat-watch).
-    const noScrim = !combatAnimating && (!!step.noScrim || anchoredButUnresolved);
+    // NO SCRIM while a picker owns the screen (owner 2026-08-21: "step 36 should have no scrim so the
+    // player's screen isn't dark"). The Discover overlay already dims the board behind itself; the coach's
+    // scrim stacked a second dim on top, so the cards the player is choosing between sat under two layers.
+    const noScrim = !combatAnimating && (!!step.noScrim || anchoredButUnresolved || modalOpen);
     const clearScreen = combatAnimating || noScrim;
-    const bottomAnchor = combatAnimating ? new DOMRect(window.innerWidth / 2 - 1, window.innerHeight - 46, 2, 26) : null;
+    // A MODAL OWNS THE CENTRE (owner 2026-08-21: "step 36 obstructs the player's choices", "step 57 is
+    // obstructing in the middle"). The coach panel — centred when a step has no anchor, or flipped up off the
+    // hand when it does — landed straight on the cards being chosen between. Park it at the bottom instead,
+    // the same treatment combat already uses, so the choice is never covered.
+    const parkAtBottom = combatAnimating || modalOpen;
+    const bottomAnchor = parkAtBottom ? new DOMRect(window.innerWidth / 2 - 1, window.innerHeight - 46, 2, 26) : null;
     // A dismissible free-play step whose panel the player closed with "Got it": hide the panel, keep everything
     // else (no scrim, gate still open) so they can play until they End Turn.
     const panelDismissed = !!step.dismissible && dismissed;
@@ -441,7 +451,7 @@ export function TutorialController(): JSX.Element | null {
       combat: step.phase === 'combat',
       dim: clearScreen ? 0 : undefined,
       panel: panelDismissed || heldForCombat ? undefined : {
-        anchorRect: combatAnimating ? bottomAnchor : primaryRect, // parked at the bottom while the fight plays
+        anchorRect: parkAtBottom ? bottomAnchor : primaryRect, // parked at the bottom during a fight or an open picker
         title: step.title,
         body: step.body,
         why: step.why,

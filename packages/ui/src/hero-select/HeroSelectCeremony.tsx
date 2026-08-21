@@ -114,7 +114,6 @@ export function HeroSelectCeremony({ state, dispatch, cardEls }: Props) {
      once" instead of "half the ceremony never happens". */
   const didExitsRef = useRef(false);
   const didFocusRef = useRef(false);
-  const didMaterializeFxRef = useRef(false);
   const layerRef = useRef<HTMLDivElement | null>(null);
   /** The dedicated Pixi controller (§11-§12). Best-effort by contract: a failed init leaves an inert no-op,
    *  and every call below is safe against that — the DOM ceremony IS the fallback (§19). */
@@ -200,11 +199,17 @@ export function HeroSelectCeremony({ state, dispatch, cardEls }: Props) {
     });
     // The arrival burst rides the same clock as everything else (§12.1); ambience begins right after it
     // and holds until materialization thins it (§12.2). Both are no-ops if Pixi failed to init.
-    at(t.arrivalAtMs, () => { fxRef.current?.playArrival(); fxRef.current?.beginAmbient(); });
-    // CEREMONY STINGERS + the circular-portrait FLASH (owner assets 2026-08-21). Config, not timing-object:
-    // each sound has its own gate/mark/volume in the 🎭 tuner; prod plays the shipped defaults. All of it is
-    // §15-safe — a missing or still-decoding clip stays silent and never touches the visual timeline.
+    // CEREMONY STINGERS + the circular-portrait FLASH + the NAMED PIXI CUES (owner asks 2026-08-21). Config,
+    // not timing-object: each sound and each effect has its own gate/mark(/duration) in the 🎭 tuner; prod
+    // plays the shipped defaults. All §15-safe — a missing clip or a failed Pixi init never touches the
+    // visual timeline.
     const fx = getHeroCeremonyConfig();
+    if (fx.ring1On >= 1) at(fx.ring1AtMs, () => fxRef.current?.playRingBurst1(fx.ring1Ms));
+    if (fx.sparksOn >= 1) at(fx.sparksAtMs, () => fxRef.current?.playSparks(fx.sparksMs));
+    if (fx.motesOn >= 1) at(fx.motesAtMs, () => fxRef.current?.beginAmbient());
+    if (fx.sweepOn >= 1) at(fx.sweepAtMs, () => fxRef.current?.playSweep(fx.sweepMs));
+    if (fx.dustOn >= 1) at(fx.dustAtMs, () => fxRef.current?.playDust(fx.dustMs));
+    if (fx.ring2On >= 1) at(fx.ring2AtMs, () => fxRef.current?.playRingBurst2(fx.ring2Ms));
     if (fx.songOn >= 1) at(fx.songAtMs, () => sfx.ceremony('asiansong', fx.songVol));
     if (fx.woosh1On >= 1) at(fx.woosh1AtMs, () => sfx.ceremony('woosh1', fx.woosh1Vol));
     if (fx.woosh2On >= 1) at(fx.woosh2AtMs, () => sfx.ceremony('woosh2', fx.woosh2Vol));
@@ -255,12 +260,6 @@ export function HeroSelectCeremony({ state, dispatch, cardEls }: Props) {
   /* ---- Materializing (§13): measure the settled frame ONCE (the art crop), derive the portrait bounds
      (a gentle expansion beyond the card crop — "the art escapes the card"), and let render + the effect
      below run the crossfade. No art → skip entirely and keep the framed clone (§19). */
-  useEffect(() => {
-    if (!crossed('materializing') || didMaterializeFxRef.current) return;
-    didMaterializeFxRef.current = true;
-    fxRef.current?.playMaterialize(); // §12.3-§12.4, art or not
-  }, [state.phase]);
-
   useEffect(() => {
     if (!crossed('materializing') || portrait || !art) return;
     const frame = frameRef.current;

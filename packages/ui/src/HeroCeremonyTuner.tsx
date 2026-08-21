@@ -24,7 +24,6 @@ const SPECS: Record<keyof HscTunerConfig, [string, TunerUnit | undefined, string
   focusDelayMs:      ['Travel starts at', 'ms', 'When the selected clone starts moving to center.', 'Focus'],
   focusMs:           ['Travel duration', 'ms', 'Clone travel to the overshoot.', 'Focus'],
   settleMs:          ['Settle', 'ms', 'Overshoot → final position.', 'Focus'],
-  arrivalAtMs:       ['Arrival burst at', 'ms', 'When the Pixi arrival burst fires.', 'Focus'],
   voiceAtMs:         ['Voiceline at', 'ms', 'When sfx.heroSelect plays (silent until hero audio exists).', 'Voice'],
   transformAtMs:     ['Transform at', 'ms', 'When card chrome starts dissolving into the portrait.', 'Transform'],
   transformMs:       ['Transform duration', 'ms', 'Dissolve + portrait materialization.', 'Transform'],
@@ -55,6 +54,23 @@ const SPECS: Record<keyof HscTunerConfig, [string, TunerUnit | undefined, string
   revealAtMs:        ['Reveal at', 'ms', 'When the reveal sound plays (pair it with Flash at).', 'SFX — Reveal'],
   revealVol:         ['Reveal volume', '×', 'Multiplier on the ceremony bus gain.', 'SFX — Reveal'],
   flashAtMs:         ['Flash at', 'ms', 'When the flash fires: portrait snaps circular inside the ring.', 'Flash'],
+  ring1On:           ['Ring burst 1', undefined, 'Arrival: bloom + one expanding ring + the small edge flash.', 'FX — Ring burst 1'],
+  ring1AtMs:         ['Burst 1 at', 'ms', 'When ring burst 1 fires.', 'FX — Ring burst 1'],
+  ring1Ms:           ['Burst 1 duration', 'ms', 'The expanding ring’s full run (bloom and flash scale with it).', 'FX — Ring burst 1'],
+  sparksOn:          ['Sparks', undefined, 'Accent sparks + rune fragments off the card perimeter.', 'FX — Sparks'],
+  sparksAtMs:        ['Sparks at', 'ms', 'When the sparks burst fires.', 'FX — Sparks'],
+  sparksMs:          ['Sparks duration', 'ms', 'How long the sparks and fragments live.', 'FX — Sparks'],
+  motesOn:           ['Motes', undefined, 'The ambient hold: slow motes, wisps, the behind-portrait pulse.', 'FX — Motes'],
+  motesAtMs:         ['Motes from', 'ms', 'When the ambient hold begins (it runs until launch).', 'FX — Motes'],
+  sweepOn:           ['Line sweep', undefined, 'The light sweep gliding lower-left → upper-right across the art.', 'FX — Line sweep'],
+  sweepAtMs:         ['Sweep at', 'ms', 'When the sweep starts.', 'FX — Line sweep'],
+  sweepMs:           ['Sweep duration', 'ms', 'The sweep’s glide time across the artwork.', 'FX — Line sweep'],
+  dustOn:            ['Dust', undefined, 'Frame-boundary dissipation dust + fragments + inward wisps.', 'FX — Dust'],
+  dustAtMs:          ['Dust at', 'ms', 'When the dissipation dust bursts.', 'FX — Dust'],
+  dustMs:            ['Dust duration', 'ms', 'How long the dust cloud lives.', 'FX — Dust'],
+  ring2On:           ['Ring burst 2', undefined, 'The finish: a thin ring contracting onto the hero.', 'FX — Ring burst 2'],
+  ring2AtMs:         ['Burst 2 at', 'ms', 'When ring burst 2 fires (pairs well with Flash at).', 'FX — Ring burst 2'],
+  ring2Ms:           ['Burst 2 duration', 'ms', 'The contracting ring’s full run.', 'FX — Ring burst 2'],
   portraitX:         ['Art horizontal', 'px', 'Nudge the materialized hero artwork off center.', 'Hero art'],
   portraitY:         ['Art vertical', 'px', 'Negative lifts the artwork.', 'Hero art'],
   portraitScale:     ['Art size', '×', 'Scales the artwork’s final bounds around its center.', 'Hero art'],
@@ -64,13 +80,13 @@ const SPECS: Record<keyof HscTunerConfig, [string, TunerUnit | undefined, string
 };
 
 /** The four per-sound gates render as switches, not sliders. */
-const TOGGLES = new Set<keyof HscTunerConfig>(['songOn', 'woosh1On', 'woosh2On', 'revealOn']);
+const TOGGLES = new Set<keyof HscTunerConfig>(['songOn', 'woosh1On', 'woosh2On', 'revealOn', 'ring1On', 'sparksOn', 'motesOn', 'sweepOn', 'dustOn', 'ring2On']);
 
 /** Declaration order IS render order; groups render together under their heading. */
 const ORDER: (keyof HscTunerConfig)[] = [
   'pressMs', 'headerExitDelayMs',
   'optionExitDelayMs', 'optionExitMs', 'optionStaggerMs',
-  'focusDelayMs', 'focusMs', 'settleMs', 'arrivalAtMs',
+  'focusDelayMs', 'focusMs', 'settleMs',
   'voiceAtMs',
   'transformAtMs', 'transformMs',
   'identityAtMs', 'readyAtMs', 'readyMs',
@@ -80,6 +96,12 @@ const ORDER: (keyof HscTunerConfig)[] = [
   'woosh2On', 'woosh2AtMs', 'woosh2Vol',
   'revealOn', 'revealAtMs', 'revealVol',
   'flashAtMs',
+  'ring1On', 'ring1AtMs', 'ring1Ms',
+  'sparksOn', 'sparksAtMs', 'sparksMs',
+  'motesOn', 'motesAtMs',
+  'sweepOn', 'sweepAtMs', 'sweepMs',
+  'dustOn', 'dustAtMs', 'dustMs',
+  'ring2On', 'ring2AtMs', 'ring2Ms',
   'portraitX', 'portraitY', 'portraitScale',
   'ringX', 'ringY', 'ringSize',
   'nameX', 'nameY', 'nameSize',

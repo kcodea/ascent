@@ -24,8 +24,6 @@ export interface HeroCeremonyTiming {
   focusMs: number;
   /** Overshoot → final settle duration. */
   settleMs: number;
-  /** The arrival burst fires (Pixi layer; no-op without it). */
-  arrivalAtMs: number;
   /** `sfx.heroSelect(heroId)` plays — the tagline moment. */
   voiceAtMs: number;
   /** Card chrome starts dissolving; portrait starts materializing. */
@@ -56,7 +54,6 @@ export const HERO_CEREMONY_TIMING: HeroCeremonyTiming = {
   focusDelayMs: 120,
   focusMs: 400,
   settleMs: 200,
-  arrivalAtMs: 880,
   voiceAtMs: 700,
   transformAtMs: 825,
   transformMs: 350,

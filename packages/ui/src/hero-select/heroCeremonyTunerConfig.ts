@@ -50,6 +50,18 @@ export interface HscFx {
   revealOn: number; revealAtMs: number; revealVol: number;
   /** When the FLASH fires: the portrait snaps circular inside the ring, the ring appears (ms from click). */
   flashAtMs: number;
+  /** RING BURST 1 — arrival: bloom + one thin expanding ring + the small edge flash. */
+  ring1On: number; ring1AtMs: number; ring1Ms: number;
+  /** SPARKS — accent sparks + rune fragments off the card perimeter. */
+  sparksOn: number; sparksAtMs: number; sparksMs: number;
+  /** MOTES — the ambient hold (slow motes/wisps + the behind-portrait pulse), from here until launch. */
+  motesOn: number; motesAtMs: number;
+  /** LINE SWEEP — the light sweep gliding lower-left → upper-right across the artwork. */
+  sweepOn: number; sweepAtMs: number; sweepMs: number;
+  /** DUST — frame-boundary dissipation dust + fragments + brief inward wisps. */
+  dustOn: number; dustAtMs: number; dustMs: number;
+  /** RING BURST 2 — the finish ring contracting onto the hero (ambient thins after it). */
+  ring2On: number; ring2AtMs: number; ring2Ms: number;
   /** Hero artwork (the materialized portrait) — offsets (px) + scale (×) on its computed final bounds. */
   portraitX: number; portraitY: number; portraitScale: number;
   /** The heroportrait ring image — offsets (px) off the portrait center + diameter (px). */
@@ -73,6 +85,14 @@ const FX_DEFAULTS: HscFx = {
   woosh2On: 1, woosh2AtMs: 640, woosh2Vol: 0.9,
   revealOn: 1, revealAtMs: 1320, revealVol: 1,
   flashAtMs: 1320,
+  // Pixi cues, placed on the current shipped timeline: bursts on the settle, sweep + dust with the
+  // transform (825), ring 2 paired with the flash.
+  ring1On: 1, ring1AtMs: 880, ring1Ms: 520,
+  sparksOn: 1, sparksAtMs: 880, sparksMs: 580,
+  motesOn: 1, motesAtMs: 950,
+  sweepOn: 1, sweepAtMs: 825, sweepMs: 420,
+  dustOn: 1, dustAtMs: 825, dustMs: 850,
+  ring2On: 1, ring2AtMs: 1320, ring2Ms: 420,
   portraitX: 0, portraitY: 0, portraitScale: 1.26,
   ringX: 0, ringY: 0, ringSize: 704,
 };
@@ -90,7 +110,6 @@ export const HSC_RANGES: Record<keyof HscTunerConfig, [number, number, number]> 
   focusDelayMs: [0, 500, 10],
   focusMs: [200, 1200, 20],
   settleMs: [40, 400, 10],
-  arrivalAtMs: [200, 1500, 20],
   voiceAtMs: [200, 2000, 20],
   transformAtMs: [400, 2500, 25],
   transformMs: [200, 1500, 25],
@@ -113,6 +132,12 @@ export const HSC_RANGES: Record<keyof HscTunerConfig, [number, number, number]> 
   woosh2On: [0, 1, 1], woosh2AtMs: [0, 3000, 10], woosh2Vol: [0, 1, 0.01],
   revealOn: [0, 1, 1], revealAtMs: [0, 3000, 10], revealVol: [0, 1, 0.01],
   flashAtMs: [400, 2600, 10],
+  ring1On: [0, 1, 1], ring1AtMs: [0, 3000, 10], ring1Ms: [120, 1500, 10],
+  sparksOn: [0, 1, 1], sparksAtMs: [0, 3000, 10], sparksMs: [120, 1500, 10],
+  motesOn: [0, 1, 1], motesAtMs: [0, 3000, 10],
+  sweepOn: [0, 1, 1], sweepAtMs: [0, 3000, 10], sweepMs: [120, 1500, 10],
+  dustOn: [0, 1, 1], dustAtMs: [0, 3000, 10], dustMs: [150, 2000, 10],
+  ring2On: [0, 1, 1], ring2AtMs: [0, 3000, 10], ring2Ms: [120, 1500, 10],
   portraitX: [-400, 400, 1], portraitY: [-400, 400, 1], portraitScale: [0.5, 2, 0.01],
   ringX: [-400, 400, 1], ringY: [-400, 400, 1], ringSize: [120, 900, 2],
 };

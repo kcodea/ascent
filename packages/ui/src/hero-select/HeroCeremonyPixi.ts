@@ -130,9 +130,18 @@ export interface HeroCeremonyFxConfig {
 export interface HeroCeremonyFxController {
   mount(host: HTMLElement): Promise<void>;
   setGeometry(config: HeroCeremonyFxConfig): void;
-  playArrival(): void;
+  /** RING BURST 1 — the arrival: soft bloom + one thin expanding ring + the small edge-weighted flash. */
+  playRingBurst1(durMs: number): void;
+  /** SPARKS — accent sparks + rune fragments bursting off the card perimeter. */
+  playSparks(durMs: number): void;
+  /** MOTES — the ambient hold (slow motes + wisps + the behind-portrait pulse). Runs until stopped. */
   beginAmbient(): void;
-  playMaterialize(): void;
+  /** LINE SWEEP — the light sweep gliding lower-left → upper-right across the artwork. */
+  playSweep(durMs: number): void;
+  /** DUST — frame-boundary dissipation dust + fragments + brief inward wisps. */
+  playDust(durMs: number): void;
+  /** RING BURST 2 — the finish: a thin ring contracting onto the hero; ambient density drops after it. */
+  playRingBurst2(durMs: number): void;
   stopAmbient(): void;
   playLaunch(): Promise<void>;
   destroy(): void;
@@ -267,38 +276,49 @@ class HeroCeremonyFx implements HeroCeremonyFxController {
     if (w) this.hostWidth = w;
   }
 
-  // ─── §12.1 arrival burst ────────────────────────────────────────────────────────────────────────────────
+  // ─── §12.1 arrival burst, split into the 🎭 tuner's named effects (owner ask 2026-08-21). Every hardcoded
+  //     lifetime became a fraction of the effect's tunable duration, so the sliders stretch the whole thing
+  //     rather than truncating its tail. ──────────────────────────────────────────────────────────────────
 
-  playArrival(): void {
+  playRingBurst1(durMs: number): void {
     const cfg = this.config;
     if (!this.ready() || !cfg) return;
+    const dur = Math.max(80, durMs);
     const accent = cfg.accentColor;
     const card = cfg.cardBounds;
     const { x: cx, y: cy } = cfg.center;
     const cardSpan = Math.max(card.width, card.height, 120);
+    // soft bloom behind the card — a broad, dim glow that swells and fades
+    this.spawnFlash(this.glowTex, cx, cy, accent, 0.32, cardSpan / 40, cardSpan / 26, dur * 1.08);
+    // one thin expanding ring — the effect's namesake, exactly `dur` long
+    this.spawnRing(cx, cy, cardSpan * 0.30, cardSpan * 0.85, dur, accent, 0.8);
+    // small center flash — edge-weighted: kept small + dim so it never obscures the face (§12.1)
+    this.spawnFlash(this.glowTex, cx, cy - card.height * 0.32, 0xfff2d8, 0.28, 0.6, 1.5, dur * 0.58);
+    this.wake();
+  }
 
-    // 1. soft bloom behind the card — a broad, dim glow that swells and fades
-    this.spawnFlash(this.glowTex, cx, cy, accent, 0.32, cardSpan / 40, cardSpan / 26, 560);
-    // 2. one thin expanding ring
-    this.spawnRing(cx, cy, cardSpan * 0.30, cardSpan * 0.85, 520, accent, 0.8);
-    // 3. small center flash — edge-weighted: kept small + dim so it never obscures the face (§12.1)
-    this.spawnFlash(this.glowTex, cx, cy - card.height * 0.32, 0xfff2d8, 0.28, 0.6, 1.5, 300);
-    // 4. accent sparks around the card perimeter
+  playSparks(durMs: number): void {
+    const cfg = this.config;
+    if (!this.ready() || !cfg) return;
+    const dur = Math.max(80, durMs);
+    const accent = cfg.accentColor;
+    const card = cfg.cardBounds;
+    // accent sparks around the card perimeter
     for (const p of perimeterSpawnPoints(card, budgetFor('arrivalSparks', this.hostWidth))) {
       const speed = 90 + Math.random() * 170;
       this.spawnParticle('burst', this.sparkTex, p.x, p.y, accent, {
         vx: p.nx * speed + (Math.random() - 0.5) * 40,
         vy: p.ny * speed + (Math.random() - 0.5) * 40,
-        drag: 0.12, life: 380 + Math.random() * 200,
+        drag: 0.12, life: dur * (0.66 + Math.random() * 0.34),
         fromScale: 0.7 + Math.random() * 0.5, toScale: 0.1, peakAlpha: 0.9,
       });
     }
-    // 5. a few rune fragments rotating outward
+    // a few rune fragments rotating outward
     for (const p of perimeterSpawnPoints(card, budgetFor('runeFragments', this.hostWidth))) {
       const speed = 60 + Math.random() * 90;
       this.spawnParticle('burst', this.fragTex, p.x, p.y, accent, {
         vx: p.nx * speed, vy: p.ny * speed - 20,
-        drag: 0.25, life: 460 + Math.random() * 140, gravity: 60,
+        drag: 0.25, life: dur * (0.76 + Math.random() * 0.24), gravity: 60,
         fromScale: 0.8 + Math.random() * 0.4, toScale: 0.4, peakAlpha: 0.85,
         spin: (Math.random() - 0.5) * 6,
       });
@@ -325,16 +345,23 @@ class HeroCeremonyFx implements HeroCeremonyFxController {
     }
   }
 
-  // ─── §12.3 + §12.4 frame dissipation → materialization finish ───────────────────────────────────────────
+  // ─── §12.3 + §12.4, split into the 🎭 tuner's named effects: LINE SWEEP, DUST, RING BURST 2 — each
+  //     scheduled independently by the ceremony's runner instead of one composite with baked offsets. ─────
 
-  playMaterialize(): void {
+  playSweep(durMs: number): void {
     const cfg = this.config;
     if (!this.ready() || !cfg) return;
+    // light sweep, lower-left → upper-right across the artwork (§12.3)
+    this.spawnSweep(cfg.portraitBounds, Math.max(80, durMs));
+    this.wake();
+  }
+
+  playDust(durMs: number): void {
+    const cfg = this.config;
+    if (!this.ready() || !cfg) return;
+    const dur = Math.max(120, durMs);
     const accent = cfg.accentColor;
     const card = cfg.cardBounds;
-    const art = cfg.portraitBounds;
-    const { x: cx, y: cy } = cfg.center;
-
     // frame-boundary dust + fragments, outward (§12.3)
     const dust = budgetFor('dissipationDust', this.hostWidth);
     for (const p of perimeterSpawnPoints(card, dust)) {
@@ -342,19 +369,17 @@ class HeroCeremonyFx implements HeroCeremonyFxController {
       this.spawnParticle('dust', this.sparkTex, p.x, p.y, Math.random() < 0.5 ? accent : 0xd8d2c4, {
         vx: p.nx * speed + (Math.random() - 0.5) * 30,
         vy: p.ny * speed - 20 - Math.random() * 30, // slight lift — dissipating, not falling
-        drag: 0.3, life: 500 + Math.random() * 350,
+        drag: 0.3, life: dur * (0.6 + Math.random() * 0.4),
         fromScale: 0.35 + Math.random() * 0.4, toScale: 0.05, peakAlpha: 0.7,
       });
     }
     for (const p of perimeterSpawnPoints(card, Math.max(3, Math.floor(budgetFor('runeFragments', this.hostWidth) / 2)))) {
       this.spawnParticle('dust', this.fragTex, p.x, p.y, accent, {
         vx: p.nx * (50 + Math.random() * 60), vy: p.ny * 50 - 30,
-        drag: 0.3, life: 550 + Math.random() * 200, gravity: 40,
+        drag: 0.3, life: dur * (0.65 + Math.random() * 0.25), gravity: 40,
         fromScale: 0.7, toScale: 0.3, peakAlpha: 0.7, spin: (Math.random() - 0.5) * 4,
       });
     }
-    // light sweep, lower-left → upper-right across the artwork (§12.3)
-    this.spawnSweep(art, 420);
     // brief inward wisps masking the portrait transition (§12.3)
     const wisps = Math.max(4, Math.floor(budgetFor('ambientMotes', this.hostWidth) / 3));
     for (const p of perimeterSpawnPoints(card, wisps)) {
@@ -362,20 +387,24 @@ class HeroCeremonyFx implements HeroCeremonyFxController {
       const oy = p.y + p.ny * 30;
       this.spawnParticle('wisp', this.wispTex, ox, oy, 0xe8e2d4, {
         vx: -p.nx * 80, vy: -p.ny * 80,
-        drag: 0.5, life: 420 + Math.random() * 160,
+        drag: 0.5, life: dur * (0.5 + Math.random() * 0.2),
         fromScale: 0.9, toScale: 0.5, peakAlpha: 0.35, fadeIn: true,
         spin: 0,
       }, Math.atan2(-p.ny, -p.nx));
     }
-    // materialization finish (§12.4), timed off the ticker: a thin ring contracting onto the hero, then a
-    // restrained idle — ambient density drops rather than stopping outright.
-    this.timers.push({
-      left: 480,
-      fn: () => {
-        this.spawnRing(cx, cy, Math.max(card.width, card.height) * 0.75, Math.min(art.width, art.height) * 0.35, 420, accent, 0.6);
-        this.ambientDensity = 0.5;
-      },
-    });
+    this.wake();
+  }
+
+  playRingBurst2(durMs: number): void {
+    const cfg = this.config;
+    if (!this.ready() || !cfg) return;
+    const card = cfg.cardBounds;
+    const art = cfg.portraitBounds;
+    const { x: cx, y: cy } = cfg.center;
+    // the §12.4 finish: a thin ring contracting onto the hero, then a restrained idle — ambient density
+    // drops rather than stopping outright.
+    this.spawnRing(cx, cy, Math.max(card.width, card.height) * 0.75, Math.min(art.width, art.height) * 0.35, Math.max(80, durMs), cfg.accentColor, 0.6);
+    this.ambientDensity = 0.5;
     this.wake();
   }
 

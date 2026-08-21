@@ -451,8 +451,13 @@ export function HeroSelectCeremony({ state, dispatch, cardEls }: Props) {
           the staggered entrances are CSS animations delayed by timing-object offsets. */}
       {materialized && (
         <div className="hsc-identity" style={{ top: dest.top + dest.height + 18 }}>
-          <div className="hsc-name">{hero.name}</div>
-          <div className="hsc-power">{hero.power.name}</div>
+          {/* The PLATE (owner ask 2026-08-21): a dark gradient pill the name + power sit inside. It takes the
+              tuner's Name offsets — moving "the name" moves the plate with both lines riding it — while the
+              Power offsets position the power line WITHIN the plate. */}
+          <div className="hsc-plate">
+            <div className="hsc-name">{hero.name}</div>
+            <div className="hsc-power">{hero.power.name}</div>
+          </div>
           <button
             ref={startBtnRef}
             className="hsc-start pressable"

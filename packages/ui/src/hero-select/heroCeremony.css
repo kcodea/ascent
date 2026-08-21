@@ -128,18 +128,32 @@
    ARE the shipped values (prod never sets the vars). Offsets ride relative left/top and size rides
    font-size / zoom on purpose: the entrances animate transform (`hscRise`), which would stomp a static
    transform-based nudge. */
-.hsc-name {
+/* The PLATE: a dark gradient pill the name + power sit inside (owner ask 2026-08-21). It carries the
+   tuner's Name offsets, so "move the name" moves the plate and both lines ride it; the power line's own
+   offsets reposition it WITHIN the plate. Static gradient paint — only opacity enters (hscRise). */
+.hsc-plate {
   position: relative;
-  left: calc(var(--hsc-namex, 0) * 1px); top: calc(var(--hsc-namey, -188) * 1px);
-  font-family: var(--font-title); font-weight: 900; font-size: calc(var(--hsc-namesize, 53) * 1px); letter-spacing: 0.06em;
+  left: calc(var(--hsc-namex, 0) * 1px); top: calc(var(--hsc-namey, -271) * 1px);
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 10px 46px 14px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(16, 12, 9, 0.88) 0%, rgba(24, 18, 13, 0.72) 55%, rgba(16, 12, 9, 0.42) 100%);
+  box-shadow: inset 0 0 0 1px rgba(246, 224, 168, 0.14), 0 6px 24px rgba(0, 0, 0, 0.45);
+  opacity: 0;
+  animation: hscRise 0.36s ease var(--hsc-identity-delay, 500ms) forwards;
+}
+.hsc-name {
+  font-family: var(--font-title); font-weight: 900; font-size: calc(var(--hsc-namesize, 80) * 1px); letter-spacing: 0.06em;
   color: #f6efe2; text-shadow: 0 3px 12px rgba(0, 0, 0, 0.7);
   opacity: 0;
   animation: hscRise 0.36s ease var(--hsc-identity-delay, 500ms) forwards;
 }
 .hsc-power {
   position: relative;
-  left: calc(var(--hsc-powerx, 0) * 1px); top: calc(var(--hsc-powery, -194) * 1px);
-  font-family: var(--font-ui); font-weight: 800; font-size: calc(var(--hsc-powersize, 16) * 1px); letter-spacing: 0.14em;
+  /* Inside the plate the power's natural spot is directly under the name, so the tuned offset applies
+     RELATIVE to the plate: (powerY − nameY), keeping the two sliders' meanings from the pre-plate era. */
+  left: calc(var(--hsc-powerx, 0) * 1px); top: calc((var(--hsc-powery, -294) - var(--hsc-namey, -271)) * 1px);
+  font-family: var(--font-ui); font-weight: 800; font-size: calc(var(--hsc-powersize, 22) * 1px); letter-spacing: 0.14em;
   text-transform: uppercase; color: color-mix(in srgb, var(--acc) 80%, #fff);
   text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
   opacity: 0;
@@ -148,8 +162,8 @@
 .hsc-start {
   pointer-events: auto;
   position: relative;
-  left: calc(var(--hsc-btnx, 0) * 1px); top: calc(var(--hsc-btny, -161) * 1px);
-  zoom: var(--hsc-btnscale, 1.23);
+  left: calc(var(--hsc-btnx, 0) * 1px); top: calc(var(--hsc-btny, -135) * 1px);
+  zoom: var(--hsc-btnscale, 1.55);
   margin-top: 16px;
   font-family: var(--font-ui); font-weight: 800; font-size: 19px; letter-spacing: 0.12em;
   text-transform: uppercase; color: #fff;

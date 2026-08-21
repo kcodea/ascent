@@ -8,7 +8,7 @@ import {
   type HeroCeremonyState, type HeroCeremonyEvent, type HeroCeremonyPhase, type RectSnapshot,
 } from './heroCeremonyMachine';
 import { destinationRect, exitVector, focusKeyframes, snapshotRect, transformTo } from './heroCeremonyGeometry';
-import { ceremonyTiming } from './heroCeremonyTiming';
+import { ceremonyAdvanceSchedule, ceremonyTiming } from './heroCeremonyTiming';
 import { requestLaunch } from './heroLaunchController';
 import { getHeroCeremonyConfig } from './heroCeremonyTunerConfig';
 import ringArt from './heroportrait.png';
@@ -191,14 +191,18 @@ export function HeroSelectCeremony({ state, dispatch, cardEls }: Props) {
       const id = setTimeout(() => { if (!ac.signal.aborted) fn(); }, ms);
       ac.signal.addEventListener('abort', () => clearTimeout(id));
     };
-    at(t.optionExitDelayMs, () => dispatch({ type: 'advance', to: 'dismissing' }));
-    at(t.focusDelayMs, () => dispatch({ type: 'advance', to: 'focusing' }));
-    at(t.voiceAtMs, () => {
-      dispatch({ type: 'advance', to: 'voicing' });
-      sfx.heroSelect(heroId); // missing audio stays silent and never alters the timeline (§15)
-    });
-    // The arrival burst rides the same clock as everything else (§12.1); ambience begins right after it
-    // and holds until materialization thins it (§12.2). Both are no-ops if Pixi failed to init.
+    // Phase advances come from the MONOTONIC schedule (ceremonyAdvanceSchedule): the machine only accepts
+    // single forward steps, and five independent sliders could order the advance timers illegally — sliding
+    // the voiceline past the transform wedged the whole ceremony (hit live 2026-08-21). Equal marks fire in
+    // registration order, which is phase order.
+    const sched = ceremonyAdvanceSchedule(t);
+    at(sched.dismissAt, () => dispatch({ type: 'advance', to: 'dismissing' }));
+    at(sched.focusAt, () => dispatch({ type: 'advance', to: 'focusing' }));
+    at(sched.voicePhaseAt, () => dispatch({ type: 'advance', to: 'voicing' }));
+    at(sched.materializeAt, () => dispatch({ type: 'advance', to: 'materializing' }));
+    at(sched.readyAt, () => dispatch({ type: 'advance', to: 'ready' }));
+    // The voiceline is AUDIO, not a phase driver — it plays at the raw mark wherever the owner slides it;
+    // missing audio stays silent and never alters the timeline (§15).
     // CEREMONY STINGERS + the circular-portrait FLASH + the NAMED PIXI CUES (owner asks 2026-08-21). Config,
     // not timing-object: each sound and each effect has its own gate/mark(/duration) in the 🎭 tuner; prod
     // plays the shipped defaults. All §15-safe — a missing clip or a failed Pixi init never touches the
@@ -215,9 +219,7 @@ export function HeroSelectCeremony({ state, dispatch, cardEls }: Props) {
     if (fx.woosh2On >= 1) at(fx.woosh2AtMs, () => sfx.ceremony('woosh2', fx.woosh2Vol));
     if (fx.revealOn >= 1) at(fx.revealAtMs, () => sfx.ceremony('ceremonyrevealsound', fx.revealVol));
     at(fx.flashAtMs, () => setFlashed(true));
-    at(t.transformAtMs, () => dispatch({ type: 'advance', to: 'materializing' }));
-    // `ready` means "the button's entrance has completed and it is interactive" — hence + readyMs (§14).
-    at(t.readyAtMs + t.readyMs, () => dispatch({ type: 'advance', to: 'ready' }));
+    at(t.voiceAtMs, () => sfx.heroSelect(heroId));
     return () => ac.abort();
     // (deps intentionally omitted — see the comment above)
   }, []);

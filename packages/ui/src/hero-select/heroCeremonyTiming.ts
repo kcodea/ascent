@@ -64,6 +64,27 @@ export const HERO_CEREMONY_TIMING: HeroCeremonyTiming = {
   launchRevealMs: 360,
 };
 
+/**
+ * The PHASE-ADVANCE schedule, made monotonic BY CONSTRUCTION (fix 2026-08-21). The machine only accepts
+ * single forward steps, so five independent sliders could order the advance timers illegally — sliding
+ * `voiceAtMs` past `transformAtMs` made the materializing advance fire from `focusing`, the reducer
+ * (correctly) rejected the skip, and the ceremony wedged with no transform and no Start Game. Each advance
+ * now lands no earlier than the one before it (equal marks fire in registration order, which is phase
+ * order), and the VOICELINE ITSELF is decoupled — it is audio, scheduled at the raw `voiceAtMs`, never a
+ * phase driver. The `voicing` phase mark is additionally kept inside its slot (≤ the transform) so moving
+ * the voice late can delay only the sound, never the visuals.
+ */
+export function ceremonyAdvanceSchedule(t: HeroCeremonyTiming): {
+  dismissAt: number; focusAt: number; voicePhaseAt: number; materializeAt: number; readyAt: number;
+} {
+  const dismissAt = Math.max(0, t.optionExitDelayMs);
+  const focusAt = Math.max(t.focusDelayMs, dismissAt);
+  const voicePhaseAt = Math.max(Math.min(t.voiceAtMs, t.transformAtMs), focusAt);
+  const materializeAt = Math.max(t.transformAtMs, voicePhaseAt);
+  const readyAt = Math.max(t.readyAtMs + t.readyMs, materializeAt);
+  return { dismissAt, focusAt, voicePhaseAt, materializeAt, readyAt };
+}
+
 /** The dev tuner's live override (dev builds only). Null → defaults. Module-level like the FX registries:
  *  wall-clock presentation config, not React state — the tuner sets it, the next ceremony reads it. */
 let liveTiming: HeroCeremonyTiming | null = null;

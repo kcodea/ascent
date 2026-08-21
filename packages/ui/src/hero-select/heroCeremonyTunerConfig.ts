@@ -75,16 +75,16 @@ export type HscTunerConfig = HeroCeremonyTiming & HscLayout & HscFx;
 // Owner-tuned 2026-08-21 (pill pass): a big 80px name + 22px power on the new dark plate, the button at
 // 1.55×. The name offsets move the WHOLE plate (name + power ride inside it); power offsets move the power
 // line within the plate.
-const LAYOUT_DEFAULTS: HscLayout = { nameX: 0, nameY: -271, nameSize: 80, powerX: 0, powerY: -294, powerSize: 22, btnX: 0, btnY: -135, btnScale: 1.55 };
+const LAYOUT_DEFAULTS: HscLayout = { nameX: 0, nameY: -300, nameSize: 62, powerX: 0, powerY: -300, powerSize: 21, btnX: 0, btnY: -135, btnScale: 1.55 };
 
 /** Owner-tuned 2026-08-21: song from the click, wooshes on the exits (100) and the settle (640), reveal +
  *  flash paired at 1320 — after the fast transform finishes (825+350) — with the art at 1.26× inside a big
  *  704px ring. */
 const FX_DEFAULTS: HscFx = {
-  songOn: 1, songAtMs: 0, songVol: 0.7,
-  woosh1On: 1, woosh1AtMs: 100, woosh1Vol: 0.9,
-  woosh2On: 1, woosh2AtMs: 640, woosh2Vol: 0.9,
-  revealOn: 1, revealAtMs: 1280, revealVol: 1,
+  songOn: 1, songAtMs: 0, songVol: 0.57,
+  woosh1On: 1, woosh1AtMs: 100, woosh1Vol: 0.71,
+  woosh2On: 1, woosh2AtMs: 640, woosh2Vol: 0.72,
+  revealOn: 1, revealAtMs: 1280, revealVol: 0.5,
   flashAtMs: 1460,
   // Pixi cues, placed on the current shipped timeline: bursts on the settle, sweep + dust with the
   // transform (825), ring 2 paired with the flash.

@@ -1146,9 +1146,8 @@ export const Card = memo(function Card({
           <span className="kf-tongue" style={{ '--kx': '86%', '--kd': '0.02s' } as CSSProperties} />
         </span>
       )}
-      {/* Croupier Cia's Lucky Seat enchant treatment is now the authored `cia-hp` FX (fired from
-          `useCiaEnchantedFx` when a shop card enchants) — the old CSS `.enchantwisp` swirl was removed
-          2026-08-20 (owner). `.enchantwisp` styles remain in styles.css unused; delete in a follow-up. */}
+      {/* Croupier Cia's Lucky Seat enchant treatment is the authored `cia-hp` FX (fired from
+          `useCiaEnchantedFx` when a shop card enchants) — no per-card DOM element here. */}
       {/* Sable's Soulbind — a purple ring hovering ABOVE each bound minion for the turn the bond is live
           (owner ask 2026-08-16), so the pair is readable at a glance. Static shadow, opacity-only breathe. */}
       {soulbound && <span className="soulbindflash" aria-hidden="true" />}

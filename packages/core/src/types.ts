@@ -2585,6 +2585,15 @@ export interface CombatContext {
    *  damaging minion — pass it so effects keyed on "a friendly Demon dealt damage" (and kill attribution) see
    *  it (e.g. Fel Spikes' Echo attributing each hit to itself). */
   damage(target: Minion, amount: number, poison?: boolean, bypassShield?: boolean, source?: Minion): void;
+  /** Deal damage to `target` WITHOUT resolving its death (overkill: a body already at ≤0 still reads it). For a
+   *  multi-volley Echo (Fel Spikes, gilded / Sylus / Echohorn) that hits the SAME captured targets each pass and
+   *  DEFERS every death to the end via `resolveEchoDeath` — so a token a victim summons on death (Void Panther's
+   *  cubs) is created after all the damage, not caught by a later volley, and a low-HP victim reads each volley's
+   *  number and procs the per-volley reactors instead of vanishing after the first. */
+  damageDeferred(target: Minion, amount: number, source?: Minion): void;
+  /** Resolve a death that `damageDeferred` left pending: if `target` is at ≤0 and not yet dead, kill it now
+   *  (firing its Deathrattle / Rise). Call after the LAST volley so consequences land once, after the damage. */
+  resolveEchoDeath(target: Minion, source?: Minion): void;
   /** Bloodbinder: arm Bleed for this fight — MARK up to `targets` random enemies now (Start of Combat), then every
    *  `everyN` attacks made in the combat (either side), deal this minion's Attack to those SAME marked enemies that
    *  are still alive (never re-rolled; ends the moment the bleeder dies). `targets` already folds in golden. */

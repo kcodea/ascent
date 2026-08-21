@@ -3714,20 +3714,29 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const amount = num(params.amount, 1);
     if (amount <= 0) return;
     const exc = str(params.exceptTribe);
-    for (let pass = 0; pass < mul(self); pass++) {
-      // Each pass is one WAVE: wrap it so all its damage + the reactor buffs those hits fire land together as a
-      // single volley moment, with a short pause before the next pass (owner ask 2026-08-19). Purely presentation
-      // pacing — the loop, the damage, the reactor procs and their order are all unchanged.
+    const passes = mul(self); // gilded → 2 sprays; each Echo re-trigger (Sylus / Echohorn) calls this again
+    // CAPTURE the victims ONCE, up front. Each spray hits this SAME set, and every death is DEFERRED to the last
+    // wave — so a body that summons tokens on death (Void Panther → two Void Cubs) creates them AFTER all the
+    // damage, and a later volley can't catch them; a low-HP victim reads EVERY volley's number and procs the
+    // per-volley demon reactors (Axeman / Leech) instead of dying to the first and vanishing (owner ruling
+    // 2026-08-20). The victims take the FULL passes × amount, one combined death at the end.
+    const victims: Minion[] = [];
+    for (const sideKey of ['player', 'enemy'] as Side[]) {
+      for (const m of ctx.living(sideKey)) {
+        if (sideKey === self.side && exc && (m.tribe === exc || m.tribe2 === exc || ctx.getCard(m.cardId)?.universalTribe)) continue;
+        victims.push(m);
+      }
+    }
+    if (victims.length === 0) return;
+    for (let pass = 0; pass < passes; pass++) {
+      const last = pass === passes - 1;
+      // Each pass is one presentation WAVE (a volley moment). `self` as the source: Fel Spikes is a Demon, so
+      // every landed hit registers as a friendly Demon dealing damage, procing the reactors — per volley.
       ctx.wave(() => {
-        for (const sideKey of ['player', 'enemy'] as Side[]) {
-          for (const m of [...ctx.living(sideKey)]) {
-            if (sideKey === self.side && exc && (m.tribe === exc || m.tribe2 === exc || ctx.getCard(m.cardId)?.universalTribe)) continue;
-            // `self` as the source (owner fix 2026-08-18): Fel Spikes is a Demon, so every LANDED hit — enemies AND
-            // your own non-Demons — registers as a friendly Demon dealing damage, procing Leech / Axeman / Todd once
-            // each. Without threading the source the AoE had no poisoner and the reactors never saw it.
-            ctx.damage(m, amount, false, false, self);
-          }
-        }
+        for (const m of victims) ctx.damageDeferred(m, amount, self);
+        // Resolve every death now, on the FINAL volley — after all the damage — so the tokens/consequences land
+        // once, after the spray, not between passes. (The cubs are summoned here; there is no wave after them.)
+        if (last) for (const m of victims) ctx.resolveEchoDeath(m, self);
       });
     }
   },

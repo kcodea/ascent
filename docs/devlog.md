@@ -1,5 +1,34 @@
 # ASCENT — development log
 
+## 2026-08-20 — ENGINE: Fel Spikes' multi-volley Echo accumulates — deaths defer to the last volley
+
+> ⚠️ Touches `packages/core` (Kevin's engine seam) + shifts balance — built on the owner's explicit go-ahead
+> (2026-08-20). Flagging for Kevin.
+
+A gilded Fel Spikes sprays two volleys of 4. The engine resolved each volley's deaths IMMEDIATELY (`dealDamage`
+= apply + `killOrReborn`), so a low-HP victim died on volley 1 — and a Void Panther's two cubs, summoned mid-
+spray, were then **wiped by volley 2** (verified: 1 hit to the Panther, 2 cub deaths). The owner's ruling: the
+Panther should eat the full 8, die ONCE, and its cubs land after the damage — safe.
+
+Fix, in the deathrattle resolver:
+- **`applyDamage` gains `overkill`** — keep dealing to a body already at ≤0 that isn't yet `dead`, so a low-HP
+  victim reads EVERY volley's number and procs the per-volley demon reactors (Axeman / Leech), rather than
+  vanishing after the first.
+- **Two new `CombatContext` primitives** — `damageDeferred` (apply, overkill, NO death) and `resolveEchoDeath`
+  (kill if ≤0). `deathrattleDamageAllExceptTribe` now CAPTURES its victims once, hits that same set each volley
+  with `damageDeferred`, and resolves every death on the FINAL volley — so tokens/consequences (the cubs) are
+  created after all the damage, and no later volley catches them.
+
+Verified: new `simulate.test.ts` case (gilded Fel Spikes vs a Void Panther — Panther takes two 4-hits, both
+cubs summon, NEITHER is hit by the spray; was 1 hit + 2 cub deaths before). Full suite (5932) + determinism
+harness (identical re-run) + typecheck + lint + build all green.
+
+KNOWN LIMITATIONS (follow-ups): (1) **Sylus / golden Echohorn** re-fire the whole Deathrattle as SEPARATE
+triggers, each re-capturing the board — so a cub from an earlier firing can still be caught by a later one;
+only the single-firing gilded `mul` is deferred so far. (2) The sim emits N `dmg` events (4 each) per victim,
+so a gilded kill shows two 4s landing together, not one combined 8 — the "single number" is a presentation
+aggregation, still pending.
+
 ## 2026-08-20 — Fel Spikes' Echo: damage waits for the LAST volley, all waves land together
 
 Owner: the damage came a touch early, and for a gilded spray the deaths mid-volley should wait for the final

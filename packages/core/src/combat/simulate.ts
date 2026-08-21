@@ -719,6 +719,10 @@ export function simulate(
     },
     damage: (target, amount, poison = false, bypassShield = false, source) =>
       dealDamage(target, amount, poison, bypassShield, source),
+    // Multi-volley Echo: apply WITHOUT resolving death (overkill), so a captured target keeps reading each
+    // volley and its death is held for `resolveEchoDeath` at the end — see the CombatContext doc.
+    damageDeferred: (target, amount, source) => applyDamage(target, amount, false, false, source, true),
+    resolveEchoDeath: (target, source) => { if (!target.dead && target.health <= 0) killOrReborn(target, source); },
     armBleed: (minion, everyN, targets) => {
       if (everyN <= 0 || targets <= 0) return;
       // MARK a fixed set of enemies now (Start of Combat) — up to `targets` distinct random living foes. These
@@ -2153,8 +2157,13 @@ export function simulate(
     poison: boolean,
     bypassShield: boolean,
     poisoner?: Minion,
+    overkill = false,
   ): void {
-    if (target.dead || target.health <= 0) return;
+    // `overkill`: keep dealing to a body already at ≤0 that has NOT yet been resolved to `dead`. A multi-volley
+    // Echo (Fel Spikes, gilded / Sylus / Echohorn) hits the SAME captured targets each pass and defers death to
+    // the end, so a low-HP victim reads EVERY volley's damage — and procs the per-volley reactors + pops a Ward
+    // on the first, takes damage on the next — instead of vanishing after the first hit.
+    if (target.dead || (!overkill && target.health <= 0)) return;
     // Immune: takes no damage at all (A.4) — even from Venomous or destroy effects.
     if (target.keywords.includes('IMM')) return;
     // A 0-damage hit is a non-event: it can't pop a Divine Shield, proc Venomous, or wake on-damaged

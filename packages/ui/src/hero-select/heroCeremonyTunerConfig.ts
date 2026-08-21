@@ -64,16 +64,17 @@ export type HscTunerConfig = HeroCeremonyTiming & HscLayout & HscFx;
 // and power lifted ~190px, the button up with them at 1.23×.
 const LAYOUT_DEFAULTS: HscLayout = { nameX: 0, nameY: -188, nameSize: 53, powerX: 0, powerY: -194, powerSize: 16, btnX: 0, btnY: -161, btnScale: 1.23 };
 
-/** First-guess placements (owner will dial them): song from the click, wooshes on the exits and the settle,
- *  reveal + flash together mid-transform, ring sized to hug the grown portrait. */
+/** Owner-tuned 2026-08-21: song from the click, wooshes on the exits (100) and the settle (640), reveal +
+ *  flash paired at 1320 — after the fast transform finishes (825+350) — with the art at 1.26× inside a big
+ *  704px ring. */
 const FX_DEFAULTS: HscFx = {
   songOn: 1, songAtMs: 0, songVol: 0.7,
   woosh1On: 1, woosh1AtMs: 100, woosh1Vol: 0.9,
   woosh2On: 1, woosh2AtMs: 640, woosh2Vol: 0.9,
-  revealOn: 1, revealAtMs: 1250, revealVol: 1,
-  flashAtMs: 1250,
-  portraitX: 0, portraitY: 0, portraitScale: 1,
-  ringX: 0, ringY: 0, ringSize: 380,
+  revealOn: 1, revealAtMs: 1320, revealVol: 1,
+  flashAtMs: 1320,
+  portraitX: 0, portraitY: 0, portraitScale: 1.26,
+  ringX: 0, ringY: 0, ringSize: 704,
 };
 const LAYOUT_KEYS = Object.keys(LAYOUT_DEFAULTS) as (keyof HscLayout)[];
 

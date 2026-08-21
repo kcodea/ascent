@@ -44,9 +44,9 @@ export interface HeroCeremonyTiming {
   launchRevealMs: number;
 }
 
-/** Owner-tuned defaults (second pass 2026-08-21, dialed live in the 🎭 tuner over the blueprint's §4
- *  values): a weightier travel than the blueprint (540+200 vs 560+140) with the arrival burst on the settle
- *  (880) instead of the approach. Still ~1.9s from click to an interactive Start Game. */
+/** Owner-tuned defaults (third pass 2026-08-21, dialed live in the 🎭 tuner): a quick travel (400+200), the
+ *  transform starting DURING the settle (825) and running fast (350ms) so the portrait is fully resolved
+ *  well before the 1320ms ring flash. Arrival burst rides the settle at 880. Still ~1.9s to Start Game. */
 export const HERO_CEREMONY_TIMING: HeroCeremonyTiming = {
   pressMs: 90,
   headerExitDelayMs: 80,
@@ -54,12 +54,12 @@ export const HERO_CEREMONY_TIMING: HeroCeremonyTiming = {
   optionExitMs: 330,
   optionStaggerMs: 35,
   focusDelayMs: 120,
-  focusMs: 540,
+  focusMs: 400,
   settleMs: 200,
   arrivalAtMs: 880,
   voiceAtMs: 700,
-  transformAtMs: 950,
-  transformMs: 700,
+  transformAtMs: 825,
+  transformMs: 350,
   identityAtMs: 1450,
   readyAtMs: 1650,
   readyMs: 250,

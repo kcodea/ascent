@@ -402,7 +402,13 @@ export function HeroSelectCeremony({ state, dispatch, cardEls }: Props) {
         const cx = portrait.bounds.left + portrait.bounds.width / 2 + fx.ringX;
         const cy = portrait.bounds.top + portrait.bounds.height / 2 + fx.ringY;
         const RING_INSET = 10;
-        const clipR = Math.max(20, fx.ringSize / 2 - RING_INSET);
+        // The circle is the SMALLER of "just inside the ring" and the artwork's own inscribed circle. Found
+        // live on the owner's tuned look (704px ring around ~400px art): a ring-derived radius larger than
+        // the element contains the whole rectangle and clips nothing — the art stayed square in the ring.
+        const clipR = Math.max(20, Math.min(
+          fx.ringSize / 2 - RING_INSET,
+          Math.min(portrait.bounds.width, portrait.bounds.height) / 2,
+        ));
         return (
           <>
             <div

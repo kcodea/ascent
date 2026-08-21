@@ -208,12 +208,15 @@ const SAMPLE_URLS = {
   ...import.meta.glob('./audio/*.wav', { eager: true, query: '?url', import: 'default' }), // wav decodes natively too
   ...import.meta.glob('./audio/cards/*.mp3', { eager: true, query: '?url', import: 'default' }),
   ...import.meta.glob('./audio/heroes/*.mp3', { eager: true, query: '?url', import: 'default' }),
+  // .mp4 too (2026-08-21): some hero-line exports arrive as AAC-in-mp4 and Chromium's decodeAudioData handles
+  // the container fine — re-exporting to mp3 is preferred but must not gate a voiceline shipping.
+  ...import.meta.glob('./audio/heroes/*.mp4', { eager: true, query: '?url', import: 'default' }),
   ...import.meta.glob('./audio/ceremony/*.mp3', { eager: true, query: '?url', import: 'default' }), // hero-select ceremony stingers (🎭 tuner owns their timing/volume)
 } as Record<string, string>;
 const buffers = new Map<string, AudioBuffer>();
 const loadingSamples = new Set<string>();
 // Key = path under ./audio/ minus extension: `./audio/roll.mp3` → `roll`, `./audio/cards/karthus.mp3` → `cards/karthus`.
-const sampleName = (path: string): string => path.replace(/^\.\/audio\//, '').replace(/\.(mp3|wav)$/, '');
+const sampleName = (path: string): string => path.replace(/^\.\/audio\//, '').replace(/\.(mp3|wav|mp4)$/, '');
 
 function loadSample(name: string): void {
   const a = audio();

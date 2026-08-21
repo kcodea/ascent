@@ -130,11 +130,32 @@ export function spawnFloats(
     if (f.kind === 'dmg' && f.uid === attackerUid) continue;
     const r = rectOf(f.uid);
     if (!r) continue;
+    // CLIMBING Fel Spikes volley number: a wave-tagged AoE `dmg` with a source is one spike of a multi-volley
+    // spray. Show the RUNNING TOTAL to this victim (4, then 8, …) under a STABLE id — the FIRST volley's event
+    // index — so each spike UPDATES the SAME number in place (the caller upserts on id) instead of stacking a
+    // fresh pop per volley (owner ask 2026-08-20: "the number to aggregate for each fire … until it reaches its
+    // final sum"). Wave ids are monotonic per fire, so `wave <= e.wave` sums every earlier volley of this same
+    // source; the earliest is always the smallest index, giving one id that's constant across the whole spray.
+    let id = i;
+    let text = f.text;
+    if (e.type === 'dmg' && e.wave !== undefined && typeof e.source === 'string') {
+      let sum = 0;
+      let first = i;
+      for (let j = 0; j < events.length; j++) {
+        const d = events[j];
+        if (d?.type === 'dmg' && d.target === e.target && d.source === e.source && d.wave !== undefined && d.wave <= e.wave) {
+          sum += d.amount;
+          if (j < first) first = j;
+        }
+      }
+      id = first;
+      text = `${sum}`;
+    }
     if (f.kind === 'dmg' && dying.has(f.uid)) {
-      deaths.push({ id: i, x: r.cx, y: r.cy, text: f.text, kind: f.kind });
+      deaths.push({ id, x: r.cx, y: r.cy, text, kind: f.kind });
       continue;
     }
-    spawned.push({ id: i, ...f, x: r.cx, y: r.cy, w: r.w, h: r.h });
+    spawned.push({ id, uid: f.uid, text, kind: f.kind, x: r.cx, y: r.cy, w: r.w, h: r.h });
   }
   return { floats: spawned, deathFloats: deaths };
 }

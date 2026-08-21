@@ -140,7 +140,9 @@ function UnitInner({ u, side, anim, triggered, rallyPulse, watcherPulse, framePu
     stepEphemeral: true,
   };
   return (
-    <div className={cls} data-uid={u.uid} data-card={u.cardId}>
+    // A `ghost` (a dead body kept only to anchor its own still-playing FX) is hidden but keeps its layout box,
+    // so the volley launches from its slot and the board doesn't reflow into the gap until the effect finishes.
+    <div className={cls} data-uid={u.uid} data-card={u.cardId} style={u.ghost ? { visibility: 'hidden' } : undefined}>
       {/* `uid` connects this badge to the shared hold store (`fx/statHold`), so a combat buff rolls the same
           way a shop gem does; `autoRoll={false}` keeps damage instant — damage is an unheld change, so the
           number updates immediately and the pop still fires off it, while a buff (an `effect`-origin hold
@@ -168,6 +170,7 @@ export const Unit = memo(UnitInner, (a, b) =>
   a.u.attack === b.u.attack &&
   a.u.health === b.u.health &&
   a.u.divineShield === b.u.divineShield &&
+  a.u.ghost === b.u.ghost &&
   a.u.golden === b.u.golden &&
   a.u.summonBonus === b.u.summonBonus &&
   a.u.attackSeen === b.u.attackSeen &&

@@ -2045,7 +2045,7 @@ export interface MinionSnapshot {
 export type CombatEvent = (
   | { type: 'sc'; source: string; text: string; cast?: true; side?: Side } // `cast` = a genuine Start-of-Combat damage cast (UI plays the zap + bolt + flash); absent = mid-combat narration (spell-power gain, etc.) — log + trigger pulse only. `side` is stamped on side-scoped gain telegraphs (Ruby Power — BOTH sides can gain it) so the Buffs drawer counts only the player's; player-only channels (Spell Power) never emit for an enemy and need no tag.
   | { type: 'attack'; attacker: string; defender: string; swing: number; crit?: boolean }
-  | { type: 'dmg'; target: string; amount: number; remainingHp: number }
+  | { type: 'dmg'; target: string; amount: number; remainingHp: number; source?: string } // `source` = the uid that dealt this hit (attacker, poisoner, an AoE's caster). Optional: truly sourceless damage omits it. Lets presentation attribute a sourceless-looking damage MOMENT to its actor — e.g. Fel Spikes' Echo volley fires FROM the dying body (source→target FX), the way an `sc` event carries a Start-of-Combat cast's source.
   | { type: 'proccrit'; source: string; mult: number }
   | { type: 'spellcast'; side: Side; count: number } // a Shop Spell resolved mid-fight (Quil/Mammoth/Taragosa/…). `count` = that side's running total. The UI's live counters (Yirin's Attunement, Guel-style tallies) tick off this — carry-backs land at settle, so without it nothing can move in real time. // a chance-to-repeat effect rolled its multiplier (Karwind's 20% double) — the UI floats a crit-style "Nx" above `source`. Presentation only; the repeat itself is already in the buff events.
   | { type: 'shield'; target: string }
@@ -2490,6 +2490,10 @@ export interface CombatContext {
   deathrattleTally(side: Side): number;
   log(event: CombatEvent): void;
   living(side: Side): Minion[];
+  /** Like {@link living}, but RETAINS a body already at ≤0 HP whose death is being deferred across a multi-
+   *  volley Echo (Fel Spikes) — so a later volley / re-fire re-hits the same accumulating set. Equals
+   *  {@link living} outside a deferred-death scope. */
+  onBoard(side: Side): Minion[];
   getCard(id: string): CardDef;
   /** Every card definition the run knows about — for effects that pick a random card matching a
    *  property rather than a fixed id (Junkyard Titan → a random Magnetic minion). */
@@ -2706,6 +2710,15 @@ export interface CombatContext {
    *  damaging minion — pass it so effects keyed on "a friendly Demon dealt damage" (and kill attribution) see
    *  it (e.g. Fel Spikes' Echo attributing each hit to itself). */
   damage(target: Minion, amount: number, poison?: boolean, bypassShield?: boolean, source?: Minion): void;
+  /** Deal damage to `target` WITHOUT resolving its death (overkill: a body already at ≤0 still reads it). For a
+   *  multi-volley Echo (Fel Spikes, gilded / Sylus / Echohorn) that hits the SAME captured targets each pass and
+   *  DEFERS every death to the end via `resolveEchoDeath` — so a token a victim summons on death (Void Panther's
+   *  cubs) is created after all the damage, not caught by a later volley, and a low-HP victim reads each volley's
+   *  number and procs the per-volley reactors instead of vanishing after the first. */
+  damageDeferred(target: Minion, amount: number, source?: Minion): void;
+  /** Resolve a death that `damageDeferred` left pending: if `target` is at ≤0 and not yet dead, kill it now
+   *  (firing its Deathrattle / Rise). Call after the LAST volley so consequences land once, after the damage. */
+  resolveEchoDeath(target: Minion, source?: Minion): void;
   /** Bloodbinder: arm Bleed for this fight — MARK up to `targets` random enemies now (Start of Combat), then every
    *  `everyN` attacks made in the combat (either side), deal this minion's Attack to those SAME marked enemies that
    *  are still alive (never re-rolled; ends the moment the bleeder dies). `targets` already folds in golden. */

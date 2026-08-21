@@ -59,3 +59,36 @@ describe('computeFrame is a from-scratch fold', () => {
     expect(JSON.stringify(initial)).toBe(before);
   });
 });
+
+// Fel Spikes fires its Echo one beat AFTER its body would leave the board; a source→target FX anchored to that
+// body needs it on screen. `computeFrame` keeps a dead unit while it is still the SOURCE of damage in the
+// current beat window, then lets it go.
+describe('computeFrame retains a dead unit while its own damage is landing', () => {
+  const boards = { player: [snap('fs', 5), snap('ally', 10)], enemy: [snap('victim', 10)] };
+  const echo = [
+    { type: 'death', target: 'fs', side: 'player', step: 1 },                                  // 0: Fel Spikes dies
+    { type: 'dmg', target: 'victim', amount: 4, remainingHp: 6, source: 'fs', step: 2, wave: 0 }, // 1: its Echo volley
+    { type: 'attack', attacker: 'ally', defender: 'victim', step: 3 },                          // 2: a later, unrelated beat
+  ] as unknown as CombatEvent[];
+
+  it('keeps the dead dealer on screen — as an invisible ghost — for the beat its Echo damage lands', () => {
+    // Beat window [beatStart 1, upto 2): the death (index 0) is already past, so `fs` is `gone` — but it is the
+    // source of the damage in this window, so it is retained, flagged `ghost` (rendered invisible, holds slot).
+    const fs = computeFrame(boards, echo, 2, 1, names).player.find((u) => u.uid === 'fs');
+    expect(fs).toBeDefined();
+    expect(fs!.ghost).toBe(true);
+  });
+
+  it('drops it the next beat, once it is no longer dealing damage', () => {
+    // Beat window [beatStart 2, upto 3): `fs` deals nothing here, so it filters out as normal.
+    expect(computeFrame(boards, echo, 3, 2, names).player.map((u) => u.uid)).not.toContain('fs');
+  });
+
+  it('does not retain a body for a SOURCELESS hit (ordinary damage is untouched)', () => {
+    const anon = [
+      { type: 'death', target: 'fs', side: 'player', step: 1 },
+      { type: 'dmg', target: 'victim', amount: 4, remainingHp: 6, step: 2 }, // no `source`
+    ] as unknown as CombatEvent[];
+    expect(computeFrame(boards, anon, 2, 1, names).player.map((u) => u.uid)).not.toContain('fs');
+  });
+});

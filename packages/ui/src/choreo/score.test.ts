@@ -667,6 +667,46 @@ describe('fxDef channel — an authored effect replaces the stock damageFx burst
     runMomentCues({ start: 1, end: 2, primary: events[1]!, stepGroups: [[1]], kind: 'damage' }, ctx);
     expect(ctx.onDamageFx).toHaveBeenCalledWith(['e1']);
   });
+
+  // Fel Spikes' Echo is `launchOnDeath`: the projectile is NOT played on the damage beat (it launched a beat
+  // earlier from the dying body — see useCombatReplay). But the fan-out STILL runs here to CLAIM its victims, so
+  // the stock hit-burst the spike replaces is suppressed. So: no play, but onDamageFx silenced for the wave.
+  it('a launchOnDeath wave (Fel Spikes) CLAIMS its victims but does not play here (relocated to the death)', () => {
+    const events: CombatEvent[] = [
+      { type: 'dmg', target: 'e1', amount: 4, remainingHp: 1, source: 'fs', step: 8 } as CombatEvent,
+      { type: 'dmg', target: 'e2', amount: 4, remainingHp: 2, source: 'fs', step: 8 } as CombatEvent,
+    ];
+    const ctx = baseCtx(events, withCard('fs', 'dm_felspikes'));
+    runMomentCues({ start: 0, end: 2, primary: events[0]!, stepGroups: [[0, 1]], kind: 'damage' }, ctx);
+    expect(mockPlayDef).not.toHaveBeenCalled();     // launched from the death handler, not here
+    expect(ctx.onDamageFx).not.toHaveBeenCalled();  // e1, e2 claimed → stock burst still suppressed
+  });
+
+  // A melee attack's impact is ALSO a `damage` moment sourced by the attacker; the volley must NOT fire on
+  // Fel Spikes' own swing (owner report 2026-08-20) — only on its Echo spray, which is not an attack.
+  it('does NOT fire on the unit\'s own melee swing (the impact is a damage moment with a meleePair)', () => {
+    const events: CombatEvent[] = [
+      { type: 'dmg', target: 'e1', amount: 4, remainingHp: 1, source: 'fs', step: 3 } as CombatEvent, // fs hits e1
+      { type: 'dmg', target: 'fs', amount: 2, remainingHp: 1, source: 'e1', step: 3 } as CombatEvent, // e1 retaliates
+    ];
+    const ctx = baseCtx(events, { ...withCard('fs', 'dm_felspikes'), meleePair: { attacker: 'fs', defender: 'e1' } });
+    runMomentCues({ start: 0, end: 2, primary: events[0]!, stepGroups: [[0, 1]], kind: 'damage' }, ctx);
+    expect(mockPlayDef).not.toHaveBeenCalled();
+  });
+
+  // The claim must still cover a WARD-blocked victim (a `shield`, no `dmg`) even when the wave leads with one —
+  // otherwise nothing suppresses its (absent) stock burst and, more importantly, the `struck` set the death
+  // handler reads to fire spikes would disagree. The dealer is recovered from the first `dmg`'s source.
+  it('a Ward-led launchOnDeath wave still claims every struck unit (no play here)', () => {
+    const events: CombatEvent[] = [
+      { type: 'shield', target: 'e1', step: 9 } as CombatEvent,
+      { type: 'dmg', target: 'e2', amount: 4, remainingHp: 1, source: 'fs', step: 9 } as CombatEvent,
+    ];
+    const ctx = baseCtx(events, withCard('fs', 'dm_felspikes'));
+    runMomentCues({ start: 0, end: 2, primary: events[0]!, stepGroups: [[0, 1]], kind: 'damage' }, ctx);
+    expect(mockPlayDef).not.toHaveBeenCalled();     // relocated to the death handler
+    expect(ctx.onDamageFx).not.toHaveBeenCalled();  // e2 claimed; e1 is a ward pop with no stock burst
+  });
 });
 
 /** The self-buff fan-out: one play per unit that buffed ITSELF, both anchors on that unit. */

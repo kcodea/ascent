@@ -64,13 +64,16 @@ export interface FxBinding {
    * - `damaged`: once per distinct unit damaged in the same resolution step. A cast's own event frequently
    *   carries NO target (Bloodbinder emits one targetless `sc`, then a `dmg` per marked enemy), so a
    *   travelling effect bound to it would have nowhere to go and would collapse onto the source.
+   * - `struck`: like `damaged`, but also fires at a unit whose WARD absorbed the hit (a `shield` pop). The
+   *   projectile connects and the Ward shatters even though no damage landed — Fel Spikes' spike volley
+   *   (owner ruling 2026-08-20).
    * - `selfBuffed`: once per unit that buffed ITSELF in this moment. A self-buff has no pair to travel
    *   between and a moment can carry several at once.
    * - `buffed`: once per unit this moment's source buffed SOMEONE ELSE (the cross-buff targets — Karwind
    *   pumping every Dragon). The mirror of `selfBuffed`: `groupBuffCasts` already collects exactly these
    *   source→target pairs for the tendril channel, so this rides the same grouping and plays on each target.
    */
-  fanOut?: 'primary' | 'damaged' | 'selfBuffed' | 'buffed';
+  fanOut?: 'primary' | 'damaged' | 'struck' | 'selfBuffed' | 'buffed';
   /**
    * A sound to fire alongside the def, named from {@link BINDING_SFX}.
    *
@@ -94,9 +97,18 @@ export interface FxBinding {
    * the substitution.
    */
   critDef?: string;
+  /**
+   * PROJECTILE DELIVERY (Fel Spikes' Echo). When true, this `damage`-moment effect is NOT played on the damage
+   * beat: instead the projectile LAUNCHES a beat earlier — the instant the source unit dies, alongside its Echo
+   * skull, from the still-visible body — and the damage beat is HELD (a travel lead) so the numbers, health
+   * drops and kills all land when the spike connects, not before it. The fan-out still runs on the damage beat
+   * to CLAIM its victims (suppressing the stock hit-burst the spike replaces); only the play is relocated. The
+   * launch, the lead, and the suppression all key off this one flag (see `useCombatReplay` death handling +
+   * beat clock, and the `fxDef` fan-out). Requires `fanOut: 'struck'`/`'damaged'`. */
+  launchOnDeath?: boolean;
 }
 
-const FAN_OUTS: readonly string[] = ['primary', 'damaged', 'selfBuffed', 'buffed'];
+const FAN_OUTS: readonly string[] = ['primary', 'damaged', 'struck', 'selfBuffed', 'buffed'];
 
 /**
  * The sounds a binding may name. Deliberately a short list rather than every key of the `sfx` module: most of
@@ -193,10 +205,15 @@ function coerceBinding(v: unknown, where: string): FxBinding | null {
     devError(`[fx] bindings.json: ${where}.critDef must be a non-empty string — dropped.`);
     return null;
   }
+  if (v.launchOnDeath !== undefined && typeof v.launchOnDeath !== 'boolean') {
+    devError(`[fx] bindings.json: ${where}.launchOnDeath must be a boolean — dropped.`);
+    return null;
+  }
   const out: FxBinding = { def: v.def };
   if (v.fanOut !== undefined) out.fanOut = v.fanOut as FxBinding['fanOut'];
   if (v.sfx !== undefined) out.sfx = v.sfx as BindingSfx;
   if (v.critDef !== undefined) out.critDef = v.critDef;
+  if (v.launchOnDeath === true) out.launchOnDeath = true;
   return out;
 }
 

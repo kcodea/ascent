@@ -35,6 +35,7 @@ import { isDeathrattleBufferCard } from './deathrattleBuffers';
 import { fireBuffFx } from './buffFxRender';
 import { cardFxScale } from './fx/cardScale';
 import { canPlayDefs, playDef } from './fx/playDef';
+import { bindingFor } from './choreo/bindings';
 import { isRuneBuffSource } from '@game/sim';
 import { anchorsForUnits } from './fx/combatAnchors';
 import { getDef } from './fx/fxDefs';
@@ -128,6 +129,11 @@ export interface UnitFrame {
   keywords: Keyword[];
   divineShield: boolean;
   alive: boolean;
+  /** A DEAD unit kept on the board ONLY to anchor its own still-playing FX (a Deathrattle whose Echo fires a
+   *  beat after the body left — Fel Spikes' spike volley). Rendered INVISIBLE, but it holds its slot so the
+   *  board doesn't reflow into the gap until the effect finishes. Set by `computeFrame`'s damage-source
+   *  retention; never on a live unit. */
+  ghost?: boolean;
   golden: boolean;
   /** Live summon-buff bonus (Kennelmaster) — climbs via `improve` events mid-fight. */
   summonBonus: number;
@@ -420,7 +426,23 @@ export function computeFrame(
   // the global attack count (Bleed). stepProgress only reads these for the qualifying cards; others ignore them.
   for (const u of player) { u.avengeSeen = deaths.player - (avengeBase.get(u.uid) ?? 0); u.bleedAttacks = attackCount; }
   for (const u of enemy) { u.avengeSeen = deaths.enemy - (avengeBase.get(u.uid) ?? 0); u.bleedAttacks = attackCount; }
-  return { player: player.filter((u) => !gone.has(u.uid)), enemy: enemy.filter((u) => !gone.has(u.uid)) };
+  // Keep a DEAD unit on screen for the beat in which it is still DEALING damage — a Deathrattle whose Echo
+  // sprays the board (Fel Spikes) fires its volley one beat AFTER its body would have left, and a source→target
+  // FX anchored to that body needs it present to launch from. Only the CURRENT beat's damage ([beatStart, upto))
+  // counts, so the body lingers exactly for its own eruption and is gone the next beat. Sourceless damage (no
+  // `source`) retains nothing, so ordinary trades and the resting end-frame (beatStart === upto → empty window)
+  // are untouched.
+  const dealingSources = new Set<string>();
+  for (let i = beatStart; i < Math.min(upto, events.length); i++) {
+    const e = events[i];
+    if (e?.type === 'dmg' && typeof e.source === 'string') dealingSources.add(e.source);
+  }
+  const keep = (u: UnitFrame): boolean => {
+    if (!gone.has(u.uid)) return true;
+    if (dealingSources.has(u.uid)) { u.ghost = true; return true; } // kept ONLY to anchor its own FX → invisible
+    return false;
+  };
+  return { player: player.filter(keep), enemy: enemy.filter(keep) };
 }
 
 // Per-beat lengths (ms) + the global tempo baseline + float/hold lifetimes all live in `choreo/choreoConfig.ts`,
@@ -753,6 +775,108 @@ function pulledHomeAttackerHold(
   return 0;
 }
 
+// ── PROJECTILE-DELIVERED ECHO (Fel Spikes) ──────────────────────────────────────────────────────────────
+// A `launchOnDeath` binding (see `choreo/bindings`) fires its spike VOLLEY from the dying body a beat before
+// its Echo damage lands, and the damage beat is HELD (a travel lead) so the numbers/health/kills land when the
+// spikes connect. These three pure helpers answer the questions the death handler + the beat clock ask.
+
+/** The ms into `defId` at which its impact reaches the TARGET — the largest `at` among its target-anchored
+ *  layers. Drives the damage beat's travel lead, derived from the def so retuning the beam keeps them in sync.
+ *  0 if the def has no target layers (nothing to wait for). */
+function projectileImpactMs(defId: string): number {
+  const def = getDef(defId);
+  if (!def) return 0;
+  let at = 0;
+  for (const l of def.layers) if (l.anchor === 'target') at = Math.max(at, l.at ?? 0);
+  return at;
+}
+
+/** Every `wave` that `dyingUid` sprays after its death at `deathIdx`, each with the distinct units it struck
+ *  (damaged OR ward-blocked). A `dmg` carries its source; a `shield` (ward pop) belongs to the wave by its
+ *  shared wave id. Golden Fel Spikes sprays twice → two entries, in order; a normal one → a single entry. */
+export function echoWaves(events: CombatEvent[], dyingUid: string, deathIdx: number): { uids: string[]; wave: number }[] {
+  const mine = new Set<number>();
+  for (let j = deathIdx + 1; j < events.length; j++) {
+    const ev = events[j];
+    if (ev?.wave !== undefined && ev.type === 'dmg' && ev.source === dyingUid) mine.add(ev.wave);
+  }
+  if (mine.size === 0) return [];
+  const byWave = new Map<number, { uids: string[]; seen: Set<string> }>();
+  const order: number[] = [];
+  for (let j = deathIdx + 1; j < events.length; j++) {
+    const ev = events[j];
+    if (ev?.wave === undefined || !mine.has(ev.wave)) continue;
+    if (ev.type !== 'dmg' && ev.type !== 'shield') continue;
+    const t = ev.target;
+    if (typeof t !== 'string') continue;
+    let entry = byWave.get(ev.wave);
+    if (!entry) { entry = { uids: [], seen: new Set() }; byWave.set(ev.wave, entry); order.push(ev.wave); }
+    if (!entry.seen.has(t)) { entry.seen.add(t); entry.uids.push(t); }
+  }
+  return order.map((w) => ({ uids: byWave.get(w)!.uids, wave: w }));
+}
+
+/** The travel lead (ms, 1× speed) to HOLD before `next` when it is a `launchOnDeath` Echo damage wave whose
+ *  spray was launched from a death in `shown` — so the wave's damage lands as the spikes connect. 0 otherwise. */
+function echoDeliveryLead(shown: Moment | undefined, next: Moment, events: CombatEvent[], cardIds: Map<string, string>): number {
+  if (!shown || next.primary.wave === undefined) return 0; // not a wave beat
+  // The sprayer = the source of the wave's damage (scanned, so a leading ward pop doesn't hide it).
+  let src: string | null = null;
+  for (let i = next.start; i < next.end; i++) {
+    const ev = events[i];
+    if (ev?.type === 'dmg' && typeof ev.source === 'string') { src = ev.source; break; }
+  }
+  if (!src) return 0;
+  const binding = bindingFor(cardIds.get(src) ?? null, 'damage');
+  if (!binding?.launchOnDeath) return 0;
+  // FIRST volley — the sprayer DIED in `shown`, so its spikes launched from there. Hold until THIS spike
+  // connects (launch + beam travel + a read buffer). Each LATER volley lands as ITS OWN spike connects (the
+  // subsequent branch below), so the victim's number CLIMBS one spike at a time (4, then 8). The victim stays
+  // on the board through the whole spray (the engine defers its death), and all the deferred deaths resolve
+  // together AFTER the last volley in their own step (owner ask 2026-08-20: aggregate per fire, resolve after).
+  for (let i = shown.start; i < shown.end; i++) {
+    const e = events[i];
+    if (e?.type === 'death' && e.target === src) {
+      return ECHO_LAUNCH_DELAY_MS + projectileImpactMs(binding.def) + ECHO_IMPACT_BUFFER_MS;
+    }
+  }
+  // A SUBSEQUENT volley of the same spray (the sprayer died in an EARLIER beat): its spike connects one
+  // pass-gap after the previous one, so hold that long — the number climbs by this volley's amount as it lands.
+  return ECHO_PASS_GAP_MS;
+}
+
+/** Delay (ms, 1× speed) from the Echo SKULL to its spike volley launching — a beat so the skull reads on its own
+ *  before the spray begins (owner ask 2026-08-21: widen the skull→spray gap). Slides the whole spray (launch +
+ *  the numbers that trail it) later as one; travel, impact buffer and climb spacing are unaffected. */
+const ECHO_LAUNCH_DELAY_MS = 400;
+/** Gap (ms, 1× speed) between a GOLDEN Fel Spikes' two sprays, so the volley reads as two quick taps rather
+ *  than one merged cascade (owner report 2026-08-20). */
+const ECHO_PASS_GAP_MS = 240;
+/** Hold (ms, 1× speed) past the beam's target `at` before the number tallies. Small, so the number lands as the
+ *  impact burst reaches its BRIGHTEST frame rather than its very first one — the tally then reads in sync with
+ *  the strike's visual peak instead of finishing a touch ahead of it (owner 2026-08-21). Was 150 (number landed
+ *  well after the blast, back when a landing number could KILL a unit early); the number only CLIMBS now. */
+const ECHO_IMPACT_BUFFER_MS = 80;
+
+/** Schedule the spike volley(s) a dying `launchOnDeath` unit throws: one per `echoWaves` wave, each launched a
+ *  breath after the skull (`ECHO_LAUNCH_DELAY_MS`), and each golden pass a `ECHO_PASS_GAP_MS` after the last so
+ *  two sprays read as two taps. Anchors resolve at FIRE time (inside the timer) so a pulled-home attacker's
+ *  moved rect is honoured and the still-visible body is the launch point. `register` receives each timer id for
+ *  the caller's cleanup. */
+function scheduleEchoVolleys(defId: string, dyingUid: string, deathIdx: number, events: CombatEvent[], speed: number, register: (id: number) => void): void {
+  if (!canPlayDefs()) return;
+  const s = speed > 0 ? speed : 1;
+  echoWaves(events, dyingUid, deathIdx).forEach((wv, w) => {
+    const fire = (): void => wv.uids.forEach((uid, k) => {
+      const a = anchorsForUnits(dyingUid, uid);
+      if (a) playDef(defId, a, { uids: { source: dyingUid, target: uid }, index: k });
+    });
+    const delay = (ECHO_LAUNCH_DELAY_MS + w * ECHO_PASS_GAP_MS) / s;
+    if (delay <= 0) fire();
+    else register(window.setTimeout(fire, delay));
+  });
+}
+
 /**
  * The combat-replay engine, decoupled from layout. Folds `combat`'s event log into a
  * beat-by-beat animation: `active` gates whether the clock is ticking (so the caller
@@ -902,6 +1026,13 @@ export function useCombatReplay(
   // release of `combatHeldRef` leftovers); see that function's comment for the browser trace that found it.
   const rollRegistryRef = useRef<Map<number, { uid: string; strikeTimer: number | null; cancelRoll: (() => void) | null }>>(new Map());
   const rollRegistryIdRef = useRef(0);
+  // Combat-lifetime timers for a dying unit's Echo spike VOLLEYS (Fel Spikes). Each spray is launched from the
+  // death beat but its later volleys fire whole beats later (one `ECHO_PASS_GAP_MS` apart), AFTER the replay has
+  // advanced past the death beat — so they CANNOT live in the per-beat `timers` array, which the cue effect's
+  // cleanup clears on every beat advance (that silently dropped a gilded+Sylus spray's 3rd/4th volleys). Kept
+  // here instead, cleared ONLY on reset/seek (`cancelPendingRolls`), so every volley fires but a scrub cancels
+  // the ones still pending.
+  const echoVolleyTimersRef = useRef<number[]>([]);
 
   // Schedule a buff's strike-delay timer in the combat-lifetime registry above (not the caller's per-beat
   // `timers`), so an ordinary beat advance cannot cancel it. When the delay elapses, hand off to `driveRoll`
@@ -956,6 +1087,10 @@ export function useCombatReplay(
       releaseStat(entry.uid);
     }
     rollRegistryRef.current.clear();
+    // Cancel any Echo spike volleys still pending from a death this instance already replayed — a fresh combat
+    // or a re-seek supersedes them (they'd otherwise fire a stale spray onto the new frame).
+    for (const id of echoVolleyTimersRef.current) window.clearTimeout(id);
+    echoVolleyTimersRef.current = [];
   }, []);
 
   /**
@@ -1270,10 +1405,21 @@ export function useCombatReplay(
     // to settle home — before the consequence-overlap gap, so the tokens/returned body land AFTER the proc
     // reads, not on top of it.
     const atkUid = attackerOfImpact(beats, beatIdx - 1);
-    // Hold for the death cascade's consequence (DR summon / Rise return), OR — with no consequence — for a plain
-    // attacker being pulled home to die in its slot. The max: a Rise/DR consequence lead already covers its pull.
-    const lead = Math.max(deathConsequenceLead(shown, next, events, cardIds, atkUid), pulledHomeAttackerHold(shown, atkUid, events, cardIds));
-    if (lead) d += lead / combatSpeedRef.current;
+    // A Fel-Spikes-style Echo: the death holds for EXACTLY the volley's launch + travel — REPLACING the base
+    // hold, not adding to it — so the damage numbers land ON the spike's strike, not a base-hold later (owner:
+    // the damage felt late). The launch+travel is already ample death-read time, so nothing is lost.
+    const echoHold = echoDeliveryLead(shown, next, events, cardIds);
+    if (echoHold > 0) {
+      d = echoHold / combatSpeedRef.current;
+    } else {
+      // Hold for the death cascade's consequence (DR summon / Rise return), OR — with no consequence — for a
+      // plain attacker being pulled home to die in its slot. Max: a Rise/DR lead already covers its pull.
+      const lead = Math.max(
+        deathConsequenceLead(shown, next, events, cardIds, atkUid),
+        pulledHomeAttackerHold(shown, atkUid, events, cardIds),
+      );
+      if (lead) d += lead / combatSpeedRef.current;
+    }
     const id = window.setTimeout(() => setBeatIdx((k) => k + 1), d);
     return () => window.clearTimeout(id);
     // `seekNonce`: not a cue, but a same-index re-seek must RESTART this hold rather than inherit whatever
@@ -1577,7 +1723,17 @@ export function useCombatReplay(
       attackerUid: attackerOfImpact(beats, beatIdx - 1),
       meleePair: meleePairOfImpact(beats, beatIdx - 1),
       onFloats: (spawned) => {
-        setFloats((arr) => [...arr, ...spawned.filter((s) => !arr.some((x) => x.id === s.id))]);
+        // Upsert by id: a re-spawned float (a climbing Fel Spikes volley number — same stable id, higher
+        // running total) REPLACES the prior one in place so the number ticks up on ONE anchor instead of
+        // stacking a pop per volley. Non-climbing floats always carry a fresh event-index id, so for them this
+        // is a plain append (no id collides). The first volley's removal timer supersedes any later re-spawn's,
+        // trimming the final number ~one pass-gap early — invisible against the ~1.5s float lifetime.
+        setFloats((arr) => {
+          const next = new Map(spawned.map((s) => [s.id, s] as const));
+          const merged = arr.map((x) => next.get(x.id) ?? x);
+          const present = new Set(arr.map((x) => x.id));
+          return [...merged, ...spawned.filter((s) => !present.has(s.id))];
+        });
         const ids = new Set(spawned.map((s) => s.id));
         timers.push(window.setTimeout(() => setFloats((arr) => arr.filter((x) => !ids.has(x.id))), getChoreoConfig().floatMs / combatSpeedRef.current));
       },
@@ -1700,6 +1856,17 @@ export function useCombatReplay(
       }
       const r = rectOf(e.target);
       if (r) pixiFx.deathrattle(r.cx, r.cy, r.w);
+      // Fel Spikes' Echo: LAUNCH the spike volley from the dying body — a breath after the skull, while it is
+      // still on screen — toward every unit its upcoming spray will strike, a beat before the damage lands (the
+      // beat clock holds that beat for the beam's travel, `echoDeliveryLead`). Golden sprays twice as two quick
+      // taps. The stock hit-burst on the damage beat is still claimed + suppressed by the fxDef fan-out; only
+      // the projectile is relocated here.
+      const echoBinding = bindingFor(cardIds.get(e.target) ?? null, 'damage');
+      if (r && echoBinding?.launchOnDeath) {
+        // Combat-lifetime registry, NOT `timers`: later volleys fire after the beat advances, so the per-beat
+        // cleanup must not clear them (see `echoVolleyTimersRef`). A seek/reset cancels them via cancelPendingRolls.
+        scheduleEchoVolleys(echoBinding.def, e.target, i, events, combatSpeedRef.current, (id) => echoVolleyTimersRef.current.push(id));
+      }
     }
     return () => {
       timers.forEach((id) => window.clearTimeout(id));
@@ -1766,6 +1933,15 @@ export function useCombatReplay(
             const rect = rEl ? layoutRectOf(rEl) : capRect;
             if (isRise) burstDeathAuras(impactAtk, rect);                       // spirit release, at home
             if (hasDR) pixiFx.deathrattle(rect.cx, rect.cy, rect.w);            // bone-skull shatter — always fires
+            // Fel Spikes killed MID-ATTACK (it swung and died to retaliation) lands here, not the immediate
+            // death loop — so its Echo volley must launch from the pulled-home body here too, or the death
+            // shows no spikes (owner report 2026-08-20: a second Fel Spikes didn't fire). Registered in the
+            // combat-lifetime registry (like the immediate path) so later volleys survive the beat advance and
+            // a seek/reset still cancels them.
+            const echoBinding = bindingFor(cardIds.get(impactAtk) ?? null, 'damage');
+            if (echoBinding?.launchOnDeath) {
+              scheduleEchoVolleys(echoBinding.def, impactAtk, i, events, combatSpeedRef.current, (id) => echoVolleyTimersRef.current.push(id));
+            }
           });
         }
       }
@@ -2193,7 +2369,13 @@ export function useCombatReplay(
             // Deathrattle: fade the card IN PLACE (no bounce) under the skull burst. A Deathrattle ATTACKER
             // that died mid-lunge also gets `returning` — the fade DELAYS while GSAP pulls it home, so the
             // skull pops in its OWN slot (fired at `landed`), not mid-flight.
-            anims[uid] = uid === impactAtk ? 'dying dr returning' : 'dying dr';
+            const base = uid === impactAtk ? 'dying dr returning' : 'dying dr';
+            // A launchOnDeath sprayer (Fel Spikes) keeps spraying for SECONDS after it dies. `holdecho` cancels
+            // its slot-collapse (the card still fades) so the survivors don't slide into the gap and then reverse
+            // when its ghost re-holds the slot — they wait, and reflow ONCE when the ghost is finally dropped
+            // after the last volley (owner report 2026-08-21).
+            const echoB = bindingFor(cardIds.get(uid) ?? null, 'damage');
+            anims[uid] = echoB?.launchOnDeath && echoWaves(events, uid, i).length > 0 ? `${base} holdecho` : base;
           } else if (uid === impactAtk) {
             // A PLAIN attacker (no Rise, no Deathrattle — e.g. a reborn unit's true death) that died mid-lunge:
             // `dying returning` delays the collapse + pop until GSAP has pulled it home (see styles.css), so it

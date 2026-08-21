@@ -19,7 +19,7 @@ import { holdStat } from '../fx/statHold';
 import { canPlayDefs, playDef } from '../fx/playDef';
 import { sfx } from '../sfx';
 import { anchorsForUnits } from '../fx/combatAnchors';
-import { claimDamageFx, damagedUidsIn, expireDamageFxClaim, isDamageFxClaimed } from './cardFx';
+import { claimDamageFx, damagedUidsIn, struckUidsIn, expireDamageFxClaim, isDamageFxClaimed } from './cardFx';
 import { bindingFor } from './bindings';
 
 /**
@@ -534,7 +534,20 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
       // channel's death voicelines. It replaces a DOM lookup (`[data-card]`), which was the most suspect link
       // in this chain: it depended on the unit being rendered, findable by selector, and carrying an attribute
       // added for this feature. Combat state knows the answer without any of that.
-      const { source, target } = momentUnits(moment.primary);
+      const primaryUnits = momentUnits(moment.primary);
+      const target = primaryUnits.target;
+      let source = primaryUnits.source;
+      // A damage MOMENT's primary can be sourceless — a Divine Shield pop (`shield`) leads the wave when the
+      // first target has a Ward, so `momentUnits` reads no source though the wave HAS an actor. Fall back to the
+      // first `dmg` event's own `source` (every hit in one wave shares it), so a source→target binding — Fel
+      // Spikes' Echo volley — still attributes to the caster. `dmg.source` is undefined for legacy/sourceless
+      // damage, in which case this stays null and nothing changes.
+      if (source === null) {
+        for (let i = moment.start; i < moment.end; i++) {
+          const e = ctx.events[i];
+          if (e?.type === 'dmg' && typeof e.source === 'string') { source = e.source; break; }
+        }
+      }
       const cardId = ctx.cardIds?.get(source ?? '') ?? null;
       // ale-bubbles (Set 2, Dwarves): a Dwarf that GENERATES a Dwarven Ale in combat — Doubletap Brewer's Echo,
       // Blade Thrower's Rally — emits a `toHand` event whose cardId is an Ale, carrying the generator's uid as
@@ -562,7 +575,7 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
       // two lookups of the same key are two chances to disagree.
       const binding = bindingFor(cardId, moment.kind);
       if (!binding) continue;                    // nothing bound at this kind/card → nothing to schedule
-      if (binding.fanOut === 'damaged') {
+      if (binding.fanOut === 'damaged' || binding.fanOut === 'struck') {
         // Claim the stock hit-burst for the units this binding will cover, SYNCHRONOUSLY — before `at()`
         // defers anything. Moments are scheduled in log order and the `damage` moment follows its own cast,
         // so the claim is standing by the time that moment's `damageFx` cue is scheduled. Doing it inside the
@@ -570,30 +583,50 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
         // Scanned ONCE and then reused by the deferred play, for the same reason the binding is resolved once:
         // the claim suppresses the stock burst for exactly this set, so a second scan that disagreed would
         // silence one set of units while the def played at another — silently, and only in the divergent case.
-        const claimed = damagedUidsIn(ctx.events, moment.start, moment.end);
+        // `struck` also covers a WARD-blocked victim (Fel Spikes' spike flies at it and the Ward shatters);
+        // those carry a `shield` event, not a `dmg`, so they never had a stock burst to suppress — claiming
+        // them is a harmless no-op that keeps one code path for both fan-outs.
+        const hitUids = binding.fanOut === 'struck'
+          ? struckUidsIn(ctx.events, moment.start, moment.end)
+          : damagedUidsIn(ctx.events, moment.start, moment.end);
+        // Drop the MELEE PAIR (attacker + defender). A melee attack's impact is ALSO a `damage` moment, so a
+        // source→target binding on `damage` — Fel Spikes' Echo volley — would otherwise fire every time the
+        // unit SWINGS, not only on its Echo spray (owner report 2026-08-20). The stock `damageFx` cue drops the
+        // same pair for the same reason (the lunge's impact channel owns their hit FX). The Echo wave is not an
+        // attack, so its `meleePair` is null and every victim survives the filter.
+        const claimed = ctx.meleePair
+          ? hitUids.filter((u) => u !== ctx.meleePair!.attacker && u !== ctx.meleePair!.defender)
+          : hitUids;
         claimDamageFx(moment.primary.step, claimed);
         // DEV-only, and deliberately loud about the FAILURE case. Every miss in this path so far has been
         // silent — the effect simply doesn't appear and the stock burst does, which is indistinguishable
         // from "the binding isn't wired". A binding that matched but found no targets is the specific bug
-        // that already happened once (searching the wrong moment), so it gets a warning, not a log line.
+        // that already happened once (searching the wrong moment), so it gets a warning, not a log line — but
+        // NOT when the melee-pair filter emptied a non-empty hit set (that is the expected "own swing" case).
         if (import.meta.env.DEV) {
-          if (claimed.length === 0) {
+          if (hitUids.length === 0) {
             console.warn(
               `[fx] '${cardId ?? moment.kind}' → '${binding.def}' matched at '${moment.kind}' but found NO ` +
-                `damaged units in step ${String(moment.primary.step)} — nothing will play.`,
+                `target units in step ${String(moment.primary.step)} — nothing will play.`,
             );
-          } else {
+          } else if (claimed.length > 0) {
             console.info(`[fx] '${cardId ?? moment.kind}' → '${binding.def}' ×${claimed.length}`, claimed);
           }
         }
-        at(cue, () => {
-          // The cast's own event carries no target (Bloodbinder emits one `sc` then a damage event per
-          // marked enemy), so travel to each unit it actually damaged instead of collapsing onto the source.
-          claimed.forEach((uid, i) => {
-            const fanAnchors = anchorsForUnits(source, uid);
-            if (fanAnchors) playDef(binding.def, fanAnchors, { uids: { source, target: uid }, index: i });
-          })
-        });
+        // `launchOnDeath` (Fel Spikes' Echo): the claim above still suppresses the stock burst on this damage
+        // beat, but the projectile itself is NOT played here — it launched a beat earlier from the dying body
+        // (see `useCombatReplay`'s death handling), and this beat is held back so the damage lands when it
+        // connects. So only SCHEDULE the play for the ordinary same-beat case.
+        if (!binding.launchOnDeath) {
+          at(cue, () => {
+            // The cast's own event carries no target (Bloodbinder emits one `sc` then a damage event per
+            // marked enemy), so travel to each unit it actually damaged instead of collapsing onto the source.
+            claimed.forEach((uid, i) => {
+              const fanAnchors = anchorsForUnits(source, uid);
+              if (fanAnchors) playDef(binding.def, fanAnchors, { uids: { source, target: uid }, index: i });
+            });
+          });
+        }
       } else if (binding.fanOut === 'selfBuffed') {
         at(cue, () => {
           // Both ends are the same unit: a self-buff has no pair to travel between, so `source` and `target`

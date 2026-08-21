@@ -67,6 +67,100 @@ describe('simulate (handoff A.3)', () => {
     expect(a.playerDamage).toBe(b.playerDamage);
   });
 
+  it("Fel Spikes' Echo stamps its damage with Fel Spikes as the source (for the source→target volley FX)", () => {
+    // A dmg event carries no `source` for anonymous hits, but a sourced hit (attacker, AoE caster) now records
+    // it. Fel Spikes' Deathrattle sprays every non-friendly-Demon minion with `self` as the source — which is
+    // what lets presentation fire the spike volley FROM the dying body. Assert it on the DEATHRATTLE wave
+    // specifically (the `wave` tag is unique to it), not on incidental attack damage.
+    const p: BoardMinion[] = [
+      { cardId: 'dm_felspikes', attack: 4, health: 1 }, // Taunt; dies to the first enemy swing
+      { cardId: 'sandbag', attack: 0, health: 50 },     // a non-Demon ally the spray will hit
+    ];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 10, health: 50 }];
+    const r = run(p, e, 3);
+    const fs = r.initial.player.find((m) => m.cardId === 'dm_felspikes')!;
+    expect(r.events.some((ev) => ev.type === 'dmg' && ev.source === fs.uid && ev.wave !== undefined)).toBe(true);
+  });
+
+  it("Fel Spikes' Echo defers death across volleys — a Void Panther's cubs survive a gilded spray", () => {
+    // GILDED Fel Spikes sprays twice. A Void Panther (manasaber, summons two 0/2 Void Cubs on death) must eat
+    // BOTH volleys (the full 8) and die ONCE, so its cubs are summoned AFTER the spray and a later volley can't
+    // catch them. Before the deferred-death fix: the Panther took ONE 4-hit, died on volley 1, and its two cubs
+    // were wiped by volley 2 (verified: 1 dmg to Panther, 2 cub deaths). This is the regression guard.
+    const p: BoardMinion[] = [
+      { cardId: 'dm_felspikes', attack: 4, health: 1, golden: true }, // gilded → 2 sprays; dies to the enemy hit
+      { cardId: 'sandbag', attack: 0, health: 50 },                    // a non-Demon ally the spray also hits
+    ];
+    const e: BoardMinion[] = [
+      { cardId: 'manasaber', attack: 0, health: 1 }, // Void Panther — dies to the spray, summons 2 cubs
+      { cardId: 'sandbag', attack: 10, health: 50 }, // kills Fel Spikes
+    ];
+    const r = run(p, e, 3);
+    const fs = r.initial.player.find((m) => m.cardId === 'dm_felspikes')!;
+    const panther = r.initial.enemy.find((m) => m.cardId === 'manasaber')!;
+    // The Panther reads BOTH volleys (two 4-hits), not one — the full 8, accumulated past its 1 HP.
+    const felToPanther = r.events.filter((ev) => ev.type === 'dmg' && ev.target === panther.uid && ev.source === fs.uid);
+    expect(felToPanther).toHaveLength(2);
+    // Both cubs summon (after the spray), and — the fix — NEITHER is hit by Fel Spikes' volley (before the fix
+    // the Panther died on volley 1, its cubs spawned mid-spray, and volley 2 dealt to them). Later combat may
+    // touch a cub; we assert only that the SPRAY never does.
+    const cubSummons = r.events.filter(
+      (ev): ev is Extract<CombatEvent, { type: 'summon' }> => ev.type === 'summon' && ev.minion.cardId === 'sabercub',
+    );
+    const cubUids = new Set(cubSummons.map((ev) => ev.minion.uid));
+    expect(cubSummons).toHaveLength(2);
+    const felToCubs = r.events.filter((ev) => ev.type === 'dmg' && cubUids.has(ev.target) && ev.source === fs.uid);
+    expect(felToCubs).toHaveLength(0);
+  });
+
+  it("Fel Spikes' Echo defers death across a SEPARATE re-fire too — a Sylus re-trigger accumulates like gilded", () => {
+    // #1: ANY multi-fire accumulates, not just gilded. A plain (non-gilded) Fel Spikes beside a Sylus fires its
+    // Deathrattle twice as SEPARATE Echo triggers (base + 1 Sylus). The Void Panther must eat BOTH fires (the
+    // full 8) and die ONCE — its cubs summon after, and the second fire (which re-captures the board) hits the
+    // still-≤0 Panther, NOT the fresh cubs. Before the cross-fire deferral: fire 1 killed the Panther, its cubs
+    // spawned, and the Sylus re-fire sprayed the cubs.
+    const p: BoardMinion[] = [
+      { cardId: 'dm_felspikes', attack: 4, health: 1 }, // NOT gilded — one base spray…
+      { cardId: 'sylus', attack: 1, health: 50 },       // …but Sylus re-fires the whole Deathrattle once more
+      { cardId: 'sandbag', attack: 0, health: 50 },     // a non-Demon ally the spray also hits
+    ];
+    const e: BoardMinion[] = [
+      { cardId: 'manasaber', attack: 0, health: 1 }, // Void Panther — dies to the spray, summons 2 cubs
+      { cardId: 'sandbag', attack: 10, health: 50 }, // kills Fel Spikes
+    ];
+    const r = run(p, e, 3);
+    const fs = r.initial.player.find((m) => m.cardId === 'dm_felspikes')!;
+    const panther = r.initial.enemy.find((m) => m.cardId === 'manasaber')!;
+    const felToPanther = r.events.filter((ev) => ev.type === 'dmg' && ev.target === panther.uid && ev.source === fs.uid);
+    expect(felToPanther).toHaveLength(2); // base + Sylus re-fire, both landing on the SAME Panther
+    const cubSummons = r.events.filter(
+      (ev): ev is Extract<CombatEvent, { type: 'summon' }> => ev.type === 'summon' && ev.minion.cardId === 'sabercub',
+    );
+    const cubUids = new Set(cubSummons.map((ev) => ev.minion.uid));
+    expect(cubSummons).toHaveLength(2);
+    const felToCubs = r.events.filter((ev) => ev.type === 'dmg' && cubUids.has(ev.target) && ev.source === fs.uid);
+    expect(felToCubs).toHaveLength(0); // the Sylus re-fire hit the ≤0 Panther, never the fresh cubs
+  });
+
+  it("a doubler dying to the Echo it doubles STILL doubles it — gilded Fel Spikes + Sylus fires '4 twice, twice'", () => {
+    // A gilded Fel Spikes sprays its own non-Demon allies too, so its base fire (4 + 4 = 8) drops a low-HP
+    // Sylus. Sylus was ALIVE when the Deathrattle triggered and is only mid-deferred-death from the very spray
+    // it doubles, so it must still re-fire the whole rattle: 4 waves total (gilded 2 × Sylus-doubled 2), not 2
+    // (owner report 2026-08-21). Guards the `!m.dead` doubler filter.
+    const p: BoardMinion[] = [
+      { cardId: 'dm_felspikes', attack: 4, health: 1, golden: true }, // gilded → base sprays 4 twice = 8
+      { cardId: 'sylus', attack: 1, health: 6 },                      // 6 HP → dies to the base spray's 8…
+      { cardId: 'sandbag', attack: 0, health: 50 },
+    ];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 10, health: 50 }]; // kills Fel Spikes on its first swing
+    const r = run(p, e, 3);
+    const fs = r.initial.player.find((m) => m.cardId === 'dm_felspikes')!;
+    const waves = new Set(
+      r.events.filter((ev) => ev.type === 'dmg' && ev.source === fs.uid && ev.wave !== undefined).map((ev) => (ev as Extract<CombatEvent, { type: 'dmg' }>).wave),
+    );
+    expect(waves.size).toBe(4); // 2 gilded base passes + 2 gilded Sylus-doubled passes — Sylus doubled despite dying
+  });
+
   it('Bloodlust weld: a bloodlustRally attacker gives a friendly minion its Attack on each of its own swings', () => {
     const p: BoardMinion[] = [
       { cardId: 'pack', attack: 5, health: 30, bloodlustRally: true }, // the Bloodlust target

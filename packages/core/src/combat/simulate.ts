@@ -112,6 +112,28 @@ export function simulate(
     waveN = ++waveSeq;
     try { return fn(); } finally { waveN = prev; }
   };
+  // ── Multi-volley Echo: deferred-death scope ─────────────────────────────────────────────────────────
+  // A Fel-Spikes-style Deathrattle (`deathrattleDamageAllExceptTribe`) that sprays the whole board can fire
+  // MANY times over one death: gilded sprays twice, and any Echo doubler (Sylus, Funeral Engine, a golden
+  // Echohorn's re-trigger) re-fires the whole rattle. Every fire must hit the SAME victims and their deaths
+  // must resolve ONCE, AFTER the last fire — otherwise a body that summons tokens on death (Void Panther →
+  // two Void Cubs) dies to volley 1 and its fresh tokens are mown down by volley 2, and a low-HP victim
+  // vanishes before later volleys' reactors (Axeman / Leech) can proc (owner ruling 2026-08-20). While a
+  // scope is open, `resolveEchoDeath` QUEUES a ≤0 victim instead of killing it; the OUTERMOST scope flushes
+  // the queue in capture order once firing is done. The scope wraps EVERY death's own rattle firing, but only
+  // Fel-Spikes-style effects ever call `resolveEchoDeath`, so it is a no-op — byte-identical events — for
+  // every other death (proven by the determinism harness).
+  let echoDeferDepth = 0;
+  const echoDeferredDeaths: { victim: Minion; killer?: Minion }[] = [];
+  const flushEchoDeaths = (): void => {
+    const pending = echoDeferredDeaths.splice(0);
+    for (const { victim, killer } of pending) if (!victim.dead && victim.health <= 0) killOrReborn(victim, killer);
+  };
+  const withEchoDefer = <T,>(fire: () => T): T => {
+    echoDeferDepth++;
+    try { return fire(); }
+    finally { echoDeferDepth--; if (echoDeferDepth === 0 && echoDeferredDeaths.length > 0) flushEchoDeaths(); }
+  };
   const emit = (e: CombatEvent): void => { events.push({ ...e, step: stepN, ...(inAvenge ? { avenge: true as const } : {}), ...(effectCtx ? { key: effectCtx.key, srcCard: effectCtx.srcCard } : {}), ...(waveN !== undefined ? { wave: waveN } : {}) }); };
   // A completed quest / owned rune's COMBAT effect just fired — emit a marker the UI folds into a badge pulse
   // (the `flag` maps to the quest/rune id via content). Purely cosmetic; zero effect on resolution.
@@ -556,6 +578,11 @@ export function simulate(
   });
 
   const living = (side: Side): Minion[] => boards[side].filter((m) => !m.dead && m.health > 0);
+  // Like `living`, but RETAINS a body already at ≤0 HP whose death is being DEFERRED across a multi-volley
+  // Echo (Fel Spikes): it stays on the board until the spray's flush, so a later volley / re-fire re-hits the
+  // SAME accumulating set instead of skipping a body volley 1 already dropped. Only differs from `living` while
+  // an echo-defer scope is open — elsewhere no body sits at ≤0-not-dead, so it returns exactly `living`.
+  const onBoard = (side: Side): Minion[] => boards[side].filter((m) => !m.dead);
   // Non-allocating count of living minions on a side. The main loop guard checks this twice per iteration
   // (up to ~600×/sim); using this instead of `living(side).length` avoids building a throwaway array each time.
   const countLiving = (side: Side): number => {
@@ -622,6 +649,7 @@ export function simulate(
       emit(event);
     },
     living,
+    onBoard,
     getCard: (id) => {
       const card = cards[id];
       if (!card) throw new Error(`Unknown card: ${id}`);
@@ -724,6 +752,18 @@ export function simulate(
     },
     damage: (target, amount, poison = false, bypassShield = false, source) =>
       dealDamage(target, amount, poison, bypassShield, source),
+    // Multi-volley Echo: apply WITHOUT resolving death (overkill), so a captured target keeps reading each
+    // volley and its death is held for `resolveEchoDeath` at the end — see the CombatContext doc.
+    damageDeferred: (target, amount, source) => applyDamage(target, amount, false, false, source, true),
+    resolveEchoDeath: (target, source) => {
+      if (target.dead || target.health > 0) return;
+      // Inside a multi-fire echo scope, HOLD the death — the outermost `withEchoDefer` flushes the whole set
+      // at once after every volley + re-fire, so tokens (Void Cubs) land after all the damage and a low-HP
+      // victim reads every volley instead of dying to the first. Outside any scope, resolve immediately.
+      if (echoDeferDepth > 0) {
+        if (!echoDeferredDeaths.some((d) => d.victim === target)) echoDeferredDeaths.push({ victim: target, killer: source });
+      } else killOrReborn(target, source);
+    },
     armBleed: (minion, everyN, targets) => {
       if (everyN <= 0 || targets <= 0) return;
       // MARK a fixed set of enemies now (Start of Combat) — up to `targets` distinct random living foes. These
@@ -1703,7 +1743,12 @@ export function simulate(
   function playerEchoExtras(minion: Minion): number {
     // Sylus (stacking) + Uron (best-copy) — resolved from card DATA rather than a hardcoded id, so a new
     // multiplier is a card field and not another branch in this function.
-    const reaperExtras = extraTriggerFires('deathrattle', boards[minion.side].filter((m) => !m.dead && m.health > 0), (id) => cards[id]);
+    // `!m.dead` (NOT `health > 0`): a doubler that took lethal damage from the very Echo it is doubling — a
+    // gilded Fel Spikes sprays its own non-Demon Sylus to ≤0 on the base fire — is mid-DEFERRED-death, still on
+    // the board, and was alive when the Deathrattle triggered, so it must still double (owner report
+    // 2026-08-21: gilded + Sylus should fire "4 twice, twice"). Outside a defer scope nothing sits at
+    // ≤0-not-dead, so this is identical to the old filter for every non-spraying Deathrattle.
+    const reaperExtras = extraTriggerFires('deathrattle', boards[minion.side].filter((m) => !m.dead), (id) => cards[id]);
     // Elderhorn (Ritual): BEAST Echoes fire an extra time (tribe-scoped, so it never touches other tribes).
     const beastRitualExtra = isTribeOf(minion, 'beast', cards)
       ? (minion.side === 'player' ? playerState.beastRitualExtra ?? 0 : enemyState.beastRitualExtra ?? 0)
@@ -1765,13 +1810,16 @@ export function simulate(
         asEcho(minion.side, () => withEffect(minion, effect, () => FACTORIES[effect.do]?.(ctx, minion, effect.params ?? {}, { minion, side: minion.side, killer })), minion);
       }
     };
-    fireOnce();
-    if (!minion.effects.some((e) => e.on === 'onDeath')) return; // no Echo → no extra fires / tally to spend
-    const extra = playerEchoExtras(minion);
-    for (let r = 0; r < extra; r++) fireOnce();
-    // Doubler re-triggers count as extra Echo triggers (Reborn / Echoing Coop / Bone Throne). The caller already
-    // counted the base trigger; add the extras (player only — enemy Echoes don't feed quests).
-    if (minion.side === 'player') bumpDeathrattles(extra);
+    // Defer any Fel-Spikes-style board deaths across the base fire + all re-fires (see the withEchoDefer note).
+    withEchoDefer(() => {
+      fireOnce();
+      if (!minion.effects.some((e) => e.on === 'onDeath')) return; // no Echo → no extra fires / tally to spend
+      const extra = playerEchoExtras(minion);
+      for (let r = 0; r < extra; r++) fireOnce();
+      // Doubler re-triggers count as extra Echo triggers (Reborn / Echoing Coop / Bone Throne). The caller
+      // already counted the base trigger; add the extras (player only — enemy Echoes don't feed quests).
+      if (minion.side === 'player') bumpDeathrattles(extra);
+    });
   }
 
   function killOrReborn(minion: Minion, killer?: Minion): void {
@@ -2054,38 +2102,43 @@ export function simulate(
         bus.emit('battlecryTriggered', { side: minion.side, minion });
       }
     }
-    bus.emit('onDeath', { minion, side: minion.side, killer });
-    // Rune of the Crucible: the sacrificed bodies return when the side's LAST minion dies. Checked AFTER the
-    // Echoes fire, so an Echo that summons keeps the side alive and defers the return — the wipe has to be
-    // real. Emptied on use: one resurrection per fight, and the returning bodies can't re-trigger it.
-    if (crucibleBank[minion.side].length > 0 && boards[minion.side].every((m) => m.dead || m.health <= 0)) {
-      const bank = crucibleBank[minion.side];
-      crucibleBank[minion.side] = [];
-      fireTrigger('runeCrucible', minion.side);
-      for (const b of bank) {
-        const def = cards[b.cardId];
-        if (!def) continue;
-        summonMinion(minion.side, def, undefined, [...b.keywords], b.golden, false,
-          { attack: b.attack, health: b.health, maxHealth: b.health });
-      }
-    }
-    // Echo doublers re-proc the dying minion's own Deathrattle extra times — Sylus + Funeral Engine + the
-    // first-echo-each-combat bonus, all folded additively in `playerEchoExtras` (see its note). Only for a
-    // minion that actually has a Deathrattle (so the first-echo bonus isn't spent on a rattle-less body).
-    const extra = hasDeathrattle ? playerEchoExtras(minion) : 0;
-    for (let r = 0; r < extra; r++) {
-      // One wrap around the whole re-trigger: a body with two Echo effects is still ONE Echo triggering.
-      asEcho(minion.side, () => {
-        for (const effect of minion.effects) {
-          if (effect.on !== 'onDeath') continue;
-          withEffect(minion, effect, () => FACTORIES[effect.do]?.(ctx, minion, effect.params ?? {}, { minion, side: minion.side }));
+    // Defer any Fel-Spikes-style board deaths across the base Echo (fired via the bus) + every re-fire below,
+    // so all volleys land before a deferred victim resolves (see the withEchoDefer note). A no-op — byte-
+    // identical events — for every death whose rattle never calls `resolveEchoDeath`.
+    withEchoDefer(() => {
+      bus.emit('onDeath', { minion, side: minion.side, killer });
+      // Rune of the Crucible: the sacrificed bodies return when the side's LAST minion dies. Checked AFTER the
+      // Echoes fire, so an Echo that summons keeps the side alive and defers the return — the wipe has to be
+      // real. Emptied on use: one resurrection per fight, and the returning bodies can't re-trigger it.
+      if (crucibleBank[minion.side].length > 0 && boards[minion.side].every((m) => m.dead || m.health <= 0)) {
+        const bank = crucibleBank[minion.side];
+        crucibleBank[minion.side] = [];
+        fireTrigger('runeCrucible', minion.side);
+        for (const b of bank) {
+          const def = cards[b.cardId];
+          if (!def) continue;
+          summonMinion(minion.side, def, undefined, [...b.keywords], b.golden, false,
+            { attack: b.attack, health: b.health, maxHealth: b.health });
         }
-      }, minion);
-    }
-    // Each RE-TRIGGER is another Echo "triggered" (owner ruling 2026-07-08: TRIGGER-based counts — the Echo
-    // objective + Grim's tally — scale with doublers; a MINION dying is still one death). Added after the
-    // re-fires so all firings read the same tally value (the value at death), only the count grows.
-    if (minion.side === 'player' && hasDeathrattle) bumpDeathrattles(extra);
+      }
+      // Echo doublers re-proc the dying minion's own Deathrattle extra times — Sylus + Funeral Engine + the
+      // first-echo-each-combat bonus, all folded additively in `playerEchoExtras` (see its note). Only for a
+      // minion that actually has a Deathrattle (so the first-echo bonus isn't spent on a rattle-less body).
+      const extra = hasDeathrattle ? playerEchoExtras(minion) : 0;
+      for (let r = 0; r < extra; r++) {
+        // One wrap around the whole re-trigger: a body with two Echo effects is still ONE Echo triggering.
+        asEcho(minion.side, () => {
+          for (const effect of minion.effects) {
+            if (effect.on !== 'onDeath') continue;
+            withEffect(minion, effect, () => FACTORIES[effect.do]?.(ctx, minion, effect.params ?? {}, { minion, side: minion.side }));
+          }
+        }, minion);
+      }
+      // Each RE-TRIGGER is another Echo "triggered" (owner ruling 2026-07-08: TRIGGER-based counts — the Echo
+      // objective + Grim's tally — scale with doublers; a MINION dying is still one death). Added after the
+      // re-fires so all firings read the same tally value (the value at death), only the count grows.
+      if (minion.side === 'player' && hasDeathrattle) bumpDeathrattles(extra);
+    });
     // Avenge: count the death and notify that side's avengers.
     deaths[minion.side] += 1;
     if (minion.side === 'player') questEvents.push({ step: stepN, kind: 'friendlyDeath', tribes: [] });
@@ -2181,8 +2234,13 @@ export function simulate(
     poison: boolean,
     bypassShield: boolean,
     poisoner?: Minion,
+    overkill = false,
   ): void {
-    if (target.dead || target.health <= 0) return;
+    // `overkill`: keep dealing to a body already at ≤0 that has NOT yet been resolved to `dead`. A multi-volley
+    // Echo (Fel Spikes, gilded / Sylus / Echohorn) hits the SAME captured targets each pass and defers death to
+    // the end, so a low-HP victim reads EVERY volley's damage — and procs the per-volley reactors + pops a Ward
+    // on the first, takes damage on the next — instead of vanishing after the first hit.
+    if (target.dead || (!overkill && target.health <= 0)) return;
     // Immune: takes no damage at all (A.4) — even from Venomous or destroy effects.
     if (target.keywords.includes('IMM')) return;
     // A 0-damage hit is a non-event: it can't pop a Divine Shield, proc Venomous, or wake on-damaged
@@ -2198,7 +2256,10 @@ export function simulate(
       return;
     }
     target.health -= amount;
-    emit({ type: 'dmg', target: target.uid, amount, remainingHp: Math.max(0, target.health) });
+    // Stamp the dealer's uid when we have one (attacker, poisoner, an AoE caster like Fel Spikes) so a damage
+    // MOMENT can be attributed to its actor for source→target FX. Conditional so genuinely sourceless damage
+    // stays byte-identical (no `source: undefined` key on the event).
+    emit({ type: 'dmg', target: target.uid, amount, remainingHp: Math.max(0, target.health), ...(poisoner ? { source: poisoner.uid } : {}) });
     // The hit landed (Immune + Divine Shield already returned above) — notify on-damaged watchers (Gryphon).
     if (amount > 0) bus.emit('onDamaged', { minion: target, side: target.side });
     // Set 2: a FRIENDLY-relative Demon just dealt damage that LANDED (Immune / Divine Shield / 0-dmg all

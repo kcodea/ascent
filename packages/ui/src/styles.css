@@ -3904,6 +3904,11 @@ body.aiming, body.aiming * { cursor: none !important; }
    all of that, so the skull plays in the unit's OWN slot and neighbours don't slide in until it bursts. */
 .unit.dying.dr.returning .card { width: var(--cw); animation: dyingfade var(--death-dur) ease calc(0.6s / var(--combat-speed, 1)) both; }
 .unit.dying.dr.returning { animation-delay: calc(0.72s / var(--combat-speed, 1)); }
+/* A launchOnDeath sprayer (Fel Spikes) sprays for SECONDS after death — `holdecho` CANCELS its slot-collapse
+   entirely (the card still fades in place, above) so its slot stays FULL through the whole spray. Its invisible
+   ghost then holds that slot for every wave beat; the survivors slide in ONCE, when the ghost is finally
+   dropped after the last volley — never sliding in early and reversing (owner report 2026-08-21). */
+.unit.dying.dr.holdecho { animation: none; }
 /* A PLAIN ATTACKER (no Rise, no Deathrattle — e.g. a REBORN unit's true death) that died mid-lunge
    (`dying returning`): GSAP pulls it home (~0.34s), then it SOFT-FADES in its own slot (dyingfade, no bouncy
    pop), and the slot reflow is held so neighbours don't slide in until it's home. Unlike the Deathrattle

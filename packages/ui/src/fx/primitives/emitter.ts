@@ -320,6 +320,12 @@ export function emitterFireComplete(oneShot: boolean, elapsedMs: number, windowM
   return oneShot && !withinEmitWindow(elapsedMs, windowMs) && moteCount === 0;
 }
 
+/** A STOPPED emitter (see `FxInstance.stopEmitting`) is complete once its last mote has died — independent of
+ *  the one-shot emit window, which is why it is its own predicate rather than a branch of `emitterFireComplete`. */
+export function emitterStoppedComplete(stopped: boolean, moteCount: number): boolean {
+  return stopped && moteCount === 0;
+}
+
 /**
  * A mote's alpha at life-fraction `t` (0 at birth, 1 at death): ramps 0→1 over the first `fadeIn` fraction
  * of life, holds at 1, then symmetrically ramps 1→0 over the last `fadeIn` fraction. `fadeIn` is floored to
@@ -401,6 +407,9 @@ class EmitterInstance implements FxInstance<EmitterParams> {
   // True when this instance was spawned for a one-shot Fire (see FxContext.oneShot). Bounds emission to a
   // single window (see `withinEmitWindow`) instead of streaming forever.
   private readonly oneShot: boolean;
+  // Set by `stopEmitting()` (see `FxInstance.stopEmitting`): stops spawning new motes but leaves any already
+  // live to finish their own fade, instead of being culled outright — see `emitterStoppedComplete`.
+  private stopped = false;
   // This instance's ONE random source, seeded once in the constructor and drawn from by `spawnMote()` in a
   // fixed order (see there). With `ctx.seed` set the whole stream replays identically, which is what makes a
   // tuning holdable/screenshot-able; without one we roll a fresh seed per instance, i.e. exactly the previous
@@ -529,7 +538,7 @@ class EmitterInstance implements FxInstance<EmitterParams> {
     const b = bs.budget + p.rate * dtSec;
     bs.spawnCount = Math.floor(b);
     bs.budget = b - bs.spawnCount;
-    const emitting = this.headSet && (!this.oneShot || withinEmitWindow(this.emitElapsedMs, p.life));
+    const emitting = this.headSet && !this.stopped && (!this.oneShot || withinEmitWindow(this.emitElapsedMs, p.life));
     if (emitting) {
       const room = MAX_MOTES - motes.length;
       const toSpawn = bs.spawnCount < room ? bs.spawnCount : Math.max(0, room);
@@ -554,7 +563,8 @@ class EmitterInstance implements FxInstance<EmitterParams> {
 
   /** See `emitterFireComplete`'s header comment for the completion contract. */
   isComplete(): boolean {
-    return emitterFireComplete(this.oneShot, this.emitElapsedMs, this.params.life, this.motes.length);
+    return emitterFireComplete(this.oneShot, this.emitElapsedMs, this.params.life, this.motes.length)
+      || emitterStoppedComplete(this.stopped, this.motes.length);
   }
 
   setParams(next: EmitterParams): void {
@@ -571,6 +581,10 @@ class EmitterInstance implements FxInstance<EmitterParams> {
       this.texture = getShapeTextureById(this.renderer, next.shape);
       this.particles.texture = this.texture;
     }
+  }
+
+  stopEmitting(): void {
+    this.stopped = true;
   }
 
   destroy(): void {

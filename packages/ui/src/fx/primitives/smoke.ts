@@ -345,6 +345,13 @@ export function smokeFireComplete(oneShot: boolean, elapsedMs: number, windowMs:
   return oneShot && !smokeWithinEmitWindow(elapsedMs, windowMs) && moteCount === 0;
 }
 
+/** A STOPPED smoke instance (see `FxInstance.stopEmitting`) is complete once its last puff has died —
+ *  independent of the one-shot emit window, which is why it is its own predicate rather than a branch of
+ *  `smokeFireComplete`. Mirrors `emitter.ts`'s `emitterStoppedComplete`. */
+export function smokeStoppedComplete(stopped: boolean, puffCount: number): boolean {
+  return stopped && puffCount === 0;
+}
+
 /**
  * A mote's alpha at life-fraction `t` (0 at birth, 1 at death): ramps 0→1 over the first `fadeIn` fraction of
  * life, holds at 1, then symmetrically ramps 1→0 over the last `fadeIn` fraction. `fadeIn` is floored to a
@@ -422,6 +429,9 @@ class SmokeInstance implements FxInstance<SmokeParams> {
   // True when this instance was spawned for a one-shot Fire (see FxContext.oneShot). Bounds emission to a
   // single window (see `smokeWithinEmitWindow`) instead of streaming forever.
   private readonly oneShot: boolean;
+  // Set by `stopEmitting()` (see `FxInstance.stopEmitting`): stops spawning new puffs but leaves any already
+  // live to finish their own fade, instead of being culled outright — see `smokeStoppedComplete`.
+  private stopped = false;
   // This instance's ONE random source, seeded once in the constructor and drawn from by `spawnMote()` in a
   // fixed order (see there). With `ctx.seed` set the whole column replays identically, which is what makes a
   // tuning holdable/screenshot-able; without one we roll a fresh seed per instance, i.e. exactly the previous
@@ -548,7 +558,7 @@ class SmokeInstance implements FxInstance<SmokeParams> {
     const b = bs.budget + p.rate * dtSec;
     bs.spawnCount = Math.floor(b);
     bs.budget = b - bs.spawnCount;
-    const emitting = this.headSet && (!this.oneShot || smokeWithinEmitWindow(this.emitElapsedMs, p.life));
+    const emitting = this.headSet && !this.stopped && (!this.oneShot || smokeWithinEmitWindow(this.emitElapsedMs, p.life));
     if (emitting) {
       const room = MAX_MOTES - motes.length;
       const toSpawn = bs.spawnCount < room ? bs.spawnCount : Math.max(0, room);
@@ -573,7 +583,8 @@ class SmokeInstance implements FxInstance<SmokeParams> {
 
   /** See `smokeFireComplete`'s header comment for the completion contract. */
   isComplete(): boolean {
-    return smokeFireComplete(this.oneShot, this.emitElapsedMs, this.params.life, this.motes.length);
+    return smokeFireComplete(this.oneShot, this.emitElapsedMs, this.params.life, this.motes.length)
+      || smokeStoppedComplete(this.stopped, this.motes.length);
   }
 
   setParams(next: SmokeParams): void {
@@ -590,6 +601,10 @@ class SmokeInstance implements FxInstance<SmokeParams> {
       this.texture = getShapeTextureById(this.renderer, next.shape);
       this.particles.texture = this.texture;
     }
+  }
+
+  stopEmitting(): void {
+    this.stopped = true;
   }
 
   destroy(): void {

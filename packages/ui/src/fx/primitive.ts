@@ -66,6 +66,11 @@ export interface FxInstance<P = Record<string, unknown>> {
    *  particles dead, all rings finished). The player uses it to know when a Fire has fully played out.
    *  Continuous effects (or any instance not spawned oneShot) may omit it or always return false. */
   isComplete?(): boolean;
+  /** Stop spawning new particles but keep the existing ones alive to finish their own life. Used by the
+   *  player's SEAMLESS loop so an outgoing cycle drains naturally while the next one emits, instead of being
+   *  culled at the boundary (which is the loop "blink"). A bounded primitive that emits nothing new anyway
+   *  (burst, shockwave) may omit this — the player treats its absence as "already finishing". */
+  stopEmitting?(): void;
   destroy(): void;
 }
 

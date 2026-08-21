@@ -4100,7 +4100,13 @@ body.aiming, body.aiming * { cursor: none !important; }
 .heroselect { position: fixed; inset: 0; z-index: 400; display: grid; place-items: safe center; overflow-y: auto; padding: 24px 0; background: color-mix(in srgb, var(--bg) 92%, transparent); animation: fadein 0.3s ease; cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
 /* The pre-run picker uses the board art, heavily dimmed, as its textured backdrop. */
 /* Same aspect-switched board the player will actually play on (see --board), so the champion pick previews it. */
-.heroselect:not(.endscreen) { background: linear-gradient(rgba(22, 15, 9, 0.62), rgba(22, 15, 9, 0.7)), var(--board) center / cover no-repeat, var(--bg); }
+/* Board art lives on a ::before layer so it can be blurred HARD without touching the picker's text/cards.
+   z-index:-1 keeps it BEHIND all content (which stays in normal flow — no per-child position/z-index, so the
+   absolute Back button keeps its top-left pin), yet above the element's own --bg fill. Inset past the viewport
+   (-60px) so the blur's transparent edge bleed stays off-screen. Darkening scrim (unchanged) rides on top of
+   the art in the same layer. Static blur, painted once. */
+.heroselect:not(.endscreen) { background: var(--bg); }
+.heroselect:not(.endscreen)::before { content: ''; position: absolute; inset: -60px; z-index: -1; pointer-events: none; background: linear-gradient(rgba(22, 15, 9, 0.62), rgba(22, 15, 9, 0.7)), var(--board) center / cover no-repeat, var(--bg); filter: blur(16px); }
 /* The end screen gets its OWN dark backdrop (the sky-castle art, heavily scrimmed) so the run's stats read
    over a clean, high-contrast surface — never over the busy live board behind it. */
 .heroselect.endscreen { background: linear-gradient(rgba(6, 11, 22, 0.88), rgba(6, 11, 22, 0.93)), url('/homescreen.webp') center / cover no-repeat, var(--bg); }

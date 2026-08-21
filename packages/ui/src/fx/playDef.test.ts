@@ -8,6 +8,7 @@ import {
   createRetire,
   ensureDefsReady,
   fireProgress,
+  loopOptionsFrom,
   playDef,
   playableDef,
   playableLayers,
@@ -98,6 +99,32 @@ describe('fireProgress', () => {
     expect(fireProgress(10, Number.NaN)).toBe(1);
     expect(fireProgress(Number.NaN, 800)).toBe(1);
     expect(fireProgress(Number.POSITIVE_INFINITY, 800)).toBe(1);
+  });
+});
+
+describe('loopOptionsFrom', () => {
+  it('a legacy def (no loop fields) plays out — the pre-existing behaviour, unchanged', () => {
+    expect(loopOptionsFrom({}, true)).toEqual({ loop: true, loopMode: 'playOut', loopJoinMs: 0 });
+  });
+
+  it('carries a seamless def’s loopMode + a negative join straight through', () => {
+    expect(loopOptionsFrom({ loopMode: 'seamless', loopJoinMs: -40 }, true)).toEqual({
+      loop: true,
+      loopMode: 'seamless',
+      loopJoinMs: -40,
+    });
+  });
+
+  it('carries a positive join through too', () => {
+    expect(loopOptionsFrom({ loopJoinMs: 80 }, true)).toEqual({ loop: true, loopMode: 'playOut', loopJoinMs: 80 });
+  });
+
+  it('passes through the caller’s `loop` flag unchanged, including false for a one-shot play', () => {
+    expect(loopOptionsFrom({ loopMode: 'seamless', loopJoinMs: -40 }, false)).toEqual({
+      loop: false,
+      loopMode: 'seamless',
+      loopJoinMs: -40,
+    });
   });
 });
 

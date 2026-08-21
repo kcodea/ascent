@@ -174,6 +174,28 @@ export function fireProgress(timeMs: number, durationMs: number): number {
   return t < 0 ? 0 : t > 1 ? 1 : t;
 }
 
+/**
+ * PURE: the `createPlayer` loop options a stored def resolves to for one play.
+ *
+ * Extracted rather than inlined so it is unit-testable with no renderer: `playDef` returns `null` before it
+ * ever reaches `createPlayer` in the headless test env (see the "no renderer → null" tests below), so a spy
+ * on `createPlayer` never fires there. This reads `stored.loopMode`/`loopJoinMs` on the exact same
+ * omitted-means-default terms as `stored.seed`/`stored.slot` elsewhere in this file: a def saved before these
+ * fields existed (or one that never touched them) falls back to `'playOut'` / `0` — today's play-out-then-
+ * repeat behaviour, unchanged. `loop` is the CALLER's decision (`opts.loop`); this only decides HOW a looping
+ * play crosses its boundary.
+ */
+export function loopOptionsFrom(
+  stored: Pick<StoredFxDef, 'loopMode' | 'loopJoinMs'>,
+  loop: boolean,
+): { loop: boolean; loopMode: 'playOut' | 'seamless'; loopJoinMs: number } {
+  return {
+    loop,
+    loopMode: stored.loopMode ?? 'playOut',
+    loopJoinMs: stored.loopJoinMs ?? 0,
+  };
+}
+
 /** The four teardown steps of one play, in order. Named rather than an anonymous list so `createRetire`
  *  reads as the lifecycle it is, and so a test can assert each ran exactly once. */
 export interface FxPlayTeardown {
@@ -375,7 +397,11 @@ export function playDef(id: string, anchors: FxAnchors, opts: PlayDefOptions = {
 
   const container = new Container();
   const unmountLayer = pixiFx.mountLayer(container, slot);
-  const player = createPlayer(def, { container, renderer, uids: opts.uids }, { loop: opts.loop ?? false });
+  const player = createPlayer(
+    def,
+    { container, renderer, uids: opts.uids },
+    loopOptionsFrom(stored, opts.loop ?? false),
+  );
   // A def that saved a LOCKED seed means "this exact roll" — honour it, or the composition the author
   // committed is not the one that plays. No seed (unlocked) hands over `null`: fresh roll per fire, which
   // is what an unlocked composition has always meant.

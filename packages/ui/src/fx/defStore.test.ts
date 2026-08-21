@@ -334,10 +334,22 @@ describe('coerceDef / toStoredDef', () => {
       tags: ['a', 'b'],
       slot: 'under',
       ease: [[0, 0], [0.4, 0.9], [1, 1]],
+      loopMode: 'seamless',
+      loopJoinMs: -60,
       layers: [{ primitive: 'test-prim', anchor: 'target', at: 0, params: { size: 3 } }],
     };
     // Exactly what the workbench does on Save, with an editor that reproduces the prior def's state.
-    const saved = toStoredDef(prior.id, prior.duration, prior.layers, prior.seed, prior.slot, prior, prior.ease);
+    const saved = toStoredDef(
+      prior.id,
+      prior.duration,
+      prior.layers,
+      prior.seed,
+      prior.slot,
+      prior,
+      prior.ease,
+      prior.loopMode,
+      prior.loopJoinMs,
+    );
     expect(saved).toEqual(prior);
   });
 
@@ -353,6 +365,30 @@ describe('coerceDef / toStoredDef', () => {
   it('carries an authored ease through a re-save', () => {
     const saved = toStoredDef('eased', 500, [], undefined, undefined, undefined, [[0, 0], [0.5, 0.2], [1, 1]]);
     expect(saved.ease).toEqual([[0, 0], [0.5, 0.2], [1, 1]]);
+  });
+
+  // ── `loopMode` / `loopJoinMs` follow the exact same omit-unless-non-default discipline as `slot` ──────
+
+  it('round-trips loopMode: seamless and drops playOut as the default omission', () => {
+    const seamless = toStoredDef('d', 100, [], undefined, undefined, undefined, undefined, 'seamless', 0);
+    expect(seamless.loopMode).toBe('seamless');
+    expect(coerceDef(JSON.parse(JSON.stringify(seamless)))?.loopMode).toBe('seamless');
+    const playout = toStoredDef('d', 100, [], undefined, undefined, undefined, undefined, 'playOut', 0);
+    expect('loopMode' in playout).toBe(false); // default is an OMISSION
+  });
+
+  it('round-trips a non-zero loopJoinMs and omits zero', () => {
+    const joined = toStoredDef('d', 100, [], undefined, undefined, undefined, undefined, 'seamless', -60);
+    expect(joined.loopJoinMs).toBe(-60);
+    expect(coerceDef(JSON.parse(JSON.stringify(joined)))?.loopJoinMs).toBe(-60);
+    const zero = toStoredDef('d', 100, [], undefined, undefined, undefined, undefined, 'seamless', 0);
+    expect('loopJoinMs' in zero).toBe(false);
+  });
+
+  it('a def without loop fields loads as undefined (backward compatible)', () => {
+    const legacy = coerceDef({ version: 1, id: 'd', duration: 100, layers: [] });
+    expect(legacy?.loopMode).toBeUndefined();
+    expect(legacy?.loopJoinMs).toBeUndefined();
   });
 
   it('coerceDef takes only the literal "under" slot, and omits it otherwise', () => {

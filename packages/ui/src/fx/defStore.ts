@@ -86,6 +86,17 @@ export interface StoredFxDef {
    * which is what keeps every def already on disk byte-identical and `FX_DEF_VERSION` unbumped.
    */
   ease?: [number, number][];
+  /**
+   * How this effect loops WHEN looped (the caller decides whether to loop; this decides how). OPTIONAL and
+   * omitted unless `'seamless'`, on the same terms as `seed`/`slot`/`ease` — a def that never touches it saves
+   * the exact JSON it saved before this field existed. Absent = `'playOut'` (today's play-out-then-repeat).
+   */
+  loopMode?: 'seamless';
+  /**
+   * Signed loop-join offset in ms: `> 0` a gap between cycles, `< 0` (seamless only) an overlap. OPTIONAL and
+   * omitted when `0`, same discipline as above.
+   */
+  loopJoinMs?: number;
   layers: StoredFxLayer[];
 }
 
@@ -239,6 +250,13 @@ export function coerceDef(raw: unknown): StoredFxDef | null {
   // is dropped too — it is what "no ease" MEANS, and keeping it would take the player off its fast path.
   const ease = coerceEase(raw.ease);
   if (ease !== null) def.ease = ease;
+  // Only the literal string `'seamless'` opts in; absent/typo'd/anything-else means the default `'playOut'`,
+  // which — like `slot`'s `'over'` — is expressed as an omission so an untouched def round-trips unchanged.
+  if (raw.loopMode === 'seamless') def.loopMode = 'seamless';
+  // Same omit-unless-usable discipline as `seed`, but `0` is the meaningful default here (no offset) rather
+  // than a value worth keeping, so it is dropped alongside non-finite/absent input.
+  const loopJoinMs = finite(raw.loopJoinMs);
+  if (loopJoinMs !== null && loopJoinMs !== 0) def.loopJoinMs = loopJoinMs;
   return def;
 }
 
@@ -320,6 +338,11 @@ export function toStoredDef(
   /** Trailing and optional so every existing call site stays valid — a caller that has no ease says nothing
    *  rather than passing `undefined` through a hole in the middle of the signature. */
   ease?: ReadonlyArray<readonly [number, number]>,
+  /** Trailing and optional for the same reason as `ease`. Accepts `'playOut'` (the default) as well as
+   *  `'seamless'` so a caller that has resolved the mode down to a concrete value can still pass it through —
+   *  `'playOut'` simply produces an omission, same as `undefined` would. */
+  loopMode?: 'playOut' | 'seamless',
+  loopJoinMs?: number,
 ): StoredFxDef {
   const meta = carriedMeta(id, prior);
   // Two literals rather than a post-hoc assignment purely for KEY ORDER: `version, id, label, tags, duration,
@@ -337,6 +360,10 @@ export function toStoredDef(
   // keeps saving the exact JSON they saved before this field existed — and, more importantly, an author who
   // LOADS an eased def and re-saves it keeps the ease, which is the data-loss `label`/`tags` once had.
   if (ease !== undefined && !isIdentityCurve(ease)) def.ease = ease.map((p) => [p[0], p[1]] as [number, number]);
+  // Same omit-unless-non-default rule as `slot`: `'playOut'` (and `undefined`) write nothing, so a def that
+  // never touches looping keeps saving the exact JSON it saved before this field existed.
+  if (loopMode === 'seamless') def.loopMode = 'seamless';
+  if (typeof loopJoinMs === 'number' && Number.isFinite(loopJoinMs) && loopJoinMs !== 0) def.loopJoinMs = loopJoinMs;
   return def;
 }
 

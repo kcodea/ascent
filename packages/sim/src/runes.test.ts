@@ -65,7 +65,10 @@ describe('Runeforge — synergy offers + pivot discounts (owner ask 2026-07-31)'
     for (let seed = 1; seed <= 60 && !found; seed++) {
       // The UNIVERSAL forge (runic rift, wave 6) opens for any hero, so the pivot rule can be observed on its
       // own rather than through a hero who also discounts the whole shop.
-      const s: RunState = { ...createRun(seed, 'coran'), setId: 'set2', rift: 'runic', wave: 5, phase: 'combat', hand: [],
+      // Warden, not Coran: since the 2026-08-21 rework Coran opens the run holding a hero-quest modal, and a
+      // live modal blocks the turn advance this test drives — so the forge never opened and the whole 60-seed
+      // sweep silently found nothing. The test only ever needed "a hero with no forge of their own".
+      const s: RunState = { ...createRun(seed, 'warden'), setId: 'set2', rift: 'runic', wave: 5, phase: 'combat', hand: [],
         board: demonBoard(), lastCombat: win };
       const opened = reduce(s, { type: 'resolveCombat' });
       const offer = opened.runeforgeOffer;
@@ -280,15 +283,15 @@ describe('New heroes — Coran (Pathfinder) + Jenkins (Dynamite Dig)', () => {
     expect(s.questOffer?.length).toBeGreaterThan(0);
     expect(s.questOffer!.every((id) => questBucketFor(QUEST_INDEX[id]!) === 5)).toBe(true);
   });
-  it('Coran: a BONUS Capstone (turn-11 bucket) quest arrives on turn 10', () => {
-    const s = reduce(atCombat('coran', 9), { type: 'resolveCombat' }); // → turn 10
-    expect(s.wave).toBe(10);
-    expect(s.questOffer?.length).toBeGreaterThan(0);
-    // Everything offered is from the turn-11 bucket (Capstone, or a promoted Greater neutral).
-    expect(s.questOffer!.every((id) => questBucketFor(QUEST_INDEX[id]!) === 11)).toBe(true);
+  it('Coran: Pathfinder is a TWO-option hero quest on turn 1 (rework 2026-08-21)', () => {
+    // Was a bonus turn-10 Capstone offer; the owner replaced the power outright with his own quest list.
+    const s = createRun(1, 'coran');
+    expect(s.questOffer).toHaveLength(2);
+    expect(s.questOffer!.every((id) => QUEST_INDEX[id]!.heroQuest === 'coran')).toBe(true);
   });
   it('Coran: still gets the normal turn-11 quest', () => {
-    const s = reduce(atCombat('coran', 10), { type: 'resolveCombat' }); // → turn 11
+    // Clear the turn-1 hero offer first — a live modal blocks every action, the turn advance included.
+    const s = reduce({ ...atCombat('coran', 10), questOffer: undefined }, { type: 'resolveCombat' }); // → turn 11
     expect(s.wave).toBe(11);
     expect(s.questOffer?.length).toBeGreaterThan(0);
     expect(s.questOffer!.every((id) => questBucketFor(QUEST_INDEX[id]!) === 11)).toBe(true);

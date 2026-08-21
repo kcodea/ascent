@@ -72,6 +72,10 @@ export function questObjectiveText(o: QuestObjective): string {
       return `Spend ${o.count} Gold`;
     case 'endOfTurn':
       return `Trigger ${o.count} End-of-Turn effect${o.count === 1 ? '' : 's'}`;
+    case 'journey':
+      // Hero quests (Fi / Coran). Named for the counter AND its three sources, because every hero quest uses
+      // this one objective — a player who reads it once never has to read it again.
+      return `Travel ${o.count} steps — play a minion, cast a spell or upgrade`;
     case 'tribeStats':
       return `Give ${o.tribe ? TRIBE_PLURAL[o.tribe] : 'minions'} ${o.count} total stats`;
     default:
@@ -320,6 +324,17 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
       return r.scope === 'always' ? 'Your Shop spells cast twice' : 'Your first Shop spell each turn casts twice';
     case 'minionCost':
       return `Minions cost ${r.cost} Gold from the shop`;
+    // ── Hero quest rewards (Fi / Coran) ──
+    case 'grantRune':
+      return r.rarity === 'epic' ? 'Get a random Epic Rune' : 'Get a random Basic Rune';
+    case 'freeFirstBuy':
+      return 'Your first shop minion each turn is free';
+    case 'tier7Access':
+      return 'Tier 7 is unlocked this game';
+    case 'gildCopies':
+      return `You only need ${r.copies} copies to Gild minions`;
+    case 'upgradeShopTier':
+      return `Upgrade your Shop by ${r.by} Tier${r.by === 1 ? '' : 's'}`;
     case 'slaughterRepeat':
       return 'Your first Slaughter each combat triggers an extra time';
     case 'shoutEdgeBuff':

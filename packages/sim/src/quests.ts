@@ -21,14 +21,21 @@ export function questBucketFor(q: QuestDef): 5 | 11 {
  *  gate, so those heroes keep their own quest access even when the universal system is off (mirrors how the
  *  runeforge system leaves Runesmith/Runeguard native access intact). Chronos's quest-flavoured power isn't
  *  here at all — it's a buy-counter reward, unaffected either way. */
-export type QuestOfferPlan = { bucket: 5 | 11; lesserOnly?: boolean };
+export type QuestOfferPlan = { bucket: 5 | 11; lesserOnly?: boolean } | { heroQuest: string };
+export function isHeroQuestPlan(p: QuestOfferPlan): p is { heroQuest: string } {
+  return 'heroQuest' in p;
+}
 export function questOfferPlan(s: RunState): QuestOfferPlan | null {
   const hp = getHero(s.heroId).power.kind;
-  // Quest-native hero powers — kept above the master gate so they survive `questsEnabled = false`.
-  // Fi's Errand: a bonus LESSER-only offer on turn 4 (from the turn-5 bucket), ON TOP of the normal turns 5 & 11.
+  // HERO QUESTS (Fi / Coran, owner rework 2026-08-21) — a TURN-1 two-option Discover from that hero's own
+  // private quest list. This replaced both heroes' old powers outright (Fi's turn-4 Errand, Coran's turn-10
+  // Pathfinder), so there is no bonus universal offer left to fall through to: they take the normal turn-5 and
+  // turn-11 quests like everyone else, plus this one on turn 1. Above the master gate for the same reason the
+  // old quest-native powers were — a hero whose whole power is a quest keeps it when the universal system is off.
+  if (hp === 'heroQuest' && s.wave === 1) return { heroQuest: s.heroId };
+  // RETIRED quest-native powers. Kept live so a saved/replayed run created before the rework still resolves its
+  // offers exactly as it did then — the hero defs no longer produce these kinds.
   if (hp === 'lesserQuest' && s.wave === 4) return { bucket: 5, lesserOnly: true };
-  // Coran (Pathfinder): a bonus CAPSTONE (turn-11 bucket) quest on turn 10, ON TOP of the normal 5 & 11 turns —
-  // so he falls through to the universal logic below for those (an early return only on turn 10).
   if (hp === 'pathfinder' && s.wave === 10) return { bucket: 11 };
   // The universal quest turns — gated by the master switch.
   if (!CONFIG.questsEnabled) return null;
@@ -72,6 +79,7 @@ export function generateQuestOffer(s: RunState, plan: QuestOfferPlan): string[] 
   const rng = makeRng(mixSeed(s.seed, s.wave, TAG.QUEST));
   // Never re-offer a quest you already hold (taken/active/completed), and never repeat a quest within one offer.
   const taken = new Set((s.activeQuests ?? []).map((aq) => aq.questId));
+  if (isHeroQuestPlan(plan)) return heroQuestOffer(plan.heroQuest, taken, rng);
   // SET + TRIBE SCOPING (owner 2026-07-29). Two filters, both guarding against offering a quest that cannot be
   // completed in THIS run:
   //   · `sets` — the set-1 and set-2 quest lists are different, and a quest naming another set's mechanics
@@ -82,7 +90,11 @@ export function generateQuestOffer(s: RunState, plan: QuestOfferPlan): string[] 
   const runSet = setIdOf(s);
   const runTribes = new Set<Tribe>([...(s.tribes ?? []), 'neutral']);
   const pool = QUEST_DEFS.filter(
-    (q) => questBucketFor(q) === plan.bucket
+    // A hero quest belongs to ONE hero's turn-1 Discover and is never drawn by the universal offer. Filtered
+    // here rather than by tribe/tier so the two systems can share the quest list, the `ActiveQuest` progress
+    // machinery, the reward engine and the badge row without either being able to leak into the other.
+    (q) => !q.heroQuest
+      && questBucketFor(q) === plan.bucket
       && (!plan.lesserOnly || q.tier === 'lesser')
       && !taken.has(q.id)
       && (!q.sets || q.sets.includes(runSet))
@@ -117,5 +129,29 @@ export function generateQuestOffer(s: RunState, plan: QuestOfferPlan): string[] 
   while (chosen.length < TRIBE_SLOTS && rest.length) chosen.push(rest.shift()!);
   // `take` marks each picked id used, so a second dominant slot draws a DIFFERENT quest of that tribe.
   for (const t of chosen) take(idsOf(t));
+  return offer;
+}
+
+/**
+ * The turn-1 HERO QUEST offer: **two** options from this hero's own list (owner spec 2026-08-21).
+ *
+ * The one rule beyond "pick two": **at most one quest per `variantGroup`.** Opening Act (Fi) and Resonant Path
+ * (Coran) are each three quests — a Shout, an Echo and a Rally variant — and offering two of a family would
+ * hand the player a choice between two spellings of the same card, which is no choice at all. Picking the
+ * FIRST option burns its whole family out of the pool before the second is drawn.
+ *
+ * Fewer than two survivors is fine and cannot soft-lock: the caller treats an empty result as "no quest
+ * phase", and a single-option offer is still a legal (if unexciting) pick.
+ */
+function heroQuestOffer(heroId: string, taken: Set<string>, rng: ReturnType<typeof makeRng>): string[] {
+  let pool = QUEST_DEFS.filter((q) => q.heroQuest === heroId && !taken.has(q.id));
+  const offer: string[] = [];
+  const SLOTS = 2;
+  while (offer.length < SLOTS && pool.length > 0) {
+    const pick = pool[rng.int(pool.length)]!;
+    offer.push(pick.id);
+    // Drop the pick AND — for a variant family — every sibling of it.
+    pool = pool.filter((q) => q.id !== pick.id && (!pick.variantGroup || q.variantGroup !== pick.variantGroup));
+  }
   return offer;
 }

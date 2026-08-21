@@ -4113,19 +4113,16 @@ describe('hero powers (@game/sim)', () => {
     expect(s.hand.some((c) => c.cardId === 'chronos')).toBe(true);
   });
 
-  it("Fi's Errand opens an extra LESSER-only quest shop on turn 4", () => {
-    // Drive a real advance into wave 4 and confirm the quest offer opens, restricted to Lesser quests.
-    let s: RunState = { ...createRun(1, 'fi'), wave: 3, phase: 'recruit' };
-    s = reduce(s, { type: 'faceOmen' }); // → combat for wave 3
-    s = reduce(s, { type: 'resolveCombat' }); // → recruit for wave 4, Fi's quest opens
-    expect(s.wave).toBe(4);
-    expect((s.questOffer?.length ?? 0)).toBeGreaterThan(0);
-    expect(s.questOffer!.every((id) => QUEST_INDEX[id]!.tier === 'lesser')).toBe(true); // Lesser only
-    // A non-Fi hero gets no turn-4 quest.
-    let w: RunState = { ...createRun(1, 'soren'), wave: 3, phase: 'recruit' };
-    w = reduce(w, { type: 'faceOmen' });
-    w = reduce(w, { type: 'resolveCombat' });
-    expect(w.questOffer).toBeUndefined();
+  it("Fi's Errand opens a TWO-option hero quest on turn 1 (rework 2026-08-21)", () => {
+    // The run OPENS holding the offer — turn 1 never passes through a turn advance, so this has to be minted
+    // in `createRun` (the mistake that would look like "the power does nothing" if it were left to the advance).
+    const s = createRun(1, 'fi');
+    expect(s.wave).toBe(1);
+    expect(s.questOffer).toHaveLength(2);
+    // Both from Fi's OWN list, never the universal pool.
+    expect(s.questOffer!.every((id) => QUEST_INDEX[id]!.heroQuest === 'fi')).toBe(true);
+    // A non-quest hero opens with nothing.
+    expect(createRun(1, 'soren').questOffer).toBeUndefined();
   });
 
   it("Disco Dan opens three sequential Discovers (T6→T4→T2), each locked until its shop tier", () => {

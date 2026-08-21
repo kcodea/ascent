@@ -892,6 +892,11 @@ export type QuestObjectiveEvent =
   // Set 2 (Demon): `consumeShopMinion` counts SHOP minions your Demons eat — distinct from `consumeFodder`,
   // which counts set-1 Fodder. The two consume mechanics must not fill each other's quests.
   | 'consumeShopMinion'
+  // HERO QUESTS (Fi / Coran, 2026-08-21): `journey` is the single shared counter every hero quest uses — the
+  // "steps down the road" meter. It advances +1 for each MINION PLAYED from hand, each SPELL CAST, and each
+  // SHOP UPGRADE. Deliberately ONE event for all ten hero quests: their objectives differ only in the number,
+  // so the player never has to re-read what a given quest is asking for, only how far it is.
+  | 'journey'
   // Compound (Fried Circuits / Forsaken Will): a general multi-part objective — `QuestObjective.parts` holds the
   // sub-objectives (each its own event + count), and the quest completes when ALL parts fill.
   | 'compound';
@@ -1267,6 +1272,21 @@ export type QuestReward =
   // Bane's Existence: after this, your Banes' after-Battlecry buff also gives all your Demons +A/+H run-wide.
   | { kind: 'baneDemonAura'; attack: number; health: number }
   // A quest that grants SEVERAL of the above at once (The Hoard Wakes = shoutRepeat + recurringEndOfTurn).
+  // ── Hero quest rewards (Fi / Coran, 2026-08-21) ──────────────────────────────────────────────────────
+  /** Spare Forge / Runic Passage: hand over a random rune of that rarity IMMEDIATELY — no forge, no choice,
+   *  no Gold. Distinct from `scheduleRuneforge` (which opens a picker next turn) and `openEpicRuneforge`. */
+  | { kind: 'grantRune'; rarity: 'basic' | 'epic' }
+  /** First Pick: the first shop MINION you buy each turn is free — the same channel the Freedom rift uses
+   *  (`freeBuyUsedThisTurn`), so the two can never double-charge or double-refund. */
+  | { kind: 'freeFirstBuy' }
+  /** Open Road / Summit Passage: Tier 7 is unlocked for the rest of the run (sets `tier7Access`, the flag
+   *  `hasTier7Access` already reads). */
+  | { kind: 'tier7Access' }
+  /** Gilded Shortcut: Gilding needs only `copies` copies instead of three. Read through `gildCopiesNeeded`. */
+  | { kind: 'gildCopies'; copies: number }
+  /** Summit Passage: raise the Shop tier by `by` right now, FREE, honouring the run's ceiling (including a
+   *  Tier 7 unlocked in the same `multi` reward). */
+  | { kind: 'upgradeShopTier'; by: number }
   | { kind: 'multi'; rewards: QuestReward[] };
 export type QuestRewardKind = QuestReward['kind'];
 /** A run-wide combat modifier a completed quest arms; `simulate()` reads them via `QuestCombatMods`. */
@@ -1701,6 +1721,18 @@ export interface QuestDef {
   /** Undead (Ossuary Rite): a repeatable quest re-arms on completion (progress resets, reward can fire again)
    *  instead of staying done. */
   repeatable?: boolean;
+  /**
+   * HERO QUEST (Fi / Coran, 2026-08-21). Set = this quest belongs to that hero's own turn-1 Discover and is
+   * NEVER drawn by the universal turn-5/11 offer (`generateQuestOffer` filters it out both ways). Hero quests
+   * all share the `journey` objective and differ only in their count and reward.
+   */
+  heroQuest?: string;
+  /**
+   * Mutually-exclusive family. Opening Act (Fi) and Resonant Path (Coran) are each authored as THREE quests —
+   * a Shout, an Echo and a Rally variant — and the owner's rule is that a player is never offered more than
+   * one of a family at a time. The offer generator picks at most one quest per `variantGroup`.
+   */
+  variantGroup?: string;
 }
 
 /** Immutable Rune definition (data). Runes are sold in the Runesmith's turn-6 Runeforge — a random 5 are

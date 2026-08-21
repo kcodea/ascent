@@ -669,6 +669,9 @@ export function reduce(state: RunState, action: Action): RunState {
     // Spell Thesis: "Cast N spells" advances by the run-wide spellsCast delta this action.
     const spellCastDelta = (next.spellsCast ?? 0) - (state.spellsCast ?? 0);
     if (spellCastDelta > 0) advanceQuestsBy(next, (o) => o.event === 'castSpell', spellCastDelta);
+    // HERO QUESTS (Fi / Coran): a spell cast is one step down the `journey` road. Advances by the same delta
+    // `castSpell` uses — so a spell that casts twice moves the meter twice, exactly as its own quests count it.
+    if (spellCastDelta > 0) advanceQuestsBy(next, (o) => o.event === 'journey', spellCastDelta);
     // Kobold quests: "Cast N Rubies" runs on its OWN meter. Deliberately not folded into `castSpell` — the
     // two objectives must stay unfillable by each other's cards (see `castRuby` in types.ts).
     const rubyCastDelta = (next.rubyCasts ?? 0) - (state.rubyCasts ?? 0);
@@ -807,6 +810,15 @@ export function reduce(state: RunState, action: Action): RunState {
     //    a play that immediately completes a triple counts as its NET board delta (the golden), not three.
     const questEvent = QUEST_TICK_EVENTS[action.type];
     if (questEvent) advanceQuests(next, (o) => o.event === questEvent);
+    // HERO QUESTS (Fi / Coran): the other two `journey` steps — a MINION played from hand, and a Shop upgrade.
+    // The play tick is narrowed to minions because a spell reaches the reducer as a `play` too, and it already
+    // took its step through the `castSpell` delta above; without the narrowing every spell would count twice.
+    if (action.type === 'play') {
+      const played = state.hand.find((c) => c.uid === action.uid);
+      const pdef = played ? CARD_INDEX[played.cardId] : undefined;
+      if (pdef && !pdef.spell && !pdef.ruby) advanceQuests(next, (o) => o.event === 'journey');
+    }
+    if (action.type === 'upgrade') advanceQuests(next, (o) => o.event === 'journey');
     // Sell narrowed by the SOLD minion's tribe (Scrap Contract: "Sell 3 Mechs"); an untribed sell objective
     // (Grave Robber / Feed the Alpha) still ticks on any sell. The card is gone from `next` — read it from `state`.
     if (action.type === 'sell') {
@@ -1140,8 +1152,9 @@ function reduceCore(state: RunState, action: Action): RunState {
         // triple-completing buy at bank 24 was held against a hand that was about to empty)
         return s;
       }
-      // "Freedom" rift: the FIRST minion bought each turn is free (overrides every price source below).
-      const freeBuy = s.rift === 'freedom' && !s.freeBuyUsedThisTurn;
+      // "Freedom" rift OR Fi's First Pick quest: the FIRST minion bought each turn is free (overriding every
+      // price source below). ONE shared spend-marker, so holding both is still one freebie per turn.
+      const freeBuy = (s.rift === 'freedom' || !!s.questFreeFirstBuy) && !s.freeBuyUsedThisTurn;
       // Rune of Cadence: an armed minion discount knocks 1 off whatever the price source says.
       const cadenceOff = !freeBuy && s.cadenceMinionOff ? 1 : 0;
       // Rune of Trade-In: an armed per-type discount (from this turn's first sale) knocks 1 off a matching minion.
@@ -1988,7 +2001,10 @@ function reduceCore(state: RunState, action: Action): RunState {
 
     case 'upgrade': {
       const cost = upgradeCostOf(s); // includes Hermit Hank's +2 surcharge
-      const ceiling = maxTierFor(s.rift); // Summit raises it to 7
+      // Summit rift raises the ceiling to 7 — and so does a quest that grants `tier7Access` (Fi's Open Road,
+      // Coran's Summit Passage). This branch read `maxTierFor` alone, so the flag opened Tier-7 DISCOVERS while
+      // the shop ladder itself still stopped at 6: "Tier 7 is unlocked this game" has to mean the ladder too.
+      const ceiling = hasTier7Access(s) ? 7 : maxTierFor(s.rift);
       if (s.tier >= ceiling || s.embers < cost) return state;
       spendGold(s, cost);
       s.tier += 1;
@@ -5005,8 +5021,42 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
       else s.spellFirstDoubleEachTurn = true;
       break;
     case 'minionCost':
-      s.minionCostOverride = r.cost; // Merchant's Mark: shop minions cost this much
+      s.minionCostOverride = r.cost; // Merchant's Mark / Coran's Merchant's Road: shop minions cost this much
       break;
+    // ── Hero quest rewards (Fi / Coran, 2026-08-21) ──
+    case 'grantRune': {
+      // Spare Forge / Runic Passage: a random rune of that rarity, handed over outright — no forge, no pick,
+      // no Gold. It goes through the SAME apply-then-own path a BOUGHT rune takes (`case 'buyRune'`), so a
+      // granted rune is indistinguishable from a forged one downstream: badge row, tallies, saves, replays.
+      const owned = new Set(s.ownedRunes ?? []);
+      const pool = (r.rarity === 'epic' ? EPIC_RUNES : RUNES).filter((rn) => !owned.has(rn.id));
+      if (pool.length === 0) break; // owns every rune of the rarity — a no-op beats granting a duplicate
+      const rng = makeRng(s.rngCursor);
+      const rune = pool[rng.int(pool.length)]!;
+      s.rngCursor = rng.state();
+      applyQuestReward(s, { id: rune.id, name: rune.name, reward: rune.reward } as unknown as QuestDef, true, 'rune');
+      (s.ownedRunes ??= []).push(rune.id);
+      break;
+    }
+    case 'freeFirstBuy':
+      // First Pick: shares the Freedom rift's per-turn spend marker, so holding both never yields two freebies.
+      s.questFreeFirstBuy = true;
+      break;
+    case 'tier7Access':
+      s.tier7Access = true; // Open Road / Summit Passage — the flag `hasTier7Access` reads
+      break;
+    case 'gildCopies':
+      s.gildCopies = r.copies; // Gilded Shortcut: Gild at 2 copies (read via `gildCopiesNeeded`)
+      break;
+    case 'upgradeShopTier': {
+      // Summit Passage's free step: raise the tier without charging, then re-base the next price off the new
+      // tier exactly as a paid upgrade does (the `payCommission` citadel idiom). Reads `hasTier7Access`, so the
+      // Tier-7 unlock sitting EARLIER in the same `multi` reward is already in effect and this step can use it.
+      const ceiling = hasTier7Access(s) ? 7 : maxTierFor(s.rift);
+      for (let i = 0; i < r.by && s.tier < ceiling; i++) s.tier += 1;
+      s.upgradeCost = s.tier >= ceiling ? 0 : (CONFIG.upgradeCost[s.tier + 1] ?? 0);
+      break;
+    }
     case 'attachmentDeal':
       // Attachment Issues: every shop is guaranteed a Magnetic offer, and every Attachment costs `cost` Gold.
       s.attachmentCost = r.cost;

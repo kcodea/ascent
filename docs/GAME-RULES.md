@@ -101,9 +101,13 @@ toHand, hpGrant, spellProgress, questTrigger`.
   Greater quests); wave 11 draws the "late" bucket (Capstones + two promoted Greater neutrals).
 - The two main quest turns **guarantee your dominant board tribe** appears in a tribe slot (with a
   chance at a second, once a tribe has ≥2 quests in the bucket).
-- Hero exceptions (bonus quests that stand **on top of** the normal turns and survive `questsEnabled = false`):
-  **Fi** adds a bonus Lesser-only quest offer on turn 3; **Coran (Pathfinder)** takes an extra late-bucket
-  (Capstone) quest on turn 10, in addition to the normal turn-5 and turn-11 quests.
+- Hero exception (stands **on top of** the normal turns and survives `questsEnabled = false`): **Fi** and
+  **Coran** open the run on a **turn-1 two-option pick** from their own private **hero quest** lists (reworked
+  2026-08-21 — the old turn-4 Errand / turn-10 Pathfinder bonus offers are retired). Every hero quest shares
+  one objective: **travel N steps**, where playing a minion, casting a spell or upgrading the Shop is one
+  step. Fi's five pay early (12–26 steps); Coran's five pay late and large (28–46). The two three-variant
+  families (Opening Act / Resonant Path — a Shout, Echo and Rally spelling each) never offer two variants at
+  once, and hero quests never appear in the universal turn-5/11 offers.
 
 Source: `packages/sim/src/quests.ts`.
 

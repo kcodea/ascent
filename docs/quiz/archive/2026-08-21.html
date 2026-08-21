@@ -1,0 +1,374 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ascent Quiz #9 — 2026-08-21</title>
+<style>
+  :root {
+    --bg: #0f1420;
+    --panel: #171d2c;
+    --panel-border: #2a3247;
+    --text: #e8ecf4;
+    --muted: #93a0b8;
+    --accent: #7c9cff;
+    --good: #3ecf8e;
+    --bad: #ff6b6b;
+    --good-bg: rgba(62, 207, 142, 0.12);
+    --bad-bg: rgba(255, 107, 107, 0.12);
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f4f6fb;
+      --panel: #ffffff;
+      --panel-border: #dde3f0;
+      --text: #1b2233;
+      --muted: #5b6780;
+      --accent: #3b5bdb;
+      --good: #1f9d63;
+      --bad: #d9463d;
+      --good-bg: rgba(31, 157, 99, 0.10);
+      --bad-bg: rgba(217, 70, 61, 0.10);
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    margin: 0;
+    padding: 32px 16px 64px;
+    display: flex;
+    justify-content: center;
+  }
+  .wrap { width: 100%; max-width: 720px; }
+  header { text-align: center; margin-bottom: 24px; }
+  h1 { font-size: 1.4rem; margin: 0 0 6px; }
+  .sub { color: var(--muted); font-size: 0.92rem; }
+  .progress-bar {
+    height: 6px; background: var(--panel-border); border-radius: 4px; overflow: hidden; margin: 18px 0 28px;
+  }
+  .progress-fill {
+    height: 100%; background: var(--accent); width: 0%; transition: width 0.3s ease;
+  }
+  .score-pill {
+    display: inline-block; background: var(--panel); border: 1px solid var(--panel-border);
+    border-radius: 999px; padding: 4px 14px; font-size: 0.85rem; color: var(--muted); margin-top: 8px;
+  }
+  .card {
+    background: var(--panel); border: 1px solid var(--panel-border); border-radius: 14px;
+    padding: 22px 22px 20px; margin-bottom: 20px;
+  }
+  .qnum { color: var(--accent); font-weight: 600; font-size: 0.8rem; letter-spacing: 0.04em; text-transform: uppercase; margin-bottom: 8px; }
+  .qtext { font-size: 1.05rem; line-height: 1.5; margin: 0 0 16px; }
+  code {
+    background: var(--panel-border); padding: 1px 6px; border-radius: 5px; font-size: 0.92em;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  .choices { display: flex; flex-direction: column; gap: 10px; }
+  .choice {
+    text-align: left; width: 100%; background: transparent; border: 1px solid var(--panel-border);
+    border-radius: 10px; padding: 12px 14px; color: var(--text); font-size: 0.95rem; line-height: 1.45;
+    cursor: pointer; transition: border-color 0.15s ease, background 0.15s ease; display: flex; gap: 10px;
+  }
+  .choice:hover:not(:disabled) { border-color: var(--accent); }
+  .choice:disabled { cursor: default; }
+  .choice .letter {
+    flex-shrink: 0; font-weight: 700; color: var(--muted); width: 1.2em;
+  }
+  .choice.correct { background: var(--good-bg); border-color: var(--good); }
+  .choice.correct .letter { color: var(--good); }
+  .choice.incorrect { background: var(--bad-bg); border-color: var(--bad); }
+  .choice.incorrect .letter { color: var(--bad); }
+  .choice.dim { opacity: 0.55; }
+  .explain {
+    margin-top: 14px; padding: 12px 14px; border-radius: 10px; background: var(--bg);
+    border: 1px solid var(--panel-border); font-size: 0.92rem; line-height: 1.55; color: var(--text);
+    display: none;
+  }
+  .explain.show { display: block; }
+  .explain b { color: var(--accent); }
+  .result-tag {
+    display: inline-block; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.03em;
+    padding: 2px 9px; border-radius: 999px; margin-bottom: 10px;
+  }
+  .result-tag.correct { background: var(--good-bg); color: var(--good); }
+  .result-tag.incorrect { background: var(--bad-bg); color: var(--bad); }
+  .final {
+    text-align: center; padding: 30px 20px;
+  }
+  .final .big { font-size: 2.2rem; font-weight: 800; margin-bottom: 6px; }
+  .final .line { color: var(--muted); margin-bottom: 18px; }
+  .restart {
+    background: var(--accent); color: white; border: none; border-radius: 10px;
+    padding: 10px 20px; font-size: 0.92rem; cursor: pointer; font-weight: 600;
+  }
+  .hidden { display: none; }
+  footer { text-align: center; color: var(--muted); font-size: 0.78rem; margin-top: 30px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>🎓 Ascent Quiz #9</h1>
+    <div class="sub">2026-08-21 · Architecture &amp; how the code is built — 10 questions</div>
+    <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+    <div class="score-pill" id="scorePill">Question 1 of 10 · Score: 0</div>
+  </header>
+
+  <div id="quizArea"></div>
+
+  <div class="final hidden" id="finalArea">
+    <div class="big" id="finalScore"></div>
+    <div class="line" id="finalLine"></div>
+    <button class="restart" id="restartBtn">Take it again</button>
+  </div>
+
+  <footer>Ascent Daily Code Quiz · architecture only, never game rules</footer>
+</div>
+
+<script>
+const QUESTIONS = [
+  {
+    topic: "types-basics",
+    question: "packages/core/src/types.ts defines: <code>type TriggerFamily = 'battlecry' | 'deathrattle' | 'rally' | 'slaughter' | 'endOfTurn' | 'startOfCombat';</code>. What kind of type is this, and what does it protect against?",
+    choices: [
+      "A \"string literal union\" — TypeScript only allows one of those exact six strings, so a typo like 'ralley' is caught at compile time instead of silently doing nothing at runtime.",
+      "A \"generic type\" — it lets the same TriggerFamily type hold any kind of value, string or number.",
+      "An \"interface\" — it describes the shape of an object with six required properties.",
+      "A \"class\" — it bundles the six trigger names together with methods that operate on them."
+    ],
+    answer: 0,
+    explanation: "<b>TriggerFamily</b> is a union of exact string literals ('battlecry', 'deathrattle', etc.) — TypeScript rejects any other string at compile time, so a misspelled family name is caught before the code ever runs, instead of quietly matching nothing anywhere. It's not generic (that's a type parameterized over another type, like <code>Array&lt;T&gt;</code>), not an interface (there's no object shape here, just a set of allowed strings), and not a class (unions don't have methods or instances). See <code>packages/core/src/types.ts</code>."
+  },
+  {
+    topic: "immutability",
+    question: "In packages/sim/src/reducer.ts, most of an action's new RunState is built with <code>structuredClone(rest)</code> — a full deep copy — but <code>lastCombat</code> and <code>servedBoards</code> are deliberately pulled out first and reattached to the clone <b>by reference</b> (not copied). Why?",
+    choices: [
+      "Because both fields are only ever fully REPLACED, never mutated in place, so sharing the same reference across states is safe — and skipping their deep-clone (they're the largest fields) is a measured, major performance win.",
+      "Because structuredClone() cannot copy arrays, so those two array fields have to be handled by hand.",
+      "Because lastCombat and servedBoards contain functions, which cloning would otherwise get wrong.",
+      "Because sharing them by reference lets one run's combat log leak into and affect another run's state on purpose."
+    ],
+    answer: 0,
+    explanation: "The comment in <code>reducer.ts</code> spells this out — <code>lastCombat</code> and <code>servedBoards</code> are big, read-only-in-practice structures that are always swapped wholesale (never edited field-by-field), so two RunStates can safely point at the exact same object without one's later change corrupting the other. Skipping their clone was measured at ~80–90% of the per-dispatch clone cost. <code>structuredClone</code> handles arrays perfectly fine (B is wrong), these fields hold plain data not functions (C doesn't apply), and reference-sharing is safe <em>because</em> they're never mutated in place — it's not an intentional leak (D has it backwards)."
+  },
+  {
+    topic: "reducer-run-state",
+    question: "reducer.ts has a helper called <code>spendGold(s, amount)</code> that every buy, reroll, tier-up, and hero-power action calls — its comment calls it \"the single Gold-spend chokepoint.\" Besides subtracting Gold, it fires quest progress, rune payouts, and more, all in one place. What's the main benefit of routing every Gold-spending action through one shared function like this?",
+    choices: [
+      "Every side effect that should happen \"whenever Gold is spent\" only needs to be written once, in one place — so a new Gold-spend rune or quest later can't be forgotten in one of the several actions that spend Gold.",
+      "It makes the function pure, since it takes a RunState and returns a brand-new RunState instead of mutating it.",
+      "It's required so TypeScript can correctly infer the return type of every action.",
+      "It lets the function run asynchronously so Gold-spend animations don't block the UI thread."
+    ],
+    answer: 0,
+    explanation: "<code>spendGold</code> is a classic \"single chokepoint\" pattern: instead of every buy/reroll/upgrade/hero-power path independently remembering to trigger quest ticks, rune payoffs, and Food-for-Gold, they all funnel through one function that handles it once. Miss this pattern and a future feature (or bug fix) has to correctly touch several places instead of one. It's not about purity (B — <code>spendGold</code> actually mutates <code>s</code> directly, e.g. <code>s.embers -= amount</code>), not a TypeScript requirement (C), and has nothing to do with async/threading (D — Ascent's engine is fully synchronous)."
+  },
+  {
+    topic: "zustand-store",
+    question: "packages/ui/src/store.ts defines its own UI-only types (like CareerFocus, tracking which run to scroll to) but imports RunState itself from @game/sim rather than redefining it. If a stat displayed on screen is wrong right after a combat resolves, which package's code should Mike suspect first?",
+    choices: [
+      "packages/sim — RunState there is the actual source of truth for run data; the ui store mostly holds presentation-only bookkeeping and just displays whatever sim already computed.",
+      "packages/ui — since that's literally where the number appears on screen, the bug must be in the rendering code.",
+      "packages/core — because all game state, UI or otherwise, ultimately lives in core.",
+      "It's impossible to tell without checking apps/web first, since Vite is what actually renders the number."
+    ],
+    answer: 0,
+    explanation: "The split matters exactly for bugs like this: RunState (Gold, board, wave, etc.) is computed in <code>@game/sim</code> and is the source of truth; <code>ui/store.ts</code> imports it rather than recomputing it, and mostly tracks presentation extras like <code>CareerFocus</code>. So a wrong number is usually a sim computation bug first — and only a rendering bug (B) once sim's own value is confirmed correct but displayed wrong. <code>core</code> (C) holds the combat engine and shared types, not run-level state like Gold or board. <code>apps/web</code> (D) just wires <code>ui</code> onto the page; it doesn't compute anything."
+  },
+  {
+    topic: "event-bus",
+    question: "packages/core/src/events.ts's CombatBus doc comment warns: \"Handlers may themselves cause emits (a Deathrattle summon → onSummon); the simulator's iteration guard bounds any cascade.\" What problem is that \"iteration guard\" there to prevent?",
+    choices: [
+      "A chain reaction where handling one event triggers another event, which triggers another, and so on — potentially never stopping — so something has to cap how many cascading emits are allowed.",
+      "Two different minions accidentally sharing the same event handler function.",
+      "The event bus running handlers in a random, non-deterministic order each time.",
+      "A handler being registered twice for the same event by mistake."
+    ],
+    answer: 0,
+    explanation: "A Deathrattle can summon a minion, whose own effect can emit yet another event, which triggers another handler, and so on — without a cap, a pathological chain (or a bug in some card's logic) could cascade forever. The \"iteration guard\" is the safety valve bounding how many such cascades are allowed to run. It isn't about shared handler functions (B), ordering (C — <code>CombatBus.emit</code> runs handlers in registration order, which is deterministic by design, a core requirement of the whole engine), or duplicate registration (D) — those are different, unrelated concerns."
+  },
+  {
+    topic: "cards-in-sets",
+    question: "packages/content/src/sets.ts's poolFor(setId) starts with: <code>const hit = resolved.get(setId); if (hit) return hit;</code> — checking a Map before doing any real work, and only stores the built pool in that Map at the very end. What's this pattern called, and why does the comment still call poolFor \"pure + deterministic\" despite it?",
+    choices: [
+      "It's memoization — caching a function's result the first time so repeat calls with the same input return instantly; it stays \"pure\" because the same setId always produces the exact same cached pool, so the caching is invisible to any caller.",
+      "It's recursion — poolFor calls itself again each time it's invoked, and the Map stores each recursive call's depth.",
+      "It's polymorphism — the same function name behaves differently depending on the type of setId passed in.",
+      "It's dependency injection — the Map is passed into poolFor from outside so tests can substitute a fake one."
+    ],
+    answer: 0,
+    explanation: "This is textbook <b>memoization</b>: build the answer once, stash it in the <code>resolved</code> Map, and every later call for the same <code>setId</code> is a free lookup. It's still \"pure\" because nothing about the <em>output</em> changes based on caching — same <code>setId</code> in, same <code>CardPool</code> out, always (the Map is just an internal speed trick, invisible from outside). It's not recursion in the sense B describes (poolFor does call itself once for an inherited set, but the Map isn't tracking call depth), not polymorphism (C — nothing branches on <code>setId</code>'s <em>type</em>, only its value), and the Map is a private module-level cache, not something injected from outside (D)."
+  },
+  {
+    topic: "package-boundaries",
+    question: "packages/content/package.json declares: <code>\"exports\": { \".\": \"./src/index.ts\" }</code> — a single entry point. If some other package imported <code>@game/content/src/cards/set1/beasts</code> directly instead of <code>import { BEASTS } from '@game/content'</code>, what would that violate?",
+    choices: [
+      "CLAUDE.md's rule that a package may only be consumed through its public entrypoint (\"importing an internal means the boundary leaked\") — and the exports field gives that rule real teeth: with exports restricted to just '.', module resolution refuses to resolve any other subpath at all.",
+      "Nothing enforceable — exports is purely documentation; a bundler will happily resolve a deep path like that regardless of what's declared.",
+      "The zod schema validation content uses for cards, since deep imports somehow bypass zod entirely.",
+      "The Math.random ESLint ban, since set1/beasts.ts might use Math.random internally."
+    ],
+    answer: 0,
+    explanation: "CLAUDE.md is explicit: \"ui depends on the others through public package entrypoints only — importing an internal means the boundary leaked.\" The <code>exports</code> field is exactly what enforces that in practice: with only <code>\".\": \"./src/index.ts\"</code> listed, standards-compliant module resolution refuses to resolve any other subpath from outside the package — it's a real, load-bearing restriction, not just a convention (so B is wrong). It has nothing to do with the cards' zod validation (C, which runs regardless of import path) or the RNG lint rule (D, an unrelated ESLint check)."
+  },
+  {
+    topic: "effects-as-subscriptions",
+    question: "types.ts's comment says that before TriggerMultiplierDef existed, \"every multiplier (Sylus, Drakko, Chronos) was a hardcoded cardId === '...' check in a DIFFERENT subsystem, with inconsistent stacking rules and no single place to read them.\" Now a card just declares data like <code>triggerMultiplier: { families: ['rally'], extra: 1, stacks: true }</code>, read by one shared function. What problem does this fix?",
+    choices: [
+      "Scattered special-case code for similar cards (one hardcoded check per card, spread across different subsystems) is replaced by one shared function reading a declared data field — so a new multiplier card is just new data, and the stacking rule lives in exactly one place instead of being reinvented per card.",
+      "It makes the multiplier cards deal more damage than before, since data-driven effects are inherently stronger than hardcoded ones.",
+      "It removes the need for those cards to have any tribe or tier at all.",
+      "It changes extraTriggerFires from a pure function into one with side effects, which is required for stacking to work."
+    ],
+    answer: 0,
+    explanation: "This is the \"data over bespoke code\" principle CLAUDE.md states directly — \"Cards are data + effect subscriptions, never bespoke classes.\" Before, each multiplier card meant hunting down and modifying a different subsystem's hardcoded check; now it's one declared field plus one shared function (<code>extraTriggerFires</code>), so adding the next multiplier card — or fixing a stacking bug — touches one place instead of several. It has nothing to do with numeric power level (B) or tribes/tiers (C, an unrelated field), and <code>extraTriggerFires</code> stays pure throughout — it only reads inputs and returns a number, with no mutation (D is wrong on both the fact and the reasoning)."
+  },
+  {
+    topic: "effect-timing-pipeline",
+    question: "TriggerFamily's six members don't all fire at the same moment — CLAUDE.md says Battlecry/Shout effects bake into a minion's stats during the recruit phase, before combat starts, while Rally, Slaughter, and Start-of-Combat only fire inside simulate() during the fight. Given that, why does it still make sense for all six to share ONE TriggerFamily type and ONE extraTriggerFires() function?",
+    choices: [
+      "Because the underlying question — \"how many extra times does this trigger fire, given the multiplier cards on the board?\" — has the same shape regardless of WHEN in the run that trigger happens to fire, so one shared mechanism can answer it for all six families instead of six separate ad-hoc ones.",
+      "Because TypeScript requires every union member to be handled by exactly the same function, or the code won't compile.",
+      "Because Battlecry, Rally, Slaughter, etc. actually all fire during simulate() — CLAUDE.md's recruit-vs-combat split doesn't really apply to trigger counting.",
+      "Because extraTriggerFires() runs once at combat start and pre-computes every family's answer for the entire fight in advance."
+    ],
+    answer: 0,
+    explanation: "The WHEN (recruit-phase bake vs. combat-time event) and the WHAT (\"how many extra fires does a multiplier grant this family\") are separate concerns — <code>extraTriggerFires</code> just answers the second question generically, by scanning the board's <code>triggerMultiplier</code> fields, and whichever code path actually fires a Battlecry or a Rally calls it at its own moment. Sharing one function doesn't require sharing one moment in time. TypeScript doesn't force one function per union member (B); the recruit-vs-combat-time split is real and does apply here — Battlecry genuinely bakes in before combat per CLAUDE.md (C is wrong); and <code>extraTriggerFires</code> is called fresh wherever a trigger actually fires, not precomputed once up front (D)."
+  },
+  {
+    topic: "testing-vitest",
+    question: "packages/sim/src/lobby/poolSourceRule.test.ts asserts, with real expect() checks, that every board in OPPONENT_POOL_DATA has origin: 'synthetic', and that playerRunsFrom(OPPONENT_POOL_DATA, ...) always returns an empty array. It isn't comparing output against a saved snapshot file — it's checking that a specific rule (\"a committed pool board can never seat as a player\") holds by actually running the real code. What's this style of test usually called, versus a golden/snapshot test?",
+    choices: [
+      "A behavioral/invariant test — it encodes a specific rule as an assertion and runs the real functions to check the rule holds, rather than comparing today's whole output to a previously-saved \"golden\" file.",
+      "A golden test — because OPPONENT_POOL_DATA itself was generated by npm run pool and is being compared against a saved file.",
+      "An integration test — because it imports from two different files.",
+      "A linter rule — because ESLint is what's actually enforcing this check."
+    ],
+    answer: 0,
+    explanation: "A golden/snapshot test locks in \"does the whole output match what we saved before?\" — useful for catching any unintended change. This test instead encodes one specific, named invariant (\"committed boards are never seated as player runs\") as explicit <code>expect()</code> assertions and runs the real functions against real data to prove it holds — that's a behavioral/invariant unit test, a more targeted style. It's not a golden test (B — no saved snapshot file is being diffed here), importing from two files doesn't make something an \"integration test\" by itself (C — ordinary Vitest unit tests routinely import multiple modules), and this runs inside Vitest, not ESLint (D)."
+  }
+];
+
+let current = 0;
+let score = 0;
+let answered = new Array(QUESTIONS.length).fill(false);
+
+const quizArea = document.getElementById('quizArea');
+const finalArea = document.getElementById('finalArea');
+const scorePill = document.getElementById('scorePill');
+const progressFill = document.getElementById('progressFill');
+
+function letterFor(i) { return String.fromCharCode(65 + i); }
+
+function render() {
+  if (current >= QUESTIONS.length) {
+    showFinal();
+    return;
+  }
+  const q = QUESTIONS[current];
+  quizArea.innerHTML = '';
+  finalArea.classList.add('hidden');
+
+  const card = document.createElement('div');
+  card.className = 'card';
+
+  const qnum = document.createElement('div');
+  qnum.className = 'qnum';
+  qnum.textContent = 'Question ' + (current + 1) + ' of ' + QUESTIONS.length;
+  card.appendChild(qnum);
+
+  const qtext = document.createElement('p');
+  qtext.className = 'qtext';
+  qtext.innerHTML = q.question;
+  card.appendChild(qtext);
+
+  const choicesWrap = document.createElement('div');
+  choicesWrap.className = 'choices';
+
+  const resultTag = document.createElement('div');
+  const explainBox = document.createElement('div');
+  explainBox.className = 'explain';
+
+  q.choices.forEach((choiceText, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'choice';
+    btn.innerHTML = '<span class="letter">' + letterFor(i) + '</span><span>' + choiceText + '</span>';
+    btn.addEventListener('click', () => {
+      if (btn.disabled) return;
+      const allBtns = choicesWrap.querySelectorAll('.choice');
+      allBtns.forEach((b) => b.disabled = true);
+
+      const correct = i === q.answer;
+      btn.classList.add(correct ? 'correct' : 'incorrect');
+      if (!correct) {
+        allBtns[q.answer].classList.add('correct');
+      }
+      allBtns.forEach((b, bi) => {
+        if (bi !== i && bi !== q.answer) b.classList.add('dim');
+      });
+
+      resultTag.className = 'result-tag ' + (correct ? 'correct' : 'incorrect');
+      resultTag.textContent = correct ? 'Correct!' : 'Not quite';
+      explainBox.innerHTML = '';
+      explainBox.appendChild(resultTag);
+      const p = document.createElement('div');
+      p.innerHTML = q.explanation;
+      explainBox.appendChild(p);
+      explainBox.classList.add('show');
+
+      if (correct && !answered[current]) score++;
+      answered[current] = true;
+      updateScorePill();
+
+      const nextBtn = document.createElement('button');
+      nextBtn.className = 'restart';
+      nextBtn.style.marginTop = '16px';
+      nextBtn.textContent = current === QUESTIONS.length - 1 ? 'See final score' : 'Next question →';
+      nextBtn.addEventListener('click', () => {
+        current++;
+        render();
+      });
+      card.appendChild(nextBtn);
+    });
+    choicesWrap.appendChild(btn);
+  });
+
+  card.appendChild(choicesWrap);
+  card.appendChild(explainBox);
+  quizArea.appendChild(card);
+  updateScorePill();
+}
+
+function updateScorePill() {
+  scorePill.textContent = 'Question ' + Math.min(current + 1, QUESTIONS.length) + ' of ' + QUESTIONS.length + ' · Score: ' + score;
+  progressFill.style.width = ((current) / QUESTIONS.length * 100) + '%';
+}
+
+function showFinal() {
+  quizArea.innerHTML = '';
+  finalArea.classList.remove('hidden');
+  progressFill.style.width = '100%';
+  const pct = Math.round((score / QUESTIONS.length) * 100);
+  document.getElementById('finalScore').textContent = 'You scored ' + score + ' / ' + QUESTIONS.length;
+  let line;
+  if (pct === 100) line = "Perfect score! You're really getting a feel for how Ascent is built.";
+  else if (pct >= 80) line = "Great work — you're building real intuition for the architecture.";
+  else if (pct >= 50) line = "Solid effort — a few of these ideas just need another pass, that's totally normal.";
+  else line = "That's alright — these are dense topics. Re-reading the explanations above is where the real learning happens.";
+  document.getElementById('finalLine').textContent = line;
+  scorePill.textContent = 'Finished · Score: ' + score + ' / ' + QUESTIONS.length;
+}
+
+document.getElementById('restartBtn').addEventListener('click', () => {
+  current = 0;
+  score = 0;
+  answered = new Array(QUESTIONS.length).fill(false);
+  render();
+});
+
+render();
+</script>
+</body>
+</html>

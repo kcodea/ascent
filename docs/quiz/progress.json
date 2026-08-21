@@ -5,7 +5,7 @@
   "focus": "ARCHITECTURE ONLY — how the game is coded/structured. NEVER ask game-rules questions (see daily-prompt.md).",
   "difficulty": 1,
   "difficultyScale": "1 = gentlest (what is a function, what is a package). 5 = deep (trace an event through the architecture). Ramp only per the rules in daily-prompt.md.",
-  "totalQuizzes": 8,
+  "totalQuizzes": 9,
   "recentScores": [],
   "topics": {
     "what-is-a-function": { "asked": 4, "lastAsked": "2026-08-20" },
@@ -16,16 +16,16 @@
     "pure-functions": { "asked": 4, "lastAsked": "2026-08-20" },
     "data-vs-code": { "asked": 4, "lastAsked": "2026-08-20" },
     "event-log-replay": { "asked": 4, "lastAsked": "2026-08-20" },
-    "types-basics": { "asked": 3, "lastAsked": "2026-08-19" },
-    "immutability": { "asked": 3, "lastAsked": "2026-08-19" },
-    "reducer-run-state": { "asked": 3, "lastAsked": "2026-08-19" },
-    "zustand-store": { "asked": 3, "lastAsked": "2026-08-19" },
-    "event-bus": { "asked": 3, "lastAsked": "2026-08-19" },
-    "cards-in-sets": { "asked": 3, "lastAsked": "2026-08-19" },
-    "package-boundaries": { "asked": 3, "lastAsked": "2026-08-19" },
-    "effects-as-subscriptions": { "asked": 3, "lastAsked": "2026-08-19" },
-    "effect-timing-pipeline": { "asked": 3, "lastAsked": "2026-08-19" },
-    "testing-vitest": { "asked": 3, "lastAsked": "2026-08-19" },
+    "types-basics": { "asked": 4, "lastAsked": "2026-08-21" },
+    "immutability": { "asked": 4, "lastAsked": "2026-08-21" },
+    "reducer-run-state": { "asked": 4, "lastAsked": "2026-08-21" },
+    "zustand-store": { "asked": 4, "lastAsked": "2026-08-21" },
+    "event-bus": { "asked": 4, "lastAsked": "2026-08-21" },
+    "cards-in-sets": { "asked": 4, "lastAsked": "2026-08-21" },
+    "package-boundaries": { "asked": 4, "lastAsked": "2026-08-21" },
+    "effects-as-subscriptions": { "asked": 4, "lastAsked": "2026-08-21" },
+    "effect-timing-pipeline": { "asked": 4, "lastAsked": "2026-08-21" },
+    "testing-vitest": { "asked": 4, "lastAsked": "2026-08-21" },
     "eslint-rules": { "asked": 3, "lastAsked": "2026-08-20" },
     "performance-memo": { "asked": 3, "lastAsked": "2026-08-20" }
   },
@@ -113,6 +113,14 @@
       "topics": ["what-is-a-function", "deterministic-sim", "seeded-rng", "sim-ui-decoupling", "monorepo-packages", "pure-functions", "data-vs-code", "event-log-replay", "eslint-rules", "performance-memo"],
       "scored": null,
       "note": "Still no score ever reported by Mike, so mastery/difficulty untouched (difficulty held at 1). Picked the 10 topics with the oldest lastAsked (2026-08-18, asked=2-3 — the same group quiz #4 and #6 previously covered) since the types-basics/immutability/... group (lastAsked 2026-08-19) is now more recent. Re-read the real source for each topic (simulate()'s CombatResult return shape, npm run harness in packages/tools proving determinism, rng.ts's fork() doc comment on per-subsystem isolation, the sim/UI clock split in CLAUDE.md, core's package.json exports field, simulate()'s clone-not-mutate discipline, schema.ts's GameEventSchema enum, the initial snapshot in CombatResult, eslint.config.mjs's no-restricted-properties message field, and docs/performance.md's refresh-rate-derived long/jank thresholds) and checked the #4/#6 archived HTML first to ensure all 10 angles were genuinely new, not reworded repeats."
+    },
+    {
+      "date": "2026-08-21",
+      "quizNumber": 9,
+      "difficulty": 1,
+      "topics": ["types-basics", "immutability", "reducer-run-state", "zustand-store", "event-bus", "cards-in-sets", "package-boundaries", "effects-as-subscriptions", "effect-timing-pipeline", "testing-vitest"],
+      "scored": null,
+      "note": "Still no score ever reported by Mike, so mastery/difficulty untouched (difficulty held at 1). Picked the 10 topics with the oldest lastAsked (2026-08-19, asked=3 — the group quiz #3/#5/#7 previously covered) since the what-is-a-function/... group (lastAsked 2026-08-20) is now more recent. Re-read the real source for each topic (types.ts's TriggerFamily union + TriggerMultiplierDef/extraTriggerFires generalizing what used to be per-card hardcoded cardId checks for Sylus/Drakko/Chronos, reducer.ts's structuredClone(rest) with lastCombat/servedBoards carved out and reattached by reference for the ~80-90% clone-cost perf win, reducer.ts's spendGold() single Gold-spend chokepoint, store.ts's CareerFocus/RunState split as a 'where's the bug' framing, events.ts's CombatBus iteration-guard comment on cascading emits, sets.ts's poolFor() Map-based memoization, content/package.json's exports field as what gives the entrypoint-only rule real teeth, and lobby/poolSourceRule.test.ts's real expect()-based invariant test vs a golden/snapshot test) and checked the #3/#5/#7 archived HTML first to ensure all 10 angles were genuinely new, not reworded repeats."
     }
   ],
   "notes": "2026-08-15: refocused to ARCHITECTURE ONLY per Mike — removed game-rules topics (shop-vs-combat, auto-battler-loop) and expanded the code-architecture curriculum. Do not quiz on game rules; see the hard constraint in daily-prompt.md."

@@ -85,7 +85,7 @@ export type HscTunerConfig = HeroCeremonyTiming & HscLayout & HscFx;
 // Owner-tuned 2026-08-21 (pill pass): a big 80px name + 22px power on the new dark plate, the button at
 // 1.55×. The name offsets move the WHOLE plate (name + power ride inside it); power offsets move the power
 // line within the plate.
-const LAYOUT_DEFAULTS: HscLayout = { nameX: 0, nameY: -300, nameSize: 62, powerX: 0, powerY: -300, powerSize: 21, plateOpacity: 0.85, plateLen: 560, platePadTop: 10, platePadBot: 14, plateFade: 180, btnX: 0, btnY: -135, btnScale: 1.55 };
+const LAYOUT_DEFAULTS: HscLayout = { nameX: 0, nameY: -300, nameSize: 62, powerX: 0, powerY: -300, powerSize: 21, plateOpacity: 1, plateLen: 690, platePadTop: 2, platePadBot: 7, plateFade: 400, btnX: 0, btnY: -135, btnScale: 1.55 };
 
 /** Owner-tuned 2026-08-21: song from the click, wooshes on the exits (100) and the settle (640), reveal +
  *  flash paired at 1320 — after the fast transform finishes (825+350) — with the art at 1.26× inside a big

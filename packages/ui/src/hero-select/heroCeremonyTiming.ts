@@ -54,7 +54,7 @@ export const HERO_CEREMONY_TIMING: HeroCeremonyTiming = {
   focusDelayMs: 120,
   focusMs: 400,
   settleMs: 200,
-  voiceAtMs: 700,
+  voiceAtMs: 1540, // owner 2026-08-21: the line lands AFTER the flash — audio only, never a phase driver
   transformAtMs: 825,
   transformMs: 350,
   identityAtMs: 1450,

@@ -97,6 +97,30 @@ export interface PlayDefOptions extends FxScaleAxes {
    * see that field. Omitted = 0, so a single-target fire is unaffected.
    */
   index?: number;
+  /**
+   * Play the def as a continuous LOOP (the workbench's Loop) instead of a single pass, and exempt the play
+   * from the `PLAY_TIMEOUT_MS` wall-clock cap. A looping play never finishes on its own, so the CALLER OWNS
+   * teardown: `playDef` returns its `retire` fn and the caller MUST call it (a leaked looping player runs for
+   * the whole session). Used for a persistent card treatment (Cia's enchant), not for a combat moment — a
+   * moment must stay one-shot so it can't outlive its beat. The per-cycle player clock still resets each loop,
+   * so the player's own `FIRE_TIMEOUT_MS` (per fireOnce pass) is not a factor.
+   */
+  loop?: boolean;
+  /**
+   * Make the effect FOLLOW a moving target: called every frame to re-read the anchor point, so the head
+   * rides a card as the shop reorders it (Cia's enchant treatment — owner 2026-08-20). The returned point
+   * replaces `source`/`target`/`cursor` for that frame; returning `null` HIDES the effect for the frame
+   * (the card is mid-drag or briefly out of the DOM) WITHOUT ending the play — retirement stays caller-owned
+   * via the returned `retire`, exactly as `loop` requires. The emitter's velocity inheritance turns the
+   * moving head into a natural drift, which is why the head follows rather than the whole particle cloud
+   * being rigidly translated (which reads as pasted-on).
+   *
+   * This is the ONE sanctioned per-frame `getBoundingClientRect` in the FX path: it is bounded to the
+   * handful of Enchanted shop offers, and it is precisely what the retired `ciaEnchantedFx` foil did. Do not
+   * reach for it for a combat moment — those snapshot their anchors for a reason (see the module header).
+   * `follow` implies a caller-owned lifetime, so pair it with `loop` (or your own `retire` call).
+   */
+  follow?: () => { x: number; y: number } | null;
 }
 
 /**
@@ -351,13 +375,13 @@ export function playDef(id: string, anchors: FxAnchors, opts: PlayDefOptions = {
 
   const container = new Container();
   const unmountLayer = pixiFx.mountLayer(container, slot);
-  const player = createPlayer(def, { container, renderer, uids: opts.uids }, { loop: false });
+  const player = createPlayer(def, { container, renderer, uids: opts.uids }, { loop: opts.loop ?? false });
   // A def that saved a LOCKED seed means "this exact roll" — honour it, or the composition the author
   // committed is not the one that plays. No seed (unlocked) hands over `null`: fresh roll per fire, which
   // is what an unlocked composition has always meant.
   player.setSeed(stored.seed ?? null);
   player.setSpeed(opts.speed !== undefined && Number.isFinite(opts.speed) && opts.speed > 0 ? opts.speed : 1);
-  player.fireOnce();
+  if (opts.loop) player.fireLoop(); else player.fireOnce();
   // Position every layer BEFORE anything can render. `fireOnce` spawns the t=0 layers but a primitive's head
   // starts at (0,0), so this is what guarantees a layer never exists un-positioned — independent of the
   // ticker's updater-vs-render ordering, which lives in another module.
@@ -383,7 +407,7 @@ export function playDef(id: string, anchors: FxAnchors, opts: PlayDefOptions = {
     if (retired()) return; // same-frame snapshot re-entry — see `FxRetire.retired`
     wallMs += dtMs;
     player.update(dtMs);
-    const overdue = wallMs >= PLAY_TIMEOUT_MS;
+    const overdue = !opts.loop && wallMs >= PLAY_TIMEOUT_MS; // a loop is caller-owned (see PlayDefOptions.loop)
     if (!player.isPlaying() || overdue) {
       if (overdue && import.meta.env.DEV) {
         console.warn(
@@ -399,7 +423,20 @@ export function playDef(id: string, anchors: FxAnchors, opts: PlayDefOptions = {
     // The clock is what makes `travel` run along each layer's OWN window rather than the whole def's, so a
     // trail can land at its target before a burst timed to that arrival fires (see `layerTravelProgress`).
     const nowMs = player.timeMs();
-    driveLayerHeads(player, layers, anchors, fireProgress(nowMs, def.duration), null, {
+    // A `follow` play re-reads its anchor from a live source each frame so the effect tracks a moving card
+    // (see PlayDefOptions.follow). `null` hides the effect for this frame without ending the caller-owned
+    // play; a point overrides all three of the snapshot anchors so a single-anchor emitter follows it.
+    let live = anchors;
+    if (opts.follow) {
+      const p = opts.follow();
+      if (!p) {
+        container.visible = false;
+        return;
+      }
+      container.visible = true;
+      live = { source: p, target: p, cursor: p };
+    }
+    driveLayerHeads(player, layers, live, fireProgress(nowMs, def.duration), null, {
       timeMs: nowMs,
       durationMs: def.duration,
     });

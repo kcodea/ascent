@@ -44,6 +44,7 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 ## Recent changes
 
+- **First hero-select voiceover.** Lord of the Risen now speaks when you pick him — in both Ascent and Practice. The pipeline was already wired; this is the first real clip to land in `audio/heroes/`. Drop a `"<Hero Name> - Select.mp3"` export in the Hero Select folder and `npm run sfx:import` resolves the name to the hero and files it automatically.
 - **Cia's enchant treatment follows the card.** The old persistent "enchanted foil" is replaced by the
   workbench-authored `cia-hp` burst, played as a continuous loop that now *rides the offer* as the shop
   reorders (new `follow` option on `playDef`), instead of sticking to the spot where the card was enchanted.

@@ -732,8 +732,15 @@ export function simulate(
       // pair buff each other forever. Player-side only: the bond is forged in the player's shop.
       const bond = modsFor('player').soulbind;
       if (bond && !soulbindMirroring && target.side === 'player' && (attack !== 0 || health !== 0)) {
-        const otherUid = target.uid === bond.a ? bond.b : target.uid === bond.b ? bond.a : undefined;
-        const partner = otherUid ? boards.player.find((m) => m.uid === otherUid && !m.dead) : undefined;
+        // Match on `sourceUid` — the RUN-BOARD uid the bond was forged against. A combat minion is a fresh
+        // clone with its own uid (`m0`, `m1`, …), so comparing `m.uid` never matched and the bond did nothing
+        // once the fight began: verified byte-identical buff logs with and without a bond (owner 2026-08-21,
+        // "it should carry through combat"). `uid` stays in the comparison for synthetic boards (tests, the
+        // harness) that set no `sourceUid`.
+        const idOf = (m: Minion): string => m.sourceUid ?? m.uid;
+        const tid = idOf(target);
+        const otherUid = tid === bond.a ? bond.b : tid === bond.b ? bond.a : undefined;
+        const partner = otherUid ? boards.player.find((m) => idOf(m) === otherUid && !m.dead) : undefined;
         if (partner) {
           soulbindMirroring = true;
           try { ctx.buff(partner, attack, health, source ?? 'Soulbind', ruby); } finally { soulbindMirroring = false; }

@@ -2034,12 +2034,17 @@ function reduceCore(state: RunState, action: Action): RunState {
       const questId = offer[action.index];
       if (questId == null || !QUEST_INDEX[questId]) return state; // invalid pick
       (s.activeQuests ??= []).push({ questId, progress: 0, completed: false });
-      // Fi (lesser errand) and Coran (capstone) grant an EXTRA quest shop; the quest taken from it is their
-      // power, so its art takes the power's slot. Their bonus shop is the only one they open, so any quest
-      // taken while they are the hero is the granted one.
+      // A quest that IS the hero's power takes the power slot: its art replaces the button art, its objective
+      // replaces the power text, and QuestBadges drops its node (the button is its home — owner ask
+      // 2026-08-21, "should not go to the rune slot"). Two generations of this:
+      //  · the 2026-08-21 hero quests — matched by the DEF (`heroQuest`), because Fi/Coran also take the
+      //    universal turn-5/11 quests now and those must stay ordinary badges;
+      //  · the retired lesserQuest/pathfinder powers (old saves) — their bonus shop was the only one they
+      //    opened, so any taken quest was the granted one.
       {
         const kind = getHero(s.heroId).power.kind;
-        if (kind === 'lesserQuest' || kind === 'pathfinder') s.heroGrantArt = { kind: 'quest', id: questId };
+        if ((kind === 'heroQuest' && QUEST_INDEX[questId]!.heroQuest)
+          || kind === 'lesserQuest' || kind === 'pathfinder') s.heroGrantArt = { kind: 'quest', id: questId };
       }
       s.questOffer = undefined;
       openNextStartOfTurnModal(s); // a quest turn can line up the Epic Runeforge / Discovers behind it — open next

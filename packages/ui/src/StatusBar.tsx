@@ -232,12 +232,8 @@ export function StatusBar() {
       case 'recurringGoldcrafter': return run.wave % 4 === 0 ? 'now' : `${4 - (run.wave % 4)}t`; // Gildmaster — cadence
       case 'scalingGold': return run.heroPowerSpent ? null : `${1 + run.wave}g`; // Bagger Ben — current value
       case 'lesserQuest': return run.wave < 4 ? `${4 - run.wave}t` : null; // RETIRED Fi power — old saves only
-      case 'heroQuest': { // Fi / Coran — the live journey count of their hero quest, right on the power button
-        const aq = run.activeQuests?.find((q) => QUEST_INDEX[q.questId]?.heroQuest);
-        if (!aq) return null;
-        const def = QUEST_INDEX[aq.questId]!;
-        return aq.completed ? null : `${Math.min(aq.progress, def.objective.count)}/${def.objective.count}`;
-      }
+      // 'heroQuest' (Fi / Coran) needs no case: taking the quest sets `heroGrantArt`, and the grantQuest
+      // branch above the switch already owns the tally (x / N) — plus the art and the objective text.
       case 'runeforge': return run.wave < 5 && !run.heroPowerSpent ? `${5 - run.wave}t` : null; // Runesmith — forge opens turn 5 (was 7; the countdown lagged the retime, owner report 2026-07-31)
       case 'epicRuneforge': return run.epicForgeWave != null && run.wave < run.epicForgeWave ? `${run.epicForgeWave - run.wave}t` : null; // Runeguard
       case 'pathfinder': return run.wave < 10 ? `${10 - run.wave}t` : null; // Coran — turns to the capstone
@@ -459,7 +455,7 @@ export function StatusBar() {
               type="button"
               className={`heropowerbtn${isPassive ? ' passive' : heroArmed ? ' armed' : canHero ? ' ready' : ''}${committed ? ' committed' : ''}`}
               disabled={isPassive || (!canHero && !heroArmed)}
-              aria-label={`${power.name} — ${renameTerms(powerRule).replace(/\*\*/g, '')}`}
+              aria-label={`${grantQuestDef?.name ?? grantRuneDef?.name ?? power.name} — ${renameTerms(powerRule).replace(/\*\*/g, '')}`}
               // Hunch only: reveal the spell this would grant. Cheap — the state is a boolean and the preview
               // is only built while hovering (and only for that hero).
               onPointerEnter={power.kind === 'roundedSpellbook' ? (e) => showHunchTip(e.currentTarget) : undefined}
@@ -593,7 +589,9 @@ export function StatusBar() {
           </div>
           {/* The power NAME now lives in the pill for passives too (mirrors the active-power pill, e.g. Soren's
               Reclaim); the "Passive"/status detail moves to the hover tip below. */}
-          <div className="hplabel">{power.name}</div>
+          {/* Once a granted quest/rune owns the slot, its NAME owns the plate too — "Errand" under Opening
+              Act's art reads as a mismatch (owner ask 2026-08-21). */}
+          <div className="hplabel">{grantQuestDef?.name ?? grantRuneDef?.name ?? power.name}</div>
           {/* HENCHMAN recruit chip — placeholder presentation (see the `henchman` derivation above). */}
           {henchman && henchmanDef && (
             <button

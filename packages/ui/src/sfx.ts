@@ -208,6 +208,7 @@ const SAMPLE_URLS = {
   ...import.meta.glob('./audio/*.wav', { eager: true, query: '?url', import: 'default' }), // wav decodes natively too
   ...import.meta.glob('./audio/cards/*.mp3', { eager: true, query: '?url', import: 'default' }),
   ...import.meta.glob('./audio/heroes/*.mp3', { eager: true, query: '?url', import: 'default' }),
+  ...import.meta.glob('./audio/ceremony/*.mp3', { eager: true, query: '?url', import: 'default' }), // hero-select ceremony stingers (🎭 tuner owns their timing/volume)
 } as Record<string, string>;
 const buffers = new Map<string, AudioBuffer>();
 const loadingSamples = new Set<string>();
@@ -419,6 +420,10 @@ export const sfx = {
   // A hero is CHOSEN in Hero Select — drop `audio/heroes/<heroId>.mp3` and it plays, LAYERED over the generic
   // pulse. Silent (no fallback) if the hero has no clip.
   heroSelect: (heroId: string) => { playSample(`heroes/${heroId}`, 'heroSelect'); },
+  // A HERO CEREMONY stinger (audio/ceremony/*). `vol` is the 🎭 tuner's per-sound slider — a literal multiplier
+  // on top of the category gain, applied via the live gain node. Missing/undecoded clips stay silent (§15's
+  // audio-never-blocks rule): the ceremony's timeline is visual-driven either way.
+  ceremony: (name: string, vol = 1) => { playSample(`ceremony/${name}`, 'ceremony', 0, ({ gain }) => { gain.gain.value *= vol; }); },
   // A hero POWER activates — drop `audio/heroes/<heroId>.power.mp3` and it plays, LAYERED over the generic
   // pulse. Silent (no fallback) if the hero has no power clip.
   heroPower: (heroId: string) => { playSample(`heroes/${heroId}.power`, 'heroPower'); },

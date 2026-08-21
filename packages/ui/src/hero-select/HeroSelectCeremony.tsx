@@ -8,8 +8,10 @@ import {
   type HeroCeremonyState, type HeroCeremonyEvent, type HeroCeremonyPhase, type RectSnapshot,
 } from './heroCeremonyMachine';
 import { destinationRect, exitVector, focusKeyframes, snapshotRect, transformTo } from './heroCeremonyGeometry';
-import { ceremonyTiming } from './heroCeremonyTiming';
+import { ceremonyAdvanceSchedule, ceremonyTiming } from './heroCeremonyTiming';
 import { requestLaunch } from './heroLaunchController';
+import { getHeroCeremonyConfig } from './heroCeremonyTunerConfig';
+import ringArt from './heroportrait.png';
 import { createHeroCeremonyFx, type HeroCeremonyFxController } from './HeroCeremonyPixi';
 import './heroCeremony.css';
 
@@ -61,6 +63,21 @@ function animateEl(
   return anim;
 }
 
+/** The materialized artwork's final bounds: the measured card-art crop grown 18%, then shaped by the 🎭
+ *  tuner's Hero-art knobs — scale around center + x/y nudge. Prod uses the shipped defaults (1 / 0 / 0). */
+function portraitBoundsOf(crop: RectSnapshot): RectSnapshot {
+  const fx = getHeroCeremonyConfig();
+  const grow = 1.18 * fx.portraitScale;
+  const w = crop.width * grow;
+  const h = crop.height * grow;
+  return {
+    left: crop.left + crop.width / 2 - w / 2 + fx.portraitX,
+    top: crop.top + crop.height / 2 - h / 2 + fx.portraitY,
+    width: w,
+    height: h,
+  };
+}
+
 interface Props {
   state: HeroCeremonyState;
   dispatch: Dispatch<HeroCeremonyEvent>;
@@ -97,13 +114,14 @@ export function HeroSelectCeremony({ state, dispatch, cardEls }: Props) {
      once" instead of "half the ceremony never happens". */
   const didExitsRef = useRef(false);
   const didFocusRef = useRef(false);
-  const didMaterializeFxRef = useRef(false);
   const layerRef = useRef<HTMLDivElement | null>(null);
   /** The dedicated Pixi controller (§11-§12). Best-effort by contract: a failed init leaves an inert no-op,
    *  and every call below is safe against that — the DOM ceremony IS the fallback (§19). */
   const fxRef = useRef<HeroCeremonyFxController | null>(null);
 
   const [dest, setDest] = useState(() => destinationRect(window.innerWidth, window.innerHeight, source));
+  /** The circular-portrait FLASH has fired: the ring is on stage and the art clips to a circle inside it. */
+  const [flashed, setFlashed] = useState(false);
   /** Set when materializing begins (and art exists): the portrait's start crop + final bounds. */
   const [portrait, setPortrait] = useState<{ crop: RectSnapshot; bounds: RectSnapshot } | null>(null);
 
@@ -173,18 +191,35 @@ export function HeroSelectCeremony({ state, dispatch, cardEls }: Props) {
       const id = setTimeout(() => { if (!ac.signal.aborted) fn(); }, ms);
       ac.signal.addEventListener('abort', () => clearTimeout(id));
     };
-    at(t.optionExitDelayMs, () => dispatch({ type: 'advance', to: 'dismissing' }));
-    at(t.focusDelayMs, () => dispatch({ type: 'advance', to: 'focusing' }));
-    at(t.voiceAtMs, () => {
-      dispatch({ type: 'advance', to: 'voicing' });
-      sfx.heroSelect(heroId); // missing audio stays silent and never alters the timeline (§15)
-    });
-    // The arrival burst rides the same clock as everything else (§12.1); ambience begins right after it
-    // and holds until materialization thins it (§12.2). Both are no-ops if Pixi failed to init.
-    at(t.arrivalAtMs, () => { fxRef.current?.playArrival(); fxRef.current?.beginAmbient(); });
-    at(t.transformAtMs, () => dispatch({ type: 'advance', to: 'materializing' }));
-    // `ready` means "the button's entrance has completed and it is interactive" — hence + readyMs (§14).
-    at(t.readyAtMs + t.readyMs, () => dispatch({ type: 'advance', to: 'ready' }));
+    // Phase advances come from the MONOTONIC schedule (ceremonyAdvanceSchedule): the machine only accepts
+    // single forward steps, and five independent sliders could order the advance timers illegally — sliding
+    // the voiceline past the transform wedged the whole ceremony (hit live 2026-08-21). Equal marks fire in
+    // registration order, which is phase order.
+    const sched = ceremonyAdvanceSchedule(t);
+    at(sched.dismissAt, () => dispatch({ type: 'advance', to: 'dismissing' }));
+    at(sched.focusAt, () => dispatch({ type: 'advance', to: 'focusing' }));
+    at(sched.voicePhaseAt, () => dispatch({ type: 'advance', to: 'voicing' }));
+    at(sched.materializeAt, () => dispatch({ type: 'advance', to: 'materializing' }));
+    at(sched.readyAt, () => dispatch({ type: 'advance', to: 'ready' }));
+    // The voiceline is AUDIO, not a phase driver — it plays at the raw mark wherever the owner slides it;
+    // missing audio stays silent and never alters the timeline (§15).
+    // CEREMONY STINGERS + the circular-portrait FLASH + the NAMED PIXI CUES (owner asks 2026-08-21). Config,
+    // not timing-object: each sound and each effect has its own gate/mark(/duration) in the 🎭 tuner; prod
+    // plays the shipped defaults. All §15-safe — a missing clip or a failed Pixi init never touches the
+    // visual timeline.
+    const fx = getHeroCeremonyConfig();
+    if (fx.ring1On >= 1) at(fx.ring1AtMs, () => fxRef.current?.playRingBurst1(fx.ring1Ms));
+    if (fx.sparksOn >= 1) at(fx.sparksAtMs, () => fxRef.current?.playSparks(fx.sparksMs));
+    if (fx.motesOn >= 1) at(fx.motesAtMs, () => fxRef.current?.beginAmbient());
+    if (fx.sweepOn >= 1) at(fx.sweepAtMs, () => fxRef.current?.playSweep(fx.sweepMs));
+    if (fx.dustOn >= 1) at(fx.dustAtMs, () => fxRef.current?.playDust(fx.dustMs));
+    if (fx.ring2On >= 1) at(fx.ring2AtMs, () => fxRef.current?.playRingBurst2(fx.ring2Ms));
+    if (fx.songOn >= 1) at(fx.songAtMs, () => sfx.ceremony('asiansong', fx.songVol));
+    if (fx.woosh1On >= 1) at(fx.woosh1AtMs, () => sfx.ceremony('woosh1', fx.woosh1Vol));
+    if (fx.woosh2On >= 1) at(fx.woosh2AtMs, () => sfx.ceremony('woosh2', fx.woosh2Vol));
+    if (fx.revealOn >= 1) at(fx.revealAtMs, () => sfx.ceremony('ceremonyrevealsound', fx.revealVol));
+    at(fx.flashAtMs, () => setFlashed(true));
+    at(t.voiceAtMs, () => sfx.heroSelect(heroId));
     return () => ac.abort();
     // (deps intentionally omitted — see the comment above)
   }, []);
@@ -228,25 +263,12 @@ export function HeroSelectCeremony({ state, dispatch, cardEls }: Props) {
      (a gentle expansion beyond the card crop — "the art escapes the card"), and let render + the effect
      below run the crossfade. No art → skip entirely and keep the framed clone (§19). */
   useEffect(() => {
-    if (!crossed('materializing') || didMaterializeFxRef.current) return;
-    didMaterializeFxRef.current = true;
-    fxRef.current?.playMaterialize(); // §12.3-§12.4, art or not
-  }, [state.phase]);
-
-  useEffect(() => {
     if (!crossed('materializing') || portrait || !art) return;
     const frame = frameRef.current;
     if (!frame) return;
     const crop = snapshotRect(frame.getBoundingClientRect());
     if (crop.width <= 0) return; // degenerate (hidden/unstyled test env): keep the framed fallback
-    const grow = 0.18; // final portrait ≈ 118% of the card crop, centered on it
-    const bounds: RectSnapshot = {
-      left: crop.left - crop.width * (grow / 2),
-      top: crop.top - crop.height * (grow / 2),
-      width: crop.width * (1 + grow),
-      height: crop.height * (1 + grow),
-    };
-    setPortrait({ crop, bounds });
+    setPortrait({ crop, bounds: portraitBoundsOf(crop) });
   }, [state.phase, art]);
 
   /* ---- Portrait entrance: from the card-art crop to the final bounds, opacity 0.35 → 1 (§13). */
@@ -288,16 +310,7 @@ export function HeroSelectCeremony({ state, dispatch, cardEls }: Props) {
           if (portrait && frameRef.current) {
             const crop = snapshotRect(frameRef.current.getBoundingClientRect());
             if (crop.width > 0) {
-              const grow = 0.18;
-              setPortrait({
-                crop,
-                bounds: {
-                  left: crop.left - crop.width * (grow / 2),
-                  top: crop.top - crop.height * (grow / 2),
-                  width: crop.width * (1 + grow),
-                  height: crop.height * (1 + grow),
-                },
-              });
+              setPortrait({ crop, bounds: portraitBoundsOf(crop) });
               const p = portraitRef.current;
               if (p) { p.style.transform = 'translate(0px, 0px) scale(1)'; p.style.opacity = '1'; }
             }
@@ -381,27 +394,72 @@ export function HeroSelectCeremony({ state, dispatch, cardEls }: Props) {
 
       {/* Layer B (§13): the clean portrait — same art file, soft-masked edges, no chrome. Fixed at its
           FINAL bounds; the entrance animation shrinks it back to the card crop and releases. */}
-      {art && portrait && (
-        <div
-          ref={portraitRef}
-          className="hsc-portrait"
-          style={{
-            left: portrait.bounds.left, top: portrait.bounds.top,
-            width: portrait.bounds.width, height: portrait.bounds.height,
-            transform: transformTo(portrait.bounds, portrait.crop), opacity: 0.35,
-          }}
-          aria-hidden="true"
-        >
-          <img src={art} alt="" draggable={false} />
-        </div>
-      )}
+      {art && portrait && (() => {
+        // The RING + circular clip (owner ask 2026-08-21): at the flash the artwork snaps to a circle sitting
+        // just inside the heroportrait ring. Both are anchored on the portrait's center + the tuner's Ring
+        // nudges; the clip circle is computed in the PORTRAIT's own coordinate space so ring and clip can
+        // never drift apart, whatever the knobs say. RING_INSET keeps the art under the ring's inner edge.
+        const fx = getHeroCeremonyConfig();
+        const cx = portrait.bounds.left + portrait.bounds.width / 2 + fx.ringX;
+        const cy = portrait.bounds.top + portrait.bounds.height / 2 + fx.ringY;
+        const RING_INSET = 10;
+        // The circle is the SMALLER of "just inside the ring" and the artwork's own inscribed circle. Found
+        // live on the owner's tuned look (704px ring around ~400px art): a ring-derived radius larger than
+        // the element contains the whole rectangle and clips nothing — the art stayed square in the ring.
+        const clipR = Math.max(20, Math.min(
+          fx.ringSize / 2 - RING_INSET,
+          Math.min(portrait.bounds.width, portrait.bounds.height) / 2,
+        ));
+        return (
+          <>
+            <div
+              ref={portraitRef}
+              className={`hsc-portrait${flashed ? ' hsc-circular' : ''}`}
+              style={{
+                left: portrait.bounds.left, top: portrait.bounds.top,
+                width: portrait.bounds.width, height: portrait.bounds.height,
+                transform: transformTo(portrait.bounds, portrait.crop), opacity: 0.35,
+                ...(flashed
+                  ? { clipPath: `circle(${clipR.toFixed(1)}px at ${(cx - portrait.bounds.left).toFixed(1)}px ${(cy - portrait.bounds.top).toFixed(1)}px)` }
+                  : {}),
+              }}
+              aria-hidden="true"
+            >
+              <img src={art} alt="" draggable={false} />
+            </div>
+            {flashed && (
+              <>
+                <img
+                  className="hsc-ring"
+                  src={ringArt}
+                  alt=""
+                  draggable={false}
+                  style={{ left: cx - fx.ringSize / 2, top: cy - fx.ringSize / 2, width: fx.ringSize, height: fx.ringSize }}
+                  aria-hidden="true"
+                />
+                {/* The FLASH itself: one-shot, mounts with the ring and burns out via CSS animation. */}
+                <div
+                  className="hsc-flash"
+                  style={{ left: cx, top: cy, '--hsc-flash-r': `${(fx.ringSize * 0.75).toFixed(0)}px` } as CSSProperties}
+                  aria-hidden="true"
+                />
+              </>
+            )}
+          </>
+        );
+      })()}
 
       {/* §14: identity + confirmation, anchored under the portrait. Mounted at the materializing beat;
           the staggered entrances are CSS animations delayed by timing-object offsets. */}
       {materialized && (
         <div className="hsc-identity" style={{ top: dest.top + dest.height + 18 }}>
-          <div className="hsc-name">{hero.name}</div>
-          <div className="hsc-power">{hero.power.name}</div>
+          {/* The PLATE (owner ask 2026-08-21): a dark gradient pill the name + power sit inside. It takes the
+              tuner's Name offsets — moving "the name" moves the plate with both lines riding it — while the
+              Power offsets position the power line WITHIN the plate. */}
+          <div className="hsc-plate">
+            <div className="hsc-name">{hero.name}</div>
+            <div className="hsc-power">{hero.power.name}</div>
+          </div>
           <button
             ref={startBtnRef}
             className="hsc-start pressable"

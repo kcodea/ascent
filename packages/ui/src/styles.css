@@ -8171,8 +8171,8 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
    SIBLING of the rail (a child would be clipped by the rail's overflow-y scroll).
    Position + size are owner-tunable via the 🎞 Replay Rail dev tuner — the `--rrl-*` vars; these fallbacks
    MUST mirror the replayRailConfig DEFAULTS. */
-.roundrail-wrap { position: fixed; left: calc(var(--rrl-x, 14) * 1px); top: calc(50% + var(--rrl-y, 0) * 1px);
-  transform: translateY(-50%) scale(var(--rrl-s, 1)); transform-origin: left center; z-index: 555; }
+.roundrail-wrap { position: fixed; left: calc(var(--rrl-x, 11) * 1px); top: calc(50% + var(--rrl-y, -300) * 1px);
+  transform: translateY(-50%) scale(var(--rrl-s, 1.09)); transform-origin: left center; z-index: 555; }
 .roundrail {
   display: flex; flex-direction: column; gap: 3px; padding: 8px 6px; border-radius: 10px; max-height: 82vh; overflow-y: auto;
   background: #14111c; box-shadow: 0 4px 14px -6px rgba(0, 0, 0, 0.7), inset 0 0 0 1px rgba(255, 255, 255, 0.09);

@@ -27,6 +27,16 @@ export interface HscLayout {
   powerY: number;
   /** Hero power name — font size (px). */
   powerSize: number;
+  /** Identity plate (the side-fading band) — peak opacity of the gradient. */
+  plateOpacity: number;
+  /** Identity plate — total length (px) of the band, fades included. */
+  plateLen: number;
+  /** Identity plate — padding (px) above the name / below the power line (the band's thickness). */
+  platePadTop: number;
+  platePadBot: number;
+  /** Identity plate — fade width (px) from EACH edge: where the side fade completes into the solid center.
+   *  0 = hard edges; larger = longer melt. */
+  plateFade: number;
   /** Start Game — horizontal nudge (px) off center. */
   btnX: number;
   /** Start Game — vertical nudge (px); negative lifts it. */
@@ -35,16 +45,71 @@ export interface HscLayout {
   btnScale: number;
 }
 
+/** Ceremony STINGERS (owner assets 2026-08-21: audio/ceremony/*) + the circular-portrait FLASH. Unlike the
+ *  layout knobs these are read by the ceremony COMPONENT (scheduling + geometry math), not CSS — so they work
+ *  in prod at their defaults with no var plumbing. Each sound: an on/off gate, a timeline mark (ms from the
+ *  hero click, same clock as everything else) and a volume multiplier on the ceremony bus gain. */
+export interface HscFx {
+  /** asiansong.mp3 — the ceremonial sting. */
+  songOn: number; songAtMs: number; songVol: number;
+  /** woosh1.mp3 — the unselected cards yielding. */
+  woosh1On: number; woosh1AtMs: number; woosh1Vol: number;
+  /** woosh2.mp3 — the clone's travel/settle. */
+  woosh2On: number; woosh2AtMs: number; woosh2Vol: number;
+  /** ceremonyrevealsound.mp3 — the circular-portrait flash. */
+  revealOn: number; revealAtMs: number; revealVol: number;
+  /** When the FLASH fires: the portrait snaps circular inside the ring, the ring appears (ms from click). */
+  flashAtMs: number;
+  /** RING BURST 1 — arrival: bloom + one thin expanding ring + the small edge flash. */
+  ring1On: number; ring1AtMs: number; ring1Ms: number;
+  /** SPARKS — accent sparks + rune fragments off the card perimeter. */
+  sparksOn: number; sparksAtMs: number; sparksMs: number;
+  /** MOTES — the ambient hold (slow motes/wisps + the behind-portrait pulse), from here until launch. */
+  motesOn: number; motesAtMs: number;
+  /** LINE SWEEP — the light sweep gliding lower-left → upper-right across the artwork. */
+  sweepOn: number; sweepAtMs: number; sweepMs: number;
+  /** DUST — frame-boundary dissipation dust + fragments + brief inward wisps. */
+  dustOn: number; dustAtMs: number; dustMs: number;
+  /** RING BURST 2 — the finish ring contracting onto the hero (ambient thins after it). */
+  ring2On: number; ring2AtMs: number; ring2Ms: number;
+  /** Hero artwork (the materialized portrait) — offsets (px) + scale (×) on its computed final bounds. */
+  portraitX: number; portraitY: number; portraitScale: number;
+  /** The heroportrait ring image — offsets (px) off the portrait center + diameter (px). */
+  ringX: number; ringY: number; ringSize: number;
+}
+
 /** One config object so the panel stays one panel: the timing keys flow into `setCeremonyTiming`, the
  *  layout keys into CSS vars — `apply()` routes by key. */
-export type HscTunerConfig = HeroCeremonyTiming & HscLayout;
+export type HscTunerConfig = HeroCeremonyTiming & HscLayout & HscFx;
 
-// Owner-tuned 2026-08-21: the identity block reads much closer to the portrait than the first cut — name
-// and power lifted ~190px, the button up with them at 1.23×.
-const LAYOUT_DEFAULTS: HscLayout = { nameX: 0, nameY: -188, nameSize: 53, powerX: 0, powerY: -194, powerSize: 16, btnX: 0, btnY: -161, btnScale: 1.23 };
+// Owner-tuned 2026-08-21 (pill pass): a big 80px name + 22px power on the new dark plate, the button at
+// 1.55×. The name offsets move the WHOLE plate (name + power ride inside it); power offsets move the power
+// line within the plate.
+const LAYOUT_DEFAULTS: HscLayout = { nameX: 0, nameY: -300, nameSize: 62, powerX: 0, powerY: -300, powerSize: 21, plateOpacity: 1, plateLen: 690, platePadTop: 2, platePadBot: 7, plateFade: 400, btnX: 0, btnY: -135, btnScale: 1.55 };
+
+/** Owner-tuned 2026-08-21: song from the click, wooshes on the exits (100) and the settle (640), reveal +
+ *  flash paired at 1320 — after the fast transform finishes (825+350) — with the art at 1.26× inside a big
+ *  704px ring. */
+const FX_DEFAULTS: HscFx = {
+  songOn: 1, songAtMs: 0, songVol: 0.57,
+  woosh1On: 1, woosh1AtMs: 100, woosh1Vol: 0.71,
+  woosh2On: 1, woosh2AtMs: 640, woosh2Vol: 0.72,
+  revealOn: 1, revealAtMs: 1280, revealVol: 0.5,
+  flashAtMs: 1460,
+  // Pixi cues, placed on the current shipped timeline: bursts on the settle, sweep + dust with the
+  // transform (825), ring 2 paired with the flash.
+  ring1On: 1, ring1AtMs: 880, ring1Ms: 520,
+  sparksOn: 1, sparksAtMs: 880, sparksMs: 710,
+  motesOn: 1, motesAtMs: 950,
+  sweepOn: 1, sweepAtMs: 825, sweepMs: 420,
+  dustOn: 1, dustAtMs: 825, dustMs: 850,
+  ring2On: 1, ring2AtMs: 1320, ring2Ms: 380,
+  portraitX: 0, portraitY: 0, portraitScale: 1.26,
+  ringX: 0, ringY: 0, ringSize: 704,
+};
 const LAYOUT_KEYS = Object.keys(LAYOUT_DEFAULTS) as (keyof HscLayout)[];
 
-export const HSC_DEFAULTS: HscTunerConfig = { ...HERO_CEREMONY_TIMING, ...LAYOUT_DEFAULTS };
+export const HSC_DEFAULTS: HscTunerConfig = { ...HERO_CEREMONY_TIMING, ...LAYOUT_DEFAULTS, ...FX_DEFAULTS };
 
 /** Slider bounds — [min, max, step] per key. Wide enough to explore, bounded enough to stay a ceremony. */
 export const HSC_RANGES: Record<keyof HscTunerConfig, [number, number, number]> = {
@@ -56,7 +121,6 @@ export const HSC_RANGES: Record<keyof HscTunerConfig, [number, number, number]> 
   focusDelayMs: [0, 500, 10],
   focusMs: [200, 1200, 20],
   settleMs: [40, 400, 10],
-  arrivalAtMs: [200, 1500, 20],
   voiceAtMs: [200, 2000, 20],
   transformAtMs: [400, 2500, 25],
   transformMs: [200, 1500, 25],
@@ -71,9 +135,27 @@ export const HSC_RANGES: Record<keyof HscTunerConfig, [number, number, number]> 
   powerX: [-400, 400, 1],
   powerY: [-300, 300, 1],
   powerSize: [10, 40, 1],
+  plateOpacity: [0, 1, 0.01],
+  plateLen: [200, 1400, 5],
+  platePadTop: [0, 80, 1],
+  platePadBot: [0, 80, 1],
+  plateFade: [0, 400, 2],
   btnX: [-400, 400, 1],
   btnY: [-200, 300, 1],
   btnScale: [0.6, 1.6, 0.01],
+  songOn: [0, 1, 1], songAtMs: [0, 3000, 10], songVol: [0, 1, 0.01],
+  woosh1On: [0, 1, 1], woosh1AtMs: [0, 3000, 10], woosh1Vol: [0, 1, 0.01],
+  woosh2On: [0, 1, 1], woosh2AtMs: [0, 3000, 10], woosh2Vol: [0, 1, 0.01],
+  revealOn: [0, 1, 1], revealAtMs: [0, 3000, 10], revealVol: [0, 1, 0.01],
+  flashAtMs: [400, 2600, 10],
+  ring1On: [0, 1, 1], ring1AtMs: [0, 3000, 10], ring1Ms: [120, 1500, 10],
+  sparksOn: [0, 1, 1], sparksAtMs: [0, 3000, 10], sparksMs: [120, 1500, 10],
+  motesOn: [0, 1, 1], motesAtMs: [0, 3000, 10],
+  sweepOn: [0, 1, 1], sweepAtMs: [0, 3000, 10], sweepMs: [120, 1500, 10],
+  dustOn: [0, 1, 1], dustAtMs: [0, 3000, 10], dustMs: [150, 2000, 10],
+  ring2On: [0, 1, 1], ring2AtMs: [0, 3000, 10], ring2Ms: [120, 1500, 10],
+  portraitX: [-400, 400, 1], portraitY: [-400, 400, 1], portraitScale: [0.5, 2, 0.01],
+  ringX: [-400, 400, 1], ringY: [-400, 400, 1], ringSize: [120, 900, 2],
 };
 
 const KEY = 'ascent.heroceremony';

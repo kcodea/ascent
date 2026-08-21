@@ -83,6 +83,40 @@
   mask-image: radial-gradient(115% 115% at 50% 42%, #000 62%, transparent 96%);
 }
 
+/* ---- The circular-portrait FLASH (owner ask 2026-08-21): the ring appears, the art clips to a circle
+   inside it, and a one-shot bloom sells the snap. The clip-path change is a one-shot TRANSITION (not a loop)
+   and the flash animates opacity/transform only — the bloom's gradient is static paint. */
+.hsc-portrait { transition: clip-path 0.28s ease; }
+.hsc-portrait.hsc-circular img {
+  /* The rectangular soft mask would fight the circle — the clip owns the edge once circular. */
+  -webkit-mask-image: none; mask-image: none;
+  border-radius: 0;
+}
+.hsc-ring {
+  position: fixed; z-index: 11; /* over the portrait (10-ish), under the identity block (12) */
+  pointer-events: none; -webkit-user-drag: none;
+  opacity: 0;
+  animation: hscRingIn 0.32s ease forwards;
+}
+@keyframes hscRingIn {
+  from { opacity: 0; transform: scale(1.12); }
+  to   { opacity: 1; transform: scale(1); }
+}
+.hsc-flash {
+  position: fixed; z-index: 13;
+  width: calc(var(--hsc-flash-r, 260px) * 2); height: calc(var(--hsc-flash-r, 260px) * 2);
+  margin-left: calc(var(--hsc-flash-r, 260px) * -1); margin-top: calc(var(--hsc-flash-r, 260px) * -1);
+  border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle, rgba(255, 250, 235, 0.95) 0%, rgba(246, 224, 168, 0.5) 38%, transparent 70%);
+  opacity: 0;
+  animation: hscFlash 0.5s ease-out forwards;
+}
+@keyframes hscFlash {
+  0%   { opacity: 0; transform: scale(0.6); }
+  18%  { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.25); }
+}
+
 /* ---- §14: identity + confirmation. Fixed under the portrait; each piece enters on its own CSS delay
    (offsets from the materializing beat, injected from the timing object). */
 .hsc-identity {
@@ -94,18 +128,47 @@
    ARE the shipped values (prod never sets the vars). Offsets ride relative left/top and size rides
    font-size / zoom on purpose: the entrances animate transform (`hscRise`), which would stomp a static
    transform-based nudge. */
-.hsc-name {
+/* The PLATE: a dark gradient pill the name + power sit inside (owner ask 2026-08-21). It carries the
+   tuner's Name offsets, so "move the name" moves the plate and both lines ride it; the power line's own
+   offsets reposition it WITHIN the plate. Static gradient paint — only opacity enters (hscRise). */
+.hsc-plate {
   position: relative;
-  left: calc(var(--hsc-namex, 0) * 1px); top: calc(var(--hsc-namey, -188) * 1px);
-  font-family: var(--font-title); font-weight: 900; font-size: calc(var(--hsc-namesize, 53) * 1px); letter-spacing: 0.06em;
+  left: calc(var(--hsc-namex, 0) * 1px); top: calc(var(--hsc-namey, -300) * 1px);
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  width: calc(var(--hsc-platelen, 690) * 1px);
+  padding: calc(var(--hsc-platepadtop, 2) * 1px) 24px calc(var(--hsc-platepadbot, 7) * 1px);
+  opacity: 0;
+  animation: hscRise 0.36s ease var(--hsc-identity-delay, 500ms) forwards;
+}
+/* A horizontal BAND, not a rounded pill (owner reference 2026-08-21): solid dark through the middle, fading
+   to transparent at the LEFT and RIGHT edges — top/bottom stay clean (and geometrically STRAIGHT: radius 0,
+   no clip; a bow under the big circular medallion is an optical illusion). The gradient lives on ::before so
+   the tuner's opacity knob never fights the hscRise entrance animating the element's own opacity. */
+.hsc-plate::before {
+  content: ''; position: absolute; inset: 0; z-index: -1;
+  /* The fade var sets where each side's melt COMPLETES into the solid center (px from the edge); the
+     mid-stop at 40% of that keeps the ease-in profile of the original three-stop fade. */
+  background: linear-gradient(90deg,
+    rgba(16, 12, 9, 0) 0,
+    rgba(16, 12, 9, 0.73) calc(var(--hsc-platefade, 400) * 0.4px),
+    rgba(16, 12, 9, 0.965) calc(var(--hsc-platefade, 400) * 1px),
+    rgba(16, 12, 9, 0.965) calc(100% - var(--hsc-platefade, 400) * 1px),
+    rgba(16, 12, 9, 0.73) calc(100% - var(--hsc-platefade, 400) * 0.4px),
+    rgba(16, 12, 9, 0) 100%);
+  opacity: var(--hsc-plateopacity, 1);
+}
+.hsc-name {
+  font-family: var(--font-title); font-weight: 900; font-size: calc(var(--hsc-namesize, 62) * 1px); letter-spacing: 0.06em;
   color: #f6efe2; text-shadow: 0 3px 12px rgba(0, 0, 0, 0.7);
   opacity: 0;
   animation: hscRise 0.36s ease var(--hsc-identity-delay, 500ms) forwards;
 }
 .hsc-power {
   position: relative;
-  left: calc(var(--hsc-powerx, 0) * 1px); top: calc(var(--hsc-powery, -194) * 1px);
-  font-family: var(--font-ui); font-weight: 800; font-size: calc(var(--hsc-powersize, 16) * 1px); letter-spacing: 0.14em;
+  /* Inside the plate the power's natural spot is directly under the name, so the tuned offset applies
+     RELATIVE to the plate: (powerY − nameY), keeping the two sliders' meanings from the pre-plate era. */
+  left: calc(var(--hsc-powerx, 0) * 1px); top: calc((var(--hsc-powery, -300) - var(--hsc-namey, -300)) * 1px);
+  font-family: var(--font-ui); font-weight: 800; font-size: calc(var(--hsc-powersize, 21) * 1px); letter-spacing: 0.14em;
   text-transform: uppercase; color: color-mix(in srgb, var(--acc) 80%, #fff);
   text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
   opacity: 0;
@@ -114,8 +177,8 @@
 .hsc-start {
   pointer-events: auto;
   position: relative;
-  left: calc(var(--hsc-btnx, 0) * 1px); top: calc(var(--hsc-btny, -161) * 1px);
-  zoom: var(--hsc-btnscale, 1.23);
+  left: calc(var(--hsc-btnx, 0) * 1px); top: calc(var(--hsc-btny, -135) * 1px);
+  zoom: var(--hsc-btnscale, 1.55);
   margin-top: 16px;
   font-family: var(--font-ui); font-weight: 800; font-size: 19px; letter-spacing: 0.12em;
   text-transform: uppercase; color: #fff;

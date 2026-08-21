@@ -4933,6 +4933,13 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
     case 'shopBuffOnRefresh':
       s.shopBuffOnRefresh = { attack: r.attack, health: r.health, step: r.step, per: r.per, grown: 0, tick: 0 };
       break;
+    case 'shopAuraGrowing':
+      // Rune of the Wheel: the base +A/+H lands ONCE, now — it's a standing aura, so it rides the permanent
+      // `tavernBuyBonus` channel (current AND future offers inherit it). The meter then improves it by
+      // +step/+step every `per`-th refresh — see `applyShopRefreshQuestBuff`.
+      applyRunShopBuff(s, r.attack, r.health, 'Rune of the Wheel');
+      s.shopAuraGrow = { step: r.step, per: r.per, tick: 0, grown: 0 };
+      break;
     case 'aleExtraCasts':
       s.aleExtraCasts = (s.aleExtraCasts ?? 0) + (r.amount ?? 1);
       break;

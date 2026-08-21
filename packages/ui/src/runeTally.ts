@@ -46,6 +46,10 @@ export function runeTally(run: RunState, runeId: string): string | null {
     if (t.oncePerTurn && t.usedThisTurn) return `${t.per}/${t.per}${METER_SUFFIX[t.meter] ?? ''}`;
     return `${Math.min(t.tick, t.per)}/${t.per}${METER_SUFFIX[t.meter] ?? ''}`;
   }
+  // Rune of the Wheel: refreshes toward the aura's next +2/+2 improve (`shopAuraGrow`).
+  if (runeId === 'rune_wheel' && run.shopAuraGrow?.per) {
+    return `${Math.min(run.shopAuraGrow.tick, run.shopAuraGrow.per)}/${run.shopAuraGrow.per}`;
+  }
   // Rune of Spellslinging keeps its own Gold meter rather than joining `runeThresholds`.
   if (runeId === 'rune_spellslinging' && run.spellDripPer) {
     return `${Math.min(run.spellDripTick ?? 0, run.spellDripPer)}/${run.spellDripPer}g`;

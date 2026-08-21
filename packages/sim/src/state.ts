@@ -651,6 +651,10 @@ export interface RunState {
   /** Endless Inventory: after each shop refresh, buff the shop — and improve the magnitude by `step` every
    *  `per` refreshes. `grown` is the accrued improvement, `tick` the progress toward the next step. */
   shopBuffOnRefresh?: { attack: number; health: number; step: number; per: number; grown: number; tick: number };
+  /** Rune of the Wheel (`shopAuraGrowing`): the standing shop aura's growth meter. The BASE +A/+H landed in
+   *  `tavernBuyBonus` when the rune was bought; each refresh ticks this, and every `per`-th adds +step/+step
+   *  more to the same channel. `grown` is display-only (the live "+X/+X now" on the badge). */
+  shopAuraGrow?: { step: number; per: number; tick: number; grown: number };
   /** Chrono Staff: this turn's End-of-Turn effects fire one extra time (a per-turn flag — stacks with
    *  Chronos, not with itself). Set on cast, reset at the next turn start. Absent = false. */
   extraEotThisTurn?: boolean;

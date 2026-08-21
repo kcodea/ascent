@@ -676,6 +676,7 @@ z.object({ kind: z.literal('rubyExtraCasts'), amount: z.number().int().positive(
 z.object({ kind: z.literal('shopBuff'), attack: z.number().int(), health: z.number().int() }).strict(),
 z.object({ kind: z.literal('shopBuffPerShouts'), per: z.number().int().positive(), attack: z.number().int(), health: z.number().int() }).strict(),
 z.object({ kind: z.literal('shopBuffOnRefresh'), attack: z.number().int(), health: z.number().int(), step: z.number().int(), per: z.number().int().positive() }).strict(),
+z.object({ kind: z.literal('shopAuraGrowing'), attack: z.number().int(), health: z.number().int(), step: z.number().int(), per: z.number().int().positive() }).strict(),
 z.object({ kind: z.literal('spellCost'), cost: z.number().int().positive() }).strict(),
 z.object({ kind: z.literal('runeCoffers') }).strict(),
 z.object({ kind: z.literal('runeEnchantment') }).strict(),

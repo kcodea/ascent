@@ -1278,11 +1278,26 @@ export function applyRunShopBuff(state: RunState, attack: number, health: number
  *  the printed value has to be read live (see `questText`) rather than the base rate. */
 export function applyShopRefreshQuestBuff(state: RunState): void {
   const q = state.shopBuffOnRefresh;
-  if (!q) return;
-  if (state.ownedRunes?.includes('rune_wheel')) procRuneId(state, 'rune_wheel');
-  applyRunShopBuff(state, q.attack + q.grown, q.health + q.grown, 'Endless Inventory');
-  q.tick += 1;
-  while (q.tick >= q.per) { q.tick -= q.per; q.grown += q.step; }
+  if (q) {
+    applyRunShopBuff(state, q.attack + q.grown, q.health + q.grown, 'Endless Inventory');
+    q.tick += 1;
+    while (q.tick >= q.per) { q.tick -= q.per; q.grown += q.step; }
+  }
+  // Rune of the Wheel (`shopAuraGrowing`): nothing lands per refresh — the base +2/+2 is a standing aura
+  // applied at purchase. Each refresh only ticks the meter, and every `per`-th IMPROVES the aura by
+  // +step/+step. The rune used to share Endless Inventory's branch above and so stacked its base on every
+  // refresh, ~5× its printed text (owner report 2026-08-21). The proc fires only when the improve does —
+  // that is the moment the rune visibly acts.
+  const w = state.shopAuraGrow;
+  if (w) {
+    w.tick += 1;
+    while (w.tick >= w.per) {
+      w.tick -= w.per;
+      w.grown += w.step;
+      if (state.ownedRunes?.includes('rune_wheel')) procRuneId(state, 'rune_wheel');
+      applyRunShopBuff(state, w.step, w.step, 'Rune of the Wheel');
+    }
+  }
 }
 
 /**

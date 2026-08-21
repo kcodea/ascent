@@ -548,13 +548,14 @@ export const RUNES: RuneDef[] = [
     sets: ['set2'], // Rubies
   },
   {
-    // `shopBuffOnRefresh` is the Hellrider-shaped stock kind: base +A/+H on every offer, +step more per `per`
-    // refreshes — exactly this rune's sheet line, so it ships as pure data.
+    // A STANDING shop aura that improves every 4th refresh. It first shipped on `shopBuffOnRefresh` — whose
+    // comment above claimed "base +A/+H on every offer" but whose engine (Endless Inventory's) grants a NEW
+    // permanent +2/+2 on EVERY refresh — so the rune compounded ~5× its printed text (owner report 2026-08-21).
     id: 'rune_wheel',
     name: 'Rune of the Wheel',
     cost: 4,
     text: 'Minions in the **Shop** have **+2/+2**. Improves every **4 refreshes**.',
-    reward: { kind: 'shopBuffOnRefresh', attack: 2, health: 2, step: 2, per: 4 },
+    reward: { kind: 'shopAuraGrowing', attack: 2, health: 2, step: 2, per: 4 },
   },
   {
     id: 'rune_flagship',

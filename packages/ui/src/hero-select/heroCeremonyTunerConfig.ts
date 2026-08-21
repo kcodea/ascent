@@ -39,7 +39,9 @@ export interface HscLayout {
  *  layout keys into CSS vars — `apply()` routes by key. */
 export type HscTunerConfig = HeroCeremonyTiming & HscLayout;
 
-const LAYOUT_DEFAULTS: HscLayout = { nameX: 0, nameY: 0, nameSize: 44, powerX: 0, powerY: 0, powerSize: 16, btnX: 0, btnY: 0, btnScale: 1 };
+// Owner-tuned 2026-08-21: the identity block reads much closer to the portrait than the first cut — name
+// and power lifted ~190px, the button up with them at 1.23×.
+const LAYOUT_DEFAULTS: HscLayout = { nameX: 0, nameY: -188, nameSize: 53, powerX: 0, powerY: -194, powerSize: 16, btnX: 0, btnY: -161, btnScale: 1.23 };
 const LAYOUT_KEYS = Object.keys(LAYOUT_DEFAULTS) as (keyof HscLayout)[];
 
 export const HSC_DEFAULTS: HscTunerConfig = { ...HERO_CEREMONY_TIMING, ...LAYOUT_DEFAULTS };

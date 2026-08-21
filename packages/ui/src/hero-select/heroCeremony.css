@@ -96,15 +96,15 @@
    transform-based nudge. */
 .hsc-name {
   position: relative;
-  left: calc(var(--hsc-namex, 0) * 1px); top: calc(var(--hsc-namey, 0) * 1px);
-  font-family: var(--font-title); font-weight: 900; font-size: calc(var(--hsc-namesize, 44) * 1px); letter-spacing: 0.06em;
+  left: calc(var(--hsc-namex, 0) * 1px); top: calc(var(--hsc-namey, -188) * 1px);
+  font-family: var(--font-title); font-weight: 900; font-size: calc(var(--hsc-namesize, 53) * 1px); letter-spacing: 0.06em;
   color: #f6efe2; text-shadow: 0 3px 12px rgba(0, 0, 0, 0.7);
   opacity: 0;
   animation: hscRise 0.36s ease var(--hsc-identity-delay, 500ms) forwards;
 }
 .hsc-power {
   position: relative;
-  left: calc(var(--hsc-powerx, 0) * 1px); top: calc(var(--hsc-powery, 0) * 1px);
+  left: calc(var(--hsc-powerx, 0) * 1px); top: calc(var(--hsc-powery, -194) * 1px);
   font-family: var(--font-ui); font-weight: 800; font-size: calc(var(--hsc-powersize, 16) * 1px); letter-spacing: 0.14em;
   text-transform: uppercase; color: color-mix(in srgb, var(--acc) 80%, #fff);
   text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
@@ -114,8 +114,8 @@
 .hsc-start {
   pointer-events: auto;
   position: relative;
-  left: calc(var(--hsc-btnx, 0) * 1px); top: calc(var(--hsc-btny, 0) * 1px);
-  zoom: var(--hsc-btnscale, 1);
+  left: calc(var(--hsc-btnx, 0) * 1px); top: calc(var(--hsc-btny, -161) * 1px);
+  zoom: var(--hsc-btnscale, 1.23);
   margin-top: 16px;
   font-family: var(--font-ui); font-weight: 800; font-size: 19px; letter-spacing: 0.12em;
   text-transform: uppercase; color: #fff;

@@ -773,7 +773,14 @@ export function Recruit() {
   // the reducer + combat read it, so the mark can never outlast the bond it is drawing.
   // Cia's enchanted foil is rendered through the SHARED Pixi layer, not per-card CSS — the controller only
   // needs to know which offers are enchanted, and owns all the per-frame work itself.
-  const enchantedUids = useMemo(() => run.shop.filter((o) => o.enchanted).map((o) => o.uid), [run.shop]);
+  // Drop every enchanted uid the instant combat begins so `useCiaEnchantedFx` tears its looping emitters down
+  // AT ONCE (hard teardown, no fade) — otherwise the offers keep `enchanted` through the fight and the loops
+  // bleed enchant particles onto the shared overlay during combat (owner ask 2026-08-21). They come back when
+  // the shop returns (phase leaves 'combat' and the enchanted offers repopulate this list).
+  const enchantedUids = useMemo(
+    () => (run.phase === 'combat' ? [] : run.shop.filter((o) => o.enchanted).map((o) => o.uid)),
+    [run.shop, run.phase],
+  );
   useCiaEnchantedFx(enchantedUids);
   const soulboundUids = useMemo(
     () => (run.sableBond && run.sableBond.wave === run.wave ? new Set([run.sableBond.a, run.sableBond.b]) : new Set<string>()),

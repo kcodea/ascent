@@ -1717,7 +1717,12 @@ export function simulate(
     let bonus = 0;
     // Sylus (stacking) + Uron (best-copy) both live here now — resolved from card DATA rather than a
     // hardcoded id, so a new multiplier is a card field and not another branch in this function.
-    bonus += extraTriggerFires('deathrattle', boards[minion.side].filter((m) => !m.dead && m.health > 0), (id) => cards[id]);
+    // `!m.dead` (NOT `health > 0`): a doubler that took lethal damage from the very Echo it is doubling — a
+    // gilded Fel Spikes sprays its own non-Demon Sylus to ≤0 on the base fire — is mid-DEFERRED-death, still on
+    // the board, and was alive when the Deathrattle triggered, so it must still double (owner report
+    // 2026-08-21: gilded + Sylus should fire "4 twice, twice"). Outside a defer scope nothing sits at
+    // ≤0-not-dead, so this is identical to the old filter for every non-spraying Deathrattle.
+    bonus += extraTriggerFires('deathrattle', boards[minion.side].filter((m) => !m.dead), (id) => cards[id]);
     // Elderhorn (Ritual): BEAST Echoes fire an extra time (tribe-scoped, so it never touches other tribes).
     if (isTribeOf(minion, 'beast', cards)) {
       bonus += (minion.side === 'player' ? playerState.beastRitualExtra ?? 0 : enemyState.beastRitualExtra ?? 0)

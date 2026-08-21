@@ -142,6 +142,25 @@ describe('simulate (handoff A.3)', () => {
     expect(felToCubs).toHaveLength(0); // the Sylus re-fire hit the ≤0 Panther, never the fresh cubs
   });
 
+  it("a doubler dying to the Echo it doubles STILL doubles it — gilded Fel Spikes + Sylus fires '4 twice, twice'", () => {
+    // A gilded Fel Spikes sprays its own non-Demon allies too, so its base fire (4 + 4 = 8) drops a low-HP
+    // Sylus. Sylus was ALIVE when the Deathrattle triggered and is only mid-deferred-death from the very spray
+    // it doubles, so it must still re-fire the whole rattle: 4 waves total (gilded 2 × Sylus-doubled 2), not 2
+    // (owner report 2026-08-21). Guards the `!m.dead` doubler filter.
+    const p: BoardMinion[] = [
+      { cardId: 'dm_felspikes', attack: 4, health: 1, golden: true }, // gilded → base sprays 4 twice = 8
+      { cardId: 'sylus', attack: 1, health: 6 },                      // 6 HP → dies to the base spray's 8…
+      { cardId: 'sandbag', attack: 0, health: 50 },
+    ];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 10, health: 50 }]; // kills Fel Spikes on its first swing
+    const r = run(p, e, 3);
+    const fs = r.initial.player.find((m) => m.cardId === 'dm_felspikes')!;
+    const waves = new Set(
+      r.events.filter((ev) => ev.type === 'dmg' && ev.source === fs.uid && ev.wave !== undefined).map((ev) => (ev as Extract<CombatEvent, { type: 'dmg' }>).wave),
+    );
+    expect(waves.size).toBe(4); // 2 gilded base passes + 2 gilded Sylus-doubled passes — Sylus doubled despite dying
+  });
+
   it('Bloodlust weld: a bloodlustRally attacker gives a friendly minion its Attack on each of its own swings', () => {
     const p: BoardMinion[] = [
       { cardId: 'pack', attack: 5, health: 30, bloodlustRally: true }, // the Bloodlust target

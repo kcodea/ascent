@@ -1,5 +1,32 @@
 # ASCENT — development log
 
+## 2026-08-21 — Fel Spikes polish: every volley fires, tighter timing, held slot, doubler-dying fix
+
+Final pass on the Fel Spikes Echo, tuned live with the owner.
+
+- **Every volley fires (presentation bug).** The spike volleys are scheduled up-front from the death beat, but
+  their timers lived in the per-beat `timers` array — cleared on every beat advance. Widening the skull→spray
+  gap made the beat advance BEFORE the 3rd/4th volleys fired, so a gilded+Sylus spray silently dropped them.
+  Moved the volley timers into a combat-lifetime registry (`echoVolleyTimersRef`, cleared only on reset/seek via
+  `cancelPendingRolls`) so every volley fires and a scrub still cancels the pending ones.
+- **Timing.** Each volley's number now lands as ITS spike strikes (per-volley, climbing) rather than all at the
+  last spike; `ECHO_IMPACT_BUFFER_MS` 150 → **80** (the number rides the burst's brightest frame), and the
+  skull→spray gap `ECHO_LAUNCH_DELAY_MS` 100 → **400** (the skull reads on its own before the spray). Both slide
+  the launch + the numbers together; travel + climb spacing unchanged.
+- **Held slot (reflow bug).** The 400ms gap made the death beat long enough that the dying unit's slot-collapse
+  fully ran — survivors slid into the gap — then the ghost re-held the slot and they slid back. New `holdecho`
+  modifier CANCELS a launchOnDeath sprayer's slot-collapse (the card still fades) so its slot stays full through
+  the whole spray; survivors reflow ONCE, when the ghost is dropped after the last volley.
+- **ENGINE (Kevin's seam) — a doubler dying to the Echo it doubles still doubles it.** A gilded Fel Spikes
+  sprays its own non-Demon Sylus to ≤0 on the base fire; the deferred-death scope keeps Sylus on the board (not
+  dead), but `playerEchoExtras` counted only `health > 0`, so the ≤0 Sylus was dropped and its re-fire never
+  happened. Filter widened to `!m.dead`: a doubler alive at the trigger, now mid-deferred-death from the very
+  spray it doubles, still doubles → gilded + Sylus fires "4 twice, twice" (4 volleys). Identical to the old
+  behaviour outside a defer scope (nothing else sits at ≤0-not-dead).
+
+Verified: new `simulate.test.ts` doubler case (gilded Fel Spikes + a 6-HP Sylus → 4 waves; was 2). Full suite
+(5934) + determinism harness (identical) + typecheck (pkgs + web) + lint (0 errors) + build:web all green.
+
 ## 2026-08-20 — FX: Fel Spikes' volley number CLIMBS per spike (4 → 8), then resolves after
 
 Presentation half of #2a (owner ask: "the number to aggregate for each fire of damage until it reaches its

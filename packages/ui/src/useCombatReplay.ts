@@ -845,15 +845,18 @@ function echoDeliveryLead(shown: Moment | undefined, next: Moment, events: Comba
   return ECHO_PASS_GAP_MS;
 }
 
-/** Delay (ms, 1× speed) from the Echo SKULL to its spike volley launching — a breath so the skull reads first
- *  (owner ask 2026-08-20: ~100ms). */
-const ECHO_LAUNCH_DELAY_MS = 100;
+/** Delay (ms, 1× speed) from the Echo SKULL to its spike volley launching — a beat so the skull reads on its own
+ *  before the spray begins (owner ask 2026-08-21: widen the skull→spray gap). Slides the whole spray (launch +
+ *  the numbers that trail it) later as one; travel, impact buffer and climb spacing are unaffected. */
+const ECHO_LAUNCH_DELAY_MS = 400;
 /** Gap (ms, 1× speed) between a GOLDEN Fel Spikes' two sprays, so the volley reads as two quick taps rather
  *  than one merged cascade (owner report 2026-08-20). */
 const ECHO_PASS_GAP_MS = 240;
-/** Extra hold (ms, 1× speed) past the beam's spawn `at` before the damage lands — the moment the spike visibly
- *  CONNECTS reads a touch after the impact burst spawns, so the numbers wait for it (owner: damage felt early). */
-const ECHO_IMPACT_BUFFER_MS = 150;
+/** Hold (ms, 1× speed) past the beam's target `at` before the number tallies. Small, so the number lands as the
+ *  impact burst reaches its BRIGHTEST frame rather than its very first one — the tally then reads in sync with
+ *  the strike's visual peak instead of finishing a touch ahead of it (owner 2026-08-21). Was 150 (number landed
+ *  well after the blast, back when a landing number could KILL a unit early); the number only CLIMBS now. */
+const ECHO_IMPACT_BUFFER_MS = 80;
 
 /** Schedule the spike volley(s) a dying `launchOnDeath` unit throws: one per `echoWaves` wave, each launched a
  *  breath after the skull (`ECHO_LAUNCH_DELAY_MS`), and each golden pass a `ECHO_PASS_GAP_MS` after the last so
@@ -1023,6 +1026,13 @@ export function useCombatReplay(
   // release of `combatHeldRef` leftovers); see that function's comment for the browser trace that found it.
   const rollRegistryRef = useRef<Map<number, { uid: string; strikeTimer: number | null; cancelRoll: (() => void) | null }>>(new Map());
   const rollRegistryIdRef = useRef(0);
+  // Combat-lifetime timers for a dying unit's Echo spike VOLLEYS (Fel Spikes). Each spray is launched from the
+  // death beat but its later volleys fire whole beats later (one `ECHO_PASS_GAP_MS` apart), AFTER the replay has
+  // advanced past the death beat — so they CANNOT live in the per-beat `timers` array, which the cue effect's
+  // cleanup clears on every beat advance (that silently dropped a gilded+Sylus spray's 3rd/4th volleys). Kept
+  // here instead, cleared ONLY on reset/seek (`cancelPendingRolls`), so every volley fires but a scrub cancels
+  // the ones still pending.
+  const echoVolleyTimersRef = useRef<number[]>([]);
 
   // Schedule a buff's strike-delay timer in the combat-lifetime registry above (not the caller's per-beat
   // `timers`), so an ordinary beat advance cannot cancel it. When the delay elapses, hand off to `driveRoll`
@@ -1077,6 +1087,10 @@ export function useCombatReplay(
       releaseStat(entry.uid);
     }
     rollRegistryRef.current.clear();
+    // Cancel any Echo spike volleys still pending from a death this instance already replayed — a fresh combat
+    // or a re-seek supersedes them (they'd otherwise fire a stale spray onto the new frame).
+    for (const id of echoVolleyTimersRef.current) window.clearTimeout(id);
+    echoVolleyTimersRef.current = [];
   }, []);
 
   /**
@@ -1849,7 +1863,9 @@ export function useCombatReplay(
       // the projectile is relocated here.
       const echoBinding = bindingFor(cardIds.get(e.target) ?? null, 'damage');
       if (r && echoBinding?.launchOnDeath) {
-        scheduleEchoVolleys(echoBinding.def, e.target, i, events, combatSpeedRef.current, (id) => timers.push(id));
+        // Combat-lifetime registry, NOT `timers`: later volleys fire after the beat advances, so the per-beat
+        // cleanup must not clear them (see `echoVolleyTimersRef`). A seek/reset cancels them via cancelPendingRolls.
+        scheduleEchoVolleys(echoBinding.def, e.target, i, events, combatSpeedRef.current, (id) => echoVolleyTimersRef.current.push(id));
       }
     }
     return () => {
@@ -1919,11 +1935,12 @@ export function useCombatReplay(
             if (hasDR) pixiFx.deathrattle(rect.cx, rect.cy, rect.w);            // bone-skull shatter — always fires
             // Fel Spikes killed MID-ATTACK (it swung and died to retaliation) lands here, not the immediate
             // death loop — so its Echo volley must launch from the pulled-home body here too, or the death
-            // shows no spikes (owner report 2026-08-20: a second Fel Spikes didn't fire). Fire-and-forget: the
-            // spikes self-expire, and a timer surviving unmount finds no anchor and no-ops.
+            // shows no spikes (owner report 2026-08-20: a second Fel Spikes didn't fire). Registered in the
+            // combat-lifetime registry (like the immediate path) so later volleys survive the beat advance and
+            // a seek/reset still cancels them.
             const echoBinding = bindingFor(cardIds.get(impactAtk) ?? null, 'damage');
             if (echoBinding?.launchOnDeath) {
-              scheduleEchoVolleys(echoBinding.def, impactAtk, i, events, combatSpeedRef.current, () => {});
+              scheduleEchoVolleys(echoBinding.def, impactAtk, i, events, combatSpeedRef.current, (id) => echoVolleyTimersRef.current.push(id));
             }
           });
         }
@@ -2352,7 +2369,13 @@ export function useCombatReplay(
             // Deathrattle: fade the card IN PLACE (no bounce) under the skull burst. A Deathrattle ATTACKER
             // that died mid-lunge also gets `returning` — the fade DELAYS while GSAP pulls it home, so the
             // skull pops in its OWN slot (fired at `landed`), not mid-flight.
-            anims[uid] = uid === impactAtk ? 'dying dr returning' : 'dying dr';
+            const base = uid === impactAtk ? 'dying dr returning' : 'dying dr';
+            // A launchOnDeath sprayer (Fel Spikes) keeps spraying for SECONDS after it dies. `holdecho` cancels
+            // its slot-collapse (the card still fades) so the survivors don't slide into the gap and then reverse
+            // when its ghost re-holds the slot — they wait, and reflow ONCE when the ghost is finally dropped
+            // after the last volley (owner report 2026-08-21).
+            const echoB = bindingFor(cardIds.get(uid) ?? null, 'damage');
+            anims[uid] = echoB?.launchOnDeath && echoWaves(events, uid, i).length > 0 ? `${base} holdecho` : base;
           } else if (uid === impactAtk) {
             // A PLAIN attacker (no Rise, no Deathrattle — e.g. a reborn unit's true death) that died mid-lunge:
             // `dying returning` delays the collapse + pop until GSAP has pulled it home (see styles.css), so it

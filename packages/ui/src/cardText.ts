@@ -919,6 +919,25 @@ export function squirlScoutText(cardId: string, golden: boolean, squirlScoutBuff
   return src.replace(/\+\d+\/\+\d+/g, (m) => (done ? m : ((done = true), `{{+${next}/+${next}}}`)));
 }
 
+/**
+ * Conductor's grant snowballs like Squirl Scout's, positionally: `conductorBuff` counts weighted Shouts
+ * (×2 gilded, ×2 Mastery) and the grant is +(2×N)/+(3×N). Surface what a play NOW would give — (buff + this
+ * play's step) — green, in place of the FIRST printed "+A/+B"; the per-play improve clause stays printed.
+ * Null before any accrual (the printed base is accurate).
+ */
+export function conductorText(cardId: string, golden: boolean, conductorBuff: number, improveReps = 1): string | null {
+  if (cardId !== 'n2_conductor' || conductorBuff <= 0) return null;
+  const def = CARD_INDEX[cardId];
+  if (!def) return null;
+  const params = (def.effects.find((e) => e.do === 'battlecryConductorAdjacent')?.params ?? {}) as { attack?: number; health?: number };
+  const stepA = Number(params.attack ?? 2);
+  const stepH = Number(params.health ?? 3);
+  const next = conductorBuff + (golden ? 2 : 1) * improveReps; // what playing this one now would make N
+  const src = golden ? (def.goldenText ?? def.text) : def.text;
+  let done = false;
+  return src.replace(/\+\d+\/\+\d+/g, (m) => (done ? m : ((done = true), `{{+${stepA * next}/+${stepH * next}}}`)));
+}
+
 /** The minions that stack the run-wide Undead buy-time Attack bonus (`undeadBuyAtk`) — used to surface it. */
 const UNDEAD_BUY_CONTRIBUTORS = new Set(['deathswarmer', 'forsakenweaver', 'karthus']);
 

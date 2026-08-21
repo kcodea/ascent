@@ -719,6 +719,9 @@ export interface RunState {
   /** Squirl Scout's run-wide grant size: each Squirl Scout played raises it +3 (×2 golden). Its Battlecry
    *  gives a random friendly minion +this/+this once per Beast you own. Absent-safe (0). */
   squirlScoutBuff?: number;
+  /** Conductor's run-wide WEIGHTED trigger count: each Conductor Shout adds 1 (×2 gilded, ×2 Mastery). The
+   *  Shout grants adjacent minions +(2×this)/+(3×this) — the Squirl Scout snowball, positional. Absent-safe. */
+  conductorBuff?: number;
   /** Run-wide Magnetic/Attachment aura (Scrap Herald): your Magnetic minions get +magneticBuyAtk/+magneticBuyHp
    *  everywhere — baked in on creation, re-applied on Reborn/summon. The only tribe-style aura with a Health half. */
   magneticBuyAtk: number;

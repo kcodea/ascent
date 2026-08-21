@@ -47,6 +47,22 @@ export const SET2_NEUTRAL: CardDef[] = [
     goldenText: '**Every 2 turns:** get a plain copy of **adjacent** minions.',
   },
   {
+    // CONDUCTOR — the neutral Squirl Scout (owner 2026-08-21): a positional Shout whose grant SNOWBALLS
+    // run-wide. Every Conductor Shout raises `conductorBuff` by one weighted step (×2 gilded, ×2 Mastery),
+    // and the grant to the two adjacent minions is the accumulated total — so the first play gives +2/+3,
+    // the next +4/+6, and so on across the run. Live grant surfaces via cardText's conductorText.
+    id: 'n2_conductor',
+    name: 'Conductor',
+    tribe: 'neutral',
+    tier: 4,
+    attack: 2,
+    health: 4,
+    keywords: [],
+    effects: [{ on: 'onPlay', do: 'battlecryConductorAdjacent', params: { attack: 2, health: 3 } }],
+    text: '**Shout:** give adjacent minions **+2/+3**. Every Conductor played improves this by **+2/+3**.',
+    goldenText: '**Shout:** give adjacent minions **+4/+6**. Every Conductor played improves this by **+4/+6**.',
+  },
+  {
     // Echo: its death hands Ward to two survivors — a body that trades early and leaves the line tougher than
     // it found it (owner change 2026-07-25, replacing a positional Start of Combat).
     id: 'n2_lastlight',

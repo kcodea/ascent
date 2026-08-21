@@ -6118,6 +6118,22 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     state.rngCursor = rng.state();
   },
 
+  /** Conductor — Shout: give the two ADJACENT minions +(2×N)/+(3×N), where N is the run-wide `conductorBuff`
+   *  weighted trigger count each Conductor Shout raises by 1 (×2 gilded, ×2 Mastery) — Squirl Scout's
+   *  snowball, positional. Improve first → THIS play grants the new value (first play = +2/+3). Live grant
+   *  surfaces via cardText's conductorText. */
+  battlecryConductorAdjacent: (ctx, self, params) => {
+    const state = ctx.state;
+    state.conductorBuff = (state.conductorBuff ?? 0) + gold(self) * improveReps(state);
+    const a = num(params.attack, 2) * state.conductorBuff;
+    const h = num(params.health, 3) * state.conductorBuff;
+    const idx = state.board.findIndex((c) => c.uid === self.uid);
+    if (idx < 0) return; // played from a full-board edge case / not on board — the improve still banked
+    for (const target of [state.board[idx - 1], state.board[idx + 1]]) {
+      if (target) addBuff(target, nameOf(self), a, h);
+    }
+  },
+
   /** Scrap Herald — Battlecry: your Magnetic minions ("Attachments") get +atk/+hp "wherever they are". Buffs
    *  every current Magnetic (board + hand) now and stacks into `magneticBuyAtk`/`magneticBuyHp`, so future
    *  Magnetics (bought / conjured / summoned / Reborn) carry it too — the Magnetic sibling of Squirl Scout's

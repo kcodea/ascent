@@ -23,6 +23,26 @@ const stubPrimitive = (id: string) => ({
   },
 });
 
+// A stub instance that models "emitting, then a tail": isComplete stays false until stopEmitting() is called
+// AND `tailMs` of ticks have elapsed since. Lets a player test assert the seamless carry-over lifecycle.
+const drainingPrimitive = (id: string, tailMs = 100) => ({
+  id,
+  params: { size: { kind: 'slider' as const, label: 'Size', min: 0, max: 10, step: 1, default: 5 } },
+  spawn: () => {
+    let stopped = false;
+    let sinceStop = 0;
+    const inst: FxInstance = {
+      update: vi.fn((dt: number) => { if (stopped) sinceStop += dt; }),
+      setParams: vi.fn(),
+      stopEmitting: vi.fn(() => { stopped = true; }),
+      isComplete: () => stopped && sinceStop >= tailMs,
+      destroy: vi.fn(),
+    };
+    spawned.push({ id, inst });
+    return inst;
+  },
+});
+
 const CTX = { container: { addChild: vi.fn(), removeChild: vi.fn() }, renderer: {} } as unknown as FxContext;
 
 const DEF: FxDef = {
@@ -851,6 +871,55 @@ describe('createPlayer', () => {
     });
   });
 
+  // seamless loop: the anti-blink core. In 'seamless' mode a loop boundary does NOT cull every live instance
+  // at once (the visible blink); it tells each one to stop emitting and carries it into a `finishing` set that
+  // ticks until it drains, WHILE a fresh cycle spawns and emits. The outgoing generation fades as the new one
+  // rises, so there is no frame where the effect is empty.
+  //
+  // NOTE this beforeEach clears the registry and registers only the draining 'a'. It is placed BEFORE the
+  // loopGapMs describe deliberately: the sibling top-level describes below (resume, fireOnce vs fireLoop, …)
+  // have no beforeEach and rely on the registry the LAST-run createPlayer test leaves behind — loopGapMs (no
+  // own beforeEach) restores the outer beforeEach's stub 'a'/'b', so it must run last.
+  describe('seamless loop', () => {
+    beforeEach(() => { clearPrimitives(); spawned.length = 0; registerPrimitive(drainingPrimitive('a')); });
+
+    it('carries the outgoing cycle over the boundary instead of culling it', () => {
+      const def: FxDef = { id: 's', duration: 200, layers: [{ primitive: 'a', anchor: 'target', at: 0, params: {} }] };
+      const p = createPlayer(def, CTX, { loop: true, loopMode: 'seamless' });
+      p.fireLoop();
+      const first = latest('a');
+      // Cross the boundary (duration 200) in one 210ms tick.
+      p.update(210);
+      // The outgoing instance was told to stop and is NOT destroyed yet (it is finishing).
+      expect(first.stopEmitting).toHaveBeenCalledTimes(1);
+      expect(first.destroy).not.toHaveBeenCalled();
+      // A fresh instance now exists (emission continues → no blink).
+      const second = latest('a');
+      expect(second).not.toBe(first);
+    });
+
+    it('reaps a finishing instance once it completes', () => {
+      const def: FxDef = { id: 's', duration: 200, layers: [{ primitive: 'a', anchor: 'target', at: 0, params: {} }] };
+      const p = createPlayer(def, CTX, { loop: true, loopMode: 'seamless' });
+      p.fireLoop();
+      const first = latest('a');
+      p.update(210);           // boundary: `first` becomes finishing (tail 100ms)
+      p.update(100);           // its tail elapses
+      p.update(16);            // next tick reaps it
+      expect(first.destroy).toHaveBeenCalledTimes(1);
+    });
+
+    it('drains the finishing set on stop()', () => {
+      const def: FxDef = { id: 's', duration: 200, layers: [{ primitive: 'a', anchor: 'target', at: 0, params: {} }] };
+      const p = createPlayer(def, CTX, { loop: true, loopMode: 'seamless' });
+      p.fireLoop();
+      const first = latest('a');
+      p.update(210);           // `first` is finishing
+      p.stop();
+      expect(first.destroy).toHaveBeenCalled();
+    });
+  });
+
   // loopGapMs: continuous-loop tuning aid, unrelated to fireOnce -- a pause between cycles so the effect
   // visibly clears before restarting.
 
@@ -892,6 +961,7 @@ describe('createPlayer', () => {
       expect(p.timeMs()).toBe(0);
     });
   });
+
 });
 
 /**

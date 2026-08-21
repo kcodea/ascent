@@ -12,6 +12,13 @@ export interface FxPlayerOptions {
    *  many ms before restarting the cycle at 0. 0 (default) preserves the old immediate-wrap behaviour. Live
    *  tunable via `setLoopGap`. */
   loopGapMs?: number;
+  /** How a loop boundary is crossed. `'playOut'` (the default, and byte-for-byte the historical behaviour)
+   *  culls every live instance at the boundary and respawns the next cycle from scratch — a hard cut. In
+   *  `'seamless'` mode the outgoing cycle's instances are told to `stopEmitting()` and carried into a
+   *  `finishing` set that drains over its own tail WHILE the fresh cycle spawns and emits, so the old
+   *  generation fades out as the new one rises and there is no empty frame (the loop "blink"). Live tunable
+   *  via `setLoopMode`. */
+  loopMode?: 'playOut' | 'seamless';
 }
 
 export interface FxPlayer {
@@ -32,6 +39,9 @@ export interface FxPlayer {
    *  is always a single non-looping pass regardless of this. */
   setLoop(on: boolean): void;
   setLoopGap(ms: number): void;
+  /** Switch the loop-boundary behaviour live (see `FxPlayerOptions.loopMode`). Takes effect at the NEXT
+   *  boundary — an in-flight cycle is never torn down to apply it. */
+  setLoopMode(mode: 'playOut' | 'seamless'): void;
   /** Set the base seed every subsequently-spawned layer derives its randomness from (see
    *  `LAYER_SEED_STRIDE`), or `null` for UNSEEDED — the historical behaviour, where each spawned instance
    *  rolls a fresh seed of its own and therefore looks slightly different every time.
@@ -143,6 +153,12 @@ export function createPlayer(def: FxDef, ctx: FxContext, opts: FxPlayerOptions =
   let loopGapMs = Math.max(0, opts.loopGapMs ?? 0);
   // Mutable so the workbench's Loop toggle can flip it live (via setLoop) without rebuilding the player.
   let loopEnabled = opts.loop ?? false;
+  // How a loop boundary is crossed (see FxPlayerOptions.loopMode). Mutable so setLoopMode can flip it live.
+  let loopMode: 'playOut' | 'seamless' = opts.loopMode ?? 'playOut';
+  // SEAMLESS mode only: instances carried over from a previous cycle, told to stop emitting and left to drain
+  // (ticked every update, reaped on isComplete) so their particles fade while the next cycle emits. Empty and
+  // untouched in the 'playOut' path, which keeps the historical behaviour byte-for-byte.
+  const finishing: Live[] = [];
 
   // Set only while a fireOnce() pass is in flight. A fire runs the SAME per-layer `at`/`life` schedule as
   // ordinary playback (so the At/Life sliders a designer just dragged are visible in the headline "Fire"
@@ -196,6 +212,38 @@ export function createPlayer(def: FxDef, ctx: FxContext, opts: FxPlayerOptions =
 
   const killAllLive = (): void => {
     for (const i of [...live.keys()]) kill(i);
+  };
+
+  // SEAMLESS boundary: instead of destroying a live instance, tell it to stop emitting and let it drain in
+  // `finishing` (ticked below, reaped on isComplete) so its particles fade out while the next cycle emits.
+  const carryOver = (index: number): void => {
+    const l = live.get(index);
+    if (!l) return;
+    l.inst.stopEmitting?.();
+    finishing.push(l);
+    live.delete(index);
+  };
+  const carryAllLive = (): void => {
+    for (const i of [...live.keys()]) carryOver(i);
+  };
+  // Tick every finishing instance and reap the ones that have drained. Called once per update().
+  const reapFinishing = (dt: number): void => {
+    for (let i = finishing.length - 1; i >= 0; i--) {
+      const l = finishing[i];
+      l.inst.update(dt);
+      if (l.inst.isComplete ? l.inst.isComplete() : true) {
+        l.inst.destroy();
+        l.container.destroy({ children: true });
+        finishing.splice(i, 1);
+      }
+    }
+  };
+  const drainFinishing = (): void => {
+    for (const l of finishing) {
+      l.inst.destroy();
+      l.container.destroy({ children: true });
+    }
+    finishing.length = 0;
   };
 
   // A layer's EFFECTIVE timing: the live override if one has been set (see `setLayerTiming`), else the def's
@@ -400,10 +448,15 @@ export function createPlayer(def: FxDef, ctx: FxContext, opts: FxPlayerOptions =
       inGap = false;
       gapElapsed = 0;
       killAllLive();
+      drainFinishing();
     },
     update(dtMs: number): void {
       if (!playing) return;
       const dt = dtMs * speed;
+
+      // Advance (and reap) any carried-over instances FIRST, every frame, regardless of which branch below
+      // handles the live cycle. A no-op unless a seamless boundary has put something in `finishing`.
+      reapFinishing(dt);
 
       if (firing) {
         // Between-cycle hold, for a LOOPING fire (see the completion branch below). Lives inside the firing
@@ -432,6 +485,25 @@ export function createPlayer(def: FxDef, ctx: FxContext, opts: FxPlayerOptions =
           playing = false;
           firing = false;
           firingRepeats = false;
+          return;
+        }
+        // SEAMLESS loop restart: gate on the nominal duration ALONE, NOT on allFiringLayersDone(). Waiting
+        // for a long tail to drain before restarting IS the blink this mode exists to remove — so at the
+        // boundary the still-live instances are carried into `finishing` (stop-emitted, draining above) while
+        // a fresh cycle spawns and emits. Only reachable for a repeating loop; a one-shot fire never wraps.
+        if (loopMode === 'seamless' && firingRepeats && loopEnabled && clock >= def.duration) {
+          carryAllLive();
+          if (loopGapMs > 0) {
+            // A gap re-introduces an empty frame by definition; kept only so the two toggles compose without
+            // surprise. The carried-over instances still drain during the hold.
+            inGap = true;
+            gapElapsed = 0;
+            return;
+          }
+          clock = 0;
+          // NOT oneShot: a seamless cycle's emitters must emit continuously across the whole loop period —
+          // the outgoing instance handed to `finishing` is what `stopEmitting()` bounds, not this fresh one.
+          reconcile(0);
           return;
         }
         // A fire is over only once the def's nominal window has elapsed AND nothing live has anything left
@@ -495,7 +567,11 @@ export function createPlayer(def: FxDef, ctx: FxContext, opts: FxPlayerOptions =
           // a full-duration layer's original instance silently survives across the loop boundary and
           // never restarts its own internal animation/state for the new cycle.
           while (clock >= def.duration) clock -= def.duration;
-          killAllLive();
+          // playOut (default): cull the old cycle outright — a hard cut. seamless: carry it over to drain
+          // while `reconcile(dt)` below respawns the fresh cycle (continuous, since this path is never
+          // oneShot), so the outgoing generation fades instead of blinking out.
+          if (loopMode === 'seamless') carryAllLive();
+          else killAllLive();
         } else {
           clock = def.duration;
           playing = false;
@@ -533,6 +609,9 @@ export function createPlayer(def: FxDef, ctx: FxContext, opts: FxPlayerOptions =
     },
     setLoopGap(ms: number): void {
       loopGapMs = Math.max(0, ms);
+    },
+    setLoopMode(mode: 'playOut' | 'seamless'): void {
+      loopMode = mode;
     },
     setSeed(seed: number | null): void {
       // Deliberately does NOT touch anything live: the new seed is picked up by the next spawn (a Fire, a
@@ -596,6 +675,7 @@ export function createPlayer(def: FxDef, ctx: FxContext, opts: FxPlayerOptions =
       firingRepeats = false;
       inGap = false;
       killAllLive();
+      drainFinishing();
     },
   };
 }

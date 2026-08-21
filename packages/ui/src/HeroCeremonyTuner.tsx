@@ -36,6 +36,9 @@ const SPECS: Record<keyof HscTunerConfig, [string, TunerUnit | undefined, string
   nameX:             ['Name horizontal', 'px', 'Nudge the hero name off center.', 'Name'],
   nameY:             ['Name vertical', 'px', 'Negative lifts the name toward the portrait.', 'Name'],
   nameSize:          ['Name size', 'px', 'The hero name’s font size.', 'Name'],
+  powerX:            ['Power horizontal', 'px', 'Nudge the hero power name off center.', 'Power name'],
+  powerY:            ['Power vertical', 'px', 'Negative lifts the power name toward the hero name.', 'Power name'],
+  powerSize:         ['Power size', 'px', 'The hero power name’s font size.', 'Power name'],
   btnX:              ['Button horizontal', 'px', 'Nudge Start Game off center.', 'Button'],
   btnY:              ['Button vertical', 'px', 'Negative lifts the button toward the name.', 'Button'],
   btnScale:          ['Button size', '×', 'Scales the whole button — text and padding together.', 'Button'],
@@ -51,6 +54,7 @@ const ORDER: (keyof HscTunerConfig)[] = [
   'identityAtMs', 'readyAtMs', 'readyMs',
   'launchCoverMs', 'launchRevealMs',
   'nameX', 'nameY', 'nameSize',
+  'powerX', 'powerY', 'powerSize',
   'btnX', 'btnY', 'btnScale',
 ];
 

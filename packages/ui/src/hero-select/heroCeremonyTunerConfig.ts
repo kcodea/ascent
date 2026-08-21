@@ -21,6 +21,12 @@ export interface HscLayout {
   nameY: number;
   /** Hero name — font size (px). */
   nameSize: number;
+  /** Hero power name — horizontal nudge (px) off center. */
+  powerX: number;
+  /** Hero power name — vertical nudge (px); negative lifts it toward the hero name. */
+  powerY: number;
+  /** Hero power name — font size (px). */
+  powerSize: number;
   /** Start Game — horizontal nudge (px) off center. */
   btnX: number;
   /** Start Game — vertical nudge (px); negative lifts it. */
@@ -33,7 +39,7 @@ export interface HscLayout {
  *  layout keys into CSS vars — `apply()` routes by key. */
 export type HscTunerConfig = HeroCeremonyTiming & HscLayout;
 
-const LAYOUT_DEFAULTS: HscLayout = { nameX: 0, nameY: 0, nameSize: 44, btnX: 0, btnY: 0, btnScale: 1 };
+const LAYOUT_DEFAULTS: HscLayout = { nameX: 0, nameY: 0, nameSize: 44, powerX: 0, powerY: 0, powerSize: 16, btnX: 0, btnY: 0, btnScale: 1 };
 const LAYOUT_KEYS = Object.keys(LAYOUT_DEFAULTS) as (keyof HscLayout)[];
 
 export const HSC_DEFAULTS: HscTunerConfig = { ...HERO_CEREMONY_TIMING, ...LAYOUT_DEFAULTS };
@@ -60,6 +66,9 @@ export const HSC_RANGES: Record<keyof HscTunerConfig, [number, number, number]> 
   nameX: [-400, 400, 1],
   nameY: [-300, 300, 1],
   nameSize: [20, 80, 1],
+  powerX: [-400, 400, 1],
+  powerY: [-300, 300, 1],
+  powerSize: [10, 40, 1],
   btnX: [-400, 400, 1],
   btnY: [-200, 300, 1],
   btnScale: [0.6, 1.6, 0.01],

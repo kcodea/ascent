@@ -103,7 +103,9 @@
   animation: hscRise 0.36s ease var(--hsc-identity-delay, 500ms) forwards;
 }
 .hsc-power {
-  font-family: var(--font-ui); font-weight: 800; font-size: 16px; letter-spacing: 0.14em;
+  position: relative;
+  left: calc(var(--hsc-powerx, 0) * 1px); top: calc(var(--hsc-powery, 0) * 1px);
+  font-family: var(--font-ui); font-weight: 800; font-size: calc(var(--hsc-powersize, 16) * 1px); letter-spacing: 0.14em;
   text-transform: uppercase; color: color-mix(in srgb, var(--acc) 80%, #fff);
   text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
   opacity: 0;

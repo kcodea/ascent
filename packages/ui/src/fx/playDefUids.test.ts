@@ -32,6 +32,7 @@ const UNIT_LESS: { file: string; id: string; why: string }[] = [
   { file: 'FreezeButton.tsx', id: 'freeze-blast', why: 'fires at the button' },
   { file: 'StatusBar.tsx', id: 'hero-power-spark', why: 'fires at the hero power button, not a unit' },
   { file: 'Recruit.tsx', id: 'hero-power-target', why: 'fires at the click point on the targeted unit (cursor anchor), not via slot anchors' },
+  { file: 'useCiaEnchantedFx.ts', id: 'cia-hp', why: 'fires on a SHOP offer card the moment Cia enchants it (recruit phase) — anchored to the card DOM rect, not a combat slot, and never replayed' },
   { file: 'QuestBadges.tsx', id: 'rune-slot-break', why: 'fires at the locked 3rd rune slot in the HUD badge row, not a unit' },
   { file: 'runeTriggerFx.ts', id: '<dynamic>', why: 'fires on a rune BADGE in the status bar — a HUD node, not a unit, so there is no uid to pass' },
 ];

@@ -1146,16 +1146,9 @@ export const Card = memo(function Card({
           <span className="kf-tongue" style={{ '--kx': '86%', '--kd': '0.02s' } as CSSProperties} />
         </span>
       )}
-      {/* Croupier Cia's Lucky Seat — the ENCHANTED treatment: purple chained wisps swirling around the card.
-          Purely cosmetic (buying it is the only thing it does). This LOOPS, so per docs/performance.md it
-          animates transform/opacity ONLY — the two rings spin at different rates and the glow breathes on a
-          ::before with a STATIC shadow. Nothing here touches a paint property per frame. */}
-      {enchanted && (
-        <span className="enchantwisp" aria-hidden="true">
-          <span className="ew-ring ew-a" />
-          <span className="ew-ring ew-b" />
-        </span>
-      )}
+      {/* Croupier Cia's Lucky Seat enchant treatment is now the authored `cia-hp` FX (fired from
+          `useCiaEnchantedFx` when a shop card enchants) — the old CSS `.enchantwisp` swirl was removed
+          2026-08-20 (owner). `.enchantwisp` styles remain in styles.css unused; delete in a follow-up. */}
       {/* Sable's Soulbind — a purple ring hovering ABOVE each bound minion for the turn the bond is live
           (owner ask 2026-08-16), so the pair is readable at a glance. Static shadow, opacity-only breathe. */}
       {soulbound && <span className="soulbindflash" aria-hidden="true" />}

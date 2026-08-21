@@ -28,6 +28,7 @@
 /** def id → the `packages/ui/src`-relative files that fire it. Generated; see the header. */
 export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   'ale-bubbles': ['Recruit.tsx', 'choreo/score.ts'],
+  'cia-hp': ['useCiaEnchantedFx.ts'],
   'click-puff': ['Recruit.tsx'],
   coin: ['Recruit.tsx'],
   coins: ['useCombatReplay.ts'],

@@ -38,8 +38,18 @@ describe('no redundant PNG masters ship alongside their WebP builds', () => {
     // here catches the trend long before a package is built and rejected. Raise it deliberately if the card
     // pool genuinely grows — but a jump of a hundred usually means un-optimized masters crept back in.
     const total = artDirs().reduce((n, d) => n + readdirSync(join(ART, d)).length, 0);
-    // Budget raised 900 → 960 on 2026-08-18 as the Set 2 pool grew (Dragon batch + Hawkus/Spots art). Still a
-    // ~40-file margin under itch's 1000 cap — a redundant-master regression would blow well past it.
-    expect(total, `art files: ${total} — itch's whole-zip cap is 1000`).toBeLessThan(960);
+    // THE MARGIN IS GONE — READ BEFORE RAISING AGAIN (2026-08-20). Owner has DEPRIORITISED the web zip
+    // ("we will likely use the exe repack from now on"); the desktop package has no file cap. Kept as a
+    // trend tripwire because a hundred-file jump still means un-optimized masters crept back in.
+    // This budget counts ONLY the art dirs, and its old premise ("the rest is well under 100") is now false:
+    // a real `build:web` dist ships **1168 files** (art + 86 frames + 23 fx + cursors/manifest/js/css), and
+    // `package-itch.ps1` zips the whole dist. The last packaged `ascent-itch.zip` held 929 entries; the next
+    // one would hold ~1168 — OVER itch.io's 1000-file cap. So the honest statement is: the art tree is no
+    // longer the binding constraint, the WHOLE ZIP is, and it needs a structural answer (bundle art into a
+    // sprite atlas, or host it off-zip). Tracked in docs/roadmap.md.
+    // This number is therefore a trend tripwire ONLY — it is NOT proof the package will upload.
+    // 900 → 960 (2026-08-18, Set 2 Dragon batch) → 985 (2026-08-20, rune-minion arts) → 1000 (2026-08-20,
+    // the full rune-art wire: 291 rune arts).
+    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1000);
   });
 });

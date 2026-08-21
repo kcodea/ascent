@@ -472,10 +472,10 @@ describe('set 2 — Moonhowl Mentor teaches a Mage-Pup', () => {
   });
 });
 
-describe('set 2 — King Oona (owner reworks 2026-07-25 / 2026-07-27 / attack-only 2026-08-12)', () => {
-  it('a summoned Beast has its ATTACK doubled, with no flat buff first (owner 2026-08-12)', () => {
-    // Mama Pup's 1/1 Pups: no grant, then Attack doubled → 2/1. Exactly ONE buff event, +1/+0 (the multiply on
-    // Attack alone); a lingering +0/+0 grant event would mean the cut half is still firing.
+describe('set 2 — King Oona (owner reworks 2026-07-25 / 2026-07-27 / both-stats again 2026-08-21)', () => {
+  it('a summoned Beast has BOTH stats doubled, with no flat buff first (owner 2026-08-21)', () => {
+    // Mama Pup's 1/1 Pups: no grant, then stats doubled → 2/2. Exactly ONE buff event, +1/+1 (the multiply);
+    // a lingering +0/+0 grant event would mean the cut half is still firing.
     const r = simulate(
       [{ cardId: 'b2_oona', attack: 4, health: 40, sourceUid: 'O', keywords: [] },
        { cardId: 'pack', attack: 2, health: 1, sourceUid: 'P', keywords: [] }],
@@ -487,8 +487,8 @@ describe('set 2 — King Oona (owner reworks 2026-07-25 / 2026-07-27 / attack-on
     const uid = summoned[0]!.minion.uid;
     const gained = (r.events.filter((e) => e.type === 'buff') as { target: string; attack: number; health: number }[])
       .filter((b) => b.target === uid);
-    expect(gained.map((b) => [b.attack, b.health]), 'the Attack multiply only — the 1/1 Pup → 2/1')
-      .toEqual([[1, 0]]);
+    expect(gained.map((b) => [b.attack, b.health]), 'the stat multiply — the 1/1 Pup → 2/2')
+      .toEqual([[1, 1]]);
   });
 
   it('does not touch a non-Beast summon', () => {
@@ -496,9 +496,8 @@ describe('set 2 — King Oona (owner reworks 2026-07-25 / 2026-07-27 / attack-on
     expect(oona.effects[0]!.params!.tribe).toBe('beast');
   });
 
-  it('GILDED triples Attack instead of doubling (owner 2026-07-27 / attack-only 2026-08-12)', () => {
-    // With the flat grant cut and the multiply now Attack-only, GILDED reads +2/+0 (the 1/1 Pup's Attack
-    // tripling to 3, Health untouched), not +2/+2.
+  it('GILDED triples the stats instead of doubling (owner 2026-07-27 / both-stats 2026-08-21)', () => {
+    // With the flat grant cut, GILDED reads +2/+2 — the 1/1 Pup tripling to 3/3.
     const r = simulate(
       [{ cardId: 'b2_oona', attack: 4, health: 40, sourceUid: 'O', keywords: [], golden: true },
        { cardId: 'pack', attack: 2, health: 1, sourceUid: 'P', keywords: [] }],
@@ -510,8 +509,8 @@ describe('set 2 — King Oona (owner reworks 2026-07-25 / 2026-07-27 / attack-on
     const uid = summoned[0]!.minion.uid;
     const gained = (r.events.filter((e) => e.type === 'buff') as { target: string; attack: number; health: number }[])
       .filter((b) => b.target === uid);
-    expect(gained.map((b) => [b.attack, b.health]), "gilded TRIPLES Attack: +2/+0 on the 1/1 Pup")
-      .toEqual([[2, 0]]);
+    expect(gained.map((b) => [b.attack, b.health]), "gilded TRIPLES the stats: +2/+2 on the 1/1 Pup")
+      .toEqual([[2, 2]]);
   });
 });
 

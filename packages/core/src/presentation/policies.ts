@@ -74,6 +74,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:battlecryGrantSpellPowerRun:onPlay': { policy: 'ownBeat', family: 'shout' },
   'factory:battlecryPlayRubiesAll:onPlay': { policy: 'ownBeat', family: 'shout' },
   'factory:battlecryScoutSpread:onPlay': { policy: 'ownBeat', family: 'shout' },
+  'factory:battlecryConductorAdjacent:onPlay': { policy: 'ownBeat', family: 'shout' },
   'factory:battlecrySummon:onPlay': { policy: 'ownBeat', family: 'shout' },
   'factory:battlecryTargetConsumesShop:onPlay': { policy: 'ownBeat', family: 'shout' },
   'factory:battlecryTriggeredOwnDeathrattle:battlecryTriggered': { policy: 'foldedCue', family: 'shoutReact' },
@@ -384,6 +385,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:triggerAdjacentOrbits:onPlay': { policy: 'ownBeat', family: 'shout' },
 
   // ── RUNES — bucketed by reward mechanics ──
+  'rune:rune_abomination:onAcquire': { policy: 'ownBeat', family: 'rewardGrant' },
   'rune:rune_action:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
   'rune:rune_adventuring:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_aftermarket:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
@@ -391,8 +393,10 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'rune:rune_altar:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_ancestral_roar:combat': { policy: 'foldedCue', family: 'combatModifier' },
   'rune:rune_ancient_den:onAcquire': { policy: 'ownBeat', family: 'rewardGrant' },
+  'rune:rune_ancient_expenditure:onAcquire': { policy: 'ownBeat', family: 'rewardGrant' },
   'rune:rune_appraisal:combat': { policy: 'ownBeat', family: 'avenge' },
   'rune:rune_armory:onAcquire': { policy: 'ownBeat', family: 'rewardGrant' },
+  'rune:rune_ascension:onAcquire': { policy: 'ownBeat', family: 'rewardGrant' },
   'rune:rune_ashen_heir:onAcquire': { policy: 'ownBeat', family: 'rewardGrant' },
   'rune:rune_ashen_payroll:combat': { policy: 'foldedCue', family: 'combatModifier' },
   'rune:rune_assembly:onAcquire': { policy: 'ownBeat', family: 'rewardGrant' },
@@ -406,7 +410,9 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'rune:rune_beastial_swarm:combat': { policy: 'ownBeat', family: 'avenge' },
   'rune:rune_blart:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_blood_and_coin:combat': { policy: 'ownBeat', family: 'avenge' },
+  'rune:rune_borrowed_echoes:onAcquire': { policy: 'ownBeat', family: 'rewardGrant' },
   'rune:rune_bottomless_cask:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  'rune:rune_bottomless_portrait:onAcquire': { policy: 'ownBeat', family: 'rewardGrant' },
   'rune:rune_brew:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_brisbane:onAcquire': { policy: 'ownBeat', family: 'rewardGrant' },
   'rune:rune_brood:combat': { policy: 'foldedCue', family: 'combatModifier' },
@@ -422,13 +428,37 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'rune:rune_choir:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   // 2026-08-19 owner rune batch.
   'rune:rune_chipper_sticker:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  'rune:rune_clockwork_promotion:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  'rune:rune_compounding_wages:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_deathtouched_apple:combat': { policy: 'foldedCue', family: 'combatModifier' },
+  'rune:rune_deep_feast:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  'rune:rune_deepening_vein:combat': { policy: 'ownBeat', family: 'avenge' },
+  'rune:rune_delayed_duplication:onAcquire': { policy: 'ownBeat', family: 'rewardGrant' },
+  'rune:rune_draconic_curiosity:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  'rune:rune_dragons_pantry:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  'rune:rune_echoed_arrival:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  'rune:rune_gem_sage:onAcquire': { policy: 'ownBeat', family: 'rewardGrant' },
+  'rune:rune_gilded_ledger:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  'rune:rune_grave_refreshment:combat': { policy: 'foldedCue', family: 'combatModifier' },
+  'rune:rune_heavy_payroll:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_held_strength:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  'rune:rune_kegheart:onAcquire': { policy: 'ownBeat', family: 'rewardGrant' },
+  'rune:rune_living_magic:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_might:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  'rune:rune_muckbroker:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  'rune:rune_muster_general:onAcquire': { policy: 'ownBeat', family: 'rewardGrant' },
+  'rune:rune_night_market:onAcquire': { policy: 'ownBeat', family: 'rewardGrant' },
+  'rune:rune_ninefold_commerce:onAcquire': { policy: 'ownBeat', family: 'rewardGrant' },
+  'rune:rune_perfect_recall:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  'rune:rune_rare_goods:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  'rune:rune_returning_pack:combat': { policy: 'foldedCue', family: 'combatModifier' },
   'rune:rune_rising_echoes:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_baller:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_bubble_crown:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_herding_horn:combat': { policy: 'foldedCue', family: 'combatModifier' },
+  'rune:rune_seasoned_ledger:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  'rune:rune_shared_spoils:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  'rune:rune_shifting_facets:combat': { policy: 'ownBeat', family: 'avenge' },
   'rune:rune_war_drum:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_wishbone:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_basic_beast:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
@@ -523,6 +553,12 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'rune:rune_kindling:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_kobold_bebes:onAcquire': { policy: 'ownBeat', family: 'rewardGrant' },
   'rune:rune_lapidary:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
+  // Rune of Lasting Cadence: ONE BEAT PER RALLY (see `runeLastingCadenceBeats`) — each rally is a real
+  // trigger sourced on the minion whose Rally fires, so it must own its window rather than fold into a cue.
+  'rune:rune_lasting_cadence:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
+  // Rune of Combat Prowess: ONE BEAT PER Start-of-Combat effect (see `runeCombatProwessBeats`) — each fire
+  // is a real trigger sourced on the acting minion, so it owns its window rather than fold into a cue.
+  'rune:rune_combat_prowess:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
   'rune:rune_lassoing:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
   'rune:rune_last_call:combat': { policy: 'ownBeat', family: 'avenge' },
   'rune:rune_last_word:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
@@ -821,6 +857,24 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   // Aster the Guide (tutorial-only): an active, targeted +1/+1 — the same shape as Warden's grantWard.
   'hero:aster:preparation': { policy: 'ownBeat', family: 'heroPower' },
 
+  // ── RUNE-ONLY MINION BATCH (2026-08-20). Each entry copies the bucket its closest sibling already sits in. ──
+  'factory:onGetRubyDuplicate:onGetRuby': { policy: 'foldedCue', family: 'economyReact' },        // Gem Sage — cf. rubyGainedCast
+  'factory:goldSpentScaleSelf:passive': { policy: 'passive', family: 'passive' },                 // Ancient Wanderer — a synced stat, never a beat
+  'factory:buffShopOffersThisTurn:onBuy': { policy: 'foldedCue', family: 'economyReact' },        // Night Market Horror — cf. buffBoardOnBuy
+  'factory:buffShopOffersThisTurn:spellBought': { policy: 'foldedCue', family: 'economyReact' },  // …its "a spell is a card too" half
+  'factory:onSellDiscoverSingleton:onSell': { policy: 'ownBeat', family: 'economy' },             // Traveling Salesman — cf. onSellDiscover
+  'factory:onGainAleBuffSelf:onGainCard': { policy: 'foldedCue', family: 'economyReact' },        // Kegheart Dwarf — cf. onGainCardBuffTribe
+  'factory:onBuyGrantSpellSameTier:onBuy': { policy: 'ownBeat', family: 'economy' },              // Ninefold Broker — a card arrives, like onSellDiscover
+  'factory:endOfTurnCopyLeftmostHandCard:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },  // Stonehorn Archivist — cf. endOfTurnCopyNeighbour
+  'factory:endOfTurnTransformLeftTierUp:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },   // Skybound Ascendant
+  'factory:minionSoldDemonGainStats:minionSold': { policy: 'ownBeat', family: 'economy' }, // Arcane Behemoth — cf. minionSoldConsumeRightmost
+  'factory:onFriendDeathGainEcho:onDeath': { policy: 'ownBeat', family: 'echo' },                 // Echo Mimic — cf. onFriendDeathSummon
+  'factory:avengeSummonAttackImproving:avenge': { policy: 'ownBeat', family: 'avenge' },          // Muster General — cf. avengeSummonAttack
+  'factory:rallyDoubleSelf:onAttack': { policy: 'ownBeat', family: 'rally' },                     // Evolving Abomination — cf. rallyBuffSelf
+  // The WELDED rally payout (Better Bot's Mech Attack / Perfect Core's spell conjure) firing inside a SHOP
+  // rally (Rune of Lasting Cadence's End-of-Turn dispatch). A reaction inside the rally's own beat — the
+  // weld claims credit for its buffs/conjure without adding a pause, like combat folds it into the swing.
+  'system:shopRally:weld': { policy: 'foldedCue', family: 'rally' },
 };
 
 /** Look up a key; undefined = unclassified (the tripwire's failure condition). */

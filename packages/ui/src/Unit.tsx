@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { CARD_INDEX } from '@game/content';
-import { spellAttackBonus, spellHealthBonus } from '@game/sim';
+import { hasTier7Access, spellAttackBonus, spellHealthBonus } from '@game/sim';
 import { Card, type CardView } from './Card';
 import { stepProgress } from './cardText';
 import { liveCardText } from './instView';
@@ -79,11 +79,15 @@ function UnitInner({ u, side, anim, triggered, rallyPulse, watcherPulse, framePu
         spellProgress: u.spellProgress, ascendProgress: u.ascendProgress, summonBonus: u.summonBonus,
         overflowBonus: u.overflowBonus, hpGrantBonus: u.hpGrantBonus, eotBonus: u.eotBonus, eotTick: u.eotTick,
         sellBonus: u.sellBonus, attackSeen: u.attackSeen, permaGain: u.permaGain,
-        playedThisTurn: beastsPlayed, squirlScoutBuff: foe ? 0 : run.squirlScoutBuff,
+        playedThisTurn: beastsPlayed, squirlScoutBuff: foe ? 0 : run.squirlScoutBuff, conductorBuff: foe ? 0 : run.conductorBuff,
         // Drunken Oaf's rep count. Player-only: `enemyScalers` carries no Ale tally, so a served Oaf reads its
         // printed text — the same fallback every other run-scoped scaler takes on the foe side.
         alesThisTurn: foe ? undefined : run.alesCastThisTurn,
         goldSpent: foe ? 0 : run.goldSpentThisTurn,
+        // Ancient Wanderer's run-lifetime meter. Player-only: an enemy snapshot carries no run, so a served
+        // Wanderer reads its printed rate — the same fallback every other run-scoped scaler takes on the foe
+        // side (its STATS are still right; they were baked in the shop).
+        goldSpentRun: foe ? 0 : run.goldSpent,
         lastSpellName: foe ? undefined : (run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined),
         // Runesnout Archivist's journal + Ashen Heir's banked Imp stats, LIVE during the fight: both cards are
         // entirely about a number that moves mid-combat, so the printed text has to move with it (the hard
@@ -98,9 +102,13 @@ function UnitInner({ u, side, anim, triggered, rallyPulse, watcherPulse, framePu
         lastSpellThisTurnName: foe ? undefined : (run.lastSpellThisTurnId ? CARD_INDEX[run.lastSpellThisTurnId]?.name : undefined),
         // Rune-modified card rules read live in COMBAT too (owner audit 2026-08-02) — player-side only.
         runeMammoth: foe ? undefined : !!run.questFlags?.runeMammoth,
+        // Tier-7 ACCESS, live in combat too (the hard live-value rule): Skybound Ascendant's "(up to Tier 7)"
+        // is a promise only a Summit / Rune-of-the-Summit run can keep, so a served body reads Tier 6.
+        // Player-side only — an enemy snapshot carries no run, the same fallback every run-scoped input takes.
+        tier7Access: foe ? false : hasTier7Access(run),
         zooSummons: foe ? undefined : zooSummons, // Beardsley + Rune of the Zoo: the next summon's live grant
 
-        runeFlags: foe ? undefined : { matriarch: !!run.runeMatriarch, brokerage: !!run.runeBrokerage, livingTreasure: !!run.questFlags?.runeLivingTreasure, facetwright: !!run.runeFacetwright },
+        runeFlags: foe ? undefined : { matriarch: !!run.runeMatriarch, brokerage: !!run.runeBrokerage, livingTreasure: !!run.questFlags?.runeLivingTreasure, facetwright: !!run.runeFacetwright, rebirth: !!run.questFlags?.runeRebirth },
       })
     : { text: '', goldenText: undefined };
   const view: CardView = {

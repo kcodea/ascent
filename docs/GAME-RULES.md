@@ -3,58 +3,49 @@
 The current player-facing rules of the game, verified against the code. Every claim cites its
 source file. Anything not confirmable from code is marked **(unverified — confirm)**.
 
-ASCENT is a single-player roguelike auto-battler: shop for minions, build a 7-slot board, and
-fight an ever-rising curve of enemy boards across a fixed course. You don't play forever — you
-play a **17-round course** and are graded against a personal target called **the Line**.
+ASCENT is a deterministic, **asynchronous auto-battler**: shop for minions, build a 7-slot board, and fight
+auto-resolved combats inside an **eight-seat elimination lobby**. You are not racing a fixed course — you are
+outlasting seven other seats, and your **final placement** is the result that moves your ladder Rating.
 
-> **Player-facing vocabulary (2026-07-16, revised 2026-08-04):** the UI displays these systems under themed
-> names while the code keeps the internal terms. **Line → Oath** · **Cover → Fulfill** ·
-> **Exceeded → Surpassed** · **Missed → Fell Short** · **course completion → Ascended** ·
-> **death before round 17 → Fallen**. This doc uses the internal terms (Rating/Line) since it cites code.
->
-> **Rating is displayed as "Rating" again** (owner 2026-08-04) — the 2026-07-16 rename to *Renown* is
-> reverted. The Career's match rows also no longer print the Oath verdict or *Fallen*: a lobby run reads as
-> its score, its finish position, Victory/Defeat and the Rating change.
+> **RETIRED — do not describe as current.** The **17-round course** and the **Line / Oath** success contract
+> are no longer the game. Their constants (`CONFIG.courseRounds: 17`, `defaultLine`, `calibrationRounds`,
+> `maxWave`) and helpers (`metLine`, `lineResult`) still exist in code, and are still read by balance tools,
+> older saved runs, and the non-lobby modes — but the live `Play` route is the lobby, which has no course
+> clock and no Line verdict. Legacy sections of this document were rewritten on 2026-08-20; the historical
+> detail lives in [`devlog.md`](devlog.md).
 
----
-
-## The course — 17 rounds (2 calibration + 15 scored)
-
-- A run plays a fixed course of **17 rounds** (`courseRounds: 17`, `maxWave: 17`).
-- The first **2 rounds are calibration** (`calibrationRounds: 2`): they still cost Health and run
-  the full economy, but do **not** count toward your record.
-- The remaining **15 rounds are scored** — your W–L record over these is the run's score
-  (`runRecord` slices off the calibration rounds; draws count as neither win nor loss).
-- The run always completes the course **unless Health hits 0** (the only failure state).
-
-Source: `packages/sim/src/config.ts`, `packages/sim/src/state.ts` (`runRecord`, `isCalibrationRound`).
+> **Player-facing vocabulary:** the UI displays some systems under themed names while the code keeps the
+> internal terms — **Resolve** is the seat's health pool, **Embers** are Gold. **Rating is displayed as
+> "Rating"** (owner 2026-08-04; the earlier *Renown* rename is reverted). A lobby run's Career row reads as
+> its score, finish position, Victory/Defeat and the Rating change — no Oath verdict.
 
 ---
 
-## The Line — the success contract
+## The lobby — eight seats, elimination
 
-**The Line is the run's win condition**, not merely a survival stat. It's the number of scored
-wins a run must **cover** to count as a success — a golf-handicap-style *expectation*.
+- A run is **one seat in an eight-seat lobby** (`DEFAULT_LOBBY_RULES.seatCount: 8`). **Seat 0 (`s0`) is the
+  live player**; the other seven are independently developed runs.
+- A non-player seat is a **snapshot** (a recorded player run), a **hybrid**, a **bot**, or — in the tutorial
+  only — an **authored** seat. Player snapshots fill every seat the pool can cover; bots take what is left,
+  so an empty pool degrades to a fully generated table rather than a smaller one.
+- The lobby is **asynchronous**: opponents are recordings and generated runs, never live opponents. It never
+  requires two players online at once.
+- Each round, surviving seats are **paired**. **One authoritative `simulate()` resolves each encounter and
+  supplies BOTH sides' damage** — combat is not symmetric, so a fight must never be re-run with the sides
+  swapped to get the "other" result.
+- **Armor absorbs damage before Resolve** (`startingArmor: 15`, `startingResolve: 30`). A seat whose total
+  reaches 0 is eliminated and receives a placement.
+- The lobby ends when **one seat remains**. `maxRounds: 60` is a **deterministic stalemate backstop**, not a
+  course length or a player-facing target.
+- **Placement is the result.** A lobby finish resolves a placement-based Rating change; 1st is the win. (A
+  lobby never reaches the `victory` phase — `advanceCombat` ends every lobby at `gameover` whether you won or
+  lost, because a lobby has no course clock to complete.)
+- A run **pins its set at creation** and reads it forever after, so an in-progress or replayed run is
+  unaffected by a later global set change.
 
-- Covering the Line is a **win even if you then fall** before round 17; falling short is a **loss**
-  even if you survive to the end (`metLine`, `lineResult`).
-- Grades (`LineStatus`): `flawless` (won every scored round) · `exceeded` (over the Line) ·
-  `covered` (met it exactly) · `missed` (under par but survived the course) · `failed` (under par
-  **and** died before finishing). The first three are wins; the last two are losses.
-- The Line is **rating-driven** via a career profile. New profiles start at rating 0 → **Line 7**
-  (the floor); the Line climbs with rating through bands **7–12** with promotion/demotion hysteresis
-  (`MIN_LINE = 7`, `MAX_LINE = 12`, `resolveLine`). The static config default is **Line 9**
-  (`defaultLine: 9`), used by tools/tests and any caller that doesn't track rating.
-- **Rating change** after a run (`resolveRunRating`) = a line component (scored wins − Line, e.g.
-  +4 for covering exactly, up to +20 for +4 over, negative for misses) **plus** end-game bonuses:
-  reaching the summit (all 17 rounds) = **+8**; winning round 15 = **+8**, round 16 = **+12**,
-  round 17 (the final) = **+16**. So a *true* win (over your Line **and** won the closing rounds) is
-  worth far more than merely covering par.
-
-Surviving the whole course is therefore an **extra achievement** (the summit bonus), layered on top
-of the central contract: **cover your Line.**
-
-Source: `packages/sim/src/playerRating.ts`, `packages/sim/src/state.ts` (`lineResult`, `metLine`).
+Source: `packages/sim/src/lobby/lobby.ts` (`DEFAULT_LOBBY_RULES`, damage application),
+`packages/sim/src/lobby/runLobby.ts`, `packages/sim/src/lobby/seats.ts`,
+`packages/sim/src/lobby/snapshotSeats.ts`, `packages/sim/src/playerRating.ts`.
 
 ---
 
@@ -65,8 +56,10 @@ Source: `packages/sim/src/playerRating.ts`, `packages/sim/src/state.ts` (`lineRe
   *(Called "Resolve" until 2026-08-17. The rename is DISPLAY-ONLY — the state field, its types and the
   saved-run format are still `resolve` / `maxResolve` / `startingResolve`, so code and saves read one name
   and players read the other.)*
-- **Loss damage** is capped per round, ramping up as the course escalates: **5** (rounds 1–3),
-  **10** (4–7), **15** (8–11), **20** (12–15), then **uncapped** for the finale (rounds 16–17)
+- **Loss damage** is capped per round, the cap widening as the run escalates: **5** (rounds 1–3),
+  **10** (4–7), **15** (8–11), **20** (12–15), then **uncapped from round 16 on**. The lobby applies the
+  same cap (`lossDamageCap`, imported by `lobby.ts`) — so a lobby that runs long is uncapped for every
+  round past 15, not just a "finale"
   (`lossDamageCap`).
 - **Gold** ("Embers"): start with **3**, **+1 per wave**, capped at **10**
   (`startEmbers: 3`, `embersPerWave: 1`, `embersCap: 10`).
@@ -136,25 +129,21 @@ Source: `packages/sim/src/heroes.ts` (`runeforge`, `epicRuneforge`),
 
 ---
 
-## Matchmaking (served opponents)
+## Matchmaking
 
-Opponents are real captured/authored boards served from a pool, with a procedural threat board as
-fallback. The pick (`pickOpponent`) is deterministic (seeded) and works as:
+**In the lobby (the live route), your opponent each round is the SEAT you are paired with** — not a board
+drawn from the pool. Pairing is deterministic and avoids unnecessary immediate rematches; the encounter is
+resolved once and both seats take their damage from that single result.
 
-1. **Wave-first** — you face a board at the **same development stage** (same wave = same amount of
-   shopping); widen to the closest available wave if none match exactly.
-2. **Recent-opponent exclusion** — boards fought in the last few rounds are dropped, unless that
-   would leave nothing to serve.
-3. **Source priority** — live Supabase shared pool (`remote`) → local player/friend boards
-   (`self`/`friend`) → committed synthetic floor.
-4. **Uniformly random within the chosen source tier** (no power/similarity weighting — the `power`
-   arg is retained only for signature stability).
+The pool-based `pickOpponent` path below still exists and still serves the **non-lobby** modes and tooling. It
+is NOT what a lobby run faces, which is why injecting served boards into a lobby replay changes nothing:
 
-If the pool is empty for a wave, it falls back to the **procedural threat board** (`buildEnemyBoard`).
-The pool is static per session (registered once at startup), so replays within a session are
-byte-identical; across sessions the remote fetch can differ.
+1. **Wave-first** — a board at the same development stage; widen to the closest wave if none match.
+2. **Recent-opponent exclusion**, unless that would leave nothing to serve.
+3. **Source priority** — shared remote pool → local player/friend boards → committed synthetic floor.
+4. **Uniformly random within the chosen tier**; empty pool falls back to the procedural threat board.
 
-Source: `packages/sim/src/opponents.ts`.
+Source: `packages/sim/src/lobby/runLobby.ts` (pairing), `packages/sim/src/opponents.ts` (pool path).
 
 ---
 
@@ -186,6 +175,6 @@ Source: `packages/ui/src/terms.ts`.
 
 - **Starting Health divergence:** all heroes are 30 Health *today*, but the code comment notes it
   "will diverge per hero over time" — **(unverified — confirm)** whether any hero already differs.
-- **Practice mode** shares the same 17-round course but "can't be lost" (unlimited health, longer
+- **Practice mode** is a lobby that "can't be lost" (unlimited health, longer
   per-turn clock) per the config comment — the exact per-turn clock difference is
   **(unverified — confirm)** against the recruit timer.

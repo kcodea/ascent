@@ -69,10 +69,13 @@ export const RUNES: RuneDef[] = [
     sets: ['set1'], // Fodder/Attachment/Mech/Undead mechanics — absent from set 2
   },
   {
+    // Owner 2026-08-20: ENABLED in every set (the `sets: ['set1']` gate is why it never appeared — set 1 is
+    // `enabled: false`), and repriced 6 -> 4. Its Pillager is an out-of-set UNDEAD body; the owner accepted
+    // that ("those minions won't be in the shop, but it's fine if they are given as rewards") — CARD_INDEX is
+    // global, so the grant resolves. NOTE: the Gold-Pouch half is INERT outside set 1 (no `emberpouch` there).
     id: 'rune_pillaging',
-    sets: ['set1'],
     name: 'Rune of Pillaging',
-    cost: 6,
+    cost: 4,
     text: 'Get a **Pillager**. Your **Gold Pouches** are worth **2 Gold** for the rest of the run.',
     previewCards: ['emberpouch'], // text names it — the forge hover shows the card
     reward: { kind: 'multi', rewards: [{ kind: 'grant', cards: ['pillager'] }, { kind: 'goldPouchValue', value: 2 }] },
@@ -851,7 +854,7 @@ export const RUNES: RuneDef[] = [
     id: 'rune_fresh_pages',
     name: 'Rune of Fresh Pages',
     cost: 3,
-    text: '**Start of Turn:** Discover a **Shop Spell**.',
+    text: 'Discover a **Shop Spell**. Repeat at **Start of Turn**.',
     reward: { kind: 'runeFreshPages' },
   },
   {
@@ -1039,6 +1042,179 @@ export const RUNES: RuneDef[] = [
     requiresDoublePower: true,
     reward: { kind: 'runeWishbone' },
   },
+
+  // -- 2026-08-20 owner rune batch: BASIC --------------------------------------------------------------
+  // Twenty runes; the rune-only minions they hand over shipped in eb88a82c. Where a rune is a plain
+  // "get a <minion>" it is a bare `grant` -- no new machinery, and the forge hover comes free from the grant.
+  {
+    // The threshold engine, paying a CARD instead of a spell/Ale/Ruby (`grantCards`, new): the Chef is a
+    // named body, so nothing in the existing payout palette could hand it over.
+    id: 'rune_deep_feast',
+    name: 'Rune of the Deep Feast',
+    cost: 5,
+    text: 'Every **25 Gold** spent, get a **Deepwater Chef**.',
+    previewCards: ['n2_deepchef'], // the reward is a threshold, not a grant - the hover needs telling
+    reward: { kind: 'runeThreshold', meter: 'gold', per: 25, grantCards: ['n2_deepchef'] },
+  },
+  {
+    id: 'rune_gem_sage',
+    name: 'Rune of the Gem Sage',
+    cost: 5,
+    text: 'Get a **Gem Sage**.',
+    reward: { kind: 'grant', cards: ['k_gemsage'] },
+    sets: ['set2'], // the Sage doubles RUBIES - dead weight in a set without them
+  },
+  {
+    id: 'rune_ancient_expenditure',
+    name: 'Rune of Ancient Expenditure',
+    cost: 4,
+    text: 'Get an **Ancient Wanderer**.',
+    reward: { kind: 'grant', cards: ['n2_wanderer'] },
+  },
+  {
+    // The CADENCE rune: `everyTurns` on the existing `recurringGrant`, not a bespoke flag. Three runes in this
+    // batch share it (see the Muckbroker + Rare Goods below).
+    id: 'rune_clockwork_promotion',
+    name: 'Rune of Clockwork Promotion',
+    cost: 4,
+    text: 'Every **2 turns**, get a **Clockwork Assistant**.',
+    reward: { kind: 'recurringGrant', cards: ['n2_clockwork'], everyTurns: 2 },
+  },
+  {
+    id: 'rune_night_market',
+    name: 'Rune of the Night Market',
+    cost: 5,
+    text: 'Get a **Night Market Horror**.',
+    reward: { kind: 'grant', cards: ['dm_nightmarket'] },
+  },
+  {
+    id: 'rune_muckbroker',
+    name: 'Rune of the Muckbroker',
+    cost: 4,
+    text: 'Every **2 turns**, get a **Muckslinger**.',
+    reward: { kind: 'recurringGrant', cards: ['n2_muckslinger'], everyTurns: 2 },
+  },
+  {
+    // Living Magic and Perfect Recall (Epic) are the SAME mechanism at 1 vs 2 uses - one parameterised budget
+    // rather than two near-copies, so holding both raises the per-turn ceiling instead of firing twice over.
+    id: 'rune_living_magic',
+    name: 'Rune of Living Magic',
+    cost: 4,
+    text: '**Once per turn**, after you cast a spell, get a **copy** of it.',
+    reward: { kind: 'runeSpellEcho', uses: 1 },
+  },
+  {
+    id: 'rune_draconic_curiosity',
+    name: 'Rune of Draconic Curiosity',
+    cost: 4,
+    text: 'Whenever you **Discover** a **Dragon**, get a random **Shop spell**.',
+    reward: { kind: 'runeDraconicCuriosity' },
+  },
+  {
+    // A `cardsPlayed`-shaped threshold on a new `playDragon` meter, so the remainder BANKS across turns
+    // exactly like every other threshold - which is what "progress carries" means.
+    id: 'rune_dragons_pantry',
+    name: "Rune of the Dragon's Pantry",
+    cost: 4,
+    text: 'After you play **5 Dragons**, get **2 random Shop spells**. Progress carries between turns.',
+    reward: { kind: 'runeThreshold', meter: 'playDragon', per: 5, grantSpell: 2 },
+  },
+  {
+    // A COMBAT meter that pays into the next shop: the Beast rides `playerHandGrants` (the carry-back every
+    // in-combat card grant already uses), so it flies to hand during the replay rather than snapping in.
+    id: 'rune_returning_pack',
+    name: 'Rune of the Returning Pack',
+    cost: 4,
+    text: 'After you summon **6 Beasts** in combat, get a random **Beast**.',
+    reward: { kind: 'combatFlag', flag: 'runeReturningPack', amount: 6 },
+  },
+  {
+    // The other combat meter, paying the OTHER carry-back: `ctx.grantFreeRolls` -> `playerFreeRolls`, the same
+    // channel Rune of the Burrow and the Herding Horn bank into.
+    id: 'rune_grave_refreshment',
+    name: 'Rune of Grave Refreshment',
+    cost: 3,
+    text: 'For every **2** friendly **Echoes** triggered in combat, gain a **free refresh** next turn.',
+    reward: { kind: 'combatFlag', flag: 'runeGraveRefreshment', amount: 2 },
+  },
+  {
+    id: 'rune_seasoned_ledger',
+    name: 'Rune of the Seasoned Ledger',
+    cost: 5,
+    text: 'Whenever you play a minion, give it **+1/+1**. Improves by **+1/+1** after every **5** minions played.',
+    reward: { kind: 'runeSeasonedLedger', attack: 1, health: 1, per: 5 },
+  },
+  {
+    id: 'rune_echoed_arrival',
+    name: 'Rune of Echoed Arrival',
+    cost: 4,
+    text: 'Every **5th** **Echo** minion you play triggers its Echo.',
+    reward: { kind: 'runeEchoedArrival', per: 5 },
+  },
+  {
+    id: 'rune_rare_goods',
+    name: 'Rune of Rare Goods',
+    cost: 4,
+    text: 'Every **2 turns**, get a **Traveling Salesman**.',
+    reward: { kind: 'recurringGrant', cards: ['n2_salesman'], everyTurns: 2 },
+  },
+  {
+    id: 'rune_kegheart',
+    name: 'Rune of Kegheart',
+    cost: 4,
+    text: 'Get a **Kegheart Dwarf**.',
+    reward: { kind: 'grant', cards: ['dw_kegheart'] },
+    sets: ['set2'], // the Kegheart eats ALES - a set without them makes it a vanilla body
+  },
+  {
+    // The Engraving's shape with a MOVING axis: the same `gainRubyBonus` carry-back, but which half it feeds
+    // flips at every turn setup. The axis in force rides into combat on the mod (see `runeShiftingFacets`),
+    // so a fight always resolves the axis the shop was showing.
+    id: 'rune_shifting_facets',
+    name: 'Rune of Shifting Facets',
+    cost: 3,
+    text: '**Avenge (3):** improve your **Rubies** by **+1 Health**. Each turn this **alternates** between Health and Attack.',
+    previewCards: ['ruby'],
+    reward: { kind: 'combatFlag', flag: 'runeShiftingFacets' },
+    sets: ['set2'], // Rubies
+  },
+  {
+    // Rides the SAME stateless `addBuff` hook Sable's Soulbind uses - the one chokepoint every recruit-phase
+    // stat gain passes through - rather than being wired into the dozen sites that grant stats.
+    id: 'rune_shared_spoils',
+    name: 'Rune of Shared Spoils',
+    cost: 4,
+    text: 'Whenever your **left-most Dwarf** gains stats, give your **right-most Dwarf** the same stats.',
+    reward: { kind: 'runeSharedSpoils' },
+    sets: ['set2'], // Dwarves
+  },
+  {
+    id: 'rune_heavy_payroll',
+    name: 'Rune of Heavy Payroll',
+    cost: 4,
+    text: 'Whenever you get a **Dwarf**, give your **left-most minion +12/+12**.',
+    reward: { kind: 'runeHeavyPayroll', attack: 12, health: 12 },
+    sets: ['set2'], // Dwarves
+  },
+  {
+    // The threshold engine again, with the two new knobs: a TRIBE buff target and a `step` that escalates the
+    // payout. "Improve this by +1/+1" is therefore data, not a bespoke rune.
+    id: 'rune_compounding_wages',
+    name: 'Rune of Compounding Wages',
+    cost: 4,
+    text: 'Every **10 Gold** spent, give your **Dwarves +1/+1** and improve this by **+1/+1**.',
+    reward: { kind: 'runeThreshold', meter: 'gold', per: 10, buff: { target: 'tribe', tribe: 'dwarf', attack: 1, health: 1, step: { attack: 1, health: 1 } } },
+    sets: ['set2'], // Dwarves
+  },
+  {
+    // `castStatSpell` CASTS the spell rather than handing it over - so spell power, the cast counters and every
+    // on-cast watcher all see it, which "cast a random spell" has to mean.
+    id: 'rune_gilded_ledger',
+    name: 'Rune of the Gilded Ledger',
+    cost: 4,
+    text: 'Every **7 Gold** spent, cast a random **stat-granting Shop spell**.',
+    reward: { kind: 'runeThreshold', meter: 'gold', per: 7, castStatSpell: 1 },
+  },
 ];
 
 /**
@@ -1154,10 +1330,11 @@ export const EPIC_RUNES: RuneDef[] = [
     reward: { kind: 'grant', grantGolden: ['yazzus'], cards: ['fronttoback'] },
   },
   {
+    // Owner 2026-08-20: ENABLED in every set (was gated to the disabled set 1) and repriced 4 -> 3. Souls Man
+    // is an out-of-set UNDEAD body, granted rather than drawn — same acceptance as Rune of Pillaging.
     id: 'rune_soul_taxes',
-    sets: ['set1'],
     name: 'Rune of Soul Taxes',
-    cost: 4,
+    cost: 3,
     epic: true,
     text: '**Avenge (4):** gain **+1 max Gold**. Get **Souls Man**.',
     reward: { kind: 'multi', rewards: [{ kind: 'combatFlag', flag: 'runeSoulTaxes' }, { kind: 'grant', cards: ['soulsman'] }] },
@@ -2280,6 +2457,114 @@ export const EPIC_RUNES: RuneDef[] = [
     text: 'Whenever you cast a spell, cast **Might of Aeon**.',
     previewCards: ['mightofaeon'],
     reward: { kind: 'runeMight' },
+  },
+
+  // -- 2026-08-20 owner rune batch: EPIC ---------------------------------------------------------------
+  {
+    // Living Magic's budget at 2 uses - the same reward kind, one number apart.
+    id: 'rune_perfect_recall',
+    name: 'Rune of Perfect Recall',
+    cost: 6,
+    epic: true,
+    text: '**Twice per turn**, after you cast a spell, get a **copy** of it.',
+    reward: { kind: 'runeSpellEcho', uses: 2 },
+  },
+  {
+    id: 'rune_ninefold_commerce',
+    name: 'Rune of Ninefold Commerce',
+    cost: 6,
+    epic: true,
+    text: 'Get a **Ninefold Broker**.',
+    reward: { kind: 'grant', cards: ['n2_ninefold'] },
+  },
+  {
+    id: 'rune_borrowed_echoes',
+    name: 'Rune of Borrowed Echoes',
+    cost: 5,
+    epic: true,
+    text: 'Get an **Echo Mimic**.',
+    reward: { kind: 'grant', cards: ['n2_echomimic'] },
+  },
+  {
+    // RENAMED from the owner's "Rune of the Muster" (2026-08-20): that name is already taken by the free-refresh
+    // rune, and two runes cannot share a name inside one set (`validateRunes`).
+    id: 'rune_muster_general',
+    name: 'Rune of the Muster General',
+    cost: 5,
+    epic: true,
+    text: 'Get a **Muster General**.',
+    reward: { kind: 'grant', cards: ['n2_muster'] },
+  },
+  {
+    id: 'rune_delayed_duplication',
+    name: 'Rune of Delayed Duplication',
+    cost: 5,
+    epic: true,
+    text: 'Get a **Stonehorn Archivist**.',
+    reward: { kind: 'grant', cards: ['b2_stonehorn'] },
+  },
+  {
+    id: 'rune_ascension',
+    name: 'Rune of Ascension',
+    cost: 5,
+    epic: true,
+    text: 'Get a **Skybound Ascendant**.',
+    reward: { kind: 'grant', cards: ['d2_ascendant'] },
+  },
+  {
+    // END OF TURN, as the owner's sheet always said. It shipped as Start of Combat only because there was no
+    // recruit-phase Rally dispatch in the engine (Rally is an `onAttack` COMBAT trigger). The Effect Arena's
+    // Rally family (Step 3 item 4) put every Rally body on one shared implementation, and `fireRallies` /
+    // `fireShopRally` (Step 4) dispatch them from the shop — so the rune now pays out where it reads, one
+    // BEAT PER RALLY so each has room to animate.
+    id: 'rune_lasting_cadence',
+    name: 'Rune of Lasting Cadence',
+    cost: 5,
+    epic: true,
+    text: '**End of Turn:** trigger **all** your **Rally** effects.',
+    reward: { kind: 'runeLastingCadence' },
+  },
+  {
+    // The SECOND cross-phase dispatcher rune (2026-08-20), built on Lasting Cadence's motion: the Effect
+    // Arena's Start-of-Combat family (Step 3 item 4) put every SC body on one shared implementation, and
+    // `fireShopStartOfCombat` (Step 4) dispatches them from the shop at End of Turn — one BEAT PER EFFECT
+    // so each has room to animate. Combat behaviour is untouched: the real Start of Combat still fires.
+    id: 'rune_combat_prowess',
+    name: 'Rune of Combat Prowess',
+    cost: 5,
+    epic: true,
+    text: 'Your **Start of Combat** effects also trigger at **End of Turn**.',
+    reward: { kind: 'runeCombatProwess' },
+  },
+  {
+    // RENAMED from the owner's "Rune of Living Geodes" (2026-08-20) - Rune of the Living Geode already exists
+    // and is a different rune (the Geode Guardian grant). Engraving + Gemstorm in one Avenge.
+    id: 'rune_deepening_vein',
+    name: 'Rune of the Deepening Vein',
+    cost: 5,
+    epic: true,
+    text: '**Avenge (3):** improve your **Rubies** by **+1/+1** and play a **Ruby** on every friendly **Kobold**.',
+    previewCards: ['ruby'],
+    reward: { kind: 'combatFlag', flag: 'runeDeepeningVein' },
+    sets: ['set2'], // Rubies + Kobolds
+  },
+  {
+    // RENAMED from the owner's "Rune of Evolution" (2026-08-20) - Rune of Evolution already exists and is the
+    // transform-your-board rune.
+    id: 'rune_abomination',
+    name: 'Rune of the Abomination',
+    cost: 5,
+    epic: true,
+    text: 'Get an **Evolving Abomination**.',
+    reward: { kind: 'grant', cards: ['n2_abomination'] },
+  },
+  {
+    id: 'rune_bottomless_portrait',
+    name: 'Rune of the Bottomless Portrait',
+    cost: 5,
+    epic: true,
+    text: 'Get an **Arcane Behemoth**.',
+    reward: { kind: 'grant', cards: ['dm_behemoth'] },
   },
 ];
 

@@ -17,10 +17,11 @@ export interface ReplayRailConfig {
   dockW: number;
 }
 
+// Owner-tuned 2026-08-21: nudged left, lifted well above center, slightly enlarged.
 const DEFAULTS: ReplayRailConfig = {
-  x: 14,
-  y: 0,
-  s: 1,
+  x: 11,
+  y: -300,
+  s: 1.09,
   dockW: 128,
 };
 

@@ -55,7 +55,7 @@ Each hook is additive and guarded by "clip present?", so it stays silent until y
 
 <!-- GENERATED BELOW — edit the Creative brief + Status columns only; Filename/Trigger are regenerated. -->
 
-### System / UI (28)
+### System / UI (46)
 
 | Filename | Trigger | Creative brief | Status |
 |---|---|---|---|
@@ -63,135 +63,236 @@ Each hook is additive and guarded by "clip present?", so it stays silent until y
 | `buy2.mp3` | Existing UI / system cue | (shipped) | ✅ |
 | `cardlanding.mp3` | Existing UI / system cue | (shipped) | ✅ |
 | `cardtouch.mp3` | Existing UI / system cue | (shipped) | ✅ |
+| `cleave2.mp3` | Existing UI / system cue | (shipped) | ✅ |
 | `clickthock.mp3` | Existing UI / system cue | (shipped) | ✅ |
 | `combatStart.mp3` | Existing UI / system cue | (shipped) | ✅ |
+| `consume.mp3` | Existing UI / system cue | (shipped) | ✅ |
+| `crit.mp3` | Existing UI / system cue | (shipped) | ✅ |
+| `death.mp3` | Existing UI / system cue | (shipped) | ✅ |
 | `deny.mp3` | Existing UI / system cue | (shipped) | ✅ |
+| `discover-select.mp3` | Existing UI / system cue | (shipped) | ✅ |
 | `discover.mp3` | Existing UI / system cue | (shipped) | ✅ |
 | `divineshieldbreak.mp3` | Existing UI / system cue | (shipped) | ✅ |
+| `flurryhit.mp3` | Existing UI / system cue | (shipped) | ✅ |
+| `flurrylunge.mp3` | Existing UI / system cue | (shipped) | ✅ |
 | `freezetavern.mp3` | Existing UI / system cue | (shipped) | ✅ |
+| `gemapply.mp3` | Existing UI / system cue | (shipped) | ✅ |
 | `inspect.mp3` | Existing UI / system cue | (shipped) | ✅ |
 | `pulse.mp3` | Existing UI / system cue | (shipped) | ✅ |
 | `rebornshatter.mp3` | Existing UI / system cue | (shipped) | ✅ |
 | `rebornsummon.mp3` | Existing UI / system cue | (shipped) | ✅ |
 | `reordercard.mp3` | Existing UI / system cue | (shipped) | ✅ |
 | `roll.mp3` | Existing UI / system cue | (shipped) | ✅ |
+| `rune-chain-break.mp3` | Existing UI / system cue | (shipped) | ✅ |
 | `sell1.mp3` | Existing UI / system cue | (shipped) | ✅ |
 | `sell2.mp3` | Existing UI / system cue | (shipped) | ✅ |
 | `sell3.mp3` | Existing UI / system cue | (shipped) | ✅ |
 | `sell4.mp3` | Existing UI / system cue | (shipped) | ✅ |
+| `shieldgain.mp3` | Existing UI / system cue | (shipped) | ✅ |
 | `skullburst.mp3` | Existing UI / system cue | (shipped) | ✅ |
-| `smack.mp3` | Existing UI / system cue | (shipped) | ✅ |
+| `smack1.mp3` | Existing UI / system cue | (shipped) | ✅ |
+| `smack2.mp3` | Existing UI / system cue | (shipped) | ✅ |
+| `smack3.mp3` | Existing UI / system cue | (shipped) | ✅ |
+| `smack4.mp3` | Existing UI / system cue | (shipped) | ✅ |
 | `summon.mp3` | Existing UI / system cue | (shipped) | ✅ |
 | `taunt.mp3` | Existing UI / system cue | (shipped) | ✅ |
 | `tavernupgrade.mp3` | Existing UI / system cue | (shipped) | ✅ |
 | `triggerglow.mp3` | Existing UI / system cue | (shipped) | ✅ |
 | `triggerpulse.mp3` | Existing UI / system cue | (shipped) | ✅ |
+| `triplereward.mp3` | Existing UI / system cue | (shipped) | ✅ |
+| `turncharge.mp3` | Existing UI / system cue | (shipped) | ✅ |
+| `turnexplosion.mp3` | Existing UI / system cue | (shipped) | ✅ |
+| `uihover.mp3` | Existing UI / system cue | (shipped) | ✅ |
 | `unfreezetavern.mp3` | Existing UI / system cue | (shipped) | ✅ |
+| `windup.mp3` | Existing UI / system cue | (shipped) | ✅ |
 
-### Heroes (48)
+### Heroes (102)
 
 | Filename | Trigger | Creative brief | Status |
 |---|---|---|---|
-| `heroes/baggerben.mp3` | Bagger Ben selected in Hero Select | Bagger Ben — hero select cue. | ⬜ |
-| `heroes/baggerben.power.mp3` | Bagger Ben's power "Bag It" activates | Bag It — hero power cue. | ⬜ |
+| `heroes/albus.mp3` | Albus selected in Hero Select | Albus — hero select cue. | ⬜ |
+| `heroes/albus.power.mp3` | Albus's power "Empowerment" activates | Empowerment — hero power cue. | ⬜ |
+| `heroes/aster.mp3` | Aster, the Guide selected in Hero Select | Aster, the Guide — hero select cue. | ⬜ |
+| `heroes/aster.power.mp3` | Aster, the Guide's power "Preparation" activates | Preparation — hero power cue. | ⬜ |
+| `heroes/baggerben.mp3` | Rascal selected in Hero Select | Bagger Ben — hero select cue. | ⬜ |
+| `heroes/baggerben.power.mp3` | Rascal's power "All In" activates | Bag It — hero power cue. | ⬜ |
+| `heroes/brackus.mp3` | Brackus selected in Hero Select | Brackus — hero select cue. | ⬜ |
+| `heroes/brackus.power.mp3` | Brackus's power "Summit" activates | Summit — hero power cue. | ⬜ |
+| `heroes/bram.mp3` | Braum selected in Hero Select | Braum — hero select cue. | ⬜ |
+| `heroes/bram.power.mp3` | Braum's power "Investment" activates | Investment — hero power cue. | ⬜ |
 | `heroes/cassen.mp3` | Cassen selected in Hero Select | Cassen — hero select cue. | ⬜ |
-| `heroes/cassen.power.mp3` | Cassen's power "Collision" activates | Collision — hero power cue. | ⬜ |
+| `heroes/cassen.power.mp3` | Cassen's power "Commission" activates | Collision — hero power cue. | ⬜ |
 | `heroes/chaos.mp3` | Chaos selected in Hero Select | Chaos — hero select cue. | ⬜ |
 | `heroes/chaos.power.mp3` | Chaos's power "Chaos Bond" activates | Chaos Bond — hero power cue. | ⬜ |
 | `heroes/chronoshero.mp3` | Chronos selected in Hero Select | Chronos — hero select cue. | ⬜ |
-| `heroes/chronoshero.power.mp3` | Chronos's power "Encore" activates | Encore — hero power cue. | ⬜ |
+| `heroes/chronoshero.power.mp3` | Chronos's power "Timelapse" activates | Encore — hero power cue. | ⬜ |
+| `heroes/cia.mp3` | Cia selected in Hero Select | Cia — hero select cue. | ⬜ |
+| `heroes/cia.power.mp3` | Cia's power "Lucky Seat" activates | Lucky Seat — hero power cue. | ⬜ |
 | `heroes/coran.mp3` | Coran selected in Hero Select | Coran — hero select cue. | ⬜ |
 | `heroes/coran.power.mp3` | Coran's power "Pathfinder" activates | Pathfinder — hero power cue. | ⬜ |
 | `heroes/darah.mp3` | Darah selected in Hero Select | Darah — hero select cue. | ⬜ |
-| `heroes/darah.power.mp3` | Darah's power "Displace" activates | Displace — hero power cue. | ⬜ |
+| `heroes/darah.power.mp3` | Darah's power "Swap" activates | Displace — hero power cue. | ⬜ |
+| `heroes/devourer.mp3` | Devourer selected in Hero Select | Devourer — hero select cue. | ⬜ |
+| `heroes/devourer.power.mp3` | Devourer's power "Devour" activates | Devour — hero power cue. | ⬜ |
 | `heroes/discodan.mp3` | Disco Dan selected in Hero Select | Disco Dan — hero select cue. | ⬜ |
 | `heroes/discodan.power.mp3` | Disco Dan's power "Setlist" activates | Setlist — hero power cue. | ⬜ |
-| `heroes/djinn.mp3` | Djinn selected in Hero Select | Djinn — hero select cue. | ⬜ |
-| `heroes/djinn.power.mp3` | Djinn's power "Cadence" activates | Cadence — hero power cue. | ⬜ |
+| `heroes/djinn.mp3` | Djinni selected in Hero Select | Djinn — hero select cue. | ⬜ |
+| `heroes/djinn.power.mp3` | Djinni's power "Cadence" activates | Cadence — hero power cue. | ⬜ |
 | `heroes/drakko.mp3` | Drakko selected in Hero Select | Drakko — hero select cue. | ⬜ |
 | `heroes/drakko.power.mp3` | Drakko's power "Drumline" activates | Drumline — hero power cue. | ⬜ |
+| `heroes/emeraldwarden.mp3` | Emerald Warden selected in Hero Select | Emerald Warden — hero select cue. | ⬜ |
+| `heroes/emeraldwarden.power.mp3` | Emerald Warden's power "Vanguard" activates | Vanguard — hero power cue. | ⬜ |
 | `heroes/fi.mp3` | Fi selected in Hero Select | Fi — hero select cue. | ⬜ |
 | `heroes/fi.power.mp3` | Fi's power "Errand" activates | Errand — hero power cue. | ⬜ |
+| `heroes/flash.mp3` | Flash selected in Hero Select | Flash — hero select cue. | ⬜ |
+| `heroes/flash.power.mp3` | Flash's power "First or Last" activates | First or Last — hero power cue. | ⬜ |
+| `heroes/flint.mp3` | Foreman Flint selected in Hero Select | Foreman Flint — hero select cue. | ⬜ |
+| `heroes/flint.power.mp3` | Foreman Flint's power "Company Rate" activates | Company Rate — hero power cue. | ⬜ |
+| `heroes/frank.mp3` | Frantic Frank selected in Hero Select | Frantic Frank — hero select cue. | ⬜ |
+| `heroes/frank.power.mp3` | Frantic Frank's power "Clearance" activates | Clearance — hero power cue. | ⬜ |
+| `heroes/gambler.mp3` | Gambler selected in Hero Select | Gambler — hero select cue. | ⬜ |
+| `heroes/gambler.power.mp3` | Gambler's power "Dice" activates | Dice — hero power cue. | ⬜ |
 | `heroes/gildmaster.mp3` | Gildmaster selected in Hero Select | Gildmaster — hero select cue. | ⬜ |
-| `heroes/gildmaster.power.mp3` | Gildmaster's power "Golden Gild" activates | Golden Gild — hero power cue. | ⬜ |
-| `heroes/herald.mp3` | Herald selected in Hero Select | Herald — hero select cue. | ⬜ |
-| `heroes/herald.power.mp3` | Herald's power "Proclaim" activates | Proclaim — hero power cue. | ⬜ |
+| `heroes/gildmaster.power.mp3` | Gildmaster's power "Gildcrafter" activates | Golden Gild — hero power cue. | ⬜ |
+| `heroes/gorr.mp3` | Gorr selected in Hero Select | Gorr — hero select cue. | ⬜ |
+| `heroes/gorr.power.mp3` | Gorr's power "Four Peat" activates | Four Peat — hero power cue. | ⬜ |
+| `heroes/harlan.mp3` | Harlan selected in Hero Select | Harlan — hero select cue. | ⬜ |
+| `heroes/harlan.power.mp3` | Harlan's power "Buyout" activates | Buyout — hero power cue. | ⬜ |
 | `heroes/hermithank.mp3` | Tradesman selected in Hero Select | Tradesman — hero select cue. | ⬜ |
 | `heroes/hermithank.power.mp3` | Tradesman's power "Frugal" activates | Frugal — hero power cue. | ⬜ |
+| `heroes/hunch.mp3` | Hunch selected in Hero Select | Hunch — hero select cue. | ⬜ |
+| `heroes/hunch.power.mp3` | Hunch's power "Rounded Spellbook" activates | Rounded Spellbook — hero power cue. | ⬜ |
 | `heroes/indy.mp3` | Indy selected in Hero Select | Indy — hero select cue. | ⬜ |
-| `heroes/indy.power.mp3` | Indy's power "Gild" activates | Gild — hero power cue. | ⬜ |
-| `heroes/jenkins.mp3` | Jenkins selected in Hero Select | Jenkins — hero select cue. | ⬜ |
-| `heroes/jenkins.power.mp3` | Jenkins's power "Dynamite Dig" activates | Dynamite Dig — hero power cue. | ⬜ |
-| `heroes/myra.mp3` | Myra selected in Hero Select | Myra — hero select cue. | ⬜ |
-| `heroes/myra.power.mp3` | Myra's power "Pulse" activates | Pulse — hero power cue. | ⬜ |
+| `heroes/indy.power.mp3` | Indy's power "Masterwork" activates | Gild — hero power cue. | ⬜ |
+| `heroes/jenkins.mp3` | Jensen selected in Hero Select | Jenkins — hero select cue. | ⬜ |
+| `heroes/jenkins.power.mp3` | Jensen's power "Dynamite Dig" activates | Dynamite Dig — hero power cue. | ⬜ |
+| `heroes/juggler.mp3` | Juggler selected in Hero Select | Juggler — hero select cue. | ⬜ |
+| `heroes/juggler.power.mp3` | Juggler's power "Carnival Coin" activates | Carnival Coin — hero power cue. | ⬜ |
+| `heroes/keshi.mp3` | Keshi the Protector selected in Hero Select | Keshi the Protector — hero select cue. | ⬜ |
+| `heroes/keshi.power.mp3` | Keshi the Protector's power "Keshi’s Crown" activates | Keshi’s Crown — hero power cue. | ⬜ |
+| `heroes/membrance.mp3` | Membrance selected in Hero Select | Membrance — hero select cue. | ⬜ |
+| `heroes/membrance.power.mp3` | Membrance's power "Memory" activates | Memory — hero power cue. | ⬜ |
+| `heroes/merrin.mp3` | Merrin selected in Hero Select | Merrin — hero select cue. | ⬜ |
+| `heroes/merrin.power.mp3` | Merrin's power "Pocket Magic" activates | Pocket Magic — hero power cue. | ⬜ |
+| `heroes/midas.mp3` | Midas selected in Hero Select | Midas — hero select cue. | ⬜ |
+| `heroes/midas.power.mp3` | Midas's power "Midas' Touch" activates | Midas' Touch — hero power cue. | ⬜ |
+| `heroes/myra.mp3` | Auctioneer selected in Hero Select | Myra — hero select cue. | ⬜ |
+| `heroes/myra.power.mp3` | Auctioneer's power "Pulse" activates | Pulse — hero power cue. | ⬜ |
 | `heroes/nadja.mp3` | Nadja selected in Hero Select | Nadja — hero select cue. | ⬜ |
-| `heroes/nadja.power.mp3` | Nadja's power "Gold Font" activates | Gold Font — hero power cue. | ⬜ |
-| `heroes/risen.mp3` | Lord of the Risen selected in Hero Select | Lord of the Risen — hero select cue. | ⬜ |
-| `heroes/risen.power.mp3` | Lord of the Risen's power "Rise Again" activates | Rise Again — hero power cue. | ⬜ |
+| `heroes/nadja.power.mp3` | Nadja's power "Goldspring" activates | Gold Font — hero power cue. | ⬜ |
+| `heroes/odelle.mp3` | Odelle selected in Hero Select | Odelle — hero select cue. | ⬜ |
+| `heroes/odelle.power.mp3` | Odelle's power "Exhibition" activates | Exhibition — hero power cue. | ⬜ |
+| `heroes/pete.mp3` | Pete selected in Hero Select | Pete — hero select cue. | ⬜ |
+| `heroes/pete.power.mp3` | Pete's power "Contrabanana" activates | Contrabanana — hero power cue. | ⬜ |
+| `heroes/quillen.mp3` | Quillen selected in Hero Select | Quillen — hero select cue. | ⬜ |
+| `heroes/quillen.power.mp3` | Quillen's power "Archive" activates | Archive — hero power cue. | ⬜ |
+| `heroes/repete.mp3` | Re-Pete selected in Hero Select | Re-Pete — hero select cue. | ⬜ |
+| `heroes/repete.power.mp3` | Re-Pete's power "Second Hand" activates | Second Hand — hero power cue. | ⬜ |
+| `heroes/risen.mp3` | Lord of the Risen selected in Hero Select | Lord of the Risen — hero select cue. | 🎙️ |
+| `heroes/risen.power.mp3` | Lord of the Risen's power "Undying" activates | Rise Again — hero power cue. | ⬜ |
 | `heroes/robin.mp3` | Robin selected in Hero Select | Robin — hero select cue. | ⬜ |
 | `heroes/robin.power.mp3` | Robin's power "Spoils" activates | Spoils — hero power cue. | ⬜ |
 | `heroes/rohan.mp3` | Yirin selected in Hero Select | Yirin — hero select cue. | ⬜ |
-| `heroes/rohan.power.mp3` | Yirin's power "Attunement" activates | Attunement — hero power cue. | ⬜ |
-| `heroes/runeguard.mp3` | Runeguard selected in Hero Select | Runeguard — hero select cue. | ⬜ |
-| `heroes/runeguard.power.mp3` | Runeguard's power "Defend the Forge" activates | Defend the Forge — hero power cue. | ⬜ |
+| `heroes/rohan.power.mp3` | Yirin's power "Reflector" activates | Attunement — hero power cue. | ⬜ |
+| `heroes/runeguard.mp3` | Guardian selected in Hero Select | Runeguard — hero select cue. | ⬜ |
+| `heroes/runeguard.power.mp3` | Guardian's power "Runeguard" activates | Defend the Forge — hero power cue. | ⬜ |
 | `heroes/runesmith.mp3` | Runesmith selected in Hero Select | Runesmith — hero select cue. | ⬜ |
-| `heroes/runesmith.power.mp3` | Runesmith's power "Runeforge" activates | Runeforge — hero power cue. | ⬜ |
+| `heroes/runesmith.power.mp3` | Runesmith's power "Forgemaster" activates | Runeforge — hero power cue. | ⬜ |
+| `heroes/sable.mp3` | Sable selected in Hero Select | Sable — hero select cue. | ⬜ |
+| `heroes/sable.power.mp3` | Sable's power "Soulbind" activates | Soulbind — hero power cue. | ⬜ |
 | `heroes/soren.mp3` | Soren selected in Hero Select | Soren — hero select cue. | ⬜ |
 | `heroes/soren.power.mp3` | Soren's power "Reclaim" activates | Reclaim — hero power cue. | ⬜ |
+| `heroes/tiff.mp3` | Tiff selected in Hero Select | Tiff — hero select cue. | ⬜ |
+| `heroes/tiff.power.mp3` | Tiff's power "Dragon Tamer" activates | Dragon Tamer — hero power cue. | ⬜ |
+| `heroes/underdweller.mp3` | Underdweller selected in Hero Select | Underdweller — hero select cue. | ⬜ |
+| `heroes/underdweller.power.mp3` | Underdweller's power "Soulkeeper" activates | Soulkeeper — hero power cue. | ⬜ |
+| `heroes/vale.mp3` | Emissary selected in Hero Select | Emissary — hero select cue. | ⬜ |
+| `heroes/vale.power.mp3` | Emissary's power "United Front" activates | United Front — hero power cue. | ⬜ |
 | `heroes/warden.mp3` | Warden selected in Hero Select | Warden — hero select cue. | ⬜ |
 | `heroes/warden.power.mp3` | Warden's power "Aegis" activates | Aegis — hero power cue. | ⬜ |
+| `heroes/xerox.mp3` | Xerox selected in Hero Select | Xerox — hero select cue. | ⬜ |
+| `heroes/xerox.power.mp3` | Xerox's power "Copy Machine" activates | Copy Machine — hero power cue. | ⬜ |
 
-### Spells (45)
+### Spells (74)
 
 | Filename | Trigger | Creative brief | Status |
 |---|---|---|---|
 | `cards/anomalyreactor.mp3` | Spell cast — unique clip over the default bed | Anomaly Reactor — spell cast cue (~0.4s). | ⬜ |
 | `cards/apples.mp3` | Spell cast — unique clip over the default bed | Apples — spell cast cue (~0.4s). | ⬜ |
 | `cards/aresmar.mp3` | Spell cast — unique clip over the default bed | Eyes of Aresmar — spell cast cue (~0.4s). | ⬜ |
+| `cards/beyondsummit.mp3` | Spell cast — unique clip over the default bed | Beyond the Summit — spell cast cue (~0.4s). | ⬜ |
 | `cards/bloodlust.mp3` | Spell cast — unique clip over the default bed | Bloodlust — spell cast cue (~0.4s). | ⬜ |
 | `cards/bulwark.mp3` | Spell cast — unique clip over the default bed | Bulwark — spell cast cue (~0.4s). | ⬜ |
+| `cards/carnivalcoin.mp3` | Spell cast — unique clip over the default bed | Carnival Coin — spell cast cue (~0.4s). | ⬜ |
 | `cards/chronostaff.mp3` | Spell cast — unique clip over the default bed | Chrono Staff — spell cast cue (~0.4s). | ⬜ |
+| `cards/commonground.mp3` | Spell cast — unique clip over the default bed | Common Ground — spell cast cue (~0.4s). | ⬜ |
 | `cards/consume.mp3` | Spell cast — unique clip over the default bed | Consume — spell cast cue (~0.4s). | ⬜ |
+| `cards/copycat.mp3` | Spell cast — unique clip over the default bed | Copycat — spell cast cue (~0.4s). | ⬜ |
 | `cards/corpseboard.mp3` | Spell cast — unique clip over the default bed | Corpse Board — spell cast cue (~0.4s). | ⬜ |
+| `cards/crestclimb.mp3` | Spell cast — unique clip over the default bed | Crest of the Climb — spell cast cue (~0.4s). | ⬜ |
+| `cards/decoysigil.mp3` | Spell cast — unique clip over the default bed | Decoy Sigil — spell cast cue (~0.4s). | ⬜ |
 | `cards/depositbox.mp3` | Spell cast — unique clip over the default bed | Safety Deposit Box — spell cast cue (~0.4s). | ⬜ |
 | `cards/devour.mp3` | Spell cast — unique clip over the default bed | Channeling the Devourer — spell cast cue (~0.4s). | ⬜ |
 | `cards/displacement.mp3` | Spell cast — unique clip over the default bed | Displacement — spell cast cue (~0.4s). | ⬜ |
+| `cards/elevationritual.mp3` | Spell cast — unique clip over the default bed | Elevation Ritual — spell cast cue (~0.4s). | ⬜ |
 | `cards/emberpouch.mp3` | Spell cast — unique clip over the default bed | Gold Pouch — spell cast cue (~0.4s). | ⬜ |
+| `cards/executionersedge.mp3` | Spell cast — unique clip over the default bed | Executioner's Edge — spell cast cue (~0.4s). | ⬜ |
+| `cards/farseersreport.mp3` | Spell cast — unique clip over the default bed | Farseer's Report — spell cast cue (~0.4s). | ⬜ |
 | `cards/feedalpha.mp3` | Spell cast — unique clip over the default bed | Feed the Alpha — spell cast cue (~0.4s). | ⬜ |
+| `cards/fieldmaneuvers.mp3` | Spell cast — unique clip over the default bed | Field Maneuvers — spell cast cue (~0.4s). | ⬜ |
 | `cards/fleetingvigor.mp3` | Spell cast — unique clip over the default bed | Fleeting Vigor — spell cast cue (~0.4s). | ⬜ |
 | `cards/foddertreatment.mp3` | Spell cast — unique clip over the default bed | Fodder Treatment — spell cast cue (~0.4s). | ⬜ |
 | `cards/fronttoback.mp3` | Spell cast — unique clip over the default bed | Front to Back — spell cast cue (~0.4s). | ⬜ |
+| `cards/funeralonloan.mp3` | Spell cast — unique clip over the default bed | Funeral on Loan — spell cast cue (~0.4s). | ⬜ |
 | `cards/goldcrafter.mp3` | Spell cast — unique clip over the default bed | Goldcrafter — spell cast cue (~0.4s). | ⬜ |
 | `cards/goldentouch.mp3` | Spell cast — unique clip over the default bed | Golden Touch — spell cast cue (~0.4s). | ⬜ |
 | `cards/growth.mp3` | Spell cast — unique clip over the default bed | Growth — spell cast cue (~0.4s). | ⬜ |
 | `cards/helpwanted.mp3` | Spell cast — unique clip over the default bed | Help Wanted — spell cast cue (~0.4s). | ⬜ |
+| `cards/hoardflame.mp3` | Spell cast — unique clip over the default bed | Hoardflame — spell cast cue (~0.4s). | ⬜ |
+| `cards/hourglassreserve.mp3` | Spell cast — unique clip over the default bed | Hourglass Reserve — spell cast cue (~0.4s). | ⬜ |
 | `cards/implosion.mp3` | Spell cast — unique clip over the default bed | Implosion — spell cast cue (~0.4s). | ⬜ |
+| `cards/insurancepolicy.mp3` | Spell cast — unique clip over the default bed | Insurance Policy — spell cast cue (~0.4s). | ⬜ |
+| `cards/invitationabove.mp3` | Spell cast — unique clip over the default bed | Invitation Above — spell cast cue (~0.4s). | ⬜ |
 | `cards/keyfindings.mp3` | Spell cast — unique clip over the default bed | Key Findings — spell cast cue (~0.4s). | ⬜ |
 | `cards/lanternlight.mp3` | Spell cast — unique clip over the default bed | Lantern Light — spell cast cue (~0.4s). | ⬜ |
 | `cards/lanternofsouls.mp3` | Spell cast — unique clip over the default bed | Lantern of Souls — spell cast cue (~0.4s). | ⬜ |
 | `cards/lasso.mp3` | Spell cast — unique clip over the default bed | Lasso — spell cast cue (~0.4s). | ⬜ |
+| `cards/laststand.mp3` | Spell cast — unique clip over the default bed | Last Stand — spell cast cue (~0.4s). | ⬜ |
+| `cards/layaway.mp3` | Spell cast — unique clip over the default bed | Layaway — spell cast cue (~0.4s). | ⬜ |
 | `cards/manafont.mp3` | Spell cast — unique clip over the default bed | Gold Font — spell cast cue (~0.4s). | ⬜ |
+| `cards/markedtarget.mp3` | Spell cast — unique clip over the default bed | Marked Target — spell cast cue (~0.4s). | ⬜ |
 | `cards/mend.mp3` | Spell cast — unique clip over the default bed | Mend — spell cast cue (~0.4s). | ⬜ |
+| `cards/mightofaeon.mp3` | Spell cast — unique clip over the default bed | Might of Aeon — spell cast cue (~0.4s). | ⬜ |
 | `cards/ossuaryrite.mp3` | Spell cast — unique clip over the default bed | Ossuary Rite — spell cast cue (~0.4s). | ⬜ |
 | `cards/patchjob.mp3` | Spell cast — unique clip over the default bed | Patch Job — spell cast cue (~0.4s). | ⬜ |
 | `cards/perfectvision.mp3` | Spell cast — unique clip over the default bed | Perfect Vision — spell cast cue (~0.4s). | ⬜ |
 | `cards/preemptive.mp3` | Spell cast — unique clip over the default bed | Pre-emptive Assault — spell cast cue (~0.4s). | ⬜ |
+| `cards/quicksale.mp3` | Spell cast — unique clip over the default bed | Quick Sale — spell cast cue (~0.4s). | ⬜ |
+| `cards/quickstudy.mp3` | Spell cast — unique clip over the default bed | Quick Study — spell cast cue (~0.4s). | ⬜ |
 | `cards/rallyoffensive.mp3` | Spell cast — unique clip over the default bed | Rallying Offensive — spell cast cue (~0.4s). | ⬜ |
 | `cards/refreshtexts.mp3` | Spell cast — unique clip over the default bed | Refreshing Texts — spell cast cue (~0.4s). | ⬜ |
 | `cards/resonance.mp3` | Spell cast — unique clip over the default bed | Resonance — spell cast cue (~0.4s). | ⬜ |
+| `cards/riftsunkcodex.mp3` | Spell cast — unique clip over the default bed | Rift-Sunk Codex — spell cast cue (~0.4s). | ⬜ |
+| `cards/rivalsreflection.mp3` | Spell cast — unique clip over the default bed | Rival's Reflection — spell cast cue (~0.4s). | ⬜ |
+| `cards/seconddraft.mp3` | Spell cast — unique clip over the default bed | Second Draft — spell cast cue (~0.4s). | ⬜ |
 | `cards/shatter.mp3` | Spell cast — unique clip over the default bed | Shatter — spell cast cue (~0.4s). | ⬜ |
+| `cards/sigilkinship.mp3` | Spell cast — unique clip over the default bed | Sigil of Kinship — spell cast cue (~0.4s). | ⬜ |
 | `cards/sparkplug.mp3` | Spell cast — unique clip over the default bed | Spark Plug — spell cast cue (~0.4s). | ⬜ |
 | `cards/spellcart.mp3` | Spell cast — unique clip over the default bed | Spell Cart — spell cast cue (~0.4s). | ⬜ |
 | `cards/spiritfire.mp3` | Spell cast — unique clip over the default bed | Spirit Fire — spell cast cue (~0.4s). | ⬜ |
 | `cards/sprout.mp3` | Spell cast — unique clip over the default bed | Sprout — spell cast cue (~0.4s). | ⬜ |
 | `cards/staffofguel.mp3` | Spell cast — unique clip over the default bed | Staff of Guel — spell cast cue (~0.4s). | ⬜ |
+| `cards/strangerevision.mp3` | Spell cast — unique clip over the default bed | Strange Revision — spell cast cue (~0.4s). | ⬜ |
+| `cards/summoningbulwark.mp3` | Spell cast — unique clip over the default bed | Summoning Bulwark — spell cast cue (~0.4s). | ⬜ |
 | `cards/summonstone.mp3` | Spell cast — unique clip over the default bed | Summon Stone — spell cast cue (~0.4s). | ⬜ |
 | `cards/tribeportal.mp3` | Spell cast — unique clip over the default bed | Tribe Portal — spell cast cue (~0.4s). | ⬜ |
 | `cards/tribeschoice.mp3` | Spell cast — unique clip over the default bed | Tribes Choice — spell cast cue (~0.4s). | ⬜ |
+| `cards/turnabout.mp3` | Spell cast — unique clip over the default bed | Turnabout — spell cast cue (~0.4s). | ⬜ |
 | `cards/undeadarmy.mp3` | Spell cast — unique clip over the default bed | Undead Army — spell cast cue (~0.4s). | ⬜ |
+| `cards/weaken.mp3` | Spell cast — unique clip over the default bed | Weaken — spell cast cue (~0.4s). | ⬜ |
 | `castspell.mp3` | Default bed under every spell cast | Generic spell whoosh (~0.3s). | 🎙️ |
 
-### Neutral (69)
+### Neutral (66)
 
 | Filename | Trigger | Creative brief | Status |
 |---|---|---|---|
@@ -201,9 +302,6 @@ Each hook is additive and guarded by "clip present?", so it stays silent until y
 | `cards/blackbelt.death.mp3` | Dies in combat (over the death bed) | Black Belt Brian — death cue (~0.4s). | ⬜ |
 | `cards/blackbelt.effect.mp3` | Battlecry procs (shop or combat) | Black Belt Brian — Battlecry proc cue (~0.4s). | ⬜ |
 | `cards/blackbelt.mp3` | Played to the board (over the landing bed) | Black Belt Brian — play cue (~0.4s). | ⬜ |
-| `cards/blaster.death.mp3` | Dies in combat (over the death bed) | Blaster — death cue (~0.4s). | ⬜ |
-| `cards/blaster.effect.mp3` | Deathrattle procs (shop or combat) | Blaster — Deathrattle proc cue (~0.4s). | ⬜ |
-| `cards/blaster.mp3` | Played to the board (over the landing bed) | Blaster — play cue (~0.4s). | ⬜ |
 | `cards/broker.death.mp3` | Dies in combat (over the death bed) | Brightwing Broker — death cue (~0.4s). | ⬜ |
 | `cards/broker.effect.mp3` | on-buy procs (shop or combat) | Brightwing Broker — on-buy proc cue (~0.4s). | ⬜ |
 | `cards/broker.mp3` | Played to the board (over the landing bed) | Brightwing Broker — play cue (~0.4s). | ⬜ |
@@ -265,7 +363,7 @@ Each hook is additive and guarded by "clip present?", so it stays silent until y
 | `cards/yazzus.effect.mp3` | Vanilla — no effect to proc | (vanilla — no clip needed) | ➖ |
 | `cards/yazzus.mp3` | Played to the board (over the landing bed) | Yazzus — play cue (~0.4s). | ⬜ |
 
-### Beasts (63)
+### Beasts (57)
 
 | Filename | Trigger | Creative brief | Status |
 |---|---|---|---|
@@ -275,9 +373,6 @@ Each hook is additive and guarded by "clip present?", so it stays silent until y
 | `cards/babycub.death.mp3` | Dies in combat (over the death bed) | Baby Cub — death cue (~0.4s). | ⬜ |
 | `cards/babycub.effect.mp3` | Vanilla — no effect to proc | (vanilla — no clip needed) | ➖ |
 | `cards/babycub.mp3` | Played to the board (over the landing bed) | Baby Cub — play cue (~0.4s). | ⬜ |
-| `cards/badgington.death.mp3` | Dies in combat (over the death bed) | Badgington — death cue (~0.4s). | ⬜ |
-| `cards/badgington.effect.mp3` | onAttack procs (shop or combat) | Badgington — onAttack proc cue (~0.4s). | ⬜ |
-| `cards/badgington.mp3` | Played to the board (over the landing bed) | Badgington — play cue (~0.4s). | ⬜ |
 | `cards/beetle.death.mp3` | Dies in combat (over the death bed) | Runic Beetle — death cue (~0.4s). | ⬜ |
 | `cards/beetle.effect.mp3` | Vanilla — no effect to proc | (vanilla — no clip needed) | ➖ |
 | `cards/beetle.mp3` | Played to the board (over the landing bed) | Runic Beetle — play cue (~0.4s). | ⬜ |
@@ -306,7 +401,7 @@ Each hook is additive and guarded by "clip present?", so it stays silent until y
 | `cards/pack.effect.mp3` | Deathrattle procs (shop or combat) | Mama Pup — Deathrattle proc cue (~0.4s). | ⬜ |
 | `cards/pack.mp3` | Played to the board (over the landing bed) | Mama Pup — play cue (~0.4s). | ⬜ |
 | `cards/packleader.death.mp3` | Dies in combat (over the death bed) | Pack Leader — death cue (~0.4s). | ⬜ |
-| `cards/packleader.effect.mp3` | Start-of-Combat procs (shop or combat) | Pack Leader — Start-of-Combat proc cue (~0.4s). | ⬜ |
+| `cards/packleader.effect.mp3` | on-summon procs (shop or combat) | Pack Leader — Start-of-Combat proc cue (~0.4s). | ⬜ |
 | `cards/packleader.mp3` | Played to the board (over the landing bed) | Pack Leader — play cue (~0.4s). | ⬜ |
 | `cards/philippe.death.mp3` | Dies in combat (over the death bed) | Philippe — death cue (~0.4s). | ⬜ |
 | `cards/philippe.effect.mp3` | onAttack procs (shop or combat) | Philippe — onAttack proc cue (~0.4s). | ⬜ |
@@ -321,14 +416,11 @@ Each hook is additive and guarded by "clip present?", so it stays silent until y
 | `cards/shaper.effect.mp3` | Vanilla — no effect to proc | (vanilla — no clip needed) | ➖ |
 | `cards/shaper.mp3` | Played to the board (over the landing bed) | Wildwood Shaper — play cue (~0.4s). | ⬜ |
 | `cards/solaris.death.mp3` | Dies in combat (over the death bed) | Solaris Fang — death cue (~0.4s). | ⬜ |
-| `cards/solaris.effect.mp3` | onAttack procs (shop or combat) | Solaris Fang — onAttack proc cue (~0.4s). | ⬜ |
+| `cards/solaris.effect.mp3` | avenge procs (shop or combat) | Solaris Fang — onAttack proc cue (~0.4s). | ⬜ |
 | `cards/solaris.mp3` | Played to the board (over the landing bed) | Solaris Fang — play cue (~0.4s). | ⬜ |
 | `cards/spiritpup.death.mp3` | Dies in combat (over the death bed) | Spirit Pup — death cue (~0.4s). | ⬜ |
 | `cards/spiritpup.effect.mp3` | spellCast procs (shop or combat) | Spirit Pup — spellCast proc cue (~0.4s). | ⬜ |
 | `cards/spiritpup.mp3` | Played to the board (over the landing bed) | Spirit Pup — play cue (~0.4s). | ⬜ |
-| `cards/sporebat.death.mp3` | Dies in combat (over the death bed) | Sporebat — death cue (~0.4s). | ⬜ |
-| `cards/sporebat.effect.mp3` | Deathrattle procs (shop or combat) | Sporebat — Deathrattle proc cue (~0.4s). | ⬜ |
-| `cards/sporebat.mp3` | Played to the board (over the landing bed) | Sporebat — play cue (~0.4s). | ⬜ |
 | `cards/squirlscout.death.mp3` | Dies in combat (over the death bed) | Squirl Scout — death cue (~0.4s). | ⬜ |
 | `cards/squirlscout.effect.mp3` | Battlecry procs (shop or combat) | Squirl Scout — Battlecry proc cue (~0.4s). | ⬜ |
 | `cards/squirlscout.mp3` | Played to the board (over the landing bed) | Squirl Scout — play cue (~0.4s). | ⬜ |
@@ -355,6 +447,9 @@ Each hook is additive and guarded by "clip present?", so it stays silent until y
 | `cards/cryptdrake.death.mp3` | Dies in combat (over the death bed) | Crypt Drake — death cue (~0.4s). | ⬜ |
 | `cards/cryptdrake.effect.mp3` | onAttack procs (shop or combat) | Crypt Drake — onAttack proc cue (~0.4s). | ⬜ |
 | `cards/cryptdrake.mp3` | Played to the board (over the landing bed) | Crypt Drake — play cue (~0.4s). | ⬜ |
+| `cards/emissary.death.mp3` | Dies in combat (over the death bed) | Twilight Emissary — death cue (~0.4s). | ⬜ |
+| `cards/emissary.effect.mp3` | Battlecry procs (shop or combat) | Twilight Emissary — Battlecry proc cue (~0.4s). | ⬜ |
+| `cards/emissary.mp3` | Played to the board (over the landing bed) | Twilight Emissary — play cue (~0.4s). | ⬜ |
 | `cards/frontdrake.death.mp3` | Dies in combat (over the death bed) | Bard — death cue (~0.4s). | ⬜ |
 | `cards/frontdrake.effect.mp3` | endOfTurn procs (shop or combat) | Bard — endOfTurn proc cue (~0.4s). | ⬜ |
 | `cards/frontdrake.mp3` | Played to the board (over the landing bed) | Bard — play cue (~0.4s). | ⬜ |
@@ -362,7 +457,7 @@ Each hook is additive and guarded by "clip present?", so it stays silent until y
 | `cards/havendrake.effect.mp3` | Battlecry procs (shop or combat) | Haven Drake — Battlecry proc cue (~0.4s). | ⬜ |
 | `cards/havendrake.mp3` | Played to the board (over the landing bed) | Haven Drake — play cue (~0.4s). | ⬜ |
 | `cards/hoardbreaker.death.mp3` | Dies in combat (over the death bed) | Hoardbreaker Drake — death cue (~0.4s). | ⬜ |
-| `cards/hoardbreaker.effect.mp3` | on-kill procs (shop or combat) | Hoardbreaker Drake — on-kill proc cue (~0.4s). | ⬜ |
+| `cards/hoardbreaker.effect.mp3` | onAttack procs (shop or combat) | Hoardbreaker Drake — on-kill proc cue (~0.4s). | ⬜ |
 | `cards/hoardbreaker.mp3` | Played to the board (over the landing bed) | Hoardbreaker Drake — play cue (~0.4s). | ⬜ |
 | `cards/hunter.death.mp3` | Dies in combat (over the death bed) | Hunter — death cue (~0.4s). | ⬜ |
 | `cards/hunter.effect.mp3` | onGainAttack procs (shop or combat) | Hunter — onGainAttack proc cue (~0.4s). | ⬜ |
@@ -371,7 +466,7 @@ Each hook is additive and guarded by "clip present?", so it stays silent until y
 | `cards/karwind.effect.mp3` | battlecryTriggered procs (shop or combat) | Karwind — battlecryTriggered proc cue (~0.4s). | ⬜ |
 | `cards/karwind.mp3` | Played to the board (over the landing bed) | Karwind — play cue (~0.4s). | ⬜ |
 | `cards/runescale.death.mp3` | Dies in combat (over the death bed) | Runescale Drake — death cue (~0.4s). | ⬜ |
-| `cards/runescale.effect.mp3` | Start-of-Combat procs (shop or combat) | Runescale Drake — Start-of-Combat proc cue (~0.4s). | ⬜ |
+| `cards/runescale.effect.mp3` | spellCast procs (shop or combat) | Runescale Drake — Start-of-Combat proc cue (~0.4s). | ⬜ |
 | `cards/runescale.mp3` | Played to the board (over the landing bed) | Runescale Drake — play cue (~0.4s). | ⬜ |
 | `cards/stuntdrake.death.mp3` | Dies in combat (over the death bed) | Obsidian Drake — death cue (~0.4s). | ⬜ |
 | `cards/stuntdrake.effect.mp3` | avenge procs (shop or combat) | Obsidian Drake — avenge proc cue (~0.4s). | ⬜ |
@@ -462,7 +557,7 @@ Each hook is additive and guarded by "clip present?", so it stays silent until y
 | `cards/aeonguard.effect.mp3` | endOfTurn procs (shop or combat) | Aeon Guard — endOfTurn proc cue (~0.4s). | ⬜ |
 | `cards/aeonguard.mp3` | Played to the board (over the landing bed) | Aeon Guard — play cue (~0.4s). | ⬜ |
 | `cards/banksly.death.mp3` | Dies in combat (over the death bed) | Banksly — death cue (~0.4s). | ⬜ |
-| `cards/banksly.effect.mp3` | goldSpent procs (shop or combat) | Banksly — goldSpent proc cue (~0.4s). | ⬜ |
+| `cards/banksly.effect.mp3` | cardsBought procs (shop or combat) | Banksly — goldSpent proc cue (~0.4s). | ⬜ |
 | `cards/banksly.mp3` | Played to the board (over the landing bed) | Banksly — play cue (~0.4s). | ⬜ |
 | `cards/beatboxer.death.mp3` | Dies in combat (over the death bed) | Beatbot — death cue (~0.4s). | ⬜ |
 | `cards/beatboxer.effect.mp3` | Vanilla — no effect to proc | (vanilla — no clip needed) | ➖ |
@@ -516,7 +611,7 @@ Each hook is additive and guarded by "clip present?", so it stays silent until y
 | `cards/speedy.effect.mp3` | Vanilla — no effect to proc | (vanilla — no clip needed) | ➖ |
 | `cards/speedy.mp3` | Played to the board (over the landing bed) | Speedy — play cue (~0.4s). | ⬜ |
 
-### Demons (51)
+### Demons (54)
 
 | Filename | Trigger | Creative brief | Status |
 |---|---|---|---|
@@ -527,10 +622,10 @@ Each hook is additive and guarded by "clip present?", so it stays silent until y
 | `cards/abyssalfeeder.effect.mp3` | endOfTurn procs (shop or combat) | Abyssal Feeder — endOfTurn proc cue (~0.4s). | ⬜ |
 | `cards/abyssalfeeder.mp3` | Played to the board (over the landing bed) | Abyssal Feeder — play cue (~0.4s). | ⬜ |
 | `cards/acid.death.mp3` | Dies in combat (over the death bed) | Korok, the Hungerer — death cue (~0.4s). | ⬜ |
-| `cards/acid.effect.mp3` | goldSpent procs (shop or combat) | Korok, the Hungerer — goldSpent proc cue (~0.4s). | ⬜ |
+| `cards/acid.effect.mp3` | cardsBought procs (shop or combat) | Korok, the Hungerer — goldSpent proc cue (~0.4s). | ⬜ |
 | `cards/acid.mp3` | Played to the board (over the landing bed) | Korok, the Hungerer — play cue (~0.4s). | ⬜ |
 | `cards/bloodbinder.death.mp3` | Dies in combat (over the death bed) | Bloodbinder — death cue (~0.4s). | ⬜ |
-| `cards/bloodbinder.effect.mp3` | onAttack procs (shop or combat) | Bloodbinder — onAttack proc cue (~0.4s). | ⬜ |
+| `cards/bloodbinder.effect.mp3` | Start-of-Combat procs (shop or combat) | Bloodbinder — onAttack proc cue (~0.4s). | ⬜ |
 | `cards/bloodbinder.mp3` | Played to the board (over the landing bed) | Bloodbinder — play cue (~0.4s). | ⬜ |
 | `cards/brood.death.mp3` | Dies in combat (over the death bed) | Brood Matron — death cue (~0.4s). | ⬜ |
 | `cards/brood.effect.mp3` | Deathrattle procs (shop or combat) | Brood Matron — Deathrattle proc cue (~0.4s). | ⬜ |
@@ -538,6 +633,9 @@ Each hook is additive and guarded by "clip present?", so it stays silent until y
 | `cards/burialimp.death.mp3` | Dies in combat (over the death bed) | Burial Imp — death cue (~0.4s). | ⬜ |
 | `cards/burialimp.effect.mp3` | Deathrattle procs (shop or combat) | Burial Imp — Deathrattle proc cue (~0.4s). | ⬜ |
 | `cards/burialimp.mp3` | Played to the board (over the landing bed) | Burial Imp — play cue (~0.4s). | ⬜ |
+| `cards/chefraag.death.mp3` | Dies in combat (over the death bed) | Chef Raag — death cue (~0.4s). | ⬜ |
+| `cards/chefraag.effect.mp3` | Deathrattle procs (shop or combat) | Chef Raag — Deathrattle proc cue (~0.4s). | ⬜ |
+| `cards/chefraag.mp3` | Played to the board (over the landing bed) | Chef Raag — play cue (~0.4s). | ⬜ |
 | `cards/feed.death.mp3` | Dies in combat (over the death bed) | Soulfeeder — death cue (~0.4s). | ⬜ |
 | `cards/feed.effect.mp3` | Battlecry procs (shop or combat) | Soulfeeder — Battlecry proc cue (~0.4s). | ⬜ |
 | `cards/feed.mp3` | Played to the board (over the landing bed) | Soulfeeder — play cue (~0.4s). | ⬜ |
@@ -548,7 +646,7 @@ Each hook is additive and guarded by "clip present?", so it stays silent until y
 | `cards/heckbinder.effect.mp3` | Vanilla — no effect to proc | (vanilla — no clip needed) | ➖ |
 | `cards/heckbinder.mp3` | Played to the board (over the landing bed) | Heckbinder — play cue (~0.4s). | ⬜ |
 | `cards/impala.death.mp3` | Dies in combat (over the death bed) | Commander Impala — death cue (~0.4s). | ⬜ |
-| `cards/impala.effect.mp3` | on-kill procs (shop or combat) | Commander Impala — on-kill proc cue (~0.4s). | ⬜ |
+| `cards/impala.effect.mp3` | Vanilla — no effect to proc | Commander Impala — on-kill proc cue (~0.4s). | ⬜ |
 | `cards/impala.mp3` | Played to the board (over the landing bed) | Commander Impala — play cue (~0.4s). | ⬜ |
 | `cards/impking.death.mp3` | Dies in combat (over the death bed) | Imp King — death cue (~0.4s). | ⬜ |
 | `cards/impking.effect.mp3` | Deathrattle procs (shop or combat) | Imp King — Deathrattle proc cue (~0.4s). | ⬜ |
@@ -572,10 +670,13 @@ Each hook is additive and guarded by "clip present?", so it stays silent until y
 | `cards/trickster.effect.mp3` | Deathrattle procs (shop or combat) | Trickster — Deathrattle proc cue (~0.4s). | ⬜ |
 | `cards/trickster.mp3` | Played to the board (over the landing bed) | Trickster — play cue (~0.4s). | ⬜ |
 
-### Tokens (102)
+### Tokens (114)
 
 | Filename | Trigger | Creative brief | Status |
 |---|---|---|---|
+| `cards/ashen_heir.death.mp3` | Dies in combat (over the death bed) | Ashen Heir — death cue (~0.4s). | ⬜ |
+| `cards/ashen_heir.effect.mp3` | Deathrattle procs (shop or combat) | Ashen Heir — Deathrattle proc cue (~0.4s). | ⬜ |
+| `cards/ashen_heir.mp3` | Played to the board (over the landing bed) | Ashen Heir — play cue (~0.4s). | ⬜ |
 | `cards/bonetaxer.death.mp3` | Dies in combat (over the death bed) | Bone Taxer — death cue (~0.4s). | ⬜ |
 | `cards/bonetaxer.effect.mp3` | avenge procs (shop or combat) | Bone Taxer — avenge proc cue (~0.4s). | ⬜ |
 | `cards/bonetaxer.mp3` | Played to the board (over the landing bed) | Bone Taxer — play cue (~0.4s). | ⬜ |
@@ -627,6 +728,9 @@ Each hook is additive and guarded by "clip present?", so it stays silent until y
 | `cards/lazarus.death.mp3` | Dies in combat (over the death bed) | Lazarus — death cue (~0.4s). | ⬜ |
 | `cards/lazarus.effect.mp3` | Vanilla — no effect to proc | (vanilla — no clip needed) | ➖ |
 | `cards/lazarus.mp3` | Played to the board (over the landing bed) | Lazarus — play cue (~0.4s). | ⬜ |
+| `cards/mossmemory_colossus.death.mp3` | Dies in combat (over the death bed) | Mossmemory Colossus — death cue (~0.4s). | ⬜ |
+| `cards/mossmemory_colossus.effect.mp3` | Deathrattle procs (shop or combat) | Mossmemory Colossus — Deathrattle proc cue (~0.4s). | ⬜ |
+| `cards/mossmemory_colossus.mp3` | Played to the board (over the landing bed) | Mossmemory Colossus — play cue (~0.4s). | ⬜ |
 | `cards/nanobot.death.mp3` | Dies in combat (over the death bed) | Nanobot — death cue (~0.4s). | ⬜ |
 | `cards/nanobot.effect.mp3` | Vanilla — no effect to proc | (vanilla — no clip needed) | ➖ |
 | `cards/nanobot.mp3` | Played to the board (over the landing bed) | Nanobot — play cue (~0.4s). | ⬜ |
@@ -639,6 +743,9 @@ Each hook is additive and guarded by "clip present?", so it stays silent until y
 | `cards/reconfiguredcombinator.death.mp3` | Dies in combat (over the death bed) | Reconfigured Combinator — death cue (~0.4s). | ⬜ |
 | `cards/reconfiguredcombinator.effect.mp3` | battlecryTriggered procs (shop or combat) | Reconfigured Combinator — battlecryTriggered proc cue (~0.4s). | ⬜ |
 | `cards/reconfiguredcombinator.mp3` | Played to the board (over the landing bed) | Reconfigured Combinator — play cue (~0.4s). | ⬜ |
+| `cards/runesnout_archivist.death.mp3` | Dies in combat (over the death bed) | Runesnout Archivist — death cue (~0.4s). | ⬜ |
+| `cards/runesnout_archivist.effect.mp3` | Deathrattle procs (shop or combat) | Runesnout Archivist — Deathrattle proc cue (~0.4s). | ⬜ |
+| `cards/runesnout_archivist.mp3` | Played to the board (over the landing bed) | Runesnout Archivist — play cue (~0.4s). | ⬜ |
 | `cards/runmaw.death.mp3` | Dies in combat (over the death bed) | Run Maw — death cue (~0.4s). | ⬜ |
 | `cards/runmaw.effect.mp3` | Start-of-Combat procs (shop or combat) | Run Maw — Start-of-Combat proc cue (~0.4s). | ⬜ |
 | `cards/runmaw.mp3` | Played to the board (over the landing bed) | Run Maw — play cue (~0.4s). | ⬜ |
@@ -652,7 +759,7 @@ Each hook is additive and guarded by "clip present?", so it stays silent until y
 | `cards/skybound.effect.mp3` | endOfTurn procs (shop or combat) | Skybound Archivist — endOfTurn proc cue (~0.4s). | ⬜ |
 | `cards/skybound.mp3` | Played to the board (over the landing bed) | Skybound Archivist — play cue (~0.4s). | ⬜ |
 | `cards/spiritworgen.death.mp3` | Dies in combat (over the death bed) | Spirit Worgen — death cue (~0.4s). | ⬜ |
-| `cards/spiritworgen.effect.mp3` | endOfTurn procs (shop or combat) | Spirit Worgen — endOfTurn proc cue (~0.4s). | ⬜ |
+| `cards/spiritworgen.effect.mp3` | on-summon procs (shop or combat) | Spirit Worgen — endOfTurn proc cue (~0.4s). | ⬜ |
 | `cards/spiritworgen.mp3` | Played to the board (over the landing bed) | Spirit Worgen — play cue (~0.4s). | ⬜ |
 | `cards/stray.death.mp3` | Dies in combat (over the death bed) | Stray — death cue (~0.4s). | ⬜ |
 | `cards/stray.effect.mp3` | Vanilla — no effect to proc | (vanilla — no clip needed) | ➖ |
@@ -672,6 +779,9 @@ Each hook is additive and guarded by "clip present?", so it stays silent until y
 | `cards/trailforager.death.mp3` | Dies in combat (over the death bed) | Trail Forager — death cue (~0.4s). | ⬜ |
 | `cards/trailforager.effect.mp3` | Vanilla — no effect to proc | (vanilla — no clip needed) | ➖ |
 | `cards/trailforager.mp3` | Played to the board (over the landing bed) | Trail Forager — play cue (~0.4s). | ⬜ |
+| `cards/trainingdummy.death.mp3` | Dies in combat (over the death bed) | Training Dummy — death cue (~0.4s). | ⬜ |
+| `cards/trainingdummy.effect.mp3` | Vanilla — no effect to proc | (vanilla — no clip needed) | ➖ |
+| `cards/trainingdummy.mp3` | Played to the board (over the landing bed) | Training Dummy — play cue (~0.4s). | ⬜ |
 | `cards/trophystalker.death.mp3` | Dies in combat (over the death bed) | Trophy Stalker — death cue (~0.4s). | ⬜ |
 | `cards/trophystalker.effect.mp3` | onAttack procs (shop or combat) | Trophy Stalker — onAttack proc cue (~0.4s). | ⬜ |
 | `cards/trophystalker.mp3` | Played to the board (over the landing bed) | Trophy Stalker — play cue (~0.4s). | ⬜ |

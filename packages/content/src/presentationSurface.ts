@@ -27,7 +27,7 @@ const runeKey = (r: RuneDef): string => {
   // `applyEndOfTurn` is where they emit) but bucketed as `:recruit`, so the key gameplay emits didn't match
   // the key the registry classified. Phase must be TRUTHFUL — an emitter cannot stamp a phase-lie just to
   // find a registry row.
-  if (kinds.includes('recurringEndOfTurn') || kinds.some((k) => /lapidary|crucibleChoir|runeCoffers|runeShopkeep/i.test(k))) return `rune:${r.id}:endOfTurn`;
+  if (kinds.includes('recurringEndOfTurn') || kinds.some((k) => /lapidary|crucibleChoir|runeCoffers|runeShopkeep|lastingCadence|combatProwess/i.test(k))) return `rune:${r.id}:endOfTurn`;
   if (kinds.includes('combatFlag')) return `rune:${r.id}:combat`;
   if (kinds.every((k) => k === 'grant' || k === 'gildRandom' || k === 'gold' || k === 'discover')) return `rune:${r.id}:onAcquire`;
   return `rune:${r.id}:recruit`;
@@ -135,6 +135,9 @@ export const SYSTEM_SURFACE: SurfaceEntry[] = [
   // An End-of-Turn Discover that auto-resolves (Moira re-firing Black Belt Brian) grants its pick on this beat,
   // so it coalesces into the hand during End-of-Turn playback instead of at the combat hand-off.
   { key: 'system:eotDiscover:grant', users: ['blackbelt'] },
+  // A WELDED rally (Better Bot's Mech Attack / Perfect Core's spell conjure) paying out inside a shop rally
+  // (Rune of Lasting Cadence at End of Turn) — folded into the rallying minion's own beat.
+  { key: 'system:shopRally:weld', users: ['better_bot', 'perfect_core'] },
 ];
 
 /** Every presentation key the live content produces, with its producers. Deterministic order (sorted). */

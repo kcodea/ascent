@@ -35,6 +35,36 @@ describe('liveCardText — the single source of truth shared by shop + combat', 
     expect(liveCardText('chefraag', base).text).toBe(CARD_INDEX['chefraag']!.text);
   });
 
+  it('Ancient Wanderer prints the bonus it HAS right now, at two different run Gold totals', () => {
+    // The rune-only batch's live-text card (2026-08-20). "+1/+1 for every 3 Gold you have spent this run" is a
+    // RATE; what the card must print is the stat block it is carrying. `goldSpentRun` is the run-lifetime meter
+    // — deliberately NOT the per-turn `goldSpent` every other helper here reads.
+    const at9 = liveCardText('n2_wanderer', { ...base, goldSpentRun: 9 }).text;
+    const at31 = liveCardText('n2_wanderer', { ...base, goldSpentRun: 31 }).text;
+    expect(at9, '9 Gold = 3 steps').toContain('{{+3/+3}}');
+    expect(at9, '…and the countdown to the next step').toContain('{{3 more}}');
+    expect(at31, '31 Gold = 10 steps').toContain('{{+10/+10}}');
+    expect(at31).toContain('{{2 more}}');
+    expect(at9, 'the two totals must not print the same thing').not.toBe(at31);
+    // Nothing spent (a fresh run, or a combat ENEMY Wanderer — no run is threaded) → the printed rate stands.
+    expect(liveCardText('n2_wanderer', base).text).toBe(CARD_INDEX['n2_wanderer']!.text);
+    // Golden doubles the printed value, not just the stats.
+    expect(liveCardText('n2_wanderer', { ...base, golden: true, goldSpentRun: 9 }).text).toContain('{{+6/+6}}');
+  });
+
+  it('Muster General prints its Trooper’s CURRENT stat line, and Skybound Ascendant the tier it can reach', () => {
+    // Two more from the same batch whose printed numbers move with state: the General's token is 1/1 only until
+    // its first Avenge (the improve rides `summonBonus`), and the Ascendant's ceiling is the RUN's.
+    expect(liveCardText('n2_muster', { ...base, summonBonus: 3 }).text).toContain('{{4/4}} Trooper');
+    expect(liveCardText('n2_muster', base).text, 'no Avenge yet → the printed 1/1 is accurate').toBe(CARD_INDEX['n2_muster']!.text);
+    // Without Tier-7 access the printed promise is a lie — it prints the honest six instead.
+    expect(liveCardText('d2_ascendant', base).text).toContain('{{Tier 6}}');
+    expect(liveCardText('d2_ascendant', { ...base, tier7Access: true }).text, 'with access the printed 7 stands')
+      .toBe(CARD_INDEX['d2_ascendant']!.text);
+    expect(liveCardText('d2_ascendant', { ...base, golden: true }).text, 'the golden variant is clamped too')
+      .toContain('{{Tier 6}}');
+  });
+
   it('folds in Ritualist’s per-tick grant + the run-wide Eternal Knight tally (metric append) in one call', () => {
     expect(liveCardText('ritualist', { ...base, eotBonus: 6 }).text).toContain('{{+7/+7}}'); // accrued 6 + step 1 (non-golden)
     // Eternal Knight (knit): run-wide card-type enchant shows as an appended metric, now available in combat too.

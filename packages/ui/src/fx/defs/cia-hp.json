@@ -8,11 +8,11 @@
       "anchor": "target",
       "at": 0,
       "params": {
-        "rate": 90,
-        "life": 3800,
+        "rate": 105,
+        "life": 2370,
         "spread": 0.03,
-        "speed": 55,
-        "speedVar": 0,
+        "speed": 65,
+        "speedVar": 0.73,
         "reverse": false,
         "speedCurve": [
           [
@@ -24,24 +24,24 @@
             0
           ]
         ],
-        "gravity": 10,
+        "gravity": 40,
         "orientToVelocity": false,
-        "turbulence": 0,
-        "turbScale": 0.02,
-        "fieldPhase": 0.69,
+        "turbulence": 5,
+        "turbScale": 0.054,
+        "fieldPhase": 0.88,
         "emitShape": "ring",
-        "emitRadius": 74,
+        "emitRadius": 79,
         "emitFill": false,
         "emitDensity": 400,
         "emitPoints": [],
         "squashX": 0.84,
-        "squashY": 1.12,
+        "squashY": 1.02,
         "offsetX": 0,
-        "offsetY": 0,
+        "offsetY": 22,
         "inheritVel": 0,
-        "shape": "diamond",
-        "size": 8,
-        "sizeVar": 0.47,
+        "shape": "art:spade-2",
+        "size": 4,
+        "sizeVar": 0.62,
         "stretchX": 1,
         "stretchY": 1,
         "sizeCurve": [
@@ -50,11 +50,15 @@
             1
           ],
           [
+            0.5693189980426547,
+            0
+          ],
+          [
             1,
             0
           ]
         ],
-        "coreBias": 0.5,
+        "coreBias": 0,
         "biasCurve": [
           [
             0,
@@ -68,31 +72,35 @@
         "alphaCurve": [
           [
             0,
-            1
+            0.4809243309264215
+          ],
+          [
+            0.501004874205163,
+            0.4001349337848693
           ],
           [
             1,
-            1
+            0.023114779376609995
           ]
         ],
-        "bands": 3,
-        "plateau": 0.3,
+        "bands": 6,
+        "plateau": 0,
         "fieldMix": 0,
         "tintMode": "palette",
-        "fadeIn": 0.1,
+        "fadeIn": 0.08,
         "palette": [
-          11731006,
-          16747181,
-          15769855,
+          11730971,
+          16745897,
+          16761538,
           16777215
         ],
-        "blendMode": "normal",
-        "glow": 0,
+        "blendMode": "add",
+        "glow": 0.08,
         "noiseScale": 0.5,
         "warp": 0,
         "scroll": 0,
-        "erode": 0.78,
-        "gain": 2
+        "erode": 0,
+        "gain": 1.24
       }
     }
   ]

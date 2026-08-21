@@ -211,10 +211,11 @@ describe('Dunkey — avenge counting includes its own summons', () => {
 
 // ── Summon-entry ORDER (owner ruling 2026-08-12): auras FIRST, then augmenters left→right ─────────────────
 describe('summon-entry order — auras land before the augmenting triggers', () => {
-  it("the owner's worked example: Grim aura → 8/10 Cub, THEN Oona doubles the post-aura Attack", () => {
+  it("the owner's worked example: Grim aura → 8/10 Cub, THEN Oona doubles the post-aura stats", () => {
     // Grim (1/1) dies first (leftmost, dies to the wall's retaliation) → +8/+8 Beast aura armed. Void Panther
-    // dies → 0/2 Void Cub arrives → aura first (8/10) → Oona doubles its POST-aura Attack: +8/+0. Under the
-    // old order Oona read the pre-aura 0-Attack body and granted nothing at all.
+    // dies → 0/2 Void Cub arrives → aura first (8/10) → Oona doubles its POST-aura stats: +8/+10 (owner
+    // 2026-08-21: both stats again — the Attack-only trial ended). Under the old order Oona read the
+    // pre-aura 0-Attack body and granted nothing at all.
     const r = sim([
       bm('grim', 'G', 1, 1), bm('manasaber', 'VP', 4, 1), bm('b2_oona', 'O', 0, 999999),
     ], {}, 3);
@@ -225,7 +226,7 @@ describe('summon-entry order — auras land before the augmenting triggers', () 
     const grimUid = uidOf(r, 'grim');
     const oonaUid = uidOf(r, 'b2_oona');
     expect(cubBuffs.some((b) => b.source === grimUid && b.attack === 8 && b.health === 8), 'Grim aura +8/+8').toBe(true);
-    expect(cubBuffs.some((b) => b.source === oonaUid && b.attack === 8 && b.health === 0), 'Oona doubled the POST-aura 8 Attack').toBe(true);
+    expect(cubBuffs.some((b) => b.source === oonaUid && b.attack === 8 && b.health === 10), 'Oona doubled the POST-aura 8/10').toBe(true);
   });
 
   it('Rune of the Jungle doubles the POST-aura Health too', () => {

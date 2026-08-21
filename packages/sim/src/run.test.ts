@@ -564,6 +564,36 @@ describe('run loop (@game/sim)', () => {
     expect(s.squirlScoutBuff).toBe(2);
   });
 
+  it('Conductor: Shout buffs the two ADJACENT minions, snowballing +2/+3 per Conductor played', () => {
+    let s: RunState = {
+      ...createRun(1),
+      board: [
+        { uid: 'a', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false },
+        { uid: 'b', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false },
+      ],
+      hand: [
+        { uid: 'c1', cardId: 'n2_conductor', tribe: 'neutral', attack: 2, health: 4, keywords: [], golden: false },
+        { uid: 'c2', cardId: 'n2_conductor', tribe: 'neutral', attack: 2, health: 4, keywords: [], golden: false },
+        { uid: 'c3', cardId: 'n2_conductor', tribe: 'neutral', attack: 4, health: 8, keywords: [], golden: true },
+      ],
+    };
+    // Played BETWEEN the two: both neighbours get the first grant, +2/+3.
+    s = reduce(s, { type: 'play', uid: 'c1', toIndex: 1 });
+    expect(s.conductorBuff).toBe(1);
+    expect(s.board.map((c) => [c.attack, c.health])).toEqual([[3, 4], [2, 4], [3, 4]]);
+    // The second Conductor, played on the LEFT edge: one neighbour only, and the grant snowballed to +4/+6.
+    s = reduce(s, { type: 'play', uid: 'c2', toIndex: 0 });
+    expect(s.conductorBuff).toBe(2);
+    expect(s.board[1]!.attack).toBe(3 + 4); // the old left minion took the new +4/+6
+    expect(s.board[1]!.health).toBe(4 + 6);
+    expect(s.board[2]!.attack).toBe(2); // the middle Conductor is NOT adjacent to the edge play
+    // A GILDED Conductor weighs its improve double: buff 2 → 4, and grants +8/+12 to its neighbours.
+    s = reduce(s, { type: 'play', uid: 'c3', toIndex: 4 });
+    expect(s.conductorBuff).toBe(4);
+    expect(s.board[3]!.attack).toBe(3 + 8); // the right Pennycat (already +2/+3 from play one)
+    expect(s.board[3]!.health).toBe(4 + 12);
+  });
+
   it('buying an Undead/Beast bakes the run-wide Attack aura exactly once (no double-count)', () => {
     // Undead buy: undeadBuyAtk applied once (previously double-counted at buy).
     let u: RunState = { ...createRun(1), embers: 10, undeadBuyAtk: 3, shop: [{ uid: 'o', cardId: 'karthus' }] };

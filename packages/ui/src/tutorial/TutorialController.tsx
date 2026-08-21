@@ -325,12 +325,21 @@ export function TutorialController(): JSX.Element | null {
     // A dismissible free-play step whose panel the player closed with "Got it": hide the panel, keep everything
     // else (no scrim, gate still open) so they can play until they End Turn.
     const panelDismissed = !!step.dismissible && dismissed;
+    // WATCH THE FIGHT, THEN READ (owner report 2026-08-20: "the next step shows below the board — hide it until
+    // after combat so the player focuses on the combat itself"). A debrief's completion is `returnedToShop`, so
+    // it activates the moment the fight STARTS and its panel then sat parked at the bottom of the screen for the
+    // whole fight, competing with the combat it is supposed to be summarising.
+    //
+    // Scoped to `confirm` deliberately. A `predict` step is the opposite case — its entire job is to name what
+    // to watch for BEFORE it happens ("Packstrider is about to attack…"), and it holds at an authored safe
+    // boundary to do it. Hiding those would delete the lesson rather than protect it.
+    const heldForCombat = combatAnimating && step.focusMode === 'confirm';
     return {
       cutouts: clearScreen ? [] : cutouts,
       connector: combatAnimating ? undefined : connector,
       combat: step.phase === 'combat',
       dim: clearScreen ? 0 : undefined,
-      panel: panelDismissed ? undefined : {
+      panel: panelDismissed || heldForCombat ? undefined : {
         anchorRect: combatAnimating ? bottomAnchor : primaryRect, // parked at the bottom while the fight plays
         title: step.title,
         body: step.body,

@@ -312,4 +312,47 @@ export const SET2_DEMONS: CardDef[] = [
     text: '**Critical Strike (50%).** When a friendly **Demon** deals damage, gain **+3/+3** permanently.',
     goldenText: '**Critical Strike (50%).** When a friendly **Demon** deals damage, gain **+6/+6** permanently.',
   },
+  {
+    // -- RUNE-ONLY (Source: Rune), owner batch 2026-08-20 --------------------------------------------------
+    // NIGHT MARKET HORROR - it doesn't buff YOUR board, it buffs the SHOP, so the payoff is a second purchase
+    // this turn. THIS TURN, not this ROW (owner correction 2026-08-20): the grant is banked in the per-turn
+    // shop-wide channel `tavernBuyBonusTurn` (Rune of the Merchant's Chorus's), so it survives ROLLING the
+    // shop - every fresh offer inherits it - and it is gone at the turn rollover, after combat. The permanent
+    // sibling is `tavernBuyBonus`, which is what "minions in the Shop" with no qualifier would mean.
+    //
+    // Subscribed to BOTH buy events: `onBuy` is minions-only by contract, and the card says "a card", so the
+    // spell-buy half rides `spellBought` rather than widening what every other buy watcher sees.
+    id: 'dm_nightmarket',
+    name: 'Night Market Horror',
+    tribe: 'demon',
+    tier: 5,
+    attack: 4,
+    health: 4,
+    keywords: [],
+    token: true, // forge-only: Source = Rune
+    effects: [
+      { on: 'onBuy', do: 'buffShopOffersThisTurn', params: { attack: 2, health: 2 } },
+      { on: 'spellBought', do: 'buffShopOffersThisTurn', params: { attack: 2, health: 2 } },
+    ],
+    text: 'After you buy a card, give minions in the shop **+2/+2 this turn**.',
+    goldenText: 'After you buy a card, give minions in the shop **+4/+4 this turn**.',
+  },
+  {
+    // ARCANE BEHEMOTH (rune-only, owner batch 2026-08-20; effect REPLACED by the owner 2026-08-20) - the
+    // Demon build's cash-out: every Demon you sell rides into it. The watcher side of the sale
+    // (`minionSold`, fired by `fireOnMinionSold` for every BOARD minion) rather than the sold card's own
+    // `onSell`, because the reactor is a bystander. "A Demon" is `isTribe`, the ONE membership test - so a
+    // second tribe and an "All types" body both count (owner: "this would work with all types as well").
+    id: 'dm_behemoth',
+    name: 'Arcane Behemoth',
+    tribe: 'demon',
+    tier: 6,
+    attack: 6,
+    health: 10,
+    keywords: [],
+    token: true, // forge-only: Source = Rune
+    effects: [{ on: 'minionSold', do: 'minionSoldDemonGainStats', params: { tribe: 'demon' } }],
+    text: 'When you sell a **Demon**, this gains its stats.',
+    goldenText: 'When you sell a **Demon**, this gains **double** its stats.',
+  },
 ];

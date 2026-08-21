@@ -16,7 +16,7 @@ import type {
   Side,
   Tribe,
 } from '../types';
-import { ALE_IDS, alignAllows, extraTriggerFires } from '../types';
+import { ALE_IDS, alignAllows, extraTriggerFires, foldEchoExtraFires, socTwilightExtraFires } from '../types';
 import type { Rng } from '../rng';
 import { CombatBus } from '../events';
 import { FACTORIES, playRubyOn, castInCombat, combatCastable, resolveCombatSpellCast, replayCombatBattlecry, SILENT_ONPLAY } from '../effects/factories';
@@ -152,6 +152,11 @@ export function simulate(
   let uidCounter = 0;
   const mkUid = (): string => `m${uidCounter++}`;
   const handGrants: string[] = []; // cards the player's deathrattles add to hand after combat
+  /** Rune of Grave Refreshment's per-side Echo counter. Combat-local: the rune reads "in combat", so the
+   *  remainder is deliberately NOT banked across fights. */
+  const echoRefreshTick: Record<Side, number> = { player: 0, enemy: 0 };
+  /** Rune of the Returning Pack's per-side Beast-summon counter. Combat-local for the same reason. */
+  const packSummonTick: Record<Side, number> = { player: 0, enemy: 0 };
   let slaughterCopyId: string | undefined; // Rune of the Trophy: the first friendly slaughterer's card id
   const spellPowerGain = { attack: 0, health: 0 }; // run-wide spell-power gained this combat (Skullblade)
   const rubyGrants = { n: 0 }; // Set 2 — Rubies to mint into hand after combat (Rikk / Gemline), carried back
@@ -1400,6 +1405,19 @@ export function simulate(
       }
       if (cards[minion.cardId]?.imp) { playerImpsSummoned += 1; questEvents.push({ step: stepN, kind: 'summonImp', tribes: [] }); } // Imp Census / Implosion / Pit Without End
     }
+    // RUNE OF THE RETURNING PACK: every Nth BEAST you summon this combat hands over a random Beast next shop.
+    // Counted at this single summon chokepoint, so a token, a Rise and a resummon each count exactly once —
+    // the same contract the Remains / Reinvestment counters above rely on. Player-only: `grantRandomMinion`
+    // rides `playerHandGrants`, and a served enemy has no hand.
+    const packN = side === 'player' ? (modsFor('player').runeReturningPack ?? 0) : 0;
+    if (packN > 0 && minion.side === 'player'
+        && (minion.tribe === 'beast' || minion.tribe2 === 'beast' || !!cards[minion.cardId]?.universalTribe)) {
+      packSummonTick.player += 1;
+      if (packSummonTick.player % packN === 0) {
+        fireTrigger('runeReturningPack', 'player');
+        ctx.grantRandomMinion(1, 'beast', 'player', undefined, minion.uid);
+      }
+    }
     // RUNE OF EMBERLINE, the paying half: the next Imp to arrive inherits the banked stats, once per combat.
     if (modsFor(side).runeEmberline && !emberlinePaid[side] && emberlineBank[side] && cards[minion.cardId]?.imp
         && !minion.dead) {
@@ -1470,6 +1488,15 @@ export function simulate(
       // and this rune, like Aftershocks, is combat-scoped.) `fireTrigger` bursts the rune's badge (#1102) —
       // it now fires on forced Echoes too, which is the point: the badge should burst whenever it pays.
       if (source && modsFor(side).runeBurrow && isBeast(source)) { fireTrigger('runeBurrow', side); ctx.grantFreeRolls(1, side); }
+      // RUNE OF GRAVE REFRESHMENT: every Nth friendly Echo TRIGGER banks a free Shop refresh for next turn.
+      // The same chokepoint as the Burrow above (not the death site), so a forced Echo — Echohorn, Hawkus,
+      // Spots, the Herald — counts exactly like one that came from dying. The meter is combat-local: it
+      // measures "in combat", so it starts fresh each fight rather than banking a remainder across the course.
+      const graveN = modsFor(side).runeGraveRefreshment ?? 0;
+      if (graveN > 0) {
+        echoRefreshTick[side] += 1;
+        if (echoRefreshTick[side] % graveN === 0) { fireTrigger('runeGraveRefreshment', side); ctx.grantFreeRolls(1, side); }
+      }
       // WRAP ONE ECHO **TRIGGER** — never one EFFECT and never one WATCHER. Aftershocks grants +4/+4 to the
       // whole board here, so every extra wrap is a whole extra board buff. Both ways of getting that wrong
       // shipped and produced the owner's "continuously triggers after attacks" (2026-08-09):
@@ -1714,25 +1741,26 @@ export function simulate(
   // the fight. Enemy echoes only see Sylus (quest mods are player-only). Consumes the first-echo bonus (once per
   // combat), so call ONLY for a minion that actually has a Deathrattle.
   function playerEchoExtras(minion: Minion): number {
-    let bonus = 0;
-    // Sylus (stacking) + Uron (best-copy) both live here now — resolved from card DATA rather than a
-    // hardcoded id, so a new multiplier is a card field and not another branch in this function.
+    // Sylus (stacking) + Uron (best-copy) — resolved from card DATA rather than a hardcoded id, so a new
+    // multiplier is a card field and not another branch in this function.
     // `!m.dead` (NOT `health > 0`): a doubler that took lethal damage from the very Echo it is doubling — a
     // gilded Fel Spikes sprays its own non-Demon Sylus to ≤0 on the base fire — is mid-DEFERRED-death, still on
     // the board, and was alive when the Deathrattle triggered, so it must still double (owner report
     // 2026-08-21: gilded + Sylus should fire "4 twice, twice"). Outside a defer scope nothing sits at
     // ≤0-not-dead, so this is identical to the old filter for every non-spraying Deathrattle.
-    bonus += extraTriggerFires('deathrattle', boards[minion.side].filter((m) => !m.dead), (id) => cards[id]);
+    const reaperExtras = extraTriggerFires('deathrattle', boards[minion.side].filter((m) => !m.dead), (id) => cards[id]);
     // Elderhorn (Ritual): BEAST Echoes fire an extra time (tribe-scoped, so it never touches other tribes).
-    if (isTribeOf(minion, 'beast', cards)) {
-      bonus += (minion.side === 'player' ? playerState.beastRitualExtra ?? 0 : enemyState.beastRitualExtra ?? 0)
-        + beastExtraGain[minion.side].ritual; // a mid-fight Elderhorn re-fire counts from now on
-    }
+    const beastRitualExtra = isTribeOf(minion, 'beast', cards)
+      ? (minion.side === 'player' ? playerState.beastRitualExtra ?? 0 : enemyState.beastRitualExtra ?? 0)
+        + beastExtraGain[minion.side].ritual // a mid-fight Elderhorn re-fire counts from now on
+      : 0;
     const mods = modsFor(minion.side); // per-side: a served enemy's Funeral Engine / Grave Contract doublers apply too
-    bonus += mods.echoExtraAlways ?? 0;
     const first = mods.echoFirstEachCombat ?? 0;
-    if (first > 0 && !firstEchoDone[minion.side]) { fireTrigger('runeCatacomb', minion.side); bonus += first; firstEchoDone[minion.side] = true; }
-    return bonus;
+    let firstEchoBonus = 0;
+    if (first > 0 && !firstEchoDone[minion.side]) { fireTrigger('runeCatacomb', minion.side); firstEchoBonus = first; firstEchoDone[minion.side] = true; }
+    // The SAME fold the recruit-side Echo path uses (`fireRecruitDeathrattles`) — one definition of the
+    // Echo-multiplier set across both phases (owner principle 2026-08-20).
+    return foldEchoExtraFires({ reaperExtras, beastRitualExtra, echoExtraAlways: mods.echoExtraAlways ?? 0, firstEchoBonus });
   }
 
   // How many EXTRA times a player minion's Rally (on-attack effects) fires beyond the base trigger — every
@@ -2922,9 +2950,13 @@ export function simulate(
         });
       }
     }
-    // Rune of Twilight: Start-of-Combat effects trigger an ADDITIONAL time — a second SoC pass for this board.
-    if (rmods.runeTwilight) {
-      let twilightFired = false; // one badge pulse announcing the extra SoC pass (on its first effect's beat)
+    // Rune of Twilight: Start-of-Combat effects trigger an ADDITIONAL time — extra SoC pass(es) for this
+    // board. The pass count comes from `socTwilightExtraFires`, THE shared definition the shop End-of-Turn
+    // replay (Rune of Combat Prowess) also consults — owner reversal 2026-08-20: the two runes STACK, so the
+    // count must have one home. One extra pass today; the loop keeps this byte-identical while letting the
+    // definition grow.
+    let twilightFired = false; // one badge pulse announcing the extra SoC pass (on its first effect's beat)
+    for (let twPass = 0; twPass < socTwilightExtraFires(rmods); twPass++) {
       for (const minion of [...boards[rside]]) {
         if (minion.dead || minion.health <= 0) continue;
         for (const effect of minion.effects) {
@@ -3359,6 +3391,25 @@ export function simulate(
     // permanent carry-back all ride for free.
     nextStep();
     ctx.gainRubyBonus(0, 1, side, undefined);
+  });
+  // RUNE OF SHIFTING FACETS: the Engraving's Avenge with a MOVING axis. The axis in force is decided in the
+  // shop (it alternates at every turn setup) and rides in on the mod, so a fight always resolves the half the
+  // rune card was advertising. Same `gainRubyBonus` channel, so the narration, flourish and carry-back are free.
+  runeAvenge(3, 'runeShiftingFacets', (m) => !!m.runeShiftingFacets, (side) => {
+    const axis = modsFor(side).runeShiftingFacets;
+    if (!axis) return;
+    nextStep();
+    ctx.gainRubyBonus(axis === 'attack' ? 1 : 0, axis === 'health' ? 1 : 0, side, undefined);
+  });
+  // RUNE OF THE DEEPENING VEIN: Engraving + Gemstorm in one Avenge — improve Rubies on BOTH axes, then play a
+  // real Ruby on every friendly Kobold (the `playRubyOn` primitive, so the Paragon multiplier, the target's
+  // on-Ruby watchers and the Spellstone cast-count all fire). Improving FIRST is deliberate: the Rubies it
+  // plays are worth the new, larger line.
+  runeAvenge(3, 'runeDeepeningVein', (m) => !!m.runeDeepeningVein, (side) => {
+    nextStep();
+    ctx.gainRubyBonus(1, 1, side, undefined);
+    const kobolds = boards[side].filter((m) => !m.dead && m.health > 0 && (m.tribe === 'kobold' || m.tribe2 === 'kobold' || !!cards[m.cardId]?.universalTribe));
+    for (const k of kobolds) playRubyOn(ctx, k, k, 1);
   });
   runeAvenge(2, 'runeGemstorm', (m) => !!m.runeGemstorm, (side) => {
     // "PLAY 2 Rubies", so it goes through the real Ruby-play primitive — which folds in the side's Ruby

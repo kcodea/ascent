@@ -35,10 +35,14 @@ export function evalPredicate(pred: TutorialPredicate, ctx: TutorialContext): bo
       return sawEvent(events, (e) => e.type === 'froze');
     case 'reordered':
       return sawEvent(events, (e) => e.type === 'reordered');
+    case 'cardAtSlot':
+      return run.board[pred.index]?.cardId === pred.cardId;
     case 'castSpell':
       return sawEvent(events, (e) => e.type === 'castSpell' && (pred.cardId === undefined || e.cardId === pred.cardId));
     case 'heroPowerUsed':
       return sawEvent(events, (e) => e.type === 'heroPowerUsed');
+    case 'heroPowerReady':
+      return run.heroReady;
     case 'tierAtLeast':
       return run.tier >= pred.tier;
     case 'gilded':

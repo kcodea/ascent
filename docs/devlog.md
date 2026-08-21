@@ -1,228 +1,847 @@
-# ASCENT — development log
+# ASCENT — development log (ARCHIVE through 2026-08-20)
 
-## 2026-08-21 — Fel Spikes polish: every volley fires, tighter timing, held slot, doubler-dying fix
+> **Do not add entries here.** New entries are one file each in **[`devlog/`](devlog/)** —
+> see [`devlog/README.md`](devlog/README.md). Prepending to this file is what made every concurrent
+> session conflict on the same line; the split exists to end that. This archive stays as-is for reading,
+> newest first.
 
-Final pass on the Fel Spikes Echo, tuned live with the owner.
 
-- **Every volley fires (presentation bug).** The spike volleys are scheduled up-front from the death beat, but
-  their timers lived in the per-beat `timers` array — cleared on every beat advance. Widening the skull→spray
-  gap made the beat advance BEFORE the 3rd/4th volleys fired, so a gilded+Sylus spray silently dropped them.
-  Moved the volley timers into a combat-lifetime registry (`echoVolleyTimersRef`, cleared only on reset/seek via
-  `cancelPendingRolls`) so every volley fires and a scrub still cancels the pending ones.
-- **Timing.** Each volley's number now lands as ITS spike strikes (per-volley, climbing) rather than all at the
-  last spike; `ECHO_IMPACT_BUFFER_MS` 150 → **80** (the number rides the burst's brightest frame), and the
-  skull→spray gap `ECHO_LAUNCH_DELAY_MS` 100 → **400** (the skull reads on its own before the spray). Both slide
-  the launch + the numbers together; travel + climb spacing unchanged.
-- **Held slot (reflow bug).** The 400ms gap made the death beat long enough that the dying unit's slot-collapse
-  fully ran — survivors slid into the gap — then the ghost re-held the slot and they slid back. New `holdecho`
-  modifier CANCELS a launchOnDeath sprayer's slot-collapse (the card still fades) so its slot stays full through
-  the whole spray; survivors reflow ONCE, when the ghost is dropped after the last volley.
-- **ENGINE (Kevin's seam) — a doubler dying to the Echo it doubles still doubles it.** A gilded Fel Spikes
-  sprays its own non-Demon Sylus to ≤0 on the base fire; the deferred-death scope keeps Sylus on the board (not
-  dead), but `playerEchoExtras` counted only `health > 0`, so the ≤0 Sylus was dropped and its re-fire never
-  happened. Filter widened to `!m.dead`: a doubler alive at the trigger, now mid-deferred-death from the very
-  spray it doubles, still doubles → gilded + Sylus fires "4 twice, twice" (4 volleys). Identical to the old
-  behaviour outside a defer scope (nothing else sits at ≤0-not-dead).
+## 2026-08-20 — the agent contract stops describing a retired game
 
-Verified: new `simulate.test.ts` doubler case (gilded Fel Spikes + a 6-HP Sylus → 4 waves; was 2). Full suite
-(5934) + determinism harness (identical) + typecheck (pkgs + web) + lint (0 errors) + build:web all green.
+`CLAUDE.md` still opened with "a **17-round course** of enemy boards — the central success contract is
+**covering the rating-driven Line**." The live `Play` route is the eight-seat elimination lobby and has been
+for weeks. That is not cosmetic: an agent reasoning from that sentence makes structurally wrong calls about
+matchmaking, scoring, replays and telemetry — the replay v2 spec had to re-derive "the only game mode is
+lobby" from scratch because the contract did not say it.
 
-## 2026-08-20 — FX: Fel Spikes' volley number CLIMBS per spike (4 → 8), then resolves after
+Corrected, with every claim re-verified against code first:
 
-Presentation half of #2a (owner ask: "the number to aggregate for each fire of damage until it reaches its
-final sum. then everything resolves after"). Now that the engine keeps a victim on the board through the whole
-spray (the deferred-death scope), each volley's number can land as ITS spike connects instead of all at once.
+- **`CLAUDE.md`** opens on the lobby: 8 seats, seat 0 is the player, ONE authoritative `simulate()` per
+  encounter supplying both sides' damage, Armor before Resolve, placement drives Rating, asynchronous by
+  design. A standing ⚠️ block names the retired constants (`courseRounds`, `defaultLine`,
+  `calibrationRounds`, `metLine`) as LEGACY-BUT-LIVE — still read by tools, old replays and non-lobby modes —
+  with the rule "never infer current behaviour from a legacy symbol alone", and states that `maxRounds: 60`
+  is a stalemate backstop rather than a course length.
+- **`docs/GAME-RULES.md`** — the course + Line sections replaced by the verified lobby model
+  (`DEFAULT_LOBBY_RULES`: `seatCount: 8`, `startingResolve: 30`, `startingArmor: 15`, `maxRounds: 60`).
+  Matchmaking now says plainly that a lobby faces the PAIRED SEAT, and that the pool-based `pickOpponent`
+  path serves only non-lobby modes — which is exactly why injecting served boards into a lobby replay
+  changed nothing. The loss-damage cap is restated without "the finale", since a long lobby is simply
+  uncapped past round 15.
+- **`README.md`** opening + **`package.json`** description. The description also carried a **mojibake
+  em-dash** (`â€”`, a UTF-8-as-latin1 round trip) that predates this change — now real UTF-8.
 
-- **Climbing float** (`choreo/channels/float.ts`): a wave-tagged AoE `dmg` with a source now shows the RUNNING
-  TOTAL to that victim under a STABLE id (the first volley's event index) — so the second spike UPDATES the
-  same number in place (4 → 8) rather than stacking a fresh pop. `useCombatReplay`'s `onFloats` upserts by id
-  (a re-spawn replaces the prior float); non-climbing floats keep fresh event-index ids, so they still append.
-- **Per-volley timing** (`echoDeliveryLead`): dropped the "hold ALL damage until the LAST spike" batching. The
-  first volley's number lands as its spike connects (`launch + travel + buffer`); each later volley holds one
-  `ECHO_PASS_GAP_MS` so its number climbs as ITS spike lands. Deaths stay deferred to the post-spray flush step
-  (still "all die at once, after"), so "resolve after" is preserved while the number now visibly climbs.
-  Removed the now-unused `ECHO_SUBSEQUENT_HOLD_MS`.
+Deliberately NOT done here: no code, no gameplay, no skills. Kept every hard-won specific in `CLAUDE.md`
+(the `kwglow` paint rule, `insertRectsRef`, the worktree `@game/*` symlink trap, `poolOf` vs `activeSet`,
+the org-level `verify` ruleset) — a rewrite that trades those for general principles would be more correct
+and less useful. Gates: typecheck ✅ lint 0 errors ✅ 6294 tests / 385 files ✅ build:web ✅.
 
-typecheck (web) + lint (0 errors) + build:web + 569 choreo tests + direct-call census all green. NEEDS THE
-OWNER'S EYE at 1× — the climb cadence rides `ECHO_PASS_GAP_MS` (240 ms) and the deferred deaths now land in a
-separate post-volley beat; both are tunable constants if the pacing wants a nudge.
+## 2026-08-20 — Rune of Pillaging + Rune of Soul Taxes enabled and repriced
 
-## 2026-08-20 — ENGINE: ANY multi-fire Echo accumulates — one deferred-death scope across every fire
+Owner: "can we enable rune of the pillager and rune of soul taxes? those minions wont be in the shop, but it's
+fine if they are given as rewards" — then Pillaging → **4g**, Soul Taxes → **3g**.
 
-> ⚠️ Touches `packages/core` (Kevin's engine seam) + shifts balance — built on the owner's explicit go-ahead
-> (2026-08-20: "any amount of multi fires for any reason should be treated the same way we are treating the
-> multi fire from a gilded fel spike … units causing that dmg to aggregate should stay on board even if their
-> hp tally is at zero or below if a multifire is in mid-process"). Flagging for Kevin.
+They were never archived: both carried `sets: ['set1']`, and set 1 is `enabled: false`, so the forge filter
+(`!rn.sets || rn.sets.includes(runSet)`) hid them from every live run. Ungated (no `sets` field = every set)
+and repriced. Their granted bodies — **Pillager** and **Souls Man**, both set-1 UNDEAD — resolve fine because
+`CARD_INDEX` is global by design; they simply aren't drawable in the shop, which is exactly the trade the owner
+accepted.
 
-The prior entry deferred deaths only for a gilded `mul` (one firing, N passes). But **Sylus / Funeral Engine /
-a golden Echohorn** re-fire the whole Deathrattle as SEPARATE triggers (`playerEchoExtras`), each re-capturing
-the board — so a Void Panther that died on the base firing had its fresh cubs mown down by the Sylus re-fire.
-This generalizes the fix so EVERY reason a rattle fires more than once accumulates identically.
+**Flagged:** Rune of Pillaging's second clause ("your **Gold Pouches** are worth 2 Gold") is **INERT outside
+set 1** — `emberpouch` does not exist in set 2, so in a live run the rune is the Pillager grant alone. The
+6→4 reprice roughly matches that, but the printed text still promises the dead half. Owner's call whether to
+cut the clause or leave it for a future set that carries Gold Pouches.
 
-- **A combat-level deferred-death scope** (`withEchoDefer` / `echoDeferDepth` / `echoDeferredDeaths`) wraps a
-  death's OWN rattle firing — the base Echo (via the `onDeath` bus) **and** every `playerEchoExtras` re-fire,
-  in BOTH firing paths (the non-Rise inline block + `fireOwnDeathrattles` for Rise/Bone Throne/forced). While a
-  scope is open, `resolveEchoDeath` QUEUES a ≤0 victim; the OUTERMOST scope flushes the queue in capture order
-  once all firing is done. Only Fel-Spikes-style effects ever call `resolveEchoDeath`, so the scope is a
-  **byte-identical no-op for every other death** (proven by the determinism harness).
-- **New `ctx.onBoard(side)`** — `living` but RETAINS a ≤0-not-yet-dead body — so each fire (and gilded pass)
-  re-captures the SAME accumulating set, including bodies an earlier fire already dropped. That is what makes a
-  later volley/re-fire re-hit the dying Panther instead of skipping to its fresh cubs.
-- Net: gilded, Sylus, golden Echohorn, and any COMBINATION all pile onto one set whose combined deaths resolve
-  ONCE after the last fire (#1). A victim stays on the board at ≤0 HP for the whole multifire (#2b — "stay on
-  board even if hp ≤ 0 mid-process"), reading every volley and procing the per-volley reactors (Axeman / Leech).
+Gates: typecheck ✅ lint 0 errors ✅ 6291 tests / 385 files ✅ build:web ✅.
 
-Verified: new `simulate.test.ts` case — a NON-gilded Fel Spikes + a Sylus vs a Void Panther: the Panther eats
-two SEPARATE fires (base + Sylus re-fire), both cubs summon, and the spray never touches a cub. Full suite
-(5933) + determinism harness (identical) + typecheck (pkgs + web) + lint (0 errors) + build:web all green.
+## 2026-08-20 — Quillen's Archive sees All-types cards (owner report)
 
-STILL PENDING (presentation, Mike's seam — needs the owner's eye at 1×): (2a) the damage NUMBER aggregating
-per fire to the final sum — the sim emits N `dmg` events (4 each), so the reads currently pop per-volley rather
-than climbing to one combined 8; and the victim deaths now land in a POST-volley step (the flush) rather than
-inside the last wave, so the replay timing my earlier FX commits tuned wants an eyeball on a live board.
+"i ate an undead, beast, and dwarf and this was my discover at tier 5" — and only TWO cards came back.
 
-## 2026-08-20 — ENGINE: Fel Spikes' multi-volley Echo accumulates — deaths defer to the last volley
+Archive banks each archived minion's TYPE and pays one Discover per banked type, filtering the pool with a
+hand-rolled `c.tribe === t || c.tribe2 === t`. That check **cannot see an ALL-TYPES card**. Set 2 carries no
+Undead and no Mech, so an off-set archive matched nothing at all and its pick silently vanished — while
+Paragon (T5) and Standard Bearer (T3), which genuinely count as every type, sat in the pool unreachable.
 
-> ⚠️ Touches `packages/core` (Kevin's engine seam) + shifts balance — built on the owner's explicit go-ahead
-> (2026-08-20). Flagging for Kevin.
+Fixed with a shared `defIsTribe(def, tribe)` in `recruit.ts` — the DEF-level twin of the existing instance-level
+`isTribe`, carrying the same `universalTribe` rule — and routed Archive's filter through it.
 
-A gilded Fel Spikes sprays two volleys of 4. The engine resolved each volley's deaths IMMEDIATELY (`dealDamage`
-= apply + `killOrReborn`), so a low-HP victim died on volley 1 — and a Void Panther's two cubs, summoned mid-
-spray, were then **wiped by volley 2** (verified: 1 hit to the Panther, 2 cub deaths). The owner's ruling: the
-Panther should eat the full 8, die ONCE, and its cubs land after the damage — safe.
+**This is a CLASS bug, only partly fixed.** ~10 other pool filters across `recruit.ts` / `reducer.ts` use the
+same hand-rolled pair and are equally blind (`boardFeatures.ts` is the one place that already got it right).
+The rest were deliberately NOT changed here, because making every tribe-grant able to hand out Paragon /
+Standard Bearer is a BALANCE decision, not a bug fix — owner's call, listed in the roadmap.
 
-Fix, in the deathrattle resolver:
-- **`applyDamage` gains `overkill`** — keep dealing to a body already at ≤0 that isn't yet `dead`, so a low-HP
-  victim reads EVERY volley's number and procs the per-volley demon reactors (Axeman / Leech), rather than
-  vanishing after the first.
-- **Two new `CombatContext` primitives** — `damageDeferred` (apply, overkill, NO death) and `resolveEchoDeath`
-  (kill if ≤0). `deathrattleDamageAllExceptTribe` now CAPTURES its victims once, hits that same set each volley
-  with `damageDeferred`, and resolves every death on the FINAL volley — so tokens/consequences (the cubs) are
-  created after all the damage, and no later volley catches them.
+Coverage: `quillenAllTypes.test.ts` reproduces the owner's exact board (two banked types + an archived Undead
+at Tier 5) and asserts three picks with at least one All-types card. All four cases verified RED before the fix.
+Gates: typecheck ✅ lint 0 errors ✅ 6288 tests / 385 files ✅ build:web ✅.
 
-Verified: new `simulate.test.ts` case (gilded Fel Spikes vs a Void Panther — Panther takes two 4-hits, both
-cubs summon, NEITHER is hit by the spray; was 1 hit + 2 cub deaths before). Full suite (5932) + determinism
-harness (identical re-run) + typecheck + lint + build all green.
+## 2026-08-20 — the owner's correction pass on the Aug-20 batch: Night Market this TURN, Skybound in real time, a new Arcane Behemoth, tribe runes pay on purchase
 
-KNOWN LIMITATIONS (follow-ups): (1) **Sylus / golden Echohorn** re-fire the whole Deathrattle as SEPARATE
-triggers, each re-capturing the board — so a cub from an earlier firing can still be caught by a later one;
-only the single-firing gilded `mul` is deferred so far. (2) The sim emits N `dmg` events (4 each) per victim,
-so a gilded kill shows two 4s landing together, not one combined 8 — the "single number" is a presentation
-aggregation, still pending.
+Four owner reports against the rune batch that shipped the same day. Each is a different kind of miss — wrong
+channel, invisible presentation, wrong effect, missing payout — so they are listed separately.
 
-## 2026-08-20 — Fel Spikes' Echo: damage waits for the LAST volley, all waves land together
+**1. Night Market Horror buffs the shop for the TURN, not the ROW.** Owner text: *"After you buy a card, give
+minions in the shop **+2/+2 this turn**."* The shipped card wrote per-offer buffs via `addOfferBuff`, so the
+grant died on a refresh; the owner wants it to SURVIVE rolling and reset after combat. That is exactly
+`tavernBuyBonusTurn`, the per-turn shop channel built for Rune of the Merchant's Chorus — it accumulates
+across rolls, `offerBuyStats` reads it beside the permanent `tavernBuyBonus`, and `advanceCombat` clears it at
+the rollover. Reused rather than duplicated: the rune's `shopTurn` branch and the card now both go through one
+new `addTurnShopBuff` helper. Factory renamed `buffCurrentShopOffers` → `buffShopOffersThisTurn` (schema,
+`EffectFactoryId`, both policy keys) so no stale name survives.
 
-Owner: the damage came a touch early, and for a gilded spray the deaths mid-volley should wait for the final
-spike, then all die at once. `echoDeliveryLead` now holds the death beat until the LAST of the N sprays connects
-(launch + (N−1) tap-gaps + travel + a `ECHO_IMPACT_BUFFER_MS` read buffer), and a golden spray's subsequent
-wave beats land near-instant (`ECHO_SUBSEQUENT_HOLD_MS`) so every wave's damage/deaths read as landing together.
-typecheck + build green. KNOWN GAP: this is the TIMING half — a unit the sim kills on the first volley still
-takes only its 4 and dies (shows 4, not the full N×4); the "one combined number, hit but not killed until the
-last volley" is the accumulate SIM change (Kevin's seam) still pending the owner's go-ahead.
+*A display gap surfaced doing this, and is fixed here:* the shop row's `shopView` was passed only
+`run.tavernBuyBonus`, never the per-turn layer — so Merchant's Chorus's buff had never rendered on the offers
+either. It now folds both, with the same Fodder exclusion `offerBuyStats` applies, so the row and the buy agree.
 
-## 2026-08-20 — Fel Spikes' Echo: land the damage ON the spike's strike (not a base-hold later)
+**2. Skybound Ascendant transforms in REAL TIME, and the text stops over-promising.** (a) The End-of-Turn
+tier-up resolved invisibly inside the commit: `withRecruitTrigger`'s consequence diff produced a stat delta and
+nothing else, so nothing ever told the projection the body had BECOME another card, and the swap appeared only
+after the phase flipped. The diff now snapshots each board card's `cardId` and emits a `cardTransformed`
+consequence when one changes in place — the consequence type and its projection fold (`transformedCards`)
+already existed with no producer. The UI consumes it: `displayBoard` swaps the identity in the SAME slot for
+the beat (stats keep coming from `eotAnimStats`, so nothing double-counts), and the `cardTransformed` presenter
+blooms the ascend flash the commit-time watcher and combat already use. Its policy was already `ownBeat`, so
+the transform gets a real animation window. (b) The Tier-7 clamp was audited and is CORRECT as shipped —
+`hasTier7Access(state) ? 7 : maxTierFor(state.rift)`, verified red-checked — but the printed *text* promised
+"up to **Tier 7**" on every run, which most runs cannot deliver. `ascendantTierText` prints **Tier 6** unless
+the run actually has access (Beyond the Summit's `summitTierText` pattern), wired into `liveCardText` and —
+new — into the combat chain, by threading `tier7Access` through `Unit.tsx`.
 
-Owner: the numbers showed up a sizable beat after the spike connected. The Echo lead was being ADDED to the
-beat's base hold, so the damage landed `baseHold` ms past the strike. The Echo now REPLACES the base hold with
-exactly the volley's launch + travel (`echoDeliveryLead`), so the numbers land on the connect. The
-launch+travel is already ample death-read time, so nothing is lost. typecheck + lint + build green.
+**3. Arcane Behemoth is a different card.** Old: *"After you cast 3 Shop spells, Consume the right-most minion
+in the Shop."* New (owner): *"When you sell a **Demon**, this gains its stats."* Built on `minionSold` — the
+WATCHER side of a sale (`fireOnMinionSold`), the Grevlin & Co. hook — rather than the sold card's own
+`onSell`, because the reactor is a bystander; it fires after the body has left the board. Membership is
+`isTribe`, the one test in the codebase, which is what makes a second tribe and a `universalTribe` ("All
+types") body count, per the owner's note. It eats the sold body's LIVE stat line, and Golden doubles the meal.
+**Deleted, not merely replaced:** the `spellCastConsumeShopRightmost` factory, its schema/`EffectFactoryId`
+entries, its policy row, and `behemothProgressText` + its `instView` chain slot and test (the new text has no
+moving number, so it needs no live-text helper). Stats/tier/tribe unchanged (Demon, T6, 6/10).
 
-## 2026-08-20 — Fel Spikes' Echo: 100ms skull→volley gap, golden double-tap, attacker-death launch
+**4. The ten tribe-faucet runes pay IMMEDIATELY.** Owner report: taking Rune of Basic/Epic
+Beasts/Demons/Dragons/Dwarves/Kobolds granted nothing until the next turn setup. Same rule Rune of Ruby
+Resonance already follows ("buying a rune mid-turn should not feel like buying nothing"). The turn-setup body
+was extracted to `payTribeDrip` and the `runeTribeDrip` reward case now calls it once at purchase on top of
+pushing the recurrence — ONE payout function, so the tier cap, tribe filter and count cannot drift between the
+immediate grant and the recurring one. No double-pay: the Runeforge opens during a shop turn, after that
+turn's faucet has already run.
 
-Three follow-ups on the projectile re-choreography, from owner eyeball:
+**Verification.** New `packages/sim/src/ownerPassAug20.test.ts` (25 cases): the transform's beat identity,
+source and `toCardId` matching the committed board, capture-on byte-identity with plain `reduce`, and all ten
+tribe runes paying once at purchase and again next turn without double-paying. `runeMinionsAug20.test.ts`
+rewritten for Night Market (per-turn channel, a rerolled offer inheriting it, death at the rollover through a
+real `faceOmen`/`resolveCombat`) and the Behemoth (a Demon's live stats, a Kobold paying nothing, a
+universal-tribe body counting, golden doubling), plus two new Skybound clamp cases (6 without access, 7 with).
+23 of them verified RED with the fixes removed. Live pass on a throwaway run at :5394: a buy arms +2/+2 and
+every REROLLED offer renders it; selling a 9/9 Demon takes the Behemoth 6/10 → 15/19; taking Rune of Basic
+Dragon / Epic Kobolds puts 1 / 2 cards in hand on the spot; and driving the real End Turn control, the
+neighbour renders as `d2_mirrorwing` at Tier 2 in its own slot at t=150ms while the committed board still says
+`k_chipwick` (commit lands ≈450ms later, identical). Gates: typecheck ✅ lint 0 errors ✅ 6284 tests / 384
+files ✅ build:web ✅ harness deterministic ✅.
+## 2026-08-20 — Pin the board at its tuned size + re-anchor the hero panel to the art
 
-- **Volley launches ~100ms AFTER the skull** (`ECHO_LAUNCH_DELAY_MS`), so the skull reads first — and the
-  damage lead now folds that delay in (`ECHO_LAUNCH_DELAY_MS + projectileImpactMs`) so the numbers still land
-  on the connect.
-- **Golden double-taps.** A gilded Fel Spikes sprays twice; the two volleys were merging into one cascade.
-  They now fire as two distinct taps, one `ECHO_PASS_GAP_MS` after the other (`echoWaves` already returns the
-  two waves separately).
-- **Attacker-death launch.** A Fel Spikes killed MID-ATTACK lands on the pulled-home path, not the immediate
-  death loop, so its volley wasn't firing (owner: a second Fel Spikes didn't trigger). The launch is now on
-  both paths, via a shared `scheduleEchoVolleys` helper.
+Owner ask: the board must stop shifting when the window is resized. Two changes make it hold:
 
-Verified: typecheck + lint (0 errors) + `npm test` (5931 passed) + build:web green. Live timing for owner
-to eyeball. FOLLOW-UP (owner ask, still open): when Fel Spikes' Echo triggers MULTIPLE times (gilded / Sylus /
-golden Echohorn), all volleys should land before the CUMULATIVE damage is tallied — that is a SIM change (the
-engine currently resolves each volley's deaths before the next), tracked separately.
+**Pinned stage.** The 16:9 stage now caps at the tuned 2560×1440 reference — `--gw`/`--gh` gain a `min(…,
+2560px)` / `min(…, 1440px)`, and the JS that drives `--scale` gets the matching `min(…, 1440)` so `--scale`
+tops out at 1.0 in lockstep (without that, the CSS stage pinned but JS still drove scale above 1.0 on tall
+windows). Net: a window bigger/taller than the reference stops the board ZOOMING up and just gains backdrop
+margin (nothing moves); a smaller window still shrinks the whole board uniformly to fit (one locked unit).
 
-## 2026-08-20 — Fel Spikes' Echo: the spike is a real projectile — fire → travel → hit → THEN damage
+**Hero-panel re-anchor.** The hero panel (portrait, Health pill, rune chains) was anchored to the 16:9 STAGE
+corner, but its frames are painted on the board ART — which is board-zoomed ~25% WIDER/taller than the stage,
+an overflow that scales with `--gh`. So when the board scaled below 1.0 (short/windowed) the panel slid off its
+frame — vertically the worst, ~67px at a 900px-tall window. `.statusbar` now anchors to the ART's bottom-left,
+expressed as a fixed fraction of the art size (`--_artw`/`--_arth` exposed at :root), so it tracks the frame at
+every scale. Coefficients (0.391888 / 0.389444) keep the position byte-identical to the old `--bar` anchor at
+the tuned size, verified: old anchor's art-fraction drifted 0.108→0.115 (X) / 0.111→0.121 (Y) from gh 1440→600
+while the new one holds constant.
 
-Owner: the damage was landing as the Echo beat fired, before the spike arrived. It needs to fire, hit, and
-*then* the target reacts. Re-choreographed the Echo as a genuine projectile delivery:
+Plus small owner re-tunes of that region after the re-anchor: Rune Sheen chain seat (chx 127→129, chy -3→-5)
+and Hero Panel (panelX 54→58, panelY -106→-109) — defs + styles.css fallbacks together.
 
-- **New `launchOnDeath` binding flag** (`choreo/bindings`) marks Fel Spikes' `damage` binding as
-  projectile-delivered. Three consumers key off it.
-- **The volley LAUNCHES from the dying body**, a beat before the damage, alongside the Echo skull — added to
-  `useCombatReplay`'s death handler (`echoWaves` finds the upcoming spray's struck units from the wave tags;
-  the spikes fly from the still-visible Fel Spikes to each). The `fxDef` fan-out no longer plays the def on the
-  damage beat for a `launchOnDeath` binding — but it STILL claims the victims there, so the stock hit-burst the
-  spike replaces stays suppressed.
-- **The damage beat is HELD for the beam's travel** (`echoDeliveryLead` + the beat clock) so the numbers,
-  health drops and kills all land as the spikes connect — the travel time derived from the def's target-layer
-  `at` (`projectileImpactMs`), so retuning the beam keeps them in sync.
-- **Golden sprays twice in quick succession**: each `ctx.wave` is its own entry from `echoWaves`, fired as one
-  continuous `index` cascade (no long inter-pass pause).
+Verified: typecheck + build:web green; owner eyeballed at fullscreen + short/windowed sizes.
 
-Verified: `echoWaves` unit tests (single wave incl. warded, golden double-spray, dedupe, unrelated-wave,
-plain-death); the `fxDef` fan-out score tests updated to the new claim-but-don't-play behaviour; direct-call
-census updated for the new `playDef` site. typecheck + lint (0 errors) + `npm test` (5931 passed) + build:web
-green. NOTE: the live timing is unverified in-browser — for the owner to eyeball; the attacker-death case (Fel
-Spikes dying mid-lunge) still launches from the immediate path only — follow-up if it reads wrong.
+## 2026-08-20 — Layout Lab bake: shop/warband spacing + shop-controls seat
 
-## 2026-08-20 — Fel Spikes' Echo fires the `fel-spike` volley from the dying body to every target
+Owner-tuned Layout Lab values baked into the shipped defaults. Moved from where they sat: shop card gap 20->16
+and warband gap 20->16 (tighter rows), shop row Y 62->65 and X 9->8, warband Y -144->-155, and the shop
+controls tray Y -45->-6. Everything else already matched.
 
-Owner ask: wire the workbench `fel-spike` def (a source→target spike — ribbon beam + muzzle burst at the
-source, impact bursts at the target) to Fel Spikes' Deathrattle, hitting all its victims at once as a volley.
+Same convention as the other Layout Lab bakes: the `def`s in `layoutConfig.ts` are the source of truth and the
+`styles.css` `var(--z-*, <fallback>)` values mirror them (production renders from the fallbacks; the Lab is
+dev-gated). Both halves moved together; all 46 knobs verified against the owner's config. Presentation-only.
 
-The engine already had the shape: the Echo (`deathrattleDamageAllExceptTribe`) wraps its whole spray in one
-`ctx.wave` (a single volley moment), and the `damaged` fan-out (what Bloodbinder's `ruby-lance` uses) fires a
-source→target def at every damaged unit while auto-suppressing the stock hit-burst. Two gaps had to close, both
-because a Deathrattle AoE is **sourceless and dead** by the time it lands — unlike a live Start-of-Combat cast:
+Verified: typecheck + build:web green.
 
-- **Combat damage now records its dealer.** The `dmg` event carried no `source`, so presentation couldn't
-  attribute the wave to Fel Spikes. Added an optional `source` to the `dmg` event (`packages/core` — the combat
-  event vocabulary, Kevin's engine seam) and stamped the dealer's uid at the one `applyDamage` emit. Conditional,
-  so genuinely sourceless damage stays byte-identical; determinism (self-comparison) and the predicate-based
-  event tests are unaffected. Added `momentUnits` fallback in the score's `fxDef` channel: a wave can LEAD with a
-  sourceless Divine-Shield pop, so when the primary has no source it recovers the dealer from the first `dmg`
-  event's own `source`.
-- **The dead body's SLOT is held for its own eruption — but the body stays invisible.** Fel Spikes leaves the
-  board the beat before its Echo fires, so the volley's origin anchor would resolve to nothing. `computeFrame`
-  now retains a dead unit for the beat window in which it is still the SOURCE of damage, flagged `ghost`:
-  `Unit` renders a ghost with `visibility: hidden`, so it keeps its layout box (the volley launches from its
-  slot and the board doesn't reflow into the gap) while the corpse itself is NOT redrawn — it plays its death
-  fade once and stays gone, instead of vanishing and re-emerging (owner report 2026-08-20). It lingers exactly
-  for its volley and is gone the next beat; sourceless damage retains nothing, so ordinary trades and the
-  resting end-frame are untouched.
+## 2026-08-20 — Buffs panel: Veinstorm Stats row + "Tavern buys" renamed to "Shop Stats"
 
-The `fel-spike` def's ribbon gets `bow: 0` so the beam runs dead straight (owner: the arc read as a curve).
+UI-only, no engine change (`packages/ui/src/runBuffs.ts`). Owner ask 2026-08-20: reverses the earlier "Veinstorm
+has no row here" note — added a `{ key: 'veinstorm', label: 'Veinstorm Stats', value: '+atk/+hp' }` row that
+reads the banked Ruby stamp in `run.veinstormRubies` (the +atk/+hp every shop offer carries, re-landed on each
+fresh roll by `spellBuffShopByRuby`), guarded to non-zero like the panel's other rows. Also renamed the existing
+`tavern` row's label from `'Tavern buys'` to `'Shop Stats'` (its `key` is unchanged, so nothing downstream that
+matches on `key` breaks).
 
-**Fix — the volley fired on Fel Spikes' own SWING, not just its Echo.** A melee attack's impact is also a
-`damage` moment (sourced by the attacker), and stamping `dmg.source` made it attributable — so the binding
-fired every time Fel Spikes attacked. The `struck`/`damaged` fan-out now drops the `meleePair` (attacker +
-defender) exactly as the stock `damageFx` cue does; the Echo wave is not an attack (`meleePair` null), so its
-victims are untouched. (owner report 2026-08-20)
+Verified: new `runBuffsPanel.test.ts` cases (`Buffs panel — Veinstorm Stats + Shop Stats rename`) — row appears
+with the correct value when the bank is set, is absent when the bank is missing/zero, and the tavern row's label
+reads `'Shop Stats'`; confirmed red before the source edit, green after. Full gate green:
+`npm run typecheck && npm run lint && npm run build:web`.
 
-Owner then tuned the def in the workbench (tighter ribbon tail/feather, `aimMode: sourceToTarget` on the source
-+ first target burst, denser/faster target bursts). That save silently DROPPED the hand-authored `bow: 0` (a
-layer field with no workbench control) and reset every `fieldPhase` to 0 — both re-applied by hand over the
-owner's tuning; logged in [`docs/fx-workbench-friction.md`](fx-workbench-friction.md) (workbench save should
-preserve fields it has no control for).
+## 2026-08-20 — the six live-pass rulings: Grim's membership, Twilight stacks, Elderhorn in the shop, rune SoC replays, blue Rebirth, Sunmane combat-only
 
-Binding: `dm_felspikes → { damage: { def: 'fel-spike', fanOut: 'struck' } }`. The `struck` fan-out is new — like
-`damaged`, but it also fires at a unit whose **Ward absorbed the hit** (a `shield` pop, no `dmg`): the spike
-connects and the Ward shatters even though no damage landed (owner ruling 2026-08-20). It shares one code path
-with `damaged` (Bloodbinder's `ruby-lance` still uses `damaged`, unchanged); a warded target has no stock burst
-to suppress, so claiming it is a harmless no-op. The saved `fel-spike.json` also gets `fieldPhase: 0.5` on its
-three turbulent bursts (it fires many-at-once — the exact case the new Field Variation knob solves), so the
-spikes don't all swirl identically.
+Six owner rulings from the live Rune of Combat Prowess + Lasting Cadence pass, plus the establishing
+principle behind two of them: **a trigger MULTIPLIER follows the trigger to whatever phase it fires in.**
 
-Verified: new tests for the source stamp (`simulate.test.ts`, on the Echo's `wave`), the fan-out + Ward-pop
-fallback (`score.test.ts`), the dead-dealer retention (`computeFrame.purity.test.ts`), and the binding table
-(`bindings.test.ts`). typecheck + lint (0 errors) + `npm test` (5922 passed) + build:web all green. NOTE: the
-live look (the volley firing from the lingering body) is unverified in-browser — for the owner to eyeball.
+**1. Grim buffs itself from a shop-fired Echo (root cause: hand-written shop membership).** Combat's
+`deathrattleBuffTribe` buffs `ctx.living(side)` — a proc'd-not-dead Grim included — while the recruit-side
+copy excluded `c !== self`. Fixed by MIGRATING the body into `ARENA_EFFECTS` (ratchet floor 121 → 122, the
+`tribes`-plural Mushy path preserved): membership is `friends()`, which includes a living self in both
+phases; a genuinely dying shop Grim is already off the board before its rattle fires (every shop death path
+splices first), so it still never self-buffs posthumously. Combat is a pure delegation — zero golden churn.
 
+**2. Rune of Twilight (and Uron) STACK with Combat Prowess (owner reversal of the ship ruling).** The count
+lives in one place now: `socTwilightExtraFires` (core) is consulted by BOTH combat's extra-SC pass (the `if`
+became a count loop — byte-identical events) and `runeCombatProwessBeats`, which multiplies each card SoC
+effect by (1 + Twilight + Uron-via-`extraTriggerFires`) per Chronos repeat — each fire its own beat.
+
+**3. The Echo-multiplier set follows the trigger into the shop.** `foldEchoExtraFires` (core) is THE fold:
+combat's `playerEchoExtras` and the shop's `fireRecruitDeathrattles` both feed it Sylus/Uron (card data),
+**Elderhorn's Beast Ritual** (tribe-gated), **Funeral Engine's** `echoExtraAlways`, and the **first-Echo
+bonus** (Grave Contract / Last Rites / Catacomb) — shop scope = first shop Echo each TURN (transient
+`echoFirstUsedThisTurn`, reset at wave open), independent of combat's per-fight pool. Every extra fire pays
+`lastEchoFires` + the Grim tally exactly like combat's. (Flagged: Catacomb's printed "in combat" is now
+narrower than what it does; and the RALLY multiplier set — Law of Teeth, Infinite Assembly, Spark Permit,
+Elderhorn's Hunt — was deliberately NOT brought along, pending an owner call.)
+
+**4. Combat Prowess replays RUNE/QUEST Start-of-Combat effects.** `socRuneReplaysOf` (recruit.ts) — THE
+single list shared by `applyEndOfTurn`, `projectEndOfTurnSteps` and `questEndOfTurnBeats` — replays ~19 of
+the run-level SoC blocks with shop semantics (permanent grants, seeded RNG, one beat per replay sourced on
+the owning rune/quest badge, `discardIfEmpty`). Combat-only, each documented in the list header: Weaken
+(enemy-facing), Food Chain, Spellhide, Crucible, Empty Graves, First Claws / Forthcoming's attack half /
+Shared Circuit's break-transfer / Reclaimer + Closed Casket. **COMPOUNDING flagged for balance review**:
+Warding (health ×3/turn), Sylus (×2/turn), Underdog + Stoked Menagerie (doubling), Umbral Energy + United
+Front (growing scalar), Five Banners, Tempered Time, Possession, Rulebreaker's Crown — all permanent, every
+turn, per the owner's "all" ruling.
+
+**5. Rune of Rebirth prints blue "Rebirth" on every minion.** New `[[…]]` markup token → `.descrune` (blue,
+static color) beside the green `{{…}}` / gold `((…))`; appended in `liveCardText` (minions only, both
+variants), so every surface — shop/board/hand/Discover/end screen AND combat `Unit.tsx` — carries it while
+the rune is held. The Recruit `live` memo's dep array gained `questFlags?.runeRebirth` (the tag stayed stale
+without it — caught live).
+
+**6. Sunmane Herald is combat-only.** New data-level `EffectDef.combatOnly` (types + schema): the shop
+dispatchers skip such effects entirely — `canRallyInShop` no longer counts it as a rally, `fireShopRally`'s
+watcher loop and `socBoardEffects` skip it, and the viral graft carries the flag too. Text now reads
+"…and this **Rally**, **only in combat**." Under Lasting Cadence a Sunmane board ends the turn finitely with
+zero rally fires, zero grafts, zero spread — verified live and by test.
+
+**Verification.** `prowessCadenceFixes20260820.test.ts` (26 tests: both Grim phases incl. the owner's exact
+Spots-under-Prowess scenario end-to-end through `faceOmen`; Twilight/Uron counts + real double-fires;
+all four Echo multipliers + the per-turn first-Echo consumption; Warding/Warden/Underdog/Herald replays,
+beat labels, no-Prowess and combat-only negatives; the dead Sunmane loop over three turns + combat
+untouched) + `rebirthTag.test.ts` (4 tests). Live in the real UI (throwaway run, real End Turn control):
+Grim 7/1 → 15/9 carrying its own "Grim +8/+8"; blue "Rebirth" rendered rgb(47,111,208) on the card;
+Warding's replay tripled the rightmost (2/3 → 2/9 + Ward, badge proc'd); the Sunmane board resolved
+instantly with nothing moved. Gates: typecheck (pkgs + web) ✅ lint 0 errors ✅ 6250 tests / 382 files ✅
+build:web ✅ harness deterministic ✅ — ZERO combat golden updates (both #2/#3 are shop-side additions).
+
+## 2026-08-20 — Rune of Combat Prowess: the START-OF-COMBAT family migrates + the second cross-phase dispatcher
+
+**Rune of Combat Prowess** (Epic, 5 Gold): *"Your Start of Combat effects also trigger at End of Turn."* The
+second cross-phase dispatcher rune, built deliberately on the Rally family's motion (Lasting Cadence is the
+template; both presentation lessons from the owner's live pass are applied from day one).
+
+**Engine (Effect Arena Step 3 item 4 + Step 4).** All 21 `startOfCombat` bodies used by `CARD_INDEX` migrated
+into `ARENA_EFFECTS` (ratchet floor 100 → 121); every combat `FACTORIES` entry is now a one-line delegation —
+no duplicate bodies remain. 15 more `sc*` ids exist in the combat registry but are referenced by NO card in
+content (schema-whitelisted only) — left unmigrated per the on-demand rule. New arena verbs: `armBleed`,
+`grantSpellCastExtra`, `fodderConsumed`, `alesLastTurn`, `engraveNeighbours`, `engraveBoard`,
+`castLeftmostHandSpellOnAdjacent`, `echoEffectsOf`, plus `narrate(text, cast?)` and live-flag/maxHealth opts
+on `summonToken` (Mirrorhide's copy). Graceful no-ops, each documented on the shop adapter verb (the
+`addTribeAura` class, never a phase check in a body): Bleed marks (nothing to bleed), the extra-combat-cast
+grant (the real Start of Combat re-arms it moments later — arming at End of Turn too would double it), and
+both Engraves (every shop gain is already permanent — nothing to keep). Enemy-facing bodies (`scDamage`,
+`scGrantEnemyTaunt`) no-op by MEMBERSHIP — empty `enemies()` — with zero RNG-cursor drift. Quil's shop half
+mirrors the combat resolver's STAT family through real counted casts (`noteSpellCast`); pure tavern work
+fizzles uncounted there too, per the standing combat ruling.
+
+**Dispatcher.** `socBoardEffects` (eligibility: printed + grafted via `instanceEffects`, alignment-gated like
+the combat SC pass) → `fireShopStartOfCombat` (one body × effect per fire, nested `withRecruitTrigger` with
+the `factory:<do>:startOfCombat` identity + `discardIfEmpty`) → `fireStartOfCombats` (the batch). SC is a
+per-body trigger, so unlike `fireShopRally` there is no broadcast and no watcher guards. Snapshot rule kept:
+a body summoned mid-pass (Mirrorhide's copy) has no SC to fire. No per-pass counters — the family carries
+none.
+
+**The rune.** `rune_combat_prowess` in `EPIC_RUNES`; `RunState.runeCombatProwess` flag reward; ONE BEAT PER
+(body × effect) in `applyEndOfTurn`, sourced on the acting minion, classified
+`rune:rune_combat_prowess:endOfTurn` (ownBeat); `runeCombatProwessBeats` is THE single list shared by the
+commit, `projectEndOfTurnSteps` and `questEndOfTurnBeats`. Chronos/Parliament repeats apply like every other
+End-of-Turn effect. **Interaction rulings made here, flagged for review:** Rune of Twilight / Uron's SC
+multipliers are COMBAT flags and do NOT double the End-of-Turn replay (matches the Rally precedent — no
+Elderhorn extras in the shop); a shop-fired Spots pays `lastEchoFires` and the Echo quest tallies (the
+2026-08-20 quest-tally ruling) via the shared `triggerEchoOn` ritual; a Grave Body graft at End of Turn is
+PERMANENT (the family's shop-permanence rule).
+
+**Verification.** `socDispatch.test.ts` (24 tests, mirrored on `rallyDispatch.test.ts`): dispatcher fires
+every body once; unarmed fires nothing; enemy-facing no-ops with zero cursor drift; nested per-effect
+identities + no-empty-beat discard in the authoritative batch; the Wrangler's summon stamps committed index 1;
+Echo tallies advance; capture-on/off state identical; permanence across the action boundary. Red-checked: 11
+of them fail with the beat list disabled. Full suite green with ZERO golden updates (combat byte-identity),
+plus a live pass in the real UI (throwaway run, real End Turn control): four source-attributed beats play,
+the Imp lands adjacent from the committed index, Speed Demon / Kennelmaster / Lastlight-via-Spots grants all
+land as permanent labeled buffs. Gates: typecheck ✅ lint 0 errors ✅ 6200 tests / 378 files ✅ build:web ✅
+harness deterministic ✅.
+
+## 2026-08-20 — shop-rally presentation: per-effect FX identities + summons land in their true slot
+
+Owner report on the live Lasting Cadence pass: mechanically right, but (1) "none of the minion animations
+fire, like echohorn, watcher effects" and (2) a rally-summoned Imp flashed into the RIGHT-MOST slot during the
+End-of-Turn animation, then corrected before combat.
+
+**(1)** `fireShopRally` dispatched every watcher's `onAttack` effect BARE, so everything a rally did collapsed
+under the rune's single outer beat with no per-effect identity — the compiled timeline had one beat per rally
+and zero nested beats, so the authored FX / watcher pulses had nothing to bind to. Each (watcher × effect)
+dispatch is now its own nested `withRecruitTrigger` sourced on the WATCHER with the same `factory:<do>:onAttack`
+identity combat uses; the outer rune beat became a plain scope so consequences emit exactly once. A new
+`discardIfEmpty` collector flag keeps a guarded-out no-op (the wrapper's own `minion !== self` filter) from
+leaving an empty beat that would falsely pulse a bystander.
+
+**(2)** `cardSummoned` carried no insertion index, so the UI projection could only APPEND the ghost while the
+committed state splices at `summoner + 1`. The index is now stamped from the committed board and honoured all
+the way down (`CardSummonedConsequence` → `ProjectedCardGrant` → `eotSummons` → `displayBoard` splice);
+index-less legacy batches still append.
+
+Live-verified through the real End Turn control: Paragon's medallion pulse fires mid-rally-beat, and the
+mid-animation board shows both summons adjacent to their summoners from the first frame, identical to the
+committed combat board (no snap-correction). Three new tests, each red on the pre-fix code. Gates: typecheck
+✅ lint 0 errors ✅ 6146 tests / 372 files ✅ build:web ✅.
+
+## 2026-08-20 — a SHOP Rally is a Rally TRIGGER (owner ruling)
+
+The Rally-family migration flagged that a shop rally (Rune of Lasting Cadence) did not advance the Rally quest
+tallies — no recruit-side channel existed. Owner ruling: "it should progress these."
+
+Wired via the exact pattern the codebase already uses for the other two trigger families: `fireShopRally` (the
+ONE chokepoint every shop rally passes through) bumps a transient `lastRallyFires`, and the reducer's per-action
+quest tick consumes it — the `lastShoutFires` / `lastEchoFires` pattern, zeroed per action beside them. It
+advances the `rally` objective (Overclocked Core), the Author's Hand rally half, and — for the same reason
+combat hooks everything at `bumpRally` — **Rune of the Herding Horn pays its free refresh on a shop rally
+too**: its combat comment promises it "counts exactly what the rally quest objective counts", and one
+definition of "a Rally" beats two drifting ones.
+
+Coverage: three end-to-end cases in `rallyDispatch.test.ts` driving the REAL `faceOmen` action (not a helper),
+verified RED without the wiring. Gates: typecheck ✅ lint 0 errors ✅ 6143 tests / 372 files ✅ build:web ✅.
+
+## 2026-08-20 — the RALLY FAMILY reaches the shop (Effect Arena Steps 3.4 + 4), and Rune of Lasting Cadence pays out where it reads
+
+**The whole Rally family is one implementation now.** 40 `onAttack` bodies (across 44 cards) moved out of
+`FACTORIES` and into `ARENA_EFFECTS`, joining the 60 Shout/Echo bodies already there — the arena ratchet floor
+goes 60 → 100. Every combat-side entry that used to hold a body is now a one-line delegation with only its
+PAYLOAD GUARD left behind (whose attack is this? an own-swing Rally checks `minion !== self`; an ally-attack
+watcher takes the attacker and threads it on as `params.attacker`, the same convention `summonBuffSelfTribe`
+uses for `arriver`). No duplicate survived the move — the one pre-existing hand-wired shop half
+(`rallySummonImpBuffImps`) was deleted rather than left to drift, which is the spec's actual bar for this work.
+
+**Permanence, stated per body.** Every buff is a plain `arena.buff` — temporary in combat (unchanged; that
+side is a pure refactor) and permanent in the shop, because a shop buff is permanent by definition. Where a
+card promises permanence in BOTH phases the body now says so explicitly rather than relying on which registry
+it happened to live in: Paragon's "permanently" is `buffPermanent`, Boulderdash/Blazer take the `permanent`
+flag on `playRubiesOn` (a real bug found on the way — the combat adapter's `playRubiesOn` was dropping the
+flag, so a migrated Boulderdash stopped carrying its Rubies home; the existing test caught it), and everything
+that moves a RUN channel — Ruby power, spell power, the Undead aura, the Staff-of-Guel shop enchant, the Imp
+aura, the Attachment enchant — goes through that channel in both phases.
+
+**Enemy-facing Rallies no-op by MEMBERSHIP, not by a phase check.** The arena grew `enemies()`, which returns
+the other side in combat and `[]` in the shop. Philippe's "deal its Attack to a random enemy" therefore
+returns on the guard it already had (`if (targets.length === 0) return`) BEFORE it draws, so it cannot even
+drift the run's shared RNG cursor; Tauntbreaker's keyword strip reads `params.target`, which only a real
+attack supplies. Neither is special-cased out of the dispatch — an allowlist is exactly the thing the arena
+exists to end — and both still count as ralliers.
+
+**Step 4: the shop-side dispatcher.** `canRallyInShop` / `ralliersOf` / `fireShopRally` / `fireRallies` are the
+recruit twins of combat's `canRally` / `fireFreeRally`, including the welded Better Bot / Perfect Core
+rallies. `fireShopRally` BROADCASTS the way a real attack does, so the ally-attack watchers — Paragon's
+"whenever you trigger a Rally", Hawkus, Mineral Master, Crypt Drake — answer a shop rally instead of the
+rallier's own effect firing into silence. `BoardCard` gained `grantedEffects` (the shop's answer to combat's
+per-instance `Minion.effects`), so Sunmane Herald's Rally really does graft itself onto the Beasts it feeds in
+the shop too; `attackSeen`/`bredCount` are scoped to one End-of-Turn pass and cleared after it, so Evolving
+Abomination gets its two doublings per turn rather than two per run.
+
+**Rune of Lasting Cadence is an End-of-Turn reward again** (`combatFlag` → `runeLastingCadence`), printing the
+owner's wording: "**End of Turn:** trigger **all** your **Rally** effects." The Start-of-Combat path in
+`simulate.ts` and the combat flag behind it are gone. Rune of Rallying is untouched.
+
+**One beat PER RALLY — the owner's actual requirement was time.** A batched payout would have compiled to one
+beat and resolved five rallies (five summons, five Ruby cascades, five stat climbs) inside a single animation
+window. `runeLastingCadenceBeats` is the single source shared by the commit (`applyEndOfTurn`), the legacy
+projection (`projectEndOfTurnSteps`) and the UI beat list (`questEndOfTurnBeats`), so the three can never
+disagree about how many windows there are. Each beat is sourced on the MINION whose Rally fires — so it
+pulses and its FX play — which meant `questEndOfTurnBeats` had to start carrying a `uid` (the first recurring
+reward that has a source card at all). Classified `ownBeat` in the policy registry under
+`rune:rune_lasting_cadence:endOfTurn`; the surface bucketing follows the reward kind, so the tripwire keeps
+itself honest with no hand-listing.
+
+Verified: `npm run typecheck` (pkgs + web), `npm run lint` (0 errors), full `npm test`, `npm run build:web`,
+`npm run harness` (combat determinism). New coverage in `packages/sim/src/rallyDispatch.test.ts` (20 tests:
+the gate, armed/unarmed, the graceful enemy-facing no-ops, per-pass counter scoping, N rallies → N beats, and
+the authoritative batch emitting one source-attributed `ownBeat` each) plus four compiler-level tests in
+`packages/ui/src/choreographer/realBatch.test.ts` proving the compiled TIMELINE grows with the rally count —
+the animation is genuinely allotted room, not merely enumerated. Combat behaviour is unchanged: the existing
+combat Rally tests are the guard and all stayed green.
+
+Follow-ups: a shop rally does not advance the combat-only Rally quest tallies (`playerRallies` is a
+`CombatResult` channel; there is no recruit-side equivalent) — an owner call, not a wiring gap. And a shop
+`rallyDoubleSelf` / `rallyTribeAuraGrowing` compounding permanently each turn is a real power question the
+rune now raises; flagged for balance, not changed here.
+
+## 2026-08-20 — 30 RUNES for the Aug-20 batch (the forge entries for the 16 rune-only minions)
+
+The other half of the batch above: twenty Basic runes and ten Epic ones, `RUNES.length` 121 → 141. Fifteen of
+them exist purely to hand over one of yesterday's forge-only bodies, so they are bare `grant` rewards and the
+Runeforge hover comes free. The other fifteen needed machinery — and the shape of this entry is which of them
+DIDN'T.
+
+**Three renames (owner decision).** "Rune of the Muster", "Rune of Living Geodes" and "Rune of Evolution" are
+already taken by three live, unrelated runes (`rune_muster`, `rune_living_geode`, `rune_evolution`), and
+`validateRunes` rejects a duplicate name inside a set. The new ones ship as **Rune of the Muster General**,
+**Rune of the Deepening Vein** and **Rune of the Abomination**; the existing three are untouched, and the test
+file pins both halves of each pair so a future rename can't quietly swap them.
+
+**Reuse first, and it went further than expected.** Eleven of the fifteen "get a X" runes are `grant`. Five
+more ride the **existing `runeThreshold` engine**, which now takes four small knobs rather than five new
+reward kinds: `grantCards` (the Deep Feast's "every 25 Gold, a Deepwater Chef" — a named body was the one
+payout the palette couldn't express), `castStatSpell` (the Gilded Ledger CASTS rather than grants, so spell
+power and every on-cast watcher see it), a `playDragon` meter (the Dragon's Pantry — "progress carries between
+turns" is just what a banked threshold already does), and `buff.target: 'tribe'` + `buff.step` (Compounding
+Wages' "give your Dwarves +1/+1 and improve this by +1/+1" — escalation as data). The x/N badge came free for
+all five, and the escalating one prints its CURRENT grant beside the meter per the live-value rule.
+
+**The every-2-turns cadence is ONE field, not three flags.** `recurringGrant` gained `everyTurns`; absent means
+every turn, which is what every existing user wants. NB it could not reuse `recurringEndOfTurn`'s `turns`,
+which means something else entirely (how many times before it stops) — overloading that name was the trap.
+Armed rewards land in a new `runeCadenceGrants` list beside the flat one, each carrying its own tick, so
+Clockwork Promotion, the Muckbroker and Rare Goods share one reader and each gets its own countdown badge.
+
+**Living Magic and Perfect Recall are one budget.** They are the same mechanism at 1 vs 2 uses per turn, so
+they ship as one parameterised reward (`runeSpellEcho { uses }`) writing into one shared `{ uses, used }`
+counter — holding both raises the ceiling to 3 rather than firing two independent budgets, the same rule the
+Mage-Pup teach cap uses. It rides `noteSpellCast`, so the `token` early-return there already keeps reward
+cards (Goldcrafter, Implosion, the Triple Reward) uncopyable, and `NO_COPY_SPELLS` covers the rest.
+
+**Rune of Shared Spoils rides `addBuff`.** "Whenever your left-most Dwarf gains stats" needed the one
+chokepoint every recruit-phase stat gain passes through — the same stateless hook Sable's Soulbind uses, with
+the same one-hop re-entrancy guard and the same "stamp from the post-clone draft" rule. Wiring it into the
+dozen sites that grant stats would have guaranteed missing one.
+
+**Five new combat flags, each on an existing dispatcher.** The Returning Pack counts Beast summons at the
+single `summonEntryEffects` chokepoint and pays through `grantRandomMinion` → `playerHandGrants`; Grave
+Refreshment counts Echo TRIGGERS at the `asEcho` chokepoint (so a forced Echo pays like a death) and banks
+through `ctx.grantFreeRolls` → `playerFreeRolls` — both carry-backs that already existed. Shifting Facets and
+the Deepening Vein are registrations on `runeAvenge`, reusing `gainRubyBonus` and `playRubyOn`. Lasting
+Cadence is Rune of Rallying's `fireFreeRally` block, board-wide instead of left-most-only.
+
+For both threshold flags the reward's `amount` is a THRESHOLD, not a magnitude, so a duplicate copy assigns
+rather than accumulates — two Returning Packs meaning "every 12 Beasts" would be strictly worse than one.
+
+**Shifting Facets carries a value, not a boolean.** "Avenge (3): improve your Rubies by +1 Health, alternating
+each turn" means the axis in force has to reach combat, so `QuestCombatMods.runeShiftingFacets` is
+`'attack' | 'health'`, derived from the parity of a turn-setup tick rather than separately stored — nothing can
+drift out of step with what the badge is advertising.
+
+**One judgement call, flagged.** The owner's sheet gave Lasting Cadence as "End of Turn: trigger ALL your Rally
+effects". There is no recruit-phase Rally dispatch in the engine — Rally is an `onAttack` COMBAT trigger, and
+firing `onAttack` through `RECRUIT_FACTORIES` would have found almost nothing implemented — so it fires at the
+very next moment instead, Start of Combat, and the printed text says so rather than promising a shop payout
+that could never render. Easy to move if the owner wants the literal wording.
+
+Verified: `packages/sim/src/runeBatchAug20.test.ts` (96 cases — pool membership + `epic` flag + cost for all
+30, every grant landing its body, every meter paying at its threshold and NOT before, the escalators
+escalating, the per-turn caps capping and refilling, and the three renames not displacing their namesakes),
+plus the existing rune audits: `runeWiringAudit` (every flag has a reader and is threaded into the mods),
+`runePreview` (every named card is on the hover), `presentationPolicies` (30 new registry entries, no ghosts)
+and `tallyCoverage` (every new meter has a badge or a documented exemption). `npm run typecheck`,
+`npm run lint`, `npm test` and `npm run build:web` all green.
+
+**Follow-ups:** owner balance pass on the 30 costs; art for the bodies they hand out (still pending from the
+minion batch).
+
+## 2026-08-20 — 16 RUNE-ONLY minions (the Runeforge batch)
+
+Owner add: sixteen new minions, every one of them **forge-only** — `token: true`, the `dw_baal` treatment, so
+they ride set 2's pool for resolution but can never appear in a shop roll, a conjure or a minion Discover.
+They live in their tribe's `cards/set2/` file (the Trooper goes with the tokens), so set 1's seeds are
+untouched.
+
+**The roster.** Deepwater Chef (N5 4/3, Shout: a random T1 + T3 + T5), Gem Sage (K4 3/7, every Ruby you get
+arrives doubled), Ancient Wanderer (N5 1/1, +1/+1 per 3 Gold spent this RUN), Clockwork Assistant (N4 3/3,
+Shout: Discover one tier above the Shop), Night Market Horror (D5 4/4, a buy pumps the current Shop row),
+Muckslinger (N4 5/5, Shout: a random Shout minion), Traveling Salesman (N4 4/4, sell → Discover among cards
+you hold exactly one of), Kegheart Dwarf (Dw4 4/5, +3/+3 per Dwarven Ale gained), Ninefold Broker (N6 9/9, a
+buy grants a same-tier Shop spell, nine times a run), Echo Mimic (N5 4/7, combat: each friendly death grafts
+that minion's Echo onto it), Muster General (N5 6/6, Avenge (3): an immediately-striking Trooper that improves
+permanently) with its **Trooper** token, Stonehorn Archivist (B5 6/6, every 2 turns copies your left-most HAND
+card), Skybound Ascendant (Dr5 5/7, EoT transforms its left neighbour one tier up), Evolving Abomination (N6
+6/6, ALL-type, Rally doubles its stats twice a combat) and Arcane Behemoth (D6 6/10, every 3 Shop spells
+Consumes the right-most Shop minion).
+
+**Four of them needed no new code at all.** Deepwater Chef is three `battlecryGainRandomMinion` rows with
+pinned tiers; Muckslinger and Clockwork Assistant each took a *param* on an existing primitive rather than a
+near-duplicate factory (`filter: 'shout'` on the conjure, `tierOffset` on the Discover — the latter clamped to
+the run's own ceiling via `hasTier7Access`, so a non-Summit board is promised Tier 6, not a Tier 7 it can never
+reach); the Trooper is data. Twelve new primitives cover the rest — nine recruit, three combat — and each was
+added only after the search for an existing one came up empty.
+
+**Ancient Wanderer is the interesting one.** "HAS +1/+1 for every 3 Gold you have spent this run" is not the
+`goldSpent`-threshold shape every other Gold card uses: a Wanderer bought on turn 12 is paid for the whole run
+*behind* it. So `goldSpentScaleSelf` is a **synced enchant** — `syncGoldSpentScalers` recomputes the target
+total from `RunState.goldSpent` and lands only the delta under one fixed buff source, called from the two
+moments the value can move (a Gold spend, and a body arriving via `onSummon`). Being a real stored buff means
+combat, snapshots and saves needed no new plumbing, and re-running the sync is a no-op. Its printed number is
+live on every surface per the hard rule: `goldSpentScalerValue` (sim) feeds `ancientWandererText` (UI), wired
+into both chains — `liveCardText`/`instView` for shop/board/hand/Discover/end screen, and `Unit.tsx` for
+combat — through a new run-lifetime `goldSpentRun` param (deliberately distinct from the per-turn `goldSpent`
+every other helper reads). Muster General's Trooper line and Arcane Behemoth's threshold got the same
+treatment, since both print numbers that move.
+
+**Recursion, charges and caps.** Gem Sage's duplicate is minted *silently* — a Ruby-gained reaction that
+itself gains a Ruby is the one shape here that can loop, so the extra copy does not re-open the `onGetRuby`
+round (it still fires `onGainCard`, so Gangplank sees it). Ninefold Broker's nine charges ride `buyTick`, an
+existing per-instance BoardCard field nothing else on that card touches, so they persist across combats and
+saves and a second Broker brings its own nine. Evolving Abomination's twice-per-combat cap rides `bredCount`,
+a combat-only `Minion` field that resets with each fresh body — no carry-back, no snapshot wiring. Its
+doubling compounds (6/6 → 12/12 → 24/24) and its gild raises the CAP rather than the multiplier.
+
+Per the 2026-08-20 ruling, Evolving Abomination sets `universalTribe` and lets the ALL pill speak — its text
+is the Rally and nothing else. **`onGainCard` now carries the arriving card's id**, which is what lets Kegheart
+filter for an Ale; the event previously said only "a card arrived".
+
+Verified: `packages/sim/src/runeMinionsAug20.test.ts` (55 cases — data shape + `token`/non-buyable for all 16,
+every effect firing, the per-run and per-combat caps holding, and Ancient Wanderer's live value at two
+different Gold totals) plus two new `instView.test.ts` cases pinning the actual UI text chain. Three set-2
+roster counts and the art-coverage sweep were updated for the new members; art is deliberately pending, so the
+batch sits in that test's explicit `ART_PENDING` list until it lands. `npm run typecheck`, `npm run lint`,
+`npm test` (5973 passing) and `npm run build:web` all green.
+
+**Follow-ups:** art for all 16; the Runeforge entries that actually hand them out; owner tuning pass on the
+stat lines and on Ancient Wanderer's 3-Gold step.
+
+## 2026-08-20 — "All types" cards print ALL, not Neutral; art for Arnold + the two new spells
+
+Owner report: "lab experiment, paragon, and standard bearer are 'all types' not neutral — their tribe pill
+should say 'All'."
+
+**The pill logic was already right; six projections dropped the flag.** An All-type card carries
+`tribe: 'neutral'` in DATA with `universalTribe: true` beside it, and `Card.tsx` prints ALL when the CardView
+says so — but the flag has to survive the trip. Six builders never passed it: the **Compendium**
+(`MinionBook.toView`), **Career**, **Leaderboard**, the **quest-** and **rune-reward previews**, and the
+sandbox editor. Recruit and `instView` did, which is why the board looked fine and the browsing surfaces did
+not.
+
+Rather than patch six call sites and let the seventh forget again, `Card` now DERIVES it:
+`card.universalTribe ?? CARD_INDEX[card.cardId]?.universalTribe`. Any projection — present or future — renders
+ALL by construction. The view still WINS when it sets the flag, which preserves the INSTANCE-level case
+(`allTribes`, an Anomaly-Reactor'd body no def knows about). The same derived value feeds `tribePlated`, so a
+plated All-type card can't fall back to a tribe plate either.
+
+Five cards are affected: **Lab Experiment**, **Paragon**, **Standard Bearer**, plus **Perfect Core** and
+**Chaos Attachment** (tokens the owner hadn't spotted, misreading the same way).
+
+**Follow-up the same day — ALL now sits on the PLATE GEM, where every other tribe prints.** The first pass
+made the label correct but left it in the wrong place: "★ All" rendered inside the text drawer while every
+neighbouring card printed its tribe on the plate's bottom diamond (owner: "why is the 'all' tribe not in the
+right spot?"). The cause was a `&& !universalTribe` exclusion on `tribePlated`, which existed ONLY because the
+gem printed `TRIBE_LABEL[card.tribe]` — reading NEUTRAL for exactly these cards. With the flag now derived,
+the gem prints **ALL** instead and the exclusion is obsolete, so an All-type card is plated like any other and
+its label sits where the eye already looks. Unplated surfaces keep the drawer pill, same as every tribe does.
+Verified live: Standard Bearer / Paragon / Lab Experiment read ALL on the gem with no drawer pill, while
+Gangplank, Arnold and Beardsley still read Dwarf / Dwarf / Beast — and Deepdelve Paragon (a different card
+whose name merely contains "Paragon") correctly stays Kobold.
+
+**…and the "Counts as all tribes." clause comes OUT of the rules text** (owner: it is assumed from the ALL
+pill). Seven strings across four cards — Paragon, Standard Bearer, Perfect Core, Chaos Attachment — each of
+which was spending a line of the text box restating what the pill now states. Their remaining text is just
+what they DO: "Rally: give a minion of each type +2/+3 permanently."
+
+**The Anomaly Reactor spell keeps its wording** and is exempt by design: it GRANTS the all-types state to a
+target rather than having it, and a spell has no tribe pill to say it on its behalf. A test pins both halves —
+no universal-tribe MINION may restate the clause, and the exemption is written down so the next sweep doesn't
+"tidy" the spell too.
+
+**Art wired**: `dw_arnold`, `summoningbulwark`, `mightofaeon` — the only live cards that were missing it. An
+audit of every card found just those three plus the Set-3 scaffold (`c3_*`, not shipped) and a test fixture.
+
+Coverage: a new `allTypesPill.test.ts` pins that the three named cards carry the flag and that EVERY
+universal-tribe card is `neutral` in data (which is exactly why the pill matters — Neutral implies the
+opposite of what the card does), plus an art-coverage test asserting no live card falls back to the tribe
+sprite. Verified live in the browser: all three read **All** and all three arts load, with the probe
+deliberately passing `tribe: 'neutral'` to prove the derivation rather than the input.
+
+Gates: typecheck ✅ lint 0 errors ✅ 5915 tests / 369 files ✅ build:web ✅.
+## 2026-08-20 — Buffs panel: new default geometry (owner tuning pass)
+
+Owner feel pass via the 🧪 Buffs Panel tuner. Updated `BuffDrawerConfig` DEFAULTS
+(`packages/ui/src/buffDrawerConfig.ts`): `bodyX` 2→8, `bodyY` 0→**-37**, `bodyS` 0.9→**0.47**, `textS` 11→10.5,
+`titleS` 11→13, `minW` 122→120 — a smaller panel lifted up off the portrait. Mirrored the six `--bfd-*`
+fallbacks in `styles.css` to match (the file's stated invariant), which also corrects a pre-existing
+`--bfd-body-x` fallback that read `0` while the default was `2`. Defaults + CSS-fallback change only — no logic.
+
+## 2026-08-20 — stored boards are now self-describing (Career/Leaderboard showed raw card ids + NEUTRAL)
+
+**Owner report:** Career boards rendering as `d2_transcendence`, tribe NEUTRAL, placeholder art — "why are these
+boards showing no art/wrong names?"
+
+**Diagnosis.** Career + Leaderboard history is fetched from the **SERVER** (`fetchRunHistory` → Supabase
+`run_history`; owner call 2026-08-03), and a stored board keeps only the `cardId`. Both screens resolved the
+card out of the **reader's** `CARD_INDEX` and fell through to `name: def?.name ?? m.cardId`, `tribe: … ??
+'neutral'`. Art is keyed by id against locally-bundled assets, so it missed identically → the placeholder.
+
+The fingerprint that identified it: the **rule text rendered correctly** (including the golden variant) beside a
+wrong name. `text`/`goldenText` were already baked into the snapshot at capture (`endStateBoard`), so correct
+text + wrong name can ONLY mean "the def is missing but the row is intact".
+
+Why the def goes missing: a row is written by one build and read by another. Two devs on divergent content
+branches share one database, and a packaged build lags the branch that played the run. Confirmed concretely —
+content on `main` is unchanged since 2026-08-19 (diffed `CARD_INDEX` across `b7eea10f`…`HEAD`: 448 ids both
+sides, **zero added, zero removed**), while the `content/rune-batch-2026-08-20` worktree carries **16 ids main
+does not have** (`b2_stonehorn`, `d2_ascendant`, `dm_behemoth`, `dm_nightmarket`, `dw_kegheart`, `k_gemsage`,
+`n2_abomination`, `n2_clockwork`, `n2_deepchef`, `n2_echomimic`, `n2_muckslinger`, `n2_muster`, `n2_ninefold`,
+`n2_salesman`, `n2_trooper`, `n2_wanderer`). Any run played there and synced renders as placeholders on `main`.
+
+**Fix — bake the identity, not just the text.** `BoardMinion` gains display-only `name` + `tribe`, stamped at
+capture beside `text`/`goldenText`. The rule this encodes: *anything the reader would otherwise look up in its
+own `CARD_INDEX` must travel with the row.* Resolution order is now **live def → baked value → placeholder**;
+the def is still preferred so a card this build DOES have picks up renames and re-tribes rather than freezing
+whatever an old row recorded.
+
+Also closed an adjacent hole: `combatStartBoard` appends **SoC-summoned** bodies straight from combat, which
+never passed through the bake — every minion is now stamped via a shared `bakeIdentity`, so a summoned body is
+as identifiable as a recruited one.
+
+**Extracted `storedBoardView.ts`.** `Career.tsx` and `Leaderboard.tsx` carried **byte-identical** copies of the
+resolver, which is precisely how one bug came to live in two places. One definition now, imported by both, with
+the read-back contract documented on it. A card that resolves to nothing at all (a row written before the bake,
+by a build we do not have) is labelled **"Unknown Card"** rather than leaking an internal id at the player.
+
+**What this does NOT fix, deliberately:** art. `artFor` is keyed by card id against locally-bundled assets, so a
+card this build does not ship still shows the placeholder illustration — which is honest, since the build
+genuinely has not got the picture. That is also why an unidentifiable card is labelled rather than left bare.
+Existing rows stay as they are; the bake only helps rows written from here on.
+
+**Verified.** `typecheck` + `lint` (10 pre-existing warnings, 0 errors) + `build:web` green; **5970/5972 tests
+pass**. New `storedBoardView.test.ts` (9 cases) reproduces the build split directly — it asserts against a real
+divergent id (`n2_ninefold`, present on the rune branch, absent on main) and pins that the id never reaches the
+UI, that the live def still wins over a stale bake, and that a pre-bake row degrades to "Unknown Card" while
+still showing whatever it did manage to store.
+
+**Adjacent gap found while auditing (not fixed here):** 27 of 448 cards have no art — 23 are Set-3 Celestials
+(`c3_*`, not in play) plus `hm_test_squire` and two spells, but **Arnold (`dw_arnold`) is a live Set-2 card with
+no art wired**. Worth a pass; deliberately left out of this fix so the diff stays on the reported bug.
+
+## 2026-08-20 — tutorial coaching pass, hero-select difficulty pill + tips, Indy recharge meter fix
+
+**Owner tutorial pass (16 items).** Step numbers below are the player-visible walk (foundation panels +
+order demo + lobby intro + turn steps), which is what the owner was counting — the ids are given so the
+mapping stays checkable.
+
+*Coaching that did not point at what it was talking about:*
+- **Every buy step** now draws the drag it asks for (shop offer → hand), and **every play step** now
+  spotlights the HAND CARD as well as the destination with the drag drawn between them. Applied
+  systematically across all 18 buy/play steps rather than to the three the owner happened to hit
+  ("if there are steps that repeat issues i mentioned, apply them to all steps").
+- **7 `lobby-self`**, **15 `r1-debrief`**, **16 `r2-debrief`** all name Health in their copy but never lit it —
+  they now anchor the Health box too. `combatDebriefStep` gained an optional second anchor for this.
+- **49 `r8-end`** lit a strip of empty board while the Discover overlay the player must act on sat outside the
+  cutout. New `discover` anchor (`.discover-ov`), and the step now covers overlay + hand + warband.
+
+*Copy that was wrong or incomplete:*
+- **9 `r1-gold`** — "it refills every turn" never actually said unspent Gold is LOST. Now it does.
+- **30 `r4-debrief`** — promised "let us add some synergy" and then handed the player a minion with none.
+- **40 `r7-buy`** — dropped "a free extra body mid-fight", which is not what a re-fired Echo always produces.
+- **55 `r10-free`** — the first unguided turn now reminds the player they can raise their Tavern tier.
+- **32 `r5-play`** — gained a payoff beat (`r5-shopbuff`) pointing at the shop the Shout just buffed. The
+  effect lands somewhere the player is not looking, so the lesson was a claim with no visible evidence.
+  A real step, not `resultAnchors` — that field is declared on `TutorialStep` but the controller never
+  implemented it, so authoring it would have been a silent no-op.
+
+*Three real defects:*
+- **43 `r7-position` could be completed by CLICKING.** Its predicate was `{ kind: 'reordered' }`, an EVENT that
+  fires on any drag — including nudging the wrong minion or dropping T-Rex back where it started. New
+  `cardAtSlot` predicate reads STATE (`board[index].cardId`), so the step is satisfied only by T-Rex actually
+  being left-most, which is the lesson.
+- **12 `r1-power`'s highlight sat off to the left and up.** `useAnchorRects` measured once when the step
+  activated and then only re-measured on resize/scroll. That step activates in the same commit as the play
+  that satisfied the previous one — so it measured Packstrider MID-FLIGHT into its board slot and never
+  corrected. Now re-measures on `transitionend`/`animationend` (capture phase, collapsed into the SAME rAF as
+  resize/scroll, so a board of cards finishing together costs one layout read). Fixes every anchor measured
+  mid-move, not just that step, and stays event-driven — no polling loop, per the perf rule.
+- **The next step was readable below the board during combat.** A debrief completes on `returnedToShop`, so it
+  activates the moment the fight STARTS and its panel then sat parked at the bottom for the whole fight.
+  `confirm`-mode panels are now held until `combatSettled`. Scoped to `confirm` deliberately: a `predict` step
+  exists to name what to watch for BEFORE it happens, so hiding those would delete the lesson.
+
+*Hero-power habit (owner ask):* a reminder now sits before **every** guided End Turn (turns 2–9). Its
+completion is "used it **OR** the power is not ready" — **Aster's Preparation recharges every OTHER turn**, so a
+bare `heroPowerUsed` reminder would have sat unsatisfiable and **soft-locked the course** on a recharge turn.
+New `heroPowerReady` predicate backs the escape hatch; a test pins that it cannot lock.
+
+*Two presentation fixes:* the graduation screen's "Tutorial Complete" ran into the final warband — the shared
+`.endscreen .hstitle` has a zero bottom margin because the full end screen puts an `.endboardlabel` between
+title and board, which the graduation screen has not got. It now has its own `.tutgrad` spacing. And the locked
+**Advanced** mode card used a bare `cursor: default`, dropping the app's custom gauntlet cursor; it now uses the
+same `url(...) , default` every other disabled element uses.
+
+**Hero select — difficulty pill** (owner copy). Under the portrait, a colour-coded difficulty pill
+(Easy/Medium/Hard); hovering crossfades it out and the hero-power text in.
+
+> **The TIP line is authored but hidden** (owner call, same day: "keep the difficulty pills, but hide the tips
+> for now... until we want to enable them"). Gated behind `SHOW_HERO_TIPS = false` rather than deleted, so
+> turning them on later is a one-line flip instead of a re-write — all 47 tips stay written, tested and
+> covered, and a test pins both the flag state and that the copy survives being hidden. With the tip gone the
+> pill is centred in the reserved box rather than top-aligned: the box height belongs to the HOVER face (the
+> power text), so a top-aligned pill would have hung off the top of a tall empty gap. Both faces live
+in one `.hcbelow` box that owns the reserved height, so the swap can never reflow the row. Data lives in its own
+`heroTips.ts` rather than on `HeroDef` — `heroes.ts` is a two-dev chokepoint and this is advisory copy with no
+engine meaning. Coverage is OPTIONAL by design: **47 of 51 heroes are covered**; Djinni, Chaos, Chronos and
+Aster have no entry and simply render no pill. `heroTips.test.ts` pins that list so the gap is on the record.
+
+**Indy's Masterwork meter read `0/40g` when the recharge is 75.** The value was rebalanced 40 → 75 on
+2026-08-07 in the reducer only; `StatusBar.tsx` kept the literal `40` in four places, so the pill promised a
+recharge the reducer would not grant. Both sides now read one exported `INDY_GILD_RECHARGE_GOLD`.
+
+**Verified.** `typecheck` + `lint` (10 pre-existing warnings, 0 errors) + `build:web` green; **5950/5952 tests
+pass**. New `tutorialCoaching.test.ts` (11 cases) pins the coaching SHAPE rather than the copy — it caught two
+gaps while being written: turn 8 had no hero-power reminder, and the Discover step legitimately must not get a
+drag arrow (it opens a modal rather than placing a body). The hero-select pill was verified live in the browser:
+at rest the pill+tip render at opacity 1 with the power text at 0, both in the same 92px box, and all four
+hover/crossfade rules resolve in the CSSOM.
+## 2026-08-20 — Play-mode screen: bake the owner's tuned card/title positions
+
+Owner Play-Mode-Screen tuner values baked into the shipped defaults. Five knobs moved from where they sat:
+the three mode cards drop/rise (Play Y 115->18, Learn Y 187->82, Practice Y -170->-266) and the MODE title
+grows and lifts (scale 1->1.23, Y 59->-30). Everything else already matched the shipped look.
+
+Same convention as the other tuners: `MODEPICK_VARS` `def`s in `modePickConfig.ts` are the source of truth, and
+the `.mcframe[data-mp=...]` / `.mptitle` `var(--mp-*, <fallback>)` values in styles.css MUST mirror them (they
+are the production paint — the tuner is dev-only). Both halves moved together for all five, verified against the
+owner's JSON (all 27 knobs match). Presentation-only.
+
+Verified: typecheck + build:web green.
+
+## 2026-08-19 — Audit: minion mechanic-icon (medallion `mechIcon` glyph)
+
+Investigation only — no code change. Full findings in [`mech-icon-glyph-audit.md`](mech-icon-glyph-audit.md),
+produced by running all 445 cards through Card.tsx's verbatim `mechIcon` resolution (trigger → keyword → tribe).
+Headline: **287/445 cards (64%) show the generic tribe symbol rather than a mechanic glyph**, 94 of them while
+naming a real mechanic in their text. Root cause of the bulk: a **rename desync** — `triggerPill` matches the
+pre-rename raw words `battlecry`/`deathrattle`, but ~51 cards' text now uses the player-facing renames
+`Shout`/`Echo` (34 Shout vs 15 Battlecry; 17 Echo vs 17 Deathrattle), so their trigger glyph silently drops to
+the tribe fallback (the "Knocked shows a Demon eye" report that started this). Also found: text-only
+Start-of-Combat/Slaughter mechanics that aren't keyword-tagged, three glyph collisions (`eye` ST/demon, `anvil`
+EG/dwarf, `skull` undead/Avenge), and four never-surfacing keyword icons. Fixes are queued in the roadmap under
+Next, gated on an owner ruling about whether the medallion should fall back to the tribe at all.
+## 2026-08-20 — Keyword definitions beside a card (hover + Inspect)
+
+Hovering or right-click-Inspecting a card now shows a column of definition boxes next to it — one per
+keyword the card actually uses (Ward, Echo, Flurry, Execute, Rise, Shout, Attachment, Critical Strike,
+Gilded, …), word on top and a one-line definition below. Presentation-only; no engine/content/sim changes.
+
+- **`packages/ui/src/keywordGlossary.ts`** — a new 27-entry ordered glossary (`{ id, name, aliases, badge?,
+  def }`) covering ability triggers, combat keywords, and mechanic nouns, keyed on the game's DISPLAYED
+  terms.
+- **`packages/ui/src/detectCardKeywords.ts`** — a pure function: the union of a card's badge `keywords` and
+  a word-boundary, case-sensitive scan of its `renameTerms`-processed text (matching what the player actually
+  sees, including bold markup stripped), returned in fixed glossary order and deduped. Fixed order (not text
+  order) keeps the panel stable for the same card and avoids reflow when the same terms appear in a
+  different sentence order across golden vs. base text.
+- **`packages/ui/src/keywordGlossaryCoverage.test.ts`** — a drift-guard test asserting every glossary term is
+  detected on at least one real card in content, so a renamed/removed keyword can't silently go stale;
+  `gilded` and `stealth` are the two sanctioned exemptions (stealth is a defined keyword no current card
+  uses).
+- **`packages/ui/src/KeywordDefs.tsx`** (+ `.kwdefs`/`.kwbox` CSS) — renders the definition column to the
+  right of the enlarged card, mirroring the `.inspect-buffs` glass chrome; renders nothing when the card uses
+  no glossary terms. Static DOM, no animated paint properties.
+- Wired into both surfaces that enlarge a card: the right-click Inspect overlay (`Inspect.tsx`) and the
+  hover reveal (`Card.tsx`'s `.cardref`).
+
+Verified: unit tests for `detectCardKeywords` (6 cases) plus the coverage guard, and the full gate —
+typecheck, lint (no errors in `packages/ui/src`), `npm test`, and `build:web` — all green (see this commit's
+CI run). Scope discipline: the four pre-existing code→name maps (`Card.tsx`, `float.ts`, `questText.ts`,
+`UnitEditor.tsx`) were left as-is; folding them into the shared glossary is a separate follow-up.
+
+**Live-tuning polish (same session, owner eyeball):** four fixes after seeing it on a real board.
+(1) The Inspect card's PLATE laps ~25% wider than the card body and was overlapping the defs column — the
+hover reveal already reserves that overhang as margin (`.cardref .card.plated`), so the same rule now applies
+to `.inspect-card .card.plated` (also protects the buffs panel on the left). (2) The defs column got narrower
+(`max-width` 240→144px / 42→25vw) with slightly smaller text (name 12→11px, def 10.5→9.5px). (3) The Inspect
+backdrop blur went 2→8px (plus the `-webkit-` prefix) for a stronger focus. (4) The HOVER reveal's width
+estimate now folds in the defs column, so a card + referenced card + defs that won't fit to the right FLIPS to
+open on the left instead of lapping the hovered tile / right-side UI — and the defs render on the outward side
+when flipped so the column never lands back over the source.
+
+**Inspect layout pass (owner-tuned live):** in the Inspect overlay the defs column is pulled OUT of the flex
+flow — `position: absolute; left: 100%` off the card — so the CARD itself stays perfectly centred on screen
+(before, the card+defs row was centred, shoving the card left). The column is top-anchored to the card
+(`top: -15%`, a fixed fraction of the card height, so the top box sits the same regardless of tooltip count)
+and rolls downward, past the card's bottom if needed. The whole group lifts ~15% (`translateY` on
+`.inspect-card`, with the `inspectpop` entrance keyframe updated to rest at the same spot so there's no snap).
+The hover reveal mirrors this — top-aligned, lifted a FIXED `-14px` (not a percent of the column's own height,
+which lifted taller 4-tip columns too far while 2-tip ones sat right). Column width 200px in Inspect; box text
+settled at name 10px / def 8.4px.
+
+**Definitions rewritten by the owner** (from a spreadsheet, 2026-08-20): all 27 tooltip definitions replaced
+verbatim with the owner's copy — tighter, more game-specific wording (e.g. Consume "devours a minion from
+shop", Fodder "automatically consumed by a random friendly demon", Attachment "when played to the left of a
+mech", Ruby/Ale as Kobold/Dwarf spells). Names/aliases unchanged, so detection + the coverage guard are
+unaffected. Note: Avenge reads "once (x) friendly minions die" with a literal `(x)` — a static glossary
+placeholder, not a live count.
+
+## 2026-08-19 — Minion medallion glyph resolver rewritten: no more tribe fallback
+
+**The bug:** the medallion glyph (the small icon on a minion's card) was resolved by
+`trigger?.icon ?? keywords[0] ?? tribe` — a brittle text-prefix check on a card's trigger pill, falling back to
+the first keyword, falling back to the **tribe** symbol. An audit found **64% of minions** were showing a
+generic tribe glyph instead of anything about what the card actually does, and a Shout/Echo rename desync
+could silently drop a trigger glyph entirely (the text-prefix match just stopped matching).
+
+**The fix: structured detection through one shared registry.** New `packages/ui/src/mechanics.ts` holds the
+`MECHANICS` registry — one entry per mechanic (Shout, Echo, Start of Combat, End of Turn, Avenge, Rally,
+Slaughter, Bleed, Choose One, Taunt, Ward, Execute, Flurry, Critical Strike, Rise, Cleave, Immune, Stealth,
+Attachment, Consume, Fodder, Engraved, Discover, and the new Watcher) — each with a `detect` predicate over the
+card's real effect data (`on`/`do`/`params`), keywords, and `chooseOne`, plus its medallion glyph and glossary
+text. `packages/ui/src/mechIcon.ts`'s `resolveMechIcon(view)` looks the card up in `CARD_INDEX` (a `CardView`
+carries no `effects`), filters the registry to the mechanics the card **itself has**, and returns the
+**first-mentioned** one's glyph — ties broken by text position, then keyword order, then a global order. **No
+recognised mechanic → `null` → a blank badge**, never the tribe. `Card.tsx` now renders the medallion icon
+conditionally on that `null` and the old `triggerPill`/`KW_ICON`/`TRIBE_ICON` maps are deleted (their only
+consumer is gone).
+
+**New this pass:** a **Watcher** mechanic (eye glyph) for effects that fire in response to another minion or
+your actions — reactive `on:` triggers (`onSummon`, `onGainAttack`, `onDamaged`, `onFriendDeath`, `onGainCard`,
+`onGetRuby`, `onRubyPlayed`) plus ally-only `onAttack`/`onKill` (no self `RL`/`SL` keyword). **Stealth** gets
+its own glyph, freed off the eye it used to borrow. **Engraved** gets a new runic glyph, off the anvil it used
+to share with other things. **Choose One** now shows on the medallion at all (`choose1` glyph). Both new
+glyphs (`engrave`, `stealth`) are placeholder-but-real SVGs in `Icon.tsx` — deliberately not final art.
+
+**The Compendium glossary now reads the SAME registry** (`MinionBook.tsx`'s `GLOSSARY` is built from
+`MECHANICS` by id, in the existing three section groupings), so the medallion and the glossary can no longer
+drift apart — a `GLOSSARY_MECHANIC_IDS` export plus a drift test pin every glossary row to a real registry
+entry. Adds a Watcher row to the glossary; Engraved and Stealth pick up their new icons automatically.
+
+**Ruby is NOT a medallion mechanic** — Spells/Rubies never had a medallion and still don't; the resolver only
+runs from `Card.tsx`'s minion branch.
+
+**Verified:** new unit tests for the registry (per-mechanic detection over real cards), the resolver
+(ordering, `null`, the `CARD_INDEX` lookup path), a **no-minion-shows-a-tribe-glyph invariant** that sweeps
+every card in `ALL_CARDS` and asserts the result is either `null` or a real registry glyph, and the
+glossary↔registry drift test. Full suite **5894 tests pass**; `typecheck` + `lint` + `build:web` all green.
+
+**Deliberately out of scope for this PR** (follow-ups, not regressions):
+- No glyph yet for Orbit, Start of Turn, Improve, Rush, Ascend, or spend-Gold mechanics.
+- Re-tagging Engraved cards that carry the mechanic but lack the `EG` keyword (Tara/Taragosa) — they still
+  resolve correctly today via other means, but aren't caught by the `engraved` predicate.
+- **No live visual check was done in this pass** — that is the owner's follow-up: tune the placeholder
+  `engrave`/`stealth` glyph art in `Icon.tsx` against the real board, and rule on whether trigger-multiplier
+  auras (Sylus, Uron) and a few borderline reactive triggers should read as Watcher.
 ## 2026-08-20 — FX workbench: "Field variation" — per-cast turbulence phase so a crowd of casts decorrelates
 
 Owner ask: turbulence looked identical when many effects fire at once (rune bursts on a full board, a

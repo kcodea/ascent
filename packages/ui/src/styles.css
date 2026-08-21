@@ -33,7 +33,12 @@
      Esc-menu resolution scaler can still cap the box to a fixed pixel size (see [data-res]). */
   /* `dvh` (dynamic viewport height) instead of `vh` so the stage tracks the mobile browser's shrinking/growing
      address bar and fills the real visible area on phones. */
-  --gw: min(100vw, calc(100dvh * 16 / 9)); --gh: min(100dvh, calc(100vw * 9 / 16));
+  /* PINNED stage cap (owner ask 2026-08-20): the 16:9 stage never grows past 2560×1440 — the tuned reference
+     size. So a window bigger/taller than that stops the board ZOOMING up and just gains backdrop margin around
+     it (nothing moves), while a smaller window still shrinks the whole board uniformly to fit (one locked unit,
+     no drift). `--scale` (= --gh/1440, clamped) therefore tops out at 1.0, its tuned value. Mirrors the old
+     `[data-res="r2560"]` cap, now always-on. Bump both caps together (keep 16:9) to re-pin at a larger size. */
+  --gw: min(100vw, calc(100dvh * 16 / 9), 2560px); --gh: min(100dvh, calc(100vw * 9 / 16), 1440px);
   --bar-x: calc((100vw - var(--gw)) / 2); --bar-y: calc((100dvh - var(--gh)) / 2);
   /* The in-game board backdrop — ONE source art, drawn on `.boardbg` (a full-viewport layer behind the 16:9
      stage): scaled to the stage height + centred, so the ornate frame stays locked to the 16:9 UI. The default
@@ -51,6 +56,13 @@
      1.0132 (= 2.389/2.3578), exactly the art size a 3440x1440 fullscreen used to produce, which is what the
      button offsets were tuned against. */
   --board-fill: 1;
+  /* The board ART's on-screen size (matches `--_board-w` on `.boardbg`), exposed at :root so the hero panel can
+     anchor to the ART rather than the 16:9 STAGE. The art is board-zoomed ~25% WIDER than the stage, and that
+     overflow scales with `--gh`; anchoring the hero panel (portrait / Health pill / rune chains) to the stage
+     let it slide off its painted frame when the board scaled below 1.0 (short/windowed). `--_arth` = the art
+     HEIGHT (width ÷ intrinsic aspect). See `.statusbar`. */
+  --_artw: calc(var(--gh) * var(--board-zoom, 1.25) * var(--board-mobile-zoom, 1) * var(--board-aspect) * var(--board-fill, 1.0132));
+  --_arth: calc(var(--_artw) / var(--board-aspect));
   /* Ultrawide side-blend (owner ask 2026-08-18). The 16:9 default board can't fill a window WIDER than 16:9, so
      the bare `--bg` (#8c857a tan) shows in the side margins there — see `.boardbg`, which lays a `--board-edge-col`
      gradient over those margins that fades INTO the art edges so the two meet seamlessly. `--board-edge-col` is
@@ -206,8 +218,8 @@ canvas.spr { image-rendering: pixelated; display: block; }
 /* Tavern offers and Warband mirror each other across the board's centre rope: each half
    grows to fill its space and centres its cards. Warband gets extra bottom padding so it
    rides a little higher, opening a gap above the hand. */
-.zone[data-zone='tavern'] { position: relative; flex: 1 1 0; justify-content: center; --ch: calc(var(--ch-base) * var(--card-scale, 0.75) * var(--z-shop-s, 1)); top: calc((var(--z-shop-y, 62px) + var(--shop-drop, 0px)) * var(--scale)); left: calc(var(--z-shop-x, 9px) * var(--scale)); }
-.zone[data-zone='warband'] { position: relative; flex: 1 1 0; justify-content: center; padding-bottom: calc(var(--ch) * 0.13); --ch: calc(var(--ch-base) * var(--card-scale, 0.75) * var(--z-wb-s, 1)); top: calc((var(--z-wb-y, -144px) + var(--wb-drop, 0px)) * var(--scale)); left: calc(var(--z-wb-x, 9px) * var(--scale)); }
+.zone[data-zone='tavern'] { position: relative; flex: 1 1 0; justify-content: center; --ch: calc(var(--ch-base) * var(--card-scale, 0.75) * var(--z-shop-s, 1)); top: calc((var(--z-shop-y, 65px) + var(--shop-drop, 0px)) * var(--scale)); left: calc(var(--z-shop-x, 8px) * var(--scale)); }
+.zone[data-zone='warband'] { position: relative; flex: 1 1 0; justify-content: center; padding-bottom: calc(var(--ch) * 0.13); --ch: calc(var(--ch-base) * var(--card-scale, 0.75) * var(--z-wb-s, 1)); top: calc((var(--z-wb-y, -155px) + var(--wb-drop, 0px)) * var(--scale)); left: calc(var(--z-wb-x, 9px) * var(--scale)); }
 /* Nudge the whole Warband DOWN a touch so it sits clearly UNDER the board's centre line instead of hugging
    it. Done with `position: relative; top` (the zone is ALREADY position:relative) — NOT a `transform`: a
    transform on the row makes it a stacking/transform context wrapping the combat units, and their per-swing
@@ -221,7 +233,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
    warband up to the line (Mike, 2026-07-17). Now the nudge RAMPS smoothly: 0 at ≤780px viewport height,
    +0.16px per px of height above that, capped at the full `--ch × 0.07` (reached ≈890px, matching the old
    ≥900px behavior) — so any zoom level / window height just slides it a few px, never snaps. */
-.zone[data-zone='warband'] { top: calc(clamp(0px, (100vh - 780px) * 0.16, var(--ch) * 0.07) + (var(--z-wb-y, -144px) + var(--wb-drop, 0px)) * var(--scale)); }
+.zone[data-zone='warband'] { top: calc(clamp(0px, (100vh - 780px) * 0.16, var(--ch) * 0.07) + (var(--z-wb-y, -155px) + var(--wb-drop, 0px)) * var(--scale)); }
 
 /* End-of-turn CHARGE GLYPH — replaces the burning rope. Over the final CHARGE_SECONDS the board's etched sigil
    charges with white-hot blue energy, building from BOTH sides inward along the midline conduit and filling the
@@ -496,7 +508,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
    positions — owner report 2026-08-11). The CONTENTS still size off `--u` (which includes the scale) and simply
    `overflow: visible` past the fixed box when scaled up. X/Y offsets use `top/left` on a relative box, which
    never reflowed siblings to begin with. */
-.shopbar { position: relative; --u-fix: calc(var(--u-base) * var(--ui-scale, 0.96)); --u: calc(var(--u-fix) * var(--z-shopui-s, 1.6)); top: calc(var(--z-shopui-y, -45px) * var(--scale)); left: calc(var(--z-shopui-x, 5px) * var(--scale)); align-self: center; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(5 * var(--u)); height: calc(111 * var(--u-fix)); overflow: visible; margin-top: calc(10 * var(--u-fix)); margin-bottom: calc(10 * var(--u-fix)); flex: none; z-index: 6; }
+.shopbar { position: relative; --u-fix: calc(var(--u-base) * var(--ui-scale, 0.96)); --u: calc(var(--u-fix) * var(--z-shopui-s, 1.6)); top: calc(var(--z-shopui-y, -6px) * var(--scale)); left: calc(var(--z-shopui-x, 5px) * var(--scale)); align-self: center; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(5 * var(--u)); height: calc(111 * var(--u-fix)); overflow: visible; margin-top: calc(10 * var(--u-fix)); margin-bottom: calc(10 * var(--u-fix)); flex: none; z-index: 6; }
 .shopbar.closing { animation: shopclose 0.45s ease forwards; pointer-events: none; }
 .shoprow { display: flex; align-items: center; gap: calc(13 * var(--u)); }
 /* Info strip — the turn's read-only stats (Gold · Tier · Setup Time) in ONE segmented cream plaque, gold-
@@ -1091,8 +1103,8 @@ body.hpb-glow-preview .heropowerbtn .hpb-glow {
    The tuned px is authored at the owner's ~0.745 desktop scale, so `* --scale / 0.745` keeps desktop identical
    while the gap shrinks WITH the cards on a phone (raw px left 22px gaps between ~0.3-scale cards → the 7th
    warband minion fell off the board). */
-.zone[data-zone='tavern'] .row { gap: calc(var(--z-shop-gap, 20px) * var(--scale) / 0.745 * var(--gap-tighten, 1)); }
-.row.warband { gap: calc(var(--z-wb-gap, 20px) * var(--scale) / 0.745 * var(--gap-tighten, 1)); }
+.zone[data-zone='tavern'] .row { gap: calc(var(--z-shop-gap, 16px) * var(--scale) / 0.745 * var(--gap-tighten, 1)); }
+.row.warband { gap: calc(var(--z-wb-gap, 16px) * var(--scale) / 0.745 * var(--gap-tighten, 1)); }
 /* Hand: a fixed fan pinned to the bottom edge, its lower half tucked behind the
    Embers/Hero/Resolve status bar; a hovered card pops up over the bar to read in full.
    The whole zone is a wide (mostly invisible) drop band so buying still works when empty. */
@@ -1644,6 +1656,9 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 /* A next-combat spell grant's temporary tag — gold, parentheses visible (Last Stand on a minion). Static
    color only: no animation, so it costs nothing per frame. */
 .desctemp { color: #e7c14d; font-weight: 700; }
+
+/* a rune-GRANTED rule in card text (Rune of Rebirth's blue "Rebirth" on every minion) — static color only */
+.desc .descrune { color: #2f6fd0; font-weight: 800; }
 
 /* keyword tooltip — reveals after ~1.5s of hover (handoff) */
 .tip { position: absolute; bottom: calc(100% + 9px); left: 50%; transform: translateX(-50%); width: 210px; background: var(--ink); color: #fff; border-radius: 11px; padding: 10px 12px; font-size: 11.5px; line-height: 1.4; font-weight: 600; box-shadow: 0 10px 28px -8px rgba(0, 0, 0, 0.55); opacity: 0; pointer-events: none; z-index: 30; transition: opacity 0.15s; }
@@ -2340,12 +2355,19 @@ body.modalup .app { z-index: auto; }
 /* right-click inspect: the card floats to centre, enlarged, over a dimmed backdrop */
 /* z-index 500 keeps inspect above even the end-of-run overlay (z 400), so right-clicking a minion in
    the final warband to read its buffs works there too. */
-.inspect-ov { position: fixed; inset: 0; z-index: 500; background: rgba(26, 16, 6, 0.6); backdrop-filter: blur(2px); display: grid; place-items: center; animation: fadein 0.14s ease; cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
+.inspect-ov { position: fixed; inset: 0; z-index: 500; background: rgba(26, 16, 6, 0.6); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); display: grid; place-items: center; animation: fadein 0.14s ease; cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
 /* The inspect view scales the whole group (buff breakdown + card) as one unit, so the breakdown
    panel sits cleanly to the LEFT of the enlarged card without transform/layout mismatch. */
-.inspect-card { display: flex; align-items: center; gap: 10px; transform: scale(1.9); transform-origin: center; animation: inspectpop 0.18s cubic-bezier(0.34, 1.3, 0.64, 1); }
+.inspect-card { position: relative; display: flex; align-items: center; gap: 10px; transform: scale(1.9) translateY(-15%); transform-origin: center; animation: inspectpop 0.18s cubic-bezier(0.34, 1.3, 0.64, 1); }
 .inspect-card .card { animation: none; cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
 .inspect-card .card:hover { transform: none; border-color: var(--line); }
+/* Reserve the plate overhang as margin (same as `.cardref .card.plated`) so the plate can't lap over the
+   buffs (left) or the keyword definitions (right) — the gap then sits clear of the plate, not the body. */
+.inspect-card .card.plated { margin-inline: calc(var(--ccw) * (var(--plate-scale, 1.5) - 1) / 2); }
+/* Keyword defs are pulled OUT of the flex flow (owner 2026-08-20) and pinned to the card's right edge, so the
+   CARD stays perfectly centred on screen instead of the card+defs row being centred (which shoved the card
+   left). Top-anchored to the card, growing DOWNWARD — it may roll past the card's bottom, which is fine. */
+.inspect-card .kwdefs { position: absolute; left: 100%; top: -15%; margin-left: 12px; width: 200px; max-width: none; max-height: none; overflow: visible; }
 /* buff breakdown ("Spirit Fire ×2  +6/+6"), shown left of the card when a minion is buffed */
 /* Buffs breakdown beside the inspected card — same dark pill/glass as the detached text drawer. */
 /* MUST stay POSITIONED with a z-index (owner report 2026-07-22: the panel rendered behind the card).
@@ -2358,11 +2380,25 @@ body.modalup .app { z-index: auto; }
 .inspect-buffs { position: relative; z-index: 30; align-self: center; min-width: 92px; max-width: min(252px, 44vw); max-height: min(72vh, 560px); overflow-y: auto; background: linear-gradient(180deg, #241a13, #17110c); border: 2px solid color-mix(in srgb, var(--gold) 55%, #000); border-radius: 9px; padding: 6px 8px; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 4px 14px -6px rgba(0, 0, 0, 0.45); display: flex; flex-direction: column; gap: 3px; }
 .ib-title { font-family: var(--font-ui); font-weight: 800; font-size: 8.5px; letter-spacing: 0.12em; text-transform: uppercase; color: #b7a98f; text-align: center; margin-bottom: 2px; }
 .ib-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; font-size: 10px; white-space: nowrap; }
+/* Keyword definition panel (KeywordDefs) — a column of word-led boxes beside the enlarged card on the hover
+   reveal and the right-click Inspect. Mirrors the .inspect-buffs glass chrome so the two side panels read as
+   one family. Static DOM only — no animated paint. */
+.kwdefs { align-self: center; display: flex; flex-direction: column; gap: 6px; max-width: min(144px, 25vw); max-height: min(72vh, 560px); overflow-y: auto; }
+.kwdefs::-webkit-scrollbar { width: 0; height: 0; display: none; }
+/* Hover reveal: match the Inspect layout — top-align the defs to the card (not vertically centred) and lift
+   them a touch so they start just above the card top and cascade DOWN. The lift is a FIXED offset (not a % of
+   the defs column's own height) so it stays put no matter how many tooltips there are — a % lifted taller
+   columns further, pushing 4-tip cards up while 2-tip cards sat right. `transform` is visual-only, so the
+   reveal's width/flip math (which counts the defs column) is unaffected. */
+.cardref .kwdefs { align-self: flex-start; transform: translateY(-14px); }
+.kwbox { background: linear-gradient(180deg, #241a13, #17110c); border: 2px solid color-mix(in srgb, var(--gold) 55%, #000); border-radius: 9px; padding: 6px 9px; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 4px 14px -6px rgba(0, 0, 0, 0.45); }
+.kwbox-name { font-family: var(--font-ui); font-weight: 800; font-size: 10px; letter-spacing: 0.03em; color: var(--acc, #ff9d4d); }
+.kwbox-def { font-family: var(--font-ui); font-weight: 500; font-size: 8.4px; line-height: 1.35; color: #e9dcc4; margin-top: 2px; }
 /* The source name flexes + ellipsizes if a name is unusually long; the +atk/+hp amount never clips. */
 .ib-src { font-family: var(--font-ui); font-weight: 700; color: #f4ecdb; flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .ib-src em { color: #b7a98f; font-style: normal; font-weight: 600; font-size: 8.5px; }
 .ib-amt { font-family: var(--font-ui); font-weight: 800; color: #3fd68f; flex: 0 0 auto; } /* buff green, lightened for the dark fill */
-@keyframes inspectpop { from { opacity: 0; transform: scale(1.45); } to { opacity: 1; transform: scale(1.9); } }
+@keyframes inspectpop { from { opacity: 0; transform: scale(1.45) translateY(-15%); } to { opacity: 1; transform: scale(1.9) translateY(-15%); } }
 
 /* custom drag: a solid card pinned to the cursor; the source dims; invalid drops snap back.
    No base transition — the card tracks the cursor 1:1 for a snappy feel (not floaty); .snap / .magslide
@@ -2734,7 +2770,13 @@ body.modalup .app { z-index: auto; }
 /* The status tray, tucked into the bottom-LEFT corner so the hand owns the whole
    bottom-centre: Embers + Hero on the top row, the Resolve HP bar across the bottom.
    Still click-through (only the hero/Embers capture, and even they go through mid-drag). */
-.statusbar { position: fixed; bottom: calc(var(--bar-y) + 14px + env(safe-area-inset-bottom)); left: calc(var(--bar-x) + 16px + env(safe-area-inset-left)); display: flex; flex-direction: column; align-items: stretch; gap: 7px; z-index: 40; pointer-events: none; padding: 7px 10px 9px; }
+/* Anchored to the BOARD ART's bottom-left, not the 16:9 stage corner — see `--_artw`/`--_arth`. The coefficients
+   keep the position IDENTICAL to the old `--bar` anchor at the tuned size (--scale 1, --gh 1440, board-zoom 1.25,
+   aspect 1.7919, fill 1): 0.391888 = (1440·8/9 − 16px) ÷ art-width(1440); 0.389444 = (1440/2 − 14px) ÷
+   art-height(1440). Expressed as a fraction of the art, so the panel now tracks the art's overflow at EVERY
+   scale instead of drifting off its frame when the board shrinks below 1.0. If the board zoom/aspect/fill is
+   re-baked, re-derive the two coefficients. */
+.statusbar { position: fixed; bottom: calc(50% - 0.389444 * var(--_arth) - var(--board-y, 5px) * var(--scale) + env(safe-area-inset-bottom)); left: calc(50% - 0.391888 * var(--_artw) + var(--board-x, 0px) * var(--scale) + env(safe-area-inset-left)); display: flex; flex-direction: column; align-items: stretch; gap: 7px; z-index: 40; pointer-events: none; padding: 7px 10px 9px; }
 /* Player name — a small white box above the hero panel; black text (mirrors the opponent name up top). */
 /* Player name — a pill eclipsing the TOP edge of the hero box (mirrors the opponent's `.opp-name` on its frame):
    absolutely centered on the top border, nudged up so it half-overlaps. Cream/gold to read as friendly (the
@@ -2784,7 +2826,7 @@ body.modalup .app { z-index: auto; }
 /* Chains draped over the LOCKED third rune slot — same 3rd-node anchor + counter-scale as the sheen so it stays
    glued to the slot through the Quest-nodes Scale slider; its own `--rch-*` nudge from the 💠 Rune Sheen tuner.
    Sits ABOVE the sheen (z 6) and does not blend — it reads as solid chains over the empty slot. */
-.questbadges .rune-chains { position: absolute; left: 0; top: 0; z-index: 6; pointer-events: none; -webkit-user-drag: none; height: auto; transform-origin: 50% 50%; width: calc(var(--rch-w, 54) * var(--u-base)); transform: translate(calc(var(--rch-x, 127) * var(--u) + var(--qb3-x, 30px) * var(--scale)), calc(var(--rch-y, -3) * var(--u) + var(--qb3-y, 23px) * var(--scale))) scale(calc(1 / var(--qb-s, 1.09))); }
+.questbadges .rune-chains { position: absolute; left: 0; top: 0; z-index: 6; pointer-events: none; -webkit-user-drag: none; height: auto; transform-origin: 50% 50%; width: calc(var(--rch-w, 54) * var(--u-base)); transform: translate(calc(var(--rch-x, 129) * var(--u) + var(--qb3-x, 30px) * var(--scale)), calc(var(--rch-y, -5) * var(--u) + var(--qb3-y, 23px) * var(--scale))) scale(calc(1 / var(--qb-s, 1.09))); }
 /* Reserve one rune-row's height while the 3rd slot is chained, so the bottom-anchored row doesn't grow (and slide
    the chains) as the first two runes arrive — the chains hold one spot from turn 1 onward. */
 .questbadges.hasrunelock { min-height: calc(53 * var(--u)); }
@@ -2907,7 +2949,7 @@ body.dragging .statusbar .hero { pointer-events: none; }
   /* The 🧍 tuner's whole-panel transform lives HERE (the hero square), NOT on .statusbar — a transform on
      .statusbar would become the containing block for the power diamond's `position: fixed` and break its
      stage pinning. Identity fallback matches the shipped defaults in heroPanelConfig.ts. */
-  transform: var(--hpn-panel-t, translate(calc(54px * var(--scale)), calc(-106px * var(--scale))) scale(3.1)); transform-origin: bottom left;
+  transform: var(--hpn-panel-t, translate(calc(58px * var(--scale)), calc(-109px * var(--scale))) scale(3.1)); transform-origin: bottom left;
   /* Square dimensions — the 🧍 tuner's width/height dials (design px × --u); unset (0) = the snug
      default square. The portrait FILLS the square (inset by the padding), so a resize never ejects it. */
   width: var(--hpn-panel-w, calc(87 * var(--u))); height: var(--hpn-panel-h, calc(89 * var(--u)));
@@ -4063,7 +4105,13 @@ body.aiming, body.aiming * { cursor: none !important; }
 .heroselect { position: fixed; inset: 0; z-index: 400; display: grid; place-items: safe center; overflow-y: auto; padding: 24px 0; background: color-mix(in srgb, var(--bg) 92%, transparent); animation: fadein 0.3s ease; cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
 /* The pre-run picker uses the board art, heavily dimmed, as its textured backdrop. */
 /* Same aspect-switched board the player will actually play on (see --board), so the champion pick previews it. */
-.heroselect:not(.endscreen) { background: linear-gradient(rgba(22, 15, 9, 0.62), rgba(22, 15, 9, 0.7)), var(--board) center / cover no-repeat, var(--bg); }
+/* Board art lives on a ::before layer so it can be blurred HARD without touching the picker's text/cards.
+   z-index:-1 keeps it BEHIND all content (which stays in normal flow — no per-child position/z-index, so the
+   absolute Back button keeps its top-left pin), yet above the element's own --bg fill. Inset past the viewport
+   (-60px) so the blur's transparent edge bleed stays off-screen. Darkening scrim (unchanged) rides on top of
+   the art in the same layer. Static blur, painted once. */
+.heroselect:not(.endscreen) { background: var(--bg); }
+.heroselect:not(.endscreen)::before { content: ''; position: absolute; inset: -60px; z-index: -1; pointer-events: none; background: linear-gradient(rgba(22, 15, 9, 0.62), rgba(22, 15, 9, 0.7)), var(--board) center / cover no-repeat, var(--bg); filter: blur(16px); }
 /* The end screen gets its OWN dark backdrop (the sky-castle art, heavily scrimmed) so the run's stats read
    over a clean, high-contrast surface — never over the busy live board behind it. */
 .heroselect.endscreen { background: linear-gradient(rgba(6, 11, 22, 0.88), rgba(6, 11, 22, 0.93)), url('/homescreen.webp') center / cover no-repeat, var(--bg); }
@@ -4149,9 +4197,39 @@ body:has(.heroselect) .statusbar { visibility: hidden; }
   white-space: nowrap; font-size: 21px; padding: 3px 18px; background: linear-gradient(180deg, #fff, #f3ead4);
   border: 2px solid var(--gold); border-radius: 999px; box-shadow: 0 2px 6px -2px var(--shadow);
 }
+/* The area under the portrait holds TWO faces that crossfade (owner ask 2026-08-20): the resting face is the
+   difficulty pill + strategy tip, the hover face is the hero-power text. `.hcbelow` owns the reserved height
+   and both faces are absolutely positioned inside it, so swapping between them can never reflow the row —
+   the same "reserve the height once" trick the power text used on its own before. */
+.herocard.big .hcbelow { position: relative; min-height: 92px; width: 100%; }
+.herocard.big .hcbelow > * { position: absolute; inset: 0; }
+/* Resting face — visible until the card is hovered. */
+/* Centred vertically in the reserved box, not top-aligned: the box height is owned by the HOVER face (the
+   power text), so with tips hidden (`SHOW_HERO_TIPS`) a top-aligned pill would hang off the top of a tall
+   empty gap. Centring reads as deliberate with the pill alone AND with the tip restored under it. */
+.herocard.big .hcmeta {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px;
+  opacity: 1; transition: opacity 0.28s ease;
+}
+.herocard.big:hover .hcmeta { opacity: 0; }
+.hcdiff {
+  display: inline-block; padding: 2px 13px 3px; border-radius: 999px;
+  font-family: var(--font-ui); font-weight: 900; font-size: 13px; letter-spacing: 0.07em; text-transform: uppercase;
+  border: 2px solid currentColor; background: rgba(8, 6, 14, 0.55);
+}
+/* Difficulty is a THREE-STEP scale, so it gets three unambiguous hues rather than one accent at three
+   opacities — the pill has to be readable at a glance across a row of cards. */
+.hcdiff.d-easy { color: #7fd18a; }
+.hcdiff.d-medium { color: #e8c15e; }
+.hcdiff.d-hard { color: #e8836b; }
+.hctip {
+  font-size: 15px; font-weight: 600; line-height: 1.32; color: #efe6d4;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.8), 0 0 2px rgba(0, 0, 0, 0.9);
+  padding: 0 4px;
+}
 /* Power text — fades in with the power art, LIGHT on the bare board background (no cream card behind it
-   any more); reserved height so the card never jumps on hover. */
-.herocard.big .hcpw { min-height: 92px; opacity: 0; transition: opacity 0.28s ease; color: #efe6d4; text-shadow: 0 2px 6px rgba(0, 0, 0, 0.8), 0 0 2px rgba(0, 0, 0, 0.9); }
+   any more). Height is now reserved by `.hcbelow` above. */
+.herocard.big .hcpw { opacity: 0; transition: opacity 0.28s ease; color: #efe6d4; text-shadow: 0 2px 6px rgba(0, 0, 0, 0.8), 0 0 2px rgba(0, 0, 0, 0.9); }
 .herocard.big .hcpw b { color: var(--acc); }
 .herocard.big:hover .hcpw { opacity: 1; }
 .herocard.big .hcpw .hclock { display: inline-block; margin-top: 8px; background: rgba(0, 0, 0, 0.35); }
@@ -4192,6 +4270,11 @@ body:has(.heroselect) .statusbar { visibility: hidden; }
 /* End screen sized up ~2.5× and forced to single rows (pips + warband never wrap). */
 .endscreen .eyebrow { font-size: 26px; letter-spacing: 0.32em; }
 .endscreen .hstitle { margin: 12px 0 0; font-size: 116px; }
+/* GRADUATION screen: no `.endboardlabel` sits between the title and the board here, so the title's zero
+   bottom margin let the final warband ride up over it (owner report 2026-08-20). Give the title its own
+   breathing room and shrink it a little — 116px is sized for the full end screen's taller layout. */
+.tutgrad .hstitle { font-size: clamp(56px, 7vw, 92px); margin: 4px 0 30px; }
+.tutgrad .endboard { margin-top: 6px; }
 .endsub { font-family: var(--font-ui); font-weight: 800; font-size: 32px; letter-spacing: 0.18em; text-transform: uppercase; color: #f2ead9; margin-top: 16px; }
 /* Par / line verdict (A2): the run's target + how it graded (covered / exceeded / missed / …). */
 .endline { display: inline-flex; align-items: center; gap: 12px; margin-top: 12px; font-family: var(--font-ui); font-weight: 800; font-size: 16px; letter-spacing: 0.08em; text-transform: uppercase; }
@@ -6041,15 +6124,15 @@ svg { width: 18px; height: 18px; }
 .modecard[data-mp] { width: auto; padding: 0; }
 .modecard[data-mp='play'] {
   width: var(--mp-play-w, 660px); height: var(--mp-play-h, 284px);
-  transform: translate(var(--mp-play-x, -160px), var(--mp-play-y, 115px)) scale(var(--mp-play-s, 0.84));
+  transform: translate(var(--mp-play-x, -160px), var(--mp-play-y, 18px)) scale(var(--mp-play-s, 0.84));
 }
 .modecard[data-mp='learn'] {
   width: var(--mp-learn-w, 880px); height: var(--mp-learn-h, 128px);
-  transform: translate(var(--mp-learn-x, 177px), var(--mp-learn-y, 187px)) scale(var(--mp-learn-s, 1));
+  transform: translate(var(--mp-learn-x, 177px), var(--mp-learn-y, 82px)) scale(var(--mp-learn-s, 1));
 }
 .modecard[data-mp='practice'] {
   width: var(--mp-practice-w, 306px); height: var(--mp-practice-h, 284px);
-  transform: translate(var(--mp-practice-x, -160px), var(--mp-practice-y, -170px)) scale(var(--mp-practice-s, 0.84));
+  transform: translate(var(--mp-practice-x, -160px), var(--mp-practice-y, -266px)) scale(var(--mp-practice-s, 0.84));
 }
 /* The frame fills the (sized) card; no per-frame transform now (that's on the card). */
 .mcframe[data-mp] { width: 100%; height: 100%; aspect-ratio: auto; margin-bottom: 0; transform: none; }
@@ -6063,14 +6146,14 @@ svg { width: 18px; height: 18px; }
 .mcframe[data-mp='practice'] .mcframe-art { transform: translate(var(--mp-practice-artx, 0px), var(--mp-practice-arty, 0px)) scale(var(--mp-practice-arts, 1)); }
 
 /* MODE title — scale + nudge from the tuner (fallbacks = shipped: no-op). */
-.mptitle { transform: translate(var(--mp-title-x, 0px), var(--mp-title-y, 59px)) scale(var(--mp-title-s, 1)); }
+.mptitle { transform: translate(var(--mp-title-x, 0px), var(--mp-title-y, -30px)) scale(var(--mp-title-s, 1.23)); }
 
 /* DevMenu-hosted tuners float via useDraggablePanel (z 600+), above the mode picker (z 400) — no extra z hook
    needed. The Play Mode Screen tuner lives in the Dev tuning menu now, not an inline pill. */
 
 /* Locked "coming soon" learning slot — dimmed, non-interactive, but still framed so the hub reads as "more to
    come" rather than empty. */
-.modecard.mclocked { cursor: default; opacity: 0.5; }
+.modecard.mclocked { cursor: url('/cursors/gauntlet_default.svg') 6 2, default; opacity: 0.5; }
 .modecard.mclocked:hover { transform: none; }
 .modecard.mclocked .mcname { background: linear-gradient(180deg, #e9e9ee, #d3d3db); }
 
@@ -6457,12 +6540,12 @@ button.frzwrap.frzwrap:focus-visible {
   position: relative; pointer-events: none;
   /* Tuner offset/scale ride the INDEPENDENT translate/scale; `transform` is free for the open/close slide.
      Origin bottom-left so scaling keeps the panel seated above the portrait as it grows up. */
-  translate: calc(var(--bfd-body-x, 0) * var(--u)) calc(var(--bfd-body-y, 0) * var(--u));
-  scale: var(--bfd-body-s, 0.9);
+  translate: calc(var(--bfd-body-x, 8) * var(--u)) calc(var(--bfd-body-y, -37) * var(--u));
+  scale: var(--bfd-body-s, 0.47);
   transform-origin: bottom left;
   padding: calc(8 * var(--u)) calc(12 * var(--u));
   display: flex; flex-direction: column; gap: calc(3 * var(--u));
-  min-width: calc(var(--bfd-min-w, 122) * var(--u));
+  min-width: calc(var(--bfd-min-w, 120) * var(--u));
   background: linear-gradient(180deg, #241a13f2, #17110cf2);
   border: 2px solid color-mix(in srgb, var(--gold) 45%, #000);
   border-radius: calc(12 * var(--u));
@@ -6482,15 +6565,15 @@ button.frzwrap.frzwrap:focus-visible {
 }
 
 
-.herobuffs-title { font-family: var(--font-ui); font-weight: 800; font-size: calc(var(--bfd-title-s, 11) * var(--u)); letter-spacing: 0.08em; text-transform: uppercase; color: #c9b79a; margin: 0; text-decoration: underline; text-underline-offset: calc(3 * var(--u)); }
+.herobuffs-title { font-family: var(--font-ui); font-weight: 800; font-size: calc(var(--bfd-title-s, 13) * var(--u)); letter-spacing: 0.08em; text-transform: uppercase; color: #c9b79a; margin: 0; text-decoration: underline; text-underline-offset: calc(3 * var(--u)); }
 .herobuffs-body .buff-row { display: flex; align-items: baseline; justify-content: space-between; gap: calc(10 * var(--u)); }
 /* Size the label + value directly: `.buff-row .buff-label/.buff-val` (lines ~339) set a fixed font-size, and a
    direct rule beats the row's inherited size — so the tuner's `--bfd-text-s` must land on these, not the row. */
 /* Leader line bridging name → amount: flex-grows to fill the gap, vertically centred, a thin muted hairline
    (darker than the white text so it stays quiet). */
 .herobuffs-body .buff-lead { flex: 1 1 auto; align-self: center; min-width: calc(12 * var(--u)); height: 0; border-top: 1px solid color-mix(in srgb, var(--gold) 45%, #000); }
-.herobuffs-body .buff-label { color: #fff; font-weight: 600; font-size: calc(var(--bfd-text-s, 11) * var(--u)); }
-.herobuffs-body .buff-val { color: #fff; font-weight: 900; font-size: calc(var(--bfd-text-s, 11) * var(--u)); }
+.herobuffs-body .buff-label { color: #fff; font-weight: 600; font-size: calc(var(--bfd-text-s, 10.5) * var(--u)); }
+.herobuffs-body .buff-val { color: #fff; font-weight: 900; font-size: calc(var(--bfd-text-s, 10.5) * var(--u)); }
 /* Mid-drag nothing in the strip may eat a drop aimed at the corner (mirrors the hero/Embers rule above). The
    container is already `none`; disable the interactive children too so a dragged card drops straight through. */
 body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: none; }
@@ -8099,8 +8182,8 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
    SIBLING of the rail (a child would be clipped by the rail's overflow-y scroll).
    Position + size are owner-tunable via the 🎞 Replay Rail dev tuner — the `--rrl-*` vars; these fallbacks
    MUST mirror the replayRailConfig DEFAULTS. */
-.roundrail-wrap { position: fixed; left: calc(var(--rrl-x, 14) * 1px); top: calc(50% + var(--rrl-y, 0) * 1px);
-  transform: translateY(-50%) scale(var(--rrl-s, 1)); transform-origin: left center; z-index: 555; }
+.roundrail-wrap { position: fixed; left: calc(var(--rrl-x, 11) * 1px); top: calc(50% + var(--rrl-y, -300) * 1px);
+  transform: translateY(-50%) scale(var(--rrl-s, 1.09)); transform-origin: left center; z-index: 555; }
 .roundrail {
   display: flex; flex-direction: column; gap: 3px; padding: 8px 6px; border-radius: 10px; max-height: 82vh; overflow-y: auto;
   background: #14111c; box-shadow: 0 4px 14px -6px rgba(0, 0, 0, 0.7), inset 0 0 0 1px rgba(255, 255, 255, 0.09);
@@ -8113,6 +8196,13 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .roundrail-num { letter-spacing: 0.03em; }
 .roundrail-head { padding: 4px 8px; font-weight: 800; font-size: 10px; line-height: 16px; letter-spacing: 0.06em;
   text-transform: uppercase; color: rgba(255, 255, 255, 0.45); }
+/* PARTIAL recording banner — sits above the Round header and states the recorded range. Static paint only
+   (no animation): it renders once per replay and must never cost a frame. */
+.roundrail-partial { display: flex; flex-direction: column; gap: 1px; margin: 0 0 4px; padding: 5px 8px;
+  border-radius: 7px; background: rgba(232, 138, 122, 0.14); box-shadow: inset 0 0 0 1px rgba(232, 138, 122, 0.35); }
+.roundrail-partial-tag { font-weight: 800; font-size: 10px; line-height: 13px; letter-spacing: 0.06em;
+  text-transform: uppercase; color: #e8a99c; }
+.roundrail-partial-range { font-weight: 700; font-size: 11px; line-height: 14px; color: rgba(255, 255, 255, 0.72); }
 .roundrail-verdict { font-weight: 800; text-align: center; }
 .roundrail-verdict.win { color: #9fd98a; }
 .roundrail-verdict.loss { color: #e88a7a; }

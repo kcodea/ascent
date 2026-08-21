@@ -76,6 +76,33 @@ export function extraTriggerFires(
   return summed + best;
 }
 
+/**
+ * Rune of Twilight's extra Start-of-Combat passes — how many ADDITIONAL times each Start-of-Combat effect
+ * fires beyond the base (+ Uron's card-data multiplier, which `extraTriggerFires` owns). THE single
+ * definition consulted by BOTH the combat SC pass in `simulate` and the shop End-of-Turn replay under Rune
+ * of Combat Prowess (owner reversal 2026-08-20: the two runes STACK — a trigger multiplier follows the
+ * trigger to whatever phase it fires in), so the two counts can never drift.
+ */
+export function socTwilightExtraFires(mods: { runeTwilight?: boolean } | undefined): number {
+  return mods?.runeTwilight ? 1 : 0;
+}
+
+/**
+ * THE Echo-multiplier set (owner principle 2026-08-20: trigger multipliers follow the trigger to whatever
+ * phase it fires in). Both phases fold the SAME inputs additively — combat's `playerEchoExtras` and the
+ * recruit-side `fireRecruitDeathrattles` each gather their phase's values and call this, so "how many extra
+ * times does an Echo fire" has ONE definition:
+ *   - `reaperExtras`  — Sylus (stacking) + Uron (best copy), from card data via `extraTriggerFires`;
+ *   - `beastRitualExtra` — Elderhorn's Beast Ritual, for a BEAST echo only (caller gates the tribe);
+ *   - `echoExtraAlways`  — Funeral Engine's permanent extra trigger;
+ *   - `firstEchoBonus`   — Grave Contract / Last Rites / Rune of the Catacomb's first-Echo bonus, already
+ *      gated + consumed by the caller for its own scope (per combat in a fight, per turn in the shop).
+ */
+export interface EchoExtraFireInputs { reaperExtras: number; beastRitualExtra: number; echoExtraAlways: number; firstEchoBonus: number }
+export function foldEchoExtraFires(i: EchoExtraFireInputs): number {
+  return i.reaperExtras + i.beastRitualExtra + i.echoExtraAlways + i.firstEchoBonus;
+}
+
 /** Shop tiers. 7 exists ONLY under the Summit rift — see `maxTierFor` in @game/sim, which is the
  *  single gate on whether a run can ever reach it. */
 export type Tier = 1 | 2 | 3 | 4 | 5 | 6 | 7;
@@ -491,6 +518,7 @@ export type EffectFactoryId =
   | 'battlecryBuffUndeadAttack' // Deathswarmer: Battlecry — give your Undead +Attack wherever they are; stacks into future buys
   | 'battlecryBuffBeastAttack' // (legacy) give your Beasts +Attack wherever they are; stacks into future buys
   | 'battlecryScoutSpread' // Squirl Scout: Battlecry — give a random friendly +N/+N per Beast owned; N snowballs per Squirl Scout played
+  | 'battlecryConductorAdjacent' // Conductor: Shout — give adjacent minions +2N/+3N; N snowballs per Conductor played (×2 gilded)
   | 'battlecryBuffMagnetics' // Scrap Herald: Battlecry — give your Magnetic minions +atk/+hp wherever they are; stacks into future buys
   | 'battlecryBuffImps' // Imp Overseer: Battlecry — give your Imps +atk/+hp run-wide (shared impBuff enchant)
   | 'goldSpentBuffFodder' // Koron: every N Gold spent, permanently buff your Fodder run-wide (+ queue a Fodder)
@@ -604,7 +632,20 @@ export type EffectFactoryId =
   | 'endOfTurnPlayRuby' // Set 2 — Alchemist Brisbane (EoT): play N Rubies on a random friendly Kobold
   | 'deathrattleSummonRubyStats' // Set 2 — Gemheart Carver: Echo summon a token with stats = its Rubies
   | 'rubyStatMultiplier' // Set 2 — Deepdelve Paragon: Rubies applied IN COMBAT are worth 2× (3× Gilded)
-  | 'rubyCastConsumeShop'; // Set 2 — Gemgorge Fiend: every N Rubies cast, Consume a Shop minion
+  | 'rubyCastConsumeShop' // Set 2 — Gemgorge Fiend: every N Rubies cast, Consume a Shop minion
+  // --- RUNE-ONLY minion batch (2026-08-20). Every one of these rides `token: true` (forge-only). ---
+  | 'onGetRubyDuplicate' // Gem Sage: getting a Ruby mints an extra copy (never re-fires `onGetRuby` — no recursion)
+  | 'goldSpentScaleSelf' // Ancient Wanderer: HAS +A/+H per N Gold spent this RUN — a synced stored buff, not a per-step grant
+  | 'buffShopOffersThisTurn' // Night Market Horror: after a buy, minions in the shop get +A/+H for THIS TURN
+  | 'onSellDiscoverSingleton' // Traveling Salesman: selling this Discovers among minions you own exactly one copy of
+  | 'onGainAleBuffSelf' // Kegheart Dwarf: gaining a Dwarven Ale buffs this body +A/+H
+  | 'onBuyGrantSpellSameTier' // Ninefold Broker: after a buy, a random Shop spell OF THAT TIER — N charges per run
+  | 'endOfTurnCopyLeftmostHandCard' // Stonehorn Archivist: every N turns, a plain copy of your left-most HAND card
+  | 'endOfTurnTransformLeftTierUp' // Skybound Ascendant: End of Turn, the minion to its left becomes one tier higher
+  | 'minionSoldDemonGainStats' // Arcane Behemoth: selling a Demon feeds it that body's stats
+  | 'onFriendDeathGainEcho' // Echo Mimic (combat): another friendly dies → this gains that minion's Echo for the fight
+  | 'avengeSummonAttackImproving' // Muster General (combat): Avenge summons an improving token that strikes at once
+  | 'rallyDoubleSelf'; // Evolving Abomination (combat): Rally doubles this minion's stats, capped per combat
 
 export interface EffectDef {
   on: GameEvent;
@@ -617,6 +658,15 @@ export interface EffectDef {
    * branch — which is the whole reason the gate lives on the effect instead of on a pair of card fields.
    */
   align?: 'dawn' | 'dusk';
+  /**
+   * COMBAT-ONLY gate (owner ruling 2026-08-20, Sunmane Herald): this effect fires in COMBAT only — the shop
+   * dispatchers (`fireShopRally` / `socBoardEffects`) skip it entirely, so it never gets an End-of-Turn beat
+   * and never counts as "a Rally/SoC to trigger" in the shop. Data-level, not a phase check inside a body:
+   * Sunmane's viral Rally graft loops unboundedly under Rune of Lasting Cadence (every grant mints new
+   * permanent ralliers), so the card is scoped out of the shop at the definition. Absent = fires in both
+   * phases, so every existing card is unaffected.
+   */
+  combatOnly?: boolean;
 }
 
 /** Does an effect gated on `align` fire for a minion currently holding `have`? Eclipse counts as both sides;
@@ -883,7 +933,14 @@ export type QuestReward =
   // (Pack Mentality: +3/+1, improve every 5 Beasts summoned in combat). Growth is tallied in settleCombat.
   | { kind: 'scalingTribeAura'; tribe: Tribe; attack: number; health: number; per: number; event: QuestObjectiveEvent; stepAttack: number; stepHealth: number }
   // Conjure `cards` to hand at the END OF EACH TURN, for the rest of the run (Feed the Alpha's recurring spell).
-  | { kind: 'recurringGrant'; cards: string[] }
+  /**
+   * `everyTurns` (2026-08-20) is the general CADENCE field the recurring rewards were missing: absent = every
+   * turn (what every existing user wants), `2` = every OTHER turn. Added because three runes in the 2026-08-20
+   * batch are "every 2 turns, get a <minion>" and the alternative was three bespoke flags. NB: `turns` on
+   * `recurringEndOfTurn` means something DIFFERENT (how many times it fires before stopping), which is exactly
+   * why the cadence needed its own name rather than overloading that one.
+   */
+  | { kind: 'recurringGrant'; cards: string[]; everyTurns?: number }
   // ── 2026-08-19 owner rune batch ────────────────────────────────────────────────────────────────────────
   /** Rune of Basic/Epic <tribe>: every turn setup, conjure `count` random minions of `tribe` (the `runeDeep`
    *  shape, tribe-filtered instead of tier-filtered). Basic grants 1, Epic 2. */
@@ -912,6 +969,26 @@ export type QuestReward =
   /** Rune of the Chipper Sticker: playing a Demon makes ANOTHER friendly Demon eat a Shop minion. A RECRUIT
    *  effect (the play happens in the shop), so it is its own reward rather than a `combatFlag`. */
   | { kind: 'runeChipperSticker' }
+  // ── 2026-08-20 owner rune batch ────────────────────────────────────────────────────────────────────────
+  /**
+   * Rune of Living Magic (`uses: 1`) / Rune of Perfect Recall (`uses: 2`): after you cast a Shop spell, a COPY
+   * of it lands in your hand — `uses` times per turn. ONE budget, parameterised: the two runes are the same
+   * mechanism at different sizes, and holding both simply raises the ceiling.
+   */
+  | { kind: 'runeSpellEcho'; uses: number }
+  /** Rune of Draconic Curiosity: taking a DRAGON out of a Discover hands you a random Shop spell. */
+  | { kind: 'runeDraconicCuriosity' }
+  /**
+   * Rune of the Seasoned Ledger: every minion you PLAY from hand gains +attack/+health, and the grant itself
+   * improves by the same amount every `per` minions played. The live magnitude is what the badge prints.
+   */
+  | { kind: 'runeSeasonedLedger'; attack: number; health: number; per: number }
+  /** Rune of Echoed Arrival: every `per`-th Echo (Deathrattle) minion you play triggers its Echo on arrival. */
+  | { kind: 'runeEchoedArrival'; per: number }
+  /** Rune of Shared Spoils: a stat gain on your left-most Dwarf is mirrored onto your right-most Dwarf. */
+  | { kind: 'runeSharedSpoils' }
+  /** Rune of Heavy Payroll: whenever a DWARF arrives in your hand, your left-most minion gains +A/+H. */
+  | { kind: 'runeHeavyPayroll'; attack: number; health: number }
   // Imp Census: permanently improve your Imps by +A/+H run-wide (bumps `impBuff`, so every current + future
   // friendly Imp inherits it). Repeats via the reward's `repeatInTurns` (folded through `multi`).
   | { kind: 'impAura'; attack: number; health: number }
@@ -960,9 +1037,16 @@ export type QuestReward =
    * The remainder BANKS across transactions, like every other threshold in the game. `oncePerTurn` caps payouts
    * at one per turn (the Merchant's Chorus).
    */
-  | { kind: 'runeThreshold'; meter: 'gold' | 'spellCast' | 'spellCastNonAle' | 'castRuby' | 'cardsBought' | 'cardsPlayed' | 'shout' | 'consume'; per: number;
+  | { kind: 'runeThreshold'; meter: 'gold' | 'spellCast' | 'spellCastNonAle' | 'castRuby' | 'cardsBought' | 'cardsPlayed' | 'playDragon' | 'shout' | 'consume'; per: number;
       grantSpell?: number; grantAle?: number; grantRuby?: number;
-      buff?: { target: 'imps' | 'shop' | 'shopRightmost' | 'shopTurn' | 'spells'; attack: number; health: number };
+      /** Rune of the Deep Feast: hand over these exact card ids when the meter trips (the `grant` reward's
+       *  `cards`, on a meter). Overflow-safe like every other earned reward. */
+      grantCards?: string[];
+      /** Rune of the Gilded Ledger: CAST that many random stat-granting Shop spells when the meter trips. */
+      castStatSpell?: number;
+      /** `tribe` targets a tribe wherever it is (board + hand) — Compounding Wages' Dwarves. `step` makes the
+       *  payout ESCALATE: every payout adds `step` to the grant, so the rune improves itself. */
+      buff?: { target: 'imps' | 'shop' | 'shopRightmost' | 'shopTurn' | 'spells' | 'tribe'; tribe?: Tribe; attack: number; health: number; step?: { attack: number; health: number } };
       /** Rune of the Bubble Crown: pay ONCE ever, then the meter stops (its x/N counter stops with it). */
       once?: boolean;
       /** Rune of Gemspam: play a Ruby on EVERY friendly minion when the meter trips. */
@@ -1051,7 +1135,7 @@ export type QuestReward =
   | { kind: 'runeVaultkeeper' }
   // Aug-11 economy runes (recruit-phase flags).
   | { kind: 'runeSellersMarket' }   // whenever you sell a minion, give your minions +4/+3
-  | { kind: 'runeFreshPages' }      // Start of Turn: Discover a Shop spell
+  | { kind: 'runeFreshPages' }      // Discover a Shop spell, repeated every Start of Turn
   | { kind: 'runeStrangeCaravan' }  // Start of Turn: get a random minion from a type you do NOT control
   | { kind: 'runeWindowShopping' }  // your first 4 Refreshes each turn are free
   | { kind: 'runeOpenEnrollment' }  // after you Refresh, the Shop offers an extra minion of your most common type
@@ -1074,6 +1158,8 @@ export type QuestReward =
   | { kind: 'runeEnchantment' } // per Shop-spell cast: your minions +1/+1 (combat casts give +2/+2)
   | { kind: 'runeCrown'; per: number; attack: number; health: number } // after `per` casts, spells give +A/+H extra
   | { kind: 'runeLapidary' } // End of Turn: a Ruby on one friendly minion of each type
+  | { kind: 'runeLastingCadence' } // End of Turn: trigger ALL your Rally effects (one beat each)
+  | { kind: 'runeCombatProwess' } // your Start of Combat effects also trigger at End of Turn (one beat per effect)
   | { kind: 'runeDeep'; tier: number } // each turn: a random minion of `tier`
   | { kind: 'runeGuidingCandle'; count: number; tier: number } // the first `count` refreshes each turn are all `tier`
   | { kind: 'runeMuster' } // one free refresh stocked with plain copies of your board
@@ -1275,7 +1361,13 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
   // Rune of Overflow: a summon that does not fit permanently buffs your whole warband.
   | 'runeOverflow'
   // Rune of Counterpoint: a friendly death sends your left-most minion in for a free swing.
-  | 'runeCounterpoint';
+  | 'runeCounterpoint'
+  // ── 2026-08-20 rune batch ──
+  // returningPack = every 6 Beasts you summon in combat hands you a random Beast next shop;
+  // graveRefreshment = every 2 friendly Echoes triggered banks a free Shop refresh;
+  // shiftingFacets = Avenge (3) improves your Rubies on ONE axis, alternating every turn;
+  // deepeningVein = Avenge (3) improves your Rubies +1/+1 AND plays a Ruby on every friendly Kobold;
+  | 'runeReturningPack' | 'runeGraveRefreshment' | 'runeShiftingFacets' | 'runeDeepeningVein';
 /** Quest-armed combat modifiers threaded into `simulate()` (one trailing options arg). Beast quest capstones +
  *  greaters live here so the pure combat engine can honor them without new positional params per flag. */
 export interface QuestCombatMods {
@@ -1426,6 +1518,19 @@ export interface QuestCombatMods {
   runeOverflow?: number;
   /** Rune of Counterpoint: a friendly death makes your left-most living minion attack immediately. */
   runeCounterpoint?: boolean;
+  // ── 2026-08-20 rune batch ──
+  /** Rune of the Returning Pack: every N Beasts summoned this combat hands over a random Beast. The number
+   *  IS the threshold, so a duplicate rune can't express "more" and the flag stays a plain count. */
+  runeReturningPack?: number;
+  /** Rune of Grave Refreshment: every N friendly Echoes triggered this combat banks a free Shop refresh. */
+  runeGraveRefreshment?: number;
+  /** Rune of Shifting Facets: Avenge (3) improves the side's Rubies on ONE axis. Which axis alternates every
+   *  turn, so the value carried in is the axis in force for THIS fight — not a boolean. */
+  runeShiftingFacets?: 'attack' | 'health';
+  /** Rune of the Deepening Vein: Avenge (3) improves Rubies +1/+1 and plays a Ruby on every friendly Kobold. */
+  runeDeepeningVein?: boolean;
+  /** Rune of Lasting Cadence: at Start of Combat, EVERY rally-capable friendly fires its Rally once (the
+   *  board-wide sibling of `runeRallying`, which fires only the left-most). */
   /** Candlelight Toll: a friendly Kobold dying grants a Ruby to hand (carried back like any hand grant). */
   candlelightToll?: boolean;
   /** Heart of the Mountain: Gemheart Golems attack immediately when summoned. */
@@ -1739,6 +1844,22 @@ export interface BoardMinion {
   text?: string;
   /** DISPLAY-ONLY: the golden variant of `text`, baked alongside it (see `text`). */
   goldenText?: string;
+  /**
+   * DISPLAY-ONLY: the card's NAME and TRIBE at capture time, baked in beside `text` for the same reason —
+   * a stored board must not depend on the viewing build still having the card.
+   *
+   * Added 2026-08-20 after boards in the Career rendered as `d2_transcendence` / NEUTRAL with placeholder art.
+   * Career + Leaderboard history is fetched from the SERVER, so a row can be written by one build and read by
+   * another (two devs on divergent content branches share one database, and a packaged build lags the branch
+   * that played the run). The reader resolved name/tribe from its own `CARD_INDEX` and fell back to the raw
+   * id, which leaked an internal id into the UI. `text` was already baked, which is exactly why those cards
+   * showed correct rule text under a wrong name — the tell that identified the bug.
+   *
+   * Art cannot be fixed this way: it is a local asset keyed by card id, so an unknown card still shows the
+   * placeholder. Absent on pool/combat snapshots and on rows written before this shipped.
+   */
+  name?: string;
+  tribe?: Tribe;
 }
 
 /** A live combat instance. Mutable for the duration of one `simulate()` call. */

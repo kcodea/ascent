@@ -27,7 +27,9 @@ describe('set 2 — the Dragon tribe is wired into the set', () => {
     // Sanity: every authored Dragon is a real minion, not a spell. Tokens are allowed since 2026-07-27 —
     // Commander Warpath hands out a Brood Whelp, which is a Dragon you play but can't buy.
     expect(set2Dragons.every((c) => !c.spell)).toBe(true);
-    expect(set2Dragons.filter((c) => c.token).map((c) => c.id), 'the only Dragon token').toEqual(['d2_broodwhelp']);
+    // Two of them since 2026-08-20: the Brood Whelp, plus Skybound Ascendant from the RUNE-ONLY batch —
+    // `token: true` is how a forge-only minion stays out of every shop roll while still resolving in the set.
+    expect(set2Dragons.filter((c) => c.token).map((c) => c.id).sort(), 'the Dragon tokens').toEqual(['d2_ascendant', 'd2_broodwhelp']);
     expect(run).toBeTruthy();
   });
 

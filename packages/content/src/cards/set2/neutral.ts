@@ -47,6 +47,22 @@ export const SET2_NEUTRAL: CardDef[] = [
     goldenText: '**Every 2 turns:** get a plain copy of **adjacent** minions.',
   },
   {
+    // CONDUCTOR — the neutral Squirl Scout (owner 2026-08-21): a positional Shout whose grant SNOWBALLS
+    // run-wide. Every Conductor Shout raises `conductorBuff` by one weighted step (×2 gilded, ×2 Mastery),
+    // and the grant to the two adjacent minions is the accumulated total — so the first play gives +2/+3,
+    // the next +4/+6, and so on across the run. Live grant surfaces via cardText's conductorText.
+    id: 'n2_conductor',
+    name: 'Conductor',
+    tribe: 'neutral',
+    tier: 4,
+    attack: 2,
+    health: 4,
+    keywords: [],
+    effects: [{ on: 'onPlay', do: 'battlecryConductorAdjacent', params: { attack: 2, health: 3 } }],
+    text: '**Shout:** give adjacent minions **+2/+3**. Every Conductor played improves this by **+2/+3**.',
+    goldenText: '**Shout:** give adjacent minions **+4/+6**. Every Conductor played improves this by **+4/+6**.',
+  },
+  {
     // Echo: its death hands Ward to two survivors — a body that trades early and leaves the line tougher than
     // it found it (owner change 2026-07-25, replacing a positional Start of Combat).
     id: 'n2_lastlight',
@@ -93,8 +109,8 @@ export const SET2_NEUTRAL: CardDef[] = [
     keywords: [],
     universalTribe: true,
     effects: [{ on: 'onAttack', do: 'onRallyBuffOnePerTribe', params: { attack: 4, health: 4 } }],
-    text: 'Counts as all tribes. Whenever you trigger a **Rally**, give a minion of **every type** **+4/+4** permanently.',
-    goldenText: 'Counts as all tribes. Whenever you trigger a **Rally**, give a minion of **every type** **+8/+8** permanently.',
+    text: 'Whenever you trigger a **Rally**, give a minion of **every type** **+4/+4** permanently.',
+    goldenText: 'Whenever you trigger a **Rally**, give a minion of **every type** **+8/+8** permanently.',
   },
   {
     // Owner add 2026-08-18: a cheaper, lower-tier Paragon — an all-type Rally payoff that snowballs one minion
@@ -108,8 +124,8 @@ export const SET2_NEUTRAL: CardDef[] = [
     keywords: ['RL'],
     universalTribe: true,
     effects: [{ on: 'onAttack', do: 'onRallyBuffOnePerTribe', params: { attack: 2, health: 3 } }],
-    text: 'Counts as all tribes. **Rally:** give a minion of **each type** **+2/+3** permanently.',
-    goldenText: 'Counts as all tribes. **Rally:** give a minion of **each type** **+4/+6** permanently.',
+    text: '**Rally:** give a minion of **each type** **+2/+3** permanently.',
+    goldenText: '**Rally:** give a minion of **each type** **+4/+6** permanently.',
   },
   {
     // Owner roster addition 2026-07-29 (un-archived + T6 → T5, owner 2026-08-18). Two branches, deliberately
@@ -136,6 +152,175 @@ export const SET2_NEUTRAL: CardDef[] = [
     ],
     text: '**Choose One:** when you cast a **Shop spell**, give **1 minion of each type +2/+2**, or cast **Growth** when a friendly minion attacks.',
     goldenText: '**Choose One:** when you cast a **Shop spell**, give **1 minion of each type +4/+4**, or cast **Growth twice** when a friendly minion attacks.',
+  },
+  // ── RUNE-ONLY (Source: Rune), owner batch 2026-08-20 ──────────────────────────────────────────────────
+  // Every card in this block is `token: true` for the same reason `dw_baal` is: the roster marks them
+  // Source = Rune, so they ride the set pool for resolution (an id must resolve) but are never drawable.
+  {
+    // DEEPWATER CHEF — one card that hands you the whole curve at once: a T1 body to combine, a T3 to play
+    // now, a T5 you probably can't afford yet. Three separate `battlecryGainRandomMinion` fires rather than
+    // one factory taking a tier LIST: the primitive already pins an exact tier, and three data rows say
+    // exactly what happens, in the order it happens.
+    id: 'n2_deepchef',
+    name: 'Deepwater Chef',
+    tribe: 'neutral',
+    tier: 5,
+    attack: 4,
+    health: 3,
+    keywords: [],
+    token: true, // forge-only: Source = Rune
+    effects: [
+      { on: 'onPlay', do: 'battlecryGainRandomMinion', params: { tier: 1, count: 1 } },
+      { on: 'onPlay', do: 'battlecryGainRandomMinion', params: { tier: 3, count: 1 } },
+      { on: 'onPlay', do: 'battlecryGainRandomMinion', params: { tier: 5, count: 1 } },
+    ],
+    text: '**Shout:** get a random **Tier 1**, **Tier 3** and **Tier 5** minion.',
+    // Golden doubles the COUNT at each tier (`count × gold`), which is what the factory does — six cards, not
+    // three bigger ones.
+    goldenText: '**Shout:** get **2** random **Tier 1**, **Tier 3** and **Tier 5** minions.',
+  },
+  {
+    // ANCIENT WANDERER — a 1/1 that is worth exactly what your run has cost you. The stat line IS the card, so
+    // it prints its CURRENT bonus on every surface (`goldSpentScalerValue` in @game/sim, `ancientWandererText`
+    // in the UI) rather than the rate alone — the hard live-text rule.
+    //
+    // It reads the run TOTAL, not the spend it witnessed: buying one on turn 12 is paid for the whole run
+    // behind it. That is why `goldSpentScaleSelf` is a SYNCED enchant rather than a `goldSpent` threshold.
+    id: 'n2_wanderer',
+    name: 'Ancient Wanderer',
+    tribe: 'mech',
+    tier: 5,
+    attack: 1,
+    health: 1,
+    keywords: [],
+    token: true, // forge-only: Source = Rune
+    // `passive` — declared but never dispatched through the bus (Deepdelve Paragon's contract):
+    // `syncGoldSpentScalers` reads the effect off the card at the two moments its value can move.
+    effects: [{ on: 'passive', do: 'goldSpentScaleSelf', params: { per: 3, attack: 1, health: 1 } }],
+    text: 'Has **+1/+1** for every **3 Gold** you have spent this run.',
+    goldenText: 'Has **+2/+2** for every **3 Gold** you have spent this run.',
+  },
+  {
+    // CLOCKWORK ASSISTANT — a peek one rung above where you are. Reuses `battlecryDiscoverMinion` through the
+    // new `tierOffset` param, so it inherits the exclude-self rule, the Drakko stacking and the Discover
+    // queueing for free. The offset clamps to the RUN's ceiling, so a non-Summit board tops out at Tier 6
+    // instead of promising a Tier 7 the run can never reach.
+    id: 'n2_clockwork',
+    name: 'Clockwork Assistant',
+    tribe: 'mech',
+    tier: 4,
+    attack: 3,
+    health: 3,
+    keywords: [],
+    token: true, // forge-only: Source = Rune
+    effects: [{ on: 'onPlay', do: 'battlecryDiscoverMinion', params: { tierOffset: 1 } }],
+    text: '**Shout: Discover** a minion from **one Tier above** your Shop Tier.',
+    goldenText: '**Shout: Discover 2** minions from **one Tier above** your Shop Tier.',
+  },
+  {
+    // MUCKSLINGER — the Shout tutor. `filter: 'shout'` on the shared conjure primitive; a Shout minion is one
+    // with a real `onPlay` (`hasBattlecry`), the same definition the rune rewards' `randomFilter` uses.
+    id: 'n2_muckslinger',
+    name: 'Muckslinger',
+    tribe: 'beast',
+    tier: 4,
+    attack: 5,
+    health: 5,
+    keywords: [],
+    token: true, // forge-only: Source = Rune
+    effects: [{ on: 'onPlay', do: 'battlecryGainRandomMinion', params: { filter: 'shout', count: 1 } }],
+    text: '**Shout:** get a random **Shout** minion.',
+    goldenText: '**Shout:** get **2** random **Shout** minions.',
+  },
+  {
+    // TRAVELING SALESMAN — a sell payoff aimed at the triple you are one copy short of. The Discover pool is
+    // built from the board at sell time, so it is a different offer every turn; a Golden body already counts
+    // as three copies and is therefore never "exactly one".
+    id: 'n2_salesman',
+    name: 'Traveling Salesman',
+    tribe: 'neutral',
+    tier: 4,
+    attack: 4,
+    health: 4,
+    keywords: [],
+    token: true, // forge-only: Source = Rune
+    effects: [{ on: 'onSell', do: 'onSellDiscoverSingleton' }],
+    text: 'When you **sell** this, **Discover** a minion you control **exactly one** copy of.',
+    goldenText: 'When you **sell** this, **Discover 2** minions you control **exactly one** copy of.',
+  },
+  {
+    // NINEFOLD BROKER — nine is the card. A big body whose real cost is that its engine RUNS OUT: the charge
+    // counter is per-instance and per-run (it rides `buyTick`), so selling and re-buying does not refill it,
+    // and a second Broker brings its own nine.
+    id: 'n2_ninefold',
+    name: 'Ninefold Broker',
+    tribe: 'neutral',
+    tier: 6,
+    attack: 9,
+    health: 9,
+    keywords: [],
+    token: true, // forge-only: Source = Rune
+    effects: [{ on: 'onBuy', do: 'onBuyGrantSpellSameTier', params: { charges: 9, count: 1 } }],
+    text: 'After you buy a minion, get a random **Shop spell** of the **same Tier**. **(9 times)**',
+    // Golden doubles the CHARGES, not the payout — nine is the identity, so the gild buys more of it.
+    goldenText: 'After you buy a minion, get a random **Shop spell** of the **same Tier**. **(18 times)**',
+  },
+  {
+    // ECHO MIMIC — a combat body that gets better the worse the fight goes. Each friendly death grafts that
+    // minion's Echo onto the Mimic for the rest of the combat, so by the time it dies it can be carrying a
+    // whole graveyard. Nothing carries back: "this combat" is the balance lever.
+    id: 'n2_echomimic',
+    name: 'Echo Mimic',
+    tribe: 'neutral',
+    tier: 5,
+    attack: 4,
+    health: 7,
+    keywords: [],
+    token: true, // forge-only: Source = Rune
+    effects: [{ on: 'onDeath', do: 'onFriendDeathGainEcho' }],
+    text: 'Whenever another friendly minion dies, gain its **Echo** for the rest of combat.',
+    goldenText: 'Whenever another friendly minion dies, gain its **Echo twice** for the rest of combat.',
+  },
+  {
+    // MUSTER GENERAL — an Avenge that builds an army AND makes the army better. The improvement is permanent
+    // (it rides `summonBonus`, carried back at settle), so the Troopers are 1/1 in the first fight and 4/4 by
+    // the late course. Its printed "1/1 Trooper" is therefore a LIVE value — `musterTrooperText` folds the
+    // current line into every surface (the hard live-text rule).
+    id: 'n2_muster',
+    name: 'Muster General',
+    tribe: 'dwarf',
+    tier: 5,
+    attack: 6,
+    health: 6,
+    keywords: [],
+    token: true, // forge-only: Source = Rune
+    effects: [{ on: 'avenge', do: 'avengeSummonAttackImproving', params: { count: 3, cardId: 'n2_trooper', step: 1 } }],
+    text: '**Avenge (3):** summon a **1/1 Trooper** that attacks immediately, then improve future Troopers by **+1/+1** permanently.',
+    // Gilded: the Trooper is summoned GOLDEN (the summon path's `golden` flag) and the improvement steps twice.
+    goldenText: '**Avenge (3):** summon a **Gilded 1/1 Trooper** that attacks immediately, then improve future Troopers by **+2/+2** permanently.',
+  },
+  {
+    // EVOLVING ABOMINATION — the batch's ALL-TYPE body. `universalTribe` IS the tribal line: the ALL pill on
+    // the plate already says "counts as every type", so the text does NOT repeat it (owner ruling 2026-08-20,
+    // the same sweep that stripped that clause from every other universal card). Its text is the Rally, full
+    // stop.
+    //
+    // Doubling COMPOUNDS — 6/6 → 12/12 → 24/24 — and it doubles whatever it has been buffed to, so it is a
+    // multiplier on your whole investment rather than a flat grant. The per-combat cap is what keeps that
+    // honest.
+    id: 'n2_abomination',
+    name: 'Evolving Abomination',
+    tribe: 'neutral',
+    tier: 6,
+    attack: 6,
+    health: 6,
+    keywords: ['RL'],
+    universalTribe: true,
+    token: true, // forge-only: Source = Rune
+    effects: [{ on: 'onAttack', do: 'rallyDoubleSelf', params: { max: 2 } }],
+    text: "**Rally:** double this minion's stats. **(Twice per combat)**",
+    // Golden raises the CAP rather than the multiplier — doubling harder isn't a thing.
+    goldenText: "**Rally:** double this minion's stats. **(4 times per combat)**",
   },
   {
     // YIRIN'S REFLECTOR — a hero-granted TOKEN, never drawable. `token: true` keeps it out of every shop pool

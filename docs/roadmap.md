@@ -21,6 +21,14 @@ The five buckets below are ordered by when we intend to act, not by size:
 
 ## Now
 
+- **Re-check the Aug-20 batch in play after the correction pass** (Night Market's per-turn shop buff, Skybound's real-time transform, the new sell-a-Demon Arcane Behemoth, the ten tribe runes paying on purchase — all shipped, see the devlog). What is left is the owner's eyes on whether the four now FEEL right, and whether the Behemoth's new payoff needs a cost/stat adjustment now that it scales off your own sales.
+
+- **The 16 rune-only minions now have their Runeforge entries — ART is what is left** (rune batch built
+  2026-08-20, see the devlog). The 30 runes that hand them out shipped, so every one of those bodies is
+  reachable in play. Remaining: (1) art for all 16 — they are the current contents of `ART_PENDING` in
+  `packages/ui/src/allTypesPill.test.ts`, and each id comes OUT of that list as its art lands; (2) an owner
+  balance pass on the 30 rune costs and on the minion stat lines (Ancient Wanderer's 3-Gold step in
+  particular), now that both halves are reachable together.
 
 - **Combat speed auto-ramp — SHIPPED 2026-08-18.** Each combat replay now holds at the Speed-slider value for
   an opening grace, eases up to a ceiling mid-fight, then eases back down for the finish (default ON, toggle
@@ -29,6 +37,12 @@ The five buckets below are ordered by when we intend to act, not by size:
 
 - **Quest/rune-granting heroes should wear the GRANTED art** on their power button: Fi, Coran, Runesmith,
   Guardian (the `cia-<suit>` / `cassen-<kind>` variant-art pattern already does exactly this).
+
+- **FX workbench — seamless-loop controls** (owner ask 2026-08-20, alongside the card-following `cia-hp`
+  enchant treatment that shipped). A looped def currently re-emits only once the previous pass fully finishes,
+  which reads as a pause between cycles; the workbench should expose loop-overlap / cross-fade so a continuous
+  emit loops without a visible seam. Also: **delete the now-dead `ciaEnchantedFx.ts` and the unused
+  `.enchantwisp` CSS**, both superseded by the `cia-hp` def.
 
 - **PERF FIRST: `pixiFx.buffGust` redraws a `Graphics` EVERY FRAME** and is ~half of all jank — 16 of 599
   buckets carry 492 of 989 jank frames, and fps inside them collapses from ~230 to ~87. Build the geometry
@@ -425,8 +439,63 @@ offsets in `styles.css`).
 
 ## Next
 
-### Effect Arena — every trigger fires in shop AND combat (IN PROGRESS — duals + Echo + Shout DONE)
-Full plan in [`effect-arena-spec.md`](effect-arena-spec.md). **Progress 2026-08-04 (PRs #865–#867, #871):**
+- **Decide: should ALL-TYPES cards appear in every tribe-grant pool?** (raised 2026-08-20) Quillen's Archive
+  now counts `universalTribe` cards via the new `defIsTribe`, which is what makes an off-set archive (Undead /
+  Mech) pay out at all. But ~10 OTHER def-level pool filters still use the blind `c.tribe === t || c.tribe2
+  === t` pair — "get a random Beast", the tribe-faucet runes, Discover-by-tribe, etc. Routing them through
+  `defIsTribe` too would be consistent, but it also means Paragon / Standard Bearer become possible results of
+  every tribal grant in the game, diluting each tribe's pool. Bug fix vs balance change — owner's call.
+
+- **The itch WEB zip now exceeds itch.io's 1000-file cap — DEPRIORITISED by the owner 2026-08-20** ("not an
+  important factor as we will likely use the exe repack from now on"). Recorded so nobody re-discovers it as a
+  mystery; revisit only if the browser build becomes a distribution target again.
+  A real `build:web` dist ships **1168 files** and `package-itch.ps1` zips the whole thing. The last packaged
+  `ascent-itch.zip` held **929** entries (built before the recent art waves); the next package would hold
+  ~1168. Art is 992 of those, but frames (86) + fx (23) + cursors/js/css/manifest make up the rest, so
+  trimming art alone will not fix it for long. Options, cheapest first: **(a)** pack card art into sprite
+  ATLASES (one file per tribe/set instead of one per card — also fewer HTTP requests); **(b)** host art
+  off-zip on a CDN and load by URL (itch allows external fetches, but it breaks offline/desktop parity);
+  **(c)** ship art only for the active set and lazy-load the rest. The desktop/Electron package is unaffected
+  (no file cap). `artNoRedundantMasters.test.ts` now documents the true arithmetic and is a trend tripwire
+  only — it does NOT prove a package will upload.
+
+- **Minion mechanic-icon (medallion `mechIcon` glyph) fixes — PR-1 SHIPPED 2026-08-19.** The resolver is
+  rewritten: a shared `packages/ui/src/mechanics.ts` registry (structured detection over effect data +
+  keywords + `chooseOne`, one entry per mechanic) drives both the medallion (`resolveMechIcon`, first-mentioned
+  own mechanic wins) and the Compendium glossary, so they can't drift. **No tribe fallback, ever** — an
+  unrecognised mechanic renders a blank badge instead of the old 64%-of-minions tribe-symbol bug. New: a
+  **Watcher** mechanic (eye) for reactive/on-attack/on-summon effects, **Stealth**'s own glyph (off the eye),
+  **Engraved**'s own runic glyph (off the anvil), and **Choose One** now shows on the medallion. Verified by a
+  no-tribe-glyph invariant sweep + a glossary↔registry drift test; full suite 5894 pass. Details in the devlog.
+  Deferred, queued here:
+  - Glyphs for **Orbit / Start of Turn / Improve / Rush / Ascend / spend-Gold** — none exist yet.
+  - **Re-tag Engraved cards missing the `EG` keyword** (Tara/Taragosa) so the `engraved` predicate catches them.
+  - **Owner live-pass**: tune the placeholder `engrave`/`stealth` glyph art against the real board, and rule on
+    whether trigger-multiplier auras (Sylus, Uron) and a few borderline reactive triggers deserve the eye.
+
+### Effect Arena — every trigger fires in shop AND combat (IN PROGRESS — duals + Echo + Shout + RALLY DONE)
+Full plan in [`effect-arena-spec.md`](effect-arena-spec.md).
+
+**Progress 2026-08-20 — the RALLY family + its Step-4 dispatcher shipped, resumed on demand exactly as the
+park below says.** Its consumer is **Rune of Lasting Cadence**, which the owner wants to read "End of Turn:
+trigger all your Rally effects" and could not, because Rally is an `onAttack` COMBAT trigger with no recruit
+dispatch. 40 `onAttack` bodies migrated (ratchet floor 60 → 100, every combat duplicate deleted);
+`fireShopRally` / `fireRallies` are the shop dispatcher; each rally emits its own source-attributed beat so
+the choreographer allots it real animation time. Enemy-facing rallies no-op by MEMBERSHIP (`enemies()` is
+empty in the shop), not by a phase check. Details in the devlog.
+
+**Progress 2026-08-20 (later) — the START-OF-COMBAT family + its Step-4 dispatcher shipped**, on demand for
+**Rune of Combat Prowess** (Epic 5g: "Your Start of Combat effects also trigger at End of Turn"). 21
+`startOfCombat` bodies migrated (ratchet floor 100 → 121, every combat duplicate deleted);
+`fireShopStartOfCombat` / `fireStartOfCombats` dispatch per (body × effect) — SC has no watchers, so no
+broadcast — one source-attributed beat per effect, nested `factory:<do>:startOfCombat` identities for the
+authored FX, summon indices stamped. Enemy-facing bodies no-op by membership; combat-only channels (Bleed,
+extra combat casts, Engrave) no-op on the adapter verb. Details in the devlog.
+
+**Still unmigrated: End of Turn** (spec Step 3 item 4's last family) — same park
+rule: migrate when a card or rune actually needs the cross-phase dispatch, using the Rally family's motion.
+
+**Progress 2026-08-04 (PRs #865–#867, #871):**
 steps 1–2 shipped; the dual family, the Echo family, and the SHOUT family are fully migrated — 60 shared
 arena bodies, `replayCombatBattlecry`'s legacy switch is DELETED (FACTORIES-first dispatch only), and
 `COMBAT_REPLAYABLE_BATTLECRIES` is derived from FACTORIES so it can never drift. Every economy Shout with a
@@ -893,7 +962,9 @@ trigger"; avoid true undo until the rules are sturdier).
 
 ### Audio
 - Record the actual SFX clips into `packages/ui/src/audio/{cards,heroes}/` per the manifest
-  (`npm run sfx:manifest`); the drop-folder importer (`npm run sfx:import`) and mixing desk are up. Reconcile
+  (`npm run sfx:manifest`); the drop-folder importer (`npm run sfx:import`) and mixing desk are up. **Hero
+  select voiceovers are underway** — `heroes/risen.mp3` (Lord of the Risen) shipped 2026-08-20 as the first,
+  proving the whole path end-to-end; the rest of the roster follows as clips are recorded. Reconcile
   the spell default bed with `castspell.mp3`. Deferred desk slots: per-bus compressors, sidechain ducking,
   ingest LUFS-normalization.
 - Priority synth-placeholder gaps (per `docs/sfx-events.md`): Ward break, Start-of-Combat cast, poison kill,

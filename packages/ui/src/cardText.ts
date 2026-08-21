@@ -183,6 +183,20 @@ export function summitTierText(cardId: string, tier7Access: boolean): string | n
 }
 
 /**
+ * SKYBOUND ASCENDANT — its "(up to Tier 7)" is the same PROMISE Beyond the Summit makes, and the transform
+ * is clamped to the run's real ceiling (`hasTier7Access`), so on an ordinary run the honest number is SIX.
+ * Printed live on both chains rather than left as a static 7 (the hard live-value rule + owner 2026-08-20:
+ * text says what the card does).
+ */
+export function ascendantTierText(cardId: string, golden: boolean, tier7Access: boolean): string | null {
+  if (cardId !== 'd2_ascendant' || tier7Access) return null; // with access the printed "Tier 7" is already true
+  const def = CARD_INDEX[cardId];
+  if (!def) return null;
+  const base = (golden && def.goldenText) || def.text;
+  return base.replace('**Tier 7**', '**{{Tier 6}}**');
+}
+
+/**
  * Menagerie Mammoth (`onSummonTribeBuffImproveSelf`) — an Attack-only grant that climbs by `step` every time it
  * pays out, permanently. Same contract as `summonImproveText`, but the printed magnitude is "**+N Attack**"
  * rather than a "+N/+N" pair, so it needs its own replace.
@@ -307,7 +321,7 @@ export function asymSummonBuffText(cardId: string, summonBonus: number, golden =
  * over whatever live text the chain resolved, so it composes with every value-injecting helper. Green-marked,
  * like every live value.
  */
-export interface RuneTextFlags { matriarch?: boolean; brokerage?: boolean; livingTreasure?: boolean; facetwright?: boolean }
+export interface RuneTextFlags { matriarch?: boolean; brokerage?: boolean; livingTreasure?: boolean; facetwright?: boolean; rebirth?: boolean }
 export function runeModifiedNote(cardId: string, flags: RuneTextFlags | undefined): string | null {
   if (!flags) return null;
   if (flags.matriarch && cardId === 'b2_runebloom') return '{{Triggers twice (Rune of the Matriarch).}}';
@@ -499,6 +513,48 @@ export function clingProgressText(cardId: string, enchant: { attack: number; hea
  * High King Mykel — a COUNTDOWN, because the card is a threshold and a bare "when you cast 8" tells you nothing
  * about where you are (owner ask 2026-07-29). `spellProgress` is the per-instance meter the factory advances.
  */
+/**
+ * ANCIENT WANDERER — "Has +1/+1 for every 3 Gold you have spent this run".
+ *
+ * The hardest case of the live-text rule in this batch, because the number IS the card: a Wanderer's printed
+ * "+1/+1" is a RATE, and what the player needs to read is the stat block it is actually carrying right now.
+ * So the printed magnitude is replaced with the live total (green) and the rate moves into a parenthetical,
+ * followed by the countdown to the next step — the same shape `perGoldSpentText` uses for Baby Gastrid.
+ *
+ * `goldSpentRun` is the RUN total (`RunState.goldSpent`), NOT the per-turn `goldSpent` every other helper here
+ * reads: the card says "this run". At 0 spent there is nothing live to fold, so the printed text stands.
+ */
+export function ancientWandererText(cardId: string, goldSpentRun: number, golden = false): string | null {
+  const def = CARD_INDEX[cardId];
+  const eff = def?.effects.find((e) => e.do === 'goldSpentScaleSelf');
+  if (!def || !eff) return null;
+  const p = eff.params as { per?: number; attack?: number; health?: number } | undefined;
+  const per = Math.max(1, Number(p?.per ?? 3));
+  const g = Math.max(0, goldSpentRun);
+  const mul = golden ? 2 : 1;
+  const a = Math.floor(g / per) * Number(p?.attack ?? 1) * mul;
+  const h = Math.floor(g / per) * Number(p?.health ?? 1) * mul;
+  if (a === 0 && h === 0) return null; // nothing spent yet — the printed rate is already the whole truth
+  const toNext = per - (g % per);
+  // Plain parentheses, no `_italics_` — the Card renderer only knows **bold** and the {{…}} / ((…)) markers.
+  return `Has **{{+${a}/+${h}}}** (+${Number(p?.attack ?? 1) * mul}/+${Number(p?.health ?? 1) * mul} per **${per} Gold** spent this run; {{${toNext} more}} to the next).`;
+}
+
+/**
+ * MUSTER GENERAL — its Trooper is a 1/1 only until the first Avenge fires; after that the printed "1/1" is a
+ * stale number, which the live-text rule calls a defect. `summonBonus` is the permanent per-instance accrual
+ * (carried back after each combat), so fold it into BOTH the summoned line and the improve step.
+ */
+export function musterTrooperText(cardId: string, summonBonus: number, golden = false): string | null {
+  if (summonBonus <= 0) return null; // no Avenge has fired — the printed 1/1 is accurate
+  const def = CARD_INDEX[cardId];
+  const eff = def?.effects.find((e) => e.do === 'avengeSummonAttackImproving');
+  if (!def || !eff) return null;
+  const n = 1 + summonBonus;
+  const src = golden ? (def.goldenText ?? def.text) : def.text;
+  return src.replace('**1/1 Trooper**', `**{{${n}/${n}}} Trooper**`);
+}
+
 export function spellThresholdText(cardId: string, golden: boolean, spellProgress: number): string | null {
   const def = CARD_INDEX[cardId];
   const eff = def?.effects.find((e) => e.do === 'spellCastTriggerAdjacentShouts');
@@ -861,6 +917,25 @@ export function squirlScoutText(cardId: string, golden: boolean, squirlScoutBuff
   const src = golden ? (def.goldenText ?? def.text) : def.text;
   let done = false;
   return src.replace(/\+\d+\/\+\d+/g, (m) => (done ? m : ((done = true), `{{+${next}/+${next}}}`)));
+}
+
+/**
+ * Conductor's grant snowballs like Squirl Scout's, positionally: `conductorBuff` counts weighted Shouts
+ * (×2 gilded, ×2 Mastery) and the grant is +(2×N)/+(3×N). Surface what a play NOW would give — (buff + this
+ * play's step) — green, in place of the FIRST printed "+A/+B"; the per-play improve clause stays printed.
+ * Null before any accrual (the printed base is accurate).
+ */
+export function conductorText(cardId: string, golden: boolean, conductorBuff: number, improveReps = 1): string | null {
+  if (cardId !== 'n2_conductor' || conductorBuff <= 0) return null;
+  const def = CARD_INDEX[cardId];
+  if (!def) return null;
+  const params = (def.effects.find((e) => e.do === 'battlecryConductorAdjacent')?.params ?? {}) as { attack?: number; health?: number };
+  const stepA = Number(params.attack ?? 2);
+  const stepH = Number(params.health ?? 3);
+  const next = conductorBuff + (golden ? 2 : 1) * improveReps; // what playing this one now would make N
+  const src = golden ? (def.goldenText ?? def.text) : def.text;
+  let done = false;
+  return src.replace(/\+\d+\/\+\d+/g, (m) => (done ? m : ((done = true), `{{+${stepA * next}/+${stepH * next}}}`)));
 }
 
 /** The minions that stack the run-wide Undead buy-time Attack bonus (`undeadBuyAtk`) — used to surface it. */

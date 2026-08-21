@@ -78,6 +78,8 @@ let idx = 0;
 let speed = 1;
 let playing = false;
 let authorName: string | undefined;
+/** The recorded round RANGE, set only when the recording doesn't begin at round 1 — see `ReplaySession.partial`. */
+let partial: { firstWave: number; lastWave: number } | undefined;
 /** Invalidates every pending timer/subscription across start/seek/end — a stale callback checks it and bails. */
 let token = 0;
 let timer: ReturnType<typeof setTimeout> | null = null;
@@ -231,7 +233,7 @@ function renderFrame(i: number): void {
     useGame.setState({
       run: synthRunFromShopView(f.view),
       ...frameResets(),
-      replaySession: { index: i, total: frames.length, playing, speed, round: f.wave, authorName },
+      replaySession: { index: i, total: frames.length, playing, speed, round: f.wave, authorName, partial },
     });
   } else {
     const view = nearestShopView(i);
@@ -242,7 +244,7 @@ function renderFrame(i: number): void {
       // `combatSettled: false` so the arena treats it as a fight to play, not one already resolved.
       run: { ...base, phase: 'combat', wave: f.wave, combatSettled: false, lastCombat: f as unknown as CombatResult },
       ...frameResets(),
-      replaySession: { index: i, total: frames.length, playing, speed, round: f.wave, authorName },
+      replaySession: { index: i, total: frames.length, playing, speed, round: f.wave, authorName, partial },
     });
   }
 }
@@ -424,6 +426,12 @@ export function startReplay(replay: ReplayV2, meta?: { authorName?: string }): v
   playing = true;
   token += 1;
   authorName = meta?.authorName ?? replay.author;
+  // A recording that doesn't reach back to round 1 advertises its RANGE, so the rail can say what it has
+  // instead of letting the viewer infer that rounds were dropped. Derived from the marks rather than trusted
+  // from the payload — a recording from before `firstRecordedWave` existed still labels correctly.
+  const firstWave = marks[0]?.wave ?? 1;
+  const lastWave = marks[marks.length - 1]?.wave ?? firstWave;
+  partial = firstWave > 1 || replay.partial === true ? { firstWave, lastWave } : undefined;
   useGame.setState({
     replaying: true,
     combatReplayDone: false,
@@ -550,6 +558,7 @@ export function endReplay(): void {
   frameTimes = [];
   effTimes = [];
   inspectTrail = [];
+  partial = undefined;
   playing = false;
   ghostLandPending = false;
   useGame.setState({

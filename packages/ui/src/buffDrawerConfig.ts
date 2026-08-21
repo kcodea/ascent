@@ -25,12 +25,12 @@ export interface BuffDrawerConfig {
 }
 
 const DEFAULTS: BuffDrawerConfig = {
-  bodyX: 2,
-  bodyY: 0,
-  bodyS: 0.9,
-  textS: 11,
-  titleS: 11,
-  minW: 122,
+  bodyX: 8,
+  bodyY: -37,
+  bodyS: 0.47,
+  textS: 10.5,
+  titleS: 13,
+  minW: 120,
 };
 
 /** Slider bounds for the DEV tuner — [min, max, step] per key. */

@@ -375,7 +375,9 @@ describe('tranche C — the five that needed machinery', () => {
     // 28 → 26 on 2026-08-18: dw_runekeg + dw_chirurgeon (Ayves) archived to ARCHIVED_CARDS.
     // 26 → 28 on 2026-08-18: dw_billings + dw_gangplank joined the buyable roster.
     // 28 → 29 on 2026-08-19: dw_arnold (T6, End of Turn casts Beefy on itself).
-    expect(dwarfIds.length, `got ${dwarfIds.join(', ')}`).toBe(29);
+    // 29 → 30 on 2026-08-20: dw_kegheart joined the FORGE-ONLY rune minions (token: true, like Baal / Bucky).
+    expect(dwarfIds.length, `got ${dwarfIds.join(', ')}`).toBe(30);
+    expect(poolFor('set2').buyable.some((c) => c.id === 'dw_kegheart'), 'rune-only: in the set, never drawable').toBe(false);
     expect(dwarfIds).toContain('dw_chickenbrawl');
     expect(dwarfIds).toContain('dw_soldier');
     expect(dwarfIds).toContain('dw_baal');

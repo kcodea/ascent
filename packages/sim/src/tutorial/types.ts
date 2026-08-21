@@ -36,6 +36,7 @@ export type TutorialUiAnchor =
   | 'lobby-rail' // the 8-seat table (.lobbyrail)
   | 'lobby-self' // the player's own seat row (.lobbyseat.you)
   | 'lobby-next' // the next opponent's seat row (.lobbyseat.foe)
+  | 'discover' // the Discover / Choose-One overlay (.discover-ov) — only present while a pick is open
   | 'hud'; // the round plaque (.bar) — present for course/rift, hidden in a lobby
 
 /** A course points a spotlight at one of these. Cards are addressed by uid + zone (the registry knows the
@@ -145,8 +146,16 @@ export type TutorialPredicate =
   | { kind: 'refreshed' }
   | { kind: 'froze' }
   | { kind: 'reordered' } // the player repositioned a minion (teaches placement)
+  /** A specific card OCCUPIES a specific board slot, 0-based left→right. State, not an event: `reordered`
+   *  fires on ANY drag (even one that puts the minion back where it started), so a placement lesson that only
+   *  watched it could be satisfied by nudging the wrong minion (owner report 2026-08-20). */
+  | { kind: 'cardAtSlot'; cardId: string; index: number }
   | { kind: 'castSpell'; cardId?: string }
   | { kind: 'heroPowerUsed' }
+  /** The hero power is READY to use right now (`run.heroReady`). Exists so a "use your power" reminder can be
+   *  written as "used it, OR it isn't available" — Aster's Preparation recharges every OTHER turn, so a bare
+   *  `heroPowerUsed` reminder would soft-lock the course on a recharge turn. */
+  | { kind: 'heroPowerReady' }
   | { kind: 'tierAtLeast'; tier: number }
   | { kind: 'gilded' }
   | { kind: 'endedTurn' }

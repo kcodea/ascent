@@ -812,6 +812,11 @@ export interface RunState {
   /** Tutorial only: per-wave card id to force the enemy's FIRST swing onto (index = wave − 1); '' or absent =
    *  normal random targeting. Read into the combat config at `faceOmen`. */
   tutorialForceEnemyTarget?: string[];
+  /** TUTORIAL ONLY — force every minion Discover to this tribe (Learn Ascent: `beast`). The course teaches one
+   *  tribe end to end so a first-time player can actually SEE the synergies, and a Triple Reward that offered a
+   *  random off-tribe Tier-4 minion undid that in one pick (owner ask 2026-08-21). Applied at `openDiscover`,
+   *  the single point every Discover materializes, so no source can route around it. */
+  tutorialDiscoverTribe?: Tribe;
   /** Gambler (Dice): the face most recently rolled, and the wave it was rolled on. Display-only — the panel
    *  keeps showing the number for the REST OF THAT TURN (owner ruling 2026-08-16) instead of snapping back the
    *  moment the tumble settles. A wave comparison expires it, so nothing has to clear it. */

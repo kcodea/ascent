@@ -83,21 +83,26 @@
 
 /* ── Coach panel ────────────────────────────────────────────────────────────────────────────────────── */
 .tut-coach-panel {
+  /* PANEL SCALE (owner ask 2026-08-21: "increase the size of the tutorial tooltips by 30%"). One knob every
+     size below multiplies through, rather than `zoom` — `zoom` re-resolves the `100vw` clamp in scaled units
+     and can overflow a narrow screen. Keep `CoachPanel`'s PANEL_H in step with this: the placement math
+     reserves that height when deciding to flip the panel above its anchor. */
+  --tut-scale: 1.3;
   position: fixed;
   z-index: var(--tut-z-panel);
   pointer-events: auto; /* the panel itself is interactive (Why, Next) */
   cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; /* keep the game cursor over the panel body */
   box-sizing: border-box;
   width: max-content;
-  max-width: min(320px, calc(100vw - 24px));
-  padding: 13px 15px;
+  max-width: min(calc(320px * var(--tut-scale)), calc(100vw - 24px));
+  padding: calc(13px * var(--tut-scale)) calc(15px * var(--tut-scale));
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: calc(8px * var(--tut-scale));
   /* Dark glass card, gold-trimmed like the game's framed surfaces. */
   background: rgba(22, 15, 8, 0.94);
   border: 1.5px solid color-mix(in srgb, var(--tut-gold) 70%, #000);
-  border-radius: 14px;
+  border-radius: calc(14px * var(--tut-scale));
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.06),
     0 8px 26px -8px rgba(0, 0, 0, 0.6);
@@ -149,14 +154,14 @@ body.dragging .tut-coach-panel { pointer-events: none; }
 .tut-coach-title {
   font-family: var(--font-ui, 'Outfit'), sans-serif;
   font-weight: 800;
-  font-size: 15px;
+  font-size: calc(15px * var(--tut-scale));
   letter-spacing: 0.01em;
   color: var(--tut-gold-lt);
 }
 .tut-coach-count {
   font-family: var(--font-ui, 'Outfit'), sans-serif;
   font-weight: 700;
-  font-size: 11px;
+  font-size: calc(11px * var(--tut-scale));
   letter-spacing: 0.06em;
   color: rgba(242, 234, 221, 0.6);
   font-variant-numeric: tabular-nums;
@@ -164,7 +169,7 @@ body.dragging .tut-coach-panel { pointer-events: none; }
 }
 .tut-coach-body {
   margin: 0;
-  font-size: 14px;
+  font-size: calc(14px * var(--tut-scale));
   line-height: 1.42;
   color: #f2eadd;
 }
@@ -175,12 +180,12 @@ body.dragging .tut-coach-panel { pointer-events: none; }
   align-self: flex-start;
   font-family: var(--font-ui, 'Outfit'), sans-serif;
   font-weight: 800;
-  font-size: 12px;
+  font-size: calc(12px * var(--tut-scale));
   letter-spacing: 0.03em;
   color: var(--tut-gold-lt);
   text-decoration: underline;
   text-underline-offset: 2px;
-  padding: 2px 8px;
+  padding: calc(2px * var(--tut-scale)) calc(8px * var(--tut-scale));
   border: 1px solid color-mix(in srgb, var(--tut-gold) 55%, transparent);
   border-radius: 999px;
   background: color-mix(in srgb, var(--tut-gold) 14%, transparent);
@@ -203,18 +208,18 @@ body.dragging .tut-coach-panel { pointer-events: none; }
   cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
   font-family: var(--font-ui, 'Outfit'), sans-serif;
   font-weight: 700;
-  font-size: 12px;
+  font-size: calc(12px * var(--tut-scale));
   letter-spacing: 0.05em;
   text-transform: uppercase;
   color: rgba(242, 234, 221, 0.72);
 }
 .tut-coach-why-chev {
-  font-size: 10px;
+  font-size: calc(10px * var(--tut-scale));
   color: var(--tut-gold-lt);
 }
 .tut-coach-why-body {
   margin: 0;
-  font-size: 13px;
+  font-size: calc(13px * var(--tut-scale));
   line-height: 1.4;
   color: rgba(242, 234, 221, 0.82);
 }
@@ -227,10 +232,10 @@ body.dragging .tut-coach-panel { pointer-events: none; }
 .tut-coach-next {
   font-family: var(--font-ui, 'Outfit'), sans-serif;
   font-weight: 800;
-  font-size: 13px;
+  font-size: calc(13px * var(--tut-scale));
   letter-spacing: 0.03em;
-  padding: 7px 16px;
-  border-radius: 10px;
+  padding: calc(7px * var(--tut-scale)) calc(16px * var(--tut-scale));
+  border-radius: calc(10px * var(--tut-scale));
   border: 1.5px solid color-mix(in srgb, var(--tut-gold) 70%, #000);
   background: linear-gradient(180deg, var(--tut-gold-lt), var(--tut-gold));
   color: #1a1006;

@@ -12,7 +12,7 @@
  * Nothing here fakes an outcome: combat still runs in `simulate`, damage still flows through the lobby. The
  * course only supplies the INPUT board, exactly like a recorded seat supplies its input board.
  */
-import type { BoardMinion } from '@game/core';
+import type { BoardMinion, Tribe } from '@game/core';
 import { createRun, type RunState } from '../state';
 import { rollShop } from '../shop';
 import type { LobbyRules, PreparedBoard, SeatDriver } from './types';
@@ -71,6 +71,7 @@ export function createTutorialLobby(
   authoredBoards: AuthoredOmen[][],
   opponentNames: string[],
   rules: Partial<LobbyRules> = {},
+  seatsRemaining?: number[],
 ): RunLobby {
   const r: LobbyRules = { ...DEFAULT_LOBBY_RULES, ...rules };
   const seats: LobbySeatState[] = [{
@@ -93,7 +94,8 @@ export function createTutorialLobby(
       authoredBoards,
     });
   }
-  return { version: 1, seed, round: 1, seats, encounters: [], finished: false, rules: r };
+  return { version: 1, seed, round: 1, seats, encounters: [], finished: false, rules: r,
+    ...(seatsRemaining && seatsRemaining.length ? { tutorialSeatsRemaining: seatsRemaining } : {}) };
 }
 
 /**
@@ -110,6 +112,8 @@ export function createTutorialRun(
   shopScript: { minions: string[]; spell?: string }[][],
   attackFirst?: boolean[],
   forceEnemyTarget?: string[],
+  discoverTribe?: Tribe,
+  seatsRemaining?: number[],
 ): RunState {
   const run = createRun(seed, heroId, 'tutorial');
   // `createRun` already rolled a POOL shop. Attach the scripted shop and re-roll so the turn-1 offer is the
@@ -120,6 +124,7 @@ export function createTutorialRun(
   run.tutorialShopRoll = 0;
   if (attackFirst) run.tutorialAttackFirst = attackFirst;
   if (forceEnemyTarget) run.tutorialForceEnemyTarget = forceEnemyTarget;
+  if (discoverTribe) run.tutorialDiscoverTribe = discoverTribe;
   // GENEROUS GOLD: a tutorial is not an economy puzzle. Give the max (10) every turn so every coached action —
   // a buy AND a tavern-up in one round — is always affordable; the action gate stops the player over-spending.
   run.maxEmbers = 10;
@@ -127,7 +132,7 @@ export function createTutorialRun(
   rollShop(run);
   // A fixed-round course ends by the round cap (or the player's elimination), so pin `maxRounds` to the course
   // length rather than the lobby default of 60.
-  const lobby = createTutorialLobby(seed, heroId, authoredBoards, opponentNames, { maxRounds: rounds });
+  const lobby = createTutorialLobby(seed, heroId, authoredBoards, opponentNames, { maxRounds: rounds }, seatsRemaining);
   const me = lobby.seats[0]!;
   me.resolve = run.resolve;
   me.armor = run.armor;

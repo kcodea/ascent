@@ -1552,7 +1552,7 @@ export const useGame = create<GameStore>((set, get) => ({
       const shopScript = course.turns.map((t) => t.shopRolls);
       const attackFirst = course.turns.map((t) => !!t.playerAttacksFirst);
       const forceEnemyTarget = course.turns.map((t) => t.forceEnemyFirstTargetCard ?? '');
-      const run = createTutorialRun(seed, course.heroId, course.id, authoredBoards, course.opponentNames, course.rounds, shopScript, attackFirst, forceEnemyTarget);
+      const run = createTutorialRun(seed, course.heroId, course.id, authoredBoards, course.opponentNames, course.rounds, shopScript, attackFirst, forceEnemyTarget, course.discoverTribe, course.seatsRemaining);
       if (run.lobby) warmLobbyDrivers(run); // authored drivers are cheap; keep the warm path uniform
       writeSave(run, []);
       return { run, savedRun: run, lastRunBoards: 0, presentationTx: null, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, showTitle: false, avatarPickerOpen: false, replayActions: [], capturedBoards: [], replayFrames: beginReplayCapture(run), replayPartial: false };

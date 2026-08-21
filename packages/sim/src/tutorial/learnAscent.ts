@@ -116,8 +116,12 @@ const CARD_IDS = {
   packstrider: 'b2_packstrider', // T1 Beast 2/2, Rally
   trex: 'b2_trex', // T2 Beast, Echo (Deathrattle summon)
   wolvie: 'b2_wolvie', // T2 Beast
-  butcher: 'dm_butcher', // T2 Demon — "Shout: give minions in the Shop +1/+1" (teaches Shout, visible on play)
-  wrangler: 'dm_wrangler', // T1 Demon — "Start of Combat: summon an Imp" (teaches Start of Combat)
+  // ALL-BEAST ROSTER (owner ask 2026-08-21): every minion the course hands the player is a Beast, so the
+  // synergies it teaches are visible on their own board instead of scattered across tribes. The two Demons
+  // that used to carry the Shout and Start-of-Combat lessons were swapped for Beasts that teach the same
+  // keyword — and both teach it BETTER here, because their payoff lands on the beasts already in play.
+  urchin: 'seaurchin', // T4 Beast — "Shout: Discover a Beast" (teaches Shout AND a tribe-locked Discover)
+  kennel: 'kennel', // T2 Beast — "Start of Combat: give your Beasts +1 Attack wherever they are"
   echohorn: 'b2_echohorn', // T3 Beast — "Rally: trigger your left-most Echo" (position-dependent synergy)
   blessing: 'sp_blessing', // T4 spell, cost 2, target any — "Give a minion +3/+4 twice" (teaches buy + cast a spell)
   tripleReward: 'discoverspell', // the "Triple Reward" token a golden minion grants on play — a Discover (teaches Discover)
@@ -296,24 +300,24 @@ const round5Steps: TutorialStep[] = [
   {
     id: 'r5-buy',
     phase: 'shop', focusMode: 'action', title: 'A Shout Minion',
-    body: 'Contract Butcher is on offer. Buy it — it has a Shout, an effect that fires the instant you play it.',
-    anchors: [{ kind: 'card', zone: 'shop', alias: CARD_IDS.butcher }],
+    body: 'Sea Urchin is on offer. Buy it — it has a Shout, an effect that fires the instant you play it.',
+    anchors: [{ kind: 'card', zone: 'shop', alias: CARD_IDS.urchin }],
     // The drag the step is asking for, drawn: shop offer → your hand (owner ask 2026-08-20).
-    connector: { from: { kind: 'card', zone: 'shop', alias: CARD_IDS.butcher }, to: { kind: 'ui', id: 'hand' }, style: 'drag' },
+    connector: { from: { kind: 'card', zone: 'shop', alias: CARD_IDS.urchin }, to: { kind: 'ui', id: 'hand' }, style: 'drag' },
     gate: 'hard', lessonId: 'buy_minion',
-    completion: { kind: 'bought', cardId: CARD_IDS.butcher },
+    completion: { kind: 'bought', cardId: CARD_IDS.urchin },
   },
   {
     id: 'r5-play',
     phase: 'shop', focusMode: 'action', title: 'Hear the Shout',
-    body: 'Play it and watch: its Shout fires now, buffing the minions in your shop for later.',
+    body: 'Play it and watch: its Shout fires the moment it lands, offering you a choice of Beasts.',
     why: 'Shout triggers on play from hand — so the order you play minions can matter.',
     // Spotlight the CARD being asked for as well as the destination, with the drag drawn between
     // them — the bare `warband` anchor left the player hunting for which card to move.
-    anchors: [{ kind: 'card', zone: 'hand', alias: CARD_IDS.butcher }, { kind: 'ui', id: 'warband' }],
-    connector: { from: { kind: 'card', zone: 'hand', alias: CARD_IDS.butcher }, to: { kind: 'ui', id: 'warband' }, style: 'drag' },
+    anchors: [{ kind: 'card', zone: 'hand', alias: CARD_IDS.urchin }, { kind: 'ui', id: 'warband' }],
+    connector: { from: { kind: 'card', zone: 'hand', alias: CARD_IDS.urchin }, to: { kind: 'ui', id: 'warband' }, style: 'drag' },
     gate: 'hard', lessonId: 'keyword_shout',
-    completion: { kind: 'played', cardId: CARD_IDS.butcher },
+    completion: { kind: 'played', cardId: CARD_IDS.urchin },
   },
   {
     // The PAYOFF beat (owner ask 2026-08-20: "step 32 should lead into a tip showing that the shop minions
@@ -321,12 +325,16 @@ const round5Steps: TutorialStep[] = [
     // without this the lesson is a claim they never see evidence for. A real step rather than `resultAnchors`,
     // which is declared on TutorialStep but not implemented by the controller.
     id: 'r5-shopbuff',
-    phase: 'shop', focusMode: 'confirm', title: 'Look at the Shop',
-    body: 'There it is — every minion in the shop just grew. Buy one later and it keeps those stats.',
-    why: 'Shop buffs ride the offer into the minion you buy, so they pay off on a future turn.',
-    anchors: [{ kind: 'ui', id: 'shop' }],
-    gate: 'observe',
-    completion: { kind: 'always' },
+    phase: 'shop', focusMode: 'action', title: 'Discover a Beast',
+    body: 'Pick one of the three Beasts. Discover lets you choose the piece you want instead of gambling.',
+    why: 'The card you pick goes to your hand — play it now, or hold it for a turn you have room.',
+    // The overlay is a modal and owns the screen, so it needs no cutout of its own (a full-viewport anchor
+    // punches a hole through everything); the coach just names the choice.
+    anchors: [],
+    gate: 'observe', lessonId: 'keyword_discover',
+    // Waits for the PICK, not for the play that opened it — otherwise the course walks on while the modal is
+    // still up and every later spotlight points at chrome the player cannot reach.
+    completion: { kind: 'discovered' },
   },
   heroPowerReminderStep('r5-power'),
   endTurnStep('r5-end', 'A bigger board again. End the turn and fight.'),
@@ -341,23 +349,23 @@ const round6Steps: TutorialStep[] = [
   {
     id: 'r6-buy',
     phase: 'shop', focusMode: 'action', title: 'Start of Combat',
-    body: 'Buy Imp Wrangler. Its Start-of-Combat effect fires as the fight begins — summoning a free Imp to fight for you.',
-    anchors: [{ kind: 'card', zone: 'shop', alias: CARD_IDS.wrangler }],
+    body: 'Buy Kennelmaster. Its Start-of-Combat effect fires as the fight begins — and every Beast you own gets stronger.',
+    anchors: [{ kind: 'card', zone: 'shop', alias: CARD_IDS.kennel }],
     // The drag the step is asking for, drawn: shop offer → your hand (owner ask 2026-08-20).
-    connector: { from: { kind: 'card', zone: 'shop', alias: CARD_IDS.wrangler }, to: { kind: 'ui', id: 'hand' }, style: 'drag' },
+    connector: { from: { kind: 'card', zone: 'shop', alias: CARD_IDS.kennel }, to: { kind: 'ui', id: 'hand' }, style: 'drag' },
     gate: 'hard', lessonId: 'buy_minion',
-    completion: { kind: 'bought', cardId: CARD_IDS.wrangler },
+    completion: { kind: 'bought', cardId: CARD_IDS.kennel },
   },
   {
     id: 'r6-play',
     phase: 'shop', focusMode: 'action', title: 'Place It',
-    body: 'Play Imp Wrangler onto your board. Watch for its Imp appearing right as combat starts.',
+    body: 'Play Kennelmaster onto your board. Watch your whole warband gain Attack as the fight begins.',
     // Spotlight the CARD being asked for as well as the destination, with the drag drawn between
     // them — the bare `warband` anchor left the player hunting for which card to move.
-    anchors: [{ kind: 'card', zone: 'hand', alias: CARD_IDS.wrangler }, { kind: 'ui', id: 'warband' }],
-    connector: { from: { kind: 'card', zone: 'hand', alias: CARD_IDS.wrangler }, to: { kind: 'ui', id: 'warband' }, style: 'drag' },
+    anchors: [{ kind: 'card', zone: 'hand', alias: CARD_IDS.kennel }, { kind: 'ui', id: 'warband' }],
+    connector: { from: { kind: 'card', zone: 'hand', alias: CARD_IDS.kennel }, to: { kind: 'ui', id: 'warband' }, style: 'drag' },
     gate: 'hard', lessonId: 'play_minion',
-    completion: { kind: 'played', cardId: CARD_IDS.wrangler },
+    completion: { kind: 'played', cardId: CARD_IDS.kennel },
   },
   {
     id: 'r6-tavern',
@@ -368,7 +376,7 @@ const round6Steps: TutorialStep[] = [
     completion: { kind: 'tierAtLeast', tier: 3 },
   },
   heroPowerReminderStep('r6-power'),
-  endTurnStep('r6-end', 'End the turn — and watch the Imp appear at the Start of Combat.'),
+  endTurnStep('r6-end', 'End the turn — and watch your Beasts gain Attack at the Start of Combat.'),
   combatDebriefStep('r6-debrief', 'Start of Combat', 'Start-of-Combat effects fire before any attacks — free value the moment the fight begins. Click here to return to the shop.'),
 ];
 
@@ -402,11 +410,13 @@ const round7Steps: TutorialStep[] = [
   {
     id: 'r7-makeroom',
     phase: 'shop', focusMode: 'action', title: 'Make Room to Summon',
-    body: 'Your board is full at 7, so a summon has nowhere to land. Sell Imp Wrangler to open a slot.',
+    body: 'Your board is full at 7, so a summon has nowhere to land. Sell Kennelmaster to open a slot.',
     why: 'Board space is a resource — Echohorn re-fires T-Rex’s Echo, and that Baby needs somewhere to go.',
-    anchors: [{ kind: 'card', zone: 'board', alias: CARD_IDS.wrangler }],
+    // NOT a Packstrider: the player is holding exactly two, and round 8's lesson is buying the THIRD to
+    // trigger a triple. Selling one here silently made that golden impossible (caught in a playthrough).
+    anchors: [{ kind: 'card', zone: 'board', alias: CARD_IDS.kennel }],
     gate: 'hard', lessonId: 'replace_on_full_board',
-    completion: { kind: 'sold', cardId: CARD_IDS.wrangler },
+    completion: { kind: 'sold', cardId: CARD_IDS.kennel },
   },
   {
     id: 'r7-position',
@@ -591,7 +601,7 @@ const turns: TutorialTurn[] = [
     playerAttacksFirst: true,
     shopRolls: [
       // All Tier 1, so a Tier-1 shop offers them: Packstrider (the buy), plus two honest bodies.
-      { minions: [ROUND1_BUY, 'k_chipwick', 'dm_wrangler'] },
+      { minions: [ROUND1_BUY, 'manasaber', 'kennel'] },
     ],
     steps: round1Steps,
   },
@@ -603,7 +613,7 @@ const turns: TutorialTurn[] = [
     omenBoard: [{ attack: 2, health: 2 }, { attack: 1, health: 3 }],
     // Offers a second Packstrider (T1) — the round buys it, then upgrades. Clean fillers (no Ruby/Consume clutter).
     shopRolls: [
-      { minions: [CARD_IDS.packstrider, 'dm_errand', 'dm_hank'] },
+      { minions: [CARD_IDS.packstrider, 'manasaber', 'b2_armadiyo'] },
     ],
     steps: round2Steps,
   },
@@ -620,8 +630,8 @@ const turns: TutorialTurn[] = [
     forceEnemyFirstTargetCard: CARD_IDS.trex,
     // Initial roll has no T-Rex (so the round teaches Refresh); the refresh roll [1] offers T-Rex.
     shopRolls: [
-      { minions: ['dm_butcher', 'dm_errand', 'k_geode'] },
-      { minions: [CARD_IDS.trex, CARD_IDS.wolvie, 'dm_hank'] },
+      { minions: ['seaurchin', 'manasaber', 'b2_dawnclaw'] },
+      { minions: [CARD_IDS.trex, CARD_IDS.wolvie, 'b2_armadiyo'] },
     ],
     steps: round3Steps,
   },
@@ -630,10 +640,10 @@ const turns: TutorialTurn[] = [
     opponentSeatId: 's4',
     combatSeed: 'learn-ascent-r4',
     omenBoard: [{ attack: 3, health: 4 }, { attack: 3, health: 3 }, { attack: 2, health: 2 }],
-    // Offers Wolvie (bought) and Contract Butcher — the round buys Wolvie, then FREEZES to keep Butcher, which
+    // Offers Wolvie (bought) and Sea Urchin — the round buys Wolvie, then FREEZES to keep Sea Urchin, which
     // carries into Round 5's Shout lesson so freezing visibly "kept" a minion.
     shopRolls: [
-      { minions: [CARD_IDS.wolvie, CARD_IDS.butcher, 'dm_hank'] },
+      { minions: [CARD_IDS.wolvie, CARD_IDS.urchin, 'b2_armadiyo'] },
     ],
     steps: round4Steps,
   },
@@ -642,9 +652,9 @@ const turns: TutorialTurn[] = [
     opponentSeatId: 's5',
     combatSeed: 'learn-ascent-r5',
     omenBoard: [{ attack: 4, health: 4 }, { attack: 3, health: 4 }, { attack: 2, health: 3 }],
-    // Offers Contract Butcher (the Shout minion).
+    // Offers Sea Urchin (the Shout minion).
     shopRolls: [
-      { minions: [CARD_IDS.butcher, 'dm_clerk', 'k_chipwick'] },
+      { minions: [CARD_IDS.urchin, 'b2_bullseye', 'manasaber'] },
     ],
     steps: round5Steps,
   },
@@ -653,9 +663,9 @@ const turns: TutorialTurn[] = [
     opponentSeatId: 's6',
     combatSeed: 'learn-ascent-r6',
     omenBoard: [{ attack: 4, health: 5 }, { attack: 4, health: 4 }, { attack: 3, health: 3 }],
-    // Offers Imp Wrangler (Start of Combat) — the round also upgrades the Tavern to Tier 3.
+    // Offers Kennelmaster (Start of Combat) — the round also upgrades the Tavern to Tier 3.
     shopRolls: [
-      { minions: [CARD_IDS.wrangler, 'dm_clerk', 'k_chipwick'] },
+      { minions: [CARD_IDS.kennel, 'b2_bullseye', 'manasaber'] },
     ],
     steps: round6Steps,
   },
@@ -666,7 +676,7 @@ const turns: TutorialTurn[] = [
     omenBoard: [{ attack: 5, health: 5 }, { attack: 4, health: 4 }, { attack: 3, health: 4 }, { attack: 2, health: 2 }],
     // Offers Echohorn (Tier 3) — the round is at Tier 3 after Round 6's upgrade.
     shopRolls: [
-      { minions: [CARD_IDS.echohorn, CARD_IDS.wolvie, 'dm_hank'] },
+      { minions: [CARD_IDS.echohorn, CARD_IDS.wolvie, 'b2_armadiyo'] },
     ],
     steps: round7Steps,
   },
@@ -677,7 +687,7 @@ const turns: TutorialTurn[] = [
     omenBoard: [{ attack: 5, health: 6 }, { attack: 5, health: 5 }, { attack: 4, health: 4 }, { attack: 3, health: 3 }],
     // Offers the THIRD Packstrider (completes the triple → Golden). Clean fillers, no Ruby/Consume clutter.
     shopRolls: [
-      { minions: [CARD_IDS.packstrider, 'dm_hank', 'dm_clerk'] },
+      { minions: [CARD_IDS.packstrider, 'b2_armadiyo', 'b2_bullseye'] },
     ],
     steps: round8Steps,
   },
@@ -688,7 +698,7 @@ const turns: TutorialTurn[] = [
     omenBoard: [{ attack: 6, health: 6 }, { attack: 5, health: 6 }, { attack: 4, health: 5 }, { attack: 4, health: 4 }],
     // Offers Blessing in the MINION ROW (a spell offer buys/casts through the normal drag). Clean fillers.
     shopRolls: [
-      { minions: [CARD_IDS.blessing, 'dm_hank', 'k_chipwick'] },
+      { minions: [CARD_IDS.blessing, 'b2_armadiyo', 'manasaber'] },
     ],
     steps: round9Steps,
   },
@@ -699,10 +709,10 @@ const turns: TutorialTurn[] = [
     omenBoard: [{ attack: 6, health: 7 }, { attack: 6, health: 6 }, { attack: 5, health: 5 }, { attack: 4, health: 5 }],
     // INDEPENDENCE: a spread of clean minions + a refresh, so the player has real choices to make on their own.
     shopRolls: [
-      { minions: ['b2_wolvie', 'dm_butcher', 'dm_hank'] },
-      { minions: ['b2_trex', 'b2_packstrider', 'dm_hank'] },
-      { minions: ['dm_butcher', 'b2_echohorn', 'b2_wolvie'] },
-      { minions: ['b2_packstrider', 'b2_trex', 'dm_butcher'] },
+      { minions: ['b2_wolvie', 'seaurchin', 'b2_armadiyo'] },
+      { minions: ['b2_trex', 'b2_packstrider', 'b2_armadiyo'] },
+      { minions: ['seaurchin', 'b2_echohorn', 'b2_wolvie'] },
+      { minions: ['b2_packstrider', 'b2_trex', 'seaurchin'] },
     ],
     steps: round10Steps,
   },
@@ -712,10 +722,10 @@ const turns: TutorialTurn[] = [
     combatSeed: 'learn-ascent-r11',
     omenBoard: [{ attack: 7, health: 7 }, { attack: 6, health: 7 }, { attack: 6, health: 6 }, { attack: 5, health: 5 }, { attack: 4, health: 4 }],
     shopRolls: [
-      { minions: ['dm_wrangler', 'b2_wolvie', 'dm_hank'] },
-      { minions: ['dm_butcher', 'b2_echohorn', 'b2_trex'] },
-      { minions: ['b2_packstrider', 'dm_hank', 'b2_wolvie'] },
-      { minions: ['b2_echohorn', 'dm_butcher', 'b2_trex'] },
+      { minions: ['kennel', 'b2_wolvie', 'b2_armadiyo'] },
+      { minions: ['seaurchin', 'b2_echohorn', 'b2_trex'] },
+      { minions: ['b2_packstrider', 'b2_armadiyo', 'b2_wolvie'] },
+      { minions: ['b2_echohorn', 'seaurchin', 'b2_trex'] },
     ],
     steps: round11Steps,
   },
@@ -725,10 +735,10 @@ const turns: TutorialTurn[] = [
     combatSeed: 'learn-ascent-r12',
     omenBoard: [{ attack: 8, health: 8 }, { attack: 7, health: 7 }, { attack: 7, health: 7 }, { attack: 6, health: 6 }, { attack: 5, health: 5 }],
     shopRolls: [
-      { minions: ['b2_trex', 'dm_butcher', 'b2_wolvie'] },
-      { minions: ['dm_wrangler', 'b2_echohorn', 'b2_packstrider'] },
-      { minions: ['b2_wolvie', 'dm_hank', 'b2_trex'] },
-      { minions: ['dm_butcher', 'b2_packstrider', 'b2_echohorn'] },
+      { minions: ['b2_trex', 'seaurchin', 'b2_wolvie'] },
+      { minions: ['kennel', 'b2_echohorn', 'b2_packstrider'] },
+      { minions: ['b2_wolvie', 'b2_armadiyo', 'b2_trex'] },
+      { minions: ['seaurchin', 'b2_packstrider', 'b2_echohorn'] },
     ],
     steps: round12Steps,
   },
@@ -748,6 +758,15 @@ export const LEARN_ASCENT: TutorialCourse = {
   title: 'Learn Ascent',
   summary: 'A coached first game — shop, build, position, and win; bring a synergy engine together; triple, Discover, cast a spell; then graduate.',
   rounds: 12,
+  // The table THINS toward a duel (owner ask 2026-08-21). Authored seats all field the same board each round,
+  // so their mutual fights draw and nobody was ever knocked out — the rail stayed 8-wide and round 12 felt
+  // like any other round. These are the opponents still standing after each round; the lobby retires the
+  // weakest through the normal elimination path, so placements, the rail and the knockout treatment all read
+  // as they do in a real game. Entering round 12 there is exactly ONE opponent left: a final duel.
+  seatsRemaining: [7, 7, 6, 6, 5, 5, 4, 3, 3, 2, 1, 1],
+  // Every minion Discover this course opens offers BEASTS only — the roster is all Beasts, so a Triple
+  // Reward that handed over a random off-tribe minion undid the synergy lesson in one pick.
+  discoverTribe: 'beast',
   opponentNames: ['Rook', 'Vale', 'Mira', 'Flint', 'Ibis', 'Nox', 'Crown', 'Bex', 'Halo', 'Dune', 'Wren', 'Sol'],
   foundation: [
     {

@@ -94,6 +94,9 @@ function mapAction(action: Action, prev: RunState, next: RunState): TutorialSema
     case 'settleCombat': return [{ type: 'combatEnded', result: prev.lastCombat?.result ?? 'draw' }];
     // `resolveCombat` settles the fight ITSELF when the player skips ahead (reducer: `if (!s.combatSettled)
     // settleCombat(...)`), which used to swallow `combatEnded` entirely and strand any step awaiting it.
+    // The Discover PICK. `discover` is always-allowed by the gate (it is a sub-choice), so this only feeds
+    // predicates — but it lets a step wait for the actual choice instead of the play that opened the modal.
+    case 'discover': return next === prev ? [] : [{ type: 'discovered' }];
     case 'resolveCombat': return prev.combatSettled
       ? [{ type: 'returnedToShop' }]
       : [{ type: 'combatEnded', result: prev.lastCombat?.result ?? 'draw' }, { type: 'returnedToShop' }];
@@ -139,6 +142,7 @@ export function verbsForPredicate(c: TutorialPredicate): string[] {
     // Positional lessons complete on a drag; `reposition` is always allowed, but name it rather than relying
     // on that (the dependency is invisible from here).
     case 'cardAtSlot': case 'reordered': return ['reposition'];
+    case 'discovered': return []; // picking is always allowed (a sub-choice within an allowed action)
     // Board-state goals need the verbs that change the board; a spend goal needs the ways to spend.
     case 'cardOnBoard': case 'boardCount': return ['buy', 'play'];
     case 'goldSpentToZero': return ['buy', 'roll', 'upgrade', 'freeze'];

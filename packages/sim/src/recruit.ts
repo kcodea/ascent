@@ -6640,6 +6640,12 @@ export function offerDiscover(
 /** Open one Discover described by `spec` — a spell Discover or a (tiered / fixed-tier / filtered) minion
  *  Discover. The single place a `DiscoverSpec` becomes a live `state.discover` offer. */
 export function openDiscover(state: RunState, spec: DiscoverSpec): void {
+  // TUTORIAL tribe lock: the course teaches one tribe, so every minion Discover it opens stays in that tribe
+  // (a Triple Reward offering a random off-tribe minion taught the player nothing). Applied HERE because this
+  // is where every Discover — `discoverOnPlay`, an effect, a queued one — actually becomes an offer.
+  if (state.tutorialDiscoverTribe && spec.kind === 'minion' && !spec.tribe) {
+    spec = { ...spec, tribe: state.tutorialDiscoverTribe };
+  }
   if (spec.kind === 'spell') {
     offerSpellDiscover(state);
   } else if (spec.kind === 'pool') {

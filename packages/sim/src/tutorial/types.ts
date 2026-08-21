@@ -1,3 +1,4 @@
+import type { Tribe } from '@game/core';
 /**
  * TUTORIAL — the type contract (FTUE Phase 1).
  *
@@ -85,6 +86,7 @@ export type TutorialSemanticEvent =
   | { type: 'heroPowerUsed'; targetUid?: string }
   | { type: 'toweredUp'; toTier: number } // tavern upgrade
   | { type: 'gilded'; cardId: string }
+  | { type: 'discovered'; cardId?: string } // a Discover offer was RESOLVED (the player picked)
   | { type: 'inspected'; uid: string }
   | { type: 'endedTurn' }
   | { type: 'combatStarted' }
@@ -163,6 +165,10 @@ export type TutorialPredicate =
   | { kind: 'heroPowerReady' }
   | { kind: 'tierAtLeast'; tier: number }
   | { kind: 'gilded' }
+  /** The player PICKED from an open Discover. Distinct from playing the card that opened it: a Discover
+   *  advances the moment the token is played, so a step keyed to the play moves on while the modal is still
+   *  up — and every later spotlight then points at chrome the modal covers. */
+  | { kind: 'discovered' }
   | { kind: 'endedTurn' }
   | { kind: 'combatStarted' }
   | { kind: 'combatEnded'; result?: 'win' | 'lose' | 'draw' }
@@ -319,6 +325,11 @@ export interface TutorialCourse {
   heroId: string;
   /** Total rounds in the authored lobby. */
   rounds: number;
+  /** How many OPPONENT seats remain after each round (index = round − 1). Drives the lobby's authored
+   *  attrition so the table thins into a final duel instead of staying 8-wide; see `RunLobby`. */
+  seatsRemaining?: number[];
+  /** Lock every minion Discover the course opens to this tribe, so the run teaches one tribe end to end. */
+  discoverTribe?: Tribe;
   /** The 7 opponent seat names shown on the lobby rail (Rook, Vale, …). Fewer than 7 pads with defaults. */
   opponentNames: string[];
   /** The opening rules foundation (shown once, skippable, before Turn 1). */

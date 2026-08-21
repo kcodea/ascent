@@ -130,9 +130,10 @@ const DEFAULTS: HeroFxConfig = {
   sbWebRings: 5,
   sbBuild: 260,
   sbFlash: 420,
-  // Cia foil — the handoff's suggested defaults.
-  // Owner-tuned 2026-08-17. Halo, glints and seal are dialled to ZERO — the foil alone carries the read — so
-  // those layers are skipped entirely at draw time (see the visibility gates in ciaEnchantedFx).
+  // Cia foil — ORPHANED. The `ciaEnchantedFx` Pixi foil these tuned defaults drove was removed 2026-08-21
+  // (the enchant treatment is now the `cia-hp` FX def played by `useCiaEnchantedFx`); nothing reads these
+  // fields any more. Left in place for now — a follow-up should remove the whole `cia*` block + the dead
+  // `--hfx-enc-*` var setters in `applyHeroFxVars` + the enchant tuner knobs together.
   ciaFoilOpacity: 0.74,
   ciaHoverBoost: 1.67,
   ciaFoilPeriod: 3.4,

@@ -8026,46 +8026,6 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   animation: dicesettle 130ms ease-out; /* grows INTO place and holds — matches the hero-power die */
 }
 
-/* ── Cia: the ENCHANTED shop card — CSS FALLBACK ONLY ─────────────────────────────────────────────────
-   The shipped treatment is the Pixi holographic foil (`ciaEnchantedFx.ts`). This ring effect is RETAINED as
-   the no-WebGL / Pixi-failed fallback, per the handoff's migration rule: it is hidden only once the
-   controller has actually mounted and stamped `.pixi-enchanted-ready` on <html>, so a session where Pixi
-   never comes up still shows an unmistakable enchanted card.
-
-   Reduced motion is handled inside the controller (a static contour + seal), so it is NOT gated here.
-   ────────────────────────────────────────────────────────────────────────────────────────────────────── */
-:root.pixi-enchanted-ready .enchantwisp { display: none; }
-
-/* ── Cia: the ENCHANTED shop card ──────────────────────────────────────────────────────────────────────
-   A warm red glow pooled UNDER the offer. Deliberately calm (owner ask 2026-08-16 — the first pass's spinning
-   double chain read as janky): one element, one slow breathe, no rotation. The job is only to say "this card
-   is Enchanted" at a glance; it must not compete with the card art or the row.
-
-   It LOOPS, so per docs/performance.md the only animated property is `opacity` — the red bloom itself is a
-   STATIC box-shadow. No paint property changes per frame. */
-/* Two counter-rotating rings of red/gold "links" tracing the card (owner ask 2026-08-16: back to the
-   circling look, but tunable). Only `transform` animates on the rings and only `opacity` on their fade —
-   both compositor-only, so a looping effect never repaints (docs/performance.md). */
-.enchantwisp {
-  position: absolute; inset: calc(var(--hfx-enc-inset, -4) * var(--u));
-  border-radius: inherit; pointer-events: none; z-index: 4; overflow: visible;
-}
-.enchantwisp .ew-ring {
-  position: absolute; inset: 0; border-radius: inherit;
-  /* One repeating conic gradient carries the link COUNT, LENGTH and EDGE — see applyHeroFxVars(). */
-  background: var(--hfx-enc-links);
-  -webkit-mask: radial-gradient(closest-side, transparent calc(100% - var(--hfx-enc-h, 4.5) * var(--u)), #000 calc(100% - var(--hfx-enc-h, 4.5) * var(--u) + 1px));
-  mask: radial-gradient(closest-side, transparent calc(100% - var(--hfx-enc-h, 4.5) * var(--u)), #000 calc(100% - var(--hfx-enc-h, 4.5) * var(--u) + 1px));
-  filter: blur(calc(var(--hfx-enc-blur, 12) * var(--u) * 0.08)); /* STATIC — never animated */
-  will-change: transform;
-}
-.enchantwisp .ew-a { animation: ewspin var(--hfx-enc-period, 2.75s) linear infinite; }
-.enchantwisp .ew-b {
-  animation: ewspin calc(var(--hfx-enc-period, 2.75s) * var(--hfx-enc-skew, 2.95)) linear infinite reverse;
-  opacity: var(--hfx-enc-dip, 1);
-}
-@keyframes ewspin { to { transform: rotate(360deg); } }
-
 /* ── Sable: the SOULBIND mark ──────────────────────────────────────────────────────────────────────────
    A purple ring floating above each bound minion while the bond is live. Same discipline as above: a static
    shadow, and only `opacity` animates. Both ends wear it, so the pair reads as a pair. */
@@ -8106,7 +8066,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 }
 @keyframes sbbreathe { 0%, 100% { opacity: var(--hfx-sb-dip, 0.7); } 50% { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) {
-  .enchantwisp .ew-ring, .soulbindmark { animation: none; }
+  .soulbindmark { animation: none; }
 }
 
 /* ── Cassen's commission picker ────────────────────────────────────────────────────────────────────────

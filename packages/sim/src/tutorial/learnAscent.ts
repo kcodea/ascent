@@ -335,10 +335,24 @@ const round5Steps: TutorialStep[] = [
     // The overlay is a modal and owns the screen, so it needs no cutout of its own (a full-viewport anchor
     // punches a hole through everything); the coach just names the choice.
     anchors: [],
+    // The Discover overlay dims the board itself — a second scrim on top just darkened the choice.
+    noScrim: true,
     gate: 'observe', lessonId: 'keyword_discover',
     // Waits for the PICK, not for the play that opened it — otherwise the course walks on while the modal is
     // still up and every later spotlight points at chrome the player cannot reach.
     completion: { kind: 'discovered' },
+  },
+  {
+    // PLAY WHAT YOU PICKED (owner 2026-08-21). The Discover put a Beast in hand; leaving it there taught the
+    // player that a discovered card just… sits somewhere. Completion is a BOARD COUNT, not `played: cardId`,
+    // because the card they chose is theirs — the course cannot know its id.
+    id: 'r5-playfound',
+    phase: 'shop', focusMode: 'action', title: 'Play Your Pick',
+    body: 'Now play the Beast you chose onto your board — a discovered card goes to your hand, not the board.',
+    anchors: [{ kind: 'ui', id: 'hand' }, { kind: 'ui', id: 'warband' }],
+    connector: { from: { kind: 'ui', id: 'hand' }, to: { kind: 'ui', id: 'warband' }, style: 'drag' },
+    gate: 'hard', lessonId: 'play_minion',
+    completion: { kind: 'boardCount', atLeast: 6 },
   },
   heroPowerReminderStep('r5-power'),
   endTurnStep('r5-end', 'A bigger board again. End the turn and fight.'),
@@ -391,6 +405,28 @@ const round6Steps: TutorialStep[] = [
 
 const round7Steps: TutorialStep[] = [
   {
+    id: 'r7-makeroom',
+    phase: 'shop', focusMode: 'action', title: 'Make Room to Summon',
+    body: 'Your board is full. Sell Kennelmaster to start making room — you need space for what comes next.',
+    why: 'Board space is a resource — Echohorn re-fires T-Rex’s Echo, and that Baby needs somewhere to go.',
+    // FIRST in the round, not after the buy: with the round-5 Discover the board arrives FULL at 7, so a
+    // "play Echohorn" step would simply be refused. Two slots are needed — one for Echohorn, one for the Baby
+    // its Rally re-fires — and both sells NAME their card rather than asking for a free "sell two". A
+    // free-choice sell let a player give up T-Rex, which the very next step (and round 8) depends on; the
+    // named pair also keeps both Packstriders, which round 8 needs for the triple.
+    anchors: [{ kind: 'card', zone: 'board', alias: CARD_IDS.kennel }],
+    gate: 'hard', lessonId: 'replace_on_full_board',
+    completion: { kind: 'sold', cardId: CARD_IDS.kennel },
+  },
+  {
+    id: 'r7-makeroom2',
+    phase: 'shop', focusMode: 'action', title: 'One More Slot',
+    body: 'Sell Sea Urchin too — its Shout already paid off. Now there is room for Echohorn and what it summons.',
+    anchors: [{ kind: 'card', zone: 'board', alias: CARD_IDS.urchin }],
+    gate: 'hard',
+    completion: { kind: 'sold', cardId: CARD_IDS.urchin },
+  },
+  {
     id: 'r7-buy',
     phase: 'shop', focusMode: 'action', title: 'The Keystone',
     body: 'Buy Echohorn. When it attacks, its Rally re-fires your LEFT-MOST Echo minion.',
@@ -410,17 +446,6 @@ const round7Steps: TutorialStep[] = [
     connector: { from: { kind: 'card', zone: 'hand', alias: CARD_IDS.echohorn }, to: { kind: 'ui', id: 'warband' }, style: 'drag' },
     gate: 'hard', lessonId: 'play_minion',
     completion: { kind: 'played', cardId: CARD_IDS.echohorn },
-  },
-  {
-    id: 'r7-makeroom',
-    phase: 'shop', focusMode: 'action', title: 'Make Room to Summon',
-    body: 'Your board is full at 7, so a summon has nowhere to land. Sell Kennelmaster to open a slot.',
-    why: 'Board space is a resource — Echohorn re-fires T-Rex’s Echo, and that Baby needs somewhere to go.',
-    // NOT a Packstrider: the player is holding exactly two, and round 8's lesson is buying the THIRD to
-    // trigger a triple. Selling one here silently made that golden impossible (caught in a playthrough).
-    anchors: [{ kind: 'card', zone: 'board', alias: CARD_IDS.kennel }],
-    gate: 'hard', lessonId: 'replace_on_full_board',
-    completion: { kind: 'sold', cardId: CARD_IDS.kennel },
   },
   {
     id: 'r7-position',

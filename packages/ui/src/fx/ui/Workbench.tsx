@@ -144,9 +144,12 @@ const MIN_DURATION_MS = 200;
 const MAX_DURATION_MS = 4000;
 const DURATION_STEP_MS = 50;
 
-/** Loop-gap dial bounds (ms) — only meaningful while Loop is on; see `FxPlayer.setLoopGap`. */
-const MAX_LOOP_GAP_MS = 2000;
-const LOOP_GAP_STEP_MS = 50;
+/** Loop-join dial bounds (ms) — only meaningful while Loop is on; see `FxPlayer.setLoopJoin`. The SIGNED
+ *  join supersedes the old non-negative loop-gap: positive delays the fresh cycle (a gap, both modes),
+ *  negative overlaps it into the tail (seamless only). */
+const MIN_LOOP_JOIN_MS = -1000;
+const MAX_LOOP_JOIN_MS = 2000;
+const LOOP_JOIN_STEP_MS = 20;
 
 /** The duration band a restored session / loaded def is clamped into — the dial's own bounds, handed to the
  *  pure helpers in `sessionState.ts` so that module never has to know about this file's constants. */
@@ -474,7 +477,12 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   // the workbench opens looping rather than making you click Loop first every session. `toggleLoop` turns it
   // off for the cases where a single discrete pass is what you want to study.
   const [loopOn, setLoopOn] = useState(true);
-  const [loopGapMs, setLoopGapMs] = useState(0);
+  // How a loop boundary is crossed, and the SIGNED join at it — both are DEF properties (loaded on def-open,
+  // written into the saved def), unlike `loopOn` above which is preview-only. `playOut` plays the whole pass
+  // then restarts; `seamless` cross-fades the tail into the fresh cycle. `loopJoinMs` is signed: positive
+  // delays the fresh cycle (a gap, both modes), negative overlaps it into the tail (seamless only).
+  const [loopMode, setLoopMode] = useState<'playOut' | 'seamless'>('playOut');
+  const [loopJoinMs, setLoopJoinMs] = useState(0);
 
   // ── seed (see `FxPlayer.setSeed` / `fx/rng.ts`) ─────────────────────────────────────────────────────
   // UNLOCKED is the default and is exactly today's behaviour: the player is handed `null`, so every spawned
@@ -516,7 +524,7 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   const backdropRef = useRef<FxBackdrop | null>(null);
   // Mirrors of the latest state, read by the per-frame updater / build closures so those never go stale
   // without forcing a player rebuild on every keystroke (a rebuild happens ONLY on primitive/scenario/duration
-  // change). `loopGapRef` mirrors `loopGapMs` the same way `speedRef` mirrors `speed` -- a dial that should
+  // change). `loopJoinRef` mirrors `loopJoinMs` the same way `speedRef` mirrors `speed` -- a dial that should
   // survive a rebuild without itself triggering one.
   const layersRef = useRef(layers);
   // `selected` and `durationMs` get the same mirror treatment as `layers` for ONE reason: a history snapshot
@@ -525,11 +533,15 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   const selectedRef = useRef(selected);
   const durationRef = useRef(durationMs);
   const speedRef = useRef(speed);
-  const loopGapRef = useRef(loopGapMs);
+  // `loopModeRef`/`loopJoinRef` mirror the def-level loop-boundary state into the next `build()` the same way
+  // `speedRef` mirrors `speed` — a dial that survives a primitive/scenario/duration rebuild without itself
+  // triggering one.
+  const loopModeRef = useRef(loopMode);
+  const loopJoinRef = useRef(loopJoinMs);
   // Whether playback is continuous. Mirrored so a rebuild reconstructs the player in the SAME mode the author
   // left it in, and so the build closure (which doesn't re-run on this state) reads the live value.
   const loopOnRef = useRef(loopOn);
-  // The seed a REBUILD hands the freshly-created player. Mirrored the same way `speedRef`/`loopGapRef` are —
+  // The seed a REBUILD hands the freshly-created player. Mirrored the same way `speedRef`/`loopJoinRef` are —
   // a rebuild constructs a brand-new player with no seed, and re-applying it here is what makes a locked
   // seed survive a primitive swap / duration change / def load rather than silently re-rolling.
   const seedRef = useRef(seed);
@@ -608,9 +620,9 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   // (Re)build the player whenever the layer STRUCTURE, scenario, OR duration changes. Param tweaks do NOT
   // land here — they go through player.setLayerParams (see `change` below) so a slider drag never respawns
   // the effect mid-gesture; At/Life tweaks likewise go through player.setLayerTiming (see
-  // `changeLayerTiming`). Loop-on/off and the loop-gap dial ALSO don't land here (see `toggleLoop` /
-  // `changeLoopGap`) -- they're live `setLoop`/`setLoopGap` calls on the existing player, not a rebuild, per
-  // the same "don't respawn mid-gesture" reasoning.
+  // `changeLayerTiming`). Loop-on/off, the loop-mode toggle, and the loop-join dial ALSO don't land here (see
+  // `toggleLoop` / `changeLoopMode` / `changeLoopJoin`) -- they're live `setLoop`/`setLoopMode`/`setLoopJoin`
+  // calls on the existing player, not a rebuild, per the same "don't respawn mid-gesture" reasoning.
   useEffect(() => {
     let disposed = false;
     let retryTimer: ReturnType<typeof setTimeout> | undefined;
@@ -688,7 +700,7 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
       if (backdropRef.current) backdropRef.current.container.visible = slot === 'over';
 
       const def = toDef(`workbench-${layersForDef[0]?.primitive ?? 'fx'}`, durationMs, layersForDef, slot, ease);
-      // The loop flag SURVIVES a rebuild, the same way `loopGapMs`/`speed`/`seed` do (see `loopOnRef`): a
+      // The loop flag SURVIVES a rebuild, the same way `loopJoinMs`/`speed`/`seed` do (see `loopOnRef`): a
       // primitive/scenario switch or duration change must not silently stop a loop the author is tuning
       // against, and must not start one they turned off. Whichever mode is live, playback starts immediately
       // below -- `play()` for continuous, `fireOnce()` for a single pass -- so a rebuilt effect is always
@@ -699,7 +711,7 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
       player = createPlayer(
         def,
         { container, renderer, uids: { source: subjectUid, target: subjectUid } },
-        { loop: loopOnRef.current, loopGapMs: loopGapRef.current },
+        { loop: loopOnRef.current, loopMode: loopModeRef.current, loopJoinMs: loopJoinRef.current },
       );
       player.setSpeed(speedRef.current);
       // Re-apply the seed BEFORE the auto-fire below, so the very first pass of a rebuilt player already
@@ -1372,13 +1384,21 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
     playerRef.current?.setSpeed(n);
   };
 
-  // Loop-gap dial: live `setLoopGap`, no rebuild -- only meaningful once Loop is on, but it's harmless to
-  // set while not looping. `loopGapRef` mirrors this into the next `build()` call the same way `speedRef`
-  // mirrors `speed`, so the dial's value survives a primitive/scenario/duration rebuild.
-  const changeLoopGap = (ms: number): void => {
-    loopGapRef.current = ms;
-    setLoopGapMs(ms);
-    playerRef.current?.setLoopGap(ms);
+  // Loop-join dial: live `setLoopJoin`, no rebuild -- the signed boundary offset (positive gap / negative
+  // overlap). Only meaningful once Loop is on, but harmless to set while not looping. `loopJoinRef` mirrors
+  // this into the next `build()` the same way `speedRef` mirrors `speed`, so the value survives a rebuild.
+  const changeLoopJoin = (ms: number): void => {
+    loopJoinRef.current = ms;
+    setLoopJoinMs(ms);
+    playerRef.current?.setLoopJoin(ms);
+  };
+
+  // Loop-mode toggle (Play out ↔ Seamless): live `setLoopMode`, no rebuild. Takes effect at the NEXT loop
+  // boundary. `loopModeRef` mirrors it into the next `build()` so the mode survives a rebuild.
+  const changeLoopMode = (mode: 'playOut' | 'seamless'): void => {
+    loopModeRef.current = mode;
+    setLoopMode(mode);
+    playerRef.current?.setLoopMode(mode);
   };
 
   /** Apply a seed + lock state to BOTH the mirrors a rebuild reads and the live player. The player call is
@@ -1530,6 +1550,8 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
         slot,
         getDef(id),
         ease,
+        loopMode,
+        loopJoinMs,
       );
       const result = await saveDef(stored);
       if (!result.ok) {
@@ -1892,6 +1914,12 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
     // The ease is part of what the def IS, exactly like the slot: a composition that rushes its opening is a
     // different effect from one that doesn't. Absent means the identity ramp, which is what "no ease" means.
     setEase((def.ease ?? [[0, 0], [1, 1]]).map((p) => [p[0], p[1]] as [number, number]));
+    // The loop-boundary behaviour + join are part of what the def IS, like the slot/ease. Absent means the
+    // defaults every def written before this existed meant: `playOut`, zero join. Routed through the change*
+    // helpers (not bare setState) so the `loopModeRef`/`loopJoinRef` mirrors are already correct if this
+    // structural load rebuilds the player, AND the live player is updated for a params-only (non-rebuild) load.
+    changeLoopMode(def.loopMode ?? 'playOut');
+    changeLoopJoin(def.loopJoinMs ?? 0);
     commitLayers(next);
     applySelected(0);
     applyDuration(nextDuration);
@@ -2536,6 +2564,20 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
           >
             {loopOn ? '🔁 Loop: On' : '🔁 Loop: Off'}
           </button>
+          {/* How the loop boundary is crossed -- a DEF property (saved into the effect), unlike the preview-only
+              Loop toggle beside it. Play out: finish the whole pass, then restart. Seamless: cross-fade the
+              tail into the fresh cycle so a continuous effect never blinks at the seam. Lit when seamless. */}
+          <button
+            className={`fxwb-loop-toggle${loopMode === 'seamless' ? ' on' : ''}`}
+            onClick={() => changeLoopMode(loopMode === 'seamless' ? 'playOut' : 'seamless')}
+            title={
+              loopMode === 'seamless'
+                ? 'Seamless: the tail cross-fades into the next cycle (no seam blink) -- click for Play out'
+                : 'Play out: each pass finishes before the next begins -- click for Seamless (cross-faded seam)'
+            }
+          >
+            {loopMode === 'seamless' ? '♾ Seamless' : '▶ Play out'}
+          </button>
           <label className="fxwb-speedlabel" htmlFor="fxwb-duration">Duration</label>
           <input
             id="fxwb-duration"
@@ -2565,18 +2607,22 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
           >
             ⇥ Fit to effects
           </button>
-          <label className="fxwb-speedlabel" htmlFor="fxwb-loopgap">Loop gap</label>
+          {/* Signed loop-JOIN: positive delays the fresh cycle (a gap, both modes); negative overlaps it into
+              the tail (the overlap only bites in Seamless). Only meaningful while Loop is on. */}
+          <label className="fxwb-speedlabel" htmlFor="fxwb-loopjoin">Loop join</label>
           <input
-            id="fxwb-loopgap"
+            id="fxwb-loopjoin"
             className="fxwb-speed"
             type="range"
-            min={0}
-            max={MAX_LOOP_GAP_MS}
-            step={LOOP_GAP_STEP_MS}
-            value={loopGapMs}
-            onChange={(e) => changeLoopGap(Number(e.target.value))}
+            min={MIN_LOOP_JOIN_MS}
+            max={MAX_LOOP_JOIN_MS}
+            step={LOOP_JOIN_STEP_MS}
+            value={loopJoinMs}
+            disabled={!loopOn}
+            title="Signed join at the loop seam: + delays the next cycle (a gap), − overlaps it into the tail (Seamless only)"
+            onChange={(e) => changeLoopJoin(Number(e.target.value))}
           />
-          <span className="fxwb-speedval">{loopGapMs} ms</span>
+          <span className="fxwb-speedval">{loopJoinMs > 0 ? `+${loopJoinMs}` : loopJoinMs} ms</span>
         </div>
 
         {/* Canvas slot: which of the two full-viewport canvases this effect draws on. Over = the z110

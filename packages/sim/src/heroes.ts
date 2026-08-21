@@ -848,6 +848,18 @@ export function heroPowerLockTurns(run: {
   return 0;
 }
 
+/**
+ * How many copies a Gild (triple) needs for this run — 3 normally, 2 under Rune of Twin Gilding or Midas'
+ * Touch (either one is enough; they cannot stack down to 1).
+ *
+ * Shared so the SHOP'S "buying this completes a Gild" indicator and the reducer's `checkTriples` can never
+ * disagree. They did: the indicator hardcoded "you already hold 2", so a Midas player — who Gilds at 2 — got
+ * no highlight on the duplicate that would have completed it right now (owner report 2026-08-21).
+ */
+export function gildCopiesNeeded(run: { heroId: string; runeTwinGilding?: boolean }): number {
+  return run.runeTwinGilding || HERO_INDEX[run.heroId]?.power.kind === 'midasTouch' ? 2 : 3;
+}
+
 /** Rohan's Attunement bonus: +1/+1 to stat-granting spells, rising by 1 every 10 spells CAST this run
  *  (+1 for casts 0–9, +2 for 10–19, +3 for 20–29, …). Keyed off `RunState.spellsCast`. A starting dial. */
 export function spellAmplifyBonus(spellsCast: number): number {

@@ -28,21 +28,47 @@ export const rectCenter = (r: RectSnapshot): { x: number; y: number } => ({
 });
 
 /**
- * The centered portrait destination (§8). Width-driven; height preserves the source card's aspect so the
- * clone scales uniformly (a non-uniform card stretch reads as broken, not theatrical).
+ * The big hero card's own aspect (height ÷ width). FIXED, never taken from the source card.
  *
- * Desktop: 28% of viewport width clamped to [360, 520]. Narrow screens (< 720px): the mobile clamp, and the
- * center rides at 43vh so the Start Game button keeps the lower safe area.
+ * The ceremony always presents a BIG card — the clone re-renders the big-card markup whatever it flew from —
+ * so the destination must use the big card's shape. Deriving it from the source instead broke Practice
+ * outright (owner report 2026-08-21): the dense roster's compact card is ~2.72:1 against the big card's
+ * ~1.31:1, so the destination came out more than twice as tall and the portrait sat off the top of the screen.
  */
-export function destinationRect(viewportW: number, viewportH: number, source: RectSnapshot): RectSnapshot {
+export const CEREMONY_ASPECT = 1.31;
+
+/** The design stage the whole UI is authored against (Game.tsx: `--scale` = stage height ÷ 1440). */
+const REFERENCE_STAGE_H = 1440;
+
+/**
+ * The game's UNIFORM stage scale — the same unitless number every other authored size in the UI multiplies
+ * by, so the ceremony grows and shrinks in lockstep with the board instead of drifting against it. Mirrors
+ * Game.tsx's own formula rather than reading the CSS var, so the geometry stays a pure function.
+ */
+export function stageScale(viewportW: number, viewportH: number): number {
+  const gh = Math.min(finite(viewportH, REFERENCE_STAGE_H), (finite(viewportW, REFERENCE_STAGE_H) * 9) / 16, REFERENCE_STAGE_H);
+  return clamp(gh / REFERENCE_STAGE_H, 0.2, 1.25);
+}
+
+/**
+ * The centered portrait destination (§8) — SCALE-DRIVEN, not viewport-fraction-driven.
+ *
+ * It used to be `clamp(0.28 × viewport width, 360, 520)`, which meant the portrait's size tracked the WINDOW
+ * while every tuned offset around it (the name plate, the ring, the button) stayed in raw pixels — so the
+ * whole composition came apart at any resolution but the one it was dialed at (owner report 2026-08-21:
+ * "on 16:9 monitors the sizing is off"). Everything is now reference px × the stage scale, exactly like the
+ * rest of the UI, so the ceremony is proportionally identical at every window size.
+ */
+export function destinationRect(viewportW: number, viewportH: number, _source?: RectSnapshot): RectSnapshot {
   const vw = Math.max(1, finite(viewportW, 1));
   const vh = Math.max(1, finite(viewportH, 1));
+  const scale = stageScale(vw, vh);
   const narrow = vw < 720;
+  // Reference widths at the 1440 stage. The narrow branch keeps the phone's "fit the shorter side" behaviour.
   const width = narrow
     ? Math.max(200, Math.min(vw * 0.76, vh * 0.42))
-    : clamp(vw * 0.28, 360, 520);
-  const aspect = source.width > 0 && source.height > 0 ? source.height / source.width : 1.4;
-  const height = width * aspect;
+    : 636 * scale;
+  const height = width * CEREMONY_ASPECT;
   const cx = vw / 2;
   const cy = vh * (narrow ? 0.43 : 0.46);
   return { left: cx - width / 2, top: cy - height / 2, width, height };

@@ -5,6 +5,7 @@ import { useEffect, useLayoutEffect, useState } from 'react';
 import { Recruit } from './Recruit';
 import { EndScreen } from './EndScreen';
 import { HeroSelect } from './HeroSelect';
+import { HeroLaunchCurtain } from './hero-select/HeroLaunchCurtain';
 import { Title } from './Title';
 import { Leaderboard } from './Leaderboard';
 import { Rankings } from './Rankings';
@@ -280,6 +281,9 @@ export function Game() {
       {/* Topmost layers: the pre-run hero picker (self-gates on heroChoices), and above it the title
           screen (self-gates on showTitle) — the front door into Ascent / Practice / Settings. */}
       <HeroSelect />
+      {/* The hero-select launch curtain: mounted in Game (NOT in HeroSelect) so it survives the unmount
+          pickHero causes, and after HeroSelect so it z-orders above it (blueprint §7). */}
+      <HeroLaunchCurtain />
       <Title onSettings={() => setMenuOpen(true)} />
       <Leaderboard />
       <Rankings />

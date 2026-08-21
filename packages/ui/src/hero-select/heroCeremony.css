@@ -1,0 +1,146 @@
+/* HERO SELECT CEREMONY (hero-select-ceremony-blueprint.md §8-§10, §13-§14).
+   Perf contract (repo-wide): every animation here touches ONLY transform/opacity. The scrim and glow are
+   STATIC gradients whose opacity animates; the chrome dissolve is a set of one-shot opacity transitions.
+   All timing that must match the sequence runner is injected as CSS vars from ceremonyTiming() — no ms
+   literal below may drift from the timing object except pure cosmetics (entrance micro-durations). */
+
+/* ---- Grid + header treatment while the ceremony runs (§10, §16). Applied by HeroSelect via `hsc-active`
+   on the `.heroselect` root; --hsc-header-delay comes from timing.headerExitDelayMs. */
+.heroselect.hsc-active .herocard { pointer-events: none; }
+.heroselect.hsc-active .eyebrow,
+.heroselect.hsc-active .hstitle,
+.heroselect.hsc-active .hsline,
+.heroselect.hsc-active .riftpill,
+.heroselect.hsc-active .hsback {
+  opacity: 0;
+  transition: opacity 0.32s ease var(--hsc-header-delay, 80ms);
+  pointer-events: none;
+}
+
+/* ---- The ceremony overlay. Fixed children; sits above the grid inside `.heroselect` (z 400). */
+.hsc-layer { position: fixed; inset: 0; z-index: 5; pointer-events: none; }
+
+/* §10: deepen the existing board scrim a touch. Static color, opacity fades in. */
+.hsc-scrim {
+  position: fixed; inset: 0;
+  background: rgba(12, 8, 4, 0.55);
+  opacity: 0;
+  animation: hscFadeIn 0.45s ease forwards;
+}
+
+/* §10: the localized hero-accent light source behind center stage. Position/size are inline CSS vars from
+   the destination rect; the gradient itself never changes — opacity + a gentle scale carry the entrance. */
+.hsc-glow {
+  position: fixed;
+  left: calc(var(--hsc-glow-x) - var(--hsc-glow-r));
+  top: calc(var(--hsc-glow-y) - var(--hsc-glow-r));
+  width: calc(var(--hsc-glow-r) * 2);
+  height: calc(var(--hsc-glow-r) * 2);
+  border-radius: 50%;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--acc) 26%, transparent), transparent 70%);
+  opacity: 0;
+  transform: scale(0.85);
+  animation: hscGlowIn 0.6s ease 0.12s forwards;
+}
+
+/* ---- The selected-card clone (§8). The wrapper is the travel target (transform-origin top left so the
+   focus keyframes' translate+scale math holds); the inner card is real herocard markup statically scaled. */
+.hsc-clone { position: fixed; transform-origin: top left; will-change: transform; z-index: 10; }
+.hsc-clone-card { transform-origin: top left; cursor: default; }
+/* The clone is presentation-only: never show the hover faces the real card owns. */
+.hsc-clone-card:hover { transform: none; }
+
+/* §13: chrome dissolve — pills, below-text, then the frame's border/background/shadow, each a one-shot
+   opacity/border-color transition riding --hsc-transform-ms (timing.transformMs). The ART is untouched;
+   the portrait layer crossfades over it. */
+.hsc-clone .hcname, .hsc-clone .hchp, .hsc-clone .hcbelow {
+  transition: opacity calc(var(--hsc-transform-ms, 700ms) * 0.6) ease;
+}
+.hsc-clone .hcframe {
+  transition:
+    border-color var(--hsc-transform-ms, 700ms) ease,
+    background-color var(--hsc-transform-ms, 700ms) ease,
+    box-shadow var(--hsc-transform-ms, 700ms) ease;
+}
+.hsc-clone.hsc-chrome-out .hcname,
+.hsc-clone.hsc-chrome-out .hchp,
+.hsc-clone.hsc-chrome-out .hcbelow { opacity: 0; }
+.hsc-clone.hsc-chrome-out .hcframe {
+  border-color: transparent;
+  background-color: transparent;
+  box-shadow: none;
+}
+/* Once the clean portrait owns the stage (ready), the clone leaves entirely (§13 completion). */
+.hsc-clone.hsc-done { visibility: hidden; }
+
+/* §13: Layer B — the clean portrait. Fixed at its final bounds; the entrance animation (WAAPI) starts it
+   at the card-art crop. Soft-masked edges so the art resolves outward with no chrome. */
+.hsc-portrait { position: fixed; transform-origin: top left; will-change: transform; z-index: 11; }
+.hsc-portrait img {
+  width: 100%; height: 100%; object-fit: cover; -webkit-user-drag: none;
+  border-radius: 18px;
+  -webkit-mask-image: radial-gradient(115% 115% at 50% 42%, #000 62%, transparent 96%);
+  mask-image: radial-gradient(115% 115% at 50% 42%, #000 62%, transparent 96%);
+}
+
+/* ---- §14: identity + confirmation. Fixed under the portrait; each piece enters on its own CSS delay
+   (offsets from the materializing beat, injected from the timing object). */
+.hsc-identity {
+  position: fixed; left: 0; right: 0; z-index: 12;
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  pointer-events: none; /* re-enabled on the button alone */
+}
+.hsc-name {
+  font-family: var(--font-title); font-weight: 900; font-size: 44px; letter-spacing: 0.06em;
+  color: #f6efe2; text-shadow: 0 3px 12px rgba(0, 0, 0, 0.7);
+  opacity: 0;
+  animation: hscRise 0.36s ease var(--hsc-identity-delay, 500ms) forwards;
+}
+.hsc-power {
+  font-family: var(--font-ui); font-weight: 800; font-size: 16px; letter-spacing: 0.14em;
+  text-transform: uppercase; color: color-mix(in srgb, var(--acc) 80%, #fff);
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
+  opacity: 0;
+  animation: hscRise 0.36s ease calc(var(--hsc-identity-delay, 500ms) + 110ms) forwards;
+}
+.hsc-start {
+  pointer-events: auto;
+  margin-top: 16px;
+  font-family: var(--font-ui); font-weight: 800; font-size: 19px; letter-spacing: 0.12em;
+  text-transform: uppercase; color: #fff;
+  background: var(--acc); border: 2px solid var(--acc-dk); box-shadow: 0 5px 0 var(--acc-dk);
+  padding: 13px 42px; border-radius: 14px;
+  cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
+  opacity: 0;
+  animation: hscRise var(--hsc-ready-ms, 250ms) ease var(--hsc-ready-delay, 700ms) forwards;
+}
+/* Belongs to the hero moment, so it also gets an unmistakable keyboard focus ring (§16). */
+.hsc-start:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--acc) 65%, #fff);
+  outline-offset: 3px;
+}
+.hsc-start:disabled { cursor: default; }
+
+/* §16: the polite announcement — visually hidden, never display:none (that would mute it). */
+.hsc-live {
+  position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+/* ---- §7: the launch curtain (mounted in Game, above everything hero-select). Dark neutral cover with a
+   restrained hero-accent heart; the DIV's opacity is what the curtain component animates. */
+.hsc-curtain {
+  position: fixed; inset: 0; z-index: 480;
+  opacity: 0;
+  background:
+    radial-gradient(60% 50% at 50% 46%, color-mix(in srgb, var(--hsc-accent, var(--acc)) 14%, transparent), transparent 75%),
+    #0a0703;
+}
+
+/* One-shot entrance keyframes — compositor-only (transform/opacity). */
+@keyframes hscFadeIn { to { opacity: 1; } }
+@keyframes hscGlowIn { to { opacity: 1; transform: scale(1); } }
+@keyframes hscRise {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}

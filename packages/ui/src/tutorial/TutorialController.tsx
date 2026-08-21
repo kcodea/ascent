@@ -13,16 +13,16 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  evalPredicate, getTutorialCourse,
+  evalPredicate, getTutorialCourse, getHero, heroPowerLockTurns,
   type Action, type RunState,
-  type TutorialAnchorRef, type TutorialAnchorSpec, type TutorialCourse,
+  type TutorialAnchorRef, type TutorialAnchorSpec, type TutorialCourse, type TutorialPredicate,
   type TutorialContext, type TutorialRunView, type TutorialSemanticEvent, type TutorialStep,
 } from '@game/sim';
 import { useGame } from '../store';
 import { subscribeTutorialActions } from './actionBus';
 import { subscribeTutorialPresented } from './presentationBus';
 import { setTutorialGate, subscribeGateNudge } from './gateBus';
-import { measureAnchors, resolveAnchorRect } from './anchorRegistry';
+import { measureAnchors, resolveAnchorRect, useAnchorMeasureTick } from './anchorRegistry';
 import { TutorialOverlay, type TutorialOverlayView } from './TutorialOverlay';
 import { FocusCutout } from './FocusMask';
 import {
@@ -62,29 +62,63 @@ const findCard = (zone: readonly { uid: string; cardId: string }[], uid?: string
  *  separate end-turn action; `faceOmen` is it). */
 function mapAction(action: Action, prev: RunState, next: RunState): TutorialSemanticEvent[] {
   switch (action.type) {
-    case 'buy': { const cardId = findCard(prev.shop, action.uid); return cardId ? [{ type: 'bought', cardId, uid: action.uid }] : []; }
-    case 'play': { const cardId = findCard(prev.hand, action.uid); return cardId ? [{ type: 'played', cardId, uid: action.uid }] : []; }
-    case 'sell': { const cardId = findCard(prev.board, action.uid) ?? findCard(prev.hand, action.uid); return cardId ? [{ type: 'sold', cardId }] : []; }
-    case 'roll': return [{ type: 'refreshed' }];
-    case 'freeze': return [{ type: 'froze' }];
-    case 'upgrade': return [{ type: 'toweredUp', toTier: next.tier }];
-    case 'heroPower': return [{ type: 'heroPowerUsed', targetUid: action.uid }];
+    // Each of these confirms the TRANSITION, not just the attempt: the reducer returns the same state when it
+    // refuses (a play into a full board, a buy you cannot afford), and `dispatch` notifies either way — so
+    // without the `next === prev` guard the coach ticked the lesson off for something that visibly did not
+    // happen, then pointed its next spotlight at a card that never moved (audit 2026-08-21).
+    case 'buy': { const cardId = findCard(prev.shop, action.uid); return cardId && next !== prev ? [{ type: 'bought', cardId, uid: action.uid }] : []; }
+    case 'play': {
+      const cardId = findCard(prev.hand, action.uid);
+      if (!cardId || next === prev) return [];
+      // A SPELL played from hand is a cast — the `castSpell` predicate exists in the contract but nothing ever
+      // emitted it, so any course authoring it would have hung forever. Emit both: the card was played, and
+      // (if it is a spell) it was cast.
+      const isSpell = !next.board.some((c) => c.uid === action.uid); // a minion lands on the board; a spell never does
+      return isSpell
+        ? [{ type: 'played', cardId, uid: action.uid }, { type: 'castSpell', cardId }]
+        : [{ type: 'played', cardId, uid: action.uid }];
+    }
+    case 'sell': { const cardId = findCard(prev.board, action.uid) ?? findCard(prev.hand, action.uid); return cardId && next !== prev ? [{ type: 'sold', cardId }] : []; }
+    case 'roll': return next === prev ? [] : [{ type: 'refreshed' }];
+    case 'freeze': return next === prev ? [] : [{ type: 'froze' }];
+    // A REJECTED verb must not advance the lesson. The reducer returns the SAME state object when it refuses
+    // an action (a locked power, a missing target), and `dispatch` notifies either way — so without this a
+    // whiffed hero-power press ticked the coached step off while the player got no buff at all. `buy`/`play`/
+    // `sell` already guard via their uid lookup; these are the verbs that could silently no-op.
+    case 'heroPower': return next === prev ? [] : [{ type: 'heroPowerUsed', targetUid: action.uid }];
+    case 'upgrade': return next === prev ? [] : [{ type: 'toweredUp', toTier: next.tier }];
     case 'reposition': case 'reorderShop': case 'reorderHand': return [{ type: 'reordered' }];
     case 'faceOmen': return [{ type: 'endedTurn' }, { type: 'combatStarted' }];
     // Combat is SETTLED when the replay finishes (win/loss known) — that's "combat ended". The player then
     // clicks "End combat, back to shop" (resolveCombat), which is a SEPARATE beat the coach can guide.
     case 'settleCombat': return [{ type: 'combatEnded', result: prev.lastCombat?.result ?? 'draw' }];
-    case 'resolveCombat': return [{ type: 'returnedToShop' }];
+    // `resolveCombat` settles the fight ITSELF when the player skips ahead (reducer: `if (!s.combatSettled)
+    // settleCombat(...)`), which used to swallow `combatEnded` entirely and strand any step awaiting it.
+    case 'resolveCombat': return prev.combatSettled
+      ? [{ type: 'returnedToShop' }]
+      : [{ type: 'combatEnded', result: prev.lastCombat?.result ?? 'draw' }, { type: 'returnedToShop' }];
     default: return [];
   }
 }
 
 /** The player verb(s) a step's completion is teaching — used to lock input to exactly that action. `null` means
  *  "don't gate a verb" (a combat/observe step: only flow actions apply, and those always pass). */
-function allowedKindsFor(step: TutorialStep): string[] {
+export function allowedKindsFor(step: TutorialStep): string[] {
   if (step.allowedActionKinds) return step.allowedActionKinds;
-  const c = step.completion;
+  return verbsForPredicate(step.completion);
+}
+
+/**
+ * The verbs a predicate could possibly need. COMPOSITES RECURSE (owner report 2026-08-21: step 19 hard-locked):
+ * a completion of `any[heroPowerUsed, not heroPowerReady]` used to fall through to `[]`, which the gate reads
+ * as "no verb allowed" — so the coach asked for the hero power and the gate dropped every attempt to use it.
+ * Unioning the children keeps the lock as tight as the authored intent while never blocking the verb the step
+ * is teaching, and it holds for any future composite a course author writes.
+ */
+export function verbsForPredicate(c: TutorialPredicate): string[] {
   switch (c.kind) {
+    case 'not': return verbsForPredicate(c.of);
+    case 'all': case 'any': return [...new Set(c.of.flatMap(verbsForPredicate))];
     case 'bought': return ['buy'];
     case 'played': return ['play'];
     case 'sold': return ['sell'];
@@ -96,8 +130,22 @@ function allowedKindsFor(step: TutorialStep): string[] {
     case 'endedTurn': case 'combatStarted': return ['faceOmen'];
     case 'gilded': return ['buy']; // a Gild completes on the third buy
     case 'inspectedAny': return []; // inspect is always allowed anyway
-    // Combat/observe/return steps gate no verb — the player is watching or clicking a flow control.
-    default: return [];
+    // A readiness CHECK needs the verb that would satisfy it, so an "any[used, notReady]" reminder still lets
+    // the player press the power on the turns it IS available.
+    case 'heroPowerReady': return ['heroPower'];
+    // Verbless by design — the player is watching, or clicking a flow control that `ALWAYS_ALLOWED` passes.
+    case 'always': case 'combatStarted': case 'combatEnded': case 'returnedToShop': case 'presented':
+      return [];
+    // Positional lessons complete on a drag; `reposition` is always allowed, but name it rather than relying
+    // on that (the dependency is invisible from here).
+    case 'cardAtSlot': case 'reordered': return ['reposition'];
+    // Board-state goals need the verbs that change the board; a spend goal needs the ways to spend.
+    case 'cardOnBoard': case 'boardCount': return ['buy', 'play'];
+    case 'goldSpentToZero': return ['buy', 'roll', 'upgrade', 'freeze'];
+    // A KIND WE DO NOT KNOW must fall OPEN, never shut. `[]` means "block every player verb", so a predicate
+    // added to the contract without a branch here would hard-lock its step — the exact failure that shipped
+    // with composite predicates. A too-loose gate is a smudge; a too-tight one ends the run.
+    default: return ['buy', 'play', 'sell', 'roll', 'freeze', 'upgrade', 'heroPower', 'faceOmen'];
   }
 }
 
@@ -145,7 +193,11 @@ function projectRun(run: RunState): TutorialRunView {
     tier: run.tier,
     frozen: run.frozen,
     phase: run.phase,
-    heroReady: run.heroReady,
+    // ACTUAL usability, not the raw flag: `heroReady` re-arms every wave, but a recharge-locked power
+    // (Aster's Preparation) is still unusable on its locked turn. Without this the tutorial's
+    // `heroPowerReady` predicate reads true on a locked turn and its "use your power" reminder can never
+    // clear (owner report 2026-08-21, step 19).
+    heroReady: run.heroReady && heroPowerLockTurns(run, getHero(run.heroId).power.kind) === 0,
     shop: run.shop.map((c) => ({ uid: c.uid, cardId: c.cardId })),
     hand: run.hand.map((c) => ({ uid: c.uid, cardId: c.cardId })),
     board: run.board.map((c) => ({ uid: c.uid, cardId: c.cardId, golden: c.golden })),
@@ -198,6 +250,9 @@ export function TutorialController(): JSX.Element | null {
   // cleared the saved step → cursor 0), while a resume re-runs it via `isTutorial` flipping true (saved step
   // intact → resume). Without it, launching a fresh run for the same course wouldn't re-run this and the cursor
   // would stay on the old run's step, desynced from a wave-1 board.
+  // The live run, readable from effects that must NOT re-subscribe to it.
+  const runRef = useRef(run);
+  runRef.current = run;
   const runSeed = run.seed;
   useEffect(() => {
     if (!isTutorial || !course) return;
@@ -209,7 +264,21 @@ export function TutorialController(): JSX.Element | null {
     setCursor(savedIdx >= 0 ? savedIdx : 0);
     setEvents([]);
     sawEverRef.current = new Set();
-    combatEventsRef.current = [];
+    // SEED the combat log from the RESTORED RUN rather than clearing it (audit 2026-08-21). `combatEnded` is
+    // only ever emitted by a `settleCombat` ACTION, and that action fires once, guarded on `!combatSettled`.
+    // So a player who quit to the Title after the fight resolved but before pressing "End combat" came back to
+    // a step waiting on an event that could never be produced again — every verb gated, the step unclearable,
+    // the run abandonable only from the Esc menu. Rebuilding the log from state makes the resume self-healing.
+    // Read the run through a REF, never the deps: this effect resets the cursor and clears the logs, so
+    // listing combat fields here would re-run it on every phase flip mid-run and repeatedly rewind the course
+    // (caught in a full playthrough — the round-1 debrief could never clear).
+    const r = runRef.current;
+    const seeded: TutorialSemanticEvent[] = [];
+    if (r.phase === 'combat') {
+      seeded.push({ type: 'combatStarted' });
+      if (r.combatSettled) seeded.push({ type: 'combatEnded', result: r.lastCombat?.result ?? 'draw' });
+    }
+    combatEventsRef.current = seeded;
   }, [isTutorial, course, items, runSeed]);
 
   // Subscribe to the dispatched-action stream while a tutorial is live; translate to semantic events.
@@ -239,6 +308,14 @@ export function TutorialController(): JSX.Element | null {
   }, []);
 
   const current = items[cursor];
+  // Re-measure the spotlight while the board settles. Keyed on the step so each activation gets its own
+  // bounded settle sweep; also bumps on resize/scroll/transition/animation end. Listed in the view memo's
+  // deps below — that is what actually moves the cutout onto a card that was still animating when the step
+  // began (owner report: the step-12 highlight sitting off Packstrider).
+  const measureTick = useAnchorMeasureTick(
+    current ? (current.kind === 'panel' ? current.id : current.step.id) : 'none',
+    run.phase === 'combat' && !run.combatSettled, // suspended: nothing is spotlighted while the fight plays
+  );
 
   // LOCK input to the current step's coached action — the player can do only what the coach is pointing at, so
   // they stay in lock-step and can't desync the course. Flow/positioning/inspect always pass (see gateBus), so
@@ -260,6 +337,16 @@ export function TutorialController(): JSX.Element | null {
     const t = window.setTimeout(() => setNudge(null), 2600);
     return () => window.clearTimeout(t);
   }, [nudge]);
+
+  // FINISHING the course: the last debrief's `resolveCombat` also ends the lobby, so the same commit flips the
+  // phase to victory/gameover — which turns `isTutorial` false and made every effect below early-return. The
+  // course therefore sat at `in_progress` forever, even for a perfect playthrough. Watch the terminal phase
+  // directly, outside the `isTutorial` guard (audit 2026-08-21).
+  const tutorialCourseId = run.tutorialCourseId;
+  const terminal = run.phase === 'gameover' || run.phase === 'victory';
+  useEffect(() => {
+    if (run.mode === 'tutorial' && tutorialCourseId && terminal) completeCourse(tutorialCourseId);
+  }, [run.mode, tutorialCourseId, terminal]);
 
   // Persist the current step id, and complete the course when the walk runs out.
   useEffect(() => {
@@ -289,7 +376,12 @@ export function TutorialController(): JSX.Element | null {
     const phaseOk = current.kind === 'panel' || stepMatchesPhase(current.step, run.phase);
     const specs = current.kind === 'panel' ? current.focus : current.step.anchors;
     const refs = phaseOk ? specs.map((s) => resolveSpec(s, run)).filter((r): r is TutorialAnchorRef => r !== null) : [];
-    const rects = measureAnchors(refs).rects.filter((r): r is DOMRect => r !== null);
+    // Drop VIEWPORT-SIZED rects (audit 2026-08-21): `.discover-ov` is `position: fixed; inset: 0`, so
+    // spotlighting it punched a hole through the entire screen — no highlight at all — and handed `placePanel`
+    // a full-screen anchor, which clamps the panel across the bottom of the Discover picker it is covering.
+    // A modal needs no cutout: it already owns the screen.
+    const coversViewport = (r: DOMRect): boolean => r.width >= window.innerWidth * 0.95 && r.height >= window.innerHeight * 0.95;
+    const rects = measureAnchors(refs).rects.filter((r): r is DOMRect => r !== null && !coversViewport(r));
     const cutouts: FocusCutout[] = rects.map((rect) => ({ rect, shape: 'rect' as const }));
     const primaryRect = rects[0] ?? null;
 
@@ -317,9 +409,14 @@ export function TutorialController(): JSX.Element | null {
     // step). The scrim + spotlight return for the post-combat debrief once the fight has settled. The coach
     // panel drops to the bottom of the screen so it never covers the fighting minions it's asking you to watch.
     const combatAnimating = step.phase === 'combat' && !run.combatSettled;
+    // A step that ASKED for a spotlight but resolved none — a phase mismatch, or an anchor whose card is not
+    // on screen — used to dim the entire board at 0.7 with nothing highlighted, which is indistinguishable
+    // from a broken overlay and is exactly the state a stranded step terminates in. Keep the panel, drop the
+    // scrim: the player can at least see and read the board (audit 2026-08-21).
+    const anchoredButUnresolved = step.anchors.length > 0 && cutouts.length === 0;
     // NO-SCRIM steps (the independence rounds): the player is driving, so drop the dim + spotlight entirely —
     // the coach panel still shows, but the whole board stays at full clarity (same treatment as combat-watch).
-    const noScrim = !combatAnimating && !!step.noScrim;
+    const noScrim = !combatAnimating && (!!step.noScrim || anchoredButUnresolved);
     const clearScreen = combatAnimating || noScrim;
     const bottomAnchor = combatAnimating ? new DOMRect(window.innerWidth / 2 - 1, window.innerHeight - 46, 2, 26) : null;
     // A dismissible free-play step whose panel the player closed with "Got it": hide the panel, keep everything
@@ -355,7 +452,7 @@ export function TutorialController(): JSX.Element | null {
     };
     // `events`/`inspect` intentionally excluded from deps — re-measuring is driven by run/step/window, not by
     // every recorded event (which would thrash layout reads during combat).
-  }, [isTutorial, current, run, cursor, items.length, advance, dismissed]);
+  }, [isTutorial, current, run, cursor, items.length, advance, dismissed, measureTick]);
 
   if (!isTutorial) return null;
   return (

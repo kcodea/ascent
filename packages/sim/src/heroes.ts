@@ -827,6 +827,27 @@ export const HEROES: HeroDef[] = [
   },
 ];
 
+/**
+ * TURNS REMAINING on a recharge-locked hero power, or 0 when it is available.
+ *
+ * `RunState.heroReady` is NOT the whole story for these powers: it resets to `true` on every wave advance, so
+ * a power that recharges every OTHER turn reads "ready" on its locked turn. Each such power carries its own
+ * `…LockUntil` wave, and THAT is the real gate the reducer checks. Two consumers must agree with the reducer
+ * or they lie to the player: the hero-power BUTTON (a locked power must not look armed — clicking it no-ops)
+ * and the TUTORIAL's `heroPowerReady` predicate (a coached "use your power" step must clear itself on a
+ * locked turn instead of waiting forever). Found 2026-08-21: Aster's Preparation had neither, which
+ * hard-locked the tutorial's round-2 power step.
+ */
+export function heroPowerLockTurns(run: {
+  wave: number;
+  heroDiceLockUntil?: number;
+  preparationLockUntil?: number;
+}, powerKind: HeroPowerKind): number {
+  if (powerKind === 'dice') return Math.max(0, (run.heroDiceLockUntil ?? 0) - run.wave);
+  if (powerKind === 'preparation') return Math.max(0, (run.preparationLockUntil ?? 0) - run.wave);
+  return 0;
+}
+
 /** Rohan's Attunement bonus: +1/+1 to stat-granting spells, rising by 1 every 10 spells CAST this run
  *  (+1 for casts 0–9, +2 for 10–19, +3 for 20–29, …). Keyed off `RunState.spellsCast`. A starting dial. */
 export function spellAmplifyBonus(spellsCast: number): number {

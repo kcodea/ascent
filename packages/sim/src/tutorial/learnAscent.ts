@@ -67,7 +67,7 @@ const round1Steps: TutorialStep[] = [
     phase: 'shop',
     focusMode: 'action',
     title: 'Use Your Power',
-    body: 'Tap Preparation, then pick Packstrider. Aster gives a friendly minion +1/+1 — free value every turn.',
+    body: 'Tap Preparation, then pick Packstrider. Aster gives a friendly minion +1/+1 — free, whenever it is lit.',
     // Spotlight BOTH the power button and Packstrider (the target), with a connector between them, so the
     // "tap here, then pick that" flow reads at a glance.
     anchors: [{ kind: 'ui', id: 'hero-power' }, { kind: 'card', zone: 'board', alias: ROUND1_BUY }],
@@ -136,7 +136,7 @@ const CARD_IDS = {
 function heroPowerReminderStep(id: string): TutorialStep {
   return {
     id, phase: 'shop', focusMode: 'action', title: 'Use Your Power',
-    body: 'Preparation is free — spend it before you fight. Tap it, then pick a minion to give +1/+1.',
+    body: 'Preparation is free — spend it before you fight. It recharges every other turn, so use it whenever it is lit.',
     anchors: [{ kind: 'ui', id: 'hero-power' }],
     gate: 'soft',
     completion: { kind: 'any', of: [{ kind: 'heroPowerUsed' }, { kind: 'not', of: { kind: 'heroPowerReady' } }] },
@@ -197,8 +197,8 @@ const round2Steps: TutorialStep[] = [
   },
   {
     id: 'r2-tavern',
-    phase: 'shop', focusMode: 'action', title: 'Upgrade Your Tavern',
-    body: 'Now raise your Tavern to Tier 2. Higher tiers unlock stronger minions in the shop.',
+    phase: 'shop', focusMode: 'action', title: 'Upgrade Your Shop',
+    body: 'Now raise your Shop to Tier 2. Higher tiers unlock stronger minions.',
     anchors: [{ kind: 'ui', id: 'tavern-up' }],
     gate: 'hard', lessonId: 'tavern_up',
     completion: { kind: 'tierAtLeast', tier: 2 },
@@ -296,7 +296,7 @@ const round5Steps: TutorialStep[] = [
   {
     id: 'r5-buy',
     phase: 'shop', focusMode: 'action', title: 'A Shout Minion',
-    body: 'There is the minion you froze. Buy Contract Butcher — it has a Shout, an effect that fires the instant you play it.',
+    body: 'Contract Butcher is on offer. Buy it — it has a Shout, an effect that fires the instant you play it.',
     anchors: [{ kind: 'card', zone: 'shop', alias: CARD_IDS.butcher }],
     // The drag the step is asking for, drawn: shop offer → your hand (owner ask 2026-08-20).
     connector: { from: { kind: 'card', zone: 'shop', alias: CARD_IDS.butcher }, to: { kind: 'ui', id: 'hand' }, style: 'drag' },
@@ -362,7 +362,7 @@ const round6Steps: TutorialStep[] = [
   {
     id: 'r6-tavern',
     phase: 'shop', focusMode: 'action', title: 'Reach Tier 3',
-    body: 'Upgrade your Tavern to Tier 3 — it unlocks the piece that ties your board together.',
+    body: 'Upgrade your Shop to Tier 3. Higher tiers keep better minions coming as the table gets stronger.',
     anchors: [{ kind: 'ui', id: 'tavern-up' }],
     gate: 'hard', lessonId: 'tavern_up',
     completion: { kind: 'tierAtLeast', tier: 3 },
@@ -402,8 +402,8 @@ const round7Steps: TutorialStep[] = [
   {
     id: 'r7-makeroom',
     phase: 'shop', focusMode: 'action', title: 'Make Room to Summon',
-    body: 'A full board of 7 has no open slot — so summons have nowhere to land. Echohorn re-fires T-Rex’s Echo to summon a Baby, but with 7 minions it fizzles. Sell Imp Wrangler to open a slot.',
-    why: 'Board space is a resource: leave room when your plan relies on summoning new minions.',
+    body: 'Your board is full at 7, so a summon has nowhere to land. Sell Imp Wrangler to open a slot.',
+    why: 'Board space is a resource — Echohorn re-fires T-Rex’s Echo, and that Baby needs somewhere to go.',
     anchors: [{ kind: 'card', zone: 'board', alias: CARD_IDS.wrangler }],
     gate: 'hard', lessonId: 'replace_on_full_board',
     completion: { kind: 'sold', cardId: CARD_IDS.wrangler },
@@ -544,17 +544,17 @@ const round10Steps: TutorialStep[] = [
   freeBuildStep(
     'r10-free',
     'Your Turn to Drive',
-    'Now you lead. Spend your Gold to strengthen the board — and remember you can raise your Tavern tier for stronger minions. End Turn when you are happy.',
-    'The best line is yours to find. There is no single right buy — a stronger board is the only goal.',
+    'Now you lead. Spend your Gold to strengthen the board — you can raise your Shop tier too. End Turn when you are happy.',
+    'There is no single right buy — a stronger board is the only goal.',
   ),
-  combatDebriefStep('r10-debrief', 'Well Played', 'End combat here and go back to the shop.'),
+  combatDebriefStep('r10-debrief', 'Back to the Shop', 'End combat here and go back to the shop.'),
 ];
 
 const round11Steps: TutorialStep[] = [
   {
     id: 'r11-tavern',
     phase: 'shop', focusMode: 'action', title: 'Push for Tier',
-    body: 'Start by raising your Tavern to Tier 4 — it unlocks stronger minions. Do it first, while your Gold is full.',
+    body: 'Start by raising your Shop to Tier 4 — it unlocks stronger minions. Do it first, while your Gold is full.',
     why: 'Upgrading trades a little strength now for better options later — a core tension you weigh every game.',
     anchors: [{ kind: 'ui', id: 'tavern-up' }],
     gate: 'hard', noScrim: true, lessonId: 'tavern_up',
@@ -565,7 +565,7 @@ const round11Steps: TutorialStep[] = [
     'Now Build',
     'Tier 4 is open. Spend the rest of your Gold to round out the board, then End Turn.',
   ),
-  combatDebriefStep('r11-debrief', 'Well Played', 'End combat here and go back to the shop.'),
+  combatDebriefStep('r11-debrief', 'Back to the Shop', 'End combat here and go back to the shop.'),
 ];
 
 const round12Steps: TutorialStep[] = [
@@ -614,7 +614,9 @@ const turns: TutorialTurn[] = [
     // Both enemies hit for 3 (enough to one-shot the 3/3 T-Rex) and are tanky enough to survive the player's
     // opening swing, so whichever one makes the enemy's first attack does the job. `forceEnemyFirstTargetCard`
     // then steers that swing onto the T-Rex wherever the player placed it — the Echo lesson always lands.
-    omenBoard: [{ attack: 3, health: 8 }, { attack: 3, health: 5 }],
+    // 4 Attack, not 3: Preparation is AVAILABLE on turn 3, and a player who spends it on T-Rex makes it 3/4
+    // — a 3-Attack swing would leave it alive and the debrief would narrate an Echo that never fired.
+    omenBoard: [{ attack: 4, health: 8 }, { attack: 3, health: 5 }],
     forceEnemyFirstTargetCard: CARD_IDS.trex,
     // Initial roll has no T-Rex (so the round teaches Refresh); the refresh roll [1] offers T-Rex.
     shopRolls: [
@@ -698,7 +700,9 @@ const turns: TutorialTurn[] = [
     // INDEPENDENCE: a spread of clean minions + a refresh, so the player has real choices to make on their own.
     shopRolls: [
       { minions: ['b2_wolvie', 'dm_butcher', 'dm_hank'] },
-      { minions: ['b2_trex', 'dm_clerk', 'k_geode'] },
+      { minions: ['b2_trex', 'b2_packstrider', 'dm_hank'] },
+      { minions: ['dm_butcher', 'b2_echohorn', 'b2_wolvie'] },
+      { minions: ['b2_packstrider', 'b2_trex', 'dm_butcher'] },
     ],
     steps: round10Steps,
   },
@@ -708,8 +712,10 @@ const turns: TutorialTurn[] = [
     combatSeed: 'learn-ascent-r11',
     omenBoard: [{ attack: 7, health: 7 }, { attack: 6, health: 7 }, { attack: 6, health: 6 }, { attack: 5, health: 5 }, { attack: 4, health: 4 }],
     shopRolls: [
-      { minions: ['dm_wrangler', 'b2_wolvie', 'dm_errand'] },
-      { minions: ['dm_butcher', 'dm_hank', 'k_chipwick'] },
+      { minions: ['dm_wrangler', 'b2_wolvie', 'dm_hank'] },
+      { minions: ['dm_butcher', 'b2_echohorn', 'b2_trex'] },
+      { minions: ['b2_packstrider', 'dm_hank', 'b2_wolvie'] },
+      { minions: ['b2_echohorn', 'dm_butcher', 'b2_trex'] },
     ],
     steps: round11Steps,
   },
@@ -720,7 +726,9 @@ const turns: TutorialTurn[] = [
     omenBoard: [{ attack: 8, health: 8 }, { attack: 7, health: 7 }, { attack: 7, health: 7 }, { attack: 6, health: 6 }, { attack: 5, health: 5 }],
     shopRolls: [
       { minions: ['b2_trex', 'dm_butcher', 'b2_wolvie'] },
-      { minions: ['dm_wrangler', 'dm_clerk', 'k_geode'] },
+      { minions: ['dm_wrangler', 'b2_echohorn', 'b2_packstrider'] },
+      { minions: ['b2_wolvie', 'dm_hank', 'b2_trex'] },
+      { minions: ['dm_butcher', 'b2_packstrider', 'b2_echohorn'] },
     ],
     steps: round12Steps,
   },

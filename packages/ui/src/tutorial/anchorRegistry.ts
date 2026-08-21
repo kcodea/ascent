@@ -121,50 +121,54 @@ function refsKey(refs: TutorialAnchorRef[]): string {
 }
 
 /**
- * Measure a set of anchors once on mount, again whenever `deps` change or the refs change, and again on window
- * `resize` / `scroll`, and when a CSS transition/animation finishes — throttled through a single rAF so a burst
- * of events collapses to one layout read. NEVER measures in a continuous loop. Returns the index-aligned rect
- * array (nulls for unmounted anchors).
+ * A MEASURE TICK — a counter that bumps whenever the anchors on screen may have moved, so a caller that
+ * measures inside a `useMemo` can list it in the deps and re-measure exactly then.
  *
- * WHY animation-end (owner report 2026-08-20: "step 12's highlight box is not on the packstrider, it's off to
- * the left and up slightly"): a step often activates in the same commit as the action that satisfied the
- * PREVIOUS step — "use your power on Packstrider" activates the instant Packstrider is played, while the card
- * is still gliding into its board slot and the row is still reflowing around it. The single measurement taken
- * at activation therefore captured the card MID-FLIGHT, and nothing ever corrected it, so the cutout sat at
- * that stale position for the whole step. Re-measuring when the movement finishes fixes every anchor measured
- * mid-move, not just that one step, and stays event-driven — no polling loop.
+ * WHY A TICK AND NOT A HOOK THAT RETURNS RECTS (owner report 2026-08-20, still wrong 2026-08-21): the older
+ * `useAnchorRects` did own the rects — and nothing ever imported it, so its re-measure logic never ran once.
+ * The controller measures cutouts AND connector endpoints together inside one memo; handing it a tick fixes
+ * the staleness without splitting that measurement in two.
+ *
+ * WHAT GOES STALE. A step usually activates in the same commit as the action that satisfied the previous one
+ * — "use your power on Packstrider" activates the instant Packstrider is played, while the card is still
+ * growing into its board slot. The measurement taken then catches the card MID-FLIGHT (measured 6px small and
+ * 11px high in the 2026-08-21 repro) and nothing corrected it, so the cutout sat off the card all step.
+ *
+ * TWO SOURCES, both bounded — never a polling loop (the perf contract):
+ *  - EVENTS: resize / scroll / transitionend / animationend, all collapsed into one rAF.
+ *  - A SETTLE SWEEP on step change: a handful of re-measures across the ~600ms an entrance takes. This is what
+ *    catches movement that emits no DOM event at all — a WAAPI/GSAP tween fires neither `transitionend` nor
+ *    `animationend`, so events alone cannot be trusted to signal "it landed".
  */
-export function useAnchorRects(refs: TutorialAnchorRef[], deps: unknown[]): (DOMRect | null)[] {
-  const [rects, setRects] = useState<(DOMRect | null)[]>(() => measureAnchors(refs).rects);
-  // Keep the latest refs in a ref so the resize/scroll listener always measures the current set without
-  // re-subscribing on every refs change.
-  const refsRef = useRef(refs);
-  refsRef.current = refs;
+const SETTLE_SWEEP_MS = [0, 120, 300, 620] as const;
+
+export function useAnchorMeasureTick(stepKey: string, suspended = false): number {
+  const [tick, setTick] = useState(0);
   const rafRef = useRef<number | null>(null);
-  const key = refsKey(refs);
 
   useEffect(() => {
-    // Measure now (mount / deps / refs changed).
-    setRects(measureAnchors(refsRef.current).rects);
-
-    const measure = (): void => {
-      rafRef.current = null;
-      setRects(measureAnchors(refsRef.current).rects);
-    };
+    // SUSPENDED while combat animates. The board fires transition/animation events continuously during a
+    // fight, so leaving the listeners attached would bump the tick every frame — re-running the caller's
+    // measure memo ~60x/s, which is the per-frame layout loop this module exists to avoid. Nothing is
+    // spotlighted mid-fight anyway (the overlay drops its cutouts), so there is nothing to keep aligned.
+    if (suspended) return;
+    const bump = (): void => setTick((t) => t + 1);
+    const measure = (): void => { rafRef.current = null; bump(); };
     const schedule = (): void => {
-      // Collapse a burst into one rAF-scheduled measure; never a running loop.
-      if (rafRef.current != null) return;
+      if (rafRef.current != null) return; // collapse a burst into one rAF
       rafRef.current = requestAnimationFrame(measure);
     };
 
+    // The settle sweep for THIS step. Bounded and self-cancelling.
+    const timers = SETTLE_SWEEP_MS.map((ms) => window.setTimeout(bump, ms));
+
     window.addEventListener('resize', schedule);
-    // Capture-phase scroll so we catch scrolls in any nested scroller, not just the window.
+    // Capture phase so we catch scrolls/animations anywhere in the tree, not just on window.
     window.addEventListener('scroll', schedule, true);
-    // Capture phase so a card's own transition reaches us wherever it sits in the tree. Both events collapse
-    // into the SAME rAF as resize/scroll, so a board of cards finishing together costs one layout read total.
     window.addEventListener('transitionend', schedule, true);
     window.addEventListener('animationend', schedule, true);
     return () => {
+      for (const t of timers) window.clearTimeout(t);
       window.removeEventListener('resize', schedule);
       window.removeEventListener('scroll', schedule, true);
       window.removeEventListener('transitionend', schedule, true);
@@ -172,7 +176,7 @@ export function useAnchorRects(refs: TutorialAnchorRef[], deps: unknown[]): (DOM
       if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
     };
-  }, [key, ...deps]); // deps is a caller-supplied dependency list, spread intentionally
+  }, [stepKey, suspended]);
 
-  return rects;
+  return tick;
 }

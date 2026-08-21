@@ -21,7 +21,7 @@ import type { TutorialFocusMode } from '@game/sim';
 /** Estimated panel box used for viewport clamping. The panel itself sizes to content via CSS `max-width`;
  *  these are just the bounds we clamp the computed origin against so it never spills off-screen. */
 const PANEL_W = 320;
-const PANEL_H = 200;
+const PANEL_H = 260; // kept in step with `--tut-scale` in tutorialCoach.css (1.3 × the old 200 reserve)
 const GAP = 14;
 const MARGIN = 12;
 

@@ -31,7 +31,7 @@ const CHOREO_EOT = (() => {
 if (import.meta.env.DEV) {
   (window as unknown as { __choreoEot?: boolean }).__choreoEot = CHOREO_EOT;
 }
-import { alignmentsOf, boardHasCelestial, computeCombatOdds, type CombatOdds, rubyCastCount, rubyStatBonus, CONFIG, RIFTS, hasTier7Access, maxTierFor, conjuredStats, cardBuff, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, dragonflameCasts, nextOpponent, lossDamageCap, playerLossDamage, minionCostOf, heroOfferPrice, dominantBoardTribe, effectiveTargetTribe, boardManaBonus, upgradeCostOf, refreshCostOf, poolOf, type RunState, type ShopCard, type CardBuff, type BoardCard, type BoardSnapshot } from '@game/sim';
+import { alignmentsOf, boardHasCelestial, computeCombatOdds, type CombatOdds, rubyCastCount, rubyStatBonus, CONFIG, RIFTS, hasTier7Access, maxTierFor, conjuredStats, cardBuff, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, dragonflameCasts, nextOpponent, lossDamageCap, playerLossDamage, minionCostOf, heroOfferPrice, dominantBoardTribe, effectiveTargetTribe, boardManaBonus, upgradeCostOf, refreshCostOf, poolOf, type RunState, type ShopCard, type CardBuff, type BoardCard, type BoardSnapshot, gildCopiesNeeded } from '@game/sim';
 import { createPortal } from 'react-dom';
 import { setCardId, setCardStats, toggleCardKeyword, setEnemyStats, setEnemyCardId, toggleEnemyKeyword, removeEnemy } from './sandboxEdit';
 import { UnitEditor } from './UnitEditor';
@@ -2493,8 +2493,10 @@ export function Recruit() {
   // from `renderStart` (top of the component) to this earliest post-commit layout effect. No deps → every commit.
   // Defined ahead of the Flip effect so it excludes Flip's cost. This is the number that goes up late-game.
   useLayoutEffect(() => { perfMonitor.record('render:recruit', performance.now() - renderStart); });
-  // Tavern offers that would complete a triple if bought (you already hold 2 non-golden copies across
-  // board + hand) — flagged with a gold glow + floating arrows. Mirrors `checkTriples`' counting.
+  // Tavern offers that would complete a Gild if bought — flagged with a gold glow + floating arrows. Mirrors
+  // `checkTriples`' counting AND its threshold: the copies needed is 3 normally but 2 under Rune of Twin
+  // Gilding or Midas' Touch, so the number you must already hold is `need - 1`. This was hardcoded to 2, so a
+  // Midas player (who Gilds at 2) saw NO highlight on the duplicate that would complete it (owner 2026-08-21).
   const tripleReadyUids = useMemo(() => {
     const counts = new Map<string, number>();
     for (const c of [...run.board, ...run.hand]) {
@@ -2506,10 +2508,10 @@ export function Recruit() {
     const out = new Set<string>();
     for (const o of run.shop) {
       const cd = CARD_INDEX[o.cardId];
-      if (!cd?.spell && !cd?.ruby && !cd?.noTriple && (counts.get(o.cardId) ?? 0) >= 2) out.add(o.uid);
+      if (!cd?.spell && !cd?.ruby && !cd?.noTriple && (counts.get(o.cardId) ?? 0) >= gildCopiesNeeded(run) - 1) out.add(o.uid);
     }
     return out;
-  }, [run.board, run.hand, run.shop]);
+  }, [run.board, run.hand, run.shop, run.heroId, run.runeTwinGilding]);
 
   // A single stable pointer-down handler shared by every card: it reads the grabbed card's uid
   // + zone from the DOM and its view from this ref, so the handler's identity never changes

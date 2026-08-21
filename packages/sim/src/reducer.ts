@@ -8,7 +8,7 @@ import { lobbyOpponentBoard, settleRunLobbyRound, playerEliminated } from './lob
 import { accumulateContribution, tallyCombat } from './contribution';
 import { rollShop, topUpTavern, returnToPool, takeFromPool } from './shop';
 import { generateQuestOffer, questOfferPlan } from './quests';
-import { getHero } from './heroes';
+import { getHero, gildCopiesNeeded } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard, oppKey } from './opponents';
 import type { BoardSnapshot } from './snapshot';
@@ -3083,7 +3083,8 @@ function checkTriples(s: RunState): void {
       if (!c.golden && !cd?.spell && !cd?.ruby && !cd?.noTriple) counts.set(c.cardId, (counts.get(c.cardId) ?? 0) + 1);
     }
     // Rune of Twin Gilding AND Midas' Touch both Gild at 2 — either one is enough, so they cannot stack into 1.
-    const need = (s.runeTwinGilding || getHero(s.heroId).power.kind === 'midasTouch') ? 2 : 3;
+    // Shared with the shop's "this completes a Gild" indicator via `gildCopiesNeeded` so the two cannot drift.
+    const need = gildCopiesNeeded(s);
     let tripleId: string | undefined;
     for (const [id, n] of counts) {
       if (n >= need) {

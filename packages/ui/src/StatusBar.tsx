@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { renameTerms } from './terms';
 import { Card, mdBold } from './Card';
 import { instView } from './instView';
-import { dragonTamerCostOf, INDY_GILD_RECHARGE_GOLD, KESHI_CROWN_THRESHOLD, roundedSpellbookCostOf, buyoutCostOf, allInPayoutOf, exhibitionGrantOf, heroPowerText, commissionOffer, COMMISSION_NAME, COMMISSION_REWARD, COMMISSION_DELAY, getHero, spellAmplifyBonus, spellAttackBonus, spellHealthBonus } from '@game/sim';
+import { dragonTamerCostOf, INDY_GILD_RECHARGE_GOLD, KESHI_CROWN_THRESHOLD, roundedSpellbookCostOf, buyoutCostOf, allInPayoutOf, exhibitionGrantOf, heroPowerText, commissionOffer, COMMISSION_NAME, COMMISSION_REWARD, COMMISSION_DELAY, getHero, spellAmplifyBonus, spellAttackBonus, spellHealthBonus, heroPowerLockTurns } from '@game/sim';
 import { henchmanOffer } from '@game/sim';
 import { CARD_INDEX } from '@game/content';
 import { heroArt, heroPowerArt, questArt, runeArt } from './art';
@@ -125,7 +125,10 @@ export function StatusBar() {
       ? (heroPowerArt(`cassen-${run.commission.kind}`) ?? heroPowerArt(hero.id))
       : heroPowerArt(hero.id));
   // Gambler's Dice locks for as many turns as it rolled — how many turns remain.
-  const diceLock = power.kind === 'dice' ? Math.max(0, (run.heroDiceLockUntil ?? 0) - run.wave) : 0;
+  // Turns still owed on a recharge-locked power (Gambler's dice, Aster's Preparation). Shared with the
+  // tutorial's readiness predicate via `heroPowerLockTurns` so the button, the coach and the reducer agree —
+  // Preparation used to be missing here, so a locked power looked armed and clicking it silently no-opped.
+  const diceLock = heroPowerLockTurns(run, power.kind);
   // GAMBLER'S DICE ROLL (owner ask 2026-08-14): the die visibly TUMBLES, then settles on what it rolled.
   // Presentation only — the value comes from gameplay (`heroDiceLockUntil - wave`, the seeded roll the reducer
   // already made). The tumble cycles 1→6 deterministically rather than randomly: it reads identically and
@@ -235,7 +238,9 @@ export function StatusBar() {
       case 'dynamiteDig': return `Tier ${run.tier}`; // Jenkins — what the dig would discover
       case 'secondHand': return run.wave % 3 === 0 ? 'now' : `${3 - (run.wave % 3)}t`; // Re-Pete — fires when this turn ends / countdown
       case 'fourPeat': return `${Math.min(3, run.gorrBuys?.length ?? 0)}/3`; // Gorr — minion buys this turn
-      case 'dice': return diceLock > 0 ? `${diceLock}t` : null; // Gambler — turns until the roll unlocks
+      // Any recharge-locked power shows its countdown, not just Gambler's — Aster's Preparation had none, so
+      // a locked power read as available with no hint of when it returns (audit 2026-08-21).
+      case 'dice': case 'preparation': return diceLock > 0 ? `${diceLock}t` : null;
       case 'contraband': return `${(run.refreshCount ?? 0) % 3}/3`; // Pete — refreshes toward the tier-above roll
       case 'archive': return `${(run.archivedTribes?.length ?? 0)}/3`; // Quillen — minions filed toward the Discover
       case 'investment': return `${run.bramInvested ?? 0}/5`; // Bram — Gold banked toward the Gilded payout
@@ -284,7 +289,7 @@ export function StatusBar() {
                       ? `${power.name} · ${!run.heroReady ? 'used' : tamerCost === 0 ? 'FREE' : run.embers >= tamerCost! ? `${tamerCost} Gold` : `need ${tamerCost} Gold`}`
                       : power.kind === 'roundedSpellbook'
                         ? `${power.name} · ${!run.heroReady ? 'used' : bookCost === 0 ? 'FREE' : run.embers >= bookCost! ? `${bookCost} Gold` : `need ${bookCost} Gold`}`
-                        : power.kind === 'dice' && diceLock > 0
+                        : diceLock > 0
                           ? `${power.name} · locked ${diceLock}t`
                           // A once-per-GAME power must never read "once per turn" (owner report 2026-08-14 — Xerox).
                           : power.oncePerGame

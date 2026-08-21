@@ -9,8 +9,7 @@
 import { describe, expect, it } from 'vitest';
 import type { RectSnapshot } from './heroCeremonyMachine';
 import {
-  destinationRect, exitVector, focusKeyframes, rectCenter, snapshotRect, transformTo,
-} from './heroCeremonyGeometry';
+  destinationRect, exitVector, focusKeyframes, rectCenter, snapshotRect, transformTo, stageScale, CEREMONY_ASPECT } from './heroCeremonyGeometry';
 
 const rect = (left: number, top: number, width: number, height: number): RectSnapshot =>
   ({ left, top, width, height });
@@ -50,18 +49,20 @@ describe('snapshotRect sanitizes the DOMRect read', () => {
 });
 
 describe('destinationRect — the centered portrait target', () => {
-  it('desktop (1920x1080): width is clamp(0.28*vw, 360, 520), centered at (vw/2, 0.46*vh)', () => {
+  it('desktop (1920x1080): width is reference px x the STAGE SCALE, centered at (vw/2, 0.46*vh)', () => {
+    // Reworked 2026-08-21: the width used to be `clamp(0.28*vw, 360, 520)`, which clamped to a constant 520px
+    // on any wide screen while the board around it scaled — so the composition only held at one resolution.
+    // It is now 636 reference px x `stageScale`, like every other authored size in the UI.
     const d = destinationRect(1920, 1080, CARD);
-    // 1920 * 0.28 = 537.6 -> clamped to the 520 ceiling.
-    expect(d.width).toBe(520);
+    expect(d.width).toBeCloseTo(636 * stageScale(1920, 1080), 4);
     const c = rectCenter(d);
     expect(c.x).toBeCloseTo(960, 6);
     expect(c.y).toBeCloseTo(1080 * 0.46, 6);
   });
 
-  it('desktop floor: a small desktop viewport still gets at least 360px of card', () => {
-    // 900px wide is >= 720 (desktop branch) but 0.28 * 900 = 252 -> floor 360.
-    expect(destinationRect(900, 700, CARD).width).toBe(360);
+  it('a smaller desktop stage gets a proportionally smaller card, not a floored one', () => {
+    const d = destinationRect(900, 700, CARD);
+    expect(d.width).toBeCloseTo(636 * stageScale(900, 700), 4);
   });
 
   it('narrow (<720px, e.g. 390x844): width is min(vw*0.76, vh*0.42), center rides at 0.43*vh', () => {
@@ -72,15 +73,18 @@ describe('destinationRect — the centered portrait target', () => {
     expect(c.y).toBeCloseTo(844 * 0.43, 6);
   });
 
-  it('height preserves the source aspect so the clone scales uniformly', () => {
+  it('height uses the BIG CARD aspect, never the source aspect', () => {
+    // The ceremony always presents a big card, so taking the aspect from the source broke Practice: its dense
+    // roster card is ~2.7:1, which made the destination twice as tall and pushed it off the top of the screen.
     const d = destinationRect(1920, 1080, CARD);
-    expect(d.height / d.width).toBeCloseTo(CARD.height / CARD.width, 6); // 1.4
+    expect(d.height / d.width).toBeCloseTo(CEREMONY_ASPECT, 6);
+    expect(d.height / d.width).not.toBeCloseTo(CARD.height / CARD.width, 2);
   });
 
-  it('a zero-sized source rect still yields finite numbers via the fallback aspect', () => {
+  it('a zero-sized source rect still yields finite numbers', () => {
     const d = destinationRect(1920, 1080, ZERO);
     for (const v of [d.left, d.top, d.width, d.height]) expect(Number.isFinite(v)).toBe(true);
-    expect(d.height / d.width).toBeCloseTo(1.4, 6); // the fallback card aspect
+    expect(d.height / d.width).toBeCloseTo(CEREMONY_ASPECT, 6);
   });
 });
 

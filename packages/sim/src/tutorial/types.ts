@@ -1,3 +1,4 @@
+import type { Tribe } from '@game/core';
 /**
  * TUTORIAL — the type contract (FTUE Phase 1).
  *
@@ -53,6 +54,11 @@ export type TutorialAnchorRef =
  *  course data uid-free and therefore serializable and diffable. */
 export type TutorialCardAlias = string;
 
+/** NB (audited 2026-08-21): the controller resolves an alias by taking the FIRST card in the zone with that
+ *  id, so authoring an anchor for a card the player owns two copies of silently points at the older copy.
+ *  The shipped course never hits this (no step anchors a board card that has a duplicate), but a new step
+ *  that does will look correct in review and land on the wrong minion on screen. */
+
 /** An anchor as authored — a card ref may name an alias instead of a uid; the controller substitutes it. */
 export type TutorialAnchorSpec =
   | { kind: 'ui'; id: TutorialUiAnchor }
@@ -80,6 +86,7 @@ export type TutorialSemanticEvent =
   | { type: 'heroPowerUsed'; targetUid?: string }
   | { type: 'toweredUp'; toTier: number } // tavern upgrade
   | { type: 'gilded'; cardId: string }
+  | { type: 'discovered'; cardId?: string } // a Discover offer was RESOLVED (the player picked)
   | { type: 'inspected'; uid: string }
   | { type: 'endedTurn' }
   | { type: 'combatStarted' }
@@ -158,6 +165,10 @@ export type TutorialPredicate =
   | { kind: 'heroPowerReady' }
   | { kind: 'tierAtLeast'; tier: number }
   | { kind: 'gilded' }
+  /** The player PICKED from an open Discover. Distinct from playing the card that opened it: a Discover
+   *  advances the moment the token is played, so a step keyed to the play moves on while the modal is still
+   *  up — and every later spotlight then points at chrome the modal covers. */
+  | { kind: 'discovered' }
   | { kind: 'endedTurn' }
   | { kind: 'combatStarted' }
   | { kind: 'combatEnded'; result?: 'win' | 'lose' | 'draw' }
@@ -225,11 +236,20 @@ export interface TutorialStep {
   connector?: TutorialConnector;
   /** A first-use lesson to present + mark on completion. */
   lessonId?: string;
-  /** Where a Predict/Confirm step may hold in combat. */
+  /** Where a Predict/Confirm step may hold in combat. NOT YET IMPLEMENTED (audited 2026-08-21): nothing reads
+   *  this, so a step authoring one (r1-rally does) simply rides the fight and clears on its predicate. */
   safeHold?: TutorialSafeHold;
-  /** After completion, briefly refocus these (the result). */
+  /** After completion, briefly refocus these (the result). NOT YET IMPLEMENTED (audited 2026-08-21). */
   resultAnchors?: TutorialAnchorSpec[];
-  /** How input is constrained. */
+  /**
+   * How input is constrained — AUTHORED INTENT ONLY, not yet enforced (audited 2026-08-21).
+   *
+   * The controller does not read this field: it locks input to `allowedKindsFor(step)` for EVERY step, so a
+   * step marked `soft` or `observe` is in practice as tight as a `hard` one. That is the safe direction for a
+   * first-time player (they cannot desync from the coach), which is why it has not been "fixed" — but do not
+   * author copy that promises the player can wander, and do not assume marking a step `soft` loosens anything.
+   * Making it real means branching the gate in `TutorialController`'s gate effect on this value.
+   */
   gate: TutorialGate;
   /** Drop the dimming scrim + spotlight for this step — the coach panel still shows, but the board stays at
    *  full clarity (used by the independence rounds, where the player is driving and nothing should be dimmed). */
@@ -243,7 +263,7 @@ export interface TutorialStep {
   allowedActionKinds?: string[];
   /** When the step is done. */
   completion: TutorialPredicate;
-  /** Analytics tag (funnel event). */
+  /** Analytics tag (funnel event). NOT YET IMPLEMENTED (audited 2026-08-21) — nothing emits it. */
   analyticsTag?: string;
 }
 
@@ -305,6 +325,11 @@ export interface TutorialCourse {
   heroId: string;
   /** Total rounds in the authored lobby. */
   rounds: number;
+  /** How many OPPONENT seats remain after each round (index = round − 1). Drives the lobby's authored
+   *  attrition so the table thins into a final duel instead of staying 8-wide; see `RunLobby`. */
+  seatsRemaining?: number[];
+  /** Lock every minion Discover the course opens to this tribe, so the run teaches one tribe end to end. */
+  discoverTribe?: Tribe;
   /** The 7 opponent seat names shown on the lobby rail (Rook, Vale, …). Fewer than 7 pads with defaults. */
   opponentNames: string[];
   /** The opening rules foundation (shown once, skippable, before Turn 1). */

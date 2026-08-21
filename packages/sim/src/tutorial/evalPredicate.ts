@@ -47,6 +47,8 @@ export function evalPredicate(pred: TutorialPredicate, ctx: TutorialContext): bo
       return run.tier >= pred.tier;
     case 'gilded':
       return sawEvent(events, (e) => e.type === 'gilded');
+    case 'discovered':
+      return sawEvent(events, (e) => e.type === 'discovered');
     case 'endedTurn':
       return sawEvent(events, (e) => e.type === 'endedTurn');
     // Combat-lifecycle predicates read the per-COMBAT log so consecutive combat beats can each match one fight.

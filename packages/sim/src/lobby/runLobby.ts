@@ -86,6 +86,14 @@ export interface RunLobby {
   encounters: LobbyEncounter[];
   finished: boolean;
   rules: LobbyRules;
+  /** TUTORIAL ONLY — how many OPPONENT seats should still be standing after round N (1-based index N-1).
+   *  A tutorial lobby's opponents are authored stat-lines, and every one of them fields the SAME board each
+   *  round, so their mutual fights draw and nobody is ever knocked out: the table stayed 8-wide to the end and
+   *  the last round felt like any other. This schedule is an authored INPUT to an already-authored lobby —
+   *  it retires seats through the REAL elimination path (damage → `alive` → placement → the rail's own
+   *  elimination treatment), so the arc reads as a table thinning out into a final duel. The player's seat is
+   *  never touched by it, and their own combat is still simulated for real (owner ask 2026-08-21). */
+  tutorialSeatsRemaining?: number[];
 }
 
 /**
@@ -595,6 +603,25 @@ export function settleRunLobbyRound(lobby: RunLobby, playerResult: CombatResult)
     } else {
       // No ghost yet (nobody has been eliminated) — a genuine sit-out.
       lobby.encounters.push({ round: lobby.round, a: bye.id, b: bye.id, outcome: 'draw', damageToA: 0, damageToB: 0, bye: bye.id, fought: false });
+    }
+  }
+
+  // AUTHORED ATTRITION (tutorial): thin the table toward the scheduled opponent count for this round. Weakest
+  // first (lowest total health, seat id as a deterministic tie-break) so the seats the player has actually
+  // beaten are the ones that fall. Routed through the same `hit` + alive check as any other knockout, so the
+  // rail, the placements and the elimination presentation all behave normally.
+  const attrition = lobby.tutorialSeatsRemaining;
+  if (attrition && attrition.length > 0) {
+    const target = attrition[Math.min(lobby.round - 1, attrition.length - 1)]!;
+    const opponents = () => lobby.seats.filter((s) => s.alive && s.id !== 's0');
+    let living = opponents();
+    while (living.length > target) {
+      const weakest = [...living].sort((x, y) => (x.armor + x.resolve) - (y.armor + y.resolve) || x.id.localeCompare(y.id))[0]!;
+      hit(weakest, weakest.armor + weakest.resolve); // knock out through the normal damage path
+      weakest.alive = false;
+      weakest.eliminatedRound = lobby.round;
+      eliminated.push(weakest);
+      living = opponents();
     }
   }
 

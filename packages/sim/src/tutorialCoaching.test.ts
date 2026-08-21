@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { CARD_INDEX } from '@game/content';
 import { LEARN_ASCENT } from './tutorial/learnAscent';
 import { evalPredicate } from './tutorial/evalPredicate';
 import type { TutorialContext, TutorialStep } from './tutorial/types';
@@ -72,14 +73,63 @@ describe('steps light up what their copy talks about', () => {
     expect(byId('r1-gold').body.toLowerCase()).toContain('does not carry over');
   });
 
-  it('the Shout lesson has a payoff beat pointing at the shop it just buffed', () => {
+  it('the Shout lesson has a payoff beat that waits for the Discover PICK', () => {
+    // Owner rework 2026-08-21: the Shout minion is Sea Urchin (a Beast whose Shout Discovers a Beast), so the
+    // payoff is the choice itself rather than a shop buff. It must key on the PICK — keying on the play that
+    // opened the modal walks the course on while the overlay still owns the screen.
     const payoff = byId('r5-shopbuff');
-    expect(payoff.focusMode).toBe('confirm');
-    expect(uiAnchors(payoff)).toContain('shop');
+    expect(payoff.completion).toEqual({ kind: 'discovered' });
     // …and it comes immediately after the play that causes it.
     const turn5 = LEARN_ASCENT.turns.find((t) => t.steps.some((s) => s.id === 'r5-shopbuff'))!;
     const i = turn5.steps.findIndex((s) => s.id === 'r5-shopbuff');
     expect(turn5.steps[i - 1]!.id).toBe('r5-play');
+  });
+
+  it('every minion the course offers or asks for is a BEAST (owner ask 2026-08-21)', () => {
+    // The course teaches one tribe end to end so the synergies land on the player's own board. This sweeps
+    // every scripted shop offer AND every card a step names, so a future edit cannot quietly reintroduce an
+    // off-tribe minion.
+    const offered = new Set<string>();
+    for (const t of LEARN_ASCENT.turns) for (const roll of t.shopRolls) {
+      for (const id of roll.minions) offered.add(id);
+      if (roll.spell) offered.add(roll.spell);
+    }
+    for (const t of LEARN_ASCENT.turns) for (const s of t.steps) {
+      const c = s.completion as { cardId?: string };
+      if (c.cardId) offered.add(c.cardId);
+    }
+    for (const id of offered) {
+      const def = CARD_INDEX[id];
+      expect(def, `${id} must exist`).toBeTruthy();
+      if (def!.spell || def!.token) continue; // spells and reward tokens are tribeless by nature
+      expect([def!.tribe, def!.tribe2], `${id} (${def!.name}) must be a Beast`).toContain('beast');
+    }
+  });
+
+  it('the lobby thins to a single opponent for the final round', () => {
+    const sched = LEARN_ASCENT.seatsRemaining!;
+    expect(sched).toHaveLength(LEARN_ASCENT.rounds);
+    expect(sched[sched.length - 2], 'one opponent left entering the last round').toBe(1);
+    // Monotonic: the table only ever shrinks.
+    for (let i = 1; i < sched.length; i++) expect(sched[i]!).toBeLessThanOrEqual(sched[i - 1]!);
+  });
+
+  it('nothing the course sells can break round 8 triple', () => {
+    // Round 8 teaches the golden triple by buying the THIRD copy of a minion the player already holds two of.
+    // A "sell something to make room" step earlier in the course that targets that same card silently makes
+    // the golden impossible — the Triple Reward never appears and the Discover lesson strands (hit while
+    // reworking round 7's sell target on 2026-08-21).
+    const tripleCard = (steps.find((s) => s.id === 'r8-buy')!.completion as { cardId: string }).cardId;
+    const sellsBefore = LEARN_ASCENT.turns
+      .filter((t) => t.turn < 8)
+      .flatMap((t) => t.steps)
+      .filter((s) => s.completion.kind === 'sold')
+      .map((s) => (s.completion as { cardId: string }).cardId);
+    expect(sellsBefore, `the course sells ${tripleCard}, which round 8 needs a third of`).not.toContain(tripleCard);
+  });
+
+  it('every Discover the course opens is locked to Beasts', () => {
+    expect(LEARN_ASCENT.discoverTribe).toBe('beast');
   });
 
   it('the Echohorn copy no longer promises "a free body mid-fight"', () => {

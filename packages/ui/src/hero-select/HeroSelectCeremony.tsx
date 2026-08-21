@@ -7,7 +7,7 @@ import {
   ceremonyReduce, ceremonyCanLaunch, CEREMONY_ORDER,
   type HeroCeremonyState, type HeroCeremonyEvent, type HeroCeremonyPhase, type RectSnapshot,
 } from './heroCeremonyMachine';
-import { destinationRect, exitVector, focusKeyframes, snapshotRect, transformTo } from './heroCeremonyGeometry';
+import { destinationRect, exitVector, focusKeyframes, snapshotRect, stageScale, transformTo } from './heroCeremonyGeometry';
 import { ceremonyAdvanceSchedule, ceremonyTiming } from './heroCeremonyTiming';
 import { requestLaunch } from './heroLaunchController';
 import { getHeroCeremonyConfig } from './heroCeremonyTunerConfig';
@@ -67,12 +67,13 @@ function animateEl(
  *  tuner's Hero-art knobs — scale around center + x/y nudge. Prod uses the shipped defaults (1 / 0 / 0). */
 function portraitBoundsOf(crop: RectSnapshot): RectSnapshot {
   const fx = getHeroCeremonyConfig();
+  const k = stageScale(window.innerWidth, window.innerHeight); // offsets are REFERENCE px, like the rest of the UI
   const grow = 1.18 * fx.portraitScale;
   const w = crop.width * grow;
   const h = crop.height * grow;
   return {
-    left: crop.left + crop.width / 2 - w / 2 + fx.portraitX,
-    top: crop.top + crop.height / 2 - h / 2 + fx.portraitY,
+    left: crop.left + crop.width / 2 - w / 2 + fx.portraitX * k,
+    top: crop.top + crop.height / 2 - h / 2 + fx.portraitY * k,
     width: w,
     height: h,
   };
@@ -122,6 +123,12 @@ export function HeroSelectCeremony({ state, dispatch, cardEls }: Props) {
   const [dest, setDest] = useState(() => destinationRect(window.innerWidth, window.innerHeight, source));
   /** The circular-portrait FLASH has fired: the ring is on stage and the art clips to a circle inside it. */
   const [flashed, setFlashed] = useState(false);
+  /** The clone's travel has actually FINISHED. The portrait's bounds are measured off the settled clone, and
+   *  measuring it mid-flight yields a rect at the card's old position and size — which is how the whole
+   *  presentation ends up off-centre. Normally the transform beat lands well after the travel, so this is
+   *  already true; it matters when frames are dropped or timers coalesce (a backgrounded tab, a slow machine),
+   *  where the beat can arrive before the movement has visually happened. */
+  const [travelDone, setTravelDone] = useState(false);
   /** Set when materializing begins (and art exists): the portrait's start crop + final bounds. */
   const [portrait, setPortrait] = useState<{ crop: RectSnapshot; bounds: RectSnapshot } | null>(null);
 
@@ -255,6 +262,11 @@ export function HeroSelectCeremony({ state, dispatch, cardEls }: Props) {
       easing: FOCUS_EASE,
       fill: 'forwards',
     }, animsRef.current);
+    // Mark the travel done when it REALLY is. Without WAAPI (jsdom) `animateEl` applied the final state
+    // synchronously, so resolve immediately there too.
+    const anim = focusAnimRef.current;
+    if (anim) anim.finished.then(() => setTravelDone(true)).catch(() => setTravelDone(true));
+    else setTravelDone(true);
     // `dest` is deliberately the value at focus time; a later resize corrects via snap, never a restart.
     // (deps intentionally omitted — see the comment above)
   }, [state.phase]);
@@ -263,13 +275,13 @@ export function HeroSelectCeremony({ state, dispatch, cardEls }: Props) {
      (a gentle expansion beyond the card crop — "the art escapes the card"), and let render + the effect
      below run the crossfade. No art → skip entirely and keep the framed clone (§19). */
   useEffect(() => {
-    if (!crossed('materializing') || portrait || !art) return;
+    if (!crossed('materializing') || portrait || !art || !travelDone) return;
     const frame = frameRef.current;
     if (!frame) return;
     const crop = snapshotRect(frame.getBoundingClientRect());
     if (crop.width <= 0) return; // degenerate (hidden/unstyled test env): keep the framed fallback
     setPortrait({ crop, bounds: portraitBoundsOf(crop) });
-  }, [state.phase, art]);
+  }, [state.phase, art, travelDone, portrait]);
 
   /* ---- Portrait entrance: from the card-art crop to the final bounds, opacity 0.35 → 1 (§13). */
   useEffect(() => {
@@ -400,14 +412,18 @@ export function HeroSelectCeremony({ state, dispatch, cardEls }: Props) {
         // nudges; the clip circle is computed in the PORTRAIT's own coordinate space so ring and clip can
         // never drift apart, whatever the knobs say. RING_INSET keeps the art under the ring's inner edge.
         const fx = getHeroCeremonyConfig();
-        const cx = portrait.bounds.left + portrait.bounds.width / 2 + fx.ringX;
-        const cy = portrait.bounds.top + portrait.bounds.height / 2 + fx.ringY;
-        const RING_INSET = 10;
+        // Ring offsets AND diameter are reference px at the 1440 stage — scaled so the ring keeps its exact
+        // relationship to the portrait at every resolution (owner report: sizing off on other monitors).
+        const k = stageScale(window.innerWidth, window.innerHeight);
+        const ringSize = fx.ringSize * k;
+        const cx = portrait.bounds.left + portrait.bounds.width / 2 + fx.ringX * k;
+        const cy = portrait.bounds.top + portrait.bounds.height / 2 + fx.ringY * k;
+        const RING_INSET = 10 * k;
         // The circle is the SMALLER of "just inside the ring" and the artwork's own inscribed circle. Found
         // live on the owner's tuned look (704px ring around ~400px art): a ring-derived radius larger than
         // the element contains the whole rectangle and clips nothing — the art stayed square in the ring.
         const clipR = Math.max(20, Math.min(
-          fx.ringSize / 2 - RING_INSET,
+          ringSize / 2 - RING_INSET,
           Math.min(portrait.bounds.width, portrait.bounds.height) / 2,
         ));
         return (
@@ -434,13 +450,13 @@ export function HeroSelectCeremony({ state, dispatch, cardEls }: Props) {
                   src={ringArt}
                   alt=""
                   draggable={false}
-                  style={{ left: cx - fx.ringSize / 2, top: cy - fx.ringSize / 2, width: fx.ringSize, height: fx.ringSize }}
+                  style={{ left: cx - ringSize / 2, top: cy - ringSize / 2, width: ringSize, height: ringSize }}
                   aria-hidden="true"
                 />
                 {/* The FLASH itself: one-shot, mounts with the ring and burns out via CSS animation. */}
                 <div
                   className="hsc-flash"
-                  style={{ left: cx, top: cy, '--hsc-flash-r': `${(fx.ringSize * 0.75).toFixed(0)}px` } as CSSProperties}
+                  style={{ left: cx, top: cy, '--hsc-flash-r': `${(ringSize * 0.75).toFixed(0)}px` } as CSSProperties}
                   aria-hidden="true"
                 />
               </>

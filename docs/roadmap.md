@@ -962,7 +962,9 @@ trigger"; avoid true undo until the rules are sturdier).
 
 ### Audio
 - Record the actual SFX clips into `packages/ui/src/audio/{cards,heroes}/` per the manifest
-  (`npm run sfx:manifest`); the drop-folder importer (`npm run sfx:import`) and mixing desk are up. Reconcile
+  (`npm run sfx:manifest`); the drop-folder importer (`npm run sfx:import`) and mixing desk are up. **Hero
+  select voiceovers are underway** — `heroes/risen.mp3` (Lord of the Risen) shipped 2026-08-20 as the first,
+  proving the whole path end-to-end; the rest of the roster follows as clips are recorded. Reconcile
   the spell default bed with `castspell.mp3`. Deferred desk slots: per-bus compressors, sidechain ducking,
   ingest LUFS-normalization.
 - Priority synth-placeholder gaps (per `docs/sfx-events.md`): Ward break, Start-of-Combat cast, poison kill,

@@ -146,9 +146,15 @@
    the tuner's opacity knob never fights the hscRise entrance animating the element's own opacity. */
 .hsc-plate::before {
   content: ''; position: absolute; inset: 0; z-index: -1;
+  /* The fade var sets where each side's melt COMPLETES into the solid center (px from the edge); the
+     mid-stop at 40% of that keeps the ease-in profile of the original three-stop fade. */
   background: linear-gradient(90deg,
-    rgba(16, 12, 9, 0) 0%, rgba(16, 12, 9, 0.73) 16%, rgba(16, 12, 9, 0.965) 32%,
-    rgba(16, 12, 9, 0.965) 68%, rgba(16, 12, 9, 0.73) 84%, rgba(16, 12, 9, 0) 100%);
+    rgba(16, 12, 9, 0) 0,
+    rgba(16, 12, 9, 0.73) calc(var(--hsc-platefade, 180) * 0.4px),
+    rgba(16, 12, 9, 0.965) calc(var(--hsc-platefade, 180) * 1px),
+    rgba(16, 12, 9, 0.965) calc(100% - var(--hsc-platefade, 180) * 1px),
+    rgba(16, 12, 9, 0.73) calc(100% - var(--hsc-platefade, 180) * 0.4px),
+    rgba(16, 12, 9, 0) 100%);
   opacity: var(--hsc-plateopacity, 0.85);
 }
 .hsc-name {

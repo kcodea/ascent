@@ -42,6 +42,7 @@ const SPECS: Record<keyof HscTunerConfig, [string, TunerUnit | undefined, string
   plateLen:          ['Plate length', 'px', 'The band’s total horizontal length, side fades included.', 'Plate'],
   platePadTop:       ['Plate pad top', 'px', 'Space between the band’s top edge and the name.', 'Plate'],
   platePadBot:       ['Plate pad bottom', 'px', 'Space between the power line and the band’s bottom edge.', 'Plate'],
+  plateFade:         ['Plate fade', 'px', 'How far from each edge the side fade runs before the solid center. 0 = hard edges.', 'Plate'],
   btnX:              ['Button horizontal', 'px', 'Nudge Start Game off center.', 'Button'],
   btnY:              ['Button vertical', 'px', 'Negative lifts the button toward the name.', 'Button'],
   btnScale:          ['Button size', '×', 'Scales the whole button — text and padding together.', 'Button'],
@@ -110,7 +111,7 @@ const ORDER: (keyof HscTunerConfig)[] = [
   'ringX', 'ringY', 'ringSize',
   'nameX', 'nameY', 'nameSize',
   'powerX', 'powerY', 'powerSize',
-  'plateOpacity', 'plateLen', 'platePadTop', 'platePadBot',
+  'plateOpacity', 'plateLen', 'platePadTop', 'platePadBot', 'plateFade',
   'btnX', 'btnY', 'btnScale',
 ];
 

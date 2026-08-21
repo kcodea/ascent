@@ -590,6 +590,11 @@ class RibbonInstance implements FxInstance<RibbonParams> {
    *  completion waits for it, exactly as it does for a one-shot Fire. */
   isComplete(): boolean {
     const stillDraining = this.params.drain > 0 && this.spine.length > 0;
+    // LATENT HOLE: with `drain === 0`, `stillDraining` is always false, so a continuous ribbon reports
+    // complete the instant `stopEmitting()` is called — a carried-over instance is reaped the very next
+    // frame instead of smoothing through the SEAMLESS loop boundary (it would still blink for that one
+    // primitive setting). No shipped def hits this today (cia-hp is a single emitter). If a continuous
+    // ribbon needs to loop seamlessly, give it a non-zero drain/retract.
     if (!this.oneShot) return this.stopped && !stillDraining;
     return ribbonOneShotComplete(this.oneShot, this.headEverSet, this.msSinceHead, stillDraining);
   }

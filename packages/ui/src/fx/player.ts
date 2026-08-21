@@ -168,6 +168,12 @@ export function createPlayer(def: FxDef, ctx: FxContext, opts: FxPlayerOptions =
   // Derived from loopJoinMs when supplied, else from the legacy loopGapMs (clamped non-negative) so an
   // existing loopGapMs caller behaves exactly as before. Mutable so setLoopJoin/setLoopGap flip it live.
   let loopJoinMs = Number.isFinite(opts.loopJoinMs) ? (opts.loopJoinMs as number) : Math.max(0, opts.loopGapMs ?? 0);
+  // Local closure (not a method) so both `setLoopJoin` and `setLoopGap` below can call it without going
+  // through `this` — the returned object is a plain literal, so a destructured `const { setLoopGap } =
+  // player` would otherwise lose its receiver and throw.
+  const applyLoopJoin = (ms: number): void => {
+    loopJoinMs = Number.isFinite(ms) ? ms : 0;
+  };
   // The positive part of the join — the between-cycle GAP. This is what the inGap/gapElapsed hold consumes,
   // so a negative (overlap) join reads as zero gap there and instead lowers the seamless loop-point threshold
   // (see the seamless restart branches). In playOut a negative join is invisible: it only affects seamless.
@@ -578,6 +584,10 @@ export function createPlayer(def: FxDef, ctx: FxContext, opts: FxPlayerOptions =
 
       clock += dt;
       const looping = loopEnabled;
+      // Deliberately NOT `+ Math.min(0, loopJoinMs)` here: a negative (overlap) join only early-starts the
+      // fresh cycle on the FIRING restart path above, never on this non-firing `play()`-style wrap. No
+      // production caller loops via `play()` (both `playDef` and the workbench use `fireLoop`), so this is
+      // undocumented rather than untested — flag it if a future caller ever does.
       if (clock >= def.duration) {
         if (looping) {
           if (gapMs() > 0) {
@@ -641,13 +651,14 @@ export function createPlayer(def: FxDef, ctx: FxContext, opts: FxPlayerOptions =
       loopEnabled = on;
     },
     setLoopGap(ms: number): void {
-      // A gap is a non-negative join; forward to setLoopJoin so there is one code path for the boundary
-      // timing. Clamped here so an old caller passing a negative gap keeps its historical "0 = no gap" meaning
-      // rather than silently turning into a seamless overlap.
-      this.setLoopJoin(Math.max(0, ms));
+      // A gap is a non-negative join; forward to applyLoopJoin (the shared closure, not `this.setLoopJoin`)
+      // so there is one code path for the boundary timing that survives destructuring. Clamped here so an
+      // old caller passing a negative gap keeps its historical "0 = no gap" meaning rather than silently
+      // turning into a seamless overlap.
+      applyLoopJoin(Math.max(0, ms));
     },
     setLoopJoin(ms: number): void {
-      loopJoinMs = Number.isFinite(ms) ? ms : 0;
+      applyLoopJoin(ms);
     },
     setLoopMode(mode: 'playOut' | 'seamless'): void {
       loopMode = mode;

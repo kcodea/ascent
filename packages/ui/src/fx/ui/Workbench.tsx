@@ -703,8 +703,9 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
       // The loop flag SURVIVES a rebuild, the same way `loopJoinMs`/`speed`/`seed` do (see `loopOnRef`): a
       // primitive/scenario switch or duration change must not silently stop a loop the author is tuning
       // against, and must not start one they turned off. Whichever mode is live, playback starts immediately
-      // below -- `play()` for continuous, `fireOnce()` for a single pass -- so a rebuilt effect is always
-      // visible without a click.
+      // below -- `fireLoop()` drives continuous looping (the firing path, where the signed loop-join /
+      // seamless-overlap logic lives), `fireOnce()` a single pass -- so a rebuilt effect is always visible
+      // without a click.
       // `uids` is what lets a react layer animate the STAGED card rather than whichever minion happens to
       // sit leftmost. Null (nothing staged) keeps the old fallback, which is the right preview when there is
       // no moment to be about.

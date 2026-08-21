@@ -9,6 +9,7 @@ import {
   smokeFireComplete,
   smokeMoteAlpha,
   smokePrimitive,
+  smokeStoppedComplete,
   smokeWithinEmitWindow,
 } from './smoke';
 
@@ -259,6 +260,18 @@ describe('smokeFireComplete', () => {
   it('is complete once the window has closed and every mote has died', () => {
     expect(smokeFireComplete(true, 1500, 1500, 0)).toBe(true);
     expect(smokeFireComplete(true, 5000, 1500, 0)).toBe(true);
+  });
+});
+
+describe('smokeStoppedComplete', () => {
+  it('is not complete while stopped but puffs remain', () => {
+    expect(smokeStoppedComplete(true, 3)).toBe(false);
+  });
+  it('is complete once stopped and every puff has died', () => {
+    expect(smokeStoppedComplete(true, 0)).toBe(true);
+  });
+  it('is never complete while still emitting (not stopped)', () => {
+    expect(smokeStoppedComplete(false, 0)).toBe(false);
   });
 });
 

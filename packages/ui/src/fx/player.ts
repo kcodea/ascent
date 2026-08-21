@@ -10,8 +10,23 @@ export interface FxPlayerOptions {
   loop?: boolean;
   /** Continuous-loop only: hold at the def's duration (layers despawned, effect visibly cleared) for this
    *  many ms before restarting the cycle at 0. 0 (default) preserves the old immediate-wrap behaviour. Live
-   *  tunable via `setLoopGap`. */
+   *  tunable via `setLoopGap`. Superseded by the signed `loopJoinMs` (a positive join IS this gap); kept for
+   *  back-compat and used as the fallback when `loopJoinMs` is not supplied. */
   loopGapMs?: number;
+  /** Continuous-loop only: the SIGNED loop-boundary offset, in ms. **Positive = a gap** — identical to
+   *  `loopGapMs`, works in both modes: the fresh cycle is delayed that long past the boundary. **Negative =
+   *  an overlap** — seamless mode only: the fresh cycle starts `|ms|` EARLY (the loop-point threshold drops
+   *  by that much), so the outgoing tail and the incoming head coexist across the seam. In `playOut` a
+   *  negative value clamps to 0 (no early start). Default 0. Live tunable via `setLoopJoin`. When omitted,
+   *  `Math.max(0, loopGapMs ?? 0)` is used so an existing `loopGapMs` caller is unchanged. */
+  loopJoinMs?: number;
+  /** How a loop boundary is crossed. `'playOut'` (the default, and byte-for-byte the historical behaviour)
+   *  culls every live instance at the boundary and respawns the next cycle from scratch — a hard cut. In
+   *  `'seamless'` mode the outgoing cycle's instances are told to `stopEmitting()` and carried into a
+   *  `finishing` set that drains over its own tail WHILE the fresh cycle spawns and emits, so the old
+   *  generation fades out as the new one rises and there is no empty frame (the loop "blink"). Live tunable
+   *  via `setLoopMode`. */
+  loopMode?: 'playOut' | 'seamless';
 }
 
 export interface FxPlayer {
@@ -31,7 +46,16 @@ export interface FxPlayer {
   /** Turn continuous looping on/off live (the workbench's Loop toggle). Independent of `fireOnce`, which
    *  is always a single non-looping pass regardless of this. */
   setLoop(on: boolean): void;
+  /** Set the loop GAP live (a non-negative pause between cycles). A back-compat alias that forwards to
+   *  `setLoopJoin` — a gap is just a non-negative join. */
   setLoopGap(ms: number): void;
+  /** Set the SIGNED loop join live (see `FxPlayerOptions.loopJoinMs`): positive delays the fresh cycle
+   *  (a gap, both modes), negative starts it early (an overlap, seamless only). Takes effect at the NEXT
+   *  boundary. */
+  setLoopJoin(ms: number): void;
+  /** Switch the loop-boundary behaviour live (see `FxPlayerOptions.loopMode`). Takes effect at the NEXT
+   *  boundary — an in-flight cycle is never torn down to apply it. */
+  setLoopMode(mode: 'playOut' | 'seamless'): void;
   /** Set the base seed every subsequently-spawned layer derives its randomness from (see
    *  `LAYER_SEED_STRIDE`), or `null` for UNSEEDED — the historical behaviour, where each spawned instance
    *  rolls a fresh seed of its own and therefore looks slightly different every time.
@@ -140,9 +164,28 @@ export function createPlayer(def: FxDef, ctx: FxContext, opts: FxPlayerOptions =
   let clock = 0;
   let speed = 1;
   let playing = false;
-  let loopGapMs = Math.max(0, opts.loopGapMs ?? 0);
+  // The SIGNED loop-boundary offset (see FxPlayerOptions.loopJoinMs). Positive = gap, negative = overlap.
+  // Derived from loopJoinMs when supplied, else from the legacy loopGapMs (clamped non-negative) so an
+  // existing loopGapMs caller behaves exactly as before. Mutable so setLoopJoin/setLoopGap flip it live.
+  let loopJoinMs = Number.isFinite(opts.loopJoinMs) ? (opts.loopJoinMs as number) : Math.max(0, opts.loopGapMs ?? 0);
+  // Local closure (not a method) so both `setLoopJoin` and `setLoopGap` below can call it without going
+  // through `this` — the returned object is a plain literal, so a destructured `const { setLoopGap } =
+  // player` would otherwise lose its receiver and throw.
+  const applyLoopJoin = (ms: number): void => {
+    loopJoinMs = Number.isFinite(ms) ? ms : 0;
+  };
+  // The positive part of the join — the between-cycle GAP. This is what the inGap/gapElapsed hold consumes,
+  // so a negative (overlap) join reads as zero gap there and instead lowers the seamless loop-point threshold
+  // (see the seamless restart branches). In playOut a negative join is invisible: it only affects seamless.
+  const gapMs = (): number => Math.max(0, loopJoinMs);
   // Mutable so the workbench's Loop toggle can flip it live (via setLoop) without rebuilding the player.
   let loopEnabled = opts.loop ?? false;
+  // How a loop boundary is crossed (see FxPlayerOptions.loopMode). Mutable so setLoopMode can flip it live.
+  let loopMode: 'playOut' | 'seamless' = opts.loopMode ?? 'playOut';
+  // SEAMLESS mode only: instances carried over from a previous cycle, told to stop emitting and left to drain
+  // (ticked every update, reaped on isComplete) so their particles fade while the next cycle emits. Empty and
+  // untouched in the 'playOut' path, which keeps the historical behaviour byte-for-byte.
+  const finishing: Live[] = [];
 
   // Set only while a fireOnce() pass is in flight. A fire runs the SAME per-layer `at`/`life` schedule as
   // ordinary playback (so the At/Life sliders a designer just dragged are visible in the headline "Fire"
@@ -157,9 +200,9 @@ export function createPlayer(def: FxDef, ctx: FxContext, opts: FxPlayerOptions =
   // is precisely what "Fire once" must never do, whatever the Loop toggle says.
   let firingRepeats = false;
 
-  // Set while a looping player is holding at `def.duration` between cycles (see `loopGapMs`). The clock
-  // stays pinned at `def.duration` for the duration of the gap; `gapElapsed` is a separate counter tracking
-  // how far into the gap we are, so `timeMs()` reads as "held at the end" rather than ticking past it.
+  // Set while a looping player is holding at `def.duration` between cycles (a positive `loopJoinMs`, i.e.
+  // `gapMs() > 0`). The clock stays pinned at `def.duration` for the duration of the gap; `gapElapsed` is a
+  // separate counter tracking how far into the gap we are, so `timeMs()` reads as "held at the end".
   let inGap = false;
   let gapElapsed = 0;
 
@@ -196,6 +239,38 @@ export function createPlayer(def: FxDef, ctx: FxContext, opts: FxPlayerOptions =
 
   const killAllLive = (): void => {
     for (const i of [...live.keys()]) kill(i);
+  };
+
+  // SEAMLESS boundary: instead of destroying a live instance, tell it to stop emitting and let it drain in
+  // `finishing` (ticked below, reaped on isComplete) so its particles fade out while the next cycle emits.
+  const carryOver = (index: number): void => {
+    const l = live.get(index);
+    if (!l) return;
+    l.inst.stopEmitting?.();
+    finishing.push(l);
+    live.delete(index);
+  };
+  const carryAllLive = (): void => {
+    for (const i of [...live.keys()]) carryOver(i);
+  };
+  // Tick every finishing instance and reap the ones that have drained. Called once per update().
+  const reapFinishing = (dt: number): void => {
+    for (let i = finishing.length - 1; i >= 0; i--) {
+      const l = finishing[i];
+      l.inst.update(dt);
+      if (l.inst.isComplete ? l.inst.isComplete() : true) {
+        l.inst.destroy();
+        l.container.destroy({ children: true });
+        finishing.splice(i, 1);
+      }
+    }
+  };
+  const drainFinishing = (): void => {
+    for (const l of finishing) {
+      l.inst.destroy();
+      l.container.destroy({ children: true });
+    }
+    finishing.length = 0;
   };
 
   // A layer's EFFECTIVE timing: the live override if one has been set (see `setLayerTiming`), else the def's
@@ -400,10 +475,15 @@ export function createPlayer(def: FxDef, ctx: FxContext, opts: FxPlayerOptions =
       inGap = false;
       gapElapsed = 0;
       killAllLive();
+      drainFinishing();
     },
     update(dtMs: number): void {
       if (!playing) return;
       const dt = dtMs * speed;
+
+      // Advance (and reap) any carried-over instances FIRST, every frame, regardless of which branch below
+      // handles the live cycle. A no-op unless a seamless boundary has put something in `finishing`.
+      reapFinishing(dt);
 
       if (firing) {
         // Between-cycle hold, for a LOOPING fire (see the completion branch below). Lives inside the firing
@@ -411,7 +491,7 @@ export function createPlayer(def: FxDef, ctx: FxContext, opts: FxPlayerOptions =
         // flight, and a fire-loop needs the same visible clear between passes that ordinary looping has.
         if (inGap) {
           gapElapsed += dt;
-          if (gapElapsed < loopGapMs) return;
+          if (gapElapsed < gapMs()) return;
           inGap = false;
           gapElapsed = 0;
           clock = 0;
@@ -434,6 +514,33 @@ export function createPlayer(def: FxDef, ctx: FxContext, opts: FxPlayerOptions =
           firingRepeats = false;
           return;
         }
+        // SEAMLESS loop restart: gate on the nominal duration ALONE, NOT on allFiringLayersDone(). Waiting
+        // for a long tail to drain before restarting IS the blink this mode exists to remove — so at the
+        // boundary the still-live instances are carried into `finishing` (stop-emitted, draining above) while
+        // a fresh cycle spawns and emits. Only reachable for a repeating loop; a one-shot fire never wraps.
+        //
+        // A NEGATIVE join lowers the threshold by |join| (Math.min(0, loopJoinMs) is ≤ 0), so the fresh cycle
+        // starts that much EARLY — the overlap. A positive join leaves the threshold at the duration and is
+        // handled as a gap below. (In playOut this whole branch is skipped, so a negative join is inert there.)
+        if (loopMode === 'seamless' && firingRepeats && loopEnabled && clock >= def.duration + Math.min(0, loopJoinMs)) {
+          carryAllLive();
+          if (gapMs() > 0) {
+            // A gap re-introduces an empty frame by definition; kept only so the two toggles compose without
+            // surprise. The carried-over instances still drain during the hold.
+            inGap = true;
+            gapElapsed = 0;
+            return;
+          }
+          // Carry the post-boundary overflow into the fresh cycle's clock so no elapsed time is dropped — the
+          // same treatment the ordinary wrap gives overshoot past `def.duration`. For an overlap the threshold
+          // is `duration + join` (join < 0), so the overflow is measured from there.
+          const overflow = clock - (def.duration + Math.min(0, loopJoinMs));
+          clock = overflow > 0 ? Math.min(overflow, def.duration) : 0;
+          // NOT oneShot: a seamless cycle's emitters must emit continuously across the whole loop period —
+          // the outgoing instance handed to `finishing` is what `stopEmitting()` bounds, not this fresh one.
+          reconcile(overflow > 0 ? overflow : 0);
+          return;
+        }
         // A fire is over only once the def's nominal window has elapsed AND nothing live has anything left
         // to render. The `clock >= def.duration` half is load-bearing: without it a pass whose first layer
         // is short (say `life: 100` on a 500ms def) would report "all live layers done" the instant that
@@ -445,7 +552,7 @@ export function createPlayer(def: FxDef, ctx: FxContext, opts: FxPlayerOptions =
           // non-firing playback below still wraps at `def.duration` — that path is what `playDef` uses for
           // a bounded in-game effect, where the clock IS the contract.)
           if (firingRepeats && loopEnabled) {
-            if (loopGapMs > 0) {
+            if (gapMs() > 0) {
               inGap = true;
               gapElapsed = 0;
               return;
@@ -463,11 +570,11 @@ export function createPlayer(def: FxDef, ctx: FxContext, opts: FxPlayerOptions =
 
       if (inGap) {
         gapElapsed += dt;
-        if (gapElapsed < loopGapMs) return;
+        if (gapElapsed < gapMs()) return;
         // Gap elapsed -- start a fresh cycle. Any time beyond the gap's own length carries into the new
         // cycle's clock, the same "don't discard real elapsed time" treatment the no-gap wrap below gives
         // overshoot past `def.duration`.
-        const overflow = gapElapsed - loopGapMs;
+        const overflow = gapElapsed - gapMs();
         inGap = false;
         gapElapsed = 0;
         clock = overflow > 0 ? Math.min(overflow, def.duration) : 0;
@@ -477,14 +584,22 @@ export function createPlayer(def: FxDef, ctx: FxContext, opts: FxPlayerOptions =
 
       clock += dt;
       const looping = loopEnabled;
+      // Deliberately NOT `+ Math.min(0, loopJoinMs)` here: a negative (overlap) join only early-starts the
+      // fresh cycle on the FIRING restart path above, never on this non-firing `play()`-style wrap. No
+      // production caller loops via `play()` (both `playDef` and the workbench use `fireLoop`), so this is
+      // undocumented rather than untested — flag it if a future caller ever does.
       if (clock >= def.duration) {
         if (looping) {
-          if (loopGapMs > 0) {
-            // Hold at the duration with everything despawned instead of wrapping immediately -- the
-            // effect visibly clears before the next cycle starts. `update`'s `inGap` branch above takes
-            // over from here once playing resumes.
+          if (gapMs() > 0) {
+            // Hold at the duration before the next cycle starts. `update`'s `inGap` branch above takes over
+            // from here once playing resumes. In PLAYOUT the outgoing cycle is culled outright (a hard clear,
+            // the historical behaviour). In SEAMLESS it is carried into `finishing` (stop-emitted, draining
+            // via reapFinishing) instead — SYMMETRIC with the firing seamless gap branch above, which also
+            // carries over rather than culling; the tail drains through the hold and the fresh cycle rises
+            // after it. (A gap is still a deliberately visible pause; the carry-over just avoids a hard snap.)
             clock = def.duration;
-            killAllLive();
+            if (loopMode === 'seamless') carryAllLive();
+            else killAllLive();
             inGap = true;
             gapElapsed = 0;
             return;
@@ -495,7 +610,11 @@ export function createPlayer(def: FxDef, ctx: FxContext, opts: FxPlayerOptions =
           // a full-duration layer's original instance silently survives across the loop boundary and
           // never restarts its own internal animation/state for the new cycle.
           while (clock >= def.duration) clock -= def.duration;
-          killAllLive();
+          // playOut (default): cull the old cycle outright — a hard cut. seamless: carry it over to drain
+          // while `reconcile(dt)` below respawns the fresh cycle (continuous, since this path is never
+          // oneShot), so the outgoing generation fades instead of blinking out.
+          if (loopMode === 'seamless') carryAllLive();
+          else killAllLive();
         } else {
           clock = def.duration;
           playing = false;
@@ -532,7 +651,17 @@ export function createPlayer(def: FxDef, ctx: FxContext, opts: FxPlayerOptions =
       loopEnabled = on;
     },
     setLoopGap(ms: number): void {
-      loopGapMs = Math.max(0, ms);
+      // A gap is a non-negative join; forward to applyLoopJoin (the shared closure, not `this.setLoopJoin`)
+      // so there is one code path for the boundary timing that survives destructuring. Clamped here so an
+      // old caller passing a negative gap keeps its historical "0 = no gap" meaning rather than silently
+      // turning into a seamless overlap.
+      applyLoopJoin(Math.max(0, ms));
+    },
+    setLoopJoin(ms: number): void {
+      applyLoopJoin(ms);
+    },
+    setLoopMode(mode: 'playOut' | 'seamless'): void {
+      loopMode = mode;
     },
     setSeed(seed: number | null): void {
       // Deliberately does NOT touch anything live: the new seed is picked up by the next spawn (a Fire, a
@@ -596,6 +725,7 @@ export function createPlayer(def: FxDef, ctx: FxContext, opts: FxPlayerOptions =
       firingRepeats = false;
       inGap = false;
       killAllLive();
+      drainFinishing();
     },
   };
 }

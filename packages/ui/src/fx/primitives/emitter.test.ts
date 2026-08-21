@@ -7,6 +7,7 @@ import {
   advanceEmitBudget,
   emitterFireComplete,
   emitterPrimitive,
+  emitterStoppedComplete,
   moteAlpha,
   resolveEmitterRotation,
   withinEmitWindow,
@@ -234,6 +235,18 @@ describe('emitterFireComplete', () => {
   it('is complete once the window has closed and every mote has died', () => {
     expect(emitterFireComplete(true, 700, 700, 0)).toBe(true);
     expect(emitterFireComplete(true, 5000, 700, 0)).toBe(true);
+  });
+});
+
+describe('emitterStoppedComplete', () => {
+  it('is not complete while stopped but motes remain', () => {
+    expect(emitterStoppedComplete(true, 3)).toBe(false);
+  });
+  it('is complete once stopped and every mote has died', () => {
+    expect(emitterStoppedComplete(true, 0)).toBe(true);
+  });
+  it('is never complete while still emitting (not stopped)', () => {
+    expect(emitterStoppedComplete(false, 0)).toBe(false);
   });
 });
 

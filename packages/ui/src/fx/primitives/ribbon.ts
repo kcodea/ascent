@@ -459,6 +459,10 @@ class RibbonInstance implements FxInstance<RibbonParams> {
   private clockSec = 0;
   // Fixed at spawn: a given instance is either a one-shot Fire or a continuous-loop preview, never both.
   private readonly oneShot: boolean;
+  // Set by `stopEmitting()` (see `FxInstance.stopEmitting`): a continuous ribbon never self-completes on its
+  // own (see `isComplete` below), so this is what lets a carried-over instance report done once its trail has
+  // nothing left to draw, instead of streaming forever or being culled outright.
+  private stopped = false;
   // One-shot completion bookkeeping (see `ribbonOneShotComplete`). `msSinceHead` counts up in `update` and
   // resets to 0 on each `setHead`; `headEverSet` flips true on the first `setHead`. Both are harmless
   // no-op bookkeeping in continuous mode (isComplete returns false there).
@@ -576,10 +580,22 @@ class RibbonInstance implements FxInstance<RibbonParams> {
   }
 
   /** One-shot completion: true once the fire ended (head stopped being fed) and the frozen trail has had
-   *  its settle grace. Continuous instances always return false. See `ribbonOneShotComplete` for the full
-   *  reasoning on why completion is grace-based rather than a visible spine drain. */
+   *  its settle grace. See `ribbonOneShotComplete` for the full reasoning on why completion is grace-based
+   *  rather than a visible spine drain.
+   *
+   *  Continuous instances never self-complete this way — there is no fire to end — but once `stopEmitting()`
+   *  has been called (see `FxInstance.stopEmitting`), the SEAMLESS loop needs a way to know when a stopped
+   *  trail has nothing left to draw. That reuses the same `stillDraining` check the one-shot branch already
+   *  computes: a draining trail (`drain > 0` with points still on the spine) is still visibly retracting, so
+   *  completion waits for it, exactly as it does for a one-shot Fire. */
   isComplete(): boolean {
     const stillDraining = this.params.drain > 0 && this.spine.length > 0;
+    // LATENT HOLE: with `drain === 0`, `stillDraining` is always false, so a continuous ribbon reports
+    // complete the instant `stopEmitting()` is called — a carried-over instance is reaped the very next
+    // frame instead of smoothing through the SEAMLESS loop boundary (it would still blink for that one
+    // primitive setting). No shipped def hits this today (cia-hp is a single emitter). If a continuous
+    // ribbon needs to loop seamlessly, give it a non-zero drain/retract.
+    if (!this.oneShot) return this.stopped && !stillDraining;
     return ribbonOneShotComplete(this.oneShot, this.headEverSet, this.msSinceHead, stillDraining);
   }
 
@@ -619,6 +635,10 @@ class RibbonInstance implements FxInstance<RibbonParams> {
       this.geometry.getBuffer('aUV').update();
       this.geometry.indexBuffer.update();
     }
+  }
+
+  stopEmitting(): void {
+    this.stopped = true;
   }
 
   destroy(): void {

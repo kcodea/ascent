@@ -829,20 +829,20 @@ function echoDeliveryLead(shown: Moment | undefined, next: Moment, events: Comba
   if (!src) return 0;
   const binding = bindingFor(cardIds.get(src) ?? null, 'damage');
   if (!binding?.launchOnDeath) return 0;
-  // FIRST wave — the sprayer DIED in `shown`, so its whole volley launched from there. Hold until the LAST of
-  // its N sprays connects (launch + the (N-1) inter-tap gaps + the beam travel) plus a read buffer, so NO
-  // damage lands before the final spike and all of it lands together AFTER the volleys (owner ask 2026-08-20:
-  // deaths mid-volley wait for the last one, then all die at once).
+  // FIRST volley — the sprayer DIED in `shown`, so its spikes launched from there. Hold until THIS spike
+  // connects (launch + beam travel + a read buffer). Each LATER volley lands as ITS OWN spike connects (the
+  // subsequent branch below), so the victim's number CLIMBS one spike at a time (4, then 8). The victim stays
+  // on the board through the whole spray (the engine defers its death), and all the deferred deaths resolve
+  // together AFTER the last volley in their own step (owner ask 2026-08-20: aggregate per fire, resolve after).
   for (let i = shown.start; i < shown.end; i++) {
     const e = events[i];
     if (e?.type === 'death' && e.target === src) {
-      const n = echoWaves(events, src, i).length;
-      return ECHO_LAUNCH_DELAY_MS + Math.max(0, n - 1) * ECHO_PASS_GAP_MS + projectileImpactMs(binding.def) + ECHO_IMPACT_BUFFER_MS;
+      return ECHO_LAUNCH_DELAY_MS + projectileImpactMs(binding.def) + ECHO_IMPACT_BUFFER_MS;
     }
   }
-  // A SUBSEQUENT wave of the same golden spray (the sprayer died in an EARLIER beat): land it right on the
-  // heels of the first wave, so every wave's damage + deaths read as landing AT ONCE, not spread across beats.
-  return ECHO_SUBSEQUENT_HOLD_MS;
+  // A SUBSEQUENT volley of the same spray (the sprayer died in an EARLIER beat): its spike connects one
+  // pass-gap after the previous one, so hold that long — the number climbs by this volley's amount as it lands.
+  return ECHO_PASS_GAP_MS;
 }
 
 /** Delay (ms, 1× speed) from the Echo SKULL to its spike volley launching — a breath so the skull reads first
@@ -854,9 +854,6 @@ const ECHO_PASS_GAP_MS = 240;
 /** Extra hold (ms, 1× speed) past the beam's spawn `at` before the damage lands — the moment the spike visibly
  *  CONNECTS reads a touch after the impact burst spawns, so the numbers wait for it (owner: damage felt early). */
 const ECHO_IMPACT_BUFFER_MS = 150;
-/** Hold (ms, 1× speed) for a golden spray's SUBSEQUENT wave beat — near-instant, so all waves' damage lands
- *  together as "all die at once" rather than one wave-beat apart. */
-const ECHO_SUBSEQUENT_HOLD_MS = 40;
 
 /** Schedule the spike volley(s) a dying `launchOnDeath` unit throws: one per `echoWaves` wave, each launched a
  *  breath after the skull (`ECHO_LAUNCH_DELAY_MS`), and each golden pass a `ECHO_PASS_GAP_MS` after the last so
@@ -1712,7 +1709,17 @@ export function useCombatReplay(
       attackerUid: attackerOfImpact(beats, beatIdx - 1),
       meleePair: meleePairOfImpact(beats, beatIdx - 1),
       onFloats: (spawned) => {
-        setFloats((arr) => [...arr, ...spawned.filter((s) => !arr.some((x) => x.id === s.id))]);
+        // Upsert by id: a re-spawned float (a climbing Fel Spikes volley number — same stable id, higher
+        // running total) REPLACES the prior one in place so the number ticks up on ONE anchor instead of
+        // stacking a pop per volley. Non-climbing floats always carry a fresh event-index id, so for them this
+        // is a plain append (no id collides). The first volley's removal timer supersedes any later re-spawn's,
+        // trimming the final number ~one pass-gap early — invisible against the ~1.5s float lifetime.
+        setFloats((arr) => {
+          const next = new Map(spawned.map((s) => [s.id, s] as const));
+          const merged = arr.map((x) => next.get(x.id) ?? x);
+          const present = new Set(arr.map((x) => x.id));
+          return [...merged, ...spawned.filter((s) => !present.has(s.id))];
+        });
         const ids = new Set(spawned.map((s) => s.id));
         timers.push(window.setTimeout(() => setFloats((arr) => arr.filter((x) => !ids.has(x.id))), getChoreoConfig().floatMs / combatSpeedRef.current));
       },

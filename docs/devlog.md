@@ -1,5 +1,25 @@
 # ASCENT — development log
 
+## 2026-08-20 — FX: Fel Spikes' volley number CLIMBS per spike (4 → 8), then resolves after
+
+Presentation half of #2a (owner ask: "the number to aggregate for each fire of damage until it reaches its
+final sum. then everything resolves after"). Now that the engine keeps a victim on the board through the whole
+spray (the deferred-death scope), each volley's number can land as ITS spike connects instead of all at once.
+
+- **Climbing float** (`choreo/channels/float.ts`): a wave-tagged AoE `dmg` with a source now shows the RUNNING
+  TOTAL to that victim under a STABLE id (the first volley's event index) — so the second spike UPDATES the
+  same number in place (4 → 8) rather than stacking a fresh pop. `useCombatReplay`'s `onFloats` upserts by id
+  (a re-spawn replaces the prior float); non-climbing floats keep fresh event-index ids, so they still append.
+- **Per-volley timing** (`echoDeliveryLead`): dropped the "hold ALL damage until the LAST spike" batching. The
+  first volley's number lands as its spike connects (`launch + travel + buffer`); each later volley holds one
+  `ECHO_PASS_GAP_MS` so its number climbs as ITS spike lands. Deaths stay deferred to the post-spray flush step
+  (still "all die at once, after"), so "resolve after" is preserved while the number now visibly climbs.
+  Removed the now-unused `ECHO_SUBSEQUENT_HOLD_MS`.
+
+typecheck (web) + lint (0 errors) + build:web + 569 choreo tests + direct-call census all green. NEEDS THE
+OWNER'S EYE at 1× — the climb cadence rides `ECHO_PASS_GAP_MS` (240 ms) and the deferred deaths now land in a
+separate post-volley beat; both are tunable constants if the pacing wants a nudge.
+
 ## 2026-08-20 — ENGINE: ANY multi-fire Echo accumulates — one deferred-death scope across every fire
 
 > ⚠️ Touches `packages/core` (Kevin's engine seam) + shifts balance — built on the owner's explicit go-ahead

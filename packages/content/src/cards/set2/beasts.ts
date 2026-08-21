@@ -90,11 +90,11 @@ export const SET2_BEASTS: CardDef[] = [
       // Owner rebalance 2026-08-02 (final): the flat buff and the Avenge improve are CUT — the card is purely
       // the multiply now. `attack: 0, health: 0` keeps the shared factory's grant half silent (it guards on
       // `a > 0 || h > 0`), so only the stat-doubling runs; golden still triples via `mul(self)`.
-      // Owner 2026-08-12: `attackOnly` — the multiply hits ATTACK alone now (was both stats).
-      { on: 'onSummon', do: 'onSummonTribeBuffThenDouble', params: { tribe: 'beast', attack: 0, health: 0, attackOnly: true } },
+      // Owner 2026-08-21: back to BOTH stats (`attackOnly` dropped — the 2026-08-12 Attack-only trial is over).
+      { on: 'onSummon', do: 'onSummonTribeBuffThenDouble', params: { tribe: 'beast', attack: 0, health: 0 } },
     ],
-    text: 'When you summon a Beast in combat, **double** its Attack.',
-    goldenText: 'When you summon a Beast in combat, **triple** its Attack.',
+    text: 'When you summon a Beast in combat, **double its stats**.',
+    goldenText: 'When you summon a Beast in combat, **triple its stats**.',
   },
   {
     // Echo summon on the Void Panther pattern: `fixed` keeps the count at 1 and `goldenTokens` upgrades the

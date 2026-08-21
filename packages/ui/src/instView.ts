@@ -5,7 +5,7 @@ import type { CardView } from './Card';
 import {
   abhorrentHorrorText, ascendProgressText, asymSummonBuffText, cadenceProgressText, cardTypeTallyText, chefRaagText, clingProgressText,
   cryptDrakeText, drunkenOafText, karthusText, engraveTallyText, escalatingCastText, guelProgressText, herzogText, hunterText, monkProgressText, packLeaderText, runescaleText, scTribeBuffPerPlayedText,
-  archivistText, ashenHeirText, attackGrantImproveText, castSpellPerGoldText, copyCastSpellText, runeModifiedNote, type RuneTextFlags, improvingSummonText, perCardPlayedText, rougeRogueText, perGoldSpentText, rallySpreadText, shopBuffImproveText, spellThresholdText, ritualistText, sergeantText, soulsmanText, squirlScoutText, stepProgress, sporebatText, stewardText, thundeerText, summonBuffText, summonEscalatingText, summonFlatZooText, summonImproveText, soldProgressText, summitTierText, summonScalingText, tallyBuffText,
+  archivistText, ashenHeirText, attackGrantImproveText, castSpellPerGoldText, copyCastSpellText, runeModifiedNote, type RuneTextFlags, improvingSummonText, perCardPlayedText, rougeRogueText, perGoldSpentText, rallySpreadText, shopBuffImproveText, spellThresholdText, ritualistText, sergeantText, soulsmanText, squirlScoutText, conductorText, stepProgress, sporebatText, stewardText, thundeerText, summonBuffText, summonEscalatingText, summonFlatZooText, summonImproveText, soldProgressText, summitTierText, summonScalingText, tallyBuffText,
   ancientWandererText, ascendantTierText, musterTrooperText,
   taughtSpellText, trailForagerText, transformProgressText, undeadBuyAtkText, watcherText, withImpStats,
 } from './cardText';
@@ -42,6 +42,7 @@ export interface LiveTextParams {
   permaGain?: { attack: number; health: number };
   /** Squirl Scout's run-wide accrued grant size — its live "+N/+N" next grant. */
   squirlScoutBuff?: number;
+  conductorBuff?: number;
   /** Gold spent this recruit turn — Patch Job shows the current total it'll grant (steps × per-step value). */
   goldSpent?: number;
   /** Gold spent across the WHOLE RUN (`RunState.goldSpent`) — Ancient Wanderer's "+1/+1 per 3 Gold spent this
@@ -145,6 +146,7 @@ export function liveCardText(cardId: string, p: LiveTextParams): { text: string;
             trailForagerText(c.id, p.golden, p.sellBonus ?? 0) ??
             thundeerText(c.id, p.summonBonus ?? 0, p.golden) ??
             squirlScoutText(c.id, p.golden, p.squirlScoutBuff ?? 0) ??
+            conductorText(c.id, p.golden, p.conductorBuff ?? 0, p.improveReps) ??
             sergeantText(c.id, p.golden, p.hpGrantBonus ?? 0) ??
             ritualistText(c.id, p.golden, p.eotBonus ?? 0) ?? // Ritualist: live per-tick Fodder/Imp grant (climbs each End of Turn)
             stewardText(c.id, p.golden, p.lastSpellName) ??
@@ -222,7 +224,7 @@ export function instView(
   spellsCast = 0,
   clingEnchant?: { attack: number; health: number },
   fodderConsumed?: { attack: number; health: number },
-  live?: { undeadBuyAtk?: number; soulsmanGold?: number; impAura?: { attack: number; health: number }; cardBuffs?: Record<string, { attack: number; health: number }>; castMult?: number; goldSpent?: number; goldSpentRun?: number; goldPouchValue?: number; playedThisTurn?: string[]; squirlScoutBuff?: number; lastSpellName?: string; rememberedSpellNames?: readonly string[]; impBank?: { attack: number; health: number }; firstSpellThisTurnName?: string; lastSpellThisTurnName?: string; topTribe?: string | null; frontToBackBonusH?: number; onBoard?: boolean; eotTickOverride?: number; improveReps?: number; rubyCasts?: number; rubyBonus?: { attack: number; health: number }; grimoireCharged?: boolean; runeMammoth?: boolean; runeFlags?: RuneTextFlags; tier7Access?: boolean; alesThisTurn?: number },
+  live?: { undeadBuyAtk?: number; soulsmanGold?: number; impAura?: { attack: number; health: number }; cardBuffs?: Record<string, { attack: number; health: number }>; castMult?: number; goldSpent?: number; goldSpentRun?: number; goldPouchValue?: number; playedThisTurn?: string[]; squirlScoutBuff?: number; conductorBuff?: number; lastSpellName?: string; rememberedSpellNames?: readonly string[]; impBank?: { attack: number; health: number }; firstSpellThisTurnName?: string; lastSpellThisTurnName?: string; topTribe?: string | null; frontToBackBonusH?: number; onBoard?: boolean; eotTickOverride?: number; improveReps?: number; rubyCasts?: number; rubyBonus?: { attack: number; health: number }; grimoireCharged?: boolean; runeMammoth?: boolean; runeFlags?: RuneTextFlags; tier7Access?: boolean; alesThisTurn?: number },
 ): CardView {
   const c = CARD_INDEX[inst.cardId];
   const spell = c.spell === true || c.id === 'discoverspell';
@@ -239,7 +241,7 @@ export function instView(
     spellProgress: inst.spellProgress, ascendProgress: inst.ascendProgress, summonBonus: inst.summonBonus,
     overflowBonus: inst.overflowBonus,
     hpGrantBonus: inst.hpGrantBonus, eotTick: eotTickShown, eotBonus: inst.eotBonus, sellBonus: inst.sellBonus, soldProgress: inst.soldProgress,
-    playedThisTurn: live?.playedThisTurn, squirlScoutBuff: live?.squirlScoutBuff, alesThisTurn: live?.alesThisTurn,
+    playedThisTurn: live?.playedThisTurn, squirlScoutBuff: live?.squirlScoutBuff, conductorBuff: live?.conductorBuff, alesThisTurn: live?.alesThisTurn,
     lastSpellName: live?.lastSpellName, grantedTier: inst.grantedTier, improveReps: live?.improveReps,
     rememberedSpellNames: live?.rememberedSpellNames, impBank: live?.impBank,
     firstSpellThisTurnName: live?.firstSpellThisTurnName, lastSpellThisTurnName: live?.lastSpellThisTurnName,
@@ -327,7 +329,7 @@ export function liveBoardView(m: BoardCard, run: RunState): CardView {
       undeadBuyAtk: run.undeadBuyAtk, soulsmanGold: run.soulsmanGold ?? 0, cardBuffs: run.cardBuffs,
       improveReps: run.runeMastery ? 2 : 1, impAura: run.impBuff,
       goldSpent: run.goldSpentThisTurn ?? 0, goldSpentRun: run.goldSpent, goldPouchValue: run.goldPouchValue,
-      playedThisTurn: run.playedThisTurn, squirlScoutBuff: run.squirlScoutBuff,
+      playedThisTurn: run.playedThisTurn, squirlScoutBuff: run.squirlScoutBuff, conductorBuff: run.conductorBuff,
       lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined,
       rememberedSpellNames: (run.rememberedSpellIds ?? []).map((id) => CARD_INDEX[id]?.name).filter((n): n is string => !!n),
       firstSpellThisTurnName: run.firstSpellThisTurnId ? CARD_INDEX[run.firstSpellThisTurnId]?.name : undefined,

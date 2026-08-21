@@ -90,8 +90,14 @@
   display: flex; flex-direction: column; align-items: center; gap: 6px;
   pointer-events: none; /* re-enabled on the button alone */
 }
+/* `--hsc-name*` / `--hsc-btn*` are the 🎭 tuner's layout knobs (heroCeremonyTunerConfig) — fallbacks here
+   ARE the shipped values (prod never sets the vars). Offsets ride relative left/top and size rides
+   font-size / zoom on purpose: the entrances animate transform (`hscRise`), which would stomp a static
+   transform-based nudge. */
 .hsc-name {
-  font-family: var(--font-title); font-weight: 900; font-size: 44px; letter-spacing: 0.06em;
+  position: relative;
+  left: calc(var(--hsc-namex, 0) * 1px); top: calc(var(--hsc-namey, 0) * 1px);
+  font-family: var(--font-title); font-weight: 900; font-size: calc(var(--hsc-namesize, 44) * 1px); letter-spacing: 0.06em;
   color: #f6efe2; text-shadow: 0 3px 12px rgba(0, 0, 0, 0.7);
   opacity: 0;
   animation: hscRise 0.36s ease var(--hsc-identity-delay, 500ms) forwards;
@@ -105,6 +111,9 @@
 }
 .hsc-start {
   pointer-events: auto;
+  position: relative;
+  left: calc(var(--hsc-btnx, 0) * 1px); top: calc(var(--hsc-btny, 0) * 1px);
+  zoom: var(--hsc-btnscale, 1);
   margin-top: 16px;
   font-family: var(--font-ui); font-weight: 800; font-size: 19px; letter-spacing: 0.12em;
   text-transform: uppercase; color: #fff;

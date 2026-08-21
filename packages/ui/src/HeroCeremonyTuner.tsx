@@ -2,7 +2,7 @@ import {
   HSC_DEFAULTS, HSC_RANGES, getHeroCeremonyConfig, requestCeremonyReplay, resetHeroCeremonyConfig,
   setHeroCeremonyValue,
 } from './hero-select/heroCeremonyTunerConfig';
-import type { HeroCeremonyTiming } from './hero-select/heroCeremonyTiming';
+import type { HscTunerConfig } from './hero-select/heroCeremonyTunerConfig';
 import { TunerPanel } from './TunerPanel';
 import type { TunerControl, TunerSpec, TunerUnit } from './tunerSchema';
 
@@ -15,7 +15,7 @@ import type { TunerControl, TunerSpec, TunerUnit } from './tunerSchema';
  * `…AtMs` values are absolute marks from the initial hero click; `…Ms` values are durations. The launch pair
  * runs from the Start Game press instead.
  */
-const SPECS: Record<keyof HeroCeremonyTiming, [string, TunerUnit | undefined, string, string]> = {
+const SPECS: Record<keyof HscTunerConfig, [string, TunerUnit | undefined, string, string]> = {
   pressMs:           ['Press', 'ms', 'The selected card’s press-in acknowledgment.', 'Commit'],
   headerExitDelayMs: ['Header exit at', 'ms', 'When the title / Oath / Back begin fading.', 'Commit'],
   optionExitDelayMs: ['Exits start at', 'ms', 'When the unselected cards begin leaving.', 'Dismiss'],
@@ -33,10 +33,16 @@ const SPECS: Record<keyof HeroCeremonyTiming, [string, TunerUnit | undefined, st
   readyMs:           ['Button entrance', 'ms', 'Start Game entrance — interactive only after this.', 'Ready'],
   launchCoverMs:     ['Cover', 'ms', 'Curtain fade-to-opaque after Start Game (run creation waits for it).', 'Launch'],
   launchRevealMs:    ['Reveal', 'ms', 'Curtain fade-out over the mounted Recruit screen.', 'Launch'],
+  nameX:             ['Name horizontal', 'px', 'Nudge the hero name off center.', 'Name'],
+  nameY:             ['Name vertical', 'px', 'Negative lifts the name toward the portrait.', 'Name'],
+  nameSize:          ['Name size', 'px', 'The hero name’s font size.', 'Name'],
+  btnX:              ['Button horizontal', 'px', 'Nudge Start Game off center.', 'Button'],
+  btnY:              ['Button vertical', 'px', 'Negative lifts the button toward the name.', 'Button'],
+  btnScale:          ['Button size', '×', 'Scales the whole button — text and padding together.', 'Button'],
 };
 
 /** Declaration order IS render order; groups render together under their heading. */
-const ORDER: (keyof HeroCeremonyTiming)[] = [
+const ORDER: (keyof HscTunerConfig)[] = [
   'pressMs', 'headerExitDelayMs',
   'optionExitDelayMs', 'optionExitMs', 'optionStaggerMs',
   'focusDelayMs', 'focusMs', 'settleMs', 'arrivalAtMs',
@@ -44,15 +50,17 @@ const ORDER: (keyof HeroCeremonyTiming)[] = [
   'transformAtMs', 'transformMs',
   'identityAtMs', 'readyAtMs', 'readyMs',
   'launchCoverMs', 'launchRevealMs',
+  'nameX', 'nameY', 'nameSize',
+  'btnX', 'btnY', 'btnScale',
 ];
 
-const controls: TunerControl<Extract<keyof HeroCeremonyTiming, string>>[] = ORDER.map((key) => {
+const controls: TunerControl<Extract<keyof HscTunerConfig, string>>[] = ORDER.map((key) => {
   const [label, unit, hint, group] = SPECS[key];
   const [min, max, step] = HSC_RANGES[key];
   return { key, label, unit, hint, group, min, max, step };
 });
 
-export const SPEC: TunerSpec<HeroCeremonyTiming> = {
+export const SPEC: TunerSpec<HscTunerConfig> = {
   id: 'heroceremony',               // FROZEN — indexes this panel's dragged position in localStorage
   title: 'Hero Ceremony',
   note: 'dev · next run · drag',

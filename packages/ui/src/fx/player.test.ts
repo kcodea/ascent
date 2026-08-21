@@ -6,6 +6,8 @@ import {
   SCRUB_MAX_STEPS,
   SCRUB_SIM_BUDGET_MS,
   SCRUB_STEP_MS,
+  type FxPlayer,
+  type FxPlayerOptions,
 } from './player';
 import { clearPrimitives, registerPrimitive } from './registry';
 import type { FxContext, FxInstance } from './primitive';
@@ -917,6 +919,64 @@ describe('createPlayer', () => {
       p.update(210);           // `first` is finishing
       p.stop();
       expect(first.destroy).toHaveBeenCalled();
+    });
+
+    // Task-3 review finding: the NON-firing wrap path (play()-style loop) used to `killAllLive()` at a
+    // gapped seamless boundary while the FIRING path carried over. This asserts they are now symmetric — a
+    // gapped seamless boundary carries the outgoing cycle into `finishing` (stop-emitted, draining) instead
+    // of culling it, in both paths.
+    it('a NON-firing seamless loop with a gap carries the outgoing cycle over instead of culling it', () => {
+      const def: FxDef = { id: 's', duration: 200, layers: [{ primitive: 'a', anchor: 'target', at: 0, params: {} }] };
+      const p = createPlayer(def, CTX, { loop: true, loopMode: 'seamless', loopGapMs: 50 });
+      p.play();
+      const first = latest('a');
+      p.update(200);           // reaches the boundary -> enters the gap in seamless mode
+      expect(first.stopEmitting).toHaveBeenCalledTimes(1);
+      expect(first.destroy).not.toHaveBeenCalled(); // carried over (finishing), NOT hard-culled
+    });
+  });
+
+  // loopJoinMs: the SIGNED loop-boundary offset. Positive = a gap (both modes; subsumes loopGapMs). Negative
+  // = an overlap (seamless only) — the fresh cycle starts |ms| early, lowering the loop-point threshold, so
+  // the outgoing tail and the incoming head coexist across the seam. Negative clamps to 0 in playOut.
+  describe('loop join', () => {
+    beforeEach(() => { clearPrimitives(); spawned.length = 0; registerPrimitive(drainingPrimitive('a')); });
+    const mk = (opts: Partial<FxPlayerOptions>): FxPlayer => {
+      const def: FxDef = { id: 's', duration: 200, layers: [{ primitive: 'a', anchor: 'target', at: 0, params: {} }] };
+      return createPlayer(def, CTX, { loop: true, loopMode: 'seamless', ...opts });
+    };
+
+    it('a positive join delays the fresh cycle past the boundary', () => {
+      const p = mk({ loopJoinMs: 80 }); p.fireLoop();
+      const first = latest('a');
+      p.update(210);                 // crossed the boundary, but join holds the fresh spawn
+      expect(latest('a')).toBe(first);   // no new instance yet
+      p.update(80);                  // join elapses
+      expect(latest('a')).not.toBe(first);
+    });
+
+    it('a negative join (overlap) starts the fresh cycle before the boundary in seamless mode', () => {
+      const p = mk({ loopJoinMs: -60 }); p.fireLoop();
+      const first = latest('a');
+      p.update(150);                 // 200 - 60 = 140 < 150 → fresh cycle already started
+      expect(latest('a')).not.toBe(first);
+    });
+
+    it('a negative join clamps to 0 in playOut mode (no early start)', () => {
+      const def: FxDef = { id: 's', duration: 200, layers: [{ primitive: 'a', anchor: 'target', at: 0, life: 200, params: {} }] };
+      const p = createPlayer(def, CTX, { loop: true, loopMode: 'playOut', loopJoinMs: -60 });
+      p.fireLoop();
+      const first = latest('a');
+      p.update(150);
+      expect(latest('a')).toBe(first);   // still the first cycle
+    });
+
+    it('setLoopJoin sets the signed join live; setLoopGap still forwards to it', () => {
+      const p = mk({}); p.fireLoop();
+      const first = latest('a');
+      p.setLoopJoin(-60);            // overlap, live
+      p.update(150);                 // threshold now 140 < 150 → fresh cycle
+      expect(latest('a')).not.toBe(first);
     });
   });
 

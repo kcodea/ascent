@@ -27,6 +27,13 @@ export interface HscLayout {
   powerY: number;
   /** Hero power name — font size (px). */
   powerSize: number;
+  /** Identity plate (the side-fading band) — peak opacity of the gradient. */
+  plateOpacity: number;
+  /** Identity plate — total length (px) of the band, fades included. */
+  plateLen: number;
+  /** Identity plate — padding (px) above the name / below the power line (the band's thickness). */
+  platePadTop: number;
+  platePadBot: number;
   /** Start Game — horizontal nudge (px) off center. */
   btnX: number;
   /** Start Game — vertical nudge (px); negative lifts it. */
@@ -75,7 +82,7 @@ export type HscTunerConfig = HeroCeremonyTiming & HscLayout & HscFx;
 // Owner-tuned 2026-08-21 (pill pass): a big 80px name + 22px power on the new dark plate, the button at
 // 1.55×. The name offsets move the WHOLE plate (name + power ride inside it); power offsets move the power
 // line within the plate.
-const LAYOUT_DEFAULTS: HscLayout = { nameX: 0, nameY: -300, nameSize: 62, powerX: 0, powerY: -300, powerSize: 21, btnX: 0, btnY: -135, btnScale: 1.55 };
+const LAYOUT_DEFAULTS: HscLayout = { nameX: 0, nameY: -300, nameSize: 62, powerX: 0, powerY: -300, powerSize: 21, plateOpacity: 0.85, plateLen: 560, platePadTop: 10, platePadBot: 14, btnX: 0, btnY: -135, btnScale: 1.55 };
 
 /** Owner-tuned 2026-08-21: song from the click, wooshes on the exits (100) and the settle (640), reveal +
  *  flash paired at 1320 — after the fast transform finishes (825+350) — with the art at 1.26× inside a big
@@ -125,6 +132,10 @@ export const HSC_RANGES: Record<keyof HscTunerConfig, [number, number, number]> 
   powerX: [-400, 400, 1],
   powerY: [-300, 300, 1],
   powerSize: [10, 40, 1],
+  plateOpacity: [0, 1, 0.01],
+  plateLen: [200, 1400, 5],
+  platePadTop: [0, 80, 1],
+  platePadBot: [0, 80, 1],
   btnX: [-400, 400, 1],
   btnY: [-200, 300, 1],
   btnScale: [0.6, 1.6, 0.01],

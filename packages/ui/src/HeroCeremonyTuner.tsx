@@ -38,6 +38,10 @@ const SPECS: Record<keyof HscTunerConfig, [string, TunerUnit | undefined, string
   powerX:            ['Power horizontal', 'px', 'Nudge the hero power name off center.', 'Power name'],
   powerY:            ['Power vertical', 'px', 'Negative lifts the power name toward the hero name.', 'Power name'],
   powerSize:         ['Power size', 'px', 'The hero power name’s font size.', 'Power name'],
+  plateOpacity:      ['Plate opacity', 'opacity', 'Peak darkness of the band behind the name + power.', 'Plate'],
+  plateLen:          ['Plate length', 'px', 'The band’s total horizontal length, side fades included.', 'Plate'],
+  platePadTop:       ['Plate pad top', 'px', 'Space between the band’s top edge and the name.', 'Plate'],
+  platePadBot:       ['Plate pad bottom', 'px', 'Space between the power line and the band’s bottom edge.', 'Plate'],
   btnX:              ['Button horizontal', 'px', 'Nudge Start Game off center.', 'Button'],
   btnY:              ['Button vertical', 'px', 'Negative lifts the button toward the name.', 'Button'],
   btnScale:          ['Button size', '×', 'Scales the whole button — text and padding together.', 'Button'],
@@ -106,6 +110,7 @@ const ORDER: (keyof HscTunerConfig)[] = [
   'ringX', 'ringY', 'ringSize',
   'nameX', 'nameY', 'nameSize',
   'powerX', 'powerY', 'powerSize',
+  'plateOpacity', 'plateLen', 'platePadTop', 'platePadBot',
   'btnX', 'btnY', 'btnScale',
 ];
 

@@ -135,15 +135,21 @@
   position: relative;
   left: calc(var(--hsc-namex, 0) * 1px); top: calc(var(--hsc-namey, -300) * 1px);
   display: flex; flex-direction: column; align-items: center; gap: 2px;
-  padding: 10px 84px 14px;
-  /* A horizontal BAND, not a rounded pill (owner reference 2026-08-21): solid dark through the middle,
-     fading out to transparent at the LEFT and RIGHT edges — the top/bottom stay clean. No border/ring:
-     an outline would trace the fade and give the edges back away. */
-  background: linear-gradient(90deg,
-    rgba(16, 12, 9, 0) 0%, rgba(16, 12, 9, 0.62) 16%, rgba(16, 12, 9, 0.82) 32%,
-    rgba(16, 12, 9, 0.82) 68%, rgba(16, 12, 9, 0.62) 84%, rgba(16, 12, 9, 0) 100%);
+  width: calc(var(--hsc-platelen, 560) * 1px);
+  padding: calc(var(--hsc-platepadtop, 10) * 1px) 24px calc(var(--hsc-platepadbot, 14) * 1px);
   opacity: 0;
   animation: hscRise 0.36s ease var(--hsc-identity-delay, 500ms) forwards;
+}
+/* A horizontal BAND, not a rounded pill (owner reference 2026-08-21): solid dark through the middle, fading
+   to transparent at the LEFT and RIGHT edges — top/bottom stay clean (and geometrically STRAIGHT: radius 0,
+   no clip; a bow under the big circular medallion is an optical illusion). The gradient lives on ::before so
+   the tuner's opacity knob never fights the hscRise entrance animating the element's own opacity. */
+.hsc-plate::before {
+  content: ''; position: absolute; inset: 0; z-index: -1;
+  background: linear-gradient(90deg,
+    rgba(16, 12, 9, 0) 0%, rgba(16, 12, 9, 0.73) 16%, rgba(16, 12, 9, 0.965) 32%,
+    rgba(16, 12, 9, 0.965) 68%, rgba(16, 12, 9, 0.73) 84%, rgba(16, 12, 9, 0) 100%);
+  opacity: var(--hsc-plateopacity, 0.85);
 }
 .hsc-name {
   font-family: var(--font-title); font-weight: 900; font-size: calc(var(--hsc-namesize, 62) * 1px); letter-spacing: 0.06em;

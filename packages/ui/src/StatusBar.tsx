@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { renameTerms } from './terms';
 import { Card, mdBold } from './Card';
 import { instView } from './instView';
-import { dragonTamerCostOf, INDY_GILD_RECHARGE_GOLD, KESHI_CROWN_THRESHOLD, roundedSpellbookCostOf, buyoutCostOf, allInPayoutOf, exhibitionGrantOf, heroPowerText, commissionOffer, COMMISSION_NAME, COMMISSION_REWARD, COMMISSION_DELAY, getHero, spellAmplifyBonus, spellAttackBonus, spellHealthBonus, heroPowerLockTurns } from '@game/sim';
+import { dragonTamerCostOf, INDY_GILD_RECHARGE_GOLD, KESHI_CROWN_THRESHOLD, roundedSpellbookCostOf, buyoutCostOf, allInPayoutOf, exhibitionGrantOf, heroPowerText, commissionOffer, COMMISSION_NAME, COMMISSION_REWARD, COMMISSION_DELAY, getHero, spellAmplifyBonus, spellAttackBonus, spellHealthBonus, heroPowerLockTurns, activePowers } from '@game/sim';
 import { henchmanOffer } from '@game/sim';
 import { CARD_INDEX } from '@game/content';
 import { heroArt, heroPowerArt, questArt, runeArt } from './art';
@@ -60,13 +60,18 @@ export function StatusBar() {
   // local account's. Falls back to your own name for normal play (replaySession is null outside playback).
   const playerName = useGame((s) => s.replaySession?.authorName ?? s.playerName);
   const heroArmed = useGame((s) => s.heroArmed);
+  const heroArmedSlot = useGame((s) => s.heroArmedSlot);
   const armHero = useGame((s) => s.armHero);
   const dispatch = useGame((s) => s.dispatch);
   const eotAnimating = useGame((s) => s.endTurnAnimating);
   const combatEnemyDeaths = useGame((s) => s.combatEnemyDeaths);
   // The hero + its power are data (HEROES registry); the panel renders whatever the run is on.
+  // `activePowers`, not `hero.power`: Mimic wields a different hero's power each turn and Void wields TWO —
+  // the main button always shows slot 0, and a second button (below) appears for slot 1.
   const hero = getHero(run.heroId);
-  const power = hero.power;
+  const powers = activePowers(run);
+  const power = powers[0]!;
+  const secondPower = powers[1];
   // HENCHMAN offer (owner spec 2026-08-03): the hero's bound recruit at its decayed price — null for the many
   // heroes with none authored yet, and after the once-per-run buy. PLACEHOLDER SURFACE: a plain chip under the
   // power pill so the mechanic is playable end-to-end; the real presentation is Mike's to design.
@@ -127,11 +132,15 @@ export function StatusBar() {
   const grantArt = run.heroGrantArt
     ? (run.heroGrantArt.kind === 'rune' ? runeArt(run.heroGrantArt.id) : questArt(run.heroGrantArt.id))
     : undefined;
+  // The art follows the WIELDED power's hero (Mimic's disguise / Void's first pick) — the native id for
+  // everyone else. Suit/commission variants resolve against the same id, so a mimicked Lucky Seat shows the
+  // queued suit exactly as Ayse would.
+  const artHeroId = run.mimicPowerId ?? run.voidPowerIds?.[0] ?? hero.id;
   const powerArt = grantArt ?? (power.kind === 'luckySeat' && run.ciaSuit
-    ? (heroPowerArt(`cia-${run.ciaSuit}`) ?? heroPowerArt(hero.id))
+    ? (heroPowerArt(`cia-${run.ciaSuit}`) ?? heroPowerArt(artHeroId))
     : power.kind === 'commission' && run.commission
-      ? (heroPowerArt(`cassen-${run.commission.kind}`) ?? heroPowerArt(hero.id))
-      : heroPowerArt(hero.id));
+      ? (heroPowerArt(`cassen-${run.commission.kind}`) ?? heroPowerArt(artHeroId))
+      : heroPowerArt(artHeroId));
   // Gambler's Dice locks for as many turns as it rolled — how many turns remain.
   // Turns still owed on a recharge-locked power (Gambler's dice, Aster's Preparation). Shared with the
   // tutorial's readiness predicate via `heroPowerLockTurns` so the button, the coach and the reducer agree —
@@ -172,6 +181,9 @@ export function StatusBar() {
   // Cassen: the commission picker is local to this component, which owns the button — no cross-component
   // plumbing for a panel only one hero ever opens.
   const [pickingCommission, setPickingCommission] = useState(false);
+  // WHICH slot opened the picker (Void can hold Commission/First-or-Last in slot 1) — threaded into the
+  // picker's dispatch so the prize charges the slot that asked for it.
+  const [pickerSlot, setPickerSlot] = useState(0);
   const [pickingFlash, setPickingFlash] = useState(false);
   const [hunchTip, setHunchTip] = useState<{ left: number; top: number; origin: 'left' | 'right' } | null>(null);
   const hunchHover = hunchTip !== null;
@@ -487,8 +499,8 @@ export function StatusBar() {
                 // when an option is chosen (below). Untargeted, but not immediate.
                 // …and it is INERT while one is already running (owner ask 2026-08-16) — the reducer refuses
                 // it too, so this just stops the panel opening on a click that could not do anything.
-                if (power.kind === 'commission') { if (!run.commission) setPickingCommission(true); }
-                else if (power.kind === 'firstOrLast') setPickingFlash(true);
+                if (power.kind === 'commission') { if (!run.commission) { setPickerSlot(0); setPickingCommission(true); } }
+                else if (power.kind === 'firstOrLast') { setPickerSlot(0); setPickingFlash(true); }
                 else if (power.untargeted) dispatch({ type: 'heroPower' });
                 else armHero();
               }}
@@ -528,7 +540,7 @@ export function StatusBar() {
                   type="button"
                   className="questcard has-art"
                   style={{ '--c': 'var(--t-neutral)' } as CSSProperties}
-                  onClick={() => { setPickingCommission(false); dispatch({ type: 'heroPower', commission: kind }); }}
+                  onClick={() => { setPickingCommission(false); dispatch({ type: 'heroPower', commission: kind, slot: pickerSlot }); }}
                 >
                   {heroPowerArt(`cassen-${kind}`) && <img className="questcard-art" src={heroPowerArt(`cassen-${kind}`)} alt="" aria-hidden />}
                   <span className="questcard-emblem" aria-hidden><Icon name="target" /></span>
@@ -561,7 +573,7 @@ export function StatusBar() {
                   type="button"
                   className="questcard has-art"
                   style={{ '--c': 'var(--t-neutral)' } as CSSProperties}
-                  onClick={() => { setPickingFlash(false); dispatch({ type: 'heroPower', flashPick: end }); }}
+                  onClick={() => { setPickingFlash(false); dispatch({ type: 'heroPower', flashPick: end, slot: pickerSlot }); }}
                 >
                   {heroPowerArt(`flash-${end}`) && <img className="questcard-art" src={heroPowerArt(`flash-${end}`)} alt="" aria-hidden />}
                   <span className="questcard-emblem" aria-hidden><Icon name="target" /></span>
@@ -645,6 +657,51 @@ export function StatusBar() {
             <span className="herotip-live">{powerStatus}</span>
           </div>
         </div>
+        {/* VOID'S SECOND POWER (owner spec 2026-08-22): the slot-1 wielded power, seated to the right of the
+            hero under the main power button. Position/scale are the owner's to place — the 👥 Second Power
+            tuner drives `--hp2-x/--hp2-y/--hp2-scale` (secondPowerConfig.ts), with the CSS fallbacks as the
+            shipped seat. A simplified button on purpose: the escalating-cost powers (Jensen/Tiff/Hunch/
+            Harlan) key their coins off slot-0 state and are rare picks; the tooltip still shows the live rule
+            via heroPowerText(run, 1). */}
+        {secondPower && (() => {
+          const p2 = secondPower;
+          const passive2 = !!p2.passive;
+          const spent2 = p2.oncePerGame ? !!run.heroPowerSpent2 : p2.maxUses ? (run.heroPowerUses2 ?? 0) >= p2.maxUses : false;
+          const ready2 = !passive2 && !spent2 && (run.heroReady2 ?? true) && run.wave >= (p2.unlockWave ?? 1) && (!p2.cost || run.embers >= p2.cost);
+          const armed2 = heroArmed && heroArmedSlot === 1;
+          const art2 = run.voidPowerIds?.[1] ? heroPowerArt(run.voidPowerIds[1]) : undefined;
+          return (
+            <div className={`heropanel heropanel2${passive2 ? ' passive' : armed2 ? ' armed' : ready2 ? ' ready' : ''}`}>
+              <button
+                className={`heropowerbtn${passive2 ? ' passive' : armed2 ? ' armed' : ready2 ? ' ready' : ''}`}
+                disabled={passive2 || (!ready2 && !armed2)}
+                aria-label={`${p2.name} — ${renameTerms(heroPowerText(run, 1)).replace(/\*\*/g, '')}`}
+                onPointerDown={(e) => {
+                  e.stopPropagation();
+                  if (passive2 || !ready2 || armed2) return;
+                  sfx.pulse();
+                  // The choice-powers open their pickers exactly as the main button does — a slot-1 Commission
+                  // fired bare would reach the reducer with no `commission` chosen and no-op.
+                  if (p2.kind === 'commission') { if (!run.commission) { setPickerSlot(1); setPickingCommission(true); } }
+                  else if (p2.kind === 'firstOrLast') { setPickerSlot(1); setPickingFlash(true); }
+                  else if (p2.untargeted) dispatch({ type: 'heroPower', slot: 1 });
+                  else armHero(1); // targeted: arm slot 1 — Recruit fires { slot: heroArmedSlot } on the pick
+                }}
+              >
+                <span className="hpb-glow" aria-hidden="true" />
+                {art2
+                  ? <span className="hpb-artwrap" aria-hidden="true"><img className="hpb-art" src={art2} alt="" draggable={false} /></span>
+                  : <span className="hpb-glyph" aria-hidden="true">✦</span>}
+              </button>
+              {p2.cost ? <span className="hpcost"><span className="costn">{p2.cost}</span></span> : null}
+              <div className="hplabel">{p2.name}</div>
+              <div className="herotip" role="tooltip">
+                <b>{p2.name}</b>{passive2 ? ' · passive' : ''}
+                <span className="herotip-rule" dangerouslySetInnerHTML={{ __html: mdBold(heroPowerText(run, 1)) }} />
+              </div>
+            </div>
+          );
+        })()}
       </div>
     </div>
   );

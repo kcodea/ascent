@@ -103,6 +103,7 @@ export type BotMandatoryDecision =
   | { kind: 'chooseOne'; sourceUid: string; options: string[] }
   | { kind: 'battlecryTarget'; sourceUid: string; legalTargets: string[] }
   | { kind: 'quest'; options: string[] }
+  | { kind: 'powerOffer'; options: string[] } // hero-power Discover (Mimic / Void): hero ids whose powers are offered
   | { kind: 'runeforge'; options: string[]; canReroll: boolean; canSkip: boolean }
   | { kind: 'scout' };
 

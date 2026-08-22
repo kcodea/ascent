@@ -3061,6 +3061,35 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
    lands on the payoff first. */
 .herotip-reward { display: block; margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(255, 255, 255, 0.12); color: #d8ccb6; font-weight: 600; }
 .herotip-reward > b { display: block; margin-bottom: 1px; color: var(--acc); font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; }
+
+/* VOID'S SECOND POWER (owner spec 2026-08-22) — the slot-1 button, seated right of the hero under the main
+   power button. `--hp2-*` come from the 👥 Second Power tuner (secondPowerConfig.ts); these fallbacks are the
+   shipped seat — keep them in sync when baking a tune. Reference px × --scale, like every authored offset. */
+/* Scoped `.statusbar .heropanel.heropanel2` so it OUT-SPECIFIES the main `.statusbar .heropanel` seat rule
+   (position: fixed at the stage anchor) instead of losing left/top to it — the first cut used a bare
+   `.heropanel2` and never moved. Seat = the MAIN power button's stage anchor + the tuner offsets, so
+   "right of the hero, under the other power" holds at every resolution and follows the 💠 tuner's nudges. */
+.statusbar .heropanel.heropanel2 {
+  left: calc(var(--bar-x) + 0.19 * var(--gw) + (var(--hpb-x, 15px) * var(--scale)) + (var(--hp2-x, 118) * 1px * var(--scale)));
+  top: calc(var(--bar-y) + 0.45 * var(--gh) + (var(--hpb-y, 303px) * var(--scale)) + (var(--hp2-y, 64) * 1px * var(--scale)));
+  transform: translate(-50%, -50%) scale(var(--hp2-scale, 0.9));
+  z-index: 42; }
+.heropanel2 .hpb-glyph { display: grid; place-items: center; width: 100%; height: 100%; font-size: 26px; color: #d8ccb6; }
+.heropanel2 .hplabel { pointer-events: none; }
+
+/* HERO-POWER DISCOVER (Mimic / Void) — the pick plaques inside the quest-shop chrome. */
+.power-ov-cards { display: flex; gap: 22px; justify-content: center; }
+.powerpick { display: flex; flex-direction: column; align-items: center; gap: 8px; width: 240px; padding: 18px 16px 16px;
+  background: rgba(12, 9, 20, 0.72); border: 2px solid rgba(255, 255, 255, 0.18); border-radius: 16px;
+  color: #f6efe2; font-family: var(--font-ui); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+.powerpick:hover { border-color: var(--acc); }
+.powerpick-art { width: 110px; height: 110px; border-radius: 50%; overflow: hidden; border: 3px solid rgba(255, 255, 255, 0.25); background: rgba(0, 0, 0, 0.35); display: grid; place-items: center; flex: none; }
+.powerpick-art img { width: 100%; height: 100%; object-fit: cover; }
+.powerpick-glyph { font-size: 40px; color: #d8ccb6; }
+.powerpick-name { font-size: 22px; font-weight: 800; letter-spacing: 0.04em; }
+.powerpick-hero { font-size: 12px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(255, 255, 255, 0.55); }
+.powerpick-text { font-size: 13.5px; line-height: 1.45; font-weight: 600; color: #d8ccb6; text-align: center; }
+.powerpick-text b { color: var(--acc); }
 .herotip-live:empty { display: none; }
 /* Opponent frame + round-stat HUD: same dark pill/glass as the hero box, with inner text lightened to read on
    the dark fill (they were tuned for the old cream boxes). */

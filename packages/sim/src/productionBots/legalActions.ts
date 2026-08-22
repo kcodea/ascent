@@ -47,6 +47,8 @@ export function mandatoryCandidates(v: BotVisibleState): Candidate[] {
       return m.legalTargets.map((targetUid) => ({ action: { type: 'battlecryTarget', targetUid }, tag: `target ${targetUid}` }));
     case 'quest':
       return m.options.map((questId, index) => ({ action: { type: 'buyQuest', index }, tag: `quest ${questId}` }));
+    case 'powerOffer':
+      return m.options.map((heroId, index) => ({ action: { type: 'pickPower', index }, tag: `power ${heroId}` }));
     case 'runeforge': {
       const out: Candidate[] = m.options.map((runeId, index) => ({ action: { type: 'buyRune', index }, tag: `rune ${runeId}` }));
       if (m.canReroll) out.push({ action: { type: 'rerollRuneforge' }, tag: 'reroll forge' });

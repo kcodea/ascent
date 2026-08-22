@@ -191,6 +191,7 @@ function firstMandatoryAction(run: RunState): Action | null {
     case 'chooseOne': return { type: 'chooseOne', index: 0 };
     case 'battlecryTarget': return m.legalTargets[0] ? { type: 'battlecryTarget', targetUid: m.legalTargets[0] } : null;
     case 'quest': return { type: 'buyQuest', index: 0 };
+    case 'powerOffer': return { type: 'pickPower', index: 0 };
     case 'runeforge': return { type: 'skipRuneforge' };
     case 'scout': return { type: 'closeScout' };
   }

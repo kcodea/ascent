@@ -830,6 +830,11 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'hero:chronoshero:questChronos': { policy: 'ownBeat', family: 'heroPayout', flagged: true },
   // Fi & Coran's turn-1 quest Discover. `ownBeat` — it opens a modal the player acts in, which is a beat of
   // its own by definition. Replaced `hero:fi:lesserQuest` / `hero:coran:pathfinder` (2026-08-21).
+  // 2026-08-22 hero batch. Rayse is a pure combat-side passive (the summon buff presents inside the replay);
+  // Mimic and Void resolve through the power-Discover modal, a beat of its own by definition.
+  'hero:rayse:empoweringVines': { policy: 'passive', family: 'passive', flagged: true },
+  'hero:mimic:mimic': { policy: 'ownBeat', family: 'heroPayout', flagged: true },
+  'hero:voidhero:voidTwin': { policy: 'ownBeat', family: 'heroPayout', flagged: true },
   'hero:coran:heroQuest': { policy: 'ownBeat', family: 'heroPayout', flagged: true },
   'hero:fi:heroQuest': { policy: 'ownBeat', family: 'heroPayout', flagged: true },
   'hero:darah:displace': { policy: 'ownBeat', family: 'heroPower', flagged: true },

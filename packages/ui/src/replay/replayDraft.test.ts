@@ -282,6 +282,20 @@ describe('the round-boundary write only ever writes IMMUTABLE rounds', () => {
       const next = reduce(s, action);
       if (next === s) break;
       t += 100;
+      // The LATE patch runs FIRST — the store's verbatim order (store.ts: `healthLost` is applied to the last
+      // combat frame BEFORE the frame-push/write chain below). This replica used to run it after, which
+      // wrote a stale `resolveLost` whenever the resolve loss landed on the same action as the recruit flip —
+      // a real trajectory (hit 2026-08-22 when three new roster heroes shifted the bot seats), not a real
+      // store bug: the store's ordering was always patch-then-write.
+      {
+        const lost = s.phase === 'combat' ? Math.max(0, (s.resolve + s.armor) - (next.resolve + next.armor)) : 0;
+        if (lost > 0) {
+          for (let i = frames.length - 1; i >= 0; i--) {
+            const f = frames[i]!;
+            if (f.kind === 'combat') { frames[i] = { ...f, resolveLost: f.resolveLost + lost }; break; }
+          }
+        }
+      }
       if (action.type === 'faceOmen' && next.lastCombat) {
         frames.push(combatFrameOf(s, next, t));
       } else if (next.phase === 'recruit' && s.phase !== 'recruit') {
@@ -298,14 +312,6 @@ describe('the round-boundary write only ever writes IMMUTABLE rounds', () => {
         const d = deltaShopFrameOf(lastView, next, action.type, t);
         frames.push(d.frame);
         lastView = d.view;
-      }
-      // The LATE patch: a fight's cost settles after `faceOmen`, mutating an already-recorded combat frame.
-      const lost = s.phase === 'combat' ? Math.max(0, (s.resolve + s.armor) - (next.resolve + next.armor)) : 0;
-      if (lost > 0) {
-        for (let i = frames.length - 1; i >= 0; i--) {
-          const f = frames[i]!;
-          if (f.kind === 'combat') { frames[i] = { ...f, resolveLost: f.resolveLost + lost }; break; }
-        }
       }
       s = next;
     }

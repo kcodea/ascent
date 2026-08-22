@@ -31,11 +31,12 @@ const CHOREO_EOT = (() => {
 if (import.meta.env.DEV) {
   (window as unknown as { __choreoEot?: boolean }).__choreoEot = CHOREO_EOT;
 }
-import { alignmentsOf, boardHasCelestial, computeCombatOdds, type CombatOdds, rubyCastCount, rubyStatBonus, CONFIG, RIFTS, hasTier7Access, maxTierFor, conjuredStats, cardBuff, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, dragonflameCasts, nextOpponent, lossDamageCap, playerLossDamage, minionCostOf, heroOfferPrice, dominantBoardTribe, effectiveTargetTribe, boardManaBonus, upgradeCostOf, refreshCostOf, poolOf, type RunState, type ShopCard, type CardBuff, type BoardCard, type BoardSnapshot, gildCopiesNeeded } from '@game/sim';
+import { alignmentsOf, boardHasCelestial, computeCombatOdds, type CombatOdds, rubyCastCount, rubyStatBonus, CONFIG, RIFTS, hasTier7Access, maxTierFor, conjuredStats, cardBuff, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, dragonflameCasts, nextOpponent, lossDamageCap, playerLossDamage, minionCostOf, heroOfferPrice, dominantBoardTribe, effectiveTargetTribe, boardManaBonus, upgradeCostOf, refreshCostOf, poolOf, type RunState, type ShopCard, type CardBuff, type BoardCard, type BoardSnapshot, gildCopiesNeeded, activePowers } from '@game/sim';
 import { createPortal } from 'react-dom';
 import { setCardId, setCardStats, toggleCardKeyword, setEnemyStats, setEnemyCardId, toggleEnemyKeyword, removeEnemy } from './sandboxEdit';
 import { UnitEditor } from './UnitEditor';
-import { Card, type CardView } from './Card';
+import { Card, mdBold, type CardView } from './Card';
+import { heroPowerArt } from './art';
 import { beginDragTrace, cancelDragTrace, endDragTrace, sampleDragTrace } from './replay/dragTrace';
 import { SYM_KINDS } from './choreo/channels/float';
 import { stabilizeViewMap, stabilizeRefMap, stabilizeView } from './cardViewEqual';
@@ -767,7 +768,10 @@ export function Recruit() {
   // "complete" the list by adding it.
   const overlayOpen = useGame((s) => s.showTitle || s.showLeaderboard || s.showRankings || s.showCareer || s.showBook || s.showBalance);
   // Fortify can target a tavern offer too; Gild / Encore act only on your warband.
-  const heroPowerKind = getHero(run.heroId).power.kind;
+  // The ARMED slot's wielded power (Mimic's disguise / Void's pair — `activePowers`), not the native hero's:
+  // the aim-target rules below must describe the power that will actually fire.
+  const heroArmedSlot = useGame((s) => s.heroArmedSlot);
+  const heroPowerKind = (activePowers(run)[heroArmedSlot] ?? activePowers(run)[0]!).kind;
   // Quillen's Archive files a friendly OR a Shop minion, so it accepts tavern picks like Fortify does.
   // Sable's Soulbind: the two bound ends wear a ring for the turn the bond is live. Expired by wave, exactly as
   // the reducer + combat read it, so the mark can never outlast the bond it is drawing.
@@ -1606,13 +1610,13 @@ export function Recruit() {
   // A board-covering modal is open (Discover / Choose One / a quest or runeforge offer / a scouted board).
   useEffect(() => {
     // A minimized Discover / Quest overlay leaves the board visible, so it doesn't count as covering.
-    const modalCovering = (run.discover && !discoverMin) || (run.questOffer && !questMin) || (run.runeforgeOffer && !forgeMin) || run.chooseOne || (run.scoutedNextOpponent?.length ?? 0) > 0;
+    const modalCovering = (run.discover && !discoverMin) || (run.questOffer && !questMin) || run.powerOffer || (run.runeforgeOffer && !forgeMin) || run.chooseOne || (run.scoutedNextOpponent?.length ?? 0) > 0;
     // The hero portrait / pills / power diamond live OUTSIDE the overlay's backdrop root (their own fixed
     // stacking contexts), so the overlay's backdrop-filter can't blur them — mark the body and let CSS blur
     // + dim them to match the rest of the covered board (owner report 2026-07-16). One-shot filter change.
     document.body.classList.toggle('modalup', !!modalCovering);
     return () => document.body.classList.remove('modalup');
-  }, [run.discover, run.chooseOne, discoverMin, run.questOffer, questMin, run.runeforgeOffer, forgeMin]);
+  }, [run.discover, run.chooseOne, discoverMin, run.questOffer, run.powerOffer, questMin, run.runeforgeOffer, forgeMin]);
   // B2: each Discover opens expanded — reset the minimized flag whenever the pending Discover changes.
   useEffect(() => { setDiscoverMin(false); }, [run.discover]);
   // Each quest offer opens expanded too — reset the minimized flag when the offer changes.
@@ -3023,7 +3027,7 @@ export function Recruit() {
       if (!moved) return; // a plain click — stays armed for a follow-up click
       const target = minionAt(e.clientX, e.clientY);
       if (target && !timeUp) {
-        dispatch({ type: 'heroPower', uid: target.uid });
+        dispatch({ type: 'heroPower', uid: target.uid, slot: useGame.getState().heroArmedSlot }); // Void: fire the ARMED slot's power
         // The authored 'hero-power-target' FX at the targeted unit (owner ask 2026-08-14). Feed the click
         // point to source/target AND cursor — the def anchors on `cursor`, which is ORIGIN if unsupplied.
         const p = { x: e.clientX, y: e.clientY };
@@ -3146,7 +3150,7 @@ export function Recruit() {
     // board, exactly like a Discover — so the timer must pause for them too. It didn't for `pendingTarget`, and
     // because the UI also blocks the target pick once `timeUp`, the timer expiring mid-aim left the player
     // unable to pick AND (before the reducer fix) unable to End Turn: a hard softlock (owner report 2026-07-22).
-    if (run.phase !== 'recruit' || run.discover || run.questOffer || run.runeforgeOffer || run.pendingTarget || run.chooseOne || run.scoutedNextOpponent?.length || heroSelecting || overlayOpen) return;
+    if (run.phase !== 'recruit' || run.discover || run.questOffer || run.powerOffer || run.runeforgeOffer || run.pendingTarget || run.chooseOne || run.scoutedNextOpponent?.length || heroSelecting || overlayOpen) return;
     let id = 0;
     const tick = (): void => {
       const cur = turnClock.get();
@@ -3158,7 +3162,7 @@ export function Recruit() {
     };
     id = window.setTimeout(tick, 1000);
     return () => window.clearTimeout(id);
-  }, [run.phase, run.discover, run.questOffer, run.runeforgeOffer, run.pendingTarget, run.chooseOne, heroSelecting, overlayOpen, run.wave]);
+  }, [run.phase, run.discover, run.questOffer, run.powerOffer, run.runeforgeOffer, run.pendingTarget, run.chooseOne, heroSelecting, overlayOpen, run.wave]);
 
   // Flash a card green when its stats jump in the recruit phase (a buff landed). The readout itself is the
   // badge's own job now — see the cut below.
@@ -5123,7 +5127,7 @@ export function Recruit() {
       <ChargeGlyph
         inCombat={inCombat}
         window={Math.min(CHARGE_SECONDS, turnSeconds)}
-        paused={!!(run.discover || run.questOffer || run.runeforgeOffer || run.pendingTarget || run.chooseOne || run.scoutedNextOpponent?.length || heroSelecting || overlayOpen)}
+        paused={!!(run.discover || run.questOffer || run.powerOffer || run.runeforgeOffer || run.pendingTarget || run.chooseOne || run.scoutedNextOpponent?.length || heroSelecting || overlayOpen)}
         covered={!!(heroSelecting || overlayOpen)}
       />
       {/* UNDER-CARD FX canvas — the host for `slot: 'under'` effect defs. Position in this child list is
@@ -5206,7 +5210,7 @@ export function Recruit() {
         combatReady={inCombat && replay.done && (sandboxReplay || replay.result !== 'lose' || lossPhase === 'done')}
         disabled={inCombat
           ? !(replay.done && (sandboxReplay || replay.result !== 'lose' || lossPhase === 'done'))
-          : eotAnimating || !!run.questOffer || !!run.runeforgeOffer || !roundSettled}
+          : eotAnimating || !!run.questOffer || !!run.powerOffer || !!run.runeforgeOffer || !roundSettled}
         pressed={inCombat || eotAnimating}
         urgent={timeUp && !inCombat}
       />
@@ -5220,7 +5224,7 @@ export function Recruit() {
           the End-of-Turn animation starts, and the reducer never gated it, only this button did. */}
       <FreezeButton
         frozen={!!run.frozen}
-        disabled={eotAnimating || !!run.questOffer || !!run.runeforgeOffer}
+        disabled={eotAnimating || !!run.questOffer || !!run.powerOffer || !!run.runeforgeOffer}
         combat={inCombat}
         onFreeze={() => dispatch({ type: 'freeze' })}
       />
@@ -5231,7 +5235,7 @@ export function Recruit() {
       <RefreshButton
         cost={run.freeRolls > 0 ? 0 : refreshCostOf(run)}
         freeRolls={run.freeRolls}
-        disabled={(run.freeRolls <= 0 && run.embers < refreshCostOf(run)) || timeUp || eotAnimating || !!run.questOffer || !!run.runeforgeOffer}
+        disabled={(run.freeRolls <= 0 && run.embers < refreshCostOf(run)) || timeUp || eotAnimating || !!run.questOffer || !!run.powerOffer || !!run.runeforgeOffer}
         combat={inCombat}
         onRefresh={() => dispatch({ type: 'roll' })}
       />
@@ -5239,7 +5243,7 @@ export function Recruit() {
         tier={run.tier}
         maxTier={maxTierFor(run.rift)} // Summit raises the ceiling to 7
         cost={upgradeCostOf(run)}
-        disabled={run.embers < upgradeCostOf(run) || timeUp || eotAnimating || !!run.questOffer || !!run.runeforgeOffer}
+        disabled={run.embers < upgradeCostOf(run) || timeUp || eotAnimating || !!run.questOffer || !!run.powerOffer || !!run.runeforgeOffer}
         combat={inCombat}
         onUpgrade={() => dispatch({ type: 'upgrade' })}
       />
@@ -5907,6 +5911,42 @@ export function Recruit() {
               {run.questOffer.map((id, i) => {
                 const q = QUEST_INDEX[id];
                 return q ? <QuestCard key={id} quest={q} onBuy={() => dispatch({ type: 'buyQuest', index: i })} /> : null;
+              })}
+            </div>
+            <span className="disc-gem disc-gem-bot" aria-hidden="true" />
+          </div>
+        </div>
+      )}
+
+      {/* HERO-POWER DISCOVER (Mimic every turn / Void's turn-4 pair): pick one of two hero powers. Modelled on
+          the Quest Shop overlay — same panel chrome, but the "cards" are power plaques (art + name + rule).
+          Mandatory: no minimize, no skip — the reducer blocks everything else while it is open. */}
+      {run.powerOffer && (
+        <div className="discover-ov quest-ov power-ov" role="dialog" aria-label="Choose a hero power">
+          <div className="disc-panel quest-ov-panel">
+            <span className="disc-gem disc-gem-top" aria-hidden="true" />
+            <div className="disc-banner"><span className="disp">{run.powerOffer.slot === 'mimic' ? 'Mimicry' : 'Twin Voids'}</span></div>
+            <div className="disc-sub">
+              {run.powerOffer.slot === 'mimic'
+                ? 'Choose a hero power to wield this turn'
+                : run.powerOffer.slot === 'void1'
+                  ? 'Choose your FIRST hero power — kept for the rest of the run'
+                  : 'Choose your SECOND hero power — kept for the rest of the run'}
+            </div>
+            <div className="disc-cards power-ov-cards">
+              {run.powerOffer.heroIds.map((hid, i) => {
+                const h = getHero(hid);
+                const art = heroPowerArt(hid);
+                return (
+                  <button key={hid} className="powerpick pressable" onClick={() => { sfx.pulse(); dispatch({ type: 'pickPower', index: i }); }}>
+                    <span className="powerpick-art">
+                      {art ? <img src={art} alt="" draggable={false} /> : <span className="powerpick-glyph" aria-hidden>✦</span>}
+                    </span>
+                    <span className="powerpick-name disp">{h.power.name}</span>
+                    <span className="powerpick-hero">{h.name}</span>
+                    <span className="powerpick-text" dangerouslySetInnerHTML={{ __html: mdBold(h.power.text) }} />
+                  </button>
+                );
               })}
             </div>
             <span className="disc-gem disc-gem-bot" aria-hidden="true" />

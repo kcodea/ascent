@@ -42,19 +42,19 @@
   --bar-x: calc((100vw - var(--gw)) / 2); --bar-y: calc((100dvh - var(--gh)) / 2);
   /* The in-game board backdrop — ONE source art, drawn on `.boardbg` (a full-viewport layer behind the 16:9
      stage): scaled to the stage height + centred, so the ornate frame stays locked to the 16:9 UI. The default
-     is the FULL board, itself 16:9 (owner promoted it 2026-08-17), so it fills the stage height-for-height. The
-     older 21:9 boards stay selectable in the Esc-menu picker and carry their own aspect/fill overrides — see
-     `boardConfig.ts`. Consequence of a 16:9 default: it has NO surplus width, so a window wider than 16:9 shows
-     `--bg` in the side margins instead of the floor art the wide boards used to bleed into them. */
+     is the FULL board, itself 16:9 (owner promoted it 2026-08-17), so it fills the stage height-for-height. It
+     is now the ONLY board: the Esc-menu picker and its two 21:9 alternates were removed 2026-08-22, so this
+     var is the single source of the arena art. Consequence of a 16:9 board: it has NO surplus width, so a
+     window wider than 16:9 shows `--bg` in the side margins rather than floor art bleeding into them. */
   --board: url('/augustfullboard.webp');
   /* The board art's own aspect (3840x2143). `.boardbg` needs it to compute the art's WIDTH from the stage
-     height. Update if the art does — and a board whose art has a DIFFERENT aspect must override it, or it gets
-     sized off these proportions and stretched off the stage (`boardConfig.ts` does that per board). */
+     height. Update it if the art changes — swapping in art of a different shape without this gets sized off
+     the old proportions and stretched off the stage. */
   --board-aspect: 1.7919;
   /* Overscan on the board art, held CONSTANT so its size never depends on the viewport — see `.boardbg`. 1 for
-     the 16:9 default: that art is already height-for-height with the stage. The 21:9 boards override it to
-     1.0132 (= 2.389/2.3578), exactly the art size a 3440x1440 fullscreen used to produce, which is what the
-     button offsets were tuned against. */
+     the 16:9 board: that art is already height-for-height with the stage. (The retired 21:9 boards used
+     1.0132 = 2.389/2.3578 — the art size a 3440x1440 fullscreen produced, which the button offsets were
+     originally tuned against.) */
   --board-fill: 1;
   /* The board ART's on-screen size (matches `--_board-w` on `.boardbg`), exposed at :root so the hero panel can
      anchor to the ART rather than the 16:9 STAGE. The art is board-zoomed ~25% WIDER than the stage, and that
@@ -4753,7 +4753,6 @@ svg { width: 18px; height: 18px; }
 .escsec { font-family: var(--font-ui); font-weight: 700; font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink3); text-align: center; margin: 16px 0 10px; }
 .escres { display: grid; gap: 8px; }
 .escboards { display: grid; gap: 8px; }
-.escboardpick { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .escboards-msg { font-family: var(--font-ui); font-weight: 700; font-size: 12px; color: var(--acc-dk); text-align: center; padding: 2px 4px; }
 /* ── Dev Tuning Menu (DEV only) — one 🛠️ button replacing the old row of floating tuner buttons ── */
 /* ============================ DEV TUNING MENU ================================================================

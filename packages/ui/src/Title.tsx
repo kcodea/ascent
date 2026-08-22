@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { activeRift, LEARN_ASCENT } from '@game/sim';
 import { avatarSrc, modeArt } from './art';
 import { getTitleText, subscribeTitleText, titleContinueNote } from './titleTextConfig';
+import { applyTitleVars } from './titleConfig';
 import { Icon } from './Icon';
 import { sfx } from './sfx';
 import { useGame, tempHandle } from './store';
@@ -26,6 +27,14 @@ const Crest = () => (
     <path d="M12 6.6l4.7 5.4L12 17.4 7.3 12z" fill="#3f9ae0" />
     <path d="M12 6.6l4.7 5.4L12 12z" fill="#7fd0ff" opacity="0.9" />
   </svg>
+);
+
+// The brand mark beside the ASCENT title (owner art, `Reference Art/Ascent Logo Fantasy.svg` — a raster logo,
+// extracted to `frames/title-logo.png`). Reuses the `.crest` sizing/drop-shadow so it seats in the title's mark
+// slot. NB it's a bitmap, so the tuner's Mark-colour picker can't recolour it (size / glow / float still apply).
+const TITLE_LOGO_SRC = `${import.meta.env.BASE_URL}frames/title-logo.png`;
+const TitleMark = () => (
+  <img className="crest" src={TITLE_LOGO_SRC} alt="" aria-hidden="true" draggable={false} />
 );
 
 const IconTrophy = () => (
@@ -69,6 +78,8 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   // override this returns the shipped defaults, so production is byte-identical to the hard-coded strings.
   const [, bumpText] = useState(0);
   useEffect(() => subscribeTitleText(() => bumpText((n) => n + 1)), []);
+  // Apply the persisted Title Logo tuner values (dev) / DEFAULTS (prod) to `--title-*` when the menu mounts.
+  useEffect(() => { applyTitleVars(); }, []);
   const txt = getTitleText();
 
   const [editing, setEditing] = useState(false);
@@ -143,7 +154,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
 
       <div className="titlemenu">
         <div className="titlelogo">
-          <Crest />
+          <TitleMark />
           <h1 className="disp titleword">{txt.wordmark}</h1>
         </div>
 

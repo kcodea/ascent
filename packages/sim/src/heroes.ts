@@ -22,7 +22,8 @@ export type HeroPowerKind =
   | 'summitLock' // Brackus (passive): turn-1 Tier 7 Discover, locked until 70 Gold is spent this run
   | 'discoLock' // Disco Dan (passive): turn-1 sequential Discover T6→T4→T2, each locked in hand until that shop tier
   | 'questChronos' // Chronos (passive): buy 4 End-of-Turn minions → get a Chronos (resolved in the buy case)
-  | 'lesserQuest' // Fi (passive): an extra, lower-tier quest shop on turn 4
+  | 'heroQuest' // Fi & Coran (passive): on turn 1, Discover ONE of two quests from that hero's own private list
+  | 'lesserQuest' // RETIRED Fi power (2026-08-21). Kept so pre-rework saves/replays still resolve their turn-4 offer
   | 'collision' // Cassen (passive): after killing 5 enemy minions, get a minion of your most common type (carry-back)
   | 'quest' // Drakko (passive): buy 5 Battlecry minions → get Drakko the Drummer (resolved in the buy case)
   | 'chaos' // Chaos (passive): starts with a 1/1 all-type Magnetic token; gets another at the start of every 5th turn
@@ -33,7 +34,7 @@ export type HeroPowerKind =
   | 'gildcrafter' // Gildmaster (active, 3 Gold, 3×/game): complete a triple from 2 copies of a minion
   | 'runeforge' // Runesmith (passive): on turn 5 the Runeforge opens — buy ONE of a random 3 runes (a run-long buff)
   | 'epicRuneforge' // Guardian (passive): the EPIC Runeforge opens on turn 8 (scheduled via `epicForgeWave` at run start)
-  | 'pathfinder' // Coran (passive): a bonus late-bucket (Capstone) quest on turn 10, on top of the normal 5 & 11
+  | 'pathfinder' // RETIRED Coran power (2026-08-21). Kept so pre-rework saves/replays still resolve their turn-10 offer
   | 'dynamiteDig' // Jensen: Discover a minion of your tier — free first, +1 Gold each later use (active, untargeted)
   | 'dragonTamer' // Tiff: 5 Gold Discover a Dragon — the cost drops 1 per Dragon/spell bought, resetting on use
   | 'secondHand' // Re-Pete (passive): at the END of every 3rd turn, a plain copy of the left-most card in hand (conjured, no pool take)
@@ -368,14 +369,14 @@ export const HEROES: HeroDef[] = [
   {
     id: 'fi',
     name: 'Fi',
-    blurb: 'An early errand for an early edge — a small quest, ahead of schedule.',
+    blurb: 'Sets out on turn one and never looks back — the road pays early.',
     resolve: 30,
     armor: 11,
     power: {
       name: 'Errand',
-      kind: 'lesserQuest',
-      passive: true, // resolved on the turn-4 advance (an extra, lower-tier quest offer)
-      text: 'On turn 4, choose an extra **Lesser Quest**.',
+      kind: 'heroQuest',
+      passive: true, // resolved on the turn-1 advance: a two-option quest Discover from Fi's own list
+      text: 'On turn 1, choose one of two **Errands**. Play a minion, cast a spell or upgrade to travel.',
     },
   },
   {
@@ -423,14 +424,14 @@ export const HEROES: HeroDef[] = [
   {
     id: 'coran',
     name: 'Coran',
-    blurb: 'Reads the trail ahead — and calls down an extra great trial before the summit.',
+    blurb: 'Reads the whole trail on the first morning — and walks it to the summit.',
     resolve: 30,
     armor: 15,
     power: {
       name: 'Pathfinder',
-      kind: 'pathfinder',
-      passive: true, // resolved on the turn-advance quest schedule (a bonus turn-11-bucket quest on turn 10, on top of the normal 5 & 11)
-      text: 'On turn 10, choose an extra late-game Quest.',
+      kind: 'heroQuest',
+      passive: true, // resolved on the turn-1 advance: a two-option quest Discover from Coran's own list
+      text: 'On turn 1, choose one of two **Passages**. Play a minion, cast a spell or upgrade to travel.',
     },
   },
   {
@@ -856,7 +857,10 @@ export function heroPowerLockTurns(run: {
  * disagree. They did: the indicator hardcoded "you already hold 2", so a Midas player — who Gilds at 2 — got
  * no highlight on the duplicate that would have completed it right now (owner report 2026-08-21).
  */
-export function gildCopiesNeeded(run: { heroId: string; runeTwinGilding?: boolean }): number {
+export function gildCopiesNeeded(run: { heroId: string; runeTwinGilding?: boolean; gildCopies?: number }): number {
+  // Coran's Gilded Shortcut writes the count it grants straight into `gildCopies`, so a future "Gild at 2"
+  // source needs no new branch here — and the three sources cannot stack down to 1 (each only ever says 2).
+  if (run.gildCopies) return Math.max(2, Math.min(3, run.gildCopies));
   return run.runeTwinGilding || HERO_INDEX[run.heroId]?.power.kind === 'midasTouch' ? 2 : 3;
 }
 

@@ -321,7 +321,7 @@ export function asymSummonBuffText(cardId: string, summonBonus: number, golden =
  * over whatever live text the chain resolved, so it composes with every value-injecting helper. Green-marked,
  * like every live value.
  */
-export interface RuneTextFlags { matriarch?: boolean; brokerage?: boolean; livingTreasure?: boolean; facetwright?: boolean; rebirth?: boolean }
+export interface RuneTextFlags { matriarch?: boolean; brokerage?: boolean; livingTreasure?: boolean; facetwright?: boolean }
 export function runeModifiedNote(cardId: string, flags: RuneTextFlags | undefined): string | null {
   if (!flags) return null;
   if (flags.matriarch && cardId === 'b2_runebloom') return '{{Triggers twice (Rune of the Matriarch).}}';

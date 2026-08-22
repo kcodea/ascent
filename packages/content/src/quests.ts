@@ -159,6 +159,48 @@ export const QUEST_DEFS: QuestDef[] = [
   // ── SET 2 — the two straight "get this minion" quests. Pure data: both minions already ship in set 2.
   { id: 'q_first_blood', name: 'First Blood', tribe: 'dragon', tier: 'lesser', wave: 5, objective: { event: 'slaughter', count: 6, tribe: 'dragon' }, reward: { kind: 'grant', cards: ['d2_skald'], grantKeywords: ['DS'] }, sets: ['set2'] },
   { id: 'q_market_feast', name: 'Market Feast', tribe: 'demon', tier: 'lesser', wave: 5, objective: { event: 'buy', count: 7 }, reward: { kind: 'grant', cards: ['dm_tormentor'] }, sets: ['set2'] },
+  // ── HERO QUESTS — Fi & Coran (owner spec 2026-08-21) ──────────────────────────────────────────────────
+  //
+  // A hero quest is NOT a universal quest that happens to be hero-flavoured: `heroQuest` keeps it out of the
+  // turn-5/11 pool entirely, and it is offered exactly once, on TURN 1, as a two-option Discover. All ten
+  // share ONE objective — `journey`, the "steps down the road" counter (+1 per minion played, spell cast, or
+  // Shop upgrade) — so the two heroes read as travellers spending the whole run walking toward one payoff.
+  // They differ only in the number of steps and what waits at the end.
+  //
+  // The numbers are the owner's, verbatim. Fi's run 12–26 and Coran's 28–46: Fi is the early-payoff hero
+  // (cheaper objectives, smaller rewards), Coran the late one (a Merchant's Road at 46 lands around the turn
+  // the run is decided). Both scale with how HARD the player is playing, not with the clock — a wide,
+  // spell-heavy board walks the road much faster than a greedy one, which is the point.
+  //
+  // `variantGroup` marks the two three-quest families (Opening Act / Resonant Path): the offer generator takes
+  // at most one quest per group, so a player can never be shown "first Shout" against "first Echo" as their
+  // only two choices — the owner's "you can never have more than one Opening Act offered".
+
+  // ── FI — the early road. Every reward lands in time to shape the mid-game. ──
+  { id: 'hq_spare_forge', name: 'Spare Forge', tribe: 'neutral', tier: 'lesser', heroQuest: 'fi', objective: { event: 'journey', count: 18 }, reward: { kind: 'grantRune', rarity: 'basic' } },
+  // Opening Act — one family, three variants. Each doubles the FIRST trigger of its keyword each round; the
+  // scopes are the ones the universal quests already use (`firstEachRound` for Shout, which fires in the shop;
+  // `firstEachCombat` for Echo and Rally, which only ever fire in a fight — the same round, said in the units
+  // that keyword lives in).
+  { id: 'hq_opening_act_shout', name: 'Opening Act', tribe: 'neutral', tier: 'lesser', heroQuest: 'fi', variantGroup: 'openingAct', objective: { event: 'journey', count: 23 }, reward: { kind: 'shoutRepeat', scope: 'firstEachRound' } },
+  { id: 'hq_opening_act_echo', name: 'Opening Act', tribe: 'neutral', tier: 'lesser', heroQuest: 'fi', variantGroup: 'openingAct', objective: { event: 'journey', count: 23 }, reward: { kind: 'echoRepeat', scope: 'firstEachCombat' } },
+  { id: 'hq_opening_act_rally', name: 'Opening Act', tribe: 'neutral', tier: 'lesser', heroQuest: 'fi', variantGroup: 'openingAct', objective: { event: 'journey', count: 23 }, reward: { kind: 'rallyRepeat', scope: 'firstEachCombat' } },
+  { id: 'hq_gilded_favor', name: 'Gilded Favor', tribe: 'neutral', tier: 'lesser', heroQuest: 'fi', objective: { event: 'journey', count: 12 }, reward: { kind: 'grant', cards: ['goldcrafter'] } },
+  { id: 'hq_first_pick', name: 'First Pick', tribe: 'neutral', tier: 'lesser', heroQuest: 'fi', objective: { event: 'journey', count: 26 }, reward: { kind: 'freeFirstBuy' } },
+  { id: 'hq_open_road', name: 'Open Road', tribe: 'neutral', tier: 'lesser', heroQuest: 'fi', objective: { event: 'journey', count: 16 }, reward: { kind: 'tier7Access' } },
+
+  // ── CORAN — the long road. Later, larger: run-defining rewards at 28–46 steps. ──
+  { id: 'hq_runic_passage', name: 'Runic Passage', tribe: 'neutral', tier: 'greater', heroQuest: 'coran', objective: { event: 'journey', count: 30 }, reward: { kind: 'grantRune', rarity: 'epic' } },
+  // Resonant Path — Opening Act's big sibling: `always`, not just the first each round.
+  { id: 'hq_resonant_path_shout', name: 'Resonant Path', tribe: 'neutral', tier: 'greater', heroQuest: 'coran', variantGroup: 'resonantPath', objective: { event: 'journey', count: 44 }, reward: { kind: 'shoutRepeat', scope: 'always' } },
+  { id: 'hq_resonant_path_echo', name: 'Resonant Path', tribe: 'neutral', tier: 'greater', heroQuest: 'coran', variantGroup: 'resonantPath', objective: { event: 'journey', count: 44 }, reward: { kind: 'echoRepeat', scope: 'always' } },
+  { id: 'hq_resonant_path_rally', name: 'Resonant Path', tribe: 'neutral', tier: 'greater', heroQuest: 'coran', variantGroup: 'resonantPath', objective: { event: 'journey', count: 44 }, reward: { kind: 'rallyRepeat', scope: 'always' } },
+  { id: 'hq_gilded_shortcut', name: 'Gilded Shortcut', tribe: 'neutral', tier: 'greater', heroQuest: 'coran', objective: { event: 'journey', count: 38 }, reward: { kind: 'gildCopies', copies: 2 } },
+  { id: 'hq_merchants_road', name: "Merchant's Road", tribe: 'neutral', tier: 'greater', heroQuest: 'coran', objective: { event: 'journey', count: 46 }, reward: { kind: 'minionCost', cost: 2 } },
+  // Summit Passage — the tier-7 door AND a free step through it. Order matters inside the `multi`: the unlock
+  // must land before the upgrade, or the upgrade would clamp against the un-raised ceiling.
+  { id: 'hq_summit_passage', name: 'Summit Passage', tribe: 'neutral', tier: 'greater', heroQuest: 'coran', objective: { event: 'journey', count: 28 }, reward: { kind: 'multi', rewards: [{ kind: 'tier7Access' }, { kind: 'upgradeShopTier', by: 1 }] } },
+
   { id: 'q_golden_ledger', name: 'The Golden Ledger', tribe: 'dwarf', tier: 'greater', wave: 11, objective: { event: 'slaughter', count: 16, tribe: 'dwarf' }, reward: { kind: 'questGoldTribeBuff', tribe: 'dwarf', per: 5, attack: 3, health: 3 }, sets: ['set2'] },
 ];
 

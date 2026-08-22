@@ -72,6 +72,10 @@ export function questObjectiveText(o: QuestObjective): string {
       return `Spend ${o.count} Gold`;
     case 'endOfTurn':
       return `Trigger ${o.count} End-of-Turn effect${o.count === 1 ? '' : 's'}`;
+    case 'journey':
+      // Hero quests (Fi / Coran). Named for the counter AND its three sources, because every hero quest uses
+      // this one objective — a player who reads it once never has to read it again.
+      return `Travel ${o.count} steps — play a minion, cast a spell or upgrade`;
     case 'tribeStats':
       return `Give ${o.tribe ? TRIBE_PLURAL[o.tribe] : 'minions'} ${o.count} total stats`;
     default:
@@ -320,6 +324,17 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
       return r.scope === 'always' ? 'Your Shop spells cast twice' : 'Your first Shop spell each turn casts twice';
     case 'minionCost':
       return `Minions cost ${r.cost} Gold from the shop`;
+    // ── Hero quest rewards (Fi / Coran) ──
+    case 'grantRune':
+      return r.rarity === 'epic' ? 'Get a random Epic Rune' : 'Get a random Basic Rune';
+    case 'freeFirstBuy':
+      return 'Your first shop minion each turn is free';
+    case 'tier7Access':
+      return 'Tier 7 is unlocked this game';
+    case 'gildCopies':
+      return `You only need ${r.copies} copies to Gild minions`;
+    case 'upgradeShopTier':
+      return `Upgrade your Shop by ${r.by} Tier${r.by === 1 ? '' : 's'}`;
     case 'slaughterRepeat':
       return 'Your first Slaughter each combat triggers an extra time';
     case 'shoutEdgeBuff':
@@ -414,6 +429,8 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
       return `Every ${r.per} Shouts you trigger, give Shop minions +${r.attack}/+${r.health}`;
     case 'shopBuffOnRefresh':
       return `After you refresh, give Shop minions +${r.attack}/+${r.health}, improving by +${r.step}/+${r.step} every ${r.per} refreshes`;
+    case 'shopAuraGrowing':
+      return `Shop minions have +${r.attack}/+${r.health}, improving by +${r.step}/+${r.step} every ${r.per} refreshes`;
     case 'multi':
       return r.rewards.map((sub) => questRewardText(sub)).join('. ');
     default:
@@ -452,6 +469,37 @@ export interface QuestRewardLive {
 /** The reward's LIVE ongoing magnitude for the badge tooltip — the CURRENT value a scaling/stat reward is
  *  producing right now (card-text live-accuracy rule, applied to quest rewards). Returns null for rewards with
  *  no live-varying magnitude (their authored `questRewardText` already reads correctly). */
+/**
+ * Build the `QuestRewardLive` snapshot from a run. Extracted (2026-08-22) so every surface that prints a
+ * reward reads the SAME live state: QuestBadges' node hover and the hero-power tooltip, which shows a granted
+ * quest's reward beside its objective. Two hand-built copies of this object would drift the moment a new
+ * scaling reward lands, and a stale printed number is a defect under the live-accuracy rule.
+ *
+ * Structurally typed on purpose — `questText.ts` sits below `@game/sim` and must not import RunState.
+ */
+export function questRewardLiveOf(run: {
+  beastBuyAtk?: number; beastBuyHp?: number; spellsCast?: number;
+  questScalingAuras?: { tribe: Tribe; event: QuestObjectiveEvent; progress: number; per: number }[];
+  denMarker?: { count: number };
+  shopBuffOnRefresh?: { grown: number; tick: number };
+  shopAuraGrow?: { grown: number; tick: number };
+  firstSpellThisTurnId?: string;
+}, r: QuestReward): QuestRewardLive {
+  const scaling = r.kind === 'scalingTribeAura'
+    ? (run.questScalingAuras ?? []).find((a) => a.tribe === r.tribe && a.event === r.event)
+    : undefined;
+  return {
+    beastAura: { attack: run.beastBuyAtk ?? 0, health: run.beastBuyHp ?? 0 },
+    spellsCast: run.spellsCast ?? 0,
+    scaling: scaling ? { progress: scaling.progress, per: scaling.per } : undefined,
+    denMarkerCount: run.denMarker?.count ?? 0,
+    shopRefresh: run.shopBuffOnRefresh
+      ? { grown: run.shopBuffOnRefresh.grown, tick: run.shopBuffOnRefresh.tick }
+      : run.shopAuraGrow ? { grown: run.shopAuraGrow.grown, tick: run.shopAuraGrow.tick } : undefined,
+    firstSpellId: run.firstSpellThisTurnId,
+  };
+}
+
 export function questRewardLiveText(r: QuestReward, live: QuestRewardLive): string | null {
   const beast = (): string | null => {
     const a = live.beastAura;
@@ -464,6 +512,16 @@ export function questRewardLiveText(r: QuestReward, live: QuestRewardLive): stri
       if (r.effect !== 'copyFirstSpell') return null;
       const spell = live.firstSpellId ? CARD_INDEX[live.firstSpellId] : undefined;
       return spell ? `Now: a copy of ${spell.name}` : 'Now: nothing cast yet this turn';
+    }
+    case 'shopAuraGrowing': {
+      // Rune of the Wheel: the badge shows the aura's CURRENT total and the countdown to the next improve —
+      // the printed +2/+2 goes stale the moment the first step lands (card-text live-accuracy rule).
+      const g = live.shopRefresh;
+      if (!g) return null;
+      const a = r.attack + g.grown, h = r.health + g.grown;
+      const toNext = r.per > 0 ? r.per - (g.tick % r.per) : 0;
+      const next = r.step > 0 && toNext > 0 ? ` · +${r.step}/+${r.step} in ${toNext} more refresh${toNext === 1 ? '' : 'es'}` : '';
+      return `Now: Shop minions have ${statPhrase(a, h)}${next}`;
     }
     case 'shopBuffOnRefresh': {
       // The magnitude compounds, so the badge must show what the NEXT refresh actually gives — printing the

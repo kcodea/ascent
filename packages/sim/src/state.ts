@@ -3,6 +3,7 @@ import type { CombatOutcome, CombatResult, EffectDef, Keyword, QuestObjectiveEve
 import { CARD_INDEX, SETS, activeSet, poolFor, type SetId } from '@game/content';
 import { CONFIG, RIFT_BONUS_ARMOR, activeRift, type RiftId } from './config';
 import { DEFAULT_HERO_ID, getHero } from './heroes';
+import { generateQuestOffer, questOfferPlan } from './quests';
 import { queueDiscover } from './recruit';
 import { rollShop, stockPool } from './shop';
 import { selectThreat, type ThreatId } from './threats';
@@ -650,6 +651,10 @@ export interface RunState {
   /** Endless Inventory: after each shop refresh, buff the shop — and improve the magnitude by `step` every
    *  `per` refreshes. `grown` is the accrued improvement, `tick` the progress toward the next step. */
   shopBuffOnRefresh?: { attack: number; health: number; step: number; per: number; grown: number; tick: number };
+  /** Rune of the Wheel (`shopAuraGrowing`): the standing shop aura's growth meter. The BASE +A/+H landed in
+   *  `tavernBuyBonus` when the rune was bought; each refresh ticks this, and every `per`-th adds +step/+step
+   *  more to the same channel. `grown` is display-only (the live "+X/+X now" on the badge). */
+  shopAuraGrow?: { step: number; per: number; tick: number; grown: number };
   /** Chrono Staff: this turn's End-of-Turn effects fire one extra time (a per-turn flag — stacks with
    *  Chronos, not with itself). Set on cast, reset at the next turn start. Absent = false. */
   extraEotThisTurn?: boolean;
@@ -1474,9 +1479,14 @@ export interface RunState {
   freeBuyUsedThisTurn?: boolean;
   spellDoubleAlways?: boolean;
   /** Tier-7 ACCESS granted by a hero power or quest (owner ruling 2026-07-28) — the non-rift route to Tier 7.
-   *  Read only through `hasTier7Access`; nothing sets it yet, and it exists so the eventual hero can turn it on
-   *  without touching the gate itself. */
+   *  Read only through `hasTier7Access`. Fi's **Open Road** and Coran's **Summit Passage** are its first
+   *  writers (2026-08-21); before them the flag was a seam nothing set. */
   tier7Access?: boolean;
+  /** Fi's **First Pick**: the first shop MINION bought each turn is free. Shares the Freedom rift's
+   *  `freeBuyUsedThisTurn` spend-marker, so owning both never grants two freebies in a turn. */
+  questFreeFirstBuy?: boolean;
+  /** Coran's **Gilded Shortcut**: how many copies a Gild needs (2). Read through `gildCopiesNeeded`. */
+  gildCopies?: number;
   /** LOBBY MODE: the 8-seat elimination lobby this run is a seat in (the player is always `seats[0]`).
    *  Serializable by construction — opponent DRIVERS are rebuilt from `(kind, seed, heroId)` rather than stored,
    *  because they are closures and `RunState` is deep-cloned every dispatch. Absent for an ordinary run. */
@@ -1886,6 +1896,15 @@ export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID, mode: 
         golden: false,
       });
     }
+  }
+  // Fi & Coran (heroQuest): the run OPENS on their two-option quest Discover. It has to be minted here rather
+  // than in `advanceCombat`'s turn setup — turn 1 never passes through a turn advance, so the wave-1 branch of
+  // `questOfferPlan` would otherwise never be reached. The offer sits in `questOffer` exactly like a turn-5
+  // one, so it inherits the modal guard, the picker UI and `buyQuest` with no new plumbing.
+  if (hero.power.kind === 'heroQuest' && state.mode !== 'tutorial') {
+    const plan = questOfferPlan(state);
+    const offer = plan ? generateQuestOffer(state, plan) : [];
+    if (offer.length > 0) state.questOffer = offer;
   }
   // Disco Dan's Setlist: turn 1 opens three sequential Discovers — Tier 6 first, then Tier 4, then Tier 2 —
   // each pick locked in hand until you reach that shop tier. queueDiscover opens the first and stacks the

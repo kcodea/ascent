@@ -130,6 +130,9 @@ export interface UnitFrame {
   keywords: Keyword[];
   divineShield: boolean;
   alive: boolean;
+  /** Rune of Rebirth handed THIS body the exact-copy Echo at Start of Combat. Per-instance on purpose: the
+   *  rune picks ONE random friendly minion, so the granted rule belongs on that card and nowhere else. */
+  grantedEcho?: boolean;
   /** A DEAD unit kept on the board ONLY to anchor its own still-playing FX (a Deathrattle whose Echo fires a
    *  beat after the body left — Fel Spikes' spike volley). Rendered INVISIBLE, but it holds its slot so the
    *  board doesn't reflow into the gap until the effect finishes. Set by `computeFrame`'s damage-source
@@ -312,6 +315,12 @@ export function computeFrame(
     } else if (e.type === 'reveal') {
       const u = find(e.target);
       if (u) u.keywords = u.keywords.filter((k) => k !== 'ST'); // Stealth lost on attack
+    } else if (e.type === 'sc' && e.grantsEcho) {
+      // Rune of Rebirth's Start-of-Combat pick. From this beat on, THIS card prints the Echo it was handed —
+      // the rune grants it to one random friendly minion, so tagging every minion the player controls (which
+      // is what the run-flag-driven text did) claimed a rule 6 of 7 bodies do not have.
+      const u = find(e.source);
+      if (u) u.grantedEcho = true;
     } else if (e.type === 'keyword') {
       // A combat effect granted a keyword (Mumi → Rise, a Ryme-replayed keyword battlecry) — the
       // pill appears on the card from this beat on. DS also raises the shield flag (bubble).

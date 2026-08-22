@@ -5,7 +5,7 @@ import { getHero, type RunState } from '@game/sim';
 import { mdBold } from './Card';
 import { Icon } from './Icon';
 import { questArt, runeArt } from './art';
-import { questObjectiveLines, questObjectiveText, questProgressText, questRewardText, questRewardLiveText, type QuestRewardLive } from './questText';
+import { questObjectiveLines, questObjectiveText, questProgressText, questRewardText, questRewardLiveText, questRewardLiveOf } from './questText';
 import { questTally, runeCombatTally, runeTally } from './runeTally';
 import { useRuneTriggerFx, type RuneSlotPulse } from './runeTriggerFx';
 import { useGame, type CombatQuestDelta } from './store';
@@ -263,18 +263,7 @@ export function QuestBadges() {
         const rewardTxt = questRewardText(r, { completed: true, shoutCharges: charges, repeatTurns });
         // The LIVE ongoing magnitude of a scaling/stat reward (current Beast aura, Umbral per-spell grant, the
         // scaling countdown) — folded from the run state so the tooltip shows what it's producing NOW.
-        const scaling = (r.kind === 'scalingTribeAura')
-          ? (run.questScalingAuras ?? []).find((a) => a.tribe === r.tribe && a.event === r.event)
-          : undefined;
-        const live: QuestRewardLive = {
-          beastAura: { attack: run.beastBuyAtk ?? 0, health: run.beastBuyHp ?? 0 },
-          spellsCast: run.spellsCast ?? 0,
-          scaling: scaling ? { progress: scaling.progress, per: scaling.per } : undefined,
-          denMarkerCount: run.denMarker?.count ?? 0,
-          shopRefresh: run.shopBuffOnRefresh ? { grown: run.shopBuffOnRefresh.grown, tick: run.shopBuffOnRefresh.tick } : undefined,
-          firstSpellId: run.firstSpellThisTurnId,
-        };
-        const liveTxt = questRewardLiveText(r, live);
+        const liveTxt = questRewardLiveText(r, questRewardLiveOf(run, r));
         return (
           <div className={`questbadge${ongoing ? ' ongoing' : ''}`} style={{ '--c': c } as CSSProperties} key={aq.questId} data-source-id={aq.questId} data-eot-effect={r.kind === 'recurringEndOfTurn' ? r.effect : undefined}>
             {/* Keyed on the pulse count → remounts + replays the scale-punch bounce (a quest's own "self-buff")

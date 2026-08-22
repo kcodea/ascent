@@ -3056,6 +3056,11 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
 /* Hover tip: the rule (muted) + the live status (tangerine) stacked under the bold power name. */
 .herotip-rule { display: block; margin-top: 3px; color: #d8ccb6; font-weight: 600; }
 .herotip-live { display: block; margin-top: 5px; color: var(--acc); font-weight: 800; }
+/* A granted quest's REWARD, under its objective in the hero-power tooltip. The hairline separates the two so
+   "what to do" and "what you get" don't read as one run-on sentence; the label carries the accent so the eye
+   lands on the payoff first. */
+.herotip-reward { display: block; margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(255, 255, 255, 0.12); color: #d8ccb6; font-weight: 600; }
+.herotip-reward > b { display: block; margin-bottom: 1px; color: var(--acc); font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; }
 .herotip-live:empty { display: none; }
 /* Opponent frame + round-stat HUD: same dark pill/glass as the hero box, with inner text lightened to read on
    the dark fill (they were tuned for the old cream boxes). */
@@ -4452,10 +4457,37 @@ body:has(.titlescreen) .version { visibility: hidden; }
 /* The left menu column. */
 .titlemenu { zoom: var(--ui-zoom); position: absolute; left: clamp(40px, 7vw, 150px); top: 50%; transform: translateY(-50%);
   display: flex; flex-direction: column; align-items: flex-start; gap: 30px; max-width: 90vw; }
-.titlelogo { display: flex; align-items: center; gap: 14px; }
-.titlelogo .crest { font-size: 62px; }
-.titleword { font-family: var(--font-title); font-weight: 900; font-size: 86px; letter-spacing: 0.1em; color: #f4ecda; margin: 0;
-  text-shadow: 0 2px 3px rgba(0, 0, 0, 0.6), 0 0 40px rgba(120, 175, 255, 0.28); }
+/* Placement, font, glows + float all driven by the 🏔️ Title Logo dev tuner (`titleConfig.ts` → `--title-*`);
+   fallbacks mirror DEFAULTS. FLOAT is a compositor-only transform loop with two modes: SYNCED bobs the whole
+   `.titlelogo` group with `titlefloat` (its keyframes fold in the x/y offset so it oscillates around the seat),
+   and SEPARATE leaves the group static and bobs the mark + wordmark individually with `titlebob` (each reads
+   its own `--bob-amp`/speed). `applyTitleVars` flips exactly one set of animation-names on. */
+.titlelogo { display: flex; align-items: center; gap: var(--title-gap, 0px);
+  transform: translate(var(--title-x, -95px), var(--title-y, -4px));
+  animation: var(--title-group-float-name, none) var(--title-float-speed, 5.2s) ease-in-out infinite; }
+@keyframes titlefloat {
+  0%, 100% { transform: translate(var(--title-x, -95px), var(--title-y, -4px)); }
+  50%      { transform: translate(var(--title-x, -95px), calc(var(--title-y, -4px) - var(--title-float-amp, 5px))); }
+}
+/* Per-element bob (SEPARATE mode) — each element reads its own `--bob-amp`. */
+@keyframes titlebob {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(calc(-1 * var(--bob-amp, 5px))); }
+}
+/* Mark glow — extra drop-shadow passes after the base grounding shadow (a transparent no-op when the tuner's
+   strength is 0). This rule out-specifies the base `.crest` filter, so it re-states that base shadow. The
+   current logo is a raster PNG, so `--title-mark-color` is inert (kept for a future vector mark). */
+.titlelogo .crest { font-size: var(--title-mark-size, 200px);
+  color: var(--title-mark-color, #fffdfa); /* the mark path is `fill: currentColor` (inert for the raster logo) */
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5)) var(--title-logo-glow, drop-shadow(0 0 8px #0b0f1e));
+  --bob-amp: var(--title-logo-float-amp, 5px);
+  animation: var(--title-logo-float-name, titlebob) var(--title-logo-float-speed, 5.2s) ease-in-out infinite; }
+/* Wordmark font is the tuner's pick (falling back to the shipped title stack); the tuner's text glow is an
+   EXTRA shadow appended after the base legibility + blue shadows (transparent no-op when off). */
+.titleword { font-family: var(--title-font, var(--font-title)); font-weight: var(--title-weight, 600); font-size: 86px; letter-spacing: 0.1em; color: var(--title-text-color, #ffffff); margin: 0;
+  text-shadow: 0 2px 3px rgba(0, 0, 0, 0.6), 0 0 40px rgba(120, 175, 255, 0.28), var(--title-text-glow, 0 0 11px #5c4e4e, 0 0 11px #5c4e4e);
+  --bob-amp: var(--title-text-float-amp, 4.5px);
+  animation: var(--title-text-float-name, titlebob) var(--title-text-float-speed, 5.2s) ease-in-out infinite; }
 
 .titlenav { display: flex; flex-direction: column; gap: 15px; width: min(420px, 78vw); }
 /* Ornate menu button: dark navy fill, gold rim + inner bevel, a framed gold icon cell, letter-spaced label. */
@@ -8036,46 +8068,6 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   animation: dicesettle 130ms ease-out; /* grows INTO place and holds — matches the hero-power die */
 }
 
-/* ── Cia: the ENCHANTED shop card — CSS FALLBACK ONLY ─────────────────────────────────────────────────
-   The shipped treatment is the Pixi holographic foil (`ciaEnchantedFx.ts`). This ring effect is RETAINED as
-   the no-WebGL / Pixi-failed fallback, per the handoff's migration rule: it is hidden only once the
-   controller has actually mounted and stamped `.pixi-enchanted-ready` on <html>, so a session where Pixi
-   never comes up still shows an unmistakable enchanted card.
-
-   Reduced motion is handled inside the controller (a static contour + seal), so it is NOT gated here.
-   ────────────────────────────────────────────────────────────────────────────────────────────────────── */
-:root.pixi-enchanted-ready .enchantwisp { display: none; }
-
-/* ── Cia: the ENCHANTED shop card ──────────────────────────────────────────────────────────────────────
-   A warm red glow pooled UNDER the offer. Deliberately calm (owner ask 2026-08-16 — the first pass's spinning
-   double chain read as janky): one element, one slow breathe, no rotation. The job is only to say "this card
-   is Enchanted" at a glance; it must not compete with the card art or the row.
-
-   It LOOPS, so per docs/performance.md the only animated property is `opacity` — the red bloom itself is a
-   STATIC box-shadow. No paint property changes per frame. */
-/* Two counter-rotating rings of red/gold "links" tracing the card (owner ask 2026-08-16: back to the
-   circling look, but tunable). Only `transform` animates on the rings and only `opacity` on their fade —
-   both compositor-only, so a looping effect never repaints (docs/performance.md). */
-.enchantwisp {
-  position: absolute; inset: calc(var(--hfx-enc-inset, -4) * var(--u));
-  border-radius: inherit; pointer-events: none; z-index: 4; overflow: visible;
-}
-.enchantwisp .ew-ring {
-  position: absolute; inset: 0; border-radius: inherit;
-  /* One repeating conic gradient carries the link COUNT, LENGTH and EDGE — see applyHeroFxVars(). */
-  background: var(--hfx-enc-links);
-  -webkit-mask: radial-gradient(closest-side, transparent calc(100% - var(--hfx-enc-h, 4.5) * var(--u)), #000 calc(100% - var(--hfx-enc-h, 4.5) * var(--u) + 1px));
-  mask: radial-gradient(closest-side, transparent calc(100% - var(--hfx-enc-h, 4.5) * var(--u)), #000 calc(100% - var(--hfx-enc-h, 4.5) * var(--u) + 1px));
-  filter: blur(calc(var(--hfx-enc-blur, 12) * var(--u) * 0.08)); /* STATIC — never animated */
-  will-change: transform;
-}
-.enchantwisp .ew-a { animation: ewspin var(--hfx-enc-period, 2.75s) linear infinite; }
-.enchantwisp .ew-b {
-  animation: ewspin calc(var(--hfx-enc-period, 2.75s) * var(--hfx-enc-skew, 2.95)) linear infinite reverse;
-  opacity: var(--hfx-enc-dip, 1);
-}
-@keyframes ewspin { to { transform: rotate(360deg); } }
-
 /* ── Sable: the SOULBIND mark ──────────────────────────────────────────────────────────────────────────
    A purple ring floating above each bound minion while the bond is live. Same discipline as above: a static
    shadow, and only `opacity` animates. Both ends wear it, so the pair reads as a pair. */
@@ -8116,7 +8108,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 }
 @keyframes sbbreathe { 0%, 100% { opacity: var(--hfx-sb-dip, 0.7); } 50% { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) {
-  .enchantwisp .ew-ring, .soulbindmark { animation: none; }
+  .soulbindmark { animation: none; }
 }
 
 /* ── Cassen's commission picker ────────────────────────────────────────────────────────────────────────

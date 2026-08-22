@@ -21,16 +21,17 @@ describe('set 2 go-live defaults', () => {
     expect(questOfferPlan({ ...createRun(1, 'warden'), wave: 11 })).toBeNull();
   });
 
-  it('Fi still gets her turn-4 Lesser quest, and Coran his turn-10 quest (owner double-check 2026-07-31)', () => {
-    expect(questOfferPlan({ ...createRun(1, 'fi'), wave: 4 })).toEqual({ bucket: 5, lesserOnly: true });
-    expect(questOfferPlan({ ...createRun(1, 'coran'), wave: 10 })).toEqual({ bucket: 11 });
-    // …and through the real turn advance, the offers actually open.
-    const fiT4 = reduce({ ...createRun(1, 'fi'), wave: 3, phase: 'combat', hand: [], lastCombat: win }, { type: 'resolveCombat' });
-    expect(fiT4.wave).toBe(4);
-    expect(fiT4.questOffer?.length ?? 0).toBeGreaterThan(0);
-    const coranT10 = reduce({ ...createRun(1, 'coran'), wave: 9, phase: 'combat', hand: [], lastCombat: win }, { type: 'resolveCombat' });
-    expect(coranT10.wave).toBe(10);
-    expect(coranT10.questOffer?.length ?? 0).toBeGreaterThan(0);
+  it('Fi and Coran get their turn-1 hero quest (rework 2026-08-21)', () => {
+    // Both powers were replaced outright: the turn-4 Errand and the turn-10 Pathfinder are gone, and each hero
+    // now opens the run on a two-option Discover from their OWN list.
+    expect(questOfferPlan({ ...createRun(1, 'fi'), wave: 1 })).toEqual({ heroQuest: 'fi' });
+    expect(questOfferPlan({ ...createRun(1, 'coran'), wave: 1 })).toEqual({ heroQuest: 'coran' });
+    // …and it is already open the moment the run exists.
+    expect(createRun(1, 'fi').questOffer).toHaveLength(2);
+    expect(createRun(1, 'coran').questOffer).toHaveLength(2);
+    // The retired waves offer nothing now.
+    expect(questOfferPlan({ ...createRun(1, 'fi'), wave: 4 })).toBeNull();
+    expect(questOfferPlan({ ...createRun(1, 'coran'), wave: 10 })).toBeNull();
   });
 
   it('the Runeforge is ON: basic on turn 6, epic on turn 9, for a non-native hero', () => {
@@ -48,10 +49,10 @@ describe('quest system master switch preserves quest-native heroes', () => {
     const prev = CONFIG.questsEnabled;
     CONFIG.questsEnabled = false;
     try {
-      // Fi's Errand (lesserQuest) — the turn-4 bonus offer still plans.
-      expect(questOfferPlan({ ...createRun(1, 'fi'), wave: 4 })).toEqual({ bucket: 5, lesserOnly: true });
-      // Coran's Pathfinder — the turn-10 bonus Capstone quest still plans.
-      expect(questOfferPlan({ ...createRun(1, 'coran'), wave: 10 })).toEqual({ bucket: 11 });
+      // The quest-NATIVE hero powers survive the master switch — that is the whole point of checking them
+      // above the gate. Since the rework that means the turn-1 hero quest.
+      expect(questOfferPlan({ ...createRun(1, 'fi'), wave: 1 })).toEqual({ heroQuest: 'fi' });
+      expect(questOfferPlan({ ...createRun(1, 'coran'), wave: 1 })).toEqual({ heroQuest: 'coran' });
       // …but the UNIVERSAL turns (5 & 11) are off for everyone, including Fi and Coran.
       expect(questOfferPlan({ ...createRun(1, 'warden'), wave: 5 })).toBeNull();
       expect(questOfferPlan({ ...createRun(1, 'warden'), wave: 11 })).toBeNull();
@@ -70,9 +71,9 @@ describe('quest system master switch preserves quest-native heroes', () => {
     try {
     expect(questOfferPlan({ ...createRun(1, 'warden'), wave: 5 })).toEqual({ bucket: 5 });
     expect(questOfferPlan({ ...createRun(1, 'warden'), wave: 11 })).toEqual({ bucket: 11 });
-    // Coran runs the universal 5 & 11 AND his bonus turn-10.
+    // Coran runs the universal 5 & 11 like everyone else, ON TOP of his turn-1 hero quest.
+    expect(questOfferPlan({ ...createRun(1, 'coran'), wave: 1 })).toEqual({ heroQuest: 'coran' });
     expect(questOfferPlan({ ...createRun(1, 'coran'), wave: 5 })).toEqual({ bucket: 5 });
-    expect(questOfferPlan({ ...createRun(1, 'coran'), wave: 10 })).toEqual({ bucket: 11 });
     expect(questOfferPlan({ ...createRun(1, 'coran'), wave: 11 })).toEqual({ bucket: 11 });
     } finally {
       CONFIG.questsEnabled = prev;

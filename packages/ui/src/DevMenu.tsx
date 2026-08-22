@@ -12,6 +12,7 @@ import { RubyPowerFxTuner } from './RubyPowerFxTuner';
 import { CardPillsTuner } from './CardPillsTuner';
 import { CardArtTuner } from './CardArtTuner';
 import { LobbyPanelTuner } from './LobbyPanelTuner';
+import { TitleLogoTuner } from './TitleLogoTuner';
 import { BoardEdgeTuner } from './BoardEdgeTuner';
 import { CombatRampTuner } from './CombatRampTuner';
 import { SpellBuffFxTuner } from './SpellBuffFxTuner';
@@ -124,6 +125,7 @@ const GROUPS: Group[] = [
       { key: 'book', icon: '📖', label: 'Compendium Palette', C: BookTuner, hint: 'Colours and scale of the card browser' },
       { key: 'runeforgebg', icon: '🪨', label: 'Runeforge Backdrop', C: RuneforgeBgTuner, hint: 'Size and position of the art behind the forge menus', alt: 'rune forge background' },
       { key: 'runesheen', icon: '💠', label: 'Rune Sheen', C: RuneSheenTuner, hint: 'The glossy overlay on the owned-rune nodes' },
+      { key: 'titlelogo', icon: '🏔️', label: 'Title Logo', C: TitleLogoTuner, hint: 'The main-menu peak mark + ASCENT wordmark — size, spacing, and position', alt: 'main menu title wordmark' },
     ],
   },
   {

@@ -103,7 +103,15 @@ export const heroPowerArt = (heroId: string): string | undefined => POWER_ART[he
 const QUEST_ART = indexArt(
   import.meta.glob('./art/quests/*.{png,webp}', { eager: true, query: '?url', import: 'default' }) as ArtModules,
 );
-export const questArt = (questId: string): string | undefined => QUEST_ART[questId];
+// The two hero-quest variant FAMILIES (Opening Act / Resonant Path) are three quests wearing one name and
+// one art. One shared file per family, found by stripping the variant suffix — three byte-identical copies
+// would burn zip-file-count budget (the itch 1000-file cap tripwire) for nothing.
+const QUEST_ART_ALIAS: Record<string, string> = {
+  hq_opening_act_shout: 'hq_opening_act', hq_opening_act_echo: 'hq_opening_act', hq_opening_act_rally: 'hq_opening_act',
+  hq_resonant_path_shout: 'hq_resonant_path', hq_resonant_path_echo: 'hq_resonant_path', hq_resonant_path_rally: 'hq_resonant_path',
+};
+export const questArt = (questId: string): string | undefined =>
+  QUEST_ART[questId] ?? QUEST_ART[QUEST_ART_ALIAS[questId] ?? ''];
 
 /** Rune art — drop a PNG/WEBP into `packages/ui/src/art/runes/<runeId>.png` (e.g. `rune_warding.png`), keyed by
  *  the rune id. Shown on the Runeforge rune card + its run-buff badge; absent = the sigil-glyph fallback. */

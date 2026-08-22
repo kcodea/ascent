@@ -892,6 +892,11 @@ export type QuestObjectiveEvent =
   // Set 2 (Demon): `consumeShopMinion` counts SHOP minions your Demons eat — distinct from `consumeFodder`,
   // which counts set-1 Fodder. The two consume mechanics must not fill each other's quests.
   | 'consumeShopMinion'
+  // HERO QUESTS (Fi / Coran, 2026-08-21): `journey` is the single shared counter every hero quest uses — the
+  // "steps down the road" meter. It advances +1 for each MINION PLAYED from hand, each SPELL CAST, and each
+  // SHOP UPGRADE. Deliberately ONE event for all ten hero quests: their objectives differ only in the number,
+  // so the player never has to re-read what a given quest is asking for, only how far it is.
+  | 'journey'
   // Compound (Fried Circuits / Forsaken Will): a general multi-part objective — `QuestObjective.parts` holds the
   // sub-objectives (each its own event + count), and the quest completes when ALL parts fill.
   | 'compound';
@@ -1267,6 +1272,26 @@ export type QuestReward =
   // Bane's Existence: after this, your Banes' after-Battlecry buff also gives all your Demons +A/+H run-wide.
   | { kind: 'baneDemonAura'; attack: number; health: number }
   // A quest that grants SEVERAL of the above at once (The Hoard Wakes = shoutRepeat + recurringEndOfTurn).
+  /** Rune of the Wheel (2026-08-21): shop minions have a STANDING +A/+H aura, and the aura's magnitude grows
+   *  +step/+step once every `per` refreshes. Distinct from `shopBuffOnRefresh` (Endless Inventory), which
+   *  grants a NEW permanent buff on EVERY refresh — the rune shipped on that kind and stacked +2/+2 per
+   *  refresh, ~5× its printed text. */
+  | { kind: 'shopAuraGrowing'; attack: number; health: number; step: number; per: number }
+  // ── Hero quest rewards (Fi / Coran, 2026-08-21) ──────────────────────────────────────────────────────
+  /** Spare Forge / Runic Passage: hand over a random rune of that rarity IMMEDIATELY — no forge, no choice,
+   *  no Gold. Distinct from `scheduleRuneforge` (which opens a picker next turn) and `openEpicRuneforge`. */
+  | { kind: 'grantRune'; rarity: 'basic' | 'epic' }
+  /** First Pick: the first shop MINION you buy each turn is free — the same channel the Freedom rift uses
+   *  (`freeBuyUsedThisTurn`), so the two can never double-charge or double-refund. */
+  | { kind: 'freeFirstBuy' }
+  /** Open Road / Summit Passage: Tier 7 is unlocked for the rest of the run (sets `tier7Access`, the flag
+   *  `hasTier7Access` already reads). */
+  | { kind: 'tier7Access' }
+  /** Gilded Shortcut: Gilding needs only `copies` copies instead of three. Read through `gildCopiesNeeded`. */
+  | { kind: 'gildCopies'; copies: number }
+  /** Summit Passage: raise the Shop tier by `by` right now, FREE, honouring the run's ceiling (including a
+   *  Tier 7 unlocked in the same `multi` reward). */
+  | { kind: 'upgradeShopTier'; by: number }
   | { kind: 'multi'; rewards: QuestReward[] };
 export type QuestRewardKind = QuestReward['kind'];
 /** A run-wide combat modifier a completed quest arms; `simulate()` reads them via `QuestCombatMods`. */
@@ -1701,6 +1726,18 @@ export interface QuestDef {
   /** Undead (Ossuary Rite): a repeatable quest re-arms on completion (progress resets, reward can fire again)
    *  instead of staying done. */
   repeatable?: boolean;
+  /**
+   * HERO QUEST (Fi / Coran, 2026-08-21). Set = this quest belongs to that hero's own turn-1 Discover and is
+   * NEVER drawn by the universal turn-5/11 offer (`generateQuestOffer` filters it out both ways). Hero quests
+   * all share the `journey` objective and differ only in their count and reward.
+   */
+  heroQuest?: string;
+  /**
+   * Mutually-exclusive family. Opening Act (Fi) and Resonant Path (Coran) are each authored as THREE quests —
+   * a Shout, an Echo and a Rally variant — and the owner's rule is that a player is never offered more than
+   * one of a family at a time. The offer generator picks at most one quest per `variantGroup`.
+   */
+  variantGroup?: string;
 }
 
 /** Immutable Rune definition (data). Runes are sold in the Runesmith's turn-6 Runeforge — a random 5 are
@@ -2043,7 +2080,7 @@ export interface MinionSnapshot {
  *  metadata — it never affects outcomes — letting the UI's moment compiler know true simultaneity instead
  *  of inferring it. Optional so synthetic fixtures (tests) can omit it; real sim output always carries it. */
 export type CombatEvent = (
-  | { type: 'sc'; source: string; text: string; cast?: true; side?: Side } // `cast` = a genuine Start-of-Combat damage cast (UI plays the zap + bolt + flash); absent = mid-combat narration (spell-power gain, etc.) — log + trigger pulse only. `side` is stamped on side-scoped gain telegraphs (Ruby Power — BOTH sides can gain it) so the Buffs drawer counts only the player's; player-only channels (Spell Power) never emit for an enemy and need no tag.
+  | { type: 'sc'; source: string; text: string; cast?: true; side?: Side; grantsEcho?: true } // `cast` = a genuine Start-of-Combat damage cast (UI plays the zap + bolt + flash); absent = mid-combat narration (spell-power gain, etc.) — log + trigger pulse only. `side` is stamped on side-scoped gain telegraphs (Ruby Power — BOTH sides can gain it) so the Buffs drawer counts only the player's; player-only channels (Spell Power) never emit for an enemy and need no tag. `grantsEcho` marks the ONE minion a Start-of-Combat grant handed an exact-copy Echo (Rune of Rebirth), so the UI can print the rule on THAT body instead of on every minion you control.
   | { type: 'attack'; attacker: string; defender: string; swing: number; crit?: boolean }
   | { type: 'dmg'; target: string; amount: number; remainingHp: number; source?: string } // `source` = the uid that dealt this hit (attacker, poisoner, an AoE's caster). Optional: truly sourceless damage omits it. Lets presentation attribute a sourceless-looking damage MOMENT to its actor — e.g. Fel Spikes' Echo volley fires FROM the dying body (source→target FX), the way an `sc` event carries a Start-of-Combat cast's source.
   | { type: 'proccrit'; source: string; mult: number }

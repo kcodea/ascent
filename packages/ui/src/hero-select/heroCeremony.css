@@ -133,7 +133,7 @@
    offsets reposition it WITHIN the plate. Static gradient paint — only opacity enters (hscRise). */
 .hsc-plate {
   position: relative;
-  left: calc(var(--hsc-namex, 0) * 1px * var(--scale, 1)); top: calc(var(--hsc-namey, -300) * 1px * var(--scale, 1));
+  left: calc(var(--hsc-namex, 0) * 1px * var(--scale, 1)); top: calc(var(--hsc-namey, -399) * 1px * var(--scale, 1));
   display: flex; flex-direction: column; align-items: center; gap: 2px;
   width: calc(var(--hsc-platelen, 690) * 1px * var(--scale, 1));
   padding: calc(var(--hsc-platepadtop, 2) * 1px * var(--scale, 1)) calc(24px * var(--scale, 1)) calc(var(--hsc-platepadbot, 7) * 1px * var(--scale, 1));
@@ -167,7 +167,7 @@
   position: relative;
   /* Inside the plate the power's natural spot is directly under the name, so the tuned offset applies
      RELATIVE to the plate: (powerY − nameY), keeping the two sliders' meanings from the pre-plate era. */
-  left: calc(var(--hsc-powerx, 0) * 1px * var(--scale, 1)); top: calc((var(--hsc-powery, -300) - var(--hsc-namey, -300)) * 1px * var(--scale, 1));
+  left: calc(var(--hsc-powerx, 0) * 1px * var(--scale, 1)); top: calc((var(--hsc-powery, -408) - var(--hsc-namey, -399)) * 1px * var(--scale, 1));
   font-family: var(--font-ui); font-weight: 800; font-size: calc(var(--hsc-powersize, 21) * 1px * var(--scale, 1)); letter-spacing: 0.14em;
   text-transform: uppercase; color: color-mix(in srgb, var(--acc) 80%, #fff);
   text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
@@ -177,7 +177,7 @@
 .hsc-start {
   pointer-events: auto;
   position: relative;
-  left: calc(var(--hsc-btnx, 0) * 1px * var(--scale, 1)); top: calc(var(--hsc-btny, -135) * 1px * var(--scale, 1));
+  left: calc(var(--hsc-btnx, 0) * 1px * var(--scale, 1)); top: calc(var(--hsc-btny, -198) * 1px * var(--scale, 1));
   zoom: calc(var(--hsc-btnscale, 1.55) * var(--scale, 1));
   margin-top: 16px;
   font-family: var(--font-ui); font-weight: 800; font-size: 19px; letter-spacing: 0.12em;

@@ -108,7 +108,9 @@ function UnitInner({ u, side, anim, triggered, rallyPulse, watcherPulse, framePu
         tier7Access: foe ? false : hasTier7Access(run),
         zooSummons: foe ? undefined : zooSummons, // Beardsley + Rune of the Zoo: the next summon's live grant
 
-        runeFlags: foe ? undefined : { matriarch: !!run.runeMatriarch, brokerage: !!run.runeBrokerage, livingTreasure: !!run.questFlags?.runeLivingTreasure, facetwright: !!run.runeFacetwright, rebirth: !!run.questFlags?.runeRebirth },
+        runeFlags: foe ? undefined : { matriarch: !!run.runeMatriarch, brokerage: !!run.runeBrokerage, livingTreasure: !!run.questFlags?.runeLivingTreasure, facetwright: !!run.runeFacetwright },
+        // Rune of Rebirth: only the body the Start-of-Combat grant actually landed on prints the Echo.
+        rebirthOwner: u.grantedEcho,
       })
     : { text: '', goldenText: undefined };
   const view: CardView = {

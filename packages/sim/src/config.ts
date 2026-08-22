@@ -68,6 +68,18 @@ export const CONFIG = {
 export const KESHI_CROWN_THRESHOLD = 25;
 
 /**
+ * Croupier Ayse (Lucky Seat): the chance EACH Shop card rolls to come up Enchanted.
+ *
+ * Owner change 2026-08-22 — was "a 50% chance the shop seats exactly ONE". Per-card at 0.15 gives a similar
+ * chance of seeing at least one (1 - 0.85^5 = 56% on a five-card shop, against the old flat 50%) while letting
+ * a fill serve two or three, which the old shape could never do. The tail is the point: her power now has a
+ * lucky fill worth reacting to instead of reading identically every time it hits.
+ *
+ * A single-number retune from here alone — nothing should hardcode this as a literal 0.15.
+ */
+export const CIA_ENCHANT_CHANCE = 0.15;
+
+/**
  * Indy's Masterwork recharge: Gold that must be SPENT after a use before the charge returns.
  *
  * Exported because the reducer arms the recharge and the StatusBar prints the meter, and those two drifted —

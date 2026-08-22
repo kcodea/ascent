@@ -695,12 +695,12 @@ export function exhibitionGrantOf(state: RunState): number {
   return 1 + Math.floor((state.cardsPlayedTotal ?? 0) / 4);
 }
 
-/** Cia (Lucky Seat): the reward each suit pays. Exported so the hero panel prints the QUEUED suit's reward and
+/** Ayse (Lucky Seat): the reward each suit pays. Exported so the hero panel prints the QUEUED suit's reward and
  *  nothing else — the player should see the one thing that will actually happen, not a four-line table (owner
  *  ask 2026-08-16). The reducer's payout switch and this map are the same four cases by construction. */
 export const CIA_SUIT_TEXT: Record<CiaSuit, string> = {
   hearts: '**Hearts:** Discover a minion of your Tavern Tier.',
-  spades: '**Spades:** get **2** random Shop spells.',
+  spades: '**Spades:** Discover a Shop spell.',
   diamonds: '**Diamonds:** get a random minion from the tier **above** you.',
   clubs: '**Clubs:** gain **3 Gold**.',
 };
@@ -777,7 +777,7 @@ export const COMMISSION_TEXT: Record<CommissionKind, string> = {
   fortress: 'In **3 turns**, get a **triple** reward.',
 };
 
-/** The hero power's LIVE rule text. Static for every hero except Cia, whose printed rule is the queued suit's
+/** The hero power's LIVE rule text. Static for every hero except Ayse, whose printed rule is the queued suit's
  *  reward — the card-text rule ("always show the current value of what this is doing") applied to a power. */
 export function heroPowerText(state: RunState): string {
   const power = getHero(state.heroId).power;

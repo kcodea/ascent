@@ -31,7 +31,7 @@ export interface HeroFxConfig {
   encArc: number;
   /** Enchanted ring — link shape: 0 = soft (feathered ends), 1 = hard-edged blocks. */
   encShape: number;
-  // ── Cia: the Pixi ENCHANTED FOIL (handoff 2026-08-17). The `enc*` keys above now only drive the retained
+  // ── Ayse: the Pixi ENCHANTED FOIL (handoff 2026-08-17). The `enc*` keys above now only drive the retained
   //    CSS fallback, which shows when Pixi is unavailable or reduced-motion is on.
   /** Foil — base visibility inside the mask. */
   ciaFoilOpacity: number;
@@ -130,7 +130,7 @@ const DEFAULTS: HeroFxConfig = {
   sbWebRings: 5,
   sbBuild: 260,
   sbFlash: 420,
-  // Cia foil — ORPHANED. The `ciaEnchantedFx` Pixi foil these tuned defaults drove was removed 2026-08-21
+  // Ayse foil — ORPHANED. The `ciaEnchantedFx` Pixi foil these tuned defaults drove was removed 2026-08-21
   // (the enchant treatment is now the `cia-hp` FX def played by `useCiaEnchantedFx`); nothing reads these
   // fields any more. Left in place for now — a follow-up should remove the whole `cia*` block + the dead
   // `--hfx-enc-*` var setters in `applyHeroFxVars` + the enchant tuner knobs together.

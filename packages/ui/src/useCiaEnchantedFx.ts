@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { playDef } from './fx/playDef';
 
 /**
- * Croupier Cia's Lucky Seat FX — a LOOPING `cia-hp` burst rides a shop card for as long as it stays
+ * Croupier Ayse's Lucky Seat FX — a LOOPING `cia-hp` burst rides a shop card for as long as it stays
  * Enchanted (owner 2026-08-20: replaces the persistent Pixi "enchanted foil", `ciaEnchantedFx`, and the CSS
  * `.enchantwisp` swirl). Playing the def with `loop: true` runs it continuously; the `follow` callback makes
  * it TRACK the card as the shop reorders (drag-to-rearrange slides the offers), instead of sticking to the

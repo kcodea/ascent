@@ -1,8 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { CARD_INDEX } from '@game/content';
+import { CIA_ENCHANT_CHANCE } from './config';
 import { createRun, reduce, getHero, HEROES, heroPowerText, commissionOffer, addBuff, threeDistinctTypes, buyoutCostOf, allInPayoutOf, exhibitionGrantOf, stampSableBond, type RunState, type BoardCard } from './index';
 
-/** Owner hero batch 2026-08-16b — Bram, Croupier Cia, Odelle, Harlan, Sable + the Rascal rework. */
+/** Owner hero batch 2026-08-16b — Bram, Croupier Ayse, Odelle, Harlan, Sable + the Rascal rework. */
 
 const at = (over: Partial<RunState>): RunState =>
   ({ ...createRun(3), phase: 'recruit', ...over }) as RunState;
@@ -42,22 +43,74 @@ describe('Braum — Investment', () => {
   });
 });
 
-describe('Cia — Lucky Seat', () => {
+describe('Ayse — Lucky Seat', () => {
   it('is a 10-armor passive', () => {
     const h = getHero('cia');
-    expect([h.name, h.armor, h.power.kind, h.power.passive]).toEqual(['Cia', 10, 'luckySeat', true]);
+    // Renamed from Cia 2026-08-22. The ID stays `cia` — saves, baked opponent boards and art files key off it.
+    expect([h.name, h.armor, h.power.kind, h.power.passive]).toEqual(['Ayse', 10, 'luckySeat', true]);
+    expect(getHero('cia').id, 'the id is stable across the rename').toBe('cia');
   });
 
-  it('sometimes seats an Enchanted card, and never more than one', () => {
-    let sawEnchanted = false;
-    for (let seed = 1; seed <= 20; seed++) {
+  /**
+   * PER-CARD enchant (owner change 2026-08-22, from "a 50% chance the shop seats exactly ONE"). Every card
+   * rolls `CIA_ENCHANT_CHANCE` on its own, so a fill can serve none, one, or SEVERAL — the multi case is the
+   * whole point of the change and is what the old "never more than one" assertion forbade.
+   *
+   * Deliberately statistical over many seeds rather than pinned to specific ones: the rule is a rate, and a
+   * fixed-seed expectation would pass while the rate drifted anywhere.
+   */
+  it('rolls each card independently — the rate lands near CIA_ENCHANT_CHANCE', () => {
+    let cards = 0, enchanted = 0, multiShops = 0, anyShops = 0;
+    const SEEDS = 400;
+    for (let seed = 1; seed <= SEEDS; seed++) {
       const s = { ...createRun(seed), phase: 'recruit', heroId: 'cia', embers: 20 } as RunState;
       const after = reduce(s, { type: 'roll' } as never);
       const n = after.shop.filter((o) => o.enchanted).length;
-      expect(n, 'at most one seat is lucky').toBeLessThanOrEqual(1);
-      if (n === 1) sawEnchanted = true;
+      cards += after.shop.length;
+      enchanted += n;
+      if (n >= 1) anyShops++;
+      if (n >= 2) multiShops++;
     }
-    expect(sawEnchanted, 'a 50% roll shows up across 20 seeds').toBe(true);
+    const rate = enchanted / cards;
+    // Binomial over ~2000 cards at p=0.15: sd ~0.008, so +-0.04 is a very wide net around a real drift.
+    expect(rate, `per-card rate was ${rate.toFixed(3)}`).toBeGreaterThan(CIA_ENCHANT_CHANCE - 0.04);
+    expect(rate, `per-card rate was ${rate.toFixed(3)}`).toBeLessThan(CIA_ENCHANT_CHANCE + 0.04);
+    // The behaviour the old shape could not produce.
+    expect(multiShops, 'some shops seat two or more').toBeGreaterThan(0);
+    expect(anyShops, 'most shops still seat none').toBeLessThan(SEEDS);
+  });
+
+  it('the OPENING shop can be Enchanted too', () => {
+    // `createRun` fills the first shop directly, not through `refreshTavern` — so before 2026-08-22 the very
+    // first shop was the one fill her power could never touch.
+    let sawFirstShopEnchant = false;
+    for (let seed = 1; seed <= 300 && !sawFirstShopEnchant; seed++) {
+      const s = createRun(seed, 'cia');
+      if (s.shop.some((o) => o.enchanted) || s.spell?.enchanted) sawFirstShopEnchant = true;
+    }
+    expect(sawFirstShopEnchant, 'an opening shop comes up Enchanted within 300 seeds').toBe(true);
+    // …and still never for another hero.
+    expect(createRun(1, 'indy').shop.some((o) => o.enchanted)).toBe(false);
+  });
+
+  it('the SPELL SLOT rolls too', () => {
+    let sawSpell = false;
+    for (let seed = 1; seed <= 400 && !sawSpell; seed++) {
+      const s = { ...createRun(seed), phase: 'recruit', heroId: 'cia', embers: 20 } as RunState;
+      const a = reduce(s, { type: 'roll' } as never);
+      if (a.spell?.enchanted) sawSpell = true;
+    }
+    expect(sawSpell, 'an Enchanted spell shows up within 400 seeds').toBe(true);
+  });
+
+  it('advances the RNG stream by exactly one draw per card, whatever the outcome', () => {
+    // The loop must never short-circuit: a stream whose length depended on the results would make the shop
+    // that follows it seed-dependent on luck, and replays of the same seed could diverge.
+    const s = { ...createRun(3), phase: 'recruit', heroId: 'cia', embers: 20 } as RunState;
+    const a = reduce(s, { type: 'roll' } as never);
+    const b = reduce({ ...s }, { type: 'roll' } as never);
+    expect(a.rngCursor, 'the same input state produces the same cursor').toBe(b.rngCursor);
+    expect(a.shop.map((o) => !!o.enchanted)).toEqual(b.shop.map((o) => !!o.enchanted));
   });
 
   it('never enchants for a different hero', () => {
@@ -87,10 +140,14 @@ describe('Cia — Lucky Seat', () => {
     for (const id of after.discover!) expect(CARD_INDEX[id]!.tier, 'exactly your tier').toBe(3);
   });
 
-  it('SPADES — two random Shop spells', () => {
+  it('SPADES — Discover a Shop spell', () => {
+    // Owner change 2026-08-22: was two random spells conjured straight to hand. A pick beats a handful.
     const after = enchantedBuy('spades');
-    const spells = after.hand.filter((c) => CARD_INDEX[c.cardId]!.spell);
-    expect(spells.length, 'two spells granted').toBe(2);
+    expect(after.discover, 'a Discover opened').toBeTruthy();
+    expect(after.discover!.length, 'the standard three options').toBeGreaterThan(0);
+    for (const id of after.discover!) expect(CARD_INDEX[id]!.spell, 'every option is a spell').toBe(true);
+    // Nothing lands in hand until the player picks.
+    expect(after.hand.filter((c) => CARD_INDEX[c.cardId]!.spell).length, 'no spell granted outright').toBe(0);
   });
 
   it('DIAMONDS — a random minion from the tier ABOVE you', () => {

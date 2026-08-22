@@ -72,7 +72,8 @@ describe('Ayse — Lucky Seat', () => {
       if (n >= 2) multiShops++;
     }
     const rate = enchanted / cards;
-    // Binomial over ~2000 cards at p=0.15: sd ~0.008, so +-0.04 is a very wide net around a real drift.
+    // Binomial over ~2000 cards at p=0.20: sd ~0.009, so +-0.04 is a very wide net around a real drift.
+    // Asserted against the CONSTANT, not a literal, so a retune moves the target with it.
     expect(rate, `per-card rate was ${rate.toFixed(3)}`).toBeGreaterThan(CIA_ENCHANT_CHANCE - 0.04);
     expect(rate, `per-card rate was ${rate.toFixed(3)}`).toBeLessThan(CIA_ENCHANT_CHANCE + 0.04);
     // The behaviour the old shape could not produce.

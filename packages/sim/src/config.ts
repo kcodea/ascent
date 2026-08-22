@@ -70,14 +70,21 @@ export const KESHI_CROWN_THRESHOLD = 25;
 /**
  * Croupier Ayse (Lucky Seat): the chance EACH Shop card rolls to come up Enchanted.
  *
- * Owner change 2026-08-22 — was "a 50% chance the shop seats exactly ONE". Per-card at 0.15 gives a similar
- * chance of seeing at least one (1 - 0.85^5 = 56% on a five-card shop, against the old flat 50%) while letting
- * a fill serve two or three, which the old shape could never do. The tail is the point: her power now has a
- * lucky fill worth reacting to instead of reading identically every time it hits.
+ * Owner change 2026-08-22 — was "a 50% chance the shop seats exactly ONE", then briefly 0.15. A per-card rate
+ * cannot be a flat swap for a per-SHOP one: it scales with shop size, so it necessarily tilts the curve. 0.20
+ * is chosen to hold the EARLY game roughly level rather than to match the midpoint —
  *
- * A single-number retune from here alone — nothing should hardcode this as a literal 0.15.
+ *   cards:      3 (T1)   4      5      6 (T6)
+ *   P(>=1):     48.8%   59.0%  67.2%   73.8%     (old system: a flat 50% at every size)
+ *   P(>=2):     10.4%   18.1%  26.3%   34.5%     (impossible under the old system)
+ *
+ * — so a Tier-1 shop still sees one about half the time, and the growth from there is the upside. The tail is
+ * the point: her power now has a lucky fill worth reacting to instead of reading identically every time it
+ * hits. At 0.15 the opening shop sat at 38.6%, a real nerf to the early game (owner call: bump it).
+ *
+ * A single-number retune from here alone — nothing should hardcode this as a literal.
  */
-export const CIA_ENCHANT_CHANCE = 0.15;
+export const CIA_ENCHANT_CHANCE = 0.20;
 
 /**
  * Indy's Masterwork recharge: Gold that must be SPENT after a use before the charge returns.

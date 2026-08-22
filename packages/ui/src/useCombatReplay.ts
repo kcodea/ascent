@@ -25,6 +25,7 @@ import { attackSummonUids, rallyProcsFor } from './choreo/channels/rallyFired';
 import { groupBuffCasts, type BuffCast } from './choreo/channels/buffCast';
 import { groupSelfBuffs, type SelfBuff } from './choreo/channels/buffSelf';
 import { runAttackExchangeCues, runRiseReturn } from './choreo/engine';
+import { setTransition } from './choreo/channels/lunge';
 import { burstDeathAuras, breakShieldAura, reformReborn } from './choreo/channels/aura';
 import { type Float, type DeathFloat, KW_FLOAT } from './choreo/channels/float';
 import { combatBuffDelta, type CombatBuffDelta } from './runBuffs';
@@ -1040,6 +1041,11 @@ export function useCombatReplay(
   // here instead, cleared ONLY on reset/seek (`cancelPendingRolls`), so every volley fires but a scrub cancels
   // the ones still pending.
   const echoVolleyTimersRef = useRef<number[]>([]);
+  // HELD WINDUP (Echohorn firing a forced Fel Spikes spray on its swing): its lunge PARKS at the top of the
+  // wind-up while the whole spray plays across the following beats, then resumes its strike when the attacker's
+  // own attack lands — or is killed if the spray killed the attacker first. Combat-lifetime (survives per-beat
+  // cleanup); cleared on reset/seek.
+  const heldLungeRef = useRef<{ uid: string; tl: ReturnType<typeof gsap.timeline> } | null>(null);
 
   // Schedule a buff's strike-delay timer in the combat-lifetime registry above (not the caller's per-beat
   // `timers`), so an ordinary beat advance cannot cancel it. When the delay elapses, hand off to `driveRoll`
@@ -1098,6 +1104,9 @@ export function useCombatReplay(
     // or a re-seek supersedes them (they'd otherwise fire a stale spray onto the new frame).
     for (const id of echoVolleyTimersRef.current) window.clearTimeout(id);
     echoVolleyTimersRef.current = [];
+    // A parked held-windup lunge from a swing this instance already replayed must not survive a fresh combat or
+    // a re-seek — kill it and drop the frozen pose.
+    if (heldLungeRef.current) { heldLungeRef.current.tl.kill(); heldLungeRef.current = null; }
   }, []);
 
   /**
@@ -1894,6 +1903,28 @@ export function useCombatReplay(
         scheduleEchoVolleys(rallyBinding.def, e.target, i, events, combatSpeedRef.current, (id) => echoVolleyTimersRef.current.push(id), endIdx);
       }
     }
+    // HELD WINDUP resolve: a parked Echohorn lunge resumes its strike the beat its OWN attack lands (a non-wave
+    // `dmg` it deals), or is released into its death animation if the deferred spray killed it first. A death in
+    // the beat wins — a dead attacker never swings.
+    const held = heldLungeRef.current;
+    if (held) {
+      let died = false;
+      let struck = false;
+      for (let i = beat.start; i < beat.end; i++) {
+        const e = events[i];
+        if (e?.type === 'death' && e.target === held.uid) { died = true; break; }
+        if (e?.type === 'dmg' && e.source === held.uid && e.wave === undefined) struck = true;
+      }
+      if (died) {
+        held.tl.kill(); // drop the parked pose so the death plays from rest; the lunge never fires
+        const el = findEl(held.uid);
+        if (el) { setTransition(el, ''); gsap.set(el, { clearProps: 'transform,zIndex' }); }
+        heldLungeRef.current = null;
+      } else if (struck) {
+        held.tl.play(); // resume: strike → contact → settle, out of the held pose
+        heldLungeRef.current = null;
+      }
+    }
     return () => {
       timers.forEach((id) => window.clearTimeout(id));
       // The buff strike timer + the roll it hands off to are NOT in `timers` (Task 6) — `fireBuffCasts`/
@@ -2013,8 +2044,25 @@ export function useCombatReplay(
         // pulse — the same split the `buffWave` path makes, so an on-attack aura-of-self reads like a standalone one.
         const windupCasts = groupBuffCasts(cur, events);
         const windupSelfBuffs = groupSelfBuffs(cur, events);
+        // HELD WINDUP: this swing's own Rally fires a Fel-Spikes-style forced spray (Echohorn → Fel Spikes),
+        // whose volleys play as their OWN beats after the attack. Park the lunge at the top of the wind-up so
+        // the attacker stays frozen through the whole spray — both rally pulses + every volley + the deferred
+        // deaths — and only strikes (or dies) after. Detected by the attacker's own `rally` targeting a
+        // launchOnDeath sprayer anywhere in this exchange's window (up to the next attack).
+        let heldWindup = false;
+        if (rallies) {
+          for (let i = cur.start; i < events.length; i++) {
+            const e = events[i];
+            if (e?.type === 'attack' && i > cur.start) break;
+            if (e?.type === 'rally' && e.source === atkUid && typeof e.target === 'string'
+              && bindingFor(cardIds.get(e.target) ?? null, 'damage')?.launchOnDeath) { heldWindup = true; break; }
+          }
+        }
+        const advance = () => setBeatIdx((k) => k + 1);
         const tl = runAttackExchangeCues(cur, atkEl, findEl(cur.primary.defender), d.x - a.x, d.y - a.y, {
-          combatSpeed: combatSpeedRef.current, advance: () => setBeatIdx((k) => k + 1),
+          combatSpeed: combatSpeedRef.current, advance,
+          holdAfterWindup: heldWindup,
+          onWindupHeld: heldWindup ? advance : undefined,
           onRallyPulse: rallies ? () => firePulse(atkUid) : undefined,
           // How many procs this swing carries — the wind-up stretches to fit their pulse→sparkle pairs.
           // Only Echohorn can exceed 1 today (see `rallyProcsFor`).
@@ -2032,6 +2080,9 @@ export function useCombatReplay(
           cleave: !!atkUnit?.keywords.includes('C') || !!CARD_INDEX[cardIds.get(atkUid) ?? '']?.keywords?.includes('C'),
         });
         engineAdvancingRef.current = tl !== null; // engine owns the advance; if it couldn't build, the scheduler falls back
+        // Remember a PARKED lunge so a later beat can resume its strike (attacker's own hit) or kill it (attacker
+        // died in the spray). Cleared on resolve/reset. If the lunge couldn't build, there's nothing to park.
+        heldLungeRef.current = heldWindup && tl !== null ? { uid: atkUid, tl } : null;
         if (tl === null) breakWards?.(); // lunge cue dropped → no contact anchor to ride; shatter now so it isn't lost
       } else {
         setAttackUid(null);

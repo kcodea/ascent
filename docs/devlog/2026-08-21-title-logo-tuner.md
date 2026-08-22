@@ -9,10 +9,11 @@ DEFAULTS; styles.css fallbacks mirror them), the standard config-module + `Tuner
 Controls, grouped:
 
 - **Placement** — mark size, text gap, and whole-logo X/Y.
-- **Font** — a **Quick pick** dropdown of curated title Google Fonts, plus a **Custom font** text field that
-  loads *any* Google Font family by name. Google Fonts is already the game's font system (`index.html` links
-  Outfit/Sora/…), so a pick just injects that family's stylesheet once — curated names use known-good weight
-  queries; a typed name is requested by family alone so the request can't 400 on a missing weight.
+- **Font** — a **Quick pick** dropdown of curated title Google Fonts, a **Custom font** text field that loads
+  *any* Google Font family by name, and a **Weight** slider (100→900). Google Fonts is already the game's font
+  system (`index.html` links Outfit/Sora/…); a pick injects the chosen family AT the chosen weight once, so a
+  variant like *Lato Thin 100* actually loads (a family-only request would only ship the regular). Requesting a
+  weight a face lacks 400s and simply falls back — the cost of arbitrary weights on arbitrary fonts.
 - **Text glow** and **Mark glow** — independent size/strength/colour. Each composes N stacked shadows into a
   var (text-shadow for the wordmark, drop-shadow filters for the mark), appended after the base shadows with a
   transparent no-op when strength is 0 (a shadow list can't hold `none`).

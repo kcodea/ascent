@@ -15,6 +15,7 @@ const LABELS: Record<NumKey, [string, TunerUnit | undefined]> = {
   gap:              ['Text gap', 'px'],
   x:                ['Logo X', 'px'],
   y:                ['Logo Y', 'px'],
+  fontWeight:       ['Weight', undefined],
   textGlowSize:     ['Glow size', 'px'],
   textGlowStrength: ['Glow strength', undefined],
   logoGlowSize:     ['Glow size', 'px'],
@@ -27,7 +28,7 @@ const LABELS: Record<NumKey, [string, TunerUnit | undefined]> = {
 };
 const GROUP: Record<keyof TitleConfig, string> = {
   markSize: 'Placement', gap: 'Placement', x: 'Placement', y: 'Placement',
-  font: 'Font', fontCustom: 'Font',
+  font: 'Font', fontCustom: 'Font', fontWeight: 'Font',
   textGlowSize: 'Text glow', textGlowStrength: 'Text glow', textGlowColor: 'Text glow',
   logoGlowSize: 'Mark glow', logoGlowStrength: 'Mark glow', logoGlowColor: 'Mark glow',
   floatSync: 'Float', floatAmp: 'Float', floatSpeed: 'Float', textFloatAmp: 'Float', textFloatSpeed: 'Float',
@@ -36,7 +37,7 @@ const GROUP: Record<keyof TitleConfig, string> = {
 // Declaration order = render order; adjacent same-group controls merge under one heading.
 const ORDER: (keyof TitleConfig)[] = [
   'markSize', 'gap', 'x', 'y',
-  'font', 'fontCustom',
+  'font', 'fontCustom', 'fontWeight',
   'textGlowSize', 'textGlowStrength', 'textGlowColor',
   'logoGlowSize', 'logoGlowStrength', 'logoGlowColor',
   'floatSync', 'floatAmp', 'floatSpeed', 'textFloatAmp', 'textFloatSpeed',

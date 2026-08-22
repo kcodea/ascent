@@ -4472,7 +4472,7 @@ body:has(.titlescreen) .version { visibility: hidden; }
   animation: var(--title-logo-float-name, titlebob) var(--title-logo-float-speed, 2.6s) ease-in-out infinite; }
 /* Wordmark font is the tuner's pick (falling back to the shipped title stack); the tuner's text glow is an
    EXTRA shadow appended after the base legibility + blue shadows (transparent no-op when off). */
-.titleword { font-family: var(--title-font, var(--font-title)); font-weight: 900; font-size: 86px; letter-spacing: 0.1em; color: #f4ecda; margin: 0;
+.titleword { font-family: var(--title-font, var(--font-title)); font-weight: var(--title-weight, 900); font-size: 86px; letter-spacing: 0.1em; color: #f4ecda; margin: 0;
   text-shadow: 0 2px 3px rgba(0, 0, 0, 0.6), 0 0 40px rgba(120, 175, 255, 0.28), var(--title-text-glow, 0 0 0 transparent);
   --bob-amp: var(--title-text-float-amp, 4px);
   animation: var(--title-text-float-name, titlebob) var(--title-text-float-speed, 4.5s) ease-in-out infinite; }

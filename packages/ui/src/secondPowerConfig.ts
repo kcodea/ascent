@@ -19,14 +19,25 @@ export interface SecondPowerConfig {
   y: number;
   /** Uniform scale on the whole second-power block. */
   scale: number;
+  /** FRAME (frames/secondheropower.webp, owner art 2026-08-22) — the housing BEHIND the button. Its own
+   *  offset/scale/opacity, relative to the button's centre, so the art can be seated around the circle
+   *  without moving the clickable button itself. */
+  frameX: number;
+  frameY: number;
+  frameScale: number;
+  frameOpacity: number;
 }
 
-const DEFAULTS: SecondPowerConfig = { x: 118, y: 64, scale: 0.9 };
+const DEFAULTS: SecondPowerConfig = { x: 118, y: 64, scale: 0.9, frameX: 0, frameY: 0, frameScale: 1.6, frameOpacity: 1 };
 
 const RANGES: Record<keyof SecondPowerConfig, [number, number, number]> = {
   x: [-300, 500, 1],
   y: [-300, 300, 1],
   scale: [0.4, 1.6, 0.01],
+  frameX: [-120, 120, 1],
+  frameY: [-120, 120, 1],
+  frameScale: [0.5, 3, 0.01],
+  frameOpacity: [0, 1, 0.01],
 };
 
 export { DEFAULTS as SECOND_POWER_DEFAULTS };
@@ -53,6 +64,10 @@ export function applySecondPowerVars(): void {
   root.setProperty('--hp2-x', String(cfg.x));
   root.setProperty('--hp2-y', String(cfg.y));
   root.setProperty('--hp2-scale', String(cfg.scale));
+  root.setProperty('--hp2-frame-x', String(cfg.frameX));
+  root.setProperty('--hp2-frame-y', String(cfg.frameY));
+  root.setProperty('--hp2-frame-s', String(cfg.frameScale));
+  root.setProperty('--hp2-frame-a', String(cfg.frameOpacity));
 }
 
 export function setSecondPowerValue(key: keyof SecondPowerConfig, value: number | string): void {
@@ -71,6 +86,10 @@ const controls: TunerControl<Extract<keyof SecondPowerConfig, string>>[] = [
   { key: 'x', label: 'Offset X', unit: 'px', hint: 'Right of the hero panel seat. Reference px — scales with the stage.', group: 'Second power', min: RANGES.x[0], max: RANGES.x[1], step: RANGES.x[2] },
   { key: 'y', label: 'Offset Y', unit: 'px', hint: 'Down from the seat (under the main power button).', group: 'Second power', min: RANGES.y[0], max: RANGES.y[1], step: RANGES.y[2] },
   { key: 'scale', label: 'Scale', unit: '×', hint: 'Size of the whole second-power block.', group: 'Second power', min: RANGES.scale[0], max: RANGES.scale[1], step: RANGES.scale[2] },
+  { key: 'frameX', label: 'Frame X', unit: 'px', hint: 'Nudge the housing art right/left of the button centre.', group: 'Frame', min: RANGES.frameX[0], max: RANGES.frameX[1], step: RANGES.frameX[2] },
+  { key: 'frameY', label: 'Frame Y', unit: 'px', hint: 'Nudge the housing art down/up of the button centre.', group: 'Frame', min: RANGES.frameY[0], max: RANGES.frameY[1], step: RANGES.frameY[2] },
+  { key: 'frameScale', label: 'Frame scale', unit: '×', hint: 'Size of the housing relative to the button (1 = the button circle exactly).', group: 'Frame', min: RANGES.frameScale[0], max: RANGES.frameScale[1], step: RANGES.frameScale[2] },
+  { key: 'frameOpacity', label: 'Frame opacity', hint: '0 hides the housing entirely.', group: 'Frame', min: RANGES.frameOpacity[0], max: RANGES.frameOpacity[1], step: RANGES.frameOpacity[2] },
 ];
 
 export const SPEC: TunerSpec<SecondPowerConfig> = {

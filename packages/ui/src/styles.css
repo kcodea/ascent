@@ -3074,6 +3074,14 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
   top: calc(var(--bar-y) + 0.45 * var(--gh) + (var(--hpb-y, 303px) * var(--scale)) + (var(--hp2-y, 64) * 1px * var(--scale)));
   transform: translate(-50%, -50%) scale(var(--hp2-scale, 0.9));
   z-index: 42; }
+/* The housing art behind the slot-1 button. Centred on the button circle, then steered by the 👥 tuner's
+   frame dials. z 0 sits under the button (.heropowerbtn is position:relative → its own stacking context above);
+   pointer-events none so the housing never eats the click. */
+.heropanel2 .hp2-frame { position: absolute; left: 50%; top: 50%; z-index: 0; pointer-events: none;
+  width: calc(128 * var(--u)); height: auto;
+  transform: translate(-50%, -50%) translate(calc(var(--hp2-frame-x, 0) * var(--u)), calc(var(--hp2-frame-y, 0) * var(--u))) scale(var(--hp2-frame-s, 1.6));
+  opacity: var(--hp2-frame-a, 1); }
+.heropanel2 .heropowerbtn, .heropanel2 .hplabel, .heropanel2 .hpcost { position: relative; z-index: 1; }
 .heropanel2 .hpb-glyph { display: grid; place-items: center; width: 100%; height: 100%; font-size: 26px; color: #d8ccb6; }
 .heropanel2 .hplabel { pointer-events: none; }
 

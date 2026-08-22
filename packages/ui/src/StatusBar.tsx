@@ -672,6 +672,10 @@ export function StatusBar() {
           const art2 = run.voidPowerIds?.[1] ? heroPowerArt(run.voidPowerIds[1]) : undefined;
           return (
             <div className={`heropanel heropanel2${passive2 ? ' passive' : armed2 ? ' armed' : ready2 ? ' ready' : ''}`}>
+              {/* The HOUSING (owner art 2026-08-22, frames/secondheropower.webp) — behind the button, its own
+                  👥-tuner dials (--hp2-frame-*) so the art seats around the circle without moving the click
+                  target. Public-folder art carries BASE_URL (the itch CDN sub-path rule). */}
+              <img className="hp2-frame" src={`${import.meta.env.BASE_URL}frames/secondheropower.webp`} alt="" aria-hidden="true" draggable={false} />
               <button
                 className={`heropowerbtn${passive2 ? ' passive' : armed2 ? ' armed' : ready2 ? ' ready' : ''}`}
                 disabled={passive2 || (!ready2 && !armed2)}

@@ -703,6 +703,10 @@ export const CIA_SUIT_TEXT: Record<CiaSuit, string> = {
   spades: '**Spades:** Discover a Shop spell.',
   diamonds: '**Diamonds:** get a random minion from the tier **above** you.',
   clubs: '**Clubs:** gain **3 Gold**.',
+  // The Ace pays one of TWO halves on a coin flip. Both are printed because the player cannot know which they
+  // will get — and above Tier 5 the discount half is off the table entirely, which the text has to say or the
+  // prize reads as broken on the turn it stops appearing.
+  ace: '**Ace:** *(50/50)* **−4 Gold** off your next Shop upgrade *(Tier 5 and below)*, or Discover a minion from the tier **above** you.',
 };
 
 /** Warden's Aegis: the +X/+Y it grants every Warded minion, scaling with Tavern Tier (owner spec 2026-08-16).

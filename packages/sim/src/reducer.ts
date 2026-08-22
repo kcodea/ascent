@@ -3,7 +3,7 @@ import { currentCollector, withActiveCollector } from './activeCollector';
 import { surfaceKeyForRune, surfaceKeyForQuest, CARD_INDEX, EPIC_RUNES, QUEST_INDEX, RUNE_INDEX, RUNES, runeSynergies, type SynergyTag } from '@game/content';
 import { sideFromSnapshot } from './boardSide';
 import { poolOf, setIdOf } from './cardPool';
-import { CONFIG, INDY_GILD_RECHARGE_GOLD, KESHI_CROWN_THRESHOLD, maxTierFor, hasTier7Access } from './config';
+import { ACE_DISCOUNT_MAX_TIER, ACE_TIER_DISCOUNT, CONFIG, INDY_GILD_RECHARGE_GOLD, KESHI_CROWN_THRESHOLD, maxTierFor, hasTier7Access } from './config';
 import { lobbyOpponentBoard, settleRunLobbyRound, playerEliminated } from './lobby/runLobby';
 import { accumulateContribution, tallyCombat } from './contribution';
 import { rollShop, topUpTavern, returnToPool, takeFromPool, rollCiaEnchants } from './shop';
@@ -222,7 +222,9 @@ export function minionCostOf(s: RunState): number {
 /** The Gold a tavern-up costs right now: the running `upgradeCost` plus Hermit Hank's +2 surcharge (his
  *  minions are cheap, but climbing tiers costs more). The single source of truth for the reducer + UI. */
 export function upgradeCostOf(s: RunState): number {
-  return s.upgradeCost + (getHero(s.heroId).power.kind === 'cheapMinions' ? 2 : 0);
+  const base = s.upgradeCost + (getHero(s.heroId).power.kind === 'cheapMinions' ? 2 : 0);
+  // Ayse's Ace: a banked tier-up discount, floored at 0 so it can never pay you to upgrade.
+  return Math.max(0, base - (s.aceTierDiscount ?? 0));
 }
 
 /** The Gold a tavern refresh (reroll) costs right now: the config default, but Tradesman (cheapMinions) pays 2
@@ -2007,6 +2009,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       const ceiling = hasTier7Access(s) ? 7 : maxTierFor(s.rift);
       if (s.tier >= ceiling || s.embers < cost) return state;
       spendGold(s, cost);
+      s.aceTierDiscount = undefined; // Ayse's Ace: banked until an upgrade spends it, then gone
       s.tier += 1;
       // Rune of the Vault: 10 Gold the moment the shop reaches Tier 5 — then the rune is spent.
       if (s.runeVault && s.tier >= 5) {
@@ -5681,7 +5684,7 @@ function payCommission(s: RunState, c: Commission): void {
  * hero-power button shows its art — the player is meant to see what they are working toward. After a payout
  * the next suit is drawn from the OTHER THREE, so it can never repeat twice in a row (owner spec 2026-08-16).
  */
-const CIA_SUITS: readonly CiaSuit[] = ['hearts', 'spades', 'diamonds', 'clubs'];
+const CIA_SUITS: readonly CiaSuit[] = ['hearts', 'spades', 'diamonds', 'clubs', 'ace'];
 
 /** Draw the next suit, excluding `avoid`. Seeded like every other pick, so a replay lands the same sequence. */
 function rollCiaSuit(s: RunState, avoid?: CiaSuit): CiaSuit {
@@ -5766,6 +5769,32 @@ function ciaBuyEnchanted(s: RunState, offer: ShopCard): void {
     case 'clubs':
       gainGold(s, 3);
       break;
+    case 'ace': {
+      // THE ACE (owner 2026-08-22): a coin flip between two halves.
+      //   · −`ACE_TIER_DISCOUNT` Gold off the next Shop upgrade — offered ONLY at Tier 5 and below.
+      //   · Discover a minion from the tier ABOVE you, reaching Tier 7 (see below).
+      //
+      // Above Tier 5 the discount half is not merely unlikely, it is OFF THE TABLE: at Tier 6 a discount buys
+      // at most one more step and at the ceiling it buys nothing, so a coin flip there would pay out dead half
+      // the time. The flip collapses to the Discover, which is always worth something.
+      const canDiscount = s.tier <= ACE_DISCOUNT_MAX_TIER;
+      const rng = makeRng(s.rngCursor);
+      const discount = canDiscount && rng.int(2) === 0;
+      s.rngCursor = rng.state();
+      if (discount) {
+        // Banked, not applied to `upgradeCost` directly: that number is re-based on every tier-up, so writing
+        // the discount into it would be erased by the next upgrade rather than spent by it.
+        s.aceTierDiscount = (s.aceTierDiscount ?? 0) + ACE_TIER_DISCOUNT;
+        break;
+      }
+      // "Up to Tier 7" — AUTHORED, so this reaches Tier 7 from a Tier-6 shop without Summit/`tier7Access`,
+      // the same licence Teleport Summit's authored `reward.tier` takes. Deliberately unlike the DIAMONDS
+      // arm above, which clamps to the run's own ceiling.
+      const target = Math.min(s.tier + 1, 7);
+      const pool = poolOf(s).buyable.filter((c) => !c.spell && !c.ruby && c.tier === target);
+      if (pool.length > 0) queueDiscover(s, { kind: 'minion', tier: target, exactTier: target });
+      break;
+    }
   }
   s.ciaSuit = rollCiaSuit(s, suit); // never the same suit twice running
 }

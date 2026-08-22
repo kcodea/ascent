@@ -393,9 +393,10 @@ export interface VeinstormFx { uids: string[]; onRefresh: boolean; attack: numbe
  *  Ruby readers could see its stats — which keeps the gem effects out of this signal for free. */
 export interface ShopBuffAllFx { uids: string[]; attack: number; health: number; }
 
-/** Croupier Ayse's four rewards. Ordered as the classic suit ranking; the order is not load-bearing (the pick
- *  is random) but keeps the reward table, the art slugs and the UI reading the same way. */
-export type CiaSuit = 'hearts' | 'spades' | 'diamonds' | 'clubs';
+/** Croupier Ayse's five rewards. Ordered as the classic suit ranking with the Ace last (owner addition
+ *  2026-08-22); the order is not load-bearing (the pick is random) but keeps the reward table, the art slugs
+ *  and the UI reading the same way. */
+export type CiaSuit = 'hearts' | 'spades' | 'diamonds' | 'clubs' | 'ace';
 
 /** Cassen's three commissions. The delay is part of the identity — a longer wait buys a bigger payout. */
 export type CommissionKind = 'discover' | 'gold' | 'spell' | 'citadel' | 'fortress';
@@ -850,6 +851,10 @@ export interface RunState {
    *  they cannot be offered twice in a row" (owner spec 2026-08-16). Absent on the first offer, which is why
    *  the opening choice shows all three. */
   lastCommission?: CommissionKind;
+  /** Croupier Ayse — the ACE's tier-up half: Gold knocked off the NEXT tavern-up, banked until spent. Read
+   *  through `upgradeCostOf` (never off `upgradeCost` directly) and cleared by the upgrade that uses it, so a
+   *  banked discount survives rerolls and turn rollovers but is only ever spent once. */
+  aceTierDiscount?: number;
   /** Croupier Ayse (Lucky Seat): Enchanted cards BOUGHT toward the prize (resets at 3). `enchanted` on a Shop
    *  offer is the mark itself — purely cosmetic on the card, and the only thing that feeds this counter. */
   ciaEnchantedBought?: number;

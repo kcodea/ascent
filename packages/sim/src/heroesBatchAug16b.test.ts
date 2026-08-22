@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { CARD_INDEX } from '@game/content';
 import { CIA_ENCHANT_CHANCE } from './config';
+import { upgradeCostOf } from './reducer';
+import type { CiaSuit } from './state';
 import { createRun, reduce, getHero, HEROES, heroPowerText, commissionOffer, addBuff, threeDistinctTypes, buyoutCostOf, allInPayoutOf, exhibitionGrantOf, stampSableBond, type RunState, type BoardCard } from './index';
 
 /** Owner hero batch 2026-08-16b — Bram, Croupier Ayse, Odelle, Harlan, Sable + the Rascal rework. */
@@ -151,6 +153,69 @@ describe('Ayse — Lucky Seat', () => {
     expect(after.hand.filter((c) => CARD_INDEX[c.cardId]!.spell).length, 'no spell granted outright').toBe(0);
   });
 
+  /**
+   * THE ACE (owner addition 2026-08-22): a coin flip between a −4 Gold tier-up discount and a Discover from
+   * the tier above. The discount half is offered only at Tier 5 and below — above that the flip collapses to
+   * the Discover, because a discount at Tier 6 buys at most one more step and at the ceiling buys nothing.
+   */
+  describe('ACE', () => {
+    const aceAt = (tier: number, seed = 4): RunState[] =>
+      Array.from({ length: 40 }, (_, i) => enchantedBuy('ace', { tier, seed: seed + i }));
+
+    it('below Tier 6 it pays BOTH halves across seeds', () => {
+      let discounts = 0, discovers = 0;
+      for (let seed = 1; seed <= 60; seed++) {
+        const a = { ...createRun(seed), phase: 'recruit', heroId: 'cia', embers: 10, tier: 3, hand: [], board: [],
+          ciaEnchantedBought: 2, ciaSuit: 'ace', shop: [{ uid: 'sx', cardId: 'stray', enchanted: true }] } as RunState;
+        const r = reduce(a, { type: 'buy', uid: 'sx' } as never);
+        if (r.aceTierDiscount) discounts++;
+        if (r.discover) discovers++;
+        // Never both — it is one flip, not two prizes.
+        expect(!!r.aceTierDiscount && !!r.discover, 'exactly one half pays').toBe(false);
+      }
+      expect(discounts, 'the discount half shows up').toBeGreaterThan(0);
+      expect(discovers, 'the Discover half shows up').toBeGreaterThan(0);
+    });
+
+    it('above Tier 5 the discount half is OFF the table — always the Discover', () => {
+      for (const tier of [6, 7]) {
+        for (let seed = 1; seed <= 30; seed++) {
+          const a = { ...createRun(seed), phase: 'recruit', heroId: 'cia', embers: 10, tier, hand: [], board: [],
+            ciaEnchantedBought: 2, ciaSuit: 'ace', shop: [{ uid: 'sx', cardId: 'stray', enchanted: true }] } as RunState;
+          const r = reduce(a, { type: 'buy', uid: 'sx' } as never);
+          expect(r.aceTierDiscount, `tier ${tier} seed ${seed}: no discount above Tier 5`).toBeFalsy();
+        }
+      }
+    });
+
+    it('the Discover reaches Tier 7 from a Tier-6 shop, without Summit access', () => {
+      let sawTier7 = false;
+      for (let seed = 1; seed <= 40 && !sawTier7; seed++) {
+        const a = { ...createRun(seed), phase: 'recruit', heroId: 'cia', embers: 10, tier: 6, hand: [], board: [],
+          ciaEnchantedBought: 2, ciaSuit: 'ace', shop: [{ uid: 'sx', cardId: 'stray', enchanted: true }] } as RunState;
+        const r = reduce(a, { type: 'buy', uid: 'sx' } as never);
+        if (r.discover?.length) {
+          for (const id of r.discover) expect(CARD_INDEX[id]!.tier, 'one tier up, at the Tier-7 cap').toBe(7);
+          sawTier7 = true;
+        }
+      }
+      expect(sawTier7, 'a Tier-7 Discover opened').toBe(true);
+    });
+
+    it('the discount is banked, applied ONCE, and never pays you to upgrade', () => {
+      const base = { ...createRun(2), phase: 'recruit', heroId: 'cia', embers: 99, tier: 2, hand: [], board: [] } as RunState;
+      const before = upgradeCostOf(base);
+      const banked = { ...base, aceTierDiscount: 4 } as RunState;
+      expect(upgradeCostOf(banked), 'four Gold cheaper').toBe(Math.max(0, before - 4));
+      // Spent by the upgrade that uses it.
+      const after = reduce(banked, { type: 'upgrade' } as never);
+      expect(after.tier).toBe(3);
+      expect(after.aceTierDiscount, 'the bank is spent').toBeFalsy();
+      // Floored: a discount larger than the cost never turns into free Gold.
+      expect(upgradeCostOf({ ...base, aceTierDiscount: 999 } as RunState)).toBe(0);
+    });
+  });
+
   it('DIAMONDS — a random minion from the tier ABOVE you', () => {
     const after = enchantedBuy('diamonds');
     const got = after.hand.filter((c) => !CARD_INDEX[c.cardId]!.spell && c.cardId !== 'stray');
@@ -171,19 +236,22 @@ describe('Ayse — Lucky Seat', () => {
   });
 
   it('re-rolls the suit after a payout, and NEVER repeats it', () => {
-    for (const suit of ['hearts', 'spades', 'diamonds', 'clubs']) {
+    // Derived from the type's own list rather than a literal, so a suit added later (the Ace was, 2026-08-22)
+    // is swept automatically instead of silently skipped.
+    const SUITS: CiaSuit[] = ['hearts', 'spades', 'diamonds', 'clubs', 'ace'];
+    for (const suit of SUITS) {
       // Vary the seed so the exclusion is tested against many draws, not one lucky one.
       for (let seed = 1; seed <= 12; seed++) {
         const after = enchantedBuy(suit, { ...createRun(seed), phase: 'recruit', heroId: 'cia', embers: 10, tier: 3, hand: [], board: [], ciaEnchantedBought: 2, ciaSuit: suit, shop: [{ uid: 'sx', cardId: 'stray', enchanted: true }] });
         expect(after.ciaSuit, `${suit} must not repeat`).not.toBe(suit);
-        expect(['hearts', 'spades', 'diamonds', 'clubs']).toContain(after.ciaSuit);
+        expect(SUITS).toContain(after.ciaSuit);
       }
     }
   });
 
-  it('prints ONLY the queued suit reward — not a table of all four', () => {
+  it('prints ONLY the queued suit reward — not a table of all five', () => {
     const texts: Record<string, string> = {
-      hearts: 'Hearts', spades: 'Spades', diamonds: 'Diamonds', clubs: 'Clubs',
+      hearts: 'Hearts', spades: 'Spades', diamonds: 'Diamonds', clubs: 'Clubs', ace: 'Ace',
     };
     for (const [suit, word] of Object.entries(texts)) {
       const t = heroPowerText({ ...createRun(4, 'cia'), ciaSuit: suit } as RunState);

@@ -86,6 +86,19 @@ export const KESHI_CROWN_THRESHOLD = 25;
  */
 export const CIA_ENCHANT_CHANCE = 0.20;
 
+/** Ayse's ACE, tier-up half: Gold knocked off the next Shop upgrade. Banked in `aceTierDiscount`. */
+export const ACE_TIER_DISCOUNT = 4;
+
+/**
+ * Ayse's ACE, tier-up half: the highest Shop tier that half is OFFERED at (owner rule 2026-08-22 — "the
+ * tiering up one can only be offered at tier 5 and below").
+ *
+ * Above it the Ace always pays its Discover half rather than flipping: at Tier 6 a discount buys at most one
+ * more step, and at the ceiling it buys nothing at all, so a coin flip up there would pay out dead half the
+ * time — the one outcome a prize should never have.
+ */
+export const ACE_DISCOUNT_MAX_TIER = 5;
+
 /**
  * Indy's Masterwork recharge: Gold that must be SPENT after a use before the charge returns.
  *

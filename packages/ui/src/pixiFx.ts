@@ -403,6 +403,11 @@ class FxController {
    *  clear + present an empty stage every frame at native fullscreen res (the exe's 2885×1440). The MAIN
    *  controller leaves this OFF — it renders continuously (aim line, combat FX all need the per-frame tick). */
   private autoIdle = false;
+  /** Distinguishes this controller's perf counters from the other instance's (see `registerCounter` below).
+   *  Empty for the main board layer, so its counters keep their original names in the capture format. */
+  private label = '';
+  /** Name this controller for the perf HUD/export. Call before attach. */
+  setPerfLabel(label: string): void { this.label = label; }
 
   /** Track the stage scale so combat particle bursts shrink with the cards (see `fxScale`). Idempotent; cheap. */
   setScale(stageScale: number): void {
@@ -648,10 +653,17 @@ class FxController {
     // Expose the live FX counts to the perf HUD. Read once per 1s bucket, never per frame — these are the
     // numbers that explain a spike ("400 particles alive" / "7 rings converging"), so a hitch in the log
     // can be tied to what the renderer was actually carrying.
-    perfMonitor.registerCounter('particles', () => this.live.length);
-    perfMonitor.registerCounter('sprite pool', () => this.pool.length);
-    perfMonitor.registerCounter('weld rings', () => this.weldRings.length);
-    perfMonitor.registerCounter('spell arrows', () => this.spellArrows.length);
+    // NAMESPACED PER CONTROLLER. There are TWO FxControllers — the board layer (`pixiFx`) and the Discover
+    // overlay's own (`discoverFx`) — and both used to register these four names on the shared perf registry,
+    // which is a Map. The second to attach silently REPLACED the first, so every capture read the Discover
+    // layer's arrays: `particles` logged 0 for a whole 448-second session, including all 66 buckets that
+    // fired an aura wave (owner capture 2026-08-22). The counter that exists to explain an FX spike was the
+    // one counter blind to it.
+    const ns = this.label ? `${this.label} ` : '';
+    perfMonitor.registerCounter(`${ns}particles`, () => this.live.length);
+    perfMonitor.registerCounter(`${ns}sprite pool`, () => this.pool.length);
+    perfMonitor.registerCounter(`${ns}weld rings`, () => this.weldRings.length);
+    perfMonitor.registerCounter(`${ns}spell arrows`, () => this.spellArrows.length);
     this.ready = true;
   }
 
@@ -2944,6 +2956,7 @@ pixiFx.enableAutoIdle();
  *  backdrop) — so the discover burst reads white-hot over the dim without covering the UI. Its own app +
  *  canvas; attached when Discover opens, its canvas re-appended on each subsequent open. */
 export const discoverFx = new FxController();
+discoverFx.setPerfLabel('discover'); // keep its counters out of the board layer's (see registerCounter)
 // The Discover burst layer only ever draws the one-shot burst — idle its ticker between/after bursts so a
 // second full-viewport WebGL context isn't rendering an empty stage every frame during all other play.
 discoverFx.enableAutoIdle();

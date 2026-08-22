@@ -1272,6 +1272,11 @@ export type QuestReward =
   // Bane's Existence: after this, your Banes' after-Battlecry buff also gives all your Demons +A/+H run-wide.
   | { kind: 'baneDemonAura'; attack: number; health: number }
   // A quest that grants SEVERAL of the above at once (The Hoard Wakes = shoutRepeat + recurringEndOfTurn).
+  /** Rune of the Wheel (2026-08-21): shop minions have a STANDING +A/+H aura, and the aura's magnitude grows
+   *  +step/+step once every `per` refreshes. Distinct from `shopBuffOnRefresh` (Endless Inventory), which
+   *  grants a NEW permanent buff on EVERY refresh — the rune shipped on that kind and stacked +2/+2 per
+   *  refresh, ~5× its printed text. */
+  | { kind: 'shopAuraGrowing'; attack: number; health: number; step: number; per: number }
   // ── Hero quest rewards (Fi / Coran, 2026-08-21) ──────────────────────────────────────────────────────
   /** Spare Forge / Runic Passage: hand over a random rune of that rarity IMMEDIATELY — no forge, no choice,
    *  no Gold. Distinct from `scheduleRuneforge` (which opens a picker next turn) and `openEpicRuneforge`. */

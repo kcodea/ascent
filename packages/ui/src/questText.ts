@@ -429,6 +429,8 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
       return `Every ${r.per} Shouts you trigger, give Shop minions +${r.attack}/+${r.health}`;
     case 'shopBuffOnRefresh':
       return `After you refresh, give Shop minions +${r.attack}/+${r.health}, improving by +${r.step}/+${r.step} every ${r.per} refreshes`;
+    case 'shopAuraGrowing':
+      return `Shop minions have +${r.attack}/+${r.health}, improving by +${r.step}/+${r.step} every ${r.per} refreshes`;
     case 'multi':
       return r.rewards.map((sub) => questRewardText(sub)).join('. ');
     default:
@@ -479,6 +481,16 @@ export function questRewardLiveText(r: QuestReward, live: QuestRewardLive): stri
       if (r.effect !== 'copyFirstSpell') return null;
       const spell = live.firstSpellId ? CARD_INDEX[live.firstSpellId] : undefined;
       return spell ? `Now: a copy of ${spell.name}` : 'Now: nothing cast yet this turn';
+    }
+    case 'shopAuraGrowing': {
+      // Rune of the Wheel: the badge shows the aura's CURRENT total and the countdown to the next improve —
+      // the printed +2/+2 goes stale the moment the first step lands (card-text live-accuracy rule).
+      const g = live.shopRefresh;
+      if (!g) return null;
+      const a = r.attack + g.grown, h = r.health + g.grown;
+      const toNext = r.per > 0 ? r.per - (g.tick % r.per) : 0;
+      const next = r.step > 0 && toNext > 0 ? ` · +${r.step}/+${r.step} in ${toNext} more refresh${toNext === 1 ? '' : 'es'}` : '';
+      return `Now: Shop minions have ${statPhrase(a, h)}${next}`;
     }
     case 'shopBuffOnRefresh': {
       // The magnitude compounds, so the badge must show what the NEXT refresh actually gives — printing the

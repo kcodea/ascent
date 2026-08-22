@@ -271,7 +271,7 @@ export function QuestBadges() {
           spellsCast: run.spellsCast ?? 0,
           scaling: scaling ? { progress: scaling.progress, per: scaling.per } : undefined,
           denMarkerCount: run.denMarker?.count ?? 0,
-          shopRefresh: run.shopBuffOnRefresh ? { grown: run.shopBuffOnRefresh.grown, tick: run.shopBuffOnRefresh.tick } : undefined,
+          shopRefresh: run.shopBuffOnRefresh ? { grown: run.shopBuffOnRefresh.grown, tick: run.shopBuffOnRefresh.tick } : run.shopAuraGrow ? { grown: run.shopAuraGrow.grown, tick: run.shopAuraGrow.tick } : undefined,
           firstSpellId: run.firstSpellThisTurnId,
         };
         const liveTxt = questRewardLiveText(r, live);

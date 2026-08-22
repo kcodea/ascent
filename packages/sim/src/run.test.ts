@@ -3876,21 +3876,19 @@ describe('hero powers (@game/sim)', () => {
     expect(after.heroReady).toBe(true); // charge preserved
   });
 
-  it("Myra's Pulse is locked until turn 3", () => {
+  it("Auctioneer's Pulse is live from TURN 1 (the turn-3 lock was removed, owner 2026-08-22)", () => {
     const cleric = (): BoardCard => ({
       uid: 'c', cardId: 'cleric', tribe: 'dragon', attack: 1, health: 3, keywords: [], golden: false,
     });
     const other = (): BoardCard => ({
       uid: 'd2', cardId: 'frontdrake', tribe: 'dragon', attack: 1, health: 3, keywords: ['SC'], golden: false,
     });
-    // Turn 1: locked — the power is rejected (no charge spent, no Battlecry replay).
-    const w1: RunState = { ...createRun(1, 'myra'), wave: 1, board: [cleric(), other()] };
-    expect(reduce(w1, { type: 'heroPower', uid: 'c' })).toBe(w1);
-    // Turn 3: unlocked — the Battlecry re-fires (+3/+3 onto the OTHER Dragon).
-    let w3: RunState = { ...createRun(1, 'myra'), wave: 3, board: [cleric(), other()] };
-    w3 = reduce(w3, { type: 'heroPower', uid: 'c' });
-    expect(w3.board[1]!.attack).toBe(4);
-    expect(w3.heroReady).toBe(false);
+    // Turn 1: the power FIRES — a Battlecry replay spends the charge. (This test used to pin the lock.)
+    const w1: RunState = { ...createRun(1, 'myra'), wave: 1, board: [cleric(), other()], heroReady: true };
+    const after = reduce(w1, { type: 'heroPower', uid: 'c' });
+    expect(after).not.toBe(w1);
+    expect(after.heroReady, 'the charge was spent — the power really fired').toBe(false);
+    expect(getHero('myra').power.unlockWave).toBeUndefined();
   });
 
   it("Myra's Pulse can complete a triple — a replayed Battlecry's summon golden-combines", () => {

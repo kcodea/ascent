@@ -83,6 +83,7 @@ function mandatoryOf(s: RunState): BotMandatoryDecision | null {
       : s.board.filter((c) => c.uid !== s.pendingTarget!.uid);
     return { kind: 'battlecryTarget', sourceUid: s.pendingTarget.uid, legalTargets: legal.map((c) => c.uid) };
   }
+  if (s.powerOffer) return { kind: 'powerOffer', options: [...s.powerOffer.heroIds] };
   if (s.questOffer?.length) return { kind: 'quest', options: [...s.questOffer] };
   if (s.runeforgeOffer?.length) {
     return {

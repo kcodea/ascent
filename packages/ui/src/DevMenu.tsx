@@ -14,6 +14,7 @@ import { CardArtTuner } from './CardArtTuner';
 import { LobbyPanelTuner } from './LobbyPanelTuner';
 import { TitleLogoTuner } from './TitleLogoTuner';
 import { BoardEdgeTuner } from './BoardEdgeTuner';
+import { SecondPowerTuner } from './SecondPowerTuner';
 import { CombatRampTuner } from './CombatRampTuner';
 import { SpellBuffFxTuner } from './SpellBuffFxTuner';
 import { StepProcFxTuner } from './StepProcFxTuner';
@@ -117,6 +118,7 @@ const GROUPS: Group[] = [
       { key: 'cardart', icon: '🖌️', label: 'Card Art', C: CardArtTuner, hint: "One card's illustration: framing inside the window, plus hue/saturation/contrast" },
       { key: 'heropanel', icon: '🧍', label: 'Hero Panel', C: HeroPanelTuner, hint: 'The bottom-left hero tray' },
       { key: 'lobbypanel', icon: '🪑', label: 'Lobby Rail', C: LobbyPanelTuner, hint: 'The 8-seat table down the right edge' },
+      { key: 'secondpower', icon: '👥', label: 'Second Power', C: SecondPowerTuner, hint: "Void's second hero-power button — offset + scale", alt: 'void twin power position' },
       { key: 'boardedge', icon: '🌫️', label: 'Board Edge', C: BoardEdgeTuner, hint: 'The colour the board fades into on an ultrawide (wider than 16:9) window', alt: 'ultrawide margin side blend' },
       { key: 'modepick', icon: '🎛️', label: 'Play Mode Screen', C: ModePickTuner, hint: 'The MODE picker — each card, the art inside it, and the MODE title', alt: 'play screen mode picker' },
       { key: 'buffdrawer', icon: '🧪', label: 'Buffs Panel', C: BuffDrawerTuner, hint: 'The run-buffs pop-out' },

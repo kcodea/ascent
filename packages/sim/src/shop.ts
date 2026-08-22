@@ -2,7 +2,7 @@ import { makeRng, type CardDef, type Rng, type Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { poolOf } from './cardPool';
 import { CIA_ENCHANT_CHANCE, POOL_QUANTITIES, maxTierFor } from './config';
-import { getHero } from './heroes';
+import { getHero, hasPower } from './heroes';
 import type { RunState } from './state';
 import { stampVeinstormRubies } from './recruit';
 
@@ -23,7 +23,7 @@ import { stampVeinstormRubies } from './recruit';
  * the stream advances by a fixed count and stays reproducible.
  */
 export function rollCiaEnchants(state: RunState): void {
-  if (getHero(state.heroId).power.kind !== 'luckySeat') return;
+  if (!hasPower(state, 'luckySeat')) return; // a MIMICKED Lucky Seat enchants too — behaviour follows the wielded power
   if (state.shop.length === 0 && !state.spell) return;
   const rng = makeRng(state.rngCursor);
   for (const offer of state.shop) {

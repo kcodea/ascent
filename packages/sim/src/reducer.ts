@@ -8,7 +8,7 @@ import { lobbyOpponentBoard, settleRunLobbyRound, playerEliminated } from './lob
 import { accumulateContribution, tallyCombat } from './contribution';
 import { rollShop, topUpTavern, returnToPool, takeFromPool, rollCiaEnchants } from './shop';
 import { generateQuestOffer, questOfferPlan } from './quests';
-import { getHero, gildCopiesNeeded } from './heroes';
+import { activePowers, getHero, gildCopiesNeeded, hasPower, powerDiscoverPool } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard, oppKey } from './opponents';
 import type { BoardSnapshot } from './snapshot';
@@ -97,7 +97,7 @@ function spendGold(s: RunState, amount: number): void {
  *  (`tiffDiscount`, read by `dragonTamerCostOf`; reset when the power fires). Called from every buy path —
  *  the right-hand spell slot, a Spell-Cart shop spell, a held-Displacement restore, and the normal buy. */
 function tiffBuyDiscount(s: RunState, card: CardDef): void {
-  if (getHero(s.heroId).power.kind !== 'dragonTamer') return;
+  if (!hasPower(s, 'dragonTamer')) return;
   if (card.spell || card.tribe === 'dragon' || card.tribe2 === 'dragon' || card.universalTribe) {
     s.tiffDiscount = (s.tiffDiscount ?? 0) + 1;
   }
@@ -127,7 +127,7 @@ export function wishboneReps(s: RunState): number {
 }
 
 function gorrQuestBuy(s: RunState, card: CardDef): void {
-  if (getHero(s.heroId).power.kind !== 'fourPeat' || card.spell) return;
+  if (!hasPower(s, 'fourPeat') || card.spell) return;
   const buys = [...(s.gorrBuys ?? []), card.id];
   s.gorrBuys = buys;
   if (buys.length !== 3) return; // fires on EXACTLY the 3rd minion buy each turn
@@ -193,7 +193,7 @@ function chronosQuestBuy(s: RunState, card: CardDef): void {
  *  on the next purchase that finds room. `keshiTierPoints` can therefore legitimately read above the
  *  threshold. */
 function keshiCrownBuy(s: RunState, card: CardDef): void {
-  if (getHero(s.heroId).power.kind !== 'crownTally') return;
+  if (!hasPower(s, 'crownTally')) return;
   s.keshiTierPoints += card.tier * wishboneReps(s); // Wishbone: the buy banks its tier twice
   // A `while` (not an `if`) purely for safety: max tier 7 against KESHI_CROWN_THRESHOLD (25) means one
   // purchase can never pay twice today, but this can't silently break if either number is retuned later.
@@ -216,13 +216,13 @@ function keshiCrownBuy(s: RunState, card: CardDef): void {
 /** Shop minion cost for the current hero: Hermit Hank's minions cost 2 Gold; everyone else pays the config
  *  default. A Moe set-price (`offer.cost`) or a Merchant's Mark override still take priority over this. */
 export function minionCostOf(s: RunState): number {
-  return getHero(s.heroId).power.kind === 'cheapMinions' ? 2 : CONFIG.minionCost;
+  return hasPower(s, 'cheapMinions') ? 2 : CONFIG.minionCost;
 }
 
 /** The Gold a tavern-up costs right now: the running `upgradeCost` plus Hermit Hank's +2 surcharge (his
  *  minions are cheap, but climbing tiers costs more). The single source of truth for the reducer + UI. */
 export function upgradeCostOf(s: RunState): number {
-  const base = s.upgradeCost + (getHero(s.heroId).power.kind === 'cheapMinions' ? 2 : 0);
+  const base = s.upgradeCost + (hasPower(s, 'cheapMinions') ? 2 : 0);
   // Ayse's Ace: a banked tier-up discount, floored at 0 so it can never pay you to upgrade.
   return Math.max(0, base - (s.aceTierDiscount ?? 0));
 }
@@ -230,7 +230,7 @@ export function upgradeCostOf(s: RunState): number {
 /** The Gold a tavern refresh (reroll) costs right now: the config default, but Tradesman (cheapMinions) pays 2
  *  — cheap to shop, dear to churn. The single source of truth for the reducer's roll charge + the UI button. */
 export function refreshCostOf(s: RunState): number {
-  return getHero(s.heroId).power.kind === 'cheapMinions' ? 2 : CONFIG.refreshCost;
+  return hasPower(s, 'cheapMinions') ? 2 : CONFIG.refreshCost;
 }
 
 /** Rune of Open Enrollment: append ONE extra offer of the board's most common type after a refresh. */
@@ -1030,7 +1030,7 @@ function reduceCore(state: RunState, action: Action): RunState {
   // Letting the transitions through is safe: the modal is untouched and presents itself in the next recruit
   // phase, which is where a Discover can be answered anyway.
   const combatTransition = action.type === 'resolveCombat' || action.type === 'settleCombat';
-  if (modalOpen(state) && !combatTransition && action.type !== 'discover' && action.type !== 'chooseOne' && action.type !== 'battlecryTarget' && action.type !== 'buyQuest' && action.type !== 'buyRune' && action.type !== 'skipRuneforge' && action.type !== 'rerollRuneforge' && action.type !== 'devGrant' && action.type !== 'closeScout' && !endTurnEscapesAim) {
+  if (modalOpen(state) && !combatTransition && action.type !== 'discover' && action.type !== 'chooseOne' && action.type !== 'battlecryTarget' && action.type !== 'buyQuest' && action.type !== 'pickPower' && action.type !== 'buyRune' && action.type !== 'skipRuneforge' && action.type !== 'rerollRuneforge' && action.type !== 'devGrant' && action.type !== 'closeScout' && !endTurnEscapesAim) {
     return state;
   }
 
@@ -1644,7 +1644,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       // different types, buffs all three. Checked on the PLAY only (owner ruling 2026-08-16) — repositioning
       // into the same sandwich later does nothing — and read from the drop index, so it needs a real neighbour
       // on each side. `threeDistinctTypes` resolves a dual-type card to whichever of its types avoids a clash.
-      if (getHero(s.heroId).power.kind === 'exhibition' && to > 0 && to < s.board.length - 1) {
+      if (hasPower(s, 'exhibition') && to > 0 && to < s.board.length - 1) {
         const trio = [s.board[to - 1]!, card, s.board[to + 1]!];
         if (threeDistinctTypes(trio)) {
           const amt = exhibitionGrantOf(s) * wishboneReps(s); // Wishbone: the Exhibition pays twice
@@ -1958,7 +1958,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       }
       // Robin's Spoils: each minion you sell banks +1 Gold for the START of next turn — stacks all turn, lands
       // on top of the cap, then is consumed + reset when next turn's Gold is set (Hoarder's bonus channel).
-      if (sold && getHero(s.heroId).power.kind === 'sellGold') s.bonusEmbersNextTurn = (s.bonusEmbersNextTurn ?? 0) + 1;
+      if (sold && hasPower(s, 'sellGold')) s.bonusEmbersNextTurn = (s.bonusEmbersNextTurn ?? 0) + 1;
       // Return the copies to the shared pool (a golden ate three). Tokens aren't pooled → ignored.
       if (sold) returnToPool(s, sold.cardId, sold.golden ? 3 : 1);
       return s;
@@ -1989,7 +1989,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       // Rune of Open Enrollment: after a refresh, add ONE extra offer of your most common type.
       if (s.runeOpenEnrollment) { procRune(s, 'runeOpenEnrollment'); appendDominantTypeOffer(s); }
       // Pete (Contrabanana): every 3rd refresh guarantees the RIGHT-MOST offer is from the tier above.
-      if (getHero(s.heroId).power.kind === 'contraband') {
+      if (hasPower(s, 'contraband')) {
         s.refreshCount = (s.refreshCount ?? 0) + 1;
         if (s.refreshCount % 3 === 0) upgradeRightmostOffer(s);
       }
@@ -2020,7 +2020,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       // Emerald Warden (Vanguard): every tavern-up also hands you a random minion of the tier you JUST reached
       // — read after `s.tier += 1`, so it always pays out the new pool, never the one you left. `exactTier`
       // semantics like Jensen's dig: the reward is the tier you bought, not "up to" it.
-      if (getHero(s.heroId).power.kind === 'vanguard') {
+      if (hasPower(s, 'vanguard')) {
         const pool = poolOf(s).buyable.filter((c) => !c.spell && !c.ruby && c.tier === s.tier);
         if (pool.length > 0 && s.hand.length < handCap(s)) conjureToHand(s, pool, wishboneReps(s)); // Wishbone: two
       }
@@ -2196,17 +2196,25 @@ function reduceCore(state: RunState, action: Action): RunState {
     }
 
     case 'heroPower': {
-      const power = getHero(s.heroId).power;
-      // Some powers unlock on a later turn (Myra's Encore — turn 3); locked before then.
+      // WHICH wielded power fires: slot 0 is the main button (everyone), slot 1 is Void's second power.
+      // `activePowers` resolves Mimic's adopted power and Void's pair; a plain hero has exactly one entry, so
+      // slot is inert for the whole existing roster.
+      const slot = action.slot === 1 ? 1 : 0;
+      const power = activePowers(s)[slot];
+      if (!power) return state; // slot 1 with only one power wielded
+      // Some powers unlock on a later turn; locked before then.
       if (s.wave < (power.unlockWave ?? 1)) return state;
       // Once-per-game powers (Gild) gate on heroPowerSpent; maxUses powers (Gildmaster: 2 total) gate on the
-      // whole-game count AND the once-per-turn charge; the rest just recharge each wave.
-      const heroUses = s.heroPowerUses ?? 0;
+      // whole-game count AND the once-per-turn charge; the rest just recharge each wave. Slot 1 keeps its own
+      // sibling fields so Void's two actives charge and spend independently.
+      const heroUses = (slot === 1 ? s.heroPowerUses2 : s.heroPowerUses) ?? 0;
+      const slotReady = slot === 1 ? (s.heroReady2 ?? true) : s.heroReady;
+      const slotSpent = slot === 1 ? s.heroPowerSpent2 : s.heroPowerSpent;
       const available = power.maxUses
-        ? heroUses < power.maxUses && s.heroReady
+        ? heroUses < power.maxUses && slotReady
         : power.oncePerGame
-          ? !s.heroPowerSpent
-          : s.heroReady;
+          ? !slotSpent
+          : slotReady;
       if (!available) return state;
       // Powers with a Mana cost (Nadja's Mana Font) also need the Mana on hand.
       if (power.cost && s.embers < power.cost) return state;
@@ -2621,13 +2629,44 @@ function reduceCore(state: RunState, action: Action): RunState {
         }
       }
 
-      if (power.oncePerGame) s.heroPowerSpent = true;
+      if (power.oncePerGame) { if (slot === 1) s.heroPowerSpent2 = true; else s.heroPowerSpent = true; }
+      else if (slot === 1) s.heroReady2 = false;
       else s.heroReady = false;
-      if (power.maxUses) s.heroPowerUses = heroUses + 1; // whole-game activation budget (Gildmaster: 2)
+      if (power.maxUses) { if (slot === 1) s.heroPowerUses2 = heroUses + 1; else s.heroPowerUses = heroUses + 1; } // whole-game activation budget (Gildmaster: 2)
       if (power.cost) spendGold(s, Math.min(s.embers, power.cost)); // gold spent → Acid / Banksly meter
       // A power that summons or generates a minion (Myra's Battlecry replay → an Alleycat's Stray,
       // Dusk's End-of-Turn replay) can complete a triple — check now, like buy / play / discover do.
       checkTriples(s);
+      return s;
+    }
+
+    case 'pickPower': {
+      // Hero-power Discover (Mimic every turn / Void turn 4): adopt the picked hero's power. 0-cost and
+      // mandatory — the offer blocks every other action, exactly like the quest shop it is modelled on.
+      const offer = s.powerOffer;
+      if (!offer) return state;
+      const heroId = offer.heroIds[action.index];
+      if (heroId == null || !getHero(heroId)) return state;
+      s.powerOffer = undefined;
+      if (offer.slot === 'mimic') {
+        s.mimicPowerId = heroId;
+        // A fresh disguise is a fresh charge: the adopted power arms now even when the previous one was
+        // spent this same turn (each turn's power is its own).
+        s.heroReady = true;
+        seedAdoptedPower(s, heroId);
+      } else if (offer.slot === 'void1') {
+        s.voidPowerIds = [heroId];
+        s.heroReady = true;
+        seedAdoptedPower(s, heroId);
+        // Chain straight into the second pick — the two are one turn-4 ceremony. The pool re-derives with the
+        // first pick excluded, so the same power can never be held twice.
+        mintPowerOffer(s, 'void2');
+      } else {
+        (s.voidPowerIds ??= []).push(heroId);
+        s.heroReady2 = true;
+        seedAdoptedPower(s, heroId);
+      }
+      openNextStartOfTurnModal(s); // a quest turn / forge can be queued behind the ceremony
       return s;
     }
 
@@ -2688,7 +2727,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       // left-most card in hand — base stats only (no buffs/golden/welds carried) and NO pool take (a
       // conjured card). Hand-cap-safe; an empty hand grants nothing. (Owner correction 2026-07-16:
       // end-of-turn, not start-of-shop.)
-      if (getHero(s.heroId).power.kind === 'secondHand' && s.wave % 3 === 0 && s.hand.length > 0) {
+      if (hasPower(s, 'secondHand') && s.wave % 3 === 0 && s.hand.length > 0) {
         // CHOREOGRAPHER PR 9 — hero powers emit. Re-Pete's Second Hand conjured a card into hand with no
         // event at all, so it had no beat to schedule and nothing in the Beat Lab to reclassify: the owner
         // flipping it from folded to its own beat correctly changed nothing, because there was no beat.
@@ -3064,7 +3103,7 @@ function grantGoldenDiscover(s: RunState): void {
   // MIDAS: his Gilds pay a Gold Pouch instead of the Triple Reward. Swapped HERE rather than at the call sites
   // because every Gild route funnels through this one function — doing it per-site would guarantee a missed
   // path (the `applySpellBought` lesson).
-  if (getHero(s.heroId).power.kind === 'midasTouch') {
+  if (hasPower(s, 'midasTouch')) {
     const pouch = CARD_INDEX['emberpouch'];
     if (pouch && s.hand.length < handCap(s)) conjureToHand(s, [pouch], 1);
     return;
@@ -3742,8 +3781,8 @@ function settleCombat(s: RunState, result: CombatResult): void {
   // Flash: the copy itself was granted INSIDE the fight (via `playerHandGrants`, so it flew to hand as it was
   // earned — owner ask 2026-08-17: real-time, not at resolution). Settle only spends the claim, and spends it
   // whether or not a body was available, so a fight with no kills cannot bank it for a later one.
-  if (s.flashPick && getHero(s.heroId).power.kind === 'firstOrLast') s.flashPick = undefined;
-  if (getHero(s.heroId).power.kind === 'collision') {
+  if (s.flashPick && hasPower(s, 'firstOrLast')) s.flashPick = undefined;
+  if (hasPower(s, 'collision')) {
     s.cassenKills += result.enemyDeaths;
     while (s.cassenKills >= 5) {
       if (!grantTopTypeMinion(s)) break;
@@ -3842,6 +3881,7 @@ function advanceCombat(s: RunState): void {
   s.embers = s.maxEmbers + (s.maxGoldBonus ?? 0) + boardManaBonus(s) + (s.bonusEmbersNextTurn ?? 0);
   s.bonusEmbersNextTurn = 0;
   s.heroReady = true;
+  s.heroReady2 = true; // Void's second power recharges on the same clock
   // Tutorial: a scripted shop reads roll 0 (the turn-start offer) each new wave. Reset before the wave's shop
   // rolls so the first roll of the turn serves the authored initial offer, refreshes then advancing 1, 2, …
   if (s.tutorialShopScript) s.tutorialShopRoll = 0;
@@ -3983,7 +4023,7 @@ function advanceCombat(s: RunState): void {
   // ONE. Like the quest shop, the tavern is rolled behind the overlay so the shop is ready once the forge closes.
   // The HERO forge is turn 5 — deliberately EARLIER than the universal system's turn-6 basic forge, so a
   // Runesmith is ahead of the curve rather than redundant with it (owner 2026-07-31).
-  const forge = s.mode !== 'tutorial' && getHero(s.heroId).power.kind === 'runeforge' && s.wave === 5 && !s.heroPowerSpent;
+  const forge = s.mode !== 'tutorial' && hasPower(s, 'runeforge') && s.wave === 5 && !s.heroPowerSpent;
   if (forge) {
     s.runeforgeEpic = undefined; // basic forge — set before runeforgePool so it reads the normal set
     s.runeforgeRerolled = undefined;
@@ -4037,6 +4077,15 @@ function advanceCombat(s: RunState): void {
   // Bloodbinder: its Rally alternates the stat it gives Fodder — flip each board Bloodbinder every turn
   // (undefined/'atk' ↔ 'hp'), so this turn's combat reads the freshly-swapped stat.
   for (const c of s.board) if (c.cardId === 'bloodbinder') c.bloodbinderMode = c.bloodbinderMode === 'hp' ? 'atk' : 'hp';
+  // MIMIC: a fresh power Discover at the start of EVERY turn (owner spec 2026-08-22); the previous turn's
+  // disguise stays wielded until the pick lands, so the run is never power-less mid-modal. VOID: the one-time
+  // turn-4 double ceremony. Both are QUEUED rather than opened, so a quest offer on the same turn keeps its
+  // place at the front (the sequencer opens the power pick right behind it).
+  if (s.mode !== 'tutorial') {
+    const nativeKind = getHero(s.heroId).power.kind;
+    if (nativeKind === 'mimic') s.pendingPowerOffer = { slot: 'mimic' };
+    if (nativeKind === 'voidTwin' && s.wave === 4 && !s.voidPowerIds?.length) s.pendingPowerOffer = { slot: 'void1' };
+  }
   openNextStartOfTurnModal(s);
   // Rune of the Long Shift (owner 2026-08-11): Discover 2 Shop spells at the start of each turn. Queued AFTER
   // the start-of-turn modal so any quest offer / forge takes priority and the two Discovers stack behind it.
@@ -4049,7 +4098,7 @@ function advanceCombat(s: RunState): void {
   // Chaos hero power: at the START of every 5th turn, add a Chaos Attachment token to the hand
   // (the checkTriples below also combines it if it completes a triple). The hero starts with one token
   // (createRun); this is the recurring grant — turns 5, 10, 15, …
-  if (getHero(s.heroId).power.kind === 'chaos' && s.wave % 5 === 0) {
+  if (hasPower(s, 'chaos') && s.wave % 5 === 0) {
     const def = CARD_INDEX['symbioticattachment'];
     if (def && s.hand.length < handCap(s)) {
       const grantUid = `b${s.uidSeq++}`;
@@ -4072,7 +4121,7 @@ function advanceCombat(s: RunState): void {
   }
   // Gildmaster: get a Goldcrafter (a spell that makes a friendly minion golden) at the START of every 4th
   // turn — turns 4, 8, 12, …. Conjured to hand (hand-cap-safe); a granted spell can't complete a triple.
-  if (getHero(s.heroId).power.kind === 'recurringGoldcrafter' && s.wave % 4 === 0) {
+  if (hasPower(s, 'recurringGoldcrafter') && s.wave % 4 === 0) {
     conjureToHand(s, CARD_INDEX['goldcrafter'] ? [CARD_INDEX['goldcrafter']!] : [], 1);
   }
   // Quest delayed rewards (Trail Rations' "repeat in 2 turns"): tick each pending grant down a turn and
@@ -4368,7 +4417,7 @@ export const DOUBLEABLE_POWERS = new Set([
  *  a `requiresDoublePower` rune (Empowerment) is dropped for a hero whose power can't double. */
 function runeforgePool(s: RunState): string[] {
   const set = s.runeforgeEpic ? EPIC_RUNES : RUNES;
-  const canDouble = DOUBLEABLE_POWERS.has(getHero(s.heroId).power.kind);
+  const canDouble = activePowers(s).some((p) => DOUBLEABLE_POWERS.has(p.kind)); // a mimicked/Void-held power doubles too
   // SET SCOPING (owner report 2026-07-29): a rune whose reward names another set's mechanics — Fodder,
   // Attachments and Undead in set 1; Rubies and Ales in set 2 — can never pay off in this run, and offering it
   // burns one of the forge's few slots. `sets` absent means "general mechanics only", so it stays offerable
@@ -4533,8 +4582,40 @@ function closeRuneforge(s: RunState): void {
  *  Runeforge, queued Discovers) resolve them SEQUENTIALLY instead of dropping or deferring the lower-priority ones.
  *  Quest offers + the Runesmith forge are opened directly by `advanceCombat` (top priority); this drains what waits
  *  behind them, and is called from every modal-close path (buyQuest / forge close / discover resolve). */
+/**
+ * Open a hero-power Discover: 2 random eligible hero powers (owner spec 2026-08-22). `void2` re-derives the
+ * pool with the first pick excluded. Draws from `rngCursor` like every other shop-side pick. An empty pool
+ * (impossible with the shipped roster, but a content change could starve it) opens nothing — the turn just
+ * proceeds, the same no-soft-lock rule the quest offer follows.
+ */
+function mintPowerOffer(s: RunState, slot: 'mimic' | 'void1' | 'void2'): void {
+  const rng = makeRng(s.rngCursor);
+  const pool = powerDiscoverPool(slot === 'mimic' ? 'mimic' : 'void', s.voidPowerIds ?? []);
+  const heroIds: string[] = [];
+  while (heroIds.length < 2 && pool.length > 0) heroIds.push(pool.splice(rng.int(pool.length), 1)[0]!);
+  s.rngCursor = rng.state();
+  if (heroIds.length > 0) s.powerOffer = { heroIds, slot };
+}
+
+/**
+ * Seed the minimum run-state an ADOPTED power needs to function mid-run. Most powers are self-contained, but
+ * a few passives normally get set up at `createRun` — without this a mimicked Lucky Seat would pay its prize
+ * off an unset suit and show a blank suit card.
+ */
+function seedAdoptedPower(s: RunState, heroId: string): void {
+  const kind = getHero(heroId).power.kind;
+  if (kind === 'luckySeat' && !s.ciaSuit) {
+    const rng = makeRng(s.rngCursor);
+    s.ciaSuit = (['hearts', 'spades', 'diamonds', 'clubs', 'ace'] as const)[rng.int(5)];
+    s.rngCursor = rng.state();
+  }
+}
+
 function openNextStartOfTurnModal(s: RunState): void {
-  if (s.questOffer || s.runeforgeOffer || s.discover || s.chooseOne || s.pendingTarget) return; // one modal at a time
+  if (s.questOffer || s.powerOffer || s.runeforgeOffer || s.discover || s.chooseOne || s.pendingTarget) return; // one modal at a time
+  // A deferred hero-power Discover (Mimic's turn-start / Void's turn 4) — behind a quest offer, ahead of the
+  // forges: the power shapes what the forge/Discover picks are worth, so it resolves first.
+  if (s.pendingPowerOffer) { const slot = s.pendingPowerOffer.slot; s.pendingPowerOffer = undefined; mintPowerOffer(s, slot); if (s.powerOffer) return; }
   // A forge armed MID-TURN is `deferred` — it must wait for the NEXT turn's start (advanceCombat promotes it by
   // clearing the flag) so a mid-turn modal-close drain can't open it on the completing turn (owner bug 2026-07-13).
   if (s.pendingEpicRuneforge && !s.pendingForgeDeferred) { openEpicRuneforge(s); s.pendingEpicRuneforge = false; return; } // Runeforge before Discovers
@@ -5480,8 +5561,8 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     flagCopies: s.flagCopies, // Duplication: how many copies of each flag — dispatchers fire that many times
     // Sable: the bond only carries into the fight it was forged for (it "lasts 1 turn", combat included).
     soulbind: s.sableBond && s.sableBond.wave === s.wave ? { a: s.sableBond.a, b: s.sableBond.b } : undefined,
-    flashPick: getHero(s.heroId).power.kind === 'firstOrLast' ? s.flashPick : undefined,
-    flashCopies: getHero(s.heroId).power.kind === 'firstOrLast' ? wishboneReps(s) : undefined, // Wishbone: 2 copies
+    flashPick: hasPower(s, 'firstOrLast') ? s.flashPick : undefined,
+    flashCopies: hasPower(s, 'firstOrLast') ? wishboneReps(s) : undefined, // Wishbone: 2 copies
     bloodTrail: f?.bloodTrail,
     echoingCoop: f?.echoingCoop,
     lawOfTeeth: f?.lawOfTeeth,
@@ -5501,7 +5582,7 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     contractRewrite: f?.contractRewrite,
     pitWithoutEndImps: s.pitWithoutEndImps || undefined,
     doubleLeftmostAttack: f?.doubleLeftmostAttack,
-    possession: getHero(s.heroId).power.kind === 'possession' || undefined, // Atrius: SoC leftmost/rightmost stat trade
+    possession: hasPower(s, 'possession') || undefined, // Atrius: SoC leftmost/rightmost stat trade
     slaughterFirstEachCombat: s.slaughterFirstEachCombat || undefined,
     feedingLine: f?.feedingLine,
     umbralEnergy: f?.umbralEnergy,
@@ -5518,7 +5599,14 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     weakenTargets: s.pendingWeaken || undefined, // Weaken: SoC set N random enemies to 1 Health
     runeVanguard: f?.runeVanguard,         // Rune of the Vanguard: SoC Crit + Ward on your 3 left-most
     runeFinality: f?.runeFinality,         // Rune of Finality: your last death summons Warded Imps
-    runeHatchery: f?.runeHatchery ? { attack: 3, health: 3 } : undefined, // Echo summons enter +3/+3 with Taunt
+    // Rune of the Hatchery and Rayse's Empowering Vines share one channel — both are "bodies summoned in
+    // combat enter +A/+H with Taunt" — and they SUM when held together (rune +3/+3, Rayse +2/+3).
+    runeHatchery: f?.runeHatchery || hasPower(s, 'empoweringVines')
+      ? {
+          attack: (f?.runeHatchery ? 3 : 0) + (hasPower(s, 'empoweringVines') ? 2 : 0),
+          health: (f?.runeHatchery ? 3 : 0) + (hasPower(s, 'empoweringVines') ? 3 : 0),
+        }
+      : undefined,
     runeLastCall: f?.runeLastCall,           // Avenge (3): a random Dwarven Ale to hand
     runeCinderLedger: f?.runeCinderLedger,   // Avenge (3): improve your Imps run-wide
     runeProcession: f?.runeProcession,       // Avenge (4): double your right-most minion
@@ -5567,7 +5655,7 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     runeCarrionCoin: f?.runeCarrionCoin,     // Rune of Carrion Coin: Avenge (N) grants a Shop spell
     runeFiveBanners: f?.runeFiveBanners,     // Rune of the Five Banners: SoC — one of each type +6/+6
     // Emissary: SoC — one friendly of each type gains +1/+1 for EVERY spell cast this game.
-    unitedFront: getHero(s.heroId).power.kind === 'unitedFront' ? s.spellsCast * wishboneReps(s) : undefined, // Wishbone: triggers twice
+    unitedFront: hasPower(s, 'unitedFront') ? s.spellsCast * wishboneReps(s) : undefined, // Wishbone: triggers twice
     solidGroundLeft: s.solidGroundLeft,           // Solid Ground: first N summons next combat land bigger
     solidGroundStat: s.solidGroundStat,
     containFirstEnemySummon: s.containFirstEnemySummon, // Containment Rune: pin the foe's first summon to 1/1
@@ -5703,7 +5791,7 @@ function rollCiaSuit(s: RunState, avoid?: CiaSuit): CiaSuit {
  * the recurring bug in this file (see `applySpellBought`).
  */
 function jugglerBuy(s: RunState): void {
-  if (getHero(s.heroId).power.kind !== 'baldgecoin') return;
+  if (!hasPower(s, 'baldgecoin')) return;
   const n = (s.jugglerBuys ?? 0) + 1;
   if (n < 3) { s.jugglerBuys = n; return; }
   s.jugglerBuys = 0;
@@ -5722,7 +5810,7 @@ function jugglerBuy(s: RunState): void {
  * a Discover into a full hand), so a streak can never be banked indefinitely.
  */
 function ciaBuyEnchanted(s: RunState, offer: ShopCard): void {
-  if (!offer.enchanted || getHero(s.heroId).power.kind !== 'luckySeat') return;
+  if (!offer.enchanted || !hasPower(s, 'luckySeat')) return;
   const n = (s.ciaEnchantedBought ?? 0) + 1;
   if (n < 3) { s.ciaEnchantedBought = n; return; }
   s.ciaEnchantedBought = 0;

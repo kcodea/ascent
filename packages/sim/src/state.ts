@@ -2,7 +2,7 @@ import { makeRng } from '@game/core';
 import type { CombatOutcome, CombatResult, EffectDef, Keyword, QuestObjectiveEvent, Rng, Tribe } from '@game/core';
 import { CARD_INDEX, SETS, activeSet, poolFor, type SetId } from '@game/content';
 import { CONFIG, RIFT_BONUS_ARMOR, activeRift, type RiftId } from './config';
-import { DEFAULT_HERO_ID, getHero } from './heroes';
+import { DEFAULT_HERO_ID, getHero, powerDiscoverPool } from './heroes';
 import { generateQuestOffer, questOfferPlan } from './quests';
 import { queueDiscover } from './recruit';
 import { rollCiaEnchants, rollShop, stockPool } from './shop';
@@ -851,6 +851,27 @@ export interface RunState {
    *  they cannot be offered twice in a row" (owner spec 2026-08-16). Absent on the first offer, which is why
    *  the opening choice shows all three. */
   lastCommission?: CommissionKind;
+  /** MIMIC: the hero whose power the run wields THIS TURN (adopted from the turn-start power Discover;
+   *  replaced by the next turn's pick). Read only through `activePowers`/`hasPower` — behaviour sites must
+   *  never compare `getHero(heroId).power.kind` directly or the adopted power is invisible to them. */
+  mimicPowerId?: string;
+  /** VOID: the two heroes whose powers the run wields from turn 4 on (the turn-4 double Discover). Slot 0 is
+   *  the main power button; slot 1 renders as the second button beside the hero. */
+  voidPowerIds?: string[];
+  /** A hero-power Discover is OPEN: hero ids whose powers are offered, and which pick this is. Modal — the
+   *  reducer blocks every action but `pickPower` while set (same contract as `questOffer`). `void1` chains
+   *  into a `void2` offer on pick; `mimic` re-opens every turn. */
+  powerOffer?: { heroIds: string[]; slot: 'mimic' | 'void1' | 'void2' };
+  /** A power Discover WAITING behind another start-of-turn modal (quest offer / forge) — opened by
+   *  `openNextStartOfTurnModal` when the queue drains, mirroring `pendingBasicForge`. */
+  pendingPowerOffer?: { slot: 'mimic' | 'void1' };
+  /** The SECOND wielded power's per-turn charge (Void slot 1) — `heroReady`'s sibling, re-armed beside it on
+   *  every wave advance. Slot 0 keeps the original fields so every existing power is untouched. */
+  heroReady2?: boolean;
+  /** The SECOND power's once-per-game latch (`heroPowerSpent`'s sibling). */
+  heroPowerSpent2?: boolean;
+  /** The SECOND power's lifetime use count (`heroPowerUses`'s sibling, for maxUses powers). */
+  heroPowerUses2?: number;
   /** Croupier Ayse — the ACE's tier-up half: Gold knocked off the NEXT tavern-up, banked until spent. Read
    *  through `upgradeCostOf` (never off `upgradeCost` directly) and cleared by the upgrade that uses it, so a
    *  banked discount survives rerolls and turn rollovers but is only ever spent once. */
@@ -1661,7 +1682,8 @@ export type Action =
   | { type: 'reposition'; uid: string; toIndex: number }
   | { type: 'reorderShop'; uid: string; toIndex: number }
   | { type: 'reorderHand'; uid: string; toIndex: number }
-  | { type: 'heroPower'; uid?: string; commission?: CommissionKind; flashPick?: 'first' | 'last' } // uid omitted for untargeted powers (Nadja's Mana Font); `commission` carries Cassen's chosen option
+  | { type: 'heroPower'; uid?: string; commission?: CommissionKind; flashPick?: 'first' | 'last'; slot?: number } // uid omitted for untargeted powers (Nadja's Mana Font); `commission` carries Cassen's chosen option; `slot` picks WHICH wielded power fires (Void holds two — 0 = the main button, 1 = the second)
+  | { type: 'pickPower'; index: number } // power Discover (Mimic every turn / Void turn 4): adopt the offered hero's power
   | { type: 'discover'; index: number }
   | { type: 'buyQuest'; index: number } // quest shop (waves 4/8/12): "buy" the offered quest at `index` for 0 Gold
   | { type: 'buyRune'; index: number } // Runeforge (turn 6): buy the offered rune at `index` for its Gold cost
@@ -1910,6 +1932,16 @@ export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID, mode: 
   // than in `advanceCombat`'s turn setup — turn 1 never passes through a turn advance, so the wave-1 branch of
   // `questOfferPlan` would otherwise never be reached. The offer sits in `questOffer` exactly like a turn-5
   // one, so it inherits the modal guard, the picker UI and `buyQuest` with no new plumbing.
+  // MIMIC: "at the start of EVERY turn" includes turn 1, and turn 1 never passes through a turn advance —
+  // the same lesson Fi/Coran's quest Discover learned — so the first power offer is minted here.
+  if (hero.power.kind === 'mimic' && state.mode !== 'tutorial') {
+    const rng = makeRng(state.rngCursor);
+    const pool = powerDiscoverPool('mimic');
+    const heroIds: string[] = [];
+    while (heroIds.length < 2 && pool.length > 0) heroIds.push(pool.splice(rng.int(pool.length), 1)[0]!);
+    state.rngCursor = rng.state();
+    if (heroIds.length > 0) state.powerOffer = { heroIds, slot: 'mimic' };
+  }
   if (hero.power.kind === 'heroQuest' && state.mode !== 'tutorial') {
     const plan = questOfferPlan(state);
     const offer = plan ? generateQuestOffer(state, plan) : [];

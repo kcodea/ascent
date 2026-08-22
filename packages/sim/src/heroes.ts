@@ -67,7 +67,10 @@ export type HeroPowerKind =
   | 'midasTouch' // Midas (passive): Gild at 2 copies, and a Gild pays a Gold Pouch instead of a Triple Reward
   | 'firstOrLast' // Flash: 1 Gold — claim a copy of the FIRST or LAST minion you kill next combat
   | 'crownTally' // Keshi (passive): bank each purchased card's tier; at 25 grant a Triple Reward, then reset
-  | 'preparation'; // Aster the Guide (tutorial-only): give a friendly minion +1/+1; recharges every other turn (active, targeted)
+  | 'preparation' // Aster the Guide (tutorial-only): give a friendly minion +1/+1; recharges every other turn (active, targeted)
+  | 'empoweringVines' // Rayse (passive): minions summoned in combat gain +2/+3 and Taunt
+  | 'mimic' // Mimic (passive): at the start of EVERY turn, Discover a hero power (2 options) to wield this turn
+  | 'voidTwin'; // Void (passive): at the start of turn 4, Discover TWO hero powers (sequential 2-option picks) for the rest of the run
 
 export interface HeroPower {
   name: string;
@@ -152,7 +155,7 @@ export const HEROES: HeroDef[] = [
     power: {
       name: 'Pulse',
       kind: 'replayBattlecry',
-      unlockWave: 3,
+      // `unlockWave: 3` removed (owner ask 2026-08-22) — the Pulse is live from turn 1.
       text: "Trigger a friendly minion's **Shout**.",
     },
   },
@@ -814,6 +817,45 @@ export const HEROES: HeroDef[] = [
     },
   },
   {
+    id: 'rayse',
+    name: 'Rayse',
+    blurb: 'Everything that grows through her garden comes out thorned.',
+    resolve: 30,
+    armor: 14,
+    power: {
+      name: 'Empowering Vines',
+      kind: 'empoweringVines',
+      passive: true, // combat-side: threaded into simulate via questCombatMods (the Hatchery channel)
+      text: 'Minions summoned in combat gain **+2/+3** and **Taunt**.',
+    },
+  },
+  {
+    id: 'mimic',
+    name: 'Mimic',
+    blurb: 'Whoever you needed today — that is who sat down.',
+    resolve: 30,
+    armor: 10,
+    power: {
+      name: 'Mimicry',
+      kind: 'mimic',
+      passive: true, // resolved by the turn-start power Discover; the ADOPTED power is what the run wields
+      text: 'At the start of every turn, **Discover** a hero power to wield this turn.',
+    },
+  },
+  {
+    id: 'voidhero',
+    name: 'Void',
+    blurb: 'It reached into the space between heroes and pulled out two.',
+    resolve: 30,
+    armor: 14,
+    power: {
+      name: 'Twin Voids',
+      kind: 'voidTwin',
+      passive: true, // resolved on the turn-4 advance: two sequential power Discovers, kept for the run
+      text: 'On turn 4, **Discover** two hero powers to keep for the rest of the run.',
+    },
+  },
+  {
     // TUTORIAL-ONLY hero for the Learn Ascent course. `wip: true` keeps it in the registry (so the engine and
     // saves resolve it) while hiding it from every picker + opponent seat — the tutorial hands it out by
     // passing `heroId: 'aster'` explicitly. A tutorial-only hero means roster balance changes can never break
@@ -866,6 +908,64 @@ export function gildCopiesNeeded(run: { heroId: string; runeTwinGilding?: boolea
   // source needs no new branch here — and the three sources cannot stack down to 1 (each only ever says 2).
   if (run.gildCopies) return Math.max(2, Math.min(3, run.gildCopies));
   return run.runeTwinGilding || HERO_INDEX[run.heroId]?.power.kind === 'midasTouch' ? 2 : 3;
+}
+
+/**
+ * DYNAMIC POWER RESOLUTION (Mimic / Void, 2026-08-22).
+ *
+ * Until these two heroes, "the hero's power" and `getHero(run.heroId).power` were the same thing, and ~130
+ * sites read it directly. Mimic WIELDS a different hero's power each turn (`mimicPowerId`) and Void wields
+ * TWO for the run (`voidPowerIds`), so behaviour sites now ask `hasPower(run, kind)` / `activePowers(run)`
+ * instead. `getHero(run.heroId).power` remains correct for IDENTITY sites — scheduling keyed to the native
+ * hero (Fi/Coran's turn-1 quest, Runesmith's forge), beat identity, save/opponent keys — which is why the
+ * accessor is additive rather than a rewrite of getHero.
+ */
+interface PowerCarrier { heroId: string; mimicPowerId?: string; voidPowerIds?: string[] }
+
+/** The power(s) this run is wielding RIGHT NOW — one for everyone, one adopted for Mimic, two for a
+ *  post-turn-4 Void. Before Mimic's first pick / Void's turn 4, the base placeholder power stands. */
+export function activePowers(run: PowerCarrier): HeroPower[] {
+  const base = HERO_INDEX[run.heroId]?.power ?? HEROES[0]!.power;
+  if (base.kind === 'mimic' && run.mimicPowerId) return [getHero(run.mimicPowerId).power];
+  if (base.kind === 'voidTwin' && run.voidPowerIds?.length) return run.voidPowerIds.map((id) => getHero(id).power);
+  return [base];
+}
+
+/** Does ANY currently-wielded power have this kind? The drop-in replacement for
+ *  `getHero(run.heroId).power.kind === kind` at every BEHAVIOUR site. */
+export function hasPower(run: PowerCarrier, kind: HeroPowerKind): boolean {
+  return activePowers(run).some((p) => p.kind === kind);
+}
+
+/** The slot-0 power — what the main power button shows and fires. */
+export function primaryPower(run: PowerCarrier): HeroPower {
+  return activePowers(run)[0]!;
+}
+
+/** Power kinds that no live hero carries (or that only ever act at run creation) — never discoverable. */
+const UNDISCOVERABLE_KINDS = new Set<HeroPowerKind>([
+  'possession', 'recurringGoldcrafter', 'replayEndOfTurn', 'lesserQuest', 'pathfinder', // retired
+  'mimic', 'voidTwin', // the discoverers themselves
+  'heroQuest', 'preparation', // turn-1 identity / tutorial-only
+]);
+
+/** Owner's exclusion list for MIMIC (2026-08-22), by hero id (display names in the spec):
+ *  Yirin, Drakko, Disco Dan, Cassen, Fi, Runesmith, Guardian, Coran, Re-Pete, Emissary, Quillen, Braum, Keshi. */
+const MIMIC_EXCLUDED = new Set(['rohan', 'drakko', 'discodan', 'cassen', 'fi', 'runesmith', 'runeguard', 'coran', 'repete', 'vale', 'quillen', 'bram', 'keshi']);
+
+/** Owner's exclusion list for VOID (2026-08-22): Disco Dan, Runesmith, Coran, Fi, Emissary. */
+const VOID_EXCLUDED = new Set(['discodan', 'runesmith', 'coran', 'fi', 'vale']);
+
+/**
+ * The hero ids whose powers a power-Discover may offer. `who` picks the owner's exclusion list; `exclude`
+ * drops ids already taken this pick sequence (Void's second Discover must not re-offer the first).
+ * `wip` heroes (Aster) never appear — same rule every picker follows.
+ */
+export function powerDiscoverPool(who: 'mimic' | 'void', exclude: readonly string[] = []): string[] {
+  const banned = who === 'mimic' ? MIMIC_EXCLUDED : VOID_EXCLUDED;
+  return HEROES
+    .filter((h) => !h.wip && !banned.has(h.id) && !UNDISCOVERABLE_KINDS.has(h.power.kind) && !exclude.includes(h.id))
+    .map((h) => h.id);
 }
 
 /** Rohan's Attunement bonus: +1/+1 to stat-granting spells, rising by 1 every 10 spells CAST this run

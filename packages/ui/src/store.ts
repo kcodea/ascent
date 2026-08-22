@@ -236,6 +236,8 @@ interface GameStore {
   run: RunState;
   /** UI flag: Hero Power is armed and waiting for a target minion. */
   heroArmed: boolean;
+  /** WHICH wielded power is armed (Void holds two): 0 = the main button, 1 = the second. */
+  heroArmedSlot: number;
   /** UI flag: the end-of-turn proc animation is playing — recruit actions stay locked until it ends. */
   endTurnAnimating: boolean;
   /** Set the end-of-turn animation lock (Recruit drives it around the proc beat sequence). */
@@ -396,7 +398,7 @@ interface GameStore {
   /** Abandon a held transaction WITHOUT committing (only when the run itself is going away). */
   cancelPresentationAction: (reason: string) => void;
   /** Toggle Hero Power targeting mode. */
-  armHero: () => void;
+  armHero: (slot?: number) => void;
   /** Open / close the inspect overlay for a card. */
   inspectCard: (view: CardView) => void;
   clearInspect: () => void;
@@ -1311,6 +1313,7 @@ export const useGame = create<GameStore>((set, get) => ({
     set({ savedRun: s.run });
   },
   heroArmed: false,
+  heroArmedSlot: 0,
   endTurnAnimating: false,
   combatEnemyDeaths: 0,
   combatBuffs: null,
@@ -1479,7 +1482,7 @@ export const useGame = create<GameStore>((set, get) => ({
     if (import.meta.env.DEV) console.warn(`[choreographer] prepared action cancelled: ${reason}`);
     set({ presentationTx: null });
   },
-  armHero: () => set((s) => ({ heroArmed: !s.heroArmed })),
+  armHero: (slot = 0) => set((s) => ({ heroArmed: !s.heroArmed, heroArmedSlot: slot })),
   setEndTurnAnimating: (v) => set({ endTurnAnimating: v }),
   setCombatEnemyDeaths: (n) => set({ combatEnemyDeaths: n }),
   setCombatBuffs: (b) => set({ combatBuffs: b }),

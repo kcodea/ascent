@@ -5,7 +5,7 @@ import { alignmentOf } from './alignment';
 import { lobbyOpponentBoard } from './lobby/runLobby';
 import { poolOf } from './cardPool';
 import { CONFIG, hasTier7Access, maxTierFor } from './config';
-import { getHero, spellAmplifyBonus } from './heroes';
+import { getHero, spellAmplifyBonus, hasPower, activePowers, primaryPower } from './heroes';
 import { handCap, reservedHandSlots, mixSeed, TAG, type AuraFxTribe, type BoardCard, type BuffFxEvent, type CiaSuit, type CommissionKind, type DiscoverSpec, type RunState, type ShopCard, procRune, procRuneId, runeBuffMagnitude } from './state';
 export { ALE_IDS };
 import { returnToPool, rollSpellShop, takeFromPool, refillShopFiltered, elevateShop } from './shop';
@@ -782,9 +782,11 @@ export const COMMISSION_TEXT: Record<CommissionKind, string> = {
 };
 
 /** The hero power's LIVE rule text. Static for every hero except Ayse, whose printed rule is the queued suit's
- *  reward — the card-text rule ("always show the current value of what this is doing") applied to a power. */
-export function heroPowerText(state: RunState): string {
-  const power = getHero(state.heroId).power;
+ *  reward — the card-text rule ("always show the current value of what this is doing") applied to a power.
+ *  `which` picks the WIELDED power (Mimic's disguise, Void's pair) — every live-value branch below keys off
+ *  the resolved power's kind, so an adopted Lucky Seat prints its suit exactly as the native hero would. */
+export function heroPowerText(state: RunState, which = 0): string {
+  const power = activePowers(state)[which] ?? primaryPower(state);
   if (power.kind === 'luckySeat') {
     const suit = state.ciaSuit ?? 'hearts';
     return `Buy **3** Enchanted cards for a reward. ${CIA_SUIT_TEXT[suit]}`;
@@ -5868,7 +5870,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     gainGold(state, sellValueOf(sold, state)); // the Gold the player gets from the sell (bartering-aware)
     // It COUNTS AS A SELL, so Robin's Spoils banks its +1 next-turn Gold too (parity with the reducer's
     // sell case — this path used to skip it).
-    if (getHero(state.heroId).power.kind === 'sellGold') state.bonusEmbersNextTurn = (state.bonusEmbersNextTurn ?? 0) + 1;
+    if (hasPower(state, 'sellGold')) state.bonusEmbersNextTurn = (state.bonusEmbersNextTurn ?? 0) + 1;
     returnToPool(state, sold.cardId, sold.golden ? 3 : 1);
     const demon = state.board.find((c) => isTribe(c, 'demon')); // left-most Demon (board order)
     if (demon) {
@@ -5887,7 +5889,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     if (idx < 0) return;
     const sold = state.board.splice(idx, 1)[0]!; // counts as a sell
     gainGold(state, sellValueOf(sold, state)); // bartering-aware (parity with the reducer's sell)
-    if (getHero(state.heroId).power.kind === 'sellGold') state.bonusEmbersNextTurn = (state.bonusEmbersNextTurn ?? 0) + 1;
+    if (hasPower(state, 'sellGold')) state.bonusEmbersNextTurn = (state.bonusEmbersNextTurn ?? 0) + 1;
     returnToPool(state, sold.cardId, sold.golden ? 3 : 1);
     const beast = [...state.board].reverse().find((c) => isTribe(c, 'beast')); // right-most Beast (board order)
     if (beast) addBuff(beast, 'Feed the Alpha', sold.attack, sold.health);
@@ -6709,7 +6711,7 @@ export function openDiscover(state: RunState, spec: DiscoverSpec): void {
  * already owned"; the reducer's action gate reads it too.
  */
 export function modalOpen(state: RunState): boolean {
-  return !!(state.discover || state.chooseOne || state.pendingTarget || state.questOffer || state.runeforgeOffer || state.scoutedNextOpponent?.length);
+  return !!(state.discover || state.chooseOne || state.pendingTarget || state.questOffer || state.powerOffer || state.runeforgeOffer || state.scoutedNextOpponent?.length);
 }
 
 /**
@@ -6809,7 +6811,7 @@ export function queueDiscover(state: RunState, spec: DiscoverSpec): void {
  */
 export function spellStatBonus(state: RunState): number {
   let bonus = 0;
-  if (getHero(state.heroId).power.kind === 'spellAmplify') bonus += spellAmplifyBonus(state.spellsCast);
+  if (hasPower(state, 'spellAmplify')) bonus += spellAmplifyBonus(state.spellsCast);
   // Rune of the Crown: once the run has cast `per` Shop spells, every spell gives an extra +A/+H. A flat step
   // (not per-`per`), matching the sheet's "after you cast 6". Symmetric, so it lives in the SHARED helper —
   // both spellAttackBonus and spellHealthBonus read it, exactly like the hero amplify above.
@@ -8567,7 +8569,7 @@ export function socRuneReplaysOf(state: RunState): SocRuneReplay[] {
   } });
   // Atrius's Possession: leftmost gains the rightmost's Attack, rightmost gains the leftmost's Health —
   // simultaneous (both read the pre-buff values), needs 2+ bodies. COMPOUNDING.
-  if (getHero(state.heroId).power.kind === 'possession') out.push({ id: state.heroId, kind: 'hero', label: 'Possession', fire: (st) => {
+  if (hasPower(state, 'possession')) out.push({ id: state.heroId, kind: 'hero', label: 'Possession', fire: (st) => {
     if (st.board.length < 2) return;
     const first = st.board[0]!, last = st.board[st.board.length - 1]!;
     const gainAtk = last.attack, gainHp = first.health;
@@ -8621,7 +8623,7 @@ export function socRuneReplaysOf(state: RunState): SocRuneReplay[] {
   } });
   // Emissary (United Front): the Five Banners selection, +N/+N where N = spells cast this game (Wishbone
   // doubles, as its combat mod does). COMPOUNDING (per-turn, growing scalar).
-  if (getHero(state.heroId).power.kind === 'unitedFront') out.push({ id: state.heroId, kind: 'hero', label: 'United Front', fire: (st) => {
+  if (hasPower(state, 'unitedFront')) out.push({ id: state.heroId, kind: 'hero', label: 'United Front', fire: (st) => {
     const n = st.spellsCast * (st.runeWishbone ? 2 : 1); // wishboneReps, inlined (a reducer import would cycle)
     if (n <= 0) return;
     for (const m of bannerRecipients(st)) addBuff(m, 'United Front', n, n);

@@ -2073,19 +2073,25 @@ export function useCombatReplay(
         // pulse — the same split the `buffWave` path makes, so an on-attack aura-of-self reads like a standalone one.
         const windupCasts = groupBuffCasts(cur, events);
         const windupSelfBuffs = groupSelfBuffs(cur, events);
-        // HELD WINDUP: this swing's own Rally FORCE-TRIGGERS an Echo (Echohorn / Deathsayer) — whatever that
-        // Echo is: a Fel Spikes spray, a Deathrattle that summons, a board buff cascade, a single big hit. Its
-        // consequences play as their OWN beats after the attack, so PARK the lunge at the top of the wind-up and
-        // let the attacker stay frozen through ALL of them, striking (or dying) only after. Detected by the
-        // attacker's own `rally` event — the force-triggered-Echo marker, emitted only by `triggerEcho` — anywhere
-        // in this exchange's window (up to the next attack). A launchOnDeath spray still gets its relocated
-        // spikes on top (the rally-launch loop below); a plain summon/buff Echo just plays during the freeze.
+        // HELD WINDUP: this swing's own Rally FORCE-TRIGGERS an Echo (Echohorn / Deathsayer) that DEALS DAMAGE —
+        // a Fel Spikes spray, or any single-hit Deathrattle. Damage consequences are NOT absorbed into the
+        // wind-up, so they'd otherwise play as their own beats AFTER the lunge; PARK the lunge at the top of the
+        // wind-up so the attacker stays frozen through them, striking (or dying) only after. A summon / buff /
+        // Battlecry-replay Echo (Mama Pup, Dawnclaw) deals NO damage and its consequences ARE absorbed into the
+        // wind-up — they already play during the rear-back — so it needs no park (parking one would freeze the
+        // attacker with nothing to wait for). Detected by a `dmg` from someone OTHER than the attacker landing
+        // AFTER the attacker's own rally but BEFORE the attacker's own strike.
         let heldWindup = false;
         if (rallies) {
+          let sawRally = false;
           for (let i = cur.start; i < events.length; i++) {
             const e = events[i];
             if (e?.type === 'attack' && i > cur.start) break;
-            if (e?.type === 'rally' && e.source === atkUid) { heldWindup = true; break; }
+            if (e?.type === 'rally' && e.source === atkUid) { sawRally = true; continue; }
+            if (sawRally && e?.type === 'dmg') {
+              if (e.source === atkUid) break; // the attacker's own strike — the Echo dealt no damage before it
+              heldWindup = true; break;        // the triggered Echo dealt damage → its beats play after the lunge
+            }
           }
         }
         const advance = () => setBeatIdx((k) => k + 1);

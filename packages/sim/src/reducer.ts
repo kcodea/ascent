@@ -3,10 +3,10 @@ import { currentCollector, withActiveCollector } from './activeCollector';
 import { surfaceKeyForRune, surfaceKeyForQuest, CARD_INDEX, EPIC_RUNES, QUEST_INDEX, RUNE_INDEX, RUNES, runeSynergies, type SynergyTag } from '@game/content';
 import { sideFromSnapshot } from './boardSide';
 import { poolOf, setIdOf } from './cardPool';
-import { CONFIG, INDY_GILD_RECHARGE_GOLD, KESHI_CROWN_THRESHOLD, maxTierFor, hasTier7Access } from './config';
+import { ACE_DISCOUNT_MAX_TIER, ACE_TIER_DISCOUNT, CONFIG, INDY_GILD_RECHARGE_GOLD, KESHI_CROWN_THRESHOLD, maxTierFor, hasTier7Access } from './config';
 import { lobbyOpponentBoard, settleRunLobbyRound, playerEliminated } from './lobby/runLobby';
 import { accumulateContribution, tallyCombat } from './contribution';
-import { rollShop, topUpTavern, returnToPool, takeFromPool } from './shop';
+import { rollShop, topUpTavern, returnToPool, takeFromPool, rollCiaEnchants } from './shop';
 import { generateQuestOffer, questOfferPlan } from './quests';
 import { getHero, gildCopiesNeeded } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
@@ -222,7 +222,9 @@ export function minionCostOf(s: RunState): number {
 /** The Gold a tavern-up costs right now: the running `upgradeCost` plus Hermit Hank's +2 surcharge (his
  *  minions are cheap, but climbing tiers costs more). The single source of truth for the reducer + UI. */
 export function upgradeCostOf(s: RunState): number {
-  return s.upgradeCost + (getHero(s.heroId).power.kind === 'cheapMinions' ? 2 : 0);
+  const base = s.upgradeCost + (getHero(s.heroId).power.kind === 'cheapMinions' ? 2 : 0);
+  // Ayse's Ace: a banked tier-up discount, floored at 0 so it can never pay you to upgrade.
+  return Math.max(0, base - (s.aceTierDiscount ?? 0));
 }
 
 /** The Gold a tavern refresh (reroll) costs right now: the config default, but Tradesman (cheapMinions) pays 2
@@ -1115,7 +1117,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         if (s.embers < sCost || s.hand.length >= handCap(s)) return state;
         spendGold(s, sCost);
         s.shop.splice(i, 1);
-        ciaBuyEnchanted(s, offer); // Croupier Cia: an Enchanted buy advances her prize counter
+        ciaBuyEnchanted(s, offer); // Croupier Ayse: an Enchanted buy advances her prize counter
         s.hand.push({ uid: `b${s.uidSeq++}`, cardId: card.id, tribe: card.tribe, attack: card.attack, health: card.health, keywords: [...card.keywords], golden: false });
         tiffBuyDiscount(s, card); // Tiff: a spell buy banks a Dragon Tamer discount
         // There are TWO ways to buy a spell — the right-hand spell slot and a spell offer in the minion row —
@@ -1132,7 +1134,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         if (s.embers < heldCost || s.hand.length >= handCap(s)) return state;
         spendGold(s, heldCost);
         s.shop.splice(i, 1);
-        ciaBuyEnchanted(s, offer); // Croupier Cia: an Enchanted buy advances her prize counter
+        ciaBuyEnchanted(s, offer); // Croupier Ayse: an Enchanted buy advances her prize counter
         // Clone the mutable arrays so the re-bought minion doesn't SHARE keywords/buffs with its held copy.
         const restored: BoardCard = { ...offer.held, uid: `b${s.uidSeq++}`, keywords: [...offer.held.keywords], buffs: offer.held.buffs ? [...offer.held.buffs] : undefined };
         // A HELD offer that was GILDED in the tavern must come back golden (owner bug report 2026-07-29: Golden
@@ -1165,7 +1167,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       const buyCost = freeBuy ? 0 : Math.max(0, (offer.cost ?? heroOfferPrice(s, offer) ?? s.minionCostOverride ?? minionCostOf(s)) - cadenceOff - tradeInOff); // Moe's set price > Frank/Flint 2g > Merchant's Mark override > Hank/default
       if (s.embers < buyCost || s.hand.length >= handCap(s)) return state;
       s.shop.splice(i, 1);
-      ciaBuyEnchanted(s, offer); // Croupier Cia: an Enchanted buy advances her prize counter
+      ciaBuyEnchanted(s, offer); // Croupier Ayse: an Enchanted buy advances her prize counter
       spendGold(s, buyCost);
       if (cadenceOff) procRuneId(s, 'rune_cadence');
       if (cadenceOff) s.cadenceMinionOff = undefined; // spent
@@ -2007,6 +2009,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       const ceiling = hasTier7Access(s) ? 7 : maxTierFor(s.rift);
       if (s.tier >= ceiling || s.embers < cost) return state;
       spendGold(s, cost);
+      s.aceTierDiscount = undefined; // Ayse's Ace: banked until an upgrade spends it, then gone
       s.tier += 1;
       // Rune of the Vault: 10 Gold the moment the shop reaches Tier 5 — then the rune is spent.
       if (s.runeVault && s.tier >= 5) {
@@ -4327,7 +4330,7 @@ const RUNEFORGE_OFFER = 4;
  *
  * ONLY the ACTIVE powers are listed. Their reducer branch runs `reps` times, so doubling is real the moment
  * the rune is held. The owner also named ten PASSIVE powers — Emerald Warden (`vanguard`), Emissary
- * (`unitedFront`), Cia (`luckySeat`), Keshi (`crownTally`), Gorr (`fourPeat`), Re-Pete (`secondHand`), Braum
+ * (`unitedFront`), Ayse (`luckySeat`), Keshi (`crownTally`), Gorr (`fourPeat`), Re-Pete (`secondHand`), Braum
  * (`investment`), Flash (`firstOrLast`), Odelle (`exhibition`), Juggler (`baldgecoin`) — which never pass
  * through the activation branch at all and each need doubling at their own fire site. They are DELIBERATELY
  * absent until that lands: a rune offered to a hero it silently does nothing for is worse than one that is
@@ -4349,7 +4352,7 @@ export const DOUBLEABLE_POWERS = new Set([
   'copyMachine',      // Xerox — two copies, each needing its own board slot
   'investment',       // Braum — two counts banked per use
   // PASSIVE — no activation to run twice, so each doubles at its OWN fire site via `wishboneReps`.
-  'luckySeat',        // Cia — the prize pays twice
+  'luckySeat',        // Ayse — the prize pays twice
   'vanguard',         // Emerald Warden — the tavern-up hands over 2
   'unitedFront',      // Emissary — the Start-of-Combat grant pays double
   'fourPeat',         // Gorr — another copy, re-rolled among the same three
@@ -5646,17 +5649,8 @@ function refreshTavern(s: RunState, hold = false): void {
     s.nextShopBuff = undefined;
   }
   injectPendingTavern(s, hold);
-  // Croupier Cia (Lucky Seat): each freshly-filled Shop has a 50% chance to seat ONE Enchanted card. The mark
-  // is purely cosmetic on the card itself (owner ruling 2026-08-16: "it does nothing to the card") — buying it
-  // is the only thing it does, feeding `ciaEnchantedBought`. Rolled here, the single funnel every fill goes
-  // through, so a turn-setup roll and a paid refresh are treated identically.
-  if (getHero(s.heroId).power.kind === 'luckySeat' && s.shop.length > 0) {
-    const rng = makeRng(s.rngCursor);
-    const lucky = rng.int(2) === 0;
-    const slot = rng.int(s.shop.length);
-    s.rngCursor = rng.state();
-    if (lucky) s.shop[slot]!.enchanted = true;
-  }
+  // Croupier Ayse (Lucky Seat): roll the fresh offers for Enchanted marks — see `rollCiaEnchants`.
+  rollCiaEnchants(s);
 }
 
 /** Pay a matured commission and clear it. Called from the turn advance, so the reward lands as the shop opens. */
@@ -5684,13 +5678,13 @@ function payCommission(s: RunState, c: Commission): void {
   queueDiscover(s, { kind: 'minion', tier: s.tier, exactTier: s.tier });
 }
 
-/** Croupier Cia's four rewards, and the suit that will pay next.
+/** Croupier Ayse's four rewards, and the suit that will pay next.
  *
  * The suit is PUBLIC and chosen in advance (`RunState.ciaSuit`) rather than rolled at payout time, because the
  * hero-power button shows its art — the player is meant to see what they are working toward. After a payout
  * the next suit is drawn from the OTHER THREE, so it can never repeat twice in a row (owner spec 2026-08-16).
  */
-const CIA_SUITS: readonly CiaSuit[] = ['hearts', 'spades', 'diamonds', 'clubs'];
+const CIA_SUITS: readonly CiaSuit[] = ['hearts', 'spades', 'diamonds', 'clubs', 'ace'];
 
 /** Draw the next suit, excluding `avoid`. Seeded like every other pick, so a replay lands the same sequence. */
 function rollCiaSuit(s: RunState, avoid?: CiaSuit): CiaSuit {
@@ -5705,7 +5699,7 @@ function rollCiaSuit(s: RunState, avoid?: CiaSuit): CiaSuit {
  * Juggler (Baldgecoin): every 3 minions bought hands over a Carnival Coin.
  *
  * The counter WRAPS at 3 rather than accumulating, so a full hand costs you that pouch instead of banking it
- * — the same call Cia's prize makes. Counted on every buy route, since a hook wired to only one of them is
+ * — the same call Ayse's prize makes. Counted on every buy route, since a hook wired to only one of them is
  * the recurring bug in this file (see `applySpellBought`).
  */
 function jugglerBuy(s: RunState): void {
@@ -5718,7 +5712,7 @@ function jugglerBuy(s: RunState): void {
 }
 
 /**
- * Croupier Cia (Lucky Seat): count an Enchanted purchase, and pay the queued suit on the 3rd.
+ * Croupier Ayse (Lucky Seat): count an Enchanted purchase, and pay the queued suit on the 3rd.
  *
  * Called from EVERY buy path (spell slot in the minion row, a restored/held offer, and the ordinary minion
  * buy) rather than one of them — the same lesson as `applySpellBought`, which silently did nothing for spells
@@ -5752,9 +5746,18 @@ function ciaBuyEnchanted(s: RunState, offer: ShopCard): void {
       break;
     }
     case 'spades': {
-      // TWO random Shop spells — `conjureToHand` stops at the hand cap on its own.
-      const pool = poolOf(s).spells.filter((c) => c.tier <= s.tier);
-      if (pool.length > 0) conjureToHand(s, pool, 2);
+      // DISCOVER a Shop spell (owner change 2026-08-22 — was two random ones conjured straight to hand). A pick
+      // beats a handful: two random spells often landed dead, where choosing one lets the prize answer the
+      // board in front of you.
+      //
+      // `queueDiscover` rather than assigning `s.discover` (what the Hearts arm above still does): this prize
+      // fires from a BUY, which can happen while another modal is mid-flight, and queueing stacks behind it
+      // instead of clobbering it. It is also what makes Wishbone's second rep open a second pick rather than
+      // overwrite the first.
+      // `kind: 'spell'` — the purpose-built spell Discover (tier-capped, honouring DISCOVER_EXCLUDED_SPELLS).
+      // NOT `kind: 'pool'`: that spec filters spells OUT by construction (it exists for minion id-lists), so
+      // handing it spell ids yields an empty pool and opens nothing at all.
+      queueDiscover(s, { kind: 'spell' });
       break;
     }
     case 'diamonds': {
@@ -5766,6 +5769,32 @@ function ciaBuyEnchanted(s: RunState, offer: ShopCard): void {
     case 'clubs':
       gainGold(s, 3);
       break;
+    case 'ace': {
+      // THE ACE (owner 2026-08-22): a coin flip between two halves.
+      //   · −`ACE_TIER_DISCOUNT` Gold off the next Shop upgrade — offered ONLY at Tier 5 and below.
+      //   · Discover a minion from the tier ABOVE you, reaching Tier 7 (see below).
+      //
+      // Above Tier 5 the discount half is not merely unlikely, it is OFF THE TABLE: at Tier 6 a discount buys
+      // at most one more step and at the ceiling it buys nothing, so a coin flip there would pay out dead half
+      // the time. The flip collapses to the Discover, which is always worth something.
+      const canDiscount = s.tier <= ACE_DISCOUNT_MAX_TIER;
+      const rng = makeRng(s.rngCursor);
+      const discount = canDiscount && rng.int(2) === 0;
+      s.rngCursor = rng.state();
+      if (discount) {
+        // Banked, not applied to `upgradeCost` directly: that number is re-based on every tier-up, so writing
+        // the discount into it would be erased by the next upgrade rather than spent by it.
+        s.aceTierDiscount = (s.aceTierDiscount ?? 0) + ACE_TIER_DISCOUNT;
+        break;
+      }
+      // "Up to Tier 7" — AUTHORED, so this reaches Tier 7 from a Tier-6 shop without Summit/`tier7Access`,
+      // the same licence Teleport Summit's authored `reward.tier` takes. Deliberately unlike the DIAMONDS
+      // arm above, which clamps to the run's own ceiling.
+      const target = Math.min(s.tier + 1, 7);
+      const pool = poolOf(s).buyable.filter((c) => !c.spell && !c.ruby && c.tier === target);
+      if (pool.length > 0) queueDiscover(s, { kind: 'minion', tier: target, exactTier: target });
+      break;
+    }
   }
   s.ciaSuit = rollCiaSuit(s, suit); // never the same suit twice running
 }

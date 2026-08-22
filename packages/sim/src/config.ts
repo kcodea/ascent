@@ -68,6 +68,38 @@ export const CONFIG = {
 export const KESHI_CROWN_THRESHOLD = 25;
 
 /**
+ * Croupier Ayse (Lucky Seat): the chance EACH Shop card rolls to come up Enchanted.
+ *
+ * Owner change 2026-08-22 — was "a 50% chance the shop seats exactly ONE", then briefly 0.15. A per-card rate
+ * cannot be a flat swap for a per-SHOP one: it scales with shop size, so it necessarily tilts the curve. 0.20
+ * is chosen to hold the EARLY game roughly level rather than to match the midpoint —
+ *
+ *   cards:      3 (T1)   4      5      6 (T6)
+ *   P(>=1):     48.8%   59.0%  67.2%   73.8%     (old system: a flat 50% at every size)
+ *   P(>=2):     10.4%   18.1%  26.3%   34.5%     (impossible under the old system)
+ *
+ * — so a Tier-1 shop still sees one about half the time, and the growth from there is the upside. The tail is
+ * the point: her power now has a lucky fill worth reacting to instead of reading identically every time it
+ * hits. At 0.15 the opening shop sat at 38.6%, a real nerf to the early game (owner call: bump it).
+ *
+ * A single-number retune from here alone — nothing should hardcode this as a literal.
+ */
+export const CIA_ENCHANT_CHANCE = 0.20;
+
+/** Ayse's ACE, tier-up half: Gold knocked off the next Shop upgrade. Banked in `aceTierDiscount`. */
+export const ACE_TIER_DISCOUNT = 4;
+
+/**
+ * Ayse's ACE, tier-up half: the highest Shop tier that half is OFFERED at (owner rule 2026-08-22 — "the
+ * tiering up one can only be offered at tier 5 and below").
+ *
+ * Above it the Ace always pays its Discover half rather than flipping: at Tier 6 a discount buys at most one
+ * more step, and at the ceiling it buys nothing at all, so a coin flip up there would pay out dead half the
+ * time — the one outcome a prize should never have.
+ */
+export const ACE_DISCOUNT_MAX_TIER = 5;
+
+/**
  * Indy's Masterwork recharge: Gold that must be SPENT after a use before the charge returns.
  *
  * Exported because the reducer arms the recharge and the StatusBar prints the meter, and those two drifted —

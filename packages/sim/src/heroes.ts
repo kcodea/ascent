@@ -54,7 +54,7 @@ export type HeroPowerKind =
   | 'soulkeeper' // Underdweller: 3 Gold — Discover among the minions that DIED last combat, either side
   | 'empowerment' // Albus: 1 Gold — a Shop minion becomes a Discover from the tier above it
   | 'investment' // Bram: 1 Gold/turn banked; the 5th Gold invested pays out a random Gilded minion
-  | 'luckySeat' // Croupier Cia (passive): each Shop roll may arrive Enchanted; 3 Enchanted buys pay a prize
+  | 'luckySeat' // Croupier Ayse (passive): each Shop roll may arrive Enchanted; 3 Enchanted buys pay a prize
   | 'exhibition' // Odelle (passive): play a minion BETWEEN two others of three distinct types → all three buffed
   | 'buyout' // Harlan: take the whole Shop, then reroll it. 11 Gold, −1 per turn, re-based on use
   | 'soulbind' // Sable: bond your outermost minions for a turn — a stat gain on one mirrors onto the other
@@ -740,8 +740,12 @@ export const HEROES: HeroDef[] = [
     },
   },
   {
+    // The ID stays `cia` through the rename to Ayse (owner 2026-08-22) — the same rule Yirin (`rohan`) and
+    // Chaos (`symbiote`) follow. Ids key SAVES, baked opponent boards, replays, art files (`cia.png`,
+    // `cia-hearts.png`) and every `power.kind === 'luckySeat'` site; the display NAME is the only thing a
+    // player ever sees, so renaming the id would break old runs to change nothing on screen.
     id: 'cia',
-    name: 'Cia',
+    name: 'Ayse',
     blurb: 'The house always seats you somewhere interesting.',
     resolve: 30,
     armor: 10,

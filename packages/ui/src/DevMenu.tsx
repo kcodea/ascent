@@ -134,7 +134,7 @@ const GROUPS: Group[] = [
     items: [
       { key: 'refreshbtn', icon: '🔄', label: 'Refresh', C: RefreshTuner, hint: 'The refresh crystal', alt: 'reroll' },
       { key: 'freezebtn', icon: '❄️', label: 'Freeze', C: FreezeTuner, hint: "The freeze button's placement" },
-      { key: 'herofx', icon: '🃏', label: 'Hero Card FX', C: HeroFxTuner, hint: "Cia's Enchanted glow + Sable's Soulbind ring" },
+      { key: 'herofx', icon: '🃏', label: 'Hero Card FX', C: HeroFxTuner, hint: "Ayse's Enchanted glow + Sable's Soulbind ring" },
       { key: 'endturnbtn', icon: '💎', label: 'End Turn', C: EndTurnTuner, hint: 'The standalone End Turn diamond', alt: 'face the omen' },
       { key: 'heropowerbtn', icon: '💠', label: 'Hero Power', C: HeroPowerTuner, hint: 'The hero power diamond' },
       { key: 'tavernupbtn', icon: '🍺', label: 'Tavern Up', C: TavernUpTuner, hint: 'The tavern-upgrade stone button', alt: 'upgrade tier' },

@@ -3,7 +3,7 @@ import { TunerPanel } from './TunerPanel';
 import type { TunerControl, TunerSpec, TunerUnit } from './tunerSchema';
 
 /**
- * DEV-only tuner for the two hero card treatments — Cia's circling Enchanted rings and Sable's Soulbind ring.
+ * DEV-only tuner for the two hero card treatments — Ayse's circling Enchanted rings and Sable's Soulbind ring.
  *
  * Both LOOP, so the dials are limited to shape / colour / period: only `transform` and `opacity` animate, per
  * docs/performance.md. There is deliberately no control that animates a shadow, blur or filter — it would be a

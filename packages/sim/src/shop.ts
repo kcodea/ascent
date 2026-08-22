@@ -1,9 +1,37 @@
 import { makeRng, type CardDef, type Rng, type Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { poolOf } from './cardPool';
-import { POOL_QUANTITIES, maxTierFor } from './config';
+import { CIA_ENCHANT_CHANCE, POOL_QUANTITIES, maxTierFor } from './config';
+import { getHero } from './heroes';
 import type { RunState } from './state';
 import { stampVeinstormRubies } from './recruit';
+
+/**
+ * Croupier Ayse (Lucky Seat): roll every freshly-served offer for the Enchanted mark.
+ *
+ * EVERY card rolls `CIA_ENCHANT_CHANCE` on its own (owner change 2026-08-22, from "a 50% chance the shop seats
+ * exactly ONE"), and the right-hand SPELL SLOT rolls alongside the minion row — `ciaBuyEnchanted` already
+ * fires from every buy path including that slot, so an Enchanted spell counted toward the prize the moment one
+ * could exist; it just never could, because only the minion row was rolled.
+ *
+ * Lives HERE, beside `rollShop`, because there are two fill paths and both must roll: the reducer's
+ * `refreshTavern` (turn setup + every paid reroll) and `createRun`, which rolls the opening shop directly and
+ * so used to serve a guaranteed-plain first shop (owner change 2026-08-22: the first shop can be lucky too).
+ *
+ * The mark is purely cosmetic on the card (owner ruling 2026-08-16: "it does nothing to the card") — buying it
+ * is the only thing it does. One draw per offer ALWAYS, never short-circuited on an already-marked card, so
+ * the stream advances by a fixed count and stays reproducible.
+ */
+export function rollCiaEnchants(state: RunState): void {
+  if (getHero(state.heroId).power.kind !== 'luckySeat') return;
+  if (state.shop.length === 0 && !state.spell) return;
+  const rng = makeRng(state.rngCursor);
+  for (const offer of state.shop) {
+    if (rng.next() < CIA_ENCHANT_CHANCE) offer.enchanted = true;
+  }
+  if (state.spell && rng.next() < CIA_ENCHANT_CHANCE) state.spell.enchanted = true;
+  state.rngCursor = rng.state();
+}
 
 /** Fallback copy count for a tier not listed in POOL_QUANTITIES (defensive — every tier 1–7 is set). */
 const POOL_FALLBACK = 6;

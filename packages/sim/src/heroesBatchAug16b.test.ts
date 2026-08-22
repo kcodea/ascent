@@ -1,8 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { CARD_INDEX } from '@game/content';
+import { CIA_ENCHANT_CHANCE } from './config';
+import { upgradeCostOf } from './reducer';
+import type { CiaSuit } from './state';
 import { createRun, reduce, getHero, HEROES, heroPowerText, commissionOffer, addBuff, threeDistinctTypes, buyoutCostOf, allInPayoutOf, exhibitionGrantOf, stampSableBond, type RunState, type BoardCard } from './index';
 
-/** Owner hero batch 2026-08-16b — Bram, Croupier Cia, Odelle, Harlan, Sable + the Rascal rework. */
+/** Owner hero batch 2026-08-16b — Bram, Croupier Ayse, Odelle, Harlan, Sable + the Rascal rework. */
 
 const at = (over: Partial<RunState>): RunState =>
   ({ ...createRun(3), phase: 'recruit', ...over }) as RunState;
@@ -42,22 +45,75 @@ describe('Braum — Investment', () => {
   });
 });
 
-describe('Cia — Lucky Seat', () => {
+describe('Ayse — Lucky Seat', () => {
   it('is a 10-armor passive', () => {
     const h = getHero('cia');
-    expect([h.name, h.armor, h.power.kind, h.power.passive]).toEqual(['Cia', 10, 'luckySeat', true]);
+    // Renamed from Cia 2026-08-22. The ID stays `cia` — saves, baked opponent boards and art files key off it.
+    expect([h.name, h.armor, h.power.kind, h.power.passive]).toEqual(['Ayse', 10, 'luckySeat', true]);
+    expect(getHero('cia').id, 'the id is stable across the rename').toBe('cia');
   });
 
-  it('sometimes seats an Enchanted card, and never more than one', () => {
-    let sawEnchanted = false;
-    for (let seed = 1; seed <= 20; seed++) {
+  /**
+   * PER-CARD enchant (owner change 2026-08-22, from "a 50% chance the shop seats exactly ONE"). Every card
+   * rolls `CIA_ENCHANT_CHANCE` on its own, so a fill can serve none, one, or SEVERAL — the multi case is the
+   * whole point of the change and is what the old "never more than one" assertion forbade.
+   *
+   * Deliberately statistical over many seeds rather than pinned to specific ones: the rule is a rate, and a
+   * fixed-seed expectation would pass while the rate drifted anywhere.
+   */
+  it('rolls each card independently — the rate lands near CIA_ENCHANT_CHANCE', () => {
+    let cards = 0, enchanted = 0, multiShops = 0, anyShops = 0;
+    const SEEDS = 400;
+    for (let seed = 1; seed <= SEEDS; seed++) {
       const s = { ...createRun(seed), phase: 'recruit', heroId: 'cia', embers: 20 } as RunState;
       const after = reduce(s, { type: 'roll' } as never);
       const n = after.shop.filter((o) => o.enchanted).length;
-      expect(n, 'at most one seat is lucky').toBeLessThanOrEqual(1);
-      if (n === 1) sawEnchanted = true;
+      cards += after.shop.length;
+      enchanted += n;
+      if (n >= 1) anyShops++;
+      if (n >= 2) multiShops++;
     }
-    expect(sawEnchanted, 'a 50% roll shows up across 20 seeds').toBe(true);
+    const rate = enchanted / cards;
+    // Binomial over ~2000 cards at p=0.20: sd ~0.009, so +-0.04 is a very wide net around a real drift.
+    // Asserted against the CONSTANT, not a literal, so a retune moves the target with it.
+    expect(rate, `per-card rate was ${rate.toFixed(3)}`).toBeGreaterThan(CIA_ENCHANT_CHANCE - 0.04);
+    expect(rate, `per-card rate was ${rate.toFixed(3)}`).toBeLessThan(CIA_ENCHANT_CHANCE + 0.04);
+    // The behaviour the old shape could not produce.
+    expect(multiShops, 'some shops seat two or more').toBeGreaterThan(0);
+    expect(anyShops, 'most shops still seat none').toBeLessThan(SEEDS);
+  });
+
+  it('the OPENING shop can be Enchanted too', () => {
+    // `createRun` fills the first shop directly, not through `refreshTavern` — so before 2026-08-22 the very
+    // first shop was the one fill her power could never touch.
+    let sawFirstShopEnchant = false;
+    for (let seed = 1; seed <= 300 && !sawFirstShopEnchant; seed++) {
+      const s = createRun(seed, 'cia');
+      if (s.shop.some((o) => o.enchanted) || s.spell?.enchanted) sawFirstShopEnchant = true;
+    }
+    expect(sawFirstShopEnchant, 'an opening shop comes up Enchanted within 300 seeds').toBe(true);
+    // …and still never for another hero.
+    expect(createRun(1, 'indy').shop.some((o) => o.enchanted)).toBe(false);
+  });
+
+  it('the SPELL SLOT rolls too', () => {
+    let sawSpell = false;
+    for (let seed = 1; seed <= 400 && !sawSpell; seed++) {
+      const s = { ...createRun(seed), phase: 'recruit', heroId: 'cia', embers: 20 } as RunState;
+      const a = reduce(s, { type: 'roll' } as never);
+      if (a.spell?.enchanted) sawSpell = true;
+    }
+    expect(sawSpell, 'an Enchanted spell shows up within 400 seeds').toBe(true);
+  });
+
+  it('advances the RNG stream by exactly one draw per card, whatever the outcome', () => {
+    // The loop must never short-circuit: a stream whose length depended on the results would make the shop
+    // that follows it seed-dependent on luck, and replays of the same seed could diverge.
+    const s = { ...createRun(3), phase: 'recruit', heroId: 'cia', embers: 20 } as RunState;
+    const a = reduce(s, { type: 'roll' } as never);
+    const b = reduce({ ...s }, { type: 'roll' } as never);
+    expect(a.rngCursor, 'the same input state produces the same cursor').toBe(b.rngCursor);
+    expect(a.shop.map((o) => !!o.enchanted)).toEqual(b.shop.map((o) => !!o.enchanted));
   });
 
   it('never enchants for a different hero', () => {
@@ -87,10 +143,77 @@ describe('Cia — Lucky Seat', () => {
     for (const id of after.discover!) expect(CARD_INDEX[id]!.tier, 'exactly your tier').toBe(3);
   });
 
-  it('SPADES — two random Shop spells', () => {
+  it('SPADES — Discover a Shop spell', () => {
+    // Owner change 2026-08-22: was two random spells conjured straight to hand. A pick beats a handful.
     const after = enchantedBuy('spades');
-    const spells = after.hand.filter((c) => CARD_INDEX[c.cardId]!.spell);
-    expect(spells.length, 'two spells granted').toBe(2);
+    expect(after.discover, 'a Discover opened').toBeTruthy();
+    expect(after.discover!.length, 'the standard three options').toBeGreaterThan(0);
+    for (const id of after.discover!) expect(CARD_INDEX[id]!.spell, 'every option is a spell').toBe(true);
+    // Nothing lands in hand until the player picks.
+    expect(after.hand.filter((c) => CARD_INDEX[c.cardId]!.spell).length, 'no spell granted outright').toBe(0);
+  });
+
+  /**
+   * THE ACE (owner addition 2026-08-22): a coin flip between a −4 Gold tier-up discount and a Discover from
+   * the tier above. The discount half is offered only at Tier 5 and below — above that the flip collapses to
+   * the Discover, because a discount at Tier 6 buys at most one more step and at the ceiling buys nothing.
+   */
+  describe('ACE', () => {
+    const aceAt = (tier: number, seed = 4): RunState[] =>
+      Array.from({ length: 40 }, (_, i) => enchantedBuy('ace', { tier, seed: seed + i }));
+
+    it('below Tier 6 it pays BOTH halves across seeds', () => {
+      let discounts = 0, discovers = 0;
+      for (let seed = 1; seed <= 60; seed++) {
+        const a = { ...createRun(seed), phase: 'recruit', heroId: 'cia', embers: 10, tier: 3, hand: [], board: [],
+          ciaEnchantedBought: 2, ciaSuit: 'ace', shop: [{ uid: 'sx', cardId: 'stray', enchanted: true }] } as RunState;
+        const r = reduce(a, { type: 'buy', uid: 'sx' } as never);
+        if (r.aceTierDiscount) discounts++;
+        if (r.discover) discovers++;
+        // Never both — it is one flip, not two prizes.
+        expect(!!r.aceTierDiscount && !!r.discover, 'exactly one half pays').toBe(false);
+      }
+      expect(discounts, 'the discount half shows up').toBeGreaterThan(0);
+      expect(discovers, 'the Discover half shows up').toBeGreaterThan(0);
+    });
+
+    it('above Tier 5 the discount half is OFF the table — always the Discover', () => {
+      for (const tier of [6, 7]) {
+        for (let seed = 1; seed <= 30; seed++) {
+          const a = { ...createRun(seed), phase: 'recruit', heroId: 'cia', embers: 10, tier, hand: [], board: [],
+            ciaEnchantedBought: 2, ciaSuit: 'ace', shop: [{ uid: 'sx', cardId: 'stray', enchanted: true }] } as RunState;
+          const r = reduce(a, { type: 'buy', uid: 'sx' } as never);
+          expect(r.aceTierDiscount, `tier ${tier} seed ${seed}: no discount above Tier 5`).toBeFalsy();
+        }
+      }
+    });
+
+    it('the Discover reaches Tier 7 from a Tier-6 shop, without Summit access', () => {
+      let sawTier7 = false;
+      for (let seed = 1; seed <= 40 && !sawTier7; seed++) {
+        const a = { ...createRun(seed), phase: 'recruit', heroId: 'cia', embers: 10, tier: 6, hand: [], board: [],
+          ciaEnchantedBought: 2, ciaSuit: 'ace', shop: [{ uid: 'sx', cardId: 'stray', enchanted: true }] } as RunState;
+        const r = reduce(a, { type: 'buy', uid: 'sx' } as never);
+        if (r.discover?.length) {
+          for (const id of r.discover) expect(CARD_INDEX[id]!.tier, 'one tier up, at the Tier-7 cap').toBe(7);
+          sawTier7 = true;
+        }
+      }
+      expect(sawTier7, 'a Tier-7 Discover opened').toBe(true);
+    });
+
+    it('the discount is banked, applied ONCE, and never pays you to upgrade', () => {
+      const base = { ...createRun(2), phase: 'recruit', heroId: 'cia', embers: 99, tier: 2, hand: [], board: [] } as RunState;
+      const before = upgradeCostOf(base);
+      const banked = { ...base, aceTierDiscount: 4 } as RunState;
+      expect(upgradeCostOf(banked), 'four Gold cheaper').toBe(Math.max(0, before - 4));
+      // Spent by the upgrade that uses it.
+      const after = reduce(banked, { type: 'upgrade' } as never);
+      expect(after.tier).toBe(3);
+      expect(after.aceTierDiscount, 'the bank is spent').toBeFalsy();
+      // Floored: a discount larger than the cost never turns into free Gold.
+      expect(upgradeCostOf({ ...base, aceTierDiscount: 999 } as RunState)).toBe(0);
+    });
   });
 
   it('DIAMONDS — a random minion from the tier ABOVE you', () => {
@@ -113,19 +236,22 @@ describe('Cia — Lucky Seat', () => {
   });
 
   it('re-rolls the suit after a payout, and NEVER repeats it', () => {
-    for (const suit of ['hearts', 'spades', 'diamonds', 'clubs']) {
+    // Derived from the type's own list rather than a literal, so a suit added later (the Ace was, 2026-08-22)
+    // is swept automatically instead of silently skipped.
+    const SUITS: CiaSuit[] = ['hearts', 'spades', 'diamonds', 'clubs', 'ace'];
+    for (const suit of SUITS) {
       // Vary the seed so the exclusion is tested against many draws, not one lucky one.
       for (let seed = 1; seed <= 12; seed++) {
         const after = enchantedBuy(suit, { ...createRun(seed), phase: 'recruit', heroId: 'cia', embers: 10, tier: 3, hand: [], board: [], ciaEnchantedBought: 2, ciaSuit: suit, shop: [{ uid: 'sx', cardId: 'stray', enchanted: true }] });
         expect(after.ciaSuit, `${suit} must not repeat`).not.toBe(suit);
-        expect(['hearts', 'spades', 'diamonds', 'clubs']).toContain(after.ciaSuit);
+        expect(SUITS).toContain(after.ciaSuit);
       }
     }
   });
 
-  it('prints ONLY the queued suit reward — not a table of all four', () => {
+  it('prints ONLY the queued suit reward — not a table of all five', () => {
     const texts: Record<string, string> = {
-      hearts: 'Hearts', spades: 'Spades', diamonds: 'Diamonds', clubs: 'Clubs',
+      hearts: 'Hearts', spades: 'Spades', diamonds: 'Diamonds', clubs: 'Clubs', ace: 'Ace',
     };
     for (const [suit, word] of Object.entries(texts)) {
       const t = heroPowerText({ ...createRun(4, 'cia'), ciaSuit: suit } as RunState);

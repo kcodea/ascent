@@ -5577,7 +5577,14 @@ export function Recruit() {
         </div>
       )}
 
-      {drag?.active && !castingSpell && (
+      {/* Portaled to <body> so the floating drag copy escapes `.app`'s stacking context (`.app` is
+          `position:relative; z-index:1`). Board furniture at the ROOT level — the `.statusbar` at z-index 40,
+          which holds the hero portrait, hero power and rune badges — otherwise painted OVER the dragcard, so a
+          dragged minion frame / card plate slid BEHIND them (owner report 2026-08-20). At root, the dragcard's
+          own z-index 115 wins over all that furniture while still sitting below the modal overlays (460+). It is
+          `position:fixed` and positioned in viewport coords by the rAF, so the DOM move doesn't shift it, and
+          the layout vars it reads (`--u`/`--ccw`/…) are defined on `:root`, so they still resolve under body. */}
+      {drag?.active && !castingSpell && createPortal((
         <div
           ref={dragCardRef}
           className={`dragcard${snapping ? ' snap' : ''}${wouldMagnetize ? ' electric' : ''}${magSlide ? ' magslide' : ''}${overWarband && drag.source === 'hand' ? ' willplay' : ''}${drag.source === 'hand' ? ' fromhand' : ''}`}
@@ -5614,7 +5621,7 @@ export function Recruit() {
             </div>
           </div>
         </div>
-      )}
+      ), document.body)}
 
       {/* The targeting line (hero power / targeted Battlecry / targeted spell) is the LIVING Pixi curve
           now — synced in the aim-line effect above; the old dotted SVG render retired (owner 2026-07-16). */}

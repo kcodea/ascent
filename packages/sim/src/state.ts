@@ -862,6 +862,10 @@ export interface RunState {
    *  reducer blocks every action but `pickPower` while set (same contract as `questOffer`). `void1` chains
    *  into a `void2` offer on pick; `mimic` re-opens every turn. */
   powerOffer?: { heroIds: string[]; slot: 'mimic' | 'void1' | 'void2' };
+  /** Hero ids whose ADOPTION reward has already been paid this run (`seedAdoptedPower`). Mimic re-picks every
+   *  turn, and without this ledger re-adopting Brackus farmed a Tier-7 Discover per turn — the start-of-game
+   *  reward is a once-per-run gift, not a faucet. */
+  seededPowers?: string[];
   /** A power Discover WAITING behind another start-of-turn modal (quest offer / forge) — opened by
    *  `openNextStartOfTurnModal` when the queue drains, mirroring `pendingBasicForge`. */
   pendingPowerOffer?: { slot: 'mimic' | 'void1' };

@@ -181,6 +181,9 @@ export function StatusBar() {
   // Cassen: the commission picker is local to this component, which owns the button — no cross-component
   // plumbing for a panel only one hero ever opens.
   const [pickingCommission, setPickingCommission] = useState(false);
+  // WHICH slot opened the picker (Void can hold Commission/First-or-Last in slot 1) — threaded into the
+  // picker's dispatch so the prize charges the slot that asked for it.
+  const [pickerSlot, setPickerSlot] = useState(0);
   const [pickingFlash, setPickingFlash] = useState(false);
   const [hunchTip, setHunchTip] = useState<{ left: number; top: number; origin: 'left' | 'right' } | null>(null);
   const hunchHover = hunchTip !== null;
@@ -496,8 +499,8 @@ export function StatusBar() {
                 // when an option is chosen (below). Untargeted, but not immediate.
                 // …and it is INERT while one is already running (owner ask 2026-08-16) — the reducer refuses
                 // it too, so this just stops the panel opening on a click that could not do anything.
-                if (power.kind === 'commission') { if (!run.commission) setPickingCommission(true); }
-                else if (power.kind === 'firstOrLast') setPickingFlash(true);
+                if (power.kind === 'commission') { if (!run.commission) { setPickerSlot(0); setPickingCommission(true); } }
+                else if (power.kind === 'firstOrLast') { setPickerSlot(0); setPickingFlash(true); }
                 else if (power.untargeted) dispatch({ type: 'heroPower' });
                 else armHero();
               }}
@@ -537,7 +540,7 @@ export function StatusBar() {
                   type="button"
                   className="questcard has-art"
                   style={{ '--c': 'var(--t-neutral)' } as CSSProperties}
-                  onClick={() => { setPickingCommission(false); dispatch({ type: 'heroPower', commission: kind }); }}
+                  onClick={() => { setPickingCommission(false); dispatch({ type: 'heroPower', commission: kind, slot: pickerSlot }); }}
                 >
                   {heroPowerArt(`cassen-${kind}`) && <img className="questcard-art" src={heroPowerArt(`cassen-${kind}`)} alt="" aria-hidden />}
                   <span className="questcard-emblem" aria-hidden><Icon name="target" /></span>
@@ -570,7 +573,7 @@ export function StatusBar() {
                   type="button"
                   className="questcard has-art"
                   style={{ '--c': 'var(--t-neutral)' } as CSSProperties}
-                  onClick={() => { setPickingFlash(false); dispatch({ type: 'heroPower', flashPick: end }); }}
+                  onClick={() => { setPickingFlash(false); dispatch({ type: 'heroPower', flashPick: end, slot: pickerSlot }); }}
                 >
                   {heroPowerArt(`flash-${end}`) && <img className="questcard-art" src={heroPowerArt(`flash-${end}`)} alt="" aria-hidden />}
                   <span className="questcard-emblem" aria-hidden><Icon name="target" /></span>
@@ -677,7 +680,11 @@ export function StatusBar() {
                   e.stopPropagation();
                   if (passive2 || !ready2 || armed2) return;
                   sfx.pulse();
-                  if (p2.untargeted) dispatch({ type: 'heroPower', slot: 1 });
+                  // The choice-powers open their pickers exactly as the main button does — a slot-1 Commission
+                  // fired bare would reach the reducer with no `commission` chosen and no-op.
+                  if (p2.kind === 'commission') { if (!run.commission) { setPickerSlot(1); setPickingCommission(true); } }
+                  else if (p2.kind === 'firstOrLast') { setPickerSlot(1); setPickingFlash(true); }
+                  else if (p2.untargeted) dispatch({ type: 'heroPower', slot: 1 });
                   else armHero(1); // targeted: arm slot 1 — Recruit fires { slot: heroArmedSlot } on the pick
                 }}
               >

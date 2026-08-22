@@ -903,11 +903,13 @@ export function heroPowerLockTurns(run: {
  * disagree. They did: the indicator hardcoded "you already hold 2", so a Midas player — who Gilds at 2 — got
  * no highlight on the duplicate that would have completed it right now (owner report 2026-08-21).
  */
-export function gildCopiesNeeded(run: { heroId: string; runeTwinGilding?: boolean; gildCopies?: number }): number {
+export function gildCopiesNeeded(run: { heroId: string; runeTwinGilding?: boolean; gildCopies?: number; mimicPowerId?: string; voidPowerIds?: string[] }): number {
   // Coran's Gilded Shortcut writes the count it grants straight into `gildCopies`, so a future "Gild at 2"
-  // source needs no new branch here — and the three sources cannot stack down to 1 (each only ever says 2).
+  // source needs no new branch here — and the sources cannot stack down to 1 (each only ever says 2).
   if (run.gildCopies) return Math.max(2, Math.min(3, run.gildCopies));
-  return run.runeTwinGilding || HERO_INDEX[run.heroId]?.power.kind === 'midasTouch' ? 2 : 3;
+  // `hasPower`, not the hero id: a Mimic wearing Midas' Touch (or a Void holding it) Gilds at 2 exactly as
+  // Midas does — the wielded power is the rule, the id is just the portrait (2026-08-22 hardening pass).
+  return run.runeTwinGilding || hasPower(run, 'midasTouch') ? 2 : 3;
 }
 
 /**

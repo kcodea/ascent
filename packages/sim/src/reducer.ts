@@ -2280,7 +2280,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         const digCost = heroUses;
         if (s.embers < digCost) return state; // can't afford this use → no charge spent
         spendGold(s, digCost);
-        s.heroPowerUses = heroUses + 1; // escalate the next use's cost
+        if (slot === 1) s.heroPowerUses2 = heroUses + 1; else s.heroPowerUses = heroUses + 1; // escalate the FIRING slot's next cost (a Void slot-1 Dig must not tax slot 0)
         // Empowerment: two Discovers. queueDiscover opens the first and queues the rest on its own.
         for (let r = 0; r < reps; r++) queueDiscover(s, { kind: 'minion', tier: s.tier, exactTier: s.tier });
       } else if (power.kind === 'dragonTamer') {
@@ -4603,12 +4603,43 @@ function mintPowerOffer(s: RunState, slot: 'mimic' | 'void1' | 'void2'): void {
  * off an unset suit and show a blank suit card.
  */
 function seedAdoptedPower(s: RunState, heroId: string): void {
+  // ONCE per hero per run. Mimic re-picks every turn, so an unguarded seed turns every creation-time grant
+  // into a faucet — re-adopting Brackus was a Tier-7 Discover per turn.
+  if (s.seededPowers?.includes(heroId)) return;
+  (s.seededPowers ??= []).push(heroId);
   const kind = getHero(heroId).power.kind;
-  if (kind === 'luckySeat' && !s.ciaSuit) {
-    const rng = makeRng(s.rngCursor);
-    s.ciaSuit = (['hearts', 'spades', 'diamonds', 'clubs', 'ace'] as const)[rng.int(5)];
-    s.rngCursor = rng.state();
+  if (kind === 'luckySeat') {
+    if (!s.ciaSuit) {
+      const rng = makeRng(s.rngCursor);
+      s.ciaSuit = (['hearts', 'spades', 'diamonds', 'clubs', 'ace'] as const)[rng.int(5)];
+      s.rngCursor = rng.state();
+    }
+    // …and the shop already on screen rolls its Enchanted marks NOW — otherwise the power sits inert until
+    // the next fill, which on Mimic's one-turn disguise could be never.
+    rollCiaEnchants(s);
   }
+  // CREATION-TIME powers pay their start-of-game reward ON ADOPTION (owner ask 2026-08-22: "for hero powers
+  // that grant a minion — Yirin for a Void selection — Void should get that start-of-game reward"). Each
+  // block mirrors its `createRun` twin; without these the power's whole value lives at a moment the adopter
+  // was someone else.
+  if (kind === 'startingReflector') {
+    const def = CARD_INDEX['n2_reflector'];
+    if (def && s.hand.length < handCap(s)) {
+      s.hand.push({ uid: `b${s.uidSeq++}`, cardId: def.id, tribe: def.tribe, attack: def.attack, health: def.health, keywords: [...def.keywords], golden: false });
+    }
+  }
+  if (kind === 'chaos') {
+    const def = CARD_INDEX['symbioticattachment'];
+    if (def && s.hand.length < handCap(s)) {
+      s.hand.push({ uid: `b${s.uidSeq++}`, cardId: 'symbioticattachment', tribe: def.tribe, attack: def.attack, health: def.health, keywords: [...def.keywords], golden: false });
+    }
+  }
+  // Brackus: the Tier-7 pick, still locked behind 70 Gold spent THIS RUN — an adopter who has already spent
+  // 70 gets it unlocked, which is the same rule the native hero lives under (the lock reads run.goldSpent).
+  if (kind === 'summitLock') queueDiscover(s, { kind: 'minion', tier: 7, exactTier: 7, lockGold: 70 });
+  // Guardian: schedule the Epic Runeforge — turn 8 as authored when that is still ahead, else the next turn
+  // (an adopted power must never schedule a visit into the past, which would simply never open).
+  if (kind === 'epicRuneforge' && !s.epicForgeWave) s.epicForgeWave = Math.max(8, s.wave + 1);
 }
 
 function openNextStartOfTurnModal(s: RunState): void {

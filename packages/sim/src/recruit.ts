@@ -4,7 +4,7 @@ import { currentCollector } from './activeCollector';
 import { alignmentOf } from './alignment';
 import { lobbyOpponentBoard } from './lobby/runLobby';
 import { poolOf } from './cardPool';
-import { CONFIG, hasTier7Access, maxTierFor } from './config';
+import { CONFIG, hasTier7Access, maxTierFor, SHIFTER_OPTIONS } from './config';
 import { getHero, spellAmplifyBonus, hasPower, activePowers, primaryPower, powerDiscoverPool } from './heroes';
 import { handCap, reservedHandSlots, mixSeed, TAG, type AuraFxTribe, type BoardCard, type BuffFxEvent, type CiaSuit, type CommissionKind, type DiscoverSpec, type RunState, type ShopCard, procRune, procRuneId, runeBuffMagnitude } from './state';
 export { ALE_IDS };
@@ -5851,7 +5851,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     if (pool.length === 0) return;
     const rng = makeRng(st.rngCursor);
     const heroIds: string[] = [];
-    while (heroIds.length < 2 && pool.length > 0) heroIds.push(pool.splice(rng.int(pool.length), 1)[0]!);
+    // THREE options (owner 2026-08-22), unlike the hero Discovers' two: this is a one-shot spell you paid
+    // Gold for and it overwrites what you have, so it earns a wider choice than a per-turn disguise does.
+    while (heroIds.length < SHIFTER_OPTIONS && pool.length > 0) heroIds.push(pool.splice(rng.int(pool.length), 1)[0]!);
     st.rngCursor = rng.state();
     st.powerOffer = { heroIds, slot: 'shifter' };
   },

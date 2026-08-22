@@ -7,7 +7,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { CARD_INDEX } from '@game/content';
-import { activePowers, createRun, getHero, hasPower, powerDiscoverPool, reduce, type RunState } from './index';
+import { activePowers, createRun, getHero, hasPower, powerDiscoverPool, reduce, SHIFTER_OPTIONS, type RunState } from './index';
 
 /** A run holding Power Shifter in hand, mid-shop. */
 function withShifter(heroId = 'warden', seed = 5, over: Partial<RunState> = {}): RunState {
@@ -31,10 +31,12 @@ describe('Power Shifter — the card', () => {
 });
 
 describe('Power Shifter — casting', () => {
-  it('opens a two-option power Discover', () => {
+  it('opens a THREE-option power Discover — wider than the heroes two (owner 2026-08-22)', () => {
     const after = cast(withShifter());
     expect(after.powerOffer?.slot).toBe('shifter');
-    expect(after.powerOffer?.heroIds).toHaveLength(2);
+    expect(after.powerOffer?.heroIds).toHaveLength(SHIFTER_OPTIONS);
+    expect(SHIFTER_OPTIONS, 'the spell shows more than a hero Discover does').toBeGreaterThan(2);
+    expect(new Set(after.powerOffer!.heroIds).size, 'three DISTINCT powers').toBe(SHIFTER_OPTIONS);
   });
 
   it('never offers the power you are already wielding', () => {

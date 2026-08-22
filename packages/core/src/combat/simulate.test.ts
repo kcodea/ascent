@@ -82,11 +82,12 @@ describe('simulate (handoff A.3)', () => {
     expect(r.events.some((ev) => ev.type === 'dmg' && ev.source === fs.uid && ev.wave !== undefined)).toBe(true);
   });
 
-  it("Fel Spikes' Echo defers death across volleys — a Void Panther's cubs survive a gilded spray", () => {
-    // GILDED Fel Spikes sprays twice. A Void Panther (manasaber, summons two 0/2 Void Cubs on death) must eat
-    // BOTH volleys (the full 8) and die ONCE, so its cubs are summoned AFTER the spray and a later volley can't
-    // catch them. Before the deferred-death fix: the Panther took ONE 4-hit, died on volley 1, and its two cubs
-    // were wiped by volley 2 (verified: 1 dmg to Panther, 2 cub deaths). This is the regression guard.
+  it("Fel Spikes' Echo defers death — a Void Panther stops taking hits at ≤0, and its cubs survive a gilded spray", () => {
+    // GILDED Fel Spikes sprays twice. A Void Panther (manasaber, summons two 0/2 Void Cubs on death) takes
+    // volley 1 to ≤0 and then STOPS getting hit — volley 2 skips it (owner ruling 2026-08-22: stop at 0, no
+    // overkill) — yet it STAYS on the board via the deferred death, dying ONCE after the spray, so its cubs are
+    // summoned AFTER and no volley catches them. Before the deferred-death fix the Panther died on volley 1, its
+    // cubs spawned mid-spray, and volley 2 wiped them (1 dmg to Panther, 2 cub deaths). This is the regression guard.
     const p: BoardMinion[] = [
       { cardId: 'dm_felspikes', attack: 4, health: 1, golden: true }, // gilded → 2 sprays; dies to the enemy hit
       { cardId: 'sandbag', attack: 0, health: 50 },                    // a non-Demon ally the spray also hits
@@ -98,9 +99,9 @@ describe('simulate (handoff A.3)', () => {
     const r = run(p, e, 3);
     const fs = r.initial.player.find((m) => m.cardId === 'dm_felspikes')!;
     const panther = r.initial.enemy.find((m) => m.cardId === 'manasaber')!;
-    // The Panther reads BOTH volleys (two 4-hits), not one — the full 8, accumulated past its 1 HP.
+    // The Panther takes ONLY volley 1 — volley 2 skips it once it is ≤0 (stop-at-0), but it is still on the board.
     const felToPanther = r.events.filter((ev) => ev.type === 'dmg' && ev.target === panther.uid && ev.source === fs.uid);
-    expect(felToPanther).toHaveLength(2);
+    expect(felToPanther).toHaveLength(1);
     // Both cubs summon (after the spray), and — the fix — NEITHER is hit by Fel Spikes' volley (before the fix
     // the Panther died on volley 1, its cubs spawned mid-spray, and volley 2 dealt to them). Later combat may
     // touch a cub; we assert only that the SPRAY never does.
@@ -113,12 +114,13 @@ describe('simulate (handoff A.3)', () => {
     expect(felToCubs).toHaveLength(0);
   });
 
-  it("Fel Spikes' Echo defers death across a SEPARATE re-fire too — a Sylus re-trigger accumulates like gilded", () => {
-    // #1: ANY multi-fire accumulates, not just gilded. A plain (non-gilded) Fel Spikes beside a Sylus fires its
-    // Deathrattle twice as SEPARATE Echo triggers (base + 1 Sylus). The Void Panther must eat BOTH fires (the
-    // full 8) and die ONCE — its cubs summon after, and the second fire (which re-captures the board) hits the
-    // still-≤0 Panther, NOT the fresh cubs. Before the cross-fire deferral: fire 1 killed the Panther, its cubs
-    // spawned, and the Sylus re-fire sprayed the cubs.
+  it("Fel Spikes' Echo defers death across a SEPARATE re-fire too — a Sylus re-trigger skips the ≤0 Panther, cubs live", () => {
+    // #1: ANY multi-fire behaves the same, not just gilded. A plain (non-gilded) Fel Spikes beside a Sylus fires
+    // its Deathrattle twice as SEPARATE Echo triggers (base + 1 Sylus). The base fire drops the Void Panther to
+    // ≤0; the Sylus re-fire re-captures the board and SKIPS the ≤0 Panther (stop-at-0) — and crucially does NOT
+    // hit its cubs, because the deferred death keeps the Panther on the board so the cubs only summon after the
+    // whole spray. Before the cross-fire deferral: fire 1 killed the Panther, its cubs spawned, and the Sylus
+    // re-fire sprayed the cubs.
     const p: BoardMinion[] = [
       { cardId: 'dm_felspikes', attack: 4, health: 1 }, // NOT gilded — one base spray…
       { cardId: 'sylus', attack: 1, health: 50 },       // …but Sylus re-fires the whole Deathrattle once more
@@ -132,7 +134,7 @@ describe('simulate (handoff A.3)', () => {
     const fs = r.initial.player.find((m) => m.cardId === 'dm_felspikes')!;
     const panther = r.initial.enemy.find((m) => m.cardId === 'manasaber')!;
     const felToPanther = r.events.filter((ev) => ev.type === 'dmg' && ev.target === panther.uid && ev.source === fs.uid);
-    expect(felToPanther).toHaveLength(2); // base + Sylus re-fire, both landing on the SAME Panther
+    expect(felToPanther).toHaveLength(1); // base fire drops it to ≤0; the Sylus re-fire skips it (stop-at-0)
     const cubSummons = r.events.filter(
       (ev): ev is Extract<CombatEvent, { type: 'summon' }> => ev.type === 'summon' && ev.minion.cardId === 'sabercub',
     );
@@ -184,7 +186,7 @@ describe('simulate (handoff A.3)', () => {
     const spray = (ev: CombatEvent): ev is Extract<CombatEvent, { type: 'dmg' }> =>
       ev.type === 'dmg' && ev.source === fs.uid && ev.wave !== undefined;
     expect(r.events.filter((ev) => ev.type === 'rally').length).toBe(2); // golden Echohorn → two rally procs
-    expect(r.events.filter((ev) => spray(ev) && ev.target === panther.uid)).toHaveLength(2); // both procs hit the Panther
+    expect(r.events.filter((ev) => spray(ev) && ev.target === panther.uid)).toHaveLength(1); // rally 1 drops it to ≤0; rally 2 skips it (stop-at-0)
     const cubUids = new Set(
       r.events.flatMap((ev) => (ev.type === 'summon' && (ev as Extract<CombatEvent, { type: 'summon' }>).minion.cardId === 'sabercub'
         ? [(ev as Extract<CombatEvent, { type: 'summon' }>).minion.uid] : [])),

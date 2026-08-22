@@ -9,7 +9,7 @@ import type { TunerControl, TunerSpec, TunerUnit } from './tunerSchema';
  * settings (separate). Values persist to localStorage and apply live through `applyTitleVars()`; "Copy values"
  * grabs the JSON to bake into DEFAULTS *and* the styles.css fallbacks (plus the index.html font `<link>`).
  */
-type NumKey = Exclude<keyof TitleConfig, 'font' | 'fontCustom' | 'textGlowColor' | 'logoGlowColor'>;
+type NumKey = Exclude<keyof TitleConfig, 'font' | 'fontCustom' | 'logoColor' | 'textColor' | 'textGlowColor' | 'logoGlowColor'>;
 const LABELS: Record<NumKey, [string, TunerUnit | undefined]> = {
   markSize:         ['Mark size', 'px'],
   gap:              ['Text gap', 'px'],
@@ -29,6 +29,7 @@ const LABELS: Record<NumKey, [string, TunerUnit | undefined]> = {
 const GROUP: Record<keyof TitleConfig, string> = {
   markSize: 'Placement', gap: 'Placement', x: 'Placement', y: 'Placement',
   font: 'Font', fontCustom: 'Font', fontWeight: 'Font',
+  logoColor: 'Colour', textColor: 'Colour',
   textGlowSize: 'Text glow', textGlowStrength: 'Text glow', textGlowColor: 'Text glow',
   logoGlowSize: 'Mark glow', logoGlowStrength: 'Mark glow', logoGlowColor: 'Mark glow',
   floatSync: 'Float', floatAmp: 'Float', floatSpeed: 'Float', textFloatAmp: 'Float', textFloatSpeed: 'Float',
@@ -38,6 +39,7 @@ const GROUP: Record<keyof TitleConfig, string> = {
 const ORDER: (keyof TitleConfig)[] = [
   'markSize', 'gap', 'x', 'y',
   'font', 'fontCustom', 'fontWeight',
+  'logoColor', 'textColor',
   'textGlowSize', 'textGlowStrength', 'textGlowColor',
   'logoGlowSize', 'logoGlowStrength', 'logoGlowColor',
   'floatSync', 'floatAmp', 'floatSpeed', 'textFloatAmp', 'textFloatSpeed',
@@ -53,7 +55,8 @@ const controls: TunerControl<Extract<keyof TitleConfig, string>>[] = ORDER.map((
     return { key, label: 'Custom font', hint, group, kind: 'text' as const, placeholder: 'Any Google Font, e.g. Cinzel Decorative', maxLength: 60, min: 0, max: 0, step: 0 };
   }
   if ((TITLE_COLOR_KEYS as readonly string[]).includes(key)) {
-    return { key, label: 'Colour', hint, group, kind: 'color' as const, min: 0, max: 0, step: 0 };
+    const label = key === 'logoColor' ? 'Mark colour' : key === 'textColor' ? 'Text colour' : 'Colour';
+    return { key, label, hint, group, kind: 'color' as const, min: 0, max: 0, step: 0 };
   }
   if (key === 'floatSync') {
     const [label] = LABELS.floatSync;

@@ -23,6 +23,10 @@ export interface TitleConfig {
   fontCustom: string;
   /** Wordmark font weight (100–900) — the exact weight is loaded from Google (e.g. Lato at 100 = Lato Thin). */
   fontWeight: number;
+  /** Mark fill colour (hex) — the peak icon's colour. */
+  logoColor: string;
+  /** Wordmark text colour (hex). */
+  textColor: string;
   /** Text glow — blur radius (px) of each pass. */
   textGlowSize: number;
   /** Text glow — how many passes are stacked. 0 = off (only the base legibility shadow shows). */
@@ -58,6 +62,8 @@ const DEFAULTS: TitleConfig = {
   font: 'Outfit',
   fontCustom: '',
   fontWeight: 900,
+  logoColor: '#bc9749',
+  textColor: '#f4ecda',
   textGlowSize: 0,
   textGlowStrength: 0,
   textGlowColor: '#bc9749',
@@ -105,7 +111,7 @@ function ensureFontLoaded(family: string, weight: number): void {
 }
 
 /** Slider bounds for the DEV tuner — [min, max, step] per NUMERIC key. */
-export const TITLE_RANGES: Record<Exclude<keyof TitleConfig, 'font' | 'fontCustom' | 'textGlowColor' | 'logoGlowColor'>, [number, number, number]> = {
+export const TITLE_RANGES: Record<Exclude<keyof TitleConfig, 'font' | 'fontCustom' | 'logoColor' | 'textColor' | 'textGlowColor' | 'logoGlowColor'>, [number, number, number]> = {
   markSize: [40, 320, 1],
   gap: [0, 160, 1],
   x: [-300, 300, 1],
@@ -131,6 +137,8 @@ export const TITLE_DESC: Record<keyof TitleConfig, string> = {
   font: 'Wordmark typeface — a curated quick-pick of Google Fonts, loaded on pick.',
   fontCustom: 'Type ANY Google Font family name (e.g. "Cinzel Decorative"). Overrides the quick-pick when filled.',
   fontWeight: 'Wordmark weight (100 Thin → 900 Black). The exact weight is loaded; a font falls back if it lacks it.',
+  logoColor: 'Fill colour of the peak mark.',
+  textColor: 'Colour of the ASCENT wordmark text.',
   textGlowSize: 'Wordmark glow — blur radius of each pass.',
   textGlowStrength: 'Wordmark glow — stacked passes. 0 turns it off (base shadow stays).',
   textGlowColor: 'Wordmark glow colour.',
@@ -145,7 +153,7 @@ export const TITLE_DESC: Record<keyof TitleConfig, string> = {
 };
 
 export const TITLE_NUM_KEYS = ['markSize', 'gap', 'x', 'y', 'fontWeight', 'textGlowSize', 'textGlowStrength', 'logoGlowSize', 'logoGlowStrength', 'floatSync', 'floatAmp', 'floatSpeed', 'textFloatAmp', 'textFloatSpeed'] as const;
-export const TITLE_COLOR_KEYS = ['textGlowColor', 'logoGlowColor'] as const;
+export const TITLE_COLOR_KEYS = ['logoColor', 'textColor', 'textGlowColor', 'logoGlowColor'] as const;
 /** The shipped values, exported so the tuner can mark which controls you have moved away from them. */
 export { DEFAULTS as TITLE_DEFAULTS };
 
@@ -180,6 +188,8 @@ export function applyTitleVars(): void {
   ensureFontLoaded(family, cfg.fontWeight);
   root.setProperty('--title-font', `'${family}', 'Outfit', sans-serif`);
   root.setProperty('--title-weight', String(cfg.fontWeight));
+  root.setProperty('--title-mark-color', cfg.logoColor);
+  root.setProperty('--title-text-color', cfg.textColor);
   // Text glow — an EXTRA text-shadow appended after the base shadows; a transparent no-op when off (a list can't
   // hold `none`). Composed here because CSS can't repeat a shadow a variable number of times.
   const txtOne = `0 0 ${cfg.textGlowSize}px ${cfg.textGlowColor}`;

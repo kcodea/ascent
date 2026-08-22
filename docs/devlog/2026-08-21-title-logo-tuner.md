@@ -14,6 +14,8 @@ Controls, grouped:
   system (`index.html` links Outfit/Sora/…); a pick injects the chosen family AT the chosen weight once, so a
   variant like *Lato Thin 100* actually loads (a family-only request would only ship the regular). Requesting a
   weight a face lacks 400s and simply falls back — the cost of arbitrary weights on arbitrary fonts.
+- **Colour** — the mark fill (the peak SVG uses `fill: currentColor` so `--title-mark-color` drives it) and the
+  wordmark text colour, independently.
 - **Text glow** and **Mark glow** — independent size/strength/colour. Each composes N stacked shadows into a
   var (text-shadow for the wordmark, drop-shadow filters for the mark), appended after the base shadows with a
   transparent no-op when strength is 0 (a shadow list can't hold `none`).

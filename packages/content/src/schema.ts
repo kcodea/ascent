@@ -293,6 +293,7 @@ export const EffectFactoryIdSchema = z.enum([
   'spellBuffTargetPerGold',
   'spellBuffAll',
   'spellDevour',
+  'spellPowerShift',
   'castSpell',
   'endOfTurnGetRandomSpells',
   'gainEmbers',

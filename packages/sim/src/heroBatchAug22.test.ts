@@ -56,7 +56,7 @@ describe('Mimic — Mimicry', () => {
   it('picking ADOPTS the power — behaviour sites follow it, and the charge re-arms', () => {
     const s = { ...createRun(5, 'mimic'), powerOffer: { heroIds: ['cia', 'nadja'], slot: 'mimic' as const }, heroReady: false };
     const after = reduce(s as RunState, { type: 'pickPower', index: 0 });
-    expect(after.mimicPowerId).toBe('cia');
+    expect(after.adoptedPowerId).toBe('cia');
     expect(hasPower(after, 'luckySeat'), 'hasPower reads the disguise').toBe(true);
     expect(hasPower(after, 'mimic'), 'the placeholder is REPLACED, not stacked').toBe(false);
     expect(after.heroReady, 'a fresh disguise is a fresh charge').toBe(true);
@@ -64,11 +64,11 @@ describe('Mimic — Mimicry', () => {
   });
 
   it('a NEW offer opens at the start of every following turn', () => {
-    let s = { ...createRun(5, 'mimic'), powerOffer: undefined, mimicPowerId: 'nadja', wave: 2 } as RunState;
+    let s = { ...createRun(5, 'mimic'), powerOffer: undefined, adoptedPowerId: 'nadja', wave: 2 } as RunState;
     s = advance(s);
     expect(s.powerOffer?.slot).toBe('mimic');
     // …and the previous disguise stays wielded until the new pick lands.
-    expect(s.mimicPowerId).toBe('nadja');
+    expect(s.adoptedPowerId).toBe('nadja');
   });
 });
 
@@ -77,7 +77,7 @@ describe('the WHOLE pool survives adoption — no power errors when worn by Mimi
     for (const heroId of powerDiscoverPool('mimic')) {
       let s = { ...createRun(7, 'mimic'), embers: 20, powerOffer: { heroIds: [heroId, 'warden'], slot: 'mimic' as const } } as RunState;
       s = reduce(s, { type: 'pickPower', index: 0 });
-      expect(s.mimicPowerId, `${heroId} adopted`).toBe(heroId);
+      expect(s.adoptedPowerId, `${heroId} adopted`).toBe(heroId);
       const p = activePowers(s)[0]!;
       expect(p.kind).toBe(getHero(heroId).power.kind);
       // Fire the plain untargeted actives; choice-powers (commission/firstOrLast) and targeted ones need

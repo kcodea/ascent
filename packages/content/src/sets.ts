@@ -33,7 +33,7 @@ const SET3_SHARED_SPELL_IDS: readonly string[] = [
   'helpwanted', 'hoardflame', 'insurancepolicy', 'preemptive', 'quickstudy', 'seconddraft', 'devour',
   'chronostaff', 'corpseboard', 'displacement', 'farseersreport', 'invitationabove', 'markedtarget',
   'resonance', 'rivalsreflection', 'sigilkinship', 'spellcart', 'strangerevision', 'weaken',
-  'elevationritual', 'aresmar', 'perfectvision', 'sparkplug',
+  'elevationritual', 'aresmar', 'perfectvision', 'sparkplug', 'powershifter',
 ];
 const SET3_SPELL_SOURCES: readonly CardDef[] = [...SPELLS, ...SET2_SPELLS];
 const SET3_SHARED_SPELLS: readonly CardDef[] = SET3_SHARED_SPELL_IDS.map((id) => {

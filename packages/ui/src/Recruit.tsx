@@ -5925,13 +5925,15 @@ export function Recruit() {
         <div className="discover-ov quest-ov power-ov" role="dialog" aria-label="Choose a hero power">
           <div className="disc-panel quest-ov-panel">
             <span className="disc-gem disc-gem-top" aria-hidden="true" />
-            <div className="disc-banner"><span className="disp">{run.powerOffer.slot === 'mimic' ? 'Mimicry' : 'Twin Voids'}</span></div>
+            <div className="disc-banner"><span className="disp">{run.powerOffer.slot === 'mimic' ? 'Mimicry' : run.powerOffer.slot === 'shifter' ? 'Power Shifter' : 'Twin Voids'}</span></div>
             <div className="disc-sub">
               {run.powerOffer.slot === 'mimic'
                 ? 'Choose a hero power to wield this turn'
-                : run.powerOffer.slot === 'void1'
-                  ? 'Choose your FIRST hero power — kept for the rest of the run'
-                  : 'Choose your SECOND hero power — kept for the rest of the run'}
+                : run.powerOffer.slot === 'shifter'
+                  ? 'Choose a hero power — it replaces your current one for the rest of the run'
+                  : run.powerOffer.slot === 'void1'
+                    ? 'Choose your FIRST hero power — kept for the rest of the run'
+                    : 'Choose your SECOND hero power — kept for the rest of the run'}
             </div>
             <div className="disc-cards power-ov-cards">
               {run.powerOffer.heroIds.map((hid, i) => {

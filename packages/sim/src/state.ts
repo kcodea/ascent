@@ -851,9 +851,15 @@ export interface RunState {
    *  they cannot be offered twice in a row" (owner spec 2026-08-16). Absent on the first offer, which is why
    *  the opening choice shows all three. */
   lastCommission?: CommissionKind;
-  /** MIMIC: the hero whose power the run wields THIS TURN (adopted from the turn-start power Discover;
-   *  replaced by the next turn's pick). Read only through `activePowers`/`hasPower` — behaviour sites must
-   *  never compare `getHero(heroId).power.kind` directly or the adopted power is invisible to them. */
+  /** The hero whose power this run WIELDS in place of its own. Two writers, one field:
+   *  · MIMIC re-picks it every turn (the turn-start power Discover);
+   *  · POWER SHIFTER (T5 spell) sets it permanently, for ANY hero — which is why this is no longer named
+   *    `mimicPowerId` (renamed 2026-08-22; `activePowers` still reads the old key so a run saved between
+   *    the two same-day merges keeps its disguise).
+   *  Read only through `activePowers`/`hasPower` — a behaviour site comparing `getHero(heroId).power.kind`
+   *  directly is blind to it. */
+  adoptedPowerId?: string;
+  /** @deprecated the pre-rename name for `adoptedPowerId`. Read-only legacy heal; never written. */
   mimicPowerId?: string;
   /** VOID: the two heroes whose powers the run wields from turn 4 on (the turn-4 double Discover). Slot 0 is
    *  the main power button; slot 1 renders as the second button beside the hero. */
@@ -861,14 +867,14 @@ export interface RunState {
   /** A hero-power Discover is OPEN: hero ids whose powers are offered, and which pick this is. Modal — the
    *  reducer blocks every action but `pickPower` while set (same contract as `questOffer`). `void1` chains
    *  into a `void2` offer on pick; `mimic` re-opens every turn. */
-  powerOffer?: { heroIds: string[]; slot: 'mimic' | 'void1' | 'void2' };
+  powerOffer?: { heroIds: string[]; slot: 'mimic' | 'void1' | 'void2' | 'shifter' };
   /** Hero ids whose ADOPTION reward has already been paid this run (`seedAdoptedPower`). Mimic re-picks every
    *  turn, and without this ledger re-adopting Brackus farmed a Tier-7 Discover per turn — the start-of-game
    *  reward is a once-per-run gift, not a faucet. */
   seededPowers?: string[];
   /** A power Discover WAITING behind another start-of-turn modal (quest offer / forge) — opened by
    *  `openNextStartOfTurnModal` when the queue drains, mirroring `pendingBasicForge`. */
-  pendingPowerOffer?: { slot: 'mimic' | 'void1' };
+  pendingPowerOffer?: { slot: 'mimic' | 'void1' };  // 'shifter' is cast-driven, never queued at turn start
   /** The SECOND wielded power's per-turn charge (Void slot 1) — `heroReady`'s sibling, re-armed beside it on
    *  every wave advance. Slot 0 keeps the original fields so every existing power is untouched. */
   heroReady2?: boolean;

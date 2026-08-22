@@ -5,7 +5,7 @@ import { alignmentOf } from './alignment';
 import { lobbyOpponentBoard } from './lobby/runLobby';
 import { poolOf } from './cardPool';
 import { CONFIG, hasTier7Access, maxTierFor } from './config';
-import { getHero, spellAmplifyBonus, hasPower, activePowers, primaryPower } from './heroes';
+import { getHero, spellAmplifyBonus, hasPower, activePowers, primaryPower, powerDiscoverPool } from './heroes';
 import { handCap, reservedHandSlots, mixSeed, TAG, type AuraFxTribe, type BoardCard, type BuffFxEvent, type CiaSuit, type CommissionKind, type DiscoverSpec, type RunState, type ShopCard, procRune, procRuneId, runeBuffMagnitude } from './state';
 export { ALE_IDS };
 import { returnToPool, rollSpellShop, takeFromPool, refillShopFiltered, elevateShop } from './shop';
@@ -5835,6 +5835,26 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  board) and spit its stats onto a RANDOM other friend. It transfers existing stats, so it does NOT
    *  scale with spell power; the `singleCast` flag on its card keeps spell-quantity multipliers from
    *  devouring twice. Records `devourFx` so the UI can fling the stats over as a projectile. */
+  /** POWER SHIFTER (T5): Discover a NEW hero power and wield it for the rest of the run, replacing the
+   *  current one. Draws from MIMIC's pool — the owner's single source of "which powers are discoverable"
+   *  (`powerDiscoverPool`, heroes.ts) — minus the power you already wield, since re-offering it is a dud
+   *  option. `singleCast` on the card keeps spell doublers from opening two picks whose second would simply
+   *  overwrite the first.
+   *
+   *  A no-op on an empty pool (a content change could starve it), which is the same no-soft-lock rule the
+   *  quest offer follows: the spell is spent, nothing opens, the turn proceeds. */
+  spellPowerShift: (ctx) => {
+    const st = ctx.state;
+    // The hero id whose power is being replaced — the adopted one if any, else the run's own hero.
+    const wielding = st.voidPowerIds?.[0] ?? st.adoptedPowerId ?? st.mimicPowerId ?? st.heroId;
+    const pool = powerDiscoverPool('mimic', [wielding]);
+    if (pool.length === 0) return;
+    const rng = makeRng(st.rngCursor);
+    const heroIds: string[] = [];
+    while (heroIds.length < 2 && pool.length > 0) heroIds.push(pool.splice(rng.int(pool.length), 1)[0]!);
+    st.rngCursor = rng.state();
+    st.powerOffer = { heroIds, slot: 'shifter' };
+  },
   spellDevour: (ctx, self) => {
     const board = ctx.state.board;
     const idx = board.indexOf(self);

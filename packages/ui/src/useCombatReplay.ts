@@ -25,6 +25,7 @@ import { attackSummonUids, rallyProcsFor } from './choreo/channels/rallyFired';
 import { groupBuffCasts, type BuffCast } from './choreo/channels/buffCast';
 import { groupSelfBuffs, type SelfBuff } from './choreo/channels/buffSelf';
 import { runAttackExchangeCues, runRiseReturn } from './choreo/engine';
+import { setTransition } from './choreo/channels/lunge';
 import { burstDeathAuras, breakShieldAura, reformReborn } from './choreo/channels/aura';
 import { type Float, type DeathFloat, KW_FLOAT } from './choreo/channels/float';
 import { combatBuffDelta, type CombatBuffDelta } from './runBuffs';
@@ -800,19 +801,22 @@ function projectileImpactMs(defId: string): number {
   return at;
 }
 
-/** Every `wave` that `dyingUid` sprays after its death at `deathIdx`, each with the distinct units it struck
- *  (damaged OR ward-blocked). A `dmg` carries its source; a `shield` (ward pop) belongs to the wave by its
- *  shared wave id. Golden Fel Spikes sprays twice → two entries, in order; a normal one → a single entry. */
-export function echoWaves(events: CombatEvent[], dyingUid: string, deathIdx: number): { uids: string[]; wave: number }[] {
+/** Every `wave` that `dyingUid` sprays after `startIdx` (up to `endIdx`, exclusive), each with the distinct
+ *  units it struck (damaged OR ward-blocked). A `dmg` carries its source; a `shield` (ward pop) belongs to the
+ *  wave by its shared wave id. Golden Fel Spikes sprays twice → two entries, in order; a normal one → a single
+ *  entry. `endIdx` bounds the scan to ONE trigger burst — a death-fired spray scans to the end (the body sprays
+ *  once), but a forced trigger (Echohorn, alive) fires repeatedly, so each rally passes the NEXT rally as its
+ *  `endIdx` to claim only its own waves. */
+export function echoWaves(events: CombatEvent[], dyingUid: string, startIdx: number, endIdx: number = events.length): { uids: string[]; wave: number }[] {
   const mine = new Set<number>();
-  for (let j = deathIdx + 1; j < events.length; j++) {
+  for (let j = startIdx + 1; j < endIdx; j++) {
     const ev = events[j];
     if (ev?.wave !== undefined && ev.type === 'dmg' && ev.source === dyingUid) mine.add(ev.wave);
   }
   if (mine.size === 0) return [];
   const byWave = new Map<number, { uids: string[]; seen: Set<string> }>();
   const order: number[] = [];
-  for (let j = deathIdx + 1; j < events.length; j++) {
+  for (let j = startIdx + 1; j < endIdx; j++) {
     const ev = events[j];
     if (ev?.wave === undefined || !mine.has(ev.wave)) continue;
     if (ev.type !== 'dmg' && ev.type !== 'shield') continue;
@@ -845,9 +849,12 @@ function echoDeliveryLead(shown: Moment | undefined, next: Moment, events: Comba
   // together AFTER the last volley in their own step (owner ask 2026-08-20: aggregate per fire, resolve after).
   for (let i = shown.start; i < shown.end; i++) {
     const e = events[i];
-    if (e?.type === 'death' && e.target === src) {
-      return ECHO_LAUNCH_DELAY_MS + projectileImpactMs(binding.def) + ECHO_IMPACT_BUFFER_MS;
-    }
+    // The spray LAUNCHED in `shown` — either the sprayer DIED there (death-fired: hold the full skull→spray
+    // gap) or a forced trigger (Echohorn's Rally, sprayer still alive: a shorter launch gap, no skull to read,
+    // so a golden/Sylus-multiplied burst's waves come faster one after another). Both throw the spike from that
+    // beat, so hold until it connects; the number climbs per wave exactly like a death-fired spray per pass.
+    if (e?.type === 'death' && e.target === src) return ECHO_LAUNCH_DELAY_MS + projectileImpactMs(binding.def) + ECHO_IMPACT_BUFFER_MS;
+    if (e?.type === 'rally' && e.target === src) return ECHO_RALLY_LAUNCH_DELAY_MS + projectileImpactMs(binding.def) + ECHO_IMPACT_BUFFER_MS;
   }
   // A SUBSEQUENT volley of the same spray (the sprayer died in an EARLIER beat): its spike connects one
   // pass-gap after the previous one, so hold that long — the number climbs by this volley's amount as it lands.
@@ -858,6 +865,17 @@ function echoDeliveryLead(shown: Moment | undefined, next: Moment, events: Comba
  *  before the spray begins (owner ask 2026-08-21: widen the skull→spray gap). Slides the whole spray (launch +
  *  the numbers that trail it) later as one; travel, impact buffer and climb spacing are unaffected. */
 const ECHO_LAUNCH_DELAY_MS = 400;
+/** Delay (ms, 1× speed) from a FORCED Echo trigger (Echohorn's Rally) to its spike volley launching. Shorter
+ *  than the death path's skull gap — a rally has no skull to read, and a golden Echohorn / Sylus can fire the
+ *  Echo several times, so each rally-fired wave launches sooner and the waves come faster one after another
+ *  (owner ask 2026-08-21: speed up the gap between each wave). */
+const ECHO_RALLY_LAUNCH_DELAY_MS = 120;
+/** Extra hold (ms, 1× speed) before the FIRST forced-spray wave when the rally is absorbed into the attacker's
+ *  wind-up (Echohorn's held windup): the spikes must not fly while the attacker is still rearing back, so wait
+ *  out the rear-back + rally pause and launch as it finishes settling into the held pose (owner ask 2026-08-22:
+ *  rear back, pause, THEN the volleys). Matches `windupDur` (540) + the rally pause (440); the wave-beat hold
+ *  (`echoDeliveryLead`, measured from the wave beat that plays AFTER the rear-back) is unchanged. */
+const ECHO_WINDUP_HOLD_MS = 980;
 /** Gap (ms, 1× speed) between a GOLDEN Fel Spikes' two sprays, so the volley reads as two quick taps rather
  *  than one merged cascade (owner report 2026-08-20). */
 const ECHO_PASS_GAP_MS = 240;
@@ -872,15 +890,15 @@ const ECHO_IMPACT_BUFFER_MS = 80;
  *  two sprays read as two taps. Anchors resolve at FIRE time (inside the timer) so a pulled-home attacker's
  *  moved rect is honoured and the still-visible body is the launch point. `register` receives each timer id for
  *  the caller's cleanup. */
-function scheduleEchoVolleys(defId: string, dyingUid: string, deathIdx: number, events: CombatEvent[], speed: number, register: (id: number) => void): void {
+function scheduleEchoVolleys(defId: string, dyingUid: string, startIdx: number, events: CombatEvent[], speed: number, register: (id: number) => void, endIdx?: number, launchDelayMs: number = ECHO_LAUNCH_DELAY_MS): void {
   if (!canPlayDefs()) return;
   const s = speed > 0 ? speed : 1;
-  echoWaves(events, dyingUid, deathIdx).forEach((wv, w) => {
+  echoWaves(events, dyingUid, startIdx, endIdx).forEach((wv, w) => {
     const fire = (): void => wv.uids.forEach((uid, k) => {
       const a = anchorsForUnits(dyingUid, uid);
       if (a) playDef(defId, a, { uids: { source: dyingUid, target: uid }, index: k });
     });
-    const delay = (ECHO_LAUNCH_DELAY_MS + w * ECHO_PASS_GAP_MS) / s;
+    const delay = (launchDelayMs + w * ECHO_PASS_GAP_MS) / s;
     if (delay <= 0) fire();
     else register(window.setTimeout(fire, delay));
   });
@@ -1042,6 +1060,11 @@ export function useCombatReplay(
   // here instead, cleared ONLY on reset/seek (`cancelPendingRolls`), so every volley fires but a scrub cancels
   // the ones still pending.
   const echoVolleyTimersRef = useRef<number[]>([]);
+  // HELD WINDUP (Echohorn firing a forced Fel Spikes spray on its swing): its lunge PARKS at the top of the
+  // wind-up while the whole spray plays across the following beats, then resumes its strike when the attacker's
+  // own attack lands — or is killed if the spray killed the attacker first. Combat-lifetime (survives per-beat
+  // cleanup); cleared on reset/seek.
+  const heldLungeRef = useRef<{ uid: string; tl: ReturnType<typeof gsap.timeline> } | null>(null);
 
   // Schedule a buff's strike-delay timer in the combat-lifetime registry above (not the caller's per-beat
   // `timers`), so an ordinary beat advance cannot cancel it. When the delay elapses, hand off to `driveRoll`
@@ -1100,6 +1123,9 @@ export function useCombatReplay(
     // or a re-seek supersedes them (they'd otherwise fire a stale spray onto the new frame).
     for (const id of echoVolleyTimersRef.current) window.clearTimeout(id);
     echoVolleyTimersRef.current = [];
+    // A parked held-windup lunge from a swing this instance already replayed must not survive a fresh combat or
+    // a re-seek — kill it and drop the frozen pose.
+    if (heldLungeRef.current) { heldLungeRef.current.tl.kill(); heldLungeRef.current = null; }
   }, []);
 
   /**
@@ -1877,6 +1903,57 @@ export function useCombatReplay(
         scheduleEchoVolleys(echoBinding.def, e.target, i, events, combatSpeedRef.current, (id) => echoVolleyTimersRef.current.push(id));
       }
     }
+    // FORCED Echo trigger (Echohorn's Rally / Hawkus / Spots): the sprayer is ALIVE — there is no death to hang
+    // the volley on — so launch its spikes from the LIVING body when its rally fires. Same combat-lifetime
+    // registry + same `echoDeliveryLead` hold as the death path, so travel + the climbing numbers read
+    // identically. Each rally claims only ITS OWN waves (bounded by the NEXT rally to the same sprayer), so a
+    // golden Echohorn's two rallies throw two sprays instead of one launch double-counting the other's waves.
+    if (canPlayDefs()) {
+      for (let i = beat.start; i < beat.end; i++) {
+        const e = events[i];
+        if (e?.type !== 'rally' || typeof e.target !== 'string') continue;
+        const rallyBinding = bindingFor(cardIds.get(e.target) ?? null, 'damage');
+        if (!rallyBinding?.launchOnDeath || !rectOf(e.target)) continue;
+        let endIdx = events.length;
+        for (let j = i + 1; j < events.length; j++) {
+          const n = events[j];
+          if (n?.type === 'rally' && n.target === e.target) { endIdx = j; break; }
+        }
+        // If this rally is absorbed into the attacker's wind-up (held windup), delay the first launch past the
+        // rear-back so the spikes fly only once the attacker has fully reared back + paused.
+        const windupLead = beat.primary.type === 'attack' ? ECHO_WINDUP_HOLD_MS : 0;
+        scheduleEchoVolleys(rallyBinding.def, e.target, i, events, combatSpeedRef.current, (id) => echoVolleyTimersRef.current.push(id), endIdx, ECHO_RALLY_LAUNCH_DELAY_MS + windupLead);
+      }
+    }
+    // HELD WINDUP resolve: a parked Echohorn lunge resumes its strike the beat its OWN attack lands (a non-wave
+    // `dmg` it deals), or is released into its death animation if the deferred spray killed it first. A death in
+    // the beat wins — a dead attacker never swings.
+    const held = heldLungeRef.current;
+    if (held) {
+      let died = false;
+      let struck = false;
+      for (let i = beat.start; i < beat.end; i++) {
+        const e = events[i];
+        if (e?.type === 'death' && e.target === held.uid) { died = true; break; }
+        if (e?.type === 'dmg' && e.source === held.uid && e.wave === undefined) struck = true;
+      }
+      if (died) {
+        held.tl.kill(); // drop the parked pose so the death plays from rest; the lunge never fires
+        const el = findEl(held.uid);
+        if (el) { setTransition(el, ''); gsap.set(el, { clearProps: 'transform,zIndex' }); }
+        heldLungeRef.current = null;
+      } else if (struck) {
+        held.tl.play(); // resume: strike → contact → settle, out of the held pose
+        heldLungeRef.current = null;
+      }
+    }
+    // Stop showing a CLIMBING Fel Spikes number on a unit that DIES: its number is a persistent (held) float,
+    // so drop it when its victim's death lands — a dead unit shows no lingering tally (owner ask 2026-08-22).
+    const dyingThisBeat = new Set<string>();
+    for (let i = beat.start; i < beat.end; i++) { const e = events[i]; if (e?.type === 'death') dyingThisBeat.add(e.target); }
+    if (dyingThisBeat.size > 0) {
+      setFloats((arr) => (arr.some((x) => x.kind === 'dmg' && dyingThisBeat.has(x.uid)) ? arr.filter((x) => !(x.kind === 'dmg' && dyingThisBeat.has(x.uid))) : arr));
+    }
     return () => {
       timers.forEach((id) => window.clearTimeout(id));
       // The buff strike timer + the roll it hands off to are NOT in `timers` (Task 6) — `fireBuffCasts`/
@@ -1996,8 +2073,25 @@ export function useCombatReplay(
         // pulse — the same split the `buffWave` path makes, so an on-attack aura-of-self reads like a standalone one.
         const windupCasts = groupBuffCasts(cur, events);
         const windupSelfBuffs = groupSelfBuffs(cur, events);
+        // HELD WINDUP: this swing's own Rally fires a Fel-Spikes-style forced spray (Echohorn → Fel Spikes),
+        // whose volleys play as their OWN beats after the attack. Park the lunge at the top of the wind-up so
+        // the attacker stays frozen through the whole spray — both rally pulses + every volley + the deferred
+        // deaths — and only strikes (or dies) after. Detected by the attacker's own `rally` targeting a
+        // launchOnDeath sprayer anywhere in this exchange's window (up to the next attack).
+        let heldWindup = false;
+        if (rallies) {
+          for (let i = cur.start; i < events.length; i++) {
+            const e = events[i];
+            if (e?.type === 'attack' && i > cur.start) break;
+            if (e?.type === 'rally' && e.source === atkUid && typeof e.target === 'string'
+              && bindingFor(cardIds.get(e.target) ?? null, 'damage')?.launchOnDeath) { heldWindup = true; break; }
+          }
+        }
+        const advance = () => setBeatIdx((k) => k + 1);
         const tl = runAttackExchangeCues(cur, atkEl, findEl(cur.primary.defender), d.x - a.x, d.y - a.y, {
-          combatSpeed: combatSpeedRef.current, advance: () => setBeatIdx((k) => k + 1),
+          combatSpeed: combatSpeedRef.current, advance,
+          holdAfterWindup: heldWindup,
+          onWindupHeld: heldWindup ? advance : undefined,
           onRallyPulse: rallies ? () => firePulse(atkUid) : undefined,
           // How many procs this swing carries — the wind-up stretches to fit their pulse→sparkle pairs.
           // Only Echohorn can exceed 1 today (see `rallyProcsFor`).
@@ -2015,6 +2109,9 @@ export function useCombatReplay(
           cleave: !!atkUnit?.keywords.includes('C') || !!CARD_INDEX[cardIds.get(atkUid) ?? '']?.keywords?.includes('C'),
         });
         engineAdvancingRef.current = tl !== null; // engine owns the advance; if it couldn't build, the scheduler falls back
+        // Remember a PARKED lunge so a later beat can resume its strike (attacker's own hit) or kill it (attacker
+        // died in the spray). Cleared on resolve/reset. If the lunge couldn't build, there's nothing to park.
+        heldLungeRef.current = heldWindup && tl !== null ? { uid: atkUid, tl } : null;
         if (tl === null) breakWards?.(); // lunge cue dropped → no contact anchor to ride; shatter now so it isn't lost
       } else {
         setAttackUid(null);

@@ -3787,6 +3787,16 @@ body.hglow-preview .card.plated .plateglow { opacity: 1; }
    would be overwritten by the animation) — resolved against the `.floatanchor` box, which is the unit's card
    box. The `.deathfloat` overlay copy is untouched — it's already centred by its container. */
 .floatanchor .float.dmg { top: 50%; left: 50%; right: auto; bottom: auto; animation-name: floatupc; }
+/* CLIMBING Fel Spikes number with MORE volleys still coming: pop once, then HOLD at full opacity (no fade) so
+   the running total stays on-screen and climbs SMOOTHLY in place as its text updates — instead of re-popping
+   or fading out mid-spray (owner ask 2026-08-22). The last volley drops `.climb` → normal `floatupc` fades it
+   out, and a victim's death removes it. Short duration: it's just the pop, then `forwards` holds the end pose. */
+.floatanchor .float.dmg.climb { animation-name: floatupchold; animation-duration: calc(0.42s / var(--combat-speed, 1)); }
+@keyframes floatupchold {
+  0% { opacity: 0; transform: translate(-50%, calc(-50% + var(--float-in-y, 14px))) scale(var(--float-in-scale, 0.5)); }
+  55% { opacity: 1; transform: translate(-50%, -50%) scale(var(--float-pop, 1.18)); }
+  100% { opacity: 1; transform: translate(-50%, calc(-50% + var(--float-dmg-rise, 0px))) scale(1); }
+}
 .float.shield { color: var(--acc-dk); }
 .float.shieldup { color: #1f93b8; }
 .float.reborn { color: var(--t-demon); }

@@ -45,6 +45,12 @@ export interface AttackCueCtx {
    *  claw rake instead of the standard burst. Read from the unit's LIVE keywords, so a mid-combat grant
    *  counts. Outranked by `execute` (see the precedence note in `playContactImpact`). */
   cleave?: boolean;
+  /** HELD WINDUP: this swing fires a Fel-Spikes-style forced Echo spray (Echohorn), so PARK the lunge at the top
+   *  of the wind-up and advance the beat off `onWindupHeld` instead of off contact — the spray plays while the
+   *  attacker holds its pose; the caller resumes the returned timeline when the attacker's own strike lands. */
+  holdAfterWindup?: boolean;
+  /** Fired at the held-windup pause — the caller advances the beat here (see `holdAfterWindup`). */
+  onWindupHeld?: () => void;
 }
 
 /** ms the lunge holds at the top of the wind-up when a Rally fires, so its bright yellow pulse has time to
@@ -153,7 +159,11 @@ export function runAttackExchangeCues(
     // the strike target was solved from it — one frame, no mixed-measurement drift.
     attacker, dx: ldx, dy: ldy, speed: ctx.combatSpeed, flurry: hasFlurry,
     strike: strikeOffset, resolveStrike, strikeDur: geo.strikeDur, travel: geo.travel, leadTilt: geo.leadTilt, attackerRebound: cfg.attackerRebound,
-    onContact: () => ctx.advance(),
+    // HELD WINDUP: the beat advances off the wind-up pause (`onWindupHeld`), and the later, resumed strike is
+    // decorative — so contact must NOT advance the clock again. A normal swing advances off contact as before.
+    holdAfterWindup: ctx.holdAfterWindup === true,
+    onWindupHeld: ctx.onWindupHeld,
+    onContact: ctx.holdAfterWindup === true ? () => {} : () => ctx.advance(),
     onImpact: impact ? () => { playContactImpact(defender, ldx, ldy, power, ctx.combatSpeed, liveImpactAt(), spinDeg, crit, hasFlurry, flurrySlash, ctx.execute === true, hasCleave); if (crit) ctx.onCritImpact?.(); } : undefined,
     impactOffsetMs: impact?.offset ?? 0,
     hitStopMs: hasCleave ? getCleaveFxConfig().hitStopMs : 0,

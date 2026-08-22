@@ -532,24 +532,32 @@ export function replayCombatBattlecry(ctx: CombatContext, m: Minion): void {
  *  this Deathrattle" visual). ANY `onDeath` effect counts, not just ids that start with "deathrattle". */
 export function triggerEcho(ctx: CombatContext, self: Minion, target: Minion): void {
   const procs = (1 + (ctx.echoExtras?.(target) ?? 0)) * mul(self);
-  for (let r = 0; r < procs; r++) {
-    ctx.log({ type: 'rally', source: self.uid, target: target.uid });
-    // Route through the ECHO-TRIGGER chokepoint (`ctx.asEcho`), so the "an Echo fired" runes — Aftershocks
-    // (+4/+4 to the board), Burrow (a free refresh on a Beast Echo) — see a FORCED trigger exactly like a
-    // death-fired one. Owner report 2026-08-20: Aftershocks only fired on a real death, because this loop
-    // called the `onDeath` factories directly. ONE wrap per proc (a body with two Echo effects is still one
-    // trigger; each multiplier proc is its own). Falls back to a bare run when no chokepoint is supplied,
-    // so a context without it (tests, the recruit-phase arena) behaves exactly as before.
-    const fire = (): void => {
-      ctx.countDeathrattle?.(target.side);
-      for (const effect of target.effects) {
-        if (effect.on !== 'onDeath') continue;
-        FACTORIES[effect.do]?.(ctx, target, effect.params ?? {}, { minion: target, side: target.side });
-      }
-    };
-    if (ctx.asEcho) ctx.asEcho(target.side, fire, target);
-    else fire();
-  }
+  const runProcs = (): void => {
+    for (let r = 0; r < procs; r++) {
+      ctx.log({ type: 'rally', source: self.uid, target: target.uid });
+      // Route through the ECHO-TRIGGER chokepoint (`ctx.asEcho`), so the "an Echo fired" runes — Aftershocks
+      // (+4/+4 to the board), Burrow (a free refresh on a Beast Echo) — see a FORCED trigger exactly like a
+      // death-fired one. Owner report 2026-08-20: Aftershocks only fired on a real death, because this loop
+      // called the `onDeath` factories directly. ONE wrap per proc (a body with two Echo effects is still one
+      // trigger; each multiplier proc is its own). Falls back to a bare run when no chokepoint is supplied,
+      // so a context without it (tests, the recruit-phase arena) behaves exactly as before.
+      const fire = (): void => {
+        ctx.countDeathrattle?.(target.side);
+        for (const effect of target.effects) {
+          if (effect.on !== 'onDeath') continue;
+          FACTORIES[effect.do]?.(ctx, target, effect.params ?? {}, { minion: target, side: target.side });
+        }
+      };
+      if (ctx.asEcho) ctx.asEcho(target.side, fire, target);
+      else fire();
+    }
+  };
+  // DEFER every death across ALL procs into one flush: a golden Echohorn triggers its Rally twice, and a
+  // Fel-Spikes-style board spray must let a ≤0 victim stay on the board taking hits from every volley of both
+  // procs and die ONCE after — no resolve between the two rallies (owner ruling 2026-08-21). Mirrors the
+  // death-fired path's scope; a context without `withEchoDefer` (recruit arena, tests) runs the procs directly.
+  if (ctx.withEchoDefer) ctx.withEchoDefer(runProcs);
+  else runProcs();
 }
 
 /** Pick a random stat-granting Tavern spell (spellBuffTarget / spellBuffAll) and return its buff with combat
@@ -3454,12 +3462,12 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const exc = str(params.exceptTribe);
     const passes = mul(self); // gilded → 2 sprays; each Echo re-trigger (Sylus / Echohorn) calls this again
     // CAPTURE the victims for THIS fire from what's still on the board — INCLUDING bodies a prior fire already
-    // dropped to ≤0 (their deaths are deferred by the surrounding echo scope, so `onBoard` still lists them).
-    // That is what makes ANY multi-fire accumulate: gilded's two passes and every Echo re-trigger (Sylus /
-    // golden Echohorn) all pile onto the SAME set, whose combined deaths resolve ONCE after the last fire — so
-    // a body that summons tokens on death (Void Panther → two Void Cubs) creates them AFTER all the damage and
-    // no volley can catch them, and a low-HP victim reads EVERY volley's number and procs the per-volley demon
-    // reactors (Axeman / Leech) instead of dying to the first and vanishing (owner ruling 2026-08-20).
+    // dropped to ≤0 (their deaths are deferred by the surrounding echo scope, so `onBoard` still lists them), so
+    // the FINAL resolve sees the whole set. But a body only takes damage from a volley while it is STILL above 0:
+    // once a volley drops it to ≤0 it stops getting hit (no overkill number, no further spike, no extra reactor
+    // proc — owner ruling 2026-08-22: "stop getting hit the instant its hp hits 0"), yet it STAYS on the board
+    // via the deferred death so it dies ONCE after the spray and a body that summons tokens on death (Void
+    // Panther → two Void Cubs) creates them AFTER all the damage, where no volley can catch them.
     const victims: Minion[] = [];
     for (const sideKey of ['player', 'enemy'] as Side[]) {
       for (const m of ctx.onBoard(sideKey)) {
@@ -3473,7 +3481,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
       // Each pass is one presentation WAVE (a volley moment). `self` as the source: Fel Spikes is a Demon, so
       // every landed hit registers as a friendly Demon dealing damage, procing the reactors — per volley.
       ctx.wave(() => {
-        for (const m of victims) ctx.damageDeferred(m, amount, self);
+        for (const m of victims) if (!m.dead && m.health > 0) ctx.damageDeferred(m, amount, self); // only ABOVE 0
         // Resolve every death now, on the FINAL volley — after all the damage — so the tokens/consequences land
         // once, after the spray, not between passes. (The cubs are summoned here; there is no wave after them.)
         if (last) for (const m of victims) ctx.resolveEchoDeath(m, self);

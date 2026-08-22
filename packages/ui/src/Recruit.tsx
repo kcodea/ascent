@@ -5538,7 +5538,7 @@ export function Recruit() {
                   style={{ left: f.x, top: f.y, width: f.w, height: f.h } as CSSProperties}
                   aria-hidden="true"
                 >
-                  <span className={`float ${f.kind}${sym ? ' sym' : ''}`}>{f.text}</span>
+                  <span className={`float ${f.kind}${sym ? ' sym' : ''}${f.climb ? ' climb' : ''}`}>{f.text}</span>
                 </div>
               );
             })}

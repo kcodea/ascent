@@ -62,6 +62,16 @@ export interface LungeCtx {
    *  strike drive launches), on EVERY swing so both hits whoosh with wind. The hit-sound layer fires from
    *  `impact.ts`; the wind-slash VISUAL is separate (extra swing only). */
   flurry?: boolean;
+  /** HELD WINDUP (Echohorn firing a Fel-Spikes-style spray on its swing): PAUSE the timeline at the top of the
+   *  wind-up — after the rally pulse(s) — instead of driving straight into the strike, and fire `onWindupHeld`
+   *  there. The caller advances the beat off THAT (not off contact), so the beat clock runs through the whole
+   *  forced-Echo spray while the attacker stays frozen in its pulled-back pose. The caller resumes the timeline
+   *  (`.play()`) when the attacker's own attack finally lands — or kills it if the spray killed the attacker
+   *  first. With this set, `onContact` must NOT advance the clock (the resumed strike is decorative). */
+  holdAfterWindup?: boolean;
+  /** Fired when a `holdAfterWindup` lunge reaches the pause at the top of the wind-up — the caller advances the
+   *  beat here so the spray plays while the attacker holds its pose. */
+  onWindupHeld?: () => void;
 }
 
 /**
@@ -94,12 +104,13 @@ export function setTransition(el: Element, value: string): void {
 }
 
 export function playLunge(ctx: LungeCtx): ReturnType<typeof gsap.timeline> {
-  const { attacker, dx, dy, speed, strike, strikeDur, travel = 0, leadTilt, attackerRebound, impactOffsetMs = 0, rallyPauseMs = 0, hitStopMs = 0, returnDelayMs = 0, flurry = false } = ctx;
+  const { attacker, dx, dy, speed, strike, strikeDur, travel = 0, leadTilt, attackerRebound, impactOffsetMs = 0, rallyPauseMs = 0, hitStopMs = 0, returnDelayMs = 0, flurry = false, holdAfterWindup = false } = ctx;
   const onContact = once(ctx.onContact);
   const onImpact = once(ctx.onImpact);
   const onImpactAuras = once(ctx.onImpactAuras);
   const onRallyPulse = once(ctx.onRallyPulse);
   const onWindupBuffs = once(ctx.onWindupBuffs);
+  const onWindupHeld = once(ctx.onWindupHeld);
   const c = getLungeConfig();
   // The trail's origin is the attacker's LAYOUT centre: the measured rect includes any residual transform
   // (a killed settle / knockback-recover still in flight), and `onUpdate` adds the live GSAP x/y on top —
@@ -151,6 +162,11 @@ export function playLunge(ctx: LungeCtx): ReturnType<typeof gsap.timeline> {
     if (onWindupBuffs) tl.call(onWindupBuffs);  // …then launch the buff tendrils (pulse → tendril order)…
     tl.to({}, { duration: windupPauseS });      // …then hold the wound-up pose so they read before the strike
   }
+  // HELD WINDUP (Echohorn's forced Fel Spikes spray): PARK at the top of the wind-up. The pause callback advances
+  // the beat, so the whole spray (rally pulses + spike volleys + deaths) plays while the attacker holds this
+  // pulled-back pose; the caller resumes this timeline when the attacker's own strike finally lands (or kills it
+  // if the spray killed the attacker first). Placed AFTER the rally pulse/pause so both pulses read during the hold.
+  if (holdAfterWindup) tl.addPause(undefined, onWindupHeld);
   // Flurry (W) extra swing: the wind-up has ended and the strike is about to drive → whoosh the gust here.
   if (flurry) tl.call(() => sfx.flurryLunge());
   // The strike target: late-solved at TWEEN START when the caller provides `resolveStrike` (one measure,

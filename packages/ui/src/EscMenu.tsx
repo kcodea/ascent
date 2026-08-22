@@ -1,12 +1,14 @@
-/** Pause / settings overlay (Esc). Trimmed to what players actually need: audio (master volume + mute), the
- *  local-data resets (captured boards + career), Quit back to the main menu, and — in the Electron shell only
- *  — a fullscreen toggle + Quit game (see `desktop.ts`; the web build has no shell to close). Resolution, board picker, board
- *  dimming, and combat speed were removed (2026-07-14) — the game now fills the window at a fixed 16:9 with one
- *  board, and combat runs at a single speed. The HUD's quick-mute sits behind the enemy frame, so the dependable
- *  audio controls live here, in a modal nothing can obscure. */
+/** Pause / settings overlay (Esc). Trimmed to what players actually need: audio (master volume + mute), combat
+ *  pacing, the local-data resets (captured boards + career), Quit back to the main menu, and — in the Electron
+ *  shell only — a fullscreen toggle + Quit game (see `desktop.ts`; the web build has no shell to close).
+ *
+ *  The ARENA BOARD PICKER is gone (owner ask 2026-08-22). It offered three backdrops; the game ships one, and
+ *  `boardConfig.ts` — whose only consumers were this menu and a side-effect import — was retired with it, so
+ *  the stylesheet's `--board` is now the single source of the arena art. Resolution and board dimming went the
+ *  same way in 2026-07-14. The HUD's quick-mute sits behind the enemy frame, so the dependable audio controls
+ *  live here, in a modal nothing can obscure. */
 
 import { useState } from 'react';
-import { BOARDS, getBoard, setBoard, type BoardId } from './boardConfig';
 import { isDesktop, quitGame, toggleFullscreen } from './desktop';
 import { getVolume, isMuted, setVolume, sfx, toggleMute } from './sfx';
 import { useGame } from './store';
@@ -19,9 +21,6 @@ export function EscMenu({ onClose }: { onClose: () => void }) {
   // mute button re-render as they change. Dragging the slider previews the level on release.
   const [vol, setVol] = useState(getVolume());
   const [muted, setMuted] = useState(isMuted());
-  // Arena board pick (display-only, persisted in localStorage) — swaps the `--board` backdrop live.
-  const [board, setBoardSel] = useState<BoardId>(getBoard());
-  const pickBoard = (id: BoardId): void => { setBoard(id); setBoardSel(id); sfx.pulse(); };
   // Combat pacing — how fast the combat replay animates (owner moved this here from the in-combat HUD
   // 2026-08-11). Live store value; the arena's beat clock + CSS read it.
   const combatSpeed = useGame((s) => s.combatSpeed);
@@ -63,20 +62,6 @@ export function EscMenu({ onClose }: { onClose: () => void }) {
           <span className="ebl">{muted ? 'Muted' : 'Sound on'}</span>
           <span className="ebs">{muted ? 'All audio is off' : 'Tap to mute everything'}</span>
         </button>
-        <div className="escsec">Board</div>
-        <div className="escboardpick">
-          {BOARDS.map((b) => (
-            <button
-              key={b.id}
-              className={`escbtn pressable${board === b.id ? ' on' : ''}`}
-              onPointerDown={() => pickBoard(b.id)}
-              aria-pressed={board === b.id}
-            >
-              <span className="ebl">{b.label}{board === b.id ? ' ✓' : ''}</span>
-              <span className="ebs">{b.blurb}</span>
-            </button>
-          ))}
-        </div>
         <div className="escsec">Combat</div>
         <div className="escvol">
           <span className="evl">{combatRampUp ? 'Start speed' : 'Speed'}</span>

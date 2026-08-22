@@ -840,13 +840,12 @@ function echoDeliveryLead(shown: Moment | undefined, next: Moment, events: Comba
   // together AFTER the last volley in their own step (owner ask 2026-08-20: aggregate per fire, resolve after).
   for (let i = shown.start; i < shown.end; i++) {
     const e = events[i];
-    // The spray LAUNCHED in `shown` — either the sprayer DIED there (death-fired), or a forced trigger
-    // (Echohorn's Rally, sprayer still alive) fired its Echo there. Both throw the spike from that beat, so hold
-    // until it connects. A golden Echohorn's two rallies are two separate beats, so EACH wave holds the full
-    // travel from its own rally — the numbers climb per rally exactly like a death-fired spray climbs per pass.
-    if ((e?.type === 'death' && e.target === src) || (e?.type === 'rally' && e.target === src)) {
-      return ECHO_LAUNCH_DELAY_MS + projectileImpactMs(binding.def) + ECHO_IMPACT_BUFFER_MS;
-    }
+    // The spray LAUNCHED in `shown` — either the sprayer DIED there (death-fired: hold the full skull→spray
+    // gap) or a forced trigger (Echohorn's Rally, sprayer still alive: a shorter launch gap, no skull to read,
+    // so a golden/Sylus-multiplied burst's waves come faster one after another). Both throw the spike from that
+    // beat, so hold until it connects; the number climbs per wave exactly like a death-fired spray per pass.
+    if (e?.type === 'death' && e.target === src) return ECHO_LAUNCH_DELAY_MS + projectileImpactMs(binding.def) + ECHO_IMPACT_BUFFER_MS;
+    if (e?.type === 'rally' && e.target === src) return ECHO_RALLY_LAUNCH_DELAY_MS + projectileImpactMs(binding.def) + ECHO_IMPACT_BUFFER_MS;
   }
   // A SUBSEQUENT volley of the same spray (the sprayer died in an EARLIER beat): its spike connects one
   // pass-gap after the previous one, so hold that long — the number climbs by this volley's amount as it lands.
@@ -857,6 +856,17 @@ function echoDeliveryLead(shown: Moment | undefined, next: Moment, events: Comba
  *  before the spray begins (owner ask 2026-08-21: widen the skull→spray gap). Slides the whole spray (launch +
  *  the numbers that trail it) later as one; travel, impact buffer and climb spacing are unaffected. */
 const ECHO_LAUNCH_DELAY_MS = 400;
+/** Delay (ms, 1× speed) from a FORCED Echo trigger (Echohorn's Rally) to its spike volley launching. Shorter
+ *  than the death path's skull gap — a rally has no skull to read, and a golden Echohorn / Sylus can fire the
+ *  Echo several times, so each rally-fired wave launches sooner and the waves come faster one after another
+ *  (owner ask 2026-08-21: speed up the gap between each wave). */
+const ECHO_RALLY_LAUNCH_DELAY_MS = 120;
+/** Extra hold (ms, 1× speed) before the FIRST forced-spray wave when the rally is absorbed into the attacker's
+ *  wind-up (Echohorn's held windup): the spikes must not fly while the attacker is still rearing back, so wait
+ *  out the rear-back + rally pause and launch as it finishes settling into the held pose (owner ask 2026-08-22:
+ *  rear back, pause, THEN the volleys). Matches `windupDur` (540) + the rally pause (440); the wave-beat hold
+ *  (`echoDeliveryLead`, measured from the wave beat that plays AFTER the rear-back) is unchanged. */
+const ECHO_WINDUP_HOLD_MS = 980;
 /** Gap (ms, 1× speed) between a GOLDEN Fel Spikes' two sprays, so the volley reads as two quick taps rather
  *  than one merged cascade (owner report 2026-08-20). */
 const ECHO_PASS_GAP_MS = 240;
@@ -871,7 +881,7 @@ const ECHO_IMPACT_BUFFER_MS = 80;
  *  two sprays read as two taps. Anchors resolve at FIRE time (inside the timer) so a pulled-home attacker's
  *  moved rect is honoured and the still-visible body is the launch point. `register` receives each timer id for
  *  the caller's cleanup. */
-function scheduleEchoVolleys(defId: string, dyingUid: string, startIdx: number, events: CombatEvent[], speed: number, register: (id: number) => void, endIdx?: number): void {
+function scheduleEchoVolleys(defId: string, dyingUid: string, startIdx: number, events: CombatEvent[], speed: number, register: (id: number) => void, endIdx?: number, launchDelayMs: number = ECHO_LAUNCH_DELAY_MS): void {
   if (!canPlayDefs()) return;
   const s = speed > 0 ? speed : 1;
   echoWaves(events, dyingUid, startIdx, endIdx).forEach((wv, w) => {
@@ -879,7 +889,7 @@ function scheduleEchoVolleys(defId: string, dyingUid: string, startIdx: number, 
       const a = anchorsForUnits(dyingUid, uid);
       if (a) playDef(defId, a, { uids: { source: dyingUid, target: uid }, index: k });
     });
-    const delay = (ECHO_LAUNCH_DELAY_MS + w * ECHO_PASS_GAP_MS) / s;
+    const delay = (launchDelayMs + w * ECHO_PASS_GAP_MS) / s;
     if (delay <= 0) fire();
     else register(window.setTimeout(fire, delay));
   });
@@ -1900,7 +1910,10 @@ export function useCombatReplay(
           const n = events[j];
           if (n?.type === 'rally' && n.target === e.target) { endIdx = j; break; }
         }
-        scheduleEchoVolleys(rallyBinding.def, e.target, i, events, combatSpeedRef.current, (id) => echoVolleyTimersRef.current.push(id), endIdx);
+        // If this rally is absorbed into the attacker's wind-up (held windup), delay the first launch past the
+        // rear-back so the spikes fly only once the attacker has fully reared back + paused.
+        const windupLead = beat.primary.type === 'attack' ? ECHO_WINDUP_HOLD_MS : 0;
+        scheduleEchoVolleys(rallyBinding.def, e.target, i, events, combatSpeedRef.current, (id) => echoVolleyTimersRef.current.push(id), endIdx, ECHO_RALLY_LAUNCH_DELAY_MS + windupLead);
       }
     }
     // HELD WINDUP resolve: a parked Echohorn lunge resumes its strike the beat its OWN attack lands (a non-wave
@@ -1924,6 +1937,13 @@ export function useCombatReplay(
         held.tl.play(); // resume: strike → contact → settle, out of the held pose
         heldLungeRef.current = null;
       }
+    }
+    // Stop showing a CLIMBING Fel Spikes number on a unit that DIES: its number is a persistent (held) float,
+    // so drop it when its victim's death lands — a dead unit shows no lingering tally (owner ask 2026-08-22).
+    const dyingThisBeat = new Set<string>();
+    for (let i = beat.start; i < beat.end; i++) { const e = events[i]; if (e?.type === 'death') dyingThisBeat.add(e.target); }
+    if (dyingThisBeat.size > 0) {
+      setFloats((arr) => (arr.some((x) => x.kind === 'dmg' && dyingThisBeat.has(x.uid)) ? arr.filter((x) => !(x.kind === 'dmg' && dyingThisBeat.has(x.uid))) : arr));
     }
     return () => {
       timers.forEach((id) => window.clearTimeout(id));

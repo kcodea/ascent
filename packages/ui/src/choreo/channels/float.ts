@@ -28,6 +28,11 @@ export interface Float {
   /** The unit's footprint at spawn — the anchor box the per-kind percentage rules resolve against. */
   w: number;
   h: number;
+  /** A CLIMBING Fel Spikes number that still has MORE volleys coming to this victim. It renders with a HOLD
+   *  animation (pop once, then stay at full opacity) so the running total sits on-screen and climbs smoothly in
+   *  place — instead of re-popping each volley or fading out mid-spray. The LAST volley to a victim clears this
+   *  (normal `floatupc`, fades out), and a victim's death removes the float, so a dead unit shows no number. */
+  climb?: boolean;
 }
 
 /** Keyword-proc floats (shield/reborn/rally) that bloom big in the card centre, staggered after the damage
@@ -138,24 +143,26 @@ export function spawnFloats(
     // source; the earliest is always the smallest index, giving one id that's constant across the whole spray.
     let id = i;
     let text = f.text;
+    let climb: boolean | undefined;
     if (e.type === 'dmg' && e.wave !== undefined && typeof e.source === 'string') {
       let sum = 0;
       let first = i;
+      let hasLater = false;
       for (let j = 0; j < events.length; j++) {
         const d = events[j];
-        if (d?.type === 'dmg' && d.target === e.target && d.source === e.source && d.wave !== undefined && d.wave <= e.wave) {
-          sum += d.amount;
-          if (j < first) first = j;
-        }
+        if (d?.type !== 'dmg' || d.target !== e.target || d.source !== e.source || d.wave === undefined) continue;
+        if (d.wave <= e.wave) { sum += d.amount; if (j < first) first = j; }
+        else hasLater = true; // another volley to this victim from this source still lands after this one
       }
       id = first;
       text = `${sum}`;
+      climb = hasLater; // HOLD (stay on, climb in place) while more volleys are coming; the LAST volley fades out
     }
     if (f.kind === 'dmg' && dying.has(f.uid)) {
       deaths.push({ id, x: r.cx, y: r.cy, text, kind: f.kind });
       continue;
     }
-    spawned.push({ id, uid: f.uid, text, kind: f.kind, x: r.cx, y: r.cy, w: r.w, h: r.h });
+    spawned.push({ id, uid: f.uid, text, kind: f.kind, x: r.cx, y: r.cy, w: r.w, h: r.h, climb });
   }
   return { floats: spawned, deathFloats: deaths };
 }

@@ -791,19 +791,22 @@ function projectileImpactMs(defId: string): number {
   return at;
 }
 
-/** Every `wave` that `dyingUid` sprays after its death at `deathIdx`, each with the distinct units it struck
- *  (damaged OR ward-blocked). A `dmg` carries its source; a `shield` (ward pop) belongs to the wave by its
- *  shared wave id. Golden Fel Spikes sprays twice → two entries, in order; a normal one → a single entry. */
-export function echoWaves(events: CombatEvent[], dyingUid: string, deathIdx: number): { uids: string[]; wave: number }[] {
+/** Every `wave` that `dyingUid` sprays after `startIdx` (up to `endIdx`, exclusive), each with the distinct
+ *  units it struck (damaged OR ward-blocked). A `dmg` carries its source; a `shield` (ward pop) belongs to the
+ *  wave by its shared wave id. Golden Fel Spikes sprays twice → two entries, in order; a normal one → a single
+ *  entry. `endIdx` bounds the scan to ONE trigger burst — a death-fired spray scans to the end (the body sprays
+ *  once), but a forced trigger (Echohorn, alive) fires repeatedly, so each rally passes the NEXT rally as its
+ *  `endIdx` to claim only its own waves. */
+export function echoWaves(events: CombatEvent[], dyingUid: string, startIdx: number, endIdx: number = events.length): { uids: string[]; wave: number }[] {
   const mine = new Set<number>();
-  for (let j = deathIdx + 1; j < events.length; j++) {
+  for (let j = startIdx + 1; j < endIdx; j++) {
     const ev = events[j];
     if (ev?.wave !== undefined && ev.type === 'dmg' && ev.source === dyingUid) mine.add(ev.wave);
   }
   if (mine.size === 0) return [];
   const byWave = new Map<number, { uids: string[]; seen: Set<string> }>();
   const order: number[] = [];
-  for (let j = deathIdx + 1; j < events.length; j++) {
+  for (let j = startIdx + 1; j < endIdx; j++) {
     const ev = events[j];
     if (ev?.wave === undefined || !mine.has(ev.wave)) continue;
     if (ev.type !== 'dmg' && ev.type !== 'shield') continue;
@@ -836,7 +839,11 @@ function echoDeliveryLead(shown: Moment | undefined, next: Moment, events: Comba
   // together AFTER the last volley in their own step (owner ask 2026-08-20: aggregate per fire, resolve after).
   for (let i = shown.start; i < shown.end; i++) {
     const e = events[i];
-    if (e?.type === 'death' && e.target === src) {
+    // The spray LAUNCHED in `shown` — either the sprayer DIED there (death-fired), or a forced trigger
+    // (Echohorn's Rally, sprayer still alive) fired its Echo there. Both throw the spike from that beat, so hold
+    // until it connects. A golden Echohorn's two rallies are two separate beats, so EACH wave holds the full
+    // travel from its own rally — the numbers climb per rally exactly like a death-fired spray climbs per pass.
+    if ((e?.type === 'death' && e.target === src) || (e?.type === 'rally' && e.target === src)) {
       return ECHO_LAUNCH_DELAY_MS + projectileImpactMs(binding.def) + ECHO_IMPACT_BUFFER_MS;
     }
   }
@@ -863,10 +870,10 @@ const ECHO_IMPACT_BUFFER_MS = 80;
  *  two sprays read as two taps. Anchors resolve at FIRE time (inside the timer) so a pulled-home attacker's
  *  moved rect is honoured and the still-visible body is the launch point. `register` receives each timer id for
  *  the caller's cleanup. */
-function scheduleEchoVolleys(defId: string, dyingUid: string, deathIdx: number, events: CombatEvent[], speed: number, register: (id: number) => void): void {
+function scheduleEchoVolleys(defId: string, dyingUid: string, startIdx: number, events: CombatEvent[], speed: number, register: (id: number) => void, endIdx?: number): void {
   if (!canPlayDefs()) return;
   const s = speed > 0 ? speed : 1;
-  echoWaves(events, dyingUid, deathIdx).forEach((wv, w) => {
+  echoWaves(events, dyingUid, startIdx, endIdx).forEach((wv, w) => {
     const fire = (): void => wv.uids.forEach((uid, k) => {
       const a = anchorsForUnits(dyingUid, uid);
       if (a) playDef(defId, a, { uids: { source: dyingUid, target: uid }, index: k });
@@ -1866,6 +1873,25 @@ export function useCombatReplay(
         // Combat-lifetime registry, NOT `timers`: later volleys fire after the beat advances, so the per-beat
         // cleanup must not clear them (see `echoVolleyTimersRef`). A seek/reset cancels them via cancelPendingRolls.
         scheduleEchoVolleys(echoBinding.def, e.target, i, events, combatSpeedRef.current, (id) => echoVolleyTimersRef.current.push(id));
+      }
+    }
+    // FORCED Echo trigger (Echohorn's Rally / Hawkus / Spots): the sprayer is ALIVE — there is no death to hang
+    // the volley on — so launch its spikes from the LIVING body when its rally fires. Same combat-lifetime
+    // registry + same `echoDeliveryLead` hold as the death path, so travel + the climbing numbers read
+    // identically. Each rally claims only ITS OWN waves (bounded by the NEXT rally to the same sprayer), so a
+    // golden Echohorn's two rallies throw two sprays instead of one launch double-counting the other's waves.
+    if (canPlayDefs()) {
+      for (let i = beat.start; i < beat.end; i++) {
+        const e = events[i];
+        if (e?.type !== 'rally' || typeof e.target !== 'string') continue;
+        const rallyBinding = bindingFor(cardIds.get(e.target) ?? null, 'damage');
+        if (!rallyBinding?.launchOnDeath || !rectOf(e.target)) continue;
+        let endIdx = events.length;
+        for (let j = i + 1; j < events.length; j++) {
+          const n = events[j];
+          if (n?.type === 'rally' && n.target === e.target) { endIdx = j; break; }
+        }
+        scheduleEchoVolleys(rallyBinding.def, e.target, i, events, combatSpeedRef.current, (id) => echoVolleyTimersRef.current.push(id), endIdx);
       }
     }
     return () => {

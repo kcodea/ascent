@@ -650,6 +650,7 @@ export function simulate(
     },
     living,
     onBoard,
+    withEchoDefer,
     getCard: (id) => {
       const card = cards[id];
       if (!card) throw new Error(`Unknown card: ${id}`);

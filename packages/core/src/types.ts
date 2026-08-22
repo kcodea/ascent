@@ -2719,6 +2719,11 @@ export interface CombatContext {
   /** Resolve a death that `damageDeferred` left pending: if `target` is at ≤0 and not yet dead, kill it now
    *  (firing its Deathrattle / Rise). Call after the LAST volley so consequences land once, after the damage. */
   resolveEchoDeath(target: Minion, source?: Minion): void;
+  /** Run `fire` inside a multi-fire echo DEFER scope: every `resolveEchoDeath` inside it QUEUES its death, and
+   *  the whole set flushes ONCE when the outermost scope closes — so a golden Echohorn's two rally triggers (or
+   *  any stacked forced Echo) accumulate onto the same board with NO death resolved between them, exactly like a
+   *  death-fired spray. Optional: a context without it (recruit arena, tests) runs `fire` directly, as before. */
+  withEchoDefer?<T>(fire: () => T): T;
   /** Bloodbinder: arm Bleed for this fight — MARK up to `targets` random enemies now (Start of Combat), then every
    *  `everyN` attacks made in the combat (either side), deal this minion's Attack to those SAME marked enemies that
    *  are still alive (never re-rolled; ends the moment the bleeder dies). `targets` already folds in golden. */

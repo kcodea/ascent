@@ -161,6 +161,38 @@ describe('simulate (handoff A.3)', () => {
     expect(waves.size).toBe(4); // 2 gilded base passes + 2 gilded Sylus-doubled passes — Sylus doubled despite dying
   });
 
+  it("a golden Echohorn triggers a LIVING Fel Spikes' Echo twice with NO resolve between the two rallies", () => {
+    // Echohorn's Rally forces a Deathrattle WITHOUT killing (via `triggerEcho`), and a golden one fires it TWICE.
+    // Both triggers must accumulate on the SAME board — a Void Panther eats both volleys (8), dies ONCE, and its
+    // cubs are summoned after and never caught by the spray — exactly like a death-fired multi-fire (owner ruling
+    // 2026-08-21: no resolve between the two rallies; ≤0 victims stay on board taking hits until the volleys are
+    // done). Guards the `withEchoDefer` scope around `triggerEcho`'s whole proc loop. Without it: proc 1 kills the
+    // Panther, its cubs spawn, and proc 2 sprays the cubs (felToPanther 1, felToCubs 2).
+    const p: BoardMinion[] = [
+      { cardId: 'b2_echohorn', attack: 4, health: 3, golden: true }, // attacks ONCE (dies to retaliation); Rally fires twice
+      { cardId: 'dm_felspikes', attack: 4, health: 50 },             // the leftmost (only) Echo — survives, so only Echohorn triggers it
+      { cardId: 'sandbag', attack: 0, health: 50 },
+    ];
+    const e: BoardMinion[] = [
+      { cardId: 'sandbag', attack: 10, health: 50 }, // Echohorn's target; kills it on retaliation → a single attack
+      { cardId: 'manasaber', attack: 0, health: 1 }, // Void Panther — dies to the spray, summons 2 cubs
+    ];
+    const r = run(p, e, 3);
+    const fs = r.initial.player.find((m) => m.cardId === 'dm_felspikes')!;
+    const panther = r.initial.enemy.find((m) => m.cardId === 'manasaber')!;
+    // Wave-tagged so a later Fel Spikes ATTACK swing can't be mistaken for a spray hit.
+    const spray = (ev: CombatEvent): ev is Extract<CombatEvent, { type: 'dmg' }> =>
+      ev.type === 'dmg' && ev.source === fs.uid && ev.wave !== undefined;
+    expect(r.events.filter((ev) => ev.type === 'rally').length).toBe(2); // golden Echohorn → two rally procs
+    expect(r.events.filter((ev) => spray(ev) && ev.target === panther.uid)).toHaveLength(2); // both procs hit the Panther
+    const cubUids = new Set(
+      r.events.flatMap((ev) => (ev.type === 'summon' && (ev as Extract<CombatEvent, { type: 'summon' }>).minion.cardId === 'sabercub'
+        ? [(ev as Extract<CombatEvent, { type: 'summon' }>).minion.uid] : [])),
+    );
+    expect(cubUids.size).toBe(2);
+    expect(r.events.filter((ev) => spray(ev) && cubUids.has(ev.target))).toHaveLength(0); // cubs summoned after, never sprayed
+  });
+
   it('Bloodlust weld: a bloodlustRally attacker gives a friendly minion its Attack on each of its own swings', () => {
     const p: BoardMinion[] = [
       { cardId: 'pack', attack: 5, health: 30, bloodlustRally: true }, // the Bloodlust target

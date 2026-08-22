@@ -1,4 +1,5 @@
 import { useEffect, useReducer, useRef, type CSSProperties, type MouseEvent } from 'react';
+import { AscentLogo } from './AscentLogo';
 import { mdBold } from './Card';
 import { getHero, activeRift, heroTip, SHOW_HERO_TIPS } from '@game/sim';
 import { RiftPill } from './RiftPill';
@@ -90,27 +91,20 @@ export function HeroSelect() {
 
   return (
     <div className={`heroselect${active ? ' hsc-active' : ''}`} style={rootStyle}>
-      {/* Back is inert the moment the ceremony commits (§3.1): disabled, faded (CSS), out of the tab order. */}
-      <button
-        className="hsback pressable"
-        disabled={active}
-        tabIndex={active ? -1 : 0}
-        onClick={() => { if (!active) { sfx.pulse(); openTitle(); } }}
-      >← Back</button>
       <div className="hsbox">
-        <div className="eyebrow">Choose your champion</div>
-        <h1 className="disp hstitle">THE ASCENT</h1>
+        {/* The real brand lockup, not a text heading (owner ask 2026-08-22) — the same mark + wordmark the home
+            screen wears, so the two screens read as one product. `.hslogo` owns its own sizing and takes none
+            of the title's tuner-driven offset/float. */}
+        <AscentLogo className="hslogo" headingClass="disp titleword hsword" />
         {/* Run-start telegraph: your rating-derived Line — the wins this run is expected to cover. Shown for
             every SCORED mode, which is Ascent AND Rift (a rift run still takes damage, still records a
             result — every other mode check in the codebase is `!== 'practice'`, so this one matches). Only
             Practice is unscored. */}
         {/* A LOBBY has no Oath and no rating — it is won by outlasting seven other seats — so it telegraphs the
             table instead. Practice stays unscored and shows neither. */}
-        {mode === 'lobby' ? (
-          <div className="hsline" aria-label="Play format">
-            <span className="hsline-line">8 players · last player standing</span>
-          </div>
-        ) : mode !== 'practice' && (
+        {/* A LOBBY telegraphs nothing here any more (owner ask 2026-08-22 — the format pill is gone); the
+            Rating/Oath line stays for the scored non-lobby modes. */}
+        {mode !== 'lobby' && mode !== 'practice' && (
           <div className="hsline" aria-label="Your Oath for this run">
             <span className="hsline-rat">Rating {profile.rating}</span>
             <span className="hsline-line">Oath {profile.currentLine}</span>

@@ -7,11 +7,9 @@
 /* ---- Grid + header treatment while the ceremony runs (§10, §16). Applied by HeroSelect via `hsc-active`
    on the `.heroselect` root; --hsc-header-delay comes from timing.headerExitDelayMs. */
 .heroselect.hsc-active .herocard { pointer-events: none; }
-.heroselect.hsc-active .eyebrow,
-.heroselect.hsc-active .hstitle,
+.heroselect.hsc-active .hslogo,
 .heroselect.hsc-active .hsline,
-.heroselect.hsc-active .riftpill,
-.heroselect.hsc-active .hsback {
+.heroselect.hsc-active .riftpill {
   opacity: 0;
   transition: opacity 0.32s ease var(--hsc-header-delay, 80ms);
   pointer-events: none;

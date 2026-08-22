@@ -11,7 +11,7 @@ import { Icon } from './Icon';
 import { BuffsFrame } from './BuffsFrame';
 import { QuestBadges } from './QuestBadges';
 import { gatherRunBuffs } from './runBuffs';
-import { questObjectiveText, questProgressText, questRewardText } from './questText';
+import { questObjectiveText, questProgressText, questRewardText, questRewardLiveText, questRewardLiveOf } from './questText';
 import { QUEST_INDEX, RUNE_INDEX } from '@game/content';
 import { sfx } from './sfx';
 import { playDef } from './fx/playDef';
@@ -111,6 +111,14 @@ export function StatusBar() {
       : questObjectiveText(grantQuestDef.objective))
     : grantRuneDef ? grantRuneDef.text
     : heroPowerText(run);
+  // …and the REWARD, on its own line beneath. The objective alone says what to do but not what you get — the
+  // half that decides whether the quest is worth steering the run toward (owner ask 2026-08-22). Only while
+  // the quest is UNFINISHED: once complete, `powerRule` above has already flipped to the reward, and printing
+  // it twice would read as a bug. Live-first so a scaling reward shows its current magnitude, not the base.
+  const powerReward = grantQuestDef && !grantQuest?.completed
+    ? (questRewardLiveText(grantQuestDef.reward, questRewardLiveOf(run, grantQuestDef.reward))
+      ?? questRewardText(grantQuestDef.reward))
+    : null;
   // …and CASSEN's button wears the art of the commission currently running, reverting to his plain art the
   // moment it matures. Both fall back to the hero's own art if a variant image is missing, so a half-wired
   // folder degrades instead of rendering nothing (there is no CassenHP3 yet).
@@ -604,9 +612,15 @@ export function StatusBar() {
             </button>
           )}
           <div className="herotip" role="tooltip">
-            <b>{power.name}</b>{isPassive ? ' · passive' : ''}
+            <b>{grantQuestDef?.name ?? grantRuneDef?.name ?? power.name}</b>{isPassive ? ' · passive' : ''}
             {/* `**word**` = a keyword reference → renders BOLD (mdBold), never raw asterisks. */}
             <span className="herotip-rule" dangerouslySetInnerHTML={{ __html: mdBold(powerRule) }} />
+            {powerReward && (
+              <span className="herotip-reward">
+                <b>Reward</b>
+                <span dangerouslySetInnerHTML={{ __html: mdBold(powerReward) }} />
+              </span>
+            )}
             {/* QUILLEN: the archived TYPES, each in its own tribe colour, with unused slots as "Empty". A
                 plain rule string cannot carry per-word colour, so the live state is rendered here instead of
                 being folded into the text (owner ask 2026-08-17). */}

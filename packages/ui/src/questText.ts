@@ -469,6 +469,37 @@ export interface QuestRewardLive {
 /** The reward's LIVE ongoing magnitude for the badge tooltip — the CURRENT value a scaling/stat reward is
  *  producing right now (card-text live-accuracy rule, applied to quest rewards). Returns null for rewards with
  *  no live-varying magnitude (their authored `questRewardText` already reads correctly). */
+/**
+ * Build the `QuestRewardLive` snapshot from a run. Extracted (2026-08-22) so every surface that prints a
+ * reward reads the SAME live state: QuestBadges' node hover and the hero-power tooltip, which shows a granted
+ * quest's reward beside its objective. Two hand-built copies of this object would drift the moment a new
+ * scaling reward lands, and a stale printed number is a defect under the live-accuracy rule.
+ *
+ * Structurally typed on purpose — `questText.ts` sits below `@game/sim` and must not import RunState.
+ */
+export function questRewardLiveOf(run: {
+  beastBuyAtk?: number; beastBuyHp?: number; spellsCast?: number;
+  questScalingAuras?: { tribe: Tribe; event: QuestObjectiveEvent; progress: number; per: number }[];
+  denMarker?: { count: number };
+  shopBuffOnRefresh?: { grown: number; tick: number };
+  shopAuraGrow?: { grown: number; tick: number };
+  firstSpellThisTurnId?: string;
+}, r: QuestReward): QuestRewardLive {
+  const scaling = r.kind === 'scalingTribeAura'
+    ? (run.questScalingAuras ?? []).find((a) => a.tribe === r.tribe && a.event === r.event)
+    : undefined;
+  return {
+    beastAura: { attack: run.beastBuyAtk ?? 0, health: run.beastBuyHp ?? 0 },
+    spellsCast: run.spellsCast ?? 0,
+    scaling: scaling ? { progress: scaling.progress, per: scaling.per } : undefined,
+    denMarkerCount: run.denMarker?.count ?? 0,
+    shopRefresh: run.shopBuffOnRefresh
+      ? { grown: run.shopBuffOnRefresh.grown, tick: run.shopBuffOnRefresh.tick }
+      : run.shopAuraGrow ? { grown: run.shopAuraGrow.grown, tick: run.shopAuraGrow.tick } : undefined,
+    firstSpellId: run.firstSpellThisTurnId,
+  };
+}
+
 export function questRewardLiveText(r: QuestReward, live: QuestRewardLive): string | null {
   const beast = (): string | null => {
     const a = live.beastAura;

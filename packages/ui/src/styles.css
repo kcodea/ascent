@@ -3056,6 +3056,11 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
 /* Hover tip: the rule (muted) + the live status (tangerine) stacked under the bold power name. */
 .herotip-rule { display: block; margin-top: 3px; color: #d8ccb6; font-weight: 600; }
 .herotip-live { display: block; margin-top: 5px; color: var(--acc); font-weight: 800; }
+/* A granted quest's REWARD, under its objective in the hero-power tooltip. The hairline separates the two so
+   "what to do" and "what you get" don't read as one run-on sentence; the label carries the accent so the eye
+   lands on the payoff first. */
+.herotip-reward { display: block; margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(255, 255, 255, 0.12); color: #d8ccb6; font-weight: 600; }
+.herotip-reward > b { display: block; margin-bottom: 1px; color: var(--acc); font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; }
 .herotip-live:empty { display: none; }
 /* Opponent frame + round-stat HUD: same dark pill/glass as the hero box, with inner text lightened to read on
    the dark fill (they were tuned for the old cream boxes). */

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { CombatEvent } from '@game/core';
-import { echoWaves } from './useCombatReplay';
+import { echoWaves, echoWaveDamagedCount } from './useCombatReplay';
 
 /**
  * `echoWaves` finds the spray(s) a dying unit's Echo throws AFTER its death — the targets the spike volley,
@@ -44,5 +44,33 @@ describe('echoWaves', () => {
   it('returns nothing for a death with no wave (a plain Deathrattle)', () => {
     const events = [death('fs')];
     expect(echoWaves(events, 'fs', 0)).toEqual([]);
+  });
+});
+
+/**
+ * `echoWaveDamagedCount` counts how many DISTINCT units a given wave actually DAMAGED (a `dmg` fires a number) —
+ * the number of times the quiet land cue plays as that volley connects. Ward-absorbed strikes are excluded: they
+ * pop no number, so they get no land tick (owner ask 2026-08-22).
+ */
+describe('echoWaveDamagedCount', () => {
+  it('counts the distinct damaged units in a wave', () => {
+    const events = [death('fs'), dmg('e1', 'fs', 0), dmg('e2', 'fs', 0), dmg('e3', 'fs', 0)];
+    expect(echoWaveDamagedCount(events, 'fs', 0, 0)).toBe(3);
+  });
+
+  it('EXCLUDES a ward-absorbed strike (no damage number fired)', () => {
+    const events = [death('fs'), ward('e1', 0), dmg('e2', 'fs', 0)];
+    expect(echoWaveDamagedCount(events, 'fs', 0, 0)).toBe(1);
+  });
+
+  it('counts a unit ONCE even if it took two hits in the wave', () => {
+    const events = [death('fs'), dmg('e1', 'fs', 0), dmg('e1', 'fs', 0)];
+    expect(echoWaveDamagedCount(events, 'fs', 0, 0)).toBe(1);
+  });
+
+  it('scopes to the given wave id, ignoring another wave', () => {
+    const events = [death('fs'), dmg('e1', 'fs', 0), dmg('e2', 'fs', 1)];
+    expect(echoWaveDamagedCount(events, 'fs', 0, 0)).toBe(1);
+    expect(echoWaveDamagedCount(events, 'fs', 1, 0)).toBe(1);
   });
 });

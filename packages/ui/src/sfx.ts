@@ -642,6 +642,21 @@ export const sfx = {
     if (playSample('shieldgain', 'shield')) return;
     tone({ freq: 760, dur: 0.18, type: 'sine', vol: 0.11, slideTo: 1300, category: 'shield' });
   },
+  // Fel Spikes' Echo LAUNCHES its spike volley (the projectile pixi fires) — ONE cue per volley, however many
+  // targets it sprays at once. Fired the instant the volley launches (see `scheduleEchoVolleys`). Sourced
+  // "fel-spike-echo" clip; synth descending zap fallback until it decodes / if absent.
+  felSpikeEcho: () => {
+    if (playSample('fel-spike-echo', 'felSpikeEcho')) return;
+    tone({ freq: 320, dur: 0.16, type: 'sawtooth', vol: 0.12, slideTo: 90, category: 'felSpikeEcho' });
+  },
+  // A single Fel Spike CONNECTS with a unit — plays once per struck unit that takes damage (a damage number
+  // fires), as the spike lands. Kept quiet since it stacks across the volley's targets; `delay` (s) staggers the
+  // stack so several connects read as a patter rather than one coherent blast. Sourced "fel-spike-echo-land"
+  // clip; synth tick fallback.
+  felSpikeEchoLand: (delay = 0) => {
+    if (playSample('fel-spike-echo-land', 'felSpikeEchoLand', delay)) return;
+    tone({ freq: 200, dur: 0.09, type: 'square', vol: 0.08, slideTo: 70, delay, category: 'felSpikeEchoLand' });
+  },
   buff: () => {
     tone({ freq: 480, dur: 0.09, type: 'triangle', vol: 0.12, category: 'buff' });
     tone({ freq: 720, dur: 0.12, type: 'triangle', vol: 0.1, delay: 0.06, category: 'buff' });
@@ -682,6 +697,7 @@ const SFX_PREVIEW: Record<string, () => void> = {
   discover: sfx.discover, discoverSelect: sfx.discoverSelect, taunt: sfx.taunt, reorder: sfx.reorder, deny: sfx.deny, freeze: sfx.freeze,
   unfreeze: sfx.unfreeze, pulse: sfx.pulse, triggerpulse: sfx.triggerPulse, triggerglow: sfx.triggerGlow, clickthock: sfx.clickThock, cardtouch: sfx.cardTouch, gemapply: sfx.gemApply, divineshieldbreak: sfx.shieldBreak, rebornshatter: sfx.rebornShatter, rebornsummon: sfx.rebornSummon, skullburst: sfx.skullBurst, inspect: sfx.inspect, upgrade: sfx.upgrade, roll: sfx.roll,
   uihover: sfx.uiHover,
+  felSpikeEcho: sfx.felSpikeEcho, felSpikeEchoLand: () => sfx.felSpikeEchoLand(),
   combatStart: sfx.combatStart,
   // cardVoice is per-card; preview plays whichever card clip is present (first one found), or nothing.
   cardVoice: () => {

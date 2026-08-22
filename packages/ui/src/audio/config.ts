@@ -26,6 +26,7 @@ export const CATEGORY_GAINS: Record<string, number> = {
   skullburst: 0.06, inspect: 0.5, upgrade: 0.37, roll: 0.88, combatStart: 0.64, cardVoice: 0.11,
   cardEffect: 0.18, cardDeath: 0.18, heroSelect: 0.5, heroPower: 0.5, summon: 0.2, buff: 0.46, turncharge: 0.5, turnexplosion: 0.5,
   flurrylunge: 0.375, flurryhit: 0.375, cleave: 0.11,
+  felSpikeEcho: 0.38, felSpikeEchoLand: 0.2,
   uihover: 0.08,
 };
 
@@ -37,6 +38,7 @@ export const CATEGORY_BUS: Record<string, BusName> = {
   smack: 'combat', crit: 'combat', attack: 'combat', death: 'combat', cast: 'combat', divineshieldbreak: 'combat', rebornshatter: 'combat', rebornsummon: 'combat',
   gemapply: 'combat', skullburst: 'combat', triggerpulse: 'combat', triggerglow: 'combat', buff: 'combat', maxgold: 'combat',
   summon: 'combat', taunt: 'combat', shield: 'combat', flurrylunge: 'combat', flurryhit: 'combat', cleave: 'combat',
+  felSpikeEcho: 'combat', felSpikeEchoLand: 'combat',
   cardVoice: 'voice', cardEffect: 'voice', cardDeath: 'voice',
   heroSelect: 'hero', heroPower: 'hero',
 };

@@ -829,6 +829,19 @@ export function echoWaves(events: CombatEvent[], dyingUid: string, startIdx: num
   return order.map((w) => ({ uids: byWave.get(w)!.uids, wave: w }));
 }
 
+/** How many DISTINCT units the wave `wave` of `dyingUid`'s spray dealt actual DAMAGE to — i.e. a `dmg` event, so
+ *  a damage number fires. Ward-absorbed strikes (a `shield` pop, no number) are excluded on purpose: the land
+ *  cue plays once per number, not per spike (owner ask 2026-08-22). Same `[startIdx, endIdx)` bounds as
+ *  {@link echoWaves}. */
+export function echoWaveDamagedCount(events: CombatEvent[], dyingUid: string, wave: number, startIdx: number, endIdx: number = events.length): number {
+  const seen = new Set<string>();
+  for (let j = startIdx + 1; j < endIdx; j++) {
+    const e = events[j];
+    if (e?.type === 'dmg' && e.wave === wave && e.source === dyingUid && typeof e.target === 'string') seen.add(e.target);
+  }
+  return seen.size;
+}
+
 /** The travel lead (ms, 1× speed) to HOLD before `next` when it is a `launchOnDeath` Echo damage wave whose
  *  spray was launched from a death in `shown` — so the wave's damage lands as the spikes connect. 0 otherwise. */
 function echoDeliveryLead(shown: Moment | undefined, next: Moment, events: CombatEvent[], cardIds: Map<string, string>): number {
@@ -893,14 +906,30 @@ const ECHO_IMPACT_BUFFER_MS = 80;
 function scheduleEchoVolleys(defId: string, dyingUid: string, startIdx: number, events: CombatEvent[], speed: number, register: (id: number) => void, endIdx?: number, launchDelayMs: number = ECHO_LAUNCH_DELAY_MS): void {
   if (!canPlayDefs()) return;
   const s = speed > 0 ? speed : 1;
+  const impactMs = projectileImpactMs(defId);
   echoWaves(events, dyingUid, startIdx, endIdx).forEach((wv, w) => {
-    const fire = (): void => wv.uids.forEach((uid, k) => {
-      const a = anchorsForUnits(dyingUid, uid);
-      if (a) playDef(defId, a, { uids: { source: dyingUid, target: uid }, index: k });
-    });
+    // Units in THIS wave that take actual damage (a number fires) — the land cue plays once per such unit as the
+    // spike connects; ward-absorbed strikes are excluded (see `echoWaveDamagedCount`).
+    const damagedHits = echoWaveDamagedCount(events, dyingUid, wv.wave, startIdx, endIdx);
+    const fire = (): void => {
+      // ONE launch cue per volley, fired the instant the projectile pixi launches — not per target.
+      sfx.felSpikeEcho();
+      wv.uids.forEach((uid, k) => {
+        const a = anchorsForUnits(dyingUid, uid);
+        if (a) playDef(defId, a, { uids: { source: dyingUid, target: uid }, index: k });
+      });
+    };
     const delay = (launchDelayMs + w * ECHO_PASS_GAP_MS) / s;
     if (delay <= 0) fire();
     else register(window.setTimeout(fire, delay));
+    // Land cue: one quiet play per damaged unit, timed to when the spike CONNECTS (launch + beam travel). A small
+    // per-hit stagger keeps a multi-target volley reading as a patter rather than one coherent (and clip-prone) blast.
+    if (damagedHits > 0) {
+      const landDelay = delay + impactMs / s;
+      const land = (): void => { for (let n = 0; n < damagedHits; n++) sfx.felSpikeEchoLand((n * 12) / 1000 / s); };
+      if (landDelay <= 0) land();
+      else register(window.setTimeout(land, landDelay));
+    }
   });
 }
 

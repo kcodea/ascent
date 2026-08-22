@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { activeRift, LEARN_ASCENT } from '@game/sim';
 import { avatarSrc, modeArt } from './art';
 import { getTitleText, subscribeTitleText, titleContinueNote } from './titleTextConfig';
+import { applyTitleVars } from './titleConfig';
 import { Icon } from './Icon';
 import { sfx } from './sfx';
 import { useGame, tempHandle } from './store';
@@ -25,6 +26,14 @@ const Crest = () => (
     <path d="M12 4.6l6.4 7.4L12 19.4 5.6 12z" fill="#0f1c34" />
     <path d="M12 6.6l4.7 5.4L12 17.4 7.3 12z" fill="#3f9ae0" />
     <path d="M12 6.6l4.7 5.4L12 12z" fill="#7fd0ff" opacity="0.9" />
+  </svg>
+);
+
+// The wordmark peak (owner art, `Reference Art/Ascent Menu.svg`) — the brand mark beside the ASCENT title.
+// Reuses the `.crest` sizing/drop-shadow so it seats at the title's 62px slot.
+const TitleMark = () => (
+  <svg viewBox="0 0 1006 1038" className="crest" aria-hidden="true">
+    <path d="M503 0C557 101 733.1 449.9 1005.5 1037.5C941.5 983.833 774.6 856.6 619 777L562.5 659L635.5 683.5L504 373L370 683.5L443 659L386.5 777C230.9 856.6 64 983.833 0 1037.5C272.4 449.9 449 101 503 0Z" fill="#BC9749" />
   </svg>
 );
 
@@ -69,6 +78,8 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   // override this returns the shipped defaults, so production is byte-identical to the hard-coded strings.
   const [, bumpText] = useState(0);
   useEffect(() => subscribeTitleText(() => bumpText((n) => n + 1)), []);
+  // Apply the persisted Title Logo tuner values (dev) / DEFAULTS (prod) to `--title-*` when the menu mounts.
+  useEffect(() => { applyTitleVars(); }, []);
   const txt = getTitleText();
 
   const [editing, setEditing] = useState(false);
@@ -143,7 +154,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
 
       <div className="titlemenu">
         <div className="titlelogo">
-          <Crest />
+          <TitleMark />
           <h1 className="disp titleword">{txt.wordmark}</h1>
         </div>
 

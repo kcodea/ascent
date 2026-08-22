@@ -44,6 +44,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 ## Recent changes
 
+- **New title mark + Title Logo tuner.** The main-menu ASCENT wordmark gets the owner's peak mark, plus a live 🏔️ Title Logo dev tuner — placement, a Google-Fonts typeface picker (curated quick-picks *and* a type-any-font field), independent text/mark glows, and a subtle float that can bob the logo as one or the mark and text separately.
+
 - **First hero-select voiceover.** Lord of the Risen now speaks when you pick him — in both Ascent and Practice. The pipeline was already wired; this is the first real clip to land in `audio/heroes/`. Drop a `"<Hero Name> - Select.mp3"` export in the Hero Select folder and `npm run sfx:import` resolves the name to the hero and files it automatically.
 - **Cia's enchant treatment follows the card.** The old persistent "enchanted foil" is replaced by the
   workbench-authored `cia-hp` burst, played as a continuous loop that now *rides the offer* as the shop

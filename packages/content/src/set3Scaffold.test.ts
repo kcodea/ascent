@@ -11,7 +11,7 @@ describe('set 3 scaffold', () => {
     // Grew three times from the empty scaffold: the Celestial test units, the owner's shared spell pool
     // (2026-08-03, "they will be there no matter what"), and then the REAL Celestial tribe (owner roster
     // 2026-08-05) — which replaced the seven test units, now in the MINION ARCHIVE. Minions stay
-    // all-Celestial; the spell count pins the 58 DRAWABLE shared spells (the sheet's reward/gift rows —
+    // all-Celestial; the spell count pins the DRAWABLE shared spells (the sheet's reward/gift rows —
     // Copycat, Bloodlust, Implosion, Goldcrafter — are tokens, global by doctrine, and not set members).
     expect(SETS.set3).toBeDefined();
     const p = poolFor('set3');
@@ -28,7 +28,7 @@ describe('set 3 scaffold', () => {
       expect(p.all.some((c) => c.id === id), id + ' should be archived, not in the set').toBe(false);
       expect(CARD_INDEX[id], id + ' must still resolve').toBeTruthy();
     }
-    expect(p.spells.length).toBe(58);
+    expect(p.spells.length).toBe(59); // 58 + Power Shifter (2026-08-22)
     expect(p.spells.some((c) => c.id === 'apples')).toBe(true);
     expect(p.spells.some((c) => c.id === 'sparkplug')).toBe(true); // Waking Rift
     expect(p.spells.some((c) => c.id === 'copycat'), 'gift spells stay out of the pool').toBe(false);

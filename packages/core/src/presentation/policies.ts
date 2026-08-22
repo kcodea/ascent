@@ -339,6 +339,8 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:spellCopyTargetExact:cast': { policy: 'ownBeat', family: 'spellCast' },
   'factory:spellDecoyNextCombat:cast': { policy: 'ownBeat', family: 'spellCast' },
   'factory:spellDemonConsumeFodder:cast': { policy: 'ownBeat', family: 'spellCast' },
+  // Power Shifter: the Discover it opens IS the beat — the player acts inside it.
+  'factory:spellPowerShift:cast': { policy: 'ownBeat', family: 'spellCast' },
   'factory:spellDevour:cast': { policy: 'ownBeat', family: 'spellCast' },
   'factory:spellDiscoverFromLastOpponent:cast': { policy: 'ownBeat', family: 'spellCast' },
   'factory:spellDisplace:cast': { policy: 'ownBeat', family: 'spellCast' },

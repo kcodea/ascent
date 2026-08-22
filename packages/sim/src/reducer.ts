@@ -2648,8 +2648,16 @@ function reduceCore(state: RunState, action: Action): RunState {
       const heroId = offer.heroIds[action.index];
       if (heroId == null || !getHero(heroId)) return state;
       s.powerOffer = undefined;
-      if (offer.slot === 'mimic') {
-        s.mimicPowerId = heroId;
+      if (offer.slot === 'shifter') {
+        // POWER SHIFTER (T5 spell): replace the power the run is wielding, for the rest of the run.
+        // On VOID that means slot 0 in place — collapsing his pair to one would delete a power the shifter
+        // never claimed to touch.
+        if (s.voidPowerIds?.length) s.voidPowerIds = [heroId, ...s.voidPowerIds.slice(1)];
+        else s.adoptedPowerId = heroId;
+        s.heroReady = true; // a new power arrives charged, whatever the old one had spent
+        seedAdoptedPower(s, heroId);
+      } else if (offer.slot === 'mimic') {
+        s.adoptedPowerId = heroId;
         // A fresh disguise is a fresh charge: the adopted power arms now even when the previous one was
         // spent this same turn (each turn's power is its own).
         s.heroReady = true;

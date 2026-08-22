@@ -135,7 +135,7 @@ export function StatusBar() {
   // The art follows the WIELDED power's hero (Mimic's disguise / Void's first pick) — the native id for
   // everyone else. Suit/commission variants resolve against the same id, so a mimicked Lucky Seat shows the
   // queued suit exactly as Ayse would.
-  const artHeroId = run.mimicPowerId ?? run.voidPowerIds?.[0] ?? hero.id;
+  const artHeroId = run.voidPowerIds?.[0] ?? run.adoptedPowerId ?? run.mimicPowerId ?? hero.id;
   const powerArt = grantArt ?? (power.kind === 'luckySeat' && run.ciaSuit
     ? (heroPowerArt(`cia-${run.ciaSuit}`) ?? heroPowerArt(artHeroId))
     : power.kind === 'commission' && run.commission

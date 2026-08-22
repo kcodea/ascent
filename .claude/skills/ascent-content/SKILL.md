@@ -16,6 +16,23 @@ something different. A name collision is rejected by the validator, and a *dupli
 ships. Grep the rune/card arrays for the name AND for the effect's distinctive phrase before building.
 Surface collisions to the owner instead of guessing which one wins.
 
+## Adding a HERO: ask whether its power joins the discoverable pool
+
+Standing owner instruction (2026-08-22). Three systems Discover hero powers — **Mimic** (a new one every
+turn), **Void** (two, kept for the run) and the **Power Shifter** spell (T5) — and all three read one
+function: `powerDiscoverPool` in `packages/sim/src/heroes.ts`.
+
+Those pools are **deny-lists**, so a new hero is offerable the moment it ships unless you name it. That
+default is often right, but never automatic — ask the owner. Powers that usually want excluding:
+
+- ones that only act at **run creation** (a start-of-game grant is a strange thing to adopt on turn 9),
+- ones tied to a **schedule** (a turn-N forge or quest that has already passed),
+- ones that would be degenerate or dead on **Mimic's one-turn** disguise.
+
+Excluding is one id in `MIMIC_EXCLUDED` / `VOID_EXCLUDED`; the shared kind-level bans live in
+`UNDISCOVERABLE_KINDS`. If a power IS adoptable but has a creation-time gift, wire that gift into
+`seedAdoptedPower` (reducer.ts) so an adopter actually receives it.
+
 ## Authoring rules
 
 - Drawable cards go in the correct set directory (`cards/set1|set2|set3/`) and must be included by the set

@@ -903,7 +903,7 @@ export function heroPowerLockTurns(run: {
  * disagree. They did: the indicator hardcoded "you already hold 2", so a Midas player — who Gilds at 2 — got
  * no highlight on the duplicate that would have completed it right now (owner report 2026-08-21).
  */
-export function gildCopiesNeeded(run: { heroId: string; runeTwinGilding?: boolean; gildCopies?: number; mimicPowerId?: string; voidPowerIds?: string[] }): number {
+export function gildCopiesNeeded(run: { heroId: string; runeTwinGilding?: boolean; gildCopies?: number; adoptedPowerId?: string; mimicPowerId?: string; voidPowerIds?: string[] }): number {
   // Coran's Gilded Shortcut writes the count it grants straight into `gildCopies`, so a future "Gild at 2"
   // source needs no new branch here — and the sources cannot stack down to 1 (each only ever says 2).
   if (run.gildCopies) return Math.max(2, Math.min(3, run.gildCopies));
@@ -916,20 +916,26 @@ export function gildCopiesNeeded(run: { heroId: string; runeTwinGilding?: boolea
  * DYNAMIC POWER RESOLUTION (Mimic / Void, 2026-08-22).
  *
  * Until these two heroes, "the hero's power" and `getHero(run.heroId).power` were the same thing, and ~130
- * sites read it directly. Mimic WIELDS a different hero's power each turn (`mimicPowerId`) and Void wields
+ * sites read it directly. Mimic WIELDS a different hero's power each turn (`adoptedPowerId`) and Void wields
  * TWO for the run (`voidPowerIds`), so behaviour sites now ask `hasPower(run, kind)` / `activePowers(run)`
  * instead. `getHero(run.heroId).power` remains correct for IDENTITY sites — scheduling keyed to the native
  * hero (Fi/Coran's turn-1 quest, Runesmith's forge), beat identity, save/opponent keys — which is why the
  * accessor is additive rather than a rewrite of getHero.
  */
-interface PowerCarrier { heroId: string; mimicPowerId?: string; voidPowerIds?: string[] }
+interface PowerCarrier { heroId: string; adoptedPowerId?: string; mimicPowerId?: string; voidPowerIds?: string[] }
 
 /** The power(s) this run is wielding RIGHT NOW — one for everyone, one adopted for Mimic, two for a
  *  post-turn-4 Void. Before Mimic's first pick / Void's turn 4, the base placeholder power stands. */
 export function activePowers(run: PowerCarrier): HeroPower[] {
   const base = HERO_INDEX[run.heroId]?.power ?? HEROES[0]!.power;
-  if (base.kind === 'mimic' && run.mimicPowerId) return [getHero(run.mimicPowerId).power];
+  // VOID's pair first: it is the only carrier that wields TWO, and Power Shifter replaces its slot 0 in place
+  // (see `pickPower`) rather than collapsing the pair to one.
   if (base.kind === 'voidTwin' && run.voidPowerIds?.length) return run.voidPowerIds.map((id) => getHero(id).power);
+  // An ADOPTED power replaces the native one for ANY hero — Mimic's per-turn disguise, or Power Shifter's
+  // permanent swap on a hero who never had a Discover of their own. `mimicPowerId` is the pre-rename key,
+  // read so a run saved between the two same-day merges keeps its disguise.
+  const adopted = run.adoptedPowerId ?? run.mimicPowerId;
+  if (adopted && HERO_INDEX[adopted]) return [getHero(adopted).power];
   return [base];
 }
 
@@ -944,6 +950,17 @@ export function primaryPower(run: PowerCarrier): HeroPower {
   return activePowers(run)[0]!;
 }
 
+/**
+ * ⚠️ ADDING A HERO? ASK THE OWNER WHETHER ITS POWER JOINS THE DISCOVERABLE POOL. (standing instruction,
+ * owner 2026-08-22.)
+ *
+ * A new hero is offerable by DEFAULT — the pools below are deny-lists, so anything not named here becomes a
+ * Mimic disguise, a Void pick and a Power Shifter option the moment it ships. That default is usually right,
+ * but it is never automatic: a power that only acts at run creation, is tied to a schedule, or would be
+ * degenerate on a one-turn Mimic disguise belongs in an exclusion list instead. Three consumers ride this
+ * one decision — Mimic, Void, and the Power Shifter spell — so the question is worth asking once per hero
+ * rather than discovering the answer in play.
+ */
 /** Power kinds that no live hero carries (or that only ever act at run creation) — never discoverable. */
 const UNDISCOVERABLE_KINDS = new Set<HeroPowerKind>([
   'possession', 'recurringGoldcrafter', 'replayEndOfTurn', 'lesserQuest', 'pathfinder', // retired

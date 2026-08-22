@@ -85,6 +85,33 @@ export const SPELLS: CardDef[] = [
     text: 'Give your minions **+1/+1**.',
   },
   {
+    /**
+     * POWER SHIFTER (owner spec 2026-08-22) — Discover a new hero power and wield it for the rest of the run.
+     *
+     * The offered pool is MIMIC'S list (`powerDiscoverPool('mimic')` in heroes.ts) minus the power you are
+     * already wielding, so the two systems can never drift on "which powers are discoverable". Untargeted:
+     * the Discover IS the choice.
+     *
+     * `singleCast` because doubling it is meaningless — a second pick would simply overwrite the first, so a
+     * spell doubler would burn a cast to change nothing (the Channeling-the-Devourer reasoning).
+     *
+     * On MIMIC it is a dead card by design: his own turn-start Discover overwrites the pick next turn. On
+     * VOID it replaces slot 0 in place, leaving his second power alone.
+     */
+    id: 'powershifter',
+    name: 'Power Shifter',
+    tribe: 'neutral',
+    tier: 5,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    singleCast: true,
+    cost: 3,
+    effects: [{ on: 'cast', do: 'spellPowerShift' }],
+    text: '**Discover** a new hero power. It replaces your current one.',
+  },
+  {
     // Targeted sacrifice: the picked minion is devoured (removed) and a RANDOM other friend inherits its
     // stats. `singleCast` keeps spell-quantity multipliers from devouring twice. No spell-power scaling
     // (it transfers existing stats, not a flat grant).

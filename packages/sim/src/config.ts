@@ -100,6 +100,13 @@ export const ACE_TIER_DISCOUNT = 4;
 export const ACE_DISCOUNT_MAX_TIER = 5;
 
 /**
+ * Power Shifter (T5 spell): how many hero powers it offers — THREE (owner 2026-08-22), against the two the
+ * hero-native Discovers show. A one-shot spell you paid Gold for, which overwrites the power you already
+ * hold, earns a wider choice than a per-turn disguise does.
+ */
+export const SHIFTER_OPTIONS = 3;
+
+/**
  * Indy's Masterwork recharge: Gold that must be SPENT after a use before the charge returns.
  *
  * Exported because the reducer arms the recharge and the StatusBar prints the meter, and those two drifted —

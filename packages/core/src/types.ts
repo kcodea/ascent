@@ -471,6 +471,7 @@ export type EffectFactoryId =
   | 'onDamagedGrantRefresh' // Gryphon: on taking damage, bank a free shop reroll (once per combat) (Beast)
   | 'summonBuffTribeImprove' // Mama Bear: on summoning a beast, buff it + improve the buff in/out of combat (Beast)
   | 'countTribeSummon' // Pack Leader: on summoning a tribe member, accrue a permanent per-instance tally (summonBonus)
+  | 'spellPowerShift' // Power Shifter: Discover a new hero power, replacing the one you wield
   | 'spellDevour' // cast: devour the target, spit its stats onto a random friend (Channeling the Devourer)
   | 'castSpell' // a minion casts a named spell (auto-targets a friend)
   | 'endOfTurnGetRandomSpells' // Crypt Scribe: End of Turn — conjure N random spells to hand

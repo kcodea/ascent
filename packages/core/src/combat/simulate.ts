@@ -3307,7 +3307,7 @@ export function simulate(
         const eff: EffectDef = { on: 'onDeath', do: 'echoSummonCopyNoEcho', params: {} };
         m.effects = [...m.effects, eff];
         registerEffect(m, eff);
-        emit({ type: 'sc', source: m.uid, text: `${m.name} gains an Echo`, cast: true });
+        emit({ type: 'sc', source: m.uid, text: `${m.name} gains an Echo`, cast: true, grantsEcho: true });
       }
     }
     // Rune of Rising Graves: give the two left-most Undead Rise (Reborn) — a foldable `keyword` R grant.

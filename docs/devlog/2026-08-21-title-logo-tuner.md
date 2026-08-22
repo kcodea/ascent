@@ -1,8 +1,12 @@
 # 2026-08-21 — New title mark + a full Title Logo tuner (font, glows, float)
 
-Replaced the diamond crest beside the main-menu **ASCENT** wordmark with the owner's peak mark
-(`Reference Art/Ascent Menu.svg`, inlined as `TitleMark` in `Title.tsx`; the Continue-button crest is
-unchanged), then built a live **🏔️ Title Logo** dev tuner (Dev menu → Stage & Layout) for the whole lockup.
+Replaced the diamond crest beside the main-menu **ASCENT** wordmark with the owner's brand logo (`TitleMark` in
+`Title.tsx`; the Continue-button crest is unchanged) and built a live **🏔️ Title Logo** dev tuner (Dev menu →
+Stage & Layout) for the whole lockup. The shipped logo is the fantasy raster art — the provided
+`Reference Art/Ascent Logo Fantasy.svg` was a 1254×1254 PNG in an SVG wrapper, extracted to
+`frames/title-logo.png` and rendered as an `<img>` (an earlier vector peak was tried first). Because the logo
+is a bitmap the Mark-colour picker is inert on it (kept for a future vector mark); its size, glow and float
+still apply.
 Everything routes through `titleConfig.ts` → `--title-*` CSS vars (dev-persisted; prod renders the baked
 DEFAULTS; styles.css fallbacks mirror them), the standard config-module + `TunerPanel` pattern.
 
@@ -23,9 +27,10 @@ Controls, grouped:
   `.titlelogo` as one (`titlefloat`, whose keyframes fold in the X/Y offset); separate leaves the group static
   and bobs the mark + wordmark on their own amp/speed (`titlebob`, each reading its own `--bob-amp`).
 
-**Shipped defaults (owner-tuned):** mark 108px, gap 42px, x 1 / y −18, Outfit, no text glow, a soft gold mark
-glow (4px ×1, `#bc9749`), and a **separate** float — the mark bobs small + quick (2px / 2.6s), the wordmark
-larger + slower (4px / 4.5s).
+**Shipped defaults (owner-tuned):** the logo large (200px) and pulled left over the wordmark (gap 0, x −95 /
+y −4); **Cinzel Decorative 600** in white (added to `index.html`'s Google-Fonts `<link>` so it preloads); a soft
+dark text glow (`#5c4e4e`, 11px ×2) and a dark halo on the logo (`#0b0f1e`, 8px ×1); and a **separate** float —
+logo 5px / 5.2s, wordmark 4.5px / 5.2s.
 
 Presentation only. Verified: typecheck ✅, build:web ✅, tests ✅ (lint's only errors are the pre-existing
 untracked vendored `modern-screenshot.umd.js` bundles, absent in CI). The impeccable font hook flags the

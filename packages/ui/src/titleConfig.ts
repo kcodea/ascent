@@ -51,30 +51,31 @@ export interface TitleConfig {
   textFloatSpeed: number;
 }
 
-// Owner-tuned in the 🏔️ Title Logo tuner and baked as the shipped look (2026-08-21): a slightly smaller mark
-// with a wider text gap, the mark carrying a soft gold glow, no text glow, and a SEPARATE float — the mark
-// bobs small + quick, the wordmark larger + slower.
+// Owner-tuned in the 🏔️ Title Logo tuner and baked as the shipped look (2026-08-22): the fantasy raster logo
+// large and pulled left over the wordmark, Cinzel Decorative 600 in white with a soft dark text glow, a dark
+// halo on the logo, and a SEPARATE float. (`logoColor` is inert while the logo is a raster PNG — kept for when
+// a vector mark returns.)
 const DEFAULTS: TitleConfig = {
-  markSize: 108,
-  gap: 42,
-  x: 1,
-  y: -18,
-  font: 'Outfit',
+  markSize: 200,
+  gap: 0,
+  x: -95,
+  y: -4,
+  font: 'Cinzel Decorative',
   fontCustom: '',
-  fontWeight: 900,
-  logoColor: '#bc9749',
-  textColor: '#f4ecda',
-  textGlowSize: 0,
-  textGlowStrength: 0,
-  textGlowColor: '#bc9749',
-  logoGlowSize: 4,
+  fontWeight: 600,
+  logoColor: '#fffdfa',
+  textColor: '#ffffff',
+  textGlowSize: 11,
+  textGlowStrength: 2,
+  textGlowColor: '#5c4e4e',
+  logoGlowSize: 8,
   logoGlowStrength: 1,
-  logoGlowColor: '#bc9749',
+  logoGlowColor: '#0b0f1e',
   floatSync: 0,
-  floatAmp: 2,
-  floatSpeed: 2.6,
-  textFloatAmp: 4,
-  textFloatSpeed: 4.5,
+  floatAmp: 5,
+  floatSpeed: 5.2,
+  textFloatAmp: 4.5,
+  textFloatSpeed: 5.2,
 };
 
 /** Curated title-appropriate Google Fonts offered by the tuner's quick-pick select. ANY other Google Font can
@@ -87,6 +88,7 @@ export const TITLE_FONTS = [
 const PRELOADED: Record<string, number[]> = {
   outfit: [400, 500, 600, 700, 800, 900],
   sora: [400, 500, 600, 700, 800],
+  'cinzel decorative': [400, 600, 700], // the default title font — also <link>ed from index.html
 };
 
 const loadedFonts = new Set<string>();

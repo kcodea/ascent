@@ -601,6 +601,7 @@ export const QuestObjectiveEventSchema = z.enum([
   'shopStats',
   'consumeShopMinion',
   'compound',
+  'journey', // hero quests (Fi/Coran): the shared "steps down the road" counter
 ]);
 export const QuestCombatFlagSchema = z.enum(['bloodTrail', 'echoingCoop', 'lawOfTeeth', 'oldHunt', 'sharedCircuit', 'deepHunger', 'contractRewrite', 'pitWithoutEnd', 'doubleLeftmostAttack', 'feedingLine', 'umbralEnergy', 'emptyGraves', 'assemblyLine', 'crateringMissive', 'passingSpears', 'runeWarding', 'runeFury', 'runeSlaying', 'runeForthcoming', 'runeRallying', 'runeRisingGraves', 'runeBroodpit', 'runeSpearline', 'runeAppraisal', 'runeSoulTaxes', 'runeFirstClaws', 'runePackcraft', 'runeInheritance', 'runeSalvage', 'runeTwilight', 'runeWarden', 'runeRebirth', 'runeAftershocks', 'runeEngraving', 'runeUnderdog', 'runeGemGolem', 'runeChef', 'runeCarrionCoin', 'runeFiveBanners', 'runeCenterline', 'runeSecondLitter', 'runeDragonscale', 'runeTemperedTime', 'runeSavagery', 'runeCrucible', 'runeHerald', 'runeUndertow', 'runeMirrorMarch', 'runeTrophy', 'avengeFirstDouble', 'candlelightToll', 'gemheartCharge', 'burningLegion', 'runeVanguard', 'runeFinality', 'runeHatchery', 'runeLastCall', 'runeCinderLedger', 'runeProcession', 'runeGemstorm', 'runeBloodAndCoin', 'runeWildHunt', 'runeLivingTreasure', 'runeRemains', 'runeReinvestment', 'runeHuntingBell', 'runeBrood', 'runeLivingEchoes', 'runeWarChorus', 'runeFoodChain', 'runeAttackingGems', 'runeOverflow', 'runeCounterpoint', 'runeMammoth', 'runeWarpath', 'runeEmberline', 'runeAshenPayroll', 'runeBackbeat', 'runeSpareChair', 'runeAncestralRoar', 'runeRubyShrapnel', 'runeSharedScripture', 'runeMoonhowl', 'runeFloodedVault', 'runeBattleRefraction', 'runeWrangler', 'runeLivingGeode', 'runeDawnclaw', 'runeSylus', 'oldPack', 'runeJungle', 'runeBurrow', 'runeBeastialSwarm', 'runeZoo', 'runeRuins', 'runeGolems', 'runeEngravingGems', 'runeHerdingHorn', 'runeDeathtouchedApple', 'runeStokedMenagerie',
   // 2026-08-20 rune batch
@@ -638,6 +639,12 @@ export const QuestRewardSchema: z.ZodType = z.lazy(() => z.discriminatedUnion('k
     stepHealth: z.number().int().nonnegative(),
   }).strict(),
   z.object({ kind: z.literal('recurringGrant'), cards: z.array(z.string().min(1)).min(1), everyTurns: z.number().int().positive().optional() }).strict(),
+  // Hero quest rewards (Fi / Coran, 2026-08-21).
+  z.object({ kind: z.literal('grantRune'), rarity: z.enum(['basic', 'epic']) }).strict(),
+  z.object({ kind: z.literal('freeFirstBuy') }).strict(),
+  z.object({ kind: z.literal('tier7Access') }).strict(),
+  z.object({ kind: z.literal('gildCopies'), copies: z.number().int().min(2).max(3) }).strict(),
+  z.object({ kind: z.literal('upgradeShopTier'), by: z.number().int().positive() }).strict(),
   // 2026-08-19 owner rune batch.
   z.object({ kind: z.literal('runeTribeDrip'), tribe: TribeSchema, count: z.number().int().positive() }).strict(),
   z.object({ kind: z.literal('runeSpellDouble'), spellId: z.string().min(1) }).strict(),
@@ -839,4 +846,6 @@ export const QuestDefSchema = z.object({
   reward: QuestRewardSchema,
   wave: z.union([z.literal(5), z.literal(11)]).optional(),
   repeatable: z.boolean().optional(),
+  heroQuest: z.string().min(1).optional(),
+  variantGroup: z.string().min(1).optional(),
 }).strict();

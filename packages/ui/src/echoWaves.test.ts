@@ -48,9 +48,9 @@ describe('echoWaves', () => {
 });
 
 /**
- * `echoWaveDamagedCount` counts how many DISTINCT units a given wave actually DAMAGED (a `dmg` fires a number) —
- * the number of times the quiet land cue plays as that volley connects. Ward-absorbed strikes are excluded: they
- * pop no number, so they get no land tick (owner ask 2026-08-22).
+ * `echoWaveDamagedCount` counts how many DISTINCT units a given wave actually DAMAGED (a `dmg` fires a number).
+ * The land cue gates on this being > 0 (one play per volley); a fully ward-absorbed volley pops no number and
+ * stays silent (owner ask 2026-08-22).
  */
 describe('echoWaveDamagedCount', () => {
   it('counts the distinct damaged units in a wave', () => {

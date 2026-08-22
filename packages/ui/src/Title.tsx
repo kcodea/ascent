@@ -29,13 +29,12 @@ const Crest = () => (
   </svg>
 );
 
-// The wordmark peak (owner art, `Reference Art/Ascent Menu.svg`) — the brand mark beside the ASCENT title.
-// Reuses the `.crest` sizing/drop-shadow so it seats at the title's 62px slot.
+// The brand mark beside the ASCENT title (owner art, `Reference Art/Ascent Logo Fantasy.svg` — a raster logo,
+// extracted to `frames/title-logo.png`). Reuses the `.crest` sizing/drop-shadow so it seats in the title's mark
+// slot. NB it's a bitmap, so the tuner's Mark-colour picker can't recolour it (size / glow / float still apply).
+const TITLE_LOGO_SRC = `${import.meta.env.BASE_URL}frames/title-logo.png`;
 const TitleMark = () => (
-  <svg viewBox="0 0 1006 1038" className="crest" aria-hidden="true">
-    {/* fill is `currentColor` so the 🏔️ tuner's `--title-mark-color` (on `.titlelogo .crest`) recolours it. */}
-    <path d="M503 0C557 101 733.1 449.9 1005.5 1037.5C941.5 983.833 774.6 856.6 619 777L562.5 659L635.5 683.5L504 373L370 683.5L443 659L386.5 777C230.9 856.6 64 983.833 0 1037.5C272.4 449.9 449 101 503 0Z" fill="currentColor" />
-  </svg>
+  <img className="crest" src={TITLE_LOGO_SRC} alt="" aria-hidden="true" draggable={false} />
 );
 
 const IconTrophy = () => (

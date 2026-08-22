@@ -130,10 +130,16 @@ export const HSC_RANGES: Record<keyof HscTunerConfig, [number, number, number]> 
   launchCoverMs: [100, 800, 10],
   launchRevealMs: [100, 800, 10],
   nameX: [-400, 400, 1],
-  nameY: [-300, 300, 1],
+  // The two Y sliders reach FAR up (owner ask 2026-08-22). Their tuned value is -300, which was also the old
+  // floor — so the sliders were pinned with no travel left in the direction they are actually used. The
+  // identity block anchors under the portrait (~1100 reference px down at the 1440 stage), so lifting the
+  // plate over the portrait needs ~-450, and to its top ~-850: -900 leaves real headroom past that.
+  // Both get the SAME range on purpose — `.hsc-power` renders at `(powerY - nameY)`, so the power line can
+  // only follow the plate to the top of its travel if its own slider reaches just as far.
+  nameY: [-900, 400, 1],
   nameSize: [20, 80, 1],
   powerX: [-400, 400, 1],
-  powerY: [-300, 300, 1],
+  powerY: [-900, 400, 1],
   powerSize: [10, 40, 1],
   plateOpacity: [0, 1, 0.01],
   plateLen: [200, 1400, 5],

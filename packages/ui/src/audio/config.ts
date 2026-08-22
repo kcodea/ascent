@@ -26,7 +26,7 @@ export const CATEGORY_GAINS: Record<string, number> = {
   skullburst: 0.06, inspect: 0.5, upgrade: 0.37, roll: 0.88, combatStart: 0.64, cardVoice: 0.11,
   cardEffect: 0.18, cardDeath: 0.18, heroSelect: 0.5, heroPower: 0.5, summon: 0.2, buff: 0.46, turncharge: 0.5, turnexplosion: 0.5,
   flurrylunge: 0.375, flurryhit: 0.375, cleave: 0.11,
-  felSpikeEcho: 0.38, felSpikeEchoLand: 0.2,
+  felSpikeEcho: 0.5, felSpikeEchoLand: 0.5,
   uihover: 0.08,
 };
 

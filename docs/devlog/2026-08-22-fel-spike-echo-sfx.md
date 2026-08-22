@@ -8,17 +8,17 @@ already route through.
   many targets it sprays. It's a single `sfx.felSpikeEcho()` inside the per-wave `fire()`, before the per-target
   `playDef` loop, so multiple simultaneous targets never multiply it. A golden Fel Spikes still gets two taps
   because each of its two waves is its own `fire()` — "proc every time it fires."
-- **`fel-spike-echo-land`** (impact) — plays **once per struck unit that takes damage**, timed to when the spike
-  connects (`launch delay + projectileImpactMs travel`). Kept quiet (category gain 0.2 vs the launch's 0.38)
-  since it stacks across the volley's targets, with a small per-hit stagger (12ms, speed-scaled) so a multi-target
-  volley reads as a patter rather than one coherent, clip-prone blast.
+- **`fel-spike-echo-land`** (impact) — plays **once per volley** as its spikes connect (`launch delay +
+  projectileImpactMs travel`), only when the volley actually dealt damage. (First cut played once per struck unit
+  with a stagger; owner asked for a single land cue instead — 2026-08-22.)
 
-**"Struck" = took damage, by design.** The land cue keys off units that fire a damage NUMBER (a `dmg` event), not
-every unit the spike physically reaches — a Ward-absorbed strike pops a `shield` (no number) and gets no land
-tick. New pure helper `echoWaveDamagedCount` computes that count per wave (distinct `dmg` targets from the
-sprayer), separate from `echoWaves` (which returns damaged **and** warded units for the fan-out) so its exact
-`.toEqual` test shape is untouched. Covered by four new cases in `echoWaves.test.ts`. *(Flagged to owner: if a
-Ward-blocked spike should also click, widen this to `echoWaves(...).uids.length`.)*
+Both gains are 0.50 (owner-set).
+
+**Land plays only if a damage NUMBER fired.** The cue gates on a wave dealing actual damage (a `dmg` event), so a
+fully Ward-absorbed volley (only `shield` pops, no number) stays silent. New pure helper `echoWaveDamagedCount`
+computes the per-wave distinct-`dmg`-target count the gate reads (`> 0`), separate from `echoWaves` (which returns
+damaged **and** warded units for the fan-out) so its exact `.toEqual` test shape is untouched. Covered by four new
+cases in `echoWaves.test.ts`.
 
 Both clips are combat-bus categories in `audio/config.ts`; methods added to `sfx.ts` with synth fallbacks and
 wired into the dev SFX-desk preview map. The `sfx-manifest.md` doc regen was skipped — on this checkout it also

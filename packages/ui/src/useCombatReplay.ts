@@ -830,9 +830,9 @@ export function echoWaves(events: CombatEvent[], dyingUid: string, startIdx: num
 }
 
 /** How many DISTINCT units the wave `wave` of `dyingUid`'s spray dealt actual DAMAGE to — i.e. a `dmg` event, so
- *  a damage number fires. Ward-absorbed strikes (a `shield` pop, no number) are excluded on purpose: the land
- *  cue plays once per number, not per spike (owner ask 2026-08-22). Same `[startIdx, endIdx)` bounds as
- *  {@link echoWaves}. */
+ *  a damage number fires. Ward-absorbed strikes (a `shield` pop, no number) are excluded on purpose. The land cue
+ *  gates on this being > 0 — one play per volley, silent for a fully ward-absorbed one (owner ask 2026-08-22).
+ *  Same `[startIdx, endIdx)` bounds as {@link echoWaves}. */
 export function echoWaveDamagedCount(events: CombatEvent[], dyingUid: string, wave: number, startIdx: number, endIdx: number = events.length): number {
   const seen = new Set<string>();
   for (let j = startIdx + 1; j < endIdx; j++) {
@@ -908,9 +908,9 @@ function scheduleEchoVolleys(defId: string, dyingUid: string, startIdx: number, 
   const s = speed > 0 ? speed : 1;
   const impactMs = projectileImpactMs(defId);
   echoWaves(events, dyingUid, startIdx, endIdx).forEach((wv, w) => {
-    // Units in THIS wave that take actual damage (a number fires) — the land cue plays once per such unit as the
-    // spike connects; ward-absorbed strikes are excluded (see `echoWaveDamagedCount`).
-    const damagedHits = echoWaveDamagedCount(events, dyingUid, wv.wave, startIdx, endIdx);
+    // Did THIS wave deal any actual damage (a number fires)? Gates the land cue — a fully ward-absorbed volley
+    // (only `shield` pops, no number) stays silent (see `echoWaveDamagedCount`).
+    const dealtDamage = echoWaveDamagedCount(events, dyingUid, wv.wave, startIdx, endIdx) > 0;
     const fire = (): void => {
       // ONE launch cue per volley, fired the instant the projectile pixi launches — not per target.
       sfx.felSpikeEcho();
@@ -922,13 +922,12 @@ function scheduleEchoVolleys(defId: string, dyingUid: string, startIdx: number, 
     const delay = (launchDelayMs + w * ECHO_PASS_GAP_MS) / s;
     if (delay <= 0) fire();
     else register(window.setTimeout(fire, delay));
-    // Land cue: one quiet play per damaged unit, timed to when the spike CONNECTS (launch + beam travel). A small
-    // per-hit stagger keeps a multi-target volley reading as a patter rather than one coherent (and clip-prone) blast.
-    if (damagedHits > 0) {
+    // Land cue: ONE play per volley, timed to when its spikes CONNECT (launch + beam travel), only if the volley
+    // dealt damage.
+    if (dealtDamage) {
       const landDelay = delay + impactMs / s;
-      const land = (): void => { for (let n = 0; n < damagedHits; n++) sfx.felSpikeEchoLand((n * 12) / 1000 / s); };
-      if (landDelay <= 0) land();
-      else register(window.setTimeout(land, landDelay));
+      if (landDelay <= 0) sfx.felSpikeEchoLand();
+      else register(window.setTimeout(() => sfx.felSpikeEchoLand(), landDelay));
     }
   });
 }

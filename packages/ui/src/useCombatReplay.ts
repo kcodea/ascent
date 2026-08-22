@@ -2073,18 +2073,19 @@ export function useCombatReplay(
         // pulse — the same split the `buffWave` path makes, so an on-attack aura-of-self reads like a standalone one.
         const windupCasts = groupBuffCasts(cur, events);
         const windupSelfBuffs = groupSelfBuffs(cur, events);
-        // HELD WINDUP: this swing's own Rally fires a Fel-Spikes-style forced spray (Echohorn → Fel Spikes),
-        // whose volleys play as their OWN beats after the attack. Park the lunge at the top of the wind-up so
-        // the attacker stays frozen through the whole spray — both rally pulses + every volley + the deferred
-        // deaths — and only strikes (or dies) after. Detected by the attacker's own `rally` targeting a
-        // launchOnDeath sprayer anywhere in this exchange's window (up to the next attack).
+        // HELD WINDUP: this swing's own Rally FORCE-TRIGGERS an Echo (Echohorn / Deathsayer) — whatever that
+        // Echo is: a Fel Spikes spray, a Deathrattle that summons, a board buff cascade, a single big hit. Its
+        // consequences play as their OWN beats after the attack, so PARK the lunge at the top of the wind-up and
+        // let the attacker stay frozen through ALL of them, striking (or dying) only after. Detected by the
+        // attacker's own `rally` event — the force-triggered-Echo marker, emitted only by `triggerEcho` — anywhere
+        // in this exchange's window (up to the next attack). A launchOnDeath spray still gets its relocated
+        // spikes on top (the rally-launch loop below); a plain summon/buff Echo just plays during the freeze.
         let heldWindup = false;
         if (rallies) {
           for (let i = cur.start; i < events.length; i++) {
             const e = events[i];
             if (e?.type === 'attack' && i > cur.start) break;
-            if (e?.type === 'rally' && e.source === atkUid && typeof e.target === 'string'
-              && bindingFor(cardIds.get(e.target) ?? null, 'damage')?.launchOnDeath) { heldWindup = true; break; }
+            if (e?.type === 'rally' && e.source === atkUid) { heldWindup = true; break; }
           }
         }
         const advance = () => setBeatIdx((k) => k + 1);

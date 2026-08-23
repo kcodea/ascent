@@ -5,7 +5,7 @@
   "focus": "ARCHITECTURE ONLY — how the game is coded/structured. NEVER ask game-rules questions (see daily-prompt.md).",
   "difficulty": 1,
   "difficultyScale": "1 = gentlest (what is a function, what is a package). 5 = deep (trace an event through the architecture). Ramp only per the rules in daily-prompt.md.",
-  "totalQuizzes": 10,
+  "totalQuizzes": 11,
   "recentScores": [],
   "topics": {
     "what-is-a-function": { "asked": 5, "lastAsked": "2026-08-22" },
@@ -18,16 +18,16 @@
     "event-log-replay": { "asked": 5, "lastAsked": "2026-08-22" },
     "eslint-rules": { "asked": 4, "lastAsked": "2026-08-22" },
     "performance-memo": { "asked": 4, "lastAsked": "2026-08-22" },
-    "types-basics": { "asked": 4, "lastAsked": "2026-08-21" },
-    "immutability": { "asked": 4, "lastAsked": "2026-08-21" },
-    "reducer-run-state": { "asked": 4, "lastAsked": "2026-08-21" },
-    "zustand-store": { "asked": 4, "lastAsked": "2026-08-21" },
-    "event-bus": { "asked": 4, "lastAsked": "2026-08-21" },
-    "cards-in-sets": { "asked": 4, "lastAsked": "2026-08-21" },
-    "package-boundaries": { "asked": 4, "lastAsked": "2026-08-21" },
-    "effects-as-subscriptions": { "asked": 4, "lastAsked": "2026-08-21" },
-    "effect-timing-pipeline": { "asked": 4, "lastAsked": "2026-08-21" },
-    "testing-vitest": { "asked": 4, "lastAsked": "2026-08-21" }
+    "types-basics": { "asked": 5, "lastAsked": "2026-08-23" },
+    "immutability": { "asked": 5, "lastAsked": "2026-08-23" },
+    "reducer-run-state": { "asked": 5, "lastAsked": "2026-08-23" },
+    "zustand-store": { "asked": 5, "lastAsked": "2026-08-23" },
+    "event-bus": { "asked": 5, "lastAsked": "2026-08-23" },
+    "cards-in-sets": { "asked": 5, "lastAsked": "2026-08-23" },
+    "package-boundaries": { "asked": 5, "lastAsked": "2026-08-23" },
+    "effects-as-subscriptions": { "asked": 5, "lastAsked": "2026-08-23" },
+    "effect-timing-pipeline": { "asked": 5, "lastAsked": "2026-08-23" },
+    "testing-vitest": { "asked": 5, "lastAsked": "2026-08-23" }
   },
   "curriculum": [
     { "id": "what-is-a-function", "title": "What a function is", "hint": "Use simulate() in packages/core/src/combat/simulate.ts as the concrete example: inputs -> output.", "difficulty": 1 },
@@ -129,6 +129,14 @@
       "topics": ["what-is-a-function", "deterministic-sim", "seeded-rng", "sim-ui-decoupling", "monorepo-packages", "pure-functions", "data-vs-code", "event-log-replay", "eslint-rules", "performance-memo"],
       "scored": null,
       "note": "Still no score ever reported by Mike, so mastery/difficulty untouched (difficulty held at 1). Picked the 10 topics with the oldest lastAsked (2026-08-20, asked=4 — the group quiz #4/#6/#8 previously covered) since the types-basics/... group (lastAsked 2026-08-21) is now more recent. Re-read the real source for each topic (simulate.ts's isTribeOf() small-helper pattern, ITERATION_GUARD/REATTACK_GUARD/IMMEDIATE_ATTACK_GUARD as fixed loop-pass counters vs a wall-clock timeout, rng.ts's fork() calling the parent's own next() and thereby consuming a draw from the parent stream, the CombatEvent union in types.ts as the contract that lets the UI add presentation without touching simulate(), each package's package.json dependency list read as a literal core->content->sim chain, simulate()'s 'depends only on its inputs and the seeded rng' purity doc comment contrasted with a hypothetical Date.now() read, an actual card object from cards/set1/beasts.ts showing 'battlecrySummon' as a factory-id string with no function body, simulate.ts's stepN/nextStep per-event resolution-step tag documented as 'pure metadata: zero logic/RNG/order impact,' eslint.config.mjs's no-unused-vars argsIgnorePattern: '^_' convention, and docs/performance.md's plateGild worked example of a 24% mean win that left the worst frame 4x over budget) and checked the #4/#6/#8 archived HTML first to ensure all 10 angles were genuinely new, not reworded repeats."
+    },
+    {
+      "date": "2026-08-23",
+      "quizNumber": 11,
+      "difficulty": 1,
+      "topics": ["types-basics", "immutability", "reducer-run-state", "zustand-store", "event-bus", "cards-in-sets", "package-boundaries", "effects-as-subscriptions", "effect-timing-pipeline", "testing-vitest"],
+      "scored": null,
+      "note": "Still no score ever reported by Mike, so mastery/difficulty untouched (difficulty held at 1). Picked the 10 topics with the oldest lastAsked (2026-08-21, asked=4 — the group quiz #3/#5/#7/#9 previously covered) since the what-is-a-function/... group (lastAsked 2026-08-22) is now more recent. Re-read the real source for each topic to find angles genuinely new vs #3/#5/#7/#9 (types.ts's CombatEvent as a ~25-variant discriminated union plus its shared trailing '& { step?, avenge?, ... }' intersection; the CLAUDE.md clone-CardDefs rule reasoned through the concrete failure mode of a shared CARD_INDEX entry leaking a mutation across runs; reducer.ts's goldSpent vs goldSpentThisTurn as two counters at two different lifetimes rather than one derived value; store.ts's import list itself as the evidence that the Zustand store delegates to @game/sim instead of reimplementing run logic; events.ts's CombatBus.emit() typing payload as unknown as a genericity/safety tradeoff; sets.ts's SET1_BEASTS_IN_SET2 explicit id-allowlist as opt-in, not passthrough, filtering; content/package.json's exports field as a real Node/bundler resolution mechanism, not just documentation; schema.ts's EffectFactoryIdSchema z.enum catching a typo'd `do` value at validateCards() time; the recruit-phase-bake vs combat-time split reasoned through why Battlecry can't just be replayed inside simulate(); and content.test.ts's real expect()-based referencedCardIds-never-contains-self invariant test contrasted with a golden/snapshot test). Checked the #3/#5/#7/#9 archived HTML first to confirm no repeated angle."
     }
   ],
   "notes": "2026-08-15: refocused to ARCHITECTURE ONLY per Mike — removed game-rules topics (shop-vs-combat, auto-battler-loop) and expanded the code-architecture curriculum. Do not quiz on game rules; see the hard constraint in daily-prompt.md."

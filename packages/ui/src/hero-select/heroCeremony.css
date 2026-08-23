@@ -7,6 +7,10 @@
 /* ---- Grid + header treatment while the ceremony runs (§10, §16). Applied by HeroSelect via `hsc-active`
    on the `.heroselect` root; --hsc-header-delay comes from timing.headerExitDelayMs. */
 .heroselect.hsc-active .herocard { pointer-events: none; }
+/* The grid stops being a scroll box the moment a hero is chosen (owner ask 2026-08-22): the ceremony owns
+   the screen, and a live scroll container behind it could still be wheeled — moving the cards the ceremony
+   is animating from. `overflow: hidden` also drops any residual track. */
+.heroselect.hsc-active .hsrow.browse { overflow: hidden; }
 .heroselect.hsc-active .hslogo,
 .heroselect.hsc-active .hsline,
 .heroselect.hsc-active .riftpill {

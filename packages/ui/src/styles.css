@@ -4176,10 +4176,10 @@ body:has(.heroselect) .statusbar { visibility: hidden; }
    desktop — zoom the whole box by the stage scale so it shrinks proportionally on phones (× the mobile card
    boost so it stays tappable). Desktop = zoom 1 (unchanged). vw lengths inside a zoomed box also get multiplied
    by the zoom, so the width caps divide it back out (else the row falsely wraps on phones). The Practice
-   "dense" all-heroes grid already self-scales via vw clamps, so it opts out (zoom would double-shrink it). */
+   Practice's all-heroes BROWSE grid sizes itself from the viewport, so it opts out (zoom would fight it). */
 .heroselect { --hs-zoom: calc(var(--scale, 0.745) / 0.745 * var(--mobile-boost, 1)); }
 .hsbox { display: flex; flex-direction: column; align-items: center; text-align: center; zoom: var(--hs-zoom); max-width: calc(96vw / var(--hs-zoom)); }
-.hsbox:has(.hsrow.dense) { zoom: 1; max-width: 96vw; }
+.hsbox:has(.hsrow.browse) { zoom: 1; max-width: 96vw; }
 /* Hero-picker panels + the title/eyebrow above them sit ~30% larger than the base sizes. */
 /* Still live: `Title.tsx`'s mode-pick and Learn-pick views both use `.hsback`. Hero select no longer does —
    its Back button was removed 2026-08-22 (owner ask), but the class is NOT dead. */
@@ -4196,10 +4196,10 @@ body:has(.heroselect) .statusbar { visibility: hidden; }
 .hslogo { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 4px 0 20px; }
 .hslogo .crest { font-size: 92px; animation: none; }
 .hslogo .hsword { font-size: 60px; animation: none; }
-/* The dense (Practice) grid shrinks the cards to fit 20+ heroes; the lockup shrinks with them. */
-.hsbox:has(.hsrow.dense) .hslogo { margin: 0 0 6px; }
-.hsbox:has(.hsrow.dense) .hslogo .crest { font-size: clamp(38px, 5vw, 62px); }
-.hsbox:has(.hsrow.dense) .hslogo .hsword { font-size: clamp(28px, 4.5vw, 46px); }
+/* Practice's browse grid is a taller screen (two rows + scroll), so the lockup gives it back some room. */
+.hsbox:has(.hsrow.browse) .hslogo { margin: 0 0 6px; }
+.hsbox:has(.hsrow.browse) .hslogo .crest { font-size: clamp(38px, 5vw, 62px); }
+.hsbox:has(.hsrow.browse) .hslogo .hsword { font-size: clamp(28px, 4.5vw, 46px); }
 /* Run-start Line telegraph on the hero picker (ascent only). */
 .hsline { display: inline-flex; align-items: center; gap: 10px; margin: -8px 0 20px; font-family: var(--font-ui); font-weight: 800; font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; }
 .hsline-rat { color: rgba(255, 255, 255, 0.6); }
@@ -4300,28 +4300,50 @@ body:has(.heroselect) .statusbar { visibility: hidden; }
 .herocard.big .hcpw b { color: var(--acc); }
 .herocard.big:hover .hcpw { opacity: 1; }
 .herocard.big .hcpw .hclock { display: inline-block; margin-top: 8px; background: rgba(0, 0, 0, 0.35); }
-/* Dense grid — Practice mode offers EVERY hero (20+), so shrink the cards to fit without scrolling. The whole
-   card is a button, so the "Choose" pill is dropped (hover-lift + accent border carry the affordance) and the
-   power text is clamped to 3 lines. Ascent (3 heroes) keeps the big cards. */
-/* `--hs-cols` (set inline from the roster size) is the exact per-row count. Each card takes 1/cols of the
-   container minus the gaps, so precisely `cols` fit per row and flex-wrap lands a centered, balanced last row.
-   Card metrics (art, fonts) scale with viewport width so the grid FILLS the space instead of clustering small
-   cards in the middle. Width is capped so an ultrawide screen doesn't blow the cards up past readable. */
-.hsrow.dense { --hs-gap: clamp(10px, 1vw, 18px); gap: var(--hs-gap); width: min(96vw, 2160px); max-width: 96vw; }
-.hsrow.dense .herocard { width: calc((100% - var(--hs-cols) * var(--hs-gap)) / var(--hs-cols)); gap: clamp(4px, 0.5vw, 9px); padding: clamp(12px, 1.1vw, 22px) clamp(8px, 0.7vw, 16px); border-radius: clamp(14px, 1.1vw, 20px); border-width: 2px; }
-.hsrow.dense .herocard:hover { transform: translateY(-6px); }
-.hsrow.dense .hcart { width: 62%; height: auto; aspect-ratio: 1; border-radius: clamp(11px, 0.9vw, 18px); }
-.hsrow.dense .hcart svg { width: 40%; height: 40%; }
-.hsrow.dense .hcname { font-size: clamp(15px, 1.15vw, 24px); }
-.hsrow.dense .hchp { font-size: clamp(12px, 0.85vw, 18px); margin: 0; gap: 4px; }
-.hsrow.dense .hchp svg { width: 1em; height: 1em; }
-.hsrow.dense .hcarmor { font-size: 0.72em; padding: 0 6px; }
-.hsrow.dense .hcpw { font-size: clamp(10px, 0.72vw, 15px); line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 3; line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
-.hsrow.dense .hclock { font-size: clamp(9px, 0.62vw, 13px); padding: 2px 8px; }
-.hsrow.dense .hcpick { display: none; }
+/* PRACTICE BROWSE GRID (owner rework 2026-08-22) — the SAME big cards Play uses, 4 across, with TWO ROWS
+   visible and the rest behind a scroll. It replaces the old "dense" grid, which shrank every card so all 40+
+   fit one screen; that made Practice look like a different game from the one you were about to play.
+
+   The viewport height is derived, not guessed: `--hs-rowh` is one card's height and the box shows exactly two
+   of them plus the gap between. Cards are a fraction of the row width, so four fit precisely and a short last
+   row centres itself. */
+.hsrow.browse {
+  --hs-cols: 4;
+  --hs-gap: clamp(14px, 1.4vw, 29px);
+  --hs-rowh: 340px;   /* fallback only — HeroSelect measures a real card and overwrites this per resize */
+  gap: var(--hs-gap);
+  width: min(94vw, 1680px);
+  /* EXPLICITLY hidden. Setting only `overflow-y` leaves X as `visible`, which the spec then COERCES to
+     `auto` — so a horizontal track painted along the bottom even with nothing to scroll (owner report
+     2026-08-22: "remove the bar at the bottom"). */
+  overflow-x: hidden;
+  /* TWO rows when the screen has room, but never taller than the screen: on a short window (1280x720 shows
+     a 377px card, so two rows + the lockup exceed 720) the cap wins and the grid simply scrolls sooner. Two
+     rows is the target, staying on screen is the requirement. */
+  max-height: min(calc(var(--hs-rowh) * 2 + var(--hs-gap)), 72vh);
+  overflow-y: auto;
+  overscroll-behavior: contain;   /* a scroll that hits the end must not scroll the page behind it */
+  align-content: flex-start;      /* rows stack from the top, so a partly-scrolled grid never floats */
+  padding: 4px calc(var(--hs-gap) / 2) 10px;
+  /* NO NATIVE SCROLLBAR. A native bar is drawn by the OS, which means it keeps the SYSTEM cursor — the
+     game's gauntlet cursor visibly breaks the moment you cross onto it, and no CSS can style that (owner
+     report 2026-08-22). Since the affordance is already carried by the third row peeking above the fold,
+     the bar is pure cost. Scrolling itself is untouched: wheel, trackpad, keys and drag all still work. */
+  scrollbar-width: none;              /* Firefox */
+  -ms-overflow-style: none;           /* legacy Edge */
+}
+.hsrow.browse::-webkit-scrollbar { width: 0; height: 0; display: none; }  /* Chromium / WebKit */
+.hsrow.browse .herocard { width: calc((100% - (var(--hs-cols) - 1) * var(--hs-gap)) / var(--hs-cols)); }
+/* The hover-lift would clip against the scroll box's edge; a little room lets it breathe. */
+.hsrow.browse .herocard:hover { transform: translateY(-6px); }
+/* With no difficulty face (Practice hides it), the power text is the ONLY face — so it stays lit rather than
+   waiting for a hover the player has no reason to expect in a browse list. */
+.hsrow.browse .herocard.big .hcpw { opacity: 1; }
+.hsrow.browse .herocard.big .hcbelow { min-height: 76px; }
+
 /* Trim the picker header when the dense grid is up, reclaiming vertical space for the extra hero rows. */
-.hsbox:has(.hsrow.dense) { width: 100%; }
-.hsbox:has(.hsrow.dense) .eyebrow { font-size: 14px; }
+.hsbox:has(.hsrow.browse) { width: 100%; }
+.hsbox:has(.hsrow.browse) .eyebrow { font-size: 14px; }
 .herocard:hover .hcpick { background: var(--acc-dk); }
 
 /* End-of-run screen — reuses the hero-picker overlay (.heroselect/.hsbox); shows the round

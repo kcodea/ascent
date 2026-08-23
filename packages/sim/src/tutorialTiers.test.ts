@@ -44,10 +44,13 @@ describe('the tier ladder', () => {
     for (let turn = 1; turn <= LEARN_ASCENT.turns.length; turn++) {
       if (turn > 1) cost = Math.max(CONFIG.upgradeCostFloor, cost - CONFIG.upgradeDiscountPerWave);
       const t = LEARN_ASCENT.turns[turn - 1]!;
-      // What the round's own hard-gated steps already commit: each `bought` step is a card at its price.
-      const forced = t.steps
-        .filter((s) => s.completion.kind === 'bought')
-        .reduce((sum, s) => sum + (CARD_INDEX[(s.completion as { cardId: string }).cardId]?.cost ?? CONFIG.minionCost), 0);
+      // What the round's own hard-gated steps already commit: each `bought` step is a card at its price, and
+      // each coached `refreshed` step is a paid reroll (Round 7 buys one to SHOW what tiering up unlocked).
+      const forced = t.steps.reduce((sum, s) => {
+        if (s.completion.kind === 'bought') return sum + (CARD_INDEX[(s.completion as { cardId: string }).cardId]?.cost ?? CONFIG.minionCost);
+        if (s.completion.kind === 'refreshed') return sum + CONFIG.refreshCost;
+        return sum;
+      }, 0);
       const step = ladder.find((l) => l.turn === turn);
       if (!step) continue;
       expect(forced + cost, `round ${turn}: buys (${forced}g) + upgrade (${cost}g) exceeds the ${GOLD}g allowance`).toBeLessThanOrEqual(GOLD);

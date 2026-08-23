@@ -73,16 +73,18 @@ describe('steps light up what their copy talks about', () => {
     expect(byId('r1-gold').body.toLowerCase()).toContain('does not carry over');
   });
 
-  it('the Shout lesson has a payoff beat that waits for the Discover PICK', () => {
-    // Owner rework 2026-08-21: the Shout minion is Sea Urchin (a Beast whose Shout Discovers a Beast), so the
-    // payoff is the choice itself rather than a shop buff. It must key on the PICK — keying on the play that
-    // opened the modal walks the course on while the overlay still owns the screen.
-    const payoff = byId('r5-shopbuff');
-    expect(payoff.completion).toEqual({ kind: 'discovered' });
-    // …and it comes immediately after the play that causes it.
-    const turn5 = LEARN_ASCENT.turns.find((t) => t.steps.some((s) => s.id === 'r5-shopbuff'))!;
-    const i = turn5.steps.findIndex((s) => s.id === 'r5-shopbuff');
-    expect(turn5.steps[i - 1]!.id).toBe('r5-play');
+  it('the Shout lesson pays off ON THE BOARD, in one step', () => {
+    // Owner report 2026-08-23 (tier legality): the Shout teacher was Sea Urchin, a TIER 4 minion offered on a
+    // round played at Tier 3 — the course was showing an over-tier card while about to explain the tier rule.
+    // Pennycat is Tier 1 and its Shout summons a Stray beside it, so the trigger resolves where the player is
+    // already looking. That also collapses three steps (play → pick → play your pick) into one, and Discover
+    // keeps its own lesson on the Round 8 Triple Reward.
+    const play = byId('r5-play');
+    expect(play.completion).toEqual({ kind: 'played', cardId: 'alley' });
+    expect(play.lessonId).toBe('keyword_shout');
+    // The Discover lesson still exists in the course — just once, where it is the actual subject.
+    const discoverSteps = LEARN_ASCENT.turns.flatMap((t) => t.steps).filter((s) => s.lessonId === 'keyword_discover');
+    expect(discoverSteps.length).toBeGreaterThan(0);
   });
 
   it('every minion the course offers or asks for is a BEAST (owner ask 2026-08-21)', () => {

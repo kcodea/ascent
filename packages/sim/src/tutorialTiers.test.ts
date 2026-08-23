@@ -59,4 +59,19 @@ describe('the tier ladder', () => {
     }
     expect(tier).toBe(6);
   });
+
+  it('every tier step SPOTLIGHTS the tavern-up button', () => {
+    // Owner report 2026-08-23: step 31 (Reach Tier 3) named the button and highlighted nothing. `noScrim`
+    // reads like a dimming preference, but the controller drops the dim AND the spotlight together — so a
+    // hard-gated "click this control" step must not set it. Asserted on the ANCHOR and the scrim together,
+    // because either one alone leaves the player with no highlight: an anchor with no scrim draws no cutout,
+    // and a scrim with no anchor dims the board around nothing.
+    const steps = LEARN_ASCENT.turns.flatMap((t) => t.steps).filter((s) => s.completion.kind === 'tierAtLeast');
+    expect(steps.length).toBe(5);
+    for (const s of steps) {
+      const ui = s.anchors.filter((a) => a.kind === 'ui').map((a) => (a as { id: string }).id);
+      expect(ui, `${s.id} does not point at the tavern-up button`).toContain('tavern-up');
+      expect(s.noScrim, `${s.id} sets noScrim, which suppresses its own spotlight`).toBeFalsy();
+    }
+  });
 });

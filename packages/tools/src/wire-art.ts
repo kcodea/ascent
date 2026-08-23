@@ -19,6 +19,19 @@ import { CARD_INDEX, EPIC_RUNES, QUEST_DEFS, RUNES, poolFor } from '@game/conten
 import { HEROES } from '@game/sim';
 
 const APPLY = process.argv.includes('--apply');
+/**
+ * `--only=<label>[,<label>]` — run just these jobs (e.g. `--only=heroes,hero powers`).
+ *
+ * Added 2026-08-22: the owner re-does one art family at a time ("re-wire the hero power art"), and a full
+ * pass rewrites every minion, spell, quest and rune too — a diff nobody can review for the change actually
+ * intended. Filtering keeps that work inside this pipeline (one resize, one precedence rule, one report)
+ * instead of a hand-rolled script beside it, which is exactly what this file's header warns against.
+ */
+const ONLY = (() => {
+  const arg = process.argv.find((a) => a.startsWith('--only='));
+  if (!arg) return null;
+  return new Set(arg.slice('--only='.length).split(',').map((x) => x.trim().toLowerCase()).filter(Boolean));
+})();
 /** Every art file already in the repo is 512x512 — the card frame never shows more. */
 const ART_PX = 512;
 
@@ -161,6 +174,9 @@ const HERO_POWER_ALIASES: Record<string, string> = {
   ciaspades: 'cia-spades',
   ciadiamonds: 'cia-diamonds',
   ciaclubs: 'cia-clubs',
+  // The Ace, added with Ayse's fifth suit (2026-08-22). Its art was hand-dropped, so the tool did not know
+  // the mapping and a re-wire would have reported it unmatched and silently left the slot stale.
+  ciaace: 'cia-ace',
   flashfirst: 'flash-first',
   flashlast: 'flash-last',
   // Named for the JOB, not numbered — the owner renamed these after the numbering proved unreadable.
@@ -236,6 +252,7 @@ const JOBS: Job[] = [
 
 const webpJobs: Promise<unknown>[] = [];
 for (const job of JOBS) {
+  if (ONLY && !ONLY.has(job.label.toLowerCase())) continue;
   const wired: string[] = [];
   const unmatched: string[] = [];
   const matches: { src: string; label: string; id: string; exact: boolean }[] = [];

@@ -107,6 +107,11 @@ export interface HeroDef {
   /** Work-in-progress: kept in the registry (so the engine + saves resolve it) but withheld from the hero
    *  picker until it's fully wired. Cleared once the hero ships (Runesmith → when the Runeforge UI lands). */
   wip?: boolean;
+  /** PRACTICE-ONLY: playable, but withheld from PLAY mode — the Ascent picker and generated rival seats.
+   *  Distinct from `wip`, which hides a hero from every picker including Practice. This is for a hero that
+   *  works but is being reworked: the owner can still play it in Practice while it is off the ladder.
+   *  (Fi + Coran, owner 2026-08-23 — the hero-quest pair is being redesigned.) */
+  practiceOnly?: boolean;
   /** This hero's HENCHMAN (owner spec 2026-08-03): a hero-bound minion recruitable once per run for `cost`
    *  Gold, where the effective price falls every round — WIN −3, LOSS −2 — floored at 0 (`henchmanCostOf`).
    *  The card lives in the global henchman registry (`@game/content` cards/henchmen.ts), never in a shop
@@ -371,6 +376,7 @@ export const HEROES: HeroDef[] = [
   },
   {
     id: 'fi',
+    practiceOnly: true, // withheld from Play while the hero quests are reworked (owner 2026-08-23)
     name: 'Fi',
     blurb: 'Sets out on turn one and never looks back — the road pays early.',
     resolve: 30,
@@ -426,6 +432,7 @@ export const HEROES: HeroDef[] = [
   },
   {
     id: 'coran',
+    practiceOnly: true, // withheld from Play while the hero quests are reworked (owner 2026-08-23)
     name: 'Coran',
     blurb: 'Reads the whole trail on the first morning — and walks it to the summit.',
     resolve: 30,
@@ -980,6 +987,17 @@ const VOID_EXCLUDED = new Set(['discodan', 'runesmith', 'coran', 'fi', 'vale']);
  * drops ids already taken this pick sequence (Void's second Discover must not re-offer the first).
  * `wip` heroes (Aster) never appear — same rule every picker follows.
  */
+/** The heroes PLAY mode may use — the Ascent picker and generated rival seats. Practice deliberately does not
+ *  call this: a `practiceOnly` hero is still fully playable there. `wip` heroes are out of both. */
+export function playableHeroes(): HeroDef[] {
+  return HEROES.filter((h) => !h.wip && !h.practiceOnly);
+}
+
+/** The heroes PRACTICE may use — everything except `wip`. */
+export function practiceHeroes(): HeroDef[] {
+  return HEROES.filter((h) => !h.wip);
+}
+
 export function powerDiscoverPool(who: 'mimic' | 'void', exclude: readonly string[] = []): string[] {
   const banned = who === 'mimic' ? MIMIC_EXCLUDED : VOID_EXCLUDED;
   return HEROES

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { CARD_INDEX, activeSet, type SetId } from '@game/content';
-import { CONFIG, HEROES, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, resolveServerProfile, isPlayerAction, missingCardIds, nextOpponent, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, withLiveTelemetry, type TelemetryLog, beginDerive, observeAction, finishDerive, type DeriveState, reduce, reduceWithPresentation, resolveLobbyRating, serialize, snapshotBoard, socBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, combatFrameOf, deltaShopFrameOf, shopFrameOf, runRecord, type DragPath, type ReplayFrame, type ReplayV2, type ShopView, appendInspectEvent, type InspectEvent, type InspectSnapshot, createLobbyRun, createTutorialRun, type TutorialCourse, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction } from '@game/sim';
+import { CONFIG, HEROES, playableHeroes, practiceHeroes, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, resolveServerProfile, isPlayerAction, missingCardIds, nextOpponent, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, withLiveTelemetry, type TelemetryLog, beginDerive, observeAction, finishDerive, type DeriveState, reduce, reduceWithPresentation, resolveLobbyRating, serialize, snapshotBoard, socBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, combatFrameOf, deltaShopFrameOf, shopFrameOf, runRecord, type DragPath, type ReplayFrame, type ReplayV2, type ShopView, appendInspectEvent, type InspectEvent, type InspectSnapshot, createLobbyRun, createTutorialRun, type TutorialCourse, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction } from '@game/sim';
 import type { PresentationBatch } from '@game/core';
 import { combatTimelineFrom } from './choreographer/combatTimeline';
 import { setCombatDraftProvider, setCombatLiveProvider } from './choreographer/combatHolds';
@@ -98,7 +98,9 @@ const HERO_SELECT_COUNT = 3;
 /** A fresh shuffle of hero ids for the picker. UI-level randomness — the hero *choice* is a
  *  meta decision, not part of the seeded run, so Math.random is fine here (and not in the sim). */
 function rollHeroChoices(): string[] {
-  const ids = HEROES.filter((h) => !h.wip).map((h) => h.id); // WIP heroes (Runesmith pre-UI) stay out of the picker
+  // PLAY mode only: `wip` heroes are unfinished, and `practiceOnly` heroes are finished but pulled for rework
+  // (Fi + Coran, owner 2026-08-23). Practice below deliberately uses the wider roster.
+  const ids = playableHeroes().map((h) => h.id);
   for (let i = ids.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [ids[i], ids[j]] = [ids[j]!, ids[i]!];
@@ -1532,7 +1534,7 @@ export const useGame = create<GameStore>((set, get) => ({
   startAscent: () => set({ showTitle: false, pendingMode: 'ascent', heroChoices: rollHeroChoices(), avatarPickerOpen: false }),
   // Practice shows EVERY hero — but "every" still means every PICKABLE one. It was reading the raw registry, so
   // a disabled hero stayed selectable here after being pulled from the Ascent picker (owner 2026-07-28).
-  startPractice: () => set({ showTitle: false, pendingMode: 'practice', heroChoices: HEROES.filter((h) => !h.wip).map((h) => h.id), avatarPickerOpen: false }),
+  startPractice: () => set({ showTitle: false, pendingMode: 'practice', heroChoices: practiceHeroes().map((h) => h.id), avatarPickerOpen: false }),
   startRift: () => set({ showTitle: false, pendingMode: 'rift', heroChoices: rollHeroChoices(), avatarPickerOpen: false }),
   // LOBBY: eight seats, elimination, no fixed round count. Uses the ASCENT offer — three heroes, not the whole
   // roster (owner 2026-07-29). A lobby is a real run you can lose, so the pick should be a decision made under

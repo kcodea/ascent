@@ -4300,6 +4300,19 @@ body:has(.heroselect) .statusbar { visibility: hidden; }
 .herocard.big .hcpw b { color: var(--acc); }
 .herocard.big:hover .hcpw { opacity: 1; }
 .herocard.big .hcpw .hclock { display: inline-block; margin-top: 8px; background: rgba(0, 0, 0, 0.35); }
+/* PRACTICE-ONLY note (owner ask 2026-08-23) — a pill on the PORTRAIT's lower band, above the HP pill. It is
+   absolutely positioned so it adds no height: the text block below the frame reserves a fixed height, and an
+   extra line there overflows onto the next row of the browse grid (measured before moving it here).
+   `max-width` + ellipsis are a guard, not the plan — the copy measures 210px inside a 245px frame, and the
+   ratio holds at every viewport because the whole card scales together (checked at --scale 1 and 0.5). */
+.hcpractice {
+  position: absolute; left: 50%; bottom: 26px; transform: translateX(-50%); z-index: 4;
+  max-width: calc(100% - 14px); padding: 4px 10px; border-radius: 8px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font-family: var(--font-ui); font-weight: 800; font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase;
+  color: #f0e6d2; background: rgba(0, 0, 0, 0.78); border: 1.5px solid rgba(255, 255, 255, 0.25);
+  box-shadow: 0 2px 8px -2px rgba(0, 0, 0, 0.6);
+}
 /* PRACTICE BROWSE GRID (owner rework 2026-08-22) — the SAME big cards Play uses, 4 across, with TWO ROWS
    visible and the rest behind a scroll. It replaces the old "dense" grid, which shrank every card so all 40+
    fit one screen; that made Practice look like a different game from the one you were about to play.

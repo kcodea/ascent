@@ -1028,6 +1028,14 @@ body.hpb-glow-preview .heropowerbtn .hpb-glow {
   text-shadow: 0 5px 7.2px rgba(0, 0, 0, 0.8), 0 0 2px rgba(0, 0, 0, 0.95), 0 1px 1.5px rgba(0, 0, 0, 1);
   animation: stepbump 220ms ease-out;
 }
+/* A live MAGNITUDE centred ON the power art (Odelle's Exhibition grant). Sized between the small pill above
+   and the Gambler's big die: it is a stat to read at a glance, not an event to announce, so it stays legible
+   over busy art via the same layered shadow the pill uses rather than a glow. */
+.hpwrap .hpb-center {
+  top: 50%; left: 50%; transform: translate(-50%, -50%);
+  font-size: calc(30 * var(--u)); font-weight: 800; color: #ffe6a2;
+  text-shadow: 0 3px 6px rgba(0, 0, 0, 0.9), 0 0 3px rgba(0, 0, 0, 1), 0 0 calc(6 * var(--u)) rgba(255, 200, 90, 0.55);
+}
 /* Gambler's Dice: the rolled face, BIG and centred ON the power diamond (owner ask 2026-08-14) rather than
    riding the small tally slot above it. Compositor-only (transform + opacity) so a roll never costs a frame —
    the one-shot rule from docs/performance.md. */

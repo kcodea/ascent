@@ -267,7 +267,9 @@ export function StatusBar() {
       case 'archive': return `${(run.archivedTribes?.length ?? 0)}/3`; // Quillen — minions filed toward the Discover
       case 'investment': return `${run.bramInvested ?? 0}/5`; // Bram — Gold banked toward the Gilded payout
       case 'luckySeat': return `${run.ciaEnchantedBought ?? 0}/3`; // Cia — Enchanted buys toward the queued suit (the button art names it)
-      case 'exhibition': return `+${exhibitionGrantOf(run)}/+${exhibitionGrantOf(run)}`; // Odelle — the LIVE grant
+      // Odelle — cards played toward the NEXT improve. The live GRANT moved to the centre readout below
+      // (owner ask 2026-08-22), so the pill carries the countdown like every other progress power does.
+      case 'exhibition': return `${(run.cardsPlayedTotal ?? 0) % 4}/4`;
       case 'allIn': return withinUses ? `${allInPayoutOf(run)}g` : null; // Rascal — what it pays right now
       case 'soulbind': return `${Math.max(0, 3 - (run.heroPowerUses ?? 0))} left`; // Sable — bonds remaining
       // Cassen — turns until the running commission matures. `dueWave` is the turn it PAYS on, so the count is
@@ -278,6 +280,10 @@ export function StatusBar() {
       default: return null;
     }
   })();
+  // A live MAGNITUDE printed on the power art itself (the pill above it carries progress). Odelle only, for
+  // now — the slot exists because "how much is this giving me" and "how close is the next step" are two
+  // different questions, and one pill cannot answer both (owner ask 2026-08-22).
+  const powerCenter = power.kind === 'exhibition' ? `+${exhibitionGrantOf(run)}/+${exhibitionGrantOf(run)}` : null;
   // The big line under the hero name: what tapping the power does *right now*.
   const powerLine = isPassive
     ? power.kind === 'spellAmplify'
@@ -526,6 +532,13 @@ export function StatusBar() {
               : diceHeld != null
                 ? <span key="die-held" className="hpb-tally hpb-dice settled">{diceHeld}</span>
                 : powerTally ? <span key={powerTally} className="hpb-tally">{powerTally}</span> : null}
+            {/* CENTRE READOUT — a live magnitude printed ON the power art, distinct from the small pill above
+                it (which carries the countdown). Odelle's Exhibition is the first: the grant she is giving
+                RIGHT NOW. Suppressed while the Gambler's die owns the centre, so two heroes can never both
+                claim the slot (only reachable at all through a Void holding both). */}
+            {powerCenter && diceFace == null && diceHeld == null && (
+              <span key={powerCenter} className="hpb-tally hpb-center">{powerCenter}</span>
+            )}
             {/* CASSEN'S COMMISSION PICKER — reuses the Discover overlay's shell so it reads as the same kind of
           decision, but its options are plain text tiles rather than cards (a commission is not a card). Only
           the OFFERED commissions appear, so the one taken last is absent. */}

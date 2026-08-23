@@ -795,6 +795,14 @@ export function heroPowerText(state: RunState, which = 0): string {
     const g = aegisGrantOf(state);
     return `Give a friendly minion permanent **Ward**, and give your minions with **Ward** **+${g.attack}/+${g.health}**.`;
   }
+  if (power.kind === 'exhibition') {
+    // Odelle: the grant IMPROVES every 4 cards played, so the printed rule has to move with it — the
+    // card-text live-value rule applies to hero powers too. It read a static "+1/+1" while she was actually
+    // giving +3/+3 (found 2026-08-22 wiring her counters). The countdown to the next step rides along.
+    const g = exhibitionGrantOf(state);
+    const toNext = 4 - ((state.cardsPlayedTotal ?? 0) % 4);
+    return `Play a minion between two others of three different types: all three gain **+${g}/+${g}**. Improves in **${toNext}** card${toNext === 1 ? '' : 's'} played.`;
+  }
   if (power.kind === 'unitedFront') {
     // The magnitude IS the run's spell count, so the printed number has to track it (the card-text rule).
     const n = state.spellsCast;

@@ -19,8 +19,12 @@ import { preloadAllArt, ART_COUNT } from './art';
  * and the image dissolves off it. Swapping one for the other (the old behaviour) is what made it a cut.
  */
 const HARD_CAP_MS = 20000;
-/** Must match the `#bootsplash` opacity transition in index.html. */
-const FADE_MS = 520;
+/** Must match the `#bootsplash` opacity transition in index.html (900ms — the owner asked for a gentle
+ *  dissolve into the menu rather than a quick wipe). */
+const FADE_MS = 900;
+/** Must match `#bootsplash-img`'s fade-IN in index.html. The out-fade never begins before this has run its
+ *  course, so the art is always fully present before it starts dissolving. */
+const FADE_IN_MS = 700;
 
 /** Progress + teardown for the document-level splash. No-ops when it is absent (tests, Storybook, the
  *  desktop shell loading a different host page) — never assume the node is there. */
@@ -74,12 +78,24 @@ export function Boot({ children }: { children: ReactNode }): React.ReactElement 
     const el = splashEl();
     if (!el) return;
     setProgress(1); // finish the bar rather than freezing it mid-fill
-    // Next frame, so the browser has painted the game underneath before the fade starts.
-    const raf = requestAnimationFrame(() => el.classList.add('is-out'));
+    // HOLD until the fade-IN has finished. With art HTTP-cached the gate can resolve in a few hundred ms —
+    // well inside the 700ms in-fade — and cutting to the out-fade there would snatch a half-visible image
+    // away. `inAt` is stamped by the inline reveal script; absent (image still loading) we wait the full
+    // in-fade rather than guess.
+    const inAt = Number(el.dataset.inAt ?? NaN);
+    const elapsed = Number.isFinite(inAt) ? performance.now() - inAt : 0;
+    const hold = Math.max(0, FADE_IN_MS - elapsed);
+    // Then next frame, so the browser has painted the game underneath before the fade starts.
+    let raf = 0;
+    const start = window.setTimeout(() => { raf = requestAnimationFrame(() => el.classList.add('is-out')); }, hold);
     const drop = (): void => el.remove();
     el.addEventListener('transitionend', drop, { once: true });
-    const t = window.setTimeout(drop, FADE_MS + 250);
-    return () => { cancelAnimationFrame(raf); window.clearTimeout(t); el.removeEventListener('transitionend', drop); };
+    const t = window.setTimeout(drop, hold + FADE_MS + 250);
+    return () => {
+      window.clearTimeout(start); window.clearTimeout(t);
+      if (raf) cancelAnimationFrame(raf);
+      el.removeEventListener('transitionend', drop);
+    };
   }, [ready]);
 
   // The FALLBACK loader renders only where the document splash is absent (a host page without it). With the

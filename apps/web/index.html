@@ -36,24 +36,61 @@
          compositor-only, per docs/performance.md; a filter/background fade here would repaint the whole
          viewport on every frame of the transition. -->
     <div id="bootsplash">
+      <img id="bootsplash-img" src="./loadscreen.webp" alt="" aria-hidden="true" draggable="false" />
       <div id="bootsplash-bar"><i></i></div>
     </div>
+    <script>
+      /* Fade the splash IN once the image has actually DECODED (owner ask 2026-08-22: "fade in from a black
+         screen"). Deliberately not a bare CSS animation: that starts on parse, so on a cold fetch it would
+         run its course against nothing and the art would pop in at full opacity partway through. Keyed to
+         `load` instead, the fade always shows the image itself.
+
+         Inline and tiny on purpose — it must run before the ~3 MB bundle, which is the whole point of the
+         splash. `error` also reveals, so a missing file leaves black rather than a stuck invisible layer. */
+      (function () {
+        var s = document.getElementById('bootsplash');
+        var i = document.getElementById('bootsplash-img');
+        if (!s || !i) return;
+        var reveal = function () {
+          /* Stamp WHEN the fade-in began. Boot reads it so it can never start the fade-OUT while the art is
+             still fading IN — on a warm cache the gate resolves in well under the in-fade, and yanking a
+             half-visible image away reads as a flicker rather than a dissolve. */
+          s.dataset.inAt = String(Math.round(performance.now()));
+          s.classList.add('is-in');
+        };
+        if (i.complete && i.naturalWidth > 0) reveal();
+        else {
+          i.addEventListener('load', reveal, { once: true });
+          i.addEventListener('error', reveal, { once: true });
+        }
+      })();
+    </script>
     <style>
+      /* Black from the very first frame — the art fades UP onto it (`.is-in`), then the whole thing fades
+         DOWN onto the mounted menu (`.is-out`). Two ends of one journey, so neither is ever a cut. */
       #bootsplash {
         position: fixed; inset: 0; z-index: 99999;
-        /* CONTAIN, not cover: the art is 2.33:1 and a tall window would crop the wordmark clean off. The
-           art's own field is rgb(1,1,1), so a black backdrop makes the letterboxing invisible at any aspect
-           — the logo is always whole, and no bar is ever visible. */
-        background: #010101 url('./loadscreen.webp') center / contain no-repeat;
-        opacity: 1; transition: opacity 520ms ease;
+        background: #010101;
+        opacity: 1; transition: opacity 900ms cubic-bezier(0.4, 0, 0.2, 1);
         display: flex; align-items: flex-end; justify-content: center;
       }
+      /* CONTAIN, not cover: the art is 2.36:1 and a tall window would crop it. Its own field samples
+         rgb(1,1,1), so the black backdrop makes the letterboxing invisible at any aspect. */
+      #bootsplash-img {
+        position: absolute; inset: 0; width: 100%; height: 100%;
+        object-fit: contain; object-position: center;
+        opacity: 0; transition: opacity 700ms ease-out;
+      }
+      #bootsplash.is-in #bootsplash-img { opacity: 1; }
       #bootsplash.is-out { opacity: 0; pointer-events: none; }
       #bootsplash-bar {
+        position: relative; z-index: 1;   /* above the image layer */
         width: min(340px, 46vw); height: 6px; margin-bottom: 8vh; border-radius: 999px;
         background: rgba(0, 0, 0, 0.45); overflow: hidden;
         box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+        opacity: 0; transition: opacity 700ms ease-out;   /* arrives with the art, not before it */
       }
+      #bootsplash.is-in #bootsplash-bar { opacity: 1; }
       /* scaleX, not width: a width tween is layout every tick; a transform is compositor-only.
          The scale is set INLINE by Boot rather than read from a custom property — an UNREGISTERED custom
          property does not reliably drive a transition, and measuring showed the bar rendering a full step
@@ -66,7 +103,7 @@
       }
       /* The bar is progress feedback, not decoration — hide it for anyone who asked for less motion. */
       @media (prefers-reduced-motion: reduce) {
-        #bootsplash { transition: none; }
+        #bootsplash, #bootsplash-img, #bootsplash-bar { transition: none; }
         #bootsplash-bar > i { transition: none; }
       }
     </style>

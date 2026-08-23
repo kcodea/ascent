@@ -3,7 +3,7 @@ import type { SetId } from '@game/content';
 import type { BoardSnapshot } from '../snapshot';
 import { combatSide, makeRng, simulate } from '@game/core';
 import { CARD_INDEX } from '@game/content';
-import { HEROES } from '../heroes';
+import { HEROES, playableHeroes } from '../heroes';
 import { lossDamageCap } from '../reducer';
 import { createRun, type RunState } from '../state';
 import { botSeat, hybridSeat, type SeatPolicy } from './seats';
@@ -165,7 +165,11 @@ export function driverFor(seat: LobbySeatState, setId?: SetId): SeatDriver | nul
 /** Build the 7 opponent seats for a player's lobby. Deterministic from the lobby seed. */
 export function createRunLobby(seed: number, playerHeroId: string, rules: Partial<LobbyRules> = {}, setId?: SetId): RunLobby {
   const r: LobbyRules = { ...DEFAULT_LOBBY_RULES, ...rules };
-  const heroes = HEROES.filter((h) => !h.wip && h.id !== playerHeroId);
+  // `playableHeroes` (not the raw roster): a `practiceOnly` hero is off PLAY mode, and a rival seat in a rated
+  // lobby is play mode — a hero the owner has pulled for rework should not be driving boards that feed the
+  // ladder. Practice keeps them. Already-recorded snapshots that carry such a heroId still replay; this only
+  // governs newly GENERATED seats.
+  const heroes = playableHeroes().filter((h) => h.id !== playerHeroId);
   const seats: LobbySeatState[] = [{
     id: 's0', label: 'You', heroId: playerHeroId, kind: 'player', seed,
     resolve: r.startingResolve, armor: r.startingArmor, alive: true,

@@ -22,7 +22,7 @@ const uiAnchors = (s: TutorialStep): string[] =>
 const ctx = (over: Partial<TutorialContext['run']> = {}, events: TutorialContext['events'] = []): TutorialContext => ({
   run: {
     wave: 1, embers: 3, resolve: 30, maxResolve: 30, tier: 1, frozen: false, phase: 'recruit',
-    heroReady: true, shop: [], hand: [], board: [], ...over,
+    heroReady: true, shop: [], hand: [], board: [], ownedRunes: [], ...over,
   },
   events,
   sawEver: new Set(events.map((e) => e.type)),

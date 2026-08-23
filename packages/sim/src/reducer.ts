@@ -4040,6 +4040,10 @@ function advanceCombat(s: RunState): void {
     s.runeforgeOffer = drawn.offer;
     s.runeforgeDiscounts = drawn.discounts;
     applyHeroForgeDiscount(s, forgeRng);
+  } else if (s.mode === 'tutorial' && s.tutorialRuneScript?.[s.wave] && !s.tutorialRuneScript[s.wave]!.epic) {
+    // TUTORIAL: the course's own scripted BASIC forge (round 6). Queued like every other start-of-turn modal
+    // so it sequences behind whatever else the round opens, rather than racing it.
+    s.pendingBasicForge = { deferred: false };
   } else if (s.mode !== 'tutorial' && (CONFIG.runeforgeEnabled || s.rift === 'runic') && s.wave === 6) {
     // Universal basic Runeforge on turn 6 — driven by EITHER the runeforge system (CONFIG.runeforgeEnabled) or
     // the "Runic Behavior" rift. Either way it opens exactly ONE free (no hero-power charge) forge, queued so it
@@ -4079,6 +4083,8 @@ function advanceCombat(s: RunState): void {
   // no-charge). Independent of Runeguard's own epic forge on turn 8, which its power schedules separately.
   // The tutorial teaches runes in its own scripted way (or defers them), so it never auto-opens the forge.
   if (s.mode !== 'tutorial' && CONFIG.runeforgeEnabled && s.wave === 9) s.pendingEpicRuneforge = true;
+  // TUTORIAL: the course's own scripted EPIC forge (round 9).
+  if (s.mode === 'tutorial' && s.tutorialRuneScript?.[s.wave]?.epic) s.pendingEpicRuneforge = true;
   // Promote any forge armed mid-turn (deferred): now that we're at the START of the next turn, it's openable.
   s.pendingForgeDeferred = false;
   if (s.pendingBasicForge) s.pendingBasicForge.deferred = false;
@@ -4474,6 +4480,14 @@ const PIVOT_DISCOUNT_CHANCE = 0.4;
  *  that follow something on the player's board (a tribe or a mechanic), when any such rune exists; the rest
  *  draw uniformly. Returns the ids plus the aligned pivot discounts, both seeded off `rng` so replays hold. */
 function drawRuneOffer(s: RunState, rng: ReturnType<typeof makeRng>, avoid: Set<string> = new Set()): { offer: string[]; discounts: (number | undefined)[] } {
+  // TUTORIAL: an AUTHORED offer, never a draw. The coach names what each rune does, which it can only do for
+  // runes the course chose. No pivot discounts either — a discounted price is a lesson of its own, and this
+  // round is teaching what a rune IS.
+  const scripted = s.mode === 'tutorial' ? s.tutorialRuneScript?.[s.wave] : undefined;
+  if (scripted && scripted.runes.length > 0) {
+    const offer = scripted.runes.filter((id) => RUNE_INDEX[id]);
+    if (offer.length > 0) return { offer, discounts: offer.map(() => undefined) };
+  }
   const pool = runeforgePool(s);
   const tags = boardSynergyTags(s);
   const matches = (id: string): boolean => {

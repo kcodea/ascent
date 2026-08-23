@@ -23,6 +23,8 @@ export function evalPredicate(pred: TutorialPredicate, ctx: TutorialContext): bo
       return sawEvent(events, (e) => e.type === 'sold' && e.cardId === pred.cardId);
     case 'played':
       return sawEvent(events, (e) => e.type === 'played' && e.cardId === pred.cardId);
+    case 'ownsRunes':
+      return (run.ownedRunes?.length ?? 0) >= pred.atLeast;
     case 'cardOnBoard':
       return run.board.some((c) => c.cardId === pred.cardId);
     case 'boardCount':

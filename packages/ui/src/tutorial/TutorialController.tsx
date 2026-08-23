@@ -123,6 +123,7 @@ export function verbsForPredicate(c: TutorialPredicate): string[] {
     case 'not': return verbsForPredicate(c.of);
     case 'all': case 'any': return [...new Set(c.of.flatMap(verbsForPredicate))];
     case 'bought': return ['buy'];
+    case 'ownsRunes': return ['buyRune', 'rerollRuneforge']; // the forge's own verbs; skipping is handled below
     case 'played': return ['play'];
     case 'sold': return ['sell'];
     case 'refreshed': return ['roll'];
@@ -195,6 +196,7 @@ function projectRun(run: RunState): TutorialRunView {
     resolve: run.resolve,
     maxResolve: run.maxResolve,
     tier: run.tier,
+    ownedRunes: run.ownedRunes ?? [],
     frozen: run.frozen,
     phase: run.phase,
     // ACTUAL usability, not the raw flag: `heroReady` re-arms every wave, but a recharge-locked power

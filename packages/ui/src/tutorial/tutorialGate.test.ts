@@ -29,12 +29,23 @@ function verbNeededBy(c: TutorialPredicate): string | null {
     case 'refreshed': return 'roll';
     case 'froze': return 'freeze';
     case 'tierAtLeast': return 'upgrade';
+    case 'ownsRunes': return 'buyRune';   // the Runeforge rounds (6 & 9)
     case 'heroPowerUsed': case 'heroPowerReady': return 'heroPower';
     case 'endedTurn': case 'combatStarted': return 'faceOmen';
     // A composite needs whatever ANY of its branches could need — one satisfiable branch is enough, so the
     // gate must admit the verb of at least one of them.
     case 'any': case 'all': case 'not': return null;
-    default: return null;
+    // NB every no-verb kind is listed EXPLICITLY below rather than falling to `default`, because a silent
+    // default is how a new predicate slips through this sweep unchecked — `ownsRunes` did exactly that when
+    // the Runeforge rounds landed (2026-08-22), and the step it guards is hard-gated.
+    case 'always': case 'returnedToShop': case 'combatEnded': case 'combatStarted': case 'presented':
+    case 'boardCount': case 'cardOnBoard': case 'cardAtSlot': case 'reordered': case 'inspectedAny':
+    case 'goldSpentToZero': case 'discovered':
+      return null;
+    default: {
+      const unhandled: never = c;
+      throw new Error(`tutorialGate: predicate kind not classified — add it to verbNeededBy: ${JSON.stringify(unhandled)}`);
+    }
   }
 }
 

@@ -393,6 +393,15 @@ const round6Steps: TutorialStep[] = [
     gate: 'hard', lessonId: 'tavern_up',
     completion: { kind: 'tierAtLeast', tier: 3 },
   },
+  {
+    id: 'r6-rune',
+    phase: 'shop', focusMode: 'action', title: 'The Runeforge',
+    body: 'The Runeforge is open. A Rune is a permanent rule for the rest of your game — not a minion, not a card. Buy one.',
+    why: 'Runes change how your whole run works. You get very few, so each one is a real decision.',
+    anchors: [{ kind: 'ui', id: 'discover' }],
+    gate: 'hard', noScrim: true, lessonId: 'rune_buy',
+    completion: { kind: 'ownsRunes', atLeast: 1 },
+  },
   heroPowerReminderStep('r6-power'),
   endTurnStep('r6-end', 'End the turn — and watch your Beasts gain Attack at the Start of Combat.'),
   combatDebriefStep('r6-debrief', 'Start of Combat', 'Start-of-Combat effects fire before any attacks — free value the moment the fight begins. Click here to return to the shop.'),
@@ -524,6 +533,17 @@ const round8Steps: TutorialStep[] = [
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────────
 
 const round9Steps: TutorialStep[] = [
+  {
+    id: 'r9-rune',
+    phase: 'shop', focusMode: 'action', title: 'The Epic Runeforge',
+    body: 'The Epic Runeforge. Same idea as before, bigger rules — and this is your last one, so read all three.',
+    why: 'Epic Runes are strong enough to define a build. Pick the one that fits the board you have.',
+    anchors: [{ kind: 'ui', id: 'discover' }],
+    gate: 'hard', noScrim: true, lessonId: 'rune_buy_epic',
+    // TWO, not one: the round-6 rune is already owned, so "at least 1" would be satisfied before the forge
+    // even opens and the step would tick past itself.
+    completion: { kind: 'ownsRunes', atLeast: 2 },
+  },
   {
     id: 'r9-buy',
     phase: 'shop', focusMode: 'action', title: 'Buy a Spell',
@@ -692,6 +712,10 @@ const turns: TutorialTurn[] = [
     opponentSeatId: 's6',
     combatSeed: 'learn-ascent-r6',
     omenBoard: [{ attack: 4, health: 5 }, { attack: 4, health: 4 }, { attack: 3, health: 3 }],
+    // THE BASIC RUNEFORGE (owner ask 2026-08-22). Three runes a first-timer can read in one breath, all
+    // set-agnostic and all meaningful to the all-Beast board the course has built: bigger summoned bodies,
+    // flat Gold, and a free Rally trigger — the keyword Round 1 opened with.
+    runeOffer: { runes: ['rune_packcraft', 'rune_small_fortune', 'rune_rallying'] },
     // Offers Kennelmaster (Start of Combat) — the round also upgrades the Tavern to Tier 3.
     shopRolls: [
       { minions: [CARD_IDS.kennel, 'b2_bullseye', 'manasaber'] },
@@ -725,6 +749,10 @@ const turns: TutorialTurn[] = [
     opponentSeatId: 's9',
     combatSeed: 'learn-ascent-r9',
     omenBoard: [{ attack: 6, health: 6 }, { attack: 5, health: 6 }, { attack: 4, health: 5 }, { attack: 4, health: 4 }],
+    // THE EPIC RUNEFORGE (owner ask 2026-08-22) — the same lesson one size up, on the round the real game
+    // opens it. Three Epics that each pay off THIS board and each name a keyword the course already taught:
+    // doubled Rallies (Round 1), doubled Shouts (Round 5), and doubled Echoes (Round 3).
+    runeOffer: { runes: ['rune_adventuring', 'rune_choir', 'rune_reliquary'], epic: true },
     // Offers Blessing in the MINION ROW (a spell offer buys/casts through the normal drag). Clean fillers.
     shopRolls: [
       { minions: [CARD_IDS.blessing, 'b2_armadiyo', 'manasaber'] },

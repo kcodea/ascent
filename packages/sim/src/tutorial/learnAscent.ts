@@ -257,6 +257,22 @@ const round3Steps: TutorialStep[] = [
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────────
+/**
+ * THE TIER LADDER (owner ask 2026-08-22: the course should reach Tier 6 by the end).
+ *
+ * Placed at rounds 2 / 4 / 7 / 10 / 11 — never on a round that already spends heavily. The tutorial pays a
+ * flat 10 Gold a round and an unspent upgrade gets 1 cheaper each wave, so the binding constraint is not
+ * Gold-per-round, it is what ELSE the round forces you to buy. Rounds 6 and 9 are the Runeforge rounds
+ * (buy + rune ≈ 6–7 Gold), so a tier step there would not fit; 10–12 are free-build, so the last two sit
+ * comfortably. Costs at these waves: 4, 5, 5, 8, 9 — each inside the round's remaining budget.
+ */
+const tierStep = (id: string, tier: number, title: string, body: string, why?: string): TutorialStep => ({
+  id, phase: 'shop', focusMode: 'action', title, body, ...(why ? { why } : {}),
+  anchors: [{ kind: 'ui', id: 'tavern-up' }],
+  gate: 'hard', noScrim: true, lessonId: 'tavern_up',
+  completion: { kind: 'tierAtLeast', tier },
+});
+
 // Round 4 — the build comes together: freeze a good offer, round out the board, then graduate.
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -291,6 +307,9 @@ const round4Steps: TutorialStep[] = [
     gate: 'hard', lessonId: 'freeze_shop',
     completion: { kind: 'froze' },
   },
+  tierStep('r4-tavern', 3, 'Reach Tier 3',
+    'Now raise your Shop to Tier 3. Each tier puts stronger minions in the shop for the rest of the game.',
+    'Upgrading costs you strength this turn to buy better options every turn after — the central trade of the game.'),
   heroPowerReminderStep('r4-power'),
   endTurnStep('r4-end', 'Your build is together. End the turn and send your warband in.'),
   combatDebriefStep('r4-debrief', 'The Full Loop', 'Shop, build, position, fight — that is the whole game. You have the basics; now let us learn some more mechanics. Click here to return to the shop.'),
@@ -360,7 +379,8 @@ const round5Steps: TutorialStep[] = [
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────────
-// Round 6 — START OF COMBAT: an effect that fires as the fight begins. Plus a Tavern upgrade to Tier 3.
+// Round 6 — START OF COMBAT: an effect that fires as the fight begins. Plus the RUNEFORGE (the tier step
+// moved to Round 4 — a round that buys a minion AND a rune has no Gold left for an upgrade).
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────────
 
 const round6Steps: TutorialStep[] = [
@@ -384,14 +404,6 @@ const round6Steps: TutorialStep[] = [
     connector: { from: { kind: 'card', zone: 'hand', alias: CARD_IDS.kennel }, to: { kind: 'ui', id: 'warband' }, style: 'drag' },
     gate: 'hard', lessonId: 'play_minion',
     completion: { kind: 'played', cardId: CARD_IDS.kennel },
-  },
-  {
-    id: 'r6-tavern',
-    phase: 'shop', focusMode: 'action', title: 'Reach Tier 3',
-    body: 'Upgrade your Shop to Tier 3. Higher tiers keep better minions coming as the table gets stronger.',
-    anchors: [{ kind: 'ui', id: 'tavern-up' }],
-    gate: 'hard', lessonId: 'tavern_up',
-    completion: { kind: 'tierAtLeast', tier: 3 },
   },
   {
     id: 'r6-rune',
@@ -470,6 +482,9 @@ const round7Steps: TutorialStep[] = [
     // different minion) completed a step that is specifically about T-Rex ending up left-most.
     completion: { kind: 'cardAtSlot', cardId: CARD_IDS.trex, index: 0 },
   },
+  tierStep('r7-tavern', 4, 'Reach Tier 4',
+    'Raise your Shop to Tier 4 before you finish. The table is getting stronger — your shop has to keep up.',
+    'Tiering up is how you keep pace with seven other players who are all doing the same thing.'),
   heroPowerReminderStep('r7-power'),
   endTurnStep('r7-end', 'Your engine is set, with a slot free to summon into. End the turn and watch it fire.'),
   combatDebriefStep('r7-debrief', 'The Build Comes Together', 'Rally, Echo, positioning, board space — placed to work together, your board runs itself. That is the heart of the game. Click here to return to the shop.'),
@@ -600,6 +615,9 @@ function freeBuildStep(id: string, title: string, body: string, why?: string): T
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────────
 
 const round10Steps: TutorialStep[] = [
+  tierStep('r10-tavern', 5, 'Reach Tier 5',
+    'Push your Shop to Tier 5. Do it first, while your Gold is full — then spend what is left on the board.',
+    'Late rounds reward the shop you built earlier. Tier first, board second, is the usual order.'),
   freeBuildStep(
     'r10-free',
     'Your Turn to Drive',
@@ -610,19 +628,13 @@ const round10Steps: TutorialStep[] = [
 ];
 
 const round11Steps: TutorialStep[] = [
-  {
-    id: 'r11-tavern',
-    phase: 'shop', focusMode: 'action', title: 'Push for Tier',
-    body: 'Start by raising your Shop to Tier 4 — it unlocks stronger minions. Do it first, while your Gold is full.',
-    why: 'Upgrading trades a little strength now for better options later — a core tension you weigh every game.',
-    anchors: [{ kind: 'ui', id: 'tavern-up' }],
-    gate: 'hard', noScrim: true, lessonId: 'tavern_up',
-    completion: { kind: 'tierAtLeast', tier: 4 },
-  },
+  tierStep('r11-tavern', 6, 'The Top Tier',
+    'One more: raise your Shop to Tier 6, the highest there is. Everything the game has to offer is now in your shop.',
+    'Reaching the top tier is the goal of every climb — from here it is all about what you build with it.'),
   freeBuildStep(
     'r11-free',
     'Now Build',
-    'Tier 4 is open. Spend the rest of your Gold to round out the board, then End Turn.',
+    'Tier 6 is open — the best minions in the game are in your shop. Spend the rest of your Gold, then End Turn.',
   ),
   combatDebriefStep('r11-debrief', 'Back to the Shop', 'End combat here and go back to the shop.'),
 ];
@@ -727,7 +739,7 @@ const turns: TutorialTurn[] = [
     opponentSeatId: 's7',
     combatSeed: 'learn-ascent-r7',
     omenBoard: [{ attack: 5, health: 5 }, { attack: 4, health: 4 }, { attack: 3, health: 4 }, { attack: 2, health: 2 }],
-    // Offers Echohorn (Tier 3) — the round is at Tier 3 after Round 6's upgrade.
+    // Offers Echohorn (Tier 3) — the round is at Tier 3 after Round 4's upgrade, and upgrades to Tier 4 here.
     shopRolls: [
       { minions: [CARD_IDS.echohorn, CARD_IDS.wolvie, 'b2_armadiyo'] },
     ],

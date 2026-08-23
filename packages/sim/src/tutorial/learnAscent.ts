@@ -276,7 +276,13 @@ const round3Steps: TutorialStep[] = [
 const tierStep = (id: string, tier: number, title: string, body: string, why?: string): TutorialStep => ({
   id, phase: 'shop', focusMode: 'action', title, body, ...(why ? { why } : {}),
   anchors: [{ kind: 'ui', id: 'tavern-up' }],
-  gate: 'hard', noScrim: true, lessonId: 'tavern_up',
+  // NO `noScrim` HERE (owner report 2026-08-23: "step 31 needs a spotlight over the tier up button"). It reads
+  // like a dimming preference, but the controller drops the dim AND THE SPOTLIGHT together — so a hard-gated
+  // "click THIS button" step marked `noScrim` names a control and then highlights nothing. It belongs on the
+  // independence rounds, where the player is driving and nothing should be picked out, and on steps a modal
+  // already dims behind. Round 2's hand-written tier step never had it; these four were copied from the
+  // Runeforge step's shape instead, which legitimately sets it.
+  gate: 'hard', lessonId: 'tavern_up',
   completion: { kind: 'tierAtLeast', tier },
 });
 

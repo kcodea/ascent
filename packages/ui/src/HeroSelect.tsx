@@ -60,6 +60,33 @@ export function HeroSelect() {
   // telegraph one here. Reading the live registry unconditionally would have promised Ascent players a
   // modifier their run will not actually get.
   const rift = mode === 'rift' ? activeRift() : null;
+  // TWO ROWS, MEASURED. The card's height is driven by its WIDTH (a quarter of the row, with a square
+  // portrait above wrapping text), so no viewport-height guess tracks it — a `34vh` clamp showed 2.34 rows at
+  // 1647px wide and only 1.64 at 1280x720. So measure one real card and size the scroll box from it.
+  //
+  // Measured ONCE per resize via ResizeObserver, rAF-collapsed — never per frame (the repo's measure-once
+  // rule). The observer watches the ROW, which changes width with the stage, and the card height follows.
+  const rowRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    // `.browse` is the class the grid only carries in Practice; keying off the DOM rather than a derived
+    // flag keeps this hook ABOVE the `!choices` early return (see below) — a hook after a conditional
+    // return changes the hook COUNT between renders, which is exactly the crash this had on first wiring
+    // ("Rendered more hooks than during the previous render", owner report 2026-08-22).
+    const row = rowRef.current;
+    if (!row || !row.classList.contains('browse')) return;
+    let raf = 0;
+    const measure = (): void => {
+      raf = 0;
+      const card = row.querySelector<HTMLElement>('.herocard');
+      if (card) row.style.setProperty('--hs-rowh', `${card.offsetHeight}px`);
+    };
+    const schedule = (): void => { if (!raf) raf = requestAnimationFrame(measure); };
+    measure();
+    const ro = new ResizeObserver(schedule);
+    ro.observe(row);
+    return () => { ro.disconnect(); if (raf) cancelAnimationFrame(raf); };
+  }, [choices]);
+
   if (!choices) return null;
 
   // PRACTICE (owner rework 2026-08-22): the whole roster, in the SAME big cards Play uses — 4 across, two
@@ -72,29 +99,6 @@ export function HeroSelect() {
   // bookkeeping, which reads THIS array) consistent.
   const browse = choices.length > 6;
   const shown = browse ? [...choices].sort((a, b) => getHero(a).name.localeCompare(getHero(b).name)) : choices;
-
-  // TWO ROWS, MEASURED. The card's height is driven by its WIDTH (a quarter of the row, with a square
-  // portrait above wrapping text), so no viewport-height guess tracks it — a `34vh` clamp showed 2.34 rows at
-  // 1647px wide and only 1.64 at 1280x720. So measure one real card and size the scroll box from it.
-  //
-  // Measured ONCE per resize via ResizeObserver, rAF-collapsed — never per frame (the repo's measure-once
-  // rule). The observer watches the ROW, which changes width with the stage, and the card height follows.
-  const rowRef = useRef<HTMLDivElement | null>(null);
-  useEffect(() => {
-    const row = rowRef.current;
-    if (!row || !browse) return;
-    let raf = 0;
-    const measure = (): void => {
-      raf = 0;
-      const card = row.querySelector<HTMLElement>('.herocard');
-      if (card) row.style.setProperty('--hs-rowh', `${card.offsetHeight}px`);
-    };
-    const schedule = (): void => { if (!raf) raf = requestAnimationFrame(measure); };
-    measure();
-    const ro = new ResizeObserver(schedule);
-    ro.observe(row);
-    return () => { ro.disconnect(); if (raf) cancelAnimationFrame(raf); };
-  }, [browse, shown.length]);
 
   const active = ceremonyActive(ceremony);
   // Ceremony click handler (both card variants): pulse + commit. sfx.heroSelect moved to the voice beat,

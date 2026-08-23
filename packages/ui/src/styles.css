@@ -4313,6 +4313,10 @@ body:has(.heroselect) .statusbar { visibility: hidden; }
   --hs-rowh: 340px;   /* fallback only — HeroSelect measures a real card and overwrites this per resize */
   gap: var(--hs-gap);
   width: min(94vw, 1680px);
+  /* EXPLICITLY hidden. Setting only `overflow-y` leaves X as `visible`, which the spec then COERCES to
+     `auto` — so a horizontal track painted along the bottom even with nothing to scroll (owner report
+     2026-08-22: "remove the bar at the bottom"). */
+  overflow-x: hidden;
   /* TWO rows when the screen has room, but never taller than the screen: on a short window (1280x720 shows
      a 377px card, so two rows + the lockup exceed 720) the cap wins and the grid simply scrolls sooner. Two
      rows is the target, staying on screen is the requirement. */
@@ -4321,9 +4325,14 @@ body:has(.heroselect) .statusbar { visibility: hidden; }
   overscroll-behavior: contain;   /* a scroll that hits the end must not scroll the page behind it */
   align-content: flex-start;      /* rows stack from the top, so a partly-scrolled grid never floats */
   padding: 4px calc(var(--hs-gap) / 2) 10px;
-  scrollbar-width: thin;
-  scrollbar-color: color-mix(in srgb, var(--acc) 60%, transparent) transparent;
+  /* NO NATIVE SCROLLBAR. A native bar is drawn by the OS, which means it keeps the SYSTEM cursor — the
+     game's gauntlet cursor visibly breaks the moment you cross onto it, and no CSS can style that (owner
+     report 2026-08-22). Since the affordance is already carried by the third row peeking above the fold,
+     the bar is pure cost. Scrolling itself is untouched: wheel, trackpad, keys and drag all still work. */
+  scrollbar-width: none;              /* Firefox */
+  -ms-overflow-style: none;           /* legacy Edge */
 }
+.hsrow.browse::-webkit-scrollbar { width: 0; height: 0; display: none; }  /* Chromium / WebKit */
 .hsrow.browse .herocard { width: calc((100% - (var(--hs-cols) - 1) * var(--hs-gap)) / var(--hs-cols)); }
 /* The hover-lift would clip against the scroll box's edge; a little room lets it breathe. */
 .hsrow.browse .herocard:hover { transform: translateY(-6px); }
@@ -4331,9 +4340,7 @@ body:has(.heroselect) .statusbar { visibility: hidden; }
    waiting for a hover the player has no reason to expect in a browse list. */
 .hsrow.browse .herocard.big .hcpw { opacity: 1; }
 .hsrow.browse .herocard.big .hcbelow { min-height: 76px; }
-.hsrow.browse::-webkit-scrollbar { width: 10px; }
-.hsrow.browse::-webkit-scrollbar-track { background: transparent; }
-.hsrow.browse::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--acc) 55%, transparent); border-radius: 999px; border: 3px solid transparent; background-clip: content-box; }
+
 /* Trim the picker header when the dense grid is up, reclaiming vertical space for the extra hero rows. */
 .hsbox:has(.hsrow.browse) { width: 100%; }
 .hsbox:has(.hsrow.browse) .eyebrow { font-size: 14px; }

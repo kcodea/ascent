@@ -361,6 +361,20 @@ const round5Steps: TutorialStep[] = [
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────────
 
 const round6Steps: TutorialStep[] = [
+  // THE RUNE STEP LEADS THE ROUND, because the forge is not something the player opens — it is queued at
+  // turn start (`pendingBasicForge` → `openNextStartOfTurnModal`) and owns the screen the moment the round
+  // begins. Coaching a shop buy first left the player staring at the Runeforge while the coach pointed at a
+  // shop they could not reach, with the connector trailing off into empty board (owner report 2026-08-23).
+  // Round 9's forge round has always led with its rune step; this one now matches.
+  {
+    id: 'r6-rune',
+    phase: 'shop', focusMode: 'action', title: 'The Runeforge',
+    body: 'The Runeforge is open. A Rune is a permanent rule for the rest of your game — not a minion, not a card. Buy one.',
+    why: 'Runes change how your whole run works. You get very few, so each one is a real decision.',
+    anchors: [{ kind: 'ui', id: 'discover' }],
+    gate: 'hard', noScrim: true, lessonId: 'rune_buy',
+    completion: { kind: 'ownsRunes', atLeast: 1 },
+  },
   {
     id: 'r6-buy',
     phase: 'shop', focusMode: 'action', title: 'Start of Combat',
@@ -381,15 +395,6 @@ const round6Steps: TutorialStep[] = [
     connector: { from: { kind: 'card', zone: 'hand', alias: CARD_IDS.kennel }, to: { kind: 'ui', id: 'warband' }, style: 'drag' },
     gate: 'hard', lessonId: 'play_minion',
     completion: { kind: 'played', cardId: CARD_IDS.kennel },
-  },
-  {
-    id: 'r6-rune',
-    phase: 'shop', focusMode: 'action', title: 'The Runeforge',
-    body: 'The Runeforge is open. A Rune is a permanent rule for the rest of your game — not a minion, not a card. Buy one.',
-    why: 'Runes change how your whole run works. You get very few, so each one is a real decision.',
-    anchors: [{ kind: 'ui', id: 'discover' }],
-    gate: 'hard', noScrim: true, lessonId: 'rune_buy',
-    completion: { kind: 'ownsRunes', atLeast: 1 },
   },
   heroPowerReminderStep('r6-power'),
   endTurnStep('r6-end', 'End the turn — and watch your Beasts gain Attack at the Start of Combat.'),

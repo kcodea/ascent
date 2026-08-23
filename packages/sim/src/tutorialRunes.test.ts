@@ -52,4 +52,16 @@ describe('the course offers runes on rounds 6 and 9', () => {
       }
     }
   });
+
+  it('a forge round LEADS with its rune step — the forge owns the screen from the first frame', () => {
+    // The Runeforge is queued at turn start (`pendingBasicForge` → `openNextStartOfTurnModal`), not opened by
+    // the player. So any step placed before the rune step is coached at a screen the player cannot act on:
+    // the owner hit exactly this on round 6, where step 40 asked them to buy Kennelmaster while the Runeforge
+    // was up and the connector pointed at bare board.
+    for (const turn of LEARN_ASCENT.turns.filter((t) => t.runeOffer)) {
+      const first = turn.steps[0]!;
+      expect(first.completion.kind, `round ${turn.turn} opens on the Runeforge but its first step is ${first.id}`)
+        .toBe('ownsRunes');
+    }
+  });
 });

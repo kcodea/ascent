@@ -36,7 +36,7 @@ export const SHOP_VIEW_EXCLUDED_KEYS = [
   'lastCombat',      // the CombatFrame carries it verbatim
   'servedBoards',    // replaced by `nextFoe` (only [wave] ever renders during recruit)
   'discoverQueue',   // invisible queued prompts; only the OPEN `discover` renders
-  'tutorialCourseId', 'tutorialShopScript', 'tutorialShopRoll',
+  'tutorialCourseId', 'tutorialShopScript', 'tutorialShopRoll', 'tutorialRuneScript',
   'tutorialAttackFirst', 'tutorialForceEnemyTarget', // tutorial scripts; replays are lobby runs
   'runDamage', 'runProcs', // end-screen tallies; unbounded growth, never read in recruit
 ] as const satisfies readonly (keyof RunState)[];

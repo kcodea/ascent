@@ -120,7 +120,14 @@ const CARD_IDS = {
   // synergies it teaches are visible on their own board instead of scattered across tribes. The two Demons
   // that used to carry the Shout and Start-of-Combat lessons were swapped for Beasts that teach the same
   // keyword — and both teach it BETTER here, because their payoff lands on the beasts already in play.
-  urchin: 'seaurchin', // T4 Beast — "Shout: Discover a Beast" (teaches Shout AND a tribe-locked Discover)
+  // TIER-LEGAL ROSTER (owner report 2026-08-23: "there is a t2 minion while im t1 here"). A scripted shop is
+  // served verbatim — `rollTutorialShop` never consults the pool or the tavern tier — so an over-tier id is
+  // shown to the player as if their Tier-1 shop could offer it, teaching the OPPOSITE of the tier rule the
+  // course is about to explain. Every id below is now legal at the round it appears on (see the shop table).
+  // Pennycat replaces Sea Urchin as the Shout teacher: Urchin is Tier 4 and Round 5 is played at Tier 3.
+  // Pennycat's Shout also lands ON THE BOARD (a summoned Stray) instead of up in a Discover overlay, so the
+  // trigger is visible where the player is already looking — and Discover still gets its own lesson in Round 8.
+  pennycat: 'alley', // T1 Beast 1/1 — "Shout: summon a 1/1 Stray next to it" (teaches Shout, untargeted)
   kennel: 'kennel', // T2 Beast — "Start of Combat: give your Beasts +1 Attack wherever they are"
   echohorn: 'b2_echohorn', // T3 Beast — "Rally: trigger your left-most Echo" (position-dependent synergy)
   blessing: 'sp_blessing', // T4 spell, cost 2, target any — "Give a minion +3/+4 twice" (teaches buy + cast a spell)
@@ -206,7 +213,7 @@ const round2Steps: TutorialStep[] = [
   {
     id: 'r2-tavern',
     phase: 'shop', focusMode: 'action', title: 'Upgrade Your Shop',
-    body: 'Now raise your Shop to Tier 2. Higher tiers unlock stronger minions.',
+    body: 'Now raise your Shop to Tier 2. Your shop only ever offers minions AT OR BELOW its tier — so Tier 2 puts a whole new set of minions in the pool you draw from.',
     anchors: [{ kind: 'ui', id: 'tavern-up' }],
     gate: 'hard', lessonId: 'tavern_up',
     completion: { kind: 'tierAtLeast', tier: 2 },
@@ -257,6 +264,22 @@ const round3Steps: TutorialStep[] = [
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────────
+/**
+ * THE TIER LADDER (owner ask 2026-08-22: the course should reach Tier 6 by the end).
+ *
+ * Placed at rounds 2 / 4 / 7 / 10 / 11 — never on a round that already spends heavily. The tutorial pays a
+ * flat 10 Gold a round and an unspent upgrade gets 1 cheaper each wave, so the binding constraint is not
+ * Gold-per-round, it is what ELSE the round forces you to buy. Rounds 6 and 9 are the Runeforge rounds
+ * (buy + rune ≈ 6–7 Gold), so a tier step there would not fit; 10–12 are free-build, so the last two sit
+ * comfortably. Costs at these waves: 4, 5, 5, 8, 9 — each inside the round's remaining budget.
+ */
+const tierStep = (id: string, tier: number, title: string, body: string, why?: string): TutorialStep => ({
+  id, phase: 'shop', focusMode: 'action', title, body, ...(why ? { why } : {}),
+  anchors: [{ kind: 'ui', id: 'tavern-up' }],
+  gate: 'hard', noScrim: true, lessonId: 'tavern_up',
+  completion: { kind: 'tierAtLeast', tier },
+});
+
 // Round 4 — the build comes together: freeze a good offer, round out the board, then graduate.
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -285,74 +308,47 @@ const round4Steps: TutorialStep[] = [
   {
     id: 'r4-freeze',
     phase: 'shop', focusMode: 'action', title: 'Freeze for Later',
-    body: 'See the other minion still in your shop? Freeze the shop to keep it for next turn instead of losing it.',
+    body: 'Pennycat is still sitting in your shop. Freeze the shop to keep it for next turn instead of losing it.',
     why: 'Freeze saves offers you want but cannot use yet — plan a turn ahead.',
     anchors: [{ kind: 'ui', id: 'freeze' }],
     gate: 'hard', lessonId: 'freeze_shop',
     completion: { kind: 'froze' },
   },
+  tierStep('r4-tavern', 3, 'Reach Tier 3',
+    'Now raise your Shop to Tier 3. Each tier puts stronger minions in the shop for the rest of the game.',
+    'Upgrading costs you strength this turn to buy better options every turn after — the central trade of the game.'),
   heroPowerReminderStep('r4-power'),
   endTurnStep('r4-end', 'Your build is together. End the turn and send your warband in.'),
   combatDebriefStep('r4-debrief', 'The Full Loop', 'Shop, build, position, fight — that is the whole game. You have the basics; now let us learn some more mechanics. Click here to return to the shop.'),
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────────
-// Round 5 — SHOUT: a trigger that fires the moment you play a minion from your hand.
+// Round 5 — SHOUT: a trigger that fires the moment you play a minion from your hand. The frozen Pennycat
+// from Round 4 is the teacher, so freezing visibly "kept" something the very next round.
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────────
 
 const round5Steps: TutorialStep[] = [
   {
     id: 'r5-buy',
     phase: 'shop', focusMode: 'action', title: 'A Shout Minion',
-    body: 'Sea Urchin is on offer. Buy it — it has a Shout, an effect that fires the instant you play it.',
-    anchors: [{ kind: 'card', zone: 'shop', alias: CARD_IDS.urchin }],
-    // The drag the step is asking for, drawn: shop offer → your hand (owner ask 2026-08-20).
-    connector: { from: { kind: 'card', zone: 'shop', alias: CARD_IDS.urchin }, to: { kind: 'ui', id: 'hand' }, style: 'drag' },
+    body: 'There is the Pennycat you froze last turn. Buy it — it has a Shout, an effect that fires the instant you play it.',
+    anchors: [{ kind: 'card', zone: 'shop', alias: CARD_IDS.pennycat }],
+    // The drag the step is asking for, drawn: shop offer -> your hand (owner ask 2026-08-20).
+    connector: { from: { kind: 'card', zone: 'shop', alias: CARD_IDS.pennycat }, to: { kind: 'ui', id: 'hand' }, style: 'drag' },
     gate: 'hard', lessonId: 'buy_minion',
-    completion: { kind: 'bought', cardId: CARD_IDS.urchin },
+    completion: { kind: 'bought', cardId: CARD_IDS.pennycat },
   },
   {
     id: 'r5-play',
     phase: 'shop', focusMode: 'action', title: 'Hear the Shout',
-    body: 'Play it and watch: its Shout fires the moment it lands, offering you a choice of Beasts.',
+    body: 'Play it and watch: its Shout fires the moment it lands, summoning a Stray beside it. Two bodies for the price of one.',
     why: 'Shout triggers on play from hand — so the order you play minions can matter.',
     // Spotlight the CARD being asked for as well as the destination, with the drag drawn between
     // them — the bare `warband` anchor left the player hunting for which card to move.
-    anchors: [{ kind: 'card', zone: 'hand', alias: CARD_IDS.urchin }, { kind: 'ui', id: 'warband' }],
-    connector: { from: { kind: 'card', zone: 'hand', alias: CARD_IDS.urchin }, to: { kind: 'ui', id: 'warband' }, style: 'drag' },
+    anchors: [{ kind: 'card', zone: 'hand', alias: CARD_IDS.pennycat }, { kind: 'ui', id: 'warband' }],
+    connector: { from: { kind: 'card', zone: 'hand', alias: CARD_IDS.pennycat }, to: { kind: 'ui', id: 'warband' }, style: 'drag' },
     gate: 'hard', lessonId: 'keyword_shout',
-    completion: { kind: 'played', cardId: CARD_IDS.urchin },
-  },
-  {
-    // The PAYOFF beat (owner ask 2026-08-20: "step 32 should lead into a tip showing that the shop minions
-    // gained stats"). The Shout's effect lands somewhere the player is not looking — up in the shop row — so
-    // without this the lesson is a claim they never see evidence for. A real step rather than `resultAnchors`,
-    // which is declared on TutorialStep but not implemented by the controller.
-    id: 'r5-shopbuff',
-    phase: 'shop', focusMode: 'action', title: 'Discover a Beast',
-    body: 'Pick one of the three Beasts. Discover lets you choose the piece you want instead of gambling.',
-    why: 'The card you pick goes to your hand — play it now, or hold it for a turn you have room.',
-    // The overlay is a modal and owns the screen, so it needs no cutout of its own (a full-viewport anchor
-    // punches a hole through everything); the coach just names the choice.
-    anchors: [],
-    // The Discover overlay dims the board itself — a second scrim on top just darkened the choice.
-    noScrim: true,
-    gate: 'observe', lessonId: 'keyword_discover',
-    // Waits for the PICK, not for the play that opened it — otherwise the course walks on while the modal is
-    // still up and every later spotlight points at chrome the player cannot reach.
-    completion: { kind: 'discovered' },
-  },
-  {
-    // PLAY WHAT YOU PICKED (owner 2026-08-21). The Discover put a Beast in hand; leaving it there taught the
-    // player that a discovered card just… sits somewhere. Completion is a BOARD COUNT, not `played: cardId`,
-    // because the card they chose is theirs — the course cannot know its id.
-    id: 'r5-playfound',
-    phase: 'shop', focusMode: 'action', title: 'Play Your Pick',
-    body: 'Now play the Beast you chose onto your board — a discovered card goes to your hand, not the board.',
-    anchors: [{ kind: 'ui', id: 'hand' }, { kind: 'ui', id: 'warband' }],
-    connector: { from: { kind: 'ui', id: 'hand' }, to: { kind: 'ui', id: 'warband' }, style: 'drag' },
-    gate: 'hard', lessonId: 'play_minion',
-    completion: { kind: 'boardCount', atLeast: 6 },
+    completion: { kind: 'played', cardId: CARD_IDS.pennycat },
   },
   heroPowerReminderStep('r5-power'),
   endTurnStep('r5-end', 'A bigger board again. End the turn and fight.'),
@@ -360,10 +356,25 @@ const round5Steps: TutorialStep[] = [
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────────
-// Round 6 — START OF COMBAT: an effect that fires as the fight begins. Plus a Tavern upgrade to Tier 3.
+// Round 6 — START OF COMBAT: an effect that fires as the fight begins. Plus the RUNEFORGE (the tier step
+// moved to Round 4 — a round that buys a minion AND a rune has no Gold left for an upgrade).
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────────
 
 const round6Steps: TutorialStep[] = [
+  // THE RUNE STEP LEADS THE ROUND, because the forge is not something the player opens — it is queued at
+  // turn start (`pendingBasicForge` → `openNextStartOfTurnModal`) and owns the screen the moment the round
+  // begins. Coaching a shop buy first left the player staring at the Runeforge while the coach pointed at a
+  // shop they could not reach, with the connector trailing off into empty board (owner report 2026-08-23).
+  // Round 9's forge round has always led with its rune step; this one now matches.
+  {
+    id: 'r6-rune',
+    phase: 'shop', focusMode: 'action', title: 'The Runeforge',
+    body: 'The Runeforge is open. A Rune is a permanent rule for the rest of your game — not a minion, not a card. Buy one.',
+    why: 'Runes change how your whole run works. You get very few, so each one is a real decision.',
+    anchors: [{ kind: 'ui', id: 'discover' }],
+    gate: 'hard', noScrim: true, lessonId: 'rune_buy',
+    completion: { kind: 'ownsRunes', atLeast: 1 },
+  },
   {
     id: 'r6-buy',
     phase: 'shop', focusMode: 'action', title: 'Start of Combat',
@@ -385,22 +396,17 @@ const round6Steps: TutorialStep[] = [
     gate: 'hard', lessonId: 'play_minion',
     completion: { kind: 'played', cardId: CARD_IDS.kennel },
   },
-  {
-    id: 'r6-tavern',
-    phase: 'shop', focusMode: 'action', title: 'Reach Tier 3',
-    body: 'Upgrade your Shop to Tier 3. Higher tiers keep better minions coming as the table gets stronger.',
-    anchors: [{ kind: 'ui', id: 'tavern-up' }],
-    gate: 'hard', lessonId: 'tavern_up',
-    completion: { kind: 'tierAtLeast', tier: 3 },
-  },
   heroPowerReminderStep('r6-power'),
   endTurnStep('r6-end', 'End the turn — and watch your Beasts gain Attack at the Start of Combat.'),
   combatDebriefStep('r6-debrief', 'Start of Combat', 'Start-of-Combat effects fire before any attacks — free value the moment the fight begins. Click here to return to the shop.'),
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────────
-// Round 7 — POSITION-DEPENDENT SYNERGY: the build comes together. Echohorn's Rally triggers your LEFT-MOST Echo,
-// so where you place T-Rex decides whether the engine fires. This is the payoff of everything so far.
+// Round 7 — THE TIER RULE, DEMONSTRATED + POSITION-DEPENDENT SYNERGY. Echohorn is Tier 4 and the round opens at
+// Tier 3, so the player cannot see it yet — they raise the Tavern, refresh, and WATCH the Tier-4 minion appear.
+// That is the whole tier rule shown rather than asserted (owner ask 2026-08-23), and it costs the round nothing
+// extra: the upgrade and the buy were both already here. Then Echohorn's Rally triggers your LEFT-MOST Echo, so
+// where you place T-Rex decides whether the engine fires — the payoff of everything so far.
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────────
 
 const round7Steps: TutorialStep[] = [
@@ -421,15 +427,31 @@ const round7Steps: TutorialStep[] = [
   {
     id: 'r7-makeroom2',
     phase: 'shop', focusMode: 'action', title: 'One More Slot',
-    body: 'Sell Sea Urchin too — its Shout already paid off. Now there is room for Echohorn and what it summons.',
-    anchors: [{ kind: 'card', zone: 'board', alias: CARD_IDS.urchin }],
+    body: 'Sell Pennycat too — its Shout already paid off, and the Stray it summoned stays. Now there is room for Echohorn and what it summons.',
+    anchors: [{ kind: 'card', zone: 'board', alias: CARD_IDS.pennycat }],
     gate: 'hard',
-    completion: { kind: 'sold', cardId: CARD_IDS.urchin },
+    completion: { kind: 'sold', cardId: CARD_IDS.pennycat },
+  },
+  // THE TIER RULE, SHOWN. These two steps run BEFORE the buy, because at Tier 3 the shop genuinely cannot
+  // offer Echohorn — the pre-upgrade roll does not contain it. Upgrade, then refresh, and the Tier-4 card is
+  // there. The upgrade also has to come first for a second reason: the tier step is hard-gated, so leaving it
+  // at the end of the round would ask the player to buy a card their shop was not yet allowed to show.
+  tierStep('r7-tavern', 4, 'Reach Tier 4',
+    'Raise your Shop to Tier 4. Your shop can only offer minions at or below its tier — so this unlocks every Tier-4 minion in the game.',
+    'Tiering up is how you keep pace with seven other players who are all doing the same thing.'),
+  {
+    id: 'r7-refresh',
+    phase: 'shop', focusMode: 'action', title: 'See What Unlocked',
+    body: 'Your shop is still showing the offers it rolled at Tier 3. Refresh it for 1 Gold and watch a Tier-4 minion appear.',
+    why: 'Tiering up does not change the offers already in front of you — it changes what the NEXT roll can contain.',
+    anchors: [{ kind: 'ui', id: 'refresh' }],
+    gate: 'hard', lessonId: 'refresh_shop',
+    completion: { kind: 'refreshed' },
   },
   {
     id: 'r7-buy',
     phase: 'shop', focusMode: 'action', title: 'The Keystone',
-    body: 'Buy Echohorn. When it attacks, its Rally re-fires your LEFT-MOST Echo minion.',
+    body: 'There it is — Echohorn, a Tier 4 minion, offered because your shop is now Tier 4. Buy it: when it attacks, its Rally re-fires your LEFT-MOST Echo minion.',
     anchors: [{ kind: 'card', zone: 'shop', alias: CARD_IDS.echohorn }],
     // The drag the step is asking for, drawn: shop offer → your hand (owner ask 2026-08-20).
     connector: { from: { kind: 'card', zone: 'shop', alias: CARD_IDS.echohorn }, to: { kind: 'ui', id: 'hand' }, style: 'drag' },
@@ -500,18 +522,25 @@ const round8Steps: TutorialStep[] = [
     phase: 'shop', focusMode: 'action', title: 'Discover a Minion',
     body: 'That is your Triple Reward. Play it to Discover — pick ONE of three minions to add to your hand.',
     why: 'Discover lets you choose, not gamble — take the piece that fits your board.',
-    anchors: [{ kind: 'card', zone: 'hand', alias: CARD_IDS.tripleReward }],
-    gate: 'hard', lessonId: 'keyword_discover',
-    completion: { kind: 'played', cardId: CARD_IDS.tripleReward },
+    // WAITS FOR THE PICK, NOT THE PLAY THAT OPENS IT. Playing the Triple Reward token is what RAISES the
+    // Discover overlay, so completing on `played` ticked this step off while the modal still owned the screen
+    // — and the very next beat (the hero-power reminder) was then coached against a screen the player could
+    // not act on, with the reducer refusing `heroPower` while a Discover is pending. Same shape as the
+    // Runeforge failure the owner hit on Round 6 (full-course audit 2026-08-23).
+    // The overlay's own cutout is anchored here because this beat now spans both actions: play the token, then
+    // choose. `allowedActionKinds` is explicit because `discovered` teaches no verb of its own (picking is
+    // always allowed) — without it the gate would block the `play` that opens the Discover.
+    anchors: [{ kind: 'card', zone: 'hand', alias: CARD_IDS.tripleReward }, { kind: 'ui', id: 'discover' }],
+    gate: 'hard', noScrim: true, lessonId: 'keyword_discover',
+    allowedActionKinds: ['play'],
+    completion: { kind: 'discovered' },
   },
   heroPowerReminderStep('r8-power'),
   {
     id: 'r8-end',
     phase: 'shop', focusMode: 'action', title: 'Play It, Then End',
     body: 'Play the minion you discovered onto your board, then End Turn.',
-    // The Discover overlay is still open on this beat — the old `warband`-only cutout lit a strip of empty
-    // board while the thing the player must act on sat outside the spotlight (owner report 2026-08-20).
-    anchors: [{ kind: 'ui', id: 'discover' }, { kind: 'ui', id: 'hand' }, { kind: 'ui', id: 'warband' }],
+    anchors: [{ kind: 'ui', id: 'hand' }, { kind: 'ui', id: 'warband' }],
     gate: 'soft', allowedActionKinds: ['play', 'faceOmen'],
     completion: { kind: 'endedTurn' },
   },
@@ -524,6 +553,17 @@ const round8Steps: TutorialStep[] = [
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────────
 
 const round9Steps: TutorialStep[] = [
+  {
+    id: 'r9-rune',
+    phase: 'shop', focusMode: 'action', title: 'The Epic Runeforge',
+    body: 'The Epic Runeforge. Same idea as before, bigger rules — and this is your last one, so read all three.',
+    why: 'Epic Runes are strong enough to define a build. Pick the one that fits the board you have.',
+    anchors: [{ kind: 'ui', id: 'discover' }],
+    gate: 'hard', noScrim: true, lessonId: 'rune_buy_epic',
+    // TWO, not one: the round-6 rune is already owned, so "at least 1" would be satisfied before the forge
+    // even opens and the step would tick past itself.
+    completion: { kind: 'ownsRunes', atLeast: 2 },
+  },
   {
     id: 'r9-buy',
     phase: 'shop', focusMode: 'action', title: 'Buy a Spell',
@@ -580,6 +620,9 @@ function freeBuildStep(id: string, title: string, body: string, why?: string): T
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────────
 
 const round10Steps: TutorialStep[] = [
+  tierStep('r10-tavern', 5, 'Reach Tier 5',
+    'Push your Shop to Tier 5. Do it first, while your Gold is full — then spend what is left on the board.',
+    'Late rounds reward the shop you built earlier. Tier first, board second, is the usual order.'),
   freeBuildStep(
     'r10-free',
     'Your Turn to Drive',
@@ -590,19 +633,13 @@ const round10Steps: TutorialStep[] = [
 ];
 
 const round11Steps: TutorialStep[] = [
-  {
-    id: 'r11-tavern',
-    phase: 'shop', focusMode: 'action', title: 'Push for Tier',
-    body: 'Start by raising your Shop to Tier 4 — it unlocks stronger minions. Do it first, while your Gold is full.',
-    why: 'Upgrading trades a little strength now for better options later — a core tension you weigh every game.',
-    anchors: [{ kind: 'ui', id: 'tavern-up' }],
-    gate: 'hard', noScrim: true, lessonId: 'tavern_up',
-    completion: { kind: 'tierAtLeast', tier: 4 },
-  },
+  tierStep('r11-tavern', 6, 'The Top Tier',
+    'One more: raise your Shop to Tier 6, the highest there is. Everything the game has to offer is now in your shop.',
+    'Reaching the top tier is the goal of every climb — from here it is all about what you build with it.'),
   freeBuildStep(
     'r11-free',
     'Now Build',
-    'Tier 4 is open. Spend the rest of your Gold to round out the board, then End Turn.',
+    'Tier 6 is open — the best minions in the game are in your shop. Spend the rest of your Gold, then End Turn.',
   ),
   combatDebriefStep('r11-debrief', 'Back to the Shop', 'End combat here and go back to the shop.'),
 ];
@@ -630,7 +667,8 @@ const turns: TutorialTurn[] = [
     playerAttacksFirst: true,
     shopRolls: [
       // All Tier 1, so a Tier-1 shop offers them: Packstrider (the buy), plus two honest bodies.
-      { minions: [ROUND1_BUY, 'manasaber', 'kennel'] },
+      // `kennel` used to sit in this third slot — it is Tier 2, and it is what the owner spotted in a Tier-1 shop.
+      { minions: [ROUND1_BUY, 'manasaber', 'b2_ninjapal'] },
     ],
     steps: round1Steps,
   },
@@ -640,9 +678,10 @@ const turns: TutorialTurn[] = [
     combatSeed: 'learn-ascent-r2',
     // Beatable by two Packstriders (each Rally-buffing off the other).
     omenBoard: [{ attack: 2, health: 2 }, { attack: 1, health: 3 }],
-    // Offers a second Packstrider (T1) — the round buys it, then upgrades. Clean fillers (no Ruby/Consume clutter).
+    // Offers a second Packstrider (T1) — the round buys it, then upgrades. All Tier 1: this shop ROLLED at
+    // Tier 1, and tiering up mid-round does not retroactively change offers already on the table.
     shopRolls: [
-      { minions: [CARD_IDS.packstrider, 'manasaber', 'b2_armadiyo'] },
+      { minions: [CARD_IDS.packstrider, 'manasaber', 'alley'] },
     ],
     steps: round2Steps,
   },
@@ -657,10 +696,10 @@ const turns: TutorialTurn[] = [
     // — a 3-Attack swing would leave it alive and the debrief would narrate an Echo that never fired.
     omenBoard: [{ attack: 4, health: 8 }, { attack: 3, health: 5 }],
     forceEnemyFirstTargetCard: CARD_IDS.trex,
-    // Initial roll has no T-Rex (so the round teaches Refresh); the refresh roll [1] offers T-Rex.
+    // Tier 2. Initial roll has no T-Rex (so the round teaches Refresh); the refresh roll [1] offers T-Rex.
     shopRolls: [
-      { minions: ['seaurchin', 'manasaber', 'b2_dawnclaw'] },
-      { minions: [CARD_IDS.trex, CARD_IDS.wolvie, 'b2_armadiyo'] },
+      { minions: ['pack', 'manasaber', 'alley'] },
+      { minions: [CARD_IDS.trex, CARD_IDS.wolvie, 'pack'] },
     ],
     steps: round3Steps,
   },
@@ -669,10 +708,10 @@ const turns: TutorialTurn[] = [
     opponentSeatId: 's4',
     combatSeed: 'learn-ascent-r4',
     omenBoard: [{ attack: 3, health: 4 }, { attack: 3, health: 3 }, { attack: 2, health: 2 }],
-    // Offers Wolvie (bought) and Sea Urchin — the round buys Wolvie, then FREEZES to keep Sea Urchin, which
-    // carries into Round 5's Shout lesson so freezing visibly "kept" a minion.
+    // Tier 2. Offers Wolvie (bought) and Pennycat — the round buys Wolvie, then FREEZES to keep Pennycat,
+    // which carries into Round 5's Shout lesson so freezing visibly "kept" a minion.
     shopRolls: [
-      { minions: [CARD_IDS.wolvie, CARD_IDS.urchin, 'b2_armadiyo'] },
+      { minions: [CARD_IDS.wolvie, CARD_IDS.pennycat, 'pack'] },
     ],
     steps: round4Steps,
   },
@@ -681,9 +720,10 @@ const turns: TutorialTurn[] = [
     opponentSeatId: 's5',
     combatSeed: 'learn-ascent-r5',
     omenBoard: [{ attack: 4, health: 4 }, { attack: 3, health: 4 }, { attack: 2, health: 3 }],
-    // Offers Sea Urchin (the Shout minion).
+    // Tier 3. Re-lists the frozen Pennycat: a tutorial's scripted shop always wins on a new turn (see
+    // `rollTutorialShop`), so the freeze lesson stays coherent by re-scripting the kept card here.
     shopRolls: [
-      { minions: [CARD_IDS.urchin, 'b2_bullseye', 'manasaber'] },
+      { minions: [CARD_IDS.pennycat, 'b2_bullseye', 'manasaber'] },
     ],
     steps: round5Steps,
   },
@@ -692,7 +732,11 @@ const turns: TutorialTurn[] = [
     opponentSeatId: 's6',
     combatSeed: 'learn-ascent-r6',
     omenBoard: [{ attack: 4, health: 5 }, { attack: 4, health: 4 }, { attack: 3, health: 3 }],
-    // Offers Kennelmaster (Start of Combat) — the round also upgrades the Tavern to Tier 3.
+    // THE BASIC RUNEFORGE (owner ask 2026-08-22). Three runes a first-timer can read in one breath, all
+    // set-agnostic and all meaningful to the all-Beast board the course has built: bigger summoned bodies,
+    // flat Gold, and a free Rally trigger — the keyword Round 1 opened with.
+    runeOffer: { runes: ['rune_packcraft', 'rune_small_fortune', 'rune_rallying'] },
+    // Tier 3. Offers Kennelmaster (Start of Combat) alongside the Runeforge.
     shopRolls: [
       { minions: [CARD_IDS.kennel, 'b2_bullseye', 'manasaber'] },
     ],
@@ -703,9 +747,12 @@ const turns: TutorialTurn[] = [
     opponentSeatId: 's7',
     combatSeed: 'learn-ascent-r7',
     omenBoard: [{ attack: 5, health: 5 }, { attack: 4, health: 4 }, { attack: 3, health: 4 }, { attack: 2, health: 2 }],
-    // Offers Echohorn (Tier 3) — the round is at Tier 3 after Round 6's upgrade.
+    // TWO ROLLS, AND THE DIFFERENCE IS THE LESSON. Roll 0 is the Tier-3 shop the round opens with — no
+    // Echohorn, because Echohorn is Tier 4 and a Tier-3 shop cannot offer it. Roll 1 is served by the coached
+    // refresh AFTER the upgrade, and leads with two Tier-4 minions so the unlock is unmistakable.
     shopRolls: [
-      { minions: [CARD_IDS.echohorn, CARD_IDS.wolvie, 'b2_armadiyo'] },
+      { minions: [CARD_IDS.wolvie, 'b2_armadiyo', 'manasaber'] },
+      { minions: [CARD_IDS.echohorn, 'seaurchin', 'b2_armadiyo'] },
     ],
     steps: round7Steps,
   },
@@ -714,7 +761,7 @@ const turns: TutorialTurn[] = [
     opponentSeatId: 's8',
     combatSeed: 'learn-ascent-r8',
     omenBoard: [{ attack: 5, health: 6 }, { attack: 5, health: 5 }, { attack: 4, health: 4 }, { attack: 3, health: 3 }],
-    // Offers the THIRD Packstrider (completes the triple → Golden). Clean fillers, no Ruby/Consume clutter.
+    // Tier 4. Offers the THIRD Packstrider (completes the triple → Golden). Clean fillers.
     shopRolls: [
       { minions: [CARD_IDS.packstrider, 'b2_armadiyo', 'b2_bullseye'] },
     ],
@@ -725,7 +772,12 @@ const turns: TutorialTurn[] = [
     opponentSeatId: 's9',
     combatSeed: 'learn-ascent-r9',
     omenBoard: [{ attack: 6, health: 6 }, { attack: 5, health: 6 }, { attack: 4, health: 5 }, { attack: 4, health: 4 }],
-    // Offers Blessing in the MINION ROW (a spell offer buys/casts through the normal drag). Clean fillers.
+    // THE EPIC RUNEFORGE (owner ask 2026-08-22) — the same lesson one size up, on the round the real game
+    // opens it. Three Epics that each pay off THIS board and each name a keyword the course already taught:
+    // doubled Rallies (Round 1), doubled Shouts (Round 5), and doubled Echoes (Round 3).
+    runeOffer: { runes: ['rune_adventuring', 'rune_choir', 'rune_reliquary'], epic: true },
+    // Tier 4. Offers Blessing (a Tier-4 spell) in the MINION ROW — a spell offer buys/casts through the
+    // normal drag. Clean fillers.
     shopRolls: [
       { minions: [CARD_IDS.blessing, 'b2_armadiyo', 'manasaber'] },
     ],

@@ -132,6 +132,8 @@ export interface TutorialRunView {
   resolve: number; // Health
   maxResolve: number;
   tier: number;
+  /** Runes owned this run — the `ownsRunes` predicate's whole input (rounds 6 & 9). */
+  ownedRunes: readonly string[];
   frozen: boolean;
   phase: string;
   heroReady: boolean;
@@ -164,6 +166,10 @@ export type TutorialPredicate =
    *  `heroPowerUsed` reminder would soft-lock the course on a recharge turn. */
   | { kind: 'heroPowerReady' }
   | { kind: 'tierAtLeast'; tier: number }
+  /** RUNES (rounds 6 & 9): the run holds at least this many runes. Reads run STATE rather than an event,
+   *  so the step survives a reload mid-forge and cannot be satisfied by a rune bought on an earlier round
+   *  being re-counted. */
+  | { kind: 'ownsRunes'; atLeast: number }
   | { kind: 'gilded' }
   /** The player PICKED from an open Discover. Distinct from playing the card that opened it: a Discover
    *  advances the moment the token is played, so a step keyed to the play moves on while the modal is still
@@ -291,6 +297,10 @@ export interface TutorialTurn {
   omenBoard: TutorialOmenMinion[];
   /** Shop offers: index 0 is the initial roll, 1+ are successive refreshes. */
   shopRolls: TutorialShopRoll[];
+  /** RUNEFORGE for this round (rounds 6 & 9). Authored, not drawn: a coached step can only say what a rune
+   *  does for runes the COURSE chose, and the live forge picks at random from ~300. `epic` opens the Epic
+   *  forge instead of the basic one. Omitted = no forge this round, which is every other round. */
+  runeOffer?: { runes: string[]; epic?: boolean };
   /** Force the PLAYER to strike first this round (so, e.g., a Rally minion visibly buffs before it swings).
    *  Omitted = the normal rule (more minions goes first; a tie is a seeded coin flip). */
   playerAttacksFirst?: boolean;

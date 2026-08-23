@@ -809,6 +809,15 @@ export interface RunState {
    *  from the pool — so the course's lessons always have the cards they need, and nothing touches the shared
    *  pool. Plain data (card ids) so a tutorial run stays serializable and resumable. */
   tutorialShopScript?: { minions: string[]; spell?: string }[][];
+  /**
+   * TUTORIAL Runeforge script (owner ask 2026-08-22: teach runes on rounds 6 and 9). Keyed by WAVE → the rune
+   * ids to offer, and whether it is the Epic forge.
+   *
+   * Scripted rather than drawn, for the same reason the shop is: `drawRuneOffer` picks at random from ~300
+   * runes, and a coached step cannot say "this one gives you X" about a card it did not choose. It also keeps
+   * the lesson legible — the course offers runes whose text a first-timer can read in one breath.
+   */
+  tutorialRuneScript?: Record<number, { runes: string[]; epic?: boolean }>;
   /** Which roll of the current wave the scripted shop is on — 0 at turn start, +1 per refresh; reset on wave
    *  advance. Reads `tutorialShopScript[wave-1][tutorialShopRoll]`. Absent = 0. */
   tutorialShopRoll?: number;

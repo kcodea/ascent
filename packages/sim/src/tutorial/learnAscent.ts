@@ -522,18 +522,25 @@ const round8Steps: TutorialStep[] = [
     phase: 'shop', focusMode: 'action', title: 'Discover a Minion',
     body: 'That is your Triple Reward. Play it to Discover — pick ONE of three minions to add to your hand.',
     why: 'Discover lets you choose, not gamble — take the piece that fits your board.',
-    anchors: [{ kind: 'card', zone: 'hand', alias: CARD_IDS.tripleReward }],
-    gate: 'hard', lessonId: 'keyword_discover',
-    completion: { kind: 'played', cardId: CARD_IDS.tripleReward },
+    // WAITS FOR THE PICK, NOT THE PLAY THAT OPENS IT. Playing the Triple Reward token is what RAISES the
+    // Discover overlay, so completing on `played` ticked this step off while the modal still owned the screen
+    // — and the very next beat (the hero-power reminder) was then coached against a screen the player could
+    // not act on, with the reducer refusing `heroPower` while a Discover is pending. Same shape as the
+    // Runeforge failure the owner hit on Round 6 (full-course audit 2026-08-23).
+    // The overlay's own cutout is anchored here because this beat now spans both actions: play the token, then
+    // choose. `allowedActionKinds` is explicit because `discovered` teaches no verb of its own (picking is
+    // always allowed) — without it the gate would block the `play` that opens the Discover.
+    anchors: [{ kind: 'card', zone: 'hand', alias: CARD_IDS.tripleReward }, { kind: 'ui', id: 'discover' }],
+    gate: 'hard', noScrim: true, lessonId: 'keyword_discover',
+    allowedActionKinds: ['play'],
+    completion: { kind: 'discovered' },
   },
   heroPowerReminderStep('r8-power'),
   {
     id: 'r8-end',
     phase: 'shop', focusMode: 'action', title: 'Play It, Then End',
     body: 'Play the minion you discovered onto your board, then End Turn.',
-    // The Discover overlay is still open on this beat — the old `warband`-only cutout lit a strip of empty
-    // board while the thing the player must act on sat outside the spotlight (owner report 2026-08-20).
-    anchors: [{ kind: 'ui', id: 'discover' }, { kind: 'ui', id: 'hand' }, { kind: 'ui', id: 'warband' }],
+    anchors: [{ kind: 'ui', id: 'hand' }, { kind: 'ui', id: 'warband' }],
     gate: 'soft', allowedActionKinds: ['play', 'faceOmen'],
     completion: { kind: 'endedTurn' },
   },

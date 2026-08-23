@@ -66,7 +66,13 @@ describe('steps light up what their copy talks about', () => {
   });
 
   it('the Discover beat covers the Discover overlay, not a strip of empty board', () => {
-    expect(uiAnchors(byId('r8-end'))).toContain('discover');
+    // The overlay is raised AND resolved inside `r8-discover` now (full-course audit 2026-08-23): completing
+    // on the play that opened it left the modal up across the next beat, which then coached the hero power at
+    // a screen the reducer refuses while a Discover is pending. So the cutout belongs on the beat that spans
+    // the choice — `r8-end` runs after the pick, over an ordinary board.
+    expect(uiAnchors(byId('r8-discover'))).toContain('discover');
+    expect(byId('r8-discover').completion).toEqual({ kind: 'discovered' });
+    expect(uiAnchors(byId('r8-end')), 'the overlay is gone by End Turn').not.toContain('discover');
   });
 
   it("the Gold beat says unspent Gold is lost, which 'refills every turn' did not", () => {

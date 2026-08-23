@@ -60,7 +60,7 @@ const findCard = (zone: readonly { uid: string; cardId: string }[], uid?: string
  *  action, so a buy/play/sell uid still resolves to its card. Returns [] for actions the tutorial ignores. One
  *  action can yield several events — pressing End Turn is BOTH "ended the turn" and "started combat" (there is no
  *  separate end-turn action; `faceOmen` is it). */
-function mapAction(action: Action, prev: RunState, next: RunState): TutorialSemanticEvent[] {
+export function mapAction(action: Action, prev: RunState, next: RunState): TutorialSemanticEvent[] {
   switch (action.type) {
     // Each of these confirms the TRANSITION, not just the attempt: the reducer returns the same state when it
     // refuses (a play into a full board, a buy you cannot afford), and `dispatch` notifies either way — so
@@ -189,7 +189,7 @@ function resolveSpec(spec: TutorialAnchorSpec, run: RunState): TutorialAnchorRef
 
 // ─── Run projection for predicates ────────────────────────────────────────────────────────────────────────
 
-function projectRun(run: RunState): TutorialRunView {
+export function projectRun(run: RunState): TutorialRunView {
   return {
     wave: run.wave,
     embers: run.embers,

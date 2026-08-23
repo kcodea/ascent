@@ -169,6 +169,11 @@ export function HeroSelect() {
                     <div className="hcname">{hero.name}</div>
                     {art ? <img className="hcframe-art" src={art} alt={hero.name} draggable={false} /> : <Icon name="anvil" />}
                     {powArt && <img className="hcframe-pow" src={powArt} alt="" draggable={false} aria-hidden="true" />}
+                    {/* PRACTICE-ONLY heroes (owner ask 2026-08-23): withheld from Play while they are reworked.
+                        These can only ever appear in THIS picker, so the note needs no mode check of its own.
+                        It rides the PORTRAIT rather than the text block below it — `.hcbelow` reserves a fixed
+                        height, so an extra line there spills over the card in the next row (measured). */}
+                    {hero.practiceOnly && <span className="hcpractice">Not currently enabled in Play</span>}
                     <div className="hchp">
                       <Icon name="heart" />
                       {hero.resolve}

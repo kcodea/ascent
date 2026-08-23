@@ -62,13 +62,39 @@ export function HeroSelect() {
   const rift = mode === 'rift' ? activeRift() : null;
   if (!choices) return null;
 
-  // The "dense" grid (Practice — every hero) balances the roster into as few rows as read well, then sizes each
-  // card as a fraction of the container so EXACTLY `cols` fit per row (the short last row auto-centers). This
-  // beats flex-wrap's greedy packing, which stranded a sparse trailing row (e.g. 19 + 4) and wasted the space.
-  const dense = choices.length > 6;
-  const rows = choices.length > 24 ? 3 : 2;
-  const cols = Math.ceil(choices.length / rows);
-  const rowStyle = dense ? ({ '--hs-cols': cols } as CSSProperties) : undefined;
+  // PRACTICE (owner rework 2026-08-22): the whole roster, in the SAME big cards Play uses — 4 across, two
+  // rows visible, scroll for the rest. It used to shrink every card to cram 40+ onto one screen, which made
+  // Practice look like a different game from the one you were about to play.
+  //
+  // ALPHABETICAL by display name, not roster order: this is a browse-and-find list, and roster order is
+  // authoring history (`localeCompare` so accented names sort where a reader expects, not by code point).
+  // `choices` itself is left alone — sorting a copy keeps the store's order (and the ceremony's index
+  // bookkeeping, which reads THIS array) consistent.
+  const browse = choices.length > 6;
+  const shown = browse ? [...choices].sort((a, b) => getHero(a).name.localeCompare(getHero(b).name)) : choices;
+
+  // TWO ROWS, MEASURED. The card's height is driven by its WIDTH (a quarter of the row, with a square
+  // portrait above wrapping text), so no viewport-height guess tracks it — a `34vh` clamp showed 2.34 rows at
+  // 1647px wide and only 1.64 at 1280x720. So measure one real card and size the scroll box from it.
+  //
+  // Measured ONCE per resize via ResizeObserver, rAF-collapsed — never per frame (the repo's measure-once
+  // rule). The observer watches the ROW, which changes width with the stage, and the card height follows.
+  const rowRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const row = rowRef.current;
+    if (!row || !browse) return;
+    let raf = 0;
+    const measure = (): void => {
+      raf = 0;
+      const card = row.querySelector<HTMLElement>('.herocard');
+      if (card) row.style.setProperty('--hs-rowh', `${card.offsetHeight}px`);
+    };
+    const schedule = (): void => { if (!raf) raf = requestAnimationFrame(measure); };
+    measure();
+    const ro = new ResizeObserver(schedule);
+    ro.observe(row);
+    return () => { ro.disconnect(); if (raf) cancelAnimationFrame(raf); };
+  }, [browse, shown.length]);
 
   const active = ceremonyActive(ceremony);
   // Ceremony click handler (both card variants): pulse + commit. sfx.heroSelect moved to the voice beat,
@@ -113,20 +139,19 @@ export function HeroSelect() {
         {/* Active "rift" patch — a limited-time global run modifier (see CONFIG.rift). Telegraphed here so
             the player knows the rules are bent before they pick. */}
         {rift && <RiftPill rift={rift} variant="hero" />}
-        {/* Naming yourself now lives on the home screen (the account chip). Practice shows EVERY hero (20+), which
-            overflows at the full card size — the `dense` grid shrinks the cards so they all fit without scrolling.
-            Ascent only offers 3, so it keeps the big cards. */}
-        <div className={`hsrow${dense ? ' dense' : ''}`} style={rowStyle}>
-          {choices.map((id, i) => {
+        {/* Naming yourself now lives on the home screen (the account chip). Both modes use the SAME big card;
+            Practice (every hero) adds `browse` — four across, two rows visible, scroll for the rest. */}
+        <div ref={rowRef} className={`hsrow${browse ? ' browse' : ''}`}>
+          {shown.map((id, i) => {
             const hero = getHero(id);
             const power = hero.power;
             const art = heroArt(hero.id);
             const tip = heroTip(hero.id);
-            // PLAY-MODE card (owner rework 2026-07-16): big framed hero art with the name pill eclipsing the
-            // frame's TOP edge and the HP+Armor pill its BOTTOM edge; hovering the card crossfades the HERO
-            // POWER art in over the portrait with the power text fading in below. Practice keeps the old
-            // compact card (the dense grid).
-            if (!dense) {
+            // THE hero card (owner rework 2026-07-16): big framed hero art with the name pill eclipsing the
+            // frame's TOP edge and the HP+Armor pill its BOTTOM edge; hovering crossfades the HERO POWER art
+            // in over the portrait with the power text fading in below. Practice uses this same card in a
+            // scrolling grid (2026-08-22) — the compact variant it used to render is gone.
+            {
               const powArt = heroPowerArt(hero.id);
               return (
                 <button
@@ -151,7 +176,10 @@ export function HeroSelect() {
                       Both faces are absolutely positioned inside `.hcbelow`, which reserves the height — so the
                       swap never reflows the row. A hero with no authored tip simply has no resting face. */}
                   <div className="hcbelow">
-                    {tip && (
+                    {/* PRACTICE shows no difficulty (owner ask 2026-08-22) — you are picking a hero to try,
+                        not being graded. With no resting face the power text simply stays visible (see the
+                        `.hsrow.browse` rule), which is the useful thing in a browse list anyway. */}
+                    {tip && !browse && (
                       <div className="hcmeta" aria-hidden={false}>
                         <span className={`hcdiff d-${tip.difficulty.toLowerCase()}`}>{tip.difficulty}</span>
                         {SHOW_HERO_TIPS && <span className="hctip">{tip.tip}</span>}
@@ -165,32 +193,6 @@ export function HeroSelect() {
                 </button>
               );
             }
-            return (
-              <button
-                key={id}
-                ref={(el) => { cardRefs.current[i] = el; }}
-                className="herocard"
-                disabled={active}
-                onClick={onPick(id, i)}
-              >
-                <div className="hcart">
-                  {art ? <img src={art} alt={hero.name} draggable={false} /> : <Icon name="anvil" />}
-                </div>
-                <div className="hcname">{hero.name}</div>
-                <div className="hchp" title="Starting Health">
-                  <Icon name="heart" />
-                  {hero.resolve}
-                  {hero.armor > 0 && <span className="hcarmor" title="Starting Armor — extra effective HP on top of Health">+{hero.armor}</span>}
-                </div>
-                <div className="hcpw">
-                  <b>{power.name}</b> · <span dangerouslySetInnerHTML={{ __html: mdBold(power.text) }} />
-                </div>
-                {power.unlockWave && power.unlockWave > 1 && (
-                  <div className="hclock">Unlocks turn {power.unlockWave}</div>
-                )}
-                <div className="hcpick">Choose</div>
-              </button>
-            );
           })}
         </div>
       </div>

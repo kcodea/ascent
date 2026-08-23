@@ -35,7 +35,7 @@ import './heroCeremony.css';
 const FOCUS_EASE = 'cubic-bezier(0.2, 0.9, 0.25, 1.08)';
 /** Natural width of the big herocard the clone re-renders at (styles.css `.herocard.big`). The clone's
  *  inner card renders at this size and is statically scaled down to the source rect, so its metrics match
- *  the real card regardless of the `.hsbox` zoom or the dense grid's clamp math. */
+ *  the real card regardless of the `.hsbox` zoom or the browse grid's fractional widths. */
 const BIG_CARD_W = 300;
 /** The Pixi layer's accent — `--acc` (styles.css) as a number. Heroes have no per-hero accent field yet, so
  *  every ceremony burns gold; when one is added, thread it through here and the curtain glow together. */

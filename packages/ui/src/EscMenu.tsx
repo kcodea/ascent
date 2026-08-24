@@ -35,6 +35,28 @@ export function EscMenu({ onClose }: { onClose: () => void }) {
     <div className="escov" onPointerDown={onClose}>
       <div className="escpanel" onPointerDown={(e) => e.stopPropagation()}>
         <div className="esch disp">Settings</div>
+        <div className="escsec">{replaying ? 'Replay' : 'Run'}</div>
+        {/* SAVE & QUIT — promoted to the top and styled as the primary action (owner ask 2026-08-24). The
+            run is already saved continuously; this button makes that explicit and one obvious tap. During a
+            REPLAY the quit path must END THE PLAYBACK first (owner report 2026-08-19: quitting left the replay
+            HUD floating over the title) — endReplay restores the snapshot, then opening the title wins. */}
+        {replaying ? (
+          <button
+            className="escbtn escbtn-primary pressable"
+            onPointerDown={() => { endReplay(); openTitle(); onClose(); }}
+          >
+            <span className="ebl">Leave replay</span>
+            <span className="ebs">Back to the main menu — the replay closes</span>
+          </button>
+        ) : (
+          <button
+            className="escbtn escbtn-primary pressable"
+            onPointerDown={() => { openTitle(); onClose(); }}
+          >
+            <span className="ebl">Save &amp; Quit</span>
+            <span className="ebs">Saves this exact moment and returns to the menu — Continue picks up right here</span>
+          </button>
+        )}
         <div className="escsec">Audio</div>
         <div className="escvol">
           <span className="evl">Volume</span>
@@ -84,27 +106,6 @@ export function EscMenu({ onClose }: { onClose: () => void }) {
           <span className="ebl">Auto-ramp speed{combatRampUp ? ' ✓' : ''}</span>
           <span className="ebs">Long fights speed up, then ease back down for the finish</span>
         </button>
-        <div className="escsec">{replaying ? 'Replay' : 'Run'}</div>
-        {/* During a REPLAY the quit path must END THE PLAYBACK first (owner report 2026-08-19: quitting to
-            the menu left the replay HUD — rail, dock, transport — floating over the title screen). endReplay
-            restores the snapshot; opening the title AFTER it wins over whatever screen the snapshot restores. */}
-        {replaying ? (
-          <button
-            className="escbtn pressable"
-            onPointerDown={() => { endReplay(); openTitle(); onClose(); }}
-          >
-            <span className="ebl">Leave replay</span>
-            <span className="ebs">Back to the main menu — the replay closes</span>
-          </button>
-        ) : (
-          <button
-            className="escbtn pressable"
-            onPointerDown={() => { openTitle(); onClose(); }}
-          >
-            <span className="ebl">Quit back to main menu</span>
-            <span className="ebs">Your run stays saved — Continue resumes it</span>
-          </button>
-        )}
         {/* Desktop shell only. The run is saved continuously, so closing the app loses nothing — but it is
             still the one button that ends the session, hence the confirm. */}
         {isDesktop() && (

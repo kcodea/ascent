@@ -207,8 +207,14 @@ export function Title({ onSettings }: { onSettings: () => void }) {
         {/* Preserved secondary modes (not in the mockup, kept so nothing is lost). */}
         <div className="titlesecondary">
           <button onClick={() => { sfx.pulse(); toggleBook(); }} title="Compendium — browse every card">Compendium</button>
-          <span className="tsdot">·</span>
-          <button onClick={() => { sfx.pulse(); openBalance(); }} title="Balance Report — real player offer / pick / win rates">Balance Report</button>
+          {/* DEV-ONLY (owner 2026-08-24): the Balance Report is a dev/telemetry view, stripped from the exe +
+              itch prod builds. The dot rides inside the guard so prod never shows a dangling separator. */}
+          {import.meta.env.DEV && (
+            <>
+              <span className="tsdot">·</span>
+              <button onClick={() => { sfx.pulse(); openBalance(); }} title="Balance Report — real player offer / pick / win rates">Balance Report</button>
+            </>
+          )}
           {/* REPLAY VIEWER (v2): watch back the last run finished this session (frames aren't persisted, so
               the offer only appears once a run has ended since launch). The full spectate entry points —
               recent matches + leaderboard Watch — are Phase C. */}

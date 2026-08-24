@@ -50,6 +50,7 @@ export const ACTION_CATALOG = {
   settleCombat: { generation: 'automatic', reveal: false, note: 'controller transition, never a strategic choice' },
   combatEscalationPreview: { generation: 'never', reveal: false, note: 'display-only replay bookkeeping — not a choice' },
   combatSpellCastPreview: { generation: 'never', reveal: false, note: 'display-only replay bookkeeping — not a choice' },
+  combatFriendlyDeathPreview: { generation: 'never', reveal: false, note: 'display-only replay bookkeeping — not a choice' },
   resolveCombat: { generation: 'automatic', reveal: false, note: 'controller transition, never a strategic choice' },
   devGrant: { generation: 'never', reveal: false, note: 'development tooling — not available to a bot' },
 } satisfies Record<Action['type'], ActionDescriptor>;

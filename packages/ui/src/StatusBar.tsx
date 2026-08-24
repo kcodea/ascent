@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { renameTerms } from './terms';
 import { Card, mdBold } from './Card';
 import { instView } from './instView';
-import { dragonTamerCostOf, INDY_GILD_RECHARGE_GOLD, KESHI_CROWN_THRESHOLD, roundedSpellbookCostOf, buyoutCostOf, allInPayoutOf, exhibitionGrantOf, heroPowerText, commissionOffer, COMMISSION_NAME, COMMISSION_REWARD, COMMISSION_DELAY, getHero, spellAmplifyBonus, spellAttackBonus, spellHealthBonus, heroPowerLockTurns, activePowers } from '@game/sim';
+import { dragonTamerCostOf, INDY_GILD_RECHARGE_GOLD, KESHI_CROWN_THRESHOLD, roundedSpellbookCostOf, buyoutCostOf, allInPayoutOf, exhibitionGrantOf, tempestGrantOf, bladeMasteryGrantOf, hoardWhelpStatsOf, TEMPEST_KILLS_PER_STEP, BLADE_ATTACKS_PER_STEP, heroPowerText, commissionOffer, COMMISSION_NAME, COMMISSION_REWARD, COMMISSION_DELAY, getHero, spellAmplifyBonus, spellAttackBonus, spellHealthBonus, heroPowerLockTurns, activePowers } from '@game/sim';
 import { henchmanOffer } from '@game/sim';
 import { CARD_INDEX } from '@game/content';
 import { heroArt, heroPowerArt, questArt, runeArt } from './art';
@@ -277,13 +277,40 @@ export function StatusBar() {
       case 'baldgecoin': return `${run.jugglerBuys ?? 0}/3`; // Juggler — minions bought toward the next Coin
       case 'commission': return run.commission ? `${Math.max(0, run.commission.dueWave - run.wave)}t` : null;
       case 'crownTally': return `${run.keshiTierPoints}/${KESHI_CROWN_THRESHOLD}`; // Keshi — shop tiers banked toward the Triple Reward
+      // Aevor — kills toward the next +4/+4 step; below the first 15 it counts toward the UNLOCK, so the label
+      // flips to make clear the power is dormant until then rather than merely mid-step.
+      case 'tempest': {
+        const kills = run.tempestKills ?? 0;
+        return kills < TEMPEST_KILLS_PER_STEP ? `${kills}/${TEMPEST_KILLS_PER_STEP} 🔒` : `${kills % TEMPEST_KILLS_PER_STEP}/${TEMPEST_KILLS_PER_STEP}`;
+      }
+      // Gorun — attacks toward the next +3 step.
+      case 'bladeMastery': return `${(run.bladeAttacks ?? 0) % BLADE_ATTACKS_PER_STEP}/${BLADE_ATTACKS_PER_STEP}`;
+      // Cindara — friendly deaths toward the next Avenge (4). This is a COMBAT counter, so it reads the live
+      // preview (`fxFriendlyDeathPreview`, ticked by the replay as her minions fall) rather than run state,
+      // which holds no death total; between fights it is 0, i.e. a fresh 0/4 for the coming combat.
+      case 'hoard': return `${(run.fxFriendlyDeathPreview ?? 0) % 4}/4`;
       default: return null;
     }
   })();
   // A live MAGNITUDE printed on the power art itself (the pill above it carries progress). Odelle only, for
   // now — the slot exists because "how much is this giving me" and "how close is the next step" are two
   // different questions, and one pill cannot answer both (owner ask 2026-08-22).
-  const powerCenter = power.kind === 'exhibition' ? `+${exhibitionGrantOf(run)}/+${exhibitionGrantOf(run)}` : null;
+  const powerCenter: string | null = (() => {
+    switch (power.kind) {
+      case 'exhibition': return `+${exhibitionGrantOf(run)}/+${exhibitionGrantOf(run)}`; // Odelle
+      // Aevor — the End-of-Turn grant she is giving RIGHT NOW (0 below the unlock; the pill above carries the
+      // countdown to it, so the centre showing +0/+0 there would just be noise — blank it until it does something).
+      case 'tempest': { const g = tempestGrantOf(run); return g > 0 ? `+${g}/+${g}` : null; }
+      // Gorun — the Attack a swing grants right now.
+      case 'bladeMastery': return `+${bladeMasteryGrantOf(run)}`;
+      // Cindara — the stats her next Whelp will arrive with (1/1 base + the run's banked hoard).
+      case 'hoard': { const w = hoardWhelpStatsOf(run); return `${w.attack}/${w.health}`; }
+      // Vale — United Front's per-type grant, +1/+1 for every spell cast this game. A live scaling magnitude
+      // exactly like Odelle's, and it was only ever visible in the hover tooltip before.
+      case 'unitedFront': return `+${run.spellsCast}/+${run.spellsCast}`;
+      default: return null;
+    }
+  })();
   // The big line under the hero name: what tapping the power does *right now*.
   const powerLine = isPassive
     ? power.kind === 'spellAmplify'

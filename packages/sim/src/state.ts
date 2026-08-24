@@ -760,6 +760,13 @@ export interface RunState {
    *  spells-cast reader) ticks live instead of jumping at settle. Cleared at settle, where the REAL count
    *  arrives via `playerSpellsCast`; display-only, so it can never double-count. */
   fxSpellsCastPreview?: number;
+  /** TRANSIENT combat-replay preview of FRIENDLY deaths this fight — Cindara's Hoard Avenge (4) tracker ticks
+   *  live as her minions fall, instead of being blank in the shop (deaths are combat-internal; there is no run
+   *  total). Reset at settle like its spell-cast sibling, so it can never leak into the next fight — a fresh
+   *  combat opens at 0, which is exactly the avenge count `simulate` starts each fight from. Display-only:
+   *  the real Avenge fires inside `simulate`; this only drives the pill. Counts NON-rise player deaths, the
+   *  same bodies `simulate` avenges on (a first Rise returns and is not counted). */
+  fxFriendlyDeathPreview?: number;
   /** Drakko hero: Battlecry minions bought this run (his power grants Drakko the Drummer at 5). */
   drakkoBuys: number;
   /** Chronos hero: End-of-Turn minions bought this run (his Encore quest grants a Chronos at 4). */
@@ -1707,6 +1714,7 @@ export type Action =
   | { type: 'combatEscalationPreview'; attack: number; health: number }
   /** Combat replay: a Shop Spell resolved mid-fight — bump the display-only spells-cast preview. */
   | { type: 'combatSpellCastPreview' }
+  | { type: 'combatFriendlyDeathPreview' }
   | { type: 'buy'; uid: string }
   /** Recruit your hero's HENCHMAN for its current (decayed) cost — once per run. See `henchmanCostOf`. */
   | { type: 'buyHenchman' }

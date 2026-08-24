@@ -13,17 +13,20 @@ import type { TunerControl, TunerSpec, TunerUnit } from './tunerSchema';
  * through `--ls-*`; "Copy values" grabs the JSON to bake into the index.html CSS fallbacks + loadScreenConfig
  * DEFAULTS.
  */
-const LABELS: Record<LoadScreenNumKey, [string, TunerUnit]> = {
+const LABELS: Record<LoadScreenNumKey, [string, TunerUnit | undefined]> = {
   iconSize:  ['Icon size', 'px'],
   barWidth:  ['Bar width', 'px'],
   barHeight: ['Bar height', 'px'],
   barBottom: ['Bar bottom', 'vh'],
+  gradSize:  ['Gradient size', '%'],
+  gradPosX:  ['Gradient X', '%'],
+  gradPosY:  ['Gradient Y', '%'],
 };
 const GROUP: Record<keyof LoadScreenConfig, string> = {
   iconSize: 'Icon', barWidth: 'Load bar', barHeight: 'Load bar', barBottom: 'Load bar',
-  gradCenter: 'Background', gradEdge: 'Background',
+  gradCenter: 'Background', gradEdge: 'Background', gradSize: 'Background', gradPosX: 'Background', gradPosY: 'Background',
 };
-const ORDER: (keyof LoadScreenConfig)[] = ['iconSize', 'barWidth', 'barHeight', 'barBottom', 'gradCenter', 'gradEdge'];
+const ORDER: (keyof LoadScreenConfig)[] = ['iconSize', 'barWidth', 'barHeight', 'barBottom', 'gradCenter', 'gradEdge', 'gradSize', 'gradPosX', 'gradPosY'];
 
 const controls: TunerControl<Extract<keyof LoadScreenConfig, string>>[] = ORDER.map((key) => {
   const hint = LOADSCREEN_DESC[key];

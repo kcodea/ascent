@@ -20,6 +20,13 @@ export interface LoadScreenConfig {
   gradCenter: string;
   /** Background radial-gradient EDGE colour (hex) — the outer fill. */
   gradEdge: string;
+  /** Radial-gradient SIZE — the ellipse extent as a % of the viewport (both axes). Bigger = a wider, softer
+   *  core; smaller = a tight spotlight. */
+  gradSize: number;
+  /** Radial-gradient centre X (% across) — moves where the light core sits, i.e. the gradient's "direction". */
+  gradPosX: number;
+  /** Radial-gradient centre Y (% down). */
+  gradPosY: number;
 }
 
 /** The config's numeric keys (everything but the two colours) — the tuner's slider set. */
@@ -34,6 +41,9 @@ const DEFAULTS: LoadScreenConfig = {
   barBottom: 12,
   gradCenter: '#1b1b1d',
   gradEdge: '#000000',
+  gradSize: 75,
+  gradPosX: 50,
+  gradPosY: 42,
 };
 
 /** Slider bounds for the DEV tuner — [min, max, step] per NUMERIC key. */
@@ -42,6 +52,9 @@ export const LOADSCREEN_RANGES: Record<LoadScreenNumKey, [number, number, number
   barWidth: [80, 900, 1],
   barHeight: [1, 40, 1],
   barBottom: [0, 50, 0.5],
+  gradSize: [10, 200, 1],
+  gradPosX: [0, 100, 1],
+  gradPosY: [0, 100, 1],
 };
 
 /** One-line definitions, shown as a hover tooltip on each control's name in the DEV tuner. */
@@ -52,6 +65,9 @@ export const LOADSCREEN_DESC: Record<keyof LoadScreenConfig, string> = {
   barBottom: 'How far the loading bar sits above the bottom of the screen.',
   gradCenter: 'Centre colour of the background gradient — the lighter core behind the logo.',
   gradEdge: 'Edge colour of the background gradient — the outer fill (usually near-black).',
+  gradSize: 'Spread of the gradient — how far the centre colour reaches before fading to the edge.',
+  gradPosX: 'Horizontal position of the gradient core (0 = left, 100 = right).',
+  gradPosY: 'Vertical position of the gradient core (0 = top, 100 = bottom).',
 };
 
 export { DEFAULTS as LOADSCREEN_DEFAULTS };
@@ -83,6 +99,9 @@ export function applyLoadScreenVars(): void {
   root.setProperty('--ls-bar-bottom', `${cfg.barBottom}vh`);
   root.setProperty('--ls-grad-center', cfg.gradCenter);
   root.setProperty('--ls-grad-edge', cfg.gradEdge);
+  root.setProperty('--ls-grad-size', `${cfg.gradSize}%`);
+  root.setProperty('--ls-grad-x', `${cfg.gradPosX}%`);
+  root.setProperty('--ls-grad-y', `${cfg.gradPosY}%`);
 }
 
 export function setLoadScreenValue(key: keyof LoadScreenConfig, value: number | string): void {

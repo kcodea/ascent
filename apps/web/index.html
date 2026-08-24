@@ -62,6 +62,9 @@
           if (typeof c.barBottom === 'number') r.setProperty('--ls-bar-bottom', c.barBottom + 'vh');
           if (typeof c.gradCenter === 'string') r.setProperty('--ls-grad-center', c.gradCenter);
           if (typeof c.gradEdge === 'string') r.setProperty('--ls-grad-edge', c.gradEdge);
+          if (typeof c.gradSize === 'number') r.setProperty('--ls-grad-size', c.gradSize + '%');
+          if (typeof c.gradPosX === 'number') r.setProperty('--ls-grad-x', c.gradPosX + '%');
+          if (typeof c.gradPosY === 'number') r.setProperty('--ls-grad-y', c.gradPosY + '%');
         } catch (e) { /* ignore */ }
       })();
       (function () {
@@ -88,7 +91,7 @@
          (`.is-out`). A soft radial lift at centre keeps it from reading as a flat void behind the mark. */
       #bootsplash {
         position: fixed; inset: 0; z-index: 99999;
-        background: radial-gradient(ellipse 75% 75% at 50% 42%, var(--ls-grad-center, #1b1b1d) 0%, var(--ls-grad-edge, #000000) 100%);
+        background: radial-gradient(ellipse var(--ls-grad-size, 75%) var(--ls-grad-size, 75%) at var(--ls-grad-x, 50%) var(--ls-grad-y, 42%), var(--ls-grad-center, #1b1b1d) 0%, var(--ls-grad-edge, #000000) 100%);
         opacity: 1; transition: opacity 900ms cubic-bezier(0.4, 0, 0.2, 1);
         display: flex; align-items: center; justify-content: center;
       }

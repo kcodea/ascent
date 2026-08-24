@@ -16,7 +16,15 @@ export interface LoadScreenConfig {
   barHeight: number;
   /** Progress-bar distance from the bottom of the screen (vh). */
   barBottom: number;
+  /** Background radial-gradient CENTRE colour (hex) — the lighter core behind the logo. */
+  gradCenter: string;
+  /** Background radial-gradient EDGE colour (hex) — the outer fill. */
+  gradEdge: string;
 }
+
+/** The config's numeric keys (everything but the two colours) — the tuner's slider set. */
+export type LoadScreenNumKey = Exclude<keyof LoadScreenConfig, 'gradCenter' | 'gradEdge'>;
+export const LOADSCREEN_COLOR_KEYS = ['gradCenter', 'gradEdge'] as const;
 
 // Mirror the index.html CSS fallbacks (the shipped look). If you change these, change index.html too.
 const DEFAULTS: LoadScreenConfig = {
@@ -24,10 +32,12 @@ const DEFAULTS: LoadScreenConfig = {
   barWidth: 340,
   barHeight: 6,
   barBottom: 12,
+  gradCenter: '#1b1b1d',
+  gradEdge: '#000000',
 };
 
-/** Slider bounds for the DEV tuner — [min, max, step] per key. */
-export const LOADSCREEN_RANGES: Record<keyof LoadScreenConfig, [number, number, number]> = {
+/** Slider bounds for the DEV tuner — [min, max, step] per NUMERIC key. */
+export const LOADSCREEN_RANGES: Record<LoadScreenNumKey, [number, number, number]> = {
   iconSize: [60, 640, 1],
   barWidth: [80, 900, 1],
   barHeight: [1, 40, 1],
@@ -40,6 +50,8 @@ export const LOADSCREEN_DESC: Record<keyof LoadScreenConfig, string> = {
   barWidth: 'Width of the loading bar.',
   barHeight: 'Thickness of the loading bar.',
   barBottom: 'How far the loading bar sits above the bottom of the screen.',
+  gradCenter: 'Centre colour of the background gradient — the lighter core behind the logo.',
+  gradEdge: 'Edge colour of the background gradient — the outer fill (usually near-black).',
 };
 
 export { DEFAULTS as LOADSCREEN_DEFAULTS };
@@ -69,9 +81,11 @@ export function applyLoadScreenVars(): void {
   root.setProperty('--ls-bar-w', `${cfg.barWidth}px`);
   root.setProperty('--ls-bar-h', `${cfg.barHeight}px`);
   root.setProperty('--ls-bar-bottom', `${cfg.barBottom}vh`);
+  root.setProperty('--ls-grad-center', cfg.gradCenter);
+  root.setProperty('--ls-grad-edge', cfg.gradEdge);
 }
 
-export function setLoadScreenValue(key: keyof LoadScreenConfig, value: number): void {
+export function setLoadScreenValue(key: keyof LoadScreenConfig, value: number | string): void {
   cfg = { ...cfg, [key]: value };
   applyLoadScreenVars();
   try { localStorage.setItem(KEY, JSON.stringify(cfg)); } catch { /* ignore */ }

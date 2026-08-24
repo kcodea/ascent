@@ -1,7 +1,7 @@
 import {
-  LOADSCREEN_DEFAULTS, LOADSCREEN_DESC, LOADSCREEN_RANGES,
+  LOADSCREEN_COLOR_KEYS, LOADSCREEN_DEFAULTS, LOADSCREEN_DESC, LOADSCREEN_RANGES,
   getLoadScreenConfig, resetLoadScreenConfig, setLoadScreenValue, toggleLoadScreenPreview,
-  type LoadScreenConfig,
+  type LoadScreenConfig, type LoadScreenNumKey,
 } from './loadScreenConfig';
 import { TunerPanel } from './TunerPanel';
 import type { TunerControl, TunerSpec, TunerUnit } from './tunerSchema';
@@ -13,7 +13,7 @@ import type { TunerControl, TunerSpec, TunerUnit } from './tunerSchema';
  * through `--ls-*`; "Copy values" grabs the JSON to bake into the index.html CSS fallbacks + loadScreenConfig
  * DEFAULTS.
  */
-const LABELS: Record<keyof LoadScreenConfig, [string, TunerUnit]> = {
+const LABELS: Record<LoadScreenNumKey, [string, TunerUnit]> = {
   iconSize:  ['Icon size', 'px'],
   barWidth:  ['Bar width', 'px'],
   barHeight: ['Bar height', 'px'],
@@ -21,13 +21,20 @@ const LABELS: Record<keyof LoadScreenConfig, [string, TunerUnit]> = {
 };
 const GROUP: Record<keyof LoadScreenConfig, string> = {
   iconSize: 'Icon', barWidth: 'Load bar', barHeight: 'Load bar', barBottom: 'Load bar',
+  gradCenter: 'Background', gradEdge: 'Background',
 };
-const ORDER: (keyof LoadScreenConfig)[] = ['iconSize', 'barWidth', 'barHeight', 'barBottom'];
+const ORDER: (keyof LoadScreenConfig)[] = ['iconSize', 'barWidth', 'barHeight', 'barBottom', 'gradCenter', 'gradEdge'];
 
 const controls: TunerControl<Extract<keyof LoadScreenConfig, string>>[] = ORDER.map((key) => {
-  const [label, unit] = LABELS[key];
-  const [min, max, step] = LOADSCREEN_RANGES[key];
-  return { key, label, unit, hint: LOADSCREEN_DESC[key], group: GROUP[key], min, max, step };
+  const hint = LOADSCREEN_DESC[key];
+  const group = GROUP[key];
+  if ((LOADSCREEN_COLOR_KEYS as readonly string[]).includes(key)) {
+    const label = key === 'gradCenter' ? 'Centre colour' : 'Edge colour';
+    return { key, label, hint, group, kind: 'color' as const, min: 0, max: 0, step: 0 };
+  }
+  const [label, unit] = LABELS[key as LoadScreenNumKey];
+  const [min, max, step] = LOADSCREEN_RANGES[key as LoadScreenNumKey];
+  return { key, label, unit, hint, group, min, max, step };
 });
 
 export const SPEC: TunerSpec<LoadScreenConfig> = {
@@ -36,6 +43,7 @@ export const SPEC: TunerSpec<LoadScreenConfig> = {
   note: 'dev · boot splash',
   read: getLoadScreenConfig,
   write: (key, value) => setLoadScreenValue(key, value),
+  writeColor: (key, value) => setLoadScreenValue(key, value),
   reset: resetLoadScreenConfig,
   defaults: LOADSCREEN_DEFAULTS,
   controls,

@@ -5519,6 +5519,12 @@ svg { width: 18px; height: 18px; }
 .escbtn.danger { border-color: color-mix(in srgb, var(--threat) 45%, var(--line)); }
 .escbtn.danger:hover { border-color: var(--threat); background: color-mix(in srgb, var(--threat) 12%, var(--card)); }
 .escbtn.danger .ebl { color: var(--threat-dk); }
+/* SAVE & QUIT — the primary run action, promoted to the top of the Esc panel (owner ask 2026-08-24). Accented
+   fill + border so it reads as the button you came here to press, not one row among the settings. */
+.escbtn.escbtn-primary { border-color: var(--acc); background: color-mix(in srgb, var(--acc) 14%, var(--bg2)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--acc) 40%, transparent); }
+.escbtn.escbtn-primary:hover { border-color: var(--acc); background: color-mix(in srgb, var(--acc) 22%, var(--bg2)); }
+.escbtn.escbtn-primary .ebl { color: var(--acc); }
+.escbtn.escbtn-primary .ebs { color: var(--acc-dk); }
 .escclose { margin-top: 18px; width: 100%; padding: 12px; border-radius: 13px; border: none; background: var(--acc); color: #fff; font-family: var(--font-ui); font-weight: 800; font-size: 17px; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
 .escclose:hover { background: var(--acc-dk); }
 

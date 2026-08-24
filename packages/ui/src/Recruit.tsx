@@ -2190,6 +2190,16 @@ export function Recruit() {
   const prevHandGapRef = useRef(-1);
   const timeUp = useTurnTimeUp(); // turn timer expired: lock everything but End Turn (flips once/turn — see turnClock)
 
+  // TIMER-0 CRASH SNAPSHOT (owner ask 2026-08-24). The autosave only writes at PHASE boundaries; a run sitting
+  // at 0 seconds is mid-recruit with the board LOCKED, no boundary crossed, so a CRASH there (not a graceful
+  // quit, which `flushSave` already covers on tab-hide/close) would resume from the previous round and lose
+  // this round's shopping. Flushing the exact locked board the instant the timer expires closes that gap.
+  // `timeUp` flips once per turn, so this fires at most once a round — well off the per-action hitch path.
+  // Recruit-only: during combat the clock is irrelevant and the run is mid-replay.
+  useEffect(() => {
+    if (timeUp && !inCombat && !run.sandbox) useGame.getState().flushSave();
+  }, [timeUp, inCombat, run.sandbox]);
+
   const zoneAt = (x: number, y: number): Zone | null => {
     const el = document.elementFromPoint(x, y)?.closest('[data-zone]');
     return (el?.getAttribute('data-zone') as Zone) ?? null;

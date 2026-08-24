@@ -77,6 +77,17 @@
   --board-edge-col: #312361;
   --board-edge-col-0: rgb(49 35 97 / 0);
   --board-edge-fade: 186px;
+  /* TITLE-SCREEN VEIL — the dark navy vignette on `.titlescreen::before`, live-tunable via `titleVeilConfig.ts`
+     (which overrides these on `:root` at runtime; keep in sync with its DEFAULTS — the pre-JS / no-JS paint).
+     An elliptical radial: transparent core over the floating city, navy hugging the bowed edges. */
+  --tv-col: rgb(10 23 48 / 1);
+  --tv-col-0: rgb(10 23 48 / 0);
+  --tv-cx: 57%;
+  --tv-cy: 45%;
+  --tv-rx: 26%;
+  --tv-ry: 130%;
+  --tv-clear: 35%;
+  --tv-edge: 160%;
   /* ONE uniform scale factor for the whole board: the stage height ÷ the 1440px design reference, as a UNITLESS
      number set from JS (`applyStageScale` in Game.tsx) — CSS can't derive a unitless ratio from a length. Everything
      the layout is authored at (card size, chrome, rope, per-region offsets — all in reference px) is multiplied by
@@ -4457,10 +4468,15 @@ button.endpip { border: none; padding: 0; font: inherit; }
    still image popping/flashing to the first video frame. */
 .titlevideo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0; pointer-events: none; opacity: 0; transition: opacity 0.5s ease; }
 .titlevideo.ready { opacity: 1; }
-/* Dark left vignette so the ornate left-aligned menu stays legible over the bright sky (was on .titlescreen). */
-.titlescreen::before { content: ''; position: absolute; inset: 0; z-index: 1; pointer-events: none; background:
-    linear-gradient(90deg, rgba(6, 11, 22, 0.9) 0%, rgba(6, 11, 22, 0.62) 26%, rgba(6, 11, 22, 0.08) 52%, rgba(6, 11, 22, 0) 66%),
-    linear-gradient(rgba(6, 11, 22, 0.28), rgba(6, 11, 22, 0.42)); }
+/* TITLE VEIL — a dark navy vignette that hugs the edges and fades to nothing over the floating-city art, so the
+   logo + menu read against a calmer ground while the city stays bright. An ELLIPTICAL radial, so the dark→clear
+   boundary BOWS rather than running straight. Sits at z-index 1 (above the background art, below the menu at
+   z-index 2). Fully tunable via the dev Title Veil tuner (`titleVeilConfig.ts` → `--tv-*`); the defaults live in
+   the styles.css `:root` block above (the pre-JS / no-JS paint). Only `opacity`-equivalent alpha and static
+   gradient stops — no per-frame paint (it never animates). */
+.titlescreen::before { content: ''; position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  background: radial-gradient(ellipse var(--tv-rx) var(--tv-ry) at var(--tv-cx) var(--tv-cy),
+    var(--tv-col-0) var(--tv-clear), var(--tv-col) var(--tv-edge)); }
 .titlemenu, .titleaccount, .titleversion { z-index: 2; }
 @media (prefers-reduced-motion: reduce) { .titlevideo { display: none; } }
 body:has(.titlescreen) .app { visibility: hidden; }

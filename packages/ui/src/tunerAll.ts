@@ -62,6 +62,7 @@ import { SPEC as StepCounterSpec } from './StepCounterTuner';
 import { SPEC as StepProcFxSpec } from './StepProcFxTuner';
 import { SPEC as SwapFxSpec } from './SwapFxTuner';
 import { SPEC as TavernUpSpec } from './TavernUpTuner';
+import { SPEC as TitleVeilSpec } from './titleVeilConfig';
 import { SPEC as TrailSpec } from './TrailTuner';
 import { SPEC as WardSpec } from './WardTuner';
 import { SPEC as WeldFxSpec } from './WeldFxTuner';
@@ -117,6 +118,7 @@ export const ALL_TUNER_SPECS: TunerSpec<never>[] = [
   StepProcFxSpec,
   SwapFxSpec,
   TavernUpSpec,
+  TitleVeilSpec,
   TrailSpec,
   WardSpec,
   WeldFxSpec,] as unknown as TunerSpec<never>[];

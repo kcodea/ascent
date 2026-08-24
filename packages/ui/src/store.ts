@@ -428,6 +428,15 @@ interface GameStore {
   /** A resumable in-progress run (loaded from localStorage at boot, kept in sync during play), or null when
    *  there's nothing to continue. Drives the title's "Continue" entry. */
   savedRun: RunState | null;
+  /** The recruit-turn seconds left when the saved run was last flushed mid-turn (owner ask 2026-08-24), or null
+   *  if it was saved at a turn boundary / not mid-recruit. `continueRun` hands this to Recruit so a resumed turn
+   *  restores the exact time remaining instead of snapping to 0. */
+  savedTurnRemaining: number | null;
+  /** One-shot: the seconds a resuming turn should start at (set by `continueRun`, consumed + cleared by
+   *  Recruit's clock-reset effect). null on a fresh run start, where the turn opens at full time. */
+  pendingResumeSeconds: number | null;
+  /** Consume `pendingResumeSeconds` — Recruit calls this once it has applied the restored time. */
+  clearPendingResume: () => void;
   /** Resume the saved in-progress run (from the title). */
   continueRun: () => void;
   /** Persist the live run NOW, outside the normal turn-boundary autosave (see `writeSave`). Called when the
@@ -587,12 +596,12 @@ export function loadCombatRampUp(): boolean {
 // the save is cleared when the run ends. The run's action log rides along so board capture still works on a
 // resumed run's finish. All best-effort — localStorage may be unavailable; failures never break play.
 const SAVE_KEY = 'ascent.save';
-interface SavedGame { run: RunState; actions: Action[]; boards: BoardSnapshot[]; telemetry?: TelemetryLog; derive?: DeriveState; }
+interface SavedGame { run: RunState; actions: Action[]; boards: BoardSnapshot[]; telemetry?: TelemetryLog; derive?: DeriveState; turnRemaining?: number; }
 function loadSave(): SavedGame | null {
   try {
     const raw = localStorage.getItem(SAVE_KEY);
     if (!raw) return null;
-    const o = JSON.parse(raw) as { run: string; actions?: Action[]; boards?: BoardSnapshot[]; telemetry?: TelemetryLog; derive?: DeriveState };
+    const o = JSON.parse(raw) as { run: string; actions?: Action[]; boards?: BoardSnapshot[]; telemetry?: TelemetryLog; derive?: DeriveState; turnRemaining?: number };
     const run = deserialize(o.run); // heals older-schema saves
     if (run.phase === 'gameover' || run.phase === 'victory') return null; // finished → not resumable
     // A save can reference a card this build no longer has — a card deleted or renamed during content work, a
@@ -608,10 +617,10 @@ function loadSave(): SavedGame | null {
       clearSave();
       return null;
     }
-    return { run, actions: o.actions ?? [], boards: o.boards ?? [], telemetry: o.telemetry, derive: o.derive };
+    return { run, actions: o.actions ?? [], boards: o.boards ?? [], telemetry: o.telemetry, derive: o.derive, turnRemaining: o.turnRemaining };
   } catch { return null; }
 }
-function writeSave(run: RunState, actions: Action[], boards: BoardSnapshot[] = [], telemetry?: TelemetryLog, derive?: DeriveState): void {
+function writeSave(run: RunState, actions: Action[], boards: BoardSnapshot[] = [], telemetry?: TelemetryLog, derive?: DeriveState, turnRemaining?: number): void {
   // NEVER persist a Scene Builder run. It's a disposable dev rig with 999 Gold and hand-placed boards; letting
   // it reach the autosave overwrites the player's real in-progress run and offers the sandbox as "Continue"
   // (owner hit this on 2026-07-22 — a sandbox session clobbered a live save). The run is already flagged for us.
@@ -625,7 +634,10 @@ function writeSave(run: RunState, actions: Action[], boards: BoardSnapshot[] = [
     // `derive` rides along for the same reason `telemetry` does — a lobby run is OBSERVED LIVE (its replay
     // is not guaranteed faithful), so a quit-and-resume would otherwise lose every offer and buy seen
     // before the reload. Plain JSON by construction; see `DeriveState`.
-    localStorage.setItem(SAVE_KEY, JSON.stringify({ run: serialize(run), actions, ...(boards.length ? { boards } : {}), ...(telemetry ? { telemetry } : {}), ...(derive ? { derive } : {}) }));
+    // `turnRemaining` rides along so a mid-turn Save & Quit resumes the recruit turn with the SAME seconds left
+    // (owner ask 2026-08-24 — quitting at 51s must not come back at 0). Only `flushSave` (the mid-turn path)
+    // passes it; the turn-boundary autosave omits it, so resuming from a boundary starts the next turn at full.
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ run: serialize(run), actions, ...(boards.length ? { boards } : {}), ...(telemetry ? { telemetry } : {}), ...(derive ? { derive } : {}), ...(turnRemaining != null ? { turnRemaining } : {}) }));
   } catch { /* ignore */ }
 }
 function clearSave(): void {
@@ -1264,6 +1276,9 @@ export const useGame = create<GameStore>((set, get) => ({
   // otherwise a throwaway fresh run that Play/Practice will replace.
   run: BOOT_SAVE?.run ?? createRun(randomSeed()),
   savedRun: BOOT_SAVE?.run ?? null,
+  savedTurnRemaining: BOOT_SAVE?.turnRemaining ?? null,
+  pendingResumeSeconds: null,
+  clearPendingResume: () => set({ pendingResumeSeconds: null }),
   lastRunBoards: 0,
   profile: loadProfile(),
   lastRating: null,
@@ -1280,7 +1295,10 @@ export const useGame = create<GameStore>((set, get) => ({
   // so leaving to the title mid-shop can't be used to bank thinking time / reset the timer. A fresh combat
   // resume is unaffected; the next recruit turn (wave change) gets its full timer back via Recruit's reset.
   continueRun: () => {
-    turnClock.set(0);
+    // Hand Recruit the exact seconds this run was quit with (or null → the reset effect opens the turn at full
+    // time). Recruit's clock-reset effect fires on this resume (its `showTitle` dep flips) and consumes it, so
+    // a mid-turn Save & Quit at 51s comes back at 51s, not the old hard 0 (owner ask 2026-08-24).
+    set({ pendingResumeSeconds: get().savedTurnRemaining });
     dropBoardFx(); // the dormant throwaway run behind the title is being swapped for the saved one
     // A resumed lobby run has an EMPTY driver cache (drivers are closures, rebuilt from seed rather than saved),
     // so every seat has to be rebuilt and re-advanced to the round the lobby is on. Do it while the player is
@@ -1311,7 +1329,11 @@ export const useGame = create<GameStore>((set, get) => ({
     // save without that field, and the boot fallback then restarts the accumulator at the resumed wave.
     // `deriveState` was missing here until 2026-08-20, which silently truncated the balance telemetry of
     // every run that was ever quit or tab-hidden (found in a public row whose offers/combats began at wave 7).
-    writeSave(s.run, s.replayActions, s.capturedBoards, s.telemetryLog, s.deriveState);
+    // Capture the live recruit-turn timer so Continue resumes with the SAME seconds left (owner ask 2026-08-24).
+    // Only mid-recruit — during combat the clock is irrelevant, and saving its 0 would resume a locked board.
+    const turnRemaining = s.run.phase === 'recruit' ? turnClock.get() : undefined;
+    writeSave(s.run, s.replayActions, s.capturedBoards, s.telemetryLog, s.deriveState, turnRemaining);
+    set({ savedTurnRemaining: turnRemaining ?? null });
     // The Replay V2 frames are far too large for that localStorage payload — they persist to IndexedDB
     // instead, and this is the one place the CURRENT (still open) round gets written. Without it, quitting
     // mid-shop would lose every action taken since the round opened.

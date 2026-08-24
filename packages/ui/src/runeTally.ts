@@ -106,6 +106,15 @@ export function runeTally(run: RunState, runeId: string): string | null {
     const banked = run.board.reduce((n, c) => n + (c.cardId === 'dw_chef' ? (c.chefGranted ?? 0) : 0), 0);
     return banked > 0 ? `+${banked}/+${banked}` : null;
   }
+  // RUNE OF BEASTIAL SWARM (owner ask 2026-08-24): show the CURRENT per-death buff, not just the Avenge (2)
+  // countdown. The amount starts +2/+2 and Avenge (2) grows it permanently (`beastialSwarmLevel`, carried
+  // across combats), so the number the player actually wants is "how big is each Beast death now" — the same
+  // "show the size" treatment the Chef gets above. The x/2 countdown to the next improve still shows during
+  // combat via `runeCombatTally`; this is the shop-phase readout of what it currently pays.
+  if (runeId === 'rune_beastial_swarm' && run.questFlags?.runeBeastialSwarm) {
+    const lvl = run.beastialSwarmLevel ?? 2;
+    return `+${lvl}/+${lvl}`;
+  }
   // Rune of the Crown: spells cast toward the one-time step. Latches at per/per once earned — the bonus is
   // permanent from then on, so a cyclic counter would lie about it turning off.
   if (runeId === 'rune_crown' && run.runeCrown) {

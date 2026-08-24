@@ -44,6 +44,18 @@ describe('Aevor — Tempest pill + centre', () => {
     r.tempestKills = 15; expect(tempestCentre(r)).toBe('+4/+4');
     r.tempestKills = 30; expect(tempestCentre(r)).toBe('+8/+8');
   });
+
+  it('live combat kills fold in — the unlock crosses mid-fight as enemies fall', () => {
+    // StatusBar folds `combatEnemyDeaths` (the store's live enemy-death count) into the total, so a run at 13
+    // kills crosses the 15 unlock during the fight rather than only at settle.
+    const r = runWith('aevor');
+    r.tempestKills = 13;
+    const withDeaths = (n: number) => ({ ...r, tempestKills: (r.tempestKills ?? 0) + n });
+    expect(tempestPill(withDeaths(1))).toBe('14/15 \u{1F512}'); // still locked
+    expect(tempestCentre(withDeaths(1))).toBeNull();
+    expect(tempestPill(withDeaths(2))).toBe('0/15'); // 15 -> unlocked, live
+    expect(tempestCentre(withDeaths(2))).toBe('+4/+4');
+  });
 });
 
 describe('Gorun — Blade Mastery pill + centre', () => {
@@ -54,6 +66,32 @@ describe('Gorun — Blade Mastery pill + centre', () => {
     r.bladeAttacks = 7; expect(bladePill(r)).toBe('7/8'); expect(bladeCentre(r)).toBe('+3');
     r.bladeAttacks = 8; expect(bladePill(r)).toBe('0/8'); expect(bladeCentre(r)).toBe('+6');
     r.bladeAttacks = 16; expect(bladeCentre(r)).toBe('+9');
+  });
+
+  it('the live preview folds into pill and centre (what StatusBar shows during combat)', () => {
+    const r = runWith('gorun');
+    r.bladeAttacks = 6; r.fxBladeAttacksPreview = 3; // effective 9 -> past the first step
+    const eff = { ...r, bladeAttacks: (r.bladeAttacks ?? 0) + (r.fxBladeAttacksPreview ?? 0) };
+    expect(bladePill(eff)).toBe('1/8');
+    expect(bladeCentre(eff)).toBe('+6');
+  });
+
+  it('the live preview count MATCHES the settle count, so the pill never jumps', () => {
+    // The replay dispatches one `combatBladeAttackPreview` per player-side `bladeMastery` questTrigger; settle
+    // banks `bladeAttacks` from `questTally.attack`. If those counted different units the pill would tick to
+    // one number mid-fight and snap to another at settle. Driven through a real fight.
+    let s: RunState = { ...runWith('gorun'), board: [
+      { uid: 'a', cardId: 'b2_packstrider', attack: 3, health: 20, keywords: [], effects: [], buffs: [] },
+      { uid: 'b', cardId: 'b2_packstrider', attack: 3, health: 20, keywords: [], effects: [], buffs: [] },
+    ] as never };
+    const before = s.bladeAttacks ?? 0;
+    s = reduce(s, { type: 'faceOmen' });
+    const triggers = (s.lastCombat?.events ?? []).filter(
+      (e) => (e as { type: string; flag?: string; side?: string }).type === 'questTrigger'
+        && (e as { flag?: string }).flag === 'bladeMastery' && (e as { side?: string }).side === 'player').length;
+    s = reduce(s, { type: 'resolveCombat' }); s = reduce(s, { type: 'settleCombat' });
+    expect(triggers).toBe((s.bladeAttacks ?? 0) - before);
+    expect(s.fxBladeAttacksPreview, 'the preview retires at settle').toBeUndefined();
   });
 });
 

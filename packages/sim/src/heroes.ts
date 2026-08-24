@@ -1021,8 +1021,12 @@ const UNDISCOVERABLE_KINDS = new Set<HeroPowerKind>([
 ]);
 
 /** Owner's exclusion list for MIMIC (2026-08-22), by hero id (display names in the spec):
- *  Yirin, Drakko, Disco Dan, Cassen, Fi, Runesmith, Guardian, Coran, Re-Pete, Emissary, Quillen, Braum, Keshi. */
-const MIMIC_EXCLUDED = new Set(['rohan', 'drakko', 'discodan', 'cassen', 'fi', 'runesmith', 'runeguard', 'coran', 'repete', 'vale', 'quillen', 'bram', 'keshi']);
+ *  Yirin, Drakko, Disco Dan, Cassen, Fi, Runesmith, Guardian, Coran, Re-Pete, Emissary, Quillen, Braum, Keshi.
+ *  Power Shifter draws from THIS same list (see `powerDiscoverPool('mimic')` in reducer + recruit), so an id
+ *  here is out of both. + Brackus (owner 2026-08-24): his Summit is a START-OF-GAME Tier-7 Discover, so
+ *  adopting it mid-run does nothing but burn the pick. Still available to Void, which the owner did not ask
+ *  to change. */
+const MIMIC_EXCLUDED = new Set(['rohan', 'drakko', 'discodan', 'cassen', 'fi', 'runesmith', 'runeguard', 'coran', 'repete', 'vale', 'quillen', 'bram', 'keshi', 'brackus']);
 
 /** Owner's exclusion list for VOID (2026-08-22): Disco Dan, Runesmith, Coran, Fi, Emissary. */
 const VOID_EXCLUDED = new Set(['discodan', 'runesmith', 'coran', 'fi', 'vale']);

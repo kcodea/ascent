@@ -1627,6 +1627,15 @@ export function useCombatReplay(
         if (e?.type === 'death' && e.side === 'player' && !e.rise) useGame.getState().dispatch({ type: 'combatFriendlyDeathPreview' });
       }
     }
+    // GORUN's Blade Mastery grant climbs live (owner ask 2026-08-24): each player-side `bladeMastery`
+    // questTrigger is exactly one buffed attack, so the +N grant and its "every 8" countdown tick as the swings
+    // land rather than jumping at settle. Gated on wielding it, same reason as Cindara's above.
+    if (hasPower(useGame.getState().run, 'bladeMastery')) {
+      for (let i = beat.start; i < beat.end; i++) {
+        const e = events[i];
+        if (e?.type === 'questTrigger' && e.flag === 'bladeMastery' && e.side === 'player') useGame.getState().dispatch({ type: 'combatBladeAttackPreview' });
+      }
+    }
     // FRONT TO BACK improving itself mid-combat (owner ask 2026-08-07): the resolver narrates each
     // improvement, and this moves the HELD card's printed value live via the display-only preview action.
     // Player-side only — `side` is stamped on the narration, so an enemy Quil's casts don't touch your hand.

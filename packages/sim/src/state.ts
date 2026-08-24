@@ -760,6 +760,13 @@ export interface RunState {
    *  spells-cast reader) ticks live instead of jumping at settle. Cleared at settle, where the REAL count
    *  arrives via `playerSpellsCast`; display-only, so it can never double-count. */
   fxSpellsCastPreview?: number;
+  /** TRANSIENT combat-replay preview of Gorun's Blade Mastery ATTACKS this fight — his +N Attack grant and its
+   *  "improves every 8 attacks" countdown climb live as his minions swing, instead of jumping at settle. Ticked
+   *  by the replay off the `bladeMastery` questTrigger (one per buffed attack); cleared at settle where the real
+   *  `bladeAttacks` total lands. Display-only, so it can never double-count. Aevor's kill counter needs no
+   *  sibling here — the store already derives a live enemy-death count (`combatEnemyDeaths`, Cassen's), folded
+   *  into his pill. */
+  fxBladeAttacksPreview?: number;
   /** TRANSIENT combat-replay preview of FRIENDLY deaths this fight — Cindara's Hoard Avenge (4) tracker ticks
    *  live as her minions fall, instead of being blank in the shop (deaths are combat-internal; there is no run
    *  total). Reset at settle like its spell-cast sibling, so it can never leak into the next fight — a fresh
@@ -1715,6 +1722,7 @@ export type Action =
   /** Combat replay: a Shop Spell resolved mid-fight — bump the display-only spells-cast preview. */
   | { type: 'combatSpellCastPreview' }
   | { type: 'combatFriendlyDeathPreview' }
+  | { type: 'combatBladeAttackPreview' }
   | { type: 'buy'; uid: string }
   /** Recruit your hero's HENCHMAN for its current (decayed) cost — once per run. See `henchmanCostOf`. */
   | { type: 'buyHenchman' }

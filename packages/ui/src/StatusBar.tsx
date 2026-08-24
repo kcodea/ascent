@@ -280,11 +280,13 @@ export function StatusBar() {
       // Aevor — kills toward the next +4/+4 step; below the first 15 it counts toward the UNLOCK, so the label
       // flips to make clear the power is dormant until then rather than merely mid-step.
       case 'tempest': {
-        const kills = run.tempestKills ?? 0;
+        // Kills climb LIVE during combat — `combatEnemyDeaths` is the store's per-fight enemy-death count
+        // (Cassen's), folded in so the unlock/step countdown ticks as the fight happens, not at settle.
+        const kills = (run.tempestKills ?? 0) + combatEnemyDeaths;
         return kills < TEMPEST_KILLS_PER_STEP ? `${kills}/${TEMPEST_KILLS_PER_STEP} 🔒` : `${kills % TEMPEST_KILLS_PER_STEP}/${TEMPEST_KILLS_PER_STEP}`;
       }
-      // Gorun — attacks toward the next +3 step.
-      case 'bladeMastery': return `${(run.bladeAttacks ?? 0) % BLADE_ATTACKS_PER_STEP}/${BLADE_ATTACKS_PER_STEP}`;
+      // Gorun — attacks toward the next +3 step, climbing LIVE during combat via the replay preview.
+      case 'bladeMastery': return `${((run.bladeAttacks ?? 0) + (run.fxBladeAttacksPreview ?? 0)) % BLADE_ATTACKS_PER_STEP}/${BLADE_ATTACKS_PER_STEP}`;
       // Cindara — friendly deaths toward the next Avenge (4). This is a COMBAT counter, so it reads the live
       // preview (`fxFriendlyDeathPreview`, ticked by the replay as her minions fall) rather than run state,
       // which holds no death total; between fights it is 0, i.e. a fresh 0/4 for the coming combat.
@@ -300,14 +302,14 @@ export function StatusBar() {
       case 'exhibition': return `+${exhibitionGrantOf(run)}/+${exhibitionGrantOf(run)}`; // Odelle
       // Aevor — the End-of-Turn grant she is giving RIGHT NOW (0 below the unlock; the pill above carries the
       // countdown to it, so the centre showing +0/+0 there would just be noise — blank it until it does something).
-      case 'tempest': { const g = tempestGrantOf(run); return g > 0 ? `+${g}/+${g}` : null; }
+      case 'tempest': { const g = tempestGrantOf({ ...run, tempestKills: (run.tempestKills ?? 0) + combatEnemyDeaths }); return g > 0 ? `+${g}/+${g}` : null; }
       // Gorun — the Attack a swing grants right now.
-      case 'bladeMastery': return `+${bladeMasteryGrantOf(run)}`;
+      case 'bladeMastery': return `+${bladeMasteryGrantOf({ ...run, bladeAttacks: (run.bladeAttacks ?? 0) + (run.fxBladeAttacksPreview ?? 0) })}`;
       // Cindara — the stats her next Whelp will arrive with (1/1 base + the run's banked hoard).
       case 'hoard': { const w = hoardWhelpStatsOf(run); return `${w.attack}/${w.health}`; }
       // Vale — United Front's per-type grant, +1/+1 for every spell cast this game. A live scaling magnitude
       // exactly like Odelle's, and it was only ever visible in the hover tooltip before.
-      case 'unitedFront': return `+${run.spellsCast}/+${run.spellsCast}`;
+      case 'unitedFront': { const n = run.spellsCast + (run.fxSpellsCastPreview ?? 0); return `+${n}/+${n}`; } // ticks live like Yirin's pill as combat casts resolve
       default: return null;
     }
   })();

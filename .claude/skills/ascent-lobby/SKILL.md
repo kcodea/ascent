@@ -12,7 +12,18 @@ behaviour from a legacy symbol.**
 
 ## Load-bearing invariants
 
-- Seat 0 (`s0`) is the live player. Others are `snapshot`, `hybrid`, `bot`, or tutorial-only `authored`.
+- Seat 0 (`s0`) is the live player. Others are `snapshot`, `hybrid`, `bot`, or `authored` (the Tutorial's omen
+  seats, and **Practice's Bots option** — see below).
+- **Practice is a configurable sandbox** (`run.practiceConfig`, owner 2026-08-24; setup screen
+  `PracticeOptions.tsx` → `createLobbyRun(..., 'practice', cfg)`). The knobs: `opponents` (`players` = recorded
+  seats, `bots` = seven authored scaling-omen seats from `lobby/practiceBots.ts`), `botDifficulty`
+  (easy/medium/hard scaling of the owner-authored per-round board table — medium is the baseline),
+  `health` (`unlimited` = the classic invulnerability + round-15 curtain, gated in the reducer; `normal` =
+  real elimination — the reducer gates now read `practiceConfig?.health !== 'normal'`), `timeMult` (feeds
+  `practiceTimer`), and `tribeSurge` (a tribe whose shop cards get 2× draw weight in `shop.ts drawOfferId` —
+  only the surge branch changes the RNG, so non-surge seeds are untouched). Practice is **always unrated**
+  regardless of these (rating/upload gates key on `mode === 'lobby'`). There is no standalone `bots` RunMode —
+  bots live inside Practice.
 - `DEFAULT_LOBBY_RULES`: `seatCount: 8`, `startingResolve: 30`, `startingArmor: 15`, `maxRounds: 60`. The
   round cap is a **stalemate backstop**, not a course length.
 - **Resolve each paired encounter ONCE** and apply both `playerDamage` and `enemyDamage` from that single

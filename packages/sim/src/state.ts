@@ -322,6 +322,29 @@ export type Phase = 'recruit' | 'combat' | 'gameover' | 'victory';
  *  it is excluded from every one of those gates for free. */
 export type RunMode = 'ascent' | 'rift' | 'practice' | 'lobby' | 'tutorial';
 
+/** The tribes a Practice "tribe surge" can favour (a 100% draw-weight boost for that tribe's shop cards). */
+export type SurgeTribe = 'beast' | 'dragon' | 'kobold' | 'demon' | 'dwarf';
+
+/** The Practice setup screen's choices (owner ask 2026-08-24). Pinned onto a practice run at creation. */
+export interface PracticeConfig {
+  /** Who fills the other seven seats: recorded real player warbands, or effectless scaling bots. */
+  opponents: 'players' | 'bots';
+  /** Bot strength when `opponents === 'bots'` — scales the authored per-round board table. */
+  botDifficulty: 'easy' | 'medium' | 'hard';
+  /** `unlimited` = the classic Practice invulnerability + round-15 curtain; `normal` = real elimination. */
+  health: 'unlimited' | 'normal';
+  /** Shop-timer multiplier (1–4×), the same knob the in-run Practice timer dropdown drives. */
+  timeMult: 1 | 2 | 3 | 4;
+  /** A tribe whose shop cards are twice as likely to appear, or null for the ordinary flat draw. */
+  tribeSurge: SurgeTribe | null;
+}
+
+/** The default Practice options — the classic Practice experience, so an untouched setup screen plays exactly
+ *  as Practice always has (recorded opponents, invulnerable, 1× timer, no surge). */
+export const DEFAULT_PRACTICE_CONFIG: PracticeConfig = {
+  opponents: 'players', botDifficulty: 'medium', health: 'unlimited', timeMult: 1, tribeSurge: null,
+};
+
 export type DiscoverSpec =
   | { kind: 'spell' }
   | { kind: 'minion'; tier: number; exactTier?: number; filter?: 'battlecry' | 'deathrattle'; tribe?: Tribe; tribes?: Tribe[]; exclude?: string; topTierFirst?: boolean; lockTier?: number; lockGold?: number; golden?: boolean; maxTier?: number; lockWave?: number; borrowed?: boolean; setStats?: { attack: number; health: number } }
@@ -463,6 +486,11 @@ export interface RunState {
    *  launched as its own thing from the title, and mounts the Scene Builder control panel. Additive flag so
    *  it needs no new RunMode + no mode-switch audit. Absent = a normal run. */
   sandbox?: boolean;
+  /** Practice options (owner ask 2026-08-24): the knobs chosen on the Practice setup screen, pinned onto the
+   *  run at creation. Absent on every non-practice run (and on a default-options practice run). Read by the
+   *  lobby (bot vs recorded opponents), the reducer (health → invulnerability + curtain), and the shop (tribe
+   *  surge). Plain data, so it serializes with the run. See `PracticeConfig`. */
+  practiceConfig?: PracticeConfig;
   /** Current wave (Altitude). Score = waves survived. */
   wave: number;
   /** Result of each combat resolved this run, in order — drives the end-screen W-L-W summary. */

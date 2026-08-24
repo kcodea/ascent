@@ -3,7 +3,7 @@ import { CARD_INDEX } from '@game/content';
 import { poolOf } from './cardPool';
 import { CIA_ENCHANT_CHANCE, POOL_QUANTITIES, maxTierFor } from './config';
 import { getHero, hasPower } from './heroes';
-import type { RunState } from './state';
+import type { RunState, SurgeTribe } from './state';
 import { stampVeinstormRubies } from './recruit';
 
 /**
@@ -66,11 +66,25 @@ const availableOffers = (state: RunState): CardDef[] =>
   );
 
 /**
- * Draw one offer id from the available pool, uniformly at random (flat weight = 1 per card).
- * The caller decrements the pool. Returns null only when the pool is exhausted.
+ * Draw one offer id from the available pool. Uniform (flat weight = 1 per card) unless a Practice `tribeSurge`
+ * is active, in which case that tribe's cards carry twice the weight ("100% increase in chance to find that
+ * tribe's cards"). The caller decrements the pool. Returns null only when the pool is exhausted.
+ *
+ * The weighted branch is taken ONLY when a surge is set, so every ordinary run keeps the exact `rng.int(len)`
+ * call it always made — seeds and goldens stay identical for non-surge play.
  */
-function drawOfferId(rng: Rng, pool: CardDef[], _tier: number): string | null {
+function drawOfferId(rng: Rng, pool: CardDef[], surge: SurgeTribe | null): string | null {
   if (pool.length === 0) return null;
+  if (surge) {
+    let total = 0;
+    for (const c of pool) total += c.tribe === surge ? 2 : 1;
+    let roll = rng.int(total);
+    for (const c of pool) {
+      roll -= c.tribe === surge ? 2 : 1;
+      if (roll < 0) return c.id;
+    }
+    return pool[pool.length - 1]!.id; // unreachable — the weights sum to `total`
+  }
   return pool[rng.int(pool.length)]!.id;
 }
 
@@ -135,7 +149,7 @@ export function rollShop(state: RunState): void {
     // Re-filtered per slot so the stock decrements below are respected; falls back only when the tier is
     // genuinely exhausted, which is the one case where a narrowed shop cannot be filled.
     const narrowed = lockTier === undefined ? pool : candlePool.filter((c) => (state.pool[c.id] ?? 0) > 0);
-    const id = drawOfferId(rng, narrowed.length > 0 ? narrowed : pool, state.tier);
+    const id = drawOfferId(rng, narrowed.length > 0 ? narrowed : pool, state.practiceConfig?.tribeSurge ?? null);
     if (!id) break; // pool exhausted — fewer offers
     state.pool[id] -= 1;
     offers.push({ uid: `s${state.uidSeq++}`, cardId: id });
@@ -296,7 +310,7 @@ export function topUpTavern(state: RunState): void {
   const rng = makeRng(state.rngCursor);
   const slots = tierSlots(state.tier);
   while (state.shop.length < slots) {
-    const id = drawOfferId(rng, availableOffers(state), state.tier);
+    const id = drawOfferId(rng, availableOffers(state), state.practiceConfig?.tribeSurge ?? null);
     if (!id) break;
     state.pool[id] -= 1;
     state.shop.push({ uid: `s${state.uidSeq++}`, cardId: id });

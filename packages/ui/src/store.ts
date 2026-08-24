@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { CARD_INDEX, activeSet, type SetId } from '@game/content';
-import { CONFIG, HEROES, playableHeroes, practiceHeroes, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, resolveServerProfile, isPlayerAction, missingCardIds, nextOpponent, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, withLiveTelemetry, type TelemetryLog, beginDerive, observeAction, finishDerive, type DeriveState, reduce, reduceWithPresentation, resolveLobbyRating, serialize, snapshotBoard, socBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, combatFrameOf, deltaShopFrameOf, shopFrameOf, runRecord, type DragPath, type ReplayFrame, type ReplayV2, type ShopView, appendInspectEvent, type InspectEvent, type InspectSnapshot, createLobbyRun, createTutorialRun, type TutorialCourse, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction } from '@game/sim';
+import { CONFIG, HEROES, playableHeroes, practiceHeroes, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, resolveServerProfile, isPlayerAction, missingCardIds, nextOpponent, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, withLiveTelemetry, type TelemetryLog, beginDerive, observeAction, finishDerive, type DeriveState, reduce, reduceWithPresentation, resolveLobbyRating, serialize, snapshotBoard, socBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, combatFrameOf, deltaShopFrameOf, shopFrameOf, runRecord, type DragPath, type ReplayFrame, type ReplayV2, type ShopView, appendInspectEvent, type InspectEvent, type InspectSnapshot, createLobbyRun, createTutorialRun, type TutorialCourse, type PracticeConfig, DEFAULT_PRACTICE_CONFIG, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction } from '@game/sim';
 import type { PresentationBatch } from '@game/core';
 import { combatTimelineFrom } from './choreographer/combatTimeline';
 import { setCombatDraftProvider, setCombatLiveProvider } from './choreographer/combatHolds';
@@ -316,6 +316,16 @@ interface GameStore {
    *  mode's clock exactly; 3× is the default (what practice was fixed at before). Persisted. */
   practiceTimer: number;
   setPracticeTimer: (mult: number) => void;
+  /** PRACTICE SETUP (owner ask 2026-08-24): the options screen shown after choosing Practice and before the
+   *  hero picker. `practiceSetupOpen` gates it; `practiceDraft` holds the current selections (persisted). */
+  practiceSetupOpen: boolean;
+  practiceDraft: PracticeConfig;
+  /** Update one or more of the Practice draft options (from the setup screen's controls). */
+  setPracticeDraft: (partial: Partial<PracticeConfig>) => void;
+  /** Confirm the Practice setup → apply the timer, close the setup screen, open the hero picker. */
+  confirmPracticeSetup: () => void;
+  /** Leave the Practice setup screen back to the title (no run started). */
+  cancelPracticeSetup: () => void;
   /** The current run's action log (only state-changing actions), reset on a fresh run. With the run
    *  seed it forms a deterministic replay — the basis for board capture + async-PvP snapshots. */
   replayActions: Action[];
@@ -574,6 +584,19 @@ function loadPracticeTimer(): number {
     const v = Number(localStorage.getItem('ascent.practicetimer'));
     return v >= 1 && v <= 4 ? Math.round(v) : 3;
   } catch { return 3; }
+}
+
+/** Persisted Practice setup options — so a returning player keeps their last Practice knobs. Merged over the
+ *  defaults so a newly-added option field heals to its default rather than reading `undefined`. Best-effort. */
+function loadPracticeConfig(): PracticeConfig {
+  try {
+    const raw = localStorage.getItem('ascent.practiceconfig');
+    if (!raw) return { ...DEFAULT_PRACTICE_CONFIG };
+    return { ...DEFAULT_PRACTICE_CONFIG, ...(JSON.parse(raw) as Partial<PracticeConfig>) };
+  } catch { return { ...DEFAULT_PRACTICE_CONFIG }; }
+}
+function savePracticeConfig(cfg: PracticeConfig): void {
+  try { localStorage.setItem('ascent.practiceconfig', JSON.stringify(cfg)); } catch { /* ignore */ }
 }
 
 /** Persisted combat speed (0.5–5×), defaulting to 1 on anything missing/out-of-range. Best-effort. */
@@ -1393,6 +1416,8 @@ export const useGame = create<GameStore>((set, get) => ({
   openAvatarPicker: () => set({ avatarPickerOpen: true }),
   closeAvatarPicker: () => set({ avatarPickerOpen: false }),
   practiceTimer: loadPracticeTimer(),
+  practiceSetupOpen: false,
+  practiceDraft: loadPracticeConfig(),
   setPracticeTimer: (mult) => {
     const practiceTimer = Math.min(4, Math.max(1, Math.round(mult)));
     try { localStorage.setItem('ascent.practicetimer', String(practiceTimer)); } catch { /* ignore */ }
@@ -1541,7 +1566,9 @@ export const useGame = create<GameStore>((set, get) => ({
       // Practice is a lobby too (2026-07-31): same seats + recorded opponents, its own rules on top. It
       // reads the shared board pool but never writes (every upload path is gated on mode !== 'practice').
       const run = s.pendingMode === 'lobby' || s.pendingMode === 'practice'
-        ? createLobbyRun(seed, heroId, {}, s.pendingMode)
+        // Practice carries the setup options chosen on the Practice screen (bots vs recorded opponents, health,
+        // tribe surge); a plain lobby uses none.
+        ? createLobbyRun(seed, heroId, {}, s.pendingMode, s.pendingMode === 'practice' ? s.practiceDraft : undefined)
         : createRun(seed, heroId, s.pendingMode, s.profile.currentLine);
       // Get the opponent seats built while the player reads their opening shop, not while they wait for it.
       if (run.lobby) warmLobbyDrivers(run);
@@ -1560,7 +1587,22 @@ export const useGame = create<GameStore>((set, get) => ({
   startAscent: () => set({ showTitle: false, pendingMode: 'ascent', heroChoices: rollHeroChoices(), avatarPickerOpen: false }),
   // Practice shows EVERY hero — but "every" still means every PICKABLE one. It was reading the raw registry, so
   // a disabled hero stayed selectable here after being pulled from the Ascent picker (owner 2026-07-28).
-  startPractice: () => set({ showTitle: false, pendingMode: 'practice', heroChoices: practiceHeroes().map((h) => h.id), avatarPickerOpen: false }),
+  // Practice now opens a SETUP screen first (owner ask 2026-08-24): opponents / health / time / tribe surge.
+  // `confirmPracticeSetup` then opens the hero picker. The old direct-to-picker behaviour is that flow minus
+  // the setup step.
+  startPractice: () => set({ showTitle: false, practiceSetupOpen: true, avatarPickerOpen: false }),
+  setPracticeDraft: (partial) => set((s) => {
+    const next = { ...s.practiceDraft, ...partial };
+    savePracticeConfig(next);
+    return { practiceDraft: next };
+  }),
+  confirmPracticeSetup: () => set((s) => {
+    // The chosen time multiplier IS the Practice shop-timer knob — apply it so the in-run clock and its dropdown
+    // both start where the setup screen left them.
+    try { localStorage.setItem('ascent.practicetimer', String(s.practiceDraft.timeMult)); } catch { /* ignore */ }
+    return { practiceSetupOpen: false, practiceTimer: s.practiceDraft.timeMult, pendingMode: 'practice', heroChoices: practiceHeroes().map((h) => h.id) };
+  }),
+  cancelPracticeSetup: () => set({ practiceSetupOpen: false, showTitle: true }),
   startRift: () => set({ showTitle: false, pendingMode: 'rift', heroChoices: rollHeroChoices(), avatarPickerOpen: false }),
   // LOBBY: eight seats, elimination, no fixed round count. Uses the ASCENT offer — three heroes, not the whole
   // roster (owner 2026-07-29). A lobby is a real run you can lose, so the pick should be a decision made under

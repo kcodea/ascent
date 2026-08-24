@@ -56,6 +56,22 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-08-24',
+    label: 'Practice Options',
+    changes: [
+      { category: 'UI / Info', text: 'Practice now opens a setup screen — pick your opponents (real players, or scaling bots with Easy / Medium / Hard), health (unlimited or normal elimination), shop-timer speed (1–4×), and an optional tribe surge.', details: [
+        'Opponents: real players’ recorded warbands, or effectless bots that only grow in stats.',
+        'Bot difficulty: Easy / Medium / Hard curves (only shown when Bots is chosen).',
+        'Health: Unlimited (you can’t be eliminated) or Normal (real damage, last one standing).',
+        'Time: 1– 4× shop-timer speed.',
+        'Tribe surge: doubles how often a chosen tribe’s cards appear.',
+        'Everything is unrated, and your choices are remembered for next time.',
+      ] },
+      { category: 'UI / Info', text: 'Bots are simple, effectless opponents that only grow in stats round over round — a low-pressure way to practice the real game, at three difficulty curves.' },
+      { category: 'UI / Info', text: 'Tribe surge doubles how often the chosen tribe’s cards turn up in your shop.' },
+    ],
+  },
+  {
+    date: '2026-08-24',
     label: 'Patch Notes & Save Fix',
     changes: [
       { category: 'UI / Info', text: 'Patch Notes now has a “Detailed” toggle that expands every change into its full specifics.', details: [

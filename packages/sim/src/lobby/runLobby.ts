@@ -5,7 +5,8 @@ import { combatSide, makeRng, simulate } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { HEROES, playableHeroes } from '../heroes';
 import { lossDamageCap } from '../reducer';
-import { createRun, type RunState } from '../state';
+import { createRun, type RunState, type PracticeConfig } from '../state';
+import { createPracticeBotLobby } from './practiceBots';
 import { botSeat, hybridSeat, type SeatPolicy } from './seats';
 import { playerRunByKey, playerRunsFrom, snapshotSeat } from './snapshotSeats';
 import { handleKeyOf, uniqueHandleFor } from './handles';
@@ -669,19 +670,26 @@ export function lobbyOpponentBoard(
  * Start a run that is a seat in an 8-seat lobby: ordinary Ascent play, no course clock, and the run ends when
  * the player's SEAT is knocked out rather than after 17 rounds.
  */
-export function createLobbyRun(seed: number, heroId: string, rules: Partial<LobbyRules> = {}, mode: 'lobby' | 'practice' = 'lobby'): RunState {
+export function createLobbyRun(
+  seed: number, heroId: string, rules: Partial<LobbyRules> = {}, mode: 'lobby' | 'practice' = 'lobby',
+  practiceConfig?: PracticeConfig,
+): RunState {
   // PRACTICE is a lobby too since 2026-07-31 — same 8 seats, same recorded opponents (reads the shared pool;
   // writes nothing back), same flow. Its extra rules (invulnerability, the round-15 curtain, the shop-timer
-  // multiplier) all key off `mode === 'practice'` downstream.
+  // multiplier) all key off `mode === 'practice'` downstream. Practice OPTIONS (2026-08-24) refine that: bot
+  // opponents replace recorded ones, and `health: 'normal'` turns off the invulnerability + curtain.
   const run = createRun(seed, heroId, mode);
   // The run pins its set at creation; the lobby seats from the SAME set, so a set-2 run never faces a seat
   // driven by a set-1 recording (whose bodies are cards this run cannot otherwise see).
-  const lobby = createRunLobby(seed, heroId, rules, run.setId);
+  // BOTS opponents: seat seven authored, scaling omen boards instead of recorded player runs.
+  const lobby = practiceConfig?.opponents === 'bots'
+    ? createPracticeBotLobby(seed, heroId, practiceConfig.botDifficulty, rules)
+    : createRunLobby(seed, heroId, rules, run.setId);
   const me = lobby.seats[0]!;
   // The seat's pools ARE the run's health, so the HUD and every health-aware effect read one number.
   me.resolve = run.resolve;
   me.armor = run.armor;
-  return { ...run, lobby };
+  return { ...run, lobby, ...(practiceConfig ? { practiceConfig } : {}) };
 }
 
 /**

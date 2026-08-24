@@ -3404,7 +3404,9 @@ function settleLobbyRound(s: RunState, result: CombatResult): void {
   const me = s.lobby.seats[0]!;
   // PRACTICE invulnerability: the player's seat shrugs the round off — health restored to what it was going in,
   // never eliminated. The other seven seats fight and die normally, so the lobby still runs its course.
-  if (s.mode === 'practice') {
+  // Practice OPTIONS (2026-08-24): `health: 'normal'` opts OUT of this — the seat takes real damage and can be
+  // eliminated like any lobby seat, falling through to the ordinary seat→run sync below.
+  if (s.mode === 'practice' && s.practiceConfig?.health !== 'normal') {
     me.resolve = s.resolve;
     me.armor = s.armor;
     me.alive = true;
@@ -3883,13 +3885,17 @@ function advanceCombat(s: RunState): void {
   // Practice runs the SAME fixed course as Ascent (`courseRounds`), so the HUD reads identically — it just
   // can't be lost (health is unlimited, so the resolve<=0 check never fires) and settles into a practice
   // summary instead of a scored victory. Ends when the course is done, regardless of W/L.
-  if (s.mode === 'practice' && s.wave >= CONFIG.courseRounds) {
+  // Both practice end-caps below are ONLY for the invulnerable case (`health` unlimited): a player who cannot die
+  // needs a run length. With `health: 'normal'` the run ends by real elimination / the lobby finishing, so skip
+  // them and let it run the full lobby (owner ask 2026-08-24).
+  const practiceInvulnerable = s.mode === 'practice' && s.practiceConfig?.health !== 'normal';
+  if (practiceInvulnerable && s.wave >= CONFIG.courseRounds) {
     s.phase = 'gameover';
     return;
   }
   // PRACTICE-lobby curtain: the player can't die (invulnerable), so the run ends after round 15 unless the
   // lobby already finished (every bot dead = the practice "win", handled by the lobby check below).
-  if (s.mode === 'practice' && s.lobby && !s.lobby.finished && s.wave >= 15) {
+  if (practiceInvulnerable && s.lobby && !s.lobby.finished && s.wave >= 15) {
     s.phase = 'gameover';
     return;
   }

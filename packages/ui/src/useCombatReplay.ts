@@ -37,7 +37,7 @@ import { fireBuffFx } from './buffFxRender';
 import { cardFxScale } from './fx/cardScale';
 import { canPlayDefs, playDef } from './fx/playDef';
 import { bindingFor } from './choreo/bindings';
-import { isRuneBuffSource } from '@game/sim';
+import { isRuneBuffSource, hasPower } from '@game/sim';
 import { anchorsForUnits } from './fx/combatAnchors';
 import { getDef } from './fx/fxDefs';
 import { WATCHER_PULSE_DEF_ID, watcherPixiReady } from './fx/watcherPulse';
@@ -1614,6 +1614,18 @@ export function useCombatReplay(
     for (let i = beat.start; i < beat.end; i++) {
       const e = events[i];
       if (e?.type === 'spellcast' && e.side === 'player') useGame.getState().dispatch({ type: 'combatSpellCastPreview' });
+    }
+    // FRIENDLY DEATHS mid-combat (owner ask 2026-08-24, for Cindara's Hoard): every player-side death ticks
+    // her Avenge (4) tracker live. Gated on wielding Hoard because deaths are FAR more common than spellcasts,
+    // so a per-death reducer dispatch for every other hero would be pure waste. `!e.rise` matches `simulate`'s
+    // avenge count exactly on the common path: a first Rise returns and is not avenged. (A board-full Rise that
+    // stays dead is a rise-flagged death that DID count — the one case this cosmetic tracker can lag by one; it
+    // re-syncs at settle, where the preview clears.)
+    if (hasPower(useGame.getState().run, 'hoard')) {
+      for (let i = beat.start; i < beat.end; i++) {
+        const e = events[i];
+        if (e?.type === 'death' && e.side === 'player' && !e.rise) useGame.getState().dispatch({ type: 'combatFriendlyDeathPreview' });
+      }
     }
     // FRONT TO BACK improving itself mid-combat (owner ask 2026-08-07): the resolver narrates each
     // improvement, and this moves the HELD card's printed value live via the display-only preview action.

@@ -2122,25 +2122,21 @@ export function useCombatReplay(
         // pulse — the same split the `buffWave` path makes, so an on-attack aura-of-self reads like a standalone one.
         const windupCasts = groupBuffCasts(cur, events);
         const windupSelfBuffs = groupSelfBuffs(cur, events);
-        // HELD WINDUP: this swing's own Rally FORCE-TRIGGERS an Echo (Echohorn / Deathsayer) that DEALS DAMAGE —
-        // a Fel Spikes spray, or any single-hit Deathrattle. Damage consequences are NOT absorbed into the
-        // wind-up, so they'd otherwise play as their own beats AFTER the lunge; PARK the lunge at the top of the
-        // wind-up so the attacker stays frozen through them, striking (or dying) only after. A summon / buff /
-        // Battlecry-replay Echo (Mama Pup, Dawnclaw) deals NO damage and its consequences ARE absorbed into the
-        // wind-up — they already play during the rear-back — so it needs no park (parking one would freeze the
-        // attacker with nothing to wait for). Detected by a `dmg` from someone OTHER than the attacker landing
-        // AFTER the attacker's own rally but BEFORE the attacker's own strike.
+        // HELD WINDUP: this swing's own Rally FORCE-TRIGGERS an Echo (Echohorn / Deathsayer). Whatever the Echo
+        // does, the simulator resolves it BETWEEN the attacker's rally and the attacker's own strike, and only
+        // the flash types (`buff`/`rally`/`summon`/…) get absorbed into the wind-up — a Fel Spikes spray's `dmg`,
+        // and equally a Battlecry-replay Echo's `sc` (Dawnclaw firing an adjacent Shout), are NOT absorbed and so
+        // fall out as their OWN beats after the lunge. So PARK the lunge at the top of the wind-up for ANY forced
+        // Echo (proven for Dawnclaw: its `sc` + the replayed Shout's `buff` land as separate post-attack beats,
+        // 2026-08-24): the attacker holds its reared-back pose through the whole Echo — every pulse, skull and
+        // volley — and strikes (or dies) only once its own `dmg` finally lands (the resume above). Marked by the
+        // attacker emitting a `rally` on this swing (the force-triggered-Echo signal), before its own strike.
         let heldWindup = false;
         if (rallies) {
-          let sawRally = false;
           for (let i = cur.start; i < events.length; i++) {
             const e = events[i];
             if (e?.type === 'attack' && i > cur.start) break;
-            if (e?.type === 'rally' && e.source === atkUid) { sawRally = true; continue; }
-            if (sawRally && e?.type === 'dmg') {
-              if (e.source === atkUid) break; // the attacker's own strike — the Echo dealt no damage before it
-              heldWindup = true; break;        // the triggered Echo dealt damage → its beats play after the lunge
-            }
+            if (e?.type === 'rally' && e.source === atkUid) { heldWindup = true; break; }
           }
         }
         const advance = () => setBeatIdx((k) => k + 1);

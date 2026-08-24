@@ -21,7 +21,7 @@ export interface SecondPowerConfig {
   scale: number;
 }
 
-const DEFAULTS: SecondPowerConfig = { x: 118, y: 64, scale: 0.9 };
+const DEFAULTS: SecondPowerConfig = { x: 81, y: 201, scale: 0.9 }; // owner-placed 2026-08-24
 
 const RANGES: Record<keyof SecondPowerConfig, [number, number, number]> = {
   x: [-300, 500, 1],

@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { renameTerms } from './terms';
 import { Card, mdBold } from './Card';
 import { instView } from './instView';
-import { dragonTamerCostOf, INDY_GILD_RECHARGE_GOLD, KESHI_CROWN_THRESHOLD, roundedSpellbookCostOf, buyoutCostOf, allInPayoutOf, exhibitionGrantOf, tempestGrantOf, bladeMasteryGrantOf, hoardWhelpStatsOf, TEMPEST_KILLS_PER_STEP, BLADE_ATTACKS_PER_STEP, heroPowerText, commissionOffer, COMMISSION_NAME, COMMISSION_REWARD, COMMISSION_DELAY, getHero, spellAmplifyBonus, spellAttackBonus, spellHealthBonus, rubyStatBonus, heroPowerLockTurns, activePowers } from '@game/sim';
+import { dragonTamerCostOf, INDY_GILD_RECHARGE_GOLD, KESHI_CROWN_THRESHOLD, roundedSpellbookCostOf, buyoutCostOf, allInPayoutOf, exhibitionGrantOf, tempestGrantOf, bladeMasteryGrantOf, hoardWhelpStatsOf, TEMPEST_KILLS_PER_STEP, BLADE_ATTACKS_PER_STEP, heroPowerText, commissionOffer, COMMISSION_NAME, COMMISSION_REWARD, COMMISSION_DELAY, getHero, spellAmplifyBonus, spellAttackBonus, spellHealthBonus, rubyStatBonus, heroPowerLockTurns, activePowers, type RunState, type HeroPower } from '@game/sim';
 import { henchmanOffer } from '@game/sim';
 import { CARD_INDEX } from '@game/content';
 import { heroArt, heroPowerArt, questArt, runeArt } from './art';
@@ -51,6 +51,84 @@ function useFitText(text: string) {
  *  falls back to the numeral rather than inventing English for a case no hero has. */
 function usesPerGame(n: number): string {
   return `${n === 1 ? 'once' : n === 2 ? 'twice' : `${n} times`} per game`;
+}
+
+/**
+ * SLOT-AWARE HERO-POWER READOUTS. Extracted so slot 0 (the hero's main power) AND slot 1 (Void's second power)
+ * render the SAME cost coin, tracker pill and centre magnitude from one source of truth — the owner ask is a
+ * 1:1 second power (2026-08-24). Everything a readout needs is run-global EXCEPT the firing slot's own
+ * activation state, threaded in as `spent` / `uses` (Void keeps `heroPowerSpent2` / `heroPowerUses2`).
+ */
+function heroPowerCostOf(power: HeroPower, run: RunState, uses: number): number | undefined {
+  if (power.kind === 'dynamiteDig') return uses; // Jenkins — escalates on the FIRING slot's use count
+  if (power.kind === 'dragonTamer') return dragonTamerCostOf(run);
+  if (power.kind === 'roundedSpellbook') return roundedSpellbookCostOf(run);
+  if (power.kind === 'buyout') return buyoutCostOf(run);
+  return power.cost;
+}
+function heroPowerCenterOf(power: HeroPower, run: RunState, combatEnemyDeaths: number): string | null {
+  switch (power.kind) {
+    case 'exhibition': return `+${exhibitionGrantOf(run)}/+${exhibitionGrantOf(run)}`; // Odelle
+    // Aevor — the End-of-Turn grant right now (0 below the unlock → blank, so the centre isn't a hollow +0/+0).
+    case 'tempest': { const g = tempestGrantOf({ ...run, tempestKills: (run.tempestKills ?? 0) + combatEnemyDeaths }); return g > 0 ? `+${g}/+${g}` : null; }
+    // Gorun — the Attack a swing grants right now, folding the live combat preview.
+    case 'bladeMastery': return `+${bladeMasteryGrantOf({ ...run, bladeAttacks: (run.bladeAttacks ?? 0) + (run.fxBladeAttacksPreview ?? 0) })}`;
+    // Cindara — the stats her next Whelp arrives with (1/1 base + banked hoard).
+    case 'hoard': { const w = hoardWhelpStatsOf(run); return `${w.attack}/${w.health}`; }
+    // Vale — United Front's per-type grant, ticking live like Yirin's pill as combat casts resolve.
+    case 'unitedFront': { const n = run.spellsCast + (run.fxSpellsCastPreview ?? 0); return `+${n}/+${n}`; }
+    default: return null;
+  }
+}
+function heroPowerTallyOf(
+  power: HeroPower, run: RunState,
+  o: { spent: boolean; uses: number; combatEnemyDeaths: number; diceLock: number },
+): string | null {
+  const { spent, uses, combatEnemyDeaths, diceLock } = o;
+  const withinUses = power.maxUses ? uses < power.maxUses : true;
+  const gildSpent = spent && run.indyGildRearmAt != null
+    ? Math.max(0, Math.min(INDY_GILD_RECHARGE_GOLD, (run.goldSpent ?? 0) - (run.indyGildRearmAt - INDY_GILD_RECHARGE_GOLD)))
+    : 0;
+  switch (power.kind) {
+    case 'gild': return spent ? `${gildSpent}/${INDY_GILD_RECHARGE_GOLD}g` : null; // Indy — recharging
+    case 'spellAmplify': return `${(run.spellsCast + (run.fxSpellsCastPreview ?? 0)) % 10}/10`; // Yirin
+    case 'collision': return `${Math.min(5, run.cassenKills + combatEnemyDeaths)}/5`; // Cassen
+    case 'quest': return spent ? null : `${run.drakkoBuys}/5`; // Drakko
+    case 'questChronos': return spent ? null : `${run.eotMinionBuys ?? 0}/4`; // Chronos
+    case 'sellGold': return (run.bonusEmbersNextTurn ?? 0) > 0 ? `${run.bonusEmbersNextTurn}g` : null; // Robin
+    case 'recurringGoldcrafter': return run.wave % 4 === 0 ? 'now' : `${4 - (run.wave % 4)}t`; // Gildmaster
+    case 'scalingGold': return spent ? null : `${1 + run.wave}g`; // Bagger Ben
+    case 'lesserQuest': return run.wave < 4 ? `${4 - run.wave}t` : null; // retired Fi
+    case 'runeforge': return run.wave < 5 && !spent ? `${5 - run.wave}t` : null; // Runesmith
+    case 'epicRuneforge': return run.epicForgeWave != null && run.wave < run.epicForgeWave ? `${run.epicForgeWave - run.wave}t` : null; // Runeguard
+    case 'pathfinder': return run.wave < 10 ? `${10 - run.wave}t` : null; // Coran
+    case 'dynamiteDig': return `Tier ${run.tier}`; // Jenkins
+    case 'secondHand': return run.wave % 3 === 0 ? 'now' : `${3 - (run.wave % 3)}t`; // Re-Pete
+    case 'fourPeat': return `${Math.min(3, run.gorrBuys?.length ?? 0)}/3`; // Gorr
+    case 'dice': case 'preparation': return diceLock > 0 ? `${diceLock}t` : null; // Gambler / Aster
+    case 'contraband': return `${(run.refreshCount ?? 0) % 3}/3`; // Pete
+    case 'archive': return `${(run.archivedTribes?.length ?? 0)}/3`; // Quillen
+    case 'investment': return `${run.bramInvested ?? 0}/5`; // Bram
+    case 'luckySeat': return `${run.ciaEnchantedBought ?? 0}/3`; // Cia
+    case 'exhibition': return `${(run.cardsPlayedTotal ?? 0) % 4}/4`; // Odelle
+    case 'allIn': return withinUses ? `${allInPayoutOf(run)}g` : null; // Rascal
+    case 'soulbind': return `${Math.max(0, 3 - uses)} left`; // Sable
+    case 'baldgecoin': return `${run.jugglerBuys ?? 0}/3`; // Juggler
+    case 'commission': return run.commission ? `${Math.max(0, run.commission.dueWave - run.wave)}t` : null; // Cassen
+    case 'crownTally': return `${run.keshiTierPoints}/${KESHI_CROWN_THRESHOLD}`; // Keshi
+    // Aevor — kills toward the next +4/+4 step, climbing live via `combatEnemyDeaths`; below 15 it counts to the UNLOCK.
+    case 'tempest': {
+      const kills = (run.tempestKills ?? 0) + combatEnemyDeaths;
+      return kills < TEMPEST_KILLS_PER_STEP ? `${kills}/${TEMPEST_KILLS_PER_STEP} 🔒` : `${kills % TEMPEST_KILLS_PER_STEP}/${TEMPEST_KILLS_PER_STEP}`;
+    }
+    // Gorun — attacks toward the next +3, climbing live via the replay preview.
+    case 'bladeMastery': return `${((run.bladeAttacks ?? 0) + (run.fxBladeAttacksPreview ?? 0)) % BLADE_ATTACKS_PER_STEP}/${BLADE_ATTACKS_PER_STEP}`;
+    // Cindara — friendly deaths toward the next Avenge (4), off the live combat preview (0 between fights).
+    case 'hoard': return `${(run.fxFriendlyDeathPreview ?? 0) % 4}/4`;
+    // Fibbsy — activations left this turn (refreshes each turn); `usesPerTurn` is the cap.
+    case 'rubyWealth': return `${Math.max(0, (power.usesPerTurn ?? 0) - (run.heroUsesThisTurn ?? 0))} left`;
+    default: return null;
+  }
 }
 
 /** Bottom bar, rooted across the whole round: Embers and Resolve flank the hero. */
@@ -256,83 +334,14 @@ export function StatusBar() {
   // Live power TALLY (owner ask 2026-07-16) — the Avenge-style numerals riding ABOVE the diamond for powers
   // that track a value: recharge/quest progress, cadence countdowns, scaling values, Jenkins's dig tier.
   // Null hides it (e.g. a completed quest fades away by unmounting; Robin with nothing banked shows nothing).
-  const powerTally: string | null = (() => {
-    // A granted QUEST owns this slot while it runs: its objective tracker is the useful number, not the
-    // hero's own counter. Checked before the switch so it wins for every hero that can grant one.
-    if (grantQuest && grantQuestDef) return questProgressText(grantQuest.progress, grantQuestDef.objective, grantQuest.completed);
-    switch (power.kind) {
-      case 'gild': return run.heroPowerSpent ? `${gildSpent}/${INDY_GILD_RECHARGE_GOLD}g` : null; // Indy — recharging
-      case 'spellAmplify': return `${(run.spellsCast + (run.fxSpellsCastPreview ?? 0)) % 10}/10`; // Yirin — ticks live as combat casts resolve (fxSpellsCastPreview)
-      case 'collision': return `${Math.min(5, run.cassenKills + combatEnemyDeaths)}/5`; // Cassen — kills
-      case 'quest': return run.heroPowerSpent ? null : `${run.drakkoBuys}/5`; // Drakko — fades away when complete
-      case 'questChronos': return run.heroPowerSpent ? null : `${run.eotMinionBuys ?? 0}/4`; // Chronos — same
-      case 'sellGold': return (run.bonusEmbersNextTurn ?? 0) > 0 ? `${run.bonusEmbersNextTurn}g` : null; // Robin — banked
-      case 'recurringGoldcrafter': return run.wave % 4 === 0 ? 'now' : `${4 - (run.wave % 4)}t`; // Gildmaster — cadence
-      case 'scalingGold': return run.heroPowerSpent ? null : `${1 + run.wave}g`; // Bagger Ben — current value
-      case 'lesserQuest': return run.wave < 4 ? `${4 - run.wave}t` : null; // RETIRED Fi power — old saves only
-      // 'heroQuest' (Fi / Coran) needs no case: taking the quest sets `heroGrantArt`, and the grantQuest
-      // branch above the switch already owns the tally (x / N) — plus the art and the objective text.
-      case 'runeforge': return run.wave < 5 && !run.heroPowerSpent ? `${5 - run.wave}t` : null; // Runesmith — forge opens turn 5 (was 7; the countdown lagged the retime, owner report 2026-07-31)
-      case 'epicRuneforge': return run.epicForgeWave != null && run.wave < run.epicForgeWave ? `${run.epicForgeWave - run.wave}t` : null; // Runeguard
-      case 'pathfinder': return run.wave < 10 ? `${10 - run.wave}t` : null; // Coran — turns to the capstone
-      case 'dynamiteDig': return `Tier ${run.tier}`; // Jenkins — what the dig would discover
-      case 'secondHand': return run.wave % 3 === 0 ? 'now' : `${3 - (run.wave % 3)}t`; // Re-Pete — fires when this turn ends / countdown
-      case 'fourPeat': return `${Math.min(3, run.gorrBuys?.length ?? 0)}/3`; // Gorr — minion buys this turn
-      // Any recharge-locked power shows its countdown, not just Gambler's — Aster's Preparation had none, so
-      // a locked power read as available with no hint of when it returns (audit 2026-08-21).
-      case 'dice': case 'preparation': return diceLock > 0 ? `${diceLock}t` : null;
-      case 'contraband': return `${(run.refreshCount ?? 0) % 3}/3`; // Pete — refreshes toward the tier-above roll
-      case 'archive': return `${(run.archivedTribes?.length ?? 0)}/3`; // Quillen — minions filed toward the Discover
-      case 'investment': return `${run.bramInvested ?? 0}/5`; // Bram — Gold banked toward the Gilded payout
-      case 'luckySeat': return `${run.ciaEnchantedBought ?? 0}/3`; // Cia — Enchanted buys toward the queued suit (the button art names it)
-      // Odelle — cards played toward the NEXT improve. The live GRANT moved to the centre readout below
-      // (owner ask 2026-08-22), so the pill carries the countdown like every other progress power does.
-      case 'exhibition': return `${(run.cardsPlayedTotal ?? 0) % 4}/4`;
-      case 'allIn': return withinUses ? `${allInPayoutOf(run)}g` : null; // Rascal — what it pays right now
-      case 'soulbind': return `${Math.max(0, 3 - (run.heroPowerUses ?? 0))} left`; // Sable — bonds remaining
-      // Cassen — turns until the running commission matures. `dueWave` is the turn it PAYS on, so the count is
-      // the gap from now; it reads 1 on the turn before it lands and disappears when nothing is running.
-      case 'baldgecoin': return `${run.jugglerBuys ?? 0}/3`; // Juggler — minions bought toward the next Coin
-      case 'commission': return run.commission ? `${Math.max(0, run.commission.dueWave - run.wave)}t` : null;
-      case 'crownTally': return `${run.keshiTierPoints}/${KESHI_CROWN_THRESHOLD}`; // Keshi — shop tiers banked toward the Triple Reward
-      // Aevor — kills toward the next +4/+4 step; below the first 15 it counts toward the UNLOCK, so the label
-      // flips to make clear the power is dormant until then rather than merely mid-step.
-      case 'tempest': {
-        // Kills climb LIVE during combat — `combatEnemyDeaths` is the store's per-fight enemy-death count
-        // (Cassen's), folded in so the unlock/step countdown ticks as the fight happens, not at settle.
-        const kills = (run.tempestKills ?? 0) + combatEnemyDeaths;
-        return kills < TEMPEST_KILLS_PER_STEP ? `${kills}/${TEMPEST_KILLS_PER_STEP} 🔒` : `${kills % TEMPEST_KILLS_PER_STEP}/${TEMPEST_KILLS_PER_STEP}`;
-      }
-      // Gorun — attacks toward the next +3 step, climbing LIVE during combat via the replay preview.
-      case 'bladeMastery': return `${((run.bladeAttacks ?? 0) + (run.fxBladeAttacksPreview ?? 0)) % BLADE_ATTACKS_PER_STEP}/${BLADE_ATTACKS_PER_STEP}`;
-      // Cindara — friendly deaths toward the next Avenge (4). This is a COMBAT counter, so it reads the live
-      // preview (`fxFriendlyDeathPreview`, ticked by the replay as her minions fall) rather than run state,
-      // which holds no death total; between fights it is 0, i.e. a fresh 0/4 for the coming combat.
-      case 'hoard': return `${(run.fxFriendlyDeathPreview ?? 0) % 4}/4`;
-      // Fibbsy — activations left THIS turn (refreshes each turn). `usesPerTurn` is the cap.
-      case 'rubyWealth': return `${Math.max(0, (power.usesPerTurn ?? 0) - (run.heroUsesThisTurn ?? 0))} left`;
-      default: return null;
-    }
-  })();
+  const powerTally: string | null = (grantQuest && grantQuestDef)
+    // A granted QUEST owns the slot while it runs: its objective tracker is the useful number.
+    ? questProgressText(grantQuest.progress, grantQuestDef.objective, grantQuest.completed)
+    : heroPowerTallyOf(power, run, { spent: !!run.heroPowerSpent, uses: run.heroPowerUses ?? 0, combatEnemyDeaths, diceLock });
   // A live MAGNITUDE printed on the power art itself (the pill above it carries progress). Odelle only, for
   // now — the slot exists because "how much is this giving me" and "how close is the next step" are two
   // different questions, and one pill cannot answer both (owner ask 2026-08-22).
-  const powerCenter: string | null = (() => {
-    switch (power.kind) {
-      case 'exhibition': return `+${exhibitionGrantOf(run)}/+${exhibitionGrantOf(run)}`; // Odelle
-      // Aevor — the End-of-Turn grant she is giving RIGHT NOW (0 below the unlock; the pill above carries the
-      // countdown to it, so the centre showing +0/+0 there would just be noise — blank it until it does something).
-      case 'tempest': { const g = tempestGrantOf({ ...run, tempestKills: (run.tempestKills ?? 0) + combatEnemyDeaths }); return g > 0 ? `+${g}/+${g}` : null; }
-      // Gorun — the Attack a swing grants right now.
-      case 'bladeMastery': return `+${bladeMasteryGrantOf({ ...run, bladeAttacks: (run.bladeAttacks ?? 0) + (run.fxBladeAttacksPreview ?? 0) })}`;
-      // Cindara — the stats her next Whelp will arrive with (1/1 base + the run's banked hoard).
-      case 'hoard': { const w = hoardWhelpStatsOf(run); return `${w.attack}/${w.health}`; }
-      // Vale — United Front's per-type grant, +1/+1 for every spell cast this game. A live scaling magnitude
-      // exactly like Odelle's, and it was only ever visible in the hover tooltip before.
-      case 'unitedFront': { const n = run.spellsCast + (run.fxSpellsCastPreview ?? 0); return `+${n}/+${n}`; } // ticks live like Yirin's pill as combat casts resolve
-      default: return null;
-    }
-  })();
+  const powerCenter = heroPowerCenterOf(power, run, combatEnemyDeaths);
   // The big line under the hero name: what tapping the power does *right now*.
   const powerLine = isPassive
     ? power.kind === 'spellAmplify'
@@ -730,8 +739,17 @@ export function StatusBar() {
         {secondPower && (() => {
           const p2 = secondPower;
           const passive2 = !!p2.passive;
-          const spent2 = p2.oncePerGame ? !!run.heroPowerSpent2 : p2.maxUses ? (run.heroPowerUses2 ?? 0) >= p2.maxUses : false;
-          const ready2 = !passive2 && !spent2 && (run.heroReady2 ?? true) && run.wave >= (p2.unlockWave ?? 1) && (!p2.cost || run.embers >= p2.cost);
+          const uses2 = run.heroPowerUses2 ?? 0;
+          const spent2 = p2.oncePerGame ? !!run.heroPowerSpent2 : p2.maxUses ? uses2 >= p2.maxUses : false;
+          const diceLock2 = heroPowerLockTurns(run, p2.kind);
+          // The SAME readouts the main power computes — from slot-1 state — so the second power's coin, tracker
+          // and centre magnitude are 1:1 with a regular hero power (owner ask 2026-08-24).
+          const liveCost2 = heroPowerCostOf(p2, run, uses2);
+          const tally2 = heroPowerTallyOf(p2, run, { spent: !!run.heroPowerSpent2, uses: uses2, combatEnemyDeaths, diceLock: diceLock2 });
+          const center2 = heroPowerCenterOf(p2, run, combatEnemyDeaths);
+          const ready2 = !passive2 && !spent2 && (run.heroReady2 ?? true) && run.wave >= (p2.unlockWave ?? 1)
+            && (!liveCost2 || run.embers >= liveCost2) && diceLock2 === 0
+            && !(p2.kind === 'commission' && !!run.commission);
           const armed2 = heroArmed && heroArmedSlot === 1;
           const art2 = run.voidPowerIds?.[1] ? heroPowerArt(run.voidPowerIds[1]) : undefined;
           return (
@@ -757,7 +775,11 @@ export function StatusBar() {
                   ? <span className="hpb-artwrap" aria-hidden="true"><img className="hpb-art" src={art2} alt="" draggable={false} /></span>
                   : <span className="hpb-glyph" aria-hidden="true">✦</span>}
               </button>
-              {p2.cost ? <span className="hpcost"><span className="costn">{p2.cost}</span></span> : null}
+              {/* Cost coin, tracker pill and centre magnitude — the same three the main power shows, from
+                  slot-1 state. `liveCost2` (not `p2.cost`) so an escalating/shrinking cost reads its live price. */}
+              {liveCost2 ? <span className="hpcost"><span className="costn">{liveCost2}</span></span> : null}
+              {tally2 ? <span key={tally2} className="hpb-tally">{tally2}</span> : null}
+              {center2 && <span key={center2} className="hpb-tally hpb-center">{center2}</span>}
               <div className="hplabel">{p2.name}</div>
               <div className="herotip" role="tooltip">
                 <b>{p2.name}</b>{passive2 ? ' · passive' : ''}

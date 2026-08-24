@@ -47,6 +47,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   const startPractice = useGame((s) => s.startPractice);
   const startLobby = useGame((s) => s.startLobby);
   const startTutorial = useGame((s) => s.startTutorial);
+  const startBots = useGame((s) => s.startBots);
   const startRift = useGame((s) => s.startRift);
   const startSceneBuilder = useGame((s) => s.startSceneBuilder);
   const openLeaderboard = useGame((s) => s.openLeaderboard);
@@ -313,6 +314,14 @@ export function Title({ onSettings }: { onSettings: () => void }) {
                     ? <div className="mcart-clip"><img className="mcframe-art" src={modeArt('learn')} alt="" draggable={false} /></div>
                     : <span className="mcemblem"><IconHelm /></span>}
                   <div className="mcdesc">A coached first game — every mechanic, then graduate.</div>
+                </div>
+              </button>
+
+              <button className="modecard" onClick={() => { sfx.pulse(); startBots(); }}>
+                <div className="mcframe" data-mode="bots">
+                  <div className="mcname">Bots</div>
+                  <span className="mcemblem"><Icon name="target" /></span>
+                  <div className="mcdesc">A full lobby vs. simple, scaling bots — practice the real game, low pressure.</div>
                 </div>
               </button>
 

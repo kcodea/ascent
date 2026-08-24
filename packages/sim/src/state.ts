@@ -320,7 +320,7 @@ export type Phase = 'recruit' | 'combat' | 'gameover' | 'victory';
  *  mode, not `lobby` — the run-end flow rates and uploads only when `mode === 'lobby'`, so a tutorial must not
  *  wear that mode or it would move the player's ladder rating and upload telemetry/boards. Being its own mode,
  *  it is excluded from every one of those gates for free. */
-export type RunMode = 'ascent' | 'rift' | 'practice' | 'lobby' | 'tutorial';
+export type RunMode = 'ascent' | 'rift' | 'practice' | 'lobby' | 'tutorial' | 'bots';
 
 export type DiscoverSpec =
   | { kind: 'spell' }

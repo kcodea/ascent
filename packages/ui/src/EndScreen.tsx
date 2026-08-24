@@ -66,6 +66,7 @@ function LobbyEndScreen({ lobby, run, onPlayAgain }: {
           <span className="endplace-num">{ordinal(place)}</span>
           <span className="endplace-of">of {lobby.seats.length}</span>
           {run.mode === 'practice' && <span className="endplace-practice">Practice — unrated</span>}
+          {run.mode === 'bots' && <span className="endplace-practice">Bots — unrated</span>}
         </div>
         {run.mode === 'lobby' && lastRating && (
           <div className={`endmmr${lastRating.ratingDelta >= 0 ? ' up' : ' down'}`} aria-label="Rating change">

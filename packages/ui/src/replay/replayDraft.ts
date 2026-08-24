@@ -84,12 +84,12 @@ export function draftRunId(run: Pick<RunState, 'seed'>): string {
 }
 
 /**
- * Which runs record a draft at all. A sandbox run is a disposable dev rig, and practice/tutorial runs never
- * upload a replay — recording them would be pure write traffic for a payload nothing can ever watch.
+ * Which runs record a draft at all. A sandbox run is a disposable dev rig, and practice/tutorial/bots runs
+ * never upload a replay — recording them would be pure write traffic for a payload nothing can ever watch.
  */
 export function runRecordsDraft(run: Pick<RunState, 'mode' | 'sandbox'>): boolean {
   if (run.sandbox) return false;
-  return run.mode !== 'practice' && run.mode !== 'tutorial';
+  return run.mode !== 'practice' && run.mode !== 'tutorial' && run.mode !== 'bots';
 }
 
 /** Highest `tMs` across frames and trail — the cumulative clock position a resume must continue from. */

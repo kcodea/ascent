@@ -12,7 +12,17 @@ behaviour from a legacy symbol.**
 
 ## Load-bearing invariants
 
-- Seat 0 (`s0`) is the live player. Others are `snapshot`, `hybrid`, `bot`, or tutorial-only `authored`.
+- Seat 0 (`s0`) is the live player. Others are `snapshot`, `hybrid`, `bot`, or `authored` (used by the
+  Tutorial and by **Bots** mode — see below).
+- **Mode ↔ lobby matrix.** Four modes carry a lobby: `lobby` (rated), `practice` (unrated + invulnerable +
+  round-15 curtain), `tutorial` (authored omens + coaching), and `bots` (authored **scaling** omens, full
+  elimination, **unrated**). The machinery keys on `run.lobby` presence, NOT mode. Rating/board-pool/telemetry
+  uploads gate on `mode === 'lobby'`, so `practice`/`tutorial`/`bots` never rate or feed matchmaking. Practice's
+  forgiveness gates on `mode === 'practice'`, so `bots` has REAL elimination. Bots is built by `createBotsRun`
+  (`lobby/botsSeats.ts`): `botsOmenBoard(round)` grows body count AND stats each round; all seven bots field the
+  SAME board so the elimination arc is player-driven (the tutorial trick). Launched from Title → Learn → **Bots**
+  via `startBots`. **When adding a `mode === 'practice' && …` or `!== 'lobby'` gate, ask whether `bots` belongs
+  in the same list** — it is the newest lobby-bearing mode and the easy one to forget.
 - `DEFAULT_LOBBY_RULES`: `seatCount: 8`, `startingResolve: 30`, `startingArmor: 15`, `maxRounds: 60`. The
   round cap is a **stalemate backstop**, not a course length.
 - **Resolve each paired encounter ONCE** and apply both `playerDamage` and `enemyDamage` from that single

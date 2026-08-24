@@ -6249,6 +6249,7 @@ svg { width: 18px; height: 18px; }
 .mcframe[data-mode='rift'] { background: radial-gradient(120% 100% at 50% 0%, #3a1c63 0%, #1e1033 60%, #120a20 100%); border-color: var(--tier-7); }
 .mcframe[data-mode='practice'] { background: radial-gradient(120% 100% at 50% 0%, #3a3226 0%, #221d16 60%, #14110c 100%); }
 .mcframe[data-mode='learn'] { background: radial-gradient(120% 100% at 50% 0%, #1e5a3f 0%, #10331f 60%, #0a1f14 100%); }
+.mcframe[data-mode='bots'] { background: radial-gradient(120% 100% at 50% 0%, #1e4a5a 0%, #102a33 60%, #0a181f 100%); }
 .mcframe[data-mode='soon'] { background: radial-gradient(120% 100% at 50% 0%, #2a2f3a 0%, #191d24 60%, #10131a 100%); }
 
 /* WIDE mode card — a 21:9 banner (PlayMode2 / LearnMode art is 1916×821). The frame keeps the same gold border

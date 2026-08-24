@@ -5,3 +5,4 @@ export * from './snapshotSeats';
 export * from './lobby';
 export * from './runLobby';
 export * from './tutorialSeats';
+export * from './botsSeats';

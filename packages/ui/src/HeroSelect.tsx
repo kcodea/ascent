@@ -134,7 +134,7 @@ export function HeroSelect() {
             table instead. Practice stays unscored and shows neither. */}
         {/* A LOBBY telegraphs nothing here any more (owner ask 2026-08-22 — the format pill is gone); the
             Rating/Oath line stays for the scored non-lobby modes. */}
-        {mode !== 'lobby' && mode !== 'practice' && (
+        {mode !== 'lobby' && mode !== 'practice' && mode !== 'bots' && (
           <div className="hsline" aria-label="Your Oath for this run">
             <span className="hsline-rat">Rating {profile.rating}</span>
             <span className="hsline-line">Oath {profile.currentLine}</span>

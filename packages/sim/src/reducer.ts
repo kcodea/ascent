@@ -3839,8 +3839,9 @@ function settleCombat(s: RunState, result: CombatResult): void {
   }
   // LOBBY / TUTORIAL: the seat already took this hit (with the lobby's own cap and stall pressure) and the run
   // was synced to it above, so applying it again here charges the player twice — visible as the HUD reading 2
-  // lower than the table for the same fight. A tutorial carries a lobby too, so it is excluded for the same reason.
-  if (result.result === 'lose' && s.mode !== 'practice' && s.mode !== 'lobby' && s.mode !== 'tutorial') {
+  // lower than the table for the same fight. A tutorial/bots run carries a lobby too, so both are excluded for
+  // the same reason.
+  if (result.result === 'lose' && s.mode !== 'practice' && s.mode !== 'lobby' && s.mode !== 'tutorial' && s.mode !== 'bots') {
     // Armor absorbs the hit first (extra effective HP), the overflow chips Resolve. Practice: unlimited health.
     const absorbed = Math.min(s.armor, result.playerDamage);
     s.armor -= absorbed;
@@ -3911,9 +3912,9 @@ function advanceCombat(s: RunState): void {
   // A LOBBY seat has no course clock: the lobby ends by elimination, with no fixed round count, so the seat
   // must keep shopping and scaling for as long as the lobby lasts. Without this a bot seat froze at wave 17
   // and every late round was fought with a stale board — the exact pacing failure the prototype measured.
-  // Tutorial is excluded alongside lobby/practice: it carries a lobby and ends by the lobby's round cap (above),
-  // never by the 17-round course clock.
-  if (s.mode !== 'practice' && s.mode !== 'lobby' && s.mode !== 'tutorial' && s.wave >= CONFIG.courseRounds) {
+  // Tutorial and Bots are excluded alongside lobby/practice: each carries a lobby and ends by elimination (or the
+  // lobby's round cap), never by the 17-round course clock.
+  if (s.mode !== 'practice' && s.mode !== 'lobby' && s.mode !== 'tutorial' && s.mode !== 'bots' && s.wave >= CONFIG.courseRounds) {
     s.phase = 'victory';
     return;
   }

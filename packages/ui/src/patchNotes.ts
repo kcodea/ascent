@@ -47,6 +47,13 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-08-24',
+    label: 'Bots Mode',
+    changes: [
+      { category: 'UI / Info', text: 'New “Bots” mode under Learn — a full last-man-standing lobby where every opponent is a simple enemy that only grows in stats. Normal rules, unrated: a low-pressure sandbox to practice the real game.' },
+    ],
+  },
+  {
+    date: '2026-08-24',
     label: 'Menu Polish',
     changes: [
       { category: 'UI / Info', text: 'Added this Patch Notes screen — gameplay changes by date, opened from the title.' },

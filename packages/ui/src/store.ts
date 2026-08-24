@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { CARD_INDEX, activeSet, type SetId } from '@game/content';
-import { CONFIG, HEROES, playableHeroes, practiceHeroes, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, resolveServerProfile, isPlayerAction, missingCardIds, nextOpponent, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, withLiveTelemetry, type TelemetryLog, beginDerive, observeAction, finishDerive, type DeriveState, reduce, reduceWithPresentation, resolveLobbyRating, serialize, snapshotBoard, socBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, combatFrameOf, deltaShopFrameOf, shopFrameOf, runRecord, type DragPath, type ReplayFrame, type ReplayV2, type ShopView, appendInspectEvent, type InspectEvent, type InspectSnapshot, createLobbyRun, createTutorialRun, type TutorialCourse, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction } from '@game/sim';
+import { CONFIG, HEROES, playableHeroes, practiceHeroes, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, resolveServerProfile, isPlayerAction, missingCardIds, nextOpponent, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, withLiveTelemetry, type TelemetryLog, beginDerive, observeAction, finishDerive, type DeriveState, reduce, reduceWithPresentation, resolveLobbyRating, serialize, snapshotBoard, socBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, combatFrameOf, deltaShopFrameOf, shopFrameOf, runRecord, type DragPath, type ReplayFrame, type ReplayV2, type ShopView, appendInspectEvent, type InspectEvent, type InspectSnapshot, createLobbyRun, createTutorialRun, createBotsRun, type TutorialCourse, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction } from '@game/sim';
 import type { PresentationBatch } from '@game/core';
 import { combatTimelineFrom } from './choreographer/combatTimeline';
 import { setCombatDraftProvider, setCombatLiveProvider } from './choreographer/combatHolds';
@@ -449,6 +449,9 @@ interface GameStore {
   /** Start a RIFT run — the same climb, with the active rift's rules. */
   startRift: () => void;
   startLobby: () => void;
+  /** Title → Learn → Bots: open the ASCENT 3-hero picker for a full last-man-standing lobby whose seven
+   *  opponents are all the effectless scaling-omen enemy. Unrated (mode `'bots'`) — a sandbox for newcomers. */
+  startBots: () => void;
   /** Title → Learn: launch the scripted tutorial course (Learn Ascent). Bypasses the hero picker entirely
    *  (the course forces its own hero, Aster) and builds an authored `tutorial`-mode lobby run directly, exactly
    *  like the Scene Builder skips the picker. The coaching layer keys off `run.mode === 'tutorial'`. */
@@ -940,8 +943,9 @@ function commitResolvedAction(
     // used (nextOpponent is seeded by seed+wave+power). Record any TRACKED (id'd) board, from the BOARD's
     // perspective (you lose → it wins). We do NOT skip your own boards: this is a single-player game whose pool
     // is mostly (early: entirely) your own uploads, so skipping them left the ledger empty — a served board is
-    // always a PAST run's board, never your live one, so counting it is a real datapoint. Practice never counts.
-    if (action.type === 'faceOmen' && next !== s.run && next.lastCombat && next.mode !== 'practice') {
+    // always a PAST run's board, never your live one, so counting it is a real datapoint. Practice + Bots never
+    // count — a sandbox never writes to the shared ledger, and its opponents are authored omens with no pool id.
+    if (action.type === 'faceOmen' && next !== s.run && next.lastCombat && next.mode !== 'practice' && next.mode !== 'bots') {
       const served = nextOpponent(s.run);
       if (served?.id) {
         const result = next.lastCombat.result;
@@ -1032,7 +1036,8 @@ function commitResolvedAction(
       s.run.phase !== 'gameover' &&
       s.run.phase !== 'victory' &&
       next.mode !== 'practice' &&
-      next.mode !== 'tutorial' // the TUTORIAL never rates, uploads, or records a career run (it carries a lobby, so it must be excluded here or its placement would move MMR)
+      next.mode !== 'tutorial' && // the TUTORIAL never rates, uploads, or records a career run (it carries a lobby, so it must be excluded here or its placement would move MMR)
+      next.mode !== 'bots' // BOTS is the same: a full lobby you can lose, but an unrated learning sandbox — its placement must never move MMR, upload boards, or record a career run
     ) {
       // `mode` is load-bearing: a lobby run replayed as an Ascent run diverges immediately, so its captured
       // boards were wrong. See `saveRunBoards`.
@@ -1520,7 +1525,9 @@ export const useGame = create<GameStore>((set, get) => ({
       // reads the shared board pool but never writes (every upload path is gated on mode !== 'practice').
       const run = s.pendingMode === 'lobby' || s.pendingMode === 'practice'
         ? createLobbyRun(seed, heroId, {}, s.pendingMode)
-        : createRun(seed, heroId, s.pendingMode, s.profile.currentLine);
+        : s.pendingMode === 'bots'
+          ? createBotsRun(seed, heroId)
+          : createRun(seed, heroId, s.pendingMode, s.profile.currentLine);
       // Get the opponent seats built while the player reads their opening shop, not while they wait for it.
       if (run.lobby) warmLobbyDrivers(run);
       writeSave(run, []); // the new run is now the resumable save
@@ -1544,6 +1551,9 @@ export const useGame = create<GameStore>((set, get) => ({
   // roster (owner 2026-07-29). A lobby is a real run you can lose, so the pick should be a decision made under
   // the same constraint as Ascent's; Practice's all-heroes list is a sandbox affordance and reads as one.
   startLobby: () => set({ showTitle: false, pendingMode: 'lobby', heroChoices: rollHeroChoices(), avatarPickerOpen: false }),
+  // BOTS: a full lobby (real elimination, unrated) against seven scaling-omen enemies — a learning sandbox.
+  // Uses the ASCENT 3-hero offer, like Lobby: it is a real run you can lose, so the pick is a real decision.
+  startBots: () => set({ showTitle: false, pendingMode: 'bots', heroChoices: rollHeroChoices(), avatarPickerOpen: false }),
   startTutorial: (course) => {
     dropBoardFx();
     // A brand-new tutorial run starts fresh at wave 1, so the coaching cursor must start at step 0 too — clear

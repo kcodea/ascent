@@ -291,6 +291,8 @@ export function StatusBar() {
       // preview (`fxFriendlyDeathPreview`, ticked by the replay as her minions fall) rather than run state,
       // which holds no death total; between fights it is 0, i.e. a fresh 0/4 for the coming combat.
       case 'hoard': return `${(run.fxFriendlyDeathPreview ?? 0) % 4}/4`;
+      // Fibbsy — activations left THIS turn (refreshes each turn). `usesPerTurn` is the cap.
+      case 'rubyWealth': return `${Math.max(0, (power.usesPerTurn ?? 0) - (run.heroUsesThisTurn ?? 0))} left`;
       default: return null;
     }
   })();
@@ -336,6 +338,8 @@ export function StatusBar() {
           ? `${power.name} · +${run.tier}/+${run.tier}`
           : power.kind === 'gainMaxMana'
             ? `${power.name} · ${!run.heroReady ? 'used' : run.embers >= (power.cost ?? 0) ? `${power.cost} Gold` : `need ${power.cost} Gold`}`
+            : power.kind === 'rubyWealth'
+              ? `${power.name} · ${!run.heroReady ? 'used' : run.embers >= (power.cost ?? 0) ? `${power.cost} Gold` : `need ${power.cost} Gold`}`
             : power.kind === 'gild'
               ? `${power.name} · ${run.heroPowerSpent ? `${gildSpent}/${INDY_GILD_RECHARGE_GOLD} Gold` : 'ready'}`
               : power.kind === 'scalingGold'

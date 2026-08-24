@@ -857,6 +857,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'hero:jenkins:dynamiteDig': { policy: 'ownBeat', family: 'heroPower', flagged: true },
   'hero:myra:replayBattlecry': { policy: 'foldedCue', family: 'heroReplay', flagged: true },
   'hero:nadja:gainMaxMana': { policy: 'ownBeat', family: 'heroPower', flagged: true },
+  'hero:fibbsy:rubyWealth': { policy: 'ownBeat', family: 'heroPower', flagged: true }, // Fibbsy: 1 Gold -> 2 Rubies, twice a turn
   'hero:risen:grantReborn': { policy: 'foldedCue', family: 'heroPayout', flagged: true },
   'hero:robin:sellGold': { policy: 'foldedCue', family: 'heroPayout', flagged: true },
   'hero:runeguard:epicRuneforge': { policy: 'ownBeat', family: 'heroPower', flagged: true },

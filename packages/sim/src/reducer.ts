@@ -2210,7 +2210,10 @@ function reduceCore(state: RunState, action: Action): RunState {
       const heroUses = (slot === 1 ? s.heroPowerUses2 : s.heroPowerUses) ?? 0;
       const slotReady = slot === 1 ? (s.heroReady2 ?? true) : s.heroReady;
       const slotSpent = slot === 1 ? s.heroPowerSpent2 : s.heroPowerSpent;
-      const available = power.maxUses
+      const usesThisTurn = s.heroUsesThisTurn ?? 0;
+      const available = power.usesPerTurn
+        ? usesThisTurn < power.usesPerTurn // Fibbsy: N times a turn, not the plain once-per-turn heroReady
+        : power.maxUses
         ? heroUses < power.maxUses && slotReady
         : power.oncePerGame
           ? !slotSpent
@@ -2577,6 +2580,11 @@ function reduceCore(state: RunState, action: Action): RunState {
         // Passive powers have no activation — the work happens elsewhere (spell math, the buy/sell case,
         // settleCombat, the turn-advance quest/discover/Goldcrafter hooks). Nothing to do on a power click.
         return state;
+      } else if (power.kind === 'rubyWealth') {
+        // Fibbsy: 1 Gold → 2 Rubies. Untargeted; the Gold cost + the per-turn charge are handled by the shared
+        // block below. `mintRubies` runs the full onGetRuby / onGainCard rounds, so a board that reacts to
+        // Rubies (Runefire, Gem Sage) fires exactly as it would for a shop-bought Ruby.
+        mintRubies(s, 2);
       } else if (power.kind === 'gainMaxMana') {
         // Nadja: +1 max Gold permanently, ABOVE the cap and PERSISTENT. Routes through `maxGoldBonus` (the
         // Shop-License channel that stacks on top of the natural curve) — NOT `s.maxEmbers`. The old
@@ -2629,7 +2637,13 @@ function reduceCore(state: RunState, action: Action): RunState {
         }
       }
 
-      if (power.oncePerGame) { if (slot === 1) s.heroPowerSpent2 = true; else s.heroPowerSpent = true; }
+      if (power.usesPerTurn) {
+        // Fibbsy: count this turn's use; heroReady stays TRUE until the last charge is spent, so the button is
+        // still armed for the second press. On the final use it flips false, which is how every "used" UI cue
+        // (dimmed art, "used" line) reads the power as spent for the turn.
+        s.heroUsesThisTurn = (s.heroUsesThisTurn ?? 0) + 1;
+        if (s.heroUsesThisTurn >= power.usesPerTurn) s.heroReady = false;
+      } else if (power.oncePerGame) { if (slot === 1) s.heroPowerSpent2 = true; else s.heroPowerSpent = true; }
       else if (slot === 1) s.heroReady2 = false;
       else s.heroReady = false;
       if (power.maxUses) { if (slot === 1) s.heroPowerUses2 = heroUses + 1; else s.heroPowerUses = heroUses + 1; } // whole-game activation budget (Gildmaster: 2)
@@ -3916,6 +3930,7 @@ function advanceCombat(s: RunState): void {
   s.bonusEmbersNextTurn = 0;
   s.heroReady = true;
   s.heroReady2 = true; // Void's second power recharges on the same clock
+  s.heroUsesThisTurn = 0; // Fibbsy's twice-per-turn budget refills
   // Tutorial: a scripted shop reads roll 0 (the turn-start offer) each new wave. Reset before the wave's shop
   // rolls so the first roll of the turn serves the authored initial offer, refreshes then advancing 1, 2, …
   if (s.tutorialShopScript) s.tutorialShopRoll = 0;

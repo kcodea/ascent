@@ -2122,18 +2122,21 @@ export function useCombatReplay(
         // pulse — the same split the `buffWave` path makes, so an on-attack aura-of-self reads like a standalone one.
         const windupCasts = groupBuffCasts(cur, events);
         const windupSelfBuffs = groupSelfBuffs(cur, events);
-        // HELD WINDUP: this swing's own Rally fires a Fel-Spikes-style forced spray (Echohorn → Fel Spikes),
-        // whose volleys play as their OWN beats after the attack. Park the lunge at the top of the wind-up so
-        // the attacker stays frozen through the whole spray — both rally pulses + every volley + the deferred
-        // deaths — and only strikes (or dies) after. Detected by the attacker's own `rally` targeting a
-        // launchOnDeath sprayer anywhere in this exchange's window (up to the next attack).
+        // HELD WINDUP: this swing's own Rally FORCE-TRIGGERS an Echo (Echohorn / Deathsayer). Whatever the Echo
+        // does, the simulator resolves it BETWEEN the attacker's rally and the attacker's own strike, and only
+        // the flash types (`buff`/`rally`/`summon`/…) get absorbed into the wind-up — a Fel Spikes spray's `dmg`,
+        // and equally a Battlecry-replay Echo's `sc` (Dawnclaw firing an adjacent Shout), are NOT absorbed and so
+        // fall out as their OWN beats after the lunge. So PARK the lunge at the top of the wind-up for ANY forced
+        // Echo (proven for Dawnclaw: its `sc` + the replayed Shout's `buff` land as separate post-attack beats,
+        // 2026-08-24): the attacker holds its reared-back pose through the whole Echo — every pulse, skull and
+        // volley — and strikes (or dies) only once its own `dmg` finally lands (the resume above). Marked by the
+        // attacker emitting a `rally` on this swing (the force-triggered-Echo signal), before its own strike.
         let heldWindup = false;
         if (rallies) {
           for (let i = cur.start; i < events.length; i++) {
             const e = events[i];
             if (e?.type === 'attack' && i > cur.start) break;
-            if (e?.type === 'rally' && e.source === atkUid && typeof e.target === 'string'
-              && bindingFor(cardIds.get(e.target) ?? null, 'damage')?.launchOnDeath) { heldWindup = true; break; }
+            if (e?.type === 'rally' && e.source === atkUid) { heldWindup = true; break; }
           }
         }
         const advance = () => setBeatIdx((k) => k + 1);

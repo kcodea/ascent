@@ -5621,6 +5621,10 @@ svg { width: 18px; height: 18px; }
 .balsort.balname { text-align: left; }
 .balsort:hover { color: rgba(255, 255, 255, 0.9); }
 .balsort.on { color: var(--acc); }
+/* HEADER SAFETY (owner cleanup 2026-08-24): a sortable header's `nowrap` used to OVERFLOW its grid track and
+   collide with the next column ("COPIES SEENBought"). In the solo report grid let the header labels wrap to a
+   second line instead — the cells below are short numbers, so only the header is affected. */
+.balgrid-solo .balrow-h .balsort { white-space: normal; }
 /* Report picker dropdown (which section to view). */
 .balpick { font-family: var(--font-ui); font-weight: 800; font-size: 13px; color: #f6efe2; background: rgba(0, 0, 0, 0.34); border: 2px solid rgba(255, 255, 255, 0.2); padding: 7px 12px; border-radius: 9px; cursor: pointer; }
 .balpick:focus-visible { outline: 2px solid var(--acc); }

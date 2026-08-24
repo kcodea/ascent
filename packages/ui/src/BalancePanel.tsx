@@ -437,15 +437,16 @@ function DemandTable({ runs }: { runs: DerivedRun[] }) {
   return (
     <div className="balsolo" style={{ ['--balcols' as string]: 8 }}>
       <div className="balnote">
-        Demand = what players DO with offers (human data answers demand; per-card performance needs the bot
-        fleet's sample sizes). Dimmed rows are under the {SAMPLE_GATES.preliminary}-offer preliminary gate;
-        ⚠ marks a card whose definition changed since those samples (never pooled across revisions).
+        Demand = what players DO with offers. Three rates by denominator: <b>Copy %</b> = of copies seen,
+        bought; <b>Shop %</b> = of shops that showed it, ones that led to a buy; <b>Run %</b> = of runs
+        offered it, ones that acquired it (any source). Dimmed rows are under the {SAMPLE_GATES.preliminary}-offer
+        gate; ⚠ marks a card whose definition changed since those samples (never pooled across revisions).
       </div>
       <div className="balgrid balgrid-solo" role="table">
         <div className="balrow balrow-h" role="row">
-          <H k="name" label="Name" /><H k="copies" label="Copies Seen" /><span role="columnheader">Bought</span>
-          <H k="conv" label="Copy Conv" /><span role="columnheader">95% CI</span><span role="columnheader">Shop Conv</span>
-          <span role="columnheader">Run Acq</span><H k="acq" label="n (acq)" />
+          <H k="name" label="Name" /><H k="copies" label="Seen" /><span role="columnheader">Bought</span>
+          <H k="conv" label="Copy %" /><span role="columnheader">95% CI</span><span role="columnheader">Shop %</span>
+          <span role="columnheader">Run %</span><H k="acq" label="n" />
         </div>
         {rows.map((d) => {
           const ci = wilson(d.copiesBought, d.copiesOffered);
@@ -471,16 +472,18 @@ function DemandTable({ runs }: { runs: DerivedRun[] }) {
 /** The Gold ledger curve: where a turn's economy actually goes, per wave, averaged over runs that reached it. */
 function EconomyTable({ runs }: { runs: DerivedRun[] }) {
   const rows = useMemo(() => goldCurve(runs), [runs]);
-  const CATS = ['income', 'minion', 'spell', 'ruby', 'refresh', 'upgrade', 'heroPower', 'rune', 'sell'] as const;
-  const LABEL: Record<string, string> = { income: 'Income', minion: 'Minions', spell: 'Spells', ruby: 'Rubies', refresh: 'Rolls', upgrade: 'Tier Ups', heroPower: 'Hero Pwr', rune: 'Runes', sell: 'Sold' };
+  // No 'ruby' column: Rubies are MINTED (hero powers, Kobold effects), never bought with Gold, so the outlay
+  // was always empty — dropped like the omitted 'other'/'henchman' categories (owner cleanup 2026-08-24).
+  const CATS = ['income', 'minion', 'spell', 'refresh', 'upgrade', 'heroPower', 'rune', 'sell'] as const;
+  const LABEL: Record<string, string> = { income: 'Income', minion: 'Minions', spell: 'Spells', refresh: 'Rolls', upgrade: 'Tier Ups', heroPower: 'Hero Pwr', rune: 'Runes', sell: 'Sold' };
   return (
     <div className="balsolo" style={{ ['--balcols' as string]: CATS.length + 2 }}>
-      <div className="balnote">Average Gold per run reaching each wave — the reconciled ledger, so no source can hide. Spends shown as outlay.</div>
+      <div className="balnote">Average Gold per run reaching each wave. <b>Income</b> is what came in; <b>Minions…Runes</b> are spends; <b>Sold</b> is Gold recovered by selling (an inflow, shown last).</div>
       <div className="balgrid balgrid-solo" role="table">
         <div className="balrow balrow-h" role="row">
           <span role="columnheader">Wave</span>
           {CATS.map((c) => <span key={c} role="columnheader">{LABEL[c]}</span>)}
-          <span role="columnheader">runs</span>
+          <span role="columnheader">Runs</span>
         </div>
         {rows.map((r) => (
           <div className="balrow" role="row" key={r.wave}>
@@ -503,7 +506,7 @@ function UpgradeTable({ runs }: { runs: DerivedRun[] }) {
       <div className="balgrid balgrid-solo" role="table">
         <div className="balrow balrow-h" role="row">
           <span role="columnheader">Wave</span><span role="columnheader">Offered</span><span role="columnheader">Taken</span>
-          <span role="columnheader">Take %</span><span role="columnheader">Avg Cost</span><span role="columnheader">After-Loss Take % (n)</span>
+          <span role="columnheader">Take %</span><span role="columnheader">Avg Cost</span><span role="columnheader">After Loss</span>
         </div>
         {rows.map((r) => (
           <div className="balrow" role="row" key={r.wave}>

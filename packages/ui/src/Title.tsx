@@ -111,7 +111,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
 
       {/* Account (top-right) — the avatar opens the picker; the name is click-to-rename. */}
       <div className="titleaccount">
-        <button className="titleavatar" onClick={openAvatarPicker} title="Change your avatar" aria-label="Change your avatar">
+        <button className="titleavatar" onClick={openAvatarPicker} data-tip="Change your avatar" aria-label="Change your avatar">
           {avatarSrc(playerAvatar)
             ? <img src={avatarSrc(playerAvatar)} alt="Your avatar" draggable={false} />
             : <span className="titleavatar-ph">{(effectiveName.trim()[0] ?? '').toUpperCase() || '☺'}</span>}
@@ -157,7 +157,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
         <nav className="titlenav">
           {savedRun && (
             <div className="continuerow">
-              <button className="menubtn active" onClick={() => { sfx.pulse(); continueRun(); }} title="Resume your run in progress">
+              <button className="menubtn active" onClick={() => { sfx.pulse(); continueRun(); }} data-tip="Resume your run in progress">
                 <span className="mbicon"><Crest /></span>
                 <span className="mblabel">{txt.continueLabel}</span>
                 <span className="mbnote">{titleContinueNote(savedRun.wave)}</span>
@@ -183,19 +183,19 @@ export function Title({ onSettings }: { onSettings: () => void }) {
           {/* Learn moved OFF the main menu (owner 2026-08-17): it now lives in the mode picker as its own card,
               opening a learning hub (Tutorial + future advanced lessons). A new player is also offered the
               tutorial the first time they hit Play. */}
-          <button className="menubtn" onClick={() => { sfx.pulse(); openCareer(); }} title="Your match history + per-hero stats">
+          <button className="menubtn" onClick={() => { sfx.pulse(); openCareer(); }} data-tip="Your match history + per-hero stats">
             <span className="mbicon"><IconHelm /></span>
             <span className="mblabel">{txt.career}</span>
           </button>
-          <button className="menubtn" onClick={() => { sfx.pulse(); openRankings(); }} title="Top players by rating">
+          <button className="menubtn" onClick={() => { sfx.pulse(); openRankings(); }} data-tip="Top players by rating">
             <span className="mbicon"><IconTrophy /></span>
             <span className="mblabel">{txt.leaderboard}</span>
           </button>
-          <button className="menubtn" onClick={() => { sfx.pulse(); openLeaderboard(); }} title="The latest victory runs + their warbands">
+          <button className="menubtn" onClick={() => { sfx.pulse(); openLeaderboard(); }} data-tip="The latest victory runs + their warbands">
             <span className="mbicon"><Icon name="crown" /></span>
             <span className="mblabel">{txt.champions}</span>
           </button>
-          <button className="menubtn" onClick={() => { sfx.pulse(); openRecentGames(); }} title="The last 20 games played across every player">
+          <button className="menubtn" onClick={() => { sfx.pulse(); openRecentGames(); }} data-tip="The last 20 games played across every player">
             <span className="mbicon"><Icon name="clock" /></span>
             <span className="mblabel">Recent Games</span>
           </button>
@@ -207,15 +207,15 @@ export function Title({ onSettings }: { onSettings: () => void }) {
 
         {/* Preserved secondary modes (not in the mockup, kept so nothing is lost). */}
         <div className="titlesecondary">
-          <button onClick={() => { sfx.pulse(); toggleBook(); }} title="Compendium — browse every card">Compendium</button>
+          <button onClick={() => { sfx.pulse(); toggleBook(); }} data-tip="Compendium — browse every card">Compendium</button>
           <span className="tsdot">·</span>
-          <button onClick={() => { sfx.pulse(); openPatchNotes(); }} title="Patch Notes — gameplay changes by date">Patch Notes</button>
+          <button onClick={() => { sfx.pulse(); openPatchNotes(); }} data-tip="Patch Notes — gameplay changes by date">Patch Notes</button>
           {/* DEV-ONLY (owner 2026-08-24): the Balance Report is a dev/telemetry view, stripped from the exe +
               itch prod builds. The dot rides inside the guard so prod never shows a dangling separator. */}
           {import.meta.env.DEV && (
             <>
               <span className="tsdot">·</span>
-              <button onClick={() => { sfx.pulse(); openBalance(); }} title="Balance Report — real player offer / pick / win rates">Balance Report</button>
+              <button onClick={() => { sfx.pulse(); openBalance(); }} data-tip="Balance Report — real player offer / pick / win rates">Balance Report</button>
             </>
           )}
           {/* REPLAY VIEWER (v2): watch back the last run finished this session (frames aren't persisted, so
@@ -224,13 +224,13 @@ export function Title({ onSettings }: { onSettings: () => void }) {
           {lastReplay && (
             <>
               <span className="tsdot">·</span>
-              <button onClick={() => { sfx.pulse(); startReplay(lastReplay); }} title="Watch back your last finished game">Rewatch Last Game</button>
+              <button onClick={() => { sfx.pulse(); startReplay(lastReplay); }} data-tip="Watch back your last finished game">Rewatch Last Game</button>
             </>
           )}
           {import.meta.env.DEV && (
             <>
               <span className="tsdot">·</span>
-              <button onClick={() => { sfx.pulse(); startSceneBuilder(); }} title="Scene Builder — dev sandbox: any board, any enemy, unlimited gold">Scene Builder</button>
+              <button onClick={() => { sfx.pulse(); startSceneBuilder(); }} data-tip="Scene Builder — dev sandbox: any board, any enemy, unlimited gold">Scene Builder</button>
             </>
           )}
         </div>
@@ -316,7 +316,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
                 </div>
               </button>
 
-              <button className="modecard mclocked" disabled title="More guided lessons are coming soon">
+              <button className="modecard mclocked" disabled data-tip="More guided lessons are coming soon">
                 <div className="mcframe" data-mode="soon">
                   <div className="mcname">Advanced</div>
                   <span className="mcemblem"><Icon name="clock" /></span>

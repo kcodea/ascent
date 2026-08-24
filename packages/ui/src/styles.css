@@ -8376,3 +8376,32 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .pnlist li { font-family: var(--font-ui); font-weight: 600; font-size: 14.5px; line-height: 1.4; color: var(--ink2); }
 @media (max-width: 620px) { .pngroup { grid-template-columns: 1fr; gap: 5px; } }
 
+/* ── TITLE-SCREEN TOOLTIPS (owner ask 2026-08-24) — a styled bubble in the game's own language, replacing the
+   native `title=` OS tooltip on the menu buttons. Driven by `data-tip` (set in Title.tsx); scoped to `.titlescreen` and EXCLUDING `.menubtn` — the big
+   menu buttons own their ::before/::after for the sheen wave, and a tooltip pseudo-element would clobber it
+   (owner report 2026-08-24). The big buttons carry visible labels, so they need no bubble. Compositor-only (opacity/transform), a short delay so it does
+   not flash on a passing cursor. ── */
+.titlescreen [data-tip]:not(.menubtn) { position: relative; }
+.titlescreen [data-tip]:not(.menubtn)::after {
+  content: attr(data-tip);
+  position: absolute; left: 50%; top: calc(100% + 9px); transform: translateX(-50%) translateY(-4px);
+  white-space: nowrap; max-width: 60vw;
+  font-family: var(--font-ui); font-weight: 700; font-size: 12px; letter-spacing: 0.02em; text-transform: none;
+  color: var(--ink); background: color-mix(in srgb, var(--bg2) 92%, #000); border: 1.5px solid var(--line);
+  padding: 6px 11px; border-radius: 10px; box-shadow: 0 10px 26px -10px rgba(0, 0, 0, 0.7);
+  opacity: 0; pointer-events: none; z-index: 600;
+  transition: opacity 0.12s ease, transform 0.12s ease; transition-delay: 0s;
+}
+/* The little pointer under the bubble — a rotated square sharing the bubble's fill + top-left borders. */
+.titlescreen [data-tip]:not(.menubtn)::before {
+  content: ''; position: absolute; left: 50%; top: calc(100% + 4px); transform: translateX(-50%) rotate(45deg);
+  width: 9px; height: 9px; background: color-mix(in srgb, var(--bg2) 92%, #000);
+  border-left: 1.5px solid var(--line); border-top: 1.5px solid var(--line);
+  opacity: 0; pointer-events: none; z-index: 600; transition: opacity 0.12s ease; transition-delay: 0s;
+}
+.titlescreen [data-tip]:not(.menubtn):hover::after,
+.titlescreen [data-tip]:not(.menubtn):focus-visible::after { opacity: 1; transform: translateX(-50%) translateY(0); transition-delay: 0.25s; }
+.titlescreen [data-tip]:not(.menubtn):hover::before,
+.titlescreen [data-tip]:not(.menubtn):focus-visible::before { opacity: 1; transition-delay: 0.25s; }
+@media (prefers-reduced-motion: reduce) { .titlescreen [data-tip]:not(.menubtn)::after, .titlescreen [data-tip]:not(.menubtn)::before { transition: none; } }
+

@@ -41,6 +41,17 @@ load-bearing rules:
 - Always confirm a "slow" report against the **prod build**, not `npm run dev` (StrictMode + Vite dev are
   much slower than what players run).
 
+## UI conventions
+
+**The game paints a custom cursor** (the gauntlet SVGs in `public/cursors/`), wired in `styles.css`: `body`
+sets the default, and one rule gives `.card, .btn, button, [role="button"]` the "open" gauntlet pointer. So
+**never put a bare `cursor: pointer` (or any plain keyword cursor) on an interactive element** — a class
+selector out-specifies the global `button` rule and swaps the game cursor back to the OS arrow, which reads as
+the cursor "breaking" on that control (owner report 2026-08-24, hit on the Patch Notes ✕). Let the global rule
+paint it, or, when an element genuinely needs its own cursor, use the gauntlet URL form
+(`cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer`). Check any new button/overlay for this before
+shipping.
+
 ## Working with the user
 
 **Ask clarifying questions whenever a direction is confusing or you're unsure what's wanted for a

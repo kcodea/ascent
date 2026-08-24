@@ -8354,7 +8354,10 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .pnpanel { width: min(760px, 92vw); max-height: 86vh; display: flex; flex-direction: column; background: var(--bg2); border: 2px solid var(--line); border-radius: 18px; box-shadow: 0 22px 60px -18px rgba(0, 0, 0, 0.6); overflow: hidden; }
 .pnhead { display: flex; align-items: center; justify-content: space-between; padding: 18px 22px 12px; border-bottom: 1px solid var(--line); }
 .pntitle { font-size: 26px; color: var(--ink); letter-spacing: 0.02em; }
-.pnclose { font-size: 18px; font-weight: 900; color: var(--ink3); background: none; border: none; border-radius: 10px; width: 36px; height: 36px; cursor: pointer; }
+/* NO explicit `cursor` here — the global `button` rule (§ line ~151) already paints the custom gauntlet cursor;
+   overriding it with plain `cursor: pointer` swaps in the bare OS arrow and "breaks" the cursor (owner report
+   2026-08-24). Same reason `.pntoggle-btn` below carries no cursor. See CLAUDE.md's cursor note. */
+.pnclose { font-size: 18px; font-weight: 900; color: var(--ink3); background: none; border: none; border-radius: 10px; width: 36px; height: 36px; }
 .pnclose:hover { color: var(--ink); background: rgba(255, 255, 255, 0.06); }
 .pnscroll { overflow-y: auto; overflow-x: hidden; padding: 8px 22px 22px; }
 .pnpatch { padding: 16px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.06); }
@@ -8381,7 +8384,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .pnsublist li::marker { color: color-mix(in srgb, var(--ink3) 60%, transparent); }
 /* Summary ↔ Detailed pill toggle in the header. Two segments in one rounded track; the active side lifts. */
 .pntoggle { display: inline-flex; gap: 2px; padding: 2px; border-radius: 999px; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--line); }
-.pntoggle-btn { font-family: var(--font-ui); font-weight: 800; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink3); background: none; border: none; border-radius: 999px; padding: 5px 14px; cursor: pointer; transition: color 120ms ease, background 120ms ease; }
+.pntoggle-btn { font-family: var(--font-ui); font-weight: 800; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink3); background: none; border: none; border-radius: 999px; padding: 5px 14px; transition: color 120ms ease, background 120ms ease; }
 .pntoggle-btn:hover { color: var(--ink2); }
 .pntoggle-btn.on { color: var(--bg); background: var(--acc); }
 @media (max-width: 620px) { .pngroup { grid-template-columns: 1fr; gap: 5px; } }

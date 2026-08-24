@@ -22,6 +22,7 @@ import { EditorOverlay } from './uiEditor/EditorOverlay';
 import { ensureDefsReady } from './fx/playDef';
 import { SceneBuilder } from './SceneBuilder';
 import { BalancePanel } from './BalancePanel';
+import { PatchNotes } from './PatchNotesOverlay';
 import { PerfHud } from './PerfHud';
 import { perfMonitor, perfEnabledByFlag } from './perfMonitor';
 import { Icon } from './Icon';
@@ -278,6 +279,9 @@ export function Game() {
       {/* DEV-ONLY (owner 2026-08-24): the Balance Report reads dev/session telemetry and must not ship in the
           exe or itch repacks, which are production `build:web` bundles where `import.meta.env.DEV` is false. */}
       {import.meta.env.DEV && <BalancePanel />}
+      {/* Patch Notes — opened from the title only (owner ask 2026-08-24). Mounted here beside the other
+          full-screen overlays; its own `showPatchNotes` gate keeps it inert until the title opens it. */}
+      <PatchNotes />
 
       {/* Topmost layers: the pre-run hero picker (self-gates on heroChoices), and above it the title
           screen (self-gates on showTitle) — the front door into Ascent / Practice / Settings. */}

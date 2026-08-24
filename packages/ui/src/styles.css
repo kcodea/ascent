@@ -8347,3 +8347,32 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   filter: drop-shadow(0 14px 18px rgba(0, 0, 0, 0.5)); }
 .replay-dragghost .ghostfist { position: absolute; left: 0; top: 0; width: 30px; height: 30px;
   transform: translate(-13px, -12px); /* the live cursor hotspot (13 12) lands on the path point */ }
+
+/* ── PATCH NOTES (owner ask 2026-08-24) — the gameplay changelog, opened from the title only. Full-screen
+   overlay mirroring the Esc panel's chrome (`.escov`/`.escpanel`), with a scrolling newest-first list. ── */
+.pnov { position: fixed; inset: 0; z-index: 500; display: grid; place-items: center; background: rgba(20, 14, 7, 0.62); backdrop-filter: blur(3px); animation: fadein 0.16s ease; }
+.pnpanel { width: min(760px, 92vw); max-height: 86vh; display: flex; flex-direction: column; background: var(--bg2); border: 2px solid var(--line); border-radius: 18px; box-shadow: 0 22px 60px -18px rgba(0, 0, 0, 0.6); overflow: hidden; }
+.pnhead { display: flex; align-items: center; justify-content: space-between; padding: 18px 22px 12px; border-bottom: 1px solid var(--line); }
+.pntitle { font-size: 26px; color: var(--ink); letter-spacing: 0.02em; }
+.pnclose { font-size: 18px; font-weight: 900; color: var(--ink3); background: none; border: none; border-radius: 10px; width: 36px; height: 36px; cursor: pointer; }
+.pnclose:hover { color: var(--ink); background: rgba(255, 255, 255, 0.06); }
+.pnscroll { overflow-y: auto; overflow-x: hidden; padding: 8px 22px 22px; }
+.pnpatch { padding: 16px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.06); }
+.pnpatch:last-child { border-bottom: none; }
+.pnpatchhead { display: flex; align-items: baseline; gap: 12px; margin-bottom: 10px; }
+.pndate { font-family: var(--font-ui); font-weight: 900; font-size: 18px; color: var(--ink); }
+.pnlabel { font-family: var(--font-ui); font-weight: 800; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--acc); background: color-mix(in srgb, var(--acc) 14%, transparent); border: 1px solid color-mix(in srgb, var(--acc) 35%, transparent); padding: 2px 9px; border-radius: 999px; }
+.pngroup { display: grid; grid-template-columns: 116px 1fr; gap: 12px; align-items: start; padding: 5px 0; }
+.pntag { justify-self: start; font-family: var(--font-ui); font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; padding: 3px 10px; border-radius: 8px; white-space: nowrap; color: var(--pn-c, var(--ink2)); background: color-mix(in srgb, var(--pn-c, var(--ink2)) 14%, transparent); border: 1px solid color-mix(in srgb, var(--pn-c, var(--ink2)) 34%, transparent); }
+/* Per-category hue — reuse the existing palette tokens so patch tags match the rest of the game's language. */
+.pntag-newhero   { --pn-c: var(--t-beast); }
+.pntag-herochange{ --pn-c: var(--t-demon); }
+.pntag-newcard   { --pn-c: var(--t-dragon); }
+.pntag-cardchange{ --pn-c: var(--t-kobold); }
+.pntag-newrune   { --pn-c: var(--t-undead); }
+.pntag-runechange{ --pn-c: var(--t-dwarf); }
+.pntag-ui        { --pn-c: var(--ink3); }
+.pnlist { margin: 0; padding: 0 0 0 2px; list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.pnlist li { font-family: var(--font-ui); font-weight: 600; font-size: 14.5px; line-height: 1.4; color: var(--ink2); }
+@media (max-width: 620px) { .pngroup { grid-template-columns: 1fr; gap: 5px; } }
+

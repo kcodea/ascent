@@ -53,6 +53,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   const openRankings = useGame((s) => s.openRankings);
   const openRecentGames = useGame((s) => s.openRecentGames);
   const openBalance = useGame((s) => s.openBalance);
+  const openPatchNotes = useGame((s) => s.openPatchNotes);
   const openCareer = useGame((s) => s.openCareer);
   const toggleBook = useGame((s) => s.toggleBook);
   const playerName = useGame((s) => s.playerName);
@@ -207,6 +208,8 @@ export function Title({ onSettings }: { onSettings: () => void }) {
         {/* Preserved secondary modes (not in the mockup, kept so nothing is lost). */}
         <div className="titlesecondary">
           <button onClick={() => { sfx.pulse(); toggleBook(); }} title="Compendium — browse every card">Compendium</button>
+          <span className="tsdot">·</span>
+          <button onClick={() => { sfx.pulse(); openPatchNotes(); }} title="Patch Notes — gameplay changes by date">Patch Notes</button>
           {/* DEV-ONLY (owner 2026-08-24): the Balance Report is a dev/telemetry view, stripped from the exe +
               itch prod builds. The dot rides inside the guard so prod never shows a dangling separator. */}
           {import.meta.env.DEV && (

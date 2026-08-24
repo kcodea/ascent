@@ -62,9 +62,17 @@ Masters live outside the repo (`C:/Game Assets/Ascent Art/…`). Copy a master t
 and deletes the PNG. **Only wire art whose filename matches the card id or name.** Never guess from an
 unattributed file; flag the ambiguity instead. Art is keyed by id, so a retribe or rename needs no rewiring.
 
+## Patch notes
+
+A gameplay change is not shipped until it is in the PLAYER changelog. When you add or change a card, rune,
+hero, or an in-game UI/information behaviour, PREPEND a plain-English, spoiler-light entry to
+`packages/ui/src/patchNotes.ts` (title-screen Patch Notes) in the SAME PR — newest first, tagged with the
+right category. Skip build/test/tooling/refactor work; that is not player-facing (owner ask 2026-08-24).
+
 ## Verification
 
 - Plain and Gilded text agree with the implementation.
+- A gameplay change added a `patchNotes.ts` entry (or you confirmed it is not player-facing).
 - Tier, stats, tribe(s), keywords, token status, set membership are right.
 - Discover/random pools can actually produce what the text promises.
 - Named granted cards exist in the global index.

@@ -250,9 +250,16 @@ export function MinionBook() {
   // tribes (mirrors `stockPool`: neutral is always findable, so it's added below regardless).
   const tribes: Tribe[] = showTitle ? [...activeSet().tribes] : run.tribes;
 
-  // Left-rail categories: the active (or all) tribes, then Neutral (always findable), then Spells, Quest Rewards,
-  // and Quests (the quest definitions themselves).
-  const categories: Category[] = useMemo(() => [...tribes, 'neutral', 'spells', 'rewards', 'quests', 'runes', 'runeRewards', 'heroes'], [tribes]);
+  // Left-rail categories: the active (or all) tribes, then Neutral (always findable), then Spells, Runes,
+  // Rune Rewards and Heroes.
+  //
+  // QUESTS + QUEST REWARDS ARE HIDDEN (owner 2026-08-24: "not a system that's currently active"). Only the two
+  // left-rail buttons are removed, so the buckets can never be selected — every `cats.has('quests')` /
+  // `cats.has('rewards')` branch below (and `questsToShow`, `QUEST_REWARD_CARDS`) simply stays dormant rather
+  // than being deleted, so restoring the tab when quests come back is a one-line change here. A quest-reward
+  // token that is ALSO a real minion still shows in its tribe gallery (BUYABLE_CARDS membership is unchanged);
+  // only the pure reward-only tokens, which needed the now-absent bucket to appear, go dark.
+  const categories: Category[] = useMemo(() => [...tribes, 'neutral', 'spells', 'runes', 'runeRewards', 'heroes'], [tribes]);
 
   // Heroes for the Heroes tab — every shippable hero (WIP ones are withheld, like the picker), searchable by
   // name or power. Not run-scoped (heroes aren't tribe-bound), same as the Runes tab.

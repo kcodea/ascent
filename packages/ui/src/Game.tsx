@@ -275,7 +275,9 @@ export function Game() {
       {/* Frame-health HUD. Ships in production but stays dormant unless opted into (?perf=1 /
           localStorage / the dev menu) — a slowness report is only trustworthy against the prod build. */}
       {perfOn && <PerfHud onClose={() => setPerfOn(false)} />}
-      <BalancePanel />
+      {/* DEV-ONLY (owner 2026-08-24): the Balance Report reads dev/session telemetry and must not ship in the
+          exe or itch repacks, which are production `build:web` bundles where `import.meta.env.DEV` is false. */}
+      {import.meta.env.DEV && <BalancePanel />}
 
       {/* Topmost layers: the pre-run hero picker (self-gates on heroChoices), and above it the title
           screen (self-gates on showTitle) — the front door into Ascent / Practice / Settings. */}

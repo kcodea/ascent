@@ -11,7 +11,7 @@
  * offered trio in via `heroOffer`.
  */
 import { CARD_INDEX, QUEST_INDEX, RUNE_INDEX } from '@game/content';
-import { createRun, runRecord, type RunState, type Action } from './state';
+import { createRun, type RunState, type Action } from './state';
 import { HEROES } from './heroes';
 import { reduce } from './reducer';
 import type { Replay } from './snapshot';
@@ -141,7 +141,11 @@ export function reconstructRunTelemetry(replay: Replay, heroOffer: string[] = []
     tierByWave[s.wave] = s.tier;
   }
 
-  const rec = runRecord(s);
+  // ROUND WINS FOR THE REPORT (owner 2026-08-24: "wins should be how many round wins the hero gets"). Count
+  // EVERY won round, not `runRecord`'s scored count — that slices off `CONFIG.calibrationRounds`, a retired
+  // course rule with no meaning in the lobby, so a hero that won rounds 1-2 was silently denied them. `rec` is
+  // still used for the win/loss/draw record elsewhere; only the report's `wins` figure changes.
+  const roundWins = s.history.reduce((n, r) => (r === 'win' ? n + 1 : n), 0);
   return {
     heroId: replay.heroId,
     heroOffer,
@@ -151,7 +155,7 @@ export function reconstructRunTelemetry(replay: Replay, heroOffer: string[] = []
     // Hall of Champions bug on 2026-07-31). The lobby answer is placement 1, which only the caller knows, so
     // the store overrides this at upload. Left as the course default rather than guessed here.
     won: s.phase === 'victory',
-    wins: rec.wins,
+    wins: roundWins,
     offeredQuests: [...offeredQuests],
     pickedQuests: [...pickedQuests],
     questTurns,

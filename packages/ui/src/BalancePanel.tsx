@@ -25,7 +25,7 @@ type Col = 'offer' | 'pick' | 'win' | 'avgWins' | 'avgTurns' | 'n' | 'seen' | 'b
   // AS a 1-run average rather than read as a trend.
   | 'avgPlace' | 'firstPct' | 'lastPct' | 'pn';
 const COL_LABEL: Record<Col, string> = {
-  offer: 'Offer', pick: 'Pick', win: 'Win', avgWins: 'Avg Wins', avgTurns: 'Avg Turns', n: 'n', seen: 'Seen', bought: 'Bought', buypct: 'Buy %',
+  offer: 'Offer', pick: 'Pick', win: 'Win', avgWins: 'Round Wins', avgTurns: 'Avg Turns', n: 'n', seen: 'Seen', bought: 'Bought', buypct: 'Buy %',
   shopSeen: 'Shop Seen', shopBought: 'Shop Buy', discSeen: 'Disc Seen', discBought: 'Disc Buy', discpct: 'Disc %',
   avgPlace: 'Avg Place', firstPct: '1st %', lastPct: '8th %', pn: 'placed n',
 };
@@ -35,9 +35,14 @@ type Section = { key: keyof PlayerReport & ('heroes' | 'quests' | 'runes' | 'min
 const SECTIONS: Section[] = [
   { key: 'minions', label: 'Minions', cols: ['shopSeen', 'shopBought', 'discSeen', 'discBought', 'discpct', 'buypct', 'avgPlace', 'firstPct', 'lastPct', 'pn'] },
   { key: 'spells', label: 'Spells', cols: ['shopSeen', 'shopBought', 'discSeen', 'discBought', 'discpct', 'buypct', 'avgPlace', 'firstPct', 'lastPct', 'pn'] },
-  { key: 'heroes', label: 'Heroes', cols: ['offer', 'pick', 'win', 'avgWins', 'n', 'avgPlace', 'firstPct', 'lastPct', 'pn'] },
-  { key: 'quests', label: 'Quests', cols: ['offer', 'pick', 'win', 'avgTurns', 'n', 'avgPlace', 'firstPct', 'lastPct', 'pn'] },
-  { key: 'runes', label: 'Runes', cols: ['offer', 'pick', 'win', 'n', 'avgPlace', 'firstPct', 'lastPct', 'pn'] },
+  // 'win' (win-RATE %) dropped 2026-08-24: in the lobby a win IS placing 1st, so it only duplicated '1st %'.
+  // 'avgWins' — average ROUND wins per run — is the wins figure that means something (owner: "wins should be
+  // how many round wins the hero gets"); its label now reads 'Round Wins' so it can't be mistaken for a rate.
+  { key: 'heroes', label: 'Heroes', cols: ['offer', 'pick', 'avgWins', 'n', 'avgPlace', 'firstPct', 'lastPct', 'pn'] },
+  // Quests section removed 2026-08-24: quests are not an active system (they are hidden from the Compendium
+  // too), so their offer/pick/win table only ever shows dead data. The `quests` key stays on the PlayerReport
+  // type and the aggregate still computes it, so restoring this row is a one-liner when quests return.
+  { key: 'runes', label: 'Runes', cols: ['offer', 'pick', 'n', 'avgPlace', 'firstPct', 'lastPct', 'pn'] },
 ];
 /** The chart section is not a table — it renders the shop-leveling curve instead of rows. */
 const SHOP_CURVE = 'shopcurve' as const;

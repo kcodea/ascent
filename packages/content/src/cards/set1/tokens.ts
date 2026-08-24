@@ -187,7 +187,9 @@ export const TOKENS: CardDef[] = [
     // NOT `hoardwhelp` — that id is the Coin Hoard quest's 3/2 reward Dragon, and reusing it silently shadowed
     // that card (caught by the duplicate-id tripwire, which is exactly what it exists for).
     id: 'cindarawhelp',
-    name: 'Cinder Whelp',
+    // Named for the hero, matching her art file, and deliberately NOT 'Cinder Whelp' — that name is still
+    // free for a real card, and a token quietly holding it would collide the day one is authored.
+    name: 'Cindara Whelp',
     tribe: 'dragon',
     tier: 1,
     attack: 1,

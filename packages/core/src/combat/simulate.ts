@@ -1342,6 +1342,14 @@ export function simulate(
       if (near >= 0) index = near + 1;
     }
     arr.splice(index, 0, minion);
+    // AVENGE COUNTS FROM ARRIVAL (owner report 2026-08-24): a minion SUMMONED mid-combat must not inherit the
+    // side's running death tally, or an Avenge body summoned onto a board that has already lost N minions fires
+    // the instant it lands — Bullseye/Mammoth rolling a 7/7 Solaris that immediately Wards + strikes, or a
+    // summoned Dunkey instantly summoning an Armadiyo. It is the SAME rule a Rise already uses (see
+    // `avengeBaseline` at the killOrReborn site): everything before this body existed is not its progress.
+    // The initial board never reaches placeSummon, so start-of-fight minions keep baseline 0 and count from the
+    // opening — exactly as before.
+    minion.avengeBaseline = deaths[side];
     if (!copyStats) applyAuras(minion, true); // a plain summon starts from base; an exact copy already carries its final stats
     // SOLID GROUND (spell): the first N minions YOU summon this fight land bigger. Counted down per body, so a
     // wave of tokens spends it in arrival order and the 4th arrives plain.

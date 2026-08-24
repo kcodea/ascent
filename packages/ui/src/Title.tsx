@@ -4,6 +4,7 @@ import { activeRift, LEARN_ASCENT } from '@game/sim';
 import { avatarSrc, modeArt } from './art';
 import { getTitleText, subscribeTitleText, titleContinueNote } from './titleTextConfig';
 import { applyTitleVars } from './titleConfig';
+import { applyTitleVeilVars } from './titleVeilConfig';
 import { Icon } from './Icon';
 import { sfx } from './sfx';
 import { useGame, tempHandle } from './store';
@@ -73,7 +74,8 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   const [, bumpText] = useState(0);
   useEffect(() => subscribeTitleText(() => bumpText((n) => n + 1)), []);
   // Apply the persisted Title Logo tuner values (dev) / DEFAULTS (prod) to `--title-*` when the menu mounts.
-  useEffect(() => { applyTitleVars(); }, []);
+  // Same for the Title Veil (`--tv-*`, the navy background vignette).
+  useEffect(() => { applyTitleVars(); applyTitleVeilVars(); }, []);
   const txt = getTitleText();
 
   const [editing, setEditing] = useState(false);

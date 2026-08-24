@@ -13,6 +13,7 @@ import { CardPillsTuner } from './CardPillsTuner';
 import { CardArtTuner } from './CardArtTuner';
 import { LobbyPanelTuner } from './LobbyPanelTuner';
 import { TitleLogoTuner } from './TitleLogoTuner';
+import { LoadScreenTuner } from './LoadScreenTuner';
 import { TitleVeilTuner } from './TitleVeilTuner';
 import { BoardEdgeTuner } from './BoardEdgeTuner';
 import { SecondPowerTuner } from './SecondPowerTuner';
@@ -130,6 +131,7 @@ const GROUPS: Group[] = [
       { key: 'runesheen', icon: '💠', label: 'Rune Sheen', C: RuneSheenTuner, hint: 'The glossy overlay on the owned-rune nodes' },
       { key: 'titlelogo', icon: '🏔️', label: 'Title Logo', C: TitleLogoTuner, hint: 'The main-menu peak mark + ASCENT wordmark — size, spacing, and position', alt: 'main menu title wordmark' },
       { key: 'titleveil', icon: '🌒', label: 'Title Veil', C: TitleVeilTuner, hint: 'The dark navy gradient behind the main menu — colour, intensity and the bowed clear zone over the floating city', alt: 'main menu background darken vignette overlay' },
+      { key: 'loadscreen', icon: '⏳', label: 'Load Screen', C: LoadScreenTuner, hint: 'The boot splash — resize the AscentIcon and size/position the loading bar. "Toggle load screen" re-shows it live', alt: 'boot loading splash screen' },
     ],
   },
   {

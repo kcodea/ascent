@@ -48,6 +48,20 @@
 
          Inline and tiny on purpose — it must run before the ~3 MB bundle, which is the whole point of the
          splash. `error` also reveals, so a missing file leaves black rather than a stuck invisible layer. */
+      /* Apply the DEV Load Screen tuner's saved size/position BEFORE the splash paints, so a tuned dev build is
+         WYSIWYG with no resize flash. Absent for everyone who never opened the tuner (prod users included) →
+         the CSS fallbacks stand. Kept tiny + defensive; it must run before the ~3 MB bundle. */
+      (function () {
+        try {
+          var raw = localStorage.getItem('ascent.loadscreen');
+          if (!raw) return;
+          var c = JSON.parse(raw), r = document.documentElement.style;
+          if (typeof c.iconSize === 'number') r.setProperty('--ls-icon', c.iconSize + 'px');
+          if (typeof c.barWidth === 'number') r.setProperty('--ls-bar-w', c.barWidth + 'px');
+          if (typeof c.barHeight === 'number') r.setProperty('--ls-bar-h', c.barHeight + 'px');
+          if (typeof c.barBottom === 'number') r.setProperty('--ls-bar-bottom', c.barBottom + 'vh');
+        } catch (e) { /* ignore */ }
+      })();
       (function () {
         var s = document.getElementById('bootsplash');
         var i = document.getElementById('bootsplash-img');
@@ -79,7 +93,9 @@
       /* The AscentIcon is a square logo — centred, not full-bleed. Sized to the smaller viewport axis so it
          never crowds a short or narrow window. */
       #bootsplash-img {
-        width: min(300px, 42vw, 42vh); height: auto; aspect-ratio: 1;
+        /* `--ls-icon` etc. are set by the DEV Load Screen tuner (loadScreenConfig.ts); the fallbacks here are
+           the shipped values and MUST mirror its DEFAULTS. */
+        width: var(--ls-icon, min(300px, 42vw, 42vh)); height: auto; aspect-ratio: 1;
         object-fit: contain;
         opacity: 0; transition: opacity 700ms ease-out;
         filter: drop-shadow(0 8px 30px rgba(0, 0, 0, 0.55));
@@ -87,8 +103,8 @@
       #bootsplash.is-in #bootsplash-img { opacity: 1; }
       #bootsplash.is-out { opacity: 0; pointer-events: none; }
       #bootsplash-bar {
-        position: absolute; left: 50%; transform: translateX(-50%); bottom: 12vh;
-        width: min(340px, 46vw); height: 6px; border-radius: 999px;
+        position: absolute; left: 50%; transform: translateX(-50%); bottom: var(--ls-bar-bottom, 12vh);
+        width: var(--ls-bar-w, min(340px, 46vw)); height: var(--ls-bar-h, 6px); border-radius: 999px;
         background: rgba(255, 255, 255, 0.1); overflow: hidden;
         box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.5);
         opacity: 0; transition: opacity 700ms ease-out;   /* arrives with the logo, not before it */

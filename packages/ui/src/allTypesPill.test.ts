@@ -46,7 +46,11 @@ describe('the "All types" cards are flagged in DATA', () => {
  */
 // Every live card is arted as of 2026-08-20 — this stays as the seam for the NEXT batch: add an id here
 // when its card ships ahead of its artwork, and delete it the moment the art lands.
-const ART_PENDING = new Set<string>([]);
+const ART_PENDING = new Set<string>([
+  // Cindara's Avenge (4) Whelp (owner hero batch 2026-08-23). Ships with the hero; the owner makes hero and
+  // token art, so it renders the Dragon tribe sprite until that lands. DELETE THIS LINE when the art is wired.
+  'cindarawhelp',
+]);
 
 describe('art coverage for live cards', () => {
   it('every non-token live card has art (Set 3 scaffold excluded — not shipped yet)', () => {

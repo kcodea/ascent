@@ -3765,6 +3765,22 @@ function settleCombat(s: RunState, result: CombatResult): void {
     procRune(s, 'runeAshenPayroll');
     s.bonusEmbersNextTurn = (s.bonusEmbersNextTurn ?? 0) + (result.playerImpsSummoned ?? 0);
   }
+  // ── HERO TALLIES (owner batch 2026-08-23). Accumulated UNCONDITIONALLY, not gated on wielding the power.
+  // A run can adopt Tempest or Blade Mastery mid-run through Mimic / Void / Power Shifter, and a tally that
+  // only started on adoption would open at zero — printing a threshold the player had in fact already passed,
+  // and (for Mimic, which re-picks every turn) resetting whenever they wielded something else for a round.
+  // Counting always is both cheaper and the only version that reads honestly.
+  if (result.playerQuestTally?.slaughter) s.tempestKills = (s.tempestKills ?? 0) + result.playerQuestTally.slaughter;
+  if (result.playerQuestTally?.attack) s.bladeAttacks = (s.bladeAttacks ?? 0) + result.playerQuestTally.attack;
+  if (result.playerHoardGain) {
+    // REPLACED, not mutated — the same reference-identity rule `impBuff` documents above: the live-text memos
+    // key on this object, so an in-place bump would never reach the printed Whelp stats.
+    const prev = s.hoardWhelpBuff ?? { attack: 0, health: 0 };
+    s.hoardWhelpBuff = {
+      attack: prev.attack + result.playerHoardGain.attack,
+      health: prev.health + result.playerHoardGain.health,
+    };
+  }
   if (s.questFlags?.runeSlaying && result.playerQuestTally?.slaughter) {
     s.runeSlayingKills = (s.runeSlayingKills ?? 0) + result.playerQuestTally.slaughter;
     while (s.runeSlayingKills >= 6) {
@@ -5636,6 +5652,12 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     pitWithoutEndImps: s.pitWithoutEndImps || undefined,
     doubleLeftmostAttack: f?.doubleLeftmostAttack,
     possession: hasPower(s, 'possession') || undefined, // Atrius: SoC leftmost/rightmost stat trade
+    // GORUN + CINDARA (owner batch 2026-08-23). Both go through `hasPower`, not `heroId`, so an ADOPTED power
+    // (Mimic / Void / Power Shifter) behaves identically to the native one. And because `questCombatMods` is
+    // the same builder a SNAPSHOT uses, a rival seat that ran either hero brings its own values into the fight
+    // on its own side — which is why both are read via `modsFor(side)` in simulate rather than player-side.
+    bladeMastery: hasPower(s, 'bladeMastery') ? { attacks: s.bladeAttacks ?? 0 } : undefined,
+    hoard: hasPower(s, 'hoard') ? { ...(s.hoardWhelpBuff ?? { attack: 0, health: 0 }) } : undefined,
     slaughterFirstEachCombat: s.slaughterFirstEachCombat || undefined,
     feedingLine: f?.feedingLine,
     umbralEnergy: f?.umbralEnergy,

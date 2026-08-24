@@ -72,6 +72,18 @@ export function simulate(
   const beastAtkAuraFor: Record<Side, number> = { player: playerState.beastBuyAtk, enemy: enemyState.beastBuyAtk };
   const beastHpAuraFor: Record<Side, number> = { player: playerState.questMods.beastAuraHp ?? 0, enemy: enemyState.questMods.beastAuraHp ?? 0 };
   let beastBuyAtkGain = 0; // The Old Hunt: run-wide Beast Attack aura gained this combat → carried back
+  // GORUN (Blade Mastery): attacks made THIS fight, per side. The run-lifetime total rides in on
+  // `mods.bladeMastery.attacks`; adding this to it is what lets the grant step up mid-combat as the running
+  // total crosses each multiple of 8. Its own counter rather than `questTally.attack`, which is player-only —
+  // a served rival running Gorun has to snowball on its own side too.
+  const bladeAttacks: Record<Side, number> = { player: 0, enemy: 0 };
+  // CINDARA (Hoard): the improvement her Whelps have banked ABOVE the token's 1/1 base, per side. Seeded from
+  // the run's saved level and grown +2/+2 per Avenge (4) fire; the player's growth carries back at settle.
+  const hoardLevel: Record<Side, { attack: number; health: number }> = {
+    player: { ...(playerState.questMods.hoard ?? { attack: 0, health: 0 }) },
+    enemy: { ...(enemyState.questMods.hoard ?? { attack: 0, health: 0 }) },
+  };
+  const hoardStart = { attack: hoardLevel.player.attack, health: hoardLevel.player.health };
   // Pack Mentality: player-side LIVE growth of the Beast aura (every `per` Beasts summoned this fight grow it by
   // step, applied at once to living Beasts). `beastScaleProgress` counts toward the next step; the Health gain is
   // its own carry-back (The Old Hunt is Attack-only, so `beastBuyHpGain` is new).
@@ -2505,6 +2517,21 @@ export function simulate(
         ctx.buff(attacker, wildHuntGrown[attacker.side], 0, 'Rune of the Wild Hunt');
         fireTrigger('runeWildHunt', attacker.side);
       }
+      // GORUN — BLADE MASTERY. Every friendly attack grants the ATTACKER +3 Attack, and the grant improves by
+      // another +3 for every 8 attacks made. Placed here, before the exchange below, so the grant sharpens the
+      // very swing that earned it — the natural reading of "when your minions attack, give them +3 Attack",
+      // and the same timing Rune of the Wild Hunt uses one block up.
+      //
+      // The level reads the count BEFORE this swing, so "improves every 8 attacks" means the 9th attack is the
+      // first bigger one. Combat-only (owner ruling 2026-08-23): `ctx.buff` without a carry-back channel, so a
+      // fight's snowball dies with the fight and the board opens clean next round. Per side, off `modsFor`.
+      const blade = modsFor(attacker.side).bladeMastery;
+      if (blade && !attacker.dead && attacker.health > 0) {
+        const total = blade.attacks + bladeAttacks[attacker.side];
+        ctx.buff(attacker, 3 * (1 + Math.floor(total / 8)), 0, 'Blade Mastery');
+        bladeAttacks[attacker.side] += 1;
+        fireTrigger('bladeMastery', attacker.side);
+      }
       const oldHuntStep = modsFor(attacker.side).oldHuntStep ?? 0;
       if (oldHuntStep > 0 && isBeast(attacker)) {
         // Reworked 2026-07-21: the grant is now SYMMETRIC (+N/+N, was Attack-only), so it pumps both aura
@@ -3351,6 +3378,31 @@ export function simulate(
     const imp = cards['impscrap'];
     if (imp) { nextStep(); for (let i = 0; i < 2; i++) summonMinion(side, imp, undefined, ['T']); }
   });
+  // CINDARA — HOARD. Avenge (4): summon a Whelp that strikes immediately, then improve every Whelp on that
+  // side by +2/+2. Registered through `runeAvenge` like the rune Avenges, so it inherits the modulo, the
+  // per-side mask and the Rune of Fury re-fire for free.
+  //
+  // ORDER IS LOAD-BEARING (owner ruling 2026-08-23: "both whelps would be 5/5"). Summon at the CURRENT level,
+  // then buff the Whelps that were ALREADY out, then raise the level. The new Whelp defers onto the
+  // immediate-attack queue and is not on the board yet, so it cannot receive the retroactive buff — but it was
+  // minted at the level the buff brings everyone else up TO, so they converge exactly. Walk it through:
+  //   fire 1 → level 0: Whelp A lands 1/1, nobody to buff, level → 2
+  //   fire 2 → level 2: Whelp B lands 3/3, A buffed to 3/3, level → 4   (both 3/3 ✓)
+  //   fire 3 → level 4: Whelp C lands 5/5, A+B buffed to 5/5, level → 6 (all 5/5 ✓)
+  // The base stats ride on a CLONED def rather than `copyStats`, because `placeSummon` skips `applyAuras` for
+  // an exact copy — a copyStats Whelp would silently miss the side's Dragon auras.
+  runeAvenge(4, 'hoard', (m) => !!m.hoard, (side) => {
+    const base = cards['cindarawhelp'];
+    if (!base) return;
+    const lvl = hoardLevel[side];
+    nextStep();
+    summonMinion(side, { ...base, attack: base.attack + lvl.attack, health: base.health + lvl.health }, undefined, undefined, false, true);
+    for (const m of boards[side]) {
+      if (m.dead || m.health <= 0 || m.cardId !== 'cindarawhelp') continue;
+      ctx.buff(m, 2, 2, 'Hoard');
+    }
+    lvl.attack += 2; lvl.health += 2;
+  });
   runeAvenge(4, 'runeSpearline', (m) => !!m.runeSpearline, (side) => { // summon a Spear Warden that attacks immediately
     const knit = cards['knit'];
     if (knit) { nextStep(); summonMinion(side, knit, undefined, undefined, false, true); }
@@ -3747,6 +3799,11 @@ export function simulate(
     playerSlaughterCopy: slaughterCopyId,
     playerUndeadAuraGain: undeadAuraGain.attack > 0 || undeadAuraGain.health > 0 ? undeadAuraGain : undefined,
     playerImpBuffGain: impBuffGain.attack > 0 || impBuffGain.health > 0 ? impBuffGain : undefined,
+    // Cindara: only the GROWTH, not the level — settle adds it to the run's banked total, so a re-simulated
+    // combat cannot double-count the improvement it started with.
+    playerHoardGain: hoardLevel.player.attack > hoardStart.attack
+      ? { attack: hoardLevel.player.attack - hoardStart.attack, health: hoardLevel.player.health - hoardStart.health }
+      : undefined,
     playerRightmostSlotBuff: rightmostSlotGain.attack > 0 || rightmostSlotGain.health > 0 ? { ...rightmostSlotGain } : undefined,
     playerBeastialSwarmLevel: beastialLevel.player > beastialStart.player ? beastialLevel.player : undefined,
     playerBoardBuffGain: boardBuffGain.attack > 0 || boardBuffGain.health > 0 ? { ...boardBuffGain } : undefined,

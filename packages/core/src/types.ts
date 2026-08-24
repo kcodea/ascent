@@ -1405,6 +1405,16 @@ export interface QuestCombatMods {
    *  `playerBeastBuyAtkGain` / `playerBeastBuyHpGain` (+ leftover `progress` via `playerBeastScaleProgress`).
    *  Player-side only (a served enemy has no run to grow); absent when no such quest is armed. */
   beastSummonScale?: { per: number; stepAttack: number; stepHealth: number; progress: number };
+  /** Gorun's Blade Mastery: a friendly attack grants the ATTACKER +3 Attack for the rest of the fight, and the
+   *  grant improves by +3 for every 8 attacks made. `attacks` is the run-lifetime count BEFORE this fight, so
+   *  the grant keeps stepping up mid-combat as the count rises past each multiple of 8 — the same total the
+   *  shop panel prints. Per side: a served rival running Gorun brings its own offset through its snapshot. */
+  bladeMastery?: { attacks: number };
+  /** Cindara's Hoard: Avenge (4) summons a Whelp that attacks immediately, then improves EVERY living Whelp on
+   *  that side by +2/+2 — retroactively, so two Whelps are never different sizes (owner ruling 2026-08-23).
+   *  The value here is the banked improvement above the token's 1/1 base at the START of the fight; growth
+   *  during the fight is carried back via `playerHoardGain`. Per side, like the Avenge runes. */
+  hoard?: { attack: number; health: number };
   /** Sable's Soulbind: two bound player uids. A stat gain on either is mirrored onto the other, in full and
    *  ONCE (no echo back — owner ruling 2026-08-16). The bond lasts a single turn, so this is present only for
    *  the fight it was forged for; the recruit phase mirrors the same rule through `addBuff`. */
@@ -2449,6 +2459,10 @@ export interface CombatResult {
   /** Permanent Imp buff gained this combat (Imp King Deathrattle, Brood Matron Avenge) — added to
    *  RunState.impBuff so future Imps inherit it. Absent if 0/0. */
   playerImpBuffGain?: { attack: number; health: number };
+  /** Cindara's Hoard: the improvement her Whelps GAINED this combat (+2/+2 per Avenge (4) fire). Added to
+   *  `RunState.hoardWhelpBuff` at settle, so the next fight's Whelps open at the size the last one left them.
+   *  Absent if 0/0 — a fight where the Avenge never reached 4 deaths banks nothing. */
+  playerHoardGain?: { attack: number; health: number };
   /** Permanent right-most Shop-slot buff earned this combat (Right Hand Hank's Echo) — added to
    *  RunState.rightmostSlotBuff so the next shop's right-most offer carries it. Absent if 0/0. */
   playerRightmostSlotBuff?: { attack: number; health: number };

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readdirSync, existsSync } from 'node:fs';
 import { CARD_INDEX } from '@game/content';
+import { HEROES } from '@game/sim';
 
 /**
  * "ALL TYPES" cards must never print their data tribe (owner report 2026-08-20: Lab Experiment, Paragon and
@@ -58,5 +59,18 @@ describe('art coverage for live cards', () => {
       .filter((c) => !minions.has(c.id) && !spells.has(c.id))
       .map((c) => `${c.id} (${c.name})`);
     expect(missing, `these live cards render the tribe-sprite fallback instead of their art`).toEqual([]);
+  });
+
+  it('every live HERO has both a portrait and a hero-power button', () => {
+    // The card sweep above never covered heroes, so a hero could ship with no portrait and only show it on
+    // the select screen. Both are plain `<heroId>.webp` globs (`art.ts`), so absence is the whole failure
+    // mode. Verified green across the roster before being asserted — this is a new guard, not a fixed gap.
+    const have = (d: string): Set<string> =>
+      new Set(readdirSync(`packages/ui/src/art/${d}`).map((f) => f.replace(/\.(webp|png|jpe?g)$/i, '')));
+    const portraits = have('heroes');
+    const powers = have('powers');
+    const live = HEROES.filter((h) => !h.wip);
+    expect(live.filter((h) => !portraits.has(h.id)).map((h) => h.id), 'heroes with no portrait').toEqual([]);
+    expect(live.filter((h) => !powers.has(h.id)).map((h) => h.id), 'heroes with no power art').toEqual([]);
   });
 });

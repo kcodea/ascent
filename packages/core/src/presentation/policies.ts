@@ -837,6 +837,13 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'hero:rayse:empoweringVines': { policy: 'passive', family: 'passive', flagged: true },
   'hero:mimic:mimic': { policy: 'ownBeat', family: 'heroPayout', flagged: true },
   'hero:voidhero:voidTwin': { policy: 'ownBeat', family: 'heroPayout', flagged: true },
+  // 2026-08-23 hero batch. Gorun and Cindara are combat-side passives that present INSIDE the replay (a buff
+  // on the attacker, a summon + strike), so they ride the passive policy like Rayse. Aevor is the odd one:
+  // it fires in the recruit phase's End-of-Turn engine and grants permanent stats between fights, so it gets
+  // its own beat the way the other End-of-Turn payouts do — otherwise the board silently grows at turn end.
+  'hero:aevor:tempest': { policy: 'ownBeat', family: 'heroPayout', flagged: true },
+  'hero:gorun:bladeMastery': { policy: 'passive', family: 'passive', flagged: true },
+  'hero:cindara:hoard': { policy: 'passive', family: 'passive', flagged: true },
   'hero:coran:heroQuest': { policy: 'ownBeat', family: 'heroPayout', flagged: true },
   'hero:fi:heroQuest': { policy: 'ownBeat', family: 'heroPayout', flagged: true },
   'hero:darah:displace': { policy: 'ownBeat', family: 'heroPower', flagged: true },

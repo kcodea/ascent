@@ -27,6 +27,7 @@ const LIVE: Record<string, string> = {
   playerRubyMints: "the 'toHand'-style mint beat in the replay (each Ruby flies to hand on its trigger)",
   playerPermaBuffs: "the 'buff' events themselves — the stats move on the body as they land",
   playerImpBuffGain: "the 'tribeAura' event — the board wash + Buffs-panel row tick",
+  playerHoardGain: "Cindara's Hoard — each +2/+2 is a visible buff on the living Whelps as it lands, so the growth is watched in real time rather than reported at settle",
   playerUndeadAuraGain: "the 'tribeAura' event (Lantern channel)",
   playerUndeadBuyAtkGain: "the 'tribeAura' event (Undead Attack aura)",
   playerTavernBuyGain: "the '+N/+N Shop' sc narration (gainTavernBuy telegraphs per proc)",

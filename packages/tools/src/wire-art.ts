@@ -139,7 +139,14 @@ for (const r of [...RUNES, ...EPIC_RUNES]) {
   if (theless !== norm(r.name) && !runesByName.has(theless)) runesByName.set(theless, r.id);
 }
 
-interface Job { label: string; src: string; dirs: string[]; dest: string; index: Map<string, string>; aliases: Record<string, string>; skip?: Set<string> }
+interface Job {
+  label: string; src: string; dirs: string[]; dest: string; index: Map<string, string>; aliases: Record<string, string>;
+  /** Per-job DENY list: a stale duplicate in THIS folder that must lose to a better source elsewhere. */
+  skip?: Set<string>;
+  /** Per-job ALLOW list (normalized stems). For a folder whose files mostly belong to a DIFFERENT job — the
+   *  one token that lives among the hero-power art — so the job does not report every sibling as unmatched. */
+  only?: Set<string>;
+}
 // Heroes wire by NAME and by ID both: several source files still carry a hero's PRE-RENAME name
 // (BaggerBen.png → the hero now displayed as Rascal), and the filename happens to be the ID exactly.
 const heroesByName = new Map<string, string>();
@@ -234,6 +241,16 @@ const JOBS: Job[] = [
     dirs: ['.'], dest: 'packages/ui/src/art/powers', index: heroPowersByName, aliases: HERO_POWER_ALIASES,
   },
   {
+    // TOKENS AUTHORED WITH A HERO POWER (owner batch 2026-08-23). Cindara's Whelp is summoned BY Hoard, so its
+    // art was drawn alongside the power art and lives in that folder — but it is a real minion card, so it has
+    // to land in the MINION destination and match against the card index, not the hero-power one. An `only`
+    // list rather than a second full pass: without it this job would report every sibling `*HP.png` as
+    // unmatched on every run, which is the kind of standing noise that trains you to ignore the report.
+    label: 'hero-power tokens', src: 'C:/Game Assets/Ascent Art/Heroes/Hero Powers',
+    dirs: ['.'], dest: 'packages/ui/src/art/minions', index: cardsByName, aliases: ALIASES,
+    only: new Set(['cindarawhelp']),
+  },
+  {
     // QUEST art (owner ask 2026-08-02) — the folder was only mined for its "Quest Reward Related Things"
     // sub-folder before, so the quest cards themselves were never wired. `dirs: ['.']` deliberately does not
     // recurse: the sub-folder is its own job above, with a different destination.
@@ -266,6 +283,7 @@ for (const job of JOBS) {
       const stem = file.replace(/\.(png|webp|jpe?g)$/i, '').replace(/_\d+_$/, '');
       if (RETIRED.has(norm(stem))) continue; // attributed to a removed card — never re-owned by name-accident
       if (job.skip?.has(norm(stem))) continue; // per-job skip: a stale duplicate in THIS folder loses to the current source
+      if (job.only && !job.only.has(norm(stem))) continue; // per-job allow list: this folder is mined for a few named files only
       // A FULL-STEM alias wins before the variant convention: some trailing digits are part of a distinct
       // id's name (RuneOTheMenagerie2 = the set-2 twin), not "second art for the same id".
       const fullAlias = job.aliases[norm(stem)];

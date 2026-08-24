@@ -1651,6 +1651,23 @@ export interface RunState {
   runeMatriarch?: boolean;
   /** Rune of Slaying: kills banked toward the next every-6th dominant-type minion payout. */
   runeSlayingKills?: number;
+
+  // ── Hero tallies (owner batch 2026-08-23). All three are RUN-LIFETIME totals accumulated at settle from
+  // counts combat already produces, so no new combat counter exists for any of them. They are kept even while
+  // the hero is not wielding the power: a Mimic/Void/Power Shifter run can adopt one of these powers mid-run,
+  // and a tally that only started counting on adoption would print a number the player never earned — and,
+  // worse, reset if they adopted a different power for a turn.
+  /** Aevor (Tempest): enemies your minions have killed this run (`playerQuestTally.slaughter`, summed). Every
+   *  15 raises the End-of-Turn grant by another +4/+4; below 15 the power does nothing at all. */
+  tempestKills?: number;
+  /** Gorun (Blade Mastery): friendly attacks made this run (`playerQuestTally.attack`, summed). Every 8 raises
+   *  the per-attack Attack grant by another +3. Threaded INTO combat as the starting offset so the grant can
+   *  step up mid-fight, then carried back. */
+  bladeAttacks?: number;
+  /** Cindara (Hoard): the banked improvement on her Whelps, above the 1/1 base. Each Avenge (4) adds +2/+2 and
+   *  applies it RETROACTIVELY to every Whelp she already has out (owner ruling 2026-08-23), so two living
+   *  Whelps are always the same size. Persists between combats — that is what makes it a hoard. */
+  hoardWhelpBuff?: { attack: number; health: number };
   runeSummitTick?: number;
 
   /** Discovers queued behind the open one (`discover`). When a pick resolves, the next spec is shifted

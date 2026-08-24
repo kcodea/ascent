@@ -179,6 +179,27 @@ export const TOKENS: CardDef[] = [
     text: 'A 3/2 Dragon that attacks immediately when summoned.',
     token: true,
   },
+  {
+    // Cindara's Hoard Whelp — her Avenge (4) body. Printed at the 1/1 BASE; the run's banked Hoard improvement
+    // is added at summon time by the simulator, so this def stays a plain stat line and one rule owns the size
+    // (the `hoard` mod). Deliberately a SEPARATE token from `whelpling`: the retroactive "+2/+2 to your Whelps"
+    // is scoped to Cindara's own Whelps, so a Violet Whelp's 3/2 cub on the same board is untouched.
+    // NOT `hoardwhelp` — that id is the Coin Hoard quest's 3/2 reward Dragon, and reusing it silently shadowed
+    // that card (caught by the duplicate-id tripwire, which is exactly what it exists for).
+    id: 'cindarawhelp',
+    // Named for the hero, matching her art file, and deliberately NOT 'Cinder Whelp' — that name is still
+    // free for a real card, and a token quietly holding it would collide the day one is authored.
+    name: 'Cindara Whelp',
+    tribe: 'dragon',
+    tier: 1,
+    attack: 1,
+    health: 1,
+    keywords: [],
+    effects: [],
+    attackOnSummon: true,
+    text: 'A Dragon that attacks immediately when summoned.',
+    token: true,
+  },
 
   // --- Mech/neutral quest rewards (2026-07-08). token: true → reward-only. ---
   {

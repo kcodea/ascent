@@ -70,7 +70,10 @@ export type HeroPowerKind =
   | 'preparation' // Aster the Guide (tutorial-only): give a friendly minion +1/+1; recharges every other turn (active, targeted)
   | 'empoweringVines' // Rayse (passive): minions summoned in combat gain +2/+3 and Taunt
   | 'mimic' // Mimic (passive): at the start of EVERY turn, Discover a hero power (2 options) to wield this turn
-  | 'voidTwin'; // Void (passive): at the start of turn 4, Discover TWO hero powers (sequential 2-option picks) for the rest of the run
+  | 'voidTwin' // Void (passive): at the start of turn 4, Discover TWO hero powers (sequential 2-option picks) for the rest of the run
+  | 'tempest' // Aevor (passive): from 15 run kills, End of Turn gives your left+right-most +4/+4, another +4/+4 per 15
+  | 'bladeMastery' // Gorun (passive): a friendly attack grants the attacker +3 Attack for the fight, +3 more per 8 run attacks
+  | 'hoard'; // Cindara (passive): Avenge (4) summons a Whelp that strikes now, then improves every Whelp you own by +2/+2
 
 export interface HeroPower {
   name: string;
@@ -834,6 +837,48 @@ export const HEROES: HeroDef[] = [
       kind: 'empoweringVines',
       passive: true, // combat-side: threaded into simulate via questCombatMods (the Hatchery channel)
       text: 'Minions summoned in combat gain **+2/+3** and **Taunt**.',
+    },
+  },
+  // ── Batch 2026-08-23 (owner spec). Three passives, each riding a RUN-LIFETIME tally that combat already
+  // counts and carries back: `questTally.slaughter` (kills) for Aevor, `questTally.attack` for Gorun, and a
+  // banked Whelp level for Cindara. Nothing here needed a new counter — only somewhere to keep the total.
+  {
+    id: 'aevor',
+    name: 'Aevor',
+    blurb: 'The storm keeps its own count, and settles it at dusk.',
+    resolve: 30,
+    armor: 16,
+    power: {
+      name: 'Tempest',
+      kind: 'tempest',
+      passive: true, // recruit-side: fires from `applyEndOfTurn`; the live numbers come from `heroPowerText`
+      text: 'Unlocks after your minions kill **15** enemies. **End of Turn:** give your left and right-most minions **+4/+4**. Upgrades every **15** kills.',
+    },
+  },
+  {
+    id: 'gorun',
+    name: 'Gorun',
+    blurb: 'Every swing is a lesson, and he has never stopped taking notes.',
+    resolve: 30,
+    armor: 11,
+    power: {
+      name: 'Blade Mastery',
+      kind: 'bladeMastery',
+      passive: true, // combat-side: threaded into simulate via questCombatMods, per side
+      text: 'When your minions attack, give them **+3 Attack**. Improves every **8** attacks.',
+    },
+  },
+  {
+    id: 'cindara',
+    name: 'Cindara',
+    blurb: 'She counts the fallen in scales, and the pile only ever grows.',
+    resolve: 30,
+    armor: 9,
+    power: {
+      name: 'Hoard',
+      kind: 'hoard',
+      passive: true, // combat-side: an Avenge (4) registration in simulate, banked run-wide between fights
+      text: '**Avenge (4):** summon a **1/1** Whelp that attacks immediately. Improve your Whelps **+2/+2**.',
     },
   },
   {

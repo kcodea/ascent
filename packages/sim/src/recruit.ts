@@ -695,6 +695,33 @@ export function exhibitionGrantOf(state: RunState): number {
   return 1 + Math.floor((state.cardsPlayedTotal ?? 0) / 4);
 }
 
+/** Aevor (Tempest): the End-of-Turn grant, +4/+4 per completed 15 kills. ZERO below the first 15 — the power
+ *  is printed as "unlocks after 15 kills", so it must genuinely do nothing until then rather than round up to
+ *  a free +4/+4 on turn one. Shared by the End-of-Turn engine and the panel text, so the number the player
+ *  reads is the number they get. */
+export const TEMPEST_KILLS_PER_STEP = 15;
+export function tempestGrantOf(state: RunState): number {
+  return 4 * Math.floor((state.tempestKills ?? 0) / TEMPEST_KILLS_PER_STEP);
+}
+
+/** Gorun (Blade Mastery): the Attack a friendly attack grants right now — +3, plus another +3 per completed 8
+ *  attacks. Unlike Tempest this has NO unlock floor: the first swing of the run already grants +3.
+ *  Combat reproduces this expression from `mods.bladeMastery.attacks` plus the attacks made so far this fight,
+ *  which is what lets it step up mid-combat; this side prints the value the next swing would use. */
+export const BLADE_ATTACKS_PER_STEP = 8;
+export function bladeMasteryGrantOf(state: RunState): number {
+  return 3 * (1 + Math.floor((state.bladeAttacks ?? 0) / BLADE_ATTACKS_PER_STEP));
+}
+
+/** Cindara (Hoard): the stats her next Whelp arrives with — the 1/1 token base plus the run's banked
+ *  improvement. The base is read from the token def rather than hardcoded so a re-costed token cannot leave
+ *  the panel printing a size the summon does not produce. */
+export function hoardWhelpStatsOf(state: RunState): { attack: number; health: number } {
+  const base = CARD_INDEX['cindarawhelp'];
+  const banked = state.hoardWhelpBuff ?? { attack: 0, health: 0 };
+  return { attack: (base?.attack ?? 1) + banked.attack, health: (base?.health ?? 1) + banked.health };
+}
+
 /** Ayse (Lucky Seat): the reward each suit pays. Exported so the hero panel prints the QUEUED suit's reward and
  *  nothing else — the player should see the one thing that will actually happen, not a four-line table (owner
  *  ask 2026-08-16). The reducer's payout switch and this map are the same four cases by construction. */
@@ -802,6 +829,27 @@ export function heroPowerText(state: RunState, which = 0): string {
     const g = exhibitionGrantOf(state);
     const toNext = 4 - ((state.cardsPlayedTotal ?? 0) % 4);
     return `Play a minion between two others of three different types: all three gain **+${g}/+${g}**. Improves in **${toNext}** card${toNext === 1 ? '' : 's'} played.`;
+  }
+  if (power.kind === 'tempest') {
+    // The grant scales with a run tally, so the printed rule has to move with it (the card-text live-value
+    // rule, which applies to hero powers too — see `exhibition`). Below the first threshold it prints as
+    // LOCKED with the countdown, because a "+0/+0" would read as a broken effect rather than an unearned one.
+    const kills = state.tempestKills ?? 0;
+    const grant = tempestGrantOf(state);
+    const toNext = TEMPEST_KILLS_PER_STEP - (kills % TEMPEST_KILLS_PER_STEP);
+    if (grant === 0) return `Locked — kill **${toNext}** more enemies to unlock. Then, **End of Turn:** give your left and right-most minions **+4/+4**.`;
+    return `**End of Turn:** give your left and right-most minions **+${grant}/+${grant}**. Upgrades in **${toNext}** kill${toNext === 1 ? '' : 's'}. (${kills} killed)`;
+  }
+  if (power.kind === 'bladeMastery') {
+    const attacks = state.bladeAttacks ?? 0;
+    const grant = bladeMasteryGrantOf(state);
+    const toNext = BLADE_ATTACKS_PER_STEP - (attacks % BLADE_ATTACKS_PER_STEP);
+    return `When your minions attack, give them **+${grant} Attack** for the fight. Improves in **${toNext}** attack${toNext === 1 ? '' : 's'}. (${attacks} made)`;
+  }
+  if (power.kind === 'hoard') {
+    // The Whelp's size is banked run state, so the printed body has to be the one that will actually arrive.
+    const w = hoardWhelpStatsOf(state);
+    return `**Avenge (4):** summon a **${w.attack}/${w.health}** Whelp that attacks immediately. Improve your Whelps **+2/+2**.`;
   }
   if (power.kind === 'unitedFront') {
     // The magnitude IS the run's spell count, so the printed number has to track it (the card-text rule).
@@ -8944,6 +8992,26 @@ export function applyEndOfTurn(state: RunState): void {
         fires++;
       }
     }
+  }
+  // ── AEVOR — TEMPEST (owner spec 2026-08-23). End of Turn: the left- and right-most minions gain +4/+4 per
+  // completed 15 kills. Recruit-side by nature (it grants PERMANENT stats between fights), so it lives in this
+  // engine rather than in simulate — which also means a served rival running Aevor needs nothing extra: their
+  // snapshot was taken from a board their own End of Turn had already buffed.
+  //
+  // A ONE-MINION BOARD IS BUFFED ONCE, not twice: with a single body the left-most and the right-most are the
+  // same minion, and paying it double would make the power strongest at its most vulnerable (owner call is
+  // welcome here — flagged in the PR). `Set` dedupes by identity, so a two-plus board always gets both ends.
+  const tempest = tempestGrantOf(state);
+  if (tempest > 0 && hasPower(state, 'tempest') && state.board.length > 0) {
+    const ends = new Set([state.board[0]!, state.board[state.board.length - 1]!]);
+    const fire = (): void => { for (const c of ends) addBuff(c, 'Tempest', tempest, tempest); };
+    if (collector.enabled) {
+      collector.withTrigger(
+        { phase: 'endOfTurn', source: beatSource('hero', 'aevor', 'Tempest'), trigger: 'endOfTurn', ...beatIdentity('hero:aevor:tempest') },
+        fire,
+      );
+    } else fire();
+    fires++;
   }
   // Accumulate for the same reason as `lastShoutFires` — the reducer zeroes it per action, and an action can
   // reach applyEndOfTurn more than once (a hero power that procs an End of Turn, then the turn's own).

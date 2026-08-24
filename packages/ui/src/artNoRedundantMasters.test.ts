@@ -51,7 +51,9 @@ describe('no redundant PNG masters ship alongside their WebP builds', () => {
     // 900 → 960 (2026-08-18, Set 2 Dragon batch) → 985 (2026-08-20, rune-minion arts) → 1000 (2026-08-20,
     // the full rune-art wire: 291 rune arts) → 1010 (2026-08-21, the 10 Fi/Coran hero-quest arts — the two
     // variant families each ship ONE shared file, aliased in art.ts, so 14 quests cost 10 files not 14)
-    // → 1017 (2026-08-22, the Rayse/Mimic/Void hero batch: 3 portraits + 3 power buttons + Ayse's Ace).
-    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1017);
+    // → 1017 (2026-08-22, the Rayse/Mimic/Void hero batch: 3 portraits + 3 power buttons + Ayse's Ace)
+    // → 1019 (2026-08-23, the Aevor/Gorun/Cindara batch: 3 portraits + 3 power buttons + Cindara's Whelp
+    // token = exactly 7 files, measured against `origin/main`'s 1011 rather than assumed).
+    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1019);
   });
 });

@@ -774,6 +774,9 @@ export interface RunState {
    *  the real Avenge fires inside `simulate`; this only drives the pill. Counts NON-rise player deaths, the
    *  same bodies `simulate` avenges on (a first Rise returns and is not counted). */
   fxFriendlyDeathPreview?: number;
+  /** Fibbsy (Ruby Wealth): activations used THIS turn, reset to 0 each turn. A `usesPerTurn` power fires while
+   *  this is below its cap, instead of the plain once-per-turn `heroReady`. */
+  heroUsesThisTurn?: number;
   /** Drakko hero: Battlecry minions bought this run (his power grants Drakko the Drummer at 5). */
   drakkoBuys: number;
   /** Chronos hero: End-of-Turn minions bought this run (his Encore quest grants a Chronos at 4). */

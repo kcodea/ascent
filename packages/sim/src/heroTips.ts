@@ -74,6 +74,7 @@ export const HERO_TIPS: Readonly<Record<string, HeroTip>> = {
   bram: { difficulty: 'Easy', tip: 'Typically use Investment from Turn 1, timing it to use it after tiering up to 3.' },
   aevor: { difficulty: 'Medium', tip: 'Nothing happens for the first fifteen kills — build a board that trades often and the End-of-Turn gift compounds on your two flanks all run.' },
   gorun: { difficulty: 'Easy', tip: 'Every swing sharpens the swinger. Wide boards and Windfury bodies bank attacks fastest, and the grant keeps climbing all game.' },
+  fibbsy: { difficulty: 'Easy', tip: 'Two coins a turn become four Rubies — pour them onto Kobolds and Ruby-hungry minions, or bank the stats board-wide.' },
   cindara: { difficulty: 'Hard', tip: 'Your own minions dying is the engine. Cheap bodies feed the Avenge, and every Whelp you have ever summoned grows together.' },
   rayse: { difficulty: 'Medium', tip: 'Every token, Echo body and Start-of-Combat fill lands bigger and Taunted. Summon-heavy warbands get the most out of her.' },
   mimic: { difficulty: 'Hard', tip: 'A new power every turn rewards knowing the whole roster. Pick for THIS turn, not the run.' },

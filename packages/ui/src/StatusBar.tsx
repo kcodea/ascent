@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { renameTerms } from './terms';
 import { Card, mdBold } from './Card';
 import { instView } from './instView';
-import { dragonTamerCostOf, INDY_GILD_RECHARGE_GOLD, KESHI_CROWN_THRESHOLD, roundedSpellbookCostOf, buyoutCostOf, allInPayoutOf, exhibitionGrantOf, tempestGrantOf, bladeMasteryGrantOf, hoardWhelpStatsOf, TEMPEST_KILLS_PER_STEP, BLADE_ATTACKS_PER_STEP, heroPowerText, commissionOffer, COMMISSION_NAME, COMMISSION_REWARD, COMMISSION_DELAY, getHero, spellAmplifyBonus, spellAttackBonus, spellHealthBonus, heroPowerLockTurns, activePowers } from '@game/sim';
+import { dragonTamerCostOf, INDY_GILD_RECHARGE_GOLD, KESHI_CROWN_THRESHOLD, roundedSpellbookCostOf, buyoutCostOf, allInPayoutOf, exhibitionGrantOf, tempestGrantOf, bladeMasteryGrantOf, hoardWhelpStatsOf, TEMPEST_KILLS_PER_STEP, BLADE_ATTACKS_PER_STEP, heroPowerText, commissionOffer, COMMISSION_NAME, COMMISSION_REWARD, COMMISSION_DELAY, getHero, spellAmplifyBonus, spellAttackBonus, spellHealthBonus, rubyStatBonus, heroPowerLockTurns, activePowers } from '@game/sim';
 import { henchmanOffer } from '@game/sim';
 import { CARD_INDEX } from '@game/content';
 import { heroArt, heroPowerArt, questArt, runeArt } from './art';
@@ -204,12 +204,30 @@ export function StatusBar() {
       origin: flip ? 'right' : 'left',
     });
   };
-  const hunchPreview = hunchHover && power.kind === 'roundedSpellbook' && run.lastSpellCastId
+  // Powers whose HOVER shows the card they would hand you (owner asks 2026-08-14 Hunch, 2026-08-24 Fibbsy) —
+  // you cannot judge the power without seeing what it produces. Hunch shows the spell it re-grants; Fibbsy
+  // shows a Ruby at its LIVE value (base 1/1 + the run's accrued `rubyBonus`), so the player sees each Ruby is
+  // currently, say, a 3/3. Both render from the same live `instView` the shop uses, so the printed value is real.
+  const previewCardId = power.kind === 'roundedSpellbook' ? run.lastSpellCastId
+    : power.kind === 'rubyWealth' ? 'ruby'
+    : undefined;
+  // A Ruby is a MINION token, so — unlike Hunch's spell — its preview needs real instance stats: the def's
+  // base plus the run's LIVE ruby bonus (`rubyStatBonus`, the same value the shop's Ruby offer shows). A spell
+  // carries no stats, so it stays 0/0. `instView` reads the stat footer AND the "+A/+H" grant text off these.
+  const previewRuby = previewCardId === 'ruby';
+  const previewRb = previewRuby ? rubyStatBonus(run) : { attack: 0, health: 0 };
+  const previewBase = previewRuby ? CARD_INDEX['ruby'] : undefined;
+  const hunchPreview = hunchHover && previewCardId
     ? instView(
-      { uid: 'hunch-preview', cardId: run.lastSpellCastId, tribe: 'neutral', attack: 0, health: 0, keywords: [], golden: false },
+      {
+        uid: 'power-preview', cardId: previewCardId, tribe: 'neutral',
+        attack: (previewBase?.attack ?? 0) + previewRb.attack,
+        health: (previewBase?.health ?? 0) + previewRb.health,
+        keywords: [], golden: false,
+      },
       run.tier, undefined, spellAttackBonus(run), spellHealthBonus(run), run.spellsThisTurn, run.deathrattlesTriggered,
       run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave, run.spellsCast, undefined, undefined,
-      { rubyBonus: run.rubyBonus, impAura: run.impBuff, topTribe: null },
+      { rubyBonus: previewRuby ? previewRb : run.rubyBonus, impAura: run.impBuff, topTribe: null },
     )
     : null;
   // Indy's Gild recharges after INDY_GILD_RECHARGE_GOLD spent since the last use — how much is banked so far.
@@ -291,6 +309,8 @@ export function StatusBar() {
       // preview (`fxFriendlyDeathPreview`, ticked by the replay as her minions fall) rather than run state,
       // which holds no death total; between fights it is 0, i.e. a fresh 0/4 for the coming combat.
       case 'hoard': return `${(run.fxFriendlyDeathPreview ?? 0) % 4}/4`;
+      // Fibbsy — activations left THIS turn (refreshes each turn). `usesPerTurn` is the cap.
+      case 'rubyWealth': return `${Math.max(0, (power.usesPerTurn ?? 0) - (run.heroUsesThisTurn ?? 0))} left`;
       default: return null;
     }
   })();
@@ -336,6 +356,8 @@ export function StatusBar() {
           ? `${power.name} · +${run.tier}/+${run.tier}`
           : power.kind === 'gainMaxMana'
             ? `${power.name} · ${!run.heroReady ? 'used' : run.embers >= (power.cost ?? 0) ? `${power.cost} Gold` : `need ${power.cost} Gold`}`
+            : power.kind === 'rubyWealth'
+              ? `${power.name} · ${!run.heroReady ? 'used' : run.embers >= (power.cost ?? 0) ? `${power.cost} Gold` : `need ${power.cost} Gold`}`
             : power.kind === 'gild'
               ? `${power.name} · ${run.heroPowerSpent ? `${gildSpent}/${INDY_GILD_RECHARGE_GOLD} Gold` : 'ready'}`
               : power.kind === 'scalingGold'
@@ -513,8 +535,8 @@ export function StatusBar() {
               aria-label={`${grantQuestDef?.name ?? grantRuneDef?.name ?? power.name} — ${renameTerms(powerRule).replace(/\*\*/g, '')}`}
               // Hunch only: reveal the spell this would grant. Cheap — the state is a boolean and the preview
               // is only built while hovering (and only for that hero).
-              onPointerEnter={power.kind === 'roundedSpellbook' ? (e) => showHunchTip(e.currentTarget) : undefined}
-              onPointerLeave={power.kind === 'roundedSpellbook' ? () => setHunchTip(null) : undefined}
+              onPointerEnter={previewCardId ? (e) => showHunchTip(e.currentTarget) : undefined}
+              onPointerLeave={previewCardId ? () => setHunchTip(null) : undefined}
               onPointerDown={(e) => {
                 // B1: arm on PRESS, not click — so a press-drag-release onto a minion is one continuous
                 // gesture (like dragging a card). A quick tap without dragging just arms it, preserving the

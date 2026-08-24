@@ -73,7 +73,8 @@ export type HeroPowerKind =
   | 'voidTwin' // Void (passive): at the start of turn 4, Discover TWO hero powers (sequential 2-option picks) for the rest of the run
   | 'tempest' // Aevor (passive): from 15 run kills, End of Turn gives your left+right-most +4/+4, another +4/+4 per 15
   | 'bladeMastery' // Gorun (passive): a friendly attack grants the attacker +3 Attack for the fight, +3 more per 8 run attacks
-  | 'hoard'; // Cindara (passive): Avenge (4) summons a Whelp that strikes now, then improves every Whelp you own by +2/+2
+  | 'hoard' // Cindara (passive): Avenge (4) summons a Whelp that strikes now, then improves every Whelp you own by +2/+2
+  | 'rubyWealth'; // Fibbsy: 1 Gold — get 2 Rubies; usable TWICE per turn
 
 export interface HeroPower {
   name: string;
@@ -85,6 +86,10 @@ export interface HeroPower {
   /** Total-game activation cap (Gildmaster: 2). Still gated once-per-turn by `heroReady`; the count rides
    *  in `RunState.heroPowerUses`. Distinct from `oncePerGame` (which is a hard single use). */
   maxUses?: number;
+  /** PER-TURN activation cap (Fibbsy: 2). The power may fire this many times each turn, resetting every turn —
+   *  unlike `maxUses`, which is a whole-game budget. Gated on `RunState.heroUsesThisTurn` rather than the plain
+   *  once-per-turn `heroReady`. Absent = the normal once-per-turn rule. */
+  usesPerTurn?: number;
   /** The wave (turn) the power first becomes usable; undefined = turn 1 (available immediately). */
   unlockWave?: number;
   /** Passive powers are always-on (no activation/target) — the panel shows them, but you can't arm them. */
@@ -879,6 +884,21 @@ export const HEROES: HeroDef[] = [
       kind: 'hoard',
       passive: true, // combat-side: an Avenge (4) registration in simulate, banked run-wide between fights
       text: '**Avenge (4):** summon a **1/1** Whelp that attacks immediately. Improve your Whelps **+2/+2**.',
+    },
+  },
+  {
+    id: 'fibbsy',
+    name: 'Fibbsy',
+    blurb: 'Turns a single coin into a fistful of gems, twice over, every morning.',
+    resolve: 30,
+    armor: 15,
+    power: {
+      name: 'Ruby Wealth',
+      kind: 'rubyWealth',
+      cost: 1,
+      untargeted: true, // fires on click — no board target
+      usesPerTurn: 2,
+      text: 'Get **2 Rubies**. Usable **twice** per turn.',
     },
   },
   {

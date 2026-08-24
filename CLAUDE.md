@@ -215,5 +215,9 @@ each doc when the thing it describes actually changes:
   contract changes. This is the one that must never lag: a stale rules doc makes agents wrong, not just
   uninformed.
 - **Content counts are GENERATED, never hand-maintained** — see [`docs/CONTENT.md`](docs/CONTENT.md).
+- **`packages/ui/src/patchNotes.ts` — the PLAYER-FACING gameplay changelog** (title-screen Patch Notes button).
+  Whenever a GAMEPLAY change ships — a new/changed hero, card or rune, or an in-game UI/information change —
+  PREPEND a plain-English, spoiler-light entry in the SAME PR (owner ask 2026-08-24). Non-gameplay work
+  (build, tests, docs, refactors, dev tools) does NOT go here. This is enforced by convention, not a test.
 
 summary → commit them together.

@@ -516,6 +516,10 @@ interface GameStore {
   showBalance: boolean;
   openBalance: () => void;
   closeBalance: () => void;
+  /** Patch Notes overlay — opened from the TITLE only (owner ask 2026-08-24). */
+  showPatchNotes: boolean;
+  openPatchNotes: () => void;
+  closePatchNotes: () => void;
 }
 
 const randomSeed = (): number => Math.floor(Math.random() * 0x7fffffff);
@@ -1642,6 +1646,9 @@ export const useGame = create<GameStore>((set, get) => ({
   showBalance: false,
   openBalance: () => set({ showBalance: true }),
   closeBalance: () => set({ showBalance: false }),
+  showPatchNotes: false,
+  openPatchNotes: () => set({ showPatchNotes: true }),
+  closePatchNotes: () => set({ showPatchNotes: false }),
 }));
 
 // The autosave writes at turn boundaries (see `dispatch`), so leaving mid-turn needs an explicit flush or the

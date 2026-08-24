@@ -77,9 +77,12 @@ boundary — if both the caller and the resolver multiply, the effect fires twic
 4. Register a new factory in three places or it will not load: the `EffectFactoryId` union
    (`packages/core/src/types.ts`), the schema whitelist (`packages/content/src/schema.ts`), and the
    presentation policy registry (`packages/core/src/presentation/policies.ts`) — a tripwire test fails otherwise.
-5. Add focused tests from the matrix above. **Verify they fail without your fix** — a green test that was
+5. If the change is PLAYER-FACING (a hero/card/rune add-or-change, or an in-game UI/info behaviour),
+   PREPEND a plain-English entry to `packages/ui/src/patchNotes.ts` — the title-screen Patch Notes — in this
+   same PR (owner ask 2026-08-24). Skip pure engine/tooling/test work.
+6. Add focused tests from the matrix above. **Verify they fail without your fix** — a green test that was
    always green proves nothing.
-6. Run focused vitest, `npm run typecheck`, `npm run lint` (it carries a wiring audit that fails a granted-but-
+7. Run focused vitest, `npm run typecheck`, `npm run lint` (it carries a wiring audit that fails a granted-but-
    unread flag), `npm run text:audit` on text changes, `npm run beats:audit` on trigger changes, and
    `npm run harness` for combat determinism.
 

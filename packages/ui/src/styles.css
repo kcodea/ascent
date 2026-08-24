@@ -1672,7 +1672,7 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 .tip { position: absolute; bottom: calc(100% + 9px); left: 50%; transform: translateX(-50%); width: 210px; background: var(--ink); color: #fff; border-radius: 11px; padding: 10px 12px; font-size: 11.5px; line-height: 1.4; font-weight: 600; box-shadow: 0 10px 28px -8px rgba(0, 0, 0, 0.55); opacity: 0; pointer-events: none; z-index: 30; transition: opacity 0.15s; }
 .card:hover .tip { opacity: 1; transition-delay: 1.5s; }
 /* hero-power tooltip — same dark pill as the keyword tip, popping above the corner tray */
-.herotip { position: absolute; bottom: calc(100% + 12px); left: 50%; transform: translateX(-50%); width: 248px; background: var(--ink); color: #fff; border-radius: 12px; padding: 11px 14px; font-size: 12px; line-height: 1.45; font-weight: 600; text-align: center; box-shadow: 0 12px 30px -8px rgba(0, 0, 0, 0.6); opacity: 0; pointer-events: none; z-index: 60; transition: opacity 0.14s; }
+.herotip { position: absolute; bottom: calc(100% + 12px); left: 50%; transform: translateX(-50%); width: 322px; background: var(--ink); color: #fff; border-radius: 14px; padding: 14px 18px; font-size: 15.6px; line-height: 1.45; font-weight: 600; text-align: center; box-shadow: 0 12px 30px -8px rgba(0, 0, 0, 0.6); opacity: 0; pointer-events: none; z-index: 60; transition: opacity 0.14s; }
 .herotip b { color: var(--acc); }
 .heropanel:hover .herotip { opacity: 1; transition-delay: 0.35s; }
 /* embers projection — hover the Embers chip to see the next two waves' starting Embers */
@@ -2898,7 +2898,7 @@ body.modalup .app { z-index: auto; }
    The blur is DELIBERATE and safe here, unlike the one dropped from `.discover-ov`: that was a full-viewport
    backdrop pass sampling the whole framebuffer every composite. This is a ~220px box that appears on hover
    and holds still — bounded area, no looping animation, one composite on open. */
-.questbadge-tip { position: absolute; bottom: calc(100% + 10px); left: 0; width: 220px; max-width: calc(100vw - 24px); display: flex; flex-direction: column; gap: 4px; background: linear-gradient(180deg, var(--gl-top, rgba(46, 56, 72, 0.86)), var(--gl-bot, rgba(20, 25, 34, 0.9))); -webkit-backdrop-filter: var(--gl-blur, blur(10px) saturate(1.15)); backdrop-filter: var(--gl-blur, blur(10px) saturate(1.15)); border: 1px solid var(--gl-border, rgba(190, 214, 240, 0.22)); border-top-color: var(--gl-border-top, rgba(226, 240, 255, 0.42)); color: var(--gl-text, #eef4fb); border-radius: var(--gl-radius, 12px); padding: 10px 13px; font-size: 12px; line-height: 1.4; font-weight: 600; text-align: center; overflow-wrap: break-word; box-shadow: 0 14px 34px -10px rgba(0, 0, 0, 0.72), inset 0 1px 0 rgba(255, 255, 255, 0.16); opacity: 0; pointer-events: none; z-index: 60; transition: opacity 0.14s; }
+.questbadge-tip { position: absolute; bottom: calc(100% + 10px); left: 0; width: 286px; max-width: calc(100vw - 24px); display: flex; flex-direction: column; gap: 4px; background: linear-gradient(180deg, var(--gl-top, rgba(46, 56, 72, 0.86)), var(--gl-bot, rgba(20, 25, 34, 0.9))); -webkit-backdrop-filter: var(--gl-blur, blur(10px) saturate(1.15)); backdrop-filter: var(--gl-blur, blur(10px) saturate(1.15)); border: 1px solid var(--gl-border, rgba(190, 214, 240, 0.22)); border-top-color: var(--gl-border-top, rgba(226, 240, 255, 0.42)); color: var(--gl-text, #eef4fb); border-radius: var(--gl-radius, 12px); padding: 13px 17px; font-size: 15.6px; line-height: 1.4; font-weight: 600; text-align: center; overflow-wrap: break-word; box-shadow: 0 14px 34px -10px rgba(0, 0, 0, 0.72), inset 0 1px 0 rgba(255, 255, 255, 0.16); opacity: 0; pointer-events: none; z-index: 60; transition: opacity 0.14s; }
 .questbadge-tip b { color: var(--gl-accent, #a8d8ef); font-weight: 800; } /* ice accent — the old orange fought the glass */
 .questbadge-tip .questbadge-tip-reward { color: var(--gl-text, #dbe7f4); }
 .questbadge-tip .questbadge-tip-state { color: var(--gl-value, var(--gold-lt)); font-weight: 800; } /* gold reads as a VALUE against cool glass; the darker --gold went muddy */
@@ -3068,7 +3068,7 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
    "what to do" and "what you get" don't read as one run-on sentence; the label carries the accent so the eye
    lands on the payoff first. */
 .herotip-reward { display: block; margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(255, 255, 255, 0.12); color: #d8ccb6; font-weight: 600; }
-.herotip-reward > b { display: block; margin-bottom: 1px; color: var(--acc); font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; }
+.herotip-reward > b { display: block; margin-bottom: 1px; color: var(--acc); font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; }
 
 /* VOID'S SECOND POWER (owner spec 2026-08-22) — the slot-1 button, seated right of the hero under the main
    power button. `--hp2-*` come from the 👥 Second Power tuner (secondPowerConfig.ts); these fallbacks are the
@@ -8347,3 +8347,61 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   filter: drop-shadow(0 14px 18px rgba(0, 0, 0, 0.5)); }
 .replay-dragghost .ghostfist { position: absolute; left: 0; top: 0; width: 30px; height: 30px;
   transform: translate(-13px, -12px); /* the live cursor hotspot (13 12) lands on the path point */ }
+
+/* ── PATCH NOTES (owner ask 2026-08-24) — the gameplay changelog, opened from the title only. Full-screen
+   overlay mirroring the Esc panel's chrome (`.escov`/`.escpanel`), with a scrolling newest-first list. ── */
+.pnov { position: fixed; inset: 0; z-index: 500; display: grid; place-items: center; background: rgba(20, 14, 7, 0.62); backdrop-filter: blur(3px); animation: fadein 0.16s ease; }
+.pnpanel { width: min(760px, 92vw); max-height: 86vh; display: flex; flex-direction: column; background: var(--bg2); border: 2px solid var(--line); border-radius: 18px; box-shadow: 0 22px 60px -18px rgba(0, 0, 0, 0.6); overflow: hidden; }
+.pnhead { display: flex; align-items: center; justify-content: space-between; padding: 18px 22px 12px; border-bottom: 1px solid var(--line); }
+.pntitle { font-size: 26px; color: var(--ink); letter-spacing: 0.02em; }
+.pnclose { font-size: 18px; font-weight: 900; color: var(--ink3); background: none; border: none; border-radius: 10px; width: 36px; height: 36px; cursor: pointer; }
+.pnclose:hover { color: var(--ink); background: rgba(255, 255, 255, 0.06); }
+.pnscroll { overflow-y: auto; overflow-x: hidden; padding: 8px 22px 22px; }
+.pnpatch { padding: 16px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.06); }
+.pnpatch:last-child { border-bottom: none; }
+.pnpatchhead { display: flex; align-items: baseline; gap: 12px; margin-bottom: 10px; }
+.pndate { font-family: var(--font-ui); font-weight: 900; font-size: 18px; color: var(--ink); }
+.pnlabel { font-family: var(--font-ui); font-weight: 800; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--acc); background: color-mix(in srgb, var(--acc) 14%, transparent); border: 1px solid color-mix(in srgb, var(--acc) 35%, transparent); padding: 2px 9px; border-radius: 999px; }
+.pngroup { display: grid; grid-template-columns: 116px 1fr; gap: 12px; align-items: start; padding: 5px 0; }
+.pntag { justify-self: start; font-family: var(--font-ui); font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; padding: 3px 10px; border-radius: 8px; white-space: nowrap; color: var(--pn-c, var(--ink2)); background: color-mix(in srgb, var(--pn-c, var(--ink2)) 14%, transparent); border: 1px solid color-mix(in srgb, var(--pn-c, var(--ink2)) 34%, transparent); }
+/* Per-category hue — reuse the existing palette tokens so patch tags match the rest of the game's language. */
+.pntag-newhero   { --pn-c: var(--t-beast); }
+.pntag-herochange{ --pn-c: var(--t-demon); }
+.pntag-newcard   { --pn-c: var(--t-dragon); }
+.pntag-cardchange{ --pn-c: var(--t-kobold); }
+.pntag-newrune   { --pn-c: var(--t-undead); }
+.pntag-runechange{ --pn-c: var(--t-dwarf); }
+.pntag-ui        { --pn-c: var(--ink3); }
+.pnlist { margin: 0; padding: 0 0 0 2px; list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.pnlist li { font-family: var(--font-ui); font-weight: 600; font-size: 14.5px; line-height: 1.4; color: var(--ink2); }
+@media (max-width: 620px) { .pngroup { grid-template-columns: 1fr; gap: 5px; } }
+
+/* ── TITLE-SCREEN TOOLTIPS (owner ask 2026-08-24) — a styled bubble in the game's own language, replacing the
+   native `title=` OS tooltip on the menu buttons. Driven by `data-tip` (set in Title.tsx); scoped to `.titlescreen` and EXCLUDING `.menubtn` — the big
+   menu buttons own their ::before/::after for the sheen wave, and a tooltip pseudo-element would clobber it
+   (owner report 2026-08-24). The big buttons carry visible labels, so they need no bubble. Compositor-only (opacity/transform), a short delay so it does
+   not flash on a passing cursor. ── */
+.titlescreen [data-tip]:not(.menubtn) { position: relative; }
+.titlescreen [data-tip]:not(.menubtn)::after {
+  content: attr(data-tip);
+  position: absolute; left: 50%; top: calc(100% + 9px); transform: translateX(-50%) translateY(-4px);
+  white-space: nowrap; max-width: 60vw;
+  font-family: var(--font-ui); font-weight: 700; font-size: 12px; letter-spacing: 0.02em; text-transform: none;
+  color: var(--ink); background: color-mix(in srgb, var(--bg2) 92%, #000); border: 1.5px solid var(--line);
+  padding: 6px 11px; border-radius: 10px; box-shadow: 0 10px 26px -10px rgba(0, 0, 0, 0.7);
+  opacity: 0; pointer-events: none; z-index: 600;
+  transition: opacity 0.12s ease, transform 0.12s ease; transition-delay: 0s;
+}
+/* The little pointer under the bubble — a rotated square sharing the bubble's fill + top-left borders. */
+.titlescreen [data-tip]:not(.menubtn)::before {
+  content: ''; position: absolute; left: 50%; top: calc(100% + 4px); transform: translateX(-50%) rotate(45deg);
+  width: 9px; height: 9px; background: color-mix(in srgb, var(--bg2) 92%, #000);
+  border-left: 1.5px solid var(--line); border-top: 1.5px solid var(--line);
+  opacity: 0; pointer-events: none; z-index: 600; transition: opacity 0.12s ease; transition-delay: 0s;
+}
+.titlescreen [data-tip]:not(.menubtn):hover::after,
+.titlescreen [data-tip]:not(.menubtn):focus-visible::after { opacity: 1; transform: translateX(-50%) translateY(0); transition-delay: 0.25s; }
+.titlescreen [data-tip]:not(.menubtn):hover::before,
+.titlescreen [data-tip]:not(.menubtn):focus-visible::before { opacity: 1; transition-delay: 0.25s; }
+@media (prefers-reduced-motion: reduce) { .titlescreen [data-tip]:not(.menubtn)::after, .titlescreen [data-tip]:not(.menubtn)::before { transition: none; } }
+

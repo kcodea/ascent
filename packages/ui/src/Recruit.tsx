@@ -767,6 +767,10 @@ export function Recruit() {
   // play under the panel, and `overlayOpen` would freeze the replay the moment the workbench opened. Don't
   // "complete" the list by adding it.
   const overlayOpen = useGame((s) => s.showTitle || s.showLeaderboard || s.showRankings || s.showCareer || s.showBook || s.showBalance);
+  // Subscribed alone (not just via `overlayOpen`) so the clock-reset effect can key on the title→play flip: a
+  // resumed run does NOT change wave/turnSeconds, so without this the reset never fires and the turn is stuck at
+  // 0 (owner Save & Quit bug 2026-08-24). Only the true title screen sets this — opening the Book mid-run doesn't.
+  const showTitle = useGame((s) => s.showTitle);
   // Fortify can target a tavern offer too; Gild / Encore act only on your warband.
   // The ARMED slot's wielded power (Mimic's disguise / Void's pair — `activePowers`), not the native hero's:
   // the aim-target rules below must describe the power that will actually fire.
@@ -3147,8 +3151,19 @@ export function Recruit() {
   // Layout effect so the clock is full BEFORE the first paint (the store starts at 0 — without this the
   // first frame would flash "0" / a locked board until a passive effect ran).
   useLayoutEffect(() => {
-    turnClock.set(turnSeconds);
-  }, [run.wave, turnSeconds, heroSelecting]);
+    // Behind the title the clock is hidden and paused (via overlayOpen); the resumed value is applied the moment
+    // showTitle flips back to false on Continue — this effect keys on showTitle precisely so that flip fires it.
+    if (showTitle) return;
+    // A resume hands us the exact seconds the turn was quit with (owner ask 2026-08-24); consume it one-shot.
+    // Otherwise (a fresh turn / new run) open at full time.
+    const resume = useGame.getState().pendingResumeSeconds;
+    if (resume != null) {
+      turnClock.set(resume);
+      useGame.getState().clearPendingResume();
+    } else {
+      turnClock.set(turnSeconds);
+    }
+  }, [run.wave, turnSeconds, heroSelecting, showTitle]);
 
   // Round timer: count down each recruit turn; at 0 the player is forced into combat (paused while a
   // Discover pick is open, and frozen while the hero picker is open). UI-only — the engine is untimed.

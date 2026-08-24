@@ -83,6 +83,13 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   const [learnPick, setLearnPick] = useState(false); // LEARN opens the learning hub (Tutorial + future lessons)
   const [tutorialPrompt, setTutorialPrompt] = useState(false); // a new player hitting Play is offered the tutorial first
 
+  // Returning to the title (Save & Quit, or a run ending) lands on the MAIN menu, not whatever sub-menu was open
+  // when the run started (owner ask 2026-08-24: Save & Quit went back to the play/mode picker). These view flags
+  // are local, so `openTitle` can't clear them from the store — reset them here whenever the title reappears.
+  useEffect(() => {
+    if (showTitle) { setModePick(false); setLearnPick(false); setTutorialPrompt(false); }
+  }, [showTitle]);
+
   if (!showTitle) return null;
 
   // A player who has never finished (or skipped) the guided course is "new" — hitting Play offers the tutorial

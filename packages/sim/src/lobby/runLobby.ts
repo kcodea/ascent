@@ -9,7 +9,7 @@ import { createRun, type RunState, type PracticeConfig } from '../state';
 import { createPracticeBotLobby } from './practiceBots';
 import { botSeat, hybridSeat, type SeatPolicy } from './seats';
 import { playerRunByKey, playerRunsFrom, snapshotSeat } from './snapshotSeats';
-import { handleKeyOf, uniqueHandleFor } from './handles';
+import { handleKeyOf, uniqueHandleFor, adjectiveHandle } from './handles';
 import type { LobbyEncounter, LobbyRules, PreparedBoard, SeatDriver } from './types';
 import { DEFAULT_LOBBY_RULES } from './lobby';
 import { authoredSeat } from './tutorialSeats';
@@ -220,9 +220,10 @@ export function createRunLobby(seed: number, playerHeroId: string, rules: Partia
     if (seats.some((x) => x.runKey === run.key)) continue; // never seat the same run twice
     // A real author's name when the run has one; otherwise a generated handle. 142 of the pool's 664 boards
     // carry no author, and labelling those "run 1534" leaked the seed and read as debug output. An author
-    // holding SEVERAL seats gets numbered ("Mike", "Mike (2)") — two identical labels read as a rendering bug.
+    // holding SEVERAL seats gets an ADJECTIVE prefix ("Sneaky Orangez", "Groovy Orangez") rather than the old
+    // "Orangez (2)" numbering, which read as a rendering bug (owner ask 2026-08-24).
     let label = run.author && run.author !== 'anon' ? run.author : uniqueHandleFor(handleKeyOf(run.key), taken);
-    for (let n = 2; taken.has(label.toLowerCase()); n++) label = `${run.author} (${n})`;
+    if (taken.has(label.toLowerCase())) label = adjectiveHandle(label, handleKeyOf(run.key), taken);
     const seat: LobbySeatState = {
       id: `s${picked + 1}`,
       label,
@@ -648,6 +649,35 @@ export function settleRunLobbyRound(lobby: RunLobby, playerResult: CombatResult)
     lobby.finished = true;
   }
   return lobby;
+}
+
+/** Wins per seat id across every FOUGHT encounter (a win = you were the side that won that pairing). */
+function seatWinCounts(lobby: RunLobby): Map<string, number> {
+  const wins = new Map<string, number>();
+  for (const s of lobby.seats) wins.set(s.id, 0);
+  for (const e of lobby.encounters) {
+    if (!e.fought) continue;
+    const winner = e.outcome === 'win' ? e.a : e.outcome === 'lose' ? e.b : null;
+    if (winner) wins.set(winner, (wins.get(winner) ?? 0) + 1);
+  }
+  return wins;
+}
+
+/**
+ * Placement for an INVULNERABLE Practice player (owner bug 2026-08-24: "won but finished 8th").
+ *
+ * Practice's bots all field the same board each round, so bot-vs-bot draws and the table never eliminates
+ * itself; the player, being invulnerable, is never eliminated either. So nobody earns an elimination placement
+ * and the end screen fell back to "alive count" — i.e. dead last. Rank by ROUND-WINS instead — literally "how
+ * many of these fights did you win" — so a run that beat the bots reads as 1st and a run that lost reads near
+ * last. Competition ranking: 1 + the number of OTHER seats with strictly more wins than the player.
+ */
+export function practicePlayerPlacement(lobby: RunLobby): number {
+  const wins = seatWinCounts(lobby);
+  const mine = wins.get('s0') ?? 0;
+  let ahead = 0;
+  for (const s of lobby.seats) if (s.id !== 's0' && (wins.get(s.id) ?? 0) > mine) ahead++;
+  return 1 + ahead;
 }
 
 /** The player's seat — always index 0. */

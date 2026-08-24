@@ -156,10 +156,11 @@ describe('a lobby run replays faithfully — so it can save its snapshots', () =
 });
 
 describe('a player may hold several seats through DIFFERENT runs (owner call 2026-07-31)', () => {
-  it('seats both of an author\'s runs, under distinct numbered labels', () => {
+  it('seats both of an author\'s runs, under distinct labels', () => {
     // The 2026-07-29 one-seat-per-author rule is removed (for now) so two people can fill whole lobbies with
     // each other's runs while the set-2 pool is young. The surviving rules: the exact same RUN never sits
-    // twice, and duplicate names are numbered so two seats never render identically.
+    // twice, and a duplicate author gets an ADJECTIVE prefix ("Sneaky Dup") so two seats never render
+    // identically (owner ask 2026-08-24, replacing the old "Dup (2)" numbering).
     registerOpponents([
       ...Array.from({ length: 8 }, (_, i) => board('Dup', 'drakko', 4444, i + 1, 3 + i)),
       ...Array.from({ length: 8 }, (_, i) => board('Dup', 'soren', 5555, i + 1, 4 + i)),
@@ -167,7 +168,7 @@ describe('a player may hold several seats through DIFFERENT runs (owner call 202
     expect(playerRunsFrom().filter((r) => r.author === 'Dup').length, 'both runs should exist in the pool').toBe(2);
     for (const seed of [1, 3, 7]) {
       const snaps = createRunLobby(seed, 'drakko').seats.filter((s) => s.kind === 'snapshot');
-      const dupSeats = snaps.filter((s) => s.runKey?.startsWith('dup|') || s.label.toLowerCase().startsWith('dup'));
+      const dupSeats = snaps.filter((s) => s.runKey?.startsWith('dup|') || s.label.toLowerCase().includes('dup'));
       expect(dupSeats.length, `seed ${seed}: both of Dup's runs should hold seats`).toBe(2);
       expect(new Set(snaps.map((s) => s.runKey)).size, `seed ${seed}: a RUN held two seats`).toBe(snaps.length);
       expect(new Set(snaps.map((s) => s.label)).size, `seed ${seed}: two seats share a label`).toBe(snaps.length);

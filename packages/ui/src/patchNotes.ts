@@ -56,6 +56,15 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-08-24',
+    label: 'Practice & Lobby Polish',
+    changes: [
+      { category: 'UI / Info', text: 'Fixed Practice bot games reporting the wrong placement — beating the bots now correctly reads as 1st, and your finish reflects how many of the fights you won.' },
+      { category: 'UI / Info', text: 'Practice bots now show real portrait icons and random player-style names instead of “Bot 1–7”.' },
+      { category: 'UI / Info', text: 'When one player holds two seats in a lobby, the second reads with an adjective (e.g. “Sneaky Orangez”) instead of “Orangez (2)”.' },
+    ],
+  },
+  {
+    date: '2026-08-24',
     label: 'Practice Options',
     changes: [
       { category: 'UI / Info', text: 'Practice now opens a setup screen — pick your opponents (real players, or scaling bots with Easy / Medium / Hard), health (unlimited or normal elimination), shop-timer speed (1–4×), and an optional tribe surge.', details: [

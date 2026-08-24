@@ -3,8 +3,9 @@
  * health toggle (invulnerable vs real elimination), and a tribe surge that doubles a tribe's shop odds.
  */
 import { describe, expect, it } from 'vitest';
-import { practiceBotBoard, createLobbyRun } from './index';
+import { practiceBotBoard, createLobbyRun, createPracticeBotLobby, adjectiveHandle } from './index';
 import { reduce, type RunState, type Action } from '../index';
+import { HEROES } from '../heroes';
 
 const totals = (b: { attack: number; health: number }[]) => ({
   atk: b.reduce((n, m) => n + m.attack, 0),
@@ -121,3 +122,51 @@ import { CARD_INDEX } from '@game/content';
 function poolTribe(cardId: string): string {
   return CARD_INDEX[cardId]?.tribe ?? 'neutral';
 }
+
+describe('practice-bots placement reflects performance (owner bug 2026-08-24: won but finished 8th)', () => {
+  const runToEnd = (attack: number): number | undefined => {
+    let s: RunState = createLobbyRun(77, 'aster', {}, 'practice', {
+      opponents: 'bots', botDifficulty: 'easy', health: 'unlimited', timeMult: 1, tribeSurge: null,
+    });
+    const board = Array.from({ length: 7 }, (_, i) => ({ uid: `p${i}`, cardId: 'b2_packstrider', attack, health: attack, keywords: [], effects: [], buffs: [] }));
+    let guard = 0;
+    while (s.phase !== 'gameover' && s.phase !== 'victory' && guard++ < 80) {
+      if (s.runeforgeOffer) s = reduce(s, { type: 'skipRuneforge' } as Action);
+      if (s.questOffer?.length) s = reduce(s, { type: 'buyQuest', index: 0 } as Action);
+      s = { ...s, board: board as never };
+      for (const a of [{ type: 'faceOmen' }, { type: 'resolveCombat' }, { type: 'settleCombat' }] as Action[]) s = reduce(s, a);
+    }
+    return s.lobby!.seats[0]!.placement;
+  };
+
+  it('a dominating run places 1st; a hopeless run does NOT (it used to fall back to dead-last)', () => {
+    expect(runToEnd(80), 'beat every bot → 1st').toBe(1);
+    expect(runToEnd(1), 'lost every fight → worse than 1st').toBeGreaterThan(1);
+  });
+});
+
+describe('practice bots read as real opponents', () => {
+  it('every bot has a REAL hero portrait (so its rail icon is not a broken image) and a non-"Bot N" name', () => {
+    const valid = new Set(HEROES.map((h) => h.id));
+    const lobby = createPracticeBotLobby(42, 'aster', 'medium');
+    const names = new Set<string>();
+    for (const seat of lobby.seats.slice(1)) {
+      expect(valid.has(seat.heroId), `${seat.heroId} is not a real hero`).toBe(true);
+      expect(seat.heroId).not.toBe('aster'); // never the player's own face
+      expect(seat.label).not.toMatch(/^Bot \d+$/);
+      names.add(seat.label.toLowerCase());
+    }
+    expect(names.size, 'names are unique').toBe(lobby.seats.length - 1);
+  });
+});
+
+describe('duplicate lobby handles get an adjective, not "(2)"', () => {
+  it('prefixes a distinct adjective per collision', () => {
+    const taken = new Set(['orangez']);
+    const a = adjectiveHandle('Orangez', 111, taken); taken.add(a.toLowerCase());
+    const b = adjectiveHandle('Orangez', 111, taken);
+    expect(a).toMatch(/ Orangez$/);
+    expect(a).not.toMatch(/\(\d+\)/);
+    expect(b).not.toBe(a); // a second duplicate gets a different adjective
+  });
+});

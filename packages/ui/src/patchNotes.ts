@@ -55,6 +55,13 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-08-25',
+    label: 'Combat Damage',
+    changes: [
+      { category: 'UI / Info', text: 'Your Health now updates the moment combat ends, instead of staying at its old value until you return to the shop.' },
+    ],
+  },
+  {
     date: '2026-08-24',
     label: 'Load Screen',
     changes: [

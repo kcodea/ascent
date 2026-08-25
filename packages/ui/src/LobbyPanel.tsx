@@ -8,6 +8,7 @@ import { floatLobbyDamageOnSeat } from './lobbyDamageFx';
 import { heroArt, questArt, runeArt } from './art';
 import { mdBold } from './Card';
 import { Icon } from './Icon';
+import { useGame } from './store';
 
 /**
  * The 8-seat table, shown in a LOBBY run.
@@ -78,10 +79,21 @@ export function LobbyPanel({ lobby }: { lobby: RunLobby }): JSX.Element | null {
   const dmg = lastRoundDamage(lobby);
   const living = lobby.seats.filter((s) => s.alive);
   const maxHp = lobby.rules.startingResolve + lobby.rules.startingArmor;
+  // YOUR OWN row reads the RUN's health, not the seat's. The seat is only re-synced when the table settles (at
+  // `resolveCombat`), while the run takes your hit the moment combat ends — so between those two the seat is
+  // stale and the rail would disagree with the HUD for the whole post-combat screen (owner report 2026-08-25).
+  // The run IS the player's authority and the seat is synced from it every settle, so this is the same number
+  // everywhere, just never stale. Opponent seats keep reading their own seat, which is their only source.
+  const myResolve = useGame((st) => st.run.resolve);
+  const myArmor = useGame((st) => st.run.armor);
+  const hpOf = (seat: { id: string; resolve: number; armor: number }): { resolve: number; armor: number } =>
+    seat.id === 's0' ? { resolve: myResolve, armor: myArmor } : { resolve: seat.resolve, armor: seat.armor };
   // Living seats first, strongest to weakest; the fallen keep their placement order underneath.
   const rows = [...lobby.seats].sort((a, b) => {
     if (a.alive !== b.alive) return a.alive ? -1 : 1;
-    if (a.alive) return (b.resolve + b.armor) - (a.resolve + a.armor);
+    // Rank on the LIVE numbers too (see `hpOf`), so your row doesn't sit at a stale rank through the
+    // post-combat screen and then jump when the table settles.
+    if (a.alive) { const A = hpOf(a), B = hpOf(b); return (B.resolve + B.armor) - (A.resolve + A.armor); }
     return (a.placement ?? 99) - (b.placement ?? 99);
   });
 
@@ -101,7 +113,8 @@ export function LobbyPanel({ lobby }: { lobby: RunLobby }): JSX.Element | null {
         {rows.map((seat) => {
           const isYou = seat.id === 's0';
           const isFoe = foe?.id === seat.id;
-          const hp = seat.resolve + seat.armor;
+          const live = hpOf(seat);
+          const hp = live.resolve + live.armor;
           const d = dmg[seat.id];
           const intel = isFoe ? foeIntel : seat.intel;
           return (
@@ -129,8 +142,8 @@ export function LobbyPanel({ lobby }: { lobby: RunLobby }): JSX.Element | null {
               </span>
               {seat.alive ? (
                 <span className="lobbyhp">
-                  <Icon name="heart" />{seat.resolve}
-                  {seat.armor > 0 && <span className="lobbyarmor">+{seat.armor}</span>}
+                  <Icon name="heart" />{live.resolve}
+                  {live.armor > 0 && <span className="lobbyarmor">+{live.armor}</span>}
                 </span>
               ) : (
                 <span className="lobbyplace">{seat.placement ? `#${seat.placement}` : 'out'}</span>

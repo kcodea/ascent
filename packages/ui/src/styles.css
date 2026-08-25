@@ -7319,9 +7319,9 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 /* Time ruler: a strip of ticks above the track, purely decorative so it never intercepts a bar drag. */
 .fxwb-timeline-ruler { position: relative; height: 12px; pointer-events: none; }
 .fxwb-timeline-tick {
-  position: absolute; top: 0; bottom: 0; width: 1px; background: #4a4136; pointer-events: none;
+  position: absolute; top: 6px; bottom: 0; width: 1px; background: #4a4136; pointer-events: none;
 }
-.fxwb-timeline-tick.major { background: #7d7159; }
+.fxwb-timeline-tick.major { top: 0; background: #7d7159; }
 .fxwb-timeline-ticklabel {
   position: absolute; top: 0; left: 2px; font-size: 9px; color: #7d7159; white-space: nowrap; pointer-events: none;
 }

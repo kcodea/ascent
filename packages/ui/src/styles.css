@@ -7328,6 +7328,10 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .fxwb-timeline-track {
   position: relative; display: flex; flex-direction: column; gap: 2px;
   padding: 3px; border-radius: 7px; background: #191623; border: 1px solid #4a4136;
+  /* Empty track background scrubs the playhead on drag — the gauntlet cursor marks it as interactive
+     rather than falling back to a bare OS pointer (see CLAUDE.md "UI conventions"). Bars/grips paint
+     their own cursor (`grab`/`ew-resize`) which wins over this since they sit deeper in the DOM. */
+  cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
 }
 .fxwb-timeline-row { position: relative; height: 16px; }
 .fxwb-timeline-bar {

@@ -23,6 +23,8 @@ export interface TimelineProps {
   /** Commit a drag step. `field` distinguishes a move from a resize so the workbench's history can coalesce
    *  each gesture into ONE undo entry (see `retimeLayer`). */
   onRetime(index: number, at: number, life: number | null, field: 'at' | 'life'): void;
+  /** Seek the playhead to `ms` — fired by dragging the empty track background. */
+  onSeek(ms: number): void;
 }
 
 /**
@@ -46,12 +48,17 @@ export function Timeline({
   timeMs,
   onSelect,
   onRetime,
+  onSeek,
 }: TimelineProps): React.ReactElement {
   const trackRef = useRef<HTMLDivElement | null>(null);
   // The drag in flight, plus the track rect measured ONCE at pointerdown. Reading layout per pointermove is
   // the classic drag stutter (see `docs/performance.md` and `insertRectsRef` in Recruit) — and it would be
   // wrong as well as slow here, since the rect cannot change mid-drag.
   const dragRef = useRef<{ drag: TimelineDrag; rect: { left: number; width: number } } | null>(null);
+  // A SEPARATE ref for the track-background scrub gesture, so it can never interleave with a bar move/resize
+  // (dragRef above). A bar/grip pointerdown calls stopPropagation, so it never reaches the track handler in
+  // the first place — this ref just keeps the two drag lifecycles from ever touching.
+  const seekRef = useRef<{ rect: { left: number; width: number } } | null>(null);
 
   const beginDrag = (e: React.PointerEvent, index: number, mode: TimelineDragMode): void => {
     const track = trackRef.current;
@@ -91,6 +98,33 @@ export function Timeline({
     (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
   };
 
+  // Scrub the playhead by dragging the empty track background — the track itself, or the empty space in a
+  // row beside its bar. A pointerdown that started on a bar or its resize grip never reaches here at all:
+  // `beginDrag` calls `e.stopPropagation()`, so this handler only ever fires for the track div or a row's
+  // background. The `closest` check is belt-and-suspenders against that guarantee, not the only guard.
+  const beginSeek = (e: React.PointerEvent<HTMLDivElement>): void => {
+    if ((e.target as HTMLElement).closest('.fxwb-timeline-bar')) return;
+    const track = trackRef.current;
+    if (track === null) return;
+    const box = track.getBoundingClientRect();
+    const rect = { left: box.left, width: box.width };
+    seekRef.current = { rect };
+    e.currentTarget.setPointerCapture(e.pointerId);
+    onSeek(pointerToMs(e.clientX, rect, durationMs));
+  };
+
+  const onSeekMove = (e: React.PointerEvent<HTMLDivElement>): void => {
+    const active = seekRef.current;
+    if (active === null) return;
+    onSeek(pointerToMs(e.clientX, active.rect, durationMs));
+  };
+
+  const endSeek = (e: React.PointerEvent<HTMLDivElement>): void => {
+    if (seekRef.current === null) return;
+    seekRef.current = null;
+    e.currentTarget.releasePointerCapture(e.pointerId);
+  };
+
   const playheadPct = durationMs > 0 ? Math.max(0, Math.min(1, timeMs / durationMs)) * 100 : 0;
   const ticks = rulerTicks(durationMs);
 
@@ -114,7 +148,14 @@ export function Timeline({
           </span>
         ))}
       </div>
-      <div className="fxwb-timeline-track" ref={trackRef}>
+      <div
+        className="fxwb-timeline-track"
+        ref={trackRef}
+        onPointerDown={beginSeek}
+        onPointerMove={onSeekMove}
+        onPointerUp={endSeek}
+        onPointerCancel={endSeek}
+      >
         {layers.map((l, i) => {
           const span = spanOf(l, durationMs);
           const { left, width } = spanToTrack(span, durationMs);

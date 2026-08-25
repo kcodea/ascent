@@ -22,7 +22,8 @@ export function CombatOpponent(): JSX.Element | null {
   const lobby = useGame((s) => s.run.lobby);
   const inCombat = useGame((s) => s.run.phase === 'combat');
   const pill = useGame((s) => s.heroAtkPill);
-  if (!lobby || !inCombat) return null;
+  const preview = useGame((s) => s.duelPreview);
+  if (!lobby || (!inCombat && !preview)) return null;   // `preview` = the dev tuner's Test button
   const next = playerOpponent(lobby);
   const seat = next?.seat;
   if (!seat) return null;

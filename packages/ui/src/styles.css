@@ -8886,7 +8886,8 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   position: fixed;
   left: calc(var(--bar-x) + 0.85 * var(--gw) + var(--rfb-x, -123px) * var(--scale));
   top: calc(var(--bar-y) + var(--rfb-y, 270px) * var(--scale));
-  transform: translate(-50%, -50%);
+  /* The ⚔️ Hero Duel tuner's placement rides the WRAPPER, never the body — the body is what GSAP lunges. */
+  transform: translate(calc(-50% + var(--hd-opp-x, 0px)), calc(-50% + var(--hd-opp-y, 0px))) scale(var(--hd-opp-s, 1));
   z-index: 42;                      /* just above the refresh button it lands on */
   pointer-events: none;
 }
@@ -8927,7 +8928,8 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 /* 2. THE ATTACK PILL — the winner's damage, printed on their portrait exactly like a minion's Attack badge.
    It POPS in (the tally arriving), rides the lunge, and leaves with the sequence. */
 .hero-atk {
-  position: absolute; left: 50%; bottom: calc(-10 * var(--u)); transform: translateX(-50%);
+  position: absolute; left: calc(50% + var(--hd-pill-x, 0px)); bottom: calc(-10 * var(--u) - var(--hd-pill-y, 0px));
+  transform: translateX(-50%) scale(var(--hd-pill-s, 1));
   z-index: 6; pointer-events: none;
   display: inline-flex; align-items: center; justify-content: center;
   min-width: calc(34 * var(--u)); height: calc(34 * var(--u)); padding: 0 calc(7 * var(--u));
@@ -8938,8 +8940,8 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   animation: heroatkpop 260ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 @keyframes heroatkpop {
-  from { opacity: 0; transform: translateX(-50%) scale(0.4); }
-  to   { opacity: 1; transform: translateX(-50%) scale(1); }
+  from { opacity: 0; transform: translateX(-50%) scale(calc(var(--hd-pill-s, 1) * 0.4)); }
+  to   { opacity: 1; transform: translateX(-50%) scale(var(--hd-pill-s, 1)); }
 }
 /* The struck hero recoils — a one-shot shake, transform only. */
 .hero-struck { animation: herostruck 380ms cubic-bezier(0.36, 0.07, 0.19, 0.97) both; }

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildCommands, type CommandSources } from './commandIndex'
+import { buildCommands, nextHighlight, type CommandSources } from './commandIndex'
 import type { FxParamSpecs } from '../params'
 
 const burstSpecs: FxParamSpecs = {
@@ -45,4 +45,10 @@ describe('buildCommands', () => {
     const ids = out.map((c) => c.id)
     expect(new Set(ids).size).toBe(ids.length)
   })
+})
+
+describe('nextHighlight', () => {
+  it('wraps forward past the end', () => { expect(nextHighlight(2, 3, 1)).toBe(0) })
+  it('wraps backward past the start', () => { expect(nextHighlight(0, 3, -1)).toBe(2) })
+  it('is 0 for an empty list', () => { expect(nextHighlight(0, 0, 1)).toBe(0) })
 })

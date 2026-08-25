@@ -107,3 +107,13 @@ export function buildCommands(sources: CommandSources, query: string): CommandIt
 
   return [...layerItems, ...paramItems, ...actionItems];
 }
+
+/**
+ * The palette's highlight-movement math, extracted so it is unit-testable without a DOM (mirrors this
+ * file's `buildCommands` — pure, no React). Wraps in both directions; an empty list always highlights 0
+ * (there's nothing to move to, and `count - 1` would go negative).
+ */
+export function nextHighlight(current: number, count: number, delta: number): number {
+  if (count <= 0) return 0;
+  return ((current + delta) % count + count) % count;
+}

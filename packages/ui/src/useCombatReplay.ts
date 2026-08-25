@@ -1798,7 +1798,12 @@ export function useCombatReplay(
       events,
       cardIds, // lets the sfx channel play a dying unit's own death voiceline (cards/<id>.death.mp3)
       combatSpeed: combatSpeedRef.current,
-      onRallyPulse: firePulse, // procs 2..N; the lunge owns the attacker's opener
+      // A forced-Echo CONTINUATION beat (Echohorn's 2nd+ rally, split into its own moment by the Echo's
+      // consequences) must NOT re-pulse the attacker's medallion: it already pulsed at its wind-up opener, and
+      // the gilded doubling reads through the repeated SPARKLE + EFFECT, not a second pulse (owner 2026-08-24).
+      // `heldLungeRef` is the mid-swing attacker held through its Echo; suppress only its pulse here — the
+      // sparkle (an authored `playDef`, not this callback) still fires per proc, and every other rallier pulses.
+      onRallyPulse: (uid: string) => { if (heldLungeRef.current?.uid !== uid) firePulse(uid); },
 
       onShake: () => setShake((n) => n + 1),
       // Every float (including the killing-blow one) is anchored from this SLOT reading, taken once at

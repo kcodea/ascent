@@ -54,7 +54,7 @@ export function CombatOpponent(): JSX.Element | null {
         <div className="combatopp-body">
           <div className="combatopp-portrait">
             {/* The foe's ATTACK PILL — same badge the player wears; inside the body so it rides the lunge. */}
-            {pill?.side === 'opp' && <span key={`atk${pill.amount}`} className="hero-atk hero-atk-opp">{pill.amount}</span>}
+            {pill?.side === 'opp' && <span key={`atk${pill.amount}${pill.buffed ? 'b' : ''}`} className={`hero-atk hero-atk-opp${pill.buffed ? ' buffed' : ''}`}>{pill.amount}</span>}
             {art ? <img className="combatopp-img" src={art} alt="" draggable={false} /> : <Icon name="anvil" />}
           </div>
           {/* The RED damage-taken number — centred on the portrait, OUTSIDE the clipped circle so it can overrun. */}

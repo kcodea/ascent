@@ -254,8 +254,8 @@ interface GameStore {
    *  whole sequence from the shop. Never set in production. */
   duelPreview: boolean;
   setDuelPreview: (v: boolean) => void;
-  heroAtkPill: { side: 'player' | 'opp'; amount: number } | null;
-  setHeroAtkPill: (p: { side: 'player' | 'opp'; amount: number } | null) => void;
+  heroAtkPill: { side: 'player' | 'opp'; amount: number; buffed?: boolean } | null;
+  setHeroAtkPill: (p: { side: 'player' | 'opp'; amount: number; buffed?: boolean } | null) => void;
   /** THE RED DAMAGE-TAKEN NUMBER (owner ask 2026-08-25) — the big blocky number that pops in the CENTRE of the
    *  hero being struck, showing the damage it took. Rendered by both portraits (player's in StatusBar, foe's in
    *  CombatOpponent), keyed by side. Distinct from `heroAtkPill` (the ATTACKER's damage-dealt badge). */

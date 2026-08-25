@@ -1867,16 +1867,34 @@ export function Recruit() {
     });
     const tallyEnd = contribs.length ? (contribs.length - 1) * STAGGER + FLY + 340 : 220;
 
-    // THE HERO STRIKE (owner ask 2026-08-25) — replaces the bolt-into-the-Resolve-bar. Once the damage is
-    // tallied it is handed to the WINNING hero as an attack pill, that hero winds up and lunges at the loser
-    // with the same motion, impact FX and sounds a minion attack uses, and the health lands on contact.
+    // THE HERO STRIKE (owner ask 2026-08-25). The winner "gains the attack": their pill shows their BASE tier
+    // damage in YELLOW from the start; the tally climbs, then dissolves into particles that fly to that hero's
+    // portrait and BUFF the pill to full damage, flipping it GREEN (a buffed minion reads green). Only THEN does
+    // the hero wind up and lunge, dropping the loser's health with the same motion / FX / sounds a minion uses.
     const playerWon = won;
     const strikeSeq = (lossSeqSeqRef.current += 1);
     const setPill = useGame.getState().setHeroAtkPill;
+    const side: 'player' | 'opp' = playerWon ? 'player' : 'opp';
+    const fullDmg = strikeDmg;
+    // Base = the attacker's tavern tier (the damage formula's leading term = contribs[0]); the tally is the rest.
+    const baseTier = Math.min(contribs[0]?.tier ?? 1, fullDmg);
+    setPill({ side, amount: baseTier, buffed: false });   // the yellow base pill rides the hero from tally start
+
     timers.push(window.setTimeout(() => {
-      setLossPhase('blast');   // retires the flyers/counter; the pill takes the number from here
+      // Dissolve the centre tally into particles that fly to the ATTACKER's portrait ("gaining the attack").
+      setLossPhase('blast');   // the centre number launches (fades) and does NOT re-show (see the render guard)
       setLossFlyers([]);
-      setPill({ side: playerWon ? 'player' : 'opp', amount: strikeDmg });
+      const attackerSel = playerWon ? '.statusbar .hero .herolunge' : '.combatopp-body';
+      const aRect0 = document.querySelector(attackerSel)?.getBoundingClientRect();
+      const ax = aRect0 ? aRect0.left + aRect0.width / 2 : cx;
+      const ay = aRect0 ? aRect0.top + aRect0.height / 2 : cy;
+      pixiFx.blastBolt(cx, cy, ax, ay);
+      // WHEN the particles land on the hero: buff the pill to full damage + GREEN (it re-pops on the value change).
+      timers.push(window.setTimeout(() => {
+        setLossPhase('done');   // centre number gone for good — never returns to the board
+        setPill({ side, amount: fullDmg, buffed: fullDmg > baseTier });
+      }, pixiFx.blastTravelMs));
+
       // The portraits: the player's own in the status bar, the foe's the frame that dropped in for the fight.
       const playerEl = document.querySelector('.statusbar .hero .herolunge');
       const oppEl = document.querySelector('.combatopp-body');
@@ -1886,43 +1904,35 @@ export function Recruit() {
       const land = (): void => {
         setLossShake(true);
         window.setTimeout(() => setLossShake(false), 360);
-        // The struck HERO does not react (owner ruling 2026-08-25) — the Pixi strike FX + the health drop carry
-        // the blow. Pop the RED damage-taken number in the centre of the DEFENDER (the side NOT attacking).
+        // The struck hero does NOT react (owner ruling) — the Pixi FX + the health drop carry the blow. Pop the
+        // RED damage-taken number in the centre of the DEFENDER (the side NOT attacking).
         setDmg({ side: playerWon ? 'opp' : 'player', amount: strikeDmg, seq: strikeSeq });
         dispatch({ type: 'settleCombat' }); // health drops HERE, on the blow landing
       };
-      // Raise the ATTACKING side's stacking context above the other portrait for the swing (see the
-      // `.duel-attacker-*` rules) — the lunge's own zIndex can't cross stacking contexts. Cleared when done.
-      // Toggle on document.body: `.app` and `.statusbar` are SIBLINGS under #root (the player portrait lives in
-      // the statusbar, the foe's inside .app), so a class on .app can't reach the statusbar. body reaches both.
+      // Raise ONLY the attacking side above the other portrait for the swing (see `.duel-attacker-*`), which
+      // ALSO fades that side's own name/health — attacker-only, the struck hero keeps its pills up (owner ask).
       const appEl = document.body;
       const zClass = playerWon ? 'duel-attacker-player' : 'duel-attacker-opp';
-      // `duel-striking` fades every duel name/health pill for the swing, so the beat reads as just the two
-      // portraits + the blow, then they fade back after settle (owner ask 2026-08-25).
-      const dropZ = (): void => { appEl?.classList.remove(zClass); appEl?.classList.remove('duel-striking'); };
-      // Give the pill a beat to pop before the wind-up starts, so the number reads as picked up and carried.
+      const dropZ = (): void => { appEl?.classList.remove(zClass); };
+      // Wind up AFTER the pill has buffed (particles landed + pillHold), so the green full-damage pill reads
+      // before the lunge carries it into the loser.
       timers.push(window.setTimeout(() => {
         appEl?.classList.add(zClass);
-        appEl?.classList.add('duel-striking');
         const tl = attacker && defender
           ? playHeroStrike({ attacker, defender, damage: strikeDmg * duel.impactPower, combatSpeed: combatSpeed * duel.strikeSpeed, onImpact: land })
           : null;
         // No portraits to swing (a non-lobby run has no foe frame) → still land the consequence on time.
         if (!tl) { land(); dropZ(); }
-        // Retire the pill + drop the raised z on the swing's ACTUAL completion (plus the tuner's settle) rather
-        // than only on the outer timer — at slow swing speeds the guessed total lands mid-blow. CHAIN onto the
-        // timeline's existing onComplete, never replace it: `eventCallback` SETS the one slot, and playLunge's
-        // own completion (restore the CSS transition + clearProps transform/zIndex) lives there — replacing it
-        // left the attacker wearing GSAP's inline z-index 12 forever, which is what kept the portrait painted
-        // over its name and health after settling (owner report 2026-08-25).
+        // CHAIN onto the timeline's own onComplete (playLunge's cleanup — clearProps transform/zIndex — lives
+        // there); replacing it left the attacker at inline z-index 12, painted over its name/health after settle.
         else {
           const lungeDone = tl.eventCallback('onComplete');
           tl.eventCallback('onComplete', () => { lungeDone?.(); dropZ(); timers.push(window.setTimeout(() => setPill(null), duel.settleMs)); });
         }
-      }, duel.pillHold));
+      }, pixiFx.blastTravelMs + duel.pillHold));
     }, tallyEnd));
 
-    timers.push(window.setTimeout(() => { setPill(null); useGame.getState().setHeroDmgTaken(null); setLossPhase('done'); }, tallyEnd + duel.pillHold + STRIKE_BASE + duel.settleMs));
+    timers.push(window.setTimeout(() => { setPill(null); useGame.getState().setHeroDmgTaken(null); setLossPhase('done'); }, tallyEnd + pixiFx.blastTravelMs + duel.pillHold + STRIKE_BASE + duel.settleMs));
     // NO cleanup here on purpose: this effect re-runs whenever `replay.frame` ticks, and tearing the timers
     // down on those re-runs killed the swing mid-flight. The sequence is short, self-completing and
     // single-entry (`lossSeqRef`); its timers are cleared when combat ends (below) and on unmount.
@@ -5578,7 +5588,7 @@ export function Recruit() {
 
       {/* Loss-damage tally — surviving enemy tiers + the opponent's tier fly up into a damage counter
           above the enemy board (clamped to the round cap), then blast the Resolve bar. */}
-      {fighting && lossPhase && lossPos && (
+      {fighting && (lossPhase === 'tally' || lossPhase === 'blast') && lossPos && (   /* hidden once launched — no re-show on the board (owner 2026-08-25) */
         <div
           className={`lossdmg${lossPhase === 'blast' ? ' launch' : ''}`}
           style={{ left: lossPos.x, top: lossPos.y } as CSSProperties}

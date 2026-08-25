@@ -34,6 +34,10 @@ export interface HeroDuelConfig {
   pillPlayerScale: number;
   pillPlayerX: number;
   pillPlayerY: number;
+  /** The RED damage-taken number — scale + position, so it can be sized independently of the portrait. */
+  dmgScale: number;
+  dmgX: number;
+  dmgY: number;
   /** The opponent's RUNE badges — scale, position of the row, and the gap between badges. */
   runeScale: number;
   runeX: number;
@@ -73,6 +77,9 @@ const DEFAULTS: HeroDuelConfig = {
   pillPlayerScale: 0.55,
   pillPlayerX: 37,
   pillPlayerY: -6,
+  dmgScale: 1,
+  dmgX: 0,
+  dmgY: 0,
   runeScale: 1,
   runeX: 96,
   runeY: 0,
@@ -101,6 +108,9 @@ export const HERO_DUEL_RANGES: Record<keyof HeroDuelConfig, [number, number, num
   pillPlayerScale: [0.4, 3, 0.01],
   pillPlayerX: [-120, 120, 1],
   pillPlayerY: [-120, 120, 1],
+  dmgScale: [0.3, 3, 0.01],
+  dmgX: [-200, 200, 1],
+  dmgY: [-200, 200, 1],
   runeScale: [0.3, 2.5, 0.01],
   runeX: [-300, 300, 1],
   runeY: [-300, 300, 1],
@@ -129,6 +139,9 @@ export const HERO_DUEL_DESC: Record<keyof HeroDuelConfig, string> = {
   pillPlayerScale: 'Size of YOUR attack pill.',
   pillPlayerX: 'Move your attack pill horizontally.',
   pillPlayerY: 'Move your attack pill vertically.',
+  dmgScale: 'Size of the red damage number on a struck hero.',
+  dmgX: 'Move the damage number horizontally.',
+  dmgY: 'Move the damage number vertically.',
   runeScale: "Size of the opponent's rune badges (1 = the same size as your runes).",
   runeX: 'Move the rune row horizontally from the portrait.',
   runeY: 'Move the rune row vertically.',
@@ -173,6 +186,9 @@ export function applyHeroDuelVars(): void {
   r.setProperty('--hd-pill-player-s', String(cfg.pillPlayerScale));
   r.setProperty('--hd-pill-player-x', `${cfg.pillPlayerX}px`);
   r.setProperty('--hd-pill-player-y', `${cfg.pillPlayerY}px`);
+  r.setProperty('--hd-dmg-s', String(cfg.dmgScale));
+  r.setProperty('--hd-dmg-x', `${cfg.dmgX}px`);
+  r.setProperty('--hd-dmg-y', `${cfg.dmgY}px`);
   r.setProperty('--hd-rune-s', String(cfg.runeScale));
   r.setProperty('--hd-rune-x', `${cfg.runeX}px`);
   r.setProperty('--hd-rune-y', `${cfg.runeY}px`);

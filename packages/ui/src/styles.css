@@ -742,8 +742,9 @@ body.etb-glow-preview .etbwrap:not(.pressed):not(:disabled) .etb-gem {
    matching the diamond's tooltip feel. */
 .combatsummary {
   position: fixed;
-  left: calc(var(--bar-x) + 0.81 * var(--gw) + var(--etb-x, 10px) * var(--scale));
-  top: calc(var(--bar-y) + 0.45 * var(--gh) + (var(--etb-y, -23px) - 142px) * var(--scale));
+  /* Top-centre, where the turn timer sits (owner ask 2026-08-25) — just left of centre, with Skip to the right. */
+  left: calc(var(--bar-x) + 0.5 * var(--gw) - 96px * var(--scale));
+  top: calc(var(--bar-y) + 0.055 * var(--gh));
   transform: translate(-50%, -50%);
   display: inline-flex; align-items: center; gap: 8px;
   font-family: var(--font-ui); font-weight: 800; font-size: 14px; letter-spacing: 0.03em; color: #f4ecdb;
@@ -4089,7 +4090,7 @@ body.aiming, body.aiming * { cursor: none !important; }
 .app.combat .buffsframe { display: none; }
 /* Skip button — pinned ABOVE the End Turn / End Combat diamond (owner move 2026-08-11), same stage anchor +
    `--etb-x/y` offsets as the Summary pill (they never show at once: Skip during the replay, Summary after). */
-.combathud-skip { position: fixed; left: calc(var(--bar-x) + 0.81 * var(--gw) + var(--etb-x, 10px) * var(--scale)); top: calc(var(--bar-y) + 0.45 * var(--gh) + (var(--etb-y, -23px) - 142px) * var(--scale)); transform: translate(-50%, -50%); z-index: 41; display: inline-flex; align-items: center; justify-content: center; gap: calc(7 * var(--u)); font-family: var(--font-ui); font-weight: 800; font-size: calc(15 * var(--u)); letter-spacing: 0.04em; color: #fff; background: var(--acc); border: 2px solid var(--acc-dk); padding: calc(8 * var(--u)) calc(20 * var(--u)); border-radius: calc(11 * var(--u)); box-shadow: 0 calc(4 * var(--u)) 0 var(--acc-dk); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; animation: fadein 0.25s ease; }
+.combathud-skip { position: fixed; left: calc(var(--bar-x) + 0.5 * var(--gw) + 96px * var(--scale)); top: calc(var(--bar-y) + 0.055 * var(--gh)); transform: translate(-50%, -50%); z-index: 41; display: inline-flex; align-items: center; justify-content: center; gap: calc(7 * var(--u)); font-family: var(--font-ui); font-weight: 800; font-size: calc(15 * var(--u)); letter-spacing: 0.04em; color: #fff; background: var(--acc); border: 2px solid var(--acc-dk); padding: calc(8 * var(--u)) calc(20 * var(--u)); border-radius: calc(11 * var(--u)); box-shadow: 0 calc(4 * var(--u)) 0 var(--acc-dk); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; animation: fadein 0.25s ease; }
 .combathud-skip svg { width: calc(16 * var(--u)); height: calc(16 * var(--u)); }
 .combathud-skip:hover { background: var(--acc-dk); }
 .combathud-skip:active { transform: translate(-50%, -50%) translateY(calc(2 * var(--u))); box-shadow: 0 calc(2 * var(--u)) 0 var(--acc-dk); }
@@ -8937,7 +8938,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .combatopp-body, .statusbar .hero .herolunge { position: relative; }
 .hero-dmgtaken {
   position: absolute; left: 50%; top: 50%; z-index: 8; pointer-events: none; white-space: nowrap;
-  transform: translate(-50%, -50%);
+  transform: translate(calc(-50% + var(--hd-dmg-x, 0px)), calc(-50% + var(--hd-dmg-y, 0px))) scale(var(--hd-dmg-s, 1));
   color: #fff; background: var(--threat);
   padding: calc(3 * var(--u)) calc(13 * var(--u)); border-radius: calc(12 * var(--u));
   font-family: var(--font-ui); font-weight: 900; font-size: var(--float-dmg-size, calc(42 * var(--u))); line-height: 1;
@@ -8946,21 +8947,23 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 }
 /* Punch in big, hold, drift up and fade — the classic damage-number read. */
 @keyframes herodmgpop {
-  0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.3); }
-  22%  { opacity: 1; transform: translate(-50%, -60%) scale(1.15); }
-  38%  { transform: translate(-50%, -58%) scale(1); }
-  78%  { opacity: 1; transform: translate(-50%, -72%) scale(1); }
-  100% { opacity: 0; transform: translate(-50%, -96%) scale(0.92); }
+  0%   { opacity: 0; transform: translate(calc(-50% + var(--hd-dmg-x, 0px)), calc(-50% + var(--hd-dmg-y, 0px))) scale(calc(var(--hd-dmg-s, 1) * 0.3)); }
+  22%  { opacity: 1; transform: translate(calc(-50% + var(--hd-dmg-x, 0px)), calc(-60% + var(--hd-dmg-y, 0px))) scale(calc(var(--hd-dmg-s, 1) * 1.15)); }
+  38%  { transform: translate(calc(-50% + var(--hd-dmg-x, 0px)), calc(-58% + var(--hd-dmg-y, 0px))) scale(var(--hd-dmg-s, 1)); }
+  78%  { opacity: 1; transform: translate(calc(-50% + var(--hd-dmg-x, 0px)), calc(-72% + var(--hd-dmg-y, 0px))) scale(var(--hd-dmg-s, 1)); }
+  100% { opacity: 0; transform: translate(calc(-50% + var(--hd-dmg-x, 0px)), calc(-96% + var(--hd-dmg-y, 0px))) scale(calc(var(--hd-dmg-s, 1) * 0.92)); }
 }
 
 /* PILL FADE during a strike (owner ask 2026-08-25): while `.app.duel-striking` is on, every duel name/health
    pill fades out so the beat reads as just the two portraits + the blow; it lifts on settle and they fade back.
    Transitions live on the base elements so the fade-BACK is smooth too (opacity only — compositor-only). */
 .combatopp-name, .combatopp-hp, .statusbar .hero .heroname, .statusbar .hero .hpbox { transition: opacity 240ms ease; }
-body.duel-striking .combatopp-name,
-body.duel-striking .combatopp-hp,
-body.duel-striking .statusbar .hero .heroname,
-body.duel-striking .statusbar .hero .hpbox { opacity: 0; }
+/* Only the ATTACKER's pills fade for the swing; the struck hero keeps name + health up while its life drops
+   (owner ask 2026-08-25). Scoped to whichever `.duel-attacker-*` is active. */
+body.duel-attacker-player .statusbar .hero .heroname,
+body.duel-attacker-player .statusbar .hero .hpbox { opacity: 0; }
+body.duel-attacker-opp .combatopp-name,
+body.duel-attacker-opp .combatopp-hp { opacity: 0; }
 
 /* THE OPPONENT'S RUNES (owner ask 2026-08-25) — a column beside the portrait, using the SAME `.questbadge`
    /`.runebadge` styling the player's runes wear (so art, hover tip and the trigger bounce all match). The
@@ -9021,16 +9024,23 @@ body.duel-striking .statusbar .hero .hpbox { opacity: 0; }
    `--threat` red, rounded, padded, drop-shadowed — see `.float.dmg`. `.hero-atk` (damage DEALT, carried on the
    attacker) keeps its per-side tuner offset + pop; `.hero-dmgtaken` (damage TAKEN, on the defender) keeps its
    centred drift. */
+/* THE HERO ATTACK PILL — a minion's ATTACK badge (owner ask 2026-08-25): the yellow `--atk` fill + card border
+   at first, showing the hero's base (tier) damage, then it flips GREEN when the tallied damage flies in and
+   buffs it to full — exactly how a buffed minion's attack reads green. The RED `.float.dmg` box is reserved for
+   the damage NUMBER (dealt/taken); this pill is the attack value. */
 .hero-atk {
   position: absolute; left: calc(50% + var(--pill-x, 0px)); bottom: calc(-14 * var(--u) - var(--pill-y, 0px));
   transform: translateX(-50%) scale(var(--pill-s, 1));
-  z-index: 6; pointer-events: none; white-space: nowrap;
-  color: #fff; background: var(--threat);
-  padding: calc(3 * var(--u)) calc(13 * var(--u)); border-radius: calc(12 * var(--u));
-  font-family: var(--font-ui); font-weight: 900; font-size: var(--float-dmg-size, calc(42 * var(--u)));
-  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.55); box-shadow: 0 3px 10px rgba(0, 0, 0, 0.38);
+  z-index: 6; pointer-events: none;
+  display: grid; place-items: center;
+  min-width: calc(46 * var(--u)); height: calc(46 * var(--u)); padding: 0 calc(7 * var(--u));
+  border-radius: calc(16 * var(--u)); border: calc(3 * var(--u)) solid var(--card);
+  background: var(--atk);
+  font-family: var(--font-ui); font-weight: 900; font-size: calc(28 * var(--u)); color: #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
   animation: heroatkpop 260ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
+.hero-atk.buffed { background: #1aa86f; }   /* buffed to full damage — the same green a buffed minion's attack wears */
 .hero-atk-player { --pill-s: var(--hd-pill-player-s, 0.55); --pill-x: var(--hd-pill-player-x, 37px); --pill-y: var(--hd-pill-player-y, -6px); }
 .hero-atk-opp    { --pill-s: var(--hd-pill-opp-s, 0.72); --pill-x: var(--hd-pill-opp-x, -60px); --pill-y: var(--hd-pill-opp-y, -16px); }
 @keyframes heroatkpop {

@@ -4,7 +4,7 @@ import { surfaceKeyForRune, surfaceKeyForQuest, CARD_INDEX, EPIC_RUNES, QUEST_IN
 import { sideFromSnapshot } from './boardSide';
 import { poolOf, setIdOf } from './cardPool';
 import { ACE_DISCOUNT_MAX_TIER, ACE_TIER_DISCOUNT, CONFIG, INDY_GILD_RECHARGE_GOLD, KESHI_CROWN_THRESHOLD, maxTierFor, hasTier7Access } from './config';
-import { lobbyOpponentBoard, settleRunLobbyRound, playerEliminated, practicePlayerPlacement } from './lobby/runLobby';
+import { lobbyOpponentBoard, settleRunLobbyRound, playerEliminated, practicePlayerPlacement, playerLossDamage } from './lobby/runLobby';
 import { accumulateContribution, tallyCombat } from './contribution';
 import { rollShop, topUpTavern, returnToPool, takeFromPool, rollCiaEnchants } from './shop';
 import { generateQuestOffer, questOfferPlan } from './quests';
@@ -3847,6 +3847,25 @@ function settleCombat(s: RunState, result: CombatResult): void {
     const absorbed = Math.min(s.armor, result.playerDamage);
     s.armor -= absorbed;
     s.resolve = Math.max(0, s.resolve - (result.playerDamage - absorbed));
+  }
+  // LOBBY-FAMILY (lobby / tutorial / practice on `normal` health): the SEAT owns health, and the table settles
+  // later — at `resolveCombat` — so the eliminations, every seat's new health and your next opponent appear
+  // together when you choose to leave the fight. That grouping is deliberate, but it also left YOUR OWN number
+  // frozen at its pre-combat value all the way back to the shop (owner report 2026-08-25: the health number
+  // doesn't change until returning to shop). Apply the player's own hit HERE, the moment the replay settles,
+  // via the same shared `playerLossDamage` the loss counter animates and the same armor-first order the seat's
+  // `hit()` uses — so when `settleLobbyRound` later syncs `s.resolve = me.resolve` it lands on the identical
+  // number: nothing jumps, and nothing is charged twice (the seat damages its own pools from the same inputs).
+  //
+  // PRACTICE INVULNERABILITY is excluded on purpose: there `settleLobbyRound` restores the seat FROM the run
+  // (`me.resolve = s.resolve`), so damaging the run here would leak into the seat and undo the invulnerability.
+  if (s.lobby && !(s.mode === 'practice' && s.practiceConfig?.health !== 'normal')) {
+    const seatDmg = playerLossDamage(s.lobby, result);
+    if (seatDmg > 0) {
+      const fromArmor = Math.min(s.armor, seatDmg);
+      s.armor -= fromArmor;
+      s.resolve = Math.max(0, s.resolve - (seatDmg - fromArmor));
+    }
   }
   // Maw of the Pit's one-combat Divine Shield is spent — strip the temp DS so it doesn't carry to the
   // next fight (consuming again re-arms it). Same for Lord of the Risen's one-combat Rise (temp R).

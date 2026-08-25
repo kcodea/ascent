@@ -1892,6 +1892,11 @@ export function Recruit() {
       if (cur) setPill({ ...cur, leaving: true });
       timers.push(window.setTimeout(() => setPill(null), 260));
     };   // the yellow base pill rides the hero from tally start
+    // HERO-DUEL SFX, scheduled from the SEQUENCE START so their tuner offsets can pull them EARLIER (negative)
+    // or later (positive) than the natural cue — travel fires at the launch (tallyEnd), the pill-add at the
+    // landing (tallyEnd + the def's travel). Clamped to >= 0 so a big negative just fires at the start.
+    timers.push(window.setTimeout(() => sfx.tallyTravel(duel.sfxTravelVol), Math.max(0, tallyEnd + duel.sfxTravelDelay)));
+    timers.push(window.setTimeout(() => sfx.attackPillAdd(duel.sfxAddVol), Math.max(0, tallyEnd + TALLY_TRAVEL_MS + duel.sfxAddDelay)));
 
     timers.push(window.setTimeout(() => {
       // Dissolve the centre tally into particles that fly to the ATTACKER's portrait ("gaining the attack").
@@ -1906,14 +1911,11 @@ export function Recruit() {
       const ay = pr ? pr.top + pr.height / 2 : (aRect0 ? aRect0.top + aRect0.height / 2 : cy);
       // Play the AUTHORED def (ribbon travels source→pill, then a burst on the pill) instead of the old bolt.
       playDef('tallyanimation1', { source: { x: cx, y: cy }, target: { x: ax, y: ay } });
-      // SFX: the tally travelling (at launch + its tuner delay), then the pill-add when it lands (owner ask).
-      timers.push(window.setTimeout(() => sfx.tallyTravel(duel.sfxTravelVol), Math.max(0, duel.sfxTravelDelay)));
       // WHEN the tally lands on the pill (after the def's ~800ms travel): buff the pill to full + GREEN (it
       // re-pops on the value change), play the pill-add sound, and the pill sheens (via its `buffed` remount).
       timers.push(window.setTimeout(() => {
         setLossPhase('done');   // centre number gone for good — never returns to the board
         setPill({ side, amount: fullDmg, buffed: fullDmg > baseTier });
-        timers.push(window.setTimeout(() => sfx.attackPillAdd(duel.sfxAddVol), Math.max(0, duel.sfxAddDelay)));
       }, TALLY_TRAVEL_MS));
 
       // The portraits: the player's own in the status bar, the foe's the frame that dropped in for the fight.

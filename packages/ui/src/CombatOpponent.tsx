@@ -34,12 +34,14 @@ export function CombatOpponent(): JSX.Element | null {
           `transform` too — animating the outer element would clobber the centring and make it jump half its
           size. So the wrapper positions, the body moves. */}
       <div className="combatopp-body">
+      {/* Name ABOVE the portrait, health BELOW it (owner ask 2026-08-25) — both absolutely placed against the
+          portrait so the ⚔️ tuner can size and move each independently without disturbing the other. */}
+      <div className="combatopp-name">{seat.label}</div>
       <div className="combatopp-portrait">
         {/* The foe's ATTACK PILL — same badge the player's portrait wears; a child so it rides the lunge. */}
         {pill?.side === 'opp' && <span key={`atk${pill.amount}`} className="hero-atk">{pill.amount}</span>}
         {art ? <img className="combatopp-img" src={art} alt="" draggable={false} /> : <Icon name="anvil" />}
       </div>
-      <div className="combatopp-name">{seat.label}</div>
       <div className="combatopp-hp">
         <Icon name="heart" />{seat.resolve}
         {seat.armor > 0 && <span className="combatopp-armor">+{seat.armor}</span>}

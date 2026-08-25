@@ -1880,8 +1880,8 @@ export function Recruit() {
       const land = (): void => {
         setLossShake(true);
         window.setTimeout(() => setLossShake(false), 360);
-        defender?.classList.add('hero-struck');
-        window.setTimeout(() => defender?.classList.remove('hero-struck'), 420);
+        // The struck HERO does not react (owner ruling 2026-08-25) — the Pixi strike FX and the health drop
+        // carry the blow. Anything animating the portrait here also fights its own centring/scale transform.
         dispatch({ type: 'settleCombat' }); // health drops HERE, on the blow landing
       };
       // Give the pill a beat to pop before the wind-up starts, so the number reads as picked up and carried.

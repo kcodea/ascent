@@ -21,6 +21,12 @@ const LABELS: Record<keyof HeroDuelConfig, [string, TunerUnit | undefined]> = {
   oppScale:     ['Portrait size', '×'],
   oppX:         ['Portrait X', 'px'],
   oppY:         ['Portrait Y', 'px'],
+  nameScale:    ['Name size', '×'],
+  nameX:        ['Name X', 'px'],
+  nameY:        ['Name Y', 'px'],
+  hpScale:      ['Health size', '×'],
+  hpX:          ['Health X', 'px'],
+  hpY:          ['Health Y', 'px'],
   pillScale:    ['Pill size', '×'],
   pillX:        ['Pill X', 'px'],
   pillY:        ['Pill Y', 'px'],
@@ -33,12 +39,16 @@ const LABELS: Record<keyof HeroDuelConfig, [string, TunerUnit | undefined]> = {
 };
 const GROUP: Record<keyof HeroDuelConfig, string> = {
   oppScale: 'Opponent portrait', oppX: 'Opponent portrait', oppY: 'Opponent portrait',
+  nameScale: 'Foe name plate', nameX: 'Foe name plate', nameY: 'Foe name plate',
+  hpScale: 'Foe health pill', hpX: 'Foe health pill', hpY: 'Foe health pill',
   pillScale: 'Attack pill', pillX: 'Attack pill', pillY: 'Attack pill',
   tallyStagger: 'Sequence', tallyFly: 'Sequence', pillHold: 'Sequence',
   strikeSpeed: 'Strike', impactPower: 'Strike', settleMs: 'Strike',
 };
 const ORDER: (keyof HeroDuelConfig)[] = [
   'oppScale', 'oppX', 'oppY',
+  'nameScale', 'nameX', 'nameY',
+  'hpScale', 'hpX', 'hpY',
   'pillScale', 'pillX', 'pillY',
   'tallyStagger', 'tallyFly', 'pillHold',
   'strikeSpeed', 'impactPower', 'settleMs',
@@ -71,10 +81,7 @@ function demo(side: 'player' | 'opp'): void {
       };
       const tl = playHeroStrike({
         attacker, defender, damage: dmg * cfg.impactPower, combatSpeed: cfg.strikeSpeed,
-        onImpact: () => {
-          defender.classList.add('hero-struck');
-          window.setTimeout(() => defender.classList.remove('hero-struck'), 420);
-        },
+        onImpact: () => { /* the struck portrait deliberately does not react — see styles.css */ },
       });
       // Retire on the swing's ACTUAL completion, plus the tuner's settle — a guessed timeout can fire mid-swing
       // and yank the foe portrait out from under the blow (seen while wiring this).

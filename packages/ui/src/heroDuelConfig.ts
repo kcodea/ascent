@@ -18,6 +18,14 @@ export interface HeroDuelConfig {
   oppScale: number;
   oppX: number;
   oppY: number;
+  /** The foe's NAME plate — sits above the portrait. Scale + px offsets. */
+  nameScale: number;
+  nameX: number;
+  nameY: number;
+  /** The foe's HEALTH pill — sits below the portrait. Scale + px offsets. */
+  hpScale: number;
+  hpX: number;
+  hpY: number;
   /** The attack pill — scale, and px offsets from the portrait's bottom centre. */
   pillScale: number;
   pillX: number;
@@ -42,6 +50,12 @@ const DEFAULTS: HeroDuelConfig = {
   oppScale: 1,
   oppX: 0,
   oppY: 0,
+  nameScale: 1,
+  nameX: 0,
+  nameY: 0,
+  hpScale: 1,
+  hpX: 0,
+  hpY: 0,
   pillScale: 1,
   pillX: 0,
   pillY: 0,
@@ -57,6 +71,12 @@ export const HERO_DUEL_RANGES: Record<keyof HeroDuelConfig, [number, number, num
   oppScale: [0.4, 2.2, 0.01],
   oppX: [-500, 500, 1],
   oppY: [-500, 500, 1],
+  nameScale: [0.4, 3, 0.01],
+  nameX: [-200, 200, 1],
+  nameY: [-200, 200, 1],
+  hpScale: [0.4, 3, 0.01],
+  hpX: [-200, 200, 1],
+  hpY: [-200, 200, 1],
   pillScale: [0.4, 3, 0.01],
   pillX: [-120, 120, 1],
   pillY: [-120, 120, 1],
@@ -72,6 +92,12 @@ export const HERO_DUEL_DESC: Record<keyof HeroDuelConfig, string> = {
   oppScale: "Size of the opponent's portrait that drops in for the fight.",
   oppX: "Move the opponent's portrait horizontally from its Refresh-button anchor.",
   oppY: "Move the opponent's portrait vertically from its anchor.",
+  nameScale: "Size of the opponent's name plate.",
+  nameX: "Move the name plate horizontally.",
+  nameY: "Move the name plate vertically (it sits above the portrait).",
+  hpScale: "Size of the opponent's health pill.",
+  hpX: 'Move the health pill horizontally.',
+  hpY: 'Move the health pill vertically (it sits below the portrait).',
   pillScale: 'Size of the attack pill the winning hero carries.',
   pillX: 'Move the attack pill horizontally on the portrait.',
   pillY: 'Move the attack pill vertically on the portrait.',
@@ -103,6 +129,12 @@ export function applyHeroDuelVars(): void {
   r.setProperty('--hd-opp-s', String(cfg.oppScale));
   r.setProperty('--hd-opp-x', `${cfg.oppX}px`);
   r.setProperty('--hd-opp-y', `${cfg.oppY}px`);
+  r.setProperty('--hd-name-s', String(cfg.nameScale));
+  r.setProperty('--hd-name-x', `${cfg.nameX}px`);
+  r.setProperty('--hd-name-y', `${cfg.nameY}px`);
+  r.setProperty('--hd-hp-s', String(cfg.hpScale));
+  r.setProperty('--hd-hp-x', `${cfg.hpX}px`);
+  r.setProperty('--hd-hp-y', `${cfg.hpY}px`);
   r.setProperty('--hd-pill-s', String(cfg.pillScale));
   r.setProperty('--hd-pill-x', `${cfg.pillX}px`);
   r.setProperty('--hd-pill-y', `${cfg.pillY}px`);

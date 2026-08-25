@@ -34,14 +34,32 @@ export function playHeroStrike(opts: {
   const dx = (def.left + def.width / 2) - (atk.left + atk.width / 2);
   const dy = (def.top + def.height / 2) - (atk.top + atk.height / 2);
   const cfg = getLungeConfig();
-  const geo = contactGeometry(dx, dy, { width: atk.width, height: atk.height }, { width: def.width, height: def.height }, cfg);
+
+  // SOLVE IN THE ATTACKER'S LOCAL SPACE. The foe's portrait sits inside a CSS-`scale()`d wrapper (the ⚔️ tuner's
+  // size knob), so its rects come back in SCALED screen pixels — while the `x`/`y` GSAP writes are in the
+  // element's own unscaled units and are magnified by that same scale when drawn. Feeding screen-space numbers
+  // straight to the lunge therefore made the blow overshoot as the portrait grew and fall short as it shrank:
+  // the hit destination moved with the size (owner report 2026-08-25). Dividing the vector and BOTH sizes by
+  // the attacker's own scale puts everything in the frame GSAP actually animates in, so the destination is
+  // size-independent. `offsetWidth` is the unscaled layout width, which is what makes the factor measurable.
+  const atkW = (attacker as HTMLElement).offsetWidth || atk.width;
+  const scale = atkW > 0 ? atk.width / atkW : 1;
+  const inv = scale > 0 ? 1 / scale : 1;
+  const geo = contactGeometry(
+    dx * inv, dy * inv,
+    { width: atk.width * inv, height: atk.height * inv },
+    { width: def.width * inv, height: def.height * inv },
+    cfg,
+  );
   const power = hitPower(damage);
+  // The impact FX stay in SCREEN space — Pixi positions them against the viewport, not the attacker's frame.
   const impactAt = { x: def.left + def.width / 2, y: def.top + def.height / 2 };
   const spinDeg = -Math.sign(geo.leadTilt || 1) * cfg.defenderSpin;
 
   return playLunge({
     attacker,
-    dx, dy,
+    // Local-frame vector, to match the local-frame strike offset solved above.
+    dx: dx * inv, dy: dy * inv,
     strike: geo.strike,
     strikeDur: geo.strikeDur,
     travel: geo.travel,
@@ -50,6 +68,8 @@ export function playHeroStrike(opts: {
     speed: combatSpeed,
     // The beat clock is not running here (the replay is over), so contact only has to fire the consequence.
     onContact: onImpact,
-    onImpact: () => playContactImpact(defender, dx, dy, power, combatSpeed, impactAt, spinDeg),
+    // `null` defender ON PURPOSE: that argument is what drives the defender's knockback/recoil tween, and the
+    // hero portraits must not react (owner ruling 2026-08-25) — the FX still fire at `impactAt`, in screen space.
+    onImpact: () => playContactImpact(null, dx, dy, power, combatSpeed, impactAt, spinDeg),
   });
 }

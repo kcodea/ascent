@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Container } from 'pixi.js';
 import { CARD_INDEX } from '@game/content';
-import { defaultsOf } from '../params';
+import { defaultsOf, type FxParamSpecs } from '../params';
 import type { GradientStop } from '../gradient';
 import { createPlayer, type FxPlayer } from '../player';
 import { getPrimitive, hasPrimitives, listPrimitives } from '../registry';
@@ -32,6 +32,8 @@ import { getDef, listDefs, refreshDefs, registerSavedDef } from '../fxDefs';
 import { applyVariant, presetTable } from '../presets';
 import { getImportedDataUrl, registerSavedArt } from '../shapeLibrary';
 import { CurveEditor, Inspector } from './Inspector';
+import { CommandBar } from './CommandBar';
+import type { CommandItem, CommandSources } from './commandIndex';
 import { CURVE_PRESETS } from '../curve';
 import { DefLibrary } from './DefLibrary';
 import { SeedBakeWarning } from './SeedBakeWarning';
@@ -60,13 +62,14 @@ import { createBackdrop, type FxBackdrop } from './backdrop';
 import { Timeline } from './Timeline';
 import { previewClock } from './timelineModel';
 import { ANCHOR_OPTIONS, anchorBlurb, primitiveBlurb, primitiveLabel } from './copy';
+import { applyReorder } from './dragEdit';
+import { LayersPanel } from './LayersPanel';
 import {
   addLayer,
   createEditorLayer,
   duplicateLayer,
   effectiveMutes,
   fitDurationToLayers,
-  moveLayer,
   removeLayer,
   setLayerAnchor,
   setLayerBow,
@@ -114,6 +117,21 @@ const BACKDROP_SWATCHES: readonly { label: string; hex: number | null }[] = [
   { label: 'Board', hex: 0x211d2c },
   { label: 'Mid', hex: 0x808080 },
   { label: 'Light', hex: 0xc8c8c8 },
+];
+
+/**
+ * The ⌘K command palette's ACTION rows. Each `id` is mapped onto an existing transport/library handler by
+ * `runAction` inside the component — this is a second trigger for those behaviours, never a second
+ * implementation. Module scope so the array identity is stable across renders (it feeds the `cmdSources`
+ * memo, which would otherwise rebuild every frame the fps/time readouts re-render).
+ */
+const WB_ACTIONS: readonly { id: string; label: string; hint?: string }[] = [
+  { id: 'fire', label: 'Fire once' },
+  { id: 'togglePlay', label: 'Play / pause' },
+  { id: 'toggleLoop', label: 'Toggle loop' },
+  { id: 'addLayer', label: 'Add layer' },
+  { id: 'newEffect', label: 'New effect…' },
+  { id: 'browse', label: 'Browse all…' },
 ];
 
 // Registers every built-in primitive (see registry.ts's `registerPrimitive`). A DYNAMIC import, deliberately —
@@ -355,9 +373,6 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
     return [createEditorLayer(first, defaultsOf(getPrimitive(first)?.params ?? {}))];
   });
   const [selected, setSelected] = useState(restoredSession?.selected ?? 0);
-  // The "Add layer" picker's own selection (defaults to the first registered primitive). Independent of the
-  // selected layer — it only feeds `addNewLayer`.
-  const [addPrimitiveId, setAddPrimitiveId] = useState<string>(() => listPrimitives()[0]?.id ?? 'ribbon');
   // `realBoard` while the stage is up (below): it reads anchors off the live DOM, and with the stage there
   // that DOM is six real cards at their real size and spacing — the honest default. Falls back to whatever
   // is first if that scenario ever goes away.
@@ -371,6 +386,12 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   const [timeMs, setTimeMs] = useState(0);
   const [fps, setFps] = useState(0);
   const [copied, setCopied] = useState(false);
+  // ⌘K command palette: whether it's open, and the param the last param-jump targeted (handed to the
+  // Inspector as `focusKey`, cleared each time the palette re-opens so the same param can be jumped to
+  // twice). `timelineOpen` collapses the bottom timeline region to just its header.
+  const [cmdOpen, setCmdOpen] = useState(false);
+  const [inspectorFocusKey, setInspectorFocusKey] = useState<string | null>(null);
+  const [timelineOpen, setTimelineOpen] = useState(true);
   const [backdropColor, setBackdropColor] = useState<number | null>(null);
   const [durationMs, setDurationMs] = useState(restoredSession?.durationMs ?? DEFAULT_DURATION_MS);
 
@@ -517,10 +538,6 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   // and write it synchronously inside an event handler (a state updater can't both compute the next stack
   // and apply its snapshot to the player without running side effects inside the updater).
   const [historyFlags, setHistoryFlags] = useState({ undo: false, redo: false });
-  // Which layer's name is being edited in place, and the in-progress text. `null` = nobody's renaming.
-  const [renaming, setRenaming] = useState<number | null>(null);
-  const [renameText, setRenameText] = useState('');
-
   const playerRef = useRef<FxPlayer | null>(null);
   const backdropRef = useRef<FxBackdrop | null>(null);
   // Mirrors of the latest state, read by the per-frame updater / build closures so those never go stale
@@ -572,9 +589,9 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   const togglePlayRef = useRef<() => void>(() => {});
   const fireRef = useRef<() => void>(() => {});
   const toggleLoopRef = useRef<() => void>(() => {});
-  // Mirrors `renaming` so committing a rename is IDEMPOTENT: Enter commits and unmounts the input, and some
-  // browsers fire a `blur` on removal — which would otherwise commit (and record) the same rename twice.
-  // A ref, not the state, because both would land in the same React batch and the state wouldn't have moved.
+  // Vestige of the in-place rename Workbench used to own directly (now `LayersPanel`'s own textbox — see
+  // `cancelRename`); kept only because `cancelRename` still clears it from the undo/redo and
+  // composition-reset guards below.
   const renamingRef = useRef<number | null>(null);
 
   // Live pointer position, for cursor-driven scenarios — independent of build/rebuild, tracked once.
@@ -1024,6 +1041,29 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
     return () => window.removeEventListener('keydown', onKeyDown);
   }, []);
 
+  /**
+   * ⌘K / Ctrl+K opens the command palette. Same text-entry exemption the other global listeners use (so ⌘K
+   * while typing a def name or seed is left to the browser), and `preventDefault` so the browser's own Ctrl+K
+   * — focus the address bar / search — never fires over it.
+   *
+   * Escape-to-CLOSE is deliberately NOT handled here: the palette autofocuses its own text input and closes
+   * itself on Escape (see `CommandBar`), and the workbench's capture-phase Escape claim exempts text entry —
+   * so with focus in the palette input, Escape reaches the palette's onKeyDown and closes IT, without this
+   * effect or the claim needing to change. Bound once (`[]` deps): the setters are stable, and opening clears
+   * any prior param focus so re-jumping to the same param re-fires the Inspector's scroll.
+   */
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent): void => {
+      if (!((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k')) return;
+      if (isTextEntry(e.target)) return;
+      e.preventDefault();
+      setInspectorFocusKey(null);
+      setCmdOpen(true);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
+
   // `number[]` covers the editable palette param (a 4-tuple of colour stops); `number[][]` covers the curve
   // param (a list of [t, v] control points); `GradientStop[]` covers the gradient param (a list of
   // `{ at, color }` stops). Every value flows unchanged through setLayerParams' `Record<string, unknown>`,
@@ -1173,30 +1213,13 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
     pushLiveMutes(next);
   };
 
-  /** Begin renaming a row in place. Seeds the box with the CURRENT name, or blank when the row is still
-   *  showing its primitive id — you're naming it, not editing "burst". */
-  const startRename = (i: number): void => {
-    renamingRef.current = i;
-    setRenaming(i);
-    setRenameText(layers[i]?.name ?? '');
-  };
-
-  /** Abandon the in-place rename without touching the layer (Escape, or the composition being replaced). */
+  /** Abandon the in-place rename without touching the layer (Escape, or the composition being replaced).
+   *  `LayersPanel` now owns the rename textbox itself; this only clears the ref that used to guard against
+   *  a double-commit (Enter committing, then a browser's `blur`-on-unmount committing again) — kept for the
+   *  undo/redo and composition-reset call sites below, which must still be able to abandon a stale rename
+   *  they didn't start. */
   const cancelRename = (): void => {
     renamingRef.current = null;
-    setRenaming(null);
-  };
-
-  /** Commit the in-place rename. An empty box clears the name (the row goes back to its primitive id), and a
-   *  rename that changes nothing records nothing. Purely a label: no live push, no rebuild. */
-  const commitRename = (i: number): void => {
-    if (renamingRef.current !== i) return; // already committed / cancelled — see `renamingRef`
-    cancelRename();
-    const trimmed = renameText.trim();
-    const current = layers[i]?.name;
-    if (trimmed === (current ?? '')) return;
-    record('structural');
-    commitLayers(setLayerName(layers, i, trimmed));
   };
 
   const deleteLayer = (i: number): void => {
@@ -1206,16 +1229,28 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
     applySelected(Math.min(selectedRef.current, next.length - 1));
   };
 
-  const reorderLayer = (i: number, dir: -1 | 1): void => {
+  /** `LayersPanel`'s grip-drag resolves an arbitrary drop index (`resolveDrop`/`reorderTargetIndex`). Moves
+   *  the layer straight to `to` with one splice (`applyReorder`) so a multi-row drag is ONE undo entry, not N
+   *  single-step ones. Reads/writes through `layersRef` (not the render-scoped `layers`) so it stays correct
+   *  if ever invoked more than once before a render lands, matching `retimeLayer`'s precedent. */
+  const reorderLayerTo = (from: number, to: number): void => {
+    if (from === to) return;
     record('structural');
-    const next = moveLayer(layers, i, dir);
+    const next = applyReorder(layersRef.current, from, to);
     commitLayers(next);
-    // Swapping two layers that share a primitive+anchor leaves `structKey` unchanged (it no longer carries
-    // timing), so no rebuild fires — the live instances would keep the pre-swap params/timing at their new
-    // indices. Push them explicitly; harmless when the key DID change and a rebuild is coming anyway.
     pushLiveLayers(next);
-    const target = i + dir;
-    if (target >= 0 && target < next.length) applySelected(target); // keep selection on the moved layer
+    applySelected(to);
+  };
+
+  /** `LayersPanel` owns the in-place rename textbox itself, so it hands back the finished name directly
+   *  instead of this reading it off local state. Trim, no-op guard, one `structural` history entry, no live
+   *  push (a name is a label, not something the running effect needs to know about). */
+  const renameLayer = (i: number, name: string): void => {
+    const trimmed = name.trim();
+    const current = layersRef.current[i]?.name;
+    if (trimmed === (current ?? '')) return;
+    record('structural');
+    commitLayers(setLayerName(layersRef.current, i, trimmed));
   };
 
   // The TOP primitive-button row edits the SELECTED layer's primitive (resetting its params to the new
@@ -1592,6 +1627,10 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
     setHarnessKind(null);
   }, []);
 
+  // Stable identity for the Inspector's `onFocusHandled` prop — it sits in an Inspector effect's dep array, so
+  // a fresh arrow every render would cancel/reschedule that effect's raf needlessly while a focusKey is pending.
+  const clearInspectorFocusKey = useCallback(() => setInspectorFocusKey(null), []);
+
   // ── commit animation: the live draft, then the committed def + binding ──────────────────────────────
   //
   // DECLARED BEFORE the draft effects below, and that ordering is load-bearing: effects in one commit run in
@@ -1966,6 +2005,58 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
     autosaveArmedRef.current = false; // AFTER commitLayers/applySeed, which arm it
   };
 
+  // ── ⌘K command palette ──────────────────────────────────────────────────────────────────────────────
+  // Everything the palette searches: the live layers, each layer's primitive param specs (so a param can be
+  // reached without first selecting its layer, matching `buildCommands`), and the fixed action list. Keyed
+  // off `layers` so the list tracks add/remove/reorder/primitive-swap; `WB_ACTIONS` is a stable module const.
+  const cmdSources = useMemo<CommandSources>(() => {
+    const specsByPrimitive: Record<string, FxParamSpecs> = {};
+    for (const l of layers) {
+      const prim = getPrimitive(l.primitive);
+      if (prim) specsByPrimitive[l.primitive] = prim.params;
+    }
+    return { layers, specsByPrimitive, actions: WB_ACTIONS };
+  }, [layers]);
+
+  // Map a palette action id onto the EXISTING handler — the same behaviour the transport/library buttons
+  // already invoke, reached a second way. Reads the selected layer's primitive through the ref mirrors so
+  // "Add layer" is correct regardless of render timing (mirrors the rest of this file's ref discipline).
+  const runAction = (id: string): void => {
+    switch (id) {
+      case 'fire': fire(); break;
+      case 'togglePlay': togglePlay(); break;
+      case 'toggleLoop': toggleLoop(); break;
+      case 'addLayer': {
+        const primId = layersRef.current[selectedRef.current]?.primitive
+          ?? listPrimitives()[0]?.id ?? 'ribbon';
+        addNewLayer(primId);
+        break;
+      }
+      case 'newEffect': setBrowsing(false); setGallery(true); break;
+      case 'browse': setGallery(false); setBrowsing(true); break;
+      default: break;
+    }
+  };
+
+  // What the palette does with the row you pick. A layer OR param row selects that layer (perfect feel: the
+  // same `selectLayer` the panel/timeline use); a param row additionally hands the Inspector a `focusKey` so
+  // it scrolls that param into view. An action row runs its handler. `CommandBar` closes itself afterwards.
+  const onRun = (item: CommandItem): void => {
+    if (item.kind === 'action') {
+      if (item.actionId !== undefined) runAction(item.actionId);
+      return;
+    }
+    if (item.layerIndex !== undefined) selectLayer(item.layerIndex);
+    if (item.kind === 'param' && item.paramKey !== undefined) setInspectorFocusKey(item.paramKey);
+  };
+
+  // Opening the palette clears any prior param focus FIRST, so picking the same param twice re-fires the
+  // Inspector's jump (which keys on `focusKey` changing). Shared by the ⌘K button and the keydown effect.
+  const openCmd = (): void => {
+    setInspectorFocusKey(null);
+    setCmdOpen(true);
+  };
+
   // The selected layer drives the top primitive row, the Inspector, and the timing controls. Fallback to the
   // last layer guards the brief window after a delete before `selected` re-clamps.
   const selLayer = layers[selected] ?? layers[layers.length - 1];
@@ -1975,793 +2066,672 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   // player, so the list can't disagree with what you're hearing/seeing.
   const liveMutes = effectiveMutes(layers);
 
-  return (
-    <div className={`fxwb${railMode ? ' fxwb-rail' : ''}`}>
-      {/* THE PIPELINE RAIL.
-          The tool's own guide describes a ten-step journey from "nothing" to "playing in a real fight", but only
-          the middle of it was ever on screen: Save sat at the bottom of a long scroll, "Watch in combat" was a
-          plain link mid-rail, and nothing said whether the effect you were tuning reaches players at all.
+  // ── shared JSX blocks ─────────────────────────────────────────────────────────────────────────────────
+  // These are the workbench's existing blocks, hoisted to consts so the NEW four-region grid and the
+  // (unchanged) rail layout render the SAME markup instead of duplicating it. Only their DOM parent differs
+  // between the two layouts; every prop/handler is exactly as before.
+  const hintText = activeScenario?.hint;
+  const fpsEl = <div className="fxwb-fps">{fps} fps</div>;
+  const closeBtn = (
+    <button className="fxwb-close" onClick={onClose} title="Close FX Workbench">✕</button>
+  );
 
-          Every stage below is DERIVED from state the tool already keeps — it invents nothing. Compose reads the
-          layer list; Name reads the same slug check the Save button uses; Bind reads the harness selection; Ship
-          is exactly `commitMissing === null`, the gate the commit button already enforces. So the rail cannot
-          disagree with the buttons: it is those gates, drawn.
-
-          Deliberately NOT a wizard. Every stage stays reachable in any order — this reports where you are, it
-          does not march you. */}
-      <div className="fxwb-pipe" role="status" aria-label="Effect progress">
-        {([
-          ['Compose', layers.length > 0, `${layers.length} layer${layers.length === 1 ? '' : 's'}`],
-          ['Name', isValidSlug(slugify(defName)), isValidSlug(slugify(defName)) ? slugify(defName) : 'unnamed'],
-          ['Bind', harnessKind !== null && harnessCard !== '',
-            harnessKind === null ? 'no moment' : harnessCard === '' ? 'no card' : 'ready'],
-          ['Ship', commitMissing === null, commitMissing === null ? 'ready to commit' : 'blocked'],
-        ] as const).map(([label, done, detail], i) => (
-          <span key={label} className={`fxwb-pipe-step${done ? ' done' : ''}`} title={detail}>
-            <span className="fxwb-pipe-dot">{done ? '✓' : i + 1}</span>
-            {label}
-            <span className="fxwb-pipe-detail">{detail}</span>
-          </span>
+  // The top bar's picker groups: undo/redo, primitive row, scenario row, react-on subject, backdrop.
+  const topPickers = (
+    <>
+      {/* Undo/redo sits first because it is the safety net for everything to its right — above all the
+          primitive row, where one mis-click resets a tuned layer to that primitive's defaults. */}
+      <div className="fxwb-group fxwb-history">
+        <button
+          className="fxwb-btn fxwb-history-btn"
+          onClick={undoEdit}
+          disabled={!historyFlags.undo}
+          title="Undo (Ctrl+Z)"
+          aria-label="Undo"
+        >
+          ↶
+        </button>
+        <button
+          className="fxwb-btn fxwb-history-btn"
+          onClick={redoEdit}
+          disabled={!historyFlags.redo}
+          title="Redo (Ctrl+Shift+Z or Ctrl+Y)"
+          aria-label="Redo"
+        >
+          ↷
+        </button>
+      </div>
+      <div className="fxwb-group">
+        {/* Human names, not registry ids (see `copy.ts`) — `emitter` and `burst` are indistinguishable
+            until something says one streams and the other fires once. The blurb is the tooltip. */}
+        {listPrimitives().map((prim) => (
+          <button
+            key={prim.id}
+            className={`fxwb-btn${prim.id === selLayer.primitive ? ' on' : ''}`}
+            title={primitiveBlurb(prim.id)}
+            onClick={() => changeLayerPrimitive(prim.id)}
+          >
+            {primitiveLabel(prim.id)}
+          </button>
         ))}
-        <span className="fxwb-pipe-state">
-          <span className={`fxwb-pipe-chip${seedLocked ? ' on' : ''}`}>
-            {seedLocked ? 'seed locked' : 'seed rolling'}
-          </span>
-          <span className="fxwb-pipe-chip">{slot === 'over' ? 'over cards' : 'under cards'}</span>
-        </span>
       </div>
-
-      <div className="fxwb-top">
-        <div className="fxwb-title">🎨 FX Workbench</div>
-        {/* Undo/redo sits first because it is the safety net for everything to its right — above all the
-            primitive row, where one mis-click resets a tuned layer to that primitive's defaults. */}
-        <div className="fxwb-group fxwb-history">
+      <div className="fxwb-group">
+        {SCENARIOS.map((s) => (
           <button
-            className="fxwb-btn fxwb-history-btn"
-            onClick={undoEdit}
-            disabled={!historyFlags.undo}
-            title="Undo (Ctrl+Z)"
-            aria-label="Undo"
+            key={s.id}
+            className={`fxwb-btn${s.id === scenarioId ? ' on' : ''}`}
+            onClick={() => setScenarioId(s.id)}
           >
-            ↶
+            {s.label}
           </button>
+        ))}
+      </div>
+      {/* WHICH card a `react` layer animates. Only react reads it, but it lives here next to the scenario
+          rather than in the layer inspector because it describes the PREVIEW's staging — "pretend this
+          moment was about that card" — not the effect being authored. */}
+      {previewOptions.length > 0 && (
+        <div className="fxwb-group">
+          <span className="fxwb-backdrop-label">React on</span>
+          <select
+            className="fxwb-select"
+            value={subjectUid ?? ''}
+            disabled={harnessUid !== null}
+            title={harnessUid !== null ? 'The harness has staged a card — it decides the subject.' : 'Which minion a react layer plays on'}
+            onChange={(e) => setPreviewUid(e.target.value)}
+          >
+            {previewOptions.map((o) => (
+              <option key={o.uid} value={o.uid}>{o.label}</option>
+            ))}
+          </select>
+        </div>
+      )}
+      <div className="fxwb-group fxwb-backdrop-group">
+        <span className="fxwb-backdrop-label">Backdrop</span>
+        {BACKDROP_SWATCHES.map((sw) => (
           <button
-            className="fxwb-btn fxwb-history-btn"
-            onClick={redoEdit}
-            disabled={!historyFlags.redo}
-            title="Redo (Ctrl+Shift+Z or Ctrl+Y)"
-            aria-label="Redo"
-          >
-            ↷
-          </button>
-        </div>
-        <div className="fxwb-group">
-          {/* Human names, not registry ids (see `copy.ts`) — `emitter` and `burst` are indistinguishable
-              until something says one streams and the other fires once. The blurb is the tooltip. */}
-          {listPrimitives().map((prim) => (
-            <button
-              key={prim.id}
-              className={`fxwb-btn${prim.id === selLayer.primitive ? ' on' : ''}`}
-              title={primitiveBlurb(prim.id)}
-              onClick={() => changeLayerPrimitive(prim.id)}
-            >
-              {primitiveLabel(prim.id)}
-            </button>
-          ))}
-        </div>
-        <div className="fxwb-group">
-          {SCENARIOS.map((s) => (
-            <button
-              key={s.id}
-              className={`fxwb-btn${s.id === scenarioId ? ' on' : ''}`}
-              onClick={() => setScenarioId(s.id)}
-            >
-              {s.label}
-            </button>
-          ))}
-        </div>
-        {/* WHICH card a `react` layer animates. Only react reads it, but it lives here next to the scenario
-            rather than in the layer inspector because it describes the PREVIEW's staging — "pretend this
-            moment was about that card" — not the effect being authored. */}
-        {previewOptions.length > 0 && (
-          <div className="fxwb-group">
-            <span className="fxwb-backdrop-label">React on</span>
-            <select
-              className="fxwb-select"
-              value={subjectUid ?? ''}
-              disabled={harnessUid !== null}
-              title={harnessUid !== null ? 'The harness has staged a card — it decides the subject.' : 'Which minion a react layer plays on'}
-              onChange={(e) => setPreviewUid(e.target.value)}
-            >
-              {previewOptions.map((o) => (
-                <option key={o.uid} value={o.uid}>{o.label}</option>
-              ))}
-            </select>
-          </div>
-        )}
-        <div className="fxwb-group fxwb-backdrop-group">
-          <span className="fxwb-backdrop-label">Backdrop</span>
-          {BACKDROP_SWATCHES.map((sw) => (
-            <button
-              key={sw.label}
-              className={`fxwb-backdrop-swatch${sw.hex === null ? ' none' : ''}${backdropColor === sw.hex ? ' on' : ''}`}
-              style={sw.hex !== null ? { background: `#${sw.hex.toString(16).padStart(6, '0')}` } : undefined}
-              title={sw.label}
-              onClick={() => setBackdropColor(sw.hex)}
-            />
-          ))}
-          <input
-            className={`fxwb-backdrop-custom${backdropColor !== null && !BACKDROP_SWATCHES.some((sw) => sw.hex === backdropColor) ? ' on' : ''}`}
-            type="color"
-            title="Custom backdrop color"
-            value={`#${(backdropColor ?? 0x808080).toString(16).padStart(6, '0')}`}
-            onChange={(e) => setBackdropColor(parseInt(e.target.value.slice(1), 16))}
+            key={sw.label}
+            className={`fxwb-backdrop-swatch${sw.hex === null ? ' none' : ''}${backdropColor === sw.hex ? ' on' : ''}`}
+            style={sw.hex !== null ? { background: `#${sw.hex.toString(16).padStart(6, '0')}` } : undefined}
+            title={sw.label}
+            onClick={() => setBackdropColor(sw.hex)}
           />
-        </div>
-        <div className="fxwb-fps">{fps} fps</div>
-        <button className="fxwb-close" onClick={onClose} title="Close FX Workbench">✕</button>
-      </div>
-
-      <div className="fxwb-side">
-        {/* The last commit's confirmation, carried across the page reload that commit itself forced (see
-            `restoredCommitNote`). FIRST in the rail and visible in either mode, because after that reload it
-            is the only evidence in the UI that the write happened at all. */}
-        {restoredCommitNote !== null && (
-          <div
-            className={`fxwb-def-restore ${
-              restoredCommitNote.level === 'warn' ? 'fxwb-def-committed-warn' : 'fxwb-def-committed'
-            }`}
-          >
-            <span className="fxwb-def-restore-txt">{restoredCommitNote.text}</span>
-            <button
-              type="button"
-              className="fxwb-def-restore-x"
-              title="Dismiss"
-              aria-label="Dismiss"
-              onClick={() => setRestoredCommitNote(null)}
-            >
-              ✕
-            </button>
-          </div>
-        )}
-        {restoredNotice && (
-          <div className="fxwb-def-restore">
-            <span className="fxwb-def-restore-txt">Restored unsaved work.</span>
-            <button
-              type="button"
-              className="fxwb-def-restore-discard"
-              title="Throw the restored work away and start from a fresh default composition"
-              onClick={discardRestored}
-            >
-              Discard
-            </button>
-            <button
-              type="button"
-              className="fxwb-def-restore-x"
-              title="Keep it — just hide this"
-              aria-label="Dismiss"
-              onClick={() => setRestoredNotice(false)}
-            >
-              ✕
-            </button>
-          </div>
-        )}
-        {/* FIRST thing in the rail, on purpose. Thirteen finished effects are the best available STARTING
-            point, and they used to sit in a 148px box at the very bottom under 43 sliders, headed "Library" —
-            i.e. framed as the author's output. Every mature FX tool opens on a template picker instead (see
-            DefLibrary's own header comment), so the picker leads and the Save box stays at the bottom with
-            "Copy def", where the output belongs. */}
-        <DefLibrary
-          defs={defs}
-          onLoad={(def) => loadDef(def, def.id)}
-          onDuplicate={(def) => loadDef(def, `${def.id}-copy`)}
+        ))}
+        <input
+          className={`fxwb-backdrop-custom${backdropColor !== null && !BACKDROP_SWATCHES.some((sw) => sw.hex === backdropColor) ? ' on' : ''}`}
+          type="color"
+          title="Custom backdrop color"
+          value={`#${(backdropColor ?? 0x808080).toString(16).padStart(6, '0')}`}
+          onChange={(e) => setBackdropColor(parseInt(e.target.value.slice(1), 16))}
         />
-        <button className="fxwb-btn" onClick={() => { setBrowsing(false); setGallery(true); }}>
-          ＋ New effect
-        </button>
-        <button className="fxwb-btn" onClick={() => { setGallery(false); setBrowsing(true); }}>
-          Browse all
-        </button>
-        <button className="fxwb-btn" onClick={() => setRailMode((r) => !r)}>
-          {railMode ? 'Full editor' : 'Watch in combat'}
-        </button>
+      </div>
+    </>
+  );
 
-        <div className="fxwb-layers">
-          {layers.map((l, i) => (
-            <div
-              key={i}
-              className={
-                `fxwb-layer-row${i === selected ? ' on' : ''}${l.muted === true ? ' muted' : ''}` +
-                `${l.solo === true ? ' solo' : ''}` +
-                // Silenced BY SOLO (rather than by its own mute) — dimmed the same way, because "why can't I
-                // see this layer?" has to be answerable from the list itself.
-                `${liveMutes[i] && l.muted !== true ? ' silenced' : ''}`
-              }
-              onClick={() => selectLayer(i)}
-            >
-              {renaming === i ? (
-                <input
-                  className="fxwb-layer-rename"
-                  type="text"
-                  aria-label="Layer name"
-                  spellCheck={false}
-                  autoFocus
-                  placeholder={l.primitive}
-                  value={renameText}
-                  onClick={(e) => e.stopPropagation()}
-                  onChange={(e) => setRenameText(e.target.value)}
-                  onBlur={() => commitRename(i)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') commitRename(i);
-                    else if (e.key === 'Escape') cancelRename();
-                  }}
-                />
-              ) : (
-                <span
-                  className="fxwb-layer-name"
-                  title={l.name === undefined ? 'Double-click to name this layer' : `${l.name} (${l.primitive}) — double-click to rename`}
-                  onDoubleClick={(e) => { e.stopPropagation(); startRename(i); }}
-                >
-                  {l.name ?? l.primitive}
-                </span>
-              )}
-              {/* Anchor sits in the row meta so a composition reads at a glance — "which layer is pinned to
-                  the target and which one rides the arc?" is the first question you ask of one. A NAMED layer
-                  keeps its primitive id here, so naming never costs you the "what is this?" answer. */}
-              <span className="fxwb-layer-meta">
-                {l.name === undefined ? '' : `${l.primitive} · `}
-                {l.anchor} · @{l.at}ms · {l.life === null ? 'full' : `${l.life}ms`}{l.muted === true ? ' · muted' : ''}{l.solo === true ? ' · solo' : ''}
-              </span>
-              <span className="fxwb-layer-btns">
-                <button
-                  className={`fxwb-layer-mute${l.muted === true ? ' on' : ''}`}
-                  onClick={(e) => { e.stopPropagation(); toggleMute(i); }}
-                  title={l.muted === true ? 'Muted — click to bring this layer back' : 'Mute this layer (isolate the others)'}
-                >{l.muted === true ? '◐' : '👁'}</button>
-                <button
-                  className={`fxwb-layer-solo${l.solo === true ? ' on' : ''}`}
-                  onClick={(e) => { e.stopPropagation(); toggleSolo(i); }}
-                  title={l.solo === true ? 'Soloed — click to bring the other layers back' : 'Solo this layer (only soloed layers play)'}
-                >{l.solo === true ? '◉' : '○'}</button>
-                <button
-                  onClick={(e) => { e.stopPropagation(); startRename(i); }}
-                  title="Rename this layer (or double-click its name)"
-                >✎</button>
-                <button
-                  onClick={(e) => { e.stopPropagation(); duplicateLayerAt(i); }}
-                  title="Duplicate this layer (a full copy of its tuning, inserted below)"
-                >⧉</button>
-                <button
-                  onClick={(e) => { e.stopPropagation(); reorderLayer(i, -1); }}
-                  disabled={i === 0}
-                  title="Move up"
-                >↑</button>
-                <button
-                  onClick={(e) => { e.stopPropagation(); reorderLayer(i, 1); }}
-                  disabled={i === layers.length - 1}
-                  title="Move down"
-                >↓</button>
-                {layers.length > 1 && (
-                  <button
-                    onClick={(e) => { e.stopPropagation(); deleteLayer(i); }}
-                    title="Remove layer"
-                  >✕</button>
-                )}
-              </span>
-            </div>
-          ))}
-          <div className="fxwb-layer-add">
-            <select value={addPrimitiveId} onChange={(e) => setAddPrimitiveId(e.target.value)}>
-              {listPrimitives().map((prim) => <option key={prim.id} value={prim.id}>{prim.id}</option>)}
-            </select>
-            <button onClick={() => addNewLayer(addPrimitiveId)} title="Add layer">＋</button>
-          </div>
+  // The two dismissible banners (restored commit note, restored unsaved work).
+  const restoreBanners = (
+    <>
+      {/* The last commit's confirmation, carried across the page reload that commit itself forced (see
+          `restoredCommitNote`). Visible in either mode, because after that reload it is the only evidence in
+          the UI that the write happened at all. */}
+      {restoredCommitNote !== null && (
+        <div
+          className={`fxwb-def-restore ${
+            restoredCommitNote.level === 'warn' ? 'fxwb-def-committed-warn' : 'fxwb-def-committed'
+          }`}
+        >
+          <span className="fxwb-def-restore-txt">{restoredCommitNote.text}</span>
+          <button
+            type="button"
+            className="fxwb-def-restore-x"
+            title="Dismiss"
+            aria-label="Dismiss"
+            onClick={() => setRestoredCommitNote(null)}
+          >
+            ✕
+          </button>
         </div>
+      )}
+      {restoredNotice && (
+        <div className="fxwb-def-restore">
+          <span className="fxwb-def-restore-txt">Restored unsaved work.</span>
+          <button
+            type="button"
+            className="fxwb-def-restore-discard"
+            title="Throw the restored work away and start from a fresh default composition"
+            onClick={discardRestored}
+          >
+            Discard
+          </button>
+          <button
+            type="button"
+            className="fxwb-def-restore-x"
+            title="Keep it — just hide this"
+            aria-label="Dismiss"
+            onClick={() => setRestoredNotice(false)}
+          >
+            ✕
+          </button>
+        </div>
+      )}
+    </>
+  );
 
-        <div className="fxwb-timing">
-          {/* Which staged point this layer's head follows. Lives with At/Life because the three together are
-              "when and where this layer happens" — the whole of a layer's placement in the composition. */}
-          <label className="fxwb-anchorrow" htmlFor="fxwb-layer-anchor">
-            <span>Anchor</span>
-            <select
-              id="fxwb-layer-anchor"
-              value={selLayer.anchor}
-              title={anchorBlurb(selLayer.anchor)}
-              onChange={(e) => changeLayerAnchor(e.target.value as FxAnchorId)}
-            >
-              {ANCHOR_OPTIONS.map((a) => <option key={a.id} value={a.id} title={a.blurb}>{a.label}</option>)}
-            </select>
-          </label>
-          {/* The chosen anchor's one-liner, always visible. A <select> shows one option at a time, so an
-              option-level tooltip can't teach you what you're picking BETWEEN — and `travel` vs `slot` is
-              exactly the pair nobody guesses right. */}
-          <p className="fxwb-anchorblurb">{anchorBlurb(selLayer.anchor)}</p>
-          {/* Travel window. Only a `travel`-anchored layer has an arc to cross, so this is the one timing
-              control that is conditional — showing it on a target-pinned burst would be a dial that does
-              nothing. "Arrives with the layer" (the checkbox) is the default and serialises as an omission. */}
-          {selLayer.anchor === 'travel' && (
-            <>
-              <label className="fxwb-timing-full" title="The head takes the layer's whole life to cross its arc — untick to make it arrive EARLY and linger">
-                <input
-                  type="checkbox"
-                  checked={selLayer.travelMs === null || selLayer.travelMs === undefined}
-                  onChange={(e) =>
-                    changeLayerTravel(
-                      e.target.checked
-                        ? null
-                        : Math.max(10, Math.round((selLayer.life ?? durationMs - selLayer.at) * 0.6)),
-                    )
-                  }
-                />
-                Arrives at the end
-              </label>
-              {selLayer.travelMs !== null && selLayer.travelMs !== undefined && (
-                <>
-                  <label htmlFor="fxwb-layer-travel">Arrives after</label>
-                  <input
-                    id="fxwb-layer-travel"
-                    type="range"
-                    min={10}
-                    max={selLayer.life ?? durationMs - selLayer.at}
-                    step={10}
-                    value={selLayer.travelMs}
-                    onChange={(e) => changeLayerTravel(Number(e.target.value))}
-                  />
-                  <span className="fxwb-val">{selLayer.travelMs} ms</span>
-                </>
-              )}
-              {/* PER-RECIPIENT stagger. The cue schedules whole PLAYS; this schedules one LAYER inside them,
-                  which is what makes "the gems land together but the badges pop in sequence" expressible —
-                  it was not, at any setting, before this field (owner, 2026-08-04). Shown for every layer
-                  because any of them might want its own rhythm; inert on a single-target moment, where
-                  there is only ever recipient 0. */}
-              <label htmlFor="fxwb-layer-stagger" title="Milliseconds this layer slides for each further unit the moment hits. 0 = fires with its copy. Use it to cascade one layer while the rest volley.">
-                Stagger
-              </label>
-              <input
-                id="fxwb-layer-stagger"
-                type="range"
-                min={0}
-                max={400}
-                step={5}
-                value={selLayer.stagger ?? 0}
-                onChange={(e) => changeLayerStagger(Number(e.target.value))}
-              />
-              <span className="fxwb-val">
-                {(selLayer.stagger ?? 0) === 0 ? 'With copy' : `+${selLayer.stagger ?? 0}ms/unit`}
-              </span>
-              {/* The arc's bow. Pinned at 0 this is a laser — a bolt, a beam, a thrown spear — which was
-                  simply not authorable before: the bow was a module-private constant. The slider reads 0 as
-                  "Straight" rather than a bare number, because that is the value people come here for. */}
-              <label htmlFor="fxwb-layer-bow" title="How far the arc bows off the straight source→target line. 0 = a dead-straight laser; negative bows the other way.">
-                Arc
-              </label>
-              <input
-                id="fxwb-layer-bow"
-                type="range"
-                min={-BOW_LIMIT}
-                max={BOW_LIMIT}
-                step={0.02}
-                value={selLayer.bow ?? TRAVEL_BOW}
-                onChange={(e) => changeLayerBow(Number(e.target.value))}
-              />
-              <span className="fxwb-val">
-                {(selLayer.bow ?? TRAVEL_BOW) === 0 ? 'Straight' : (selLayer.bow ?? TRAVEL_BOW).toFixed(2)}
-              </span>
-              {/* An explicit way back to the authored default, since dragging a float slider onto exactly
-                  0.28 by hand is luck. Hidden while the layer is already on the default, so it never reads
-                  as an action with no effect. */}
-              {selLayer.bow !== undefined && (
-                <button className="fxwb-btn fxwb-timing-full" onClick={() => changeLayerBow(null)}>
-                  Reset arc to default
-                </button>
-              )}
-            </>
-          )}
-          {/* "Starts at" / "Lasts for", not "At" / "Life". These are the LAYER's placement in the composition
-              and they sat ~6cm above a primitive's own `Life` param (a particle's lifetime in ms) — two
-              different numbers, same word, adjacent on screen. The verb phrasing also can't be mistaken for a
-              param name. The life range had no <label> at all: a bare slider next to a "Full" checkbox, which
-              is why it rendered in column 1 of the timing grid instead of alongside its siblings. */}
-          <label htmlFor="fxwb-layer-at">Starts at</label>
-          <input
-            id="fxwb-layer-at"
-            type="range"
-            min={0}
-            max={durationMs}
-            step={10}
-            value={selLayer.at}
-            onChange={(e) => changeLayerTiming(Number(e.target.value), selLayer.life, 'at')}
-          />
-          <span className="fxwb-val">{selLayer.at} ms</span>
-          <label className="fxwb-timing-full" title="Run this layer for the whole composition">
+  // The template picker + New/Browse openers.
+  const defLibBlock = (
+    <>
+      <DefLibrary
+        defs={defs}
+        onLoad={(def) => loadDef(def, def.id)}
+        onDuplicate={(def) => loadDef(def, `${def.id}-copy`)}
+      />
+      <button className="fxwb-btn" onClick={() => { setBrowsing(false); setGallery(true); }}>
+        ＋ New effect
+      </button>
+      <button className="fxwb-btn" onClick={() => { setGallery(false); setBrowsing(true); }}>
+        Browse all
+      </button>
+    </>
+  );
+
+  const watchBtn = (
+    <button className="fxwb-btn" onClick={() => setRailMode((r) => !r)}>
+      {railMode ? 'Full editor' : 'Watch in combat'}
+    </button>
+  );
+
+  const layersEl = (
+    <LayersPanel
+      layers={layers}
+      selected={selected}
+      onSelect={selectLayer}
+      onReorder={reorderLayerTo}
+      onAdd={addNewLayer}
+      onDuplicate={duplicateLayerAt}
+      onRemove={deleteLayer}
+      onToggleMute={toggleMute}
+      onToggleSolo={toggleSolo}
+      onRename={renameLayer}
+      primitives={listPrimitives().map((prim) => prim.id)}
+    />
+  );
+
+  const timingBlock = (
+    <div className="fxwb-timing">
+      {/* Which staged point this layer's head follows. Lives with At/Life because the three together are
+          "when and where this layer happens" — the whole of a layer's placement in the composition. */}
+      <label className="fxwb-anchorrow" htmlFor="fxwb-layer-anchor">
+        <span>Anchor</span>
+        <select
+          id="fxwb-layer-anchor"
+          value={selLayer.anchor}
+          title={anchorBlurb(selLayer.anchor)}
+          onChange={(e) => changeLayerAnchor(e.target.value as FxAnchorId)}
+        >
+          {ANCHOR_OPTIONS.map((a) => <option key={a.id} value={a.id} title={a.blurb}>{a.label}</option>)}
+        </select>
+      </label>
+      {/* The chosen anchor's one-liner, always visible. A <select> shows one option at a time, so an
+          option-level tooltip can't teach you what you're picking BETWEEN — and `travel` vs `slot` is
+          exactly the pair nobody guesses right. */}
+      <p className="fxwb-anchorblurb">{anchorBlurb(selLayer.anchor)}</p>
+      {/* Travel window. Only a `travel`-anchored layer has an arc to cross, so this is the one timing
+          control that is conditional — showing it on a target-pinned burst would be a dial that does
+          nothing. "Arrives with the layer" (the checkbox) is the default and serialises as an omission. */}
+      {selLayer.anchor === 'travel' && (
+        <>
+          <label className="fxwb-timing-full" title="The head takes the layer's whole life to cross its arc — untick to make it arrive EARLY and linger">
             <input
               type="checkbox"
-              checked={selLayer.life === null}
+              checked={selLayer.travelMs === null || selLayer.travelMs === undefined}
               onChange={(e) =>
-                changeLayerTiming(
-                  selLayer.at,
-                  e.target.checked ? null : Math.min(durationMs, Math.max(10, selLayer.life ?? durationMs)),
-                  'full',
+                changeLayerTravel(
+                  e.target.checked
+                    ? null
+                    : Math.max(10, Math.round((selLayer.life ?? durationMs - selLayer.at) * 0.6)),
                 )
               }
             />
-            Full duration
+            Arrives at the end
           </label>
-          {selLayer.life !== null && (
+          {selLayer.travelMs !== null && selLayer.travelMs !== undefined && (
             <>
-              <label htmlFor="fxwb-layer-life">Lasts for</label>
+              <label htmlFor="fxwb-layer-travel">Arrives after</label>
               <input
-                id="fxwb-layer-life"
+                id="fxwb-layer-travel"
                 type="range"
                 min={10}
-                max={durationMs}
+                max={selLayer.life ?? durationMs - selLayer.at}
                 step={10}
-                value={selLayer.life}
-                onChange={(e) => changeLayerTiming(selLayer.at, Number(e.target.value), 'life')}
+                value={selLayer.travelMs}
+                onChange={(e) => changeLayerTravel(Number(e.target.value))}
               />
-              <span className="fxwb-val">{selLayer.life} ms</span>
+              <span className="fxwb-val">{selLayer.travelMs} ms</span>
             </>
           )}
-        </div>
-
-        {activePrimitive && (
-          <Inspector
-            specs={activePrimitive.params}
-            values={selLayer.params}
-            onChange={change}
-            primitiveId={selLayer.primitive}
-            // Per-layer identity for the emitpoints control's localStorage SVG stash. `selected` + primitive
-            // keeps two SVG-emit layers from clobbering each other's source during an authoring session.
-            layerKey={`${selLayer.primitive}:${selected}`}
+          {/* PER-RECIPIENT stagger. The cue schedules whole PLAYS; this schedules one LAYER inside them,
+              which is what makes "the gems land together but the badges pop in sequence" expressible —
+              it was not, at any setting, before this field (owner, 2026-08-04). Shown for every layer
+              because any of them might want its own rhythm; inert on a single-target moment, where
+              there is only ever recipient 0. */}
+          <label htmlFor="fxwb-layer-stagger" title="Milliseconds this layer slides for each further unit the moment hits. 0 = fires with its copy. Use it to cascade one layer while the rest volley.">
+            Stagger
+          </label>
+          <input
+            id="fxwb-layer-stagger"
+            type="range"
+            min={0}
+            max={400}
+            step={5}
+            value={selLayer.stagger ?? 0}
+            onChange={(e) => changeLayerStagger(Number(e.target.value))}
           />
-        )}
-        <button className="fxwb-copy" onClick={copyDef}>{copied ? 'Copied!' : 'Copy def'}</button>
-
-        {/* Durable defs, the WRITE side: name + Save writes a committed `defs/<id>.json` (and any imported art
-            alongside it). The read side — load / duplicate / paste — is the "Start from" picker at the top of
-            the rail. */}
-        <div className="fxwb-def">
-          {/* A picked preset variant that only partly landed. ABOVE the name/Save row, because it is a fact
-              about the composition you're about to name and write, and it must not be findable only by
-              scrolling past Save. Dismissible: it is information, not a blocker. */}
-          {variantWarning !== null && (
-            <div className="fxwb-def-variantwarn">
-              <span className="fxwb-def-variantwarn-txt">⚠ {variantWarning}</span>
-              <button
-                type="button"
-                className="fxwb-def-variantwarn-x"
-                title="Dismiss"
-                aria-label="Dismiss"
-                onClick={() => setVariantWarning(null)}
-              >
-                ✕
-              </button>
-            </div>
+          <span className="fxwb-val">
+            {(selLayer.stagger ?? 0) === 0 ? 'With copy' : `+${selLayer.stagger ?? 0}ms/unit`}
+          </span>
+          {/* The arc's bow. Pinned at 0 this is a laser — a bolt, a beam, a thrown spear — which was
+              simply not authorable before: the bow was a module-private constant. The slider reads 0 as
+              "Straight" rather than a bare number, because that is the value people come here for. */}
+          <label htmlFor="fxwb-layer-bow" title="How far the arc bows off the straight source→target line. 0 = a dead-straight laser; negative bows the other way.">
+            Arc
+          </label>
+          <input
+            id="fxwb-layer-bow"
+            type="range"
+            min={-BOW_LIMIT}
+            max={BOW_LIMIT}
+            step={0.02}
+            value={selLayer.bow ?? TRAVEL_BOW}
+            onChange={(e) => changeLayerBow(Number(e.target.value))}
+          />
+          <span className="fxwb-val">
+            {(selLayer.bow ?? TRAVEL_BOW) === 0 ? 'Straight' : (selLayer.bow ?? TRAVEL_BOW).toFixed(2)}
+          </span>
+          {/* An explicit way back to the authored default, since dragging a float slider onto exactly
+              0.28 by hand is luck. Hidden while the layer is already on the default, so it never reads
+              as an action with no effect. */}
+          {selLayer.bow !== undefined && (
+            <button className="fxwb-btn fxwb-timing-full" onClick={() => changeLayerBow(null)}>
+              Reset arc to default
+            </button>
           )}
-          <div className="fxwb-def-saverow">
-            <input
-              className="fxwb-def-nameinput"
-              type="text"
-              placeholder="def-name"
-              aria-label="Def name"
-              spellCheck={false}
-              value={defName}
-              onChange={(e) => setDefName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') void save();
-              }}
-            />
+        </>
+      )}
+      {/* "Starts at" / "Lasts for", not "At" / "Life". These are the LAYER's placement in the composition
+          and they sat ~6cm above a primitive's own `Life` param (a particle's lifetime in ms) — two
+          different numbers, same word, adjacent on screen. The verb phrasing also can't be mistaken for a
+          param name. The life range had no <label> at all: a bare slider next to a "Full" checkbox, which
+          is why it rendered in column 1 of the timing grid instead of alongside its siblings. */}
+      <label htmlFor="fxwb-layer-at">Starts at</label>
+      <input
+        id="fxwb-layer-at"
+        type="range"
+        min={0}
+        max={durationMs}
+        step={10}
+        value={selLayer.at}
+        onChange={(e) => changeLayerTiming(Number(e.target.value), selLayer.life, 'at')}
+      />
+      <span className="fxwb-val">{selLayer.at} ms</span>
+      <label className="fxwb-timing-full" title="Run this layer for the whole composition">
+        <input
+          type="checkbox"
+          checked={selLayer.life === null}
+          onChange={(e) =>
+            changeLayerTiming(
+              selLayer.at,
+              e.target.checked ? null : Math.min(durationMs, Math.max(10, selLayer.life ?? durationMs)),
+              'full',
+            )
+          }
+        />
+        Full duration
+      </label>
+      {selLayer.life !== null && (
+        <>
+          <label htmlFor="fxwb-layer-life">Lasts for</label>
+          <input
+            id="fxwb-layer-life"
+            type="range"
+            min={10}
+            max={durationMs}
+            step={10}
+            value={selLayer.life}
+            onChange={(e) => changeLayerTiming(selLayer.at, Number(e.target.value), 'life')}
+          />
+          <span className="fxwb-val">{selLayer.life} ms</span>
+        </>
+      )}
+    </div>
+  );
+
+  const inspectorEl = activePrimitive ? (
+    <Inspector
+      specs={activePrimitive.params}
+      values={selLayer.params}
+      onChange={change}
+      primitiveId={selLayer.primitive}
+      // Per-layer identity for the emitpoints control's localStorage SVG stash. `selected` + primitive
+      // keeps two SVG-emit layers from clobbering each other's source during an authoring session.
+      layerKey={`${selLayer.primitive}:${selected}`}
+      // ⌘K param-jump target: scrolls this param into view + opens its group, then the parent clears it.
+      focusKey={inspectorFocusKey}
+      // Clear right after the jump has actually scrolled, rather than waiting for the next ⌘K open — a
+      // stale focusKey would otherwise re-scroll on a later layer switch to a different primitive that
+      // happens to share the same param key.
+      onFocusHandled={clearInspectorFocusKey}
+    />
+  ) : null;
+
+  // Copy def + the durable-def Save box.
+  const saveBlock = (
+    <>
+      <button className="fxwb-copy" onClick={copyDef}>{copied ? 'Copied!' : 'Copy def'}</button>
+      {/* Durable defs, the WRITE side: name + Save writes a committed `defs/<id>.json` (and any imported art
+          alongside it). The read side — load / duplicate / paste — is the "Start from" picker at the top of
+          the rail. */}
+      <div className="fxwb-def">
+        {/* A picked preset variant that only partly landed. ABOVE the name/Save row, because it is a fact
+            about the composition you're about to name and write, and it must not be findable only by
+            scrolling past Save. Dismissible: it is information, not a blocker. */}
+        {variantWarning !== null && (
+          <div className="fxwb-def-variantwarn">
+            <span className="fxwb-def-variantwarn-txt">⚠ {variantWarning}</span>
             <button
               type="button"
-              className="fxwb-def-save"
-              disabled={saving}
-              title="Write this composition to packages/ui/src/fx/defs/<name>.json"
-              onClick={() => void save()}
+              className="fxwb-def-variantwarn-x"
+              title="Dismiss"
+              aria-label="Dismiss"
+              onClick={() => setVariantWarning(null)}
             >
-              {saving ? 'Saving…' : 'Save'}
+              ✕
             </button>
-          </div>
-          {/* The seed-bake warning, directly under Save. Rendered on the LOCK STATE rather than after a save
-              attempt, so Save cannot be reached without having had it in front of you. `CommitPanel` renders
-              the SAME component above its own button — see `SeedBakeWarning` for why one warning next to Save
-              was not enough. */}
-          <SeedBakeWarning
-            seedLocked={seedLocked}
-            seed={seed}
-            onUnlock={toggleSeedLock}
-            writeVerb="Saving"
-          />
-          {saveNote !== null && <div className="fxwb-def-note">{saveNote}</div>}
-          {saveError !== null && <div className="fxwb-def-err">{saveError}</div>}
-        </div>
-
-        {/* RAIL-MODE TRANSPORT. Rail mode hides `.fxwb-transport` (it is a full-width absolutely-positioned
-            bar built around the Timeline, so unhidden it would cover the very board the mode exists to show),
-            which used to take ▶/⏸, 🔥 Fire and the scrubber down with it — i.e. while watching an effect on a
-            real card you could not retrigger or scrub the effect you were tuning, the two things you most
-            want there. So the rail hosts its own compact copy: those three controls and nothing else, no
-            Timeline. The handlers are the SAME `togglePlay` / `fire` / `scrub` the main bar calls — this is a
-            second surface for one behaviour, never a second implementation. Sticky-bottom (see the CSS) so it
-            can't be scrolled off under 40 sliders. */}
-        {railMode && (
-          <div className="fxwb-railtransport">
-            <button
-              className="fxwb-play"
-              onClick={togglePlay}
-              title={uiPlaying ? 'Pause the timeline where it is (Space)' : 'Play — resume the timeline, or start a pass if nothing is running (Space)'}
-              aria-label={uiPlaying ? 'Pause' : 'Play'}
-            >
-              {uiPlaying ? '⏸' : '▶'}
-            </button>
-            <button
-              className="fxwb-fire"
-              onClick={fire}
-              title="Retrigger the whole composition from 0 (F) — a single pass, even if one is already playing."
-            >
-              🔥 Fire
-            </button>
-            <span className="fxwb-time">{Math.round(timeMs)} / {durationMs} ms</span>
-            <input
-              className="fxwb-scrub"
-              type="range"
-              aria-label="Scrub"
-              min={0}
-              max={durationMs}
-              value={timeMs}
-              onChange={(e) => scrub(Number(e.target.value))}
-            />
           </div>
         )}
-      </div>
-
-      <div className="fxwb-transport">
-        {/* The composition as a picture, as the transport bar's own first row (it wraps, and the timeline
-            takes a full-width line) — directly above the controls that play it. */}
-        <Timeline
-          layers={layers}
-          mutes={liveMutes}
-          selected={selected}
-          durationMs={durationMs}
-          timeMs={timeMs}
-          onSelect={applySelected}
-          onRetime={retimeLayer}
-        />
-        {/* Two play-shaped buttons sat here with nothing to tell them apart. They are genuinely different:
-            ▶/⏸ is the TIMELINE (pause where you are, resume from there — or, with Loop off and nothing
-            running, kick off a pass), while Fire always retriggers from t=0, including in the middle of a
-            playing pass. The label says "once" and a hint line under them says which is which. */}
-        <div className="fxwb-playgroup">
-          <button
-            className="fxwb-play"
-            onClick={togglePlay}
-            title={uiPlaying ? 'Pause the timeline where it is (Space)' : 'Play — resume the timeline, or start a pass if nothing is running (Space)'}
-            aria-label={uiPlaying ? 'Pause' : 'Play'}
-          >
-            {uiPlaying ? '⏸' : '▶'}
-          </button>
-          <button
-            className="fxwb-fire"
-            onClick={fire}
-            title="Retrigger the whole composition from 0 (F) — a single pass, even if one is already playing. Continuous playback is the separate Loop toggle."
-          >
-            🔥 Fire once
-          </button>
-          <span className="fxwb-playnote">▶ play / pause (Space) · 🔥 restart from 0 (F)</span>
-        </div>
-        <input
-          className="fxwb-scrub"
-          type="range"
-          min={0}
-          max={durationMs}
-          value={timeMs}
-          onChange={(e) => scrub(Number(e.target.value))}
-        />
-        <span className="fxwb-time">{Math.round(timeMs)} / {durationMs} ms</span>
-
-        <div className="fxwb-loopgroup" title="Loop is on by default -- Fire above always stays a single one-shot pass regardless of this toggle">
-          <button
-            className={`fxwb-loop-toggle${loopOn ? ' on' : ''}`}
-            onClick={toggleLoop}
-            title={loopOn ? 'Loop is ON -- click to stop (L)' : 'Loop is OFF -- click to loop continuously (L)'}
-          >
-            {loopOn ? '🔁 Loop: On' : '🔁 Loop: Off'}
-          </button>
-          {/* How the loop boundary is crossed -- a DEF property (saved into the effect), unlike the preview-only
-              Loop toggle beside it. Play out: finish the whole pass, then restart. Seamless: cross-fade the
-              tail into the fresh cycle so a continuous effect never blinks at the seam. Lit when seamless. */}
-          <button
-            className={`fxwb-loop-toggle${loopMode === 'seamless' ? ' on' : ''}`}
-            onClick={() => changeLoopMode(loopMode === 'seamless' ? 'playOut' : 'seamless')}
-            title={
-              loopMode === 'seamless'
-                ? 'Seamless: the tail cross-fades into the next cycle (no seam blink) -- click for Play out'
-                : 'Play out: each pass finishes before the next begins -- click for Seamless (cross-faded seam)'
-            }
-          >
-            {loopMode === 'seamless' ? '♾ Seamless' : '▶ Play out'}
-          </button>
-          <label className="fxwb-speedlabel" htmlFor="fxwb-duration">Duration</label>
+        <div className="fxwb-def-saverow">
           <input
-            id="fxwb-duration"
-            className="fxwb-speed"
-            type="range"
-            min={MIN_DURATION_MS}
-            max={MAX_DURATION_MS}
-            step={DURATION_STEP_MS}
-            value={durationMs}
-            onChange={(e) => changeDuration(Number(e.target.value))}
-          />
-          <span className="fxwb-speedval">{durationMs} ms</span>
-          {/* Trim the loop to the content. Disabled states say WHY rather than sitting there dead: nothing
-              to fit against (every layer runs full-life, so none of them can say what the duration should
-              be), or the loop already fits. */}
-          <button
-            className="fxwb-fitduration"
-            onClick={fitDuration}
-            disabled={!canFitDuration}
-            title={
-              fittedDuration === null
-                ? 'Nothing to fit to — every layer runs the full duration, so none of them sets an end. Give a layer a fixed "Lasts for" first.'
-                : fittedDuration === durationMs
-                  ? 'The loop already ends exactly where the last layer does.'
-                  : `Trim the loop to ${fittedDuration} ms — where the last layer ends, so there's no dead time and nothing is cut off.`
-            }
-          >
-            ⇥ Fit to effects
-          </button>
-          {/* Signed loop-JOIN: positive delays the fresh cycle (a gap, both modes); negative overlaps it into
-              the tail (the overlap only bites in Seamless). Only meaningful while Loop is on. */}
-          <label className="fxwb-speedlabel" htmlFor="fxwb-loopjoin">Loop join</label>
-          <input
-            id="fxwb-loopjoin"
-            className="fxwb-speed"
-            type="range"
-            min={MIN_LOOP_JOIN_MS}
-            max={MAX_LOOP_JOIN_MS}
-            step={LOOP_JOIN_STEP_MS}
-            value={loopJoinMs}
-            disabled={!loopOn}
-            title="Signed join at the loop seam: + delays the next cycle (a gap), − overlaps it into the tail (Seamless only)"
-            onChange={(e) => changeLoopJoin(Number(e.target.value))}
-          />
-          <span className="fxwb-speedval">{loopJoinMs > 0 ? `+${loopJoinMs}` : loopJoinMs} ms</span>
-        </div>
-
-        {/* Canvas slot: which of the two full-viewport canvases this effect draws on. Over = the z110
-            overlay above every card (where every effect has always played); Under = a second canvas parked
-            inside the board, above the board art and beneath every card. Flipping it rebuilds the player, so
-            the change is visible immediately. */}
-        <div
-          className="fxwb-slotgroup"
-          title={
-            'Which canvas this effect draws on. UNDER puts it beneath EVERY card on the board (not just the ' +
-            'one it is anchored to) — the cards are DOM and this is one canvas, so per-card layering is not ' +
-            'possible.'
-          }
-        >
-          <span className="fxwb-speedlabel">Canvas</span>
-          <button
-            className={`fxwb-slotbtn${slot === 'over' ? ' on' : ''}`}
-            onClick={() => setSlot('over')}
-            title="Draw OVER the cards (default)"
-          >
-            Over
-          </button>
-          <button
-            className={`fxwb-slotbtn${slot === 'under' ? ' on' : ''}`}
-            onClick={() => setSlot('under')}
-            title="Draw UNDER every card, above the board art"
-          >
-            Under
-          </button>
-        </div>
-
-        {/* The def-level EASE: a curve on the whole composition's clock, so every layer slows and rushes
-            together and their relationship to each other is preserved. The same CurveEditor the Inspector
-            uses for per-param curves — the control is identical, only what it drives differs. Editing it
-            rebuilds the player (see `easeKey`), so the change is visible on the next Fire. */}
-        <div
-          className="fxwb-easegroup"
-          title={
-            'A curve on the clock of the WHOLE composition: v = t is no change, a shallow start delays every ' +
-            'layer together and a steep one rushes them. It redistributes time INSIDE the duration rather ' +
-            'than changing it, and it cannot run backwards — a falling stretch reads as a hold.'
-          }
-        >
-          <CurveEditor
-            value={ease}
-            label="Ease"
-            presets={CURVE_PRESETS}
-            onChange={(next) => setEase(next.map((pt) => [pt[0], pt[1]] as [number, number]))}
-          />
-        </div>
-
-        {/* Seed: unlocked = every spawn rolls its own randomness (the historical feel); locked = the shown
-            seed is used, so the LOOK is frozen while you tune everything else. A change lands on the next
-            spawn -- press Fire (or Loop) to see it. */}
-        <div
-          className="fxwb-seedgroup"
-          title="Lock the seed to freeze the randomness while you tune other params. Takes effect on the next Fire."
-        >
-          <button
-            className={`fxwb-seed-lock${seedLocked ? ' on' : ''}`}
-            onClick={toggleSeedLock}
-            title={seedLocked ? 'Seed is LOCKED -- click to roll fresh every spawn' : 'Seed is UNLOCKED (fresh roll every spawn) -- click to freeze this one'}
-          >
-            {seedLocked ? '🔒' : '🔓'}
-          </button>
-          <label className="fxwb-speedlabel" htmlFor="fxwb-seed">Seed</label>
-          <input
-            id="fxwb-seed"
-            className="fxwb-seedinput"
-            type="number"
-            step={1}
-            value={seed}
+            className="fxwb-def-nameinput"
+            type="text"
+            placeholder="def-name"
+            aria-label="Def name"
             spellCheck={false}
-            onChange={(e) => changeSeed(e.target.value)}
+            value={defName}
+            onChange={(e) => setDefName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') void save();
+            }}
           />
-          <button className="fxwb-seed-reroll" onClick={rerollSeed} title="Roll a new seed (and lock it)">
-            🎲
+          <button
+            type="button"
+            className="fxwb-def-save"
+            disabled={saving}
+            title="Write this composition to packages/ui/src/fx/defs/<name>.json"
+            onClick={() => void save()}
+          >
+            {saving ? 'Saving…' : 'Save'}
           </button>
         </div>
-
-        {/* "Playback", not "Speed": this is the transport's PLAY RATE, and it used to share a name with the
-            primitives' own `Speed` param (px/sec of particle launch, expansions/sec for shockwave) sitting a
-            few centimetres up the same screen. */}
-        <label className="fxwb-speedlabel" htmlFor="fxwb-speed">Playback</label>
-        <input
-          id="fxwb-speed"
-          className="fxwb-speed"
-          type="range"
-          min={0.1}
-          max={3}
-          step={0.1}
-          value={speed}
-          onChange={(e) => changeSpeed(Number(e.target.value))}
+        {/* The seed-bake warning, directly under Save. Rendered on the LOCK STATE rather than after a save
+            attempt, so Save cannot be reached without having had it in front of you. `CommitPanel` renders
+            the SAME component above its own button — see `SeedBakeWarning` for why one warning next to Save
+            was not enough. */}
+        <SeedBakeWarning
+          seedLocked={seedLocked}
+          seed={seed}
+          onUnlock={toggleSeedLock}
+          writeVerb="Saving"
         />
-        <span className="fxwb-speedval">{speed.toFixed(1)}x</span>
-        <div className="fxwb-hint">{activeScenario?.hint}</div>
+        {saveNote !== null && <div className="fxwb-def-note">{saveNote}</div>}
+        {saveError !== null && <div className="fxwb-def-err">{saveError}</div>}
       </div>
+    </>
+  );
 
-      {/* The proc harness lives INSIDE the `.fxwb` root (not as its own overlay) so rail mode is a single
-          layout: editor rail, harness rail, live board in what's left. `combat` comes straight off the store
-          rather than from a prop, and `onSeek` goes through the `window.__fxSeek` handle `Recruit` publishes
-          — see the comment there for why neither can be threaded down as a prop. */}
-      {railMode && (
-        // The rail COLUMN. `.fxharness` positions itself absolutely (it predates the commit panel and owned
-        // the whole rail), so a bare sibling `.fxcommit` fell out of flow to the root's top-left and painted
-        // a full-width band straight across the board — measured live at x=0, width=1600. The wrapper turns
-        // the rail into one flex column that the two panels share and scroll together; see `.fxrail`.
-        <div className="fxrail">
-          <ProcHarness
-            onSeek={seekReplay}
-            combat={lastCombat}
-            cardId={harnessCard}
-            onCardChange={changeHarnessCard}
-            selectedKind={harnessKind}
-            onSelectMoment={setHarnessKind}
-          />
-          <CommitPanel
-            plan={commitPlan}
-            missing={commitMissing}
-            scope={commitScope}
-            onScopeChange={setCommitScope}
-            fanOut={commitFanOut}
-            onFanOutChange={setCommitFanOut}
-            busy={committing}
-            error={commitError}
-            note={commitNote}
-            onCommit={() => void commit()}
-            seedLocked={seedLocked}
-            seed={seed}
-            onUnlockSeed={toggleSeedLock}
-            unbind={unbindPlan}
-            onUnbind={(op) => void unbind(op)}
-          />
-        </div>
-      )}
+  const timelineEl = (
+    <Timeline
+      layers={layers}
+      mutes={liveMutes}
+      selected={selected}
+      durationMs={durationMs}
+      timeMs={timeMs}
+      onSelect={applySelected}
+      onRetime={retimeLayer}
+    />
+  );
 
+  const playBtn = (
+    <button
+      className="fxwb-play"
+      onClick={togglePlay}
+      title={uiPlaying ? 'Pause the timeline where it is (Space)' : 'Play — resume the timeline, or start a pass if nothing is running (Space)'}
+      aria-label={uiPlaying ? 'Pause' : 'Play'}
+    >
+      {uiPlaying ? '⏸' : '▶'}
+    </button>
+  );
+
+  // The single transport core (play · fire · scrub · time) — hoisted into the top bar in the grid layout so
+  // there is ONE transport instead of the rail-mode duplication.
+  const transportCore = (
+    <div className="fxwb-group fxwb-transportcore">
+      {playBtn}
+      <button
+        className="fxwb-fire"
+        onClick={fire}
+        title="Retrigger the whole composition from 0 (F) — a single pass, even if one is already playing. Continuous playback is the separate Loop toggle."
+      >
+        🔥 Fire
+      </button>
+      <input
+        className="fxwb-scrub"
+        type="range"
+        aria-label="Scrub"
+        min={0}
+        max={durationMs}
+        value={timeMs}
+        onChange={(e) => scrub(Number(e.target.value))}
+      />
+      <span className="fxwb-time">{Math.round(timeMs)} / {durationMs} ms</span>
+    </div>
+  );
+
+  const loopGroup = (
+    <div className="fxwb-loopgroup" title="Loop is on by default -- Fire above always stays a single one-shot pass regardless of this toggle">
+      <button
+        className={`fxwb-loop-toggle${loopOn ? ' on' : ''}`}
+        onClick={toggleLoop}
+        title={loopOn ? 'Loop is ON -- click to stop (L)' : 'Loop is OFF -- click to loop continuously (L)'}
+      >
+        {loopOn ? '🔁 Loop: On' : '🔁 Loop: Off'}
+      </button>
+      {/* How the loop boundary is crossed -- a DEF property (saved into the effect), unlike the preview-only
+          Loop toggle beside it. Play out: finish the whole pass, then restart. Seamless: cross-fade the
+          tail into the fresh cycle so a continuous effect never blinks at the seam. Lit when seamless. */}
+      <button
+        className={`fxwb-loop-toggle${loopMode === 'seamless' ? ' on' : ''}`}
+        onClick={() => changeLoopMode(loopMode === 'seamless' ? 'playOut' : 'seamless')}
+        title={
+          loopMode === 'seamless'
+            ? 'Seamless: the tail cross-fades into the next cycle (no seam blink) -- click for Play out'
+            : 'Play out: each pass finishes before the next begins -- click for Seamless (cross-faded seam)'
+        }
+      >
+        {loopMode === 'seamless' ? '♾ Seamless' : '▶ Play out'}
+      </button>
+      <label className="fxwb-speedlabel" htmlFor="fxwb-duration">Duration</label>
+      <input
+        id="fxwb-duration"
+        className="fxwb-speed"
+        type="range"
+        min={MIN_DURATION_MS}
+        max={MAX_DURATION_MS}
+        step={DURATION_STEP_MS}
+        value={durationMs}
+        onChange={(e) => changeDuration(Number(e.target.value))}
+      />
+      <span className="fxwb-speedval">{durationMs} ms</span>
+      {/* Trim the loop to the content. Disabled states say WHY rather than sitting there dead: nothing
+          to fit against (every layer runs full-life, so none of them can say what the duration should
+          be), or the loop already fits. */}
+      <button
+        className="fxwb-fitduration"
+        onClick={fitDuration}
+        disabled={!canFitDuration}
+        title={
+          fittedDuration === null
+            ? 'Nothing to fit to — every layer runs the full duration, so none of them sets an end. Give a layer a fixed "Lasts for" first.'
+            : fittedDuration === durationMs
+              ? 'The loop already ends exactly where the last layer does.'
+              : `Trim the loop to ${fittedDuration} ms — where the last layer ends, so there's no dead time and nothing is cut off.`
+        }
+      >
+        ⇥ Fit to effects
+      </button>
+      {/* Signed loop-JOIN: positive delays the fresh cycle (a gap, both modes); negative overlaps it into
+          the tail (the overlap only bites in Seamless). Only meaningful while Loop is on. */}
+      <label className="fxwb-speedlabel" htmlFor="fxwb-loopjoin">Loop join</label>
+      <input
+        id="fxwb-loopjoin"
+        className="fxwb-speed"
+        type="range"
+        min={MIN_LOOP_JOIN_MS}
+        max={MAX_LOOP_JOIN_MS}
+        step={LOOP_JOIN_STEP_MS}
+        value={loopJoinMs}
+        disabled={!loopOn}
+        title="Signed join at the loop seam: + delays the next cycle (a gap), − overlaps it into the tail (Seamless only)"
+        onChange={(e) => changeLoopJoin(Number(e.target.value))}
+      />
+      <span className="fxwb-speedval">{loopJoinMs > 0 ? `+${loopJoinMs}` : loopJoinMs} ms</span>
+    </div>
+  );
+
+  const slotGroup = (
+    <div
+      className="fxwb-slotgroup"
+      title={
+        'Which canvas this effect draws on. UNDER puts it beneath EVERY card on the board (not just the ' +
+        'one it is anchored to) — the cards are DOM and this is one canvas, so per-card layering is not ' +
+        'possible.'
+      }
+    >
+      <span className="fxwb-speedlabel">Canvas</span>
+      <button
+        className={`fxwb-slotbtn${slot === 'over' ? ' on' : ''}`}
+        onClick={() => setSlot('over')}
+        title="Draw OVER the cards (default)"
+      >
+        Over
+      </button>
+      <button
+        className={`fxwb-slotbtn${slot === 'under' ? ' on' : ''}`}
+        onClick={() => setSlot('under')}
+        title="Draw UNDER every card, above the board art"
+      >
+        Under
+      </button>
+    </div>
+  );
+
+  const easeGroup = (
+    <div
+      className="fxwb-easegroup"
+      title={
+        'A curve on the clock of the WHOLE composition: v = t is no change, a shallow start delays every ' +
+        'layer together and a steep one rushes them. It redistributes time INSIDE the duration rather ' +
+        'than changing it, and it cannot run backwards — a falling stretch reads as a hold.'
+      }
+    >
+      <CurveEditor
+        value={ease}
+        label="Ease"
+        presets={CURVE_PRESETS}
+        onChange={(next) => setEase(next.map((pt) => [pt[0], pt[1]] as [number, number]))}
+      />
+    </div>
+  );
+
+  const seedGroup = (
+    <div
+      className="fxwb-seedgroup"
+      title="Lock the seed to freeze the randomness while you tune other params. Takes effect on the next Fire."
+    >
+      <button
+        className={`fxwb-seed-lock${seedLocked ? ' on' : ''}`}
+        onClick={toggleSeedLock}
+        title={seedLocked ? 'Seed is LOCKED -- click to roll fresh every spawn' : 'Seed is UNLOCKED (fresh roll every spawn) -- click to freeze this one'}
+      >
+        {seedLocked ? '🔒' : '🔓'}
+      </button>
+      <label className="fxwb-speedlabel" htmlFor="fxwb-seed">Seed</label>
+      <input
+        id="fxwb-seed"
+        className="fxwb-seedinput"
+        type="number"
+        step={1}
+        value={seed}
+        spellCheck={false}
+        onChange={(e) => changeSeed(e.target.value)}
+      />
+      <button className="fxwb-seed-reroll" onClick={rerollSeed} title="Roll a new seed (and lock it)">
+        🎲
+      </button>
+    </div>
+  );
+
+  const playbackControls = (
+    <>
+      {/* "Playback", not "Speed": this is the transport's PLAY RATE, and it used to share a name with the
+          primitives' own `Speed` param (px/sec of particle launch, expansions/sec for shockwave) sitting a
+          few centimetres up the same screen. */}
+      <label className="fxwb-speedlabel" htmlFor="fxwb-speed">Playback</label>
+      <input
+        id="fxwb-speed"
+        className="fxwb-speed"
+        type="range"
+        min={0.1}
+        max={3}
+        step={0.1}
+        value={speed}
+        onChange={(e) => changeSpeed(Number(e.target.value))}
+      />
+      <span className="fxwb-speedval">{speed.toFixed(1)}x</span>
+    </>
+  );
+
+  // The proc harness + commit panel column, shown only in rail mode.
+  const railColumn = (
+    <div className="fxrail">
+      <ProcHarness
+        onSeek={seekReplay}
+        combat={lastCombat}
+        cardId={harnessCard}
+        onCardChange={changeHarnessCard}
+        selectedKind={harnessKind}
+        onSelectMoment={setHarnessKind}
+      />
+      <CommitPanel
+        plan={commitPlan}
+        missing={commitMissing}
+        scope={commitScope}
+        onScopeChange={setCommitScope}
+        fanOut={commitFanOut}
+        onFanOutChange={setCommitFanOut}
+        busy={committing}
+        error={commitError}
+        note={commitNote}
+        onCommit={() => void commit()}
+        seedLocked={seedLocked}
+        seed={seed}
+        onUnlockSeed={toggleSeedLock}
+        unbind={unbindPlan}
+        onUnbind={(op) => void unbind(op)}
+      />
+    </div>
+  );
+
+  // The full-screen overlays, shown in either layout.
+  const overlays = (
+    <>
       {browsing && (
         <LibraryBrowser
           onLoad={(def) => loadDef(def, def.id)}
@@ -2778,7 +2748,6 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
           onClose={() => setBrowsing(false)}
         />
       )}
-
       {gallery && (
         <PresetGallery
           onPreview={(archetypeId, variantId) => {
@@ -2806,6 +2775,189 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
           onClose={() => setGallery(false)}
         />
       )}
+    </>
+  );
+
+  // The pipeline rail (top status strip) — identical in both layouts.
+  const pipeRail = (
+    <div className="fxwb-pipe" role="status" aria-label="Effect progress">
+      {([
+        ['Compose', layers.length > 0, `${layers.length} layer${layers.length === 1 ? '' : 's'}`],
+        ['Name', isValidSlug(slugify(defName)), isValidSlug(slugify(defName)) ? slugify(defName) : 'unnamed'],
+        ['Bind', harnessKind !== null && harnessCard !== '',
+          harnessKind === null ? 'no moment' : harnessCard === '' ? 'no card' : 'ready'],
+        ['Ship', commitMissing === null, commitMissing === null ? 'ready to commit' : 'blocked'],
+      ] as const).map(([label, done, detail], i) => (
+        <span key={label} className={`fxwb-pipe-step${done ? ' done' : ''}`} title={detail}>
+          <span className="fxwb-pipe-dot">{done ? '✓' : i + 1}</span>
+          {label}
+          <span className="fxwb-pipe-detail">{detail}</span>
+        </span>
+      ))}
+      <span className="fxwb-pipe-state">
+        <span className={`fxwb-pipe-chip${seedLocked ? ' on' : ''}`}>
+          {seedLocked ? 'seed locked' : 'seed rolling'}
+        </span>
+        <span className="fxwb-pipe-chip">{slot === 'over' ? 'over cards' : 'under cards'}</span>
+      </span>
+    </div>
+  );
+
+  const cmdBar = (
+    <CommandBar open={cmdOpen} sources={cmdSources} onClose={() => setCmdOpen(false)} onRun={onRun} />
+  );
+
+  // ── RAIL LAYOUT (unchanged) ─────────────────────────────────────────────────────────────────────────
+  // The pre-existing "Watch in combat" mode: a narrow editor column beside the live board + the harness
+  // rail. Kept exactly as it was — the grid below is the NON-rail layout (see the task brief). Only the
+  // blocks are now shared consts instead of inline markup.
+  if (railMode) {
+    return (
+      <div className="fxwb fxwb-rail">
+        {pipeRail}
+        <div className="fxwb-top">
+          <div className="fxwb-title">🎨 FX Workbench</div>
+          {topPickers}
+          {fpsEl}
+          {closeBtn}
+        </div>
+        <div className="fxwb-side">
+          {restoreBanners}
+          {defLibBlock}
+          {watchBtn}
+          {layersEl}
+          {timingBlock}
+          {inspectorEl}
+          {saveBlock}
+          {/* RAIL-MODE TRANSPORT. Rail mode hides `.fxwb-transport`; this compact copy brings back ▶/⏸,
+              🔥 Fire and the scrubber so an effect can still be retriggered/scrubbed while watched on a real
+              card. Same `togglePlay` / `fire` / `scrub` handlers — a second surface, never a second impl. */}
+          <div className="fxwb-railtransport">
+            {playBtn}
+            <button
+              className="fxwb-fire"
+              onClick={fire}
+              title="Retrigger the whole composition from 0 (F) — a single pass, even if one is already playing."
+            >
+              🔥 Fire
+            </button>
+            <span className="fxwb-time">{Math.round(timeMs)} / {durationMs} ms</span>
+            <input
+              className="fxwb-scrub"
+              type="range"
+              aria-label="Scrub"
+              min={0}
+              max={durationMs}
+              value={timeMs}
+              onChange={(e) => scrub(Number(e.target.value))}
+            />
+          </div>
+        </div>
+        <div className="fxwb-transport">
+          {timelineEl}
+          {/* ▶/⏸ (the timeline) vs 🔥 Fire once (always restart from 0). */}
+          <div className="fxwb-playgroup">
+            {playBtn}
+            <button
+              className="fxwb-fire"
+              onClick={fire}
+              title="Retrigger the whole composition from 0 (F) — a single pass, even if one is already playing. Continuous playback is the separate Loop toggle."
+            >
+              🔥 Fire once
+            </button>
+            <span className="fxwb-playnote">▶ play / pause (Space) · 🔥 restart from 0 (F)</span>
+          </div>
+          <input
+            className="fxwb-scrub"
+            type="range"
+            min={0}
+            max={durationMs}
+            value={timeMs}
+            onChange={(e) => scrub(Number(e.target.value))}
+          />
+          <span className="fxwb-time">{Math.round(timeMs)} / {durationMs} ms</span>
+          {loopGroup}
+          {slotGroup}
+          {easeGroup}
+          {seedGroup}
+          {playbackControls}
+          <div className="fxwb-hint">{hintText}</div>
+        </div>
+        {railColumn}
+        {overlays}
+        {cmdBar}
+      </div>
+    );
+  }
+
+  return (
+    <div className="fxwb">
+      {pipeRail}
+      {/* THE FOUR-REGION GRID (Layers | Stage | Properties, over a full-width top bar and a collapsible
+          timeline). The blocks are the workbench's existing ones (shared consts above) — only their DOM
+          parent changed. The centre stage is a framed TRANSPARENT pane this phase: the full-screen Pixi
+          overlay shows through it (and the pointer passes to it for cursor scenarios); the Stage Setter
+          fills it in a later phase. */}
+      <div className="fxwb-grid">
+        <div className="fxwb-top">
+          <div className="fxwb-title">🎨 FX Workbench</div>
+          {topPickers}
+          {transportCore}
+          {slotGroup}
+          <button
+            className="fxwb-btn fxwb-cmdk"
+            onClick={openCmd}
+            title="Command palette (⌘K / Ctrl+K)"
+            aria-label="Open command palette"
+          >
+            ⌘K
+          </button>
+          {fpsEl}
+          {closeBtn}
+        </div>
+
+        <div className="fxwb-layers-region">
+          {restoreBanners}
+          {defLibBlock}
+          {watchBtn}
+          {layersEl}
+          {timingBlock}
+        </div>
+
+        <div className="fxwb-stage">
+          <div className="fxwb-stage-hint">{hintText}</div>
+        </div>
+
+        <div className="fxwb-props-region">
+          {inspectorEl}
+          {saveBlock}
+        </div>
+
+        <div className={`fxwb-timeline-region${timelineOpen ? '' : ' collapsed'}`}>
+          <div className="fxwb-timeline-regionhead">
+            <button
+              className="fxwb-btn fxwb-timeline-toggle"
+              onClick={() => setTimelineOpen((v) => !v)}
+              aria-expanded={timelineOpen}
+              title={timelineOpen ? 'Collapse the timeline' : 'Expand the timeline'}
+            >
+              <span aria-hidden="true">{timelineOpen ? '▾' : '▸'}</span> Timeline
+            </button>
+          </div>
+          {timelineOpen && (
+            <div className="fxwb-timeline-body">
+              {timelineEl}
+              {loopGroup}
+              {easeGroup}
+              {seedGroup}
+              {playbackControls}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {overlays}
+      {cmdBar}
     </div>
   );
 }

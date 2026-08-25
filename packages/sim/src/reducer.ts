@@ -5,6 +5,7 @@ import { sideFromSnapshot } from './boardSide';
 import { poolOf, setIdOf } from './cardPool';
 import { ACE_DISCOUNT_MAX_TIER, ACE_TIER_DISCOUNT, CONFIG, INDY_GILD_RECHARGE_GOLD, KESHI_CROWN_THRESHOLD, maxTierFor, hasTier7Access } from './config';
 import { lobbyOpponentBoard, settleRunLobbyRound, playerEliminated, practicePlayerPlacement, playerLossDamage } from './lobby/runLobby';
+import { BOT_DAMAGE_MULT } from './lobby/practiceBots';
 import { accumulateContribution, tallyCombat } from './contribution';
 import { rollShop, topUpTavern, returnToPool, takeFromPool, rollCiaEnchants } from './shop';
 import { generateQuestOffer, questOfferPlan } from './quests';
@@ -348,6 +349,15 @@ export function nextOpponent(s: RunState): BoardSnapshot | null {
  *  5 (rounds 1–3), 10 (4–7), 15 (8–11), 20 (12–15), then UNCAPPED (full damage) for the finale (16–17). */
 export function lossDamageCap(wave: number): number {
   return wave <= 3 ? 5 : wave <= 7 ? 10 : wave <= 11 ? 15 : wave <= 15 ? 20 : Infinity;
+}
+
+/** Practice-BOT damage multiplier by difficulty (1 = every other mode, untouched). The stock face-damage formula
+ *  tops out around 13 even against a tier-6 full board, which made bot games drag (owner ask 2026-08-25); this
+ *  scales what a lost round costs so a sandbox game resolves in a sane number of rounds. Bots only — a Practice
+ *  run against recorded PLAYERS keeps the normal numbers. */
+export function practiceBotDamageMult(s: Pick<RunState, 'mode' | 'practiceConfig'>): number {
+  if (s.mode !== 'practice' || s.practiceConfig?.opponents !== 'bots') return 1;
+  return BOT_DAMAGE_MULT[s.practiceConfig.botDifficulty] ?? 1;
 }
 
 /** Merge a flat list of buffs by source (summing ±atk/±hp + count) — used to carry the inspect
@@ -3001,6 +3011,11 @@ function reduceCore(state: RunState, action: Action): RunState {
           if (!(last.keywords ?? []).includes('T')) last.keywords = [...(last.keywords ?? []), 'T'];
         }
         const combat = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.COMBAT)), CARD_INDEX, playerState, enemyState, config);
+        // PRACTICE BOTS bite harder (owner ask 2026-08-25: games ran far too long). The stock formula is
+        // `opponent tier + 1 per surviving minion`, which tops out ~13 even at tier 6 with a full board — against
+        // 30 Resolve + 15 Armor that is ~10 losing rounds, and far longer for a player winning some. Scale the
+        // bot's damage by difficulty BEFORE the round cap, so the cap still bounds the early rounds.
+        combat.playerDamage = Math.round(combat.playerDamage * practiceBotDamageMult(s));
         combat.playerDamage = Math.min(combat.playerDamage, lossDamageCap(s.wave)); // round cap
         // DEFERRED odds (perf audit 2026-08-01, owner call): the 200 Monte Carlo sims used to run right here —
         // ~10 ms on the End Turn click, feeding nothing but the Combat Summary's display bar. Stash the sim

@@ -56,6 +56,18 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-08-25',
+    label: 'Practice Bots',
+    changes: [
+      { category: 'UI / Info', text: 'Practice bot games are much shorter — bots now tier up as the rounds go on, hit harder, and knock each other out instead of stalling in draws.', details: [
+        'Bots climb tavern tiers over the game (faster on higher difficulties), so a lost round actually costs Resolve.',
+        'Bot damage scales with difficulty — Easy hits softest, Hard hardest.',
+        'Each bot now fields a slightly different board, so bot-vs-bot fights resolve instead of mirroring into draws.',
+        'Bots start on less health than you, so the table thins out at a sensible pace.',
+      ] },
+    ],
+  },
+  {
+    date: '2026-08-25',
     label: 'Fixes',
     changes: [
       { category: 'Card Change', text: 'Resonance now works on Baby Gastrid — re-firing its Shout buffs a random friendly Dwarf instead of doing nothing.' },

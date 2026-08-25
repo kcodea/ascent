@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import { useGame } from './store';
 import { playerOpponent } from '@game/sim';
 import { RUNE_INDEX } from '@game/content';
@@ -34,7 +35,13 @@ export function CombatOpponent(): JSX.Element | null {
   // The foe's owned RUNES — from the served board's captured snapshot (bots/authored seats have none). Rendered
   // with the SAME `.questbadge.runebadge` markup the player uses, so art, hover tip and pulse animation match.
   const runes = (next?.board.snapshot?.runes ?? []).filter((id) => RUNE_INDEX[id]);
-  return (
+  // PORTAL to <body>: `.combatopp` must be able to paint ABOVE the player's statusbar (z40) when the foe
+  // strikes. It used to live inside `.app` (a z-index:1 stacking context), which capped it under the
+  // statusbar — the earlier fix raised the whole `.app`, which dragged the board layer over the player and
+  // made the player portrait vanish (owner report 2026-08-25). As a root-level sibling of `.app` and
+  // `.statusbar` it carries its own z-index (see styles.css) and lifts on its own. `position: fixed` keeps
+  // its on-screen spot regardless of DOM parent.
+  return createPortal(
     // Three nested roles, mirroring the player's housing (owner ask 2026-08-25):
     //   .combatopp       — fixed position + the ⚔️ tuner's centring scale/offset (GSAP never touches it).
     //   .combatopp-drop  — the whole group's drop-in; NAME and HEALTH live here so they stay ANCHORED.
@@ -83,6 +90,7 @@ export function CombatOpponent(): JSX.Element | null {
           })}
         </div>
       )}
-    </div>
+    </div>,
+    document.body,
   );
 }

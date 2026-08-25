@@ -3042,7 +3042,7 @@ body.dragging .statusbar .hero { pointer-events: none; }
    above the statusbar for the swing, which lifts the lunging foe over the player (still below the FX layer,
    z110). Classes live on <body> because .app and .statusbar are siblings under #root. */
 body.duel-attacker-player .statusbar { z-index: 100; }
-body.duel-attacker-opp .app { z-index: 100; }
+body.duel-attacker-opp .combatopp { z-index: 100; }
 
 /* Hero-power box — a standalone card to the RIGHT of the hero frame (a `.statusrow` flex sibling), stretched to
    the hero's height. Sized up so an active power is an obvious button; the whole box glows when usable. */
@@ -8936,12 +8936,12 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
    pop, transform/opacity only. Distinct from the attack pill and from the health pill's own −X float. */
 .combatopp-body, .statusbar .hero .herolunge { position: relative; }
 .hero-dmgtaken {
-  position: absolute; left: 50%; top: 50%; z-index: 8; pointer-events: none;
+  position: absolute; left: 50%; top: 50%; z-index: 8; pointer-events: none; white-space: nowrap;
   transform: translate(-50%, -50%);
-  font-family: var(--font-ui); font-weight: 900; font-size: calc(64 * var(--u)); line-height: 1;
-  color: #ff2f4d;
-  -webkit-text-stroke: calc(3 * var(--u)) #2a0206;
-  text-shadow: 0 calc(3 * var(--u)) 0 #7a0a18, 0 calc(4 * var(--u)) calc(8 * var(--u)) rgba(0, 0, 0, 0.6);
+  color: #fff; background: var(--threat);
+  padding: calc(3 * var(--u)) calc(13 * var(--u)); border-radius: calc(12 * var(--u));
+  font-family: var(--font-ui); font-weight: 900; font-size: var(--float-dmg-size, calc(42 * var(--u))); line-height: 1;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.55); box-shadow: 0 3px 10px rgba(0, 0, 0, 0.38);
   animation: herodmgpop 620ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 /* Punch in big, hold, drift up and fade — the classic damage-number read. */
@@ -9017,16 +9017,18 @@ body.duel-striking .statusbar .hero .hpbox { opacity: 0; }
 /* The winner's ATTACK PILL — styled to MATCH a minion's Attack badge (owner ask 2026-08-25): the same
    `--atk` fill, 3px card-coloured border, and bold white number. `--pill-*` are set per side (below) from the
    ⚔️ Hero Duel tuner, so your pill and the foe's move independently. */
+/* Both hero damage numbers wear the EXACT minion damage-float box (owner ask 2026-08-25): white text on the
+   `--threat` red, rounded, padded, drop-shadowed — see `.float.dmg`. `.hero-atk` (damage DEALT, carried on the
+   attacker) keeps its per-side tuner offset + pop; `.hero-dmgtaken` (damage TAKEN, on the defender) keeps its
+   centred drift. */
 .hero-atk {
   position: absolute; left: calc(50% + var(--pill-x, 0px)); bottom: calc(-14 * var(--u) - var(--pill-y, 0px));
   transform: translateX(-50%) scale(var(--pill-s, 1));
-  z-index: 6; pointer-events: none;
-  display: grid; place-items: center;
-  min-width: calc(48 * var(--u)); height: calc(48 * var(--u)); padding: 0 calc(6 * var(--u));
-  border-radius: calc(16 * var(--u)); border: calc(3 * var(--u)) solid var(--card);
-  background: var(--atk);
-  font-family: var(--font-ui); font-weight: 800; font-size: calc(28 * var(--u)); color: #fff;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  z-index: 6; pointer-events: none; white-space: nowrap;
+  color: #fff; background: var(--threat);
+  padding: calc(3 * var(--u)) calc(13 * var(--u)); border-radius: calc(12 * var(--u));
+  font-family: var(--font-ui); font-weight: 900; font-size: var(--float-dmg-size, calc(42 * var(--u)));
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.55); box-shadow: 0 3px 10px rgba(0, 0, 0, 0.38);
   animation: heroatkpop 260ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 .hero-atk-player { --pill-s: var(--hd-pill-player-s, 0.55); --pill-x: var(--hd-pill-player-x, 37px); --pill-y: var(--hd-pill-player-y, -6px); }

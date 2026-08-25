@@ -3037,8 +3037,12 @@ body.dragging .statusbar .hero { pointer-events: none; }
    `.statusbar`, z40) above the foe's (`.combatopp`, z42) or vice-versa — they are separate stacking contexts.
    These classes, toggled on `.app` for the duration of the swing, raise whichever side is ATTACKING to z100 —
    above the other portrait, still below the Pixi FX layer (z110) so the impact burst reads on top of both. */
-.app.duel-attacker-player .statusbar { z-index: 100; }
-.app.duel-attacker-opp .combatopp { z-index: 100; }
+/* Player attacks: the player portrait already paints above the board (statusbar z40 > .app z1), so this is
+   belt-and-braces. Opp attacks: the foe lives INSIDE .app (z1), UNDER the statusbar — so raise the whole .app
+   above the statusbar for the swing, which lifts the lunging foe over the player (still below the FX layer,
+   z110). Classes live on <body> because .app and .statusbar are siblings under #root. */
+body.duel-attacker-player .statusbar { z-index: 100; }
+body.duel-attacker-opp .app { z-index: 100; }
 
 /* Hero-power box — a standalone card to the RIGHT of the hero frame (a `.statusrow` flex sibling), stretched to
    the hero's height. Sized up so an active power is an obvious button; the whole box glows when usable. */
@@ -8926,6 +8930,56 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
    2026-08-25: it was overlapping the name). During a strike the whole `.combatopp` is lifted, and the face
    lunges away from this stack anyway, so this only governs the resting/settled overlap. */
 .combatopp-name, .combatopp-hp { position: relative; z-index: 2; }
+
+/* THE RED DAMAGE-TAKEN NUMBER (owner ask 2026-08-25) — a big blocky red number that pops in the CENTRE of the
+   struck hero. `.combatopp-body` / `.herolunge` are its positioned parents (both un-clipped there). One-shot
+   pop, transform/opacity only. Distinct from the attack pill and from the health pill's own −X float. */
+.combatopp-body, .statusbar .hero .herolunge { position: relative; }
+.hero-dmgtaken {
+  position: absolute; left: 50%; top: 50%; z-index: 8; pointer-events: none;
+  transform: translate(-50%, -50%);
+  font-family: var(--font-ui); font-weight: 900; font-size: calc(64 * var(--u)); line-height: 1;
+  color: #ff2f4d;
+  -webkit-text-stroke: calc(3 * var(--u)) #2a0206;
+  text-shadow: 0 calc(3 * var(--u)) 0 #7a0a18, 0 calc(4 * var(--u)) calc(8 * var(--u)) rgba(0, 0, 0, 0.6);
+  animation: herodmgpop 620ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+/* Punch in big, hold, drift up and fade — the classic damage-number read. */
+@keyframes herodmgpop {
+  0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.3); }
+  22%  { opacity: 1; transform: translate(-50%, -60%) scale(1.15); }
+  38%  { transform: translate(-50%, -58%) scale(1); }
+  78%  { opacity: 1; transform: translate(-50%, -72%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -96%) scale(0.92); }
+}
+
+/* PILL FADE during a strike (owner ask 2026-08-25): while `.app.duel-striking` is on, every duel name/health
+   pill fades out so the beat reads as just the two portraits + the blow; it lifts on settle and they fade back.
+   Transitions live on the base elements so the fade-BACK is smooth too (opacity only — compositor-only). */
+.combatopp-name, .combatopp-hp, .statusbar .hero .heroname, .statusbar .hero .hpbox { transition: opacity 240ms ease; }
+body.duel-striking .combatopp-name,
+body.duel-striking .combatopp-hp,
+body.duel-striking .statusbar .hero .heroname,
+body.duel-striking .statusbar .hero .hpbox { opacity: 0; }
+
+/* THE OPPONENT'S RUNES (owner ask 2026-08-25) — a column beside the portrait, using the SAME `.questbadge`
+   /`.runebadge` styling the player's runes wear (so art, hover tip and the trigger bounce all match). The
+   ⚔️ Hero Duel tuner drives the row's scale/offset/gap; `--hd-rune-s` scales each badge, defaulting to 1 = the
+   exact player rune size. `pointer-events: auto` here alone (the group is otherwise inert) enables the tips. */
+.combatopp-runes {
+  position: absolute; left: 50%; top: 50%;
+  /* COUNTER the portrait wrapper's `--hd-opp-s` scale so the badges render at TRUE size — `--hd-rune-s` = 1
+     then equals the player's rune size exactly (owner ask: match the player's runes), independent of how big
+     the portrait is tuned. The flex gap lives in the row's own (pre-counter-scale) space, so layout stays
+     clean. `transform-origin: left center` keeps the row anchored as it scales. */
+  transform: translate(var(--hd-rune-x, 96px), calc(-50% + var(--hd-rune-y, 0px))) scale(calc(var(--hd-rune-s, 1) / var(--hd-opp-s, 2.5)));
+  transform-origin: left center;
+  display: flex; flex-direction: column; gap: var(--hd-rune-gap, 6px);
+  pointer-events: auto;
+}
+/* The tip opens to the LEFT of the badge (the row sits at the board's right edge). */
+.combatopp-rune .questbadge-tip { bottom: auto; top: 50%; left: auto; right: calc(100% + 8px); transform: translateY(-50%); }
+
 @keyframes combatoppdrop {
   from { opacity: 0; transform: translateY(-46px) scale(0.86); }
   to   { opacity: 1; transform: none; }

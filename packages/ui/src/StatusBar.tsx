@@ -144,6 +144,7 @@ export function StatusBar() {
   const eotAnimating = useGame((s) => s.endTurnAnimating);
   const combatEnemyDeaths = useGame((s) => s.combatEnemyDeaths);
   const heroAtkPill = useGame((s) => s.heroAtkPill);
+  const heroDmgTaken = useGame((s) => s.heroDmgTaken);
   // The hero + its power are data (HEROES registry); the panel renders whatever the run is on.
   // `activePowers`, not `hero.power`: Mimic wields a different hero's power each turn and Void wields TWO —
   // the main button always shows slot 0, and a second button (below) appears for slot 1.
@@ -513,6 +514,10 @@ export function StatusBar() {
                 the hero strike plays (owner ask 2026-08-25). A child of the portrait so it rides the lunge. */}
             {heroAtkPill?.side === 'player' && (
               <span key={`atk${heroAtkPill.amount}`} className="hero-atk hero-atk-player" aria-hidden="true">{heroAtkPill.amount}</span>
+            )}
+            {/* The RED damage-taken number — pops in the centre of the portrait when the player is struck. */}
+            {heroDmgTaken?.side === 'player' && (
+              <span key={`dmg${heroDmgTaken.seq}`} className="hero-dmgtaken" aria-hidden="true">−{heroDmgTaken.amount}</span>
             )}
             {heroArt(hero.id) ? (
               <img className="heroimg" src={heroArt(hero.id)} alt={hero.name} draggable={false} />

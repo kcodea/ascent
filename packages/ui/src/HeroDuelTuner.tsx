@@ -33,6 +33,10 @@ const LABELS: Record<keyof HeroDuelConfig, [string, TunerUnit | undefined]> = {
   pillPlayerScale: ['Your pill size', '×'],
   pillPlayerX:     ['Your pill X', 'px'],
   pillPlayerY:     ['Your pill Y', 'px'],
+  runeScale:       ['Rune size', '×'],
+  runeX:           ['Rune row X', 'px'],
+  runeY:           ['Rune row Y', 'px'],
+  runeGap:         ['Rune gap', 'px'],
   tallyStagger: ['Tally stagger', 'ms'],
   tallyFly:     ['Tally flight', 'ms'],
   pillHold:     ['Pill hold', 'ms'],
@@ -46,6 +50,7 @@ const GROUP: Record<keyof HeroDuelConfig, string> = {
   hpScale: 'Foe health pill', hpX: 'Foe health pill', hpY: 'Foe health pill',
   pillScale: 'Foe attack pill', pillX: 'Foe attack pill', pillY: 'Foe attack pill',
   pillPlayerScale: 'Your attack pill', pillPlayerX: 'Your attack pill', pillPlayerY: 'Your attack pill',
+  runeScale: 'Opponent runes', runeX: 'Opponent runes', runeY: 'Opponent runes', runeGap: 'Opponent runes',
   tallyStagger: 'Sequence', tallyFly: 'Sequence', pillHold: 'Sequence',
   strikeSpeed: 'Strike', impactPower: 'Strike', settleMs: 'Strike',
 };
@@ -79,18 +84,20 @@ function demo(side: 'player' | 'opp'): void {
     st.setHeroAtkPill({ side, amount: dmg });
     const attacker = side === 'player' ? playerEl : oppEl;
     const defender = side === 'player' ? oppEl : playerEl;
-    const appEl = document.querySelector('.app');
+    const appEl = document.body; // .app and .statusbar are siblings — body reaches both (see styles.css)
     const zClass = side === 'player' ? 'duel-attacker-player' : 'duel-attacker-opp';
     window.setTimeout(() => {
       const done = (): void => {
-        appEl?.classList.remove(zClass);
+        appEl?.classList.remove(zClass, 'duel-striking');
         useGame.getState().setHeroAtkPill(null);
+        useGame.getState().setHeroDmgTaken(null);
         useGame.getState().setDuelPreview(false);
       };
-      appEl?.classList.add(zClass); // raise the attacker above the defender for the swing (see styles.css)
+      appEl?.classList.add(zClass, 'duel-striking'); // raise the attacker + fade the pills for the swing
       const tl = playHeroStrike({
         attacker, defender, damage: dmg * cfg.impactPower, combatSpeed: cfg.strikeSpeed,
-        onImpact: () => { /* the struck portrait deliberately does not react — see styles.css */ },
+        // Pop the RED damage-taken number on the DEFENDER (the side not attacking), same as a real strike.
+        onImpact: () => useGame.getState().setHeroDmgTaken({ side: side === 'player' ? 'opp' : 'player', amount: dmg, seq: Date.now() }),
       });
       // Retire on the swing's ACTUAL completion, plus the tuner's settle — a guessed timeout can fire mid-swing
       // and yank the foe portrait out from under the blow (seen while wiring this). CHAIN onto the timeline's

@@ -34,6 +34,11 @@ export interface HeroDuelConfig {
   pillPlayerScale: number;
   pillPlayerX: number;
   pillPlayerY: number;
+  /** The opponent's RUNE badges — scale, position of the row, and the gap between badges. */
+  runeScale: number;
+  runeX: number;
+  runeY: number;
+  runeGap: number;
   /** Gap (ms) between each tallied number leaving its card. */
   tallyStagger: number;
   /** Flight time (ms) of a tallied number to the counter. */
@@ -68,12 +73,16 @@ const DEFAULTS: HeroDuelConfig = {
   pillPlayerScale: 0.55,
   pillPlayerX: 37,
   pillPlayerY: -6,
+  runeScale: 1,
+  runeX: 96,
+  runeY: 0,
+  runeGap: 6,
   tallyStagger: 130,
   tallyFly: 430,
   pillHold: 260,
-  strikeSpeed: 1.5,
+  strikeSpeed: 1.35,
   impactPower: 1,
-  settleMs: 420,
+  settleMs: 290,
 };
 
 export const HERO_DUEL_RANGES: Record<keyof HeroDuelConfig, [number, number, number]> = {
@@ -92,6 +101,10 @@ export const HERO_DUEL_RANGES: Record<keyof HeroDuelConfig, [number, number, num
   pillPlayerScale: [0.4, 3, 0.01],
   pillPlayerX: [-120, 120, 1],
   pillPlayerY: [-120, 120, 1],
+  runeScale: [0.3, 2.5, 0.01],
+  runeX: [-300, 300, 1],
+  runeY: [-300, 300, 1],
+  runeGap: [0, 40, 1],
   tallyStagger: [0, 500, 5],
   tallyFly: [80, 1500, 10],
   pillHold: [0, 1500, 10],
@@ -116,6 +129,10 @@ export const HERO_DUEL_DESC: Record<keyof HeroDuelConfig, string> = {
   pillPlayerScale: 'Size of YOUR attack pill.',
   pillPlayerX: 'Move your attack pill horizontally.',
   pillPlayerY: 'Move your attack pill vertically.',
+  runeScale: "Size of the opponent's rune badges (1 = the same size as your runes).",
+  runeX: 'Move the rune row horizontally from the portrait.',
+  runeY: 'Move the rune row vertically.',
+  runeGap: 'Space between the rune badges.',
   tallyStagger: 'Gap between each damage number leaving its card.',
   tallyFly: 'How long a damage number takes to reach the counter.',
   pillHold: 'Pause after the pill appears, before the hero winds up.',
@@ -156,6 +173,10 @@ export function applyHeroDuelVars(): void {
   r.setProperty('--hd-pill-player-s', String(cfg.pillPlayerScale));
   r.setProperty('--hd-pill-player-x', `${cfg.pillPlayerX}px`);
   r.setProperty('--hd-pill-player-y', `${cfg.pillPlayerY}px`);
+  r.setProperty('--hd-rune-s', String(cfg.runeScale));
+  r.setProperty('--hd-rune-x', `${cfg.runeX}px`);
+  r.setProperty('--hd-rune-y', `${cfg.runeY}px`);
+  r.setProperty('--hd-rune-gap', `${cfg.runeGap}px`);
 }
 
 export function setHeroDuelValue(key: keyof HeroDuelConfig, value: number): void {

@@ -1458,7 +1458,9 @@ export function Recruit() {
    *  in-flight strike down mid-swing (measured: the pill appeared, then died ~1s early and the blow never
    *  landed). `lossSeqRef` already guarantees the sequence starts once; these are cleared when combat actually
    *  ends, and on unmount. */
-  const seqTimersRef = useRef<number[]>([]);                // guards single-run per combat
+  const seqTimersRef = useRef<number[]>([]);
+  /** Monotonic strike counter — keys the red damage-taken number so it remounts + replays its pop each swing. */
+  const lossSeqSeqRef = useRef(0);                // guards single-run per combat
   const endTurnPendingRef = useRef(false); // the end-of-turn beat sequence is playing before combat
   // CHOREOGRAPHER PR 4: cancels the authoritative player's rAF loop and force-commits, so unmounting
   // mid-animation can never strand a prepared transaction with End Turn locked.
@@ -1869,6 +1871,7 @@ export function Recruit() {
     // tallied it is handed to the WINNING hero as an attack pill, that hero winds up and lunges at the loser
     // with the same motion, impact FX and sounds a minion attack uses, and the health lands on contact.
     const playerWon = won;
+    const strikeSeq = (lossSeqSeqRef.current += 1);
     const setPill = useGame.getState().setHeroAtkPill;
     timers.push(window.setTimeout(() => {
       setLossPhase('blast');   // retires the flyers/counter; the pill takes the number from here
@@ -1879,21 +1882,28 @@ export function Recruit() {
       const oppEl = document.querySelector('.combatopp-body');
       const attacker = playerWon ? playerEl : oppEl;
       const defender = playerWon ? oppEl : playerEl;
+      const setDmg = useGame.getState().setHeroDmgTaken;
       const land = (): void => {
         setLossShake(true);
         window.setTimeout(() => setLossShake(false), 360);
-        // The struck HERO does not react (owner ruling 2026-08-25) — the Pixi strike FX and the health drop
-        // carry the blow. Anything animating the portrait here also fights its own centring/scale transform.
+        // The struck HERO does not react (owner ruling 2026-08-25) — the Pixi strike FX + the health drop carry
+        // the blow. Pop the RED damage-taken number in the centre of the DEFENDER (the side NOT attacking).
+        setDmg({ side: playerWon ? 'opp' : 'player', amount: strikeDmg, seq: strikeSeq });
         dispatch({ type: 'settleCombat' }); // health drops HERE, on the blow landing
       };
       // Raise the ATTACKING side's stacking context above the other portrait for the swing (see the
       // `.duel-attacker-*` rules) — the lunge's own zIndex can't cross stacking contexts. Cleared when done.
-      const appEl = document.querySelector('.app');
+      // Toggle on document.body: `.app` and `.statusbar` are SIBLINGS under #root (the player portrait lives in
+      // the statusbar, the foe's inside .app), so a class on .app can't reach the statusbar. body reaches both.
+      const appEl = document.body;
       const zClass = playerWon ? 'duel-attacker-player' : 'duel-attacker-opp';
-      const dropZ = (): void => appEl?.classList.remove(zClass);
+      // `duel-striking` fades every duel name/health pill for the swing, so the beat reads as just the two
+      // portraits + the blow, then they fade back after settle (owner ask 2026-08-25).
+      const dropZ = (): void => { appEl?.classList.remove(zClass); appEl?.classList.remove('duel-striking'); };
       // Give the pill a beat to pop before the wind-up starts, so the number reads as picked up and carried.
       timers.push(window.setTimeout(() => {
         appEl?.classList.add(zClass);
+        appEl?.classList.add('duel-striking');
         const tl = attacker && defender
           ? playHeroStrike({ attacker, defender, damage: strikeDmg * duel.impactPower, combatSpeed: combatSpeed * duel.strikeSpeed, onImpact: land })
           : null;
@@ -1912,7 +1922,7 @@ export function Recruit() {
       }, duel.pillHold));
     }, tallyEnd));
 
-    timers.push(window.setTimeout(() => { setPill(null); setLossPhase('done'); }, tallyEnd + duel.pillHold + STRIKE_BASE + duel.settleMs));
+    timers.push(window.setTimeout(() => { setPill(null); useGame.getState().setHeroDmgTaken(null); setLossPhase('done'); }, tallyEnd + duel.pillHold + STRIKE_BASE + duel.settleMs));
     // NO cleanup here on purpose: this effect re-runs whenever `replay.frame` ticks, and tearing the timers
     // down on those re-runs killed the swing mid-flight. The sequence is short, self-completing and
     // single-entry (`lossSeqRef`); its timers are cleared when combat ends (below) and on unmount.
@@ -1923,7 +1933,7 @@ export function Recruit() {
 
   // Reset the loss sequence when leaving combat (ready for the next fight).
   useEffect(() => {
-    if (!fighting) { seqTimersRef.current.forEach((t) => window.clearTimeout(t)); seqTimersRef.current = []; document.querySelector('.app')?.classList.remove('duel-attacker-player', 'duel-attacker-opp'); lossSeqRef.current = false; setLossPhase(null); setLossFlyers([]); setLossCount(0); setLossPos(null); setLossShake(false); useGame.getState().setHeroAtkPill(null); }
+    if (!fighting) { seqTimersRef.current.forEach((t) => window.clearTimeout(t)); seqTimersRef.current = []; document.body.classList.remove('duel-attacker-player', 'duel-attacker-opp', 'duel-striking'); useGame.getState().setHeroDmgTaken(null); lossSeqRef.current = false; setLossPhase(null); setLossFlyers([]); setLossCount(0); setLossPos(null); setLossShake(false); useGame.getState().setHeroAtkPill(null); }
   }, [fighting]);
 
   // Returning to recruit after a fight. The warband re-mounts (it was combat Units) and re-enters

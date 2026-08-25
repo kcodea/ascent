@@ -69,11 +69,19 @@ const ORDER: (keyof HeroDuelConfig)[] = [
   'hpScale', 'hpX', 'hpY',
   'pillScale', 'pillX', 'pillY',
   'pillPlayerScale', 'pillPlayerX', 'pillPlayerY',
+  'dmgScale', 'dmgX', 'dmgY',
   'tallyStagger', 'tallyFly', 'pillHold',
   'strikeSpeed', 'impactPower', 'settleMs',
+  'sfxTravelDelay', 'sfxTravelVol', 'sfxAddDelay', 'sfxAddVol',
+  'runeScale', 'runeX', 'runeY', 'runeGap',
+];
+// Safety net: any config key not in ORDER is appended, so a newly-added dial can never silently fail to render.
+const ORDERED: (keyof HeroDuelConfig)[] = [
+  ...ORDER,
+  ...(Object.keys(HERO_DUEL_DEFAULTS) as (keyof HeroDuelConfig)[]).filter((k) => !ORDER.includes(k)),
 ];
 
-const controls: TunerControl<Extract<keyof HeroDuelConfig, string>>[] = ORDER.map((key) => {
+const controls: TunerControl<Extract<keyof HeroDuelConfig, string>>[] = ORDERED.map((key) => {
   const [label, unit] = LABELS[key];
   const [min, max, step] = HERO_DUEL_RANGES[key];
   return { key, label, unit, hint: HERO_DUEL_DESC[key], group: GROUP[key], min, max, step };

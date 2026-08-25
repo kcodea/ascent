@@ -1,19 +1,19 @@
 {
   "version": 1,
   "id": "tallyanimation1",
-  "duration": 1000,
+  "duration": 450,
   "layers": [
     {
       "primitive": "ribbon",
       "anchor": "travel",
       "at": 0,
-      "life": 800,
-      "travelMs": 800,
+      "life": 360,
+      "travelMs": 360,
       "params": {
-        "bands": 2,
-        "plateau": 0.3,
+        "bands": 5,
+        "plateau": 0.07,
         "palette": [
-          16736010,
+          16766474,
           16758815,
           16773288,
           16777215
@@ -24,12 +24,12 @@
         "noiseAcross": 7,
         "warp": 0.35,
         "scroll": 1.4,
-        "erode": 0.81,
+        "erode": 0.82,
         "gain": 1.5,
         "head": 0.06,
         "tail": 1.6,
         "soft": 1.5,
-        "length": 550,
+        "length": 710,
         "width": 27,
         "alpha": 1,
         "headPinch": 0.12,
@@ -490,14 +490,14 @@
     {
       "primitive": "burst",
       "anchor": "target",
-      "at": 800,
+      "at": 360,
       "params": {
         "count": 132,
         "interval": 600,
         "spread": 1,
         "aimMode": "travel",
         "angle": -90,
-        "speed": 630,
+        "speed": 865,
         "speedVar": 0.5,
         "reverse": false,
         "speedCurve": [
@@ -513,7 +513,7 @@
         "drag": 0.9,
         "gravity": 0,
         "pointGravity": 0,
-        "life": 2280,
+        "life": 2700,
         "orientToVelocity": false,
         "spinMul": 1,
         "spinCurve": [
@@ -540,7 +540,7 @@
         "offsetY": 0,
         "inheritVel": 0,
         "shape": "shard",
-        "size": 9,
+        "size": 13,
         "sizeVar": 0.5,
         "stretchX": 1,
         "stretchY": 1,

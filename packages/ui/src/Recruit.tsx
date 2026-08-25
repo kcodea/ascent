@@ -1809,12 +1809,12 @@ export function Recruit() {
       ? Math.min(run0.lastCombat?.enemyDamage ?? 0, cap)
       : finalDmg;
 
-    // Counter sits centered above the surviving enemy cards.
+    // The tally always sits at the CENTRE OF THE BOARD (owner ask 2026-08-25), whichever side won — it tallies
+    // the minion damage there, then the projectile flies to the appropriate hero's attack pill.
     const rectOf = (uid: string): DOMRect | undefined => findEl(uid)?.getBoundingClientRect() ?? undefined;
-    const sRects = survivors.map((u) => rectOf(u.uid)).filter((r): r is DOMRect => !!r);
-    const cx = sRects.length ? sRects.reduce((s, r) => s + r.left + r.width / 2, 0) / sRects.length : window.innerWidth / 2;
-    const topY = sRects.length ? Math.min(...sRects.map((r) => r.top)) : window.innerHeight * 0.3;
-    const cy = Math.max(64, topY - 64);
+    const boardRect = document.querySelector('.app')?.getBoundingClientRect();
+    const cx = boardRect ? boardRect.left + boardRect.width / 2 : window.innerWidth / 2;
+    const cy = boardRect ? boardRect.top + boardRect.height / 2 : window.innerHeight / 2;
 
     // Contributions: opponent tier (flies from its intel frame) + each survivor's tier (from its card).
     //

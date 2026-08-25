@@ -289,6 +289,15 @@ describe('coerceParams — emitpoints kind (via the burst primitive spec)', () =
   });
 });
 
+describe('coerceParams — gradient kind', () => {
+  it('coerces a gradient param, defaulting invalid stops', () => {
+    const specs = { g: { kind: 'gradient', label: 'G', help: 'h', default: [{ at: 0, color: 0 }, { at: 1, color: 0xffffff }] } } as const;
+    expect(coerceParams(specs, { g: [{ at: 5, color: 0xff0000 }, { at: 0, color: 0 }] }).g)
+      .toEqual([{ at: 1, color: 0xff0000 }, { at: 0, color: 0 }]);
+    expect(coerceParams(specs, { g: 'bad' }).g).toEqual(specs.g.default);
+  });
+});
+
 describe('ParamsOf type derivation', () => {
   it('derives the correct type for enum params (union of options, not just default)', () => {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars

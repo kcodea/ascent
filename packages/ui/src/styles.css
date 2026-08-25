@@ -7169,6 +7169,35 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .fxwb-curve-line { stroke: #c8a45c; stroke-width: 2; }
 .fxwb-curve-handle { fill: #f0d9a4; stroke: #7a17bd; stroke-width: 1.5; cursor: grab; }
 .fxwb-curve-handle:active { cursor: grabbing; }
+/* HSB colour picker: a swatch above three horizontal Hue/Saturation/Brightness bars, each a draggable
+   track + knob. Delegates all colour maths to fx/color.ts — this is presentation only. */
+.fxwb-hsb { display: flex; flex-direction: column; gap: 7px; width: 100%; }
+.fxwb-hsb-swatch { width: 100%; height: 22px; border-radius: 6px; border: 1px solid #4a4136; }
+.fxwb-hsb-bar { display: flex; flex-direction: column; gap: 3px; }
+.fxwb-hsb-lab { font-size: 11px; font-weight: 700; color: #9a8c74; text-transform: uppercase; letter-spacing: 0.05em; }
+.fxwb-hsb-track { position: relative; height: 14px; border-radius: 7px; border: 1px solid #4a4136; touch-action: none; }
+.fxwb-hsb-knob {
+  position: absolute; top: 50%; width: 14px; height: 14px; border-radius: 50%;
+  background: #f0d9a4; border: 1.5px solid #7a17bd; transform: translate(-50%, -50%);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4); pointer-events: none;
+}
+/* Matches the `.fxwb.fxwb X` specificity pattern above (0,2,0 default → 0,3,0 override) so the track keeps
+   the "open" gauntlet instead of a bare `cursor: pointer` reverting it to the OS arrow (CLAUDE.md UI conv.). */
+.fxwb.fxwb .fxwb-hsb-track { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+/* Multi-stop gradient bar: click to add a stop, double-click a stop to remove it, click to select
+   (opens the HSB picker below it). Presentation only — maths delegated to fx/gradient.ts. */
+.fxwb-grad { display: flex; flex-direction: column; gap: 7px; width: 100%; }
+.fxwb-grad-bar { position: relative; height: 26px; border-radius: 7px; border: 1px solid #4a4136; touch-action: none; }
+.fxwb-grad-stop {
+  position: absolute; top: 50%; width: 14px; height: 14px; border-radius: 50%;
+  border: 1.5px solid #7a17bd; transform: translate(-50%, -50%);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4);
+}
+.fxwb-grad-stop.sel { outline: 2px solid #f0d9a4; outline-offset: 1px; }
+/* Matches the `.fxwb.fxwb X` specificity pattern above (0,2,0 default → 0,3,0 override) so the bar and
+   its stops keep the "open" gauntlet instead of a bare `cursor: pointer` reverting it to the OS arrow
+   (CLAUDE.md UI convention). */
+.fxwb.fxwb .fxwb-grad-bar, .fxwb.fxwb .fxwb-grad-stop { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
 .fxwb-row input[type='checkbox'] { justify-self: start; accent-color: #c8a45c; width: 15px; height: 15px; cursor: pointer; }
 /* The "React on" picker in the toolbar — which minion a `react` layer animates in the preview. Same
    treatment as the inspector's selects; it just isn't inside a `.fxwb-row` grid. */
@@ -7188,6 +7217,32 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   color: #f0d9a4; font-family: var(--font-ui); font-weight: 800; font-size: 12px; cursor: pointer;
 }
 .fxwb-copy:hover { background: color-mix(in srgb, #c8a45c 28%, #241f17); }
+
+/* Palette picker: 4 labelled rim→core stops (each a swatch + name button) above the shared HSB picker for
+   whichever stop is selected, plus a collapsible grouped preset library below. Presentation only — the
+   palette data lives in fx/palettes.ts. */
+.fxwb-pal { display: flex; flex-direction: column; gap: 8px; width: 100%; }
+.fxwb-pal-stops { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; }
+.fxwb-pal-stop {
+  display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 4px; border-radius: 6px;
+  background: #241f17; border: 1px solid #4a4136;
+}
+.fxwb-pal-stop.sel { border-color: #c8a45c; background: color-mix(in srgb, #c8a45c 16%, #241f17); }
+.fxwb-pal-stop .sw { width: 100%; height: 16px; border-radius: 4px; border: 1px solid #4a4136; }
+.fxwb-pal-stop .nm { font-size: 10px; font-weight: 700; color: #9a8c74; text-transform: uppercase; letter-spacing: 0.05em; }
+.fxwb-pal-stop.sel .nm { color: #f0d9a4; }
+.fxwb-pal-lib summary {
+  font-size: 11px; font-weight: 800; color: #c9bda6; text-transform: uppercase; letter-spacing: 0.05em;
+  padding: 4px 0;
+}
+.fxwb-pal-group + .fxwb-pal-group { margin-top: 8px; }
+.fxwb-pal-gname { font-size: 10px; font-weight: 700; color: #9a8c74; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+.fxwb-pal-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 5px; }
+.fxwb-pal-chip {
+  display: flex; height: 18px; padding: 0; border-radius: 4px; overflow: hidden; border: 1px solid #4a4136;
+}
+.fxwb-pal-chip:hover { border-color: #c8a45c; }
+.fxwb-pal-chip span { flex: 1; height: 100%; }
 
 /* Layers panel: the composition's layer list + an "Add layer" control, above the Inspector. */
 .fxwb-layers { display: flex; flex-direction: column; gap: 4px; }
@@ -7660,6 +7715,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .fxwb-row.fxwb-off input, .fxwb-row.fxwb-off select { opacity: 0.4; cursor: not-allowed; }
 .fxwb-row.fxwb-off .fxwb-curve, .fxwb-row.fxwb-off .fxwb-shape, .fxwb-row.fxwb-off .fxwb-palette { opacity: 0.45; }
 .fxwb-row.fxwb-off .fxwb-curve-svg { pointer-events: none; }
+.fxwb-row.fxwb-off .fxwb-hsb, .fxwb-row.fxwb-off .fxwb-grad, .fxwb-row.fxwb-off .fxwb-pal { opacity: 0.45; pointer-events: none; }
 
 /* "Start from" — the def library, moved to the TOP of the rail and reframed as the entry point rather than
    the author's output shelf. Accent heading because it is the first thing you should reach for; a little

@@ -73,3 +73,15 @@ export function tupleBiased(stops: readonly number[], bias: number): number {
   // 0..1 across the four stops; round to the nearest stop (particles tint per-stop, no gradient).
   return stops[clampStop(Math.round(b * 3))] ?? stops[0] ?? 0;
 }
+
+/** The 4 stop labels for a palette tuple, rim (darkest) to core (white-hot) — for the picker UI. */
+export const PALETTE_STOP_LABELS = ['Rim', 'Outer', 'Inner', 'Core'] as const;
+
+/** Grouped preset library, shown by colour in the picker. rim -> core. Includes the original six
+ *  (`PALETTE_PRESETS`' violet/ember/mint/magenta/gold/acid) by name, plus new presets alongside them. */
+export const PALETTE_LIBRARY: Record<string, Record<string, readonly [number, number, number, number]>> = {
+  Fire: { Ember: [0x2a0a06, 0x7a1e10, 0xff6a2b, 0xfff0c8], Gold: [0x2a1e05, 0x7a5a12, 0xffcf3a, 0xfffbe0], Magma: [0x1a0808, 0x6a1420, 0xff3a2a, 0xffd08a], Blood: [0x200406, 0x5a0a12, 0xc81e2c, 0xff9a8a], Sunset: [0x2a0f1e, 0x7a2a3a, 0xff7a4a, 0xffe0b0], Amber: [0x24140a, 0x6a3a12, 0xff9a2a, 0xfff0d0] },
+  Cool: { Violet: [0x2a1030, 0x7a1e57, 0xff2d95, 0xfff2fb], Magenta: [0x2a0a24, 0x7a125a, 0xff33a8, 0xffc4ea], Ice: [0x0a1826, 0x1e4a6a, 0x4ac8ff, 0xe0f8ff], Ocean: [0x08121e, 0x143a5a, 0x2a9ad8, 0xcdeeff], Mint: [0x0a2018, 0x1e5a44, 0x3ad89a, 0xe0fff0], Arctic: [0x12182a, 0x2a3a6a, 0x6a8aff, 0xe0e8ff], Plasma: [0x1a0a2a, 0x4a1e8a, 0x8a4aff, 0xecdcff] },
+  Energy: { Acid: [0x141e05, 0x3a5a12, 0x9ade2a, 0xf0ffd0], Neon: [0x05201a, 0x0a5a3a, 0x2affc8, 0xd0fff0], Electric: [0x0a1030, 0x1e2a8a, 0x4a6aff, 0xe0eaff], Toxic: [0x141a08, 0x3a5a10, 0xaade1e, 0xf0ffcc], Radio: [0x0a1a05, 0x2a6a10, 0x6aff2a, 0xe8ffcc], Spark: [0x201a05, 0x6a5210, 0xffe23a, 0xfffce0] },
+  'Nature / Special': { Forest: [0x0a1808, 0x1e4a1e, 0x4a9a3a, 0xd0ffb0], Poison: [0x1a0a20, 0x4a1e5a, 0x9a3ad8, 0xe8d0ff], Earth: [0x1a1208, 0x4a3a1e, 0x9a7a4a, 0xf0e0c0], Ash: [0x141416, 0x3a3a40, 0x8a8a94, 0xf0f0f4], Void: [0x0a0a12, 0x2a2a44, 0x5a5a8a, 0xd0d0f0], Holy: [0x2a2410, 0x7a6a2a, 0xffe07a, 0xffffff] },
+};

@@ -7218,6 +7218,32 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 }
 .fxwb-copy:hover { background: color-mix(in srgb, #c8a45c 28%, #241f17); }
 
+/* Palette picker: 4 labelled rim→core stops (each a swatch + name button) above the shared HSB picker for
+   whichever stop is selected, plus a collapsible grouped preset library below. Presentation only — the
+   palette data lives in fx/palettes.ts. */
+.fxwb-pal { display: flex; flex-direction: column; gap: 8px; width: 100%; }
+.fxwb-pal-stops { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; }
+.fxwb-pal-stop {
+  display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 4px; border-radius: 6px;
+  background: #241f17; border: 1px solid #4a4136;
+}
+.fxwb-pal-stop.sel { border-color: #c8a45c; background: color-mix(in srgb, #c8a45c 16%, #241f17); }
+.fxwb-pal-stop .sw { width: 100%; height: 16px; border-radius: 4px; border: 1px solid #4a4136; }
+.fxwb-pal-stop .nm { font-size: 10px; font-weight: 700; color: #9a8c74; text-transform: uppercase; letter-spacing: 0.05em; }
+.fxwb-pal-stop.sel .nm { color: #f0d9a4; }
+.fxwb-pal-lib summary {
+  font-size: 11px; font-weight: 800; color: #c9bda6; text-transform: uppercase; letter-spacing: 0.05em;
+  padding: 4px 0;
+}
+.fxwb-pal-group + .fxwb-pal-group { margin-top: 8px; }
+.fxwb-pal-gname { font-size: 10px; font-weight: 700; color: #9a8c74; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+.fxwb-pal-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 5px; }
+.fxwb-pal-chip {
+  display: flex; height: 18px; padding: 0; border-radius: 4px; overflow: hidden; border: 1px solid #4a4136;
+}
+.fxwb-pal-chip:hover { border-color: #c8a45c; }
+.fxwb-pal-chip span { flex: 1; height: 100%; }
+
 /* Layers panel: the composition's layer list + an "Add layer" control, above the Inspector. */
 .fxwb-layers { display: flex; flex-direction: column; gap: 4px; }
 .fxwb-layer-row {

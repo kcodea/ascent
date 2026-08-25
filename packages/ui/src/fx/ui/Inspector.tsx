@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { insertCurvePoint, removeCurvePoint, MIN_CURVE_POINTS, CURVE_T_EPSILON } from '../curve';
 import { svgToEmitPointsAsync, EMIT_POINTS_DEFAULT } from '../svgEmit';
+import type { GradientStop } from '../gradient';
 import {
   defaultOpenGroups,
   groupParamKeys,
@@ -12,6 +13,9 @@ import {
   type FxParamSpecs,
 } from '../params';
 import { importShapeFromFile, listShapeOptions, removeImportedShape } from '../shapeLibrary';
+import { ColorPickerHSB } from './ColorPickerHSB';
+import { PalettePicker } from './PalettePicker';
+import { GradientEditor } from './GradientEditor';
 
 /**
  * Every control here is generated from the primitive's own FxParamSpec record — there is no separate
@@ -38,13 +42,6 @@ import { importShapeFromFile, listShapeOptions, removeImportedShape } from '../s
  * The rules about WHICH params are live/shown/grouped are pure functions in `../params` (the vitest include is
  * `packages/**\/*.test.ts` on a node environment, so they'd be untestable if they lived in this .tsx).
  */
-const STOP_LABELS = ['Rim', 'Mid', 'Bright', 'Core'] as const;
-
-/** `#rrggbb` -> 0xRRGGBB, matching the existing `color` kind's own inline parse below. */
-const hexToColor = (hex: string): number => parseInt(hex.slice(1), 16);
-/** 0xRRGGBB -> `#rrggbb`, matching the existing `color` kind's own inline format below. */
-const colorToHex = (n: number): string => `#${(n >>> 0).toString(16).padStart(6, '0')}`;
-
 /** Which parameter tier the inspector is showing. */
 type InspectorTier = 'essentials' | 'all';
 
@@ -80,7 +77,7 @@ export function Inspector({
 }: {
   specs: FxParamSpecs;
   values: Record<string, unknown>;
-  onChange: (key: string, value: number | boolean | string | number[] | number[][]) => void;
+  onChange: (key: string, value: number | boolean | string | number[] | number[][] | GradientStop[]) => void;
   /** Which primitive these specs belong to — the key the open/closed group state is persisted under. */
   primitiveId: string;
   /** Stable per-layer identity — the `emitpoints` control stores the uploaded SVG in localStorage under it,
@@ -233,7 +230,7 @@ function ParamRow({
   layerKey: string;
   enabled: boolean;
   reason: string | null;
-  onChange: (key: string, value: number | boolean | string | number[] | number[][]) => void;
+  onChange: (key: string, value: number | boolean | string | number[] | number[][] | GradientStop[]) => void;
 }): React.ReactElement {
   const [helpOpen, setHelpOpen] = useState(false);
   const off = !enabled;
@@ -276,50 +273,20 @@ function ParamRow({
         </select>
       )}
       {spec.kind === 'color' && (
-        <input id={`fxwb-${key}`} type="color" disabled={off}
-          value={`#${((value as number) >>> 0).toString(16).padStart(6, '0')}`}
-          onChange={(e) => onChange(key, parseInt(e.target.value.slice(1), 16))} />
+        <ColorPickerHSB value={value as number} onChange={(n) => onChange(key, n)} />
       )}
-      {spec.kind === 'palette' && (() => {
-        const stops = (value as number[] | undefined) ?? spec.default;
-        const presetEntries = Object.entries(spec.presets ?? {});
-        return (
-          <div className="fxwb-palette">
-            {presetEntries.length > 0 && (
-              <select
-                id={`fxwb-${key}`}
-                aria-label={`${spec.label} preset`}
-                value=""
-                disabled={off}
-                onChange={(e) => {
-                  const preset = spec.presets?.[e.target.value];
-                  if (preset) onChange(key, [...preset]);
-                }}
-              >
-                <option value="" disabled>Preset…</option>
-                {presetEntries.map(([name]) => <option key={name} value={name}>{name}</option>)}
-              </select>
-            )}
-            <div className="fxwb-palette-stops">
-              {STOP_LABELS.map((stopLabel, i) => (
-                <input
-                  key={stopLabel}
-                  type="color"
-                  title={stopLabel}
-                  aria-label={`${spec.label} ${stopLabel}`}
-                  disabled={off}
-                  value={colorToHex(stops[i] ?? 0)}
-                  onChange={(e) => {
-                    const next = [...stops];
-                    next[i] = hexToColor(e.target.value);
-                    onChange(key, next);
-                  }}
-                />
-              ))}
-            </div>
-          </div>
-        );
-      })()}
+      {spec.kind === 'palette' && (
+        <PalettePicker
+          value={((value as number[] | undefined) ?? spec.default) as [number, number, number, number]}
+          onChange={(next) => onChange(key, next)}
+        />
+      )}
+      {spec.kind === 'gradient' && (
+        <GradientEditor
+          value={(value as GradientStop[] | undefined) ?? [...spec.default]}
+          onChange={(next) => onChange(key, next)}
+        />
+      )}
       {spec.kind === 'shape' && (
         <ShapeField
           id={`fxwb-${key}`}

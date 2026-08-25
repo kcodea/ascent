@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Container } from 'pixi.js';
 import { CARD_INDEX } from '@game/content';
 import { defaultsOf } from '../params';
+import type { GradientStop } from '../gradient';
 import { createPlayer, type FxPlayer } from '../player';
 import { getPrimitive, hasPrimitives, listPrimitives } from '../registry';
 import { BOW_LIMIT, driveLayerHeads, TRAVEL_BOW, type FxAnchors, type FxPoint } from '../anchors';
@@ -1024,9 +1025,10 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   }, []);
 
   // `number[]` covers the editable palette param (a 4-tuple of colour stops); `number[][]` covers the curve
-  // param (a list of [t, v] control points). Every value flows unchanged through setLayerParams'
-  // `Record<string, unknown>`, then coerceParams validates it per the primitive's spec.
-  const change = (key: string, value: number | boolean | string | number[] | number[][]): void => {
+  // param (a list of [t, v] control points); `GradientStop[]` covers the gradient param (a list of
+  // `{ at, color }` stops). Every value flows unchanged through setLayerParams' `Record<string, unknown>`,
+  // then coerceParams validates it per the primitive's spec.
+  const change = (key: string, value: number | boolean | string | number[] | number[][] | GradientStop[]): void => {
     // Keyed by LAYER + param so dragging `size` on one layer and then on another is two undo steps, not one.
     record('param', `${selected}:${key}`);
     autosaveArmedRef.current = true;

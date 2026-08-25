@@ -3,6 +3,7 @@ import { insertCurvePoint, removeCurvePoint, MIN_CURVE_POINTS, CURVE_T_EPSILON }
 import { svgToEmitPointsAsync, EMIT_POINTS_DEFAULT } from '../svgEmit';
 import type { GradientStop } from '../gradient';
 import {
+  DEFAULT_PARAM_GROUP,
   defaultOpenGroups,
   groupParamKeys,
   isParamEnabled,
@@ -74,6 +75,7 @@ export function Inspector({
   onChange,
   primitiveId,
   layerKey,
+  focusKey,
 }: {
   specs: FxParamSpecs;
   values: Record<string, unknown>;
@@ -83,18 +85,50 @@ export function Inspector({
   /** Stable per-layer identity — the `emitpoints` control stores the uploaded SVG in localStorage under it,
    *  so two SVG-emit layers don't clobber each other's source during authoring. */
   layerKey: string;
+  /** A ⌘K param-jump target. When set to a param key, the inspector switches to the All tier, opens that
+   *  param's group and scrolls its row into view. ADDITIVE: undefined/null is exactly today's behaviour.
+   *  The parent clears it (it is reset every time the command palette opens), so re-jumping to the same
+   *  param fires again. */
+  focusKey?: string | null;
 }): React.ReactElement {
   const [tier, setTier] = useState<InspectorTier>('essentials');
   const [query, setQuery] = useState('');
   // Open/closed lives here keyed by primitive rather than being re-read from storage every render: the
   // stored map is the STARTING point (below), this is the live one for primitives touched this session.
   const [openByPrimitive, setOpenByPrimitive] = useState<Record<string, Record<string, boolean>>>({});
+  // The inspector's scroll container — the ⌘K jump queries within it for the target row.
+  const rootRef = useRef<HTMLDivElement>(null);
 
   const stored = useMemo(
     () => mergeOpenGroups(defaultOpenGroups(specs), readOpenGroups(primitiveId)),
     [specs, primitiveId],
   );
   const open = openByPrimitive[primitiveId] ?? stored;
+
+  // ⌘K PARAM JUMP. When the command palette targets a specific param, make sure that param is actually on
+  // screen — a non-essential param is filtered out of the Essentials tier and its group may be collapsed —
+  // then scroll its row into view. Switching to All and force-opening the group both go through the SAME
+  // state the manual controls use, so nothing here is a special render path. The scroll waits a frame so it
+  // measures AFTER that state has rendered the row. No-op (early return) when there is no target, which is
+  // what keeps this additive.
+  useEffect(() => {
+    if (focusKey === undefined || focusKey === null) return;
+    const spec = specs[focusKey];
+    if (spec === undefined) return;
+    const group = spec.group ?? DEFAULT_PARAM_GROUP;
+    setTier('all');
+    setOpenByPrimitive((prev) => ({
+      ...prev,
+      [primitiveId]: { ...(prev[primitiveId] ?? stored), [group]: true },
+    }));
+    const raf = requestAnimationFrame(() => {
+      const row = rootRef.current
+        ?.querySelector(`#fxwb-${CSS.escape(focusKey)}`)
+        ?.closest('.fxwb-row');
+      row?.scrollIntoView({ block: 'nearest' });
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [focusKey, primitiveId, specs, stored]);
 
   const toggleGroup = (group: string): void => {
     const next = { ...open, [group]: !(open[group] ?? true) };
@@ -131,7 +165,7 @@ export function Inspector({
   );
 
   return (
-    <div className="fxwb-inspector">
+    <div className="fxwb-inspector" ref={rootRef}>
       <div className="fxwb-tierbar">
         <div className="fxwb-tier" role="group" aria-label="Parameter tier">
           <button

@@ -7386,6 +7386,70 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   .fxwb-hint { flex: 1 1 auto; text-align: right; }
 }
 
+/* ---- FX WORKBENCH SHELL (four-region grid) -----------------------------------------------------------
+   The NON-RAIL layout is a design-app grid: a full-width top bar, then Layers | Stage | Properties, then a
+   collapsible full-width Timeline. `.fxwb-grid` fills the space under the pipeline strip; the three chrome
+   regions scroll internally so the page body NEVER scrolls horizontally, and the centre STAGE stays a
+   framed TRANSPARENT, click-through pane so the existing full-screen Pixi overlay shows through it (the
+   Stage Setter fills it in a later phase). Rail mode keeps its own absolute layout (above) and is
+   untouched. */
+.fxwb { --fxwb-layers-w: 320px; --fxwb-props-w: 448px; }
+@media (max-width: 1100px) { .fxwb { --fxwb-layers-w: 240px; --fxwb-props-w: 320px; } }
+
+.fxwb-grid {
+  position: absolute; inset: var(--fxwb-pipe-h) 0 0 0;
+  display: grid;
+  grid-template-columns: var(--fxwb-layers-w) minmax(0, 1fr) var(--fxwb-props-w);
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-areas:
+    "top    top    top"
+    "layers stage  props"
+    "tl     tl     tl";
+  min-height: 0;
+  overflow: hidden;      /* clip rather than ever spill a horizontal scrollbar onto the page body */
+  pointer-events: none;  /* the stage stays click-through; each real region opts back in below */
+}
+
+/* The top bar is `position: absolute` in its base rule (for the rail layout); here it is a static grid row. */
+.fxwb-grid > .fxwb-top {
+  grid-area: top; position: static; inset: auto; pointer-events: auto;
+}
+
+.fxwb-layers-region, .fxwb-props-region {
+  overflow: auto; min-height: 0; box-sizing: border-box; pointer-events: auto;
+  display: flex; flex-direction: column; gap: 10px; padding: 10px 12px;
+  background: #16120e;
+}
+.fxwb-layers-region { grid-area: layers; border-right: 2px solid #4a4136; }
+.fxwb-props-region { grid-area: props; border-left: 2px solid #4a4136; }
+
+.fxwb-stage {
+  grid-area: stage; position: relative; min-width: 0; min-height: 0;
+  margin: 10px; border: 1px solid #4a4136; border-radius: 10px;
+  pointer-events: none;  /* transparent — pixi shows through, and the pointer reaches it for cursor scenarios */
+}
+.fxwb-stage-hint {
+  position: absolute; left: 12px; right: 12px; bottom: 10px;
+  font-size: 11px; color: #9a8c74; line-height: 1.3; pointer-events: none;
+}
+
+.fxwb-timeline-region {
+  grid-area: tl; overflow: auto; min-height: 0; box-sizing: border-box; pointer-events: auto;
+  display: flex; flex-direction: column; gap: 8px; padding: 8px 14px;
+  background: #16120e; border-top: 2px solid #4a4136;
+}
+.fxwb-timeline-regionhead { display: flex; align-items: center; }
+.fxwb-timeline-body { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+
+/* The top bar's single transport core (play · fire · scrub · time) — one transport, not the rail's copy. */
+.fxwb-transportcore { gap: 8px; }
+.fxwb-transportcore .fxwb-scrub { flex: 0 1 150px; min-width: 90px; }
+
+/* ⌘K opener + the timeline collapse toggle. Plain `.fxwb-btn`s, so the global gauntlet cursor rule already
+   paints them — NO bare keyword cursor here (CLAUDE.md's custom-cursor rule). */
+.fxwb-cmdk { font-weight: 800; letter-spacing: 0.04em; }
+.fxwb-timeline-toggle { display: inline-flex; align-items: center; gap: 6px; }
+
 
 /* Shape param control: a built-ins/imports picker, an Import (PNG/SVG) button, the alpha hint, and an
    error line. Same dark-panel language as the .fxwb-palette / .fxwb-curve controls above. */

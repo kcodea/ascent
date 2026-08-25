@@ -7828,10 +7828,11 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .fxwb-moddot {
   flex: 0 0 auto; width: 6px; height: 6px; border-radius: 50%; background: #c8a45c;
 }
-/* The label is the double-click target once there's something to reset — the gauntlet cursor (never a bare
-   keyword `cursor`, see the custom-cursor rule) signals it's clickable; an already-default row keeps the OS
-   arrow since double-clicking it is a no-op. */
-.fxwb-row.changed > .fxwb-lab { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+/* The label TEXT ITSELF is the double-click target once there's something to reset (not the whole `.fxwb-lab`
+   wrapper, which also holds the dot and the `?` help button) — the gauntlet cursor (never a bare keyword
+   `cursor`, see the custom-cursor rule) signals just that text is clickable; an already-default row keeps the
+   OS arrow since double-clicking it is a no-op. */
+.fxwb-row.changed > .fxwb-lab > label { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
 /* One-shot reset-confirmation pop. transform/opacity ONLY (no box-shadow/filter/background) so it composites
    without a repaint, and it never loops — `onAnimationEnd` clears the triggering class in Inspector.tsx. */
 .fxwb-lab.fxwb-reset-flash { animation: fxwb-reset-pop 0.3s ease both; }

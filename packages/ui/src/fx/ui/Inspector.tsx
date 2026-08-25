@@ -519,11 +519,19 @@ function ParamRow({
     <div className={`fxwb-row${off ? ' fxwb-off' : ''}${changed ? ' changed' : ''}`}>
       <span
         className={`fxwb-lab${resetFlash ? ' fxwb-reset-flash' : ''}`}
-        onDoubleClick={resetToDefault}
         onAnimationEnd={() => setResetFlash(false)}
-        title={changed ? `${spec.label} — double-click to reset to default` : undefined}
       >
-        <label htmlFor={`fxwb-${key}`}>{spec.label}</label>
+        {/* The double-click-to-reset target is the LABEL TEXT ONLY, not this whole wrapper — the wrapper
+            also contains the `?` help-toggle button, and a native dblclick on that button bubbles up
+            through any handler on the wrapper. Scoping to just the label means double-clicking the help
+            icon (a habit for small icon buttons) can never silently discard a tuned value. */}
+        <label
+          htmlFor={`fxwb-${key}`}
+          onDoubleClick={resetToDefault}
+          title={changed ? `${spec.label} — double-click to reset to default` : undefined}
+        >
+          {spec.label}
+        </label>
         {changed && <span className="fxwb-moddot" aria-hidden="true" />}
         {spec.help !== undefined && (
           <button

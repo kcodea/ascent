@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useGame } from './store';
 import { playerOpponent } from '@game/sim';
@@ -28,10 +29,29 @@ export function CombatOpponent(): JSX.Element | null {
   const dmg = useGame((s) => s.heroDmgTaken);
   const preview = useGame((s) => s.duelPreview);
   const dmgDealt = useGame((s) => s.oppDmgDealt);
-  if (!lobby || (!inCombat && !preview)) return null;   // `preview` = the dev tuner's Test button
-  const next = playerOpponent(lobby);
-  const seat = next?.seat;
-  if (!seat) return null;
+
+  // ENTRANCE + EXIT. The portrait drops in when combat starts and now LEAVES with a matching fade-and-fall when
+  // combat ends (owner ask 2026-08-25). To animate the exit the component must outlive `active` going false, so
+  // it holds a `phase` and — during the exit — renders the JUST-FOUGHT foe from a cache (the live
+  // `playerOpponent` has already advanced to next round by then).
+  const active = !!lobby && (inCombat || preview);   // `preview` = the dev tuner's Test button
+  const [phase, setPhase] = useState<'hidden' | 'in' | 'out'>('hidden');
+  const cached = useRef<ReturnType<typeof playerOpponent> | null>(null);
+  const live = active && lobby ? playerOpponent(lobby) : null;
+  if (live?.seat) cached.current = live;
+  useEffect(() => {
+    if (active) { setPhase('in'); return undefined; }
+    if (!cached.current) { setPhase('hidden'); return undefined; }   // never showed a foe → just hide
+    setPhase('out');
+    const t = window.setTimeout(() => setPhase('hidden'), 420);
+    return () => window.clearTimeout(t);
+  }, [active]);
+
+  const shown = active ? live : cached.current;
+  if (phase === 'hidden' || !shown?.seat) return null;
+  const next = shown;
+  const seat = shown.seat;
+  const leaving = phase === 'out';
   const art = heroArt(seat.heroId);
   // The foe's health drops the moment the blow lands, not at resolve — mirroring the player's live drop. The
   // seat itself settles later (resolveCombat); `dmgDealt` carries the reduction until then. Armor absorbs first.
@@ -53,7 +73,7 @@ export function CombatOpponent(): JSX.Element | null {
     //   .combatopp-body  — the LUNGE target: the portrait (and its attack pill) ONLY, so the strike carries
     //                      just the face — the name and health do not fly with it, exactly as the player's
     //                      health stays put while the portrait lunges.
-    <div className="combatopp" aria-hidden="true">
+    <div className={`combatopp${leaving ? ' leaving' : ''}`} aria-hidden="true">
       <div className="combatopp-drop">
         <div className="combatopp-name">{seat.label}</div>
         <div className="combatopp-body">

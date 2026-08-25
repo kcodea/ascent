@@ -7,8 +7,10 @@
       "primitive": "ribbon",
       "anchor": "travel",
       "at": 0,
+      "life": 800,
+      "travelMs": 800,
       "params": {
-        "bands": 3,
+        "bands": 2,
         "plateau": 0.3,
         "palette": [
           16736010,
@@ -22,12 +24,12 @@
         "noiseAcross": 7,
         "warp": 0.35,
         "scroll": 1.4,
-        "erode": 0.39,
+        "erode": 0.81,
         "gain": 1.5,
         "head": 0.06,
         "tail": 1.6,
         "soft": 1.5,
-        "length": 795,
+        "length": 550,
         "width": 27,
         "alpha": 1,
         "headPinch": 0.12,
@@ -488,7 +490,7 @@
     {
       "primitive": "burst",
       "anchor": "target",
-      "at": 930,
+      "at": 800,
       "params": {
         "count": 132,
         "interval": 600,
@@ -1029,6 +1031,5 @@
         ]
       }
     }
-  ],
-  "loopMode": "seamless"
+  ]
 }

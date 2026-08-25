@@ -4,6 +4,7 @@ import type { EditorLayer } from './layerModel';
 import {
   pointerToMs,
   resolveTimingDrag,
+  rulerTicks,
   spanOf,
   spanToTrack,
   type TimelineDrag,
@@ -91,12 +92,27 @@ export function Timeline({
   };
 
   const playheadPct = durationMs > 0 ? Math.max(0, Math.min(1, timeMs / durationMs)) * 100 : 0;
+  const ticks = rulerTicks(durationMs);
 
   return (
     <div className="fxwb-timeline">
       <div className="fxwb-timeline-head">
         <span className="fxwb-timeline-title">Timeline</span>
         <span className="fxwb-timeline-hint">drag a bar to move it · drag its right edge to set how long it lasts</span>
+        <span className="fxwb-timeline-readout">{Math.round(timeMs)} / {durationMs}ms</span>
+      </div>
+      {/* The time ruler. Purely decorative — `pointer-events: none` in CSS — so it can sit above the track
+          without ever intercepting a drag on a bar underneath it. */}
+      <div className="fxwb-timeline-ruler">
+        {ticks.map((t) => (
+          <span
+            key={t.ms}
+            className={`fxwb-timeline-tick${t.major ? ' major' : ''}`}
+            style={{ left: `${t.pct}%` }}
+          >
+            {t.major && <span className="fxwb-timeline-ticklabel">{t.label}</span>}
+          </span>
+        ))}
       </div>
       <div className="fxwb-timeline-track" ref={trackRef}>
         {layers.map((l, i) => {

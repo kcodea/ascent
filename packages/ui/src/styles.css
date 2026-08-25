@@ -7313,6 +7313,18 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   font-size: 11px; font-weight: 700; color: #9a8c74; text-transform: uppercase; letter-spacing: 0.05em;
 }
 .fxwb-timeline-hint { font-size: 11px; color: #7d7159; }
+.fxwb-timeline-readout {
+  margin-left: auto; font-size: 11px; font-variant-numeric: tabular-nums; color: #c9bda6;
+}
+/* Time ruler: a strip of ticks above the track, purely decorative so it never intercepts a bar drag. */
+.fxwb-timeline-ruler { position: relative; height: 12px; pointer-events: none; }
+.fxwb-timeline-tick {
+  position: absolute; top: 0; bottom: 0; width: 1px; background: #4a4136; pointer-events: none;
+}
+.fxwb-timeline-tick.major { background: #7d7159; }
+.fxwb-timeline-ticklabel {
+  position: absolute; top: 0; left: 2px; font-size: 9px; color: #7d7159; white-space: nowrap; pointer-events: none;
+}
 .fxwb-timeline-track {
   position: relative; display: flex; flex-direction: column; gap: 2px;
   padding: 3px; border-radius: 7px; background: #191623; border: 1px solid #4a4136;

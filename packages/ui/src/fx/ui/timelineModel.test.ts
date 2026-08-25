@@ -3,6 +3,7 @@ import {
   MIN_LAYER_LIFE_MS,
   pointerToMs,
   resolveTimingDrag,
+  rulerTicks,
   spanOf,
   previewClock,
   spanToTrack,
@@ -164,5 +165,58 @@ describe('previewClock', () => {
   it('never goes negative, and survives a zero duration', () => {
     expect(previewClock(-50, 800).timeMs).toBe(0);
     expect(previewClock(100, 0)).toEqual({ timeMs: 100, progress: 1 });
+  });
+});
+
+describe('rulerTicks', () => {
+  it('returns [] for non-positive duration', () => {
+    expect(rulerTicks(0)).toEqual([]);
+    expect(rulerTicks(-100)).toEqual([]);
+  });
+
+  it('spans 0..duration with a nice step and no tick past the end', () => {
+    const ticks = rulerTicks(1000, 8);
+    expect(ticks[0].ms).toBe(0);
+    expect(ticks[0].pct).toBe(0);
+    expect(ticks.every((t) => t.ms <= 1000)).toBe(true);
+    // monotonic increasing
+    for (let i = 1; i < ticks.length; i++) expect(ticks[i].ms).toBeGreaterThan(ticks[i - 1].ms);
+  });
+
+  it('labels sub-second in ms and >=1000 in seconds', () => {
+    const ticks = rulerTicks(4000, 8);
+    const t2000 = ticks.find((t) => t.ms === 2000);
+    expect(t2000?.label).toBe('2s');
+  });
+
+  it('marks the first tick major', () => {
+    expect(rulerTicks(1000, 8)[0].major).toBe(true);
+  });
+
+  it('marks the last tick major', () => {
+    const ticks = rulerTicks(1000, 8);
+    expect(ticks[ticks.length - 1].major).toBe(true);
+  });
+
+  it('marks every 5th tick major', () => {
+    const ticks = rulerTicks(1000, 8);
+    // step should be 100 for duration 1000 targetCount 8 (10 ticks) — nearest nice step to duration/targetCount=125
+    const step = ticks[1].ms - ticks[0].ms;
+    ticks.forEach((t) => {
+      const idx = t.ms / step;
+      if (idx % 5 === 0) expect(t.major).toBe(true);
+    });
+  });
+
+  it('computes pct as a fraction of duration', () => {
+    const ticks = rulerTicks(2000, 8);
+    const t500 = ticks.find((t) => t.ms === 500);
+    expect(t500?.pct).toBeCloseTo(25);
+  });
+
+  it('picks a step from the nice-step set close to targetCount', () => {
+    const ticks = rulerTicks(10000, 8);
+    const step = ticks[1].ms - ticks[0].ms;
+    expect([50, 100, 200, 250, 500, 1000, 2000, 5000]).toContain(step);
   });
 });

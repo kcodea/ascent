@@ -113,3 +113,48 @@ export function previewClock(playerTimeMs: number, durationMs: number): { timeMs
   if (!(durationMs > 0)) return { timeMs, progress: 1 };
   return { timeMs, progress: Math.min(1, timeMs / durationMs) };
 }
+
+/** Candidate step sizes for the ruler, in ms — deliberately round numbers a human reads at a glance rather
+ *  than whatever `durationMs / targetCount` happens to divide out to. */
+const NICE_STEPS_MS = [50, 100, 200, 250, 500, 1000, 2000, 5000];
+
+/** One mark on the time ruler above the timeline track. */
+export interface RulerTick {
+  ms: number;
+  pct: number;
+  major: boolean;
+  label: string;
+}
+
+/**
+ * Evenly-spaced ruler ticks across `[0, durationMs]`, picking the "nice" step (from `NICE_STEPS_MS`) whose
+ * resulting tick count lands closest to `targetCount` — so a 10s composition gets ticks every 1s or 2s, never
+ * some awkward 1.25s. Pure and DOM-free: `Timeline.tsx` turns `pct` into a CSS `left`.
+ */
+export function rulerTicks(durationMs: number, targetCount = 8): RulerTick[] {
+  if (durationMs <= 0) return [];
+
+  let step = NICE_STEPS_MS[NICE_STEPS_MS.length - 1];
+  let bestDiff = Infinity;
+  for (const candidate of NICE_STEPS_MS) {
+    const count = durationMs / candidate;
+    const diff = Math.abs(count - targetCount);
+    if (diff < bestDiff) {
+      bestDiff = diff;
+      step = candidate;
+    }
+  }
+
+  const ticks: RulerTick[] = [];
+  const lastIndex = Math.floor(durationMs / step);
+  for (let i = 0; i <= lastIndex; i++) {
+    const ms = i * step;
+    ticks.push({
+      ms,
+      pct: (ms / durationMs) * 100,
+      major: i % 5 === 0 || i === lastIndex,
+      label: ms < 1000 ? `${ms}` : `${ms / 1000}s`,
+    });
+  }
+  return ticks;
+}

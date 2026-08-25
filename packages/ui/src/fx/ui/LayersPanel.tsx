@@ -80,7 +80,7 @@ export function LayersPanel(props: LayersPanelProps): React.ReactElement {
 
   const onGripPointerDown = (i: number) => (e: React.PointerEvent<HTMLSpanElement>): void => {
     e.stopPropagation(); // don't also select the row out from under the drag
-    rowTopsRef.current = rowRefs.current.map((el) => el?.getBoundingClientRect().top ?? 0);
+    rowTopsRef.current = props.layers.map((_, idx) => rowRefs.current[idx]?.getBoundingClientRect().top ?? 0);
     dragFromRef.current = i;
     setDragFrom(i);
     setDropAt(i);

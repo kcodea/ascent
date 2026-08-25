@@ -1627,6 +1627,10 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
     setHarnessKind(null);
   }, []);
 
+  // Stable identity for the Inspector's `onFocusHandled` prop — it sits in an Inspector effect's dep array, so
+  // a fresh arrow every render would cancel/reschedule that effect's raf needlessly while a focusKey is pending.
+  const clearInspectorFocusKey = useCallback(() => setInspectorFocusKey(null), []);
+
   // ── commit animation: the live draft, then the committed def + binding ──────────────────────────────
   //
   // DECLARED BEFORE the draft effects below, and that ordering is load-bearing: effects in one commit run in
@@ -2414,7 +2418,7 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
       // Clear right after the jump has actually scrolled, rather than waiting for the next ⌘K open — a
       // stale focusKey would otherwise re-scroll on a later layer switch to a different primitive that
       // happens to share the same param key.
-      onFocusHandled={() => setInspectorFocusKey(null)}
+      onFocusHandled={clearInspectorFocusKey}
     />
   ) : null;
 

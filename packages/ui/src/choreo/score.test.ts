@@ -1013,15 +1013,15 @@ describe('rallyFx channel — summon delivery', () => {
 });
 
 /**
- * ONE PULSE PER PROC (owner call 2026-08-05): *"instead of it being back to back after one rally icon pulse,
- * can we have the rally icon pulse twice instead of once?"*
- *
- * The medallion was already built for repeat firing — its React `key` carries a nonce so it REMOUNTS and the
- * CSS animation restarts (see Card.tsx). What was missing is anyone firing it more than once: the lunge fires
- * `onRallyPulse` from a single `once()`-wrapped point in its timeline. So the cue owns every proc after the
- * first, and each pulse leads its own sparkle by the same read time.
+ * ONE PULSE PER RALLY (owner call 2026-08-24, reversing the 2026-08-05 once-per-proc call): a gilded Echohorn
+ * still RALLIES once — gilding doubles the EFFECT, not the trigger — so the medallion pulses a single time at
+ * the opener. The doubling reads through the repeated SPARKLE + Echo effect, not a repeated pulse. The lunge
+ * fires that one opener from its wind-up (a `once()`-wrapped point); this cue adds NO pulse for the attacker's
+ * extra procs, and owns the single opener only for a lunge-less rally-KIND moment. (Across-moment split procs —
+ * Echohorn's 2nd rally in its own beat — are suppressed one level up, in `useCombatReplay`'s held-attacker
+ * wrapper; this cue only sees the within-moment case.)
  */
-describe('rallyFx channel — one pulse per proc', () => {
+describe('rallyFx channel — one pulse per Rally', () => {
   const rally = (source: string, target: string): CombatEvent => ({ type: 'rally', source, target } as CombatEvent);
   const attack = (attacker: string, defender: string): CombatEvent =>
     ({ type: 'attack', attacker, defender, swing: 0 } as CombatEvent);
@@ -1047,32 +1047,30 @@ describe('rallyFx channel — one pulse per proc', () => {
     vi.useRealTimers();
   });
 
-  /** THE ask: a gilded Echohorn procs twice, so the medallion flashes twice. */
-  it('pulses the rallier again for the SECOND proc', () => {
+  /** THE new ask: a gilded Echohorn procs twice but RALLIED once, so the cue adds NO second medallion pulse —
+   *  the doubling shows in the two sparkles, not a second flash. */
+  it('does NOT pulse again for the second proc — the doubling is in the sparkle', () => {
+    vi.useFakeTimers();
+    const events = [attack('ech', 'foe'), rally('ech', 'ally'), rally('ech', 'ally')];
+    const onRallyPulse = vi.fn();
+    runMomentCues(compileMoments(events)[0]!, baseCtx(events, { ...withCard('ech', 'b2_echohorn'), onRallyPulse }));
+    vi.advanceTimersByTime(LEAD() + RALLY_PROC_STRIDE_MS + 1000);
+    expect(onRallyPulse).not.toHaveBeenCalled();    // the attacker's only pulse was the lunge's opener
+    expect(mockPlayDef).toHaveBeenCalledTimes(2);   // …but BOTH sparkles still fired, one per proc
+    vi.useRealTimers();
+  });
+
+  /** The effect still doubles even though the pulse does not: the two sparkles cascade one PROC STRIDE apart. */
+  it('still fires each proc its own sparkle, a stride apart, with no cue pulse', () => {
     vi.useFakeTimers();
     const events = [attack('ech', 'foe'), rally('ech', 'ally'), rally('ech', 'ally')];
     const onRallyPulse = vi.fn();
     runMomentCues(compileMoments(events)[0]!, baseCtx(events, { ...withCard('ech', 'b2_echohorn'), onRallyPulse }));
     vi.advanceTimersByTime(LEAD());
-    expect(onRallyPulse).not.toHaveBeenCalled();    // proc 1's pulse was the lunge's
-    vi.advanceTimersByTime(1000);
-    expect(onRallyPulse).toHaveBeenCalledTimes(1);  // exactly one more, for proc 2
-    expect(onRallyPulse).toHaveBeenCalledWith('ech');
-    vi.useRealTimers();
-  });
-
-  /** …and it leads its own sparkle by the same read time the first pair got, so both procs read pulse → link
-   *  rather than the second arriving bare. */
-  it('fires that pulse a read-time BEFORE the second sparkle', () => {
-    vi.useFakeTimers();
-    const events = [attack('ech', 'foe'), rally('ech', 'ally'), rally('ech', 'ally')];
-    const onRallyPulse = vi.fn();
-    runMomentCues(compileMoments(events)[0]!, baseCtx(events, { ...withCard('ech', 'b2_echohorn'), onRallyPulse }));
-    vi.advanceTimersByTime(LEAD() + RALLY_PROC_STRIDE_MS - RALLY_PULSE_READ_MS);
-    expect(onRallyPulse).toHaveBeenCalledTimes(1);  // pulse 2 has fired…
-    expect(mockPlayDef).toHaveBeenCalledTimes(1);   // …and sparkle 2 has NOT
-    vi.advanceTimersByTime(RALLY_PULSE_READ_MS);
-    expect(mockPlayDef).toHaveBeenCalledTimes(2);   // now it has
+    expect(mockPlayDef).toHaveBeenCalledTimes(1);   // first sparkle at the lead…
+    vi.advanceTimersByTime(RALLY_PROC_STRIDE_MS);
+    expect(mockPlayDef).toHaveBeenCalledTimes(2);   // …the second a PROC STRIDE later
+    expect(onRallyPulse).not.toHaveBeenCalled();    // and the attacker never got a cue pulse
     vi.useRealTimers();
   });
 

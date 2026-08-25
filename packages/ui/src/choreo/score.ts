@@ -463,8 +463,10 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
         // pairs, `beat` repeats within one. `land.group` indexes `fired` because `cascade` emits exactly one
         // group per entry, in order; `land.member` is the proc index within that pair.
         //
-        // The `beat` is a whole PROC STRIDE rather than a bare gap, because each proc now owns a pulse as
-        // well as a sparkle (owner call 2026-08-05: the medallion pulses once per proc, not once per Rally).
+        // The `beat` is a whole PROC STRIDE rather than a bare gap: it spaces each proc's SPARKLE so a gilded
+        // double reads as two lands rather than one thick detonation. The medallion now pulses ONCE per Rally
+        // at the opener (owner call 2026-08-24, reversing the 2026-08-05 once-per-proc call) — the doubling
+        // reads through the repeated effect, not a repeated pulse — but the stride still sequences the effects.
         //
         // `lead` is the sequencing from 2026-08-04: the attacker's pulse fires at the top of the wind-up and
         // the sparkle follows it rather than landing on top of it. Only on `attackExchange` — the only kind
@@ -472,9 +474,9 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
         // second. Read live (not frozen into the score table) so a retuned wind-up carries both with it.
         const inExchange = moment.kind === 'attackExchange';
         const speed = ctx.combatSpeed > 0 ? ctx.combatSpeed : 1;
-        // The lunge already pulses the ATTACKER once, at the top of its wind-up, from inside the GSAP
-        // timeline — so this cue owns every pulse EXCEPT that one. Identified by (attacker, first proc)
-        // rather than by "the first land", so a second rallier in the moment would still get its opener.
+        // The lunge already pulses the ATTACKER once, at the top of its wind-up, from inside the GSAP timeline —
+        // so this cue never pulses the attacker at all (its opener is the lunge's; its extra procs don't pulse).
+        // A NON-lunge rallier still gets its own single opener pulse (member 0). Keyed on the attacker uid.
         const lungePulsed = inExchange && moment.primary.type === 'attack' ? moment.primary.attacker : null;
         for (const land of scheduleLands(cascade(fired.map((r) => ({ uid: r.target, count: r.count }))), {
           gap: RALLY_GAP_MS, beat: RALLY_PROC_STRIDE_MS, speed,
@@ -482,8 +484,12 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
         })) {
           const r = fired[land.group];
           if (!r) continue;
-          // This proc's OWN pulse, one read-time before its sparkle, so every proc reads pulse → link.
-          if (ctx.onRallyPulse && !(r.source === lungePulsed && land.member === 0)) {
+          // ONE pulse per Rally: only the OPENER (member 0) pulses the rallier's medallion. Extra procs still
+          // fire their own SPARKLE (below) but no extra pulse, so a gilded double reads as one pulse then
+          // sparkle → sparkle (owner call 2026-08-24, reversing the 2026-08-05 once-per-proc call — the
+          // doubling reads through the repeated sparkle + effect, not a repeated pulse). The attacker's opener
+          // is the lunge's own wind-up pulse, so this cue owns the opener only for a NON-lunge rallier.
+          if (ctx.onRallyPulse && land.member === 0 && r.source !== lungePulsed) {
             const src = r.source;
             const pulseAt = Math.max(0, land.at - RALLY_PULSE_READ_MS / speed);
             const pulse = (): void => ctx.onRallyPulse?.(src);

@@ -31,8 +31,8 @@
          Its CSS is inlined here for the same reason — waiting on the stylesheet (which ships with the bundle)
          would reintroduce the blank gap this exists to remove.
 
-         `Boot` (packages/ui/src/Boot.tsx) owns the rest of its life: it holds the splash up for the fake 3.5s
-         load (the bar fills via pure CSS), then adds `.is-out` to fade it and removes the node on
+         `Boot` (packages/ui/src/Boot.tsx) owns the rest of its life: it holds the splash for a FIXED 3.5s (the
+         bar fills via pure CSS over the same 3.5s), then adds `.is-out` to fade it and removes the node on
          transitionend. Fading OPACITY only —
          compositor-only, per docs/performance.md; a filter/background fade here would repaint the whole
          viewport on every frame of the transition. -->
@@ -115,10 +115,11 @@
         opacity: 0; transition: opacity 700ms ease-out;   /* arrives with the logo, not before it */
       }
       #bootsplash.is-in #bootsplash-bar { opacity: 1; }
-      /* FAKE LOAD (owner ask 2026-08-24): the fill is a pure CSS transition — scaleX 0→1 over 3s the moment the
-         splash reveals — not driven by real art progress. scaleX (not width) so the whole animation is
-         compositor-only, never a per-frame layout. Boot holds the splash up for 3.5s (MIN_SPLASH_MS): the bar
-         fills over 3s, sits full for ~0.5s, then dissolves to the menu. */
+      /* FAKE LOAD (owner ask 2026-08-24, made absolute 2026-08-25): the fill is a pure CSS transition — scaleX
+         0→1 over 3.5s the moment the splash reveals — and is not driven by real art progress. scaleX (not width)
+         so the whole animation is compositor-only, never a per-frame layout. The duration MUST match `SPLASH_MS`
+         in Boot.tsx: that timer is now the ONLY thing gating the menu, so the bar finishing and the splash
+         leaving are the same moment, whatever the real loading is doing. */
       #bootsplash-bar > i {
         display: block; height: 100%; border-radius: 999px; background: #f0902e;
         transform: scaleX(0); transform-origin: left center;
@@ -126,7 +127,7 @@
       }
       #bootsplash.is-in #bootsplash-bar > i {
         transform: scaleX(1);
-        transition: transform 3000ms linear;
+        transition: transform 3500ms linear;
       }
       /* The bar is progress feedback, not decoration — freeze motion for anyone who asked for less. */
       @media (prefers-reduced-motion: reduce) {

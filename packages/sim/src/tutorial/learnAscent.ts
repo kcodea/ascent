@@ -29,8 +29,8 @@ const round1Steps: TutorialStep[] = [
     id: 'r1-gold',
     phase: 'shop',
     focusMode: 'orient',
-    title: 'Your Gold',
-    body: 'This is your Gold. Spend it all each round — it refills every turn, and unspent Gold does NOT carry over.',
+    title: 'Your gold',
+    body: "This is your gold. It will slowly ramp up each round to a maximum of ten gold as you see here. But don't worry, there are many ways to accumulate more gold to spend!",
     anchors: [{ kind: 'ui', id: 'gold' }],
     gate: 'observe',
     completion: { kind: 'always' },
@@ -39,8 +39,8 @@ const round1Steps: TutorialStep[] = [
     id: 'r1-buy',
     phase: 'shop',
     focusMode: 'action',
-    title: 'Buy a Minion',
-    body: 'Drag Packstrider down to recruit it. Buying moves the minion into your hand.',
+    title: "Let's get started",
+    body: 'Time to buy your first minion! Drag Packstrider down below the board to recruit it. Buying moves the minion into your hand.',
     anchors: [{ kind: 'card', zone: 'shop', alias: ROUND1_BUY }],
     // The drag the step is asking for, drawn: shop offer → your hand (owner ask 2026-08-20).
     connector: { from: { kind: 'card', zone: 'shop', alias: ROUND1_BUY }, to: { kind: 'ui', id: 'hand' }, style: 'drag' },
@@ -52,8 +52,8 @@ const round1Steps: TutorialStep[] = [
     id: 'r1-play',
     phase: 'shop',
     focusMode: 'action',
-    title: 'Play It',
-    body: 'Now drag Packstrider from your hand onto your board so it can fight.',
+    title: 'Your hand',
+    body: 'It is now in your hand. You may carry up to 10 cards in your hand at a time. Now drag the Packstrider from your hand onto your board so it can fight.',
     // Spotlight the CARD being asked for as well as the destination, with the drag drawn between
     // them — the bare `warband` anchor left the player hunting for which card to move.
     anchors: [{ kind: 'card', zone: 'hand', alias: ROUND1_BUY }, { kind: 'ui', id: 'warband' }],
@@ -66,8 +66,8 @@ const round1Steps: TutorialStep[] = [
     id: 'r1-power',
     phase: 'shop',
     focusMode: 'action',
-    title: 'Use Your Power',
-    body: 'Tap Preparation, then pick Packstrider. Aster gives a friendly minion +1/+1 — free, whenever it is lit.',
+    title: 'Using your hero power',
+    body: 'Tap Preparation, then pick Packstrider. This gives a friendly minion +1/+1 — free, whenever it is lit. There are over 50 heroes in the game,so this hero power will be very different from hero to hero, game to game!',
     // Spotlight BOTH the power button and Packstrider (the target), with a connector between them, so the
     // "tap here, then pick that" flow reads at a glance.
     anchors: [{ kind: 'ui', id: 'hero-power' }, { kind: 'card', zone: 'board', alias: ROUND1_BUY }],
@@ -80,8 +80,8 @@ const round1Steps: TutorialStep[] = [
     id: 'r1-end',
     phase: 'shop',
     focusMode: 'action',
-    title: 'End Your Turn',
-    body: 'You are set. End the turn to send your warband into battle.',
+    title: 'End your turn / Start battle',
+    body: 'You are all set for now. End the turn to send your warband into battle.',
     anchors: [{ kind: 'ui', id: 'end-turn' }],
     gate: 'soft',
     lessonId: 'end_turn',
@@ -103,7 +103,7 @@ const round1Steps: TutorialStep[] = [
     // debrief never shows while the fight is still animating.
     completion: { kind: 'combatEnded' },
   },
-  combatDebriefStep('r1-debrief', 'You Won', 'Your warband won, so your Health held — a lost fight would have dropped it instead. Click here to return to the shop.', undefined, 'health'),
+  combatDebriefStep('r1-debrief', 'You won!', "Your warband won! You didn't lose any health. Losing fights will cause you to take damage.", undefined, 'health', "Treat health points like another form of currency. Sometimes it's worth a round of weakness for a stronger board after."),
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -144,10 +144,10 @@ const CARD_IDS = {
  * course. Written this way the step clears itself instantly whenever the power is down, and only actually asks
  * on the turns the player really could press it. Soft-gated, matching `r1-power`, so it nudges without walling.
  */
-function heroPowerReminderStep(id: string): TutorialStep {
+function heroPowerReminderStep(id: string, title: string, body: string): TutorialStep {
   return {
-    id, phase: 'shop', focusMode: 'action', title: 'Use Your Power',
-    body: 'Preparation is free — spend it before you fight. It recharges every other turn, so use it whenever it is lit.',
+    id, phase: 'shop', focusMode: 'action', title,
+    body,
     // Light the WARBAND too, with the arrow running power → board (owner 2026-08-21). The power is only half
     // the instruction: it is targeted, so a player who taps it still has to know the buff goes onto one of
     // their own minions. Spotlighting the button alone left the second half unsaid.
@@ -158,9 +158,9 @@ function heroPowerReminderStep(id: string): TutorialStep {
   };
 }
 
-function endTurnStep(id: string, body: string, lessonId?: string): TutorialStep {
+function endTurnStep(id: string, title: string, body: string, lessonId?: string): TutorialStep {
   return {
-    id, phase: 'shop', focusMode: 'action', title: 'End Your Turn', body,
+    id, phase: 'shop', focusMode: 'action', title, body,
     anchors: [{ kind: 'ui', id: 'end-turn' }], gate: 'hard',
     ...(lessonId ? { lessonId } : {}),
     completion: { kind: 'endedTurn' },
@@ -172,7 +172,7 @@ function endTurnStep(id: string, body: string, lessonId?: string): TutorialStep 
  * "End combat") button so the player knows to click it to return to the shop. One step, so the confirm never
  * auto-flashes past — it waits for the real click (`returnedToShop`). Every round ends on one of these.
  */
-function combatDebriefStep(id: string, title: string, body: string, lessonId?: string, alsoAnchor?: TutorialUiAnchor): TutorialStep {
+function combatDebriefStep(id: string, title: string, body: string, lessonId?: string, alsoAnchor?: TutorialUiAnchor, why?: string): TutorialStep {
   return {
     id, phase: 'combat', focusMode: 'confirm', title, body,
     // `alsoAnchor` lights a second control alongside the return button — used by the debriefs whose copy names
@@ -180,6 +180,7 @@ function combatDebriefStep(id: string, title: string, body: string, lessonId?: s
     anchors: alsoAnchor ? [{ kind: 'ui', id: 'end-turn' }, { kind: 'ui', id: alsoAnchor }] : [{ kind: 'ui', id: 'end-turn' }],
     gate: 'hard',
     ...(lessonId ? { lessonId } : {}),
+    ...(why ? { why } : {}),
     completion: { kind: 'returnedToShop' },
   };
 }
@@ -191,8 +192,8 @@ function combatDebriefStep(id: string, title: string, body: string, lessonId?: s
 const round2Steps: TutorialStep[] = [
   {
     id: 'r2-buy',
-    phase: 'shop', focusMode: 'action', title: 'Add a Body',
-    body: 'Buy a second Packstrider. A wider board means more attacks — one minion rarely wins a fight.',
+    phase: 'shop', focusMode: 'action', title: 'Increase your warband size',
+    body: 'Buy a second Packstrider. Remember, you can have up to 7 minions on you warband at a time!',
     anchors: [{ kind: 'card', zone: 'shop', alias: CARD_IDS.packstrider }],
     // The drag the step is asking for, drawn: shop offer → your hand (owner ask 2026-08-20).
     connector: { from: { kind: 'card', zone: 'shop', alias: CARD_IDS.packstrider }, to: { kind: 'ui', id: 'hand' }, style: 'drag' },
@@ -201,8 +202,8 @@ const round2Steps: TutorialStep[] = [
   },
   {
     id: 'r2-play',
-    phase: 'shop', focusMode: 'action', title: 'Place It',
-    body: 'Play it onto your board beside the first, so both fight this round.',
+    phase: 'shop', focusMode: 'action', title: 'Place it / Rearrange it',
+    body: "Play it onto your board beside the first, so both fight this round. Don't worry where it lands, you can always reposition it.",
     // Spotlight the CARD being asked for as well as the destination, with the drag drawn between
     // them — the bare `warband` anchor left the player hunting for which card to move.
     anchors: [{ kind: 'card', zone: 'hand', alias: CARD_IDS.packstrider }, { kind: 'ui', id: 'warband' }],
@@ -212,15 +213,16 @@ const round2Steps: TutorialStep[] = [
   },
   {
     id: 'r2-tavern',
-    phase: 'shop', focusMode: 'action', title: 'Upgrade Your Shop',
-    body: 'Now raise your Shop to Tier 2. Your shop only ever offers minions AT OR BELOW its tier — so Tier 2 puts a whole new set of minions in the pool you draw from.',
+    phase: 'shop', focusMode: 'action', title: 'Upgrade the shop',
+    body: 'You have the gold to raise your Shop to Tier 2. Your shop only ever offers minions AT OR BELOW its tier.',
+    why: 'Upgrading the shop is expensive, but crucial to increase your warband strength over time. Higher tier minions will grant you more ways to increase the strength of your warband.',
     anchors: [{ kind: 'ui', id: 'tavern-up' }],
     gate: 'hard', lessonId: 'tavern_up',
     completion: { kind: 'tierAtLeast', tier: 2 },
   },
-  heroPowerReminderStep('r2-power'),
-  endTurnStep('r2-end', 'Your board is bigger now. End the turn and watch the two boards fight.'),
-  combatDebriefStep('r2-debrief', 'Guard Your Health', 'Win and your Health holds; lose and it drops. Reach zero and you are out — so keep building winning boards. Click here to return to the shop.', 'read_health_loss', 'health'),
+  heroPowerReminderStep('r2-power', "Don't forget! Use your hero power", "This hero's power is free, if you lose nothing by using it whenever you can! Not all hero powers will be free and will vary in strength."),
+  endTurnStep('r2-end', 'End your turn', 'Alright, your board is stronger now. End the turn to face off against your next opponent.'),
+  combatDebriefStep('r2-debrief', 'You won again!', 'While winning is great, you can also tie a round. In a tie, no one loses HP. Click the gem to return to the shop.', 'read_health_loss', 'health'),
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -230,16 +232,17 @@ const round2Steps: TutorialStep[] = [
 const round3Steps: TutorialStep[] = [
   {
     id: 'r3-refresh',
-    phase: 'shop', focusMode: 'action', title: 'Refresh the Shop',
-    body: 'Not seeing what you want? Spend 1 Gold to refresh the shop for a new set of offers.',
+    phase: 'shop', focusMode: 'action', title: 'Refreshing the shop',
+    body: 'Not excited by what the shop is offering? Spend 1 Gold to refresh the shop for a new set of offers.',
+    why: "This is a major decision you must make to compete with the strongest of warbands at the end of a game. Taking what you are given won't always be strong enough.",
     anchors: [{ kind: 'ui', id: 'refresh' }],
     gate: 'hard', lessonId: 'refresh_shop',
     completion: { kind: 'refreshed' },
   },
   {
     id: 'r3-buy-trex',
-    phase: 'shop', focusMode: 'action', title: 'Buy T-Rex',
-    body: 'Buy T-Rex. It has Echo — a keyword that triggers when the minion dies.',
+    phase: 'shop', focusMode: 'action', title: 'Echo cards',
+    body: 'Buy T-Rex. It has Echo, a keyword that triggers when the minion dies.',
     anchors: [{ kind: 'card', zone: 'shop', alias: CARD_IDS.trex }],
     // The drag the step is asking for, drawn: shop offer → your hand (owner ask 2026-08-20).
     connector: { from: { kind: 'card', zone: 'shop', alias: CARD_IDS.trex }, to: { kind: 'ui', id: 'hand' }, style: 'drag' },
@@ -248,9 +251,9 @@ const round3Steps: TutorialStep[] = [
   },
   {
     id: 'r3-play-trex',
-    phase: 'shop', focusMode: 'action', title: 'Play T-Rex',
+    phase: 'shop', focusMode: 'action', title: 'Play the T-Rex',
     body: 'Play T-Rex onto your board. When it dies in combat, its Echo leaves a new minion behind.',
-    why: 'Echo minions trade up: they die, then keep fighting through what they leave behind.',
+    why: 'Echo minions provide a lot of bang for the buck. They provide various benefits each time they die in battle.',
     // Spotlight the CARD being asked for as well as the destination, with the drag drawn between
     // them — the bare `warband` anchor left the player hunting for which card to move.
     anchors: [{ kind: 'card', zone: 'hand', alias: CARD_IDS.trex }, { kind: 'ui', id: 'warband' }],
@@ -258,9 +261,9 @@ const round3Steps: TutorialStep[] = [
     gate: 'hard', lessonId: 'keyword_echo',
     completion: { kind: 'played', cardId: CARD_IDS.trex },
   },
-  heroPowerReminderStep('r3-power'),
-  endTurnStep('r3-end', 'End the turn. Watch for T-Rex dying — and what its Echo leaves behind.'),
-  combatDebriefStep('r3-debrief', 'Echo Fired', 'When an Echo minion falls, it leaves value behind — so the fight keeps going for you. Click here to return to the shop.'),
+  heroPowerReminderStep('r3-power', 'Use your hero power', "Reminder that this hero's power is free! It recharges every other turn, so use it whenever it is available."),
+  endTurnStep('r3-end', 'End your turn', 'End the turn. Watch for T-Rex dying to see its Echo in action.'),
+  combatDebriefStep('r3-debrief', 'Did you see it?', 'The T-Rex spawned a second minion! Echo minions have many various ways to aid you in battle. Click here to return to the shop.'),
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -292,8 +295,9 @@ const tierStep = (id: string, tier: number, title: string, body: string, why?: s
 const round4Steps: TutorialStep[] = [
   {
     id: 'r4-buy',
-    phase: 'shop', focusMode: 'action', title: 'Round Out the Board',
-    body: 'Buy Wolvie — a Taunt Beast. A board of minions that support each other beats a pile of loose bodies.',
+    phase: 'shop', focusMode: 'action', title: 'Protecting the board',
+    body: 'Buy Wolvie, a Beast with Taunt.',
+    why: 'Taunt is a great way to keep your attacking units safe. Taunt units must be destroyed before other units can be targeted again.',
     anchors: [{ kind: 'card', zone: 'shop', alias: CARD_IDS.wolvie }],
     // The drag the step is asking for, drawn: shop offer → your hand (owner ask 2026-08-20).
     connector: { from: { kind: 'card', zone: 'shop', alias: CARD_IDS.wolvie }, to: { kind: 'ui', id: 'hand' }, style: 'drag' },
@@ -302,8 +306,8 @@ const round4Steps: TutorialStep[] = [
   },
   {
     id: 'r4-play',
-    phase: 'shop', focusMode: 'action', title: 'Place It',
-    body: 'Play it onto your board. That is your warband — Rally out front, Echo behind, a full team.',
+    phase: 'shop', focusMode: 'action', title: 'Place it',
+    body: "Play it onto your board. Your warband is starting to synergize! Rallies out front, Echo's following, and a Taunt keeping them all protected.",
     // Spotlight the CARD being asked for as well as the destination, with the drag drawn between
     // them — the bare `warband` anchor left the player hunting for which card to move.
     anchors: [{ kind: 'card', zone: 'hand', alias: CARD_IDS.wolvie }, { kind: 'ui', id: 'warband' }],
@@ -313,19 +317,20 @@ const round4Steps: TutorialStep[] = [
   },
   {
     id: 'r4-freeze',
-    phase: 'shop', focusMode: 'action', title: 'Freeze for Later',
-    body: 'Pennycat is still sitting in your shop. Freeze the shop to keep it for next turn instead of losing it.',
-    why: 'Freeze saves offers you want but cannot use yet — plan a turn ahead.',
+    phase: 'shop', focusMode: 'action', title: 'Freezing for later',
+    body: 'Wait! Pennycat is still sitting in your shop. Freeze the shop keep it available to buy from next turn.',
+    why: "Freezing a shop is a great way to secure minions you want when you can't afford them this turn.",
     anchors: [{ kind: 'ui', id: 'freeze' }],
     gate: 'hard', lessonId: 'freeze_shop',
     completion: { kind: 'froze' },
   },
-  tierStep('r4-tavern', 3, 'Reach Tier 3',
-    'Now raise your Shop to Tier 3. Each tier puts stronger minions in the shop for the rest of the game.',
-    'Upgrading costs you strength this turn to buy better options every turn after — the central trade of the game.'),
-  heroPowerReminderStep('r4-power'),
-  endTurnStep('r4-end', 'Your build is together. End the turn and send your warband in.'),
-  combatDebriefStep('r4-debrief', 'The Full Loop', 'Shop, build, position, fight — that is the whole game. You have the basics; now let us learn some more mechanics. Click here to return to the shop.'),
+  tierStep('r4-tavern', 3, 'Level up the shop to tier 3',
+    'Now raise your Shop to Tier 3. Remember, each shop tier will offer stronger minions than the last.'),
+  // Nudge this one power-reminder panel RIGHT so it clears the frozen Pennycat sitting in the shop
+  // (owner 2026-08-24). Design px; tune the number here if it needs more/less.
+  { ...heroPowerReminderStep('r4-power', 'Use your hero power', "Reminder that this hero's power is free! It recharges every other turn, so use it whenever it is available."), panelNudge: { dx: 220 } },
+  endTurnStep('r4-end', 'End your turn', "OK, let's see how this warband does! End the turn and send your troops in."),
+  combatDebriefStep('r4-debrief', "And that's the loop!", "Shop, build, position, fight, thats it! Sounds simple, right? Well, there's more to learn. Click here to return to the shop."),
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -336,8 +341,8 @@ const round4Steps: TutorialStep[] = [
 const round5Steps: TutorialStep[] = [
   {
     id: 'r5-buy',
-    phase: 'shop', focusMode: 'action', title: 'A Shout Minion',
-    body: 'There is the Pennycat you froze last turn. Buy it — it has a Shout, an effect that fires the instant you play it.',
+    phase: 'shop', focusMode: 'action', title: 'Shout minions',
+    body: "Time to buy the Pennycat you froze last turn. Notice it has a keyword we haven't seen before, Shout!",
     anchors: [{ kind: 'card', zone: 'shop', alias: CARD_IDS.pennycat }],
     // The drag the step is asking for, drawn: shop offer -> your hand (owner ask 2026-08-20).
     connector: { from: { kind: 'card', zone: 'shop', alias: CARD_IDS.pennycat }, to: { kind: 'ui', id: 'hand' }, style: 'drag' },
@@ -346,9 +351,9 @@ const round5Steps: TutorialStep[] = [
   },
   {
     id: 'r5-play',
-    phase: 'shop', focusMode: 'action', title: 'Hear the Shout',
-    body: 'Play it and watch: its Shout fires the moment it lands, summoning a Stray beside it. Two bodies for the price of one.',
-    why: 'Shout triggers on play from hand — so the order you play minions can matter.',
+    phase: 'shop', focusMode: 'action', title: 'Understanding Shout',
+    body: 'Play it and watch: its Shout fires the moment it lands, summoning a Stray beside it. Two units for the cost of one!',
+    why: 'Shout triggers the moment you play a card from hand. Be mindful about what order to play cards to get the most benefit!',
     // Spotlight the CARD being asked for as well as the destination, with the drag drawn between
     // them — the bare `warband` anchor left the player hunting for which card to move.
     anchors: [{ kind: 'card', zone: 'hand', alias: CARD_IDS.pennycat }, { kind: 'ui', id: 'warband' }],
@@ -356,9 +361,9 @@ const round5Steps: TutorialStep[] = [
     gate: 'hard', lessonId: 'keyword_shout',
     completion: { kind: 'played', cardId: CARD_IDS.pennycat },
   },
-  heroPowerReminderStep('r5-power'),
-  endTurnStep('r5-end', 'A bigger board again. End the turn and fight.'),
-  combatDebriefStep('r5-debrief', 'Shout Recap', 'Shout fires when a minion is played — value before combat even starts. Click here to return to the shop.'),
+  heroPowerReminderStep('r5-power', 'Use your hero power', "I'm sure you get it by now. Use the hero power on your favorite minion."),
+  endTurnStep('r5-end', 'End your turn', 'Our board is even bigger than last round! End the turn and fight.'),
+  combatDebriefStep('r5-debrief', 'Recapping Keywords', 'Shout fires when a minion is played, Echo fires when a minion dies, Rally fires when a minion attacks, and Taunt draws all attacks until it is destroyed. Click here to return to the shop.'),
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -375,16 +380,19 @@ const round6Steps: TutorialStep[] = [
   {
     id: 'r6-rune',
     phase: 'shop', focusMode: 'action', title: 'The Runeforge',
-    body: 'The Runeforge is open. A Rune is a permanent rule for the rest of your game — not a minion, not a card. Buy one.',
-    why: 'Runes change how your whole run works. You get very few, so each one is a real decision.',
+    body: 'The Runeforge is open. A Rune is a permanent rule for the rest of this run. Select one, but be mindful of its cost.',
+    why: 'Runes can vary in strength, but their cost will rise accordingly! Try to think ahead about how you want your warband to play out later in the game when selecting Runes.',
     anchors: [{ kind: 'ui', id: 'discover' }],
+    // This panel is centred (the full-screen forge overlay resolves no anchor rect), so it lands on top of the
+    // rune choices. Shove it RIGHT so the runes are readable (owner 2026-08-24). Design px; tune here.
+    panelNudge: { dx: 600 },
     gate: 'hard', noScrim: true, lessonId: 'rune_buy',
     completion: { kind: 'ownsRunes', atLeast: 1 },
   },
   {
     id: 'r6-buy',
     phase: 'shop', focusMode: 'action', title: 'Start of Combat',
-    body: 'Buy Kennelmaster. Its Start-of-Combat effect fires as the fight begins — and every Beast you own gets stronger.',
+    body: 'Buy Kennelmaster. Its Start-of-Combat effect fires once the fight begins and every Beast you own gets stronger.',
     anchors: [{ kind: 'card', zone: 'shop', alias: CARD_IDS.kennel }],
     // The drag the step is asking for, drawn: shop offer → your hand (owner ask 2026-08-20).
     connector: { from: { kind: 'card', zone: 'shop', alias: CARD_IDS.kennel }, to: { kind: 'ui', id: 'hand' }, style: 'drag' },
@@ -394,7 +402,7 @@ const round6Steps: TutorialStep[] = [
   {
     id: 'r6-play',
     phase: 'shop', focusMode: 'action', title: 'Place It',
-    body: 'Play Kennelmaster onto your board. Watch your whole warband gain Attack as the fight begins.',
+    body: 'Play Kennelmaster onto your board. Watch your Beasts gain Attack as the fight begins.',
     // Spotlight the CARD being asked for as well as the destination, with the drag drawn between
     // them — the bare `warband` anchor left the player hunting for which card to move.
     anchors: [{ kind: 'card', zone: 'hand', alias: CARD_IDS.kennel }, { kind: 'ui', id: 'warband' }],
@@ -402,9 +410,9 @@ const round6Steps: TutorialStep[] = [
     gate: 'hard', lessonId: 'play_minion',
     completion: { kind: 'played', cardId: CARD_IDS.kennel },
   },
-  heroPowerReminderStep('r6-power'),
-  endTurnStep('r6-end', 'End the turn — and watch your Beasts gain Attack at the Start of Combat.'),
-  combatDebriefStep('r6-debrief', 'Start of Combat', 'Start-of-Combat effects fire before any attacks — free value the moment the fight begins. Click here to return to the shop.'),
+  heroPowerReminderStep('r6-power', 'Use Your Power', 'Preparation is free! Use it!'),
+  endTurnStep('r6-end', 'End Your Turn', 'End the turn and watch your Beasts gain Attack at the Start of Combat.'),
+  combatDebriefStep('r6-debrief', 'Start of Combat', 'Start-of-Combat effects fire before any attacks. These can be pivotal in turning the tides of a battle. Click here to return to the shop.'),
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -418,9 +426,9 @@ const round6Steps: TutorialStep[] = [
 const round7Steps: TutorialStep[] = [
   {
     id: 'r7-makeroom',
-    phase: 'shop', focusMode: 'action', title: 'Make Room to Summon',
-    body: 'Your board is full. Sell Kennelmaster to start making room — you need space for what comes next.',
-    why: 'Board space is a resource — Echohorn re-fires T-Rex’s Echo, and that Baby needs somewhere to go.',
+    phase: 'shop', focusMode: 'action', title: "Let's make some room",
+    body: "Sell Kennelmaster to start making room. You'l' need space for what comes next.",
+    why: "Think of board space as another resource. Echohorn re-fires T-Rex’s Echo, and that Baby needs somewhere to go. If there is no space, it won't summon.",
     // FIRST in the round, not after the buy: with the round-5 Discover the board arrives FULL at 7, so a
     // "play Echohorn" step would simply be refused. Two slots are needed — one for Echohorn, one for the Baby
     // its Rally re-fires — and both sells NAME their card rather than asking for a free "sell two". A
@@ -432,8 +440,8 @@ const round7Steps: TutorialStep[] = [
   },
   {
     id: 'r7-makeroom2',
-    phase: 'shop', focusMode: 'action', title: 'One More Slot',
-    body: 'Sell Pennycat too — its Shout already paid off, and the Stray it summoned stays. Now there is room for Echohorn and what it summons.',
+    phase: 'shop', focusMode: 'action', title: 'One more!',
+    body: 'Sell Pennycat too. Now there is room for Echohorn and what it can summon.',
     anchors: [{ kind: 'card', zone: 'board', alias: CARD_IDS.pennycat }],
     gate: 'hard',
     completion: { kind: 'sold', cardId: CARD_IDS.pennycat },
@@ -443,21 +451,21 @@ const round7Steps: TutorialStep[] = [
   // there. The upgrade also has to come first for a second reason: the tier step is hard-gated, so leaving it
   // at the end of the round would ask the player to buy a card their shop was not yet allowed to show.
   tierStep('r7-tavern', 4, 'Reach Tier 4',
-    'Raise your Shop to Tier 4. Your shop can only offer minions at or below its tier — so this unlocks every Tier-4 minion in the game.',
-    'Tiering up is how you keep pace with seven other players who are all doing the same thing.'),
+    'We have enough gold to level to Tier 4! Would be wise to do so, so we can start getting more powerful units.'),
   {
     id: 'r7-refresh',
-    phase: 'shop', focusMode: 'action', title: 'See What Unlocked',
-    body: 'Your shop is still showing the offers it rolled at Tier 3. Refresh it for 1 Gold and watch a Tier-4 minion appear.',
-    why: 'Tiering up does not change the offers already in front of you — it changes what the NEXT roll can contain.',
+    phase: 'shop', focusMode: 'action', title: "Let's see what it unlocked",
+    body: 'Your shop is still showing the offers it rolled at Tier 3. Refresh it for 1 Gold.',
+    why: 'Tiering up does not change the offers already in front of yor. It changes what following rolls can contain.',
     anchors: [{ kind: 'ui', id: 'refresh' }],
     gate: 'hard', lessonId: 'refresh_shop',
     completion: { kind: 'refreshed' },
   },
   {
     id: 'r7-buy',
-    phase: 'shop', focusMode: 'action', title: 'The Keystone',
-    body: 'There it is — Echohorn, a Tier 4 minion, offered because your shop is now Tier 4. Buy it: when it attacks, its Rally re-fires your LEFT-MOST Echo minion.',
+    phase: 'shop', focusMode: 'action', title: 'We found Echohorn!',
+    body: 'There it is. Echohorn, a Tier 4 minion, offered because your shop is now Tier 4. Buy it!',
+    why: "When Echohorn attacks, it's rally effect will trigger your left-most Echo without the need for it to die first! Sounds powerful.",
     anchors: [{ kind: 'card', zone: 'shop', alias: CARD_IDS.echohorn }],
     // The drag the step is asking for, drawn: shop offer → your hand (owner ask 2026-08-20).
     connector: { from: { kind: 'card', zone: 'shop', alias: CARD_IDS.echohorn }, to: { kind: 'ui', id: 'hand' }, style: 'drag' },
@@ -466,8 +474,8 @@ const round7Steps: TutorialStep[] = [
   },
   {
     id: 'r7-play',
-    phase: 'shop', focusMode: 'action', title: 'Play Echohorn',
-    body: 'Play Echohorn onto your board. That fills all seven slots — your board is now full.',
+    phase: 'shop', focusMode: 'action', title: 'Play the Echohorn',
+    body: 'Play Echohorn onto your board.',
     // Spotlight the CARD being asked for as well as the destination, with the drag drawn between
     // them — the bare `warband` anchor left the player hunting for which card to move.
     anchors: [{ kind: 'card', zone: 'hand', alias: CARD_IDS.echohorn }, { kind: 'ui', id: 'warband' }],
@@ -477,9 +485,9 @@ const round7Steps: TutorialStep[] = [
   },
   {
     id: 'r7-position',
-    phase: 'shop', focusMode: 'action', title: 'Position for Synergy',
-    body: 'Drag T-Rex to the LEFT-most slot. Echohorn re-fires your left-most Echo — so put your Echo minion there.',
-    why: 'Position decides which effects fire. Line up your pieces and the board becomes an engine.',
+    phase: 'shop', focusMode: 'action', title: 'Position for synergy',
+    body: 'Drag the Echohorn all the way to the left, and then drag the T-Rex to the right of the Echohorn.',
+    why: "When Echohorn attacks, it will trigger T-Rex's Echo effect, summoning another unit to the fight!",
     // Spotlight T-Rex itself and draw the move to slot 0 — the step names a specific minion and a specific
     // destination, so both should be lit.
     anchors: [{ kind: 'card', zone: 'board', alias: CARD_IDS.trex }, { kind: 'ui', id: 'warband' }],
@@ -489,9 +497,9 @@ const round7Steps: TutorialStep[] = [
     // different minion) completed a step that is specifically about T-Rex ending up left-most.
     completion: { kind: 'cardAtSlot', cardId: CARD_IDS.trex, index: 0 },
   },
-  heroPowerReminderStep('r7-power'),
-  endTurnStep('r7-end', 'Your engine is set, with a slot free to summon into. End the turn and watch it fire.'),
-  combatDebriefStep('r7-debrief', 'The Build Comes Together', 'Rally, Echo, positioning, board space — placed to work together, your board runs itself. That is the heart of the game. Click here to return to the shop.'),
+  heroPowerReminderStep('r7-power', 'Use your hero power', "Let's use this again to buff up another unit!"),
+  endTurnStep('r7-end', 'End your turn', "Alright, let's see the Echohorn synergy in action!"),
+  combatDebriefStep('r7-debrief', 'The build is coming together', 'Rally, Echo, positioning, and more! That is the heart of the game. Click here to return to the shop.'),
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -503,8 +511,8 @@ const round7Steps: TutorialStep[] = [
 const round8Steps: TutorialStep[] = [
   {
     id: 'r8-buy',
-    phase: 'shop', focusMode: 'action', title: 'Complete a Triple',
-    body: 'You have two Packstriders. Buy a THIRD — three copies of a minion merge into one GOLDEN, with double stats and a stronger effect.',
+    phase: 'shop', focusMode: 'action', title: 'Complete a triple',
+    body: 'You have two Packstriders. Buy the third to combine all three into a single GILDED version. Combining stats and increasing its effect!',
     anchors: [{ kind: 'card', zone: 'shop', alias: CARD_IDS.packstrider }],
     // The drag the step is asking for, drawn: shop offer → your hand (owner ask 2026-08-20).
     connector: { from: { kind: 'card', zone: 'shop', alias: CARD_IDS.packstrider }, to: { kind: 'ui', id: 'hand' }, style: 'drag' },
@@ -513,9 +521,9 @@ const round8Steps: TutorialStep[] = [
   },
   {
     id: 'r8-play-golden',
-    phase: 'shop', focusMode: 'action', title: 'Play the Golden',
-    body: 'The Golden Packstrider is in your hand. Play it onto your board — and it pays a Triple Reward straight back to your hand.',
-    why: 'A Gold minion is a triple: it saves board space and hits far harder than three loose copies would.',
+    phase: 'shop', focusMode: 'action', title: 'Play the golden',
+    body: 'The Golden Packstrider is in your hand. Play it onto your board to receive a Triple Reward',
+    why: 'A Gilded minion is a triple: it saves board space and hits far harder than its plain version does.',
     // Spotlight the CARD being asked for as well as the destination, with the drag drawn between
     // them — the bare `warband` anchor left the player hunting for which card to move.
     anchors: [{ kind: 'card', zone: 'hand', alias: CARD_IDS.packstrider }, { kind: 'ui', id: 'warband' }],
@@ -525,9 +533,8 @@ const round8Steps: TutorialStep[] = [
   },
   {
     id: 'r8-discover',
-    phase: 'shop', focusMode: 'action', title: 'Discover a Minion',
-    body: 'That is your Triple Reward. Play it to Discover — pick ONE of three minions to add to your hand.',
-    why: 'Discover lets you choose, not gamble — take the piece that fits your board.',
+    phase: 'shop', focusMode: 'action', title: 'Discover a minion',
+    body: 'This is your Triple Reward. Play it to Discover 3 minions from the Shop Tier ABOVE yours. Pick one to add to your hand.',
     // WAITS FOR THE PICK, NOT THE PLAY THAT OPENS IT. Playing the Triple Reward token is what RAISES the
     // Discover overlay, so completing on `played` ticked this step off while the modal still owned the screen
     // — and the very next beat (the hero-power reminder) was then coached against a screen the player could
@@ -541,16 +548,16 @@ const round8Steps: TutorialStep[] = [
     allowedActionKinds: ['play'],
     completion: { kind: 'discovered' },
   },
-  heroPowerReminderStep('r8-power'),
+  heroPowerReminderStep('r8-power', 'Use your hero power', 'Preparation is free! Use it before your fight. It recharges every other turn, so use it whenever it is ready.'),
   {
     id: 'r8-end',
-    phase: 'shop', focusMode: 'action', title: 'Play It, Then End',
-    body: 'Play the minion you discovered onto your board, then End Turn.',
+    phase: 'shop', focusMode: 'action', title: 'Play the minion and end turn',
+    body: "Let's get that new minion into our warband to gain strength before our next fight!",
     anchors: [{ kind: 'ui', id: 'hand' }, { kind: 'ui', id: 'warband' }],
     gate: 'soft', allowedActionKinds: ['play', 'faceOmen'],
     completion: { kind: 'endedTurn' },
   },
-  combatDebriefStep('r8-debrief', 'Golden & Chosen', 'A triple and a Discover — the two ways a board goes from good to great. Click here to return to the shop.'),
+  combatDebriefStep('r8-debrief', 'The power of Gilded units', 'Save board space, get a Triple Reward and Discover a unit from the shop tier above you. Pretty strong!'),
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -562,8 +569,8 @@ const round9Steps: TutorialStep[] = [
   {
     id: 'r9-rune',
     phase: 'shop', focusMode: 'action', title: 'The Epic Runeforge',
-    body: 'The Epic Runeforge. Same idea as before, bigger rules — and this is your last one, so read all three.',
-    why: 'Epic Runes are strong enough to define a build. Pick the one that fits the board you have.',
+    body: 'Remember this from before? Now these offer even stronger bonuses. Find one that synergizes best with your build.',
+    why: 'Epic Runes are strong enough to really solidify a build. Pick the one that fits the board you have.',
     anchors: [{ kind: 'ui', id: 'discover' }],
     gate: 'hard', noScrim: true, lessonId: 'rune_buy_epic',
     // TWO, not one: the round-6 rune is already owned, so "at least 1" would be satisfied before the forge
@@ -572,8 +579,8 @@ const round9Steps: TutorialStep[] = [
   },
   {
     id: 'r9-buy',
-    phase: 'shop', focusMode: 'action', title: 'Buy a Spell',
-    body: 'Buy Blessing. Spells are one-time effects — you buy them like a minion, but they go to your hand to cast.',
+    phase: 'shop', focusMode: 'action', title: 'Buy a spell',
+    body: 'Buy Blessing. Spells are one-time effects. You buy them like a minion, then you cast them from hand so they cannot be sold.',
     anchors: [{ kind: 'card', zone: 'shop', alias: CARD_IDS.blessing }],
     // The drag the step is asking for, drawn: shop offer → your hand (owner ask 2026-08-20).
     connector: { from: { kind: 'card', zone: 'shop', alias: CARD_IDS.blessing }, to: { kind: 'ui', id: 'hand' }, style: 'drag' },
@@ -583,8 +590,8 @@ const round9Steps: TutorialStep[] = [
   {
     id: 'r9-cast',
     phase: 'shop', focusMode: 'action', title: 'Cast It',
-    body: 'Drag Blessing from your hand onto one of your minions to give it +3/+4 twice. Pick your strongest to make it stronger.',
-    why: 'A spell is spent when cast — time it for the minion that turns the fight.',
+    body: 'Drag Blessing from your hand onto one of your minions to give it +3/+4 twice.',
+    why: 'A spell is spent when cast.',
     // Spotlight the CARD being asked for as well as the destination, with the drag drawn between
     // them — the bare `warband` anchor left the player hunting for which card to move.
     anchors: [{ kind: 'card', zone: 'hand', alias: CARD_IDS.blessing }, { kind: 'ui', id: 'warband' }],
@@ -592,9 +599,9 @@ const round9Steps: TutorialStep[] = [
     gate: 'hard', lessonId: 'cast_spell',
     completion: { kind: 'played', cardId: CARD_IDS.blessing },
   },
-  heroPowerReminderStep('r9-power'),
-  endTurnStep('r9-end', 'A spell can swing a fight. End the turn and see.'),
-  combatDebriefStep('r9-debrief', 'Spells', 'Bought like a minion, cast from hand for a burst of value — spells are the flex in any build. Click here to return to the shop.'),
+  heroPowerReminderStep('r9-power', 'Use your hero power', "Let's use this again to buff up another unit!"),
+  endTurnStep('r9-end', 'End your turn', "Spells can become very powerful throughout a run! They can be strong enough to turn a fight. End turn and let's see how we do."),
+  combatDebriefStep('r9-debrief', 'Spells', 'That strength from the Blessing spell really helped us win that fight! Click here to return to the shop.'),
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -627,25 +634,23 @@ function freeBuildStep(id: string, title: string, body: string, why?: string): T
 
 const round10Steps: TutorialStep[] = [
   tierStep('r10-tavern', 5, 'Reach Tier 5',
-    'Push your Shop to Tier 5. Do it first, while your Gold is full — then spend what is left on the board.',
-    'Late rounds reward the shop you built earlier. Tier first, board second, is the usual order.'),
+    'Upgrade your Shop to Tier 5, then spend what gold we have left.'),
   freeBuildStep(
     'r10-free',
-    'Your Turn to Drive',
-    'Now you lead. Spend your Gold to strengthen the board — you can raise your Shop tier too. End Turn when you are happy.',
-    'There is no single right buy — a stronger board is the only goal.',
+    'Your turn to drive',
+    'Now you lead. Spend your Gold to strengthen the board, or you can raise your Shop tier too. End Turn when you are happy.',
+    'There is no single right choice. A stronger board is the only goal.',
   ),
   combatDebriefStep('r10-debrief', 'Back to the Shop', 'End combat here and go back to the shop.'),
 ];
 
 const round11Steps: TutorialStep[] = [
-  tierStep('r11-tavern', 6, 'The Top Tier',
-    'One more: raise your Shop to Tier 6, the highest there is. Everything the game has to offer is now in your shop.',
-    'Reaching the top tier is the goal of every climb — from here it is all about what you build with it.'),
+  tierStep('r11-tavern', 6, 'Tavern Tier 6',
+    'Raise your Shop to Tier 6, the highest there is! You now have access to the most powerful minions in the game.'),
   freeBuildStep(
     'r11-free',
     'Now Build',
-    'Tier 6 is open — the best minions in the game are in your shop. Spend the rest of your Gold, then End Turn.',
+    'Spend the rest of your Gold how you see fit, then End Turn.'
   ),
   combatDebriefStep('r11-debrief', 'Back to the Shop', 'End combat here and go back to the shop.'),
 ];
@@ -653,12 +658,12 @@ const round11Steps: TutorialStep[] = [
 const round12Steps: TutorialStep[] = [
   freeBuildStep(
     'r12-free',
-    'The Last Round',
-    'Last round of your first game. Build the strongest board you can and send it in — everything you have learned, one final time.',
+    'The final round',
+    "Here we go! This is the last round, the final faceoff! Use everything you've learned to strengthen your board."
   ),
   // The graduation beat: a warm confirm, then returning to the shop ends the course (the lobby's round cap is
   // reached) and the tutorial graduation screen takes over. See `EndScreen` / `TutorialGraduationScreen`.
-  combatDebriefStep('r12-debrief', 'You Are Ready', 'That is the whole game: shop, build, position, fight — round after round. You have got it. Click here to finish the tutorial.'),
+  combatDebriefStep('r12-debrief', 'This is Ascent', 'And that is the game! While it may feel simple, there are nearly limitless decisions you can make in a single round. Every single game will always be different. Go learn and have fun!'),
 ];
 
 const turns: TutorialTurn[] = [
@@ -858,38 +863,39 @@ export const LEARN_ASCENT: TutorialCourse = {
   foundation: [
     {
       id: 'climb',
-      title: 'The Goal',
-      body: 'You face a run of rival warbands. Win fights to protect your Health and outlast them.',
+      title: 'The goal',
+      body: 'You face 7 other opponents in a fight to the death. While 1st place is the goal, finishing top 4 will improve your rating.',
       focus: [{ kind: 'ui', id: 'lobby-rail' }],
     },
     {
       id: 'build-battle',
-      title: 'Build, Then Battle',
-      body: 'Each round you shop to build a warband, then it fights on its own. Two phases, repeating.',
+      title: 'Buy, Build, Battle',
+      body: "Each round you shop to build out your warband to fight your opponent. Don't worry, units dying on the battlefied is not permanent. When you return to shop, your same warband will be there.",
     },
     {
       id: 'warband',
-      title: 'Build Your Warband',
-      body: 'Recruit minions from the shop and place them on your board. They battle automatically.',
+      title: 'Build your warband',
+      body: 'While the concept is simple, there are countless decisions to make each game. Choose which minions stay or go, as only 7 can be in your warbad at at time.',
       focus: [{ kind: 'ui', id: 'warband' }],
     },
     {
       id: 'position',
-      title: 'Position Matters',
-      body: 'Minions fight left to right. Where you place them changes how combat unfolds.',
+      title: 'Position matters',
+      body: 'Minions attack in order of left-to-right, but their targets are random. Where you place your units can dramatically change out a battle plays out.',
+      why: 'Many units benefit from being able to attack before they die. The further left they are positioned, the more likely they are to attack before that happens!',
     },
   ],
   orderDemo: {
-    body: 'Drag a minion to the front of your board. The left-most minion attacks first.',
-    debrief: 'Order is a real choice — lead with the minion you want swinging first.',
+    body: "There are many effects that are based off of your minions' positioning. Keep this in mind as you are building out your warband!",
+    debrief: '',
   },
   lobbyIntro: [
     {
       id: 'lobby-rail',
       phase: 'lobby',
       focusMode: 'orient',
-      title: 'The Table',
-      body: 'Here are the rivals you will face, round by round. Beat them to win the game.',
+      title: 'The Lobby',
+      body: 'Here are the rivals you will face each round. Bring all of their health to zero to win the game! (Note: You cannot face the same hero twice back to back until a face off at the end of the game)',
       anchors: [{ kind: 'ui', id: 'lobby-rail' }],
       gate: 'observe',
       completion: { kind: 'always' },
@@ -898,8 +904,8 @@ export const LEARN_ASCENT: TutorialCourse = {
       id: 'lobby-self',
       phase: 'lobby',
       focusMode: 'orient',
-      title: 'Your Seat',
-      body: 'This is you. Your Health is your lifeline — keep it above zero to stay in the game.',
+      title: 'Your spot',
+      body: 'This is you. Properly manage your warband strength and your health to stay in the game!',
       // Spotlight the Health box under the portrait as well as the seat: the copy names Health, so the number
       // it refers to has to be one of the things lit up (owner ask 2026-08-20).
       anchors: [{ kind: 'ui', id: 'lobby-self' }, { kind: 'ui', id: 'health' }],
@@ -910,8 +916,8 @@ export const LEARN_ASCENT: TutorialCourse = {
       id: 'lobby-next',
       phase: 'lobby',
       focusMode: 'orient',
-      title: 'Next Up',
-      body: 'This rival is next. First you shop to build a warband, then the two boards fight. Let us begin.',
+      title: 'Next up',
+      body: 'Your opponent will be highlighed. Hover over their spot to see a bit of information that may give you an edge in the upcoming battle!',
       anchors: [{ kind: 'ui', id: 'lobby-next' }],
       gate: 'observe',
       completion: { kind: 'always' },

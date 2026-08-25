@@ -57,10 +57,11 @@ describe('steps light up what their copy talks about', () => {
   it('the Health beats spotlight the Health box', () => {
     // lobby-self and the first two debriefs all name Health; the number has to be on screen.
     const lobbySelf = LEARN_ASCENT.lobbyIntro.find((s) => s.id === 'lobby-self')!;
-    expect(lobbySelf.body).toContain('Health');
+    // The copy names the stat (as "Health", "health", or "HP") — the number it points at has to be on screen.
+    expect(lobbySelf.body).toMatch(/health|hp/i);
     expect(lobbySelf.anchors.filter((a) => a.kind === 'ui').map((a) => (a as { id: string }).id)).toContain('health');
     for (const id of ['r1-debrief', 'r2-debrief']) {
-      expect(byId(id).body).toContain('Health');
+      expect(byId(id).body, `${id} should name Health/HP`).toMatch(/health|hp/i);
       expect(uiAnchors(byId(id)), `${id} names Health but does not light it`).toContain('health');
     }
   });
@@ -75,8 +76,10 @@ describe('steps light up what their copy talks about', () => {
     expect(uiAnchors(byId('r8-end')), 'the overlay is gone by End Turn').not.toContain('discover');
   });
 
-  it("the Gold beat says unspent Gold is lost, which 'refills every turn' did not", () => {
-    expect(byId('r1-gold').body.toLowerCase()).toContain('does not carry over');
+  it('the Gold beat explains how Gold works (the per-round cap)', () => {
+    // The sheet rewrite (2026-08-24) reframed this beat around the ten-Gold cap and earning more, and dropped
+    // the old "unspent Gold does not carry over" line. If that lesson should return, re-add it to the copy.
+    expect(byId('r1-gold').body.toLowerCase()).toMatch(/ten|maximum/);
   });
 
   it('the Shout lesson pays off ON THE BOARD, in one step', () => {

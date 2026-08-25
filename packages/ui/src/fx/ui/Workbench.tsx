@@ -60,6 +60,8 @@ import { createBackdrop, type FxBackdrop } from './backdrop';
 import { Timeline } from './Timeline';
 import { previewClock } from './timelineModel';
 import { ANCHOR_OPTIONS, anchorBlurb, primitiveBlurb, primitiveLabel } from './copy';
+import { applyReorder } from './dragEdit';
+import { LayersPanel } from './LayersPanel';
 import {
   addLayer,
   createEditorLayer,
@@ -355,9 +357,6 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
     return [createEditorLayer(first, defaultsOf(getPrimitive(first)?.params ?? {}))];
   });
   const [selected, setSelected] = useState(restoredSession?.selected ?? 0);
-  // The "Add layer" picker's own selection (defaults to the first registered primitive). Independent of the
-  // selected layer — it only feeds `addNewLayer`.
-  const [addPrimitiveId, setAddPrimitiveId] = useState<string>(() => listPrimitives()[0]?.id ?? 'ribbon');
   // `realBoard` while the stage is up (below): it reads anchors off the live DOM, and with the stage there
   // that DOM is six real cards at their real size and spacing — the honest default. Falls back to whatever
   // is first if that scenario ever goes away.
@@ -1216,6 +1215,34 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
     pushLiveLayers(next);
     const target = i + dir;
     if (target >= 0 && target < next.length) applySelected(target); // keep selection on the moved layer
+  };
+
+  /** `LayersPanel`'s grip-drag resolves an arbitrary drop index (`resolveDrop`/`reorderTargetIndex`), unlike
+   *  the ↑/↓ buttons' single adjacent step — so it can't reuse `reorderLayer(i, dir)` as-is. Same
+   *  record/commit/live-push/reselect contract, but moves the layer straight to `to` with one splice
+   *  (`applyReorder`) so a multi-row drag is ONE undo entry, not N single-step ones. Reads/writes through
+   *  `layersRef` (not the render-scoped `layers`) so it stays correct if ever invoked more than once before a
+   *  render lands, matching `retimeLayer`'s precedent. */
+  const reorderLayerTo = (from: number, to: number): void => {
+    if (from === to) return;
+    record('structural');
+    const next = applyReorder(layersRef.current, from, to);
+    commitLayers(next);
+    pushLiveLayers(next);
+    applySelected(to);
+  };
+
+  /** `LayersPanel` owns the in-place rename textbox locally now (it moved out of Workbench's own
+   *  `renaming`/`renameText` state along with the JSX), so it hands back the finished name directly instead
+   *  of this reading it off local state the way `commitRename` (above `startRename`) still does for nothing.
+   *  Mirrors `commitRename`'s commit rule — trim, no-op guard, one `structural` history entry, no live push
+   *  (a name is a label, not something the running effect needs to know about). */
+  const renameLayer = (i: number, name: string): void => {
+    const trimmed = name.trim();
+    const current = layersRef.current[i]?.name;
+    if (trimmed === (current ?? '')) return;
+    record('structural');
+    commitLayers(setLayerName(layersRef.current, i, trimmed));
   };
 
   // The TOP primitive-button row edits the SELECTED layer's primitive (resetting its params to the new
@@ -2166,97 +2193,19 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
           {railMode ? 'Full editor' : 'Watch in combat'}
         </button>
 
-        <div className="fxwb-layers">
-          {layers.map((l, i) => (
-            <div
-              key={i}
-              className={
-                `fxwb-layer-row${i === selected ? ' on' : ''}${l.muted === true ? ' muted' : ''}` +
-                `${l.solo === true ? ' solo' : ''}` +
-                // Silenced BY SOLO (rather than by its own mute) — dimmed the same way, because "why can't I
-                // see this layer?" has to be answerable from the list itself.
-                `${liveMutes[i] && l.muted !== true ? ' silenced' : ''}`
-              }
-              onClick={() => selectLayer(i)}
-            >
-              {renaming === i ? (
-                <input
-                  className="fxwb-layer-rename"
-                  type="text"
-                  aria-label="Layer name"
-                  spellCheck={false}
-                  autoFocus
-                  placeholder={l.primitive}
-                  value={renameText}
-                  onClick={(e) => e.stopPropagation()}
-                  onChange={(e) => setRenameText(e.target.value)}
-                  onBlur={() => commitRename(i)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') commitRename(i);
-                    else if (e.key === 'Escape') cancelRename();
-                  }}
-                />
-              ) : (
-                <span
-                  className="fxwb-layer-name"
-                  title={l.name === undefined ? 'Double-click to name this layer' : `${l.name} (${l.primitive}) — double-click to rename`}
-                  onDoubleClick={(e) => { e.stopPropagation(); startRename(i); }}
-                >
-                  {l.name ?? l.primitive}
-                </span>
-              )}
-              {/* Anchor sits in the row meta so a composition reads at a glance — "which layer is pinned to
-                  the target and which one rides the arc?" is the first question you ask of one. A NAMED layer
-                  keeps its primitive id here, so naming never costs you the "what is this?" answer. */}
-              <span className="fxwb-layer-meta">
-                {l.name === undefined ? '' : `${l.primitive} · `}
-                {l.anchor} · @{l.at}ms · {l.life === null ? 'full' : `${l.life}ms`}{l.muted === true ? ' · muted' : ''}{l.solo === true ? ' · solo' : ''}
-              </span>
-              <span className="fxwb-layer-btns">
-                <button
-                  className={`fxwb-layer-mute${l.muted === true ? ' on' : ''}`}
-                  onClick={(e) => { e.stopPropagation(); toggleMute(i); }}
-                  title={l.muted === true ? 'Muted — click to bring this layer back' : 'Mute this layer (isolate the others)'}
-                >{l.muted === true ? '◐' : '👁'}</button>
-                <button
-                  className={`fxwb-layer-solo${l.solo === true ? ' on' : ''}`}
-                  onClick={(e) => { e.stopPropagation(); toggleSolo(i); }}
-                  title={l.solo === true ? 'Soloed — click to bring the other layers back' : 'Solo this layer (only soloed layers play)'}
-                >{l.solo === true ? '◉' : '○'}</button>
-                <button
-                  onClick={(e) => { e.stopPropagation(); startRename(i); }}
-                  title="Rename this layer (or double-click its name)"
-                >✎</button>
-                <button
-                  onClick={(e) => { e.stopPropagation(); duplicateLayerAt(i); }}
-                  title="Duplicate this layer (a full copy of its tuning, inserted below)"
-                >⧉</button>
-                <button
-                  onClick={(e) => { e.stopPropagation(); reorderLayer(i, -1); }}
-                  disabled={i === 0}
-                  title="Move up"
-                >↑</button>
-                <button
-                  onClick={(e) => { e.stopPropagation(); reorderLayer(i, 1); }}
-                  disabled={i === layers.length - 1}
-                  title="Move down"
-                >↓</button>
-                {layers.length > 1 && (
-                  <button
-                    onClick={(e) => { e.stopPropagation(); deleteLayer(i); }}
-                    title="Remove layer"
-                  >✕</button>
-                )}
-              </span>
-            </div>
-          ))}
-          <div className="fxwb-layer-add">
-            <select value={addPrimitiveId} onChange={(e) => setAddPrimitiveId(e.target.value)}>
-              {listPrimitives().map((prim) => <option key={prim.id} value={prim.id}>{prim.id}</option>)}
-            </select>
-            <button onClick={() => addNewLayer(addPrimitiveId)} title="Add layer">＋</button>
-          </div>
-        </div>
+        <LayersPanel
+          layers={layers}
+          selected={selected}
+          onSelect={selectLayer}
+          onReorder={reorderLayerTo}
+          onAdd={addNewLayer}
+          onDuplicate={duplicateLayerAt}
+          onRemove={deleteLayer}
+          onToggleMute={toggleMute}
+          onToggleSolo={toggleSolo}
+          onRename={renameLayer}
+          primitives={listPrimitives().map((prim) => prim.id)}
+        />
 
         <div className="fxwb-timing">
           {/* Which staged point this layer's head follows. Lives with At/Life because the three together are

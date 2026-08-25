@@ -7247,15 +7247,27 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 /* Layers panel: the composition's layer list + an "Add layer" control, above the Inspector. */
 .fxwb-layers { display: flex; flex-direction: column; gap: 4px; }
 .fxwb-layer-row {
-  display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 4px 8px; row-gap: 1px;
+  display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 4px 8px; row-gap: 1px;
   padding: 5px 7px; border-radius: 7px; background: #241f17; border: 1px solid #4a4136; cursor: pointer;
 }
 .fxwb-layer-row:hover { border-color: color-mix(in srgb, #c8a45c 45%, #4a4136); }
 .fxwb-layer-row.on { background: color-mix(in srgb, #c8a45c 18%, #241f17); border-color: #c8a45c; }
-.fxwb-layer-name { font-size: 12px; font-weight: 800; color: #efe7db; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* The grip: pointerdown here starts a reorder drag (see `LayersPanel.tsx`). Its own column so it never
+   competes with the row's click-to-select target or the name's double-click-to-rename target. */
+.fxwb-layer-grip {
+  grid-column: 1; grid-row: 1 / span 2; display: flex; align-items: center; justify-content: center;
+  width: 12px; height: 100%; color: #6b6152; font-size: 12px; line-height: 1; touch-action: none;
+  cursor: url('/cursors/gauntlet_open.svg') 6 2, grab;
+}
+.fxwb-layer-grip:hover { color: #c8a45c; }
+.fxwb-layer-grip:active { cursor: url('/cursors/gauntlet_open.svg') 6 2, grabbing; }
+/* The row a grip-drag is hovering over as its drop target — a bright top edge reads as "it lands here"
+   without needing a separate line element between rows. */
+.fxwb-layer-row.fxwb-layer-drop { box-shadow: inset 0 2px 0 #c8a45c; }
+.fxwb-layer-name { grid-column: 2; font-size: 12px; font-weight: 800; color: #efe7db; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fxwb-layer-row.on .fxwb-layer-name { color: #f0d9a4; }
-.fxwb-layer-meta { grid-column: 1; font-size: 10px; font-weight: 700; color: #9a8c74; font-variant-numeric: tabular-nums; }
-.fxwb-layer-btns { grid-column: 2; grid-row: 1 / span 2; display: flex; align-items: center; gap: 3px; }
+.fxwb-layer-meta { grid-column: 2; font-size: 10px; font-weight: 700; color: #9a8c74; font-variant-numeric: tabular-nums; }
+.fxwb-layer-btns { grid-column: 3; grid-row: 1 / span 2; display: flex; align-items: center; gap: 3px; }
 .fxwb-layer-btns button {
   width: 20px; height: 20px; padding: 0; border-radius: 5px; border: 1px solid #4a4136; background: #16120e;
   color: #c9bda6; font-size: 11px; line-height: 1; cursor: pointer;
@@ -7627,7 +7639,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 /* The name doubles as the rename affordance (double-click), so it gets a text cursor to say so. */
 .fxwb-layer-name { cursor: text; }
 .fxwb-layer-rename {
-  min-width: 0; width: 100%; box-sizing: border-box; padding: 1px 4px; border-radius: 4px;
+  grid-column: 2; min-width: 0; width: 100%; box-sizing: border-box; padding: 1px 4px; border-radius: 4px;
   border: 1px solid #c8a45c; background: #16120e; color: #f0d9a4; font-family: var(--font-ui);
   font-size: 12px; font-weight: 800;
 }

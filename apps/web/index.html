@@ -18,7 +18,7 @@
     <!-- FIRST-PAINT SPLASH. Fetched with high priority so it is on screen before the ~3 MB JS bundle has even
          parsed — a React-rendered splash cannot appear until after that, which on a cold load is the exact
          second the screen is blank. -->
-    <link rel="preload" as="image" href="./loadscreen.webp" fetchpriority="high" />
+    <link rel="preload" as="image" href="./ascenticon.png" fetchpriority="high" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -31,12 +31,13 @@
          Its CSS is inlined here for the same reason — waiting on the stylesheet (which ships with the bundle)
          would reintroduce the blank gap this exists to remove.
 
-         `Boot` (packages/ui/src/Boot.tsx) owns the rest of its life: it drives the bar via `--p` while art
-         preloads, then adds `.is-out` to fade it and removes the node on transitionend. Fading OPACITY only —
+         `Boot` (packages/ui/src/Boot.tsx) owns the rest of its life: it holds the splash up for the fake 3.5s
+         load (the bar fills via pure CSS), then adds `.is-out` to fade it and removes the node on
+         transitionend. Fading OPACITY only —
          compositor-only, per docs/performance.md; a filter/background fade here would repaint the whole
          viewport on every frame of the transition. -->
     <div id="bootsplash">
-      <img id="bootsplash-img" src="./loadscreen.webp" alt="" aria-hidden="true" draggable="false" />
+      <img id="bootsplash-img" src="./ascenticon.png" alt="" aria-hidden="true" draggable="false" />
       <div id="bootsplash-bar"><i></i></div>
     </div>
     <script>
@@ -47,6 +48,25 @@
 
          Inline and tiny on purpose — it must run before the ~3 MB bundle, which is the whole point of the
          splash. `error` also reveals, so a missing file leaves black rather than a stuck invisible layer. */
+      /* Apply the DEV Load Screen tuner's saved size/position BEFORE the splash paints, so a tuned dev build is
+         WYSIWYG with no resize flash. Absent for everyone who never opened the tuner (prod users included) →
+         the CSS fallbacks stand. Kept tiny + defensive; it must run before the ~3 MB bundle. */
+      (function () {
+        try {
+          var raw = localStorage.getItem('ascent.loadscreen');
+          if (!raw) return;
+          var c = JSON.parse(raw), r = document.documentElement.style;
+          if (typeof c.iconSize === 'number') r.setProperty('--ls-icon', c.iconSize + 'px');
+          if (typeof c.barWidth === 'number') r.setProperty('--ls-bar-w', c.barWidth + 'px');
+          if (typeof c.barHeight === 'number') r.setProperty('--ls-bar-h', c.barHeight + 'px');
+          if (typeof c.barBottom === 'number') r.setProperty('--ls-bar-bottom', c.barBottom + 'vh');
+          if (typeof c.gradCenter === 'string') r.setProperty('--ls-grad-center', c.gradCenter);
+          if (typeof c.gradEdge === 'string') r.setProperty('--ls-grad-edge', c.gradEdge);
+          if (typeof c.gradSize === 'number') r.setProperty('--ls-grad-size', c.gradSize + '%');
+          if (typeof c.gradPosX === 'number') r.setProperty('--ls-grad-x', c.gradPosX + '%');
+          if (typeof c.gradPosY === 'number') r.setProperty('--ls-grad-y', c.gradPosY + '%');
+        } catch (e) { /* ignore */ }
+      })();
       (function () {
         var s = document.getElementById('bootsplash');
         var i = document.getElementById('bootsplash-img');
@@ -66,45 +86,51 @@
       })();
     </script>
     <style>
-      /* Black from the very first frame — the art fades UP onto it (`.is-in`), then the whole thing fades
-         DOWN onto the mounted menu (`.is-out`). Two ends of one journey, so neither is ever a cut. */
+      /* A BLACK CSS GRADIENT from the very first frame (owner ask 2026-08-24, replacing the full-bleed image):
+         the AscentIcon logo fades UP onto it (`.is-in`), then the whole thing fades DOWN onto the mounted menu
+         (`.is-out`). A soft radial lift at centre keeps it from reading as a flat void behind the mark. */
       #bootsplash {
         position: fixed; inset: 0; z-index: 99999;
-        background: #010101;
+        background: radial-gradient(ellipse var(--ls-grad-size, 75%) var(--ls-grad-size, 75%) at var(--ls-grad-x, 50%) var(--ls-grad-y, 42%), var(--ls-grad-center, #1b1b1d) 0%, var(--ls-grad-edge, #000000) 100%);
         opacity: 1; transition: opacity 900ms cubic-bezier(0.4, 0, 0.2, 1);
-        display: flex; align-items: flex-end; justify-content: center;
+        display: flex; align-items: center; justify-content: center;
       }
-      /* CONTAIN, not cover: the art is 2.36:1 and a tall window would crop it. Its own field samples
-         rgb(1,1,1), so the black backdrop makes the letterboxing invisible at any aspect. */
+      /* The AscentIcon is a square logo — centred, not full-bleed. Sized to the smaller viewport axis so it
+         never crowds a short or narrow window. */
       #bootsplash-img {
-        position: absolute; inset: 0; width: 100%; height: 100%;
-        object-fit: contain; object-position: center;
+        /* `--ls-icon` etc. are set by the DEV Load Screen tuner (loadScreenConfig.ts); the fallbacks here are
+           the shipped values and MUST mirror its DEFAULTS. */
+        width: var(--ls-icon, min(300px, 42vw, 42vh)); height: auto; aspect-ratio: 1;
+        object-fit: contain;
         opacity: 0; transition: opacity 700ms ease-out;
+        filter: drop-shadow(0 8px 30px rgba(0, 0, 0, 0.55));
       }
       #bootsplash.is-in #bootsplash-img { opacity: 1; }
       #bootsplash.is-out { opacity: 0; pointer-events: none; }
       #bootsplash-bar {
-        position: relative; z-index: 1;   /* above the image layer */
-        width: min(340px, 46vw); height: 6px; margin-bottom: 8vh; border-radius: 999px;
-        background: rgba(0, 0, 0, 0.45); overflow: hidden;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
-        opacity: 0; transition: opacity 700ms ease-out;   /* arrives with the art, not before it */
+        position: absolute; left: 50%; transform: translateX(-50%); bottom: var(--ls-bar-bottom, 12vh);
+        width: var(--ls-bar-w, min(340px, 46vw)); height: var(--ls-bar-h, 6px); border-radius: 999px;
+        background: rgba(255, 255, 255, 0.1); overflow: hidden;
+        box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.5);
+        opacity: 0; transition: opacity 700ms ease-out;   /* arrives with the logo, not before it */
       }
       #bootsplash.is-in #bootsplash-bar { opacity: 1; }
-      /* scaleX, not width: a width tween is layout every tick; a transform is compositor-only.
-         The scale is set INLINE by Boot rather than read from a custom property — an UNREGISTERED custom
-         property does not reliably drive a transition, and measuring showed the bar rendering a full step
-         behind every update (set 0.25 → drew 0; set 0.6 → drew 0.25). An inline transform transitions
-         normally. */
+      /* FAKE 3.5s LOAD (owner ask 2026-08-24): the fill is a pure CSS transition — scaleX 0→1 over 3.5s the
+         moment the splash reveals — not driven by real art progress. scaleX (not width) so the whole animation
+         is compositor-only, never a per-frame layout. Boot holds the splash up for the same 3.5s before fading. */
       #bootsplash-bar > i {
         display: block; height: 100%; border-radius: 999px; background: #f0902e;
         transform: scaleX(0); transform-origin: left center;
-        transition: transform 180ms ease-out;
+        transition: transform 200ms ease-out;
       }
-      /* The bar is progress feedback, not decoration — hide it for anyone who asked for less motion. */
+      #bootsplash.is-in #bootsplash-bar > i {
+        transform: scaleX(1);
+        transition: transform 3500ms linear;
+      }
+      /* The bar is progress feedback, not decoration — freeze motion for anyone who asked for less. */
       @media (prefers-reduced-motion: reduce) {
         #bootsplash, #bootsplash-img, #bootsplash-bar { transition: none; }
-        #bootsplash-bar > i { transition: none; }
+        #bootsplash-bar > i, #bootsplash.is-in #bootsplash-bar > i { transition: none; transform: scaleX(1); }
       }
     </style>
     <div id="root"></div>

@@ -46,6 +46,7 @@ export const PANEL_EMBLEMS: Record<string, string> = {
   cardpills: '🏷️',
   heropanel: '🧍',
   lobbypanel: '🪑',
+  loadscreen: '⏳',
   boardedge: '🌫️',
   buffdrawer: '🧪',
   book: '📖',
@@ -97,6 +98,7 @@ export type TunerUnit =
   | 'ms'      // milliseconds
   | 's'       // seconds — only where the value feeds a CSS duration in seconds
   | 'px'      // absolute pixels
+  | 'vh'      // viewport-height percent — where the value feeds a CSS `vh` length
   | 'px/s'    // speed
   | '%'       // percentage
   | '×'       // multiplier of some base

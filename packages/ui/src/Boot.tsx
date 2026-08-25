@@ -19,6 +19,9 @@ import { preloadAllArt, ART_COUNT } from './art';
  * and the image dissolves off it. Swapping one for the other (the old behaviour) is what made it a cut.
  */
 const HARD_CAP_MS = 20000;
+/** The fake load duration (owner ask 2026-08-24): the splash is held up for at least this long so the 3.5s CSS
+ *  progress bar always runs its full course, even when art is already HTTP-cached and the real preload is instant. */
+const MIN_SPLASH_MS = 3500;
 /** Must match the `#bootsplash` opacity transition in index.html (900ms — the owner asked for a gentle
  *  dissolve into the menu rather than a quick wipe). */
 const FADE_MS = 900;
@@ -31,16 +34,6 @@ const FADE_IN_MS = 700;
 function splashEl(): HTMLElement | null {
   return typeof document === 'undefined' ? null : document.getElementById('bootsplash');
 }
-/** The splash's progress fill. Driven by an INLINE transform, not a CSS var: an unregistered custom property
- *  does not reliably drive a transition — measured rendering a full step behind each update. */
-function splashBar(): HTMLElement | null {
-  return splashEl()?.querySelector<HTMLElement>('#bootsplash-bar > i') ?? null;
-}
-const setProgress = (p: number): void => {
-  const bar = splashBar();
-  if (bar) bar.style.transform = `scaleX(${Math.max(0, Math.min(1, p))})`;
-};
-
 export function Boot({ children }: { children: ReactNode }): React.ReactElement {
   const [ready, setReady] = useState<boolean>(() => ART_COUNT === 0);
   const [pct, setPct] = useState(0);
@@ -56,16 +49,16 @@ export function Boot({ children }: { children: ReactNode }): React.ReactElement 
       setReady(true);
     };
     const cap = window.setTimeout(finish, HARD_CAP_MS); // never hang the boot
-    void preloadAllArt((loaded, total) => { if (alive) setPct(total ? loaded / total : 1); }).then(() => {
+    // Gate on BOTH the real art preload (no card renders before its art is decoded — no pop-in) AND the fixed
+    // MIN_SPLASH_MS, so the fake 3.5s bar always completes even when art is warm-cached and preload is instant.
+    const artReady = preloadAllArt((loaded, total) => { if (alive) setPct(total ? loaded / total : 1); });
+    const minHold = new Promise<void>((res) => window.setTimeout(res, MIN_SPLASH_MS));
+    void Promise.all([artReady, minHold]).then(() => {
       window.clearTimeout(cap);
       finish();
     });
     return () => { alive = false; window.clearTimeout(cap); };
   }, [ready]);
-
-  // Drive the document splash's bar — `scaleX`, so a progress tick costs a compositor transform rather than
-  // a layout pass (a `width` tween would be layout on every update).
-  useEffect(() => { setProgress(pct); }, [pct]);
 
   // READY → fade the splash off the mounted game, then remove the node.
   //
@@ -77,7 +70,7 @@ export function Boot({ children }: { children: ReactNode }): React.ReactElement 
     if (!ready) return;
     const el = splashEl();
     if (!el) return;
-    setProgress(1); // finish the bar rather than freezing it mid-fill
+    // The bar has already filled on its own 3.5s CSS transition — nothing to finish here.
     // HOLD until the fade-IN has finished. With art HTTP-cached the gate can resolve in a few hundred ms —
     // well inside the 700ms in-fade — and cutting to the out-fade there would snatch a half-visible image
     // away. `inAt` is stamped by the inline reveal script; absent (image still loading) we wait the full

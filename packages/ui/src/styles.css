@@ -4143,6 +4143,26 @@ body.aiming, body.aiming * { cursor: none !important; }
 /* a crit shakes harder — same rows, the punchier two-axis keyframe */
 .app.shaking-crit .zone[data-zone='tavern'] .row, .app.shaking-crit .zone[data-zone='warband'] .row { animation: boardshake-crit 0.3s ease; }
 
+/* FX `screen` cue — camera SHAKE. The primitive adds `.fxshake` to `.app` with `--fxshake-amp`/`--fxshake-ms`
+   and removes it on animationend. ONE-SHOT (allowed to touch transform per CLAUDE.md), compositor-only. */
+.app.fxshake { animation: fxshake var(--fxshake-ms, 300ms) ease; }
+@keyframes fxshake {
+  0%, 100% { transform: translate(0, 0); }
+  14% { transform: translate(calc(var(--fxshake-amp, 10px) * -1), calc(var(--fxshake-amp, 10px) * 0.35)); }
+  32% { transform: translate(var(--fxshake-amp, 10px), calc(var(--fxshake-amp, 10px) * -0.3)); }
+  52% { transform: translate(calc(var(--fxshake-amp, 10px) * -0.62), calc(var(--fxshake-amp, 10px) * 0.18)); }
+  74% { transform: translate(calc(var(--fxshake-amp, 10px) * 0.4), 0); }
+  90% { transform: translate(calc(var(--fxshake-amp, 10px) * -0.16), 0); }
+}
+/* FX `screen` cue — full-screen FLASH. The primitive appends a `.fxflash` div to <body> with
+   `--fxflash-color`/`--fxflash-alpha`/`--fxflash-ms` and removes it on animationend. ONE-SHOT opacity pop. */
+.fxflash {
+  position: fixed; inset: 0; z-index: 99999; pointer-events: none;
+  background: var(--fxflash-color, #ffffff); opacity: 0;
+  animation: fxflash var(--fxflash-ms, 250ms) ease-out forwards;
+}
+@keyframes fxflash { 0% { opacity: 0; } 12% { opacity: var(--fxflash-alpha, 0.6); } 100% { opacity: 0; } }
+
 /* (result vignette removed — no green/raspberry screen tint when the replay settles) */
 
 /* post-combat: the warband re-enters via the base card `cardpop` (a single mount animation) —

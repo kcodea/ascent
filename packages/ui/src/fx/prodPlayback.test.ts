@@ -106,6 +106,7 @@ describe('the primitives ship (gates 2 and 3: ensureDefsReady + its caller)', ()
       'emitter',
       'react',
       'ribbon',
+      'screen',
       'shockwave',
       'smoke',
     ]);

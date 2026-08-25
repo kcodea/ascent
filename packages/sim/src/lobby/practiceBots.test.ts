@@ -170,3 +170,38 @@ describe('duplicate lobby handles get an adjective, not "(2)"', () => {
     expect(b).not.toBe(a); // a second duplicate gets a different adjective
   });
 });
+
+describe('practice-bot games resolve on a sane clock (owner ask 2026-08-25: they ran far too long)', () => {
+  /** Play a full bots game with a player board that scales at `skill` per wave (0 = do nothing). */
+  const roundsToFinish = (difficulty: 'easy' | 'medium' | 'hard', skill: number): number => {
+    let s: RunState = createLobbyRun(42, 'aster', {}, 'practice', {
+      opponents: 'bots', botDifficulty: difficulty, health: 'normal', timeMult: 1, tribeSurge: null,
+    });
+    let rounds = 0;
+    while (s.phase !== 'gameover' && rounds++ < 80) {
+      if (s.runeforgeOffer) s = reduce(s, { type: 'skipRuneforge' } as Action);
+      if (s.questOffer?.length) s = reduce(s, { type: 'buyQuest', index: 0 } as Action);
+      if (skill > 0) {
+        const p = Math.round(6 + s.wave * skill);
+        s = { ...s, board: Array.from({ length: 7 }, (_, i) => ({ uid: `p${i}`, cardId: 'b2_packstrider', attack: p, health: p, keywords: [], effects: [], buffs: [] })) as never };
+      }
+      for (const a of [{ type: 'faceOmen' }, { type: 'resolveCombat' }, { type: 'settleCombat' }] as Action[]) s = reduce(s, a);
+    }
+    return rounds;
+  };
+
+  it('a WINNING player finishes in a reasonable number of rounds (was ~25 — the bots never thinned out)', () => {
+    for (const d of ['easy', 'medium', 'hard'] as const) {
+      const rounds = roundsToFinish(d, 7);
+      expect(rounds, `${d}: a dominant run should not drag`).toBeLessThanOrEqual(15);
+      expect(rounds, `${d}: …but it should still be a real game`).toBeGreaterThan(3);
+    }
+  });
+
+  it('a do-nothing player is eliminated quickly, and harder bots kill faster', () => {
+    const easy = roundsToFinish('easy', 0);
+    const hard = roundsToFinish('hard', 0);
+    expect(easy).toBeLessThanOrEqual(12);
+    expect(hard, 'hard bots finish a hopeless run sooner than easy ones').toBeLessThan(easy);
+  });
+});

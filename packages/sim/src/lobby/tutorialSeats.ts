@@ -41,6 +41,19 @@ export function omenBoardMinions(board: readonly AuthoredOmen[]): BoardMinion[] 
  * A driver for an authored seat: it fields the course's board for the current round and never progresses.
  * Behaviourally a recording (fixed input, ignores settle), so it reports `kind: 'recorded'`.
  */
+/**
+ * The tavern tier an authored seat fields on a given (1-based) round.
+ *
+ * Face damage in `simulate` is `opponent tier + 1 per surviving minion`, so the TIER — not the bodies' stats —
+ * is what makes a win actually hurt. A seat with `authoredTierRamp` climbs a tier every `ramp` rounds (capped at
+ * the real 6-tier ceiling), mirroring how a live board tiers up; without the field it stays tier 1.
+ */
+export function authoredTierFor(seat: Pick<LobbySeatState, 'authoredTierRamp'>, round: number): number {
+  const ramp = seat.authoredTierRamp;
+  if (!ramp || ramp <= 0) return 1;
+  return Math.min(6, 1 + Math.floor((Math.max(1, round) - 1) / ramp));
+}
+
 export function authoredSeat(seat: LobbySeatState): SeatDriver {
   const boards = seat.authoredBoards ?? [];
   const boardFor = (round: number): PreparedBoard | null => {
@@ -48,7 +61,11 @@ export function authoredSeat(seat: LobbySeatState): SeatDriver {
     // so a lobby that runs a round longer than authored still fields a real board rather than a bye.
     if (boards.length === 0) return null;
     const idx = Math.min(Math.max(round - 1, 0), boards.length - 1);
-    return { minions: omenBoardMinions(boards[idx]!), tier: 1 };
+    // TIER drives face damage (`simulate`: opponent tier + one per surviving minion's card tier), so an authored
+    // seat pinned at tier 1 deals a trickle no matter how big its bodies are. `authoredTierRamp` lets a seat
+    // climb like a real board would (practice bots — owner ask 2026-08-25: games lasted far too long); absent, it
+    // stays tier 1 so the TUTORIAL's gentle pacing is unchanged.
+    return { minions: omenBoardMinions(boards[idx]!), tier: authoredTierFor(seat, idx + 1) };
   };
   return {
     kind: 'recorded',

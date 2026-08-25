@@ -43,6 +43,29 @@ const NORMAL_ROWS: AH[][] = [
 
 export type BotDifficulty = 'easy' | 'medium' | 'hard';
 
+/**
+ * How fast a bot seat climbs tavern tiers: one tier every N rounds, capped at 6 (see `authoredTierFor`).
+ *
+ * This is the DAMAGE lever (owner ask 2026-08-25: practice bot games ran far too long). Face damage in
+ * `simulate` is `opponent tier + 1 per surviving minion`, so bots pinned at tier 1 dealt a trickle — 2→7 a round
+ * regardless of difficulty, no matter how huge their bodies got. Ramping the tier makes a lost round actually
+ * cost Resolve, and makes the three difficulties diverge (harder = tiers up faster).
+ */
+const TIER_RAMP: Record<BotDifficulty, number> = { easy: 3, medium: 2, hard: 1 };
+
+/**
+ * Damage multiplier for a bot table, by difficulty. Applied to BOTH the player's fight (mirrored in the
+ * reducer's `practiceBotDamageMult`) and to seat-vs-seat fights (`settleRunLobbyRound` reads it off the seats).
+ *
+ * The seat-vs-seat half is what actually fixes the LENGTH complaint: every bot fields the same board, so bots
+ * only ever chip each other a few points a round and a WINNING player waited ~25 rounds for the table to thin
+ * itself out. Keep this in sync with `practiceBotDamageMult`.
+ */
+export const BOT_DAMAGE_MULT: Record<BotDifficulty, number> = { easy: 1.5, medium: 2, hard: 2.5 };
+
+/** Bot seats start on this fraction of the player's Resolve (and no Armor) — see the seat build below. */
+const BOT_HEALTH_MULT = 0.6;
+
 /** EASY scales rounds 4–16 down (owner: "scale rounds 4-16 back by 20-30%") — 25%, the midpoint. Rounds 1–3 are
  *  left alone so the opening is identically gentle. */
 const EASY_MULT = 0.75;
@@ -76,6 +99,22 @@ export function practiceBotBoards(difficulty: BotDifficulty, rounds: number = DE
 }
 
 /**
+ * A per-seat variant of the authored table: each seat's bodies are nudged by a small, deterministic percentage
+ * (index-derived, roughly -6%..+6%). Without this every bot fields the IDENTICAL board, mirrors its opponent and
+ * draws 0-0, so the table never thins and a winning player waits forever for seven seats to knock each other out.
+ */
+function variedBoards(boards: AuthoredOmen[][], seatIndex: number): AuthoredOmen[][] {
+  // A fixed spread per seat: seat 0 is the authored table, the rest fan out either side of it.
+  const SPREAD = [0, 0.06, -0.05, 0.03, -0.03, 0.05, -0.06];
+  const f = 1 + (SPREAD[seatIndex % SPREAD.length] ?? 0);
+  if (f === 1) return boards;
+  return boards.map((row) => row.map((m) => ({
+    attack: Math.max(1, Math.round(m.attack * f)),
+    health: Math.max(1, Math.round(m.health * f)),
+  })));
+}
+
+/**
  * Build a Practice BOTS lobby: the live player at seat 0, plus seven authored omen seats all fielding the
  * difficulty-scaled board table. The bots read like a real table of opponents — each gets a random player-style
  * handle and a REAL hero portrait (owner ask 2026-08-24; the old "Bot N" labels + a hand-list of portrait ids
@@ -103,10 +142,21 @@ export function createPracticeBotLobby(seed: number, playerHeroId: string, diffi
       heroId: portraits[(seed + i) % Math.max(1, portraits.length)] ?? playerHeroId,
       kind: 'authored',
       seed: seed * 1000 + i + 1,
-      resolve: r.startingResolve,
-      armor: r.startingArmor,
+      // Each bot gets a slightly DIFFERENT board (±few %, deterministic per seat). Identical tables mirrored each
+      // other, so roughly half of every round's bot-vs-bot fights ended 0-0 draws and the table barely thinned —
+      // the real reason a winning player waited ~20+ rounds (owner ask 2026-08-25). A little variance makes those
+      // fights resolve, so the bots eliminate each other on a sane clock. The PLAYER still faces the same curve:
+      // the spread is small, and whichever seat they draw is within a few percent of the authored table.
+      authoredBoards: variedBoards(authoredBoards, i),
+      // Bot seats start on LESS health than the player (who keeps the full Resolve + Armor). Seven seats each
+      // soaking 45 was the last brake on length — the table had to absorb ~315 points before a winner existed.
+      // A shorter bot pool shortens the sandbox without making the PLAYER's own fights any easier, and the
+      // per-seat stagger keeps them from all falling on the same round.
+      resolve: Math.max(10, Math.round(r.startingResolve * BOT_HEALTH_MULT) - i),
+      armor: 0,
       alive: true,
-      authoredBoards,
+      authoredTierRamp: TIER_RAMP[difficulty],
+      botDamageMult: BOT_DAMAGE_MULT[difficulty],
     });
   }
   return { version: 1, seed, round: 1, seats, encounters: [], finished: false, rules: r };

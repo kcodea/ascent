@@ -37,6 +37,13 @@ export interface LobbySeatState {
    *  data so the seat stays serializable; `driverFor` builds an `authoredSeat` driver from it. Every authored
    *  seat in a tutorial lobby carries the SAME table, so the player faces the round's board whatever the pairing. */
   authoredBoards?: { attack: number; health: number }[][];
+  /** Authored seats only — climb one tavern tier every N rounds (capped at 6), which is what makes losing to
+   *  this seat actually cost Resolve (face damage = opponent tier + surviving minions). Absent = pinned tier 1,
+   *  which is what the tutorial wants. See `authoredTierFor`. */
+  authoredTierRamp?: number;
+  /** Practice-bot seats only — the difficulty damage multiplier applied to this table's seat-vs-seat fights
+   *  (and mirrored on the player's fight by `practiceBotDamageMult`). Absent everywhere else = 1. */
+  botDamageMult?: number;
   /** The seed its driver is rebuilt from. Unused for the player seat, whose board is the live run. */
   seed: number;
   resolve: number;
@@ -523,6 +530,10 @@ export function settleRunLobbyRound(lobby: RunLobby, playerResult: CombatResult)
   const eliminated: LobbySeatState[] = [];
   const hpBefore = new Map(lobby.seats.map((s) => [s.id, s.armor + s.resolve]));
   const cap = lossDamageCap(lobby.round);
+  // PRACTICE-BOT tables hit harder seat-to-seat (owner ask 2026-08-25). Read off the seats themselves —
+  // `botDamageMult` is stamped by `createPracticeBotLobby` — so the signature stays put and every other lobby
+  // (rated, practice-vs-players, tutorial) keeps a multiplier of exactly 1.
+  const seatDamageMult = lobby.seats.find((s) => s.botDamageMult)?.botDamageMult ?? 1;
 
   for (const [a, b] of pairs) {
     const playerSide = a.id === 's0' ? a : b.id === 's0' ? b : null;
@@ -551,8 +562,15 @@ export function settleRunLobbyRound(lobby: RunLobby, playerResult: CombatResult)
       const r = simulate(boardA.minions, boardB.minions, rng, CARD_INDEX,
         combatSide({ tier: boardA.tier }), combatSide({ tier: boardB.tier }));
       outcome = r.result;
-      dmgToA = Math.min(cap, r.playerDamage);
-      dmgToB = Math.min(cap, r.enemyDamage ?? 0);
+      // The SAME difficulty multiplier the player's fight uses (see `practiceBotDamageMult`). Applied to
+      // seat-vs-seat too, or the bot table whittles itself down at the old trickle rate and a WINNING player
+      // waits ~25 rounds for seven identical-board seats to eliminate each other (owner ask 2026-08-25).
+      // The round cap is the PLAYER's protection (how much one loss may cost a human); a bot-vs-bot fight has
+      // nobody to protect, and honouring it there was the real brake on the table thinning out — so a bot table
+      // resolves its own fights UNCAPPED.
+      const seatCap = seatDamageMult > 1 ? Infinity : cap;
+      dmgToA = Math.min(seatCap, Math.round(r.playerDamage * seatDamageMult));
+      dmgToB = Math.min(seatCap, Math.round((r.enemyDamage ?? 0) * seatDamageMult));
     }
 
     hit(a, dmgToA);

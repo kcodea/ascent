@@ -5,7 +5,7 @@
   "focus": "ARCHITECTURE ONLY — how the game is coded/structured. NEVER ask game-rules questions (see daily-prompt.md).",
   "difficulty": 1,
   "difficultyScale": "1 = gentlest (what is a function, what is a package). 5 = deep (trace an event through the architecture). Ramp only per the rules in daily-prompt.md.",
-  "totalQuizzes": 12,
+  "totalQuizzes": 13,
   "recentScores": [],
   "topics": {
     "what-is-a-function": { "asked": 6, "lastAsked": "2026-08-24" },
@@ -18,16 +18,16 @@
     "event-log-replay": { "asked": 6, "lastAsked": "2026-08-24" },
     "eslint-rules": { "asked": 5, "lastAsked": "2026-08-24" },
     "performance-memo": { "asked": 5, "lastAsked": "2026-08-24" },
-    "types-basics": { "asked": 5, "lastAsked": "2026-08-23" },
-    "immutability": { "asked": 5, "lastAsked": "2026-08-23" },
-    "reducer-run-state": { "asked": 5, "lastAsked": "2026-08-23" },
-    "zustand-store": { "asked": 5, "lastAsked": "2026-08-23" },
-    "event-bus": { "asked": 5, "lastAsked": "2026-08-23" },
-    "cards-in-sets": { "asked": 5, "lastAsked": "2026-08-23" },
-    "package-boundaries": { "asked": 5, "lastAsked": "2026-08-23" },
-    "effects-as-subscriptions": { "asked": 5, "lastAsked": "2026-08-23" },
-    "effect-timing-pipeline": { "asked": 5, "lastAsked": "2026-08-23" },
-    "testing-vitest": { "asked": 5, "lastAsked": "2026-08-23" }
+    "types-basics": { "asked": 6, "lastAsked": "2026-08-25" },
+    "immutability": { "asked": 6, "lastAsked": "2026-08-25" },
+    "reducer-run-state": { "asked": 6, "lastAsked": "2026-08-25" },
+    "zustand-store": { "asked": 6, "lastAsked": "2026-08-25" },
+    "event-bus": { "asked": 6, "lastAsked": "2026-08-25" },
+    "cards-in-sets": { "asked": 6, "lastAsked": "2026-08-25" },
+    "package-boundaries": { "asked": 6, "lastAsked": "2026-08-25" },
+    "effects-as-subscriptions": { "asked": 6, "lastAsked": "2026-08-25" },
+    "effect-timing-pipeline": { "asked": 6, "lastAsked": "2026-08-25" },
+    "testing-vitest": { "asked": 6, "lastAsked": "2026-08-25" }
   },
   "curriculum": [
     { "id": "what-is-a-function", "title": "What a function is", "hint": "Use simulate() in packages/core/src/combat/simulate.ts as the concrete example: inputs -> output.", "difficulty": 1 },
@@ -145,6 +145,14 @@
       "topics": ["what-is-a-function", "deterministic-sim", "seeded-rng", "sim-ui-decoupling", "monorepo-packages", "pure-functions", "data-vs-code", "event-log-replay", "eslint-rules", "performance-memo"],
       "scored": null,
       "note": "Still no score ever reported by Mike, so mastery/difficulty untouched (difficulty held at 1). Picked the 10 topics with the oldest lastAsked (2026-08-22, asked=5 — the group quiz #4/#6/#8/#10 previously covered) since the types-basics/... group (lastAsked 2026-08-23) is now more recent. Re-read the real source for each topic to find angles genuinely new vs #1/#2/#4/#6/#8/#10 (rng.ts's next() closing over makeRng()'s local `a` variable as a closure example — a function with zero parameters that still varies its output each call; CLAUDE.md's four determinism payoffs — replays, shareable seeds, daily runs, cheap balance sims — read as all resting on the same one guarantee rather than four separate features; rng.ts's int()'s Math.floor(next() * maxExclusive) reasoned through as truncation-to-a-valid-index, not rounding; the sim/UI split reasoned through a laggy-animation thought experiment — a stuttering frame rate never changes who wins, only how the fixed win gets watched; ui/package.json's react/zustand/gsap/pixi dependency list, absent from core/content/sim, as the reason the whole engine can run headless in plain Node; the pure-function definition split into its two distinct halves (same-output vs no-side-effects) with simulate()'s no-mutation/no-DOM behavior mapped to the side-effects half specifically; a balance script's ability to read every CardDef's plain-object fields with zero execution, contrasted with behavior locked inside class methods; the events array's plain-data/serializable nature framed as what makes saving-and-replaying-later possible, distinct from the previously-used 'why an array not just the winner' and 'why the initial snapshot' angles; eslint.config.mjs's `files:` glob array on banMathRandom read as the actual scoping mechanism that excludes packages/ui, rather than the ban's rationale or its custom message; and CLAUDE.md's box-shadow-vs-opacity ::before glow rule reasoned through as paint-property-repaints-every-frame vs compositor-only, an angle not yet used against the prior worst-vs-mean-frame and refresh-rate-threshold questions). Checked the #1/#2/#4/#6/#8/#10 archived HTML first to confirm no repeated angle."
+    },
+    {
+      "date": "2026-08-25",
+      "quizNumber": 13,
+      "difficulty": 1,
+      "topics": ["types-basics", "immutability", "reducer-run-state", "zustand-store", "event-bus", "cards-in-sets", "package-boundaries", "effects-as-subscriptions", "effect-timing-pipeline", "testing-vitest"],
+      "scored": null,
+      "note": "Still no score ever reported by Mike, so mastery/difficulty untouched (difficulty held at 1). Picked the 10 topics with the oldest lastAsked (2026-08-23, asked=5 — the group quiz #3/#5/#7/#9/#11 previously covered) since the what-is-a-function/... group (lastAsked 2026-08-24) is now more recent. Re-read the real source for each topic to find angles genuinely new vs #3/#5/#7/#9/#11 (types.ts's EffectDef.align?: 'dawn'|'dusk' optional-property syntax, explained via what alignAllows() does with a missing align; reducer.ts's conjurePlainCopy spreading keywords: [...def.keywords] instead of assigning def.keywords directly, reasoned through as reference-vs-copy on array assignment rather than the CardDef-mutation angle used before; spendGold's foodForGoldTick while-loop banking remainder across a single big Gold spend, traced through a concrete 45-Gold/20-per example to show why an if would undercount; store.ts's top-level `if (OPPONENT_POOL.length === 0) registerOpponents(...)` read as a module-body side effect that runs once at import time, guarded for idempotency — a fresh module-execution angle distinct from the prior 'which package to suspect' and 'what the store is for' framings; events.ts's CombatBus.on() Map<GameEvent, EventHandler[]> get-or-create pattern, explained as multiple-subscribers-per-event, not yet used against the prior snapshot-copy/iteration-guard/payload-unknown angles; sets.ts's SET2_DROPPED_SPELLS built as a real `new Set<string>(...)` and reasoned through as O(1) .has() vs array .includes(), a genuinely different CS-concept angle than the prior poolFor Map-memoization and SET1_BEASTS_IN_SET2 allowlist questions; CLAUDE.md's ownership-map 'Shared boundary (coordinate before changing)' callout on types.ts, a governance/collaboration facet of package-boundaries distinct from all five prior questions on this topic, which were all about the exports field mechanism specifically; EffectDef's params?: Record<string, unknown> field reasoned through as the per-card config bag that parameterizes a shared factory (e.g. scDamage), a different EffectDef field than the prior do/EffectFactoryIdSchema questions; the EffectFactoryId union's comment-only combat-time/recruit-time zone split reasoned through as unenforced by the type system — actual enforcement lives in which dispatcher reads a given `do` id — a meta-level angle on effect-timing-pipeline not used before; and rng.test.ts's 'is reproducible for the same seed' test reasoned through as proving determinism specifically (two live sequences compared to each other) while NOT proving statistical quality, contrasted with an always-returns-0 RNG that would still pass it — a different specific test and a different reasoning task than the prior determinism/golden/byte-identical/real-expect() questions). Checked the #3/#5/#7/#9/#11 archived HTML first to confirm no repeated angle."
     }
   ],
   "notes": "2026-08-15: refocused to ARCHITECTURE ONLY per Mike — removed game-rules topics (shop-vs-combat, auto-battler-loop) and expanded the code-architecture curriculum. Do not quiz on game rules; see the hard constraint in daily-prompt.md."

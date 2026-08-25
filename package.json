@@ -45,6 +45,7 @@
     "sfx:import": "tsx packages/tools/src/sfx-import.ts",
     "sfx:manifest": "tsx packages/tools/src/sfx-manifest.ts",
     "dump-cards": "tsx packages/tools/src/dump-cards.ts",
+    "tutorial:sync": "tsx packages/tools/src/tutorial-copy-sync.ts",
     "optimize-art": "node scripts/optimize-art.mjs",
     "task": "node scripts/worktree.mjs new",
     "task:list": "node scripts/worktree.mjs list",

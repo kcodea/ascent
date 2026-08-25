@@ -14,6 +14,8 @@ import type { AuthoredOmen } from './tutorialSeats';
 import { DEFAULT_LOBBY_RULES } from './lobby';
 import type { LobbyRules } from './types';
 import type { LobbySeatState, RunLobby } from './runLobby';
+import { playableHeroes } from '../heroes';
+import { handleKeyOf, uniqueHandleFor } from './handles';
 
 /** A tuple shorthand for authoring — `[attack, health]`. */
 type AH = [number, number];
@@ -73,12 +75,13 @@ export function practiceBotBoards(difficulty: BotDifficulty, rounds: number = DE
   return Array.from({ length: Math.max(1, rounds) }, (_, i) => practiceBotBoard(i + 1, difficulty));
 }
 
-/** Cosmetic portraits for the seven bot seats — a stable spread so the rail reads like a real table rather than
- *  seven identical faces. Portrait only: an authored omen seat never plays a hero. */
-const BOT_PORTRAITS = ['aster', 'bront', 'kael', 'odelle', 'tamsin', 'jenna', 'vale'];
-
-/** Build a Practice BOTS lobby: the live player at seat 0, plus seven authored omen seats all fielding the
- *  difficulty-scaled board table. Mirrors `createTutorialLobby` but with varied portraits + "Bot N" labels. */
+/**
+ * Build a Practice BOTS lobby: the live player at seat 0, plus seven authored omen seats all fielding the
+ * difficulty-scaled board table. The bots read like a real table of opponents — each gets a random player-style
+ * handle and a REAL hero portrait (owner ask 2026-08-24; the old "Bot N" labels + a hand-list of portrait ids
+ * that were mostly not real heroes rendered blank icons). Portrait + name are cosmetic: an authored omen seat
+ * never plays a hero. Deterministic from the seed, so a restored/replayed run seeds the same faces and names.
+ */
 export function createPracticeBotLobby(seed: number, playerHeroId: string, difficulty: BotDifficulty, rules: Partial<LobbyRules> = {}): RunLobby {
   const r: LobbyRules = { ...DEFAULT_LOBBY_RULES, ...rules };
   const authoredBoards = practiceBotBoards(difficulty, r.maxRounds);
@@ -86,12 +89,18 @@ export function createPracticeBotLobby(seed: number, playerHeroId: string, diffi
     id: 's0', label: 'You', heroId: playerHeroId, kind: 'player', seed,
     resolve: r.startingResolve, armor: r.startingArmor, alive: true,
   }];
+  // REAL hero ids so `heroArt(seat.heroId)` resolves to an actual portrait (a fake id renders a broken image).
+  // The player's own hero is excluded so a bot never wears the player's face.
+  const portraits = playableHeroes().map((h) => h.id).filter((id) => id !== playerHeroId);
   const count = Math.max(1, r.seatCount - 1);
+  const taken = new Set<string>(['you']);
   for (let i = 0; i < count; i++) {
+    const label = uniqueHandleFor(handleKeyOf(`practicebot|${seed}|${i}`), taken);
+    taken.add(label.toLowerCase());
     seats.push({
       id: `s${i + 1}`,
-      label: `Bot ${i + 1}`,
-      heroId: BOT_PORTRAITS[i % BOT_PORTRAITS.length]!,
+      label,
+      heroId: portraits[(seed + i) % Math.max(1, portraits.length)] ?? playerHeroId,
       kind: 'authored',
       seed: seed * 1000 + i + 1,
       resolve: r.startingResolve,

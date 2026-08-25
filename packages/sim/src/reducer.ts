@@ -4,7 +4,7 @@ import { surfaceKeyForRune, surfaceKeyForQuest, CARD_INDEX, EPIC_RUNES, QUEST_IN
 import { sideFromSnapshot } from './boardSide';
 import { poolOf, setIdOf } from './cardPool';
 import { ACE_DISCOUNT_MAX_TIER, ACE_TIER_DISCOUNT, CONFIG, INDY_GILD_RECHARGE_GOLD, KESHI_CROWN_THRESHOLD, maxTierFor, hasTier7Access } from './config';
-import { lobbyOpponentBoard, settleRunLobbyRound, playerEliminated } from './lobby/runLobby';
+import { lobbyOpponentBoard, settleRunLobbyRound, playerEliminated, practicePlayerPlacement } from './lobby/runLobby';
 import { accumulateContribution, tallyCombat } from './contribution';
 import { rollShop, topUpTavern, returnToPool, takeFromPool, rollCiaEnchants } from './shop';
 import { generateQuestOffer, questOfferPlan } from './quests';
@@ -3889,14 +3889,21 @@ function advanceCombat(s: RunState): void {
   // needs a run length. With `health: 'normal'` the run ends by real elimination / the lobby finishing, so skip
   // them and let it run the full lobby (owner ask 2026-08-24).
   const practiceInvulnerable = s.mode === 'practice' && s.practiceConfig?.health !== 'normal';
-  if (practiceInvulnerable && s.wave >= CONFIG.courseRounds) {
+  // The invulnerable player never earns an elimination placement (and the identical-board bots stalemate), so
+  // stamp a WIN-BASED placement onto their seat as the run ends — else the end screen falls back to "alive
+  // count" and a dominant run reads as dead-last (owner bug 2026-08-24).
+  const endPractice = (): void => {
     s.phase = 'gameover';
+    if (s.lobby) s.lobby.seats[0]!.placement = practicePlayerPlacement(s.lobby);
+  };
+  if (practiceInvulnerable && s.wave >= CONFIG.courseRounds) {
+    endPractice();
     return;
   }
   // PRACTICE-lobby curtain: the player can't die (invulnerable), so the run ends after round 15 unless the
   // lobby already finished (every bot dead = the practice "win", handled by the lobby check below).
   if (practiceInvulnerable && s.lobby && !s.lobby.finished && s.wave >= 15) {
-    s.phase = 'gameover';
+    endPractice();
     return;
   }
   // A lobby seat's Resolve is the LOBBY's to manage; the run's own copy is bookkeeping and must not end it.
@@ -3904,6 +3911,9 @@ function advanceCombat(s: RunState): void {
   if (s.lobby) {
     if (playerEliminated(s.lobby) || s.lobby.finished) {
       s.phase = 'gameover';
+      // An invulnerable practice run that ends here (its bot table actually resolved) still needs the win-based
+      // placement rather than the just-cleared seat placement.
+      if (practiceInvulnerable) s.lobby.seats[0]!.placement = practicePlayerPlacement(s.lobby);
       return;
     }
   } else if (s.resolve <= 0) {

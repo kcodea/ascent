@@ -64,3 +64,17 @@ export function uniqueHandleFor(key: number, taken: ReadonlySet<string>): string
   }
   return `${handleFor(key)}${key % 1000}`; // exhausted the tries — stay deterministic rather than loop
 }
+
+/**
+ * A collision-free variant of `base` for a seat that would otherwise share a name — the SAME real player holding
+ * two seats. Prefixes a deterministic adjective ("Sneaky Orangez", "Groovy Orangez") rather than the old numeric
+ * suffix ("Orangez (2)"), which read as debug output (owner ask 2026-08-24). Walks the adjective list from a
+ * seeded start so each duplicate gets a different word; bounded fallback keeps it deterministic if every
+ * adjective is somehow taken. */
+export function adjectiveHandle(base: string, key: number, taken: ReadonlySet<string>): string {
+  for (let i = 0; i < ADJ.length; i++) {
+    const name = `${ADJ[(key + i) % ADJ.length]!} ${base}`;
+    if (!taken.has(name.toLowerCase())) return name;
+  }
+  return `${ADJ[key % ADJ.length]!} ${base} ${key % 100}`;
+}

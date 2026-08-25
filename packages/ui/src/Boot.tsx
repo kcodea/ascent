@@ -19,8 +19,9 @@ import { preloadAllArt, ART_COUNT } from './art';
  * and the image dissolves off it. Swapping one for the other (the old behaviour) is what made it a cut.
  */
 const HARD_CAP_MS = 20000;
-/** The fake load duration (owner ask 2026-08-24): the splash is held up for at least this long so the 3.5s CSS
- *  progress bar always runs its full course, even when art is already HTTP-cached and the real preload is instant. */
+/** The fake load duration (owner ask 2026-08-24): the splash is held up for at least this long so the progress
+ *  bar always runs its full course, even when art is already HTTP-cached and the real preload is instant. The
+ *  bar fills over 3s (index.html) and this 3.5s hold leaves it sitting full for ~0.5s before the dissolve. */
 const MIN_SPLASH_MS = 3500;
 /** Must match the `#bootsplash` opacity transition in index.html (900ms — the owner asked for a gentle
  *  dissolve into the menu rather than a quick wipe). */
@@ -70,7 +71,7 @@ export function Boot({ children }: { children: ReactNode }): React.ReactElement 
     if (!ready) return;
     const el = splashEl();
     if (!el) return;
-    // The bar has already filled on its own 3.5s CSS transition — nothing to finish here.
+    // The bar has already filled on its own 3s CSS transition (and sat full for ~0.5s) — nothing to finish here.
     // HOLD until the fade-IN has finished. With art HTTP-cached the gate can resolve in a few hundred ms —
     // well inside the 700ms in-fade — and cutting to the out-fade there would snatch a half-visible image
     // away. `inAt` is stamped by the inline reveal script; absent (image still loading) we wait the full

@@ -1705,10 +1705,12 @@ export function Recruit() {
 
   // Once the combat replay finishes, settle the outcome (damage + carry-backs) right here in the combat
   // view — so the Resolve hit lands and is visible before the "End Combat" button returns you to the shop.
-  // On a LOSS we defer settle to the loss-damage sequence below (so Resolve drops on the blast impact, not
-  // instantly); win/draw settle immediately.
+  // BOTH decisive outcomes defer settle to the hero-strike sequence below, so the health lands on the blow
+  // (owner ask 2026-08-25 — this eager settle on wins is exactly what kept the player's hero from ever
+  // striking: the sequence guards on `combatSettled`, and this fired first). Only a DRAW — no winner, no
+  // swing — settles immediately.
   useEffect(() => {
-    if (fighting && replay.done && !run.combatSettled && replay.result !== 'lose') dispatch({ type: 'settleCombat' });
+    if (fighting && replay.done && !run.combatSettled && replay.result === 'draw') dispatch({ type: 'settleCombat' });
   }, [fighting, replay.done, run.combatSettled, replay.result, dispatch]);
 
   // REPLAY VIEWER (v2): bridge the arena's animation-done flag to the store, so the replay player knows when
@@ -1898,8 +1900,15 @@ export function Recruit() {
         // No portraits to swing (a non-lobby run has no foe frame) → still land the consequence on time.
         if (!tl) { land(); dropZ(); }
         // Retire the pill + drop the raised z on the swing's ACTUAL completion (plus the tuner's settle) rather
-        // than only on the outer timer — at slow swing speeds the guessed total lands mid-blow.
-        else tl.eventCallback('onComplete', () => { dropZ(); timers.push(window.setTimeout(() => setPill(null), duel.settleMs)); });
+        // than only on the outer timer — at slow swing speeds the guessed total lands mid-blow. CHAIN onto the
+        // timeline's existing onComplete, never replace it: `eventCallback` SETS the one slot, and playLunge's
+        // own completion (restore the CSS transition + clearProps transform/zIndex) lives there — replacing it
+        // left the attacker wearing GSAP's inline z-index 12 forever, which is what kept the portrait painted
+        // over its name and health after settling (owner report 2026-08-25).
+        else {
+          const lungeDone = tl.eventCallback('onComplete');
+          tl.eventCallback('onComplete', () => { lungeDone?.(); dropZ(); timers.push(window.setTimeout(() => setPill(null), duel.settleMs)); });
+        }
       }, duel.pillHold));
     }, tallyEnd));
 

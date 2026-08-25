@@ -93,9 +93,13 @@ function demo(side: 'player' | 'opp'): void {
         onImpact: () => { /* the struck portrait deliberately does not react — see styles.css */ },
       });
       // Retire on the swing's ACTUAL completion, plus the tuner's settle — a guessed timeout can fire mid-swing
-      // and yank the foe portrait out from under the blow (seen while wiring this).
-      if (tl) tl.eventCallback('onComplete', () => window.setTimeout(done, cfg.settleMs));
-      else done();
+      // and yank the foe portrait out from under the blow (seen while wiring this). CHAIN onto the timeline's
+      // existing onComplete (playLunge's cleanup — clearProps transform/zIndex — lives there); replacing it
+      // left the attacker at inline z-index 12, painted over its own name/health after settling.
+      if (tl) {
+        const lungeDone = tl.eventCallback('onComplete');
+        tl.eventCallback('onComplete', () => { lungeDone?.(); window.setTimeout(done, cfg.settleMs); });
+      } else done();
     }, cfg.pillHold);
   });
 }

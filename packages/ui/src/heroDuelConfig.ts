@@ -50,28 +50,30 @@ export interface HeroDuelConfig {
 
 // Mirror the styles.css fallbacks. Timings are the shipped feel; placement is the anchor that reads correctly
 // against the board frame at the default stage scale.
+// Owner-tuned baseline (2026-08-25): the values the owner dialed in and asked to ship as the defaults. Keep
+// the styles.css `--hd-*` fallbacks in sync with these (they mirror this table).
 const DEFAULTS: HeroDuelConfig = {
-  oppScale: 1,
+  oppScale: 2.5,
   oppX: 0,
   oppY: 0,
-  nameScale: 1,
+  nameScale: 0.52,
   nameX: 0,
-  nameY: 0,
-  hpScale: 1,
+  nameY: 22,
+  hpScale: 0.68,
   hpX: 0,
-  hpY: 0,
-  pillScale: 1,
-  pillX: 0,
-  pillY: 0,
-  pillPlayerScale: 1,
-  pillPlayerX: 0,
-  pillPlayerY: 0,
+  hpY: -23,
+  pillScale: 0.72,
+  pillX: -60,
+  pillY: -16,
+  pillPlayerScale: 0.55,
+  pillPlayerX: 37,
+  pillPlayerY: -6,
   tallyStagger: 130,
   tallyFly: 430,
   pillHold: 260,
-  strikeSpeed: 1,
+  strikeSpeed: 1.5,
   impactPower: 1,
-  settleMs: 620,
+  settleMs: 420,
 };
 
 export const HERO_DUEL_RANGES: Record<keyof HeroDuelConfig, [number, number, number]> = {

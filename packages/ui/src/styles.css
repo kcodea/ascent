@@ -8906,7 +8906,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   left: calc(var(--bar-x) + 0.85 * var(--gw) + var(--rfb-x, -123px) * var(--scale));
   top: calc(var(--bar-y) + var(--rfb-y, 270px) * var(--scale));
   /* The ⚔️ Hero Duel tuner's placement rides the WRAPPER, never the body — the body is what GSAP lunges. */
-  transform: translate(calc(-50% + var(--hd-opp-x, 0px)), calc(-50% + var(--hd-opp-y, 0px))) scale(var(--hd-opp-s, 1));
+  transform: translate(calc(-50% + var(--hd-opp-x, 0px)), calc(-50% + var(--hd-opp-y, 0px))) scale(var(--hd-opp-s, 2.5));
   z-index: 42;                      /* just above the refresh button it lands on */
   pointer-events: none;
 }
@@ -8921,7 +8921,11 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 }
 /* THE LUNGE TARGET — the portrait ONLY. Transform-CLEAN (no base transform, no drop-in), so the post-combat
    hero strike's GSAP owns it without fighting anything, and the name/health above and below stay put. */
-.combatopp-body { display: block; }
+.combatopp-body { display: block; position: relative; z-index: 0; }
+/* Name + health sit IN FRONT of the portrait, so the scaled-up face settles UNDER both (owner report
+   2026-08-25: it was overlapping the name). During a strike the whole `.combatopp` is lifted, and the face
+   lunges away from this stack anyway, so this only governs the resting/settled overlap. */
+.combatopp-name, .combatopp-hp { position: relative; z-index: 2; }
 @keyframes combatoppdrop {
   from { opacity: 0; transform: translateY(-46px) scale(0.86); }
   to   { opacity: 1; transform: none; }
@@ -8938,7 +8942,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   background: linear-gradient(180deg, #fff, #f3ead4); border: 2px solid var(--gold); border-radius: 999px;
   padding: calc(2 * var(--u)) calc(13 * var(--u)); white-space: nowrap;
   box-shadow: 0 calc(2 * var(--u)) calc(6 * var(--u)) -2px var(--shadow);
-  transform: translate(var(--hd-name-x, 0px), var(--hd-name-y, 0px)) scale(var(--hd-name-s, 1));
+  transform: translate(var(--hd-name-x, 0px), var(--hd-name-y, 22px)) scale(var(--hd-name-s, 0.52));
 }
 /* Opponent HEALTH — the SAME pill the PLAYER wears in the HUD (owner ask 2026-08-25): the dark gradient box,
    dark-gold border, threat-pink heart and lightened number from `.statusbar .hero .hpbox`, verbatim. */
@@ -8949,7 +8953,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   padding: calc(6 * var(--u)) calc(14 * var(--u));
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 2px 6px rgba(0, 0, 0, 0.3);
   font-family: var(--font-ui); font-weight: 800; font-size: calc(24 * var(--u)); line-height: 1; color: #ff9db0;
-  transform: translate(var(--hd-hp-x, 0px), var(--hd-hp-y, 0px)) scale(var(--hd-hp-s, 1));
+  transform: translate(var(--hd-hp-x, 0px), var(--hd-hp-y, -23px)) scale(var(--hd-hp-s, 0.68));
 }
 .combatopp-hp svg { flex: none; width: calc(24 * var(--u)); height: calc(24 * var(--u)); color: var(--threat); }
 .combatopp-armor { margin-left: calc(3 * var(--u)); font-size: calc(17 * var(--u)); color: #b7c2cf; }
@@ -8971,8 +8975,8 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
   animation: heroatkpop 260ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
-.hero-atk-player { --pill-s: var(--hd-pill-player-s, 1); --pill-x: var(--hd-pill-player-x, 0px); --pill-y: var(--hd-pill-player-y, 0px); }
-.hero-atk-opp    { --pill-s: var(--hd-pill-opp-s, 1);    --pill-x: var(--hd-pill-opp-x, 0px);    --pill-y: var(--hd-pill-opp-y, 0px); }
+.hero-atk-player { --pill-s: var(--hd-pill-player-s, 0.55); --pill-x: var(--hd-pill-player-x, 37px); --pill-y: var(--hd-pill-player-y, -6px); }
+.hero-atk-opp    { --pill-s: var(--hd-pill-opp-s, 0.72); --pill-x: var(--hd-pill-opp-x, -60px); --pill-y: var(--hd-pill-opp-y, -16px); }
 @keyframes heroatkpop {
   from { opacity: 0; transform: translateX(-50%) scale(calc(var(--pill-s, 1) * 0.4)); }
   to   { opacity: 1; transform: translateX(-50%) scale(var(--pill-s, 1)); }

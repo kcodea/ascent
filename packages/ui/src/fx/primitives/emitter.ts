@@ -1,4 +1,8 @@
 import { Particle, Shader, type ParticleContainer, type Texture } from 'pixi.js';
+import { BLUR_PARAM_SPECS } from '../blurFilter';
+import { FilterStack, filterLabSpecs } from '../filterStack';
+import { FILTERS } from '../filterRegistry';
+import { ContainerTransform, TRANSFORM_PARAM_SPECS } from '../transformEnvelope';
 import type { FxParamSpecs, ParamsOf } from '../params';
 import type { FxContext, FxInstance, FxPrimitive } from '../primitive';
 import { PALETTE_PRESETS, paletteTuple } from '../palettes';
@@ -40,6 +44,10 @@ const SPECS = {
     kind: 'slider', label: 'Rate', group: 'Emit', min: 5, max: 1200, step: 5, default: 80, essential: true,
     axis: 'intensity',
     help: 'How many motes are born each second. The stream runs for as long as the layer does, so this is its density — 80 is a steady feed, the top of the range a solid column. Life decides how many are alive at once: rate x life.',
+  },
+  rateCurve: {
+    kind: 'curve', label: 'Rate / time', group: 'Emit', default: [[0, 1], [1, 1]], vMax: 2, presets: CURVE_PRESETS,
+    help: 'Multiplies the emission Rate over the effect\'s life (normalised by Life; 0 = it starts, 1 = one Life-window later, then holds). Flat 1 = a steady stream. A rising curve fades the stream in; a falling one bursts hard then tapers; a bump gives a puff-then-settle. Does nothing at flat 1.',
   },
   life: {
     kind: 'slider', label: 'Life', group: 'Emit', min: 200, max: 8000, step: 10, default: 700, essential: true,
@@ -258,6 +266,9 @@ const SPECS = {
     enabledWhen: { param: 'erode', above: 0 },
     help: 'How well a mote resists Erode — raise it and the noise takes smaller bites so motes read solid, lower it and the same Erode chews them down to wisps. Does nothing while Erode is 0.',
   },
+  ...BLUR_PARAM_SPECS,
+  ...filterLabSpecs(FILTERS),
+  ...TRANSFORM_PARAM_SPECS,
 } satisfies FxParamSpecs;
 
 type EmitterParams = ParamsOf<typeof SPECS>;
@@ -420,6 +431,11 @@ class EmitterInstance implements FxInstance<EmitterParams> {
   // burst.ts's constructor comment on call order, so gating here would only ever save a fraction of a
   // frame at the cost of a second piece of state to reason about).
   private emitElapsedMs = 0;
+  // The filter lab stack (core Blur + every toggle-gated pixi-filter) + the clock its over-time curves ride
+  // (ms since first update, normalised over Life).
+  private readonly filters: FilterStack;
+  private readonly transform: ContainerTransform;
+  private blurElapsedMs = 0;
   // Reused scratch object for the emit-budget accumulation — `advanceEmitBudget` (kept pure below for the
   // test suite) would otherwise allocate a fresh `{ budget, spawnCount }` literal every single frame. This
   // mirrors `ribbon.ts`'s cached `shape` scratch object: same values, written in place instead of returned.
@@ -448,6 +464,8 @@ class EmitterInstance implements FxInstance<EmitterParams> {
     });
     this.shader = layer.shader;
     this.particles = layer.pc;
+    this.filters = new FilterStack(ctx.container, FILTERS);
+    this.transform = new ContainerTransform(ctx.container);
   }
 
   setHead(x: number, y: number): void {
@@ -464,6 +482,12 @@ class EmitterInstance implements FxInstance<EmitterParams> {
 
     const dtSec = dtMs / 1000;
     const p = this.params;
+    // The filter lab + transform envelope over this emitter's progress (elapsed / Life): the stack owns filter
+    // lifecycles; the transform scales/spins/drifts the whole stream about its origin. Disabled/identity ~free.
+    this.blurElapsedMs += dtMs;
+    const prog = p.life > 0 ? Math.min(1, this.blurElapsedMs / p.life) : 1;
+    this.filters.frame(p, prog, dtSec);
+    this.transform.frame(p, prog, dtSec, this.originX, this.originY);
     // Anchor velocity (px/sec) for velocity inheritance, from the origin's frame-over-frame delta. Zero
     // until we hold two real anchor samples (guards a spurious spike from diffing the (0,0) default). With
     // inheritVel = 0 this is never read, so it can't affect the default look.
@@ -535,7 +559,9 @@ class EmitterInstance implements FxInstance<EmitterParams> {
     //    we stop spawning entirely (existing motes just fade out under step 1 above) rather than streaming
     //    for the whole Fire. `emitElapsedMs` ticks below regardless of whether we actually spawn this frame.
     const bs = this.budgetState;
-    const b = bs.budget + p.rate * dtSec;
+    // The Rate / time curve rides the same progress the filter/transform envelopes do (elapsed / Life), so
+    // emission can fade in, burst-then-taper, or pulse. Flat 1 (default) → `p.rate` unchanged.
+    const b = bs.budget + p.rate * sampleCurve(p.rateCurve, prog) * dtSec;
     bs.spawnCount = Math.floor(b);
     bs.budget = b - bs.spawnCount;
     const emitting = this.headSet && !this.stopped && (!this.oneShot || withinEmitWindow(this.emitElapsedMs, p.life));
@@ -592,6 +618,7 @@ class EmitterInstance implements FxInstance<EmitterParams> {
     // destroys our owning container with `{ children: true }` immediately after this returns, which would
     // otherwise take the pooled pair down with it. Shape textures are shared and cached per-renderer in
     // `shapeTextures.ts`; nothing here touches them.
+    this.filters.destroy();
     releaseParticleLayer({ shader: this.shader, pc: this.particles });
   }
 

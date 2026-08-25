@@ -1,4 +1,8 @@
 import { Particle, Shader, type ParticleContainer, type Texture } from 'pixi.js';
+import { BLUR_PARAM_SPECS } from '../blurFilter';
+import { FilterStack, filterLabSpecs } from '../filterStack';
+import { FILTERS } from '../filterRegistry';
+import { ContainerTransform, TRANSFORM_PARAM_SPECS } from '../transformEnvelope';
 import type { FxParamSpecs, ParamsOf } from '../params';
 import type { FxContext, FxInstance, FxPrimitive } from '../primitive';
 import { PALETTE_PRESETS, paletteTuple } from '../palettes';
@@ -272,6 +276,16 @@ const SPECS = {
     kind: 'toggle', label: 'Orient to velocity', group: 'Motion', default: false,
     help: 'Point each particle along its direction of travel (good for shards, arrows, and imported directional art). Overrides spin/rotation while on.',
   },
+  spinMul: {
+    kind: 'slider', label: 'Spin', group: 'Motion', min: 0, max: 4, step: 0.05, default: 1,
+    enabledWhen: { param: 'orientToVelocity', is: false },
+    help: 'Multiplies each shard\'s tumble (the base is a random ±spin per shard, so shards spin both ways at varied rates). 1 = unchanged, 0 = no spin, higher = faster tumbling. Ignored while Orient to velocity is on.',
+  },
+  spinCurve: {
+    kind: 'curve', label: 'Spin / life', group: 'Motion', default: [[0, 1], [1, 1]], vMax: 2, presets: CURVE_PRESETS,
+    enabledWhen: { param: 'orientToVelocity', is: false },
+    help: 'Scales the tumble over each shard\'s life (0 = birth, 1 = death). Flat 1 = steady spin; a falling curve winds the tumble down as shards die, a rising one spins them up. Ignored while Orient to velocity is on.',
+  },
 
   turbulence: {
     kind: 'slider', label: 'Turbulence', group: 'Physics', min: 0, max: 2000, step: 5, default: 0, axis: 'scale',
@@ -420,6 +434,7 @@ const SPECS = {
     kind: 'slider', label: 'Glow', group: 'Style', min: 0, max: 1, step: 0.01, default: 0.25,
     help: 'A soft halo of light behind each shard, tinted by the palette\'s core colour. 0 leaves them crisp; higher makes the spray bloom and bleed into what it crosses.',
   },
+  ...BLUR_PARAM_SPECS,
 
   noiseScale: {
     kind: 'slider', label: 'Noise scale', group: 'Texture', min: 0.5, max: 20, step: 0.1, default: 6,
@@ -448,6 +463,10 @@ const SPECS = {
     enabledWhen: { param: 'erode', above: 0 },
     help: 'How well a shard resists Erode — raise it and the noise takes smaller bites so shards read solid, lower it and the same Erode chews them down to wisps. Does nothing while Erode is 0.',
   },
+  // The FILTER LAB: every pixi-filters post-process as a toggle-gated group (off by default → free). Burst is
+  // the experimental primitive that carries the whole stack; the other primitives keep just the shared Blur.
+  ...filterLabSpecs(FILTERS),
+  ...TRANSFORM_PARAM_SPECS,
 } satisfies FxParamSpecs;
 
 type BurstParams = ParamsOf<typeof SPECS>;
@@ -488,6 +507,11 @@ interface LiveParticle {
 
 class BurstInstance implements FxInstance<BurstParams> {
   private readonly pc: ParticleContainer;
+  // The FILTER LAB stack (core Blur + every toggle-gated pixi-filter), on this primitive's OWN overlay
+  // container — off the pooled `pc`, whose `filters` the layer pool resets between users.
+  private readonly filters: FilterStack;
+  // The whole-effect TRANSFORM envelope (scale/spin/drift about the head), on the same container.
+  private readonly transform: ContainerTransform;
   private readonly renderer: FxContext['renderer'];
   private texture: Texture;
   private readonly shader: Shader;
@@ -510,6 +534,8 @@ class BurstInstance implements FxInstance<BurstParams> {
   // constructor comment below for why we can't just emit on construction.
   private headSet = false;
   private firstEmitDone = false;
+  // ms since this burst first emitted — the clock the Blur / time envelope rides (normalised by base Life).
+  private effectElapsed = 0;
   // True when this instance was spawned for a one-shot Fire (see FxContext.oneShot). Fires exactly the one
   // wave gated by `firstEmitDone` above and never re-fires on `interval` — the interval only drives re-firing
   // for the continuous workbench-loop preview.
@@ -555,6 +581,8 @@ class BurstInstance implements FxInstance<BurstParams> {
     });
     this.shader = layer.shader;
     this.pc = layer.pc;
+    this.filters = new FilterStack(ctx.container, FILTERS);
+    this.transform = new ContainerTransform(ctx.container);
     // Deliberately no emit here. `headX/headY` default to (0, 0) until the first real `setHead()` call,
     // and the real caller (`FxPlayer.update` → this instance's `update()`, THEN `FxPlayer.setHead` →
     // this instance's `setHead()` — see Workbench.tsx's ticker, which calls `p.update(dtMs)` before
@@ -681,6 +709,13 @@ class BurstInstance implements FxInstance<BurstParams> {
 
     const dtSec = dtMs / 1000;
     const p = this.params;
+    // The filter lab + transform envelope over this burst's timeline progress (elapsed / base Life): the stack
+    // owns every filter's create/retime/destroy; the transform scales/spins/drifts the whole burst about its
+    // head. Disabled/identity cost ~nothing; the over-time curves ride this progress.
+    if (this.firstEmitDone) this.effectElapsed += dtMs;
+    const prog = p.life > 0 ? Math.min(1, this.effectElapsed / p.life) : 1;
+    this.filters.frame(p, prog, dtSec);
+    this.transform.frame(p, prog, dtSec, this.headX, this.headY);
     // Anchor velocity (px/sec) for velocity inheritance, from the head's frame-over-frame delta. The ticker
     // calls update() BEFORE setHead() each frame, so headX/headY here are last frame's anchor position;
     // lastHeadX/Y are the frame before. Zero until we have two real head samples (guards the spurious spike
@@ -755,7 +790,10 @@ class BurstInstance implements FxInstance<BurstParams> {
       // `resolveParticleRotation` — with the toggle off this is exactly `rotation += spin * dtSec`, the
       // expression that used to be inlined here). Reads lp.vx/lp.vy AFTER this frame's gravity/drag/
       // turbulence, so the sprite tracks the heading it is actually flying on right now.
-      particle.rotation = resolveParticleRotation(particle.rotation, lp.vx, lp.vy, orient, lp.spin, dtSec);
+      // `Spin` (spinMul) scales the shard's base tumble; `Spin / life` shapes it over the shard's age. Both
+      // default to a no-op (×1), so an untouched burst tumbles exactly as before. Ignored when `orient` is on
+      // (resolveParticleRotation drops the spin arg entirely then).
+      particle.rotation = resolveParticleRotation(particle.rotation, lp.vx, lp.vy, orient, lp.spin * p.spinMul * sampleCurve(p.spinCurve, lifeT), dtSec);
 
       // Built-in fade (authored by `fade` — at its default of 2 `burstFadeEnvelope` returns the literal
       // `frac * frac` this line used to inline, so the default is byte-identical), times the explicit
@@ -830,6 +868,9 @@ class BurstInstance implements FxInstance<BurstParams> {
   }
 
   destroy(): void {
+    // The filter stack (if any live filters) is OURS to free — the pool only resets the pooled `pc`'s filters,
+    // and each filter is a GPU resource. Detach + destroy them before the player tears the container down.
+    this.filters.destroy();
     // Back to the pool, NOT destroyed. `releaseParticleLayer` unparents the container first — the player
     // destroys our owning container with `{ children: true }` immediately after this returns, which would
     // otherwise take the pooled pair down with it. Shape textures are shared and cached per-renderer in

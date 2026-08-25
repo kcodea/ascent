@@ -1,4 +1,8 @@
 import { Mesh, MeshGeometry, Shader, type Renderer } from 'pixi.js';
+import { BLUR_PARAM_SPECS } from '../blurFilter';
+import { FilterStack, filterLabSpecs } from '../filterStack';
+import { FILTERS } from '../filterRegistry';
+import { ContainerTransform, TRANSFORM_PARAM_SPECS } from '../transformEnvelope';
 import type { FxParamSpecs, ParamsOf } from '../params';
 import type { FxContext, FxInstance, FxPrimitive } from '../primitive';
 import { PALETTE_PRESETS, paletteTuple, tupleFloats } from '../palettes';
@@ -368,6 +372,9 @@ const SPECS = {
     enabledWhen: { param: 'erode', above: 0 },
     help: 'How well a ring resists Erode — raise it and the noise takes smaller bites so the band reads solid, lower it and the same Erode chews it down to wisps. Does nothing while Erode is 0.',
   },
+  ...BLUR_PARAM_SPECS,
+  ...filterLabSpecs(FILTERS),
+  ...TRANSFORM_PARAM_SPECS,
 } satisfies FxParamSpecs;
 
 type ShockwaveParams = ParamsOf<typeof SPECS>;
@@ -527,6 +534,10 @@ class ShockwaveInstance implements FxInstance<ShockwaveParams> {
   private readonly positions: Float32Array;
   private params: ShockwaveParams;
   private clockSec = 0;
+  // The filter lab stack (core Blur + every toggle-gated pixi-filter). `clockSec` (starts at 0 here — no
+  // field-phase offset) is its over-time clock, normalised by the one-shot ring duration.
+  private readonly filters: FilterStack;
+  private readonly transform: ContainerTransform;
   /** Last anchor `setHead` delivered, so an offset edit can re-place without waiting for the next frame.
    *  Starts at the container origin — the position the mesh would have held anyway before this existed. */
   private headX = 0;
@@ -556,6 +567,8 @@ class ShockwaveInstance implements FxInstance<ShockwaveParams> {
     // origin, and a layer that is never driven would otherwise ignore the offset dials entirely.
     this.place();
     ctx.container.addChild(this.mesh);
+    this.filters = new FilterStack(ctx.container, FILTERS);
+    this.transform = new ContainerTransform(ctx.container);
   }
 
   private get uniforms(): Record<string, number | Float32Array> {
@@ -589,6 +602,13 @@ class ShockwaveInstance implements FxInstance<ShockwaveParams> {
   update(dtMs: number): void {
     this.clockSec += dtMs / 1000;
     this.uniforms.uTime = this.clockSec;
+    // The filter lab over the ring's own life: progress is elapsed / the one-shot duration (the same clock
+    // `isComplete` reads). Handed to the stack, which owns every filter's create/retime/destroy.
+    const p = this.params;
+    const durSec = shockwaveOneShotDurationSec(p.rings, p.speed, p.ringDelay);
+    const prog = durSec > 0 ? Math.min(1, this.clockSec / durSec) : 1;
+    this.filters.frame(p, prog, dtMs / 1000);
+    this.transform.frame(p, prog, dtMs / 1000, this.headX, this.headY);
   }
 
   /** One-shot completion: true once the single expansion's last ring has finished fading (elapsed past
@@ -648,6 +668,7 @@ class ShockwaveInstance implements FxInstance<ShockwaveParams> {
     // (verified by reading its source), so there is no double-free either way. The geometry IS per-instance
     // (its quad is sized to this fire's `radius`) and is freed here. The SHADER goes back to the pool: its
     // GLSL is a module constant, and destroying it with `true` is what cost ~68 ms per fire.
+    this.filters.destroy();
     this.mesh.destroy();
     this.geometry.destroy(true); // true = also free the position/UV/index buffers; we own them exclusively
     releaseShader(SHOCKWAVE_SHADER_KEY, this.shader);

@@ -1,4 +1,8 @@
 import { Mesh, MeshGeometry, Shader, type Renderer } from 'pixi.js';
+import { BLUR_PARAM_SPECS } from '../blurFilter';
+import { FilterStack, filterLabSpecs } from '../filterStack';
+import { FILTERS } from '../filterRegistry';
+import { ContainerTransform, TRANSFORM_PARAM_SPECS } from '../transformEnvelope';
 import type { FxParamSpecs, ParamsOf } from '../params';
 import type { FxContext, FxInstance, FxPrimitive } from '../primitive';
 import { PALETTE_PRESETS, paletteTuple, tupleFloats } from '../palettes';
@@ -275,6 +279,9 @@ const SPECS = {
     min: RIBBON_MIN_SEGMENTS, max: RIBBON_MAX_SEGMENTS, step: 4, default: RIBBON_SEGMENTS,
     help: 'Spine resample resolution. Higher = smoother curves and waves; lower = cheaper, and chunky/angular on purpose.',
   },
+  ...BLUR_PARAM_SPECS,
+  ...filterLabSpecs(FILTERS),
+  ...TRANSFORM_PARAM_SPECS,
 } satisfies FxParamSpecs;
 
 type RibbonParams = ParamsOf<typeof SPECS>;
@@ -457,6 +464,10 @@ class RibbonInstance implements FxInstance<RibbonParams> {
   private readonly spine: RibbonPoint[] = [];
   private params: RibbonParams;
   private clockSec = 0;
+  // The filter lab stack (core Blur + every toggle-gated pixi-filter). A ribbon is a persistent trail with no
+  // intrinsic duration, so its over-time curves ride a fixed 1s window from spawn (clockSec, starts at 0).
+  private readonly filters: FilterStack;
+  private readonly transform: ContainerTransform;
   // Fixed at spawn: a given instance is either a one-shot Fire or a continuous-loop preview, never both.
   private readonly oneShot: boolean;
   // Set by `stopEmitting()` (see `FxInstance.stopEmitting`): a continuous ribbon never self-completes on its
@@ -540,6 +551,8 @@ class RibbonInstance implements FxInstance<RibbonParams> {
     this.mesh.blendMode = params.blendMode;
     this.mesh.visible = false;
     ctx.container.addChild(this.mesh);
+    this.filters = new FilterStack(ctx.container, FILTERS);
+    this.transform = new ContainerTransform(ctx.container);
   }
 
   private get uniforms(): Record<string, number | Float32Array> {
@@ -571,6 +584,11 @@ class RibbonInstance implements FxInstance<RibbonParams> {
     if (!this.headMoved && this.params.drain > 0) drainSpineTail(this.spine, (this.params.drain * dtMs) / 1000);
     this.headMoved = false;
     this.uniforms.uTime = this.clockSec;
+    // The filter lab + transform envelope, over a fixed 1s window from spawn (a ribbon has no intrinsic life).
+    // The transform pivots about the trail's current head (`lastHead`). Disabled/identity = ~free.
+    const prog = Math.min(1, this.clockSec);
+    this.filters.frame(this.params, prog, dtMs / 1000);
+    this.transform.frame(this.params, prog, dtMs / 1000, this.lastHead?.x ?? 0, this.lastHead?.y ?? 0);
     // In-place field write on the cached shape object — this is what makes the wave travel, and it
     // allocates nothing (same discipline as the rest of this object; see the `shape` declaration).
     this.shape.timeSec = this.clockSec;
@@ -649,6 +667,7 @@ class RibbonInstance implements FxInstance<RibbonParams> {
     // a compiled program. Verified safe to call after mesh.destroy(): reading Mesh.destroy()'s source, it
     // only unhooks its own "update" listener and nulls its internal refs — it never touches
     // geometry.destroy()/shader.destroy() itself, so there is no double-free here.
+    this.filters.destroy();
     this.mesh.destroy();
     this.geometry.destroy(true); // true = also free the position/UV/index buffers; we own them exclusively
     // The SHADER goes back to the pool instead: its GLSL is a module constant, and freeing its compiled GL

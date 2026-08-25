@@ -1,4 +1,8 @@
 import { Particle, Shader, type ParticleContainer, type Texture } from 'pixi.js';
+import { BLUR_PARAM_SPECS } from '../blurFilter';
+import { FilterStack, filterLabSpecs } from '../filterStack';
+import { FILTERS } from '../filterRegistry';
+import { ContainerTransform, TRANSFORM_PARAM_SPECS } from '../transformEnvelope';
 import type { FxParamSpecs, ParamsOf } from '../params';
 import type { FxContext, FxInstance, FxPrimitive } from '../primitive';
 import { PALETTE_PRESETS } from '../palettes';
@@ -53,6 +57,10 @@ const SPECS = {
     kind: 'slider', label: 'Rate', group: 'Emit', min: 5, max: 1200, step: 5, default: 40, essential: true,
     axis: 'intensity',
     help: 'How many puffs are born each second. Smoke is sparse and lingering, so this runs far lower than a spark stream — 40 is a steady plume, and much above that reads as a solid cloud.',
+  },
+  rateCurve: {
+    kind: 'curve', label: 'Rate / time', group: 'Emit', default: [[0, 1], [1, 1]], vMax: 2, presets: CURVE_PRESETS,
+    help: 'Multiplies the emission Rate over the effect\'s life (normalised by Life; 0 = it starts, 1 = one Life-window later, then holds). Flat 1 = a steady plume. A rising curve billows in; a falling one puffs hard then thins. Does nothing at flat 1.',
   },
   life: {
     kind: 'slider', label: 'Life', group: 'Emit', min: 200, max: 8000, step: 10, default: 1500, essential: true,
@@ -284,6 +292,9 @@ const SPECS = {
     enabledWhen: { param: 'erode', above: 0 },
     help: 'How well a puff resists Erode — raise it and the noise takes smaller bites so puffs read solid, lower it and the same Erode chews them down to wisps. Does nothing while Erode is 0.',
   },
+  ...BLUR_PARAM_SPECS,
+  ...filterLabSpecs(FILTERS),
+  ...TRANSFORM_PARAM_SPECS,
 } satisfies FxParamSpecs;
 
 type SmokeParams = ParamsOf<typeof SPECS>;
@@ -440,6 +451,11 @@ class SmokeInstance implements FxInstance<SmokeParams> {
   // ms elapsed since this instance's very first update() call — ticks unconditionally once oneShot (not gated
   // on headSet, matching emitter.ts's reasoning: a Fire's setHead typically lands the same frame anyway).
   private emitElapsedMs = 0;
+  // The filter lab stack (core Blur + every toggle-gated pixi-filter) + the clock its over-time curves ride
+  // (ms since first update, normalised over Life).
+  private readonly filters: FilterStack;
+  private readonly transform: ContainerTransform;
+  private blurElapsedMs = 0;
   // Reused scratch object for the emit-budget accumulation — `advanceSmokeBudget` (kept pure above for the
   // test suite) would otherwise allocate a fresh `{ budget, spawnCount }` literal every single frame. Same
   // values, written in place instead of returned (mirrors emitter.ts's `budgetState`).
@@ -468,6 +484,8 @@ class SmokeInstance implements FxInstance<SmokeParams> {
     });
     this.shader = layer.shader;
     this.particles = layer.pc;
+    this.filters = new FilterStack(ctx.container, FILTERS);
+    this.transform = new ContainerTransform(ctx.container);
   }
 
   setHead(x: number, y: number): void {
@@ -484,6 +502,12 @@ class SmokeInstance implements FxInstance<SmokeParams> {
 
     const dtSec = dtMs / 1000;
     const p = this.params;
+    // The filter lab + transform envelope over this puff's progress (elapsed / Life): the stack owns filter
+    // lifecycles; the transform scales/spins/drifts the whole plume about its origin. Disabled/identity ~free.
+    this.blurElapsedMs += dtMs;
+    const prog = p.life > 0 ? Math.min(1, this.blurElapsedMs / p.life) : 1;
+    this.filters.frame(p, prog, dtSec);
+    this.transform.frame(p, prog, dtSec, this.originX, this.originY);
     // Anchor velocity (px/sec) for velocity inheritance, from the origin's frame-over-frame delta. Zero until
     // we hold two real anchor samples (guards a spurious spike from diffing the (0,0) default). With
     // inheritVel = 0 this is never read, so it can't affect the default look.
@@ -555,7 +579,9 @@ class SmokeInstance implements FxInstance<SmokeParams> {
     //    rise and fade out under step 1) rather than streaming for the whole Fire. `emitElapsedMs` ticks
     //    below regardless of whether we actually spawn this frame.
     const bs = this.budgetState;
-    const b = bs.budget + p.rate * dtSec;
+    // The Rate / time curve rides the same progress the filter/transform envelopes do (elapsed / Life). Flat 1
+    // (default) → `p.rate` unchanged.
+    const b = bs.budget + p.rate * sampleCurve(p.rateCurve, prog) * dtSec;
     bs.spawnCount = Math.floor(b);
     bs.budget = b - bs.spawnCount;
     const emitting = this.headSet && !this.stopped && (!this.oneShot || smokeWithinEmitWindow(this.emitElapsedMs, p.life));
@@ -612,6 +638,7 @@ class SmokeInstance implements FxInstance<SmokeParams> {
     // destroys our owning container with `{ children: true }` immediately after this returns, which would
     // otherwise take the pooled pair down with it. Shape textures are shared and cached per-renderer in
     // `shapeTextures.ts`; nothing here touches them.
+    this.filters.destroy();
     releaseParticleLayer({ shader: this.shader, pc: this.particles });
   }
 

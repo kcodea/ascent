@@ -33,6 +33,10 @@ export const PRIMITIVE_COPY: Record<string, FxCopy> = {
     label: 'React',
     blurb: 'The card itself moves — a swell, a flinch, a nudge. Target the whole card or one stat badge.',
   },
+  screen: {
+    label: 'Screen',
+    blurb: 'Draws nothing — fires SCREEN juice: a camera shake, a full-screen flash, and/or a sound. Impacts, gilds, big moments.',
+  },
   ribbon: {
     label: 'Trail',
     blurb: 'A tapering band that follows the moving head — a motion trail. Needs a scenario that MOVES.',

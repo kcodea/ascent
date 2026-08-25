@@ -18,11 +18,11 @@ import { preloadAllArt, ART_COUNT } from './art';
  * The fade is why children now mount BEFORE the splash leaves: the game renders underneath at full opacity
  * and the image dissolves off it. Swapping one for the other (the old behaviour) is what made it a cut.
  */
-const HARD_CAP_MS = 20000;
-/** The fake load duration (owner ask 2026-08-24): the splash is held up for at least this long so the progress
- *  bar always runs its full course, even when art is already HTTP-cached and the real preload is instant. The
- *  bar fills over 3s (index.html) and this 3.5s hold leaves it sitting full for ~0.5s before the dissolve. */
-const MIN_SPLASH_MS = 3500;
+/** The splash's FIXED lifetime (owner ask 2026-08-25). The bar's CSS fill in index.html runs for exactly this
+ *  long, and the gate opens when it completes — so the splash always lasts the same 3.5s whatever the real
+ *  loading is doing. There is no hard cap any more because there is nothing left to hang on: the gate is this
+ *  timer. Keep in sync with the `#bootsplash-bar > i` transition duration in index.html. */
+const SPLASH_MS = 3500;
 /** Must match the `#bootsplash` opacity transition in index.html (900ms — the owner asked for a gentle
  *  dissolve into the menu rather than a quick wipe). */
 const FADE_MS = 900;
@@ -49,16 +49,26 @@ export function Boot({ children }: { children: ReactNode }): React.ReactElement 
       if (!alive) return;
       setReady(true);
     };
-    const cap = window.setTimeout(finish, HARD_CAP_MS); // never hang the boot
-    // Gate on BOTH the real art preload (no card renders before its art is decoded — no pop-in) AND the fixed
-    // MIN_SPLASH_MS, so the fake 3.5s bar always completes even when art is warm-cached and preload is instant.
-    const artReady = preloadAllArt((loaded, total) => { if (alive) setPct(total ? loaded / total : 1); });
-    const minHold = new Promise<void>((res) => window.setTimeout(res, MIN_SPLASH_MS));
-    void Promise.all([artReady, minHold]).then(() => {
-      window.clearTimeout(cap);
-      finish();
-    });
-    return () => { alive = false; window.clearTimeout(cap); };
+    // THE GATE IS A FIXED TIMER, NOTHING ELSE (owner ask 2026-08-25: "no matter what the actual loading that's
+    // being done is, it just shows a bar that fills over 3.5s and then goes to the menu"). It used to await the
+    // art preload as well, so a cold load left the bar sitting full — the splash outstayed its own animation by
+    // however long the fetches took (up to the old 20s cap). Now the splash lasts exactly SPLASH_MS every time.
+    //
+    // The preload still RUNS — it is simply never awaited — so the fetch/decode work still warms the cache in
+    // the background and most art is ready by the time anything renders. What it no longer does is HOLD the
+    // gate, which means on a genuinely cold, slow connection a card can now reach the screen before its art has
+    // decoded (the pop-in the old gate existed to prevent). That is the deliberate trade this ask makes.
+    // ANCHOR THE TIMER TO THE BAR, NOT TO REACT. The bar starts filling the instant the splash reveals (the
+    // inline script in index.html adds `.is-in` and stamps `data-inAt`), but this effect only runs once the
+    // ~3 MB bundle has parsed and mounted — measured ~900 ms later on a warm load. Timing SPLASH_MS from here
+    // would therefore leave the bar sitting full for however long the bundle took, which is the exact thing
+    // this ask removes. Counting from `inAt` makes the bar's completion and the menu the same moment.
+    // Absent stamp (no splash node / the image errored) → the full duration, which is the honest fallback.
+    const inAt = Number(splashEl()?.dataset.inAt ?? NaN);
+    const elapsed = Number.isFinite(inAt) ? performance.now() - inAt : 0;
+    const hold = window.setTimeout(finish, Math.max(0, SPLASH_MS - elapsed));
+    void preloadAllArt((loaded, total) => { if (alive) setPct(total ? loaded / total : 1); });
+    return () => { alive = false; window.clearTimeout(hold); };
   }, [ready]);
 
   // READY → fade the splash off the mounted game, then remove the node.
@@ -71,7 +81,7 @@ export function Boot({ children }: { children: ReactNode }): React.ReactElement 
     if (!ready) return;
     const el = splashEl();
     if (!el) return;
-    // The bar has already filled on its own 3s CSS transition (and sat full for ~0.5s) — nothing to finish here.
+    // The bar has already filled on its own CSS transition, which runs for exactly SPLASH_MS — nothing to finish.
     // HOLD until the fade-IN has finished. With art HTTP-cached the gate can resolve in a few hundred ms —
     // well inside the 700ms in-fade — and cutting to the out-fade there would snatch a half-visible image
     // away. `inAt` is stamped by the inline reveal script; absent (image still loading) we wait the full

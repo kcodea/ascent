@@ -8864,3 +8864,89 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .titlescreen [data-tip]:not(.menubtn):focus-visible::before { opacity: 1; transition-delay: 0.25s; }
 @media (prefers-reduced-motion: reduce) { .titlescreen [data-tip]:not(.menubtn)::after, .titlescreen [data-tip]:not(.menubtn)::before { transition: none; } }
 
+
+/* ══ SHOP → COMBAT → SHOP (owner ask 2026-08-25) ═════════════════════════════════════════════════════════
+   Three linked pieces: the rail leaves, the foe arrives, and the winner strikes. All motion here is
+   transform/opacity only — compositor-only, per docs/performance.md — and every one is a ONE-SHOT, so none of
+   them is a looping paint animation. ── */
+
+/* 1a. THE RAIL LEAVES. Combat is a duel, so the eight-seat table slides off to the right and fades as the
+   fight starts, then slides back when the shop returns. `pointer-events:none` while it is gone so a card
+   dragged near the right edge can't hit an invisible rail. */
+.lobbyrail {
+  transition: transform 420ms cubic-bezier(0.4, 0, 0.2, 1), opacity 320ms ease-out;
+  will-change: transform;
+}
+.app.combat .lobbyrail { transform: translateX(115%); opacity: 0; pointer-events: none; }
+
+/* 1b. THE FOE ARRIVES — the opponent's hero portrait drops onto the Refresh button's anchor (that button is
+   inert in combat, so the space is free). Same top-right base point as `.rfbwrap`, so the two occupy the same
+   spot; the drop is a one-shot translate+fade keyed to mount. */
+.combatopp {
+  position: fixed;
+  left: calc(var(--bar-x) + 0.85 * var(--gw) + var(--rfb-x, -123px) * var(--scale));
+  top: calc(var(--bar-y) + var(--rfb-y, 270px) * var(--scale));
+  transform: translate(-50%, -50%);
+  z-index: 42;                      /* just above the refresh button it lands on */
+  pointer-events: none;
+}
+/* The moving part — the drop-in plays here, and the post-combat lunge animates this element (never the
+   wrapper, whose transform is the centring). */
+.combatopp-body {
+  display: flex; flex-direction: column; align-items: center; gap: calc(4 * var(--u));
+  /* `backwards`, NOT `both`: a forwards-filling animation keeps applying its final `transform` FOREVER, and a
+     CSS animation outranks inline styles — so it would fight the GSAP transform the post-combat lunge writes
+     to this very element. Backwards still holds the pre-start pose, and leaves the transform free after. */
+  animation: combatoppdrop 460ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+@keyframes combatoppdrop {
+  from { opacity: 0; transform: translateY(-46px) scale(0.86); }
+  to   { opacity: 1; transform: none; }
+}
+.combatopp-portrait {
+  width: calc(116 * var(--u)); height: calc(116 * var(--u)); border-radius: 50%; overflow: hidden;
+  border: calc(3 * var(--u)) solid var(--gold);
+  box-shadow: 0 calc(4 * var(--u)) calc(14 * var(--u)) rgba(0, 0, 0, 0.55), inset 0 0 0 2px rgba(0, 0, 0, 0.45);
+  background: radial-gradient(circle at 50% 30%, #2c211a, #0e0a07);
+}
+.combatopp-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.combatopp-name {
+  font-family: var(--font-ui); font-weight: 800; font-size: calc(15 * var(--u)); color: var(--ink);
+  background: linear-gradient(180deg, #fff, #f3ead4); border: 2px solid var(--gold); border-radius: 999px;
+  padding: calc(2 * var(--u)) calc(13 * var(--u)); white-space: nowrap;
+  box-shadow: 0 calc(2 * var(--u)) calc(6 * var(--u)) -2px var(--shadow);
+}
+.combatopp-hp {
+  display: inline-flex; align-items: center; gap: calc(4 * var(--u));
+  font-family: var(--font-ui); font-weight: 900; font-size: calc(17 * var(--u)); color: #fff;
+  background: rgba(0, 0, 0, 0.62); border-radius: 999px; padding: calc(2 * var(--u)) calc(12 * var(--u));
+}
+.combatopp-hp svg { width: calc(15 * var(--u)); height: calc(15 * var(--u)); color: var(--threat); }
+.combatopp-armor { color: #9fd4ff; font-size: calc(14 * var(--u)); }
+
+/* 2. THE ATTACK PILL — the winner's damage, printed on their portrait exactly like a minion's Attack badge.
+   It POPS in (the tally arriving), rides the lunge, and leaves with the sequence. */
+.hero-atk {
+  position: absolute; left: 50%; bottom: calc(-10 * var(--u)); transform: translateX(-50%);
+  z-index: 6; pointer-events: none;
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: calc(34 * var(--u)); height: calc(34 * var(--u)); padding: 0 calc(7 * var(--u));
+  border-radius: 999px; border: calc(3 * var(--u)) solid #1b1d22;
+  background: radial-gradient(circle at 38% 30%, #ffd98a, #eaa63f 58%, #b97a1f);
+  font-family: var(--font-ui); font-weight: 900; font-size: calc(20 * var(--u)); color: #3d2a06;
+  box-shadow: 0 3px 7px rgba(0, 0, 0, 0.5), inset 0 2px 2px rgba(255, 255, 255, 0.5);
+  animation: heroatkpop 260ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes heroatkpop {
+  from { opacity: 0; transform: translateX(-50%) scale(0.4); }
+  to   { opacity: 1; transform: translateX(-50%) scale(1); }
+}
+/* The struck hero recoils — a one-shot shake, transform only. */
+.hero-struck { animation: herostruck 380ms cubic-bezier(0.36, 0.07, 0.19, 0.97) both; }
+@keyframes herostruck {
+  0%   { transform: translate(0, 0); }
+  22%  { transform: translate(-7px, 3px) rotate(-2deg); }
+  48%  { transform: translate(5px, -2px) rotate(1.4deg); }
+  74%  { transform: translate(-3px, 1px) rotate(-0.7deg); }
+  100% { transform: translate(0, 0); }
+}

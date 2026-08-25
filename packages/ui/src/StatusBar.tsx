@@ -143,6 +143,7 @@ export function StatusBar() {
   const dispatch = useGame((s) => s.dispatch);
   const eotAnimating = useGame((s) => s.endTurnAnimating);
   const combatEnemyDeaths = useGame((s) => s.combatEnemyDeaths);
+  const heroAtkPill = useGame((s) => s.heroAtkPill);
   // The hero + its power are data (HEROES registry); the panel renders whatever the run is on.
   // `activePowers`, not `hero.power`: Mimic wields a different hero's power each turn and Void wields TWO —
   // the main button always shows slot 0, and a second button (below) appears for slot 1.
@@ -501,6 +502,11 @@ export function StatusBar() {
             {/* Buff flash — remounts on `buffFlash` so the one-shot shard+ripple replays each time a run buff
                 grows. `aria-hidden`, pointer-events none; sits over the art, under the name pill. */}
             {buffFlash > 0 && <span key={buffFlash} className="herobuff-blast" aria-hidden="true" />}
+            {/* The post-combat ATTACK PILL — this hero's round damage, worn like a minion's Attack badge while
+                the hero strike plays (owner ask 2026-08-25). A child of the portrait so it rides the lunge. */}
+            {heroAtkPill?.side === 'player' && (
+              <span key={`atk${heroAtkPill.amount}`} className="hero-atk" aria-hidden="true">{heroAtkPill.amount}</span>
+            )}
             {heroArt(hero.id) ? (
               <img className="heroimg" src={heroArt(hero.id)} alt={hero.name} draggable={false} />
             ) : (

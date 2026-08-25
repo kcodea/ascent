@@ -7715,6 +7715,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .fxwb-row.fxwb-off input, .fxwb-row.fxwb-off select { opacity: 0.4; cursor: not-allowed; }
 .fxwb-row.fxwb-off .fxwb-curve, .fxwb-row.fxwb-off .fxwb-shape, .fxwb-row.fxwb-off .fxwb-palette { opacity: 0.45; }
 .fxwb-row.fxwb-off .fxwb-curve-svg { pointer-events: none; }
+.fxwb-row.fxwb-off .fxwb-hsb, .fxwb-row.fxwb-off .fxwb-grad, .fxwb-row.fxwb-off .fxwb-pal { opacity: 0.45; pointer-events: none; }
 
 /* "Start from" — the def library, moved to the TOP of the rail and reframed as the entry point rather than
    the author's output shelf. Accent heading because it is the first thing you should reach for; a little

@@ -273,18 +273,20 @@ function ParamRow({
         </select>
       )}
       {spec.kind === 'color' && (
-        <ColorPickerHSB value={value as number} onChange={(n) => onChange(key, n)} />
+        <ColorPickerHSB value={value as number} onChange={(n) => onChange(key, n)} disabled={off} />
       )}
       {spec.kind === 'palette' && (
         <PalettePicker
           value={((value as number[] | undefined) ?? spec.default) as [number, number, number, number]}
           onChange={(next) => onChange(key, next)}
+          disabled={off}
         />
       )}
       {spec.kind === 'gradient' && (
         <GradientEditor
           value={(value as GradientStop[] | undefined) ?? [...spec.default]}
           onChange={(next) => onChange(key, next)}
+          disabled={off}
         />
       )}
       {spec.kind === 'shape' && (

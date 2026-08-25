@@ -1,10 +1,11 @@
 import { numToHsb, hsbToNum, numToHex } from '../color';
 
-export function ColorPickerHSB({ value, onChange }: { value: number; onChange: (n: number) => void }) {
+export function ColorPickerHSB({ value, onChange, disabled }: { value: number; onChange: (n: number) => void; disabled?: boolean }) {
   const hsb = numToHsb(value);
   const hueColor = hsbToNum({ h: hsb.h, s: 1, b: 1 });
   const set = (patch: Partial<typeof hsb>) => onChange(hsbToNum({ ...hsb, ...patch }));
   const barDrag = (e: React.PointerEvent, apply: (t: number) => void) => {
+    if (disabled) return;
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     const move = (px: number) => apply(Math.min(1, Math.max(0, (px - rect.left) / rect.width)));
     move(e.clientX);
@@ -13,7 +14,7 @@ export function ColorPickerHSB({ value, onChange }: { value: number; onChange: (
     window.addEventListener('pointermove', onMove); window.addEventListener('pointerup', up);
   };
   return (
-    <div className="fxwb-hsb">
+    <div className="fxwb-hsb" aria-disabled={disabled || undefined}>
       <div className="fxwb-hsb-swatch" style={{ background: numToHex(value) }} />
       <Bar label="Hue" t={hsb.h / 360} gradient="linear-gradient(90deg,#f00,#ff0,#0f0,#0ff,#00f,#f0f,#f00)"
         onDrag={(e) => barDrag(e, (t) => set({ h: t * 360 }))} />

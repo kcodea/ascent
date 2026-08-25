@@ -135,7 +135,7 @@ describe('DIRECT_CALL_SITES is a derivation, not a list', () => {
     expect(directCallDefIds()).toEqual([
       'ale-bubbles', 'cia-hp', 'click-puff', 'coin', 'coins', 'consume-pull', 'damage-burst', 'death-dissolve',
       'freeze-blast', 'hero-power-spark', 'hero-power-target', 'impact-dust', 'landing-dust', 'ruby-gem-apply',
-      'rune-buff-unit', 'rune-slot-break', 'shop-buff-aura', 'shop-tier-up', 'strike-impact', 'watcher-pulse',
+      'rune-buff-unit', 'rune-slot-break', 'shop-buff-aura', 'shop-tier-up', 'strike-impact', 'tallyanimation1', 'watcher-pulse',
     ]);
   });
 

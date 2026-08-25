@@ -30,6 +30,7 @@ export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   'ale-bubbles': ['Recruit.tsx', 'choreo/score.ts'],
   'cia-hp': ['useCiaEnchantedFx.ts'],
   'click-puff': ['Recruit.tsx'],
+  'tallyanimation1': ['Recruit.tsx'],   // the hero-duel tally→attack-pill effect
   coin: ['Recruit.tsx'],
   coins: ['useCombatReplay.ts'],
   'consume-pull': ['Recruit.tsx'],

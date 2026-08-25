@@ -199,7 +199,10 @@ const TURN_SECONDS = 18; // base round timer; grows +4s/wave (+6s more from roun
 const CHARGE_SECONDS = 20;
 /** The strike's own window (wind-up + lunge + recoil) before the tuner's Settle is added — the outer bound for
  *  the cleanup timer. The lunge's timeline is speed-scaled; the beats around it live in the ⚔️ Hero Duel tuner. */
-const STRIKE_BASE = 1500; // the charge glyph fills over the final 20s of the turn
+const STRIKE_BASE = 1500;
+/** The tally def's ribbon travel (ms) — the burst fires at its end. Keep in sync with `tallyanimation1.json`
+ *  (the ribbon layer's `travelMs` and the burst layer's `at`). The pill buffs when the tally lands here. */
+const TALLY_TRAVEL_MS = 800; // the charge glyph fills over the final 20s of the turn
 const CHARGE_MAX_FEATHER = 24; // % — the reveal feather = this × (1−charge): soft incoming fronts, 0 at completion (no sigil dimming)
 const CHARGE_FADEOUT_MS = 450; // when the glyph stops being lit (End Turn / timer end) it fades out over this, not a snap-cut (keep in sync with `.chargeglyph.fading` transition in styles.css)
 
@@ -1901,12 +1904,17 @@ export function Recruit() {
       const aRect0 = document.querySelector(playerWon ? '.statusbar .hero .herolunge' : '.combatopp-body')?.getBoundingClientRect();
       const ax = pr ? pr.left + pr.width / 2 : (aRect0 ? aRect0.left + aRect0.width / 2 : cx);
       const ay = pr ? pr.top + pr.height / 2 : (aRect0 ? aRect0.top + aRect0.height / 2 : cy);
-      pixiFx.blastBolt(cx, cy, ax, ay);
-      // WHEN the particles land on the hero: buff the pill to full damage + GREEN (it re-pops on the value change).
+      // Play the AUTHORED def (ribbon travels source→pill, then a burst on the pill) instead of the old bolt.
+      playDef('tallyanimation1', { source: { x: cx, y: cy }, target: { x: ax, y: ay } });
+      // SFX: the tally travelling (at launch + its tuner delay), then the pill-add when it lands (owner ask).
+      timers.push(window.setTimeout(() => sfx.tallyTravel(duel.sfxTravelVol), Math.max(0, duel.sfxTravelDelay)));
+      // WHEN the tally lands on the pill (after the def's ~800ms travel): buff the pill to full + GREEN (it
+      // re-pops on the value change), play the pill-add sound, and the pill sheens (via its `buffed` remount).
       timers.push(window.setTimeout(() => {
         setLossPhase('done');   // centre number gone for good — never returns to the board
         setPill({ side, amount: fullDmg, buffed: fullDmg > baseTier });
-      }, pixiFx.blastTravelMs));
+        timers.push(window.setTimeout(() => sfx.attackPillAdd(duel.sfxAddVol), Math.max(0, duel.sfxAddDelay)));
+      }, TALLY_TRAVEL_MS));
 
       // The portraits: the player's own in the status bar, the foe's the frame that dropped in for the fight.
       const playerEl = document.querySelector('.statusbar .hero .herolunge');
@@ -1945,7 +1953,7 @@ export function Recruit() {
           const lungeDone = tl.eventCallback('onComplete');
           tl.eventCallback('onComplete', () => { lungeDone?.(); dropZ(); timers.push(window.setTimeout(() => fadePillOut(), duel.settleMs)); });
         }
-      }, pixiFx.blastTravelMs + duel.pillHold));
+      }, TALLY_TRAVEL_MS + duel.pillHold));
     }, tallyEnd));
 
     timers.push(window.setTimeout(() => { if (useGame.getState().heroAtkPill) fadePillOut(); useGame.getState().setHeroDmgTaken(null); setLossPhase('done'); }, tallyEnd + pixiFx.blastTravelMs + duel.pillHold + STRIKE_BASE + duel.settleMs));

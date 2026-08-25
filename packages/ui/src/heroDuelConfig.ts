@@ -38,6 +38,11 @@ export interface HeroDuelConfig {
   dmgScale: number;
   dmgX: number;
   dmgY: number;
+  /** Hero-duel SFX (owner ask 2026-08-25): when each lands (ms, relative to its cue) and how loud (× the mix). */
+  sfxTravelDelay: number;
+  sfxTravelVol: number;
+  sfxAddDelay: number;
+  sfxAddVol: number;
   /** The opponent's RUNE badges — scale, position of the row, and the gap between badges. */
   runeScale: number;
   runeX: number;
@@ -80,6 +85,10 @@ const DEFAULTS: HeroDuelConfig = {
   dmgScale: 1,
   dmgX: 0,
   dmgY: 0,
+  sfxTravelDelay: 0,
+  sfxTravelVol: 1,
+  sfxAddDelay: 0,
+  sfxAddVol: 1,
   runeScale: 1,
   runeX: 96,
   runeY: 0,
@@ -111,6 +120,10 @@ export const HERO_DUEL_RANGES: Record<keyof HeroDuelConfig, [number, number, num
   dmgScale: [0.3, 3, 0.01],
   dmgX: [-200, 200, 1],
   dmgY: [-200, 200, 1],
+  sfxTravelDelay: [0, 1500, 10],
+  sfxTravelVol: [0, 2, 0.05],
+  sfxAddDelay: [0, 1500, 10],
+  sfxAddVol: [0, 2, 0.05],
   runeScale: [0.3, 2.5, 0.01],
   runeX: [-300, 300, 1],
   runeY: [-300, 300, 1],
@@ -142,6 +155,10 @@ export const HERO_DUEL_DESC: Record<keyof HeroDuelConfig, string> = {
   dmgScale: 'Size of the red damage number on a struck hero.',
   dmgX: 'Move the damage number horizontally.',
   dmgY: 'Move the damage number vertically.',
+  sfxTravelDelay: 'When the tally-travel sound plays, after the tally launches.',
+  sfxTravelVol: 'Loudness of the tally-travel sound.',
+  sfxAddDelay: 'When the pill-add sound plays, relative to the tally landing.',
+  sfxAddVol: 'Loudness of the pill-add sound.',
   runeScale: "Size of the opponent's rune badges (1 = the same size as your runes).",
   runeX: 'Move the rune row horizontally from the portrait.',
   runeY: 'Move the rune row vertically.',

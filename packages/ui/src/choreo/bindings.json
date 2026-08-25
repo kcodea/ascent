@@ -1,150 +1,163 @@
 {
-  "version": 1,
-  "kinds": {
-    "attackExchange": {
-      "def": "self-buff-gold",
-      "fanOut": "selfBuffed"
-    },
-    "buffWave": {
-      "def": "self-buff-gold",
-      "fanOut": "selfBuffed"
-    },
-    "hpGrant": {
-      "def": "hp-grant"
-    },
-    "minionSelfBuffed": {
-      "def": "self-buff-gold"
-    },
-    "keyword": {
-      "def": "keyword-gain"
-    },
-    "keywordLost": {
-      "def": "keyword-lost"
-    },
-    "questComplete": {
-      "def": "quest-complete"
-    },
-    "questTrigger": {
-      "def": "quest-trigger"
-    },
-    "rally": null,
-    "rubyLanded": {
-      "def": "ruby-gem-apply"
-    },
-    "shopRubied": {
-      "def": "ruby-gem-veinstorm"
-    },
-    "reveal": {
-      "def": "stealth-break"
-    },
-    "scCast": {
-      "def": "spell-cast"
-    },
-    "shieldGain": {
-      "def": "ward-gained"
-    },
-    "spellProgress": {
-      "def": "spell-progress"
-    },
-    "toHand": {
-      "def": "to-hand"
-    },
-    "venomSpent": {
-      "def": "venom-spent"
-    },
-    "shopBuffAll": {
-      "def": "shop-buff-aura"
-    },
-    "runeTriggered": {
-      "def": "rune-burst"
-    },
-    "spellCast": {
-      "def": "spell-sparks"
-    },
-    "epicRuneTriggered": {
-      "def": "epic-rune-burst"
-    }
+ "version": 1,
+ "kinds": {
+  "attackExchange": {
+   "def": "self-buff-gold",
+   "fanOut": "selfBuffed"
   },
-  "cards": {
-    "b2_echohorn": {
-      "rally": {
-        "def": "echohorn-target-sparkle"
-      }
-    },
-    "bloodbinder": {
-      "scCast": {
-        "def": "ruby-lance",
-        "fanOut": "damaged"
-      }
-    },
-    "dm_butcher": {
-      "shout": {
-        "def": "shop-buff-shout"
-      },
-      "scNarrate": {
-        "def": "shop-buff-shout"
-      }
-    },
-    "dm_felspikes": {
-      "damage": {
-        "def": "fel-spike",
-        "fanOut": "struck",
-        "launchOnDeath": true
-      }
-    },
-    "dm_tormentor": {
-      "shout": {
-        "def": "shop-buff-shout"
-      },
-      "scNarrate": {
-        "def": "shop-buff-shout"
-      }
-    },
-    "dw_pimm": {
-      "shout": {
-        "def": "coin-shout",
-        "sfx": "maxGold"
-      }
-    },
-    "karwind": {
-      "buffWave": {
-        "def": "flame-ring",
-        "fanOut": "buffed"
-      },
-      "minionBuffed": {
-        "def": "flame-ring",
-        "critDef": "flame-ring-crit"
-      }
-    },
-    "wo_attack": {
-      "spellCast": {
-        "def": "bloody-ale",
-        "fanOut": "buffed"
-      }
-    },
-    "wo_champion": {
-      "spellCast": {
-        "def": "champions-ale",
-        "fanOut": "buffed"
-      }
-    },
-    "wo_health": {
-      "spellCast": {
-        "def": "defensive-ale",
-        "fanOut": "buffed"
-      }
-    },
-    "wo_mine": {
-      "spellCast": {
-        "def": "coin-ale",
-        "fanOut": "buffed"
-      }
-    },
-    "wo_reinforcement": {
-      "spellCast": {
-        "def": "reinforcing-ale",
-        "fanOut": "buffed"
-      }
-    }
+  "buffWave": {
+   "def": "self-buff-gold",
+   "fanOut": "selfBuffed"
+  },
+  "hpGrant": {
+   "def": "hp-grant"
+  },
+  "minionSelfBuffed": {
+   "def": "self-buff-gold"
+  },
+  "keyword": {
+   "def": "keyword-gain"
+  },
+  "keywordLost": {
+   "def": "keyword-lost"
+  },
+  "questComplete": {
+   "def": "quest-complete"
+  },
+  "questTrigger": {
+   "def": "quest-trigger"
+  },
+  "rally": null,
+  "rubyLanded": {
+   "def": "ruby-gem-apply"
+  },
+  "shopRubied": {
+   "def": "ruby-gem-veinstorm"
+  },
+  "reveal": {
+   "def": "stealth-break"
+  },
+  "scCast": {
+   "def": "spell-cast"
+  },
+  "shieldGain": {
+   "def": "ward-gained"
+  },
+  "spellProgress": {
+   "def": "spell-progress"
+  },
+  "toHand": {
+   "def": "to-hand"
+  },
+  "venomSpent": {
+   "def": "venom-spent"
+  },
+  "shopBuffAll": {
+   "def": "shop-buff-aura"
+  },
+  "runeTriggered": {
+   "def": "rune-burst"
+  },
+  "spellCast": {
+   "def": "spell-sparks"
+  },
+  "epicRuneTriggered": {
+   "def": "epic-rune-burst"
   }
+ },
+ "cards": {
+  "b2_echohorn": {
+   "rally": {
+    "def": "echohorn-target-sparkle"
+   }
+  },
+  "bloodbinder": {
+   "scCast": {
+    "def": "ruby-lance",
+    "fanOut": "damaged"
+   }
+  },
+  "d2_embermouth": {
+   "minionSelfBuffed": {
+    "def": "embermouthwhelp"
+   },
+   "buffWave": {
+    "def": "embermouthwhelp",
+    "fanOut": "selfBuffed"
+   },
+   "attackExchange": {
+    "def": "embermouthwhelp",
+    "fanOut": "selfBuffed"
+   }
+  },
+  "dm_butcher": {
+   "shout": {
+    "def": "shop-buff-shout"
+   },
+   "scNarrate": {
+    "def": "shop-buff-shout"
+   }
+  },
+  "dm_felspikes": {
+   "damage": {
+    "def": "fel-spike",
+    "fanOut": "struck",
+    "launchOnDeath": true
+   }
+  },
+  "dm_tormentor": {
+   "shout": {
+    "def": "shop-buff-shout"
+   },
+   "scNarrate": {
+    "def": "shop-buff-shout"
+   }
+  },
+  "dw_pimm": {
+   "shout": {
+    "def": "coin-shout",
+    "sfx": "maxGold"
+   }
+  },
+  "karwind": {
+   "buffWave": {
+    "def": "flame-ring",
+    "fanOut": "buffed"
+   },
+   "minionBuffed": {
+    "def": "flame-ring",
+    "critDef": "flame-ring-crit"
+   }
+  },
+  "wo_attack": {
+   "spellCast": {
+    "def": "bloody-ale",
+    "fanOut": "buffed"
+   }
+  },
+  "wo_champion": {
+   "spellCast": {
+    "def": "champions-ale",
+    "fanOut": "buffed"
+   }
+  },
+  "wo_health": {
+   "spellCast": {
+    "def": "defensive-ale",
+    "fanOut": "buffed"
+   }
+  },
+  "wo_mine": {
+   "spellCast": {
+    "def": "coin-ale",
+    "fanOut": "buffed"
+   }
+  },
+  "wo_reinforcement": {
+   "spellCast": {
+    "def": "reinforcing-ale",
+    "fanOut": "buffed"
+   }
+  }
+ }
 }

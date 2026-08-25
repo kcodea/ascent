@@ -186,6 +186,14 @@ const BINDINGS: Record<string, { def: string }> = {
 const CARD_BINDINGS: Record<string, Record<string, { def: string; fanOut?: string; sfx?: string; critDef?: string; launchOnDeath?: boolean }>> = {
   b2_echohorn: { rally: { def: 'echohorn-target-sparkle' } },
   bloodbinder: { scCast: { def: 'ruby-lance', fanOut: 'damaged' } },
+  // Embermouth Whelp's "after you trigger a Shout, gain +1/+1" — its OWN authored breath instead of the generic
+  // gold self-buff pulse. Three kinds because a self-buff surfaces on a different moment per phase: the shop's
+  // `minionSelfBuffed`, and combat's `buffWave` / `attackExchange` (both fan out over the units that self-buffed).
+  d2_embermouth: {
+    minionSelfBuffed: { def: 'embermouthwhelp' },
+    buffWave: { def: 'embermouthwhelp', fanOut: 'selfBuffed' },
+    attackExchange: { def: 'embermouthwhelp', fanOut: 'selfBuffed' },
+  },
   // Karwind rings every Dragon it pumps — the combat `buffed` fan-out plays `flame-ring` once per cross-buffed
   // unit, and the shop's source-keyed `minionBuffed` moment plays it on each Dragon Karwind buffed in the tavern.
   karwind: { buffWave: { def: 'flame-ring', fanOut: 'buffed' }, minionBuffed: { def: 'flame-ring', critDef: 'flame-ring-crit' } },

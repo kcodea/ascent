@@ -55,6 +55,13 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-08-25',
+    label: 'FX',
+    changes: [
+      { category: 'UI / Info', text: 'Embermouth Whelp now breathes its own fire when it grows from a Shout, instead of the generic buff sparkle.' },
+    ],
+  },
+  {
     date: '2026-08-24',
     label: 'Menu Polish',
     changes: [

@@ -8,7 +8,6 @@ import {
   defaultOpenGroups,
   groupParamKeys,
   isParamEnabled,
-  mergeOpenGroups,
   paramDisabledReason,
   visibleParamKeys,
   type FxParamSpec,
@@ -50,8 +49,8 @@ type InspectorTier = 'essentials' | 'all' | 'changed';
 /** Per-primitive so the groups you opened for `burst` don't decide what `ribbon` looks like. */
 const groupsKey = (primitiveId: string): string => `fxwb.inspector.groups.${primitiveId}`;
 
-/** Read the persisted open/closed map. Total: any storage failure (private mode, disabled storage, corrupt
- *  JSON) degrades to "no stored state", never to a thrown render. */
+/** Read the persisted open/closed OVERRIDES. Total: any storage failure (private mode, disabled storage,
+ *  corrupt JSON) degrades to "no stored state", never to a thrown render. */
 function readOpenGroups(primitiveId: string): unknown {
   try {
     const raw = window.localStorage.getItem(groupsKey(primitiveId));
@@ -61,13 +60,30 @@ function readOpenGroups(primitiveId: string): unknown {
   }
 }
 
-/** Persist the open/closed map. Swallows storage failures for the same reason as the read. */
-function writeOpenGroups(primitiveId: string, open: Record<string, boolean>): void {
+/** Persist the open/closed OVERRIDE map. Swallows storage failures for the same reason as the read.
+ *  Deliberately a DELTA, not a full per-group snapshot — see `toggleGroup`'s comment for why that matters. */
+function writeOpenGroups(primitiveId: string, overrides: Record<string, boolean>): void {
   try {
-    window.localStorage.setItem(groupsKey(primitiveId), JSON.stringify(open));
+    window.localStorage.setItem(groupsKey(primitiveId), JSON.stringify(overrides));
   } catch {
     /* a workbench that can't remember which groups were open is still a working workbench */
   }
+}
+
+/** Defensively parse the persisted map into ONLY the groups this primitive actually has, keeping ONLY the
+ *  entries actually present (i.e. sparse — never padded out with a default for every group). That sparseness
+ *  is what makes a stored value mean "the author explicitly set this group", rather than "this group's
+ *  computed state at the moment ANY group was last toggled" — the distinction `toggleGroup` depends on to
+ *  avoid baking a tier-specific default-open seed into storage. Mirrors `mergeOpenGroups`'s own validation
+ *  (only boolean values, only known groups) without merging over a full defaults map. */
+function sanitizeOpenOverrides(specs: FxParamSpecs, raw: unknown): Record<string, boolean> {
+  const knownGroups = new Set(Object.keys(specs).map((k) => specs[k].group ?? DEFAULT_PARAM_GROUP));
+  const out: Record<string, boolean> = {};
+  if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) return out;
+  for (const [group, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (knownGroups.has(group) && typeof value === 'boolean') out[group] = value;
+  }
+  return out;
 }
 
 export function Inspector({
@@ -102,8 +118,14 @@ export function Inspector({
 }): React.ReactElement {
   const [tier, setTier] = useState<InspectorTier>('essentials');
   const [query, setQuery] = useState('');
-  // Open/closed lives here keyed by primitive rather than being re-read from storage every render: the
-  // stored map is the STARTING point (below), this is the live one for primitives touched this session.
+  // EXPLICIT per-group open/closed OVERRIDES the author has actually set, keyed by primitive — deliberately
+  // sparse (a group nobody has toggled has no entry here at all). This is the fix for a real regression: an
+  // earlier version of this state held a full per-group snapshot (defaults + persisted + tier-seed all baked
+  // together), and `toggleGroup` persisted that WHOLE snapshot on every click — so opening the Changed tier
+  // (whose "group has a changed param" seed forces extra groups open) and then toggling any unrelated group
+  // baked those tier-only forced-opens into localStorage, where Essentials/All read them back as if the user
+  // had explicitly opened them. Keeping this sparse means only a group the author actually clicked ever gets
+  // an entry, so a tier's default-open seed can never leak into another tier's storage.
   const [openByPrimitive, setOpenByPrimitive] = useState<Record<string, Record<string, boolean>>>({});
   // The inspector's scroll container — the ⌘K jump queries within it for the target row.
   const rootRef = useRef<HTMLDivElement>(null);
@@ -112,15 +134,12 @@ export function Inspector({
   // seed below, and the per-group "N changed" badges. Cheap to recompute every render (see `changedParamKeys`).
   const changed = useMemo(() => changedParamKeys(specs, values), [specs, values]);
 
-  const stored = useMemo(
-    () => mergeOpenGroups(defaultOpenGroups(specs), readOpenGroups(primitiveId)),
-    [specs, primitiveId],
-  );
-  // A SEPARATE seed used ONLY by the Changed tier: on top of the ordinary essential-based default, a group
-  // holding at least one changed param also starts open, so switching to Changed doesn't require expanding
-  // every group by hand to see what you touched. `stored` above — and the ⌘K jump effect below, which always
-  // forces the All tier and reads `stored` directly — are untouched by this, so Essentials/All keep behaving
-  // exactly as they did before this tier existed.
+  // The ordinary essential-based seed (Essentials/All), computed exactly as before this tier existed.
+  const defaultSeed = useMemo(() => defaultOpenGroups(specs), [specs]);
+  // A SPARSE, Changed-tier-only addition: `true` for a group holding at least one changed param, so
+  // switching to Changed doesn't require expanding every group by hand to see what you touched. Never
+  // written to storage (see `sanitizeOpenOverrides`/`toggleGroup`) and never referenced when computing
+  // Essentials/All's open state, so it cannot leak into either.
   const changedGroupSeed = useMemo(() => {
     const seed: Record<string, boolean> = {};
     for (const key of Object.keys(specs)) {
@@ -129,20 +148,30 @@ export function Inspector({
     }
     return seed;
   }, [specs, changed]);
-  const changedStored = useMemo(
-    () => mergeOpenGroups({ ...defaultOpenGroups(specs), ...changedGroupSeed }, readOpenGroups(primitiveId)),
-    [specs, primitiveId, changedGroupSeed],
+  // The persisted EXPLICIT overrides for this primitive — sparse, per `sanitizeOpenOverrides`.
+  const storedOverrides = useMemo(
+    () => sanitizeOpenOverrides(specs, readOpenGroups(primitiveId)),
+    [specs, primitiveId],
   );
-  // Persisted per-primitive toggles (once the author has touched any group this session) still win over
-  // either seed — same mergeOpenGroups mechanism as before, just fed a tier-appropriate starting point.
-  const open = openByPrimitive[primitiveId] ?? (tier === 'changed' ? changedStored : stored);
+  // This session's live overrides for the primitive, falling back to whatever was persisted.
+  const overrides = openByPrimitive[primitiveId] ?? storedOverrides;
+
+  // A group's effective open/closed state: an explicit override (this session's toggle, or a persisted one)
+  // always wins; otherwise fall back to the current tier's seed. Essentials/All see ONLY `defaultSeed` here —
+  // byte-for-byte the same computation as before the Changed tier existed.
+  const isGroupOpen = (group: string): boolean => {
+    if (group in overrides) return overrides[group];
+    if (tier === 'changed' && changedGroupSeed[group] === true) return true;
+    return defaultSeed[group] ?? true;
+  };
 
   // ⌘K PARAM JUMP. When the command palette targets a specific param, make sure that param is actually on
   // screen — a non-essential param is filtered out of the Essentials tier and its group may be collapsed —
   // then scroll its row into view. Switching to All and force-opening the group both go through the SAME
   // state the manual controls use, so nothing here is a special render path. The scroll waits a frame so it
   // measures AFTER that state has rendered the row. No-op (early return) when there is no target, which is
-  // what keeps this additive.
+  // what keeps this additive. Matches the pre-existing behaviour of NOT persisting the jump-forced group —
+  // only an explicit click through `toggleGroup` writes to storage.
   useEffect(() => {
     if (focusKey === undefined || focusKey === null) return;
     const spec = specs[focusKey];
@@ -151,7 +180,7 @@ export function Inspector({
     setTier('all');
     setOpenByPrimitive((prev) => ({
       ...prev,
-      [primitiveId]: { ...(prev[primitiveId] ?? stored), [group]: true },
+      [primitiveId]: { ...(prev[primitiveId] ?? storedOverrides), [group]: true },
     }));
     const raf = requestAnimationFrame(() => {
       const row = rootRef.current
@@ -162,10 +191,13 @@ export function Inspector({
       onFocusHandled?.();
     });
     return () => cancelAnimationFrame(raf);
-  }, [focusKey, primitiveId, specs, stored, onFocusHandled]);
+  }, [focusKey, primitiveId, specs, storedOverrides, onFocusHandled]);
 
+  // Persists only the DELTA — the one group the author clicked, folded over whatever overrides already
+  // existed — never the tier's whole seeded snapshot. This is what keeps a Changed-tier default-open from
+  // ever reaching localStorage (and therefore Essentials/All) for a group the author didn't touch.
   const toggleGroup = (group: string): void => {
-    const next = { ...open, [group]: !(open[group] ?? true) };
+    const next = { ...overrides, [group]: !isGroupOpen(group) };
     setOpenByPrimitive((prev) => ({ ...prev, [primitiveId]: next }));
     writeOpenGroups(primitiveId, next);
   };
@@ -270,7 +302,7 @@ export function Inspector({
         ? groupParamKeys(specs, keys).map(({ group, keys: groupKeys }) => {
             // A search forces every group holding a hit open — a filtered-but-collapsed group would just be a
             // heading you have to click to discover the thing you already searched for.
-            const isOpen = searching || (open[group] ?? true);
+            const isOpen = searching || isGroupOpen(group);
             // How many of THIS group's currently-visible rows have drifted from default — independent of
             // tier, so browsing All still flags which groups hold edits without switching to Changed.
             const changedInGroup = groupKeys.reduce((n, k) => (changed.has(k) ? n + 1 : n), 0);

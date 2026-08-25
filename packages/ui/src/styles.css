@@ -7316,8 +7316,11 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .fxwb-timeline-readout {
   margin-left: auto; font-size: 11px; font-variant-numeric: tabular-nums; color: #c9bda6;
 }
-/* Time ruler: a strip of ticks above the track, purely decorative so it never intercepts a bar drag. */
-.fxwb-timeline-ruler { position: relative; height: 12px; pointer-events: none; }
+/* Time ruler: a strip of ticks above the track, purely decorative so it never intercepts a bar drag.
+   Horizontal padding matches the track's border-left/right (1px) + padding-left/right (3px) = 4px each
+   side, so a tick's 0%/100% (a percentage `left` on an absolutely-positioned child resolves against this
+   padding box) lines up with the track's inner content box, where the bars/playhead actually sit. */
+.fxwb-timeline-ruler { position: relative; height: 12px; padding: 0 4px; pointer-events: none; }
 .fxwb-timeline-tick {
   position: absolute; top: 6px; bottom: 0; width: 1px; background: #4a4136; pointer-events: none;
 }

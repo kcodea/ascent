@@ -147,6 +147,7 @@ export function Timeline({
   // `beginDrag` calls `e.stopPropagation()`, so this handler only ever fires for the track div or a row's
   // background. The `closest` check is belt-and-suspenders against that guarantee, not the only guard.
   const beginSeek = (e: React.PointerEvent<HTMLDivElement>): void => {
+    e.preventDefault();
     if ((e.target as HTMLElement).closest('.fxwb-timeline-bar')) return;
     const track = trackRef.current;
     if (track === null) return;

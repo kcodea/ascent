@@ -6,6 +6,7 @@ import {
   changedParamKeys,
   DEFAULT_PARAM_GROUP,
   defaultOpenGroups,
+  defaultsOf,
   groupParamKeys,
   isParamEnabled,
   matchesParamQuery,
@@ -145,6 +146,10 @@ export function Inspector({
   // Which params have drifted from their spec default — feeds the Changed tier's filter, its group-open
   // seed below, and the per-group "N changed" badges. Cheap to recompute every render (see `changedParamKeys`).
   const changed = useMemo(() => changedParamKeys(specs, values), [specs, values]);
+  // The spec defaults, keyed by param — what a double-click-to-reset on a row's label restores. Computed once
+  // per `specs` change (not per row per render): `defaultsOf` deep-copies palette/curve/emitpoints/gradient
+  // defaults, so recomputing it inside `renderRow` would allocate a fresh copy for every row on every render.
+  const defaults = useMemo(() => defaultsOf(specs) as Record<string, unknown>, [specs]);
 
   // The ordinary essential-based seed (Essentials/All), computed exactly as before this tier existed.
   const defaultSeed = useMemo(() => defaultOpenGroups(specs), [specs]);
@@ -291,6 +296,8 @@ export function Inspector({
       layerKey={layerKey}
       enabled={isParamEnabled(specs[key], values)}
       reason={paramDisabledReason(specs, key, values)}
+      changed={changed.has(key)}
+      defaultValue={defaults[key]}
       onChange={onChange}
     />
   );
@@ -472,6 +479,8 @@ function ParamRow({
   layerKey,
   enabled,
   reason,
+  changed,
+  defaultValue,
   onChange,
 }: {
   paramKey: string;
@@ -483,15 +492,39 @@ function ParamRow({
   layerKey: string;
   enabled: boolean;
   reason: string | null;
+  /** Whether this param has drifted from its spec default (from the Inspector's `changed` set) — drives the
+   *  modified-dot affordance and gates the double-click-to-reset gesture below. */
+  changed: boolean;
+  /** This param's spec default (from `defaultsOf`, computed once by the Inspector) — what a double-click
+   *  reset restores. */
+  defaultValue: unknown;
   onChange: (key: string, value: number | boolean | string | number[] | number[][] | GradientStop[]) => void;
 }): React.ReactElement {
   const [helpOpen, setHelpOpen] = useState(false);
+  // Plays the one-shot reset-confirmation pop; cleared on the animation's own `onAnimationEnd` so it can
+  // replay on a second reset (a class that's still present wouldn't re-trigger the CSS animation).
+  const [resetFlash, setResetFlash] = useState(false);
   const off = !enabled;
 
+  // Double-click the label resets the param to its spec default. No-op when the param is already at default
+  // (nothing to reset, and no flash to confirm) — `changed` is the same set the modified dot renders from, so
+  // the affordance and the gesture it enables never disagree with each other.
+  const resetToDefault = (): void => {
+    if (!changed) return;
+    onChange(key, defaultValue as number | boolean | string | number[] | number[][] | GradientStop[]);
+    setResetFlash(true);
+  };
+
   return (
-    <div className={`fxwb-row${off ? ' fxwb-off' : ''}`}>
-      <span className="fxwb-lab">
+    <div className={`fxwb-row${off ? ' fxwb-off' : ''}${changed ? ' changed' : ''}`}>
+      <span
+        className={`fxwb-lab${resetFlash ? ' fxwb-reset-flash' : ''}`}
+        onDoubleClick={resetToDefault}
+        onAnimationEnd={() => setResetFlash(false)}
+        title={changed ? `${spec.label} — double-click to reset to default` : undefined}
+      >
         <label htmlFor={`fxwb-${key}`}>{spec.label}</label>
+        {changed && <span className="fxwb-moddot" aria-hidden="true" />}
         {spec.help !== undefined && (
           <button
             type="button"

@@ -7820,6 +7820,27 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 }
 .fxwb-help:hover { border-color: #c8a45c; color: #f0d9a4; }
 .fxwb-help.on { background: color-mix(in srgb, #c8a45c 22%, #241f17); border-color: #c8a45c; color: #f0d9a4; }
+
+/* MODIFIED-PARAM AFFORDANCE — a row whose value has drifted from the spec default gets an accent label plus
+   a small dot, and its label becomes a double-click-to-reset target (see `resetToDefault` in Inspector.tsx).
+   Additive only: a row that's still at default renders with none of this, byte-for-byte today's look. */
+.fxwb-row.changed > .fxwb-lab > label { color: #f0d9a4; }
+.fxwb-moddot {
+  flex: 0 0 auto; width: 6px; height: 6px; border-radius: 50%; background: #c8a45c;
+}
+/* The label is the double-click target once there's something to reset — the gauntlet cursor (never a bare
+   keyword `cursor`, see the custom-cursor rule) signals it's clickable; an already-default row keeps the OS
+   arrow since double-clicking it is a no-op. */
+.fxwb-row.changed > .fxwb-lab { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+/* One-shot reset-confirmation pop. transform/opacity ONLY (no box-shadow/filter/background) so it composites
+   without a repaint, and it never loops — `onAnimationEnd` clears the triggering class in Inspector.tsx. */
+.fxwb-lab.fxwb-reset-flash { animation: fxwb-reset-pop 0.3s ease both; }
+@keyframes fxwb-reset-pop {
+  0% { transform: scale(1); opacity: 1; }
+  40% { transform: scale(1.15); opacity: 0.6; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
 /* The two full-width lines under a control (the timing panel's anchor row uses the same 1 / -1 trick). */
 .fxwb-rowhelp {
   grid-column: 1 / -1; margin-top: 3px; padding: 5px 7px; border-radius: 6px; background: #16120e;

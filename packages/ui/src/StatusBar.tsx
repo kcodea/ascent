@@ -499,13 +499,20 @@ export function StatusBar() {
             aria-expanded={buffRows.length ? buffsOpen : undefined}
             aria-label={buffRows.length ? (buffsOpen ? 'Hide run buffs' : 'Show run buffs') : undefined}
           >
+            {/* THE LUNGE TARGET (owner ask 2026-08-25): a transform-clean wrapper GSAP owns for the post-combat
+                hero strike. `.f` itself carries a base `transform: scale(1.2)`, and GSAP animating scale on it
+                overwrote that — the portrait shrank to 1.0 mid-swing and the translate fought the base matrix.
+                This wrapper has NO base transform, so the lunge is clean; the 1.2 lives on `.f` as its ancestor
+                (heroStrike divides by the measured scale, so the geometry is unaffected). Everything visual —
+                the art, name and attack pill — rides it together. */}
+            <div className="herolunge">
             {/* Buff flash — remounts on `buffFlash` so the one-shot shard+ripple replays each time a run buff
                 grows. `aria-hidden`, pointer-events none; sits over the art, under the name pill. */}
             {buffFlash > 0 && <span key={buffFlash} className="herobuff-blast" aria-hidden="true" />}
             {/* The post-combat ATTACK PILL — this hero's round damage, worn like a minion's Attack badge while
                 the hero strike plays (owner ask 2026-08-25). A child of the portrait so it rides the lunge. */}
             {heroAtkPill?.side === 'player' && (
-              <span key={`atk${heroAtkPill.amount}`} className="hero-atk" aria-hidden="true">{heroAtkPill.amount}</span>
+              <span key={`atk${heroAtkPill.amount}`} className="hero-atk hero-atk-player" aria-hidden="true">{heroAtkPill.amount}</span>
             )}
             {heroArt(hero.id) ? (
               <img className="heroimg" src={heroArt(hero.id)} alt={hero.name} draggable={false} />
@@ -522,6 +529,7 @@ export function StatusBar() {
                 Click hero portrait to open / close the Buffs Panel
               </span>
             )}
+            </div>
           </div>
           {/* Health as a compact white box under the hero — the number is Resolve (+Armor). Keeps the hit-shake
               + −X float when a wave breaks through. */}

@@ -39,7 +39,7 @@ export function CombatOpponent(): JSX.Element | null {
       <div className="combatopp-name">{seat.label}</div>
       <div className="combatopp-portrait">
         {/* The foe's ATTACK PILL — same badge the player's portrait wears; a child so it rides the lunge. */}
-        {pill?.side === 'opp' && <span key={`atk${pill.amount}`} className="hero-atk">{pill.amount}</span>}
+        {pill?.side === 'opp' && <span key={`atk${pill.amount}`} className="hero-atk hero-atk-opp">{pill.amount}</span>}
         {art ? <img className="combatopp-img" src={art} alt="" draggable={false} /> : <Icon name="anvil" />}
       </div>
       <div className="combatopp-hp">

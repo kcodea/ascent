@@ -27,9 +27,12 @@ const LABELS: Record<keyof HeroDuelConfig, [string, TunerUnit | undefined]> = {
   hpScale:      ['Health size', '×'],
   hpX:          ['Health X', 'px'],
   hpY:          ['Health Y', 'px'],
-  pillScale:    ['Pill size', '×'],
-  pillX:        ['Pill X', 'px'],
-  pillY:        ['Pill Y', 'px'],
+  pillScale:    ['Foe pill size', '×'],
+  pillX:        ['Foe pill X', 'px'],
+  pillY:        ['Foe pill Y', 'px'],
+  pillPlayerScale: ['Your pill size', '×'],
+  pillPlayerX:     ['Your pill X', 'px'],
+  pillPlayerY:     ['Your pill Y', 'px'],
   tallyStagger: ['Tally stagger', 'ms'],
   tallyFly:     ['Tally flight', 'ms'],
   pillHold:     ['Pill hold', 'ms'],
@@ -41,7 +44,8 @@ const GROUP: Record<keyof HeroDuelConfig, string> = {
   oppScale: 'Opponent portrait', oppX: 'Opponent portrait', oppY: 'Opponent portrait',
   nameScale: 'Foe name plate', nameX: 'Foe name plate', nameY: 'Foe name plate',
   hpScale: 'Foe health pill', hpX: 'Foe health pill', hpY: 'Foe health pill',
-  pillScale: 'Attack pill', pillX: 'Attack pill', pillY: 'Attack pill',
+  pillScale: 'Foe attack pill', pillX: 'Foe attack pill', pillY: 'Foe attack pill',
+  pillPlayerScale: 'Your attack pill', pillPlayerX: 'Your attack pill', pillPlayerY: 'Your attack pill',
   tallyStagger: 'Sequence', tallyFly: 'Sequence', pillHold: 'Sequence',
   strikeSpeed: 'Strike', impactPower: 'Strike', settleMs: 'Strike',
 };
@@ -50,6 +54,7 @@ const ORDER: (keyof HeroDuelConfig)[] = [
   'nameScale', 'nameX', 'nameY',
   'hpScale', 'hpX', 'hpY',
   'pillScale', 'pillX', 'pillY',
+  'pillPlayerScale', 'pillPlayerX', 'pillPlayerY',
   'tallyStagger', 'tallyFly', 'pillHold',
   'strikeSpeed', 'impactPower', 'settleMs',
 ];
@@ -67,18 +72,22 @@ function demo(side: 'player' | 'opp'): void {
   // Next frame, so the portrait has mounted and can be measured.
   requestAnimationFrame(() => {
     const cfg = getHeroDuelConfig();
-    const playerEl = document.querySelector('.statusbar .hero .f');
+    const playerEl = document.querySelector('.statusbar .hero .herolunge');
     const oppEl = document.querySelector('.combatopp-body');
     if (!playerEl || !oppEl) { st.setDuelPreview(false); return; }
     const dmg = 7; // a representative blow — the pill and the impact both read off it
     st.setHeroAtkPill({ side, amount: dmg });
     const attacker = side === 'player' ? playerEl : oppEl;
     const defender = side === 'player' ? oppEl : playerEl;
+    const appEl = document.querySelector('.app');
+    const zClass = side === 'player' ? 'duel-attacker-player' : 'duel-attacker-opp';
     window.setTimeout(() => {
       const done = (): void => {
+        appEl?.classList.remove(zClass);
         useGame.getState().setHeroAtkPill(null);
         useGame.getState().setDuelPreview(false);
       };
+      appEl?.classList.add(zClass); // raise the attacker above the defender for the swing (see styles.css)
       const tl = playHeroStrike({
         attacker, defender, damage: dmg * cfg.impactPower, combatSpeed: cfg.strikeSpeed,
         onImpact: () => { /* the struck portrait deliberately does not react — see styles.css */ },

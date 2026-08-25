@@ -26,10 +26,14 @@ export interface HeroDuelConfig {
   hpScale: number;
   hpX: number;
   hpY: number;
-  /** The attack pill — scale, and px offsets from the portrait's bottom centre. */
+  /** The OPPONENT's attack pill — scale, and px offsets from its portrait's bottom centre. */
   pillScale: number;
   pillX: number;
   pillY: number;
+  /** YOUR attack pill — independent of the opponent's, so each can be placed for its own portrait. */
+  pillPlayerScale: number;
+  pillPlayerX: number;
+  pillPlayerY: number;
   /** Gap (ms) between each tallied number leaving its card. */
   tallyStagger: number;
   /** Flight time (ms) of a tallied number to the counter. */
@@ -59,6 +63,9 @@ const DEFAULTS: HeroDuelConfig = {
   pillScale: 1,
   pillX: 0,
   pillY: 0,
+  pillPlayerScale: 1,
+  pillPlayerX: 0,
+  pillPlayerY: 0,
   tallyStagger: 130,
   tallyFly: 430,
   pillHold: 260,
@@ -80,6 +87,9 @@ export const HERO_DUEL_RANGES: Record<keyof HeroDuelConfig, [number, number, num
   pillScale: [0.4, 3, 0.01],
   pillX: [-120, 120, 1],
   pillY: [-120, 120, 1],
+  pillPlayerScale: [0.4, 3, 0.01],
+  pillPlayerX: [-120, 120, 1],
+  pillPlayerY: [-120, 120, 1],
   tallyStagger: [0, 500, 5],
   tallyFly: [80, 1500, 10],
   pillHold: [0, 1500, 10],
@@ -98,9 +108,12 @@ export const HERO_DUEL_DESC: Record<keyof HeroDuelConfig, string> = {
   hpScale: "Size of the opponent's health pill.",
   hpX: 'Move the health pill horizontally.',
   hpY: 'Move the health pill vertically (it sits below the portrait).',
-  pillScale: 'Size of the attack pill the winning hero carries.',
-  pillX: 'Move the attack pill horizontally on the portrait.',
-  pillY: 'Move the attack pill vertically on the portrait.',
+  pillScale: "Size of the opponent's attack pill.",
+  pillX: "Move the opponent's attack pill horizontally.",
+  pillY: "Move the opponent's attack pill vertically.",
+  pillPlayerScale: 'Size of YOUR attack pill.',
+  pillPlayerX: 'Move your attack pill horizontally.',
+  pillPlayerY: 'Move your attack pill vertically.',
   tallyStagger: 'Gap between each damage number leaving its card.',
   tallyFly: 'How long a damage number takes to reach the counter.',
   pillHold: 'Pause after the pill appears, before the hero winds up.',
@@ -135,9 +148,12 @@ export function applyHeroDuelVars(): void {
   r.setProperty('--hd-hp-s', String(cfg.hpScale));
   r.setProperty('--hd-hp-x', `${cfg.hpX}px`);
   r.setProperty('--hd-hp-y', `${cfg.hpY}px`);
-  r.setProperty('--hd-pill-s', String(cfg.pillScale));
-  r.setProperty('--hd-pill-x', `${cfg.pillX}px`);
-  r.setProperty('--hd-pill-y', `${cfg.pillY}px`);
+  r.setProperty('--hd-pill-opp-s', String(cfg.pillScale));
+  r.setProperty('--hd-pill-opp-x', `${cfg.pillX}px`);
+  r.setProperty('--hd-pill-opp-y', `${cfg.pillY}px`);
+  r.setProperty('--hd-pill-player-s', String(cfg.pillPlayerScale));
+  r.setProperty('--hd-pill-player-x', `${cfg.pillPlayerX}px`);
+  r.setProperty('--hd-pill-player-y', `${cfg.pillPlayerY}px`);
 }
 
 export function setHeroDuelValue(key: keyof HeroDuelConfig, value: number): void {

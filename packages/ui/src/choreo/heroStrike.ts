@@ -68,8 +68,11 @@ export function playHeroStrike(opts: {
     speed: combatSpeed,
     // The beat clock is not running here (the replay is over), so contact only has to fire the consequence.
     onContact: onImpact,
-    // `null` defender ON PURPOSE: that argument is what drives the defender's knockback/recoil tween, and the
-    // hero portraits must not react (owner ruling 2026-08-25) — the FX still fire at `impactAt`, in screen space.
-    onImpact: () => playContactImpact(null, dx, dy, power, combatSpeed, impactAt, spinDeg),
+    // Fire the impact FX at the contact point with `suppressRecoil` — the strike burst, dust and impact pulse
+    // (and the hit sound) all play, but the struck hero portrait does NOT knock back (owner ruling 2026-08-25:
+    // no reaction on the portraits). Passing `null` for the defender before was WRONG: it early-returns before
+    // any FX fire, which is why no Pixi impact showed. The FX layer is z110, above both portraits, so they render
+    // on top of the duel regardless of the portraits' own z-index.
+    onImpact: () => playContactImpact(defender, dx, dy, power, combatSpeed, impactAt, spinDeg, false, false, false, false, false, true),
   });
 }

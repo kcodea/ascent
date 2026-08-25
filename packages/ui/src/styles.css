@@ -3021,6 +3021,25 @@ body.dragging .statusbar .hero { pointer-events: none; }
 .statusbar .hero .hpbox svg { width: calc(26 * var(--u)); height: calc(26 * var(--u)); }
 .statusbar .hero .hpbox .hpval { font-size: calc(26 * var(--u)); }
 .statusbar .hero .hpbox .armval { font-size: calc(18 * var(--u)); }
+
+/* THE PLAYER PORTRAIT'S LUNGE TARGET (owner ask 2026-08-25). `.f` keeps its base `scale(1.2)` and positioning;
+   this wrapper is transform-CLEAN so the hero strike's GSAP lunge owns it without fighting a base matrix. It
+   fills `.f`, carries the dark portrait disc (so `.f` can be transparent and leave no hole when the art flies
+   out to strike), and holds the art + name + attack pill so they travel together. `overflow: visible` so the
+   overhanging attack pill is never clipped. */
+.statusbar .hero .herolunge {
+  position: absolute; inset: 0; border-radius: 50%; background: var(--ink); overflow: visible;
+}
+.statusbar .hero .f { background: transparent; }
+
+/* DUEL Z-ORDER (owner ask 2026-08-25: the attacker must sit on top of the hero it strikes). The lunge's own
+   `zIndex` only ranks an element against its DOM siblings, so it can't lift the player's portrait (inside
+   `.statusbar`, z40) above the foe's (`.combatopp`, z42) or vice-versa — they are separate stacking contexts.
+   These classes, toggled on `.app` for the duration of the swing, raise whichever side is ATTACKING to z100 —
+   above the other portrait, still below the Pixi FX layer (z110) so the impact burst reads on top of both. */
+.app.duel-attacker-player .statusbar { z-index: 100; }
+.app.duel-attacker-opp .combatopp { z-index: 100; }
+
 /* Hero-power box — a standalone card to the RIGHT of the hero frame (a `.statusrow` flex sibling), stretched to
    the hero's height. Sized up so an active power is an obvious button; the whole box glows when usable. */
 .statusbar .heropanel {
@@ -8918,32 +8937,42 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   box-shadow: 0 calc(2 * var(--u)) calc(6 * var(--u)) -2px var(--shadow);
   transform: translate(var(--hd-name-x, 0px), var(--hd-name-y, 0px)) scale(var(--hd-name-s, 1));
 }
+/* Opponent HEALTH — the SAME pill the PLAYER wears in the HUD (owner ask 2026-08-25): the dark gradient box,
+   dark-gold border, threat-pink heart and lightened number from `.statusbar .hero .hpbox`, verbatim. */
 .combatopp-hp {
-  display: inline-flex; align-items: center; gap: calc(4 * var(--u));
-  font-family: var(--font-ui); font-weight: 900; font-size: calc(17 * var(--u)); color: #fff;
-  background: rgba(0, 0, 0, 0.62); border-radius: 999px; padding: calc(2 * var(--u)) calc(12 * var(--u));
+  display: inline-flex; align-items: center; gap: calc(7 * var(--u));
+  background: linear-gradient(180deg, #241a13, #17110c);
+  border: 2px solid color-mix(in srgb, var(--gold) 55%, #000); border-radius: calc(16 * var(--u));
+  padding: calc(6 * var(--u)) calc(14 * var(--u));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 2px 6px rgba(0, 0, 0, 0.3);
+  font-family: var(--font-ui); font-weight: 800; font-size: calc(24 * var(--u)); line-height: 1; color: #ff9db0;
   transform: translate(var(--hd-hp-x, 0px), var(--hd-hp-y, 0px)) scale(var(--hd-hp-s, 1));
 }
-.combatopp-hp svg { width: calc(15 * var(--u)); height: calc(15 * var(--u)); color: var(--threat); }
-.combatopp-armor { color: #9fd4ff; font-size: calc(14 * var(--u)); }
+.combatopp-hp svg { flex: none; width: calc(24 * var(--u)); height: calc(24 * var(--u)); color: var(--threat); }
+.combatopp-armor { margin-left: calc(3 * var(--u)); font-size: calc(17 * var(--u)); color: #b7c2cf; }
 
 /* 2. THE ATTACK PILL — the winner's damage, printed on their portrait exactly like a minion's Attack badge.
    It POPS in (the tally arriving), rides the lunge, and leaves with the sequence. */
+/* The winner's ATTACK PILL — styled to MATCH a minion's Attack badge (owner ask 2026-08-25): the same
+   `--atk` fill, 3px card-coloured border, and bold white number. `--pill-*` are set per side (below) from the
+   ⚔️ Hero Duel tuner, so your pill and the foe's move independently. */
 .hero-atk {
-  position: absolute; left: calc(50% + var(--hd-pill-x, 0px)); bottom: calc(-10 * var(--u) - var(--hd-pill-y, 0px));
-  transform: translateX(-50%) scale(var(--hd-pill-s, 1));
+  position: absolute; left: calc(50% + var(--pill-x, 0px)); bottom: calc(-14 * var(--u) - var(--pill-y, 0px));
+  transform: translateX(-50%) scale(var(--pill-s, 1));
   z-index: 6; pointer-events: none;
-  display: inline-flex; align-items: center; justify-content: center;
-  min-width: calc(34 * var(--u)); height: calc(34 * var(--u)); padding: 0 calc(7 * var(--u));
-  border-radius: 999px; border: calc(3 * var(--u)) solid #1b1d22;
-  background: radial-gradient(circle at 38% 30%, #ffd98a, #eaa63f 58%, #b97a1f);
-  font-family: var(--font-ui); font-weight: 900; font-size: calc(20 * var(--u)); color: #3d2a06;
-  box-shadow: 0 3px 7px rgba(0, 0, 0, 0.5), inset 0 2px 2px rgba(255, 255, 255, 0.5);
+  display: grid; place-items: center;
+  min-width: calc(48 * var(--u)); height: calc(48 * var(--u)); padding: 0 calc(6 * var(--u));
+  border-radius: calc(16 * var(--u)); border: calc(3 * var(--u)) solid var(--card);
+  background: var(--atk);
+  font-family: var(--font-ui); font-weight: 800; font-size: calc(28 * var(--u)); color: #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
   animation: heroatkpop 260ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
+.hero-atk-player { --pill-s: var(--hd-pill-player-s, 1); --pill-x: var(--hd-pill-player-x, 0px); --pill-y: var(--hd-pill-player-y, 0px); }
+.hero-atk-opp    { --pill-s: var(--hd-pill-opp-s, 1);    --pill-x: var(--hd-pill-opp-x, 0px);    --pill-y: var(--hd-pill-opp-y, 0px); }
 @keyframes heroatkpop {
-  from { opacity: 0; transform: translateX(-50%) scale(calc(var(--hd-pill-s, 1) * 0.4)); }
-  to   { opacity: 1; transform: translateX(-50%) scale(var(--hd-pill-s, 1)); }
+  from { opacity: 0; transform: translateX(-50%) scale(calc(var(--pill-s, 1) * 0.4)); }
+  to   { opacity: 1; transform: translateX(-50%) scale(var(--pill-s, 1)); }
 }
 /* NO struck reaction on the hero portraits (owner ruling 2026-08-25): the Pixi strike FX and the health
    dropping carry the blow. A recoil here also fought the portrait's own transform (its centring / the tuner's

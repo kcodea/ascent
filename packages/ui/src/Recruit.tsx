@@ -1873,7 +1873,7 @@ export function Recruit() {
       setLossFlyers([]);
       setPill({ side: playerWon ? 'player' : 'opp', amount: strikeDmg });
       // The portraits: the player's own in the status bar, the foe's the frame that dropped in for the fight.
-      const playerEl = document.querySelector('.statusbar .hero .f');
+      const playerEl = document.querySelector('.statusbar .hero .herolunge');
       const oppEl = document.querySelector('.combatopp-body');
       const attacker = playerWon ? playerEl : oppEl;
       const defender = playerWon ? oppEl : playerEl;
@@ -1884,16 +1884,22 @@ export function Recruit() {
         // carry the blow. Anything animating the portrait here also fights its own centring/scale transform.
         dispatch({ type: 'settleCombat' }); // health drops HERE, on the blow landing
       };
+      // Raise the ATTACKING side's stacking context above the other portrait for the swing (see the
+      // `.duel-attacker-*` rules) — the lunge's own zIndex can't cross stacking contexts. Cleared when done.
+      const appEl = document.querySelector('.app');
+      const zClass = playerWon ? 'duel-attacker-player' : 'duel-attacker-opp';
+      const dropZ = (): void => appEl?.classList.remove(zClass);
       // Give the pill a beat to pop before the wind-up starts, so the number reads as picked up and carried.
       timers.push(window.setTimeout(() => {
+        appEl?.classList.add(zClass);
         const tl = attacker && defender
           ? playHeroStrike({ attacker, defender, damage: strikeDmg * duel.impactPower, combatSpeed: combatSpeed * duel.strikeSpeed, onImpact: land })
           : null;
         // No portraits to swing (a non-lobby run has no foe frame) → still land the consequence on time.
-        if (!tl) land();
-        // Retire the pill on the swing's ACTUAL completion (plus the tuner's settle) rather than only on the
-        // outer timer — at slow swing speeds the guessed total lands mid-blow.
-        else tl.eventCallback('onComplete', () => { timers.push(window.setTimeout(() => setPill(null), duel.settleMs)); });
+        if (!tl) { land(); dropZ(); }
+        // Retire the pill + drop the raised z on the swing's ACTUAL completion (plus the tuner's settle) rather
+        // than only on the outer timer — at slow swing speeds the guessed total lands mid-blow.
+        else tl.eventCallback('onComplete', () => { dropZ(); timers.push(window.setTimeout(() => setPill(null), duel.settleMs)); });
       }, duel.pillHold));
     }, tallyEnd));
 
@@ -1908,7 +1914,7 @@ export function Recruit() {
 
   // Reset the loss sequence when leaving combat (ready for the next fight).
   useEffect(() => {
-    if (!fighting) { seqTimersRef.current.forEach((t) => window.clearTimeout(t)); seqTimersRef.current = []; lossSeqRef.current = false; setLossPhase(null); setLossFlyers([]); setLossCount(0); setLossPos(null); setLossShake(false); useGame.getState().setHeroAtkPill(null); }
+    if (!fighting) { seqTimersRef.current.forEach((t) => window.clearTimeout(t)); seqTimersRef.current = []; document.querySelector('.app')?.classList.remove('duel-attacker-player', 'duel-attacker-opp'); lossSeqRef.current = false; setLossPhase(null); setLossFlyers([]); setLossCount(0); setLossPos(null); setLossShake(false); useGame.getState().setHeroAtkPill(null); }
   }, [fighting]);
 
   // Returning to recruit after a fight. The warband re-mounts (it was combat Units) and re-enters

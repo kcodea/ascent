@@ -7169,6 +7169,21 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .fxwb-curve-line { stroke: #c8a45c; stroke-width: 2; }
 .fxwb-curve-handle { fill: #f0d9a4; stroke: #7a17bd; stroke-width: 1.5; cursor: grab; }
 .fxwb-curve-handle:active { cursor: grabbing; }
+/* HSB colour picker: a swatch above three horizontal Hue/Saturation/Brightness bars, each a draggable
+   track + knob. Delegates all colour maths to fx/color.ts — this is presentation only. */
+.fxwb-hsb { display: flex; flex-direction: column; gap: 7px; width: 100%; }
+.fxwb-hsb-swatch { width: 100%; height: 22px; border-radius: 6px; border: 1px solid #4a4136; }
+.fxwb-hsb-bar { display: flex; flex-direction: column; gap: 3px; }
+.fxwb-hsb-lab { font-size: 11px; font-weight: 700; color: #9a8c74; text-transform: uppercase; letter-spacing: 0.05em; }
+.fxwb-hsb-track { position: relative; height: 14px; border-radius: 7px; border: 1px solid #4a4136; touch-action: none; }
+.fxwb-hsb-knob {
+  position: absolute; top: 50%; width: 14px; height: 14px; border-radius: 50%;
+  background: #f0d9a4; border: 1.5px solid #7a17bd; transform: translate(-50%, -50%);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4); pointer-events: none;
+}
+/* Matches the `.fxwb.fxwb X` specificity pattern above (0,2,0 default → 0,3,0 override) so the track keeps
+   the "open" gauntlet instead of a bare `cursor: pointer` reverting it to the OS arrow (CLAUDE.md UI conv.). */
+.fxwb.fxwb .fxwb-hsb-track { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
 .fxwb-row input[type='checkbox'] { justify-self: start; accent-color: #c8a45c; width: 15px; height: 15px; cursor: pointer; }
 /* The "React on" picker in the toolbar — which minion a `react` layer animates in the preview. Same
    treatment as the inspector's selects; it just isn't inside a `.fxwb-row` grid. */

@@ -27,11 +27,16 @@ export function CombatOpponent(): JSX.Element | null {
   const pill = useGame((s) => s.heroAtkPill);
   const dmg = useGame((s) => s.heroDmgTaken);
   const preview = useGame((s) => s.duelPreview);
+  const dmgDealt = useGame((s) => s.oppDmgDealt);
   if (!lobby || (!inCombat && !preview)) return null;   // `preview` = the dev tuner's Test button
   const next = playerOpponent(lobby);
   const seat = next?.seat;
   if (!seat) return null;
   const art = heroArt(seat.heroId);
+  // The foe's health drops the moment the blow lands, not at resolve — mirroring the player's live drop. The
+  // seat itself settles later (resolveCombat); `dmgDealt` carries the reduction until then. Armor absorbs first.
+  const shownArmor = Math.max(0, seat.armor - dmgDealt);
+  const shownResolve = Math.max(0, seat.resolve - Math.max(0, dmgDealt - seat.armor));
   // The foe's owned RUNES — from the served board's captured snapshot (bots/authored seats have none). Rendered
   // with the SAME `.questbadge.runebadge` markup the player uses, so art, hover tip and pulse animation match.
   const runes = (next?.board.snapshot?.runes ?? []).filter((id) => RUNE_INDEX[id]);
@@ -61,8 +66,8 @@ export function CombatOpponent(): JSX.Element | null {
           {dmg?.side === 'opp' && <span key={`dmg${dmg.seq}`} className="hero-dmgtaken">−{dmg.amount}</span>}
         </div>
         <div className="combatopp-hp">
-          <Icon name="heart" />{seat.resolve}
-          {seat.armor > 0 && <span className="combatopp-armor">+{seat.armor}</span>}
+          <Icon name="heart" />{shownResolve}
+          {shownArmor > 0 && <span className="combatopp-armor">+{shownArmor}</span>}
         </div>
       </div>
       {/* The foe's RUNES — a column beside the portrait (positions/scale from the ⚔️ Hero Duel tuner). Same

@@ -1894,10 +1894,13 @@ export function Recruit() {
       // Dissolve the centre tally into particles that fly to the ATTACKER's portrait ("gaining the attack").
       setLossPhase('blast');   // the centre number launches (fades) and does NOT re-show (see the render guard)
       setLossFlyers([]);
-      const attackerSel = playerWon ? '.statusbar .hero .herolunge' : '.combatopp-body';
-      const aRect0 = document.querySelector(attackerSel)?.getBoundingClientRect();
-      const ax = aRect0 ? aRect0.left + aRect0.width / 2 : cx;
-      const ay = aRect0 ? aRect0.top + aRect0.height / 2 : cy;
+      // Fly to the ATTACK PILL (owner ask 2026-08-25), not the portrait centre — the damage is "gained" INTO the
+      // pill. Only one `.hero-atk` exists at a time (the attacker's). Fall back to the portrait if it's missing.
+      const pillEl = document.querySelector('.hero-atk');
+      const pr = pillEl?.getBoundingClientRect();
+      const aRect0 = document.querySelector(playerWon ? '.statusbar .hero .herolunge' : '.combatopp-body')?.getBoundingClientRect();
+      const ax = pr ? pr.left + pr.width / 2 : (aRect0 ? aRect0.left + aRect0.width / 2 : cx);
+      const ay = pr ? pr.top + pr.height / 2 : (aRect0 ? aRect0.top + aRect0.height / 2 : cy);
       pixiFx.blastBolt(cx, cy, ax, ay);
       // WHEN the particles land on the hero: buff the pill to full damage + GREEN (it re-pops on the value change).
       timers.push(window.setTimeout(() => {
@@ -1917,7 +1920,10 @@ export function Recruit() {
         // The struck hero does NOT react (owner ruling) — the Pixi FX + the health drop carry the blow. Pop the
         // RED damage-taken number in the centre of the DEFENDER (the side NOT attacking).
         setDmg({ side: playerWon ? 'opp' : 'player', amount: strikeDmg, seq: strikeSeq });
-        dispatch({ type: 'settleCombat' }); // health drops HERE, on the blow landing
+        // The FOE's shown health drops HERE too when the player struck it — the mirror of the player's own live
+        // drop (which `settleCombat` applies to the run). Its lobby seat settles later, at resolveCombat.
+        if (playerWon) useGame.getState().setOppDmgDealt(strikeDmg);
+        dispatch({ type: 'settleCombat' }); // player's own health drops HERE, on the blow landing
       };
       // Raise ONLY the attacking side above the other portrait for the swing (see `.duel-attacker-*`), which
       // ALSO fades that side's own name/health — attacker-only, the struck hero keeps its pills up (owner ask).
@@ -1953,7 +1959,7 @@ export function Recruit() {
 
   // Reset the loss sequence when leaving combat (ready for the next fight).
   useEffect(() => {
-    if (!fighting) { seqTimersRef.current.forEach((t) => window.clearTimeout(t)); seqTimersRef.current = []; document.body.classList.remove('duel-attacker-player', 'duel-attacker-opp', 'duel-striking'); useGame.getState().setHeroDmgTaken(null); lossSeqRef.current = false; setLossPhase(null); setLossFlyers([]); setLossCount(0); setLossPos(null); setLossShake(false); useGame.getState().setHeroAtkPill(null); }
+    if (!fighting) { seqTimersRef.current.forEach((t) => window.clearTimeout(t)); seqTimersRef.current = []; document.body.classList.remove('duel-attacker-player', 'duel-attacker-opp', 'duel-striking'); useGame.getState().setHeroDmgTaken(null); useGame.getState().setOppDmgDealt(0); lossSeqRef.current = false; setLossPhase(null); setLossFlyers([]); setLossCount(0); setLossPos(null); setLossShake(false); useGame.getState().setHeroAtkPill(null); }
   }, [fighting]);
 
   // Returning to recruit after a fight. The warband re-mounts (it was combat Units) and re-enters

@@ -754,6 +754,10 @@ export function StatusBar() {
           const art2 = run.voidPowerIds?.[1] ? heroPowerArt(run.voidPowerIds[1]) : undefined;
           return (
             <div className={`heropanel heropanel2${passive2 ? ' passive' : armed2 ? ' armed' : ready2 ? ' ready' : ''}`}>
+              {/* The SAME `.hpwrap` wrapper the main power uses — its absolutely-positioned pill / centre /
+                  cost only pick up their styling under `.hpwrap`, so without it the second power's tracker
+                  rendered as bare static text (owner bug 2026-08-25). Keeps the two powers 1:1. */}
+              <div className="hpwrap">
               <button
                 className={`heropowerbtn${passive2 ? ' passive' : armed2 ? ' armed' : ready2 ? ' ready' : ''}`}
                 disabled={passive2 || (!ready2 && !armed2)}
@@ -780,6 +784,7 @@ export function StatusBar() {
               {liveCost2 ? <span className="hpcost"><span className="costn">{liveCost2}</span></span> : null}
               {tally2 ? <span key={tally2} className="hpb-tally">{tally2}</span> : null}
               {center2 && <span key={center2} className="hpb-tally hpb-center">{center2}</span>}
+              </div>
               <div className="hplabel">{p2.name}</div>
               <div className="herotip" role="tooltip">
                 <b>{p2.name}</b>{passive2 ? ' · passive' : ''}

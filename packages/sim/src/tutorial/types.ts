@@ -267,6 +267,11 @@ export interface TutorialStep {
   /** Which action kinds advance/are-allowed under a soft/hard gate (by reducer Action `type`). Omitted =
    *  the predicate alone decides and no action is blocked. */
   allowedActionKinds?: string[];
+  /** A manual placement nudge for the coach PANEL only (never the spotlight), in DESIGN px (× --scale at
+   *  render). +dx moves it right, +dy down. A last-resort tweak for a beat whose panel would otherwise cover
+   *  the very card it points at (e.g. r4-power's panel sitting over the frozen Pennycat). Applied after the
+   *  automatic placement, then re-clamped to the viewport so it can never push the panel off-screen. */
+  panelNudge?: TutorialPanelNudge;
   /** When the step is done. */
   completion: TutorialPredicate;
   /** Analytics tag (funnel event). NOT YET IMPLEMENTED (audited 2026-08-21) — nothing emits it. */
@@ -310,6 +315,12 @@ export interface TutorialTurn {
   steps: TutorialStep[];
 }
 
+/** A manual placement nudge for a coach panel, in DESIGN px (× --scale at render). +dx right, +dy down. */
+export interface TutorialPanelNudge {
+  dx?: number;
+  dy?: number;
+}
+
 /** An opening rules panel (blueprint §5.4). One idea, ≤2 short sentences, an optional anchor to focus. */
 export interface TutorialFoundationPanel {
   id: string;
@@ -317,6 +328,9 @@ export interface TutorialFoundationPanel {
   body: string;
   why?: string;
   focus?: TutorialAnchorSpec[];
+  /** Same last-resort panel nudge as `TutorialStep.panelNudge` — for a foundation panel that covers its own
+   *  focus target. Design px (× --scale), applied after auto-placement and re-clamped to the viewport. */
+  panelNudge?: TutorialPanelNudge;
 }
 
 export type TutorialCourseKind = 'core' | 'tribe';

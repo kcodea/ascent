@@ -3,6 +3,7 @@ import { insertCurvePoint, removeCurvePoint, MIN_CURVE_POINTS, CURVE_T_EPSILON }
 import { svgToEmitPointsAsync, EMIT_POINTS_DEFAULT } from '../svgEmit';
 import type { GradientStop } from '../gradient';
 import {
+  changedParamKeys,
   DEFAULT_PARAM_GROUP,
   defaultOpenGroups,
   groupParamKeys,
@@ -44,7 +45,7 @@ import { GradientEditor } from './GradientEditor';
  * `packages/**\/*.test.ts` on a node environment, so they'd be untestable if they lived in this .tsx).
  */
 /** Which parameter tier the inspector is showing. */
-type InspectorTier = 'essentials' | 'all';
+type InspectorTier = 'essentials' | 'all' | 'changed';
 
 /** Per-primitive so the groups you opened for `burst` don't decide what `ribbon` looks like. */
 const groupsKey = (primitiveId: string): string => `fxwb.inspector.groups.${primitiveId}`;
@@ -107,11 +108,34 @@ export function Inspector({
   // The inspector's scroll container — the ⌘K jump queries within it for the target row.
   const rootRef = useRef<HTMLDivElement>(null);
 
+  // Which params have drifted from their spec default — feeds the Changed tier's filter, its group-open
+  // seed below, and the per-group "N changed" badges. Cheap to recompute every render (see `changedParamKeys`).
+  const changed = useMemo(() => changedParamKeys(specs, values), [specs, values]);
+
   const stored = useMemo(
     () => mergeOpenGroups(defaultOpenGroups(specs), readOpenGroups(primitiveId)),
     [specs, primitiveId],
   );
-  const open = openByPrimitive[primitiveId] ?? stored;
+  // A SEPARATE seed used ONLY by the Changed tier: on top of the ordinary essential-based default, a group
+  // holding at least one changed param also starts open, so switching to Changed doesn't require expanding
+  // every group by hand to see what you touched. `stored` above — and the ⌘K jump effect below, which always
+  // forces the All tier and reads `stored` directly — are untouched by this, so Essentials/All keep behaving
+  // exactly as they did before this tier existed.
+  const changedGroupSeed = useMemo(() => {
+    const seed: Record<string, boolean> = {};
+    for (const key of Object.keys(specs)) {
+      if (!changed.has(key)) continue;
+      seed[specs[key].group ?? DEFAULT_PARAM_GROUP] = true;
+    }
+    return seed;
+  }, [specs, changed]);
+  const changedStored = useMemo(
+    () => mergeOpenGroups({ ...defaultOpenGroups(specs), ...changedGroupSeed }, readOpenGroups(primitiveId)),
+    [specs, primitiveId, changedGroupSeed],
+  );
+  // Persisted per-primitive toggles (once the author has touched any group this session) still win over
+  // either seed — same mergeOpenGroups mechanism as before, just fed a tier-appropriate starting point.
+  const open = openByPrimitive[primitiveId] ?? (tier === 'changed' ? changedStored : stored);
 
   // ⌘K PARAM JUMP. When the command palette targets a specific param, make sure that param is actually on
   // screen — a non-essential param is filtered out of the Essentials tier and its group may be collapsed —
@@ -149,11 +173,17 @@ export function Inspector({
   const searching = query.trim() !== '';
   const total = Object.keys(specs).length;
   const essentialCount = Object.keys(specs).filter((k) => specs[k].essential === true).length;
-  const keys = visibleParamKeys(specs, { essentialsOnly: tier === 'essentials', query });
-  // Flat while browsing Essentials (a handful of rows needs no filing system); grouped in All, and grouped
-  // while SEARCHING from either tier so a hit still says which part of the primitive it came from. A search
-  // also reaches past the Essentials tier — someone typing "turb" wants the turbulence knobs either way.
-  const grouped = tier === 'all' || searching;
+  const keys = visibleParamKeys(specs, {
+    essentialsOnly: tier === 'essentials',
+    changedOnly: tier === 'changed',
+    changed,
+    query,
+  });
+  // Flat while browsing Essentials (a handful of rows needs no filing system); grouped in All and Changed
+  // (so a touched param still says which part of the primitive it came from), and grouped while SEARCHING
+  // from any tier for the same reason. A search also reaches past the Essentials tier — someone typing
+  // "turb" wants the turbulence knobs either way.
+  const grouped = tier === 'all' || tier === 'changed' || searching;
 
   const renderRow = (key: string): React.ReactElement => (
     <ParamRow
@@ -196,6 +226,15 @@ export function Inspector({
           >
             All
           </button>
+          <button
+            type="button"
+            className={`fxwb-tierbtn${tier === 'changed' ? ' on' : ''}`}
+            aria-pressed={tier === 'changed'}
+            title={`Only the ${changed.size} param${changed.size === 1 ? '' : 's'} you've changed from default`}
+            onClick={() => setTier('changed')}
+          >
+            Changed
+          </button>
         </div>
         <input
           className="fxwb-search"
@@ -211,13 +250,19 @@ export function Inspector({
             ? `${keys.length} of ${total} match “${query.trim()}”`
             : tier === 'essentials'
               ? `${essentialCount} of ${total} — the ones that change the look. Switch to All for the rest.`
-              : `All ${total} params. Click a group to fold it away.`}
+              : tier === 'changed'
+                ? `${changed.size} of ${total} changed from default. Click a group to fold it away.`
+                : `All ${total} params. Click a group to fold it away.`}
         </div>
       </div>
 
       {keys.length === 0 && (
         <div className="fxwb-tierempty">
-          {searching ? `Nothing matches “${query.trim()}”.` : 'This primitive declares no parameters.'}
+          {searching
+            ? `Nothing matches “${query.trim()}”.`
+            : tier === 'changed'
+              ? 'Nothing changed from its defaults yet.'
+              : 'This primitive declares no parameters.'}
         </div>
       )}
 
@@ -226,6 +271,9 @@ export function Inspector({
             // A search forces every group holding a hit open — a filtered-but-collapsed group would just be a
             // heading you have to click to discover the thing you already searched for.
             const isOpen = searching || (open[group] ?? true);
+            // How many of THIS group's currently-visible rows have drifted from default — independent of
+            // tier, so browsing All still flags which groups hold edits without switching to Changed.
+            const changedInGroup = groupKeys.reduce((n, k) => (changed.has(k) ? n + 1 : n), 0);
             return (
               <section className="fxwb-grp" key={group}>
                 <button
@@ -237,6 +285,11 @@ export function Inspector({
                 >
                   <span className="fxwb-grpcaret" aria-hidden="true">{isOpen ? '▾' : '▸'}</span>
                   <span className="fxwb-grpname">{group}</span>
+                  {changedInGroup > 0 && (
+                    <span className="fxwb-grpbadge" title={`${changedInGroup} changed from default`}>
+                      {changedInGroup} changed
+                    </span>
+                  )}
                   <span className="fxwb-grpcount">{groupKeys.length}</span>
                 </button>
                 {isOpen && <div className="fxwb-grpbody">{groupKeys.map(renderRow)}</div>}

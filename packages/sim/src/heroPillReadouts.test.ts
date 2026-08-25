@@ -20,7 +20,7 @@ const runWith = (heroId: string): RunState => createRun(5, heroId, 'practice');
 // either the pill wiring or the helper is caught against a fixed table.
 const tempestPill = (r: RunState): string => {
   const k = r.tempestKills ?? 0;
-  return k < TEMPEST_KILLS_PER_STEP ? `${k}/${TEMPEST_KILLS_PER_STEP} 🔒` : `${k % TEMPEST_KILLS_PER_STEP}/${TEMPEST_KILLS_PER_STEP}`;
+  return k < TEMPEST_KILLS_PER_STEP ? `${k}/${TEMPEST_KILLS_PER_STEP}` : `${k % TEMPEST_KILLS_PER_STEP}/${TEMPEST_KILLS_PER_STEP}`;
 };
 const tempestCentre = (r: RunState): string | null => { const g = tempestGrantOf(r); return g > 0 ? `+${g}/+${g}` : null; };
 const bladePill = (r: RunState): string => `${(r.bladeAttacks ?? 0) % BLADE_ATTACKS_PER_STEP}/${BLADE_ATTACKS_PER_STEP}`;
@@ -30,10 +30,10 @@ const hoardCentre = (r: RunState): string => { const w = hoardWhelpStatsOf(r); r
 const valeCentre = (r: RunState): string => `+${r.spellsCast}/+${r.spellsCast}`;
 
 describe('Aevor — Tempest pill + centre', () => {
-  it('the pill counts toward the UNLOCK below 15, then toward each step, and the lock mark tracks it', () => {
+  it('the pill counts toward the UNLOCK below 15, then toward each step', () => {
     const r = runWith('aevor');
-    r.tempestKills = 0; expect(tempestPill(r)).toBe('0/15 🔒');
-    r.tempestKills = 14; expect(tempestPill(r)).toBe('14/15 🔒');
+    r.tempestKills = 0; expect(tempestPill(r)).toBe('0/15');
+    r.tempestKills = 14; expect(tempestPill(r)).toBe('14/15');
     r.tempestKills = 15; expect(tempestPill(r)).toBe('0/15');
     r.tempestKills = 22; expect(tempestPill(r)).toBe('7/15');
     r.tempestKills = 30; expect(tempestPill(r)).toBe('0/15');
@@ -51,7 +51,7 @@ describe('Aevor — Tempest pill + centre', () => {
     const r = runWith('aevor');
     r.tempestKills = 13;
     const withDeaths = (n: number) => ({ ...r, tempestKills: (r.tempestKills ?? 0) + n });
-    expect(tempestPill(withDeaths(1))).toBe('14/15 \u{1F512}'); // still locked
+    expect(tempestPill(withDeaths(1))).toBe('14/15'); // still locked (centre stays blank)
     expect(tempestCentre(withDeaths(1))).toBeNull();
     expect(tempestPill(withDeaths(2))).toBe('0/15'); // 15 -> unlocked, live
     expect(tempestCentre(withDeaths(2))).toBe('+4/+4');

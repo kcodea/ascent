@@ -2724,8 +2724,21 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   /** Baby Gastrid (Shout, targeted; ex-Quartermaster Dorrin): +Health per Gold spent THIS TURN — a tempo reward for shopping
    *  before you play it, and it reads its live value on the card via `cardText`. */
   battlecryBuffTargetPerGoldSpent: (ctx, self, params, payload) => {
-    const target = (payload as { target?: BoardCard } | undefined)?.target;
-    if (!target) return;
+    // Un-aimed re-fire (Resonance / Myra / Echoing Roar) carries no target, so this used to do nothing (owner
+    // report 2026-08-25). Auto-pick a RANDOM eligible friendly Dwarf instead — mirroring Appetite Agent's
+    // `battlecryTargetConsumesShop`: a friendly OTHER than self respecting the live `targetTribe`, seeded off the
+    // shared rng cursor, falling back to self only when it is the only eligible Dwarf.
+    let target = (payload as { target?: BoardCard } | undefined)?.target;
+    if (!target) {
+      const tribe = effectiveTargetTribe(ctx.state, CARD_INDEX[self.cardId]);
+      const pool = ctx.state.board.filter((c) => c.uid !== self.uid && (!tribe || isTribe(c, tribe)));
+      if (pool.length > 0) {
+        const rng = makeRng(ctx.state.rngCursor);
+        target = pool[rng.int(pool.length)]!;
+        ctx.state.rngCursor = rng.state();
+      }
+      target = target ?? self;
+    }
     const per = num(params.health, 1) * gold(self);
     const h = per * (ctx.state.goldSpentThisTurn ?? 0);
     // Rune of Full Measure: the same number is paid as Attack as well, so the grant becomes +N/+N. Derived

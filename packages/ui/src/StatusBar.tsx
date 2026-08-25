@@ -119,7 +119,7 @@ function heroPowerTallyOf(
     // Aevor — kills toward the next +4/+4 step, climbing live via `combatEnemyDeaths`; below 15 it counts to the UNLOCK.
     case 'tempest': {
       const kills = (run.tempestKills ?? 0) + combatEnemyDeaths;
-      return kills < TEMPEST_KILLS_PER_STEP ? `${kills}/${TEMPEST_KILLS_PER_STEP} 🔒` : `${kills % TEMPEST_KILLS_PER_STEP}/${TEMPEST_KILLS_PER_STEP}`;
+      return kills < TEMPEST_KILLS_PER_STEP ? `${kills}/${TEMPEST_KILLS_PER_STEP}` : `${kills % TEMPEST_KILLS_PER_STEP}/${TEMPEST_KILLS_PER_STEP}`;
     }
     // Gorun — attacks toward the next +3, climbing live via the replay preview.
     case 'bladeMastery': return `${((run.bladeAttacks ?? 0) + (run.fxBladeAttacksPreview ?? 0)) % BLADE_ATTACKS_PER_STEP}/${BLADE_ATTACKS_PER_STEP}`;

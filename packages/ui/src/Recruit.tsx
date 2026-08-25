@@ -1844,6 +1844,19 @@ export function Recruit() {
       ];
     const rawTotal = contribs.reduce((s, c) => s + c.tier, 0);
 
+    // THE HERO STRIKE (owner ask 2026-08-25). The winner "gains the attack": their pill shows their BASE tier
+    // damage in YELLOW from the start; the TALLY is only the REST — the minion (survivor) damage — so pill +
+    // tally add up to the full damage WITHOUT double-counting the tier the pill already shows (owner ask
+    // 2026-08-25). When the tally lands the pill buffs to full and flips GREEN (a buffed minion reads green);
+    // only then does the hero wind up and lunge, dropping the loser's health with a minion's motion / FX / sounds.
+    const playerWon = won;
+    const side: 'player' | 'opp' = playerWon ? 'player' : 'opp';
+    const fullDmg = strikeDmg;
+    // Base = the attacker's tavern tier (the formula's leading term, contribs[0]); the tally is contribs[1..].
+    const baseTier = Math.min(contribs[0]?.tier ?? 1, fullDmg);
+    const buffAmount = Math.max(0, fullDmg - baseTier);
+    const tallyContribs = contribs.slice(1);   // drop the base-tier term — it is already worn on the pill
+
     // Every beat below is tunable live (⚔️ Hero Duel). Read once per sequence, so a mid-swing slider change
     // never retimes a swing that is already in the air.
     const duel = getHeroDuelConfig();
@@ -1851,9 +1864,9 @@ export function Recruit() {
     setLossPos({ x: cx, y: cy });
     setLossPhase('tally');
     setLossCount(0);
-    setLossDmg(finalDmg);
+    setLossDmg(buffAmount);
     setLossCapped(rawTotal > cap);
-    setLossFlyers(contribs.map((c, i) => ({
+    setLossFlyers(tallyContribs.map((c, i) => ({
       id: i, tier: c.tier,
       x: c.r ? c.r.left + c.r.width / 2 : cx,
       y: c.r ? c.r.top + c.r.height / 2 : cy,
@@ -1862,23 +1875,20 @@ export function Recruit() {
 
     const timers = seqTimersRef.current;
     let running = 0;
-    contribs.forEach((c, i) => {
-      timers.push(window.setTimeout(() => { running += c.tier; setLossCount(Math.min(running, cap)); }, i * STAGGER + FLY));
+    tallyContribs.forEach((c, i) => {
+      timers.push(window.setTimeout(() => { running += c.tier; setLossCount(Math.min(running, buffAmount)); }, i * STAGGER + FLY));
     });
-    const tallyEnd = contribs.length ? (contribs.length - 1) * STAGGER + FLY + 340 : 220;
+    const tallyEnd = tallyContribs.length ? (tallyContribs.length - 1) * STAGGER + FLY + 340 : 220;
 
-    // THE HERO STRIKE (owner ask 2026-08-25). The winner "gains the attack": their pill shows their BASE tier
-    // damage in YELLOW from the start; the tally climbs, then dissolves into particles that fly to that hero's
-    // portrait and BUFF the pill to full damage, flipping it GREEN (a buffed minion reads green). Only THEN does
-    // the hero wind up and lunge, dropping the loser's health with the same motion / FX / sounds a minion uses.
-    const playerWon = won;
     const strikeSeq = (lossSeqSeqRef.current += 1);
     const setPill = useGame.getState().setHeroAtkPill;
-    const side: 'player' | 'opp' = playerWon ? 'player' : 'opp';
-    const fullDmg = strikeDmg;
-    // Base = the attacker's tavern tier (the damage formula's leading term = contribs[0]); the tally is the rest.
-    const baseTier = Math.min(contribs[0]?.tier ?? 1, fullDmg);
-    setPill({ side, amount: baseTier, buffed: false });   // the yellow base pill rides the hero from tally start
+    setPill({ side, amount: baseTier, buffed: false });
+    // Retire the pill with a FADE (owner ask 2026-08-25): flag it `leaving` so CSS animates it out, then unmount.
+    const fadePillOut = (): void => {
+      const cur = useGame.getState().heroAtkPill;
+      if (cur) setPill({ ...cur, leaving: true });
+      timers.push(window.setTimeout(() => setPill(null), 260));
+    };   // the yellow base pill rides the hero from tally start
 
     timers.push(window.setTimeout(() => {
       // Dissolve the centre tally into particles that fly to the ATTACKER's portrait ("gaining the attack").
@@ -1927,12 +1937,12 @@ export function Recruit() {
         // there); replacing it left the attacker at inline z-index 12, painted over its name/health after settle.
         else {
           const lungeDone = tl.eventCallback('onComplete');
-          tl.eventCallback('onComplete', () => { lungeDone?.(); dropZ(); timers.push(window.setTimeout(() => setPill(null), duel.settleMs)); });
+          tl.eventCallback('onComplete', () => { lungeDone?.(); dropZ(); timers.push(window.setTimeout(() => fadePillOut(), duel.settleMs)); });
         }
       }, pixiFx.blastTravelMs + duel.pillHold));
     }, tallyEnd));
 
-    timers.push(window.setTimeout(() => { setPill(null); useGame.getState().setHeroDmgTaken(null); setLossPhase('done'); }, tallyEnd + pixiFx.blastTravelMs + duel.pillHold + STRIKE_BASE + duel.settleMs));
+    timers.push(window.setTimeout(() => { if (useGame.getState().heroAtkPill) fadePillOut(); useGame.getState().setHeroDmgTaken(null); setLossPhase('done'); }, tallyEnd + pixiFx.blastTravelMs + duel.pillHold + STRIKE_BASE + duel.settleMs));
     // NO cleanup here on purpose: this effect re-runs whenever `replay.frame` ticks, and tearing the timers
     // down on those re-runs killed the swing mid-flight. The sequence is short, self-completing and
     // single-entry (`lossSeqRef`); its timers are cleared when combat ends (below) and on unmount.

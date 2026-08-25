@@ -513,7 +513,7 @@ export function StatusBar() {
             {/* The post-combat ATTACK PILL — this hero's round damage, worn like a minion's Attack badge while
                 the hero strike plays (owner ask 2026-08-25). A child of the portrait so it rides the lunge. */}
             {heroAtkPill?.side === 'player' && (
-              <span key={`atk${heroAtkPill.amount}${heroAtkPill.buffed ? 'b' : ''}`} className={`hero-atk hero-atk-player${heroAtkPill.buffed ? ' buffed' : ''}`} aria-hidden="true">{heroAtkPill.amount}</span>
+              <span key={`atk${heroAtkPill.amount}${heroAtkPill.buffed ? 'b' : ''}`} className={`hero-atk hero-atk-player${heroAtkPill.buffed ? ' buffed' : ''}${heroAtkPill.leaving ? ' leaving' : ''}`} aria-hidden="true">{heroAtkPill.amount}</span>
             )}
             {/* The RED damage-taken number — pops in the centre of the portrait when the player is struck. */}
             {heroDmgTaken?.side === 'player' && (

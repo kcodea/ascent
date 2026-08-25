@@ -9041,6 +9041,13 @@ body.duel-attacker-opp .combatopp-hp { opacity: 0; }
   animation: heroatkpop 260ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 .hero-atk.buffed { background: #1aa86f; }   /* buffed to full damage — the same green a buffed minion's attack wears */
+/* Retire the pill with a FADE, not a hard cut (owner ask 2026-08-25): `.leaving` swaps the pop for a short
+   fade-and-shrink out. It out-specifies the base `animation`, so it wins. */
+.hero-atk.leaving { animation: heroatkleave 260ms cubic-bezier(0.4, 0, 1, 1) forwards; }
+@keyframes heroatkleave {
+  from { opacity: 1; transform: translateX(-50%) scale(var(--pill-s, 1)); }
+  to   { opacity: 0; transform: translateX(-50%) scale(calc(var(--pill-s, 1) * 0.72)); }
+}
 .hero-atk-player { --pill-s: var(--hd-pill-player-s, 0.55); --pill-x: var(--hd-pill-player-x, 37px); --pill-y: var(--hd-pill-player-y, -6px); }
 .hero-atk-opp    { --pill-s: var(--hd-pill-opp-s, 0.72); --pill-x: var(--hd-pill-opp-x, -60px); --pill-y: var(--hd-pill-opp-y, -16px); }
 @keyframes heroatkpop {

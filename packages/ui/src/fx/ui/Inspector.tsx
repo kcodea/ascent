@@ -76,6 +76,7 @@ export function Inspector({
   primitiveId,
   layerKey,
   focusKey,
+  onFocusHandled,
 }: {
   specs: FxParamSpecs;
   values: Record<string, unknown>;
@@ -90,6 +91,13 @@ export function Inspector({
    *  The parent clears it (it is reset every time the command palette opens), so re-jumping to the same
    *  param fires again. */
   focusKey?: string | null;
+  /** Called once the ⌘K jump above has actually scrolled a matching row into view, so the parent can clear
+   *  `focusKey` right away instead of waiting for the next ⌘K open. Without this, a later layer switch to a
+   *  different primitive that happens to share the same param key re-triggers the scroll/open unexpectedly —
+   *  the stale `focusKey` still matches a param on the new primitive. ADDITIVE: omitted is exactly today's
+   *  behaviour (the parent clears on next open, as before). Not called when `focusKey` names a param this
+   *  primitive doesn't have, or when the row can't be found on screen. */
+  onFocusHandled?: () => void;
 }): React.ReactElement {
   const [tier, setTier] = useState<InspectorTier>('essentials');
   const [query, setQuery] = useState('');
@@ -125,10 +133,12 @@ export function Inspector({
       const row = rootRef.current
         ?.querySelector(`#fxwb-${CSS.escape(focusKey)}`)
         ?.closest('.fxwb-row');
-      row?.scrollIntoView({ block: 'nearest' });
+      if (row === null || row === undefined) return;
+      row.scrollIntoView({ block: 'nearest' });
+      onFocusHandled?.();
     });
     return () => cancelAnimationFrame(raf);
-  }, [focusKey, primitiveId, specs, stored]);
+  }, [focusKey, primitiveId, specs, stored, onFocusHandled]);
 
   const toggleGroup = (group: string): void => {
     const next = { ...open, [group]: !(open[group] ?? true) };

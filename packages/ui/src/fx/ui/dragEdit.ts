@@ -19,7 +19,7 @@ export interface ReorderDrag {
  * read from the DOM per pointer-move (see the repo's "don't read layout per frame" rule). The crossover
  * threshold for each row is its vertical MIDPOINT: `top + (nextTop - top) / 2` for every row but the last,
  * which has no "next" row to measure against and so mirrors the gap above it instead:
- * `top + (top - prevTop) / 2`.
+ * `top + (top - prevTop)`.
  */
 export function reorderTargetIndex(drag: ReorderDrag, pointerY: number, rowTops: readonly number[]): number {
   const { count } = drag;

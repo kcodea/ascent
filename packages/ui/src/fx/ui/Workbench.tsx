@@ -70,7 +70,6 @@ import {
   duplicateLayer,
   effectiveMutes,
   fitDurationToLayers,
-  moveLayer,
   removeLayer,
   setLayerAnchor,
   setLayerBow,
@@ -539,10 +538,6 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   // and write it synchronously inside an event handler (a state updater can't both compute the next stack
   // and apply its snapshot to the player without running side effects inside the updater).
   const [historyFlags, setHistoryFlags] = useState({ undo: false, redo: false });
-  // Which layer's name is being edited in place, and the in-progress text. `null` = nobody's renaming.
-  const [renaming, setRenaming] = useState<number | null>(null);
-  const [renameText, setRenameText] = useState('');
-
   const playerRef = useRef<FxPlayer | null>(null);
   const backdropRef = useRef<FxBackdrop | null>(null);
   // Mirrors of the latest state, read by the per-frame updater / build closures so those never go stale
@@ -594,9 +589,9 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   const togglePlayRef = useRef<() => void>(() => {});
   const fireRef = useRef<() => void>(() => {});
   const toggleLoopRef = useRef<() => void>(() => {});
-  // Mirrors `renaming` so committing a rename is IDEMPOTENT: Enter commits and unmounts the input, and some
-  // browsers fire a `blur` on removal — which would otherwise commit (and record) the same rename twice.
-  // A ref, not the state, because both would land in the same React batch and the state wouldn't have moved.
+  // Vestige of the in-place rename Workbench used to own directly (now `LayersPanel`'s own textbox — see
+  // `cancelRename`); kept only because `cancelRename` still clears it from the undo/redo and
+  // composition-reset guards below.
   const renamingRef = useRef<number | null>(null);
 
   // Live pointer position, for cursor-driven scenarios — independent of build/rebuild, tracked once.
@@ -1218,30 +1213,13 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
     pushLiveMutes(next);
   };
 
-  /** Begin renaming a row in place. Seeds the box with the CURRENT name, or blank when the row is still
-   *  showing its primitive id — you're naming it, not editing "burst". */
-  const startRename = (i: number): void => {
-    renamingRef.current = i;
-    setRenaming(i);
-    setRenameText(layers[i]?.name ?? '');
-  };
-
-  /** Abandon the in-place rename without touching the layer (Escape, or the composition being replaced). */
+  /** Abandon the in-place rename without touching the layer (Escape, or the composition being replaced).
+   *  `LayersPanel` now owns the rename textbox itself; this only clears the ref that used to guard against
+   *  a double-commit (Enter committing, then a browser's `blur`-on-unmount committing again) — kept for the
+   *  undo/redo and composition-reset call sites below, which must still be able to abandon a stale rename
+   *  they didn't start. */
   const cancelRename = (): void => {
     renamingRef.current = null;
-    setRenaming(null);
-  };
-
-  /** Commit the in-place rename. An empty box clears the name (the row goes back to its primitive id), and a
-   *  rename that changes nothing records nothing. Purely a label: no live push, no rebuild. */
-  const commitRename = (i: number): void => {
-    if (renamingRef.current !== i) return; // already committed / cancelled — see `renamingRef`
-    cancelRename();
-    const trimmed = renameText.trim();
-    const current = layers[i]?.name;
-    if (trimmed === (current ?? '')) return;
-    record('structural');
-    commitLayers(setLayerName(layers, i, trimmed));
   };
 
   const deleteLayer = (i: number): void => {
@@ -1251,24 +1229,10 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
     applySelected(Math.min(selectedRef.current, next.length - 1));
   };
 
-  const reorderLayer = (i: number, dir: -1 | 1): void => {
-    record('structural');
-    const next = moveLayer(layers, i, dir);
-    commitLayers(next);
-    // Swapping two layers that share a primitive+anchor leaves `structKey` unchanged (it no longer carries
-    // timing), so no rebuild fires — the live instances would keep the pre-swap params/timing at their new
-    // indices. Push them explicitly; harmless when the key DID change and a rebuild is coming anyway.
-    pushLiveLayers(next);
-    const target = i + dir;
-    if (target >= 0 && target < next.length) applySelected(target); // keep selection on the moved layer
-  };
-
-  /** `LayersPanel`'s grip-drag resolves an arbitrary drop index (`resolveDrop`/`reorderTargetIndex`), unlike
-   *  the ↑/↓ buttons' single adjacent step — so it can't reuse `reorderLayer(i, dir)` as-is. Same
-   *  record/commit/live-push/reselect contract, but moves the layer straight to `to` with one splice
-   *  (`applyReorder`) so a multi-row drag is ONE undo entry, not N single-step ones. Reads/writes through
-   *  `layersRef` (not the render-scoped `layers`) so it stays correct if ever invoked more than once before a
-   *  render lands, matching `retimeLayer`'s precedent. */
+  /** `LayersPanel`'s grip-drag resolves an arbitrary drop index (`resolveDrop`/`reorderTargetIndex`). Moves
+   *  the layer straight to `to` with one splice (`applyReorder`) so a multi-row drag is ONE undo entry, not N
+   *  single-step ones. Reads/writes through `layersRef` (not the render-scoped `layers`) so it stays correct
+   *  if ever invoked more than once before a render lands, matching `retimeLayer`'s precedent. */
   const reorderLayerTo = (from: number, to: number): void => {
     if (from === to) return;
     record('structural');
@@ -1278,11 +1242,9 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
     applySelected(to);
   };
 
-  /** `LayersPanel` owns the in-place rename textbox locally now (it moved out of Workbench's own
-   *  `renaming`/`renameText` state along with the JSX), so it hands back the finished name directly instead
-   *  of this reading it off local state the way `commitRename` (above `startRename`) still does for nothing.
-   *  Mirrors `commitRename`'s commit rule — trim, no-op guard, one `structural` history entry, no live push
-   *  (a name is a label, not something the running effect needs to know about). */
+  /** `LayersPanel` owns the in-place rename textbox itself, so it hands back the finished name directly
+   *  instead of this reading it off local state. Trim, no-op guard, one `structural` history entry, no live
+   *  push (a name is a label, not something the running effect needs to know about). */
   const renameLayer = (i: number, name: string): void => {
     const trimmed = name.trim();
     const current = layersRef.current[i]?.name;
@@ -2449,6 +2411,10 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
       layerKey={`${selLayer.primitive}:${selected}`}
       // ⌘K param-jump target: scrolls this param into view + opens its group, then the parent clears it.
       focusKey={inspectorFocusKey}
+      // Clear right after the jump has actually scrolled, rather than waiting for the next ⌘K open — a
+      // stale focusKey would otherwise re-scroll on a later layer switch to a different primitive that
+      // happens to share the same param key.
+      onFocusHandled={() => setInspectorFocusKey(null)}
     />
   ) : null;
 

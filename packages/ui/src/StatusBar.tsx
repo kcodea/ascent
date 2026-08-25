@@ -519,7 +519,6 @@ export function StatusBar() {
             ) : (
               <Icon name="anvil" />
             )}
-            {playerName && <div className="heroname" ref={playerNameRef}>{playerName}</div>}
             {/* Buffs affordance — the little arrow at the top of the portrait (only when there are buffs). */}
             {buffRows.length > 0 && <span className="herobuffs-arrow" aria-hidden="true">{buffsOpen ? '▾' : '▴'}</span>}
             {/* Hover affordance — the portrait darkens and spells out the click action (only when there are
@@ -530,6 +529,9 @@ export function StatusBar() {
               </span>
             )}
             </div>
+            {/* The player NAME sits OUTSIDE `.herolunge`, so it stays put while the portrait lunges — matching
+                the anchored health and the foe's anchored name (owner ask 2026-08-25). */}
+            {playerName && <div className="heroname" ref={playerNameRef}>{playerName}</div>}
           </div>
           {/* Health as a compact white box under the hero — the number is Resolve (+Armor). Keeps the hit-shake
               + −X float when a wave breaks through. */}

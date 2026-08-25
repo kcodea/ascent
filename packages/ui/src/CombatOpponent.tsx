@@ -29,23 +29,26 @@ export function CombatOpponent(): JSX.Element | null {
   if (!seat) return null;
   const art = heroArt(seat.heroId);
   return (
+    // Three nested roles, mirroring the player's housing (owner ask 2026-08-25):
+    //   .combatopp       — fixed position + the ⚔️ tuner's centring scale/offset (GSAP never touches it).
+    //   .combatopp-drop  — the whole group's drop-in; NAME and HEALTH live here so they stay ANCHORED.
+    //   .combatopp-body  — the LUNGE target: the portrait (and its attack pill) ONLY, so the strike carries
+    //                      just the face — the name and health do not fly with it, exactly as the player's
+    //                      health stays put while the portrait lunges.
     <div className="combatopp" aria-hidden="true">
-      {/* The BODY is the lunge target: the outer `.combatopp` owns a centring CSS transform, and GSAP writes
-          `transform` too — animating the outer element would clobber the centring and make it jump half its
-          size. So the wrapper positions, the body moves. */}
-      <div className="combatopp-body">
-      {/* Name ABOVE the portrait, health BELOW it (owner ask 2026-08-25) — both absolutely placed against the
-          portrait so the ⚔️ tuner can size and move each independently without disturbing the other. */}
-      <div className="combatopp-name">{seat.label}</div>
-      <div className="combatopp-portrait">
-        {/* The foe's ATTACK PILL — same badge the player's portrait wears; a child so it rides the lunge. */}
-        {pill?.side === 'opp' && <span key={`atk${pill.amount}`} className="hero-atk hero-atk-opp">{pill.amount}</span>}
-        {art ? <img className="combatopp-img" src={art} alt="" draggable={false} /> : <Icon name="anvil" />}
-      </div>
-      <div className="combatopp-hp">
-        <Icon name="heart" />{seat.resolve}
-        {seat.armor > 0 && <span className="combatopp-armor">+{seat.armor}</span>}
-      </div>
+      <div className="combatopp-drop">
+        <div className="combatopp-name">{seat.label}</div>
+        <div className="combatopp-body">
+          <div className="combatopp-portrait">
+            {/* The foe's ATTACK PILL — same badge the player wears; inside the body so it rides the lunge. */}
+            {pill?.side === 'opp' && <span key={`atk${pill.amount}`} className="hero-atk hero-atk-opp">{pill.amount}</span>}
+            {art ? <img className="combatopp-img" src={art} alt="" draggable={false} /> : <Icon name="anvil" />}
+          </div>
+        </div>
+        <div className="combatopp-hp">
+          <Icon name="heart" />{seat.resolve}
+          {seat.armor > 0 && <span className="combatopp-armor">+{seat.armor}</span>}
+        </div>
       </div>
     </div>
   );

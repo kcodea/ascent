@@ -8910,15 +8910,18 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   z-index: 42;                      /* just above the refresh button it lands on */
   pointer-events: none;
 }
-/* The moving part — the drop-in plays here, and the post-combat lunge animates this element (never the
-   wrapper, whose transform is the centring). */
-.combatopp-body {
+/* THE DROP-IN GROUP — name, portrait and health drop in together on mount, and stay laid out in a column.
+   The NAME and HEALTH live here, OUTSIDE the lunging body, so the strike carries only the portrait (owner ask
+   2026-08-25: the enemy name + health must not fly with the face, matching the player's anchored health).
+   `backwards` fill, not `both`: a forwards-filling transform would outrank inline styles and never let go —
+   here it only needs to hold the pre-start pose, then leave the transform free. */
+.combatopp-drop {
   display: flex; flex-direction: column; align-items: center; gap: calc(4 * var(--u));
-  /* `backwards`, NOT `both`: a forwards-filling animation keeps applying its final `transform` FOREVER, and a
-     CSS animation outranks inline styles — so it would fight the GSAP transform the post-combat lunge writes
-     to this very element. Backwards still holds the pre-start pose, and leaves the transform free after. */
   animation: combatoppdrop 460ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
 }
+/* THE LUNGE TARGET — the portrait ONLY. Transform-CLEAN (no base transform, no drop-in), so the post-combat
+   hero strike's GSAP owns it without fighting anything, and the name/health above and below stay put. */
+.combatopp-body { display: block; }
 @keyframes combatoppdrop {
   from { opacity: 0; transform: translateY(-46px) scale(0.86); }
   to   { opacity: 1; transform: none; }

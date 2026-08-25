@@ -8,11 +8,13 @@ import {
   defaultOpenGroups,
   groupParamKeys,
   isParamEnabled,
+  matchesParamQuery,
   paramDisabledReason,
   visibleParamKeys,
   type FxParamSpec,
   type FxParamSpecs,
 } from '../params';
+import { filterEntries, filterOnCount, isFilterGroup, type FilterEntry } from './filterGroups';
 import { importShapeFromFile, listShapeOptions, removeImportedShape } from '../shapeLibrary';
 import { ColorPickerHSB } from './ColorPickerHSB';
 import { PalettePicker } from './PalettePicker';
@@ -49,6 +51,12 @@ type InspectorTier = 'essentials' | 'all' | 'changed';
 /** Per-primitive so the groups you opened for `burst` don't decide what `ribbon` looks like. */
 const groupsKey = (primitiveId: string): string => `fxwb.inspector.groups.${primitiveId}`;
 
+/** The synthetic group key the "Filters" master group's open/closed state persists under. Not a real spec
+ *  `group` value (those are the individual filters' own labels, e.g. "Bloom (Advanced)") — see
+ *  `filterGroups.ts`. Kept distinct (double-underscored) so it can never collide with an author's own group
+ *  name. */
+const FILTERS_GROUP_KEY = '__filters__';
+
 /** Read the persisted open/closed OVERRIDES. Total: any storage failure (private mode, disabled storage,
  *  corrupt JSON) degrades to "no stored state", never to a thrown render. */
 function readOpenGroups(primitiveId: string): unknown {
@@ -78,6 +86,10 @@ function writeOpenGroups(primitiveId: string, overrides: Record<string, boolean>
  *  (only boolean values, only known groups) without merging over a full defaults map. */
 function sanitizeOpenOverrides(specs: FxParamSpecs, raw: unknown): Record<string, boolean> {
   const knownGroups = new Set(Object.keys(specs).map((k) => specs[k].group ?? DEFAULT_PARAM_GROUP));
+  // The Filters master group is synthetic (its members' own `group` values are the individual filters'
+  // labels, never this key — see FILTERS_GROUP_KEY above), so it would otherwise be sanitized away as an
+  // "unknown" group and a user's explicit open/close of the master group would never survive a reload.
+  knownGroups.add(FILTERS_GROUP_KEY);
   const out: Record<string, boolean> = {};
   if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) return out;
   for (const [group, value] of Object.entries(raw as Record<string, unknown>)) {
@@ -156,11 +168,41 @@ export function Inspector({
   // This session's live overrides for the primitive, falling back to whatever was persisted.
   const overrides = openByPrimitive[primitiveId] ?? storedOverrides;
 
+  // Hoisted above its historical spot (just before `total`/`keys` below) so `filtersDefaultOpen` — which
+  // `isGroupOpen` needs — can read it without forward-referencing a later `const`.
+  const searching = query.trim() !== '';
+
+  // Every registry filter this PRIMITIVE actually has specs for — specs-driven, deliberately NOT filtered by
+  // tier/essentials/changed. The Filters master group is a constant fixture of the grouped view (its own
+  // "N on · total" badge already says what matters); narrowing its membership by tier would make "Changed"
+  // hide an enabled-but-unchanged filter's controls, which is the opposite of decluttering.
+  const filterEntriesList = useMemo(() => filterEntries(specs, values), [specs, values]);
+  // Does `query` (the shared search box) match this filter at all — its own label/toggle or any of its
+  // inline params? Mirrors `matchesParamQuery`'s label-or-key match, extended across the filter's whole
+  // param set, since the filter's toggle spec label already equals the filter's own label (see
+  // `filterLabSpecs`), so checking the toggle spec covers the "matches the filter label" half for free.
+  const filterEntryMatchesQuery = (entry: FilterEntry): boolean =>
+    matchesParamQuery(specs[entry.onKey], entry.onKey, query) ||
+    entry.paramKeys.some((k) => matchesParamQuery(specs[k], k, query));
+  // The Filters master group's own collapse-by-default rule — the exact analogue of `defaultSeed` (which only
+  // knows about primitive-declared `group`s, so it never has an entry for this synthetic one): open when at
+  // least one filter is ON. Deliberately does NOT fold the search-match case in here too — `defaultSeed`
+  // doesn't consider `query` either; both leave "does the live search match" to the render call site's own
+  // `searching || isGroupOpen(...)` (see below), the same override-bypassing force-open every plain group gets.
+  const filtersDefaultOpen = filterOnCount(filterEntriesList) > 0;
+  // Whether the live search is actively hitting something INSIDE the Filters master (as opposed to `searching`
+  // alone, which is true for ANY query — including one that only matches an unrelated primitive param and has
+  // nothing to do with filters at all). Forcing the master open on every keystroke regardless of relevance
+  // would mean a primitive with filters flashes open when searching for something else entirely.
+  const filtersSearchMatch = searching && filterEntriesList.some(filterEntryMatchesQuery);
+
   // A group's effective open/closed state: an explicit override (this session's toggle, or a persisted one)
   // always wins; otherwise fall back to the current tier's seed. Essentials/All see ONLY `defaultSeed` here —
-  // byte-for-byte the same computation as before the Changed tier existed.
+  // byte-for-byte the same computation as before the Changed tier existed. The Filters master group (a
+  // synthetic group, never a key in `defaultSeed`) falls back to `filtersDefaultOpen` instead.
   const isGroupOpen = (group: string): boolean => {
     if (group in overrides) return overrides[group];
+    if (group === FILTERS_GROUP_KEY) return filtersDefaultOpen;
     if (tier === 'changed' && changedGroupSeed[group] === true) return true;
     return defaultSeed[group] ?? true;
   };
@@ -176,16 +218,26 @@ export function Inspector({
     if (focusKey === undefined || focusKey === null) return;
     const spec = specs[focusKey];
     if (spec === undefined) return;
-    const group = spec.group ?? DEFAULT_PARAM_GROUP;
+    const rawGroup = spec.group ?? DEFAULT_PARAM_GROUP;
+    // A filter's own param (e.g. one of its knobs) declares its GROUP as the filter's label — but that group
+    // no longer renders on its own (see the grouped-render path below); it lives inside the Filters master.
+    // Force-open the master group instead so the jump still lands somewhere visible. The row itself only
+    // renders once the target filter is ON or matches a search (see `filterEntryMatchesQuery`) — jumping to
+    // an off, non-matching filter's knob still can't surface a row that's deliberately hidden, so the scroll
+    // below is a no-op in that case (same graceful "row not found" fallback as any other missing target).
+    const group = isFilterGroup(rawGroup) ? FILTERS_GROUP_KEY : rawGroup;
     setTier('all');
     setOpenByPrimitive((prev) => ({
       ...prev,
       [primitiveId]: { ...(prev[primitiveId] ?? storedOverrides), [group]: true },
     }));
     const raf = requestAnimationFrame(() => {
+      // A plain param's row is `.fxwb-row`; a filter's own toggle (rendered as the Filters master group's
+      // header control, not a `ParamRow`) lives in a `.fxwb-filterrow` instead — match either so jumping
+      // straight to a filter's on/off switch finds a scrollable target too.
       const row = rootRef.current
         ?.querySelector(`#fxwb-${CSS.escape(focusKey)}`)
-        ?.closest('.fxwb-row');
+        ?.closest('.fxwb-row, .fxwb-filterrow');
       if (row === null || row === undefined) return;
       row.scrollIntoView({ block: 'nearest' });
       onFocusHandled?.();
@@ -202,7 +254,6 @@ export function Inspector({
     writeOpenGroups(primitiveId, next);
   };
 
-  const searching = query.trim() !== '';
   const total = Object.keys(specs).length;
   const essentialCount = Object.keys(specs).filter((k) => specs[k].essential === true).length;
   const keys = visibleParamKeys(specs, {
@@ -216,6 +267,14 @@ export function Inspector({
   // from any tier for the same reason. A search also reaches past the Essentials tier — someone typing
   // "turb" wants the turbulence knobs either way.
   const grouped = tier === 'all' || tier === 'changed' || searching;
+  // Every registry filter's params share a `group` equal to that filter's own label (`filterLabSpecs`) — one
+  // real accordion section PER filter otherwise, 30+ of them competing with the primitive's own groups for
+  // attention. Drop them from the plain group list entirely; they render once, together, under the single
+  // "Filters" master group below (see `filterEntriesList`). Every other group renders exactly as before this
+  // task — same `groupParamKeys`/`isGroupOpen`/`toggleGroup` path, just minus the filter groups.
+  const plainGroups = grouped
+    ? groupParamKeys(specs, keys).filter(({ group }) => !isFilterGroup(group))
+    : [];
 
   const renderRow = (key: string): React.ReactElement => (
     <ParamRow
@@ -299,35 +358,100 @@ export function Inspector({
       )}
 
       {grouped
-        ? groupParamKeys(specs, keys).map(({ group, keys: groupKeys }) => {
-            // A search forces every group holding a hit open — a filtered-but-collapsed group would just be a
-            // heading you have to click to discover the thing you already searched for.
-            const isOpen = searching || isGroupOpen(group);
-            // How many of THIS group's currently-visible rows have drifted from default — independent of
-            // tier, so browsing All still flags which groups hold edits without switching to Changed.
-            const changedInGroup = groupKeys.reduce((n, k) => (changed.has(k) ? n + 1 : n), 0);
-            return (
-              <section className="fxwb-grp" key={group}>
-                <button
-                  type="button"
-                  className="fxwb-grphead"
-                  aria-expanded={isOpen}
-                  title={isOpen ? `Collapse ${group}` : `Expand ${group}`}
-                  onClick={() => toggleGroup(group)}
-                >
-                  <span className="fxwb-grpcaret" aria-hidden="true">{isOpen ? '▾' : '▸'}</span>
-                  <span className="fxwb-grpname">{group}</span>
-                  {changedInGroup > 0 && (
-                    <span className="fxwb-grpbadge" title={`${changedInGroup} changed from default`}>
-                      {changedInGroup} changed
+        ? (
+          <>
+            {plainGroups.map(({ group, keys: groupKeys }) => {
+              // A search forces every group holding a hit open — a filtered-but-collapsed group would just be
+              // a heading you have to click to discover the thing you already searched for.
+              const isOpen = searching || isGroupOpen(group);
+              // How many of THIS group's currently-visible rows have drifted from default — independent of
+              // tier, so browsing All still flags which groups hold edits without switching to Changed.
+              const changedInGroup = groupKeys.reduce((n, k) => (changed.has(k) ? n + 1 : n), 0);
+              return (
+                <section className="fxwb-grp" key={group}>
+                  <button
+                    type="button"
+                    className="fxwb-grphead"
+                    aria-expanded={isOpen}
+                    title={isOpen ? `Collapse ${group}` : `Expand ${group}`}
+                    onClick={() => toggleGroup(group)}
+                  >
+                    <span className="fxwb-grpcaret" aria-hidden="true">{isOpen ? '▾' : '▸'}</span>
+                    <span className="fxwb-grpname">{group}</span>
+                    {changedInGroup > 0 && (
+                      <span className="fxwb-grpbadge" title={`${changedInGroup} changed from default`}>
+                        {changedInGroup} changed
+                      </span>
+                    )}
+                    <span className="fxwb-grpcount">{groupKeys.length}</span>
+                  </button>
+                  {isOpen && <div className="fxwb-grpbody">{groupKeys.map(renderRow)}</div>}
+                </section>
+              );
+            })}
+            {/* The Filters master group — every registry filter's toggle + (when it matters) its inline
+                params, folded under ONE accordion instead of 30+ competing sections. Rendered only when this
+                primitive actually has filter specs (a primitive with no filters shows nothing extra). Its
+                open/closed state goes through the SAME `isGroupOpen`/`toggleGroup` path as every other group
+                (keyed by `FILTERS_GROUP_KEY`), so a search still force-opens it exactly like any other group. */}
+            {filterEntriesList.length > 0 && (() => {
+              const filtersOn = filterOnCount(filterEntriesList);
+              // `filtersSearchMatch`, not the blanket `searching` the plain groups above use — a plain group
+              // only ever appears there once it already holds a search hit (it came straight out of `keys`),
+              // so forcing it open is always correct. The Filters master renders whenever this primitive HAS
+              // filters at all, whether or not the live query matches anything inside one, so blanket-opening
+              // it on every keystroke would flash it open while searching for an unrelated primitive param.
+              const isOpen = filtersSearchMatch || isGroupOpen(FILTERS_GROUP_KEY);
+              return (
+                <section className="fxwb-grp fxwb-filtersgrp" key={FILTERS_GROUP_KEY}>
+                  <button
+                    type="button"
+                    className="fxwb-grphead"
+                    aria-expanded={isOpen}
+                    title={isOpen ? 'Collapse Filters' : 'Expand Filters'}
+                    onClick={() => toggleGroup(FILTERS_GROUP_KEY)}
+                  >
+                    <span className="fxwb-grpcaret" aria-hidden="true">{isOpen ? '▾' : '▸'}</span>
+                    <span className="fxwb-grpname">Filters</span>
+                    <span
+                      className={`fxwb-filtersbadge${filtersOn > 0 ? ' on' : ''}`}
+                      title={`${filtersOn} of ${filterEntriesList.length} filters enabled`}
+                    >
+                      {filtersOn} on · {filterEntriesList.length}
                     </span>
+                  </button>
+                  {isOpen && (
+                    <div className="fxwb-grpbody fxwb-filtersbody">
+                      {filterEntriesList.map((entry) => {
+                        // On floats it to the top (see `filterEntries`'s ordering) and always shows its
+                        // params; off but matching the live search also expands, so search still finds a
+                        // knob buried inside a filter that isn't switched on. Otherwise stays collapsed to
+                        // just its toggle — the entire point of folding 30+ groups into one.
+                        const expanded = entry.on || (searching && filterEntryMatchesQuery(entry));
+                        return (
+                          <div className="fxwb-filterrow" key={entry.id}>
+                            <label className="fxwb-filterhead" htmlFor={`fxwb-${entry.onKey}`}>
+                              <input
+                                id={`fxwb-${entry.onKey}`}
+                                type="checkbox"
+                                checked={entry.on}
+                                onChange={(e) => onChange(entry.onKey, e.target.checked)}
+                              />
+                              <span className="fxwb-filtername">{entry.label}</span>
+                            </label>
+                            {expanded && entry.paramKeys.length > 0 && (
+                              <div className="fxwb-filterbody">{entry.paramKeys.map(renderRow)}</div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
                   )}
-                  <span className="fxwb-grpcount">{groupKeys.length}</span>
-                </button>
-                {isOpen && <div className="fxwb-grpbody">{groupKeys.map(renderRow)}</div>}
-              </section>
-            );
-          })
+                </section>
+              );
+            })()}
+          </>
+        )
         : keys.map(renderRow)}
     </div>
   );

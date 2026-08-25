@@ -7771,6 +7771,44 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
    own margin so the spacing doesn't double up. Rows inside a group keep it. */
 .fxwb-inspector > .fxwb-row { margin: 0; }
 
+/* The FILTERS MASTER GROUP — 30+ registry filters folded under one `.fxwb-grp` instead of one accordion
+   section each. Reuses `.fxwb-grphead`/`.fxwb-grpbody`/`.fxwb-grpcaret`/`.fxwb-grpname` verbatim (it IS a
+   `.fxwb-grp`, just with its own badge and a body of filter rows instead of plain param rows) — only the
+   pieces that don't exist anywhere else get their own `.fxwb-filters*` rule. */
+/* The "N on · total" badge: neutral grey at 0 (nothing to say), accent-tinted the moment anything is ON — the
+   same "does this heading hide something worth knowing" language as `.fxwb-grpbadge`'s "N changed" pip. An
+   explicit `.on` modifier (set from `filtersOn > 0` in Inspector.tsx) rather than a `:has(input:checked)`
+   selector — the checkboxes it would need to see only exist in the DOM while the group is OPEN, so a `:has()`
+   read would silently go neutral the moment the author collapses a group that still has filters enabled. */
+.fxwb-filtersbadge {
+  flex: 0 0 auto; min-width: 16px; padding: 1px 5px; border-radius: 99px; background: #241f17;
+  border: 1px solid #4a4136; color: #c9bda6; font-size: 9px; font-weight: 800; letter-spacing: 0;
+  text-align: center; white-space: nowrap;
+}
+.fxwb-filtersbadge.on {
+  background: color-mix(in srgb, #c8a45c 24%, #241f17); border-color: #c8a45c; color: #f0d9a4;
+}
+/* One filter's own row inside the master group's body: its toggle doubles as the row's header — a
+   `.fxwb-grphead`-in-miniature, minus the caret (a filter has no "collapsed but present" state beyond its own
+   on/off; there is nothing else to fold). Sits flush against the previous row via the body's own top border
+   rather than per-row margin, so a scan of 30 collapsed toggles reads as one dense list, not 30 separate cards. */
+.fxwb-filterrow { border-top: 1px solid #33291d; }
+.fxwb-filterrow:first-child { border-top: 0; }
+.fxwb-filterhead {
+  display: flex; align-items: center; gap: 7px; width: 100%; padding: 5px 2px;
+  font-family: var(--font-ui); font-size: 11px; font-weight: 700; color: #c9bda6;
+}
+.fxwb-filterhead:hover { color: #efe7db; }
+.fxwb-filterhead input[type='checkbox'] { flex: 0 0 auto; accent-color: #c8a45c; width: 14px; height: 14px; }
+.fxwb-filtername { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* A filter switched ON reads as a live control, same treatment as `.fxwb-row label` for an enabled param. */
+.fxwb-filterrow:has(input:checked) .fxwb-filtername { color: #f0d9a4; }
+/* The filter's own Amount/curve/knobs, inline beneath its toggle once it's ON (or a search match pulled it
+   open) — indented under the toggle so the nesting reads at a glance, same `.fxwb-row` grid as everywhere
+   else in the inspector. */
+.fxwb-filterbody { padding: 0 0 6px 21px; }
+.fxwb-filterbody .fxwb-row { margin: 4px 0; }
+
 /* Row label cell: the name plus a visible `?`. Help used to be a `title=` on the row div — invisible until
    you hovered the right pixel for a second, and absent entirely on keyboard/touch. */
 .fxwb-lab { display: flex; align-items: center; gap: 4px; min-width: 0; }

@@ -56,10 +56,10 @@ export interface TitleConfig {
 // halo on the logo, and a SEPARATE float. (`logoColor` is inert while the logo is a raster PNG — kept for when
 // a vector mark returns.)
 const DEFAULTS: TitleConfig = {
-  markSize: 200,
-  gap: 0,
-  x: -95,
-  y: -4,
+  markSize: 180,
+  gap: 13,
+  x: -66,
+  y: -38,
   font: 'Cinzel Decorative',
   fontCustom: '',
   fontWeight: 600,

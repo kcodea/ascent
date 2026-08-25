@@ -56,6 +56,14 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-08-24',
+    label: 'Menu Polish',
+    changes: [
+      { category: 'UI / Info', text: 'Hero select now leads with the ASCENT logo at the top of the screen and a “Select Your Hero” prompt above the heroes.' },
+      { category: 'UI / Info', text: 'Tidied the main-menu logo’s size and placement.' },
+    ],
+  },
+  {
+    date: '2026-08-24',
     label: 'Practice & Lobby Polish',
     changes: [
       { category: 'UI / Info', text: 'Fixed Practice bot games reporting the wrong placement — beating the bots now correctly reads as 1st, and your finish reflects how many of the fights you won.' },

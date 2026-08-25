@@ -1,4 +1,7 @@
 import { Particle, Shader, type ParticleContainer, type Texture } from 'pixi.js';
+import { BLUR_PARAM_SPECS } from '../blurFilter';
+import { FilterStack, filterLabSpecs } from '../filterStack';
+import { FILTERS } from '../filterRegistry';
 import type { FxParamSpecs, ParamsOf } from '../params';
 import type { FxContext, FxInstance, FxPrimitive } from '../primitive';
 import { PALETTE_PRESETS, paletteTuple } from '../palettes';
@@ -420,6 +423,7 @@ const SPECS = {
     kind: 'slider', label: 'Glow', group: 'Style', min: 0, max: 1, step: 0.01, default: 0.25,
     help: 'A soft halo of light behind each shard, tinted by the palette\'s core colour. 0 leaves them crisp; higher makes the spray bloom and bleed into what it crosses.',
   },
+  ...BLUR_PARAM_SPECS,
 
   noiseScale: {
     kind: 'slider', label: 'Noise scale', group: 'Texture', min: 0.5, max: 20, step: 0.1, default: 6,
@@ -448,6 +452,9 @@ const SPECS = {
     enabledWhen: { param: 'erode', above: 0 },
     help: 'How well a shard resists Erode — raise it and the noise takes smaller bites so shards read solid, lower it and the same Erode chews them down to wisps. Does nothing while Erode is 0.',
   },
+  // The FILTER LAB: every pixi-filters post-process as a toggle-gated group (off by default → free). Burst is
+  // the experimental primitive that carries the whole stack; the other primitives keep just the shared Blur.
+  ...filterLabSpecs(FILTERS),
 } satisfies FxParamSpecs;
 
 type BurstParams = ParamsOf<typeof SPECS>;
@@ -488,6 +495,9 @@ interface LiveParticle {
 
 class BurstInstance implements FxInstance<BurstParams> {
   private readonly pc: ParticleContainer;
+  // The FILTER LAB stack (core Blur + every toggle-gated pixi-filter), on this primitive's OWN overlay
+  // container — off the pooled `pc`, whose `filters` the layer pool resets between users.
+  private readonly filters: FilterStack;
   private readonly renderer: FxContext['renderer'];
   private texture: Texture;
   private readonly shader: Shader;
@@ -510,6 +520,8 @@ class BurstInstance implements FxInstance<BurstParams> {
   // constructor comment below for why we can't just emit on construction.
   private headSet = false;
   private firstEmitDone = false;
+  // ms since this burst first emitted — the clock the Blur / time envelope rides (normalised by base Life).
+  private effectElapsed = 0;
   // True when this instance was spawned for a one-shot Fire (see FxContext.oneShot). Fires exactly the one
   // wave gated by `firstEmitDone` above and never re-fires on `interval` — the interval only drives re-firing
   // for the continuous workbench-loop preview.
@@ -555,6 +567,7 @@ class BurstInstance implements FxInstance<BurstParams> {
     });
     this.shader = layer.shader;
     this.pc = layer.pc;
+    this.filters = new FilterStack(ctx.container, FILTERS);
     // Deliberately no emit here. `headX/headY` default to (0, 0) until the first real `setHead()` call,
     // and the real caller (`FxPlayer.update` → this instance's `update()`, THEN `FxPlayer.setHead` →
     // this instance's `setHead()` — see Workbench.tsx's ticker, which calls `p.update(dtMs)` before
@@ -681,6 +694,11 @@ class BurstInstance implements FxInstance<BurstParams> {
 
     const dtSec = dtMs / 1000;
     const p = this.params;
+    // The filter lab: hand the whole param set + this burst's timeline progress (elapsed / base Life) to the
+    // stack, which owns every filter's create/retime/destroy. Disabled filters cost nothing; the over-time
+    // curves ride this progress.
+    if (this.firstEmitDone) this.effectElapsed += dtMs;
+    this.filters.frame(p, p.life > 0 ? Math.min(1, this.effectElapsed / p.life) : 1, dtMs / 1000);
     // Anchor velocity (px/sec) for velocity inheritance, from the head's frame-over-frame delta. The ticker
     // calls update() BEFORE setHead() each frame, so headX/headY here are last frame's anchor position;
     // lastHeadX/Y are the frame before. Zero until we have two real head samples (guards the spurious spike
@@ -830,6 +848,9 @@ class BurstInstance implements FxInstance<BurstParams> {
   }
 
   destroy(): void {
+    // The filter stack (if any live filters) is OURS to free — the pool only resets the pooled `pc`'s filters,
+    // and each filter is a GPU resource. Detach + destroy them before the player tears the container down.
+    this.filters.destroy();
     // Back to the pool, NOT destroyed. `releaseParticleLayer` unparents the container first — the player
     // destroys our owning container with `{ children: true }` immediately after this returns, which would
     // otherwise take the pooled pair down with it. Shape textures are shared and cached per-renderer in

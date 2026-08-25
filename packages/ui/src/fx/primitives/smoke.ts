@@ -1,4 +1,5 @@
 import { Particle, Shader, type ParticleContainer, type Texture } from 'pixi.js';
+import { BLUR_PARAM_SPECS, ContainerBlur } from '../blurFilter';
 import type { FxParamSpecs, ParamsOf } from '../params';
 import type { FxContext, FxInstance, FxPrimitive } from '../primitive';
 import { PALETTE_PRESETS } from '../palettes';
@@ -284,6 +285,7 @@ const SPECS = {
     enabledWhen: { param: 'erode', above: 0 },
     help: 'How well a puff resists Erode — raise it and the noise takes smaller bites so puffs read solid, lower it and the same Erode chews them down to wisps. Does nothing while Erode is 0.',
   },
+  ...BLUR_PARAM_SPECS,
 } satisfies FxParamSpecs;
 
 type SmokeParams = ParamsOf<typeof SPECS>;
@@ -440,6 +442,9 @@ class SmokeInstance implements FxInstance<SmokeParams> {
   // ms elapsed since this instance's very first update() call — ticks unconditionally once oneShot (not gated
   // on headSet, matching emitter.ts's reasoning: a Fire's setHead typically lands the same frame anyway).
   private emitElapsedMs = 0;
+  // Shared post-process blur + the clock its Blur / time envelope rides (ms since first update, over Life).
+  private readonly blur: ContainerBlur;
+  private blurElapsedMs = 0;
   // Reused scratch object for the emit-budget accumulation — `advanceSmokeBudget` (kept pure above for the
   // test suite) would otherwise allocate a fresh `{ budget, spawnCount }` literal every single frame. Same
   // values, written in place instead of returned (mirrors emitter.ts's `budgetState`).
@@ -468,6 +473,7 @@ class SmokeInstance implements FxInstance<SmokeParams> {
     });
     this.shader = layer.shader;
     this.particles = layer.pc;
+    this.blur = new ContainerBlur(ctx.container);
   }
 
   setHead(x: number, y: number): void {
@@ -484,6 +490,10 @@ class SmokeInstance implements FxInstance<SmokeParams> {
 
     const dtSec = dtMs / 1000;
     const p = this.params;
+    // Whole-effect blur envelope: sample the Blur/time curve over elapsed life (normalised by Life) and hand it
+    // to the shared blur (owns the filter's create/retime/destroy). A no-blur puff costs only this branch.
+    this.blurElapsedMs += dtMs;
+    this.blur.frame(p.blur, p.blurCurve, p.life > 0 ? Math.min(1, this.blurElapsedMs / p.life) : 1);
     // Anchor velocity (px/sec) for velocity inheritance, from the origin's frame-over-frame delta. Zero until
     // we hold two real anchor samples (guards a spurious spike from diffing the (0,0) default). With
     // inheritVel = 0 this is never read, so it can't affect the default look.
@@ -612,6 +622,7 @@ class SmokeInstance implements FxInstance<SmokeParams> {
     // destroys our owning container with `{ children: true }` immediately after this returns, which would
     // otherwise take the pooled pair down with it. Shape textures are shared and cached per-renderer in
     // `shapeTextures.ts`; nothing here touches them.
+    this.blur.destroy();
     releaseParticleLayer({ shader: this.shader, pc: this.particles });
   }
 

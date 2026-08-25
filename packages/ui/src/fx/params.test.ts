@@ -1,5 +1,6 @@
 import { describe, expect, it, expectTypeOf } from 'vitest';
 import {
+  changedParamKeys,
   coerceParams,
   defaultOpenGroups,
   defaultsOf,
@@ -9,6 +10,7 @@ import {
   matchesParamQuery,
   mergeOpenGroups,
   paramDisabledReason,
+  paramIsChanged,
   validateSpecs,
   visibleParamKeys,
   type FxParamSpec,
@@ -644,6 +646,43 @@ describe('matchesParamQuery', () => {
   });
 });
 
+describe('paramIsChanged', () => {
+  const CHANGE_SPECS = {
+    count: { kind: 'slider', label: 'Count', min: 0, max: 10, step: 1, default: 5 },
+    pal: { kind: 'palette', label: 'Palette', default: [1, 2, 3, 4] },
+    on: { kind: 'toggle', label: 'On', default: false },
+  } as unknown as FxParamSpecs;
+
+  it('scalar differs', () => {
+    expect(paramIsChanged(CHANGE_SPECS.count, 7, 5)).toBe(true);
+    expect(paramIsChanged(CHANGE_SPECS.count, 5, 5)).toBe(false);
+  });
+
+  it('array deep-equals', () => {
+    expect(paramIsChanged(CHANGE_SPECS.pal, [1, 2, 3, 4], [1, 2, 3, 4])).toBe(false);
+    expect(paramIsChanged(CHANGE_SPECS.pal, [1, 2, 3, 9], [1, 2, 3, 4])).toBe(true);
+  });
+
+  it('undefined is unchanged', () => {
+    expect(paramIsChanged(CHANGE_SPECS.count, undefined, 5)).toBe(false);
+  });
+});
+
+describe('changedParamKeys', () => {
+  const CHANGE_SPECS = {
+    count: { kind: 'slider', label: 'Count', min: 0, max: 10, step: 1, default: 5 },
+    pal: { kind: 'palette', label: 'Palette', default: [1, 2, 3, 4] },
+    on: { kind: 'toggle', label: 'On', default: false },
+  } as unknown as FxParamSpecs;
+
+  it('reports only differing keys', () => {
+    const changed = changedParamKeys(CHANGE_SPECS, { count: 7, pal: [1, 2, 3, 4], on: true });
+    expect(changed.has('count')).toBe(true);
+    expect(changed.has('pal')).toBe(false);
+    expect(changed.has('on')).toBe(true);
+  });
+});
+
 describe('visibleParamKeys', () => {
   it('essentials-only shows just the flagged params, in declaration order', () => {
     expect(visibleParamKeys(DEP_SPECS, { essentialsOnly: true })).toEqual(['spin', 'size']);
@@ -660,6 +699,47 @@ describe('visibleParamKeys', () => {
 
   it('returns nothing when a search matches nothing', () => {
     expect(visibleParamKeys(DEP_SPECS, { essentialsOnly: false, query: 'zzz' })).toEqual([]);
+  });
+
+  describe('changedOnly', () => {
+    const CHANGE_SPECS = {
+      count: { kind: 'slider', label: 'Count', min: 0, max: 10, step: 1, default: 5 },
+      pal: { kind: 'palette', label: 'Palette', default: [1, 2, 3, 4] },
+      on: { kind: 'toggle', label: 'On', default: false },
+    } as unknown as FxParamSpecs;
+
+    it('narrows to the changed set', () => {
+      const changed = new Set(['count']);
+      const keys = visibleParamKeys(CHANGE_SPECS, { essentialsOnly: false, changedOnly: true, changed });
+      expect(keys).toContain('count');
+      expect(keys).not.toContain('on');
+    });
+
+    it('composes with essentialsOnly (AND semantics)', () => {
+      const changed = new Set(['turbulence', 'spin']);
+      // Only 'spin' is essential AND changed; 'turbulence' is changed but not essential.
+      expect(visibleParamKeys(DEP_SPECS, { essentialsOnly: true, changedOnly: true, changed })).toEqual(['spin']);
+    });
+
+    it('composes with query (AND semantics)', () => {
+      const changed = new Set(['turbulence', 'turbScale', 'spin']);
+      expect(
+        visibleParamKeys(DEP_SPECS, { essentialsOnly: false, changedOnly: true, changed, query: 'turb' }),
+      ).toEqual(['turbulence', 'turbScale']);
+    });
+
+    it('an empty changed set yields nothing', () => {
+      expect(
+        visibleParamKeys(DEP_SPECS, { essentialsOnly: false, changedOnly: true, changed: new Set() }),
+      ).toEqual([]);
+    });
+
+    it('is a no-op when changedOnly is false, identical to the option being absent', () => {
+      const changed = new Set(['spin']);
+      expect(visibleParamKeys(DEP_SPECS, { essentialsOnly: false, changedOnly: false, changed })).toEqual(
+        visibleParamKeys(DEP_SPECS, { essentialsOnly: false }),
+      );
+    });
   });
 });
 

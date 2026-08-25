@@ -405,20 +405,92 @@ export function matchesParamQuery(spec: FxParamSpec, key: string, query: string)
 }
 
 /**
+ * Deep structural equality over JSON-serialisable values only (numbers, strings, booleans, arrays, and
+ * plain objects nesting those) — exactly the shapes a param's value or default can take (palette/curve/
+ * emitpoints/gradient payloads). Deliberately NOT a library: the domain is narrow enough that a few lines
+ * here are cheaper than a dependency, and a param value can never contain a function, Date, Map, etc.
+ */
+function deepEqual(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (Array.isArray(a) && Array.isArray(b)) {
+    if (a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) {
+      if (!deepEqual(a[i], b[i])) return false;
+    }
+    return true;
+  }
+  if (
+    a !== null &&
+    b !== null &&
+    typeof a === 'object' &&
+    typeof b === 'object' &&
+    !Array.isArray(a) &&
+    !Array.isArray(b)
+  ) {
+    const ak = Object.keys(a as Record<string, unknown>);
+    const bk = Object.keys(b as Record<string, unknown>);
+    if (ak.length !== bk.length) return false;
+    for (const k of ak) {
+      if (!deepEqual((a as Record<string, unknown>)[k], (b as Record<string, unknown>)[k])) return false;
+    }
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Has this param's live `value` diverged from its `dflt`? Scalars compare with `!==`; array/object payloads
+ * (palette/curve/emitpoints/gradient) compare by deep structural equality, since two freshly-coerced copies
+ * of the same default are never the same reference. `undefined` (a key absent from the live params object)
+ * is treated as unchanged — coercion always backfills it FROM the default, so it equals the default by
+ * definition.
+ */
+export function paramIsChanged(spec: FxParamSpec, value: unknown, dflt: unknown): boolean {
+  if (value === undefined) return false;
+  if (spec.kind === 'palette' || spec.kind === 'curve' || spec.kind === 'emitpoints' || spec.kind === 'gradient') {
+    return !deepEqual(value, dflt);
+  }
+  return value !== dflt;
+}
+
+/**
+ * The set of keys whose value differs from that spec's default, for one "changed from default" snapshot.
+ * Coerces `values` once and takes `defaultsOf(specs)` once — cheap to call on every render, but the caller
+ * (not this function) decides WHEN to call it and hands the result into `visibleParamKeys`'s `changed` option,
+ * keeping that function pure and this one the only place that touches `coerceParams`/`defaultsOf`.
+ */
+export function changedParamKeys(specs: FxParamSpecs, values: Record<string, unknown>): Set<string> {
+  const coerced = coerceParams(specs, values) as Record<string, unknown>;
+  const defaults = defaultsOf(specs) as Record<string, unknown>;
+  const out = new Set<string>();
+  for (const key of Object.keys(specs)) {
+    if (paramIsChanged(specs[key], coerced[key], defaults[key])) out.add(key);
+  }
+  return out;
+}
+
+/**
  * The keys the inspector should render, in DECLARATION order (never re-sorted — the spec order is the
- * authored reading order). `essentialsOnly` is the tier switch; `query` is the search box. A search is
- * deliberately allowed to reach past the Essentials tier: someone typing "turb" wants the turbulence
- * controls whether or not they were promoted.
+ * authored reading order). `essentialsOnly` is the tier switch; `query` is the search box; `changedOnly`
+ * (paired with the caller-supplied `changed` set) is the "show me what I touched" filter. All three AND
+ * together — none of them widens what another has narrowed. A search is deliberately allowed to reach past
+ * the Essentials tier: someone typing "turb" wants the turbulence controls whether or not they were
+ * promoted; `changedOnly` does NOT get that exemption — it narrows the search results too, since "changed"
+ * is itself the point of the filter, not something to look past.
+ *
+ * `changedOnly` does not compute the changed set itself — the caller passes `changed` (typically from
+ * `changedParamKeys`) so this function stays pure and cheap to call on every keystroke/render.
  */
 export function visibleParamKeys(
   specs: FxParamSpecs,
-  opts: { essentialsOnly: boolean; query?: string },
+  opts: { essentialsOnly: boolean; query?: string; changedOnly?: boolean; changed?: Set<string> },
 ): string[] {
   const query = opts.query ?? '';
   const searching = query.trim() !== '';
   return Object.keys(specs).filter((key) => {
     const spec = specs[key];
     if (opts.essentialsOnly && !searching && spec.essential !== true) return false;
+    if (opts.changedOnly === true && !(opts.changed?.has(key) ?? false)) return false;
     return matchesParamQuery(spec, key, query);
   });
 }

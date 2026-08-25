@@ -23,7 +23,6 @@ import { DropShadowFilter } from 'pixi-filters/drop-shadow';
 import { EmbossFilter } from 'pixi-filters/emboss';
 import { GlitchFilter } from 'pixi-filters/glitch';
 import { GlowFilter } from 'pixi-filters/glow';
-import { GodrayFilter } from 'pixi-filters/godray';
 import { GrayscaleFilter } from 'pixi-filters/grayscale';
 import { HslAdjustmentFilter } from 'pixi-filters/hsl-adjustment';
 import { KawaseBlurFilter } from 'pixi-filters/kawase-blur';
@@ -39,6 +38,7 @@ import { SimplexNoiseFilter } from 'pixi-filters/simplex-noise';
 import { TiltShiftFilter } from 'pixi-filters/tilt-shift';
 import { TwistFilter } from 'pixi-filters/twist';
 import { ZoomBlurFilter } from 'pixi-filters/zoom-blur';
+import { createGodrayFilter } from './godrayFilter';
 import type { FxFilterSpec } from './filterStack';
 
 /** Newest/aura-first ordering is cosmetic (registry order = composite order + group order in the panel). */
@@ -49,7 +49,7 @@ export const FILTERS: readonly FxFilterSpec[] = [
   { id: 'bloom', label: 'Bloom (Simple)', make: () => new BloomFilter(), amountProp: 'strength', amount: [0, 20, 6], amountStep: 0.5, knobs: [] },
   { id: 'glow', label: 'Glow', make: () => new GlowFilter(), amountProp: 'outerStrength', amount: [0, 20, 4], amountStep: 0.1,
     knobs: [{ name: 'inner', label: 'Inner strength', prop: 'innerStrength', kind: 'slider', range: [0, 20, 0], step: 0.1 }, { name: 'alpha', label: 'Alpha', prop: 'alpha', kind: 'slider', range: [0, 1, 1] }, { name: 'knockout', label: 'Knockout', prop: 'knockout', kind: 'toggle' }] },
-  { id: 'godray', label: 'Godrays', make: () => new GodrayFilter(), amountProp: 'gain', amount: [0, 1, 0.5], animateTime: true,
+  { id: 'godray', label: 'Godrays', make: () => createGodrayFilter(), amountProp: 'gain', amount: [0, 1, 0.5], animateTime: true,
     knobs: [{ name: 'lacunarity', label: 'Lacunarity', prop: 'lacunarity', kind: 'slider', range: [0, 10, 2.5] }, { name: 'angle', label: 'Angle', prop: 'angle', kind: 'slider', range: [-90, 90, 30], step: 1 }, { name: 'alpha', label: 'Alpha', prop: 'alpha', kind: 'slider', range: [0, 1, 1] }] },
 
   // — Distortion —

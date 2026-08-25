@@ -121,11 +121,12 @@ export function HeroSelect() {
 
   return (
     <div className={`heroselect${active ? ' hsc-active' : ''}`} style={rootStyle}>
+      {/* The real brand lockup, not a text heading (owner ask 2026-08-22) — the same mark + wordmark the home
+          screen wears, so the two screens read as one product. Pinned to the TOP of the screen and shrunk
+          (owner ask 2026-08-24): it lives OUTSIDE `.hsbox` so the picker below centres on its own —
+          `.heroselect` is a two-row grid (this lockup, then the centred box). `.hslogo` owns its own sizing. */}
+      <AscentLogo className="hslogo" headingClass="disp titleword hsword" />
       <div className="hsbox">
-        {/* The real brand lockup, not a text heading (owner ask 2026-08-22) — the same mark + wordmark the home
-            screen wears, so the two screens read as one product. `.hslogo` owns its own sizing and takes none
-            of the title's tuner-driven offset/float. */}
-        <AscentLogo className="hslogo" headingClass="disp titleword hsword" />
         {/* Run-start telegraph: your rating-derived Line — the wins this run is expected to cover. Shown for
             every SCORED mode, which is Ascent AND Rift (a rift run still takes damage, still records a
             result — every other mode check in the codebase is `!== 'practice'`, so this one matches). Only
@@ -143,6 +144,8 @@ export function HeroSelect() {
         {/* Active "rift" patch — a limited-time global run modifier (see CONFIG.rift). Telegraphed here so
             the player knows the rules are bent before they pick. */}
         {rift && <RiftPill rift={rift} variant="hero" />}
+        {/* Prompt directly above the portraits (owner ask 2026-08-24). */}
+        <div className="hsprompt">Select Your Hero</div>
         {/* Naming yourself now lives on the home screen (the account chip). Both modes use the SAME big card;
             Practice (every hero) adds `browse` — four across, two rows visible, scroll for the rest. */}
         <div ref={rowRef} className={`hsrow${browse ? ' browse' : ''}`}>

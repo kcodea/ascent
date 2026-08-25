@@ -163,6 +163,16 @@ export type FxParamSpec = FxParamMeta &
       /** Baked, normalized ([-1,1]) spawn points. Defaults to `[]` — an empty cloud is an inert no-op,
        *  so a spec that declares this param but has nothing baked yet behaves exactly as before. */
       default: readonly (readonly [number, number])[];
+    }
+  | {
+      kind: 'gradient';
+      label: string;
+      group?: string;
+      help?: string;
+      /** N stops (>=2), each { at: 0..1, color: 0xRRGGBB }. */
+      default: readonly import('./gradient').GradientStop[];
+      /** Where the target supports it. Default 'linear'. */
+      gradType?: 'linear' | 'radial' | 'conic';
     });
 
 export type FxParamSpecs = Record<string, FxParamSpec>;
@@ -186,7 +196,9 @@ export type ParamsOf<S extends FxParamSpecs> = {
           ? [number, number][]
           : S[K] extends { kind: 'shape' }
             ? string
-            : S[K]['default'];
+            : S[K] extends { kind: 'gradient' }
+              ? import('./gradient').GradientStop[]
+              : S[K]['default'];
 };
 
 export function defaultsOf<S extends FxParamSpecs>(specs: S): ParamsOf<S> {
@@ -202,6 +214,9 @@ export function defaultsOf<S extends FxParamSpecs>(specs: S): ParamsOf<S> {
     // emitpoints defaults are nested arrays too — deep-copy each [x, y] so no two instances alias the
     // same point (mirrors the curve case). Usually `[]`, but deep-copy anyway for a non-empty default.
     else if (spec.kind === 'emitpoints') out[key] = spec.default.map((p) => [p[0], p[1]]);
+    // gradient defaults are an array of stop objects — deep-copy each stop so no two instances alias the
+    // same object (mirrors the palette/curve/emitpoints discipline above).
+    else if (spec.kind === 'gradient') out[key] = spec.default.map((s) => ({ at: s.at, color: s.color }));
     else out[key] = spec.default;
   }
   return out as ParamsOf<S>;
@@ -298,6 +313,15 @@ export function coerceParams<S extends FxParamSpecs>(specs: S, raw: unknown): Pa
         out[key] = pts;
         break;
       }
+      case 'gradient':
+        if (Array.isArray(v) && v.length >= 2 && v.every((s) =>
+          s && typeof s === 'object' && typeof (s as {at?: unknown}).at === 'number'
+          && typeof (s as {color?: unknown}).color === 'number'
+          && Number.isFinite((s as {at: number}).at) && (s as {color: number}).color >= 0
+          && (s as {color: number}).color <= 0xffffff)) {
+          out[key] = (v as {at: number; color: number}[]).map((s) => ({ at: Math.min(1, Math.max(0, s.at)), color: s.color }));
+        }
+        break;
     }
   }
   return out as ParamsOf<S>;

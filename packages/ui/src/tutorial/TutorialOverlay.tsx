@@ -34,6 +34,7 @@ export interface TutorialOverlayView {
     nextLabel?: string;
     step?: number;
     total?: number;
+    nudge?: { dx?: number; dy?: number };
   };
   /** Combat mode lowers the scrim so the board stays readable during a Predict/Confirm hold. */
   combat?: boolean;
@@ -68,6 +69,7 @@ export function TutorialOverlay({ view }: { view: TutorialOverlayView | null }):
           nextLabel={panel.nextLabel}
           step={panel.step}
           total={panel.total}
+          nudge={panel.nudge}
         />
       )}
     </>

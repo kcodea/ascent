@@ -17,6 +17,7 @@ import {
   type Action, type RunState,
   type TutorialAnchorRef, type TutorialAnchorSpec, type TutorialCourse, type TutorialPredicate,
   type TutorialContext, type TutorialRunView, type TutorialSemanticEvent, type TutorialStep,
+  type TutorialPanelNudge,
 } from '@game/sim';
 import { useGame } from '../store';
 import { subscribeTutorialActions } from './actionBus';
@@ -33,13 +34,13 @@ import { TUTORIAL_LESSON_KEYS, type TutorialLessonKey } from '@game/sim';
 // ─── Flattening: course → an ordered list of coached items ────────────────────────────────────────────────
 
 type CoachItem =
-  | { kind: 'panel'; id: string; title: string; body: string; why?: string; focus: TutorialAnchorSpec[] }
+  | { kind: 'panel'; id: string; title: string; body: string; why?: string; focus: TutorialAnchorSpec[]; panelNudge?: TutorialPanelNudge }
   | { kind: 'step'; step: TutorialStep };
 
 function flattenCourse(course: TutorialCourse): CoachItem[] {
   const items: CoachItem[] = [];
   for (const p of course.foundation) {
-    items.push({ kind: 'panel', id: p.id, title: p.title, body: p.body, why: p.why, focus: p.focus ?? [] });
+    items.push({ kind: 'panel', id: p.id, title: p.title, body: p.body, why: p.why, focus: p.focus ?? [], panelNudge: p.panelNudge });
   }
   if (course.orderDemo) {
     // The interactive silhouette drag is a later enrichment; for now the demo is a read-and-continue panel that
@@ -388,7 +389,20 @@ export function TutorialController(): JSX.Element | null {
     // A modal needs no cutout: it already owns the screen.
     const coversViewport = (r: DOMRect): boolean => r.width >= window.innerWidth * 0.95 && r.height >= window.innerHeight * 0.95;
     const rects = measureAnchors(refs).rects.filter((r): r is DOMRect => r !== null && !coversViewport(r));
-    const cutouts: FocusCutout[] = rects.map((rect) => ({ rect, shape: 'rect' as const }));
+    // PULL A BOARD-ROW SPOTLIGHT IN TO THE BOARD (owner 2026-08-24: "nudge these boxes in closer to the sides of
+    // the board"). The warband/shop/hand rows are `align-items: stretch` items in a full-width column zone, so
+    // their box spans the ENTIRE stage even when empty — the spotlight spilled way past the board's frame walls
+    // out to the stage edges. Any cutout that spans nearly the whole stage is clamped to the board's felt
+    // interior (the central slice between the ornate frame walls), centred on the stage. Narrow anchors (a seat,
+    // the rail, a button, the Health box) are well under the threshold and pass through untouched.
+    const stage = document.querySelector('.app')?.getBoundingClientRect() ?? null;
+    const BOARD_INTERIOR_FRAC = 0.52; // eyeball-tuned: the felt width as a fraction of the 16:9 stage. Tune here.
+    const toBoardInterior = (rect: DOMRect): DOMRect => {
+      if (!stage || rect.width < stage.width * 0.9) return rect; // not a full-stage row — leave it
+      const w = stage.width * BOARD_INTERIOR_FRAC;
+      return new DOMRect(stage.left + (stage.width - w) / 2, rect.top, w, rect.height);
+    };
+    const cutouts: FocusCutout[] = rects.map((rect) => ({ rect: toBoardInterior(rect), shape: 'rect' as const }));
     const primaryRect = rects[0] ?? null;
 
     // Resolve a connector (drag/causal line) when the step declares one and both ends are on screen.
@@ -407,7 +421,7 @@ export function TutorialController(): JSX.Element | null {
         cutouts,
         connector,
         combat: false,
-        panel: { anchorRect: primaryRect, title: current.title, body: current.body, why: current.why, focusMode: 'orient', onNext: () => advance(), nextLabel: 'Continue', step: cursor + 1, total: items.length },
+        panel: { anchorRect: primaryRect, title: current.title, body: current.body, why: current.why, focusMode: 'orient', onNext: () => advance(), nextLabel: 'Continue', step: cursor + 1, total: items.length, nudge: current.panelNudge },
       };
     }
     const step = current.step;
@@ -464,6 +478,7 @@ export function TutorialController(): JSX.Element | null {
         nextLabel: step.dismissible ? 'Got it' : 'Continue',
         step: cursor + 1,
         total: items.length,
+        nudge: step.panelNudge,
       },
     };
     // `events`/`inspect` intentionally excluded from deps — re-measuring is driven by run/step/window, not by

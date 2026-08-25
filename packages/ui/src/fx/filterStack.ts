@@ -15,15 +15,17 @@ import { BlurFilter, type Container, type Filter } from 'pixi.js';
 import { sampleCurve, CURVE_PRESETS, type CurvePoint } from './curve';
 import type { FxParamSpec, FxParamSpecs } from './params';
 
-/** A numeric or boolean knob beyond the primary amount. `prop` is the filter instance property it writes. */
+/** A numeric, boolean, or colour knob beyond the primary amount. `prop` is the filter instance property it
+ *  writes. */
 export interface FxFilterKnob {
   name: string;                    // param-key suffix + label source
   label: string;
   prop: string;                    // instance property to set
-  kind: 'slider' | 'toggle';
+  kind: 'slider' | 'toggle' | 'color';
   range?: [number, number, number]; // [min, max, default] for a slider
   step?: number;
   default?: boolean;               // for a toggle
+  defaultColor?: number;           // 0xRRGGBB, for a color knob
   help?: string;
 }
 
@@ -67,6 +69,8 @@ export function filterLabSpecs(registry: readonly FxFilterSpec[]): FxParamSpecs 
       if (k.kind === 'slider') {
         const r = k.range ?? [0, 1, 0];
         out[knobKey(f.id, k.name)] = { kind: 'slider', label: k.label, group, min: r[0], max: r[1], step: k.step ?? 0.01, default: r[2], enabledWhen: gate, help };
+      } else if (k.kind === 'color') {
+        out[knobKey(f.id, k.name)] = { kind: 'color', label: k.label, group, default: k.defaultColor ?? 0xffffff, enabledWhen: gate, help };
       } else {
         out[knobKey(f.id, k.name)] = { kind: 'toggle', label: k.label, group, default: k.default ?? false, enabledWhen: gate, help };
       }
@@ -116,7 +120,9 @@ export class FilterStack {
       }
       if (f.animateTime) rec[f.timeProp ?? 'time'] = num(rec, f.timeProp ?? 'time') + dtSec;
       for (const k of f.knobs ?? []) {
-        rec[k.prop] = k.kind === 'toggle' ? bool(params, knobKey(f.id, k.name)) : num(params, knobKey(f.id, k.name), k.range?.[2] ?? 0);
+        rec[k.prop] = k.kind === 'toggle'
+          ? bool(params, knobKey(f.id, k.name))
+          : num(params, knobKey(f.id, k.name), k.kind === 'color' ? (k.defaultColor ?? 0xffffff) : (k.range?.[2] ?? 0));
       }
       active.push(inst);
       keyParts.push(f.id);

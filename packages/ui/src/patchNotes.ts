@@ -56,6 +56,13 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-08-24',
+    label: 'Load Screen',
+    changes: [
+      { category: 'UI / Info', text: 'New look for the load screen before the game opens — a larger logo on a deep-blue glow — and its loading bar now fills smoothly over three seconds before the menu appears.' },
+    ],
+  },
+  {
+    date: '2026-08-24',
     label: 'Menu Polish',
     changes: [
       { category: 'UI / Info', text: 'Hero select now leads with the ASCENT logo at the top of the screen and a “Select Your Hero” prompt above the heroes.' },

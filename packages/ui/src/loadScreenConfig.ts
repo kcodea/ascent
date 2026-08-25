@@ -35,15 +35,15 @@ export const LOADSCREEN_COLOR_KEYS = ['gradCenter', 'gradEdge'] as const;
 
 // Mirror the index.html CSS fallbacks (the shipped look). If you change these, change index.html too.
 const DEFAULTS: LoadScreenConfig = {
-  iconSize: 300,
-  barWidth: 340,
-  barHeight: 6,
-  barBottom: 12,
-  gradCenter: '#1b1b1d',
-  gradEdge: '#000000',
-  gradSize: 75,
+  iconSize: 570,
+  barWidth: 413,
+  barHeight: 8,
+  barBottom: 22.5,
+  gradCenter: '#24468a',
+  gradEdge: '#0a1730',
+  gradSize: 60,
   gradPosX: 50,
-  gradPosY: 42,
+  gradPosY: 50,
 };
 
 /** Slider bounds for the DEV tuner — [min, max, step] per NUMERIC key. */

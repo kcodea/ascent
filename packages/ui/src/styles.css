@@ -8938,7 +8938,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .combatopp-body, .statusbar .hero .herolunge { position: relative; }
 .hero-dmgtaken {
   position: absolute; left: 50%; top: 50%; z-index: 8; pointer-events: none; white-space: nowrap;
-  transform: translate(calc(-50% + var(--hd-dmg-x, 0px)), calc(-50% + var(--hd-dmg-y, 0px))) scale(var(--hd-dmg-s, 1));
+  transform: translate(calc(-50% + var(--hd-dmg-x, 0px)), calc(-50% + var(--hd-dmg-y, 0px))) scale(var(--hd-dmg-s, 0.48));
   color: #fff; background: var(--threat);
   padding: calc(3 * var(--u)) calc(13 * var(--u)); border-radius: calc(12 * var(--u));
   font-family: var(--font-ui); font-weight: 900; font-size: var(--float-dmg-size, calc(42 * var(--u))); line-height: 1;
@@ -8949,8 +8949,8 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 @keyframes herodmgpop {
   0%   { opacity: 0; transform: translate(calc(-50% + var(--hd-dmg-x, 0px)), calc(-50% + var(--hd-dmg-y, 0px))) scale(calc(var(--hd-dmg-s, 1) * 0.3)); }
   22%  { opacity: 1; transform: translate(calc(-50% + var(--hd-dmg-x, 0px)), calc(-60% + var(--hd-dmg-y, 0px))) scale(calc(var(--hd-dmg-s, 1) * 1.15)); }
-  38%  { transform: translate(calc(-50% + var(--hd-dmg-x, 0px)), calc(-58% + var(--hd-dmg-y, 0px))) scale(var(--hd-dmg-s, 1)); }
-  78%  { opacity: 1; transform: translate(calc(-50% + var(--hd-dmg-x, 0px)), calc(-72% + var(--hd-dmg-y, 0px))) scale(var(--hd-dmg-s, 1)); }
+  38%  { transform: translate(calc(-50% + var(--hd-dmg-x, 0px)), calc(-58% + var(--hd-dmg-y, 0px))) scale(var(--hd-dmg-s, 0.48)); }
+  78%  { opacity: 1; transform: translate(calc(-50% + var(--hd-dmg-x, 0px)), calc(-72% + var(--hd-dmg-y, 0px))) scale(var(--hd-dmg-s, 0.48)); }
   100% { opacity: 0; transform: translate(calc(-50% + var(--hd-dmg-x, 0px)), calc(-96% + var(--hd-dmg-y, 0px))) scale(calc(var(--hd-dmg-s, 1) * 0.92)); }
 }
 
@@ -8975,9 +8975,9 @@ body.duel-attacker-opp .combatopp-hp { opacity: 0; }
      then equals the player's rune size exactly (owner ask: match the player's runes), independent of how big
      the portrait is tuned. The flex gap lives in the row's own (pre-counter-scale) space, so layout stays
      clean. `transform-origin: left center` keeps the row anchored as it scales. */
-  transform: translate(var(--hd-rune-x, 96px), calc(-50% + var(--hd-rune-y, 0px))) scale(calc(var(--hd-rune-s, 1) / var(--hd-opp-s, 2.5)));
+  transform: translate(var(--hd-rune-x, 75px), calc(-50% + var(--hd-rune-y, 0px))) scale(calc(var(--hd-rune-s, 1) / var(--hd-opp-s, 2.5)));
   transform-origin: left center;
-  display: flex; flex-direction: column; gap: var(--hd-rune-gap, 6px);
+  display: flex; flex-direction: column; gap: var(--hd-rune-gap, 20px);
   pointer-events: auto;
 }
 /* The tip opens to the LEFT of the badge (the row sits at the board's right edge). */

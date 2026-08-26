@@ -1,6 +1,6 @@
 import { type PresentationCollector, type CombatEvent, beatIdentity, ALE_IDS, combatSide, makeCollector, makeRng, simulate, type BoardMinion, type CardDef, type CombatConfig, type CombatResult, type CombatSideState, type Keyword, type PendingCombatQuest, type PresentationBatch, type QuestCombatMods, type QuestDef, type QuestObjective, type QuestObjectiveEvent, type Tribe } from '@game/core';
 import { currentCollector, withActiveCollector } from './activeCollector';
-import { surfaceKeyForRune, surfaceKeyForQuest, CARD_INDEX, EPIC_RUNES, QUEST_INDEX, RUNE_INDEX, RUNES, runeSynergies, type SynergyTag } from '@game/content';
+import { surfaceKeyForRune, surfaceKeyForQuest, CARD_INDEX, EPIC_RUNES, GIFT_IDS, QUEST_INDEX, RUNE_INDEX, RUNES, runeSynergies, type SynergyTag } from '@game/content';
 import { sideFromSnapshot } from './boardSide';
 import { poolOf, setIdOf } from './cardPool';
 import { ACE_DISCOUNT_MAX_TIER, ACE_TIER_DISCOUNT, CONFIG, INDY_GILD_RECHARGE_GOLD, KESHI_CROWN_THRESHOLD, maxTierFor, hasTier7Access } from './config';
@@ -1169,12 +1169,14 @@ function reduceCore(state: RunState, action: Action): RunState {
       const freeBuy = (s.rift === 'freedom' || !!s.questFreeFirstBuy) && !s.freeBuyUsedThisTurn;
       // Rune of Cadence: an armed minion discount knocks 1 off whatever the price source says.
       const cadenceOff = !freeBuy && s.cadenceMinionOff ? 1 : 0;
+      // GIFT — Friends and Family: shop minions cost less for the rest of this turn.
+      const giftMinionOff = freeBuy ? 0 : (s.minionCostOffTurn ?? 0);
       // Rune of Trade-In: an armed per-type discount (from this turn's first sale) knocks 1 off a matching minion.
       const tiDef = s.tradeInTribe ? CARD_INDEX[offer.cardId] : undefined;
       const tradeInOff = !freeBuy && s.runeTradeIn && s.tradeInTribe && tiDef && (tiDef.tribe === s.tradeInTribe || tiDef.tribe2 === s.tradeInTribe) ? 1 : 0;
       // `heroOfferPrice` = Frantic Frank's Clearance / Foreman Flint's Company Rate (flat 2). Shared with the
       // UI's cost coin so the shown price is the charged price.
-      const buyCost = freeBuy ? 0 : Math.max(0, (offer.cost ?? heroOfferPrice(s, offer) ?? s.minionCostOverride ?? minionCostOf(s)) - cadenceOff - tradeInOff); // Moe's set price > Frank/Flint 2g > Merchant's Mark override > Hank/default
+      const buyCost = freeBuy ? 0 : Math.max(0, (offer.cost ?? heroOfferPrice(s, offer) ?? s.minionCostOverride ?? minionCostOf(s)) - cadenceOff - tradeInOff - giftMinionOff); // Moe's set price > Frank/Flint 2g > Merchant's Mark override > Hank/default
       if (s.embers < buyCost || s.hand.length >= handCap(s)) return state;
       s.shop.splice(i, 1);
       ciaBuyEnchanted(s, offer); // Croupier Ayse: an Enchanted buy advances her prize counter
@@ -1487,18 +1489,35 @@ function reduceCore(state: RunState, action: Action): RunState {
           s.chooseOne = { uid: card.uid, cardId: def.id, spell: true };
           return s;
         }
-        // A GIFT (Copycat — owner spec 2026-08-02): NOT a Shop spell. It resolves its effect exactly ONCE —
-        // no Yazzus/Nimbus/Ancient-Runes multipliers, and none of the cast bookkeeping
+        // A REWARD SPELL (Copycat — owner spec 2026-08-02): NOT a Shop spell. It resolves its effect exactly
+        // ONCE — no Yazzus/Nimbus/Ancient-Runes multipliers, and none of the cast bookkeeping
         // (`castSpell`/`noteSpellCast`): no tallies, no first/last-spell memory the copy effects read, no
         // spellCast watchers, no Gemscript/Cadence/Contraband riders. It still counts as a card played.
-        // Gated on `gift`, NOT `token` — Implosion is a token that IS a real Shop spell (test-caught).
+        // Gated on `rewardSpell`, NOT `token` — Implosion is a token that IS a real Shop spell (test-caught).
+        //
+        // A GIFT (`def.gift`) is the SIBLING case and deliberately falls through to its own branch below: it
+        // also resolves once with no multipliers, but it DOES pay the cast bookkeeping.
+        if (def.rewardSpell) {
+          const rewardTarget = def.target ? s.board.find((c) => c.uid === action.targetUid) : undefined;
+          if (def.target && !rewardTarget) return state; // aimed reward with no valid friendly target → fizzle, kept
+          applyCastEffects(makeContext(s), def, rewardTarget);
+          s.hand.splice(i, 1);
+          s.playedThisTurn = [...(s.playedThisTurn ?? []), card.cardId];
+          checkTriples(s); // the copy can complete a triple
+          return s;
+        }
+        // A GIFT (owner design 2026-08-26): resolves exactly ONCE — never multiplied — but unlike a reward
+        // spell it PAYS THE CAST BOOKKEEPING via `noteSpellCast`, so it counts as a spell cast for tallies,
+        // thresholds, the Ruby+Spell umbrella and every `spellCast` watcher. `noteSpellCast` itself skips the
+        // copy-memory writes for a Gift (see there), which is what makes a Gift uncopyable.
         if (def.gift) {
           const giftTarget = def.target ? s.board.find((c) => c.uid === action.targetUid) : undefined;
           if (def.target && !giftTarget) return state; // aimed gift with no valid friendly target → fizzle, kept
           applyCastEffects(makeContext(s), def, giftTarget);
           s.hand.splice(i, 1);
           s.playedThisTurn = [...(s.playedThisTurn ?? []), card.cardId];
-          checkTriples(s); // the copy can complete a triple
+          noteSpellCast(s, def); // counts as a spell CAST (but never as a Shop spell — see the flag's doc)
+          checkTriples(s);
           return s;
         }
         // Yazzus: while it's on the board, an *aimed* spell's effect resolves N times (2, or 3 if golden)
@@ -4082,6 +4101,10 @@ function advanceCombat(s: RunState): void {
   }
   s.extraEotThisTurn = false; // Chrono Staff's one-shot End-of-Turn extra is per-turn
   s.shoutFirstUsedThisTurn = false; // Warm Embers' "first Shout each round triggers twice" freebie resets each turn
+  // GIFTS — the turn-scoped channels (Demand an Encore, Arcane Clearance, Friends and Family) all expire here.
+  s.shoutExtraTurn = 0;
+  s.spellCostOffTurn = 0;
+  s.minionCostOffTurn = 0;
   s.dupeUsedThisTurn = false; // Dupes: the first-buy copy is a per-turn freebie
   s.gorrBuys = undefined; // Gorr: the per-turn minion-buy tally resets
   s.freeBuyUsedThisTurn = false; // Freedom rift: the first minion each turn is free again
@@ -4208,6 +4231,19 @@ function advanceCombat(s: RunState): void {
   // the start-of-turn modal so any quest offer / forge takes priority and the two Discovers stack behind it.
   // These are shop-phase Discovers, so the window opens normally (the no-window rule is END-of-turn only).
   if (s.runeLongShift) { procRuneId(s, 'rune_long_shift'); queueDiscover(s, { kind: 'spell' }); queueDiscover(s, { kind: 'spell' }); }
+  // GIFTS (owner design 2026-08-26). Merry Christmas offers a Gift every Start of Turn; Happy Birthday hands
+  // one over every SECOND turn (its tick counts the waves between payouts). Both queue behind the start-of-turn
+  // modal like the Long Shift, so a quest offer or forge still takes priority.
+  if (s.runeMerryChristmas) { procRuneId(s, 'rune_merry_christmas'); queueDiscover(s, { kind: 'pool', ids: [...GIFT_IDS] }); }
+  if (s.runeHappyBirthday) {
+    s.giftBirthdayTick = (s.giftBirthdayTick ?? 0) + 1;
+    if (s.giftBirthdayTick >= 2) { s.giftBirthdayTick = 0; procRuneId(s, 'rune_happy_birthday'); grantRandomGift(s); }
+  }
+  // GIFT — Royal Allowance: once cast, a Gold Pouch every Start of Turn for the rest of the run.
+  if (s.giftAllowance) {
+    const pouch = CARD_INDEX['emberpouch'];
+    if (pouch) conjureToHand(s, [pouch], 1);
+  }
   // Gravetwin: if it survived the last combat, fire its copied Echo now (start of the shop). Then clear the
   // survivor list so it fires exactly once per fight.
   fireGravetwinEchoes(s);
@@ -4240,6 +4276,12 @@ function advanceCombat(s: RunState): void {
   // turn — turns 4, 8, 12, …. Conjured to hand (hand-cap-safe); a granted spell can't complete a triple.
   if (hasPower(s, 'recurringGoldcrafter') && s.wave % 4 === 0) {
     conjureToHand(s, CARD_INDEX['goldcrafter'] ? [CARD_INDEX['goldcrafter']!] : [], 1);
+  }
+  // KINDNESS — Great Presence (owner design 2026-08-26): Discover a Gift at the start of every 4th turn
+  // (4, 8, 12, …), the same cadence Gildmaster's grant uses. Queued like the other start-of-turn Discovers,
+  // so a quest offer or forge still takes priority.
+  if (hasPower(s, 'greatPresence') && s.wave % 4 === 0) {
+    queueDiscover(s, { kind: 'pool', ids: [...GIFT_IDS] });
   }
   // Quest delayed rewards (Trail Rations' "repeat in 2 turns"): tick each pending grant down a turn and
   // re-apply the ones that come due — WITHOUT re-scheduling (allowRepeat=false) — here with the other
@@ -5367,6 +5409,18 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
     case 'runeScales':
       s.runeScales = true; // Rune of Scales: each spell cast gives your Dragons +1/+1
       break;
+    case 'runeHappyBirthday':
+      // GIFTS (owner design 2026-08-26): a random Gift now, then another every 2 turns. The tick counts waves
+      // since the last payout, so "every 2 turns" is exact regardless of when the rune was bought.
+      s.runeHappyBirthday = true;
+      s.giftBirthdayTick = 0;
+      grantRandomGift(s);
+      break;
+    case 'runeMerryChristmas':
+      // The epic half: a CHOICE of Gift, every Start of Turn — first one immediately, like the Long Shift.
+      s.runeMerryChristmas = true;
+      queueDiscover(s, { kind: 'pool', ids: [...GIFT_IDS] });
+      break;
     case 'runeLongShift':
       s.runeLongShift = true; // Rune of the Long Shift: Discover 2 Shop spells, repeated every Start of Turn
       // Owner reword 2026-08-17 ("Discover 2 Shop Spells. Repeat every start of turn"): the first pair fires
@@ -6075,4 +6129,15 @@ function injectPendingTavern(s: RunState, hold = false): void {
   // to the player) and `openNextStartOfTurnModal` runs the consume once the quest/Runeforge overlay clears.
   if (hold) s.holdFodderConsume = true;
   else consumeTavernFodder(s); // the Demons eat the Fodder that just arrived
+}
+
+/** Hand over ONE random Gift (owner design 2026-08-26) — the payout Happy Birthday and Kindness's power share.
+ *  Drawn from `GIFT_IDS` (the whole class) with the run's seeded RNG, so a replay reproduces the same Gift. */
+function grantRandomGift(s: RunState): void {
+  const pool = GIFT_IDS.map((id) => CARD_INDEX[id]).filter((d): d is CardDef => !!d);
+  if (pool.length === 0) return;
+  const rng = makeRng(s.rngCursor);
+  const pick = pool[rng.int(pool.length)]!;
+  s.rngCursor = rng.state();
+  conjureToHand(s, [pick], 1);
 }

@@ -13,6 +13,15 @@ import { RuneDefSchema } from './schema';
  */
 export const RUNES: RuneDef[] = [
   {
+    // GIFTS (owner design 2026-08-26). Pays out IMMEDIATELY on purchase, then every 2 turns — the same
+    // "don't make them wait a turn" convention Rune of the Gilded Spark and the Long Shift both use.
+    id: 'rune_happy_birthday',
+    name: 'Happy Birthday',
+    cost: 2,
+    text: 'Get a random **Gift**. Repeat every **2 turns**.',
+    reward: { kind: 'runeHappyBirthday' },
+  },
+  {
     id: 'rune_spellslinging',
     name: 'Rune of Spellslinging',
     cost: 5,
@@ -1229,6 +1238,15 @@ export const RUNES: RuneDef[] = [
  * Banking, First Claws, Inheritance, Second Path, Twilight, Feast, Reconfiguration, Champion, Armory, Gilded Spark).
  */
 export const EPIC_RUNES: RuneDef[] = [
+  {
+    // The epic half of the Gift pair: a CHOICE of Gift rather than a random one, every turn.
+    id: 'rune_merry_christmas',
+    name: 'Merry Christmas',
+    cost: 4,
+    epic: true,
+    text: 'Discover a **Gift**. Repeat every **Start of Turn**.',
+    reward: { kind: 'runeMerryChristmas' },
+  },
   {
     id: 'rune_copies',
     name: 'Rune of Copies',

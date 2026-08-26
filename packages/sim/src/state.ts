@@ -1198,6 +1198,12 @@ export interface RunState {
   /** Rune of Scales: each spell you cast gives your Dragons +1/+1 (board + hand). */
   runeScales?: boolean;
   runeLongShift?: boolean;
+  /** RUNE OF HAPPY BIRTHDAY: a random Gift on purchase, then another every 2 turns (`giftBirthdayTick` counts
+   *  the waves between payouts). */
+  runeHappyBirthday?: boolean;
+  giftBirthdayTick?: number;
+  /** RUNE OF MERRY CHRISTMAS (epic): Discover a Gift on purchase, then again every Start of Turn. */
+  runeMerryChristmas?: boolean;
   /** Rune of Bartering: your Shout (Battlecry) minions sell for 2 Gold. */
   runeBartering?: boolean;
   /** Rune of Twin Gilding: you only need 2 copies of a card to Gild (triple) it. */
@@ -1495,6 +1501,16 @@ export interface RunState {
    *  stacks like Drakko). `shoutFirstDoubleEachRound` = the first Shout you play each turn triggers twice (Warm
    *  Embers); `shoutFirstUsedThisTurn` tracks whether that turn's freebie is spent. Absent = off. */
   shoutExtraAlways?: number;
+  /** GIFT — Demand an Encore: extra Shout triggers for THIS TURN only (the turn-scoped sibling of
+   *  `shoutExtraAlways`, which is permanent). Summed by `playedShoutRepeats` and cleared at end of turn. */
+  shoutExtraTurn?: number;
+  /** GIFT — Royal Allowance: once cast, every Start of Turn grants another Gold Pouch for the rest of the run. */
+  giftAllowance?: boolean;
+  /** GIFT — Arcane Clearance: Shop Spells cost this much less THIS TURN (cleared on wave advance). Distinct
+   *  from `spellCostMod`, which is the permanent run-wide channel. */
+  spellCostOffTurn?: number;
+  /** GIFT — Friends and Family: shop MINIONS cost this much less this turn (cleared on wave advance). */
+  minionCostOffTurn?: number;
   /** Set 2 — Elderhorn (Choose One). Extra fires its chosen mode grants to BEAST triggers:
    *  `beastHuntExtra` covers RALLIES only (narrowed 2026-07-31), `beastRitualExtra` covers Echoes. Golden
    *  grants 2 instead of 1 per mode. Run-level so they survive combats, passed into the fight via

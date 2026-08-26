@@ -33,6 +33,7 @@ const THRESHOLD = /(?:Every|every|When you|Whenever you|After you|After every|im
  * effect that fires every time — there is no "progress toward" anything to show.
  */
 const NOT_A_METER: Record<string, string> = {
+  rune_happy_birthday: 'a fixed turn CADENCE (every 2 turns), not a meter the player fills — nothing to count toward',
   rune_motherlode: 'the 2 is how many minions a Ruby copies onto, not a count-up',
   rune_finality: 'the 7 is how many Imps arrive; the trigger is "your last minion dies"',
   rune_ashen_payroll: 'combat-local — the Imps-summoned count ticks during the replay, not across turns',

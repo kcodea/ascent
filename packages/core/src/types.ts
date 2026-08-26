@@ -178,6 +178,21 @@ export type GameEvent =
  */
 export type EffectFactoryId =
   // combat-time (resolved inside simulate)
+  // ── GIFTS (owner design 2026-08-26) + the shared one-per-tribe buff Great Pot uses ──
+  | 'buffOnePerTribe'
+  | 'giftShoutExtraTurn'
+  | 'giftRoyalAllowance'
+  | 'giftShopBuffGame'
+  | 'giftIroncladFavor'
+  | 'giftUnbridledMight'
+  | 'giftRegalia'
+  | 'giftGrandLarceny'
+  | 'giftSpellDiscountTurn'
+  | 'giftMinionDiscountTurn'
+  | 'giftUpgradeDiscount'
+  | 'giftTierAboveMinion'
+  | 'giftSecondCalling'
+  | 'giftPartingGifts'
   | 'deathrattleSummon'
   | 'deathrattleSummonOverflowBuff' // Nanon: Deathrattle — summon tokens; overflow buffs a tribe (Mech)
   | 'buffOnSummon'
@@ -723,10 +738,14 @@ export interface CardDef {
    *  of them are three different cards wearing one id, and a triple would have to silently pick one spell and
    *  bin the other two (owner ruling 2026-07-24: Mage-Pups cannot be tripled in any circumstance). */
   noTriple?: boolean;
-  /** A GIFT spell (Copycat): a token that is NOT a Shop spell — the reducer resolves it once, with no cast
+  /** A REWARD SPELL (Copycat): a token that is NOT a Shop spell — the reducer resolves it once, with no cast
    *  bookkeeping and no multipliers. Narrower than `token` on purpose: Implosion is a token AND a real
-   *  Shop spell, so gating on `token` alone silenced its Nimbus doubling (caught by test 2026-08-02). */
-  gift?: boolean;
+   *  Shop spell, so gating on `token` alone silenced its Nimbus doubling (caught by test 2026-08-02).
+   *
+   *  RENAMED from `gift` on 2026-08-26, when GIFTS became a real player-facing card class (see `gift`). The
+   *  two are deliberately different: a reward spell counts as NO cast at all, while a Gift DOES count as a
+   *  spell cast — it is only barred from being a *Shop* spell (no copies, no multipliers). */
+  rewardSpell?: boolean;
   /** Tara → Taragosa: after being granted stats `ascendAt` times in combat, this card ascends to
    *  `ascendInto` at settle — keeping its accumulated (Engraved) stats, like Spirit Pup's transform. */
   ascendAt?: number;
@@ -750,6 +769,14 @@ export interface CardDef {
   attackOnSummon?: boolean;
   /** A spell, not a minion: cast from hand for an effect, never takes a board slot. */
   spell?: boolean;
+  /** A GIFT (owner design 2026-08-26). A Gift is a `spell` in every presentational sense — same plate, same
+   *  art frame, cast from hand — and it DOES count as a spell cast (tallies, `spellCast` watchers, the
+   *  Ruby+Spell umbrella). What it is NOT is a **Shop spell**: it never appears in the shop, is never offered
+   *  by a spell Discover or a random-spell grant, and can never be duplicated by the spell-copy effects
+   *  (Steward, Recaller, Recurrence, Mushy, the echo runes) or repeated by a cast multiplier. Gifts live
+   *  outside every set manifest, so they are absent from `poolOf()` by construction; this flag is what the
+   *  cast-time copy/repeat paths key on. Gifts are free (`cost: 0`) and arrive in hand from a rune or hero. */
+  gift?: boolean;
   /** Warding Ruby (set 2): a Ruby that ALSO grants this keyword (Ward = `DS`) to the minion it's played on —
    *  permanent when cast in the shop phase (the reducer's play-Ruby branch bakes it onto the board card). */
   rubyGrantKeyword?: Keyword;
@@ -846,6 +873,9 @@ export interface DiscoverOnPlay {
   /** Cap the offer tier at this value instead of the rift's normal maximum, so a Discover can reach a tier the
    *  player couldn't otherwise (Beyond the Summit: current + 1, "up to Tier 7"). */
   maxTier?: number;
+  /** Keywords baked onto the PICKED card as it enters hand (Grave Invitation: an Echo minion that also gains
+   *  Rise + Taunt). Applied once, at the pick — the same shape the quest rewards' `grantKeywords` uses. */
+  grantKeywords?: Keyword[];
 }
 
 // ── Quests ───────────────────────────────────────────────────────────────────────────────────────────────
@@ -1127,6 +1157,8 @@ export type QuestReward =
   | { kind: 'runeScales' }
   // Rune of the Long Shift: at the start of each turn, Discover 2 Shop spells.
   | { kind: 'runeLongShift' }
+  | { kind: 'runeHappyBirthday' } // GIFTS: a random Gift now, then another every 2 turns
+  | { kind: 'runeMerryChristmas' } // GIFTS (epic): Discover a Gift now, then every Start of Turn
   // Rune of Bartering: your Shout (Battlecry) minions sell for 2 Gold.
   | { kind: 'runeBartering' }
   // Rune of Twin Gilding: you only need 2 copies of a card to Gild (triple) it.

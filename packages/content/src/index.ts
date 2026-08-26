@@ -3,12 +3,14 @@ import { ARCHIVED_CARDS } from './cards/archive';
 import { CardDefSchema } from './schema';
 import { TOKENS } from './cards/set1/tokens';
 import { HENCHMEN } from './cards/henchmen';
+import { GIFTS } from './cards/gifts';
 import { SET2_TOKENS } from './cards/set2/tokens';
 import { ENEMY } from './cards/set1/enemy';
 import { SETS, poolFor } from './sets';
 
 export * from './sets';
 export { HENCHMEN } from './cards/henchmen';
+export { GIFTS, GIFT_IDS } from './cards/gifts'; // a card class of its own — member of no set (see gifts.ts)
 export { ARCHIVED_CARDS } from './cards/archive'; // resolvable by id, member of no set — see the archive contract
 
 /**
@@ -28,6 +30,9 @@ export const ALL_CARDS: CardDef[] = [
   ...TOKENS,
   ...SET2_TOKENS,
   ...HENCHMEN,
+  // GIFTS follow the same doctrine as TOKENS/HENCHMEN: resolvable by id (a rune or hero hands one out),
+  // member of NO set — so `poolFor()` can never offer one in a shop or a pool-based Discover.
+  ...GIFTS,
   ...ENEMY,
   ...ARCHIVED_CARDS, // resolvable by id (saved runs / replays), member of NO set — never drawable
 ].filter((card, i, arr) => arr.findIndex((c) => c.id === card.id) === i); // a shared card appears once

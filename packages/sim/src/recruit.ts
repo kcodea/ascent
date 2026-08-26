@@ -8,7 +8,7 @@ import { CONFIG, hasTier7Access, maxTierFor, SHIFTER_OPTIONS } from './config';
 import { getHero, spellAmplifyBonus, hasPower, activePowers, primaryPower, powerDiscoverPool } from './heroes';
 import { handCap, reservedHandSlots, mixSeed, TAG, type AuraFxTribe, type BoardCard, type BuffFxEvent, type CiaSuit, type CommissionKind, type DiscoverSpec, type RunState, type ShopCard, procRune, procRuneId, runeBuffMagnitude } from './state';
 export { ALE_IDS };
-import { returnToPool, rollSpellShop, takeFromPool, refillShopFiltered, elevateShop } from './shop';
+import { returnToPool, rollShop, rollSpellShop, takeFromPool, refillShopFiltered, elevateShop } from './shop';
 
 /**
  * The recruit-phase half of the effect system (handoff C.5), split across the
@@ -1612,6 +1612,7 @@ export function spellCostReduction(state: RunState, def?: CardDef): number {
   let n = state.spellCostMod;
   for (const c of state.board) if (c.cardId === 'lazarus') n += c.golden ? 2 : 1;
   if (state.cadenceSpellOff) n += 1; // Rune of Cadence: the armed one-shot spell discount (spent at buy)
+  n += state.spellCostOffTurn ?? 0;  // GIFT — Arcane Clearance: this turn only
   // Rune of Thrift: STAT-GRANTING spells cost 2 less. Gated on the def (callers without one see no change).
   if (state.runeThrift && isStatSpell(def)) n += 2;
   return n;
@@ -2087,6 +2088,154 @@ export function grantTopTypeMinion(state: RunState): boolean {
 const recruitHuntGuard = new WeakSet<object>();
 
 const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
+
+  // ══ GREAT POT + THE GIFTS (owner design 2026-08-26) ═══════════════════════════════════════════════════
+
+  /** GREAT POT: +A/+H to ONE friendly minion of EACH type. The same "one per tribe" spread Rune of the Shared
+   *  Table uses — a dual-tribe body fills BOTH its slots (so it is never counted twice), and the first minion
+   *  of a tribe claims it. Neutral bodies have no type and are skipped. */
+  buffOnePerTribe: (ctx, _self, params) => {
+    const a = num(params.attack, 4), h = num(params.health, 4);
+    const seen = new Set<string>();
+    for (const c of ctx.state.board) {
+      const def = CARD_INDEX[c.cardId];
+      if (!def) continue;
+      const tribes = [def.tribe, def.tribe2].filter((t): t is Tribe => !!t && t !== 'neutral');
+      if (tribes.length === 0 || tribes.every((t) => seen.has(t))) continue;
+      for (const t of tribes) seen.add(t);
+      captureBuffFx(ctx.state, undefined, 'spell', () => addBuff(c, 'Great Pot', a, h));
+    }
+  },
+
+  /** DEMAND AN ENCORE: your Shouts trigger an extra time this turn (turn-scoped; see `shoutExtraTurn`). */
+  giftShoutExtraTurn: (ctx, _self, params) => {
+    ctx.state.shoutExtraTurn = (ctx.state.shoutExtraTurn ?? 0) + num(params.count, 1);
+  },
+
+  /** ROYAL ALLOWANCE: a Gold Pouch now, and another every Start of Turn for the rest of the run. */
+  giftRoyalAllowance: (ctx) => {
+    ctx.state.giftAllowance = true;
+    const pouch = CARD_INDEX['emberpouch'];
+    if (pouch) conjureToHand(ctx.state, [pouch], 1);
+  },
+
+  /** PREMIUM STOCK: the run-wide shop channel — every present and future offer is +A/+H for the game. */
+  giftShopBuffGame: (ctx, _self, params) => {
+    applyRunShopBuff(ctx.state, num(params.attack, 4), num(params.health, 4), 'Premium Stock');
+  },
+
+  /** IRONCLAD FAVOR: Taunt + double Health. The double is a BUFF of its current Health, so the printed total
+   *  ends at exactly 2x and the gain is attributed like every other buff. */
+  giftIroncladFavor: (ctx, _self, _params, payload) => {
+    const t = (payload as { target?: BoardCard } | undefined)?.target;
+    if (!t) return;
+    if (!t.keywords.includes('T')) t.keywords.push('T');
+    captureBuffFx(ctx.state, undefined, 'spell', () => addBuff(t, 'Ironclad Favor', 0, Math.max(0, t.health)));
+  },
+
+  /** UNBRIDLED MIGHT: +2 Attack FIRST, then double the result (so a 3-Attack body ends at 10, not 8). */
+  giftUnbridledMight: (ctx, _self, params, payload) => {
+    const t = (payload as { target?: BoardCard } | undefined)?.target;
+    if (!t) return;
+    const plus = num(params.attack, 2);
+    captureBuffFx(ctx.state, undefined, 'spell', () => {
+      addBuff(t, 'Unbridled Might', plus, 0);
+      addBuff(t, 'Unbridled Might', Math.max(0, t.attack), 0);
+    });
+  },
+
+  /** CHAMPION'S REGALIA: Ward (DS) + Critical Strike (CR) + Flurry (W). */
+  giftRegalia: (_ctx, _self, _params, payload) => {
+    const t = (payload as { target?: BoardCard } | undefined)?.target;
+    if (!t) return;
+    for (const k of ['DS', 'CR', 'W'] as const) if (!t.keywords.includes(k)) t.keywords.push(k);
+  },
+
+  /** GRAND LARCENY: take the whole shop to hand, then refresh. Owner ruling 2026-08-26 — as many as the hand
+   *  can hold; the remainder are LOST (never a partial refusal, and never an overflowing hand). */
+  giftGrandLarceny: (ctx) => {
+    const st = ctx.state;
+    for (const offer of [...st.shop]) {
+      if (st.hand.length >= handCap(st)) break;
+      const def = CARD_INDEX[offer.cardId];
+      if (!def) continue;
+      if (def.spell) {
+        st.hand.push({ uid: `b${st.uidSeq++}`, cardId: def.id, tribe: def.tribe, attack: def.attack, health: def.health, keywords: [...def.keywords], golden: false });
+      } else {
+        grantMinionToHandOrBoard(st, def, !!offer.golden);
+      }
+    }
+    st.shop = [];
+    rollShop(st);
+  },
+
+  /** ARCANE CLEARANCE: Shop Spells cost 1 less this turn (the same per-turn channel the shop discounts use). */
+  giftSpellDiscountTurn: (ctx, _self, params) => {
+    ctx.state.spellCostOffTurn = (ctx.state.spellCostOffTurn ?? 0) + num(params.amount, 1);
+  },
+
+  /** FRIENDS AND FAMILY: shop minions cost 1 less this turn. */
+  giftMinionDiscountTurn: (ctx, _self, params) => {
+    ctx.state.minionCostOffTurn = (ctx.state.minionCostOffTurn ?? 0) + num(params.amount, 1);
+  },
+
+  /** FAST TRACK: knock `amount` off the tavern-up cost (floored at the config minimum). */
+  giftUpgradeDiscount: (ctx, _self, params) => {
+    const st = ctx.state;
+    st.upgradeCost = Math.max(CONFIG.upgradeCostFloor ?? 0, st.upgradeCost - num(params.amount, 5));
+  },
+
+  /** SPECIAL DELIVERY: a random minion from the tier ABOVE yours — capped at 7 (owner clarification
+   *  2026-08-26), so a tier-6 or tier-7 shop still pays out rather than fizzling. */
+  giftTierAboveMinion: (ctx) => {
+    const st = ctx.state;
+    const tgt = Math.min(7, st.tier + 1);
+    const pool = poolOf(st).all.filter((c) => !c.spell && !c.ruby && !c.token && c.tier === tgt);
+    if (pool.length === 0) return;
+    const rng = makeRng(st.rngCursor);
+    const pick = pool[rng.int(pool.length)]!;
+    st.rngCursor = rng.state();
+    grantMinionToHandOrBoard(st, pick, false);
+  },
+
+  /** SECOND CALLING: a random SECOND hero power, held for the rest of the run (Void's slot 1). Owner
+   *  clarification 2026-08-26: it REPLACES an existing second power rather than being skipped. */
+  giftSecondCalling: (ctx) => {
+    const st = ctx.state;
+    const pool = powerDiscoverPool('void', [st.heroId, ...(st.voidPowerIds ?? [])]);
+    if (pool.length === 0) return;
+    const rng = makeRng(st.rngCursor);
+    const pick = pool[rng.int(pool.length)]!;
+    st.rngCursor = rng.state();
+    // Slot 0 stays whatever the run already wields; slot 1 is the granted power.
+    const cur = st.voidPowerIds ?? [st.heroId];
+    st.voidPowerIds = [cur[0] ?? st.heroId, pick];
+    st.heroReady2 = true;
+    st.heroPowerSpent2 = false;
+    st.heroPowerUses2 = 0;
+  },
+
+  /** PARTING GIFTS: sell the target, then hand its stats to 2 random OTHER friendly minions. The stats are
+   *  read BEFORE the sale (the body is gone afterwards), and the recipients are drawn from what remains. */
+  giftPartingGifts: (ctx, _self, params, payload) => {
+    const st = ctx.state;
+    const t = (payload as { target?: BoardCard } | undefined)?.target;
+    if (!t) return;
+    const atk = t.attack, hp = t.health;
+    const bi = st.board.indexOf(t);
+    if (bi < 0) return;
+    st.board.splice(bi, 1);
+    gainGold(st, sellValueWithBonus(t, st));
+    fireOnMinionSold(st, t);
+    const rest = st.board.filter((c) => c.uid !== t.uid);
+    if (rest.length === 0) return;
+    const rng = makeRng(st.rngCursor);
+    const picks: BoardCard[] = [];
+    const bag = [...rest];
+    for (let i = 0; i < num(params.count, 2) && bag.length > 0; i++) picks.push(bag.splice(rng.int(bag.length), 1)[0]!);
+    st.rngCursor = rng.state();
+    for (const c of picks) captureBuffFx(st, undefined, 'spell', () => addBuff(c, 'Parting Gifts', atk, hp));
+  },
 
   // ── RALLY FAMILY — the SHOP half (Step 3 item 4 + Step 4) ────────────────────────────────────────────
   //
@@ -6761,8 +6910,11 @@ export function openDiscover(state: RunState, spec: DiscoverSpec): void {
   if (spec.kind === 'spell') {
     offerSpellDiscover(state);
   } else if (spec.kind === 'pool') {
-    // Discover from an explicit card-id pool (Second Path). Offer up to 3 distinct, real minions.
-    const pool = spec.ids.filter((id) => CARD_INDEX[id] && !CARD_INDEX[id]!.spell);
+    // Discover from an explicit card-id pool (Second Path). Offer up to 3 distinct, real cards.
+    // Spells are excluded because the pool Discover was built for MINIONS — except GIFTS (owner design
+    // 2026-08-26), which are spells by nature and are offered as a class by Merry Christmas and Kindness.
+    // Without this exemption a Gift Discover filtered itself to empty and silently never opened.
+    const pool = spec.ids.filter((id) => CARD_INDEX[id] && (!CARD_INDEX[id]!.spell || CARD_INDEX[id]!.gift));
     if (pool.length === 0) return;
     const rng = makeRng(state.rngCursor);
     const avail = [...pool];
@@ -7473,6 +7625,7 @@ function playedShoutRepeats(state: RunState, def: CardDef): number {
   if (isShout) {
     n += state.shoutExtraAlways ?? 0; // Hoardwake / The Hoard Wakes — permanent extra triggers (stacks)
     if (state.shoutExtraAlways) procRuneId(state, 'rune_choir');
+    n += state.shoutExtraTurn ?? 0;   // GIFT — Demand an Encore: this turn only (cleared at end of turn)
     // Warm Embers — the FIRST Shout you play each turn triggers twice (one freebie per turn).
     if (state.shoutFirstDoubleEachRound && !state.shoutFirstUsedThisTurn) {
       state.shoutFirstUsedThisTurn = true;
@@ -8232,11 +8385,18 @@ export function noteSpellCast(state: RunState, spellDef: CardDef): void {
   // and cast MULTIPLIERS still apply to its own resolution (Nimbus doubling Implosion is pinned behaviour —
   // the charge concerns what the cast DOES, not what it counts as).
   if (spellDef.token) return;
+  // A GIFT (owner design 2026-08-26) DOES pay everything below — tallies, thresholds, the Ruby+Spell umbrella,
+  // the `spellCast` watchers — because a Gift counts as a spell CAST. What it never does is become COPY FOOD:
+  // each copy path below (`firstSpellThisTurnId`, Mushy's charge, `lastSpellCastId`, the echo runes) skips a
+  // Gift explicitly, which together with `singleCast` on every Gift def is the whole "cannot be duplicated"
+  // rule. It is not a *Shop* spell, only a spell cast.
   const ctx = makeContext(state);
   // Rune of Recurrence: remember the FIRST spell cast each turn (recast at End of Turn). Recorded before the
   // tally below so the turn's opening cast — and only it — lands here; the EoT recast itself can never
   // re-record (spellsThisTurn is nonzero by then).
-  if (state.spellsThisTurn === 0) state.firstSpellThisTurnId = spellDef.id;
+  // A GIFT is never recorded as the turn's first spell: Rune of Recurrence recasts that id at End of Turn,
+  // which would duplicate a Gift (owner rule 2026-08-26 — a Gift is not a Shop spell and can't be copied).
+  if (state.spellsThisTurn === 0 && !spellDef.gift) state.firstSpellThisTurnId = spellDef.id;
   // Set 2 — Chef Gary Toast reads "Ales triggered this turn", so the tally lives with the other per-turn counters.
   if (ALE_IDS.includes(spellDef.id)) {
     if (state.aleExtraCasts) procRuneId(state, 'rune_bottomless_cask');
@@ -8261,7 +8421,7 @@ export function noteSpellCast(state: RunState, spellDef: CardDef): void {
   // catches every cast path once; the wave gate makes "next turn" exact — a charge armed in this turn's combat
   // has `activateWave = wave + 1`, so it can't pay out until the following turn.
   const sfCharge = state.nextTurnSpellCopies;
-  if (state.spellsThisTurn === 0 && sfCharge && state.wave >= sfCharge.activateWave && sfCharge.count > 0) {
+  if (!spellDef.gift && state.spellsThisTurn === 0 && sfCharge && state.wave >= sfCharge.activateWave && sfCharge.count > 0) {
     conjureToHand(state, [spellDef], sfCharge.count);
     state.nextTurnSpellCopies = undefined;
   }
@@ -8279,14 +8439,15 @@ export function noteSpellCast(state: RunState, spellDef: CardDef): void {
   // count still resolves; clearing after keeps the NEXT spell single.
   consumeGrimoireCharge(state);
   fireOnRubyCast(state, castUmbrellaBefore, castUmbrellaBefore + 1);
-  state.lastSpellCastId = spellDef.id; // Steward of Spells copies the most recent spell cast
+  // Steward of Spells copies the most recent spell cast — so a Gift deliberately does NOT become that memory.
+  if (!spellDef.gift) state.lastSpellCastId = spellDef.id;
   // RUNE OF LIVING MAGIC (1 use) / RUNE OF PERFECT RECALL (2 uses): after a Shop-spell cast, a COPY lands in
   // hand. ONE budget for both runes — holding both raises the ceiling to 3 rather than the two firing
   // independently, the same way the Mage-Pup teach cap is shared. The budget is spent BEFORE the conjure so a
   // copy that itself gets cast this turn can only draw from what is left. `NO_COPY_SPELLS` and the `token`
   // early-return above are what keep an uncopyable spell (or a reward token) out of the loop.
   const echo = state.runeSpellEcho;
-  if (echo && echo.used < echo.uses && !NO_COPY_SPELLS.has(spellDef.id)) {
+  if (echo && echo.used < echo.uses && !spellDef.gift && !NO_COPY_SPELLS.has(spellDef.id)) {
     echo.used += 1;
     procRuneId(state, echo.uses >= 2 ? 'rune_perfect_recall' : 'rune_living_magic');
     conjureToHand(state, [spellDef], 1);

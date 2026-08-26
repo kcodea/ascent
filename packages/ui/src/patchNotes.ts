@@ -56,6 +56,24 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-08-26',
+    label: 'Gifts',
+    changes: [
+      { category: 'New Card', text: 'Gifts arrive — a new kind of free spell you are given rather than bought.', details: [
+        'A Gift is handed to you by a rune or a hero, never sold in the Shop.',
+        'Casting one counts as casting a spell, but a Gift is not a Shop Spell — so nothing can copy or repeat it.',
+        'Fifteen to collect, from doubling a minion’s Health to robbing the whole Shop.',
+      ] },
+      { category: 'New Hero', text: 'Kindness joins the roster. Great Presence Discovers a Gift every 4 turns.', details: [
+        'Starts with 15 Armor.',
+        'Every fourth turn, choose one Gift from three.',
+      ] },
+      { category: 'New Rune', text: 'Happy Birthday (Basic) gives a random Gift right away, then another every 2 turns.' },
+      { category: 'New Rune', text: 'Merry Christmas (Epic) lets you Discover a Gift immediately, then again every Start of Turn.' },
+      { category: 'New Card', text: 'Great Pot — a Tier 4 spell that gives a minion of each type +4/+4.' },
+    ],
+  },
+  {
+    date: '2026-08-26',
     label: 'Fixes',
     changes: [
       { category: 'Card Change', text: 'Kringle again shows its full grant — its text was dropping the Health half the moment you played a card.' },

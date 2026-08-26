@@ -48,6 +48,20 @@ export const GameEventSchema = z.enum([
 ]);
 
 export const EffectFactoryIdSchema = z.enum([
+  'buffOnePerTribe',
+  'giftShoutExtraTurn',
+  'giftRoyalAllowance',
+  'giftShopBuffGame',
+  'giftIroncladFavor',
+  'giftUnbridledMight',
+  'giftRegalia',
+  'giftGrandLarceny',
+  'giftSpellDiscountTurn',
+  'giftMinionDiscountTurn',
+  'giftUpgradeDiscount',
+  'giftTierAboveMinion',
+  'giftSecondCalling',
+  'giftPartingGifts',
   'deathrattleSummon',
   'deathrattleSummonOverflowBuff',
   'buffOnSummon',
@@ -541,12 +555,13 @@ export const CardDefSchema = z.object({
   celestial: z.boolean().optional(), // alignment-bearing (Dawn/Dusk/Eclipse) — drives the alignment HUD
   henchman: z.boolean().optional(), // hero-bound recruit — never shop-offered (see cards/henchmen.ts)
   noTriple: z.boolean().optional(),
-  gift: z.boolean().optional(),
+  rewardSpell: z.boolean().optional(),
   ascendAt: z.number().int().positive().optional(),
   attackImmuneTurns: z.number().int().positive().optional(),
   ascendInto: z.string().optional(),
   attackOnSummon: z.boolean().optional(),
   spell: z.boolean().optional(),
+  gift: z.boolean().optional(),
   ruby: z.boolean().optional(),
   rubyGrantKeyword: KeywordSchema.optional(),
   singleCast: z.boolean().optional(),
@@ -582,6 +597,7 @@ export const CardDefSchema = z.object({
       maxTier: z.number().int().positive().optional(),
       lockUntilNextTurn: z.boolean().optional(),
       borrowed: z.boolean().optional(),
+      grantKeywords: z.array(KeywordSchema).optional(),
     })
     .strict()
     .optional(),
@@ -773,6 +789,8 @@ z.object({ kind: z.literal('consumeDoubleFirstEachTurn') }).strict(),
   z.object({ kind: z.literal('runeKindling') }).strict(),
   z.object({ kind: z.literal('runeScales') }).strict(),
   z.object({ kind: z.literal('runeLongShift') }).strict(),
+  z.object({ kind: z.literal('runeHappyBirthday') }).strict(),
+  z.object({ kind: z.literal('runeMerryChristmas') }).strict(),
   z.object({ kind: z.literal('runeBartering') }).strict(),
   z.object({ kind: z.literal('runeTwinGilding') }).strict(),
   z.object({ kind: z.literal('runeDenMother') }).strict(),

@@ -315,6 +315,21 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:spellBuffShop:cast': { policy: 'ownBeat', family: 'spellCast' },
   'factory:spellBuffShopByRuby:cast': { policy: 'ownBeat', family: 'spellCast' },
   'factory:spellBuffTarget:cast': { policy: 'ownBeat', family: 'spellCast' },
+  // GREAT POT + the GIFTS (owner batch 2026-08-26) — each casts from hand, so each owns its beat.
+  'factory:buffOnePerTribe:cast': { policy: 'ownBeat', family: 'spellCast' },
+  'factory:giftGrandLarceny:cast': { policy: 'ownBeat', family: 'spellCast' },
+  'factory:giftIroncladFavor:cast': { policy: 'ownBeat', family: 'spellCast' },
+  'factory:giftMinionDiscountTurn:cast': { policy: 'ownBeat', family: 'spellCast' },
+  'factory:giftPartingGifts:cast': { policy: 'ownBeat', family: 'spellCast' },
+  'factory:giftRegalia:cast': { policy: 'ownBeat', family: 'spellCast' },
+  'factory:giftRoyalAllowance:cast': { policy: 'ownBeat', family: 'spellCast' },
+  'factory:giftSecondCalling:cast': { policy: 'ownBeat', family: 'spellCast' },
+  'factory:giftShopBuffGame:cast': { policy: 'ownBeat', family: 'spellCast' },
+  'factory:giftShoutExtraTurn:cast': { policy: 'ownBeat', family: 'spellCast' },
+  'factory:giftSpellDiscountTurn:cast': { policy: 'ownBeat', family: 'spellCast' },
+  'factory:giftTierAboveMinion:cast': { policy: 'ownBeat', family: 'spellCast' },
+  'factory:giftUnbridledMight:cast': { policy: 'ownBeat', family: 'spellCast' },
+  'factory:giftUpgradeDiscount:cast': { policy: 'ownBeat', family: 'spellCast' },
   // Owner spell batch 2026-08-15 — both are ordinary shop casts: they resolve immediately and their result is
   // the display (stats landing on bodies / a card arriving in hand), so they share the spellCast family.
   'factory:spellBuffTargetAndNeighbours:cast': { policy: 'ownBeat', family: 'spellCast' },
@@ -571,6 +586,8 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'rune:rune_living_growth:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_living_treasure:combat': { policy: 'foldedCue', family: 'combatModifier' },
   'rune:rune_long_shift:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  'rune:rune_happy_birthday:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  'rune:rune_merry_christmas:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_lorekeeping:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_mastery:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_menagerie:onAcquire': { policy: 'ownBeat', family: 'rewardGrant' },
@@ -868,6 +885,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'hero:tiff:dragonTamer': { policy: 'ownBeat', family: 'heroPower', flagged: true },
   'hero:warden:grantWard': { policy: 'ownBeat', family: 'heroPower', flagged: true },
   // Heroes batch 2026-08-14 (heuristic classification, flagged for owner review).
+  'hero:kindness:greatPresence': { policy: 'ownBeat', family: 'heroPower', flagged: true },
   'hero:merrin:pocketMagic': { policy: 'ownBeat', family: 'heroPower', flagged: true },
   'hero:gambler:dice': { policy: 'ownBeat', family: 'heroPayout', flagged: true },
   'hero:xerox:copyMachine': { policy: 'ownBeat', family: 'heroReplay', flagged: true },

@@ -124,15 +124,9 @@ export function aftershocksRider(): { survivorAttackDelta: number } {
     const r = simulate(player, enemy, makeRng(11), CARD_INDEX,
       combatSide({ tier: 5, questMods: armed ? ({ runeAftershocks: true } as QuestCombatMods) : {} }),
       combatSide({ tier: 5 }));
-    // The sentinel's final attack, read from the last event that carries it — fall back to base if untouched.
-    let attack = 2;
-    for (const e of r.events) {
-      const ev = e as { type?: string; uid?: string; attack?: number; minion?: { attack?: number } };
-      if (ev.type === 'buff' && ev.uid && typeof ev.attack === 'number') { /* generic buff events vary; handled below */ }
-    }
-    // Robust route: count Aftershocks board-buff events by their beat key.
-    const pulses = r.events.filter((e) => /aftershock/i.test(JSON.stringify(e))).length;
-    return armed ? attack + pulses : attack;
+    // Count Aftershocks pulses by their attributed events — proven detection: the reinjected #941 bug
+    // (wrap per WATCHER) produced a delta of 16 here where the correct engine produces 0.
+    return r.events.filter((e) => /aftershock/i.test(JSON.stringify(e))).length;
   };
   return { survivorAttackDelta: run(true) - run(false) };
 }

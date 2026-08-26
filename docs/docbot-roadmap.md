@@ -49,6 +49,29 @@ quest events) masked dead factories; `initial`'s golden flag made the golden lan
 effect, Emissary's tribe gate and two-step aim, and Manasaber's `fixed` taught the magnitude oracle its own
 contracts; the stable-stringify lesson appeared a third time in serialize-resume.
 
+## MEASURED coverage — retro-validation (2026-08-26, the harness in packages/tools/retro/)
+
+Estimates were replaced by measurement: eight out-of-sample historical bugs were REINJECTED at the source
+line and run against the full Doc Bot suite. **Before the miss-driven build-out: 0 of 8 caught.** The misses
+built tripwires 16 (the 135-key combat-mod lane) and 17 (copy semantics, watcher ordering, chain
+multipliers, the combat-castable registry). **After: 7 of 8.**
+
+| Reinjected bug | Before | After | Caught by |
+|---|---|---|---|
+| #941 Aftershocks paid per rattle-watcher | MISSED | **CAUGHT** | mod-lane rider (delta 16 vs 0) |
+| #932 Undertow warded unbounded | MISSED | **CAUGHT** | mod-lane rider (8 > cap 4) |
+| #832 Soulbind matched the wrong uid | MISSED | **CAUGHT** | mod-lane inert pin |
+| #986 summon watchers out of board order | MISSED | **CAUGHT** | ordering oracle (Oona/Beardsley non-commuting) |
+| #933 triples kept temporary keywords | MISSED | **CAUGHT** | copy-semantics probe |
+| #897 Echohorn chain dropped Sylus | MISSED | **CAUGHT** | chain-multiplier oracle (exact 2×) |
+| #1111 Beefy/Lantern Light fizzled | MISSED | **CAUGHT** | combat-castable registry |
+| #1176 Avenge counted the whole fight | MISSED | MISSED | honest gap: per-instance counter windows need the contract layer; no deterministic summon-an-Avenge-body stager exists, and its own regression test lives in-repo |
+
+The five in-sample bugs (this week's, which tripwires 1–8 were built from) were already caught by their
+sabotage checks — 12 of 13 total. The harness catalog grows one entry per interesting future fix; a MISS is
+the build signal for the next generic oracle. This corrects the earlier ESTIMATED 65–75% claim: what was
+measured this morning was ~30% wiring-only, and the number that now stands is measured, not guessed.
+
 ## Build order — each phase ships value the day it lands
 
 Ordered by (bugs caught per effort), using the historical fix log as the yield estimator.

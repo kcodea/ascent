@@ -41,6 +41,11 @@ export interface GameRule {
   currentBehaviour?: string;
   /** Claude's recommendation. Approving a pending item adopts it; revising replaces it with the note. */
   recommendation?: string;
+  /** The printed text of the card/rune/power in question, verbatim — every card must stand alone
+   *  (owner format feedback 2026-08-26: "i have no idea what the rune does without looking it up"). */
+  cardText?: string;
+  /** One concrete example of the situation being ruled on. */
+  example?: string;
   /** The Doc Bot queue a pending item was seeded from (its enforcement home). */
   sourceQueue?: string;
   /** Content ids this rule governs, when it is content-specific. */

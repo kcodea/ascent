@@ -1516,6 +1516,15 @@ export interface RunState {
    *  `reduce` ALSO diffs the hand so the ~17 other insertion sites can't silently skip the trigger. This ledger
    *  is what keeps the two from double-firing on the same card. Cleared at the top of every action. */
   gainCardFiredUids?: string[];
+  /** FUNERAL ON LOAN: the uid of a board body that occupies its slot but is ALREADY DOOMED — the borrowed
+   *  minion, spliced in only so positional Echoes (Dawnclaw's neighbours, Legion Shepherd's counting) see a
+   *  real board, and removed the instant its Echo finishes. Summon capacity must not count it: it is leaving,
+   *  so its slot is free for whatever its own Echo summons (owner report 2026-08-26 — an Echo that summons did
+   *  nothing on a 6-body board, because the borrowed body made it read as 7). Transient, one action wide. */
+  vacatingUid?: string;
+  /** The run has already taken its ONE Epic Runeforge early (Rune of the Ornate Clock: "next turn instead of
+   *  turn 9"), so the standing turn-9 forge must not also open. */
+  epicForgeClaimed?: boolean;
   /** Set 2 — Elderhorn (Choose One). Extra fires its chosen mode grants to BEAST triggers:
    *  `beastHuntExtra` covers RALLIES only (narrowed 2026-07-31), `beastRitualExtra` covers Echoes. Golden
    *  grants 2 instead of 1 per mode. Run-level so they survive combats, passed into the fight via

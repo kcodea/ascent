@@ -7566,7 +7566,12 @@ function makeContext(state: RunState): RecruitContext {
     state,
     collector: currentCollector(),
     summon: (card, nearUid) => {
-      if (state.board.length >= CONFIG.boardMax) {
+      // A VACATING body (the borrowed minion of Funeral on Loan) sits on the board only so positional Echoes
+      // can see it, and is removed the moment its Echo ends. It must not consume a summon slot — otherwise an
+      // Echo that summons is silently dead on a 6-body board, which is exactly the reported bug. Exactly one
+      // slot is freed, so the summon lands "in the place of the minion dying".
+      const vacating = state.vacatingUid && state.board.some((c) => c.uid === state.vacatingUid) ? 1 : 0;
+      if (state.board.length - vacating >= CONFIG.boardMax) {
         // Overflow — the summon can't fit the full board. Flowing Monk pays off on the wasted body.
         for (const c of [...state.board]) {
           const def = CARD_INDEX[c.cardId];

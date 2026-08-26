@@ -31,4 +31,6 @@ export { RUNE_DIFF_EXCUSED, SPELL_POWER_EXCUSED, TURN_RESET_EXCUSED } from './hi
 export { runeSwallowScan } from './runeSwallowScan';
 export { playScan, playFixture, VANILLA_CONTROL_ID, CONTROL_KEY_WHITELIST } from './playScan';
 export { combatScan, combatWorklist } from './combatScan';
+export { combatModScan } from './combatModScan';
+export { heroScan } from './heroScan';
 export { PLAY_EXCUSED, WATCHER_EXCUSED } from './historyRegistry';

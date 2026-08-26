@@ -25,6 +25,7 @@
 import { CARD_INDEX } from '@game/content';
 import { combatSide, makeRng, simulate, type BoardMinion, type CardDef } from '@game/core';
 import { VANILLA_CONTROL_ID } from './playScan';
+import { PHASE_EXCUSED } from './phaseRegistry';
 
 /** Triggers whose home (or second home) is combat — the worklist filter. */
 const COMBAT_TRIGGERS = new Set([
@@ -32,8 +33,8 @@ const COMBAT_TRIGGERS = new Set([
   'summonOverflow', 'friendlyDemonDealtDamage', 'spellCastOnThis', 'passive', 'onGainAttack',
 ]);
 
-const bm = (cardId: string, uid: string, attack: number, health: number, keywords: string[] = [], golden = false): BoardMinion =>
-  ({ cardId, attack, health, sourceUid: uid, keywords, golden } as unknown as BoardMinion);
+const bm = (cardId: string, uid: string, attack: number, health: number, keywords: string[] = [], golden = false, extra: Record<string, unknown> = {}): BoardMinion =>
+  ({ cardId, attack, health, sourceUid: uid, keywords, golden, ...extra } as unknown as BoardMinion);
 
 /** Pick a real minion id of a tribe (same id used in subject and control runs, so its own effects cancel). */
 const tribeId = (tribe: string): string =>
@@ -87,10 +88,25 @@ export const VARIANTS: Variant[] = [
     enemies: () => [bm('cryptwolf', 'e0', 6, 18), bm('nanobot', 'e1', 6, 18)],
   },
   {
-    // Celestial pairs (alignment/orbit watchers need a fellow Celestial)
+    // Celestial pairs — WITH ALIGNMENT STAMPED. `align` is a reducer-set BoardMinion field (locked at combat
+    // setup); the first cut never set it, so every alignment-gated Start of Combat read as inert and three
+    // working Celestials were mis-queued (owner audit 2026-08-26). The subject is stamped 'eclipse' (counts
+    // as both Dawn and Dusk, per approved rule R-CEL-01) so either half of a split effect can fire.
     name: 'celestial',
-    allies: (s) => [bm(tribeId('celestial'), 'p0', 3, 4), s, bm(tribeId('celestial'), 'p2', 3, 4), bm('pup', 'p3', 2, 2)],
+    allies: (s) => [bm(tribeId('celestial'), 'p0', 3, 4, [], false, { align: 'dawn' }), { ...s, align: 'eclipse' } as BoardMinion, bm(tribeId('celestial'), 'p2', 3, 4, [], false, { align: 'dusk' }), bm('pup', 'p3', 2, 2)],
     enemies: () => [bm('nanobot', 'e0', 4, 6), bm('cryptwolf', 'e1', 5, 8)],
+  },
+  {
+    // A LIVING left-most Echo + a stored side spell: Echohorn's Rally procs the LEFT-MOST Echo, so the echoer
+    // must be alive at slot 0 when the subject attacks (the first cut's echoer was 2/2 and long dead — a
+    // working Echohorn was mis-queued); Sporebat-family Echoes cast the side's stored spell, so one is armed.
+    name: 'livingEcho',
+    allies: (s) => {
+      const echoer = Object.values(CARD_INDEX).find((c) => c && !c.spell && !c.token
+        && c.effects.some((e) => e.on === 'onDeath' && e.do === 'deathrattleSummon' && !(e.params as { fixed?: boolean }).fixed))!;
+      return [bm(echoer.id, 'p0', 1, 30), s, bm('pup', 'p2', 1, 1)];
+    },
+    enemies: () => [bm('cryptwolf', 'e0', 4, 14)],
   },
   {
     // combat spell casts (spellCastOnThis / spell watchers): an ally that casts a named spell mid-fight
@@ -117,7 +133,9 @@ export const VARIANTS: Variant[] = [
  *  undercount of the inert queue, never an overcount. */
 function fight(subject: BoardMinion, variant: Variant, maskIds: ReadonlySet<string>): string {
   const result = simulate(variant.allies(subject), variant.enemies(), makeRng(0xf17e), CARD_INDEX,
-    combatSide({ tier: 5, tribes: ['beast', 'demon', 'dragon', 'dwarf', 'kobold'] as never }),
+    // `lastSpellCastId` armed: stored-spell Echoes (Sporebat family) read it from the side; leaving it empty
+    // made a working card read inert (owner audit 2026-08-26).
+    combatSide({ tier: 5, tribes: ['beast', 'demon', 'dragon', 'dwarf', 'kobold'] as never, lastSpellCastId: 'growth' } as never),
     combatSide({ tier: 5 }));
   const r = JSON.parse(JSON.stringify(result)) as Record<string, unknown>;
   // TRIGGER TELEMETRY, not effect consequence — these tick when a trigger FIRES regardless of what its
@@ -151,23 +169,31 @@ function maskDeep(v: unknown, ids: ReadonlySet<string>): unknown {
 export interface CombatScanResult {
   /** Cards whose presence changed NO variant of the staged fights, vs a stat-clone control. */
   inert: string[];
-  /** Cards that acted, but identically when GOLDEN in their first active variant. */
-  goldenFlat: string[];
   /** Cards covered and confirmed active, with the variant that proved them. */
   activeCount: number;
   provedBy: Record<string, string>;
 }
 
+// NOTE (owner audit 2026-08-26): the former GOLDEN-FLAT lane was removed as an instrument artifact — it
+// compared golden-vs-plain in the variant that PROVED a card active, but the proving difference often came
+// from a non-scaling aspect (a Ward, a body) while the effect never fired there, so working cards
+// (Beardsley, Imp King verified doubling +3→+6) were mis-queued. Golden semantics are checked where they are
+// checkable: per-family magnitude contracts (tripwire 13) that assert exact ×2 when the effect FIRES.
+
 export function combatScan(): CombatScanResult {
   const inert: string[] = [];
-  const goldenFlat: string[] = [];
   const provedBy: Record<string, string> = {};
   let activeCount = 0;
   const control = CARD_INDEX[VANILLA_CONTROL_ID]!;
 
   for (const def of Object.values(CARD_INDEX)) {
     if (!def || def.spell || def.ruby) continue;
-    if (!def.effects.some((e) => COMBAT_TRIGGERS.has(e.on))) continue;
+    const combatEffects = def.effects.filter((e) => COMBAT_TRIGGERS.has(e.on));
+    if (combatEffects.length === 0) continue;
+    // Already answered elsewhere: if EVERY combat-relevant effect carries a combat-side excuse in the phase
+    // registry (other-channel, state-missing, …), this lane has nothing to add — re-questioning it here
+    // double-counts (Ancient Wanderer's shop passive was mis-queued this way; owner audit 2026-08-26).
+    if (combatEffects.every((e) => PHASE_EXCUSED[e.do]?.phase === 'combat')) continue;
     const a = Math.max(1, def.attack);
     const h = Math.max(1, def.health);
     // The control wears the subject's tribes behaviourally (see fight()'s doc).
@@ -184,13 +210,8 @@ export function combatScan(): CombatScanResult {
     if (!activeVariant) { inert.push(def.id); continue; }
     activeCount++;
     provedBy[def.id] = activeVariant.name;
-    // Golden lane in the PROVING variant: golden C vs plain C at the same doubled stats — only the effect's
-    // golden behaviour can differ.
-    const g = fight(bm(def.id, 'pS', a * 2, h * 2, [...def.keywords], true), activeVariant, maskIds);
-    const p = fight(bm(def.id, 'pS', a * 2, h * 2, [...def.keywords], false), activeVariant, maskIds);
-    if (g === p) goldenFlat.push(def.id);
   }
-  return { inert, goldenFlat, activeCount, provedBy };
+  return { inert, activeCount, provedBy };
 }
 
 /** The defs the scan worklist covers — exported so the test can pin the surface size. */

@@ -1,16 +1,15 @@
 /**
- * DOC BOT TRIPWIRE 10 — the combat presence differential. Doctrine, the variant matrix, and the two
- * instrument catches (partial-result serialization; uid-keyed masking that never fired on remapped uids)
- * live in `combatScan.ts`.
+ * DOC BOT TRIPWIRE 10 — the combat presence differential. Doctrine + the variant matrix live in
+ * `combatScan.ts`.
  *
- * 170 combat-effect cards as of 2026-08-26 (roadmap phases A+B applied): **163 verified ACTIVE** across the
- * seven staged variants, 7 scenario-conditional, 61 golden-flat-in-the-proving-variant.
- *
- * The queues are two-sided ratchets (shrink = bank it by lowering the pin; grow = a NEW card didn't act —
- * make it act, or raise the pin consciously in review with the condition named).
- *
- * Sabotage-proofed on BOTH lanes: neutering `deathrattleSummon` moved 11 named echo-summoners into the inert
- * queue (7 → 18); neutering the arena's golden doubling moved 34 more cards into golden-flat (61 → 95).
+ * OWNER AUDIT 2026-08-26 reshaped this lane. The first cut queued 7 inert cards and 61 "golden-flat" ones;
+ * the owner called it ("really stupid and bad findings — echohorn seems to be one of the most correctly
+ * founded cards in the game") and the audit proved him right: SIX of seven inerts were instrument blind
+ * spots (alignment never stamped — and stamped 'eclipsed' where the literal is 'eclipse'; the echoer dead
+ * before the Rally; the stored side-spell never armed; a shop passive double-counted), and the golden-flat
+ * lane compared golden-vs-plain in fights where the effect never fired at all (Beardsley and Imp King
+ * verified doubling +3→+6 when it does). The fixes live in the scan; the lane's residue is DOC BOT'S OWN
+ * verification backlog, not owner questions.
  */
 import { describe, expect, it } from 'vitest';
 import { combatScan, combatWorklist } from './combatScan';
@@ -18,24 +17,17 @@ import { combatScan, combatWorklist } from './combatScan';
 describe('Doc Bot — combat presence differential', () => {
   const scan = combatScan();
 
-  it('covers the real surface (170 combat-effect cards as of 2026-08-26)', () => {
-    expect(combatWorklist().length).toBeGreaterThanOrEqual(160); // a worklist collapse must fail loudly
+  it('covers the real surface (169 combat-effect cards as of 2026-08-26)', () => {
+    expect(combatWorklist().length).toBeGreaterThanOrEqual(160);
   });
 
-  it('nearly every combat effect verifies ACTIVE across the variant matrix (floor 158)', () => {
-    // A sharp drop means the SCAN broke (fixture, masking, control) — the instrument check.
-    expect(scan.activeCount).toBeGreaterThanOrEqual(158);
+  it('nearly every combat effect verifies ACTIVE across the variant matrix (floor 160)', () => {
+    expect(scan.activeCount).toBeGreaterThanOrEqual(160);
   });
 
-  it('the scenario-conditional INERT queue is pinned (7 as of 2026-08-26)', () => {
-    const PIN = 7;
-    expect(scan.inert.length, `${scan.inert.length} combat-effect card(s) changed NOTHING in any staged variant (pin ${PIN}):\n  ${scan.inert.join(', ')}\nAbove the pin: a new card's combat effect never acted — stage its trigger (add a variant), fix the effect, or raise the pin consciously in review with the condition named.`).toBeLessThanOrEqual(PIN);
+  it('the unstageable residue is pinned (1 as of 2026-08-26: Reflector — needs a targeted combat cast)', () => {
+    const PIN = 1;
+    expect(scan.inert.length, `${scan.inert.length} combat-effect card(s) changed NOTHING in any staged variant (pin ${PIN}): ${scan.inert.join(', ')} — a NEW card here means its effect never acted: stage its trigger (add a variant) or fix the effect. This is Doc Bot's staging backlog, not an owner queue.`).toBeLessThanOrEqual(PIN);
     expect(scan.inert.length, `only ${scan.inert.length} inert now (pin ${PIN}) — you staged or fixed some; lower the pin.`).toBeGreaterThanOrEqual(PIN);
-  });
-
-  it('the GOLDEN-FLAT queue is pinned (61 as of 2026-08-26 — the owner triage queue for gild semantics)', () => {
-    const PIN = 61;
-    expect(scan.goldenFlat.length, `${scan.goldenFlat.length} card(s) whose golden combat behaviour equals plain in their proving variant (pin ${PIN}): ${scan.goldenFlat.join(', ')}`).toBeLessThanOrEqual(PIN);
-    expect(scan.goldenFlat.length, `only ${scan.goldenFlat.length} golden-flat now (pin ${PIN}) — lower the pin.`).toBeGreaterThanOrEqual(PIN);
   });
 });

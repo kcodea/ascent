@@ -96,147 +96,97 @@ for (const [factory, ex] of Object.entries(SPELL_POWER_EXCUSED)) {
   });
 }
 
-// ── 3. rune second copies that change nothing (the duplicate-policy queue, #900's descendants) ──
+// ── 3. RUNE DUPLICATES — ONE policy question, not 80 (owner audit 2026-08-26: per-rune cards were noise).
 const rune = runeSwallowScan();
-for (const id of rune.secondSwallowed) {
-  const r = RUNE_INDEX[id] as { name: string; cost: number; text?: string };
+{
+  const list = rune.secondSwallowed.map((id) => {
+    const r = RUNE_INDEX[id] as { name: string; cost: number; text?: string };
+    return `${r.name} (${r.cost}g): "${plain(r.text)}"`;
+  });
   rows.push({
-    id: `q-rune2-${id}`,
-    title: `${r.name}: a second copy does nothing`,
-    statement: `You can be offered a rune you already own (the forge never filters owned runes, and Rune of Duplication copies any Epic). `
-      + `Buying the second ${r.name} costs ${r.cost} Gold and changes nothing at all — it does not stack, does not record a copy, and shows no second badge effect.`
-      + ` Should two copies do MORE than one, or is a dead second buy acceptable?`
-      + CLICKS('a second copy deliberately does nothing (a dead buy — consider filtering it from the forge)',
-        'bug — a second copy must stack or repeat'),
+    id: 'q-policy-rune-duplicates',
+    title: `Rune duplicate policy: ${rune.secondSwallowed.length} runes whose second copy does nothing`,
+    statement: `The forge can offer a rune you already own, and Rune of Duplication copies any Epic — so a SECOND copy of `
+      + `${rune.secondSwallowed.length} different runes is purchasable today and does nothing at all (you pay, nothing changes). `
+      + `This needs ONE policy: what should a duplicate of a one-shot/boolean rune do by default?`
+      + CLICKS('duplicates of these runes deliberately do nothing (and Claude filters owned one-shot runes from the forge so the dead buy cannot happen)',
+        'duplicates must always do SOMETHING — Claude proposes a stacking rule per rune family for your review'),
     domain: 'runes', sourceQueue: 'runeRewardDifferential',
-    currentBehaviour: `Second purchase: ${r.cost} Gold spent, zero effect.`,
-    cardText: `${r.name} (${r.cost} Gold): "${plain(r.text)}"`,
-    example: `Example: you own ${r.name}; the forge offers it again; you pay ${r.cost} Gold; nothing about your run changes.`,
-    contentIds: [id],
+    currentBehaviour: 'A second copy: Gold spent, zero effect, for every rune listed.',
+    recommendation: 'Filter owned one-shot runes from forge offers; treat amount-carrying runes as stacking (they already do).',
+    cardText: list.join(' · '),
+    example: 'Example: you own Rune of the Aftermarket (4g); the forge offers it again; you pay 4 Gold; nothing changes.',
   });
 }
 
-// ── 4. combat: inert + golden-flat ──
+// ── 4. combat lane residue — after the audit fixes (align stamps, living echo, stored spell, excused-skip)
+//    only genuinely unstageable cards remain, and they are DOC BOT VERIFICATION BACKLOG, not owner questions.
+//    They are reported in docs/rulebook/TRIAGE.md but NOT queued on the board.
 const combat = combatScan();
-const VARIANTS_DESC = 'tribal boards, Echo/Shout neighbours, mass friendly deaths, guaranteed kills, summon overflow, Celestial pairs, and a combat spellcaster';
-for (const id of combat.inert) {
-  rows.push({
-    id: `q-combatinert-${id}`,
-    title: `${cname(id)}: printed effect never influenced a fight`,
-    statement: `Across seven staged fights (${VARIANTS_DESC}), the battle with ${cname(id)} was byte-identical to the same battle with a `
-      + `stat-clone that has no effect — its printed ability contributed nothing. What condition do the fights fail to stage (so a variant can be added), `
-      + `or is the ability genuinely broken?`
-      + CLICKS('the trigger is real but rarer than the fights stage — name it in Revise if you can, and Doc Bot stages it',
-        'suspected no-op — Doc Bot chases it as a bug'),
-    domain: 'combat', sourceQueue: 'combatDifferential',
-    currentBehaviour: 'Indistinguishable from an effect-less body across every staged variant.',
-    cardText: `${cname(id)}: "${ctext(id)}" [${effectsOf(id)}]`,
-    example: `Example: a fight where allies die, ${cname(id)} attacks, takes damage and dies — the log is identical with or without its ability.`,
-    contentIds: [id],
-  });
-}
-for (const id of combat.goldenFlat) {
-  const g = CARD_INDEX[id]!;
-  rows.push({
-    id: `q-goldenflat-${id}`,
-    title: `${cname(id)}: gilding changes nothing about its combat ability`,
-    statement: `A Gilded ${cname(id)} (at the same stats) fights byte-identically to a plain one in the fight that proves its ability works — `
-      + `the gild doubles its body but not its effect. Is that correct for this card, or should the Gilded ability be stronger in combat?`
-      + CLICKS('correct — the gild doubles stats/other phases only for this card',
-        'bug — the Gilded combat effect must double (or otherwise improve)'),
-    domain: 'gilding', sourceQueue: 'combatDifferential.golden',
-    currentBehaviour: 'Golden vs plain (equal stats): byte-identical fights.',
-    cardText: `Plain: "${ctext(id)}"${g.goldenText ? ` ⟶ Gilded: "${plain(g.goldenText)}"` : ' (no separate Gilded text)'}`,
-    example: `Example: two fights, identical boards, one ${cname(id)} plain and one Gilded at the same stats — every event matches.`,
-    contentIds: [id],
-  });
-}
+const docBotBacklog: string[] = combat.inert.map((id) => `${cname(id)} ("${ctext(id)}") — needs a staged scenario Doc Bot cannot build yet`);
 
-// ── 5. combat mods that changed nothing in the staged fight ──
+// ── 5. combat mods — the un-staged remainder is likewise Doc Bot backlog, not rulings.
 const docs = modDocs();
 const src = readFileSync('packages/core/src/types.ts', 'utf8');
 const i0 = src.indexOf('interface QuestCombatMods');
 const modKeys = [...src.slice(i0, src.indexOf('\n}', i0)).matchAll(/\n {2}([a-zA-Z0-9]+)\??:/g)].map((m) => m[1]!);
-for (const key of combatModScan(modKeys).inert) {
+const modScan = combatModScan(modKeys);
+for (const key of modScan.inert) {
   const owner = modOwner(key);
-  const doc = docs[key];
-  rows.push({
-    id: `q-mod-${key}`,
-    title: `${owner?.name ?? key}: armed in combat, changed nothing`,
-    statement: `${owner ? `${owner.name} reads: "${owner.text}". ` : ''}Arming its combat flag (\`${key}\`) for a staged fight — deaths, kills, `
-      + `summons, a Rally body, a Slaughter body, an Echo body — produced a battle byte-identical to the unarmed one. `
-      + `Is its condition rarer than the fight stages, or is the mod silently dead (Sable's Soulbind shipped exactly this way, #832)?`
-      + CLICKS('condition-gated — name the trigger in Revise if you can, and Doc Bot stages it', 'suspected dead mod — Doc Bot chases it as a bug'),
-    domain: 'runes', sourceQueue: 'combatModLane',
-    currentBehaviour: 'Armed vs unarmed: identical fights.',
-    cardText: doc ? `Engine note on \`${key}\`: ${doc}` : owner ? `${owner.name}: "${owner.text}"` : `combat mod \`${key}\``,
-    example: `Example: a run holding ${owner?.name ?? `the ${key} reward`} enters the staged combat; the fight resolves as if the reward were not held.`,
-  });
+  docBotBacklog.push(`combat mod ${key}${owner ? ` (${owner.name}: "${owner.text}")` : ''}${docs[key] ? ` — ${docs[key]}` : ''}`);
 }
 
-// ── 6. hero powers that fired nothing ──
-for (const row of heroScan().filter((r) => !r.active)) {
-  const hero = HEROES.find((h) => h.id === row.heroId)!;
-  let powerText = '';
-  try { powerText = plain(heroPowerText(createRun(1, hero.id))); } catch { powerText = ''; }
+// ── 6. HERO POWERS — one confirmation card for the whole passive/scheduled set.
+{
+  const silent = heroScan().filter((r) => !r.active);
+  const lines = silent.map((row) => {
+    const hero = HEROES.find((h) => h.id === row.heroId)!;
+    let t = ''; try { t = plain(heroPowerText(createRun(1, hero.id))); } catch { /* fixture-less powers */ }
+    return `${hero.name} — ${hero.power.name} [${row.kind}]: "${t || row.kind}"`;
+  });
   rows.push({
-    id: `q-hero-${row.heroId}`,
-    title: `${hero.name} — ${hero.power.name}: pressing the power does nothing`,
-    statement: `${hero.name}'s power "${hero.power.name}" reads: "${powerText || hero.power.kind}". Pressing it (with Gold, a board, and targets available) `
-      + `changes nothing. If the power is passive, scheduled, or condition-gated that is correct — confirm which, so Doc Bot stages its real trigger instead of flagging it.`
-      + CLICKS(`correct — it is a ${row.kind}-kind power that does not fire on press`, 'bug — pressing it should do something now'),
+    id: 'q-policy-passive-hero-powers',
+    title: `${silent.length} hero powers do nothing when pressed — confirm they are passive/scheduled by design`,
+    statement: `Pressing these powers (Gold, board and targets available) changes nothing. Doc Bot reads each as passive, scheduled, `
+      + `or condition-gated by its kind. Confirm the LIST is all working-as-designed; name any exception in Revise and Doc Bot chases it as a bug.`
+      + CLICKS('all of these are passive/scheduled by design', 'at least one should act on press — name it in Revise'),
     domain: 'heroes', sourceQueue: 'heroPowerLane',
-    currentBehaviour: 'The heroPower action produces no state change under the fixture.',
-    recommendation: `Likely fine: power kind \`${row.kind}\` reads as passive/scheduled.`,
-    cardText: `${hero.name} — ${hero.power.name}: "${powerText || `(kind: ${row.kind})`}"`,
-    example: `Example: turn 6, 40 Gold, minions on board and in the shop — pressing ${hero.power.name} changes nothing.`,
+    currentBehaviour: 'No state change through the real heroPower action for any of them.',
+    cardText: lines.join(' · '),
+    example: 'Example: turn 6, 40 Gold, minions everywhere — pressing Commission does nothing (its choices resolve on later turns).',
   });
 }
 
-// ── 7. play-lane residue: conditional plays, silent watchers, refused spells ──
+// ── 7. play-lane: the five conditionals were STAGED AND VERIFIED WORKING in the owner audit (Ironlung with
+//    Dwarves, Relay beside an Orbit Celestial, Recaller after a cast, Cleric per its "other Dragons" text,
+//    Mage-Pup by mechanism) — they leave the board. The watcher reading and ONE refused-spells confirmation stay.
 const play = playScan();
-for (const [id, why] of Object.entries(PLAY_EXCUSED)) {
-  rows.push({
-    id: `q-play-${id}`,
-    title: `${cname(id)}: play effect needs a condition the test can't stage`,
-    statement: `Playing ${cname(id)} onto a plain board did exactly what playing a blank body does — its ability needed something that wasn't there. `
-      + `Doc Bot's reading of the condition: ${why}. Confirm the reading (it becomes a staged test), or correct it.`
-      + CLICKS('the reading is right — Doc Bot stages that condition', 'the reading is wrong — say what actually gates it in Revise'),
-    domain: 'actions', sourceQueue: 'playDifferential',
-    currentBehaviour: 'Inert when played without its condition.',
-    recommendation: why,
-    cardText: `${cname(id)}: "${ctext(id)}"`,
-    example: `Example: ${cname(id)} played onto a board of plain tokens — no effect observed.`,
-    contentIds: [id],
-  });
-}
 for (const [id, why] of Object.entries(WATCHER_EXCUSED)) {
   rows.push({
     id: `q-watch-${id}`,
-    title: `${cname(id)}: never reacted to anything played past it`,
-    statement: `With ${cname(id)} on the board, playing a minion of every tribe past it changed nothing. Doc Bot's reading: ${why}. Confirm or correct.`
+    title: `${cname(id)}: never reacts to things played past it — confirm the reading`,
+    statement: `With ${cname(id)} on the board, playing a minion of every tribe past it changed nothing. Doc Bot's reading: ${why}.`
       + CLICKS('the reading is right', 'wrong — it should react in the shop; say when'),
     domain: 'triggers', sourceQueue: 'playDifferential.watchers',
     currentBehaviour: 'Silent for every staged subject.',
     recommendation: why,
     cardText: `${cname(id)}: "${ctext(id)}"`,
-    example: `Example: a Beast, a Demon, a Dragon, a Dwarf, a Kobold and an Undead are each played beside ${cname(id)} — it never reacts.`,
+    example: `Example: a Beast, a Demon, a Dragon, a Dwarf and a Kobold are each played beside ${cname(id)} — it never reacts.`,
     contentIds: [id],
   });
 }
-for (const id of play.refusedSpells) {
-  const sp = CARD_INDEX[id]!;
+{
+  const list = play.refusedSpells.map((id) => `${cname(id)} (${CARD_INDEX[id]?.cost ?? 0}g): "${ctext(id)}"`);
   rows.push({
-    id: `q-refused-${id}`,
-    title: `${cname(id)}: refuses to cast on a plain board`,
-    statement: `${cname(id)} cannot be cast under the test board (plain minions, offers in the shop, Gold available) — the cast is refused and the card `
-      + `stays in hand. That refusal is probably its "no valid use" guard working (audit #847: an unusable spell is refused, not consumed). Confirm the guard is right for this spell.`
-      + CLICKS('correct — the refusal condition matches the card', 'wrong — it should cast in that situation'),
+    id: 'q-policy-refused-spells',
+    title: `${play.refusedSpells.length} spells refuse to cast on a plain board — confirm the refusal guards`,
+    statement: `Each of these refuses to cast when it would accomplish nothing (the #847 audit rule: an unusable spell is refused, `
+      + `not consumed). Doc Bot cannot distinguish a CORRECT guard from an over-eager one. Skim the list: does any refusal look wrong?`
+      + CLICKS('all refusal guards are correct', 'one is over-eager — name it in Revise'),
     domain: 'actions', sourceQueue: 'playDifferential.refused',
-    currentBehaviour: 'Cast refused; card kept, no Gold spent.',
-    cardText: `${cname(id)} (${sp.cost ?? 0} Gold): "${ctext(id)}"`,
-    example: `Example: board of plain tokens, two shop offers, 60 Gold — ${cname(id)} refuses to cast.`,
-    contentIds: [id],
+    currentBehaviour: 'Cast refused; card kept, no Gold spent — for every spell listed.',
+    cardText: list.join(' · '),
+    example: 'Example: a board of plain tokens, offers in the shop, 60 Gold — Mend refuses (nothing is damaged).',
   });
 }
 
@@ -275,5 +225,9 @@ for (const [q, items] of [...byQueue.entries()].sort()) {
   for (const r of items) md += `- **${r.id}** — ${r.title}\n`;
   md += '\n';
 }
+md += `## Doc Bot verification backlog (${docBotBacklog.length}) — NOT owner questions\n\n`
+  + 'Items Doc Bot could not yet verify with a staged scenario. Claude works these; they reach the board only if a\n'
+  + 'staged scenario CONFIRMS a mismatch or exposes a genuine design fork.\n\n';
+for (const b of docBotBacklog) md += `- ${b}\n`;
 writeFileSync('docs/rulebook/TRIAGE.md', md);
 console.log(`seeded ${rows.length} pending rulings across ${byQueue.size} queues (rich format) → pending.generated.ts + docs/rulebook/TRIAGE.md`);

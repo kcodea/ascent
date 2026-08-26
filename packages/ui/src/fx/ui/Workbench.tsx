@@ -2495,6 +2495,8 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
       timeMs={timeMs}
       onSelect={applySelected}
       onRetime={retimeLayer}
+      onSeek={scrub}
+      onReorder={reorderLayerTo}
     />
   );
 

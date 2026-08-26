@@ -108,6 +108,9 @@ export interface BoardSnapshot {
    *  Without it a served Rune of Gemstorm / Geode Guardian / Candle Conduit plays bare 1/1 Rubies — the
    *  owner-reported hole (2026-08-06: "the gems were +16/+16 and the rune only buffed +2/+2"). */
   rubyBonus?: { attack: number; health: number };
+  /** CONDUCTOR's run-wide snowball N at capture — so a served board's mid-fight Shout re-fire pays the
+   *  OWNER's accumulated +(2N)/+(3N), and its card text in combat reads that value too. */
+  conductorBuff?: number;
   /** Rune of the Wild Hunt's permanent escalation — where the owner's rune had grown to by capture. */
   wildHuntGrown?: number;
   /** Cards bought on the capture turn (Frenzied Excavator's Start-of-Combat Ruby scaler). */
@@ -303,6 +306,7 @@ export function snapshotBoard(s: RunState): BoardSnapshot {
     ...(s.spellsThisTurn ? { spellsThisTurn: s.spellsThisTurn } : {}),
     ...(beastsPlayed ? { beastsPlayed } : {}),
     ...(s.spellsCast ? { spellsCast: s.spellsCast } : {}),
+    ...(s.conductorBuff ? { conductorBuff: s.conductorBuff } : {}),
     ...(s.beastBuyAtk ? { beastBuyAtk: s.beastBuyAtk } : {}),
     ...(s.impBuff?.attack || s.impBuff?.health ? { impAura: { attack: s.impBuff.attack, health: s.impBuff.health } } : {}),
     ...(s.undeadAttackBonus || s.undeadHealthBonus ? { undeadAura: { attack: s.undeadAttackBonus ?? 0, health: s.undeadHealthBonus ?? 0 } } : {}),

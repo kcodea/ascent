@@ -1013,6 +1013,8 @@ export function simulate(
       if (attack !== 0 || health !== 0) emit({ type: 'tribeAura', side, tribe: 'mech', attack, health, aura: 'magnetic' });
     },
     impAura: (side) => ({ ...impAura[side] }), // Chef Raag reads the live Imp Aura to buff your minions by it
+    // CONDUCTOR: the run's snowball, per side — read-only in combat (a re-fire is a trigger, not a play).
+    conductorTally: (side) => (side === 'player' ? playerState.conductorBuff : enemyState.conductorBuff) ?? 0,
     grantFodderBuff: (attack, health, side) => {
       if (side !== 'player') return; // enemies have no run state
       fodderBuffGain.attack += attack;
@@ -3820,8 +3822,8 @@ export function simulate(
     // Enemy run-level scalers so the UI can render an enemy Grim/Taragosa/Pack Leader/Runescale at the
     // OPPONENT's value. Present only when the enemy actually had a nonzero scaler (else the card's base text
     // is already accurate → the UI's player-side fallback is fine).
-    enemyScalers: (enemySpellPower.attack || enemySpellPower.health || enemySpellsThisTurn || enemyBeastsPlayed || enemyDeathrattles)
-      ? { spellPower: { ...enemySpellPower }, spellsThisTurn: enemySpellsThisTurn, beastsPlayed: enemyBeastsPlayed, deathrattles: enemyDeathrattles }
+    enemyScalers: (enemySpellPower.attack || enemySpellPower.health || enemySpellsThisTurn || enemyBeastsPlayed || enemyDeathrattles || enemyState.conductorBuff)
+      ? { spellPower: { ...enemySpellPower }, spellsThisTurn: enemySpellsThisTurn, beastsPlayed: enemyBeastsPlayed, deathrattles: enemyDeathrattles, conductorBuff: enemyState.conductorBuff ?? 0 }
       : undefined,
   };
 }

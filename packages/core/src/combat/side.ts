@@ -15,6 +15,7 @@ export const EMPTY_SIDE: Readonly<CombatSideState> = Object.freeze({
   undeadBuyAtk: 0,
   impAtk: 0,
   impHp: 0,
+  conductorBuff: 0,
   fodderConsumedAtk: 0,
   fodderConsumedHp: 0,
   beastBuyAtk: 0,

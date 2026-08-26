@@ -59,6 +59,7 @@ const fakeArena = (uids: string[], seed: number, golden = false): { arena: Effec
     damageAll: () => {},
     castTribeAttackSpell: () => {},
     impAura: () => ({ attack: 0, health: 0 }),
+    conductorTally: () => 0,
     deathrattleTally: () => 0,
     addTribeAura: () => {},
     grantCardTypeBuff: () => {},

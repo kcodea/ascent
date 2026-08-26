@@ -250,6 +250,7 @@ function combatArena(ctx: CombatContext, self: Minion): EffectArena {
     isImp: (t) => !!ctx.getCard(t.cardId)?.imp,
     isFodder: (t) => !!ctx.getCard(t.cardId)?.keywords.includes('FD'),
     impAura: () => ctx.impAura(self.side),
+    conductorTally: () => ctx.conductorTally(self.side),
     deathrattleTally: () => ctx.deathrattleTally(self.side),
     addTribeAura: (tribe, a, h) => ctx.addTribeAura(self.side, tribe as Tribe | 'any', a, h, self.uid),
     tribesOf: (t) => {
@@ -1118,6 +1119,12 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   },
   battlecryBuffMagnetics: (ctx, self, params) => {
     ARENA_EFFECTS.battlecryBuffMagnetics(combatArena(ctx, self), params);
+  },
+  // CONDUCTOR: registering it HERE is the fix — `replayCombatBattlecry` runs a Shout live only when it finds a
+  // combat factory, and treats everything else as economy to defer to settle. Conductor's grant is a board buff
+  // (very much combat-meaningful), so being absent meant every in-combat re-fire did nothing (owner 2026-08-26).
+  battlecryConductorAdjacent: (ctx, self, params) => {
+    ARENA_EFFECTS.battlecryConductorAdjacent(combatArena(ctx, self), params);
   },
   battlecryGrantBeastHunt: (ctx, self, params) => {
     ARENA_EFFECTS.battlecryGrantBeastHunt(combatArena(ctx, self), params);

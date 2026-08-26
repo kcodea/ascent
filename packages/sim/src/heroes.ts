@@ -31,6 +31,7 @@ export type HeroPowerKind =
   | 'displace' // Darah: swap a friendly minion with a random tavern minion (active, targeted)
   | 'grantReborn' // Lord of the Risen: give a friendly minion Rise for the next combat (active, targeted)
   | 'recurringGoldcrafter' // RETIRED Gildmaster passive (kept for old saves/replays)
+  | 'greatPresence' // Kindness (passive): Discover a Gift at the start of every 4th turn
   | 'gildcrafter' // Gildmaster (active, 3 Gold, 3×/game): complete a triple from 2 copies of a minion
   | 'runeforge' // Runesmith (passive): on turn 5 the Runeforge opens — buy ONE of a random 3 runes (a run-long buff)
   | 'epicRuneforge' // Guardian (passive): the EPIC Runeforge opens on turn 8 (scheduled via `epicForgeWave` at run start)
@@ -506,6 +507,23 @@ export const HEROES: HeroDef[] = [
       kind: 'fourPeat',
       passive: true, // resolved in the buy case: the 3rd minion bought each turn conjures a random plain copy
       text: 'When you buy 3 minions in a turn, get a plain copy of one of them at random.',
+    },
+  },
+  {
+    // KINDNESS (owner design 2026-08-26) — the Gift hero. Its power is a PASSIVE schedule, so there is no
+    // button to arm: every 4th turn (4, 8, 12, …) it opens a Discover over the whole Gift class.
+    // Owner ruling 2026-08-26: fully discoverable — Mimic, Void and Power Shifter may all offer it.
+    id: 'kindness',
+    name: 'Kindness',
+    blurb: 'The best presents are the ones nobody had to ask for.',
+    resolve: 30,
+    armor: 15,
+    power: {
+      name: 'Great Presence',
+      kind: 'greatPresence',
+      cost: 0,
+      passive: true, // a schedule — the work happens at start of turn, nothing to arm
+      text: 'Discover a **Gift** every 4 turns.',
     },
   },
   {

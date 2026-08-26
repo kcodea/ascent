@@ -54,7 +54,9 @@ describe('no redundant PNG masters ship alongside their WebP builds', () => {
     // → 1017 (2026-08-22, the Rayse/Mimic/Void hero batch: 3 portraits + 3 power buttons + Ayse's Ace)
     // → 1019 (2026-08-23, the Aevor/Gorun/Cindara batch: 3 portraits + 3 power buttons + Cindara's Whelp
     // token = exactly 7 files, measured against `origin/main`'s 1011 rather than assumed)
-    // → 1021 (2026-08-24, Fibbsy: 1 portrait + 1 power button = 2 files).
-    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1021);
+    // → 1021 (2026-08-24, Fibbsy: 1 portrait + 1 power button = 2 files)
+    // → 1031 (2026-08-26, the GIFTS batch: Great Pot + 8 of the 15 Gift arts + Kindness's portrait and power
+    // button = 11 files. The remaining 7 Gifts are in `ART_PENDING` and cost nothing until their masters land.)
+    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1031);
   });
 });

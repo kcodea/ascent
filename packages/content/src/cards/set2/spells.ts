@@ -7,6 +7,22 @@ import type { CardDef } from '@game/core';
  */
 export const SET2_SPELLS: CardDef[] = [
   {
+    // GREAT POT (owner design 2026-08-26) — the "one minion of each type" spread Fatecarver and Rune of the
+    // Shared Table already use: ONE friendly minion per tribe, so a dual-tribe body fills BOTH its slots
+    // rather than being counted twice, and an all-types body fills every remaining slot.
+    id: 'greatpot',
+    name: 'Great Pot',
+    tribe: 'neutral',
+    tier: 4,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    cost: 3,
+    effects: [{ on: 'cast', do: 'buffOnePerTribe', params: { attack: 4, health: 4 } }],
+    text: 'Give a minion of each type **+4/+4**.',
+  },
+  {
     // Ruby Shipment — cast: mint 2 Rubies into your hand (each base 1/1 + the run's `rubyBonus`). Untargeted;
     // routes through the same `getRubies` factory the Kobold minions use (self is ignored → no golden multiplier).
     id: 'rubyshipment',

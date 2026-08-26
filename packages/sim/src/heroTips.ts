@@ -54,6 +54,7 @@ export const HERO_TIPS: Readonly<Record<string, HeroTip>> = {
   jenkins: { difficulty: 'Easy', tip: 'Use Dynamite Dig after tiering up to get cheap higher tier minions.' },
   repete: { difficulty: 'Hard', tip: 'Before every third End of Turn, move the card you most want copied into the left-most hand position.' },
   gorr: { difficulty: 'Medium', tip: 'Plan turns around buying at least three minions. Later you can prioritize the minion purchases to target doubles/triples.' },
+  kindness: { difficulty: 'Easy', tip: 'Gifts are free value — hold one until the turn it swings the fight, and lean into runes that hand you more.' },
   merrin: { difficulty: 'Easy', tip: 'Use Pocket Magic to round out curve and generate cheap high quality spells in late game.' },
   gambler: { difficulty: 'Easy', tip: 'Always roll on turn 1. If you roll a 1, do not roll on turn 2. Otherwise, roll whenever you can.' },
   xerox: { difficulty: 'Medium', tip: 'Holding out to copy a huge carry minion is great. Sometimes it’s worth it to copy just for a triple of a strong engine as well.' },

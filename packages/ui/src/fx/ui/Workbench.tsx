@@ -10,7 +10,7 @@ import { playDef } from '../playDef';
 import { invalidateBoardAnchors } from '../boardAnchors';
 import type { FxAnchorId, FxSlot } from '../def';
 import { randomSeed } from '../rng';
-import { SCENARIOS, type FxHeadContext } from '../scenarios';
+import { invalidateStageAnchors, SCENARIOS, type FxHeadContext } from '../scenarios';
 import { pixiFx } from '../../pixiFx';
 import {
   clearCommitNote,
@@ -39,6 +39,9 @@ import { DefLibrary } from './DefLibrary';
 import { SeedBakeWarning } from './SeedBakeWarning';
 import { LibraryBrowser } from './LibraryBrowser';
 import { PresetGallery } from './PresetGallery';
+import { StageSetter } from './StageSetter';
+import { stageFor, saveStageFor } from './stageStore';
+import type { StageState } from './stageModel';
 import { ProcHarness } from '../harness/ProcHarness';
 import { CommitPanel } from '../harness/CommitPanel';
 import { planCommit } from '../harness/commitPlan';
@@ -405,6 +408,22 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   // The committed def library. Held in state (rather than calling `authoredDefs()` inline) so a Save can
   // refresh it explicitly — the registry behind it is module-level and React knows nothing about it.
   const [defs, setDefs] = useState<StoredFxDef[]>(() => authoredDefs());
+
+  // ── Stage Setter (Task 6) — per-effect layout, persisted by def id ─────────────────────────────────
+  // The id `stageFor`/`saveStageFor` key on: the SAME slug the Save box would write under, so a stage
+  // authored while tuning "bolt" is still there when "bolt" is reopened. Not a separate identity concept —
+  // reusing `defName`'s own validity check (`isValidSlug(slugify(...))`, the same test `save()`/the Name
+  // field's placeholder logic already run) means a stage never keys on a name that Save itself would refuse.
+  // `null` when the field doesn't hold a valid slug (a fresh, unnamed composition), which is exactly when
+  // `stageFor`/`saveStageFor` fall back to the global "last used" stage.
+  const currentDefId = isValidSlug(slugify(defName)) ? slugify(defName) : null;
+  // Seeded ONCE (lazy initializer) from whatever `currentDefId` resolves to at mount — same "read once, no
+  // post-mount restore pass" discipline `restoredSession` uses above. A real def switch (library click,
+  // Duplicate, Paste) re-seeds explicitly inside `loadDef`, below; this lazy initializer is only mount-time.
+  const [stage, setStage] = useState<StageState>(() => stageFor(currentDefId));
+  // Which stage actor the inspector bar (role picker + remove) is showing. Not persisted — a fresh
+  // `stage-<n>` uid means a restored/def-switched stage never has a "selected" actor left dangling.
+  const [selectedActor, setSelectedActor] = useState<string | null>(null);
   // "Part of the variant you picked did nothing." `applyVariant` has always reported those keys in `missed`
   // and the gallery has always DEV-warned them to the console — but the gallery is the FIRST thing a new
   // author touches and the console is the last place they're looking, so a half-applied variant arrived
@@ -1142,6 +1161,27 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
     }, AUTOSAVE_DEBOUNCE_MS);
     return () => clearTimeout(timer);
   }, [layers, selected, durationMs, seed, seedLocked, slot, ease]);
+
+  // Persist the Stage Setter layout (debounced, same style as the session autosave above) whenever it
+  // changes — dragging a point handle or a card fires this on every pointermove via `onChange`, so without
+  // the debounce a drag gesture would hit `saveStageFor` (and its `localStorage` write) dozens of times.
+  // Keyed on `currentDefId` too so a stage carried over from one def's `stageFor` seed (or the global "last
+  // used" fallback) is written under the CURRENT def id the instant the author names/renames the composition,
+  // not left orphaned under `null`.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      saveStageFor(currentDefId, stage);
+    }, AUTOSAVE_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [stage, currentDefId]);
+
+  // Drop the Stage Setter scenario's cached anchor read whenever the scenario switches (to/from
+  // `stageSetter`) or the edited def changes — the sibling of `invalidateBoardAnchors()` in the build effect
+  // below, but kept in its OWN effect rather than added to that one (which Task 6 must not touch — see its
+  // brief) since neither `scenarioId` nor `currentDefId` needs to trigger a player rebuild.
+  useEffect(() => {
+    invalidateStageAnchors();
+  }, [scenarioId, currentDefId]);
 
   // THE SAVE BUG (root cause, 2026-08-11). The debounce above cancels its pending write on unmount, and a def
   // Save triggers a Vite `full-reload` (a NEW def file — see `fxDefsPlugin`) or an HMR invalidation (an
@@ -1967,6 +2007,22 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
     applyDuration(nextDuration);
     cancelRename();
     setDefName(nameForField);
+    // The Stage Setter layout is per-def too (see `currentDefId`) — a load is exactly the "def switch" its
+    // own doc comment calls out, so re-seed from the NEW name's saved stage (or the global last-used one)
+    // rather than leaving the outgoing composition's layout on screen. `nameForField`, not `def.id`: a
+    // Duplicate's `<id>-copy` is itself a legitimate slug with its own (as yet unsaved) stage.
+    //
+    // Flush the OUTGOING def's pending stage FIRST. The debounced persistence effect above clears its timer
+    // on every `[stage, currentDefId]` change (cleanup runs before the re-seed below fires), so a stage edit
+    // made inside the debounce window right before a def switch would otherwise never be written for the def
+    // being left — silently lost. `stage`/`currentDefId` are this render's closure values (loadDef is a
+    // plain function re-created each render, so they're already current — no ref mirror needed), i.e.
+    // exactly what that cleared timer would have written; calling `saveStageFor` here synchronously is the
+    // equivalent of letting it fire before we move on.
+    saveStageFor(currentDefId, stage);
+    const nextDefId = isValidSlug(slugify(nameForField)) ? slugify(nameForField) : null;
+    setStage(stageFor(nextDefId));
+    setSelectedActor(null);
     setSaveNote(null);
     setSaveError(null);
     // The variant warning describes the composition being REPLACED, so it goes with it. The gallery's own
@@ -2927,7 +2983,21 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
         </div>
 
         <div className="fxwb-stage">
-          <div className="fxwb-stage-hint">{hintText}</div>
+          {scenarioId === 'stageSetter' ? (
+            // `data-fx-stage` is load-bearing: `stageSetter`'s DOM reader (`scenarios.ts`, Task 5) queries
+            // `[data-fx-stage]` to find this container. Without it the scenario silently degrades to
+            // synthetic anchors — see that file's `readStageAnchors`.
+            <div className="fxwb-stage-mount" data-fx-stage>
+              <StageSetter
+                stage={stage}
+                onChange={setStage}
+                selectedActor={selectedActor}
+                onSelectActor={setSelectedActor}
+              />
+            </div>
+          ) : (
+            <div className="fxwb-stage-hint">{hintText}</div>
+          )}
         </div>
 
         <div className="fxwb-props-region">

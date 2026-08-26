@@ -1,6 +1,6 @@
 import type { FxAnchors, FxPoint } from './anchors';
 import { pointOnTravel } from './anchors';
-import { readBoardAnchors } from './boardAnchors';
+import { anchorsFromRects, readBoardAnchors, type RectLike } from './boardAnchors';
 
 /** Everything a scenario's `headAt` needs to place the effect head for the current frame. */
 export interface FxHeadContext {
@@ -173,6 +173,106 @@ export const realBoard: FxScenario = {
   },
 };
 
+/**
+ * The Stage Setter's mock DOM (see `StageSetter.tsx`): a container carrying `data-fx-stage` (mounted by the
+ * workbench per Task 6, only while this scenario is active), two zone rows of role-tagged `[data-uid]`
+ * actors, and three draggable point handles (`data-handle="source"|"target"|"cursor"`). Mirrors
+ * `boardAnchors.ts`'s selectors for the LIVE game board — same idea, different (author-composed) stage.
+ */
+const STAGE_CONTAINER_SELECTOR = '[data-fx-stage]';
+const stageRoleSelector = (which: 'source' | 'target'): string => `${STAGE_CONTAINER_SELECTOR} [data-role="${which}"]`;
+const stageHandleSelector = (which: 'source' | 'target' | 'cursor'): string =>
+  `${STAGE_CONTAINER_SELECTOR} [data-handle="${which}"]`;
+
+/** A rect only counts if it has real extent — same guard `anchorsFromRects` applies internally, needed here
+ *  a step earlier to decide whether to fall back from the role-tagged actor to the bare point handle. */
+const hasExtent = (r: RectLike | null | undefined): r is RectLike =>
+  r !== null && r !== undefined && r.width > 0 && r.height > 0;
+
+const rectCenter = (r: RectLike): FxPoint => ({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
+
+/** SOURCE/TARGET rect: the role-tagged actor (an author who set a card's role to SRC/TGT wants THAT card's
+ *  position) takes priority over the bare point handle, which is the floor once the stage is mounted at all —
+ *  `StageSetter` always renders its three point handles even with zero actors placed, so this only returns
+ *  `null` when the stage container itself isn't in the DOM. */
+function stageRectFor(which: 'source' | 'target'): RectLike | null {
+  const role = document.querySelector(stageRoleSelector(which))?.getBoundingClientRect() ?? null;
+  if (hasExtent(role)) return role;
+  const handle = document.querySelector(stageHandleSelector(which))?.getBoundingClientRect() ?? null;
+  return hasExtent(handle) ? handle : null;
+}
+
+/** Same cadence as `readBoardAnchors` — `anchorsAt` is called every frame from the workbench's updater, and
+ *  `getBoundingClientRect` per frame is the anti-pattern `boardAnchors.ts` already exists to avoid (see its
+ *  own doc comment on `BOARD_SAMPLE_INTERVAL_MS`). Kept as its own cache (not sharing `boardAnchors.ts`'s)
+ *  because the two scenarios can never be active at once, but each caches a materially different read. */
+const STAGE_SAMPLE_INTERVAL_MS = 200;
+
+let stageCache: { at: number; anchors: FxAnchors | null } | null = null;
+
+/** Drop the cached stage sample so the first frame after a scenario/def switch never reads stale DOM — the
+ *  sibling of `invalidateBoardAnchors`. */
+export function invalidateStageAnchors(): void {
+  stageCache = null;
+}
+
+/**
+ * Real anchors read off the Stage Setter's mock DOM, or `null` when its container isn't mounted (this
+ * scenario isn't active, or the workbench hasn't wired it in yet — see Task 6). `source`/`target`/`slot`/
+ * `camera` come from `anchorsFromRects` (reused, not re-derived); `cursor` is folded in from the cursor point
+ * handle when it has real extent, left absent otherwise so the caller's fallback (the live pointer) applies.
+ */
+function readStageAnchors(): FxAnchors | null {
+  if (typeof document === 'undefined') return null;
+  const now = performance.now();
+  if (stageCache !== null && now - stageCache.at < STAGE_SAMPLE_INTERVAL_MS) return stageCache.anchors;
+  let anchors: FxAnchors | null = null;
+  if (document.querySelector(STAGE_CONTAINER_SELECTOR) !== null) {
+    const base = anchorsFromRects({
+      source: stageRectFor('source'),
+      target: stageRectFor('target'),
+      viewport: { w: window.innerWidth, h: window.innerHeight },
+    });
+    if (base !== null) {
+      const cursorRect = document.querySelector(stageHandleSelector('cursor'))?.getBoundingClientRect() ?? null;
+      anchors = hasExtent(cursorRect) ? { ...base, cursor: rectCenter(cursorRect) } : base;
+    }
+  }
+  stageCache = { at: now, anchors };
+  return anchors;
+}
+
+/**
+ * The AUTHORED stage: anchors read off the Stage Setter's placed actors/points instead of the live game DOM
+ * (`realBoard`) or a viewport fraction — for composing a look against a hand-built layout (an odd formation,
+ * an off-screen source, a struck/buffed pairing) that the real board or the synthetic spots can't produce.
+ *
+ * Degrades exactly like `realBoard`: with the stage not mounted (this scenario isn't the active one yet, or
+ * the workbench hasn't rendered it — Task 6), it stages the same synthetic bounce layout instead, and `hint`
+ * says which of the two you're looking at.
+ */
+export const stageSetter: FxScenario = {
+  id: 'stageSetter',
+  label: 'Stage setter',
+  get hint(): string {
+    const container = typeof document === 'undefined' ? null : document.querySelector(STAGE_CONTAINER_SELECTOR);
+    if (container === null) {
+      return 'The Stage Setter is not open — falling back to synthetic anchors. Switch to this scenario to place actors and points.';
+    }
+    const n = container.querySelectorAll('[data-uid]').length;
+    return `Anchors read from the STAGE SETTER — ${n} actor${n === 1 ? '' : 's'} placed; source/target prefer the SRC/TGT-tagged card, falling back to the point handles.`;
+  },
+  anchorsAt: (v, c) => {
+    const live = readStageAnchors();
+    if (live === null) return syntheticBoard(v, c);
+    // Same "nothing is ever left unstaged" rule as `realBoard`: everything the live read left out (or the
+    // whole read, if the stage isn't up) falls back to the synthetic layout, never to (0,0). `cursor` prefers
+    // the placed cursor handle when it has real extent, else the live pointer `c`.
+    return { ...syntheticBoard(v, c), ...live, cursor: live.cursor ?? c };
+  },
+};
+
 // `oneWay` is FIRST, and therefore the default stage: it is the only one that shows what a def will do in
-// the game — cross once, arrive, finish. The others are tuning aids for a look in isolation.
-export const SCENARIOS: FxScenario[] = [oneWay, bounceScenario, pinnedCursor, stationary, realBoard];
+// the game — cross once, arrive, finish. The others are tuning aids for a look in isolation. `stageSetter`
+// sits before `realBoard` so both remain: one previews the live game, the other an authored composition.
+export const SCENARIOS: FxScenario[] = [oneWay, bounceScenario, pinnedCursor, stationary, stageSetter, realBoard];

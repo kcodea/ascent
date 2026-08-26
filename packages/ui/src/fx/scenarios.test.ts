@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { bounceSpots, bounceScenario, oneWay, pinnedCursor, realBoard, stationary, SCENARIOS } from './scenarios';
+import {
+  bounceSpots,
+  bounceScenario,
+  oneWay,
+  pinnedCursor,
+  realBoard,
+  stageSetter,
+  stationary,
+  SCENARIOS,
+} from './scenarios';
 import type { FxHeadContext } from './scenarios';
 import { FX_ANCHOR_IDS, pointOnTravel, resolveAnchor } from './anchors';
 
@@ -145,6 +154,33 @@ describe('realBoard', () => {
 
   it('says in its hint that it is showing the FALLBACK, not the live board', () => {
     expect(realBoard.hint).toMatch(/synthetic/i);
+  });
+});
+
+describe('stageSetter', () => {
+  it('is registered in SCENARIOS, before realBoard', () => {
+    expect(SCENARIOS).toContain(stageSetter);
+    expect(SCENARIOS.indexOf(stageSetter)).toBeLessThan(SCENARIOS.indexOf(realBoard));
+  });
+
+  // The suite runs headless (no `document`, and even with one, no `[data-fx-stage]` container is ever
+  // mounted here) — this exercises the same degradation path `realBoard` relies on: the scenario must never
+  // be broken just because the Stage Setter isn't up.
+  it('falls back to the synthetic bounce anchors when the stage container is not mounted', () => {
+    const anchors = stageSetter.anchorsAt(SAMPLE_VIEWPORT, SAMPLE_CURSOR);
+    const [a, b] = bounceSpots(SAMPLE_VIEWPORT);
+    expect(anchors.source).toEqual(a);
+    expect(anchors.target).toEqual(b);
+  });
+
+  it('stages `slot` and `cursor` too, so every anchor a layer can pick resolves', () => {
+    const anchors = stageSetter.anchorsAt(SAMPLE_VIEWPORT, SAMPLE_CURSOR);
+    expect(anchors.slot).toEqual(anchors.source);
+    expect(anchors.cursor).toEqual(SAMPLE_CURSOR);
+  });
+
+  it('says in its hint that it is showing the FALLBACK, not the placed stage', () => {
+    expect(stageSetter.hint).toMatch(/not open|synthetic|falling back/i);
   });
 });
 

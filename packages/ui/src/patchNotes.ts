@@ -58,6 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-08-26',
     label: 'Fixes',
     changes: [
+      { category: 'Rune Change', text: 'Rune of Thrift actually works now — every Shop spell that gives stats really is 2 Gold cheaper, Ales included, and the shown price matches what you pay.' },
       { category: 'Card Change', text: 'Conductor now fires during combat. Anything that re-triggers its Shout mid-fight — a Parting Cry, Ryme, Dawnclaw, Rune of Shared Scripture — now buffs its neighbours for the full snowballed amount, instead of doing nothing.' },
       { category: 'Card Change', text: 'Conductor’s card text now tracks what it will really give.', details: [
         'On your board and in combat it shows the buff it grants RIGHT NOW — it used to read one step high, as if you were about to play another copy.',

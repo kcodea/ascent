@@ -92,6 +92,29 @@ is a designer queue, not a failure. Two instrument bugs were caught by this test
 recorded in its header: plain `JSON.stringify` made the diff vacuously green (key reordering), and
 `flagCopies` ticking masked the exact pre-#900 overwrite for amount-carrying flags.
 
+## Tripwires 9–12 — the behavioural layer (the "wide" improvement scope)
+
+Tripwires 1–8 mostly check WIRING. These check BEHAVIOUR — the real reducer and the real `simulate()`, run
+differentially, so a factory that exists but does nothing is caught without any registry entry.
+
+| # | Test | What it proves | Instrument lessons it carries |
+|---|---|---|---|
+| 9 | `docbot/playDifferential.test.ts` (+`playScan.ts`) | every `onPlay` minion, spell cast, and `onSummon` watcher ACTS through the real reducer, vs a validated vanilla control; golden play ≠ plain play | the control-body saga: `effects: []` ≠ inert (Drakko's `triggerMultiplier`, then Sylus, then zero clean non-token minions existed at all); event bookkeeping + fixture watchers masking a neutered Shout |
+| 10 | `docbot/combatDifferential.test.ts` (+`combatScan.ts`) | every combat-effect card, present vs a stat-clone control in a staged fight, CHANGES the fight; golden combat ≠ plain | this is the generic Conductor catcher — zero registry entries needed |
+| 11 | `docbot/textNumbers.test.ts` | every effect magnitude >1 is printed on the card (word numerals parsed; named-spell casts exempt per the 2026-07-15 ruling); golden text prints the doubled halves | 292 params, 0 misses; the 8 initial misses each taught a sanctioned escape |
+| 12 | `docbot/invariantFuzz.test.ts` | random legal action sequences: Gold ≥ 0, board ≤ cap, unique uids, finite stats, no modal deadlock, trajectory determinism, identity-independence | the only unknown-unknown hunter; its first cut wrongly asserted input purity — the perf doctrine sanctions shallow-clone writes |
+
+Every lane was sabotage-proofed by reintroducing a real bug shape (a neutered Shout factory surfaced
+`n2_conductor`; a neutered `deathrattleSummon` surfaced 12 named echo-summoners; a Kringle-style param bump
+surfaced `dw_foreman` with both numbers in the message).
+
+New owner queues from the behavioural layer (all printed by `npm run docbot`):
+- **54 scenario-conditional combat effects** — cards whose combat effect did not influence the staged fight.
+  Most are condition-gated by reading (Ryme, Dawnclaw, Moe…); each deserves a per-card verification, and a
+  NEW card landing here trips the pin at authoring time.
+- **27 golden-flat combat cards** — the effect acts, but gilding changes nothing about it in combat.
+- **14 refused spells** + **5 excused-conditional plays** + **1 explained silent watcher** (gravebody).
+
 ## What landing Doc Bot found (2026-08-26)
 
 - **16 needs-triage phase gaps** — see `npm run docbot` for the live list. Standouts: `deathrattleBuffShopPermanent`

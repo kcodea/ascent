@@ -13,7 +13,7 @@ import { FACTORIES, combatCastable } from '@game/core';
 import { readFileSync } from 'node:fs';
 import {
   COMBAT_CASTING_FACTORIES, HEROES, PHASE_EXCUSED, PREDICATE_FILES, RAW_TRIBE_COMPARE_SOURCE,
-  RECRUIT_FACTORY_IDS, SPELL_POWER_EXCUSED, TRIBE_RATCHET, TRIGGER_PHASES, runeSwallowScan,
+  RECRUIT_FACTORY_IDS, SPELL_POWER_EXCUSED, TRIBE_RATCHET, TRIGGER_PHASES, combatScan, playScan, runeSwallowScan,
 } from '@game/sim';
 
 /** The ratchet scan, done locally: the registry is pure data (it rides the public sim entrypoint into the
@@ -96,6 +96,23 @@ console.log(`\n  ⚠ SECOND-COPY SWALLOWS (${secondSwallowed.length}, ratcheted)
 console.log('    nothing (the forge never excludes owned runes; Duplication doubles any Epic). Per-rune owner');
 console.log('    ruling wanted: stack it, record a copy, or bless it idempotent (→ RUNE_DIFF_EXCUSED):');
 console.log(`    ${secondSwallowed.join(', ')}`);
+
+// ── 9 + 10: runtime differentials (plays, casts, watchers, combat presence) ──
+const play = playScan();
+console.log('\n── 9. play differential — onPlay/spells/watchers through the real reducer ──');
+console.log(`inert onPlay (excused-conditional): ${play.inertMinions.join(', ') || 'none'} · golden-flat: ${play.goldenFlat.join(', ') || 'none'} · inert spells: ${play.inertSpells.join(', ') || 'none'}`);
+console.log(`refused spells (fixture can't cast): ${play.refusedSpells.join(', ')}`);
+console.log(`silent watchers: ${play.silentWatchers.join(', ') || 'none'}`);
+const combat = combatScan();
+console.log('\n── 10. combat presence differential — every combat effect vs a stat-clone control ──');
+console.log(`verified ACTIVE in the staged fight: ${combat.activeCount}`);
+console.log(`\n  ⚠ SCENARIO-CONDITIONAL (${combat.inert.length}, pinned) — their combat effect changed nothing about the`);
+console.log('    staged fight. Most are condition-gated (Ryme needs adjacent Battlecries; Moe needs its own');
+console.log('    kills) — each is a per-card verification wanted, and a NEW card landing here trips the pin:');
+console.log(`    ${combat.inert.join(', ')}`);
+console.log(`\n  ⚠ GOLDEN-FLAT in combat (${combat.goldenFlat.length}, pinned): ${combat.goldenFlat.join(', ')}`);
+console.log('\n── 11. printed numbers — gated in docbot/textNumbers.test.ts (292 params + golden lane, 0 misses)');
+console.log('── 12. invariant fuzz — gated in docbot/invariantFuzz.test.ts (invariants, determinism, identity-independence)');
 
 // ── 8. spell-power folding ──
 console.log('\n── 8. spell-power folding (#817/#731 class) — gated in docbot/spellPowerFolding.test.ts ──');

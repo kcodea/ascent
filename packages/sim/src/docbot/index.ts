@@ -29,3 +29,6 @@ export { TRIGGER_PHASES, PHASE_EXCUSED, COMBAT_CASTING_FACTORIES, type PhaseExcu
 export { TRIBE_RATCHET, PREDICATE_FILES, RAW_TRIBE_COMPARE_SOURCE } from './tribeRatchet';
 export { RUNE_DIFF_EXCUSED, SPELL_POWER_EXCUSED, TURN_RESET_EXCUSED } from './historyRegistry';
 export { runeSwallowScan } from './runeSwallowScan';
+export { playScan, playFixture, VANILLA_CONTROL_ID, CONTROL_KEY_WHITELIST } from './playScan';
+export { combatScan, combatWorklist } from './combatScan';
+export { PLAY_EXCUSED, WATCHER_EXCUSED } from './historyRegistry';

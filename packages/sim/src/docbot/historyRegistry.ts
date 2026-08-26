@@ -49,3 +49,22 @@ export const TURN_RESET_EXCUSED: Readonly<Record<string, string>> = {
   // seeded empty on 2026-08-26 — all 39 turn-suffixed fields have a reducer reset today. A field that
   // legitimately persists (a misnomer, or a "since turn N" marker) gets excused here with the reason.
 };
+
+/**
+ * TRIPWIRE 9 — cards the play differential cannot exercise under the CLEAN fixture, each with the condition
+ * the fixture doesn't stage. An entry here is "conditional, not dead" — verified by reading the condition,
+ * not by assuming. The sabotage story that shaped the lane (event bookkeeping + fixture watchers masking a
+ * neutered Shout) lives in playScan.ts.
+ */
+export const PLAY_EXCUSED: Readonly<Record<string, string>> = {
+  cleric: 'heals/buffs a DAMAGED or tribe-scoped target; the clean fixture stages none',
+  dw_ironlung: 'buffs your OTHER DWARVES; the clean-token board has no Dwarf',
+  d2_recaller: 'copies the last Shop Spell cast THIS TURN; the fixture casts none before it',
+  c3_relay: 'wakes adjacent CELESTIAL Orbits; the clean-token board has no Celestial',
+  b2_magepup: 'casts the spell it was TAUGHT; nothing teaches it in the fixture',
+};
+
+/** TRIPWIRE 9 — silent onSummon watchers, with the reading that keeps them silent legitimately. */
+export const WATCHER_EXCUSED: Readonly<Record<string, string>> = {
+  gravebody: '"Copy your leftmost Echo when summoned" — the onSummon is about ITSELF being summoned (and its shop half is the startOfCombat copy); watching others is correctly nothing',
+};

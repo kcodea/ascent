@@ -3018,6 +3018,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         undeadHp: s.undeadHealthBonus,
         undeadBuyAtk: s.undeadBuyAtk ?? 0,
         impAtk: s.impBuff?.attack ?? 0,
+        conductorBuff: s.conductorBuff ?? 0, // CONDUCTOR: carry the run's snowball so a mid-fight Shout re-fire pays it
         impHp: s.impBuff?.health ?? 0,
         fodderConsumedAtk: s.fodderConsumedThisTurn?.attack ?? 0,
         fodderConsumedHp: s.fodderConsumedThisTurn?.health ?? 0,

@@ -2210,6 +2210,9 @@ export interface CombatSideState {
   /** Imp Aura (Fodder Feeder / Ritualist / Bane) — sizes this side's Imp summons. */
   impAtk: number;
   impHp: number;
+  /** CONDUCTOR's run-wide snowball N, carried in so a Shout RE-FIRED mid-fight grants the accumulated
+   *  +(2N)/+(3N) rather than nothing. Read-only in combat — the increment is a play-time event. */
+  conductorBuff: number;
   /** Fodder consumed this turn (Abhorrent Horror's Start-of-Combat payoff). */
   fodderConsumedAtk: number;
   fodderConsumedHp: number;
@@ -2787,6 +2790,8 @@ export interface CombatContext {
   /** The side's LIVE Imp Aura this fight (seeded from run state, advanced by in-combat Imp buffs). Chef Raag
    *  reads it to give your minions stats equal to it. */
   impAura(side: Side): { attack: number; health: number };
+  /** CONDUCTOR's carried snowball for a side (see `CombatSideState.conductorBuff`). */
+  conductorTally(side: Side): number;
   /** Bane (combat, reacting to Ryme's battlecry replays): permanently enchant the Fodder card type run-wide
    *  by +atk/+hp (player only). Carried back via CombatResult.playerFodderBuffGain → `buffFodderRunWide`. */
   grantFodderBuff(attack: number, health: number, side: Side): void;

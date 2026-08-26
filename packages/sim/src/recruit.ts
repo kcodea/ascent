@@ -126,6 +126,7 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
     isImp: (t) => !!CARD_INDEX[t.cardId]?.imp,
     isFodder: (t) => !!CARD_INDEX[t.cardId]?.keywords.includes('FD'),
     impAura: () => state.impBuff ?? { attack: 0, health: 0 },
+    conductorTally: () => state.conductorBuff ?? 0,
     deathrattleTally: () => state.deathrattlesTriggered ?? 0,
     addTribeAura: () => {}, // no rest-of-combat in a shop; the legacy shop half never registered one
     grantCardTypeBuff: (cardId, a, h) => buffCardTypeRunWide(state, cardId, a, h, CARD_INDEX[cardId]?.name ?? cardId),
@@ -6394,16 +6395,13 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  weighted trigger count each Conductor Shout raises by 1 (×2 gilded, ×2 Mastery) — Squirl Scout's
    *  snowball, positional. Improve first → THIS play grants the new value (first play = +2/+3). Live grant
    *  surfaces via cardText's conductorText. */
+  // ARENA-MIGRATED (Shout family): one body in arena.ts serves both phases. The INCREMENT stays here because
+  // it is a play-time event ("every Conductor PLAYED"); the grant itself is the shared arena body, which is
+  // what makes the same Shout resolve during COMBAT re-fires instead of silently deferring to settle.
   battlecryConductorAdjacent: (ctx, self, params) => {
     const state = ctx.state;
     state.conductorBuff = (state.conductorBuff ?? 0) + gold(self) * improveReps(state);
-    const a = num(params.attack, 2) * state.conductorBuff;
-    const h = num(params.health, 3) * state.conductorBuff;
-    const idx = state.board.findIndex((c) => c.uid === self.uid);
-    if (idx < 0) return; // played from a full-board edge case / not on board — the improve still banked
-    for (const target of [state.board[idx - 1], state.board[idx + 1]]) {
-      if (target) addBuff(target, nameOf(self), a, h);
-    }
+    ARENA_EFFECTS.battlecryConductorAdjacent(shopArena(state, self), params);
   },
 
   /** Scrap Herald — Battlecry: your Magnetic minions ("Attachments") get +atk/+hp "wherever they are". Buffs

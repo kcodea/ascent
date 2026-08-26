@@ -119,6 +119,11 @@ export interface EffectArena {
   impAura(): { attack: number; health: number };
   /** Echoes (Deathrattles) triggered so far — combat: the side's run-wide base + this fight's; shop: the
    *  run tally. Grim scales off this. */
+  /** CONDUCTOR's run-wide snowball, N. Its Shout gives adjacent bodies +(2N)/+(3N) and N grows by one per
+   *  Conductor PLAYED. Read-only from the arena: a combat RE-FIRE (Ryme, a parting cry, Dawnclaw) is a
+   *  trigger, not a play, so it applies the current N without advancing it — the shop's play path owns the
+   *  increment. Combat carries the value on `CombatSideState.conductorBuff`; the shop reads `RunState`. */
+  conductorTally(): number;
   deathrattleTally(): number;
   /** Register a rest-of-combat tribe aura (friends of `tribe` summoned LATER also gain it). A shop no-op:
    *  there is no rest-of-combat in a shop, and the legacy shop half never registered one. */
@@ -1071,6 +1076,18 @@ export const ARENA_EFFECTS = {
 
   /** Scrap Herald — Shout: your Magnetics ("Attachments") gain +atk/+hp WHEREVER they are, permanently
    *  (golden doubles) — the Magnetic sibling of the Undead attack aura, with a Health half. */
+  /** CONDUCTOR — Shout: give the two ADJACENT bodies +(attack×N)/+(health×N), N being the run-wide snowball.
+   *  ARENA-BACKED so it resolves in BOTH phases: it used to be a recruit-only factory, which meant every
+   *  in-combat Shout re-fire treated it as "economy" and deferred it to settle — i.e. it did nothing during
+   *  the fight (owner report 2026-08-26). N is floored at 1 so a body that never went through the shop's play
+   *  path (summoned, Discovered onto the board) still pays its printed +2/+3 rather than nothing. */
+  battlecryConductorAdjacent(arena: EffectArena, params: Record<string, unknown>): void {
+    const n = Math.max(1, arena.conductorTally());
+    const a = (typeof params.attack === 'number' ? params.attack : 2) * n;
+    const h = (typeof params.health === 'number' ? params.health : 3) * n;
+    for (const adj of arena.neighboursOf(arena.self)) arena.buff(adj, a, h);
+  },
+
   battlecryBuffMagnetics(arena: EffectArena, params: Record<string, unknown>): void {
     const g = arena.self.golden ? 2 : 1;
     arena.grantMagneticAura(

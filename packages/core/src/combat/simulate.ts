@@ -1013,6 +1013,8 @@ export function simulate(
       if (attack !== 0 || health !== 0) emit({ type: 'tribeAura', side, tribe: 'mech', attack, health, aura: 'magnetic' });
     },
     impAura: (side) => ({ ...impAura[side] }), // Chef Raag reads the live Imp Aura to buff your minions by it
+    // CONDUCTOR: the run's snowball, per side — read-only in combat (a re-fire is a trigger, not a play).
+    conductorTally: (side) => (side === 'player' ? playerState.conductorBuff : enemyState.conductorBuff) ?? 0,
     grantFodderBuff: (attack, health, side) => {
       if (side !== 'player') return; // enemies have no run state
       fodderBuffGain.attack += attack;

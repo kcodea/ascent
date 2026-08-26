@@ -67,6 +67,25 @@ multipliers, the combat-castable registry). **After: 7 of 8.**
 | #1111 Beefy/Lantern Light fizzled | MISSED | **CAUGHT** | combat-castable registry |
 | #1176 Avenge counted the whole fight | MISSED | MISSED | honest gap: per-instance counter windows need the contract layer; no deterministic summon-an-Avenge-body stager exists, and its own regression test lives in-repo |
 
+### Catalog wave 2 (same day): 14 entries, 13 CAUGHT
+
+Six more historical bugs joined the catalog — two as coverage CONFIRMATIONS (the spell-power source scan
+caught `8f98da40`; the two-sided refused-spells pin caught `69d6a8e5` through its LOWER bound — banked
+progress paying off exactly as designed), four as new misses that built **tripwire 18**:
+
+| New reinjection | Verdict | Oracle it built |
+|---|---|---|
+| `c8a214d7` all-types dropped from mech auras | **CAUGHT** | universalTribe body must receive tribe-keyed combat grants (the behavioural half the source ratchet cannot see) |
+| `bf996507` reducer trusted the aim UI's uid | **CAUGHT** | every `targetTribe` Battlecry refuses an off-tribe target at the REDUCER |
+| `7af61a35` max-Gold lead evaporated at the cap | **CAUGHT** | above-cap economy rides `maxGoldBonus`, never `maxEmbers` |
+| `f45525c9` Chipper fed a random friendly | **CAUGHT** | `self: true` consume feeds the card ITSELF, across rng cursors |
+
+Instrument/fixture lessons, recorded in the tests: three same-id fixture bodies auto-TRIPLE and vanish;
+there is NO genuinely plain demon in content (Heckbinder ate the fixture — the Drakko lesson, again); a
+narrow one-site reinjection was masked by a neighbouring fixed site (the catalog entry now strips all four).
+
+**Standing: 13 of 14 catalog bugs caught; #1176 remains the honest miss** (per-instance counter windows).
+
 The five in-sample bugs (this week's, which tripwires 1–8 were built from) were already caught by their
 sabotage checks — 12 of 13 total. The harness catalog grows one entry per interesting future fix; a MISS is
 the build signal for the next generic oracle. This corrects the earlier ESTIMATED 65–75% claim: what was

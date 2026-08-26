@@ -13,8 +13,7 @@ BUGS = [
    'const procs = mul(self); // REINJECT: Stag consults no Echo multiplier'),
   ('933-triple-temp-keywords', RED,
    'const tempOnly = (k: Keyword): boolean =>',
-   "const tempOnly = (_k2: Keyword): boolean => false; // REINJECT
-  const tempOnlyUnused = (k: Keyword): boolean =>"),
+   'const tempOnly = (_k2: Keyword): boolean => false; // REINJECT' + chr(10) + '  const tempOnlyUnused = (k: Keyword): boolean =>'),
   ('941-aftershocks-per-watcher', SIM,
    "const ownEcho = effect.on === 'onDeath' && (payload as { minion?: Minion } | undefined)?.minion === minion;",
    "const ownEcho = effect.on === 'onDeath'; // REINJECT: every watcher wraps as an Echo trigger"),

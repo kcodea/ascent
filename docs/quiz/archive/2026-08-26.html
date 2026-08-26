@@ -1,0 +1,481 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Ascent Quiz #14 — 2026-08-26</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f6f5f1;
+    --panel: #ffffff;
+    --panel-border: #e2e0d8;
+    --text: #201f1c;
+    --muted: #6e6c64;
+    --accent: #3457d5;
+    --accent-soft: rgba(52, 87, 213, 0.10);
+    --accent-border: rgba(52, 87, 213, 0.28);
+    --correct: #1c8a52;
+    --correct-bg: rgba(28, 138, 82, 0.10);
+    --correct-border: rgba(28, 138, 82, 0.38);
+    --wrong: #bd3f27;
+    --wrong-bg: rgba(189, 63, 39, 0.09);
+    --wrong-border: rgba(189, 63, 39, 0.35);
+    --code-bg: rgba(52, 87, 213, 0.07);
+    --shadow: 0 10px 26px rgba(32, 31, 28, 0.07);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #17181c;
+      --panel: #1f2025;
+      --panel-border: #2d2f36;
+      --text: #eceae3;
+      --muted: #96958c;
+      --accent: #7c9bff;
+      --accent-soft: rgba(124, 155, 255, 0.12);
+      --accent-border: rgba(124, 155, 255, 0.32);
+      --correct: #52c98a;
+      --correct-bg: rgba(82, 201, 138, 0.12);
+      --correct-border: rgba(82, 201, 138, 0.34);
+      --wrong: #e58469;
+      --wrong-bg: rgba(229, 132, 105, 0.12);
+      --wrong-border: rgba(229, 132, 105, 0.34);
+      --code-bg: rgba(124, 155, 255, 0.10);
+      --shadow: 0 10px 26px rgba(0, 0, 0, 0.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #17181c;
+    --panel: #1f2025;
+    --panel-border: #2d2f36;
+    --text: #eceae3;
+    --muted: #96958c;
+    --accent: #7c9bff;
+    --accent-soft: rgba(124, 155, 255, 0.12);
+    --accent-border: rgba(124, 155, 255, 0.32);
+    --correct: #52c98a;
+    --correct-bg: rgba(82, 201, 138, 0.12);
+    --correct-border: rgba(82, 201, 138, 0.34);
+    --wrong: #e58469;
+    --wrong-bg: rgba(229, 132, 105, 0.12);
+    --wrong-border: rgba(229, 132, 105, 0.34);
+    --code-bg: rgba(124, 155, 255, 0.10);
+    --shadow: 0 10px 26px rgba(0, 0, 0, 0.35);
+  }
+  * { box-sizing: border-box; }
+  html, body { background: var(--bg); }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    display: flex;
+    justify-content: center;
+    padding: 40px 16px 64px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { width: 100%; max-width: 680px; }
+  header { margin-bottom: 26px; }
+  .kicker {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.75rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 8px;
+  }
+  header h1 {
+    font-size: 1.6rem;
+    margin: 0 0 6px;
+    font-weight: 700;
+    text-wrap: balance;
+  }
+  header p { color: var(--muted); margin: 0; font-size: 0.94rem; }
+  .progress-bar {
+    height: 6px;
+    border-radius: 999px;
+    background: var(--panel-border);
+    overflow: hidden;
+    margin: 20px 0 8px;
+  }
+  .progress-fill {
+    height: 100%;
+    background: var(--accent);
+    width: 0%;
+    transition: width 0.35s ease;
+  }
+  .status-row {
+    display: flex;
+    justify-content: space-between;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.8rem;
+    color: var(--muted);
+    margin-bottom: 22px;
+    font-variant-numeric: tabular-nums;
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 14px;
+    padding: 26px;
+    margin-bottom: 16px;
+    box-shadow: var(--shadow);
+  }
+  .qtag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.02em;
+    color: var(--accent);
+    background: var(--accent-soft);
+    border: 1px solid var(--accent-border);
+    padding: 3px 10px;
+    border-radius: 6px;
+    margin-bottom: 14px;
+  }
+  .qtext {
+    font-size: 1.08rem;
+    line-height: 1.55;
+    margin: 0 0 20px;
+    max-width: 62ch;
+  }
+  .qtext code {
+    font-family: "IBM Plex Mono", monospace;
+    background: var(--code-bg);
+    padding: 1.5px 6px;
+    border-radius: 5px;
+    font-size: 0.88em;
+  }
+  .choices { display: flex; flex-direction: column; gap: 9px; }
+  .choice {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    text-align: left;
+    width: 100%;
+    background: transparent;
+    border: 1px solid var(--panel-border);
+    color: var(--text);
+    padding: 12px 14px;
+    border-radius: 9px;
+    font-family: inherit;
+    font-size: 0.95rem;
+    line-height: 1.45;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease;
+  }
+  .choice:hover:not(:disabled) {
+    border-color: var(--accent-border);
+    background: var(--accent-soft);
+  }
+  .choice:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .choice:disabled { cursor: default; }
+  .choice .letter {
+    flex: 0 0 auto;
+    width: 22px;
+    height: 22px;
+    border-radius: 5px;
+    background: var(--code-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--muted);
+    margin-top: 1px;
+  }
+  .choice.correct { border-color: var(--correct-border); background: var(--correct-bg); }
+  .choice.correct .letter { background: var(--correct); color: var(--panel); }
+  .choice.wrong { border-color: var(--wrong-border); background: var(--wrong-bg); }
+  .choice.wrong .letter { background: var(--wrong); color: var(--panel); }
+  .explain {
+    margin-top: 16px;
+    padding: 15px 16px;
+    border-radius: 9px;
+    background: var(--accent-soft);
+    border: 1px solid var(--accent-border);
+    font-size: 0.92rem;
+    line-height: 1.6;
+    color: var(--text);
+    display: none;
+  }
+  .explain.show { display: block; }
+  .explain code {
+    font-family: "IBM Plex Mono", monospace;
+    background: var(--code-bg);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 0.88em;
+  }
+  .nextbtn {
+    margin-top: 18px;
+    display: none;
+    background: var(--accent);
+    color: var(--panel);
+    border: none;
+    padding: 10px 18px;
+    border-radius: 8px;
+    font-family: inherit;
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+  }
+  .nextbtn.show { display: inline-block; }
+  .nextbtn:hover { filter: brightness(1.1); }
+  .nextbtn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .summary { text-align: center; padding: 40px 24px; }
+  .summary .line { color: var(--muted); font-size: 0.95rem; }
+  .summary .score {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 2.8rem;
+    font-weight: 600;
+    margin: 10px 0;
+    font-variant-numeric: tabular-nums;
+  }
+  .summary .encourage { margin-top: 16px; font-size: 1.05rem; max-width: 46ch; margin-left: auto; margin-right: auto; text-wrap: balance; }
+  footer { text-align: center; color: var(--muted); font-size: 0.8rem; margin-top: 22px; }
+  @media (prefers-reduced-motion: reduce) {
+    .progress-fill { transition: none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="kicker">docs/quiz · daily architecture quiz</div>
+    <h1>Ascent Quiz #14</h1>
+    <p>2026-08-26 · 10 questions on how the game is actually coded</p>
+  </header>
+  <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+  <div class="status-row">
+    <span id="qCounter">Question 1 / 10</span>
+    <span id="scoreCounter">Score: 0</span>
+  </div>
+  <div id="quizArea"></div>
+  <footer>Graded right here in your browser — nothing leaves this page.</footer>
+</div>
+
+<script>
+const QUESTIONS = [
+  {
+    topic: "what-is-a-function",
+    question: "<code>simulate(player, enemy, rng, cards, ...)</code> takes <code>player</code> and <code>enemy</code> as its first two parameters — both typed <code>BoardMinion[]</code>, the exact same type. If a call site accidentally passed the enemy board where <code>player</code> belongs and vice versa, what would actually catch that mistake?",
+    choices: [
+      "TypeScript would refuse to compile — it tracks parameter NAMES, not just types",
+      "Nothing in the type system: TypeScript only checks that a <code>BoardMinion[]</code> value landed in each slot, not which board it semantically is — the swap would type-check fine and just play the fight out with the sides reversed",
+      "The seeded RNG would detect the swap and throw an error",
+      "simulate() would throw a runtime error the first time the swapped sides were used"
+    ],
+    answer: 1,
+    explanation: "Function parameters are positional — the caller must supply arguments in the declared order, and TypeScript only verifies that the VALUE in each slot matches the declared TYPE, not that it's \"the right one\" conceptually. Since <code>player</code> and <code>enemy</code> share the exact same type, swapping them type-checks perfectly and produces no error anywhere — the only symptom would be a reversed fight. That's exactly why call-site care (and clear parameter naming) matters: the type system can't save you from every kind of mistake."
+  },
+  {
+    topic: "deterministic-sim",
+    question: "Combat isn't literally \"no randomness\" — <code>simulate()</code> still calls <code>rng.pick()</code>/<code>rng.int()</code> to decide things mid-fight. How can the engine use real randomness AND still be fully deterministic?",
+    choices: [
+      "It isn't actually deterministic — the RNG calls are a documented exception to the rule",
+      "The \"randomness\" is entirely derived from a starting seed number: <code>makeRng(seed)</code> given the same seed produces the exact same sequence of \"random\" picks every time, so a run replays byte-for-byte identical",
+      "The engine avoids the contradiction by only ever calling the RNG from the UI, never from inside simulate()",
+      "Determinism just means the eventual WINNER is always the same, no matter what the randomness picks along the way"
+    ],
+    answer: 1,
+    explanation: "Seeded randomness isn't unpredictable the way <code>Math.random()</code> is — mulberry32 is a deterministic algorithm that produces a long, random-LOOKING sequence purely as a function of its seed. So the randomness the player experiences (who gets targeted, etc.) and the determinism the engine needs (same seed → identical replay) aren't in tension at all: the sequence looks random but is 100% reproducible. That's the whole point of a seeded RNG over a true one, and it's not limited to just the final winner — every single event in the log reproduces identically, not only the outcome."
+  },
+  {
+    topic: "seeded-rng",
+    question: "In rng.ts, <code>pick: (xs) =&gt; xs[rng.int(xs.length)]</code>, and <code>int: (maxExclusive) =&gt; Math.floor(next() * maxExclusive)</code>. <code>Rng</code> only actually generates a raw random number in ONE place — <code>next()</code>. Both <code>int()</code> and <code>pick()</code> are built by calling ANOTHER <code>Rng</code> method instead of duplicating that generation math. Why build it that way?",
+    choices: [
+      "It's necessary — JavaScript doesn't allow two methods on the same object to share logic any other way",
+      "It builds higher-level operations (an index, a pick from a list) on top of ONE simple foundation (<code>next()</code>) instead of re-implementing \"generate a random float\" three separate times — so there's exactly one place to fix if the underlying math ever needs to change",
+      "It's slower than duplicating the logic outright, but easier to read",
+      "There's no real benefit — it's arbitrary how the author happened to write it"
+    ],
+    answer: 1,
+    explanation: "This is function composition: define the one primitive (raw float generation in <code>next()</code>) exactly once, then build everything else on top of it by CALLING it rather than copy-pasting the mulberry32 math into <code>int()</code> and again into <code>pick()</code>. If that math ever needed a fix, there'd be exactly one function to change, and <code>int()</code>/<code>pick()</code> would automatically inherit the corrected behavior. It's a deliberate design choice for both readability and correctness — nothing about JS syntax forces it, and it isn't slower or arbitrary."
+  },
+  {
+    topic: "sim-ui-decoupling",
+    question: "Ascent lets you skip a combat's animation and jump straight to the result. Given that <code>simulate()</code> already computed the ENTIRE fight — every attack, every death — before the first animation frame ever plays, what does \"skip\" actually need to do under the hood?",
+    choices: [
+      "Call simulate() a second time with a \"no animation\" flag so it resolves faster",
+      "Nothing about the outcome — it just jumps the UI's own playback clock straight to the end of the already-finished event log and renders the final board state, instead of pacing through it beat by beat",
+      "Ask a server to recompute just the final result",
+      "Speed up simulate() itself, since it's normally too slow to finish before the skip button is pressed"
+    ],
+    answer: 1,
+    explanation: "Because the whole fight is decided up front and stored as a finished <code>events</code> array, \"skip\" is purely a UI-side concern with nothing left to compute — it just stops advancing beat by beat on its own clock and jumps straight to rendering the final state from data it already has. There's no second call to simulate(), no server round trip, and no need to \"speed up\" anything — simulate() already finished instantly, well before any animation started."
+  },
+  {
+    topic: "monorepo-packages",
+    question: "apps/web/src/main.tsx is short: it imports <code>Boot</code> and <code>Game</code> from <code>@game/ui</code> and calls <code>createRoot(root).render(&lt;Boot&gt;&lt;Game /&gt;&lt;/Boot&gt;)</code>. It defines no game screens, cards, or combat logic of its own. What does that tell you about the split between apps/web and packages/ui?",
+    choices: [
+      "It's a mistake — that code really belongs inside packages/ui instead",
+      "apps/web is a thin, deployable app shell: it mounts the page and wires in whatever @game/ui exports; the actual screens/components/game-facing React code all live inside packages/ui itself",
+      "packages/ui can only ever be used from apps/web — no other app could import it",
+      "apps/web and packages/ui contain the same code, duplicated for two different environments"
+    ],
+    answer: 1,
+    explanation: "apps/web's job is deliberately small — set up the DOM root, StrictMode, and page-level wiring (like the gsap.ticker.lagSmoothing tweak also in main.tsx) — then hand off to @game/ui's exported Boot/Game components for everything the player actually sees. Keeping the real UI logic inside the ui PACKAGE rather than the app means it stays reusable: anything else that wanted to embed the game could import the same @game/ui entrypoint apps/web does. It isn't duplication, and it isn't a mistake — it's the standard \"library vs. thin app shell\" split."
+  },
+  {
+    topic: "pure-functions",
+    question: "<code>simulate(player, enemy, rng, cards)</code> takes <code>cards: CardIndex</code> as an explicit parameter — even though packages/content exports a global <code>CARD_INDEX</code> with every card in it. Why does simulate() take its own <code>cards</code> argument instead of just importing <code>CARD_INDEX</code> directly and reading it?",
+    choices: [
+      "Performance — importing directly would be measurably slower than passing a parameter",
+      "So EVERYTHING simulate() needs to compute its answer arrives as an explicit input rather than being read from something outside the function — which is also exactly why packages/core has zero dependency on packages/content at all",
+      "Because CARD_INDEX doesn't exist yet at the moment packages/core is loaded",
+      "It's arbitrary — there's no real reason; both approaches would behave identically"
+    ],
+    answer: 1,
+    explanation: "A pure function's \"same inputs → same output\" guarantee only holds if ALL of its real inputs are actually passed in as parameters — if it quietly reached out and read a global instead, its behavior could depend on whatever that global happens to hold at call time, invisible from the function's own signature. Passing <code>cards</code> explicitly keeps every dependency visible in the parameter list. It also has a second payoff from CLAUDE.md's Monorepo section: packages/core doesn't import from packages/content AT ALL — reading CARD_INDEX directly there wouldn't even be possible without breaking that dependency direction."
+  },
+  {
+    topic: "data-vs-code",
+    question: "packages/content/src/schema.ts defines <code>CardDefSchema</code> with zod, and content.test.ts calls <code>validateCards()</code> — which runs <code>CardDefSchema.parse()</code> on every real card — inside <code>npm test</code>. Every card object is ALSO already typed as <code>CardDef</code> in TypeScript. Why bother with a separate zod check if TypeScript already types the cards?",
+    choices: [
+      "It's redundant — TypeScript's types alone would already catch the same mistakes at runtime",
+      "TypeScript's types are erased once the code compiles — they can't check anything while the program is actually running. zod's schema is real code that EXECUTES and inspects each card's actual field values when validateCards() runs, catching mistakes TypeScript's compile-time-only types can't",
+      "zod is only there to make card objects load faster",
+      "TypeScript can't type plain object literals like cards at all, so zod is the only type-checking that exists for them"
+    ],
+    answer: 1,
+    explanation: "TypeScript's annotations exist only while the compiler is checking the code — by the time it's compiled to plain JS and run, they're gone entirely (\"type erasure\"), so nothing is left to catch a bad value showing up at runtime. zod, by contrast, is ordinary JavaScript that runs for real: <code>CardDefSchema.parse()</code> actually inspects each card's fields when <code>validateCards()</code> executes inside <code>npm test</code>, so a typo'd key or wrong shape gets caught there instead of shipping. TypeScript absolutely does type card literals fine — the gap isn't that it can't, it's that its checks vanish once the program is actually running, which is exactly the gap zod fills."
+  },
+  {
+    topic: "event-log-replay",
+    question: "<code>CombatResult</code> includes a <code>playerDamage</code> field — the exact Resolve damage the player takes on a loss — computed once by simulate() itself. A comment in types.ts notes the defeat animation used to instead RECOMPUTE that number from <code>nextOpponent()</code> and the replay frame, and that \"can disagree with what the fight actually used.\" Why return <code>playerDamage</code> as its own field instead of having the UI count it up from the <code>events</code> array itself?",
+    choices: [
+      "Recomputing it from the events array would be measurably slower than reading one number",
+      "So there's exactly ONE place — inside simulate() itself — that decides the damage number, guaranteeing the number shown on screen and the actual damage the fight used can never disagree, instead of two separate code paths that could each land on a different answer",
+      "The events array doesn't actually contain enough information to recompute the damage at all",
+      "playerDamage is only there for backward compatibility with old saved replays"
+    ],
+    answer: 1,
+    explanation: "The comment describes a real bug shape: when the UI independently re-derived the damage number instead of trusting the one simulate() already computed, the two could disagree — the counter shown and the hit that actually landed could be different numbers. Returning <code>playerDamage</code> directly on <code>CombatResult</code> makes simulate() the single source of truth for that number, so the UI has nothing left to (mis)compute — it just displays what it's handed. It's about correctness and consistency, not speed, and the events array does contain the underlying data — that's exactly what the old code recomputed from; the recomputation itself was the risk."
+  },
+  {
+    topic: "eslint-rules",
+    question: "Suppose a dev accidentally writes <code>Math.random()</code> somewhere inside packages/sim. Per CLAUDE.md's Commands section (<code>npm run lint</code> is its own command, separate from <code>npm run build:web</code>) and the CI <code>verify</code> workflow (typecheck, then lint, as separate steps), what actually stops that call from reaching players?",
+    choices: [
+      "npm run build:web (the Vite production build) would refuse to bundle a file containing Math.random()",
+      "The browser itself would throw an error the first time that line of code ran",
+      "npm run lint is a separate static-analysis step that scans the source text for the banned pattern and runs in CI (and locally) BEFORE merge — it isn't part of the Vite build and never runs in the player's browser at all",
+      "TypeScript's compiler would refuse to typecheck a file that calls Math.random()"
+    ],
+    answer: 2,
+    explanation: "ESLint and the Vite build are two entirely separate tools doing separate jobs — CLAUDE.md's Commands section lists <code>npm run lint</code> and <code>npm run build:web</code> as distinct commands, and the CI <code>verify</code> workflow runs typecheck, then lint, then test, then build:web as separate steps. Nothing about Math.random() would stop Vite from bundling it — Vite doesn't care what the code says, only that it's valid JS/TS — and TypeScript's type-checker doesn't track which specific functions are \"banned\"; that's exactly what a custom ESLint rule is for. The real gate is the lint step running against the SOURCE in CI before merge, not anything checking the shipped bundle in a player's browser."
+  },
+  {
+    topic: "performance-memo",
+    question: "docs/performance.md and Recruit.tsx cache the result of <code>getBoundingClientRect()</code> into a ref (<code>targetRectsRef</code> / <code>insertRectsRef</code>) ONCE when a card drag starts, instead of calling it again on every frame while the card is being dragged. Why does reading layout on every frame hurt performance?",
+    choices: [
+      "getBoundingClientRect() returns stale or wrong numbers if it's called more than once per drag",
+      "Calling it repeatedly — especially interleaved with style changes — forces the browser to do a synchronous layout recalculation (\"layout thrash\") on every call, which caching the rect once and reusing it avoids entirely",
+      "It's a memory leak — each call permanently allocates memory that's never freed",
+      "It only matters on old, slow devices; on a modern laptop the per-frame cost is effectively zero"
+    ],
+    answer: 1,
+    explanation: "getBoundingClientRect() has to hand back a real, up-to-date position, which means forcing the browser to finish any pending layout work synchronously right then — expensive if done every single frame during a drag, especially interleaved with DOM writes. Since a dragged card's TARGET positions don't move mid-drag, caching them once into a ref at drag start and reusing that value is exactly as accurate but skips all the repeated forced-layout cost. It isn't about stale data, a memory leak, or being negligible on fast hardware — docs/performance.md calls this out as a real, general \"layout thrash\" anti-pattern, not a device-specific one."
+  }
+];
+
+let current = 0;
+let score = 0;
+let answered = false;
+
+const quizArea = document.getElementById('quizArea');
+const progressFill = document.getElementById('progressFill');
+const qCounter = document.getElementById('qCounter');
+const scoreCounter = document.getElementById('scoreCounter');
+
+function render() {
+  if (current >= QUESTIONS.length) {
+    renderSummary();
+    return;
+  }
+  const q = QUESTIONS[current];
+  answered = false;
+  progressFill.style.width = ((current) / QUESTIONS.length * 100) + '%';
+  qCounter.textContent = `Question ${current + 1} / ${QUESTIONS.length}`;
+  scoreCounter.textContent = `Score: ${score}`;
+
+  const letters = ['A', 'B', 'C', 'D'];
+  quizArea.innerHTML = `
+    <div class="card">
+      <span class="qtag">${q.topic}</span>
+      <p class="qtext">${q.question}</p>
+      <div class="choices" id="choicesWrap">
+        ${q.choices.map((c, i) => `
+          <button class="choice" data-idx="${i}">
+            <span class="letter">${letters[i]}</span>
+            <span>${c}</span>
+          </button>
+        `).join('')}
+      </div>
+      <div class="explain" id="explainBox"></div>
+      <button class="nextbtn" id="nextBtn">${current === QUESTIONS.length - 1 ? 'See results →' : 'Next question →'}</button>
+    </div>
+  `;
+
+  const buttons = quizArea.querySelectorAll('.choice');
+  buttons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (answered) return;
+      answered = true;
+      const idx = parseInt(btn.getAttribute('data-idx'), 10);
+      const correct = idx === q.answer;
+      if (correct) score++;
+      buttons.forEach(b => {
+        b.disabled = true;
+        const bi = parseInt(b.getAttribute('data-idx'), 10);
+        if (bi === q.answer) b.classList.add('correct');
+        else if (bi === idx) b.classList.add('wrong');
+      });
+      const explainBox = document.getElementById('explainBox');
+      explainBox.innerHTML = (correct ? '✅ <strong>Correct!</strong> ' : '❌ <strong>Not quite.</strong> ') + q.explanation;
+      explainBox.classList.add('show');
+      document.getElementById('nextBtn').classList.add('show');
+      scoreCounter.textContent = `Score: ${score}`;
+    });
+  });
+
+  document.getElementById('nextBtn').addEventListener('click', () => {
+    current++;
+    render();
+  });
+}
+
+function renderSummary() {
+  progressFill.style.width = '100%';
+  qCounter.textContent = `Question ${QUESTIONS.length} / ${QUESTIONS.length}`;
+  scoreCounter.textContent = `Score: ${score}`;
+  const pct = Math.round((score / QUESTIONS.length) * 100);
+  let line;
+  if (pct === 100) line = "Perfect score! You're reading this codebase like you wrote it.";
+  else if (pct >= 80) line = "Great work — you're building real intuition for how this all fits together.";
+  else if (pct >= 50) line = "Solid effort — a few concepts to revisit, and it'll click more each day.";
+  else line = "Everyone starts somewhere — re-read the explanations above, tomorrow's quiz will circle back.";
+
+  quizArea.innerHTML = `
+    <div class="card summary">
+      <div class="line">Quiz complete</div>
+      <div class="score">${score} / ${QUESTIONS.length}</div>
+      <div class="line">${pct}%</div>
+      <div class="encourage">${line}</div>
+    </div>
+  `;
+}
+
+render();
+</script>
+</body>
+</html>

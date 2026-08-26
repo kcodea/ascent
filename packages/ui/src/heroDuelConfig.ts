@@ -45,6 +45,8 @@ export interface HeroDuelConfig {
   sfxAddVol: number;
   sfxImpactDelay: number;
   sfxImpactVol: number;
+  sfxCounterDelay: number;
+  sfxCounterVol: number;
   /** The opponent's RUNE badges — scale, position of the row, and the gap between badges. */
   runeScale: number;
   runeX: number;
@@ -93,6 +95,8 @@ const DEFAULTS: HeroDuelConfig = {
   sfxAddVol: 1,
   sfxImpactDelay: 0,
   sfxImpactVol: 1,
+  sfxCounterDelay: 0,
+  sfxCounterVol: 1,
   runeScale: 1,
   runeX: 96,
   runeY: 0,
@@ -130,6 +134,8 @@ export const HERO_DUEL_RANGES: Record<keyof HeroDuelConfig, [number, number, num
   sfxAddVol: [0, 2, 0.05],
   sfxImpactDelay: [-1500, 1500, 10],
   sfxImpactVol: [0, 2, 0.05],
+  sfxCounterDelay: [-1500, 1500, 10],
+  sfxCounterVol: [0, 2, 0.05],
   runeScale: [0.3, 2.5, 0.01],
   runeX: [-300, 300, 1],
   runeY: [-300, 300, 1],
@@ -167,6 +173,8 @@ export const HERO_DUEL_DESC: Record<keyof HeroDuelConfig, string> = {
   sfxAddVol: 'Loudness of the pill-add sound.',
   sfxImpactDelay: 'Nudge the tally-impact sound EARLIER (−) or later (+) than the tally landing.',
   sfxImpactVol: 'Loudness of the tally-impact sound.',
+  sfxCounterDelay: 'Nudge the tally-counter sound EARLIER (−) or later (+) than the count-up start.',
+  sfxCounterVol: 'Loudness of the tally-counter sound (as the numbers climb).',
   runeScale: "Size of the opponent's rune badges (1 = the same size as your runes).",
   runeX: 'Move the rune row horizontally from the portrait.',
   runeY: 'Move the rune row vertically.',

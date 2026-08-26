@@ -42,6 +42,8 @@ const LABELS: Record<keyof HeroDuelConfig, [string, TunerUnit | undefined]> = {
   sfxAddVol:       ['Pill-add SFX vol', '×'],
   sfxImpactDelay:  ['Impact SFX offset', 'ms'],
   sfxImpactVol:    ['Impact SFX vol', '×'],
+  sfxCounterDelay: ['Counter SFX offset', 'ms'],
+  sfxCounterVol:   ['Counter SFX vol', '×'],
   runeScale:       ['Rune size', '×'],
   runeX:           ['Rune row X', 'px'],
   runeY:           ['Rune row Y', 'px'],
@@ -60,7 +62,7 @@ const GROUP: Record<keyof HeroDuelConfig, string> = {
   pillScale: 'Foe attack pill', pillX: 'Foe attack pill', pillY: 'Foe attack pill',
   pillPlayerScale: 'Your attack pill', pillPlayerX: 'Your attack pill', pillPlayerY: 'Your attack pill',
   dmgScale: 'Damage number', dmgX: 'Damage number', dmgY: 'Damage number',
-  sfxTravelDelay: 'Sound', sfxTravelVol: 'Sound', sfxAddDelay: 'Sound', sfxAddVol: 'Sound', sfxImpactDelay: 'Sound', sfxImpactVol: 'Sound',
+  sfxTravelDelay: 'Sound', sfxTravelVol: 'Sound', sfxAddDelay: 'Sound', sfxAddVol: 'Sound', sfxImpactDelay: 'Sound', sfxImpactVol: 'Sound', sfxCounterDelay: 'Sound', sfxCounterVol: 'Sound',
   runeScale: 'Opponent runes', runeX: 'Opponent runes', runeY: 'Opponent runes', runeGap: 'Opponent runes',
   tallyStagger: 'Sequence', tallyFly: 'Sequence', pillHold: 'Sequence',
   strikeSpeed: 'Strike', impactPower: 'Strike', settleMs: 'Strike',
@@ -74,7 +76,7 @@ const ORDER: (keyof HeroDuelConfig)[] = [
   'dmgScale', 'dmgX', 'dmgY',
   'tallyStagger', 'tallyFly', 'pillHold',
   'strikeSpeed', 'impactPower', 'settleMs',
-  'sfxTravelDelay', 'sfxTravelVol', 'sfxAddDelay', 'sfxAddVol', 'sfxImpactDelay', 'sfxImpactVol',
+  'sfxCounterDelay', 'sfxCounterVol', 'sfxTravelDelay', 'sfxTravelVol', 'sfxAddDelay', 'sfxAddVol', 'sfxImpactDelay', 'sfxImpactVol',
   'runeScale', 'runeX', 'runeY', 'runeGap',
 ];
 // Safety net: any config key not in ORDER is appended, so a newly-added dial can never silently fail to render.

@@ -401,6 +401,7 @@ export const sfx = {
   tallyTravel: (vol = 1) => { playSample('TallyTravel', 'attack', 0, (n) => { n.gain.gain.value *= Math.max(0, vol); }); },
   attackPillAdd: (vol = 1) => { playSample('AttackPillAdd', 'attack', 0, (n) => { n.gain.gain.value *= Math.max(0, vol); }); },
   tallyImpact: (vol = 1) => { playSample('tallyimpact', 'attack', 0, (n) => { n.gain.gain.value *= Math.max(0, vol); }); },
+  tallyCounter: (vol = 1) => { playSample('tallycounter', 'attack', 0, (n) => { n.gain.gain.value *= Math.max(0, vol); }); },
   // A shop minion (or Tavern Fodder) is CONSUMED — the sourced "consume" clip; low synth gulp fallback until it
   // decodes / if absent. Drop the clip at `packages/ui/src/audio/consume.mp3`. De-duped by a short cooldown so
   // several consumes on one beat play a SINGLE gulp (owner ask 2026-08-18) — see `CONSUME_SFX_COOLDOWN_MS`.

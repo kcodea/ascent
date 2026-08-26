@@ -1116,7 +1116,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       if (s.spell && s.spell.uid === action.uid) {
         const spellDef = CARD_INDEX[s.spell.cardId];
         if (!spellDef) return state;
-        const cost = Math.max(0, (spellDef.cost ?? 0) - spellCostReduction(s));
+        const cost = Math.max(0, (spellDef.cost ?? 0) - spellCostReduction(s, spellDef)); // `spellDef` is load-bearing: Rune of Thrift keys on it
         if (s.embers < cost || s.hand.length >= handCap(s)) return state;
         spendGold(s, cost);
         if (s.cadenceSpellOff) procRuneId(s, 'rune_cadence');
@@ -1144,7 +1144,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       // A spell offer sitting in the minion row (Spell Cart's spell shop) buys into the hand at its OWN cost,
       // exactly like the right-hand spell slot — no minion creation / triple.
       if (card.spell) {
-        const sCost = Math.max(0, (card.cost ?? 0) - spellCostReduction(s));
+        const sCost = Math.max(0, (card.cost ?? 0) - spellCostReduction(s, card)); // pass the def — see the spell-slot buy above
         if (s.embers < sCost || s.hand.length >= handCap(s)) return state;
         spendGold(s, sCost);
         s.shop.splice(i, 1);

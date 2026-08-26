@@ -1434,7 +1434,7 @@ function payRuneThreshold(state: RunState, t: NonNullable<RunState['runeThreshol
   // counters and every on-cast watcher see it. Untargeted spells only: the meter trips with no player around
   // to aim, and `castSpell` with no target is exactly what an untargeted cast is.
   if (t.castStatSpell) {
-    const pool = poolOf(state).spells.filter((c) => c.tier <= state.tier && !ALE_IDS.includes(c.id) && !c.token && isStatSpell(c) && c.target !== 'friendly' && c.target !== 'any');
+    const pool = poolOf(state).spells.filter((c) => c.tier <= state.tier && !ALE_IDS.includes(c.id) && !c.token && isBoardStatSpell(c) && c.target !== 'friendly' && c.target !== 'any');
     for (let i = 0; i < t.castStatSpell && pool.length > 0; i++) {
       const rng = makeRng(state.rngCursor);
       const pick = pool[rng.int(pool.length)]!;
@@ -1619,12 +1619,39 @@ export function spellCostReduction(state: RunState, def?: CardDef): number {
   return n;
 }
 
-/** "Gives stats" — the buff family, the same set the combat resolver calls the stat family. Shared by Rune of
- *  Thrift (which discounts them) and Rune of the Gilded Ledger (which casts one), so the two can never
- *  disagree about what a stat spell IS. */
+/** Cast factories that GIVE STATS but are not named `spellBuff*` — the handful the prefix rule can't see. */
+const STAT_SPELL_EXTRAS: ReadonlySet<string> = new Set([
+  'spellAverageStats', // Equalize: every friendly ends at the average — it changes stats
+  'rubyStatGain',      // Facetwright's Choice: your Rubies gain +1 Attack / +1 Health
+  // Deliberately NOT here, having been checked rather than assumed: `spellAttackFirst` only sets an initiative
+  // flag, `spellBloodlust` marks an out-of-turn attack, and `spellGainSpellPower` raises FUTURE spells' power.
+  // None of the three puts stats on anything, so none is a "spell that gives stats".
+]);
+
+/** "Gives stats" — Rune of Thrift discounts these, and Rune of the Gilded Ledger casts one, so the two can
+ *  never disagree about what a stat spell IS.
+ *
+ *  Derived rather than hand-listed (owner report 2026-08-26: "any spell that gives stats should be
+ *  discounted"). It used to name FIVE factories explicitly, which silently missed every stat spell added
+ *  since — `spellBuffTargetAndNeighbours`, `spellBuffByTier`, `spellBuffPerDragonPlayed`,
+ *  `spellBuffTargetPerGold`, `spellBuffRandomPerTribe`, the shop-buff family, and more. The `spellBuff`
+ *  PREFIX is the naming convention the whole buff family already follows, so new members are covered the day
+ *  they are authored; `STAT_SPELL_EXTRAS` carries the few stat granters that sit outside that convention. */
 export function isStatSpell(def: CardDef | undefined): boolean {
-  return !!def?.effects.some((e) => e.on === 'cast' &&
-    ['spellBuffTarget', 'spellBuffAll', 'spellBuffRandomFriendlies', 'spellBuffLeftmost', 'spellBuffTargetEscalating'].includes(e.do));
+  return !!def?.effects.some((e) => e.on === 'cast' && (e.do.startsWith('spellBuff') || STAT_SPELL_EXTRAS.has(e.do)));
+}
+
+/** Stat spells that put their stats on YOUR BOARD. The shop-buff family gives stats too — so Rune of Thrift
+ *  rightly discounts them — but "CAST a stat spell" (Rune of the Gilded Ledger) means a payout the player can
+ *  see on their minions, not a buff to offers they may never buy. Splitting the two predicates is deliberate:
+ *  they were one function, and broadening the discount silently changed what the Ledger casts. */
+const SHOP_TARGETED_STAT_SPELLS: ReadonlySet<string> = new Set([
+  'spellBuffShop', 'spellBuffShopByRuby', 'spellBuffTavern', 'spellBuffNextShop',
+]);
+export function isBoardStatSpell(def: CardDef | undefined): boolean {
+  return isStatSpell(def)
+    && !!def?.effects.some((e) => e.on === 'cast' && !SHOP_TARGETED_STAT_SPELLS.has(e.do)
+      && (e.do.startsWith('spellBuff') || STAT_SPELL_EXTRAS.has(e.do)));
 }
 
 /**

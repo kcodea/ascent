@@ -29,6 +29,26 @@ BUGS = [
   ('986-summon-order', SIM,
    'for (const w of [...boards[s]]) {',
    'for (const w of [...boards[s]].reverse()) { // REINJECT: augmenters right\u2192left'),
+  # ── catalog growth wave 2 (2026-08-26): 2 predicted-CAUGHT confirmations, 4 predicted-MISS probes ──
+  ('8f98da40-spellpower-fold', RED if False else 'packages/sim/src/recruit.ts',
+   '''      attack += spellAttackBonus(ctx.state);
+      health += spellHealthBonus(ctx.state);''',
+   '      // REINJECT: stat spell stops folding spell power (#8f98da40 class)'),
+  ('c8a214d7-alltypes-aura', SIM,
+   "if (!m.dead && m.health > 0 && m !== minion && (m.tribe === 'mech' || m.tribe2 === 'mech' || !!m.universalTribe)) ctx.buff(m, minion.rallyMechAtk!, 0, 'Better Bot');",
+   "if (!m.dead && m.health > 0 && m !== minion && (m.tribe === 'mech' || m.tribe2 === 'mech')) ctx.buff(m, minion.rallyMechAtk!, 0, 'Better Bot'); // REINJECT"),
+  ('bf996507-tribe-gate', RED,
+   'if (ptDef?.targetTribe && !isTribe(target, ptDef.targetTribe)) return state;',
+   '// REINJECT: the reducer accepts whatever target uid it is handed (#849 class)'),
+  ('69d6a8e5-fizzle-consumed', RED,
+   '          if (spellFizzles(s, def)) return state;',
+   '          // REINJECT: an unusable untargeted spell is consumed doing nothing (#847 class)'),
+  ('7af61a35-maxgold-cap', RED,
+   's.maxGoldBonus = (s.maxGoldBonus ?? 0) + reps;',
+   's.maxEmbers += reps; // REINJECT: the lead evaporates at the cap (#642 class)'),
+  ('f45525c9-chipper-random', 'packages/sim/src/recruit.ts',
+   'if (params.self !== true) {',
+   'if (true) { // REINJECT: Chipper feeds a random friendly instead of itself (#803 class)'),
 ]
 
 bug_id = sys.argv[1]

@@ -2311,7 +2311,7 @@ export interface CombatResult {
    *  Grim / Taragosa / Pack Leader / Runescale card at the OPPONENT's value, not the current player's. Absent
    *  for the procedural threat / when nothing scaled. Mirrors the values threaded into `simulate` as
    *  `enemyScalers` and used per-side by the combat effects. */
-  enemyScalers?: { spellPower: { attack: number; health: number }; spellsThisTurn: number; beastsPlayed: number; deathrattles: number };
+  enemyScalers?: { spellPower: { attack: number; health: number }; spellsThisTurn: number; beastsPlayed: number; deathrattles: number; conductorBuff: number };
   /** Resolve the player loses on defeat (handoff A.3 step 9). 0 otherwise. */
   playerDamage: number;
   /** The itemized contributions behind `playerDamage` — the opponent's tavern tier plus one entry per

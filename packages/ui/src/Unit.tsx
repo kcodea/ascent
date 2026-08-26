@@ -79,7 +79,11 @@ function UnitInner({ u, side, anim, triggered, rallyPulse, watcherPulse, framePu
         spellProgress: u.spellProgress, ascendProgress: u.ascendProgress, summonBonus: u.summonBonus,
         overflowBonus: u.overflowBonus, hpGrantBonus: u.hpGrantBonus, eotBonus: u.eotBonus, eotTick: u.eotTick,
         sellBonus: u.sellBonus, attackSeen: u.attackSeen, permaGain: u.permaGain,
-        playedThisTurn: beastsPlayed, squirlScoutBuff: foe ? 0 : run.squirlScoutBuff, conductorBuff: foe ? 0 : run.conductorBuff,
+        playedThisTurn: beastsPlayed, squirlScoutBuff: foe ? 0 : run.squirlScoutBuff,
+        // CONDUCTOR — PER SIDE, unlike the run-scoped scalers around it: the foe's snowball rides its snapshot
+        // into `enemyScalers`, so a served Conductor prints the OPPONENT's N instead of falling back to base.
+        // `onBoard` picks the right framing: a combat body is already played, so it reads the CURRENT N.
+        conductorBuff: foe ? (enemyScalers?.conductorBuff ?? 0) : (run.conductorBuff ?? 0), onBoard: true,
         // Drunken Oaf's rep count. Player-only: `enemyScalers` carries no Ale tally, so a served Oaf reads its
         // printed text — the same fallback every other run-scoped scaler takes on the foe side.
         alesThisTurn: foe ? undefined : run.alesCastThisTurn,

@@ -46,6 +46,9 @@ export interface LiveTextParams {
   /** Squirl Scout's run-wide accrued grant size — its live "+N/+N" next grant. */
   squirlScoutBuff?: number;
   conductorBuff?: number;
+  /** True once the card is a real body (board or combat) rather than a shop/hand offer — Conductor reads the
+   *  CURRENT snowball there, not "what playing this would make it". */
+  onBoard?: boolean;
   /** Gold spent this recruit turn — Patch Job shows the current total it'll grant (steps × per-step value). */
   goldSpent?: number;
   /** Gold spent across the WHOLE RUN (`RunState.goldSpent`) — Ancient Wanderer's "+1/+1 per 3 Gold spent this
@@ -149,7 +152,7 @@ export function liveCardText(cardId: string, p: LiveTextParams): { text: string;
             trailForagerText(c.id, p.golden, p.sellBonus ?? 0) ??
             thundeerText(c.id, p.summonBonus ?? 0, p.golden) ??
             squirlScoutText(c.id, p.golden, p.squirlScoutBuff ?? 0) ??
-            conductorText(c.id, p.golden, p.conductorBuff ?? 0, p.improveReps) ??
+            conductorText(c.id, p.golden, p.conductorBuff ?? 0, p.improveReps, p.onBoard) ??
             sergeantText(c.id, p.golden, p.hpGrantBonus ?? 0) ??
             ritualistText(c.id, p.golden, p.eotBonus ?? 0) ?? // Ritualist: live per-tick Fodder/Imp grant (climbs each End of Turn)
             stewardText(c.id, p.golden, p.lastSpellName) ??
@@ -249,7 +252,7 @@ export function instView(
     spellProgress: inst.spellProgress, ascendProgress: inst.ascendProgress, summonBonus: inst.summonBonus,
     overflowBonus: inst.overflowBonus,
     hpGrantBonus: inst.hpGrantBonus, eotTick: eotTickShown, eotBonus: inst.eotBonus, sellBonus: inst.sellBonus, soldProgress: inst.soldProgress,
-    playedThisTurn: live?.playedThisTurn, squirlScoutBuff: live?.squirlScoutBuff, conductorBuff: live?.conductorBuff, alesThisTurn: live?.alesThisTurn,
+    playedThisTurn: live?.playedThisTurn, squirlScoutBuff: live?.squirlScoutBuff, conductorBuff: live?.conductorBuff, onBoard: live?.onBoard, alesThisTurn: live?.alesThisTurn,
     lastSpellName: live?.lastSpellName, grantedTier: inst.grantedTier, improveReps: live?.improveReps,
     rememberedSpellNames: live?.rememberedSpellNames, impBank: live?.impBank,
     firstSpellThisTurnName: live?.firstSpellThisTurnName, lastSpellThisTurnName: live?.lastSpellThisTurnName,

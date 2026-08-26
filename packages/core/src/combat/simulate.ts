@@ -3822,8 +3822,8 @@ export function simulate(
     // Enemy run-level scalers so the UI can render an enemy Grim/Taragosa/Pack Leader/Runescale at the
     // OPPONENT's value. Present only when the enemy actually had a nonzero scaler (else the card's base text
     // is already accurate → the UI's player-side fallback is fine).
-    enemyScalers: (enemySpellPower.attack || enemySpellPower.health || enemySpellsThisTurn || enemyBeastsPlayed || enemyDeathrattles)
-      ? { spellPower: { ...enemySpellPower }, spellsThisTurn: enemySpellsThisTurn, beastsPlayed: enemyBeastsPlayed, deathrattles: enemyDeathrattles }
+    enemyScalers: (enemySpellPower.attack || enemySpellPower.health || enemySpellsThisTurn || enemyBeastsPlayed || enemyDeathrattles || enemyState.conductorBuff)
+      ? { spellPower: { ...enemySpellPower }, spellsThisTurn: enemySpellsThisTurn, beastsPlayed: enemyBeastsPlayed, deathrattles: enemyDeathrattles, conductorBuff: enemyState.conductorBuff ?? 0 }
       : undefined,
   };
 }

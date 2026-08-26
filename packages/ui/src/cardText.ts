@@ -925,14 +925,26 @@ export function squirlScoutText(cardId: string, golden: boolean, squirlScoutBuff
  * play's step) — green, in place of the FIRST printed "+A/+B"; the per-play improve clause stays printed.
  * Null before any accrual (the printed base is accurate).
  */
-export function conductorText(cardId: string, golden: boolean, conductorBuff: number, improveReps = 1): string | null {
+export function conductorText(cardId: string, golden: boolean, conductorBuff: number, improveReps = 1, onBoard = false): string | null {
   if (cardId !== 'n2_conductor' || conductorBuff <= 0) return null;
   const def = CARD_INDEX[cardId];
   if (!def) return null;
   const params = (def.effects.find((e) => e.do === 'battlecryConductorAdjacent')?.params ?? {}) as { attack?: number; health?: number };
   const stepA = Number(params.attack ?? 2);
   const stepH = Number(params.health ?? 3);
-  const next = conductorBuff + (golden ? 2 : 1) * improveReps; // what playing this one now would make N
+  // TWO FRAMINGS, and using the wrong one misprints the card by a full step.
+  //
+  //   In the SHOP / hand, this Conductor has NOT been played yet, so the number that matters is what playing
+  //   it right now would grant — N advances first, then the Shout fires. Hence the +1 (+2 golden, ×improves).
+  //
+  //   ON THE BOARD (and therefore all through COMBAT) it has already been played: N already counts it. The
+  //   grant of any re-fire — a Parting Cry, Ryme, Dawnclaw, Rune of Shared Scripture — is the CURRENT N,
+  //   which is exactly what the arena body applies. Adding a step there printed one increment too many
+  //   (owner report 2026-08-26: the combat text doesn't track what it actually does).
+  //
+  // Floored at 1 to match the arena body, so a body that never went through the shop's play path (summoned,
+  // Discovered straight onto the board) prints the printed +2/+3 it really pays rather than nothing.
+  const next = onBoard ? Math.max(1, conductorBuff) : conductorBuff + (golden ? 2 : 1) * improveReps;
   const src = golden ? (def.goldenText ?? def.text) : def.text;
   let done = false;
   return src.replace(/\+\d+\/\+\d+/g, (m) => (done ? m : ((done = true), `{{+${stepA * next}/+${stepH * next}}}`)));

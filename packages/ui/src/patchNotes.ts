@@ -59,10 +59,11 @@ export const PATCH_NOTES: PatchNote[] = [
     label: 'Fixes',
     changes: [
       { category: 'Card Change', text: 'Conductor now fires during combat. Anything that re-triggers its Shout mid-fight — a Parting Cry, Ryme, Dawnclaw, Rune of Shared Scripture — now buffs its neighbours for the full snowballed amount, instead of doing nothing.' },
-    ],
-  },
-  {
-    date: '2026-08-26',
+      { category: 'Card Change', text: 'Conductor’s card text now tracks what it will really give.', details: [
+        'On your board and in combat it shows the buff it grants RIGHT NOW — it used to read one step high, as if you were about to play another copy.',
+        'In the shop it still shows what playing it would grant.',
+        'An opponent’s Conductor now shows the opponent’s number, and carries their full snowball into the fight.',
+      ] },
       { category: 'Card Change', text: 'Gangplank now triggers for every card that reaches your hand — bought Shop spells, minted Rubies, Discover picks, a full Buyout, and more. It was only counting a few of them.' },
       { category: 'Card Change', text: 'Funeral on Loan: a borrowed Echo minion that summons now fits its summon into the slot the borrowed body leaves behind, instead of doing nothing on a full-looking board.' },
       { category: 'Rune Change', text: 'Rune of the Ornate Clock now MOVES your Epic Runeforge to next turn instead of also giving you the turn-9 one.' },

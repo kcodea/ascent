@@ -6,6 +6,10 @@
  * so every in-combat re-fire — a Parting Cry, Ryme, Dawnclaw, Rune of Shared Scripture — silently did nothing.
  */
 import { describe, expect, it } from 'vitest';
+import { conductorText } from '../../ui/src/cardText';
+import { snapshotBoard } from './snapshot';
+import { sideFromSnapshot } from './boardSide';
+import { createRun, type RunState } from './index';
 import { CARD_INDEX } from '@game/content';
 import { combatSide, makeRng, simulate, type BoardMinion, type CombatEvent } from '@game/core';
 
@@ -38,5 +42,35 @@ describe('Conductor resolves its Shout in combat', () => {
       combatSide({ tier: 4, conductorBuff: 3 }), combatSide({ tier: 6 }),
     );
     expect(buffs(r.events).some((b) => b.attack === 6 && b.health === 9), 'N=3 pays +6/+9').toBe(true);
+  });
+});
+
+/**
+ * …and the printed number has to track what it actually does (owner report 2026-08-26: "its text in combat is
+ * also not updating in real time"). Two separate framings; the card is misprinted by a whole step if the wrong
+ * one is used.
+ */
+describe("Conductor's live text", () => {
+  it('a SHOP offer reads what PLAYING it would grant; a BOARD/COMBAT body reads what it grants NOW', () => {
+    // N = 3 already banked. Playing a fourth would make N = 4 → +8/+12.
+    expect(conductorText('n2_conductor', false, 3), 'shop framing: the step you are about to take').toContain('{{+8/+12}}');
+    // The same body already on the board has been played — N already counts it, so a re-fire pays 3 → +6/+9,
+    // which is exactly what the arena grant applies.
+    expect(conductorText('n2_conductor', false, 3, 1, true), 'board/combat framing: the CURRENT snowball').toContain('{{+6/+9}}');
+  });
+
+  it('at N = 0 the PRINTED text already tells the truth, in either framing', () => {
+    // A body summoned / Discovered straight onto the board never went through the play path, so N is 0 and the
+    // arena grant floors at 1 — i.e. exactly the +2/+3 the card already prints. Nothing to override, so the
+    // helper stands down rather than re-rendering the same numbers.
+    expect(conductorText('n2_conductor', false, 0, 1, true)).toBeNull();
+    expect(conductorText('n2_conductor', false, 0)).toBeNull();
+    expect(CARD_INDEX['n2_conductor']!.text).toContain('+2/+3');
+  });
+
+  it("a SERVED opponent's Conductor carries its own snowball into the fight, not N=1", () => {
+    const snap = snapshotBoard({ ...createRun(5), conductorBuff: 4 } as RunState);
+    expect(snap.conductorBuff, 'the capture records it').toBe(4);
+    expect(sideFromSnapshot(snap, 5, []).conductorBuff, 'and the served side is seeded with it').toBe(4);
   });
 });

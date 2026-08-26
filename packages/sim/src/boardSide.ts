@@ -22,6 +22,7 @@ export function sideFromSnapshot(snap: BoardSnapshot, fallbackTier: number, pool
     beastsPlayed: snap.beastsPlayed ?? 0,
     deathrattles: snap.deathrattles ?? 0,
     spellsCast: snap.spellsCast ?? 0, // enemy Umbral Energy
+    conductorBuff: snap.conductorBuff ?? 0, // enemy Conductor's snowball — its re-fires pay the OWNER's N
     beastBuyAtk: snap.beastBuyAtk ?? 0, // enemy Beast aura
     impAtk: snap.impAura?.attack ?? 0, // enemy Imp Aura → correctly-sized enemy Imp summons
     impHp: snap.impAura?.health ?? 0,

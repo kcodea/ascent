@@ -34,9 +34,11 @@ BUGS = [
    '''      attack += spellAttackBonus(ctx.state);
       health += spellHealthBonus(ctx.state);''',
    '      // REINJECT: stat spell stops folding spell power (#8f98da40 class)'),
+  # replace-ALL: the historical bug lacked the universalTribe arm at every mech-aura site, and the first
+  # narrow (one-site) reinjection was masked by a neighbouring fixed site still granting the buff.
   ('c8a214d7-alltypes-aura', SIM,
-   "if (!m.dead && m.health > 0 && m !== minion && (m.tribe === 'mech' || m.tribe2 === 'mech' || !!m.universalTribe)) ctx.buff(m, minion.rallyMechAtk!, 0, 'Better Bot');",
-   "if (!m.dead && m.health > 0 && m !== minion && (m.tribe === 'mech' || m.tribe2 === 'mech')) ctx.buff(m, minion.rallyMechAtk!, 0, 'Better Bot'); // REINJECT"),
+   "m.tribe === 'mech' || m.tribe2 === 'mech' || !!m.universalTribe",
+   "m.tribe === 'mech' || m.tribe2 === 'mech' /* REINJECT */"),
   ('bf996507-tribe-gate', RED,
    'if (ptDef?.targetTribe && !isTribe(target, ptDef.targetTribe)) return state;',
    '// REINJECT: the reducer accepts whatever target uid it is handed (#849 class)'),

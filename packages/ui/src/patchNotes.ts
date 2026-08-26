@@ -58,6 +58,13 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-08-26',
     label: 'Fixes',
     changes: [
+      { category: 'Card Change', text: 'Pack Leader now counts the same Beasts for everyone — when your board is served as an opponent, its Pack Leader fights at full strength (an all-types minion you played was being missed).' },
+    ],
+  },
+  {
+    date: '2026-08-26',
+    label: 'Fixes',
+    changes: [
       { category: 'Card Change', text: 'A minion that counts as ALL types now genuinely triggers every type’s interactions.', details: [
         'Selling an all-types minion now triggers Voicekeeper (and the rest of the sell-a-type family).',
         'Effects that pick "a friendly minion of a type" can now pick an all-types minion.',

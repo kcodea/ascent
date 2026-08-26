@@ -1,0 +1,11 @@
+import { readFileSync } from 'node:fs';
+import { combatModScan, undertowRider } from '../packages/sim/src/docbot/combatModScan';
+const src = readFileSync('packages/core/src/types.ts', 'utf8');
+const i = src.indexOf('interface QuestCombatMods');
+const j = src.indexOf('\n}', i);
+const keys = [...src.slice(i, j).matchAll(/\n  ([a-zA-Z0-9]+)\??:/g)].map(m => m[1]!);
+const r = combatModScan(keys);
+console.log('changed:', r.changed.length, '| inert:', r.inert.length, '| errored:', r.errored.length);
+console.log('INERT:', r.inert.join(' '));
+console.log('ERRORED:', r.errored.join(' '));
+console.log('undertow rider:', JSON.stringify(undertowRider()));

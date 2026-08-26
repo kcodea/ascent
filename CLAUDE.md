@@ -133,6 +133,7 @@ a rule in a skill stops being true, fix it in the same PR as the behaviour chang
 - `npm test` — Vitest (determinism + golden + effect tests)
 - `npm run harness` — headless combat: prints a narrated event log + proves determinism
 - `npm run lint` — ESLint (incl. the `Math.random` ban)
+- `npm run docbot` — Doc Bot's correctness report (phase gaps, live-text + tribe-predicate + derivation tripwires) — see [`docs/docbot.md`](docs/docbot.md)
 - `npm run build:web` — production build (the CI gate + what players actually run)
 - `npm run dev` — live dev server
 

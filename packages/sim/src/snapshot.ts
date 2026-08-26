@@ -16,7 +16,7 @@ import { CARD_INDEX } from '@game/content';
 import { HEROES } from './heroes';
 import { createRun, type Action, type RunState, type ShopCard, type RunMode } from './state';
 import { reduce, questCombatMods } from './reducer';
-import { spellAttackBonus, spellHealthBonus } from './recruit';
+import { defIsTribe, spellAttackBonus, spellHealthBonus } from './recruit';
 import type { ThreatId } from './threats';
 
 /** Where a pool board came from. 'self' = your own captured run; 'friend' = a friend's imported board;
@@ -270,10 +270,11 @@ export function snapshotBoard(s: RunState): BoardSnapshot {
   // when 0 so plain boards stay lean and legacy captures (no field → 0) read the card's accurate printed base.
   const spellPowerAtk = spellAttackBonus(s);
   const spellPowerHp = spellHealthBonus(s);
-  const beastsPlayed = (s.playedThisTurn ?? []).filter((id) => {
-    const d = CARD_INDEX[id];
-    return !!d && (d.tribe === 'beast' || d.tribe2 === 'beast');
-  }).length;
+  // Through the shared predicate, NOT a raw tribe compare — this line and the reducer's own combat derivation
+  // are a declared derivation pair (docbot/derivations.test.ts): when they disagree, a served board's Pack
+  // Leader fights weaker than its owner's did. The raw compare here missed all-types minions after the reducer
+  // was fixed (#1216) — exactly the drift the pair-test now pins.
+  const beastsPlayed = (s.playedThisTurn ?? []).filter((id) => defIsTribe(CARD_INDEX[id], 'beast')).length;
   // Active reward trophies — the same set the player sees in their own badges (completed quests + owned runes).
   const quests = (s.activeQuests ?? []).filter((q) => q.completed).map((q) => q.questId);
   const runes = [...(s.ownedRunes ?? [])];

@@ -13,7 +13,7 @@ import { FACTORIES, combatCastable } from '@game/core';
 import { readFileSync } from 'node:fs';
 import {
   COMBAT_CASTING_FACTORIES, HEROES, PHASE_EXCUSED, PREDICATE_FILES, RAW_TRIBE_COMPARE_SOURCE,
-  RECRUIT_FACTORY_IDS, TRIBE_RATCHET, TRIGGER_PHASES,
+  RECRUIT_FACTORY_IDS, SPELL_POWER_EXCUSED, TRIBE_RATCHET, TRIGGER_PHASES, runeSwallowScan,
 } from '@game/sim';
 
 /** The ratchet scan, done locally: the registry is pure data (it rides the public sim entrypoint into the
@@ -84,5 +84,21 @@ for (const r of ratchetScan()) {
 
 // ── 2 + 4 pointers (they gate in npm test; nothing to narrate beyond their existence) ──
 console.log('\n── 2. dual-stat live text — gated in packages/ui/src/docbotLiveText.test.ts (the Kringle class)');
-console.log('── 4. derivation pairs — gated in packages/sim/src/docbot/derivations.test.ts (the Chorus class)');
+console.log('── 4. derivation pairs — gated in docbot/derivations.test.ts + snapshotFidelity.test.ts (the Chorus class)');
+console.log('── 5. reference integrity — gated in docbot/refIntegrity.test.ts (#719 crash class; all ids resolve today)');
+console.log('── 6. turn-scoped resets — gated in docbot/turnScopedReset.test.ts (39 fields, all reset today)');
+
+// ── 7. rune reward differential — the duplicate-policy triage queue ──
+const { firstNoops, secondSwallowed } = runeSwallowScan();
+console.log('\n── 7. rune reward differential (the #900 class) ──');
+console.log(`first-copy silent no-ops: ${firstNoops.length ? firstNoops.join(', ') : 'none — every rune reward does something'}`);
+console.log(`\n  ⚠ SECOND-COPY SWALLOWS (${secondSwallowed.length}, ratcheted) — each is a REACHABLE purchase that pays`);
+console.log('    nothing (the forge never excludes owned runes; Duplication doubles any Epic). Per-rune owner');
+console.log('    ruling wanted: stack it, record a copy, or bless it idempotent (→ RUNE_DIFF_EXCUSED):');
+console.log(`    ${secondSwallowed.join(', ')}`);
+
+// ── 8. spell-power folding ──
+console.log('\n── 8. spell-power folding (#817/#731 class) — gated in docbot/spellPowerFolding.test.ts ──');
+for (const [name, e] of Object.entries(SPELL_POWER_EXCUSED)) console.log(`  ${e.kind === 'needs-triage' ? '⚠ ' : '· '}${name} [${e.kind}]: ${e.why}`);
+
 console.log('\nDoctrine + how to extend: docs/docbot.md\n');

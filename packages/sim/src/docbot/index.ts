@@ -12,10 +12,20 @@
  *   3. tribePredicates— raw `.tribe ===` comparisons frozen behind a ratchet; new code goes through
  *                       isTribe/defIsTribe (the all-types class).
  *   4. derivations    — declared "these two code paths must agree" pairs, fuzzed (the Merchant's-Chorus /
- *                       snapshot-drift class).
+ *                       snapshot-drift class). `snapshotFidelity.test.ts` (pre-existing) is the third pair.
+ *
+ * Four more, mined from ~480 historical fix commits (see historyRegistry.ts for the citations):
+ *
+ *   5. refIntegrity   — every id-suffixed param in cards/runes/quests resolves (#719 crash class).
+ *   6. turnScopedReset— every `*ThisTurn` state field is actually reset in the reducer (#1f6c/#517 class).
+ *   7. runeRewardDifferential — every rune's reward changes state, once and again (#900's 41-of-72 class);
+ *                       second-copy swallows are a ratcheted duplicate-policy backlog.
+ *   8. spellPowerFolding — every stat-spell factory folds spell power or says why not (#817/#731 class).
  *
  * `npm run docbot` prints the full report, including the needs-triage backlog the tests tolerate but track.
  * Doctrine and the ledger of what each tripwire has caught: docs/docbot.md.
  */
 export { TRIGGER_PHASES, PHASE_EXCUSED, COMBAT_CASTING_FACTORIES, type PhaseExcuse } from './phaseRegistry';
 export { TRIBE_RATCHET, PREDICATE_FILES, RAW_TRIBE_COMPARE_SOURCE } from './tribeRatchet';
+export { RUNE_DIFF_EXCUSED, SPELL_POWER_EXCUSED, TURN_RESET_EXCUSED } from './historyRegistry';
+export { runeSwallowScan } from './runeSwallowScan';

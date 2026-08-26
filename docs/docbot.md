@@ -71,6 +71,27 @@ docblock. Current pairs: `offerBuyStats` ↔ the reducer's buy path (100 fuzzed 
 `beastsPlayed` ↔ the shared Beast predicate. **When you write "mirrors X" in a comment, add the pair here
 instead** — a comment claiming two functions agree is a testable assertion nobody tests.
 
+## Tripwires 5–8 — mined from the fix history
+
+A sweep of the repo's ~480 `fix` commits found four more recurring, machine-checkable classes. Same doctrine;
+each cites its incidents in the test header. Registries: `packages/sim/src/docbot/historyRegistry.ts`.
+
+| # | Test | Bug class it kills | Historical incidents |
+|---|---|---|---|
+| 5 | `docbot/refIntegrity.test.ts` | An id-suffixed param that doesn't resolve — a crash or silent no-op at runtime | #719, #853, #848 |
+| 6 | `docbot/turnScopedReset.test.ts` | A `*ThisTurn` field never reset — "this turn" quietly means "forever" | #670, #517, #891 |
+| 7 | `docbot/runeRewardDifferential.test.ts` | A rune reward that changes nothing, or swallows a second copy | **#900** (41 of 72 Epics), the `combatFlag` 23-rune incident |
+| 8 | `docbot/spellPowerFolding.test.ts` | A stat-spell factory that skips the spell-power fold | #817, #731 |
+
+Tripwire 7 runs every one of the 281 runes through the **real `buyRune` action** twice and diffs
+bookkeeping-stripped state (`runeSwallowScan.ts`, shared with the CLI so gate and report can't disagree).
+First-copy no-op is a hard gate — zero today. Second-copy swallowing is a **ratcheted backlog of 80**: the
+forge never excludes owned runes and Duplication doubles any Epic, so each is a reachable purchase that pays
+nothing — but stack-vs-idempotent is a per-rune owner ruling (the blueprint's `duplicatePolicy`), so the list
+is a designer queue, not a failure. Two instrument bugs were caught by this test's own sabotage checks and are
+recorded in its header: plain `JSON.stringify` made the diff vacuously green (key reordering), and
+`flagCopies` ticking masked the exact pre-#900 overwrite for amount-carrying flags.
+
 ## What landing Doc Bot found (2026-08-26)
 
 - **16 needs-triage phase gaps** — see `npm run docbot` for the live list. Standouts: `deathrattleBuffShopPermanent`
@@ -79,6 +100,10 @@ instead** — a comment claiming two functions agree is a testable assertion nob
 - **A live gameplay divergence, fixed in the landing PR**: `snapshotBoard` still counted `beastsPlayed` with a
   raw compare after #1216 fixed the reducer — a served board's Pack Leader fought weaker than its owner's.
 - **The arena burn-down target** above.
+- **An 80-rune duplicate-policy queue** (tripwire 7): every rune whose second copy currently does nothing,
+  each a purchasable situation. `npm run docbot` prints it.
+- **Two spell-power rulings wanted** (tripwire 8): `rubyStatGain` and `spellBuffShopByRuby` don't fold spell
+  power — plausibly correct (the Ruby-strength channel), unruled.
 
 ## Extending Doc Bot
 

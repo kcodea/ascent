@@ -1897,6 +1897,7 @@ export function Recruit() {
     // landing (tallyEnd + the def's travel). Clamped to >= 0 so a big negative just fires at the start.
     timers.push(window.setTimeout(() => sfx.tallyTravel(duel.sfxTravelVol), Math.max(0, tallyEnd + duel.sfxTravelDelay)));
     timers.push(window.setTimeout(() => sfx.attackPillAdd(duel.sfxAddVol), Math.max(0, tallyEnd + TALLY_TRAVEL_MS + duel.sfxAddDelay)));
+    timers.push(window.setTimeout(() => sfx.tallyImpact(duel.sfxImpactVol), Math.max(0, tallyEnd + TALLY_TRAVEL_MS + duel.sfxImpactDelay)));
 
     timers.push(window.setTimeout(() => {
       // Dissolve the centre tally into particles that fly to the ATTACKER's portrait ("gaining the attack").

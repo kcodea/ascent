@@ -29,6 +29,26 @@ questions for human confirmation. Not: find every bug, judge balance, or see pix
 
 ---
 
+## Status after the 2026-08-26 build-out (tripwires 13–15 + lane upgrades)
+
+| Limitation | Status |
+|---|---|
+| L1 scenario space | **Combat: done** — seven staged variants, inert queue 54 → 7. Play lane still runs one fixture (+targeted enrichments); its variants are the next increment. |
+| L2 magnitude | **Done for 3 contracts** (`spellBuffTarget`, `battlecryBuffTarget`, `deathrattleSummon` incl. `fixed`/`goldenTokens`) — tripwire 13. Growth = one contract per family as each is ruled unambiguous. |
+| L3 conditional queues | **Largely drained**: combat 54 → 7; hero fixture drained Myra/Djinn; play queue at 5 excused + gravebody. |
+| L4 interactions | **First order done** — tripwire 14: multiplier × family with EXACT doubling (the #900/#897 genus), additivity metamorphic, eligibility sweeps. Copy-semantics probes remain. |
+| L5 hero powers | **Done** — tripwire 15: 34 verified active through the real action; 25 passive/scheduled pinned by kind. Staging the passive kinds is the next increment. |
+| L6 randomness | **Done for tribe-random targets** (10-seed eligibility). Distribution telemetry deliberately not gating. |
+| L7 fuzz depth | **Serialize-resume equivalence + presentation parity added.** Coverage-guided retention and the nightly lifecycle lane remain (the nightly lane needs a workflow file — owner call). |
+| L8 UI | Presentation parity (the machine-checkable half) **done**; the visual half stays human, as stated. |
+| L9 registries | Process unchanged: excuse diffs in review, rulings → probes. |
+
+Instrument catches during this build-out, all recorded in code: partial-result serialization hid economy
+carry-backs (Moe); uid-keyed masking never fired on remapped uids; trigger telemetry (`playerDeathrattles`,
+quest events) masked dead factories; `initial`'s golden flag made the golden lane vacuous; Blessing's doubled
+effect, Emissary's tribe gate and two-step aim, and Manasaber's `fixed` taught the magnitude oracle its own
+contracts; the stable-stringify lesson appeared a third time in serialize-resume.
+
 ## Build order — each phase ships value the day it lands
 
 Ordered by (bugs caught per effort), using the historical fix log as the yield estimator.

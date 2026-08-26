@@ -113,6 +113,9 @@ console.log(`    ${combat.inert.join(', ')}`);
 console.log(`\n  ⚠ GOLDEN-FLAT in combat (${combat.goldenFlat.length}, pinned): ${combat.goldenFlat.join(', ')}`);
 console.log('\n── 11. printed numbers — gated in docbot/textNumbers.test.ts (292 params + golden lane, 0 misses)');
 console.log('── 12. invariant fuzz — gated in docbot/invariantFuzz.test.ts (invariants, determinism, identity-independence)');
+console.log('── 13. magnitude oracles — gated in docbot/magnitudeOracle.test.ts (grants EQUAL params: spellBuffTarget, battlecryBuffTarget, deathrattleSummon incl. fixed/goldenTokens)');
+console.log('── 14. interaction matrix — gated in docbot/interactionMatrix.test.ts (multiplier×family exact doubling, additivity, random-target eligibility across seeds)');
+console.log('── 15. hero power lane — gated in docbot/heroPowerLane.test.ts (34 active through the real action; 25 named passive/scheduled in the pinned queue)');
 
 // ── 8. spell-power folding ──
 console.log('\n── 8. spell-power folding (#817/#731 class) — gated in docbot/spellPowerFolding.test.ts ──');

@@ -23,7 +23,17 @@
 import { describe, expect, it } from 'vitest';
 import { makeRng } from '@game/core';
 import { CONFIG } from '../config';
-import { createRun, modalOpen, reduce, type Action, type RunState } from '../index';
+import { createRun, modalOpen, reduce, reduceWithPresentation, type Action, type RunState } from '../index';
+
+/** Order-insensitive, undefined-skipping stringify (see runeSwallowScan.ts for the original lesson). */
+const stable = (v: unknown): string => {
+  if (Array.isArray(v)) return `[${v.map(stable).join(',')}]`;
+  if (v && typeof v === 'object') {
+    return `{${Object.entries(v as Record<string, unknown>).filter(([, x]) => x !== undefined)
+      .sort(([a], [b]) => (a < b ? -1 : 1)).map(([k, x]) => `${JSON.stringify(k)}:${stable(x)}`).join(',')}}`;
+  }
+  return JSON.stringify(v) ?? 'undefined';
+};
 
 const SEEDS = 12;
 const STEPS = 70;
@@ -132,6 +142,46 @@ describe('Doc Bot — reducer invariant fuzz', () => {
       const fromOriginal = reduce(s, a);
       expect(JSON.stringify(fromClone), `step ${step}: reduce(clone) !== reduce(original) on ${a.type} — hidden dependence on object identity/sharing`).toBe(JSON.stringify(fromOriginal));
       s = fromOriginal;
+    }
+  });
+
+  /** Roadmap L7 — the SAVE/LOAD class, generically: a state that survives a JSON round trip must continue
+   *  IDENTICALLY. Catches non-serializable state reliance (class instances, undefined-vs-missing drift,
+   *  functions smuggled into state) — the failure shape behind restore bugs, without modelling the real
+   *  persistence format. */
+  it('serialize-resume: a JSON round-trip mid-trajectory continues to an identical final state', () => {
+    const rng = makeRng(0x5a5e);
+    let live = createRun(48611);
+    const acts: Action[] = [];
+    for (let step = 0; step < 24; step++) { const a = nextAction(live, rng); acts.push(a); live = reduce(live, a); }
+    let resumed = JSON.parse(JSON.stringify(live)) as RunState; // the round trip
+    const rng2 = makeRng(0x1111);
+    for (let step = 0; step < 24; step++) {
+      const a = nextAction(live, rng2);
+      const b = nextAction(resumed, makeRng(0)); // sanity: generator must see equivalent states
+      void b;
+      live = reduce(live, a);
+      resumed = reduce(resumed, a);
+      // ORDER-INSENSITIVE comparison — the third appearance of the stable-stringify lesson: a key holding
+      // `undefined` survives in the live object but vanishes in the round trip, and a later spread re-adds it
+      // at the END, so plain JSON.stringify flags a pure ordering difference as divergence. Values are what
+      // the game depends on; key order is not.
+      expect(stable(resumed), `step ${step} after ${a.type}: the resumed run diverged from the live one — state relies on something a JSON round trip cannot carry`).toBe(stable(live));
+    }
+  });
+
+  /** Roadmap L8 (the machine-checkable half) — presentation capture must be gameplay-inert: for every
+   *  trajectory step, `reduceWithPresentation(capture: true)` must produce the same gameplay state as plain
+   *  `reduce`. The blueprint's presentation-parity oracle; the visual half stays human. */
+  it('presentation parity: capturing beats never changes the gameplay state', () => {
+    const rng = makeRng(0x9a71);
+    let s = createRun(75989);
+    for (let step = 0; step < 40; step++) {
+      const a = nextAction(s, rng);
+      const plain = reduce(s, a);
+      const withCapture = reduceWithPresentation(structuredClone(s), a, true).state;
+      expect(JSON.stringify(withCapture), `step ${step} after ${a.type}: presentation capture CHANGED gameplay state — the capture is supposed to observe, never steer`).toBe(JSON.stringify(plain));
+      s = plain;
     }
   });
 });

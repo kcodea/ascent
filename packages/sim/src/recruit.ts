@@ -6669,6 +6669,14 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   },
 };
 
+/** DOC BOT — the recruit dispatch surface, as data. Every recruit-side trigger site looks a factory up with
+ *  `RECRUIT_FACTORIES[effect.do]?.(...)`, so an id that is missing here is a SILENT NO-OP, not an error — the
+ *  exact shape of the Conductor-in-combat and Funeral-on-Loan bugs (owner reports 2026-08-26). Doc Bot's
+ *  `factoryPhase.test.ts` walks content against this set + the combat `FACTORIES` keys and fails on any
+ *  (trigger, factory) pair that has no implementation in a phase where that trigger dispatches and no
+ *  registered excuse. Export the KEYS only — the functions stay private. */
+export const RECRUIT_FACTORY_IDS: ReadonlySet<string> = new Set(Object.keys(RECRUIT_FACTORIES));
+
 /**
  * ANCIENT WANDERER's sync — see `goldSpentScaleSelf`.
  *

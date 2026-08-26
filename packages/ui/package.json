@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@game/content": "*",
+    "@game/rules": "*",
     "@game/core": "*",
     "@game/sim": "*",
     "@supabase/supabase-js": "^2.108.2",

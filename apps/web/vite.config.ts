@@ -6,6 +6,7 @@ import react from '@vitejs/plugin-react';
 import { fxDefsPlugin } from './fxDefsPlugin';
 import { uiAssetPlugin } from './uiAssetPlugin';
 import { beatLabPlugin } from './beatLabPlugin';
+import { rulebookPlugin } from './rulebookPlugin';
 
 const r = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 
@@ -30,13 +31,14 @@ export default defineConfig(({ command }) => ({
   // the dev server ONLY, and are inert (never instantiated) in a production build. `fxDefsPlugin` = the FX
   // workbench's /__fx/def + /__fx/art; `uiAssetPlugin` = the in-run UI editor's /__ui/asset image upload;
   // `beatLabPlugin` = the Beat Lab's /__beat-lab/defaults commit (writes packages/ui/src/beatLab/beat-defaults.json).
-  plugins: [react(), fxDefsPlugin(), uiAssetPlugin(), beatLabPlugin()],
+  plugins: [react(), fxDefsPlugin(), uiAssetPlugin(), beatLabPlugin(), rulebookPlugin()],
   resolve: {
     alias: {
       '@game/core': r('../../packages/core/src/index.ts'),
       '@game/content': r('../../packages/content/src/index.ts'),
       '@game/sim': r('../../packages/sim/src/index.ts'),
       '@game/ui': r('../../packages/ui/src/index.ts'),
+      '@game/rules': r('../../packages/rules/src/index.ts'),
     },
   },
 }));

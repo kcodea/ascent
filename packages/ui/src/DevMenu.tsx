@@ -15,6 +15,7 @@ import { LobbyPanelTuner } from './LobbyPanelTuner';
 import { TitleLogoTuner } from './TitleLogoTuner';
 import { LoadScreenTuner } from './LoadScreenTuner';
 import { HeroDuelTuner } from './HeroDuelTuner';
+import { RulebookTriage } from './RulebookTriage';
 import { TitleVeilTuner } from './TitleVeilTuner';
 import { BoardEdgeTuner } from './BoardEdgeTuner';
 import { SecondPowerTuner } from './SecondPowerTuner';
@@ -84,6 +85,14 @@ import { isUiEditMode, setUiEditMode } from './uiEditor/config';
  *
  * Mounted only in dev (see Game.tsx), so the whole menu — and every tuner — is stripped from production.
  */
+
+/** DEV MENU entry for the Rulebook board — a fullscreen overlay, not a slider panel, so the Tuner slot just
+ *  toggles it. Close returns to the menu. */
+function RulebookTriageEntry(): JSX.Element | null {
+  const [open, setOpen] = useState(true);
+  if (!open) return null;
+  return <RulebookTriage onClose={() => setOpen(false)} />;
+}
 
 type Tuner = {
   key: string;
@@ -204,6 +213,13 @@ const GROUPS: Group[] = [
       { key: 'platedissolve', icon: '🌀', label: 'Dissolve', C: PlateDissolveTuner, hint: "What plays when a hand card's backplate leaves", alt: 'plate' },
       { key: 'platecoalesce', icon: '🪄', label: 'Coalesce', C: PlateCoalesceTuner, hint: 'What plays when a card is generated into hand', alt: 'plate' },
       { key: 'plategild', icon: '👑', label: 'Gild', C: PlateGildTuner, hint: 'Three copies combining into a gilded card', alt: 'plate golden triple' },
+    ],
+  },
+  {
+    id: 'design',
+    title: 'Design & QA',
+    items: [
+      { key: 'rulebook', icon: '📜', label: 'Rulebook Triage', C: RulebookTriageEntry, hint: "The owner's ruling board — Doc Bot's queues as clickable Approve/Revise/Reject cards; clicks write decisions.json", alt: 'docbot rules triage board approve' },
     ],
   },
   {

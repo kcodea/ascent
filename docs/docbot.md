@@ -128,6 +128,15 @@ New owner queues from the behavioural layer (all printed by `npm run docbot`):
 - **Two spell-power rulings wanted** (tripwire 8): `rubyStatGain` and `spellBuffShopByRuby` don't fold spell
   power — plausibly correct (the Ruby-strength channel), unruled.
 
+## The rulebook layer (tripwires cite rules from here on)
+
+`@game/rules` is the registry that breaks Doc Bot's last circularity — implementation-as-its-own-oracle.
+Approved rules enter only on explicit owner rulings (five seeded from the Complete Rulebook handoff);
+`npm run rules:seed` regenerates the pending backlog from Doc Bot's live queues (274 verified-reachable
+questions at first seed); and the owner decides them in **DEV MENU → Rulebook Triage** — each click writes a
+git-tracked ruling to `packages/rules/src/registry/decisions.json` through the dev server. `docs/rulebook/`
+carries the human-readable snapshot.
+
 ## From tripwire layer to QA machine
 
 The explicit limitation list, each blind spot's circumvention, and the phased build order live in

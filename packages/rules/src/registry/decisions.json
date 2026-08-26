@@ -1,1 +1,103 @@
-{}
+{
+  "q-combatinert-b2_echohorn": {
+    "decision": "revise",
+    "note": "I think you are wrong here, echohorn seems to trigger correctly. it triggers the left-most echo when it attacks. not sure what circumstances you had where it did not work, but if you have examples please surface them",
+    "decidedAt": "2026-08-26T18:09:57.129Z"
+  },
+  "q-phase-countTribeSummon": {
+    "decision": "revise",
+    "note": "I am assuming this means that its text does not improve when beasts are summoned in combat, which is corrrect. the text on the card is pretty bad, but \"beast PLAYED\" means that the beast was played from hand. either way, the card is working correctly and as intended. the text on the card should probably change to be more specific that the buff grows from beasts played in shop.",
+    "decidedAt": "2026-08-26T19:06:37.544Z"
+  },
+  "q-phase-deathrattleBuffShopPermanent": {
+    "decision": "revise",
+    "note": "The echo should be able to fire in the shop phase if something triggers echoes in shop phase and points at malphas.",
+    "decidedAt": "2026-08-26T19:08:49.277Z"
+  },
+  "q-phase-deathrattleTriggerAdjacentRally": {
+    "decision": "reject",
+    "decidedAt": "2026-08-26T19:09:50.596Z"
+  },
+  "q-phase-echoCastRememberedSpells": {
+    "decision": "reject",
+    "decidedAt": "2026-08-26T19:10:01.367Z"
+  },
+  "q-phase-impInheritOnDeath": {
+    "decision": "reject",
+    "decidedAt": "2026-08-26T19:10:09.808Z"
+  },
+  "q-phase-impInheritOnSummon": {
+    "decision": "reject",
+    "decidedAt": "2026-08-26T19:10:22.668Z"
+  },
+  "q-phase-onFriendDeathGainEcho": {
+    "decision": "reject",
+    "decidedAt": "2026-08-26T19:10:24.874Z"
+  },
+  "q-phase-onFriendDeathSummon": {
+    "decision": "reject",
+    "decidedAt": "2026-08-26T19:10:37.760Z"
+  },
+  "q-phase-onRubyPlayedSpreadRandom": {
+    "decision": "reject",
+    "decidedAt": "2026-08-26T19:10:52.009Z"
+  },
+  "q-phase-onSummonOverflowBuffTribe": {
+    "decision": "approve",
+    "decidedAt": "2026-08-26T19:10:59.304Z",
+    "note": "OVERRIDDEN TO APPROVE per owner chat 2026-08-26: 'Cratering hulk can remain as in combat only actually since the text says that ... we can have overflow triggers in shop phase as well for other cards/runes if they are not combat specific. i know flowing monk worked this way.' Combat-only stands; shop-phase overflow triggers stay legal for non-combat-specific cards (Flowing Monk precedent)."
+  },
+  "q-phase-onSummonSelfBuff": {
+    "decision": "approve",
+    "decidedAt": "2026-08-26T19:11:04.768Z",
+    "note": "OVERRIDDEN TO APPROVE per owner chat 2026-08-26: 'Cratering hulk can remain as in combat only actually since the text says that ... we can have overflow triggers in shop phase as well for other cards/runes if they are not combat specific. i know flowing monk worked this way.' Combat-only stands; shop-phase overflow triggers stay legal for non-combat-specific cards (Flowing Monk precedent)."
+  },
+  "q-phase-onSummonTribeBuffThenDouble": {
+    "decision": "approve",
+    "decidedAt": "2026-08-26T19:11:29.928Z"
+  },
+  "q-phase-onTribePlayedBuffSelfPerSpell": {
+    "decision": "revise",
+    "note": "assuming this means that the vaultkeeper doesnt gain stats if a dragon is summoned in combat, that is correct behavior.",
+    "decidedAt": "2026-08-26T19:11:59.663Z"
+  },
+  "q-phase-onTribeSummonedBuffTribe": {
+    "decision": "approve",
+    "decidedAt": "2026-08-26T19:12:12.432Z"
+  },
+  "q-phase-rubyPlayedGold": {
+    "decision": "approve",
+    "decidedAt": "2026-08-26T19:12:16.498Z"
+  },
+  "q-phase-summonBuffTribeImprove": {
+    "decision": "approve",
+    "decidedAt": "2026-08-26T19:12:27.105Z"
+  },
+  "q-policy-rune-duplicates": {
+    "decision": "reject",
+    "decidedAt": "2026-08-26T19:13:39.261Z"
+  },
+  "q-spellpower-spellBuffShopByRuby": {
+    "decision": "reject",
+    "decidedAt": "2026-08-26T19:14:41.556Z"
+  },
+  "q-policy-passive-hero-powers": {
+    "decision": "revise",
+    "note": "Gildmaster was changed somewhat recently but is working correctly. Hunch is active and it does work, but you need to have cast a spell. working as intended. everything else is correct as well, all good here.",
+    "decidedAt": "2026-08-26T19:18:18.739Z"
+  },
+  "q-policy-refused-spells": {
+    "decision": "revise",
+    "note": "not sure i understand where this is not working to be honest.",
+    "decidedAt": "2026-08-26T19:19:05.924Z"
+  },
+  "q-spellpower-rubyStatGain": {
+    "decision": "approve",
+    "decidedAt": "2026-08-26T19:20:01.084Z"
+  },
+  "q-watch-gravebody": {
+    "decision": "revise",
+    "note": "this card should get reworked, but it is also not currently active in the game. we'll revisit when we need to",
+    "decidedAt": "2026-08-26T19:20:24.620Z"
+  }
+}

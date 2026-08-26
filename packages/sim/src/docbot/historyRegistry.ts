@@ -33,8 +33,7 @@ export const SPELL_POWER_EXCUSED: Readonly<Record<string, { kind: 'documented-fl
   spellBuffTavern: { kind: 'documented-flat', why: "Apples' current-shop option — its own docblock says flat, matching the next-shop option" },
   spellBuffNextShop: { kind: 'documented-flat', why: 'Apples\' banked option — docblock: "Flat (no spell-power scaling), like the current-shop option"' },
   spellAverageStats: { kind: 'derived-magnitude', why: 'Equalize: the grant IS the board average — there is no printed magnitude for spell power to scale' },
-  rubyStatGain: { kind: 'needs-triage', why: "Facetwright's Choice buffs Rubies; Ruby strength has its own channel (rubyBonus) — whether spell power should ALSO fold needs an owner ruling" },
-  spellBuffShopByRuby: { kind: 'needs-triage', why: 'Veinstorm: sized by Ruby strength, not spell power — plausibly other-channel, unruled' },
+  rubyStatGain: { kind: 'other-channel', why: 'OWNER RULED 2026-08-26 (q-spellpower-rubyStatGain approved): flat is correct — Ruby strength is its own channel.' },
 };
 
 /**

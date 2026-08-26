@@ -34,6 +34,9 @@ export function heroScan(): HeroScanRow[] {
     return { uid, cardId, tribe: d.tribe, attack: d.attack, health: d.health, keywords: [...d.keywords], golden: false } as BoardCard;
   };
   const eot = Object.values(CARD_INDEX).find((c) => c && !c.spell && !c.token && c.effects.some((e) => e.on === 'endOfTurn'))!;
+  // A prior spell cast, so Hunch (roundedSpellbook: 'a copy of the LAST spell you cast') reads active
+  // instead of no-opping on an empty spellbook (staged per the owner's 2026-08-26 triage session).
+  const spell = Object.values(CARD_INDEX).find((c) => c && c.spell && !c.token)!;
   return HEROES.map((hero) => {
     const s0: RunState = {
       ...createRun(0x4e60, hero.id),
@@ -42,6 +45,7 @@ export function heroScan(): HeroScanRow[] {
       board: [body('b0', 'pup'), body('b1', 'emissary'), body('b2', eot.id)],
       hand: [],
       shop: [{ uid: 'off0', cardId: 'pup' }],
+      lastSpellCastId: spell.id, spellsThisTurn: 1,
     } as RunState;
     const attempts: Parameters<typeof reduce>[1][] = [
       { type: 'heroPower' },

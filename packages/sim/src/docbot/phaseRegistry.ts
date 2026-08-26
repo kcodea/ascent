@@ -115,19 +115,12 @@ export const PHASE_EXCUSED: Readonly<Record<string, PhaseExcuse>> = {
   //    Funeral-on-Loan bug shape and want a ruling: trigger each in the shop and watch. ──
   deathrattleDestroyKiller: { phase: 'recruit', kind: 'no-surface', why: 'destroys the KILLER; a shop-side Echo replay has no killer' },
   echoResummonDeadBeasts: { phase: 'recruit', kind: 'no-surface', why: 'resummons Beasts that died THIS COMBAT; the shop has no dead-this-combat list' },
-  echoCastRememberedSpells: { phase: 'recruit', kind: 'needs-triage', why: 'casts remembered spells — the shop CAN cast spells; a shop-side Echo replay currently does nothing' },
-  onFriendDeathSummon: { phase: 'recruit', kind: 'needs-triage', why: 'friends can die in the shop (destroy effects); currently silent there' },
-  impInheritOnDeath: { phase: 'recruit', kind: 'needs-triage', why: 'shop-side deaths/replays currently silent' },
-  deathrattleBuffShopPermanent: { phase: 'recruit', kind: 'needs-triage', why: 'a SHOP buff whose Echo cannot fire in the shop is suspicious — the shop is exactly where the shop exists' },
-  onFriendDeathGainEcho: { phase: 'recruit', kind: 'needs-triage', why: 'shop-side deaths currently silent' },
-  deathrattleTriggerAdjacentRally: { phase: 'recruit', kind: 'needs-triage', why: 'the shop HAS a Rally dispatcher (fireShopRally); a shop-side Echo replay currently does not reach it' },
 
   // ── onSummon / summonOverflow / onGainAttack with no recruit factory ──
-  onSummonSelfBuff: { phase: 'recruit', kind: 'needs-triage', why: 'summons happen in the shop; currently silent there' },
-  impInheritOnSummon: { phase: 'recruit', kind: 'needs-triage', why: 'summons happen in the shop; currently silent there' },
-  onSummonTribeBuffThenDouble: { phase: 'recruit', kind: 'needs-triage', why: 'summons happen in the shop; currently silent there' },
+  onSummonSelfBuff: { phase: 'recruit', kind: 'no-surface', why: 'OWNER RULED 2026-08-26: combat-only per its printed text ("when a minion is summoned in combat"). Shop overflow triggers stay legal for non-combat-specific cards (Flowing Monk precedent).' },
+  onSummonTribeBuffThenDouble: { phase: 'recruit', kind: 'no-surface', why: 'OWNER RULED 2026-08-26: correct as-is (combat-only summons doubling).' },
   onSummonImpBuff: { phase: 'recruit', kind: 'other-channel', why: 'the shop applies the Imp aura through the run-wide impBuff channel at mint time' },
-  onSummonOverflowBuffTribe: { phase: 'recruit', kind: 'needs-triage', why: 'the shop CAN overflow (echo replays on a full board); currently silent there' },
+  onSummonOverflowBuffTribe: { phase: 'recruit', kind: 'no-surface', why: 'OWNER RULED 2026-08-26: Cratering Hulk stays combat-only per its text; shop overflow triggers remain legal for cards that are not combat-specific.' },
   onGainAttackImproveHpGrant: { phase: 'recruit', kind: 'outside-map', why: 'hand-mirrored in recruit.ts (~line 418: "in the shop here, mirrored in combat by onGainAttackImproveHpGrant")' },
 
   // ── implemented outside the map on the RECRUIT side ──
@@ -136,14 +129,13 @@ export const PHASE_EXCUSED: Readonly<Record<string, PhaseExcuse>> = {
 
   // ── more onSummon-family gaps surfaced by this test's own first run (2026-08-26) ──
   onTribePlayedConsumeShop: { phase: 'combat', kind: 'no-surface', why: 'Consumes from the SHOP on a tribe play; no shop mid-fight' },
-  summonBuffTribeImprove: { phase: 'combat', kind: 'needs-triage', why: 'summons happen in combat constantly; currently silent there' },
-  countTribeSummon: { phase: 'combat', kind: 'needs-triage', why: 'a summon tally; whether combat summons should count needs an owner ruling' },
-  onTribeSummonedBuffTribe: { phase: 'combat', kind: 'needs-triage', why: 'combat summons currently do not feed it' },
-  onTribePlayedBuffSelfPerSpell: { phase: 'combat', kind: 'needs-triage', why: 'combat plays (Bloodbinder-family) currently silent' },
+  summonBuffTribeImprove: { phase: 'combat', kind: 'no-surface', why: 'OWNER RULED 2026-08-26: correct — Den Mother does not feed from combat summons.' },
+  countTribeSummon: { phase: 'combat', kind: 'no-surface', why: 'OWNER RULED 2026-08-26: correct — "played" means from hand in the shop; combat summons do not feed the counter (Pack Leader text clarified to say "in the Shop").' },
+  onTribeSummonedBuffTribe: { phase: 'combat', kind: 'no-surface', why: 'OWNER RULED 2026-08-26: correct — "when you play a Dwarf" is a shop event.' },
+  onTribePlayedBuffSelfPerSpell: { phase: 'combat', kind: 'no-surface', why: 'OWNER RULED 2026-08-26: correct — Vaultkeeper does not gain stats from combat summons.' },
 
   // ── onRubyPlayed in combat (Bloodbinder-family plays real Rubies mid-fight) ──
-  onRubyPlayedSpreadRandom: { phase: 'combat', kind: 'needs-triage', why: 'a combat-played Ruby currently does not spread; plausible real gap' },
-  rubyPlayedGold: { phase: 'combat', kind: 'needs-triage', why: 'Gold from a combat-played Ruby would need the settle carry-back channel; unruled' },
+  rubyPlayedGold: { phase: 'combat', kind: 'no-surface', why: 'OWNER RULED 2026-08-26: correct — no Gold from combat-played Rubies.' },
 
   // ── passive markers ──
   goldSpentScaleSelf: { phase: 'combat', kind: 'other-channel', why: 'stats are synced at shop time (syncGoldSpentScalers); combat receives the already-scaled body' },

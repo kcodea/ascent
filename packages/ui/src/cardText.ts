@@ -1001,10 +1001,18 @@ export function perCardPlayedText(cardId: string, cardsPlayedThisTurn: number, g
   const eff = def?.effects.find((e) => e.do === 'endOfTurnBuffLeftmostTribePerCard');
   if (!def || !eff) return null;
   if (cardsPlayedThisTurn <= 0) return null;
-  const per = Number((eff.params as { attack?: number })?.attack ?? 1) * (golden ? 2 : 1);
-  const total = per * cardsPlayedThisTurn;
+  const params = (eff.params ?? {}) as { attack?: number; health?: number };
+  const mult = golden ? 2 : 1;
+  const perA = Number(params.attack ?? 1) * mult;
+  const perH = Number(params.health ?? 0) * mult;
+  // BOTH halves. Kringle was rebalanced +1 Attack → +1/+1 → +1/+2 (owner 2026-08-04 / 2026-08-15), but this
+  // helper was written for the Attack-only version and never grew a Health term — so the moment you played a
+  // card the live text replaced the printed "+1/+2" with "+1 Attack" and the Health silently vanished from the
+  // card (owner report 2026-08-26). It reads the effect's params now, so a future reprice needs no edit here.
+  const rate = perH > 0 ? `+${perA}/+${perH}` : `+${perA} Attack`;
+  const grant = perH > 0 ? `+${perA * cardsPlayedThisTurn}/+${perH * cardsPlayedThisTurn}` : `+${perA * cardsPlayedThisTurn} Attack`;
   // Plain parentheses, no `_italics_` — the Card renderer only knows **bold**, so underscores print literally.
-  return `**End of Turn:** give your **left-most Dwarf {{+${total} Attack}}** (+${per} per card played this turn).`;
+  return `**End of Turn:** give your **left-most Dwarf {{${grant}}}** (${rate} per card played this turn).`;
 }
 
 export function perGoldSpentText(cardId: string, goldSpentThisTurn: number, golden = false): string | null {

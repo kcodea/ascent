@@ -55,6 +55,17 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-08-26',
+    label: 'Fixes',
+    changes: [
+      { category: 'Card Change', text: 'Kringle again shows its full grant — its text was dropping the Health half the moment you played a card.' },
+      { category: 'Rune Change', text: 'A shop buffed “for this turn” now sticks to the minion you buy.', details: [
+        'Rune of the Merchant’s Chorus and Night Market Horror buff minions in the shop for the turn — buying one used to pay only part of what the shop showed.',
+        'The bought minion now arrives with the advertised stats and keeps them on the board.',
+      ] },
+    ],
+  },
+  {
     date: '2026-08-25',
     label: 'Practice Bots',
     changes: [

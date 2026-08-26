@@ -1239,6 +1239,18 @@ function reduceCore(state: RunState, action: Action): RunState {
       if ((s.tavernBuyBonus.atk || s.tavernBuyBonus.hp) && !card.keywords.includes('FD')) {
         addBuff(bought, 'Staff of Guel', s.tavernBuyBonus.atk, s.tavernBuyBonus.hp);
       }
+      // …and the THIS-TURN shop enchant (`tavernBuyBonusTurn` — Rune of the Merchant's Chorus, Night Market
+      // Horror) on exactly the same rails, with the same Fodder exclusion for the same reason.
+      //
+      // "This turn" scopes WHICH OFFERS get enchanted, not how long a bought minion keeps it: once you pay for
+      // a +40/+40 body it is yours, buffs and all. Without this the shop advertised the enchanted stats (the
+      // row view sums BOTH layers) and the purchase quietly paid only the permanent half (owner report
+      // 2026-08-26). `offerBuyStats` — the CONSUME path's "what is this offer worth" — has always summed both,
+      // so buying and eating the same offer disagreed, which is its own proof this line was the missing one.
+      const turnShop = s.tavernBuyBonusTurn;
+      if (turnShop && (turnShop.atk || turnShop.hp) && !card.keywords.includes('FD')) {
+        addBuff(bought, 'Shop Enchant', turnShop.atk, turnShop.hp);
+      }
       // Veinstorm — the run-wide shop grant that is made of RUBIES (owner 2026-08-06). Same shape as the Staff
       // bonus above and the same Fodder exclusion, but recorded under the `Ruby` source, which is the entry
       // `rubyTallyOf` reads in BOTH phases: the bought minion now genuinely carries "N Rubies", so a Gemheart

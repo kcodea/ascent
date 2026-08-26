@@ -268,10 +268,13 @@ describe('live values on climbing / per-turn cards (owner ask 2026-07-29)', () =
     expect(shopBuffImproveText('dm_curator', 2, true)!).toContain('{{+6 Attack}}');
   });
 
-  it('Closing-Time Foreman prints the Attack it will give for cards played so far', () => {
+  // Kringle (ex-Closing-Time Foreman). This used to assert '{{+4 Attack}}' — written when the card really was
+  // Attack-only, and left behind by the two rebalances that made it +1/+1 and then +1/+2. It was therefore
+  // pinning the bug in place: the live text dropped the Health half (owner report 2026-08-26).
+  it('Kringle prints BOTH halves of what it will give for cards played so far', () => {
     expect(perCardPlayedText('dw_foreman', 0), 'nothing played yet — printed rate stands').toBeNull();
-    expect(perCardPlayedText('dw_foreman', 4, false)!).toContain('{{+4 Attack}}');
-    expect(perCardPlayedText('dw_foreman', 4, true)!).toContain('{{+8 Attack}}');
+    expect(perCardPlayedText('dw_foreman', 4, false)!).toContain('{{+4/+8}}');
+    expect(perCardPlayedText('dw_foreman', 4, true)!).toContain('{{+8/+16}}');
   });
 });
 

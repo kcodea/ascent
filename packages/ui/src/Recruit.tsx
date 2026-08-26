@@ -1791,6 +1791,11 @@ export function Recruit() {
     const run0 = useGame.getState().run;
     if (run0.combatSettled) return;
     lossSeqRef.current = true;
+    // A SKIP mutes all audio to cut the replay short (stopAllAudio), and it stays muted until the fight is left
+    // — which used to silence THIS whole post-combat sequence too (owner report 2026-08-25: skipped combat has
+    // no duel sound). The replay is over by here, so its purpose is served: un-mute so the tally / pill / lunge
+    // SFX play whether or not the fight was skipped. A no-op when nothing suspended it.
+    resumeAudio();
 
     // The tally flies from the WINNER's surviving board — theirs on a loss, YOURS on a win (owner ask
     // 2026-08-25: a win must tally and strike exactly like a loss does).

@@ -492,12 +492,12 @@
       "anchor": "target",
       "at": 530,
       "params": {
-        "count": 132,
+        "count": 234,
         "interval": 600,
         "spread": 1,
         "aimMode": "travel",
         "angle": -90,
-        "speed": 865,
+        "speed": 590,
         "speedVar": 0.5,
         "reverse": false,
         "speedCurve": [
@@ -511,9 +511,9 @@
           ]
         ],
         "drag": 0.9,
-        "gravity": 0,
-        "pointGravity": 0,
-        "life": 2700,
+        "gravity": 20,
+        "pointGravity": 20,
+        "life": 2450,
         "orientToVelocity": false,
         "spinMul": 1,
         "spinCurve": [
@@ -541,7 +541,7 @@
         "inheritVel": 0,
         "shape": "shard",
         "size": 13,
-        "sizeVar": 0.5,
+        "sizeVar": 0.52,
         "stretchX": 1,
         "stretchY": 1,
         "sizeCurve": [

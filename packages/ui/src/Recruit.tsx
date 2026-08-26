@@ -49,6 +49,9 @@ import { getSpellBuffFxConfig } from './spellBuffFxConfig';
 import { fireSpellBuff, fireSpellBuffOnHandSpells, fireSpellBuffOnHandRubies } from './spellBuffFx';
 import { HudBar } from './HudBar';
 import { LobbyPanel } from './LobbyPanel';
+import { CombatOpponent } from './CombatOpponent';
+import { playHeroStrike } from './choreo/heroStrike';
+import { getHeroDuelConfig } from './heroDuelConfig';
 import { EndTurnButton } from './EndTurnButton';
 import { RiftButton } from './RiftButton';
 import { RefreshButton } from './RefreshButton';
@@ -193,7 +196,13 @@ const END_TURN_LOCK_MS = 2000; // 5000 → 2000 (owner re-tune 2026-07-31: the l
 // moves past it — below 0.5 so cards slide out of the way sooner / more sensitively.
 const INSERT_FRAC = 0.5; // insert after a card once the *dragged card's centre* passes its midpoint
 const TURN_SECONDS = 18; // base round timer; grows +4s/wave (+6s more from round 6 — owner 2026-07-16), capped at 80 — and floored at CHARGE_SECONDS+1, so wave 1 actually kicks off at 21s (see turnSeconds)
-const CHARGE_SECONDS = 20; // the charge glyph fills over the final 20s of the turn
+const CHARGE_SECONDS = 20;
+/** The strike's own window (wind-up + lunge + recoil) before the tuner's Settle is added — the outer bound for
+ *  the cleanup timer. The lunge's timeline is speed-scaled; the beats around it live in the ⚔️ Hero Duel tuner. */
+const STRIKE_BASE = 1500;
+/** The tally def's ribbon travel (ms) — the burst fires at its end. Keep in sync with `tallyanimation1.json`
+ *  (the ribbon layer's `travelMs` and the burst layer's `at`). The pill buffs when the tally lands here. */
+const TALLY_TRAVEL_MS = 800; // the charge glyph fills over the final 20s of the turn
 const CHARGE_MAX_FEATHER = 24; // % — the reveal feather = this × (1−charge): soft incoming fronts, 0 at completion (no sigil dimming)
 const CHARGE_FADEOUT_MS = 450; // when the glyph stops being lit (End Turn / timer end) it fades out over this, not a snap-cut (keep in sync with `.chargeglyph.fading` transition in styles.css)
 
@@ -1446,7 +1455,15 @@ export function Recruit() {
   const [lossPos, setLossPos] = useState<{ x: number; y: number } | null>(null); // counter screen pos
   const [lossFlyers, setLossFlyers] = useState<{ id: number; tier: number; x: number; y: number; tx: number; ty: number; delay: number; isOpp?: boolean }[]>([]);
   const [lossShake, setLossShake] = useState(false); // screen shake on the blast impact
-  const lossSeqRef = useRef(false);                // guards single-run per combat
+  const lossSeqRef = useRef(false);
+  /** The post-combat hero-strike sequence's timers. Held in a REF, not in the effect's closure, because the
+   *  effect's deps (`replay.frame`) keep changing after the replay ends — a cleanup tied to those deps tore the
+   *  in-flight strike down mid-swing (measured: the pill appeared, then died ~1s early and the blow never
+   *  landed). `lossSeqRef` already guarantees the sequence starts once; these are cleared when combat actually
+   *  ends, and on unmount. */
+  const seqTimersRef = useRef<number[]>([]);
+  /** Monotonic strike counter — keys the red damage-taken number so it remounts + replays its pop each swing. */
+  const lossSeqSeqRef = useRef(0);                // guards single-run per combat
   const endTurnPendingRef = useRef(false); // the end-of-turn beat sequence is playing before combat
   // CHOREOGRAPHER PR 4: cancels the authoritative player's rAF loop and force-commits, so unmounting
   // mid-animation can never strand a prepared transaction with End Turn locked.
@@ -1693,10 +1710,12 @@ export function Recruit() {
 
   // Once the combat replay finishes, settle the outcome (damage + carry-backs) right here in the combat
   // view — so the Resolve hit lands and is visible before the "End Combat" button returns you to the shop.
-  // On a LOSS we defer settle to the loss-damage sequence below (so Resolve drops on the blast impact, not
-  // instantly); win/draw settle immediately.
+  // BOTH decisive outcomes defer settle to the hero-strike sequence below, so the health lands on the blow
+  // (owner ask 2026-08-25 — this eager settle on wins is exactly what kept the player's hero from ever
+  // striking: the sequence guards on `combatSettled`, and this fired first). Only a DRAW — no winner, no
+  // swing — settles immediately.
   useEffect(() => {
-    if (fighting && replay.done && !run.combatSettled && replay.result !== 'lose') dispatch({ type: 'settleCombat' });
+    if (fighting && replay.done && !run.combatSettled && replay.result === 'draw') dispatch({ type: 'settleCombat' });
   }, [fighting, replay.done, run.combatSettled, replay.result, dispatch]);
 
   // REPLAY VIEWER (v2): bridge the arena's animation-done flag to the store, so the replay player knows when
@@ -1765,12 +1784,23 @@ export function Recruit() {
   // then a Pixi bolt blasts it into the Resolve bar, which drops on impact. We read `run` fresh (not via
   // deps) so the mid-sequence settleCombat (which mutates run) can't re-fire this effect + clear the timers.
   useEffect(() => {
-    if (!fighting || !replay.done || replay.result !== 'lose' || lossSeqRef.current) return;
+    // BOTH outcomes now drive this (owner ask 2026-08-25): the winner's hero strikes the loser, so a WIN plays
+    // the sequence in the opposite direction. A draw has no winner, so nothing swings.
+    if (!fighting || !replay.done || lossSeqRef.current) return;
+    if (replay.result !== 'lose' && replay.result !== 'win') return;
     const run0 = useGame.getState().run;
     if (run0.combatSettled) return;
     lossSeqRef.current = true;
+    // A SKIP mutes all audio to cut the replay short (stopAllAudio), and it stays muted until the fight is left
+    // — which used to silence THIS whole post-combat sequence too (owner report 2026-08-25: skipped combat has
+    // no duel sound). The replay is over by here, so its purpose is served: un-mute so the tally / pill / lunge
+    // SFX play whether or not the fight was skipped. A no-op when nothing suspended it.
+    resumeAudio();
 
-    const survivors = replay.frame.enemy;
+    // The tally flies from the WINNER's surviving board — theirs on a loss, YOURS on a win (owner ask
+    // 2026-08-25: a win must tally and strike exactly like a loss does).
+    const won = replay.result === 'win';
+    const survivors = won ? replay.frame.player : replay.frame.enemy;
     const cap = lossDamageCap(run0.wave);
     // `playerLossDamage` is the same function the settle uses — the player takes COMBAT DAMAGE ONLY (owner
     // ruling 2026-08-04), and sharing one definition is what stops the counter drifting from the hit again.
@@ -1778,13 +1808,18 @@ export function Recruit() {
       ? playerLossDamage(run0.lobby, run0.lastCombat)
       : Math.min(run0.lastCombat?.playerDamage ?? 0, cap);
     const oppTier = nextOpponent(run0)?.tier ?? run0.tier; // the just-fought board (wave advances only on Climb On)
+    // The blow the WINNER lands. On a loss that is what the player takes (`finalDmg`); on a win it is what the
+    // foe takes — the sim's mirror of the same formula, capped the same way (see `simulate`'s `enemyDamage`).
+    const strikeDmg = replay.result === 'win'
+      ? Math.min(run0.lastCombat?.enemyDamage ?? 0, cap)
+      : finalDmg;
 
-    // Counter sits centered above the surviving enemy cards.
+    // The tally always sits at the CENTRE OF THE BOARD (owner ask 2026-08-25), whichever side won — it tallies
+    // the minion damage there, then the projectile flies to the appropriate hero's attack pill.
     const rectOf = (uid: string): DOMRect | undefined => findEl(uid)?.getBoundingClientRect() ?? undefined;
-    const sRects = survivors.map((u) => rectOf(u.uid)).filter((r): r is DOMRect => !!r);
-    const cx = sRects.length ? sRects.reduce((s, r) => s + r.left + r.width / 2, 0) / sRects.length : window.innerWidth / 2;
-    const topY = sRects.length ? Math.min(...sRects.map((r) => r.top)) : window.innerHeight * 0.3;
-    const cy = Math.max(64, topY - 64);
+    const boardRect = document.querySelector('.app')?.getBoundingClientRect();
+    const cx = boardRect ? boardRect.left + boardRect.width / 2 : window.innerWidth / 2;
+    const cy = boardRect ? boardRect.top + boardRect.height / 2 : window.innerHeight / 2;
 
     // Contributions: opponent tier (flies from its intel frame) + each survivor's tier (from its card).
     //
@@ -1796,7 +1831,15 @@ export function Recruit() {
     // as a fallback for a combat recorded before this field existed (a saved run mid-defeat).
     const oppRect = document.querySelector('.oppframe')?.getBoundingClientRect();
     const bd = run0.lastCombat?.damageBreakdown;
-    const contribs: { tier: number; r?: DOMRect; isOpp?: boolean }[] = bd
+    // A WIN has no `damageBreakdown` — the sim only records one for the side that LOST — so its contributions
+    // are derived: your tavern tier plus each of your surviving minions, which is the same formula `simulate`
+    // uses for `enemyDamage`. The loss path keeps using the sim's own breakdown, which stays authoritative.
+    const contribs: { tier: number; r?: DOMRect; isOpp?: boolean }[] = won
+      ? [
+        { tier: run0.tier, r: document.querySelector('.statusbar .hero .f')?.getBoundingClientRect() ?? undefined, isOpp: true },
+        ...survivors.map((u) => ({ tier: CARD_INDEX[u.cardId]?.tier ?? 1, r: rectOf(u.uid) })),
+      ]
+      : bd
       ? [
         { tier: bd.oppTier, r: oppRect ?? undefined, isOpp: true },
         // Pair each real tier with a surviving card's rect where one exists, purely so the numbers fly from
@@ -1809,51 +1852,132 @@ export function Recruit() {
       ];
     const rawTotal = contribs.reduce((s, c) => s + c.tier, 0);
 
-    const STAGGER = 130, FLY = 430;
+    // THE HERO STRIKE (owner ask 2026-08-25). The winner "gains the attack": their pill shows their BASE tier
+    // damage in YELLOW from the start; the TALLY is only the REST — the minion (survivor) damage — so pill +
+    // tally add up to the full damage WITHOUT double-counting the tier the pill already shows (owner ask
+    // 2026-08-25). When the tally lands the pill buffs to full and flips GREEN (a buffed minion reads green);
+    // only then does the hero wind up and lunge, dropping the loser's health with a minion's motion / FX / sounds.
+    const playerWon = won;
+    const side: 'player' | 'opp' = playerWon ? 'player' : 'opp';
+    const fullDmg = strikeDmg;
+    // Base = the attacker's tavern tier (the formula's leading term, contribs[0]); the tally is contribs[1..].
+    const baseTier = Math.min(contribs[0]?.tier ?? 1, fullDmg);
+    const buffAmount = Math.max(0, fullDmg - baseTier);
+    const tallyContribs = contribs.slice(1);   // drop the base-tier term — it is already worn on the pill
+
+    // Every beat below is tunable live (⚔️ Hero Duel). Read once per sequence, so a mid-swing slider change
+    // never retimes a swing that is already in the air.
+    const duel = getHeroDuelConfig();
+    const STAGGER = duel.tallyStagger, FLY = duel.tallyFly;
     setLossPos({ x: cx, y: cy });
     setLossPhase('tally');
     setLossCount(0);
-    setLossDmg(finalDmg);
+    setLossDmg(buffAmount);
     setLossCapped(rawTotal > cap);
-    setLossFlyers(contribs.map((c, i) => ({
+    setLossFlyers(tallyContribs.map((c, i) => ({
       id: i, tier: c.tier,
       x: c.r ? c.r.left + c.r.width / 2 : cx,
       y: c.r ? c.r.top + c.r.height / 2 : cy,
       tx: cx, ty: cy, delay: i * STAGGER, isOpp: c.isOpp,
     })));
 
-    const timers: number[] = [];
+    const timers = seqTimersRef.current;
     let running = 0;
-    contribs.forEach((c, i) => {
-      timers.push(window.setTimeout(() => { running += c.tier; setLossCount(Math.min(running, cap)); }, i * STAGGER + FLY));
+    tallyContribs.forEach((c, i) => {
+      timers.push(window.setTimeout(() => { running += c.tier; setLossCount(Math.min(running, buffAmount)); }, i * STAGGER + FLY));
     });
-    const tallyEnd = (contribs.length - 1) * STAGGER + FLY + 340;
+    const tallyEnd = tallyContribs.length ? (tallyContribs.length - 1) * STAGGER + FLY + 340 : 220;
+
+    const strikeSeq = (lossSeqSeqRef.current += 1);
+    const setPill = useGame.getState().setHeroAtkPill;
+    setPill({ side, amount: baseTier, buffed: false });
+    // Retire the pill with a FADE (owner ask 2026-08-25): flag it `leaving` so CSS animates it out, then unmount.
+    const fadePillOut = (): void => {
+      const cur = useGame.getState().heroAtkPill;
+      if (cur) setPill({ ...cur, leaving: true });
+      timers.push(window.setTimeout(() => setPill(null), 260));
+    };   // the yellow base pill rides the hero from tally start
+    // HERO-DUEL SFX, scheduled from the SEQUENCE START so their tuner offsets can pull them EARLIER (negative)
+    // or later (positive) than the natural cue — travel fires at the launch (tallyEnd), the pill-add at the
+    // landing (tallyEnd + the def's travel). Clamped to >= 0 so a big negative just fires at the start.
+    // The tally-COUNTER sound plays as the numbers begin to climb (sequence start + its signed offset).
+    timers.push(window.setTimeout(() => sfx.tallyCounter(duel.sfxCounterVol), Math.max(0, duel.sfxCounterDelay)));
+    timers.push(window.setTimeout(() => sfx.tallyTravel(duel.sfxTravelVol), Math.max(0, tallyEnd + duel.sfxTravelDelay)));
+    timers.push(window.setTimeout(() => sfx.attackPillAdd(duel.sfxAddVol), Math.max(0, tallyEnd + TALLY_TRAVEL_MS + duel.sfxAddDelay)));
+    timers.push(window.setTimeout(() => sfx.tallyImpact(duel.sfxImpactVol), Math.max(0, tallyEnd + TALLY_TRAVEL_MS + duel.sfxImpactDelay)));
 
     timers.push(window.setTimeout(() => {
-      setLossPhase('blast');
+      // Dissolve the centre tally into particles that fly to the ATTACKER's portrait ("gaining the attack").
+      setLossPhase('blast');   // the centre number launches (fades) and does NOT re-show (see the render guard)
       setLossFlyers([]);
-      // Aim the defeat blast at the HP box in the status bar. (Was `.hprow` — renamed to `.hpbox` in the
-      // HP-bar → HP-box redesign, so this always fell through to the guessed corner, visibly wrong under the
-      // Esc-menu letterbox / ultrawide where the status bar is offset.)
-      const res = document.querySelector('.statusbar .hpbox')?.getBoundingClientRect();
-      const tx = res ? res.left + res.width / 2 : window.innerWidth * 0.18;
-      const ty = res ? res.top + res.height / 2 : window.innerHeight * 0.92;
-      pixiFx.blastBolt(cx, cy, tx, ty);
+      // Fly to the ATTACK PILL (owner ask 2026-08-25), not the portrait centre — the damage is "gained" INTO the
+      // pill. Only one `.hero-atk` exists at a time (the attacker's). Fall back to the portrait if it's missing.
+      const pillEl = document.querySelector('.hero-atk');
+      const pr = pillEl?.getBoundingClientRect();
+      const aRect0 = document.querySelector(playerWon ? '.statusbar .hero .herolunge' : '.combatopp-body')?.getBoundingClientRect();
+      const ax = pr ? pr.left + pr.width / 2 : (aRect0 ? aRect0.left + aRect0.width / 2 : cx);
+      const ay = pr ? pr.top + pr.height / 2 : (aRect0 ? aRect0.top + aRect0.height / 2 : cy);
+      // Play the AUTHORED def (ribbon travels source→pill, then a burst on the pill) instead of the old bolt.
+      playDef('tallyanimation1', { source: { x: cx, y: cy }, target: { x: ax, y: ay } });
+      // WHEN the tally lands on the pill (after the def's ~800ms travel): buff the pill to full + GREEN (it
+      // re-pops on the value change), play the pill-add sound, and the pill sheens (via its `buffed` remount).
       timers.push(window.setTimeout(() => {
-        playDef('damage-burst', { source: { x: tx, y: ty }, target: { x: tx, y: ty } });
+        setLossPhase('done');   // centre number gone for good — never returns to the board
+        setPill({ side, amount: fullDmg, buffed: fullDmg > baseTier });
+      }, TALLY_TRAVEL_MS));
+
+      // The portraits: the player's own in the status bar, the foe's the frame that dropped in for the fight.
+      const playerEl = document.querySelector('.statusbar .hero .herolunge');
+      const oppEl = document.querySelector('.combatopp-body');
+      const attacker = playerWon ? playerEl : oppEl;
+      const defender = playerWon ? oppEl : playerEl;
+      const setDmg = useGame.getState().setHeroDmgTaken;
+      const land = (): void => {
         setLossShake(true);
         window.setTimeout(() => setLossShake(false), 360);
-        dispatch({ type: 'settleCombat' }); // Resolve drops here → the StatusBar's −X hit flash fires
-      }, pixiFx.blastTravelMs));
+        // The struck hero does NOT react (owner ruling) — the Pixi FX + the health drop carry the blow. Pop the
+        // RED damage-taken number in the centre of the DEFENDER (the side NOT attacking).
+        setDmg({ side: playerWon ? 'opp' : 'player', amount: strikeDmg, seq: strikeSeq });
+        // The FOE's shown health drops HERE too when the player struck it — the mirror of the player's own live
+        // drop (which `settleCombat` applies to the run). Its lobby seat settles later, at resolveCombat.
+        if (playerWon) useGame.getState().setOppDmgDealt(strikeDmg);
+        dispatch({ type: 'settleCombat' }); // player's own health drops HERE, on the blow landing
+      };
+      // Raise ONLY the attacking side above the other portrait for the swing (see `.duel-attacker-*`), which
+      // ALSO fades that side's own name/health — attacker-only, the struck hero keeps its pills up (owner ask).
+      const appEl = document.body;
+      const zClass = playerWon ? 'duel-attacker-player' : 'duel-attacker-opp';
+      const dropZ = (): void => { appEl?.classList.remove(zClass); };
+      // Wind up AFTER the pill has buffed (particles landed + pillHold), so the green full-damage pill reads
+      // before the lunge carries it into the loser.
+      timers.push(window.setTimeout(() => {
+        appEl?.classList.add(zClass);
+        const tl = attacker && defender
+          ? playHeroStrike({ attacker, defender, damage: strikeDmg * duel.impactPower, combatSpeed: combatSpeed * duel.strikeSpeed, onImpact: land })
+          : null;
+        // No portraits to swing (a non-lobby run has no foe frame) → still land the consequence on time.
+        if (!tl) { land(); dropZ(); }
+        // CHAIN onto the timeline's own onComplete (playLunge's cleanup — clearProps transform/zIndex — lives
+        // there); replacing it left the attacker at inline z-index 12, painted over its name/health after settle.
+        else {
+          const lungeDone = tl.eventCallback('onComplete');
+          tl.eventCallback('onComplete', () => { lungeDone?.(); dropZ(); timers.push(window.setTimeout(() => fadePillOut(), duel.settleMs)); });
+        }
+      }, TALLY_TRAVEL_MS + duel.pillHold));
     }, tallyEnd));
 
-    timers.push(window.setTimeout(() => setLossPhase('done'), tallyEnd + pixiFx.blastTravelMs + 650));
-    return () => timers.forEach((t) => window.clearTimeout(t));
+    timers.push(window.setTimeout(() => { if (useGame.getState().heroAtkPill) fadePillOut(); useGame.getState().setHeroDmgTaken(null); setLossPhase('done'); }, tallyEnd + pixiFx.blastTravelMs + duel.pillHold + STRIKE_BASE + duel.settleMs));
+    // NO cleanup here on purpose: this effect re-runs whenever `replay.frame` ticks, and tearing the timers
+    // down on those re-runs killed the swing mid-flight. The sequence is short, self-completing and
+    // single-entry (`lossSeqRef`); its timers are cleared when combat ends (below) and on unmount.
   }, [fighting, replay.done, replay.result, replay.frame, findEl, dispatch]);
+
+  // Unmount safety for the strike's timers (leaving the run mid-sequence).
+  useEffect(() => () => { seqTimersRef.current.forEach((t) => window.clearTimeout(t)); seqTimersRef.current = []; }, []);
 
   // Reset the loss sequence when leaving combat (ready for the next fight).
   useEffect(() => {
-    if (!fighting) { lossSeqRef.current = false; setLossPhase(null); setLossFlyers([]); setLossCount(0); setLossPos(null); setLossShake(false); }
+    if (!fighting) { seqTimersRef.current.forEach((t) => window.clearTimeout(t)); seqTimersRef.current = []; document.body.classList.remove('duel-attacker-player', 'duel-attacker-opp', 'duel-striking'); useGame.getState().setHeroDmgTaken(null); useGame.getState().setOppDmgDealt(0); lossSeqRef.current = false; setLossPhase(null); setLossFlyers([]); setLossCount(0); setLossPos(null); setLossShake(false); useGame.getState().setHeroAtkPill(null); }
   }, [fighting]);
 
   // Returning to recruit after a fight. The warband re-mounts (it was combat Units) and re-enters
@@ -5164,6 +5288,9 @@ export function Recruit() {
           bar) so it can be anchored to the STAGE height and run tall beside the board, instead of hanging off
           the top-right corner where it had to stay short and wide. */}
       {run.lobby && <LobbyPanel lobby={run.lobby} />}
+      {/* The foe's face for the duel — drops onto the Refresh button's anchor while the rail slides away
+          (owner ask 2026-08-25). Self-gates on lobby + combat. Also the lunge target for the hero strike. */}
+      <CombatOpponent />
 
       {!fighting ? (
       <>
@@ -5495,7 +5622,7 @@ export function Recruit() {
 
       {/* Loss-damage tally — surviving enemy tiers + the opponent's tier fly up into a damage counter
           above the enemy board (clamped to the round cap), then blast the Resolve bar. */}
-      {fighting && lossPhase && lossPos && (
+      {fighting && (lossPhase === 'tally' || lossPhase === 'blast') && lossPos && (   /* hidden once launched — no re-show on the board (owner 2026-08-25) */
         <div
           className={`lossdmg${lossPhase === 'blast' ? ' launch' : ''}`}
           style={{ left: lossPos.x, top: lossPos.y } as CSSProperties}

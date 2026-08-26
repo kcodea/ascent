@@ -143,6 +143,8 @@ export function StatusBar() {
   const dispatch = useGame((s) => s.dispatch);
   const eotAnimating = useGame((s) => s.endTurnAnimating);
   const combatEnemyDeaths = useGame((s) => s.combatEnemyDeaths);
+  const heroAtkPill = useGame((s) => s.heroAtkPill);
+  const heroDmgTaken = useGame((s) => s.heroDmgTaken);
   // The hero + its power are data (HEROES registry); the panel renders whatever the run is on.
   // `activePowers`, not `hero.power`: Mimic wields a different hero's power each turn and Void wields TWO —
   // the main button always shows slot 0, and a second button (below) appears for slot 1.
@@ -498,15 +500,30 @@ export function StatusBar() {
             aria-expanded={buffRows.length ? buffsOpen : undefined}
             aria-label={buffRows.length ? (buffsOpen ? 'Hide run buffs' : 'Show run buffs') : undefined}
           >
+            {/* THE LUNGE TARGET (owner ask 2026-08-25): a transform-clean wrapper GSAP owns for the post-combat
+                hero strike. `.f` itself carries a base `transform: scale(1.2)`, and GSAP animating scale on it
+                overwrote that — the portrait shrank to 1.0 mid-swing and the translate fought the base matrix.
+                This wrapper has NO base transform, so the lunge is clean; the 1.2 lives on `.f` as its ancestor
+                (heroStrike divides by the measured scale, so the geometry is unaffected). Everything visual —
+                the art, name and attack pill — rides it together. */}
+            <div className="herolunge">
             {/* Buff flash — remounts on `buffFlash` so the one-shot shard+ripple replays each time a run buff
                 grows. `aria-hidden`, pointer-events none; sits over the art, under the name pill. */}
             {buffFlash > 0 && <span key={buffFlash} className="herobuff-blast" aria-hidden="true" />}
+            {/* The post-combat ATTACK PILL — this hero's round damage, worn like a minion's Attack badge while
+                the hero strike plays (owner ask 2026-08-25). A child of the portrait so it rides the lunge. */}
+            {heroAtkPill?.side === 'player' && (
+              <span key="hero-atk-player" className={`hero-atk hero-atk-player${heroAtkPill.buffed ? ' buffed' : ''}${heroAtkPill.leaving ? ' leaving' : ''}`} aria-hidden="true">{heroAtkPill.buffed && <span className="atk-sheen" aria-hidden="true"><span className="atk-sheen-bar" /></span>}{heroAtkPill.amount}</span>
+            )}
+            {/* The RED damage-taken number — pops in the centre of the portrait when the player is struck. */}
+            {heroDmgTaken?.side === 'player' && (
+              <span key={`dmg${heroDmgTaken.seq}`} className="hero-dmgtaken" aria-hidden="true">−{heroDmgTaken.amount}</span>
+            )}
             {heroArt(hero.id) ? (
               <img className="heroimg" src={heroArt(hero.id)} alt={hero.name} draggable={false} />
             ) : (
               <Icon name="anvil" />
             )}
-            {playerName && <div className="heroname" ref={playerNameRef}>{playerName}</div>}
             {/* Buffs affordance — the little arrow at the top of the portrait (only when there are buffs). */}
             {buffRows.length > 0 && <span className="herobuffs-arrow" aria-hidden="true">{buffsOpen ? '▾' : '▴'}</span>}
             {/* Hover affordance — the portrait darkens and spells out the click action (only when there are
@@ -516,6 +533,10 @@ export function StatusBar() {
                 Click hero portrait to open / close the Buffs Panel
               </span>
             )}
+            </div>
+            {/* The player NAME sits OUTSIDE `.herolunge`, so it stays put while the portrait lunges — matching
+                the anchored health and the foe's anchored name (owner ask 2026-08-25). */}
+            {playerName && <div className="heroname" ref={playerNameRef}>{playerName}</div>}
           </div>
           {/* Health as a compact white box under the hero — the number is Resolve (+Armor). Keeps the hit-shake
               + −X float when a wave breaks through. */}

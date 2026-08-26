@@ -84,7 +84,7 @@ function strikeBurst(x: number, y: number, dx: number, dy: number, power: number
  * amplified crimson-gold crit flourish (`pixiFx.critImpact` — bold ring, "CRIT!" pop, red card flash), plus a
  * heftier knockback. No-op FX/recoil when there's no defender (still fires the hit/crit sound).
  */
-export function playContactImpact(defender: Element | null, dx: number, dy: number, power: number, speed: number, contact?: { x: number; y: number }, spinDeg = 0, crit = false, flurryHit = false, flurrySlash = false, executeSlash = false, cleave = false): void {
+export function playContactImpact(defender: Element | null, dx: number, dy: number, power: number, speed: number, contact?: { x: number; y: number }, spinDeg = 0, crit = false, flurryHit = false, flurrySlash = false, executeSlash = false, cleave = false, suppressRecoil = false): void {
   // The defender's uid, for any `react` layer in these defs: an impact is something that happens TO a
   // unit, and the element is already in hand. `null` when the caller had no defender element, which a
   // react layer reads as "no subject" and skips.
@@ -133,6 +133,10 @@ export function playContactImpact(defender: Element | null, dx: number, dy: numb
     strikeDust(fx.x, fx.y, power, defenderUid); // card-drop-style tan billow from the strike point
     pixiFx.impactPulse(fx.x, fx.y, power); // expanding energy ring(s) from the strike point
   }
+  // The defender's RECOIL/knockback. Suppressed for the hero duel (owner ruling 2026-08-25: the struck hero
+  // portrait must not react — the FX above and the health drop carry the blow). Everything above (the FX +
+  // sound) still fires; only the DOM reaction on the defender is skipped.
+  if (suppressRecoil) return;
   gsap.killTweensOf(defender);
   const kb = 0.14 * (0.75 + 0.25 * power) * (crit ? 1.4 : 1); // a crit knocks the defender harder
   // Suspend the `.unit` CSS transform-transition for the knockback (same probe finding as the lunge — see

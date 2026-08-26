@@ -46,6 +46,7 @@ import { SPEC as InfuseFxSpec } from './InfuseFxTuner';
 import { SPEC as LayoutSpec } from './LayoutTuner';
 import { SPEC as LobbyPanelSpec } from './LobbyPanelTuner';
 import { SPEC as ModePickSpec } from './ModePickTuner';
+import { SPEC as HeroDuelSpec } from './HeroDuelTuner';
 import { SPEC as LoadScreenSpec } from './LoadScreenTuner';
 import { SPEC as LungeSpec } from './LungeTuner';
 import { SPEC as PlateCoalesceSpec } from './PlateCoalesceTuner';
@@ -103,6 +104,7 @@ export const ALL_TUNER_SPECS: TunerSpec<never>[] = [
   LayoutSpec,
   LobbyPanelSpec,
   ModePickSpec,
+  HeroDuelSpec,
   LoadScreenSpec,
   LungeSpec,
   PlateCoalesceSpec,

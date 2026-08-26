@@ -742,8 +742,9 @@ body.etb-glow-preview .etbwrap:not(.pressed):not(:disabled) .etb-gem {
    matching the diamond's tooltip feel. */
 .combatsummary {
   position: fixed;
-  left: calc(var(--bar-x) + 0.81 * var(--gw) + var(--etb-x, 10px) * var(--scale));
-  top: calc(var(--bar-y) + 0.45 * var(--gh) + (var(--etb-y, -23px) - 142px) * var(--scale));
+  /* Top-centre, where the turn timer sits (owner ask 2026-08-25) — just left of centre, with Skip to the right. */
+  left: calc(var(--bar-x) + 0.5 * var(--gw) - 96px * var(--scale));
+  top: calc(var(--bar-y) + 0.055 * var(--gh));
   transform: translate(-50%, -50%);
   display: inline-flex; align-items: center; gap: 8px;
   font-family: var(--font-ui); font-weight: 800; font-size: 14px; letter-spacing: 0.03em; color: #f4ecdb;
@@ -3021,6 +3022,29 @@ body.dragging .statusbar .hero { pointer-events: none; }
 .statusbar .hero .hpbox svg { width: calc(26 * var(--u)); height: calc(26 * var(--u)); }
 .statusbar .hero .hpbox .hpval { font-size: calc(26 * var(--u)); }
 .statusbar .hero .hpbox .armval { font-size: calc(18 * var(--u)); }
+
+/* THE PLAYER PORTRAIT'S LUNGE TARGET (owner ask 2026-08-25). `.f` keeps its base `scale(1.2)` and positioning;
+   this wrapper is transform-CLEAN so the hero strike's GSAP lunge owns it without fighting a base matrix. It
+   fills `.f`, carries the dark portrait disc (so `.f` can be transparent and leave no hole when the art flies
+   out to strike), and holds the art + name + attack pill so they travel together. `overflow: visible` so the
+   overhanging attack pill is never clipped. */
+.statusbar .hero .herolunge {
+  position: absolute; inset: 0; border-radius: 50%; background: var(--ink); overflow: visible;
+}
+.statusbar .hero .f { background: transparent; }
+
+/* DUEL Z-ORDER (owner ask 2026-08-25: the attacker must sit on top of the hero it strikes). The lunge's own
+   `zIndex` only ranks an element against its DOM siblings, so it can't lift the player's portrait (inside
+   `.statusbar`, z40) above the foe's (`.combatopp`, z42) or vice-versa — they are separate stacking contexts.
+   These classes, toggled on `.app` for the duration of the swing, raise whichever side is ATTACKING to z100 —
+   above the other portrait, still below the Pixi FX layer (z110) so the impact burst reads on top of both. */
+/* Player attacks: the player portrait already paints above the board (statusbar z40 > .app z1), so this is
+   belt-and-braces. Opp attacks: the foe lives INSIDE .app (z1), UNDER the statusbar — so raise the whole .app
+   above the statusbar for the swing, which lifts the lunging foe over the player (still below the FX layer,
+   z110). Classes live on <body> because .app and .statusbar are siblings under #root. */
+body.duel-attacker-player .statusbar { z-index: 100; }
+body.duel-attacker-opp .combatopp { z-index: 100; }
+
 /* Hero-power box — a standalone card to the RIGHT of the hero frame (a `.statusrow` flex sibling), stretched to
    the hero's height. Sized up so an active power is an obvious button; the whole box glows when usable. */
 .statusbar .heropanel {
@@ -4072,7 +4096,7 @@ body.aiming, body.aiming * { cursor: none !important; }
 .app.combat .buffsframe { display: none; }
 /* Skip button — pinned ABOVE the End Turn / End Combat diamond (owner move 2026-08-11), same stage anchor +
    `--etb-x/y` offsets as the Summary pill (they never show at once: Skip during the replay, Summary after). */
-.combathud-skip { position: fixed; left: calc(var(--bar-x) + 0.81 * var(--gw) + var(--etb-x, 10px) * var(--scale)); top: calc(var(--bar-y) + 0.45 * var(--gh) + (var(--etb-y, -23px) - 142px) * var(--scale)); transform: translate(-50%, -50%); z-index: 41; display: inline-flex; align-items: center; justify-content: center; gap: calc(7 * var(--u)); font-family: var(--font-ui); font-weight: 800; font-size: calc(15 * var(--u)); letter-spacing: 0.04em; color: #fff; background: var(--acc); border: 2px solid var(--acc-dk); padding: calc(8 * var(--u)) calc(20 * var(--u)); border-radius: calc(11 * var(--u)); box-shadow: 0 calc(4 * var(--u)) 0 var(--acc-dk); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; animation: fadein 0.25s ease; }
+.combathud-skip { position: fixed; left: calc(var(--bar-x) + 0.5 * var(--gw) + 96px * var(--scale)); top: calc(var(--bar-y) + 0.055 * var(--gh)); transform: translate(-50%, -50%); z-index: 41; display: inline-flex; align-items: center; justify-content: center; gap: calc(7 * var(--u)); font-family: var(--font-ui); font-weight: 800; font-size: calc(15 * var(--u)); letter-spacing: 0.04em; color: #fff; background: var(--acc); border: 2px solid var(--acc-dk); padding: calc(8 * var(--u)) calc(20 * var(--u)); border-radius: calc(11 * var(--u)); box-shadow: 0 calc(4 * var(--u)) 0 var(--acc-dk); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; animation: fadein 0.25s ease; }
 .combathud-skip svg { width: calc(16 * var(--u)); height: calc(16 * var(--u)); }
 .combathud-skip:hover { background: var(--acc-dk); }
 .combathud-skip:active { transform: translate(-50%, -50%) translateY(calc(2 * var(--u))); box-shadow: 0 calc(2 * var(--u)) 0 var(--acc-dk); }
@@ -8876,3 +8900,195 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .titlescreen [data-tip]:not(.menubtn):focus-visible::before { opacity: 1; transition-delay: 0.25s; }
 @media (prefers-reduced-motion: reduce) { .titlescreen [data-tip]:not(.menubtn)::after, .titlescreen [data-tip]:not(.menubtn)::before { transition: none; } }
 
+
+/* ══ SHOP → COMBAT → SHOP (owner ask 2026-08-25) ═════════════════════════════════════════════════════════
+   Three linked pieces: the rail leaves, the foe arrives, and the winner strikes. All motion here is
+   transform/opacity only — compositor-only, per docs/performance.md — and every one is a ONE-SHOT, so none of
+   them is a looping paint animation. ── */
+
+/* 1a. THE RAIL LEAVES. Combat is a duel, so the eight-seat table slides off to the right and fades as the
+   fight starts, then slides back when the shop returns. `pointer-events:none` while it is gone so a card
+   dragged near the right edge can't hit an invisible rail. */
+.lobbyrail {
+  transition: transform 420ms cubic-bezier(0.4, 0, 0.2, 1), opacity 320ms ease-out;
+  will-change: transform;
+}
+.app.combat .lobbyrail { transform: translateX(115%); opacity: 0; pointer-events: none; }
+
+/* 1b. THE FOE ARRIVES — the opponent's hero portrait drops onto the Refresh button's anchor (that button is
+   inert in combat, so the space is free). Same top-right base point as `.rfbwrap`, so the two occupy the same
+   spot; the drop is a one-shot translate+fade keyed to mount. */
+.combatopp {
+  position: fixed;
+  left: calc(var(--bar-x) + 0.85 * var(--gw) + var(--rfb-x, -123px) * var(--scale));
+  top: calc(var(--bar-y) + var(--rfb-y, 270px) * var(--scale));
+  /* The ⚔️ Hero Duel tuner's placement rides the WRAPPER, never the body — the body is what GSAP lunges. */
+  transform: translate(calc(-50% + var(--hd-opp-x, 0px)), calc(-50% + var(--hd-opp-y, 0px))) scale(var(--hd-opp-s, 2.5));
+  z-index: 42;                      /* just above the refresh button it lands on */
+  pointer-events: none;
+}
+/* THE DROP-IN GROUP — name, portrait and health drop in together on mount, and stay laid out in a column.
+   The NAME and HEALTH live here, OUTSIDE the lunging body, so the strike carries only the portrait (owner ask
+   2026-08-25: the enemy name + health must not fly with the face, matching the player's anchored health).
+   `backwards` fill, not `both`: a forwards-filling transform would outrank inline styles and never let go —
+   here it only needs to hold the pre-start pose, then leave the transform free. */
+.combatopp-drop {
+  display: flex; flex-direction: column; align-items: center; gap: calc(4 * var(--u));
+  animation: combatoppdrop 460ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+/* THE LUNGE TARGET — the portrait ONLY. Transform-CLEAN (no base transform, no drop-in), so the post-combat
+   hero strike's GSAP owns it without fighting anything, and the name/health above and below stay put. */
+.combatopp-body { display: block; position: relative; z-index: 0; }
+/* Name + health sit IN FRONT of the portrait, so the scaled-up face settles UNDER both (owner report
+   2026-08-25: it was overlapping the name). During a strike the whole `.combatopp` is lifted, and the face
+   lunges away from this stack anyway, so this only governs the resting/settled overlap. */
+.combatopp-name, .combatopp-hp { position: relative; z-index: 2; }
+
+/* THE RED DAMAGE-TAKEN NUMBER (owner ask 2026-08-25) — a big blocky red number that pops in the CENTRE of the
+   struck hero. `.combatopp-body` / `.herolunge` are its positioned parents (both un-clipped there). One-shot
+   pop, transform/opacity only. Distinct from the attack pill and from the health pill's own −X float. */
+.combatopp-body, .statusbar .hero .herolunge { position: relative; }
+.hero-dmgtaken {
+  position: absolute; left: 50%; top: 50%; z-index: 8; pointer-events: none; white-space: nowrap;
+  transform: translate(calc(-50% + var(--hd-dmg-x, 0px)), calc(-50% + var(--hd-dmg-y, 0px))) scale(var(--hd-dmg-s, 0.48));
+  color: #fff; background: var(--threat);
+  padding: calc(3 * var(--u)) calc(13 * var(--u)); border-radius: calc(12 * var(--u));
+  font-family: var(--font-ui); font-weight: 900; font-size: var(--float-dmg-size, calc(42 * var(--u))); line-height: 1;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.55); box-shadow: 0 3px 10px rgba(0, 0, 0, 0.38);
+  animation: herodmgpop 620ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+/* Punch in big, hold, drift up and fade — the classic damage-number read. */
+@keyframes herodmgpop {
+  0%   { opacity: 0; transform: translate(calc(-50% + var(--hd-dmg-x, 0px)), calc(-50% + var(--hd-dmg-y, 0px))) scale(calc(var(--hd-dmg-s, 1) * 0.3)); }
+  22%  { opacity: 1; transform: translate(calc(-50% + var(--hd-dmg-x, 0px)), calc(-60% + var(--hd-dmg-y, 0px))) scale(calc(var(--hd-dmg-s, 1) * 1.15)); }
+  38%  { transform: translate(calc(-50% + var(--hd-dmg-x, 0px)), calc(-58% + var(--hd-dmg-y, 0px))) scale(var(--hd-dmg-s, 0.48)); }
+  78%  { opacity: 1; transform: translate(calc(-50% + var(--hd-dmg-x, 0px)), calc(-72% + var(--hd-dmg-y, 0px))) scale(var(--hd-dmg-s, 0.48)); }
+  100% { opacity: 0; transform: translate(calc(-50% + var(--hd-dmg-x, 0px)), calc(-96% + var(--hd-dmg-y, 0px))) scale(calc(var(--hd-dmg-s, 1) * 0.92)); }
+}
+
+/* PILL FADE during a strike (owner ask 2026-08-25): while `.app.duel-striking` is on, every duel name/health
+   pill fades out so the beat reads as just the two portraits + the blow; it lifts on settle and they fade back.
+   Transitions live on the base elements so the fade-BACK is smooth too (opacity only — compositor-only). */
+.combatopp-name, .combatopp-hp, .statusbar .hero .heroname, .statusbar .hero .hpbox { transition: opacity 240ms ease; }
+/* Only the ATTACKER's pills fade for the swing; the struck hero keeps name + health up while its life drops
+   (owner ask 2026-08-25). Scoped to whichever `.duel-attacker-*` is active. */
+body.duel-attacker-player .statusbar .hero .heroname,
+body.duel-attacker-player .statusbar .hero .hpbox { opacity: 0; }
+body.duel-attacker-opp .combatopp-name,
+body.duel-attacker-opp .combatopp-hp { opacity: 0; }
+
+/* THE OPPONENT'S RUNES (owner ask 2026-08-25) — a column beside the portrait, using the SAME `.questbadge`
+   /`.runebadge` styling the player's runes wear (so art, hover tip and the trigger bounce all match). The
+   ⚔️ Hero Duel tuner drives the row's scale/offset/gap; `--hd-rune-s` scales each badge, defaulting to 1 = the
+   exact player rune size. `pointer-events: auto` here alone (the group is otherwise inert) enables the tips. */
+.combatopp-runes {
+  position: absolute; left: 50%; top: 50%;
+  /* COUNTER the portrait wrapper's `--hd-opp-s` scale so the badges render at TRUE size — `--hd-rune-s` = 1
+     then equals the player's rune size exactly (owner ask: match the player's runes), independent of how big
+     the portrait is tuned. The flex gap lives in the row's own (pre-counter-scale) space, so layout stays
+     clean. `transform-origin: left center` keeps the row anchored as it scales. */
+  transform: translate(var(--hd-rune-x, 75px), calc(-50% + var(--hd-rune-y, 0px))) scale(calc(var(--hd-rune-s, 1) / var(--hd-opp-s, 2.5)));
+  transform-origin: left center;
+  display: flex; flex-direction: column; gap: var(--hd-rune-gap, 20px);
+  pointer-events: auto;
+}
+/* The tip opens to the LEFT of the badge (the row sits at the board's right edge). */
+.combatopp-rune .questbadge-tip { bottom: auto; top: 50%; left: auto; right: calc(100% + 8px); transform: translateY(-50%); }
+
+@keyframes combatoppdrop {
+  from { opacity: 0; transform: translateY(-46px) scale(0.86); }
+  to   { opacity: 1; transform: none; }
+}
+/* EXIT (owner ask 2026-08-25): when combat ends the portrait LEAVES with a fade-and-fall that mirrors the
+   drop-in. Opacity fades on the whole group (`.combatopp`, so the runes go too); the group falls + shrinks on
+   `.combatopp-drop` (transform-clean after the drop-in). Both one-shot, compositor-only. */
+.combatopp.leaving { animation: combatoppfadeout 400ms ease-in forwards; }
+@keyframes combatoppfadeout { from { opacity: 1; } to { opacity: 0; } }
+.combatopp.leaving .combatopp-drop { animation: combatoppfall 400ms cubic-bezier(0.4, 0, 1, 1) forwards; }
+@keyframes combatoppfall {
+  from { transform: none; }
+  to   { transform: translateY(34px) scale(0.9); }
+}
+.combatopp-portrait {
+  width: calc(116 * var(--u)); height: calc(116 * var(--u)); border-radius: 50%; overflow: hidden;
+  border: calc(3 * var(--u)) solid var(--gold);
+  box-shadow: 0 calc(4 * var(--u)) calc(14 * var(--u)) rgba(0, 0, 0, 0.55), inset 0 0 0 2px rgba(0, 0, 0, 0.45);
+  background: radial-gradient(circle at 50% 30%, #2c211a, #0e0a07);
+}
+.combatopp-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.combatopp-name {
+  font-family: var(--font-ui); font-weight: 800; font-size: calc(15 * var(--u)); color: var(--ink);
+  background: linear-gradient(180deg, #fff, #f3ead4); border: 2px solid var(--gold); border-radius: 999px;
+  padding: calc(2 * var(--u)) calc(13 * var(--u)); white-space: nowrap;
+  box-shadow: 0 calc(2 * var(--u)) calc(6 * var(--u)) -2px var(--shadow);
+  transform: translate(var(--hd-name-x, 0px), var(--hd-name-y, 22px)) scale(var(--hd-name-s, 0.52));
+}
+/* Opponent HEALTH — the SAME pill the PLAYER wears in the HUD (owner ask 2026-08-25): the dark gradient box,
+   dark-gold border, threat-pink heart and lightened number from `.statusbar .hero .hpbox`, verbatim. */
+.combatopp-hp {
+  display: inline-flex; align-items: center; gap: calc(7 * var(--u));
+  background: linear-gradient(180deg, #241a13, #17110c);
+  border: 2px solid color-mix(in srgb, var(--gold) 55%, #000); border-radius: calc(16 * var(--u));
+  padding: calc(6 * var(--u)) calc(14 * var(--u));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 2px 6px rgba(0, 0, 0, 0.3);
+  font-family: var(--font-ui); font-weight: 800; font-size: calc(24 * var(--u)); line-height: 1; color: #ff9db0;
+  transform: translate(var(--hd-hp-x, 0px), var(--hd-hp-y, -23px)) scale(var(--hd-hp-s, 0.68));
+}
+.combatopp-hp svg { flex: none; width: calc(24 * var(--u)); height: calc(24 * var(--u)); color: var(--threat); }
+.combatopp-armor { margin-left: calc(3 * var(--u)); font-size: calc(17 * var(--u)); color: #b7c2cf; }
+
+/* 2. THE ATTACK PILL — the winner's damage, printed on their portrait exactly like a minion's Attack badge.
+   It POPS in (the tally arriving), rides the lunge, and leaves with the sequence. */
+/* The winner's ATTACK PILL — styled to MATCH a minion's Attack badge (owner ask 2026-08-25): the same
+   `--atk` fill, 3px card-coloured border, and bold white number. `--pill-*` are set per side (below) from the
+   ⚔️ Hero Duel tuner, so your pill and the foe's move independently. */
+/* Both hero damage numbers wear the EXACT minion damage-float box (owner ask 2026-08-25): white text on the
+   `--threat` red, rounded, padded, drop-shadowed — see `.float.dmg`. `.hero-atk` (damage DEALT, carried on the
+   attacker) keeps its per-side tuner offset + pop; `.hero-dmgtaken` (damage TAKEN, on the defender) keeps its
+   centred drift. */
+/* THE HERO ATTACK PILL — a minion's ATTACK badge (owner ask 2026-08-25): the yellow `--atk` fill + card border
+   at first, showing the hero's base (tier) damage, then it flips GREEN when the tallied damage flies in and
+   buffs it to full — exactly how a buffed minion's attack reads green. The RED `.float.dmg` box is reserved for
+   the damage NUMBER (dealt/taken); this pill is the attack value. */
+.hero-atk {
+  position: absolute; left: calc(50% + var(--pill-x, 0px)); bottom: calc(-14 * var(--u) - var(--pill-y, 0px));
+  transform: translateX(-50%) scale(var(--pill-s, 1));
+  z-index: 6; pointer-events: none;
+  display: grid; place-items: center; overflow: hidden;
+  min-width: calc(46 * var(--u)); height: calc(46 * var(--u)); padding: 0 calc(7 * var(--u));
+  border-radius: calc(16 * var(--u)); border: calc(3 * var(--u)) solid var(--card);
+  background: var(--atk);
+  font-family: var(--font-ui); font-weight: 900; font-size: calc(28 * var(--u)); color: #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  animation: heroatkpop 260ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.hero-atk.buffed { background: #1aa86f; }   /* buffed to full damage — the same green a buffed minion's attack wears */
+/* A one-shot SHEEN sweeps the pill the instant it buffs (owner ask 2026-08-25) — the same white-bar shine the
+   menu buttons use (`.etb-sheen`), fired once (not looping) via the pill's `buffed` remount. */
+.atk-sheen { position: absolute; inset: 0; border-radius: inherit; overflow: hidden; pointer-events: none; z-index: 1; }
+.atk-sheen-bar {
+  position: absolute; top: -25%; left: 0; width: 46%; height: 150%;
+  background: linear-gradient(105deg, transparent 8%, rgba(255, 255, 255, 0.92) 50%, transparent 92%);
+  transform: translateX(-220%) rotate(8deg);
+  animation: atksheen 520ms cubic-bezier(0.3, 0, 0.2, 1) both;
+}
+@keyframes atksheen {
+  from { transform: translateX(-220%) rotate(8deg); }
+  to   { transform: translateX(320%) rotate(8deg); }
+}
+/* Retire the pill with a FADE, not a hard cut (owner ask 2026-08-25): `.leaving` swaps the pop for a short
+   fade-and-shrink out. It out-specifies the base `animation`, so it wins. */
+.hero-atk.leaving { animation: heroatkleave 260ms cubic-bezier(0.4, 0, 1, 1) forwards; }
+@keyframes heroatkleave {
+  from { opacity: 1; transform: translateX(-50%) scale(var(--pill-s, 1)); }
+  to   { opacity: 0; transform: translateX(-50%) scale(calc(var(--pill-s, 1) * 0.72)); }
+}
+.hero-atk-player { --pill-s: var(--hd-pill-player-s, 0.55); --pill-x: var(--hd-pill-player-x, 37px); --pill-y: var(--hd-pill-player-y, -6px); }
+.hero-atk-opp    { --pill-s: var(--hd-pill-opp-s, 0.72); --pill-x: var(--hd-pill-opp-x, -60px); --pill-y: var(--hd-pill-opp-y, -16px); }
+@keyframes heroatkpop {
+  from { opacity: 0; transform: translateX(-50%) scale(calc(var(--pill-s, 1) * 0.4)); }
+  to   { opacity: 1; transform: translateX(-50%) scale(var(--pill-s, 1)); }
+}
+/* NO struck reaction on the hero portraits (owner ruling 2026-08-25): the Pixi strike FX and the health
+   dropping carry the blow. A recoil here also fought the portrait's own transform (its centring / the tuner's
+   scale), which is what made a struck portrait appear to shrink. */

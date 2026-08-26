@@ -61,15 +61,29 @@ function dropZoneFor(capture: CardDragCapture, pointerY: number): StageZone {
 }
 
 /** Which slot within `zone` a card drop lands at, from the captured left-edges of every card that was in
- *  that zone at drag-start — the dragged card's OWN captured position included, when it started in this
- *  zone, exactly like `Timeline.tsx`'s `rowTopsRef` includes the dragged row's own original top. Leaving it
- *  in is what lets the last position resolve correctly with just one other card on the row: dropping it
- *  keeps the full boundary set `reorderTargetIndex` needs to place the pointer past the final item, not just
- *  before it. `dropCard` (which excludes the dragged uid from the array it actually inserts into) clamps the
- *  result, so an index that pointed at the dragged card's own old slot still lands as a valid insertion. */
+ *  that zone at drag-start.
+ *
+ *  Same-zone reorder: the dragged card's OWN captured position is already one of `cards` (it started in
+ *  this zone), exactly like `Timeline.tsx`'s `rowTopsRef` includes the dragged row's own original top — that
+ *  full boundary set is what lets `reorderTargetIndex` place the pointer past the final item, not just
+ *  before it, with no further work here.
+ *
+ *  Cross-zone drop: the dragged card was never in `cards` (it started in the OTHER zone), so the captured
+ *  set is one entry short of the true slot count — `reorderTargetIndex` clamps its result to
+ *  `[0, cards.length - 1]`, so the last real card's own slot was the furthest a drop could ever land, and
+ *  "append after everything" was unreachable. Standing in for the missing (N+1)th boundary with a duplicate
+ *  of the last real card's left edge gives the algorithm a full `cards.length + 1`-sized set to resolve
+ *  against, so a pointer at or past that last card can now resolve to the true final index. (An empty target
+ *  zone needs no stand-in: `reorderTargetIndex` already returns 0 for `count <= 1` without touching the
+ *  array.) `dropCard` clamps the returned index against its own (dragged-uid-excluded) array regardless, so
+ *  this never risks an out-of-bounds insertion either way. */
 function dropIndexFor(capture: CardDragCapture, zone: StageZone, pointerX: number): number {
-  const cards = (zone === 'tavern' ? capture.tavern : capture.warband).cards;
-  return reorderTargetIndex({ fromIndex: 0, count: cards.length }, pointerX, cards.map((c) => c.left));
+  const { uid, tavern, warband } = capture;
+  const target = zone === 'tavern' ? tavern : warband;
+  const crossedZone = !target.cards.some((c) => c.uid === uid);
+  const lefts = target.cards.map((c) => c.left);
+  const effectiveLefts = crossedZone && lefts.length > 0 ? [...lefts, lefts[lefts.length - 1]] : lefts;
+  return reorderTargetIndex({ fromIndex: 0, count: effectiveLefts.length }, pointerX, effectiveLefts);
 }
 
 /** Renumber every actor in `zone` to `uidsInOrder`'s slots (0, 1, 2, …) — the contiguous-slot cleanup

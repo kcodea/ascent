@@ -13,7 +13,8 @@ BUGS = [
    'const procs = mul(self); // REINJECT: Stag consults no Echo multiplier'),
   ('933-triple-temp-keywords', RED,
    'const tempOnly = (k: Keyword): boolean =>',
-   'const tempOnly = (k: Keyword): boolean => false && ((k2: Keyword): boolean =>'),
+   "const tempOnly = (_k2: Keyword): boolean => false; // REINJECT
+  const tempOnlyUnused = (k: Keyword): boolean =>"),
   ('941-aftershocks-per-watcher', SIM,
    "const ownEcho = effect.on === 'onDeath' && (payload as { minion?: Minion } | undefined)?.minion === minion;",
    "const ownEcho = effect.on === 'onDeath'; // REINJECT: every watcher wraps as an Echo trigger"),
@@ -40,8 +41,8 @@ for (bid, path, old, new) in BUGS:
     if bid != bug_id: continue
     s = io.open(path, encoding='utf-8').read()
     n = s.count(old)
-    if n != 1:
+    if n < 1:
         print(f'ANCHOR_MISS {bid} ({n} matches)'); sys.exit(2)
-    io.open(path, 'w', encoding='utf-8', newline='\n').write(s.replace(old, new, 1))
+    io.open(path, 'w', encoding='utf-8', newline='\n').write(s.replace(old, new))
     print(f'APPLIED {bid}'); sys.exit(0)
 print('UNKNOWN', bug_id); sys.exit(3)

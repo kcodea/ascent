@@ -1194,7 +1194,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       const giftMinionOff = freeBuy ? 0 : (s.minionCostOffTurn ?? 0);
       // Rune of Trade-In: an armed per-type discount (from this turn's first sale) knocks 1 off a matching minion.
       const tiDef = s.tradeInTribe ? CARD_INDEX[offer.cardId] : undefined;
-      const tradeInOff = !freeBuy && s.runeTradeIn && s.tradeInTribe && tiDef && (tiDef.tribe === s.tradeInTribe || tiDef.tribe2 === s.tradeInTribe) ? 1 : 0;
+      const tradeInOff = !freeBuy && s.runeTradeIn && s.tradeInTribe && defIsTribe(tiDef, s.tradeInTribe) ? 1 : 0; // All-types matches any armed tribe
       // `heroOfferPrice` = Frantic Frank's Clearance / Foreman Flint's Company Rate (flat 2). Shared with the
       // UI's cost coin so the shown price is the charged price.
       const buyCost = freeBuy ? 0 : Math.max(0, (offer.cost ?? heroOfferPrice(s, offer) ?? s.minionCostOverride ?? minionCostOf(s)) - cadenceOff - tradeInOff - giftMinionOff); // Moe's set price > Frank/Flint 2g > Merchant's Mark override > Hank/default
@@ -2997,10 +2997,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       // below. Odds: re-simulate the same two boards on independent seeds (a separate ODDS stream, so they're
       // reproducible and don't disturb the real combat RNG). ~1000 sims keeps the margin to ~±1.5%.
       // Pack Leader: Beasts you PLAYED this turn (frozen for combat), threaded into simulate like spellsThisTurn.
-      const beastsPlayed = (s.playedThisTurn ?? []).filter((id) => {
-        const d = CARD_INDEX[id];
-        return !!d && (d.tribe === 'beast' || d.tribe2 === 'beast');
-      }).length;
+      const beastsPlayed = (s.playedThisTurn ?? []).filter((id) => defIsTribe(CARD_INDEX[id], 'beast')).length;
       // The PLAYER side's run-level combat context — one symmetric `CombatSideState`, built once from the live
       // RunState and shared by the real fight + the 1000-sim odds probe.
       const playerState: CombatSideState = combatSide({

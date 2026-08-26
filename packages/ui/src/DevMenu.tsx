@@ -86,14 +86,6 @@ import { isUiEditMode, setUiEditMode } from './uiEditor/config';
  * Mounted only in dev (see Game.tsx), so the whole menu — and every tuner — is stripped from production.
  */
 
-/** DEV MENU entry for the Rulebook board — a fullscreen overlay, not a slider panel, so the Tuner slot just
- *  toggles it. Close returns to the menu. */
-function RulebookTriageEntry(): JSX.Element | null {
-  const [open, setOpen] = useState(true);
-  if (!open) return null;
-  return <RulebookTriage onClose={() => setOpen(false)} />;
-}
-
 type Tuner = {
   key: string;
   /** Display label. Free to change; the `key` is the stable identity. */
@@ -216,13 +208,6 @@ const GROUPS: Group[] = [
     ],
   },
   {
-    id: 'design',
-    title: 'Design & QA',
-    items: [
-      { key: 'rulebook', icon: '📜', label: 'Rulebook Triage', C: RulebookTriageEntry, hint: "The owner's ruling board — Doc Bot's queues as clickable Approve/Revise/Reject cards; clicks write decisions.json", alt: 'docbot rules triage board approve' },
-    ],
-  },
-  {
     id: 'status',
     title: 'Status & World',
     items: [
@@ -252,6 +237,7 @@ export function DevMenu() {
   const [shown, setShown] = useState<Set<string>>(new Set());
   const [wbOpen, setWbOpen] = useState(false);
   const [blOpen, setBlOpen] = useState(false);
+  const [rbOpen, setRbOpen] = useState(false);
   const [q, setQ] = useState('');
   const [cursor, setCursor] = useState(0);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -281,6 +267,7 @@ export function DevMenu() {
     { id: 'uiedit', icon: '🎛️', label: 'UI Edit Mode', hint: 'Direct-manipulation editor for in-run UI',
       run: () => setUiEditMode(!isUiEditMode()), live: () => isUiEditMode() },
     { id: 'beatlab', icon: '🥁', label: 'Beat Lab', hint: 'Read-only viewer: the source-attributed trigger/consequence tree of the last action', run: () => setBlOpen(true) },
+    { id: 'rulebook', icon: '📜', label: 'Rulebook Triage', hint: "The owner's ruling board — Doc Bot's queues as clickable Approve/Revise/Reject cards; clicks write decisions.json", run: () => setRbOpen(true) },
     // Destructive and irreversible, so it asks first and names the number — and it says what it does NOT touch,
     // because "reset the tuners" could reasonably be read as including the audio levels.
     {
@@ -470,6 +457,7 @@ export function DevMenu() {
           relationship it doesn't have. */}
       {wbOpen && <FxWorkbench onClose={() => setWbOpen(false)} />}
       {blOpen && <BeatLab onClose={() => setBlOpen(false)} />}
+      {rbOpen && <RulebookTriage onClose={() => setRbOpen(false)} />}
       <BeatDraftBanner />
     </>
   );

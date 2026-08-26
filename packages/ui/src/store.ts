@@ -246,6 +246,26 @@ interface GameStore {
   setEndTurnAnimating: (v: boolean) => void;
   /** Enemy minions killed in the live combat replay — bridges useCombatReplay → Cassen's StatusBar counter. */
   combatEnemyDeaths: number;
+  /** THE HERO ATTACK PILL (owner ask 2026-08-25) — the winner's round damage, printed on their portrait like a
+   *  minion's Attack badge while the post-combat hero strike plays. Store-held because BOTH portraits render it
+   *  and they live in different components (the player's in StatusBar, the foe's in CombatOpponent), and it must
+   *  be a CHILD of the lunging element so it rides the swing. null = no strike in flight. */
+  /** DEV: force the foe portrait to mount outside combat, so the ⚔️ Hero Duel tuner's Test button can play the
+   *  whole sequence from the shop. Never set in production. */
+  duelPreview: boolean;
+  setDuelPreview: (v: boolean) => void;
+  heroAtkPill: { side: 'player' | 'opp'; amount: number; buffed?: boolean; leaving?: boolean } | null;
+  setHeroAtkPill: (p: { side: 'player' | 'opp'; amount: number; buffed?: boolean; leaving?: boolean } | null) => void;
+  /** THE RED DAMAGE-TAKEN NUMBER (owner ask 2026-08-25) — the big blocky number that pops in the CENTRE of the
+   *  hero being struck, showing the damage it took. Rendered by both portraits (player's in StatusBar, foe's in
+   *  CombatOpponent), keyed by side. Distinct from `heroAtkPill` (the ATTACKER's damage-dealt badge). */
+  /** Damage dealt to the FOE this combat, applied to its shown health the moment the blow lands — the mirror of
+   *  the player's own real-time drop (owner ask 2026-08-25). The lobby seat itself only settles at resolveCombat,
+   *  so this transient carries the drop until then; cleared on leaving combat (the seat is settled by then). */
+  oppDmgDealt: number;
+  setOppDmgDealt: (n: number) => void;
+  heroDmgTaken: { side: 'player' | 'opp'; amount: number; seq: number } | null;
+  setHeroDmgTaken: (p: { side: 'player' | 'opp'; amount: number; seq: number } | null) => void;
   setCombatEnemyDeaths: (n: number) => void;
   /** Run-buff gains telegraphed so far this fight (spell power, max Gold) — bridges useCombatReplay → the live
    *  Buffs window so it ticks up in sync with the replay. `null` outside combat (the row reads the run state). */
@@ -1537,6 +1557,14 @@ export const useGame = create<GameStore>((set, get) => ({
   },
   armHero: (slot = 0) => set((s) => ({ heroArmed: !s.heroArmed, heroArmedSlot: slot })),
   setEndTurnAnimating: (v) => set({ endTurnAnimating: v }),
+  duelPreview: false,
+  setDuelPreview: (v) => set({ duelPreview: v }),
+  heroAtkPill: null,
+  setHeroAtkPill: (p) => set({ heroAtkPill: p }),
+  oppDmgDealt: 0,
+  setOppDmgDealt: (n) => set({ oppDmgDealt: n }),
+  heroDmgTaken: null,
+  setHeroDmgTaken: (p) => set({ heroDmgTaken: p }),
   setCombatEnemyDeaths: (n) => set({ combatEnemyDeaths: n }),
   setCombatBuffs: (b) => set({ combatBuffs: b }),
   setCombatQuestDelta: (d) => set({ combatQuestDelta: d }),

@@ -128,6 +128,11 @@ New owner queues from the behavioural layer (all printed by `npm run docbot`):
 - **Two spell-power rulings wanted** (tripwire 8): `rubyStatGain` and `spellBuffShopByRuby` don't fold spell
   power — plausibly correct (the Ruby-strength channel), unruled.
 
+## From tripwire layer to QA machine
+
+The explicit limitation list, each blind spot's circumvention, and the phased build order live in
+[docs/docbot-roadmap.md](docbot-roadmap.md) — the execution plan for the blueprint's remaining components.
+
 ## Extending Doc Bot
 
 New trigger → classify it in `TRIGGER_PHASES` (read the dispatchers first). New dual-phase factory → implement

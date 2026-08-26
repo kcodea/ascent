@@ -8451,6 +8451,29 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .fxwb-cmd-label { flex: 1 1 auto; min-width: 0; font-size: 13px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fxwb-cmd-hint { flex: none; font-size: 11px; font-weight: 700; color: #7d7159; max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
+/* ---- FX STAGE SETTER (dev) — the lightweight mock card (StageCard.tsx) ----
+   Reuses plain `.card` (not `.compact`) verbatim for sizing: `.card` carries an explicit `width`/`height`
+   off `--cw`/`--ch`, so the mock lays out with real geometry with zero children needed, unlike `.compact`
+   (`height: auto`, relies on an `.art` box this mock doesn't have). `.badge`/`.plate`/`.value` are reused
+   as-is too (see StageCard.tsx) — everything below is new: a role tag, a selected ring, a grab handle.
+   The card body's own cursor is the global gauntlet rule (`.card` is already in its selector, styles.css
+   line ~162) — no override needed here. */
+.fxwb-stagecard.fxwb-stagecard-sel { box-shadow: 0 0 0 3px #c8a45c, 0 3px 0 var(--shadow); }
+.fxwb-stagecard-role {
+  position: absolute; top: -10px; left: 50%; z-index: 7; transform: translateX(-50%);
+  padding: 2px 8px; border-radius: 999px; background: #241f17; border: 1px solid #c8a45c;
+  font-size: 10px; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; color: #f0d9a4;
+  white-space: nowrap; pointer-events: none;
+}
+/* The handle is the ONLY grab affordance — `.card`'s own cursor stays the plain gauntlet-open pointer, so
+   the drag surface reads distinctly from the click-to-select surface it sits on top of. */
+.fxwb-stagecard-handle {
+  position: absolute; top: 4px; right: 4px; z-index: 7; width: 18px; height: 18px; border-radius: 4px;
+  background: color-mix(in srgb, #241f17 70%, transparent); border: 1px solid #4a4136;
+  cursor: url('/cursors/gauntlet_open.svg') 6 2, grab;
+}
+.fxwb-stagecard-handle:active { cursor: url('/cursors/hand_closed.svg') 13 12, grabbing; }
+
 /* ---- SANDBOX UNIT EDITOR (dev) ----
    A popover seated under the card being edited. Portalled to <body>, so it is positioned in viewport
    coordinates by the component; everything here is appearance only. Workshop-slate, matching the tuner

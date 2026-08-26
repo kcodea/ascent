@@ -110,7 +110,7 @@ console.log(`\n  ⚠ SCENARIO-CONDITIONAL (${combat.inert.length}, pinned) — t
 console.log('    staged fight. Most are condition-gated (Ryme needs adjacent Battlecries; Moe needs its own');
 console.log('    kills) — each is a per-card verification wanted, and a NEW card landing here trips the pin:');
 console.log(`    ${combat.inert.join(', ')}`);
-console.log(`\n  ⚠ GOLDEN-FLAT in combat (${combat.goldenFlat.length}, pinned): ${combat.goldenFlat.join(', ')}`);
+console.log('  (the former golden-flat lane was removed as an instrument artifact — owner audit 2026-08-26; golden semantics live in the magnitude contracts)');
 console.log('\n── 11. printed numbers — gated in docbot/textNumbers.test.ts (292 params + golden lane, 0 misses)');
 console.log('── 12. invariant fuzz — gated in docbot/invariantFuzz.test.ts (invariants, determinism, identity-independence)');
 console.log('── 13. magnitude oracles — gated in docbot/magnitudeOracle.test.ts (grants EQUAL params: spellBuffTarget, battlecryBuffTarget, deathrattleSummon incl. fixed/goldenTokens)');

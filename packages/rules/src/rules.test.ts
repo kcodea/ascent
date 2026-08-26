@@ -42,7 +42,7 @@ describe('rulebook registry integrity', () => {
   });
 
   it('the backlog is real (a seeding collapse must fail loudly, not read as all-decided)', () => {
-    expect(PENDING_RULES.length).toBeGreaterThanOrEqual(200);
+    expect(PENDING_RULES.length).toBeGreaterThanOrEqual(15); // 22 after the owner audit (2026-08-26) collapsed instrument noise into policy cards + a Doc Bot backlog
     expect(allRules().length).toBe(APPROVED_RULES.length + PENDING_RULES.length);
   });
 });

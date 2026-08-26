@@ -15,7 +15,7 @@
  *   · Undertow: warded bodies ≤ its cap.
  *   · Aftershocks: pays once per Echo TRIGGER (one dying echo body ⇒ one pulse), not per watcher.
  */
-import { CARD_INDEX } from '@game/content';
+import { CARD_INDEX, EPIC_RUNES, QUEST_DEFS, RUNES } from '@game/content';
 import { combatSide, makeRng, simulate, type BoardMinion, type QuestCombatMods } from '@game/core';
 
 const bm = (cardId: string, uid: string, attack: number, health: number, keywords: string[] = []): BoardMinion =>
@@ -23,7 +23,9 @@ const bm = (cardId: string, uid: string, attack: number, health: number, keyword
 
 /** A rich fight: an echo body that dies, a beast that attacks and kills, deaths on both sides, summons,
  *  multiple tribes — so trigger-keyed mods have something to key on. */
-function fight(mods: QuestCombatMods): string {
+function fight(mods: QuestCombatMods): string { return fightCore([], mods); }
+
+function fightCore(extras: BoardMinion[], mods: QuestCombatMods): string {
   const echoer = Object.values(CARD_INDEX).find((c) => c && !c.spell && !c.token
     && c.effects.some((e) => e.on === 'onDeath' && e.do === 'deathrattleSummon' && !(e.params as { fixed?: boolean }).fixed))!;
   // A RALLY body (real on-attack effect, so rally-repeat mods have a subject), a SLAUGHTER body (on-kill),
@@ -40,6 +42,7 @@ function fight(mods: QuestCombatMods): string {
     bm('cryptwolf', 'pS2', 3, 4),
     bm(rally.id, 'pS3', 3, 5, [...rally.keywords]),
     bm(slaughterer.id, 'pS4', 4, 4, [...slaughterer.keywords]),
+    ...extras,
   ];
   const enemy: BoardMinion[] = [
     bm('pup', 'e0', 1, 1),
@@ -65,16 +68,35 @@ const OBJECT_ARMS: Record<string, unknown> = {
   beastialSwarmLevel: 1,
 };
 
-export interface ModScanResult { changed: string[]; inert: string[]; errored: string[] }
+export interface ModScanResult { changed: string[]; inert: string[]; errored: string[]; stagedActive: string[] }
+
+/** Cards the mod's OWNING rune/quest names in its printed text — matched against CARD_INDEX names, so a mod
+ *  like `runeSylus` ("your Sylus double their Health…") gets a Sylus staged before it is called inert.
+ *  Born from the owner audit 2026-08-26: the first cut queued 63 "inert" mods, most of which simply needed
+ *  the card their rune is ABOUT. */
+export function namedCardsFor(key: string): string[] {
+  const all = [...RUNES, ...EPIC_RUNES, ...QUEST_DEFS] as { id: string; reward?: unknown; text?: string }[];
+  const owner = all.find((r) => JSON.stringify(r.reward ?? {}).includes(`"${key}"`))
+    ?? all.find((r) => r.id.replace(/^rune_/, '').replace(/_/g, '').toLowerCase() === key.replace(/^rune/, '').toLowerCase());
+  if (!owner?.text) return [];
+  const text = owner.text.replace(/\*\*/g, '');
+  const ids: string[] = [];
+  for (const c of Object.values(CARD_INDEX)) {
+    if (!c || c.spell || !c.name || c.name.length < 4) continue;
+    if (text.includes(c.name) && !ids.includes(c.id)) ids.push(c.id);
+  }
+  return ids.slice(0, 2);
+}
 
 export function combatModScan(keys: readonly string[]): ModScanResult {
   const baseline = fight({});
   const changed: string[] = [];
   const inert: string[] = [];
   const errored: string[] = [];
+  const stagedActive: string[] = [];
   for (const key of keys) {
     const arms: unknown[] = key in OBJECT_ARMS ? [OBJECT_ARMS[key]] : [true, 4];
-    let verdict: 'changed' | 'inert' | 'errored' = 'inert';
+    let verdict: 'changed' | 'inert' | 'errored' | 'staged' = 'inert';
     for (const arm of arms) {
       try {
         if (fight({ [key]: arm } as QuestCombatMods) !== baseline) { verdict = 'changed'; break; }
@@ -82,9 +104,28 @@ export function combatModScan(keys: readonly string[]): ModScanResult {
         verdict = 'errored';
       }
     }
-    (verdict === 'changed' ? changed : verdict === 'errored' ? errored : inert).push(key);
+    if (verdict === 'inert') {
+      // Second chance: stage the cards the mod's own rune names, then re-test.
+      const named = namedCardsFor(key);
+      if (named.length) {
+        const extras = named.map((id, n) => {
+          const d = CARD_INDEX[id]!;
+          return bm(id, `pN${n}`, Math.max(1, d.attack), Math.max(4, d.health));
+        });
+        try {
+          const armedArm = key in OBJECT_ARMS ? OBJECT_ARMS[key] : true;
+          if (fightWith(extras, { [key]: armedArm } as QuestCombatMods) !== fightWith(extras, {})) verdict = 'staged';
+        } catch { /* keep inert */ }
+      }
+    }
+    (verdict === 'changed' ? changed : verdict === 'staged' ? stagedActive : verdict === 'errored' ? errored : inert).push(key);
   }
-  return { changed, inert, errored };
+  return { changed, inert, errored, stagedActive };
+}
+
+/** The staged fight with extra named bodies appended to the player side. */
+function fightWith(extras: BoardMinion[], mods: QuestCombatMods): string {
+  return fightCore(extras, mods);
 }
 
 /** The mod keys, parsed from the QuestCombatMods interface source by the TEST (node-side) and passed in —

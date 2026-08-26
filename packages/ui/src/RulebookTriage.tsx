@@ -108,7 +108,13 @@ export function RulebookTriage({ onClose }: { onClose: () => void }): JSX.Elemen
               <code style={{ fontSize: 11, opacity: 0.55 }}>{r.id}</code>
               <span style={{ fontSize: 11, opacity: 0.55, marginLeft: 'auto' }}>{QUEUE_LABELS[r.sourceQueue ?? ''] ?? r.sourceQueue}</span>
             </div>
-            <div style={{ fontSize: 13, margin: '6px 0', lineHeight: 1.45 }}>{r.statement}</div>
+            {r.cardText && (
+              <div style={{ fontSize: 12.5, margin: '6px 0 2px', padding: '6px 10px', borderLeft: '3px solid #b8963f', background: '#1d1a10', borderRadius: 4, lineHeight: 1.45, color: '#e6d9a8' }}>
+                {r.cardText}
+              </div>
+            )}
+            <div style={{ fontSize: 13, margin: '6px 0', lineHeight: 1.5 }}>{r.statement}</div>
+            {r.example && <div style={{ fontSize: 12, opacity: 0.8, fontStyle: 'italic', marginBottom: 3 }}>{r.example}</div>}
             {r.currentBehaviour && <div style={{ fontSize: 12, opacity: 0.7 }}>Today: {r.currentBehaviour}</div>}
             {r.recommendation && <div style={{ fontSize: 12, color: '#a9c6a9', marginTop: 3 }}>Claude recommends: {r.recommendation}</div>}
 

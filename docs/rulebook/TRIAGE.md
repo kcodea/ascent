@@ -5,305 +5,305 @@ Decide them in the DEV MENU → Rulebook board (clicks write to decisions.json),
 
 ## combatDifferential (7)
 
-- **q-combatinert-b2_echohorn** — Echohorn: combat effect never acted
-- **q-combatinert-c3_acolyte** — Daybreak Acolyte: combat effect never acted
-- **q-combatinert-c3_equinox** — Equinox Duelist: combat effect never acted
-- **q-combatinert-c3_twilight** — Twilight Sentinel: combat effect never acted
-- **q-combatinert-n2_reflector** — Reflector: combat effect never acted
-- **q-combatinert-n2_wanderer** — Ancient Wanderer: combat effect never acted
-- **q-combatinert-sporebat** — Sporebat: combat effect never acted
+- **q-combatinert-b2_echohorn** — Echohorn: printed effect never influenced a fight
+- **q-combatinert-c3_acolyte** — Daybreak Acolyte: printed effect never influenced a fight
+- **q-combatinert-c3_equinox** — Equinox Duelist: printed effect never influenced a fight
+- **q-combatinert-c3_twilight** — Twilight Sentinel: printed effect never influenced a fight
+- **q-combatinert-n2_reflector** — Reflector: printed effect never influenced a fight
+- **q-combatinert-n2_wanderer** — Ancient Wanderer: printed effect never influenced a fight
+- **q-combatinert-sporebat** — Sporebat: printed effect never influenced a fight
 
 ## combatDifferential.golden (61)
 
-- **q-goldenflat-abhorrenthorror** — Abhorrent Horror: golden combat = plain
-- **q-goldenflat-ashen_heir** — Ashen Heir: golden combat = plain
-- **q-goldenflat-b2_beardsley** — Beardsley: golden combat = plain
-- **q-goldenflat-b2_dawnclaw** — Dawnclaw: golden combat = plain
-- **q-goldenflat-b2_dunkey** — Dunkey: golden combat = plain
-- **q-goldenflat-b2_groveweaver** — Groveweaver: golden combat = plain
-- **q-goldenflat-b2_hawkus** — Hawkus: golden combat = plain
-- **q-goldenflat-b2_oona** — King Oona: golden combat = plain
-- **q-goldenflat-b2_quil** — Quil: golden combat = plain
-- **q-goldenflat-b2_runebloom** — Runebloom Matriarch: golden combat = plain
-- **q-goldenflat-b2_scavenger** — Scavvers: golden combat = plain
-- **q-goldenflat-b2_solaris** — Solaris: golden combat = plain
-- **q-goldenflat-b2_spots** — Spots: golden combat = plain
-- **q-goldenflat-broodmother** — Violet Whelpmother: golden combat = plain
-- **q-goldenflat-c3_sentinel** — Horizon Sentinel: golden combat = plain
-- **q-goldenflat-d2_curator** — Water Dragon: golden combat = plain
-- **q-goldenflat-d2_embercrest** — Embercrest: golden combat = plain
-- **q-goldenflat-d2_herzog** — Vaultkeeper: golden combat = plain
-- **q-goldenflat-d2_mirrorwing** — Mirrorwing: golden combat = plain
-- **q-goldenflat-d2_scalefeather** — Mushy: golden combat = plain
-- **q-goldenflat-deathsayer** — Deathsayer: golden combat = plain
-- **q-goldenflat-dm_chancellor** — Rouge Rogue: golden combat = plain
-- **q-goldenflat-dm_glutton** — Chipper: golden combat = plain
-- **q-goldenflat-dm_malphas** — Malphas, Lord of Want: golden combat = plain
-- **q-goldenflat-dm_overseer** — Endless Overseer: golden combat = plain
-- **q-goldenflat-dm_shepherd** — Legion Shepherd: golden combat = plain
-- **q-goldenflat-dm_wrangler** — Imp Wrangler: golden combat = plain
-- **q-goldenflat-dw_bucky** — Bucky: golden combat = plain
-- **q-goldenflat-dw_chef** — Chef Gary Toast: golden combat = plain
-- **q-goldenflat-dw_exgalloper** — Exgalloper: golden combat = plain
-- **q-goldenflat-gravebody** — Grave Body: golden combat = plain
-- **q-goldenflat-gravewarden** — Gravewarden: golden combat = plain
-- **q-goldenflat-hunter** — Hunter: golden combat = plain
-- **q-goldenflat-impking** — Imp King: golden combat = plain
-- **q-goldenflat-jenkins** — Jensen & Fi: golden combat = plain
-- **q-goldenflat-k_alchemist** — Alchemist Brisbane: golden combat = plain
-- **q-goldenflat-k_deepdelve** — Deepdelve Paragon: golden combat = plain
-- **q-goldenflat-k_kobabyboldies** — Kobebes: golden combat = plain
-- **q-goldenflat-k_mineralmaster** — Mineral Master: golden combat = plain
-- **q-goldenflat-labexperiment** — Lab Experiment: golden combat = plain
-- **q-goldenflat-mamabear** — Den Mother: golden combat = plain
-- **q-goldenflat-mirrorrhino** — Mirrorhide Rhino: golden combat = plain
-- **q-goldenflat-monk** — Flowing Monk: golden combat = plain
-- **q-goldenflat-mossmemory_colossus** — Mossmemory Colossus: golden combat = plain
-- **q-goldenflat-mumi** — Mumi: golden combat = plain
-- **q-goldenflat-n2_abomination** — Evolving Abomination: golden combat = plain
-- **q-goldenflat-n2_echomimic** — Echo Mimic: golden combat = plain
-- **q-goldenflat-n2_fatecarver** — Fatecarver: golden combat = plain
-- **q-goldenflat-n2_paragon** — Paragon: golden combat = plain
-- **q-goldenflat-nanon** — Nanon: golden combat = plain
-- **q-goldenflat-packleader** — Pack Leader: golden combat = plain
-- **q-goldenflat-runesnout_archivist** — Runesnout Archivist: golden combat = plain
-- **q-goldenflat-sergeant** — Sergeant: golden combat = plain
-- **q-goldenflat-solaris** — Solaris Fang: golden combat = plain
-- **q-goldenflat-spiritworgen** — Spirit Worgen: golden combat = plain
-- **q-goldenflat-steadfast** — Steadfast Champion: golden combat = plain
-- **q-goldenflat-tauntbreaker** — Tauntbreaker: golden combat = plain
-- **q-goldenflat-taurus** — Taurus: golden combat = plain
-- **q-goldenflat-taurustruth** — Taurus the Truth Bringer: golden combat = plain
-- **q-goldenflat-thunderingabomination** — Cratering Hulk: golden combat = plain
-- **q-goldenflat-trickster** — Trickster: golden combat = plain
+- **q-goldenflat-abhorrenthorror** — Abhorrent Horror: gilding changes nothing about its combat ability
+- **q-goldenflat-ashen_heir** — Ashen Heir: gilding changes nothing about its combat ability
+- **q-goldenflat-b2_beardsley** — Beardsley: gilding changes nothing about its combat ability
+- **q-goldenflat-b2_dawnclaw** — Dawnclaw: gilding changes nothing about its combat ability
+- **q-goldenflat-b2_dunkey** — Dunkey: gilding changes nothing about its combat ability
+- **q-goldenflat-b2_groveweaver** — Groveweaver: gilding changes nothing about its combat ability
+- **q-goldenflat-b2_hawkus** — Hawkus: gilding changes nothing about its combat ability
+- **q-goldenflat-b2_oona** — King Oona: gilding changes nothing about its combat ability
+- **q-goldenflat-b2_quil** — Quil: gilding changes nothing about its combat ability
+- **q-goldenflat-b2_runebloom** — Runebloom Matriarch: gilding changes nothing about its combat ability
+- **q-goldenflat-b2_scavenger** — Scavvers: gilding changes nothing about its combat ability
+- **q-goldenflat-b2_solaris** — Solaris: gilding changes nothing about its combat ability
+- **q-goldenflat-b2_spots** — Spots: gilding changes nothing about its combat ability
+- **q-goldenflat-broodmother** — Violet Whelpmother: gilding changes nothing about its combat ability
+- **q-goldenflat-c3_sentinel** — Horizon Sentinel: gilding changes nothing about its combat ability
+- **q-goldenflat-d2_curator** — Water Dragon: gilding changes nothing about its combat ability
+- **q-goldenflat-d2_embercrest** — Embercrest: gilding changes nothing about its combat ability
+- **q-goldenflat-d2_herzog** — Vaultkeeper: gilding changes nothing about its combat ability
+- **q-goldenflat-d2_mirrorwing** — Mirrorwing: gilding changes nothing about its combat ability
+- **q-goldenflat-d2_scalefeather** — Mushy: gilding changes nothing about its combat ability
+- **q-goldenflat-deathsayer** — Deathsayer: gilding changes nothing about its combat ability
+- **q-goldenflat-dm_chancellor** — Rouge Rogue: gilding changes nothing about its combat ability
+- **q-goldenflat-dm_glutton** — Chipper: gilding changes nothing about its combat ability
+- **q-goldenflat-dm_malphas** — Malphas, Lord of Want: gilding changes nothing about its combat ability
+- **q-goldenflat-dm_overseer** — Endless Overseer: gilding changes nothing about its combat ability
+- **q-goldenflat-dm_shepherd** — Legion Shepherd: gilding changes nothing about its combat ability
+- **q-goldenflat-dm_wrangler** — Imp Wrangler: gilding changes nothing about its combat ability
+- **q-goldenflat-dw_bucky** — Bucky: gilding changes nothing about its combat ability
+- **q-goldenflat-dw_chef** — Chef Gary Toast: gilding changes nothing about its combat ability
+- **q-goldenflat-dw_exgalloper** — Exgalloper: gilding changes nothing about its combat ability
+- **q-goldenflat-gravebody** — Grave Body: gilding changes nothing about its combat ability
+- **q-goldenflat-gravewarden** — Gravewarden: gilding changes nothing about its combat ability
+- **q-goldenflat-hunter** — Hunter: gilding changes nothing about its combat ability
+- **q-goldenflat-impking** — Imp King: gilding changes nothing about its combat ability
+- **q-goldenflat-jenkins** — Jensen & Fi: gilding changes nothing about its combat ability
+- **q-goldenflat-k_alchemist** — Alchemist Brisbane: gilding changes nothing about its combat ability
+- **q-goldenflat-k_deepdelve** — Deepdelve Paragon: gilding changes nothing about its combat ability
+- **q-goldenflat-k_kobabyboldies** — Kobebes: gilding changes nothing about its combat ability
+- **q-goldenflat-k_mineralmaster** — Mineral Master: gilding changes nothing about its combat ability
+- **q-goldenflat-labexperiment** — Lab Experiment: gilding changes nothing about its combat ability
+- **q-goldenflat-mamabear** — Den Mother: gilding changes nothing about its combat ability
+- **q-goldenflat-mirrorrhino** — Mirrorhide Rhino: gilding changes nothing about its combat ability
+- **q-goldenflat-monk** — Flowing Monk: gilding changes nothing about its combat ability
+- **q-goldenflat-mossmemory_colossus** — Mossmemory Colossus: gilding changes nothing about its combat ability
+- **q-goldenflat-mumi** — Mumi: gilding changes nothing about its combat ability
+- **q-goldenflat-n2_abomination** — Evolving Abomination: gilding changes nothing about its combat ability
+- **q-goldenflat-n2_echomimic** — Echo Mimic: gilding changes nothing about its combat ability
+- **q-goldenflat-n2_fatecarver** — Fatecarver: gilding changes nothing about its combat ability
+- **q-goldenflat-n2_paragon** — Paragon: gilding changes nothing about its combat ability
+- **q-goldenflat-nanon** — Nanon: gilding changes nothing about its combat ability
+- **q-goldenflat-packleader** — Pack Leader: gilding changes nothing about its combat ability
+- **q-goldenflat-runesnout_archivist** — Runesnout Archivist: gilding changes nothing about its combat ability
+- **q-goldenflat-sergeant** — Sergeant: gilding changes nothing about its combat ability
+- **q-goldenflat-solaris** — Solaris Fang: gilding changes nothing about its combat ability
+- **q-goldenflat-spiritworgen** — Spirit Worgen: gilding changes nothing about its combat ability
+- **q-goldenflat-steadfast** — Steadfast Champion: gilding changes nothing about its combat ability
+- **q-goldenflat-tauntbreaker** — Tauntbreaker: gilding changes nothing about its combat ability
+- **q-goldenflat-taurus** — Taurus: gilding changes nothing about its combat ability
+- **q-goldenflat-taurustruth** — Taurus the Truth Bringer: gilding changes nothing about its combat ability
+- **q-goldenflat-thunderingabomination** — Cratering Hulk: gilding changes nothing about its combat ability
+- **q-goldenflat-trickster** — Trickster: gilding changes nothing about its combat ability
 
 ## combatModLane (63)
 
-- **q-mod-avengeFirstDouble** — combat mod avengeFirstDouble: no observable effect
-- **q-mod-baneDemonWiden** — combat mod baneDemonWiden: no observable effect
-- **q-mod-beastialSwarmLevel** — combat mod beastialSwarmLevel: no observable effect
-- **q-mod-bloodTrail** — combat mod bloodTrail: no observable effect
-- **q-mod-boneThroneStep** — combat mod boneThroneStep: no observable effect
-- **q-mod-burningLegionUses** — combat mod burningLegionUses: no observable effect
-- **q-mod-candlelightToll** — combat mod candlelightToll: no observable effect
-- **q-mod-containFirstEnemySummon** — combat mod containFirstEnemySummon: no observable effect
-- **q-mod-contractRewrite** — combat mod contractRewrite: no observable effect
-- **q-mod-crateringMissive** — combat mod crateringMissive: no observable effect
-- **q-mod-flagCopies** — combat mod flagCopies: no observable effect
-- **q-mod-flashCopies** — combat mod flashCopies: no observable effect
-- **q-mod-gemheartCharge** — combat mod gemheartCharge: no observable effect
-- **q-mod-lawOfTeeth** — combat mod lawOfTeeth: no observable effect
-- **q-mod-oldPack** — combat mod oldPack: no observable effect
-- **q-mod-passingSpears** — combat mod passingSpears: no observable effect
-- **q-mod-pitWithoutEndImps** — combat mod pitWithoutEndImps: no observable effect
-- **q-mod-rallyExtraAlways** — combat mod rallyExtraAlways: no observable effect
-- **q-mod-rallyFirstEachCombat** — combat mod rallyFirstEachCombat: no observable effect
-- **q-mod-runeAncestralRoar** — combat mod runeAncestralRoar: no observable effect
-- **q-mod-runeAshenPayroll** — combat mod runeAshenPayroll: no observable effect
-- **q-mod-runeBattleRefraction** — combat mod runeBattleRefraction: no observable effect
-- **q-mod-runeBroodmaster** — combat mod runeBroodmaster: no observable effect
-- **q-mod-runeCenterline** — combat mod runeCenterline: no observable effect
-- **q-mod-runeChef** — combat mod runeChef: no observable effect
-- **q-mod-runeDawnclaw** — combat mod runeDawnclaw: no observable effect
-- **q-mod-runeDeathtouchedApple** — combat mod runeDeathtouchedApple: no observable effect
-- **q-mod-runeDragonscale** — combat mod runeDragonscale: no observable effect
-- **q-mod-runeEmberline** — combat mod runeEmberline: no observable effect
-- **q-mod-runeEnchantment** — combat mod runeEnchantment: no observable effect
-- **q-mod-runeEngravingGems** — combat mod runeEngravingGems: no observable effect
-- **q-mod-runeFinality** — combat mod runeFinality: no observable effect
-- **q-mod-runeFloodedVault** — combat mod runeFloodedVault: no observable effect
-- **q-mod-runeFoodChain** — combat mod runeFoodChain: no observable effect
-- **q-mod-runeFury** — combat mod runeFury: no observable effect
-- **q-mod-runeGemGolem** — combat mod runeGemGolem: no observable effect
-- **q-mod-runeGolems** — combat mod runeGolems: no observable effect
-- **q-mod-runeGroveweaver** — combat mod runeGroveweaver: no observable effect
-- **q-mod-runeHerdingHorn** — combat mod runeHerdingHorn: no observable effect
-- **q-mod-runeLivingGeode** — combat mod runeLivingGeode: no observable effect
-- **q-mod-runeLivingTreasure** — combat mod runeLivingTreasure: no observable effect
-- **q-mod-runeMammoth** — combat mod runeMammoth: no observable effect
-- **q-mod-runeMastery** — combat mod runeMastery: no observable effect
-- **q-mod-runeMatriarch** — combat mod runeMatriarch: no observable effect
-- **q-mod-runeMoonhowl** — combat mod runeMoonhowl: no observable effect
-- **q-mod-runeOverflow** — combat mod runeOverflow: no observable effect
-- **q-mod-runeRemains** — combat mod runeRemains: no observable effect
-- **q-mod-runeRubyShrapnel** — combat mod runeRubyShrapnel: no observable effect
-- **q-mod-runeRuins** — combat mod runeRuins: no observable effect
-- **q-mod-runeSharedScripture** — combat mod runeSharedScripture: no observable effect
-- **q-mod-runeSpareChair** — combat mod runeSpareChair: no observable effect
-- **q-mod-runeSpellstone** — combat mod runeSpellstone: no observable effect
-- **q-mod-runeStokedMenagerie** — combat mod runeStokedMenagerie: no observable effect
-- **q-mod-runeSylus** — combat mod runeSylus: no observable effect
-- **q-mod-runeTwilight** — combat mod runeTwilight: no observable effect
-- **q-mod-runeWarChorus** — combat mod runeWarChorus: no observable effect
-- **q-mod-runeWrangler** — combat mod runeWrangler: no observable effect
-- **q-mod-runeZoo** — combat mod runeZoo: no observable effect
-- **q-mod-sharedCircuitWard** — combat mod sharedCircuitWard: no observable effect
-- **q-mod-slaughterFirstEachCombat** — combat mod slaughterFirstEachCombat: no observable effect
-- **q-mod-solidGroundStat** — combat mod solidGroundStat: no observable effect
-- **q-mod-tribeRallySlaughterExtra** — combat mod tribeRallySlaughterExtra: no observable effect
-- **q-mod-umbralEnergy** — combat mod umbralEnergy: no observable effect
+- **q-mod-avengeFirstDouble** — The Sealed Vault: armed in combat, changed nothing
+- **q-mod-baneDemonWiden** — baneDemonWiden: armed in combat, changed nothing
+- **q-mod-beastialSwarmLevel** — beastialSwarmLevel: armed in combat, changed nothing
+- **q-mod-bloodTrail** — Blood Trail: armed in combat, changed nothing
+- **q-mod-boneThroneStep** — boneThroneStep: armed in combat, changed nothing
+- **q-mod-burningLegionUses** — burningLegionUses: armed in combat, changed nothing
+- **q-mod-candlelightToll** — Candlelight Toll: armed in combat, changed nothing
+- **q-mod-containFirstEnemySummon** — containFirstEnemySummon: armed in combat, changed nothing
+- **q-mod-contractRewrite** — Contract Rewrite: armed in combat, changed nothing
+- **q-mod-crateringMissive** — Cratering Missive: armed in combat, changed nothing
+- **q-mod-flagCopies** — flagCopies: armed in combat, changed nothing
+- **q-mod-flashCopies** — flashCopies: armed in combat, changed nothing
+- **q-mod-gemheartCharge** — Heart of the Mountain: armed in combat, changed nothing
+- **q-mod-lawOfTeeth** — Law of Teeth: armed in combat, changed nothing
+- **q-mod-oldPack** — Rune of the Old Pack: armed in combat, changed nothing
+- **q-mod-passingSpears** — Passing Spears: armed in combat, changed nothing
+- **q-mod-pitWithoutEndImps** — pitWithoutEndImps: armed in combat, changed nothing
+- **q-mod-rallyExtraAlways** — rallyExtraAlways: armed in combat, changed nothing
+- **q-mod-rallyFirstEachCombat** — rallyFirstEachCombat: armed in combat, changed nothing
+- **q-mod-runeAncestralRoar** — Rune of Ancestral Roar: armed in combat, changed nothing
+- **q-mod-runeAshenPayroll** — Rune of Ashen Payroll: armed in combat, changed nothing
+- **q-mod-runeBattleRefraction** — runeBattleRefraction: armed in combat, changed nothing
+- **q-mod-runeBroodmaster** — runeBroodmaster: armed in combat, changed nothing
+- **q-mod-runeCenterline** — Rune of the Centerline: armed in combat, changed nothing
+- **q-mod-runeChef** — Rune of the Chef: armed in combat, changed nothing
+- **q-mod-runeDawnclaw** — Rune of Dawnclaw: armed in combat, changed nothing
+- **q-mod-runeDeathtouchedApple** — Rune of the Deathtouched Apple: armed in combat, changed nothing
+- **q-mod-runeDragonscale** — Rune of Dragonscale: armed in combat, changed nothing
+- **q-mod-runeEmberline** — Rune of Emberline: armed in combat, changed nothing
+- **q-mod-runeEnchantment** — Rune of Enchantment: armed in combat, changed nothing
+- **q-mod-runeEngravingGems** — Rune of Engraving Gems: armed in combat, changed nothing
+- **q-mod-runeFinality** — Rune of Finality: armed in combat, changed nothing
+- **q-mod-runeFloodedVault** — runeFloodedVault: armed in combat, changed nothing
+- **q-mod-runeFoodChain** — Rune of the Food Chain: armed in combat, changed nothing
+- **q-mod-runeFury** — Rune of Fury: armed in combat, changed nothing
+- **q-mod-runeGemGolem** — Rune of the Gem Golem: armed in combat, changed nothing
+- **q-mod-runeGolems** — runeGolems: armed in combat, changed nothing
+- **q-mod-runeGroveweaver** — runeGroveweaver: armed in combat, changed nothing
+- **q-mod-runeHerdingHorn** — Rune of the Herding Horn: armed in combat, changed nothing
+- **q-mod-runeLivingGeode** — Rune of the Living Geode: armed in combat, changed nothing
+- **q-mod-runeLivingTreasure** — Rune of Living Treasure: armed in combat, changed nothing
+- **q-mod-runeMammoth** — runeMammoth: armed in combat, changed nothing
+- **q-mod-runeMastery** — Rune of Mastery: armed in combat, changed nothing
+- **q-mod-runeMatriarch** — runeMatriarch: armed in combat, changed nothing
+- **q-mod-runeMoonhowl** — Rune of Moonhowl: armed in combat, changed nothing
+- **q-mod-runeOverflow** — Rune of Overflow: armed in combat, changed nothing
+- **q-mod-runeRemains** — runeRemains: armed in combat, changed nothing
+- **q-mod-runeRubyShrapnel** — Rune of Ruby Shrapnel: armed in combat, changed nothing
+- **q-mod-runeRuins** — Rune of Ruins: armed in combat, changed nothing
+- **q-mod-runeSharedScripture** — Rune of Shared Scripture: armed in combat, changed nothing
+- **q-mod-runeSpareChair** — Rune of the Spare Chair: armed in combat, changed nothing
+- **q-mod-runeSpellstone** — Rune of the Spellstone: armed in combat, changed nothing
+- **q-mod-runeStokedMenagerie** — Rune of the Stoked Menagerie: armed in combat, changed nothing
+- **q-mod-runeSylus** — Rune of Sylus: armed in combat, changed nothing
+- **q-mod-runeTwilight** — Rune of Twilight: armed in combat, changed nothing
+- **q-mod-runeWarChorus** — Rune of the War Chorus: armed in combat, changed nothing
+- **q-mod-runeWrangler** — runeWrangler: armed in combat, changed nothing
+- **q-mod-runeZoo** — Rune of the Zoo: armed in combat, changed nothing
+- **q-mod-sharedCircuitWard** — sharedCircuitWard: armed in combat, changed nothing
+- **q-mod-slaughterFirstEachCombat** — slaughterFirstEachCombat: armed in combat, changed nothing
+- **q-mod-solidGroundStat** — solidGroundStat: armed in combat, changed nothing
+- **q-mod-tribeRallySlaughterExtra** — War Council: armed in combat, changed nothing
+- **q-mod-umbralEnergy** — Umbral Energy: armed in combat, changed nothing
 
 ## factoryPhase (16)
 
-- **q-phase-countTribeSummon** — countTribeSummon: silent in combat
-- **q-phase-deathrattleBuffShopPermanent** — deathrattleBuffShopPermanent: silent in recruit
-- **q-phase-deathrattleTriggerAdjacentRally** — deathrattleTriggerAdjacentRally: silent in recruit
-- **q-phase-echoCastRememberedSpells** — echoCastRememberedSpells: silent in recruit
-- **q-phase-impInheritOnDeath** — impInheritOnDeath: silent in recruit
-- **q-phase-impInheritOnSummon** — impInheritOnSummon: silent in recruit
-- **q-phase-onFriendDeathGainEcho** — onFriendDeathGainEcho: silent in recruit
-- **q-phase-onFriendDeathSummon** — onFriendDeathSummon: silent in recruit
-- **q-phase-onRubyPlayedSpreadRandom** — onRubyPlayedSpreadRandom: silent in combat
-- **q-phase-onSummonOverflowBuffTribe** — onSummonOverflowBuffTribe: silent in recruit
-- **q-phase-onSummonSelfBuff** — onSummonSelfBuff: silent in recruit
-- **q-phase-onSummonTribeBuffThenDouble** — onSummonTribeBuffThenDouble: silent in recruit
-- **q-phase-onTribePlayedBuffSelfPerSpell** — onTribePlayedBuffSelfPerSpell: silent in combat
-- **q-phase-onTribeSummonedBuffTribe** — onTribeSummonedBuffTribe: silent in combat
-- **q-phase-rubyPlayedGold** — rubyPlayedGold: silent in combat
-- **q-phase-summonBuffTribeImprove** — summonBuffTribeImprove: silent in combat
+- **q-phase-countTribeSummon** — Pack Leader: does nothing in the combat phase
+- **q-phase-deathrattleBuffShopPermanent** — Malphas, Lord of Want: does nothing in the recruit phase
+- **q-phase-deathrattleTriggerAdjacentRally** — Scavvers: does nothing in the recruit phase
+- **q-phase-echoCastRememberedSpells** — Runesnout Archivist: does nothing in the recruit phase
+- **q-phase-impInheritOnDeath** — Ashen Heir: does nothing in the recruit phase
+- **q-phase-impInheritOnSummon** — Ashen Heir: does nothing in the recruit phase
+- **q-phase-onFriendDeathGainEcho** — Echo Mimic: does nothing in the recruit phase
+- **q-phase-onFriendDeathSummon** — Brood Matron: does nothing in the recruit phase
+- **q-phase-onRubyPlayedSpreadRandom** — Reflector: does nothing in the combat phase
+- **q-phase-onSummonOverflowBuffTribe** — Cratering Hulk: does nothing in the recruit phase
+- **q-phase-onSummonSelfBuff** — Cratering Hulk: does nothing in the recruit phase
+- **q-phase-onSummonTribeBuffThenDouble** — King Oona: does nothing in the recruit phase
+- **q-phase-onTribePlayedBuffSelfPerSpell** — Vaultkeeper: does nothing in the combat phase
+- **q-phase-onTribeSummonedBuffTribe** — Chef Gary Toast: does nothing in the combat phase
+- **q-phase-rubyPlayedGold** — Ruby Broker: does nothing in the combat phase
+- **q-phase-summonBuffTribeImprove** — Den Mother: does nothing in the combat phase
 
 ## heroPowerLane (25)
 
-- **q-hero-brackus** — Brackus: power fired nothing
-- **q-hero-cassen** — Cassen: power fired nothing
-- **q-hero-chaos** — Chaos: power fired nothing
-- **q-hero-chronoshero** — Chronos: power fired nothing
-- **q-hero-cia** — Ayse: power fired nothing
-- **q-hero-coran** — Coran: power fired nothing
-- **q-hero-discodan** — Disco Dan: power fired nothing
-- **q-hero-drakko** — Drakko: power fired nothing
-- **q-hero-emeraldwarden** — Emerald Warden: power fired nothing
-- **q-hero-fi** — Fi: power fired nothing
-- **q-hero-flash** — Flash: power fired nothing
-- **q-hero-flint** — Foreman Flint: power fired nothing
-- **q-hero-gildmaster** — Gildmaster: power fired nothing
-- **q-hero-hermithank** — Tradesman: power fired nothing
-- **q-hero-hunch** — Hunch: power fired nothing
-- **q-hero-membrance** — Membrance: power fired nothing
-- **q-hero-mimic** — Mimic: power fired nothing
-- **q-hero-odelle** — Odelle: power fired nothing
-- **q-hero-pete** — Pete: power fired nothing
-- **q-hero-robin** — Robin: power fired nothing
-- **q-hero-rohan** — Yirin: power fired nothing
-- **q-hero-runeguard** — Guardian: power fired nothing
-- **q-hero-runesmith** — Runesmith: power fired nothing
-- **q-hero-underdweller** — Underdweller: power fired nothing
-- **q-hero-vale** — Emissary: power fired nothing
+- **q-hero-brackus** — Brackus — Summit: pressing the power does nothing
+- **q-hero-cassen** — Cassen — Commission: pressing the power does nothing
+- **q-hero-chaos** — Chaos — Chaos Bond: pressing the power does nothing
+- **q-hero-chronoshero** — Chronos — Timelapse: pressing the power does nothing
+- **q-hero-cia** — Ayse — Lucky Seat: pressing the power does nothing
+- **q-hero-coran** — Coran — Pathfinder: pressing the power does nothing
+- **q-hero-discodan** — Disco Dan — Setlist: pressing the power does nothing
+- **q-hero-drakko** — Drakko — Drumline: pressing the power does nothing
+- **q-hero-emeraldwarden** — Emerald Warden — Vanguard: pressing the power does nothing
+- **q-hero-fi** — Fi — Errand: pressing the power does nothing
+- **q-hero-flash** — Flash — First or Last: pressing the power does nothing
+- **q-hero-flint** — Foreman Flint — Company Rate: pressing the power does nothing
+- **q-hero-gildmaster** — Gildmaster — Gildcrafter: pressing the power does nothing
+- **q-hero-hermithank** — Tradesman — Frugal: pressing the power does nothing
+- **q-hero-hunch** — Hunch — Rounded Spellbook: pressing the power does nothing
+- **q-hero-membrance** — Membrance — Memory: pressing the power does nothing
+- **q-hero-mimic** — Mimic — Mimicry: pressing the power does nothing
+- **q-hero-odelle** — Odelle — Exhibition: pressing the power does nothing
+- **q-hero-pete** — Pete — Contrabanana: pressing the power does nothing
+- **q-hero-robin** — Robin — Spoils: pressing the power does nothing
+- **q-hero-rohan** — Yirin — Reflector: pressing the power does nothing
+- **q-hero-runeguard** — Guardian — Runeguard: pressing the power does nothing
+- **q-hero-runesmith** — Runesmith — Forgemaster: pressing the power does nothing
+- **q-hero-underdweller** — Underdweller — Soulkeeper: pressing the power does nothing
+- **q-hero-vale** — Emissary — United Front: pressing the power does nothing
 
 ## playDifferential (5)
 
-- **q-play-b2_magepup** — Mage-Pup: play inert under fixture
-- **q-play-c3_relay** — Astral Relay: play inert under fixture
-- **q-play-cleric** — Hoard Cleric: play inert under fixture
-- **q-play-d2_recaller** — Recaller: play inert under fixture
-- **q-play-dw_ironlung** — Warhorn Captain: play inert under fixture
+- **q-play-b2_magepup** — Mage-Pup: play effect needs a condition the test can't stage
+- **q-play-c3_relay** — Astral Relay: play effect needs a condition the test can't stage
+- **q-play-cleric** — Hoard Cleric: play effect needs a condition the test can't stage
+- **q-play-d2_recaller** — Recaller: play effect needs a condition the test can't stage
+- **q-play-dw_ironlung** — Warhorn Captain: play effect needs a condition the test can't stage
 
 ## playDifferential.refused (14)
 
-- **q-refused-apples** — Apples: uncastable under fixture
-- **q-refused-commonground** — Common Ground: uncastable under fixture
-- **q-refused-crestclimb** — Crest of the Climb: uncastable under fixture
-- **q-refused-cupcakes** — Cupcakes: uncastable under fixture
-- **q-refused-facetwright** — Facetwright's Choice: uncastable under fixture
-- **q-refused-farseersreport** — Farseer's Report: uncastable under fixture
-- **q-refused-fieldmaneuvers** — Field Maneuvers: uncastable under fixture
-- **q-refused-ironcladreq** — Ironclad Requisition: uncastable under fixture
-- **q-refused-layaway** — Layaway: uncastable under fixture
-- **q-refused-mend** — Mend: uncastable under fixture
-- **q-refused-ossuaryrite** — Ossuary Rite: uncastable under fixture
-- **q-refused-resonance** — Resonance: uncastable under fixture
-- **q-refused-rivalsreflection** — Rival's Reflection: uncastable under fixture
-- **q-refused-undeadarmy** — Undead Army: uncastable under fixture
+- **q-refused-apples** — Apples: refuses to cast on a plain board
+- **q-refused-commonground** — Common Ground: refuses to cast on a plain board
+- **q-refused-crestclimb** — Crest of the Climb: refuses to cast on a plain board
+- **q-refused-cupcakes** — Cupcakes: refuses to cast on a plain board
+- **q-refused-facetwright** — Facetwright's Choice: refuses to cast on a plain board
+- **q-refused-farseersreport** — Farseer's Report: refuses to cast on a plain board
+- **q-refused-fieldmaneuvers** — Field Maneuvers: refuses to cast on a plain board
+- **q-refused-ironcladreq** — Ironclad Requisition: refuses to cast on a plain board
+- **q-refused-layaway** — Layaway: refuses to cast on a plain board
+- **q-refused-mend** — Mend: refuses to cast on a plain board
+- **q-refused-ossuaryrite** — Ossuary Rite: refuses to cast on a plain board
+- **q-refused-resonance** — Resonance: refuses to cast on a plain board
+- **q-refused-rivalsreflection** — Rival's Reflection: refuses to cast on a plain board
+- **q-refused-undeadarmy** — Undead Army: refuses to cast on a plain board
 
 ## playDifferential.watchers (1)
 
-- **q-watch-gravebody** — Grave Body: watcher silent in shop
+- **q-watch-gravebody** — Grave Body: never reacted to anything played past it
 
 ## runeRewardDifferential (80)
 
-- **q-rune2-rune_aftermarket** — Rune of the Aftermarket: second copy does nothing
-- **q-rune2-rune_altar** — Rune of the Altar: second copy does nothing
-- **q-rune2-rune_armory** — Rune of the Armory: second copy does nothing
-- **q-rune2-rune_baller** — Rune of the Baller: second copy does nothing
-- **q-rune2-rune_banquet_hall** — Rune of the Banquet Hall: second copy does nothing
-- **q-rune2-rune_bargain_bin** — Rune of the Bargain Bin: second copy does nothing
-- **q-rune2-rune_bartering** — Rune of Bartering: second copy does nothing
-- **q-rune2-rune_cadence** — Rune of Cadence: second copy does nothing
-- **q-rune2-rune_chipper_sticker** — Rune of the Chipper Sticker: second copy does nothing
-- **q-rune2-rune_coffers** — Rune of the Coffers: second copy does nothing
-- **q-rune2-rune_collector** — Rune of the Collector: second copy does nothing
-- **q-rune2-rune_combat_prowess** — Rune of Combat Prowess: second copy does nothing
-- **q-rune2-rune_conduit** — Rune of the Conduit: second copy does nothing
-- **q-rune2-rune_consumption** — Rune of Consumption: second copy does nothing
-- **q-rune2-rune_contraband** — Rune of Contraband: second copy does nothing
-- **q-rune2-rune_copies** — Rune of Copies: second copy does nothing
-- **q-rune2-rune_corrupted_tome** — Rune of the Corrupted Tome: second copy does nothing
-- **q-rune2-rune_crown** — Rune of the Crown: second copy does nothing
-- **q-rune2-rune_crucible_choir** — Rune of the Crucible Choir: second copy does nothing
-- **q-rune2-rune_deep** — Rune of the Deep: second copy does nothing
-- **q-rune2-rune_distillation** — Rune of Distillation: second copy does nothing
-- **q-rune2-rune_draconic_curiosity** — Rune of Draconic Curiosity: second copy does nothing
-- **q-rune2-rune_duplication** — Rune of Duplication: second copy does nothing
-- **q-rune2-rune_echoed_arrival** — Rune of Echoed Arrival: second copy does nothing
-- **q-rune2-rune_embers** — Rune of the Embers: second copy does nothing
-- **q-rune2-rune_enchantment** — Rune of Enchantment: second copy does nothing
-- **q-rune2-rune_endless_appetite** — Rune of Endless Appetite: second copy does nothing
-- **q-rune2-rune_flagship** — Rune of the Flagship: second copy does nothing
-- **q-rune2-rune_foundry** — Rune of the Foundry: second copy does nothing
-- **q-rune2-rune_gemscript** — Rune of Gemscript: second copy does nothing
-- **q-rune2-rune_golden_splinter** — Rune of the Golden Splinter: second copy does nothing
-- **q-rune2-rune_grave_refreshment** — Rune of Grave Refreshment: second copy does nothing
-- **q-rune2-rune_guiding_candle** — Rune of the Guiding Candle: second copy does nothing
-- **q-rune2-rune_held_strength** — Rune of Held Strength: second copy does nothing
-- **q-rune2-rune_hoardcalling** — Rune of Hoardcalling: second copy does nothing
-- **q-rune2-rune_kindling** — Rune of Kindling: second copy does nothing
-- **q-rune2-rune_lapidary** — Rune of the Lapidary: second copy does nothing
-- **q-rune2-rune_last_word** — Rune of the Last Word: second copy does nothing
-- **q-rune2-rune_lasting_cadence** — Rune of Lasting Cadence: second copy does nothing
-- **q-rune2-rune_liquidation** — Rune of Liquidation: second copy does nothing
-- **q-rune2-rune_living_growth** — Rune of Living Growth: second copy does nothing
-- **q-rune2-rune_lorekeeping** — Rune of Lorekeeping: second copy does nothing
-- **q-rune2-rune_mastery** — Rune of Mastery: second copy does nothing
-- **q-rune2-rune_might** — Rune of Might: second copy does nothing
-- **q-rune2-rune_motherlode** — Rune of the Motherlode: second copy does nothing
-- **q-rune2-rune_muster** — Rune of the Muster: second copy does nothing
-- **q-rune2-rune_open_enrollment** — Rune of Open Enrollment: second copy does nothing
-- **q-rune2-rune_open_market** — Rune of the Open Market: second copy does nothing
-- **q-rune2-rune_ornate_clock** — Rune of the Ornate Clock: second copy does nothing
-- **q-rune2-rune_pendant** — Rune of the Pendant: second copy does nothing
-- **q-rune2-rune_profit_sharing** — Rune of Profit Sharing: second copy does nothing
-- **q-rune2-rune_redirection** — Rune of Redirection: second copy does nothing
-- **q-rune2-rune_refrain** — Rune of Refrain: second copy does nothing
-- **q-rune2-rune_refreshments** — Rune of Refreshments: second copy does nothing
-- **q-rune2-rune_replication** — Rune of Replication: second copy does nothing
-- **q-rune2-rune_restocking** — Rune of Restocking: second copy does nothing
-- **q-rune2-rune_returning_pack** — Rune of the Returning Pack: second copy does nothing
-- **q-rune2-rune_runic_hoard** — Rune of the Runic Hoard: second copy does nothing
-- **q-rune2-rune_scales** — Rune of Scales: second copy does nothing
-- **q-rune2-rune_sellers_market** — Rune of the Seller's Market: second copy does nothing
-- **q-rune2-rune_shared_pour** — Rune of Shared Pour: second copy does nothing
-- **q-rune2-rune_shared_spoils** — Rune of Shared Spoils: second copy does nothing
-- **q-rune2-rune_shared_table** — Rune of the Shared Table: second copy does nothing
-- **q-rune2-rune_small_fortune** — Rune of Small Fortune: second copy does nothing
-- **q-rune2-rune_spare_parts** — Rune of Spare Parts: second copy does nothing
-- **q-rune2-rune_spellmarket** — Rune of the Spellmarket: second copy does nothing
-- **q-rune2-rune_spellstone** — Rune of the Spellstone: second copy does nothing
-- **q-rune2-rune_strange_caravan** — Rune of the Strange Caravan: second copy does nothing
-- **q-rune2-rune_structure** — Rune of Structure: second copy does nothing
-- **q-rune2-rune_summit** — Rune of the Summit: second copy does nothing
-- **q-rune2-rune_summoning** — Rune of Summoning: second copy does nothing
-- **q-rune2-rune_tempering** — Rune of Tempering: second copy does nothing
-- **q-rune2-rune_thrift** — Rune of Thrift: second copy does nothing
-- **q-rune2-rune_trade_in** — Rune of Trade-In: second copy does nothing
-- **q-rune2-rune_transfusion** — Rune of Transfusion: second copy does nothing
-- **q-rune2-rune_treasure_map** — Rune of the Treasure Map: second copy does nothing
-- **q-rune2-rune_twin_gilding** — Rune of Twin Gilding: second copy does nothing
-- **q-rune2-rune_vault** — Rune of the Vault: second copy does nothing
-- **q-rune2-rune_window_shopping** — Rune of Window Shopping: second copy does nothing
-- **q-rune2-rune_wishbone** — Rune of the Wishbone: second copy does nothing
+- **q-rune2-rune_aftermarket** — Rune of the Aftermarket: a second copy does nothing
+- **q-rune2-rune_altar** — Rune of the Altar: a second copy does nothing
+- **q-rune2-rune_armory** — Rune of the Armory: a second copy does nothing
+- **q-rune2-rune_baller** — Rune of the Baller: a second copy does nothing
+- **q-rune2-rune_banquet_hall** — Rune of the Banquet Hall: a second copy does nothing
+- **q-rune2-rune_bargain_bin** — Rune of the Bargain Bin: a second copy does nothing
+- **q-rune2-rune_bartering** — Rune of Bartering: a second copy does nothing
+- **q-rune2-rune_cadence** — Rune of Cadence: a second copy does nothing
+- **q-rune2-rune_chipper_sticker** — Rune of the Chipper Sticker: a second copy does nothing
+- **q-rune2-rune_coffers** — Rune of the Coffers: a second copy does nothing
+- **q-rune2-rune_collector** — Rune of the Collector: a second copy does nothing
+- **q-rune2-rune_combat_prowess** — Rune of Combat Prowess: a second copy does nothing
+- **q-rune2-rune_conduit** — Rune of the Conduit: a second copy does nothing
+- **q-rune2-rune_consumption** — Rune of Consumption: a second copy does nothing
+- **q-rune2-rune_contraband** — Rune of Contraband: a second copy does nothing
+- **q-rune2-rune_copies** — Rune of Copies: a second copy does nothing
+- **q-rune2-rune_corrupted_tome** — Rune of the Corrupted Tome: a second copy does nothing
+- **q-rune2-rune_crown** — Rune of the Crown: a second copy does nothing
+- **q-rune2-rune_crucible_choir** — Rune of the Crucible Choir: a second copy does nothing
+- **q-rune2-rune_deep** — Rune of the Deep: a second copy does nothing
+- **q-rune2-rune_distillation** — Rune of Distillation: a second copy does nothing
+- **q-rune2-rune_draconic_curiosity** — Rune of Draconic Curiosity: a second copy does nothing
+- **q-rune2-rune_duplication** — Rune of Duplication: a second copy does nothing
+- **q-rune2-rune_echoed_arrival** — Rune of Echoed Arrival: a second copy does nothing
+- **q-rune2-rune_embers** — Rune of the Embers: a second copy does nothing
+- **q-rune2-rune_enchantment** — Rune of Enchantment: a second copy does nothing
+- **q-rune2-rune_endless_appetite** — Rune of Endless Appetite: a second copy does nothing
+- **q-rune2-rune_flagship** — Rune of the Flagship: a second copy does nothing
+- **q-rune2-rune_foundry** — Rune of the Foundry: a second copy does nothing
+- **q-rune2-rune_gemscript** — Rune of Gemscript: a second copy does nothing
+- **q-rune2-rune_golden_splinter** — Rune of the Golden Splinter: a second copy does nothing
+- **q-rune2-rune_grave_refreshment** — Rune of Grave Refreshment: a second copy does nothing
+- **q-rune2-rune_guiding_candle** — Rune of the Guiding Candle: a second copy does nothing
+- **q-rune2-rune_held_strength** — Rune of Held Strength: a second copy does nothing
+- **q-rune2-rune_hoardcalling** — Rune of Hoardcalling: a second copy does nothing
+- **q-rune2-rune_kindling** — Rune of Kindling: a second copy does nothing
+- **q-rune2-rune_lapidary** — Rune of the Lapidary: a second copy does nothing
+- **q-rune2-rune_last_word** — Rune of the Last Word: a second copy does nothing
+- **q-rune2-rune_lasting_cadence** — Rune of Lasting Cadence: a second copy does nothing
+- **q-rune2-rune_liquidation** — Rune of Liquidation: a second copy does nothing
+- **q-rune2-rune_living_growth** — Rune of Living Growth: a second copy does nothing
+- **q-rune2-rune_lorekeeping** — Rune of Lorekeeping: a second copy does nothing
+- **q-rune2-rune_mastery** — Rune of Mastery: a second copy does nothing
+- **q-rune2-rune_might** — Rune of Might: a second copy does nothing
+- **q-rune2-rune_motherlode** — Rune of the Motherlode: a second copy does nothing
+- **q-rune2-rune_muster** — Rune of the Muster: a second copy does nothing
+- **q-rune2-rune_open_enrollment** — Rune of Open Enrollment: a second copy does nothing
+- **q-rune2-rune_open_market** — Rune of the Open Market: a second copy does nothing
+- **q-rune2-rune_ornate_clock** — Rune of the Ornate Clock: a second copy does nothing
+- **q-rune2-rune_pendant** — Rune of the Pendant: a second copy does nothing
+- **q-rune2-rune_profit_sharing** — Rune of Profit Sharing: a second copy does nothing
+- **q-rune2-rune_redirection** — Rune of Redirection: a second copy does nothing
+- **q-rune2-rune_refrain** — Rune of Refrain: a second copy does nothing
+- **q-rune2-rune_refreshments** — Rune of Refreshments: a second copy does nothing
+- **q-rune2-rune_replication** — Rune of Replication: a second copy does nothing
+- **q-rune2-rune_restocking** — Rune of Restocking: a second copy does nothing
+- **q-rune2-rune_returning_pack** — Rune of the Returning Pack: a second copy does nothing
+- **q-rune2-rune_runic_hoard** — Rune of the Runic Hoard: a second copy does nothing
+- **q-rune2-rune_scales** — Rune of Scales: a second copy does nothing
+- **q-rune2-rune_sellers_market** — Rune of the Seller's Market: a second copy does nothing
+- **q-rune2-rune_shared_pour** — Rune of Shared Pour: a second copy does nothing
+- **q-rune2-rune_shared_spoils** — Rune of Shared Spoils: a second copy does nothing
+- **q-rune2-rune_shared_table** — Rune of the Shared Table: a second copy does nothing
+- **q-rune2-rune_small_fortune** — Rune of Small Fortune: a second copy does nothing
+- **q-rune2-rune_spare_parts** — Rune of Spare Parts: a second copy does nothing
+- **q-rune2-rune_spellmarket** — Rune of the Spellmarket: a second copy does nothing
+- **q-rune2-rune_spellstone** — Rune of the Spellstone: a second copy does nothing
+- **q-rune2-rune_strange_caravan** — Rune of the Strange Caravan: a second copy does nothing
+- **q-rune2-rune_structure** — Rune of Structure: a second copy does nothing
+- **q-rune2-rune_summit** — Rune of the Summit: a second copy does nothing
+- **q-rune2-rune_summoning** — Rune of Summoning: a second copy does nothing
+- **q-rune2-rune_tempering** — Rune of Tempering: a second copy does nothing
+- **q-rune2-rune_thrift** — Rune of Thrift: a second copy does nothing
+- **q-rune2-rune_trade_in** — Rune of Trade-In: a second copy does nothing
+- **q-rune2-rune_transfusion** — Rune of Transfusion: a second copy does nothing
+- **q-rune2-rune_treasure_map** — Rune of the Treasure Map: a second copy does nothing
+- **q-rune2-rune_twin_gilding** — Rune of Twin Gilding: a second copy does nothing
+- **q-rune2-rune_vault** — Rune of the Vault: a second copy does nothing
+- **q-rune2-rune_window_shopping** — Rune of Window Shopping: a second copy does nothing
+- **q-rune2-rune_wishbone** — Rune of the Wishbone: a second copy does nothing
 
 ## spellPowerFolding (2)
 
-- **q-spellpower-rubyStatGain** — rubyStatGain: fold spell power?
-- **q-spellpower-spellBuffShopByRuby** — spellBuffShopByRuby: fold spell power?
+- **q-spellpower-rubyStatGain** — Deepvein Tender / Alchemist Brisbane: ignores spell power
+- **q-spellpower-spellBuffShopByRuby** — Veinstorm: ignores spell power
 

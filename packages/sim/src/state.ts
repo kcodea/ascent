@@ -1511,6 +1511,11 @@ export interface RunState {
   spellCostOffTurn?: number;
   /** GIFT — Friends and Family: shop MINIONS cost this much less this turn (cleared on wave advance). */
   minionCostOffTurn?: number;
+  /** Per-ACTION scratch: hand-card uids `fireOnGainCard` has already fired for this action. The chokepoint
+   *  helpers (`conjureToHand`, `mintRubies`) fire as they push — that is their documented contract — while
+   *  `reduce` ALSO diffs the hand so the ~17 other insertion sites can't silently skip the trigger. This ledger
+   *  is what keeps the two from double-firing on the same card. Cleared at the top of every action. */
+  gainCardFiredUids?: string[];
   /** Set 2 — Elderhorn (Choose One). Extra fires its chosen mode grants to BEAST triggers:
    *  `beastHuntExtra` covers RALLIES only (narrowed 2026-07-31), `beastRitualExtra` covers Echoes. Golden
    *  grants 2 instead of 1 per mode. Run-level so they survive combats, passed into the fight via

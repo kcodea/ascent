@@ -651,6 +651,26 @@ export function reduce(state: RunState, action: Action): RunState {
     }
   }
   const next = reduceCore(state, action);
+  // ── "WHEN A CARD IS ADDED TO YOUR HAND" (Gangplank, Rune of Heavy Payroll) ──────────────────────────────
+  // Fired from a HAND UID-DIFF here, exactly like the onGainAttack board diff below, and for the same reason:
+  // there is no single place a card enters the hand. There are ~20 `hand.push` sites — buying a minion, buying
+  // a spell from the slot OR from the minion row, restoring a displaced minion, a Discover pick, a triple's
+  // golden, an Ale, a minted Ruby, every rune/hero grant — and only THREE of them ever called the trigger, so
+  // Gangplank silently ignored most of the game (owner report 2026-08-26: shop spells and Rubies didn't proc).
+  //
+  // The owner's rule is that "card" means ANY card at all, so the trigger belongs at the boundary rather than
+  // sprinkled across call sites where the next new path will forget it again. Uids are fresh and monotonic, so
+  // "in `next.hand` but not in `state.hand`" is exactly the set of cards that arrived this action — no id
+  // guessing, no double-count when a card is merely reordered. Runs BEFORE the board diff so any Attack these
+  // reactors grant is itself seen as a gain.
+  if (next !== state) {
+    const handBeforeUids = new Set(state.hand.map((c) => c.uid));
+    const alreadyFired = new Set(next.gainCardFiredUids ?? []);
+    for (const c of next.hand) {
+      if (handBeforeUids.has(c.uid) || alreadyFired.has(c.uid)) continue;
+      fireOnGainCard(next, c.cardId);
+    }
+  }
   // onGainAttack reactors (Hunter — "when this gains Attack, give your minions +Health") fire whenever a
   // recruit action raises a BOARD minion's Attack, from ANY source (Fortify, spells, tribe Battlecries,
   // weld, buy-triggers, end-of-turn). This mirrors combat, where `ctx.buff` emits onGainAttack on a positive
@@ -1087,6 +1107,7 @@ function reduceCore(state: RunState, action: Action): RunState {
   // is what the FX wants, and leaves multi-consume actions (Feastmaster Vhal's two neighbours) animating fully.
   s.fodderEaten = [];
   s.shopEaten = []; // Set 2's shop-minion consume swirl — same per-action contract, separate channel
+  s.gainCardFiredUids = []; // per-action: which hand arrivals already fired onGainCard (see the hand diff in `reduce`)
 
   switch (action.type) {
     case 'buy': {
@@ -1263,7 +1284,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       // (set above) doubles its effects (Deathrattles twice, ×N multipliers) and shows the golden frame.
       if (offer.golden) addBuff(bought, 'Golden Touch', card.attack, card.health);
       s.hand.push(bought); // buy → hand (Battlegrounds flow)
-      fireOnGainCard(s); // a card was added to hand (Gangplank) — safe no-op when nothing watches
+      // (a card reaching hand now fires `onGainCard` from the hand diff in `reduce` — see there)
       applyOnBuy(s, bought); // buy-triggers (Broker) bake in now (handoff C.5)
       // Dupes: the FIRST minion you buy each turn is copied into your hand (a fresh base copy, run buffs baked in).
       if (s.dupeFirstBuyEachTurn && !s.dupeUsedThisTurn && s.hand.length < handCap(s)) {

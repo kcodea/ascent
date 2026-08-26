@@ -56,6 +56,13 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-08-26',
+    label: 'Fixes',
+    changes: [
+      { category: 'Card Change', text: 'Gangplank now triggers for every card that reaches your hand — bought Shop spells, minted Rubies, Discover picks and more. It was only counting a few of them.' },
+    ],
+  },
+  {
+    date: '2026-08-26',
     label: 'Gifts',
     changes: [
       { category: 'New Card', text: 'Gifts arrive — a new kind of free spell you are given rather than bought.', details: [

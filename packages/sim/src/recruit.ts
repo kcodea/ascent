@@ -2647,7 +2647,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const tribe = self.golden ? '' : str(params.tribe); // golden drops the tribe filter (any friendly minion)
     const casts = self.golden ? 2 : 1;
     for (let c = 0; c < casts; c++) {
-      const pool = state.board.filter((m) => !tribe || m.tribe === tribe || CARD_INDEX[m.cardId]?.tribe2 === tribe);
+      const pool = state.board.filter((m) => !tribe || isTribe(m, tribe as Tribe)); // All-types counts as every tribe
       if (pool.length === 0) return;
       const rng = makeRng(state.rngCursor);
       const target = pool[rng.int(pool.length)]!;
@@ -2671,7 +2671,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const ra = 1 + bonus.attack;
     const rh = 1 + bonus.health;
     const tribe = str(params.tribe);
-    const targets = state.board.filter((m) => !tribe || m.tribe === tribe || CARD_INDEX[m.cardId]?.tribe2 === tribe);
+    const targets = state.board.filter((m) => !tribe || isTribe(m, tribe as Tribe)); // All-types counts as every tribe
     for (let c = 0; c < num(params.count, 1) * gold(self); c++) {
       for (const target of targets) {
         addBuff(target, 'Ruby', ra, rh);
@@ -4997,7 +4997,10 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     if (!sold) return;
     const tribe = str(params.tribe);
     const soldDef = CARD_INDEX[sold.cardId];
-    if (!soldDef || (tribe && soldDef.tribe !== tribe && soldDef.tribe2 !== tribe)) return;
+    // ALL-TYPES counts as every tribe (owner rule 2026-08-26). `isTribe` is the shared predicate — it covers
+    // `universalTribe`, the Anomaly Reactor's `allTribes` mark AND spell-added tribes, none of which a raw
+    // `tribe`/`tribe2` comparison sees. Selling an All-types minion used to leave Voicekeeper silent.
+    if (!soldDef || (tribe && !isTribe(sold, tribe as Tribe))) return;
     // PER-INSTANCE, from its own placement (owner report 2026-08-07). It used to read the run-level
     // `soldThisTurn` tally, so a Voicekeeper played after you'd already sold a Dragon this turn was dead for
     // the turn — the sale it then witnessed counted as "second". This hook only fires for cards ON the board

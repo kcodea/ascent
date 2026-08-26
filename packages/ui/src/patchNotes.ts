@@ -58,6 +58,12 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-08-26',
     label: 'Fixes',
     changes: [
+      { category: 'Card Change', text: 'A minion that counts as ALL types now genuinely triggers every type’s interactions.', details: [
+        'Selling an all-types minion now triggers Voicekeeper (and the rest of the sell-a-type family).',
+        'Effects that pick "a friendly minion of a type" can now pick an all-types minion.',
+        'Rune of Trade-In discounts an all-types minion of the armed type.',
+        'Pack Leader counts an all-types minion you played as a Beast.',
+      ] },
       { category: 'Rune Change', text: 'Rune of Thrift actually works now — every Shop spell that gives stats really is 2 Gold cheaper, Ales included, and the shown price matches what you pay.' },
       { category: 'Card Change', text: 'Conductor now fires during combat. Anything that re-triggers its Shout mid-fight — a Parting Cry, Ryme, Dawnclaw, Rune of Shared Scripture — now buffs its neighbours for the full snowballed amount, instead of doing nothing.' },
       { category: 'Card Change', text: 'Conductor’s card text now tracks what it will really give.', details: [

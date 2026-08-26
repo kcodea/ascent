@@ -56,6 +56,15 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-08-26',
+    label: 'Fixes',
+    changes: [
+      { category: 'Card Change', text: 'Gangplank now triggers for every card that reaches your hand — bought Shop spells, minted Rubies, Discover picks, a full Buyout, and more. It was only counting a few of them.' },
+      { category: 'Card Change', text: 'Funeral on Loan: a borrowed Echo minion that summons now fits its summon into the slot the borrowed body leaves behind, instead of doing nothing on a full-looking board.' },
+      { category: 'Rune Change', text: 'Rune of the Ornate Clock now MOVES your Epic Runeforge to next turn instead of also giving you the turn-9 one.' },
+    ],
+  },
+  {
+    date: '2026-08-26',
     label: 'Gifts',
     changes: [
       { category: 'New Card', text: 'Gifts arrive — a new kind of free spell you are given rather than bought.', details: [

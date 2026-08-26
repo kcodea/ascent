@@ -1856,7 +1856,13 @@ export function conjureToHand(state: RunState, pool: CardDef[], reps: number, ov
   // Gangplank: fire once per card actually conjured into hand (Ale, Shop spell, granted minion). After the
   // cursor is settled so a watcher that re-rolls RNG can't perturb this conjure's stream. No recursion — the
   // watcher adds no card.
-  for (let a = 0; a < added; a++) fireOnGainCard(state, addedIds[a]);
+  // Fire for each arrival AND stamp the ledger, so `reduce`'s hand diff (which exists to catch the other ~17
+  // insertion sites) doesn't fire for these same cards a second time.
+  for (let a = 0; a < added; a++) {
+    const arrived = state.hand[state.hand.length - added + a];
+    if (arrived) (state.gainCardFiredUids ??= []).push(arrived.uid);
+    fireOnGainCard(state, addedIds[a]);
+  }
 }
 
 /** The Ruby token id (set 2). A Ruby minted into hand carries the run's live strength baked in. */
@@ -1920,7 +1926,12 @@ export function mintRubies(
   // Ruby (never mints), so this can't recurse.
   if (!silent) for (let r = 0; r < minted; r++) fireOnRubyGained(state);
   // Gangplank: a minted Ruby is a card added to hand. Watchers add no card, so no recursion.
-  for (let r = 0; r < minted; r++) fireOnGainCard(state, rubyId);
+  // Same contract as `conjureToHand`: fire per minted Ruby and stamp the ledger against the reduce-level diff.
+  for (let i = 0; i < minted; i++) {
+    const arrived = state.hand[state.hand.length - minted + i];
+    if (arrived) (state.gainCardFiredUids ??= []).push(arrived.uid);
+    fireOnGainCard(state, rubyId);
+  }
 }
 
 /** Set 2 — fire every board minion's `onGetRuby` effects (Candle Conduit) when a Ruby is gained, plus the
@@ -7555,7 +7566,12 @@ function makeContext(state: RunState): RecruitContext {
     state,
     collector: currentCollector(),
     summon: (card, nearUid) => {
-      if (state.board.length >= CONFIG.boardMax) {
+      // A VACATING body (the borrowed minion of Funeral on Loan) sits on the board only so positional Echoes
+      // can see it, and is removed the moment its Echo ends. It must not consume a summon slot — otherwise an
+      // Echo that summons is silently dead on a 6-body board, which is exactly the reported bug. Exactly one
+      // slot is freed, so the summon lands "in the place of the minion dying".
+      const vacating = state.vacatingUid && state.board.some((c) => c.uid === state.vacatingUid) ? 1 : 0;
+      if (state.board.length - vacating >= CONFIG.boardMax) {
         // Overflow — the summon can't fit the full board. Flowing Monk pays off on the wasted body.
         for (const c of [...state.board]) {
           const def = CARD_INDEX[c.cardId];

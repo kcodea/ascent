@@ -37,8 +37,10 @@ const POINTS: readonly ('source' | 'target' | 'cursor')[] = ['source', 'target',
  *  same discipline `Timeline.tsx`'s `rowTopsRef` follows for its vertical lane reorder). */
 interface ZoneCapture {
   rect: { top: number; bottom: number };
-  /** uids in on-screen left-to-right order at drag-start, each paired with its card's left edge. */
-  cards: { uid: string; left: number }[];
+  /** uids in on-screen left-to-right order at drag-start, each paired with its card's left edge + width
+   *  (the width is what lets a cross-zone drop test against each card's actual MIDPOINT rather than its
+   *  left edge — see `dropIndexFor`). */
+  cards: { uid: string; left: number; width: number }[];
 }
 
 interface CardDragCapture {
@@ -60,30 +62,43 @@ function dropZoneFor(capture: CardDragCapture, pointerY: number): StageZone {
   return pointerY <= boundary ? 'tavern' : 'warband';
 }
 
-/** Which slot within `zone` a card drop lands at, from the captured left-edges of every card that was in
- *  that zone at drag-start.
+/** Which slot within `zone` a card drop lands at, from the captured left-edges (+ widths) of every card that
+ *  was in that zone at drag-start.
  *
- *  Same-zone reorder: the dragged card's OWN captured position is already one of `cards` (it started in
- *  this zone), exactly like `Timeline.tsx`'s `rowTopsRef` includes the dragged row's own original top — that
- *  full boundary set is what lets `reorderTargetIndex` place the pointer past the final item, not just
- *  before it, with no further work here.
+ *  Same-zone reorder: the dragged card's OWN captured position is already one of `cards` (it started in this
+ *  zone), exactly like `Timeline.tsx`'s `rowTopsRef` includes the dragged row's own original top — that full
+ *  boundary set is what lets `reorderTargetIndex` place the pointer past the final item, not just before it,
+ *  so this path is untouched and still goes through that helper.
  *
- *  Cross-zone drop: the dragged card was never in `cards` (it started in the OTHER zone), so the captured
- *  set is one entry short of the true slot count — `reorderTargetIndex` clamps its result to
- *  `[0, cards.length - 1]`, so the last real card's own slot was the furthest a drop could ever land, and
- *  "append after everything" was unreachable. Standing in for the missing (N+1)th boundary with a duplicate
- *  of the last real card's left edge gives the algorithm a full `cards.length + 1`-sized set to resolve
- *  against, so a pointer at or past that last card can now resolve to the true final index. (An empty target
- *  zone needs no stand-in: `reorderTargetIndex` already returns 0 for `count <= 1` without touching the
- *  array.) `dropCard` clamps the returned index against its own (dragged-uid-excluded) array regardless, so
- *  this never risks an out-of-bounds insertion either way. */
+ *  Cross-zone drop: the dragged card was never in `cards` (it started in the OTHER zone), so it isn't a
+ *  reorder-within-a-fixed-set at all — it's an INSERTION into someone else's set, which `reorderTargetIndex`
+ *  (a reorder helper: midpoint-between-consecutive-entries + clamp) is the wrong tool for. A first attempt
+ *  padded `cards` with a duplicated last entry to give that helper a full-length set to clamp against, but a
+ *  duplicated entry creates two IDENTICAL thresholds at the tail — `reorderTargetIndex` breaks ties ascending
+ *  (last write wins in its for-loop), so the higher of the two always overwrote the lower, making the
+ *  SECOND-TO-LAST gap unreachable (fix-round-2 regression, confirmed by simulation on `n=3`).
+ *
+ *  So a cross-zone drop is computed directly instead, with none of that machinery: it's simply the count of
+ *  captured cards whose own MIDPOINT (`left + width / 2`) sits at or left of the pointer. That is a strictly
+ *  monotonic function of position with exactly one threshold per card and no duplicate — every insertion
+ *  point from 0 (before everything) through `cards.length` (after everything) is reachable, and there is
+ *  nothing to tie. */
 function dropIndexFor(capture: CardDragCapture, zone: StageZone, pointerX: number): number {
   const { uid, tavern, warband } = capture;
   const target = zone === 'tavern' ? tavern : warband;
   const crossedZone = !target.cards.some((c) => c.uid === uid);
-  const lefts = target.cards.map((c) => c.left);
-  const effectiveLefts = crossedZone && lefts.length > 0 ? [...lefts, lefts[lefts.length - 1]] : lefts;
-  return reorderTargetIndex({ fromIndex: 0, count: effectiveLefts.length }, pointerX, effectiveLefts);
+  if (crossedZone) {
+    let insert = 0;
+    for (const c of target.cards) {
+      if (pointerX >= c.left + c.width / 2) insert++;
+    }
+    return insert;
+  }
+  return reorderTargetIndex(
+    { fromIndex: 0, count: target.cards.length },
+    pointerX,
+    target.cards.map((c) => c.left),
+  );
 }
 
 /** Renumber every actor in `zone` to `uidsInOrder`'s slots (0, 1, 2, …) — the contiguous-slot cleanup
@@ -161,10 +176,10 @@ export function StageSetter({ stage, onChange, selectedActor, onSelectActor }: S
   const captureZone = (row: HTMLDivElement | null): ZoneCapture => {
     if (row === null) return { rect: { top: 0, bottom: 0 }, cards: [] };
     const r = row.getBoundingClientRect();
-    const cards = [...row.querySelectorAll<HTMLElement>('[data-uid]')].map((el) => ({
-      uid: el.getAttribute('data-uid') ?? '',
-      left: el.getBoundingClientRect().left,
-    }));
+    const cards = [...row.querySelectorAll<HTMLElement>('[data-uid]')].map((el) => {
+      const cr = el.getBoundingClientRect();
+      return { uid: el.getAttribute('data-uid') ?? '', left: cr.left, width: cr.width };
+    });
     return { rect: { top: r.top, bottom: r.bottom }, cards };
   };
 

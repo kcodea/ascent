@@ -58,6 +58,17 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-08-26',
     label: 'Fixes',
     changes: [
+      { category: 'Rune Change', text: 'Unused Shout charges no longer go to waste at combat — Rune of the War Drum and Warm Embers now carry an unspent charge into the fight.', details: [
+        'Rune of the War Drum: if you didn’t play a Shout this shop, the first Shout that triggers during combat (a Parting Cry, Ryme, and friends) fires the extra times instead.',
+        'Warm Embers’ banked double-charges work the same way: charges you didn’t spend in the shop double the next Shouts triggered in combat.',
+        'Both still work exactly as before when you spend them in the shop — this only rescues charges that would have evaporated.',
+      ] },
+    ],
+  },
+  {
+    date: '2026-08-26',
+    label: 'Fixes',
+    changes: [
       { category: 'Card Change', text: 'Pack Leader now counts the same Beasts for everyone — when your board is served as an opponent, its Pack Leader fights at full strength (an all-types minion you played was being missed).' },
     ],
   },

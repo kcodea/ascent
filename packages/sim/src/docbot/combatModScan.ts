@@ -66,6 +66,8 @@ const OBJECT_ARMS: Record<string, unknown> = {
   flagCopies: { runeGemstorm: 2 },
   solidGroundStat: 2,
   beastialSwarmLevel: 1,
+  warDrumExtra: 2,       // the unspent War Drum charge's multiplier (a count, not a flag)
+  shoutDoubleCharges: 2, // remaining Warm Embers charges (a count, not a flag)
 };
 
 export interface ModScanResult { changed: string[]; inert: string[]; errored: string[]; stagedActive: string[] }
@@ -88,6 +90,12 @@ export function namedCardsFor(key: string): string[] {
   return ids.slice(0, 2);
 }
 
+/** Mods that only act when a Shout is TRIGGERED IN COMBAT — the generic fight stages none. The pair: a tanky
+ *  Pennycat (Battlecry: summon a Stray) beside a fragile Ryme (Echo: re-fire neighbours' Battlecries), so the
+ *  carried War Drum / Warm Embers charges (owner ruling 2026-08-26) have a combat Shout to land on. */
+const SHOUT_STAGE_KEYS = new Set(['warDrumExtra', 'shoutDoubleCharges']);
+const shoutStageBodies = (): BoardMinion[] => [bm('alley', 'pW0', 1, 30), bm('ryme', 'pW1', 1, 1, ['T'])];
+
 export function combatModScan(keys: readonly string[]): ModScanResult {
   const baseline = fight({});
   const changed: string[] = [];
@@ -105,8 +113,15 @@ export function combatModScan(keys: readonly string[]): ModScanResult {
       }
     }
     if (verdict === 'inert') {
-      // Second chance: stage the cards the mod's own rune names, then re-test.
-      const named = namedCardsFor(key);
+      // Second chance: stage the trigger the mod needs — a combat-triggered Shout for the carry-over pair,
+      // else the cards the mod's own rune names — then re-test.
+      const named = SHOUT_STAGE_KEYS.has(key) ? [] : namedCardsFor(key);
+      if (SHOUT_STAGE_KEYS.has(key)) {
+        try {
+          const armedArm = key in OBJECT_ARMS ? OBJECT_ARMS[key] : true;
+          if (fightWith(shoutStageBodies(), { [key]: armedArm } as QuestCombatMods) !== fightWith(shoutStageBodies(), {})) verdict = 'staged';
+        } catch { /* keep inert */ }
+      }
       if (named.length) {
         const extras = named.map((id, n) => {
           const d = CARD_INDEX[id]!;

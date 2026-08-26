@@ -27,7 +27,10 @@ export default defineConfig({
     // `apps/**` is here for the dev-server-side units that can't live in a package: apps/web's Vite plugins
     // (e.g. fxDefsPlugin's write-validation) are node code the browser bundle never sees, but their
     // safety checks still need covering.
-    include: ['packages/**/*.test.ts', 'apps/**/*.test.ts'],
+    // `.test.tsx` is scoped to @game/ui on purpose: only the rendered-text reconciliation harness mounts
+    // React components (per-file `@vitest-environment jsdom` docblock — the sim/core suites stay in the
+    // default node environment, untouched).
+    include: ['packages/**/*.test.ts', 'packages/ui/src/**/*.test.tsx', 'apps/**/*.test.ts'],
     // Polyfill `navigator` for Node < 21 (CI pins Node 20) so pixi.js's module-load `isSafari()` doesn't throw
     // when a test transitively imports pixiFx (the choreographer impact/lunge/engine tests). See the setup file.
     setupFiles: ['./vitest.setup.ts'],

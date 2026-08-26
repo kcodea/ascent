@@ -12,11 +12,11 @@ Run the report:
 npm run docbot
 ```
 
-The four tripwires gate in `npm test`; the report narrates what they enforce plus the backlogs they
+The eight tripwires gate in `npm test`; the report narrates what they enforce plus the backlogs they
 tolerate-but-track. **Every number in the report is derived live from content and source — nothing here or
 there is hand-maintained** (the CONTENT.md lesson).
 
-## The four tripwires
+## The first four tripwires — from one day's reports
 
 | # | Test | Bug class it kills | Shipped examples |
 |---|---|---|---|

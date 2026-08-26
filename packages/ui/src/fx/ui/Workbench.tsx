@@ -2011,6 +2011,15 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
     // own doc comment calls out, so re-seed from the NEW name's saved stage (or the global last-used one)
     // rather than leaving the outgoing composition's layout on screen. `nameForField`, not `def.id`: a
     // Duplicate's `<id>-copy` is itself a legitimate slug with its own (as yet unsaved) stage.
+    //
+    // Flush the OUTGOING def's pending stage FIRST. The debounced persistence effect above clears its timer
+    // on every `[stage, currentDefId]` change (cleanup runs before the re-seed below fires), so a stage edit
+    // made inside the debounce window right before a def switch would otherwise never be written for the def
+    // being left — silently lost. `stage`/`currentDefId` are this render's closure values (loadDef is a
+    // plain function re-created each render, so they're already current — no ref mirror needed), i.e.
+    // exactly what that cleared timer would have written; calling `saveStageFor` here synchronously is the
+    // equivalent of letting it fire before we move on.
+    saveStageFor(currentDefId, stage);
     const nextDefId = isValidSlug(slugify(nameForField)) ? slugify(nameForField) : null;
     setStage(stageFor(nextDefId));
     setSelectedActor(null);

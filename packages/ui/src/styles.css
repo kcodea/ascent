@@ -3903,6 +3903,12 @@ body.hglow-preview .card.plated .plateglow { opacity: 1; }
    ▶ Preview bursts render ON TOP of the widget (it's pointer-events:none, so this
    never steals the panel's clicks). Dev-only; restored when the panel closes. */
 body.choreo-open .pixifx { z-index: 205; }
+/* Same trick for the FX workbench's Stage Setter: its sample cards live inside `.fxwb` (z500), which would
+   otherwise paint OVER the effect layer (z110) and hide the effect behind the cards. While the Stage Setter
+   is showing (its `.fxwb-stage-mount` exists), lift `.pixifx` above the workbench so effects render IN FRONT
+   of the sample cards — matching how effects sit over real cards in game. pointer-events:none, so it never
+   steals the panels' clicks; scoped to stage-setter-active, so normal chrome is untouched. */
+body:has(.fxwb-stage-mount) .pixifx { z-index: 501; }
 /* While a targeter is live (armed hero power / pending targeted Battlecry / a targeted spell drag), the
    Pixi aim line IS the pointer — hide the OS cursor everywhere. Toggled by Recruit's aim-line effect;
    removed the moment the aim ends (fired, cancelled, or released). */
@@ -8466,6 +8472,12 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
    as-is too (see StageCard.tsx) — everything below is new: a role tag, a selected ring, a grab handle.
    The card body's own cursor is the global gauntlet rule (`.card` is already in its selector, styles.css
    line ~162) — no override needed here. */
+/* The sample cards read as MOCK reference props, not real game cards: a dark blue-grey face (overriding the
+   real `.card` art we borrow for layout) so the effect colours pop against them and nobody mistakes them for
+   playable cards. `.card.fxwb-stagecard` out-specifies `.card`. */
+.card.fxwb-stagecard {
+  background: #2e3641; background-image: none; border-color: #4a5568; color: #d4dae4;
+}
 .fxwb-stagecard.fxwb-stagecard-sel { box-shadow: 0 0 0 3px #c8a45c, 0 3px 0 var(--shadow); }
 .fxwb-stagecard-role {
   position: absolute; top: -10px; left: 50%; z-index: 7; transform: translateX(-50%);

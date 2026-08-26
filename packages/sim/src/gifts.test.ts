@@ -84,3 +84,12 @@ describe('the Gift sources', () => {
     expect([h.power.kind, h.power.passive]).toEqual(['greatPresence', true]);
   });
 });
+
+describe('Grave Invitation actually grants its keywords', () => {
+  it("arms Rise + Taunt on the pick (the field used to parse but never be read)", () => {
+    let s = createRun(11, 'aster');
+    s = { ...s, tier: 3, hand: [{ uid: 'g1', cardId: 'gift_grave_invitation', tribe: 'neutral', attack: 0, health: 1, keywords: [] }] as never };
+    s = reduce(s, { type: 'play', uid: 'g1' } as Action);
+    expect(s.discoverKeywords, 'the pick must gain Rise + Taunt').toEqual(['R', 'T']);
+  });
+});

@@ -1339,6 +1339,11 @@ function reduceCore(state: RunState, action: Action): RunState {
         const dop = def.discoverOnPlay;
         s.hand.splice(i, 1);
         s.playedThisTurn = [...(s.playedThisTurn ?? []), card.cardId]; // counts as a card played (Rune of Action)
+        // `grantKeywords` bakes keywords onto whatever is PICKED (Grave Invitation: an Echo minion that also
+        // gains Rise + Taunt). Routed through `discoverKeywords`, the same channel the quest rewards use — the
+        // pick-time application already lives there, so this only has to arm it. Without this the field parsed
+        // and validated but nothing ever read it, and the grant silently did nothing.
+        if (dop.grantKeywords?.length) s.discoverKeywords = [...dop.grantKeywords];
         // Discover a SHOP SPELL (Rift-Sunk Codex) — a spell Discover ignores tier/tribe/filter (it draws the
         // tavern spell pool up to the current tier). Multi-cast by the full spell multiplier, like the minion
         // path below.

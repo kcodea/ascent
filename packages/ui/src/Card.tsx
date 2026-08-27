@@ -319,7 +319,6 @@ export const Card = memo(function Card({
   highlight,
   targeted,
   dimmed,
-  buffed,
   battlecry,
   electrify,
   karwind,
@@ -366,8 +365,6 @@ export const Card = memo(function Card({
   targeted?: boolean;
   /** Dim this card while a copy of it is being dragged. */
   dimmed?: boolean;
-  /** Play a one-shot green buff flash (a recruit-phase stat buff just landed). */
-  buffed?: boolean;
   /** Play the one-shot SPELL-buff cue — an in-place grow/shrink plus an outward spark blast. Fired
    *  when a hand spell's (or Ruby's) printed value just went UP, so the player sees which cards were affected. */
   /** One-shot flourish beneath a just-played minion whose Battlecry fired. */
@@ -714,7 +711,7 @@ export const Card = memo(function Card({
   return (
     <div
       ref={sbRootRef}
-      className={`card compact${showText ? ' showtext' : ''}${popin ? ' popin' : ''}${popDelay ? ' popdelay' : ''}${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${buffed ? ' cardbuff' : ''}${spellBuffed ? ' spellbuff' : ''}${battlecry ? ' bcasting' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.keywords.includes('ST') ? ' stealth' : ''}${card.keywords.includes('DS') ? ' dscard' : ''}${card.keywords.includes('R') ? ' reborncard' : ''}${card.keywords.includes('V') ? ' venomcard' : ''}${card.keywords.includes('W') ? ' flurrycard' : ''}${spellLike ? ' spellcard' : ''}${card.ruby ? ' rubycard' : ''}${card.cardId === 'discoverspell' ? ' triplecard' : ''}${useStdFrame ? ' stdframe' : ''}${(useStdFrame && hasTribeOval(card.tribe)) || (isTaunt && frameOk && hasTribeTaunt(card.tribe)) ? ' tribeframe' : ''}${useSpellFrame ? ' spellframe' : ''}${electrify ? ' electrify' : ''}${tripleReady ? ' tripready' : ''}${contraband ? ' contraband' : ''}${enchanted ? ' enchanted' : ''}${card.tribe2 ? ' dual' : ''}${locked ? ' locked' : ''}${usePlate ? ` plated plate-txt-${txtBucket}` : ''}`}
+      className={`card compact${showText ? ' showtext' : ''}${popin ? ' popin' : ''}${popDelay ? ' popdelay' : ''}${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${spellBuffed ? ' spellbuff' : ''}${battlecry ? ' bcasting' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.keywords.includes('ST') ? ' stealth' : ''}${card.keywords.includes('DS') ? ' dscard' : ''}${card.keywords.includes('R') ? ' reborncard' : ''}${card.keywords.includes('V') ? ' venomcard' : ''}${card.keywords.includes('W') ? ' flurrycard' : ''}${spellLike ? ' spellcard' : ''}${card.ruby ? ' rubycard' : ''}${card.cardId === 'discoverspell' ? ' triplecard' : ''}${useStdFrame ? ' stdframe' : ''}${(useStdFrame && hasTribeOval(card.tribe)) || (isTaunt && frameOk && hasTribeTaunt(card.tribe)) ? ' tribeframe' : ''}${useSpellFrame ? ' spellframe' : ''}${electrify ? ' electrify' : ''}${tripleReady ? ' tripready' : ''}${contraband ? ' contraband' : ''}${enchanted ? ' enchanted' : ''}${card.tribe2 ? ' dual' : ''}${locked ? ' locked' : ''}${usePlate ? ` plated plate-txt-${txtBucket}` : ''}`}
       data-uid={uid}
       style={{ '--c': `var(--t-${card.tribe})`, '--c2': `var(--t-${card.tribe2 ?? card.tribe})`,
         '--fan-rot': `${fanRot ?? 0}deg`,
@@ -1107,18 +1104,6 @@ export const Card = memo(function Card({
           </div>
         )}
       </div>}
-      {/* One-shot buff proc: an expanding ring + sparks burst over the card when a
-          recruit-phase buff lands (hero power, spell, summon buff). Painted on top. */}
-      {buffed && (
-        <span className="buffburst" aria-hidden="true">
-          <span className="bb-ring" />
-          <span className="bb-spark" style={{ '--a': '20deg' } as CSSProperties} />
-          <span className="bb-spark" style={{ '--a': '100deg' } as CSSProperties} />
-          <span className="bb-spark" style={{ '--a': '170deg' } as CSSProperties} />
-          <span className="bb-spark" style={{ '--a': '250deg' } as CSSProperties} />
-          <span className="bb-spark" style={{ '--a': '320deg' } as CSSProperties} />
-        </span>
-      )}
       {/* Spell buff — this hand spell / Ruby just got stronger: coloured sparks blast outward off it (the three
           hues are tuner dials). Pairs with the `.spellbuff` grow/shrink on the card itself. */}
       {spellBuffed && (

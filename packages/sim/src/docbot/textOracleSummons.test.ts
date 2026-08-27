@@ -99,9 +99,9 @@ describe('Doc Bot — text as oracle tranche 2 (printed summons)', () => {
       .map((id) => `${id}: excused but no longer a subject (text, effects or family changed) — delete the entry`);
     expect(stale, `Stale excuse entr(ies):\n  ${stale.join('\n  ')}`).toEqual([]);
     const triage = Object.values(SUMMON_EXCUSED).filter((e) => e.kind === 'needs-triage').length;
-    // 1 as of 2026-08-27: dw_exgalloper — the copy-summon factories disagree on the Gilded badge (see the
-    // entry's owner question). May only shrink; adding one needs a NEW owner question, not a bigger number.
-    expect(triage, 'needs-triage may only shrink; adding one needs an owner ruling').toBeLessThanOrEqual(1);
+    // 0 as of 2026-08-27: dw_exgalloper's badge disagreement was ruled (q-copy-gilded-badge — gilded copies
+    // ARE gilded) and its entry deleted. May only shrink; adding one needs a NEW owner question.
+    expect(triage, 'needs-triage may only shrink; adding one needs an owner ruling').toBeLessThanOrEqual(0);
     const bugs = Object.entries(SUMMON_EXCUSED).filter(([, e]) => e.kind === 'confirmed-bug-pending-fix');
     expect(bugs.map(([id]) => id), 'confirmed bugs are temporary passengers — each rides only until its fix PR lands (none open as of 2026-08-27)').toEqual([]);
     expect(Object.keys(SUMMON_EXCUSED).length, 'the excuse list is a ceiling, not a dumping ground').toBeLessThanOrEqual(8);

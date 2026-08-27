@@ -285,7 +285,9 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
         case 'umbralEnergy':
           return 'Start of Combat: give your Dragons +2/+2 for every Shop spell cast this game';
         case 'emptyGraves':
-          return 'Your first friendly death each combat summons a 1/1 Gravebody that copies your leftmost Echo';
+          // Rewritten 2026-08-27 (found stale via q-interact-empty-graves-flat): the pre-2026-07-21 design
+          // summoned a Gravebody; the flag now marks the leftmost minion with a Rally at Start of Combat.
+          return 'Start of Combat: your leftmost minion gains "Rally: trigger your leftmost Echo"';
         case 'assemblyLine':
           return `Avenge (${r.amount ?? 4}): add a Money Bot to your hand`;
         case 'crateringMissive':

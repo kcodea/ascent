@@ -19,6 +19,10 @@ export const RUNE_DIFF_EXCUSED: Readonly<Record<string, { which: 'first' | 'seco
   // seeded empty on 2026-08-26 — every current rune changes state on both applications under the fixtures.
   // If a new rune legitimately can't (e.g. a pure one-shot latch the owner rules non-stacking), excuse it HERE
   // with the ruling, never by weakening the test.
+  rune_ornate_clock: {
+    which: 'second',
+    why: 'OWNER RULED 2026-08-27 (q-runedup-oneshot revise): "rune of the ornate clock should do nothing if duplicated, that one is unique" — the forge filter stops offering it once owned; a Duplication copy is a deliberate no-op.',
+  },
 };
 
 /**

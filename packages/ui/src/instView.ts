@@ -1,6 +1,6 @@
 import type { Keyword } from '@game/core';
 import { CARD_INDEX } from '@game/content';
-import { CONFIG, dominantBoardTribe, hasTier7Access, rubyStatBonus, spellAttackBonus, spellDisplayText, spellHealthBonus, type BoardCard, type RunState } from '@game/sim';
+import { CONFIG, dominantBoardTribe, hasTier7Access, rubyStatBonus, runeStacksOf, spellAttackBonus, spellDisplayText, spellHealthBonus, type BoardCard, type RunState } from '@game/sim';
 import type { CardView } from './Card';
 import {
   abhorrentHorrorText, ascendProgressText, asymSummonBuffText, cadenceProgressText, cardTypeTallyText, chefRaagText, clingProgressText,
@@ -338,7 +338,7 @@ export function liveBoardView(m: BoardCard, run: RunState): CardView {
     // the Dragon copiers / rune notes all read base on the final warband). Mirrors Recruit's `live` memo.
     {
       undeadBuyAtk: run.undeadBuyAtk, soulsmanGold: run.soulsmanGold ?? 0, cardBuffs: run.cardBuffs,
-      improveReps: run.runeMastery ? 2 : 1, impAura: run.impBuff,
+      improveReps: run.runeMastery ? 1 + runeStacksOf(run, 'rune_mastery') : 1, impAura: run.impBuff, // +1 per Mastery copy (owner 2026-08-27)
       goldSpent: run.goldSpentThisTurn ?? 0, goldSpentRun: run.goldSpent, goldPouchValue: run.goldPouchValue,
       playedThisTurn: run.playedThisTurn, squirlScoutBuff: run.squirlScoutBuff, conductorBuff: run.conductorBuff,
       lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined,

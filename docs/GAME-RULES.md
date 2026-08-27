@@ -128,8 +128,18 @@ Runes are run-long permanent buffs bought from a **Runeforge**, available only t
 Each rune's effect reuses the quest `QuestReward` application engine — it just takes effect with no
 objective.
 
+**Duplicates always do something** (owner rulings 2026-08-27, decisions `q-runedup-*`). Rune ownership is
+COUNTED (`RunState.runeStacks`; combat boolean flags use `flagCopies`), and a second copy stacks per family:
+recurring effects fire once per copy; meter runes keep ONE meter but pay double at each trip; repeat runes
+add +1 repetition per copy; one-shots simply grant again (banked to next turn when immediate value is
+impossible); engine runes double their output where a sensible doubling exists. A duplicate that genuinely
+cannot stack pays the universal sweetener — Gold equal to half the rune's printed cost rounded up, plus a
+free refresh — and the Runeforge stops OFFERING owned runes whose duplicate would only pay that sweetener
+(Rune of Duplication still reaches them deliberately). Rune of the Ornate Clock is ruled unique: a duplicate
+does nothing. Classification lives in `packages/sim/src/runeDup.ts`.
+
 Source: `packages/sim/src/heroes.ts` (`runeforge`, `epicRuneforge`),
-`packages/content/src/runes.ts`.
+`packages/content/src/runes.ts`, `packages/sim/src/runeDup.ts`.
 
 ---
 

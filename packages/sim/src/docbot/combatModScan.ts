@@ -69,6 +69,7 @@ const OBJECT_ARMS: Record<string, unknown> = {
   warDrumExtra: 2,       // the unspent War Drum charge's multiplier (a count, not a flag)
   shoutDoubleCharges: 2, // remaining Warm Embers charges (a count, not a flag)
   encoreExtra: 1,        // Demand an Encore's turn-long Shout extras (R-TURN-01; a count, not a flag)
+  runeHeldStrength: { attack: 3, health: 3, copies: 1 }, // the captured left-most-hand-card stats (owner rework 2026-08-27)
 };
 
 export interface ModScanResult { changed: string[]; inert: string[]; errored: string[]; stagedActive: string[] }

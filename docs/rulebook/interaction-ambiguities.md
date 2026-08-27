@@ -28,39 +28,23 @@ are the ones a fixture would have had to *invent* a semantics for.
   should gain a clarifying word. ✎ Revise = your ruling, in a sentence (e.g. "different cards sum; only
   same-card copies best-of"). ✕ Reject = this is a bug — different non-stacking cards must sum.
 
-## Q2 — Combat Shout re-fires ignore the Battlecry multipliers
+## Q2 — Combat Shout re-fires ignore the Battlecry multipliers — **RESOLVED 2026-08-27**
 
-- **Current behaviour (verbatim):** every combat-side Shout re-trigger (Parting Cry, Dawnclaw's Echo, Ryme,
-  Thunderous Sovereign) routes through `replayCombatBattlecry` (packages/core/src/effects/factories.ts),
-  which runs each `onPlay` effect exactly **once** — no `extraTriggerFires('battlecry', …)` fold. The SHOP
-  replay path (`replayBattlecry`, packages/sim/src/recruit.ts) DOES fold Drakko in (`drummerRepeats`) —
-  pinned by matrix fixture P1.
-- **Concrete example:** Drakko on board, a minion with Parting Cry dies in combat: its Shout fires **once**.
-  Sell the same minion under Rune of the Last Word in the shop: the identical Shout fires **twice**.
-- **Why it is debatable:** the owner principle of 2026-08-20 ("trigger multipliers follow the trigger to
-  whatever phase it fires in" — cited on `foldEchoExtraFires` / `socTwilightExtraFires`, and applied to the
-  Echo and Start-of-Combat families in both phases) has NOT been applied to the Battlecry family's combat
-  side; nothing documents whether that is an exemption or an omission.
-- **Click semantics:** ✓ Approve = combat Shout re-fires are deliberately single-fire (Drakko is a
-  shop-phase multiplier). ✎ Revise = your ruling, in a sentence. ✕ Reject = this is a bug — fold
-  `extraTriggerFires('battlecry')` into `replayCombatBattlecry` like every other family.
+**Owner ruling (`q-interact-combat-shout-multipliers`, APPROVE 2026-08-27): fixed.** By the triage round the
+flat set had already narrowed — Ryme, Dawnclaw, Thunderous Sovereign and Chorus Drake folded `drakkoRepeats`;
+Parting Cry and the arena `replayShout` consumers (Embercrest, Rune of Ancestral Roar, Rune of Shared
+Scripture, Rune of the War Chorus) fired flat. Every combat Shout re-fire now folds the Battlecry
+multipliers: the fold lives inside the combat arena `replayShout` verb (mirroring the shop's
+`replayBattlecry` → `drummerRepeats` boundary) and at the Parting Cry / rune dispatch sites in `simulate.ts`.
+Pinned by matrix fixtures P9–P10 plus the rune-batch tests (Ancestral Roar, Shared Scripture, War Chorus).
 
-## Q3 — Empty Graves' forced Echo fires once, ignoring every Echo multiplier
+## Q3 — Empty Graves' forced Echo fires once, ignoring every Echo multiplier — **RESOLVED 2026-08-27**
 
-- **Current behaviour (verbatim):** the Empty Graves quest reward marks a body; each time it attacks it
-  triggers the side's left-most living Echo (packages/core/src/combat/simulate.ts, the `emptyGravesRally`
-  block) — the effects run exactly **once** inside one `asEcho` wrap. Every OTHER forced-Echo path
-  multiplies: Rune of the Herald (`1 + playerEchoExtras`), Deathsayer / Echohorn / Hawkus
-  (`(1 + echoExtras) × gild` in `triggerEchoOn`), and real deaths (`playerEchoExtras`).
-- **Concrete example:** Sylus + Footman Captain (Echo: summon a Footman) + the Empty-Graves-marked body.
-  The marked body attacks → **1** Footman. Deathsayer rallies the same Captain → **2** Footmen (matrix
-  fixture P5). The Captain actually dies → 2 Footmen.
-- **Why it is debatable:** the block's comment explains the `asEcho` wrap ("this fires on EVERY attack…")
-  but says nothing about multipliers; given "an Echo trigger is an Echo trigger" everywhere else, the
-  single-fire looks like an omission rather than a ruling.
-- **Click semantics:** ✓ Approve = Empty Graves is deliberately flat (it already fires every attack —
-  multiplying it too would runaway). ✎ Revise = your ruling, in a sentence. ✕ Reject = this is a bug —
-  fold `playerEchoExtras` in like the Herald does.
+**Owner ruling (`q-interact-empty-graves-flat`, APPROVE 2026-08-27): fixed.** The `emptyGravesRally` attack
+branch now fires the forced Echo `(1 + playerEchoExtras) × the marked body's gild` times — one `asEcho` wrap
+per proc, deaths deferred across all procs — like every other forced-Echo path (Rune of the Herald,
+`triggerEcho`). Pinned by matrix fixture P11. The quest's stale player-facing reward line (it still described
+the pre-2026-07-21 Gravebody design) was rewritten in the same PR (`packages/ui/src/questText.ts`).
 
 ## Q4 — A forced no-death Echo consumes the once-per-combat first-Echo bonus
 

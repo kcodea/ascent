@@ -88,20 +88,17 @@ describe('Rune of the White Wolf gives a second pup when duplicated (owner rulin
 });
 
 describe('runeStacks — the honesty signal behind the forge pill', () => {
-  it('classifies the shapes correctly', () => {
-    // Accumulating rewards stack…
-    expect(runeStacks(RUNE_INDEX['rune_procession']!), 'combat flags stack now').toBe(true);
+  it('classifies per the 2026-08-27 duplicate rulings: everything stacks except the ruled exceptions', () => {
+    // Since the duplicate-stacking pass, the old "whole-value assignment" shapes stack too — Mastery adds a
+    // repetition per copy, the Shared Table's grant accumulates, etc.
+    expect(runeStacks(RUNE_INDEX['rune_procession']!), 'combat flags stack').toBe(true);
     expect(runeStacks(RUNE_INDEX['rune_taurus']!), 'a granted card stacks').toBe(true);
     expect(runeStacks(RUNE_INDEX['rune_reliquary']!), 'a recurring effect stacks').toBe(true);
-    // …whole-value assignments cannot.
-    expect(runeStacks(RUNE_INDEX['rune_twin_gilding']!), 'a bare boolean cannot stack').toBe(false);
-    expect(runeStacks(RUNE_INDEX['rune_mastery']!)).toBe(false);
-    expect(runeStacks(RUNE_INDEX['rune_shared_table']!), 'a whole-object assignment cannot').toBe(false);
-  });
-
-  it('a multi stacks when EITHER half does', () => {
-    // Soul Taxes: its flag half is a boolean, but its grant half hands over a second minion.
-    expect(runeStacks(RUNE_INDEX['rune_soul_taxes']!)).toBe(true);
+    expect(runeStacks(RUNE_INDEX['rune_mastery']!), '+1 Improve repetition per copy').toBe(true);
+    expect(runeStacks(RUNE_INDEX['rune_shared_table']!), 'the Ale grant accumulates').toBe(true);
+    // …the ruled exceptions pay the sweetener (or, for the Ornate Clock, nothing).
+    expect(runeStacks(RUNE_INDEX['rune_twin_gilding']!), 'already at 2 — cannot lower again').toBe(false);
+    expect(runeStacks(RUNE_INDEX['rune_ornate_clock']!), 'owner-ruled unique').toBe(false);
   });
 
   it('every rune classifies without throwing (a new rune is covered the moment it is authored)', () => {

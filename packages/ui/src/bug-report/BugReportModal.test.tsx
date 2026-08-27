@@ -94,12 +94,14 @@ describe('BugReportModal', () => {
     expect(el.querySelector('[role="dialog"]')).toBeNull();
   });
 
-  it('Ctrl+Enter submits when valid and closes the reporter', () => {
+  it('Ctrl+Enter submits when valid and closes the reporter', async () => {
     openReporter();
     mount();
     act(() => { useGame.getState().updateBugReportDraft({ description: 'a perfectly valid description' }); });
-    act(() => {
+    // PR 2: submit persists to the durable queue BEFORE closing (§6.2), so the close lands a microtask later.
+    await act(async () => {
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', ctrlKey: true, cancelable: true, bubbles: true }));
+      await new Promise((r) => setTimeout(r, 0));
     });
     expect(useGame.getState().bugReportOpen).toBe(false);
     expect(useGame.getState().bugReportDraft).toBeNull();

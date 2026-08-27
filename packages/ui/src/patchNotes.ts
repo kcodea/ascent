@@ -55,6 +55,20 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-08-27',
+    label: 'Bug Reporter',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: 'Press Ctrl+B any time during a run to report a problem — the game attaches the details automatically and the shop timer pauses while you type.',
+        details: [
+          'Describe what happened in your own words; the current turn and latest combat details ride along on their own.',
+          'Reports send in the background and never interrupt play — submitted while offline, a report is kept safe and sends when you reconnect.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-08-26',
     label: 'Rulebook rulings',
     changes: [

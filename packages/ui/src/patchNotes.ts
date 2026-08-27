@@ -88,6 +88,20 @@ export const PATCH_NOTES: PatchNote[] = [
   },
   {
     date: '2026-08-27',
+    label: 'This Turn Rule',
+    changes: [
+      {
+        category: 'Card Change',
+        text: 'Effects that last "this turn" now correctly persist through that turn\'s combat — a turn runs from your shop through the fight that ends it.',
+        details: [
+          'Demand an Encore fixed: its extra Shout triggers now also apply to every Shout triggered in that turn\'s combat (they used to vanish when combat started).',
+          'This is now the standing rule for all "this turn" effects. A sweep of every card, rune, gift and hero power that says "this turn" found Demand an Encore was the only one breaking it.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-08-27',
     label: 'Load Screen Fix',
     changes: [
       { category: 'UI / Info', text: 'The loading bar now fills smoothly over the load, and the logo no longer jumps in size a beat after the screen appears.' },

@@ -439,4 +439,37 @@ export const APPROVED_RULES: GameRule[] = [
     currentBehaviour: 'Close but unruled at ruling time (combat consumed a per-fight copy of the pool); the per-phase semantics ride feat/this-turn-rule, pinned by the carryOver lane.',
     enforcement: { kind: 'oracle', refs: ['carryOver'], lastVerifiedAt: '2026-08-27' },
   },
+
+  // ── "THIS TURN" temporal scope (owner ruling 2026-08-27, decided on q-carry-demand-encore) ─────────────
+  {
+    id: 'R-TURN-01',
+    title: '"This turn" runs from shop through that turn\'s combat',
+    statement:
+      'A turn is the shop phase PLUS the combat that ends it: an effect or tally scoped to "this turn" '
+      + 'remains live and consumable through that turn\'s combat, and expires at the start of the next shop '
+      + 'turn. So turn-scoped state a combat trigger can consume (Shout extras, per-turn tallies a '
+      + 'Start-of-Combat or combat-triggered effect reads) must reach that combat — evaporating at the '
+      + 'shop/combat boundary is a defect. Standing rule, applied retroactively to existing effects.',
+    domain: 'persistence',
+    status: 'approved',
+    evidence: [{
+      kind: 'owner-chat',
+      ref: 'q-carry-demand-encore (REVISE, 2026-08-27)',
+      quote: '\'This turn\' terminology runs from shop through that turn\'s combat, and ends at the start of the next shop turn. so this effect should absolutely carry over into combat. use this language and logic moving forward and to retroactively fix issues.',
+    }],
+    currentBehaviour:
+      'Enforced by the carry-over lane (carryOver.test.ts sweeps every per-turn reducer reset through a real '
+      + 'combat; excuses in CARRY_OVER_EXCUSED cite this rule) plus the printed-text sweep '
+      + '(thisTurnRule.test.ts classifies every content def whose text says "this turn"). Demand an Encore '
+      + 'was the one violation found on 2026-08-27 and now carries via questCombatMods.encoreExtra.',
+    enforcement: {
+      kind: 'scenario',
+      refs: [
+        'packages/sim/src/shoutCarryOver.test.ts',
+        'packages/sim/src/docbot/carryOver.test.ts',
+        'packages/sim/src/docbot/thisTurnRule.test.ts',
+      ],
+      lastVerifiedAt: '2026-08-27',
+    },
+  },
 ];

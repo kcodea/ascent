@@ -163,6 +163,23 @@ Three commands sit above the tripwires (`packages/sim/src/docbot/{coverageKeys,c
   fingerprints — message prose never changes identity) with the original seed/trace preserved.
 - `npm run docbot:scenario -- <id>` — replays any emitted scenario (corpus fixture or minimized failure).
 
+## The 2026-08-27 wave — one QA system
+
+The blind-spot program (docs/docbot-blindspots.md) and the next-iteration handoff both landed 2026-08-27.
+`npm run docbot` is the live, self-verifying inventory — every lane row is `existsSync`-checked against its
+gate file, so the report cannot describe a lane that no longer exists. The full lane list, the rulebook
+enforcement picture (approved-but-unenforced is a ratcheted queue), and the command surface all print there;
+this doc deliberately does not duplicate the list (the CONTENT.md lesson). `npm run docbot -- --json` emits
+the open queues as fingerprinted `DocbotFinding`s for machine consumption.
+
+The keystone is `QaScenarioV1` (packages/sim/src/qaScenario.ts): Scene Builder exports/imports it, player
+bug reports reproduce through it (`bugs:repro` emits + runs it), the coverage corpus retains it, minimized
+nightly failures ship as it, and regression fixtures graduate into it. One format, one runner, one engine.
+
+Measured retro catch rate: **14/14** (docs/docbot-roadmap.md) — the #1176 temporal-window class is caught by
+the per-instance oracle under the 11 R-AVWIN owner rulings, with the two current engine violations pinned
+shrink-only in `temporalWindow.test.ts` (`KNOWN_VIOLATIONS`) until fixed.
+
 ## Extending Doc Bot
 
 New trigger → classify it in `TRIGGER_PHASES` (read the dispatchers first). New dual-phase factory → implement

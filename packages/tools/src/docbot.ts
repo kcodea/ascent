@@ -10,10 +10,12 @@
  */
 import { CARD_INDEX, RUNES, EPIC_RUNES } from '@game/content';
 import { FACTORIES, combatCastable } from '@game/core';
-import { readFileSync } from 'node:fs';
+import { allRules, unenforcedApproved } from '@game/rules';
+import { existsSync, readFileSync } from 'node:fs';
 import {
   COMBAT_CASTING_FACTORIES, HEROES, PHASE_EXCUSED, PREDICATE_FILES, RAW_TRIBE_COMPARE_SOURCE,
   RECRUIT_FACTORY_IDS, SPELL_POWER_EXCUSED, TRIBE_RATCHET, TRIGGER_PHASES, combatScan, playScan, runeSwallowScan,
+  makeFinding, emitFindingsJson,
 } from '@game/sim';
 
 /** The ratchet scan, done locally: the registry is pure data (it rides the public sim entrypoint into the
@@ -115,10 +117,66 @@ console.log('\n── 11. printed numbers — gated in docbot/textNumbers.test.t
 console.log('── 12. invariant fuzz — gated in docbot/invariantFuzz.test.ts (invariants, determinism, identity-independence)');
 console.log('── 13. magnitude oracles — gated in docbot/magnitudeOracle.test.ts (grants EQUAL params: spellBuffTarget, battlecryBuffTarget, deathrattleSummon incl. fixed/goldenTokens)');
 console.log('── 14. interaction matrix — gated in docbot/interactionMatrix.test.ts (multiplier×family exact doubling, additivity, random-target eligibility across seeds)');
-console.log('── 15. hero power lane — gated in docbot/heroPowerLane.test.ts (34 active through the real action; 25 named passive/scheduled in the pinned queue)');
+console.log('── 15. hero power lane — gated in docbot/heroPowerLane.test.ts + heroPowerStagers.test.ts (every live power verified: active through the real action or staged to its activation family; the passive queue is DRAINED, needs-stager 0)');
 
 // ── 8. spell-power folding ──
 console.log('\n── 8. spell-power folding (#817/#731 class) — gated in docbot/spellPowerFolding.test.ts ──');
 for (const [name, e] of Object.entries(SPELL_POWER_EXCUSED)) console.log(`  ${e.kind === 'needs-triage' ? '⚠ ' : '· '}${name} [${e.kind}]: ${e.why}`);
+
+// ── 16+. the 2026-08-27 lane wave — every gate file EXISTS-checked so this inventory cannot rot ──────────
+const NEW_LANES: Array<[string, string, string]> = [
+  ['carry-over', 'packages/sim/src/docbot/carryOver.test.ts', 'per-turn run-state resources bridge into combat (subject list derived from the reducer rollover block; War Drum/Warm Embers carry live)'],
+  ['snapshot fidelity', 'packages/sim/src/docbot/snapshotFidelity.test.ts', 'every BoardCard/BoardMinion field survives each boundary or carries a typed excuse (the PR #453 class)'],
+  ['guard reachability', 'packages/sim/src/docbot/guardReachability.test.ts', 'every refusal guard proven to PERMIT a legal cast (21/21 armed)'],
+  ['order goldens', 'packages/sim/src/docbot/orderGoldens.test.ts', 'resolution-order pins; ambiguities documented in docs/rulebook/order-ambiguities.md'],
+  ['text oracle T1', 'packages/sim/src/docbot/textOracle.test.ts', 'printed stat buffs EQUAL measured deltas (golden lane included)'],
+  ['text oracle T2 summons', 'packages/sim/src/docbot/textOracleSummons.test.ts', 'printed summon count/token/stats/keywords reconciled'],
+  ['text oracle T3 economy', 'packages/sim/src/docbot/textOracleEconomy.test.ts', 'printed Gold amounts AND timing reconciled'],
+  ['target cardinality', 'packages/sim/src/docbot/targetCardinality.test.ts', 'recipient count + eligibility vs printed target language (right amount, wrong body)'],
+  ['conservation laws', 'packages/sim/src/docbot/conservationLaws.test.ts', 'gold ledger, combat event-log reconstruction, stat provenance'],
+  ['interaction families', 'packages/sim/src/docbot/interactionFamilyMatrix.test.ts', 'trigger-family composition pins; ambiguities in docs/rulebook/interaction-ambiguities.md'],
+  ['economy differentials', 'packages/sim/src/docbot/economyScan.test.ts', 'exact deltas for every pricing rule + all quest reward magnitudes'],
+  ['lobby properties', 'packages/sim/src/docbot/lobbyProperties.test.ts', 'Rating monotonicity, pairing invariants, elimination-exactly-once across seeds'],
+  ['rendered text', 'packages/ui/src/renderedText.test.tsx', 'the DOM shows what the sim computed, on BOTH text chains + badges'],
+  ['hero-power stagers', 'packages/sim/src/docbot/heroPowerStagers.test.ts', 'passive/scheduled/threshold powers driven to their real activation points'],
+  ['temporal windows', 'packages/sim/src/docbot/temporalWindow.test.ts', 'per-instance trigger windows under the 11 R-AVWIN rulings - retro catalog 14/14; KNOWN_VIOLATIONS pins R-AVWIN-02/10 until the engine is fixed'],
+  ['covering array', 'packages/sim/src/docbot/recruitCoveringArray.test.ts', '20 deterministic rows covering all 351 recruit boundary pairs + explosion guard'],
+  ['coverage corpus', 'packages/sim/src/docbot/coverageCorpus.test.ts', 'deterministic QaScenarioV1 corpus under docbot/corpus/ keyed by semantic coverage'],
+  ['scenario contract', 'packages/sim/src/qaScenario.test.ts', 'QaScenarioV1 round-trip/determinism/migration - the shared format for Scene Builder, bug reports, corpus and regressions'],
+];
+console.log('\n── 16+. landed 2026-08-27 — the blind-spot + next-iteration wave (each gates in npm test) ──');
+for (const [name, file, what] of NEW_LANES) {
+  const exists = existsSync(file);
+  console.log(`  ${exists ? '·' : '✗ MISSING'} ${name} — ${file}${exists ? '' : '  ⚠ inventory rotted'}`);
+  console.log(`      ${what}`);
+}
+
+// ── rulebook enforcement picture ───────────────────────────────────────────────────────────────────────────
+const rules = allRules();
+const unenforced = unenforcedApproved(rules);
+const pendingCount = rules.filter((r) => r.effective === 'needs-ruling').length;
+console.log('\n── rulebook — @game/rules closed loop ──');
+console.log(`  rules: ${rules.length} total · pending owner questions: ${pendingCount} · approved-but-unenforced: ${unenforced.length}${unenforced.length ? ` (${unenforced.map((r) => r.id).join(', ')})` : ''}`);
+
+// ── command surface ────────────────────────────────────────────────────────────────────────────────────────
+console.log('\n── commands ──');
+console.log('  npm run docbot                      this report (add -- --json for machine-readable findings)');
+console.log('  npm run docbot:scenario -- <id>     run one QaScenarioV1 (bare ids resolve in docbot/scenarios/)');
+console.log('  npm run docbot:corpus               rebuild the coverage corpus (deterministic)');
+console.log('  npm run docbot:nightly              full lifecycle runs + bot lobbies (nightly.yml runs it on cron)');
+console.log('  npm run rules:seed                  regenerate the owner triage queue (decisions survive)');
+console.log('  npm run rules:impact -- <paths>     which rulings a change touches');
+console.log('  npm run bugs:pull|list|repro|close  player-report inbox → QaScenarioV1 reproduction');
+
+// ── --json: the §12 machine-readable projection of every open queue ────────────────────────────────────────
+if (process.argv.includes('--json')) {
+  const findings = [
+    ...triage.map(([d, e]) => makeFinding({ lane: 'factory-phase', contentIds: [], ruleIds: [], expectationKind: 'needs-ruling', severity: 'question' as const, confidence: 'strong' as const, title: `${d} silent in ${e.phase}`, summary: e.why })),
+    ...secondSwallowed.map((r) => makeFinding({ lane: 'rune-duplicate', contentIds: [r], ruleIds: [], expectationKind: 'no-op', severity: 'question' as const, confidence: 'proven' as const, title: `duplicate ${r} pays nothing`, summary: 'reachable second-copy purchase with zero effect — owner stacking ruling wanted' })),
+    ...combat.inert.map((c) => makeFinding({ lane: 'combat-conditional', contentIds: [c], ruleIds: [], expectationKind: 'no-op', severity: 'info' as const, confidence: 'uncertain' as const, title: `${c} scenario-conditional in the staged fight`, summary: 'combat effect changed nothing in the staged variants; per-card verification wanted' })),
+    ...unenforced.map((r) => makeFinding({ lane: 'rules-enforcement', contentIds: [], ruleIds: [r.id], expectationKind: 'unenforced', severity: 'warning' as const, confidence: 'proven' as const, title: `${r.id} approved but unenforced`, summary: r.title })),
+  ];
+  console.log(emitFindingsJson(findings));
+}
 
 console.log('\nDoctrine + how to extend: docs/docbot.md\n');

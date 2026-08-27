@@ -9,12 +9,12 @@
  */
 import { describe, expect, it } from 'vitest';
 import { CARD_INDEX, RUNE_INDEX } from '@game/content';
-import { APPROVED_RULES, DECISIONS, PENDING_RULES, allRules } from './index';
+import { APPROVED_RULES, DECISIONS, MANUAL_PENDING, PENDING_RULES, allRules, undecided } from './index';
 import { RETIRED_IDS, RETIRED_RULES } from './registry/retired';
 import { AUTO_RETIRED_IDS, AUTO_RETIRED_RULES } from './registry/retired.generated';
 
 describe('rulebook registry integrity', () => {
-  const all = [...APPROVED_RULES, ...PENDING_RULES];
+  const all = [...APPROVED_RULES, ...PENDING_RULES, ...MANUAL_PENDING];
 
   it('rule ids are unique and well-formed', () => {
     const ids = all.map((r) => r.id);
@@ -24,7 +24,7 @@ describe('rulebook registry integrity', () => {
 
   it('approved rules carry evidence; pending rules carry current behaviour', () => {
     for (const r of APPROVED_RULES) expect(r.evidence.length, `${r.id} has no evidence`).toBeGreaterThan(0);
-    for (const r of PENDING_RULES) expect(r.currentBehaviour, `${r.id} states no current behaviour`).toBeTruthy();
+    for (const r of [...PENDING_RULES, ...MANUAL_PENDING]) expect(r.currentBehaviour, `${r.id} states no current behaviour`).toBeTruthy();
   });
 
   it('every decision references an existing rule, and revisions carry wording', () => {
@@ -45,7 +45,7 @@ describe('rulebook registry integrity', () => {
 
   it('ids are never recycled: a tombstoned or approved id never reappears as a NEW pending id', () => {
     const approvedIds = new Set(APPROVED_RULES.map((r) => r.id));
-    for (const p of PENDING_RULES) {
+    for (const p of [...PENDING_RULES, ...MANUAL_PENDING]) {
       expect(RETIRED_IDS.has(p.id), `pending '${p.id}' resurrects a hand-retired id`).toBe(false);
       expect(AUTO_RETIRED_IDS.has(p.id), `pending '${p.id}' resurrects an auto-retired id`).toBe(false);
       expect(approvedIds.has(p.id), `pending '${p.id}' recycles an approved rule id`).toBe(false);
@@ -56,9 +56,11 @@ describe('rulebook registry integrity', () => {
 
   it('rejected decisions never correspond to a still-pending rule (§10.4 — the seeder must tombstone them)', () => {
     const pendingIds = new Set(PENDING_RULES.map((r) => r.id));
+    const manualIds = new Set(MANUAL_PENDING.map((r) => r.id));
     for (const [id, d] of Object.entries(DECISIONS)) {
       if (d.decision !== 'reject') continue;
       expect(pendingIds.has(id), `'${id}' was REJECTED but is still on the pending board — run \`npm run rules:seed\` (its hygiene pass tombstones rejects into retired.generated.ts)`).toBe(false);
+      expect(manualIds.has(id), `'${id}' was REJECTED but still lives in pendingManual.ts — the seeder never touches manual cards, so remove it BY HAND and tombstone the id in registry/retired.ts`).toBe(false);
     }
   });
 
@@ -72,6 +74,46 @@ describe('rulebook registry integrity', () => {
 
   it('the backlog is real (a seeding collapse must fail loudly, not read as all-decided)', () => {
     expect(PENDING_RULES.length).toBeGreaterThanOrEqual(3); // the owner's 2026-08-26 triage session drained the board to the standing policy/watch cards; the resolved ids live in registry/retired.ts, and the rejected rune-duplicates card is tombstoned in retired.generated.ts
-    expect(allRules().length).toBe(APPROVED_RULES.length + PENDING_RULES.length);
+    expect(allRules().length).toBe(APPROVED_RULES.length + PENDING_RULES.length + MANUAL_PENDING.length);
+  });
+});
+
+describe('hand-authored pending cards (pendingManual.ts) — the 2026-08-27 owner-question format bar', () => {
+  it('every manual card is self-contained: verbatim cardText, a concrete example, and explicit click semantics', () => {
+    for (const r of MANUAL_PENDING) {
+      expect(r.status, `${r.id} must be needs-ruling`).toBe('needs-ruling');
+      expect(r.cardText, `${r.id} has no cardText (owner format feedback 2026-08-26: every card must stand alone)`).toBeTruthy();
+      expect(r.example, `${r.id} has no concrete example`).toBeTruthy();
+      expect(r.currentBehaviour, `${r.id} states no current behaviour`).toBeTruthy();
+      expect(r.evidence.length, `${r.id} cites no evidence`).toBeGreaterThan(0);
+      expect(r.sourceQueue, `${r.id} names no Doc Bot source lane`).toBeTruthy();
+      // Explicit click semantics: the statement must spell out what ✓ Approve and ✕ Reject each DO.
+      expect(r.statement, `${r.id}: statement must contain the literal '✓ Approve ='`).toContain('✓ Approve =');
+      expect(r.statement, `${r.id}: statement must contain the literal '✕ Reject ='`).toContain('✕ Reject =');
+      expect(r.statement, `${r.id}: statement must offer '✎ Revise'`).toContain('✎ Revise');
+    }
+  });
+
+  it('manual ids never collide with generated, approved, or retired ids', () => {
+    const taken = new Set([
+      ...APPROVED_RULES.map((r) => r.id),
+      ...PENDING_RULES.map((r) => r.id),
+      ...RETIRED_IDS,
+      ...AUTO_RETIRED_IDS,
+    ]);
+    const seen = new Set<string>();
+    for (const r of MANUAL_PENDING) {
+      expect(taken.has(r.id), `manual '${r.id}' collides with a generated/approved/retired id`).toBe(false);
+      expect(seen.has(r.id), `manual '${r.id}' is duplicated inside pendingManual.ts`).toBe(false);
+      seen.add(r.id);
+    }
+  });
+
+  it('board smoke: every undecided manual card reaches the Rulebook Triage worklist', () => {
+    const board = new Set(undecided().map((r) => r.id));
+    for (const r of MANUAL_PENDING) {
+      if (DECISIONS[r.id]) continue; // a decided card correctly leaves the worklist
+      expect(board.has(r.id), `${r.id} is undecided but missing from undecided()`).toBe(true);
+    }
   });
 });

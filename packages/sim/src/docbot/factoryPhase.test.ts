@@ -79,9 +79,9 @@ describe('Doc Bot — factory × phase coverage', () => {
     expect(stale, `Stale excuse(s):\n  ${stale.join('\n  ')}`).toEqual([]);
   });
 
-  it('the needs-triage backlog can only shrink (ratchet: 16 as of 2026-08-26)', () => {
+  it('the needs-triage backlog can only shrink (ratchet: 0 after the owner triage session, 2026-08-26)', () => {
     const triage = Object.entries(PHASE_EXCUSED).filter(([, e]) => e.kind === 'needs-triage');
-    expect(triage.length, `needs-triage entries: ${triage.map(([d]) => d).join(', ')} — resolving one? lower this ratchet. Adding one? that needs an owner ruling, not a bigger number.`).toBeLessThanOrEqual(16);
+    expect(triage.length, `needs-triage entries: ${triage.map(([d]) => d).join(', ')} — resolving one? lower this ratchet. Adding one? that needs an owner ruling, not a bigger number.`).toBeLessThanOrEqual(0);
   });
 
   it('cast lane: every spell a combat-capable caster names is combat-castable (the Beefy fizzle class)', () => {

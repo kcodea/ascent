@@ -10,6 +10,7 @@
 import { describe, expect, it } from 'vitest';
 import { CARD_INDEX, RUNE_INDEX } from '@game/content';
 import { APPROVED_RULES, DECISIONS, PENDING_RULES, allRules } from './index';
+import { RETIRED_IDS, RETIRED_RULES } from './registry/retired';
 
 describe('rulebook registry integrity', () => {
   const all = [...APPROVED_RULES, ...PENDING_RULES];
@@ -28,8 +29,16 @@ describe('rulebook registry integrity', () => {
   it('every decision references an existing rule, and revisions carry wording', () => {
     const known = new Set(all.map((r) => r.id));
     for (const [id, d] of Object.entries(DECISIONS)) {
-      expect(known.has(id), `decision on unknown rule '${id}' — if its queue item resolved, retire the decision explicitly`).toBe(true);
+      expect(known.has(id) || RETIRED_IDS.has(id), `decision on unknown rule '${id}' — if its queue item resolved, retire it explicitly in registry/retired.ts`).toBe(true);
       if (d.decision === 'revise') expect(d.note, `${id}: a revise decision must carry the owner's wording`).toBeTruthy();
+    }
+  });
+
+  it('retired rules carry a disposition and never shadow a live rule', () => {
+    const live = new Set(all.map((r) => r.id));
+    for (const r of RETIRED_RULES) {
+      expect(r.why.length, `${r.id} retired with no disposition`).toBeGreaterThan(20);
+      expect(live.has(r.id), `${r.id} is retired AND still live — pick one`).toBe(false);
     }
   });
 
@@ -42,7 +51,7 @@ describe('rulebook registry integrity', () => {
   });
 
   it('the backlog is real (a seeding collapse must fail loudly, not read as all-decided)', () => {
-    expect(PENDING_RULES.length).toBeGreaterThanOrEqual(15); // 22 after the owner audit (2026-08-26) collapsed instrument noise into policy cards + a Doc Bot backlog
+    expect(PENDING_RULES.length).toBeGreaterThanOrEqual(4); // the owner's 2026-08-26 triage session drained the board to the 4 standing policy/watch cards; the 18 resolved ids live in registry/retired.ts
     expect(allRules().length).toBe(APPROVED_RULES.length + PENDING_RULES.length);
   });
 });

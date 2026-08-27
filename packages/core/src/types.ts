@@ -1597,6 +1597,15 @@ export interface QuestCombatMods {
   runeShiftingFacets?: 'attack' | 'health';
   /** Rune of the Deepening Vein: Avenge (3) improves Rubies +1/+1 and plays a Ruby on every friendly Kobold. */
   runeDeepeningVein?: boolean;
+  /** Rune of the War Drum's UNSPENT shop charge (owner ruling 2026-08-26: "1/1 use, resets at start of turn —
+   *  if it is not used in shop, the first shout triggered in combat should work"). Present ONLY when the
+   *  per-turn charge went unspent; the FIRST Shout triggered in combat on this side fires this many extra
+   *  times. Consumed once per combat (its own latch, so it stacks with `shoutDoubleCharges` — mirroring the
+   *  recruit counter's stacking in `playedShoutRepeats`). */
+  warDrumExtra?: number;
+  /** Warm Embers' legacy `shoutDouble` charges still unspent at combat (same 2026-08-26 ruling, extended):
+   *  each of the next N Shouts triggered in combat fires twice (one extra fire per charge). */
+  shoutDoubleCharges?: number;
   /** Rune of Lasting Cadence: at Start of Combat, EVERY rally-capable friendly fires its Rally once (the
    *  board-wide sibling of `runeRallying`, which fires only the left-most). */
   /** Candlelight Toll: a friendly Kobold dying grants a Ruby to hand (carried back like any hand grant). */
@@ -2559,6 +2568,11 @@ export interface CombatContext {
   /** How many times an "Improve" step applies for `side` — 2 under Rune of Mastery, else 1. Every combat
    *  factory whose card text says **Improve** multiplies its improvement increment by this. */
   improveRepsFor(side: Side): number;
+  /** SHOP→COMBAT CARRY-OVER (owner ruling 2026-08-26): extra fires for a Shout TRIGGERED in combat, consumed
+   *  per call — the first Shout gets an unspent War Drum charge (`warDrumExtra`), and each of the next N
+   *  Shouts gets one extra fire while `shoutDoubleCharges` last. Optional: contexts without it (recruit
+   *  arena, tests) get plain single fires. Implemented in `simulate()`; consumed by `replayCombatBattlecry`. */
+  shoutCarryExtras?(side: Side): number;
   /** Rune of the Matriarch reps for this side (2 with the rune, else 1) — the combat mirror of the
    *  recruit engine's `state.runeMatriarch` wrapper. */
   matriarchRepsFor(side: Side): number;

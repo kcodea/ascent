@@ -651,6 +651,17 @@ export function simulate(
 
     spellsThisTurnFor: (side) => (side === 'player' ? playerState.spellsThisTurn : enemySpellsThisTurn),
     improveRepsFor: (side) => (modsFor(side).runeMastery ? 2 : 1),
+    // SHOP→COMBAT CARRY-OVER (owner ruling 2026-08-26): consumed once per combat-triggered Shout by
+    // `replayCombatBattlecry`. The first Shout gets the whole unspent War Drum multiplier (its own latch),
+    // and each of the next N Shouts one extra fire while the carried Warm Embers charges last — the two
+    // STACK on the first Shout, mirroring the recruit counter (`playedShoutRepeats`).
+    shoutCarryExtras: (side) => {
+      let extra = 0;
+      const wd = modsFor(side).warDrumExtra;
+      if (wd && !warDrumCarrySpent[side]) { warDrumCarrySpent[side] = true; extra += wd; }
+      if (shoutDoubleCarryLeft[side] > 0) { shoutDoubleCarryLeft[side] -= 1; extra += 1; }
+      return extra;
+    },
     beastsPlayedFor: (side) => (side === 'player' ? playerState.beastsPlayed : enemyBeastsPlayed),
     cardsBoughtThisTurnFor: (side) => (side === 'player' ? playerState.cardsBoughtThisTurn : enemyState.cardsBoughtThisTurn),
     fodderConsumedFor: (side) => (side === 'player'
@@ -2230,6 +2241,15 @@ export function simulate(
   const spareChairUsed: Record<Side, boolean> = { player: false, enemy: false };
   const backbeatUsed: Record<Side, boolean> = { player: false, enemy: false };
   const scriptureSpent: Record<Side, boolean> = { player: false, enemy: false };
+  // SHOP→COMBAT CARRY-OVER (owner ruling 2026-08-26): an UNSPENT War Drum charge applies to the FIRST Shout
+  // triggered in combat, and unspent Warm Embers double-charges apply to the next N. Per side, so a served
+  // rival whose snapshot carried its own unspent charges gets them too. Spend trackers live here (per-combat),
+  // never on shared defs; consumed via ctx.shoutCarryExtras in replayCombatBattlecry.
+  const warDrumCarrySpent: Record<Side, boolean> = { player: false, enemy: false };
+  const shoutDoubleCarryLeft: Record<Side, number> = {
+    player: modsFor('player').shoutDoubleCharges ?? 0,
+    enemy: modsFor('enemy').shoutDoubleCharges ?? 0,
+  };
   const undertowUsed: Record<Side, number> = { player: 0, enemy: 0 }; // Rune of the Undertow's 4-Ward budget
   const raisedBodies = new Set<string>(); // uids of bodies that ARE a resurrection — their deaths don't re-bank
   const pendingResummons: { anchor: Minion; board: BoardMinion; side: Side }[] = [];

@@ -11,12 +11,17 @@ import {
 } from './stageModel';
 import { reorderTargetIndex } from './dragEdit';
 import { StageCard } from './StageCard';
+import { numToHex } from '../color';
 
 export interface StageSetterProps {
   stage: StageState;
   onChange: (next: StageState) => void;
   selectedActor: string | null;
   onSelectActor: (uid: string | null) => void;
+  /** The selected preview background as a packed 0xRRGGBB, or null for none. Painted as a CSS tint on the
+   *  stage canvas (BEHIND the cards) — deliberately NOT the full-viewport Pixi backdrop, which would sit on
+   *  the z-lifted `.pixifx` and cover the whole workbench while the Stage Setter is open. */
+  background?: number | null;
 }
 
 /** Short label per role for the segmented picker — mirrors `StageCard`'s own `ROLE_LABEL` badge text so the
@@ -152,7 +157,7 @@ function dropCard(stage: StageState, uid: string, targetZone: StageZone, insertI
  * reads each handle's `getBoundingClientRect()` at read-time, which is already viewport coordinates, so no
  * fraction↔px conversion needs to agree between this file and that one.
  */
-export function StageSetter({ stage, onChange, selectedActor, onSelectActor }: StageSetterProps): React.ReactElement {
+export function StageSetter({ stage, onChange, selectedActor, onSelectActor, background }: StageSetterProps): React.ReactElement {
   const stageRef = useRef<HTMLDivElement | null>(null);
   const tavernRowRef = useRef<HTMLDivElement | null>(null);
   const warbandRowRef = useRef<HTMLDivElement | null>(null);
@@ -256,6 +261,7 @@ export function StageSetter({ stage, onChange, selectedActor, onSelectActor }: S
       <div
         className="fxwb-stage-canvas"
         ref={stageRef}
+        style={background != null ? { background: numToHex(background) } : undefined}
         onPointerMove={onStagePointerMove}
         onPointerUp={endStageDrag}
         onPointerCancel={endStageDrag}

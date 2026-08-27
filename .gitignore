@@ -5,6 +5,8 @@ coverage/
 .env.*
 !.env.example
 !apps/web/.env
+# local-only handoff artifacts (Bug Board work orders, pulled bug capsules) — never committed
+.local/
 ascent-itch*.zip
 *.tsbuildinfo
 *.log

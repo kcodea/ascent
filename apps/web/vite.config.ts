@@ -7,6 +7,7 @@ import { fxDefsPlugin } from './fxDefsPlugin';
 import { uiAssetPlugin } from './uiAssetPlugin';
 import { beatLabPlugin } from './beatLabPlugin';
 import { rulebookPlugin } from './rulebookPlugin';
+import { bugBoardPlugin } from './bugBoardPlugin';
 
 const r = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 
@@ -31,7 +32,9 @@ export default defineConfig(({ command }) => ({
   // the dev server ONLY, and are inert (never instantiated) in a production build. `fxDefsPlugin` = the FX
   // workbench's /__fx/def + /__fx/art; `uiAssetPlugin` = the in-run UI editor's /__ui/asset image upload;
   // `beatLabPlugin` = the Beat Lab's /__beat-lab/defaults commit (writes packages/ui/src/beatLab/beat-defaults.json).
-  plugins: [react(), fxDefsPlugin(), uiAssetPlugin(), beatLabPlugin(), rulebookPlugin()],
+  // `bugBoardPlugin` (also `apply: 'serve'`) = the Bug Board's /__bugboard/* endpoints — it reads the
+  // service-role key from the untracked repo-root .env, which is exactly why it must never ship in a build.
+  plugins: [react(), fxDefsPlugin(), uiAssetPlugin(), beatLabPlugin(), rulebookPlugin(), bugBoardPlugin()],
   resolve: {
     alias: {
       '@game/core': r('../../packages/core/src/index.ts'),

@@ -57,6 +57,8 @@ describe('no redundant PNG masters ship alongside their WebP builds', () => {
     // → 1021 (2026-08-24, Fibbsy: 1 portrait + 1 power button = 2 files)
     // → 1031 (2026-08-26, the GIFTS batch: Great Pot + 8 of the 15 Gift arts + Kindness's portrait and power
     // button = 11 files. The remaining 7 Gifts are in `ART_PENDING` and cost nothing until their masters land.)
-    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1031);
+    // → 1040 (2026-08-27, the second Gifts master batch: 7 more Gift arts + the Happy Birthday / Merry
+    // Christmas rune arts = 9 files; Aevor's new portrait replaced the old webp, net 0.)
+    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1040);
   });
 });

@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
+import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type TransitionEvent as ReactTransitionEvent } from 'react';
 import { CARD_INDEX, QUEST_INDEX, RUNE_INDEX, referencedCardIds } from '@game/content';
 import { compileTimeline } from './choreographer/compileTimeline';
 import { normalizePresentationBatch } from './choreographer/adapters/presentationBatchAdapter';
@@ -1562,13 +1562,28 @@ export function Recruit() {
   // → 'out' (sweep R→L, shop art returns) → 'idle'. Advanced by the clip-path transition's transitionend;
   // a run RESUMED mid-combat initialises straight to 'combat' so the layer shows with no transition.
   const [wipe, setWipe] = useState<'idle' | 'in' | 'combat' | 'out'>(() => (run.phase === 'combat' ? 'combat' : 'idle'));
+  const wipeTimeoutRef = useRef<number | undefined>(undefined);
+  const advanceWipe = useCallback((): void => {
+    setWipe((w) => (w === 'in' ? 'combat' : w === 'out' ? 'idle' : w));
+  }, []);
   useEffect(() => {
     if (inCombat) setWipe((w) => (w === 'combat' || w === 'in' ? w : 'in'));
     else setWipe((w) => (w === 'combat' || w === 'in' ? 'out' : w));
   }, [inCombat]);
-  const onWipeEnd = useCallback((): void => {
-    setWipe((w) => (w === 'in' ? 'combat' : w === 'out' ? 'idle' : w));
-  }, []);
+  // BACKSTOP — a dropped/never-fired transitionend (a backgrounded tab, a retargeted zero-delta transition)
+  // would otherwise wedge `wipe` at 'in'/'out' forever, leaving `.wipefront`'s glow lit indefinitely even
+  // though the board itself looks fine. Mirror `onWipeEnd`'s advance on a timer a bit past the CSS duration;
+  // the real transitionend (below) clears it so the two paths never double-fire.
+  useEffect(() => {
+    if (wipe !== 'in' && wipe !== 'out') return undefined;
+    wipeTimeoutRef.current = window.setTimeout(advanceWipe, 700);
+    return () => window.clearTimeout(wipeTimeoutRef.current);
+  }, [wipe, advanceWipe]);
+  const onWipeEnd = useCallback((e: ReactTransitionEvent<HTMLDivElement>): void => {
+    if (e.propertyName !== 'clip-path') return;
+    window.clearTimeout(wipeTimeoutRef.current);
+    advanceWipe();
+  }, [advanceWipe]);
   // End-Combat crossfade: 'out' fades every combat unit + FX canvas away together, then the phase swaps and
   // 'in' fades the recruit board + survivors back together — one synchronized two-beat transition (see the CSS
   // `.app.combatout`/`.combatin`), so nothing snaps or staggers when you leave the arena.

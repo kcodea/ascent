@@ -123,16 +123,19 @@
       #bootsplash-bar > i {
         display: block; height: 100%; border-radius: 999px; background: #f0902e;
         transform: scaleX(0); transform-origin: left center;
-        transition: transform 200ms ease-out;
       }
-      #bootsplash.is-in #bootsplash-bar > i {
-        transform: scaleX(1);
-        transition: transform 3500ms linear;
-      }
+      /* The fill is a keyframe ANIMATION, not a transition. A transition needs its scaleX(0) START state to have
+         been PAINTED in a prior frame — but the AscentIcon loads before the first paint on any warm/dev load, so
+         `.is-in` lands in the same frame the bar first renders and the transition has no "before" to animate
+         from: the bar just SNAPS full (owner report 2026-08-26: "instantly full"). An animation runs from its 0%
+         keyframe unconditionally, so it always fills over the 3.5s regardless of when `.is-in` is added. Keep the
+         duration in sync with `SPLASH_MS` in Boot.tsx (the gate opens when the fill completes). */
+      @keyframes bootbarfill { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+      #bootsplash.is-in #bootsplash-bar > i { animation: bootbarfill 3500ms linear forwards; }
       /* The bar is progress feedback, not decoration — freeze motion for anyone who asked for less. */
       @media (prefers-reduced-motion: reduce) {
         #bootsplash, #bootsplash-img, #bootsplash-bar { transition: none; }
-        #bootsplash-bar > i, #bootsplash.is-in #bootsplash-bar > i { transition: none; transform: scaleX(1); }
+        #bootsplash-bar > i, #bootsplash.is-in #bootsplash-bar > i { animation: none; transform: scaleX(1); }
       }
     </style>
     <div id="root"></div>

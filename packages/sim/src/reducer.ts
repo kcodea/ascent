@@ -4047,6 +4047,11 @@ function advanceCombat(s: RunState): void {
   if (s.commission && s.wave >= s.commission.dueWave) payCommission(s, s.commission);
   // Pin the opponent match to the board you START the turn with, so it won't shift as you shop today.
   s.turnStartPower = s.board.reduce((sum, b) => sum + b.attack + b.health, 0);
+  // PER-TURN-RESET BEGIN — Doc Bot's carry-over scan (docbot/carryOverScan.ts) parses the `s.<field> = …`
+  // assignments between these markers to derive its subject list: every field cleared here is per-turn state
+  // whose unspent value could carry meaning into the combat that just resolved (the War Drum bug class,
+  // owner ruling 2026-08-26). Keep per-turn field clears INSIDE the markers; move a clear out only with a
+  // scan-registry update.
   s.spellsThisTurn = 0; // Spirit Worgen's per-turn spell scaling resets each wave
   s.echoFirstUsedThisTurn = false; // Grave Contract's first-SHOP-Echo bonus re-arms each turn (see state.ts)
   // Set 2 — the per-minion "spells cast on this" counter is per TURN too (Mirrorwing / Runefire read "first
@@ -4156,6 +4161,7 @@ function advanceCombat(s: RunState): void {
     }
   }
   s.fodderConsumedThisTurn = { attack: 0, health: 0 }; // Abhorrent Horror's SoC window resets each wave
+  // PER-TURN-RESET END — see the BEGIN marker above (Doc Bot carry-over scan boundary).
   for (const c of s.board) {
     c.resummon = false; // The Reclaimer's mark is a per-turn choice
   }
@@ -5954,6 +5960,15 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     // printed Health half, odd are Attack, so the fight resolves whatever the shop was advertising.
     runeShiftingFacets: f?.runeShiftingFacets ? ((s.runeShiftingFacetsTick ?? 0) % 2 === 0 ? 'health' : 'attack') : undefined,
     runeDeepeningVein: f?.runeDeepeningVein,   // Avenge (3): Rubies +1/+1 and a Ruby on every friendly Kobold
+    // SHOP→COMBAT CARRY-OVER (owner ruling 2026-08-26): "war drum should have a 1/1 use, and that use resets
+    // at start of turn, therefore if it is not used in shop, then the first shout triggered in combat should
+    // work." Present only while the per-turn charge is UNSPENT; combat consumes it on the first triggered
+    // Shout. Warm Embers' legacy shoutDouble charges ride the same channel (next N combat Shouts fire twice) —
+    // combat use does NOT decrement the run's charge pool (no carry-back channel; the shop pool stays intact).
+    // Because snapshots build their questMods through this same function, a served rival's unspent charges
+    // carry onto its own side for free.
+    warDrumExtra: s.runeWarDrum && !s.runeWarDrumUsedThisTurn ? s.runeWarDrum : undefined,
+    shoutDoubleCharges: s.shoutDoubleCharges || undefined,
   };
 }
 

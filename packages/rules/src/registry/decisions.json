@@ -99,5 +99,111 @@
     "decision": "revise",
     "note": "this card should get reworked, but it is also not currently active in the game. we'll revisit when we need to",
     "decidedAt": "2026-08-26T19:20:24.620Z"
+  },
+  "q-runedup-recurring": {
+    "decision": "approve",
+    "decidedAt": "2026-08-27T16:38:25.139Z"
+  },
+  "q-runedup-threshold": {
+    "decision": "revise",
+    "note": "A second copy copy should double the output. i.e. 2 rune of the returning pack, every 6 beast summons you'd get 2 random beasts, etc.",
+    "decidedAt": "2026-08-27T16:39:27.011Z"
+  },
+  "q-runedup-repeat": {
+    "decision": "approve",
+    "decidedAt": "2026-08-27T16:40:01.408Z"
+  },
+  "q-runedup-oneshot": {
+    "decision": "revise",
+    "note": "this should re-fire the one-shot reward again, but in the case where they would still get no value if done immediately, it should stack the effect for next turn. i.e. rune of the armory would get 10 random attachments, and then next turn it would fire again, since you cannot have 20 cards in hand. rune of the muster should work for the first 2 refreshes this turn in the case where they ahve 2 copies etc. rune of the ornate clock should do nothing if duplicated, that one is unique. rune of the held strength should not be a one-shot rune and should be a \"Start of Combat: give xyz\"  rune so fix that too.",
+    "decidedAt": "2026-08-27T16:42:58.614Z"
+  },
+  "q-runedup-boolean-flags": {
+    "decision": "approve",
+    "decidedAt": "2026-08-27T16:43:39.083Z"
+  },
+  "q-runedup-sweetener-floor": {
+    "decision": "approve",
+    "decidedAt": "2026-08-27T16:44:48.790Z"
+  },
+  "q-runedup-forge-filter": {
+    "decision": "approve",
+    "decidedAt": "2026-08-27T16:45:17.524Z"
+  },
+  "q-runedup-unique-engines": {
+    "decision": "revise",
+    "note": "generally, try and double the effect when possible. rune of structure = you get 2 random shop spells. rune of summoning = your imps get +4/+4, rune of contraband doubles the output of the ale/ruby per trigger etc.",
+    "decidedAt": "2026-08-27T16:46:27.471Z"
+  },
+  "q-copy-gilded-badge": {
+    "decision": "revise",
+    "note": "gilded exgalloper's summons should be exact copies without the echo, so they would be gilded too. we are going to rename this keyword to Rebirth which will make this a bit simpler. i will work on that soon",
+    "decidedAt": "2026-08-27T16:47:58.926Z"
+  },
+  "q-carry-demand-encore": {
+    "decision": "revise",
+    "note": "\"This turn\" terminology runs from shop through that turn's combat, and ends at the start of the next shop turn. so this effect should absolutely carry over into combat. use this language and logic moving forward and to retroactively fix issues.",
+    "decidedAt": "2026-08-27T16:49:01.720Z"
+  },
+  "q-carry-warm-embers-double-dip": {
+    "decision": "revise",
+    "note": "first shout each turn = the first shout triggered EACH shop or combat phase. so if a shout gets triggered through parting cry in combat on turn 7, then the first shout in turn 8 is a separate charge, so both should work.",
+    "decidedAt": "2026-08-27T16:50:21.907Z"
+  },
+  "q-snap-impbank": {
+    "decision": "approve",
+    "decidedAt": "2026-08-27T16:51:20.517Z"
+  },
+  "q-snap-rallyspreadatk": {
+    "decision": "approve",
+    "decidedAt": "2026-08-27T16:51:30.674Z"
+  },
+  "q-snap-one-combat-marks": {
+    "decision": "approve",
+    "decidedAt": "2026-08-27T16:53:50.428Z"
+  },
+  "q-snap-granted-effects": {
+    "decision": "approve",
+    "decidedAt": "2026-08-27T16:54:25.870Z"
+  },
+  "q-snap-echostripped": {
+    "decision": "revise",
+    "note": "so our rebirth rule may help solve this - Rebirth is going to be a keyword, which functions how this does but not from echoes. to clear up the rule, though. if a summoned copy that removes the echo is somehow granted into the shop, then it would be the rebirthed/cleansed version that should then NOT summon itself when killed in combat.",
+    "decidedAt": "2026-08-27T17:01:16.786Z"
+  },
+  "q-order-improve-steps-mid-resolution": {
+    "decision": "approve",
+    "decidedAt": "2026-08-27T17:11:38.664Z"
+  },
+  "q-order-shop-aura-before-shout": {
+    "decision": "approve",
+    "decidedAt": "2026-08-27T17:12:07.292Z"
+  },
+  "q-interact-nonstack-best-of": {
+    "decision": "revise",
+    "note": "This is correct behavior. We will probably change our text/terminology to better reflect non stackers. i.e. using \"Twice\" instead of \"an additional time.\"",
+    "decidedAt": "2026-08-27T17:13:40.533Z"
+  },
+  "q-interact-combat-shout-multipliers": {
+    "decision": "approve",
+    "decidedAt": "2026-08-27T17:14:19.253Z"
+  },
+  "q-interact-empty-graves-flat": {
+    "decision": "approve",
+    "decidedAt": "2026-08-27T17:14:42.249Z"
+  },
+  "q-interact-forced-echo-first-bonus": {
+    "decision": "revise",
+    "note": "an echo trigger is an echo trigger, so for example Spot's start of combat trigger would trigger that charge on the left-most echo that gets triggered first.",
+    "decidedAt": "2026-08-27T17:16:24.811Z"
+  },
+  "q-order-soc-player-side-first": {
+    "decision": "revise",
+    "note": "This should be initiative-side first. the side that attacks first resolves start of combat first. both SOC's trigger before attacks start, but the side that attacks first gets the SoC triggers first.",
+    "decidedAt": "2026-08-27T17:17:35.435Z"
+  },
+  "q-order-clash-echo-defender-first": {
+    "decision": "approve",
+    "decidedAt": "2026-08-27T17:17:50.794Z"
   }
 }

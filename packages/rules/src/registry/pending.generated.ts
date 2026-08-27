@@ -45,7 +45,7 @@ export const PENDING_RULES: GameRule[] = [
   {
     "id": "q-watch-gravebody",
     "title": "Grave Body: never reacts to things played past it — confirm the reading",
-    "statement": "With Grave Body on the board, playing a minion of every tribe past it changed nothing. Doc Bot's reading: \"Copy your leftmost Echo when summoned\" — the onSummon is about ITSELF being summoned (and its shop half is the startOfCombat copy); watching others is correctly nothing. — ✓ Approve = the reading is right. ✎ Revise = your ruling, in a sentence. ✕ Reject = wrong — it should react in the shop; say when.",
+    "statement": "With Grave Body on the board, playing a minion of every tribe past it changed nothing. Doc Bot's reading: OWNER RULED 2026-08-26, reaffirmed 2026-08-27 (q-watch-gravebody REVISE): PARKED FOR REWORK — \"this card should get reworked, but it is also not currently active in the game. we'll revisit when we need to.\" Until then the silence stands: \"Copy your leftmost Echo when summoned\" — the onSummon is about ITSELF being summoned (and its shop half is the startOfCombat copy); watching others is correctly nothing. — ✓ Approve = the reading is right. ✎ Revise = your ruling, in a sentence. ✕ Reject = wrong — it should react in the shop; say when.",
     "domain": "triggers",
     "status": "needs-ruling",
     "evidence": [
@@ -55,7 +55,7 @@ export const PENDING_RULES: GameRule[] = [
       }
     ],
     "currentBehaviour": "Silent for every staged subject.",
-    "recommendation": "\"Copy your leftmost Echo when summoned\" — the onSummon is about ITSELF being summoned (and its shop half is the startOfCombat copy); watching others is correctly nothing",
+    "recommendation": "OWNER RULED 2026-08-26, reaffirmed 2026-08-27 (q-watch-gravebody REVISE): PARKED FOR REWORK — \"this card should get reworked, but it is also not currently active in the game. we'll revisit when we need to.\" Until then the silence stands: \"Copy your leftmost Echo when summoned\" — the onSummon is about ITSELF being summoned (and its shop half is the startOfCombat copy); watching others is correctly nothing",
     "cardText": "Grave Body: \"Copy your leftmost Echo when summoned.\"",
     "example": "Example: a Beast, a Demon, a Dragon, a Dwarf and a Kobold are each played beside Grave Body — it never reacts.",
     "contentIds": [

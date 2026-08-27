@@ -61,6 +61,32 @@ export const ENFORCEMENT_LANES: Record<string, EnforcementLane> = {
     file: 'packages/sim/src/docbot/combatDifferential.test.ts',
     what: 'staged combat variants prove each combat effect changes the outcome (the audited echo fixture lives here)',
   },
+  // ── lanes added for the 2026-08-27 triage-round-2 rulings (the sibling implementation PRs' pinning
+  //    suites are in flight; each lane names the scan/suite that re-alarms when the ruled surface drifts) ──
+  runeSwallowScan: {
+    file: 'packages/sim/src/docbot/runeSwallowScan.ts',
+    what: 'the rune duplicate-swallow surface: every owned-rune re-offer whose purchase changes nothing is enumerated — the R-RUNEDUP family rules shrink this list to zero as they are implemented, and a regression re-grows it loudly',
+  },
+  snapshotFidelity: {
+    file: 'packages/sim/src/docbot/snapshotFidelity.test.ts',
+    what: 'per-instance fields across the capture and player-mapping boundaries: every dropped field is enumerated against the snapshot registry, so a carried field silently going missing re-alarms',
+  },
+  carryOver: {
+    file: 'packages/sim/src/docbot/carryOver.test.ts',
+    what: 'turn-scoped charges/effects across the shop→combat boundary: what carries, what expires, and the per-phase charge semantics the owner ruled',
+  },
+  interactionFamilyMatrix: {
+    file: 'packages/sim/src/docbot/interactionFamilyMatrix.test.ts',
+    what: 'the trigger-family × multiplier matrix: which re-fire paths fold which multiplier families, and the non-stacking best-of collapse',
+  },
+  orderGoldens: {
+    file: 'packages/sim/src/docbot/orderGoldens.test.ts',
+    what: 'the pinned resolution-order goldens (G1..G6): clash death order, Start-of-Combat side order, live improve steps mid-wave, shop aura-before-Shout',
+  },
+  textOracleSummons: {
+    file: 'packages/sim/src/docbot/textOracleSummons.test.ts',
+    what: 'summon-effect reconciliation against printed text: copy counts, exact-stat carriage, and the gilded-badge convention on summoned copies',
+  },
 };
 
 /**
@@ -74,8 +100,9 @@ export const RULE_ENFORCEMENT: Record<string, RuleEnforcement> = {
   'q-policy-passive-hero-powers': { kind: 'oracle', refs: ['heroPowerLane'], lastVerifiedAt: '2026-08-27' },
   // OWNER REVISED 2026-08-26: refusal guards stand. The play lane pins the refused-spell set (#847 rule).
   'q-policy-refused-spells': { kind: 'oracle', refs: ['playDifferential.refused'], lastVerifiedAt: '2026-08-27' },
-  // OWNER REVISED 2026-08-26: Grave Body's silence is correct for now ("should get reworked, but it is also
-  // not currently active in the game"). The watcher lane's WATCHER_EXCUSED reading pins the silence.
+  // OWNER REVISED 2026-08-26 (reaffirmed in triage round 2): Grave Body is PARKED FOR REWORK — "this card
+  // should get reworked, but it is also not currently active in the game. we'll revisit when we need to."
+  // The watcher lane's WATCHER_EXCUSED entry carries the OWNER RULED parked reading and pins the silence.
   'q-watch-gravebody': { kind: 'oracle', refs: ['playDifferential.watchers'], lastVerifiedAt: '2026-08-27' },
 };
 

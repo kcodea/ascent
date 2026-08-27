@@ -255,4 +255,188 @@ export const APPROVED_RULES: GameRule[] = [
       'Conforms: the Rise branch resets to `def.attack × (golden ? 2 : 1)` and health 1, sheds granted '
       + 'keywords/instance buffs, then `applyAuras` re-applies standing auras on top.',
   },
+
+  // ── Triage round 2 (2026-08-27): the STANDING rules the owner's 24 rulings established. ──────────────
+  // Rune-duplicate family rules R-RUNEDUP-01..08 (decisions.json q-runedup-*; implementation rides
+  // feat/rune-duplicate-stacking, pinned by the runeSwallowScan lane), the two order rules, the
+  // non-stacking best-of rule, and the per-phase Shout-charge rule.
+  {
+    id: 'R-RUNEDUP-01',
+    title: 'Rune duplicates: recurring & per-event runes stack',
+    statement:
+      'A second copy of a recurring or per-event rune makes the effect fire once more each time it recurs: '
+      + 'two Rune of the Coffers = +2 max Gold at End of Turn; two Rune of the Flagship = Dwarves get +4/+4 '
+      + 'per Shop spell. Each additional copy adds one more fire per recurrence.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [{ kind: 'owner-chat', ref: 'decisions.json q-runedup-recurring (triage round 2, 2026-08-27)', quote: 'APPROVE — second copy doubles the recurrence.' }],
+    currentBehaviour: 'Not yet implemented at ruling time (duplicates were dead buys per runeSwallowScan); implementation rides feat/rune-duplicate-stacking.',
+    enforcement: { kind: 'oracle', refs: ['runeSwallowScan'], lastVerifiedAt: '2026-08-27' },
+  },
+  {
+    id: 'R-RUNEDUP-02',
+    title: 'Rune duplicates: threshold runes double the payoff, not the meter',
+    statement:
+      'A second copy of a threshold/meter rune doubles the OUTPUT paid when the threshold is reached — the '
+      + 'threshold itself is unchanged: two Rune of the Returning Pack = every 6 Beast summons yields 2 '
+      + 'random Beasts. (Not parallel meters, and never a naive threshold sum.)',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [{
+      kind: 'owner-chat', ref: 'decisions.json q-runedup-threshold (triage round 2, 2026-08-27)',
+      quote: 'A second copy copy should double the output. i.e. 2 rune of the returning pack, every 6 beast summons you\'d get 2 random beasts, etc.',
+    }],
+    currentBehaviour: 'Not yet implemented at ruling time; implementation rides feat/rune-duplicate-stacking.',
+    enforcement: { kind: 'oracle', refs: ['runeSwallowScan'], lastVerifiedAt: '2026-08-27' },
+  },
+  {
+    id: 'R-RUNEDUP-03',
+    title: 'Rune duplicates: repeat runes gain +1 repetition per copy',
+    statement:
+      'Each copy of a repeat rune (extra Shout/Rally/Echo/spell/hero-power/Improve/Triple-Reward fires) adds '
+      + 'one more repetition: two Rune of the Wishbone = the hero power fires 3 times; two Rune of '
+      + 'Adventuring = Rallies trigger 3 times. Rides the existing extraTriggerFires / per-family folds.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [{ kind: 'owner-chat', ref: 'decisions.json q-runedup-repeat (triage round 2, 2026-08-27)', quote: 'APPROVE — +1 repetition per copy for the whole repeat family.' }],
+    currentBehaviour: 'Not yet implemented at ruling time; implementation rides feat/rune-duplicate-stacking.',
+    enforcement: { kind: 'oracle', refs: ['runeSwallowScan'], lastVerifiedAt: '2026-08-27' },
+  },
+  {
+    id: 'R-RUNEDUP-04',
+    title: 'Rune duplicates: one-shots re-grant, banking when immediate value is impossible',
+    statement:
+      'A duplicate one-shot rune fires its reward again immediately; when the immediate re-fire would still '
+      + 'give no value, the effect banks and fires next turn (a second Rune of the Armory grants its 10 '
+      + 'Attachments next turn — hand cap). Rune of the Muster with 2 copies covers the first 2 refreshes '
+      + 'that turn. Rune of the Ornate Clock is unique — a duplicate does nothing. Rune of Held Strength is '
+      + 'to be redesigned from a one-shot into a "Start of Combat: give xyz" rune.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [{
+      kind: 'owner-chat', ref: 'decisions.json q-runedup-oneshot (triage round 2, 2026-08-27)',
+      quote: 'this should re-fire the one-shot reward again, but in the case where they would still get no value if done immediately, it should stack the effect for next turn. … rune of the ornate clock should do nothing if duplicated, that one is unique. rune of the held strength should not be a one-shot rune and should be a "Start of Combat: give xyz" rune so fix that too.',
+    }],
+    currentBehaviour: 'Not yet implemented at ruling time; implementation (incl. the Held Strength redesign) rides feat/rune-duplicate-stacking.',
+    enforcement: { kind: 'oracle', refs: ['runeSwallowScan'], lastVerifiedAt: '2026-08-27' },
+  },
+  {
+    id: 'R-RUNEDUP-05',
+    title: 'Rune duplicates: repeatable boolean combat flags fire once per copy',
+    statement:
+      'Every boolean combat flag whose effect can meaningfully repeat fires once per copy — flagCopies '
+      + 'becomes live for the whole family, exactly as the rune-granted Avenge dispatchers already consume '
+      + 'it (two Rune of Rallying = the left-most Rally triggers twice at Start of Combat). A flag that '
+      + 'genuinely cannot repeat falls back to the universal sweetener (R-RUNEDUP-06).',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [{ kind: 'owner-chat', ref: 'decisions.json q-runedup-boolean-flags (triage round 2, 2026-08-27)', quote: 'APPROVE — fire-once-per-copy for repeatable boolean flags, sweetener for the true one-offs.' }],
+    currentBehaviour: 'Only the runeAvenge dispatchers consumed flagCopies at ruling time; implementation rides feat/rune-duplicate-stacking.',
+    enforcement: { kind: 'oracle', refs: ['runeSwallowScan'], lastVerifiedAt: '2026-08-27' },
+  },
+  {
+    id: 'R-RUNEDUP-06',
+    title: 'Rune duplicates: the universal sweetener floor',
+    statement:
+      'A duplicate rune purchase is NEVER a dead buy. Any duplicate that cannot meaningfully stack instead '
+      + 'grants an immediate consolation: Gold equal to half the rune\'s cost rounded up, plus a free Shop '
+      + 'refresh. This is the fallback for every non-stacking duplicate, including via Rune of Duplication.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [{ kind: 'owner-chat', ref: 'decisions.json q-runedup-sweetener-floor (triage round 2, 2026-08-27)', quote: 'APPROVE — half cost rounded up in Gold + a free refresh.' }],
+    currentBehaviour: 'No sweetener existed at ruling time; implementation rides feat/rune-duplicate-stacking.',
+    enforcement: { kind: 'oracle', refs: ['runeSwallowScan'], lastVerifiedAt: '2026-08-27' },
+  },
+  {
+    id: 'R-RUNEDUP-07',
+    title: 'Rune duplicates: the forge filter',
+    statement:
+      'The Runeforge stops offering a rune the player already owns when its duplicate would only pay the '
+      + 'sweetener (no real stacking behaviour). Runes whose duplicates stack (R-RUNEDUP-01..05, 08) stay '
+      + 'offerable. Rune of Duplication still reaches everything; the sweetener backstops that path.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [{ kind: 'owner-chat', ref: 'decisions.json q-runedup-forge-filter (triage round 2, 2026-08-27)', quote: 'APPROVE — filter non-stacking owned runes out of forge offers; ship with the sweetener.' }],
+    currentBehaviour: 'The forge could offer any owned rune at ruling time; implementation rides feat/rune-duplicate-stacking.',
+    enforcement: { kind: 'oracle', refs: ['runeSwallowScan'], lastVerifiedAt: '2026-08-27' },
+  },
+  {
+    id: 'R-RUNEDUP-08',
+    title: 'Rune duplicates: unique engines double their output where possible',
+    statement:
+      'Duplicates of bespoke-engine runes double the effect when a doubling reading exists: two Rune of '
+      + 'Structure = 2 random Shop spells per trigger; two Rune of Summoning = Imps get +4/+4; two Rune of '
+      + 'Contraband = double the Ale/Ruby output per trigger. Engines with no sensible doubling fall back '
+      + 'to the universal sweetener (R-RUNEDUP-06).',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [{
+      kind: 'owner-chat', ref: 'decisions.json q-runedup-unique-engines (triage round 2, 2026-08-27)',
+      quote: 'generally, try and double the effect when possible. rune of structure = you get 2 random shop spells. rune of summoning = your imps get +4/+4, rune of contraband doubles the output of the ale/ruby per trigger etc.',
+    }],
+    currentBehaviour: 'Duplicates were dead buys at ruling time; implementation rides feat/rune-duplicate-stacking.',
+    enforcement: { kind: 'oracle', refs: ['runeSwallowScan'], lastVerifiedAt: '2026-08-27' },
+  },
+  {
+    id: 'R-ORD-01',
+    title: 'Improving grants read their step live, even mid-wave',
+    statement:
+      'An improving grant re-reads its current step for EVERY individual application, including within one '
+      + 'simultaneous wave: when one Cleave kills two Mama Pups under Beardsley, the four summoned Pups are '
+      + 'paid +3/+3, +3/+3, +3/+3, then +6/+6 — the step advances mid-resolution. Depth-first resolution '
+      + 'with live magnitudes is the engine-wide rule.',
+    domain: 'ordering',
+    status: 'approved',
+    evidence: [{ kind: 'owner-chat', ref: 'decisions.json q-order-improve-steps-mid-resolution (triage round 2, 2026-08-27)', quote: 'APPROVE — live steps are the rule; every summon re-reads the current step, waves included.' }],
+    currentBehaviour: 'Conforms — golden G4 (orderGoldens.test.ts) pins the mid-wave step advance.',
+    enforcement: { kind: 'oracle', refs: ['orderGoldens'], lastVerifiedAt: '2026-08-27' },
+  },
+  {
+    id: 'R-ORD-02',
+    title: 'Shop: on-summon auras resolve before the played minion\'s own Shout',
+    statement:
+      'Playing a minion fires on-summon auras on it (with live improve steps) BEFORE its own Shout/Battlecry '
+      + 'resolves: Den Mother grants the played Pennycat the base +2/+2, improves, and Pennycat\'s '
+      + 'Shout-summoned Stray then receives the improved +4/+4. This is combat\'s R-ORD-01 rule applied '
+      + 'consistently in the shop.',
+    domain: 'ordering',
+    status: 'approved',
+    evidence: [{ kind: 'owner-chat', ref: 'decisions.json q-order-shop-aura-before-shout (triage round 2, 2026-08-27)', quote: 'APPROVE — aura-first with live improve steps is the rule (matches combat\'s G4 ruling).' }],
+    currentBehaviour: 'Conforms — golden G6 (orderGoldens.test.ts) pins aura-before-Shout with the improved grant on the token.',
+    enforcement: { kind: 'oracle', refs: ['orderGoldens'], lastVerifiedAt: '2026-08-27' },
+  },
+  {
+    id: 'R-MULT-01',
+    title: 'Non-stacking multipliers of one family collapse to best-of, across different cards',
+    statement:
+      'Within a trigger family, STACKING multipliers (Sylus) sum, and NON-STACKING multipliers collapse to '
+      + 'the single best — across different cards, not just copies of one card: Drakko and Zyff together '
+      + 'grant +1 total Battlecry fire. The card texts will be reworded to signal non-stackers (e.g. '
+      + '"Twice" instead of "an additional time") — the owner\'s planned terminology pass, not a code change.',
+    domain: 'multipliers',
+    status: 'approved',
+    evidence: [{
+      kind: 'owner-chat', ref: 'decisions.json q-interact-nonstack-best-of (triage round 2, 2026-08-27)',
+      quote: 'This is correct behavior. We will probably change our text/terminology to better reflect non stackers. i.e. using "Twice" instead of "an additional time."',
+    }],
+    currentBehaviour: 'Conforms — extraTriggerFires best-ofs the non-stacking set; triggerMultipliers.test.ts pins Drakko+Zyff = +1.',
+    enforcement: { kind: 'oracle', refs: ['interactionFamilyMatrix'], lastVerifiedAt: '2026-08-27' },
+  },
+  {
+    id: 'R-SHOUT-01',
+    title: '"First Shout each turn" charges are per-phase: shop and combat each carry their own',
+    statement:
+      'A "first Shout each turn/round triggers twice" charge (Warm Embers family) means the first Shout '
+      + 'triggered in EACH shop or combat phase: a Shout doubled via Parting Cry in turn 7\'s combat spends '
+      + 'that combat\'s charge, and the first Shout in turn 8\'s shop is a separate charge — both work. '
+      + 'Combat use is not a double-dip of one charge; the phases account separately.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [{
+      kind: 'owner-chat', ref: 'decisions.json q-carry-warm-embers-double-dip (triage round 2, 2026-08-27)',
+      quote: 'first shout each turn = the first shout triggered EACH shop or combat phase. so if a shout gets triggered through parting cry in combat on turn 7, then the first shout in turn 8 is a separate charge, so both should work.',
+    }],
+    currentBehaviour: 'Close but unruled at ruling time (combat consumed a per-fight copy of the pool); the per-phase semantics ride feat/this-turn-rule, pinned by the carryOver lane.',
+    enforcement: { kind: 'oracle', refs: ['carryOver'], lastVerifiedAt: '2026-08-27' },
+  },
 ];

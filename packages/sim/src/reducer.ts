@@ -5985,6 +5985,11 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     // carry onto its own side for free.
     warDrumExtra: s.runeWarDrum && !s.runeWarDrumUsedThisTurn ? s.runeWarDrum : undefined,
     shoutDoubleCharges: s.shoutDoubleCharges || undefined,
+    // Demand an Encore (R-TURN-01, owner ruling 2026-08-27: "'this turn' … runs from shop through that
+    // turn's combat"): the turn-scoped Shout extras apply to every Shout triggered in combat too. Threaded
+    // whenever armed — it is a turn-long buff (the shop counter never consumes it), so there is no
+    // "unspent" latch to check; the rollover that clears `shoutExtraTurn` happens after the combat.
+    encoreExtra: s.shoutExtraTurn || undefined,
   };
 }
 

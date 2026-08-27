@@ -1606,6 +1606,11 @@ export interface QuestCombatMods {
   /** Warm Embers' legacy `shoutDouble` charges still unspent at combat (same 2026-08-26 ruling, extended):
    *  each of the next N Shouts triggered in combat fires twice (one extra fire per charge). */
   shoutDoubleCharges?: number;
+  /** Demand an Encore's turn-scoped Shout extras (R-TURN-01, owner ruling 2026-08-27: "'This turn'
+   *  terminology runs from shop through that turn's combat"). Unlike the charge channels above this is a
+   *  turn-long BUFF, exactly as in the shop counter: EVERY Shout triggered in combat fires this many extra
+   *  times, nothing is consumed. */
+  encoreExtra?: number;
   /** Rune of Lasting Cadence: at Start of Combat, EVERY rally-capable friendly fires its Rally once (the
    *  board-wide sibling of `runeRallying`, which fires only the left-most). */
   /** Candlelight Toll: a friendly Kobold dying grants a Ruby to hand (carried back like any hand grant). */

@@ -660,6 +660,10 @@ export function simulate(
       const wd = modsFor(side).warDrumExtra;
       if (wd && !warDrumCarrySpent[side]) { warDrumCarrySpent[side] = true; extra += wd; }
       if (shoutDoubleCarryLeft[side] > 0) { shoutDoubleCarryLeft[side] -= 1; extra += 1; }
+      // Demand an Encore (R-TURN-01, owner ruling 2026-08-27): a turn-long BUFF, not a charge — every
+      // combat-triggered Shout gets the extras, nothing is latched or decremented (mirrors the shop
+      // counter's `n += state.shoutExtraTurn` on every played Shout).
+      extra += modsFor(side).encoreExtra ?? 0;
       return extra;
     },
     beastsPlayedFor: (side) => (side === 'player' ? playerState.beastsPlayed : enemyBeastsPlayed),

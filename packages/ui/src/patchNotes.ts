@@ -82,6 +82,14 @@ export const PATCH_NOTES: PatchNote[] = [
           'An Echo gained in the shop (Echo Mimic, Grave Body, and friends) now actually fires when that minion dies in combat — yours and your opponents’.',
           'A copy summoned "without Echo" now stays Echo-less in combat as well, instead of quietly regaining it when the fight starts.',
           'Ashen Heir’s banked Imp stats now ride into battle: an Imp summoned mid-fight collects the bank. The bank itself stays with your Heir between fights.',
+    label: 'This Turn Rule',
+    changes: [
+      {
+        category: 'Card Change',
+        text: 'Effects that last "this turn" now correctly persist through that turn\'s combat — a turn runs from your shop through the fight that ends it.',
+        details: [
+          'Demand an Encore fixed: its extra Shout triggers now also apply to every Shout triggered in that turn\'s combat (they used to vanish when combat started).',
+          'This is now the standing rule for all "this turn" effects. A sweep of every card, rune, gift and hero power that says "this turn" found Demand an Encore was the only one breaking it.',
         ],
       },
     ],

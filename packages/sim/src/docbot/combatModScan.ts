@@ -68,6 +68,7 @@ const OBJECT_ARMS: Record<string, unknown> = {
   beastialSwarmLevel: 1,
   warDrumExtra: 2,       // the unspent War Drum charge's multiplier (a count, not a flag)
   shoutDoubleCharges: 2, // remaining Warm Embers charges (a count, not a flag)
+  encoreExtra: 1,        // Demand an Encore's turn-long Shout extras (R-TURN-01; a count, not a flag)
 };
 
 export interface ModScanResult { changed: string[]; inert: string[]; errored: string[]; stagedActive: string[] }
@@ -93,7 +94,7 @@ export function namedCardsFor(key: string): string[] {
 /** Mods that only act when a Shout is TRIGGERED IN COMBAT — the generic fight stages none. The pair: a tanky
  *  Pennycat (Battlecry: summon a Stray) beside a fragile Ryme (Echo: re-fire neighbours' Battlecries), so the
  *  carried War Drum / Warm Embers charges (owner ruling 2026-08-26) have a combat Shout to land on. */
-const SHOUT_STAGE_KEYS = new Set(['warDrumExtra', 'shoutDoubleCharges']);
+const SHOUT_STAGE_KEYS = new Set(['warDrumExtra', 'shoutDoubleCharges', 'encoreExtra']);
 const shoutStageBodies = (): BoardMinion[] => [bm('alley', 'pW0', 1, 30), bm('ryme', 'pW1', 1, 1, ['T'])];
 
 export function combatModScan(keys: readonly string[]): ModScanResult {

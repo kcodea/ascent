@@ -52,6 +52,7 @@ export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   'shop-buff-aura': ['useCombatReplay.ts'],
   'shop-tier-up': ['TavernUpButton.tsx'],
   'strike-impact': ['choreo/channels/impact.ts'],
+  'strike-impact-point': ['choreo/channels/impact.ts'],
   'watcher-pulse': ['useCombatReplay.ts'],
 };
 

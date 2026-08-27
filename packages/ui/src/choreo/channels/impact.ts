@@ -129,6 +129,12 @@ export function playContactImpact(defender: Element | null, dx: number, dy: numb
     pixiFx.critImpact(fx.x, fx.y, dx, dy, { x: r.left, y: r.top, w: r.width, h: r.height });
     strikeDust(fx.x, fx.y, power, defenderUid);
   } else {
+    // The authored impact spark (`strike-impact-point`) — the Pixi replacement for the retired CSS
+    // `.unit.struck::before` spark. Fires with the STANDARD hit only; Execute/Cleave/Flurry/crit above have
+    // their own replacement VFX (they intentionally suppress the standard burst, so the spark goes with them).
+    // Staged to fan UPWARD: `source` sits directly below `target`, so the def's `sourceToTarget` aim points up
+    // (a same-point pair would be degenerate and fan sideways). The defender is the react subject.
+    playDef('strike-impact-point', { source: { x: fx.x, y: fx.y + 60 }, target: { x: fx.x, y: fx.y } }, { uids: { source: null, target: defenderUid } });
     strikeBurst(fx.x, fx.y, dx, dy, power, defenderUid);
     strikeDust(fx.x, fx.y, power, defenderUid); // card-drop-style tan billow from the strike point
     pixiFx.impactPulse(fx.x, fx.y, power); // expanding energy ring(s) from the strike point

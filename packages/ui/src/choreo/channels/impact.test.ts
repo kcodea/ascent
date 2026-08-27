@@ -131,7 +131,7 @@ describe('playContactImpact — Execute', () => {
     vi.spyOn(sfx, 'hit').mockImplementation(() => {});
     playContactImpact(fakeDefender(), 10, 0, 1, 1);
     expect(s.exec).not.toHaveBeenCalled();
-    expect(firedDefs()).toEqual(['strike-impact', 'impact-dust']);
+    expect(firedDefs()).toEqual(['strike-impact-point', 'strike-impact', 'impact-dust']);
   });
 });
 
@@ -222,6 +222,44 @@ describe('playContactImpact — the strike-impact def', () => {
 
   it('fires BEFORE the dust, so the burst reads under the billow as it always did', () => {
     normalHit(10, 0);
-    expect(firedDefs()).toEqual(['strike-impact', 'impact-dust']);
+    // The authored spark leads, then the strike burst, then the dust — the burst still reads under the billow.
+    expect(firedDefs()).toEqual(['strike-impact-point', 'strike-impact', 'impact-dust']);
+  });
+});
+
+/**
+ * `strike-impact-point` — the authored spark that replaced the old CSS `.unit.struck::before` at the point of
+ * contact. Fires with the STANDARD hit only (Execute/Cleave/Flurry/crit above suppress the standard burst),
+ * staged to fan UPWARD: `source` sits directly below `target`, so the def's `sourceToTarget` aim points up.
+ */
+describe('playContactImpact — the strike-impact-point spark', () => {
+  const sparkAnchors = () =>
+    playDefMock.mock.calls.find((c) => c[0] === 'strike-impact-point')?.[1] as
+      | { source: { x: number; y: number }; target: { x: number; y: number } }
+      | undefined;
+
+  it('fires at the contact point, staged to aim straight up (source below target)', () => {
+    vi.spyOn(sfx, 'hit').mockImplementation(() => {});
+    vi.spyOn(pixiFx, 'impactPulse').mockImplementation(() => {});
+    playContactImpact(fakeDefender(), 10, 0, 1, 1, { x: 40, y: 70 });
+    const a = sparkAnchors()!;
+    expect(a.target).toEqual({ x: 40, y: 70 });          // the contact point
+    expect(a.source.x).toBe(40);                          // straight below — same x
+    expect(a.source.y).toBeGreaterThan(a.target.y);       // BELOW the target → sourceToTarget aims up
+  });
+
+  it('carries the defender as the react subject, with no source unit', () => {
+    vi.spyOn(sfx, 'hit').mockImplementation(() => {});
+    vi.spyOn(pixiFx, 'impactPulse').mockImplementation(() => {});
+    playContactImpact(fakeDefender(), 10, 0, 1, 1);
+    const opts = playDefMock.mock.calls.find((c) => c[0] === 'strike-impact-point')?.[2];
+    expect(opts).toEqual(IMPACT_UIDS);
+  });
+
+  it('does NOT fire on an Execute (the execution crescent replaces the standard hit)', () => {
+    vi.spyOn(pixiFx, 'executeStrike').mockImplementation(() => {});
+    vi.spyOn(sfx, 'hit').mockImplementation(() => {});
+    playContactImpact(fakeDefender(), 10, 0, 1, 1, undefined, 0, false, false, false, true);
+    expect(firedDefs()).not.toContain('strike-impact-point');
   });
 });

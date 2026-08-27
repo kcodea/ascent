@@ -26,3 +26,11 @@ rotation ON up to ±45°. Baked into `floatConfig.ts` DEFAULTS **and** the style
 
 Verified: typecheck ✅, lint 0 errors ✅, build:web ✅. Owner-tuned + signed off live at 1×. (The one climbing
 Fel Spikes number keeps its single-pop hold keyframe — it gets the burst but not the bounce.)
+
+**Follow-up (same PR).** Owner supplied a second burst variant and asked for finer placement control:
+- **Burst art picker.** A second downscaled PNG (`apps/web/public/fx/damage-splash-2.png`, 384px, 137KB — a
+  spikier star) plus a `select` on the tuner ("Burst art": Rounded / Spiky). The `::before` background is now
+  `var(--dmg-splash-img, …)`, switched by `applyFloatConfig`. Default stays image 1, so nothing ships changed.
+- **Position nudges.** Number X/Y (moves the digits and the backplate together, baked into the `floatupc` /
+  `floatupchold` / `floatstickc` translate) and Splash X/Y (moves the burst `::before` relative to the number).
+  All default 0 → no shipped change; a new "Position" group + Splash-group sliders on the tuner.

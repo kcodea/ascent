@@ -3854,9 +3854,11 @@ body.hglow-preview .card.plated .plateglow { opacity: 1; }
 .float.dmg::before {
   content: ''; position: absolute; left: 50%; top: 50%; z-index: -1; pointer-events: none;
   width: var(--dmg-splash-size, 4.2em); aspect-ratio: 1 / 1;
-  /* `--dmg-splash-rot` is set inline per-float (Recruit.tsx) when Random rotation is on; 0 otherwise. */
-  transform: translate(-50%, -50%) rotate(var(--dmg-splash-rot, 0deg));
-  background: url('/fx/damage-splash.png') center / contain no-repeat;
+  /* `--dmg-splash-rot` is set inline per-float (Recruit.tsx) when Random rotation is on; 0 otherwise.
+     `--dmg-splash-x/y` nudge the backplate relative to the number (tuner). */
+  transform: translate(calc(-50% + var(--dmg-splash-x, 0px)), calc(-50% + var(--dmg-splash-y, 0px))) rotate(var(--dmg-splash-rot, 0deg));
+  /* `--dmg-splash-img` selects which burst art (tuner); defaults to the first splash. */
+  background: var(--dmg-splash-img, url('/fx/damage-splash.png')) center / contain no-repeat;
 }
 /* A damage number sits in the CENTRE of the struck card (not the corner) so it reads as the hit landing on
    the minion. Centred via top/left 50% + a translate(-50%,-50%) baked into `floatupc` (a plain transform here
@@ -3869,9 +3871,9 @@ body.hglow-preview .card.plated .plateglow { opacity: 1; }
    out, and a victim's death removes it. Short duration: it's just the pop, then `forwards` holds the end pose. */
 .floatanchor .float.dmg.climb { animation-name: floatupchold; animation-duration: calc(0.42s / var(--combat-speed, 1)); }
 @keyframes floatupchold {
-  0% { opacity: 0; transform: translate(-50%, calc(-50% + var(--float-in-y, 14px))) scale(var(--float-in-scale, 0.1)); }
-  55% { opacity: 1; transform: translate(-50%, -50%) scale(var(--float-pop, 2)); }
-  100% { opacity: 1; transform: translate(-50%, calc(-50% + var(--float-dmg-rise, 0px))) scale(1); }
+  0% { opacity: 0; transform: translate(calc(-50% + var(--dmg-num-x, 0px)), calc(-50% + var(--dmg-num-y, 0px) + var(--float-in-y, 14px))) scale(var(--float-in-scale, 0.1)); }
+  55% { opacity: 1; transform: translate(calc(-50% + var(--dmg-num-x, 0px)), calc(-50% + var(--dmg-num-y, 0px))) scale(var(--float-pop, 2)); }
+  100% { opacity: 1; transform: translate(calc(-50% + var(--dmg-num-x, 0px)), calc(-50% + var(--dmg-num-y, 0px) + var(--float-dmg-rise, 0px))) scale(1); }
 }
 .float.shield { color: var(--acc-dk); }
 .float.shieldup { color: #1f93b8; }
@@ -3910,10 +3912,10 @@ body.hglow-preview .card.plated .plateglow { opacity: 1; }
 /* The pop is now a little SPRING/BOUNCE (owner ask 2026-08-27): it overshoots to `--float-pop`, dips back
    under 1, rebounds slightly, then settles — so the burst "springs out" with a bounce. Transform-only, so it
    stays compositor-only. Then the usual rise + fade. */
-@keyframes floatupc { 0% { opacity: 0; transform: translate(-50%, calc(-50% + var(--float-in-y, 14px))) scale(var(--float-in-scale, 0.1)); } 9% { opacity: 1; transform: translate(-50%, -50%) scale(var(--float-pop, 2)); } 16% { transform: translate(-50%, -50%) scale(0.92); } 23% { transform: translate(-50%, -50%) scale(1.05); } 30% { transform: translate(-50%, -50%) scale(1); } 80% { opacity: 1; transform: translate(-50%, calc(-50% + var(--float-dmg-rise, 0px))) scale(1); } 100% { opacity: 0; transform: translate(-50%, calc(-50% + var(--float-dmg-rise, 0px))) scale(0.96); } }
+@keyframes floatupc { 0% { opacity: 0; transform: translate(calc(-50% + var(--dmg-num-x, 0px)), calc(-50% + var(--dmg-num-y, 0px) + var(--float-in-y, 14px))) scale(var(--float-in-scale, 0.1)); } 9% { opacity: 1; transform: translate(calc(-50% + var(--dmg-num-x, 0px)), calc(-50% + var(--dmg-num-y, 0px))) scale(var(--float-pop, 2)); } 16% { transform: translate(calc(-50% + var(--dmg-num-x, 0px)), calc(-50% + var(--dmg-num-y, 0px))) scale(0.92); } 23% { transform: translate(calc(-50% + var(--dmg-num-x, 0px)), calc(-50% + var(--dmg-num-y, 0px))) scale(1.05); } 30% { transform: translate(calc(-50% + var(--dmg-num-x, 0px)), calc(-50% + var(--dmg-num-y, 0px))) scale(1); } 80% { opacity: 1; transform: translate(calc(-50% + var(--dmg-num-x, 0px)), calc(-50% + var(--dmg-num-y, 0px) + var(--float-dmg-rise, 0px))) scale(1); } 100% { opacity: 0; transform: translate(calc(-50% + var(--dmg-num-x, 0px)), calc(-50% + var(--dmg-num-y, 0px) + var(--float-dmg-rise, 0px))) scale(0.96); } }
 /* Death-overlay damage number — the `.deathfloat` container centres it, so this only pops + fades (no
    translate other than the tunable rise, which defaults to 0 = stuck at the dying minion's last spot). */
-@keyframes floatstickc { 0% { opacity: 0; transform: translateY(var(--float-in-y, 14px)) scale(var(--float-in-scale, 0.1)); } 10% { opacity: 1; transform: translateY(0) scale(var(--float-pop, 2)); } 22% { transform: translateY(0) scale(1); } 80% { opacity: 1; transform: translateY(var(--float-dmg-rise, 0px)) scale(1); } 100% { opacity: 0; transform: translateY(var(--float-dmg-rise, 0px)) scale(0.96); } }
+@keyframes floatstickc { 0% { opacity: 0; transform: translate(var(--dmg-num-x, 0px), calc(var(--dmg-num-y, 0px) + var(--float-in-y, 14px))) scale(var(--float-in-scale, 0.1)); } 10% { opacity: 1; transform: translate(var(--dmg-num-x, 0px), var(--dmg-num-y, 0px)) scale(var(--float-pop, 2)); } 22% { transform: translate(var(--dmg-num-x, 0px), var(--dmg-num-y, 0px)) scale(1); } 80% { opacity: 1; transform: translate(var(--dmg-num-x, 0px), calc(var(--dmg-num-y, 0px) + var(--float-dmg-rise, 0px))) scale(1); } 100% { opacity: 0; transform: translate(var(--dmg-num-x, 0px), calc(var(--dmg-num-y, 0px) + var(--float-dmg-rise, 0px))) scale(0.96); } }
 /* The PixiJS WebGL effects overlay (particle impacts, flashes, sell-coin sprinkle) — a transparent
    full-viewport canvas drawn over the board, never intercepting input. Sits above the status bar
    (z40) so coins sprinkle OVER the Gold counter, but below dragged cards (z100), modals (z50+), and

@@ -3656,12 +3656,10 @@ body.hglow-preview .card.plated .plateglow { opacity: 1; }
 
 
 .unit.struck .card { animation: struck 0.34s ease; }
-@keyframes struck { 0%, 100% { transform: none; filter: none; } 45% { transform: translateY(5px) scale(0.94); filter: brightness(1.15) drop-shadow(0 0 8px var(--threat)); } }
+@keyframes struck { 0%, 100% { transform: none; } 45% { transform: translateY(5px) scale(0.94); } }
 /* a white-hot impact spark at the point of contact */
 .unit.struck::before { content: ''; position: absolute; top: 36%; left: 50%; width: 58px; height: 58px; margin: -29px 0 0 -29px; border-radius: 50%; background: radial-gradient(circle, rgba(255, 255, 255, 0.95) 0%, rgba(255, 214, 130, 0.62) 42%, transparent 70%); z-index: 11; pointer-events: none; animation: impactspark 0.3s ease-out forwards; }
 @keyframes impactspark { 0% { opacity: 0; transform: scale(0.3); } 30% { opacity: 1; } 100% { opacity: 0; transform: scale(1.4); } }
-.unit.flare .card { animation: flare 0.5s ease; }
-@keyframes flare { 0% { filter: brightness(1.9); } 100% { filter: none; } }
 /* Rise (die → Deathrattle → return): the body DIES first — it collapses out of its slot via `.unit.dying`
    (a real removal that reflows the line), its Deathrattle resolves in the vacated space, then it RE-ENTERS
    here at its new slot (to the RIGHT of whatever it summoned). So `.unit.reborn` is a RE-ENTRY, not an
@@ -3696,11 +3694,11 @@ body.hglow-preview .card.plated .plateglow { opacity: 1; }
 
 /* Buff: a green pulse so a combat buff is felt */
 .unit.buffed .card { animation: buffpulse 0.6s ease; }
-@keyframes buffpulse { 0%, 100% { box-shadow: 0 3px 0 var(--shadow); transform: none; } 45% { box-shadow: 0 0 0 3px #22be86, 0 0 22px 3px rgba(34, 190, 134, 0.7); transform: scale(1.04); } }
+@keyframes buffpulse { 0%, 100% { transform: none; } 45% { transform: scale(1.04); } }
 
 /* Soulsman's Avenge → max Gold: a gold pulse (one-shot, like buffpulse) so the proc is felt + seen */
 .unit.goldproc .card { animation: goldpulse 0.62s ease; }
-@keyframes goldpulse { 0%, 100% { box-shadow: 0 3px 0 var(--shadow); transform: none; } 45% { box-shadow: 0 0 0 3px #f0c040, 0 0 24px 4px rgba(240, 192, 64, 0.8); transform: scale(1.05); } }
+@keyframes goldpulse { 0%, 100% { transform: none; } 45% { transform: scale(1.05); } }
 
 /* Cleave's attacker swipe was retired 2026-07-21 — the keyword's read is now the hit-stop + the red
    claw rake on the TARGET (pixiFx.cleaveSlash), so the white glare bar across the attacker was a second,

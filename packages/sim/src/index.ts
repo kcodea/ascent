@@ -32,6 +32,8 @@ export { BOTS, BOT_BY_ID, DEFAULT_BOT, type BotPolicy, type BotWeights } from '.
 export * from './replayV2';
 export * from './bugReport'; // shared bug-reporter envelope/capsule + inbox shapes — ui AND tools read these
 export * from './qaScenario'; // QaScenarioV1 — the ONE shared QA scenario envelope + pure runner (Scene Builder, Docbot, bug repro, regressions)
+export * from './windowReplay'; // WP C — exact per-action report replay from the capsule's rolling window (tools + the dev report panel share one verdict)
+export * from './semanticTrace'; // WP C — the unified recruit+combat semantic trace + first-divergence locator
 
 export * from './runTelemetry';
 export * from './runeDup'; // rune duplicate stacking (owner rulings 2026-08-27): stack counts + sweetener/unique/forge-filter sets

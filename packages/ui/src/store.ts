@@ -60,6 +60,7 @@ import { buildRunHistoryEntry, careerStats, clearRunHistory, type RunHistoryEntr
 import { clearProfile, loadProfile, saveProfile } from './profileStore';
 import { turnClock } from './turnClock';
 import { BUG_REPORT_TX_TOAST, bugReportAvailability, buildBugReportEnvelope, buildClientContext, captureIncidentCapsule, captureMenuCapsule, exportBugReportJson } from './bug-report/bugReportCapture';
+import { recordActionEntry } from './bug-report/actionRing';
 import { validateBugReportDraft } from './bug-report/bugReportValidation';
 import { attemptBugReportUpload, enqueueBugReport, flushBugReportQueue, initBugReportUploads } from './bug-report/bugReportUpload';
 import type { BugClientContext, BugIncidentCapsule, BugReportDraft } from './bug-report/bugReportTypes';
@@ -1043,6 +1044,11 @@ function commitResolvedAction(
   set: StoreSet,
 ): Partial<GameStore> {
     actionSfx(action, s.run, next);
+    // WP C — the always-on rolling action window (bug-report/actionRing.ts): record this accepted action's
+    // reproduction rails (rng cursor before + state hashes) into the memory-only ring. Purely observational
+    // (reads the states this path already holds, AFTER resolution — nothing it does can reach gameplay), one
+    // hash per accepted action at human click cadence. No-op for a rejected action.
+    recordActionEntry(s.run, action, next, batch);
     // Phase flips are where both real captures put their bad frames — annotate them so a spike in the
     // log can be read as "this was the shop opening" rather than an unexplained gap.
     if (next.phase !== s.run.phase) perfMonitor.mark(`phase:${s.run.phase}->${next.phase}`);

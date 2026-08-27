@@ -63,6 +63,15 @@ export function trimEnvelope(envelope: BugReportEnvelope, maxBytes = BUG_MAX_BOD
   capsule.contextTruncated = truncated;
   let next: BugReportEnvelope = { ...envelope, context: capsule };
   if (envelopeBytes(next) <= maxBytes) return next;
+  // WP C — the rolling action window (a few KB) goes next: the serialized run + full action log can still
+  // rebuild the whole history, so the pinpoint rail is the least-costly loss after the previous wave's frames.
+  if (capsule.recentActions?.length) {
+    delete capsule.recentActions;
+    truncated.push('recentActions');
+    capsule.contextTruncated = truncated;
+    next = { ...envelope, context: capsule };
+    if (envelopeBytes(next) <= maxBytes) return next;
+  }
   const bareUi = structuredClone(capsule);
   bareUi.ui = {
     selectedCardUid: null, selectedCardId: null, pendingTargetCardId: null,

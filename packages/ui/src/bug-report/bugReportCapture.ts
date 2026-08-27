@@ -12,6 +12,7 @@
 import { serialize, type Action, type ReplayFrame, type RunState } from '@game/sim';
 import { activeSet } from '@game/content';
 import { turnClock } from '../turnClock';
+import { snapshotActionWindow } from './actionRing';
 import {
   BUG_MENU_PHASE,
   BUG_REPORT_SCHEMA_VERSION,
@@ -98,6 +99,9 @@ function modalKindOf(s: BugOverlaySource): string | null {
 
 export function captureIncidentCapsule(s: BugCaptureSource): BugIncidentCapsule {
   const run = s.run;
+  // WP C — the always-on ring buffer's rolling window for THIS run (memory-only until this copy). Cloned:
+  // the ring keeps its shared originals, and this capsule is about to be deep-frozen.
+  const recentActions = structuredClone(snapshotActionWindow(`${run.seed}:${run.heroId}`));
   const capsule: BugIncidentCapsule = {
     runId: `${run.seed}:${run.heroId}`,
     seed: run.seed,
@@ -135,6 +139,7 @@ export function captureIncidentCapsule(s: BugCaptureSource): BugIncidentCapsule 
         : { width: 0, height: 0, devicePixelRatio: 1 },
     },
     contextTruncated: [],
+    ...(recentActions.length ? { recentActions } : {}),
   };
   return deepFreeze(capsule);
 }

@@ -96,11 +96,27 @@ describe('BugScenarioPanel', () => {
   it('renders the captured combat event chain as structured type + name rows', () => {
     showScenario();
     const el = mount();
-    const rows = [...el.querySelectorAll('.bsc-event')];
+    // Scoped to the "Captured combat" section — the WP C semantic-trace section below renders its own rows.
+    const rows = [...el.querySelectorAll('.sb-results')[0]!.querySelectorAll('.bsc-event')];
     expect(rows).toHaveLength(2);
     expect(rows[0]!.textContent).toContain('attack');
     expect(rows[0]!.textContent).toContain('Alpha Wolf → Sandbag for 3');
     expect(rows[1]!.textContent).toContain('Sandbag dies (enemy)');
+  });
+
+  it('WP C timeline v0: renders the semantic trace as step-through text rows with deterministic ids', () => {
+    showScenario();
+    const el = mount();
+    expect(el.textContent).toContain('Semantic trace');
+    const sections = [...el.querySelectorAll('.sb-results')];
+    expect(sections.length).toBeGreaterThanOrEqual(2);
+    const rows = [...sections[1]!.querySelectorAll('.bsc-event')];
+    expect(rows).toHaveLength(2); // one row per combat event, adapted — not the narration lines
+    expect(rows[0]!.getAttribute('title')).toBe('combat:r-panel-test:0');
+    expect(rows[0]!.textContent).toContain('attack');
+    expect(rows[0]!.textContent).toContain('p0');
+    expect(rows[1]!.getAttribute('title')).toBe('combat:r-panel-test:1');
+    expect(rows[1]!.textContent).toContain('death');
   });
 
   it('shows the content-revision mismatch banner when loaded read-only (§13)', () => {

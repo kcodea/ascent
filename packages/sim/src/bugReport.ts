@@ -26,6 +26,7 @@
 import type { CombatResult } from '@game/core';
 import type { Action, Phase, RunMode } from './state';
 import type { ReplayFrame } from './replayV2';
+import type { RecordedActionWindow } from './qaScenario';
 
 export const BUG_REPORT_SCHEMA_VERSION = 1 as const;
 
@@ -108,6 +109,15 @@ export interface BugIncidentCapsule {
   /** Sections dropped by the payload-limit trimming rules (blueprint §3.5). Always [] in PR 1 — the field
    *  exists so PR 2's trimming has a stable home and older reports read as "nothing trimmed". */
   contextTruncated: string[];
+
+  /** WP C (§8.2) — the ALWAYS-ON rolling action window: the ring buffer's last-N accepted actions, each with
+   *  its observational reproduction rails (rng cursor before + state hash before/after), copied into the
+   *  capsule at Ctrl+B exactly like frames are. OPTIONAL (canonical-schemas' optional-extension rule): every
+   *  pre-WP-C capsule stays valid, the deployed Edge Function needs no change, and every consumer treats an
+   *  absent field as "whole-history path applies" (`exactWindowReplay`'s applicable:false). Ring entries are
+   *  memory-only until this copy — NEVER in RunState, saves, or replays (same exclusion discipline as the
+   *  capsule itself). Trimmed under the 4 MB ladder as section 'recentActions' when the payload demands it. */
+  recentActions?: RecordedActionWindow[];
 }
 
 export interface BugCombatContext {

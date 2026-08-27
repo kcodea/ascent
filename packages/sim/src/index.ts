@@ -50,6 +50,14 @@ export { extractAllContracts, activeContentIds, EXTRACTOR_ID, corroborateContrac
 export { runContractSweep, releaseBlockerFindings, planCases, sampleRotation, CONTRACT_LANE, type ContractSweepReport, type ContractSweepOptions, type MetamorphicCheck } from './docbot';
 // Doc Bot 2.0 WP E — text intelligence (tools consumers: docbot-text CLI + nightly)
 export { parseObjectText, runTextSweep, runRewriteAdvisor, buildWordingQuestions, estimatedSittingMinutes, wordingCorpus, textObjectOf, TEXT_LANE, ADVISOR_LANE, WORDING_QUEUE, TERM_VARIANTS, type TextSweepReport, type TextSweepOptions, type TextObjectRow, type ParsedTextContract, type TextBucket, type TextMismatch } from './docbot';
+// Doc Bot 2.0 WP F — interaction intelligence (tools consumers: docbot-interactions + nightly)
+export {
+  buildInteractionGraph, candidatePairs, graphErrors, graphStats, runInteractionSweep, verifyInteractionTable,
+  runAnomalyOracle, buildInteractionQuestions, combinationKey, combinationParts, RETRO_INTERACTION_MAP, retroMapErrors,
+  PAIR_FAMILIES, TRIPLE_FAMILIES, INTERACTION_LANE, ANOMALY_LANE, INTERACTION_QUEUE, RULED_MULTIPLIER_FAMILIES,
+  type InteractionGraph, type InteractionRun, type InteractionSweepReport, type InteractionVerdict,
+  type CandidateReport, type AnomalyOracleReport, type RetroMapEntry,
+} from './docbot';
 export { canRallyInShop, ralliersOf, fireShopRally, fireRallies, runeLastingCadenceBeats, instanceEffects } from './recruit'; // the shop-side RALLY dispatcher (Effect Arena Step 4) — a new disruptor is a call, not a wiring project
 export { socBoardEffects, fireShopStartOfCombat, fireStartOfCombats, runeCombatProwessBeats } from './recruit'; // the shop-side START-OF-COMBAT dispatcher (Effect Arena Step 4) — Rune of Combat Prowess
 export { addBuff, boardManaBonus, cardBuff, conjuredStats, dragonTamerCostOf, roundedSpellbookCostOf, buyoutCostOf, allInPayoutOf, exhibitionGrantOf, tempestGrantOf, bladeMasteryGrantOf, hoardWhelpStatsOf, TEMPEST_KILLS_PER_STEP, BLADE_ATTACKS_PER_STEP, heroPowerText, CIA_SUIT_TEXT, COMMISSION_TEXT, COMMISSION_NAME, COMMISSION_REWARD, commissionOffer, aegisGrantOf, COMMISSION_DELAY, threeDistinctTypes, stampSableBond, heroOfferPrice, endOfTurnRepeats, isTribe, magnetizeTargets, modalOpen, offerBuyStats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueOf, sellValueWithBonus, spellCasts, rubyCastCount, spellCostReduction, isStatSpell, implosionCasts, dragonflameCasts, spellDisplayText, dominantBoardTribe, gildMinion, effectiveTargetTribe, spellStatBonus, spellAttackBonus, spellHealthBonus, rubyStatBonus, undeadBuyBonus, type EotStepFx } from './recruit';

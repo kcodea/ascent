@@ -15,7 +15,10 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { allContracts } from '@game/rules/contracts';
 import { allRules } from '@game/rules';
-import { DEFAULT_NIGHTLY, emitFindingsJson, nightlyReportJson, releaseBlockerFindings, runContractSweep, runNightly, type DocbotFinding } from '@game/sim';
+import {
+  DEFAULT_NIGHTLY, emitFindingsJson, nightlyReportJson, releaseBlockerFindings, runAnomalyOracle,
+  runContractSweep, runInteractionSweep, runNightly, verifyInteractionTable, type DocbotFinding,
+} from '@game/sim';
 
 const argv = process.argv.slice(2);
 const flag = (name: string, fallback?: string): string | undefined => {
@@ -64,13 +67,32 @@ console.log(`  contracts: ${sweep.contractsTotal} swept (${sweep.sampled} driver
 for (const f of blockers) console.log(`  🔴 RELEASE BLOCKER (pinned): ${f.ruleIds.join(',')} — approved rule violated by the engine`);
 const contractsRed = newVerified.length > 0;
 
-console.log(`  ${report.ok && !contractsRed ? 'NIGHTLY GREEN' : 'NIGHTLY RED'} in ${elapsed}s`);
+// ── WP F: the interactions lane — the FULL pairwise sweep + §10.4 triples + the anomaly oracle ───────────
+const interactions = runInteractionSweep({ contracts: allContracts(), triples: true });
+const interactionErrors = [
+  ...interactions.runs.filter((r) => r.verdict === 'failed').map((r) => `${r.family} [${r.members.join('+')}] — ${r.evidence}`),
+  ...verifyInteractionTable(interactions.runs),
+];
+const anomalies = runAnomalyOracle({ runs: interactions.runs, contracts: allContracts() });
+const interactionTotals = Object.values(interactions.familyTotals);
+console.log(`  interactions: ${interactions.runs.length} rows across ${interactionTotals.length} families — `
+  + (interactionErrors.length === 0
+    ? `${interactionTotals.reduce((n, t) => n + t.covered, 0)} covered, ${interactionTotals.reduce((n, t) => n + t.blocked, 0)} visibly blocked, ${interactions.comboKeys.length} §10.5 combination keys`
+    : `${interactionErrors.length} FAILURE(S): ${interactionErrors.join(' · ')}`));
+console.log(`  anomalies (§9.7, questions only — never red): ${anomalies.findings.length} · suppressed below floor: ${anomalies.suppressedTotal}`);
+const interactionsRed = interactionErrors.length > 0;
+
+console.log(`  ${report.ok && !contractsRed && !interactionsRed ? 'NIGHTLY GREEN' : 'NIGHTLY RED'} in ${elapsed}s`);
 
 // ── Artifacts — always the report; on failure, the minimized scenarios + findings + original traces ───────
 mkdirSync(OUT, { recursive: true });
 writeFileSync(join(OUT, 'nightly-report.json'), nightlyReportJson(report));
 // The contracts lane's findings ride the same findings.json: sweep disagreements + the pinned blockers.
-const findings: DocbotFinding[] = [...report.lobbyFailures, ...sweep.findings, ...blockers];
+const findings: DocbotFinding[] = [...report.lobbyFailures, ...sweep.findings, ...blockers, ...anomalies.findings];
+writeFileSync(join(OUT, 'interaction-report.json'), JSON.stringify({
+  familyTotals: interactions.familyTotals, comboKeys: interactions.comboKeys,
+  failures: interactionErrors, anomaliesSuppressed: anomalies.suppressedByDetector,
+}, null, 2));
 for (const r of report.runs) {
   for (const f of r.failures) {
     findings.push(f.finding);
@@ -84,4 +106,4 @@ for (const r of report.runs) {
 writeFileSync(join(OUT, 'findings.json'), emitFindingsJson(findings));
 console.log(`  artifacts → ${OUT}`);
 
-process.exit(report.ok && !contractsRed ? 0 : 1);
+process.exit(report.ok && !contractsRed && !interactionsRed ? 0 : 1);

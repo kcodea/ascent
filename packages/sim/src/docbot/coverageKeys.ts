@@ -85,6 +85,30 @@ function rewardKinds(reward: unknown): string[] {
   return [reward.kind];
 }
 
+// ── §10.5 COMBINATION coverage identity (Doc Bot 2.0 WP F) ────────────────────────────────────────────────
+// Coverage must record semantic COMBINATIONS, not merely single-dimension contact: "Echo covered" +
+// "Rise covered" says nothing about Echo×Rise. A combination key is `combo:` plus its SORTED parts joined
+// with '+', so `combo:echo+rise` is one identity regardless of argument order. The pairwise/triple
+// interaction runs (interactionSweep.ts) record these; the corpus's SINGLE keys above are untouched — the
+// two families never collide (`combo:` is its own prefix namespace).
+
+/** Build one §10.5 combination key from ≥2 semantic parts. Parts are sorted (order-insensitive identity)
+ *  and must not themselves contain '+' (the joiner) — a violating part throws, never silently corrupts. */
+export function combinationKey(parts: readonly string[]): string {
+  if (parts.length < 2) throw new Error(`combination key needs >= 2 parts, got [${parts.join(', ')}]`);
+  for (const p of parts) {
+    if (!p.trim()) throw new Error('combination key part is blank');
+    if (p.includes('+')) throw new Error(`combination key part '${p}' contains the '+' joiner`);
+  }
+  return `combo:${[...parts].sort().join('+')}`;
+}
+
+/** The parts of a combination key, sorted (inverse of `combinationKey`); null for a non-combo key. */
+export function combinationParts(key: string): string[] | null {
+  if (!key.startsWith('combo:')) return null;
+  return key.slice('combo:'.length).split('+');
+}
+
 /** Compute the semantic coverage keys one executed step reached. Pure; returns a SORTED array. */
 export function coverageKeysFor(obs: CoverageObservation): string[] {
   const keys = new Set<string>();

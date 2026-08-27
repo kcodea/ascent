@@ -34,6 +34,7 @@
     "art:wire": "tsx packages/tools/src/wire-art.ts",
     "text:audit": "tsx packages/tools/src/text-audit.ts",
     "docbot": "tsx packages/tools/src/docbot.ts",
+    "docbot:scenario": "tsx packages/tools/src/qa-scenario-run.ts",
     "bugs:pull": "tsx packages/tools/src/bugs-pull.ts",
     "bugs:list": "tsx packages/tools/src/bugs-list.ts",
     "bugs:repro": "tsx packages/tools/src/bugs-repro.ts",

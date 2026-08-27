@@ -32,7 +32,6 @@ export { CONVENTION_PENDING } from './registry/pendingConventions.generated';
 export { WORDING_PENDING } from './registry/pendingWording.generated';
 export { LANGUAGE_GUIDE, LANGUAGE_GUIDE_INDEX, LANGUAGE_GUIDE_VERSION, type LanguageGuideEntry, type LanguageGuideTopic, type LanguageGuidePredicate } from './languageGuide';
 export { INTERACTION_PENDING } from './registry/pendingInteractions.generated';
-export { LANGUAGE_GUIDE, LANGUAGE_GUIDE_INDEX, LANGUAGE_GUIDE_VERSION, type LanguageGuideEntry, type LanguageGuideTopic } from './languageGuide';
 export { RETIRED_RULES, RETIRED_IDS, type RetiredRule } from './registry/retired';
 export { AUTO_RETIRED_RULES, AUTO_RETIRED_IDS } from './registry/retired.generated';
 export {
@@ -51,8 +50,7 @@ export interface ResolvedRule extends GameRule {
 }
 
 export function allRules(): ResolvedRule[] {
-  return [...APPROVED_RULES, ...PENDING_RULES, ...MANUAL_PENDING, ...CONVENTION_PENDING, ...WORDING_PENDING].map((r) => {
-  return [...APPROVED_RULES, ...PENDING_RULES, ...MANUAL_PENDING, ...CONVENTION_PENDING, ...INTERACTION_PENDING].map((r) => {
+  return [...APPROVED_RULES, ...PENDING_RULES, ...MANUAL_PENDING, ...CONVENTION_PENDING, ...WORDING_PENDING, ...INTERACTION_PENDING].map((r) => {
     const enforcement = enforcementOf(r);
     return {
       ...r,

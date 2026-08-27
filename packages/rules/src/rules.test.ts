@@ -91,10 +91,10 @@ describe('hand-authored pending cards (pendingManual.ts) — the 2026-08-27 owne
       expect(r.currentBehaviour, `${r.id} states no current behaviour`).toBeTruthy();
       expect(r.evidence.length, `${r.id} cites no evidence`).toBeGreaterThan(0);
       expect(r.sourceQueue, `${r.id} names no Doc Bot source lane`).toBeTruthy();
-      // Explicit click semantics: the statement must spell out what ✓ Approve and ✕ Reject each DO.
-      expect(r.statement, `${r.id}: statement must contain the literal '✓ Approve ='`).toContain('✓ Approve =');
-      expect(r.statement, `${r.id}: statement must contain the literal '✕ Reject ='`).toContain('✕ Reject =');
-      expect(r.statement, `${r.id}: statement must offer '✎ Revise'`).toContain('✎ Revise');
+      // Click semantics: the compact micro-tail (owner fly-through ask 2026-08-27 — "2-5s each").
+      expect(r.statement, `${r.id}: statement must carry the compact click tail`).toContain('✓ yes');
+      expect(r.statement, `${r.id}: statement must carry the reject hint`).toContain('✕ no');
+      expect(r.statement, `${r.id}: statement must offer the revise key`).toContain('✎');
     }
   });
 
@@ -147,10 +147,10 @@ describe('convention questions (pendingConventions.generated.ts) — the Sitting
       expect(r.currentBehaviour, `${r.id} states no current behaviour`).toBeTruthy();
       expect(r.evidence.length, `${r.id} cites no evidence`).toBeGreaterThan(0);
       expect(r.sourceQueue, `${r.id} names no source queue`).toBe('contracts.conventions');
-      // Explicit click semantics: the statement must spell out what ✓ Approve and ✕ Reject each DO.
-      expect(r.statement, `${r.id}: statement must contain the literal '✓ Approve ='`).toContain('✓ Approve =');
-      expect(r.statement, `${r.id}: statement must contain the literal '✕ Reject ='`).toContain('✕ Reject =');
-      expect(r.statement, `${r.id}: statement must offer '✎ Revise'`).toContain('✎ Revise');
+      // Click semantics: the compact micro-tail (owner fly-through ask 2026-08-27 — "2-5s each").
+      expect(r.statement, `${r.id}: statement must carry the compact click tail`).toContain('✓ yes');
+      expect(r.statement, `${r.id}: statement must carry the reject hint`).toContain('✕ no');
+      expect(r.statement, `${r.id}: statement must offer the revise key`).toContain('✎');
       // A future approval must not grow the approved-but-unenforced queue: every card carries its pin.
       expect(r.enforcement?.kind, `${r.id} carries no enforcement — an approval would land in the unenforced queue`).toBe('oracle');
     }
@@ -162,5 +162,15 @@ describe('convention questions (pendingConventions.generated.ts) — the Sitting
       if (DECISIONS[r.id]) continue;
       expect(board.has(r.id), `${r.id} is undecided but missing from undecided()`).toBe(true);
     }
+  });
+});
+
+describe('the fly-through bar — Sitting cards stay readable in 2-5 seconds (owner 2026-08-27)', () => {
+  const words = (statement: string): number =>
+    (statement.split('—')[0] ?? statement).trim().split(/\s+/).filter(Boolean).length;
+  it('every convention statement is one short sentence (≤ 30 words before the micro-tail)', () => {
+    const over = CONVENTION_PENDING.filter((r) => words(r.statement) > 30)
+      .map((r) => `${r.id} (${words(r.statement)}w)`);
+    expect(over, `wordy convention cards — simplify the template, never raise this pin: ${over.join(', ')}`).toEqual([]);
   });
 });

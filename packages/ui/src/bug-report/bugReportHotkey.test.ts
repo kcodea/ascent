@@ -151,10 +151,26 @@ describe('openBugReport through the real store (§14.2 / §14.3)', () => {
     expect(useGame.getState().bugReportDraft!.capsule).toBe(capsule);
   });
 
-  it('declines silently on excluded surfaces (title / tutorial / sandbox / replay / game over)', () => {
+  it('opens on the MAIN MENU with a reduced no-run menu capsule (owner ask 2026-08-27)', () => {
+    armStore();
+    useGame.setState({ showTitle: true });
+    useGame.getState().openBugReport();
+    expect(useGame.getState().bugReportOpen).toBe(true);
+    const cap = useGame.getState().bugReportDraft!.capsule;
+    expect(cap.phase).toBe('menu');
+    expect(cap.mode).toBe('menu');
+    expect(cap.heroId).toBe('none');
+    expect(cap.seed).toBe(0);
+    expect(cap.wave).toBe(0);
+    expect(cap.serializedRun).toBeNull();
+    expect(cap.actions).toEqual([]);
+    expect(cap.combat).toBeNull();
+    expect(Object.isFrozen(cap)).toBe(true);
+  });
+
+  it('declines silently on excluded surfaces (hero select / tutorial / sandbox / replay / game over)', () => {
     armStore();
     const cases: Array<() => void> = [
-      () => useGame.setState({ showTitle: true }),
       () => useGame.setState({ heroChoices: ['aster'] }),
       () => useGame.setState({ run: { ...useGame.getState().run, mode: 'tutorial' } }),
       () => useGame.setState({ run: { ...useGame.getState().run, sandbox: true } }),

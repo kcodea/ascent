@@ -6,6 +6,7 @@
  * site (`./bugReportTypes`) keeps working unchanged. Add new report types THERE, not here.
  */
 export {
+  BUG_MENU_PHASE,
   BUG_REPORT_SCHEMA_VERSION,
   BUG_ISSUE_TYPE_LABELS,
   BUG_DESCRIPTION_MIN,

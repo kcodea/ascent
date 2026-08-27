@@ -55,6 +55,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   const openRecentGames = useGame((s) => s.openRecentGames);
   const openBalance = useGame((s) => s.openBalance);
   const openPatchNotes = useGame((s) => s.openPatchNotes);
+  const openBugReport = useGame((s) => s.openBugReport);
   const openCareer = useGame((s) => s.openCareer);
   const toggleBook = useGame((s) => s.toggleBook);
   const playerName = useGame((s) => s.playerName);
@@ -219,6 +220,10 @@ export function Title({ onSettings }: { onSettings: () => void }) {
           <button onClick={() => { sfx.pulse(); toggleBook(); }} data-tip="Compendium — browse every card">Compendium</button>
           <span className="tsdot">·</span>
           <button onClick={() => { sfx.pulse(); openPatchNotes(); }} data-tip="Patch Notes — gameplay changes by date">Patch Notes</button>
+          {/* BUG REPORTER from the MAIN MENU (owner ask 2026-08-27): the same reporter as in-game Ctrl+B —
+              no run needed; the description is the payload. Routes through the store's one open authority. */}
+          <span className="tsdot">·</span>
+          <button onClick={() => { sfx.pulse(); openBugReport(); }} data-tip="Spotted a problem? Describe it here — no run needed (Ctrl+B)">Report a Problem</button>
           {/* DEV-ONLY (owner 2026-08-24): the Balance Report is a dev/telemetry view, stripped from the exe +
               itch prod builds. The dot rides inside the guard so prod never shows a dangling separator. */}
           {import.meta.env.DEV && (

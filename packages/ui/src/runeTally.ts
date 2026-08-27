@@ -1,4 +1,5 @@
-import type { RunState } from '@game/sim';
+import { runeStacksOf, type RunState } from '@game/sim';
+import { CARD_INDEX } from '@game/content';
 
 /**
  * LIVE RUNE TALLIES (owner ask 2026-08-03: "make sure our runes/quests all have tally trackers like the
@@ -77,7 +78,17 @@ export function runeTally(run: RunState, runeId: string): string | null {
   // paid, so the next sale is `sales + 1`: odd = Attack, even = Health, at `step x sale`.
   if (runeId === 'rune_baller' && run.runeBaller) {
     const next = run.runeBaller.sales + 1;
-    return `+${run.runeBaller.step * Math.ceil(next / 2)} ${next % 2 === 1 ? 'Atk' : 'Hp'}`;
+    // × copies held (duplicate stacking, owner 2026-08-27) — the pill shows what the next sale actually pays.
+    return `+${run.runeBaller.step * Math.ceil(next / 2) * runeStacksOf(run, 'rune_baller')} ${next % 2 === 1 ? 'Atk' : 'Hp'}`;
+  }
+  // RUNE OF HELD STRENGTH (owner rework 2026-08-27): a Start-of-Combat grant read live off the hand — the
+  // pill shows the CURRENT left-most held minion's stats (× copies), i.e. exactly what the ends will gain.
+  if (runeId === 'rune_held_strength' && run.runeHeldStrength) {
+    const held = run.hand[0];
+    const hd = held ? CARD_INDEX[held.cardId] : undefined;
+    if (!held || !hd || hd.spell || hd.ruby) return null; // nothing qualifying held → no grant this fight
+    const reps = runeStacksOf(run, 'rune_held_strength');
+    return `+${held.attack * reps}/+${held.health * reps}`;
   }
   if (runeId === 'rune_lapidary' && run.runeLapidary) {
     const n = (run.playedThisTurn ?? []).length;

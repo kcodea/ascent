@@ -64,6 +64,39 @@ describe('War Drum / Warm Embers — unspent Shout charges carry into combat', (
   });
 });
 
+describe('Demand an Encore — "this turn" includes that turn\'s combat (R-TURN-01, owner ruling 2026-08-27)', () => {
+  const base = straysSummoned({});
+
+  it('the Encore extras apply to EVERY combat-triggered Shout, like the shop counter (a turn-long buff, not a charge)', () => {
+    // Both triggers fire 1 + 1 times — unlike the War Drum (first Shout only) and Warm Embers (one per charge).
+    expect(straysSummoned({ encoreExtra: 1 })).toBe(base + 2);
+  });
+
+  it('stacks with the charge channels on the first Shout, mirroring the recruit counter', () => {
+    // First trigger: 1 + 1 (drum) + 1 (encore); second: 1 + 1 (encore) — 5 Strays exactly fill the board.
+    expect(straysSummoned({ warDrumExtra: 1, encoreExtra: 1 })).toBe(base + 3);
+  });
+});
+
+describe('Warm Embers phase semantics — R-TURN-02 (owner ruling 2026-08-27): combat use and the fresh charge are separate', () => {
+  it('combat consumes a per-fight COPY: the mods object (the run pool\'s proxy) is never decremented', () => {
+    const mods: QuestCombatMods = { shoutDoubleCharges: 2 };
+    straysSummoned(mods);
+    expect(mods.shoutDoubleCharges, 'the run pool must stay intact — combat spends its own copy').toBe(2);
+  });
+
+  it('the per-turn FREEBIE latch is not a carry channel at all — spent or not, it threads nothing', () => {
+    const armed = (patch: Partial<RunState>): RunState => ({ ...createRun(3, 'drakko'), ...patch } as RunState);
+    const spent = questCombatMods(armed({ shoutFirstDoubleEachRound: true, shoutFirstUsedThisTurn: true }));
+    const fresh = questCombatMods(armed({ shoutFirstDoubleEachRound: true }));
+    for (const m of [spent, fresh]) {
+      expect(m.shoutDoubleCharges).toBeUndefined();
+      expect(m.warDrumExtra).toBeUndefined();
+      expect(m.encoreExtra).toBeUndefined();
+    }
+  });
+});
+
 describe('questCombatMods — the reducer half of the bridge', () => {
   const armed = (patch: Partial<RunState>): RunState => ({ ...createRun(3, 'drakko'), ...patch } as RunState);
 
@@ -76,5 +109,11 @@ describe('questCombatMods — the reducer half of the bridge', () => {
   it('remaining Warm Embers charges thread through; zero threads nothing', () => {
     expect(questCombatMods(armed({ shoutDoubleCharges: 3 })).shoutDoubleCharges).toBe(3);
     expect(questCombatMods(armed({ shoutDoubleCharges: 0 })).shoutDoubleCharges).toBeUndefined();
+  });
+
+  it('Demand an Encore\'s turn extras thread whenever armed (no latch — the shop never consumes them either)', () => {
+    expect(questCombatMods(armed({ shoutExtraTurn: 2 })).encoreExtra).toBe(2);
+    expect(questCombatMods(armed({ shoutExtraTurn: 0 })).encoreExtra).toBeUndefined();
+    expect(questCombatMods(armed({})).encoreExtra).toBeUndefined();
   });
 });

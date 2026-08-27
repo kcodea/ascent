@@ -79,6 +79,19 @@ describe('Rune of the War Chorus', () => {
     expect(shouts({ runeWarChorus: true }), 'the chorus should fire exactly once per combat').toBe(1);
   });
 
+  it('the chorus folds the Battlecry multiplier — with Drakko the fired Shout fires twice, still once per combat', () => {
+    // q-interact-combat-shout-multipliers (owner APPROVE 2026-08-27): every combat Shout re-fire folds
+    // drakkoRepeats. The once-per-combat latch is unchanged — one TRIGGER, now two FIRES.
+    const board: BoardMinion[] = [
+      { cardId: shoutCard.id, attack: 1, health: 300 },
+      { cardId: rallyCard.id, attack: 2, health: 300 },
+      { cardId: 'drummer', attack: 1, health: 300 },
+    ];
+    const shouts = sim(board, killer, { runeWarChorus: true }).events
+      .filter((e) => e.type === 'sc' && (e as { text?: string }).text === 'Shout').length;
+    expect(shouts, 'one chorus trigger × Drakko = exactly 2 fires').toBe(2);
+  });
+
   it('a board with no Rally never spends it', () => {
     const board: BoardMinion[] = [{ cardId: shoutCard.id, attack: 2, health: 300 }];
     const shouts = sim(board, killer, { runeWarChorus: true }).events

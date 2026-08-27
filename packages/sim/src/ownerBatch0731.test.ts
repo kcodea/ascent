@@ -41,11 +41,12 @@ describe('Rune of Cadence', () => {
     const goldBefore = s.embers;
     s = reduce(s, { type: 'buy', uid: 'o1' });
     expect(goldBefore - s.embers, 'the first minion pays full price').toBe(3);
-    expect(s.cadenceSpellOff, 'buying armed the spell discount').toBe(true);
+    // Armed as a NUMBER since the 2026-08-27 duplicate rulings (−1 per Cadence copy held); one copy arms 1.
+    expect(s.cadenceSpellOff, 'buying armed the spell discount').toBe(1);
     // Cast a spell from hand: arms the minion discount…
     s = { ...s, hand: [...s.hand, spell('sp', 'growth')], board: [minion('m', 'stray')] };
     s = reduce(s, { type: 'play', uid: 'sp' });
-    expect(s.cadenceMinionOff, 'casting armed the minion discount').toBe(true);
+    expect(s.cadenceMinionOff, 'casting armed the minion discount').toBe(1);
     // …and the next minion is 1 cheaper.
     const g2 = s.embers;
     s = reduce(s, { type: 'buy', uid: 'o2' });

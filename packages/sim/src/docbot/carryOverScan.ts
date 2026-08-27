@@ -161,6 +161,7 @@ export interface CarryOverExcuse {
 export const CARRY_OVER_EXCUSED: Readonly<Record<string, CarryOverExcuse>> = {
   // ── pure shop-economy bookkeeping: no fight reads these ──
   goldSpentThisTurn: { kind: 'no-combat-meaning', why: 'Patch Job\'s per-turn Gold tally; combat has no Gold. (Baby Gastrid\'s combat gap is separately excused as state-missing in phaseRegistry.)' },
+  runeTreasureMaps: { kind: 'no-combat-meaning', why: 'Treasure Map\'s pending Gold payouts (the array slot since the 2026-08-27 duplicate rulings); ticked and paid at turn start — pure shop economy, no fight reads a countdown.' },
   cardsBoughtThisTurn: { kind: 'needs-staging', why: 'threaded into the combat side (combatSide.cardsBoughtThisTurn) for Frenzied Excavator; the fixture stages none' },
   moonhowlTeachesThisTurn: { kind: 'no-combat-meaning', why: 'per-turn teach CAP for Moonhowl Mentor buys; teaching happens on the buy itself, never mid-fight' },
   windowShopRolls: { kind: 'no-combat-meaning', why: 'Window Shopping\'s free-roll tally; rolls are a shop action' },
@@ -173,8 +174,8 @@ export const CARRY_OVER_EXCUSED: Readonly<Record<string, CarryOverExcuse>> = {
   gorrBuys: { kind: 'no-combat-meaning', why: 'Gorr\'s per-turn minion-buy tally; buys are shop actions' },
   freeBuyUsedThisTurn: { kind: 'no-combat-meaning', why: 'Freedom rift\'s first-free-minion latch; buys are shop actions' },
   nextSellBonus: { kind: 'no-combat-meaning', why: 'Quick Sale\'s next-sell Gold bonus; sells are shop actions' },
-  spellCostOffTurn: { kind: 'no-combat-meaning', why: 'Arcane Clearance\'s this-turn spell discount; costs are shop-only' },
-  minionCostOffTurn: { kind: 'no-combat-meaning', why: 'Friends and Family\'s this-turn minion discount; costs are shop-only' },
+  spellCostOffTurn: { kind: 'no-combat-meaning', why: 'Arcane Clearance\'s this-turn spell discount; costs are shop-only (R-TURN-01 conform: nothing in the combat half of the turn can pay a cost)' },
+  minionCostOffTurn: { kind: 'no-combat-meaning', why: 'Friends and Family\'s this-turn minion discount; costs are shop-only (R-TURN-01 conform: nothing in the combat half of the turn can pay a cost)' },
   tavernBuyBonusTurn: { kind: 'no-combat-meaning', why: 'Merchant\'s Chorus\' this-turn SHOP-offer buff; enchants offers, not the fought board' },
   spellmarketUsedThisTurn: { kind: 'no-combat-meaning', why: 'Rune of the Spellmarket\'s once-per-turn shop feed; shop-only' },
   banquetUsedThisTurn: { kind: 'no-combat-meaning', why: 'Rune of the Banquet Hall\'s once-per-turn buy latch; shop-only' },
@@ -194,8 +195,9 @@ export const CARRY_OVER_EXCUSED: Readonly<Record<string, CarryOverExcuse>> = {
   extraEotThisTurn: { kind: 'needs-staging', why: 'Chrono Staff\'s one-shot End-of-Turn extra — folded into endOfTurnRepeats at faceOmen (stats bake before combat); the fixture stages no End-of-Turn minion' },
 
   // ── shop-side Shout/spell/echo latches whose COMBAT halves ride their own channels ──
-  shoutFirstUsedThisTurn: { kind: 'combat-covered', why: 'Warm Embers\' per-turn FREEBIE latch (shoutFirstDoubleEachRound); the legacy charge POOL (shoutDoubleCharges) is the carried channel and the scan proves it differs' },
-  shoutExtraTurn: { kind: 'needs-triage', why: 'GIFT — Demand an Encore, "your Shouts trigger an extra time THIS TURN": arguably should carry to combat-triggered Shouts like the War Drum; no owner ruling yet' },
+  // (`shoutExtraTurn` — Demand an Encore — used to sit here as needs-triage; the owner ruled 2026-08-27
+  //  (R-TURN-01) and it now CARRIES via questCombatMods.encoreExtra, so the scan sees it differ.)
+  shoutFirstUsedThisTurn: { kind: 'combat-covered', why: 'Warm Embers\' per-turn FREEBIE latch (shoutFirstDoubleEachRound); the legacy charge POOL (shoutDoubleCharges) is the carried channel and the scan proves it differs. R-TURN-02: a charge consumed by a combat-triggered Shout and the next turn\'s fresh freebie are SEPARATE — no double-dip question here' },
   shoutsThisTurn: { kind: 'no-combat-meaning', why: 'Rune of Refrain\'s per-turn SHOP-Shout counter (progress display); combat Shout counting has its own event stream' },
   firstShoutUid: { kind: 'no-combat-meaning', why: 'Rune of Refrain\'s record of WHICH shop Shout was first; bookkeeping for the shop rune' },
   echoFirstUsedThisTurn: { kind: 'combat-covered', why: 'Grave Contract\'s per-turn SHOP-Echo latch; the combat half rides questMods.echoFirstEachCombat (its own per-combat latch in simulate)' },

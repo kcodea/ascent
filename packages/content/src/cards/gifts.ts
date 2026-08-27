@@ -25,7 +25,9 @@ import type { CardDef } from '@game/core';
 export const GIFTS: CardDef[] = [
   {
     // The Shout multiplier the Dragons' `shoutExtraAlways` channel already models — but for ONE turn, so it
-    // rides `shoutExtraThisTurn` and is cleared at end of turn rather than persisting for the run.
+    // rides `shoutExtraTurn` and is cleared at the turn rollover rather than persisting for the run.
+    // "This turn" includes that turn's COMBAT (R-TURN-01, owner ruling 2026-08-27): the extras also apply to
+    // every Shout triggered in combat, via questCombatMods.encoreExtra → ctx.shoutCarryExtras.
     id: 'gift_encore',
     name: 'Demand an Encore',
     tribe: 'neutral',

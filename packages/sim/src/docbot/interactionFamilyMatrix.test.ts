@@ -16,9 +16,12 @@
  *                                                                    play-only extras (Hoardwake / Warm Embers)
  *                                                                    deliberately do NOT apply ("Applies ONLY to
  *                                                                    real plays", playedShoutRepeats comment).
- *  battlecry × combat replay (PartingCry/Dawnclaw/Ryme)  AMBIGUOUS   interaction-ambiguities.md Q2 —
- *                                                                    replayCombatBattlecry fires each effect once,
- *                                                                    no battlecry-multiplier fold (factories.ts).
+ *  battlecry × combat replay (PartingCry/Dawnclaw/Ryme/   PINNED      P9–P10 — owner APPROVE 2026-08-27
+ *  Embercrest/AncestralRoar/SharedScripture/WarChorus)               (q-interact-combat-shout-multipliers): EVERY
+ *                                                                    combat Shout re-fire folds drakkoRepeats —
+ *                                                                    the flat paths were an omission, fixed.
+ *                                                                    Rune paths pinned in runeBatch4T4 (Roar,
+ *                                                                    Scripture) + runeBatch10 (War Chorus).
  *  battlecry multiplier × same-card copy (Drakko×2)      PINNED      P3 — non-stacking best-of + golden ×2
  *                                                                    (types.ts extraTriggerFires comment).
  *  battlecry multiplier × DIFFERENT non-stacking card    AMBIGUOUS   interaction-ambiguities.md Q1 (Drakko+Zyff
@@ -30,9 +33,11 @@
  *  Echohorn — the no-death Echo)                                     × the FIRER's gild (factories.ts triggerEchoOn
  *                                                                    strict comment, "every Echo multiplier the
  *                                                                    side has × this minion's gild").
- *  deathrattle × forced fire (EMPTY GRAVES quest)        AMBIGUOUS   interaction-ambiguities.md Q3 — fires exactly
- *                                                                    once, no multiplier fold (simulate.ts), unlike
- *                                                                    every other forced-Echo path.
+ *  deathrattle × forced fire (EMPTY GRAVES quest)        PINNED      P11 — owner APPROVE 2026-08-27
+ *                                                                    (q-interact-empty-graves-flat): the forced
+ *                                                                    Echo folds (1 + playerEchoExtras) × the
+ *                                                                    marked body's gild, like every other
+ *                                                                    forced-Echo path (simulate.ts).
  *  first-Echo bonus (Grave Contract / Last Rites /       AMBIGUOUS   interaction-ambiguities.md Q4 — a forced
  *  Catacomb) × a forced no-death Echo                                no-death Echo consumes the once-per-combat
  *                                                                    charge before any real death can use it.
@@ -206,5 +211,75 @@ describe('Doc Bot — trigger-family interaction matrix', () => {
     expect(totalDelta(false), 'two bounces exactly (recruit.ts gainRubyStats: "NO fireOnRubyPlayed - the no-rebounce guard")').toBe(8);
     // Rune of the Conduit adds ONE side-wide extra bounce on top: 3 × (2+2).
     expect(totalDelta(true), 'rune adds exactly one more bounce — additive, still no cascade').toBe(12);
+  });
+
+  // P9 — battlecry × combat replay (Parting Cry): the dying cry folds the Battlecry multiplier.
+  // Owner APPROVE 2026-08-27 (q-interact-combat-shout-multipliers) — was flat, previously ambiguity Q2.
+  it('P9: Parting Cry × Drakko — the dying Shout fires (1 + Drakko) times, like Ryme and the shop replay', () => {
+    const run = (withDrakko: boolean): number => {
+      const board = [bm('alley', 'p0', 1, 1, { partingCry: true } as Partial<BoardMinion>),
+        ...(withDrakko ? [bm('drummer', 'p1', 2, 99)] : [])];
+      const r = simulate(board, [bm('cryptwolf', 'e0', 30, 60)], makeRng(5), CARD_INDEX,
+        combatSide({ tier: 5 }), combatSide({ tier: 5 }));
+      return summonsOf(r, 'stray'); // Pennycat's Shout: summon a Stray — one per fire
+    };
+    expect(run(false), 'control: the cry fires once').toBe(1);
+    expect(run(true),
+      'with Drakko the cry fires 2× (simulate.ts Parting Cry branch folds drakkoRepeats — owner ruling q-interact-combat-shout-multipliers)').toBe(2);
+  });
+
+  // P10 — battlecry × combat replay (the arena `replayShout` verb, Embercrest): the fold lives INSIDE the
+  // combat verb, mirroring the shop's replayBattlecry → drummerRepeats boundary, so every arena consumer
+  // inherits it. Owner APPROVE 2026-08-27 (q-interact-combat-shout-multipliers).
+  it('P10: Embercrest (arena replayShout) × Drakko — each re-triggered Shout fires (1 + Drakko) times', () => {
+    const run = (withDrakko: boolean): { triggers: number; fires: number } => {
+      const board = [bm('d2_embercrest', 'p0', 2, 60), bm('emissary', 'p1', 2, 60),
+        ...(withDrakko ? [bm('drummer', 'p2', 2, 60)] : [])];
+      const r = simulate(board, [bm('cryptwolf', 'e0', 0, 4)], makeRng(7), CARD_INDEX,
+        combatSide({ tier: 6 }), combatSide({ tier: 6 }));
+      expect(r.result).toBe('win');
+      // One narration per re-trigger (the arena body), one +2/+2 buff per FIRE (Emissary's Battlecry) —
+      // the ratio is the fold.
+      const triggers = r.events.filter((e) => e.type === 'sc' && /triggers .*Shout/.test((e as { text?: string }).text ?? '')).length;
+      const fires = r.events.filter((e) => e.type === 'buff'
+        && (e as { attack?: number }).attack === 2 && (e as { health?: number }).health === 2).length;
+      return { triggers, fires };
+    };
+    const plain = run(false);
+    expect(plain.triggers, 'the fixture must produce at least one Embercrest re-trigger').toBeGreaterThanOrEqual(1);
+    expect(plain.fires, 'control: one fire per re-trigger').toBe(plain.triggers);
+    const folded = run(true);
+    expect(folded.fires,
+      'with Drakko each re-trigger fires 2× (factories.ts replayShout folds drakkoRepeats — owner ruling q-interact-combat-shout-multipliers)').toBe(folded.triggers * 2);
+  });
+
+  // P11 — Empty Graves' forced Echo × the Echo multipliers + the marked body's gild.
+  // Owner APPROVE 2026-08-27 (q-interact-empty-graves-flat) — was flat, previously ambiguity Q3.
+  it('P11: Empty Graves × Sylus / gild — the forced Echo folds (1 + echo extras) × the marked body\'s gild', () => {
+    // The marked body is the LEFT-MOST living minion at Start of Combat (the cryptwolf); Footman Captain
+    // (deathlesshand) is the left-most Echo it forces. Each marked attack emits one `questTrigger` — as does
+    // the Start-of-Combat grant itself, hence the `- 1` in every ratio below.
+    const graves = (withSylus: boolean, goldenMarked: boolean): { triggers: number; summons: number } => {
+      const board = [bm('cryptwolf', 'p0', 1, 99, goldenMarked ? ({ golden: true } as Partial<BoardMinion>) : {}),
+        bm('deathlesshand', 'p1', 0, 99), ...(withSylus ? [bm('sylus', 'p2', 0, 99)] : [])];
+      // The enemy dies to the marked body's FIRST swing, so the fixture measures exactly one forced trigger
+      // and the Footman summons can never hit the 7-slot board cap.
+      const r = simulate(board, [bm('cryptwolf', 'e0', 0, 1)], makeRng(3), CARD_INDEX,
+        combatSide({ tier: 5, questMods: { emptyGraves: true } }), combatSide({ tier: 5 }));
+      const triggers = r.events.filter((e) => e.type === 'questTrigger'
+        && (e as { flag?: string }).flag === 'emptyGraves' && (e as { side?: string }).side === 'player').length;
+      return { triggers, summons: summonsOf(r, 'footman') };
+    };
+    const plain = graves(false, false);
+    // The Start-of-Combat GRANT also announces via the same `questTrigger` flag — one announcement, then one
+    // per marked attack, hence the `- 1` in every ratio.
+    expect(plain.triggers, 'the fixture must produce a marked-body attack').toBeGreaterThanOrEqual(2);
+    expect(plain.summons, 'control: one forced Echo per marked attack').toBe(plain.triggers - 1);
+    const sylus = graves(true, false);
+    expect(sylus.summons,
+      'with Sylus each forced Echo fires (1+1)× — owner ruling q-interact-empty-graves-flat').toBe((sylus.triggers - 1) * 2);
+    const gilded = graves(false, true);
+    expect(gilded.summons,
+      'a GILDED marked body doubles the whole forced fire, like triggerEcho\'s gild fold').toBe((gilded.triggers - 1) * 2);
   });
 });

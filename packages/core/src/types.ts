@@ -83,8 +83,10 @@ export function extraTriggerFires(
  * of Combat Prowess (owner reversal 2026-08-20: the two runes STACK — a trigger multiplier follows the
  * trigger to whatever phase it fires in), so the two counts can never drift.
  */
-export function socTwilightExtraFires(mods: { runeTwilight?: boolean } | undefined): number {
-  return mods?.runeTwilight ? 1 : 0;
+export function socTwilightExtraFires(mods: { runeTwilight?: boolean; flagCopies?: Record<string, number> } | undefined): number {
+  // +1 extra Start-of-Combat pass per Twilight copy held (boolean-flag family, owner 2026-08-27) — the
+  // `flagCopies` channel; single-copy runs and pre-counter snapshots read 1, byte-identical to before.
+  return mods?.runeTwilight ? Math.max(1, mods.flagCopies?.runeTwilight ?? 1) : 0;
 }
 
 /**
@@ -1606,6 +1608,11 @@ export interface QuestCombatMods {
   /** Warm Embers' legacy `shoutDouble` charges still unspent at combat (same 2026-08-26 ruling, extended):
    *  each of the next N Shouts triggered in combat fires twice (one extra fire per charge). */
   shoutDoubleCharges?: number;
+  /** Demand an Encore's turn-scoped Shout extras (R-TURN-01, owner ruling 2026-08-27: "'This turn'
+   *  terminology runs from shop through that turn's combat"). Unlike the charge channels above this is a
+   *  turn-long BUFF, exactly as in the shop counter: EVERY Shout triggered in combat fires this many extra
+   *  times, nothing is consumed. */
+  encoreExtra?: number;
   /** Rune of Lasting Cadence: at Start of Combat, EVERY rally-capable friendly fires its Rally once (the
    *  board-wide sibling of `runeRallying`, which fires only the left-most). */
   /** Candlelight Toll: a friendly Kobold dying grants a Ruby to hand (carried back like any hand grant). */
@@ -1709,8 +1716,9 @@ export interface QuestCombatMods {
   runeSylus?: boolean;
   /** Rune of the Groveweaver: a Groveweaver's summon grant also lands on itself, in combat as well as shop. */
   runeGroveweaver?: boolean;
-  /** Rune of Enchantment (combat half): a combat cast gives your minions +2/+2. */
-  runeEnchantment?: boolean;
+  /** Rune of Enchantment (combat half): a combat cast gives your minions +4/+6. Carries the COPY COUNT since
+   *  the 2026-08-27 duplicate rulings (a duplicate doubles the grant); `true` in older snapshots reads as 1. */
+  runeEnchantment?: number | boolean;
   /** Rune of Dragonscale: how many Dragon attacks still earn Ward this combat (the printed 3). */
   runeDragonscale?: number;
   runeTemperedTime?: boolean;
@@ -1749,11 +1757,16 @@ export interface QuestCombatMods {
   /** Rune of the Trophy: the first friendly Slaughter each combat records the slaughtering minion — a plain
    *  copy is conjured to hand next shop (carried back via `playerSlaughterCopy`). */
   runeTrophy?: boolean;
-  /** Rune of Mastery (Epic): every "Improve" step this side's effects take applies twice (read via
-   *  `CombatContext.improveRepsFor`; the recruit engine mirrors it off `RunState.runeMastery`). */
-  runeMastery?: boolean;
+  /** Rune of Mastery (Epic): +1 extra "Improve" step per copy held (read via `CombatContext.improveRepsFor`;
+   *  the recruit engine mirrors it off `RunState.runeMastery`). Carries the COPY COUNT since the 2026-08-27
+   *  duplicate rulings; `true` in older snapshots reads as 1 (= the classic double). */
+  runeMastery?: number | boolean;
   /** Rune of the Old Pack: the first Beast resummoned each combat returns with its full stats. */
   oldPack?: boolean;
+  /** Rune of Held Strength (owner rework 2026-08-27): Start of Combat, this side's left and right-most
+   *  minions gain `attack`/`health` — the stats of the left-most non-spell card the run held in hand when the
+   *  combat was built. `copies` fires the grant once per rune copy held (default 1). */
+  runeHeldStrength?: { attack: number; health: number; copies?: number };
 }
 /** Immutable quest definition (data, never mutated). Offered in the quest shop on waves 4/8/12, "bought" for
  *  0 Gold; its objective ticks during play and, when met, applies its reward. `tribe: 'neutral'` is the

@@ -473,6 +473,12 @@ export function runeBuffMagnitude(card: { buffs?: { source: string; attack: numb
   return m;
 }
 
+/** Coerce a once-per-turn latch that GREW into a use counter (rune duplicate stacking, 2026-08-27) — older
+ *  saves hold `true` for "used once"; new writes hold the count. */
+export function gateUses(v: number | boolean | undefined): number {
+  return typeof v === 'number' ? v : v ? 1 : 0;
+}
+
 export function procRuneId(s: RunState, id: string | undefined, times = 1): void {
   // `id` is optional because a threshold entry restored from an older save may predate `sourceId`; an
   // unattributable proc is simply not stamped rather than crashing the shop.
@@ -1235,9 +1241,10 @@ export interface RunState {
   runeBargainBin?: boolean;      // first Refresh each turn fills the Shop with 1-Gold minions that sell for 0
   /** Window Shopping: refreshes used this turn (the first 3 are free). Reset each turn. */
   windowShopRolls?: number;
-  /** Restocking / Bargain Bin / Collector once-per-turn latches (reset each turn). */
-  restockUsedThisTurn?: boolean;
-  bargainBinUsedThisTurn?: boolean;
+  /** Restocking / Bargain Bin / Collector once-per-turn latches (reset each turn). Restocking's counts USES
+   *  (a duplicate widens its window to one restock per copy — owner 2026-08-27); `true` = 1 in older saves. */
+  restockUsedThisTurn?: number | boolean;
+  bargainBinUsedThisTurn?: number | boolean; // counts uses since 2026-08-27 (duplicate widens the window); `true` = 1 in older saves
   collectorUsedThisTurn?: boolean;
   /** Trade-In: the tribe of your first sale this turn — arms a 1-Gold discount on the next minion of that type. */
   tradeInTribe?: Tribe;
@@ -1245,6 +1252,12 @@ export interface RunState {
   typesBoughtThisTurn?: Tribe[];
   /** Rune ids bought this run — shown as permanent run-buff badges (above the hero panel). */
   ownedRunes?: string[];
+  /** RUNE DUPLICATE STACKING (owner rulings 2026-08-27): how many times each rune's reward has APPLIED this
+   *  run — ticked once per application (buy, Rune of Duplication's copy, a granted rune). Consumers read
+   *  `runeStacksOf` (min 1) to scale their output, so a single copy — and every legacy save from before the
+   *  counter — behaves byte-identically. Sweetener-only duplicates (see `runeDup.ts`) never tick this: their
+   *  duplicate pays Gold + a refresh instead of re-applying the reward. */
+  runeStacks?: Record<string, number>;
   /** HENCHMAN decay (owner spec 2026-08-03): Gold knocked off the hero's henchman cost so far — +3 per round
    *  WON, +2 per round lost, accrued at combat settle. Effective price = `henchmanCostOf` (floored at 0).
    *  Absent = 0. Lives on the run, not the card, so the printed def stays pure data. */
@@ -1312,8 +1325,10 @@ export interface RunState {
   runeDeep?: number;
   /** Rune of the Guiding Candle: refreshes left THIS TURN that draw only `tier` minions. Reset each turn. */
   runeGuidingCandle?: { count: number; tier: number; left: number };
-  /** Rune of the Muster: one armed free refresh stocked with plain copies of the board. Spent on use. */
-  runeMuster?: boolean;
+  /** Rune of the Muster: armed free refreshes stocked with plain copies of the board, spent one per refresh.
+   *  A NUMBER counts armed musters (a duplicate re-arms — owner one-shot ruling 2026-08-27: two copies make
+   *  the first TWO refreshes musters); legacy saves hold `true` = 1. */
+  runeMuster?: number | boolean;
   /** Rune of the Foundry: minions sold toward `per` — a random Dragon each time it fills. */
   runeFoundry?: { per: number; sold: number };
   /** Rune of the Corrupted Tome: a Triple Reward grants two. */
@@ -1380,8 +1395,13 @@ export interface RunState {
   runeBrew?: boolean;
   /** Rune of Transcription: the next N bought minions each come with a free copy. Counts DOWN. */
   runeTranscription?: number;
-  /** Rune of the Treasure Map: [turns remaining, payout]. Ticks at turn start; pays and clears at 0. */
+  /** Rune of the Treasure Map: [turns remaining, payout]. Ticks at turn start; pays and clears at 0.
+   *  LEGACY single slot — new purchases go through `runeTreasureMaps` (an array, so a duplicate schedules a
+   *  SECOND payout instead of resetting the first countdown — owner one-shot ruling 2026-08-27). Old saves
+   *  holding this field still tick and pay it. */
   runeTreasureMap?: { turns: number; gold: number };
+  /** Rune of the Treasure Map purchases in flight — each entry is its own countdown + payout. */
+  runeTreasureMaps?: { turns: number; gold: number }[];
   /** Rune of the Golden Splinter: pay a random Golden T`tier` minion when Gold reaches `at`. Once — cleared. */
   runeGoldenSplinter?: { at: number; tier: number };
   /** Rune of Transfusion (Epic): whenever a Demon Consumes Fodder, your leftmost minion also gains the Fodder's stats. */
@@ -1389,6 +1409,11 @@ export interface RunState {
   /** Rune of Endless Appetite (Epic): the FIRST Fodder Consume each turn fans out — every OTHER friendly Demon
    *  Consumes a copy of the same Fodder. */
   runeEndlessAppetite?: boolean;
+  /** Rune of Held Strength (Epic, owner rework 2026-08-27 — was a one-shot on purchase): Start of Combat,
+   *  your left and right-most minions gain the stats of the left-most (non-spell) card in your hand. Armed
+   *  here; the held stats are read live at combat build (`questCombatMods`), and a duplicate fires the grant
+   *  once per copy. */
+  runeHeldStrength?: boolean;
   /** Rune of the Conductor (Epic): at the start of every shop, trigger all your End of Turn effects. */
   runeConductor?: boolean;
   /** Rune of Mastery (Epic): whenever one of your effects Improves, it improves an additional time — every
@@ -1508,7 +1533,9 @@ export interface RunState {
    *  Embers); `shoutFirstUsedThisTurn` tracks whether that turn's freebie is spent. Absent = off. */
   shoutExtraAlways?: number;
   /** GIFT — Demand an Encore: extra Shout triggers for THIS TURN only (the turn-scoped sibling of
-   *  `shoutExtraAlways`, which is permanent). Summed by `playedShoutRepeats` and cleared at end of turn. */
+   *  `shoutExtraAlways`, which is permanent). Summed by `playedShoutRepeats` in the shop, threaded into
+   *  combat as `questCombatMods.encoreExtra` (R-TURN-01, owner ruling 2026-08-27: "this turn" runs shop
+   *  through that turn's combat), and cleared at the turn rollover. */
   shoutExtraTurn?: number;
   /** GIFT — Royal Allowance: once cast, every Start of Turn grants another Gold Pouch for the rest of the run. */
   giftAllowance?: boolean;
@@ -1716,8 +1743,9 @@ export interface RunState {
   /** Rune of Cadence: buying a minion arms a 1-Gold discount on the next Shop spell, and casting a Shop
    *  spell arms one on the next minion. The armed flags persist until spent (not turn-scoped). */
   runeCadence?: boolean;
-  cadenceSpellOff?: boolean;
-  cadenceMinionOff?: boolean;
+  /** Armed as a NUMBER since the 2026-08-27 duplicate rulings (Gold off = copies held); `true` = 1 in older saves. */
+  cadenceSpellOff?: number | boolean;
+  cadenceMinionOff?: number | boolean;
   /** Rune of Gemscript: first Shop spell each turn → Ruby power +1/+1; first Ruby each turn → spell power +1/+1. */
   runeGemscript?: boolean;
   gemscriptSpellUsed?: boolean;

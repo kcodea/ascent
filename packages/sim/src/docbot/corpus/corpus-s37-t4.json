@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "id": "corpus-s37-t4",
+  "title": "coverage corpus — seed 37 step 4 (heroPower, baggerben, set3)",
+  "source": "generated",
+  "seed": 37,
+  "setId": "set3",
+  "mode": "recruit",
+  "state": "{\"seed\":37,\"mode\":\"ascent\",\"wave\":1,\"history\":[],\"line\":9,\"phase\":\"recruit\",\"embers\":0,\"maxEmbers\":3,\"resolve\":30,\"maxResolve\":30,\"armor\":9,\"maxArmor\":9,\"tier\":1,\"upgradeCost\":5,\"frozen\":false,\"shop\":[],\"spell\":{\"uid\":\"s3\",\"cardId\":\"apples\"},\"spellsCast\":0,\"spellsThisTurn\":0,\"deathrattlesTriggered\":0,\"triplesMade\":0,\"goldSpent\":3,\"runDamage\":{},\"runProcs\":{},\"combatSettled\":false,\"freeRolls\":0,\"frontToBackBonus\":0,\"frontToBackBonusH\":0,\"undeadAttackBonus\":0,\"undeadHealthBonus\":0,\"undeadBuyAtk\":0,\"beastBuyAtk\":0,\"beastBuyHp\":0,\"magneticBuyAtk\":0,\"magneticBuyHp\":0,\"spellBonus\":{\"attack\":0,\"health\":0},\"tavernBuyBonus\":{\"atk\":0,\"hp\":0},\"drakkoBuys\":0,\"cassenKills\":0,\"keshiTierPoints\":0,\"turnStartPower\":0,\"spellCostMod\":0,\"hand\":[{\"uid\":\"b1\",\"cardId\":\"lanternlight\",\"tribe\":\"neutral\",\"attack\":0,\"health\":1,\"keywords\":[],\"golden\":false}],\"board\":[],\"activeQuests\":[],\"heroId\":\"baggerben\",\"heroReady\":true,\"heroPowerSpent\":false,\"threat\":\"undying\",\"tribes\":[],\"rngCursor\":1718615060,\"pool\":{},\"uidSeq\":4,\"pendingTavern\":[],\"cardBuffs\":{},\"fodderEatenSeq\":0,\"shopEatenSeq\":0,\"recruitBuffFx\":[],\"recruitFxSeq\":0,\"aleGranted\":[],\"aleGrantSeq\":0,\"karwindFlashSeq\":0,\"rift\":null,\"setId\":\"set3\",\"weldFxBaseSeq\":0,\"lastShoutFires\":0,\"lastEchoFires\":0,\"lastRallyFires\":0,\"questTendrilFx\":[],\"lastEotFires\":0,\"fodderEaten\":[],\"shopEaten\":[],\"gainCardFiredUids\":[],\"goldSpentThisTurn\":3,\"cardsBoughtThisTurn\":1,\"servedBoards\":{\"1\":null}}",
+  "action": {
+    "type": "heroPower"
+  },
+  "expectations": [
+    {
+      "kind": "invariant",
+      "id": "embers-non-negative"
+    },
+    {
+      "kind": "invariant",
+      "id": "board-within-cap"
+    },
+    {
+      "kind": "invariant",
+      "id": "stats-finite"
+    }
+  ],
+  "metadata": {
+    "notes": "coverage keys first reached here: hero-power:active, trigger:allIn"
+  }
+}

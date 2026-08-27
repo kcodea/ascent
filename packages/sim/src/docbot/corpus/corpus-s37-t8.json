@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "id": "corpus-s37-t8",
+  "title": "coverage corpus — seed 37 step 8 (chooseOne, baggerben, set3)",
+  "source": "generated",
+  "seed": 37,
+  "setId": "set3",
+  "mode": "recruit",
+  "state": "{\"seed\":37,\"mode\":\"ascent\",\"wave\":1,\"history\":[],\"line\":9,\"phase\":\"recruit\",\"embers\":0,\"maxEmbers\":3,\"resolve\":30,\"maxResolve\":30,\"armor\":9,\"maxArmor\":9,\"tier\":1,\"upgradeCost\":5,\"frozen\":false,\"shop\":[],\"spell\":null,\"spellsCast\":0,\"spellsThisTurn\":0,\"deathrattlesTriggered\":0,\"triplesMade\":0,\"goldSpent\":4,\"runDamage\":{},\"runProcs\":{},\"combatSettled\":false,\"freeRolls\":0,\"frontToBackBonus\":0,\"frontToBackBonusH\":0,\"undeadAttackBonus\":0,\"undeadHealthBonus\":0,\"undeadBuyAtk\":0,\"beastBuyAtk\":0,\"beastBuyHp\":0,\"magneticBuyAtk\":0,\"magneticBuyHp\":0,\"spellBonus\":{\"attack\":0,\"health\":0},\"tavernBuyBonus\":{\"atk\":0,\"hp\":0},\"drakkoBuys\":0,\"cassenKills\":0,\"keshiTierPoints\":0,\"turnStartPower\":0,\"spellCostMod\":0,\"hand\":[{\"uid\":\"b1\",\"cardId\":\"lanternlight\",\"tribe\":\"neutral\",\"attack\":0,\"health\":1,\"keywords\":[],\"golden\":false},{\"uid\":\"b4\",\"cardId\":\"apples\",\"tribe\":\"neutral\",\"attack\":0,\"health\":1,\"keywords\":[],\"golden\":false}],\"board\":[],\"activeQuests\":[],\"heroId\":\"baggerben\",\"heroReady\":false,\"heroPowerSpent\":false,\"threat\":\"undying\",\"tribes\":[],\"rngCursor\":1718615060,\"pool\":{},\"uidSeq\":5,\"pendingTavern\":[],\"cardBuffs\":{},\"fodderEatenSeq\":0,\"shopEatenSeq\":0,\"recruitBuffFx\":[],\"recruitFxSeq\":0,\"aleGranted\":[],\"aleGrantSeq\":0,\"karwindFlashSeq\":0,\"rift\":null,\"setId\":\"set3\",\"weldFxBaseSeq\":0,\"lastShoutFires\":0,\"lastEchoFires\":0,\"lastRallyFires\":0,\"questTendrilFx\":[],\"lastEotFires\":0,\"fodderEaten\":[],\"shopEaten\":[],\"gainCardFiredUids\":[],\"goldSpentThisTurn\":4,\"cardsBoughtThisTurn\":2,\"rascalResetWave\":1,\"heroPowerUses\":1,\"servedBoards\":{\"1\":null},\"cardsPlayedTotal\":1,\"chooseOne\":{\"uid\":\"b4\",\"cardId\":\"apples\",\"spell\":true}}",
+  "action": {
+    "type": "chooseOne",
+    "index": 0
+  },
+  "expectations": [
+    {
+      "kind": "invariant",
+      "id": "embers-non-negative"
+    },
+    {
+      "kind": "invariant",
+      "id": "board-within-cap"
+    },
+    {
+      "kind": "invariant",
+      "id": "stats-finite"
+    }
+  ],
+  "metadata": {
+    "notes": "coverage keys first reached here: action:chooseOne, factory:spellBuffTavern"
+  }
+}

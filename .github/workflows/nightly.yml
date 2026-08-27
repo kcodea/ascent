@@ -1,0 +1,41 @@
+# DOCBOT NIGHTLY (handoff §9.2 + §13.3, PR 8) — the long-horizon QA lane the PR gate never pays for.
+#
+# Deliberately ADDITIVE: this workflow is separate from ci.yml and is NOT a required check, so it can never
+# block an ordinary PR. It runs full deterministic lifecycle runs + the lobby sweep on a schedule (off-peak)
+# and on demand; a red run uploads the artifact directory — the nightly report, machine-readable findings
+# (fingerprinted, §12), and for every failure a minimized QaScenarioV1 with its exact repro command plus the
+# original seed/trace as secondary evidence (§9.3). Every failure reproduces locally by seed — no flaky
+# probability gates (§13.4).
+name: Docbot Nightly
+
+on:
+  schedule:
+    # 09:17 UTC — off-peak for both devs; the odd minute avoids GitHub's on-the-hour scheduling congestion.
+    - cron: '17 9 * * *'
+  workflow_dispatch:
+    inputs:
+      runs:
+        description: 'Lifecycle runs to execute'
+        required: false
+        default: '6'
+
+jobs:
+  nightly:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Run the nightly lifecycle lane
+        run: npm run docbot:nightly -- --runs ${{ github.event.inputs.runs || '6' }} --out artifacts/docbot-nightly
+      - name: Upload artifacts (report always; scenarios/findings/traces on failure)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: docbot-nightly-${{ github.run_id }}
+          path: artifacts/docbot-nightly/
+          retention-days: 30

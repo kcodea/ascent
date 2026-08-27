@@ -1,0 +1,539 @@
+{
+  "generatedBy": "npm run docbot:corpus",
+  "config": {
+    "seeds": [
+      11,
+      23,
+      37,
+      53,
+      71,
+      89,
+      107,
+      131,
+      149,
+      173,
+      191,
+      211,
+      233,
+      257,
+      277,
+      307,
+      331,
+      353,
+      379,
+      401,
+      421,
+      443,
+      463,
+      487
+    ],
+    "steps": 200
+  },
+  "digest": "76c17806",
+  "stepsExecuted": 1959,
+  "keyCount": 82,
+  "keys": [
+    "action:buy",
+    "action:buyQuest",
+    "action:buyRune",
+    "action:chooseOne",
+    "action:discover",
+    "action:faceOmen",
+    "action:freeze",
+    "action:heroPower",
+    "action:play",
+    "action:reposition",
+    "action:resolveCombat",
+    "action:roll",
+    "action:sell",
+    "action:skipRuneforge",
+    "action:upgrade",
+    "chain-depth:0",
+    "combat-mod:runeBrood",
+    "factory:addFodderNextShops",
+    "factory:battlecryBonusGoldNextTurn",
+    "factory:battlecryBuffImps",
+    "factory:battlecryBuffUndeadAttack",
+    "factory:battlecryGainGoldNextTurn",
+    "factory:battlecryGainKeyword",
+    "factory:deathrattleGiveHealth",
+    "factory:deathrattleSummon",
+    "factory:endOfTurnGrantSpellChoice",
+    "factory:getRubies",
+    "factory:grantFreeRolls",
+    "factory:onFriendlyDemonDamageBuffSelf",
+    "factory:rallyBuffSelf",
+    "factory:rubyStatGain",
+    "factory:scBeastAura",
+    "factory:setArmor",
+    "factory:spellBuffNextShop",
+    "factory:spellBuffTarget",
+    "factory:spellBuffTavern",
+    "factory:spellGainRandomMinion",
+    "factory:spellNextSellBonus",
+    "guard:avenge:silent",
+    "hero-power:active",
+    "hero-power:combat-trigger",
+    "hero-power:count-threshold",
+    "hero-power:start-of-run",
+    "hero-power:unlock-recharge",
+    "rune-reward:combatFlag",
+    "rune-reward:grant",
+    "rune-reward:recurringEndOfTurn",
+    "rune-reward:recurringGrant",
+    "rune-reward:runeBaller",
+    "rune-reward:runeCorruptedTome",
+    "rune-reward:runeDeep",
+    "rune-reward:runeDuplication",
+    "rune-reward:runeMerryChristmas",
+    "rune-reward:runeRefrain",
+    "rune-reward:runeSpellstone",
+    "rune-reward:runeThreshold",
+    "rune-reward:runeTranscription",
+    "rune-reward:scheduleRuneforge",
+    "snapshot:recruit-to-combat",
+    "snapshot:settle",
+    "target:board:few",
+    "target:board:one",
+    "target:combat:few",
+    "target:combat:one",
+    "target:hand:few",
+    "target:hand:one",
+    "target:shop:few",
+    "target:shop:many",
+    "trigger:allIn",
+    "trigger:bladeMastery",
+    "trigger:cast",
+    "trigger:dice",
+    "trigger:endOfTurn",
+    "trigger:friendlyDemonDealtDamage",
+    "trigger:onAttack",
+    "trigger:onDeath",
+    "trigger:onPlay",
+    "trigger:reward",
+    "trigger:rubyWealth",
+    "trigger:startOfCombat",
+    "trigger:summitLock",
+    "trigger:tempest"
+  ],
+  "entries": [
+    {
+      "id": "corpus-s11-t1",
+      "action": "buy",
+      "newKeys": [
+        "action:buy"
+      ]
+    },
+    {
+      "id": "corpus-s11-t2",
+      "action": "faceOmen",
+      "newKeys": [
+        "action:faceOmen",
+        "snapshot:recruit-to-combat"
+      ]
+    },
+    {
+      "id": "corpus-s11-t3",
+      "action": "resolveCombat",
+      "newKeys": [
+        "action:resolveCombat",
+        "snapshot:settle"
+      ]
+    },
+    {
+      "id": "corpus-s11-t4",
+      "action": "freeze",
+      "newKeys": [
+        "action:freeze"
+      ]
+    },
+    {
+      "id": "corpus-s11-t6",
+      "action": "play",
+      "newKeys": [
+        "action:play"
+      ]
+    },
+    {
+      "id": "corpus-s11-t7",
+      "action": "faceOmen",
+      "newKeys": [
+        "chain-depth:0",
+        "factory:deathrattleSummon",
+        "trigger:onDeath"
+      ]
+    },
+    {
+      "id": "corpus-s11-t12",
+      "action": "heroPower",
+      "newKeys": [
+        "action:heroPower",
+        "hero-power:count-threshold",
+        "target:board:one",
+        "trigger:tempest"
+      ]
+    },
+    {
+      "id": "corpus-s11-t15",
+      "action": "upgrade",
+      "newKeys": [
+        "action:upgrade"
+      ]
+    },
+    {
+      "id": "corpus-s11-t16",
+      "action": "play",
+      "newKeys": [
+        "factory:spellGainRandomMinion",
+        "target:hand:one",
+        "trigger:cast"
+      ]
+    },
+    {
+      "id": "corpus-s11-t22",
+      "action": "sell",
+      "newKeys": [
+        "action:sell"
+      ]
+    },
+    {
+      "id": "corpus-s11-t24",
+      "action": "reposition",
+      "newKeys": [
+        "action:reposition"
+      ]
+    },
+    {
+      "id": "corpus-s11-t28",
+      "action": "roll",
+      "newKeys": [
+        "action:roll"
+      ]
+    },
+    {
+      "id": "corpus-s11-t39",
+      "action": "skipRuneforge",
+      "newKeys": [
+        "action:skipRuneforge"
+      ]
+    },
+    {
+      "id": "corpus-s11-t46",
+      "action": "play",
+      "newKeys": [
+        "factory:battlecryBonusGoldNextTurn",
+        "trigger:onPlay"
+      ]
+    },
+    {
+      "id": "corpus-s11-t53",
+      "action": "faceOmen",
+      "newKeys": [
+        "factory:deathrattleGiveHealth",
+        "target:combat:few"
+      ]
+    },
+    {
+      "id": "corpus-s11-t73",
+      "action": "faceOmen",
+      "newKeys": [
+        "factory:scBeastAura",
+        "guard:avenge:silent",
+        "target:combat:one",
+        "trigger:startOfCombat"
+      ]
+    },
+    {
+      "id": "corpus-s11-t75",
+      "action": "buyRune",
+      "newKeys": [
+        "action:buyRune",
+        "rune-reward:grant",
+        "trigger:reward"
+      ]
+    },
+    {
+      "id": "corpus-s23-t48",
+      "action": "buyRune",
+      "newKeys": [
+        "rune-reward:combatFlag"
+      ]
+    },
+    {
+      "id": "corpus-s23-t67",
+      "action": "faceOmen",
+      "newKeys": [
+        "factory:rallyBuffSelf",
+        "trigger:onAttack"
+      ]
+    },
+    {
+      "id": "corpus-s23-t69",
+      "action": "buyRune",
+      "newKeys": [
+        "rune-reward:runeSpellstone"
+      ]
+    },
+    {
+      "id": "corpus-s23-t73",
+      "action": "play",
+      "newKeys": [
+        "factory:rubyStatGain",
+        "target:hand:few"
+      ]
+    },
+    {
+      "id": "corpus-s37-t4",
+      "action": "heroPower",
+      "newKeys": [
+        "hero-power:active",
+        "trigger:allIn"
+      ]
+    },
+    {
+      "id": "corpus-s37-t8",
+      "action": "chooseOne",
+      "newKeys": [
+        "action:chooseOne",
+        "factory:spellBuffTavern"
+      ]
+    },
+    {
+      "id": "corpus-s37-t42",
+      "action": "buyRune",
+      "newKeys": [
+        "rune-reward:runeRefrain"
+      ]
+    },
+    {
+      "id": "corpus-s37-t53",
+      "action": "play",
+      "newKeys": [
+        "factory:spellNextSellBonus"
+      ]
+    },
+    {
+      "id": "corpus-s53-t0",
+      "action": "discover",
+      "newKeys": [
+        "action:discover"
+      ]
+    },
+    {
+      "id": "corpus-s53-t11",
+      "action": "heroPower",
+      "newKeys": [
+        "hero-power:start-of-run",
+        "trigger:summitLock"
+      ]
+    },
+    {
+      "id": "corpus-s53-t27",
+      "action": "play",
+      "newKeys": [
+        "factory:battlecryBuffUndeadAttack",
+        "target:board:few"
+      ]
+    },
+    {
+      "id": "corpus-s53-t57",
+      "action": "play",
+      "newKeys": [
+        "factory:battlecryBuffImps"
+      ]
+    },
+    {
+      "id": "corpus-s53-t80",
+      "action": "buyRune",
+      "newKeys": [
+        "rune-reward:runeBaller"
+      ]
+    },
+    {
+      "id": "corpus-s89-t50",
+      "action": "play",
+      "newKeys": [
+        "factory:grantFreeRolls"
+      ]
+    },
+    {
+      "id": "corpus-s107-t1",
+      "action": "play",
+      "newKeys": [
+        "factory:addFodderNextShops"
+      ]
+    },
+    {
+      "id": "corpus-s149-t0",
+      "action": "buyQuest",
+      "newKeys": [
+        "action:buyQuest"
+      ]
+    },
+    {
+      "id": "corpus-s149-t41",
+      "action": "buyRune",
+      "newKeys": [
+        "rune-reward:runeThreshold"
+      ]
+    },
+    {
+      "id": "corpus-s173-t58",
+      "action": "buyRune",
+      "newKeys": [
+        "rune-reward:scheduleRuneforge"
+      ]
+    },
+    {
+      "id": "corpus-s173-t65",
+      "action": "buyRune",
+      "newKeys": [
+        "rune-reward:runeMerryChristmas"
+      ]
+    },
+    {
+      "id": "corpus-s173-t70",
+      "action": "play",
+      "newKeys": [
+        "factory:spellBuffTarget"
+      ]
+    },
+    {
+      "id": "corpus-s191-t23",
+      "action": "play",
+      "newKeys": [
+        "factory:battlecryGainGoldNextTurn"
+      ]
+    },
+    {
+      "id": "corpus-s191-t50",
+      "action": "chooseOne",
+      "newKeys": [
+        "target:shop:many"
+      ]
+    },
+    {
+      "id": "corpus-s211-t59",
+      "action": "chooseOne",
+      "newKeys": [
+        "factory:spellBuffNextShop"
+      ]
+    },
+    {
+      "id": "corpus-s211-t67",
+      "action": "buyRune",
+      "newKeys": [
+        "rune-reward:runeCorruptedTome"
+      ]
+    },
+    {
+      "id": "corpus-s257-t63",
+      "action": "play",
+      "newKeys": [
+        "factory:getRubies"
+      ]
+    },
+    {
+      "id": "corpus-s257-t79",
+      "action": "play",
+      "newKeys": [
+        "factory:battlecryGainKeyword"
+      ]
+    },
+    {
+      "id": "corpus-s257-t85",
+      "action": "faceOmen",
+      "newKeys": [
+        "factory:onFriendlyDemonDamageBuffSelf",
+        "trigger:friendlyDemonDealtDamage"
+      ]
+    },
+    {
+      "id": "corpus-s277-t47",
+      "action": "buyRune",
+      "newKeys": [
+        "rune-reward:recurringGrant"
+      ]
+    },
+    {
+      "id": "corpus-s307-t1",
+      "action": "heroPower",
+      "newKeys": [
+        "trigger:rubyWealth"
+      ]
+    },
+    {
+      "id": "corpus-s307-t90",
+      "action": "buyRune",
+      "newKeys": [
+        "rune-reward:runeDeep"
+      ]
+    },
+    {
+      "id": "corpus-s331-t68",
+      "action": "buyRune",
+      "newKeys": [
+        "rune-reward:runeTranscription"
+      ]
+    },
+    {
+      "id": "corpus-s379-t10",
+      "action": "faceOmen",
+      "newKeys": [
+        "factory:endOfTurnGrantSpellChoice",
+        "trigger:endOfTurn"
+      ]
+    },
+    {
+      "id": "corpus-s401-t5",
+      "action": "heroPower",
+      "newKeys": [
+        "hero-power:unlock-recharge",
+        "trigger:dice"
+      ]
+    },
+    {
+      "id": "corpus-s401-t52",
+      "action": "buyRune",
+      "newKeys": [
+        "rune-reward:runeDuplication"
+      ]
+    },
+    {
+      "id": "corpus-s421-t52",
+      "action": "play",
+      "newKeys": [
+        "factory:setArmor"
+      ]
+    },
+    {
+      "id": "corpus-s463-t16",
+      "action": "chooseOne",
+      "newKeys": [
+        "target:shop:few"
+      ]
+    },
+    {
+      "id": "corpus-s463-t68",
+      "action": "heroPower",
+      "newKeys": [
+        "hero-power:combat-trigger",
+        "trigger:bladeMastery"
+      ]
+    },
+    {
+      "id": "corpus-s463-t91",
+      "action": "buyRune",
+      "newKeys": [
+        "rune-reward:recurringEndOfTurn"
+      ]
+    },
+    {
+      "id": "corpus-s487-t55",
+      "action": "faceOmen",
+      "newKeys": [
+        "combat-mod:runeBrood"
+      ]
+    }
+  ]
+}

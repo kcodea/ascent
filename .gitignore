@@ -11,6 +11,8 @@ ascent-itch*.zip
 # Pulled bug reports (bugs:pull) + other local-only dev state. Raw reports carry player text and
 # account/machine identifiers — never commit them (docs/bug-reports.md).
 .local/
+# docbot:nightly artifact output (report + minimized scenarios + findings) — CI uploads it, never commit it
+artifacts/
 *.tsbuildinfo
 *.log
 .DS_Store

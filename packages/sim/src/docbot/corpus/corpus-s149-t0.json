@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "id": "corpus-s149-t0",
+  "title": "coverage corpus — seed 149 step 0 (buyQuest, coran, set3)",
+  "source": "generated",
+  "seed": 149,
+  "setId": "set3",
+  "mode": "recruit",
+  "state": "{\"seed\":149,\"mode\":\"ascent\",\"wave\":1,\"history\":[],\"line\":9,\"phase\":\"recruit\",\"embers\":3,\"maxEmbers\":3,\"resolve\":30,\"maxResolve\":30,\"armor\":15,\"maxArmor\":15,\"tier\":1,\"upgradeCost\":5,\"frozen\":false,\"shop\":[],\"spell\":{\"uid\":\"s0\",\"cardId\":\"emberpouch\"},\"spellsCast\":0,\"spellsThisTurn\":0,\"deathrattlesTriggered\":0,\"triplesMade\":0,\"goldSpent\":0,\"runDamage\":{},\"runProcs\":{},\"combatSettled\":false,\"freeRolls\":0,\"frontToBackBonus\":0,\"frontToBackBonusH\":0,\"undeadAttackBonus\":0,\"undeadHealthBonus\":0,\"undeadBuyAtk\":0,\"beastBuyAtk\":0,\"beastBuyHp\":0,\"magneticBuyAtk\":0,\"magneticBuyHp\":0,\"spellBonus\":{\"attack\":0,\"health\":0},\"tavernBuyBonus\":{\"atk\":0,\"hp\":0},\"drakkoBuys\":0,\"cassenKills\":0,\"keshiTierPoints\":0,\"turnStartPower\":0,\"servedBoards\":{\"1\":null},\"spellCostMod\":0,\"hand\":[],\"board\":[],\"activeQuests\":[],\"heroId\":\"coran\",\"heroReady\":true,\"heroPowerSpent\":false,\"threat\":\"iron\",\"tribes\":[],\"rngCursor\":967486958,\"pool\":{},\"uidSeq\":1,\"pendingTavern\":[],\"cardBuffs\":{},\"fodderEatenSeq\":0,\"shopEatenSeq\":0,\"recruitBuffFx\":[],\"recruitFxSeq\":0,\"aleGranted\":[],\"aleGrantSeq\":0,\"karwindFlashSeq\":0,\"rift\":null,\"setId\":\"set3\",\"questOffer\":[\"hq_resonant_path_rally\",\"hq_merchants_road\"]}",
+  "action": {
+    "type": "buyQuest",
+    "index": 1
+  },
+  "expectations": [
+    {
+      "kind": "invariant",
+      "id": "embers-non-negative"
+    },
+    {
+      "kind": "invariant",
+      "id": "board-within-cap"
+    },
+    {
+      "kind": "invariant",
+      "id": "stats-finite"
+    }
+  ],
+  "metadata": {
+    "notes": "coverage keys first reached here: action:buyQuest"
+  }
+}

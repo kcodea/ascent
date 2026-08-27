@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { combatSide, makeRng, simulate, type BoardMinion } from '@game/core';
 import { CARD_INDEX, RUNE_INDEX } from '@game/content';
-import { createRun, reduce, type RunState } from './index';
+import { createRun, nextRefreshCostOf, reduce, refreshCostOf, type RunState } from './index';
 
 const bm = (cardId: string, attack: number, health: number): BoardMinion =>
   ({ cardId, attack, health } as BoardMinion);
@@ -120,6 +120,31 @@ describe('economy runes — reducer behaviour', () => {
     const before = s.embers;
     s = reduce(s, { type: 'roll' }); // the 4th costs the normal price
     expect(s.embers).toBeLessThan(before);
+  });
+
+  it('Window Shopping: the Refresh pill helper prints the price the roll will actually charge (bug 3abab276)', () => {
+    // Regression — Bug Board round 1 (2026-08-27): the UI's Refresh coin read `refreshCostOf` directly, so it
+    // showed 1 Gold while Window Shopping paid. `nextRefreshCostOf` is the pill's source of truth: it must
+    // agree with the reducer's charge, roll by roll, including the free→paid flip and banked free rolls.
+    let s: RunState = { ...createRun(1, 'warden'), phase: 'recruit', embers: 10, runeWindowShopping: true };
+    for (let i = 0; i < 3; i++) {
+      expect(nextRefreshCostOf(s), `roll ${i + 1} shows free`).toBe(0);
+      const before = s.embers;
+      s = reduce(s, { type: 'roll' });
+      expect(before - s.embers, `roll ${i + 1} charged what the pill showed`).toBe(0);
+    }
+    expect(nextRefreshCostOf(s), 'the 4th roll shows the real price').toBe(refreshCostOf(s));
+    const before = s.embers;
+    s = reduce(s, { type: 'roll' });
+    expect(before - s.embers, 'the 4th roll charged what the pill showed').toBe(refreshCostOf(s));
+    // Banked free rolls (Refreshing Texts) also read 0 — the reducer spends those first.
+    s.freeRolls = 1;
+    expect(nextRefreshCostOf(s)).toBe(0);
+    // A free Window Shopping roll must stay affordable at 0 Gold (the pill helper also gates `disabled`).
+    const broke: RunState = { ...createRun(2, 'warden'), phase: 'recruit', embers: 0, runeWindowShopping: true };
+    expect(nextRefreshCostOf(broke)).toBe(0);
+    const rolled = reduce(broke, { type: 'roll' });
+    expect(rolled.windowShopRolls, 'the roll went through with no Gold').toBe(1);
   });
 
   it('Bargain Bin: the first Refresh fills the Shop with 1-Gold minions that sell for 0', () => {

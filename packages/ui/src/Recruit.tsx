@@ -31,7 +31,7 @@ const CHOREO_EOT = (() => {
 if (import.meta.env.DEV) {
   (window as unknown as { __choreoEot?: boolean }).__choreoEot = CHOREO_EOT;
 }
-import { alignmentsOf, boardHasCelestial, computeCombatOdds, type CombatOdds, rubyCastCount, rubyStatBonus, CONFIG, RIFTS, hasTier7Access, maxTierFor, conjuredStats, cardBuff, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, dragonflameCasts, nextOpponent, lossDamageCap, playerLossDamage, minionCostOf, heroOfferPrice, dominantBoardTribe, effectiveTargetTribe, boardManaBonus, upgradeCostOf, refreshCostOf, poolOf, type RunState, type ShopCard, type CardBuff, type BoardCard, type BoardSnapshot, gildCopiesNeeded, activePowers } from '@game/sim';
+import { alignmentsOf, boardHasCelestial, computeCombatOdds, type CombatOdds, rubyCastCount, rubyStatBonus, CONFIG, RIFTS, hasTier7Access, maxTierFor, conjuredStats, cardBuff, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, dragonflameCasts, nextOpponent, lossDamageCap, playerLossDamage, minionCostOf, heroOfferPrice, dominantBoardTribe, effectiveTargetTribe, boardManaBonus, upgradeCostOf, nextRefreshCostOf, poolOf, type RunState, type ShopCard, type CardBuff, type BoardCard, type BoardSnapshot, gildCopiesNeeded, activePowers } from '@game/sim';
 import { createPortal } from 'react-dom';
 import { setCardId, setCardStats, toggleCardKeyword, setEnemyStats, setEnemyCardId, toggleEnemyKeyword, removeEnemy } from './sandboxEdit';
 import { UnitEditor } from './UnitEditor';
@@ -412,11 +412,11 @@ const CARD_REFERENCES: Record<string, string[]> = {
  *  spell power via `spellLive`, so hovering the caster shows the spell's CURRENT value — the reason the caster's
  *  own text no longer restates it. A token folds in its persistent buff: Fodder ('fred') gets Ritualist's buff,
  *  the Imp token ('impscrap') the run-wide `impBuff` — so each popup shows the token's current stats. */
-function tokenRefView(
+export function tokenRefView( // exported for tokenRefView.test.ts (bug 86340900 regression)
   id: string,
   cardBuffs?: Record<string, { attack: number; health: number }>,
   impBuff?: { attack: number; health: number },
-  spellLive?: { a: number; h: number; ftb: number; ftbH: number; goldSpent: number; goldPouchValue?: number; tier?: number },
+  spellLive?: { a: number; h: number; ftb: number; ftbH: number; goldSpent: number; goldPouchValue?: number; tier?: number; growthBonus?: number },
   rubyBonus?: { attack: number; health: number },
   /** The Rubies on the minion whose popup this is (+ its gild) — sizes the Gemheart Golem preview. */
   ownerRuby?: { attack: number; health: number; golden?: boolean },
@@ -460,7 +460,10 @@ function tokenRefView(
       // `rubyBonus` rides along so a previewed Veinstorm (Storm Chaser's hover) prints the LIVE Ruby value —
       // this path fed the Ruby branch above but starved the spell branch, so Veinstorm previewed at +1/+1
       // while the real cast paid more (owner report 2026-08-08).
-      text: spellDisplayText(c.id, spellLive.a, spellLive.ftb, spellLive.h, spellLive.goldSpent, spellLive.ftbH, spellLive.goldPouchValue ?? 0, { tier: spellLive.tier, rubyBonus }),
+      // `growthBonus` rides along too, so Mushy's referenced-Growth popup (and the combat fly-in) prints the
+      // Rune of Living Growth-improved value — this chain starved it while the shop/spell-slot chains threaded
+      // it, so the popup promised the base +1/+1 (player report 2026-08-27, bug 86340900).
+      text: spellDisplayText(c.id, spellLive.a, spellLive.ftb, spellLive.h, spellLive.goldSpent, spellLive.ftbH, spellLive.goldPouchValue ?? 0, { tier: spellLive.tier, rubyBonus, growthBonus: spellLive.growthBonus }),
       tier: c.tier, spell: c.spell, target: c.target,
       baseAttack: c.attack, baseHealth: c.health,
     };
@@ -495,6 +498,7 @@ function conjuredView(cardId: string, run: RunState): CardView | null {
     a: spellAttackBonus(run), h: spellHealthBonus(run),
     ftb: run.frontToBackBonus, ftbH: run.frontToBackBonusH ?? run.frontToBackBonus,
     goldSpent: run.goldSpentThisTurn ?? 0, goldPouchValue: run.goldPouchValue, tier: run.tier,
+    growthBonus: run.growthBonus,
   };
   const base = tokenRefView(cardId, run.cardBuffs, run.impBuff, spellLive, run.rubyBonus);
   // Spells carry no stats to aura — with `spellLive` threaded, tokenRefView's view is now right for them.
@@ -2519,7 +2523,7 @@ export function Recruit() {
         ...(def ? referencedCardIds(def) : []),
         ...(mentionsRuby ? ['ruby'] : []),
       ])].filter((id) => CARD_INDEX[id]);
-      const spellLive = { a: spellBonus, h: spellBonusH, ftb: run.frontToBackBonus, ftbH: run.frontToBackBonusH ?? run.frontToBackBonus, goldSpent: run.goldSpentThisTurn ?? 0, goldPouchValue: run.goldPouchValue, tier: run.tier };
+      const spellLive = { a: spellBonus, h: spellBonusH, ftb: run.frontToBackBonus, ftbH: run.frontToBackBonusH ?? run.frontToBackBonus, goldSpent: run.goldSpentThisTurn ?? 0, goldPouchValue: run.goldPouchValue, tier: run.tier, growthBonus: run.growthBonus };
       // `cardBuffsLive`, NOT `run.cardBuffs` — the raw map holds only the PERMANENT enchants, so a Fodder
       // token previewed here printed 3/3 while the shop card next to it showed 6/6, dropping Heckbinder's
       // live `fodderAura` (owner report 2026-07-21). Every surface that prints a buffed stat routes through
@@ -2533,7 +2537,7 @@ export function Recruit() {
     for (const o of run.shop) add(o.uid, o.cardId, o);
     refViewCache.current = stabilizeRefMap(m, refViewCache.current); // reuse unchanged ref-popup arrays (memo bailout)
     return refViewCache.current;
-  }, [run.board, run.hand, run.shop, cardBuffsLive, run.impBuff, spellBonus, spellBonusH, run.frontToBackBonus, run.frontToBackBonusH, run.goldSpentThisTurn, run.rubyBonus]);
+  }, [run.board, run.hand, run.shop, cardBuffsLive, run.impBuff, spellBonus, spellBonusH, run.frontToBackBonus, run.frontToBackBonusH, run.goldSpentThisTurn, run.rubyBonus, run.growthBonus]);
   // During the End-of-Turn animation the board shows each minion's per-proc stats (`eotAnimStats`),
   // so the numbers visibly tick up as each effect fires; otherwise the real stats.
   const live = useMemo(
@@ -5339,10 +5343,14 @@ export function Recruit() {
           shop action, so in combat this is inert (see the component) — but it stays MOUNTED through both
           phases (owner ask 2026-08-17), like the Tavern stone and Freeze, so the board keeps its furniture
           instead of half of it vanishing at the phase change. */}
+      {/* `nextRefreshCostOf`, not `refreshCostOf`: the pill prints what THIS roll charges, folding banked
+          free rolls AND Rune of Window Shopping's first-3-free allowance (bug 3abab276 — the pill kept
+          showing 1 while the rune paid). Same helper gates `disabled`, so a free roll stays clickable at
+          0 Gold, matching the reducer's charge order exactly. */}
       <RefreshButton
-        cost={run.freeRolls > 0 ? 0 : refreshCostOf(run)}
+        cost={nextRefreshCostOf(run)}
         freeRolls={run.freeRolls}
-        disabled={(run.freeRolls <= 0 && run.embers < refreshCostOf(run)) || timeUp || eotAnimating || !!run.questOffer || !!run.powerOffer || !!run.runeforgeOffer}
+        disabled={run.embers < nextRefreshCostOf(run) || timeUp || eotAnimating || !!run.questOffer || !!run.powerOffer || !!run.runeforgeOffer}
         combat={inCombat}
         onRefresh={() => dispatch({ type: 'roll' })}
       />

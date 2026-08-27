@@ -1233,7 +1233,7 @@ export interface RunState {
   runeRestocking?: boolean;      // first buy each turn refills its slot with a same-Tier 2-Gold minion
   runeCollector?: boolean;       // 3 types bought in a turn → Discover from one of them (once/turn)
   runeBargainBin?: boolean;      // first Refresh each turn fills the Shop with 1-Gold minions that sell for 0
-  /** Window Shopping: refreshes used this turn (the first 4 are free). Reset each turn. */
+  /** Window Shopping: refreshes used this turn (the first 3 are free). Reset each turn. */
   windowShopRolls?: number;
   /** Restocking / Bargain Bin / Collector once-per-turn latches (reset each turn). */
   restockUsedThisTurn?: boolean;

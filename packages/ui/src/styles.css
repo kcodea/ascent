@@ -234,7 +234,8 @@ canvas.spr { image-rendering: pixelated; display: block; }
    drift in size or position. Revealed left→right by a one-shot clip-path transition when combat begins
    (`.wiped` added) and hidden right→left when it ends (`.wiped` removed). clip-path is a paint property,
    but this is a sanctioned ONE-SHOT transition (see CLAUDE.md perf rules). A mid-combat resume mounts the
-   layer with `.wiped` already present, so it shows instantly with no transition. */
+   layer with `.wiped` already present, so it shows instantly with no transition. The duration is supplied
+   at runtime by Recruit's `WIPE_MS` via an inline `--wipe-dur`; the `550ms` fallback below is just a safety default. */
 .boardbg--combat { --board: var(--board-combat); clip-path: inset(0 100% 0 0);
   transition: clip-path var(--wipe-dur, 550ms) cubic-bezier(.4, 0, .2, 1); }
 .boardbg--combat.wiped { clip-path: inset(0 0 0 0); }

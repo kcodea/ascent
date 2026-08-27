@@ -19,6 +19,7 @@ import { APPROVED_RULES } from './registry/approved';
 import { PENDING_RULES } from './registry/pending.generated';
 import { MANUAL_PENDING } from './registry/pendingManual';
 import { CONVENTION_PENDING } from './registry/pendingConventions.generated';
+import { WORDING_PENDING } from './registry/pendingWording.generated';
 import { effectiveStatus, type DecisionMap, type GameRule, type RuleDecision, type RuleStatus } from './schema';
 import { enforcementOf } from './enforcement';
 
@@ -27,7 +28,8 @@ export { APPROVED_RULES } from './registry/approved';
 export { PENDING_RULES } from './registry/pending.generated';
 export { MANUAL_PENDING } from './registry/pendingManual';
 export { CONVENTION_PENDING } from './registry/pendingConventions.generated';
-export { LANGUAGE_GUIDE, LANGUAGE_GUIDE_INDEX, LANGUAGE_GUIDE_VERSION, type LanguageGuideEntry, type LanguageGuideTopic } from './languageGuide';
+export { WORDING_PENDING } from './registry/pendingWording.generated';
+export { LANGUAGE_GUIDE, LANGUAGE_GUIDE_INDEX, LANGUAGE_GUIDE_VERSION, type LanguageGuideEntry, type LanguageGuideTopic, type LanguageGuidePredicate } from './languageGuide';
 export { RETIRED_RULES, RETIRED_IDS, type RetiredRule } from './registry/retired';
 export { AUTO_RETIRED_RULES, AUTO_RETIRED_IDS } from './registry/retired.generated';
 export {
@@ -46,7 +48,7 @@ export interface ResolvedRule extends GameRule {
 }
 
 export function allRules(): ResolvedRule[] {
-  return [...APPROVED_RULES, ...PENDING_RULES, ...MANUAL_PENDING, ...CONVENTION_PENDING].map((r) => {
+  return [...APPROVED_RULES, ...PENDING_RULES, ...MANUAL_PENDING, ...CONVENTION_PENDING, ...WORDING_PENDING].map((r) => {
     const enforcement = enforcementOf(r);
     return {
       ...r,

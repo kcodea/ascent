@@ -88,6 +88,11 @@ export const ENFORCEMENT_LANES: Record<string, EnforcementLane> = {
     file: 'packages/sim/src/docbot/contractExtract.test.ts',
     what: 'the ContentContract extraction + triangle-screening lane: every active content object holds a draft contract; the corroboration screen re-alarms when a covered aspect (phase reachability, text amounts/summons, play differential) disagrees with a member\'s extracted shape — the convention questions\' shared pin until WP D\'s per-contract oracle lands',
   },
+  // ── Doc Bot 2.0 WP E: text intelligence ──
+  textParse: {
+    file: 'packages/sim/src/docbot/textParse/textParse.test.ts',
+    what: 'the WP E text lane: every active object classified parsed-equivalent / verified-mismatch / approved-exception / unresolved-parse; the unresolved queue ratcheted grow-loudly; every mismatch registry-pinned (verify-before-alarm); guide-predicate advisor + Sitting-3 deck format bar — a wording ruling drifting out of the printed text re-alarms here',
+  },
   textOracleSummons: {
     file: 'packages/sim/src/docbot/textOracleSummons.test.ts',
     what: 'summon-effect reconciliation against printed text: copy counts, exact-stat carriage, and the gilded-badge convention on summoned copies',

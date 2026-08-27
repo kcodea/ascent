@@ -162,6 +162,12 @@ Three commands sit above the tripwires (`packages/sim/src/docbot/{coverageKeys,c
   `npm run docbot:scenario --` repro line, and ships as a fingerprinted `DocbotFinding` (structural
   fingerprints — message prose never changes identity) with the original seed/trace preserved.
 - `npm run docbot:scenario -- <id>` — replays any emitted scenario (corpus fixture or minimized failure).
+- `npm run docbot:text` — Doc Bot 2.0 WP E: parses every active object's printed text
+  (`docbot/textParse/`), classifies the §18-E buckets (parsed-equivalent / verified-mismatch /
+  approved-exception / unresolved-parse — an unresolved parse is NEVER a clean pass), prints the
+  mismatch + rewrite-advisor report, and regenerates the Sitting-3 wording deck
+  (`pendingWording.generated.ts`, seed-hygiene-preserving). The PR-gate lane is
+  `textParse/textParse.test.ts`; the style rules live in `packages/rules/src/languageGuide.ts`.
 
 ## The 2026-08-27 wave — one QA system
 

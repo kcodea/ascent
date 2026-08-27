@@ -52,3 +52,17 @@ export {
   runContractSweep, releaseBlockerFindings, laneCitations, sampleRotation, inSample, CONTRACT_LANE,
   type ContractSweepOptions, type ContractSweepReport, type ContractSweepRow, type ExecutedCase, type TemplateTotals,
 } from './contractOracle';
+// ── Doc Bot 2.0 WP E: text intelligence ──────────────────────────────────────────────────────────────────
+export { parseObjectText } from './textParse/parser';
+export { KEYWORD_LEXICON, TERM_VARIANTS, TRIGGER_LEXICON } from './textParse/lexicon';
+export { textObjectOf, type TextObject } from './textParse/corpus';
+export {
+  runTextSweep, TEXT_LANE, TEXT_EXCEPTIONS, KNOWN_TEXT_MISMATCH,
+  type TextSweepOptions, type TextSweepReport, type TextObjectRow, type KnownTextMismatch,
+} from './textParse/classify';
+export { runRewriteAdvisor, ADVISOR_LANE, FRAME_CHAR_BOUND, type AdvisorOptions } from './textParse/rewriteAdvisor';
+export { buildWordingQuestions, estimatedSittingMinutes, wordingCorpus, WORDING_QUEUE } from './textParse/wordingQuestions';
+export {
+  IMPLEMENTED_TAXONOMY,
+  type ParsedTextContract, type TextBucket, type TextMismatch, type MismatchTaxonomyId, type TextSpan,
+} from './textParse/types';

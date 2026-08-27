@@ -431,8 +431,7 @@ export interface SummonExcuse {
 /** Seeded from the scan's first full run (2026-08-27) — every entry INVESTIGATED before excusal
  *  (verify-before-alarm): the outcome named in `why` is what the lane actually measured. */
 export const SUMMON_EXCUSED: Readonly<Record<string, SummonExcuse>> = {
-  dw_exgalloper: {
-    kind: 'needs-triage',
-    why: 'gilded Ex-Galloper\'s Echo copies carry the EXACT gilded stats (12/12) but a PLAIN golden flag, while Mirrorhide Rhino\'s scSummonCopy copies keep the Gilded badge — the two copy-summon factories disagree on whether "exact copy" includes the badge. Owner question: should echoSummonCopyNoEcho\'s copy of a Gilded body render Gilded? (Behavioural stats are exact either way — presentation/copy-semantics ruling, not a magnitude bug.)',
-  },
+  // dw_exgalloper's needs-triage entry (gilded copies carried a PLAIN badge) was RESOLVED and deleted
+  // 2026-08-27: owner ruling q-copy-gilded-badge — "exact copies without the echo, so they would be gilded
+  // too" — echoSummonCopyNoEcho now passes the source's golden flag, matching scSummonCopy.
 };

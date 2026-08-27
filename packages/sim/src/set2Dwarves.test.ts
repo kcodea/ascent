@@ -262,6 +262,25 @@ describe('tranche B — combat-trigger Dwarves', () => {
     expect(s[0]!.attack).toBe(4);
     expect(s[0]!.health, 'the copy was born dead').toBeGreaterThan(0);
   });
+
+  it('a GILDED Exgalloper summons GILDED exact copies; a plain one stays plain', () => {
+    // q-copy-gilded-badge (owner REVISE 2026-08-27): "gilded exgalloper's summons should be exact copies
+    // without the echo, so they would be gilded too" — matching Mirrorhide's scSummonCopy convention.
+    const copiesOf = (r: { events: readonly { type: string }[] }) => r.events
+      .filter((e) => e.type === 'summon')
+      .map((e) => (e as unknown as { minion?: { cardId?: string; golden?: boolean; attack: number } }).minion)
+      .filter((m): m is { cardId?: string; golden?: boolean; attack: number } => m?.cardId === 'dw_exgalloper');
+    const gilded = { ...mine('dw_exgalloper', 12, 12), golden: true } as BoardMinion;
+    const g = copiesOf(fight([gilded], [foe(20, 40)]));
+    expect(g.length, 'gilded: exactly two exact copies').toBe(2);
+    for (const c of g) {
+      expect(c.golden, 'the copy of a gilded body carries the Gilded badge').toBe(true);
+      expect(c.attack, 'the copy is exact-stat, not re-doubled').toBe(12);
+    }
+    const p = copiesOf(fight([mine('dw_exgalloper', 4, 6)], [foe(20, 20)]));
+    expect(p.length).toBe(1);
+    expect(!!p[0]!.golden, 'a plain source still summons a plain copy').toBe(false);
+  });
 });
 
 describe('tranche C — the five that needed machinery', () => {

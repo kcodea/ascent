@@ -83,6 +83,11 @@ export const ENFORCEMENT_LANES: Record<string, EnforcementLane> = {
     file: 'packages/sim/src/docbot/orderGoldens.test.ts',
     what: 'the pinned resolution-order goldens (G1..G6): clash death order, Start-of-Combat side order, live improve steps mid-wave, shop aura-before-Shout',
   },
+  // ── Doc Bot 2.0 WP B: the contract knowledge foundation ──
+  contractExtraction: {
+    file: 'packages/sim/src/docbot/contractExtract.test.ts',
+    what: 'the ContentContract extraction + triangle-screening lane: every active content object holds a draft contract; the corroboration screen re-alarms when a covered aspect (phase reachability, text amounts/summons, play differential) disagrees with a member\'s extracted shape — the convention questions\' shared pin until WP D\'s per-contract oracle lands',
+  },
   textOracleSummons: {
     file: 'packages/sim/src/docbot/textOracleSummons.test.ts',
     what: 'summon-effect reconciliation against printed text: copy counts, exact-stat carriage, and the gilded-badge convention on summoned copies',

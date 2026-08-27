@@ -8,6 +8,9 @@ coverage/
 # local-only handoff artifacts (Bug Board work orders, pulled bug capsules) — never committed
 .local/
 ascent-itch*.zip
+# Pulled bug reports (bugs:pull) + other local-only dev state. Raw reports carry player text and
+# account/machine identifiers — never commit them (docs/bug-reports.md).
+.local/
 *.tsbuildinfo
 *.log
 .DS_Store

@@ -6928,6 +6928,9 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
    No cursor rules here — buttons inherit the gauntlet pointer from the global rule. */
 .bugscenario { width: calc(300 * var(--u)); max-width: 92vw; }
 .sb-bugpaste { resize: vertical; min-height: calc(34 * var(--u)); font-size: calc(11 * var(--u)); }
+/* QA scenario bridge: the headless runner's compact summary — monospace, scrolls inside itself, never widens
+   the panel. (No cursor rule — dev text block, not interactive.) */
+.sb-qa-summary { margin: calc(4 * var(--u)) 0 0; padding: calc(6 * var(--u)); max-height: calc(140 * var(--u)); overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font-family: ui-monospace, Consolas, monospace; font-size: calc(10 * var(--u)); background: rgba(0, 0, 0, 0.35); border-radius: calc(6 * var(--u)); }
 .bsc-id { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bsc-banner { background: #3a2413; border: 1px solid #a0632a; border-radius: calc(6 * var(--u)); color: #f0b978; font-size: calc(12 * var(--u)); line-height: 1.4; padding: calc(6 * var(--u)) calc(8 * var(--u)); }
 .bsc-badges { gap: calc(4 * var(--u)); }

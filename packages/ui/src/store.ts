@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { CARD_INDEX, activeSet, type SetId } from '@game/content';
-import { CONFIG, HEROES, playableHeroes, practiceHeroes, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, resolveServerProfile, isPlayerAction, missingCardIds, nextOpponent, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, withLiveTelemetry, type TelemetryLog, beginDerive, observeAction, finishDerive, type DeriveState, reduce, reduceWithPresentation, resolveLobbyRating, serialize, snapshotBoard, socBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, combatFrameOf, deltaShopFrameOf, shopFrameOf, runRecord, type DragPath, type ReplayFrame, type ReplayV2, type ShopView, appendInspectEvent, type InspectEvent, type InspectSnapshot, createLobbyRun, createTutorialRun, type TutorialCourse, type PracticeConfig, DEFAULT_PRACTICE_CONFIG, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction } from '@game/sim';
+import { CONFIG, HEROES, playableHeroes, practiceHeroes, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, resolveServerProfile, isPlayerAction, missingCardIds, nextOpponent, parseQaScenario, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, withLiveTelemetry, type TelemetryLog, beginDerive, observeAction, finishDerive, type DeriveState, reduce, reduceWithPresentation, resolveLobbyRating, serialize, snapshotBoard, socBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, combatFrameOf, deltaShopFrameOf, shopFrameOf, runRecord, type DragPath, type ReplayFrame, type ReplayV2, type ShopView, appendInspectEvent, type InspectEvent, type InspectSnapshot, createLobbyRun, createTutorialRun, type TutorialCourse, type PracticeConfig, DEFAULT_PRACTICE_CONFIG, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction } from '@game/sim';
 import type { PresentationBatch } from '@game/core';
 import { combatTimelineFrom } from './choreographer/combatTimeline';
 import { setCombatDraftProvider, setCombatLiveProvider } from './choreographer/combatHolds';
@@ -595,6 +595,15 @@ interface GameStore {
   loadBugScenario: (raw: string) => { ok: boolean; errors: string[] };
   /** Drop the loaded bug scenario (panel close). The sandbox run, if entered, stays — it is disposable. */
   clearBugScenario: () => void;
+  /** QA SCENARIO bridge (Docbot handoff §4.5, PR 2): parse a `QaScenarioV1` file's text (the keystone format
+   *  from `@game/sim`) and enter Scene Builder mode with its hydrated state — the SAME suppression-guarded
+   *  sandbox door as `loadBugScenario` above: `sandbox: true` is what `writeSave`/`flushSave`/the dispatch
+   *  autosave (saves + Continue), `runRecordsDraft` (replay drafts), `bugReportAvailability`, and both
+   *  dispatch upload gates (fight results + the run-end block) key on — no production write can fire.
+   *  Validation is `parseQaScenario`'s (stale content ids fail with the offending id named, §4.6); a combat
+   *  scenario's pinned opponent is re-pinned into `servedBoards` so the authored fight is what resolves.
+   *  DEV-only surface: only the Scene Builder panel (itself `import.meta.env.DEV`-gated) calls this. */
+  loadQaScenario: (raw: string) => { ok: boolean; errors: string[] };
 }
 
 /** See `GameStore.bugScenario`. */
@@ -1911,6 +1920,45 @@ export const useGame = create<GameStore>((set, get) => ({
     return { ok: true, errors: [] };
   },
   clearBugScenario: () => set({ bugScenario: null }),
+  // ── QA SCENARIO bridge (PR 2): import a QaScenarioV1 into the Scene Builder sandbox ─────────────────────
+  loadQaScenario: (raw) => {
+    const { scenario, errors } = parseQaScenario(raw);
+    if (!scenario) return { ok: false, errors };
+    let run: RunState;
+    try {
+      run = deserialize(scenario.state); // the game's ONE supported hydration — heals older run schemas
+    } catch (e) {
+      return { ok: false, errors: [`state failed to deserialize: ${e instanceof Error ? e.message : String(e)}`] };
+    }
+    // `parseQaScenario` already vetted board/hand/shop card ids structurally; this second check runs on the
+    // HYDRATED state (tokens materialized, healed fields) — same belt-and-braces as the save loader, because
+    // entering a run with a dead id white-screens on the first `CARD_INDEX` deref deep in a render.
+    const missing = missingCardIds(run);
+    if (missing.length > 0) {
+      return { ok: false, errors: [`hydrated state references unknown card id${missing.length > 1 ? 's' : ''} ${missing.join(', ')} — the content was removed or renamed; regenerate the scenario`] };
+    }
+    // A combat scenario's authored opponent is authoritative: re-pin it for the state's wave so the fight the
+    // player watches is the one the headless runner resolves (the runner does exactly this pin).
+    if (scenario.combat?.opponent) {
+      run.servedBoards = { ...(run.servedBoards ?? {}), [run.wave]: scenario.combat.opponent };
+    }
+    dropBoardFx();
+    // Enter Scene Builder mode — `sandbox: true` is the load-bearing write barrier (see the interface note
+    // and `loadBugScenario` above, whose entry sequence this mirrors field for field).
+    const sandboxRun: RunState = { ...run, sandbox: true };
+    if (sandboxRun.lobby) warmLobbyDrivers(sandboxRun); // a deserialized lobby has an empty driver cache
+    set({
+      run: sandboxRun,
+      // Per-run store resets, exactly as `startSceneBuilder`/`loadBugScenario`: no held transaction, fresh
+      // capture accumulators. `savedRun` is deliberately NOT cleared — the player's real Continue stays.
+      presentationTx: null, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null,
+      heroChoices: null, showTitle: false, avatarPickerOpen: false,
+      replayActions: [], capturedBoards: [], replayFrames: beginReplayCapture(sandboxRun), replayPartial: false,
+      telemetryLog: emptyTelemetryLog(), deriveState: beginDerive(sandboxRun),
+      sandboxReplay: false,
+    });
+    return { ok: true, errors: [] };
+  },
 }));
 
 // The autosave writes at turn boundaries (see `dispatch`), so leaving mid-turn needs an explicit flush or the

@@ -99,6 +99,8 @@ function boardCardExemplar(): Required<BoardCard> {
     summonBonus: 2,
     attackSeen: 3,
     bredCount: 2,
+    bredThisTurn: 1,
+    impBank: { attack: 2, health: 5 },
     rallySpreadAtk: 4,
     overflowBonus: 5,
     hpGrantBonus: 3,

@@ -59,6 +59,9 @@ import { beginCourseFresh } from './tutorial/tutorialProfile';
 import { buildRunHistoryEntry, careerStats, clearRunHistory, type RunHistoryEntry } from './runHistory';
 import { clearProfile, loadProfile, saveProfile } from './profileStore';
 import { turnClock } from './turnClock';
+import { BUG_REPORT_TX_TOAST, bugReportAvailability, buildBugReportEnvelope, buildClientContext, captureIncidentCapsule, exportBugReportJson } from './bug-report/bugReportCapture';
+import { validateBugReportDraft } from './bug-report/bugReportValidation';
+import type { BugReportDraft } from './bug-report/bugReportTypes';
 
 
 // Serve real, buildable boards as enemies: load the COMMITTED opponent pool (`OPPONENT_POOL_DATA`, baked by
@@ -559,6 +562,22 @@ interface GameStore {
   showPatchNotes: boolean;
   openPatchNotes: () => void;
   closePatchNotes: () => void;
+  /** BUG REPORTER (PR 1, blueprint §5.2) — the Ctrl+B incident reporter. `openBugReport` captures the
+   *  immutable incident capsule SYNCHRONOUSLY before the modal opens; the capsule lives only here (never in
+   *  RunState, replayActions, saves, or replay frames). Recruit folds `bugReportOpen` into `overlayOpen`, so
+   *  the recruit clock + combat playback pause through the existing overlay path. */
+  bugReportOpen: boolean;
+  bugReportDraft: BugReportDraft | null;
+  /** The §4.3 "finish the current effect" toast (shown when Ctrl+B lands mid presentation transaction). */
+  bugReportToast: string | null;
+  /** Bumps when Ctrl+B fires while the reporter is already open — the modal refocuses its textarea. */
+  bugReportFocusSeq: number;
+  openBugReport: () => void;
+  updateBugReportDraft: (partial: Partial<Pick<BugReportDraft, 'issueType' | 'description'>>) => void;
+  cancelBugReport: () => void;
+  /** PR 1: validate → build the envelope → DEV JSON export → close. PR 2 replaces the export with the
+   *  IndexedDB queue + async upload (the envelope built here is that queue's exact payload). */
+  submitBugReport: () => Promise<void>;
 }
 
 const randomSeed = (): number => Math.floor(Math.random() * 0x7fffffff);
@@ -1741,6 +1760,54 @@ export const useGame = create<GameStore>((set, get) => ({
   showPatchNotes: false,
   openPatchNotes: () => set({ showPatchNotes: true }),
   closePatchNotes: () => set({ showPatchNotes: false }),
+  // ── BUG REPORTER (PR 1) ────────────────────────────────────────────────────────────────────────────────
+  bugReportOpen: false,
+  bugReportDraft: null,
+  bugReportToast: null,
+  bugReportFocusSeq: 0,
+  openBugReport: () => {
+    const s = get();
+    // Repeated Ctrl+B while open FOCUSES the textarea, never closes/recaptures (§1.2).
+    if (s.bugReportOpen) { set({ bugReportFocusSeq: s.bugReportFocusSeq + 1 }); return; }
+    const availability = bugReportAvailability(s);
+    if (availability === 'silent') return;
+    if (availability === 'toast') {
+      // §4.3: mid End-of-Turn choreography — never freeze a transaction that owns a deferred commit.
+      set({ bugReportToast: BUG_REPORT_TX_TOAST });
+      setTimeout(() => { if (get().bugReportToast === BUG_REPORT_TX_TOAST) set({ bugReportToast: null }); }, 2600);
+      return;
+    }
+    // Capture SYNCHRONOUSLY, before the modal opens (§3.1) — the capsule is deep-frozen and never updates
+    // while the player types. Capture dispatches nothing and touches neither the clock nor the replay log.
+    const capsule = captureIncidentCapsule(s);
+    set({ bugReportOpen: true, bugReportDraft: { issueType: 'other', description: '', capsule } });
+  },
+  updateBugReportDraft: (partial) => {
+    const draft = get().bugReportDraft;
+    if (!draft) return;
+    set({ bugReportDraft: { ...draft, ...partial } }); // the capsule rides along untouched (immutable)
+  },
+  // Cancel discards the description AND the captured capsule (§1.3); the recruit clock resumes from its
+  // exact displayed value purely by `overlayOpen` flipping back — nothing here writes the clock.
+  cancelBugReport: () => set({ bugReportOpen: false, bugReportDraft: null }),
+  submitBugReport: async () => {
+    const s = get();
+    const draft = s.bugReportDraft;
+    if (!draft) return;
+    if (!validateBugReportDraft(draft).ok) return; // the modal disables Submit; belt-and-braces
+    const envelope = buildBugReportEnvelope(
+      draft.capsule,
+      draft.description.trim(),
+      draft.issueType,
+      buildClientContext({ account: s.account, playerName: s.playerName, setId: draft.capsule.setId }),
+    );
+    // PR 2 SEAM: `enqueueBugReport(envelope)` (IndexedDB) + async upload slot in exactly here — the envelope
+    // is the queue's payload verbatim. PR 1 ships the DEV JSON export so a tester's report is a
+    // deserializable artifact today; prod builds just log the id until the queue lands.
+    if (import.meta.env.DEV) exportBugReportJson(envelope);
+    else console.info(`[bug-report] captured ${envelope.reportId} — local export/upload arrives with the report queue (PR 2)`);
+    set({ bugReportOpen: false, bugReportDraft: null });
+  },
 }));
 
 // The autosave writes at turn boundaries (see `dispatch`), so leaving mid-turn needs an explicit flush or the

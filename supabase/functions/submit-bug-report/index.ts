@@ -40,9 +40,13 @@ const str = (v: unknown, max = 256): string | null =>
 
 /** Coarse dedupe fingerprint (blueprint §10): stable, low-cardinality fields only — never the free text. */
 async function fingerprintOf(env: Record<string, unknown>, ctx: Record<string, unknown>): Promise<string> {
-  const combat = (ctx.combat ?? null) as { rawEvents?: unknown[] } | null;
-  const tail = Array.isArray(combat?.rawEvents)
-    ? combat.rawEvents.slice(-8).map((e) => {
+  // The capsule folds the raw log into combat.result.events (PR 1 avoided serializing it twice);
+  // accept rawEvents too for schema tolerance.
+  const combat = (ctx.combat ?? null) as { rawEvents?: unknown[]; result?: { events?: unknown[] } } | null;
+  const events = Array.isArray(combat?.result?.events) ? combat.result.events
+    : Array.isArray(combat?.rawEvents) ? combat.rawEvents : null;
+  const tail = events
+    ? events.slice(-8).map((e) => {
         const ev = e as Record<string, unknown>;
         return `${String(ev.type ?? '?')}:${String(ev.source ?? ev.cardId ?? '')}`;
       }).join(',')

@@ -48,11 +48,51 @@ const mul = (self: Minion): number => (self.golden ? 2 : 1);
  * NOT routed through here: Rune of the Spellstone counting a RUBY as a cast (see `playRubyOn`). A Ruby is not
  * a Shop Spell, so a "your Shop Spells cast again" grant must not multiply it.
  */
+/**
+ * TEMPORAL-WINDOW PROVENANCE (Docbot handoff §5.3) — a PURELY OBSERVATIONAL tap on every per-instance
+ * Avenge window read. `avengeCountFor` is the single chokepoint every minion-level avenge factory counts
+ * through, so one hook here sees every observation with full instance provenance:
+ *
+ *   · which source INSTANCE observed (uid + cardId + side — two same-card bodies stay distinct);
+ *   · its ENTRY SEQUENCE (`baseline`: the side's death tally when this body's window opened — 0 for a
+ *     start-of-fight body, stamped at placeSummon / the Rise return otherwise);
+ *   · the OBSERVED EVENT SEQUENCE (`count`: the side's raw death tally at this observation);
+ *   · the counter BEFORE/AFTER the window subtraction (`count` raw vs `seen` in-window).
+ *
+ * Trigger EMISSION is deliberately not duplicated here — it is already provable from the event log (the
+ * factory's own buff/summon/improve/... events, stamped `avenge:true`), and an oracle must read emission
+ * from the authoritative log rather than trusting a side channel. The observer is undefined outside tests
+ * (the docbot temporal-window suite installs it), costs one null-check per observation, and can never
+ * change gameplay: it receives values, returns nothing, and nothing here reads it back.
+ */
+export interface AvengeWindowObservation {
+  /** The observing source instance. */
+  sourceUid: string;
+  sourceCard: string;
+  side: Side;
+  /** The side's death tally when this instance's observation window opened (its entry sequence). */
+  baseline: number;
+  /** The side's raw death tally at this observation (the observed event sequence). */
+  count: number;
+  /** The instance's in-window counter: `count - baseline` — what the factory actually thresholds on. */
+  seen: number;
+}
+let avengeWindowObserver: ((o: AvengeWindowObservation) => void) | undefined;
+/** Install (or clear, with no argument) the test-only temporal-window observer. Docbot suite use only. */
+export function setAvengeWindowObserver(fn?: (o: AvengeWindowObservation) => void): void {
+  avengeWindowObserver = fn;
+}
+
 /** A minion's OWN view of the side's Avenge tally — the run total minus its post-Rise baseline (owner ruling
  *  2026-08-08: a risen body's Avenge progress restarts at 0). Every minion-level avenge factory must count
  *  through this rather than reading the payload count raw, or a Rise carries the old progress through. */
 export function avengeCountFor(self: Minion, count: number): number {
-  return count - (self.avengeBaseline ?? 0);
+  const seen = count - (self.avengeBaseline ?? 0);
+  avengeWindowObserver?.({
+    sourceUid: self.uid, sourceCard: self.cardId, side: self.side,
+    baseline: self.avengeBaseline ?? 0, count, seen,
+  });
+  return seen;
 }
 
 export function castInCombat(ctx: CombatContext, self: Minion, body: () => void): void {

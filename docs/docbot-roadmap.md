@@ -65,7 +65,7 @@ multipliers, the combat-castable registry). **After: 7 of 8.**
 | #933 triples kept temporary keywords | MISSED | **CAUGHT** | copy-semantics probe |
 | #897 Echohorn chain dropped Sylus | MISSED | **CAUGHT** | chain-multiplier oracle (exact 2×) |
 | #1111 Beefy/Lantern Light fizzled | MISSED | **CAUGHT** | combat-castable registry |
-| #1176 Avenge counted the whole fight | MISSED | MISSED | honest gap: per-instance counter windows need the contract layer; no deterministic summon-an-Avenge-body stager exists, and its own regression test lives in-repo |
+| #1176 Avenge counted the whole fight | MISSED | **CAUGHT** (2026-08-27) | temporal-window oracle (`temporalWindow.test.ts`): the reinjection zeroes the summoned body's `avengeBaseline` and three window scenarios fail — late-entry baseline, independent same-card windows, and the R-AVWIN-02 pin |
 
 ### Catalog wave 2 (same day): 14 entries, 13 CAUGHT
 
@@ -84,7 +84,16 @@ Instrument/fixture lessons, recorded in the tests: three same-id fixture bodies 
 there is NO genuinely plain demon in content (Heckbinder ate the fixture — the Drakko lesson, again); a
 narrow one-site reinjection was masked by a neighbouring fixed site (the catalog entry now strips all four).
 
-**Standing: 13 of 14 catalog bugs caught; #1176 remains the honest miss** (per-instance counter windows).
+**Standing: 14 of 14 catalog bugs caught** (measured 2026-08-27). The last miss — #1176's per-instance
+counter-window class — fell to the **temporal-window oracle** (PR 3, `packages/sim/src/docbot/`
+`temporalWindow.test.ts`): the eleven owner rulings of 2026-08-26 entered as approved rules
+(`R-AVWIN-01…11`), provenance telemetry on `avengeCountFor` (source instance, entry sequence, observed
+sequence, counter before/after), the §5.4 scenario family run through the real `simulate()` + two
+`QaScenarioV1` copy-semantics fixtures, and three further window families (once-per-combat latches,
+first-N windows, per-source improve counters). Proof: applying `reinject.py 1176-avenge-arrival` fails 3
+temporal-window tests. Two RULE VIOLATIONS were found and pinned (not fixed, not excused): **R-AVWIN-02**
+(the summoning death leaks into the summoned source's window) and **R-AVWIN-10** (a source dying in a
+simultaneous batch observes the batch-mates resolved before it) — see `KNOWN_VIOLATIONS` in the test.
 
 The five in-sample bugs (this week's, which tripwires 1–8 were built from) were already caught by their
 sabotage checks — 12 of 13 total. The harness catalog grows one entry per interesting future fix; a MISS is

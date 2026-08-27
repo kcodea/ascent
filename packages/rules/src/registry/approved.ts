@@ -92,6 +92,7 @@ export const APPROVED_RULES: GameRule[] = [
   // ── Per-instance temporal windows (Docbot handoff §5.0, owner rulings 2026-08-26) ──────────────────────
   {
     id: 'R-AVWIN-01',
+    enforcement: { kind: 'oracle', refs: ['temporalWindow'] },
     title: 'Late entry starts at zero',
     statement:
       'An Avenge source summoned after earlier friendly deaths does not count those earlier deaths. Its '
@@ -105,6 +106,7 @@ export const APPROVED_RULES: GameRule[] = [
   },
   {
     id: 'R-AVWIN-02',
+    enforcement: { kind: 'oracle', refs: ['temporalWindow'] },
     title: 'The summoning death does not count',
     statement:
       'If a friendly death summons an Avenge source, that same death is outside the new source\'s '
@@ -120,6 +122,7 @@ export const APPROVED_RULES: GameRule[] = [
   },
   {
     id: 'R-AVWIN-03',
+    enforcement: { kind: 'oracle', refs: ['temporalWindow'] },
     title: 'Exact copies inherit progress',
     statement:
       'An exact copy inherits accrued Avenge progress and used/unused once-per-combat state from the '
@@ -136,6 +139,7 @@ export const APPROVED_RULES: GameRule[] = [
   },
   {
     id: 'R-AVWIN-04',
+    enforcement: { kind: 'oracle', refs: ['temporalWindow'] },
     title: 'Plain copies reset progress',
     statement:
       'A plain copy begins with zero accrued counters and all instance-scoped triggers unused.',
@@ -148,6 +152,7 @@ export const APPROVED_RULES: GameRule[] = [
   },
   {
     id: 'R-AVWIN-05',
+    enforcement: { kind: 'oracle', refs: ['temporalWindow'] },
     title: 'Gilding sums permanent card-owned progression additively',
     statement:
       'When copies combine into a Gilded minion, their permanent bonus progression is additive: copies '
@@ -164,6 +169,7 @@ export const APPROVED_RULES: GameRule[] = [
   },
   {
     id: 'R-AVWIN-06',
+    enforcement: { kind: 'oracle', refs: ['temporalWindow'] },
     title: 'Deaths count individually',
     statement:
       'Avenge evaluates each friendly death separately. A source with Avenge (3) observing six eligible '
@@ -175,6 +181,7 @@ export const APPROVED_RULES: GameRule[] = [
   },
   {
     id: 'R-AVWIN-07',
+    enforcement: { kind: 'oracle', refs: ['temporalWindow'] },
     title: 'Avenge multipliers multiply resolution, not progress',
     statement:
       '"Your Avenges trigger twice" causes two resolutions when the threshold is reached. It does not '
@@ -188,6 +195,7 @@ export const APPROVED_RULES: GameRule[] = [
   },
   {
     id: 'R-AVWIN-08',
+    enforcement: { kind: 'oracle', refs: ['temporalWindow'] },
     title: 'Used state is part of an exact copy',
     statement:
       'If the source has already spent a once-per-combat effect, an exact copy also has that effect '
@@ -202,6 +210,7 @@ export const APPROVED_RULES: GameRule[] = [
   },
   {
     id: 'R-AVWIN-09',
+    enforcement: { kind: 'oracle', refs: ['temporalWindow'] },
     title: 'Rise creates a fresh observation window',
     statement:
       'When an Avenge source dies and Rises, the returned instance restarts with zero accrued Avenge '
@@ -215,6 +224,7 @@ export const APPROVED_RULES: GameRule[] = [
   },
   {
     id: 'R-AVWIN-10',
+    enforcement: { kind: 'oracle', refs: ['temporalWindow'] },
     title: 'A source dying in a simultaneous batch observes none of that batch',
     statement:
       'If an Avenge source dies in the same death instance/batch as other friendly minions, it counts '
@@ -231,6 +241,7 @@ export const APPROVED_RULES: GameRule[] = [
   },
   {
     id: 'R-AVWIN-11',
+    enforcement: { kind: 'oracle', refs: ['temporalWindow'] },
     title: 'Rise returns at base Attack and 1 Health',
     statement:
       'A minion that Rises returns with its base Attack and exactly 1 Health, discarding its accumulated '

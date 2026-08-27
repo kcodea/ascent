@@ -45,7 +45,8 @@ charge-glyph anchoring all stay untouched — the new files are drop-in variants
   blue-white front — its own element, compositor-only `translateX` — sweeping in sync so the seam
   is always under the glow.
 - **Exit (combat → recruit):** the same transition reversed (right→left), riding alongside the
-  existing `combatout`/`combatin` unit crossfade. Skip-combat exits through the same reverse wipe.
+  existing `combatout`/`combatin` unit crossfade. Skip-combat stays in the combat phase, so no wipe
+  plays on Skip.
 - Perf: both animations are one-shot (allowed under the paint-animation rules); clip-path + transform
   only, no looping paint properties. Profile once in the prod build.
 - A small wipe state machine in `Recruit.tsx` (`idle → wipingIn → combat → wipingOut → idle`),

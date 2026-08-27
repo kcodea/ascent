@@ -24,6 +24,8 @@ import { ensureDefsReady } from './fx/playDef';
 import { SceneBuilder } from './SceneBuilder';
 import { BalancePanel } from './BalancePanel';
 import { PatchNotes } from './PatchNotesOverlay';
+import { BugReportModal } from './bug-report/BugReportModal';
+import { installBugReportHotkey } from './bug-report/bugReportHotkey';
 import { PerfHud } from './PerfHud';
 import { perfMonitor, perfEnabledByFlag } from './perfMonitor';
 import { Icon } from './Icon';
@@ -231,6 +233,12 @@ export function Game() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
+  // BUG REPORTER (PR 1): the ONE application-level Ctrl+B listener (blueprint §5.3) — mounted here at the
+  // root shell, not inside Recruit. All policy (excluded surfaces, the presentationTx toast, repeat-press
+  // focus) lives in the store's `openBugReport`; the modal's own capture-phase handler claims Esc/Tab while
+  // it is open, so the two listeners below never fire underneath it.
+  useEffect(() => installBugReportHotkey(), []);
+
   // Tab toggles the Compendium — from the title (browse the whole set) or in a run (scoped to it). Not
   // during hero select. `preventDefault` stops the browser's focus-cycling.
   useEffect(() => {
@@ -283,6 +291,9 @@ export function Game() {
       {/* Patch Notes — opened from the title only (owner ask 2026-08-24). Mounted here beside the other
           full-screen overlays; its own `showPatchNotes` gate keeps it inert until the title opens it. */}
       <PatchNotes />
+      {/* Bug reporter (Ctrl+B) — self-gates on `bugReportOpen` / `bugReportToast`. Pausing is Recruit's
+          `overlayOpen` job, not this component's. */}
+      <BugReportModal />
 
       {/* Topmost layers: the pre-run hero picker (self-gates on heroChoices), and above it the title
           screen (self-gates on showTitle) — the front door into Ascent / Practice / Settings. */}

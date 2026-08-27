@@ -68,7 +68,7 @@ export interface HeroDuelConfig {
 
 // Mirror the styles.css fallbacks. Timings are the shipped feel; placement is the anchor that reads correctly
 // against the board frame at the default stage scale.
-// Owner-tuned baseline (2026-08-25): the values the owner dialed in and asked to ship as the defaults. Keep
+// Owner-tuned baseline (2026-08-25, re-tuned 2026-08-27: slower heavier strike, quicker settle). Keep
 // the styles.css `--hd-*` fallbacks in sync with these (they mirror this table).
 const DEFAULTS: HeroDuelConfig = {
   oppScale: 2.5,
@@ -104,9 +104,9 @@ const DEFAULTS: HeroDuelConfig = {
   tallyStagger: 130,
   tallyFly: 430,
   pillHold: 260,
-  strikeSpeed: 1.35,
-  impactPower: 1,
-  settleMs: 290,
+  strikeSpeed: 1.15,
+  impactPower: 3.45,
+  settleMs: 110,
 };
 
 export const HERO_DUEL_RANGES: Record<keyof HeroDuelConfig, [number, number, number]> = {

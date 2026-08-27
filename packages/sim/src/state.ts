@@ -153,6 +153,12 @@ export interface BoardCard {
    *  `Minion.effects` list to push onto; a BoardCard has only its printed def, so grafts live here and every
    *  recruit dispatcher reads them alongside the def via `instanceEffects`. */
   grantedEffects?: EffectDef[];
+  /** ASHEN HEIR (shop half, owner ruling 2026-08-26): Imp stats banked when an Imp died with no living Imp to
+   *  receive them — paid out to the next Imp summoned. Mirrors the combat instance field. */
+  impBank?: { attack: number; health: number };
+  /** BROOD MATRON (shop half, owner ruling 2026-08-26): friend-death summons this turn, against the card's
+   *  `max` cap — reset at the turn rollover, mirroring the per-fight combat counter. */
+  bredThisTurn?: number;
   /** Mana-per-turn this card grants *beyond* its own def (a Money Bot magnetized into it).
    *  The card's own `manaPerTurn` is read from its def; this holds only the absorbed bonus,
    *  so it survives the magnetize-merge + triple and is lost when the card is sold. */

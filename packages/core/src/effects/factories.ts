@@ -1497,6 +1497,25 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   /** ASHEN HEIR, the fallback half — when an Imp died with no Imp left to take its stats, the bank waits here
    *  and the next Imp to ARRIVE inherits it, emptying it. Deaths that happened while a living Imp was available
    *  never reach the bank at all (see `impInheritOnDeath`), so this only fires for a wiped-out Imp board. */
+  /** REFLECTOR (combat half, owner ruling 2026-08-26): a Ruby played ON THIS mid-fight (Bloodbinder family)
+   *  also lands on a random friendly. "(Once per turn)" reads as once per combat here — flagged on the
+   *  instance, which a fresh fight resets by construction. */
+  onRubyPlayedSpreadRandom: (ctx, self, params, payload) => {
+    const p = payload as { rubyAttack?: number; rubyHealth?: number };
+    const flagged = self as Minion & { reflectorSpread?: boolean };
+    if (flagged.reflectorSpread) return;
+    const a = num(p.rubyAttack, 0);
+    const h = num(p.rubyHealth, 0);
+    if (a <= 0 && h <= 0) return;
+    const others = ctx.living(self.side).filter((m) => m !== self);
+    if (others.length === 0) return;
+    for (let r = 0; r < num(params.count, 1) * mul(self); r++) {
+      const t = others[ctx.rng.int(others.length)]!;
+      ctx.buff(t, a, h, self.name);
+    }
+    flagged.reflectorSpread = true;
+  },
+
   impInheritOnSummon: (ctx, self, _params, payload) => {
     const born = (payload as MinionPayload).minion;
     if (!born || born === self || born.side !== self.side || self.dead) return;

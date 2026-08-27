@@ -4074,6 +4074,7 @@ function advanceCombat(s: RunState): void {
   s.alesCastThisTurn = 0; // Chef Gary Toast's per-turn Ale tally resets each wave (Bucky read it at faceOmen)
   s.summonTauntsNextCombat = undefined; // Summoning Bulwark is for the NEXT combat only — spent or not, it lapses
   s.tavernBuyBonusTurn = undefined; // Merchant's Chorus: the THIS-TURN shop buff does not carry across the rollover
+  for (const c of s.board) if (c.bredThisTurn) c.bredThisTurn = 0; // Brood Matron's shop breed cap resets per turn (owner ruling 2026-08-26)
   s.runeWarDrumUsedThisTurn = undefined; // Rune of the War Drum: its one charge comes back each turn
   // Batch-4 per-turn gates (Shared Pour / Aftermarket / Hoardcalling all read "the first … each turn").
   s.sharedPourUsedThisTurn = undefined;

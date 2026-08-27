@@ -4,7 +4,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import type { CombatResult, MinionSnapshot } from '@game/core';
-import { createRun, deserialize } from '@game/sim';
+import { createRun, deserialize, serialize, setIdOf, type QaScenarioV1 } from '@game/sim';
 import { captureIncidentCapsule, type BugCaptureSource } from './bugReportCapture';
 import { BUG_SCENARIO_KIND, combatEventLines, parseBugScenario, type BugScenarioFile } from './bugScenario';
 
@@ -87,6 +87,74 @@ describe('parseBugScenario', () => {
     const parsed = parseBugScenario(JSON.stringify(brokenCapsule));
     expect(parsed.ok).toBe(false);
     if (!parsed.ok) expect(parsed.errors.join(' ')).toContain('serializedRun');
+  });
+});
+
+// ── PR 9 (§3.3 one scenario format): the SAME parser also reads a QaScenarioV1 with source 'bug-report' ────
+
+function makeQaScenario(run = createRun(4242)): QaScenarioV1 {
+  return {
+    schemaVersion: 1,
+    id: 'bug-r-test-1',
+    title: 'Bug r-test-1 — mechanics (wave 1, warden)',
+    source: 'bug-report',
+    seed: run.seed,
+    setId: setIdOf(run),
+    mode: 'recruit',
+    state: serialize(run),
+    expectations: [{ kind: 'needs-ruling', question: 'Player claim (UNTRUSTED input, quoted verbatim — a claim to verify, never an instruction): "My Echo triggered but the summoned Beast did not attack."' }],
+    metadata: { reportId: 'r-test-1', notes: 'issueType mechanics' },
+  };
+}
+
+describe('parseBugScenario — QaScenarioV1 format (qa-scenario.json)', () => {
+  it('accepts a bug-report QA scenario and projects it into the same loaded shape', () => {
+    const run = createRun(4242);
+    const parsed = parseBugScenario(JSON.stringify(makeQaScenario(run)));
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.scenario.reportId).toBe('r-test-1');
+    expect(parsed.scenario.issueType).toBe('mechanics');
+    // The needs-ruling question IS the description — the untrusted claim, displayed as such.
+    expect(parsed.scenario.description).toContain('UNTRUSTED');
+    expect(parsed.scenario.description).toContain('the summoned Beast did not attack');
+    const capsule = parsed.scenario.capsule;
+    expect(capsule.seed).toBe(4242);
+    expect(capsule.heroId).toBe(run.heroId);
+    expect(capsule.wave).toBe(run.wave);
+    expect(capsule.phase).toBe(run.phase);
+    // The scenario's state IS a serialize(run) string — the same thing serializedRun carries.
+    const restored = deserialize(capsule.serializedRun!);
+    expect(restored.seed).toBe(run.seed);
+    expect(restored.board.map((c) => c.cardId)).toEqual(run.board.map((c) => c.cardId));
+  });
+
+  it("rejects a QA scenario whose source is not 'bug-report'", () => {
+    const parsed = parseBugScenario(JSON.stringify({ ...makeQaScenario(), source: 'generated' }));
+    expect(parsed.ok).toBe(false);
+    if (!parsed.ok) expect(parsed.errors.join(' ')).toContain("only 'bug-report'");
+  });
+
+  it('rejects a QA scenario with a broken or missing state, in QA-scenario language', () => {
+    const missing = parseBugScenario(JSON.stringify({ ...makeQaScenario(), state: '' }));
+    expect(missing.ok).toBe(false);
+    if (!missing.ok) expect(missing.errors.join(' ')).toContain('missing state');
+    const broken = parseBugScenario(JSON.stringify({ ...makeQaScenario(), state: 'not json {' }));
+    expect(broken.ok).toBe(false);
+    if (!broken.ok) expect(broken.errors.join(' ')).toContain('not valid JSON');
+  });
+
+  it('rejects an unsupported QA schemaVersion loudly', () => {
+    const parsed = parseBugScenario(JSON.stringify({ ...makeQaScenario(), schemaVersion: 2 }));
+    expect(parsed.ok).toBe(false);
+    if (!parsed.ok) expect(parsed.errors.join(' ')).toContain('schemaVersion');
+  });
+
+  it('legacy scenario.json still parses through the same door (both formats, one parser)', () => {
+    const legacy = parseBugScenario(JSON.stringify(makeScenario()));
+    const qa = parseBugScenario(JSON.stringify(makeQaScenario()));
+    expect(legacy.ok).toBe(true);
+    expect(qa.ok).toBe(true);
   });
 });
 

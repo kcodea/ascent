@@ -8,7 +8,7 @@
  * stays real — the same offline no-ops every other store-importing test runs with.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createRun, type BoardCard, type RunState } from '@game/sim';
+import { createRun, serialize, setIdOf, type BoardCard, type RunState } from '@game/sim';
 import { captureIncidentCapsule, type BugCaptureSource } from './bugReportCapture';
 import { BUG_SCENARIO_KIND } from './bugScenario';
 
@@ -77,6 +77,32 @@ describe('loadBugScenario', () => {
     expect(res.errors.length).toBeGreaterThan(0);
     expect(useGame.getState().run).toBe(before);
     expect(useGame.getState().bugScenario).toBeNull();
+  });
+
+  it('loads a QaScenarioV1 (qa-scenario.json, PR 9) through the same door into a sandbox run', () => {
+    const run = createRun(90217);
+    const qaJson = JSON.stringify({
+      schemaVersion: 1,
+      id: 'bug-r-qa-load',
+      title: 'Bug r-qa-load — mechanics',
+      source: 'bug-report',
+      seed: run.seed,
+      setId: setIdOf(run),
+      mode: 'recruit',
+      state: serialize(run),
+      expectations: [{ kind: 'needs-ruling', question: 'Player claim (UNTRUSTED): "the shop repeated"' }],
+      metadata: { reportId: 'r-qa-load', notes: 'issueType mechanics' },
+    });
+    const res = useGame.getState().loadBugScenario(qaJson);
+    expect(res.ok).toBe(true);
+    const s = useGame.getState();
+    expect(s.bugScenario?.reportId).toBe('r-qa-load');
+    expect(s.bugScenario?.issueType).toBe('mechanics');
+    expect(s.bugScenario?.description).toContain('UNTRUSTED');
+    expect(s.bugScenario?.readOnly).toBe(false);
+    expect(s.run.sandbox).toBe(true);
+    expect(s.run.seed).toBe(run.seed);
+    expect(s.run.board.map((c: BoardCard) => c.cardId)).toEqual(run.board.map((c) => c.cardId));
   });
 
   it('enters Scene Builder mode with the captured run, flagged sandbox, keeping its original mode', () => {

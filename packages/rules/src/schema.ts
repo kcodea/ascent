@@ -27,6 +27,27 @@ export interface RuleEvidence {
   quote?: string;
 }
 
+/**
+ * ENFORCEMENT — how an approved ruling is machine-checked (the §10.3 closed loop: every decision becomes
+ * an executable contract or an explicit classification).
+ *  · `scenario` / `property` — refs are repo-relative test-file paths; a ref that doesn't exist on disk
+ *    fails the registry integrity test (anti-rot: a deleted pin un-enforces its rule LOUDLY).
+ *  · `oracle`   — refs are lane names from `ENFORCEMENT_LANES` (a Doc Bot scan/registry that re-alarms if
+ *    the pinned behaviour drifts); unknown lane names fail loudly the same way.
+ *  · `manual`   — valid ONLY for genuinely visual/design rulings; requires `reason`.
+ */
+export type EnforcementKind = 'scenario' | 'oracle' | 'property' | 'manual';
+
+export interface RuleEnforcement {
+  kind: EnforcementKind;
+  /** Test-file paths (scenario/property) or lane names (oracle). May be empty only for `manual`. */
+  refs: string[];
+  /** Required for `manual`: why this ruling genuinely cannot carry an executable probe. */
+  reason?: string;
+  /** ISO date the refs were last confirmed to pin the ruling (set when a human/agent actually checked). */
+  lastVerifiedAt?: string;
+}
+
 export interface GameRule {
   /** Stable, never recycled. Approved rules: `R-<DOMAIN>-<NN>`. Pending queue items: `q-<queue>-<item>`. */
   id: string;
@@ -50,6 +71,10 @@ export interface GameRule {
   sourceQueue?: string;
   /** Content ids this rule governs, when it is content-specific. */
   contentIds?: string[];
+  /** How this rule is machine-checked. Hand-authored rules declare it inline; generated (pending) rules
+   *  get theirs from `RULE_ENFORCEMENT` in enforcement.ts so it survives re-seeding. An approved/revised
+   *  rule with NO enforcement lands in the approved-but-unenforced queue (ratcheted in enforcement.test.ts). */
+  enforcement?: RuleEnforcement;
 }
 
 /** An owner decision recorded by the Rulebook Triage board (or by hand). Keyed by rule id. */

@@ -146,5 +146,10 @@ export function toggleLoadScreenPreview(): boolean {
   return true;
 }
 
-// Reflect vars at load (dev: persisted values; prod: DEFAULTS — matches the index.html fallbacks either way).
-applyLoadScreenVars();
+// Reflect vars at load ONLY when the user has SAVED tuner values. With no saved config the RESPONSIVE
+// index.html fallbacks (a `min()` on the icon/bar) must stand — pinning the flat DEFAULT px here overrides that
+// `min()` and makes the splash logo JUMP from the responsive size up to a flat 570px the instant the bundle
+// mounts, on any viewport where 42vh/42vw < 570 (owner report 2026-08-26). A tuned dev build is already applied
+// pre-paint by index.html's inline script, so it stays WYSIWYG with no jump. (`applyLoadScreenVars` is a no-op
+// in prod regardless, so this only changes the untuned-DEV path — which now matches prod.)
+if (typeof localStorage !== 'undefined' && localStorage.getItem(KEY) !== null) applyLoadScreenVars();

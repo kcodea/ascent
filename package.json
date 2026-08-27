@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "ASCENT — deterministic asynchronous auto-battler: Battlegrounds-style shop + an eight-seat elimination lobby. Pure engine + DOM UI.",
+  "description": "ASCENT â€” deterministic asynchronous auto-battler: Battlegrounds-style shop + an eight-seat elimination lobby. Pure engine + DOM UI.",
   "workspaces": [
     "packages/*",
     "apps/*"
@@ -39,6 +39,7 @@
     "docbot:corpus": "tsx packages/tools/src/qa-corpus-build.ts",
     "docbot:nightly": "tsx packages/tools/src/docbot-nightly.ts",
     "docbot:contracts": "tsx packages/tools/src/docbot-contracts.ts",
+    "docbot:text": "tsx packages/tools/src/docbot-text.ts",
     "bugs:pull": "tsx packages/tools/src/bugs-pull.ts",
     "bugs:list": "tsx packages/tools/src/bugs-list.ts",
     "bugs:repro": "tsx packages/tools/src/bugs-repro.ts",

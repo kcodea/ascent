@@ -52,6 +52,20 @@ describe('parseBugScenario', () => {
     expect(parseBugScenario('"just a string"').ok).toBe(false);
   });
 
+  it('refuses a MENU report politely — no run evidence, never "broken capsule"', () => {
+    const menu = makeScenario();
+    const scenario = {
+      ...menu,
+      capsule: { ...menu.capsule, phase: 'menu', mode: 'menu', heroId: 'none', seed: 0, wave: 0, serializedRun: null, actions: [], combat: null },
+    };
+    const parsed = parseBugScenario(JSON.stringify(scenario));
+    expect(parsed.ok).toBe(false);
+    if (!parsed.ok) {
+      expect(parsed.errors.join(' ')).toContain('Menu report — no run evidence');
+      expect(parsed.errors.join(' ')).not.toContain('Capsule missing serializedRun');
+    }
+  });
+
   it('rejects a wrong kind', () => {
     const bad = { ...makeScenario(), kind: 'replay-v2' };
     const parsed = parseBugScenario(JSON.stringify(bad));
@@ -83,7 +97,7 @@ describe('scenario round trip', () => {
     const parsed = parseBugScenario(raw);
     expect(parsed.ok).toBe(true);
     if (!parsed.ok) return;
-    const restored = deserialize(parsed.scenario.capsule.serializedRun);
+    const restored = deserialize(parsed.scenario.capsule.serializedRun!); // non-menu capsule always carries one
     expect(restored.seed).toBe(run.seed);
     expect(restored.heroId).toBe(run.heroId);
     expect(restored.wave).toBe(run.wave);

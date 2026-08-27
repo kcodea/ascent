@@ -1862,6 +1862,9 @@ export const useGame = create<GameStore>((set, get) => ({
     const parsed = parseBugScenario(raw);
     if (!parsed.ok) return parsed;
     const sc = parsed.scenario;
+    // parseBugScenario refuses menu reports (phase 'menu' — no run evidence) and requires a non-empty
+    // serializedRun for everything else, so a null here is unreachable; the guard keeps it honest.
+    if (sc.capsule.serializedRun === null) return { ok: false, errors: ['Menu report — no run evidence to load.'] };
     let run: RunState;
     try {
       run = deserialize(sc.capsule.serializedRun); // the game's supported serialization — heals older schemas

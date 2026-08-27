@@ -142,6 +142,14 @@ export function opponentBoard(snap: BoardSnapshot): BoardMinion[] {
     ...(m.rallySpellWeld ? { rallySpellWeld: m.rallySpellWeld } : {}), // Perfect Core Rally welded onto a host
     // Per-instance COMBAT state — must be restored or the served board fights differently than it was captured:
     ...(m.copiedEcho?.length ? { copiedEcho: m.copiedEcho.map((e) => ({ ...e, ...(e.params ? { params: { ...e.params } } : {}) })) } : {}), // Gravetwin: copied Echo procs on combat death
+    ...(m.grantedEffects?.length ? { grantedEffects: m.grantedEffects.map((e) => ({ ...e, ...(e.params ? { params: { ...e.params } } : {}) })) } : {}), // runtime shop grafts: a served grafted Deathrattle fires (owner ruling 2026-08-27)
+    ...(m.echoStripped ? { echoStripped: true as const } : {}), // "without Echo" mark: a served stripped copy stays silent (owner ruling 2026-08-27)
+    ...(m.impBank ? { impBank: { ...m.impBank } } : {}), // Ashen Heir: the captured bank pays out mid-fight (cloned — the pool's copy is never spent)
+    // One-combat spell/power marks (owner ruling 2026-08-27): a served board fights WITH the marks it was
+    // captured with, exactly like bloodlust above.
+    ...(m.resummon ? { resummon: true as const } : {}), // Soren's Reclaim: the exact instance the player marked
+    ...(m.partingCry ? { partingCry: true as const } : {}), // Parting Cry: the served copy's Shout fires on death
+    ...(m.closedCasket ? { closedCasket: true as const } : {}), // Closed Casket: the served copy detonates at Start of Combat
     ...(m.bloodbinderMode ? { bloodbinderMode: m.bloodbinderMode } : {}), // Bloodbinder: this fight's Rally stat (atk/hp)
     ...(m.bloodlustRally ? { bloodlustRally: true as const } : {}), // Bloodlust weld: on-attack Rally
     ...(m.universalTribe ? { universalTribe: true as const } : {}), // Anomaly Reactor "All": every tribe in combat
@@ -153,11 +161,14 @@ export function opponentBoard(snap: BoardSnapshot): BoardMinion[] {
     ...(m.buffs && m.buffs.length ? { buffs: m.buffs.map((b) => ({ ...b })) } : {}), // recruit-buff breakdown for inspect
   }));
   // Enemy hero power — Soren's Reclaim: a board captured from a Soren run arms it, so ONE enemy minion is
-  // destroyed at Start of Combat (its Deathrattle fires) and an exact copy is resummoned when there's room. The
-  // capture doesn't record which minion the player marked, so pick the best deterministic target: the
-  // highest-stat minion that HAS a Deathrattle (the only kind worth reclaiming — a vanilla minion would just be
-  // a tempo loss). Ties break to the earliest slot; if no minion has a Deathrattle, mark nothing.
-  if (snap.heroId === 'soren') {
+  // destroyed at Start of Combat (its Deathrattle fires) and an exact copy is resummoned when there's room.
+  // LEGACY captures (pre-2026-08-27, no `marksCarried`) didn't record which minion the player marked, so we
+  // reconstruct with a deterministic heuristic: the highest-stat minion that HAS a Deathrattle (the only kind
+  // worth reclaiming — a vanilla minion would just be a tempo loss). Ties break to the earliest slot; if no
+  // minion has a Deathrattle, mark nothing. New captures carry the EXACT player-marked instance on the minion
+  // itself (restored above) — the heuristic could mis-mark a different body than the player chose, so it is
+  // skipped entirely for them, including a genuinely markless new-capture board.
+  if (snap.heroId === 'soren' && !snap.marksCarried) {
     let best = -1, bestScore = -1;
     for (let i = 0; i < board.length; i++) {
       if (!CARD_INDEX[board[i]!.cardId]?.effects.some((e) => e.on === 'onDeath')) continue;

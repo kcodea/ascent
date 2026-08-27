@@ -72,6 +72,22 @@ export const PATCH_NOTES: PatchNote[] = [
   },
   {
     date: '2026-08-27',
+    label: 'Opponent Fidelity',
+    changes: [
+      {
+        category: 'Card Change',
+        text: "Opponent boards now fight at full fidelity — spell marks, grafted Echoes, and Ashen Heir's bank all carry into battle.",
+        details: [
+          'Parting Cry, Closed Casket and Soren’s Reclaim now work on opponent boards too — a served copy of a board fights with the same marks its owner paid for (Reclaim even destroys the exact minion its owner chose).',
+          'An Echo gained in the shop (Echo Mimic, Grave Body, and friends) now actually fires when that minion dies in combat — yours and your opponents’.',
+          'A copy summoned "without Echo" now stays Echo-less in combat as well, instead of quietly regaining it when the fight starts.',
+          'Ashen Heir’s banked Imp stats now ride into battle: an Imp summoned mid-fight collects the bank. The bank itself stays with your Heir between fights.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-08-27',
     label: 'Load Screen Fix',
     changes: [
       { category: 'UI / Info', text: 'The loading bar now fills smoothly over the load, and the logo no longer jumps in size a beat after the screen appears.' },

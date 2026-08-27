@@ -55,8 +55,15 @@ export interface BoardSnapshot {
   /** Σ(attack + health) over the board — the strength index used to match opponents by wave + power. */
   power: number;
   /** The board it fought: cardId + final (recruit-buffed) stats + keywords (+ golden / summonBonus).
-   *  Run-specific instance refs (sourceUid, resummon) are dropped — they don't transfer. */
+   *  Run-specific instance refs (sourceUid, uid) are dropped — they don't transfer. One-combat spell/power
+   *  marks (bloodlust, partingCry, closedCasket, resummon) ARE carried since 2026-08-27: the snapshot is the
+   *  board that actually fought. */
   minions: BoardMinion[];
+  /** TRUE for boards captured since the 2026-08-27 snapshot-carries change: the one-combat marks (resummon /
+   *  partingCry / closedCasket) travel on the minions themselves. `opponentBoard` uses this to skip its legacy
+   *  Soren-Reclaim reconstruction heuristic — the exact player-marked instance is already recorded, and a
+   *  markless new capture genuinely had no mark. Absent on legacy captures → the heuristic still runs. */
+  marksCarried?: boolean;
   /** Run seed — provenance, and (with the action log) lets the exact run be replayed. */
   seed: number;
   /** Provenance of this board in the opponent pool (self / friend / house / synthetic). Optional for
@@ -222,6 +229,14 @@ function cleanBoard(s: RunState): BoardMinion[] {
     // board fought differently than the real one did — Gravetwin's copied Echo never procced, Bloodbinder's Rally
     // used the wrong stat, the Bloodlust weld-Rally + the "All tribes" flag went missing.
     ...(c.copiedEcho?.length ? { copiedEcho: c.copiedEcho.map((e) => ({ ...e, ...(e.params ? { params: { ...e.params } } : {}) })) } : {}), // Gravetwin: its copied Deathrattle procs on combat death
+    ...(c.grantedEffects?.length ? { grantedEffects: c.grantedEffects.map((e) => ({ ...e, ...(e.params ? { params: { ...e.params } } : {}) })) } : {}), // runtime shop grafts (Echo Mimic / Grave Body / Contract Rewrite / Rune of Rebirth) — a served board's grafted Deathrattle fires (owner ruling 2026-08-27)
+    ...(c.echoStripped ? { echoStripped: true as const } : {}), // "without Echo" mark — a served shop-stripped copy stays silent in combat too (owner ruling 2026-08-27)
+    ...(c.impBank ? { impBank: { ...c.impBank } } : {}), // Ashen Heir: the bank rides the snapshot (cloned), so a served Heir pays out mid-fight (owner ruling 2026-08-27)
+    // ONE-COMBAT SPELL/POWER MARKS (owner ruling 2026-08-27, q-snap-one-combat-marks): carried exactly like
+    // `bloodlust` (the same shape) — the snapshot is the board that actually FOUGHT, marks included.
+    ...(c.resummon ? { resummon: true as const } : {}), // Soren's Reclaim: the exact instance the player marked
+    ...(c.partingCry ? { partingCry: true as const } : {}), // Parting Cry: its Shout fires when the served copy dies
+    ...(c.closedCasket ? { closedCasket: true as const } : {}), // Closed Casket: the served copy detonates at Start of Combat
     ...(c.bloodbinderMode ? { bloodbinderMode: c.bloodbinderMode } : {}), // Bloodbinder: which stat this fight's Rally gives Fodder (atk/hp)
     ...(c.bloodlustRally ? { bloodlustRally: true as const } : {}), // Bloodlust weld: on-attack Rally (give a friendly minion this minion's Attack)
     ...(c.allTribes ? { universalTribe: true as const } : {}), // Anomaly Reactor "All": counts as every tribe in combat
@@ -301,6 +316,8 @@ export function snapshotBoard(s: RunState): BoardSnapshot {
     result: s.lastCombat?.result,
     power: sumPower(minions),
     minions,
+    marksCarried: true, // one-combat marks travel on the minions (2026-08-27) — gates the legacy Soren heuristic off
+
     seed: s.seed,
     ...(spellPowerAtk || spellPowerHp ? { spellPower: { attack: spellPowerAtk, health: spellPowerHp } } : {}),
     ...(s.deathrattlesTriggered ? { deathrattles: s.deathrattlesTriggered } : {}),

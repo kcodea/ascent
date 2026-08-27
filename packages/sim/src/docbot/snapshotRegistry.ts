@@ -117,16 +117,13 @@ export const SNAPSHOT_EXCUSED: Readonly<Record<string, SnapshotExcuse>> = {
   'capture:shoutTick': { boundary: 'capture', kind: 'shop-only', why: 'Scalechanter Shout cadence; Shouts fire at recruit (a scouted Scalechanter shows its printed base text)' },
   'capture:orbitTick': { boundary: 'capture', kind: 'shop-only', why: 'Orbit cadence counter; Orbit is a shop mechanic (phaseRegistry: TRIGGER_PHASES.orbit = recruit)' },
 
-  // ── 'capture': NO ruling — several are the PR #453 shape (a combat mark carried for some spells, not others) ──
-  'capture:resummon': { boundary: 'capture', kind: 'needs-triage', why: 'one-combat Reclaimer mark, active for the very combat being captured — bloodlust (the same shape) IS carried by cleanBoard; a served board fights without its destroy+resummon' },
-  'capture:partingCry': { boundary: 'capture', kind: 'needs-triage', why: 'same shape as resummon: a served board’s Parting Cry never fires' },
-  'capture:closedCasket': { boundary: 'capture', kind: 'needs-triage', why: 'same shape as resummon: a served board’s Closed Casket never detonates at Start of Combat' },
+  // ── 'capture': NO ruling remains for rallySpreadAtk only. The 2026-08-27 snapshot-carries PR resolved the
+  // rest of this block per owner rulings (q-snap-impbank / q-snap-one-combat-marks / q-snap-granted-effects /
+  // q-snap-echostripped): resummon, partingCry, closedCasket, grantedEffects, impBank and echoStripped now
+  // SURVIVE capture (cleanBoard carries them like bloodlust; opponentBoard + instantiate honor them).
   'capture:rallySpreadAtk': { boundary: 'capture', kind: 'needs-triage', why: 'Sunmane’s run-long shop accrual; NEITHER cleanBoard NOR the reducer’s own player mapping seeds combat with it (combat re-accrues per fight via arena.rallySpreadAtk) — whether the shop value should seed the fight is unruled' },
-  'capture:grantedEffects': { boundary: 'capture', kind: 'needs-triage', why: 'runtime-grafted EffectDefs (recruit.ts pushes onDeath grafts); BoardMinion has no field for them and the player combat mapping drops them too, so a grafted Deathrattle is silent in combat and on served boards' },
-  // OWNER-RULINGS PR (2026-08-27): the two fields that PR itself added — classified the day they were born.
+  // OWNER-RULINGS PR (2026-08-27): classified the day it was born.
   'capture:bredThisTurn': { boundary: 'capture', kind: 'turn-scoped', why: 'Brood Matron per-turn breed cap; the reducer zeroes it at every turn rollover, and a served board starts a fresh turn — dropping it is correct' },
-  'capture:impBank': { boundary: 'capture', kind: 'needs-triage', why: 'Ashen Heir’s banked Imp stats: the combat factory impInheritOnSummon READS self.impBank, so a served Ashen Heir fights without a bank the live one holds — whether the bank should ride the snapshot is unruled (BoardMinion has no impBank slot either, so the shop-to-combat half of the question is the same gap)' },
-  'capture:echoStripped': { boundary: 'capture', kind: 'needs-triage', why: 'the shop Echo dispatch skips marked bodies (recruit.ts) but neither capture nor the player combat mapping carries the mark, so combat-side dispatch cannot honor it' },
 
   // ── 'combat' (BoardMinion → CombatResult.initial): the live Minion acts on these; the snapshot is display ──
   'combat:align': { boundary: 'combat', kind: 'consumed-live', why: 'instantiate carries it onto Minion.align for alignment-gated combat effects; the initial snapshot has no alignment reader' },
@@ -142,14 +139,20 @@ export const SNAPSHOT_EXCUSED: Readonly<Record<string, SnapshotExcuse>> = {
   'combat:partingCry': { boundary: 'combat', kind: 'consumed-live', why: 'fires the Shout on death mid-fight; the events narrate it' },
   'combat:closedCasket': { boundary: 'combat', kind: 'consumed-live', why: 'detonates at Start of Combat as a real death; the events narrate it' },
   'combat:copiedEcho': { boundary: 'combat', kind: 'folded', why: 'appended into Minion.effects at instantiate (minion.ts), so it fires as a real Deathrattle — the value crosses, just not under this name' },
+  // Snapshot-carries PR (2026-08-27): the three BoardMinion fields that PR added — classified the day they were born.
+  'combat:grantedEffects': { boundary: 'combat', kind: 'folded', why: 'appended into Minion.effects at instantiate alongside copiedEcho (minion.ts), so a grafted Deathrattle fires as a real one — the value crosses, not under this name' },
+  'combat:echoStripped': { boundary: 'combat', kind: 'folded', why: 'consumed at instantiate: the onDeath effects are filtered OUT of Minion.effects (the same rule combat’s stripEchoes applies), so the mark’s meaning crosses as the absence of the Echo' },
+  'combat:impBank': { boundary: 'combat', kind: 'consumed-live', why: 'instantiate clones it onto Minion.impBank, which impInheritOnSummon spends during the fight (buff events narrate the payout); the initial snapshot has no bank reader' },
   'combat:text': { boundary: 'combat', kind: 'display-only', why: 'server-row display bake for STORED final boards (types.ts docblock: "Absent on pool/combat snapshots"); combat recomputes live text from state' },
   'combat:goldenText': { boundary: 'combat', kind: 'display-only', why: 'the golden variant of `text`, same contract' },
   'combat:addedTribes': { boundary: 'combat', kind: 'needs-triage', why: 'folded into the live Minion.tribe2 at instantiate (behaviour holds) but the snapshot carries neither addedTribes nor tribe2, so a spell-added tribe cannot be derived from initial for the combat display' },
   'combat:chefGrantedLast': { boundary: 'combat', kind: 'needs-triage', why: 'MinionSnapshot DECLARES the field (types.ts) but simulate’s snapshot() never populates it — declared-but-dead at this boundary; the live Minion still spends it via Rune of the Chef' },
 };
 
-/** The pinned needs-triage backlog (two-sided ratchet — see snapshotFidelity.test.ts). */
-export const SNAPSHOT_TRIAGE_COUNT = 9;
+/** The pinned needs-triage backlog (two-sided ratchet — see snapshotFidelity.test.ts).
+ *  2026-08-27: 9 → 3 — the snapshot-carries PR resolved capture:{resummon, partingCry, closedCasket,
+ *  grantedEffects, impBank, echoStripped} per the q-snap-* owner rulings. */
+export const SNAPSHOT_TRIAGE_COUNT = 3;
 
 /**
  * The boundary diff: which of `sourceFields` are MISSING from `output`, following per-boundary renames.

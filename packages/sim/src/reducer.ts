@@ -2898,6 +2898,9 @@ function reduceCore(state: RunState, action: Action): RunState {
         partingCry: b.partingCry,   // Parting Cry: its Shout fires when it dies this fight
         closedCasket: b.closedCasket, // Closed Casket: Echo at SoC, suppressed on the first death
         ...(b.copiedEcho?.length ? { copiedEcho: b.copiedEcho } : {}), // Gravetwin: its copied Echo procs on combat death
+        ...(b.grantedEffects?.length ? { grantedEffects: b.grantedEffects } : {}), // runtime shop grafts (Echo Mimic / Grave Body / Contract Rewrite / Rune of Rebirth) fire in combat too (owner ruling 2026-08-27)
+        ...(b.echoStripped ? { echoStripped: true } : {}), // "summon a copy WITHOUT the Echo": the shop mark now silences the Echo in combat too (owner ruling 2026-08-27)
+        ...(b.impBank ? { impBank: { ...b.impBank } } : {}), // Ashen Heir: the SHOP bank rides in (cloned — combat spends its own copy; the run's bank persists)
         ...(b.bloodbinderMode ? { bloodbinderMode: b.bloodbinderMode } : {}), // Bloodbinder: seed this fight's Rally stat (atk/hp)
         ...(b.allTribes ? { universalTribe: true } : {}), // Anomaly Reactor: "All" types → universal in combat
         buffs: b.buffs, // recruit-phase buff breakdown → carried into combat so the inspect panel itemizes it

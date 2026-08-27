@@ -62,22 +62,33 @@ export interface BugReportEnvelope {
   client: BugClientContext;
 }
 
+/**
+ * MENU REPORTS (owner ask 2026-08-27): the reporter also opens from the MAIN MENU, with no live run — "so I
+ * can log them without being in a game … and explain it". A menu capsule carries NO run evidence (the
+ * player's description is the payload) and stamps SENTINELS that satisfy the deployed intake as-is (the Edge
+ * Function requires heroId/seed/wave/phase/patch and must not change): `heroId: 'none'`, `seed: 0`,
+ * `wave: 0`, `phase: 'menu'`, `mode: 'menu'`, `serializedRun: null`, empty actions/frames, `combat: null`.
+ * Every consumer of run evidence (bugs:repro, the Scene Builder bridge) must treat `phase: 'menu'` as
+ * "menu report — no run evidence" and decline gracefully, never as a corrupt run.
+ */
+export const BUG_MENU_PHASE = 'menu' as const;
+
 export interface BugIncidentCapsule {
   runId: string;
   seed: number;
   heroId: string;
-  mode: RunMode;
+  mode: RunMode | typeof BUG_MENU_PHASE;
   setId: string;
   wave: number;
-  phase: Phase;
+  phase: Phase | typeof BUG_MENU_PHASE;
   shopTier: number;
   /** The recruit clock's displayed value at report-open (read from `turnClock`, never written); null outside
    *  the recruit phase. */
   timerSecondsRemaining: number | null;
 
   /** Exact state at report-open time — `serialize(run)`, the game's supported serialization. The primary
-   *  reproduction fixture: `deserialize` this. */
-  serializedRun: string;
+   *  reproduction fixture: `deserialize` this. NULL for a menu report (`phase: 'menu'`) — there is no run. */
+  serializedRun: string | null;
 
   /** Deterministic history through the incident: the run's full state-changing action log (with the seed this
    *  reconstructs the path to the incident). Full list by design — cap only after real payload measurements

@@ -50,7 +50,10 @@ export function validateBugReportEnvelope(envelope: BugReportEnvelope): BugValid
     if (!c.setId) errors.push('Capsule missing setId.');
     if (typeof c.wave !== 'number') errors.push('Capsule missing wave.');
     if (!c.phase) errors.push('Capsule missing phase.');
-    if (typeof c.serializedRun !== 'string' || c.serializedRun.length === 0) errors.push('Capsule missing serializedRun.');
+    // A MENU capsule (phase 'menu') carries no run — serializedRun is explicitly null, never a string.
+    if (c.phase === 'menu') {
+      if (c.serializedRun !== null) errors.push('Menu capsule must not carry a serializedRun.');
+    } else if (typeof c.serializedRun !== 'string' || c.serializedRun.length === 0) errors.push('Capsule missing serializedRun.');
     if (!Array.isArray(c.actions)) errors.push('Capsule missing actions.');
     if (!Array.isArray(c.currentWaveFrames) || !Array.isArray(c.previousWaveFrames)) errors.push('Capsule missing wave frames.');
   }

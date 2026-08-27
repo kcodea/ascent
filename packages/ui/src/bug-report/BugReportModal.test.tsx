@@ -118,6 +118,21 @@ describe('BugReportModal', () => {
     expect(document.activeElement).toBe(text);
   });
 
+  it('menu report: MENU badge, no-run auto-context line, no round/hero chips', () => {
+    useGame.setState({
+      showTitle: true, heroChoices: null, practiceSetupOpen: false, replaying: false, presentationTx: null,
+      bugReportOpen: false, bugReportDraft: null, bugReportToast: null,
+    });
+    act(() => { useGame.getState().openBugReport(); });
+    const el = mount();
+    expect(useGame.getState().bugReportDraft!.capsule.phase).toBe('menu');
+    expect(el.querySelector('.bgrbadge')?.textContent).toBe('MENU');
+    expect(el.textContent).toContain('No run active — this report carries your description and build info.');
+    expect(el.textContent).toContain('Main menu');
+    expect(el.textContent).not.toContain('Round 0');
+    expect(el.textContent).not.toContain('Current turn and latest combat log attached');
+  });
+
   it('renders the §4.3 toast off bugReportToast', () => {
     useGame.setState({ bugReportOpen: false, bugReportDraft: null, bugReportToast: 'Finish the current effect, then press Ctrl+B again.' });
     const el = mount();

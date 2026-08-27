@@ -10,8 +10,10 @@
  * module deliberately does not import the store, so the dependency stays one-way (store → capture).
  */
 import { serialize, type Action, type ReplayFrame, type RunState } from '@game/sim';
+import { activeSet } from '@game/content';
 import { turnClock } from '../turnClock';
 import {
+  BUG_MENU_PHASE,
   BUG_REPORT_SCHEMA_VERSION,
   type BugClientContext,
   type BugIncidentCapsule,
@@ -36,8 +38,9 @@ export interface BugCaptureSource {
 }
 
 /** Where (and whether) the reporter may open — one authority shared by the store and any future entry point.
- *  'silent' = do nothing (excluded surface); 'toast' = show the §4.3 presentation-transaction toast. */
-export type BugReportAvailability = 'ok' | 'silent' | 'toast';
+ *  'silent' = do nothing (excluded surface); 'toast' = show the §4.3 presentation-transaction toast;
+ *  'menu' = the MAIN MENU (title screen) — open with a reduced no-run capsule (`captureMenuCapsule`). */
+export type BugReportAvailability = 'ok' | 'menu' | 'silent' | 'toast';
 
 export const BUG_REPORT_TX_TOAST = 'Finish the current effect, then press Ctrl+B again.';
 
@@ -49,10 +52,15 @@ export function bugReportAvailability(s: {
   presentationTx: unknown;
   run: Pick<RunState, 'mode' | 'sandbox' | 'phase'>;
 }): BugReportAvailability {
-  // Excluded surfaces (owner decisions 2026-08-26): title, hero select (+ the practice setup screen in front
+  // Excluded surfaces (owner decisions 2026-08-26): hero select (+ the practice setup screen in front
   // of it), tutorial runs, the replay viewer, Scene Builder, and a finished run. Practice + lobby/live play
   // are ENABLED (`mode: 'practice'` simply stamps the capsule).
-  if (s.showTitle || s.heroChoices !== null || s.practiceSetupOpen) return 'silent';
+  // The MAIN MENU is now a reporting surface too (owner ask 2026-08-27): a no-run "menu" capsule. The title
+  // check runs FIRST because the store's `run` while `showTitle` is up is leftover from the previous run —
+  // none of its flags (sandbox/tutorial/gameover) may veto a menu report. The ceremony screens layered over
+  // or after the title (hero select, practice setup) still decline.
+  if (s.showTitle) return s.heroChoices !== null || s.practiceSetupOpen || s.replaying ? 'silent' : 'menu';
+  if (s.heroChoices !== null || s.practiceSetupOpen) return 'silent';
   if (s.replaying) return 'silent';
   if (s.run.sandbox) return 'silent';
   if (s.run.mode === 'tutorial') return 'silent';
@@ -73,8 +81,11 @@ function deepFreeze<T>(value: T): T {
   return value;
 }
 
+/** The overlay + inspect flags both capture paths read — a structural subset of `BugCaptureSource`. */
+export type BugOverlaySource = Omit<BugCaptureSource, 'run' | 'replayActions' | 'replayFrames' | 'combatSpeed'>;
+
 /** Which full-screen overlay was up at capture (UI diagnostics — the reporter itself isn't one yet). */
-function modalKindOf(s: BugCaptureSource): string | null {
+function modalKindOf(s: BugOverlaySource): string | null {
   if (s.showLeaderboard) return 'leaderboard';
   if (s.showRankings) return 'rankings';
   if (s.showRecentGames) return 'recentGames';
@@ -119,6 +130,46 @@ export function captureIncidentCapsule(s: BugCaptureSource): BugIncidentCapsule 
       pendingTargetCardId: run.pendingTarget?.cardId ?? null,
       modalKind: modalKindOf(s),
       draggingCardUid: null, // drag state is Recruit-local (and a drag ends when the modal opens)
+      viewport: typeof window !== 'undefined'
+        ? { width: window.innerWidth, height: window.innerHeight, devicePixelRatio: window.devicePixelRatio || 1 }
+        : { width: 0, height: 0, devicePixelRatio: 1 },
+    },
+    contextTruncated: [],
+  };
+  return deepFreeze(capsule);
+}
+
+/**
+ * MENU capture (owner ask 2026-08-27): the reduced capsule for a report opened from the MAIN MENU, where no
+ * run exists. No run evidence — `serializedRun: null`, empty action/frame arrays, `combat: null` — the
+ * player's description IS the payload. The sentinels (`heroId: 'none'`, `seed: 0`, `wave: 0`,
+ * `phase/mode: 'menu'`) satisfy the deployed `submit-bug-report` intake as-is (it requires those fields and
+ * must not change). `setId` reads the LIVE registry — this is a pre-run surface, exactly the sanctioned
+ * `activeSet()` situation (same as the title-screen Compendium), and it pins which card data the client was
+ * showing. Full client context still rides in the envelope via `buildClientContext`.
+ */
+export function captureMenuCapsule(s: BugOverlaySource): BugIncidentCapsule {
+  const capsule: BugIncidentCapsule = {
+    runId: BUG_MENU_PHASE,
+    seed: 0,
+    heroId: 'none',
+    mode: BUG_MENU_PHASE,
+    setId: activeSet().id,
+    wave: 0,
+    phase: BUG_MENU_PHASE,
+    shopTier: 0,
+    timerSecondsRemaining: null,
+    serializedRun: null,
+    actions: [],
+    currentWaveFrames: [],
+    previousWaveFrames: [],
+    combat: null,
+    ui: {
+      selectedCardUid: null,
+      selectedCardId: s.inspect?.cardId ?? null,
+      pendingTargetCardId: null,
+      modalKind: modalKindOf(s),
+      draggingCardUid: null,
       viewport: typeof window !== 'undefined'
         ? { width: window.innerWidth, height: window.innerHeight, devicePixelRatio: window.devicePixelRatio || 1 }
         : { width: 0, height: 0, devicePixelRatio: 1 },

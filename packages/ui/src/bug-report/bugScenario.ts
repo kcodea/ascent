@@ -68,7 +68,10 @@ export function parseBugScenario(raw: string): BugScenarioParse {
     if (typeof c.setId !== 'string' || !c.setId) errors.push('Capsule missing setId.');
     if (typeof c.wave !== 'number') errors.push('Capsule missing wave.');
     if (typeof c.phase !== 'string' || !c.phase) errors.push('Capsule missing phase.');
-    if (typeof c.serializedRun !== 'string' || c.serializedRun.length === 0) errors.push('Capsule missing serializedRun.');
+    // A MENU report (logged from the main menu, owner ask 2026-08-27) carries NO run evidence by design —
+    // there is nothing to load into the Scene Builder. Refuse politely, never as "broken capsule".
+    if (c.phase === 'menu') errors.push('Menu report — no run evidence. This report was logged from the main menu and carries only the player’s description; there is no run to load.');
+    else if (typeof c.serializedRun !== 'string' || c.serializedRun.length === 0) errors.push('Capsule missing serializedRun.');
     if (!Array.isArray(c.actions)) errors.push('Capsule missing actions.');
   }
   if (errors.length > 0) return { ok: false, errors };

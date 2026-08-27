@@ -72,6 +72,13 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'UI / Info',
+        text: 'You can now report a problem from the main menu too — hit "Report a Problem" (or Ctrl+B) on the title screen to describe something you saw earlier, no run needed.',
+        details: [
+          'A menu report carries your description and build info — perfect for logging something you spotted mid-game and wanted to write up later.',
+        ],
+      },
+      {
+        category: 'UI / Info',
         text: 'Press Ctrl+B any time during a run to report a problem — the game attaches the details automatically and the shop timer pauses while you type.',
         details: [
           'Describe what happened in your own words; the current turn and latest combat details ride along on their own.',

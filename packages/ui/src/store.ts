@@ -59,7 +59,7 @@ import { beginCourseFresh } from './tutorial/tutorialProfile';
 import { buildRunHistoryEntry, careerStats, clearRunHistory, type RunHistoryEntry } from './runHistory';
 import { clearProfile, loadProfile, saveProfile } from './profileStore';
 import { turnClock } from './turnClock';
-import { BUG_REPORT_TX_TOAST, bugReportAvailability, buildBugReportEnvelope, buildClientContext, captureIncidentCapsule, exportBugReportJson } from './bug-report/bugReportCapture';
+import { BUG_REPORT_TX_TOAST, bugReportAvailability, buildBugReportEnvelope, buildClientContext, captureIncidentCapsule, captureMenuCapsule, exportBugReportJson } from './bug-report/bugReportCapture';
 import { validateBugReportDraft } from './bug-report/bugReportValidation';
 import { attemptBugReportUpload, enqueueBugReport, flushBugReportQueue, initBugReportUploads } from './bug-report/bugReportUpload';
 import type { BugClientContext, BugIncidentCapsule, BugReportDraft } from './bug-report/bugReportTypes';
@@ -1815,7 +1815,8 @@ export const useGame = create<GameStore>((set, get) => ({
     }
     // Capture SYNCHRONOUSLY, before the modal opens (§3.1) — the capsule is deep-frozen and never updates
     // while the player types. Capture dispatches nothing and touches neither the clock nor the replay log.
-    const capsule = captureIncidentCapsule(s);
+    // On the MAIN MENU (owner ask 2026-08-27) there is no run: capture the reduced no-run 'menu' capsule.
+    const capsule = availability === 'menu' ? captureMenuCapsule(s) : captureIncidentCapsule(s);
     set({ bugReportOpen: true, bugReportDraft: { issueType: 'other', description: '', capsule } });
   },
   updateBugReportDraft: (partial) => {
@@ -1861,6 +1862,9 @@ export const useGame = create<GameStore>((set, get) => ({
     const parsed = parseBugScenario(raw);
     if (!parsed.ok) return parsed;
     const sc = parsed.scenario;
+    // parseBugScenario refuses menu reports (phase 'menu' — no run evidence) and requires a non-empty
+    // serializedRun for everything else, so a null here is unreachable; the guard keeps it honest.
+    if (sc.capsule.serializedRun === null) return { ok: false, errors: ['Menu report — no run evidence to load.'] };
     let run: RunState;
     try {
       run = deserialize(sc.capsule.serializedRun); // the game's supported serialization — heals older schemas

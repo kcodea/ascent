@@ -123,6 +123,9 @@ export const SNAPSHOT_EXCUSED: Readonly<Record<string, SnapshotExcuse>> = {
   'capture:closedCasket': { boundary: 'capture', kind: 'needs-triage', why: 'same shape as resummon: a served board’s Closed Casket never detonates at Start of Combat' },
   'capture:rallySpreadAtk': { boundary: 'capture', kind: 'needs-triage', why: 'Sunmane’s run-long shop accrual; NEITHER cleanBoard NOR the reducer’s own player mapping seeds combat with it (combat re-accrues per fight via arena.rallySpreadAtk) — whether the shop value should seed the fight is unruled' },
   'capture:grantedEffects': { boundary: 'capture', kind: 'needs-triage', why: 'runtime-grafted EffectDefs (recruit.ts pushes onDeath grafts); BoardMinion has no field for them and the player combat mapping drops them too, so a grafted Deathrattle is silent in combat and on served boards' },
+  // OWNER-RULINGS PR (2026-08-27): the two fields that PR itself added — classified the day they were born.
+  'capture:bredThisTurn': { boundary: 'capture', kind: 'turn-scoped', why: 'Brood Matron per-turn breed cap; the reducer zeroes it at every turn rollover, and a served board starts a fresh turn — dropping it is correct' },
+  'capture:impBank': { boundary: 'capture', kind: 'needs-triage', why: 'Ashen Heir’s banked Imp stats: the combat factory impInheritOnSummon READS self.impBank, so a served Ashen Heir fights without a bank the live one holds — whether the bank should ride the snapshot is unruled (BoardMinion has no impBank slot either, so the shop-to-combat half of the question is the same gap)' },
   'capture:echoStripped': { boundary: 'capture', kind: 'needs-triage', why: 'the shop Echo dispatch skips marked bodies (recruit.ts) but neither capture nor the player combat mapping carries the mark, so combat-side dispatch cannot honor it' },
 
   // ── 'combat' (BoardMinion → CombatResult.initial): the live Minion acts on these; the snapshot is display ──
@@ -146,7 +149,7 @@ export const SNAPSHOT_EXCUSED: Readonly<Record<string, SnapshotExcuse>> = {
 };
 
 /** The pinned needs-triage backlog (two-sided ratchet — see snapshotFidelity.test.ts). */
-export const SNAPSHOT_TRIAGE_COUNT = 8;
+export const SNAPSHOT_TRIAGE_COUNT = 9;
 
 /**
  * The boundary diff: which of `sourceFields` are MISSING from `output`, following per-boundary renames.

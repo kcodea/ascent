@@ -645,9 +645,15 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
 
   // Push the selected color to the (persistent) backdrop whenever it changes. Split from the mount effect
   // above so picking a new color never tears down / remounts the backdrop container.
+  //
+  // EXCEPT while the Stage Setter is showing: its `.fxwb-stage-mount` lifts `.pixifx` above the workbench
+  // (so effects render in front of the sample cards), and the backdrop lives on that same OVER canvas — a
+  // coloured full-viewport quad would then paint over the ENTIRE workbench. So the Stage Setter keeps the
+  // Pixi backdrop transparent and instead tints its own stage canvas (behind the cards) via the `background`
+  // prop, which the z-lifted effect still draws over.
   useEffect(() => {
-    backdropRef.current?.setColor(backdropColor);
-  }, [backdropColor]);
+    backdropRef.current?.setColor(scenarioId === 'stageSetter' ? null : backdropColor);
+  }, [backdropColor, scenarioId]);
 
   // A signature of the layers' STRUCTURE only (primitive/anchor/order), NOT their params and NOT their
   // timing. This is THE key that keeps a param or At/Life drag from respawning the effect while still
@@ -2993,6 +2999,7 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
                 onChange={setStage}
                 selectedActor={selectedActor}
                 onSelectActor={setSelectedActor}
+                background={backdropColor}
               />
             </div>
           ) : (

@@ -56,6 +56,34 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-08-26',
+    label: 'Rulebook rulings',
+    changes: [
+      { category: 'Card Change', text: 'Six Echo and death-watcher minions now work in the Shop phase too — anything that fires an Echo or destroys a minion during the Shop (Funeral on Loan, Ossuary Rite, Deathsayer and friends) now sets them off, instead of only combat.', details: [
+        'Malphas: its Echo gives Shop minions +8/+8 when fired in the Shop.',
+        'Runesnout Archivist: its Echo casts every remembered spell on your Beasts in the Shop.',
+        'Scavvers: its Echo triggers an adjacent Rally in the Shop.',
+        'Ashen Heir: an Imp destroyed in the Shop hands its stats to a living Imp — or to the next Imp you summon.',
+        'Brood Matron: friends dying in the Shop breed Imps (still max 3 per turn).',
+        'Echo Mimic: gains the Echo of a friendly minion that dies in the Shop.',
+      ] },
+      { category: 'Card Change', text: 'Reflector now also reflects Rubies played on it during combat — one bonus Ruby spread to a random friendly minion, once per fight.' },
+      { category: 'Card Change', text: 'Veinstorm now folds your spell power into the Rubies it puts on the Shop, like every other stat-granting Shop spell.' },
+      { category: 'Card Change', text: 'Pack Leader’s text now says what it always did: it grows from Beasts played in the Shop while it’s on your board.' },
+    ],
+  },
+  {
+    date: '2026-08-26',
+    label: 'Fixes',
+    changes: [
+      { category: 'Rune Change', text: 'Unused Shout charges no longer go to waste at combat — Rune of the War Drum and Warm Embers now carry an unspent charge into the fight.', details: [
+        'Rune of the War Drum: if you didn’t play a Shout this shop, the first Shout that triggers during combat (a Parting Cry, Ryme, and friends) fires the extra times instead.',
+        'Warm Embers’ banked double-charges work the same way: charges you didn’t spend in the shop double the next Shouts triggered in combat.',
+        'Both still work exactly as before when you spend them in the shop — this only rescues charges that would have evaporated.',
+      ] },
+    ],
+  },
+  {
+    date: '2026-08-26',
     label: 'Fixes',
     changes: [
       { category: 'Card Change', text: 'Pack Leader now counts the same Beasts for everyone — when your board is served as an opponent, its Pack Leader fights at full strength (an all-types minion you played was being missed).' },

@@ -26,12 +26,12 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-family-avenge",
-    "title": "Family convention — 'avenge' (19 effects, 21 cards)",
-    "statement": "Every member of the 'avenge' family fires on avenge (combat dispatch) and follows one shared convention: magnitudes gild ×2 unless the card's golden text overrides, and a member wanting different semantics must be an explicit EXCEPTION, never a silent deviation. Confirm the family convention for every member listed. — ✓ Approve = the family convention stands for every member. ✎ Revise = your ruling, in a sentence. ✕ Reject = at least one member should deviate — name it in Revise.",
+    "title": "'avenge' family · 21 cards",
+    "statement": "All 21 'avenge' cards trigger the same way, and gilding doubles their numbers. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
     "currentBehaviour": "19 effect factories across 21 cards dispatch through the 'avenge' presentation family; the factoryPhase lane gates each (trigger, factory) pair.",
     "cardText": "Exemplar — Dunkey: \"Avenge (4): summon an Armadiyo.\" · Members: Dunkey · Solaris · Bone Taxer · Brood Matron · Water Dragon · Broodwright · Grobbus · Endless Overseer · Gemstorm Instigator · Gem Portsmith · Kennelmaster · Muster General · … and 9 more",
-    "example": "Example: Dunkey follows the 'avenge' convention — its trigger fires on avenge, its numbers double when gilded.",
+    "example": "Dunkey follows the 'avenge' convention — its trigger fires on avenge, its numbers double when gilded.",
     "contentIds": [
       "b2_dunkey",
       "b2_solaris",
@@ -72,12 +72,12 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-family-castPayoff",
-    "title": "Family convention — 'castPayoff' (4 effects, 4 cards)",
-    "statement": "Every member of the 'castPayoff' family fires on spellCast (recruit dispatch) and follows one shared convention: magnitudes gild ×2 unless the card's golden text overrides, and a member wanting different semantics must be an explicit EXCEPTION, never a silent deviation. Confirm the family convention for every member listed. — ✓ Approve = the family convention stands for every member. ✎ Revise = your ruling, in a sentence. ✕ Reject = at least one member should deviate — name it in Revise.",
+    "title": "'castPayoff' family · 4 cards",
+    "statement": "All 4 'castPayoff' cards trigger the same way, and gilding doubles their numbers. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
     "currentBehaviour": "4 effect factories across 4 cards dispatch through the 'castPayoff' presentation family; the factoryPhase lane gates each (trigger, factory) pair.",
     "cardText": "Exemplar — Spell Warden: \"After you cast your second Shop spell each turn, get a copy of the first.\" · Members: Spell Warden · Baal · High King Mykel · Spirit Pup",
-    "example": "Example: Spell Warden follows the 'castPayoff' convention — its trigger fires on spellCast, its numbers double when gilded.",
+    "example": "Spell Warden follows the 'castPayoff' convention — its trigger fires on spellCast, its numbers double when gilded.",
     "contentIds": [
       "d2_spellkeeper",
       "dw_baal",
@@ -101,12 +101,12 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-family-castReact",
-    "title": "Family convention — 'castReact' (8 effects, 9 cards)",
-    "statement": "Every member of the 'castReact' family fires on spellCast (recruit dispatch) and follows one shared convention: magnitudes gild ×2 unless the card's golden text overrides, and a member wanting different semantics must be an explicit EXCEPTION, never a silent deviation. Confirm the family convention for every member listed. — ✓ Approve = the family convention stands for every member. ✎ Revise = your ruling, in a sentence. ✕ Reject = at least one member should deviate — name it in Revise.",
+    "title": "'castReact' family · 9 cards",
+    "statement": "All 9 'castReact' cards trigger the same way, and gilding doubles their numbers. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
     "currentBehaviour": "8 effect factories across 9 cards dispatch through the 'castReact' presentation family; the factoryPhase lane gates each (trigger, factory) pair.",
     "cardText": "Exemplar — Groveweaver: \"When you summon a Beast, give it +3/+3. Improve this by +2/+2 when you cast a Shop spell.\" · Members: Groveweaver · Ashscribe · Earthbreaker · Thunderous Sovereign · Runekeg · Forsaken Mage · Archmagus Guel · Fatecarver · Runescale Drake",
-    "example": "Example: Groveweaver follows the 'castReact' convention — its trigger fires on spellCast, its numbers double when gilded.",
+    "example": "Groveweaver follows the 'castReact' convention — its trigger fires on spellCast, its numbers double when gilded.",
     "contentIds": [
       "b2_groveweaver",
       "d2_ashscribe",
@@ -135,12 +135,12 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-family-echo",
-    "title": "Family convention — 'echo' (43 effects, 61 cards)",
-    "statement": "Every member of the 'echo' family fires on onDeath (both dispatch) and follows one shared convention: magnitudes gild ×2 unless the card's golden text overrides, and a member wanting different semantics must be an explicit EXCEPTION, never a silent deviation. Confirm the family convention for every member listed. — ✓ Approve = the family convention stands for every member. ✎ Revise = your ruling, in a sentence. ✕ Reject = at least one member should deviate — name it in Revise.",
+    "title": "'echo' family · 61 cards",
+    "statement": "All 61 'echo' cards trigger the same way, and gilding doubles their numbers. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
     "currentBehaviour": "43 effect factories across 61 cards dispatch through the 'echo' presentation family; the factoryPhase lane gates each (trigger, factory) pair.",
     "cardText": "Exemplar — Amun Rab: \"Deathrattle: Summon 7 Imps and give your Imps +5/+5.\" · Members: Amun Rab · Anubis · Ashen Heir · Armadiyo · Bullseye · Dawnclaw · Menagerie Mammoth · Scavvers · T-Rex · Voidmother · Wolvie · Blaster · … and 49 more",
-    "example": "Example: Amun Rab follows the 'echo' convention — its trigger fires on onDeath, its numbers double when gilded.",
+    "example": "Amun Rab follows the 'echo' convention — its trigger fires on onDeath, its numbers double when gilded.",
     "contentIds": [
       "amunrab",
       "anubis",
@@ -221,12 +221,12 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-family-economy",
-    "title": "Family convention — 'economy' (21 effects, 36 cards)",
-    "statement": "Every member of the 'economy' family fires on cardsBought / goldSpent / minionSold / onBuy / onRubyPlayed / onSell / rubyCast / shopRefreshed / spellBought / spellCastOnThis / startOfTurn (both / recruit dispatch) and follows one shared convention: magnitudes gild ×2 unless the card's golden text overrides, and a member wanting different semantics must be an explicit EXCEPTION, never a silent deviation. Confirm the family convention for every member listed. — ✓ Approve = the family convention stands for every member. ✎ Revise = your ruling, in a sentence. ✕ Reject = at least one member should deviate — name it in Revise.",
+    "title": "'economy' family · 36 cards",
+    "statement": "All 36 'economy' cards trigger the same way, and gilding doubles their numbers. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
     "currentBehaviour": "21 effect factories across 36 cards dispatch through the 'economy' presentation family; the factoryPhase lane gates each (trigger, factory) pair.",
     "cardText": "Exemplar — Moonhowl Mentor: \"Once per turn, when you buy a Shop spell, get a Mage-Pup that has learned it.\" · Members: Moonhowl Mentor · Buddy Buddy · Horizon Courier · Runic Archivist · Scalefeather · Fel Conjurer · Flutterdrake · Mirrorwing · River Drake · Mushy · Voicekeeper · Arcane Behemoth · … and 24 more",
-    "example": "Example: Moonhowl Mentor follows the 'economy' convention — its trigger fires on cardsBought, its numbers double when gilded.",
+    "example": "Moonhowl Mentor follows the 'economy' convention — its trigger fires on cardsBought, its numbers double when gilded.",
     "contentIds": [
       "b2_moonhowl",
       "buddy",
@@ -282,12 +282,12 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-family-economyReact",
-    "title": "Family convention — 'economyReact' (14 effects, 14 cards)",
-    "statement": "Every member of the 'economyReact' family fires on cardsBought / goldSpent / onBuy / onGainCard / onGetRuby / onRubyPlayed / onSell / spellBought (both / recruit dispatch) and follows one shared convention: magnitudes gild ×2 unless the card's golden text overrides, and a member wanting different semantics must be an explicit EXCEPTION, never a silent deviation. Confirm the family convention for every member listed. — ✓ Approve = the family convention stands for every member. ✎ Revise = your ruling, in a sentence. ✕ Reject = at least one member should deviate — name it in Revise.",
+    "title": "'economyReact' family · 14 cards",
+    "statement": "All 14 'economyReact' cards trigger the same way, and gilding doubles their numbers. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
     "currentBehaviour": "14 effect factories across 14 cards dispatch through the 'economyReact' presentation family; the factoryPhase lane gates each (trigger, factory) pair.",
     "cardText": "Exemplar — Korok, the Hungerer: \"When you buy 4 cards, give your Fodder +1/+1 and add 1 Fodder to your next tavern.\" · Members: Korok, the Hungerer · Banksly · Brightwing Broker · Night Market Horror · Feastmaster Vhal · Billings · Coinfire Forewoman · Gangplank · Kegheart Dwarf · Hoard Whelp · Candle Conduit · Gem Sage · … and 2 more",
-    "example": "Example: Korok, the Hungerer follows the 'economyReact' convention — its trigger fires on cardsBought, its numbers double when gilded.",
+    "example": "Korok, the Hungerer follows the 'economyReact' convention — its trigger fires on cardsBought, its numbers double when gilded.",
     "contentIds": [
       "acid",
       "banksly",
@@ -321,12 +321,12 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-family-endOfTurn",
-    "title": "Family convention — 'endOfTurn' (31 effects, 45 cards)",
-    "statement": "Every member of the 'endOfTurn' family fires on endOfTurn (recruit dispatch) and follows one shared convention: magnitudes gild ×2 unless the card's golden text overrides, and a member wanting different semantics must be an explicit EXCEPTION, never a silent deviation. Confirm the family convention for every member listed. — ✓ Approve = the family convention stands for every member. ✎ Revise = your ruling, in a sentence. ✕ Reject = at least one member should deviate — name it in Revise.",
+    "title": "'endOfTurn' family · 45 cards",
+    "statement": "All 45 'endOfTurn' cards trigger the same way, and gilding doubles their numbers. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
     "currentBehaviour": "31 effect factories across 45 cards dispatch through the 'endOfTurn' presentation family; the factoryPhase lane gates each (trigger, factory) pair.",
     "cardText": "Exemplar — Abyssal Feeder: \"End of Turn: adjacent minions each Consume a Fodder.\" · Members: Abyssal Feeder · Aeon Guard · Moira · Stonehorn Archivist · Starbroker Nym · Astral Relay · Starpath Vendor · Cinderwing Matron · Combinator · Crypt Scribe · Skybound Ascendant · Fel Conjurer · … and 33 more",
-    "example": "Example: Abyssal Feeder follows the 'endOfTurn' convention — its trigger fires on endOfTurn, its numbers double when gilded.",
+    "example": "Abyssal Feeder follows the 'endOfTurn' convention — its trigger fires on endOfTurn, its numbers double when gilded.",
     "contentIds": [
       "abyssalfeeder",
       "aeonguard",
@@ -391,12 +391,12 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-family-orbit",
-    "title": "Family convention — 'orbit' (12 effects, 15 cards)",
-    "statement": "Every member of the 'orbit' family fires on orbit (recruit dispatch) and follows one shared convention: magnitudes gild ×2 unless the card's golden text overrides, and a member wanting different semantics must be an explicit EXCEPTION, never a silent deviation. Confirm the family convention for every member listed. — ✓ Approve = the family convention stands for every member. ✎ Revise = your ruling, in a sentence. ✕ Reject = at least one member should deviate — name it in Revise.",
+    "title": "'orbit' family · 15 cards",
+    "statement": "All 15 'orbit' cards trigger the same way, and gilding doubles their numbers. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
     "currentBehaviour": "12 effect factories across 15 cards dispatch through the 'orbit' presentation family; the factoryPhase lane gates each (trigger, factory) pair.",
     "cardText": "Exemplar — Constellation Broker: \"Orbit: destroy the played minion and give its bonus stats to another friendly Celestial.\" · Members: Constellation Broker · Star Cartographer · Equinox Channeler · Horizon Collector · Celestial Crucible · Orbiting Familiar · Worldseed Gardener · Twinlight Orbiter · Orrery, World Devourer · Starweft Familiar · Constellation Tender · Starpath Vendor · … and 3 more",
-    "example": "Example: Constellation Broker follows the 'orbit' convention — its trigger fires on orbit, its numbers double when gilded.",
+    "example": "Constellation Broker follows the 'orbit' convention — its trigger fires on orbit, its numbers double when gilded.",
     "contentIds": [
       "c3_broker",
       "c3_cartographer",
@@ -431,12 +431,12 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-family-orbitReact",
-    "title": "Family convention — 'orbitReact' (3 effects, 3 cards)",
-    "statement": "Every member of the 'orbitReact' family fires on orbitFired (recruit dispatch) and follows one shared convention: magnitudes gild ×2 unless the card's golden text overrides, and a member wanting different semantics must be an explicit EXCEPTION, never a silent deviation. Confirm the family convention for every member listed. — ✓ Approve = the family convention stands for every member. ✎ Revise = your ruling, in a sentence. ✕ Reject = at least one member should deviate — name it in Revise.",
+    "title": "'orbitReact' family · 3 cards",
+    "statement": "All 3 'orbitReact' cards trigger the same way, and gilding doubles their numbers. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
     "currentBehaviour": "3 effect factories across 3 cards dispatch through the 'orbitReact' presentation family; the factoryPhase lane gates each (trigger, factory) pair.",
     "cardText": "Exemplar — Orrery, World Devourer: \"Whenever another Orbit triggers, give minions in the current Shop +1/+1. Orbit (3): destroy the played minion and split its bonus stats among your Celestials.\" · Members: Orrery, World Devourer · Astral Shopkeeper · Worldline Weaver",
-    "example": "Example: Orrery, World Devourer follows the 'orbitReact' convention — its trigger fires on orbitFired, its numbers double when gilded.",
+    "example": "Orrery, World Devourer follows the 'orbitReact' convention — its trigger fires on orbitFired, its numbers double when gilded.",
     "contentIds": [
       "c3_orrery",
       "c3_shopkeeper",
@@ -459,12 +459,12 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-family-passive",
-    "title": "Family convention — 'passive' (2 effects, 2 cards)",
-    "statement": "Every member of the 'passive' family fires on passive (both dispatch) and follows one shared convention: magnitudes gild ×2 unless the card's golden text overrides, and a member wanting different semantics must be an explicit EXCEPTION, never a silent deviation. Confirm the family convention for every member listed. — ✓ Approve = the family convention stands for every member. ✎ Revise = your ruling, in a sentence. ✕ Reject = at least one member should deviate — name it in Revise.",
+    "title": "'passive' family · 2 cards",
+    "statement": "All 2 'passive' cards trigger the same way, and gilding doubles their numbers. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
     "currentBehaviour": "2 effect factories across 2 cards dispatch through the 'passive' presentation family; the factoryPhase lane gates each (trigger, factory) pair.",
     "cardText": "Exemplar — Deepdelve Paragon: \"Rubies applied in combat give 2× stats.\" · Members: Deepdelve Paragon · Ancient Wanderer",
-    "example": "Example: Deepdelve Paragon follows the 'passive' convention — its trigger fires on passive, its numbers double when gilded.",
+    "example": "Deepdelve Paragon follows the 'passive' convention — its trigger fires on passive, its numbers double when gilded.",
     "contentIds": [
       "k_deepdelve",
       "n2_wanderer"
@@ -486,12 +486,12 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-family-rally",
-    "title": "Family convention — 'rally' (41 effects, 45 cards)",
-    "statement": "Every member of the 'rally' family fires on onAttack (both dispatch) and follows one shared convention: magnitudes gild ×2 unless the card's golden text overrides, and a member wanting different semantics must be an explicit EXCEPTION, never a silent deviation. Confirm the family convention for every member listed. — ✓ Approve = the family convention stands for every member. ✎ Revise = your ruling, in a sentence. ✕ Reject = at least one member should deviate — name it in Revise.",
+    "title": "'rally' family · 45 cards",
+    "statement": "All 45 'rally' cards trigger the same way, and gilding doubles their numbers. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
     "currentBehaviour": "41 effect factories across 45 cards dispatch through the 'rally' presentation family; the factoryPhase lane gates each (trigger, factory) pair.",
     "cardText": "Exemplar — Echohorn: \"Rally: trigger your left-most Echo.\" · Members: Echohorn · Hawkus · Packstrider · Sunmane Herald · Badgington · Equinox Duelist · Chimerus · Chorus Engine · Crypt Drake · Ashen Broodlord · Chorus Drake · Cinderchef · … and 33 more",
-    "example": "Example: Echohorn follows the 'rally' convention — its trigger fires on onAttack, its numbers double when gilded.",
+    "example": "Echohorn follows the 'rally' convention — its trigger fires on onAttack, its numbers double when gilded.",
     "contentIds": [
       "b2_echohorn",
       "b2_hawkus",
@@ -556,12 +556,12 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-family-react",
-    "title": "Family convention — 'react' (10 effects, 12 cards)",
-    "statement": "Every member of the 'react' family fires on friendlyDemonDealtDamage / onConsume / onDamaged / onGainAttack / summonOverflow (both / combat / recruit dispatch) and follows one shared convention: magnitudes gild ×2 unless the card's golden text overrides, and a member wanting different semantics must be an explicit EXCEPTION, never a silent deviation. Confirm the family convention for every member listed. — ✓ Approve = the family convention stands for every member. ✎ Revise = your ruling, in a sentence. ✕ Reject = at least one member should deviate — name it in Revise.",
+    "title": "'react' family · 12 cards",
+    "statement": "All 12 'react' cards trigger the same way, and gilding doubles their numbers. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
     "currentBehaviour": "10 effect factories across 12 cards dispatch through the 'react' presentation family; the factoryPhase lane gates each (trigger, factory) pair.",
     "cardText": "Exemplar — Avarice Incarnate: \"The first time another friendly Demon Consumes a Shop minion each turn, this gains the same stats and grants 3 Gold.\" · Members: Avarice Incarnate · Axeman · Enigma · Leech · Impossible Todd · Gryphon · Hunter · Candleback Bulwark · Flowing Monk · Target Dummy · Sergeant · Cratering Hulk",
-    "example": "Example: Avarice Incarnate follows the 'react' convention — its trigger fires on friendlyDemonDealtDamage, its numbers double when gilded.",
+    "example": "Avarice Incarnate follows the 'react' convention — its trigger fires on friendlyDemonDealtDamage, its numbers double when gilded.",
     "contentIds": [
       "dm_avarice",
       "dm_chosenfiend",
@@ -593,12 +593,12 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-family-shout",
-    "title": "Family convention — 'shout' (48 effects, 71 cards)",
-    "statement": "Every member of the 'shout' family fires on onPlay (both dispatch) and follows one shared convention: magnitudes gild ×2 unless the card's golden text overrides, and a member wanting different semantics must be an explicit EXCEPTION, never a silent deviation. Confirm the family convention for every member listed. — ✓ Approve = the family convention stands for every member. ✎ Revise = your ruling, in a sentence. ✕ Reject = at least one member should deviate — name it in Revise.",
+    "title": "'shout' family · 71 cards",
+    "statement": "All 71 'shout' cards trigger the same way, and gilding doubles their numbers. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
     "currentBehaviour": "48 effect factories across 71 cards dispatch through the 'shout' presentation family; the factoryPhase lane gates each (trigger, factory) pair.",
     "cardText": "Exemplar — Aeon Guard: \"End of Turn: give your Shop spells +1/+1.\" · Members: Aeon Guard · Pennycat · Mage-Pup · Black Belt Brian · Buddy Buddy · Horizon Courier · Herald of the Divide · Astral Relay · Starpath Vendor · Cinderwing Matron · Hoard Cleric · Crypt Broker · … and 59 more",
-    "example": "Example: Aeon Guard follows the 'shout' convention — its trigger fires on onPlay, its numbers double when gilded.",
+    "example": "Aeon Guard follows the 'shout' convention — its trigger fires on onPlay, its numbers double when gilded.",
     "contentIds": [
       "aeonguard",
       "alley",
@@ -689,12 +689,12 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-family-shoutPayoff",
-    "title": "Family convention — 'shoutPayoff' (2 effects, 3 cards)",
-    "statement": "Every member of the 'shoutPayoff' family fires on battlecryTriggered (recruit dispatch) and follows one shared convention: magnitudes gild ×2 unless the card's golden text overrides, and a member wanting different semantics must be an explicit EXCEPTION, never a silent deviation. Confirm the family convention for every member listed. — ✓ Approve = the family convention stands for every member. ✎ Revise = your ruling, in a sentence. ✕ Reject = at least one member should deviate — name it in Revise.",
+    "title": "'shoutPayoff' family · 3 cards",
+    "statement": "All 3 'shoutPayoff' cards trigger the same way, and gilding doubles their numbers. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
     "currentBehaviour": "2 effect factories across 3 cards dispatch through the 'shoutPayoff' presentation family; the factoryPhase lane gates each (trigger, factory) pair.",
     "cardText": "Exemplar — Combinator: \"End of Turn: magnetize a random Magnetic Mech onto 2 friendly Mechs.\" · Members: Combinator · Living Grimoire · Reconfigured Combinator",
-    "example": "Example: Combinator follows the 'shoutPayoff' convention — its trigger fires on battlecryTriggered, its numbers double when gilded.",
+    "example": "Combinator follows the 'shoutPayoff' convention — its trigger fires on battlecryTriggered, its numbers double when gilded.",
     "contentIds": [
       "combinator",
       "d2_grimoire",
@@ -717,12 +717,12 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-family-shoutReact",
-    "title": "Family convention — 'shoutReact' (4 effects, 6 cards)",
-    "statement": "Every member of the 'shoutReact' family fires on battlecryTriggered (recruit dispatch) and follows one shared convention: magnitudes gild ×2 unless the card's golden text overrides, and a member wanting different semantics must be an explicit EXCEPTION, never a silent deviation. Confirm the family convention for every member listed. — ✓ Approve = the family convention stands for every member. ✎ Revise = your ruling, in a sentence. ✕ Reject = at least one member should deviate — name it in Revise.",
+    "title": "'shoutReact' family · 6 cards",
+    "statement": "All 6 'shoutReact' cards trigger the same way, and gilding doubles their numbers. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
     "currentBehaviour": "4 effect factories across 6 cards dispatch through the 'shoutReact' presentation family; the factoryPhase lane gates each (trigger, factory) pair.",
     "cardText": "Exemplar — Bane: \"After you trigger a Shout, give your Imps +3/+3 this run.\" · Members: Bane · Herald of the Divide · Embermouth Whelp · Bathing Matriarch · Karwind · Sporeling",
-    "example": "Example: Bane follows the 'shoutReact' convention — its trigger fires on battlecryTriggered, its numbers double when gilded.",
+    "example": "Bane follows the 'shoutReact' convention — its trigger fires on battlecryTriggered, its numbers double when gilded.",
     "contentIds": [
       "bane",
       "c3_herald",
@@ -748,12 +748,12 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-family-slaughter",
-    "title": "Family convention — 'slaughter' (5 effects, 5 cards)",
-    "statement": "Every member of the 'slaughter' family fires on onKill (combat dispatch) and follows one shared convention: magnitudes gild ×2 unless the card's golden text overrides, and a member wanting different semantics must be an explicit EXCEPTION, never a silent deviation. Confirm the family convention for every member listed. — ✓ Approve = the family convention stands for every member. ✎ Revise = your ruling, in a sentence. ✕ Reject = at least one member should deviate — name it in Revise.",
+    "title": "'slaughter' family · 5 cards",
+    "statement": "All 5 'slaughter' cards trigger the same way, and gilding doubles their numbers. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
     "currentBehaviour": "5 effect factories across 5 cards dispatch through the 'slaughter' presentation family; the factoryPhase lane gates each (trigger, factory) pair.",
     "cardText": "Exemplar — Bounty Bot: \"Immune while attacking (first 2 attacks each combat). Slaughter: gain 2 Gold next shop.\" · Members: Bounty Bot · Gnasher, the Overrun · Karthus · Moe · Sword and Bored",
-    "example": "Example: Bounty Bot follows the 'slaughter' convention — its trigger fires on onKill, its numbers double when gilded.",
+    "example": "Bounty Bot follows the 'slaughter' convention — its trigger fires on onKill, its numbers double when gilded.",
     "contentIds": [
       "bountybot",
       "gnash",
@@ -778,12 +778,12 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-family-spellCast",
-    "title": "Family convention — 'spellCast' (91 effects, 106 cards)",
-    "statement": "Every member of the 'spellCast' family fires on cast (recruit dispatch) and follows one shared convention: magnitudes gild ×2 unless the card's golden text overrides, and a member wanting different semantics must be an explicit EXCEPTION, never a silent deviation. Confirm the family convention for every member listed. — ✓ Approve = the family convention stands for every member. ✎ Revise = your ruling, in a sentence. ✕ Reject = at least one member should deviate — name it in Revise.",
+    "title": "'spellCast' family · 106 cards",
+    "statement": "All 106 'spellCast' cards trigger the same way, and gilding doubles their numbers. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
     "currentBehaviour": "91 effect factories across 106 cards dispatch through the 'spellCast' presentation family; the factoryPhase lane gates each (trigger, factory) pair.",
     "cardText": "Exemplar — Anomaly Reactor: \"Give a friendly minion All types — it counts as every tribe and gets all of their buffs.\" · Members: Anomaly Reactor · Eyes of Aresmar · Bloodlust · Bulwark · Carnival Coin · Chrono Staff · Common Ground · Consume · Copycat · Cupcakes · Decoy Sigil · Deep Delve Writ · … and 94 more",
-    "example": "Example: Anomaly Reactor follows the 'spellCast' convention — its trigger fires on cast, its numbers double when gilded.",
+    "example": "Anomaly Reactor follows the 'spellCast' convention — its trigger fires on cast, its numbers double when gilded.",
     "contentIds": [
       "anomalyreactor",
       "aresmar",
@@ -909,12 +909,12 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-family-startOfCombat",
-    "title": "Family convention — 'startOfCombat' (22 effects, 23 cards)",
-    "statement": "Every member of the 'startOfCombat' family fires on startOfCombat (both dispatch) and follows one shared convention: magnitudes gild ×2 unless the card's golden text overrides, and a member wanting different semantics must be an explicit EXCEPTION, never a silent deviation. Confirm the family convention for every member listed. — ✓ Approve = the family convention stands for every member. ✎ Revise = your ruling, in a sentence. ✕ Reject = at least one member should deviate — name it in Revise.",
+    "title": "'startOfCombat' family · 23 cards",
+    "statement": "All 23 'startOfCombat' cards trigger the same way, and gilding doubles their numbers. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
     "currentBehaviour": "22 effect factories across 23 cards dispatch through the 'startOfCombat' presentation family; the factoryPhase lane gates each (trigger, factory) pair.",
     "cardText": "Exemplar — Abhorrent Horror: \"Start of Combat: Gain +Attack/+Health equal to the Fodder consumed this turn.\" · Members: Abhorrent Horror · Arena Heckler · Quil · Runebloom Matriarch · Spots · Bloodbinder · Daybreak Acolyte · Horizon Sentinel · Twilight Sentinel · Thunderous Sovereign · Imp Wrangler · Bucky · … and 11 more",
-    "example": "Example: Abhorrent Horror follows the 'startOfCombat' convention — its trigger fires on startOfCombat, its numbers double when gilded.",
+    "example": "Abhorrent Horror follows the 'startOfCombat' convention — its trigger fires on startOfCombat, its numbers double when gilded.",
     "contentIds": [
       "abhorrenthorror",
       "arenaheckler",
@@ -957,12 +957,12 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-family-summonReact",
-    "title": "Family convention — 'summonReact' (13 effects, 13 cards)",
-    "statement": "Every member of the 'summonReact' family fires on onSummon (both dispatch) and follows one shared convention: magnitudes gild ×2 unless the card's golden text overrides, and a member wanting different semantics must be an explicit EXCEPTION, never a silent deviation. Confirm the family convention for every member listed. — ✓ Approve = the family convention stands for every member. ✎ Revise = your ruling, in a sentence. ✕ Reject = at least one member should deviate — name it in Revise.",
+    "title": "'summonReact' family · 13 cards",
+    "statement": "All 13 'summonReact' cards trigger the same way, and gilding doubles their numbers. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
     "currentBehaviour": "13 effect factories across 13 cards dispatch through the 'summonReact' presentation family; the factoryPhase lane gates each (trigger, factory) pair.",
     "cardText": "Exemplar — Ashen Heir: \"Whenever an Imp dies, another friendly Imp gains its stats — or the next Imp you summon, if none are alive.\" · Members: Ashen Heir · Beardsley · Groveweaver · King Oona · Vaultkeeper · Broodwright · Chipper · Chef Gary Toast · Grave Body · Den Mother · Pack Leader · Spirit Worgen · … and 1 more",
-    "example": "Example: Ashen Heir follows the 'summonReact' convention — its trigger fires on onSummon, its numbers double when gilded.",
+    "example": "Ashen Heir follows the 'summonReact' convention — its trigger fires on onSummon, its numbers double when gilded.",
     "contentIds": [
       "ashen_heir",
       "b2_beardsley",
@@ -995,12 +995,12 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-global-combat-gains",
-    "title": "Combat stat gains are combat-only unless Engraved or an explicit carry-back",
-    "statement": "Standing convention: stats gained DURING combat vanish at settle — they never reach the run board — unless the minion is Engraved (EG), an Engraved aura covers it, or the effect uses an explicit carry-back channel (the persist* results). Permanent shop growth is the shop's job. — ✓ Approve = combat-only by default, Engraved/carry-back as the only exceptions — standing law. ✎ Revise = your ruling, in a sentence. ✕ Reject = wrong — state the persistence rule in Revise.",
+    "title": "Combat-only stat gains",
+    "statement": "Stats gained in combat vanish when the fight ends — unless Engraved or an explicit carry-back keeps them. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "persistence",
     "currentBehaviour": "simulate() returns combat stats separately; only EG minions and persist* channels write back into run state.",
     "cardText": "Exemplar — a minion buffed +4/+4 mid-fight returns to its shop stats at settle unless it carries Engraved.",
-    "example": "Example: the same +4/+4 on an Engraved minion IS on the run board next shop."
+    "example": "the same +4/+4 on an Engraved minion IS on the run board next shop."
   },
   {
     "status": "needs-ruling",
@@ -1018,12 +1018,12 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-global-dual-tribe",
-    "title": "Dual-tribe minions count as BOTH tribes; universal counts as all (21 carriers)",
-    "statement": "Standing convention: a dual-tribe minion counts as BOTH its tribes for every tribe check (tribe buffs, Magnetic targeting, tribe counts); a universal-tribe minion counts as EVERY non-neutral tribe simultaneously. No check may read only the first tribe. — ✓ Approve = both/all tribe membership is the standing law for every tribe check. ✎ Revise = your ruling, in a sentence. ✕ Reject = an exception exists — name it in Revise.",
+    "title": "Dual & universal tribes · 21 carriers",
+    "statement": "A dual-tribe minion counts as both tribes, everywhere. A universal minion counts as every tribe. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "categories",
     "currentBehaviour": "isTribe/tribe predicates fold tribe2 and universalTribe; the tribePredicates lane sweeps raw comparisons.",
     "cardText": "Exemplar — Bane: \"After you trigger a Shout, give your Imps +3/+3 this run.\" · Carriers: Bane · Crypt Drake · Crypt Wolf · Ashen Broodlord · Fel Conjurer · Baal · High King Mykel · Mountainbond · Heckbinder · Gemgorge Fiend · Lab Experiment · Evolving Abomination · … and 9 more",
-    "example": "Example: Bane receives BOTH tribes' buffs and satisfies either tribe's quest counters.",
+    "example": "Bane receives BOTH tribes' buffs and satisfies either tribe's quest counters.",
     "contentIds": [
       "bane",
       "cryptdrake",
@@ -1064,12 +1064,12 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-global-gift-casts",
-    "title": "Gifts count as spell casts but are never Shop spells",
-    "statement": "Standing convention (owner design 2026-08-26, confirming as a rule): a Gift IS a spell cast — it ticks cast tallies and wakes spellCast watchers — but it is never a SHOP spell: never offered in the shop or a spell Discover, never duplicated by spell-copy effects, never repeated by a cast multiplier. — ✓ Approve = gifts are real casts, never Shop spells — standing law. ✎ Revise = your ruling, in a sentence. ✕ Reject = wrong — state the gift rule in Revise.",
+    "title": "Gifts vs Shop spells",
+    "statement": "A Gift counts as a spell cast, but is never a Shop spell — no shop offers, no copies, no cast multipliers. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "gifts",
     "currentBehaviour": "The gift flag gates every Shop-spell surface (offers, copies, multipliers); cast bookkeeping treats gifts as real casts.",
     "cardText": "Exemplar — a Gift cast with a spell-copy engine on board: the tally advances, the copier stays silent.",
-    "example": "Example: casting a Gift beside a spell copier advances \"spells cast this game\" by 1 and mints no copy."
+    "example": "casting a Gift beside a spell copier advances \"spells cast this game\" by 1 and mints no copy."
   },
   {
     "status": "needs-ruling",
@@ -1087,12 +1087,12 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-global-gild-default",
-    "title": "Gilding default: golden doubles printed magnitudes (320 cards override by text)",
-    "statement": "Standing convention: a Gilded (golden) card doubles its printed magnitudes and counts. When the gild changes SHAPE instead (a different count grammar, a different target set), the card must carry authored golden text — the doubler never guesses. Confirm this as the default for all cards. — ✓ Approve = ×2 is the standing gilded default; authored golden text is the only sanctioned override. ✎ Revise = your ruling, in a sentence. ✕ Reject = the default is wrong — state the rule in Revise.",
+    "title": "Gilding default: ×2",
+    "statement": "A gilded card doubles its printed numbers. If gilding changes more than the numbers, the card carries its own golden text. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "gilding",
     "currentBehaviour": "320 cards carry authored goldenText; every other card inherits the ×2 number-doubler.",
     "cardText": "Exemplar — Wolves Den: \"Deathrattle: Summon 3 Crypt Wolves.\" → gilded: \"Deathrattle: Summon 6 Crypt Wolves.\"",
-    "example": "Example: Wolves Den's gilded text is authored because the count changes shape, not just ×2 digits."
+    "example": "Wolves Den's gilded text is authored because the count changes shape, not just ×2 digits."
   },
   {
     "status": "needs-ruling",
@@ -1110,12 +1110,12 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-global-henchman-pricing",
-    "title": "Henchman pricing: once per run, cost decays WIN −3 / LOSS −2, floored at 0",
-    "statement": "Standing convention (owner spec 2026-08-03, confirming as a rule): each hero's Henchman is recruitable ONCE per run at its listed Gold cost, and the effective price falls every round — minus 3 after a win, minus 2 after a loss — floored at 0. The card itself is a minion like any other once recruited. — ✓ Approve = the pricing decay is the standing henchman law. ✎ Revise = your ruling, in a sentence. ✕ Reject = wrong — state the pricing in Revise.",
+    "title": "Henchman pricing",
+    "statement": "Your Henchman is recruitable once per run. Its cost drops 3 after a win, 2 after a loss, never below 0. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "heroes",
     "currentBehaviour": "henchmanCostOf applies win −3 / loss −2 with a 0 floor; recruit is once per run.",
     "cardText": "Exemplar — Warden's henchman (hm_test_squire, base 10 Gold): after a win and a loss it costs 10 − 3 − 2 = 5.",
-    "example": "Example: base cost 10, then W/L/W → 10 − 3 − 2 − 3 = 2 Gold."
+    "example": "base cost 10, then W/L/W → 10 − 3 − 2 − 3 = 2 Gold."
   },
   {
     "status": "needs-ruling",
@@ -1137,12 +1137,12 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-global-multiplier-gilded",
-    "title": "Trigger multipliers: gilded contributes double; stacking sums, non-stacking best-of (5 carriers)",
-    "statement": "Standing convention for trigger multipliers: a GILDED multiplier contributes double its extra fires; stacking carriers SUM across copies; non-stacking carriers contribute only their single best copy; and the two pools combine ADDITIVELY. R-MULT-01 rules the stacking split — this confirms the gilded-doubling + additive-combination halves as standing law. — ✓ Approve = gilded ×2 contribution + additive combination stand for every multiplier. ✎ Revise = your ruling, in a sentence. ✕ Reject = wrong — state the combination rule in Revise.",
+    "title": "Trigger multipliers · 5 carriers",
+    "statement": "Gilded multipliers count double. Stacking copies add up; non-stackers use their best copy; the two pools add together. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "multipliers",
     "currentBehaviour": "extraTriggerFires: contribution = extra × (golden ? 2 : 1); stacking summed, non-stacking best, summed + best returned.",
     "cardText": "Carriers: Chronos · Drakko the Drummer · Sylus the Reaper · Uron, Oathbringer · Zyff, the Betrayer",
-    "example": "Example: a gilded Sylus (stacking, extra 1) beside a plain Uron (non-stacking) grants 2 + 1 = 3 extra fires for a shared family.",
+    "example": "a gilded Sylus (stacking, extra 1) beside a plain Uron (non-stacking) grants 2 + 1 = 3 extra fires for a shared family.",
     "contentIds": [
       "chronos",
       "drummer",
@@ -1167,12 +1167,12 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-global-threshold-scope",
-    "title": "Threshold counters: combat thresholds reset per combat; shop counters persist (21 Avenge carriers)",
-    "statement": "Standing convention for threshold counters: a COMBAT threshold (Avenge N) counts qualifying events within one combat and resets when combat ends; a SHOP counter (quest objectives, every-N-turns cadences, per-run tallies) persists across turns for the run. Partial progress never crosses the phase boundary in either direction. — ✓ Approve = combat thresholds reset per combat; shop counters persist for the run. ✎ Revise = your ruling, in a sentence. ✕ Reject = wrong — state the scoping in Revise.",
+    "title": "Threshold counters · 21 Avenge carriers",
+    "statement": "Combat counters (Avenge) reset when the fight ends. Shop counters last the whole run. Progress never crosses between them. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "persistence",
     "currentBehaviour": "Avenge progress lives in per-combat instance state; quest/cadence counters live in run state and persist.",
     "cardText": "Exemplar — Dunkey: \"Avenge (4): summon an Armadiyo.\" · Avenge carriers: Dunkey · Solaris · Bone Taxer · Brood Matron · Water Dragon · Broodwright · Grobbus · Endless Overseer · Gemstorm Instigator · Gem Portsmith · Kennelmaster · Muster General · … and 9 more",
-    "example": "Example: Dunkey at 2 of 3 deaths when combat ends starts the next combat at 0 — but a quest at 4 of 5 buys stays at 4 next turn.",
+    "example": "Dunkey at 2 of 3 deaths when combat ends starts the next combat at 0 — but a quest at 4 of 5 buys stays at 4 next turn.",
     "contentIds": [
       "b2_dunkey",
       "b2_solaris",
@@ -1213,12 +1213,12 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-global-token-reachability",
-    "title": "Tokens, Gifts, Henchmen, enemy filler and archived cards are never drawable",
-    "statement": "Standing convention: tokens, Gifts, Henchmen, enemy filler and archived cards belong to NO set pool — they are reachable only through a card, hero, or rune that names them, and can never appear in a shop, pool-based Discover, or random grant. CARD_INDEX resolves them globally so saves and replays never break. — ✓ Approve = non-pool reachability is the standing law for all five classes. ✎ Revise = your ruling, in a sentence. ✕ Reject = an exception exists — name it in Revise.",
+    "title": "Never-drawable cards",
+    "statement": "Tokens, Gifts, Henchmen and archived cards never appear in shops or random pools. Only a card that names them can create them. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "categories",
     "currentBehaviour": "ALL_CARDS carries every class; poolFor() draws only from set manifests, which exclude all five by construction.",
     "cardText": "Exemplar — Imp (token): reachable only through the Demon cards that summon it; never offered in a shop.",
-    "example": "Example: a rune granting Pillager (an out-of-set Undead) still resolves — the grant reaches CARD_INDEX, the pool never offers it."
+    "example": "a rune granting Pillager (an out-of-set Undead) still resolves — the grant reaches CARD_INDEX, the pool never offers it."
   },
   {
     "status": "needs-ruling",
@@ -1236,12 +1236,12 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-keyword-c",
-    "title": "Keyword contract — Cleave [C] (2 carriers)",
-    "statement": "Standing meaning of Cleave: its attack also hits both minions adjacent to the target, simultaneously. This is THE contract for every carrier — a card wanting different Cleave semantics needs its own ruling, and any engine drift from this sentence is a bug, not a variant. — ✓ Approve = this is exactly what Cleave means, for every carrier. ✎ Revise = your ruling, in a sentence. ✕ Reject = the sentence is wrong or incomplete — correct it in Revise.",
+    "title": "Cleave [C] · 2 carriers",
+    "statement": "Cleave means: its attack also hits both minions adjacent to the target, simultaneously — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "keywords",
     "currentBehaviour": "One shared engine path implements Cleave for all 2 carriers.",
     "cardText": "Exemplar — Baby Cub: \"Cleave\" · Carriers: Baby Cub · Broad-Axe Brakka",
-    "example": "Example: Baby Cub carries Cleave — in play, its attack also hits both minions adjacent to the target, simultaneously.",
+    "example": "Baby Cub carries Cleave — in play, its attack also hits both minions adjacent to the target, simultaneously.",
     "contentIds": [
       "babycub",
       "dw_brakka"
@@ -1263,12 +1263,12 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-keyword-cn",
-    "title": "Keyword contract — Consume [CN] (0 carriers)",
-    "statement": "Standing meaning of Consume: eats another minion, absorbing per its printed rule; the eaten minion is gone. This is THE contract for every carrier — a card wanting different Consume semantics needs its own ruling, and any engine drift from this sentence is a bug, not a variant. — ✓ Approve = this is exactly what Consume means, for every carrier. ✎ Revise = your ruling, in a sentence. ✕ Reject = the sentence is wrong or incomplete — correct it in Revise.",
+    "title": "Consume [CN] · 0 carriers",
+    "statement": "Consume means: eats another minion, absorbing per its printed rule; the eaten minion is gone — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "keywords",
     "currentBehaviour": "One shared engine path implements Consume for all 0 carriers.",
     "cardText": "(no current carrier of Consume)",
-    "example": "Example: any future Consume card inherits this meaning."
+    "example": "any future Consume card inherits this meaning."
   },
   {
     "status": "needs-ruling",
@@ -1286,12 +1286,12 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-keyword-cr",
-    "title": "Keyword contract — Critical Strike [CR] (5 carriers)",
-    "statement": "Standing meaning of Critical Strike: a per-card chance to deal double damage on attack. This is THE contract for every carrier — a card wanting different Critical Strike semantics needs its own ruling, and any engine drift from this sentence is a bug, not a variant. — ✓ Approve = this is exactly what Critical Strike means, for every carrier. ✎ Revise = your ruling, in a sentence. ✕ Reject = the sentence is wrong or incomplete — correct it in Revise.",
+    "title": "Critical Strike [CR] · 5 carriers",
+    "statement": "Critical Strike means: a per-card chance to deal double damage on attack — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "keywords",
     "currentBehaviour": "One shared engine path implements Critical Strike for all 5 carriers.",
     "cardText": "Exemplar — Guardian Drake: \"(vanilla body with the keyword)\" · Carriers: Guardian Drake · Warflame · Axeman · Mountainbond · Commander Impala",
-    "example": "Example: Guardian Drake carries Critical Strike — in play, a per-card chance to deal double damage on attack.",
+    "example": "Guardian Drake carries Critical Strike — in play, a per-card chance to deal double damage on attack.",
     "contentIds": [
       "bronzewarden",
       "d2_warflame",
@@ -1316,12 +1316,12 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-keyword-ds",
-    "title": "Keyword contract — Ward [DS] (16 carriers)",
-    "statement": "Standing meaning of Ward: negates the first damage this minion would take, then breaks. This is THE contract for every carrier — a card wanting different Ward semantics needs its own ruling, and any engine drift from this sentence is a bug, not a variant. — ✓ Approve = this is exactly what Ward means, for every carrier. ✎ Revise = your ruling, in a sentence. ✕ Reject = the sentence is wrong or incomplete — correct it in Revise.",
+    "title": "Ward [DS] · 16 carriers",
+    "statement": "Ward means: negates the first damage this minion would take, then breaks — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "keywords",
     "currentBehaviour": "One shared engine path implements Ward for all 16 carriers.",
     "cardText": "Exemplar — Beardsley: \"Ward. Whenever you summon a Beast, give it +3/+3. Improves +3/+3 every 3 Beasts summoned.\" · Carriers: Beardsley · Guardian Drake · Transcendant · Hellrider · Impossible Todd · Warding Drone · Mountainbond · Commander Impala · Mechanical Jouster · Gem Portsmith · Resonance Idol · Karthus · … and 4 more",
-    "example": "Example: Beardsley carries Ward — in play, negates the first damage this minion would take, then breaks.",
+    "example": "Beardsley carries Ward — in play, negates the first damage this minion would take, then breaks.",
     "contentIds": [
       "b2_beardsley",
       "bronzewarden",
@@ -1357,12 +1357,12 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-keyword-eg",
-    "title": "Keyword contract — Engraved [EG] (4 carriers)",
-    "statement": "Standing meaning of Engraved: stat gains during combat carry back to the run board permanently. This is THE contract for every carrier — a card wanting different Engraved semantics needs its own ruling, and any engine drift from this sentence is a bug, not a variant. — ✓ Approve = this is exactly what Engraved means, for every carrier. ✎ Revise = your ruling, in a sentence. ✕ Reject = the sentence is wrong or incomplete — correct it in Revise.",
+    "title": "Engraved [EG] · 4 carriers",
+    "statement": "Engraved means: stat gains during combat carry back to the run board permanently — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "keywords",
     "currentBehaviour": "One shared engine path implements Engraved for all 4 carriers.",
     "cardText": "Exemplar — Tara: \"Engraved. Grant stats 15 times in combat to ascend.\" · Carriers: Tara · Taragosa · Taragosa's Heir · Thundeer",
-    "example": "Example: Tara carries Engraved — in play, stat gains during combat carry back to the run board permanently.",
+    "example": "Tara carries Engraved — in play, stat gains during combat carry back to the run board permanently.",
     "contentIds": [
       "tara",
       "taragosa",
@@ -1386,12 +1386,12 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-keyword-fd",
-    "title": "Keyword contract — Fodder [FD] (1 carriers)",
-    "statement": "Standing meaning of Fodder: a cheap body meant to be Consumed; Fodder-scaling effects count these. This is THE contract for every carrier — a card wanting different Fodder semantics needs its own ruling, and any engine drift from this sentence is a bug, not a variant. — ✓ Approve = this is exactly what Fodder means, for every carrier. ✎ Revise = your ruling, in a sentence. ✕ Reject = the sentence is wrong or incomplete — correct it in Revise.",
+    "title": "Fodder [FD] · 1 carriers",
+    "statement": "Fodder means: a cheap body meant to be Consumed; Fodder-scaling effects count these — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "keywords",
     "currentBehaviour": "One shared engine path implements Fodder for all 1 carriers.",
     "cardText": "Exemplar — Fred: \"A 1/1 Demon Fodder — your Demons devour it from the tavern.\" · Carriers: Fred",
-    "example": "Example: Fred carries Fodder — in play, a cheap body meant to be Consumed; Fodder-scaling effects count these.",
+    "example": "Fred carries Fodder — in play, a cheap body meant to be Consumed; Fodder-scaling effects count these.",
     "contentIds": [
       "fred"
     ]
@@ -1412,12 +1412,12 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-keyword-imm",
-    "title": "Keyword contract — Immune [IMM] (0 carriers)",
-    "statement": "Standing meaning of Immune: takes no damage from any source while the keyword holds. This is THE contract for every carrier — a card wanting different Immune semantics needs its own ruling, and any engine drift from this sentence is a bug, not a variant. — ✓ Approve = this is exactly what Immune means, for every carrier. ✎ Revise = your ruling, in a sentence. ✕ Reject = the sentence is wrong or incomplete — correct it in Revise.",
+    "title": "Immune [IMM] · 0 carriers",
+    "statement": "Immune means: takes no damage from any source while the keyword holds — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "keywords",
     "currentBehaviour": "One shared engine path implements Immune for all 0 carriers.",
     "cardText": "(no current carrier of Immune)",
-    "example": "Example: any future Immune card inherits this meaning."
+    "example": "any future Immune card inherits this meaning."
   },
   {
     "status": "needs-ruling",
@@ -1435,12 +1435,12 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-keyword-m",
-    "title": "Keyword contract — Magnetic [M] (7 carriers)",
-    "statement": "Standing meaning of Magnetic: an Attachment: can be played onto a compatible minion, merging stats and effects into it. This is THE contract for every carrier — a card wanting different Magnetic semantics needs its own ruling, and any engine drift from this sentence is a bug, not a variant. — ✓ Approve = this is exactly what Magnetic means, for every carrier. ✎ Revise = your ruling, in a sentence. ✕ Reject = the sentence is wrong or incomplete — correct it in Revise.",
+    "title": "Magnetic [M] · 7 carriers",
+    "statement": "Magnetic means: an Attachment: can be played onto a compatible minion, merging stats and effects into it — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "keywords",
     "currentBehaviour": "One shared engine path implements Magnetic for all 7 carriers.",
     "cardText": "Exemplar — Better Bot: \"Rally: give your other Mechs +5 Attack. Magnetic — welds onto a Mech, which then grants the buff (stacks).\" · Carriers: Better Bot · Cling Drone · Heckbinder · Money Bot · Perfect Core · Speedy · Chaos Attachment",
-    "example": "Example: Better Bot carries Magnetic — in play, an Attachment: can be played onto a compatible minion, merging stats and effects into it.",
+    "example": "Better Bot carries Magnetic — in play, an Attachment: can be played onto a compatible minion, merging stats and effects into it.",
     "contentIds": [
       "betterbot",
       "cling",
@@ -1467,12 +1467,12 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-keyword-r",
-    "title": "Keyword contract — Rise [R] (3 carriers)",
-    "statement": "Standing meaning of Rise: the first time this dies, it returns with 1 Health (its Rise spent). This is THE contract for every carrier — a card wanting different Rise semantics needs its own ruling, and any engine drift from this sentence is a bug, not a variant. — ✓ Approve = this is exactly what Rise means, for every carrier. ✎ Revise = your ruling, in a sentence. ✕ Reject = the sentence is wrong or incomplete — correct it in Revise.",
+    "title": "Rise [R] · 3 carriers",
+    "statement": "Rise means: the first time this dies, it returns with 1 Health (its Rise spent) — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "keywords",
     "currentBehaviour": "One shared engine path implements Rise for all 3 carriers.",
     "cardText": "Exemplar — Anubis: \"Deathrattle: Give your minions Reborn. Cast Lantern of Souls.\" · Carriers: Anubis · Footman · Chaos Attachment",
-    "example": "Example: Anubis carries Rise — in play, the first time this dies, it returns with 1 Health (its Rise spent).",
+    "example": "Anubis carries Rise — in play, the first time this dies, it returns with 1 Health (its Rise spent).",
     "contentIds": [
       "anubis",
       "footman",
@@ -1495,12 +1495,12 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-keyword-rl",
-    "title": "Keyword contract — Rally [RL] (34 carriers)",
-    "statement": "Standing meaning of Rally: triggers its effect each time this minion attacks. This is THE contract for every carrier — a card wanting different Rally semantics needs its own ruling, and any engine drift from this sentence is a bug, not a variant. — ✓ Approve = this is exactly what Rally means, for every carrier. ✎ Revise = your ruling, in a sentence. ✕ Reject = the sentence is wrong or incomplete — correct it in Revise.",
+    "title": "Rally [RL] · 34 carriers",
+    "statement": "Rally means: triggers its effect each time this minion attacks — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "keywords",
     "currentBehaviour": "One shared engine path implements Rally for all 34 carriers.",
     "cardText": "Exemplar — Echohorn: \"Rally: trigger your left-most Echo.\" · Carriers: Echohorn · Packstrider · Sunmane Herald · Badgington · Better Bot · Equinox Duelist · Chimerus · Chorus Engine · Ashen Broodlord · Chorus Drake · Cinderchef · Embercrest · … and 22 more",
-    "example": "Example: Echohorn carries Rally — in play, triggers its effect each time this minion attacks.",
+    "example": "Echohorn carries Rally — in play, triggers its effect each time this minion attacks.",
     "contentIds": [
       "b2_echohorn",
       "b2_packstrider",
@@ -1554,12 +1554,12 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-keyword-sc",
-    "title": "Keyword contract — Start of Combat [SC] (12 carriers)",
-    "statement": "Standing meaning of Start of Combat: its effect fires once when combat begins, before any attacks. This is THE contract for every carrier — a card wanting different Start of Combat semantics needs its own ruling, and any engine drift from this sentence is a bug, not a variant. — ✓ Approve = this is exactly what Start of Combat means, for every carrier. ✎ Revise = your ruling, in a sentence. ✕ Reject = the sentence is wrong or incomplete — correct it in Revise.",
+    "title": "Start of Combat [SC] · 12 carriers",
+    "statement": "Start of Combat means: its effect fires once when combat begins, before any attacks — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "keywords",
     "currentBehaviour": "One shared engine path implements Start of Combat for all 12 carriers.",
     "cardText": "Exemplar — Abhorrent Horror: \"Start of Combat: Gain +Attack/+Health equal to the Fodder consumed this turn.\" · Carriers: Abhorrent Horror · Quil · Runebloom Matriarch · Spots · Thunderous Sovereign · Bucky · Drunken Oaf · Kobe · Kennelmaster · Speed Demon · Taurus · Taurus the Truth Bringer",
-    "example": "Example: Abhorrent Horror carries Start of Combat — in play, its effect fires once when combat begins, before any attacks.",
+    "example": "Abhorrent Horror carries Start of Combat — in play, its effect fires once when combat begins, before any attacks.",
     "contentIds": [
       "abhorrenthorror",
       "b2_quil",
@@ -1591,12 +1591,12 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-keyword-sl",
-    "title": "Keyword contract — Slaughter [SL] (5 carriers)",
-    "statement": "Standing meaning of Slaughter: triggers its effect each time this minion kills an enemy minion. This is THE contract for every carrier — a card wanting different Slaughter semantics needs its own ruling, and any engine drift from this sentence is a bug, not a variant. — ✓ Approve = this is exactly what Slaughter means, for every carrier. ✎ Revise = your ruling, in a sentence. ✕ Reject = the sentence is wrong or incomplete — correct it in Revise.",
+    "title": "Slaughter [SL] · 5 carriers",
+    "statement": "Slaughter means: triggers its effect each time this minion kills an enemy minion — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "keywords",
     "currentBehaviour": "One shared engine path implements Slaughter for all 5 carriers.",
     "cardText": "Exemplar — Bounty Bot: \"Immune while attacking (first 2 attacks each combat). Slaughter: gain 2 Gold next shop.\" · Carriers: Bounty Bot · Gnasher, the Overrun · Karthus · Moe · Sword and Bored",
-    "example": "Example: Bounty Bot carries Slaughter — in play, triggers its effect each time this minion kills an enemy minion.",
+    "example": "Bounty Bot carries Slaughter — in play, triggers its effect each time this minion kills an enemy minion.",
     "contentIds": [
       "bountybot",
       "gnash",
@@ -1621,12 +1621,12 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-keyword-st",
-    "title": "Keyword contract — Stealth [ST] (0 carriers)",
-    "statement": "Standing meaning of Stealth: cannot be targeted by attacks; lost the moment it attacks. This is THE contract for every carrier — a card wanting different Stealth semantics needs its own ruling, and any engine drift from this sentence is a bug, not a variant. — ✓ Approve = this is exactly what Stealth means, for every carrier. ✎ Revise = your ruling, in a sentence. ✕ Reject = the sentence is wrong or incomplete — correct it in Revise.",
+    "title": "Stealth [ST] · 0 carriers",
+    "statement": "Stealth means: cannot be targeted by attacks; lost the moment it attacks — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "keywords",
     "currentBehaviour": "One shared engine path implements Stealth for all 0 carriers.",
     "cardText": "(no current carrier of Stealth)",
-    "example": "Example: any future Stealth card inherits this meaning."
+    "example": "any future Stealth card inherits this meaning."
   },
   {
     "status": "needs-ruling",
@@ -1644,12 +1644,12 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-keyword-t",
-    "title": "Keyword contract — Taunt [T] (20 carriers)",
-    "statement": "Standing meaning of Taunt: enemies must attack your Taunt minions before anything else. This is THE contract for every carrier — a card wanting different Taunt semantics needs its own ruling, and any engine drift from this sentence is a bug, not a variant. — ✓ Approve = this is exactly what Taunt means, for every carrier. ✎ Revise = your ruling, in a sentence. ✕ Reject = the sentence is wrong or incomplete — correct it in Revise.",
+    "title": "Taunt [T] · 20 carriers",
+    "statement": "Taunt means: enemies must attack your Taunt minions before anything else — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "keywords",
     "currentBehaviour": "One shared engine path implements Taunt for all 20 carriers.",
     "cardText": "Exemplar — Armadiyo: \"Taunt. Echo: give your Beasts +2/+4 wherever they are.\" · Carriers: Armadiyo · Dawnclaw · Wolvie · Blaster · Fel Spikes · Chipper · Knocked · Big Huggies · Brunni · Twilight Emissary · Gryphon · Candleback Bulwark · … and 8 more",
-    "example": "Example: Armadiyo carries Taunt — in play, enemies must attack your Taunt minions before anything else.",
+    "example": "Armadiyo carries Taunt — in play, enemies must attack your Taunt minions before anything else.",
     "contentIds": [
       "b2_armadiyo",
       "b2_dawnclaw",
@@ -1689,12 +1689,12 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-keyword-v",
-    "title": "Keyword contract — Venomous [V] (2 carriers)",
-    "statement": "Standing meaning of Venomous: destroys whatever it damages; drops off after its first clash (a Cleave clash is simultaneous, so one venom can fell up to three bodies before dropping). This is THE contract for every carrier — a card wanting different Venomous semantics needs its own ruling, and any engine drift from this sentence is a bug, not a variant. — ✓ Approve = this is exactly what Venomous means, for every carrier. ✎ Revise = your ruling, in a sentence. ✕ Reject = the sentence is wrong or incomplete — correct it in Revise.",
+    "title": "Venomous [V] · 2 carriers",
+    "statement": "Venomous means: destroys whatever it damages; drops off after its first clash (a Cleave clash is simultaneous, so one venom can fell up to three bodies before dropping) — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "keywords",
     "currentBehaviour": "One shared engine path implements Venomous for all 2 carriers.",
     "cardText": "Exemplar — Lab Experiment: \"Battlecry: get a Tier 6 minion. Deathrattle: get a Tier 5 minion.\" · Carriers: Lab Experiment · Venom",
-    "example": "Example: Lab Experiment carries Venomous — in play, destroys whatever it damages; drops off after its first clash (a Cleave clash is simultaneous, so one venom can fell up to three bodies before dropping).",
+    "example": "Lab Experiment carries Venomous — in play, destroys whatever it damages; drops off after its first clash (a Cleave clash is simultaneous, so one venom can fell up to three bodies before dropping).",
     "contentIds": [
       "labexperiment",
       "venom"
@@ -1716,12 +1716,12 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-keyword-w",
-    "title": "Keyword contract — Windfury [W] (4 carriers)",
-    "statement": "Standing meaning of Windfury: attacks twice per attack turn. This is THE contract for every carrier — a card wanting different Windfury semantics needs its own ruling, and any engine drift from this sentence is a bug, not a variant. — ✓ Approve = this is exactly what Windfury means, for every carrier. ✎ Revise = your ruling, in a sentence. ✕ Reject = the sentence is wrong or incomplete — correct it in Revise.",
+    "title": "Windfury [W] · 4 carriers",
+    "statement": "Windfury means: attacks twice per attack turn — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "keywords",
     "currentBehaviour": "One shared engine path implements Windfury for all 4 carriers.",
     "cardText": "Exemplar — Commander Impala: \"Flurry. Ward. Critical Strike (50%).\" · Carriers: Commander Impala · Blazer · Speedy · Tauntbreaker",
-    "example": "Example: Commander Impala carries Windfury — in play, attacks twice per attack turn.",
+    "example": "Commander Impala carries Windfury — in play, attacks twice per attack turn.",
     "contentIds": [
       "impala",
       "k_blazer",
@@ -1745,12 +1745,12 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-power-active",
-    "title": "Hero-power activation convention — 'active' (17 heroes)",
-    "statement": "Every power in the 'active' family fires through the real hero-power action, with at most a board/shop target. The classification decides how Doc Bot verifies each power (which stager drives it) and what \"doing nothing when pressed\" means for it. Confirm the classification for every hero listed. — ✓ Approve = the classification is right for every hero listed. ✎ Revise = your ruling, in a sentence. ✕ Reject = a hero is misclassified — name it in Revise.",
+    "title": "'active' powers · 17 heroes",
+    "statement": "These 17 powers all fires through the real hero-power action, with at most a board/shop target. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "heroes",
     "currentBehaviour": "heroPowerFamilies.ts classifies these 17 powers as 'active'; the heroPowerLane + stager suites verify each against that reading.",
     "cardText": "Exemplar — Albus, Empowerment: \"Choose a Shop minion. Discover a minion from the tier above it for it to become.\" · Members: Albus — Empowerment [empowerment] · Rascal — All In [allIn] · Darah — Swap [displace] · Devourer — Devour [devour] · Djinni — Cadence [replayAllEndOfTurn] · Fibbsy — Ruby Wealth [rubyWealth] · Frantic Frank — Clearance [clearance] · Harlan — Buyout [buyout] · Jensen — Dynamite Dig [dynamiteDig] · Merrin — Pocket Magic [pocketMagic] · Auctioneer — Pulse [replayBattlecry] · Nadja — Goldspring [gainMaxMana] · Lord of the Risen — Undying [grantReborn] · Sable — Soulbind [soulbind] · Tiff — Dragon Tamer [dragonTamer] · Warden — Aegis [grantWard] · Xerox — Copy Machine [copyMachine]",
-    "example": "Example: Albus's Empowerment fires through the real hero-power action, with at most a board/shop target."
+    "example": "Albus's Empowerment fires through the real hero-power action, with at most a board/shop target."
   },
   {
     "status": "needs-ruling",
@@ -1768,12 +1768,12 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-power-active-conditional",
-    "title": "Hero-power activation convention — 'active-conditional' (5 heroes)",
-    "statement": "Every power in the 'active-conditional' family active, but only against a staged precondition (a pair to complete, a fight behind you, a spell cast). The classification decides how Doc Bot verifies each power (which stager drives it) and what \"doing nothing when pressed\" means for it. Confirm the classification for every hero listed. — ✓ Approve = the classification is right for every hero listed. ✎ Revise = your ruling, in a sentence. ✕ Reject = a hero is misclassified — name it in Revise.",
+    "title": "'active-conditional' powers · 5 heroes",
+    "statement": "These 5 powers all active, but only against a staged precondition (a pair to complete, a fight behind you, a spell cast). — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "heroes",
     "currentBehaviour": "heroPowerFamilies.ts classifies these 5 powers as 'active-conditional'; the heroPowerLane + stager suites verify each against that reading.",
     "cardText": "Exemplar — Gildmaster, Gildcrafter: \"When you have 2 copies of a minion, this grants a third.\" · Members: Gildmaster — Gildcrafter [gildcrafter] · Hunch — Rounded Spellbook [roundedSpellbook] · Membrance — Memory [memory] · Quillen — Archive [archive] · Underdweller — Soulkeeper [soulkeeper]",
-    "example": "Example: Gildmaster's Gildcrafter active, but only against a staged precondition (a pair to complete, a fight behind you, a spell cast)."
+    "example": "Gildmaster's Gildcrafter active, but only against a staged precondition (a pair to complete, a fight behind you, a spell cast)."
   },
   {
     "status": "needs-ruling",
@@ -1791,12 +1791,12 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-power-adopted-secondary",
-    "title": "Hero-power activation convention — 'adopted-secondary' (2 heroes)",
-    "statement": "Every power in the 'adopted-secondary' family adopts other heroes' powers through the pick ceremony. The classification decides how Doc Bot verifies each power (which stager drives it) and what \"doing nothing when pressed\" means for it. Confirm the classification for every hero listed. — ✓ Approve = the classification is right for every hero listed. ✎ Revise = your ruling, in a sentence. ✕ Reject = a hero is misclassified — name it in Revise.",
+    "title": "'adopted-secondary' powers · 2 heroes",
+    "statement": "These 2 powers all adopts other heroes' powers through the pick ceremony. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "heroes",
     "currentBehaviour": "heroPowerFamilies.ts classifies these 2 powers as 'adopted-secondary'; the heroPowerLane + stager suites verify each against that reading.",
     "cardText": "Exemplar — Mimic, Mimicry: \"At the start of every turn, Discover a hero power to wield this turn.\" · Members: Mimic — Mimicry [mimic] · Void — Twin Voids [voidTwin]",
-    "example": "Example: Mimic's Mimicry adopts other heroes' powers through the pick ceremony."
+    "example": "Mimic's Mimicry adopts other heroes' powers through the pick ceremony."
   },
   {
     "status": "needs-ruling",
@@ -1814,12 +1814,12 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-power-combat-trigger",
-    "title": "Hero-power activation convention — 'combat-trigger' (5 heroes)",
-    "statement": "Every power in the 'combat-trigger' family the payoff happens inside or around combat. The classification decides how Doc Bot verifies each power (which stager drives it) and what \"doing nothing when pressed\" means for it. Confirm the classification for every hero listed. — ✓ Approve = the classification is right for every hero listed. ✎ Revise = your ruling, in a sentence. ✕ Reject = a hero is misclassified — name it in Revise.",
+    "title": "'combat-trigger' powers · 5 heroes",
+    "statement": "These 5 powers all the payoff happens inside or around combat. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "heroes",
     "currentBehaviour": "heroPowerFamilies.ts classifies these 5 powers as 'combat-trigger'; the heroPowerLane + stager suites verify each against that reading.",
     "cardText": "Exemplar — Cindara, Hoard: \"Avenge (4): summon a 1/1 Whelp that attacks immediately. Improve your Whelps +2/+2.\" · Members: Cindara — Hoard [hoard] · Gorun — Blade Mastery [bladeMastery] · Rayse — Empowering Vines [empoweringVines] · Soren — Reclaim [resummon] · Emissary — United Front [unitedFront]",
-    "example": "Example: Cindara's Hoard the payoff happens inside or around combat."
+    "example": "Cindara's Hoard the payoff happens inside or around combat."
   },
   {
     "status": "needs-ruling",
@@ -1837,12 +1837,12 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-power-count-threshold",
-    "title": "Hero-power activation convention — 'count-threshold' (10 heroes)",
-    "statement": "Every power in the 'count-threshold' family a buy/sell/refresh/tally counter crossing a threshold. The classification decides how Doc Bot verifies each power (which stager drives it) and what \"doing nothing when pressed\" means for it. Confirm the classification for every hero listed. — ✓ Approve = the classification is right for every hero listed. ✎ Revise = your ruling, in a sentence. ✕ Reject = a hero is misclassified — name it in Revise.",
+    "title": "'count-threshold' powers · 10 heroes",
+    "statement": "These 10 powers all a buy/sell/refresh/tally counter crossing a threshold. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "heroes",
     "currentBehaviour": "heroPowerFamilies.ts classifies these 10 powers as 'count-threshold'; the heroPowerLane + stager suites verify each against that reading.",
     "cardText": "Exemplar — Aevor, Tempest: \"Unlocks after your minions kill 15 enemies. End of Turn: give your left and right-most minions +4/+4. Upgrades every 15 kills.\" · Members: Aevor — Tempest [tempest] · Braum — Investment [investment] · Chronos — Timelapse [questChronos] · Ayse — Lucky Seat [luckySeat] · Drakko — Drumline [quest] · Gorr — Four Peat [fourPeat] · Juggler — Carnival Coin [baldgecoin] · Keshi the Protector — Keshi’s Crown [crownTally] · Pete — Contrabanana [contraband] · Robin — Spoils [sellGold]",
-    "example": "Example: Aevor's Tempest a buy/sell/refresh/tally counter crossing a threshold."
+    "example": "Aevor's Tempest a buy/sell/refresh/tally counter crossing a threshold."
   },
   {
     "status": "needs-ruling",
@@ -1860,12 +1860,12 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-power-every-n-turns",
-    "title": "Hero-power activation convention — 'every-n-turns' (3 heroes)",
-    "statement": "Every power in the 'every-n-turns' family a repeating schedule. The classification decides how Doc Bot verifies each power (which stager drives it) and what \"doing nothing when pressed\" means for it. Confirm the classification for every hero listed. — ✓ Approve = the classification is right for every hero listed. ✎ Revise = your ruling, in a sentence. ✕ Reject = a hero is misclassified — name it in Revise.",
+    "title": "'every-n-turns' powers · 3 heroes",
+    "statement": "These 3 powers all a repeating schedule. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "heroes",
     "currentBehaviour": "heroPowerFamilies.ts classifies these 3 powers as 'every-n-turns'; the heroPowerLane + stager suites verify each against that reading.",
     "cardText": "Exemplar — Chaos, Chaos Bond: \"Start with a Chaos Attachment. Get another every 5 turns.\" · Members: Chaos — Chaos Bond [chaos] · Kindness — Great Presence [greatPresence] · Re-Pete — Second Hand [secondHand]",
-    "example": "Example: Chaos's Chaos Bond a repeating schedule."
+    "example": "Chaos's Chaos Bond a repeating schedule."
   },
   {
     "status": "needs-ruling",
@@ -1883,12 +1883,12 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-power-modal-choice",
-    "title": "Hero-power activation convention — 'modal-choice' (2 heroes)",
-    "statement": "Every power in the 'modal-choice' family the activation carries a choice payload the player picks. The classification decides how Doc Bot verifies each power (which stager drives it) and what \"doing nothing when pressed\" means for it. Confirm the classification for every hero listed. — ✓ Approve = the classification is right for every hero listed. ✎ Revise = your ruling, in a sentence. ✕ Reject = a hero is misclassified — name it in Revise.",
+    "title": "'modal-choice' powers · 2 heroes",
+    "statement": "These 2 powers all the activation carries a choice payload the player picks. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "heroes",
     "currentBehaviour": "heroPowerFamilies.ts classifies these 2 powers as 'modal-choice'; the heroPowerLane + stager suites verify each against that reading.",
     "cardText": "Exemplar — Cassen, Commission: \"Choose a commission — it pays out in a few turns.\" · Members: Cassen — Commission [commission] · Flash — First or Last [firstOrLast]",
-    "example": "Example: Cassen's Commission the activation carries a choice payload the player picks."
+    "example": "Cassen's Commission the activation carries a choice payload the player picks."
   },
   {
     "status": "needs-ruling",
@@ -1906,12 +1906,12 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-power-passive-pricing",
-    "title": "Hero-power activation convention — 'passive-pricing' (3 heroes)",
-    "statement": "Every power in the 'passive-pricing' family an always-on price/rule rewrite. The classification decides how Doc Bot verifies each power (which stager drives it) and what \"doing nothing when pressed\" means for it. Confirm the classification for every hero listed. — ✓ Approve = the classification is right for every hero listed. ✎ Revise = your ruling, in a sentence. ✕ Reject = a hero is misclassified — name it in Revise.",
+    "title": "'passive-pricing' powers · 3 heroes",
+    "statement": "These 3 powers all an always-on price/rule rewrite. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "heroes",
     "currentBehaviour": "heroPowerFamilies.ts classifies these 3 powers as 'passive-pricing'; the heroPowerLane + stager suites verify each against that reading.",
     "cardText": "Exemplar — Foreman Flint, Company Rate: \"Dwarves cost 2 Gold.\" · Members: Foreman Flint — Company Rate [companyRate] · Tradesman — Frugal [cheapMinions] · Midas — Midas' Touch [midasTouch]",
-    "example": "Example: Foreman Flint's Company Rate an always-on price/rule rewrite."
+    "example": "Foreman Flint's Company Rate an always-on price/rule rewrite."
   },
   {
     "status": "needs-ruling",
@@ -1929,12 +1929,12 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-power-shop-action-trigger",
-    "title": "Hero-power activation convention — 'shop-action-trigger' (2 heroes)",
-    "statement": "Every power in the 'shop-action-trigger' family rides one specific shop action (a tier-up, a play position). The classification decides how Doc Bot verifies each power (which stager drives it) and what \"doing nothing when pressed\" means for it. Confirm the classification for every hero listed. — ✓ Approve = the classification is right for every hero listed. ✎ Revise = your ruling, in a sentence. ✕ Reject = a hero is misclassified — name it in Revise.",
+    "title": "'shop-action-trigger' powers · 2 heroes",
+    "statement": "These 2 powers all rides one specific shop action (a tier-up, a play position). — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "heroes",
     "currentBehaviour": "heroPowerFamilies.ts classifies these 2 powers as 'shop-action-trigger'; the heroPowerLane + stager suites verify each against that reading.",
     "cardText": "Exemplar — Emerald Warden, Vanguard: \"When you tier up, get a random minion from the new tier.\" · Members: Emerald Warden — Vanguard [vanguard] · Odelle — Exhibition [exhibition]",
-    "example": "Example: Emerald Warden's Vanguard rides one specific shop action (a tier-up, a play position)."
+    "example": "Emerald Warden's Vanguard rides one specific shop action (a tier-up, a play position)."
   },
   {
     "status": "needs-ruling",
@@ -1952,12 +1952,12 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-power-start-of-run",
-    "title": "Hero-power activation convention — 'start-of-run' (5 heroes)",
-    "statement": "Every power in the 'start-of-run' family the work happens at run creation (opening tokens, locked Discovers, the turn-1 quest offer). The classification decides how Doc Bot verifies each power (which stager drives it) and what \"doing nothing when pressed\" means for it. Confirm the classification for every hero listed. — ✓ Approve = the classification is right for every hero listed. ✎ Revise = your ruling, in a sentence. ✕ Reject = a hero is misclassified — name it in Revise.",
+    "title": "'start-of-run' powers · 5 heroes",
+    "statement": "These 5 powers all the work happens at run creation (opening tokens, locked Discovers, the turn-1 quest offer). — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "heroes",
     "currentBehaviour": "heroPowerFamilies.ts classifies these 5 powers as 'start-of-run'; the heroPowerLane + stager suites verify each against that reading.",
     "cardText": "Exemplar — Brackus, Summit: \"At the start of the game, Discover a Tier 7 minion. It is locked until you spend 70 Gold.\" · Members: Brackus — Summit [summitLock] · Coran — Pathfinder [heroQuest] · Disco Dan — Setlist [discoLock] · Fi — Errand [heroQuest] · Yirin — Reflector [startingReflector]",
-    "example": "Example: Brackus's Summit the work happens at run creation (opening tokens, locked Discovers, the turn-1 quest offer)."
+    "example": "Brackus's Summit the work happens at run creation (opening tokens, locked Discovers, the turn-1 quest offer)."
   },
   {
     "status": "needs-ruling",
@@ -1975,12 +1975,12 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-power-turn-number",
-    "title": "Hero-power activation convention — 'turn-number' (2 heroes)",
-    "statement": "Every power in the 'turn-number' family opens/fires on one specific turn. The classification decides how Doc Bot verifies each power (which stager drives it) and what \"doing nothing when pressed\" means for it. Confirm the classification for every hero listed. — ✓ Approve = the classification is right for every hero listed. ✎ Revise = your ruling, in a sentence. ✕ Reject = a hero is misclassified — name it in Revise.",
+    "title": "'turn-number' powers · 2 heroes",
+    "statement": "These 2 powers all opens/fires on one specific turn. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "heroes",
     "currentBehaviour": "heroPowerFamilies.ts classifies these 2 powers as 'turn-number'; the heroPowerLane + stager suites verify each against that reading.",
     "cardText": "Exemplar — Guardian, Runeguard: \"On turn 8, visit the Epic Runeforge.\" · Members: Guardian — Runeguard [epicRuneforge] · Runesmith — Forgemaster [runeforge]",
-    "example": "Example: Guardian's Runeguard opens/fires on one specific turn."
+    "example": "Guardian's Runeguard opens/fires on one specific turn."
   },
   {
     "status": "needs-ruling",
@@ -1998,12 +1998,12 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-power-unlock-recharge",
-    "title": "Hero-power activation convention — 'unlock-recharge' (3 heroes)",
-    "statement": "Every power in the 'unlock-recharge' family active, but gated by its own lock/recharge schedule. The classification decides how Doc Bot verifies each power (which stager drives it) and what \"doing nothing when pressed\" means for it. Confirm the classification for every hero listed. — ✓ Approve = the classification is right for every hero listed. ✎ Revise = your ruling, in a sentence. ✕ Reject = a hero is misclassified — name it in Revise.",
+    "title": "'unlock-recharge' powers · 3 heroes",
+    "statement": "These 3 powers all active, but gated by its own lock/recharge schedule. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "heroes",
     "currentBehaviour": "heroPowerFamilies.ts classifies these 3 powers as 'unlock-recharge'; the heroPowerLane + stager suites verify each against that reading.",
     "cardText": "Exemplar — Aster, the Guide, Preparation: \"Give a friendly minion +1/+1. Recharges every other turn.\" · Members: Aster, the Guide — Preparation [preparation] · Gambler — Dice [dice] · Indy — Masterwork [gild]",
-    "example": "Example: Aster, the Guide's Preparation active, but gated by its own lock/recharge schedule."
+    "example": "Aster, the Guide's Preparation active, but gated by its own lock/recharge schedule."
   },
   {
     "status": "needs-ruling",
@@ -2021,12 +2021,12 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-quest-reward-combatflag",
-    "title": "Quest reward shape — 'combatFlag' (14 quests)",
-    "statement": "14 quests pay a 'combatFlag'-shaped reward, all resolved by the ONE shared reward engine (applyQuestReward — runes reuse it too). Convention: the shape behaves identically wherever it appears; a quest wanting bespoke behaviour is an exception, not a silent variant. Confirm uniformity for the members listed. — ✓ Approve = the shape is uniform across every member. ✎ Revise = your ruling, in a sentence. ✕ Reject = a member should behave differently — name it in Revise.",
+    "title": "'combatFlag' rewards · 14 quests",
+    "statement": "These 14 quests pay the same 'combatFlag' reward through one shared engine — no special cases. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "categories",
     "currentBehaviour": "applyQuestReward resolves all 14 through the same 'combatFlag' branch.",
     "cardText": "Exemplar — Blood Trail (beast, lesser): objective buy × 5 → reward 'combatFlag' · Members: Blood Trail · Assembly Line · Umbral Energy · Deep Hunger · Contract Rewrite · Law of Teeth · The Old Hunt · Feeding Line · Empty Graves · Shared Circuit · Pit Without End · Echoing Coop · … and 2 more",
-    "example": "Example: completing Blood Trail pays its 'combatFlag' reward through the shared engine.",
+    "example": "completing Blood Trail pays its 'combatFlag' reward through the shared engine.",
     "contentIds": [
       "q_assembly_line",
       "q_blood_trail",
@@ -2060,12 +2060,12 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-quest-reward-echorepeat",
-    "title": "Quest reward shape — 'echoRepeat' (3 quests)",
-    "statement": "3 quests pay a 'echoRepeat'-shaped reward, all resolved by the ONE shared reward engine (applyQuestReward — runes reuse it too). Convention: the shape behaves identically wherever it appears; a quest wanting bespoke behaviour is an exception, not a silent variant. Confirm uniformity for the members listed. — ✓ Approve = the shape is uniform across every member. ✎ Revise = your ruling, in a sentence. ✕ Reject = a member should behave differently — name it in Revise.",
+    "title": "'echoRepeat' rewards · 3 quests",
+    "statement": "These 3 quests pay the same 'echoRepeat' reward through one shared engine — no special cases. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "categories",
     "currentBehaviour": "applyQuestReward resolves all 3 through the same 'echoRepeat' branch.",
     "cardText": "Exemplar — Grave Contract (neutral, lesser): objective deathrattle × 7 → reward 'echoRepeat' · Members: Grave Contract · Opening Act · Resonant Path",
-    "example": "Example: completing Grave Contract pays its 'echoRepeat' reward through the shared engine.",
+    "example": "completing Grave Contract pays its 'echoRepeat' reward through the shared engine.",
     "contentIds": [
       "hq_opening_act_echo",
       "hq_resonant_path_echo",
@@ -2088,12 +2088,12 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-quest-reward-grant",
-    "title": "Quest reward shape — 'grant' (28 quests)",
-    "statement": "28 quests pay a 'grant'-shaped reward, all resolved by the ONE shared reward engine (applyQuestReward — runes reuse it too). Convention: the shape behaves identically wherever it appears; a quest wanting bespoke behaviour is an exception, not a silent variant. Confirm uniformity for the members listed. — ✓ Approve = the shape is uniform across every member. ✎ Revise = your ruling, in a sentence. ✕ Reject = a member should behave differently — name it in Revise.",
+    "title": "'grant' rewards · 28 quests",
+    "statement": "These 28 quests pay the same 'grant' reward through one shared engine — no special cases. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "categories",
     "currentBehaviour": "applyQuestReward resolves all 28 through the same 'grant' branch.",
     "cardText": "Exemplar — Forest Grove (beast, lesser): objective summon × 8 → reward 'grant' · Members: Forest Grove · Forager's Trail · Hoard Spark · Coin Hoard · Grave Robber · Scrap Contract · Gilded Chance · Key Findings · Apex Hunt · Trophy Den · Skybound Pact · Kingdom of Bones · … and 16 more",
-    "example": "Example: completing Forest Grove pays its 'grant' reward through the shared engine.",
+    "example": "completing Forest Grove pays its 'grant' reward through the shared engine.",
     "contentIds": [
       "hq_gilded_favor",
       "q_apex_hunt",
@@ -2141,12 +2141,12 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-quest-reward-multi",
-    "title": "Quest reward shape — 'multi' (20 quests)",
-    "statement": "20 quests pay a 'multi'-shaped reward, all resolved by the ONE shared reward engine (applyQuestReward — runes reuse it too). Convention: the shape behaves identically wherever it appears; a quest wanting bespoke behaviour is an exception, not a silent variant. Confirm uniformity for the members listed. — ✓ Approve = the shape is uniform across every member. ✎ Revise = your ruling, in a sentence. ✕ Reject = a member should behave differently — name it in Revise.",
+    "title": "'multi' rewards · 20 quests",
+    "statement": "These 20 quests pay the same 'multi' reward through one shared engine — no special cases. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "categories",
     "currentBehaviour": "applyQuestReward resolves all 20 through the same 'multi' branch.",
     "cardText": "Exemplar — Imp Census (demon, lesser): objective summonImp × 4 → reward 'multi' · Members: Imp Census · Dark Bargain · The Epic Runeforge · Feed the Alpha · Hoardwake Ritual · Overclocked Core · Leader of the Pack · Anomalous Reactor · Parliament of Flame · Funeral Engine · Infinite Assembly · Rulebreaker's Crown · … and 8 more",
-    "example": "Example: completing Imp Census pays its 'multi' reward through the shared engine.",
+    "example": "completing Imp Census pays its 'multi' reward through the shared engine.",
     "contentIds": [
       "hq_summit_passage",
       "q_anomalous_reactor",
@@ -2186,12 +2186,12 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-quest-reward-rallyrepeat",
-    "title": "Quest reward shape — 'rallyRepeat' (3 quests)",
-    "statement": "3 quests pay a 'rallyRepeat'-shaped reward, all resolved by the ONE shared reward engine (applyQuestReward — runes reuse it too). Convention: the shape behaves identically wherever it appears; a quest wanting bespoke behaviour is an exception, not a silent variant. Confirm uniformity for the members listed. — ✓ Approve = the shape is uniform across every member. ✎ Revise = your ruling, in a sentence. ✕ Reject = a member should behave differently — name it in Revise.",
+    "title": "'rallyRepeat' rewards · 3 quests",
+    "statement": "These 3 quests pay the same 'rallyRepeat' reward through one shared engine — no special cases. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "categories",
     "currentBehaviour": "applyQuestReward resolves all 3 through the same 'rallyRepeat' branch.",
     "cardText": "Exemplar — Spark Permit (neutral, lesser): objective castSpell × 10 → reward 'rallyRepeat' · Members: Spark Permit · Opening Act · Resonant Path",
-    "example": "Example: completing Spark Permit pays its 'rallyRepeat' reward through the shared engine.",
+    "example": "completing Spark Permit pays its 'rallyRepeat' reward through the shared engine.",
     "contentIds": [
       "hq_opening_act_rally",
       "hq_resonant_path_rally",
@@ -2214,12 +2214,12 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-quest-reward-recurringendofturn",
-    "title": "Quest reward shape — 'recurringEndOfTurn' (6 quests)",
-    "statement": "6 quests pay a 'recurringEndOfTurn'-shaped reward, all resolved by the ONE shared reward engine (applyQuestReward — runes reuse it too). Convention: the shape behaves identically wherever it appears; a quest wanting bespoke behaviour is an exception, not a silent variant. Confirm uniformity for the members listed. — ✓ Approve = the shape is uniform across every member. ✎ Revise = your ruling, in a sentence. ✕ Reject = a member should behave differently — name it in Revise.",
+    "title": "'recurringEndOfTurn' rewards · 6 quests",
+    "statement": "These 6 quests pay the same 'recurringEndOfTurn' reward through one shared engine — no special cases. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "categories",
     "currentBehaviour": "applyQuestReward resolves all 6 through the same 'recurringEndOfTurn' branch.",
     "cardText": "Exemplar — Echoing Roar (dragon, greater): objective shout × 7 → reward 'recurringEndOfTurn' · Members: Echoing Roar · Blueprint Cache · Forsaken Speed · Clinging On · Open Tab · Runic Refrain",
-    "example": "Example: completing Echoing Roar pays its 'recurringEndOfTurn' reward through the shared engine.",
+    "example": "completing Echoing Roar pays its 'recurringEndOfTurn' reward through the shared engine.",
     "contentIds": [
       "q_blueprint_cache",
       "q_clinging_on",
@@ -2245,12 +2245,12 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-quest-reward-recurringgrant",
-    "title": "Quest reward shape — 'recurringGrant' (3 quests)",
-    "statement": "3 quests pay a 'recurringGrant'-shaped reward, all resolved by the ONE shared reward engine (applyQuestReward — runes reuse it too). Convention: the shape behaves identically wherever it appears; a quest wanting bespoke behaviour is an exception, not a silent variant. Confirm uniformity for the members listed. — ✓ Approve = the shape is uniform across every member. ✎ Revise = your ruling, in a sentence. ✕ Reject = a member should behave differently — name it in Revise.",
+    "title": "'recurringGrant' rewards · 3 quests",
+    "statement": "These 3 quests pay the same 'recurringGrant' reward through one shared engine — no special cases. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "categories",
     "currentBehaviour": "applyQuestReward resolves all 3 through the same 'recurringGrant' branch.",
     "cardText": "Exemplar — The Red Trail (beast, greater): objective spendGold × 18 → reward 'recurringGrant' · Members: The Red Trail · Ossuary Rite · Implosion",
-    "example": "Example: completing The Red Trail pays its 'recurringGrant' reward through the shared engine.",
+    "example": "completing The Red Trail pays its 'recurringGrant' reward through the shared engine.",
     "contentIds": [
       "q_implosion",
       "q_ossuary_rite",
@@ -2273,12 +2273,12 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-quest-reward-residual",
-    "title": "Quest reward residual shapes — 31 rarer kinds (40 quests)",
-    "statement": "The remaining reward kinds ('shoutRepeat' ×3, 'spellRepeat' ×3, 'gainGold' ×2, 'grantRune' ×2, 'minionCost' ×2, 'rubyExtraCasts' ×2, 'rubyStatGain' ×2, 'aleExtraCasts' ×1, 'attachmentDeal' ×1, 'beastPlayBuff' ×1, 'boneThrone' ×1, 'consumeDoubleFirstEachTurn' ×1, 'discover' ×1, 'dupeFirstBuy' ×1, 'endlessVerse' ×1, 'fodderReward' ×1, 'freeFirstBuy' ×1, 'friedCircuits' ×1, 'gainMaxGold' ×1, 'gildCopies' ×1, 'goldFodder' ×1, 'motherlode' ×1, 'questGoldTribeBuff' ×1, 'scalingTribeAura' ×1, 'scheduleRuneforge' ×1, 'shopBuffOnRefresh' ×1, 'shopBuffPerShouts' ×1, 'shoutEdgeBuff' ×1, 'tier7Access' ×1, 'tribeRallySlaughterExtra' ×1, 'undeadSpellAura' ×1) each appear on only a few quests. Convention: each still resolves through the shared reward engine with no bespoke per-quest branches. Confirm, or name the kind that deserves its own family question. — ✓ Approve = all residual shapes are uniform engine-resolved rewards. ✎ Revise = your ruling, in a sentence. ✕ Reject = one kind needs its own family question — name it in Revise.",
+    "title": "Rarer reward kinds · 40 quests",
+    "statement": "These rarer reward kinds all use the same shared engine — no special cases: 'shoutRepeat' ×3, 'spellRepeat' ×3, 'gainGold' ×2, 'grantRune' ×2, 'minionCost' ×2, 'rubyExtraCasts' ×2, 'rubyStatGain' ×2, 'aleExtraCasts' ×1, 'attachmentDeal' ×1, 'beastPlayBuff' ×1, 'boneThrone' ×1, 'consumeDoubleFirstEachTurn' ×1, 'discover' ×1, 'dupeFirstBuy' ×1, 'endlessVerse' ×1, 'fodderReward' ×1, 'freeFirstBuy' ×1, 'friedCircuits' ×1, 'gainMaxGold' ×1, 'gildCopies' ×1, 'goldFodder' ×1, 'motherlode' ×1, 'questGoldTribeBuff' ×1, 'scalingTribeAura' ×1, 'scheduleRuneforge' ×1, 'shopBuffOnRefresh' ×1, 'shopBuffPerShouts' ×1, 'shoutEdgeBuff' ×1, 'tier7Access' ×1, 'tribeRallySlaughterExtra' ×1, 'undeadSpellAura' ×1. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "categories",
     "currentBehaviour": "Each kind is one applyQuestReward branch; no per-quest special cases.",
     "cardText": "'shoutRepeat': Warm Embers · 'spellRepeat': Spell Thesis · 'gainGold': Bone Ledger · 'grantRune': Spare Forge · 'minionCost': Merchant's Mark · 'rubyExtraCasts': Gem Circuit · 'rubyStatGain': Open the Vein · 'aleExtraCasts': Bottomless Cellar · 'attachmentDeal': Attachment Issues · 'beastPlayBuff': Den Marker",
-    "example": "Example: Warm Embers pays its 'shoutRepeat' reward through the same engine as every other quest.",
+    "example": "Warm Embers pays its 'shoutRepeat' reward through the same engine as every other quest.",
     "contentIds": [
       "hq_first_pick",
       "hq_gilded_shortcut",

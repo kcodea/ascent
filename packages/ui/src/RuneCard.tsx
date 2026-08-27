@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { CSSProperties } from 'react';
 import type { QuestReward, RuneDef } from '@game/core';
-import { CARD_INDEX, runeStacks } from '@game/content';
+import { CARD_INDEX, RUNE_DUP_UNIQUE, runeStacks } from '@game/content';
 import { Card, mdBold, type CardView } from './Card';
 import { Icon } from './Icon';
 import { runeArt } from './art';
@@ -111,8 +111,13 @@ export function RuneCard({ rune, affordable, onBuy, cost, duplicating }: {
       <div className="runecard-body">
         <div className="runecard-sect">
           {duplicating && !runeStacks(rune) && (
-            <div className="runecard-nostack" title="Rune of Duplication will copy this, but a second copy of this rune has no additional effect.">
-              Does not stack
+            <div
+              className="runecard-nostack"
+              title={RUNE_DUP_UNIQUE.has(rune.id)
+                ? 'Rune of Duplication will copy this, but a second copy of this rune has no additional effect.'
+                : 'This rune does not stack — the Duplication copy instead refunds half its cost in Gold plus a free refresh.'}
+            >
+              {RUNE_DUP_UNIQUE.has(rune.id) ? 'Does not stack' : 'Copy refunds'}
             </div>
           )}
           <div className="runecard-txt" dangerouslySetInnerHTML={{ __html: mdBold(withImpStats(rune.id, rune.text, impAura, false)) }} />

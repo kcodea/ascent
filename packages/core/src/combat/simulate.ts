@@ -66,6 +66,11 @@ export function simulate(
   let forcedEnemyTargetPending = !!forceEnemyFirstTargetCard;
   // Per-side quest/rune combat modifiers: each side reads its OWN captured mods.
   const modsFor = (side: Side): QuestCombatMods => (side === 'player' ? playerState.questMods : enemyState.questMods);
+  // RUNE DUPLICATE STACKING (owner approve 2026-08-27, q-runedup-boolean-flags): how many copies of a boolean
+  // combat flag this side holds — repeatable flag dispatchers fire once per copy. `flagCopies` is the same
+  // channel the rune Avenge dispatchers have consumed since 2026-08-06; `?? 1` keeps every single-copy run
+  // (and every pre-counter snapshot) byte-identical.
+  const flagCopiesOf = (side: Side, flag: string): number => Math.max(1, modsFor(side).flagCopies?.[flag] ?? 1);
   // Beast Attack aura, PER SIDE, mutable so The Old Hunt (oldHuntStep) can pump it live as Beasts attack —
   // later from-base Beast bodies (summons / Reborn) then inherit the grown value. Its Health sibling
   // (Pack Mentality) is fixed for the fight. Enemy values come from the served snapshot.
@@ -432,9 +437,10 @@ export function simulate(
   let lastKill: string | undefined;
   // Rune of the Deathtouched Apple: 2 re-arms per COMBAT per side. A budget rather than a flag because
   // re-granting Rise on a Rise is otherwise unbounded — each return would arm the next forever.
+  // 2 uses per copy held (boolean-flag family, owner 2026-08-27).
   const appleBudget: Record<Side, { left: number } | null> = {
-    player: modsFor('player').runeDeathtouchedApple ? { left: 2 } : null,
-    enemy: modsFor('enemy').runeDeathtouchedApple ? { left: 2 } : null,
+    player: modsFor('player').runeDeathtouchedApple ? { left: 2 * flagCopiesOf('player', 'runeDeathtouchedApple') } : null,
+    enemy: modsFor('enemy').runeDeathtouchedApple ? { left: 2 * flagCopiesOf('enemy', 'runeDeathtouchedApple') } : null,
   };
   const appleUsesFor = (side: Side): { left: number } | null => appleBudget[side];
   const flashPick = playerState.questMods?.flashPick;
@@ -650,7 +656,12 @@ export function simulate(
     rubiesPermanentFor: (side) => !!modsFor(side).runeEngravingGems, // Rune of Engraving Gems
 
     spellsThisTurnFor: (side) => (side === 'player' ? playerState.spellsThisTurn : enemySpellsThisTurn),
-    improveRepsFor: (side) => (modsFor(side).runeMastery ? 2 : 1),
+    // Rune of Mastery: +1 extra Improve step per copy held (owner 2026-08-27) — the mods field carries the
+    // copy count; a legacy snapshot's bare `true` reads as 1 (the classic double).
+    improveRepsFor: (side) => {
+      const m = modsFor(side).runeMastery;
+      return m ? 1 + (typeof m === 'number' ? Math.max(1, m) : 1) : 1;
+    },
     // SHOP→COMBAT CARRY-OVER (owner ruling 2026-08-26): consumed once per combat-triggered Shout by
     // `replayCombatBattlecry`. The first Shout gets the whole unspent War Drum multiplier (its own latch),
     // and each of the next N Shouts one extra fire while the carried Warm Embers charges last — the two
@@ -1066,9 +1077,12 @@ export function simulate(
       // Rune of Enchantment: a COMBAT cast gives your minions +4/+6 (the shop half gives the printed +2/+3 —
       // see the recruit tail). Temporary like any combat buff; the shop grant is the permanent half.
       // AFTER the counter beat, so the replay's tick and the buff land in the order they read. (owner 2026-08-11)
-      if (modsFor(side).runeEnchantment) {
+      const ench = modsFor(side).runeEnchantment;
+      if (ench) {
         fireTrigger('runeEnchantment', side); // burst on the combat cast too, like every other combat rune
-        for (const m of boards[side]) if (!m.dead && m.health > 0) ctx.buff(m, 4, 6, 'Rune of Enchantment');
+        // +4/+6 per copy held (the mods field carries the copy count; a legacy `true` reads as 1).
+        const en = typeof ench === 'number' ? Math.max(1, ench) : 1;
+        for (const m of boards[side]) if (!m.dead && m.health > 0) ctx.buff(m, 4 * en, 6 * en, 'Rune of Enchantment');
       }
       bus.emit('spellCast', { side, count: spellTotals[side] });
     },
@@ -1130,9 +1144,10 @@ export function simulate(
         if (!def) continue;
         resummonedUids.add(rec.uid);
         // Rune of the Old Pack: bring the FIRST resummoned Beast back at its full (pre-death) stats, not base.
-        const copyStats = modsFor(side).oldPack && !oldPackUsed[side] && rec.attack !== undefined && rec.maxHealth !== undefined
+        // One full-stat return per copy held (boolean-flag family, owner 2026-08-27).
+        const copyStats = modsFor(side).oldPack && oldPackUsed[side] < flagCopiesOf(side, 'oldPack') && rec.attack !== undefined && rec.maxHealth !== undefined
           ? { attack: rec.attack, health: rec.maxHealth, maxHealth: rec.maxHealth } : undefined;
-        if (copyStats) { oldPackUsed[side] = true; fireTrigger('oldPack', side); }
+        if (copyStats) { oldPackUsed[side] += 1; fireTrigger('oldPack', side); }
         raisedBodies.add(summonMinion(side, def, undefined, undefined, rec.golden, false, copyStats).uid);
         brought += 1;
       }
@@ -1243,8 +1258,10 @@ export function simulate(
     // already on the board and already snapshotted, and the old version was tribe-gated besides.
     if (modsFor(side).runePackcraft) {
       fireTrigger('runePackcraft', side); // as Hatchery — owning both pops both badges on the same summon, which is true
-      minion.attack += 6;
-      minion.health += 6;
+      // +6/+6 per copy held (boolean-flag family, owner 2026-08-27).
+      const pk = 6 * flagCopiesOf(side, 'runePackcraft');
+      minion.attack += pk;
+      minion.health += pk;
       minion.maxHealth = Math.max(minion.maxHealth ?? minion.health, minion.health);
     }
     // Heart of the Mountain: Gemheart Golems attack the instant they land, riding the same `attackNow` queue
@@ -1253,8 +1270,9 @@ export function simulate(
     // RUNE OF THE SPARE CHAIR: a board that started FULL-but-one (exactly 6) has kept a seat open, and the
     // first body to take it arrives Warded and swinging. `startCount` is the start-of-combat size, so a board
     // that reaches 6 by losing a minion mid-fight doesn't qualify — "begin combat with exactly 6".
-    if (modsFor(side).runeSpareChair && !spareChairUsed[side] && startCount[side] === 6) {
-      spareChairUsed[side] = true;
+    // One qualifying summon per copy held (boolean-flag family, owner 2026-08-27).
+    if (modsFor(side).runeSpareChair && spareChairUsed[side] < flagCopiesOf(side, 'runeSpareChair') && startCount[side] === 6) {
+      spareChairUsed[side] += 1;
       attackNow = true;
       grantKeywords = [...(grantKeywords ?? []), 'DS'];
       fireTrigger('runeSpareChair', side);
@@ -1465,7 +1483,9 @@ export function simulate(
       packSummonTick.player += 1;
       if (packSummonTick.player % packN === 0) {
         fireTrigger('runeReturningPack', 'player');
-        ctx.grantRandomMinion(1, 'beast', 'player', undefined, minion.uid);
+        // Same 6-summon meter, one Beast per copy held (owner revise 2026-08-27: "2 rune of the returning
+        // pack, every 6 beast summons you'd get 2 random beasts").
+        ctx.grantRandomMinion(flagCopiesOf('player', 'runeReturningPack'), 'beast', 'player', undefined, minion.uid);
       }
     }
     // RUNE OF EMBERLINE, the paying half: the next Imp to arrive inherits the banked stats, once per combat.
@@ -1474,7 +1494,9 @@ export function simulate(
       const bank = emberlineBank[side]!;
       emberlinePaid[side] = true;
       fireTrigger('runeEmberline', side);
-      ctx.buff(minion, bank.attack, bank.health, 'Rune of Emberline');
+      // The banked stats land once per copy held (boolean-flag family, owner 2026-08-27).
+      const el = flagCopiesOf(side, 'runeEmberline');
+      ctx.buff(minion, bank.attack * el, bank.health * el, 'Rune of Emberline');
     }
     // ── ORDER (owner ruling 2026-08-12) ──────────────────────────────────────────────────────────────────
     // AURAS FIRST: the "wherever they are" buffs (Grim / Kennelmaster / Solaris) are always-present state, so
@@ -1494,8 +1516,12 @@ export function simulate(
       if (def) {
         secondLitterUsed[side] = true;
         fireTrigger('runeSecondLitter', side);
-        summonMinion(side, def, minion.uid, [...minion.keywords], !!minion.golden, false,
-          { attack: minion.attack, health: minion.maxHealth ?? minion.health, maxHealth: minion.maxHealth ?? minion.health }, true);
+        // One extra copy per rune copy held (boolean-flag family, owner 2026-08-27). `doubled: true` still
+        // keeps every copy from counting as "the first Beast".
+        for (let k = 0; k < flagCopiesOf(side, 'runeSecondLitter'); k++) {
+          summonMinion(side, def, minion.uid, [...minion.keywords], !!minion.golden, false,
+            { attack: minion.attack, health: minion.maxHealth ?? minion.health, maxHealth: minion.maxHealth ?? minion.health }, true);
+        }
       }
     }
     // RUNE OF SAVAGERY: a Beast summoned in combat doubles its Attack — applied LAST, after the summon
@@ -1508,14 +1534,16 @@ export function simulate(
     if (modsFor(side).runeSavagery && minion.attack > 0 && !minion.dead
         && (minion.tribe === 'beast' || minion.tribe2 === 'beast' || !!cards[minion.cardId]?.universalTribe)) {
       fireTrigger('runeSavagery', side);
-      ctx.buff(minion, minion.attack, 0, 'Rune of Savagery');
+      // One doubling per copy held (boolean-flag family, owner 2026-08-27) — each reads the grown Attack.
+      for (let k = 0; k < flagCopiesOf(side, 'runeSavagery'); k++) ctx.buff(minion, minion.attack, 0, 'Rune of Savagery');
     }
     // RUNE OF THE JUNGLE: a Beast summoned in combat doubles its Health. Sibling of Savagery (Attack), applied
     // here so it composes with the summon payoffs; `minion.health` (current) is added again to double it.
     if (modsFor(side).runeJungle && minion.health > 0 && !minion.dead
         && (minion.tribe === 'beast' || minion.tribe2 === 'beast' || !!cards[minion.cardId]?.universalTribe)) {
       fireTrigger('runeJungle', side);
-      ctx.buff(minion, 0, minion.health, 'Rune of the Jungle');
+      // One doubling per copy held (boolean-flag family, owner 2026-08-27) — each reads the grown Health.
+      for (let k = 0; k < flagCopiesOf(side, 'runeJungle'); k++) ctx.buff(minion, 0, minion.health, 'Rune of the Jungle');
     }
     // WOLVIE (Echo): a queued next-summon buff pays this body if its tribe matches. Applied after auras/Savagery
     // so it stacks on the final body.
@@ -1537,7 +1565,8 @@ export function simulate(
       // factories directly. The Reliquary is NOT among them — its trigger is an End-of-Turn recruit effect,
       // and this rune, like Aftershocks, is combat-scoped.) `fireTrigger` bursts the rune's badge (#1102) —
       // it now fires on forced Echoes too, which is the point: the badge should burst whenever it pays.
-      if (source && modsFor(side).runeBurrow && isBeast(source)) { fireTrigger('runeBurrow', side); ctx.grantFreeRolls(1, side); }
+      // One free refresh per copy held (boolean-flag family, owner 2026-08-27).
+      if (source && modsFor(side).runeBurrow && isBeast(source)) { fireTrigger('runeBurrow', side); ctx.grantFreeRolls(flagCopiesOf(side, 'runeBurrow'), side); }
       // RUNE OF GRAVE REFRESHMENT: every Nth friendly Echo TRIGGER banks a free Shop refresh for next turn.
       // The same chokepoint as the Burrow above (not the death site), so a forced Echo — Echohorn, Hawkus,
       // Spots, the Herald — counts exactly like one that came from dying. The meter is combat-local: it
@@ -1545,7 +1574,8 @@ export function simulate(
       const graveN = modsFor(side).runeGraveRefreshment ?? 0;
       if (graveN > 0) {
         echoRefreshTick[side] += 1;
-        if (echoRefreshTick[side] % graveN === 0) { fireTrigger('runeGraveRefreshment', side); ctx.grantFreeRolls(1, side); }
+        // Same meter, one refresh per copy held (threshold family, owner revise 2026-08-27: doubled OUTPUT).
+        if (echoRefreshTick[side] % graveN === 0) { fireTrigger('runeGraveRefreshment', side); ctx.grantFreeRolls(flagCopiesOf(side, 'runeGraveRefreshment'), side); }
       }
       // WRAP ONE ECHO **TRIGGER** — never one EFFECT and never one WATCHER. Aftershocks grants +4/+4 to the
       // whole board here, so every extra wrap is a whole extra board buff. Both ways of getting that wrong
@@ -1559,7 +1589,9 @@ export function simulate(
       // already on the board and shares the grant. Per side; a nested Echo is its own trigger.
       if (modsFor(side).runeAftershocks) {
         fireTrigger('runeAftershocks', side); // pulse the rune's badge when its Echo grant fires
-        for (const m of boards[side]) if (!m.dead && m.health > 0) ctx.buff(m, 4, 4, 'Rune of Aftershocks');
+        // +4/+4 per copy held (boolean-flag family, owner 2026-08-27).
+        const as4 = 4 * flagCopiesOf(side, 'runeAftershocks');
+        for (const m of boards[side]) if (!m.dead && m.health > 0) ctx.buff(m, as4, as4, 'Rune of Aftershocks');
       }
     }
   };
@@ -1697,9 +1729,10 @@ export function simulate(
       // Fury doubles its own minions' Avenges too).
       if (modsFor(minion.side).runeFury && effect.on === 'avenge') {
         // Fury modifies OTHER runes' Avenges, so its badge pops beside theirs — it genuinely caused the
-        // second trigger, and without this the extra fire has no attribution at all.
+        // second trigger, and without this the extra fire has no attribution at all. One extra fire per
+        // Fury copy held (boolean-flag family, owner 2026-08-27).
         fireTrigger('runeFury', minion.side);
-        fn(ctx, minion, effect.params ?? {}, payload);
+        for (let k = 0; k < flagCopiesOf(minion.side, 'runeFury'); k++) fn(ctx, minion, effect.params ?? {}, payload);
       }
       // The Sealed Vault: the FIRST Avenge each combat triggers twice — tracked per side, so a served enemy
       // holding the same quest gets its own re-fire rather than sharing the player's.
@@ -2048,9 +2081,12 @@ export function simulate(
     // nothing simply doesn't land rather than being topped up to 1 (which would make wide boards free value).
     if (modsFor(minion.side).runeRubyShrapnel) {
       const carried = minion.buffs?.find((b) => b.source === 'Ruby');
+      // The split lands once per copy held (boolean-flag family, owner 2026-08-27): the survivors share the
+      // Ruby stats × copies, dealt through the same round-robin dispersal.
+      const rs = flagCopiesOf(minion.side, 'runeRubyShrapnel');
       const tally = {
-        attack: (carried?.attack ?? 0) + (minion.rubyGain?.attack ?? 0),
-        health: (carried?.health ?? 0) + (minion.rubyGain?.health ?? 0),
+        attack: ((carried?.attack ?? 0) + (minion.rubyGain?.attack ?? 0)) * rs,
+        health: ((carried?.health ?? 0) + (minion.rubyGain?.health ?? 0)) * rs,
       };
       const survivors = living(minion.side).filter((m) => m !== minion);
       if (survivors.length > 0 && (tally.attack > 0 || tally.health > 0)) {
@@ -2083,7 +2119,8 @@ export function simulate(
       if (lead) {
         backbeatUsed[minion.side] = true;
         fireTrigger('runeBackbeat', minion.side);
-        fireFreeRally(lead, minion.side);
+        // One Rally fire per copy held (boolean-flag family, owner 2026-08-27).
+        for (let k = 0; k < flagCopiesOf(minion.side, 'runeBackbeat'); k++) fireFreeRally(lead, minion.side);
       }
     }
     if ((minion.tribe === 'beast' || minion.tribe2 === 'beast' || cards[minion.cardId]?.universalTribe)
@@ -2098,7 +2135,9 @@ export function simulate(
       const beasts = living(minion.side).filter((m) => m.tribe === 'beast' || m.tribe2 === 'beast' || !!cards[m.cardId]?.universalTribe);
       if (n > 0 && beasts.length > 0) {
         nextStep(); fireTrigger('runeBeastialSwarm', minion.side);
-        for (const m of beasts) ctx.buff(m, n, n, 'Rune of Beastial Swarm');
+        // The per-death buff lands once per copy held (boolean-flag family, owner 2026-08-27).
+        const bs = n * flagCopiesOf(minion.side, 'runeBeastialSwarm');
+        for (const m of beasts) ctx.buff(m, bs, bs, 'Rune of Beastial Swarm');
       }
     }
     // Candlelight Toll: your Kobolds have "Echo: get a Ruby". Implemented as a run-wide rule rather than by
@@ -2127,8 +2166,11 @@ export function simulate(
       const golemDef = cards['gemheart-shard'];
       if (golemDef && (tally.attack > 0 || tally.health > 0)) {
         fireTrigger('runeGemGolem', minion.side);
-        summonMinion(minion.side, golemDef, minion.uid, undefined, false, false,
-          { attack: tally.attack, health: tally.health, maxHealth: tally.health });
+        // One token per copy held (boolean-flag family, owner 2026-08-27) — board room permitting.
+        for (let k = 0; k < flagCopiesOf(minion.side, 'runeGemGolem'); k++) {
+          summonMinion(minion.side, golemDef, minion.uid, undefined, false, false,
+            { attack: tally.attack, health: tally.health, maxHealth: tally.health });
+        }
       }
     }
     // Count enemy deaths (Cassen's Collision banks them toward its 5-kill payoff) and remember WHICH bodies
@@ -2253,11 +2295,11 @@ export function simulate(
   // was killed from, so the copy comes back in (or next to) its original slot.
   const deadBeasts: Record<Side, { uid: string; cardId: string; golden?: boolean; attack?: number; maxHealth?: number }[]> = { player: [], enemy: [] };
   // Rune of the Old Pack: the FIRST Beast resummoned each combat returns at full stats (per side, once).
-  const oldPackUsed: Record<Side, boolean> = { player: false, enemy: false };
+  const oldPackUsed: Record<Side, number> = { player: 0, enemy: 0 }; // full-stat returns paid (one per Old Pack copy)
   const resummonedUids = new Set<string>(); // a corpse comes back at most once, however many Colossi Echo
   const emberlineBank: Record<Side, { attack: number; health: number } | undefined> = { player: undefined, enemy: undefined };
   const emberlinePaid: Record<Side, boolean> = { player: false, enemy: false };
-  const spareChairUsed: Record<Side, boolean> = { player: false, enemy: false };
+  const spareChairUsed: Record<Side, number> = { player: 0, enemy: 0 }; // qualifying summons paid (one per Spare Chair copy)
   const backbeatUsed: Record<Side, boolean> = { player: false, enemy: false };
   const scriptureSpent: Record<Side, boolean> = { player: false, enemy: false };
   // SHOP→COMBAT CARRY-OVER (owner ruling 2026-08-26): an UNSPENT War Drum charge applies to the FIRST Shout
@@ -2340,7 +2382,9 @@ export function simulate(
       // body that is Engraved, which is the standing rule for every combat stat gain.
       if (modsFor(poisoner.side).runeRuins) {
         fireTrigger('runeRuins', poisoner.side);
-        for (const m of living(poisoner.side)) ctx.buff(m, RUNE_RUINS_BUFF, RUNE_RUINS_BUFF, 'Rune of Ruins');
+        // The buff lands once per copy held (boolean-flag family, owner 2026-08-27).
+        const rr = RUNE_RUINS_BUFF * flagCopiesOf(poisoner.side, 'runeRuins');
+        for (const m of living(poisoner.side)) ctx.buff(m, rr, rr, 'Rune of Ruins');
       }
     }
     // Venomous: reaching here means the hit actually landed (Immune + Divine Shield already returned
@@ -2496,7 +2540,12 @@ export function simulate(
         if (living[0] === attacker && tail && tail !== attacker) {
           warpathChaining[attacker.side] = true;
           nextStep(); fireTrigger('runeWarpath', attacker.side);
-          ctx.attackNow?.(tail, false);
+          // One chained attack per copy held (boolean-flag family, owner 2026-08-27); the latch still
+          // prevents any chained attack from chaining again.
+          for (let k = 0; k < flagCopiesOf(attacker.side, 'runeWarpath'); k++) {
+            if (tail.dead || tail.health <= 0) break;
+            ctx.attackNow?.(tail, false);
+          }
           warpathChaining[attacker.side] = false;
         }
       }
@@ -2508,8 +2557,9 @@ export function simulate(
           warChorusSpent[attacker.side] = true;
           nextStep(); fireTrigger('runeWarChorus', attacker.side);
           // q-interact-combat-shout-multipliers (owner APPROVE 2026-08-27): the chorus' forced Shout folds
-          // the Battlecry multipliers (Drakko) like every other combat Shout re-fire.
-          const chorusReps = drakkoRepeats(ctx, attacker.side);
+          // the Battlecry multipliers (Drakko) like every other combat Shout re-fire — AND fires once per
+          // rune copy held (boolean-flag duplicate family, owner 2026-08-27). The two multiply.
+          const chorusReps = drakkoRepeats(ctx, attacker.side) * flagCopiesOf(attacker.side, 'runeWarChorus');
           for (let r = 0; r < chorusReps; r++) {
             emit({ type: 'sc', source: lead.uid, text: 'Shout' });
             for (const effect of lead.effects) {
@@ -3041,10 +3091,13 @@ export function simulate(
       if (lead && leadDef) {
         nextStep();
         fireTrigger('runeMirrorMarch', rside);
-        summonMinion(rside, leadDef, lead.uid, undefined, lead.golden, false, {
-          attack: lead.attack, health: lead.health, maxHealth: lead.maxHealth,
-          divineShield: lead.divineShield, rebornAvailable: lead.rebornAvailable,
-        });
+        // One copy per rune copy held (boolean-flag family, owner 2026-08-27) — room permitting.
+        for (let k = 0; k < flagCopiesOf(rside, 'runeMirrorMarch') && boards[rside].length < 7; k++) {
+          summonMinion(rside, leadDef, lead.uid, undefined, lead.golden, false, {
+            attack: lead.attack, health: lead.health, maxHealth: lead.maxHealth,
+            divineShield: lead.divineShield, rebornAvailable: lead.rebornAvailable,
+          });
+        }
       }
     }
     // Rune of Twilight: Start-of-Combat effects trigger an ADDITIONAL time — extra SoC pass(es) for this
@@ -3110,7 +3163,9 @@ export function simulate(
     if (rmods.runeFoodChain) {
       const demon = boards[rside].find((m) => !m.dead && m.health > 0 && (m.tribe === 'demon' || m.tribe2 === 'demon'));
       if (demon) {
-        foodChainStats[rside] = { attack: demon.attack, health: demon.health };
+        // The captured stats land × copies held on the first summon (boolean-flag family, owner 2026-08-27).
+        const fcN = flagCopiesOf(rside, 'runeFoodChain');
+        foodChainStats[rside] = { attack: demon.attack * fcN, health: demon.health * fcN };
         nextStep(); fireTrigger('runeFoodChain', rside);
       }
     }
@@ -3138,8 +3193,12 @@ export function simulate(
           if (!front.keywords.includes('DS')) front.keywords.push('DS');
           emit({ type: 'shieldUp', target: front.uid });
         }
-        ctx.attackNow?.(front, false);
-        flushImmediateAttacks();
+        // One immediate attack per copy held (boolean-flag family, owner 2026-08-27).
+        for (let k = 0; k < flagCopiesOf(rside, 'runeForthcoming'); k++) {
+          if (front.dead || front.health <= 0) break;
+          ctx.attackNow?.(front, false);
+          flushImmediateAttacks();
+        }
       }
     }
     // RUNE OF SPELLHIDE: re-cast the turn's remembered stat spell onto the very Beast it was cast on in the
@@ -3172,7 +3231,9 @@ export function simulate(
       }
       if (recipients.length > 0) {
         nextStep(); fireTrigger('runeFiveBanners', rside);
-        for (const m of recipients) ctx.buff(m, 6, 6, 'Rune of the Five Banners');
+        // +6/+6 per copy held (boolean-flag family, owner 2026-08-27: "+6/+6 twice").
+        const fb = 6 * flagCopiesOf(rside, 'runeFiveBanners');
+        for (const m of recipients) ctx.buff(m, fb, fb, 'Rune of the Five Banners');
       }
     }
     if (rmods.unitedFront && rmods.unitedFront > 0) {
@@ -3226,7 +3287,9 @@ export function simulate(
       const gains = living.filter((m) => Math.floor(m.attack / 2) > 0);
       if (gains.length > 0) {
         nextStep(); fireTrigger('runeTemperedTime', rside);
-        for (const m of gains) ctx.buff(m, 0, Math.floor(m.attack / 2), 'Rune of Tempered Time');
+        // The grant lands once per copy held (boolean-flag family, owner 2026-08-27).
+        const tt = flagCopiesOf(rside, 'runeTemperedTime');
+        for (const m of gains) ctx.buff(m, 0, Math.floor(m.attack / 2) * tt, 'Rune of Tempered Time');
       }
     }
     if (rmods.runeHerald) {
@@ -3236,8 +3299,10 @@ export function simulate(
       const echoes = boards[rside].filter((m) => !m.dead && m.health > 0 && m.effects.some((e) => e.on === 'onDeath'));
       if (echoes.length > 0) {
         nextStep(); fireTrigger('runeHerald', rside);
+        // The whole pass runs once per copy held (boolean-flag family, owner 2026-08-27).
+        const heraldReps = flagCopiesOf(rside, 'runeHerald');
         for (const target of echoes) {
-          const procs = 1 + (rside === 'player' ? playerEchoExtras(target) : 0);
+          const procs = (1 + (rside === 'player' ? playerEchoExtras(target) : 0)) * heraldReps;
           for (let r = 0; r < procs; r++) {
             // ONE wrap per proc: each re-fire is its own Echo TRIGGER, and everything hanging off `asEcho`
             // (Aftershocks, Burrow) must see a Herald-forced Echo exactly like a death-fired one.
@@ -3290,7 +3355,10 @@ export function simulate(
         .slice().sort((a, b) => a.attack - b.attack).slice(0, 2);
       if (lowest.length > 0) {
         nextStep(); fireTrigger('runeUnderdog', rside);
-        for (const m of lowest) ctx.buff(m, m.attack, m.health, 'Rune of the Underdog');
+        // One doubling per copy held (boolean-flag family, owner 2026-08-27) — each reads the grown body.
+        for (let k = 0; k < flagCopiesOf(rside, 'runeUnderdog'); k++) {
+          for (const m of lowest) ctx.buff(m, m.attack, m.health, 'Rune of the Underdog');
+        }
       }
     }
     if (rmods.runeStokedMenagerie) {
@@ -3312,7 +3380,10 @@ export function simulate(
         const picked: typeof pool = [];
         for (let i = 0; i < 3 && pool.length > 0; i++) picked.push(...pool.splice(rng.int(pool.length), 1));
         nextStep(); fireTrigger('runeStokedMenagerie', rside);
-        for (const m of picked) ctx.buff(m, m.attack, m.health, 'Rune of the Stoked Menagerie');
+        // One doubling per copy held (boolean-flag family, owner 2026-08-27) — same three bodies.
+        for (let k = 0; k < flagCopiesOf(rside, 'runeStokedMenagerie'); k++) {
+          for (const m of picked) ctx.buff(m, m.attack, m.health, 'Rune of the Stoked Menagerie');
+        }
       }
     }
     if (rmods.runeVanguard) {
@@ -3341,10 +3412,27 @@ export function simulate(
         }
         // TRIPLE the current Health (owner sheet 2026-07-30; was double), lifting maxHealth with it so
         // healing/Rise can't clip it back down. `gain` is 2x because it is ADDED to the existing body.
-        const gain = lead.health * 2;
-        lead.health += gain;
-        lead.maxHealth = Math.max(lead.maxHealth ?? lead.health, lead.health);
-        emit({ type: 'buff', target: lead.uid, attack: 0, health: gain, source: lead.uid });
+        // One tripling per copy held (boolean-flag family, owner 2026-08-27) — each reads the grown Health.
+        for (let k = 0; k < flagCopiesOf(rside, 'runeWarding'); k++) {
+          const gain = lead.health * 2;
+          lead.health += gain;
+          lead.maxHealth = Math.max(lead.maxHealth ?? lead.health, lead.health);
+          emit({ type: 'buff', target: lead.uid, attack: 0, health: gain, source: lead.uid });
+        }
+      }
+    }
+    // RUNE OF HELD STRENGTH (owner rework 2026-08-27, q-runedup-oneshot revise — was a one-shot on purchase):
+    // Start of Combat, the left and right-most living minions gain the stats of the LEFT-MOST card the run
+    // held in hand when this combat was built (`mods.runeHeldStrength`, captured live at combat build; a
+    // served rival's snapshot carries its own captured value). `copies` fires the grant once per rune copy.
+    if (rmods.runeHeldStrength && (rmods.runeHeldStrength.attack > 0 || rmods.runeHeldStrength.health > 0)) {
+      const hs = rmods.runeHeldStrength;
+      const alive = boards[rside].filter((m) => !m.dead && m.health > 0);
+      const ends = alive.length === 0 ? [] : alive.length === 1 ? [alive[0]!] : [alive[0]!, alive[alive.length - 1]!];
+      if (ends.length > 0) {
+        nextStep(); fireTrigger('runeHeldStrength', rside);
+        const reps = Math.max(1, hs.copies ?? 1);
+        for (const m of ends) ctx.buff(m, hs.attack * reps, hs.health * reps, 'Rune of Held Strength');
       }
     }
     // Echoing Coop: trigger every minion's Echo once, without killing the body (Sylus doubles them). The
@@ -3368,7 +3456,8 @@ export function simulate(
       if (first) {
         nextStep();
         fireTrigger('runeRallying', rside);
-        fireFreeRally(first, rside);
+        // One Rally fire per copy held (boolean-flag family, owner 2026-08-27: "trigger your left-most Rally twice").
+        for (let k = 0; k < flagCopiesOf(rside, 'runeRallying'); k++) fireFreeRally(first, rside);
       }
     }
     // Empty Graves (reworked 2026-07-21): give your LEFT-MOST minion "Rally: trigger your left-most Echo".
@@ -3389,8 +3478,10 @@ export function simulate(
     // current stats). Registered explicitly: the initial board's effects were already registered before
     // Start of Combat, so the normal registration pass will not see this graft.
     if (rmods.runeRebirth) {
-      const eligible = boards[rside].filter((m) => !m.dead && m.health > 0 && !m.effects.some((e) => e.do === 'echoSummonCopyNoEcho'));
-      if (eligible.length > 0) {
+      // One grant per copy held (boolean-flag family, owner 2026-08-27) — each lands on a fresh eligible body.
+      for (let k = 0; k < flagCopiesOf(rside, 'runeRebirth'); k++) {
+        const eligible = boards[rside].filter((m) => !m.dead && m.health > 0 && !m.effects.some((e) => e.do === 'echoSummonCopyNoEcho'));
+        if (eligible.length === 0) break;
         const m = eligible[ctx.rng.int(eligible.length)]!;
         nextStep(); // step FIRST so the badge pulse lands on the grant's own beat
         fireTrigger('runeRebirth', rside);
@@ -3403,8 +3494,10 @@ export function simulate(
     // Rune of Rising Graves: give the two left-most Undead Rise (Reborn) — a foldable `keyword` R grant.
     if (rmods.runeRisingGraves) {
       let given = 0;
+      // 2 Rise grants per copy held (boolean-flag family, owner 2026-08-27) — the walk simply reaches deeper.
+      const graveCap = 2 * flagCopiesOf(rside, 'runeRisingGraves');
       for (const m of boards[rside]) {
-        if (given >= 2) break;
+        if (given >= graveCap) break;
         if (m.dead || m.health <= 0 || m.rebornAvailable || !isUndeadMinion(m)) continue;
         nextStep(); // step FIRST so the badge pulse lands on the grant's own beat, not the previous one
         if (given === 0) fireTrigger('runeRisingGraves', rside);
@@ -3431,7 +3524,8 @@ export function simulate(
       const copies = Math.max(1, m.flagCopies?.[flag] ?? 1);
       for (let c = 0; c < copies; c++) {
         fire(side);
-        if (m.runeFury) fire(side); // "your Avenge effects trigger twice" — per side
+        // "your Avenge effects trigger twice" — per side, one extra fire per Fury copy held (owner 2026-08-27).
+        if (m.runeFury) for (let k = 0; k < flagCopiesOf(side, 'runeFury'); k++) fire(side);
       }
     });
   };
@@ -3571,7 +3665,9 @@ export function simulate(
       const idx = boards[side].indexOf(minion);
       if (idx < 0 || boards[side].slice(0, idx).some((m) => !m.dead && m.health > 0)) return; // not the leftmost
       const right = [...boards[side]].reverse().find((m) => !m.dead && m.health > 0 && m !== minion);
-      if (right) { fireTrigger('runeInheritance', side); ctx.buff(right, minion.attack, minion.maxHealth, 'Rune of Inheritance'); }
+      // The stats land once per copy held (boolean-flag family, owner 2026-08-27).
+      const ih = flagCopiesOf(side, 'runeInheritance');
+      if (right) { fireTrigger('runeInheritance', side); ctx.buff(right, minion.attack * ih, minion.maxHealth * ih, 'Rune of Inheritance'); }
     });
   }
   // Passing Spears: your Spear Wardens gain "Echo: when this dies, give its stats to a friendly minion" — on a
@@ -3597,7 +3693,8 @@ export function simulate(
       bus.on('onLoseDivineShield', (payload) => {
         const { minion, side } = payload as { minion: Minion; side: Side };
         if (side !== 'player' || !(minion.tribe === 'mech' || minion.tribe2 === 'mech' || !!minion.universalTribe)) return;
-        ctx.grantToHand(magnetics[rng.int(magnetics.length)]!.id, 'player', minion.uid);
+        // One Attachment per copy held (boolean-flag family, owner 2026-08-27).
+        for (let k = 0; k < flagCopiesOf('player', 'runeSalvage'); k++) ctx.grantToHand(magnetics[rng.int(magnetics.length)]!.id, 'player', minion.uid);
       });
     }
   }
@@ -3608,8 +3705,11 @@ export function simulate(
     const targets = beasts.length <= 2 ? beasts : [beasts[0]!, beasts[beasts.length - 1]!];
     if (targets.length > 0) {
       nextStep(); fireTrigger('runeFirstClaws', fside);
-      for (const m of targets) ctx.attackNow?.(m, false);
-      flushImmediateAttacks();
+      // One immediate attack each per copy held (boolean-flag family, owner 2026-08-27).
+      for (let k = 0; k < flagCopiesOf(fside, 'runeFirstClaws'); k++) {
+        for (const m of targets) if (!m.dead && m.health > 0) ctx.attackNow?.(m, false);
+        flushImmediateAttacks();
+      }
     }
   }
 

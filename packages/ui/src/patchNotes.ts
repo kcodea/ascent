@@ -68,6 +68,10 @@ export const PATCH_NOTES: PatchNote[] = [
       { category: 'UI / Info', text: 'The Refresh button now shows the real price of your next roll — a green 0 while Rune of Window Shopping is paying.', details: [
         'Free rolls from the rune also stay clickable when you have no Gold, matching what a roll actually costs.',
       ] },
+    ],
+  },
+  {
+    date: '2026-08-27',
     label: 'Opponent Fidelity',
     changes: [
       {

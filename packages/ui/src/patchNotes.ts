@@ -82,6 +82,12 @@ export const PATCH_NOTES: PatchNote[] = [
           'An Echo gained in the shop (Echo Mimic, Grave Body, and friends) now actually fires when that minion dies in combat — yours and your opponents’.',
           'A copy summoned "without Echo" now stays Echo-less in combat as well, instead of quietly regaining it when the fight starts.',
           'Ashen Heir’s banked Imp stats now ride into battle: an Imp summoned mid-fight collects the bank. The bank itself stays with your Heir between fights.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-08-27',
     label: 'This Turn Rule',
     changes: [
       {

@@ -256,7 +256,6 @@ export const APPROVED_RULES: GameRule[] = [
       + 'keywords/instance buffs, then `applyAuras` re-applies standing auras on top.',
   },
 
-<<<<<<< HEAD
   // ── Triage round 2 (2026-08-27): the STANDING rules the owner's 24 rulings established. ──────────────
   // Rune-duplicate family rules R-RUNEDUP-01..08 (decisions.json q-runedup-*; implementation rides
   // feat/rune-duplicate-stacking, pinned by the runeSwallowScan lane), the two order rules, the
@@ -439,7 +438,8 @@ export const APPROVED_RULES: GameRule[] = [
     }],
     currentBehaviour: 'Close but unruled at ruling time (combat consumed a per-fight copy of the pool); the per-phase semantics ride feat/this-turn-rule, pinned by the carryOver lane.',
     enforcement: { kind: 'oracle', refs: ['carryOver'], lastVerifiedAt: '2026-08-27' },
-=======
+  },
+
   // ── "THIS TURN" temporal scope (owner ruling 2026-08-27, decided on q-carry-demand-encore) ─────────────
   {
     id: 'R-TURN-01',
@@ -471,31 +471,5 @@ export const APPROVED_RULES: GameRule[] = [
       ],
       lastVerifiedAt: '2026-08-27',
     },
-  },
-  {
-    id: 'R-TURN-02',
-    title: 'Warm Embers phase charges: combat use and the next turn\'s fresh charge are separate',
-    statement:
-      'A Warm Embers charge consumed by a combat-triggered Shout and the following turn\'s fresh per-turn '
-      + 'freebie are SEPARATE grants — the combat use is a bonus on the banked charge and does not decrement '
-      + 'the run\'s pool, and the next shop turn\'s first-Shout freebie re-arms regardless. Current behaviour '
-      + 'is correct as shipped (PR #1226); no double-dip fix is wanted.',
-    domain: 'persistence',
-    status: 'approved',
-    evidence: [{
-      kind: 'owner-chat',
-      ref: 'q-carry-warm-embers-double-dip + owner chat confirmation, 2026-08-27',
-      quote: 'Warm Embers\' current behavior is CORRECT — a charge consumed by a combat-triggered Shout and the next turn\'s fresh charge are separate; no double-dip.',
-    }],
-    currentBehaviour:
-      'Conforms by construction: simulate() copies shoutDoubleCharges into a per-combat local '
-      + '(shoutDoubleCarryLeft) and decrements only that; the run pool is decremented only by the shop\'s '
-      + 'Shout counter, and shoutFirstUsedThisTurn re-arms at the rollover. Pinned in shoutCarryOver.test.ts.',
-    enforcement: {
-      kind: 'scenario',
-      refs: ['packages/sim/src/shoutCarryOver.test.ts'],
-      lastVerifiedAt: '2026-08-27',
-    },
->>>>>>> 8f2efaf0 (feat(sim): the THIS TURN rule — shop through combat (owner ruling) + Demand an Encore carry)
   },
 ];

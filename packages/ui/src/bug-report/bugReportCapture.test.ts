@@ -14,6 +14,7 @@ import {
   buildBugReportEnvelope,
   buildClientContext,
   captureIncidentCapsule,
+  captureMenuCapsule,
   type BugCaptureSource,
 } from './bugReportCapture';
 import { validateBugReportDraft, validateBugReportEnvelope } from './bugReportValidation';
@@ -67,7 +68,7 @@ describe('captureIncidentCapsule', () => {
   it('serializedRun deserializes back to the captured state', () => {
     const run = runAtWave3();
     const cap = captureIncidentCapsule(sourceOf(run));
-    const back = deserialize(cap.serializedRun);
+    const back = deserialize(cap.serializedRun!); // a run capsule always carries one (null is menu-only)
     expect(back.wave).toBe(3);
     expect(back.heroId).toBe(run.heroId);
     expect(back.seed).toBe(run.seed);
@@ -134,6 +135,57 @@ describe('captureIncidentCapsule', () => {
   });
 });
 
+describe('captureMenuCapsule (menu reports, owner ask 2026-08-27)', () => {
+  const overlays = {
+    inspect: null,
+    showLeaderboard: false, showRankings: false, showRecentGames: false, showCareer: false,
+    showBook: false, showBalance: false, showPatchNotes: false,
+  };
+
+  it('stamps the intake sentinels and carries NO run evidence', () => {
+    const cap = captureMenuCapsule(overlays);
+    expect(cap.phase).toBe('menu');
+    expect(cap.mode).toBe('menu');
+    expect(cap.heroId).toBe('none');
+    expect(cap.seed).toBe(0);
+    expect(cap.wave).toBe(0);
+    expect(cap.shopTier).toBe(0);
+    expect(cap.serializedRun).toBeNull();
+    expect(cap.actions).toEqual([]);
+    expect(cap.currentWaveFrames).toEqual([]);
+    expect(cap.previousWaveFrames).toEqual([]);
+    expect(cap.combat).toBeNull();
+    expect(cap.timerSecondsRemaining).toBeNull();
+    expect(cap.setId.length).toBeGreaterThan(0); // the LIVE set — pins which card data was showing
+    expect(Object.isFrozen(cap)).toBe(true);
+    expect(Object.isFrozen(cap.ui)).toBe(true);
+  });
+
+  it('still records the open overlay for diagnostics', () => {
+    const cap = captureMenuCapsule({ ...overlays, showPatchNotes: true, inspect: { cardId: 'wolf' } });
+    expect(cap.ui.modalKind).toBe('patchNotes');
+    expect(cap.ui.selectedCardId).toBe('wolf');
+  });
+
+  it('builds a menu envelope that PASSES validation (the queue/upload path accepts it unchanged)', () => {
+    const cap = captureMenuCapsule(overlays);
+    const client = buildClientContext({ account: { userId: null }, playerName: '', setId: cap.setId });
+    const envelope = buildBugReportEnvelope(cap, 'Saw a glitchy card frame earlier — logging it from the menu.', 'ui', client);
+    expect(validateBugReportEnvelope(envelope).ok).toBe(true);
+  });
+
+  it('a menu capsule may not smuggle a serializedRun; a run capsule still requires one', () => {
+    const cap = captureMenuCapsule(overlays);
+    const client = buildClientContext({ account: { userId: null }, playerName: '', setId: cap.setId });
+    const envelope = buildBugReportEnvelope(cap, 'A long enough description here.', 'ui', client);
+    const smuggled = { ...envelope, context: { ...cap, serializedRun: 'not-null' } };
+    expect(validateBugReportEnvelope(smuggled).ok).toBe(false);
+    const runCap = captureIncidentCapsule(sourceOf(runAtWave3()));
+    const runEnv = buildBugReportEnvelope(runCap, 'A long enough description here.', 'ui', client);
+    expect(validateBugReportEnvelope({ ...runEnv, context: { ...runCap, serializedRun: null } }).ok).toBe(false);
+  });
+});
+
 describe('envelope + privacy (§12 / §14.3)', () => {
   it('serialized envelope contains no email or auth-token strings', () => {
     const cap = captureIncidentCapsule(sourceOf(runAtWave3()));
@@ -184,8 +236,18 @@ describe('bugReportAvailability (excluded surfaces + §4.3)', () => {
     expect(bugReportAvailability(base)).toBe('ok');
     expect(bugReportAvailability({ ...base, run: { ...base.run, mode: 'practice' } })).toBe('ok');
   });
+  it('the MAIN MENU opens the reduced menu report — leftover run flags cannot veto it', () => {
+    expect(bugReportAvailability({ ...base, showTitle: true })).toBe('menu');
+    // The run held while the title is up is leftover from the previous game — its excluded-surface flags
+    // (tutorial / sandbox / gameover) must not silence a menu report.
+    expect(bugReportAvailability({ ...base, showTitle: true, run: { ...base.run, mode: 'tutorial' } })).toBe('menu');
+    expect(bugReportAvailability({ ...base, showTitle: true, run: { ...base.run, sandbox: true } })).toBe('menu');
+    expect(bugReportAvailability({ ...base, showTitle: true, run: { ...base.run, phase: 'gameover' } })).toBe('menu');
+    // Ceremony screens layered over/after the title still decline.
+    expect(bugReportAvailability({ ...base, showTitle: true, heroChoices: ['a'] })).toBe('silent');
+    expect(bugReportAvailability({ ...base, showTitle: true, practiceSetupOpen: true })).toBe('silent');
+  });
   it('silently declines every excluded surface', () => {
-    expect(bugReportAvailability({ ...base, showTitle: true })).toBe('silent');
     expect(bugReportAvailability({ ...base, heroChoices: ['a'] })).toBe('silent');
     expect(bugReportAvailability({ ...base, practiceSetupOpen: true })).toBe('silent');
     expect(bugReportAvailability({ ...base, replaying: true })).toBe('silent');

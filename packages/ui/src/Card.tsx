@@ -4,6 +4,7 @@ import type { CSSProperties, DragEvent, PointerEvent as ReactPointerEvent } from
 import type { Keyword, Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import type { StepProgress } from './cardText';
+import { formatStat } from './formatStat';
 import {
   beginEditCardArt, cardArtVars, cardArtVersion, editingCardArt, isPickingCardArt, subscribeCardArt,
 } from './cardArtConfig';
@@ -1054,11 +1055,11 @@ export const Card = memo(function Card({
                 value are SIBLINGS, not nested, so the plate can scale without dragging the number. */}
             <span ref={atkPopRef} className={`badge atk${statCls(shownAttack, card.baseAttack, card.floorAttack)}`}>
               <span className="plate" aria-hidden="true" />
-              <span className="value">{shownAttack}</span>
+              <span className="value">{formatStat(shownAttack)}</span>
             </span>
             <span ref={hpPopRef} className={`badge hp${statCls(shownHealth, card.baseHealth, card.floorHealth)}`}>
               <span className="plate" aria-hidden="true" />
-              <span className="value">{shownHealth}</span>
+              <span className="value">{formatStat(shownHealth)}</span>
             </span>
             {/* mechanic medallion — the card's primary mechanic glyph, eclipsing the arch's base centre */}
             <span key={`cgem-${pulseCrit ?? 0}-${pulseRally ?? 0}-${pulseWatcher ?? 0}`} className={`cgem${pulseCrit ? ' pulsing crit' : pulseRally ? ' pulsing rally' : pulseWatcher ? ' pulsing watcher' : pulse ? ' pulsing' : glow ? ' glowing' : ''}`} aria-hidden="true">{mechIcon && <Icon name={mechIcon} />}</span>

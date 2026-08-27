@@ -120,6 +120,14 @@ export interface ReconstructionResult {
 }
 
 export function reconstructFromSeed(capsule: BugIncidentCapsule): ReconstructionResult {
+  // MENU reports (owner ask 2026-08-27) carry no run evidence at all — nothing to reconstruct.
+  if (capsule.phase === 'menu' || capsule.mode === 'menu' || capsule.serializedRun === null) {
+    return {
+      ok: false,
+      actionsReplayed: 0,
+      drift: { kind: 'action_error', error: 'menu report — no run evidence', note: 'logged from the main menu; the description is the whole payload' },
+    };
+  }
   let s = createRun(capsule.seed, capsule.heroId, capsule.mode, CONFIG.defaultLine, capsule.setId as SetId);
   const note =
     capsule.mode === 'lobby'
@@ -192,7 +200,7 @@ describe('bug ${short} — ${envelope.issueType} (wave ${envelope.context.wave},
   it('reproduces the captured incident state', () => {
     // report.json is the pulled row; the capsule rides in row.report.context.
     const row = JSON.parse(readFileSync(new URL('./report.json', import.meta.url), 'utf8')) as BugReportRow;
-    const run = deserialize(row.report.context.serializedRun);
+    const run = deserialize(row.report.context.serializedRun!); // non-menu capsules always carry one
 
     expect(run.wave).toBe(${envelope.context.wave});
     expect(run.heroId).toBe('${envelope.context.heroId}');
@@ -217,6 +225,12 @@ export interface ReproOutcome {
 export function reproEnvelope(envelope: BugReportEnvelope): ReproOutcome {
   const capsule = envelope.context;
   const lines: string[] = [];
+
+  // MENU report (owner ask 2026-08-27): no run evidence by design — the CLI wrapper reports this before
+  // calling here; this throw keeps the library honest for any other caller.
+  if (capsule.phase === 'menu' || capsule.serializedRun === null) {
+    throw new Error('menu report — no run evidence. The player description is the whole payload; there is nothing to reproduce.');
+  }
 
   // Step 2: deserialize the captured run — the primary reproduction.
   const run = deserialize(capsule.serializedRun);

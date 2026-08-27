@@ -272,7 +272,11 @@ export function BugBoard({ onClose }: { onClose: () => void }): JSX.Element {
                     </span>
                   )}
                   <span style={{ fontSize: 11, opacity: 0.65 }}>
-                    {r.hero_id} · wave {r.wave} · {r.phase} · {r.mode} · {r.set_id} · seed {r.seed}
+                    {/* A MENU report carries sentinels only (hero 'none', seed/wave 0) — show a clean "menu"
+                        badge line instead of the run identity. */}
+                    {r.phase === 'menu'
+                      ? `— · menu · ${r.set_id}`
+                      : `${r.hero_id} · wave ${r.wave} · ${r.phase} · ${r.mode} · ${r.set_id} · seed ${r.seed}`}
                   </span>
                   <span style={{ fontSize: 11, opacity: 0.55, marginLeft: 'auto' }}>{r.patch} · {r.created_at.slice(0, 16).replace('T', ' ')}</span>
                 </div>

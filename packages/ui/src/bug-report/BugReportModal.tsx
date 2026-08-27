@@ -73,6 +73,9 @@ function BugReportPanel() {
   const cap = capsule;
   const heroName = HERO_INDEX[cap.heroId]?.name ?? cap.heroId;
   const inCombat = cap.phase === 'combat';
+  // MENU report (owner ask 2026-08-27): opened from the main menu with no live run — the capsule carries no
+  // run evidence, so every run-shaped chip (round/phase/hero/attachment note) swaps for menu copy.
+  const inMenu = cap.phase === 'menu';
 
   return (
     <div className="bgrov">
@@ -81,7 +84,7 @@ function BugReportPanel() {
         <div className="bgrhead">
           <span className="bgrtitle disp">Report a problem</span>
           <span className={`bgrbadge${inCombat ? ' combat' : ''}`}>
-            {inCombat ? 'COMBAT' : 'SHOP'} · Round {cap.wave}
+            {inMenu ? 'MENU' : `${inCombat ? 'COMBAT' : 'SHOP'} · Round ${cap.wave}`}
           </span>
           {!inCombat && cap.timerSecondsRemaining != null && (
             <span className="bgrclock" title="The turn timer is paused while this report is open">
@@ -91,20 +94,27 @@ function BugReportPanel() {
         </div>
         <div className="bgrbody">
           <p className="bgrhelper">
-            Tell us what happened and what you expected instead. The current turn and combat details will be
-            attached automatically.
+            {inMenu
+              ? 'Tell us what happened and what you expected instead. Describe it in as much detail as you can — where it happened, and roughly when.'
+              : 'Tell us what happened and what you expected instead. The current turn and combat details will be attached automatically.'}
           </p>
           <label className="bgrlabel" htmlFor="bgrtext">What happened?</label>
           <textarea
             id="bgrtext"
             ref={textRef}
             className="bgrtext"
-            placeholder="Example: My left-most Echo triggered, but the summoned Beast did not attack."
+            placeholder={inMenu
+              ? 'Example: Earlier today in round 8, my Echo summoned a Beast that never attacked.'
+              : 'Example: My left-most Echo triggered, but the summoned Beast did not attack.'}
             maxLength={BUG_DESCRIPTION_MAX}
             value={draft.description}
             onChange={(e) => update({ description: e.target.value })}
           />
-          <div className="bgrdisclose">This report includes the current run state, recent actions, and combat events.</div>
+          <div className="bgrdisclose">
+            {inMenu
+              ? 'No run active — this report carries your description and build info.'
+              : 'This report includes the current run state, recent actions, and combat events.'}
+          </div>
           <label className="bgrlabel" htmlFor="bgrtype">Issue type (optional)</label>
           <select
             id="bgrtype"
@@ -117,12 +127,20 @@ function BugReportPanel() {
             ))}
           </select>
           <div className="bgrsummary">
-            <span>Round {cap.wave}</span>
-            <span>{inCombat ? 'Combat' : 'Shop'} phase</span>
-            <span>{heroName}</span>
+            {inMenu ? (
+              <span>Main menu</span>
+            ) : (
+              <>
+                <span>Round {cap.wave}</span>
+                <span>{inCombat ? 'Combat' : 'Shop'} phase</span>
+                <span>{heroName}</span>
+              </>
+            )}
             <span>Set {cap.setId}</span>
             <span>v{__APP_VERSION__} {__BUILD_SHA__}</span>
-            <span className="bgrattached">Current turn and latest combat log attached</span>
+            <span className="bgrattached">
+              {inMenu ? 'Description and build info attached' : 'Current turn and latest combat log attached'}
+            </span>
           </div>
           {/* Collapsible tester detail — ids + payload size only, never the raw payload (§1.2). */}
           <button className="bgrtechtoggle" aria-expanded={techOpen} onClick={() => setTechOpen((v) => !v)}>
@@ -130,11 +148,17 @@ function BugReportPanel() {
           </button>
           {techOpen && (
             <div className="bgrtech">
-              <div>run {cap.runId} · seed {cap.seed} · {cap.mode} · tier {cap.shopTier}</div>
-              <div>
-                actions {cap.actions.length} · frames {cap.currentWaveFrames.length}+{cap.previousWaveFrames.length}
-                {' '}· combat events {cap.combat ? cap.combat.result.events.length : 0}
-              </div>
+              {inMenu ? (
+                <div>menu report · no run evidence</div>
+              ) : (
+                <>
+                  <div>run {cap.runId} · seed {cap.seed} · {cap.mode} · tier {cap.shopTier}</div>
+                  <div>
+                    actions {cap.actions.length} · frames {cap.currentWaveFrames.length}+{cap.previousWaveFrames.length}
+                    {' '}· combat events {cap.combat ? cap.combat.result.events.length : 0}
+                  </div>
+                </>
+              )}
               <div>capsule ~{(payloadBytes / 1024).toFixed(1)} KB</div>
             </div>
           )}

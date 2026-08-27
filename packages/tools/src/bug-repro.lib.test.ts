@@ -185,3 +185,28 @@ describe('bugs:repro — combat incident', () => {
     expect(lines[0]).toContain('#0 ');
   });
 });
+
+describe('bugs:repro — MENU report (no run evidence, owner ask 2026-08-27)', () => {
+  const { state, actions } = recordRun(7, false);
+  const envelope = makeEnvelope(state, actions);
+  const menuEnvelope: BugReportEnvelope = {
+    ...envelope,
+    context: {
+      ...envelope.context,
+      runId: 'menu', seed: 0, heroId: 'none', mode: 'menu', wave: 0, phase: 'menu', shopTier: 0,
+      serializedRun: null, actions: [], currentWaveFrames: [], previousWaveFrames: [], combat: null,
+      timerSecondsRemaining: null,
+    },
+  };
+
+  it('reproEnvelope refuses with "menu report — no run evidence", never a crash', () => {
+    expect(() => reproEnvelope(menuEnvelope)).toThrowError(/menu report — no run evidence/);
+  });
+
+  it('reconstructFromSeed reports the same, without touching createRun', () => {
+    const r = reconstructFromSeed(menuEnvelope.context);
+    expect(r.ok).toBe(false);
+    expect(r.actionsReplayed).toBe(0);
+    expect(r.drift?.error).toContain('menu report — no run evidence');
+  });
+});

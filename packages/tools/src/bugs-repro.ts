@@ -24,6 +24,11 @@ if (!reportArg) {
 try {
   const { row, dir } = readReport(reportArg);
   const envelope = row.report;
+  // MENU report (owner ask 2026-08-27): logged from the main menu with no run — expected, not an error.
+  if (envelope?.context?.phase === 'menu') {
+    console.log(`report ${row.id}: menu report — no run evidence. The player's description is the whole payload (see ${dir}/summary.md).`);
+    process.exit(0);
+  }
   if (!envelope?.context?.serializedRun) {
     console.error(`report ${row.id} carries no serialized run — cannot reproduce (see ${dir}/summary.md).`);
     process.exit(1);

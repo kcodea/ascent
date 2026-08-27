@@ -20,6 +20,9 @@ export const APPROVED_RULES: GameRule[] = [
     domain: 'combat',
     status: 'approved',
     evidence: [{ kind: 'owner-handoff', ref: HANDOFF, quote: 'Alignment locks when combat begins.' }],
+    // Alignment lock is pinned behaviorally: "locks at combat setup and combat never re-centres", the
+    // ECLIPSE-runs-both-halves cases, and Dawn/Dusk-locked halves all live in celestial.test.ts.
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/celestial.test.ts'], lastVerifiedAt: '2026-08-27' },
   },
   {
     id: 'R-PLAY-01',
@@ -32,6 +35,9 @@ export const APPROVED_RULES: GameRule[] = [
     domain: 'actions',
     status: 'approved',
     evidence: [{ kind: 'owner-handoff', ref: HANDOFF, quote: 'Any card intentionally played from hand counts as a played card.' }],
+    // DELIBERATELY UNENFORCED (in the approved-but-unenforced queue): many tests exercise played-card
+    // counters incidentally, but no single probe pins the full definition — especially the negative half
+    // (buying/generating/drawing/reordering does not play; a triggered cast is not a play). Honest gap.
   },
   {
     id: 'R-COPY-01',
@@ -44,6 +50,9 @@ export const APPROVED_RULES: GameRule[] = [
     domain: 'copying',
     status: 'approved',
     evidence: [{ kind: 'owner-handoff', ref: HANDOFF, quote: 'A plain copy is a fresh base copy of that card.' }],
+    // Pinned by the Bellringer Voss cases: "the copy is PLAIN — buffs on the original are not carried"
+    // (base stats asserted, golden=false). One representative probe; broader plain-copy sweep is future work.
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set2Neutral.test.ts'], lastVerifiedAt: '2026-08-27' },
   },
   {
     id: 'R-COPY-02',
@@ -56,6 +65,9 @@ export const APPROVED_RULES: GameRule[] = [
     domain: 'copying',
     status: 'approved',
     evidence: [{ kind: 'owner-handoff', ref: HANDOFF, quote: 'An exact copy is literally an exact copy of the current card instance.' }],
+    // Pinned by the Copycat suite: stats, keywords, gilding and accrued per-instance improvements all copy
+    // ("exactly means exactly"); the engine-owned-state boundary is the suite's deliberate exclusion list.
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/copycat.test.ts'], lastVerifiedAt: '2026-08-27' },
   },
   {
     id: 'R-AURA-01',
@@ -68,5 +80,8 @@ export const APPROVED_RULES: GameRule[] = [
     domain: 'auras',
     status: 'approved',
     evidence: [{ kind: 'owner-handoff', ref: HANDOFF, quote: 'An Aura is a global modifier affecting an eligible type, card, or population wherever the Aura defines.' }],
+    // DELIBERATELY UNENFORCED (in the approved-but-unenforced queue): no probe yet pins the load-bearing
+    // behavioral halves (auras reach future eligibles; plain copies stay plain yet receive applicable
+    // auras; per-aura zone coverage + lifetime). auraFx.test.ts checks the FX stamp, not this contract.
   },
 ];

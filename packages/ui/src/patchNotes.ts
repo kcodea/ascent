@@ -56,6 +56,22 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-08-27',
+    label: 'Bug Board Round 1',
+    changes: [
+      { category: 'Card Change', text: 'Great Pot now scales with your spell power — and its text shows the value it will actually give.', details: [
+        'The +4/+4 it gives one minion of each type now adds your spell power, like every other stat-granting spell.',
+        'Its printed number goes green and live once any spell power is up.',
+      ] },
+      { category: 'UI / Info', text: "Growth's improved value (from Mushy's rune) now shows everywhere — including the popup when hovering Mushy.", details: [
+        'The hover popup and the mid-combat hand fly-in previously kept showing the base +1/+1 while the cast paid more.',
+      ] },
+      { category: 'UI / Info', text: 'The Refresh button now shows the real price of your next roll — a green 0 while Rune of Window Shopping is paying.', details: [
+        'Free rolls from the rune also stay clickable when you have no Gold, matching what a roll actually costs.',
+      ] },
+    ],
+  },
+  {
+    date: '2026-08-27',
     label: 'Load Screen Fix',
     changes: [
       { category: 'UI / Info', text: 'The loading bar now fills smoothly over the load, and the logo no longer jumps in size a beat after the screen appears.' },

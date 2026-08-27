@@ -2223,9 +2223,11 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
 
   /** GREAT POT: +A/+H to ONE friendly minion of EACH type. The same "one per tribe" spread Rune of the Shared
    *  Table uses — a dual-tribe body fills BOTH its slots (so it is never counted twice), and the first minion
-   *  of a tribe claims it. Neutral bodies have no type and are skipped. */
+   *  of a tribe claims it. Neutral bodies have no type and are skipped. Spell power folds into each grant,
+   *  like every stat-granting cast (bug a17a48ab, Bug Board round 1 — the owner's intent: it SHOULD scale;
+   *  it shipped flat because its name slips the `spellBuff*` tripwire prefix, now covered as an extra). */
   buffOnePerTribe: (ctx, _self, params) => {
-    const a = num(params.attack, 4), h = num(params.health, 4);
+    const a = num(params.attack, 4) + spellAttackBonus(ctx.state), h = num(params.health, 4) + spellHealthBonus(ctx.state);
     const seen = new Set<string>();
     for (const c of ctx.state.board) {
       const def = CARD_INDEX[c.cardId];
@@ -7355,6 +7357,14 @@ export function spellDisplayText(cardId: string, bonusA: number, escalation = 0,
     return `${stepText} {{Now +${baseA + bonusA + (a + bonusA) * ticks}/+${baseH + bonusH + (h + bonusH) * ticks}.}}`;
   }
   if (bonusA <= 0 && bonusH <= 0) return def.text;
+  // Great Pot: its one-per-type "+A/+H" folds spell power on both stats (bug a17a48ab, Bug Board round 1 —
+  // the factory now folds, so the printed magnitude goes live with it, per the live-text rule).
+  const potBuff = def.effects.find((e) => e.do === 'buffOnePerTribe');
+  if (potBuff) {
+    const pa = Number((potBuff.params as { attack?: number } | undefined)?.attack ?? 4);
+    const ph = Number((potBuff.params as { health?: number } | undefined)?.health ?? 4);
+    return def.text.replace(`+${pa}/+${ph}`, `{{+${pa + bonusA}/+${ph + bonusH}}}`);
+  }
   // Champion's / Defensive / Bloody Ale (spell-power audit 2026-08-02): their factories fold spell power, so
   // the printed magnitude goes live too. Champion's is a symmetric "+A/+H"; the other two print a single-stat
   // token ("+4 Health" / "+4 Attack") that becomes the full live "+A/+H" pair, like Lantern of Souls below.

@@ -234,6 +234,17 @@ export function refreshCostOf(s: RunState): number {
   return hasPower(s, 'cheapMinions') ? 2 : CONFIG.refreshCost;
 }
 
+/** What the NEXT refresh actually charges — the number the UI's Refresh pill must print (live-accuracy
+ *  rule). Folds the free sources the reducer's `roll` branch consumes, in its order: banked free rolls
+ *  (Refreshing Texts), then Rune of Window Shopping's first-3-per-turn allowance, else `refreshCostOf`.
+ *  Bug 3abab276 (Bug Board round 1): the pill read `refreshCostOf` directly and never showed Window
+ *  Shopping's 0 — keep the pill on THIS helper so the display can't drift from the charge. */
+export function nextRefreshCostOf(s: RunState): number {
+  if (s.freeRolls > 0) return 0;
+  if (s.runeWindowShopping && (s.windowShopRolls ?? 0) < 3) return 0;
+  return refreshCostOf(s);
+}
+
 /** Rune of Open Enrollment: append ONE extra offer of the board's most common type after a refresh. */
 function appendDominantTypeOffer(s: RunState): void {
   const tribe = dominantBoardTribe(s);
@@ -2035,7 +2046,8 @@ function reduceCore(state: RunState, action: Action): RunState {
     }
 
     case 'roll': {
-      // Rune of Window Shopping: your first 4 Refreshes each turn are free (counted before charging).
+      // Rune of Window Shopping: your first 3 Refreshes each turn are free (counted before charging).
+      // The UI pill reads `nextRefreshCostOf` (above) — keep this branch and that helper in lockstep.
       const wsFree = !!s.runeWindowShopping && (s.windowShopRolls ?? 0) < 3;
       if (s.runeWindowShopping) s.windowShopRolls = (s.windowShopRolls ?? 0) + 1;
       // Refreshing Texts bank free rerolls — spend one before charging Mana.

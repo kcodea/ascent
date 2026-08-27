@@ -61,6 +61,52 @@ describe('Beefy folds spell power on every path', () => {
   });
 });
 
+describe('Great Pot folds spell power (regression — bug a17a48ab, Bug Board round 1)', () => {
+  // The owner's intent in the report itself: Great Pot SHOULD scale with spell power. Its factory
+  // (`buffOnePerTribe`) shipped flat because its name slips the `spellBuff*` tripwire prefix — now an
+  // extra in the docbot scan, folded in the factory, and live in the printed text. Pinned here.
+  const POWER = { attack: 5, health: 4 }; // base +4/+4 → +9/+8
+  const pot = (): RunState['hand'][number] => ({ uid: 'gp', cardId: 'greatpot', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false });
+  /** Which uids claim a tribe slot, in board order — mirrors the factory's one-per-tribe walk. */
+  const claimants = (boardCards: BoardCard[]): Set<string> => {
+    const seen = new Set<string>();
+    const out = new Set<string>();
+    for (const c of boardCards) {
+      const d = CARD_INDEX[c.cardId]!;
+      const tribes = [d.tribe, d.tribe2].filter((t) => !!t && t !== 'neutral') as string[];
+      if (tribes.length === 0 || tribes.every((t) => seen.has(t))) continue;
+      for (const t of tribes) seen.add(t);
+      out.add(c.uid);
+    }
+    return out;
+  };
+
+  it('cast from hand: each claimed minion gets the folded value', () => {
+    let s: RunState = { ...set2(), phase: 'recruit', embers: 40, spellBonus: POWER, board: trio(), hand: [pot()] };
+    const claimed = claimants(s.board);
+    expect(claimed.size, 'the fixture must actually buff someone').toBeGreaterThan(0);
+    s = reduce(s, { type: 'play', uid: 'gp' });
+    for (const uid of ['L', 'T', 'R']) {
+      expect(gainOf(s, uid), uid).toEqual(claimed.has(uid) ? [9, 8] : [0, 0]);
+    }
+  });
+
+  it('with no spell power it pays exactly its printed +4/+4', () => {
+    let s: RunState = { ...set2(), phase: 'recruit', embers: 40, board: trio(), hand: [pot()] };
+    const claimed = claimants(s.board);
+    s = reduce(s, { type: 'play', uid: 'gp' });
+    for (const uid of ['L', 'T', 'R']) {
+      expect(gainOf(s, uid), uid).toEqual(claimed.has(uid) ? [4, 4] : [0, 0]);
+    }
+  });
+
+  it('the printed card text shows the live value, not the base (live-text rule)', () => {
+    expect(spellDisplayText('greatpot', 5, 0, 4)).toContain('{{+9/+8}}');
+    expect(spellDisplayText('greatpot', 0, 0, 0)).toContain('+4/+4'); // no power → the authored base stands
+    expect(CARD_INDEX['greatpot']!.text).toContain('+4/+4'); // the base is still what's authored
+  });
+});
+
 describe('Beefy is castable IN COMBAT (regression — it silently fizzled)', () => {
   it('is registered as combat-castable', () => {
     expect(combatCastable(CARD_INDEX['sp_beefy']!), 'Beefy would fizzle on every combat re-fire').toBe(true);

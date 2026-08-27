@@ -20,7 +20,10 @@ import { SPELL_POWER_EXCUSED } from './historyRegistry';
 const SIM = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 /** The stat-spell family: the shared `isStatSpell` prefix rule + its extras (see recruit.ts). */
-const isStatFamily = (name: string): boolean => name.startsWith('spellBuff') || name === 'rubyStatGain' || name === 'spellAverageStats';
+const isStatFamily = (name: string): boolean => name.startsWith('spellBuff') || name === 'rubyStatGain' || name === 'spellAverageStats'
+  // Great Pot's factory: a stat-granting cast whose name slips the `spellBuff*` prefix — it shipped flat and
+  // became bug a17a48ab (Bug Board round 1). Listed as an extra so the tripwire holds its fold from now on.
+  || name === 'buffOnePerTribe';
 
 describe('Doc Bot — stat spells fold spell power', () => {
   const src = readFileSync(join(SIM, 'recruit.ts'), 'utf8');

@@ -13,7 +13,9 @@
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { DEFAULT_NIGHTLY, emitFindingsJson, nightlyReportJson, runNightly, type DocbotFinding } from '@game/sim';
+import { allContracts } from '@game/rules/contracts';
+import { allRules } from '@game/rules';
+import { DEFAULT_NIGHTLY, emitFindingsJson, nightlyReportJson, releaseBlockerFindings, runContractSweep, runNightly, type DocbotFinding } from '@game/sim';
 
 const argv = process.argv.slice(2);
 const flag = (name: string, fallback?: string): string | undefined => {
@@ -47,12 +49,28 @@ for (const r of report.runs) {
 }
 console.log(`  lobbies: ${cfg.lobbies} swept — ${report.lobbyFailures.length === 0 ? 'all laws hold' : `${report.lobbyFailures.length} VIOLATION(S)`}`);
 console.log(`  coverage: ${report.coverageKeys.length} semantic keys reached`);
-console.log(`  ${report.ok ? 'NIGHTLY GREEN' : 'NIGHTLY RED'} in ${elapsed}s`);
+
+// ── WP D: the contracts lane — the FULL verification sweep + pinned release blockers, every night ─────────
+const sweep = runContractSweep({ contracts: allContracts() });
+const blockers = releaseBlockerFindings(allRules());
+const sweepFails = [
+  ...sweep.mismatches.map((m) => `${m.contractId}·${m.path}`),
+  ...sweep.metamorphic.filter((m) => !m.diff.ok).map((m) => `${m.contractId}·${m.law}`),
+  ...sweep.limitChecks.filter((l) => !l.ok).map((l) => `${l.contractId}·${l.limit}`),
+];
+const newVerified = sweep.findings.filter((f) => f.class === 'verified-mechanical-bug' && f.status === 'new');
+console.log(`  contracts: ${sweep.contractsTotal} swept (${sweep.sampled} driver-executed) — `
+  + (sweepFails.length === 0 ? 'every executed case agreed' : `${sweepFails.length} DISAGREEMENT(S): ${sweepFails.join(', ')}`));
+for (const f of blockers) console.log(`  🔴 RELEASE BLOCKER (pinned): ${f.ruleIds.join(',')} — approved rule violated by the engine`);
+const contractsRed = newVerified.length > 0;
+
+console.log(`  ${report.ok && !contractsRed ? 'NIGHTLY GREEN' : 'NIGHTLY RED'} in ${elapsed}s`);
 
 // ── Artifacts — always the report; on failure, the minimized scenarios + findings + original traces ───────
 mkdirSync(OUT, { recursive: true });
 writeFileSync(join(OUT, 'nightly-report.json'), nightlyReportJson(report));
-const findings: DocbotFinding[] = [...report.lobbyFailures];
+// The contracts lane's findings ride the same findings.json: sweep disagreements + the pinned blockers.
+const findings: DocbotFinding[] = [...report.lobbyFailures, ...sweep.findings, ...blockers];
 for (const r of report.runs) {
   for (const f of r.failures) {
     findings.push(f.finding);
@@ -66,4 +84,4 @@ for (const r of report.runs) {
 writeFileSync(join(OUT, 'findings.json'), emitFindingsJson(findings));
 console.log(`  artifacts → ${OUT}`);
 
-process.exit(report.ok ? 0 : 1);
+process.exit(report.ok && !contractsRed ? 0 : 1);

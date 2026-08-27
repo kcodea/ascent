@@ -45,3 +45,10 @@ export { runNightly, runLifecycle, runLobbySweep, buildFailureArtifact, nightlyR
 export { extractAllContracts, activeContentIds, EXTRACTOR_ID, type ExtractionResult } from './contractExtract';
 export { corroborateContracts, CORROBORATION_ASPECTS, type CorroborationReport, type CorroborationSources, type ContractCorroborationRow, type CorroborationDisagreement, type CorroborationAspect } from './contractCorroboration';
 export { buildConventionQuestions, CONVENTION_QUEUE } from './conventionQuestions';
+// ── Doc Bot 2.0 WP D: contract verification at scale ─────────────────────────────────────────────────────
+export { planCases, CASE_TEMPLATES, SLICE_COVERED_IDS, type CasePlan, type CaseTemplateId, type SkipReason, type DriverId } from './isolatedCases';
+export { runVariantDiff, checkMetamorphic, type VariantDiffResult, type MetamorphicCheck, type MetamorphicLawId } from './variantDiff';
+export {
+  runContractSweep, releaseBlockerFindings, laneCitations, sampleRotation, inSample, CONTRACT_LANE,
+  type ContractSweepOptions, type ContractSweepReport, type ContractSweepRow, type ExecutedCase, type TemplateTotals,
+} from './contractOracle';

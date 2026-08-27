@@ -13,7 +13,8 @@
  */
 import { stableStringify, type JsonValue } from '../qaScenario';
 
-export type FindingSeverity = 'error' | 'warning' | 'question' | 'info';
+/** 'critical' = release blocker (WP D: an approved-rule violation is fixed or pinned-and-blocking). */
+export type FindingSeverity = 'critical' | 'error' | 'warning' | 'question' | 'info';
 export type FindingConfidence = 'proven' | 'strong' | 'uncertain';
 export type FindingStatus = 'new' | 'known' | 'resolved' | 'needs-ruling' | 'excused';
 

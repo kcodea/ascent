@@ -165,6 +165,9 @@ function boardMinionExemplar(): Required<BoardMinion> {
     rallyMechAtk: 5,
     rallySpellWeld: 1,
     copiedEcho: sentinelEcho(),
+    grantedEffects: sentinelEcho(), // runtime shop grafts — folded into Minion.effects at instantiate (2026-08-27)
+    echoStripped: true, // "without Echo" mark — consumed at instantiate (filters the onDeath effects out)
+    impBank: { attack: 2, health: 5 }, // Ashen Heir's shop bank — cloned onto Minion.impBank, spent live
     universalTribe: true,
     bloodbinderMode: 'hp',
     bloodlust: true,

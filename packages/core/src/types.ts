@@ -1867,6 +1867,20 @@ export interface BoardMinion {
   /** Gravetwin: the Deathrattle (onDeath EffectDefs) it copied from a friendly Echo minion — carried into combat
    *  as real Deathrattle effects so it procs when Gravetwin dies mid-fight (not only at the next shop). */
   copiedEcho?: EffectDef[];
+  /** Effects GRAFTED onto this body at runtime in the shop (Echo Mimic, Grave Body, Contract Rewrite's quest
+   *  graft, Rune of Rebirth's shop half) — folded into the live `Minion.effects` at `instantiate`, the same
+   *  channel `copiedEcho` rides, so a grafted Deathrattle fires in combat and on served boards
+   *  (owner ruling 2026-08-27, q-snap-granted-effects). */
+  grantedEffects?: EffectDef[];
+  /** Exgalloper / Rune of Rebirth: a shop-created copy summoned "without Echo". `instantiate` filters the
+   *  `onDeath` effects out of the live minion (the same rule combat's own `stripEchoes` applies), so a
+   *  shop-stripped body stays silent when it dies in a fight (owner ruling 2026-08-27, q-snap-echostripped). */
+  echoStripped?: boolean;
+  /** Ashen Heir: the SHOP-banked Imp stats, riding into combat so the bank pays out to an Imp summoned
+   *  mid-fight (`impInheritOnSummon` reads the live `Minion.impBank`, which `instantiate` seeds from this).
+   *  Cloned at every boundary — combat spends its own copy; the run's bank is never consumed by a fight
+   *  (owner ruling 2026-08-27, q-snap-impbank). */
+  impBank?: { attack: number; health: number };
   /** Anomaly Reactor's "All" mode: this minion counts as every tribe (mirrors the CardDef `universalTribe`, but
    *  per-instance). Combat tribe checks OR it in. */
   universalTribe?: boolean;

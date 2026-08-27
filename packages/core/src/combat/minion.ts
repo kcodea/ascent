@@ -27,6 +27,15 @@ export function instantiate(
 ): Minion {
   const card = cards[board.cardId];
   if (!card) throw new Error(`Unknown card: ${board.cardId}`);
+  // The live effects list: printed + Gravetwin's copied Echo + runtime shop grafts (Echo Mimic / Grave Body /
+  // Contract Rewrite / Rune of Rebirth) — one channel, so a grafted Deathrattle is as real in combat as a
+  // printed one (owner ruling 2026-08-27). An `echoStripped` body ("summon a copy WITHOUT the Echo", marked
+  // in the shop where there is no per-instance effects list to filter) drops every `onDeath` effect here —
+  // the exact rule combat's own `stripEchoes` applies to copies created mid-fight.
+  let effects = board.copiedEcho?.length || board.grantedEffects?.length
+    ? [...card.effects, ...(board.copiedEcho ?? []), ...(board.grantedEffects ?? [])]
+    : card.effects;
+  if (board.echoStripped) effects = effects.filter((e) => e.on !== 'onDeath');
   const keywords = board.keywords ? [...board.keywords] : [...card.keywords];
   // Better Bot: own base Rally (×golden for a standalone Better Bot) + any welded onto it (already
   // golden-baked at weld time, stored on board.rallyMechAtk).
@@ -77,14 +86,16 @@ export function instantiate(
     bloodbinderMode: board.bloodbinderMode, // Bloodbinder: which stat its Rally gives Fodder this fight (atk/hp)
     universalTribe: board.universalTribe || card.universalTribe || undefined, // counts as every tribe (Anomaly Reactor "All" OR a universal-tribe CardDef like Chaos Attachment)
     bloodlustRally: board.bloodlustRally, // Bloodlust's welded Rally: give a friendly minion this minion's Attack (one combat)
+    // Ashen Heir: seed the SHOP bank into the fight — CLONED, so combat banking/payouts mutate this fight's
+    // copy and never the run's (or the shared snapshot's) bank (owner ruling 2026-08-27).
+    impBank: board.impBank ? { ...board.impBank } : undefined,
     resummon: board.resummon, // The Reclaimer's start-of-combat destroy + resummon mark
     partingCry: board.partingCry,   // Parting Cry: its Shout fires as it dies this fight
     closedCasket: board.closedCasket, // Closed Casket: Echo at SoC, suppressed on the first death
     buffs: board.buffs, // recruit-phase buff breakdown, carried into the snapshot for the combat inspect
     side,
-    // Gravetwin carries its copied Echo into combat as a real Deathrattle, so it PROCS when Gravetwin dies in
-    // combat (not only at the next shop if it survives) — including growth effects like Grim's (owner 2026-07-13).
-    effects: board.copiedEcho?.length ? [...card.effects, ...board.copiedEcho] : card.effects,
+    // Gravetwin's copied Echo + runtime shop grafts + the echoStripped filter — assembled above.
+    effects,
     dead: false,
   };
 }

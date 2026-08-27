@@ -3657,9 +3657,6 @@ body.hglow-preview .card.plated .plateglow { opacity: 1; }
 
 .unit.struck .card { animation: struck 0.34s ease; }
 @keyframes struck { 0%, 100% { transform: none; } 45% { transform: translateY(5px) scale(0.94); } }
-/* a white-hot impact spark at the point of contact */
-.unit.struck::before { content: ''; position: absolute; top: 36%; left: 50%; width: 58px; height: 58px; margin: -29px 0 0 -29px; border-radius: 50%; background: radial-gradient(circle, rgba(255, 255, 255, 0.95) 0%, rgba(255, 214, 130, 0.62) 42%, transparent 70%); z-index: 11; pointer-events: none; animation: impactspark 0.3s ease-out forwards; }
-@keyframes impactspark { 0% { opacity: 0; transform: scale(0.3); } 30% { opacity: 1; } 100% { opacity: 0; transform: scale(1.4); } }
 /* Rise (die → Deathrattle → return): the body DIES first — it collapses out of its slot via `.unit.dying`
    (a real removal that reflows the line), its Deathrattle resolves in the vacated space, then it RE-ENTERS
    here at its new slot (to the RIGHT of whatever it summoned). So `.unit.reborn` is a RE-ENTRY, not an

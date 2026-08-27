@@ -63,6 +63,7 @@ export const PATCH_NOTES: PatchNote[] = [
         'Happy Birthday and Merry Christmas wear their rune art in the Runeforge.',
         'Aevor has a brand-new portrait.',
       ] },
+      { category: 'UI / Info', text: 'Stat pills now abbreviate at 100,000+ (101.1k, 10.6m, 405.1b) so late-game numbers stay readable. Anything up to 99,999 still shows in full.' },
     ],
   },
   {

@@ -34,8 +34,8 @@ describe('Doc Bot — rune reward differential (the #900 class)', () => {
 Either the reward applier misses their kind/flag (#900's shape), or the fixture lacks their subject — fix the applier, enrich the fixture in runeSwallowScan.ts, or excuse with a ruling in historyRegistry.ts.`).toEqual([]);
   });
 
-  it('the swallowed-second-copy backlog can only shrink (ratchet: 80 as of 2026-08-26)', () => {
-    const PIN = 80;
+  it('the swallowed-second-copy backlog can only shrink (ratchet: 0 as of 2026-08-27 — the duplicate-stacking rulings drained all 80)', () => {
+    const PIN = 0;
     expect(secondSwallowed.length, `${secondSwallowed.length} rune(s) swallow a second copy (pin ${PIN}): ${secondSwallowed.join(', ')} — above the pin means a NEW rune swallows: make its second copy accumulate (amounts) or record flagCopies (booleans), or get an owner ruling and excuse it in historyRegistry.ts.`).toBeLessThanOrEqual(PIN);
     expect(secondSwallowed.length, `only ${secondSwallowed.length} rune(s) swallow now (pin ${PIN}) — you fixed some; lower the PIN so the progress cannot be silently re-spent.`).toBeGreaterThanOrEqual(PIN);
   });

@@ -1,4 +1,4 @@
-import type { QuestReward, RuneDef } from '@game/core';
+import type { RuneDef } from '@game/core';
 import { RuneDefSchema } from './schema';
 
 /**
@@ -2441,7 +2441,10 @@ export const EPIC_RUNES: RuneDef[] = [
     name: 'Rune of Held Strength',
     cost: 3,
     epic: true,
-    text: 'Give your **left and right-most minions** the stats of the **left-most card in your hand**.',
+    // OWNER REWORK 2026-08-27 (q-runedup-oneshot revise): "rune of the held strength should not be a one-shot
+    // rune and should be a 'Start of Combat: give xyz' rune" — now a standing Start-of-Combat grant, read
+    // live off the hand each fight.
+    text: '**Start of Combat:** give your **left and right-most minions** the stats of the **left-most minion card in your hand**.',
     reward: { kind: 'runeHeldStrength' },
   },
   {
@@ -2782,28 +2785,26 @@ export function validateRunes(runes: RuneDef[] = [...RUNES, ...EPIC_RUNES, ...AR
 }
 
 /**
- * Does holding TWO copies of this rune do anything? (Rune of Duplication — owner ask 2026-08-06: "if the
- * user has rune of duplication and a rune doesn't stack, can we add a pill stating that on the rune?")
- *
- * Duplication genuinely re-applies the copied rune's reward; whether that CHANGES anything depends entirely
- * on the reward's shape. Accumulating shapes (`+=`, a push, a queued Discover, a per-instance meter) double
- * up; a reward that ASSIGNS a boolean or a whole object writes the same value over itself and does nothing.
- * The 2026-08-06 pass made every combat flag stack — amounts accumulate, booleans carry a copy count the
- * dispatchers honour — so what remains here is the recruit-phase set that genuinely cannot express "more".
- *
- * Derived from the reward, NOT a hand-kept list, so a new rune is classified the moment it is authored.
+ * RUNE DUPLICATE CLASSIFICATION (owner rulings 2026-08-27, decisions q-runedup-*). Since the duplicate-
+ * stacking pass, EVERY duplicate does something: most stack per their family rule (recurring effects fire per
+ * copy, meters pay double at the trip, repeats add +1, one-shots re-grant, engines double their output); the
+ * two sets below are the ruled exceptions. The sim's buy path and forge filter consume these
+ * (`packages/sim/src/runeDup.ts`); the Runeforge card shows the matching pill while Duplication is held.
  */
-const NON_STACKING_REWARDS = new Set([
-  'runeCopies', 'runeCadence', 'runeGemscript', 'runeMatriarch', 'runeScales', 'runeTwinGilding',
-  'runeTransfusion', 'runeReplication', 'runeMastery', 'runeEndlessAppetite', 'runeLiquidation',
-  'motherlode', 'runeOpenMarket', 'runeSharedTable', 'runeRedirection', 'runeProfitSharing',
-  'runeSpellstone', 'runeDuplication',
+/** Duplicates that pay the universal SWEETENER (Gold = half the rune's printed cost rounded up, plus a free
+ *  refresh) instead of stacking — each is genuinely idempotent. Per-rune reasons in `runeDup.ts`. */
+export const RUNE_DUP_SWEETENER: ReadonlySet<string> = new Set([
+  'rune_twin_gilding', 'rune_spellstone', 'rune_trophy', 'rune_engraving_gems', 'rune_centerline',
+  'rune_vanguard', 'rune_living_treasure', 'rune_chef', 'rune_ancestral_roar', 'rune_moonhowl',
 ]);
 
-/** True when a second copy of `rune` would change nothing — the Runeforge shows a "no stacking" pill for it
- *  while Rune of Duplication is held, so the promise on the card stays honest. */
+/** Duplicates that do NOTHING — owner ruled unique ("rune of the ornate clock should do nothing if
+ *  duplicated, that one is unique"). The forge filter never re-offers them once owned. */
+export const RUNE_DUP_UNIQUE: ReadonlySet<string> = new Set(['rune_ornate_clock']);
+
+/** True when a second copy of `rune` genuinely stacks (the overwhelming majority since 2026-08-27) — the
+ *  Runeforge shows a sweetener/no-stack pill for the exceptions while Rune of Duplication is held, so the
+ *  promise on the card stays honest. */
 export function runeStacks(rune: RuneDef): boolean {
-  const kinds = (r: QuestReward): string[] => (r.kind === 'multi' ? r.rewards.flatMap(kinds) : [r.kind]);
-  // A `multi` stacks if ANY half does (Soul Taxes: the granted minion doubles even though its flag doesn't).
-  return kinds(rune.reward).some((k) => !NON_STACKING_REWARDS.has(k));
+  return !RUNE_DUP_SWEETENER.has(rune.id) && !RUNE_DUP_UNIQUE.has(rune.id);
 }

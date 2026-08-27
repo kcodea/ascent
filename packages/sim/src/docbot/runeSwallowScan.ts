@@ -13,9 +13,12 @@ import type { RunState } from '../state';
 import { RUNE_DIFF_EXCUSED } from './historyRegistry';
 
 /** Fields the purchase itself touches — the receipt, not the reward. Stripped before diffing.
- *  `goldSpent`/`goldSpentThisTurn` are `spendGold` side-effects of paying for the rune. */
+ *  `goldSpent`/`goldSpentThisTurn` are `spendGold` side-effects of paying for the rune.
+ *  `embers` left the list on 2026-08-27: the scan now buys every rune COST-NEUTRALLY (a full discount), so
+ *  a Gold movement in the diff can only be the REWARD — which is exactly what a re-granted one-shot
+ *  (Small Fortune paying again) and the duplicate sweetener (half cost + a free refresh) pay in. */
 const BOOKKEEPING = new Set([
-  'embers', 'ownedRunes', 'runeforgeOffer', 'runeforgeEpic', 'runeforgeNoCharge', 'runeforgeDiscounts',
+  'ownedRunes', 'runeforgeOffer', 'runeforgeEpic', 'runeforgeNoCharge', 'runeforgeDiscounts',
   'heroPowerSpent', 'runeProcs', 'rngCursor', 'uidCounter', 'runeDuplication', 'lastRuneBought',
   'presentation', 'fx', 'beats', 'log', 'goldSpent', 'goldSpentThisTurn',
 ]);
@@ -47,10 +50,16 @@ const strip = (s: RunState, alsoFlagCopies: boolean): string => {
 
 /** An AMOUNT-carrying combat flag must accumulate its VALUE — `flagCopies` ticking is not enough (it records
  *  every application unconditionally, so it would mask exactly the pre-#900 overwrite bug). Boolean flags
- *  keep `flagCopies` in the diff: the copy count IS their sanctioned accumulation mechanism. */
+ *  keep `flagCopies` in the diff: the copy count IS their sanctioned accumulation mechanism.
+ *
+ *  EXCEPTION (owner ruling 2026-08-27, q-runedup-threshold): a flag whose amount is a THRESHOLD, not a
+ *  payout. Accumulating it would make the rune WORSE (two Returning Packs ≠ "every 12 Beasts"); the ruled
+ *  behaviour is same meter, payout × copies — so for these two, `flagCopies` IS the sanctioned mechanism
+ *  (the combat dispatchers pay once per copy) and it stays in the diff. */
+const THRESHOLD_FLAGS = new Set(['runeReturningPack', 'runeGraveRefreshment']);
 const isAmountFlag = (reward: unknown): boolean => {
-  const r = reward as { kind?: string; amount?: unknown } | undefined;
-  return r?.kind === 'combatFlag' && typeof r.amount === 'number';
+  const r = reward as { kind?: string; amount?: unknown; flag?: string } | undefined;
+  return r?.kind === 'combatFlag' && typeof r.amount === 'number' && !THRESHOLD_FLAGS.has(r.flag ?? '');
 };
 
 /** A board with one of every major tribe + shop offers + hand room + gold, so tribe-/target-scoped rewards
@@ -73,8 +82,12 @@ export function runeDiffFixture(): RunState {
   } as unknown as RunState;
 }
 
-const buyRune = (s: RunState, runeId: string): RunState =>
-  reduce({ ...s, runeforgeOffer: [runeId], runeforgeDiscounts: undefined } as RunState, { type: 'buyRune', index: 0 });
+/** Buy COST-NEUTRALLY (full discount): with the purchase price out of the picture, any `embers` movement in
+ *  the diff is the reward itself — a re-granted Gold one-shot, or the duplicate sweetener's payout. */
+const buyRune = (s: RunState, runeId: string): RunState => {
+  const cost = [...RUNES, ...EPIC_RUNES].find((r) => r.id === runeId)?.cost ?? 0;
+  return reduce({ ...s, runeforgeOffer: [runeId], runeforgeDiscounts: [cost] } as RunState, { type: 'buyRune', index: 0 });
+};
 
 /** Run both differentials over every rune. `firstNoops` = the hard-gate failures (a reward that does nothing
  *  at all — #900's shape); `secondSwallowed` = the ratcheted duplicate-policy backlog. */

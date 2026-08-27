@@ -14,8 +14,9 @@ import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard, oppKey } from './opponents';
 import type { BoardSnapshot } from './snapshot';
 import { noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, roundedSpellbookCostOf, buyoutCostOf, commissionOffer, COMMISSION_DELAY, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, stampSharedSpoils, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, rubyStatBonus, consumeGrimoireCharge, countRubyAsShopSpell, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, buyHealthAura, undeadBuyBonus, weldMagnetic , defIsTribe} from './recruit';
-import { handCap, mixSeed, reservedHandSlots, TAG, henchmanOffer, type Action, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type ShopCard, type CiaSuit, type Commission, type CommissionKind, type RunState, type RubyLandedFx, procRune, procRuneId, runeBuffMagnitude } from './state';
+import { handCap, mixSeed, reservedHandSlots, TAG, henchmanOffer, type Action, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type ShopCard, type CiaSuit, type Commission, type CommissionKind, type RunState, type RubyLandedFx, gateUses, procRune, procRuneId, runeBuffMagnitude } from './state';
 import { alignmentsOf } from './alignment';
+import { RUNE_DUP_SWEETENER, RUNE_DUP_UNIQUE, forgeFilteredDuplicate, runeStacksOf } from './runeDup';
 import { spellFizzles } from './spellFizzle';
 import { MATCHMAKING } from './matchmaking';
 
@@ -124,7 +125,8 @@ function conjurePlainCopy(s: RunState, cardId: string): void {
  * mean" stays one question with one answer.
  */
 export function wishboneReps(s: RunState): number {
-  return s.runeWishbone ? 2 : 1;
+  // +1 repetition per Wishbone copy held (repeat family, owner 2026-08-27) — 2 with one copy, 3 with two.
+  return s.runeWishbone ? 1 + runeStacksOf(s, 'rune_wishbone') : 1;
 }
 
 function gorrQuestBuy(s: RunState, card: CardDef): void {
@@ -241,7 +243,8 @@ export function refreshCostOf(s: RunState): number {
  *  Shopping's 0 — keep the pill on THIS helper so the display can't drift from the charge. */
 export function nextRefreshCostOf(s: RunState): number {
   if (s.freeRolls > 0) return 0;
-  if (s.runeWindowShopping && (s.windowShopRolls ?? 0) < 3) return 0;
+  // 3 free per Window Shopping copy held (owner 2026-08-27) — the same window the 'roll' case charges by.
+  if (s.runeWindowShopping && (s.windowShopRolls ?? 0) < 3 * runeStacksOf(s, 'rune_window_shopping')) return 0;
   return refreshCostOf(s);
 }
 
@@ -474,7 +477,8 @@ function takeDiscoverPick(s: RunState, index: number): boolean {
   // branch above, because a Discover into a full hand still cost you the pick.
   if (s.runeDraconicCuriosity && (def.tribe === 'dragon' || def.tribe2 === 'dragon' || def.universalTribe)) {
     procRuneId(s, 'rune_draconic_curiosity');
-    conjureToHand(s, poolOf(s).spells.filter((c) => c.tier <= s.tier && !ALE_IDS.includes(c.id)), 1, true);
+    // One Shop spell per copy held (recurring family, owner 2026-08-27).
+    conjureToHand(s, poolOf(s).spells.filter((c) => c.tier <= s.tier && !ALE_IDS.includes(c.id)), runeStacksOf(s, 'rune_draconic_curiosity'), true);
   }
   return true;
 }
@@ -889,7 +893,8 @@ export function reduce(state: RunState, action: Action): RunState {
         if (set.size >= 3) {
           next.collectorUsedThisTurn = true;
           procRuneId(next, 'rune_collector');
-          queueDiscover(next, { kind: 'minion', tier: next.tier, tribes: [...set] });
+          // Duplicate = doubled payoff per trip (threshold family, owner 2026-08-27): one Discover per copy.
+          for (let k = 0; k < runeStacksOf(next, 'rune_collector'); k++) queueDiscover(next, { kind: 'minion', tier: next.tier, tribes: [...set] });
         }
       }
     }
@@ -923,8 +928,9 @@ export function reduce(state: RunState, action: Action): RunState {
       // Attachments" (Perfect Machine / Blueprint Cache / Shared Circuit).
       if (pdef?.keywords.includes('M')) {
         advanceQuests(next, (o) => o.event === 'playAttachment');
-        // Rune of Structure: each Attachment you play from hand also conjures a random spell.
-        if (next.runeStructure) { procRuneId(next, 'rune_structure'); conjureToHand(next, poolOf(next).spells.filter((c) => c.tier <= next.tier), 1); }
+        // Rune of Structure: each Attachment you play from hand also conjures a random spell — one per copy
+        // held (owner 2026-08-27: "rune of structure = you get 2 random shop spells").
+        if (next.runeStructure) { procRuneId(next, 'rune_structure'); conjureToHand(next, poolOf(next).spells.filter((c) => c.tier <= next.tier), runeStacksOf(next, 'rune_structure')); }
       }
       // Trail Forager: each Beast you play raises every OTHER Trail Forager's sell value (+1, ×2 golden).
       if (pdef && (pdef.tribe === 'beast' || pdef.tribe2 === 'beast' || pdef.universalTribe)) {
@@ -1200,12 +1206,12 @@ function reduceCore(state: RunState, action: Action): RunState {
       // price source below). ONE shared spend-marker, so holding both is still one freebie per turn.
       const freeBuy = (s.rift === 'freedom' || !!s.questFreeFirstBuy) && !s.freeBuyUsedThisTurn;
       // Rune of Cadence: an armed minion discount knocks 1 off whatever the price source says.
-      const cadenceOff = !freeBuy && s.cadenceMinionOff ? 1 : 0;
+      const cadenceOff = !freeBuy ? gateUses(s.cadenceMinionOff) : 0; // −1 per Cadence copy held (owner 2026-08-27)
       // GIFT — Friends and Family: shop minions cost less for the rest of this turn.
       const giftMinionOff = freeBuy ? 0 : (s.minionCostOffTurn ?? 0);
       // Rune of Trade-In: an armed per-type discount (from this turn's first sale) knocks 1 off a matching minion.
       const tiDef = s.tradeInTribe ? CARD_INDEX[offer.cardId] : undefined;
-      const tradeInOff = !freeBuy && s.runeTradeIn && s.tradeInTribe && defIsTribe(tiDef, s.tradeInTribe) ? 1 : 0; // All-types matches any armed tribe
+      const tradeInOff = !freeBuy && s.runeTradeIn && s.tradeInTribe && defIsTribe(tiDef, s.tradeInTribe) ? runeStacksOf(s, 'rune_trade_in') : 0; // All-types matches any armed tribe; −1 per copy held (owner 2026-08-27)
       // `heroOfferPrice` = Frantic Frank's Clearance / Foreman Flint's Company Rate (flat 2). Shared with the
       // UI's cost coin so the shown price is the charged price.
       const buyCost = freeBuy ? 0 : Math.max(0, (offer.cost ?? heroOfferPrice(s, offer) ?? s.minionCostOverride ?? minionCostOf(s)) - cadenceOff - tradeInOff - giftMinionOff); // Moe's set price > Frank/Flint 2g > Merchant's Mark override > Hank/default
@@ -1218,8 +1224,9 @@ function reduceCore(state: RunState, action: Action): RunState {
       if (tradeInOff) procRuneId(s, 'rune_trade_in');
       if (tradeInOff) s.tradeInTribe = undefined; // spent
       // Rune of Restocking: the FIRST minion you buy each turn refills its slot with a random same-Tier minion
-      // priced at 2 Gold (owner 2026-08-18). Injected at the same index so the shop keeps its shape.
-      if (s.runeRestocking && !s.restockUsedThisTurn) {
+      // priced at 2 Gold (owner 2026-08-18). Injected at the same index so the shop keeps its shape. A
+      // duplicate widens the window — the first buy per copy restocks (owner 2026-08-27, unique-engine doubling).
+      if (s.runeRestocking && gateUses(s.restockUsedThisTurn) < runeStacksOf(s, 'rune_restocking')) {
         procRune(s, 'runeRestocking');
         const boughtTier = CARD_INDEX[offer.cardId]?.tier;
         const pool = boughtTier ? poolOf(s).buyable.filter((c) => c.tier === boughtTier && !c.spell && !c.ruby) : [];
@@ -1228,10 +1235,10 @@ function reduceCore(state: RunState, action: Action): RunState {
           const pick = pool[rng.int(pool.length)]!;
           s.rngCursor = rng.state();
           s.shop.splice(i, 0, { uid: `s${s.uidSeq++}`, cardId: pick.id, cost: 2 });
-          s.restockUsedThisTurn = true;
+          s.restockUsedThisTurn = gateUses(s.restockUsedThisTurn) + 1;
         }
       }
-      if (s.runeCadence) s.cadenceSpellOff = true; // …and buying a minion arms the spell discount
+      if (s.runeCadence) s.cadenceSpellOff = runeStacksOf(s, 'rune_cadence'); // …and buying a minion arms the spell discount (−1 per copy)
       if (freeBuy) s.freeBuyUsedThisTurn = true;
       // Fried Circuits: each minion bought buffs every Mech OFFER remaining in the shop, escalating by step per
       // purchase (buy 1 → +step, buy 2 → +2·step, …). The buff bakes into the offer's atk/hp when it's bought.
@@ -1452,7 +1459,8 @@ function reduceCore(state: RunState, action: Action): RunState {
           const tail = s.board[s.board.length - 1];
           if (s.runeRedirection && boardTarget === s.board[0] && tail && tail !== boardTarget) {
             procRuneId(s, 'rune_redirection');
-            for (let n = 0; n < casts; n++) {
+            // One extra landing per copy held (owner 2026-08-27, unique-engine doubling).
+            for (let n = 0; n < casts * runeStacksOf(s, 'rune_redirection'); n++) {
               addBuff(tail, 'Ruby', card.attack, card.health);
               fireOnRubyPlayed(s, tail, card.attack, card.health);
             }
@@ -1468,7 +1476,8 @@ function reduceCore(state: RunState, action: Action): RunState {
           // on-Ruby watchers), mirroring the spell path's Distillation echo below.
           const lead = s.runeDistillation ? s.board[0] : undefined;
           if (lead) procRune(s, 'runeDistillation');
-          if (lead) for (let n = 0; n < casts; n++) {
+          // One extra landing per copy held (owner 2026-08-27, unique-engine doubling).
+          if (lead) for (let n = 0; n < casts * runeStacksOf(s, 'rune_distillation'); n++) {
             addBuff(lead, 'Ruby', card.attack, card.health);
             fireOnRubyPlayed(s, lead, card.attack, card.health);
           }
@@ -1484,13 +1493,16 @@ function reduceCore(state: RunState, action: Action): RunState {
           procRune(s, 'runeContraband');
           s.contrabandRubyUsed = true;
           const ales = poolOf(s).spells.filter((c) => ALE_IDS.includes(c.id));
-          if (ales.length > 0) conjureToHand(s, ales, 1);
+          // One Ale per copy held (owner 2026-08-27: "rune of contraband doubles the output of the ale/ruby per trigger").
+          if (ales.length > 0) conjureToHand(s, ales, runeStacksOf(s, 'rune_contraband'));
         }
         // Rune of Gemscript: the FIRST Ruby cast each turn raises the run's SPELL power +1/+1.
         if (s.runeGemscript && !s.gemscriptRubyUsed) {
           procRuneId(s, 'rune_gemscript');
           s.gemscriptRubyUsed = true;
-          s.spellBonus = { attack: (s.spellBonus?.attack ?? 0) + 1, health: (s.spellBonus?.health ?? 0) + 1 };
+          // +1/+1 per copy held (owner 2026-08-27, unique-engine doubling).
+          const gsr = runeStacksOf(s, 'rune_gemscript');
+          s.spellBonus = { attack: (s.spellBonus?.attack ?? 0) + gsr, health: (s.spellBonus?.health ?? 0) + gsr };
         }
         const rubyCastsBefore = s.rubyCasts ?? 0;
         // The trigger meter is the UMBRELLA of Rubies + Shop Spells (see `fireOnRubyCast`), so both paths must
@@ -1605,7 +1617,8 @@ function reduceCore(state: RunState, action: Action): RunState {
             // minion. A real second cast (same `castSpell` path), so the target's own on-spell watchers see it.
             const lead = s.runeDistillation ? s.board[0] : undefined;
             if (lead) procRune(s, 'runeDistillation');
-            if (lead) for (let n = 0; n < casts; n++) castSpell(s, def, lead);
+            // One extra cast per copy held (owner 2026-08-27, unique-engine doubling).
+            if (lead) for (let n = 0; n < casts * runeStacksOf(s, 'rune_distillation'); n++) castSpell(s, def, lead);
           }
           else return state; // a valid target is required (a friendly minion, or a tavern offer for `any`)
         } else {
@@ -1624,19 +1637,22 @@ function reduceCore(state: RunState, action: Action): RunState {
         if (s.runeContraband && !s.contrabandAleUsed && ALE_IDS.includes(card.cardId)) {
           procRune(s, 'runeContraband');
           s.contrabandAleUsed = true;
-          mintRubies(s, 1);
+          // One Ruby per copy held (owner 2026-08-27: "doubles the output of the ale/ruby per trigger").
+          mintRubies(s, runeStacksOf(s, 'rune_contraband'));
         }
         // Rune of Gemscript: the FIRST Shop spell cast each turn raises RUBY power +1/+1 (run bonus + held Rubies,
         // the same shape the Veinbreaker burst uses).
         if (s.runeGemscript && !s.gemscriptSpellUsed) {
           procRuneId(s, 'rune_gemscript');
           s.gemscriptSpellUsed = true;
+          // +1/+1 per copy held (owner 2026-08-27, unique-engine doubling).
+          const gss = runeStacksOf(s, 'rune_gemscript');
           const b = s.rubyBonus ?? { attack: 0, health: 0 };
-          s.rubyBonus = { attack: b.attack + 1, health: b.health + 1 };
-          for (const c of s.hand) if (CARD_INDEX[c.cardId]?.ruby) { c.attack += 1; c.health += 1; }
+          s.rubyBonus = { attack: b.attack + gss, health: b.health + gss };
+          for (const c of s.hand) if (CARD_INDEX[c.cardId]?.ruby) { c.attack += gss; c.health += gss; }
         }
         // Rune of Cadence: casting a Shop spell arms the 1-Gold discount on your next minion.
-        if (s.runeCadence) s.cadenceMinionOff = true;
+        if (s.runeCadence) s.cadenceMinionOff = runeStacksOf(s, 'rune_cadence');
         // A spell that conjures minions (Undead Army, Summon Stone) can hand you a 3rd copy — combine it.
         checkTriples(s);
         return s;
@@ -1693,14 +1709,17 @@ function reduceCore(state: RunState, action: Action): RunState {
           // also welds a copy of the same payload onto your leftmost Mech (which may be this same host — the
           // copy stacks, matching the text "attaches a copy").
           s.attachmentsThisTurn = (s.attachmentsThisTurn ?? 0) + 1;
-          if (s.attachmentsThisTurn === 1) {
-            if (s.runeTempering && !target.keywords.includes('DS')) {
-              procRune(s, 'runeTempering');
-              target.keywords = [...target.keywords, 'DS'];
-            }
-            if (s.runeReplication) {
-              const leftMech = s.board.find((c) => isTribe(c, 'mech'));
-              if (leftMech) { procRuneId(s, 'rune_replication'); weldMagnetic(s, leftMech, { ...weldPayload, source: `${weldPayload.source} (Replication)` }, card.cardId === 'cling' ? 1 : 0); }
+          // Tempering's window widens with its copies (first attachment per copy — owner 2026-08-27);
+          // Replication instead welds one copy PER COPY HELD onto the leftmost Mech, still on the turn's first.
+          if (s.runeTempering && s.attachmentsThisTurn <= runeStacksOf(s, 'rune_tempering') && !target.keywords.includes('DS')) {
+            procRune(s, 'runeTempering');
+            target.keywords = [...target.keywords, 'DS'];
+          }
+          if (s.attachmentsThisTurn === 1 && s.runeReplication) {
+            const leftMech = s.board.find((c) => isTribe(c, 'mech'));
+            if (leftMech) {
+              procRuneId(s, 'rune_replication');
+              for (let k = 0; k < runeStacksOf(s, 'rune_replication'); k++) weldMagnetic(s, leftMech, { ...weldPayload, source: `${weldPayload.source} (Replication)` }, card.cardId === 'cling' ? 1 : 0);
             }
           }
           // A golden Magnetic still "plays" the triple when welded in — grant its Discover.
@@ -1738,23 +1757,23 @@ function reduceCore(state: RunState, action: Action): RunState {
       // Mech (the standalone body itself qualifies if it's the leftmost Mech-tribe minion... it welds a copy).
       if (card.keywords.includes('M')) {
         s.attachmentsThisTurn = (s.attachmentsThisTurn ?? 0) + 1;
-        if (s.attachmentsThisTurn === 1) {
-          if (s.runeTempering && !card.keywords.includes('DS')) {
-            card.keywords = [...card.keywords, 'DS'];
-          }
-          if (s.runeReplication) {
-            const sDef = CARD_INDEX[card.cardId];
-            const leftMech = s.board.find((c) => c.uid !== card.uid && isTribe(c, 'mech'));
-            if (sDef && leftMech) {
-              procRuneId(s, 'rune_replication');
-              weldMagnetic(s, leftMech, {
-                source: `${sDef.name} (Replication)`,
-                attack: card.attack,
-                health: card.health,
-                keywords: card.keywords,
-                mana: (sDef.manaPerTurn ?? 0) * (card.golden ? 2 : 1),
-              }, card.cardId === 'cling' ? 1 : 0);
-            }
+        // Same duplicate rules as the weld path above: Tempering widens its window per copy; Replication welds
+        // one copy per copy held on the turn's first attachment.
+        if (s.runeTempering && s.attachmentsThisTurn <= runeStacksOf(s, 'rune_tempering') && !card.keywords.includes('DS')) {
+          card.keywords = [...card.keywords, 'DS'];
+        }
+        if (s.attachmentsThisTurn === 1 && s.runeReplication) {
+          const sDef = CARD_INDEX[card.cardId];
+          const leftMech = s.board.find((c) => c.uid !== card.uid && isTribe(c, 'mech'));
+          if (sDef && leftMech) {
+            procRuneId(s, 'rune_replication');
+            for (let k = 0; k < runeStacksOf(s, 'rune_replication'); k++) weldMagnetic(s, leftMech, {
+              source: `${sDef.name} (Replication)`,
+              attack: card.attack,
+              health: card.health,
+              keywords: card.keywords,
+              mana: (sDef.manaPerTurn ?? 0) * (card.golden ? 2 : 1),
+            }, card.cardId === 'cling' ? 1 : 0);
           }
         }
       }
@@ -1773,11 +1792,13 @@ function reduceCore(state: RunState, action: Action): RunState {
             procRune(s, 'runeHoardcalling');
             s.hoardcallingUsedThisTurn = true;
             const spells = poolOf(s).spells.filter((c) => c.tier <= s.tier && !ALE_IDS.includes(c.id));
-            if (spells.length > 0) conjureToHand(s, spells, 1, true);
+            // One Shop spell per copy held (recurring family, owner 2026-08-27).
+            if (spells.length > 0) conjureToHand(s, spells, runeStacksOf(s, 'rune_hoardcalling'), true);
           }
           if (s.runeRefrain) {
             const rrng = makeRng(s.rngCursor);
-            const returns = rrng.int(100) < 25;
+            // 25% per copy held (owner 2026-08-27, unique-engine doubling), capped below certainty.
+            const returns = rrng.int(100) < Math.min(95, 25 * runeStacksOf(s, 'rune_refrain'));
             s.rngCursor = rrng.state();
             if (returns && s.hand.length < handCap(s)) {
               procRune(s, 'runeRefrain'); // the 25% roll actually HIT — a miss is not the rune firing
@@ -1988,7 +2009,8 @@ function reduceCore(state: RunState, action: Action): RunState {
         // tavern) → nothing to give.
         if (s.runeLiquidation) {
           const target = [...s.shop].reverse().find((o) => { const d = CARD_INDEX[o.cardId]; return !!d && !d.spell && !d.ruby; });
-          if (target && (sold.attack > 0 || sold.health > 0)) { procRuneId(s, 'rune_liquidation'); addOfferBuff(target, 'Rune of Liquidation', sold.attack, sold.health); }
+          // Stats land once per copy held (owner 2026-08-27, unique-engine doubling).
+          if (target && (sold.attack > 0 || sold.health > 0)) { procRuneId(s, 'rune_liquidation'); const lq = runeStacksOf(s, 'rune_liquidation'); addOfferBuff(target, 'Rune of Liquidation', sold.attack * lq, sold.health * lq); }
         }
         // Rune of Investment (owner 2026-08-18): every 2 minions sold mints Rubies at the run's live strength.
         if (s.runeSellRubies) {
@@ -2005,8 +2027,10 @@ function reduceCore(state: RunState, action: Action): RunState {
         if (soldDef && !soldDef.spell && !soldDef.ruby) {
           s.aftermarketUsedThisTurn = true;
           const target = [...s.shop].reverse().find((o) => { const d = CARD_INDEX[o.cardId]; return !!d && !d.spell && !d.ruby; });
-          const halfA = Math.floor(sold.attack / 2);
-          const halfH = Math.floor(sold.health / 2);
+          // Half stats per copy held (owner 2026-08-27, unique-engine doubling — two copies pass the full stats).
+          const am = runeStacksOf(s, 'rune_aftermarket');
+          const halfA = Math.floor(sold.attack / 2) * am;
+          const halfH = Math.floor(sold.health / 2) * am;
           if (target && (halfA > 0 || halfH > 0)) addOfferBuff(target, 'Rune of the Aftermarket', halfA, halfH);
         }
       }
@@ -2016,7 +2040,8 @@ function reduceCore(state: RunState, action: Action): RunState {
           if (fd.sold >= fd.per) {
             fd.sold -= fd.per;
             const dragons = poolOf(s).all.filter((c) => !c.spell && !c.token && !c.ruby && (c.tribe === 'dragon' || c.tribe2 === 'dragon'));
-            if (dragons.length > 0) { procRuneId(s, 'rune_foundry'); conjureToHand(s, dragons, 1, true); }
+            // Same 5-sale meter, one Dragon per copy held per trip (threshold family, owner 2026-08-27).
+            if (dragons.length > 0) { procRuneId(s, 'rune_foundry'); conjureToHand(s, dragons, runeStacksOf(s, 'rune_foundry'), true); }
           }
           s.runeFoundry = fd;
         }
@@ -2031,7 +2056,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         fireOnMinionSold(s, sold);
       }
       // Rune of the Seller's Market: every minion you sell pumps your whole board +4/+3.
-      if (sold && s.runeSellersMarket) { procRuneId(s, 'rune_sellers_market'); for (const c of s.board) addBuff(c, "Rune of the Seller's Market", 4, 3); }
+      if (sold && s.runeSellersMarket) { procRuneId(s, 'rune_sellers_market'); const sm = runeStacksOf(s, 'rune_sellers_market'); for (const c of s.board) addBuff(c, "Rune of the Seller's Market", 4 * sm, 3 * sm); }
       // Rune of Trade-In: your FIRST sale each turn arms a 1-Gold discount on your next minion of that TYPE.
       if (sold && s.runeTradeIn && s.soldThisTurn?.length === 1) {
         const t = CARD_INDEX[sold.cardId]?.tribe;
@@ -2046,9 +2071,10 @@ function reduceCore(state: RunState, action: Action): RunState {
     }
 
     case 'roll': {
-      // Rune of Window Shopping: your first 3 Refreshes each turn are free (counted before charging).
+      // Rune of Window Shopping: your first 3 Refreshes each turn are free (counted before charging) — 3 per
+      // copy held (owner 2026-08-27, unique-engine doubling: "Window Shopping 3→6 free refreshes").
       // The UI pill reads `nextRefreshCostOf` (above) — keep this branch and that helper in lockstep.
-      const wsFree = !!s.runeWindowShopping && (s.windowShopRolls ?? 0) < 3;
+      const wsFree = !!s.runeWindowShopping && (s.windowShopRolls ?? 0) < 3 * runeStacksOf(s, 'rune_window_shopping');
       if (s.runeWindowShopping) s.windowShopRolls = (s.windowShopRolls ?? 0) + 1;
       // Refreshing Texts bank free rerolls — spend one before charging Mana.
       if (s.freeRolls > 0) {
@@ -2063,13 +2089,15 @@ function reduceCore(state: RunState, action: Action): RunState {
       }
       s.frozen = false;
       refreshTavern(s);
-      // Rune of the Bargain Bin: the FIRST refresh each turn fills the row with 1-Gold minions that sell for 0.
-      if (s.runeBargainBin && !s.bargainBinUsedThisTurn) { s.bargainBinUsedThisTurn = true; procRuneId(s, 'rune_bargain_bin'); fillBargainBin(s); }
+      // Rune of the Bargain Bin: the FIRST refresh each turn fills the row with 1-Gold minions that sell for 0
+      // — one binned refresh per copy held (owner 2026-08-27, unique-engine doubling).
+      if (s.runeBargainBin && gateUses(s.bargainBinUsedThisTurn) < runeStacksOf(s, 'rune_bargain_bin')) { s.bargainBinUsedThisTurn = gateUses(s.bargainBinUsedThisTurn) + 1; procRuneId(s, 'rune_bargain_bin'); fillBargainBin(s); }
       // Set 2 — tell the board a refresh happened (Hellrider counts them). Fired AFTER `refreshTavern`, so a
       // watcher that eats a Shop minion sees the NEW row rather than the one that just rolled away.
       applyShopRefreshed(s);
-      // Rune of Open Enrollment: after a refresh, add ONE extra offer of your most common type.
-      if (s.runeOpenEnrollment) { procRune(s, 'runeOpenEnrollment'); appendDominantTypeOffer(s); }
+      // Rune of Open Enrollment: after a refresh, add ONE extra offer of your most common type per copy held
+      // (owner 2026-08-27, unique-engine doubling).
+      if (s.runeOpenEnrollment) { procRune(s, 'runeOpenEnrollment'); for (let k = 0; k < runeStacksOf(s, 'rune_open_enrollment'); k++) appendDominantTypeOffer(s); }
       // Pete (Contrabanana): every 3rd refresh guarantees the RIGHT-MOST offer is from the tier above.
       if (hasPower(s, 'contraband')) {
         s.refreshCount = (s.refreshCount ?? 0) + 1;
@@ -2096,8 +2124,10 @@ function reduceCore(state: RunState, action: Action): RunState {
       // Rune of the Vault: 10 Gold the moment the shop reaches Tier 5 — then the rune is spent.
       if (s.runeVault && s.tier >= 5) {
         procRune(s, 'runeVault');
+        // 10 Gold per copy held (threshold family, owner 2026-08-27: doubled payoff, still once per run).
+        const vaultGold = 10 * runeStacksOf(s, 'rune_vault');
         s.runeVault = undefined;
-        gainGold(s, 10);
+        gainGold(s, vaultGold);
       }
       // Emerald Warden (Vanguard): every tavern-up also hands you a random minion of the tier you JUST reached
       // — read after `s.tier += 1`, so it always pays out the new pool, never the one you left. `exactTier`
@@ -2195,15 +2225,44 @@ function reduceCore(state: RunState, action: Action): RunState {
       const runeCost = Math.max(0, rune.cost - (s.runeforgeDiscounts?.[action.index] ?? 0)); // pivot discount
       if (s.embers < runeCost) return state; // can't afford — no-op (the UI greys it out)
       spendGold(s, runeCost);
-      // Reuse the quest-reward engine — it reads only `reward` + `name` off the def.
-      applyQuestReward(s, { id: rune.id, name: rune.name, reward: rune.reward } as unknown as QuestDef, true, 'rune');
+      // DUPLICATES (owner rulings 2026-08-27, decisions q-runedup-*): a duplicate that cannot meaningfully
+      // stack pays the universal SWEETENER (Gold = half the rune's printed cost rounded up, plus a free
+      // refresh); a ruled-UNIQUE duplicate (Ornate Clock) does nothing at all; every OTHER duplicate simply
+      // re-applies its reward — and the counted `runeStacks` (ticked in `applyQuestReward`) is what turns
+      // that re-application into real stacking behaviour at every consumer (see runeDup.ts).
+      const applyRuneCopy = (isDuplicate: boolean): void => {
+        if (isDuplicate && RUNE_DUP_UNIQUE.has(rune.id)) return; // owner: unique — a duplicate does nothing
+        if (isDuplicate && RUNE_DUP_SWEETENER.has(rune.id)) {
+          gainGold(s, Math.ceil(rune.cost / 2));
+          s.freeRolls += 1;
+          return;
+        }
+        // ONE-SHOT re-grants that cannot pay right now BANK to next turn (owner 2026-08-27: "rune of the
+        // armory would get 10 random attachments, and then next turn it would fire again, since you cannot
+        // have 20 cards in hand"). The pendingQuestRewards channel resolves rune ids at the rollover.
+        if (isDuplicate && (rune.id === 'rune_armory' || rune.id === 'rune_spare_parts')) {
+          const count = (rune.reward as { randomFilterCount?: number }).randomFilterCount ?? 0;
+          if (count > 0 && s.hand.length + count > handCap(s)) {
+            (s.pendingQuestRewards ??= []).push({ questId: rune.id, turnsLeft: 1 });
+            return;
+          }
+        }
+        if (isDuplicate && rune.id === 'rune_altar' && s.board.length === 0) {
+          (s.pendingQuestRewards ??= []).push({ questId: rune.id, turnsLeft: 1 }); // an empty board sells nothing — fire next turn instead
+          return;
+        }
+        // Reuse the quest-reward engine — it reads only `reward` + `name` off the def.
+        applyQuestReward(s, { id: rune.id, name: rune.name, reward: rune.reward } as unknown as QuestDef, true, 'rune');
+      };
+      applyRuneCopy((s.ownedRunes ?? []).includes(rune.id));
       // Rune of Duplication: "after you forge your Epic Rune, this transforms into a copy of it" — the Epic's
       // reward applies a SECOND time (owner ruling 2026-07-30: a rune that grants a minion grants two). Spent on
-      // use, and only on an EPIC buy, so the basic forge that sold you Duplication cannot consume it.
+      // use, and only on an EPIC buy, so the basic forge that sold you Duplication cannot consume it. The copy
+      // is always a DUPLICATE application, so a non-stacking Epic pays the sweetener instead of a silent no-op.
       if (s.runeDuplication && s.runeforgeEpic) {
         procRune(s, 'runeDuplication');
         s.runeDuplication = undefined;
-        applyQuestReward(s, { id: rune.id, name: rune.name, reward: rune.reward } as unknown as QuestDef, true, 'rune');
+        applyRuneCopy(true);
         (s.ownedRunes ??= []).push(rune.id); // shows as a second badge — the copy is a real rune you hold
       }
       (s.ownedRunes ??= []).push(rune.id);
@@ -2308,7 +2367,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       // powers below (scalingGold / gainMaxMana / fortify / dynamiteDig — the DOUBLEABLE_POWERS the rune is
       // gated to). A targeted single-application power (Gild / Ward) can't meaningfully double, so `reps` is
       // only read by those four branches.
-      const reps = (s.runeEmpowerment || s.runeWishbone) ? 2 : 1;
+      const reps = 1 + (s.runeEmpowerment ? 1 : 0) + (s.runeWishbone ? runeStacksOf(s, 'rune_wishbone') : 0);
       if (s.runeWishbone) procRuneId(s, 'rune_wishbone');
 
       if (power.kind === 'gild') {
@@ -3226,12 +3285,15 @@ function grantGoldenDiscover(s: RunState): void {
     if (pouch && s.hand.length < handCap(s)) conjureToHand(s, [pouch], 1);
     return;
   }
-  // Rune of the Corrupted Tome: a Triple Reward grants TWO. Recursion is bounded by the flag being cleared for
-  // the inner call — two, never four, however many Tomes are owned (a boolean can't say "more").
+  // Rune of the Corrupted Tome: a Triple Reward grants TWO — and +1 more per extra copy held (repeat family,
+  // owner 2026-08-27). Recursion is bounded by the flag being cleared for the inner calls, so the extras can
+  // never compound however many Tomes are owned.
   if (s.runeCorruptedTome) {
     procRuneId(s, 'rune_corrupted_tome');
     s.runeCorruptedTome = undefined;
-    try { grantGoldenDiscover(s); } finally { s.runeCorruptedTome = true; }
+    try {
+      for (let k = 0; k < runeStacksOf(s, 'rune_corrupted_tome'); k++) grantGoldenDiscover(s);
+    } finally { s.runeCorruptedTome = true; }
   }
   if (s.hand.length >= handCap(s)) return; // the hand cap — raised while the Runeforge is open (see handCap)
   s.hand.push({
@@ -3871,7 +3933,8 @@ function settleCombat(s: RunState, result: CombatResult): void {
     const grown = result.events.filter((e) =>
       e.type === 'toHand' && e.side === 'player' && e.cardId === 'growth'
       && e.source && bodies.get(e.source) === 'd2_scalefeather').length;
-    if (grown > 0) { procRuneId(s, 'rune_living_growth'); s.growthBonus = (s.growthBonus ?? 0) + grown; }
+    // +1 per Growth per copy held (recurring family, owner 2026-08-27).
+    if (grown > 0) { procRuneId(s, 'rune_living_growth'); s.growthBonus = (s.growthBonus ?? 0) + grown * runeStacksOf(s, 'rune_living_growth'); }
   }
   // Rune of Ashen Payroll (owner 2026-08-11): 1 Gold next turn for EACH Imp summoned in combat — no threshold,
   // no once-per-combat cap. The armed flag just needs to be truthy.
@@ -4176,6 +4239,20 @@ function advanceCombat(s: RunState): void {
       s.runeTreasureMap = tm;
     }
   }
+  // The ARRAY variant (every purchase since the 2026-08-27 duplicate rulings) — each entry ticks and pays
+  // independently, so a duplicate Map is a real second payout on its own schedule.
+  if (s.runeTreasureMaps?.length) {
+    const still: { turns: number; gold: number }[] = [];
+    for (const tm of s.runeTreasureMaps) {
+      if (tm.turns - 1 <= 0) {
+        procRune(s, 'runeTreasureMap');
+        gainGold(s, tm.gold);
+      } else {
+        still.push({ turns: tm.turns - 1, gold: tm.gold });
+      }
+    }
+    s.runeTreasureMaps = still.length > 0 ? still : undefined;
+  }
   s.fodderConsumedThisTurn = { attack: 0, health: 0 }; // Abhorrent Horror's SoC window resets each wave
   // PER-TURN-RESET END — see the BEGIN marker above (Doc Bot carry-over scan boundary).
   for (const c of s.board) {
@@ -4289,7 +4366,8 @@ function advanceCombat(s: RunState): void {
   if (s.runeMerryChristmas) { procRuneId(s, 'rune_merry_christmas'); queueDiscover(s, { kind: 'pool', ids: [...GIFT_IDS] }); }
   if (s.runeHappyBirthday) {
     s.giftBirthdayTick = (s.giftBirthdayTick ?? 0) + 1;
-    if (s.giftBirthdayTick >= 2) { s.giftBirthdayTick = 0; procRuneId(s, 'rune_happy_birthday'); grantRandomGift(s); }
+    // Same 2-turn cadence, one Gift per copy held (recurring family, owner 2026-08-27).
+    if (s.giftBirthdayTick >= 2) { s.giftBirthdayTick = 0; procRuneId(s, 'rune_happy_birthday'); for (let k = 0; k < runeStacksOf(s, 'rune_happy_birthday'); k++) grantRandomGift(s); }
   }
   // GIFT — Royal Allowance: once cast, a Gold Pouch every Start of Turn for the rest of the run.
   if (s.giftAllowance) {
@@ -4379,7 +4457,8 @@ function advanceCombat(s: RunState): void {
   // reward is never dropped to a full hand, matching the quest/rune grant rule.
   if (s.runeDeep) {
     const pool = poolOf(s).all.filter((c) => !c.spell && !c.token && !c.ruby && c.tier === s.runeDeep);
-    if (pool.length > 0) { procRuneId(s, 'rune_deep'); conjureToHand(s, pool, 1, true); }
+    // One minion per copy held (recurring family, owner 2026-08-27).
+    if (pool.length > 0) { procRuneId(s, 'rune_deep'); conjureToHand(s, pool, runeStacksOf(s, 'rune_deep'), true); }
   }
   // Rune of Basic/Epic <tribe>: the same turn-setup faucet as the Deep, filtered by TRIBE instead of tier.
   // `payTribeDrip` is THE payout — shared verbatim with the immediate one at purchase, so the tier cap, the
@@ -4388,8 +4467,10 @@ function advanceCombat(s: RunState): void {
   // Rune of the Pendant: gild a random friendly minion at or below the armed tier. Seeded off the run cursor
   // like every other random pick, and a no-op when nothing on the board qualifies (or it is already gilded).
   if (s.runePendant) {
-    const eligible = s.board.filter((c) => !c.golden && (CARD_INDEX[c.cardId]?.tier ?? 99) <= s.runePendant!);
-    if (eligible.length > 0) {
+    // One gild per copy held (recurring family, owner 2026-08-27) — each draws a fresh eligible pick.
+    for (let k = 0; k < runeStacksOf(s, 'rune_pendant'); k++) {
+      const eligible = s.board.filter((c) => !c.golden && (CARD_INDEX[c.cardId]?.tier ?? 99) <= (typeof s.runePendant === 'number' ? s.runePendant : 99));
+      if (eligible.length === 0) break;
       const rng = makeRng(s.rngCursor);
       const pick = eligible[rng.int(eligible.length)]!;
       s.rngCursor = rng.state();
@@ -4399,9 +4480,10 @@ function advanceCombat(s: RunState): void {
   }
   // Rune of the Guiding Candle: the per-turn allowance of tier-locked refreshes refills at each shop.
   if (s.runeGuidingCandle) s.runeGuidingCandle = { ...s.runeGuidingCandle, left: s.runeGuidingCandle.count };
-  // Rune of Copies (Epic): each turn setup, copy a random board minion to hand (the immediate copy fired on buy).
+  // Rune of Copies (Epic): each turn setup, copy a random board minion to hand (the immediate copy fired on
+  // buy) — one copy per rune copy held (recurring family, owner 2026-08-27).
   if (s.runeCopies && s.board.length > 0) procRuneId(s, 'rune_copies');
-  if (s.runeCopies) copyRandomBoardMinion(s);
+  if (s.runeCopies) for (let k = 0; k < runeStacksOf(s, 'rune_copies'); k++) copyRandomBoardMinion(s);
   // Rune of the Conductor (Epic): the shop OPENS by triggering all your End of Turn effects — the warband's
   // EoT minions + quest/rune recurring rewards, exactly like a real End of Turn (Chronos repeats included).
   // Per-turn scalers (Rune of Spending / Rune of Action read Gold-spent / cards-played) see the FRESH turn's
@@ -4415,7 +4497,8 @@ function advanceCombat(s: RunState): void {
   if (s.runeSummit) {
     s.runeSummitTick = (s.runeSummitTick ?? 0) + 1;
     // Only the 3rd shop pays; the two in between are the countdown, not the rune firing.
-    if (s.runeSummitTick % 3 === 0) { procRune(s, 'runeSummit'); queueDiscover(s, { kind: 'minion', tier: 7, exactTier: 7 }); } // every 3rd shop (owner sheet 2026-07-31)
+    // Same 3-turn cadence, one Discover per copy held (recurring family, owner 2026-08-27) — they queue in sequence.
+    if (s.runeSummitTick % 3 === 0) { procRune(s, 'runeSummit'); for (let k = 0; k < runeStacksOf(s, 'rune_summit'); k++) queueDiscover(s, { kind: 'minion', tier: 7, exactTier: 7 }); } // every 3rd shop (owner sheet 2026-07-31)
   }
   // Set 2 — the warband's own Start-of-Turn effects (Gemline Martyr), the symmetric twin of End of Turn. Fired
   // here as the shop opens, alongside the Start-of-Turn rune rewards below.
@@ -4423,8 +4506,10 @@ function advanceCombat(s: RunState): void {
   // Rune of the Strange Caravan: Start of Turn, get a random minion from a type you do NOT control.
   if (s.runeStrangeCaravan) {
     procRune(s, 'runeStrangeCaravan');
-    const un = uncontrolledTribes(s);
-    if (un.length > 0) {
+    // One minion per copy held (recurring family, owner 2026-08-27) — each re-reads what is uncontrolled.
+    for (let k = 0; k < runeStacksOf(s, 'rune_strange_caravan'); k++) {
+      const un = uncontrolledTribes(s);
+      if (un.length === 0) break;
       const rng = makeRng(s.rngCursor);
       const tribe = un[rng.int(un.length)]!;
       s.rngCursor = rng.state();
@@ -4637,6 +4722,10 @@ function runeforgePool(s: RunState): string[] {
   return set
     .filter((rn) => !rn.requiresDoublePower || canDouble)
     .filter((rn) => !rn.sets || rn.sets.includes(runSet))
+    // FORGE FILTER (owner approve 2026-08-27, q-runedup-forge-filter): never re-offer an owned rune whose
+    // duplicate would only pay the sweetener (or, for the ruled-unique ones, nothing). Stacking runes stay
+    // offerable; Rune of Duplication still reaches everything deliberately.
+    .filter((rn) => !forgeFilteredDuplicate(s, rn.id))
     .map((rn) => rn.id);
 }
 
@@ -4936,6 +5025,11 @@ function payTribeDrip(s: RunState, drip: { tribe: Tribe; count: number }): void 
 }
 
 function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean, sourceKind: 'quest' | 'rune' = 'quest'): void {
+  // RUNE DUPLICATE STACKING (owner rulings 2026-08-27): count every rune-reward application — buy, Rune of
+  // Duplication's copy, a granted rune — so consumers can scale by the copy count (`runeStacksOf`). Ticked
+  // here, the one chokepoint every rune application flows through. Banked re-fires (pendingQuestRewards)
+  // arrive with sourceKind 'quest', so they never inflate the count.
+  if (sourceKind === 'rune') s.runeStacks = { ...(s.runeStacks ?? {}), [def.id]: (s.runeStacks?.[def.id] ?? 0) + 1 };
   const collector = currentCollector();
   if (collector.enabled) {
     // Resolve the key the SURFACE files this content under, rather than guessing a phase segment — a guessed
@@ -5092,17 +5186,13 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
         health: (s.runeHeavyPayroll?.health ?? 0) + r.health,
       };
       break;
-    case 'runeHeldStrength': {
-      // A ONE-SHOT on acquire: the ends take the stats of whatever is left-most in hand right now. Read once
-      // rather than as an ongoing aura — the text is an instruction, not a standing rule.
-      const held = s.hand[0];
-      const hd = held ? CARD_INDEX[held.cardId] : undefined;
-      if (held && hd && !hd.spell && !hd.ruby && s.board.length > 0) {
-        const ends = s.board.length === 1 ? [s.board[0]!] : [s.board[0]!, s.board[s.board.length - 1]!];
-        for (const t of ends) addBuff(t, 'Rune of Held Strength', held.attack, held.health);
-      }
+    case 'runeHeldStrength':
+      // OWNER REWORK 2026-08-27 (q-runedup-oneshot revise): no longer a one-shot on acquire — now a standing
+      // "Start of Combat: give your left and right-most minions the stats of the left-most card in your hand"
+      // rune. Armed here; the held stats are read LIVE when the combat is built (`questCombatMods`), and a
+      // duplicate fires the grant once per copy (`runeStacksOf`).
+      s.runeHeldStrength = true;
       break;
-    }
     case 'runePendant':
       // Rune of the Pendant: a duplicate can only ever RAISE the ceiling it gilds within, never lower it.
       s.runePendant = Math.max(s.runePendant ?? 0, r.maxTier);
@@ -5215,10 +5305,12 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
       s.runeWhiteWolf = (typeof s.runeWhiteWolf === 'number' ? s.runeWhiteWolf : s.runeWhiteWolf === true ? 1 : 0) + 1;
       break;
     case 'runeProfitSharing':
-      s.runeProfitSharing = { tribe: r.tribe, attack: r.attack, health: r.health };
+      // ACCUMULATES: a duplicate makes every Gold gain pay both grants (recurring family, owner 2026-08-27).
+      s.runeProfitSharing = { tribe: r.tribe, attack: (s.runeProfitSharing?.attack ?? 0) + r.attack, health: (s.runeProfitSharing?.health ?? 0) + r.health };
       break;
     case 'runeSharedTable':
-      s.runeSharedTable = { attack: r.attack, health: r.health };
+      // ACCUMULATES: a duplicate doubles what each Ale cast hands out (unique-engine doubling, owner 2026-08-27).
+      s.runeSharedTable = { attack: (s.runeSharedTable?.attack ?? 0) + r.attack, health: (s.runeSharedTable?.health ?? 0) + r.health };
       break;
     case 'runeDistillation':
       s.runeDistillation = true;
@@ -5236,7 +5328,9 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
       s.runeSellRubies = (s.runeSellRubies ?? 0) + r.count;
       break;
     case 'runeOpenMarket':
-      s.runeOpenMarket = { attack: r.attack, health: r.health, usedThisTurn: false };
+      // ACCUMULATES (+ keeps the turn gate): a duplicate doubles the permanent Shop buff per trigger
+      // (unique-engine doubling, owner 2026-08-27).
+      s.runeOpenMarket = { attack: (s.runeOpenMarket?.attack ?? 0) + r.attack, health: (s.runeOpenMarket?.health ?? 0) + r.health, usedThisTurn: s.runeOpenMarket?.usedThisTurn ?? false };
       break;
     case 'runeThreshold':
       // An ARRAY: several threshold runes can be held at once, each banking its own remainder.
@@ -5246,7 +5340,8 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
       (s.runeThresholds ??= []).push({ sourceId: def.id, meter: r.meter, per: r.per, tick: 0, grantSpell: r.grantSpell, grantAle: r.grantAle, grantRuby: r.grantRuby, grantCards: r.grantCards ? [...r.grantCards] : undefined, castStatSpell: r.castStatSpell, buff: r.buff ? { ...r.buff, step: r.buff.step ? { ...r.buff.step } : undefined } : undefined, rubyAll: r.rubyAll, oncePerTurn: r.oncePerTurn, once: r.once, grantGoldNextTurn: r.grantGoldNextTurn, resetEachTurn: r.resetEachTurn });
       break;
     case 'motherlode':
-      s.motherlode = { count: r.count, tribe: r.tribe };
+      // ACCUMULATES: two Motherlodes play each incoming Ruby on 4 random minions (recurring family, owner 2026-08-27).
+      s.motherlode = { count: (s.motherlode?.count ?? 0) + r.count, tribe: r.tribe };
       break;
     case 'consumeDoubleFirstEachTurn':
       s.consumeDoubleFirstEachTurn = true;
@@ -5447,7 +5542,9 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
       s.runeStructure = true; // Rune of Structure: playing an Attachment also gives a random spell
       break;
     case 'runeConsume':
-      s.runeConsume = { attack: r.attack, health: r.health }; // Rune of Consumption: each Consume bumps the Fodder aura
+      // Rune of Consumption: each Consume bumps the Fodder aura. ACCUMULATES — a duplicate doubles the bump
+      // per Consume (recurring family, owner 2026-08-27).
+      s.runeConsume = { attack: (s.runeConsume?.attack ?? 0) + r.attack, health: (s.runeConsume?.health ?? 0) + r.health };
       break;
     case 'goldPouchValue':
       s.goldPouchValue = r.value; // Rune of Pillaging: your Gold Pouches are worth this much
@@ -5535,14 +5632,22 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
       break;
     case 'runeCoffers': s.runeCoffers = true; break;
     case 'runeEnchantment': s.runeEnchantment = true; break;
-    case 'runeCrown': s.runeCrown = { per: r.per, attack: r.attack, health: r.health }; break;
+    // Rune of the Crown ACCUMULATES its payoff: same 6-spell meter, doubled extra per copy (threshold family,
+    // owner 2026-08-27: "double the OUTPUT", never the meter).
+    case 'runeCrown': s.runeCrown = { per: r.per, attack: (s.runeCrown?.attack ?? 0) + r.attack, health: (s.runeCrown?.health ?? 0) + r.health }; break;
     case 'runeLapidary': s.runeLapidary = true; break;
     case 'runeLastingCadence': s.runeLastingCadence = true; break;
     case 'runeCombatProwess': s.runeCombatProwess = true; break;
     case 'runeDeep': s.runeDeep = r.tier; break;
-    case 'runeGuidingCandle': s.runeGuidingCandle = { count: r.count, tier: r.tier, left: r.count }; break;
-    case 'runeMuster': s.runeMuster = true; break;
-    case 'runeFoundry': s.runeFoundry = { per: r.per, sold: 0 }; break;
+    // Guiding Candle ACCUMULATES the window: two copies = the first FOUR refreshes each turn are Tier-6-only
+    // (unique-engine doubling, owner 2026-08-27). The live `left` widens with it so the extra lands this turn too.
+    case 'runeGuidingCandle': s.runeGuidingCandle = { count: (s.runeGuidingCandle?.count ?? 0) + r.count, tier: r.tier, left: (s.runeGuidingCandle?.left ?? 0) + r.count }; break;
+    // Muster COUNTS its armed refreshes: a duplicate re-arms, so two copies make the next two refreshes
+    // musters (one-shot family, owner 2026-08-27: "work for the first 2 refreshes this turn").
+    case 'runeMuster': s.runeMuster = (typeof s.runeMuster === 'number' ? s.runeMuster : s.runeMuster ? 1 : 0) + 1; break;
+    // Foundry keeps its meter on a re-apply (a duplicate must not reset progress); the payout doubles via
+    // `runeStacksOf` at the trip (threshold family, owner 2026-08-27).
+    case 'runeFoundry': s.runeFoundry = { per: r.per, sold: s.runeFoundry?.sold ?? 0 }; break;
     case 'runeCorruptedTome': s.runeCorruptedTome = true; break;
     case 'runeGroveweaver': s.runeGroveweaver = true; break;
     case 'runeSharedPour': s.runeSharedPour = true; break;
@@ -5608,7 +5713,9 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
       break;
     }
     case 'runeTranscription': s.runeTranscription = (s.runeTranscription ?? 0) + (r.count ?? 2); break;
-    case 'runeTreasureMap': s.runeTreasureMap = { turns: r.turns ?? 2, gold: r.gold ?? 10 }; break;
+    // Treasure Map schedules into an ARRAY: a duplicate books a SECOND payout with its own countdown instead
+    // of resetting the first (one-shot family, owner 2026-08-27). Legacy single-slot saves still tick.
+    case 'runeTreasureMap': (s.runeTreasureMaps ??= []).push({ turns: r.turns ?? 2, gold: r.gold ?? 10 }); break;
     case 'runeGoldenSplinter': s.runeGoldenSplinter = { at: r.at ?? 15, tier: r.tier ?? 5 }; break;
     case 'runeRefrain':
       s.runeRefrain = true; // Rune of Refrain: your 3rd Shout each turn returns the turn's first Shout to hand
@@ -5876,8 +5983,9 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     // combat enter +A/+H with Taunt" — and they SUM when held together (rune +3/+3, Rayse +2/+3).
     runeHatchery: f?.runeHatchery || hasPower(s, 'empoweringVines')
       ? {
-          attack: (f?.runeHatchery ? 3 : 0) + (hasPower(s, 'empoweringVines') ? 2 : 0),
-          health: (f?.runeHatchery ? 3 : 0) + (hasPower(s, 'empoweringVines') ? 3 : 0),
+          // The rune half pays +3/+3 once per copy held (boolean-flag family, owner 2026-08-27).
+          attack: (f?.runeHatchery ? 3 * Math.max(1, s.flagCopies?.runeHatchery ?? 1) : 0) + (hasPower(s, 'empoweringVines') ? 2 : 0),
+          health: (f?.runeHatchery ? 3 * Math.max(1, s.flagCopies?.runeHatchery ?? 1) : 0) + (hasPower(s, 'empoweringVines') ? 3 : 0),
         }
       : undefined,
     runeLastCall: f?.runeLastCall,           // Avenge (3): a random Dwarven Ale to hand
@@ -5958,7 +6066,9 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     runeSecondLitter: f?.runeSecondLitter,   // Rune of the Second Litter: the first Beast summoned copies
     runeGroveweaver: s.runeGroveweaver,      // Rune of the Groveweaver: the self-buff works in combat too
     runeBroodmaster: s.runeBroodmaster,      // Rune of the Broodmaster: the Imp buff also lands on the Broodwright
-    runeEnchantment: s.runeEnchantment,      // Rune of Enchantment: a COMBAT cast gives +2/+2 (shop half gives +1/+1)
+    // Rune of Enchantment: a COMBAT cast gives +4/+6 (shop half gives +2/+3) — passed as the COPY COUNT since
+    // the 2026-08-27 duplicate rulings, so a duplicate doubles the combat grant too (`true` in old snapshots = 1).
+    runeEnchantment: s.runeEnchantment ? runeStacksOf(s, 'rune_enchantment') : undefined,
     runeDragonscale: f?.runeDragonscale,     // Rune of Dragonscale: N Dragon attacks earn Ward this combat
     runeTemperedTime: f?.runeTemperedTime,   // Rune of Tempered Time: SoC — +Health equal to half Attack
     runeSavagery: f?.runeSavagery,           // Rune of Savagery: a summoned Beast doubles its Attack
@@ -5967,7 +6077,9 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     runeUndertow: f?.runeUndertow, // Rune of the Undertow: the first N combat summons gain Ward (stale comment fixed 2026-08-08 — it never granted charge)
     runeMirrorMarch: f?.runeMirrorMarch, // Rune of the Mirror March: SoC summon a copy of your leftmost
     runeTrophy: f?.runeTrophy, // Rune of the Trophy: first Slaughter → a copy of the slaughterer next shop
-    runeMastery: s.runeMastery, // Rune of Mastery: your Improve steps apply twice (combat half)
+    // Rune of Mastery: +1 extra Improve step per copy held (repeat family, owner 2026-08-27) — the COPY COUNT
+    // rides in (`true` in old snapshots = 1), and simulate's `improveRepsFor` turns it into 1 + copies.
+    runeMastery: s.runeMastery ? runeStacksOf(s, 'rune_mastery') : undefined,
     runeSpellstone: s.runeSpellstone, // Rune of the Spellstone: combat Rubies also count as spell casts
     // ── 2026-08-20 rune batch ──
     runeReturningPack: f?.runeReturningPack || undefined,       // every N Beasts summoned → a random Beast next shop
@@ -5990,6 +6102,16 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     // whenever armed — it is a turn-long buff (the shop counter never consumes it), so there is no
     // "unspent" latch to check; the rollover that clears `shoutExtraTurn` happens after the combat.
     encoreExtra: s.shoutExtraTurn || undefined,
+    // Rune of Held Strength (owner rework 2026-08-27 — was a one-shot on purchase): Start of Combat, the left
+    // and right-most minions gain the stats of the LEFT-MOST non-spell card in hand, read live here at combat
+    // build; `copies` fires the grant once per copy held. No qualifying held card → no grant this fight.
+    runeHeldStrength: (() => {
+      if (!s.runeHeldStrength) return undefined;
+      const held = s.hand[0];
+      const hd = held ? CARD_INDEX[held.cardId] : undefined;
+      if (!held || !hd || hd.spell || hd.ruby) return undefined;
+      return { attack: held.attack, health: held.health, copies: runeStacksOf(s, 'rune_held_strength') };
+    })(),
   };
 }
 
@@ -6004,7 +6126,9 @@ function refreshTavern(s: RunState, hold = false): void {
   // Spent on use, and only when there is a board to copy (an empty board would produce an empty shop).
   if (s.runeMuster && s.board.length > 0) {
     procRuneId(s, 'rune_muster');
-    s.runeMuster = undefined;
+    // Spend ONE armed muster per refresh (a duplicate armed a second — owner one-shot ruling 2026-08-27).
+    const armed = gateUses(s.runeMuster);
+    s.runeMuster = armed > 1 ? armed - 1 : undefined;
     for (const offer of s.shop) returnToPool(s, offer.cardId);
     s.shop = s.board.map((c) => ({ uid: `s${s.uidSeq++}`, cardId: c.cardId })); // plain: no buffs, never golden
     injectPendingTavern(s, hold);

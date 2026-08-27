@@ -130,6 +130,23 @@ export const PATCH_NOTES: PatchNote[] = [
   },
   {
     date: '2026-08-27',
+    label: 'Rune Duplicates',
+    changes: [
+      { category: 'Rune Change', text: 'Owning a second copy of a rune now always does something — every duplicate stacks, pays again, or refunds you.', details: [
+        'Recurring runes (Coffers, Flagship, Scales, the Deep, Seller\'s Market, …) fire once more per copy — two Flagships give your Dwarves +4/+4 per Shop spell.',
+        'Meter runes (Foundry, Returning Pack, the Vault, Golden Splinter, …) keep ONE meter but pay double at each trip — two Returning Packs hand over 2 Beasts per 6 combat summons.',
+        'Repeat runes (Wishbone, Shared Pour, the Conduit, Mastery, Corrupted Tome, …) add one more repetition per copy — two Wishbones fire your Hero Power 3 times.',
+        'One-shot runes (Small Fortune, Spare Parts, the Armory, the Altar, the Muster, Treasure Map) simply grant again — a second Treasure Map schedules its own payout.',
+        'Start-of-Combat and combat-trigger runes (Rallying, Five Banners, Warding, the Underdog, Savagery, …) fire once per copy in every fight.',
+        'Engine runes double their output where a doubling makes sense — two Runes of Structure hand you 2 Shop spells per Attachment, two Contrabands smuggle 2 Ales / 2 Rubies, two Thrifts make stat spells cost 4 less.',
+        'A duplicate that genuinely cannot stack (e.g. Twin Gilding) instead pays Gold equal to half the rune\'s cost (rounded up) plus a free refresh — never a dead buy.',
+        'The Runeforge stops offering runes you own whose duplicate would only pay that refund; Rune of Duplication can still reach them deliberately.',
+      ] },
+      { category: 'Rune Change', text: 'Rune of Held Strength reworked: now "Start of Combat: give your left and right-most minions the stats of the left-most minion card in your hand" — a standing effect read fresh every fight, instead of a one-shot on purchase.' },
+    ],
+  },
+  {
+    date: '2026-08-27',
     label: 'Load Screen Fix',
     changes: [
       { category: 'UI / Info', text: 'The loading bar now fills smoothly over the load, and the logo no longer jumps in size a beat after the screen appears.' },

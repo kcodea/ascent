@@ -6,9 +6,10 @@ import { lobbyOpponentBoard } from './lobby/runLobby';
 import { poolOf } from './cardPool';
 import { CONFIG, hasTier7Access, maxTierFor, SHIFTER_OPTIONS } from './config';
 import { getHero, spellAmplifyBonus, hasPower, activePowers, primaryPower, powerDiscoverPool } from './heroes';
-import { handCap, reservedHandSlots, mixSeed, TAG, type AuraFxTribe, type BoardCard, type BuffFxEvent, type CiaSuit, type CommissionKind, type DiscoverSpec, type RunState, type ShopCard, procRune, procRuneId, runeBuffMagnitude } from './state';
+import { handCap, reservedHandSlots, mixSeed, TAG, type AuraFxTribe, type BoardCard, type BuffFxEvent, type CiaSuit, type CommissionKind, type DiscoverSpec, type RunState, type ShopCard, gateUses, procRune, procRuneId, runeBuffMagnitude } from './state';
 export { ALE_IDS };
 import { returnToPool, rollShop, rollSpellShop, takeFromPool, refillShopFiltered, elevateShop } from './shop';
+import { runeStacksOf } from './runeDup';
 
 /**
  * The recruit-phase half of the effect system (handoff C.5), split across the
@@ -348,7 +349,8 @@ const nameOf = (card: BoardCard): string => CARD_INDEX[card.cardId]?.name ?? car
 /** How many times an "Improve" step applies — 2 under Rune of Mastery, else 1. Every recruit-phase
  *  Improve-text site multiplies its improvement increment by this. */
 export function improveReps(state: RunState): number {
-  return state.runeMastery ? 2 : 1;
+  // +1 extra Improve step per Mastery copy held (repeat family, owner 2026-08-27) — 2 with one copy, 3 with two.
+  return state.runeMastery ? 1 + runeStacksOf(state, 'rune_mastery') : 1;
 }
 
 /** Module-level mirror of `improveReps` for the ONE Improve site with no state in scope (Sergeant's
@@ -383,10 +385,11 @@ export function stampSableBond(state: RunState): void {
  * Which body is left/right-most is resolved AT THE GAIN, not stamped, so re-ordering the board mid-action is
  * honoured. `MIRRORING` is the same one-hop guard — the mirrored grant re-enters `addBuff`.
  */
-let SPOILS: BoardCard[] | null = null;
+let SPOILS: { board: BoardCard[]; mult: number } | null = null;
 let SPOILS_MIRRORING = false;
 export function stampSharedSpoils(state: RunState): void {
-  SPOILS = state.runeSharedSpoils ? state.board : null;
+  // `mult` = copies held: a duplicate mirrors the gain once per copy (recurring family, owner 2026-08-27).
+  SPOILS = state.runeSharedSpoils ? { board: state.board, mult: runeStacksOf(state, 'rune_shared_spoils') } : null;
   SPOILS_MIRRORING = false;
 }
 
@@ -406,12 +409,12 @@ export function addBuff(card: BoardCard, source: string, attack: number, health:
   // Rune of Shared Spoils: the LEFT-most Dwarf's gain is copied onto the RIGHT-most Dwarf. Same one-hop shape
   // as the bond above; a single Dwarf on the board is both ends, so it must not pay itself.
   if (SPOILS && !SPOILS_MIRRORING && (attack !== 0 || health !== 0)) {
-    const dwarves = SPOILS.filter((c) => isTribe(c, 'dwarf'));
+    const dwarves = SPOILS.board.filter((c) => isTribe(c, 'dwarf'));
     const head = dwarves[0];
     const tail = dwarves[dwarves.length - 1];
     if (head && tail && head.uid !== tail.uid && card.uid === head.uid) {
       SPOILS_MIRRORING = true;
-      try { addBuff(tail, 'Rune of Shared Spoils', attack, health, count); } finally { SPOILS_MIRRORING = false; }
+      try { addBuff(tail, 'Rune of Shared Spoils', attack * SPOILS.mult, health * SPOILS.mult, count); } finally { SPOILS_MIRRORING = false; }
     }
   }
   // Sergeant: EVERY instance that grants it Attack (this buff is one such instance) permanently improves
@@ -886,12 +889,13 @@ export function allInPayoutOf(state: RunState): number {
 
 /** The Gold a minion sells for: Hoarder a flat 2 (golden 4), everything else `CONFIG.sellValue`. Shared by
  *  the reducer's sell case and the UI's sell-amount float so the two never drift. */
-export function sellValueOf(card: BoardCard, state?: Pick<RunState, 'runeBartering'>): number {
+export function sellValueOf(card: BoardCard, state?: Pick<RunState, 'runeBartering' | 'runeStacks'>): number {
   // Rune of the Bargain Bin: a bin-bought minion sells for its overridden value (0) — checked first so it wins.
   if (card.sellOverride !== undefined) return card.sellOverride;
   // Rune of Bartering: a Shout (Battlecry) minion sells for 2 Gold — folded HERE so every sell path AND the
   // UI's sell-value coin/float read the same number (never below a card's own higher sell value).
-  const barter = state?.runeBartering && hasBattlecry(CARD_INDEX[card.cardId]) ? 2 : 0;
+  // 2 Gold per Bartering copy held (owner 2026-08-27, unique-engine doubling — "Bartering +2g").
+  const barter = state?.runeBartering && hasBattlecry(CARD_INDEX[card.cardId]) ? 2 * runeStacksOf(state, 'rune_bartering') : 0;
   if (card.cardId === 'hoarder') return Math.max(barter, 2 * (card.golden ? 2 : 1));
   // Trail Forager: base 3 Gold (×2 golden) + 1 per Beast played (that per-Beast bump is already golden-doubled
   // as it accrues, in `sellBonus`).
@@ -913,7 +917,7 @@ export function sellValueOf(card: BoardCard, state?: Pick<RunState, 'runeBarteri
  * (The drift this fixes: the reducer added `nextSellBonus` inline while the UI's float called `sellValueOf`
  * alone, so selling under Quick Sale paid 3 Gold but floated "+1" in the plain gold style — owner 2026-07-24.)
  */
-export function sellValueWithBonus(card: BoardCard, state: Pick<RunState, 'runeBartering' | 'nextSellBonus'>): number {
+export function sellValueWithBonus(card: BoardCard, state: Pick<RunState, 'runeBartering' | 'nextSellBonus' | 'runeStacks'>): number {
   return sellValueOf(card, state) + (state.nextSellBonus ?? 0);
 }
 
@@ -992,7 +996,9 @@ export function noteFodderConsumed(state: RunState, fa: number, fh: number, eate
   // (skipped when the eater IS the leftmost — its own Consume already banked them).
   if (state.runeTransfusion && eater && isTribe(eater, 'demon')) {
     const left = state.board[0];
-    if (left && left.uid !== eater.uid) { procRuneId(state, 'rune_transfusion'); addBuff(left, 'Rune of Transfusion', fa, fh); }
+    // The stats land once per copy held (recurring family, owner 2026-08-27).
+    const tf = runeStacksOf(state, 'rune_transfusion');
+    if (left && left.uid !== eater.uid) { procRuneId(state, 'rune_transfusion'); addBuff(left, 'Rune of Transfusion', fa * tf, fh * tf); }
   }
   // Rune of Endless Appetite: the FIRST Consume each turn fans out — every OTHER friendly Demon Consumes a
   // copy of the same Fodder (a full Consume each: its own Voracious multiplier, onConsume triggers, and the
@@ -1000,11 +1006,14 @@ export function noteFodderConsumed(state: RunState, fa: number, fh: number, eate
   if (first && state.runeEndlessAppetite && eater) {
     procRuneId(state, 'rune_endless_appetite');
     const ctx = makeContext(state);
-    for (const d of state.board.filter((c) => c.uid !== eater.uid && isTribe(c, 'demon'))) {
-      const mult = fodderMultiplier(d);
-      addBuff(d, 'Consume', fa * mult, fh * mult);
-      fire(ctx, 'onConsume', { minion: d });
-      noteFodderConsumed(state, fa, fh, d);
+    // Each other Demon Consumes one copy PER RUNE COPY HELD (owner 2026-08-27, unique-engine doubling).
+    for (let k = 0; k < runeStacksOf(state, 'rune_endless_appetite'); k++) {
+      for (const d of state.board.filter((c) => c.uid !== eater.uid && isTribe(c, 'demon'))) {
+        const mult = fodderMultiplier(d);
+        addBuff(d, 'Consume', fa * mult, fh * mult);
+        fire(ctx, 'onConsume', { minion: d });
+        noteFodderConsumed(state, fa, fh, d);
+      }
     }
   }
 }
@@ -1286,7 +1295,8 @@ export function spellCasts(state: RunState, def: CardDef): number {
     // Rune of Shared Pour: the FIRST Ale each turn casts one extra time. READ-ONLY here, like Spell Thesis
     // above — the cast site consumes the freebie by setting `sharedPourUsedThisTurn`, so previewing the count
     // in the UI can't spend it.
-    if (state.runeSharedPour && !state.sharedPourUsedThisTurn) mult += 1;
+    // +1 extra cast per Shared Pour copy held (repeat family, owner 2026-08-27).
+    if (state.runeSharedPour && !state.sharedPourUsedThisTurn) mult += runeStacksOf(state, 'rune_shared_pour');
   }
   // Nimbus is ADDED LAST, and added rather than multiplied, because it reads "casts an ADDITIONAL time"
   // (owner 2026-07-24). It also applies to untargeted spells, unlike Yazzus — the charge is a flat bonus on
@@ -1589,13 +1599,18 @@ export function gainGold(state: RunState, amount: number): void {
   const gs = state.runeGoldenSplinter;
   if (gs && state.embers >= gs.at) {
     procRune(state, 'runeGoldenSplinter');
+    // One Golden minion per copy held at the single trip (threshold family, owner 2026-08-27: doubled payoff,
+    // still once per run).
+    const splinters = runeStacksOf(state, 'rune_golden_splinter');
     state.runeGoldenSplinter = undefined;
     const pool = poolOf(state).all.filter((c) => !c.spell && !c.token && !c.ruby && c.tier === gs.tier);
-    if (pool.length > 0 && state.hand.length < handCap(state)) {
-      const rng = makeRng(state.rngCursor);
-      const pick = pool[rng.int(pool.length)]!;
-      state.rngCursor = rng.state();
-      state.hand.push({ uid: `b${state.uidSeq++}`, cardId: pick.id, tribe: pick.tribe, attack: pick.attack * 2, health: pick.health * 2, keywords: [...pick.keywords], golden: true });
+    for (let k = 0; k < splinters; k++) {
+      if (pool.length > 0 && state.hand.length < handCap(state)) {
+        const rng = makeRng(state.rngCursor);
+        const pick = pool[rng.int(pool.length)]!;
+        state.rngCursor = rng.state();
+        state.hand.push({ uid: `b${state.uidSeq++}`, cardId: pick.id, tribe: pick.tribe, attack: pick.attack * 2, health: pick.health * 2, keywords: [...pick.keywords], golden: true });
+      }
     }
   }
   const ps = state.runeProfitSharing;
@@ -1612,10 +1627,10 @@ export function gainGold(state: RunState, amount: number): void {
 export function spellCostReduction(state: RunState, def?: CardDef): number {
   let n = state.spellCostMod;
   for (const c of state.board) if (c.cardId === 'lazarus') n += c.golden ? 2 : 1;
-  if (state.cadenceSpellOff) n += 1; // Rune of Cadence: the armed one-shot spell discount (spent at buy)
+  n += gateUses(state.cadenceSpellOff); // Rune of Cadence: the armed one-shot spell discount, −1 per copy held (spent at buy)
   n += state.spellCostOffTurn ?? 0;  // GIFT — Arcane Clearance: this turn only
   // Rune of Thrift: STAT-GRANTING spells cost 2 less. Gated on the def (callers without one see no change).
-  if (state.runeThrift && isStatSpell(def)) n += 2;
+  if (state.runeThrift && isStatSpell(def)) n += 2 * runeStacksOf(state, 'rune_thrift'); // −2 per copy held (owner 2026-08-27: "Thrift −4")
   return n;
 }
 
@@ -1845,10 +1860,12 @@ export function conjureToHand(state: RunState, pool: CardDef[], reps: number, ov
   // the pool being spells: `conjureToHand` also hands over minions, which the rune says nothing about.
   if (state.runeRunicHoard && pool.every((c) => c.spell)) {
     procRune(state, 'runeRunicHoard');
+    // +1/+1 per copy held (recurring family, owner 2026-08-27).
+    const rh = runeStacksOf(state, 'rune_runic_hoard');
     for (let i = 0; i < reps; i++) {
       for (const c of state.board) {
         const d = CARD_INDEX[c.cardId];
-        if (d?.tribe === 'dragon' || d?.tribe2 === 'dragon') addBuff(c, 'Rune of the Runic Hoard', 1, 1);
+        if (d?.tribe === 'dragon' || d?.tribe2 === 'dragon') addBuff(c, 'Rune of the Runic Hoard', rh, rh);
       }
     }
   }
@@ -3119,7 +3136,8 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     // `toHand` events — so every Growth Mushy creates counts, whichever phase it was created in.
     if (ctx.state.runeLivingGrowth && self.cardId === 'd2_scalefeather' && str(params.cardId) === 'growth') {
       procRuneId(ctx.state, 'rune_living_growth');
-      ctx.state.growthBonus = (ctx.state.growthBonus ?? 0) + gold(self);
+      // +1 per copy held (recurring family, owner 2026-08-27).
+      ctx.state.growthBonus = (ctx.state.growthBonus ?? 0) + gold(self) * runeStacksOf(ctx.state, 'rune_living_growth');
     }
     ARENA_EFFECTS.deathrattleGrantSpell(shopArena(ctx.state, self), params);
   },
@@ -4630,7 +4648,8 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     // a golden Mushy hands over two and ticks twice.
     if (ctx.state.runeLivingGrowth && self.cardId === 'd2_scalefeather' && def.id === 'growth') {
       procRuneId(ctx.state, 'rune_living_growth');
-      ctx.state.growthBonus = (ctx.state.growthBonus ?? 0) + count;
+      // +1 per copy held (recurring family, owner 2026-08-27).
+      ctx.state.growthBonus = (ctx.state.growthBonus ?? 0) + count * runeStacksOf(ctx.state, 'rune_living_growth');
     }
     for (let i = 0; i < count && ctx.state.hand.length < handCap(ctx.state); i++) {
       ctx.state.hand.push({
@@ -7531,20 +7550,24 @@ export function fireSummonBuffs(state: RunState, minion: BoardCard): void {
   // RUNE OF REFRESHMENTS: playing a Demon banks a free refresh. Fired at the same play chokepoint as the
   // Chipper Sticker, and BEFORE its early return, so the two Demon-play runes are independent — holding one
   // must not silently gate the other.
-  if (state.runeRefreshments && isTribe(minion, 'demon')) { procRuneId(state, 'rune_refreshments'); state.freeRolls += 1; }
+  // One free refresh per copy held (recurring family, owner 2026-08-27).
+  if (state.runeRefreshments && isTribe(minion, 'demon')) { procRuneId(state, 'rune_refreshments'); state.freeRolls += runeStacksOf(state, 'rune_refreshments'); }
   if (!state.runeChipperSticker || !isTribe(minion, 'demon')) return;
-  const eaters = state.board.filter((c) => c.uid !== minion.uid && isTribe(c, 'demon'));
-  if (eaters.length === 0) return;
-  const edible = state.shop
-    .map((_, i) => i)
-    .filter((i) => { const d = CARD_INDEX[state.shop[i]!.cardId]; return !!d && !d.spell && !d.ruby; });
-  if (edible.length === 0) return;
-  const rng = makeRng(state.rngCursor);
-  const eater = eaters[rng.int(eaters.length)]!;
-  const pick = edible[rng.int(edible.length)]!;
-  state.rngCursor = rng.state();
-  consumeShopMinion(state, eater, pick);
-  procRuneId(state, 'rune_chipper_sticker');
+  // One Consume per copy held (recurring family, owner 2026-08-27) — each re-reads eaters and the shop.
+  for (let k = 0; k < runeStacksOf(state, 'rune_chipper_sticker'); k++) {
+    const eaters = state.board.filter((c) => c.uid !== minion.uid && isTribe(c, 'demon'));
+    if (eaters.length === 0) return;
+    const edible = state.shop
+      .map((_, i) => i)
+      .filter((i) => { const d = CARD_INDEX[state.shop[i]!.cardId]; return !!d && !d.spell && !d.ruby; });
+    if (edible.length === 0) return;
+    const rng = makeRng(state.rngCursor);
+    const eater = eaters[rng.int(eaters.length)]!;
+    const pick = edible[rng.int(edible.length)]!;
+    state.rngCursor = rng.state();
+    consumeShopMinion(state, eater, pick);
+    procRuneId(state, 'rune_chipper_sticker');
+  }
 }
 
 /** Fire a sold minion's own `onSell` effects (Hoard Whelp → get Gold). Called by the reducer's sell case after
@@ -7558,7 +7581,8 @@ export function fireOnSell(state: RunState, card: BoardCard): void {
   if (baller) {
     procRuneId(state, 'rune_baller');
     baller.sales += 1;
-    const amount = baller.step * Math.ceil(baller.sales / 2);
+    // The current step lands once per copy held (recurring family, owner 2026-08-27); ONE shared sales meter.
+    const amount = baller.step * Math.ceil(baller.sales / 2) * runeStacksOf(state, 'rune_baller');
     const toAttack = baller.sales % 2 === 1; // odd sale -> Attack, even -> Health
     captureBuffFx(state, undefined, 'spell', () => {
       for (const c of state.board) addBuff(c, 'Rune of the Baller', toAttack ? amount : 0, toAttack ? 0 : amount);
@@ -7640,7 +7664,7 @@ export function fireOnRubyPlayed(state: RunState, card: BoardCard, rubyAttack: n
   // function — which is the same no-rebounce guard Resonance Idol's bounce relies on.
   // RUNE OF THE CONDUIT: one extra bounce for the whole side, on top of whatever Candle Conduits are on the
   // board — so it counts as a body's worth of bouncing without being one. Same no-rebounce guard.
-  let extraBounces = state.runeConduit ? 1 : 0;
+  let extraBounces = state.runeConduit ? runeStacksOf(state, 'rune_conduit') : 0; // +1 bounce per copy held (repeat family, owner 2026-08-27)
   for (const m of state.board) {
     if (!CARD_INDEX[m.cardId]?.effects.some((e) => e.on === 'rubyPlayedAnywhere' && e.do === 'rubyBounceExtra')) continue;
     extraBounces += m.golden ? 2 : 1;
@@ -7678,7 +7702,8 @@ export function fireOnMinionSold(state: RunState, sold: BoardCard): void {
     if (state.runeLastWord && !state.lastWordUsedThisTurn && isDragon && def && hasBattlecry(def)) {
       procRune(state, 'runeLastWord');
       state.lastWordUsedThisTurn = true;
-      replayBattlecry(state, sold);
+      // The Shout fires once per copy held (repeat family, owner 2026-08-27: +1 repetition per copy).
+      for (let k = 0; k < runeStacksOf(state, 'rune_last_word'); k++) replayBattlecry(state, sold);
     }
   }
   for (const card of [...state.board]) {
@@ -8132,8 +8157,10 @@ export function applyShopRefreshed(state: RunState): void {
   // AFTER Market Tormentor's slot buff, deliberately: the doubling should include that turn's enchant, which
   // is the same "the right-most must be the BUFFED body" ordering the Hellrider ruling established.
   if (state.runeEmbers) {
-    const i = rightmostShopMinion(state);
-    if (i >= 0) {
+    // One doubling per copy held (owner 2026-08-27, unique-engine doubling) — each reads the freshly-buffed Health.
+    for (let k = 0; k < runeStacksOf(state, 'rune_embers'); k++) {
+      const i = rightmostShopMinion(state);
+      if (i < 0) break;
       const cur = offerBuyStats(state, state.shop[i]!).health;
       if (cur > 0) { procRuneId(state, 'rune_embers'); addOfferBuff(state.shop[i]!, 'Rune of the Embers', 0, cur); }
     }
@@ -8186,8 +8213,11 @@ export function applyOnBuy(state: RunState, bought: BoardCard): void {
   if (state.runeBanquetHall && !state.banquetUsedThisTurn) {
     const base = CARD_INDEX[bought.cardId];
     const g = bought.golden ? 2 : 1;
-    const bonusA = bought.attack - (base ? base.attack * g : bought.attack);
-    const bonusH = bought.health - (base ? base.health * g : bought.health);
+    // The split lands once per copy held (owner 2026-08-27, unique-engine doubling): the board gains the
+    // bought body's bonus × copies, dealt out through the same one-point-at-a-time dispersal.
+    const bh = runeStacksOf(state, 'rune_banquet_hall');
+    const bonusA = (bought.attack - (base ? base.attack * g : bought.attack)) * bh;
+    const bonusH = (bought.health - (base ? base.health * g : bought.health)) * bh;
     if (bonusA > 0 || bonusH > 0) {
       state.banquetUsedThisTurn = true;
       procRuneId(state, 'rune_banquet_hall');
@@ -8513,7 +8543,9 @@ export function castSpell(state: RunState, spellDef: CardDef, target?: BoardCard
       if (state.runeSpellmarket && !state.spellmarketUsedThisTurn && state.shop.length > 0) {
         procRune(state, 'runeSpellmarket');
         state.spellmarketUsedThisTurn = true;
-        addOfferBuff(state.shop[state.shop.length - 1]!, 'Rune of the Spellmarket', dAtk, dHp);
+        // The delta lands once per copy held (owner 2026-08-27, unique-engine doubling).
+        const sm = runeStacksOf(state, 'rune_spellmarket');
+        addOfferBuff(state.shop[state.shop.length - 1]!, 'Rune of the Spellmarket', dAtk * sm, dHp * sm);
       }
     }
   }
@@ -8525,7 +8557,9 @@ export function castSpell(state: RunState, spellDef: CardDef, target?: BoardCard
   // not just stat ones (the sheet says "on a minion", so a targeted Gild or Runefire counts too).
   if (target && state.runeLorekeeping && state.board.includes(target) && !spellDef.ruby) {
     procRune(state, 'runeLorekeeping');
-    captureBuffFx(state, undefined, 'spell', () => addBuff(target, 'Rune of Lorekeeping', 4, 4));
+    // +4/+4 per copy held (recurring family, owner 2026-08-27).
+    const lk = 4 * runeStacksOf(state, 'rune_lorekeeping');
+    captureBuffFx(state, undefined, 'spell', () => addBuff(target, 'Rune of Lorekeeping', lk, lk));
   }
   // Untargeted "run" cast effects (e.g. Ember Pouch) act on the run, not a minion.
   // Embers are uncapped within a turn (like selling), so no max-embers clamp here.
@@ -8593,7 +8627,7 @@ export function noteSpellCast(state: RunState, spellDef: CardDef): void {
         const tribes = [def.tribe, def.tribe2].filter((t): t is Tribe => !!t && t !== 'neutral');
         if (tribes.length === 0 || tribes.every((t) => seen.has(t))) continue;
         for (const t of tribes) seen.add(t);
-        addBuff(c, 'Rune of the Shared Table', st.attack, st.health);
+        addBuff(c, 'Rune of the Shared Table', st.attack, st.health); // accumulated per copy at the dispatcher (owner 2026-08-27)
       }
     }
   }
@@ -8646,7 +8680,9 @@ export function noteSpellCast(state: RunState, spellDef: CardDef): void {
   // "improve your Imps" applies twice under Rune of Mastery).
   if (state.runeSummoning) {
     procRune(state, 'runeSummoning');
-    const sr = improveReps(state);
+    // The improvement lands once per copy held (owner 2026-08-27: "rune of summoning = your imps get
+    // +4/+4"), on top of Rune of Mastery's extra Improve step. Single-copy magnitude unchanged.
+    const sr = improveReps(state) * runeStacksOf(state, 'rune_summoning');
     buffImpsRunWide(state, sr, sr, 'Rune of Summoning');
   }
   // Rune of Kindling: each spell cast gives your LEFT and RIGHT-most board minions +4/+6 (owner balance
@@ -8661,7 +8697,8 @@ export function noteSpellCast(state: RunState, spellDef: CardDef): void {
     const might = CARD_INDEX['mightofaeon'];
     if (might) {
       state.runeMightCasting = true;
-      try { applyCastEffects(makeContext(state), might, undefined); }
+      // One Might of Aeon per copy held (recurring family, owner 2026-08-27); the guard still blocks recursion.
+      try { for (let k = 0; k < runeStacksOf(state, 'rune_might'); k++) applyCastEffects(makeContext(state), might, undefined); }
       finally { state.runeMightCasting = false; }
     }
   }
@@ -8670,28 +8707,32 @@ export function noteSpellCast(state: RunState, spellDef: CardDef): void {
     const ends = state.board.length === 1
       ? [state.board[0]!]
       : [state.board[0]!, state.board[state.board.length - 1]!];
-    captureBuffFx(state, undefined, 'spell', () => { for (const t of ends) addBuff(t, 'Rune of Kindling', 4, 6); });
+    const kd = runeStacksOf(state, 'rune_kindling'); // fires once per copy held (recurring family, owner 2026-08-27)
+    captureBuffFx(state, undefined, 'spell', () => { for (const t of ends) addBuff(t, 'Rune of Kindling', 4 * kd, 6 * kd); });
   }
   // Rune of Enchantment: each spell cast gives your minions +2/+3, permanently (owner 2026-08-11; was +1/+1).
   // The +4/+6 half is the COMBAT cast — see `runeEnchantment` in simulate.ts; a shop cast is the printed +2/+3.
   if (state.runeEnchantment) {
     procRune(state, 'runeEnchantment');
+    const en = runeStacksOf(state, 'rune_enchantment'); // fires once per copy held (recurring family, owner 2026-08-27)
     captureBuffFx(state, undefined, 'spell', () => {
-      for (const c of state.board) addBuff(c, 'Rune of Enchantment', 2, 3);
+      for (const c of state.board) addBuff(c, 'Rune of Enchantment', 2 * en, 3 * en);
     });
   }
   // Rune of the Flagship: each spell cast gives your Dwarves +2/+2 (board + hand), the Scales shape tribe-swapped.
   if (state.runeFlagship) {
     procRune(state, 'runeFlagship');
+    const fs = runeStacksOf(state, 'rune_flagship'); // fires once per copy held (recurring family, owner 2026-08-27: "+4/+4 per Shop spell" with two)
     captureBuffFx(state, undefined, 'spell', () => {
-      for (const c of [...state.board, ...state.hand]) if (isTribe(c, 'dwarf')) addBuff(c, 'Rune of the Flagship', 2, 2);
+      for (const c of [...state.board, ...state.hand]) if (isTribe(c, 'dwarf')) addBuff(c, 'Rune of the Flagship', 2 * fs, 2 * fs);
     });
   }
   // Rune of Scales: each spell cast gives your Dragons +4/+5 (board + hand) — descends onto each affected board Dragon.
   if (state.runeScales) {
+    const sc = runeStacksOf(state, 'rune_scales'); // fires once per copy held (recurring family, owner 2026-08-27)
     captureBuffFx(state, undefined, 'spell', () => {
       procRuneId(state, 'rune_scales');
-      for (const c of [...state.board, ...state.hand]) if (isTribe(c, 'dragon')) addBuff(c, 'Rune of Scales', 4, 5); // owner 2026-08-11 (was +2/+2)
+      for (const c of [...state.board, ...state.hand]) if (isTribe(c, 'dragon')) addBuff(c, 'Rune of Scales', 4 * sc, 5 * sc); // owner 2026-08-11 (was +2/+2)
     });
   }
   for (const card of [...state.board]) {
@@ -8825,7 +8866,8 @@ export function fireShopRally(state: RunState, card: BoardCard): void {
   // "a Rally", never two drifting ones. The reducer consumes `lastRallyFires` per action (the
   // `lastShoutFires` pattern); Rune of the Herding Horn pays inline, as its combat half does.
   state.lastRallyFires = (state.lastRallyFires ?? 0) + 1;
-  if (state.questFlags?.runeHerdingHorn) { procRuneId(state, 'rune_herding_horn'); state.freeRolls += 1; }
+  // One free refresh per copy held (boolean-flag family, owner 2026-08-27 — `flagCopies` is the copy channel).
+  if (state.questFlags?.runeHerdingHorn) { procRuneId(state, 'rune_herding_horn'); state.freeRolls += Math.max(1, state.flagCopies?.runeHerdingHorn ?? 1); }
 }
 
 /**
@@ -9051,12 +9093,14 @@ export function socRuneReplaysOf(state: RunState): SocRuneReplay[] {
   } });
   // Rune of the Five Banners: one friendly of each type +6/+6. COMPOUNDING (per-turn permanent).
   if (f?.runeFiveBanners) out.push({ id: 'rune_five_banners', kind: 'rune', label: 'Rune of the Five Banners', fire: (st) => {
-    for (const m of bannerRecipients(st)) addBuff(m, 'Rune of the Five Banners', 6, 6);
+    // Once per copy held (boolean-flag family, owner 2026-08-27: "+6/+6 twice").
+    const fb = Math.max(1, st.flagCopies?.runeFiveBanners ?? 1);
+    for (const m of bannerRecipients(st)) addBuff(m, 'Rune of the Five Banners', 6 * fb, 6 * fb);
   } });
   // Emissary (United Front): the Five Banners selection, +N/+N where N = spells cast this game (Wishbone
   // doubles, as its combat mod does). COMPOUNDING (per-turn, growing scalar).
   if (hasPower(state, 'unitedFront')) out.push({ id: state.heroId, kind: 'hero', label: 'United Front', fire: (st) => {
-    const n = st.spellsCast * (st.runeWishbone ? 2 : 1); // wishboneReps, inlined (a reducer import would cycle)
+    const n = st.spellsCast * (st.runeWishbone ? 1 + runeStacksOf(st, 'rune_wishbone') : 1); // wishboneReps, inlined (a reducer import would cycle)
     if (n <= 0) return;
     for (const m of bannerRecipients(st)) addBuff(m, 'United Front', n, n);
   } });
@@ -9195,10 +9239,12 @@ export function applyEndOfTurn(state: RunState): void {
   // HUD numbers silently (handoff-doc gap §9.1) — now each emits an own-beat resourceChanged consequence.
   if (state.runeCoffers) {
     procRune(state, 'runeCoffers');
-    state.maxEmbers += 1;
+    // +1 max Gold per copy held (recurring family, owner 2026-08-27: "+2 max Gold at End of Turn" with two).
+    const cf = runeStacksOf(state, 'rune_coffers');
+    state.maxEmbers += cf;
     if (collector.enabled) collector.withTrigger(
       { phase: 'endOfTurn', source: beatSource('rune', 'rune_coffers', 'Rune of the Coffers'), trigger: 'endOfTurn', ...beatIdentity('rune:rune_coffers:endOfTurn') },
-      () => collector.emit({ type: 'resourceChanged', resource: 'maxGold', amount: 1, valueAfter: state.maxEmbers }),
+      () => collector.emit({ type: 'resourceChanged', resource: 'maxGold', amount: cf, valueAfter: state.maxEmbers }),
     );
   }
   // Rune of Shopkeep: reduce the running upgrade cost by 3 each End of Turn (the "repeat" half; the buy pass
@@ -9331,14 +9377,16 @@ export function applyEndOfTurn(state: RunState): void {
   // double-emission reason the Lasting Cadence block documents; everything else diffs its own consequences,
   // with `discardIfEmpty` so a membership no-op (Warden on a full board) leaves no false beat.
   if (state.runeCombatProwess) {
+    // × copies held (repeat family, owner 2026-08-27): a duplicate replays the rune/quest SC section once more.
+    const prowessReps = repeats * runeStacksOf(state, 'rune_combat_prowess');
     for (const replay of socRuneReplaysOf(state)) {
-      for (let r = 0; r < repeats; r++) {
+      for (let r = 0; r < prowessReps; r++) {
         const spec = {
           phase: 'endOfTurn' as const,
           source: beatSource(replay.kind, replay.id, replay.label),
           trigger: 'endOfTurn',
           ...beatIdentity('rune:rune_combat_prowess:endOfTurn'),
-          repeatIndex: r, repeatCount: repeats,
+          repeatIndex: r, repeatCount: prowessReps,
         };
         const go = (): void => { procRuneId(state, 'rune_combat_prowess'); replay.fire(state); };
         if (replay.nested) collector.withTrigger(spec, go);
@@ -9391,9 +9439,11 @@ export function runeCombatProwessBeats(state: RunState): Array<{ card: BoardCard
   // (each repeat is a full End-of-Turn replay, and within each the SC multipliers apply, mirroring combat).
   const perFire = 1
     + extraTriggerFires('startOfCombat', state.board, (id) => CARD_INDEX[id])
-    + socTwilightExtraFires({ runeTwilight: state.questFlags?.runeTwilight });
+    + socTwilightExtraFires({ runeTwilight: state.questFlags?.runeTwilight, flagCopies: state.flagCopies });
+  // × copies held: a duplicate Prowess replays the whole SC pass once more (repeat family, owner 2026-08-27).
+  const prowess = runeStacksOf(state, 'rune_combat_prowess');
   const out: Array<{ card: BoardCard; effect: EffectDef }> = [];
-  for (const entry of socBoardEffects(state)) for (let r = 0; r < repeats * perFire; r++) out.push(entry);
+  for (const entry of socBoardEffects(state)) for (let r = 0; r < repeats * perFire * prowess; r++) out.push(entry);
   return out;
 }
 
@@ -9408,7 +9458,8 @@ export function runeCombatProwessBeats(state: RunState): Array<{ card: BoardCard
  */
 export function runeLastingCadenceBeats(state: RunState): BoardCard[] {
   if (!state.runeLastingCadence) return [];
-  const repeats = endOfTurnRepeats(state);
+  // × copies held: a duplicate triggers every Rally once more per pass (recurring family, owner 2026-08-27).
+  const repeats = endOfTurnRepeats(state) * runeStacksOf(state, 'rune_lasting_cadence');
   const out: BoardCard[] = [];
   // Snapshotted before anything fires: a Rally may summon, and a body that arrives mid-pass has not "had" a
   // Rally to trigger (the combat rune states the same rule).
@@ -9447,10 +9498,14 @@ function stampQuestTendril(state: RunState, effect: string, uid: string): void {
  *  recurring entries. THE single source for `applyEndOfTurn`, `projectEndOfTurnSteps` and `questEndOfTurnBeats`,
  *  so the commit, the projection and the UI's beat list can never disagree about what fires. */
 export function recurringEotEffects(state: RunState): NonNullable<RunState['questRecurringEndOfTurn']> {
+  // The two flag-armed recurrences repeat once per copy held (recurring family, owner 2026-08-27) — the
+  // commit, projection and beat list all read this one builder, so all three agree on the count.
+  const lapidary = state.runeLapidary ? runeStacksOf(state, 'rune_lapidary') : 0;
+  const choir = state.runeCrucibleChoir ? runeStacksOf(state, 'rune_crucible_choir') : 0;
   return [
     ...(state.questRecurringEndOfTurn ?? []),
-    ...(state.runeLapidary ? (['runeLapidary'] as const) : []),
-    ...(state.runeCrucibleChoir ? (['runeCrucibleChoir'] as const) : []),
+    ...Array.from({ length: lapidary }, () => 'runeLapidary' as const),
+    ...Array.from({ length: choir }, () => 'runeCrucibleChoir' as const),
   ];
 }
 
@@ -10299,7 +10354,8 @@ export function playCard(state: RunState, played: BoardCard): void {
     arrival.tick += 1;
     if (arrival.per > 0 && arrival.tick % arrival.per === 0) {
       procRuneId(state, 'rune_echoed_arrival');
-      fireRecruitDeathrattles(makeContext(state), played);
+      // Same 5-play meter, one Echo fire per copy held (threshold family, owner 2026-08-27: doubled payoff).
+      for (let k = 0; k < runeStacksOf(state, 'rune_echoed_arrival'); k++) fireRecruitDeathrattles(makeContext(state), played);
     }
   }
   fire(ctx, 'onSummon', { minion: played });

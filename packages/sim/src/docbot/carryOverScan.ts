@@ -161,6 +161,7 @@ export interface CarryOverExcuse {
 export const CARRY_OVER_EXCUSED: Readonly<Record<string, CarryOverExcuse>> = {
   // ── pure shop-economy bookkeeping: no fight reads these ──
   goldSpentThisTurn: { kind: 'no-combat-meaning', why: 'Patch Job\'s per-turn Gold tally; combat has no Gold. (Baby Gastrid\'s combat gap is separately excused as state-missing in phaseRegistry.)' },
+  runeTreasureMaps: { kind: 'no-combat-meaning', why: 'Treasure Map\'s pending Gold payouts (the array slot since the 2026-08-27 duplicate rulings); ticked and paid at turn start — pure shop economy, no fight reads a countdown.' },
   cardsBoughtThisTurn: { kind: 'needs-staging', why: 'threaded into the combat side (combatSide.cardsBoughtThisTurn) for Frenzied Excavator; the fixture stages none' },
   moonhowlTeachesThisTurn: { kind: 'no-combat-meaning', why: 'per-turn teach CAP for Moonhowl Mentor buys; teaching happens on the buy itself, never mid-fight' },
   windowShopRolls: { kind: 'no-combat-meaning', why: 'Window Shopping\'s free-roll tally; rolls are a shop action' },

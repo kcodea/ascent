@@ -81,13 +81,14 @@ describe('the shop-side machinery', () => {
     // The countdown ticks in resolveCombat (the new-turn transition), the same case Rune of Slaying's test uses.
     const win = { events: [], result: 'win' as const, playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] } };
     let s = withRune('rune_treasure_map', { embers: 5 });
-    expect(s.runeTreasureMap).toEqual({ turns: 2, gold: 10 });
+    // The ARRAY slot since the 2026-08-27 duplicate rulings — a second Map schedules its own payout.
+    expect(s.runeTreasureMaps).toEqual([{ turns: 2, gold: 10 }]);
     s = reduce({ ...s, phase: 'combat', lastCombat: win } as RunState, { type: 'resolveCombat' }) as RunState;
     const g1 = s.embers;
-    expect(s.runeTreasureMap?.turns).toBe(1);
+    expect(s.runeTreasureMaps?.[0]?.turns).toBe(1);
     s = reduce({ ...s, phase: 'combat', lastCombat: win } as RunState, { type: 'resolveCombat' }) as RunState;
     expect(s.embers - g1, 'the payout landed on the second tick (with the new turn Gold on top)').toBeGreaterThanOrEqual(10);
-    expect(s.runeTreasureMap).toBeUndefined();
+    expect(s.runeTreasureMaps).toBeUndefined();
   });
 
   it('Evolution transforms the board into random Tier-4 minions (buffs and golden do not carry)', () => {

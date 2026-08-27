@@ -775,7 +775,11 @@ export function Recruit() {
   // The DEV FX workbench is deliberately NOT in this list. Its rail mode exists precisely to watch the fight
   // play under the panel, and `overlayOpen` would freeze the replay the moment the workbench opened. Don't
   // "complete" the list by adding it.
-  const overlayOpen = useGame((s) => s.showTitle || s.showLeaderboard || s.showRankings || s.showCareer || s.showBook || s.showBalance);
+  // `bugReportOpen` rides the same expression (bug reporter PR 1, blueprint §4.1/§4.2): opening the Ctrl+B
+  // reporter pauses the recruit clock AND the combat replay through this one path — and it is deliberately
+  // NOT in the clock-reset effect's deps below, so open/close resumes from the exact displayed second
+  // instead of resetting the turn.
+  const overlayOpen = useGame((s) => s.showTitle || s.showLeaderboard || s.showRankings || s.showCareer || s.showBook || s.showBalance || s.bugReportOpen);
   // Subscribed alone (not just via `overlayOpen`) so the clock-reset effect can key on the title→play flip: a
   // resumed run does NOT change wave/turnSeconds, so without this the reset never fires and the turn is stuck at
   // 0 (owner Save & Quit bug 2026-08-24). Only the true title screen sets this — opening the Book mid-run doesn't.

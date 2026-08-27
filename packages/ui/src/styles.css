@@ -9092,3 +9092,40 @@ body.duel-attacker-opp .combatopp-hp { opacity: 0; }
 /* NO struck reaction on the hero portraits (owner ruling 2026-08-25): the Pixi strike FX and the health
    dropping carry the blow. A recoil here also fought the portrait's own transform (its centring / the tuner's
    scale), which is what made a struck portrait appear to shrink. */
+
+/* ── BUG REPORTER (Ctrl+B, PR 1) — the incident-report modal + the §4.3 "finish the current effect" toast.
+   Glass-overlay language shared with the Patch Notes panel (.pnov/.pnpanel); restrained by design — one
+   one-shot fade-in, no looping animation (an interruption-recovery tool, blueprint §5.4). NO `cursor`
+   anywhere here: the global `button` rule paints the gauntlet cursor (see CLAUDE.md's cursor note). ── */
+.bgrov { position: fixed; inset: 0; z-index: 560; display: grid; place-items: center; background: rgba(20, 14, 7, 0.55); backdrop-filter: blur(2px); animation: fadein 0.14s ease; }
+.bgrpanel { width: min(640px, 92vw); max-height: 88vh; display: flex; flex-direction: column; background: var(--bg2); border: 2px solid var(--line); border-radius: 16px; box-shadow: 0 22px 60px -18px rgba(0, 0, 0, 0.6); overflow: hidden; }
+.bgrhead { display: flex; align-items: center; gap: 12px; padding: 16px 20px 10px; border-bottom: 1px solid var(--line); }
+.bgrtitle { font-size: 23px; color: var(--ink); letter-spacing: 0.02em; margin-right: auto; }
+/* The phase badge: SHOP (accent) vs COMBAT (demon hue) + round number — where the capsule froze. */
+.bgrbadge { font-family: var(--font-ui); font-weight: 800; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.06em; padding: 3px 10px; border-radius: 999px; color: var(--acc); background: color-mix(in srgb, var(--acc) 14%, transparent); border: 1px solid color-mix(in srgb, var(--acc) 35%, transparent); white-space: nowrap; }
+.bgrbadge.combat { color: var(--t-demon); background: color-mix(in srgb, var(--t-demon) 14%, transparent); border-color: color-mix(in srgb, var(--t-demon) 35%, transparent); }
+/* The frozen-clock chip — communicates the recruit timer is paused at this exact second (§5.4). Static. */
+.bgrclock { font-family: var(--font-ui); font-weight: 800; font-size: 12px; color: var(--ink3); background: rgba(255, 255, 255, 0.05); border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; white-space: nowrap; }
+.bgrbody { overflow-y: auto; padding: 12px 20px 4px; display: flex; flex-direction: column; gap: 8px; }
+.bgrhelper { margin: 0; font-family: var(--font-ui); font-weight: 600; font-size: 13.5px; line-height: 1.45; color: var(--ink2); }
+.bgrlabel { font-family: var(--font-ui); font-weight: 800; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink3); margin-top: 4px; }
+.bgrtext { min-height: 108px; resize: vertical; font-family: var(--font-ui); font-weight: 600; font-size: 14px; line-height: 1.45; color: var(--ink); background: rgba(0, 0, 0, 0.22); border: 1.5px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+.bgrtext:focus { outline: none; border-color: color-mix(in srgb, var(--acc) 55%, var(--line)); }
+.bgrdisclose { font-family: var(--font-ui); font-weight: 600; font-size: 11.5px; color: var(--ink3); }
+.bgrselect { font-family: var(--font-ui); font-weight: 700; font-size: 13.5px; color: var(--ink); background: rgba(0, 0, 0, 0.22); border: 1.5px solid var(--line); border-radius: 10px; padding: 8px 10px; }
+.bgrselect:focus { outline: none; border-color: color-mix(in srgb, var(--acc) 55%, var(--line)); }
+/* The automatic-context summary chips (round · phase · hero · set · build · "attached"). */
+.bgrsummary { display: flex; flex-wrap: wrap; gap: 6px; }
+.bgrsummary > span { font-family: var(--font-ui); font-weight: 700; font-size: 11.5px; color: var(--ink3); background: rgba(255, 255, 255, 0.05); border: 1px solid var(--line); border-radius: 8px; padding: 3px 9px; white-space: nowrap; }
+.bgrsummary > .bgrattached { color: color-mix(in srgb, var(--acc) 80%, var(--ink2)); border-color: color-mix(in srgb, var(--acc) 30%, transparent); }
+.bgrtechtoggle { align-self: flex-start; font-family: var(--font-ui); font-weight: 800; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink3); background: none; border: none; padding: 2px 0; }
+.bgrtechtoggle:hover { color: var(--ink2); }
+.bgrtech { font-family: var(--font-mono, monospace); font-size: 11.5px; line-height: 1.5; color: var(--ink3); background: rgba(0, 0, 0, 0.22); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; overflow-x: auto; }
+.bgrbtns { display: flex; justify-content: flex-end; gap: 10px; padding: 12px 20px 16px; border-top: 1px solid var(--line); margin-top: 8px; }
+.bgrbtn { font-family: var(--font-ui); font-weight: 800; font-size: 13.5px; color: var(--ink2); background: rgba(255, 255, 255, 0.05); border: 1.5px solid var(--line); border-radius: 10px; padding: 8px 18px; }
+.bgrbtn:hover { color: var(--ink); background: rgba(255, 255, 255, 0.09); }
+.bgrsubmit { color: var(--bg); background: var(--acc); border-color: color-mix(in srgb, var(--acc) 70%, #000); }
+.bgrsubmit:hover { color: var(--bg); background: color-mix(in srgb, var(--acc) 88%, #fff); }
+.bgrsubmit:disabled { opacity: 0.45; }
+/* The §4.3 toast — bottom-center, self-clears; one-shot fade only. */
+.bgrtoast { position: fixed; left: 50%; bottom: 9%; transform: translateX(-50%); z-index: 570; font-family: var(--font-ui); font-weight: 700; font-size: 13.5px; color: var(--ink); background: color-mix(in srgb, var(--bg2) 94%, #000); border: 1.5px solid var(--line); border-radius: 12px; padding: 9px 16px; box-shadow: 0 12px 30px -12px rgba(0, 0, 0, 0.7); animation: fadein 0.15s ease; pointer-events: none; }

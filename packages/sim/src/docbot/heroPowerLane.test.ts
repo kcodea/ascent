@@ -14,7 +14,7 @@ describe('Doc Bot — hero power lane', () => {
 
   it('the silent-power queue is pinned, each entry named by its power kind', () => {
     const silent = results.filter((r) => !r.active).map((r) => `${r.heroId} [${r.kind}]`);
-    const PIN = 25; // Myra + Djinn drained by the Shout/EoT fixture bodies
+    const PIN = 24; // Myra + Djinn drained by the Shout/EoT fixture bodies; Hunch armed via a staged prior spell cast (owner triage 2026-08-26)
     expect(silent.length, `${silent.length} hero power(s) changed nothing under the fixture (pin ${PIN}): ${silent.join(', ')} — above the pin: a new hero's power never acted; passive/scheduled kinds get staged or noted in review, an ACTIVE kind here is the §13.5 silent-routing class.`).toBeLessThanOrEqual(PIN);
     expect(silent.length, `only ${silent.length} silent now (pin ${PIN}) — you staged some; lower the pin.`).toBeGreaterThanOrEqual(PIN);
   });

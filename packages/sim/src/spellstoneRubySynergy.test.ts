@@ -121,10 +121,14 @@ describe('everything downstream of a Ruby\'s stats inherits it', () => {
       return reduce(s, { type: 'play', uid: 'v' });
     };
     const off = cast(false), on = cast(true);
-    expect([off.shop[0]!.atk, off.shop[0]!.hp], 'plain Veinstorm gems the row +1/+1').toEqual([1, 1]);
-    expect([on.shop[0]!.atk, on.shop[0]!.hp], 'the rune should gem it +4/+3').toEqual([4, 3]);
+    // OWNER RULING 2026-08-26 (q-spellpower-spellBuffShopByRuby REJECTED as flat): Veinstorm folds spell
+    // power like every other stat-granting Shop spell — so +3/+2 power gems the row +4/+3 even WITHOUT the
+    // Spellstone. With it, the fold composes: the Rubies are worth +4/+3 (rune) and the spell adds its own
+    // +3/+2 on top — two distinct rules, each paying once.
+    expect([off.shop[0]!.atk, off.shop[0]!.hp], 'Veinstorm folds spell power: +4/+3').toEqual([4, 3]);
+    expect([on.shop[0]!.atk, on.shop[0]!.hp], 'rune-boosted Rubies + the spell fold: +7/+5').toEqual([7, 5]);
     // The BANK re-stamps every future roll, so it has to carry the same number or the shop would shrink.
-    expect(on.veinstormRubies, 'the bank did not follow').toEqual({ atk: 4, hp: 3 });
+    expect(on.veinstormRubies, 'the bank did not follow').toEqual({ atk: 7, hp: 5 });
   });
 
   it('a Ruby played IN COMBAT inherits it — the combat side reads the folded value off the snapshot', () => {

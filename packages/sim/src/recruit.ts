@@ -2128,6 +2128,97 @@ const recruitHuntGuard = new WeakSet<object>();
 
 const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
 
+  // ═══ OWNER RULINGS 2026-08-26 (Rulebook triage board) — the shop halves the owner ruled IN. Each mirrors
+  // its combat body's semantics; see decisions.json for the ruling and the triage card it answered. ═══
+
+  /** MALPHAS — Echo: permanent Shop buff. Fires whenever something triggers its Echo in the shop (Funeral on
+   *  Loan, Ossuary Rite, Deathsayer) — "the echo should be able to fire in the shop phase" (owner). */
+  deathrattleBuffShopPermanent: (ctx, self, params) => {
+    applyRunShopBuff(ctx.state, num(params.attack, 2) * gold(self), num(params.health, 2) * gold(self), nameOf(self));
+  },
+
+  /** RUNESNOUT ARCHIVIST — Echo: cast every remembered spell, aimed casts at a random friendly Beast (the
+   *  combat body's targeting, mirrored). Golden casts the journal twice. */
+  echoCastRememberedSpells: (ctx, self) => {
+    const ids = ctx.state.rememberedSpellIds ?? [];
+    for (let r = 0; r < gold(self); r++) {
+      for (const id of ids) {
+        const def = CARD_INDEX[id];
+        if (!def?.spell) continue;
+        if (def.target) {
+          const beasts = ctx.state.board.filter((c) => isTribe(c, 'beast'));
+          if (beasts.length === 0) continue; // an aimed spell with no Beast fizzles, per the combat body
+          const rng = makeRng(ctx.state.rngCursor);
+          const t = beasts[rng.int(beasts.length)]!;
+          ctx.state.rngCursor = rng.state();
+          castSpell(ctx.state, def, t);
+        } else {
+          castSpell(ctx.state, def);
+        }
+      }
+    }
+  },
+
+  /** SCAVVERS — Echo: trigger the ADJACENT minions' Rallies, through the shop Rally dispatcher. */
+  deathrattleTriggerAdjacentRally: (ctx, self) => {
+    const i = ctx.state.board.findIndex((c) => c.uid === self.uid);
+    if (i < 0) return; // replay context without a body — nothing is adjacent
+    const adj = [ctx.state.board[i - 1], ctx.state.board[i + 1]].filter((c): c is BoardCard => !!c);
+    for (const t of adj) for (let r = 0; r < gold(self); r++) fireShopRally(ctx.state, t);
+  },
+
+  /** ASHEN HEIR (death half) — a friendly Imp destroyed in the shop hands its stats to a living Imp, banking
+   *  them when none remains (the combat body's pay-a-living-Imp-first rule, owner ruling 2026-08-07). */
+  impInheritOnDeath: (ctx, self, _params, payload) => {
+    const dead = payload.minion;
+    if (!dead || dead.uid === self.uid || !CARD_INDEX[dead.cardId]?.imp) return;
+    const attack = Math.max(0, dead.attack);
+    const health = Math.max(0, dead.health);
+    if (attack <= 0 && health <= 0) return;
+    const imps = ctx.state.board.filter((c) => c.uid !== self.uid && c.uid !== dead.uid && CARD_INDEX[c.cardId]?.imp);
+    if (imps.length > 0) {
+      const rng = makeRng(ctx.state.rngCursor);
+      const t = imps[rng.int(imps.length)]!;
+      ctx.state.rngCursor = rng.state();
+      addBuff(t, nameOf(self), attack, health);
+    } else {
+      self.impBank = { attack: (self.impBank?.attack ?? 0) + attack, health: (self.impBank?.health ?? 0) + health };
+    }
+  },
+
+  /** ASHEN HEIR (summon half) — the bank pays out to the next Imp entering play in the shop. */
+  impInheritOnSummon: (ctx, self, _params, payload) => {
+    const born = payload.minion;
+    if (!born || born.uid === self.uid || !CARD_INDEX[born.cardId]?.imp) return;
+    const bank = self.impBank;
+    if (!bank || (bank.attack <= 0 && bank.health <= 0)) return;
+    self.impBank = { attack: 0, health: 0 };
+    addBuff(born, nameOf(self), bank.attack, bank.health);
+  },
+
+  /** BROOD MATRON — a friendly death in the shop breeds a token, up to the card's cap per turn (the combat
+   *  cap is per fight; the shop mirror resets at the rollover). Golden doubles the Avenge buff, not the cap. */
+  onFriendDeathSummon: (ctx, self, params, payload) => {
+    const dead = payload.minion;
+    if (!dead || dead.uid === self.uid) return;
+    if ((self.bredThisTurn ?? 0) >= num(params.max, 3)) return;
+    const tok = CARD_INDEX[str(params.tokenId)];
+    if (!tok) return;
+    ctx.summon(tok, self.uid);
+    self.bredThisTurn = (self.bredThisTurn ?? 0) + 1;
+  },
+
+  /** ECHO MIMIC — copies the Echo of a friendly that died in the shop onto itself (granted, per instance). */
+  onFriendDeathGainEcho: (ctx, self, _params, payload) => {
+    const dead = payload.minion;
+    if (!dead || dead.uid === self.uid) return;
+    const echoes = instanceEffects(dead).filter((e) => e.on === 'onDeath');
+    if (echoes.length === 0) return;
+    for (let r = 0; r < gold(self); r++) {
+      (self.grantedEffects ??= []).push(...echoes.map((e) => ({ ...e, ...(e.params ? { params: { ...e.params } } : {}) })));
+    }
+  },
+
   // ══ GREAT POT + THE GIFTS (owner design 2026-08-26) ═══════════════════════════════════════════════════
 
   /** GREAT POT: +A/+H to ONE friendly minion of EACH type. The same "one per tribe" spread Rune of the Shared
@@ -3748,6 +3839,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     for (const d of dead) {
       const idx = ctx.state.board.indexOf(d);
       if (idx >= 0) ctx.state.board.splice(idx, 1);
+      fireOnFriendDeath(ctx.state, d); // owner ruling 2026-08-26: shop deaths notify on-death watchers
     }
     for (const d of dead) fireRecruitDeathrattles(makeContext(ctx.state), d);
   },
@@ -4759,6 +4851,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const bonusA = Math.max(0, minion.attack - base.attack);
     const bonusH = Math.max(0, minion.health - base.health);
     state.board.splice(idx, 1);
+    fireOnFriendDeath(state, minion); // owner ruling 2026-08-26: a devoured friendly is a shop death
     const heirs = state.board.filter((c) => c.uid !== minion.uid && isCelestialCard(c));
     if (heirs.length > 0) {
       if (str(params.mode) === 'split') {
@@ -4802,6 +4895,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const idx = ctx.state.board.indexOf(target);
     if (idx >= 0) ctx.state.board.splice(idx, 1); // destroy it (frees the slot for any Deathrattle summons)
     fireRecruitDeathrattles(ctx, target); // its Deathrattle(s) resolve out of combat, doubled by Sylus + ticked into the tally
+    fireOnFriendDeath(ctx.state, target); // owner ruling 2026-08-26: destroyed-in-shop notifies watchers too
     const pool = poolOf(ctx.state).spells.filter((c) => c.tier === tier);
     if (pool.length === 0) return;
     const rng = makeRng(ctx.state.rngCursor);
@@ -5730,8 +5824,10 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    */
   spellBuffShopByRuby: (ctx) => {
     const rb = rubyStatBonus(ctx.state); // Spellstone folds spell power into every Ruby, this one included
-    const a = 1 + rb.attack;
-    const h = 1 + rb.health;
+    // OWNER RULING 2026-08-26 (triage board, q-spellpower-spellBuffShopByRuby REJECTED as flat): Veinstorm's
+    // Rubies fold the run's spell power like every other stat-granting Shop spell.
+    const a = 1 + rb.attack + spellAttackBonus(ctx.state);
+    const h = 1 + rb.health + spellHealthBonus(ctx.state);
     const stamped: string[] = [];
     for (const offer of ctx.state.shop) if (stampVeinstormRubies(offer, a, h)) stamped.push(offer.uid);
     // Record which offers the CAST gemmed, so the shop-gem span plays for Veinstorm alone (a lone Ruby on an
@@ -7170,10 +7266,13 @@ export function spellDisplayText(cardId: string, bonusA: number, escalation = 0,
     // Asterisks fully optional: set 2 bolds the phrase, set 1's Tribe Portal doesn't.
     return def.text.replace(/(?:\*\*)?most common (?:board )?type(?:\*\*)?/, (m0) => `${m0} ({{${label}}})`);
   }
-  // Veinstorm: "equal to your Rubies" = base 1/1 + the run's rubyBonus — green the printed +1/+1 once it grows.
+  // Veinstorm: base 1/1 + the run's rubyBonus + spell power (owner ruling 2026-08-26: it folds like every
+  // other stat-granting Shop spell) — green the printed +1/+1 once any part grows.
   if (def.id === 'veinstorm') {
     const rb = extra?.rubyBonus ?? { attack: 0, health: 0 };
-    return rb.attack > 0 || rb.health > 0 ? def.text.replace('+1/+1', `{{+${1 + rb.attack}/+${1 + rb.health}}}`) : def.text;
+    const a = 1 + rb.attack + bonusA;
+    const h = 1 + rb.health + bonusH;
+    return a > 1 || h > 1 ? def.text.replace('+1/+1', `{{+${a}/+${h}}}`) : def.text;
   }
   // Lantern Light — the grant is +Tier/+Tier PLUS spell power, but the printed "+1/+1 for each Tavern Tier"
   // showed neither. Same defect as Hoardflame, found by the spell-power audit (owner asked whether other
@@ -7377,6 +7476,25 @@ function fire(
   // Ancient Wanderer: an ARRIVING body catches up to the run's whole spend ("for every 3 Gold you HAVE spent"),
   // rather than starting from zero the way a witnessed-threshold card would.
   if (event === 'onSummon') syncGoldSpentScalers(ctx.state);
+}
+
+/**
+ * OWNER RULING 2026-08-26 (Rulebook triage board): friendly deaths IN THE SHOP notify the board's on-death
+ * WATCHERS — Ashen Heir inherits a destroyed Imp, Brood Matron breeds, Echo Mimic copies the fallen's Echo.
+ * The dying card's OWN Echo stays with `fireRecruitDeathrattles` (own-echo factories guard `minion === self`
+ * and are NOT re-fired here — the dead card itself is skipped). Sells are not deaths; Consume/devour and
+ * destroy effects are.
+ */
+export function fireOnFriendDeath(state: RunState, dead: BoardCard): void {
+  const ctx = makeContext(state);
+  for (const card of [...state.board]) {
+    if (card.uid === dead.uid) continue;
+    for (const effect of instanceEffects(card)) {
+      if (effect.on !== 'onDeath') continue;
+      const fn = RECRUIT_FACTORIES[effect.do];
+      if (fn) captureBuffFx(state, card, 'minion', () => fn(ctx, card, effect.params ?? {}, { minion: dead }));
+    }
+  }
 }
 
 /** Apply the run-wide Den Marker aura to a Beast entering play: +attack/+health now, then climb the magnitude by

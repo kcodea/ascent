@@ -335,8 +335,8 @@ export const BEASTS: CardDef[] = [
       { on: 'onSummon', do: 'countTribeSummon', params: { tribe: 'beast', step: 3 } },
       { on: 'startOfCombat', do: 'scTribeBuffImproving', params: { tribe: 'beast', attack: 0, step: 0 } },
     ],
-    text: '**Start of Combat:** Give your **Beasts** **+3/+3** for each **Beast** played while Pack Leader is on the board.',
-    goldenText: '**Start of Combat:** Give your **Beasts** **+6/+6** for each **Beast** played while Pack Leader is on the board.',
+    text: '**Start of Combat:** Give your **Beasts** **+3/+3** for each **Beast** played **in the Shop** while Pack Leader is on the board.',
+    goldenText: '**Start of Combat:** Give your **Beasts** **+6/+6** for each **Beast** played **in the Shop** while Pack Leader is on the board.',
   },
   {
     // Battlecry: give a RANDOM friendly minion +3/+3, once per Beast you own — a spread go-wide payoff that

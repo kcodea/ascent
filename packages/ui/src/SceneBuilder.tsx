@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { CARD_INDEX, QUEST_DEFS, RUNES, EPIC_RUNES, SETS, activeSet, poolFor, type SetId } from '@game/content';
-import { HEROES, type BoardSnapshot, type RunState, type ShopCard } from '@game/sim';
+import { HEROES, runQaScenario, validateQaScenario, type BoardSnapshot, type QaScenarioV1, type RunState, type ShopCard } from '@game/sim';
+import { buildQaScenario, reproCommandFor, scenarioFileName, scenarioFileText, QA_SCENARIO_FIXTURE_DIR } from './qaScenarioBridge';
 import type { Keyword } from '@game/core';
 import { useGame } from './store';
 import { useDraggablePanel, DevPanelContext } from './useDraggablePanel';
@@ -92,6 +93,77 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
     const res = loadBugScenario(raw);
     setBugErrors(res.errors);
     if (res.ok) setBugJson('');
+  };
+
+  // QA SCENARIO bridge (Docbot handoff §4.5, PR 2): export the live sandbox run as a `QaScenarioV1`, import
+  // one back through the store's suppression-guarded sandbox door (`loadQaScenario`), run the current export
+  // headlessly IN the browser (the runner is pure @game/sim code), and save it as a checked-in regression
+  // fixture via the dev server's /__qa-scenario/save endpoint. All pure logic lives in `qaScenarioBridge.ts`.
+  const loadQaScenario = useGame((s) => s.loadQaScenario);
+  const [qaJson, setQaJson] = useState('');
+  const [qaErrors, setQaErrors] = useState<string[]>([]);
+  const [qaStatus, setQaStatus] = useState('');
+  const [qaSummary, setQaSummary] = useState('');
+  const [qaOverwrite, setQaOverwrite] = useState(false);
+  const qaFileRef = useRef<HTMLInputElement | null>(null);
+  /** Build the export from the CURRENT run, validating through the keystone's own validator first — a red
+   *  export here means the bridge (not the author) broke, so it surfaces instead of downloading garbage. */
+  const buildExport = (): QaScenarioV1 | null => {
+    if (!run) return null;
+    const scenario = buildQaScenario(run, { createdAt: new Date().toISOString() });
+    const errors = validateQaScenario(scenario);
+    if (errors.length > 0) { setQaErrors(errors); return null; }
+    setQaErrors([]);
+    return scenario;
+  };
+  const copyText = (text: string): void => { void navigator.clipboard?.writeText(text).catch(() => {}); };
+  const exportQa = (): void => {
+    const scenario = buildExport();
+    if (!scenario) return;
+    const text = scenarioFileText(scenario);
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
+    a.download = scenarioFileName(scenario.id);
+    a.click();
+    URL.revokeObjectURL(a.href);
+    copyText(text);
+    setQaSummary('');
+    setQaStatus(`exported ${scenarioFileName(scenario.id)} (downloaded + copied to clipboard)`);
+  };
+  const runHeadless = (): void => {
+    const scenario = buildExport();
+    if (!scenario) return;
+    const result = runQaScenario(scenario);
+    setQaSummary([result.summary, ...result.expectationResults.map((r) => `${r.pass ? '✓' : '✗'} [${r.expectation.kind}] ${r.detail}`)].join('\n'));
+    setQaStatus('');
+  };
+  const copyRepro = (): void => {
+    const scenario = buildExport();
+    if (!scenario) return;
+    copyText(reproCommandFor(scenario.id));
+    setQaStatus(`copied: ${reproCommandFor(scenario.id)} (bare ids resolve in ${QA_SCENARIO_FIXTURE_DIR})`);
+  };
+  const saveFixture = (): void => {
+    const scenario = buildExport();
+    if (!scenario) return;
+    setQaStatus('saving…');
+    void fetch('/__qa-scenario/save', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ scenario, overwrite: qaOverwrite }),
+    })
+      .then(async (r) => {
+        const body = (await r.json().catch(() => ({}))) as { ok?: boolean; path?: string; error?: string };
+        setQaStatus(body.ok ? `saved ${body.path} — repro: ${reproCommandFor(scenario.id)}` : `save failed: ${body.error ?? r.statusText}`);
+      })
+      .catch((e: unknown) => setQaStatus(`save failed: ${e instanceof Error ? e.message : String(e)} (dev server only)`));
+  };
+  const importQaText = (raw: string): void => {
+    const res = loadQaScenario(raw);
+    setQaErrors(res.errors);
+    setQaSummary('');
+    setQaStatus(res.ok ? 'scenario imported — the rig now holds its state' : '');
+    if (res.ok) setQaJson('');
   };
 
   // The card library is scoped to the run's PINNED set, so the Set toggle visibly changes what you can add and
@@ -422,6 +494,50 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
             {bugErrors.length > 0 && (
               <div className="sb-mini sb-warn">{bugErrors.join(' ')}</div>
             )}
+          </div>
+
+          {/* QA SCENARIO — the QaScenarioV1 bridge (§4.5). Export serializes THIS run (a pinned enemy for the
+              current wave exports as a combat scenario); import hydrates through the same sandbox door as the
+              bug bridge above; run-headless executes the export through the pure @game/sim runner right here. */}
+          <div className="sb-sec">
+            <div className="sb-label">QA scenario</div>
+            <div className="sb-row">
+              <button className="sb-btn" onClick={exportQa} title="Serialize this run as a QaScenarioV1 — downloads the JSON and copies it to the clipboard">⬇ export</button>
+              <button className="sb-btn" onClick={runHeadless} title="Run the current export through the headless scenario runner (real engine, no UI) and show its summary">▶ run headless</button>
+              <button className="sb-btn" onClick={copyRepro} title="Copy the deterministic reproduction command for this scenario's id">⎘ repro cmd</button>
+            </div>
+            <div className="sb-row">
+              <button className="sb-btn" onClick={saveFixture} title={`Write the export into ${QA_SCENARIO_FIXTURE_DIR} via the dev server (refuses to overwrite unless armed)`}>💾 save fixture</button>
+              <label className="sb-chk" title="Allow the save to replace an existing fixture of the same id">
+                <input type="checkbox" checked={qaOverwrite} onChange={(e) => setQaOverwrite(e.target.checked)} /> overwrite
+              </label>
+            </div>
+            <div className="sb-row">
+              <input
+                ref={qaFileRef}
+                type="file"
+                accept=".json,application/json"
+                style={{ display: 'none' }}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  e.target.value = ''; // re-picking the same file must fire onChange again
+                  if (!file) return;
+                  void file.text().then(importQaText).catch(() => setQaErrors(['Could not read the file.']));
+                }}
+              />
+              <button className="sb-btn" onClick={() => qaFileRef.current?.click()} title="Load a QaScenarioV1 JSON file into the rig (validated; sandbox — nothing writes)">📂 import file…</button>
+              <button className="sb-btn sb-primary" disabled={qaJson.trim() === ''} onClick={() => importQaText(qaJson)} title="Import the pasted scenario JSON">import JSON</button>
+            </div>
+            <textarea
+              className="sb-search sb-bugpaste"
+              rows={2}
+              placeholder="…or paste a QaScenarioV1 JSON here"
+              value={qaJson}
+              onChange={(e) => setQaJson(e.target.value)}
+            />
+            {qaStatus !== '' && <div className="sb-mini">{qaStatus}</div>}
+            {qaErrors.length > 0 && <div className="sb-mini sb-warn">{qaErrors.join(' · ')}</div>}
+            {qaSummary !== '' && <pre className="sb-mini sb-qa-summary">{qaSummary}</pre>}
           </div>
         </div>
       )}

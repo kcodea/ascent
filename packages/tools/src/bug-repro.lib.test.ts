@@ -5,13 +5,17 @@
  * for an undoctored capture.
  */
 import { describe, expect, it } from 'vitest';
-import { CONFIG, createRun, reduce, serialize, setIdOf, type Action, type BugIncidentCapsule, type BugReportEnvelope, type RunState } from '@game/sim';
+import { CONFIG, createRun, reduce, runQaScenario, serialize, setIdOf, snapshotBoard, validateQaScenario, type Action, type BoardSnapshot, type BugIncidentCapsule, type BugReportEnvelope, type RunState } from '@game/sim';
 import { buildStarterTest, combatEventLines, reconstructFromSeed, reproEnvelope, validateContentIds } from './bug-repro.lib';
+import { buildQaScenarioFromEnvelope, compareCapturedCombat, qaScenarioRepro, untrustedClaimQuestion } from './bug-qa-scenario.lib';
 
 /** Drive a tiny deterministic run with the same greedy loop the replay harness uses, recording ONLY
- *  accepted (state-changing) actions — exactly what the reporter's capture stores. */
-function recordRun(seed: number, untilCombat: boolean): { state: RunState; actions: Action[] } {
+ *  accepted (state-changing) actions — exactly what the reporter's capture stores. `pinBoard` pre-pins the
+ *  first wave's opponent (a restored run's shape), so a combat capture can fight a REAL BoardSnapshot
+ *  instead of the procedural threat. */
+function recordRun(seed: number, untilCombat: boolean, pinBoard?: BoardSnapshot): { state: RunState; actions: Action[] } {
   let s = createRun(seed);
+  if (pinBoard) s = { ...s, servedBoards: { ...(s.servedBoards ?? {}), [s.wave]: pinBoard } };
   const actions: Action[] = [];
   const act = (a: Action): boolean => {
     const before = s;
@@ -145,11 +149,12 @@ describe('bugs:repro — recruit incident', () => {
     expect(v.unknownRuneIds).toContain('rune_that_never_shipped');
   });
 
-  it('produces a starter fixture as text with the placeholder assertion', () => {
+  it('produces a starter fixture that graduates the bug into a QA scenario fixture (§11.4)', () => {
     const fixture = buildStarterTest(envelope);
-    expect(fixture).toContain('deserialize');
+    expect(fixture).toContain('runQaScenario');
+    expect(fixture).toContain('parseQaScenario');
+    expect(fixture).toContain('qa-scenario.json');
     expect(fixture).toContain('TODO(placeholder)');
-    expect(fixture).toContain(`expect(run.wave).toBe(${state.wave})`);
     expect(fixture).toContain('untrusted claim');
   });
 });
@@ -208,5 +213,131 @@ describe('bugs:repro — MENU report (no run evidence, owner ask 2026-08-27)', (
     expect(r.ok).toBe(false);
     expect(r.actionsReplayed).toBe(0);
     expect(r.drift?.error).toContain('menu report — no run evidence');
+  });
+
+  it('qaScenarioRepro declines a menu report: no scenario, menu-no-evidence classification', () => {
+    const qa = qaScenarioRepro(menuEnvelope);
+    expect(qa.scenario).toBeNull();
+    expect(qa.classification).toBe('menu-no-evidence');
+  });
+});
+
+// ── PR 9: bug reports speak QaScenarioV1 (§3.3 one scenario format, §11.2 classification) ──────────────────
+
+describe('bugs → QaScenarioV1 — recruit report', () => {
+  const { state, actions } = recordRun(7, false);
+  const envelope = makeEnvelope(state, actions);
+
+  it('emits a valid QaScenarioV1 (source bug-report) that validateQaScenario accepts', () => {
+    const { scenario } = buildQaScenarioFromEnvelope(envelope);
+    expect(scenario).not.toBeNull();
+    expect(scenario!.source).toBe('bug-report');
+    expect(scenario!.mode).toBe('recruit');
+    expect(scenario!.seed).toBe(state.seed);
+    expect(scenario!.metadata?.reportId).toBe(envelope.reportId);
+    expect(validateQaScenario(scenario)).toEqual([]);
+  });
+
+  it('round-trips through the REAL runQaScenario: hydrates, executes, surfaces the claim as needs-ruling', () => {
+    const { scenario } = buildQaScenarioFromEnvelope(envelope);
+    const result = runQaScenario(scenario!);
+    expect(result.validationErrors).toEqual([]);
+    expect(result.ok).toBe(true);
+    // Reproduction first, assertion after triage (§11.4): the ONLY expectation is the untrusted claim.
+    expect(result.needsRuling).toHaveLength(1);
+    expect(result.needsRuling[0]).toContain('UNTRUSTED');
+    expect(result.needsRuling[0]).toContain(envelope.description);
+    expect(qaScenarioRepro(envelope).classification).toBe('reproduced');
+  });
+
+  it('SABOTAGE: a doctored emitted scenario fails validation loudly, never silently', () => {
+    const { scenario } = buildQaScenarioFromEnvelope(envelope);
+    // Doctored seed — the envelope no longer matches its own serialized state.
+    const seedDoctored = { ...scenario!, seed: scenario!.seed + 1 };
+    const seedErrors = validateQaScenario(seedDoctored);
+    expect(seedErrors.length).toBeGreaterThan(0);
+    expect(seedErrors.join(' ')).toContain('seed mismatch');
+    // Doctored content — the state references a card this build has never shipped.
+    const parsed = JSON.parse(scenario!.state) as { board: Array<{ cardId: string }> };
+    parsed.board = [...parsed.board];
+    parsed.board[0] = { ...(parsed.board[0] ?? { cardId: 'x' }), cardId: 'card_from_the_future' };
+    const cardDoctored = { ...scenario!, state: JSON.stringify(parsed) };
+    const cardErrors = validateQaScenario(cardDoctored);
+    expect(cardErrors.join(' ')).toContain("unknown card id 'card_from_the_future'");
+  });
+});
+
+describe('bugs → QaScenarioV1 — combat report (re-simulation + drift, §11.2 step 4)', () => {
+  // The opponent must be a REAL pinned BoardSnapshot for combat mode to be expressible — snapshot a second
+  // deterministic run's wave-1 board and pre-pin it, the exact shape a restored run carries.
+  const opponent: BoardSnapshot = snapshotBoard(recordRun(11, false).state);
+  const { state, actions } = recordRun(7, true, opponent);
+  const envelope = makeEnvelope(state, actions);
+
+  it('the capture actually fought the pinned board', () => {
+    expect(state.phase).toBe('combat');
+    expect(actions[actions.length - 1]!.type).toBe('faceOmen');
+    expect((state.servedBoards ?? {})[state.wave]).toBe(opponent);
+  });
+
+  it('emits a combat-mode scenario carrying the captured servedBoards pin as combat.opponent', () => {
+    const { scenario, notes } = buildQaScenarioFromEnvelope(envelope);
+    expect(scenario).not.toBeNull();
+    expect(scenario!.mode).toBe('combat');
+    expect(scenario!.combat?.opponent.minions.map((m) => m.cardId)).toEqual(opponent.minions.map((m) => m.cardId));
+    expect(notes.join(' ')).toContain('pre-combat state rebuilt');
+    expect(validateQaScenario(scenario)).toEqual([]);
+  });
+
+  it('re-simulates through the real engine and RECONCILES with the captured outcome (reproduced)', () => {
+    const qa = qaScenarioRepro(envelope);
+    expect(qa.classification).toBe('reproduced');
+    expect(qa.comparison.applicable).toBe(true);
+    expect(qa.comparison.drifted).toBe(false);
+    expect(qa.result?.combatOutcome).toBe(state.lastCombat!.result);
+    expect(qa.result?.combatLog?.length).toBe(state.lastCombat!.events.length);
+  });
+
+  it('SABOTAGE: a doctored captured outcome reports DRIFT, not silence', () => {
+    const doctored: BugReportEnvelope = {
+      ...envelope,
+      context: {
+        ...envelope.context,
+        combat: {
+          ...envelope.context.combat!,
+          result: {
+            ...envelope.context.combat!.result,
+            result: envelope.context.combat!.result.result === 'win' ? 'lose' : 'win',
+          },
+        },
+      },
+    };
+    const qa = qaScenarioRepro(doctored);
+    expect(qa.classification).toBe('drifted');
+    expect(qa.comparison.drifted).toBe(true);
+    expect(qa.lines.join('\n')).toContain('outcome differs');
+  });
+
+  it('compareCapturedCombat itemizes a doctored event (first differing index), never hides it', () => {
+    const qa = qaScenarioRepro(envelope);
+    const doctoredCombat = {
+      ...envelope.context.combat!,
+      result: {
+        ...envelope.context.combat!.result,
+        events: envelope.context.combat!.result.events.map((e, i) => (i === 0 ? { ...e, doctored: true } : e)),
+      },
+    };
+    const cmp = compareCapturedCombat(doctoredCombat, qa.result);
+    expect(cmp.drifted).toBe(true);
+    expect(cmp.lines.join(' ')).toContain('first differing event: #0');
+  });
+});
+
+describe('untrustedClaimQuestion', () => {
+  it('marks the claim untrusted, collapses whitespace, clips long prose', () => {
+    const q = untrustedClaimQuestion('line one\n\n  line two');
+    expect(q).toContain('UNTRUSTED');
+    expect(q).toContain('"line one line two"');
+    expect(untrustedClaimQuestion('x'.repeat(2000)).length).toBeLessThan(700);
   });
 });

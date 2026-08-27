@@ -11,6 +11,7 @@ import { describe, expect, it } from 'vitest';
 import { CARD_INDEX, RUNE_INDEX } from '@game/content';
 import { APPROVED_RULES, DECISIONS, PENDING_RULES, allRules } from './index';
 import { RETIRED_IDS, RETIRED_RULES } from './registry/retired';
+import { AUTO_RETIRED_IDS, AUTO_RETIRED_RULES } from './registry/retired.generated';
 
 describe('rulebook registry integrity', () => {
   const all = [...APPROVED_RULES, ...PENDING_RULES];
@@ -29,16 +30,35 @@ describe('rulebook registry integrity', () => {
   it('every decision references an existing rule, and revisions carry wording', () => {
     const known = new Set(all.map((r) => r.id));
     for (const [id, d] of Object.entries(DECISIONS)) {
-      expect(known.has(id) || RETIRED_IDS.has(id), `decision on unknown rule '${id}' — if its queue item resolved, retire it explicitly in registry/retired.ts`).toBe(true);
+      expect(known.has(id) || RETIRED_IDS.has(id) || AUTO_RETIRED_IDS.has(id), `decision on unknown rule '${id}' — if its queue item resolved, retire it explicitly in registry/retired.ts`).toBe(true);
       if (d.decision === 'revise') expect(d.note, `${id}: a revise decision must carry the owner's wording`).toBeTruthy();
     }
   });
 
-  it('retired rules carry a disposition and never shadow a live rule', () => {
+  it('retired rules (hand and auto) carry a disposition and never shadow a live rule', () => {
     const live = new Set(all.map((r) => r.id));
-    for (const r of RETIRED_RULES) {
+    for (const r of [...RETIRED_RULES, ...AUTO_RETIRED_RULES]) {
       expect(r.why.length, `${r.id} retired with no disposition`).toBeGreaterThan(20);
       expect(live.has(r.id), `${r.id} is retired AND still live — pick one`).toBe(false);
+    }
+  });
+
+  it('ids are never recycled: a tombstoned or approved id never reappears as a NEW pending id', () => {
+    const approvedIds = new Set(APPROVED_RULES.map((r) => r.id));
+    for (const p of PENDING_RULES) {
+      expect(RETIRED_IDS.has(p.id), `pending '${p.id}' resurrects a hand-retired id`).toBe(false);
+      expect(AUTO_RETIRED_IDS.has(p.id), `pending '${p.id}' resurrects an auto-retired id`).toBe(false);
+      expect(approvedIds.has(p.id), `pending '${p.id}' recycles an approved rule id`).toBe(false);
+    }
+    // And the two tombstone files never disagree about who owns an id.
+    for (const r of RETIRED_RULES) expect(AUTO_RETIRED_IDS.has(r.id), `${r.id} tombstoned in BOTH retired files`).toBe(false);
+  });
+
+  it('rejected decisions never correspond to a still-pending rule (§10.4 — the seeder must tombstone them)', () => {
+    const pendingIds = new Set(PENDING_RULES.map((r) => r.id));
+    for (const [id, d] of Object.entries(DECISIONS)) {
+      if (d.decision !== 'reject') continue;
+      expect(pendingIds.has(id), `'${id}' was REJECTED but is still on the pending board — run \`npm run rules:seed\` (its hygiene pass tombstones rejects into retired.generated.ts)`).toBe(false);
     }
   });
 
@@ -51,7 +71,7 @@ describe('rulebook registry integrity', () => {
   });
 
   it('the backlog is real (a seeding collapse must fail loudly, not read as all-decided)', () => {
-    expect(PENDING_RULES.length).toBeGreaterThanOrEqual(4); // the owner's 2026-08-26 triage session drained the board to the 4 standing policy/watch cards; the 18 resolved ids live in registry/retired.ts
+    expect(PENDING_RULES.length).toBeGreaterThanOrEqual(3); // the owner's 2026-08-26 triage session drained the board to the standing policy/watch cards; the resolved ids live in registry/retired.ts, and the rejected rune-duplicates card is tombstoned in retired.generated.ts
     expect(allRules().length).toBe(APPROVED_RULES.length + PENDING_RULES.length);
   });
 });

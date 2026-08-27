@@ -200,8 +200,9 @@ const pupBody = (uid: string, tribe: string, cardId = 'pup'): BoardCard =>
  *  Instance tribes are authoritative in the shop (`isTribe` reads `card.tribe` first), and the bodies are
  *  behaviour-free, so no fixture watcher can mask or fake a delta (the playScan clean-token lesson). The
  *  ids are DISTINCT on purpose: this fixture's first draft used seven Pups and the reducer TRIPLE-COMBINED
- *  three of them mid-measurement, which read as effects "eating" fixture bodies. */
-function tribeRow(): BoardCard[] {
+ *  three of them mid-measurement, which read as effects "eating" fixture bodies.
+ *  (Exported for the target-cardinality oracle, which re-drives the SAME fixtures to normalize recipients.) */
+export function tribeRow(): BoardCard[] {
   const row: Array<[string, string]> = [
     ['pup', 'beast'], ['omen', 'demon'], ['cindarawhelp', 'dragon'], ['stray', 'dwarf'],
     ['gemheart-shard', 'kobold'], ['nanobot', 'mech'], ['cryptwolf', 'undead'],
@@ -209,7 +210,7 @@ function tribeRow(): BoardCard[] {
   return row.map(([id, t], i) => pupBody(`fix${i}`, t, id));
 }
 
-function shopBase(board: BoardCard[]): RunState {
+export function shopBase(board: BoardCard[]): RunState {
   return {
     ...createRun(0x7e11, 'aster'),
     wave: 8,
@@ -275,7 +276,7 @@ export function runSpellLane(def: CardDef, printed: PrintedBuff, arm?: (s: RunSt
 /** The six-body SHOP fixture row for minion plays: one clean token each of beast/dragon/dwarf/kobold/undead
  *  plus Fred (the FD Fodder token, demon) and the Attachment token retribed mech — so Fodder-, Attachment-
  *  and most tribe-scoped grants all have a recipient while one slot stays free for the play itself. */
-function shoutRow(): BoardCard[] {
+export function shoutRow(): BoardCard[] {
   return [
     pupBody('fix0', 'beast'),
     pupBody('fix1', 'dragon', 'cindarawhelp'),

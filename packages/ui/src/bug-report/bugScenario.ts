@@ -15,7 +15,7 @@
  * clearly-quoted block, never instructions. Nothing in this module (or the panel) interprets it.
  */
 import type { CombatEvent, CombatResult } from '@game/core';
-import type { BugClientContext, BugIncidentCapsule } from './bugReportTypes';
+import type { BugClientContext, BugCombatContext, BugIncidentCapsule } from './bugReportTypes';
 import { BUG_REPORT_SCHEMA_VERSION } from './bugReportTypes';
 
 export const BUG_SCENARIO_KIND = 'bug-scenario' as const;
@@ -38,9 +38,92 @@ export type BugScenarioParse =
   | { ok: false; errors: string[] };
 
 /**
- * Parse + structurally validate a scenario file's raw JSON text. Rejects (never throws) on: unparseable
- * JSON, a wrong `kind`, an unsupported `schemaVersion`, and a missing/structurally broken capsule. The
- * checks mirror `validateBugReportEnvelope`'s capsule section — the capsule contract is the same one.
+ * QA-SCENARIO UNIFICATION (PR 9, handoff §3.3): `bugs:repro` now also emits `qa-scenario.json` — a
+ * `QaScenarioV1` (`packages/sim/src/qaScenario.ts`) with `source: 'bug-report'`. This parser accepts BOTH
+ * formats through one door, sniffed structurally: the legacy file by `kind: 'bug-scenario'`, the QA envelope
+ * by `schemaVersion: 1` + a string `source` + a string `state`. A QA scenario is PROJECTED into the same
+ * `BugScenarioFile` shape the store already loads: a synthetic capsule built from the envelope + the fields
+ * of its serialized state (`state` IS a `serialize(run)` string — the same thing `capsule.serializedRun`
+ * carries), so `loadBugScenario` and the panel need no second path. The projection is structural only — like
+ * the legacy path, content-id validation stays in `loadBugScenario` (`missingCardIds`), so a capture from a
+ * newer content revision still loads READ-ONLY instead of being refused at parse.
+ */
+function parseQaScenarioFile(o: Record<string, unknown>): BugScenarioParse {
+  const errors: string[] = [];
+  if (o.schemaVersion !== 1) errors.push(`Unsupported QA scenario schemaVersion: ${JSON.stringify(o.schemaVersion ?? null)} (this build reads v1).`);
+  if (o.source !== 'bug-report') errors.push(`QA scenario source ${JSON.stringify(o.source ?? null)} — only 'bug-report' scenarios load here (Scene Builder export/import is the PR-2 bridge).`);
+  if (typeof o.seed !== 'number') errors.push('QA scenario missing seed.');
+  if (typeof o.setId !== 'string' || !o.setId) errors.push('QA scenario missing setId.');
+  if (typeof o.state !== 'string' || o.state.length === 0) errors.push('QA scenario missing state (the serialized run).');
+  let run: Record<string, unknown> | null = null;
+  if (typeof o.state === 'string' && o.state.length > 0) {
+    try {
+      run = JSON.parse(o.state) as Record<string, unknown>;
+    } catch {
+      errors.push('QA scenario state is not valid JSON.');
+    }
+  }
+  if (run && typeof run.heroId !== 'string') errors.push('QA scenario state carries no heroId — not a serialized run.');
+  if (errors.length > 0) return { ok: false, errors };
+
+  const meta = (o.metadata ?? {}) as Record<string, unknown>;
+  const expectations = Array.isArray(o.expectations) ? (o.expectations as Array<Record<string, unknown>>) : [];
+  // The player's claim rides in the needs-ruling expectation (untrusted, quoted) — that IS the description.
+  const questions = expectations
+    .filter((e) => e.kind === 'needs-ruling' && typeof e.question === 'string')
+    .map((e) => e.question as string);
+  const description = questions.join('\n\n')
+    || (typeof meta.notes === 'string' ? meta.notes : '')
+    || (typeof o.title === 'string' ? o.title : '(no description carried)');
+  // `metadata.notes` carries `issueType <x>` by the emitter's convention; absent → 'unknown'.
+  const issueType = typeof meta.notes === 'string' && meta.notes.startsWith('issueType ')
+    ? meta.notes.slice('issueType '.length)
+    : 'unknown';
+  const heroId = run!.heroId as string;
+  const lastCombat = run!.lastCombat as BugCombatContext['result'] | undefined;
+  const capsule: BugIncidentCapsule = {
+    runId: `${o.seed as number}:${heroId}`,
+    seed: o.seed as number,
+    heroId,
+    mode: (typeof run!.mode === 'string' ? run!.mode : 'ascent') as BugIncidentCapsule['mode'],
+    setId: o.setId as string,
+    wave: typeof run!.wave === 'number' ? run!.wave : 0,
+    phase: (typeof run!.phase === 'string' ? run!.phase : 'recruit') as BugIncidentCapsule['phase'],
+    shopTier: typeof run!.tier === 'number' ? run!.tier : 1,
+    timerSecondsRemaining: null,
+    serializedRun: o.state as string,
+    actions: [], // a QA scenario carries state, not history — the legacy scenario.json keeps the action log
+    currentWaveFrames: [],
+    previousWaveFrames: [],
+    combat: lastCombat
+      ? { result: lastCombat, visibleMomentIndex: null, visibleEventStep: null, replayDone: true, playbackSpeed: 1 }
+      : null,
+    ui: {
+      selectedCardUid: null, selectedCardId: null, pendingTargetCardId: null, modalKind: null,
+      draggingCardUid: null, viewport: { width: 0, height: 0, devicePixelRatio: 1 },
+    },
+    contextTruncated: [],
+  };
+  return {
+    ok: true,
+    scenario: {
+      schemaVersion: BUG_REPORT_SCHEMA_VERSION,
+      kind: BUG_SCENARIO_KIND,
+      reportId: (typeof meta.reportId === 'string' && meta.reportId) || (typeof o.id === 'string' ? o.id : '(unknown report)'),
+      description,
+      issueType,
+      capsule,
+      ...(typeof meta.appVersion === 'string' ? { client: { appVersion: meta.appVersion } } : {}),
+    },
+  };
+}
+
+/**
+ * Parse + structurally validate a scenario file's raw JSON text — BOTH formats (see `parseQaScenarioFile`):
+ * the legacy `scenario.json` (`kind: 'bug-scenario'`) and the unified `qa-scenario.json` (`QaScenarioV1`,
+ * `source: 'bug-report'`). Rejects (never throws) on: unparseable JSON, a wrong `kind`, an unsupported
+ * `schemaVersion`, and a missing/structurally broken capsule. The legacy checks mirror
+ * `validateBugReportEnvelope`'s capsule section — the capsule contract is the same one.
  */
 export function parseBugScenario(raw: string): BugScenarioParse {
   let data: unknown;
@@ -53,6 +136,11 @@ export function parseBugScenario(raw: string): BugScenarioParse {
     return { ok: false, errors: ['Not a JSON object.'] };
   }
   const o = data as Record<string, unknown>;
+  // Format sniff: a QaScenarioV1 has no `kind` but declares a `source` + serialized `state`; anything that
+  // looks like one routes to the QA branch (whose own validation then speaks QA-scenario language).
+  if (o.kind === undefined && typeof o.source === 'string' && 'state' in o) {
+    return parseQaScenarioFile(o);
+  }
   const errors: string[] = [];
   if (o.kind !== BUG_SCENARIO_KIND) errors.push(`Not a bug scenario (kind: ${JSON.stringify(o.kind ?? null)} — expected '${BUG_SCENARIO_KIND}').`);
   if (o.schemaVersion !== BUG_REPORT_SCHEMA_VERSION) errors.push(`Unsupported schemaVersion: ${JSON.stringify(o.schemaVersion ?? null)} (this build reads v${BUG_REPORT_SCHEMA_VERSION}).`);

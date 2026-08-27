@@ -48,12 +48,10 @@ describe('the "All types" cards are flagged in DATA', () => {
 // Every live card is arted as of 2026-08-20 — this stays as the seam for the NEXT batch: add an id here
 // when its card ships ahead of its artwork, and delete it the moment the art lands.
 const ART_PENDING = new Set<string>([
-  // GIFTS (owner batch 2026-08-26) — the class shipped with art for 8 of its 15; these are awaiting masters.
-  'gift_larceny', 'gift_friends_family', 'gift_grave_invitation', 'gift_fast_track',
-  'gift_special_delivery', 'gift_second_calling', 'gift_parting_gifts',
-  // `Gifts/UnbridledWrath.png` exists but the card is **Unbridled Might** — a near-miss, not a match, so it is
-  // deliberately NOT wired (never guess from an unattributed file). Wire it the moment the owner confirms.
-  'gift_unbridled',
+  // GIFTS — 14 of the 15 are arted as of 2026-08-27 (the second Gifts master batch landed, including a
+  // properly-named `UnbridledMight.png` that resolved the old UnbridledWrath near-miss). Grand Larceny is
+  // the one Gift still awaiting a master.
+  'gift_larceny',
 ]);
 
 describe('art coverage for live cards', () => {

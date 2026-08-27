@@ -56,6 +56,17 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-08-27',
+    label: 'Art Batch',
+    changes: [
+      { category: 'UI / Info', text: 'New illustrations: 7 more Gifts, the two Gift runes, and a new Aevor portrait.', details: [
+        'Fast Track, Friends and Family, Grave Invitation, Parting Gifts, Second Calling, Special Delivery and Unbridled Might each get their art — 14 of the 15 Gifts are now illustrated.',
+        'Happy Birthday and Merry Christmas wear their rune art in the Runeforge.',
+        'Aevor has a brand-new portrait.',
+      ] },
+    ],
+  },
+  {
+    date: '2026-08-27',
     label: 'Bug Reporter',
     changes: [
       {

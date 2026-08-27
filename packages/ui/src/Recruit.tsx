@@ -1562,6 +1562,8 @@ export function Recruit() {
   // → 'out' (sweep R→L, shop art returns) → 'idle'. Advanced by the clip-path transition's transitionend;
   // a run RESUMED mid-combat initialises straight to 'combat' so the layer shows with no transition.
   const [wipe, setWipe] = useState<'idle' | 'in' | 'combat' | 'out'>(() => (run.phase === 'combat' ? 'combat' : 'idle'));
+  const wipeRef = useRef(wipe);
+  wipeRef.current = wipe;
   const wipeTimeoutRef = useRef<number | undefined>(undefined);
   const advanceWipe = useCallback((): void => {
     setWipe((w) => (w === 'in' ? 'combat' : w === 'out' ? 'idle' : w));
@@ -1569,6 +1571,16 @@ export function Recruit() {
   useEffect(() => {
     if (inCombat) setWipe((w) => (w === 'combat' || w === 'in' ? w : 'in'));
     else setWipe((w) => (w === 'combat' || w === 'in' ? 'out' : w));
+    // The wipe's Pixi garnish — a def the owner authors/tunes in the FX workbench, fired along the front's
+    // path (left→right entering combat, right→left leaving). `playDef` declines harmlessly (null) when the
+    // renderer isn't up yet. Deliberately NOT keyed on `wipe`: this effect runs exactly once per phase flip.
+    const entering = inCombat;
+    const alreadyThere = entering ? wipeRef.current === 'combat' || wipeRef.current === 'in' : wipeRef.current === 'idle' || wipeRef.current === 'out';
+    if (!alreadyThere) {
+      const y = window.innerHeight / 2;
+      const w = window.innerWidth;
+      playDef('board-wipe', entering ? { source: { x: 0, y }, target: { x: w, y } } : { source: { x: w, y }, target: { x: 0, y } });
+    }
   }, [inCombat]);
   // BACKSTOP — a dropped/never-fired transitionend (a backgrounded tab, a retargeted zero-delta transition)
   // would otherwise wedge `wipe` at 'in'/'out' forever, leaving `.wipefront`'s glow lit indefinitely even

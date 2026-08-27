@@ -25,6 +25,7 @@ const UI_SRC = join(__dirname, '..');
 const UNIT_LESS: { file: string; id: string; why: string }[] = [
   { file: 'Recruit.tsx', id: 'tallyanimation1', why: 'flies from the tally centre to the attack pill by coords, not at a unit' },
   { file: 'Recruit.tsx', id: 'click-puff', why: 'fires at the cursor' },
+  { file: 'Recruit.tsx', id: 'board-wipe', why: 'races the combat-entry/exit wipe front edge to edge by screen coords, not at a unit' },
   { file: 'Recruit.tsx', id: 'coin', why: 'fires at the gold pill' },
   { file: 'EndTurnButton.tsx', id: 'impact-dust', why: 'fires at the button' },
   { file: 'RefreshButton.tsx', id: 'impact-dust', why: 'fires at the button' },

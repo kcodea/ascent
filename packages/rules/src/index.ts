@@ -15,10 +15,19 @@ import decisionsJson from './registry/decisions.json';
 import { APPROVED_RULES } from './registry/approved';
 import { PENDING_RULES } from './registry/pending.generated';
 import { effectiveStatus, type DecisionMap, type GameRule, type RuleDecision, type RuleStatus } from './schema';
+import { enforcementOf } from './enforcement';
 
 export * from './schema';
 export { APPROVED_RULES } from './registry/approved';
 export { PENDING_RULES } from './registry/pending.generated';
+export { RETIRED_RULES, RETIRED_IDS, type RetiredRule } from './registry/retired';
+export { AUTO_RETIRED_RULES, AUTO_RETIRED_IDS } from './registry/retired.generated';
+export {
+  ENFORCEMENT_LANES, RULE_ENFORCEMENT, enforcementOf, enforcementErrors, unenforcedApproved,
+  type EnforcementLane, type EnforcementCheckEnv,
+} from './enforcement';
+export { applySeedHygiene, type SeedHygieneInput, type SeedHygieneResult } from './seedSupport';
+export { ruleImpact, enforcementFiles, type RuleImpactInput, type RuleImpactReport, type TouchedRule } from './ruleImpact';
 
 export const DECISIONS: DecisionMap = decisionsJson as DecisionMap;
 
@@ -28,11 +37,15 @@ export interface ResolvedRule extends GameRule {
 }
 
 export function allRules(): ResolvedRule[] {
-  return [...APPROVED_RULES, ...PENDING_RULES].map((r) => ({
-    ...r,
-    effective: effectiveStatus(r, DECISIONS),
-    ...(DECISIONS[r.id] ? { decision: DECISIONS[r.id] } : {}),
-  }));
+  return [...APPROVED_RULES, ...PENDING_RULES].map((r) => {
+    const enforcement = enforcementOf(r);
+    return {
+      ...r,
+      effective: effectiveStatus(r, DECISIONS),
+      ...(DECISIONS[r.id] ? { decision: DECISIONS[r.id] } : {}),
+      ...(enforcement ? { enforcement } : {}),
+    };
+  });
 }
 
 /** The board's worklist: still-undecided pending rules. */

@@ -429,3 +429,57 @@ create index if not exists rated_runs_user_time on public.rated_runs (user_id, c
 -- write-once profiles UPDATE policy already blocks a row update, and this removes the RPC that was the sole
 -- sanctioned client path. RUN ONLY ONCE THE FUNCTION IS DEPLOYED (see order of operations above).
 revoke execute on function public.submit_own_rating(int) from authenticated;
+
+-- ══════════════════════════════════════════════════════════════════════════════════════════════════════════
+-- BUG REPORTS — the in-game Ctrl+B reporter's intake (2026-08-27). One row per submitted report: the player's
+-- description plus the deterministic incident capsule (serialized run, action history, combat events) in
+-- `report`. Written ONLY through the `submit-bug-report` Edge Function (service role); clients hold no insert
+-- policy, so the function's validation/rate-limits can't be bypassed. Players may read their own reports;
+-- status/severity/priority/triage are developer-only writes (service role — the in-game Bug Board's dev-server
+-- plugin and the bugs:* CLI). Idempotent; paste into the SQL Editor and Run.
+create table if not exists public.bug_reports (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users(id) on delete set null,
+  client_report_id text not null,
+  created_at timestamptz not null default now(),
+  player_created_at timestamptz not null,
+  status text not null default 'new'
+    check (status in ('new', 'triaged', 'reproduced', 'needs_info', 'fixed', 'closed', 'duplicate')),
+  severity text null
+    check (severity is null or severity in ('critical', 'high', 'medium', 'low')),
+  -- Owner Bug Board ordering: lower = fix first; null = unranked. Set from the dev Bug Board / bugs:* CLI.
+  priority int null,
+  issue_type text not null,
+  description text not null,
+  patch text not null,
+  content_revision text not null,
+  mode text not null,
+  set_id text not null,
+  hero_id text not null,
+  seed bigint not null,
+  wave int not null,
+  phase text not null,
+  report jsonb not null,
+  fingerprint text null,
+  duplicate_of uuid references public.bug_reports(id),
+  triage jsonb null,
+  resolution jsonb null,
+  unique(user_id, client_report_id)
+);
+
+create index if not exists bug_reports_status_created
+  on public.bug_reports(status, created_at desc);
+
+create index if not exists bug_reports_patch
+  on public.bug_reports(patch, created_at desc);
+
+create index if not exists bug_reports_fingerprint
+  on public.bug_reports(fingerprint) where fingerprint is not null;
+
+alter table public.bug_reports enable row level security;
+
+-- No INSERT policy on purpose: submission goes through the Edge Function (service role bypasses RLS).
+drop policy if exists "read own bug reports" on public.bug_reports;
+create policy "read own bug reports"
+  on public.bug_reports for select to authenticated
+  using (auth.uid() = user_id);

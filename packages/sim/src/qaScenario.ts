@@ -42,6 +42,17 @@ export const stableStringify = (v: unknown): string => {
   return JSON.stringify(v) ?? 'null';
 };
 
+/** 32-bit FNV-1a over a string, rendered as 8 hex chars — the WP C state-hash rail. Pure, dependency-free,
+ *  and cheap enough to run per accepted action (the ring buffer's cost is measured in bug-report PR notes). */
+export const fnv1a = (s: string): string => {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return (h >>> 0).toString(16).padStart(8, '0');
+};
+
 // ── The envelope ───────────────────────────────────────────────────────────────────────────────────────────
 
 /** The output of `serialize(runState)` — a JSON string, carried opaque so the envelope survives run-state
@@ -50,6 +61,27 @@ export type SerializedRunState = string;
 
 export type QaScenarioSource = 'generated' | 'scene-builder' | 'bug-report' | 'regression' | 'retro';
 export type QaScenarioMode = 'recruit' | 'combat' | 'lobby';
+
+/**
+ * WP C (canonical-schemas.md §1) — one entry of a bounded ACTION TRAIL: an exact recorded action plus the
+ * observational reproduction rails around it. `state` remains the checkpoint; a trail replays from it.
+ * Every rail field is OPTIONAL per entry — old capsules/scenarios without them stay valid, and an absent
+ * rail is honestly absent (never fabricated, §4.3). The rails are read from state (`rngCursor` is a plain
+ * serialized field; the hashes are `fnv1a(normalizeRunState(s))`) — recording them consumes NO rng and
+ * mutates nothing (the traceNeutrality lane is the standing proof).
+ *
+ * Deliberately NOT here (deferred, recorded as a judgement call in the WP C devlog): per-roll `rngRecords`
+ * (§4.4's makeRng tap — the cursor rail already pinpoints the first divergent action without wrapping the
+ * generator) and `resolvedTargets` (no emission substrate yet).
+ */
+export interface RecordedActionWindow {
+  action: Action;
+  /** `state.rngCursor` immediately BEFORE the action was reduced. */
+  rngCursorBefore?: number;
+  /** `fnv1a(normalizeRunState(state))` immediately before / after the action. */
+  stateHashBefore?: string;
+  stateHashAfter?: string;
+}
 
 export interface QaScenarioV1 {
   schemaVersion: 1;
@@ -66,6 +98,17 @@ export interface QaScenarioV1 {
   /** The single action to execute (recruit/lobby). Combat mode executes the real `faceOmen` hand-off; an
    *  explicit action there must BE `faceOmen` (validated) — combat is never resolved by a side path. */
   action?: Action;
+  /** WP C (§8.2 exact shop/recruit reproduction) — a bounded ACTION TRAIL replacing the single-action
+   *  limitation for reports that need sequencing. `state` remains the checkpoint; the trail replays from it
+   *  through the real reducer, and any recorded rails (rng cursor / state hashes) are verified per action —
+   *  the FIRST divergent action is reported precisely (`QaScenarioResult.firstDivergence`). Mutually
+   *  exclusive with `action` (validated). Recruit/lobby modes only — combat resolves through the one
+   *  `faceOmen` hand-off (a trail may itself END in a `faceOmen` entry). */
+  actions?: RecordedActionWindow[];
+  /** WP C (§8.1) — a captured semantic-trace fragment: EVIDENCE of what a run produced, never an oracle
+   *  (expectations stay in `expectations`). Entries are recruit presentation events and/or combat semantic
+   *  events from the trace adapter; carried opaque (JSON) so envelope validation doesn't chase their unions. */
+  observedSemantic?: JsonValue[];
   combat?: {
     /** The exact enemy board — pinned into `servedBoards` so the REAL reducer path serves it verbatim. */
     opponent: BoardSnapshot;
@@ -261,6 +304,34 @@ export function validateQaScenario(raw: unknown): string[] {
     }
   }
 
+  if (s.actions !== undefined) {
+    if (!Array.isArray(s.actions) || s.actions.length === 0) {
+      errors.push('actions, when present, must be a non-empty array of RecordedActionWindow entries');
+    } else {
+      if (s.action !== undefined) errors.push('action and actions are mutually exclusive — a trail replaces the single action');
+      if (s.mode === 'combat') errors.push("mode 'combat' resolves through the one faceOmen hand-off — use mode 'recruit'/'lobby' for an action trail (it may end in a faceOmen entry)");
+      for (const [i, w] of s.actions.entries()) {
+        const t = (w as { action?: { type?: unknown } }).action?.type;
+        if (typeof t !== 'string' || !(t in ACTION_TYPES)) {
+          errors.push(`actions[${i}].action.type ${JSON.stringify(t)} is not a known Action type`);
+        }
+        const cur = (w as { rngCursorBefore?: unknown }).rngCursorBefore;
+        if (cur !== undefined && (typeof cur !== 'number' || !Number.isFinite(cur))) {
+          errors.push(`actions[${i}].rngCursorBefore must be a finite number when present`);
+        }
+        for (const k of ['stateHashBefore', 'stateHashAfter'] as const) {
+          const h = (w as unknown as Record<string, unknown>)[k];
+          if (h !== undefined && (typeof h !== 'string' || h.length === 0)) {
+            errors.push(`actions[${i}].${k} must be a non-empty string when present`);
+          }
+        }
+      }
+    }
+  }
+  if (s.observedSemantic !== undefined && !Array.isArray(s.observedSemantic)) {
+    errors.push('observedSemantic, when present, must be an array');
+  }
+
   if (s.mode === 'combat') {
     if (!s.combat?.opponent) errors.push("mode 'combat' requires combat.opponent (the exact enemy BoardSnapshot)");
     if (s.action && (s.action as { type?: string }).type !== 'faceOmen') {
@@ -345,6 +416,11 @@ export function normalizeRunState(s: RunState): string {
   return stableStringify(o);
 }
 
+/** WP C — the per-action state-hash rail: FNV-1a over the normalized run state. Both sides of the exact-
+ *  reproduction comparison (the ring buffer's recorder and the replay verifier) MUST use this one function,
+ *  so a hash mismatch always means the states diverged, never that two callers normalized differently. */
+export const hashRunState = (s: RunState): string => fnv1a(normalizeRunState(s));
+
 // ── The runner ─────────────────────────────────────────────────────────────────────────────────────────────
 
 export interface QaExpectationResult {
@@ -378,6 +454,16 @@ export interface QaScenarioResult {
   /** §16 identity the run was evaluated under — the caller's stamp (runQaScenario opts) or, failing that,
    *  the scenario's own recorded revision. Absent when neither supplied one (legacy callers unchanged). */
   semanticRevision?: string;
+  /** WP C — when the scenario carried an action TRAIL with recorded rails, the FIRST action whose observed
+   *  rail (rng cursor before, or state hash before/after) differed from the recording. Absent when the trail
+   *  replayed exactly (or carried no rails). A divergence fails `ok` — the recording no longer reproduces. */
+  firstDivergence?: {
+    actionIndex: number;
+    actionType: string;
+    rail: 'rng-cursor-before' | 'state-hash-before' | 'state-hash-after' | 'action-rejected';
+    expected: string;
+    observed: string;
+  };
 }
 
 const failResult = (scenario: Partial<QaScenarioV1>, errors: string[]): QaScenarioResult => ({
@@ -462,7 +548,38 @@ export function runQaScenario(
   const action: Action | undefined = scenario.mode === 'combat' ? { type: 'faceOmen' } : scenario.action;
   let after: RunState = state;
   let events: GamePresentationEvent[] = [];
-  if (action) {
+  let firstDivergence: QaScenarioResult['firstDivergence'];
+  if (scenario.actions?.length) {
+    // WP C exact ACTION-TRAIL replay: every entry through the real reducer, each recorded rail verified as
+    // we go. The trail keeps executing past a divergence (the final state is still evidence), but only the
+    // FIRST divergent action is reported — that is the pinpoint the whole-history drift check couldn't give.
+    for (const [i, w] of scenario.actions.entries()) {
+      const diverge = (rail: NonNullable<QaScenarioResult['firstDivergence']>['rail'], expected: string, observed: string): void => {
+        if (!firstDivergence) firstDivergence = { actionIndex: i, actionType: w.action.type, rail, expected, observed };
+      };
+      // The hermetic wave pin, per dispatched action (a trail may cross faceOmen into later waves) — same
+      // key-presence semantics as the boundary pin above. Applied BEFORE the rail checks: the recorder
+      // contract is pin-then-record, so recorded and observed hashes cover identical states.
+      if (!(after.wave in (after.servedBoards ?? {}))) {
+        after.servedBoards = { ...(after.servedBoards ?? {}), [after.wave]: null };
+      }
+      if (w.rngCursorBefore !== undefined && after.rngCursor !== w.rngCursorBefore) {
+        diverge('rng-cursor-before', String(w.rngCursorBefore), String(after.rngCursor));
+      }
+      if (w.stateHashBefore !== undefined) {
+        const h = hashRunState(after);
+        if (h !== w.stateHashBefore) diverge('state-hash-before', w.stateHashBefore, h);
+      }
+      const { state: next, batch } = reduceWithPresentation(after, w.action, true);
+      if (next === after) diverge('action-rejected', 'accepted (the recording logs only accepted actions)', 'rejected (reducer returned the same state)');
+      if (batch) events = events.concat(batch.events);
+      after = next;
+      if (w.stateHashAfter !== undefined) {
+        const h = hashRunState(after);
+        if (h !== w.stateHashAfter) diverge('state-hash-after', w.stateHashAfter, h);
+      }
+    }
+  } else if (action) {
     const { state: next, batch } = reduceWithPresentation(state, action, true);
     after = next;
     events = batch?.events ?? [];
@@ -530,11 +647,15 @@ export function runQaScenario(
   });
 
   const failed = expectationResults.filter((r) => !r.pass);
-  const ok = failed.length === 0;
+  const ok = failed.length === 0 && !firstDivergence;
   const repro = `npm run docbot:scenario -- ${scenario.id}`;
+  const trailLabel = scenario.actions?.length
+    ? ` · trail of ${scenario.actions.length} actions`
+    : action ? ` · action ${action.type}` : ' · no action (state assertions only)';
   const summaryLines = [
     `${ok ? 'PASS' : 'FAIL'} · ${scenario.id} · ${scenario.title}`,
-    `mode ${scenario.mode} · seed ${scenario.seed} · set ${scenario.setId}${action ? ` · action ${action.type}` : ' · no action (state assertions only)'}`,
+    `mode ${scenario.mode} · seed ${scenario.seed} · set ${scenario.setId}${trailLabel}`,
+    ...(firstDivergence ? [`  ✗ DIVERGED at action #${firstDivergence.actionIndex} (${firstDivergence.actionType}) on rail ${firstDivergence.rail}: recorded ${firstDivergence.expected}, observed ${firstDivergence.observed}`] : []),
     ...(combat ? [`combat: ${combat.result} · ${combat.events.length} events · playerDamage ${combat.playerDamage}`] : []),
     `expectations: ${expectationResults.length - failed.length}/${expectationResults.length} passed`,
     ...failed.map((r) => `  ✗ ${r.detail}`),
@@ -557,6 +678,7 @@ export function runQaScenario(
     ...(opts?.semanticRevision ?? scenario.semanticRevision
       ? { semanticRevision: opts?.semanticRevision ?? scenario.semanticRevision }
       : {}),
+    ...(firstDivergence ? { firstDivergence } : {}),
   };
 }
 

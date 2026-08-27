@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { SETS } from '@game/content';
-import { HEROES } from '@game/sim';
+import { combatSemanticTrace, type CombatSemanticEvent, type CombatTraceRef } from '@game/core';
+import { HEROES, exactWindowReplay, type WindowReplayResult } from '@game/sim';
 import { useGame } from '../store';
 import { useDraggablePanel, DevPanelContext } from '../useDraggablePanel';
 import { BUG_ISSUE_TYPE_LABELS, type BugIssueType } from './bugReportTypes';
@@ -27,15 +28,46 @@ export function BugScenarioPanel() {
   );
 }
 
+/** One-line rendering of a trace participant: uid first, label/cardId as identity fallback — never invented. */
+const refText = (r?: CombatTraceRef): string => {
+  if (!r) return '';
+  const base = r.uid ?? r.label ?? r.cardId ?? '?';
+  return r.cardId && r.uid ? `${base}(${r.cardId})` : base;
+};
+
+/** WP C Scene Builder timeline v0 — one semantic-trace row as plain text (no FX, dev-only). */
+const traceRowText = (e: CombatSemanticEvent): string => {
+  const parts = [
+    `s${e.step ?? '·'}`,
+    e.eventType,
+    `${refText(e.source)}${e.target ? `${e.source ? '→' : ''}${refText(e.target)}` : ''}`,
+  ];
+  if (e.amount !== undefined) parts.push(String(e.amount));
+  const cause: string[] = [];
+  if (e.cause?.srcCard) cause.push(e.cause.srcCard);
+  if (e.cause?.key) cause.push(e.cause.key);
+  if (e.cause?.avenge) cause.push('avenge');
+  if (cause.length) parts.push(`⟨${cause.join(' ')}⟩`);
+  return parts.filter(Boolean).join(' ');
+};
+
 function BugScenarioPanelInner() {
   const scenario = useGame((s) => s.bugScenario);
   const [collapsed, setCollapsed] = useState(false);
   const { panelRef, headerPointerDown, panelStyle } = useDraggablePanel('bugscenario');
+  // WP C timeline v0: the step-through cursor over the semantic trace + the exact-replay verdict (on demand).
+  const [traceStep, setTraceStep] = useState(0);
+  const [verify, setVerify] = useState<WindowReplayResult | null>(null);
 
   const capsule = scenario?.capsule;
   const eventLines = useMemo(
     () => (capsule?.combat ? combatEventLines(capsule.combat.result) : []),
     [capsule],
+  );
+  // The combat log adapted through the SAME pure adapter every WP C consumer uses — text rows only, no FX.
+  const trace = useMemo(
+    () => (capsule?.combat ? combatSemanticTrace(capsule.combat.result.events, { actionId: scenario?.reportId ?? 'faceOmen' }) : []),
+    [capsule, scenario?.reportId],
   );
   if (!scenario || !capsule) return null;
 
@@ -103,6 +135,76 @@ function BugScenarioPanelInner() {
               <div className="sb-empty">no combat captured (report opened before the first fight)</div>
             )}
           </div>
+
+          {trace.length > 0 && (
+            <div className="sb-sec">
+              <div className="sb-label">
+                Semantic trace <span className="sb-count">{trace.length}</span>{' '}
+                <button className="sb-collapse" onClick={() => setTraceStep((i) => Math.max(0, i - 1))} title="Previous event">◂</button>
+                <span className="sb-mini"> {Math.min(traceStep, trace.length - 1) + 1}/{trace.length} </span>
+                <button className="sb-collapse" onClick={() => setTraceStep((i) => Math.min(trace.length - 1, i + 1))} title="Next event">▸</button>
+              </div>
+              <div className="sb-results bsc-events">
+                {trace.map((e, i) => (
+                  <div
+                    key={e.eventId}
+                    className="bsc-event"
+                    title={e.eventId}
+                    style={i === Math.min(traceStep, trace.length - 1) ? { outline: '1px solid currentColor' } : undefined}
+                  >
+                    <span className="bsc-etype">{e.seq}</span>
+                    <span className="bsc-etext">{traceRowText(e)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {capsule.recentActions && capsule.recentActions.length > 0 && (
+            <div className="sb-sec">
+              <div className="sb-label">
+                Action window <span className="sb-count">{capsule.recentActions.length}</span>{' '}
+                <button
+                  className="sb-collapse"
+                  title="Replay the recorded window through the real reducer and verify every rail"
+                  onClick={() => setVerify(exactWindowReplay(capsule))}
+                >
+                  ⟳ verify
+                </button>
+              </div>
+              <div className="sb-results bsc-events">
+                {capsule.recentActions.map((w, i) => {
+                  const abs = capsule.actions.length - capsule.recentActions!.length + i;
+                  const diverged = verify?.divergence?.windowIndex === i;
+                  return (
+                    <div
+                      key={abs}
+                      className="bsc-event"
+                      title={`action #${abs} · rng ${w.rngCursorBefore ?? '?'} · after ${w.stateHashAfter ?? '?'}`}
+                      style={diverged ? { outline: '1px solid #d66', fontWeight: 600 } : undefined}
+                    >
+                      <span className="bsc-etype">{abs}</span>
+                      <span className="bsc-etext">
+                        {w.action.type}
+                        {diverged ? ` — FIRST DIVERGENCE (${verify!.divergence!.rail})` : ''}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+              {verify && (
+                <div className="sb-mini" role="status">
+                  {!verify.applicable
+                    ? verify.lines[0]
+                    : verify.ok
+                      ? '✓ window verified — every recorded rail matched'
+                      : verify.divergence
+                        ? `✗ diverged at action #${verify.divergence.actionIndex} (${verify.divergence.rail})`
+                        : `✗ ${verify.lines[verify.lines.length - 1]}`}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>

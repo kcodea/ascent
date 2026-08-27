@@ -20,8 +20,10 @@ import type { SetId } from '@game/content';
 import {
   CONFIG,
   createRun,
+  exactWindowReplay,
   reduce,
   runQaScenario,
+  type WindowReplayResult,
   serializeForScenario,
   stableStringify,
   validateQaScenario,
@@ -193,6 +195,9 @@ export interface QaReproOutcome {
   scenario: QaScenarioV1 | null;
   result: QaScenarioResult | null;
   comparison: CombatDriftComparison;
+  /** WP C — the exact per-action replay of the capsule's rolling window (when the capsule carries one).
+   *  A window divergence names the FIRST divergent action + rail; absent field = pre-WP-C capsule. */
+  windowReplay?: WindowReplayResult;
   classification: BugReproClassification;
   /** Printable report: conversion notes, the runner's summary, the drift comparison, the verdict. */
   lines: string[];
@@ -223,9 +228,21 @@ export function qaScenarioRepro(envelope: BugReportEnvelope): QaReproOutcome {
     return { scenario, result, comparison: { applicable: false, drifted: false, lines: [] }, classification: 'insufficient-evidence', lines };
   }
 
+  // WP C — exact per-action replay from the rolling window (when the capsule carries one). Runs beside the
+  // combat comparison: the window pinpoints WHICH shop action first diverged; the combat comparison keeps
+  // pinpointing WHICH combat event. Old capsules (no window) skip this silently — applicable: false.
+  const windowReplay = exactWindowReplay(envelope.context);
+  if (windowReplay.applicable) {
+    lines.push('exact window replay (rolling action window):');
+    for (const l of windowReplay.lines) lines.push(`  · ${l}`);
+  }
+
   const comparison = compareCapturedCombat(envelope.context.combat, result);
   let classification: BugReproClassification;
-  if (comparison.applicable && comparison.drifted) {
+  if (windowReplay.applicable && !windowReplay.ok) {
+    classification = 'drifted';
+    lines.push('exact window replay: DIVERGED — the recording no longer reproduces on this checkout (game or environment changed); the divergent action above is the pinpoint.');
+  } else if (comparison.applicable && comparison.drifted) {
     classification = 'drifted';
     lines.push('captured vs re-simulated combat: DRIFT');
     for (const l of comparison.lines) lines.push(`  · ${l}`);
@@ -239,5 +256,12 @@ export function qaScenarioRepro(envelope: BugReportEnvelope): QaReproOutcome {
     );
   }
   lines.push(`classification: ${classification}`);
-  return { scenario, result, comparison, classification, lines };
+  return {
+    scenario,
+    result,
+    comparison,
+    ...(windowReplay.applicable ? { windowReplay } : {}),
+    classification,
+    lines,
+  };
 }

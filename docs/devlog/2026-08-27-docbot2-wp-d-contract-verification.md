@@ -1,6 +1,6 @@
 # Doc Bot 2.0 — WP D: contract verification at scale (901 contracts, applicability-driven)
 
-**Date:** 2026-08-28 · **Package:** WP D (blueprint §9 oracle engine, §10.1 isolated contract suite,
+**Date:** 2026-08-27 · **Package:** WP D (blueprint §9 oracle engine, §10.1 isolated contract suite,
 §18-D) · **Depends on:** WP B (contracts, PR #1271), WP C (trace adapter, PR #1273)
 
 ## What shipped

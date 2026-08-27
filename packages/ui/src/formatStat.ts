@@ -17,7 +17,7 @@ export function formatStat(n: number): string {
   if (abs < 100_000) return neg + String(abs);
   for (const [size, suffix] of UNITS) {
     if (abs >= size) {
-      let value = Math.round((abs / size) * 10) / 10;
+      const value = Math.round((abs / size) * 10) / 10;
       // Rounding can carry into the next unit (999,950 → "1000k"): re-express as 1 of the unit above.
       if (value >= 1000 && suffix !== 't') return neg + formatStat(value * size);
       const text = Number.isInteger(value) ? String(value) : value.toFixed(1);

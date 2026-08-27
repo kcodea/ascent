@@ -512,17 +512,27 @@ export function replayCombatBattlecry(ctx: CombatContext, m: Minion): void {
   // THE SWITCH IS DEAD (2026-08-04). Every combat-meaningful Shout lives in FACTORIES (arena-backed, or
   // phase-split by ruling) and resolves LIVE here; anything else is economy — no tavern, Gold or hand exists
   // in pure combat — and defers to settle, where it replays through its recruit factory.
-  let economy = false;
-  for (const eff of m.effects) {
-    if (eff.on !== 'onPlay') continue;
-    const live = FACTORIES[eff.do as EffectFactoryId];
-    if (live) {
-      live(ctx, m, eff.params ?? {}, { minion: m, side: m.side });
-      continue;
+  // SHOP→COMBAT CARRY-OVER (owner ruling 2026-08-26): a Shout triggered in combat consumes the side's carried
+  // shop charges — an unspent War Drum charge on the first Shout, a Warm Embers double on each of the next N
+  // (see CombatContext.shoutCarryExtras). Guarded on a real onPlay effect so a no-op call (Ryme re-firing a
+  // Shout-less neighbour) never eats a charge. Each extra fire repeats the WHOLE Battlecry, economy defers
+  // included — the same "n fires" the shop counter would have paid.
+  const hasShout = m.effects.some((e) => e.on === 'onPlay');
+  const fires = 1 + (hasShout ? ctx.shoutCarryExtras?.(m.side) ?? 0 : 0);
+  for (let f = 0; f < fires; f++) {
+    if (f > 0) ctx.log({ type: 'sc', source: m.uid, text: `${m.name}'s Battlecry fires again (carried Shout charge)` });
+    let economy = false;
+    for (const eff of m.effects) {
+      if (eff.on !== 'onPlay') continue;
+      const live = FACTORIES[eff.do as EffectFactoryId];
+      if (live) {
+        live(ctx, m, eff.params ?? {}, { minion: m, side: m.side });
+        continue;
+      }
+      economy = true;
     }
-    economy = true;
+    if (economy) ctx.deferBattlecry(m.cardId, m.golden, m.side);
   }
-  if (economy) ctx.deferBattlecry(m.cardId, m.golden, m.side);
   // NB: the `battlecryTriggered` notify (procs Karwind / Bane / Sporeling) is emitted by the CALLER
   // (deathrattleReplayAdjacentBattlecry) once per re-fire — not here, or every watcher would double-proc.
 }

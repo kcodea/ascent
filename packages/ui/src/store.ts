@@ -62,7 +62,8 @@ import { turnClock } from './turnClock';
 import { BUG_REPORT_TX_TOAST, bugReportAvailability, buildBugReportEnvelope, buildClientContext, captureIncidentCapsule, exportBugReportJson } from './bug-report/bugReportCapture';
 import { validateBugReportDraft } from './bug-report/bugReportValidation';
 import { attemptBugReportUpload, enqueueBugReport, flushBugReportQueue, initBugReportUploads } from './bug-report/bugReportUpload';
-import type { BugReportDraft } from './bug-report/bugReportTypes';
+import type { BugClientContext, BugIncidentCapsule, BugReportDraft } from './bug-report/bugReportTypes';
+import { parseBugScenario } from './bug-report/bugScenario';
 
 
 // Serve real, buildable boards as enemies: load the COMMITTED opponent pool (`OPPONENT_POOL_DATA`, baked by
@@ -579,6 +580,33 @@ interface GameStore {
   /** PR 1: validate → build the envelope → DEV JSON export → close. PR 2 replaces the export with the
    *  IndexedDB queue + async upload (the envelope built here is that queue's exact payload). */
   submitBugReport: () => Promise<void>;
+  /** BUG REPORTER (PR 4) — the loaded `scenario.json` the Scene Builder bridge is inspecting, or null.
+   *  Holds the report's identity + capsule for the side panel; `readOnly` marks a content-revision mismatch
+   *  (§13 last row: the capsule references card ids this build no longer has), in which case the panel shows
+   *  the evidence + a mismatch banner but the run is NOT entered (it would die on the first `CARD_INDEX`
+   *  deref, deep in a render). DEV-only, like the rest of the Scene Builder rig. */
+  bugScenario: LoadedBugScenario | null;
+  /** Parse `raw` (a scenario.json's text), deserialize its captured run, and enter Scene Builder mode with
+   *  that run — flagged `sandbox`, so NOTHING writes: no autosave/Continue (`writeSave`/`flushSave`/the
+   *  dispatch autosave all guard on `run.sandbox`), no replay draft (`runRecordsDraft`), no fight-result or
+   *  run-end uploads (both dispatch paths guard on `sandbox` — added in this PR, because a loaded run keeps
+   *  its ORIGINAL mode, and the pre-existing gates only excluded `practice`/`tutorial`). Returns the
+   *  validation outcome for the panel's error line; on a content mismatch, loads READ-ONLY (see above). */
+  loadBugScenario: (raw: string) => { ok: boolean; errors: string[] };
+  /** Drop the loaded bug scenario (panel close). The sandbox run, if entered, stays — it is disposable. */
+  clearBugScenario: () => void;
+}
+
+/** See `GameStore.bugScenario`. */
+export interface LoadedBugScenario {
+  reportId: string;
+  description: string;
+  issueType: string;
+  capsule: BugIncidentCapsule;
+  client?: Partial<BugClientContext>;
+  /** Content-revision mismatch (§13): the capsule references cards this build doesn't have — evidence only. */
+  readOnly: boolean;
+  missingCardIds: string[];
 }
 
 const randomSeed = (): number => Math.floor(Math.random() * 0x7fffffff);
@@ -1016,7 +1044,10 @@ function commitResolvedAction(
     // perspective (you lose → it wins). We do NOT skip your own boards: this is a single-player game whose pool
     // is mostly (early: entirely) your own uploads, so skipping them left the ledger empty — a served board is
     // always a PAST run's board, never your live one, so counting it is a real datapoint. Practice never counts.
-    if (action.type === 'faceOmen' && next !== s.run && next.lastCombat && next.mode !== 'practice') {
+    // `!next.sandbox`: a Scene Builder run must never upload — historically implied by the rig always
+    // creating mode 'practice', but a LOADED bug scenario (PR 4) keeps its original mode (a lobby bug must
+    // reproduce under lobby mechanics), so the mode gate alone no longer covers the sandbox.
+    if (action.type === 'faceOmen' && next !== s.run && next.lastCombat && next.mode !== 'practice' && !next.sandbox) {
       const served = nextOpponent(s.run);
       if (served?.id) {
         const result = next.lastCombat.result;
@@ -1107,7 +1138,11 @@ function commitResolvedAction(
       s.run.phase !== 'gameover' &&
       s.run.phase !== 'victory' &&
       next.mode !== 'practice' &&
-      next.mode !== 'tutorial' // the TUTORIAL never rates, uploads, or records a career run (it carries a lobby, so it must be excluded here or its placement would move MMR)
+      next.mode !== 'tutorial' && // the TUTORIAL never rates, uploads, or records a career run (it carries a lobby, so it must be excluded here or its placement would move MMR)
+      // A SANDBOX run never captures boards, rates, or uploads telemetry/history — the mode gates above used
+      // to imply this (the rig only ever created 'practice' runs), but a loaded bug scenario (PR 4) keeps its
+      // original mode, so a replayed lobby/ascent incident would otherwise upload on finish.
+      !next.sandbox
     ) {
       // `mode` is load-bearing: a lobby run replayed as an Ascent run diverges immediately, so its captured
       // boards were wrong. See `saveRunBoards`.
@@ -1820,6 +1855,58 @@ export const useGame = create<GameStore>((set, get) => ({
       setTimeout(() => { if (get().bugReportToast === msg) set({ bugReportToast: null }); }, 3200);
     });
   },
+  // ── BUG REPORTER (PR 4): the Scene Builder bug-scenario bridge ──────────────────────────────────────────
+  bugScenario: null,
+  loadBugScenario: (raw) => {
+    const parsed = parseBugScenario(raw);
+    if (!parsed.ok) return parsed;
+    const sc = parsed.scenario;
+    let run: RunState;
+    try {
+      run = deserialize(sc.capsule.serializedRun); // the game's supported serialization — heals older schemas
+    } catch (e) {
+      return { ok: false, errors: [`serializedRun failed to deserialize: ${e instanceof Error ? e.message : String(e)}`] };
+    }
+    const missing = missingCardIds(run);
+    const loaded: LoadedBugScenario = {
+      reportId: sc.reportId,
+      description: sc.description,
+      issueType: sc.issueType,
+      capsule: sc.capsule,
+      ...(sc.client ? { client: sc.client } : {}),
+      readOnly: missing.length > 0,
+      missingCardIds: missing,
+    };
+    if (missing.length > 0) {
+      // §13 (content-revision mismatch): the capture references card ids this build no longer has. Entering
+      // the run would white-screen on the first `CARD_INDEX[id]` deref deep in a render (the exact failure
+      // the save loader refuses for) — so load READ-ONLY: the panel shows the description, context and event
+      // chain off the CAPSULE, the banner names the missing ids, and the store's run is left untouched.
+      set({ bugScenario: loaded });
+      return { ok: true, errors: [] };
+    }
+    dropBoardFx();
+    // Enter Scene Builder mode with the CAPTURED run — `sandbox: true` is the load-bearing flag: it is what
+    // `writeSave` / `flushSave` / the dispatch autosave (saves), `runRecordsDraft` (replay drafts),
+    // `bugReportAvailability` (no reports about reports), and the two dispatch upload gates (fight results +
+    // the run-end board/rating/telemetry block) all key on. The run keeps its ORIGINAL mode so the incident
+    // reproduces under the mechanics it happened in; the sandbox flag, not the mode, is the write barrier.
+    const sandboxRun: RunState = { ...run, sandbox: true };
+    if (sandboxRun.lobby) warmLobbyDrivers(sandboxRun); // a deserialized lobby has an empty driver cache
+    set({
+      run: sandboxRun,
+      // The store-side per-run resets, exactly as `startSceneBuilder`: no held transaction, fresh capture
+      // accumulators. `savedRun` is deliberately NOT cleared — the player's real Continue stays offered.
+      presentationTx: null, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null,
+      heroChoices: null, showTitle: false, avatarPickerOpen: false,
+      replayActions: [], capturedBoards: [], replayFrames: beginReplayCapture(sandboxRun), replayPartial: false,
+      telemetryLog: emptyTelemetryLog(), deriveState: beginDerive(sandboxRun),
+      sandboxReplay: false,
+      bugScenario: loaded,
+    });
+    return { ok: true, errors: [] };
+  },
+  clearBugScenario: () => set({ bugScenario: null }),
 }));
 
 // The autosave writes at turn boundaries (see `dispatch`), so leaving mid-turn needs an explicit flush or the

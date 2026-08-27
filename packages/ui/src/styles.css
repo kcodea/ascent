@@ -6954,6 +6954,23 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .sb-qadd { flex: none; background: none; border: 0; border-left: 1px solid #3f3623; color: #8a7d5e; font-size: calc(12 * var(--u)); padding: calc(3 * var(--u)) calc(7 * var(--u)); cursor: pointer; }
 .sb-qadd:hover { color: var(--acc, #f4be35); }
 
+/* ---- BUG SCENARIO BRIDGE (dev only, bug reporter PR 4) ---- */
+/* The report side panel shares the Scene Builder's `.sfxmix`/`.sb-*` chrome; `.bsc-*` adds only what a
+   report needs: the quoted UNTRUSTED player text, the mismatch banner, and the raw event-chain list.
+   No cursor rules here — buttons inherit the gauntlet pointer from the global rule. */
+.bugscenario { width: calc(300 * var(--u)); max-width: 92vw; }
+.sb-bugpaste { resize: vertical; min-height: calc(34 * var(--u)); font-size: calc(11 * var(--u)); }
+.bsc-id { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bsc-banner { background: #3a2413; border: 1px solid #a0632a; border-radius: calc(6 * var(--u)); color: #f0b978; font-size: calc(12 * var(--u)); line-height: 1.4; padding: calc(6 * var(--u)) calc(8 * var(--u)); }
+.bsc-badges { gap: calc(4 * var(--u)); }
+.bsc-badge { font-size: calc(10 * var(--u)); font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; color: #d8c8a2; background: #241f13; border: 1px solid #3f3623; border-radius: 999px; padding: calc(1 * var(--u)) calc(7 * var(--u)); white-space: nowrap; }
+/* The player's words are a QUOTE (untrusted input, blueprint §8.3) — framed so they can never read as UI copy. */
+.bsc-quote { margin: 0; background: #1c1810; border-left: 3px solid #8a7d5e; border-radius: calc(4 * var(--u)); color: #e6dcc2; font-style: italic; font-size: calc(12 * var(--u)); line-height: 1.45; padding: calc(6 * var(--u)) calc(9 * var(--u)); white-space: pre-wrap; overflow-wrap: anywhere; max-height: calc(120 * var(--u)); overflow-y: auto; }
+.bsc-events { max-height: calc(200 * var(--u)); }
+.bsc-event { display: flex; align-items: baseline; gap: calc(6 * var(--u)); background: #241f13; border: 1px solid #3f3623; border-radius: calc(4 * var(--u)); padding: calc(2 * var(--u)) calc(6 * var(--u)); font-size: calc(11 * var(--u)); color: #cbb894; }
+.bsc-etype { flex: none; font-weight: 800; text-transform: uppercase; letter-spacing: 0.03em; font-size: calc(9.5 * var(--u)); color: #9a8a63; min-width: calc(52 * var(--u)); }
+.bsc-etext { flex: 1; overflow-wrap: anywhere; }
+
 /* ---- FX WORKBENCH (dev only) ---- */
 /* A full-screen dev overlay, not a `.sfxmix` draggable panel — its own bars frame the live FX stage rather
    than floating over it. `.fxwb` itself is pointer-events:none (a transparent backdrop so the pixiFx canvas

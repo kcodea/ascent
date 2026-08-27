@@ -22,6 +22,7 @@ import { DevMenu } from './DevMenu';
 import { EditorOverlay } from './uiEditor/EditorOverlay';
 import { ensureDefsReady } from './fx/playDef';
 import { SceneBuilder } from './SceneBuilder';
+import { BugScenarioPanel } from './bug-report/BugScenarioPanel';
 import { BalancePanel } from './BalancePanel';
 import { PatchNotes } from './PatchNotesOverlay';
 import { BugReportModal } from './bug-report/BugReportModal';
@@ -61,6 +62,7 @@ const MENU_SFX_SKIP = '[data-nohoversfx], .devmenu, .desk, .heropowerbtn, .frzwr
 export function Game() {
   const phase = useGame((s) => s.run.phase);
   const sandbox = useGame((s) => s.run.sandbox);
+  const bugScenarioLoaded = useGame((s) => s.bugScenario !== null);
   const showBook = useGame((s) => s.showBook);
   // Recruit stays mounted across phases (combat plays out in place), so its closures/refs live for the whole
   // run. Starting a NEW run (pickHero / newRun → a fresh seed+hero) must give it a clean slate — otherwise a
@@ -282,6 +284,9 @@ export function Game() {
       {import.meta.env.DEV && <EditorOverlay />}
       {/* Scene Builder control panel — mounts alongside the live sandbox run (its own title-launched mode). */}
       {import.meta.env.DEV && sandbox && <SceneBuilder />}
+      {/* Bug-scenario report side panel (PR 4) — mounts with a loaded scenario. Independent of `sandbox`:
+          a content-mismatch load is READ-ONLY (the run is never entered), but its evidence still shows. */}
+      {import.meta.env.DEV && bugScenarioLoaded && <BugScenarioPanel />}
       {/* Frame-health HUD. Ships in production but stays dormant unless opted into (?perf=1 /
           localStorage / the dev menu) — a slowness report is only trustworthy against the prod build. */}
       {perfOn && <PerfHud onClose={() => setPerfOn(false)} />}

@@ -26,20 +26,38 @@ export interface FloatConfig {
   inScale: number;
   /** Entry offset (px) — how far BELOW its rest spot the number starts. */
   inY: number;
+  /** Damage-splash backdrop size, in EM of the number — the golden burst behind the −N (see `.float.dmg::before`). */
+  splashEm: number;
+  /** Damage-number outline width (px) — a thin stroke round the digits for legibility over the burst. */
+  numStroke: number;
+  /** Damage-number outline colour (hex). */
+  numStrokeColor: string;
+  /** Randomly rotate each damage splash (0 = off, 1 = on) — a per-float deterministic angle so hits vary. */
+  rotRandom: number;
+  /** Max ± rotation (deg) applied to the splash when `rotRandom` is on. */
+  rotRange: number;
 }
 
+// Owner-locked 2026-08-27 (dev Damage Float tuner): a big pop (2×) with a snappy 0.1× entry over 1s, the
+// golden burst backdrop at 4.2× with a light-grey 2.35px number outline, and random per-hit splash rotation
+// up to ±45°. Mirrored into the styles.css fallbacks (`.float`, `.float.dmg`, the `floatup*` keyframes).
 const DEFAULTS: FloatConfig = {
   size: 34,
   dmgSize: 42,
-  durMs: 1400,
-  pop: 1.18,
+  durMs: 1000,
+  pop: 2,
   rise: 0, // 0 = the number sticks to the card (holds + fades in place) instead of drifting off
-  inScale: 0.5,
+  inScale: 0.1,
   inY: 14,
+  splashEm: 4.2,
+  numStroke: 2.35,
+  numStrokeColor: '#b3b3b3',
+  rotRandom: 1,
+  rotRange: 45,
 };
 
-/** Slider bounds for the DEV tuner — [min, max, step] per key. */
-export const FLOAT_RANGES: Record<keyof FloatConfig, [number, number, number]> = {
+/** Slider bounds for the DEV tuner — [min, max, step] per NUMERIC key (`numStrokeColor` is a colour, no range). */
+export const FLOAT_RANGES: Record<Exclude<keyof FloatConfig, 'numStrokeColor'>, [number, number, number]> = {
   size: [16, 64, 1],
   dmgSize: [20, 80, 1],
   durMs: [400, 3000, 50],
@@ -47,6 +65,10 @@ export const FLOAT_RANGES: Record<keyof FloatConfig, [number, number, number]> =
   rise: [0, 120, 2],
   inScale: [0.1, 1, 0.02],
   inY: [0, 40, 1],
+  splashEm: [1, 6, 0.02],
+  numStroke: [0, 4, 0.25],
+  rotRandom: [0, 1, 1],
+  rotRange: [0, 45, 1],
 };
 /** The shipped values, exported so the tuner can mark which controls you have moved away from them. */
 export { DEFAULTS as FLOAT_DEFAULTS };
@@ -100,12 +122,17 @@ export function applyFloatConfig(): void {
   s.setProperty('--float-dmg-rise', `${-cfg.rise}px`); // stored positive (drift up); CSS translateY is negative
   s.setProperty('--float-in-scale', `${cfg.inScale}`);
   s.setProperty('--float-in-y', `${cfg.inY}px`);
+  // Damage-splash backdrop + number stroke (the `rotRandom`/`rotRange` knobs are read by the float render in
+  // Recruit.tsx, not pushed as vars — the angle is per-float, not global).
+  s.setProperty('--dmg-splash-size', `${cfg.splashEm}em`);
+  s.setProperty('--dmg-num-stroke', `${cfg.numStroke}px`);
+  s.setProperty('--dmg-num-stroke-color', cfg.numStrokeColor);
 }
 
 export function getFloatConfig(): FloatConfig {
   return cfg;
 }
-export function setFloatValue(key: keyof FloatConfig, value: number): void {
+export function setFloatValue(key: keyof FloatConfig, value: number | string): void {
   cfg = { ...cfg, [key]: value };
   try {
     localStorage.setItem(KEY, JSON.stringify(cfg));

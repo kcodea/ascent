@@ -19,7 +19,7 @@ import type {
 import { ALE_IDS, alignAllows, extraTriggerFires, foldEchoExtraFires, socTwilightExtraFires } from '../types';
 import type { Rng } from '../rng';
 import { CombatBus } from '../events';
-import { FACTORIES, playRubyOn, castInCombat, combatCastable, resolveCombatSpellCast, replayCombatBattlecry, SILENT_ONPLAY } from '../effects/factories';
+import { FACTORIES, playRubyOn, castInCombat, combatCastable, resolveCombatSpellCast, replayCombatBattlecry, drakkoRepeats, SILENT_ONPLAY } from '../effects/factories';
 import { instantiate, type CardIndex } from './minion';
 import { EMPTY_SIDE } from './side';
 
@@ -1099,10 +1099,15 @@ export function simulate(
       scriptureSpent[side] = true;
       nextStep(); fireTrigger('runeSharedScripture', side);
       if (shout) {
-        emit({ type: 'sc', source: shout.uid, text: 'Shout' });
-        for (const effect of shout.effects) {
-          if (effect.on !== 'onPlay') continue;
-          withEffect(shout, effect, () => FACTORIES[effect.do]?.(ctx, shout, effect.params ?? {}, { minion: shout, side }));
+        // q-interact-combat-shout-multipliers (owner APPROVE 2026-08-27): the rune's forced Shout folds the
+        // Battlecry multipliers (Drakko) like every other combat Shout re-fire (Ryme / Sovereign / Dawnclaw).
+        const reps = drakkoRepeats(ctx, side);
+        for (let r = 0; r < reps; r++) {
+          emit({ type: 'sc', source: shout.uid, text: 'Shout' });
+          for (const effect of shout.effects) {
+            if (effect.on !== 'onPlay') continue;
+            withEffect(shout, effect, () => FACTORIES[effect.do]?.(ctx, shout, effect.params ?? {}, { minion: shout, side }));
+          }
         }
       }
       if (rally) fireFreeRally(rally, side);
@@ -2025,10 +2030,15 @@ export function simulate(
         && (minion.tribe === 'dragon' || minion.tribe2 === 'dragon')
         && minion.effects.some((e) => e.on === 'onPlay')) {
       nextStep(); fireTrigger('runeAncestralRoar', minion.side);
-      emit({ type: 'sc', source: minion.uid, text: 'Shout' });
-      for (const effect of minion.effects) {
-        if (effect.on !== 'onPlay') continue;
-        withEffect(minion, effect, () => FACTORIES[effect.do]?.(ctx, minion, effect.params ?? {}, { minion, side: minion.side }));
+      // q-interact-combat-shout-multipliers (owner APPROVE 2026-08-27): the granted Echo's Shout folds the
+      // Battlecry multipliers (Drakko) like every other combat Shout re-fire (Ryme / Sovereign / Dawnclaw).
+      const roarReps = drakkoRepeats(ctx, minion.side);
+      for (let r = 0; r < roarReps; r++) {
+        emit({ type: 'sc', source: minion.uid, text: 'Shout' });
+        for (const effect of minion.effects) {
+          if (effect.on !== 'onPlay') continue;
+          withEffect(minion, effect, () => FACTORIES[effect.do]?.(ctx, minion, effect.params ?? {}, { minion, side: minion.side }));
+        }
       }
     }
     // RUNE OF RUBY SHRAPNEL: a dying Ruby-buffed body scatters its Ruby stats across the survivors. The tally
@@ -2137,14 +2147,19 @@ export function simulate(
         // (log line + a small trigger pulse) and draws no animation at all — see the `sc` case in
         // useCombatReplay. The cry is a real, visible proc, so it flashes on the dying body (owner report
         // 2026-08-17: "why isn't parting cry showing the shout animations").
-        emit({ type: 'sc', source: minion.uid, text: `${minion.name}'s parting cry`, cast: true });
         // Route through the SAME machinery every other Shout-trigger uses (Dawnclaw, Ryme, Thunderous
         // Sovereign): `replayCombatBattlecry` for the effect itself, then the `battlecryTriggered` bus emit.
         // Calling the `onPlay` FACTORIES directly — as this used to — fired the effect but skipped the emit,
         // so every "after you trigger a Shout" watcher silently missed it (owner report 2026-08-16:
         // Embermouth Whelp gained nothing, and Deepvein Tender's +1 Health never showed its buff text).
-        replayCombatBattlecry(ctx, minion);
-        bus.emit('battlecryTriggered', { side: minion.side, minion });
+        // q-interact-combat-shout-multipliers (owner APPROVE 2026-08-27): the cry folds the Battlecry
+        // multipliers (Drakko) like every other combat Shout re-fire — one sc + emit per fire, Ryme-style.
+        const reps = drakkoRepeats(ctx, minion.side);
+        for (let r = 0; r < reps; r++) {
+          emit({ type: 'sc', source: minion.uid, text: `${minion.name}'s parting cry`, cast: true });
+          replayCombatBattlecry(ctx, minion);
+          bus.emit('battlecryTriggered', { side: minion.side, minion });
+        }
       }
     }
     // Defer any Fel-Spikes-style board deaths across the base Echo (fired via the bus) + every re-fire below,
@@ -2492,10 +2507,15 @@ export function simulate(
         if (lead) {
           warChorusSpent[attacker.side] = true;
           nextStep(); fireTrigger('runeWarChorus', attacker.side);
-          emit({ type: 'sc', source: lead.uid, text: 'Shout' });
-          for (const effect of lead.effects) {
-            if (effect.on !== 'onPlay') continue;
-            withEffect(lead, effect, () => FACTORIES[effect.do]?.(ctx, lead, effect.params ?? {}, { minion: lead, side: lead.side }));
+          // q-interact-combat-shout-multipliers (owner APPROVE 2026-08-27): the chorus' forced Shout folds
+          // the Battlecry multipliers (Drakko) like every other combat Shout re-fire.
+          const chorusReps = drakkoRepeats(ctx, attacker.side);
+          for (let r = 0; r < chorusReps; r++) {
+            emit({ type: 'sc', source: lead.uid, text: 'Shout' });
+            for (const effect of lead.effects) {
+              if (effect.on !== 'onPlay') continue;
+              withEffect(lead, effect, () => FACTORIES[effect.do]?.(ctx, lead, effect.params ?? {}, { minion: lead, side: lead.side }));
+            }
           }
         }
       }
@@ -2582,14 +2602,22 @@ export function simulate(
         if (echo) {
           nextStep();
           fireTrigger('emptyGraves', attacker.side);
-          // One wrap for the whole body, for the same reason as the doubler loop above — this fires on EVERY
-          // attack, so a two-Echo body was paying Aftershocks twice a swing.
-          asEcho(attacker.side, () => {
-            for (const effect of echo.effects) {
-              if (effect.on !== 'onDeath') continue;
-              withEffect(echo, effect, () => FACTORIES[effect.do]?.(ctx, echo, effect.params ?? {}, { minion: echo, side: attacker.side }));
+          // q-interact-empty-graves-flat (owner APPROVE 2026-08-27): the forced Echo folds the side's Echo
+          // multipliers (Sylus / Uron / Funeral Engine / the first-Echo bonus, via `playerEchoExtras`) and
+          // the marked body's gild — like every other forced-Echo path (Rune of the Herald, `triggerEcho`).
+          // One `asEcho` wrap PER PROC (a two-Echo body is still one trigger; each multiplier proc is its
+          // own), deaths deferred across all procs to mirror the death-fired path's scope.
+          const procs = (1 + playerEchoExtras(echo)) * (attacker.golden ? 2 : 1);
+          withEchoDefer(() => {
+            for (let r = 0; r < procs; r++) {
+              asEcho(attacker.side, () => {
+                for (const effect of echo.effects) {
+                  if (effect.on !== 'onDeath') continue;
+                  withEffect(echo, effect, () => FACTORIES[effect.do]?.(ctx, echo, effect.params ?? {}, { minion: echo, side: attacker.side }));
+                }
+              }, echo);
             }
-          }, echo);
+          });
         }
       }
       // A Rally (RL minion attacking) re-runs this attacker's OWN on-attack effects once per additive doubler

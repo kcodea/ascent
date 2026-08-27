@@ -102,6 +102,34 @@ export const PATCH_NOTES: PatchNote[] = [
   },
   {
     date: '2026-08-27',
+    label: 'Combat Trigger Fixes',
+    changes: [
+      {
+        category: 'Card Change',
+        text: 'Shouts triggered in combat now respect your Shout multipliers everywhere.',
+        details: [
+          'Parting Cry, Embercrest, Rune of Ancestral Roar, Rune of Shared Scripture and Rune of the War Chorus all fired a Shout exactly once, even with a "Battlecries fire 1 more time" minion on board — they now fire the extra times, just like Ryme, Dawnclaw, Thunderous Sovereign and Chorus Drake already did.',
+        ],
+      },
+      {
+        category: 'Card Change',
+        text: 'The Empty Graves quest reward now triggers Echoes at full strength.',
+        details: [
+          'The marked minion\'s "Rally: trigger your leftmost Echo" ignored every Echo multiplier (Sylus, Uron, Funeral Engine, first-Echo bonuses) and the marked minion\'s gilding — it now counts them all, like every other Echo trigger.',
+          'The quest\'s reward text was also rewritten — it still described an older design.',
+        ],
+      },
+      {
+        category: 'Card Change',
+        text: 'A gilded Exgalloper now summons gilded copies of itself.',
+        details: [
+          'Its copies are exact copies without the Echo — so a gilded body\'s copies now carry the Gilded badge too, matching Mirrorhide Rhino.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-08-27',
     label: 'Load Screen Fix',
     changes: [
       { category: 'UI / Info', text: 'The loading bar now fills smoothly over the load, and the logo no longer jumps in size a beat after the screen appears.' },

@@ -801,13 +801,15 @@ export const ARENA_EFFECTS = {
 
   /** Ex-Galloper — Echo: summon a copy of itself WITHOUT the Echo re-triggering. THE COPY INHERITS the body
    *  it was — buffed stats and keywords — in BOTH phases (owner ruling 2026-08-04; the shop used to summon a
-   *  plain base card). Golden doubles the count. */
+   *  plain base card). Golden doubles the count, AND the copies of a gilded body are themselves Gilded
+   *  (q-copy-gilded-badge, owner REVISE 2026-08-27: "exact copies without the echo, so they would be gilded
+   *  too" — matching `scSummonCopy` / Mirrorhide's convention). */
   echoSummonCopyNoEcho(arena: EffectArena, params: Record<string, unknown>): void {
     const count = (typeof params.count === 'number' ? params.count : 1) * (arena.self.golden ? 2 : 1);
     const hp = Math.max(1, arena.self.maxHealth ?? arena.self.health);
     for (let i = 0; i < count; i++) {
       const made = arena.summonToken(arena.self.cardId, {
-        attack: arena.self.attack, health: hp, keywords: [...arena.self.keywords],
+        attack: arena.self.attack, health: hp, keywords: [...arena.self.keywords], golden: arena.self.golden,
       });
       if (!made) break; // board full
       arena.stripEchoes(made); // the copy must not summon another on ITS death, and so on to the board cap

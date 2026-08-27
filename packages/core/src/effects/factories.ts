@@ -414,8 +414,16 @@ function combatArena(ctx: CombatContext, self: Minion): EffectArena {
     hasEffect: (t, on, doId) => (t as Minion).effects.some((e) => e.on === on && (!doId || e.do === doId)),
     replayShout: (t) => {
       const m = t as Minion;
-      replayCombatBattlecry(ctx, m);
-      ctx.bus.emit('battlecryTriggered', { side: self.side, minion: m });
+      // q-interact-combat-shout-multipliers (owner APPROVE 2026-08-27): a combat Shout re-fire folds the
+      // Battlecry multipliers (Drakko), exactly like Ryme / Thunderous Sovereign / Chorus Drake — and like
+      // the SHOP's shared `replayBattlecry`, which folds `drummerRepeats` INSIDE the shared body. Folding
+      // here (the combat verb) mirrors that boundary, so every arena consumer (Embercrest, …) inherits it
+      // and cannot drift flat again. One `battlecryTriggered` emit per fire, matching Ryme's convention.
+      const reps = drakkoRepeats(ctx, self.side);
+      for (let r = 0; r < reps; r++) {
+        replayCombatBattlecry(ctx, m);
+        ctx.bus.emit('battlecryTriggered', { side: self.side, minion: m });
+      }
     },
     hasEcho: (t, strict) => (t as Minion).effects.some((e) => e.on === 'onDeath' && (!strict || e.do.startsWith('deathrattle'))),
     triggerEchoOn: (t, strict) => {
@@ -523,7 +531,7 @@ const hasBattlecry = (m: Minion): boolean =>
 /** Drakko the Drummer's doubling for Ryme's re-fired Battlecries (combat mirror of recruit's `bestCopyRepeats`):
  *  count living Drakkos on `side`, golden → +2 else any → +1 (best single copy, NO stacking). Total = 1 + that,
  *  so one Drakko makes each trigger fire twice, a golden Drakko three times. */
-const drakkoRepeats = (ctx: CombatContext, side: Side): number =>
+export const drakkoRepeats = (ctx: CombatContext, side: Side): number =>
   1 + extraTriggerFires('battlecry', ctx.living(side), (id) => ctx.getCard(id));
 
 /** The Battlecry `do` ids `replayCombatBattlecry` runs IN COMBAT (they affect the live fight). Every other

@@ -60,6 +60,15 @@ describe('Rune of Ancestral Roar', () => {
     const board: BoardMinion[] = [{ cardId: 'alley', attack: 2, health: 1 }];
     expect(shouts(board, { runeAncestralRoar: true })).toBe(0);
   });
+
+  it('the roar folds the Battlecry multiplier — with Drakko the granted Echo fires its Shout twice', () => {
+    // q-interact-combat-shout-multipliers (owner APPROVE 2026-08-27): every combat Shout re-fire folds
+    // drakkoRepeats. Drakko (2/2) is still alive when the Emissary (2/1) dies to the 9-Attack killer.
+    const board: BoardMinion[] = [
+      { cardId: 'emissary', attack: 2, health: 1 }, { cardId: 'drummer', attack: 2, health: 2 },
+    ];
+    expect(shouts(board, { runeAncestralRoar: true }), 'one dying Dragon × Drakko = 2 fires').toBe(2);
+  });
 });
 
 describe('Rune of Ruby Shrapnel', () => {
@@ -128,6 +137,30 @@ describe('Rune of Shared Scripture', () => {
     const armed = fired({ runeSharedScripture: true });
     expect(armed.shouts - base.shouts, 'exactly one free Shout').toBe(1);
     expect(armed.rallies - base.rallies, 'exactly one free Rally').toBe(1);
+  });
+
+  it('the free Shout folds the Battlecry multiplier (Drakko); the free Rally is untouched', () => {
+    // q-interact-combat-shout-multipliers (owner APPROVE 2026-08-27): every combat Shout re-fire folds
+    // drakkoRepeats. Same fixture as above plus a fat Drakko that outlives the Sporebat's cast.
+    const board: BoardMinion[] = [
+      { cardId: 'emissary', attack: 1, health: 60 },
+      { cardId: 'badgington', attack: 1, health: 60 },
+      { cardId: 'sporebat', attack: 1, health: 1 },
+      { cardId: 'drummer', attack: 1, health: 60 },
+    ];
+    const killer: BoardMinion[] = [{ cardId: 'sandbag', attack: 9, health: 400 }];
+    const fired = (mods: object) => {
+      const r = sim(board, killer, { lastSpellCastId: 'growth', questMods: mods });
+      const sc = r.events.filter((e) => e.type === 'sc');
+      return {
+        shouts: sc.filter((e) => (e as { text: string }).text === 'Shout').length,
+        rallies: sc.filter((e) => (e as { text: string }).text === 'Rally').length,
+      };
+    };
+    const base = fired({});
+    const armed = fired({ runeSharedScripture: true });
+    expect(armed.shouts - base.shouts, 'the free Shout × Drakko = 2 fires').toBe(2);
+    expect(armed.rallies - base.rallies, 'Drakko is a Battlecry multiplier — the Rally half stays single').toBe(1);
   });
 });
 

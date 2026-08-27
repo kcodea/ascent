@@ -85,6 +85,20 @@ export interface QaScenarioV1 {
     reportId?: string;
     notes?: string;
   };
+  /** §16 identity of the environment this scenario was captured/evaluated under (canonical-schemas.md §1/§5;
+   *  computed by `semanticRevision()` in semanticRevision.ts). OPTIONAL — the entire existing corpus stays
+   *  valid; checked-in curated fixtures generally OMIT it (it moves on every content change and drift
+   *  reporting is WP C/G work), while emitted results and findings stamp it. */
+  semanticRevision?: string;
+  /** §8.1 provenance — the machine-usable chain graduation (§14) walks: which finding/report/scenario this
+   *  one came from. OPTIONAL, additive (canonical-schemas.md §1). `metadata.reportId` stays for humans. */
+  provenance?: {
+    kind?: QaScenarioSource;
+    reportId?: string;
+    findingFingerprint?: string;
+    parentScenarioId?: string;
+    minimizedFrom?: string;
+  };
 }
 
 // ── Expectations (§4.3 — the closed vocabulary) ────────────────────────────────────────────────────────────
@@ -270,6 +284,20 @@ export function validateQaScenario(raw: unknown): string[] {
     if (!contentIdResolves(id)) errors.push(`contentIds entry '${id}' resolves to no card, rune, or quest`);
   }
 
+  if (s.semanticRevision !== undefined && (typeof s.semanticRevision !== 'string' || s.semanticRevision.length === 0)) {
+    errors.push('semanticRevision, when present, must be a non-empty string');
+  }
+  if (s.provenance !== undefined) {
+    if (!s.provenance || typeof s.provenance !== 'object' || Array.isArray(s.provenance)) {
+      errors.push('provenance, when present, must be an object');
+    } else {
+      const kind = (s.provenance as { kind?: unknown }).kind;
+      if (kind !== undefined && (typeof kind !== 'string' || !SOURCES.has(kind as QaScenarioSource))) {
+        errors.push(`provenance.kind ${JSON.stringify(kind)} is not one of ${[...SOURCES].join(' | ')}`);
+      }
+    }
+  }
+
   for (const [i, e] of (s.expectations ?? []).entries()) {
     const kind = (e as { kind?: unknown }).kind;
     if (typeof kind !== 'string' || !EXPECTATION_KINDS.has(kind as QaExpectation['kind'])) {
@@ -347,6 +375,9 @@ export interface QaScenarioResult {
   repro: string;
   /** Compact human summary — what ran, what it observed, verdicts. */
   summary: string;
+  /** §16 identity the run was evaluated under — the caller's stamp (runQaScenario opts) or, failing that,
+   *  the scenario's own recorded revision. Absent when neither supplied one (legacy callers unchanged). */
+  semanticRevision?: string;
 }
 
 const failResult = (scenario: Partial<QaScenarioV1>, errors: string[]): QaScenarioResult => ({
@@ -397,7 +428,13 @@ function selectCard(s: RunState, sel: QaCardSelector): { attack: number; health:
  * `null` pin otherwise when the state carries none), so the module-global opponent pool that `nextOpponent`
  * would consult can never reach the result. Byte-equivalent output across runs is a tested contract.
  */
-export function runQaScenario(scenario: QaScenarioV1): QaScenarioResult {
+export function runQaScenario(
+  scenario: QaScenarioV1,
+  /** `semanticRevision`: the CURRENT §16 identity, stamped on the result. INJECTED rather than imported —
+   *  computing it here would pull the rules registry through this module into the web bundle (store.ts
+   *  loads scenarios; see semanticRevision.ts's bundle-hygiene note / current-state map D-2). */
+  opts?: { semanticRevision?: string },
+): QaScenarioResult {
   const validationErrors = validateQaScenario(scenario);
   if (validationErrors.length > 0) return failResult(scenario, validationErrors);
 
@@ -517,6 +554,9 @@ export function runQaScenario(scenario: QaScenarioV1): QaScenarioResult {
     refs: { contentIds: scenario.contentIds ?? [], ruleIds: scenario.ruleIds ?? [] },
     repro,
     summary: summaryLines.join('\n'),
+    ...(opts?.semanticRevision ?? scenario.semanticRevision
+      ? { semanticRevision: opts?.semanticRevision ?? scenario.semanticRevision }
+      : {}),
   };
 }
 

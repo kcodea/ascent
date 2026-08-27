@@ -5,7 +5,10 @@
   "type": "module",
   "main": "./src/index.ts",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./contracts": "./src/contracts/index.ts",
+    "./contracts/schema": "./src/contracts/schema.ts",
+    "./contracts/curated": "./src/contracts/curated/index.ts"
   },
   "dependencies": {
     "@game/content": "*"

@@ -857,7 +857,6 @@ export function Recruit() {
   // Only the hovered TARGET is React state — the aim line's coordinates are pushed straight into Pixi by
   // the rAF-coalesced move handlers, so pointer movement no longer re-renders this component.
   const [aimTargetUid, setAimTargetUid] = useState<string | null>(null);
-  const [buffedUids, setBuffedUids] = useState<Set<string>>(new Set());
   // SANDBOX ONLY: which board minion the unit editor is open on, and the rect it is seated under. Held as a
   // uid + rect rather than an element so a re-render (a stat edit is a re-render) can't leave a stale node.
   const sbEditMode = useGame((s) => s.sbEditMode);
@@ -2723,14 +2722,6 @@ export function Recruit() {
               ? v.spellView ?? undefined
               : v.shopViews.get(uid);
       if (!view) return;
-      // Grabbing a card mid-buff-flash clears its flash, so it doesn't replay the buff
-      // animation when the card re-mounts after the drag (lift-out → drop).
-      setBuffedUids((s) => {
-        if (!s.has(uid)) return s;
-        const n = new Set(s);
-        n.delete(uid);
-        return n;
-      });
       const r = el.getBoundingClientRect();
       // The floating card renders at its FULL, untransformed size — but a hand card is scaled down by the fan
       // (~0.9) and tucked, so `getBoundingClientRect` returns the SCALED box. Sizing the wrapper from that made
@@ -3317,8 +3308,8 @@ export function Recruit() {
     return () => window.clearTimeout(id);
   }, [run.phase, run.discover, run.questOffer, run.powerOffer, run.runeforgeOffer, run.pendingTarget, run.chooseOne, heroSelecting, overlayOpen, run.wave]);
 
-  // Flash a card green when its stats jump in the recruit phase (a buff landed). The readout itself is the
-  // badge's own job now — see the cut below.
+  // Detect a self-buff (a minion's own stats jump in the recruit phase) and fire its self-buff cue. The
+  // readout itself is the badge's own job now — see the cut below.
   useEffect(() => {
     const prev = prevStatsRef.current;
     const next = new Map<string, { a: number; h: number }>();
@@ -3352,68 +3343,49 @@ export function Recruit() {
     }
     prevStatsRef.current = next;
     // While the combat arena is up, keep the baseline synced (so re-entering recruit doesn't read a
-    // stale jump) but never flash — and wipe any flashes still pending from the End-of-Turn buff that
-    // fired at "Face the Omen", so they can't reappear as a phantom green glow next round.
+    // stale jump) but never cue — a self-buff cue firing for the End-of-Turn buff that landed at
+    // "Face the Omen" would be invisible with the arena covering the board anyway.
     if (inCombat) {
-      setBuffedUids((s) => (s.size ? new Set() : s));
       return;
     }
     if (newly.length === 0) return;
     // The new source→target FX (tendril/descend) already lands on any target captured in `recruitBuffFx` this
-    // action — skip the green burst-ring for those so it doesn't double up with the FX.
+    // action — skip the self-buff cue for those so it doesn't double up with the FX.
     const fxTargets = new Set(run.recruitBuffFx.map((e) => e.targetUid));
     // WELD (owner 2026-07-18): an Attachment fusing on gets its OWN cue — the converging ring + wiggle — so
-    // the generic green burst is suppressed for the minions this weld just landed on. Self-contained seq
+    // the generic self-buff cue is suppressed for the minions this weld just landed on. Self-contained seq
     // check: only the render carrying a FRESH weld stamp suppresses, so a LATER buff on the same minion
-    // bursts normally.
+    // cues normally.
     const freshWeld = run.weldFxSeq !== undefined && run.weldFxSeq !== weldStatSeqRef.current;
     weldStatSeqRef.current = run.weldFxSeq;
     const weldedNow = freshWeld ? new Set(run.weldFxUids ?? []) : new Set<string>();
     const burstable = newly.filter((u) => !fxTargets.has(u) && !weldedNow.has(u));
     // The pulse channel = shop SELF-buffs (a minion buffing itself — Ashscribe): `captureBuffFx` skips them (no
-    // source→target pair for a tendril) so they land here rather than in `recruitBuffFx`. Promote it from the bare
-    // green stat-glow to the bound self-buff def — default `self-buff-gold`, card-overridable via
-    // `cards.<id>.minionSelfBuffed` — played through the SAME recruit cue runner rubyLanded/minionBuffed use, so
-    // combat and shop show the same self-buff effect. One moment per self-buffer, keyed by its own card. Falls
-    // back to the green burst only when defs can't play (headless / the FX overlay not yet ready), so a self-buff
-    // is never invisible. Fire-and-forget like the other recruit cues (no teardown collected).
-    if (burstable.length > 0) {
-      if (canPlayDefs()) {
-        for (const uid of burstable) {
-          const cardId = runRef.current.board.find((c) => c.uid === uid)?.cardId;
-          if (!cardId) continue;
-          runRecruitMomentCues(selfBuffMoment(uid, cardId), {
-            cardIdOf: (u) => runRef.current.board.find((c) => c.uid === u)?.cardId ?? null,
-            measure: (u) => {
-              const el = document.querySelector<HTMLElement>(`[data-uid="${u}"]`);
-              return el ? restingCenterOf(el) : null;
-            },
-          });
-        }
-      } else {
-        setBuffedUids((s) => new Set([...s, ...burstable]));
+    // source→target pair for a tendril) so they land here rather than in `recruitBuffFx`. Played through the
+    // bound self-buff def — default `self-buff-gold`, card-overridable via `cards.<id>.minionSelfBuffed` — via
+    // the SAME recruit cue runner rubyLanded/minionBuffed use, so combat and shop show the same self-buff
+    // effect. One moment per self-buffer, keyed by its own card. Only fires when defs can play (headless / the
+    // FX overlay not yet ready silently skips it — there is no generic fallback cue anymore). Fire-and-forget
+    // like the other recruit cues (no teardown collected).
+    if (burstable.length > 0 && canPlayDefs()) {
+      for (const uid of burstable) {
+        const cardId = runRef.current.board.find((c) => c.uid === uid)?.cardId;
+        if (!cardId) continue;
+        runRecruitMomentCues(selfBuffMoment(uid, cardId), {
+          cardIdOf: (u) => runRef.current.board.find((c) => c.uid === u)?.cardId ?? null,
+          measure: (u) => {
+            const el = document.querySelector<HTMLElement>(`[data-uid="${u}"]`);
+            return el ? restingCenterOf(el) : null;
+          },
+        });
       }
     }
     // CUT (owner, 2026-08-04): the recruit-phase "+X/+X" float is gone, for the same reason the COMBAT one
     // went in `choreo/channels/float.ts` — the stat badge now carries its own change, withholding the new
     // number and rolling to it (`fx/statHold.ts`, and `Card`'s intrinsic roll for buffs nobody authored).
     // A float saying "+2/+2" beside a badge counting 4→6 is two things asking for the eye, in the same
-    // place, at the same moment, saying the same thing.
-    //
-    // The GREEN BURST above stays: "this minion was buffed" is a different read from "the number is now 6",
-    // and it is what draws the eye to the card whose badge is about to move. The combat log still narrates
-    // every buff in full, so the record is intact — this removes a redundant readout, not information.
-    // Self-clearing timer — deliberately NOT cancelled in cleanup. If it were, a buff quickly followed
-    // by another board change (a buy/play, or the phase flip into combat) would cancel the clear and
-    // leave the card stuck green. Letting each timer fire guarantees every flash ends on its own.
-    window.setTimeout(() => {
-      setBuffedUids((s) => {
-        if (newly.every((u) => !s.has(u))) return s;
-        const n = new Set(s);
-        for (const u of newly) n.delete(u);
-        return n;
-      });
-    }, 700);
+    // place, at the same moment, saying the same thing. The generic green card-flash that used to draw the
+    // eye here (`.cardbuff`) is retired too — the self-buff cue above and the badge's own roll carry that job.
   }, [run.board, run.hand, run.shop, inCombat, run.recruitBuffFx]);
 
   // Replay a batch of captured buff-other events as source→target tendrils (living minion) or descends
@@ -4479,25 +4451,20 @@ export function Recruit() {
       return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
     };
     const presenterCtx: PresenterContext = {
-      statGain: (uid) => {
-        // The generic green burst. Cleared on a timer keyed to the beat's own readable window rather than a
-        // global constant, so a tuned beat's flash tracks it.
-        setBuffedUids((s) => new Set([...s, uid]));
-        window.setTimeout(() => setBuffedUids((s) => { const n = new Set(s); n.delete(uid); return n; }), 600);
-      },
+      // The generic green burst is retired (`.cardbuff`) — this beat has no unauthored fallback cue anymore,
+      // so a stat gain with no authored def plays nothing. Kept as a no-op (rather than removed) so
+      // `PresenterContext` stays satisfied; the registry still calls `ctx.statGain(...)`.
+      statGain: () => {},
       selfBuff: (uid) => {
         // A self-buff on this beat plays the authored self-buff def, mirroring the per-action `minionSelfBuffed`
         // path: routed through the same recruit cue runner, keyed by the minion's own card so a card override
-        // applies. Falls back to the green burst when defs can't play, so a self-buff is never invisible.
+        // applies. Only fires when defs can play — there is no generic fallback cue anymore.
         const cardId = runRef.current.board.find((c) => c.uid === uid)?.cardId;
         if (cardId && canPlayDefs()) {
           runRecruitMomentCues(selfBuffMoment(uid, cardId), {
             cardIdOf: (u) => runRef.current.board.find((c) => c.uid === u)?.cardId ?? null,
             measure: (u) => { const el = document.querySelector<HTMLElement>(`[data-uid="${u}"]`); return el ? restingCenterOf(el) : null; },
           });
-        } else {
-          setBuffedUids((s) => new Set([...s, uid]));
-          window.setTimeout(() => setBuffedUids((s) => { const n = new Set(s); n.delete(uid); return n; }), 600);
         }
       },
       rubyLanded: (uid, count) => {
@@ -4748,7 +4715,6 @@ export function Recruit() {
     const { steps, fx: beatFx } = projectEndOfTurnSteps(run);
     const baseStats: Record<string, { attack: number; health: number }> = {};
     for (const c of [...run.board, ...run.hand]) baseStats[c.uid] = { attack: c.attack, health: c.health };
-    const total = (s?: { attack: number; health: number }): number => (s ? s.attack + s.health : 0);
     // Pre-animation cadence tick per uid — the counter projects to baseTick+1 when a card's beat fires
     // (eotTick advances once per turn regardless of Chronos repeats), matching what faceOmen commits.
     const baseTick: Record<string, number> = {};
@@ -4974,21 +4940,6 @@ export function Recruit() {
         // whatever beat raised next, against a number it has nothing to do with.
         if (bfx && bfx.eaten.length > 0) pendingFodderHolds.current = fodderGainHolds(bfx.eaten);
         setEotAnimStats(cur);
-        const prev = i > 0 ? steps[i - 1]! : baseStats;
-        // The green burst is the GENERIC stat-gain cue — skip it for any minion this beat already animates
-        // with its own descend/pulse, or the two stack into the overlapping mess the owner reported.
-        const fxCovered = new Set((beatFx[i]?.buffFx ?? []).map((e) => e.targetUid));
-        const gained = Object.keys(cur)
-          .filter((uid) => total(cur[uid]) > total(prev[uid] ?? baseStats[uid]))
-          .filter((uid) => !fxCovered.has(uid));
-        if (gained.length) {
-          setBuffedUids((s) => new Set([...s, ...gained]));
-          window.setTimeout(() => setBuffedUids((s) => {
-            const n = new Set(s);
-            for (const u of gained) n.delete(u);
-            return n;
-          }), BEAT);
-        }
       }
       // End-of-turn cue: every proc plays the glow sound. For a glow-only beat this is the SAME sound the
       // medallion cue above just fired for the same card — the built-in dedup collapses them to one play.
@@ -5487,7 +5438,6 @@ export function Recruit() {
                 dragging={!!drag?.active}
                 highlight={(heroArmed && heroTargetsTavern) || (castingSpell && drag?.view.target === 'any')}
                 targeted={(heroArmed && heroTargetsTavern && aimTargetUid === o.uid) || castTargetUid === o.uid}
-                buffed={buffedUids.has(o.uid)}
                 tripleReady={tripleReadyUids.has(o.uid)}
                 contraband={o.contraband}
                 enchanted={o.enchanted}
@@ -5544,7 +5494,6 @@ export function Recruit() {
                     dragging={!!drag?.active}
                     highlight={heroArmed || castingSpell || isPendingTarget(m.uid)}
                     targeted={((heroArmed || isPendingTarget(m.uid)) && aimTargetUid === m.uid) || castTargetUid === m.uid}
-                    buffed={buffedUids.has(m.uid)}
                     soulbound={soulboundUids.has(m.uid)}
                     battlecry={battlecryUids.has(m.uid) || eotProcUids.has(m.uid)}
                     // Medallion: a Battlecry / an officially-firing End-of-Turn pulses (ring); a cadence
@@ -5603,7 +5552,6 @@ export function Recruit() {
                 refCards={refViewsByUid.get(m.uid)}
                 dragging={!!drag?.active}
                 dimmed={isDragging(m.uid)}
-                buffed={!handViews.get(m.uid)?.ruby && buffedUids.has(m.uid)}
                 handSlidePx={handSlide(i) * handSlotWRef.current}
                 fanRot={fanRot}
                 onPointerDown={onCardPointerDown}

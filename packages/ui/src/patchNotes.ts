@@ -56,6 +56,13 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-08-27',
+    label: 'Load Screen Fix',
+    changes: [
+      { category: 'UI / Info', text: 'The loading bar now fills smoothly over the load, and the logo no longer jumps in size a beat after the screen appears.' },
+    ],
+  },
+  {
+    date: '2026-08-27',
     label: 'Art Batch',
     changes: [
       { category: 'UI / Info', text: 'New illustrations: 7 more Gifts, the two Gift runes, and a new Aevor portrait.', details: [

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { CARD_INDEX, QUEST_DEFS, RUNES, EPIC_RUNES, SETS, activeSet, poolFor, type SetId } from '@game/content';
 import { HEROES, type BoardSnapshot, type RunState, type ShopCard } from '@game/sim';
 import type { Keyword } from '@game/core';
@@ -78,6 +78,21 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
   const setSbTavernShowsEnemy = useGame((s) => s.setSbTavernShowsEnemy);
   const replayLastCombat = useGame((s) => s.replayLastCombat);
   const { panelRef, headerPointerDown, panelStyle, raise } = useDraggablePanel('scenebuilder');
+
+  // BUG SCENARIO bridge (bug reporter PR 4): load a `scenario.json` (the bug CLI's export) into the rig —
+  // file picker or pasted JSON, both routed through the store's `loadBugScenario` (validation + the
+  // no-writes sandbox entry live there; this section is just the input surface).
+  const bugScenario = useGame((s) => s.bugScenario);
+  const loadBugScenario = useGame((s) => s.loadBugScenario);
+  const clearBugScenario = useGame((s) => s.clearBugScenario);
+  const [bugJson, setBugJson] = useState('');
+  const [bugErrors, setBugErrors] = useState<string[]>([]);
+  const bugFileRef = useRef<HTMLInputElement | null>(null);
+  const loadBugText = (raw: string): void => {
+    const res = loadBugScenario(raw);
+    setBugErrors(res.errors);
+    if (res.ok) setBugJson('');
+  };
 
   // The card library is scoped to the run's PINNED set, so the Set toggle visibly changes what you can add and
   // "set 2 has 3 cards" reads honestly. `CARD_INDEX` stays the global id→def map (tokens included) — this is
@@ -365,6 +380,48 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
               ))}
               {runeResults.length === 0 && <div className="sb-empty">no matches</div>}
             </div>
+          </div>
+
+          {/* BUG SCENARIO — load a report's scenario.json (bug CLI export) into the rig. The run enters as a
+              sandbox (no saves / uploads / drafts — see `loadBugScenario`); the report side panel mounts on
+              load. A content-mismatch file loads read-only (panel + banner) without replacing the run. */}
+          <div className="sb-sec">
+            <div className="sb-label">Bug scenario</div>
+            {bugScenario ? (
+              <div className="sb-row">
+                <span className="sb-mini sb-name" title={bugScenario.reportId}>loaded: {bugScenario.reportId}</span>
+                <button className="sb-btn" onClick={clearBugScenario}>clear</button>
+              </div>
+            ) : (
+              <>
+                <div className="sb-row">
+                  <input
+                    ref={bugFileRef}
+                    type="file"
+                    accept=".json,application/json"
+                    style={{ display: 'none' }}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      e.target.value = ''; // re-picking the same file must fire onChange again
+                      if (!file) return;
+                      void file.text().then(loadBugText).catch(() => setBugErrors(['Could not read the file.']));
+                    }}
+                  />
+                  <button className="sb-btn" onClick={() => bugFileRef.current?.click()} title="Load a scenario.json exported by npm run bugs:repro">📂 load file…</button>
+                  <button className="sb-btn sb-primary" disabled={bugJson.trim() === ''} onClick={() => loadBugText(bugJson)} title="Load the pasted JSON">load JSON</button>
+                </div>
+                <textarea
+                  className="sb-search sb-bugpaste"
+                  rows={2}
+                  placeholder="…or paste a scenario.json here"
+                  value={bugJson}
+                  onChange={(e) => setBugJson(e.target.value)}
+                />
+              </>
+            )}
+            {bugErrors.length > 0 && (
+              <div className="sb-mini sb-warn">{bugErrors.join(' ')}</div>
+            )}
           </div>
         </div>
       )}

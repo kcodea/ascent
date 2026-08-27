@@ -21,6 +21,10 @@ export interface EnforcementLane {
 }
 
 export const ENFORCEMENT_LANES: Record<string, EnforcementLane> = {
+  temporalWindow: {
+    file: 'packages/sim/src/docbot/temporalWindow.test.ts',
+    what: 'per-instance trigger windows: the ten Avenge temporal scenarios, copy/Rise/gild progress semantics, once-per-combat latches, first-N windows, per-source improve counters — plus the shrink-only KNOWN_VIOLATIONS pins for R-AVWIN-02/10',
+  },
   factoryPhase: {
     file: 'packages/sim/src/docbot/factoryPhase.test.ts',
     what: 'every effect factory fires (or carries a typed excuse) in each phase where its trigger fires',

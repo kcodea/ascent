@@ -40,6 +40,7 @@
     "bugs:repro": "tsx packages/tools/src/bugs-repro.ts",
     "bugs:close": "tsx packages/tools/src/bugs-close.ts",
     "rules:seed": "tsx packages/tools/src/rules-seed.ts",
+    "rules:impact": "tsx packages/tools/src/rules-impact.ts",
     "board:elo": "tsx packages/tools/src/board-elo.ts",
     "boards:fetch": "tsx packages/tools/src/fetch-boards.ts",
     "lobby:snapshots": "tsx packages/tools/src/lobby-snapshot-check.ts",

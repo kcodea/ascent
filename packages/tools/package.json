@@ -6,6 +6,7 @@
   "dependencies": {
     "@game/core": "*",
     "@game/content": "*",
+    "@game/rules": "*",
     "@game/sim": "*"
   }
 }

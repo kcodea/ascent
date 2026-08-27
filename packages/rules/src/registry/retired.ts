@@ -27,6 +27,14 @@ const OWNER_RULINGS_PIN: RuleEnforcement = {
 /** Confirmed-current-behaviour rulings are encoded as OWNER RULED entries in the phase-excuse registry. */
 const PHASE_REGISTRY_PIN: RuleEnforcement = { kind: 'oracle', refs: ['phaseRegistry'], lastVerifiedAt: '2026-08-27' };
 
+// ── Triage round 2 (2026-08-27) shared pins — lane-level, because the sibling implementation PRs'
+//    dedicated test suites are still in flight; each lane re-alarms if the ruled surface drifts. ──
+const RUNEDUP_PIN: RuleEnforcement = { kind: 'oracle', refs: ['runeSwallowScan'], lastVerifiedAt: '2026-08-27' };
+const SNAPSHOT_PIN: RuleEnforcement = { kind: 'oracle', refs: ['snapshotFidelity'], lastVerifiedAt: '2026-08-27' };
+const CARRY_OVER_PIN: RuleEnforcement = { kind: 'oracle', refs: ['carryOver'], lastVerifiedAt: '2026-08-27' };
+const ORDER_GOLDENS_PIN: RuleEnforcement = { kind: 'oracle', refs: ['orderGoldens'], lastVerifiedAt: '2026-08-27' };
+const INTERACTION_PIN: RuleEnforcement = { kind: 'oracle', refs: ['interactionFamilyMatrix'], lastVerifiedAt: '2026-08-27' };
+
 export const RETIRED_RULES: RetiredRule[] = [
   {
     id: 'q-combatinert-b2_echohorn',
@@ -160,6 +168,188 @@ export const RETIRED_RULES: RetiredRule[] = [
       "OWNER RULED 2026-08-26 (triage board): current behaviour confirmed — Vaultkeeper does not gain from combat summons — correct. Encoded as an OWNER RULED entry in the Doc Bot registries, which is the durable pin; the queue item is closed.",
     retiredAt: '2026-08-26',
     enforcement: PHASE_REGISTRY_PIN,
+  },
+
+  // ════════════════ TRIAGE ROUND 2 (2026-08-27) — all 24 manual cards decided; board drained to 0 ════════════════
+  // Implemented-by-sibling rulings cite the LANE that pins the ruled surface (the sibling PRs'
+  // dedicated test files are still in flight, so lane-level refs are the durable pin today).
+  // The standing rules the rulings established live in approved.ts (R-RUNEDUP-01..08, R-ORD-01/02,
+  // R-MULT-01, R-SHOUT-01).
+
+  // ── A. Rune duplicate stacking — all 8 family rules ruled; IMPLEMENTED in feat/rune-duplicate-stacking ──
+  {
+    id: 'q-runedup-recurring',
+    why:
+      'OWNER RULED 2026-08-27 (triage round 2, APPROVE): recurring/per-event rune duplicates STACK — a second copy makes the effect fire once more each time it recurs (two Flagships = +4/+4 per Shop spell). Standing rule R-RUNEDUP-01. IMPLEMENTED in feat/rune-duplicate-stacking; the runeSwallowScan lane pins the duplicate-swallow surface shrinking as families land.',
+    retiredAt: '2026-08-27',
+    enforcement: RUNEDUP_PIN,
+  },
+  {
+    id: 'q-runedup-threshold',
+    why:
+      'OWNER RULED 2026-08-27 (triage round 2, REVISE — verbatim): "A second copy copy should double the output. i.e. 2 rune of the returning pack, every 6 beast summons you\'d get 2 random beasts, etc." — double the PAYOFF at the same threshold, not parallel meters. Standing rule R-RUNEDUP-02. IMPLEMENTED in feat/rune-duplicate-stacking (runeSwallowScan lane).',
+    retiredAt: '2026-08-27',
+    enforcement: RUNEDUP_PIN,
+  },
+  {
+    id: 'q-runedup-repeat',
+    why:
+      'OWNER RULED 2026-08-27 (triage round 2, APPROVE): repeat runes gain +1 repetition per copy (two Wishbones = hero power fires 3 times), riding the existing extraTriggerFires / per-family fold plumbing. Standing rule R-RUNEDUP-03. IMPLEMENTED in feat/rune-duplicate-stacking (runeSwallowScan lane).',
+    retiredAt: '2026-08-27',
+    enforcement: RUNEDUP_PIN,
+  },
+  {
+    id: 'q-runedup-oneshot',
+    why:
+      'OWNER RULED 2026-08-27 (triage round 2, REVISE): one-shot duplicates RE-FIRE the reward; when immediate re-fire would still give no value, the effect BANKS and fires next turn (a second Armory grants its 10 Attachments next turn — hand cap), Muster covers the first 2 refreshes with 2 copies, Ornate Clock is unique and a duplicate does nothing, and Held Strength is to be REDESIGNED from a one-shot into a "Start of Combat: give xyz" rune. Standing rule R-RUNEDUP-04. IMPLEMENTED in feat/rune-duplicate-stacking (runeSwallowScan lane).',
+    retiredAt: '2026-08-27',
+    enforcement: RUNEDUP_PIN,
+  },
+  {
+    id: 'q-runedup-boolean-flags',
+    why:
+      'OWNER RULED 2026-08-27 (triage round 2, APPROVE): boolean combat flags whose effect can meaningfully repeat fire ONCE PER COPY (flagCopies goes live everywhere, matching the Avenge dispatchers that already consume it); true one-offs fall back to the universal sweetener. Standing rule R-RUNEDUP-05. IMPLEMENTED in feat/rune-duplicate-stacking (runeSwallowScan lane).',
+    retiredAt: '2026-08-27',
+    enforcement: RUNEDUP_PIN,
+  },
+  {
+    id: 'q-runedup-sweetener-floor',
+    why:
+      'OWNER RULED 2026-08-27 (triage round 2, APPROVE): the universal sweetener floor — any duplicate that cannot meaningfully stack grants Gold equal to half the rune\'s cost rounded up plus a free refresh, so a duplicate is NEVER a dead buy. Standing rule R-RUNEDUP-06. IMPLEMENTED in feat/rune-duplicate-stacking (runeSwallowScan lane).',
+    retiredAt: '2026-08-27',
+    enforcement: RUNEDUP_PIN,
+  },
+  {
+    id: 'q-runedup-forge-filter',
+    why:
+      'OWNER RULED 2026-08-27 (triage round 2, APPROVE): the forge filter — the Runeforge stops offering an owned rune whose duplicate would only pay the sweetener; stacking families stay offerable, and Rune of Duplication still reaches everything (backstopped by the sweetener). Standing rule R-RUNEDUP-07. IMPLEMENTED in feat/rune-duplicate-stacking (runeSwallowScan lane).',
+    retiredAt: '2026-08-27',
+    enforcement: RUNEDUP_PIN,
+  },
+  {
+    id: 'q-runedup-unique-engines',
+    why:
+      'OWNER RULED 2026-08-27 (triage round 2, REVISE — verbatim): "generally, try and double the effect when possible. rune of structure = you get 2 random shop spells. rune of summoning = your imps get +4/+4, rune of contraband doubles the output of the ale/ruby per trigger etc." — unique engines double their output where a doubling reading exists; the sweetener remains the fallback for the rest. Standing rule R-RUNEDUP-08. IMPLEMENTED in feat/rune-duplicate-stacking (runeSwallowScan lane).',
+    retiredAt: '2026-08-27',
+    enforcement: RUNEDUP_PIN,
+  },
+
+  // ── B. Copy / carry-over / snapshot rulings ──
+  {
+    id: 'q-copy-gilded-badge',
+    why:
+      'OWNER RULED 2026-08-27 (triage round 2, REVISE): Exgalloper\'s summons "should be exact copies without the echo, so they would be gilded too" — the plain-badge behaviour is the bug; exact copies of a Gilded source keep the Gilded badge (Mirrorhide Rhino was already right). The owner will rename the copy-without-echo keyword to REBIRTH soon (his own follow-up work). IMPLEMENTED in fix/combat-replay-multipliers; the textOracleSummons lane pins the gilded-badge convention on summoned copies.',
+    retiredAt: '2026-08-27',
+    enforcement: { kind: 'oracle', refs: ['textOracleSummons'], lastVerifiedAt: '2026-08-27' },
+  },
+  {
+    id: 'q-carry-demand-encore',
+    why:
+      'OWNER RULED 2026-08-27 (triage round 2, REVISE — verbatim, a STANDING rule): "\'This turn\' terminology runs from shop through that turn\'s combat, and ends at the start of the next shop turn. so this effect should absolutely carry over into combat. use this language and logic moving forward and to retroactively fix issues." Demand an Encore\'s unused charge carries to combat-triggered Shouts, and every other "this turn" effect follows the same rule. IMPLEMENTED in feat/this-turn-rule (carryOver lane).',
+    retiredAt: '2026-08-27',
+    enforcement: CARRY_OVER_PIN,
+  },
+  {
+    id: 'q-carry-warm-embers-double-dip',
+    why:
+      'OWNER RULED 2026-08-27 (triage round 2, REVISE): "first shout each turn = the first shout triggered EACH shop or combat phase. so if a shout gets triggered through parting cry in combat on turn 7, then the first shout in turn 8 is a separate charge, so both should work." Not a double-dip of ONE charge — each phase carries its own first-Shout charge. Standing rule R-SHOUT-01. IMPLEMENTED in feat/this-turn-rule (carryOver lane).',
+    retiredAt: '2026-08-27',
+    enforcement: CARRY_OVER_PIN,
+  },
+  {
+    id: 'q-snap-impbank',
+    why:
+      'OWNER RULED 2026-08-27 (triage round 2, APPROVE): Ashen Heir\'s Imp bank RIDES both boundaries — BoardMinion gains the slot, capture and the player board→combat mapping thread it, and a served Heir fights with the bank it was captured with. IMPLEMENTED in feat/snapshot-carries (snapshotFidelity lane).',
+    retiredAt: '2026-08-27',
+    enforcement: SNAPSHOT_PIN,
+  },
+  {
+    id: 'q-snap-rallyspreadatk',
+    why:
+      'OWNER RULED 2026-08-27 (triage round 2, APPROVE): Sunmane Herald\'s rally-Attack accrual is PER-COMBAT — a within-fight snowball resetting each fight, matching the printed "only in combat" and the 2026-08-08 Rise ruling. The write-dead BoardCard.rallySpreadAtk field and its stale "run-long" docblock are deleted so the code stops promising otherwise (cleanup rides feat/snapshot-carries). The snapshotFidelity lane pins the field classification.',
+    retiredAt: '2026-08-27',
+    enforcement: SNAPSHOT_PIN,
+  },
+  {
+    id: 'q-snap-one-combat-marks',
+    why:
+      'OWNER RULED 2026-08-27 (triage round 2, APPROVE): the drop was a bug — capture carries Parting Cry, Soren\'s Reclaim and Closed Casket exactly as it carries Bloodlust, so served boards fight with the marks the player paid for (the Soren best-Echo reconstruction heuristic becomes unnecessary). IMPLEMENTED in feat/snapshot-carries (snapshotFidelity lane).',
+    retiredAt: '2026-08-27',
+    enforcement: SNAPSHOT_PIN,
+  },
+  {
+    id: 'q-snap-granted-effects',
+    why:
+      'OWNER RULED 2026-08-27 (triage round 2, APPROVE): grafted Deathrattles (grantedEffects — Grave Body, Echo Mimic, Contract Rewrite, Rune of Rebirth\'s shop half) ride into combat and capture through the same channel as copiedEcho — the shop-only silence was a bug. IMPLEMENTED in feat/snapshot-carries (snapshotFidelity lane).',
+    retiredAt: '2026-08-27',
+    enforcement: SNAPSHOT_PIN,
+  },
+  {
+    id: 'q-snap-echostripped',
+    why:
+      'OWNER RULED 2026-08-27 (triage round 2, REVISE): the echoStripped mark carries — "if a summoned copy that removes the echo is somehow granted into the shop, then it would be the rebirthed/cleansed version that should then NOT summon itself when killed in combat." The printed "without Echo" holds in every phase; the coming REBIRTH keyword (owner\'s follow-up) formalizes the copy-without-echo shape. IMPLEMENTED in feat/snapshot-carries (snapshotFidelity lane).',
+    retiredAt: '2026-08-27',
+    enforcement: SNAPSHOT_PIN,
+  },
+
+  // ── C. Order ambiguities ──
+  {
+    id: 'q-order-clash-echo-defender-first',
+    why:
+      'OWNER RULED 2026-08-27 (triage round 2, APPROVE): defender-first IS the rule — in a mutual-kill clash the defender\'s death and Echo resolve before the attacker\'s, on both sides. Golden G3 (orderGoldens) stays the pin; GAME-RULES documents it.',
+    retiredAt: '2026-08-27',
+    enforcement: ORDER_GOLDENS_PIN,
+  },
+  {
+    id: 'q-order-soc-player-side-first',
+    why:
+      'OWNER RULED 2026-08-27 (triage round 2, REVISE — verbatim): "This should be initiative-side first. the side that attacks first resolves start of combat first. both SOC\'s trigger before attacks start, but the side that attacks first gets the SoC triggers first." The fixed first-passed-side order was a bug. IMPLEMENTED in fix/combat-replay-multipliers (golden G2 re-pinned to initiative-side-first; ships with a replay-version note since it re-times replays).',
+    retiredAt: '2026-08-27',
+    enforcement: ORDER_GOLDENS_PIN,
+  },
+  {
+    id: 'q-order-improve-steps-mid-resolution',
+    why:
+      'OWNER RULED 2026-08-27 (triage round 2, APPROVE): live improve steps are the rule — every summon re-reads the current step, even within one simultaneous wave (Beardsley\'s 4th Pup of one Cleave wave gets the improved rate). Standing rule R-ORD-01; golden G4 (orderGoldens) is the pin.',
+    retiredAt: '2026-08-27',
+    enforcement: ORDER_GOLDENS_PIN,
+  },
+  {
+    id: 'q-order-shop-aura-before-shout',
+    why:
+      'OWNER RULED 2026-08-27 (triage round 2, APPROVE): aura-first with live improve steps is the rule in the shop too — on-summon auras (and their improve steps) resolve before the played minion\'s own Shout (Den Mother\'s improved grant reaches Pennycat\'s Stray). Standing rule R-ORD-02; golden G6 (orderGoldens) is the pin.',
+    retiredAt: '2026-08-27',
+    enforcement: ORDER_GOLDENS_PIN,
+  },
+
+  // ── D. Interaction ambiguities ──
+  {
+    id: 'q-interact-nonstack-best-of',
+    why:
+      'OWNER RULED 2026-08-27 (triage round 2, REVISE — verbatim): "This is correct behavior. We will probably change our text/terminology to better reflect non stackers. i.e. using \'Twice\' instead of \'an additional time.\'" Best-of across different non-stacking multipliers of one family stands; the terminology pass is the owner\'s future work. Standing rule R-MULT-01; the interactionFamilyMatrix lane pins the collapse.',
+    retiredAt: '2026-08-27',
+    enforcement: INTERACTION_PIN,
+  },
+  {
+    id: 'q-interact-combat-shout-multipliers',
+    why:
+      'OWNER RULED 2026-08-27 (triage round 2, APPROVE): the flat paths were an omission — EVERY combat Shout re-fire (Parting Cry, Embercrest\'s Rally, Rune of Ancestral Roar, Rune of Shared Scripture, Rune of the War Chorus) folds the Battlecry multipliers, matching Ryme/Dawnclaw/Thunderous Sovereign and the shop (the 2026-08-20 "multipliers follow the trigger" principle applied uniformly). IMPLEMENTED in fix/combat-replay-multipliers (interactionFamilyMatrix lane).',
+    retiredAt: '2026-08-27',
+    enforcement: INTERACTION_PIN,
+  },
+  {
+    id: 'q-interact-empty-graves-flat',
+    why:
+      'OWNER RULED 2026-08-27 (triage round 2, APPROVE): Empty Graves\' forced Echo folds the side\'s Echo multipliers like every other forced trigger (Rune of the Herald, Deathsayer, Echohorn) — the single-fire was an omission. IMPLEMENTED in fix/combat-replay-multipliers (interactionFamilyMatrix lane). The stale questText reward line found in passing is tracked with the same fix.',
+    retiredAt: '2026-08-27',
+    enforcement: INTERACTION_PIN,
+  },
+  {
+    id: 'q-interact-forced-echo-first-bonus',
+    why:
+      'OWNER RULED 2026-08-27 (triage round 2, REVISE — verbatim): "an echo trigger is an echo trigger, so for example Spot\'s start of combat trigger would trigger that charge on the left-most echo that gets triggered first." Forced, deathless Echo triggers legitimately consume the once-per-combat first-Echo bonus — current behaviour confirmed; the interactionFamilyMatrix lane pins it.',
+    retiredAt: '2026-08-27',
+    enforcement: INTERACTION_PIN,
   },
 ];
 

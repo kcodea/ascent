@@ -65,5 +65,5 @@ export const PLAY_EXCUSED: Readonly<Record<string, string>> = {
 
 /** TRIPWIRE 9 — silent onSummon watchers, with the reading that keeps them silent legitimately. */
 export const WATCHER_EXCUSED: Readonly<Record<string, string>> = {
-  gravebody: '"Copy your leftmost Echo when summoned" — the onSummon is about ITSELF being summoned (and its shop half is the startOfCombat copy); watching others is correctly nothing',
+  gravebody: 'OWNER RULED 2026-08-26, reaffirmed 2026-08-27 (q-watch-gravebody REVISE): PARKED FOR REWORK — "this card should get reworked, but it is also not currently active in the game. we\'ll revisit when we need to." Until then the silence stands: "Copy your leftmost Echo when summoned" — the onSummon is about ITSELF being summoned (and its shop half is the startOfCombat copy); watching others is correctly nothing',
 };

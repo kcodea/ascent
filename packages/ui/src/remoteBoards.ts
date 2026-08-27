@@ -41,6 +41,11 @@ function client(): SupabaseClient | null {
   return cachedClient;
 }
 
+/** BUG REPORTER (PR 2): the reporter's Edge Function upload rides THIS client — same persisted session and
+ *  access token as every other write — so `bug-report/` never builds a second client. Null when no backend
+ *  is configured (the queue then simply retains reports). Exported narrowly for that one caller. */
+export const supabaseClient = (): SupabaseClient | null => client();
+
 /** A Supabase auth user → our provider-agnostic `Identity`. `is_anonymous` flips false once an email is
  *  confirmed on the account, so it is the single source of truth for "real account vs device-bound session".
  *  `displayName` is left to the caller (it comes from local storage / the profile, never from auth). */

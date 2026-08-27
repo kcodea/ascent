@@ -61,6 +61,7 @@ import { clearProfile, loadProfile, saveProfile } from './profileStore';
 import { turnClock } from './turnClock';
 import { BUG_REPORT_TX_TOAST, bugReportAvailability, buildBugReportEnvelope, buildClientContext, captureIncidentCapsule, exportBugReportJson } from './bug-report/bugReportCapture';
 import { validateBugReportDraft } from './bug-report/bugReportValidation';
+import { attemptBugReportUpload, enqueueBugReport, flushBugReportQueue, initBugReportUploads } from './bug-report/bugReportUpload';
 import type { BugReportDraft } from './bug-report/bugReportTypes';
 
 
@@ -1801,12 +1802,23 @@ export const useGame = create<GameStore>((set, get) => ({
       draft.issueType,
       buildClientContext({ account: s.account, playerName: s.playerName, setId: draft.capsule.setId }),
     );
-    // PR 2 SEAM: `enqueueBugReport(envelope)` (IndexedDB) + async upload slot in exactly here — the envelope
-    // is the queue's payload verbatim. PR 1 ships the DEV JSON export so a tester's report is a
-    // deserializable artifact today; prod builds just log the id until the queue lands.
+    // PR 2 (§6.2): persist to the durable IndexedDB queue FIRST — the modal only closes once the report is
+    // safe locally — then resume play and upload asynchronously. The DEV JSON export stays: a tester's report
+    // is a deserializable artifact even with the backend down.
     if (import.meta.env.DEV) exportBugReportJson(envelope);
-    else console.info(`[bug-report] captured ${envelope.reportId} — local export/upload arrives with the report queue (PR 2)`);
+    const durability = await enqueueBugReport(envelope);
     set({ bugReportOpen: false, bugReportDraft: null });
+    void attemptBugReportUpload(envelope.reportId).then((outcome) => {
+      // §1.3 confirmations + the §13 IndexedDB-unavailable warning (memory-only copy AND the immediate
+      // upload failed → this report dies with the tab; say so, non-blocking).
+      const msg = outcome.kind === 'success'
+        ? 'Report sent. Thank you.'
+        : durability === 'memory'
+          ? 'Report could not be saved on this device. It will send only if you stay connected this session.'
+          : 'Report saved. It will send when you reconnect.';
+      set({ bugReportToast: msg });
+      setTimeout(() => { if (get().bugReportToast === msg) set({ bugReportToast: null }); }, 3200);
+    });
   },
 }));
 
@@ -1856,6 +1868,7 @@ function initAccounts(): void {
     if (!id) return;
     useGame.setState((st) => ({ account: { ...st.account, userId: id.userId, email: id.email, anonymous: id.anonymous } }));
     void flushUploadQueue(); // a session now exists — replay anything queued while offline
+    void flushBugReportQueue(); // …and any bug reports stranded offline / pre-handshake (§6.2 auth trigger)
     // Ensure this account carries a `#tag` (and its author/email are current) once identity exists.
     if (name) void claimHandle(name).then((h) => { if (h) useGame.setState((st) => ({ account: { ...st.account, discriminator: h.discriminator } })); });
   });
@@ -1866,6 +1879,7 @@ function initAccounts(): void {
         : { userId: null, email: null, anonymous: true, discriminator: null },
     }));
     if (id) void flushUploadQueue(); // session (re)established → flush the offline queue
+    if (id) void flushBugReportQueue(); // §6.2: retry bug reports after authentication restoration
     if (id && !id.anonymous) {
       syncProfileFromServer(loadPlayerName()); // a real account just landed — pull its authoritative row
       // Re-claim so the now-known email is written onto the profile, and mirror the tag back.
@@ -1875,6 +1889,10 @@ function initAccounts(): void {
   });
 }
 initAccounts();
+
+// BUG REPORTER (PR 2): wire the environment retry triggers — flush at app boot (reports stranded by a
+// previous session) + on the browser `online` event. The auth trigger rides `initAccounts` above.
+initBugReportUploads();
 
 // REPLAY V2 (resume durability): a restored save's earlier rounds live in IndexedDB, not in `ascent.save`.
 // Read them back and splice them in front of the resume keyframe. Fired here — at module init, while the

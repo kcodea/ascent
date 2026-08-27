@@ -28,6 +28,7 @@
 /** def id → the `packages/ui/src`-relative files that fire it. Generated; see the header. */
 export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   'ale-bubbles': ['Recruit.tsx', 'choreo/score.ts'],
+  'board-wipe': ['Recruit.tsx'],   // the combat-entry/exit board wipe's Pixi garnish
   'cia-hp': ['useCiaEnchantedFx.ts'],
   'click-puff': ['Recruit.tsx'],
   'tallyanimation1': ['Recruit.tsx'],   // the hero-duel tally→attack-pill effect

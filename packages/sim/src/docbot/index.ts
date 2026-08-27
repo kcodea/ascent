@@ -34,3 +34,10 @@ export { combatScan, combatWorklist } from './combatScan';
 export { combatModScan } from './combatModScan';
 export { heroScan } from './heroScan';
 export { PLAY_EXCUSED, WATCHER_EXCUSED } from './historyRegistry';
+// ── PR 8: coverage-guided corpus + nightly lifecycle lane ──────────────────────────────────────────────────
+export { coverageKeysFor, type CoverageObservation } from './coverageKeys';
+export { buildCoverageCorpus, corpusDigest, CORPUS_CONFIG, type CorpusConfig, type CorpusEntry, type CorpusBuildResult } from './corpusBuilder';
+export { driveTrajectory, nextFuzzAction, invariantViolations, pinCurrentWave, DEFAULT_COMBAT_BUDGET, type DriveOptions, type DriveOutcome, type DriveViolation, type CombatBudget } from './trajectory';
+export { minimizeFailure, specToScenario, scenarioRepro, violationPredicate, type TrajectorySpec, type FailurePredicate, type MinimizeResult } from './seedMinimize';
+export { makeFinding, fingerprintFinding, emitFindingsJson, type DocbotFinding, type FindingDraft, type FindingIdentity } from './findings';
+export { runNightly, runLifecycle, runLobbySweep, buildFailureArtifact, nightlyReportJson, DEFAULT_NIGHTLY, type NightlyConfig, type NightlyReport, type NightlyRunReport, type NightlyFailure } from './nightlyLane';

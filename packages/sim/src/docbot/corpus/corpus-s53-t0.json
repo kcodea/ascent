@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "id": "corpus-s53-t0",
+  "title": "coverage corpus — seed 53 step 0 (discover, brackus, set1)",
+  "source": "generated",
+  "seed": 53,
+  "setId": "set1",
+  "mode": "recruit",
+  "state": "{\"seed\":53,\"mode\":\"ascent\",\"wave\":1,\"history\":[],\"line\":9,\"phase\":\"recruit\",\"embers\":3,\"maxEmbers\":3,\"resolve\":30,\"maxResolve\":30,\"armor\":11,\"maxArmor\":11,\"tier\":1,\"upgradeCost\":5,\"frozen\":false,\"shop\":[{\"uid\":\"s0\",\"cardId\":\"spore\"},{\"uid\":\"s1\",\"cardId\":\"deathswarmer\"},{\"uid\":\"s2\",\"cardId\":\"twilightwhelp\"}],\"spell\":{\"uid\":\"s3\",\"cardId\":\"crestclimb\"},\"spellsCast\":0,\"spellsThisTurn\":0,\"deathrattlesTriggered\":0,\"triplesMade\":0,\"goldSpent\":0,\"runDamage\":{},\"runProcs\":{},\"combatSettled\":false,\"freeRolls\":0,\"frontToBackBonus\":0,\"frontToBackBonusH\":0,\"undeadAttackBonus\":0,\"undeadHealthBonus\":0,\"undeadBuyAtk\":0,\"beastBuyAtk\":0,\"beastBuyHp\":0,\"magneticBuyAtk\":0,\"magneticBuyHp\":0,\"spellBonus\":{\"attack\":0,\"health\":0},\"tavernBuyBonus\":{\"atk\":0,\"hp\":0},\"drakkoBuys\":0,\"cassenKills\":0,\"keshiTierPoints\":0,\"turnStartPower\":0,\"servedBoards\":{\"1\":null},\"spellCostMod\":0,\"hand\":[],\"board\":[],\"activeQuests\":[],\"heroId\":\"brackus\",\"heroReady\":true,\"heroPowerSpent\":false,\"threat\":\"glass\",\"tribes\":[\"dragon\",\"mech\",\"beast\",\"undead\",\"demon\"],\"rngCursor\":-541513338,\"pool\":{\"sandbag\":10,\"hoarder\":9,\"broker\":9,\"buddy\":9,\"guel\":7,\"monk\":7,\"drummer\":6,\"sylus\":6,\"chronos\":6,\"yazzus\":6,\"taurus\":6,\"joker\":6,\"venom\":8,\"tauntbreaker\":7,\"blackbelt\":6,\"jenkins\":6,\"stewardofspells\":6,\"arenaheckler\":7,\"ropewrangler\":7,\"spellappraiser\":7,\"nimbus\":6,\"wayfinder\":7,\"alley\":10,\"pack\":9,\"kennel\":9,\"gnash\":6,\"grim\":6,\"shaper\":9,\"spiritpup\":6,\"manasaber\":10,\"raptor\":8,\"seaurchin\":7,\"gryphon\":8,\"mamabear\":6,\"babycub\":7,\"beetle\":8,\"solaris\":6,\"mirrorrhino\":6,\"packleader\":6,\"squirlscout\":8,\"philippe\":6,\"emissary\":9,\"cleric\":8,\"cinder\":7,\"weaver\":8,\"karwind\":6,\"bane\":6,\"frontdrake\":10,\"havendrake\":6,\"supporter\":9,\"bronzewarden\":8,\"stuntdrake\":6,\"hunter\":6,\"cryptdrake\":6,\"tara\":8,\"twilightwhelp\":9,\"broodmother\":7,\"runescale\":7,\"hoardbreaker\":7,\"spore\":9,\"profgreg\":7,\"knit\":9,\"karthus\":6,\"ryme\":7,\"deathlesshand\":8,\"deathsayer\":7,\"deathswarmer\":9,\"pillager\":8,\"mumi\":9,\"thunderingabomination\":6,\"sergeant\":6,\"forsakenweaver\":6,\"steadfast\":6,\"wolvesden\":8,\"soulsman\":8,\"gravewarden\":8,\"cryptscribe\":6,\"watcher\":6,\"graverobber\":7,\"drone\":10,\"moneymaker\":10,\"cling\":9,\"selfless\":9,\"moneybot\":8,\"junk\":8,\"combinator\":6,\"aeonguard\":6,\"beatboxer\":6,\"speedy\":7,\"betterbot\":7,\"nanon\":6,\"banksly\":6,\"jouster\":7,\"moe\":8,\"bountybot\":6,\"fieldmechanic\":8,\"sparkcapacitor\":7,\"scrapherald\":7,\"swordbored\":9,\"impking\":7,\"feed\":10,\"brood\":8,\"heckbinder\":8,\"maw\":8,\"ritualist\":6,\"acid\":6,\"godfodder\":9,\"chefraag\":7,\"trickster\":9,\"abhorrenthorror\":6,\"burialimp\":10,\"impala\":6,\"impoverseer\":9,\"bloodbinder\":7,\"pitsupplier\":8,\"abyssalfeeder\":6,\"thundeer\":6,\"amunrab\":6,\"attachmentconductor\":6,\"mauron\":6,\"anubis\":6,\"salvatore\":6,\"uron\":6,\"zyff\":6,\"labexperiment\":6},\"uidSeq\":4,\"pendingTavern\":[],\"cardBuffs\":{},\"fodderEatenSeq\":0,\"shopEatenSeq\":0,\"recruitBuffFx\":[],\"recruitFxSeq\":0,\"aleGranted\":[],\"aleGrantSeq\":0,\"karwindFlashSeq\":0,\"rift\":null,\"setId\":\"set1\",\"discover\":[\"zyff\",\"anubis\",\"yazzus\"],\"discoverLockGold\":70}",
+  "action": {
+    "type": "discover",
+    "index": 0
+  },
+  "expectations": [
+    {
+      "kind": "invariant",
+      "id": "embers-non-negative"
+    },
+    {
+      "kind": "invariant",
+      "id": "board-within-cap"
+    },
+    {
+      "kind": "invariant",
+      "id": "stats-finite"
+    }
+  ],
+  "metadata": {
+    "notes": "coverage keys first reached here: action:discover"
+  }
+}

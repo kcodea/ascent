@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "id": "corpus-s401-t5",
+  "title": "coverage corpus — seed 401 step 5 (heroPower, gambler, set2)",
+  "source": "generated",
+  "seed": 401,
+  "setId": "set2",
+  "mode": "recruit",
+  "state": "{\"seed\":401,\"mode\":\"ascent\",\"wave\":1,\"history\":[],\"line\":9,\"phase\":\"recruit\",\"embers\":1,\"maxEmbers\":3,\"resolve\":30,\"maxResolve\":30,\"armor\":8,\"maxArmor\":8,\"tier\":1,\"upgradeCost\":5,\"frozen\":false,\"shop\":[{\"uid\":\"s8\",\"cardId\":\"dw_orin\"},{\"uid\":\"s9\",\"cardId\":\"k_beggy\"},{\"uid\":\"s10\",\"cardId\":\"dm_leech\"}],\"spell\":{\"uid\":\"s11\",\"cardId\":\"sprout\"},\"spellsCast\":0,\"spellsThisTurn\":0,\"deathrattlesTriggered\":0,\"triplesMade\":0,\"goldSpent\":2,\"runDamage\":{},\"runProcs\":{},\"combatSettled\":false,\"freeRolls\":0,\"frontToBackBonus\":0,\"frontToBackBonusH\":0,\"undeadAttackBonus\":0,\"undeadHealthBonus\":0,\"undeadBuyAtk\":0,\"beastBuyAtk\":0,\"beastBuyHp\":0,\"magneticBuyAtk\":0,\"magneticBuyHp\":0,\"spellBonus\":{\"attack\":0,\"health\":0},\"tavernBuyBonus\":{\"atk\":0,\"hp\":0},\"drakkoBuys\":0,\"cassenKills\":0,\"keshiTierPoints\":0,\"turnStartPower\":0,\"spellCostMod\":0,\"hand\":[],\"board\":[],\"activeQuests\":[],\"heroId\":\"gambler\",\"heroReady\":true,\"heroPowerSpent\":false,\"threat\":\"glass\",\"tribes\":[\"kobold\",\"beast\",\"dragon\",\"demon\",\"dwarf\"],\"rngCursor\":-1156063451,\"pool\":{\"k_chipwick\":10,\"k_deepvein\":9,\"k_gemstorm\":6,\"k_gemline\":7,\"k_tunnelcharger\":8,\"k_veinbreaker\":7,\"k_crownvein\":6,\"k_faultline\":8,\"k_frenzied\":7,\"k_gemheart\":7,\"k_deepdelve\":6,\"k_gemgorge\":6,\"k_geode\":9,\"k_kobabyboldies\":6,\"k_alchemist\":6,\"k_stormchaser\":8,\"k_mineralmaster\":6,\"k_portsmith\":6,\"k_kobe\":7,\"k_boulderdash\":6,\"k_beggy\":9,\"k_blazer\":7,\"dw_orin\":9,\"dw_ironlung\":9,\"dw_brunni\":8,\"dw_wardkeeper\":8,\"dw_coinfire\":8,\"dw_brakka\":7,\"dw_dorrin\":7,\"dw_foreman\":6,\"dw_brewer\":6,\"dw_tapkeeper\":6,\"dw_runemaster\":6,\"dw_bladethrower\":7,\"dw_anvilshade\":6,\"dw_thane\":6,\"dw_pimm\":10,\"dw_edward\":6,\"dw_chef\":6,\"dw_mountainbond\":6,\"dw_billings\":6,\"dw_gangplank\":8,\"d2_embermouth\":10,\"d2_spellkeeper\":6,\"d2_chorus\":8,\"d2_grimoire\":6,\"d2_scalefeather\":6,\"d2_voicekeeper\":7,\"d2_chronicler\":8,\"d2_mirrorwing\":9,\"d2_scalechanter\":7,\"d2_skald\":9,\"d2_recaller\":7,\"d2_blazingkeeper\":6,\"d2_orivax\":6,\"d2_herzog\":6,\"d2_transcendence\":7,\"d2_embercrest\":6,\"d2_broodfire\":9,\"d2_cinderchef\":10,\"d2_roarcollector\":7,\"d2_flamebeat\":6,\"d2_riverdrake\":8,\"d2_warflame\":6,\"d2_felconjurer\":6,\"d2_flutterdrake\":6,\"karwind\":6,\"b2_moonhowl\":6,\"b2_elderhorn\":6,\"b2_sunmane\":6,\"b2_oona\":6,\"b2_trex\":9,\"b2_echohorn\":7,\"b2_mammoth\":6,\"b2_solaris\":6,\"b2_dawnclaw\":7,\"b2_packstrider\":10,\"b2_moira\":6,\"b2_bullseye\":8,\"b2_beardsley\":7,\"b2_wolvie\":9,\"b2_armadiyo\":8,\"b2_dunkey\":7,\"b2_hawkus\":6,\"b2_spots\":6,\"kennel\":9,\"grim\":6,\"manasaber\":10,\"seaurchin\":7,\"beetle\":8,\"dm_butcher\":8,\"dm_agent\":9,\"dm_hungerling\":8,\"dm_tormentor\":7,\"dm_curator\":6,\"dm_glutton\":6,\"dm_gourmand\":8,\"dm_velvet\":7,\"dm_shepherd\":6,\"dm_maw\":6,\"dm_malphas\":6,\"dm_hank\":9,\"dm_grobbus\":7,\"dm_todd\":6,\"dm_knocked\":10,\"dm_grevlin\":6,\"dm_jumbo\":6,\"dm_leech\":9,\"dm_felspikes\":6,\"dm_chosenfiend\":7,\"impoverseer\":9,\"n2_spellsword\":9,\"n2_bellringer\":7,\"n2_conductor\":7,\"n2_lastlight\":8,\"k_pouchpincher\":10,\"n2_paragon\":6,\"n2_standardbearer\":8,\"n2_fatecarver\":6,\"buddy\":9,\"drummer\":6,\"sylus\":6,\"chronos\":6,\"yazzus\":6,\"joker\":6,\"venom\":8,\"tauntbreaker\":7,\"blackbelt\":6,\"jenkins\":6,\"stewardofspells\":6,\"arenaheckler\":7,\"ropewrangler\":7,\"nimbus\":6,\"wayfinder\":7,\"salvatore\":6,\"uron\":6,\"zyff\":6,\"dw_chickenbrawl\":9,\"dw_sharpshooter\":7,\"dw_arnold\":6},\"uidSeq\":12,\"pendingTavern\":[],\"cardBuffs\":{},\"fodderEatenSeq\":0,\"shopEatenSeq\":0,\"recruitBuffFx\":[],\"recruitFxSeq\":0,\"aleGranted\":[],\"aleGrantSeq\":0,\"karwindFlashSeq\":0,\"rift\":null,\"setId\":\"set2\",\"weldFxBaseSeq\":0,\"lastShoutFires\":0,\"lastEchoFires\":0,\"lastRallyFires\":0,\"questTendrilFx\":[],\"lastEotFires\":0,\"fodderEaten\":[],\"shopEaten\":[],\"gainCardFiredUids\":[],\"goldSpentThisTurn\":2,\"servedBoards\":{\"1\":null}}",
+  "action": {
+    "type": "heroPower"
+  },
+  "expectations": [
+    {
+      "kind": "invariant",
+      "id": "embers-non-negative"
+    },
+    {
+      "kind": "invariant",
+      "id": "board-within-cap"
+    },
+    {
+      "kind": "invariant",
+      "id": "stats-finite"
+    }
+  ],
+  "metadata": {
+    "notes": "coverage keys first reached here: hero-power:unlock-recharge, trigger:dice"
+  }
+}

@@ -144,6 +144,25 @@ carries the human-readable snapshot.
 The explicit limitation list, each blind spot's circumvention, and the phased build order live in
 [docs/docbot-roadmap.md](docbot-roadmap.md) — the execution plan for the blueprint's remaining components.
 
+## The coverage corpus + nightly lane (PR 8)
+
+Three commands sit above the tripwires (`packages/sim/src/docbot/{coverageKeys,corpusBuilder,trajectory,seedMinimize,findings,nightlyLane}.ts`):
+
+- `npm run docbot:corpus` — regenerates the coverage-guided scenario corpus (`docbot/corpus/`): a
+  deterministic fuzz sweep retains the smallest one-action `QaScenarioV1` that first reaches each SEMANTIC
+  coverage key (factory executed, trigger emitted, combat-mod consumed, hero-power family, rune reward
+  kind, guard branch, snapshot boundary, target arity, chain depth). Keys are derived purely from the
+  event stamps the engine already emits (`factory:<do>:<on>` on combat events, `policyKey` on recruit
+  beats) — zero engine change. The corpus is generated output: never hand-edit; regenerate in the PR that
+  invalidates a fixture (the test names it).
+- `npm run docbot:nightly` — the full-lifecycle lane (NOT in the PR gate; `.github/workflows/nightly.yml`
+  runs it on a schedule): complete runs to elimination with serialize/restore checkpoints, replay
+  reconstruction, invariant + explosion + combat-event budgets, plus an 8-seat bot-lobby law sweep. A
+  failure minimizes (greedy drop-one to a proven 1-minimal trace), folds into a `QaScenarioV1` with its
+  `npm run docbot:scenario --` repro line, and ships as a fingerprinted `DocbotFinding` (structural
+  fingerprints — message prose never changes identity) with the original seed/trace preserved.
+- `npm run docbot:scenario -- <id>` — replays any emitted scenario (corpus fixture or minimized failure).
+
 ## Extending Doc Bot
 
 New trigger → classify it in `TRIGGER_PHASES` (read the dispatchers first). New dual-phase factory → implement

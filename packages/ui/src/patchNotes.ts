@@ -56,6 +56,20 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-08-27',
+    label: 'Combat Arena',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: 'Combat now has its own board — a wipe of light sweeps across the table as the fight begins, and sweeps back when you return to the shop.',
+        details: [
+          'The shop board was also re-exported from the newest master, so the two boards match exactly.',
+          'Returning to the shop plays the wipe in reverse.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-08-27',
     label: 'Bug Board Round 1',
     changes: [
       { category: 'Card Change', text: 'Great Pot now scales with your spell power — and its text shows the value it will actually give.', details: [

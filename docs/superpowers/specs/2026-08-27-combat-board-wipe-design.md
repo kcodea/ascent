@@ -66,7 +66,8 @@ firing the cue and registering the binding point.
   instantly, no wipe.
 - **First combat of a session:** `augustboardcombat.webp` joins the preload list in
   `packages/ui/src/art.ts` so the wipe never reveals a half-loaded image.
-- **Sandbox re-watch:** behaves like any combat (wipe in, reverse wipe out).
+- **Skip-combat:** stays in the combat phase (it jumps the replay to the resolved board), so no wipe
+  plays on Skip — the reverse wipe rides the eventual End Combat exit.
 - The arena board picker is gone (owner ask 2026-08-22) — no interaction to handle.
 
 ## 5. Docs / notes in the same PR

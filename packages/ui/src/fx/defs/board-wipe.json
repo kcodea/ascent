@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "id": "board-wipe",
+  "duration": 550,
+  "layers": [
+    {
+      "primitive": "ribbon",
+      "anchor": "travel",
+      "at": 0,
+      "life": 550,
+      "bow": 0,
+      "params": {
+        "bands": 4,
+        "plateau": 0.36,
+        "palette": [741288, 3115519, 11066111, 16777215],
+        "blendMode": "add",
+        "glow": 0.7,
+        "noiseAlong": 2.4,
+        "noiseAcross": 5,
+        "warp": 0.3,
+        "scroll": 0.9,
+        "erode": 1.09,
+        "gain": 1.6,
+        "head": 0.05,
+        "tail": 1.4,
+        "soft": 2.2,
+        "length": 900,
+        "width": 16,
+        "alpha": 0.85,
+        "headPinch": 0.05,
+        "tailFeather": 1.65,
+        "widthCurve": [[0, 1], [0.5, 0.85], [1, 0.4]],
+        "waveAmp": 0,
+        "waveFreq": 3.3,
+        "waveSpeed": 12,
+        "drain": 900,
+        "segments": 64
+      }
+    }
+  ]
+}

@@ -149,7 +149,8 @@ export const avatarSrc = (id?: string | null): string | undefined => (id ? AVATA
 // BASE_URL-relative (not root-absolute): itch serves the game from a CDN sub-path, where '/x.webp' 404s and the
 // warm-up silently skipped these (BASE_URL is '/' in dev, './' in the build — resolved against index.html).
 const PUBLIC_ART_URLS: string[] = [
-  `${import.meta.env.BASE_URL}ascentboardnostuff.webp`, // the primary board (all resolutions)
+  `${import.meta.env.BASE_URL}augustfullboard.webp`, // the board (all resolutions; see styles.css --board)
+  `${import.meta.env.BASE_URL}augustboardcombat.webp`, // the combat variant the wipe reveals — preloaded so the first wipe never uncovers a half-loaded image
   `${import.meta.env.BASE_URL}homescreen.webp`,
   `${import.meta.env.BASE_URL}runeforgebg2.webp`, // Runeforge overlay backdrop — preloaded so the forge doesn't open on an empty scrim
 

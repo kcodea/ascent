@@ -47,6 +47,10 @@
      var is the single source of the arena art. Consequence of a 16:9 board: it has NO surplus width, so a
      window wider than 16:9 shows `--bg` in the side margins rather than floor art bleeding into them. */
   --board: url('/augustfullboard.webp');
+  /* The COMBAT board — the same Aug-25 master with the top-right tray removed, exported by
+     `npm run board:export` onto the identical canvas/framing as --board. Painted by a second
+     `.boardbg` layer (`.boardbg--combat`) that a one-shot clip-path wipe reveals on combat entry. */
+  --board-combat: url('/augustboardcombat.webp');
   /* The board art's own aspect (3840x2143). `.boardbg` needs it to compute the art's WIDTH from the stage
      height. Update it if the art changes — swapping in art of a different shape without this gets sized off
      the old proportions and stretched off the stage. */
@@ -123,7 +127,8 @@
 :root[data-res="r1920"] { --gw: min(100vw, calc(100vh * 1920 / 1080), 1920px); --gh: min(100vh, calc(100vw * 1080 / 1920), 1080px); }
 :root[data-res="r2560"] { --gw: min(100vw, calc(100vh * 2560 / 1440), 2560px); --gh: min(100vh, calc(100vw * 1440 / 2560), 1440px); }
 :root[data-res="r3440"] { --gw: min(100vw, calc(100vh * 3440 / 1440), 3440px); --gh: min(100vh, calc(100vw * 1440 / 3440), 1440px); }
-/* One board art (ascentboardnostuff) serves every resolution now — drawn on `.boardbg`, cropped to 16:9 at standard
+/* One board art (augustfullboard, with augustboardcombat as the combat-phase variant) serves every
+   resolution — drawn on `.boardbg`, cropped to 16:9 at standard
    aspect and extending into the margins on wider windows. No per-aspect --board swap. */
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body, #root { height: 100%; }
@@ -224,6 +229,28 @@ canvas.spr { image-rendering: pixelated; display: block; }
     var(--board) calc(50% + var(--board-x, 0px) * var(--scale)) calc(50% + var(--board-y, 5px) * var(--scale)) / var(--_board-w) auto no-repeat,
     var(--bg);
 }
+/* COMBAT BOARD LAYER — a second .boardbg painting the combat art. The modifier only swaps which art the
+   shared background stack reads (`--board` is re-pointed at `--board-combat`), so the two layers can never
+   drift in size or position. Revealed left→right by a one-shot clip-path transition when combat begins
+   (`.wiped` added) and hidden right→left when it ends (`.wiped` removed). clip-path is a paint property,
+   but this is a sanctioned ONE-SHOT transition (see CLAUDE.md perf rules). A mid-combat resume mounts the
+   layer with `.wiped` already present, so it shows instantly with no transition. The duration is supplied
+   at runtime by Recruit's `WIPE_MS` via an inline `--wipe-dur`; the `550ms` fallback below is just a safety default. */
+.boardbg--combat { --board: var(--board-combat); clip-path: inset(0 100% 0 0);
+  transition: clip-path var(--wipe-dur, 550ms) cubic-bezier(.4, 0, .2, 1); }
+.boardbg--combat.wiped { clip-path: inset(0 0 0 0); }
+/* The glowing wipe FRONT — a soft blue-white energy edge riding the clip seam. Same duration + easing as
+   the clip transition so the two can never desync; compositor-only transform + a short opacity gate
+   (`.sweeping` while a wipe is in flight). Static blur/gradient — nothing paint-animated in a loop. */
+.wipefront { position: fixed; top: 0; bottom: 0; left: -15vw; width: 30vw; z-index: 0;
+  pointer-events: none; opacity: 0; mix-blend-mode: screen;
+  background:
+    radial-gradient(60% 50% at 50% 50%, rgba(255, 255, 255, .55), rgba(160, 200, 255, .28) 40%, rgba(90, 130, 255, 0) 70%),
+    linear-gradient(to right, rgba(120, 160, 255, 0), rgba(190, 215, 255, .5) 46%, rgba(255, 255, 255, .85) 50%, rgba(190, 215, 255, .5) 54%, rgba(120, 160, 255, 0));
+  filter: blur(2px); transform: translateX(0);
+  transition: transform var(--wipe-dur, 550ms) cubic-bezier(.4, 0, .2, 1), opacity 120ms linear; }
+.wipefront.wiped { transform: translateX(100vw); }
+.wipefront.sweeping { opacity: 1; }
 /* With the omen + row labels gone and the hand tucked under the status bar, let the
    Tavern + Warband settle lower: auto margins centre the block in the freed space. */
 /* Tavern offers and Warband mirror each other across the board's centre rope: each half

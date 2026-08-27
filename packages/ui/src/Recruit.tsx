@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
+import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type TransitionEvent as ReactTransitionEvent } from 'react';
 import { CARD_INDEX, QUEST_INDEX, RUNE_INDEX, referencedCardIds } from '@game/content';
 import { compileTimeline } from './choreographer/compileTimeline';
 import { normalizePresentationBatch } from './choreographer/adapters/presentationBatchAdapter';
@@ -1558,6 +1558,47 @@ export function Recruit() {
   }, [run.wave, inCombat]);
   const [combatStage, setCombatStage] = useState<'closing' | 'fighting'>('closing');
   const fighting = inCombat && combatStage === 'fighting';
+  // BOARD WIPE — the combat backdrop's reveal. 'in' (sweep L→R, combat art appears) → 'combat' (holding)
+  // → 'out' (sweep R→L, shop art returns) → 'idle'. Advanced by the clip-path transition's transitionend;
+  // a run RESUMED mid-combat initialises straight to 'combat' so the layer shows with no transition.
+  const [wipe, setWipe] = useState<'idle' | 'in' | 'combat' | 'out'>(() => (run.phase === 'combat' ? 'combat' : 'idle'));
+  // the board wipe's duration — single source: the CSS var below is set FROM this, and the backstop timer
+  // derives from it (+150ms margin), so retuning here can never strand the state machine mid-sweep.
+  const WIPE_MS = 550;
+  const wipeRef = useRef(wipe);
+  wipeRef.current = wipe;
+  const wipeTimeoutRef = useRef<number | undefined>(undefined);
+  const advanceWipe = useCallback((): void => {
+    setWipe((w) => (w === 'in' ? 'combat' : w === 'out' ? 'idle' : w));
+  }, []);
+  useEffect(() => {
+    if (inCombat) setWipe((w) => (w === 'combat' || w === 'in' ? w : 'in'));
+    else setWipe((w) => (w === 'combat' || w === 'in' ? 'out' : w));
+    // The wipe's Pixi garnish — a def the owner authors/tunes in the FX workbench, fired along the front's
+    // path (left→right entering combat, right→left leaving). `playDef` declines harmlessly (null) when the
+    // renderer isn't up yet. Deliberately NOT keyed on `wipe`: this effect runs exactly once per phase flip.
+    const entering = inCombat;
+    const alreadyThere = entering ? wipeRef.current === 'combat' || wipeRef.current === 'in' : wipeRef.current === 'idle' || wipeRef.current === 'out';
+    if (!alreadyThere) {
+      const y = window.innerHeight / 2;
+      const w = window.innerWidth;
+      playDef('board-wipe', entering ? { source: { x: 0, y }, target: { x: w, y } } : { source: { x: w, y }, target: { x: 0, y } });
+    }
+  }, [inCombat]);
+  // BACKSTOP — a dropped/never-fired transitionend (a backgrounded tab, a retargeted zero-delta transition)
+  // would otherwise wedge `wipe` at 'in'/'out' forever, leaving `.wipefront`'s glow lit indefinitely even
+  // though the board itself looks fine. Mirror `onWipeEnd`'s advance on a timer a bit past the CSS duration;
+  // the real transitionend (below) clears it so the two paths never double-fire.
+  useEffect(() => {
+    if (wipe !== 'in' && wipe !== 'out') return undefined;
+    wipeTimeoutRef.current = window.setTimeout(advanceWipe, WIPE_MS + 150);
+    return () => window.clearTimeout(wipeTimeoutRef.current);
+  }, [wipe, advanceWipe]);
+  const onWipeEnd = useCallback((e: ReactTransitionEvent<HTMLDivElement>): void => {
+    if (e.propertyName !== 'clip-path') return;
+    window.clearTimeout(wipeTimeoutRef.current);
+    advanceWipe();
+  }, [advanceWipe]);
   // End-Combat crossfade: 'out' fades every combat unit + FX canvas away together, then the phase swaps and
   // 'in' fades the recruit board + survivors back together — one synchronized two-beat transition (see the CSS
   // `.app.combatout`/`.combatin`), so nothing snaps or staggers when you leave the arena.
@@ -5228,6 +5269,11 @@ export function Recruit() {
       {/* Board art on a full-viewport layer behind the 16:9 stage — extends into the margins on off-16:9 monitors
           (see `.boardbg` in styles.css) rather than letterboxing to black. */}
       <div className="boardbg" aria-hidden="true" />
+      {/* COMBAT board layer + the glowing wipe front (see `.boardbg--combat` / `.wipefront` in styles.css).
+          Tree position is load-bearing: after `.boardbg` (paints above it), before the charge glyph and
+          every zone (paints below them) — the same sandwich the FX canvases use. */}
+      <div className={`boardbg boardbg--combat${wipe === 'in' || wipe === 'combat' ? ' wiped' : ''}`} aria-hidden="true" onTransitionEnd={onWipeEnd} style={{ '--wipe-dur': `${WIPE_MS}ms` } as CSSProperties} />
+      <div className={`wipefront${wipe === 'in' || wipe === 'combat' ? ' wiped' : ''}${wipe === 'in' || wipe === 'out' ? ' sweeping' : ''}`} aria-hidden="true" style={{ '--wipe-dur': `${WIPE_MS}ms` } as CSSProperties} />
       {/* Charge glyph — the board's etched sigil, anchored to the board midline. Lives HERE (a direct child of
           `.app`, before the zones) rather than inside the warband zone, so the warband layout offset (x/y/scale)
           never moves it; it stays on the board sigil. z:0 + earliest tree position keeps it BEHIND the cards but

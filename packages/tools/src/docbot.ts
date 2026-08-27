@@ -143,6 +143,7 @@ const NEW_LANES: Array<[string, string, string]> = [
   ['covering array', 'packages/sim/src/docbot/recruitCoveringArray.test.ts', '20 deterministic rows covering all 351 recruit boundary pairs + explosion guard'],
   ['coverage corpus', 'packages/sim/src/docbot/coverageCorpus.test.ts', 'deterministic QaScenarioV1 corpus under docbot/corpus/ keyed by semantic coverage'],
   ['scenario contract', 'packages/sim/src/qaScenario.test.ts', 'QaScenarioV1 round-trip/determinism/migration - the shared format for Scene Builder, bug reports, corpus and regressions'],
+  ['contract oracle', 'packages/sim/src/docbot/contractOracle.test.ts', 'WP D: derived §10.1 case sweep over all 901 contracts (deterministic gate sample; full sweep = npm run docbot:contracts) — authority-honest findings, R-AVWIN-02/10 pinned as release blockers'],
 ];
 console.log('\n── 16+. landed 2026-08-27 — the blind-spot + next-iteration wave (each gates in npm test) ──');
 for (const [name, file, what] of NEW_LANES) {
@@ -163,7 +164,8 @@ console.log('\n── commands ──');
 console.log('  npm run docbot                      this report (add -- --json for machine-readable findings)');
 console.log('  npm run docbot:scenario -- <id>     run one QaScenarioV1 (bare ids resolve in docbot/scenarios/)');
 console.log('  npm run docbot:corpus               rebuild the coverage corpus (deterministic)');
-console.log('  npm run docbot:nightly              full lifecycle runs + bot lobbies (nightly.yml runs it on cron)');
+console.log('  npm run docbot:nightly              full lifecycle runs + bot lobbies + the full contract sweep (nightly.yml cron)');
+console.log('  npm run docbot:contracts            the full 901-contract verification sweep (add -- --out <dir> for findings.json)');
 console.log('  npm run rules:seed                  regenerate the owner triage queue (decisions survive)');
 console.log('  npm run rules:impact -- <paths>     which rulings a change touches');
 console.log('  npm run bugs:pull|list|repro|close  player-report inbox → QaScenarioV1 reproduction');

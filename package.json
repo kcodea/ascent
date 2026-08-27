@@ -38,6 +38,7 @@
     "docbot:scenario": "tsx packages/tools/src/qa-scenario-run.ts",
     "docbot:corpus": "tsx packages/tools/src/qa-corpus-build.ts",
     "docbot:nightly": "tsx packages/tools/src/docbot-nightly.ts",
+    "docbot:contracts": "tsx packages/tools/src/docbot-contracts.ts",
     "bugs:pull": "tsx packages/tools/src/bugs-pull.ts",
     "bugs:list": "tsx packages/tools/src/bugs-list.ts",
     "bugs:repro": "tsx packages/tools/src/bugs-repro.ts",

@@ -1558,6 +1558,17 @@ export function Recruit() {
   }, [run.wave, inCombat]);
   const [combatStage, setCombatStage] = useState<'closing' | 'fighting'>('closing');
   const fighting = inCombat && combatStage === 'fighting';
+  // BOARD WIPE — the combat backdrop's reveal. 'in' (sweep L→R, combat art appears) → 'combat' (holding)
+  // → 'out' (sweep R→L, shop art returns) → 'idle'. Advanced by the clip-path transition's transitionend;
+  // a run RESUMED mid-combat initialises straight to 'combat' so the layer shows with no transition.
+  const [wipe, setWipe] = useState<'idle' | 'in' | 'combat' | 'out'>(() => (run.phase === 'combat' ? 'combat' : 'idle'));
+  useEffect(() => {
+    if (inCombat) setWipe((w) => (w === 'combat' || w === 'in' ? w : 'in'));
+    else setWipe((w) => (w === 'combat' || w === 'in' ? 'out' : w));
+  }, [inCombat]);
+  const onWipeEnd = useCallback((): void => {
+    setWipe((w) => (w === 'in' ? 'combat' : w === 'out' ? 'idle' : w));
+  }, []);
   // End-Combat crossfade: 'out' fades every combat unit + FX canvas away together, then the phase swaps and
   // 'in' fades the recruit board + survivors back together — one synchronized two-beat transition (see the CSS
   // `.app.combatout`/`.combatin`), so nothing snaps or staggers when you leave the arena.
@@ -5228,6 +5239,11 @@ export function Recruit() {
       {/* Board art on a full-viewport layer behind the 16:9 stage — extends into the margins on off-16:9 monitors
           (see `.boardbg` in styles.css) rather than letterboxing to black. */}
       <div className="boardbg" aria-hidden="true" />
+      {/* COMBAT board layer + the glowing wipe front (see `.boardbg--combat` / `.wipefront` in styles.css).
+          Tree position is load-bearing: after `.boardbg` (paints above it), before the charge glyph and
+          every zone (paints below them) — the same sandwich the FX canvases use. */}
+      <div className={`boardbg boardbg--combat${wipe === 'in' || wipe === 'combat' ? ' wiped' : ''}`} aria-hidden="true" onTransitionEnd={onWipeEnd} />
+      <div className={`wipefront${wipe === 'in' || wipe === 'combat' ? ' wiped' : ''}${wipe === 'in' || wipe === 'out' ? ' sweeping' : ''}`} aria-hidden="true" />
       {/* Charge glyph — the board's etched sigil, anchored to the board midline. Lives HERE (a direct child of
           `.app`, before the zones) rather than inside the warband zone, so the warband layout offset (x/y/scale)
           never moves it; it stays on the board sigil. z:0 + earliest tree position keeps it BEHIND the cards but

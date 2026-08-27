@@ -1,0 +1,210 @@
+/**
+ * DOC BOT TRIPWIRE 16 — the TRIGGER-FAMILY interaction matrix: how trigger families COMPOSE when one fires
+ * through another, pinned at the family level so no card pair ever needs enumerating.
+ *
+ * Sibling of interactionMatrix.test.ts (tripwire 14), which pins single multipliers, additivity and
+ * eligibility. This file pins the RULED compositions — a fixture per pair whose semantics are already
+ * established (code comment with an owner ruling, shared fold helper, or skill doc) — and refuses to guess
+ * at the rest: every unruled-but-debatable pair is written up in docs/rulebook/interaction-ambiguities.md
+ * for the owner, never invented here.
+ *
+ * ── COVERAGE TABLE (the honesty ledger — every family pair, no silent gaps) ─────────────────────────────
+ *
+ *  PAIR                                                  STATUS      EVIDENCE / WHERE
+ *  battlecry × shop replay (Myra/Resonance/Last Word)    PINNED      P1–P2 — recruit.ts replayBattlecry uses
+ *                                                                    drummerRepeats (1 + card multiplier); the
+ *                                                                    play-only extras (Hoardwake / Warm Embers)
+ *                                                                    deliberately do NOT apply ("Applies ONLY to
+ *                                                                    real plays", playedShoutRepeats comment).
+ *  battlecry × combat replay (PartingCry/Dawnclaw/Ryme)  AMBIGUOUS   interaction-ambiguities.md Q2 —
+ *                                                                    replayCombatBattlecry fires each effect once,
+ *                                                                    no battlecry-multiplier fold (factories.ts).
+ *  battlecry multiplier × same-card copy (Drakko×2)      PINNED      P3 — non-stacking best-of + golden ×2
+ *                                                                    (types.ts extraTriggerFires comment).
+ *  battlecry multiplier × DIFFERENT non-stacking card    AMBIGUOUS   interaction-ambiguities.md Q1 (Drakko+Zyff
+ *  (Drakko + Zyff; also Uron + Chronos on endOfTurn)                 collapse to best-of; both texts promise +1).
+ *  deathrattle multiplier × multiplier (Sylus×2,         PINNED      P4 — stacking cards SUM, non-stacking take
+ *  Sylus+Zyff)                                                       best, folds add (types.ts + zyff def comment,
+ *                                                                    owner ruling 2026-07-08 "additive").
+ *  deathrattle × forced fire (Deathsayer / Herald /      PINNED      P5–P6 — procs = (1 + additive echo extras)
+ *  Echohorn — the no-death Echo)                                     × the FIRER's gild (factories.ts triggerEchoOn
+ *                                                                    strict comment, "every Echo multiplier the
+ *                                                                    side has × this minion's gild").
+ *  deathrattle × forced fire (EMPTY GRAVES quest)        AMBIGUOUS   interaction-ambiguities.md Q3 — fires exactly
+ *                                                                    once, no multiplier fold (simulate.ts), unlike
+ *                                                                    every other forced-Echo path.
+ *  first-Echo bonus (Grave Contract / Last Rites /       AMBIGUOUS   interaction-ambiguities.md Q4 — a forced
+ *  Catacomb) × a forced no-death Echo                                no-death Echo consumes the once-per-combat
+ *                                                                    charge before any real death can use it.
+ *  rally × rally doublers (card multiplier + Rallying    PINNED      P7 — ALL ADDITIVE: 1 + extraTriggerFires
+ *  Offensive rune + Infinite Assembly …)                             ('rally') + rune extras (simulate.ts
+ *                                                                    playerRallyExtras comment + the Uron rally
+ *                                                                    tally owner report).
+ *  rally × deathrattle (Echo-THROUGH-Rally, Deathsayer)  PINNED      P5 — MULTIPLICATIVE across families: each
+ *                                                                    rally fire runs the full echo fold (each
+ *                                                                    family multiplies at its own boundary —
+ *                                                                    ascent-gameplay skill: "Apply it at exactly
+ *                                                                    ONE boundary").
+ *  rally × slaughter                                     NOT A       Distinct trigger families with separate folds
+ *                                                        COMPOSITION (Law of Teeth grants both, but each applies
+ *                                                                    at its own trigger — slaughter's fold is
+ *                                                                    exercised by simulate.ts killExtra + existing
+ *                                                                    combat tests; they never fire through each
+ *                                                                    other).
+ *  endOfTurn replay × startOfCombat multiplier           PINNED      No new fixture: both phases consult the ONE
+ *  (Rune of Combat Prowess × Rune of Twilight)           ELSEWHERE   shared fold `socTwilightExtraFires` (types.ts;
+ *                                                                    owner reversal 2026-08-20 "the two runes
+ *                                                                    STACK"), consumed at recruit.ts ~9265 and the
+ *                                                                    combat SC pass — a drift is structurally
+ *                                                                    impossible without editing the shared helper.
+ *  ruby bounce × ruby bounce (Resonance Idol / Rune of   PINNED      P8 — a bounce applies stats via
+ *  the Conduit — the Candle Conduit no-rebounce guard)               `gainRubyStats` → addBuff directly, NEVER back
+ *                                                                    through fireOnRubyPlayed ("NO fireOnRubyPlayed
+ *                                                                    - the no-rebounce guard", recruit.ts), so
+ *                                                                    bounce counts are exact and finite.
+ */
+import { describe, expect, it } from 'vitest';
+import { CARD_INDEX } from '@game/content';
+import { combatSide, makeRng, simulate, type BoardMinion, type CombatResult } from '@game/core';
+import { createRun, type BoardCard, type RunState } from '../index';
+import { fireOnRubyPlayed, replayBattlecry } from '../recruit';
+
+const card = (uid: string, cardId: string, over: Partial<BoardCard> = {}): BoardCard => {
+  const d = CARD_INDEX[cardId]!;
+  return { uid, cardId, tribe: d.tribe, attack: d.attack, health: d.health, keywords: [...d.keywords], golden: false, ...over } as BoardCard;
+};
+
+const base = (board: BoardCard[]): RunState => ({
+  ...createRun(0x16f1, 'aster'), embers: 60, board, hand: [], shop: [],
+} as RunState);
+
+// Keywords come from the def — the RL keyword is the gate the rally-multiplier loops check on the attacker.
+const bm = (cardId: string, uid: string, attack: number, health: number, over: Partial<BoardMinion> = {}): BoardMinion =>
+  ({ cardId, attack, health, sourceUid: uid, keywords: [...(CARD_INDEX[cardId]?.keywords ?? [])], ...over } as unknown as BoardMinion);
+
+const summonsOf = (r: CombatResult, tokenId: string): number =>
+  r.events.filter((e) => e.type === 'summon' && (e as { minion: { cardId: string } }).minion.cardId === tokenId).length;
+const ralliesOf = (r: CombatResult): number => r.events.filter((e) => e.type === 'rally').length;
+
+describe('Doc Bot — trigger-family interaction matrix', () => {
+  // P1 — battlecry × shop replay: a replayed Shout honours the card multiplier (Drakko).
+  it('P1: a REPLAYED Shout fires (1 + Drakko) times — the multiplier follows the trigger into the replay path', () => {
+    const fire = (board: BoardCard[]): number => {
+      const s = base(board);
+      const probe = s.board.find((c) => c.cardId === 'footman')!;
+      const before = probe.attack;
+      replayBattlecry(s, s.board.find((c) => c.cardId === 'deathswarmer')!);
+      return probe.attack - before; // Deathswarmer: +1 Undead Attack per fire
+    };
+    expect(fire([card('d', 'deathswarmer'), card('u', 'footman')]), 'control: one fire, +1').toBe(1);
+    expect(fire([card('d', 'deathswarmer'), card('u', 'footman'), card('m', 'drummer')]),
+      'with Drakko a replayed Shout must fire 2× (recruit.ts replayBattlecry → drummerRepeats)').toBe(2);
+  });
+
+  // P2 — battlecry × shop replay: play-only extras do NOT apply to replays (deliberate, documented).
+  it('P2: Hoardwake-style play-only extras (`shoutExtraAlways`) do NOT multiply a replayed Shout', () => {
+    const s = base([card('d', 'deathswarmer'), card('u', 'footman'), card('m', 'drummer')]);
+    (s as { shoutExtraAlways?: number }).shoutExtraAlways = 1; // applies to PLAYED Shouts only (playedShoutRepeats)
+    const before = s.board.find((c) => c.uid === 'u')!.attack;
+    replayBattlecry(s, s.board.find((c) => c.uid === 'd')!);
+    expect(s.board.find((c) => c.uid === 'u')!.attack - before,
+      'a replay is not a play: drummerRepeats only ("Applies ONLY to real plays", recruit.ts)').toBe(2);
+  });
+
+  // P3 — same-card multiplier copies: non-stacking best-of; golden doubles the contribution.
+  it('P3: two Drakkos are still +1 (non-stacking best-of); a GOLDEN Drakko is +2', () => {
+    const fire = (extras: BoardCard[]): number => {
+      const s = base([card('d', 'deathswarmer'), card('u', 'footman'), ...extras]);
+      const before = s.board.find((c) => c.uid === 'u')!.attack;
+      replayBattlecry(s, s.board.find((c) => c.uid === 'd')!);
+      return s.board.find((c) => c.uid === 'u')!.attack - before;
+    };
+    expect(fire([card('m1', 'drummer'), card('m2', 'drummer')]),
+      'two plain Drakkos: the single best copy counts (types.ts extraTriggerFires) — 2 fires, not 3').toBe(2);
+    expect(fire([card('m1', 'drummer', { golden: true, attack: 4, health: 8 })]),
+      'a golden Drakko contributes extra×2 — 3 fires').toBe(3);
+  });
+
+  // P4 — deathrattle multiplier × multiplier: stacking cards SUM; non-stacking adds its best on top.
+  it('P4: Sylus+Sylus = 3 Echo fires (stacking sums); Sylus+Zyff = 3 (sum + best) — additive, never multiplicative', () => {
+    const run = (mults: BoardMinion[]): number => {
+      const r = simulate([bm('deathlesshand', 'p0', 1, 1), ...mults], [bm('cryptwolf', 'e0', 9, 60)],
+        makeRng(11), CARD_INDEX, combatSide({ tier: 5 }), combatSide({ tier: 5 }));
+      return summonsOf(r, 'footman');
+    };
+    expect(run([bm('sylus', 'm1', 1, 99), bm('sylus', 'm2', 1, 99)]),
+      'Sylus stacks: 1 base + 1 + 1 (owner ruling 2026-07-08: every doubler folds ADDITIVELY)').toBe(3);
+    expect(run([bm('sylus', 'm1', 1, 99), bm('zyff', 'm2', 1, 99)]),
+      'Sylus (sum) + Zyff (best): +2 Echoes — the zyff def comment pins exactly this board').toBe(3);
+  });
+
+  // P5 — Echo-THROUGH-Rally (Deathsayer): each rally fire runs the FULL echo fold — multiplicative across
+  // families, additive within each.
+  it('P5: Deathsayer × Sylus — every rally-forced Echo honours the echo multipliers (summons = 2 × rallies)', () => {
+    const run = (withSylus: boolean): { rallies: number; summons: number } => {
+      const board = [bm('deathlesshand', 'p0', 1, 99), bm('deathsayer', 'p1', 3, 99),
+        ...(withSylus ? [bm('sylus', 'p2', 1, 99)] : [])];
+      // The enemy can't fight back (0 Attack) and dies fast, so the rally count stays small and the board
+      // cap (7) is never hit by the Footman summons.
+      const r = simulate(board, [bm('cryptwolf', 'e0', 0, 6)], makeRng(3), CARD_INDEX,
+        combatSide({ tier: 5 }), combatSide({ tier: 5 }));
+      expect(r.result).toBe('win');
+      return { rallies: ralliesOf(r), summons: summonsOf(r, 'footman') };
+    };
+    const plain = run(false);
+    expect(plain.rallies, 'the fixture must produce at least one Deathsayer rally').toBeGreaterThanOrEqual(1);
+    expect(plain.summons, 'control: one forced Echo per rally').toBe(plain.rallies);
+    const doubled = run(true);
+    expect(doubled.summons,
+      'with Sylus each rally-forced Echo fires (1+1)× — factories.ts triggerEchoOn strict: "every Echo multiplier the side has"').toBe(doubled.rallies * 2);
+  });
+
+  // P6 — Echo-through-Rally × gild: the FIRER's gild multiplies the whole forced fire.
+  it('P6: a GOLDEN Deathsayer forces its Echo (1 + extras) × 2 times — gild composes multiplicatively', () => {
+    const board = [bm('deathlesshand', 'p0', 1, 99), bm('deathsayer', 'p1', 6, 99, { golden: true } as Partial<BoardMinion>)];
+    const r = simulate(board, [bm('cryptwolf', 'e0', 0, 7)], makeRng(3), CARD_INDEX,
+      combatSide({ tier: 5 }), combatSide({ tier: 5 }));
+    const rallies = ralliesOf(r);
+    expect(rallies).toBeGreaterThanOrEqual(1);
+    expect(summonsOf(r, 'footman'),
+      'golden Deathsayer: procs = (1 + 0 extras) × gild 2 (factories.ts: "× this minion\'s gild")').toBe(rallies * 2);
+  });
+
+  // P7 — rally × rally doublers: card multiplier (Uron) and rune override (Rallying Offensive) are ADDITIVE.
+  it('P7: rally fires = 1 + Uron + Rallying Offensive — all additive (simulate.ts playerRallyExtras)', () => {
+    const fires = (withUron: boolean, rallyDouble: boolean): number => {
+      const board = [bm('supporter', 'p0', 2, 40), bm('emissary', 'p1', 2, 40),
+        ...(withUron ? [bm('uron', 'p2', 7, 40)] : [])];
+      // Enemy dies to the Supporter's FIRST strike, so exactly one rally moment is measured.
+      const r = simulate(board, [bm('cryptwolf', 'e0', 0, 2)], makeRng(7), CARD_INDEX,
+        combatSide({ tier: 5 }), combatSide({ tier: 5 }), { playerRallyDouble: rallyDouble });
+      expect(r.result).toBe('win');
+      // Supporter's Rally: +1/+2 to friendly Dragons. The sim assigns its own uids (`m0`…), so count fires
+      // by the event's effect-identity stamp instead — one rallyBuff event per fire (the Emissary is the
+      // only other Dragon).
+      return r.events.filter((e) => e.type === 'buff'
+        && (e as { key?: string }).key === 'factory:rallyBuff:onAttack').length;
+    };
+    expect(fires(false, false), 'control: one rally fire per attack').toBe(1);
+    expect(fires(true, false), 'Uron: 1 + 1').toBe(2);
+    expect(fires(true, true), 'Uron + Rallying Offensive: 1 + 1 + 1 — additive, never 1×2×2').toBe(3);
+  });
+
+  // P8 — bounce × bounce: the no-rebounce guard makes bounce counts exact and finite.
+  it('P8: Ruby bounces (Resonance Idol + Rune of the Conduit) apply stats directly and NEVER re-bounce', () => {
+    const totalDelta = (withRune: boolean): number => {
+      // TWO idols: if a bounce landing on the second idol re-entered fireOnRubyPlayed, IT would bounce again
+      // and the totals would exceed the exact count below.
+      const s = base([card('a', 'k_resonance'), card('b', 'k_resonance'), card('c', 'footman')]);
+      if (withRune) (s as { runeConduit?: boolean }).runeConduit = true;
+      const sum = (): number => s.board.reduce((x, c) => x + c.attack + c.health, 0);
+      const before = sum();
+      fireOnRubyPlayed(s, s.board[0]!, 2, 2); // a 2/2 Ruby landed on idol A
+      return sum() - before;
+    };
+    // Idol A's own bounce: 2 random OTHER friends × (2+2) = 8 stat points. No cascade — exact.
+    expect(totalDelta(false), 'two bounces exactly (recruit.ts gainRubyStats: "NO fireOnRubyPlayed - the no-rebounce guard")').toBe(8);
+    // Rune of the Conduit adds ONE side-wide extra bounce on top: 3 × (2+2).
+    expect(totalDelta(true), 'rune adds exactly one more bounce — additive, still no cascade').toBe(12);
+  });
+});

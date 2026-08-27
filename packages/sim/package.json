@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@game/core": "*",
-    "@game/content": "*"
+    "@game/content": "*",
+    "@game/rules": "*"
   }
 }

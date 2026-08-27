@@ -17,6 +17,40 @@ export type FindingSeverity = 'error' | 'warning' | 'question' | 'info';
 export type FindingConfidence = 'proven' | 'strong' | 'uncertain';
 export type FindingStatus = 'new' | 'known' | 'resolved' | 'needs-ruling' | 'excused';
 
+/** Blueprint §12.1 five-way classification (canonical-schemas.md §3). OPTIONAL on the finding: absent
+ *  means a legacy lane finding, treated as 'questionable-interaction' unless the lane declares a default
+ *  (differential lanes default there; ratchet lanes to 'coverage-gap'; text lanes to 'verified-text-defect'). */
+export type FindingClass =
+  | 'verified-mechanical-bug'
+  | 'verified-text-defect'
+  | 'wording-recommendation'
+  | 'questionable-interaction'
+  | 'coverage-gap';
+
+/** §12.1 questionable-interaction evidence: the readings a ruling must choose between. */
+export interface CompetingInterpretation {
+  interpretation: string;
+  evidence: string[];
+}
+
+/** Trace-aware first point of divergence (grows real semantic-trace steps with WP C; today `step` is an
+ *  index into whatever evidence stream the lane names — e.g. a combat-log event index). */
+export interface FirstDivergence {
+  step: number;
+  expected: JsonValue;
+  observed: JsonValue;
+}
+
+export type MinimizationStatus = 'not-needed' | 'pending' | 'complete' | 'failed';
+
+/** §12.2 provenance — where this finding came from, machine-usably. */
+export interface FindingProvenance {
+  lane: string;
+  generatedAt?: string;
+  reportId?: string;
+  scenarioIds?: string[];
+}
+
 export interface DocbotFinding {
   /** Stable id: `<lane>-<fingerprint>` — derived, so the same structural finding always gets the same id. */
   id: string;
@@ -36,6 +70,23 @@ export interface DocbotFinding {
   /** Structural fingerprint (§12.2): lane + content ids + rule ids + expectation kind + normalized
    *  expected/observed mismatch. NEVER includes title/summary/reproduction prose. */
   fingerprint: string;
+
+  // ── V2-compatible OPTIONAL fields (blueprint §12.2 via canonical-schemas.md §3). None of these
+  // participate in the fingerprint — existing dedup and byte-stable emission are untouched. ──────────────
+  /** §12.1 five-way class (see FindingClass for the absent-field default). */
+  class?: FindingClass;
+  /** §12.1 questionable-interaction: the competing readings, each with its evidence. */
+  competingInterpretations?: CompetingInterpretation[];
+  /** First point of semantic divergence between expected and observed. */
+  firstDivergence?: FirstDivergence;
+  minimizationStatus?: MinimizationStatus;
+  provenance?: FindingProvenance;
+  /** §16 semantic-revision identity this finding was produced under. */
+  semanticRevision?: string;
+  /** ContentContract ids this finding cites (WP B registry; the vertical slice's hand contracts today). */
+  contractIds?: string[];
+  /** §11 rewrite advisor: proposed replacement text — NEVER auto-applied (§23). */
+  suggestedText?: string;
 }
 
 /** FNV-1a 32-bit — deterministic, dependency-free (the explosionGuard hash, same rationale). */
@@ -79,6 +130,15 @@ export interface FindingDraft extends FindingIdentity {
   summary: string;
   scenarioId?: string;
   reproduction?: string;
+  // V2 optional fields — passed through verbatim, never fingerprinted.
+  class?: FindingClass;
+  competingInterpretations?: CompetingInterpretation[];
+  firstDivergence?: FirstDivergence;
+  minimizationStatus?: MinimizationStatus;
+  provenance?: FindingProvenance;
+  semanticRevision?: string;
+  contractIds?: string[];
+  suggestedText?: string;
 }
 
 /** Build a complete finding — fingerprint + derived id stamped from the structural identity. */
@@ -99,6 +159,14 @@ export function makeFinding(draft: FindingDraft): DocbotFinding {
     ...(draft.expected !== undefined ? { expected: draft.expected } : {}),
     ...(draft.observed !== undefined ? { observed: draft.observed } : {}),
     fingerprint,
+    ...(draft.class !== undefined ? { class: draft.class } : {}),
+    ...(draft.competingInterpretations !== undefined ? { competingInterpretations: draft.competingInterpretations } : {}),
+    ...(draft.firstDivergence !== undefined ? { firstDivergence: draft.firstDivergence } : {}),
+    ...(draft.minimizationStatus !== undefined ? { minimizationStatus: draft.minimizationStatus } : {}),
+    ...(draft.provenance !== undefined ? { provenance: draft.provenance } : {}),
+    ...(draft.semanticRevision !== undefined ? { semanticRevision: draft.semanticRevision } : {}),
+    ...(draft.contractIds !== undefined ? { contractIds: draft.contractIds } : {}),
+    ...(draft.suggestedText !== undefined ? { suggestedText: draft.suggestedText } : {}),
   };
 }
 

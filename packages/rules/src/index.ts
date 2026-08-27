@@ -33,6 +33,7 @@ export {
 } from './enforcement';
 export { applySeedHygiene, type SeedHygieneInput, type SeedHygieneResult } from './seedSupport';
 export { ruleImpact, enforcementFiles, type RuleImpactInput, type RuleImpactReport, type TouchedRule } from './ruleImpact';
+export { rulesRevision } from './registryHash';
 
 export const DECISIONS: DecisionMap = decisionsJson as DecisionMap;
 

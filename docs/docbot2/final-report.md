@@ -46,7 +46,7 @@ axis, with any gap visible as a typed queue entry rather than as silence.
 | **Text classification bucket** | 901 | 901 (100%) | `textParse.test.ts` — every object lands in exactly one of four buckets; an unresolved parse is a queue entry, never a pass |
 | **Contract-oracle applicability** | 901 | 901 (100%) | `contractOracle.test.ts` — every contract is planned into §10.1 case templates; every unexecuted applicable case carries a typed skip reason |
 | **Interaction-graph membership** | 901 | 901 (100%) | `interactionGraph.test.ts` — every contract is a graph node; unmapped triggers are reported as a visible to-do (29 today) |
-| **Rulebook** | 113 rules (33 approved) | — | `enforcement.test.ts` — every approved rule names a backing lane file that must exist on disk |
+| **Rulebook** | 116 rules (33 approved) | — | `enforcement.test.ts` — every approved rule names a backing lane file that must exist on disk |
 
 **The inventory itself:** 483 cards (115 spells, 81 tokens), 59 hero powers, 142 + 139 runes, 117 quests —
 901 contracted objects in total. Of those contracts, 13 are hand-authored curated ones and the rest are

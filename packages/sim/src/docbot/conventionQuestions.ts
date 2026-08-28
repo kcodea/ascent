@@ -22,7 +22,7 @@
  * `relatedRuleIds`, and a member that DEVIATES becomes a contract-oracle finding (WP D), not a question.
  * The owner's sitting is NOT triggered here — this only prepares the deck.
  */
-import { CARD_INDEX, QUEST_DEFS } from '@game/content';
+import { ARCHIVED_CARDS, CARD_INDEX, QUEST_DEFS } from '@game/content';
 import { PRESENTATION_POLICIES } from '@game/core';
 import type { CardDef, Keyword } from '@game/core';
 import type { GameRule, RuleEnforcement } from '@game/rules'; // type-only: erased at build, never bundles the registry
@@ -40,6 +40,12 @@ export const CONVENTION_QUEUE = 'contracts.conventions';
 const CONVENTION_ENFORCEMENT: RuleEnforcement = { kind: 'oracle', refs: ['contractExtraction'] };
 
 // The owner's fly-through bar (2026-08-27): one compact tail, identical everywhere — the buttons say the rest.
+/** 'card' / 'cards' — the owner's four new trigger families (2026-08-28) can hold a single member, and
+ *  "All 1 of these ... · 1 cards" is exactly the kind of sentence the fly-through bar exists to stop. */
+const cards = (n: number): string => `${n} ${n === 1 ? 'card' : 'cards'}`;
+/** "All 3 of these fire" / "This 1 card fires" — the subject changes with the count, so does the verb. */
+const allOfThese = (n: number): string => (n === 1 ? 'The 1 card here fires' : `All ${n} of these fire`);
+
 const CLICKS = (_approve: string, _reject: string): string =>
   ' — ✓ yes · ✕ no (say why) · ✎ your wording';
 
@@ -163,11 +169,23 @@ const TRIGGER_GROUPS: readonly TriggerGroup[] = [
   { id: 'sell', label: 'you sell a card', events: ['onSell', 'minionSold'] },
   { id: 'buy', label: 'you buy a card', events: ['onBuy', 'cardsBought', 'spellBought'] },
   { id: 'goldSpent', label: 'you spend Gold this turn', events: ['goldSpent'] },
-  { id: 'ruby', label: 'a Ruby is gained, played or cast', events: ['onRubyPlayed', 'onGetRuby', 'rubyCast'] },
+  // "we should probably standardize our ruby terminology to 'cast'" (owner, q-conv-trigger-ruby): a Ruby is
+  // never PLAYED — 'played' is reserved for a card leaving your hand. The factory ids keep their old names
+  // (internal; renaming them would churn run state for a display-only change).
+  { id: 'ruby', label: 'a Ruby is gained or cast', events: ['onRubyPlayed', 'onGetRuby', 'rubyCast'] },
   { id: 'damaged', label: 'a friendly minion takes or deals damage', events: ['onDamaged', 'friendlyDemonDealtDamage'] },
   { id: 'consume', label: 'this minion Consumes something', events: ['onConsume'] },
   { id: 'gainAttack', label: 'a friendly minion gains Attack', events: ['onGainAttack'] },
   { id: 'overflow', label: 'a summon overflows a full board', events: ['summonOverflow'] },
+  // Owner ruling 2026-08-28 (q-conv-trigger-residual): the leftovers are NOT unrelated one-offs — they are
+  // four small families the owner intends to grow ("gangplank and kegheart are cards that track when cards
+  // get added to hand, fel conjurer is a start of turn get spell to hand, reflect and mirrorwing are when
+  // targeted by spell minions, hellrider is a refresh mechanic minion"). Naming them now means the next card
+  // added to each joins an existing convention instead of re-opening a settled question.
+  { id: 'gainCard', label: 'a card is added to your hand', events: ['onGainCard'] },
+  { id: 'startOfTurn', label: 'the turn starts', events: ['startOfTurn'] },
+  { id: 'spellTargeted', label: 'a spell targets this minion', events: ['spellCastOnThis'] },
+  { id: 'shopRefresh', label: 'you refresh the Shop', events: ['shopRefreshed'] },
 ];
 
 const GROUP_OF_EVENT: Readonly<Record<string, TriggerGroup>> = Object.fromEntries(
@@ -195,9 +213,17 @@ export interface ConventionCluster {
 /** The parked classes this build suppressed, and what they cost the deck (visible, never silent). */
 export interface ParkedSuppression { classId: string; families: string[]; membersStripped: number }
 
-/** Every card the deck may bind — parked (owner-WIP) content is stripped from EVERY card's member list, so
- *  approving a convention can never silently rule a surface the owner has not designed yet. */
-const liveCards = (): CardDef[] => sortedCards().filter((c) => !isParkedCard(c.id));
+/** Cards REMOVED from play (`ARCHIVED_CARDS`) resolve by id forever — saved runs and replays need them — but
+ *  they are in no set pool, so a convention about them rules nothing a player can reach. Ruling on one wastes
+ *  the scarcest resource the deck spends: owner attention. Found the hard way on 2026-08-28, when the Consume
+ *  and Ruby cards printed archived Avarice Incarnate and Candle Conduit as their EXEMPLAR and the owner wrote
+ *  two rulings against dead content. */
+const ARCHIVED_IDS: ReadonlySet<string> = new Set(ARCHIVED_CARDS.map((c) => c.id));
+
+/** Every card the deck may bind — parked (owner-WIP) and archived (owner-REMOVED) content is stripped from
+ *  EVERY card's member list, so approving a convention can never silently rule a surface the owner has not
+ *  designed yet, or one no player can reach. */
+const liveCards = (): CardDef[] => sortedCards().filter((c) => !isParkedCard(c.id) && !ARCHIVED_IDS.has(c.id));
 
 const isParkedCard = (id: string): boolean => {
   const def = CARD_INDEX[id];
@@ -235,7 +261,7 @@ const matchingCards = (factories: ReadonlySet<string>, events: ReadonlySet<strin
 
 /** The member list a card may print: matching cards MINUS anything in a parked class. */
 const membersOf = (factories: ReadonlySet<string>, events: ReadonlySet<string>): string[] =>
-  matchingCards(factories, events).filter((id) => !isParkedCard(id));
+  matchingCards(factories, events).filter((id) => !isParkedCard(id) && !ARCHIVED_IDS.has(id));
 
 /**
  * The deterministic cluster plan: single-trigger families keep their family card (and their id — no
@@ -333,10 +359,10 @@ function familyQuestions(): GameRule[] {
     if (c.kind === 'family') {
       return rule({
         id: c.ruleId,
-        title: `'${c.family}' family · ${n} cards`,
-        statement: `All ${n} '${c.family}' cards trigger the same way. ${gild.statement}` + CLICKS('', ''),
+        title: `'${c.family}' family · ${cards(n)}`,
+        statement: `${n === 1 ? `The 1 '${c.family}' card triggers` : `All ${n} '${c.family}' cards trigger`} the same way. ${gild.statement}` + CLICKS('', ''),
         domain: 'triggers',
-        currentBehaviour: `${c.factories.length} effect factories across ${n} cards dispatch through the '${c.family}' presentation family, all on the single trigger '${c.events[0]}' (${phases}); the factoryPhase lane gates each (trigger, factory) pair.`
+        currentBehaviour: `${c.factories.length} effect factories across ${cards(n)} dispatch through the '${c.family}' presentation family, all on the single trigger '${c.events[0]}' (${phases}); the factoryPhase lane gates each (trigger, factory) pair.`
           + ` Gilding: ${gild.currentBehaviour}`,
         ...(exemplar ? {
           cardText: `Exemplar — ${nameOf(exemplar)}: "${textOf(exemplar)}" · Members: ${memberLine(c.memberIds)}`,
@@ -353,12 +379,12 @@ function familyQuestions(): GameRule[] {
       const label = TRIGGER_GROUPS.find((x) => `q-conv-trigger-${x.id}` === c.ruleId)!.label;
       return rule({
         id: c.ruleId,
-        title: `Trigger: ${label} · ${n} cards`,
+        title: `Trigger: ${label} · ${cards(n)}`,
         // No em-dash inside the sentence: the fly-through ratchet counts words BEFORE the first '—', so an
         // in-sentence dash would hide the rest of the claim from the bar it is supposed to be measured by.
-        statement: `All ${n} of these fire on one trigger: ${label}. ${gild.statement}` + CLICKS('', ''),
+        statement: `${allOfThese(n)} on one trigger: ${label}. ${gild.statement}` + CLICKS('', ''),
         domain: 'triggers',
-        currentBehaviour: `${c.factories.length} effect factories across ${n} cards dispatch on ${c.events.map((e) => `'${e}'`).join(', ')} (${phases}) — re-clustered by TRIGGER out of the ${c.fromFamilies?.map((f) => `'${f}'`).join(' + ')} presentation ${c.fromFamilies!.length > 1 ? 'families' : 'family'} on the owner's 2026-08-28 ruling; the factoryPhase lane gates each (trigger, factory) pair.`
+        currentBehaviour: `${c.factories.length} effect factories across ${cards(n)} dispatch on ${c.events.map((e) => `'${e}'`).join(', ')} (${phases}) — re-clustered by TRIGGER out of the ${c.fromFamilies?.map((f) => `'${f}'`).join(' + ')} presentation ${c.fromFamilies!.length > 1 ? 'families' : 'family'} on the owner's 2026-08-28 ruling; the factoryPhase lane gates each (trigger, factory) pair.`
           + ` Gilding: ${gild.currentBehaviour}`,
         ...(exemplar ? {
           cardText: `Exemplar — ${nameOf(exemplar)}: "${textOf(exemplar)}" · Members: ${memberLine(c.memberIds)}`,

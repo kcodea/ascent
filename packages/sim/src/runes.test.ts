@@ -263,11 +263,13 @@ describe('Runeforge — rune effects fire in play', () => {
     expect(s.maxEmbers).toBe(before); // the old max-Gold rider is GONE
   });
 
-  it('Summoning: casting a spell improves your Imps +1/+1 (run-wide)', () => {
+  it('Summoning: casting a spell improves your Imps by its PRINTED +2/+2 (run-wide)', () => {
     let s: RunState = { ...createRun(1, 'runesmith'), wave: 6, phase: 'recruit', embers: 5, runeSummoning: true,
       hand: [{ uid: 'gp', cardId: 'emberpouch', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }] };
     s = reduce(s, { type: 'play', uid: 'gp' }); // cast one spell
-    expect(s.impBuff).toEqual({ attack: 1, health: 1 });
+    // The card prints +2/+2. It paid +1/+1 until the 2026-08-28 fix — the drift the text oracle caught, and
+    // the owner's duplicate ruling ("a second copy = +4/+4") confirms the printed step is the contract.
+    expect(s.impBuff).toEqual({ attack: 2, health: 2 });
   });
 });
 
@@ -1200,13 +1202,21 @@ describe('Rune of Mastery (batch 7b) — Improve steps apply twice', () => {
     expect(prog(true)).toBe(2);
   });
 
-  it('Rune of Summoning stacked with Mastery: each spell improves your Imps +2/+2', () => {
+  it('Rune of Summoning stacked with Mastery: the printed step doubles to +4/+4 per spell', () => {
     let s: RunState = { ...createRun(1, 'warden'), wave: 3, phase: 'recruit', embers: 10,
       runeMastery: true, runeSummoning: true,
       board: [mk('m', 'stray', 'beast', 1, 1)],
       hand: [mk('g1', 'growth', 'neutral', 0, 1)] };
     s = reduce(s, { type: 'play', uid: 'g1' });
-    expect(s.impBuff).toEqual({ attack: 2, health: 2 });
+    expect(s.impBuff).toEqual({ attack: 4, health: 4 });
+  });
+
+  it('two copies pay the owner-ruled +4/+4 (the duplicate ruling that pinned the printed step)', () => {
+    let s: RunState = { ...createRun(1, 'runesmith'), wave: 6, phase: 'recruit', embers: 5, runeSummoning: true,
+      runeStacks: { rune_summoning: 2 },
+      hand: [{ uid: 'gp', cardId: 'emberpouch', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }] };
+    s = reduce(s, { type: 'play', uid: 'gp' });
+    expect(s.impBuff).toEqual({ attack: 4, health: 4 });
   });
 });
 

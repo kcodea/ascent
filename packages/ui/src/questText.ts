@@ -223,7 +223,7 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
         case 'runeFoodChain':
           return "Start of Combat: the first minion you summon gains your left-most Demon's stats this combat";
         case 'runeAttackingGems':
-          return 'Play a Ruby on all of your minions every friendly attack in combat';
+          return 'Cast a Ruby on all of your minions every friendly attack in combat';
         case 'runeBrood':
           return `When you have space in combat, summon an Imp with Ward and Taunt (${r.amount ?? 3} times per combat)`;
         case 'runeLivingEchoes':

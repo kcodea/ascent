@@ -56,7 +56,7 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-08-28',
-    label: 'Choose One',
+    label: 'Choose One Flow',
     changes: [
       {
         category: 'UI / Info',
@@ -65,9 +65,34 @@ export const PATCH_NOTES: PatchNote[] = [
           'Play the card, pick your side, then aim — the old flow made you aim first, which meant choosing after you had already committed.',
           'Nothing happens until the choice is settled: a Choose One minion waits in your hand until you pick, so it is never left on the board mid-decision.',
           'Click away from the options (or away while aiming) to cancel. The card comes straight back to your hand with nothing spent and nothing triggered.',
-          'When every branch is already switched on — a Gilded Orivax, or Facetwright\'s Choice and Veinbreaker with their runes — the card no longer asks a question with one answer. It reads (Both) and prints both effects, wherever you see it.',
+          "When every branch is already switched on — a Gilded Orivax, or Facetwright's Choice and Veinbreaker with their runes — the card no longer asks a question with one answer. It reads (Both) and prints both effects, wherever you see it.",
         ],
       },
+    ],
+  },
+  {
+    date: '2026-08-28',
+    label: 'Ruby Wording',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: 'Rubies are now CAST, never "played" — every card and rune that hands out a Ruby says so the same way.',
+        details: [
+          '"Play a Ruby" now reads "Cast a Ruby" on 11 Kobold and Dwarf minions, 2 spells and 6 runes.',
+          '"Played" now means one thing everywhere: a card leaving your hand. Rune of the Lapidary still reads "after you play 6 cards" — that is a card play, not a Ruby.',
+          'Wording only. No Ruby, card or rune changed what it does.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-08-28',
+    label: 'Rune Fix',
+    changes: [
+      { category: 'Rune Change', text: 'Rune of Summoning now gives the +2/+2 it promises — it was quietly paying half.', details: [
+        'Every Shop spell you cast improves your Imp Aura by +2/+2, exactly as the rune reads.',
+        'Rune of Mastery still doubles it, and a second copy still doubles it again.',
+      ] },
     ],
   },
   {

@@ -3864,7 +3864,15 @@ body.hglow-preview .card.plated .plateglow { opacity: 1; }
    the minion. Centred via top/left 50% + a translate(-50%,-50%) baked into `floatupc` (a plain transform here
    would be overwritten by the animation) — resolved against the `.floatanchor` box, which is the unit's card
    box. The `.deathfloat` overlay copy is untouched — it's already centred by its container. */
-.floatanchor .float.dmg { top: 50%; left: 50%; right: auto; bottom: auto; animation-name: floatupc; }
+/* Two independent timelines: `floatupc` owns the centring translate + fade (over `--float-dur`), and `dmgpop`
+   owns the spring/bounce on the individual `scale` property (over its OWN `--dmg-pop-dur`), so the pop length
+   is tunable without touching the total on-screen time. `scale`/`translate`/`opacity` are separate animatable
+   properties, so the two never clobber each other. */
+.floatanchor .float.dmg {
+  top: 50%; left: 50%; right: auto; bottom: auto;
+  animation: floatupc var(--float-dur, 1s) cubic-bezier(0.2, 0.85, 0.3, 1) forwards,
+             dmgpop var(--dmg-pop-dur, 300ms) cubic-bezier(0.2, 0.85, 0.3, 1) forwards;
+}
 /* CLIMBING Fel Spikes number with MORE volleys still coming: pop once, then HOLD at full opacity (no fade) so
    the running total stays on-screen and climbs SMOOTHLY in place as its text updates — instead of re-popping
    or fading out mid-spray (owner ask 2026-08-22). The last volley drops `.climb` → normal `floatupc` fades it
@@ -3909,10 +3917,13 @@ body.hglow-preview .card.plated .plateglow { opacity: 1; }
 @keyframes floatup { 0% { opacity: 0; transform: translateY(var(--float-in-y, 14px)) scale(var(--float-in-scale, 0.1)); } 10% { opacity: 1; transform: translateY(0) scale(var(--float-pop, 2)); } 22% { transform: translateY(0) scale(1); } 80% { opacity: 1; transform: translateY(-8px) scale(1); } 100% { opacity: 0; transform: translateY(var(--float-rise, -30px)) scale(0.96); } }
 /* Centred variant for the in-unit damage number — same pop/rise as `floatup` (and the same Damage-Float
    tuner vars), but with the card-centring translate(-50%,-50%) baked into every frame. */
-/* The pop is now a little SPRING/BOUNCE (owner ask 2026-08-27): it overshoots to `--float-pop`, dips back
-   under 1, rebounds slightly, then settles — so the burst "springs out" with a bounce. Transform-only, so it
-   stays compositor-only. Then the usual rise + fade. */
-@keyframes floatupc { 0% { opacity: 0; transform: translate(calc(-50% + var(--dmg-num-x, 0px)), calc(-50% + var(--dmg-num-y, 0px) + var(--float-in-y, 14px))) scale(var(--float-in-scale, 0.1)); } 9% { opacity: 1; transform: translate(calc(-50% + var(--dmg-num-x, 0px)), calc(-50% + var(--dmg-num-y, 0px))) scale(var(--float-pop, 2)); } 16% { transform: translate(calc(-50% + var(--dmg-num-x, 0px)), calc(-50% + var(--dmg-num-y, 0px))) scale(0.92); } 23% { transform: translate(calc(-50% + var(--dmg-num-x, 0px)), calc(-50% + var(--dmg-num-y, 0px))) scale(1.05); } 30% { transform: translate(calc(-50% + var(--dmg-num-x, 0px)), calc(-50% + var(--dmg-num-y, 0px))) scale(1); } 80% { opacity: 1; transform: translate(calc(-50% + var(--dmg-num-x, 0px)), calc(-50% + var(--dmg-num-y, 0px) + var(--float-dmg-rise, 0px))) scale(1); } 100% { opacity: 0; transform: translate(calc(-50% + var(--dmg-num-x, 0px)), calc(-50% + var(--dmg-num-y, 0px) + var(--float-dmg-rise, 0px))) scale(0.96); } }
+/* `floatupc` = the centring translate (with the tunable number offset + entry drop + rise) and the fade. The
+   scale bounce lives in `dmgpop` below so its length is independent of this one. Transform/opacity only. */
+@keyframes floatupc { 0% { opacity: 0; transform: translate(calc(-50% + var(--dmg-num-x, 0px)), calc(-50% + var(--dmg-num-y, 0px) + var(--float-in-y, 14px))); } 9% { opacity: 1; transform: translate(calc(-50% + var(--dmg-num-x, 0px)), calc(-50% + var(--dmg-num-y, 0px))); } 80% { opacity: 1; transform: translate(calc(-50% + var(--dmg-num-x, 0px)), calc(-50% + var(--dmg-num-y, 0px) + var(--float-dmg-rise, 0px))); } 100% { opacity: 0; transform: translate(calc(-50% + var(--dmg-num-x, 0px)), calc(-50% + var(--dmg-num-y, 0px) + var(--float-dmg-rise, 0px))); } }
+/* The SPRING/BOUNCE (owner ask 2026-08-27), on its own `--dmg-pop-dur` timeline via the individual `scale`
+   property: overshoot to `--float-pop`, dip under 1, rebound, settle. Compositor-only. The percentages map the
+   old floatupc scale stops (9/16/23/30 of the 0–30% pop) onto this standalone 0–100%. */
+@keyframes dmgpop { 0% { scale: var(--float-in-scale, 0.1); } 30% { scale: var(--float-pop, 2); } 53% { scale: 0.92; } 77% { scale: 1.05; } 100% { scale: 1; } }
 /* Death-overlay damage number — the `.deathfloat` container centres it, so this only pops + fades (no
    translate other than the tunable rise, which defaults to 0 = stuck at the dying minion's last spot). */
 @keyframes floatstickc { 0% { opacity: 0; transform: translate(var(--dmg-num-x, 0px), calc(var(--dmg-num-y, 0px) + var(--float-in-y, 14px))) scale(var(--float-in-scale, 0.1)); } 10% { opacity: 1; transform: translate(var(--dmg-num-x, 0px), var(--dmg-num-y, 0px)) scale(var(--float-pop, 2)); } 22% { transform: translate(var(--dmg-num-x, 0px), var(--dmg-num-y, 0px)) scale(1); } 80% { opacity: 1; transform: translate(var(--dmg-num-x, 0px), calc(var(--dmg-num-y, 0px) + var(--float-dmg-rise, 0px))) scale(1); } 100% { opacity: 0; transform: translate(var(--dmg-num-x, 0px), calc(var(--dmg-num-y, 0px) + var(--float-dmg-rise, 0px))) scale(0.96); } }

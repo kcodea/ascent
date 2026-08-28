@@ -19,6 +19,9 @@ export interface FloatConfig {
   durMs: number;
   /** Pop overshoot — the scale the number punches to at the top of the pop (1 = no overshoot). */
   pop: number;
+  /** Length of JUST the pop/bounce (ms) — the spring-in scale, on its own timeline so it is independent of the
+   *  total `durMs`. Should stay ≤ `durMs` (a pop longer than the float's life gets cut off). */
+  popMs: number;
   /** Rise distance (px) the number drifts UP before it fades. 0 = STUCK to the card (the default — it holds
    *  on the struck minion and fades in place); higher = it floats up and off. */
   rise: number;
@@ -56,6 +59,7 @@ const DEFAULTS: FloatConfig = {
   dmgSize: 42,
   durMs: 1000,
   pop: 2,
+  popMs: 300, // the old 0–30% of a 1000ms float — reproduces the shipped pop timing
   rise: 0, // 0 = the number sticks to the card (holds + fades in place) instead of drifting off
   inScale: 0.1,
   inY: 14,
@@ -78,6 +82,7 @@ export const FLOAT_RANGES: Record<Exclude<keyof FloatConfig, 'numStrokeColor' | 
   dmgSize: [20, 80, 1],
   durMs: [400, 3000, 50],
   pop: [1, 2, 0.02],
+  popMs: [80, 1200, 10],
   rise: [0, 120, 2],
   inScale: [0.1, 1, 0.02],
   inY: [0, 40, 1],
@@ -147,6 +152,9 @@ export function applyFloatConfig(): void {
   s.setProperty('--float-dur', `${floatDur}ms`);
   s.setProperty('--death-float-dur', `${deathFloatDur}ms`);
   s.setProperty('--float-pop', `${cfg.pop}`);
+  // Pop/bounce length — its own timeline (see `dmgpop` in styles.css), divided by combat speed like the other
+  // durations so the bounce stays proportional and finishes inside the (also-divided) float window.
+  s.setProperty('--dmg-pop-dur', `${Math.round(cfg.popMs / speed)}ms`);
   // Damage-only rise (its own var, so non-damage floats keep drifting up via base `floatup`'s --float-rise).
   s.setProperty('--float-dmg-rise', `${-cfg.rise}px`); // stored positive (drift up); CSS translateY is negative
   s.setProperty('--float-in-scale', `${cfg.inScale}`);

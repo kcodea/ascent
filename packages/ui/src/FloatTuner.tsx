@@ -19,6 +19,7 @@ const SPECS: Record<keyof FloatConfig, [string, TunerUnit | undefined, string, s
 
   durMs:   ['Time on screen', 'ms', 'How long a float lasts from pop to fully faded.', 'Motion'],
   pop:     ['Pop overshoot', '×', 'How far past full size the number punches at the top of its pop. 1 is no overshoot at all.', 'Motion'],
+  popMs:   ['Pop length', 'ms', 'How long the spring/bounce takes on its own — independent of Time on screen. Shorter is a snappier punch; longer is a lazier bounce. Keep it below Time on screen.', 'Motion'],
   rise:    ['Rise distance', 'px', 'How far the number drifts upward before fading. 0 keeps it stuck to the card, holding and fading in place.', 'Motion'],
 
   inScale: ['Entry size', '×', 'How small the number starts before it pops in. Smaller is a snappier punch.', 'Entry'],
@@ -38,7 +39,7 @@ const SPECS: Record<keyof FloatConfig, [string, TunerUnit | undefined, string, s
 };
 
 /** Declaration order IS render order, and controls sharing a group render together under its heading. */
-const ORDER: (keyof FloatConfig)[] = ['size', 'dmgSize', 'durMs', 'pop', 'rise', 'inScale', 'inY', 'numX', 'numY', 'splashImg', 'splashEm', 'splashX', 'splashY', 'numStroke', 'numStrokeColor', 'rotRandom', 'rotRange'];
+const ORDER: (keyof FloatConfig)[] = ['size', 'dmgSize', 'durMs', 'pop', 'popMs', 'rise', 'inScale', 'inY', 'numX', 'numY', 'splashImg', 'splashEm', 'splashX', 'splashY', 'numStroke', 'numStrokeColor', 'rotRandom', 'rotRange'];
 
 const SPLASH_IMG_OPTIONS = ['1', '2'] as const;
 const SPLASH_IMG_LABELS: Record<string, string> = { '1': 'Rounded', '2': 'Spiky' };

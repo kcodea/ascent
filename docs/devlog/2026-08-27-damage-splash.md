@@ -34,3 +34,8 @@ Fel Spikes number keeps its single-pop hold keyframe — it gets the burst but n
 - **Position nudges.** Number X/Y (moves the digits and the backplate together, baked into the `floatupc` /
   `floatupchold` / `floatstickc` translate) and Splash X/Y (moves the burst `::before` relative to the number).
   All default 0 → no shipped change; a new "Position" group + Splash-group sliders on the tuner.
+- **Pop length.** The scale bounce moved off `floatupc`'s `transform` onto its own `dmgpop` keyframe driving the
+  individual `scale` property, so its duration (`--dmg-pop-dur`, tuner "Pop length") is independent of "Time on
+  screen". `scale`/`translate`/`opacity` are separate animatable properties, so the two timelines don't clobber.
+  Default 300ms reproduces the old 0–30%-of-1000ms pop exactly. The climbing Fel Spikes number (`floatupchold`)
+  and the death float (`floatstickc`) keep their own single-timeline scale — the new knob is the main hit float.

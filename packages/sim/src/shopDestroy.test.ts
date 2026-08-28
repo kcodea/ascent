@@ -90,14 +90,30 @@ describe('Graverobber destroys in the shop', () => {
 });
 
 describe('Funeral on Loan', () => {
-  it('the borrowed body never stays — Rise does NOT rescue it', () => {
-    // The loan ENDING is not a death. If Rise applied here a borrowed minion could stay on the board, which is
-    // the one thing this card must never allow.
+  it('a borrowed minion WITHOUT Rise never stays', () => {
+    let s = run();
+    const borrowed = { ...body('pack', 'loan'), borrowed: true } as BoardCard;
+    s = { ...s, board: [], hand: [borrowed] };
+    s = reduce(s, { type: 'play', uid: 'loan', toIndex: 0 });
+    expect(s.board.some((c) => c.cardId === 'pack'), 'the borrowed body stayed on the board').toBe(false);
+    expect(s.board.filter((c) => c.cardId === 'pup'), 'its Echo still resolved').toHaveLength(2);
+  });
+
+  it('a borrowed minion WITH Rise rises, exactly like any other shop death', () => {
+    // Owner correction 2026-08-28: "if a minion has rise that is discovered, it should rise in the same way a
+    // destroyed minion with rise would." This path used to opt out of Rise entirely.
+    const def = CARD_INDEX['anubis']!;
     let s = run();
     const borrowed = { ...body('anubis', 'loan'), borrowed: true } as BoardCard;
     s = { ...s, board: [], hand: [borrowed] };
     s = reduce(s, { type: 'play', uid: 'loan', toIndex: 0 });
-    expect(s.board.some((c) => c.cardId === 'anubis'), 'a borrowed Rise carrier stayed on the board').toBe(false);
+    const risen = s.board.find((c) => c.cardId === 'anubis');
+    expect(risen, 'a discovered Rise carrier must leave a body behind').toBeDefined();
+    expect(risen!.uid, 'the risen body is a fresh instance').not.toBe('loan');
+    expect(risen!.attack, 'base Attack, the same contract every shop Rise follows').toBe(def.attack);
+    expect(risen!.health).toBe(1);
+    expect(risen!.keywords, 'the Rise was spent').not.toContain('R');
+    expect(risen!.borrowed, 'the body is yours now — it is no longer on loan').toBeUndefined();
   });
 });
 

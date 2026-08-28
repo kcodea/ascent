@@ -47,15 +47,22 @@ departure diff detects a death by finding a uid that is no longer on the board, 
 death animated nowhere — straight back to the bug being fixed. A fresh instance is also the honest model: base
 stats, printed keywords, no buffs.
 
-## Funeral on Loan is deliberately NOT routed through that helper
+## Funeral on Loan is not routed through that helper — for ORDER only
 
-Two reasons, both load-bearing:
+The helper removes the body first (combat's order). A borrowed body must stay ON the board while its Echo
+fires — positional Echoes need real neighbours (owner report 2026-08-04: a borrowed Dawnclaw "does not trigger
+the adjacent shouts"). That is the whole reason it keeps its own path.
 
-- **Order.** The helper removes the body first (combat's order). A borrowed body must stay ON the board while
-  its Echo fires — positional Echoes need real neighbours (owner report 2026-08-04: a borrowed Dawnclaw "does
-  not trigger the adjacent shouts").
-- **Rise.** The loan *ending* is not a death. Rise there would let a borrowed minion stay on the board, which
-  is the one thing that card must never allow. There is a regression test for exactly this.
+**It originally opted out of Rise as well, and that was wrong.** The reasoning was that a loan ending is not a
+death, so a Rise would let a borrowed minion stay — the one thing the card must never allow. The owner
+overruled it the same day: *"if a minion has rise that is discovered, it should rise in the same way a
+destroyed minion with rise would."* A discovered Rise carrier really does leave you a body, and that is the
+payoff for discovering one.
+
+So the Rise return lives in one shared `riseReturn`, used by every shop path that kills a body — a Rise can
+never mean two different things depending on which card did the killing. The risen body also clears its
+`borrowed` flag: it is yours now, and leaving the flag on the clone would hand the next turn's expiry sweep a
+card that is not in hand.
 
 It instead gets two beats of its own — `system:destroy:shopArrival` then `system:destroy:shopDeath` — so the
 body is seen to take a slot before the death takes it away. Gameplay and ordering are untouched.

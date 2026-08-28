@@ -64,7 +64,7 @@ export const PATCH_NOTES: PatchNote[] = [
         details: [
           'Graverobber eating a minion with Rise no longer kills it outright: it returns at its base Attack with 1 Health, its Rise spent.',
           'Its Echo still resolves first, so if the Echo fills your board there is no room and the Rise is lost — the same rule combat uses.',
-          "Funeral on Loan is unaffected: a borrowed minion's loan ending is not a death, so Rise never keeps it on your board.",
+          'Funeral on Loan follows the same rule: discover a minion with Rise, play it this turn, and after its Echo it rises and stays on your board.',
         ],
       },
       {

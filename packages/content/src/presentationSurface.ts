@@ -138,6 +138,13 @@ export const SYSTEM_SURFACE: SurfaceEntry[] = [
   // A WELDED rally (Better Bot's Mech Attack / Perfect Core's spell conjure) paying out inside a shop rally
   // (Rune of Lasting Cadence at End of Turn) — folded into the rallying minion's own beat.
   { key: 'system:shopRally:weld', users: ['better_bot', 'perfect_core'] },
+  // A minion DESTROYED in the shop — the death, its Echo and any Rise, as one ritual on one beat. Not a card
+  // factory: several cards reach the same shared destroy path (`destroyMinionInShop`), and the beat belongs to
+  // the body that dies, not to the card that killed it.
+  { key: 'system:destroy:shopDeath', users: ['graverobber', 'funeralonloan'] },
+  // Funeral on Loan's borrowed body ARRIVING and taking its slot — a beat of its own, so the board is seen
+  // to hold it before the death beat takes it away again.
+  { key: 'system:destroy:shopArrival', users: ['funeralonloan'] },
 ];
 
 /** Every presentation key the live content produces, with its producers. Deterministic order (sorted). */

@@ -116,6 +116,15 @@ export interface CardSummonedConsequence extends ConsequenceBase {
 export interface CardDestroyedConsequence extends ConsequenceBase {
   type: 'cardDestroyed';
   target: ZoneTargetRef;
+  /** The board slot the body LEFT (0-based, as it stood before the removal) — the departure sibling of
+   *  `cardSummoned.index`. A destroy that carries no position leaves the projection nothing to animate at:
+   *  the body can only wink out wherever the committed board happens not to have it, which is exactly the
+   *  snap the owner reported for Graverobber and Funeral on Loan (2026-08-28). Optional: a legacy batch
+   *  without it still plays. */
+  index?: number;
+  /** True when the body is coming BACK this same beat (Rise) — the UI shows the death but must not treat the
+   *  slot as freed for good. Mirrors combat's `death.rise` flag. */
+  rise?: boolean;
 }
 export interface CardTransformedConsequence extends ConsequenceBase {
   type: 'cardTransformed';

@@ -39,7 +39,7 @@ export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   // Recruit.tsx dropped off on 2026-08-25: the defeat BOLT that played this on the Resolve bar was replaced
   // by the hero strike, whose impact goes through `playContactImpact` instead (see choreo/heroStrike.ts).
   'damage-burst': ['useCombatReplay.ts'],
-  'death-dissolve': ['useCombatReplay.ts'],
+  'death-dissolve': ['Recruit.tsx', 'useCombatReplay.ts'],
   'freeze-blast': ['FreezeButton.tsx'],
   'hero-power-spark': ['StatusBar.tsx'],
   'hero-power-target': ['Recruit.tsx'],

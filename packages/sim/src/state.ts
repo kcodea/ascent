@@ -1555,6 +1555,22 @@ export interface RunState {
    *  so its slot is free for whatever its own Echo summons (owner report 2026-08-26 — an Echo that summons did
    *  nothing on a 6-body board, because the borrowed body made it read as 7). Transient, one action wide. */
   vacatingUid?: string;
+  /** A body that has LANDED and is about to die — the shop's two-step death (owner design 2026-08-28: "the
+   *  minion should be coded to literally land as if it was played, but then the immediate next action is that
+   *  it is destroyed").
+   *
+   *  Funeral on Loan's borrowed minion really takes its slot, and Graverobber's victim is really still there,
+   *  for one committed state — so the UI draws a minion landing and then dying, instead of a board that
+   *  silently has one fewer card. The follow-up is the `resolveShopDeath` action.
+   *
+   *  IT CAN NEVER LINGER. Every other action resolves it FIRST (`settlePendingDeath`), and deserialize
+   *  resolves it on load, so gameplay is identical whether or not the UI ever dispatches the follow-up: a bot,
+   *  a test or a replay that just keeps acting gets the same result as a player who watched the animation. */
+  pendingDeath?: {
+    uid: string;
+    /** `loan` also fires the borrowed card's Echo on resolve; `destroy` has already fired its Shout. */
+    kind: 'loan' | 'destroy';
+  };
   /** The run has already taken its ONE Epic Runeforge early (Rune of the Ornate Clock: "next turn instead of
    *  turn 9"), so the standing turn-9 forge must not also open. */
   epicForgeClaimed?: boolean;
@@ -1863,6 +1879,11 @@ export type Action =
    *  untouched by it. */
   | { type: 'cancelChoice' }
   | { type: 'battlecryTarget'; targetUid: string }
+  /** Resolve the body that landed and is now dying (`pendingDeath`) — its Echo, its departure, its Rise. The
+   *  UI dispatches this after the landing has been on screen long enough to read. It is a real ACTION, not a
+   *  UI-only tick, so a recording replays the two steps the way the player lived them; and because every other
+   *  action resolves the same pending death first, dispatching it late (or never) cannot change the outcome. */
+  | { type: 'resolveShopDeath' }
   | { type: 'closeScout' } // Farseer's Report: dismiss the scout reveal
   | { type: 'faceOmen' }
   | { type: 'settleCombat' }

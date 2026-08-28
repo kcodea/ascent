@@ -87,3 +87,48 @@ The rise flag is a module-local in `recruit.ts`, beside the existing `SPOILS` / 
 capture is on, which is exactly what a state field cleared inside a capture-only path would have done. It is
 set fresh per destroy and never cleared on the way out, because the diff that reads it runs *after* the destroy
 returns.
+
+
+---
+
+# Follow-up, same day: the two-step shop death
+
+The beats above were real but did nothing on screen, and the owner's live test found it immediately:
+Funeral on Loan "is still not occupying space long enough."
+
+**The cause.** Only End of Turn ever PLAYS its beats. `preparePresentationAction` holds the previous board on
+screen and reveals each consequence as its beat fires — and `faceOmen` is the only action wired to it. Every
+other shop action resolves and commits in one frame; the batch is captured for the Beat Lab and nothing
+performs it. So a borrowed minion, which exists only *inside* one reducer call and is never in the committed
+board, had nothing to render.
+
+**The owner's fix, which is better than the one I proposed.** Rather than generalising the End-of-Turn
+playback machinery, make the landing REAL: *"the minion should be coded to literally land as if it was played,
+but then the immediate next action is that it is destroyed."*
+
+So a borrowed play is now two actions:
+
+1. `play` lands the body at its drop slot and stops, leaving `pendingDeath`. The board really holds it, so it
+   renders through the ordinary arrival path — no projection, no held state.
+2. `resolveShopDeath` fires its Echo, removes it, and applies any Rise.
+
+**What makes the intermediate state safe.** Every other action settles the same pending death FIRST, and a
+resolve with nothing pending is a free no-op. So a bot, a test or a replay that simply keeps playing reaches
+exactly the state a player who watched the animation reaches — the landing is visible only to whoever is
+looking at the screen, and can never be built on. The UI's job is just a timer.
+
+One bug worth recording: the first version resolved the pending death in `reduce`'s guard and returned early,
+which skipped everything `reduce` does *after* `reduceCore` — the hand-arrival diff, the onGainAttack diff,
+quest ticks, the FX scratch buffers. A borrowed Geode Guardian's Ruby cue silently stopped firing. It is a
+real `reduceCore` case now, so it gets the same machinery every other action does.
+
+## Echo summons land where the minion died
+
+Separately, the owner asked that a dead minion's Echo summons "be summoned as if the minion died where it
+did". They were not: `summon(card, nearUid)` splices next to the summoner, and `destroyMinionInShop` removed
+the body first — so `nearUid` resolved to -1 and the summons APPENDED right-most. A Graverobber eating a
+minion in slot 1 put its two Imps at the far end of the board.
+
+Both shop deaths now keep the body in its slot while the Echo fires, marked `vacatingUid` (which also stops it
+consuming a summon slot), then remove it. Combat reaches the same result the other way round — remove, then
+summon into the vacated slot — and what matters is where the summons end up, which is what a player sees.

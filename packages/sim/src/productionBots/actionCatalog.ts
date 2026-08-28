@@ -57,6 +57,9 @@ export const ACTION_CATALOG = {
   combatFriendlyDeathPreview: { generation: 'never', reveal: false, note: 'display-only replay bookkeeping — not a choice' },
   combatBladeAttackPreview: { generation: 'never', reveal: false, note: 'display-only replay bookkeeping — not a choice' },
   resolveCombat: { generation: 'automatic', reveal: false, note: 'controller transition, never a strategic choice' },
+  // The shop's two-step death: the landing is on screen, this ends it. A bot never needs to dispatch it —
+  // every other action settles the same pending death first, so the outcome is identical either way.
+  resolveShopDeath: { generation: 'automatic', reveal: false, note: 'settles a landed body that is dying; implicit in every other action' },
   devGrant: { generation: 'never', reveal: false, note: 'development tooling — not available to a bot' },
 } satisfies Record<Action['type'], ActionDescriptor>;
 

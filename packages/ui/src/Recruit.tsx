@@ -118,6 +118,10 @@ gsap.registerPlugin(Flip);
  *  language the ascend flash speaks, so a re-forming body reads as a return rather than as a kill. */
 const RISE_BURST = { flashSize: 150, flashMs: 320, flashAlpha: 0.75, colorGlow: '#ffd27f', blend: 'screen' as const };
 
+/** How long a landed-but-dying body stays on screen before its death resolves (Funeral on Loan). Long enough
+ *  to read as "it landed", short enough not to feel like a stall — roughly one ownBeat delivery window. */
+const SHOP_DEATH_LANDING_MS = 480;
+
 const EMPTY_KW: ReadonlyMap<string, ReadonlySet<string>> = new Map();
 const EMPTY_TRANSFORMS: ReadonlyMap<string, string> = new Map();
 
@@ -1673,6 +1677,25 @@ export function Recruit() {
   // layout effect). The warband cards mount on exactly this render, so passing it as `suppressPop`
   // makes them skip the mount-pop (no jiggle) while cards played later still pop normally.
   const returningFromCombat = prevPhaseRef.current === 'combat' && run.phase === 'recruit';
+  /**
+   * THE SHOP'S TWO-STEP DEATH — the landing half (owner design 2026-08-28: "the minion should be coded to
+   * literally land as if it was played, but then the immediate next action is that it is destroyed").
+   *
+   * The reducer LANDS the body and stops, leaving `pendingDeath`. The board therefore really holds it, and it
+   * renders through the ordinary arrival path — no projection, no held state, nothing special. This effect is
+   * the pause: it lets that landing sit on screen for one beat, then dispatches the death.
+   *
+   * Deliberately dumb and unskippable-safe: the reducer settles the same pending death on ANY next action, so
+   * if this timer is cut short by a click, a route change, or an unmount, the outcome is identical — the
+   * player just does not see the pause. That is what keeps a real intermediate game state safe.
+   */
+  const pendingDeathUid = run.pendingDeath?.uid;
+  useEffect(() => {
+    if (!pendingDeathUid) return;
+    const id = window.setTimeout(() => dispatch({ type: 'resolveShopDeath' }), SHOP_DEATH_LANDING_MS);
+    return () => window.clearTimeout(id);
+  }, [pendingDeathUid, dispatch]);
+
   const findEl = useCallback(
     (uid: string): Element | null =>
       document.querySelector(

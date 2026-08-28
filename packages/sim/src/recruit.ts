@@ -2105,13 +2105,33 @@ export function destroyMinionInShop(
   // whole function returns (it diffs around `run()`), so clearing on the way out would hide the flag from the
   // one reader it exists for. Each destroy resets it, so nothing can go stale.
   RISING = willRise ? new Set([target.uid]) : null;
+  const wasVacating = state.vacatingUid;
   try {
-    state.board.splice(idx, 1);          // 1. it genuinely leaves — frees the slot for the Echo's summons
+    // 1. The body STAYS in its slot while its Echo fires, marked VACATING — the same mechanism Funeral on
+    //    Loan uses. Two things depend on it, and both were broken when this removed the body first:
+    //      · POSITION. `summon(card, nearUid)` splices next to the summoner; with the summoner already gone
+    //        `nearUid` resolves to -1 and the summons APPEND right-most. A Graverobber eating a minion in slot 1
+    //        put its two Imps at the far end of the board instead of in its place (owner report 2026-08-28:
+    //        "it should be summoned as if the minion died where it did").
+    //      · CAPACITY. A vacating body must not consume a summon slot, or an Echo that summons is silently
+    //        dead on a full board.
+    //    Combat reaches the same result the other way round (remove, then summon into the vacated slot); what
+    //    matters is that the summons end up where the body died, which is what a player sees.
+    state.vacatingUid = target.uid;
     const summonedFrom = state.board.length;
-    fireRecruitDeathrattles(ctx, target); // 2. its Echo
+    fireRecruitDeathrattles(ctx, target); // 2. its Echo, anchored on the still-present body
     fireOnFriendDeath(state, target);     // 3. watchers (a shop destroy is a real death)
-    if (willRise) riseReturn(state, target, idx, summonedFrom);
-  } finally { /* RISING is reset by the next destroy — see above */ }
+    state.vacatingUid = wasVacating;
+    // 4. …and NOW it leaves. Found by uid: the Echo's summons have shifted the indices around it.
+    const gone = state.board.findIndex((c) => c.uid === target.uid);
+    if (gone >= 0) state.board.splice(gone, 1);
+    // 5. Rise returns into the space it just left — `summonedFrom - 1` discounts the body itself, which was
+    //    still on the board when the baseline was taken.
+    if (willRise) riseReturn(state, target, gone >= 0 ? gone : idx, Math.max(0, summonedFrom - 1));
+  } finally {
+    state.vacatingUid = wasVacating;
+    /* RISING is reset by the next destroy — see above */
+  }
 }
 
 /**
@@ -8677,7 +8697,16 @@ export function triggerBorrowedEcho(state: RunState, card: BoardCard): void {
  * Watchers are still not notified, exactly as before — whether a loan expiry should count as a friendly death
  * is an open design question, not something to alter while fixing presentation.
  */
-export function withBorrowedArrival(state: RunState, card: BoardCard, at: number): void {
+/**
+ * FUNERAL ON LOAN, step 1 — the borrowed minion LANDS, exactly as a played minion does, and stops there.
+ *
+ * Owner design 2026-08-28: "the minion should be coded to literally land as if it was played, but then the
+ * immediate next action is that it is destroyed." So the landing is a real committed state — the board really
+ * holds the body — and `pendingDeath` marks it as dying next. The UI draws an ordinary arrival, then
+ * dispatches `resolveShopDeath`; anything that is not a UI (a bot, a test, a replay) resolves the same pending
+ * death on its very next action, so the outcome never depends on who is watching.
+ */
+export function landBorrowed(state: RunState, card: BoardCard, at: number): void {
   withRecruitTrigger(
     makeContext(state),
     {
@@ -8689,10 +8718,24 @@ export function withBorrowedArrival(state: RunState, card: BoardCard, at: number
     },
     () => { state.board.splice(at, 0, card); },
   );
+  state.pendingDeath = { uid: card.uid, kind: 'loan' };
 }
 
-/** The borrowed body's Echo and its departure — one beat, so the death animation has a window to play in. */
-export function withBorrowedDeath(state: RunState, card: BoardCard): void {
+/**
+ * Step 2 — the landed body dies: its Echo, its departure, its Rise. Shared by both shop deaths.
+ *
+ * A `loan` body still owes its Echo (its Shout fired when it landed). A `destroy` body has already had its
+ * killer's Shout resolve, and simply dies here.
+ *
+ * Both keep the body ON the board while the Echo fires, so its summons land where it died — the owner's
+ * "summoned as if the minion died where it did".
+ */
+export function settlePendingDeath(state: RunState): void {
+  const pending = state.pendingDeath;
+  if (!pending) return;
+  state.pendingDeath = undefined;
+  const card = state.board.find((c) => c.uid === pending.uid);
+  if (!card) return; // already gone (a save round-trip, an odd path) — nothing owed
   withRecruitTrigger(
     makeContext(state),
     {
@@ -8703,25 +8746,23 @@ export function withBorrowedDeath(state: RunState, card: BoardCard): void {
       policyKey: 'system:destroy:shopDeath',
     },
     () => {
-      // It is on the board ONLY to be seen; mark it vacating so its own Echo's summons may take its slot.
-      state.vacatingUid = card.uid;
-      // The body is on the board for its Echo and is about to leave: flag the Rise now, so the departure diff
-      // reports the death as a return rather than as a body simply vanishing.
       const willRise = card.keywords.includes('R');
       RISING = willRise ? new Set([card.uid]) : null;
+      const wasVacating = state.vacatingUid;
+      state.vacatingUid = card.uid; // its Echo's summons land in its place, and it costs no summon slot
+      const summonedFrom = state.board.length;
       try {
-        triggerBorrowedEcho(state, card);
+        if (pending.kind === 'loan') triggerBorrowedEcho(state, card);
+        else fireRecruitDeathrattles(makeContext(state), card);
+        // A destroy is a real death for watchers (owner ruling 2026-08-26). A loan EXPIRY still is not —
+        // whether it should be is an open design question, deliberately unchanged here.
+        if (pending.kind === 'destroy') fireOnFriendDeath(state, card);
       } finally {
-        state.vacatingUid = undefined;
-        // Find it by uid — the Echo may have summoned bodies around it and shifted the index.
+        state.vacatingUid = wasVacating;
         const gone = state.board.findIndex((c) => c.uid === card.uid);
-        if (gone >= 0) {
-          state.board.splice(gone, 1);
-          // The loan ends and, if it had Rise, the body comes back — the SAME return every other shop death
-          // gets (owner correction 2026-08-28). `gone` is the slot it actually held after the Echo shuffled
-          // the board, and the board length after the splice is the baseline for "what the Echo summoned".
-          if (willRise) riseReturn(state, card, gone, state.board.length);
-        }
+        if (gone >= 0) state.board.splice(gone, 1);
+        // `summonedFrom - 1` discounts the body itself, still on the board when the baseline was taken.
+        if (willRise && gone >= 0) riseReturn(state, card, gone, Math.max(0, summonedFrom - 1));
       }
     },
   );

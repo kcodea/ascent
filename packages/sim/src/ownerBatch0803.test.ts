@@ -17,7 +17,7 @@ describe('Cupcakes targets Demons only (owner report 2026-08-03)', () => {
   it('FIZZLES on a non-Demon: kept in hand, nothing consumed', () => {
     const s = withCupcakes(mk('t', 'sandbag', 'neutral'));
     const shopBefore = s.shop.length;
-    const after = reduce(s, { type: 'play', uid: 'cc', targetUid: 't' });
+    const after = reduce(reduce(s, { type: 'play', uid: 'cc', targetUid: 't' }), { type: 'resolveShopDeath' });
     expect(after, 'the cast must be refused outright').toBe(s);
     expect(s.hand.some((c) => c.uid === 'cc')).toBe(true);
     expect(s.shop.length).toBe(shopBefore);
@@ -26,7 +26,7 @@ describe('Cupcakes targets Demons only (owner report 2026-08-03)', () => {
   it('still casts on a Demon (the eater consumes from the shop)', () => {
     const s = withCupcakes(mk('t', 'impoverseer', 'demon'));
     const shopBefore = s.shop.filter((o) => !CARD_INDEX[o.cardId]?.spell).length;
-    const after = reduce(s, { type: 'play', uid: 'cc', targetUid: 't' });
+    const after = reduce(reduce(s, { type: 'play', uid: 'cc', targetUid: 't' }), { type: 'resolveShopDeath' });
     expect(after).not.toBe(s);
     expect(after.hand.some((c) => c.uid === 'cc')).toBe(false);
     const shopAfter = after.shop.filter((o) => !CARD_INDEX[o.cardId]?.spell).length;
@@ -44,7 +44,7 @@ describe('Resonance Idol bounce does NOT chain into another Idol (ruling pin)', 
     mintRubies(s, 1);
     const ruby = s.hand.find((c) => c.cardId === RUBY_ID)!;
     const before = s.board.reduce((n, c) => n + c.attack + c.health, 0);
-    s = reduce(s, { type: 'play', uid: ruby.uid, targetUid: 'a' }); // the real hand-cast Ruby path
+    s = reduce(reduce(s, { type: 'play', uid: ruby.uid, targetUid: 'a' }), { type: 'resolveShopDeath' }); // the real hand-cast Ruby path
     const gained = s.board.reduce((n, c) => n + c.attack + c.health, 0) - before;
     // One 1/1 Ruby on A (+2) + A's bounce: 2 random others × 1/1 (+2 each) = +6 TOTAL. A chain through B
     // would add B's own bounces on top (> 6). Pinned exact so any future chain regresses loudly.
@@ -63,7 +63,7 @@ describe("Lastlight's Echo works in the SHOP (Funeral on Loan) — owner report 
       hand: [{ ...mk('ll', 'n2_lastlight'), borrowed: true } as never],
       embers: 20,
     };
-    const after = reduce(s, { type: 'play', uid: 'll' });
+    const after = reduce(reduce(s, { type: 'play', uid: 'll' }), { type: 'resolveShopDeath' });
     expect(after.board.some((c) => c.uid === 'll'), 'the borrowed body was destroyed on play').toBe(false);
     const warded = after.board.filter((c) => c.keywords.includes('DS'));
     expect(warded.length, 'the Echo must grant Ward to 2 friendly minions').toBe(2);
@@ -76,7 +76,7 @@ describe("Lastlight's Echo works in the SHOP (Funeral on Loan) — owner report 
       hand: [{ ...mk('ll', 'n2_lastlight'), golden: true, borrowed: true } as never],
       embers: 20,
     };
-    const after = reduce(s, { type: 'play', uid: 'll' });
+    const after = reduce(reduce(s, { type: 'play', uid: 'll' }), { type: 'resolveShopDeath' });
     // golden count 4, but only 3 bodies exist — all of them get Ward.
     expect(after.board.filter((c) => c.keywords.includes('DS')).length).toBe(3);
   });

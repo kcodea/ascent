@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import {
   boardIntel, getHero, lastPlayerEncounter, lastRoundDamage, lossDamageCap, playerOpponent, seatResults,
   type LobbySeatState, type RunLobby, type SeatIntel,
@@ -183,15 +183,33 @@ function ScoutCard({ lobby, seat, intel, at, pinned, onClose }: {
 }): JSX.Element {
   const results = seatResults(lobby, seat.id, 3);
   const stale = intel && intel.round < lobby.round;
+  // KEEP IT ON-SCREEN. The card is position:fixed and opens to the LEFT of the seat; on a large / fullscreen
+  // viewport a seat can push it partly off-screen (owner report 2026-08-28). We measure it once and clamp its
+  // `right`/`top` into the viewport with an 8px margin, keeping the CSS `translateY(-50%)` centring (so `top` is
+  // the card's CENTRE and the entrance animation is untouched). Rendered hidden until measured to avoid a flash
+  // at the pre-clamp position; `useLayoutEffect` measures before paint, so there is no visible jump.
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [clamp, setClamp] = useState<{ top: number; right: number } | null>(null);
+  useLayoutEffect(() => {
+    const el = cardRef.current;
+    if (!el) return;
+    const w = el.offsetWidth, h = el.offsetHeight, m = 8;
+    const vw = window.innerWidth, vh = window.innerHeight;
+    // Horizontal: prefer opening left (right edge 6px left of the seat), then clamp so neither edge leaves the view.
+    const right = Math.max(m, Math.min(vw - at.right + 6, vw - w - m));
+    // Vertical: `top` is the centre (translateY(-50%)) — keep the whole card between the top/bottom margins.
+    const top = Math.max(m + h / 2, Math.min(at.top, vh - m - h / 2));
+    setClamp({ top, right });
+  }, [at.top, at.right, seat.id, pinned]);
   return (
-    // POSITION: FIXED, anchored to the measured seat. The rail is a scroll container
-    // (`overflow-y: auto`), which CLIPS absolutely-positioned descendants outside its box — and this card
-    // deliberately opens to the LEFT of the rail, i.e. outside it. Absolute positioning left it laid out
-    // correctly and completely invisible, which is exactly what an "it opens" DOM check reports as working.
-    // Fixed escapes overflow clipping; the rail has no transform/filter, so nothing re-anchors it.
-    <div className={`lobbyscout${pinned ? ' pinned' : ''}`} role={pinned ? 'dialog' : 'tooltip'}
+    // POSITION: FIXED, anchored to the measured seat and clamped to the viewport (see above). The rail is a
+    // scroll container, but `fixed` escapes its overflow clipping and the rail has no transform/filter, so
+    // nothing re-anchors the card — the only failure mode left is running off a screen edge, which the clamp fixes.
+    <div ref={cardRef} className={`lobbyscout${pinned ? ' pinned' : ''}`} role={pinned ? 'dialog' : 'tooltip'}
       aria-label={pinned ? `${seat.label} — scouting report` : undefined}
-      style={{ top: at.top, right: `calc(100vw - ${at.right}px + 6px)` }}
+      style={clamp
+        ? { top: clamp.top, right: clamp.right }
+        : { top: at.top, right: `calc(100vw - ${at.right}px + 6px)`, visibility: 'hidden' }}
       onContextMenu={pinned ? (e) => { e.preventDefault(); onClose?.(); } : undefined}>
       <div className="lobbyscout-head">
         <span className="lobbyscout-name">{seat.label}</span>

@@ -52,6 +52,7 @@ export interface LobbyRailLookConfig {
   healthScale: number; // × the health + armor text size (both render bold); scales their heart/shield glyphs too
   barThick: number;    // × the health-bar thickness
   dmgScale: number;    // × the round-damage ("−N") text size
+  hpShift: number;     // × lrow — nudge the health + armor cluster horizontally (positive = right)
   hpCol: string;       // health number + heart
   armorCol: string;    // the +armor number
   dmgCol: string;      // the round-damage number under the name
@@ -108,6 +109,7 @@ const DEFAULTS: LobbyRailLookConfig = {
   healthScale: 1.55,
   barThick: 1.4,
   dmgScale: 1.6,
+  hpShift: 2,
   hpCol: '#fb3737',
   armorCol: '#bfbfbf',
   dmgCol: '#ff3d3d',
@@ -138,7 +140,7 @@ export { DEFAULTS as LOBBY_RAIL_LOOK_DEFAULTS };
 /** `[min, max, step]` for the numeric knobs only (colours have no range). */
 const RANGES: Record<
   'faceScale' | 'faceRadius' | 'nameScale' | 'railPad' | 'seatPad' | 'rowGap' | 'railRadius' | 'seatRadius'
-  | 'healthScale' | 'barThick' | 'dmgScale'
+  | 'healthScale' | 'barThick' | 'dmgScale' | 'hpShift'
   | 'foeRing' | 'foeGlow' | 'foeSpread' | 'foeBar' | 'foePulseDur' | 'foePulseMin',
   [number, number, number]
 > = {
@@ -148,6 +150,7 @@ const RANGES: Record<
   healthScale: [0.7, 2.5, 0.05],
   barThick: [0.3, 4, 0.05],
   dmgScale: [0.7, 2.5, 0.05],
+  hpShift: [-12, 12, 0.5],
   railPad: [0, 3, 0.05],
   seatPad: [0.3, 2.5, 0.05],
   rowGap: [0, 4, 0.05],
@@ -198,6 +201,7 @@ export function applyLobbyRailLookVars(): void {
   s.setProperty('--lby-hp-size', String(cfg.healthScale));
   s.setProperty('--lby-bar-thick', String(cfg.barThick));
   s.setProperty('--lby-dmg-size', String(cfg.dmgScale));
+  s.setProperty('--lby-hp-x', String(cfg.hpShift));
   s.setProperty('--lby-hp-col', cfg.hpCol);
   s.setProperty('--lby-armor-col', cfg.armorCol);
   s.setProperty('--lby-dmg-col', cfg.dmgCol);
@@ -269,6 +273,7 @@ const controls: TunerControl<Extract<keyof LobbyRailLookConfig, string>>[] = [
   r('healthScale', 'Health & armor size', 'Health & damage', '×', 'Size of the health + armor numbers and their heart/shield glyphs — they render bold.'),
   r('barThick', 'Bar thickness', 'Health & damage', '×', 'Thickness of the health bar.'),
   r('dmgScale', 'Damage-taken size', 'Health & damage', '×', 'Size of the "−N" round-damage number that pops under the name.'),
+  r('hpShift', 'Health position', 'Health & damage', '×', 'Nudge the health + armor cluster left/right. Positive = right.'),
   col('hpCol', 'Health ink', 'Health & damage', 'The health number and heart.'),
   col('armorCol', 'Armor ink', 'Health & damage', 'The +armor number beside health.'),
   col('dmgCol', 'Damage ink', 'Health & damage', 'The round-damage number that pops under the name.'),

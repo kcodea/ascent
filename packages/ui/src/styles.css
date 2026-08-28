@@ -8273,7 +8273,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .lobbyarmor svg { width: calc(8 * var(--lfont) * var(--lby-hp-size, 1.55)); height: calc(8 * var(--lfont) * var(--lby-hp-size, 1.55)); }
 .lobbyplace { color: rgba(255, 255, 255, 0.62); font-weight: 700; }
 /* Health / placement sit on row 2 at the right, beside the round-damage number, now the name owns row 1. */
-.lobbyhp, .lobbyplace { grid-column: 3; grid-row: 2; justify-self: start; }
+.lobbyhp, .lobbyplace { grid-column: 3; grid-row: 2; justify-self: start; transform: translateX(calc(var(--lby-hp-x, 2) * var(--lrow))); }
 /* The health number LEFT-aligns at a fixed start toward the right (owner ask 2026-08-28): it reserves a width
    sized to the biggest reading, so the number sits in the SAME spot whether or not the seat has armor — armor
    extends rightward into the reserve instead of shoving the number left the way right-alignment did. The reserve

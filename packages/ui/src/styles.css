@@ -8144,7 +8144,9 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   /* Sizes to its rows, capped so a wild row scale can't run off the stage — and SCROLLS rather than clips at
      the cap, because silently hiding seat 8 is worse than a scrollbar. The cap is generous enough that the
      shipped defaults never reach it (measured: content ≈46% of stage height against a 66% cap). */
-  height: auto; max-height: var(--lby-h, 100%); overflow-y: auto; overflow-x: hidden;
+  /* Scrolls if it ever exceeds the cap, but the scrollbar itself is HIDDEN — at the shipped sizes all eight seats
+     fit, and a hover-triggered overlay scrollbar over the gilded frame read as a defect (owner report 2026-08-28). */
+  height: auto; max-height: var(--lby-h, 100%); overflow-y: auto; overflow-x: hidden; scrollbar-width: none;
   width: calc(var(--lby-w, 259) * var(--lu));
   display: flex; flex-direction: column; gap: calc(5 * var(--lu)); pointer-events: none;
   /* A solid backing plate. Translucent rows over the board's stonework washed every name out to grey — the
@@ -8155,6 +8157,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
      image carries its OWN gold frame, so there is no inset hairline — the padding above insets the rows off it. */
   background: url('/opponents-backplate.webp') 50% 50% / 100% 100% no-repeat, #14111c;
   box-shadow: 0 calc(4 * var(--lu)) calc(14 * var(--lu)) -6px rgba(0, 0, 0, 0.7); }
+.lobbyrail::-webkit-scrollbar { width: 0; height: 0; display: none; }
 .lobbyrail > * { pointer-events: auto; }
 .lobbyhead { display: flex; justify-content: space-between; align-items: center; flex: none; gap: calc(5 * var(--lfont));
   font-size: calc(9 * var(--lfont)); letter-spacing: 0.06em; text-transform: uppercase; color: rgba(255, 255, 255, 0.72); }
@@ -8239,8 +8242,8 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--lby-foe-ring-col, #ff8080) 95%, transparent); }
 .lobbyseat.foe::after {
   content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
-  box-shadow: inset 0 0 0 calc(var(--lby-foe-ring, 1.05) * var(--lrow)) color-mix(in srgb, var(--lby-foe-ring-col, #ff8080) 95%, transparent),
-    0 0 calc(var(--lby-foe-glow, 17.5) * var(--lrow)) calc(var(--lby-foe-spread, 5) * var(--lrow)) color-mix(in srgb, var(--lby-foe-glow-col, #ff5252) 55%, transparent);
+  box-shadow: inset 0 0 0 calc(var(--lby-foe-ring, 1.7) * var(--lrow)) color-mix(in srgb, var(--lby-foe-ring-col, #ff8080) 95%, transparent),
+    0 0 calc(var(--lby-foe-glow, 14) * var(--lrow)) calc(var(--lby-foe-spread, 5) * var(--lrow)) color-mix(in srgb, var(--lby-foe-glow-col, #ff5252) 55%, transparent);
   animation: lobbyfoepulse calc(var(--lby-foe-pulse-dur, 1.7) * 1s) ease-in-out infinite; }
 /* Optional left accent bar — an alternative next-foe marker to the ring/glow (width 0 by default, so it's off
    until the tuner raises it). Static, no pulse; the ring/glow above carries the pulse. */
@@ -8262,26 +8265,31 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   font-size: calc(11 * var(--lfont) * var(--lby-name-size, 1.5)); font-weight: 800; }
 .lobbyseat.dead .lobbyname { text-decoration: line-through; }
 .lobbyhp { display: inline-flex; align-items: center; gap: calc(1 * var(--lfont)); font-weight: 800; color: var(--lby-hp-col, #fb3737);
-  font-size: calc(11 * var(--lfont) * var(--lby-hp-size, 1)); }
-.lobbyhp svg { width: calc(8 * var(--lfont) * var(--lby-hp-size, 1)); height: calc(8 * var(--lfont) * var(--lby-hp-size, 1)); }
+  font-size: calc(11 * var(--lfont) * var(--lby-hp-size, 1.55)); }
+.lobbyhp svg { width: calc(8 * var(--lfont) * var(--lby-hp-size, 1.55)); height: calc(8 * var(--lfont) * var(--lby-hp-size, 1.55)); }
 /* Armor reads as a little shield + the number (owner ask 2026-08-28), replacing the old "+N". The shield glyph
    strokes in currentColor, so it takes the armor ink. */
 .lobbyarmor { display: inline-flex; align-items: center; gap: calc(1 * var(--lfont)); color: var(--lby-armor-col, #bfbfbf); font-weight: 800; }
-.lobbyarmor svg { width: calc(8 * var(--lfont) * var(--lby-hp-size, 1)); height: calc(8 * var(--lfont) * var(--lby-hp-size, 1)); }
+.lobbyarmor svg { width: calc(8 * var(--lfont) * var(--lby-hp-size, 1.55)); height: calc(8 * var(--lfont) * var(--lby-hp-size, 1.55)); }
 .lobbyplace { color: rgba(255, 255, 255, 0.62); font-weight: 700; }
 /* Health / placement sit on row 2 at the right, beside the round-damage number, now the name owns row 1. */
-.lobbyhp, .lobbyplace { grid-column: 3; grid-row: 2; justify-self: end; }
+.lobbyhp, .lobbyplace { grid-column: 3; grid-row: 2; justify-self: start; }
+/* The health number LEFT-aligns at a fixed start toward the right (owner ask 2026-08-28): it reserves a width
+   sized to the biggest reading, so the number sits in the SAME spot whether or not the seat has armor — armor
+   extends rightward into the reserve instead of shoving the number left the way right-alignment did. The reserve
+   scales with the health-text dial so the ratio holds as the text grows. */
+.lobbyhp { min-width: calc(30 * var(--lrow) * var(--lby-hp-size, 1.55)); }
 /* Damage from the round that just resolved — sits under the name, so the row keeps ONE stable shape whether or
    not a number is present (an inline cell reflowed the health column between seats). */
 /* HEALTH BAR — the element was rendered by the panel but had no rule at all, so it painted nothing. Given a
    row of its own beneath the name so it reads as the seat's whole remaining pool at a glance, next to the exact
    number on the right. */
-.lobbybar { grid-column: 2 / span 2; grid-row: 3; height: calc(3 * var(--lrow) * var(--lby-bar-thick, 1)); border-radius: 999px;
+.lobbybar { grid-column: 2 / span 2; grid-row: 3; height: calc(3 * var(--lrow) * var(--lby-bar-thick, 1.4)); border-radius: 999px;
   background: color-mix(in srgb, var(--lby-bar-track, #5c431f) 10%, transparent); overflow: hidden; }
 .lobbybar > span { display: block; height: 100%; border-radius: inherit;
   background: linear-gradient(90deg, var(--lby-bar-a, #ff5024), var(--lby-bar-b, #fe0101)); }
-.lobbyseat.you .lobbybar > span { background: linear-gradient(90deg, var(--lby-youbar-a, #e6b45a), var(--lby-youbar-b, #69d100)); }
-.lobbydmg { grid-column: 2; grid-row: 2; font-size: calc(9 * var(--lfont) * var(--lby-dmg-size, 1)); font-weight: 800; color: var(--lby-dmg-col, #ff3d3d);
+.lobbyseat.you .lobbybar > span { background: linear-gradient(90deg, var(--lby-youbar-a, #ff5024), var(--lby-youbar-b, #fe0101)); }
+.lobbydmg { grid-column: 2; grid-row: 2; font-size: calc(9 * var(--lfont) * var(--lby-dmg-size, 1.6)); font-weight: 800; color: var(--lby-dmg-col, #ff3d3d);
   line-height: 1; min-height: calc(8 * var(--lfont)); animation: lobbydmgpop 420ms ease-out; }
 @keyframes lobbydmgpop {
   0% { transform: translateY(calc(-2 * var(--lfont))) scale(1.3); opacity: 0; }

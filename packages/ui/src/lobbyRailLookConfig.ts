@@ -49,6 +49,9 @@ export interface LobbyRailLookConfig {
   youLine: string;     // your-seat hairline (baked to ~60% in CSS)
 
   // Health & damage
+  healthScale: number; // × the health + armor text size (both render bold); scales their heart/shield glyphs too
+  barThick: number;    // × the health-bar thickness
+  dmgScale: number;    // × the round-damage ("−N") text size
   hpCol: string;       // health number + heart
   armorCol: string;    // the +armor number
   dmgCol: string;      // the round-damage number under the name
@@ -83,12 +86,12 @@ const DEFAULTS: LobbyRailLookConfig = {
   // blue YOUR-seat, hot-red health bars, and a fierce red-glowing next foe with a thick left accent bar + a deep
   // pulse. Portraits slightly larger + squarer, rows pulled well in off the frame, tight seat padding, square
   // rail corners. All mirrored into the styles.css fallbacks below so prod paints it with no JS.
-  faceScale: 1.23,
+  faceScale: 1.45,
   faceRadius: 22,
 
-  nameScale: 1.3,
+  nameScale: 1.5,
 
-  railPad: 4,
+  railPad: 4.5,
   seatPad: 0.75,
   rowGap: 1.1,
 
@@ -102,6 +105,9 @@ const DEFAULTS: LobbyRailLookConfig = {
   youBg: '#0e69be',
   youLine: '#0011ff',
 
+  healthScale: 1,
+  barThick: 1,
+  dmgScale: 1,
   hpCol: '#fb3737',
   armorCol: '#bfbfbf',
   dmgCol: '#ff3d3d',
@@ -132,12 +138,16 @@ export { DEFAULTS as LOBBY_RAIL_LOOK_DEFAULTS };
 /** `[min, max, step]` for the numeric knobs only (colours have no range). */
 const RANGES: Record<
   'faceScale' | 'faceRadius' | 'nameScale' | 'railPad' | 'seatPad' | 'rowGap' | 'railRadius' | 'seatRadius'
+  | 'healthScale' | 'barThick' | 'dmgScale'
   | 'foeRing' | 'foeGlow' | 'foeSpread' | 'foeBar' | 'foePulseDur' | 'foePulseMin',
   [number, number, number]
 > = {
   faceScale: [0.5, 2, 0.01],
   faceRadius: [0, 50, 1],
   nameScale: [0.7, 2.2, 0.05],
+  healthScale: [0.7, 2.5, 0.05],
+  barThick: [0.3, 4, 0.05],
+  dmgScale: [0.7, 2.5, 0.05],
   railPad: [0, 3, 0.05],
   seatPad: [0.3, 2.5, 0.05],
   rowGap: [0, 4, 0.05],
@@ -185,6 +195,9 @@ export function applyLobbyRailLookVars(): void {
   s.setProperty('--lby-name-col', cfg.nameCol);
   s.setProperty('--lby-you-bg', cfg.youBg);
   s.setProperty('--lby-you-line', cfg.youLine);
+  s.setProperty('--lby-hp-size', String(cfg.healthScale));
+  s.setProperty('--lby-bar-thick', String(cfg.barThick));
+  s.setProperty('--lby-dmg-size', String(cfg.dmgScale));
   s.setProperty('--lby-hp-col', cfg.hpCol);
   s.setProperty('--lby-armor-col', cfg.armorCol);
   s.setProperty('--lby-dmg-col', cfg.dmgCol);
@@ -253,6 +266,9 @@ const controls: TunerControl<Extract<keyof LobbyRailLookConfig, string>>[] = [
   col('youBg', 'Your seat fill', 'Your seat', 'The fill of YOUR row.'),
   col('youLine', 'Your hairline', 'Your seat', 'The outline around your row (painted at ~60%).'),
 
+  r('healthScale', 'Health & armor size', 'Health & damage', '×', 'Size of the health + armor numbers and their heart/shield glyphs — they render bold.'),
+  r('barThick', 'Bar thickness', 'Health & damage', '×', 'Thickness of the health bar.'),
+  r('dmgScale', 'Damage-taken size', 'Health & damage', '×', 'Size of the "−N" round-damage number that pops under the name.'),
   col('hpCol', 'Health ink', 'Health & damage', 'The health number and heart.'),
   col('armorCol', 'Armor ink', 'Health & damage', 'The +armor number beside health.'),
   col('dmgCol', 'Damage ink', 'Health & damage', 'The round-damage number that pops under the name.'),

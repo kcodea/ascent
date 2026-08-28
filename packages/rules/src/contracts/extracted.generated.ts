@@ -1090,10 +1090,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "basis": "derived:golden-text",
+      "kind": "extra-proc",
+      "extra": 1,
+      "basis": "owner-ruling",
       "goldenTextSource": "index:goldenText",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "description": "owner ruling 2026-08-28 (q-conv-trigger-buy): \"Moonhowl for example adds an instance of the effect, and does not double the amount granted\" — the gild buys a SECOND teach per turn (\"Twice per turn\"), not a bigger grant; one Mage-Pup each time either way"
     },
     "textContract": {
       "source": "index"

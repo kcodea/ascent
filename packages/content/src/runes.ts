@@ -771,7 +771,7 @@ export const RUNES: RuneDef[] = [
     cost: 5,
     // Owner 2026-08-11: full rework — a "cards played" threshold that showers the board with a Ruby every 6.
     // Uses the runeThreshold engine's new `cardsPlayed` meter (see advanceRuneThresholds / applyCardsPlayed).
-    text: 'After you play **6 cards**, play a **Ruby** on your minions.',
+    text: 'After you play **6 cards**, cast a **Ruby** on your minions.',
     previewCards: ['ruby'],
     reward: { kind: 'runeThreshold', meter: 'cardsPlayed', per: 6, rubyAll: true },
     sets: ['set2'],
@@ -1572,7 +1572,7 @@ export const EPIC_RUNES: RuneDef[] = [
     name: 'Rune of Gemspam',
     cost: 4, // owner balance 2026-08-11
     epic: true,
-    text: 'When you spend **10 Gold**, play a **Ruby** on all of your minions.',
+    text: 'When you spend **10 Gold**, cast a **Ruby** on all of your minions.',
     previewCards: ['ruby'], // text names it — the forge hover shows the card
     reward: { kind: 'runeThreshold', meter: 'gold', per: 10, rubyAll: true },
     sets: ['set2'], // Rubies are a set-2 mechanic
@@ -1777,7 +1777,7 @@ export const EPIC_RUNES: RuneDef[] = [
     name: 'Rune of Gemstorm',
     cost: 2,
     epic: true,
-    text: '**Avenge (2):** play **2 Rubies** on each friendly **Kobold**.',
+    text: '**Avenge (2):** cast **2 Rubies** on each friendly **Kobold**.',
     previewCards: ['ruby'], // names Rubies — forge hover shows the live Ruby (audit 2026-08-06)
     reward: { kind: 'combatFlag', flag: 'runeGemstorm', amount: 2 },
     sets: ['set2'], // Rubies
@@ -1852,7 +1852,7 @@ export const EPIC_RUNES: RuneDef[] = [
     name: 'Rune of Attacking Gems',
     cost: 4,
     epic: true,
-    text: 'Play a **Ruby** on all of your minions every friendly **attack** in combat.',
+    text: 'Cast a **Ruby** on all of your minions every friendly **attack** in combat.',
     previewCards: ['ruby'], // text names it — the forge hover shows the card
     reward: { kind: 'combatFlag', flag: 'runeAttackingGems', amount: 1 },
     sets: ['set2'], // Rubies
@@ -1945,7 +1945,7 @@ export const EPIC_RUNES: RuneDef[] = [
     name: 'Rune of the Lapidary',
     cost: 5,
     epic: true,
-    text: '**End of Turn:** play a **Ruby** on a random minion for every card you played this turn.', // owner 2026-08-11
+    text: '**End of Turn:** cast a **Ruby** on a random minion for every card you played this turn.', // owner 2026-08-11
     previewCards: ['ruby'],
     reward: { kind: 'runeLapidary' },
     sets: ['set2'], // Rubies
@@ -2565,7 +2565,7 @@ export const EPIC_RUNES: RuneDef[] = [
     name: 'Rune of the Deepening Vein',
     cost: 5,
     epic: true,
-    text: '**Avenge (3):** improve your **Rubies** by **+1/+1** and play a **Ruby** on every friendly **Kobold**.',
+    text: '**Avenge (3):** improve your **Rubies** by **+1/+1** and cast a **Ruby** on every friendly **Kobold**.',
     previewCards: ['ruby'],
     reward: { kind: 'combatFlag', flag: 'runeDeepeningVein' },
     sets: ['set2'], // Rubies + Kobolds

@@ -45,8 +45,8 @@ export const SET2_KOBOLDS: CardDef[] = [
     keywords: [], // Avenge has no keyword pill (matches set-1 Avenge cards); the text conveys it
     // Owner balance 2026-08-18: now Kobolds-only.
     effects: [{ on: 'avenge', do: 'avengePlayRubies', params: { count: 2, rubies: 2, tribe: 'kobold' } }],
-    text: '**Avenge (2):** Play **2 Rubies** on your **Kobolds**.',
-    goldenText: '**Avenge (2):** Play **4 Rubies** on your **Kobolds**.',
+    text: '**Avenge (2):** Cast **2 Rubies** on your **Kobolds**.',
+    goldenText: '**Avenge (2):** Cast **4 Rubies** on your **Kobolds**.',
   },
   {
     // Two Avenge effects at one trigger (both fire): get a Ruby (to hand) AND play Rubies on your left-most
@@ -143,8 +143,8 @@ export const SET2_KOBOLDS: CardDef[] = [
     health: 3,
     keywords: [],
     effects: [{ on: 'onPlay', do: 'battlecryPlayRubiesAll', params: { rubies: 1 } }],
-    text: '**Shout:** play a Ruby on all of your minions.',
-    goldenText: '**Shout:** play **2 Rubies** on all of your minions.',
+    text: '**Shout:** cast a Ruby on all of your minions.',
+    goldenText: '**Shout:** cast **2 Rubies** on all of your minions.',
   },
   {
     // Echo (combat Deathrattle): summon a Gemheart Golem that is a 1/1 PLUS the Rubies played on THIS minion —
@@ -202,8 +202,8 @@ export const SET2_KOBOLDS: CardDef[] = [
     // Owner rework 2026-07-31 (from "play a Ruby on adjacent"). The COUNT is fixed — a Gilded copy still
     // summons 2 (the owner was explicit); gilding doubles the Rubies played on them instead.
     effects: [{ on: 'onDeath', do: 'deathrattleSummonGolemsWithRuby', params: { count: 2, rubies: 1 } }],
-    text: '**Taunt.** **Echo:** summon **two** 1/1 **Gemheart Golems** with **Taunt**, and play a **Ruby** on them.',
-    goldenText: '**Taunt.** **Echo:** summon **two** 1/1 **Gemheart Golems** with **Taunt**, and play **2 Rubies** on them.',
+    text: '**Taunt.** **Echo:** summon **two** 1/1 **Gemheart Golems** with **Taunt**, and cast a **Ruby** on them.',
+    goldenText: '**Taunt.** **Echo:** summon **two** 1/1 **Gemheart Golems** with **Taunt**, and cast **2 Rubies** on them.',
   },
   {
     // Owner add 2026-08-11. A Ruby payoff that pays the whole Kobold line on death — the more Kobolds you
@@ -217,8 +217,8 @@ export const SET2_KOBOLDS: CardDef[] = [
     health: 3,
     keywords: [],
     effects: [{ on: 'onDeath', do: 'deathrattlePlayRubiesTribe', params: { count: 3, tribe: 'kobold' } }],
-    text: '**Echo:** play **3 Rubies** on each of your **Kobolds**.',
-    goldenText: '**Echo:** play **6 Rubies** on each of your **Kobolds**.',
+    text: '**Echo:** cast **3 Rubies** on each of your **Kobolds**.',
+    goldenText: '**Echo:** cast **6 Rubies** on each of your **Kobolds**.',
   },
   {
     // Three triggers: Shout (onPlay) + Echo (combat death) both buff your Rubies; End of Turn plays a Ruby on
@@ -235,8 +235,8 @@ export const SET2_KOBOLDS: CardDef[] = [
       { on: 'onDeath', do: 'deathrattleRubyStatGain', params: { attack: 1, health: 1 } },
       { on: 'endOfTurn', do: 'endOfTurnPlayRuby', params: { tribe: 'kobold', count: 1 } },
     ],
-    text: '**Shout and Echo:** Your Rubies gain **+1/+1**. **End of Turn:** Play a Ruby on **each** of your Kobolds.',
-    goldenText: '**Shout and Echo:** Your Rubies gain **+2/+2**. **End of Turn:** Play **2 Rubies** on **each** of your Kobolds.',
+    text: '**Shout and Echo:** Your Rubies gain **+1/+1**. **End of Turn:** Cast a Ruby on **each** of your Kobolds.',
+    goldenText: '**Shout and Echo:** Your Rubies gain **+2/+2**. **End of Turn:** Cast **2 Rubies** on **each** of your Kobolds.',
   },
   {
     // A cheap Ruby-build enabler: hands you the tribe's shop-wide Ruby spell instead of a body. Same
@@ -265,8 +265,8 @@ export const SET2_KOBOLDS: CardDef[] = [
     keywords: [],
     // Owner balance 2026-08-18: now ALL your minions (empty tribe = no filter).
     effects: [{ on: 'onAttack', do: 'onRallyPlayRubiesTribe', params: { rubies: 2 } }],
-    text: 'When you trigger a **Rally**, play **2 Rubies** on your **minions**.',
-    goldenText: 'When you trigger a **Rally**, play **4 Rubies** on your **minions**.',
+    text: 'When you trigger a **Rally**, cast **2 Rubies** on your **minions**.',
+    goldenText: 'When you trigger a **Rally**, cast **4 Rubies** on your **minions**.',
   },
   {
     // Two Avenge effects (both fire at the threshold): improve your Rubies AND get a random Kobold from the
@@ -296,8 +296,8 @@ export const SET2_KOBOLDS: CardDef[] = [
     health: 6,
     keywords: ['T', 'SC'],
     effects: [{ on: 'startOfCombat', do: 'scPlayRubiesSelfAndAdjacentTribe', params: { tribe: 'kobold', count: 2, permanent: true } }],
-    text: '**Taunt.** **Start of Combat:** play **2 permanent Rubies** on this and adjacent **Kobolds**.',
-    goldenText: '**Taunt.** **Start of Combat:** play **4 permanent Rubies** on this and adjacent **Kobolds**.',
+    text: '**Taunt.** **Start of Combat:** cast **2 permanent Rubies** on this and adjacent **Kobolds**.',
+    goldenText: '**Taunt.** **Start of Combat:** cast **4 permanent Rubies** on this and adjacent **Kobolds**.',
   },
   {
     // Rally: each attack plays PERMANENT Rubies on itself. Golden doubles the count.
@@ -309,8 +309,8 @@ export const SET2_KOBOLDS: CardDef[] = [
     health: 7,
     keywords: ['RL'],
     effects: [{ on: 'onAttack', do: 'rallyPlayRubiesSelf', params: { count: 3, permanent: true } }],
-    text: '**Rally:** play **3 permanent Rubies** on this.',
-    goldenText: '**Rally:** play **6 permanent Rubies** on this.',
+    text: '**Rally:** cast **3 permanent Rubies** on this.',
+    goldenText: '**Rally:** cast **6 permanent Rubies** on this.',
   },
   {
     // A cheap Ruby payout on sale — get Rubies when this leaves the board for Gold. Golden doubles.
@@ -335,8 +335,8 @@ export const SET2_KOBOLDS: CardDef[] = [
     health: 8,
     keywords: ['W', 'RL'],
     effects: [{ on: 'onAttack', do: 'rallyPlayRubiesAll', params: { count: 1 } }],
-    text: '**Flurry.** **Rally:** play a **Ruby** on your minions.',
-    goldenText: '**Flurry.** **Rally:** play **2 Rubies** on your minions.',
+    text: '**Flurry.** **Rally:** cast a **Ruby** on your minions.',
+    goldenText: '**Flurry.** **Rally:** cast **2 Rubies** on your minions.',
   },
   {
     // -- RUNE-ONLY (Source: Rune), owner batch 2026-08-20 --------------------------------------------------

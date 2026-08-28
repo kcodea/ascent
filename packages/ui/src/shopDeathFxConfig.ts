@@ -56,11 +56,14 @@ export interface ShopDeathFxConfig {
 const DEFAULTS: ShopDeathFxConfig = {
   // The owner's tuned value (2026-08-28), dialled live and handed back: 480 → 300 → 200.
   landingMs: 200,
-  // A 120ms LEAD, so the skull fires while the body is still there and the departure lands INTO it, rather
-  // than after it (owner: "can we have the pixi purple skull animation trigger slightly earlier?").
-  echoDelayMs: -40, // the owner's tuned lead (2026-08-28)
-  deathDelayMs: 0,
-  shiftDelayMs: 15, // the owner's "like a 10-20 ms delay"
+  // A LEAD, so the skull fires while the body is still there and the departure lands INTO it rather than
+  // after it (owner: "can we have the pixi purple skull animation trigger slightly earlier?"). Dialled to 40.
+  echoDelayMs: -40,
+  // The owner's dialled values, handed back 2026-08-28 after watching both cards. The smoke trails the
+  // Echo skull by 50ms, and the row holds 105ms before closing the gap — well past the 10-20ms first
+  // guessed at, which turned out to be too short to read.
+  deathDelayMs: 50,
+  shiftDelayMs: 105,
   offsetX: 0,
   offsetY: 0,
   sizeScale: 1,

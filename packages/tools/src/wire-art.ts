@@ -60,7 +60,10 @@ const ALIASES: Record<string, string> = {
   oatshieldorin: 'dw_orin',              // missing the 'h'
   salvatoremckluskey: 'salvatore',        // extra 'e'
   candlelightbulwark: 'k_candleback',     // card is Candleback Bulwark
-  copperspellsword: 'n2_coppercoat',      // card is Coppercoat Spellsword
+  // Was 'n2_coppercoat' — an id that does not exist. Both CopperSpellsword.png and its Choose One branch
+  // CopperSpellsword2.png wired to `n2_coppercoat*`, which no card ever asks for, so the art rendered nowhere
+  // and the dead master sat in the repo. The card is `n2_spellsword` (found 2026-08-28 wiring the branch art).
+  copperspellsword: 'n2_spellsword',      // card is Coppercoat Spellsword
   gemforgefiend: 'k_gemgorge',            // card is Gemgorge Fiend
   babyrex: 'trexbaby',                    // token is T-Rex Baby
   zyffbetrayer: 'zyff',

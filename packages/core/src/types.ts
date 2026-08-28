@@ -613,7 +613,7 @@ export type EffectFactoryId =
   | 'battlecryGainKeyword' // Set 2 Dwarves
   | 'goldSpentBuffTribeAttack' // Set 2 Dwarves
   | 'battlecryBuffTargetPerGoldSpent' // Set 2 Dwarves
-  | 'endOfTurnBuffLeftmostTribePerCard' // Set 2 Dwarves
+  | 'endOfTurnBuffEndsTribePerCard' // Set 2 Dwarves
   | 'cardsBoughtGrantRandomSpell' // Set 2 Dwarves
   | 'battlecryGildTarget' // Set 2 Dwarves
   | 'goldSpentGrantTribeMinion' // Set 2 Dwarves

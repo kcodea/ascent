@@ -59,6 +59,9 @@ describe('no redundant PNG masters ship alongside their WebP builds', () => {
     // button = 11 files. The remaining 7 Gifts are in `ART_PENDING` and cost nothing until their masters land.)
     // → 1040 (2026-08-27, the second Gifts master batch: 7 more Gift arts + the Happy Birthday / Merry
     // Christmas rune arts = 9 files; Aevor's new portrait replaced the old webp, net 0.)
-    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1040);
+    // → 1045 (2026-08-28, the owner's Choose One branch art: 6 second-option files — beetle2,
+    // k_veinbreaker2, n2_spellsword2, crestclimb2, facetwright2, fieldmaneuvers2. Net +5, not +6: the dead
+    // `n2_coppercoat.webp` master was deleted in the same pass, so measured 1038 → 1044.)
+    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1045);
   });
 });

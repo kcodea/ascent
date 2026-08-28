@@ -1,0 +1,481 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Ascent Quiz #16 — 2026-08-28</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f6f5f1;
+    --panel: #ffffff;
+    --panel-border: #e2e0d8;
+    --text: #201f1c;
+    --muted: #6e6c64;
+    --accent: #3457d5;
+    --accent-soft: rgba(52, 87, 213, 0.10);
+    --accent-border: rgba(52, 87, 213, 0.28);
+    --correct: #1c8a52;
+    --correct-bg: rgba(28, 138, 82, 0.10);
+    --correct-border: rgba(28, 138, 82, 0.38);
+    --wrong: #bd3f27;
+    --wrong-bg: rgba(189, 63, 39, 0.09);
+    --wrong-border: rgba(189, 63, 39, 0.35);
+    --code-bg: rgba(52, 87, 213, 0.07);
+    --shadow: 0 10px 26px rgba(32, 31, 28, 0.07);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #17181c;
+      --panel: #1f2025;
+      --panel-border: #2d2f36;
+      --text: #eceae3;
+      --muted: #96958c;
+      --accent: #7c9bff;
+      --accent-soft: rgba(124, 155, 255, 0.12);
+      --accent-border: rgba(124, 155, 255, 0.32);
+      --correct: #52c98a;
+      --correct-bg: rgba(82, 201, 138, 0.12);
+      --correct-border: rgba(82, 201, 138, 0.34);
+      --wrong: #e58469;
+      --wrong-bg: rgba(229, 132, 105, 0.12);
+      --wrong-border: rgba(229, 132, 105, 0.34);
+      --code-bg: rgba(124, 155, 255, 0.10);
+      --shadow: 0 10px 26px rgba(0, 0, 0, 0.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #17181c;
+    --panel: #1f2025;
+    --panel-border: #2d2f36;
+    --text: #eceae3;
+    --muted: #96958c;
+    --accent: #7c9bff;
+    --accent-soft: rgba(124, 155, 255, 0.12);
+    --accent-border: rgba(124, 155, 255, 0.32);
+    --correct: #52c98a;
+    --correct-bg: rgba(82, 201, 138, 0.12);
+    --correct-border: rgba(82, 201, 138, 0.34);
+    --wrong: #e58469;
+    --wrong-bg: rgba(229, 132, 105, 0.12);
+    --wrong-border: rgba(229, 132, 105, 0.34);
+    --code-bg: rgba(124, 155, 255, 0.10);
+    --shadow: 0 10px 26px rgba(0, 0, 0, 0.35);
+  }
+  * { box-sizing: border-box; }
+  html, body { background: var(--bg); }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    display: flex;
+    justify-content: center;
+    padding: 40px 16px 64px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { width: 100%; max-width: 680px; }
+  header { margin-bottom: 26px; }
+  .kicker {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.75rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 8px;
+  }
+  header h1 {
+    font-size: 1.6rem;
+    margin: 0 0 6px;
+    font-weight: 700;
+    text-wrap: balance;
+  }
+  header p { color: var(--muted); margin: 0; font-size: 0.94rem; }
+  .progress-bar {
+    height: 6px;
+    border-radius: 999px;
+    background: var(--panel-border);
+    overflow: hidden;
+    margin: 20px 0 8px;
+  }
+  .progress-fill {
+    height: 100%;
+    background: var(--accent);
+    width: 0%;
+    transition: width 0.35s ease;
+  }
+  .status-row {
+    display: flex;
+    justify-content: space-between;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.8rem;
+    color: var(--muted);
+    margin-bottom: 22px;
+    font-variant-numeric: tabular-nums;
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 14px;
+    padding: 26px;
+    margin-bottom: 16px;
+    box-shadow: var(--shadow);
+  }
+  .qtag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.02em;
+    color: var(--accent);
+    background: var(--accent-soft);
+    border: 1px solid var(--accent-border);
+    padding: 3px 10px;
+    border-radius: 6px;
+    margin-bottom: 14px;
+  }
+  .qtext {
+    font-size: 1.08rem;
+    line-height: 1.55;
+    margin: 0 0 20px;
+    max-width: 62ch;
+  }
+  .qtext code {
+    font-family: "IBM Plex Mono", monospace;
+    background: var(--code-bg);
+    padding: 1.5px 6px;
+    border-radius: 5px;
+    font-size: 0.88em;
+  }
+  .choices { display: flex; flex-direction: column; gap: 9px; }
+  .choice {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    text-align: left;
+    width: 100%;
+    background: transparent;
+    border: 1px solid var(--panel-border);
+    color: var(--text);
+    padding: 12px 14px;
+    border-radius: 9px;
+    font-family: inherit;
+    font-size: 0.95rem;
+    line-height: 1.45;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease;
+  }
+  .choice:hover:not(:disabled) {
+    border-color: var(--accent-border);
+    background: var(--accent-soft);
+  }
+  .choice:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .choice:disabled { cursor: default; }
+  .choice .letter {
+    flex: 0 0 auto;
+    width: 22px;
+    height: 22px;
+    border-radius: 5px;
+    background: var(--code-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--muted);
+    margin-top: 1px;
+  }
+  .choice.correct { border-color: var(--correct-border); background: var(--correct-bg); }
+  .choice.correct .letter { background: var(--correct); color: var(--panel); }
+  .choice.wrong { border-color: var(--wrong-border); background: var(--wrong-bg); }
+  .choice.wrong .letter { background: var(--wrong); color: var(--panel); }
+  .explain {
+    margin-top: 16px;
+    padding: 15px 16px;
+    border-radius: 9px;
+    background: var(--accent-soft);
+    border: 1px solid var(--accent-border);
+    font-size: 0.92rem;
+    line-height: 1.6;
+    color: var(--text);
+    display: none;
+  }
+  .explain.show { display: block; }
+  .explain code {
+    font-family: "IBM Plex Mono", monospace;
+    background: var(--code-bg);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 0.88em;
+  }
+  .nextbtn {
+    margin-top: 18px;
+    display: none;
+    background: var(--accent);
+    color: var(--panel);
+    border: none;
+    padding: 10px 18px;
+    border-radius: 8px;
+    font-family: inherit;
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+  }
+  .nextbtn.show { display: inline-block; }
+  .nextbtn:hover { filter: brightness(1.1); }
+  .nextbtn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .summary { text-align: center; padding: 40px 24px; }
+  .summary .line { color: var(--muted); font-size: 0.95rem; }
+  .summary .score {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 2.8rem;
+    font-weight: 600;
+    margin: 10px 0;
+    font-variant-numeric: tabular-nums;
+  }
+  .summary .encourage { margin-top: 16px; font-size: 1.05rem; max-width: 46ch; margin-left: auto; margin-right: auto; text-wrap: balance; }
+  footer { text-align: center; color: var(--muted); font-size: 0.8rem; margin-top: 22px; }
+  @media (prefers-reduced-motion: reduce) {
+    .progress-fill { transition: none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="kicker">docs/quiz · daily architecture quiz</div>
+    <h1>Ascent Quiz #16</h1>
+    <p>2026-08-28 · 10 questions on how the game is actually coded</p>
+  </header>
+  <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+  <div class="status-row">
+    <span id="qCounter">Question 1 / 10</span>
+    <span id="scoreCounter">Score: 0</span>
+  </div>
+  <div id="quizArea"></div>
+  <footer>Graded right here in your browser — nothing leaves this page.</footer>
+</div>
+
+<script>
+const QUESTIONS = [
+  {
+    topic: "what-is-a-function",
+    question: "packages/core/src/combat/simulate.ts declares <code>simulate(playerSide, enemySide, rng, cards)</code>. <code>playerSide</code> is the name simulate() itself uses inside its own body. When some other code calls <code>simulate(myBoard, enemyBoard, seededRng, CARD_INDEX)</code>, what is <code>myBoard</code> — the real value being handed in at that specific call site — properly called?",
+    choices: [
+      "An argument — the real value passed in when the function is called",
+      "A parameter, exactly like <code>playerSide</code>",
+      "simulate()'s return value",
+      "A type annotation"
+    ],
+    answer: 0,
+    explanation: "Parameters are the placeholder names a function declares in its own signature (<code>playerSide</code>, <code>enemySide</code>, <code>rng</code>, <code>cards</code>); arguments are the actual values a caller supplies at a specific call site (<code>myBoard</code>, <code>enemyBoard</code>, ...). It's easy to conflate the two since every argument lines up with a parameter, but the parameter name stays fixed no matter how many different call sites pass in different argument values. Neither a return value nor a type annotation is what's happening here — <code>myBoard</code> is simply the concrete value flowing in."
+  },
+  {
+    topic: "deterministic-sim",
+    question: "CLAUDE.md says simulate() being deterministic means the same inputs always produce the same outputs. But replaying an old run needs more than that alone — it also needs the run to hand simulate() the EXACT SAME inputs it originally used. CLAUDE.md's \"Opponents are pinned\" rule says every run records the exact board it fought each wave in <code>servedBoards</code>. Why is that recording necessary, given simulate() is already deterministic?",
+    choices: [
+      "It isn't necessary — determinism alone guarantees a replay will re-fight the identical opponents",
+      "<code>servedBoards</code> exists purely for the player's own reference, not for replay correctness",
+      "Determinism only guarantees identical OUTPUT for identical INPUT — it says nothing about where that input comes from; without recording the exact board a run actually faced, a replay could hand simulate() a different (freshly matchmade) board and get a different, equally \"deterministic\" fight",
+      "simulate() re-derives the opponent board itself from the seed, so nothing needs to be recorded"
+    ],
+    answer: 2,
+    explanation: "Determinism is a promise about simulate() itself: give it the same playerSide/enemySide/rng/cards and it always returns the same result — but that says nothing about how those inputs get CHOSEN the second time around. If matchmaking were re-run live during a replay instead of reusing the original opponent board, it could easily land on a different board, and simulate() would faithfully and deterministically resolve that different fight. Recording the actual board in <code>servedBoards</code> pins the other half of the equation, so a replay reconstructs the original inputs exactly rather than just an equally-valid new set of them."
+  },
+  {
+    topic: "seeded-rng",
+    question: "rng.ts's <code>int(maxExclusive)</code> is written as <code>maxExclusive &lt;= 0 ? 0 : Math.floor(next() * maxExclusive)</code> — for a non-positive <code>maxExclusive</code> it returns 0 immediately WITHOUT ever calling <code>next()</code>. Given that <code>pick()</code> is built on <code>int()</code>, why does it matter that this path skips calling <code>next()</code> entirely, instead of just calling it anyway and returning 0 regardless of what it produced?",
+    choices: [
+      "It doesn't matter — <code>next()</code> is idempotent, so calling it or not changes nothing",
+      "<code>next()</code> is too slow to call when the result would just be discarded",
+      "Calling <code>next()</code> would throw an exception if <code>maxExclusive</code> is non-positive",
+      "Calling <code>next()</code> advances the RNG's internal state one step, so calling it \"just to throw the result away\" would silently shift every subsequent random value the rest of the run draws — skipping the call entirely is what keeps the stream reproducible from that point on"
+    ],
+    answer: 3,
+    explanation: "Every call to <code>next()</code> consumes one step of the deterministic mulberry32 sequence — it actually advances the internal state <code>a</code> that every future call depends on, it's not a free, side-effect-free peek. If <code>int()</code> called <code>next()</code> unconditionally and just discarded the result on a meaningless <code>maxExclusive</code>, the RNG stream would drift forward by one extra draw compared to a run where that call never happened, breaking the exact reproducibility the whole engine depends on. The guard clause avoids this by returning early before ever touching <code>next()</code> at all."
+  },
+  {
+    topic: "sim-ui-decoupling",
+    question: "Because simulate() never touches the DOM (or anything visual) and the UI never computes outcomes, <code>npm run harness</code> (packages/tools) can run full combats and check their results with no browser, no React, and no rendering involved at all. What does that specifically buy for testing Ascent's combat logic?",
+    choices: [
+      "Combat logic can be tested by calling simulate() directly in plain Node.js and asserting on its returned value, with no need to spin up a browser, mount UI components, or wait for any animation to play out",
+      "Nothing new — the same tests could just as easily run inside a browser via the UI",
+      "It means the UI's tests and the engine's tests must always be written together in the same file",
+      "It means combat bugs can only ever be found by manually playing the game"
+    ],
+    answer: 0,
+    explanation: "Because the UI is a pure consumer of already-decided results, none of Ascent's combat behavior actually lives in React components or the DOM — it's all in simulate()'s plain input-to-output contract. That lets tools like <code>npm run harness</code> (and the Vitest suite) call simulate() directly from Node, feed it a board and a seed, and check the returned events/result instantly, with no browser, no rendering, and no animation to wait through. If outcomes were computed inside UI code instead, testing them would require mounting components and simulating real interaction just to check who won a fight."
+  },
+  {
+    topic: "monorepo-packages",
+    question: "Every internal package here is named with an <code>@game/</code> prefix in its package.json — <code>@game/core</code>, <code>@game/content</code>, <code>@game/sim</code>, <code>@game/ui</code>, <code>@game/tools</code> — rather than plain names like <code>core</code> or <code>sim</code>. What does that <code>@game/</code> prefix actually signify?",
+    choices: [
+      "It marks these as official packages published to the public npm registry",
+      "It's required syntax — TypeScript won't resolve a workspace import unless the package name starts with <code>@</code>",
+      "It's a \"scope\" — a namespace that groups these related internal workspace packages under one prefix, so an import like <code>@game/core</code> is unambiguous even though the folder is just named <code>core</code>, and even if some unrelated public npm package also happened to be called <code>core</code>",
+      "It has no functional effect; it's purely a stylistic convention with no bearing on imports"
+    ],
+    answer: 2,
+    explanation: "An <code>@scope/name</code> package name is npm's namespacing mechanism: it groups a set of related packages under one prefix and guarantees <code>@game/core</code> can never collide with some unrelated public package that happens to be called just <code>core</code>. That's how <code>import { ... } from '@game/core'</code> resolves unambiguously to this repo's own packages/core folder via the workspace setup, rather than reaching for the public registry. It isn't required TypeScript syntax — plenty of valid packages have unscoped names — and it very much does affect import resolution, so it isn't purely cosmetic either."
+  },
+  {
+    topic: "pure-functions",
+    question: "A pure function's defining trait is: identical inputs always produce an identical output. Suppose some future tooling called simulate() twice back-to-back with the exact same <code>playerSide</code>, <code>enemySide</code>, rng state, and <code>cards</code>. What would that guarantee let the tooling safely do?",
+    choices: [
+      "Nothing extra — the second call still has to actually run, since JavaScript never knows in advance what a function will return",
+      "Assume the second call will run twice as fast as the first, since simulate() \"warms up\"",
+      "Assume the second call's output must be DIFFERENT, since running it again should produce a fresh random result",
+      "Skip actually re-running the second call and just reuse the first call's returned result, since purity guarantees it would be identical anyway — this is the basic idea behind caching (memoizing) a function's output"
+    ],
+    answer: 3,
+    explanation: "This is exactly why purity is valuable beyond just \"easy to test\": if the same inputs always produce the same output, a cache can safely substitute a stored result for re-running the function at all, with zero risk of returning something stale or wrong. simulate() being pure is what makes that substitution SAFE — an impure function that reads changing external state (a clock, a mutable global) couldn't be cached this way, because a second call with \"the same\" arguments might legitimately return something different. Purity says nothing about the second run being faster, and the seeded rng makes a different result impossible, not more likely."
+  },
+  {
+    topic: "data-vs-code",
+    question: "A card's effect looks like <code>{ on: 'onPlay', do: 'battlecrySummon', params: { tokenId: 'stray', count: 1 } }</code> — schema.ts types that <code>do</code> field as <code>EffectFactoryIdSchema</code>, a zod <code>z.enum([...])</code> of allowed string ids. Why does <code>do</code> hold a STRING naming the effect, rather than directly holding a reference to the actual JavaScript function that runs it?",
+    choices: [
+      "A zod schema can validate that a value is one of a fixed, known set of strings (catching a typo like <code>'battlecrySummonn'</code> the moment <code>validateCards()</code> runs) — there's no equivalent way to validate \"is this a function\" or \"is this the RIGHT function,\" so keeping cards as data that a schema can check requires the id to stay a plain value, not a function",
+      "Storing a function reference would be faster to look up at combat time",
+      "JavaScript doesn't allow storing function references inside object literals",
+      "It's arbitrary — a function reference would work exactly the same and validate exactly the same way"
+    ],
+    answer: 0,
+    explanation: "Keeping cards as plain, zod-validated data (per CLAUDE.md's \"data + effect subscriptions, never bespoke classes\" rule) only works if every field is something a schema can actually check. <code>z.enum([...])</code> can verify a string is one of a fixed known list, so a typo'd effect id gets caught the moment <code>validateCards()</code> runs. There's no meaningful zod check for \"is this the correct function\" — a function value is opaque to a validator — so <code>do</code> has to stay a plain string that the combat engine looks up in a factory table at run time, precisely so the card itself stays inspectable, serializable data rather than executable code."
+  },
+  {
+    topic: "event-log-replay",
+    question: "simulate.ts's <code>emit()</code> helper does <code>events.push({ ...e, step: stepN, ... })</code>, and a code comment describes the attached <code>step</code> tag as \"pure metadata: zero logic/RNG/order impact.\" If the step number itself has zero effect on ordering, what actually determines the order in which two events are considered to have happened?",
+    choices: [
+      "The step number is what determines order — a lower step always means \"happened first\"",
+      "Order isn't actually meaningful here — the UI is free to render events in any order it likes",
+      "Each event's POSITION in the <code>events</code> array — the order <code>emit()</code> was called and pushed events onto that array during simulate()'s execution — is what defines the sequence; <code>step</code> is just a label attached afterward for grouping, not the thing establishing \"first\" and \"second\"",
+      "Events are sorted by a timestamp before being returned from simulate()"
+    ],
+    answer: 2,
+    explanation: "Because <code>step</code> is explicitly documented as having zero order impact, it can't be the mechanism deciding sequence — it's descriptive metadata layered on top, used later for grouping consecutive events into UI \"beats.\" The actual order is simply array order: <code>events.push(...)</code> appends in exactly the sequence <code>emit()</code> was called during simulate()'s single pass through combat resolution, and that push order IS the timeline the UI replays. Nothing sorts or re-derives order afterward — array position is the one and only source of truth for \"what happened first.\""
+  },
+  {
+    topic: "eslint-rules",
+    question: "<code>Math.random()</code> is completely valid, well-typed JavaScript/TypeScript — calling it produces a number, matches its declared type perfectly, and <code>tsc</code> (the TypeScript compiler) would never flag it as an error. Given that, what is it fundamentally about ESLint that lets it ban a specific, perfectly-valid API like <code>Math.random</code> in packages/core/content/sim, when TypeScript's own type-checking cannot?",
+    choices: [
+      "ESLint is just a stricter version of the TypeScript compiler with more error checks turned on",
+      "TypeScript's job is to check that code is TYPE-correct (the shapes and values line up); ESLint is a separate tool that can enforce arbitrary PROJECT POLICY rules about which APIs are allowed at all, regardless of whether they're valid, well-typed code — a custom <code>no-restricted-properties</code> rule is exactly that kind of policy check, not a type check",
+      "ESLint actually runs the code to see whether <code>Math.random()</code> gets called",
+      "TypeScript would flag it too, but only in strict mode, which this repo doesn't enable"
+    ],
+    answer: 1,
+    explanation: "Type-checking and linting solve genuinely different problems: <code>tsc</code> verifies that values match their declared types, and <code>Math.random()</code> does that perfectly, so there's nothing for it to catch. ESLint works differently — it can encode rules like \"this specific, syntactically-valid API is against project policy here,\" which is exactly what the <code>no-restricted-properties</code> rule banning <code>Math.random</code> in core/content/sim is. It's a static pattern match on the source text, not code execution, and it isn't something a TypeScript strict-mode flag could express — TypeScript has no general \"ban this specific function\" setting, custom or otherwise."
+  },
+  {
+    topic: "performance-memo",
+    question: "CLAUDE.md says <code>Unit</code> \"is React.memo'd with a value comparator,\" and Unit.tsx's own comment explains why: \"computeFrame rebuilds fresh UnitFrame objects each beat, so a reference compare always misses — we compare the rendered fields by VALUE.\" React.memo already skips a re-render when props haven't changed, using its default comparison. Why wasn't that default enough here, requiring a custom comparator instead?",
+    choices: [
+      "It's purely stylistic — the default and a custom comparator behave identically here",
+      "React.memo's default comparison checks props by REFERENCE (is this the exact same object as last time?) — since a fresh <code>UnitFrame</code> object is built every beat even when its actual field values are unchanged, the default check would always see \"a different object\" and re-render anyway; the custom comparator instead checks the individual fields' VALUES, which is what actually determines whether anything visible changed",
+      "React.memo has no default comparison at all — every memoized component requires a custom one to work",
+      "The custom comparator makes Unit re-render MORE often than the default would, to keep animations smooth"
+    ],
+    answer: 1,
+    explanation: "React.memo's built-in check is a shallow REFERENCE comparison — it asks \"is this the same object as last time?\", not \"do the values inside it match?\" Since <code>computeFrame</code> constructs a brand-new <code>UnitFrame</code> object on every single beat (even for units whose attack, health, etc. haven't actually moved), that reference is never the same twice, so the default comparison would report \"changed\" every time and defeat the whole point of memoizing. The custom comparator instead checks the specific fields that actually affect rendering (attack, health, divineShield, and so on) by value, so a unit whose numbers genuinely didn't change is correctly recognized as unchanged and skips re-rendering — the entire performance win described in the comment."
+  }
+];
+
+let current = 0;
+let score = 0;
+let answered = false;
+
+const quizArea = document.getElementById('quizArea');
+const progressFill = document.getElementById('progressFill');
+const qCounter = document.getElementById('qCounter');
+const scoreCounter = document.getElementById('scoreCounter');
+
+function render() {
+  if (current >= QUESTIONS.length) {
+    renderSummary();
+    return;
+  }
+  const q = QUESTIONS[current];
+  answered = false;
+  progressFill.style.width = ((current) / QUESTIONS.length * 100) + '%';
+  qCounter.textContent = `Question ${current + 1} / ${QUESTIONS.length}`;
+  scoreCounter.textContent = `Score: ${score}`;
+
+  const letters = ['A', 'B', 'C', 'D'];
+  quizArea.innerHTML = `
+    <div class="card">
+      <span class="qtag">${q.topic}</span>
+      <p class="qtext">${q.question}</p>
+      <div class="choices" id="choicesWrap">
+        ${q.choices.map((c, i) => `
+          <button class="choice" data-idx="${i}">
+            <span class="letter">${letters[i]}</span>
+            <span>${c}</span>
+          </button>
+        `).join('')}
+      </div>
+      <div class="explain" id="explainBox"></div>
+      <button class="nextbtn" id="nextBtn">${current === QUESTIONS.length - 1 ? 'See results →' : 'Next question →'}</button>
+    </div>
+  `;
+
+  const buttons = quizArea.querySelectorAll('.choice');
+  buttons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (answered) return;
+      answered = true;
+      const idx = parseInt(btn.getAttribute('data-idx'), 10);
+      const correct = idx === q.answer;
+      if (correct) score++;
+      buttons.forEach(b => {
+        b.disabled = true;
+        const bi = parseInt(b.getAttribute('data-idx'), 10);
+        if (bi === q.answer) b.classList.add('correct');
+        else if (bi === idx) b.classList.add('wrong');
+      });
+      const explainBox = document.getElementById('explainBox');
+      explainBox.innerHTML = (correct ? '✅ <strong>Correct!</strong> ' : '❌ <strong>Not quite.</strong> ') + q.explanation;
+      explainBox.classList.add('show');
+      document.getElementById('nextBtn').classList.add('show');
+      scoreCounter.textContent = `Score: ${score}`;
+    });
+  });
+
+  document.getElementById('nextBtn').addEventListener('click', () => {
+    current++;
+    render();
+  });
+}
+
+function renderSummary() {
+  progressFill.style.width = '100%';
+  qCounter.textContent = `Question ${QUESTIONS.length} / ${QUESTIONS.length}`;
+  scoreCounter.textContent = `Score: ${score}`;
+  const pct = Math.round((score / QUESTIONS.length) * 100);
+  let line;
+  if (pct === 100) line = "Perfect score! You're reading this codebase like you wrote it.";
+  else if (pct >= 80) line = "Great work — you're building real intuition for how this all fits together.";
+  else if (pct >= 50) line = "Solid effort — a few concepts to revisit, and it'll click more each day.";
+  else line = "Everyone starts somewhere — re-read the explanations above, tomorrow's quiz will circle back.";
+
+  quizArea.innerHTML = `
+    <div class="card summary">
+      <div class="line">Quiz complete</div>
+      <div class="score">${score} / ${QUESTIONS.length}</div>
+      <div class="line">${pct}%</div>
+      <div class="encourage">${line}</div>
+    </div>
+  `;
+}
+
+render();
+</script>
+</body>
+</html>

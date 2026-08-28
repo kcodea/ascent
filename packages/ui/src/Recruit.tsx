@@ -90,6 +90,7 @@ import { getFlipConfig } from './flipConfig';
 import { getTrailConfig } from './trailConfig';
 import { cardFxScale } from './fx/cardScale';
 import { playDef, canPlayDefs } from './fx/playDef';
+import { getShopDeathFxConfig } from './shopDeathFxConfig';
 import { anchorsForUnits } from './fx/combatAnchors';
 import { rubyLandHolds } from './choreo/channels/rubyLanded';
 import { captureRecruitSeqs, recruitMomentsSince, recruitSeqsOf, selfBuffMoment, shoutMoment, spellCastMoment } from './choreo/recruitMoments';
@@ -117,10 +118,6 @@ gsap.registerPlugin(Flip);
  *  bloom marks the death; the return then arrives as an ordinary summon. Screen blend + a warm glow, the same
  *  language the ascend flash speaks, so a re-forming body reads as a return rather than as a kill. */
 const RISE_BURST = { flashSize: 150, flashMs: 320, flashAlpha: 0.75, colorGlow: '#ffd27f', blend: 'screen' as const };
-
-/** How long a landed-but-dying body stays on screen before its death resolves (Funeral on Loan). Long enough
- *  to read as "it landed", short enough not to feel like a stall — roughly one ownBeat delivery window. */
-const SHOP_DEATH_LANDING_MS = 480;
 
 const EMPTY_KW: ReadonlyMap<string, ReadonlySet<string>> = new Map();
 const EMPTY_TRANSFORMS: ReadonlyMap<string, string> = new Map();
@@ -1692,7 +1689,9 @@ export function Recruit() {
   const pendingDeathUid = run.pendingDeath?.uid;
   useEffect(() => {
     if (!pendingDeathUid) return;
-    const id = window.setTimeout(() => dispatch({ type: 'resolveShopDeath' }), SHOP_DEATH_LANDING_MS);
+    const ms = getShopDeathFxConfig().landingMs;
+    if (ms <= 0) { dispatch({ type: 'resolveShopDeath' }); return; }
+    const id = window.setTimeout(() => dispatch({ type: 'resolveShopDeath' }), ms);
     return () => window.clearTimeout(id);
   }, [pendingDeathUid, dispatch]);
 
@@ -1725,19 +1724,31 @@ export function Recruit() {
     const seq = run.shopFxSeq;
     if (seq === undefined || seq === prevShopFxSeq.current) return;
     prevShopFxSeq.current = seq; // advance FIRST — fires exactly once per action, like the Ruby cue above
-    for (const fx of run.shopDeathFx ?? []) {
-      // Prefer the live element (an Echo triggered on a minion that is still alive); fall back to its last
-      // known centre (a body that just died).
-      const el = findEl(fx.uid);
-      const at = el
-        ? (() => { const r = el.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width }; })()
-        : lastCentreRef.current.get(fx.uid);
-      if (!at) continue;
-      if (fx.kind === 'echo') { pixiFx.deathrattle(at.x, at.y, at.w); continue; }
-      if (fx.rise) { pixiFx.flashBloom(at.x, at.y, RISE_BURST); continue; }
-      if (!canPlayDefs()) continue;
-      const anchors = anchorsForUnits(null, fx.uid);
-      if (anchors) playDef('death-dissolve', anchors, { uids: { source: null, target: fx.uid } });
+    const cues = run.shopDeathFx ?? [];
+    const cfg = getShopDeathFxConfig(); // read at FIRE TIME, so a tuner edit applies to the next death
+    // WHICH BODIES DIED THIS ACTION. An Echo belonging to a dying body must play WHERE THE CARD WAS (owner
+    // 2026-08-28) — so for those we go straight to the last-known centre and never consult the live DOM,
+    // where the uid is either absent or, after a Rise, a DIFFERENT body standing in its place.
+    const dying = new Set(cues.filter((f) => f.kind === 'death').map((f) => f.uid));
+    for (const fx of cues) {
+      const cached = lastCentreRef.current.get(fx.uid);
+      const live = dying.has(fx.uid) ? null : findEl(fx.uid);
+      const base = live
+        ? (() => { const r = live.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width }; })()
+        : cached;
+      if (!base) continue;
+      const at = { x: base.x + cfg.offsetX, y: base.y + cfg.offsetY, w: base.w * cfg.sizeScale };
+      const fire = (): void => {
+        if (fx.kind === 'echo') { pixiFx.deathrattle(at.x, at.y, at.w); return; }
+        if (fx.rise) { pixiFx.flashBloom(at.x, at.y, RISE_BURST); return; }
+        if (!canPlayDefs()) return;
+        const anchors = anchorsForUnits(null, fx.uid);
+        if (anchors) playDef('death-dissolve', anchors, { uids: { source: null, target: fx.uid } });
+      };
+      if (fx.kind === 'echo' && !cfg.echoEnabled) continue;
+      if (fx.kind === 'death' && !cfg.deathEnabled) continue;
+      const delay = fx.kind === 'echo' ? cfg.echoDelayMs : cfg.deathDelayMs;
+      if (delay > 0) window.setTimeout(fire, delay); else fire();
     }
   }, [run.shopFxSeq, run.shopDeathFx, findEl]);
 

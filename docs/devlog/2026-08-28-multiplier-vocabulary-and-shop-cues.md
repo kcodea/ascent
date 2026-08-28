@@ -76,3 +76,26 @@ could hand you three of a kind and leave them. Graverobber's destroy already che
 
 Quests were removed from the Scene Builder menu (owner: not actively developed). The `devGrant` quest path and
 `QUEST_DEFS` are untouched — re-adding the section is putting the block back.
+
+
+## Follow-up: the tuner, and "where the card was"
+
+Owner, same day: the Echo must play WHERE the card was when it died, borrowed bodies should linger less, and
+there should be a dev tuner for the timings and positions.
+
+**Position.** The cue effect now decides by KIND rather than by what the DOM happens to hold. Any uid with a
+`death` cue in the same batch is treated as dying, and its animations — including its Echo — resolve straight
+from the last-known-centre cache, never from a live lookup. That closes a case the previous code could get
+wrong: after a Rise the uid is gone but a DIFFERENT body now stands in that slot, so a live lookup could have
+anchored the burst on the wrong card.
+
+**Lingering.** 480ms → 300ms, and it is a dial now rather than a constant.
+
+**The tuner** (`ShopDeathFxTuner`, dev menu → Buffs & Auras → 💀 Shop Death & Echo) exposes the time before
+destruction, per-animation delays, an X/Y offset and a size scale, plus a kill switch for each animation.
+Values are read at FIRE TIME, so an edit applies to the next death without a reload; DEV-persisted and inert
+in production, like every other tuner.
+
+No Test button, deliberately: these cues can only be judged against a REAL death, and both producers are one
+click away in the Scene Builder. A synthetic fire would let you tune the flourish while telling you nothing
+about its timing against the body actually leaving, which is the thing being judged.

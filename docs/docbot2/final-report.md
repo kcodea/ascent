@@ -46,7 +46,7 @@ axis, with any gap visible as a typed queue entry rather than as silence.
 | **Text classification bucket** | 901 | 901 (100%) | `textParse.test.ts` — every object lands in exactly one of four buckets; an unresolved parse is a queue entry, never a pass |
 | **Contract-oracle applicability** | 901 | 901 (100%) | `contractOracle.test.ts` — every contract is planned into §10.1 case templates; every unexecuted applicable case carries a typed skip reason |
 | **Interaction-graph membership** | 901 | 901 (100%) | `interactionGraph.test.ts` — every contract is a graph node; unmapped triggers are reported as a visible to-do (29 today) |
-| **Rulebook** | 111 rules | — | `enforcement.test.ts` — every approved rule names a backing lane file that must exist on disk |
+| **Rulebook** | 110 rules | — | `enforcement.test.ts` — every approved rule names a backing lane file that must exist on disk |
 
 **The inventory itself:** 483 cards (115 spells, 81 tokens), 59 hero powers, 142 + 139 runes, 117 quests —
 901 contracted objects in total. Of those contracts, 13 are hand-authored curated ones and the rest are
@@ -155,7 +155,7 @@ machine-refreshed one; the trade-off is that the number ages until someone re-ru
 
 ## 6. Rules and the owner's queue
 
-- **111** rules total: **31** approved, 43 retired, **73** needs-ruling.
+- **110** rules total: **31** approved, 43 retired, **72** needs-ruling.
 - Approved-but-unenforced: `R-PLAY-01`, `R-AURA-01` — pinned, shrink-only.
 - Release blockers (approved rules the engine violates, visible every run, never silently green):
   `R-AVWIN-02`, `R-AVWIN-10`.

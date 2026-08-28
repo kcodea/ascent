@@ -351,6 +351,17 @@ export const RETIRED_RULES: RetiredRule[] = [
     retiredAt: '2026-08-27',
     enforcement: INTERACTION_PIN,
   },
+  {
+    id: 'q-word-lg-scope-01',
+    why:
+      'OWNER RULED 2026-08-28 (Sitting 3, REVISE — verbatim): "this is correct, however we want to re-brand the '
+      + '\'wherever they are\' vocabulary to Aura\'s instead. i.e. Buff your Undead Army Aura +4/+1, or Buff your Imp '
+      + 'Aura +4/+4 etc." IMPLEMENTED in feat/aura-vocabulary (#1279): 11 carriers rewritten to the Aura vocabulary, '
+      + 'LG-SCOPE-01 approved as the canon, and the wording deck self-retired the question (11 → 10 cards). The '
+      + 'textParse lane pins the vocabulary (a live card reusing the retired phrasing re-alarms).',
+    retiredAt: '2026-08-28',
+    enforcement: { kind: 'oracle', refs: ['textParse'], lastVerifiedAt: '2026-08-28' },
+  },
 ];
 
 export const RETIRED_IDS: ReadonlySet<string> = new Set(RETIRED_RULES.map((r) => r.id));

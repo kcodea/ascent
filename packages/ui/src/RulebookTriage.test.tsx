@@ -9,11 +9,34 @@
  */
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { act } from 'react';
-import { undecided } from '@game/rules';
+import type { ResolvedRule } from '@game/rules';
 import { RulebookTriage } from './RulebookTriage';
 import { mount, type Mounted } from './renderedText.mount';
 
 type FetchCall = { url: string; body: Record<string, unknown> };
+
+/** The worklist under test is a FIXTURE, not the live registry: the board is meant to reach zero pending
+ *  (the owner's 2026-08-28 sitting decided all 77 cards), and a UI suite that breaks when triage finishes
+ *  is testing the wrong thing. Three cards is enough for next-card, skip-to-tail and undo. */
+const CARD = (id: string, title: string): ResolvedRule => ({
+  id,
+  title,
+  statement: `${title} — ✓ yes · ✕ no (say why) · ✎ your wording`,
+  domain: 'triggers',
+  status: 'needs-ruling',
+  evidence: [{ kind: 'docbot-scan', ref: 'fixture' }],
+  currentBehaviour: 'fixture behaviour',
+  cardText: 'Fixture — Exemplar: "a printed line."',
+  example: 'a concrete example',
+  sourceQueue: 'contracts.conventions',
+  effective: 'needs-ruling',
+});
+const FIXTURE: ResolvedRule[] = [
+  CARD('q-fix-alpha', 'Alpha family'),
+  CARD('q-fix-beta', 'Beta family'),
+  CARD('q-fix-gamma', 'Gamma family'),
+];
+const undecided = (): ResolvedRule[] => FIXTURE;
 
 let calls: FetchCall[] = [];
 let m: Mounted | null = null;
@@ -46,7 +69,7 @@ const key = async (k: string): Promise<void> => {
 };
 
 const enterFly = (): { container: HTMLElement; firstId: string } => {
-  m = mount(<RulebookTriage onClose={() => {}} />);
+  m = mount(<RulebookTriage onClose={() => {}} rules={FIXTURE} />);
   const firstId = undecided()[0]!.id;
   clickByText(m.container, '⚡ Fly through');
   expect(m.container.querySelector('[data-fly]'), 'fly-through view did not open').toBeTruthy();

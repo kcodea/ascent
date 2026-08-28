@@ -205,5 +205,324 @@
   "q-order-clash-echo-defender-first": {
     "decision": "approve",
     "decidedAt": "2026-08-27T17:17:50.794Z"
+  },
+  "q-conv-family-castReact": {
+    "decision": "approve",
+    "decidedAt": "2026-08-28T00:00:00.000Z"
+  },
+  "q-conv-family-economyReact": {
+    "decision": "approve",
+    "decidedAt": "2026-08-28T00:00:00.000Z"
+  },
+  "q-conv-family-endOfTurn": {
+    "decision": "approve",
+    "decidedAt": "2026-08-28T00:00:00.000Z"
+  },
+  "q-conv-family-passive": {
+    "decision": "approve",
+    "decidedAt": "2026-08-28T00:00:00.000Z"
+  },
+  "q-conv-family-rally": {
+    "decision": "approve",
+    "decidedAt": "2026-08-28T00:00:00.000Z"
+  },
+  "q-conv-family-react": {
+    "decision": "approve",
+    "decidedAt": "2026-08-28T00:00:00.000Z"
+  },
+  "q-conv-family-shout": {
+    "decision": "approve",
+    "decidedAt": "2026-08-28T00:00:00.000Z"
+  },
+  "q-conv-family-shoutPayoff": {
+    "decision": "approve",
+    "decidedAt": "2026-08-28T00:00:00.000Z"
+  },
+  "q-conv-family-shoutReact": {
+    "decision": "approve",
+    "decidedAt": "2026-08-28T00:00:00.000Z"
+  },
+  "q-conv-family-slaughter": {
+    "decision": "approve",
+    "decidedAt": "2026-08-28T00:00:00.000Z"
+  },
+  "q-conv-family-startOfCombat": {
+    "decision": "approve",
+    "decidedAt": "2026-08-28T00:00:00.000Z"
+  },
+  "q-conv-family-summonReact": {
+    "decision": "approve",
+    "decidedAt": "2026-08-28T00:00:00.000Z"
+  },
+  "q-conv-global-combat-gains": {
+    "decision": "approve",
+    "decidedAt": "2026-08-28T00:00:00.000Z"
+  },
+  "q-conv-global-dual-tribe": {
+    "decision": "approve",
+    "decidedAt": "2026-08-28T00:00:00.000Z"
+  },
+  "q-conv-global-gift-casts": {
+    "decision": "approve",
+    "decidedAt": "2026-08-28T00:00:00.000Z"
+  },
+  "q-conv-global-gild-default": {
+    "decision": "approve",
+    "decidedAt": "2026-08-28T00:00:00.000Z"
+  },
+  "q-conv-global-multiplier-gilded": {
+    "decision": "approve",
+    "decidedAt": "2026-08-28T00:00:00.000Z"
+  },
+  "q-conv-global-threshold-scope": {
+    "decision": "approve",
+    "decidedAt": "2026-08-28T00:00:00.000Z"
+  },
+  "q-conv-global-token-reachability": {
+    "decision": "approve",
+    "decidedAt": "2026-08-28T00:00:00.000Z"
+  },
+  "q-conv-keyword-c": {
+    "decision": "approve",
+    "decidedAt": "2026-08-28T00:00:00.000Z"
+  },
+  "q-conv-keyword-cn": {
+    "decision": "approve",
+    "decidedAt": "2026-08-28T00:00:00.000Z"
+  },
+  "q-conv-keyword-cr": {
+    "decision": "approve",
+    "decidedAt": "2026-08-28T00:00:00.000Z"
+  },
+  "q-conv-keyword-ds": {
+    "decision": "approve",
+    "decidedAt": "2026-08-28T00:00:00.000Z"
+  },
+  "q-conv-keyword-eg": {
+    "decision": "approve",
+    "decidedAt": "2026-08-28T00:00:00.000Z"
+  },
+  "q-conv-keyword-fd": {
+    "decision": "approve",
+    "decidedAt": "2026-08-28T00:00:00.000Z"
+  },
+  "q-conv-keyword-imm": {
+    "decision": "approve",
+    "decidedAt": "2026-08-28T00:00:00.000Z"
+  },
+  "q-conv-keyword-m": {
+    "decision": "approve",
+    "decidedAt": "2026-08-28T00:00:00.000Z"
+  },
+  "q-conv-keyword-rl": {
+    "decision": "approve",
+    "decidedAt": "2026-08-28T00:00:00.000Z"
+  },
+  "q-conv-keyword-sc": {
+    "decision": "approve",
+    "decidedAt": "2026-08-28T00:00:00.000Z"
+  },
+  "q-conv-keyword-sl": {
+    "decision": "approve",
+    "decidedAt": "2026-08-28T00:00:00.000Z"
+  },
+  "q-conv-keyword-st": {
+    "decision": "approve",
+    "decidedAt": "2026-08-28T00:00:00.000Z"
+  },
+  "q-conv-keyword-t": {
+    "decision": "approve",
+    "decidedAt": "2026-08-28T00:00:00.000Z"
+  },
+  "q-conv-keyword-v": {
+    "decision": "approve",
+    "decidedAt": "2026-08-28T00:00:00.000Z"
+  },
+  "q-conv-keyword-w": {
+    "decision": "approve",
+    "decidedAt": "2026-08-28T00:00:00.000Z"
+  },
+  "q-conv-power-active": {
+    "decision": "approve",
+    "decidedAt": "2026-08-28T00:00:00.000Z"
+  },
+  "q-conv-power-active-conditional": {
+    "decision": "approve",
+    "decidedAt": "2026-08-28T00:00:00.000Z"
+  },
+  "q-conv-power-adopted-secondary": {
+    "decision": "approve",
+    "decidedAt": "2026-08-28T00:00:00.000Z"
+  },
+  "q-conv-power-combat-trigger": {
+    "decision": "approve",
+    "decidedAt": "2026-08-28T00:00:00.000Z"
+  },
+  "q-conv-power-count-threshold": {
+    "decision": "approve",
+    "decidedAt": "2026-08-28T00:00:00.000Z"
+  },
+  "q-conv-power-every-n-turns": {
+    "decision": "approve",
+    "decidedAt": "2026-08-28T00:00:00.000Z"
+  },
+  "q-conv-power-modal-choice": {
+    "decision": "approve",
+    "decidedAt": "2026-08-28T00:00:00.000Z"
+  },
+  "q-conv-power-passive-pricing": {
+    "decision": "approve",
+    "decidedAt": "2026-08-28T00:00:00.000Z"
+  },
+  "q-conv-power-shop-action-trigger": {
+    "decision": "approve",
+    "decidedAt": "2026-08-28T00:00:00.000Z"
+  },
+  "q-conv-power-start-of-run": {
+    "decision": "approve",
+    "decidedAt": "2026-08-28T00:00:00.000Z"
+  },
+  "q-conv-power-turn-number": {
+    "decision": "approve",
+    "decidedAt": "2026-08-28T00:00:00.000Z"
+  },
+  "q-conv-power-unlock-recharge": {
+    "decision": "approve",
+    "decidedAt": "2026-08-28T00:00:00.000Z"
+  },
+  "q-conv-quest-reward-combatflag": {
+    "decision": "approve",
+    "decidedAt": "2026-08-28T00:00:00.000Z"
+  },
+  "q-conv-quest-reward-echorepeat": {
+    "decision": "approve",
+    "decidedAt": "2026-08-28T00:00:00.000Z"
+  },
+  "q-conv-quest-reward-grant": {
+    "decision": "approve",
+    "decidedAt": "2026-08-28T00:00:00.000Z"
+  },
+  "q-conv-quest-reward-multi": {
+    "decision": "approve",
+    "decidedAt": "2026-08-28T00:00:00.000Z"
+  },
+  "q-conv-quest-reward-rallyrepeat": {
+    "decision": "approve",
+    "decidedAt": "2026-08-28T00:00:00.000Z"
+  },
+  "q-conv-quest-reward-recurringendofturn": {
+    "decision": "approve",
+    "decidedAt": "2026-08-28T00:00:00.000Z"
+  },
+  "q-conv-quest-reward-recurringgrant": {
+    "decision": "approve",
+    "decidedAt": "2026-08-28T00:00:00.000Z"
+  },
+  "q-conv-quest-reward-residual": {
+    "decision": "approve",
+    "decidedAt": "2026-08-28T00:00:00.000Z"
+  },
+  "q-word-lg-duration-01": {
+    "decision": "approve",
+    "decidedAt": "2026-08-28T00:00:00.000Z"
+  },
+  "q-word-lg-gild-01": {
+    "decision": "approve",
+    "decidedAt": "2026-08-28T00:00:00.000Z"
+  },
+  "q-word-lg-keyword-01": {
+    "decision": "approve",
+    "decidedAt": "2026-08-28T00:00:00.000Z"
+  },
+  "q-word-lg-numeral-01": {
+    "decision": "approve",
+    "decidedAt": "2026-08-28T00:00:00.000Z"
+  },
+  "q-word-lg-position-01": {
+    "decision": "approve",
+    "decidedAt": "2026-08-28T00:00:00.000Z"
+  },
+  "q-word-lg-trigger-01": {
+    "decision": "approve",
+    "decidedAt": "2026-08-28T00:00:00.000Z"
+  },
+  "q-word-lg-trigger-02": {
+    "decision": "approve",
+    "decidedAt": "2026-08-28T00:00:00.000Z"
+  },
+  "q-word-lg-verb-01": {
+    "decision": "approve",
+    "decidedAt": "2026-08-28T00:00:00.000Z"
+  },
+  "q-word-lg-verb-02": {
+    "decision": "approve",
+    "decidedAt": "2026-08-28T00:00:00.000Z"
+  },
+  "q-word-lg-zone-01": {
+    "decision": "approve",
+    "decidedAt": "2026-08-28T00:00:00.000Z"
+  },
+  "q-interact2-32aa654f": {
+    "decision": "approve",
+    "decidedAt": "2026-08-28T00:00:00.000Z"
+  },
+  "q-interact2-faeb3c44": {
+    "decision": "approve",
+    "decidedAt": "2026-08-28T00:00:00.000Z"
+  },
+  "q-conv-family-avenge": {
+    "decision": "revise",
+    "note": "in some cases it summons more minions when gilded, in other cases it summons a gilded token instead. dunkey for example summons a gilded armadiyo, whereas gilded gemstorm instigator would proc an additional time (double its rubies)",
+    "decidedAt": "2026-08-28T00:00:00.000Z"
+  },
+  "q-conv-family-castPayoff": {
+    "decision": "revise",
+    "note": "some versions double their numbers, some versions double their payoff or be unique. for example, gilded baal doubles its consume quantity, but high king mykel goes from 1 adjacent to both adjacent minions.",
+    "decidedAt": "2026-08-28T00:00:00.000Z"
+  },
+  "q-conv-family-echo": {
+    "decision": "revise",
+    "note": "i would say most of the time a gilded echo doubles its value, but like said previously, in some cases it summons a gilded token instead. i think doubling the output is the safe baseline with outliers being other behavior",
+    "decidedAt": "2026-08-28T00:00:00.000Z"
+  },
+  "q-conv-family-economy": {
+    "decision": "revise",
+    "note": "this family seems extremely varied. there are cards that proc on sell in this category, there are some shouts, there are cards that trigger  from buying x cards, there are cards that learn other spells etc. this does not seem like a cohesive family of cards or rulings to me.",
+    "decidedAt": "2026-08-28T00:00:00.000Z"
+  },
+  "q-conv-family-orbit": {
+    "decision": "revise",
+    "note": "orbit is extremely work in progress and should not receive any true rules yet, neither should any celestial as they are temp minions",
+    "decidedAt": "2026-08-28T00:00:00.000Z"
+  },
+  "q-conv-family-orbitReact": {
+    "decision": "revise",
+    "note": "as stated before, orbit and celestials are masssive works in progress right now.",
+    "decidedAt": "2026-08-28T00:00:00.000Z"
+  },
+  "q-conv-family-spellCast": {
+    "decision": "revise",
+    "note": "spells cannot be gilded",
+    "decidedAt": "2026-08-28T00:00:00.000Z"
+  },
+  "q-conv-global-henchman-pricing": {
+    "decision": "revise",
+    "note": "henchmen are not in the game and are extremely WIP / being removed for now",
+    "decidedAt": "2026-08-28T00:00:00.000Z"
+  },
+  "q-conv-keyword-r": {
+    "decision": "revise",
+    "note": "it returns with 1 health and base attack before any auras or effects are added, i.e. undead aura.",
+    "decidedAt": "2026-08-28T00:00:00.000Z"
+  },
+  "q-word-lg-scope-01": {
+    "decision": "revise",
+    "note": "this is correct, however we want to re-brand the \"wherever they are\" vocabulary to Aura's instead. i.e. Buff your Undead Army Aura +4/+1, or Buff your Imp Aura +4/+4 etc.",
+    "decidedAt": "2026-08-28T00:00:00.000Z"
+  },
+  "q-interact2-2ad14500": {
+    "decision": "revise",
+    "note": "I do not understand this ask. simply put a xerox copy should be an exact copy, so identical in every way.",
+    "decidedAt": "2026-08-28T00:00:00.000Z"
   }
 }

@@ -98,7 +98,7 @@ import { bindingFor } from './choreo/bindings';
 import { scheduleLands, waves as asWaves } from './fx/land';
 import { holdStat, releaseStat } from './fx/statHold';
 import { fodderGainHolds, type FodderGain } from './fx/fodderGains';
-import { applyFloatSpeed } from './floatConfig';
+import { applyFloatSpeed, getFloatConfig } from './floatConfig';
 import gsap from 'gsap';
 import { Flip } from 'gsap/Flip';
 import { useGame } from './store';
@@ -5782,6 +5782,20 @@ export function Recruit() {
           <>
             {replay.floats.map((f) => {
               const sym = SYM_KINDS.has(f.kind);
+              // Random-but-STABLE splash tilt (owner ask 2026-08-27, dev "Random rotation" toggle): a
+              // deterministic angle hashed from the float's own id, so it never re-rolls on re-render (which
+              // would visibly spin the burst) and never touches Math.random. Damage floats only.
+              let splashStyle: CSSProperties | undefined;
+              if (f.kind === 'dmg') {
+                const fc = getFloatConfig();
+                if (fc.rotRandom) {
+                  const s = String(f.id);
+                  let h = 0;
+                  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+                  const deg = ((((h >>> 0) % 2001) / 1000) - 1) * fc.rotRange; // −range..+range
+                  splashStyle = { '--dmg-splash-rot': `${deg.toFixed(1)}deg` } as CSSProperties;
+                }
+              }
               return (
                 <div
                   key={`float-${f.id}`}
@@ -5789,7 +5803,7 @@ export function Recruit() {
                   style={{ left: f.x, top: f.y, width: f.w, height: f.h } as CSSProperties}
                   aria-hidden="true"
                 >
-                  <span className={`float ${f.kind}${sym ? ' sym' : ''}${f.climb ? ' climb' : ''}`}>{f.text}</span>
+                  <span className={`float ${f.kind}${sym ? ' sym' : ''}${f.climb ? ' climb' : ''}`} style={splashStyle}>{f.text}</span>
                 </div>
               );
             })}

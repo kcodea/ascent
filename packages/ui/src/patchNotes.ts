@@ -198,6 +198,13 @@ export const PATCH_NOTES: PatchNote[] = [
   },
   {
     date: '2026-08-27',
+    label: 'Damage Splash',
+    changes: [
+      { category: 'UI / Info', text: 'Combat damage numbers now punch out on a golden burst that springs in with a bounce, each at a random tilt.' },
+    ],
+  },
+  {
+    date: '2026-08-27',
     label: 'Combat Arena',
     changes: [
       {

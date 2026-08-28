@@ -19,6 +19,9 @@ export interface FloatConfig {
   durMs: number;
   /** Pop overshoot — the scale the number punches to at the top of the pop (1 = no overshoot). */
   pop: number;
+  /** Length of JUST the pop/bounce (ms) — the spring-in scale, on its own timeline so it is independent of the
+   *  total `durMs`. Should stay ≤ `durMs` (a pop longer than the float's life gets cut off). */
+  popMs: number;
   /** Rise distance (px) the number drifts UP before it fades. 0 = STUCK to the card (the default — it holds
    *  on the struck minion and fades in place); higher = it floats up and off. */
   rise: number;
@@ -26,27 +29,81 @@ export interface FloatConfig {
   inScale: number;
   /** Entry offset (px) — how far BELOW its rest spot the number starts. */
   inY: number;
+  /** Which burst art sits behind the number — `'1'` (rounded, the original) or `'2'` (spikier). Mapped to a
+   *  `url()` in `applyFloatConfig`; the two PNGs live in `apps/web/public/fx/`. */
+  splashImg: string;
+  /** Damage-splash backdrop size, in EM of the number — the golden burst behind the −N (see `.float.dmg::before`). */
+  splashEm: number;
+  /** Damage-number offset (px) from the struck card's centre. Nudges the number — and its backplate, which is a
+   *  `::before` child and rides along. */
+  numX: number;
+  numY: number;
+  /** Damage-splash backplate offset (px) RELATIVE to the number — nudges just the burst behind the digits. */
+  splashX: number;
+  splashY: number;
+  /** Damage-number outline width (px) — a thin stroke round the digits for legibility over the burst. */
+  numStroke: number;
+  /** Damage-number outline colour (hex). */
+  numStrokeColor: string;
+  /** Randomly rotate each damage splash (0 = off, 1 = on) — a per-float deterministic angle so hits vary. */
+  rotRandom: number;
+  /** Max ± rotation (deg) applied to the splash when `rotRandom` is on. */
+  rotRange: number;
 }
 
+// Owner-locked 2026-08-27 (dev Damage Float tuner): a 1.7× pop over a 400ms bounce, 0.3× entry, 0.9s on screen,
+// the SPIKY burst (art 2) at 2.84× nudged 2px left, a thin 1.5px black number outline, and random per-hit
+// splash rotation up to ±45°. Mirrored into the styles.css fallbacks (`.float`, `.float.dmg`, the `floatup*` /
+// `dmgpop` keyframes).
 const DEFAULTS: FloatConfig = {
-  size: 34,
-  dmgSize: 42,
-  durMs: 1400,
-  pop: 1.18,
+  size: 42,
+  dmgSize: 48,
+  durMs: 900,
+  pop: 1.7,
+  popMs: 400,
   rise: 0, // 0 = the number sticks to the card (holds + fades in place) instead of drifting off
-  inScale: 0.5,
-  inY: 14,
+  inScale: 0.3,
+  inY: 0,
+  splashImg: '2',
+  splashEm: 2.84,
+  numX: 0,
+  numY: 0,
+  splashX: -2,
+  splashY: 0,
+  numStroke: 1.5,
+  numStrokeColor: '#000000',
+  rotRandom: 1,
+  rotRange: 45,
 };
 
-/** Slider bounds for the DEV tuner — [min, max, step] per key. */
-export const FLOAT_RANGES: Record<keyof FloatConfig, [number, number, number]> = {
+/** Slider bounds for the DEV tuner — [min, max, step] per NUMERIC key (`numStrokeColor` is a colour and
+ *  `splashImg` is a picker, so neither has a range). */
+export const FLOAT_RANGES: Record<Exclude<keyof FloatConfig, 'numStrokeColor' | 'splashImg'>, [number, number, number]> = {
   size: [16, 64, 1],
   dmgSize: [20, 80, 1],
   durMs: [400, 3000, 50],
   pop: [1, 2, 0.02],
+  popMs: [80, 1200, 10],
   rise: [0, 120, 2],
   inScale: [0.1, 1, 0.02],
   inY: [0, 40, 1],
+  splashEm: [1, 6, 0.02],
+  numX: [-60, 60, 1],
+  numY: [-60, 60, 1],
+  splashX: [-60, 60, 1],
+  splashY: [-60, 60, 1],
+  numStroke: [0, 4, 0.25],
+  rotRandom: [0, 1, 1],
+  rotRange: [0, 45, 1],
+};
+
+/** The two burst PNGs the picker chooses between (served from `apps/web/public/fx/`). The path is prefixed
+ *  with `import.meta.env.BASE_URL` (which ends in `/`) so it resolves under itch.io's CDN sub-path — a bare
+ *  `/fx/…` string literal 404s there (Vite rewrites `url(/…)` in CSS but not a JS string; see
+ *  `publicAssetPaths.test.ts`). */
+const SPLASH_IMG_URL: Record<string, string> = {
+  '1': `url('${import.meta.env.BASE_URL}fx/damage-splash.png')`,
+  '2': `url('${import.meta.env.BASE_URL}fx/damage-splash-2.png')`,
 };
 /** The shipped values, exported so the tuner can mark which controls you have moved away from them. */
 export { DEFAULTS as FLOAT_DEFAULTS };
@@ -96,16 +153,31 @@ export function applyFloatConfig(): void {
   s.setProperty('--float-dur', `${floatDur}ms`);
   s.setProperty('--death-float-dur', `${deathFloatDur}ms`);
   s.setProperty('--float-pop', `${cfg.pop}`);
+  // Pop/bounce length — its own timeline (see `dmgpop` in styles.css), divided by combat speed like the other
+  // durations so the bounce stays proportional and finishes inside the (also-divided) float window.
+  s.setProperty('--dmg-pop-dur', `${Math.round(cfg.popMs / speed)}ms`);
   // Damage-only rise (its own var, so non-damage floats keep drifting up via base `floatup`'s --float-rise).
   s.setProperty('--float-dmg-rise', `${-cfg.rise}px`); // stored positive (drift up); CSS translateY is negative
   s.setProperty('--float-in-scale', `${cfg.inScale}`);
   s.setProperty('--float-in-y', `${cfg.inY}px`);
+  // Damage-splash backdrop + number stroke (the `rotRandom`/`rotRange` knobs are read by the float render in
+  // Recruit.tsx, not pushed as vars — the angle is per-float, not global).
+  s.setProperty('--dmg-splash-img', SPLASH_IMG_URL[cfg.splashImg] ?? SPLASH_IMG_URL['1']);
+  s.setProperty('--dmg-splash-size', `${cfg.splashEm}em`);
+  s.setProperty('--dmg-num-stroke', `${cfg.numStroke}px`);
+  s.setProperty('--dmg-num-stroke-color', cfg.numStrokeColor);
+  // Position nudges: the number offset moves the digits (backplate rides along); the splash offset moves the
+  // burst relative to the number.
+  s.setProperty('--dmg-num-x', `${cfg.numX}px`);
+  s.setProperty('--dmg-num-y', `${cfg.numY}px`);
+  s.setProperty('--dmg-splash-x', `${cfg.splashX}px`);
+  s.setProperty('--dmg-splash-y', `${cfg.splashY}px`);
 }
 
 export function getFloatConfig(): FloatConfig {
   return cfg;
 }
-export function setFloatValue(key: keyof FloatConfig, value: number): void {
+export function setFloatValue(key: keyof FloatConfig, value: number | string): void {
   cfg = { ...cfg, [key]: value };
   try {
     localStorage.setItem(KEY, JSON.stringify(cfg));

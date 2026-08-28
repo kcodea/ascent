@@ -18,12 +18,19 @@ const body = (cardId: string, uid: string): BoardCard => {
 };
 const run = (): RunState => ({ ...createRun(1), embers: 20 });
 
-/** Graverobber is a targeted Shout: playing it opens the picker, `battlecryTarget` resolves it. */
-const graverob = (s: RunState, targetUid: string): RunState => {
+/**
+ * Graverobber is a targeted Shout: playing it opens the picker, `battlecryTarget` marks the victim as dying,
+ * and — since 2026-08-28 — the death itself is the NEXT action, so the victim stays on the board for one
+ * committed state and its death has a window to animate in. Most assertions below are about the OUTCOME, so
+ * this helper takes both steps; `graverobAim` stops after the first for the tests that inspect the pause.
+ */
+const graverobAim = (s: RunState, targetUid: string): RunState => {
   const opened = reduce(s, { type: 'play', uid: 'gr' });
   expect(opened.pendingTarget?.uid, 'the aim picker never opened').toBe('gr');
   return reduce(opened, { type: 'battlecryTarget', targetUid });
 };
+const graverob = (s: RunState, targetUid: string): RunState =>
+  reduce(graverobAim(s, targetUid), { type: 'resolveShopDeath' });
 
 describe('Graverobber destroys in the shop', () => {
   it('a minion with NO Rise is gone for good', () => {
@@ -162,22 +169,23 @@ describe('a shop destroy emits a real beat', () => {
     expect(JSON.stringify(reduceWithPresentation(opened, act, true).state)).toBe(JSON.stringify(plain));
   });
 
-  it('Graverobber: the death is its own beat, and the destroyed body reports the slot it left', () => {
+  it('Graverobber: the victim is MARKED dying, then dies on the second action with its slot reported', () => {
     const s = { ...run(), board: [body('sandbag', 'a'), body('anubis', 'victim')], hand: [body('graverobber', 'gr')] };
-    const opened = reduce(s, { type: 'play', uid: 'gr' });
-    const { batch } = reduceWithPresentation(opened, { type: 'battlecryTarget', targetUid: 'victim' }, true);
-    const events = batch!.events;
+    const aimed = graverobAim(s, 'victim');
+    expect(aimed.pendingDeath, 'step 1 marks the victim, it does not remove it').toEqual({ uid: 'victim', kind: 'destroy' });
+    expect(aimed.board.some((c) => c.uid === 'victim'), 'the body stays for one committed state — the animation window').toBe(true);
 
+    const { batch } = reduceWithPresentation(aimed, { type: 'resolveShopDeath' }, true);
+    const events = batch!.events;
     const death = events.find((e) => (e as { type: string }).type === 'sourceTrigger'
       && (e as SourceTriggerEvent).policyKey === 'system:destroy:shopDeath') as SourceTriggerEvent | undefined;
     expect(death, 'the destroy never got its own beat').toBeDefined();
     expect(death!.source.uid, 'the beat belongs to the body that died').toBe('victim');
 
-    const destroyed = events.filter((e): e is CardDestroyedConsequence =>
-      (e as { type: string }).type === 'cardDestroyed') as CardDestroyedConsequence[];
-    const mine = destroyed.find((d) => d.target.uid === 'victim');
+    const mine = events.filter((e): e is CardDestroyedConsequence =>
+      (e as { type: string }).type === 'cardDestroyed').find((d) => d.target.uid === 'victim');
     expect(mine, 'no cardDestroyed for the body that left the board').toBeDefined();
-    expect(mine!.index, 'the slot it vacated \u2014 without it the projection has nowhere to animate').toBe(1);
+    expect(mine!.index, 'the slot it vacated — without it the projection has nowhere to animate').toBe(1);
     expect(mine!.rise, 'Anubis carries Rise, so the death must be flagged as a return').toBe(true);
   });
 

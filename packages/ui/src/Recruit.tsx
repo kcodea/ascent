@@ -1683,6 +1683,9 @@ export function Recruit() {
   );
   /** Echoes already played by the LEAD below — skipped when their batch arrives, so one Echo is one burst. */
   const preFiredEchoRef = useRef<Set<string>>(new Set());
+  /** Set when a death cue fires, consumed by the commit FLIP below: the survivors hold before sliding
+   *  into the dead minion's slot, so the death reads before the board rearranges (owner 2026-08-28). */
+  const shiftHoldRef = useRef(0);
 
   /**
    * THE SHOP'S TWO-STEP DEATH — the landing half (owner design 2026-08-28: "the minion should be coded to
@@ -1749,6 +1752,9 @@ export function Recruit() {
     // 2026-08-28) — so for those we go straight to the last-known centre and never consult the live DOM,
     // where the uid is either absent or, after a Rise, a DIFFERENT body standing in its place.
     const dying = new Set(cues.filter((f) => f.kind === 'death').map((f) => f.uid));
+    // Hold the row for the NEXT commit's slide. Set here rather than in the FLIP effect because only
+    // this one knows a death happened; the FLIP effect sees an ordinary board change.
+    if (dying.size > 0) shiftHoldRef.current = Math.max(0, cfg.shiftDelayMs);
     for (const fx of cues) {
       const cached = lastCentreRef.current.get(fx.uid);
       const live = dying.has(fx.uid) ? null : findEl(fx.uid);
@@ -4380,6 +4386,9 @@ export function Recruit() {
     // state, and an absent element is one that did not move — which is the same outcome it had before.
     // (Perf capture 2026-08-06: `layout:flip` was 4,511 ms of 5,010 ms measured — 90% of all work, ~9.2 ms
     // per call against a 4.17 ms budget at 240 Hz, firing ~50×/s during a drag.)
+    // Consumed once: the hold applies to the single commit that follows the death, never to later ones.
+    const shiftHold = shiftHoldRef.current;
+    shiftHoldRef.current = 0;
     const draggingNow = dragRef.current?.active ?? false;
     const flipSel = !draggingNow ? FLIP_SELECTOR
       : gapIndex >= 0 && shopGapIndex < 0 ? FLIP_SEL_WARBAND
@@ -4457,7 +4466,13 @@ export function Recruit() {
           gsap.fromTo(
             el,
             { x: delta },
-            { x: 0, duration: flipCfg.commitMs / 1000, ease: 'power2.out', clearProps: 'transform,transition' },
+            {
+              x: 0, duration: flipCfg.commitMs / 1000, ease: 'power2.out', clearProps: 'transform,transition',
+              // A DEATH holds the row still for a beat first (owner 2026-08-28) — the survivors seed at their
+              // old offsets and simply wait there, so the gap stays open under the animation playing over it.
+              // Zero for every other commit, which is `gsap`'s default and the behaviour this always had.
+              ...(shiftHold > 0 ? { delay: shiftHold / 1000 } : {}),
+            },
           );
         }
       }

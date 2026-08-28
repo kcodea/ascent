@@ -32,6 +32,16 @@ export interface ShopDeathFxConfig {
   echoDelayMs: number;
   /** ms after the commit before the death dissolve plays. */
   deathDelayMs: number;
+  /**
+   * ms the surviving cards WAIT before sliding into the dead minion's slot (owner ask 2026-08-28: "a SHORT
+   * delay after the minion dies, for the cards to shift into place. like a 10-20 ms delay").
+   *
+   * The board reflows the instant the death commits, so the gap closes under the animation that is still
+   * playing over it. This holds the row still for a beat so the death reads as a death rather than as the
+   * board rearranging itself. Applies ONLY to the shift that follows a death — every other commit (a buy, a
+   * sell, a reorder) glides as it always did.
+   */
+  shiftDelayMs: number;
   /** px from the card's centre — positive Y is DOWN, matching screen coordinates. */
   offsetX: number;
   offsetY: number;
@@ -48,8 +58,9 @@ const DEFAULTS: ShopDeathFxConfig = {
   landingMs: 200,
   // A 120ms LEAD, so the skull fires while the body is still there and the departure lands INTO it, rather
   // than after it (owner: "can we have the pixi purple skull animation trigger slightly earlier?").
-  echoDelayMs: -120,
+  echoDelayMs: -40, // the owner's tuned lead (2026-08-28)
   deathDelayMs: 0,
+  shiftDelayMs: 15, // the owner's "like a 10-20 ms delay"
   offsetX: 0,
   offsetY: 0,
   sizeScale: 1,
@@ -90,6 +101,7 @@ export const SHOP_DEATH_FX_RANGES: Partial<Record<keyof ShopDeathFxConfig, [numb
   landingMs: [0, 1200, 10],
   echoDelayMs: [-400, 800, 10],
   deathDelayMs: [0, 800, 10],
+  shiftDelayMs: [0, 400, 5],
   offsetX: [-200, 200, 1],
   offsetY: [-200, 200, 1],
   sizeScale: [0.2, 3, 0.05],

@@ -20,6 +20,7 @@ const SPECS: Record<keyof ShopDeathFxConfig, [string, TunerUnit | undefined, str
   landingMs:    ['Time before destruction', 'ms', 'How long a borrowed minion (Funeral on Loan) stays on the board before it dies. 0 destroys it immediately.', 'Timing'],
   echoDelayMs:  ['Echo timing', 'ms', 'When the Echo skull fires, relative to the body being destroyed. NEGATIVE fires it EARLIER, while the minion is still on the board — only Funeral on Loan has a window for that; a single-action destroy clamps to 0.', 'Timing'],
   deathDelayMs: ['Death delay', 'ms', 'Pause between the body leaving and the death dissolve firing.', 'Timing'],
+  shiftDelayMs: ['Card shift delay', 'ms', 'How long the surviving cards wait before sliding into the dead minion’s slot. Holds the row still so the death reads before the board rearranges.', 'Timing'],
 
   offsetX:      ['Horizontal offset', 'px', 'Nudges both animations sideways from where the card was.', 'Position'],
   offsetY:      ['Vertical offset', 'px', 'Nudges both animations vertically. Positive is down.', 'Position'],
@@ -31,7 +32,7 @@ const SPECS: Record<keyof ShopDeathFxConfig, [string, TunerUnit | undefined, str
 
 /** Declaration order IS render order; controls sharing a group render under its heading. */
 const ORDER: (keyof ShopDeathFxConfig)[] = [
-  'landingMs', 'echoDelayMs', 'deathDelayMs',
+  'landingMs', 'echoDelayMs', 'deathDelayMs', 'shiftDelayMs',
   'offsetX', 'offsetY', 'sizeScale',
   'echoEnabled', 'deathEnabled',
 ];

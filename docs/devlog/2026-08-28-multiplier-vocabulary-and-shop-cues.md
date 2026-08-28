@@ -120,3 +120,29 @@ change and was not made on a presentation ask.
 
 Owner's values are the shipped defaults now, not just a localStorage entry — but note that a machine which
 already tuned the panel keeps its stored values, so the new defaults only appear after Reset.
+
+
+## Follow-up 3: Graverobber gets the same two steps, and the row holds before it closes
+
+Owner: Funeral on Loan reads well now; Graverobber is still janky; and the survivors should wait "like a
+10-20 ms delay" before sliding into the dead minion's slot.
+
+**Graverobber is now two-step too.** `battlecryDestroyForSpell` MARKS the victim (`pendingDeath`) instead of
+destroying it inline; the Echo, the departure and any Rise are the next action. That window is the whole point
+— it is where the death smoke and the Echo skull have room, and it is what lets the Echo's negative lead fire
+while the body is still on the board. Resolving inline gave the animations nothing to play over.
+
+ORDERING NOTE, worth knowing: Graverobber's spell now arrives BEFORE the Echo rather than after it. The spell
+is its SHOUT's payoff and belongs to the play; the death is what moved. The one visible consequence is a full
+hand — a spell taking the last slot can crowd out a card the Echo would have granted.
+
+Twelve `battlecryTarget` calls across `run.test.ts` needed their follow-up settle. `resolveShopDeath` is a free
+no-op when nothing is pending, so wrapping the non-Graverobber aims too is harmless.
+
+**The shift hold.** The board reflowed the instant a death committed, so the gap closed underneath the
+animation still playing over it. The commit FLIP's removal branch now seeds the survivors at their old offsets
+and DELAYS the tween by `shiftDelayMs` (default 15ms). The flag is set by the cue effect, which is the only
+place that knows a death happened — the FLIP effect just sees an ordinary board change — and is consumed by
+the single commit that follows, so every other commit glides exactly as it always did.
+
+Owner's tuned lead (−40ms) is the shipped default.

@@ -5044,20 +5044,16 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const target = payload.target;
     if (!target) return;
     const tier = CARD_INDEX[target.cardId]?.tier ?? 1;
-    // The destroy is its OWN beat: the death, the Echo it fires and any Rise are one ritual with one animation
-    // window, separate from the spell that arrives afterwards. Before this they were bare mutations inside
-    // Graverobber's Shout scope, so the body just stopped existing at commit (owner report 2026-08-28).
-    withRecruitTrigger(
-      ctx,
-      {
-        phase: 'recruit',
-        source: { kind: 'minion', id: target.cardId, uid: target.uid, side: 'player', label: CARD_INDEX[target.cardId]?.name },
-        trigger: 'onDeath',
-        policy: 'ownBeat',
-        policyKey: 'system:destroy:shopDeath',
-      },
-      () => destroyMinionInShop(ctx, target),
-    );
+    // TWO STEPS, like Funeral on Loan (owner 2026-08-28: "graverobber is still janky - can you add the same
+    // polish"). The victim is MARKED as dying and stays on the board for this action; its Echo, its departure
+    // and any Rise are the next one. That window is the whole point: it is where the death smoke and the Echo
+    // skull have room to play, and where the Echo's LEAD can fire while the body is still there. Resolving it
+    // inline gave the animations nothing to play over — the body was simply absent at commit.
+    //
+    // ORDERING NOTE: the spell below now arrives BEFORE the Echo rather than after it. Graverobber's spell is
+    // its SHOUT's payoff and belongs to the play; the death is what moved. The one visible consequence is a
+    // full hand — a spell taking the last slot can crowd out a card the Echo would have granted.
+    ctx.state.pendingDeath = { uid: target.uid, kind: 'destroy' };
     const pool = poolOf(ctx.state).spells.filter((c) => c.tier === tier);
     if (pool.length === 0) return;
     const rng = makeRng(ctx.state.rngCursor);

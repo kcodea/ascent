@@ -11,8 +11,23 @@ bash packages/tools/retro/reinject.sh
 ```
 
 Full `git revert` was tried first and is not viable on churned files (13 of 18 conflicts). The catalog grows
-one entry per interesting historical fix; a MISS is the signal to build a generic oracle (see tripwires 16
-and 17, both born from this harness's first run — which measured **0 of 7** out-of-sample catches and
-corrected the estimated 65–75% coverage claim to a measured one).
+one entry per interesting historical fix; a MISS is the signal to build a generic oracle — the
+`combatModLane` and `missDrivenOracles` lanes were both born from this harness's FIRST run, which measured
+**0 of 7** out-of-sample catches and replaced an estimated 65–75% coverage claim with a measured one.
 
-Measured verdicts live in docs/docbot-roadmap.md.
+## Where the current verdicts live (this is the part that used to go stale)
+
+- **`packages/sim/src/docbot/retroInteractionMap.ts`** — the machine-checked citation ledger: one row per
+  catalog id naming the generalized interaction family and/or the npm-test lane that catches that bug
+  CLASS, plus `verifiedBy` (`reinject-run` with a measured date, or `class-analysis` — a standing claim).
+  `retroMapErrors()` fails the PR gate when a catalog entry loses its mapping or a cited lane is renamed,
+  so this file cannot silently drift from `reinject.py`.
+- **`npm run docbot:report`** — prints the current catch rate derived from that ledger (as of 2026-08-27:
+  **14 of 14** catalog entries mapped, all 14 established by a recorded reinject run).
+- `docs/docbot-roadmap.md` carries the narrative history of each measurement wave.
+
+**Do not hand-maintain a count in this file.** Run the report.
+
+The harness itself is deliberately NOT wired into CI — it is Python, it mutates tracked source in place, and
+a machine-refreshed citation is worth less than a human-run, dated one. See `docs/docbot2/ci-lanes.md`
+(§17.3) for the full reasoning. Run it attended when the catalog changes or a cited lane is renamed.

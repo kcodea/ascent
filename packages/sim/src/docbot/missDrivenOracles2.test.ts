@@ -1,5 +1,5 @@
 /**
- * DOC BOT TRIPWIRE 18 — miss-driven oracles, wave 2. Catalog wave 2 (14 entries) measured 9 CAUGHT / 5
+ * DOC BOT LANE `missDrivenOracles2` — miss-driven oracles, wave 2. Catalog wave 2 (14 entries) measured 9 CAUGHT / 5
  * MISSED; the four reinjections here were the new misses, each now encoded as its GENERIC class rule.
  * (The fifth standing miss, #1176 avenge-arrival, still awaits the per-instance-counter contract layer.)
  */

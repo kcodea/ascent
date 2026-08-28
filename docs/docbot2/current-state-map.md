@@ -91,6 +91,11 @@ neatness — only where a row removes actual duplication.
 These are the genuine duplicate/obsolete paths §18-A asks us to identify. Each row names the
 canonical survivor and the disposal plan.
 
+> **The DISPOSITIONS are in [`final-report.md`](final-report.md) §9** (WP H, 2026-08-27) — retire /
+> convert / keep-with-reason for every row, with the superseding lane cited for each retirement. The
+> table below is the WP A *snapshot* of the problem and is deliberately left as written; it is not
+> updated as rows close.
+
 | # | Duplication | Canonical | Plan |
 |---|---|---|---|
 | D-1 | **Tripwire numbering fork** — `interactionMatrix.test.ts` and `textOracle.ts` both self-label "tripwire 14"; `interactionFamilyMatrix.test.ts`, `combatModLane.test.ts`, `combatModScan.ts` all claim "16" | File paths | Retire the numbers: strip "TRIPWIRE N" headers to named lane ids (the `ENFORCEMENT_LANES` key is the natural id). Doc-fix + comment-only PR; `docs/docbot.md`'s "eight tripwires" line goes with it (D-9a). |

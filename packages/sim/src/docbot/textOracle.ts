@@ -1,5 +1,5 @@
 /**
- * DOC BOT TRIPWIRE 14 — the TEXT-AS-ORACLE scan for printed stat buffs (tranche 1).
+ * DOC BOT LANE `textOracle` — the TEXT-AS-ORACLE scan for printed stat buffs (tranche 1).
  *
  * The differential scans (9/10) prove an effect does SOMETHING; the magnitude oracles (13) prove three
  * hand-ruled families grant what their PARAMS say. This lane closes the remaining gap for the biggest

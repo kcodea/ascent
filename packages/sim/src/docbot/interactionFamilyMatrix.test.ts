@@ -1,8 +1,8 @@
 /**
- * DOC BOT TRIPWIRE 16 — the TRIGGER-FAMILY interaction matrix: how trigger families COMPOSE when one fires
+ * DOC BOT LANE `interactionFamilyMatrix` — the TRIGGER-FAMILY interaction matrix: how trigger families COMPOSE when one fires
  * through another, pinned at the family level so no card pair ever needs enumerating.
  *
- * Sibling of interactionMatrix.test.ts (tripwire 14), which pins single multipliers, additivity and
+ * Sibling of interactionMatrix.test.ts, which pins single multipliers, additivity and
  * eligibility. This file pins the RULED compositions — a fixture per pair whose semantics are already
  * established (code comment with an owner ruling, shared fold helper, or skill doc) — and refuses to guess
  * at the rest: every unruled-but-debatable pair is written up in docs/rulebook/interaction-ambiguities.md

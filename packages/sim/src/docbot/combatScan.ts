@@ -1,5 +1,5 @@
 /**
- * DOC BOT — the combat presence differential (tripwire 10), shared by `combatDifferential.test.ts` and the
+ * DOC BOT — the combat presence differential (the `combatDifferential` lane), shared by `combatDifferential.test.ts` and the
  * `npm run docbot` CLI.
  *
  * The question, per combat-effect card: DOES ITS EFFECT CHANGE A FIGHT? `simulate()` runs the same battle
@@ -178,7 +178,7 @@ export interface CombatScanResult {
 // compared golden-vs-plain in the variant that PROVED a card active, but the proving difference often came
 // from a non-scaling aspect (a Ward, a body) while the effect never fired there, so working cards
 // (Beardsley, Imp King verified doubling +3→+6) were mis-queued. Golden semantics are checked where they are
-// checkable: per-family magnitude contracts (tripwire 13) that assert exact ×2 when the effect FIRES.
+// checkable: per-family magnitude contracts (the `magnitudeOracle` lane) that assert exact ×2 when the effect FIRES.
 
 export function combatScan(): CombatScanResult {
   const inert: string[] = [];

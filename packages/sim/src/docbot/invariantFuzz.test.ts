@@ -1,7 +1,7 @@
 /**
- * DOC BOT TRIPWIRE 12 — the reducer under random legal play: global invariants + determinism.
+ * DOC BOT LANE `invariantFuzz` — the reducer under random legal play: global invariants + determinism.
  *
- * Every other tripwire hunts a KNOWN bug shape. This one hunts unknown-unknowns, the blueprint's stateful
+ * Every other lane hunts a KNOWN bug shape. This one hunts unknown-unknowns, the blueprint's stateful
  * greybox fuzzer in v0 form: seeded random action sequences through the real `reduce`, with the invariants
  * that must hold in EVERY reachable state checked after every single step. History says these break in ways
  * nobody enumerates up front: #633 "never open a Discover on top of another modal", #639 "End Turn softlock

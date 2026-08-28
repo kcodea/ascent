@@ -1,5 +1,5 @@
 /**
- * DOC BOT TRIPWIRE 3 — the raw-tribe-comparison ratchet. Doctrine + pinned counts live in `tribeRatchet.ts`
+ * DOC BOT LANE `tribePredicates` — the raw-tribe-comparison ratchet. Doctrine + pinned counts live in `tribeRatchet.ts`
  * (pure data — it is re-exported through the public sim entrypoint); the node-only SCANNER lives here with
  * its consumer. A count above its pin fails (use the predicate); a count below its pin fails the OTHER way
  * (you converted sites — bank the progress by lowering the pin, or the freed slack can be silently re-spent).

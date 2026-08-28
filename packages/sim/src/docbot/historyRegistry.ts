@@ -1,14 +1,15 @@
 /**
- * DOC BOT — registries for the HISTORY-MINED tripwires (5–8).
+ * DOC BOT — registries for the HISTORY-MINED lanes.
  *
- * Tripwires 1–4 came from one day's owner reports (2026-08-26). These came from mining the repo's ~480 fix
- * commits for structural bug classes that recur — each registry below cites the incidents that motivated it.
+ * The first four lanes came from one day's owner reports (2026-08-26). These came from mining the repo's
+ * ~480 fix commits for structural bug classes that recur — each registry below cites the incidents that
+ * motivated it.
  * Same doctrine as `phaseRegistry.ts`: worklists re-derive from live content/source; asymmetries get a
  * registry entry with a verifiable reason; unknowns are 'needs-triage' (tolerated, counted, reported).
  */
 
 /**
- * TRIPWIRE 7 — rune rewards that are legitimately a NO-OP under the differential fixtures.
+ * LANE `runeRewardDifferential` — rune rewards that are legitimately a NO-OP under the differential fixtures.
  *
  * History: #900 "Rune of Duplication was a no-op on 41 of 72 Epic runes"; the reducer's own `combatFlag`
  * comment records 23 Epic runes silently swallowing a second copy. The differential applies every rune's
@@ -26,7 +27,7 @@ export const RUNE_DIFF_EXCUSED: Readonly<Record<string, { which: 'first' | 'seco
 };
 
 /**
- * TRIPWIRE 8 — stat-spell factories that deliberately do NOT fold spell power.
+ * LANE `spellPowerFolding` — stat-spell factories that deliberately do NOT fold spell power.
  *
  * History: #817 "Ales fold spell power — the last two stat-spell factories that skipped it" (they weren't the
  * last), #731 "spell power on Hoardflame + Lantern Light". The scan slices every `spellBuff*` / stat-extra
@@ -41,7 +42,7 @@ export const SPELL_POWER_EXCUSED: Readonly<Record<string, { kind: 'documented-fl
 };
 
 /**
- * TRIPWIRE 6 — turn-scoped RunState fields that deliberately survive the turn rollover.
+ * LANE `turnScopedReset` — turn-scoped RunState fields that deliberately survive the turn rollover.
  *
  * History: #1f6c "Layaway keep is shop-phase only (cleared at combat)", #517 "Funeral loan expires next
  * turn", this week's Merchant's Chorus (the reducer clears `tavernBuyBonusTurn` at rollover — the class
@@ -54,8 +55,8 @@ export const TURN_RESET_EXCUSED: Readonly<Record<string, string>> = {
 };
 
 /**
- * TRIPWIRE 9 — cards the play differential cannot exercise under the CLEAN fixture, each with the condition
- * the fixture doesn't stage. An entry here is "conditional, not dead" — verified by reading the condition,
+ * LANE `playDifferential` — cards the play differential cannot exercise under the CLEAN fixture, each with
+ * the condition the fixture doesn't stage. An entry here is "conditional, not dead" — verified by reading the condition,
  * not by assuming. The sabotage story that shaped the lane (event bookkeeping + fixture watchers masking a
  * neutered Shout) lives in playScan.ts.
  */
@@ -67,7 +68,7 @@ export const PLAY_EXCUSED: Readonly<Record<string, string>> = {
   b2_magepup: 'casts the spell it was TAUGHT; nothing teaches it in the fixture',
 };
 
-/** TRIPWIRE 9 — silent onSummon watchers, with the reading that keeps them silent legitimately. */
+/** LANE `playDifferential.watchers` — silent onSummon watchers, with the reading that keeps them silent legitimately. */
 export const WATCHER_EXCUSED: Readonly<Record<string, string>> = {
   gravebody: 'OWNER RULED 2026-08-26, reaffirmed 2026-08-27 (q-watch-gravebody REVISE): PARKED FOR REWORK — "this card should get reworked, but it is also not currently active in the game. we\'ll revisit when we need to." Until then the silence stands: "Copy your leftmost Echo when summoned" — the onSummon is about ITSELF being summoned (and its shop half is the startOfCombat copy); watching others is correctly nothing',
 };

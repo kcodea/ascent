@@ -1,5 +1,5 @@
 /**
- * DOC BOT TRIPWIRE 10 — the combat presence differential. Doctrine + the variant matrix live in
+ * DOC BOT LANE `combatDifferential` — the combat presence differential. Doctrine + the variant matrix live in
  * `combatScan.ts`.
  *
  * OWNER AUDIT 2026-08-26 reshaped this lane. The first cut queued 7 inert cards and 61 "golden-flat" ones;

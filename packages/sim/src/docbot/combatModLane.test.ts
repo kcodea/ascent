@@ -1,5 +1,5 @@
 /**
- * DOC BOT TRIPWIRE 16 — the quest/rune COMBAT-MOD lane. Doctrine + the staged fight live in
+ * DOC BOT LANE `combatModLane` — the quest/rune COMBAT-MOD lane. Doctrine + the staged fight live in
  * `combatModScan.ts`. Born from retro-validation: three of seven reinjected historical bugs (#941 #832 #932)
  * lived in the 135-key `QuestCombatMods` surface, which no lane exercised at all.
  */

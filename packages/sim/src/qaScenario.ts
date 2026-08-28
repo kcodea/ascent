@@ -121,9 +121,14 @@ export interface QaScenarioV1 {
   ruleIds?: string[];
   /** Content this scenario is ABOUT (for finding-attribution) — every id must resolve today. */
   contentIds?: string[];
+  /** HUMAN-FACING provenance only — nothing keys off these. */
   metadata?: {
     createdAt?: string;
     appVersion?: string;
+    /** DEPRECATED as an identity: no writer sets it, and `semanticRevision` below (which carries the build
+     *  sha as its first component, plus the content/rules/schema revisions) is the machine identity every
+     *  producer actually stamps. Left in the shape because removing a validated optional field would break
+     *  older files for nothing; treat any value here as a human note (WP H migration audit, D-9j). */
     commit?: string;
     reportId?: string;
     notes?: string;

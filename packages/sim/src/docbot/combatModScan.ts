@@ -1,5 +1,5 @@
 /**
- * DOC BOT — the QUEST/RUNE COMBAT-MOD differential (tripwire 16), shared by `combatModLane.test.ts` and the
+ * DOC BOT — the QUEST/RUNE COMBAT-MOD differential (the `combatModLane` lane), shared by `combatModLane.test.ts` and the
  * CLI.
  *
  * Found by RETRO-VALIDATION (2026-08-26): reinjecting seven out-of-sample historical bugs showed Doc Bot

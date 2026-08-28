@@ -1,8 +1,8 @@
 /**
- * DOC BOT TRIPWIRE 17 — oracles born directly from retro-validation misses (2026-08-26).
+ * DOC BOT LANE `missDrivenOracles` — oracles born directly from retro-validation misses (2026-08-26).
  *
  * Method: seven out-of-sample historical bugs were REINJECTED (reverted at the source line) and run against
- * the whole Doc Bot suite. Zero were caught. Three misses built the combat-mod lane (tripwire 16); the four
+ * the whole Doc Bot suite. Zero were caught. Three misses built the `combatModLane` lane; the four
  * here each encode the GENERIC contract their miss exposed — not a re-specific regression test (each fix
  * already shipped one of those), but the class rule that would have caught the next bug of its shape.
  */

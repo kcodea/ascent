@@ -1,5 +1,5 @@
 /**
- * DOC BOT TRIPWIRE 8 — every stat-spell factory folds spell power, or says why not.
+ * DOC BOT LANE `spellPowerFolding` — every stat-spell factory folds spell power, or says why not.
  *
  * History: #817 "Ales fold spell power — the last two stat-spell factories that skipped it" (this scan says
  * they weren't the last), #731 "spell power on Hoardflame + Lantern Light". The pattern: the `spellBuff*`
@@ -22,7 +22,7 @@ const SIM = join(dirname(fileURLToPath(import.meta.url)), '..');
 /** The stat-spell family: the shared `isStatSpell` prefix rule + its extras (see recruit.ts). */
 const isStatFamily = (name: string): boolean => name.startsWith('spellBuff') || name === 'rubyStatGain' || name === 'spellAverageStats'
   // Great Pot's factory: a stat-granting cast whose name slips the `spellBuff*` prefix — it shipped flat and
-  // became bug a17a48ab (Bug Board round 1). Listed as an extra so the tripwire holds its fold from now on.
+  // became bug a17a48ab (Bug Board round 1). Listed as an extra so the lane holds its fold from now on.
   || name === 'buffOnePerTribe';
 
 describe('Doc Bot — stat spells fold spell power', () => {

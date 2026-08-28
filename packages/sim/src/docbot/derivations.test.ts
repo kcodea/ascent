@@ -1,5 +1,5 @@
 /**
- * DOC BOT TRIPWIRE 4 — declared derivation pairs: two code paths that must compute the same thing, held equal
+ * DOC BOT LANE `derivations` — declared derivation pairs: two code paths that must compute the same thing, held equal
  * by fuzz instead of by comment.
  *
  * The codebase is honest about having these — `offerBuyStats`'s own docblock says "Mirrors the reducer's buy

@@ -1,5 +1,5 @@
 /**
- * DOC BOT TRIPWIRE — snapshot fidelity: every per-instance field is classified at every boundary.
+ * DOC BOT LANE `snapshotFidelity` — snapshot fidelity: every per-instance field is classified at every boundary.
  *
  * A new field on `BoardCard` / `BoardMinion` used to cross the fidelity boundaries only if its author
  * remembered every by-name copy site — `cleanBoard`, the reducer's player mapping, `instantiate`, the

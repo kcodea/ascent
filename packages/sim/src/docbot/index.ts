@@ -23,7 +23,7 @@
  *   8. spellPowerFolding — every stat-spell factory folds spell power or says why not (#817/#731 class).
  *
  * `npm run docbot` prints the full report, including the needs-triage backlog the tests tolerate but track.
- * Doctrine and the ledger of what each tripwire has caught: docs/docbot.md.
+ * Doctrine and the ledger of what each lane has caught: docs/docbot.md.
  */
 export { TRIGGER_PHASES, PHASE_EXCUSED, COMBAT_CASTING_FACTORIES, type PhaseExcuse } from './phaseRegistry';
 export { TRIBE_RATCHET, PREDICATE_FILES, RAW_TRIBE_COMPARE_SOURCE } from './tribeRatchet';

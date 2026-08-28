@@ -1,11 +1,11 @@
 # Doc Bot → QA machine: limitations, circumventions, and the build order
 
-Doc Bot today (tripwires 1–12) is a **tripwire layer**: it proves wiring exists and that effects *act*. This
+Doc Bot today (the first twelve lanes) is a **tripwire layer**: it proves wiring exists and that effects *act*. This
 document states exactly what it cannot see, how each blind spot is circumvented, and the order in which the
 circumventions should be built. It is the execution plan for the owner's Interaction Verification Lab
 blueprint (Codex, 2026-06-29) — every phase below cites the blueprint section it implements, because the
 blueprint already designed most of this; Doc Bot's job is to reach it incrementally, with each increment
-catching real bugs on the day it lands (as tripwires 1–12 each did).
+catching real bugs on the day it lands (as those twelve lanes each did).
 
 **Goal restated honestly:** find MOST bugs in a current build and surface the rest as verified-reachable
 questions for human confirmation. Not: find every bug, judge balance, or see pixels.
@@ -29,15 +29,15 @@ questions for human confirmation. Not: find every bug, judge balance, or see pix
 
 ---
 
-## Status after the 2026-08-26 build-out (tripwires 13–15 + lane upgrades)
+## Status after the 2026-08-26 build-out (the magnitude/interaction/hero-power lanes + lane upgrades)
 
 | Limitation | Status |
 |---|---|
 | L1 scenario space | **Combat: done** — seven staged variants, inert queue 54 → 7. Play lane still runs one fixture (+targeted enrichments); its variants are the next increment. |
-| L2 magnitude | **Done for 3 contracts** (`spellBuffTarget`, `battlecryBuffTarget`, `deathrattleSummon` incl. `fixed`/`goldenTokens`) — tripwire 13. Growth = one contract per family as each is ruled unambiguous. |
+| L2 magnitude | **Done for 3 contracts** (`spellBuffTarget`, `battlecryBuffTarget`, `deathrattleSummon` incl. `fixed`/`goldenTokens`) — the `magnitudeOracle` lane. Growth = one contract per family as each is ruled unambiguous. |
 | L3 conditional queues | **Largely drained**: combat 54 → 7; hero fixture drained Myra/Djinn; play queue at 5 excused + gravebody. |
-| L4 interactions | **First order done** — tripwire 14: multiplier × family with EXACT doubling (the #900/#897 genus), additivity metamorphic, eligibility sweeps. Copy-semantics probes remain. |
-| L5 hero powers | **Done** — tripwire 15: 34 verified active through the real action; 25 passive/scheduled pinned by kind. Staging the passive kinds is the next increment. |
+| L4 interactions | **First order done** — the `interactionMatrix` lane: multiplier × family with EXACT doubling (the #900/#897 genus), additivity metamorphic, eligibility sweeps. Copy-semantics probes remain. |
+| L5 hero powers | **Done** — the `heroPowerLane` lane: 34 verified active through the real action; 25 passive/scheduled pinned by kind. Staging the passive kinds is the next increment. |
 | L6 randomness | **Done for tribe-random targets** (10-seed eligibility). Distribution telemetry deliberately not gating. |
 | L7 fuzz depth | **Serialize-resume equivalence + presentation parity added.** Coverage-guided retention and the nightly lifecycle lane remain (the nightly lane needs a workflow file — owner call). |
 | L8 UI | Presentation parity (the machine-checkable half) **done**; the visual half stays human, as stated. |
@@ -53,7 +53,7 @@ contracts; the stable-stringify lesson appeared a third time in serialize-resume
 
 Estimates were replaced by measurement: eight out-of-sample historical bugs were REINJECTED at the source
 line and run against the full Doc Bot suite. **Before the miss-driven build-out: 0 of 8 caught.** The misses
-built tripwires 16 (the 135-key combat-mod lane) and 17 (copy semantics, watcher ordering, chain
+built the `combatModLane` (135 keys) and `missDrivenOracles` (copy semantics, watcher ordering, chain
 multipliers, the combat-castable registry). **After: 7 of 8.**
 
 | Reinjected bug | Before | After | Caught by |
@@ -71,7 +71,7 @@ multipliers, the combat-castable registry). **After: 7 of 8.**
 
 Six more historical bugs joined the catalog — two as coverage CONFIRMATIONS (the spell-power source scan
 caught `8f98da40`; the two-sided refused-spells pin caught `69d6a8e5` through its LOWER bound — banked
-progress paying off exactly as designed), four as new misses that built **tripwire 18**:
+progress paying off exactly as designed), four as new misses that built **the `missDrivenOracles2` lane**:
 
 | New reinjection | Verdict | Oracle it built |
 |---|---|---|
@@ -95,7 +95,7 @@ temporal-window tests. Two RULE VIOLATIONS were found and pinned (not fixed, not
 (the summoning death leaks into the summoned source's window) and **R-AVWIN-10** (a source dying in a
 simultaneous batch observes the batch-mates resolved before it) — see `KNOWN_VIOLATIONS` in the test.
 
-The five in-sample bugs (this week's, which tripwires 1–8 were built from) were already caught by their
+The five in-sample bugs (this week's, which the first eight lanes were built from) were already caught by their
 sabotage checks — 12 of 13 total. The harness catalog grows one entry per interesting future fix; a MISS is
 the build signal for the next generic oracle. This corrects the earlier ESTIMATED 65–75% claim: what was
 measured this morning was ~30% wiring-only, and the number that now stands is measured, not guessed.
@@ -127,7 +127,7 @@ pins. The queues are the QA backlog; the ratchets make draining them permanent.
 
 ## What "most bugs" honestly means at the end of this
 
-Measured against the ~480-commit fix history: tripwires 1–12 would have caught or prevented roughly **30%**
+Measured against the ~480-commit fix history: the first twelve lanes would have caught or prevented roughly **30%**
 of sim/core gameplay fixes. Phases A–D raise that to an estimated **65–75% of sim/core** bugs — magnitude
 errors, boundary failures, silent interactions, snapshot drift, and eligibility bugs all gain generic
 detection. Against ALL bugs including UI/FX, the ceiling is ~50%, because the render half needs eyes; Doc

@@ -42,8 +42,14 @@ const estimate = (n: number): string => {
   return s < 60 ? `~${s}s` : `~${Math.round(s / 60)} min`;
 };
 
-export function RulebookTriage({ onClose }: { onClose: () => void }): JSX.Element {
-  const [rules, setRules] = useState<ResolvedRule[]>(() => allRules());
+export function RulebookTriage({ onClose, rules: injected }: {
+  onClose: () => void;
+  /** TEST SEAM (repo convention: ruleImpact/enforcementErrors/bugs backend are all injectable). The board
+   *  reads the live registry in the app; a test supplies its own worklist so the UI suite does not depend on
+   *  how much triage the owner has finished — the 2026-08-28 sitting emptied the board and broke it once. */
+  rules?: ResolvedRule[];
+}): JSX.Element {
+  const [rules, setRules] = useState<ResolvedRule[]>(() => injected ?? allRules());
   const [queue, setQueue] = useState<string>('all');
   const [showDecided, setShowDecided] = useState(false);
   const [revising, setRevising] = useState<string | null>(null);

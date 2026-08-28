@@ -8596,6 +8596,10 @@ export function castSpell(state: RunState, spellDef: CardDef, target?: BoardCard
  *
  * Call this from any path that resolves a spell WITHOUT running `effects[]`.
  */
+/** Rune of Summoning's printed per-cast Imp improvement. Lives here (not in the reward data) because the
+ *  reward kind carries no amount; the card text is the contract — keep the two in lockstep. */
+const RUNE_SUMMONING_STEP = 2;
+
 export function noteSpellCast(state: RunState, spellDef: CardDef): void {
   // A REWARD card (`token: true` — Goldcrafter, Implosion, Copycat, the Triple Reward…) is NOT a Shop spell
   // (owner rule 2026-08-01, extended to every cast path 2026-08-04): it resolves its own effect and nothing
@@ -8687,9 +8691,11 @@ export function noteSpellCast(state: RunState, spellDef: CardDef): void {
   // "improve your Imps" applies twice under Rune of Mastery).
   if (state.runeSummoning) {
     procRune(state, 'runeSummoning');
-    // The improvement lands once per copy held (owner 2026-08-27: "rune of summoning = your imps get
-    // +4/+4"), on top of Rune of Mastery's extra Improve step. Single-copy magnitude unchanged.
-    const sr = improveReps(state) * runeStacksOf(state, 'rune_summoning');
+    // The printed step is +2/+2 (owner fix 2026-08-28): the code paid +1/+1 while the card promised +2/+2 —
+    // a text/code drift the text oracle caught. The owner's duplicate ruling settles the direction: "rune of
+    // summoning = your imps get +4/+4" for a SECOND copy, which is 2x the printed step, so the TEXT was right.
+    // Copies multiply it (2 copies = +4/+4) and Rune of Mastery's extra Improve step multiplies it again.
+    const sr = RUNE_SUMMONING_STEP * improveReps(state) * runeStacksOf(state, 'rune_summoning');
     buffImpsRunWide(state, sr, sr, 'Rune of Summoning');
   }
   // Rune of Kindling: each spell cast gives your LEFT and RIGHT-most board minions +4/+6 (owner balance

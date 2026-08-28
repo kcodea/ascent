@@ -278,8 +278,8 @@ export const SET2_DWARVES: CardDef[] = [
     // Owner rework 2026-08-18: the hand-mint half is dropped and the board half now hits ALL your minions
     // (`tribe: 'all'`, `count: 0` = mint nothing). `every` still metered per-instance by `applyGoldSpent`.
     effects: [{ on: 'goldSpent', do: 'goldSpentGetRubiesPlayOnTribe', params: { every: 8, count: 0, play: 1, tribe: 'all' } }],
-    text: '**Ward. Critical Strike (50%).** When you spend **8 Gold**, play a **Ruby** on your minions.',
-    goldenText: '**Ward. Critical Strike (50%).** When you spend **8 Gold**, play **2 Rubies** on your minions.',
+    text: '**Ward. Critical Strike (50%).** When you spend **8 Gold**, cast a **Ruby** on your minions.',
+    goldenText: '**Ward. Critical Strike (50%).** When you spend **8 Gold**, cast **2 Rubies** on your minions.',
   },
   {
     // Set 2 — Billings (owner add 2026-08-18): every 5 Gold spent, two random Dwarves get a big +5/+5. The

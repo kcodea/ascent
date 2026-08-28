@@ -1,0 +1,560 @@
+{
+  "version": 1,
+  "id": "choose-one-both",
+  "duration": 900,
+  "layers": [
+    {
+      "primitive": "emitter",
+      "anchor": "target",
+      "at": 0,
+      "params": {
+        "rate": 80,
+        "rateCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "life": 2710,
+        "spread": 0.16,
+        "speed": 40,
+        "speedVar": 0.93,
+        "reverse": false,
+        "speedCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            0
+          ]
+        ],
+        "gravity": 40,
+        "orientToVelocity": false,
+        "turbulence": 60,
+        "turbScale": 0.054,
+        "fieldPhase": 0.88,
+        "emitShape": "ring",
+        "emitRadius": 115,
+        "emitFill": false,
+        "emitDensity": 400,
+        "emitPoints": [],
+        "squashX": 0.84,
+        "squashY": 1.02,
+        "offsetX": 0,
+        "offsetY": 1,
+        "inheritVel": 0,
+        "shape": "shard",
+        "size": 34,
+        "sizeVar": 0.62,
+        "stretchX": 1,
+        "stretchY": 1,
+        "sizeCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            0.5564971751412429,
+            0
+          ],
+          [
+            1,
+            0
+          ]
+        ],
+        "coreBias": 0,
+        "biasCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "alphaCurve": [
+          [
+            0,
+            0.4809243309264215
+          ],
+          [
+            0.501004874205163,
+            0.4001349337848693
+          ],
+          [
+            1,
+            0.023114779376609995
+          ]
+        ],
+        "bands": 6,
+        "plateau": 0,
+        "fieldMix": 0,
+        "tintMode": "palette",
+        "fadeIn": 0.08,
+        "palette": [
+          45967,
+          16711887,
+          16711862,
+          32255
+        ],
+        "blendMode": "add",
+        "glow": 0.08,
+        "noiseScale": 0.5,
+        "warp": 0,
+        "scroll": 0,
+        "erode": 0,
+        "gain": 1.24,
+        "blur": 2,
+        "blurCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "advancedBloomOn": false,
+        "advancedBloomAmt": 1.3,
+        "advancedBloomCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "advancedBloom_threshold": 0.5,
+        "advancedBloom_brightness": 1,
+        "advancedBloom_blur": 8,
+        "bloomOn": false,
+        "bloomAmt": 6,
+        "bloomCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "glowOn": false,
+        "glowAmt": 4,
+        "glowCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "glow_inner": 0,
+        "glow_alpha": 1,
+        "glow_knockout": false,
+        "glow_color": 16777215,
+        "godrayOn": false,
+        "godrayAmt": 0.5,
+        "godrayCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "godray_lacunarity": 2.5,
+        "godray_angle": 30,
+        "godray_alpha": 1,
+        "zoomBlurOn": false,
+        "zoomBlurAmt": 0.3,
+        "zoomBlurCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "zoomBlur_inner": 0,
+        "zoomBlur_maxK": 32,
+        "radialBlurOn": false,
+        "radialBlurAmt": 30,
+        "radialBlurCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "radialBlur_kernel": 5,
+        "radialBlur_radius": -1,
+        "motionBlurOn": false,
+        "motionBlurAmt": 30,
+        "motionBlurCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "motionBlur_velY": 0,
+        "motionBlur_kernel": 5,
+        "shockwaveOn": false,
+        "shockwaveAmt": 1.2,
+        "shockwaveCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "shockwave_amp": 30,
+        "shockwave_wave": 160,
+        "twistOn": false,
+        "twistAmt": 4,
+        "twistCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "twist_radius": 200,
+        "twist_padding": 20,
+        "bulgePinchOn": false,
+        "bulgePinchAmt": 1,
+        "bulgePinchCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "bulgePinch_radius": 100,
+        "simplexNoiseOn": false,
+        "simplexNoiseAmt": 0.5,
+        "simplexNoiseCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "simplexNoise_scale": 10,
+        "simplexNoise_step": -1,
+        "tiltShiftOn": false,
+        "tiltShiftAmt": 100,
+        "tiltShiftCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "tiltShift_grad": 600,
+        "kawaseBlurOn": false,
+        "kawaseBlurAmt": 4,
+        "kawaseBlurCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "kawaseBlur_quality": 3,
+        "reflectionOn": false,
+        "reflectionAmt": 20,
+        "reflectionCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "reflection_boundary": 0.5,
+        "reflection_mirror": true,
+        "hslAdjustmentOn": false,
+        "hslAdjustmentAmt": 0.4,
+        "hslAdjustmentCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "hslAdjustment_hue": 0,
+        "hslAdjustment_light": 0,
+        "adjustmentOn": false,
+        "adjustmentAmt": 1.3,
+        "adjustmentCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "adjustment_contrast": 1,
+        "adjustment_saturation": 1,
+        "adjustment_gamma": 1,
+        "colorOverlayOn": false,
+        "colorOverlayAmt": 0.5,
+        "colorOverlayCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "colorOverlay_color": 16711680,
+        "colorReplaceOn": false,
+        "colorReplaceAmt": 0.4,
+        "colorReplaceCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "outlineOn": false,
+        "outlineAmt": 2,
+        "outlineCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "outline_alpha": 1,
+        "outline_knockout": false,
+        "outline_color": 0,
+        "rgbSplitOn": false,
+        "rgbSplitAmt": -10,
+        "rgbSplitCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "rgbSplit_greenY": 10,
+        "rgbSplit_blueX": 0,
+        "glitchOn": false,
+        "glitchAmt": 100,
+        "glitchCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "glitch_slices": 5,
+        "glitch_dir": 0,
+        "dropShadowOn": false,
+        "dropShadowAmt": 4,
+        "dropShadowCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "dropShadow_alpha": 1,
+        "dropShadow_offX": 4,
+        "dropShadow_offY": 4,
+        "dropShadow_color": 0,
+        "bevelOn": false,
+        "bevelAmt": 2,
+        "bevelCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "bevel_rot": 45,
+        "bevel_lightA": 0.7,
+        "bevel_shadowA": 0.7,
+        "bevel_lightColor": 16777215,
+        "bevel_shadowColor": 0,
+        "dotOn": false,
+        "dotAmt": 1,
+        "dotCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "dot_angle": 5,
+        "dot_gray": true,
+        "pixelateOn": false,
+        "pixelateAmt": 10,
+        "pixelateCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "asciiOn": false,
+        "asciiAmt": 8,
+        "asciiCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "ascii_replace": false,
+        "crtOn": false,
+        "crtAmt": 1,
+        "crtCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "crt_lineW": 1,
+        "crt_lineC": 0.25,
+        "crt_noise": 0.3,
+        "oldFilmOn": false,
+        "oldFilmAmt": 0.3,
+        "oldFilmCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "oldFilm_sepia": 0.3,
+        "oldFilm_scratch": 0.5,
+        "oldFilm_vig": 0.3,
+        "embossOn": false,
+        "embossAmt": 5,
+        "embossCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "crossHatchOn": false,
+        "grayscaleOn": false,
+        "fxScaleCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "fxSpin": 0,
+        "fxDriftX": 0,
+        "fxDriftY": 0,
+        "fxDriftCurve": [
+          [
+            0,
+            0
+          ],
+          [
+            1,
+            1
+          ]
+        ]
+      }
+    }
+  ],
+  "loopMode": "seamless"
+}

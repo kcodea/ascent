@@ -89,6 +89,31 @@ export const PATCH_NOTES: PatchNote[] = [
   },
   {
     date: '2026-08-28',
+    label: 'Ruby Wording',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: 'Rubies are now CAST, never "played" — every card and rune that hands out a Ruby says so the same way.',
+        details: [
+          '"Play a Ruby" now reads "Cast a Ruby" on 11 Kobold and Dwarf minions, 2 spells and 6 runes.',
+          '"Played" now means one thing everywhere: a card leaving your hand. Rune of the Lapidary still reads "after you play 6 cards" — that is a card play, not a Ruby.',
+          'Wording only. No Ruby, card or rune changed what it does.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-08-28',
+    label: 'Rune Fix',
+    changes: [
+      { category: 'Rune Change', text: 'Rune of Summoning now gives the +2/+2 it promises — it was quietly paying half.', details: [
+        'Every Shop spell you cast improves your Imp Aura by +2/+2, exactly as the rune reads.',
+        'Rune of Mastery still doubles it, and a second copy still doubles it again.',
+      ] },
+    ],
+  },
+  {
+    date: '2026-08-28',
     label: 'Auras',
     changes: [
       {

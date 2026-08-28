@@ -142,7 +142,7 @@ export function LobbyPanel({ lobby }: { lobby: RunLobby }): JSX.Element | null {
               {seat.alive ? (
                 <span className="lobbyhp">
                   <Icon name="heart" />{live.resolve}
-                  {live.armor > 0 && <span className="lobbyarmor">+{live.armor}</span>}
+                  {live.armor > 0 && <span className="lobbyarmor"><Icon name="shield" />{live.armor}</span>}
                 </span>
               ) : (
                 <span className="lobbyplace">{seat.placement ? `#${seat.placement}` : 'out'}</span>

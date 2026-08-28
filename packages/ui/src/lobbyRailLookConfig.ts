@@ -27,6 +27,9 @@ export interface LobbyRailLookConfig {
   faceScale: number;   // × the 18·lrow portrait cell (scales cell + image together)
   faceRadius: number;  // % — 50 = circle, 0 = square
 
+  // Seat text
+  nameScale: number;   // × the seat-name font size (the name also renders bold)
+
   // Spacing
   railPad: number;     // × the rail's inner padding (insets rows off the gilded frame)
   seatPad: number;     // × each seat's inner padding
@@ -80,11 +83,13 @@ const DEFAULTS: LobbyRailLookConfig = {
   // blue YOUR-seat, hot-red health bars, and a fierce red-glowing next foe with a thick left accent bar + a deep
   // pulse. Portraits slightly larger + squarer, rows pulled well in off the frame, tight seat padding, square
   // rail corners. All mirrored into the styles.css fallbacks below so prod paints it with no JS.
-  faceScale: 1.14,
+  faceScale: 1.23,
   faceRadius: 22,
 
-  railPad: 2.55,
-  seatPad: 0.3,
+  nameScale: 1.3,
+
+  railPad: 4,
+  seatPad: 0.75,
   rowGap: 1.1,
 
   railRadius: 0,
@@ -126,12 +131,13 @@ export { DEFAULTS as LOBBY_RAIL_LOOK_DEFAULTS };
 
 /** `[min, max, step]` for the numeric knobs only (colours have no range). */
 const RANGES: Record<
-  'faceScale' | 'faceRadius' | 'railPad' | 'seatPad' | 'rowGap' | 'railRadius' | 'seatRadius'
+  'faceScale' | 'faceRadius' | 'nameScale' | 'railPad' | 'seatPad' | 'rowGap' | 'railRadius' | 'seatRadius'
   | 'foeRing' | 'foeGlow' | 'foeSpread' | 'foeBar' | 'foePulseDur' | 'foePulseMin',
   [number, number, number]
 > = {
   faceScale: [0.5, 2, 0.01],
   faceRadius: [0, 50, 1],
+  nameScale: [0.7, 2.2, 0.05],
   railPad: [0, 3, 0.05],
   seatPad: [0.3, 2.5, 0.05],
   rowGap: [0, 4, 0.05],
@@ -168,6 +174,7 @@ export function applyLobbyRailLookVars(): void {
   const s = document.documentElement.style;
   s.setProperty('--lby-face', String(cfg.faceScale));
   s.setProperty('--lby-face-rad', String(cfg.faceRadius));
+  s.setProperty('--lby-name-size', String(cfg.nameScale));
   s.setProperty('--lby-pad', String(cfg.railPad));
   s.setProperty('--lby-seat-pad', String(cfg.seatPad));
   s.setProperty('--lby-gap', String(cfg.rowGap));
@@ -229,6 +236,8 @@ const col = (
 const controls: TunerControl<Extract<keyof LobbyRailLookConfig, string>>[] = [
   r('faceScale', 'Portrait size', 'Portrait', '×', 'Hero portrait size — scales the portrait and its column together.'),
   r('faceRadius', 'Portrait rounding', 'Portrait', '%', 'Portrait corner rounding. 50 = a circle, 0 = a square.'),
+
+  r('nameScale', 'Name size', 'Seat text', '×', 'Size of the seat name text — it renders bold.'),
 
   r('railPad', 'Rail inset', 'Spacing', '×', 'How far the rows pull IN off the gilded frame. Raise it to seat the content inside the border.'),
   r('seatPad', 'Seat padding', 'Spacing', '×', 'Padding inside each seat row.'),

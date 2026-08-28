@@ -25,6 +25,11 @@ export interface LobbyPanelConfig {
   /** MAXIMUM panel height, as a % of stage height. The rail sizes to its rows; this only caps it (and it
    *  scrolls past the cap rather than clipping a seat). */
   height: number;
+  /** Nudge the WHOLE panel (and everything in it) horizontally, in design px (× the internal unit). Positive =
+   *  right. Folded into `right` rather than a transform, so the fixed-position scout card stays anchored. */
+  offsetX: number;
+  /** Nudge the WHOLE panel vertically, in design px (× the internal unit). Positive = down. */
+  offsetY: number;
   /** Seat-row size (×) — row padding and portrait, on top of the panel scale. */
   rowScale: number;
   /** Row text size (×) — seat name, health, damage. Independent of the row box, so the text can be pushed up
@@ -37,17 +42,19 @@ export interface LobbyPanelConfig {
 /** Owner-tuned 2026-07-29 (🪑 Lobby Rail → Copy values). These are what ships — the exe and the itch build
  *  never run the tuner, so the CSS fallbacks below mirror them. */
 export const LOBBY_PANEL_DEFAULTS: LobbyPanelConfig = {
-  scale: 1.53,
-  width: 169,
+  scale: 1.11,
+  width: 234,
   right: 0,
   top: 13.5,
   height: 100,
+  offsetX: 0,
+  offsetY: 0,
   rowScale: 1.91,
   fontScale: 0.99,
   foeScale: 0.5,
 };
 
-export const LOBBY_PANEL_KEYS = ['scale', 'width', 'right', 'top', 'height', 'rowScale', 'fontScale', 'foeScale'] as const;
+export const LOBBY_PANEL_KEYS = ['scale', 'width', 'right', 'top', 'height', 'offsetX', 'offsetY', 'rowScale', 'fontScale', 'foeScale'] as const;
 export type LobbyPanelKey = (typeof LOBBY_PANEL_KEYS)[number];
 
 /** [min, max, step] per key. */
@@ -57,6 +64,8 @@ export const LOBBY_PANEL_RANGES: Record<LobbyPanelKey, [number, number, number]>
   right: [0, 160, 1],
   top: [0, 70, 0.5],
   height: [25, 96, 0.5],
+  offsetX: [-300, 300, 1],
+  offsetY: [-300, 300, 1],
   rowScale: [0.5, 2.2, 0.01],
   fontScale: [0.5, 2.2, 0.01],
   foeScale: [0.5, 2.2, 0.01],
@@ -68,6 +77,8 @@ export const LOBBY_PANEL_DESC: Record<LobbyPanelKey, string> = {
   right: 'Gap from the stage’s right edge.',
   top: 'Top edge, as a % of stage height.',
   height: 'MAX rail height, as a % of stage height — the rail sizes to its rows and scrolls past this.',
+  offsetX: 'Shift the whole panel horizontally. Positive = right.',
+  offsetY: 'Shift the whole panel vertically. Positive = down.',
   rowScale: 'Seat-row box: padding and portrait size.',
   fontScale: 'Seat-row text: name, health and damage.',
   foeScale: 'The Next Foe card — portrait and text.',
@@ -99,6 +110,8 @@ export function applyLobbyPanelVars(): void {
   root.setProperty('--lby-right', String(cfg.right));
   root.setProperty('--lby-top', `${cfg.top}%`);
   root.setProperty('--lby-h', `${cfg.height}%`);
+  root.setProperty('--lby-x', String(cfg.offsetX));
+  root.setProperty('--lby-y', String(cfg.offsetY));
   root.setProperty('--lby-row', String(cfg.rowScale));
   root.setProperty('--lby-font', String(cfg.fontScale));
   root.setProperty('--lby-foe', String(cfg.foeScale));

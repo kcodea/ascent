@@ -59,6 +59,74 @@ const rule = (r: Row): GameRule => ({
   ...r,
 } as GameRule);
 
+// ── The gilding half of a family card (owner rulings 2026-08-28) ─────────────────────────────────────────
+//
+// The first deck asserted one flat claim on every family card: "gilding doubles their numbers". The owner
+// REVISEd four of them with the real rule, and it is not flat:
+//   avenge     — "in some cases it summons more minions when gilded, in other cases it summons a gilded
+//                 token instead. dunkey for example summons a gilded armadiyo, whereas gilded gemstorm
+//                 instigator would proc an additional time (double its rubies)"
+//   castPayoff — "gilded baal doubles its consume quantity, but high king mykel goes from 1 adjacent to
+//                 both adjacent minions."
+//   echo       — "doubling the output is the safe baseline with outliers being other behavior"
+//   spellCast  — "spells cannot be gilded"
+// So: DOUBLING THE OUTPUT IS THE BASELINE, the outliers are named where the owner named them, and a family
+// whose members are all spells says the honest thing instead (R-GILD-01 / R-GILD-02).
+
+interface GildClaim { statement: string; currentBehaviour: string; example: string }
+
+/** The three families the owner annotated by hand, in his own terms. */
+const OWNER_GILD_NOTES: Readonly<Record<string, GildClaim>> = {
+  avenge: {
+    statement: 'Gilding doubles their output, except a few that summon a gilded token or add a proc.',
+    currentBehaviour: 'the ×2 baseline, with Dunkey/Muster General/Steadfast Sentinel summoning a GILDED token at the same count, and Gemstorm Instigator buying one extra proc (owner ruling 2026-08-28).',
+    example: 'Gilded Dunkey summons ONE gilded Armadiyo, not two plain ones.',
+  },
+  castPayoff: {
+    statement: 'Gilding doubles their output, except High King Mykel, whose gild widens its targets instead.',
+    currentBehaviour: 'the ×2 baseline (gilded Baal consumes 2 Shop minions), with High King Mykel reshaped instead — one adjacent Shout becomes BOTH adjacent (owner ruling 2026-08-28).',
+    example: 'Gilded Baal doubles its consume quantity; gilded High King Mykel triggers both adjacent Shouts.',
+  },
+  echo: {
+    statement: 'Gilding doubles their output; a few summon a gilded token instead.',
+    currentBehaviour: 'the ×2 baseline is the safe reading, with Void Panther / T-Rex / Chicken Brawl gilding the token they summon instead of doubling the count (owner ruling 2026-08-28).',
+    example: 'Gilded T-Rex summons one GILDED T-Rex Baby, while gilded Wolves Den summons 6 Crypt Wolves instead of 3.',
+  },
+};
+
+const GILD_DEFAULT: GildClaim = {
+  statement: 'Gilding doubles their output.',
+  currentBehaviour: 'the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).',
+  example: 'its printed numbers double when the card is gilded.',
+};
+
+const GILD_NONE: GildClaim = {
+  statement: 'These are the spells themselves, and spells are never gilded.',
+  currentBehaviour: 'INAPPLICABLE — checkTriples skips spells and Rubies, so no member of this family can ever BE gilded (R-GILD-02, owner ruling 2026-08-28).',
+  example: 'three copies of it never combine into a golden one, so it has no gilded form at all.',
+};
+
+/** The gilding claim for one family — derived where the members decide it, owner-annotated where he spoke.
+ *  R-GILD-02 wins over any family note: a family of spells has no gilding to describe, and a MIXED family
+ *  says the split out loud rather than asserting a doubling that 99 of its 106 members cannot do. */
+export function gildClaimFor(fam: string, memberIds: readonly string[]): GildClaim {
+  const isUngildable = (id: string): boolean => {
+    const def = CARD_INDEX[id] as (CardDef & { ruby?: boolean }) | undefined;
+    return !!def && (!!def.spell || !!def.ruby);
+  };
+  const ungildable = memberIds.filter(isUngildable).length;
+  if (memberIds.length > 0 && ungildable === memberIds.length) return GILD_NONE;
+  if (ungildable > 0) {
+    const rest = memberIds.length - ungildable;
+    return {
+      statement: `${ungildable} are spells, which never gild; the other ${rest} double their output.`,
+      currentBehaviour: `${ungildable} members are spells or Rubies and can never BE gilded (R-GILD-02, owner ruling 2026-08-28) — their gilding aspect is inapplicable, not unprobed; the remaining ${rest} inherit the ×2 baseline.`,
+      example: 'three copies of a spell never combine into a golden one, so most of this family has no gilded form at all.',
+    };
+  }
+  return OWNER_GILD_NOTES[fam] ?? GILD_DEFAULT;
+}
+
 // ── 1. Presentation timing families ──────────────────────────────────────────────────────────────────────
 
 function familyQuestions(): GameRule[] {
@@ -83,16 +151,18 @@ function familyQuestions(): GameRule[] {
     const events = [...c.events].sort();
     const phases = [...new Set(events.map((e) => TRIGGER_PHASES[e] ?? 'unknown'))].sort();
     const exemplar = memberIds[0];
+    const gild = gildClaimFor(fam, memberIds);
     return rule({
       id: `q-conv-family-${fam}`,
       title: `'${fam}' family · ${memberIds.length} cards`,
-      statement: `All ${memberIds.length} '${fam}' cards trigger the same way, and gilding doubles their numbers.`
+      statement: `All ${memberIds.length} '${fam}' cards trigger the same way. ${gild.statement}`
         + CLICKS('', ''),
       domain: 'triggers',
-      currentBehaviour: `${c.factories.size} effect factories across ${memberIds.length} cards dispatch through the '${fam}' presentation family; the factoryPhase lane gates each (trigger, factory) pair.`,
+      currentBehaviour: `${c.factories.size} effect factories across ${memberIds.length} cards dispatch through the '${fam}' presentation family; the factoryPhase lane gates each (trigger, factory) pair.`
+        + ` Gilding: ${gild.currentBehaviour}`,
       ...(exemplar ? {
         cardText: `Exemplar — ${nameOf(exemplar)}: "${textOf(exemplar)}" · Members: ${memberLine(memberIds)}`,
-        example: `${nameOf(exemplar)} follows the '${fam}' convention — its trigger fires on ${events[0]}, its numbers double when gilded.`,
+        example: `${nameOf(exemplar)} follows the '${fam}' convention — its trigger fires on ${events[0]}. ${gild.example}`,
       } : {
         cardText: `(no live cards currently use the '${fam}' family's factories)`,
         example: `any future '${fam}' card inherits this convention at authoring time.`,
@@ -265,13 +335,16 @@ function globalQuestions(): GameRule[] {
     rule({
       id: 'q-conv-global-gild-default',
       title: 'Gilding default: ×2',
-      statement: 'A gilded card doubles its printed numbers. If gilding changes more than the numbers, the card carries its own golden text.'
+      statement: 'A gilded card doubles its printed numbers. Outliers instead gild the summoned token, reshape the effect, or add a proc; spells never gild.'
         + CLICKS('', ''),
       domain: 'gilding',
-      currentBehaviour: `${goldenTextIds.length} cards carry authored goldenText; every other card inherits the ×2 number-doubler.`,
+      currentBehaviour: `${goldenTextIds.length} cards carry authored goldenText; every other card inherits the ×2 number-doubler. `
+        + 'The outlier shapes are the owner\'s 2026-08-28 rulings, now carried per card as the contract\'s gildedDelta kind (R-GILD-01); spells and Rubies are not-applicable (R-GILD-02).',
       ...(gildEx ? {
         cardText: `Exemplar — ${nameOf(gildEx)}: "${textOf(gildEx)}" → gilded: "${plain(CARD_INDEX[gildEx]?.goldenText)}"`,
-        example: `${nameOf(gildEx)}'s gilded text is authored because the count changes shape, not just ×2 digits.`,
+        // The baseline exemplar WRITES the ×2 out in full; the outlier exemplar is named beside it so the
+        // card shows both halves of the rule (owner rulings 2026-08-28).
+        example: `${nameOf(gildEx)}'s gilded text just writes the ×2 out in full — while gilded ${nameOf('b2_dunkey')} instead summons ONE gilded ${nameOf('b2_armadiyo')}.`,
       } : {}),
       evidence: [{ kind: 'code', ref: 'packages/core/src/types.ts CardDef.goldenText docblock' }],
     }),

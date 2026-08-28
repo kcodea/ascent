@@ -43,10 +43,10 @@ import { reduce } from '../reducer';
 import { parseQaScenario, runQaScenario } from '../qaScenario';
 import { corroborateContracts, type CorroborationSources } from './contractCorroboration';
 import {
-  CASE_TEMPLATES, planCases, avengeTrigger, battlecrySummonEffect, deathSummonEffect,
+  CASE_TEMPLATES, planCases, avengeTrigger, battlecrySummonEffect, deathSummonEffect, gildedTokenClaim,
   type CasePlan, type CaseTemplateId,
 } from './isolatedCases';
-import { checkMetamorphic, type MetamorphicCheck } from './variantDiff';
+import { checkMetamorphic, type MetamorphicCheck, type VariantRelation } from './variantDiff';
 import { makeFinding, type DocbotFinding } from './findings';
 
 export const CONTRACT_LANE = 'contract-oracle';
@@ -66,11 +66,15 @@ function fight(player: BoardMinion[], enemy: BoardMinion[], mods: Record<string,
     combatSide({ tier: 1 }));
 }
 
-/** Player-side summon count of one token id, off the authoritative log. */
-const summonsOf = (r: Sim, cardId: string): number =>
+/** Player-side summon EVENTS of one token id, off the authoritative log. */
+const summonEventsOf = (r: Sim, cardId: string): Array<{ golden?: boolean }> =>
   r.events.filter((e) => e.type === 'summon'
     && (e as { side?: string }).side !== 'enemy'
-    && (e as { minion?: { cardId?: string } }).minion?.cardId === cardId).length;
+    && (e as { minion?: { cardId?: string } }).minion?.cardId === cardId)
+    .map((e) => (e as { minion: { golden?: boolean } }).minion);
+
+/** Player-side summon count of one token id, off the authoritative log. */
+const summonsOf = (r: Sim, cardId: string): number => summonEventsOf(r, cardId).length;
 
 /** Side-death ordinal at the first avenge-stamped emission attributed to `srcCard` — null when the source
  *  never observably fired. The temporalWindow read, derived: deaths counted as death events pass. */
@@ -230,11 +234,15 @@ function driveDeathSummon(c: ContentContract, plan: CasePlan, ctx: DriverCtx): v
     const n = measure(true);
     ctx.obs(c.contentId, `effects.${d.index}.summons.count.gilded`, n, `same fixture, gilded body: ${n} × '${d.cardId}'`);
     ctx.executed.push({ contractId: c.contentId, template: 'gilded', driver: 'combat-death-summon', evidence: `counted ${n} gilded summons` });
-    if (c.gildedDelta?.kind === 'multiply') {
-      // §9.3 law 3 — gilded-delta satisfaction against the DECLARED factor.
+    // §9.3 law 3 — gilded-delta satisfaction, now against whichever COUNT RELATION the declared shape
+    // implies (owner rulings 2026-08-28): 'multiply' × its factor, 'extra-proc' × (1 + extra) resolutions,
+    // 'gilded-token' EQUAL (the identity changes, the number does not). 'reshape' / 'not-applicable' state
+    // no count relation at all and are deliberately left to their own lanes.
+    const rel = gildedCountRelation(c.gildedDelta);
+    if (rel) {
       ctx.metamorphic.push(checkMetamorphic('gilded-delta-satisfaction', c.contentId,
-        `gilded summon count must be plain × ${c.gildedDelta.factor} (declared multiply delta)`,
-        () => measure(false), () => measure(true), { kind: 'times', factor: c.gildedDelta.factor }));
+        `${rel.detail} (declared '${c.gildedDelta!.kind}' delta)`,
+        () => measure(false), () => measure(true), rel.relation));
     }
   }
 
@@ -246,6 +254,86 @@ function driveDeathSummon(c: ContentContract, plan: CasePlan, ctx: DriverCtx): v
       () => summonsOf(fight([body(false), bm('sylus', 1, 7)], [bm('sandbag', 5, 4000)]), d.cardId),
       { kind: 'times', factor: 2 }, ['R-MULT-01']));
     ctx.executed.push({ contractId: c.contentId, template: 'trigger-multiplier', driver: 'combat-death-summon', evidence: 'Sylus variant diff (×2 expected)' });
+  }
+}
+
+// ── the gilding kinds (owner rulings 2026-08-28) ─────────────────────────────────────────────────────────
+
+/**
+ * The COUNT relation a declared gilded shape implies, or null when the shape makes no claim about counts.
+ * This is the one place the oracle translates the owner's shape vocabulary into a checkable law:
+ *  · 'multiply'       → ×factor          (the safe baseline: "doubling the output")
+ *  · 'extra-proc'     → ×(1 + extra)     (Gemstorm: the gild buys one EXTRA resolution of the same payload)
+ *  · 'gilded-token'   → equal            (Dunkey: the token's IDENTITY changes, its count does not)
+ *  · 'reshape'        → null             — the authored golden text states the gilded form (textOracle owns it)
+ *  · 'not-applicable' → null             — R-GILD-02; the aspect is skipped WITH its reason, never passed
+ *  · 'none' / 'other' → null
+ */
+export function gildedCountRelation(g: ContentContract['gildedDelta']): { relation: VariantRelation; detail: string } | null {
+  if (!g) return null;
+  if (g.kind === 'multiply') return { relation: { kind: 'times', factor: g.factor }, detail: `gilded count must be plain × ${g.factor}` };
+  if (g.kind === 'extra-proc') {
+    return { relation: { kind: 'times', factor: 1 + g.extra }, detail: `gilded output must be plain × ${1 + g.extra} (one payload plus ${g.extra} extra proc)` };
+  }
+  if (g.kind === 'gilded-token') return { relation: { kind: 'equal' }, detail: 'gilded count must EQUAL plain — the gild changes the token identity, not the number' };
+  return null;
+}
+
+/**
+ * The 'gilded-token' driver: a gild that summons the SAME number of a GILDED token (owner 2026-08-28 —
+ * "dunkey for example summons a gilded armadiyo"). Two claims, both counted off the authoritative log:
+ * the count must not move, and every summon the GILDED body makes must itself carry golden. A plain body
+ * summoning golden tokens is just as much a violation as a gilded body summoning plain ones.
+ */
+function driveGildedShape(c: ContentContract, ctx: DriverCtx): void {
+  const claim = gildedTokenClaim(c);
+  if (!claim) return;
+  const body = (golden: boolean): BoardMinion =>
+    bm(c.contentId, golden ? 2 : 1, claim.via === 'avenge' ? 400 : 1, { keywords: ['T'], ...(golden ? { golden: true } : {}) });
+  const board = (golden: boolean): BoardMinion[] => claim.via === 'avenge'
+    ? [body(golden), ...Array.from({ length: 5 }, () => bm('b2_packstrider', 1, 1))]
+    : [body(golden)];
+  const run = (golden: boolean) => summonEventsOf(fight(board(golden), [bm('sandbag', claim.via === 'avenge' ? 2 : 5, 4000)]), claim.cardId);
+
+  const plain = run(false);
+  const gilded = run(true);
+  const fixture = claim.via === 'avenge'
+    ? '5 feeder deaths in front of the source (Avenge fed)'
+    : 'the Taunt source died to a 5-attack enemy';
+
+  ctx.executed.push({
+    contractId: c.contentId, template: 'gilded', driver: 'gilded-shape',
+    evidence: `${fixture}: plain summoned ${plain.length} × '${claim.cardId}' (${plain.filter((m) => m.golden).length} gilded), `
+      + `gilded body summoned ${gilded.length} (${gilded.filter((m) => m.golden).length} gilded)`,
+    ...(plain.length === 0 && gilded.length === 0
+      ? { unobserved: `no '${claim.cardId}' summon fired in either fixture — the gilded-token claim is RECORDED unverified, not passed` }
+      : {}),
+  });
+  if (plain.length === 0 && gilded.length === 0) return;
+
+  const countHeld = gilded.length === plain.length;
+  const allGilded = gilded.length > 0 && gilded.every((m) => m.golden === true);
+  const nonePlainGilded = plain.every((m) => m.golden !== true);
+  const ok = countHeld && allGilded && nonePlainGilded;
+  ctx.limitChecks.push({
+    contractId: c.contentId,
+    limit: 'gilded-token-identity',
+    ok,
+    detail: ok
+      ? `${fixture}: both bodies summoned ${plain.length} × '${claim.cardId}'; only the gilded body's tokens carry golden (the identity changed, the count did not)`
+      : [
+          countHeld ? '' : `the count MOVED: plain ${plain.length} → gilded ${gilded.length} (a gilded-token gild must not change the number — declare 'multiply' if it does)`,
+          allGilded ? '' : `the gilded body summoned ${gilded.filter((m) => m.golden).length}/${gilded.length} GILDED '${claim.cardId}' — the contract claims every one is gilded`,
+          nonePlainGilded ? '' : `the PLAIN body already summoned a gilded '${claim.cardId}' — then the gild is not what makes the token gilded`,
+        ].filter(Boolean).join(' · '),
+  });
+
+  // The count law, stated as a metamorphic check so it rides the same finding plumbing as every other law.
+  const rel = gildedCountRelation(c.gildedDelta);
+  if (rel) {
+    ctx.metamorphic.push(checkMetamorphic('gilded-delta-satisfaction', c.contentId,
+      `${rel.detail} (declared 'gilded-token' delta)`,
+      () => plain.length, () => gilded.length, rel.relation));
   }
 }
 
@@ -384,6 +472,7 @@ export function runContractSweep(opts: ContractSweepOptions): ContractSweepRepor
     if (drivers.has('avenge-threshold')) driveAvengeThreshold(c, plan, ctx);
     if (drivers.has('shop-battlecry-summon')) driveShopBattlecrySummon(c, plan, ctx);
     if (drivers.has('copy-policy')) driveCopyPolicy(c, plan, ctx, semanticRevision);
+    if (drivers.has('gilded-shape')) driveGildedShape(c, ctx);
   }
 
   // Compare every observation against its contract (the frozen comparator judges — §4.5).

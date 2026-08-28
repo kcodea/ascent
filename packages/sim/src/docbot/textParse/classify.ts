@@ -170,8 +170,14 @@ function compareOne(c: ContentContract, t: TextObject, p: ParsedTextContract, pg
     // amounts themselves, where both parses support a comparison; where they don't, no claim is made
     // (first run's structural "goldenText ⇒ reshape" alarm was investigated and found wrong — curated
     // contracts legitimately declare multiply beside written-out gilded text).
-    if (t.goldenText && c.gildedDelta.kind === 'multiply') {
-      const factor = c.gildedDelta.factor;
+    // The declared shape decides which printed-number relation (if any) the golden text must satisfy —
+    // the owner's 2026-08-28 vocabulary: 'multiply' ×factor, 'extra-proc' ×(1 + extra) (Gemstorm prints its
+    // extra proc as a doubled Ruby count), 'gilded-token' / 'reshape' / 'not-applicable' state no relation.
+    const printedFactor = c.gildedDelta.kind === 'multiply'
+      ? c.gildedDelta.factor
+      : c.gildedDelta.kind === 'extra-proc' ? 1 + c.gildedDelta.extra : null;
+    if (t.goldenText && printedFactor !== null) {
+      const factor = printedFactor;
       const plainPair = p.effects.find((e) => e.kind === 'stat-buff')?.amount;
       const goldPair = pg?.effects.find((e) => e.kind === 'stat-buff')?.amount;
       if (plainPair && goldPair && p.fullyParsed && pg?.fullyParsed) {
@@ -194,6 +200,25 @@ function compareOne(c: ContentContract, t: TextObject, p: ParsedTextContract, pg
     if (!t.goldenText && c.gildedDelta.kind === 'reshape' && t.contentType !== 'spell') {
       mism('missing-gilded-delta', 'authored gilded text (contract: reshape)', 'no goldenText on the def',
         'the contract claims a shape-changing gild but the card carries no authored gilded text');
+    }
+    // 'not-applicable' (R-GILD-02 — owner 2026-08-28: "spells cannot be gilded") is a claim the printed
+    // text can contradict: an object that can never BE gilded must not carry an authored gilded body.
+    if (t.goldenText && c.gildedDelta.kind === 'not-applicable') {
+      mism('missing-gilded-delta', 'no gilded text (contract: not-applicable)', 'the def carries goldenText',
+        `the contract rules gilding inapplicable (${c.gildedDelta.reason}) but the card authors a gilded body — one of the two is wrong`);
+    }
+    // 'gilded-token': the gild changes the token's IDENTITY, not the count. The IDENTITY half is verified by
+    // the engine (contractOracle's gilded-shape driver reads the summon events' golden flag), which is a
+    // stronger check than any keyword search — a card may legitimately describe the gilded token by its
+    // stats instead of the word "Gilded" (Void Panther: "two 0/2 Void Cubs" → "two 0/4 Void Cubs"). What the
+    // TEXT can honestly own is the count: a gilded-token gild must not print a different number.
+    if (t.goldenText && c.gildedDelta.kind === 'gilded-token') {
+      const plainS = p.effects.find((e) => e.kind === 'summon' && e.refId);
+      const goldS = pg?.effects.find((e) => e.kind === 'summon' && e.refId);
+      if (plainS?.summonCount !== undefined && goldS?.summonCount !== undefined && goldS.summonCount !== plainS.summonCount) {
+        mism('wrong-summon-count', `gilded ${plainS.summonCount} (unchanged — 'gilded-token')`, `gilded text prints ${goldS.summonCount}`,
+          'a gilded-token gild changes the token\'s identity, not the count — but the gilded text prints a different number');
+      }
     }
     const gildedSummon = summonClaims.find((s) => s.count.gilded !== undefined);
     const goldSummon = pg?.effects.find((e) => e.kind === 'summon' && e.refId);

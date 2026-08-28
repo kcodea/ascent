@@ -230,6 +230,35 @@ describe('interaction questions (pendingInteractions.generated.ts) — the Sitti
   });
 });
 
+describe('the four gilding REVISE decisions survive regeneration (owner 2026-08-28)', () => {
+  const REVISED = ['q-conv-family-avenge', 'q-conv-family-castPayoff', 'q-conv-family-echo', 'q-conv-family-spellCast'];
+
+  it('each decision is still on file, still a revise, still carrying the owner\'s wording', () => {
+    for (const id of REVISED) {
+      const d = DECISIONS[id];
+      expect(d, `${id}: the owner's ruling was lost by a reseed — seed hygiene must carry decisions across regeneration`).toBeTruthy();
+      expect(d!.decision).toBe('revise');
+      expect((d!.note ?? '').trim().length, `${id}: a revise must carry the owner's wording`).toBeGreaterThan(0);
+    }
+  });
+
+  it('each revised card is still on the board and still names the rule the owner gave', () => {
+    for (const id of REVISED) {
+      const card = CONVENTION_PENDING.find((r) => r.id === id);
+      expect(card, `${id}: a decided card must not be tombstoned by regeneration`).toBeTruthy();
+      expect(AUTO_RETIRED_IDS.has(id), `${id} was auto-retired despite carrying an owner decision`).toBe(false);
+      // The regenerated statement must state the owner's ACTUAL gilding rule, not the retired flat claim.
+      expect(card!.statement, `${id} still asserts the flat "gilding doubles their numbers" claim the owner revised`)
+        .not.toMatch(/gilding doubles their numbers/i);
+    }
+    // The two families whose outliers the owner NAMED say so; the spell family says spells never gild.
+    expect(CONVENTION_PENDING.find((r) => r.id === 'q-conv-family-avenge')!.statement).toMatch(/gilded token|proc/i);
+    expect(CONVENTION_PENDING.find((r) => r.id === 'q-conv-family-echo')!.statement).toMatch(/gilded token/i);
+    expect(CONVENTION_PENDING.find((r) => r.id === 'q-conv-family-castPayoff')!.statement).toMatch(/Mykel/);
+    expect(CONVENTION_PENDING.find((r) => r.id === 'q-conv-family-spellCast')!.statement).toMatch(/never gild/i);
+  });
+});
+
 describe('the fly-through bar — Sitting cards stay readable in 2-5 seconds (owner 2026-08-27)', () => {
   const words = (statement: string): number =>
     (statement.split('—')[0] ?? statement).trim().split(/\s+/).filter(Boolean).length;

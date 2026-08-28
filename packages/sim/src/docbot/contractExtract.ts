@@ -45,6 +45,207 @@ const SUMMON_FACTORIES = new Set(['deathrattleSummon', 'battlecrySummon', 'onFri
 
 const sortByContentId = (a: ContentContract, b: ContentContract): number => (a.contentId < b.contentId ? -1 : 1);
 
+// ── gilded-shape derivation (owner rulings 2026-08-28) ────────────────────────────────────────────────────
+//
+// The owner's rule: DOUBLING THE OUTPUT IS THE SAFE BASELINE, with three sanctioned outlier shapes
+// (gilded-token, reshape, extra-proc) and one inapplicability (spells are never gilded). The extractor
+// DERIVES the shape where the defs actually say it and refuses to guess where they don't:
+//
+//   1. spell / Ruby            → 'not-applicable'  (R-GILD-02; `checkTriples` skips both — engine-confirmed)
+//   2. noTriple                → 'none'            (the card never combines into a golden at all)
+//   3. an owner ruling names it → that shape       (GILD_SHAPE_RULINGS, basis 'owner-ruling')
+//   4. `goldenTokens` param    → 'gilded-token'    (the factory gilds the token it summons — Void Panther,
+//                                                   T-Rex, Chicken Brawl; the strongest signal there is)
+//   5. no goldenText           → 'multiply' ×2     (the baseline, basis 'derived:default')
+//   6. goldenText that names "Gilded/Golden <X>" the plain text does not → 'gilded-token' (Dunkey, Muster General)
+//   7. goldenText whose NUMBER SKELETON matches the plain text and whose numbers are each ×1 or ×2, with at
+//      least one doubled → 'multiply' ×2 (the authored text merely WRITES OUT the doubling — wolvesden)
+//   8. goldenText with a different skeleton → 'reshape' (the authored text IS the statement of the gilded
+//      form; the checker reads it from CARD_INDEX at check time — friction 9 forbids storing the string)
+//   9. anything else (skeleton matches but the numbers are neither equal nor doubled) → UNRESOLVED:
+//      kind 'other', basis 'unresolved', and 'gildedDelta.shape' pushed onto extraction.unparsed. Never a
+//      guessed shape, never a silent pass (§4.3).
+//
+// 'extra-proc' is DELIBERATELY NOT derivable: an extra resolution and a doubled printed number are the same
+// text. It enters only through an owner ruling (step 3).
+
+/** Shapes the OWNER named directly. Each carries the ruling verbatim, because no text/param diff can produce
+ *  it — the printed diff for an extra proc is identical to the printed diff for a doubled number. */
+const GILD_SHAPE_RULINGS: Readonly<Record<string, GildedDeltaContract>> = {
+  k_gemstorm: {
+    kind: 'extra-proc',
+    extra: 1,
+    basis: 'owner-ruling',
+    goldenTextSource: 'index:goldenText',
+    description: 'owner ruling 2026-08-28 (q-conv-family-avenge): "gilded gemstorm instigator would proc an '
+      + 'additional time (double its rubies)" — one EXTRA resolution of the same 2-Ruby payload, which the '
+      + 'gilded text prints as 4 Rubies',
+  },
+  dw_brisbane: {
+    kind: 'reshape',
+    basis: 'owner-ruling',
+    goldenTextSource: 'index:goldenText',
+    description: 'owner ruling 2026-08-28 (q-conv-family-castPayoff): "high king mykel goes from 1 adjacent '
+      + 'to both adjacent minions" — the gild changes the SHAPE of the target set, not a printed number',
+  },
+  dw_baal: {
+    kind: 'multiply',
+    factor: 2,
+    basis: 'owner-ruling',
+    goldenTextSource: 'index:goldenText',
+    description: 'owner ruling 2026-08-28 (q-conv-family-castPayoff): "gilded baal doubles its consume '
+      + 'quantity" — the baseline ×2, named by the owner as the contrast case to Mykel\'s reshape',
+  },
+};
+
+const plainText = (s: string | undefined): string => (s ?? '').replace(/\*\*/g, '');
+/** The text with every run of digits replaced — two texts share a skeleton when only their NUMBERS differ. */
+const numberSkeleton = (s: string | undefined): string => plainText(s).replace(/\d+/g, '#');
+const numbersOf = (s: string | undefined): number[] => (plainText(s).match(/\d+/g) ?? []).map(Number);
+
+/** The "Gilded <X>" / "Golden <X>" the gilded text introduces and the plain text does not, resolved to a
+ *  card id off the effects' own token refs (never a guess from a bare name). */
+function gildedTokenIntroduced(def: CardDef): string | null {
+  const gold = plainText(def.goldenText);
+  const plain = plainText(def.text);
+  if (!/\b(gilded|golden)\b/i.test(gold) || /\b(gilded|golden)\b/i.test(plain)) return null;
+  for (const e of def.effects) {
+    const p = e.params as Record<string, unknown> | undefined;
+    for (const key of ['tokenId', 'cardId']) {
+      const ref = p?.[key];
+      if (typeof ref === 'string' && CARD_INDEX[ref]) return ref;
+    }
+  }
+  return null;
+}
+
+/** Factories whose summon COUNT is structurally pinned regardless of gilding — the overflow shape summons a
+ *  board-filling number and pays the remainder as stats, so the gild moves the stats, never the count.
+ *  Engine-measured 2026-08-28: plain and gilded Nanon both summon 5 Nanobots. */
+const COUNT_PINNED_FACTORIES = new Set(['deathrattleSummonOverflowBuff']);
+
+/** Does this effect's summon count stay put when the body is gilded? `fixed` pins it, `goldenTokens` gilds
+ *  the token INSTEAD of doubling it, and the overflow factory pins it structurally. */
+const countIsPinned = (doId: string, p: Record<string, unknown> | undefined): boolean =>
+  p?.fixed === true || p?.goldenTokens === true || COUNT_PINNED_FACTORIES.has(doId);
+
+/** The gilded-token signal the FACTORY carries: `goldenTokens` gilds the summoned token instead of doubling
+ *  the count (arena.ts `summonTokens`). Returns the token id + its pinned count. */
+function goldenTokensEffect(def: CardDef): { cardId: string; count: number } | null {
+  for (const e of def.effects) {
+    const p = e.params as Record<string, unknown> | undefined;
+    if (p?.goldenTokens === true && typeof p.tokenId === 'string' && CARD_INDEX[p.tokenId]) {
+      return { cardId: p.tokenId, count: typeof p.count === 'number' ? p.count : 1 };
+    }
+  }
+  return null;
+}
+
+/** A summon whose count is pinned while the rest of the body's numbers may still double — the PARTIAL gild
+ *  (Amun Rab: 7 Imps stay 7 while +5/+5 becomes +10/+10). No single factor describes such a gild. */
+function pinnedSummonEffect(def: CardDef): { cardId: string; count: number } | null {
+  for (const e of def.effects) {
+    const p = e.params as Record<string, unknown> | undefined;
+    if (!countIsPinned(e.do, p)) continue;
+    const ref = typeof p?.tokenId === 'string' ? p.tokenId : undefined;
+    if (ref && CARD_INDEX[ref]) return { cardId: ref, count: typeof p?.count === 'number' ? p.count : 1 };
+  }
+  return null;
+}
+
+/** Derive one card's gilded shape. `unparsed` is appended to when the shape cannot be resolved. */
+export function deriveGildedDelta(def: CardDef, unparsed: string[]): GildedDeltaContract {
+  const d = def as CardDef & { ruby?: boolean };
+  if (def.spell || d.ruby) {
+    return {
+      kind: 'not-applicable',
+      reason: def.spell ? 'spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)' : 'Ruby — Rubies never combine into a golden',
+      basis: 'derived:ungildable',
+      description: 'R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — '
+        + 'the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason',
+    };
+  }
+  if (def.noTriple) {
+    return { kind: 'none', basis: 'derived:ungildable', description: 'noTriple — this card never combines into a golden' };
+  }
+  const ruled = GILD_SHAPE_RULINGS[def.id];
+  if (ruled) return ruled;
+
+  const factoryToken = goldenTokensEffect(def);
+  if (factoryToken) {
+    return {
+      kind: 'gilded-token',
+      token: factoryToken,
+      basis: 'derived:token-id',
+      ...(def.goldenText ? { goldenTextSource: 'index:goldenText' as const } : {}),
+      description: `the summon factory carries goldenTokens — a gilded body summons the SAME ${factoryToken.count} × '${factoryToken.cardId}', gilded`,
+    };
+  }
+  const pinned = pinnedSummonEffect(def);
+  if (!def.goldenText) {
+    if (pinned) {
+      unparsed.push('gildedDelta.shape');
+      return {
+        kind: 'other', basis: 'unresolved',
+        description: `the summon count of '${pinned.cardId}' is pinned (fixed / overflow) so the gild is not a uniform ×2, `
+          + 'and there is no authored gilded text to state what it IS — no shape could be derived (§4.3)',
+      };
+    }
+    return { kind: 'multiply', factor: 2, basis: 'derived:default', description: 'default gilded doubling of printed numbers (the owner\'s safe baseline)' };
+  }
+  const textToken = gildedTokenIntroduced(def);
+  if (textToken) {
+    return {
+      kind: 'gilded-token',
+      token: { cardId: textToken, count: 1 },
+      basis: 'derived:token-id',
+      goldenTextSource: 'index:goldenText',
+      description: `the authored gilded text names a Gilded '${textToken}' the plain text does not — the gild changes the token's IDENTITY, not the count`,
+    };
+  }
+  if (pinned) {
+    // A PARTIAL gild: the summon count stays put while the magnitudes double (Amun Rab 7 Imps + double buff,
+    // Nanon's overflow). No single factor describes it, so the authored golden text IS the statement.
+    return {
+      kind: 'reshape', basis: 'derived:golden-text', goldenTextSource: 'index:goldenText',
+      description: `a PARTIAL gild: the ${pinned.count} × '${pinned.cardId}' summon count is pinned while the rest of the `
+        + 'printed numbers double, so no single factor describes it — the authored gilded text (read from CARD_INDEX '
+        + 'at check time) is the statement of the gilded form',
+    };
+  }
+  if (numberSkeleton(def.text) === numberSkeleton(def.goldenText)) {
+    const p = numbersOf(def.text);
+    const g = numbersOf(def.goldenText);
+    const cleanDouble = p.length === g.length && p.every((n, i) => g[i] === n || g[i] === n * 2) && p.some((n, i) => n > 0 && g[i] === n * 2);
+    if (cleanDouble) {
+      return {
+        kind: 'multiply', factor: 2, basis: 'derived:golden-text', goldenTextSource: 'index:goldenText',
+        description: 'the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers',
+      };
+    }
+    if (p.length === g.length && p.every((n, i) => g[i] === n)) {
+      // The gilded text repeats the plain body verbatim: the printed EFFECT does not change, so the only
+      // thing the gild does is the universal base-stat doubling — the baseline, restated.
+      return {
+        kind: 'multiply', factor: 2, basis: 'derived:golden-text', goldenTextSource: 'index:goldenText',
+        description: 'the authored gilded text repeats the plain body unchanged — nothing in the printed effect '
+          + 'moves, so the gild is the base-stat ×2 baseline and nothing more',
+      };
+    }
+    unparsed.push('gildedDelta.shape');
+    return {
+      kind: 'other', basis: 'unresolved', goldenTextSource: 'index:goldenText',
+      description: 'authored gilded text shares the plain text\'s sentence but its numbers are neither equal nor '
+        + 'doubled — no shape could be derived, and the extractor does not guess one (§4.3)',
+    };
+  }
+  return {
+    kind: 'reshape', basis: 'derived:golden-text', goldenTextSource: 'index:goldenText',
+    description: 'authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by '
+      + 'the text (read from CARD_INDEX at check time), not derivable as a factor',
+  };
+}
+
 /** shop/combat/both for one (trigger, factory) pair, per the phase registry (friction 7 — derived, not
  *  hand-stamped). Returns a note when the derivation is uncertain. */
 function derivePhase(on: string, doId: string, combatOnly: boolean | undefined): { phase: TriggerContract['phase']; note?: string } {
@@ -123,6 +324,10 @@ function extractCard(def: CardDef): ContentContract {
     unparsed.push(...ex.unparsed);
     if (e.align) unparsed.push(`${e.do}.align:${e.align}`);
     const summonable = SUMMON_FACTORIES.has(e.do) && typeof params?.tokenId === 'string' && typeof params?.count === 'number';
+    // The gilded COUNT is only the plain × 2 when the gild really is a number-doubler: authored goldenText
+    // states its own gilded form, `fixed` pins the count, and `goldenTokens` gilds the token INSTEAD of
+    // doubling it (owner rulings 2026-08-28 — the gilded-token shape). Any of those and the count is unstated.
+    const countDoubles = !def.goldenText && !countIsPinned(e.do, params);
     effects.push({
       kind: e.do,
       ...(ex.amount ? { amount: ex.amount } : {}),
@@ -131,18 +336,14 @@ function extractCard(def: CardDef): ContentContract {
         ? {
             summons: {
               cardId: params!.tokenId as string,
-              count: { plain: params!.count as number, ...(def.goldenText ? {} : { gilded: (params!.count as number) * 2 }) },
+              count: { plain: params!.count as number, ...(countDoubles ? { gilded: (params!.count as number) * 2 } : {}) },
             },
           }
         : {}),
     });
   }
 
-  const gildedDelta: GildedDeltaContract = def.noTriple
-    ? { kind: 'none', description: 'noTriple — this card never combines into a golden' }
-    : def.goldenText
-      ? { kind: 'reshape', description: 'authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor' }
-      : { kind: 'multiply', factor: 2, description: 'default gilded doubling of printed numbers' };
+  const gildedDelta: GildedDeltaContract = deriveGildedDelta(def, unparsed);
 
   const setIds = (Object.values(SETS) as { id: string; own: readonly CardDef[] }[])
     .filter((s) => s.own.some((c) => c.id === def.id)).map((s) => s.id).sort();

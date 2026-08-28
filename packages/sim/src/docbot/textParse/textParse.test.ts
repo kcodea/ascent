@@ -23,7 +23,8 @@ import { parseObjectText } from './parser';
 import { textObjectOf } from './corpus';
 import { KNOWN_TEXT_MISMATCH, runTextSweep, TEXT_EXCEPTIONS } from './classify';
 import { runRewriteAdvisor } from './rewriteAdvisor';
-import { buildWordingQuestions } from './wordingQuestions';
+import { buildWordingQuestions, wordingCorpus } from './wordingQuestions';
+import { AURA_TARGET_RE, RETIRED_SCOPE_TAIL_RE } from './lexicon';
 import { IMPLEMENTED_TAXONOMY } from './types';
 
 const CONTRACTS = allContracts();
@@ -133,6 +134,79 @@ describe('parser — grammar spot checks over real printed text', () => {
     const p = parseObjectText('Rotate the shop widdershins under a full moon.');
     expect(p.fullyParsed).toBe(false);
     expect(p.unresolvedPhrases[0]?.text).toContain('widdershins');
+  });
+});
+
+/**
+ * THE AURA VOCABULARY (owner ruling 2026-08-28 — decision q-word-lg-scope-01, REVISE).
+ *
+ * The run-wide reach that used to print as "wherever they are" / "everywhere" now prints as an AURA noun:
+ * "give your Beast Aura +8/+8". Wording only — no mechanic, id or effect path moved. This lane is the
+ * grow-loudly guard: a new card cannot reintroduce a retired scope tail, and the parser must keep reading
+ * the Aura target (LG-SCOPE-01 carries the rule).
+ */
+describe('the Aura vocabulary — LG-SCOPE-01', () => {
+  const corpus = wordingCorpus();
+
+  it('NO live printed text uses a retired scope tail ("wherever they are" / "everywhere")', () => {
+    const offenders = corpus.filter((r) => RETIRED_SCOPE_TAIL_RE.test(r.text)).map((r) => `${r.id}: "${r.text}"`);
+    expect(offenders,
+      'the retired scope vocabulary is back in printed text — name the Aura instead ("your Imp Aura +4/+4"), per LG-SCOPE-01').toEqual([]);
+  });
+
+  it('the Aura noun is live, and every printed Aura rides the "your <Tribe> Aura" shape', () => {
+    const auraRows = corpus.filter((r) => /\bAura\b/.test(r.text));
+    expect(auraRows.length, 'no printed text names an Aura — the rebrand has been reverted').toBeGreaterThan(0);
+    for (const r of auraRows) {
+      expect(AURA_TARGET_RE.test(r.text), `${r.id} prints "Aura" outside the "your <Tribe> Aura" shape: "${r.text}"`).toBe(true);
+    }
+  });
+
+  it('the guide entry is the owner-approved canon with a machine-checkable predicate', () => {
+    const entry = LANGUAGE_GUIDE.find((e) => e.id === 'LG-SCOPE-01')!;
+    expect(entry.status).toBe('approved');
+    expect(entry.contested).toBeUndefined(); // settled — the advisor may now flag, the deck no longer asks
+    expect(new RegExp(entry.predicate!.deprecated).test('give your Beasts +8/+8 wherever they are')).toBe(true);
+    expect(new RegExp(entry.predicate!.deprecated).test('give your Beast Aura +8/+8')).toBe(false);
+  });
+
+  it('the settled wording pair no longer produces a Sitting-3 question (it self-retired)', () => {
+    expect(buildWordingQuestions().map((q) => q.id)).not.toContain('q-word-lg-scope-01');
+  });
+
+  it('the parser reads an Aura target: trigger, scope and amount all resolve', () => {
+    const p = parseObjectText('**Echo:** give your **Beast Aura** **+8/+8**.');
+    expect(p.fullyParsed).toBe(true);
+    expect(p.triggers[0]).toMatchObject({ event: 'onDeath', display: 'Echo' });
+    expect(p.effects[0]).toMatchObject({ kind: 'stat-buff', verb: 'give', amount: { attack: 8, health: 8 } });
+    expect(p.effects[0]?.target).toMatchObject({ cardinality: 'all', scope: 'your-beast-aura', friendly: true });
+  });
+
+  it('the parser reads the Attack-only and "improve … by" Aura shapes', () => {
+    const atk = parseObjectText('**Battlecry:** Give your **Undead Aura** **+1 Attack**.');
+    expect(atk.fullyParsed).toBe(true);
+    expect(atk.effects[0]).toMatchObject({ kind: 'stat-buff', amount: { attack: 1, health: 0 } });
+    expect(atk.effects[0]?.target).toMatchObject({ scope: 'your-undead-aura' });
+
+    const imp = parseObjectText('**Avenge (3):** improve your **Imp Aura** by **+6/+6**.');
+    expect(imp.fullyParsed).toBe(true);
+    expect(imp.effects[0]).toMatchObject({ kind: 'stat-buff', verb: 'improve', amount: { attack: 6, health: 6 } });
+    expect(imp.effects[0]?.target).toMatchObject({ scope: 'your-imp-aura' });
+  });
+
+  it('the rewritten cards kept their exact magnitudes (wording only — zero mechanical change)', () => {
+    // The 2026-08-28 rebrand carriers, with the numbers they printed before it.
+    const magnitudes: Record<string, number[]> = {
+      kennel: [1, 4], grim: [8, 8], trophystalker: [5, 5, 5, 5],
+      deathswarmer: [1], forsakenweaver: [4], lanternofsouls: [3],
+      scrapherald: [2, 2], chorusengine: [4, 4, 2], b2_armadiyo: [2, 4],
+      rune_summoning: [2, 2], rune_cinder_ledger: [3, 6, 6],
+    };
+    for (const [id, nums] of Object.entries(magnitudes)) {
+      const row = corpus.find((r) => r.id === id);
+      expect(row, `${id} vanished from the printed corpus`).toBeTruthy();
+      expect((row!.text.match(/\d+/g) ?? []).map(Number), `${id}'s printed numbers moved — this was a wording change only`).toEqual(nums);
+    }
   });
 });
 

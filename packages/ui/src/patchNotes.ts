@@ -55,6 +55,22 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-08-28',
+    label: 'Auras',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: 'Buffs that follow a whole tribe around — on your board, in your hand, in the shop, and onto copies you pick up later — are now called Auras. Same effects, clearer words.',
+        details: [
+          'A card that used to read "give your Beasts +8/+8 wherever they are" now reads "give your Beast Aura +8/+8".',
+          'Eleven cards and runes were re-worded: Kennelmaster, Trophy Stalker, Grim, Armadiyo, Deathswarmer, Forsaken Mage, Lantern of Souls, Attachment Mechanic, Chorus Engine, Rune of Summoning and Rune of the Cinder Ledger.',
+          'Quest rewards that grant one of these buffs read the same new way.',
+          'Nothing about what they do changed — the numbers, targets and timing are untouched.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-08-27',
     label: 'Combat Arena',
     changes: [

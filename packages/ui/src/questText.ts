@@ -197,12 +197,14 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
       if (live && n <= 0) return 'Shout-doubling spent';
       return `Your next ${n} ${n === 1 ? 'Shout triggers' : 'Shouts trigger'} twice`;
     }
+    // The Aura vocabulary (owner ruling 2026-08-28): the run-wide "wherever they are" reach now prints as
+    // "your <Tribe> Aura" — same effect, the noun carries the scope. See LG-SCOPE-01.
     case 'tribeAura':
-      return `Your ${TRIBE_PLURAL[r.tribe]} have ${statPhrase(r.attack, r.health)} wherever they are`;
+      return `Your ${TRIBE_SINGULAR[r.tribe]} Aura has ${statPhrase(r.attack, r.health)}`;
     case 'scalingTribeAura': {
       const step = r.stepHealth > 0 ? `+${r.stepAttack}/+${r.stepHealth}` : `+${r.stepAttack}`;
       const per = r.event === 'summonCombat' ? `${TRIBE_PLURAL[r.tribe]} summoned in combat` : `${TRIBE_PLURAL[r.tribe]}`;
-      return `Your ${TRIBE_PLURAL[r.tribe]} have ${statPhrase(r.attack, r.health)} wherever they are. Improve by ${step} every ${r.per} ${per}`;
+      return `Your ${TRIBE_SINGULAR[r.tribe]} Aura has ${statPhrase(r.attack, r.health)}. Improve by ${step} every ${r.per} ${per}`;
     }
     case 'recurringGrant': {
       const names = r.cards.map((id) => CARD_INDEX[id]?.name ?? 'a card');
@@ -245,7 +247,7 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
         case 'runeLastCall':
           return 'Avenge (3): get a random Dwarven Ale';
         case 'runeCinderLedger':
-          return `Avenge (3): improve your Imps by +${r.amount ?? 6}/+${r.amount ?? 6} wherever they are`;
+          return `Avenge (3): improve your Imp Aura by +${r.amount ?? 6}/+${r.amount ?? 6}`;
         case 'runeProcession':
           return "Avenge (4): double your right-most minion's stats";
         case 'runeVanguard':

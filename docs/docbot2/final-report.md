@@ -46,7 +46,7 @@ axis, with any gap visible as a typed queue entry rather than as silence.
 | **Text classification bucket** | 901 | 901 (100%) | `textParse.test.ts` — every object lands in exactly one of four buckets; an unresolved parse is a queue entry, never a pass |
 | **Contract-oracle applicability** | 901 | 901 (100%) | `contractOracle.test.ts` — every contract is planned into §10.1 case templates; every unexecuted applicable case carries a typed skip reason |
 | **Interaction-graph membership** | 901 | 901 (100%) | `interactionGraph.test.ts` — every contract is a graph node; unmapped triggers are reported as a visible to-do (29 today) |
-| **Rulebook** | 109 rules | — | `enforcement.test.ts` — every approved rule names a backing lane file that must exist on disk |
+| **Rulebook** | 108 rules | — | `enforcement.test.ts` — every approved rule names a backing lane file that must exist on disk |
 
 **The inventory itself:** 483 cards (115 spells, 81 tokens), 59 hero powers, 142 + 139 runes, 117 quests —
 901 contracted objects in total. Of those contracts, 13 are hand-authored curated ones and the rest are
@@ -92,10 +92,10 @@ Every applicable case that did not run says why. This is the §4.3 substrate; no
 
 | Bucket | Objects |
 |---|---|
-| parsed-equivalent | 358 |
+| parsed-equivalent | 364 |
 | verified-mismatch | 9 |
 | approved-exception | 0 |
-| **unresolved-parse** | 534 |
+| **unresolved-parse** | 528 |
 
 Every one of the 9 mismatches is registry-pinned with a reason (0 unpinned, 0 stale pins — both gated).
 Eight of the nine are **draft-contract gaps**, not text defects: the extractor could not parse a Choose One
@@ -106,7 +106,7 @@ plain).
 The rewrite advisor produced 4 wording recommendations against the 27-entry language guide. They are
 suggestions with `suggestedText`; nothing is ever applied to production content (§23).
 
-**534 unresolved parses is the honest headline of this section.** They are classified, queued, ratcheted
+**528 unresolved parses is the honest headline of this section.** They are classified, queued, ratcheted
 grow-loudly, and never counted as clean passes — but they are also 59% of the corpus, and the parser's
 conservatism is why the "text checked against approved mechanics" DoD item is partial.
 
@@ -146,7 +146,7 @@ machine-refreshed one; the trade-off is that the number ages until someone re-ru
 
 ## 6. Rules and the owner's queue
 
-- **109** rules total: **29** approved, 43 retired, **77** needs-ruling.
+- **108** rules total: **29** approved, 43 retired, **76** needs-ruling.
 - Approved-but-unenforced: `R-PLAY-01`, `R-AURA-01` — pinned, shrink-only.
 - Release blockers (approved rules the engine violates, visible every run, never silently green):
   `R-AVWIN-02`, `R-AVWIN-10`.
@@ -190,7 +190,7 @@ Sixteen lines, each marked with a citable artifact. **5 done · 11 partial · 0 
 | 6 | Applicable pairwise interactions are covered and reported semantically | **partial** | 93491 candidates enumerated and reported by channel; 103 covered rows, 30 blocked rows each with a typed reason. Coverage is by family, not per candidate pair |
 | 7 | High-risk triple interactions are covered | **partial** | §10.4 triples run in the same sweep; 6 of the 8 triple families are blocked with cited reasons |
 | 8 | Verified findings are deterministic, minimized, and reproducible from Scene Builder and CLI | **done** | `seedMinimize.ts` (1-minimal proof), `docbot:scenario -- <id>`, the Scene Builder QA bridge, `qaScenarioParity.test.ts`; findings carry a `reproduction` line |
-| 9 | Displayed text is checked against approved mechanics | **partial** | every object classified; 534 unresolved parses mean the parser cannot yet *check* the majority — it can only refuse to call them clean |
+| 9 | Displayed text is checked against approved mechanics | **partial** | every object classified; 528 unresolved parses mean the parser cannot yet *check* the majority — it can only refuse to call them clean |
 | 10 | Poor wording is reported separately with safe rewrite suggestions | **done** | `wording-recommendation` is its own class; `runRewriteAdvisor` emits `suggestedText`, never applies it (§23) |
 | 11 | Unruled behavior is reported as questionable rather than declared broken | **done** | the anomaly oracle caps at `questionable-interaction` by construction, with competing interpretations attached; sabotage-tested in `anomalyOracle.test.ts` |
 | 12 | Confirmed reports graduate into permanent regressions | **partial** | `bugs:graduate` + `bugTaxonomy.graduated.json` + `regressionScenarios.test.ts` are built and refusal-tested; **zero real player reports have graduated** — the loop is proven only by the synthetic walkthrough in `ci-lanes.md` |
@@ -229,7 +229,7 @@ Nothing is retired without proving the replacement catches the same class. Each 
 
 Ordered by how much they limit a confident claim. The counted ones are re-derived every run.
 
-1. **534 unresolved parses.** The majority of printed text cannot be semantically compared to its contract.
+1. **528 unresolved parses.** The majority of printed text cannot be semantically compared to its contract.
    They are visible and ratcheted, but "text is verified" is not a claim this platform can make yet.
 2. **402 contract shapes with no driver.** The single largest verification hole: applicable isolated cases
    that no generic driver can stage.
@@ -241,7 +241,7 @@ Ordered by how much they limit a confident claim. The counted ones are re-derive
 5. **No RNG decision trace.** The tap is observational by design (§23 forbids extra consumption), so "which
    choice did this roll produce" is not attributed to a decision site. Random-target bugs are caught
    differentially across seeds, never causally.
-6. **77 undecided rules.** Behaviour with no approved rule cannot be called broken — it reports as a
+6. **76 undecided rules.** Behaviour with no approved rule cannot be called broken — it reports as a
    question. A genuine bug in unruled territory will therefore look like a design question until it is ruled.
 7. **24 suppressed anomalies.** Below the confidence floor by design. That floor is noise control, and it is
    also somewhere a real question can hide.
@@ -272,7 +272,7 @@ Each is a real gap that was too large or too cross-seam to close inside WP H's P
 | **Unify `combatEventLines` (D-6)** | Move the renderer into `@game/sim`, have the CLI's `string[]` form derive from the structured form, import both from one place. Needs a coordination pass with Mike (a `packages/ui` edit) |
 | **Fold the scenario-id regex (D-3 residual)** | Three declarations, two different length bounds (80 vs 120). Export one const and have all three import it |
 | **Drive the 402 no-driver contract shapes down** | Each new driver converts `no-driver-for-shape` skips into executed cases; the skip ledger is the burn-down list, ordered by count |
-| **Shrink the 534-object unresolved-parse queue** | Grammar by grammar, ratcheted grow-loudly. The queue is ordered by content type in `npm run docbot:text` |
+| **Shrink the 528-object unresolved-parse queue** | Grammar by grammar, ratcheted grow-loudly. The queue is ordered by content type in `npm run docbot:text` |
 | **Graduate one real player report** | The single most valuable proof left: it converts DoD item 12 from partial to done and produces the first curated regression |
 | **Sabotage-proof the remaining 25 lanes** | Or record, per lane, why its failure mode is structural and a mutation test would be theatre |
 | **Combat trigger-stack parenting** | The simulate() chokepoint instrumentation WP C deferred; it is what would make DoD item 3 done |

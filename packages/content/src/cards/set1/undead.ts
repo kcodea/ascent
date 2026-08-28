@@ -115,8 +115,8 @@ export const UNDEAD: CardDef[] = [
     health: 3,
     keywords: [],
     effects: [{ on: 'onPlay', do: 'battlecryBuffUndeadAttack', params: { amount: 1 } }],
-    text: '**Battlecry:** Give your Undead **+1 Attack** wherever they are.',
-    goldenText: '**Battlecry:** Give your Undead **+2 Attack** wherever they are.',
+    text: '**Battlecry:** Give your **Undead Aura** **+1 Attack**.',
+    goldenText: '**Battlecry:** Give your **Undead Aura** **+2 Attack**.',
   },
   {
     id: 'pillager',
@@ -208,8 +208,8 @@ export const UNDEAD: CardDef[] = [
     health: 8,
     keywords: [],
     effects: [{ on: 'spellCast', do: 'spellCastBuffUndeadAttack', params: { attack: 4 } }],
-    text: 'When you cast a Shop spell, give your Undead **+4 Attack** wherever they are.',
-    goldenText: 'When you cast a Shop spell, give your Undead **+8 Attack** wherever they are.',
+    text: 'When you cast a Shop spell, give your **Undead Aura** **+4 Attack**.',
+    goldenText: 'When you cast a Shop spell, give your **Undead Aura** **+8 Attack**.',
   },
   {
     // Avenge engine: every 3rd friendly death summons a Spear Warden that attacks IMMEDIATELY (out of

@@ -54,7 +54,7 @@ describe('stewardText — Steward of Spells live copy target', () => {
 
 describe('questText — rewards', () => {
   const cases: [QuestReward, string][] = [
-    [{ kind: 'tribeAura', tribe: 'beast', attack: 3, health: 0 }, 'Your Beasts have +3 Attack wherever they are'],
+    [{ kind: 'tribeAura', tribe: 'beast', attack: 3, health: 0 }, 'Your Beast Aura has +3 Attack'],
     [{ kind: 'grant', cards: ['badgington'], grantKeywords: ['W', 'DS'] }, 'Get a Badgington with Flurry and Ward'],
     [{ kind: 'recurringGrant', cards: ['feedalpha'] }, 'End of Turn: get Feed the Alpha'],
     [{ kind: 'combatFlag', flag: 'lawOfTeeth' }, 'Beast Slaughters and Rallies trigger an extra time'],
@@ -67,7 +67,7 @@ describe('questText — rewards', () => {
 
   it('scalingTribeAura states the base grant, step, and cadence', () => {
     const r: QuestReward = { kind: 'scalingTribeAura', tribe: 'beast', attack: 3, health: 1, per: 5, event: 'summonCombat', stepAttack: 3, stepHealth: 1 };
-    expect(questRewardText(r)).toBe('Your Beasts have +3/+1 wherever they are. Improve by +3/+1 every 5 Beasts summoned in combat');
+    expect(questRewardText(r)).toBe('Your Beast Aura has +3/+1. Improve by +3/+1 every 5 Beasts summoned in combat');
   });
 
   it('impAura reads the current improvement magnitude', () => {

@@ -58,6 +58,23 @@ export function keywordNameTable(): ReadonlyArray<readonly [string, Keyword]> {
   return rows.sort((a, b) => b[0].length - a[0].length);
 }
 
+// ── settled vocabulary terms that are not keywords ───────────────────────────────────────────────────────
+
+/**
+ * AURA — the printed noun for a run-wide grant that reaches a tribe/class wherever its members sit (board,
+ * hand, Shop, and copies acquired later). Owner ruling 2026-08-28 (decision q-word-lg-scope-01, REVISE):
+ * "we want to re-brand the 'wherever they are' vocabulary to Aura's instead. i.e. Buff your Undead Army
+ * Aura +4/+1, or Buff your Imp Aura +4/+4". It is a TEXT term only — no engine identifier changed, and the
+ * pre-existing `auraFx` / combat-aura code paths are untouched.
+ *
+ * Shape: `your <Tribe-singular> Aura` ("your Beast Aura", "your Imp Aura", "your Attachment Aura"). The
+ * parser's target grammar reads it (see `targetPhrase`), and LG-SCOPE-01 carries the rule + the predicate
+ * that flags any text reintroducing a retired scope tail.
+ */
+export const AURA_TARGET_RE = /\b[Yy]our ([A-Z][\w']*) Aura\b/;
+/** The scope tails the Aura noun replaced — banned from live printed text (LG-SCOPE-01, grow-loudly). */
+export const RETIRED_SCOPE_TAIL_RE = /\bwherever (?:they are|it is)\b|\beverywhere\b/;
+
 // ── trigger lexicon (printed prefix → contract trigger event) ────────────────────────────────────────────
 
 export interface TriggerLexeme {
@@ -160,9 +177,13 @@ export const TERM_VARIANTS: readonly TermVariant[] = [
     question: 'Run-long effects say "this run" / "for the rest of the run" — never "game".',
   },
   {
-    lgId: 'LG-SCOPE-01', label: 'wherever they are vs everywhere', a: 'wherever they are', b: 'everywhere',
-    reA: /\bwherever (?:they are|it is)\b/, reB: /\beverywhere\b/,
-    question: 'Board-and-beyond grants say "wherever they are" — "everywhere" texts are updated to match.',
+    // SETTLED by owner ruling 2026-08-28 (decision q-word-lg-scope-01, REVISE): the run-wide reach is an
+    // AURA — "your Imp Aura +4/+4" — and both retired scope tails are gone from live text, so this pair
+    // produces no question (candidate B has zero corpus hits). It stays in the table as the grow-loudly
+    // watch: text that reintroduces a tail makes B non-zero and the deck asks again.
+    lgId: 'LG-SCOPE-01', label: 'Aura vs the retired scope tails', a: 'Aura', b: 'wherever they are/everywhere',
+    reA: /\bAura\b/, reB: /\bwherever (?:they are|it is)\b|\beverywhere\b/,
+    question: 'Run-wide grants name an Aura ("your Imp Aura +4/+4") — the retired scope tails are updated to match.',
   },
   {
     lgId: 'LG-VERB-01', label: 'trigger vs fire/proc', a: 'trigger', b: 'fire/proc',

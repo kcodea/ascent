@@ -197,7 +197,7 @@ describe('beat-level sequences (PR 6) — derived from events, not hardcoded eff
     // PR 11: `cardDestroyed` carries only a target, which cannot express who ate what. Inferring a crumble
     // from it would fire the choreography with no meal to fly into the eater.
     const board = run({ type: 'cardDestroyed', id: 'd', sequence: 0, step: 1, target: { zone: 'board', uid: 'f1' } } as ConsequenceEvent);
-    expect(board.cardDestroyed).toHaveBeenCalledWith('f1', 'board');
+    expect(board.cardDestroyed).toHaveBeenCalledWith('f1', 'board', undefined, undefined);
     expect(board.fodderEaten).not.toHaveBeenCalled();
   });
 

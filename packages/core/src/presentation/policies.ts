@@ -926,6 +926,10 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   // rally (Rune of Lasting Cadence's End-of-Turn dispatch). A reaction inside the rally's own beat — the
   // weld claims credit for its buffs/conjure without adding a pause, like combat folds it into the swing.
   'system:shopRally:weld': { policy: 'foldedCue', family: 'rally' },
+  // Its own beat, never folded: the death animation, the Echo it fires and a Rise return all need a real
+  // window. Folding it is exactly the bug being fixed (owner report 2026-08-28).
+  'system:destroy:shopDeath': { policy: 'ownBeat', family: 'echo' },
+  'system:destroy:shopArrival': { policy: 'ownBeat', family: 'grant' },
 };
 
 /** Look up a key; undefined = unclassified (the tripwire's failure condition). */

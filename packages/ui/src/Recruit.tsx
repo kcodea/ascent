@@ -90,6 +90,7 @@ import { getFlipConfig } from './flipConfig';
 import { getTrailConfig } from './trailConfig';
 import { cardFxScale } from './fx/cardScale';
 import { playDef, canPlayDefs } from './fx/playDef';
+import { anchorsForUnits } from './fx/combatAnchors';
 import { rubyLandHolds } from './choreo/channels/rubyLanded';
 import { captureRecruitSeqs, recruitMomentsSince, recruitSeqsOf, selfBuffMoment, shoutMoment, spellCastMoment } from './choreo/recruitMoments';
 import { runRecruitMomentCues } from './choreo/recruitCues';
@@ -112,6 +113,11 @@ gsap.registerPlugin(Flip);
 
 // A stable empty keyword-overlay map, so the End-of-Turn keyword projection has a referentially-constant idle
 // value (no new Map() each render when nothing is projected).
+/** RISE, in the shop (owner ruling 2026-08-28) — the body dies and re-forms, so it must NOT dissolve. A short
+ *  bloom marks the death; the return then arrives as an ordinary summon. Screen blend + a warm glow, the same
+ *  language the ascend flash speaks, so a re-forming body reads as a return rather than as a kill. */
+const RISE_BURST = { flashSize: 150, flashMs: 320, flashAlpha: 0.75, colorGlow: '#ffd27f', blend: 'screen' as const };
+
 const EMPTY_KW: ReadonlyMap<string, ReadonlySet<string>> = new Map();
 const EMPTY_TRANSFORMS: ReadonlyMap<string, string> = new Map();
 
@@ -4616,11 +4622,33 @@ export function Recruit() {
         playDef('ale-bubbles', { source: p, target: p }, { uids: { source: sourceUid, target: sourceUid } });
       },
       cardSummoned: () => { /* board arrivals animate through the existing summon path */ },
-      cardDestroyed: (uid, zone) => {
+      cardDestroyed: (uid, zone, cardId, rise) => {
         // A shop offer consumed on its beat (Bob Blart's End of Turn) leaves the row NOW — so the minion
         // disappears as the eater procs, not at commit (owner report 2026-08-14). The crumble choreography
         // rides the paired `fodderEaten` consequence (below); this is just the departure.
-        if (zone === 'shop' && uid) setEotConsumedUids((s) => new Set([...s, uid]));
+        if (zone === 'shop' && uid) { setEotConsumedUids((s) => new Set([...s, uid])); return; }
+        // A BOARD minion destroyed in the shop — Graverobber's meal, Funeral on Loan's borrowed body vacating
+        // after its Echo. Until 2026-08-28 nothing was emitted for this at all, so the body simply was not
+        // there once the phase committed: no window, no animation, the "immediate and janky" the owner
+        // reported. The visual vocabulary is COMBAT'S, deliberately — the same death should not read as two
+        // different events depending on which phase it happened in:
+        //   · has an Echo  → the painted skull-shatter (`pixiFx.deathrattle`),
+        //   · no Echo      → the authored `death-dissolve` def,
+        //   · rising       → NEITHER: the body re-forms, so it must not dissolve. It gets the aura burst, and
+        //                    its return rides the ordinary summon path as a fresh body.
+        if (zone !== 'board' || !uid) return;
+        const el = findEl(uid);
+        if (!el) return;
+        const r = el.getBoundingClientRect();
+        if (rise) {
+          pixiFx.flashBloom(r.left + r.width / 2, r.top + r.height / 2, RISE_BURST);
+          return;
+        }
+        const hasEcho = !!cardId && !!CARD_INDEX[cardId]?.effects?.some((e) => e.on === 'onDeath');
+        if (hasEcho) { pixiFx.deathrattle(r.left + r.width / 2, r.top + r.height / 2, r.width); return; }
+        if (!canPlayDefs()) return;
+        const a = anchorsForUnits(null, uid); // no source: the anchors fold onto the dying unit
+        if (a) playDef('death-dissolve', a, { uids: { source: null, target: uid } });
       },
       shopBuffed: () => { /* the shop climb is driven by the projection's shopStats */ },
       resourceChanged: () => { /* HUD counters read the projection */ },

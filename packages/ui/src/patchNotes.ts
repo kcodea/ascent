@@ -56,6 +56,29 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-08-28',
+    label: 'Destroy & Rise',
+    changes: [
+      {
+        category: 'Card Change',
+        text: 'Rise now works in the shop — a minion destroyed there comes back, just as it would in combat.',
+        details: [
+          'Graverobber eating a minion with Rise no longer kills it outright: it returns at its base Attack with 1 Health, its Rise spent.',
+          'Its Echo still resolves first, so if the Echo fills your board there is no room and the Rise is lost — the same rule combat uses.',
+          "Funeral on Loan is unaffected: a borrowed minion's loan ending is not a death, so Rise never keeps it on your board.",
+        ],
+      },
+      {
+        category: 'UI / Info',
+        text: 'Destroying a minion in the shop now plays out instead of happening instantly.',
+        details: [
+          'The minion shows its death, and its Echo animation if it has one, on its own beat — they used to resolve in a single frame with nothing to see.',
+          'Funeral on Loan now visibly places the borrowed minion on your board before its Echo and death play.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-08-28',
     label: 'Choose One Flow',
     changes: [
       {

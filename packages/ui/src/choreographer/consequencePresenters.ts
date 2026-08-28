@@ -39,8 +39,11 @@ export interface PresenterContext {
   cardGranted: (cardId: string, uid: string, sourceUid?: string) => void;
   /** A minion was summoned to the board. */
   cardSummoned: (cardId: string, uid: string) => void;
-  /** A card left play — Fodder eaten, a shop offer consumed. */
-  cardDestroyed: (uid: string, zone: string) => void;
+  /** A card left play — Fodder eaten, a shop offer consumed, a BOARD minion destroyed in the shop
+   *  (Graverobber, Funeral on Loan). `cardId` and `rise` let the board case pick the same death visual combat
+   *  picks: the Echo skull when the card has an onDeath effect, the authored dissolve when it does not, and
+   *  neither when the body is rising (it re-forms rather than dissolving). */
+  cardDestroyed: (uid: string, zone: string, cardId?: string, rise?: boolean) => void;
   /** A shop offer grew. */
   shopBuffed: (uid: string, attack: number, health: number) => void;
   /** A HUD resource moved (Gold, max Gold, upgrade cost). */
@@ -136,7 +139,7 @@ export const CONSEQUENCE_PRESENTERS: Record<ConsequenceEvent['type'], Consequenc
   cardDestroyed: ({ consequence: c, ctx }) => {
     if (c.type !== 'cardDestroyed') return;
     // Just the departure. The crumble rides its own `fodderEaten` consequence, which carries the meal.
-    ctx.cardDestroyed(c.target.uid ?? '', c.target.zone);
+    ctx.cardDestroyed(c.target.uid ?? '', c.target.zone, c.target.cardId, c.rise);
   },
   fodderEaten: ({ consequence: c, ctx }) => {
     if (c.type !== 'fodderEaten') return;

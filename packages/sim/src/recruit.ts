@@ -385,6 +385,13 @@ export function stampSableBond(state: RunState): void {
  * Which body is left/right-most is resolved AT THE GAIN, not stamped, so re-ordering the board mid-action is
  * honoured. `MIRRORING` is the same one-hop guard — the mirrored grant re-enters `addBuff`.
  */
+/** SHOP RISE (owner ruling 2026-08-28): uids currently being destroyed that are coming straight back. The
+ *  beat collector's departure diff reads this to flag their `cardDestroyed` with `rise`, so the UI plays the
+ *  death without treating the slot as freed. A module-local rather than run state on purpose: it must never
+ *  serialize, and it must not exist differently depending on whether presentation capture is on — which is
+ *  exactly what a RunState field cleared inside a capture-only code path would have done. */
+let RISING: Set<string> | null = null;
+
 let SPOILS: { board: BoardCard[]; mult: number } | null = null;
 let SPOILS_MIRRORING = false;
 export function stampSharedSpoils(state: RunState): void {
@@ -2061,6 +2068,72 @@ function fireRecruitDeathrattles(ctx: RecruitContext, minion: BoardCard, effects
     // multiple fires in one action (e.g. several Gravetwins on turn-open).
     ctx.state.lastEchoFires = (ctx.state.lastEchoFires ?? 0) + 1 + extra;
   }
+}
+
+/**
+ * DESTROY A MINION IN THE SHOP — the one path every shop destroy goes through, so death, Echo and Rise are
+ * always the same ritual (and always land on their own beats).
+ *
+ * Mirrors combat's death sequence (`simulate.ts`, the `rebornAvailable` block) rather than re-inventing it:
+ *
+ *   1. the body LEAVES its slot first — so the Echo's summons can fill the space it vacated,
+ *   2. the Echo fires (`fireRecruitDeathrattles`, with its Sylus/Uron/Elderhorn multipliers),
+ *   3. on-death WATCHERS are notified (owner ruling 2026-08-26: a shop destroy is a real death),
+ *   4. RISE returns the body to the RIGHT of anything the Echo summoned — at its BASE Attack (golden ×2) with
+ *      **1 Health**, shedding buffs and spending the keyword. That is the owner's Rise contract verbatim
+ *      ("it returns with 1 health and base attack before any auras or effects are added", ruling on
+ *      `q-conv-keyword-r`, 2026-08-28) and exactly what combat does.
+ *
+ * Rise in the SHOP is new (owner ruling 2026-08-28). It used to be combat-only — `rebornAvailable` is armed by
+ * combat's `instantiate` — so a Graverobber ate a Rise carrier outright. `opts.rise: false` opts a caller out:
+ * Funeral on Loan's borrowed body is not dying, its LOAN is ending, and a Rise there would let a borrowed
+ * minion stay on the board, which is the one thing that card must never do.
+ */
+export function destroyMinionInShop(
+  ctx: RecruitContext,
+  target: BoardCard,
+  opts?: { rise?: boolean },
+): void {
+  const state = ctx.state;
+  const idx = state.board.indexOf(target);
+  if (idx < 0) return;
+  const def = CARD_INDEX[target.cardId];
+  const willRise = opts?.rise !== false && target.keywords.includes('R');
+  // Tell the beat collector's departure diff this body is coming back, so the death plays without the slot
+  // reading as freed for good.
+  // Set FRESH per destroy, never cleared in a `finally`: the beat collector's departure diff runs AFTER this
+  // whole function returns (it diffs around `run()`), so clearing on the way out would hide the flag from the
+  // one reader it exists for. Each destroy resets it, so nothing can go stale.
+  RISING = willRise ? new Set([target.uid]) : null;
+  try {
+    state.board.splice(idx, 1);          // 1. it genuinely leaves — frees the slot for the Echo's summons
+    const summonedFrom = state.board.length;
+    fireRecruitDeathrattles(ctx, target); // 2. its Echo
+    fireOnFriendDeath(state, target);     // 3. watchers (a shop destroy is a real death)
+    if (!willRise) return;
+    // 4. Rise. Board cap gates it, exactly as combat's does: the Echo resolved FIRST and its summons may have
+    // taken the room, in which case the body simply does not come back.
+    if (state.board.length >= CONFIG.boardMax) return;
+    const base = def?.attack ?? target.attack;
+    const risen: BoardCard = {
+      ...target,
+      // A FRESH uid on purpose. The risen body is a new instance — base stats, printed keywords, no buffs —
+      // and, load-bearing for presentation: the departure diff reports a death by finding a uid that is no
+      // longer on the board. Reusing the uid (as combat does, where an explicit `death` event carries the
+      // signal) would mean the body never leaves as far as the diff can see, so the death would animate
+      // nowhere and we would be back to the snap this whole change removes.
+      uid: `r${state.uidSeq++}`,
+      attack: base * (target.golden ? 2 : 1),
+      health: 1,
+      // Printed keywords minus the spent Rise; granted ones are shed with the buffs.
+      keywords: (def?.keywords ?? []).filter((k) => k !== 'R'),
+      buffs: undefined,
+    };
+    // To the RIGHT of whatever the Echo summoned into the vacated space (owner ruling 2026-07-06, combat).
+    const grew = state.board.length - summonedFrom;
+    const at = Math.min(state.board.length, idx + Math.max(0, grew));
+    state.board.splice(at, 0, risen);
+  } finally { /* RISING is reset by the next destroy — see above */ }
 }
 
 /**
@@ -4920,10 +4993,20 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const target = payload.target;
     if (!target) return;
     const tier = CARD_INDEX[target.cardId]?.tier ?? 1;
-    const idx = ctx.state.board.indexOf(target);
-    if (idx >= 0) ctx.state.board.splice(idx, 1); // destroy it (frees the slot for any Deathrattle summons)
-    fireRecruitDeathrattles(ctx, target); // its Deathrattle(s) resolve out of combat, doubled by Sylus + ticked into the tally
-    fireOnFriendDeath(ctx.state, target); // owner ruling 2026-08-26: destroyed-in-shop notifies watchers too
+    // The destroy is its OWN beat: the death, the Echo it fires and any Rise are one ritual with one animation
+    // window, separate from the spell that arrives afterwards. Before this they were bare mutations inside
+    // Graverobber's Shout scope, so the body just stopped existing at commit (owner report 2026-08-28).
+    withRecruitTrigger(
+      ctx,
+      {
+        phase: 'recruit',
+        source: { kind: 'minion', id: target.cardId, uid: target.uid, side: 'player', label: CARD_INDEX[target.cardId]?.name },
+        trigger: 'onDeath',
+        policy: 'ownBeat',
+        policyKey: 'system:destroy:shopDeath',
+      },
+      () => destroyMinionInShop(ctx, target),
+    );
     const pool = poolOf(ctx.state).spells.filter((c) => c.tier === tier);
     if (pool.length === 0) return;
     const rng = makeRng(ctx.state.rngCursor);
@@ -8557,6 +8640,61 @@ export function triggerBorrowedEcho(state: RunState, card: BoardCard): void {
   fireRecruitDeathrattles(makeContext(state), card);
 }
 
+/**
+ * FUNERAL ON LOAN — the two beats a borrowed play is made of (owner report 2026-08-28: "the card should hit
+ * the board, occupy a space, and then show the death and echo animation"; it used to be one instant mutation
+ * with nothing to animate).
+ *
+ * Deliberately NOT routed through `destroyMinionInShop`, for two reasons that are both load-bearing:
+ *   · ORDER. That helper removes the body FIRST (combat's order, so the Echo's summons can fill the slot).
+ *     A borrowed body must stay ON the board while its Echo fires — positional Echoes need real neighbours
+ *     (owner report 2026-08-04: a borrowed Dawnclaw "does not trigger the adjacent shouts").
+ *   · RISE. The loan ENDING is not a death; a Rise there would let a borrowed minion stay, which is the one
+ *     thing this card must never allow.
+ *
+ * Watchers are likewise not notified, exactly as before this change — whether a loan expiry should count as a
+ * friendly death is an open design question, not something to alter while fixing presentation.
+ */
+export function withBorrowedArrival(state: RunState, card: BoardCard, at: number): void {
+  withRecruitTrigger(
+    makeContext(state),
+    {
+      phase: 'recruit',
+      source: { kind: 'minion', id: card.cardId, uid: card.uid, side: 'player', label: CARD_INDEX[card.cardId]?.name },
+      trigger: 'onPlay',
+      policy: 'ownBeat',
+      policyKey: 'system:destroy:shopArrival',
+    },
+    () => { state.board.splice(at, 0, card); },
+  );
+}
+
+/** The borrowed body's Echo and its departure — one beat, so the death animation has a window to play in. */
+export function withBorrowedDeath(state: RunState, card: BoardCard): void {
+  withRecruitTrigger(
+    makeContext(state),
+    {
+      phase: 'recruit',
+      source: { kind: 'minion', id: card.cardId, uid: card.uid, side: 'player', label: CARD_INDEX[card.cardId]?.name },
+      trigger: 'onDeath',
+      policy: 'ownBeat',
+      policyKey: 'system:destroy:shopDeath',
+    },
+    () => {
+      // It is on the board ONLY to be seen; mark it vacating so its own Echo's summons may take its slot.
+      state.vacatingUid = card.uid;
+      try {
+        triggerBorrowedEcho(state, card);
+      } finally {
+        state.vacatingUid = undefined;
+        // Find it by uid — the Echo may have summoned bodies around it and shifted the index.
+        const gone = state.board.findIndex((c) => c.uid === card.uid);
+        if (gone >= 0) state.board.splice(gone, 1);
+      }
+    },
+  );
+}
+
 /** Fire a BOARD minion's Echo in the shop, as Ossuary Rite / Deathsayer / Rune of the Reliquary do.
  *  Exported for tests: positional Echoes (Dawnclaw) need the minion to actually be on the board, which the
  *  borrowed-card path can never provide. */
@@ -10215,6 +10353,9 @@ function withRecruitTrigger(
   const rubyBefore = new Map(state.board.map((c) => [c.uid, rubyCountOf(c)]));
   const handBefore = new Set(state.hand.map((c) => c.uid));
   const boardBefore = new Set(state.board.map((c) => c.uid));
+  // Slot + cardId per uid, so a body that LEAVES can name the position it left (the projection cannot
+  // recover either once the body is off the board).
+  const slotBefore = new Map(state.board.map((c, bi) => [c.uid, { index: bi, cardId: c.cardId }]));
   const kwBefore = new Map(state.board.map((c) => [c.uid, new Set(c.keywords)]));
   const cardIdBefore = new Map(state.board.map((c) => [c.uid, c.cardId]));
   const shopBefore = new Map(state.shop.map((o) => [o.uid, offerBuyStats(state, o)]));
@@ -10265,6 +10406,24 @@ function withRecruitTrigger(
         if (boardBefore.has(c.uid)) return;
         collector.emit({ type: 'cardSummoned', target: { zone: 'board', uid: c.uid, cardId: c.cardId, side: 'player' }, cardId: c.cardId, index: bi });
       });
+      // Bodies this trigger REMOVED from the board — the departure sibling of the summon loop above, and for a
+      // long time the missing half of it. A Graverobber destroy, a Funeral on Loan body vacating after its Echo,
+      // any future destroy: all of them emitted NOTHING, so the board simply had one fewer minion when the phase
+      // committed. There was no beat to hang a death animation on, which is precisely why these read as instant
+      // and janky (owner report 2026-08-28). `index` is the slot it held; `rise` marks a body that is coming
+      // straight back, so the UI plays the death without treating the slot as freed.
+      //
+      // Fodder and eaten Shop offers are NOT caught here — they were never board minions (`fodderEaten` /
+      // `shopChanged: consumed` carry those, above), so there is no double-report.
+      for (const [uid, was] of slotBefore) {
+        if (state.board.some((c) => c.uid === uid)) continue;
+        collector.emit({
+          type: 'cardDestroyed',
+          target: { zone: 'board', uid, cardId: was.cardId, side: 'player' },
+          index: was.index,
+          ...(RISING?.has(uid) ? { rise: true } : {}),
+        });
+      }
       // Bodies this trigger TRANSFORMED IN PLACE — same uid, new cardId (Skybound Ascendant's End-of-Turn
       // tier-up). Without this the only trace of a transform in the batch was a stat delta with the NEW
       // cardId on it, so the card visibly changed only when the phase committed: the effect resolved

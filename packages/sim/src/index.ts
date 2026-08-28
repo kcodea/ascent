@@ -45,7 +45,7 @@ export { TRIGGER_PHASES, PHASE_EXCUSED, COMBAT_CASTING_FACTORIES, TRIBE_RATCHET,
 // PR 8 — coverage-guided corpus + nightly lifecycle lane (tools consume these through the public entrypoint)
 export { coverageKeysFor, buildCoverageCorpus, corpusDigest, CORPUS_CONFIG, driveTrajectory, minimizeFailure, specToScenario, scenarioRepro, violationPredicate, makeFinding, fingerprintFinding, emitFindingsJson, runNightly, nightlyReportJson, DEFAULT_NIGHTLY, type CorpusBuildResult, type CorpusEntry, type NightlyConfig, type NightlyReport, type DocbotFinding } from './docbot';
 // Doc Bot 2.0 WP B — contract extraction + triangle screening + convention clustering (tools consumers)
-export { extractAllContracts, activeContentIds, EXTRACTOR_ID, corroborateContracts, CORROBORATION_ASPECTS, buildConventionQuestions, CONVENTION_QUEUE, type ExtractionResult, type CorroborationReport, type CorroborationSources, type CorroborationDisagreement } from './docbot';
+export { extractAllContracts, activeContentIds, archivedInventory, ARCHIVED_CONTENT_TYPES, EXTRACTOR_ID, corroborateContracts, CORROBORATION_ASPECTS, buildConventionQuestions, CONVENTION_QUEUE, type ExtractionResult, type CorroborationReport, type CorroborationSources, type CorroborationDisagreement } from './docbot';
 // Doc Bot 2.0 WP D — contract verification at scale (tools consumers: docbot-contracts + nightly)
 export { runContractSweep, releaseBlockerFindings, planCases, sampleRotation, CONTRACT_LANE, type ContractSweepReport, type ContractSweepOptions, type MetamorphicCheck } from './docbot';
 // Doc Bot 2.0 WP E — text intelligence (tools consumers: docbot-text CLI + nightly)

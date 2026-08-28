@@ -21,15 +21,17 @@ describe('set 2 go-live defaults', () => {
     expect(questOfferPlan({ ...createRun(1, 'warden'), wave: 11 })).toBeNull();
   });
 
-  it('Fi and Coran get their turn-1 hero quest (rework 2026-08-21)', () => {
-    // Both powers were replaced outright: the turn-4 Errand and the turn-10 Pathfinder are gone, and each hero
-    // now opens the run on a two-option Discover from their OWN list.
-    expect(questOfferPlan({ ...createRun(1, 'fi'), wave: 1 })).toEqual({ heroQuest: 'fi' });
-    expect(questOfferPlan({ ...createRun(1, 'coran'), wave: 1 })).toEqual({ heroQuest: 'coran' });
-    // …and it is already open the moment the run exists.
-    expect(createRun(1, 'fi').questOffer).toHaveLength(2);
-    expect(createRun(1, 'coran').questOffer).toHaveLength(2);
-    // The retired waves offer nothing now.
+  it('Fi and Coran get NOTHING — the hero-quest turn is archived too (owner ruling 2026-08-28)', () => {
+    // Their 2026-08-21 rework gave each hero a turn-1 two-option Discover from its OWN list, checked ABOVE the
+    // `questsEnabled` gate so a quest-native hero kept access when the universal system was off. The 2026-08-28
+    // archive closes exactly that door: `QUESTS_ARCHIVED` short-circuits the whole plan, so the last live
+    // quest path in the game is gone.
+    expect(questOfferPlan({ ...createRun(1, 'fi'), wave: 1 })).toBeNull();
+    expect(questOfferPlan({ ...createRun(1, 'coran'), wave: 1 })).toBeNull();
+    // …and nothing is open the moment the run exists.
+    expect(createRun(1, 'fi').questOffer).toBeUndefined();
+    expect(createRun(1, 'coran').questOffer).toBeUndefined();
+    // The retired waves offer nothing either.
     expect(questOfferPlan({ ...createRun(1, 'fi'), wave: 4 })).toBeNull();
     expect(questOfferPlan({ ...createRun(1, 'coran'), wave: 10 })).toBeNull();
   });
@@ -44,37 +46,39 @@ describe('set 2 go-live defaults', () => {
   });
 });
 
-describe('quest system master switch preserves quest-native heroes', () => {
-  it('questsEnabled = false: Fi keeps turn-4, Coran keeps turn-10, universal 5/11 go dark', () => {
+describe('the quest ARCHIVE outranks the quest master switch (owner ruling 2026-08-28)', () => {
+  // These two tests used to prove the master switch's CONTRACT: `questsEnabled` turns the universal turns off
+  // while quest-NATIVE heroes keep their own access. That contract is now moot — the system is archived above
+  // the switch — but the pair is worth keeping in this shape, because it is the direct evidence that the
+  // archive is not just "the old flag, again". The old flag could never have done this job.
+
+  it('questsEnabled = false changes nothing: everything was already dark', () => {
     const prev = CONFIG.questsEnabled;
     CONFIG.questsEnabled = false;
     try {
-      // The quest-NATIVE hero powers survive the master switch — that is the whole point of checking them
-      // above the gate. Since the rework that means the turn-1 hero quest.
-      expect(questOfferPlan({ ...createRun(1, 'fi'), wave: 1 })).toEqual({ heroQuest: 'fi' });
-      expect(questOfferPlan({ ...createRun(1, 'coran'), wave: 1 })).toEqual({ heroQuest: 'coran' });
-      // …but the UNIVERSAL turns (5 & 11) are off for everyone, including Fi and Coran.
-      expect(questOfferPlan({ ...createRun(1, 'warden'), wave: 5 })).toBeNull();
-      expect(questOfferPlan({ ...createRun(1, 'warden'), wave: 11 })).toBeNull();
-      expect(questOfferPlan({ ...createRun(1, 'fi'), wave: 5 })).toBeNull();
-      expect(questOfferPlan({ ...createRun(1, 'coran'), wave: 5 })).toBeNull();
-      expect(questOfferPlan({ ...createRun(1, 'coran'), wave: 11 })).toBeNull();
+      for (const hero of ['fi', 'coran', 'warden']) {
+        for (const wave of [1, 4, 5, 10, 11]) {
+          expect(questOfferPlan({ ...createRun(1, hero), wave }), `${hero} wave ${wave}`).toBeNull();
+        }
+      }
     } finally {
       CONFIG.questsEnabled = prev;
     }
   });
 
-  it('questsEnabled = true: the universal turns are back for everyone (incl. Coran) + Coran keeps turn-10', () => {
-    // Set explicitly — since 2026-07-31 the DEFAULT is false (set 2 runs quests off), so this test arms it.
+  it('questsEnabled = TRUE cannot bring quests back — the archive sits above it', () => {
+    // The load-bearing test of the whole PR. Before the archive this flag was the only master control, and
+    // arming it restored the universal turns for everyone. It no longer can: `QUESTS_ARCHIVED` returns before
+    // the flag is ever read, so a stale config, a set-1-era replay or `pinSet1Era()` in a test file cannot
+    // reopen a quest phase.
     const prev = CONFIG.questsEnabled;
     CONFIG.questsEnabled = true;
     try {
-    expect(questOfferPlan({ ...createRun(1, 'warden'), wave: 5 })).toEqual({ bucket: 5 });
-    expect(questOfferPlan({ ...createRun(1, 'warden'), wave: 11 })).toEqual({ bucket: 11 });
-    // Coran runs the universal 5 & 11 like everyone else, ON TOP of his turn-1 hero quest.
-    expect(questOfferPlan({ ...createRun(1, 'coran'), wave: 1 })).toEqual({ heroQuest: 'coran' });
-    expect(questOfferPlan({ ...createRun(1, 'coran'), wave: 5 })).toEqual({ bucket: 5 });
-    expect(questOfferPlan({ ...createRun(1, 'coran'), wave: 11 })).toEqual({ bucket: 11 });
+      expect(questOfferPlan({ ...createRun(1, 'warden'), wave: 5 })).toBeNull();
+      expect(questOfferPlan({ ...createRun(1, 'warden'), wave: 11 })).toBeNull();
+      expect(questOfferPlan({ ...createRun(1, 'coran'), wave: 1 })).toBeNull();
+      expect(questOfferPlan({ ...createRun(1, 'coran'), wave: 5 })).toBeNull();
+      expect(questOfferPlan({ ...createRun(1, 'coran'), wave: 11 })).toBeNull();
     } finally {
       CONFIG.questsEnabled = prev;
     }

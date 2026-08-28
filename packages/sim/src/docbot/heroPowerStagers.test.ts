@@ -21,12 +21,12 @@ import { describe, expect, it } from 'vitest';
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { CARD_INDEX, RUNE_INDEX } from '@game/content';
-import { HEROES, getHero, gildCopiesNeeded } from '../heroes';
+import { HEROES, getHero, gildCopiesNeeded, playableHeroes, practiceHeroes, powerDiscoverPool } from '../heroes';
 import { createRun, serialize, deserialize, type BoardCard, type RunState } from '../state';
 import { reduce } from '../reducer';
 import { commissionOffer, COMMISSION_DELAY, hasBattlecry } from '../recruit';
 import { heroScan } from './heroScan';
-import { FALL_THROUGH_PASSIVE_COVERAGE, POWER_FAMILY, SILENT_QUEUE_VERDICTS } from './heroPowerFamilies';
+import { ARCHIVED_POWER_KINDS, FALL_THROUGH_PASSIVE_COVERAGE, POWER_FAMILY, SILENT_QUEUE_VERDICTS } from './heroPowerFamilies';
 
 type Act = Parameters<typeof reduce>[1];
 
@@ -147,18 +147,34 @@ describe('start-of-run stagers', () => {
     expect(reduce(reached, { type: 'play', uid: 'h1', toIndex: 0 } as Act).board.some((c) => c.cardId === 'pup')).toBe(true);
   });
 
+  // ARCHIVED 2026-08-28 (owner). Fi and Coran used to be staged here by driving their turn-1 offer to a pick
+  // and a first step of progress. The quest system is archived, so the stager's JOB changed rather than
+  // vanishing: it now proves the archive holds. That is the honest replacement — the silent-queue verdict
+  // still says 'stager', and a stager still runs.
   for (const hero of ['fi', 'coran']) {
-    it(`${hero} (heroQuest): the run opens on a two-option quest offer from the hero's own list, and the pick goes live`, () => {
+    it(`${hero} (heroQuest): ARCHIVED — the run opens on no quest offer, and the hero reaches no picker`, () => {
       const s0 = createRun(7, hero);
-      expect(s0.questOffer).toHaveLength(2);
-      const s1 = reduce(s0, { type: 'buyQuest', index: 0 } as Act);
-      expect(s1.activeQuests?.[0]?.questId).toBe(s0.questOffer![0]);
-      // Progress moves through the real journey counter: playing a minion is one step.
-      const s2: RunState = { ...s1, embers: 10, board: [], hand: [m('h1', 'pup')] };
-      const s3 = reduce(s2, { type: 'play', uid: 'h1', toIndex: 0 } as Act);
-      expect(s3.activeQuests![0]!.progress).toBe((s1.activeQuests![0]!.progress ?? 0) + 1);
+      expect(s0.questOffer, `${hero} minted a quest offer at run creation — the archive gate leaked`).toBeFalsy();
+      expect(s0.activeQuests ?? [], `${hero} opened holding a quest`).toEqual([]);
+      // The def stays resolvable (old saves + replays), but it is out of Play, out of Practice, and out of
+      // every hero-power Discover pool.
+      const def = HEROES.find((h) => h.id === hero);
+      expect(def, `${hero}'s def must stay in HEROES so saves and replays resolve it`).toBeTruthy();
+      expect(def!.wip, `${hero} must be wip — that is what removes it from every picker`).toBe(true);
+      expect(playableHeroes().map((h) => h.id)).not.toContain(hero);
+      expect(practiceHeroes().map((h) => h.id)).not.toContain(hero);
+      expect(powerDiscoverPool('mimic')).not.toContain(hero);
+      expect(powerDiscoverPool('void')).not.toContain(hero);
     });
   }
+
+  it('every ARCHIVED power kind is wielded only by wip heroes — an archived power cannot reach a picker', () => {
+    for (const h of HEROES) {
+      if (!ARCHIVED_POWER_KINDS.has(h.power.kind)) continue;
+      expect(h.wip, `${h.id} wields the ARCHIVED kind '${h.power.kind}' but is not wip — it can still be picked.`)
+        .toBe(true);
+    }
+  });
 });
 
 // ── every-n-turns ────────────────────────────────────────────────────────────────────────────────────────

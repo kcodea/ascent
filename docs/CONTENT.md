@@ -33,7 +33,12 @@ console.log('set2 buyable:', poolFor('set2').buyable.length);"
 - **Runes** — `packages/content/src/runes.ts` (`RUNES`, `EPIC_RUNES`, `ARCHIVED_RUNES`). Pool membership is
   **array membership**, not the `epic` flag — that flag is only the card's kicker. A `sets: [...]` field gates
   a rune to particular sets; omit it for "every set".
-- **Quests** — `packages/content/src/quests.ts` (`QUEST_DEFS`), same `sets` gating.
+- **Quests** — `packages/content/src/quests.ts` (`QUEST_DEFS`), same `sets` gating. ⚠️ **The quest SYSTEM is
+  ARCHIVED** (owner 2026-08-28, `QUESTS_ARCHIVED`): the defs are all still here, still validated and still
+  resolvable by id, but no quest can be offered in play. Counted in this file's totals as content, and
+  labelled `archived` in the Doc Bot report. See `docs/GAME-RULES.md`.
+- **Henchmen** — `packages/content/src/cards/henchmen.ts` (`HENCHMEN`). ⚠️ **Also ARCHIVED** (owner
+  2026-08-28, `HENCHMEN_ARCHIVED`) — resolvable, never offered.
 - **Heroes** — `packages/sim/src/heroes.ts` (`HEROES`).
 - **Global id→def resolution** — `CARD_INDEX` is global by design, so an out-of-set card granted by a rune
   still resolves. Draw pools come from the run's pinned set via `poolOf(state)` / `poolFor(setId)`.

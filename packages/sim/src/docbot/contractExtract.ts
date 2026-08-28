@@ -323,6 +323,41 @@ export function extractAllContracts(): ExtractionResult {
   return { contracts, curatedSkipped, inventory };
 }
 
+/**
+ * ARCHIVED CONTENT CLASSES (owner ruling 2026-08-28) — whole `contentType`s whose system is switched off.
+ *
+ * The point of naming them here is HONESTY, not exemption. An archived class keeps its contracts: they stay
+ * extracted, stay in the committed registry, stay counted by the WP B inventory gate and stay swept by the
+ * text/oracle lanes. What changes is only that the report SAYS SO — `archivedInventory()` below feeds an
+ * `archived:` line into the Doc Bot report so 117 quest contracts and 1 henchman contract are visibly
+ * accounted for as inactive content rather than silently read as live coverage.
+ *
+ * This is the opposite of how `ARCHIVED_CARDS` is handled two functions up, and deliberately so. An archived
+ * CARD leaves the inventory because its def is moved out of every pool AND out of `ALL_CARDS`' active half,
+ * so demanding a contract for it would be demanding coverage of something that no longer exists in the
+ * content model. An archived quest/henchman is still fully present in `QUEST_DEFS` / `HENCHMEN` and still
+ * fully resolvable — only its OFFER producer is gated (`QUESTS_ARCHIVED` / `HENCHMEN_ARCHIVED`, config.ts).
+ * Dropping those 118 contracts would delete real, still-true coverage and quietly shrink every headline
+ * number in the report. So: counted, and labelled.
+ */
+export const ARCHIVED_CONTENT_TYPES: ReadonlySet<ContractContentType> = new Set<ContractContentType>([
+  'quest', // the quest system — archived 2026-08-28, see QUESTS_ARCHIVED
+  'henchman', // the henchman system — archived 2026-08-28, see HENCHMEN_ARCHIVED
+]);
+
+/** Per-class counts of contracts belonging to an ARCHIVED content class, plus their total. Reported, never
+ *  subtracted — see `ARCHIVED_CONTENT_TYPES`. */
+export function archivedInventory(contracts: readonly ContentContract[]): { byType: Record<string, number>; total: number } {
+  const byType: Record<string, number> = {};
+  let total = 0;
+  for (const c of contracts) {
+    if (!ARCHIVED_CONTENT_TYPES.has(c.contentType)) continue;
+    byType[c.contentType] = (byType[c.contentType] ?? 0) + 1;
+    total++;
+  }
+  return { byType, total };
+}
+
 /** The active-object inventory the WP B exit gate counts: every id that must hold a contract. */
 export function activeContentIds(): string[] {
   const archived = new Set(ARCHIVED_CARDS.map((c) => c.id));

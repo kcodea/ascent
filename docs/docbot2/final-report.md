@@ -52,6 +52,15 @@ axis, with any gap visible as a typed queue entry rather than as silence.
 901 contracted objects in total. Of those contracts, 13 are hand-authored curated ones and the rest are
 extractor drafts, visibly `reviewStatus: 'extracted'` (§4.2 — a machine guess is never silently intent).
 
+**Of those 901, 118 cover ARCHIVED content classes** — 117 quests and 1 henchman, both systems switched off by
+the owner's 2026-08-28 ruling. They are counted here deliberately rather than quietly dropped. Archiving a
+whole content class is precisely the move that can make coverage evaporate unnoticed, so the archived total is
+a headline number on the doc-drift rail: it must appear in this document, and the gate fails the moment it
+moves. The contracts stay extracted, stay inside the WP B inventory gate and stay swept by the oracle and text
+lanes — what is inactive is the CONTENT, not the coverage. The quest-reward lane in particular still runs in
+full, because `devGrant` is deliberately left ungated and every RUNE in the game pays out through the same
+`applyQuestReward` engine those 117 contracts describe. See `ARCHIVED_CONTENT_TYPES` in `contractExtract.ts`.
+
 ### 2.1 The honest reading of "100% contract coverage"
 
 100% coverage means every object **has** a contract. It does not mean every contract is **verified**, and

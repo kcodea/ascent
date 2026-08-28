@@ -10646,7 +10646,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "activation:start-of-run",
       "power-kind:heroQuest",
       "passive",
-      "practice-only"
+      "wip"
     ],
     "triggers": [
       {
@@ -10879,7 +10879,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "activation:start-of-run",
       "power-kind:heroQuest",
       "passive",
-      "practice-only"
+      "wip"
     ],
     "triggers": [
       {

@@ -277,24 +277,17 @@ describe('New heroes — Coran (Pathfinder) + Jenkins (Dynamite Dig)', () => {
     lastCombat: { events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] } },
   });
 
-  it('Coran: gets the normal turn-5 quest (he now runs the universal turns too)', () => {
-    const s = reduce(atCombat('coran', 4), { type: 'resolveCombat' }); // → turn 5
-    expect(s.wave).toBe(5);
-    expect(s.questOffer?.length).toBeGreaterThan(0);
-    expect(s.questOffer!.every((id) => questBucketFor(QUEST_INDEX[id]!) === 5)).toBe(true);
-  });
-  it('Coran: Pathfinder is a TWO-option hero quest on turn 1 (rework 2026-08-21)', () => {
-    // Was a bonus turn-10 Capstone offer; the owner replaced the power outright with his own quest list.
-    const s = createRun(1, 'coran');
-    expect(s.questOffer).toHaveLength(2);
-    expect(s.questOffer!.every((id) => QUEST_INDEX[id]!.heroQuest === 'coran')).toBe(true);
-  });
-  it('Coran: still gets the normal turn-11 quest', () => {
-    // Clear the turn-1 hero offer first — a live modal blocks every action, the turn advance included.
-    const s = reduce({ ...atCombat('coran', 10), questOffer: undefined }, { type: 'resolveCombat' }); // → turn 11
-    expect(s.wave).toBe(11);
-    expect(s.questOffer?.length).toBeGreaterThan(0);
-    expect(s.questOffer!.every((id) => questBucketFor(QUEST_INDEX[id]!) === 11)).toBe(true);
+  // ARCHIVED 2026-08-28 (owner ruling). Coran had three quest paths — his own turn-1 Pathfinder offer plus the
+  // universal turn-5 and turn-11 turns — and all three are now dark. One test replaces the three, because the
+  // point is no longer which offer arrives when, but that NONE of them can.
+  it('Coran: ARCHIVED — no turn-1 Pathfinder offer, and no universal turn-5 or turn-11 quest either', () => {
+    expect(createRun(1, 'coran').questOffer, 'the turn-1 hero offer').toBeUndefined();
+    for (const from of [4, 10]) {
+      const s = reduce(atCombat('coran', from), { type: 'resolveCombat' });
+      expect(s.wave).toBe(from + 1);
+      expect(s.questOffer, `advancing into wave ${from + 1} opened a quest`).toBeUndefined();
+      expect(s.activeQuests ?? []).toEqual([]);
+    }
   });
 
   it('Jensen: Dynamite Dig opens a tier Discover FREE the first time, and the cost climbs each use', () => {
@@ -986,19 +979,18 @@ describe('The Epic Runeforge — the greater quest that opens the Epic Runeforge
     expect(s.runeforgeEpic).toBeFalsy(); // the BASIC forge
   });
 
-  it('sequences behind a quest-offer turn: the Quest shows first, then buying it opens the Epic forge SAME turn', () => {
+  it('no longer queues behind a quest on turn 11 — the Epic forge opens IMMEDIATELY (quests archived)', () => {
+    // Turn 11 used to be a quest turn, and the modal chain gave the Quest priority: the forge waited, armed,
+    // until the quest was bought. With quests archived there is nothing in front of it, so the forge must open
+    // on arrival. This is the regression that matters here — an armed `pendingEpicRuneforge` waiting behind a
+    // modal that can never appear would strand the rune the player was owed.
     const s: RunState = { ...createRun(1, 'soren'), wave: 10, phase: 'combat', pendingEpicRuneforge: true, lastCombat: win };
-    const atQuest = reduce(s, { type: 'resolveCombat' }); // → turn 11, a quest turn
-    expect(atQuest.wave).toBe(11);
-    expect(atQuest.questOffer?.length).toBeGreaterThan(0); // the quest shop takes priority…
-    expect(atQuest.runeforgeOffer).toBeUndefined(); // …the forge waits behind it…
-    expect(atQuest.pendingEpicRuneforge).toBe(true); // …still armed
-    // Buying the quest drains the queue → the Epic forge opens on the SAME turn (Quest > Runeforge).
-    const afterBuy = reduce(atQuest, { type: 'buyQuest', index: 0 });
-    expect(afterBuy.questOffer).toBeUndefined();
-    expect(afterBuy.runeforgeEpic).toBe(true);
-    expect(afterBuy.runeforgeOffer!.length).toBe(Math.min(4, EPIC_RUNES.length));
-    expect(afterBuy.pendingEpicRuneforge).toBe(false); // now disarmed
+    const t11 = reduce(s, { type: 'resolveCombat' }); // → turn 11
+    expect(t11.wave).toBe(11);
+    expect(t11.questOffer, 'turn 11 is an ordinary shop turn now').toBeUndefined();
+    expect(t11.runeforgeEpic).toBe(true);
+    expect(t11.runeforgeOffer!.length).toBe(Math.min(4, EPIC_RUNES.length));
+    expect(t11.pendingEpicRuneforge).toBe(false); // consumed on arrival, not left armed
   });
 });
 

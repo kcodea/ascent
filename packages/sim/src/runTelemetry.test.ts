@@ -129,7 +129,10 @@ describe('reconstructRunTelemetry', () => {
     expect(t.heroOffer).toEqual(['warden', 'a', 'b']);
     expect(t.offeredCards.length).toBeGreaterThan(0); // saw shop cards
     expect(t.boughtCards.length).toBeGreaterThan(0); // bought at least one
-    expect(t.offeredQuests.length).toBeGreaterThan(0); // a quest turn was reached
+    // ARCHIVED 2026-08-28: quests are out of the game, so a greedy playthrough reaches no quest turn and the
+    // telemetry CHANNEL records nothing. The field itself must survive — reconstructing a run recorded before
+    // the archive still fills it, and dropping it would break every historical telemetry row.
+    expect(t.offeredQuests).toEqual([]);
     // Every bought card was also offered (you can only buy what's in the shop).
     for (const id of t.boughtCards) expect(t.offeredCards).toContain(id);
     // Wave-tagged buy events mirror the acquisitions: one per shop buy + Discover pick, waves in 1..17.

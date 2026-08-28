@@ -44,6 +44,10 @@ export const POWER_FAMILY: Record<HeroPowerKind, ActivationFamily> = {
   summitLock: 'start-of-run',
   discoLock: 'start-of-run',
   questChronos: 'count-threshold',
+  // ARCHIVED 2026-08-28 — see `ARCHIVED_POWER_KINDS`. Deliberately NOT reclassified to 'retired': `retired`
+  // means "no hero wields it and the code path is gone", and this one is neither. Fi and Coran still wield it,
+  // the whole start-of-run machinery is intact, and a redesign will switch it back on — so it keeps the family
+  // that describes what a stager would have to drive, and the archive is asserted separately.
   heroQuest: 'start-of-run',
   lesserQuest: 'retired',
   collision: 'retired',
@@ -100,6 +104,24 @@ export const POWER_FAMILY: Record<HeroPowerKind, ActivationFamily> = {
 };
 
 /**
+ * ARCHIVED POWER KINDS (owner ruling 2026-08-28) — a power kind whose SYSTEM is switched off but whose code,
+ * content and classification all remain. Distinct from the `'retired'` family in three ways that matter to
+ * this lane:
+ *
+ *   · a retired kind has NO live wielder; an archived kind still has wielders, and they are `wip: true`;
+ *   · a retired kind's behaviour is gone; an archived kind's behaviour is intact behind one archive switch;
+ *   · a retired kind is history, an archived kind is a redesign waiting to happen.
+ *
+ * `heroPowerStagers.test.ts` enforces the invariant both ways: every hero wielding an archived kind must be
+ * `wip` (so it cannot reach a picker), and the kind's stager asserts the ARCHIVE holds rather than asserting
+ * the payoff it used to stage. That keeps the classification honest instead of quietly dropping coverage.
+ *
+ * `heroQuest` — Fi's Errand and Coran's Pathfinder. Archived with the quest system itself; see
+ * `QUESTS_ARCHIVED` in config.ts.
+ */
+export const ARCHIVED_POWER_KINDS: ReadonlySet<HeroPowerKind> = new Set<HeroPowerKind>(['heroQuest']);
+
+/**
  * The heroScan SILENT QUEUE, drained (handoff §6.4). Every hero whose power changes nothing under the
  * heroScan fixture is named here with its family and its verification: `'stager'` means a stager in
  * `heroPowerStagers.test.ts` drives the real engine to the power's activation point and asserts the payoff;
@@ -116,6 +138,10 @@ export const SILENT_QUEUE_VERDICTS: Record<string, SilentVerdict> = {
   chaos: { kind: 'chaos', family: 'every-n-turns', verdict: 'stager' },
   brackus: { kind: 'summitLock', family: 'start-of-run', verdict: 'stager' },
   discodan: { kind: 'discoLock', family: 'start-of-run', verdict: 'stager' },
+  // ARCHIVED 2026-08-28 — the stager below still runs and still counts, but what it now asserts is that the
+  // archive HOLDS (no offer on any seed, absent from every picker) rather than that the offer pays out. The
+  // verdict stays `'stager'` on purpose: dropping these to `'needs-stager'` would be a false claim of missing
+  // coverage, and dropping them entirely would leave the archive itself unwatched.
   fi: { kind: 'heroQuest', family: 'start-of-run', verdict: 'stager' },
   coran: { kind: 'heroQuest', family: 'start-of-run', verdict: 'stager' },
   mimic: { kind: 'mimic', family: 'adopted-secondary', verdict: 'stager' },

@@ -192,6 +192,24 @@ function heroFamilyQuestions(): GameRule[] {
 
 // ── 4. Quest reward shapes ───────────────────────────────────────────────────────────────────────────────
 
+/**
+ * PARKED BY ARCHIVE (owner ruling 2026-08-28) — appended to every `q-conv-quest-reward-*` rule's
+ * `currentBehaviour`, because that field's whole job is to state what the implementation does TODAY so a
+ * ruling is made against facts rather than memory. Today, quests are archived content.
+ *
+ * These rules are NOT retired. They describe the reward ENGINE's shape, the owner may still rule on them, and
+ * a quest redesign will revive the content they cover — retiring them would throw away a standing question
+ * that is still worth answering. What changes is only that the reader is told the content is inactive.
+ *
+ * Crucially the enforcement lane still RUNS: economyScan grants every quest through `devGrant` (which the
+ * archive deliberately leaves ungated) and checks each reward's magnitude against its def. So these rules are
+ * parked, not unverifiable — and the engine they describe is the same one every RUNE pays out through.
+ */
+const QUEST_ARCHIVE_NOTE =
+  ' — PARKED BY ARCHIVE 2026-08-28: the quest system is archived (QUESTS_ARCHIVED), so no quest can be offered'
+  + ' or completed in play. The reward engine is untouched and still swept: economyScan grants every quest via'
+  + ' devGrant and asserts its payout, and every rune resolves through the same applyQuestReward.';
+
 function questShapeQuestions(): GameRule[] {
   const groups = new Map<string, string[]>();
   for (const q of QUEST_DEFS) {
@@ -210,7 +228,8 @@ function questShapeQuestions(): GameRule[] {
       statement: `These ${ids.length} quests pay the same '${kind}' reward through one shared engine — no special cases.`
         + CLICKS('', ''),
       domain: 'categories',
-      currentBehaviour: `applyQuestReward resolves all ${ids.length} through the same '${kind}' branch.`,
+      currentBehaviour: `applyQuestReward resolves all ${ids.length} through the same '${kind}' branch.`
+        + QUEST_ARCHIVE_NOTE,
       cardText: `Exemplar — ${exemplar.name} (${exemplar.tribe}, ${exemplar.tier}): objective ${exemplar.objective.event} × ${exemplar.objective.count} → reward '${kind}' · Members: ${ids.slice(0, 12).map(questName).join(' · ')}${ids.length > 12 ? ` · … and ${ids.length - 12} more` : ''}`,
       example: `completing ${exemplar.name} pays its '${kind}' reward through the shared engine.`,
       contentIds: [...ids].sort(),
@@ -224,7 +243,7 @@ function questShapeQuestions(): GameRule[] {
       statement: `These rarer reward kinds all use the same shared engine — no special cases: ${rest.map(([k, v]) => `'${k}' ×${v.length}`).join(', ')}.`
         + CLICKS('', ''),
       domain: 'categories',
-      currentBehaviour: 'Each kind is one applyQuestReward branch; no per-quest special cases.',
+      currentBehaviour: 'Each kind is one applyQuestReward branch; no per-quest special cases.' + QUEST_ARCHIVE_NOTE,
       cardText: rest.slice(0, 10).map(([k, v]) => `'${k}': ${questName(v[0]!)}`).join(' · '),
       example: `${questName(rest[0]![1][0]!)} pays its '${rest[0]![0]}' reward through the same engine as every other quest.`,
       contentIds: ids,
@@ -302,7 +321,12 @@ function globalQuestions(): GameRule[] {
       statement: 'Your Henchman is recruitable once per run. Its cost drops 3 after a win, 2 after a loss, never below 0.'
         + CLICKS('the pricing decay is the standing henchman law', 'wrong — state the pricing in Revise'),
       domain: 'heroes',
-      currentBehaviour: 'henchmanCostOf applies win −3 / loss −2 with a 0 floor; recruit is once per run.',
+      currentBehaviour: 'henchmanCostOf applies win −3 / loss −2 with a 0 floor; recruit is once per run.'
+        + ' — PARKED BY ARCHIVE 2026-08-28 (owner: "henchmen are not in the game and are extremely WIP / being'
+        + ' removed for now"). `henchmanOffer` is gated by HENCHMEN_ARCHIVED, so no henchman is offerable and the'
+        + ' pricing decay this rule describes cannot be observed in play. The decay STATE still accrues and'
+        + ' henchmen.test.ts still asserts it, so the rule remains checkable and un-archiving restores it exactly.'
+        + ' The ruling stands — it is the content that is inactive, not the convention.',
       cardText: 'Exemplar — Warden\'s henchman (hm_test_squire, base 10 Gold): after a win and a loss it costs 10 − 3 − 2 = 5.',
       example: 'base cost 10, then W/L/W → 10 − 3 − 2 − 3 = 2 Gold.',
       evidence: [{ kind: 'owner-handoff', ref: 'HeroDef.henchman docblock (owner spec 2026-08-03)' }],

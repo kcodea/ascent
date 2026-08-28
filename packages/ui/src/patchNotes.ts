@@ -56,6 +56,16 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-08-28',
+    label: 'Rune Fix',
+    changes: [
+      { category: 'Rune Change', text: 'Rune of Summoning now gives the +2/+2 it promises — it was quietly paying half.', details: [
+        'Every Shop spell you cast improves your Imp Aura by +2/+2, exactly as the rune reads.',
+        'Rune of Mastery still doubles it, and a second copy still doubles it again.',
+      ] },
+    ],
+  },
+  {
+    date: '2026-08-28',
     label: 'Auras',
     changes: [
       {

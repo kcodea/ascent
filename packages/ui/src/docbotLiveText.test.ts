@@ -1,5 +1,5 @@
 /**
- * DOC BOT TRIPWIRE 2 — a dual-stat scaling card's LIVE text keeps BOTH halves of its grant.
+ * DOC BOT LANE `docbotLiveText` — a dual-stat scaling card's LIVE text keeps BOTH halves of its grant.
  *
  * The hard rule (CLAUDE.md, owner rulings 2026-07-02 / 07-08): a scaling card prints the number it will
  * really produce. The failure mode this file exists for is SUBTLER than a missing helper — a helper that

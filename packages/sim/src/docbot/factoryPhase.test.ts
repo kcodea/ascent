@@ -1,5 +1,5 @@
 /**
- * DOC BOT TRIPWIRE 1 — every (trigger, factory) pair is implemented wherever its trigger dispatches.
+ * DOC BOT LANE `factoryPhase` — every (trigger, factory) pair is implemented wherever its trigger dispatches.
  *
  * The engine's dispatch shape (`MAP[effect.do]?.(...)`) turns a missing factory into a SILENT no-op — the
  * Conductor-in-combat / Funeral-on-Loan bug class. This test re-derives the question from content on every run

@@ -1,5 +1,5 @@
 /**
- * DOC BOT TRIPWIRE 13 — magnitude oracles: the effect grants EXACTLY what its params say (roadmap L2).
+ * DOC BOT LANE `magnitudeOracle` — magnitude oracles: the effect grants EXACTLY what its params say (roadmap L2).
  *
  * The presence differentials (9/10) prove an effect acts; this proves it acts CORRECTLY, for the contracts
  * whose semantics are exact and param-derivable. A +2/+2 coded as +4/+2 passes every presence lane and fails

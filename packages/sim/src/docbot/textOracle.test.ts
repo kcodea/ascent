@@ -1,5 +1,5 @@
 /**
- * DOC BOT TRIPWIRE 14 — text as oracle: the PRINTED stat buff is the MEASURED stat buff (tranche 1).
+ * DOC BOT LANE `textOracle` — text as oracle: the PRINTED stat buff is the MEASURED stat buff (tranche 1).
  *
  * Doctrine, lanes, fixtures, the excuse registry and the arming table live in `textOracle.ts`; this file is
  * the gate. It re-derives the subject set from source + content on every run (the factoryPhase pattern):

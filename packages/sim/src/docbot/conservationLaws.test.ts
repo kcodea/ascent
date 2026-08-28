@@ -1,5 +1,5 @@
 /**
- * DOC BOT TRIPWIRE 15 — CONSERVATION LAWS: interaction bugs without enumerating interactions.
+ * DOC BOT LANE `conservationLaws` — CONSERVATION LAWS: interaction bugs without enumerating interactions.
  *
  * The invariant fuzz (invariantFuzz.test.ts) checks properties of single states. This file checks properties
  * of TRANSITIONS — quantities that must be conserved or attributable across an action or a whole combat, so a
@@ -46,7 +46,7 @@ import { minionCostOf, refreshCostOf, upgradeCostOf } from '../reducer';
 import { sellValueWithBonus } from '../recruit';
 
 /** The invariant fuzz's action generator, kept in lockstep (see invariantFuzz.test.ts — duplicated rather
- *  than exported so the two tripwires stay independently editable; the shape is the contract, not the code). */
+ *  than exported so the two lanes stay independently editable; the shape is the contract, not the code). */
 function nextAction(s: RunState, rng: { int(n: number): number }): Action {
   if (s.discover) return { type: 'discover', index: rng.int(Math.max(1, s.discover.length)) };
   if (s.chooseOne) return { type: 'chooseOne', index: rng.int(2) };

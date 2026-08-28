@@ -42,6 +42,7 @@
     "docbot:text": "tsx packages/tools/src/docbot-text.ts",
     "docbot:interactions": "tsx packages/tools/src/docbot-interactions.ts",
     "docbot:ledger": "tsx packages/tools/src/docbot-ledger.ts",
+    "docbot:report": "tsx packages/tools/src/docbot-report.ts",
     "bugs:pull": "tsx packages/tools/src/bugs-pull.ts",
     "bugs:list": "tsx packages/tools/src/bugs-list.ts",
     "bugs:repro": "tsx packages/tools/src/bugs-repro.ts",

@@ -1,5 +1,5 @@
 /**
- * DOC BOT TRIPWIRE 14 — first-order INTERACTIONS: multipliers, additivity, random-target eligibility
+ * DOC BOT LANE `interactionMatrix` — first-order INTERACTIONS: multipliers, additivity, random-target eligibility
  * (roadmap L4 + L6).
  *
  * History: the multiplier family is where the worst shipped bugs lived — #900 (Duplication no-op on 41

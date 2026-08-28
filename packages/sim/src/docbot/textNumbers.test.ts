@@ -1,5 +1,5 @@
 /**
- * DOC BOT TRIPWIRE 11 — every magnitude an effect's params carry appears in the card's printed text.
+ * DOC BOT LANE `textNumbers` — every magnitude an effect's params carry appears in the card's printed text.
  *
  * The blueprint's §20A `QUANTITY`/`STALE_TEXT` classes, in deterministic form: no LLM, no prose model — just
  * "the number the engine will use must be visible on the card". History: the Kringle text survived two
@@ -70,7 +70,7 @@ describe('Doc Bot — printed numbers match effect params', () => {
       const a = eff[0]!.params!.attack as number;
       const h = eff[0]!.params!.health as number;
       const plain = printedNumbers(c.text);
-      if (!plain.has(a) || !plain.has(h)) continue; // plain text doesn't print them either — tripwire above owns that
+      if (!plain.has(a) || !plain.has(h)) continue; // plain text doesn't print them either — the check above owns that
       checked++;
       const golden = printedNumbers(c.goldenText);
       if (!golden.has(a * 2) || !golden.has(h * 2)) {

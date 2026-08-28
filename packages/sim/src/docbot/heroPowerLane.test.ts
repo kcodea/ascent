@@ -1,5 +1,5 @@
 /**
- * DOC BOT TRIPWIRE 15 — every hero's power DOES something when fired (roadmap L5). The scan itself lives in
+ * DOC BOT LANE `heroPowerLane` — every hero's power DOES something when fired (roadmap L5). The scan itself lives in
  * `heroScan.ts`, shared with the rulebook seeder so the lane and the triage backlog can never disagree.
  */
 import { describe, expect, it } from 'vitest';

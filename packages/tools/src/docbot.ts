@@ -1,9 +1,10 @@
 /**
  * `npm run docbot` — Doc Bot's full report.
  *
- * The four tripwires GATE (they run in `npm test`); this command NARRATES: the coverage the gates enforce,
- * plus the backlogs they tolerate-but-track — the needs-triage phase gaps awaiting an owner ruling, and the
- * raw-tribe-comparison debt behind the ratchet. Read docs/docbot.md for the doctrine.
+ * The LANES gate (they run in `npm test` — the roll-call in §16+ below names them, each existsSync-checked);
+ * this command NARRATES: the coverage those gates enforce, plus the backlogs they tolerate-but-track — the
+ * needs-triage phase gaps awaiting an owner ruling, and the raw-tribe-comparison debt behind the ratchet.
+ * Read docs/docbot.md for the doctrine and docs/docbot2/final-report.md for the coverage/blind-spot picture.
  *
  * Everything here is derived live from content + source. Nothing is hand-maintained; if a number here
  * disagrees with a doc, this number wins (the CONTENT.md lesson).
@@ -144,8 +145,25 @@ const NEW_LANES: Array<[string, string, string]> = [
   ['coverage corpus', 'packages/sim/src/docbot/coverageCorpus.test.ts', 'deterministic QaScenarioV1 corpus under docbot/corpus/ keyed by semantic coverage'],
   ['scenario contract', 'packages/sim/src/qaScenario.test.ts', 'QaScenarioV1 round-trip/determinism/migration - the shared format for Scene Builder, bug reports, corpus and regressions'],
   ['contract oracle', 'packages/sim/src/docbot/contractOracle.test.ts', 'WP D: derived §10.1 case sweep over all 901 contracts (deterministic gate sample; full sweep = npm run docbot:contracts) — authority-honest findings, R-AVWIN-02/10 pinned as release blockers'],
+  // ── Doc Bot 2.0 (WP A→H). These were MISSING from this inventory until WP H's migration audit; an
+  //    unlisted lane is an invisible lane, which is the failure mode this existsSync roll-call exists to
+  //    prevent. Keep this list growing with the platform. ──
+  ['vertical slice', 'packages/sim/src/docbot/slice/verticalSlice.test.ts', 'VS: the intent↔trace↔text triangle proven end-to-end on ~10 interaction-heavy objects, all four §19 output classes produced'],
+  ['contract extraction', 'packages/sim/src/docbot/contractExtract.test.ts', 'WP B: the inventory gate — every active content object holds a committed contract; new content FAILS here until `npm run contracts:extract` is run and committed'],
+  ['semantic trace', 'packages/sim/src/docbot/semanticTrace.test.ts', 'WP C: the combat→SemanticEvent adapter is a pure function of the event log; absent causality stays absent'],
+  ['trace neutrality', 'packages/sim/src/docbot/traceNeutrality.test.ts', 'WP C: capture ON vs OFF is byte-identical incl. rngCursor/uidSeq — instrumentation consumes no RNG'],
+  ['text parse', 'packages/sim/src/docbot/textParse/textParse.test.ts', 'WP E: every active object classified parsed-equivalent / verified-mismatch / approved-exception / unresolved-parse (full sweep = npm run docbot:text)'],
+  ['interaction graph', 'packages/sim/src/docbot/interactionGraph.test.ts', 'WP F: the §10.2 producer→channel→consumer graph over every contract; applicability shrinks the naive product'],
+  ['interaction sweep', 'packages/sim/src/docbot/interactionSweep.test.ts', 'WP F: the generated §10.3 pairwise + §10.4 triple coverage table (full sweep = npm run docbot:interactions)'],
+  ['anomaly oracle', 'packages/sim/src/docbot/anomalyOracle.test.ts', 'WP F: §9.7 — unruled composition raises a QUESTION, capped at questionable-interaction, never a verified bug'],
+  ['curated regressions', 'packages/sim/src/docbot/regressionScenarios.test.ts', 'WP G: every graduated player report in scenarios/regressions/ validated + replayed — §14\'s "CI protects the behavior forever"'],
+  ['bug taxonomy', 'packages/sim/src/docbot/bugTaxonomy.test.ts', 'WP G: every graduation record names a real class and a fixture on disk; no fixture squats curated space without a record'],
+  ['findings ledger', 'packages/sim/src/docbot/ledger.test.ts', 'WP G: the fingerprint fold is deterministic, order-insensitive and idempotent (npm run docbot:ledger)'],
+  ['graduation refusals', 'packages/tools/src/bug-graduate.test.ts', 'WP G: a flaky repro, an unruled expectation or an unapproved citation each REFUSE (npm run bugs:graduate)'],
+  ['final report', 'packages/tools/src/docbot-report.test.ts', 'WP H: docs/docbot2/final-report.md re-derived from the live registries — a drifted headline number fails the gate (npm run docbot:report)'],
 ];
-console.log('\n── 16+. landed 2026-08-27 — the blind-spot + next-iteration wave (each gates in npm test) ──');
+console.log('\n── 16+. the Doc Bot 2.0 lane roll-call — each file existsSync-checked so this inventory cannot rot ──');
+console.log('   (most gate in `npm test`; the two tools lanes gate there too — the sweep CLIs beside them are nightly/weekly)');
 for (const [name, file, what] of NEW_LANES) {
   const exists = existsSync(file);
   console.log(`  ${exists ? '·' : '✗ MISSING'} ${name} — ${file}${exists ? '' : '  ⚠ inventory rotted'}`);
@@ -165,10 +183,16 @@ console.log('  npm run docbot                      this report (add -- --json fo
 console.log('  npm run docbot:scenario -- <id>     run one QaScenarioV1 (bare ids resolve in docbot/scenarios/)');
 console.log('  npm run docbot:corpus               rebuild the coverage corpus (deterministic)');
 console.log('  npm run docbot:nightly              full lifecycle runs + bot lobbies + the full contract sweep (nightly.yml cron)');
-console.log('  npm run docbot:contracts            the full 901-contract verification sweep (add -- --out <dir> for findings.json)');
+console.log('  npm run docbot:contracts            the full contract verification sweep (add -- --out <dir> for findings.json)');
+console.log('  npm run docbot:text                 the full text-intelligence sweep + the Sitting-3 wording deck (WP E)');
+console.log('  npm run docbot:interactions         the full pairwise/triple interaction sweep + anomaly oracle (WP F)');
+console.log('  npm run docbot:ledger -- --in artifacts   fold every findings.json into one fingerprint ledger (WP G)');
+console.log('  npm run docbot:report               the §20/§21 coverage + blind-spot roll-up (-- --json / -- --check)');
+console.log('  npm run contracts:extract           regenerate the extracted contract registry (curated always wins)');
 console.log('  npm run rules:seed                  regenerate the owner triage queue (decisions survive)');
 console.log('  npm run rules:impact -- <paths>     which rulings a change touches');
 console.log('  npm run bugs:pull|list|repro|close  player-report inbox → QaScenarioV1 reproduction');
+console.log('  npm run bugs:graduate -- <id>       a confirmed, ruled report → a permanent curated regression');
 
 // ── --json: the §12 machine-readable projection of every open queue ────────────────────────────────────────
 if (process.argv.includes('--json')) {

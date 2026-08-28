@@ -1,5 +1,5 @@
 /**
- * DOC BOT TRIPWIRE 6 — every turn-scoped RunState field is actually reset somewhere in the reducer.
+ * DOC BOT LANE `turnScopedReset` — every turn-scoped RunState field is actually reset somewhere in the reducer.
  *
  * History: #1f6c "Layaway keep is shop-phase only (cleared at combat)", #517 "Funeral loan expires next
  * turn", #77f6 "Rune of Resonance — missing per-turn reset". The naming convention (`fooThisTurn`,

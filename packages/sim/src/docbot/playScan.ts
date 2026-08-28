@@ -1,8 +1,8 @@
 /**
- * DOC BOT — the play/cast/hero-power differential scan (tripwires 9 + golden), shared by
+ * DOC BOT — the play/cast/hero-power differential scan (the `playDifferential` lane + golden), shared by
  * `playDifferential.test.ts` (gates) and the `npm run docbot` CLI (prints the queues).
  *
- * The question, per card: WHEN YOU PLAY IT, DOES ITS EFFECT DO ANYTHING? Wiring checks (tripwire 1) prove a
+ * The question, per card: WHEN YOU PLAY IT, DOES ITS EFFECT DO ANYTHING? Wiring checks (the `factoryPhase` lane) prove a
  * factory exists; this proves it ACTS — through the real `reduce`, under a rich fixture, against a VANILLA
  * CONTROL of identical body so the diff isolates the effect from the act of playing.
  *

@@ -1,5 +1,5 @@
 /**
- * DOC BOT TRIPWIRE 5 — every card id a definition NAMES resolves.
+ * DOC BOT LANE `refIntegrity` — every card id a definition NAMES resolves.
  *
  * History: #719 "bad params.cardId crashed the hand-grant render" (a mis-typed id survived to runtime and
  * took the UI down), #853 / #848 "six cards that never previewed what they name" (the id existed but nothing

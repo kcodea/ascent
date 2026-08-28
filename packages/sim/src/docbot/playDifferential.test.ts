@@ -1,5 +1,5 @@
 /**
- * DOC BOT TRIPWIRE 9 — play/cast/watch differentials: every effect ACTS when exercised through the real
+ * DOC BOT LANE `playDifferential` — play/cast/watch differentials: every effect ACTS when exercised through the real
  * reducer. Doctrine, fixture, normalization and the control-body saga live in `playScan.ts`.
  *
  * Lanes and their dispositions (2026-08-26 baselines):

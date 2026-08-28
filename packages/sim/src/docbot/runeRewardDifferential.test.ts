@@ -1,5 +1,5 @@
 /**
- * DOC BOT TRIPWIRE 7 — every rune's reward DOES something, and does MORE when you hold two.
+ * DOC BOT LANE `runeRewardDifferential` — every rune's reward DOES something, and does MORE when you hold two.
  *
  * History, the largest silent-no-op incident in the repo: #900 "Rune of Duplication was a no-op on 41 of 72
  * Epic runes", refined by the reducer's own `combatFlag` comment — 23 Epic runes swallowed a second copy

@@ -1,5 +1,5 @@
 /**
- * DOC BOT TRIPWIRE 3 — raw tribe comparisons are FROZEN DEBT, not a pattern to copy.
+ * DOC BOT LANE `tribePredicates` — raw tribe comparisons are FROZEN DEBT, not a pattern to copy.
  *
  * The owner's ruling (2026-08-26): "all types need to trigger all types of interactions." The shared
  * predicates — `isTribe`/`defIsTribe` in the shop, `isTribeOf` in combat, `arena.isTribe` in the arena — are

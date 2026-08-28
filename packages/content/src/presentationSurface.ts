@@ -145,6 +145,10 @@ export const SYSTEM_SURFACE: SurfaceEntry[] = [
   // Funeral on Loan's borrowed body ARRIVING and taking its slot — a beat of its own, so the board is seen
   // to hold it before the death beat takes it away again.
   { key: 'system:destroy:shopArrival', users: ['funeralonloan'] },
+  // EQUIPMENT (owner handoff 2026-08-28): the grant as a body enters play / re-equips, and one beat per
+  // Equipment TRIGGER (repeats included, each carrying its index).
+  { key: 'system:equipment:equip', users: ['e3_frank'] },
+  { key: 'system:equipment:trigger', users: ['e3_frank'] },
 ];
 
 /** Every presentation key the live content produces, with its producers. Deterministic order (sorted). */

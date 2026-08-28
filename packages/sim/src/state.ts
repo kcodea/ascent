@@ -400,6 +400,14 @@ export interface BuffFxEvent {
  *  docs/fx-vocabulary.md. */
 /** One shop cue: a body that died, or an Echo that triggered. `uid` is the minion it happened to — already
  *  gone from the board for a death, which is why the UI keeps a last-known-position cache. */
+/** One equip cue: a body granting its Equipment, on play or at the Start-of-Turn rebuild. */
+export interface EquipFx {
+  /** `equip` is a fresh grant (the full animation); `reequip` is the turn-start refresh (a brief flash). */
+  kind: 'equip' | 'reequip';
+  uid: string;
+  cardId: string;
+}
+
 export interface ShopDeathFx {
   kind: 'death' | 'echo';
   uid: string;
@@ -953,6 +961,21 @@ export interface RunState {
   pendingPowerOffer?: { slot: 'mimic' | 'void1' };  // 'shifter' is cast-driven, never queued at turn start
   /** The SECOND wielded power's per-turn charge (Void slot 1) — `heroReady`'s sibling, re-armed beside it on
    *  every wave advance. Slot 0 keeps the original fields so every existing power is untouched. */
+  /**
+   * ── EQUIPMENT (owner handoff 2026-08-28) ──────────────────────────────────────────────────────────────
+   *
+   * AUTHORITATIVE game state, never UI state: replays, reconnects, bots and Doc Bot all read it. It rides in
+   * RunState precisely so replay v2 captures it for free — the frame model is inclusion-by-omission, so a new
+   * RunState field is persisted with no capture code (see `SHOP_VIEW_EXCLUDED_KEYS`).
+   *
+   * Rebuilt from the board at every Start of Turn (see `rebuildEquipment`). Within a turn it OUTLIVES its
+   * source: selling the Equip minion does not revoke the Equipment until the turn ends.
+   */
+  equipment?: PlayerEquipmentState;
+  /** ADDITIONAL Equipment triggers, stacking additively (handoff). Snapshot at activation, never re-read
+   *  while the repeats resolve — a repeat must not reproduce the modifier that created it. No content grants
+   *  this yet; it exists so "your Equipment triggers an additional time" is card DATA when it arrives. */
+  equipmentExtraTriggers?: number;
   heroReady2?: boolean;
   /** The SECOND power's once-per-game latch (`heroPowerSpent`'s sibling). */
   heroPowerSpent2?: boolean;
@@ -1507,6 +1530,16 @@ export interface RunState {
    * One entry per event, in fire order. Cleared at the top of `reduce` like the other scratch buffers, and
    * seq-gated by `shopFxSeq` so a repeated payload still fires exactly once per action.
    */
+  /**
+   * EQUIP / RE-EQUIP CUES (owner ask 2026-08-28). Per-action scratch, on the same channel every other shop FX
+   * uses — the shop has no beat playback, so the animation rides a cue list rather than a beat.
+   *
+   * One entry PER SOURCE BODY, in board order: duplicate Equip minions collapse into ONE selector entry but
+   * each still gets its own re-equip flash, which is what the handoff asks for.
+   */
+  equipFx?: EquipFx[];
+  /** Monotonic gate for `equipFx` — the UI plays a batch when this changes, never on payload identity. */
+  equipFxSeq?: number;
   shopDeathFx?: ShopDeathFx[];
   /** Monotonic gate for `shopDeathFx` — the UI plays a batch when this changes, never on payload identity. */
   shopFxSeq?: number;
@@ -1871,6 +1904,38 @@ export interface RunState {
   servedBoards?: Record<number, BoardSnapshot | null>;
 }
 
+/** One Equipment the player currently holds, and which board bodies are granting it. */
+export interface GrantedEquipment {
+  equipmentId: string;
+  /** Which wording/params apply. A single Gilded source anywhere upgrades the whole entry (handoff rule). */
+  version: 'plain' | 'gilded';
+  /** EVERY source, tracked independently — duplicates collapse to one selector entry but each still gets its
+   *  own re-equip beat, and source VALIDITY (has it survived?) is per-source. */
+  sourceUids: string[];
+  /** The wave it was granted on — diagnostic, and the tell for "granted this turn" vs "re-equipped". */
+  grantedTurn: number;
+}
+
+/**
+ * The player's Equipment for THIS turn. Uses are a shared player-level allowance, not a per-Equipment lock:
+ * activating any Equipment spends one, and swapping spends nothing.
+ */
+export interface PlayerEquipmentState {
+  available: GrantedEquipment[];
+  /** What the slot is showing. Swapping changes only this. */
+  selectedEquipmentId?: string;
+  /** The last SUCCESSFULLY ACTIVATED Equipment (not merely viewed) — the rebuild restores it when its source
+   *  survives. Deliberately survives the rebuild that clears `available`. */
+  lastUsedEquipmentId?: string;
+  /** Normally 1. Reset every Start of Turn. */
+  baseActivations: number;
+  /** Granted on top of the baseline, this turn only. */
+  bonusActivations: number;
+  activationsSpent: number;
+  /** Gold off the next activation. Additive, floored at 0 by `equipmentCostOf`, expires at End of Turn. */
+  temporaryCostReduction: number;
+}
+
 export type Action =
   /** Combat replay: an escalating spell improved itself mid-fight — bump the display-only preview. */
   | { type: 'combatEscalationPreview'; attack: number; health: number }
@@ -1909,6 +1974,12 @@ export type Action =
    *  UI-only tick, so a recording replays the two steps the way the player lived them; and because every other
    *  action resolves the same pending death first, dispatching it late (or never) cannot change the outcome. */
   | { type: 'resolveShopDeath' }
+  /** Swap which Equipment the second slot shows. Free: no Gold, no activation, no exhaustion change. */
+  | { type: 'selectEquipment'; equipmentId: string }
+  /** Activate the SELECTED Equipment. ATOMIC (owner ruling 2026-08-28) — validate, pay, spend one shared
+   *  allowance and resolve every trigger in one action, exactly as every hero power does. `targetUid` is
+   *  required for a targeting Equipment; cancelling never dispatches this at all. */
+  | { type: 'activateEquipment'; targetUid?: string }
   | { type: 'closeScout' } // Farseer's Report: dismiss the scout reveal
   | { type: 'faceOmen' }
   | { type: 'settleCombat' }

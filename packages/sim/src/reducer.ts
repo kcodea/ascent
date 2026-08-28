@@ -13,7 +13,12 @@ import { activePowers, getHero, gildCopiesNeeded, hasPower, powerDiscoverPool } 
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard, oppKey } from './opponents';
 import type { BoardSnapshot } from './snapshot';
-import { noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, roundedSpellbookCostOf, buyoutCostOf, commissionOffer, COMMISSION_DELAY, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, stampSharedSpoils, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, chooseBothActive, chooseOneNeedsChoice, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, rubyStatBonus, consumeGrimoireCharge, countRubyAsShopSpell, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, landBorrowed, settlePendingDeath, buyHealthAura, undeadBuyBonus, weldMagnetic , defIsTribe} from './recruit';
+import { EQUIPMENT_INDEX } from '@game/content';
+import {
+  equipmentCostOf, equipmentUsesLeft, expireEquipmentTurn, rebuildEquipment,
+  selectEquipment, selectedEquipment,
+} from './equipment';
+import { noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, roundedSpellbookCostOf, buyoutCostOf, commissionOffer, COMMISSION_DELAY, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, stampSharedSpoils, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, chooseBothActive, chooseOneNeedsChoice, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, rubyStatBonus, consumeGrimoireCharge, countRubyAsShopSpell, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, landBorrowed, settlePendingDeath, stampEquipFx, fireEquipmentTriggers, buyHealthAura, undeadBuyBonus, weldMagnetic , defIsTribe} from './recruit';
 import { handCap, mixSeed, reservedHandSlots, TAG, henchmanOffer, type Action, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type ShopCard, type CiaSuit, type Commission, type CommissionKind, type RunState, type RubyLandedFx, gateUses, procRune, procRuneId, runeBuffMagnitude } from './state';
 import { alignmentsOf } from './alignment';
 import { RUNE_DUP_SWEETENER, RUNE_DUP_UNIQUE, forgeFilteredDuplicate, runeStacksOf } from './runeDup';
@@ -2251,6 +2256,56 @@ function reduceCore(state: RunState, action: Action): RunState {
     // through every piece of machinery an ordinary action gets — the hand-arrival diff (an Echo that grants a
     // card), the onGainAttack diff, quest ticks, the FX scratch buffers. An early return from the guard skipped
     // all of it, and a borrowed Echo's Ruby cue silently never fired.
+    /**
+     * SELECT an Equipment — swapping what the second slot shows. FREE by contract: no Gold, no activation,
+     * no cooldown or exhaustion change (handoff). A real action rather than UI state so a recording replays
+     * the swap the player actually made.
+     */
+    case 'selectEquipment':
+      if (s.phase !== 'recruit') return state;
+      return selectEquipment(s, action.equipmentId) ? s : state;
+
+    /**
+     * ACTIVATE the selected Equipment — ATOMIC, matching every hero power in this engine (owner ruling
+     * 2026-08-28). Validate, pay, spend one shared allowance, resolve every trigger, in ONE action.
+     *
+     * There is no pending-activation state, which is exactly why "cancelling costs nothing" needs no
+     * bookkeeping: a cancel never reaches the reducer at all. The UI arms the Equipment, the player picks a
+     * target, and only then is this dispatched.
+     */
+    case 'activateEquipment': {
+      if (s.phase !== 'recruit') return state;
+      const granted = selectedEquipment(s);
+      const def = granted ? EQUIPMENT_INDEX[granted.equipmentId] : undefined;
+      if (!granted || !def) return state;
+      if (equipmentUsesLeft(s) <= 0) return state; // the shared allowance is spent
+      const cost = equipmentCostOf(s, def);
+      if (s.embers < cost) return state; // unaffordable — visible but disabled, never a half-activation
+      // A targeted Equipment needs a real, legal target. No target → the activation never happened: no Gold,
+      // no allowance, nothing to undo.
+      const target = def.targetMode === 'friendly'
+        ? s.board.find((c) => c.uid === action.targetUid)
+        : undefined;
+      if (def.targetMode === 'friendly' && !target) return state;
+
+      s.embers -= cost;
+      const eq = s.equipment!;
+      eq.activationsSpent += 1;
+      eq.lastUsedEquipmentId = def.id; // "last used" means last successfully ACTIVATED, not last viewed
+      // Additional triggers stack ADDITIVELY, and the count is SNAPSHOT here rather than re-read per trigger —
+      // a repeat must never reproduce the modifier that created it (handoff).
+      const triggers = 1 + (s.equipmentExtraTriggers ?? 0);
+      // The SOURCE body for attribution, when one survives — a grant outlives its source within a turn, so a
+      // stand-in carries the Equipment's own name for buff itemisation when the source has been sold.
+      const src = s.board.find((c) => granted.sourceUids.includes(c.uid));
+      const self: BoardCard = src ?? {
+        uid: `eq:${def.id}`, cardId: def.id, tribe: 'neutral', attack: 0, health: 0, keywords: [], golden: false,
+      };
+      if (!fireEquipmentTriggers(s, def, granted.version, self, target, triggers)) return state;
+      checkTriples(s); // an Equipment that summons or grants can still complete a triple
+      return s;
+    }
+
     case 'resolveShopDeath':
       settlePendingDeath(s);
       // An Echo (or a Rise) can put a THIRD copy of something on the board — Mama Pup's two Pups beside one
@@ -2988,6 +3043,10 @@ function reduceCore(state: RunState, action: Action): RunState {
       }
       // End-of-turn triggers fire first and bake into the board's stats (handoff C.5).
       applyEndOfTurn(s);
+      // Unused Equipment activations and any temporary cost reduction expire with the turn (handoff).
+      // The COLLECTION is deliberately left intact — it is cleared by the next Start-of-Turn rebuild,
+      // which is also what keeps an activated combat effect's provenance readable through the fight.
+      expireEquipmentTurn(s);
       // Any Discover an EoT trigger raised (Moira re-firing a Discover Shout) auto-resolves to a random pick —
       // no interactive window at the combat hand-off (owner 2026-08-11).
       autoResolveEotDiscovers(s);
@@ -4637,6 +4696,18 @@ function advanceCombat(s: RunState): void {
   }
   // Rune of the Guiding Candle: the per-turn allowance of tier-locked refreshes refills at each shop.
   if (s.runeGuidingCandle) s.runeGuidingCandle = { ...s.runeGuidingCandle, left: s.runeGuidingCandle.count };
+  // ── EQUIPMENT REBUILD — THE FIRST Start-of-Turn operation (owner handoff 2026-08-28) ──────────────────
+  // Deliberately ahead of every rune, quest and board Start-of-Turn effect: anything that reads or spends
+  // Equipment this turn must see THIS turn's collection, not last turn's. The engine has no Start-of-Turn
+  // priority layers (it is an imperative sequence), so this guarantee is POSITIONAL — `equipment.test.ts`
+  // pins it by proving a Start-of-Turn effect observes the rebuilt state.
+  //
+  // Clears the collection, resets the shared allowance, re-equips every surviving source left to right, and
+  // restores the last-used Equipment when its source survived. One cue per SOURCE BODY for the UI, even
+  // though duplicates collapse into a single selector entry.
+  for (const cue of rebuildEquipment(s)) {
+    stampEquipFx(s, { kind: 'reequip', uid: cue.uid, cardId: cue.cardId });
+  }
   // Rune of Copies (Epic): each turn setup, copy a random board minion to hand (the immediate copy fired on
   // buy) — one copy per rune copy held (recurring family, owner 2026-08-27).
   if (s.runeCopies && s.board.length > 0) procRuneId(s, 'rune_copies');

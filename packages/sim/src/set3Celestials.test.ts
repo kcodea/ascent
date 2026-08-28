@@ -30,8 +30,10 @@ const staged = (board: BoardCard[], hand: BoardCard[]): RunState =>
 describe('the tribe is ARCHIVED, and its mechanics still hold', () => {
   // Owner 2026-08-28: "celestials have been extremely and completely re-worked ... leaving set 3 empty of
   // minions now." The sixteen moved to the MINION ARCHIVE — out of every pool, still resolvable by id.
-  it('set 3 offers no minions', () => {
-    expect(poolFor('set3').buyable, 'the rework has not landed yet').toEqual([]);
+  it('set 3 offers no CELESTIALS', () => {
+    // Set 3 is not empty — it carries the Equipment reference card — but no Celestial is drawable until the
+    // rework lands.
+    expect(poolFor('set3').buyable.filter((c) => c.tribe === 'celestial')).toEqual([]);
   });
 
   it('...but the archived Celestials still resolve, which is what keeps the tests below meaningful', () => {

@@ -7,7 +7,7 @@ import { CARD_INDEX } from './index';
  * in later. These pins guard the two ways a scaffold set can go wrong.
  */
 describe('set 3 scaffold', () => {
-  it('holds NO minions, and the shared neutral spell toolkit', () => {
+  it('holds only the Equipment reference card, and the shared neutral spell toolkit', () => {
     // Grew three times, then emptied. The Celestial test units (2026-08-03) were replaced by the real tribe
     // (owner roster 2026-08-05), and on 2026-08-28 the owner archived that tribe too: "celestials have been
     // extremely and completely re-worked ... leaving set 3 empty of minions now."
@@ -18,7 +18,9 @@ describe('set 3 scaffold', () => {
     expect(SETS.set3).toBeDefined();
     const p = poolFor('set3');
     expect(p.setId).toBe('set3');
-    expect(p.buyable.map((c) => c.id), 'set 3 has no minions until the rework lands').toEqual([]);
+    // The Celestial rework has not landed; the one minion here is the EQUIPMENT vertical slice (owner handoff
+    // 2026-08-28: "Implement only Alchemist Frank as the reference card").
+    expect(p.buyable.map((c) => c.id)).toEqual(['e3_frank']);
     // EVERY Celestial — both the 2026-08-03 test units and the 2026-08-05 tribe — is gone from the POOL but
     // still resolvable by id, which is the whole point of archiving rather than deleting: a saved run, a
     // replay or a captured board from either fortnight still loads.

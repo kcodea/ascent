@@ -165,6 +165,7 @@ export function validateCards(cards: CardDef[] = ALL_CARDS): void {
 
 export { CardDefSchema, QuestDefSchema, RuneDefSchema } from './schema';
 export { QUEST_DEFS, QUEST_INDEX, validateQuests } from './quests';
+export { EQUIPMENT, EQUIPMENT_INDEX, BLOODPOT, equipmentOf, type EquipmentDefinition, type EquipmentTargetMode } from './equipment';
 export { RUNES, EPIC_RUNES, ARCHIVED_RUNES, RUNE_INDEX, RUNE_DUP_SWEETENER, RUNE_DUP_UNIQUE, runeStacks, validateRunes } from './runes';
 export { cardRevisions, contentRevision, cardRevision, revisionOf } from './revisions';
 export { runeSynergies, type SynergyTag } from './runeSynergy';

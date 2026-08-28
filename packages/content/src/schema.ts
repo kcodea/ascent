@@ -33,6 +33,7 @@ export const GameEventSchema = z.enum([
   'cardsPlayed',
   'onSell',
   'startOfTurn',
+  'equip', // grants this minion's Equipment (on play, and on every Start of Turn rebuild)
   'onGainCard',
   'onRubyPlayed',
   'rubyPlayedAnywhere',
@@ -252,6 +253,8 @@ export const EffectFactoryIdSchema = z.enum([
   'scGrantSpellCastExtra',
   'scGrantShieldTribe',
   'scGrantReborn',
+  'grantEquipment', // the `equip` factory: hands the player the Equipment named by `params.equipmentId`
+  'equipmentBuffTarget', // Bloodpot: one Equipment TRIGGER — +atk/+hp onto the chosen friendly minion
   'deathrattleGrantShield',
   'onShieldBreakGrantShield',
   'onShieldBreakDamage',

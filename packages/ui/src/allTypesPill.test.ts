@@ -60,7 +60,9 @@ describe('art coverage for live cards', () => {
     const minions = wired('packages/ui/src/art/minions');
     const spells = wired('packages/ui/src/art/spells');
     const missing = Object.values(CARD_INDEX)
-      .filter((c) => !c.id.startsWith('c3_') && !c.id.startsWith('hm_test_') && !ART_PENDING.has(c.id))
+      // `c3_` (Celestials) and `e3_` (Equip minions) are both the SET 3 scaffold — authored ahead of their
+      // art, and not shipped, so they render the tribe sprite rather than failing this gate.
+      .filter((c) => !c.id.startsWith('c3_') && !c.id.startsWith('e3_') && !c.id.startsWith('hm_test_') && !ART_PENDING.has(c.id))
       .filter((c) => !minions.has(c.id) && !spells.has(c.id))
       .map((c) => `${c.id} (${c.name})`);
     expect(missing, `these live cards render the tribe-sprite fallback instead of their art`).toEqual([]);

@@ -14,15 +14,23 @@
  * The deck ships DORMANT — cards land as needs-ruling on the standard board; nothing here schedules the
  * sitting. WP E never edits content files (§23): defects and recommendations are REPORT output only.
  */
-import { writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { CARD_INDEX, QUEST_DEFS, RUNE_INDEX } from '@game/content';
 import {
   AUTO_RETIRED_RULES, DECISIONS, LANGUAGE_GUIDE, RETIRED_IDS, WORDING_PENDING, applySeedHygiene, type RetiredRule,
 } from '@game/rules';
 import { allContracts } from '@game/rules/contracts';
 import {
-  buildWordingQuestions, estimatedSittingMinutes, runRewriteAdvisor, runTextSweep, textObjectOf,
+  buildWordingQuestions, emitFindingsJson, estimatedSittingMinutes, runRewriteAdvisor, runTextSweep, textObjectOf,
 } from '@game/sim';
+
+// WP G (§15.6): the text review queue needs the sweep's verdicts ON DISK for the QA Workbench to read. The
+// flag is additive — without `--out` this CLI behaves exactly as it did.
+const OUT = ((): string | undefined => {
+  const i = process.argv.indexOf('--out');
+  return i >= 0 && process.argv[i + 1] && !process.argv[i + 1]!.startsWith('--') ? process.argv[i + 1] : undefined;
+})();
 
 // ── 1. the classification sweep (full — the PR-gate lane samples nothing either; parsing is cheap) ──────
 const contracts = allContracts();
@@ -106,3 +114,25 @@ export const AUTO_RETIRED_RULES: RetiredRule[] = `;
 console.log(`\nSITTING-3 DECK: ${hygiene.pending.length} wording questions pending (≈ ${estimatedSittingMinutes(hygiene.pending.length)} min at the fly-through bar)`
   + (hygiene.newTombstones.length ? `; auto-retired ${hygiene.newTombstones.map((t) => t.id).join(', ')}` : ''));
 console.log('The deck is DORMANT — the main session schedules the sitting.');
+
+// ── 4. WP G artifacts (§15.6 text review queue) ─────────────────────────────────────────────────────────
+if (OUT) {
+  mkdirSync(OUT, { recursive: true });
+  writeFileSync(join(OUT, 'findings.json'), emitFindingsJson([...sweep.findings, ...recs]));
+  writeFileSync(join(OUT, 'text-review.json'), JSON.stringify({
+    total: sweep.total,
+    buckets: sweep.buckets,
+    byType: sweep.byType,
+    textless: sweep.textless,
+    mismatches: sweep.mismatches,
+    unpinnedMismatchIds: sweep.unpinnedMismatchIds,
+    staleKnownIds: sweep.staleKnownIds,
+    unresolved: unresolvedRows.map((r) => ({ contentId: r.contentId, contentType: r.contentType, unresolved: r.unresolved })),
+    recommendations: recs.map((f) => ({
+      fingerprint: f.fingerprint, contentIds: f.contentIds, ruleIds: f.ruleIds,
+      title: f.title, summary: f.summary, suggestedText: f.suggestedText ?? null,
+    })),
+  }, null, 2));
+  console.log(`
+  artifacts → ${OUT}`);
+}

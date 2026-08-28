@@ -84,3 +84,17 @@ export {
 } from './anomalyOracle';
 export { RETRO_INTERACTION_MAP, retroMapErrors, type RetroMapEntry } from './retroInteractionMap';
 export { buildInteractionQuestions, INTERACTION_QUEUE } from './interactionQuestions';
+// ── Doc Bot 2.0 WP G: the learning loop (graduation taxonomy + findings ledger) ──
+export {
+  BUG_TAXONOMY, BUG_CLASS_IDS, bugClass, bugTaxonomyErrors, mergeGraduation, emitGraduationLedger,
+  type BugClassEntry, type GraduationRecord, type GraduationLedger,
+} from './bugTaxonomy';
+export {
+  foldLedger, emptyLedger, emitLedgerJson, parseLedger, summarizeFold, bucketOf, LEDGER_SCHEMA_VERSION,
+  type LedgerFile, type LedgerEntry, type LedgerBatch, type LedgerSighting, type LedgerStatusChange,
+  type LedgerBucket, type LedgerFoldSummary, type FoldLedgerOptions,
+} from './ledger';
+// The V2 finding vocabulary — the workbench + ledger consumers need these names outside `@game/sim`'s internals.
+export type {
+  FindingClass, FindingSeverity, FindingConfidence, FindingStatus, FirstDivergence, FindingProvenance,
+} from './findings';

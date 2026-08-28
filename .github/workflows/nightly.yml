@@ -32,10 +32,27 @@ jobs:
       - run: npm ci
       - name: Run the nightly lifecycle lane
         run: npm run docbot:nightly -- --runs ${{ github.event.inputs.runs || '6' }} --out artifacts/docbot-nightly
-      - name: Upload artifacts (report always; scenarios/findings/traces on failure)
+
+      # WP G (§17.2): the nightly grows the FULL sweeps the PR gate only samples. Both `continue-on-error`
+      # — a red sweep is a FINDING to triage, and its findings.json must still reach the upload step. The
+      # per-sweep exit codes stay visible in the job log; the artifact is what a reviewer opens.
+      - name: Full contract sweep (the PR gate only samples)
+        continue-on-error: true
+        run: npm run docbot:contracts -- --out artifacts/docbot-contracts
+      - name: Full pairwise interaction sweep + anomaly oracle
+        continue-on-error: true
+        run: npm run docbot:interactions -- --out artifacts/docbot-interactions
+
+      # Every lane emits the same byte-stable findings.json, so one fold turns the whole night into the
+      # §12.3 ledger the QA Workbench inbox reads.
+      - name: Fold the night's findings into a ledger (§12.3)
+        if: always()
+        run: npm run docbot:ledger -- --in artifacts --ledger artifacts/ledger.json --print 20
+
+      - name: Upload artifacts (reports + findings + ledger always; scenarios/traces on failure)
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: docbot-nightly-${{ github.run_id }}
-          path: artifacts/docbot-nightly/
+          path: artifacts/
           retention-days: 30

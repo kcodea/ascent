@@ -58,6 +58,14 @@ export {
   type InteractionGraph, type InteractionRun, type InteractionSweepReport, type InteractionVerdict,
   type CandidateReport, type AnomalyOracleReport, type RetroMapEntry,
 } from './docbot';
+// Doc Bot 2.0 WP G — the learning loop (consumers: bugs:graduate, docbot:ledger, the QA Workbench)
+export {
+  BUG_TAXONOMY, BUG_CLASS_IDS, bugClass, bugTaxonomyErrors, mergeGraduation, emitGraduationLedger,
+  foldLedger, emptyLedger, emitLedgerJson, parseLedger, summarizeFold, bucketOf, LEDGER_SCHEMA_VERSION,
+  type BugClassEntry, type GraduationRecord, type GraduationLedger,
+  type LedgerFile, type LedgerEntry, type LedgerBatch, type LedgerBucket, type LedgerFoldSummary,
+  type FindingClass, type FindingSeverity, type FindingConfidence, type FindingStatus, type FirstDivergence,
+} from './docbot';
 export { canRallyInShop, ralliersOf, fireShopRally, fireRallies, runeLastingCadenceBeats, instanceEffects } from './recruit'; // the shop-side RALLY dispatcher (Effect Arena Step 4) — a new disruptor is a call, not a wiring project
 export { socBoardEffects, fireShopStartOfCombat, fireStartOfCombats, runeCombatProwessBeats } from './recruit'; // the shop-side START-OF-COMBAT dispatcher (Effect Arena Step 4) — Rune of Combat Prowess
 export { addBuff, boardManaBonus, cardBuff, conjuredStats, dragonTamerCostOf, roundedSpellbookCostOf, buyoutCostOf, allInPayoutOf, exhibitionGrantOf, tempestGrantOf, bladeMasteryGrantOf, hoardWhelpStatsOf, TEMPEST_KILLS_PER_STEP, BLADE_ATTACKS_PER_STEP, heroPowerText, CIA_SUIT_TEXT, COMMISSION_TEXT, COMMISSION_NAME, COMMISSION_REWARD, commissionOffer, aegisGrantOf, COMMISSION_DELAY, threeDistinctTypes, stampSableBond, heroOfferPrice, endOfTurnRepeats, isTribe, magnetizeTargets, modalOpen, offerBuyStats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueOf, sellValueWithBonus, spellCasts, rubyCastCount, spellCostReduction, isStatSpell, implosionCasts, dragonflameCasts, spellDisplayText, dominantBoardTribe, gildMinion, effectiveTargetTribe, spellStatBonus, spellAttackBonus, spellHealthBonus, rubyStatBonus, undeadBuyBonus, type EotStepFx } from './recruit';

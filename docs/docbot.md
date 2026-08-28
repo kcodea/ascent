@@ -168,6 +168,22 @@ Three commands sit above the tripwires (`packages/sim/src/docbot/{coverageKeys,c
   mismatch + rewrite-advisor report, and regenerates the Sitting-3 wording deck
   (`pendingWording.generated.ts`, seed-hygiene-preserving). The PR-gate lane is
   `textParse/textParse.test.ts`; the style rules live in `packages/rules/src/languageGuide.ts`.
+  `--out <dir>` additionally writes `findings.json` + `text-review.json` for the QA Workbench's §15.6 queue.
+- `npm run bugs:graduate -- <report-id>` — Doc Bot 2.0 WP G, blueprint §14: turns a reproduced, RULED
+  player report into a **curated regression** in `docbot/scenarios/regressions/` (separate from the
+  generated corpus, §4.6) plus a `bugTaxonomy.graduated.json` record. It REFUSES a non-deterministic repro
+  (the reproduction runs twice and the semantic results must match), a drifted capsule, an unapproved
+  rule/contract citation, and an unresolved expectation ("needs ruling first"). `regressionScenarios.test.ts`
+  ENUMERATES that directory, so a graduated fixture is on the PR gate the moment it lands.
+- `npm run docbot:ledger` — folds every lane's `findings.json` across time into the gitignored
+  `.local/docbot/ledger.json`, keyed by fingerprint: first/last seen, occurrence count, status history,
+  linked decisions/reports/regressions. Deterministic, order-insensitive, and safe to re-run (a re-read of
+  the same artifact is one sighting). It is the substrate of the QA Workbench's findings inbox.
+- **DevMenu → 🔬 QA Workbench** — the blueprint §15 review surface: findings inbox, content detail, trace
+  comparison (the first surface to render `firstDivergence`), interaction matrix, and text review queue.
+  Dev-server only; its one write is an owner decision through the existing `/__rulebook/decide` endpoint,
+  never a content-file edit. Rule review stays on RulebookTriage's fly-through board.
+  Lane split, artifacts, and the retro-harness decision: [`docs/docbot2/ci-lanes.md`](docbot2/ci-lanes.md).
 
 ## The 2026-08-27 wave — one QA system
 

@@ -402,8 +402,13 @@ export const SPELLS: CardDef[] = [
     text: '**Start of combat:** give your minions **+2/+1** (next combat only).',
   },
   {
-    // Choose One: buff THIS tavern's offers by +1/+3 (rides on each offer, so a buy bakes it in — lost on
-    // refresh, kept if frozen), OR bank +2/+4 onto the NEXT tavern roll. Flat — no spell-power scaling.
+    // Choose One: buff THIS tavern's offers by +2/+4 (rides on each offer, so a buy bakes it in — lost on
+    // refresh, kept if frozen), OR spread +1/+1 across 2 random friendly BODIES.
+    //
+    // Owner change 2026-08-28: the second branch was "bank +2/+4 onto the NEXT tavern roll", which made both
+    // options shop buffs and left the card with nothing to say to a board you already own. The shop half took
+    // the +2/+4 the next-shop branch used to carry. "2 friendly minions" is 2 RANDOM ones (owner, asked) — the
+    // Ale shape, seeded off the run cursor so a reload or replay picks identically.
     id: 'apples',
     name: 'Apples',
     tribe: 'neutral',
@@ -415,12 +420,12 @@ export const SPELLS: CardDef[] = [
     cost: 1,
     effects: [],
     chooseOne: [
-      { text: 'Give **this shop +1/+3**.', effects: [{ on: 'cast', do: 'spellBuffTavern', params: { attack: 1, health: 3 } }] },
-      { text: 'Give the next shop **+2/+4**.', effects: [{ on: 'cast', do: 'spellBuffNextShop', params: { attack: 2, health: 4 } }] },
+      { text: 'Give **this shop +2/+4**.', effects: [{ on: 'cast', do: 'spellBuffTavern', params: { attack: 2, health: 4 } }] },
+      { text: 'Give **2 random friendly minions +1/+1**.', effects: [{ on: 'cast', do: 'spellBuffRandomFriendlies', params: { count: 2, attack: 1, health: 1 } }] },
     ],
     // "THIS shop" is load-bearing vocabulary (owner 2026-07-25): a bare "the shop" reads as the permanent
     // buy-buff Staff of Guel gives, but this option only touches the offers currently on the board.
-    text: '**Choose One:** Give **this shop +1/+3**, or the **next shop +2/+4**.',
+    text: '**Choose One:** Give **this shop +2/+4**, or **2 random friendly minions +1/+1**.',
   },
   {
     // Tier-scaled buff: +Tavern Tier / +Tavern Tier, plus the run's spell power on top of both stats

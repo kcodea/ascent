@@ -7741,7 +7741,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "amount": {
           "kind": "const",
           "plain": {
-            "attack": 3
+            "attack": 4
           }
         }
       }
@@ -8007,7 +8007,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "extractor": "contracts-extract@1",
       "confidence": "medium",
       "unparsed": [
-        "endOfTurnBuffLeftmostTribePerCard.tribe"
+        "endOfTurnBuffEndsTribePerCard.tribe"
       ]
     },
     "setIds": [
@@ -8029,7 +8029,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "effects": [
       {
-        "kind": "endOfTurnBuffLeftmostTribePerCard",
+        "kind": "endOfTurnBuffEndsTribePerCard",
         "amount": {
           "kind": "const",
           "plain": {

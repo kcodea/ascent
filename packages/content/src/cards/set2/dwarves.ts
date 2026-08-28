@@ -109,7 +109,9 @@ export const SET2_DWARVES: CardDef[] = [
     goldenText: '**Shout:** give a friendly **Dwarf** **+4 Health** per Gold spent this turn.',
   },
   {
-    // Left-most rather than targeted, so you pick the recipient by ARRANGING your line — deterministic, no RNG.
+    // The two ENDS of your line rather than targeted, so you pick the recipients by ARRANGING it —
+    // deterministic, no RNG. Owner change 2026-08-28: left-most only → left AND right-most Dwarf. With a single
+    // Dwarf on board both ends ARE that Dwarf, and it is buffed ONCE: the card names two bodies, not two grants.
     id: 'dw_foreman',
     name: 'Kringle', // renamed from Closing-Time Foreman (owner 2026-08-02); the id stays
     tribe: 'dwarf',
@@ -117,9 +119,9 @@ export const SET2_DWARVES: CardDef[] = [
     attack: 5,
     health: 7,
     keywords: [],
-    effects: [{ on: 'endOfTurn', do: 'endOfTurnBuffLeftmostTribePerCard', params: { tribe: 'dwarf', attack: 1, health: 2 } }], // owner balance 2026-08-04: +1 Attack → +1/+1; 2026-08-15: → +1/+2
-    text: '**End of Turn:** give your **left-most Dwarf +1/+2** per card played this turn.',
-    goldenText: '**End of Turn:** give your **left-most Dwarf +2/+4** per card played this turn.',
+    effects: [{ on: 'endOfTurn', do: 'endOfTurnBuffEndsTribePerCard', params: { tribe: 'dwarf', attack: 1, health: 2 } }], // owner balance 2026-08-04: +1 Attack → +1/+1; 2026-08-15: → +1/+2
+    text: '**End of Turn:** give your **left and right-most Dwarves +1/+2** for each card you played this turn.',
+    goldenText: '**End of Turn:** give your **left and right-most Dwarves +2/+4** for each card you played this turn.',
   },
   {
     // Both halves: the Shout pours in the shop, the Echo pours from combat via `ctx.grantToHand`.
@@ -232,8 +234,7 @@ export const SET2_DWARVES: CardDef[] = [
     goldenText: 'Your **Dwarven Ales** trigger **three times**.',
   },
   {
-    // The magnitude climbs with Ales cast this turn, which is what ties the Chef to the tribe's engine rather
-    // than making it a generic tribe-buffer.
+    // A flat per-Dwarf-played tribe pump. Owner balance 2026-08-28: +3/+3 → +4/+4 (golden +8/+8).
     id: 'dw_chef',
     name: 'Chef Gary Toast',
     tribe: 'dwarf',
@@ -241,9 +242,9 @@ export const SET2_DWARVES: CardDef[] = [
     attack: 6,
     health: 7,
     keywords: [],
-    effects: [{ on: 'onSummon', do: 'onTribeSummonedBuffTribe', params: { tribe: 'dwarf', attack: 3 } }],
-    text: 'When you play a **Dwarf**, give your **Dwarves +3/+3**.',
-    goldenText: 'When you play a **Dwarf**, give your **Dwarves +6/+6**.',
+    effects: [{ on: 'onSummon', do: 'onTribeSummonedBuffTribe', params: { tribe: 'dwarf', attack: 4 } }],
+    text: 'Whenever you play a **Dwarf**, give your **Dwarves +4/+4**.',
+    goldenText: 'Whenever you play a **Dwarf**, give your **Dwarves +8/+8**.',
   },
   {
     // The Ale payoff banked a turn late (owner 2026-08-07): Start of Combat reads the Ales you cast LAST

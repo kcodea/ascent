@@ -304,17 +304,18 @@ describe('tranche C — the five that needed machinery', () => {
     s = { ...s, board: [body('dw_chef', 'chef'), mate], hand: [body('dw_brakka', 'newcomer')] };
     const before = s.board.find((x) => x.uid === 'mate')!.attack;
     s = play(s, 'newcomer');
-    expect(s.board.find((x) => x.uid === 'mate')!.attack, 'playing a Dwarf did not buff the others').toBe(before + 3);
+    expect(s.board.find((x) => x.uid === 'mate')!.attack, 'playing a Dwarf did not buff the others').toBe(before + 4);
   });
 
   it('…buffs the whole tribe including itself, with no count limit', () => {
-    // Owner text is plain "give your Dwarves +3/+3" — the 3-target cap and Ale scaling were both mine and are gone.
+    // Owner text is plain "give your Dwarves +4/+4" (repriced from +3/+3, owner 2026-08-28) — the 3-target cap
+    // and Ale scaling were both mine and are gone.
     let s = set2();
     s = { ...s, board: [body('dw_chef', 'chef'), body('dw_brunni', 'a'), body('dw_tapkeeper', 'b'), body('dw_coinfire', 'c')], hand: [body('dw_orin', 'n')] };
     s = play(s, 'n');
     for (const uid of ['chef', 'a', 'b', 'c']) {
       const c = s.board.find((x) => x.uid === uid)!;
-      expect(c.attack, `${uid} was not buffed`).toBe(CARD_INDEX[c.cardId]!.attack + 3);
+      expect(c.attack, `${uid} was not buffed`).toBe(CARD_INDEX[c.cardId]!.attack + 4);
     }
   });
 

@@ -467,7 +467,7 @@ export const EffectFactoryIdSchema = z.enum([
   'avengePlayRubies', // Avenge (X): play N Rubies on your [tribe] minions
   'cardsBoughtGetRubies',
   'goldSpentGetRubiesPlayOnTribe', // Mountainbond (2026-08-14)
-  'grantRandomAle', 'battlecryBuffTribeOthersAttack', 'battlecryGainKeyword', 'goldSpentBuffTribeAttack', 'battlecryBuffTargetPerGoldSpent', 'endOfTurnBuffLeftmostTribePerCard', 'cardsBoughtGrantRandomSpell', 'battlecryGildTarget', 'goldSpentGrantTribeMinion',
+  'grantRandomAle', 'battlecryBuffTribeOthersAttack', 'battlecryGainKeyword', 'goldSpentBuffTribeAttack', 'battlecryBuffTargetPerGoldSpent', 'endOfTurnBuffEndsTribePerCard', 'cardsBoughtGrantRandomSpell', 'battlecryGildTarget', 'goldSpentGrantTribeMinion',
   'combatGrantAle', 'rallyGiveAttackToOthers', 'echoSummonCopyNoEcho', 'echoSummonInheritAttackAndCharge',
   'impInheritOnDeath', 'impInheritOnSummon', 'echoCastRememberedSpells', 'echoResummonDeadBeasts',
   'setArmor',

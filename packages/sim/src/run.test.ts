@@ -1012,7 +1012,7 @@ describe('run loop (@game/sim)', () => {
     expect(n.embers, 'no pair → no Gold spent').toBe(5);
   });
 
-  it('Apples: SPELL Choose One — buff this shop +1/+3 OR bank +2/+4 for the next shop', () => {
+  it('Apples: SPELL Choose One — buff this shop +2/+4 OR give 2 random friendly minions +1/+1', () => {
     // Option 0 — buff the current tavern offers. Playing a Choose-One spell pauses (spell stays in hand).
     let s: RunState = {
       ...createRun(1), embers: 5,
@@ -1025,21 +1025,29 @@ describe('run loop (@game/sim)', () => {
     s = reduce(s, { type: 'chooseOne', index: 0 });
     expect(s.chooseOne).toBeUndefined();
     expect(s.hand.some((c) => c.uid === 'ap')).toBe(false); // cast + consumed
-    expect([s.shop[0]!.atk, s.shop[0]!.hp]).toEqual([1, 3]); // this shop's offers buffed
+    expect([s.shop[0]!.atk, s.shop[0]!.hp]).toEqual([2, 4]); // this shop's offers buffed
 
-    // Option 1 — bank +2/+4 for the NEXT roll; the current shop is untouched, the buff lands on refresh.
+    // Option 1 (owner change 2026-08-28, replacing the old "bank +2/+4 for the next shop") — +1/+1 onto 2
+    // DISTINCT random friendly bodies. Three on board, so exactly two of them move and the shop is untouched.
     let g: RunState = {
       ...createRun(1), embers: 5,
       hand: [{ uid: 'ap', cardId: 'apples', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
       shop: [{ uid: 'o1', cardId: 'alley' }],
+      // THREE DISTINCT cardIds: three copies of one minion would TRIPLE the moment the play resolves, and
+      // the board this asserts on would be gone before the branch ever ran.
+      board: [
+        { uid: 'm1', cardId: 'sandbag', tribe: 'neutral', attack: 1, health: 1, keywords: [], golden: false },
+        { uid: 'm2', cardId: 'alley', tribe: 'neutral', attack: 1, health: 1, keywords: [], golden: false },
+        { uid: 'm3', cardId: 'pack', tribe: 'neutral', attack: 1, health: 1, keywords: [], golden: false },
+      ],
     };
     g = reduce(g, { type: 'play', uid: 'ap' });
     g = reduce(g, { type: 'chooseOne', index: 1 });
-    expect(g.nextShopBuff).toEqual({ attack: 2, health: 4 });
-    expect([g.shop[0]!.atk ?? 0, g.shop[0]!.hp ?? 0]).toEqual([0, 0]); // current shop NOT buffed
-    g = reduce(g, { type: 'roll' });
-    expect(g.nextShopBuff).toBeUndefined();
-    expect(g.shop.length > 0 && g.shop.every((o) => (o.atk ?? 0) === 2 && (o.hp ?? 0) === 4)).toBe(true);
+    const buffed = g.board.filter((c) => c.attack === 2 && c.health === 2);
+    expect(buffed, 'two DISTINCT bodies, never two rolls onto one').toHaveLength(2);
+    expect(g.board.filter((c) => c.attack === 1 && c.health === 1)).toHaveLength(1);
+    expect(g.nextShopBuff, 'the next-shop branch is gone').toBeUndefined();
+    expect([g.shop[0]!.atk ?? 0, g.shop[0]!.hp ?? 0]).toEqual([0, 0]); // the shop is untouched
   });
 
   it('Dragon Battlecries bake into stats when played', () => {
@@ -2849,22 +2857,22 @@ describe('run loop (@game/sim)', () => {
     expect([t.attack, t.health]).toEqual([20, 20]);
   });
 
-  it('Apples (Choose One → this shop) buffs the current offers +1/+3, and a buy bakes it in', () => {
+  it('Apples (Choose One → this shop) buffs the current offers +2/+4, and a buy bakes it in', () => {
     let s: RunState = {
       ...createRun(1), embers: 0, frozen: false,
       shop: [{ uid: 'x', cardId: 'alley' }, { uid: 'y', cardId: 'pack' }],
       hand: [{ uid: 'sp', cardId: 'apples', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
     };
     s = reduce(s, { type: 'play', uid: 'sp' });
-    s = reduce(s, { type: 'chooseOne', index: 0 }); // "Give the shop +1/+3"
-    expect(s.shop.every((o) => o.atk === 1 && o.hp === 3)).toBe(true); // both offers buffed
+    s = reduce(s, { type: 'chooseOne', index: 0 }); // "Give this shop +2/+4" (owner reprice 2026-08-28)
+    expect(s.shop.every((o) => o.atk === 2 && o.hp === 4)).toBe(true); // both offers buffed
     // The offer records the SOURCE (Apples), so the inspect + the bought minion attribute it correctly.
-    expect(s.shop[0]!.buffs).toEqual([{ source: 'Apples', attack: 1, health: 3, count: 1 }]);
+    expect(s.shop[0]!.buffs).toEqual([{ source: 'Apples', attack: 2, health: 4, count: 1 }]);
     s = { ...s, embers: 10 };
-    s = reduce(s, { type: 'buy', uid: 'x' }); // Alleycat 1/1 + Apples +1/+3
+    s = reduce(s, { type: 'buy', uid: 'x' }); // Alleycat 1/1 + Apples +2/+4
     const bought = s.hand.find((c) => c.cardId === 'alley')!;
-    expect([bought.attack, bought.health]).toEqual([2, 4]);
-    expect(bought.buffs).toEqual([{ source: 'Apples', attack: 1, health: 3, count: 1 }]); // NOT a blanket "Fortify"
+    expect([bought.attack, bought.health]).toEqual([3, 5]);
+    expect(bought.buffs).toEqual([{ source: 'Apples', attack: 2, health: 4, count: 1 }]); // NOT a blanket "Fortify"
   });
 
   it('Fleeting Vigor banks a Start-of-Combat buff applied to the next combat, then spent', () => {

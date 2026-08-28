@@ -3046,16 +3046,23 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     if (h > 0 || a > 0) addBuff(target, nameOf(self), a, h);
   },
 
-  /** Kringle (End of Turn; ex-Closing-Time Foreman): your LEFT-most minion of `tribe` gains +attack per card played this
-   *  turn. Left-most rather than targeted, so you choose the recipient by arranging your line. */
-  endOfTurnBuffLeftmostTribePerCard: (ctx, self, params) => {
+  /** Kringle (End of Turn; ex-Closing-Time Foreman): the LEFT-most and RIGHT-most minions of `tribe` each gain
+   *  +attack/+health per card played this turn. The ends rather than a target, so you choose the recipients by
+   *  arranging your line.
+   *
+   *  Owner change 2026-08-28 (was left-most only, `endOfTurnBuffLeftmostTribePerCard`). One Dwarf on board is
+   *  BOTH ends, and it is buffed ONCE — the card names two bodies, not two grants, so the ends are deduped by
+   *  identity before anything is added. */
+  endOfTurnBuffEndsTribePerCard: (ctx, self, params) => {
     const tribe = str(params.tribe);
-    const target = ctx.state.board.find((c) => !tribe || isTribe(c, tribe as never));
-    if (!target) return;
+    const matches = ctx.state.board.filter((c) => !tribe || isTribe(c, tribe as never));
+    if (matches.length === 0) return;
+    const ends = matches.length === 1 ? [matches[0]!] : [matches[0]!, matches[matches.length - 1]!];
     const played = ctx.state.playedThisTurn?.length ?? 0;
     const a = num(params.attack, 1) * gold(self) * played;
-    const h = num(params.health, 0) * gold(self) * played; // Kringle +1/+1 (owner balance 2026-08-04)
-    if (a > 0 || h > 0) addBuff(target, nameOf(self), a, h);
+    const h = num(params.health, 0) * gold(self) * played; // Kringle +1/+2 (owner balance 2026-08-15)
+    if (a <= 0 && h <= 0) return;
+    for (const target of ends) addBuff(target, nameOf(self), a, h);
   },
 
   /** Chirurgeon: every `every` cards bought, get a random Shop spell. The buy tally lives on the CARD

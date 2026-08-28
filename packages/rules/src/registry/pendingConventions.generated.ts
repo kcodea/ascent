@@ -537,7 +537,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "title": "'spellCast' family · 99 cards",
     "statement": "All 99 'spellCast' cards trigger the same way. These are the spells themselves, and spells are never gilded. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
-    "currentBehaviour": "91 effect factories across 99 cards dispatch through the 'spellCast' presentation family, all on the single trigger 'cast' (recruit); the factoryPhase lane gates each (trigger, factory) pair. Gilding: INAPPLICABLE — checkTriples skips spells and Rubies, so no member of this family can ever BE gilded (R-GILD-02, owner ruling 2026-08-28).",
+    "currentBehaviour": "90 effect factories across 99 cards dispatch through the 'spellCast' presentation family, all on the single trigger 'cast' (recruit); the factoryPhase lane gates each (trigger, factory) pair. Gilding: INAPPLICABLE — checkTriples skips spells and Rubies, so no member of this family can ever BE gilded (R-GILD-02, owner ruling 2026-08-28).",
     "cardText": "Exemplar — Anomaly Reactor: \"Give a friendly minion All types — it counts as every tribe and gets all of their buffs.\" · Members: Anomaly Reactor · Eyes of Aresmar · Bloodlust · Bulwark · Carnival Coin · Chrono Staff · Common Ground · Consume · Copycat · Cupcakes · Decoy Sigil · Deep Delve Writ · … and 87 more",
     "example": "Anomaly Reactor follows the 'spellCast' convention — its trigger fires on cast. three copies of it never combine into a golden one, so it has no gilded form at all.",
     "contentIds": [

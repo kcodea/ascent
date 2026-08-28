@@ -19,18 +19,37 @@ const SPECS: Record<keyof FloatConfig, [string, TunerUnit | undefined, string, s
 
   durMs:   ['Time on screen', 'ms', 'How long a float lasts from pop to fully faded.', 'Motion'],
   pop:     ['Pop overshoot', '×', 'How far past full size the number punches at the top of its pop. 1 is no overshoot at all.', 'Motion'],
+  popMs:   ['Pop length', 'ms', 'How long the spring/bounce takes on its own — independent of Time on screen. Shorter is a snappier punch; longer is a lazier bounce. Keep it below Time on screen.', 'Motion'],
   rise:    ['Rise distance', 'px', 'How far the number drifts upward before fading. 0 keeps it stuck to the card, holding and fading in place.', 'Motion'],
 
   inScale: ['Entry size', '×', 'How small the number starts before it pops in. Smaller is a snappier punch.', 'Entry'],
   inY:     ['Entry drop', 'px', 'How far below its resting spot the number starts.', 'Entry'],
+
+  splashImg:      ['Burst art', undefined, 'Which golden-burst PNG sits behind the damage number.', 'Splash'],
+  splashEm:       ['Splash size', '×', 'Size of the golden burst behind the damage number, as a multiple of the number height.', 'Splash'],
+  splashX:        ['Splash X', 'px', 'Nudge the burst left/right relative to the number.', 'Splash'],
+  splashY:        ['Splash Y', 'px', 'Nudge the burst up/down relative to the number.', 'Splash'],
+  numStroke:      ['Number outline', 'px', 'Thickness of the dark outline around the damage digits — helps them read over the bright burst. 0 = no outline.', 'Splash'],
+  numStrokeColor: ['Outline colour', undefined, 'Colour of the damage-number outline.', 'Splash'],
+  rotRandom:      ['Random rotation', undefined, 'Give each damage splash a random tilt so repeated hits look varied. The angle is fixed per hit (it never spins).', 'Splash'],
+  rotRange:       ['Rotation range', '°', 'Maximum tilt (±) applied to the splash when Random rotation is on.', 'Splash'],
+
+  numX:           ['Number X', 'px', 'Nudge the whole damage number (burst included) left/right from the card centre.', 'Position'],
+  numY:           ['Number Y', 'px', 'Nudge the whole damage number (burst included) up/down from the card centre.', 'Position'],
 };
 
 /** Declaration order IS render order, and controls sharing a group render together under its heading. */
-const ORDER: (keyof FloatConfig)[] = ['size', 'dmgSize', 'durMs', 'pop', 'rise', 'inScale', 'inY'];
+const ORDER: (keyof FloatConfig)[] = ['size', 'dmgSize', 'durMs', 'pop', 'popMs', 'rise', 'inScale', 'inY', 'numX', 'numY', 'splashImg', 'splashEm', 'splashX', 'splashY', 'numStroke', 'numStrokeColor', 'rotRandom', 'rotRange'];
+
+const SPLASH_IMG_OPTIONS = ['1', '2'] as const;
+const SPLASH_IMG_LABELS: Record<string, string> = { '1': 'Rounded', '2': 'Spiky' };
 
 const controls: TunerControl<Extract<keyof FloatConfig, string>>[] = ORDER.map((key) => {
   const [label, unit, hint, group] = SPECS[key];
+  if (key === 'numStrokeColor') return { key, label, hint, group, kind: 'color', min: 0, max: 0, step: 0 };
+  if (key === 'splashImg') return { key, label, hint, group, kind: 'select', options: SPLASH_IMG_OPTIONS, optionLabels: SPLASH_IMG_LABELS, min: 0, max: 0, step: 0 };
   const [min, max, step] = FLOAT_RANGES[key];
+  if (key === 'rotRandom') return { key, label, hint, group, kind: 'toggle', onValue: 1, offValue: 0, onOffLabels: ['on', 'off'] as [string, string], min, max, step };
   return { key, label, unit, hint, group, min, max, step };
 });
 
@@ -40,6 +59,7 @@ export const SPEC: TunerSpec<FloatConfig> = {
   note: 'dev · next float · drag',
   read: getFloatConfig,
   write: setFloatValue,
+  writeColor: setFloatValue,
   reset: resetFloatConfig,
   defaults: FLOAT_DEFAULTS,
   controls,

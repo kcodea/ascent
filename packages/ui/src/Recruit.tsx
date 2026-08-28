@@ -1703,6 +1703,62 @@ export function Recruit() {
       ),
     [],
   );
+  /**
+   * SHOP DEATH + ECHO CUES (owner ask 2026-08-28) — the shop's answer to combat's death visuals.
+   *
+   * The shop has no beat playback (only End of Turn plays beats), so these ride the same per-action scratch
+   * channel every other shop FX uses. The vocabulary is COMBAT'S, deliberately: the same event should not look
+   * like two different things depending on the phase.
+   *
+   *   · an Echo TRIGGERED    → `pixiFx.deathrattle` — the painted skull-shatter. From ANY source: a shop
+   *                             destroy, Ossuary Rite, Rune of the Reliquary, a Gravetwin's copy.
+   *   · a body DIED          → the authored `death-dissolve` def.
+   *   · a body that is RISING → neither: it re-forms rather than dissolving.
+   *
+   * POSITION. A dead body is already off the board by the time this runs, so `findEl` cannot find it. The
+   * cache below keeps the last known centre of every board card; this effect reads it BEFORE the refresh
+   * effect (declared after it, so it runs after) overwrites it with the new layout.
+   */
+  const lastCentreRef = useRef<Map<string, { x: number; y: number; w: number }>>(new Map());
+  const prevShopFxSeq = useRef(run.shopFxSeq);
+  useLayoutEffect(() => {
+    const seq = run.shopFxSeq;
+    if (seq === undefined || seq === prevShopFxSeq.current) return;
+    prevShopFxSeq.current = seq; // advance FIRST — fires exactly once per action, like the Ruby cue above
+    for (const fx of run.shopDeathFx ?? []) {
+      // Prefer the live element (an Echo triggered on a minion that is still alive); fall back to its last
+      // known centre (a body that just died).
+      const el = findEl(fx.uid);
+      const at = el
+        ? (() => { const r = el.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width }; })()
+        : lastCentreRef.current.get(fx.uid);
+      if (!at) continue;
+      if (fx.kind === 'echo') { pixiFx.deathrattle(at.x, at.y, at.w); continue; }
+      if (fx.rise) { pixiFx.flashBloom(at.x, at.y, RISE_BURST); continue; }
+      if (!canPlayDefs()) continue;
+      const anchors = anchorsForUnits(null, fx.uid);
+      if (anchors) playDef('death-dissolve', anchors, { uids: { source: null, target: fx.uid } });
+    }
+  }, [run.shopFxSeq, run.shopDeathFx, findEl]);
+
+  /**
+   * Refresh the last-known-centre cache. Declared AFTER the cue effect on purpose: React runs layout effects
+   * in declaration order, so the cue above still sees the PREVIOUS layout — which is the only place a body
+   * that just died still has a position. Reads at most a board's worth of rects, once per render (never per
+   * frame), and skips entirely mid-drag where renders are frequent and nothing is dying.
+   */
+  useLayoutEffect(() => {
+    if (dragRef.current?.active) return;
+    const next = new Map<string, { x: number; y: number; w: number }>();
+    for (const el of document.querySelectorAll<HTMLElement>(FLIP_SEL_WARBAND)) {
+      const uid = el.dataset.uid;
+      if (!uid) continue;
+      const r = el.getBoundingClientRect();
+      next.set(uid, { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width });
+    }
+    lastCentreRef.current = next;
+  });
+
   const replay = useCombatReplay(run.lastCombat, { active: fighting, findEl, combatSpeed, paused: overlayOpen, rampEnabled });
 
   // DEV (proc harness): publish the live replay's `seekTo` on a window handle so the FX workbench's rail-mode

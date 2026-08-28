@@ -123,7 +123,9 @@ export const TIER7: CardDef[] = [
     health: 7,
     keywords: [],
     effects: [],
-    triggerMultiplier: { families: ['rally', 'endOfTurn', 'startOfCombat'], extra: 1 },
+    // "an additional time" → ADDITIVE and stacking (owner vocabulary rule 2026-08-28). It was best-of-copies
+    // before, which contradicted its own printed wording: two Urons now mean three triggers.
+    triggerMultiplier: { families: ['rally', 'endOfTurn', 'startOfCombat'], extra: 1, stacks: true },
     text: 'Your **Rallies**, **End of Turns** and **Start of Combats** trigger an additional time.',
     goldenText: 'Your **Rallies**, **End of Turns** and **Start of Combats** trigger **2** additional times.',
   },
@@ -139,7 +141,9 @@ export const TIER7: CardDef[] = [
     health: 6,
     keywords: [],
     effects: [],
-    triggerMultiplier: { families: ['battlecry', 'deathrattle'], extra: 1 },
+    // "an additional time" → ADDITIVE and stacking. This is what makes Zyff combine with Drakko: Zyff adds a
+    // fire, Drakko doubles the total, so the two together mean a Shout triggers FOUR times (owner 2026-08-28).
+    triggerMultiplier: { families: ['battlecry', 'deathrattle'], extra: 1, stacks: true },
     text: 'Your **Battlecries** and **Deathrattles** trigger an additional time.',
     goldenText: 'Your **Battlecries** and **Deathrattles** trigger **2** additional times.',
   },

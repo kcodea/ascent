@@ -392,7 +392,13 @@ function extractCard(def: CardDef): ContentContract {
     ...(effects.length ? { effects } : {}),
     gildedDelta,
     ...(def.triggerMultiplier
-      ? { multiplier: { families: [...def.triggerMultiplier.families], extra: def.triggerMultiplier.extra, stacks: !!def.triggerMultiplier.stacks } }
+      ? { multiplier: {
+        families: [...def.triggerMultiplier.families],
+        ...(def.triggerMultiplier.factor !== undefined
+          ? { factor: def.triggerMultiplier.factor }
+          : { extra: def.triggerMultiplier.extra }),
+        stacks: !!def.triggerMultiplier.stacks,
+      } }
       : {}),
     textContract: { source: 'index' },
     ...(parkedClass

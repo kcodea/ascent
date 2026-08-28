@@ -6,7 +6,7 @@ import { lobbyOpponentBoard } from './lobby/runLobby';
 import { poolOf } from './cardPool';
 import { CONFIG, hasTier7Access, maxTierFor, SHIFTER_OPTIONS } from './config';
 import { getHero, spellAmplifyBonus, hasPower, activePowers, primaryPower, powerDiscoverPool } from './heroes';
-import { handCap, reservedHandSlots, mixSeed, TAG, type AuraFxTribe, type BoardCard, type BuffFxEvent, type CiaSuit, type CommissionKind, type DiscoverSpec, type RunState, type ShopCard, gateUses, procRune, procRuneId, runeBuffMagnitude } from './state';
+import { handCap, reservedHandSlots, mixSeed, TAG, type AuraFxTribe, type BoardCard, type BuffFxEvent, type CiaSuit, type CommissionKind, type DiscoverSpec, type RunState, type ShopCard, type ShopDeathFx, gateUses, procRune, procRuneId, runeBuffMagnitude } from './state';
 export { ALE_IDS };
 import { returnToPool, rollShop, rollSpellShop, takeFromPool, refillShopFiltered, elevateShop } from './shop';
 import { runeStacksOf } from './runeDup';
@@ -2031,6 +2031,11 @@ function fireRecruitDeathrattles(ctx: RecruitContext, minion: BoardCard, effects
   const effects = effectsOverride ?? [...(CARD_INDEX[minion.cardId]?.effects ?? []), ...(minion.copiedEcho ?? [])];
   if (!effects.length) return;
   const hasDR = effects.some((e) => e.on === 'onDeath');
+  // THE ECHO CUE (owner ask 2026-08-28): "the echo animation ... should play ANYTIME an echo is triggered".
+  // Stamped HERE because this is the single chokepoint every shop Echo passes through — a destroy, Ossuary
+  // Rite, Deathsayer, Rune of the Reliquary, a Gravetwin's copied Echo, a borrowed body's departure. Putting
+  // it at the call sites instead is how the next one silently ships without its animation.
+  if (hasDR) stampShopFx(ctx.state, { kind: 'echo', uid: minion.uid, cardId: minion.cardId });
   const fireOnce = (): void => {
     for (const eff of effects) {
       if (eff.on !== 'onDeath') continue;
@@ -2089,6 +2094,13 @@ function fireRecruitDeathrattles(ctx: RecruitContext, minion: BoardCard, effects
  * Funeral on Loan's borrowed body is not dying, its LOAN is ending, and a Rise there would let a borrowed
  * minion stay on the board, which is the one thing that card must never do.
  */
+/** Record a shop cue (a death, or an Echo triggering) for the UI to play. Per-action scratch: `reduce` clears
+ *  the list and the UI reads it once, gated on `shopFxSeq`. */
+export function stampShopFx(state: RunState, fx: ShopDeathFx): void {
+  (state.shopDeathFx ??= []).push(fx);
+  state.shopFxSeq = (state.shopFxSeq ?? 0) + 1;
+}
+
 export function destroyMinionInShop(
   ctx: RecruitContext,
   target: BoardCard,
@@ -2105,6 +2117,7 @@ export function destroyMinionInShop(
   // whole function returns (it diffs around `run()`), so clearing on the way out would hide the flag from the
   // one reader it exists for. Each destroy resets it, so nothing can go stale.
   RISING = willRise ? new Set([target.uid]) : null;
+  stampShopFx(state, { kind: 'death', uid: target.uid, cardId: target.cardId, ...(willRise ? { rise: true } : {}) });
   const wasVacating = state.vacatingUid;
   try {
     // 1. The body STAYS in its slot while its Echo fires, marked VACATING — the same mechanism Funeral on
@@ -8748,6 +8761,8 @@ export function settlePendingDeath(state: RunState): void {
     () => {
       const willRise = card.keywords.includes('R');
       RISING = willRise ? new Set([card.uid]) : null;
+      // The body is dying: the authored dissolve plays for it (suppressed when it is rising — it re-forms).
+      stampShopFx(state, { kind: 'death', uid: card.uid, cardId: card.cardId, ...(willRise ? { rise: true } : {}) });
       const wasVacating = state.vacatingUid;
       state.vacatingUid = card.uid; // its Echo's summons land in its place, and it costs no summon slot
       const summonedFrom = state.board.length;

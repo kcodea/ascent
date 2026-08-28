@@ -42,38 +42,82 @@ export type TriggerFamily =
   | 'endOfTurn'
   | 'startOfCombat';
 
-/** A card's declared trigger multiplication. `extra` is the ADDITIONAL fires this copy grants (golden
- *  doubles it), so the total for a family is `1 + <contribution>`. `stacks` picks the combination rule:
- *  true sums every copy (Sylus), false takes the single best copy (Drakko, Chronos, Uron). */
-export interface TriggerMultiplierDef {
+/**
+ * A card's declared trigger multiplication. TWO KINDS, and the card's own printed wording says which — the
+ * owner's vocabulary rule, 2026-08-28:
+ *
+ *   · **"trigger twice"** → a MULTIPLIER (`factor`). Copies of the SAME card do not stack (two Drakkos still
+ *     mean twice), but different multiplier cards MULTIPLY with each other.
+ *   · **"trigger 1 additional time"** → ADDITIVE (`extra`). Every copy counts, and every additive card counts.
+ *
+ * They combine as `(1 + Σ extra) × Π factor`, which is what makes the owner's worked examples come out:
+ *   two Sylus (additive)            → (1 + 1 + 1) × 1 = 3 fires
+ *   two Drakko (multiplier)         → (1)         × 2 = 2 fires
+ *   Drakko + Zyff (mult + additive) → (1 + 1)     × 2 = 4 fires
+ *
+ * GOLDEN. An additive card doubles its `extra` (Sylus: +1 → +2). A multiplier card gains ONE more trigger
+ * rather than doubling its factor — golden Drakko is "three times", not "four" (owner ruling 2026-08-28),
+ * which preserves the power gilding had under the old additive model.
+ */
+export type TriggerMultiplierDef = {
   families: readonly TriggerFamily[];
-  extra: number;
-  stacks?: boolean;
+} & (
+  | {
+    /** ADDITIVE: this many extra fires per copy, summed across every copy and every additive card. */
+    extra: number;
+    factor?: never;
+    /** Additive cards always stack — kept for the schema's benefit and for older data. */
+    stacks?: boolean;
+  }
+  | {
+    /** MULTIPLIER: total fires are multiplied by this. Best single copy per card, product across cards. */
+    factor: number;
+    extra?: never;
+    stacks?: never;
+  }
+);
+
+/**
+ * Total fires ONE non-golden copy of a multiplier card produces on its own — `1 + extra` for an additive
+ * card, `factor` for a multiplier. The single place that knows how to read either shape, so a caller that
+ * only wants "how much does this card multiply by" (the Doc Bot interaction sweep, live card text) never has
+ * to branch on the union itself.
+ */
+export function declaredFireFactor(mult: TriggerMultiplierDef): number {
+  return mult.factor !== undefined ? mult.factor : 1 + (mult.extra ?? 0);
 }
 
 /**
  * Extra fires contributed by the multiplier cards among `minions`, for one trigger family. Returns the
- * ADDITIONAL count (0 = no multiplier), so callers use `1 + extraTriggerFires(...)`.
+ * ADDITIONAL count (0 = no multiplier), so callers keep using `1 + extraTriggerFires(...)` — the whole model
+ * lives in here, and no call site had to change when it was rewritten.
  *
- * Stacking and non-stacking contributions combine ADDITIVELY with each other — a Sylus (stacking) plus a
- * Uron (non-stacking) grant +1 each. Within each rule the pre-existing semantics are preserved exactly:
- * stacking cards sum across copies, non-stacking cards contribute only their best single copy.
+ * `(1 + Σ extra) × Π factor`, minus the base 1. See `TriggerMultiplierDef` for the vocabulary rule this
+ * implements and the owner's worked examples.
  */
 export function extraTriggerFires(
   family: TriggerFamily,
   minions: readonly { cardId: string; golden?: boolean }[],
   getCard: (id: string) => CardDef | undefined,
 ): number {
-  let summed = 0; // stacking cards (Sylus): every copy counts
-  let best = 0; // non-stacking cards (Drakko / Chronos / Uron): the single best copy counts
+  let extra = 0; // ADDITIVE cards (Sylus, Zyff, Uron): every copy of every card counts
+  // MULTIPLIER cards (Drakko, Chronos): the best single copy PER CARD, multiplied across different cards.
+  // Keyed by cardId so two Drakkos are still one ×2 while Drakko × a different multiplier is ×4.
+  const factors = new Map<string, number>();
   for (const m of minions) {
     const mult = getCard(m.cardId)?.triggerMultiplier;
     if (!mult || !mult.families.includes(family)) continue;
-    const contribution = mult.extra * (m.golden ? 2 : 1);
-    if (mult.stacks) summed += contribution;
-    else best = Math.max(best, contribution);
+    if (mult.factor !== undefined) {
+      // Golden adds ONE more trigger rather than doubling the factor (owner ruling 2026-08-28): ×2 → ×3.
+      const f = mult.factor + (m.golden ? 1 : 0);
+      factors.set(m.cardId, Math.max(factors.get(m.cardId) ?? 0, f));
+    } else {
+      extra += (mult.extra ?? 0) * (m.golden ? 2 : 1);
+    }
   }
-  return summed + best;
+  let total = 1 + extra;
+  for (const f of factors.values()) total *= f;
+  return total - 1;
 }
 
 /**

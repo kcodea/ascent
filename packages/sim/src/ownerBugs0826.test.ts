@@ -21,7 +21,9 @@ describe('Funeral on Loan: a borrowed Echo that SUMMONS still fits on a 6-body b
     // SIX real bodies + the borrowed card in hand = the exact reported board.
     s = {
       ...s,
-      board: Array.from({ length: 6 }, (_, i) => body(`f${i}`, 'dw_orin')),
+      // SIX DISTINCT cards. Six copies of one minion would TRIPLE now that a shop death checks triples
+      // (owner ask 2026-08-28), collapsing the very board this test needs full.
+      board: ['sandbag', 'alley', 'pack', 'impscrap', 'trickster', 'ritualist'].map((id, i) => body(`f${i}`, id)),
       hand: [{ ...body('bor', summoner.id), borrowed: true }],
     } as unknown as RunState;
     const before = s.board.length;

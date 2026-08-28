@@ -3780,7 +3780,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "families": [
         "endOfTurn"
       ],
-      "extra": 1,
+      "factor": 2,
       "stacks": false
     },
     "textContract": {
@@ -7148,7 +7148,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "families": [
         "battlecry"
       ],
-      "extra": 1,
+      "factor": 2,
       "stacks": false
     },
     "textContract": {
@@ -33994,7 +33994,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "startOfCombat"
       ],
       "extra": 1,
-      "stacks": false
+      "stacks": true
     },
     "textContract": {
       "source": "index"

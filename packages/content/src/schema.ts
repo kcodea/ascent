@@ -545,11 +545,20 @@ export const CardDefSchema = z.object({
   universalTribe: z.boolean().optional(),
   attackImmuneAlways: z.boolean().optional(),
   splashAdjacent: z.boolean().optional(),
-  triggerMultiplier: z.object({
-    families: z.array(z.enum(['battlecry', 'deathrattle', 'rally', 'slaughter', 'endOfTurn', 'startOfCombat'])),
-    extra: z.number().int().positive(),
-    stacks: z.boolean().optional(),
-  }).strict().optional(),
+  // TWO SHAPES, and the card's printed wording says which (owner vocabulary rule 2026-08-28):
+  // "trigger twice" → `factor` (a multiplier; copies of one card do not stack, different cards multiply),
+  // "trigger 1 additional time" → `extra` (additive; everything stacks). Exactly one of the two.
+  triggerMultiplier: z.union([
+    z.object({
+      families: z.array(z.enum(['battlecry', 'deathrattle', 'rally', 'slaughter', 'endOfTurn', 'startOfCombat'])),
+      extra: z.number().int().positive(),
+      stacks: z.boolean().optional(),
+    }).strict(),
+    z.object({
+      families: z.array(z.enum(['battlecry', 'deathrattle', 'rally', 'slaughter', 'endOfTurn', 'startOfCombat'])),
+      factor: z.number().int().min(2),
+    }).strict(),
+  ]).optional(),
   imp: z.boolean().optional(),
   token: z.boolean().optional(),
   celestial: z.boolean().optional(), // alignment-bearing (Dawn/Dusk/Eclipse) — drives the alignment HUD

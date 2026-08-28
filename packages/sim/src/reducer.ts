@@ -641,6 +641,10 @@ export function reduce(state: RunState, action: Action): RunState {
   // across dispatches). For a rejected no-op reduceCore returns `state` itself → `next.recruitBuffFx` stays [].
   state.recruitBuffFx = [];
   state.aleGranted = []; // per-action scratch: which Dwarf generated an Ale this action (aleGrantSeq stays monotonic)
+  // Per-action scratch: shop death / Echo cues (shopFxSeq stays monotonic). Cleared only when it HOLDS
+  // something — assigning [] unconditionally would add the field to a state that never had it, which a
+  // no-op expectation (a refused action must return an identical state) correctly reads as a change.
+  if (state.shopDeathFx?.length) state.shopDeathFx = [];
   state.auraFx = undefined; // same per-action scratch contract as recruitBuffFx (auraFxSeq stays monotonic)
   state.veinstormStamped = undefined; // per-action scratch: which offers Veinstorm gemmed (veinstormFxSeq stays monotonic)
   // Weld FX does NOT use the per-action scratch contract above, and must not: React BATCHES dispatches, so
@@ -2249,6 +2253,11 @@ function reduceCore(state: RunState, action: Action): RunState {
     // all of it, and a borrowed Echo's Ruby cue silently never fired.
     case 'resolveShopDeath':
       settlePendingDeath(s);
+      // An Echo (or a Rise) can put a THIRD copy of something on the board — Mama Pup's two Pups beside one
+      // you already own, a risen body beside its twins. The old borrowed path returned before ever reaching a
+      // triple check, so Funeral on Loan could hand you three of a kind and simply leave them there (owner
+      // report 2026-08-28). Graverobber's destroy already checked, via its battlecryTarget case.
+      checkTriples(s);
       return s;
     case 'devGrant': {
       // DEV Scene Builder only — drop a quest or rune into the run without playing to the turn that offers it.

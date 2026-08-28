@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
-import { CARD_INDEX, QUEST_DEFS, RUNES, EPIC_RUNES, SETS, activeSet, poolFor, type SetId } from '@game/content';
+import { CARD_INDEX, RUNES, EPIC_RUNES, SETS, activeSet, poolFor, type SetId } from '@game/content';
 import { HEROES, runQaScenario, validateQaScenario, type BoardSnapshot, type QaScenarioV1, type RunState, type ShopCard } from '@game/sim';
 import { buildQaScenario, reproCommandFor, scenarioFileName, scenarioFileText, QA_SCENARIO_FIXTURE_DIR } from './qaScenarioBridge';
 import type { Keyword } from '@game/core';
@@ -18,7 +18,6 @@ import { addEnemy, stagedBoard, MAX_BOARD } from './sandboxEdit';
  * Stripped from production with the rest of the dev tooling.
  */
 type CardRow = { id: string; name: string; tier: number; spell: boolean; tribe: string; hay: string };
-type QuestRow = { id: string; name: string; tribe: string; tier: string; hay: string };
 type RuneRow = { id: string; name: string; cost: number; epic: boolean; hay: string };
 
 /** Everything a row can be matched on, lowercased once at module load. Searching the card's TEXT (not just
@@ -184,15 +183,6 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
       .sort((a, b) => a.tier - b.tier || a.name.localeCompare(b.name)),
   [pool]);
 
-  const allQuests = useMemo<QuestRow[]>(() =>
-    QUEST_DEFS
-      .map((q) => ({
-        id: q.id, name: q.name, tribe: q.tribe ?? 'neutral', tier: String(q.tier),
-        hay: hay(q.name, q.id, q.tribe, String(q.tier), q.objective?.event, q.reward?.kind),
-      }))
-      .sort((a, b) => a.tier.localeCompare(b.tier) || a.name.localeCompare(b.name)),
-  []);
-
   const allRunes = useMemo<RuneRow[]>(() =>
     [...RUNES, ...EPIC_RUNES]
       .map((r) => ({
@@ -204,7 +194,6 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
 
   const terms = useMemo(() => query.trim().toLowerCase().split(/\s+/).filter(Boolean), [query]);
   const results = useMemo(() => all.filter((c) => matches(c.hay, terms)).slice(0, 80), [all, terms]);
-  const questResults = useMemo(() => allQuests.filter((q) => matches(q.hay, terms)), [allQuests, terms]);
   const runeResults = useMemo(() => allRunes.filter((r) => matches(r.hay, terms)), [allRunes, terms]);
 
   // ∞ gold — top the pool back up whenever it dips (default on). Cheap: a subscribe on `run.embers`.
@@ -216,7 +205,6 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
   // Quests / runes go through the REAL reducer (not `mutate`), so the reward engine, triple checks and modal
   // queueing all run exactly as they would in a played run — which is the only way the interaction under test
   // is the real one. Clicking a quest completes it (pays the reward); "◷" adds it un-started to watch it fill.
-  const grantQuest = (id: string, completed: boolean): void => dispatch({ type: 'devGrant', kind: 'quest', id, completed });
   const grantRune = (id: string): void => dispatch({ type: 'devGrant', kind: 'rune', id });
   const setTier = (tier: number): void => mutate((r) => ({ ...r, tier }));
   const giveGold = (): void => mutate((r) => ({ ...r, embers: (r.embers ?? 0) + 1000 }));
@@ -423,22 +411,9 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
             </div>
           </div>
 
-          {/* QUESTS — click completes it (reward pays out now); ◷ adds it un-started to watch the bar fill. */}
-          <div className="sb-sec">
-            <div className="sb-label">Quests → completed <span className="sb-count">{questResults.length}</span></div>
-            <div className="sb-results">
-              {questResults.map((q) => (
-                <div key={q.id} className="sb-card sb-qrow">
-                  <button className="sb-qmain" onClick={() => grantQuest(q.id, true)} title={`Complete ${q.name} now — its reward pays out immediately`}>
-                    <span className="sb-name">{q.name}</span>
-                    <span className="sb-tag">{q.tribe}</span>
-                  </button>
-                  <button className="sb-qadd" onClick={() => grantQuest(q.id, false)} title={`Add ${q.name} un-started, to watch it progress`}>◷</button>
-                </div>
-              ))}
-              {questResults.length === 0 && <div className="sb-empty">no matches</div>}
-            </div>
-          </div>
+          {/* QUESTS — REMOVED from the menu 2026-08-28 (owner): quests are not being actively developed, so
+              the library was offering a surface nobody is building against. The `devGrant` quest path and
+              `QUEST_DEFS` are untouched — this is the MENU only, so re-adding it is putting this block back. */}
 
           {/* RUNES — granting one applies its reward for the run, exactly like buying it in the Runeforge. */}
           <div className="sb-sec">

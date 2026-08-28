@@ -31,12 +31,14 @@ describe('extraTriggerFires — the shared multiplier resolver', () => {
     expect(extraTriggerFires('rally', board(['chronos']), get)).toBe(0);
   });
 
-  it('Uron covers the COMBAT families, and does not stack with itself', () => {
+  it('Uron covers the COMBAT families, and DOES stack with itself', () => {
+    // Owner vocabulary rule 2026-08-28: Uron's text says "an additional time", so it is additive and every
+    // copy counts. It was best-of-copies before, which contradicted its own printed wording.
     const mine: TriggerFamily[] = ['rally', 'endOfTurn', 'startOfCombat'];
     for (const f of mine) {
       expect(extraTriggerFires(f, board(['uron']), get), f).toBe(1);
-      expect(extraTriggerFires(f, board(['uron'], ['uron']), get), f).toBe(1); // best copy only
-      expect(extraTriggerFires(f, board(['uron', true]), get), f).toBe(2); // golden
+      expect(extraTriggerFires(f, board(['uron'], ['uron']), get), f).toBe(2); // additive: both copies count
+      expect(extraTriggerFires(f, board(['uron', true]), get), f).toBe(2); // golden doubles the extra
     }
     // Shouts and Echoes are Zyff's half of the pair — Uron must NOT touch them.
     for (const f of ['battlecry', 'deathrattle'] as TriggerFamily[]) {
@@ -44,10 +46,11 @@ describe('extraTriggerFires — the shared multiplier resolver', () => {
     }
   });
 
-  it('Zyff covers Shouts + Echoes only, and does not stack with itself', () => {
+  it('Zyff covers Shouts + Echoes only, and DOES stack with itself', () => {
+    // Same rule as Uron: "an additional time" → additive.
     for (const f of ['battlecry', 'deathrattle'] as TriggerFamily[]) {
       expect(extraTriggerFires(f, board(['zyff']), get), f).toBe(1);
-      expect(extraTriggerFires(f, board(['zyff'], ['zyff']), get), f).toBe(1);
+      expect(extraTriggerFires(f, board(['zyff'], ['zyff']), get), f).toBe(2);
       expect(extraTriggerFires(f, board(['zyff', true]), get), f).toBe(2);
     }
     for (const f of ['rally', 'endOfTurn', 'startOfCombat'] as TriggerFamily[]) {
@@ -64,13 +67,17 @@ describe('extraTriggerFires — the shared multiplier resolver', () => {
     expect(extraTriggerFires('slaughter', both, get)).toBe(0);
   });
 
-  it('stacking and non-stacking multipliers combine ADDITIVELY', () => {
-    // Sylus (stacking, +1) + Zyff (best-copy, +1) on Deathrattles = +2.
+  it('additive cards sum, and a MULTIPLIER multiplies the total (owner rule 2026-08-28)', () => {
+    // Sylus and Zyff both print "additional", so they sum: 2 extra fires on Deathrattles.
     expect(extraTriggerFires('deathrattle', board(['sylus'], ['zyff']), get)).toBe(2);
     expect(extraTriggerFires('deathrattle', board(['sylus'], ['sylus'], ['zyff', true]), get)).toBe(4);
-    // Drakko + Zyff both non-stacking on Battlecries → the single best contribution, not the sum.
-    expect(extraTriggerFires('battlecry', board(['drummer'], ['zyff']), get)).toBe(1);
-    expect(extraTriggerFires('battlecry', board(['drummer', true], ['zyff']), get)).toBe(2);
+    // Drakko prints "twice" — a MULTIPLIER — so Zyff's extra fire happens, then Drakko doubles the total:
+    // (1 + 1) × 2 = 4 fires, i.e. +3 over the base. This is the owner's worked example.
+    expect(extraTriggerFires('battlecry', board(['drummer'], ['zyff']), get)).toBe(3);
+    // Golden Drakko is ×3 (one more trigger, not a doubled factor): (1 + 1) × 3 = 6 fires → +5.
+    expect(extraTriggerFires('battlecry', board(['drummer', true], ['zyff']), get)).toBe(5);
+    // Two Drakkos are still ×2 — a multiplier does not stack with copies of itself.
+    expect(extraTriggerFires('battlecry', board(['drummer'], ['drummer']), get)).toBe(1);
   });
 
   it('an empty board and unknown ids contribute nothing', () => {

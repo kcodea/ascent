@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { CARD_INDEX } from '@game/content';
 import { createRun, reduce, reduceWithPresentation, type BoardCard, type RunState } from './index';
+import { fireRecruitDeathrattlesForTest } from './recruit';
 import type { SourceTriggerEvent, CardDestroyedConsequence } from '@game/core';
 
 /**
@@ -200,5 +201,73 @@ describe('a shop destroy emits a real beat', () => {
       (e as { type: string }).type === 'cardDestroyed' && (e as CardDestroyedConsequence).target.uid === 'loan');
     expect(destroyed, 'the departure must be reported so it can animate').toBeDefined();
     expect(destroyed!.rise, 'Anubis carries Rise, so the death is flagged as a return').toBe(true);
+  });
+});
+
+/**
+ * TRIPLES. An Echo or a Rise can put a third copy on the board, and a shop death is no exception (owner
+ * report 2026-08-28). Funeral on Loan never checked: its play path returned before reaching any triple check.
+ */
+describe('a shop death still completes triples', () => {
+  it("Funeral on Loan: a borrowed Echo's summons triple with the copies you already own", () => {
+    // Mama Pup's Echo summons two Pups. With one Pup already on board, that is three → a golden Pup.
+    let s = run();
+    const borrowed = { ...body('pack', 'loan'), borrowed: true } as BoardCard;
+    s = { ...s, board: [body('pup', 'p1')], hand: [borrowed] };
+    s = reduce(s, { type: 'play', uid: 'loan', toIndex: 1 });
+    s = reduce(s, { type: 'resolveShopDeath' });
+    // The combined golden lands in HAND (that is what `combineIntoGolden` does), so count both zones.
+    const pups = [...s.board, ...s.hand].filter((c) => c.cardId === 'pup');
+    expect(pups.some((c) => c.golden), 'three Pups must combine into a golden one').toBe(true);
+    expect(pups, 'and the three singles are consumed by the combine').toHaveLength(1);
+  });
+
+  it('Graverobber: the same, through its own destroy path', () => {
+    let s = run();
+    s = { ...s, board: [body('pup', 'p1'), body('pack', 'victim')], hand: [body('graverobber', 'gr')] };
+    s = graverob(s, 'victim');
+    const pups = [...s.board, ...s.hand].filter((c) => c.cardId === 'pup');
+    expect(pups.some((c) => c.golden), 'three Pups must combine into a golden one').toBe(true);
+  });
+});
+
+/**
+ * THE SHOP CUES. The shop has no beat playback, so death and Echo visuals ride the per-action scratch
+ * channel. What matters is that they are STAMPED — an Echo that triggers with no cue is an animation that
+ * silently never plays, which is the class of bug this whole batch is about.
+ */
+describe('shop death and Echo cues', () => {
+  it('a destroy stamps a death cue and an Echo cue', () => {
+    let s = run();
+    s = { ...s, board: [body('pack', 'victim')], hand: [body('graverobber', 'gr')] };
+    s = graverob(s, 'victim');
+    const kinds = (s.shopDeathFx ?? []).filter((f) => f.uid === 'victim').map((f) => f.kind);
+    expect(kinds, 'both the death and its Echo must be cued').toEqual(expect.arrayContaining(['death', 'echo']));
+  });
+
+  it('a RISING body is cued as a rise, so it does not dissolve', () => {
+    let s = run();
+    s = { ...s, board: [body('anubis', 'victim')], hand: [body('graverobber', 'gr')] };
+    s = graverob(s, 'victim');
+    const death = (s.shopDeathFx ?? []).find((f) => f.kind === 'death' && f.uid === 'victim');
+    expect(death?.rise, 'the body re-forms — it must not play the dissolve').toBe(true);
+  });
+
+  it('an Echo triggered WITHOUT a death still cues', () => {
+    // The owner's rule: "the echo animation ... should play ANYTIME an echo is triggered" — not only on death.
+    // Asserted at the CHOKEPOINT every shop Echo passes through (`fireRecruitDeathrattles`), which is where the
+    // cue is stamped, so it holds for every caller: Ossuary Rite, Deathsayer, Rune of the Reliquary, a
+    // Gravetwin's copied Echo, a destroy. A per-card fixture would only ever prove one of them.
+    const s = { ...run(), board: [body('pack', 'alive')] };
+    fireRecruitDeathrattlesForTest(s, s.board[0]!);
+    const echoes = (s.shopDeathFx ?? []).filter((f) => f.kind === 'echo' && f.uid === 'alive');
+    expect(echoes, 'a triggered Echo must cue its animation even with no death').toHaveLength(1);
+    expect(s.board.some((c) => c.uid === 'alive'), 'and the minion is still alive').toBe(true);
+  });
+
+  it('a card with NO Echo cues nothing — no empty animation on an innocent body', () => {
+    const s = { ...run(), board: [body('sandbag', 'plain')] };
+    fireRecruitDeathrattlesForTest(s, s.board[0]!);
+    expect((s.shopDeathFx ?? []).filter((f) => f.kind === 'echo')).toHaveLength(0);
   });
 });

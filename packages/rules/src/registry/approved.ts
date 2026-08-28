@@ -409,20 +409,32 @@ export const APPROVED_RULES: GameRule[] = [
   },
   {
     id: 'R-MULT-01',
-    title: 'Non-stacking multipliers of one family collapse to best-of, across different cards',
+    title: 'The printed wording decides how a multiplier composes — "twice" multiplies, "additional" adds',
     statement:
-      'Within a trigger family, STACKING multipliers (Sylus) sum, and NON-STACKING multipliers collapse to '
-      + 'the single best — across different cards, not just copies of one card: Drakko and Zyff together '
-      + 'grant +1 total Battlecry fire. The card texts will be reworded to signal non-stackers (e.g. '
-      + '"Twice" instead of "an additional time") — the owner\'s planned terminology pass, not a code change.',
+      'A card that prints "trigger twice" is a MULTIPLIER: copies of the SAME card do not stack (two Drakkos '
+      + 'are still twice), but DIFFERENT multiplier cards multiply with each other. A card that prints '
+      + '"trigger N additional time(s)" is ADDITIVE: every copy of every additive card counts. The two combine '
+      + 'as (1 + Σ extra) × Π factor. So two Sylus mean an Echo fires 3 times, two Drakko still mean a Shout '
+      + 'fires twice, and Drakko + Zyff mean a Shout fires FOUR times. Gilding doubles an additive '
+      + "card's extra and buys a multiplier ONE more trigger (golden Drakko is three times, not four).",
     domain: 'multipliers',
     status: 'approved',
-    evidence: [{
-      kind: 'owner-chat', ref: 'decisions.json q-interact-nonstack-best-of (triage round 2, 2026-08-27)',
-      quote: 'This is correct behavior. We will probably change our text/terminology to better reflect non stackers. i.e. using "Twice" instead of "an additional time."',
-    }],
-    currentBehaviour: 'Conforms — extraTriggerFires best-ofs the non-stacking set; triggerMultipliers.test.ts pins Drakko+Zyff = +1.',
-    enforcement: { kind: 'oracle', refs: ['interactionFamilyMatrix'], lastVerifiedAt: '2026-08-27' },
+    evidence: [
+      {
+        kind: 'owner-chat', ref: 'owner message 2026-08-28 (the terminology pass this rule anticipated)',
+        quote: 'if something says "twice" then it is a multiplier and not "additional times" but they do not stack, whereas "additional time" texts do. i.e. 2 Sylus on board means an echo will trigger 3 times. 2 drakko on board means a Shout will trigger 2 times. Zyff + Drakko on board would mean that a shout triggers 4 times.',
+      },
+      {
+        kind: 'owner-chat', ref: 'decisions.json q-interact-nonstack-best-of (triage round 2, 2026-08-27)',
+        quote: 'This is correct behavior. We will probably change our text/terminology to better reflect non stackers. i.e. using "Twice" instead of "an additional time."',
+      },
+    ],
+    currentBehaviour:
+      'Conforms (rewritten 2026-08-28). SUPERSEDES the 2026-08-27 reading, under which every non-stacker '
+      + 'collapsed to best-of across different cards (Drakko + Zyff = +1 total). The terminology pass this rule '
+      + 'predicted turned out to change COMPOSITION as well as wording. `extraTriggerFires` is the one '
+      + 'implementation; triggerMultiplierModel.test.ts pins every worked example verbatim.',
+    enforcement: { kind: 'oracle', refs: ['interactionFamilyMatrix'], lastVerifiedAt: '2026-08-28' },
   },
   {
     id: 'R-SHOUT-01',
@@ -564,11 +576,12 @@ export const APPROVED_RULES: GameRule[] = [
     title: 'Trigger-multiplier composition is family-agnostic — End of Turn and Start of Combat fold like the rest',
     statement:
       'The composition law of R-MULT-01 applies to EVERY trigger family, not only the ones with a named '
-      + 'precedent: within a family, stacking multipliers sum across copies, non-stacking multipliers collapse '
-      + 'to the single best card (Gilded counting double), and the two combine additively — then rune and '
-      + 'one-shot extras add on top of that fold. So Uron and Chronos together make End-of-Turn effects fire '
-      + '2×, not 3×; Uron makes Start-of-Combat effects fire 2×; and Rune of Twilight adds its pass on top '
-      + '(owner reversal 2026-08-20). A family needs no ruling of its own to be composed this way.',
+      + 'precedent — a family needs no ruling of its own to be composed this way. So Uron (additive) and '
+      + 'Chronos ("twice", a multiplier) together make End-of-Turn effects fire (1 + 1) × 2 = FOUR times; Uron '
+      + 'alone makes Start-of-Combat effects fire twice; and Rune of Twilight adds its pass on top of the fold '
+      + '(owner reversal 2026-08-20). REVISED 2026-08-28 by the wording rule: the earlier reading '
+      + 'collapsed Uron + Chronos to 2×, which was right under the all-additive model it was approved against '
+      + 'and wrong under the one that replaced it the same day.',
     domain: 'multipliers',
     status: 'approved',
     evidence: [

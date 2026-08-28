@@ -219,11 +219,13 @@ export function runInteractionSweep(opts: InteractionSweepOptions): InteractionS
   for (const producer of cand.deathSummon) {
     const d = deathSummonEffect(producer)!;
     for (const mult of cand.deathrattleMultipliers) {
-      const extra = mult.multiplier!.extra;
-      if (d.plain * (1 + extra) + 1 > BOARD_CAP) {
+      // The card's declared total factor, whichever shape it uses — `declared` (additive) or `factor`
+      // (a "triggers twice" multiplier). See `declaredFireFactor`.
+      const declared = mult.multiplier!.factor ?? 1 + (mult.multiplier!.extra ?? 0);
+      if (d.plain * declared + 1 > BOARD_CAP) {
         push({
           family: 'trigger-x-multiplier', tier: 'pair', members: [producer.contentId, mult.contentId],
-          verdict: 'inapplicable', evidence: `${d.plain} × ${1 + extra} multiplied tokens + the multiplier body exceed the ${BOARD_CAP}-slot cap`, comboKeys: [],
+          verdict: 'inapplicable', evidence: `${d.plain} × ${declared} multiplied tokens + the multiplier body exceed the ${BOARD_CAP}-slot cap`, comboKeys: [],
         });
         continue;
       }
@@ -232,13 +234,13 @@ export function runInteractionSweep(opts: InteractionSweepOptions): InteractionS
       const variant = fight([bm(producer.contentId, 1, 1, { keywords: ['T'] }), bm(mult.contentId, 1, 30)], [bm('sandbag', 5, 4000)]);
       const b = summonsOf(base, d.cardId);
       const v = summonsOf(variant, d.cardId);
-      const ok = b === d.plain && v === b * (1 + extra);
+      const ok = b === d.plain && v === b * declared;
       push({
         family: 'trigger-x-multiplier', tier: 'pair', members: [producer.contentId, mult.contentId],
         verdict: ok ? 'covered' : 'failed',
-        evidence: `combat: ${producer.contentId} died; ${b} '${d.cardId}' base, ${v} with ${mult.contentId} (declared ×${1 + extra})`,
+        evidence: `combat: ${producer.contentId} died; ${b} '${d.cardId}' base, ${v} with ${mult.contentId} (declared ×${declared})`,
         comboKeys: [combinationKey(['trigger:onDeath', 'multiplier:deathrattle'])],
-        measurement: { base: b, variant: v, expectedFactor: 1 + extra },
+        measurement: { base: b, variant: v, expectedFactor: declared },
         trace: { factoryStamps: factoryStamps(variant.events), summonCounts: { [d.cardId]: v } },
       });
     }

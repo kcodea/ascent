@@ -128,11 +128,10 @@ export function LobbyPanel({ lobby }: { lobby: RunLobby }): JSX.Element | null {
               onContextMenu={isYou ? undefined : (e) => pinScout(e, seat.id)}
             >
               <img className="lobbyface" src={heroArt(seat.heroId)} alt="" />
-              {/* Name and chip share ONE grid cell so adding the chip cannot shift the health column — the row
-                  has to keep the same shape whether or not this seat is the next foe. */}
+              {/* The opponent name owns its own full-width row (styles.css `.lobbynameline`). The next foe is
+                  marked by the seat's own bright pulsing glow (the `foe` class → `.lobbyseat.foe`), not a pill. */}
               <span className="lobbynameline">
                 <span className="lobbyname">{seat.label}</span>
-                {isFoe && <span className="lobbynextchip">Next</span>}
               </span>
               {/* What last round cost this seat. The cell always renders — an omitted one would reflow the row
                   and leave the health column jittering between seats — but it stays blank at 0, because a

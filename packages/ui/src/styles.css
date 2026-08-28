@@ -8146,9 +8146,12 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   display: flex; flex-direction: column; gap: calc(5 * var(--lu)); pointer-events: none;
   /* A solid backing plate. Translucent rows over the board's stonework washed every name out to grey — the
      panel has to be its own surface, not a tint on the art behind it. */
-  padding: calc(6 * var(--lu)); border-radius: calc(9 * var(--lu));
-  background: #14111c; box-shadow: 0 calc(4 * var(--lu)) calc(14 * var(--lu)) -6px rgba(0, 0, 0, 0.7),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.09); }
+  padding: calc(8 * var(--lu)); border-radius: calc(9 * var(--lu));
+  /* The gilded backplate art IS the rail's surface (🖼️ Opponents Backplate tuner composes `.lobbyrail.lobbyrail`
+     live with dim + size + position dials; the trailing colour is the fallback if the image can't load). The
+     image carries its OWN gold frame, so there is no inset hairline — the padding above insets the rows off it. */
+  background: url('/opponents-backplate.webp') 50% 50% / 100% 100% no-repeat, #14111c;
+  box-shadow: 0 calc(4 * var(--lu)) calc(14 * var(--lu)) -6px rgba(0, 0, 0, 0.7); }
 .lobbyrail > * { pointer-events: auto; }
 .lobbyhead { display: flex; justify-content: space-between; align-items: center; flex: none; gap: calc(5 * var(--lfont));
   font-size: calc(9 * var(--lfont)); letter-spacing: 0.06em; text-transform: uppercase; color: rgba(255, 255, 255, 0.72); }
@@ -8159,15 +8162,9 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .lobbymax { display: inline-flex; align-items: center; gap: calc(2 * var(--lfont)); font-size: calc(10 * var(--lfont)); font-weight: 800; color: #ff9a9a; }
 .lobbymax svg { width: calc(11 * var(--lfont)); height: calc(11 * var(--lfont)); color: #ff6b6b; }
 
-/* NEXT-FOE MARKER — a chip in the row, not a card above the table (owner ask 2026-07-31). The rail used to be
-   two different things stacked: a big portrait card for the imminent opponent, then a list of everyone else.
-   That made the one seat you most want to COMPARE against the others the only one you couldn't. Every row is
-   now identical and the next foe is marked in place. */
-.lobbynextchip { justify-self: start; align-self: center;
-  font-size: calc(7 * var(--lfont)); font-weight: 800; letter-spacing: 0.09em; text-transform: uppercase;
-  color: #ffd9d4; padding: calc(1 * var(--lrow)) calc(4 * var(--lrow));
-  border-radius: 999px; background: rgba(255, 110, 100, 0.22);
-  box-shadow: inset 0 0 0 1px rgba(255, 140, 130, 0.55); white-space: nowrap; }
+/* NEXT-FOE MARKER — the next opponent's seat is lit IN PLACE: a bright gold ring + gentle pulse on the row
+   itself (see `.lobbyseat.foe` below). The old "Next" pill was removed (owner ask 2026-08-28) — the glow reads
+   at a glance with no label, and every row stays identical so seats still compare cleanly. */
 
 /* ── SCOUT CARD ──────────────────────────────────────────────────────────────
    The hover read on one opponent. Dark glass, matching the hero / buff / quest panels: a vertical fill, a
@@ -8231,28 +8228,41 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   border-radius: calc(5 * var(--lrow)); font-size: calc(11 * var(--lfont)); color: #f2ecff;
   background: #211c2e; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08); }
 .lobbyseat.you { background: #1f3a5c; box-shadow: inset 0 0 0 1px rgba(140, 200, 255, 0.6); }
-.lobbyseat.foe { background: #3a2126; box-shadow: inset 0 0 0 1px rgba(255, 130, 120, 0.75); }
+/* The NEXT opponent — lit BRIGHT so it reads at a glance now the "Next" pill is gone. A warm-gold seat + ring,
+   plus an overlay whose glow PULSES via opacity only (a static shadow, opacity-animated — compositor-only per
+   docs/performance.md; never a looping box-shadow). */
+.lobbyseat.foe { background: #46292b; box-shadow: inset 0 0 0 1px rgba(255, 196, 120, 0.95); }
+.lobbyseat.foe::after {
+  content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  box-shadow: inset 0 0 0 calc(0.7 * var(--lrow)) rgba(255, 206, 130, 0.95),
+    0 0 calc(7 * var(--lrow)) calc(1 * var(--lrow)) rgba(255, 170, 80, 0.55);
+  animation: lobbyfoepulse 1.5s ease-in-out infinite; }
+@keyframes lobbyfoepulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
 .lobbyseat.dead { opacity: 0.5; }
 .lobbyface { grid-row: 1 / span 3; width: calc(18 * var(--lrow)); height: calc(18 * var(--lrow));
   border-radius: 50%; object-fit: cover; }
-.lobbynameline { display: flex; align-items: center; gap: calc(3 * var(--lrow)); min-width: 0; }
+/* The opponent NAME gets its own full-width row (owner ask 2026-08-28) — spans both non-portrait columns on
+   row 1, with the health / damage stats moved to row 2 and the bar to row 3 below it. */
+.lobbynameline { grid-column: 2 / span 2; grid-row: 1; display: flex; align-items: center; gap: calc(3 * var(--lrow)); min-width: 0; }
 .lobbyname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lobbyseat.dead .lobbyname { text-decoration: line-through; }
 .lobbyhp { display: inline-flex; align-items: center; gap: calc(1 * var(--lfont)); font-weight: 700; color: #ff8d8d; }
 .lobbyhp svg { width: calc(8 * var(--lfont)); height: calc(8 * var(--lfont)); }
 .lobbyarmor { color: #9fc7ff; font-weight: 700; }
 .lobbyplace { color: rgba(255, 255, 255, 0.62); font-weight: 700; }
+/* Health / placement sit on row 2 at the right, beside the round-damage number, now the name owns row 1. */
+.lobbyhp, .lobbyplace { grid-column: 3; grid-row: 2; justify-self: end; }
 /* Damage from the round that just resolved — sits under the name, so the row keeps ONE stable shape whether or
    not a number is present (an inline cell reflowed the health column between seats). */
 /* HEALTH BAR — the element was rendered by the panel but had no rule at all, so it painted nothing. Given a
    row of its own beneath the name so it reads as the seat's whole remaining pool at a glance, next to the exact
    number on the right. */
-.lobbybar { grid-column: 2 / span 2; height: calc(3 * var(--lrow)); border-radius: 999px;
+.lobbybar { grid-column: 2 / span 2; grid-row: 3; height: calc(3 * var(--lrow)); border-radius: 999px;
   background: rgba(255, 255, 255, 0.10); overflow: hidden; }
 .lobbybar > span { display: block; height: 100%; border-radius: inherit;
   background: linear-gradient(90deg, #ff8d8d, #ffc38d); }
 .lobbyseat.you .lobbybar > span { background: linear-gradient(90deg, #8cc8ff, #b9e2ff); }
-.lobbydmg { grid-column: 2 / span 2; font-size: calc(9 * var(--lfont)); font-weight: 800; color: #ff6b6b;
+.lobbydmg { grid-column: 2; grid-row: 2; font-size: calc(9 * var(--lfont)); font-weight: 800; color: #ff6b6b;
   line-height: 1; min-height: calc(8 * var(--lfont)); animation: lobbydmgpop 420ms ease-out; }
 @keyframes lobbydmgpop {
   0% { transform: translateY(calc(-2 * var(--lfont))) scale(1.3); opacity: 0; }

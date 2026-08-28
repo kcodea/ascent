@@ -183,6 +183,21 @@ Consume, Discover.
 
 Source: `packages/ui/src/terms.ts`.
 
+### Aura — the run-wide scope noun (owner ruling 2026-08-28)
+
+A grant that reaches a whole tribe/class **wherever its members sit** — the board, your hand, the Shop, and
+copies you acquire later — prints as an **Aura**: *"give your **Beast Aura** +8/+8"*, *"improve your **Imp
+Aura** by +2/+2"*. The shape is `your <Tribe-singular> Aura`.
+
+This replaced the older scope tails **"wherever they are"** and **"everywhere"**, which no longer appear in
+any printed text. It is a **vocabulary change only** — an Aura grant is the same run-wide grant it always
+was, with the same numbers, targets and timing; no engine identifier, effect id, or FX path moved. The rule
+and its machine-checkable predicate live in the language guide as **LG-SCOPE-01**
+(`packages/rules/src/languageGuide.ts`), and a grow-loudly test fails if new text reintroduces a retired tail.
+
+Unrelated and **reserved**: the owner's own **Rise / Reborn → Rebirth** rename is still in flight and was not
+touched here (LG-KEYWORD-02).
+
 ---
 
 ## Unverified / confirm

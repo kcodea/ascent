@@ -271,8 +271,8 @@ export const SET2_BEASTS: CardDef[] = [
     health: 3,
     keywords: ['T'],
     effects: [{ on: 'onDeath', do: 'deathrattleBuffTribe', params: { tribe: 'beast', attack: 2, health: 4 } }],
-    text: '**Taunt. Echo:** give your Beasts **+2/+4** wherever they are.',
-    goldenText: '**Taunt. Echo:** give your Beasts **+4/+8** wherever they are.',
+    text: '**Taunt. Echo:** give your **Beast Aura** **+2/+4**.',
+    goldenText: '**Taunt. Echo:** give your **Beast Aura** **+4/+8**.',
   },
   {
     // Owner add 2026-08-12. Avenge (4): summon an Armadiyo (`avengeSummon`; a gilded Dunkey summons a gilded

@@ -54,8 +54,8 @@ export const BEASTS: CardDef[] = [
     // countdown surface via cardText's summonBuffText helper on every surface.
     // Printed base follows the params (owner report 2026-07-31: it GAVE +2 but SAID +1 — the 2026-07-25
     // rebalance moved the params and left the text behind).
-    text: '**Start of Combat:** give your Beasts **+1 Attack** wherever they are. **Avenge (4):** Improve this.',
-    goldenText: '**Start of Combat:** give your Beasts **+2 Attack** wherever they are. **Avenge (4):** Improve this (twice as much).',
+    text: '**Start of Combat:** give your **Beast Aura** **+1 Attack**. **Avenge (4):** Improve this.',
+    goldenText: '**Start of Combat:** give your **Beast Aura** **+2 Attack**. **Avenge (4):** Improve this (twice as much).',
   },
   {
     id: 'gnash',
@@ -101,7 +101,7 @@ export const BEASTS: CardDef[] = [
     keywords: ['RL'],
     token: true,
     effects: [{ on: 'onAttack', do: 'rallyTribeAuraGrowing', params: { tribe: 'beast', attack: 5, health: 5, step: 5 } }],
-    text: '**Rally:** give your Beasts **+5/+5** wherever they are. Improve this by **+5/+5** whenever Trophy Stalker attacks.',
+    text: '**Rally:** give your **Beast Aura** **+5/+5**. Improve this by **+5/+5** whenever Trophy Stalker attacks.',
   },
   {
     // A glass-cannon finisher: a 7/1 that pays off enormously when it dies. Owner rework 2026-08-12: from the
@@ -116,8 +116,8 @@ export const BEASTS: CardDef[] = [
     health: 1,
     keywords: [],
     effects: [{ on: 'onDeath', do: 'deathrattleBuffTribe', params: { tribe: 'beast', attack: 8, health: 8 } }],
-    text: '**Echo:** give your Beasts **+8/+8** wherever they are.',
-    goldenText: '**Echo:** give your Beasts **+16/+16** wherever they are.',
+    text: '**Echo:** give your **Beast Aura** **+8/+8**.',
+    goldenText: '**Echo:** give your **Beast Aura** **+16/+16**.',
   },
   {
     id: 'shaper',

@@ -96,7 +96,7 @@ export const SLICE_CONTRACTS: readonly ContentContract[] = [
     effects: [{ kind: 'improve-own-aura', note: 'permanent per-instance accrual (summonBonus channel) — the copy-semantics subject of both copy fixtures' }],
     persistence: ['permanent'],
     relatedRuleIds: ['R-AVWIN-01', 'R-AVWIN-03', 'R-AVWIN-04', 'R-AVWIN-05'],
-    textContract: { text: '**Start of Combat:** give your Beasts **+1 Attack** wherever they are. **Avenge (4):** Improve this.', goldenText: '**Start of Combat:** give your Beasts **+2 Attack** wherever they are. **Avenge (4):** Improve this (twice as much).' },
+    textContract: { text: '**Start of Combat:** give your **Beast Aura** **+1 Attack**. **Avenge (4):** Improve this.', goldenText: '**Start of Combat:** give your **Beast Aura** **+2 Attack**. **Avenge (4):** Improve this (twice as much).' },
   },
   {
     contentId: 'anubis',

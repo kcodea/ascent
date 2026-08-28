@@ -100,7 +100,7 @@ export const RUNES: RuneDef[] = [
     id: 'rune_summoning',
     name: 'Rune of Summoning',
     cost: 4, // owner balance 2026-08-11
-    text: 'Whenever you cast a Shop spell, improve your **Imps** by **+2/+2** wherever they are.',
+    text: 'Whenever you cast a Shop spell, improve your **Imp Aura** by **+2/+2**.',
     previewCards: ['impscrap'], // text names it — the forge hover shows the card
     reward: { kind: 'runeSummoning' },
   },
@@ -1760,7 +1760,7 @@ export const EPIC_RUNES: RuneDef[] = [
     name: 'Rune of the Cinder Ledger',
     cost: 3,
     epic: true,
-    text: '**Avenge (3):** improve your **Imps by +6/+6** wherever they are.',
+    text: '**Avenge (3):** improve your **Imp Aura** by **+6/+6**.',
     previewCards: ['impscrap'], // text names it — the forge hover shows the card
     reward: { kind: 'combatFlag', flag: 'runeCinderLedger', amount: 6 },
   },

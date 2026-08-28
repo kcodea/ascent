@@ -17,7 +17,7 @@
  */
 import { stripMarkers } from '../textOracle';
 import { resolveTokenName } from '../textOracleSummons';
-import { CONDITIONAL_LEXICON, TRIGGER_LEXICON, keywordNameTable } from './lexicon';
+import { AURA_TARGET_RE, CONDITIONAL_LEXICON, TRIGGER_LEXICON, keywordNameTable } from './lexicon';
 import type {
   ParsedAmount, ParsedEffect, ParsedGamePhase, ParsedLimit, ParsedPersistence, ParsedRandomness,
   ParsedTarget, ParsedTextContract, ParsedTrigger, TextSpan,
@@ -48,7 +48,14 @@ const TRIBE_WORDS = 'Beasts?|Demons?|Dragons?|Dwarves|Dwarf|Kobolds?|Mechs?|Unde
 /** A target phrase, anchored at the start of `s`. Deliberately small: the shapes the corpus actually
  *  prints. Returns null (no consumption) for anything else. */
 function targetPhrase(s: string): { target: ParsedTarget; len: number } | null {
-  let m = /^your (other )?(entire board|board|(?:[A-Z][\w']*(?: spells)?s?|minions|Imps and Fodder|Fodder|Undead))\b/.exec(s);
+  // The Aura noun (owner ruling 2026-08-28, LG-SCOPE-01): "your Beast Aura" / "your Attachment Aura" — the
+  // run-wide reach that used to print as the "wherever they are" tail. Must precede the generic `your …`
+  // shape, which would otherwise consume "your Beast" and leave "Aura" unread.
+  let m = AURA_TARGET_RE.exec(s);
+  if (m && m.index === 0) {
+    return { target: { cardinality: 'all', scope: `your-${m[1]!.toLowerCase()}-aura`, friendly: true }, len: m[0].length };
+  }
+  m = /^your (other )?(entire board|board|(?:[A-Z][\w']*(?: spells)?s?|minions|Imps and Fodder|Fodder|Undead))\b/.exec(s);
   if (m) {
     return { target: { cardinality: 'all', scope: `your-${m[2]!.toLowerCase().replace(/\s+/g, '-')}`, friendly: true }, len: m[0].length };
   }
@@ -117,7 +124,8 @@ function recStatBuff(s: string): Rec | null {
   let pos = m[0].length;
   // Optional target phrase between verb and the stat token ("give your Beasts +1/+1").
   const tp = targetPhrase(s.slice(pos));
-  if (tp) pos += tp.len + (/^\s*/.exec(s.slice(pos + tp.len))?.[0].length ?? 0);
+  // "improve your Imp Aura BY +2/+2" — the Improve verb takes a "by" between target and amount.
+  if (tp) pos += tp.len + (/^\s*(?:by )?/.exec(s.slice(pos + tp.len))?.[0].length ?? 0);
   else if (/^this by /.test(s.slice(pos))) pos += 'this by '.length; // "Improve this by +2/+2"
   const rest = s.slice(pos);
   const st = statToken(rest);

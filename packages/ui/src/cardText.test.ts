@@ -250,6 +250,17 @@ describe('cardText helpers', () => {
     expect(summonBuffText('trophystalker', 5)).toContain('{{+10/+10}}'); // (5 + 5) × 1
     expect(summonBuffText('trophystalker', 5, true)).toContain('{{+20/+20}}'); // (5 + 5) × 2 golden
   });
+
+  it('the Aura rebrand kept both injection sites live (owner ruling 2026-08-28)', () => {
+    // The rewrite swapped the "wherever they are" tail for the Aura noun, leaving the bold "**+N Attack**" /
+    // "**+N/+N**" tokens the helpers regex into. Assert the injected text keeps BOTH halves — the live number
+    // AND the Aura target — so a future re-word that drops the token can't silently strand the printed value.
+    for (const s of [summonBuffText('kennel', 2)!, summonBuffText('kennel', 2, true)!]) {
+      expect(s).toContain('**Beast Aura**');
+      expect(s).not.toMatch(/wherever they are|everywhere/);
+    }
+    expect(summonBuffText('trophystalker', 5)).toContain('**Beast Aura**');
+  });
 });
 
 describe('live values on climbing / per-turn cards (owner ask 2026-07-29)', () => {

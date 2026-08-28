@@ -295,8 +295,8 @@ export const MECHS: CardDef[] = [
       { on: 'onPlay', do: 'battlecryBuffMagnetics', params: { attack: 2, health: 2 } },
       { on: 'onPlay', do: 'battlecryGrantMinion', params: { cardId: 'moneybot' } },
     ],
-    text: '**Battlecry:** Give your **Attachments** **+2/+2** everywhere and get a **Money Bot**.',
-    goldenText: '**Battlecry:** Give your **Attachments** **+4/+4** everywhere and get **two Money Bots**.',
+    text: '**Battlecry:** Give your **Attachment Aura** **+2/+2** and get a **Money Bot**.',
+    goldenText: '**Battlecry:** Give your **Attachment Aura** **+4/+4** and get **two Money Bots**.',
   },
 
   // --- Mech quest rewards (2026-07-08). token: true → reward-only, never rolled in the tavern. ---
@@ -333,8 +333,8 @@ export const MECHS: CardDef[] = [
       { on: 'onAttack', do: 'rallyBuffAttachments', params: { attack: 4, health: 4 } },
       { on: 'onAttack', do: 'rallyGrantMagnetic', params: { count: 2 } },
     ],
-    text: '**Rally:** improve your **Attachments** by **+4/+4** wherever they are and get **2 Attachments**.',
-    goldenText: '**Rally:** improve your **Attachments** by **+8/+8** wherever they are and get **4 Attachments**.',
+    text: '**Rally:** improve your **Attachment Aura** by **+4/+4** and get **2 Attachments**.',
+    goldenText: '**Rally:** improve your **Attachment Aura** by **+8/+8** and get **4 Attachments**.',
     token: true,
   },
 ];

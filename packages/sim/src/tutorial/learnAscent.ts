@@ -128,7 +128,7 @@ const CARD_IDS = {
   // Pennycat's Shout also lands ON THE BOARD (a summoned Stray) instead of up in a Discover overlay, so the
   // trigger is visible where the player is already looking — and Discover still gets its own lesson in Round 8.
   pennycat: 'alley', // T1 Beast 1/1 — "Shout: summon a 1/1 Stray next to it" (teaches Shout, untargeted)
-  kennel: 'kennel', // T2 Beast — "Start of Combat: give your Beasts +1 Attack wherever they are"
+  kennel: 'kennel', // T2 Beast — "Start of Combat: give your Beast Aura +1 Attack"
   echohorn: 'b2_echohorn', // T3 Beast — "Rally: trigger your left-most Echo" (position-dependent synergy)
   blessing: 'sp_blessing', // T4 spell, cost 2, target any — "Give a minion +3/+4 twice" (teaches buy + cast a spell)
   tripleReward: 'discoverspell', // the "Triple Reward" token a golden minion grants on play — a Discover (teaches Discover)

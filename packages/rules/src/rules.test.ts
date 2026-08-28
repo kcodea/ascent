@@ -137,8 +137,14 @@ describe('language guide (schema v0, WP B §11.3)', () => {
     for (const e of LANGUAGE_GUIDE) {
       expect(e.id).toMatch(/^LG-[A-Z]+-\d{2}$/);
       expect(e.evidence.length, `${e.id} cites no evidence`).toBeGreaterThan(0);
-      // 'approved' requires an explicit owner decision on the entry — none exists yet (WP E's sitting).
-      expect(e.status, `${e.id}: no owner has decided a guide entry yet — 'approved' must wait for WP E's wording sitting`).toBe('seeded');
+      expect(['seeded', 'approved']).toContain(e.status);
+      // 'approved' is never a machine verdict: it requires an OWNER decision on the entry, cited in evidence
+      // (LG-SCOPE-01 is the first — the Aura rebrand, owner ruling 2026-08-28). A seeded entry is Claude's
+      // reading of majority usage and may never claim approval.
+      if (e.status === 'approved') {
+        expect(e.evidence.some((v) => v.kind === 'owner-chat' || v.kind === 'owner-handoff'),
+          `${e.id}: 'approved' requires an owner decision cited in evidence (owner-chat / owner-handoff)`).toBe(true);
+      }
     }
   });
 });

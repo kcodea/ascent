@@ -527,29 +527,28 @@
   },
   "q-conv-trigger-buy": {
     "decision": "revise",
-    "note": "Baseline: yes. some are different, though. Moonhowl for example adds an instance of the effect, and does not double the amount granted.",
-    "decidedAt": "2026-08-28T14:13:58.405Z"
+    "note": "i answered this already, but moonhowl is unique here as it adds a twice mechanic, but baseline yes it doubles.",
+    "decidedAt": "2026-08-28T15:25:24.741Z"
   },
   "q-conv-trigger-consume": {
-    "decision": "revise",
-    "note": "Avarice gilded would gain double the stats and grant double the gold.",
-    "decidedAt": "2026-08-28T14:14:31.857Z"
+    "decision": "approve",
+    "decidedAt": "2026-08-28T15:25:29.766Z"
   },
   "q-conv-trigger-damaged": {
     "decision": "approve",
-    "decidedAt": "2026-08-28T14:14:46.042Z"
+    "decidedAt": "2026-08-28T15:25:33.652Z"
   },
   "q-conv-trigger-gainAttack": {
     "decision": "approve",
-    "decidedAt": "2026-08-28T14:14:58.811Z"
+    "decidedAt": "2026-08-28T15:25:37.668Z"
   },
   "q-conv-trigger-goldSpent": {
     "decision": "approve",
-    "decidedAt": "2026-08-28T14:15:10.421Z"
+    "decidedAt": "2026-08-28T15:25:42.918Z"
   },
   "q-conv-trigger-overflow": {
     "decision": "approve",
-    "decidedAt": "2026-08-28T14:15:25.181Z"
+    "decidedAt": "2026-08-28T15:25:46.550Z"
   },
   "q-conv-trigger-residual": {
     "decision": "revise",

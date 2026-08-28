@@ -524,5 +524,45 @@
     "decision": "revise",
     "note": "I do not understand this ask. simply put a xerox copy should be an exact copy, so identical in every way.",
     "decidedAt": "2026-08-28T00:00:00.000Z"
+  },
+  "q-conv-trigger-buy": {
+    "decision": "revise",
+    "note": "Baseline: yes. some are different, though. Moonhowl for example adds an instance of the effect, and does not double the amount granted.",
+    "decidedAt": "2026-08-28T14:13:58.405Z"
+  },
+  "q-conv-trigger-consume": {
+    "decision": "revise",
+    "note": "Avarice gilded would gain double the stats and grant double the gold.",
+    "decidedAt": "2026-08-28T14:14:31.857Z"
+  },
+  "q-conv-trigger-damaged": {
+    "decision": "approve",
+    "decidedAt": "2026-08-28T14:14:46.042Z"
+  },
+  "q-conv-trigger-gainAttack": {
+    "decision": "approve",
+    "decidedAt": "2026-08-28T14:14:58.811Z"
+  },
+  "q-conv-trigger-goldSpent": {
+    "decision": "approve",
+    "decidedAt": "2026-08-28T14:15:10.421Z"
+  },
+  "q-conv-trigger-overflow": {
+    "decision": "approve",
+    "decidedAt": "2026-08-28T14:15:25.181Z"
+  },
+  "q-conv-trigger-residual": {
+    "decision": "revise",
+    "note": "These are unique minions but they could share families in some ways. gangplank and kegheart are cards that track when cards get added to hand, fel conjurer is a start of turn get spell to hand, reflect and mirrorwing are when targeted by spell minions, hellrider is a refresh mechanic minion. these families will be expanded on eventually so they shouldnt be fully isolated cards",
+    "decidedAt": "2026-08-28T14:17:22.644Z"
+  },
+  "q-conv-trigger-ruby": {
+    "decision": "revise",
+    "note": "Yes. we should probably standardize our ruby terminology to \"cast.\" the term \"Played\" should be a global modifier for when a card is played from hand specifically. Cast is something that can be done from hand and in combat or from minions.",
+    "decidedAt": "2026-08-28T14:18:59.997Z"
+  },
+  "q-conv-trigger-sell": {
+    "decision": "approve",
+    "decidedAt": "2026-08-28T14:19:20.904Z"
   }
 }

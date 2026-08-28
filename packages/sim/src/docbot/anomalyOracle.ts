@@ -46,9 +46,14 @@ export type AnomalyDetectorId =
  *  battlecry (interactionFamilyMatrix P1–P3/P9–P10, owner q-interact-combat-shout-multipliers),
  *  deathrattle (P4–P6/P11, owner 2026-07-08 "additive"), rally (P7, simulate.ts playerRallyExtras + the
  *  Uron rally-tally owner report), avenge (R-AVWIN-07: resolution-only, the multiplier-resolution-only
- *  metamorphic law + temporalWindow pins). Families OUTSIDE this set are detector F's worklist — grow it
- *  ONLY when a ruling/pin lands, never to quiet the detector. */
-export const RULED_MULTIPLIER_FAMILIES: ReadonlySet<string> = new Set(['battlecry', 'deathrattle', 'rally', 'avenge']);
+ *  metamorphic law + temporalWindow pins), and — since the owner's Sitting-2 approvals of 2026-08-28
+ *  (q-interact2-32aa654f / q-interact2-faeb3c44, endorsing "these families fold like the ruled ones") —
+ *  endOfTurn and startOfCombat, now carrying R-MULT-02 and matrix fixtures P12–P13.
+ *  Families OUTSIDE this set are detector F's worklist — grow it ONLY when a ruling/pin lands, never to
+ *  quiet the detector. */
+export const RULED_MULTIPLIER_FAMILIES: ReadonlySet<string> = new Set([
+  'battlecry', 'deathrattle', 'rally', 'avenge', 'endOfTurn', 'startOfCombat',
+]);
 
 interface AnomalyDraft {
   detector: AnomalyDetectorId;

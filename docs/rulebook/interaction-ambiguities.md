@@ -8,7 +8,20 @@ are the ones a fixture would have had to *invent* a semantics for.
 
 ---
 
-## Q1 — Two DIFFERENT non-stacking multipliers of the same family collapse to best-of
+## Q1 — Two DIFFERENT non-stacking multipliers of the same family collapse to best-of — **RESOLVED 2026-08-28**
+
+**Owner rulings: `q-interact-nonstack-best-of` (REVISE 2026-08-27) → standing rule R-MULT-01, and
+`q-interact2-32aa654f` / `q-interact2-faeb3c44` (APPROVE 2026-08-28) → standing rule R-MULT-02.** Best-of
+across different non-stacking cards is CORRECT, and it is the law in *every* trigger family — the owner
+approved the reading that End of Turn and Start of Combat "fold like the ruled ones: additive within a
+family, best-of across non-stacking cards". So Uron + Chronos make End-of-Turn effects fire 2×, not 3×, and
+rune/one-shot extras add on top of that fold. Pinned by matrix fixtures P12 (endOfTurn, incl. gild and the
+one-shot extra) and P13 (startOfCombat in real combat); `endOfTurn`/`startOfCombat` joined the anomaly
+oracle's `RULED_MULTIPLIER_FAMILIES`, so the unruled-composition detector no longer asks. The card texts
+still promise "+1" each — the owner's planned non-stacker terminology pass ("Twice") is the follow-up, not a
+code change. Original write-up below.
+
+### Original write-up
 
 - **Current behaviour (verbatim):** `extraTriggerFires` (packages/core/src/types.ts) sums the STACKING
   multipliers (Sylus) and takes the single BEST of the non-stacking ones (Drakko / Chronos / Uron / Zyff) —

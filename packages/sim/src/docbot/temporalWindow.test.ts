@@ -428,6 +428,68 @@ describe('temporal windows — copy semantics (QaScenarioV1 fixtures)', () => {
   });
 });
 
+// ── R-RISE-01 — the Rise RETURN-STAT window: base first, Auras second (owner ruling 2026-08-28) ────────────
+
+describe('Rise return stats — base BEFORE auras, auras re-applied after (R-RISE-01 / R-AVWIN-11)', () => {
+  // OWNER RULING 2026-08-28 (decisions.json q-conv-keyword-r, verbatim): "it returns with 1 health and base
+  // attack before any auras or effects are added, i.e. undead aura." Three readings are distinguishable from
+  // one measurement, which is why this probe measures the SAME body under three aura settings:
+  //   (a) BASE-THEN-AURA (ruled): return = printed base + the aura, Health = 1 + the aura's health;
+  //   (b) auras skipped:          return = bare printed base / 1 Health even under a live aura;
+  //   (c) aura baked into base:   return keeps the grown pre-death stats.
+  // Footman is a 1/1 Undead with Rise printed, so the Undead Aura (side-scoped: `undeadAtk`/`undeadHp` from
+  // the Lantern, plus the buy-time `undeadBuyAtk` slice that is re-added to every FROM-BASE body) applies to
+  // it and nothing else on the fixture perturbs the numbers.
+  const riseUnder = (aura: { undeadAtk: number; undeadHp: number; undeadBuyAtk: number }) => {
+    const r = simulate(
+      // Instance stats far above base: if the Rise returned the GROWN body (reading c) it would come back at 9/9.
+      [bm('footman', 9, 9, { keywords: ['R'] }), bm('sandbag', 0, 400)],
+      [bm('sandbag', 20, 4000)],
+      makeRng(4), CARD_INDEX,
+      combatSide({ tier: 6, tribes: ALL_TRIBES, ...aura }), combatSide({ tier: 1 }),
+    );
+    const uid = r.initial.player[0]!.uid;
+    const reborn = r.events.find((e) => e.type === 'reborn' && (e as { target?: string }).target === uid);
+    expect(reborn, 'the Footman must actually Rise in this fixture').toBeDefined();
+    return {
+      start: [r.initial.player[0]!.attack, r.initial.player[0]!.health] as [number, number],
+      back: [(reborn as { attack: number }).attack, (reborn as { hp: number }).hp] as [number, number],
+    };
+  };
+
+  it('R-RISE-01: with no aura the body returns at bare printed base — 1 Attack, 1 Health (not its grown 9/9)', () => {
+    const { back } = riseUnder({ undeadAtk: 0, undeadHp: 0, undeadBuyAtk: 0 });
+    expect(back, 'the return value is the PRINTED body, never the body the fight had grown').toEqual([1, 1]);
+  });
+
+  it('R-RISE-01: under a live Undead Aura the SAME body returns at base+aura — auras are added after, not skipped', () => {
+    const aura = { undeadAtk: 3, undeadHp: 2, undeadBuyAtk: 1 };
+    const { start, back } = riseUnder(aura);
+    // The starting body already carries the Lantern slice (applyAuras(…, false) at fight setup) — its stats
+    // are 9/9 + 3/2. The buy-time slice is NOT re-added there (it was baked at buy time).
+    expect(start, 'control: the aura is genuinely live this fight').toEqual([12, 11]);
+    // RULED: base 1 + aura Attack 3 + the from-base buy slice 1 = 5; Health 1 + aura Health 2 = 3.
+    // Reading (b) "auras skipped" would read [1, 1]; reading (c) "aura baked into the return" would read
+    // [12, 11] (or 9/9 + aura). Only base-then-aura produces this triple.
+    expect(back, 'base taken first (1/1), then every applicable aura folded onto the returned body').toEqual([5, 3]);
+  });
+
+  it('R-RISE-01: a GILDED Rise doubles the BASE only — the aura is still added afterwards, undoubled', () => {
+    const r = simulate(
+      [bm('footman', 20, 20, { keywords: ['R'], golden: true }), bm('sandbag', 0, 400)],
+      [bm('sandbag', 20, 4000)],
+      makeRng(4), CARD_INDEX,
+      combatSide({ tier: 6, tribes: ALL_TRIBES, undeadAtk: 3, undeadHp: 2, undeadBuyAtk: 1 }), combatSide({ tier: 1 }),
+    );
+    const uid = r.initial.player[0]!.uid;
+    const reborn = r.events.find((e) => e.type === 'reborn' && (e as { target?: string }).target === uid);
+    expect(reborn, 'the gilded Footman must Rise').toBeDefined();
+    // base 1 × gild 2 = 2, + aura 3 + buy slice 1 = 6; Health 1 + aura 2 = 3 (the aura is not gilded).
+    expect([(reborn as { attack: number }).attack, (reborn as { hp: number }).hp],
+      'gild multiplies the printed base, the aura lands on top at face value').toEqual([6, 3]);
+  });
+});
+
 // ── §5.5 — a further window family beyond Avenge: the "first N times" window ───────────────────────────────
 
 describe('temporal windows — first-N windows (§5.5)', () => {

@@ -24,8 +24,13 @@
  *                                                                    Scripture) + runeBatch10 (War Chorus).
  *  battlecry multiplier × same-card copy (Drakko×2)      PINNED      P3 — non-stacking best-of + golden ×2
  *                                                                    (types.ts extraTriggerFires comment).
- *  battlecry multiplier × DIFFERENT non-stacking card    AMBIGUOUS   interaction-ambiguities.md Q1 (Drakko+Zyff
- *  (Drakko + Zyff; also Uron + Chronos on endOfTurn)                 collapse to best-of; both texts promise +1).
+ *  battlecry multiplier × DIFFERENT non-stacking card    PINNED      R-MULT-01 (owner REVISE 2026-08-27) +
+ *  (Drakko + Zyff; also Uron + Chronos on endOfTurn)                 R-MULT-02 (owner APPROVE 2026-08-28,
+ *                                                                    q-interact2-32aa654f/faeb3c44): best-of
+ *                                                                    across different non-stacking cards is the
+ *                                                                    law in EVERY family. P12–P13 pin the
+ *                                                                    endOfTurn + startOfCombat halves; was
+ *                                                                    interaction-ambiguities.md Q1.
  *  deathrattle multiplier × multiplier (Sylus×2,         PINNED      P4 — stacking cards SUM, non-stacking take
  *  Sylus+Zyff)                                                       best, folds add (types.ts + zyff def comment,
  *                                                                    owner ruling 2026-07-08 "additive").
@@ -72,7 +77,7 @@ import { describe, expect, it } from 'vitest';
 import { CARD_INDEX } from '@game/content';
 import { combatSide, makeRng, simulate, type BoardMinion, type CombatResult } from '@game/core';
 import { createRun, type BoardCard, type RunState } from '../index';
-import { fireOnRubyPlayed, replayBattlecry } from '../recruit';
+import { endOfTurnRepeats, fireOnRubyPlayed, replayBattlecry } from '../recruit';
 
 const card = (uid: string, cardId: string, over: Partial<BoardCard> = {}): BoardCard => {
   const d = CARD_INDEX[cardId]!;
@@ -281,5 +286,46 @@ describe('Doc Bot — trigger-family interaction matrix', () => {
     const gilded = graves(false, true);
     expect(gilded.summons,
       'a GILDED marked body doubles the whole forced fire, like triggerEcho\'s gild fold').toBe((gilded.triggers - 1) * 2);
+  });
+
+  // P12 — endOfTurn × endOfTurn multipliers. Owner APPROVE 2026-08-28 (q-interact2-32aa654f /
+  // q-interact2-faeb3c44, standing rule R-MULT-02): the endOfTurn family composes by the SAME law as the
+  // ruled ones — non-stacking cards collapse to the single best (Gilded counting double), and the one-shot
+  // extras add on top of that fold. This was ambiguity Q1's second half (Uron + Chronos), now ruled.
+  it('P12: End-of-Turn fires = 1 + best non-stacking multiplier — Uron + Chronos collapse to 2×, never 3×', () => {
+    const reps = (board: BoardCard[], oneShot = false): number => {
+      const s = base(board);
+      if (oneShot) (s as { extraEotThisTurn?: boolean }).extraEotThisTurn = true; // Chrono Staff's per-turn extra
+      return endOfTurnRepeats(s);
+    };
+    expect(reps([card('a', 'footman')]), 'control: End of Turn fires once').toBe(1);
+    expect(reps([card('a', 'chronos')]), 'Chronos alone: 1 + 1').toBe(2);
+    expect(reps([card('a', 'uron')]), 'Uron alone: 1 + 1 (the same family, a different card)').toBe(2);
+    expect(reps([card('a', 'chronos'), card('b', 'uron')]),
+      'R-MULT-02: two DIFFERENT non-stacking cards of one family collapse to best-of — 2×, not 3×').toBe(2);
+    expect(reps([card('a', 'chronos', { golden: true })]), 'gild doubles the contribution (1 + 2)').toBe(3);
+    expect(reps([card('a', 'chronos', { golden: true }), card('b', 'uron')]),
+      'best-of picks the golden Chronos (2), not the sum of both cards').toBe(3);
+    expect(reps([card('a', 'chronos'), card('b', 'uron')], true),
+      'the one-shot extra adds ON TOP of the collapsed fold — 1 + best(1) + 1').toBe(3);
+  });
+
+  // P13 — startOfCombat × the same multiplier, in the OTHER phase: the family-agnostic law holds in combat
+  // too (R-MULT-02). Kennelmaster's Start of Combat gives Beasts +1 Attack; Uron makes the pass run twice.
+  it('P13: Start of Combat fires 1 + Uron times — the same fold, in combat (R-MULT-02)', () => {
+    const scBuffs = (withUron: boolean): number => {
+      const board = [bm('kennel', 'p0', 1, 99), bm('cryptwolf', 'p1', 1, 99),
+        ...(withUron ? [bm('uron', 'p2', 7, 99)] : [])];
+      const r = simulate(board, [bm('cryptwolf', 'e0', 0, 40)], makeRng(5), CARD_INDEX,
+        combatSide({ tier: 6 }), combatSide({ tier: 6 }));
+      // One +1/+0 buff per Beast per Start-of-Combat pass — count the grants landing on the Crypt Wolf.
+      return r.events.filter((e) => e.type === 'buff'
+        && (e as { target?: string }).target === r.initial.player[1]!.uid
+        && (e as { attack?: number }).attack === 1 && (e as { health?: number }).health === 0).length;
+    };
+    const plain = scBuffs(false);
+    expect(plain, 'control: the Start-of-Combat aura grants once per Beast').toBe(1);
+    expect(scBuffs(true),
+      'with Uron the whole Start-of-Combat pass runs twice (simulate.ts scReps = 1 + extraTriggerFires)').toBe(2);
   });
 });

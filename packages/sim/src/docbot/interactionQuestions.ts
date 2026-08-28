@@ -4,7 +4,10 @@
  *
  * Every surviving anomaly (post floor + dedup) becomes ONE pending question card at the fly-through
  * language bar (owner 2026-08-27): one short statement (≤ 30 words before the micro-tail), one concrete
- * example with verbatim printed text, the compact ✓/✕/✎ click tail. Cards land as pending rules through
+ * example with verbatim printed text, the compact ✓/✕/✎ click tail. The statement states WHAT WAS OBSERVED
+ * and WHAT EACH CLICK MEANS on its face — the owner could not tell what the copy card was asking
+ * (2026-08-28, q-interact2-2ad14500: "I do not understand this ask"), so the two competing readings are no
+ * longer left for the reader to reconstruct out of `recommendation`. Cards land as pending rules through
  * the EXISTING registry mechanism — the docbot-interactions CLI runs the shared seed hygiene (decisions
  * survive; rejects tombstone) and writes `packages/rules/src/registry/pendingInteractions.generated.ts`.
  *
@@ -15,7 +18,7 @@
  */
 import { CARD_INDEX, RUNE_INDEX } from '@game/content';
 import type { GameRule, RuleEnforcement } from '@game/rules'; // type-only: erased at build, never bundles the registry
-import type { AnomalyFinding } from './anomalyOracle';
+import type { AnomalyDetectorId, AnomalyFinding } from './anomalyOracle';
 
 export const INTERACTION_QUEUE = 'docbot.interactions';
 
@@ -35,24 +38,51 @@ const textOf = (id: string): string => plain(CARD_INDEX[id]?.text ?? (RUNE_INDEX
 const resolvable = (ids: readonly string[]): string[] =>
   ids.filter((id) => !!CARD_INDEX[id] || !!RUNE_INDEX[id]).sort();
 
-/** ≤30 words, one sentence — trim the detector prose to the bar, never past sense. */
+/**
+ * ONE short sentence, ≤30 words: WHAT WAS OBSERVED, then what each click MEANS (owner feedback 2026-08-28 on
+ * q-interact2-2ad14500 — "I do not understand this ask"). The old template named a detector's abstraction
+ * ("per-instance state the contract never states as riding") and left the reader to reconstruct the two
+ * competing readings from the recommendation field; every card now says the observation and the ✓/✕ meaning
+ * on its face. The rules.test.ts ratchet counts the words BEFORE the first em-dash, which is where the
+ * compact click tail begins — so this string must stay one plain sentence pair.
+ */
 const shortStatement = (detector: string, members: string[]): string => {
   const who = members.slice(0, 2).map(nameOf).join(' + ') || 'this interaction';
   switch (detector) {
     case 'multiplier-factor-divergence':
-      return `${who}: the measured multiplier fold deviates from the declared factor — is the deviation intended?`;
+      return `${who}: the fold missed the card's promised factor. ✓ = right as measured; ✕ = the multiplier is dropped`;
     case 'irrelevant-change-sensitivity':
-      return `${who}: board position changes this effect's output though its text states no position — intended?`;
+      return `${who}: moving it between inert neighbours changed its output. ✓ = it really is positional; ✕ = a positional leak`;
     case 'copied-source-unexpected-state':
-      return `${who}: a copy carries per-instance state the card's contract never states as riding — intended?`;
+      return `${who}: the copy came out carrying the original's own instance state. ✓ = intended, copies carry it; ✕ = the copy carries too much`;
     case 'extreme-resource-outlier':
-      return `${who}: one fight produced summons beyond the board cap — looping resolution or legitimate churn?`;
+      return `${who}: one fight summoned more bodies than a board holds. ✓ = churn as slots free; ✕ = resolution is looping`;
     case 'unruled-multiplier-composition':
-      return `${who}: no ruling states how its multiplier families compose (stacking, cross-card collapse, phase symmetry) — rule it like Battlecry/Echo/Rally?`;
+      return `${who}: nothing states how two of these multipliers combine. ✓ = fold like Shouts (best-of across cards); ✕ = needs its own rule`;
     default:
-      return `${who}: structurally suspicious interaction behaviour needs a ruling.`;
+      return `${who}: this interaction behaves in a way no rule covers. ✓ = correct as-is; ✕ = wrong (say what you expected)`;
   }
 };
+
+/** One CONCRETE example in plain words: what was measured against what was expected. Never the finding's
+ *  internal vocabulary alone — the card must stand alone for a reader who has never seen the oracle. */
+const plainExample = (f: AnomalyFinding): string => {
+  if (f.observed === undefined) return f.summary;
+  const obs = typeof f.observed === 'string' ? f.observed : JSON.stringify(f.observed);
+  const exp = typeof f.expected === 'string' ? f.expected : JSON.stringify(f.expected);
+  return `What the probe recorded: ${obs}. What the card/contract implied instead: ${exp}.`;
+};
+
+/**
+ * WHICH competing reading the ✓ click endorses, per detector — so the card's authored "✓ = …" text and the
+ * recommendation can never disagree (they did, before 2026-08-28: the statement said ✓ meant "intended"
+ * while the recommendation said ✓ endorsed the bug reading, which is exactly the kind of thing that makes a
+ * card unanswerable). The board-wide convention holds here: ✓ APPROVE means the measured behaviour is ruled
+ * CORRECT, ✕ REJECT means it is a bug. Detector F's readings are authored in that order already; every other
+ * detector lists the bug reading first, so the intended reading is its second.
+ */
+const APPROVE_ENDORSES: Partial<Record<AnomalyDetectorId, 0 | 1>> = { 'unruled-multiplier-composition': 0 };
+const approveIndex = (detector: AnomalyDetectorId): 0 | 1 => APPROVE_ENDORSES[detector] ?? 1;
 
 /** Build the Sitting-2 deck from anomaly findings. Pure and deterministic: ids key on the finding
  *  fingerprint, output sorted by id. */
@@ -72,14 +102,15 @@ export function buildInteractionQuestions(anomalies: readonly AnomalyFinding[]):
       evidence: [{ kind: 'docbot-scan', ref: `${INTERACTION_QUEUE}:${detector}` }],
       currentBehaviour: f.summary,
       ...(interpretations[0]
-        ? { recommendation: `Reading A: ${interpretations[0].interpretation}. Reading B: ${interpretations[1]?.interpretation ?? '(none)'} — approve endorses Reading A.` }
+        ? {
+          recommendation: `✓ approve = ${interpretations[approveIndex(detector)]?.interpretation ?? interpretations[0].interpretation}. `
+            + `✕ reject = ${interpretations[1 - approveIndex(detector)]?.interpretation ?? '(no competing reading recorded)'}.`,
+        }
         : {}),
       cardText: exemplar
         ? `${nameOf(exemplar)}: "${textOf(exemplar)}"`
         : `(no printed card text — the subjects are ${f.contentIds.join(', ') || 'system-level'})`,
-      example: f.observed !== undefined
-        ? `Measured: ${typeof f.observed === 'string' ? f.observed : JSON.stringify(f.observed)} where the structural expectation was ${typeof f.expected === 'string' ? f.expected : JSON.stringify(f.expected)}.`
-        : f.summary,
+      example: plainExample(f),
       sourceQueue: INTERACTION_QUEUE,
       ...(resolvable(f.contentIds).length ? { contentIds: resolvable(f.contentIds) } : {}),
       enforcement: INTERACTION_ENFORCEMENT,

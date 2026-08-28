@@ -362,6 +362,30 @@ export const RETIRED_RULES: RetiredRule[] = [
     retiredAt: '2026-08-28',
     enforcement: { kind: 'oracle', refs: ['textParse'], lastVerifiedAt: '2026-08-28' },
   },
+
+  // ── E. The Sitting-2 anomaly deck (owner decisions 2026-08-28) — all three cards resolved, so the deck
+  //    regenerates EMPTY. Each anomaly is gone because its cause was fixed, never because it was suppressed. ──
+  {
+    id: 'q-interact2-2ad14500',
+    why:
+      'OWNER RULED 2026-08-28 (Sitting-2, REVISE — verbatim): "I do not understand this ask. simply put a xerox copy should be an exact copy, so identical in every way." The ENGINE was right and the CONTRACT was incomplete: Kennelmaster\'s copySubject.rides now states gilding and every other card-owned instance property as riding an exact copy (R-COPY-02), so the copied-source-unexpected-state detector no longer fires on it. The card itself also failed the self-contained bar — the anomaly-question template was rewritten to state the observation and the ✓/✕ meaning on its face (interactionQuestions.ts).',
+    retiredAt: '2026-08-28',
+    enforcement: { kind: 'oracle', refs: ['interactionSweep'], lastVerifiedAt: '2026-08-28' },
+  },
+  {
+    id: 'q-interact2-32aa654f',
+    why:
+      'OWNER RULED 2026-08-28 (Sitting-2, APPROVE): Uron\'s endOfTurn/startOfCombat multipliers compose by the same law as the ruled families — additive within a family, best-of across non-stacking cards. Encoded as standing rule R-MULT-02, pinned by matrix fixtures P12–P13; endOfTurn and startOfCombat joined RULED_MULTIPLIER_FAMILIES so the unruled-composition detector cannot re-ask it.',
+    retiredAt: '2026-08-28',
+    enforcement: INTERACTION_PIN,
+  },
+  {
+    id: 'q-interact2-faeb3c44',
+    why:
+      'OWNER RULED 2026-08-28 (Sitting-2, APPROVE): Chronos\'s endOfTurn multiplier composes by the same law — the sibling half of q-interact2-32aa654f. Encoded as standing rule R-MULT-02 and pinned by matrix fixture P12 (Uron + Chronos collapse to one extra End-of-Turn fire, not two); this also resolves interaction-ambiguities.md Q1.',
+    retiredAt: '2026-08-28',
+    enforcement: INTERACTION_PIN,
+  },
 ];
 
 export const RETIRED_IDS: ReadonlySet<string> = new Set(RETIRED_RULES.map((r) => r.id));

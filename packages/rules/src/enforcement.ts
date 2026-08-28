@@ -23,7 +23,7 @@ export interface EnforcementLane {
 export const ENFORCEMENT_LANES: Record<string, EnforcementLane> = {
   temporalWindow: {
     file: 'packages/sim/src/docbot/temporalWindow.test.ts',
-    what: 'per-instance trigger windows: the ten Avenge temporal scenarios, copy/Rise/gild progress semantics, once-per-combat latches, first-N windows, per-source improve counters — plus the shrink-only KNOWN_VIOLATIONS pins for R-AVWIN-02/10',
+    what: 'per-instance trigger windows: the ten Avenge temporal scenarios, copy/Rise/gild progress semantics, the Rise RETURN-STAT probe (base first, Auras re-applied after — R-RISE-01), once-per-combat latches, first-N windows, per-source improve counters — plus the shrink-only KNOWN_VIOLATIONS pins for R-AVWIN-02/10',
   },
   factoryPhase: {
     file: 'packages/sim/src/docbot/factoryPhase.test.ts',
@@ -105,7 +105,7 @@ export const ENFORCEMENT_LANES: Record<string, EnforcementLane> = {
   // ── Doc Bot 2.0 WP F: interaction intelligence ──
   interactionSweep: {
     file: 'packages/sim/src/docbot/interactionSweep.test.ts',
-    what: 'the generated §10.3 pairwise coverage table (trigger×multiplier, death×Avenge/Echo, Echo×Rise, copy×counter, gild×progress, rune×minion, spell×improvement, overflow×summon — real-engine diffs; blocked pairs visibly cited) plus the §9.7 anomaly oracle — an owner-ruled interaction card re-alarms here when the measured pair behaviour drifts',
+    what: 'the generated §10.3 pairwise coverage table (trigger×multiplier, death×Avenge/Echo, Echo×Rise, copy×counter, gild×progress, rune×minion, spell×improvement, overflow×summon — real-engine diffs; blocked pairs visibly cited) plus the §9.7 anomaly oracle and its Sitting-2 card template — an owner-ruled interaction card re-alarms here when the measured pair behaviour drifts (e.g. R-COPY-02\'s exact-copy rides: strip them from the Kennelmaster contract and the copy detector re-fires)',
   },
 };
 

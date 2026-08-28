@@ -107,11 +107,20 @@ export const CURATED_CONTRACTS: readonly ContentContract[] = [
     effects: [{ kind: 'improve-own-aura', note: 'permanent per-instance accrual (summonBonus channel)' }],
     persistence: ['permanent'],
     copySubject: {
-      rides: ['accrued-improve-counters (summonBonus)'],
-      sheds: ['in-flight Avenge progress toward the next threshold'],
-      note: 'the copied-SUBJECT half of the copy rulings (friction item 5): an EXACT copy carries the accrued aura value (R-AVWIN-03); a PLAIN copy starts from base (R-COPY-01); neither inherits partial threshold progress (R-AVWIN-04)',
+      // OWNER RULING 2026-08-28 (decisions.json q-interact2-2ad14500): "simply put a xerox copy should be an
+      // exact copy, so identical in every way." The anomaly oracle flagged an exact copy carrying this
+      // subject's GILDING as unstated — the ENGINE was right and this contract was incomplete. Under an
+      // exact copy EVERY card-owned instance property rides, so the list is stated in full rather than
+      // enumerating the one channel the slice happened to probe.
+      rides: [
+        'gilding (golden)',
+        'accrued-improve-counters (summonBonus)',
+        'stat buffs, attachments, granted keywords, learned effects — every card-owned instance property (R-COPY-02: an exact copy is identical in every way)',
+      ],
+      sheds: ['in-flight Avenge progress toward the next threshold', 'engine-owned pending events / queue bookkeeping (never part of the card instance, R-COPY-02)'],
+      note: 'the copied-SUBJECT half of the copy rulings (friction item 5): an EXACT copy is identical in every way — gilding, the accrued aura value (R-AVWIN-03) and every other card-owned property ride; a PLAIN copy starts from base (R-COPY-01); neither inherits partial threshold progress (R-AVWIN-04)',
     },
-    relatedRuleIds: ['R-AVWIN-01', 'R-AVWIN-03', 'R-AVWIN-04', 'R-AVWIN-05'],
+    relatedRuleIds: ['R-AVWIN-01', 'R-AVWIN-03', 'R-AVWIN-04', 'R-AVWIN-05', 'R-COPY-02'],
     textContract: { source: 'index' },
   },
   {

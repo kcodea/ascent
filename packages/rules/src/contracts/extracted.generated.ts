@@ -45,6 +45,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -84,6 +86,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -131,8 +135,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -177,8 +184,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -232,6 +242,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -299,7 +311,9 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "a PARTIAL gild: the 7 × 'impscrap' summon count is pinned while the rest of the printed numbers double, so no single factor describes it — the authored gilded text (read from CARD_INDEX at check time) is the statement of the gilded form"
     },
     "textContract": {
       "source": "index"
@@ -337,9 +351,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -367,9 +382,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "tier:1"
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -409,6 +425,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -449,9 +467,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -499,7 +518,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "gildedDelta": {
       "kind": "multiply",
       "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "basis": "derived:default",
+      "description": "default gilded doubling of printed numbers (the owner's safe baseline)"
     },
     "textContract": {
       "source": "index"
@@ -526,6 +546,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -577,8 +599,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -631,8 +656,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -680,8 +708,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -726,6 +757,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -768,8 +801,14 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "gilded-token",
+      "token": {
+        "cardId": "b2_armadiyo",
+        "count": 1
+      },
+      "basis": "derived:token-id",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text names a Gilded 'b2_armadiyo' the plain text does not — the gild changes the token's IDENTITY, not the count"
     },
     "textContract": {
       "source": "index"
@@ -811,6 +850,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -838,6 +879,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -877,6 +920,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -913,6 +958,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "none",
+      "basis": "derived:ungildable",
       "description": "noTriple — this card never combines into a golden"
     },
     "textContract": {
@@ -961,8 +1007,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -1001,6 +1050,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -1040,6 +1091,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -1065,7 +1118,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "gildedDelta": {
       "kind": "multiply",
       "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "basis": "derived:default",
+      "description": "default gilded doubling of printed numbers (the owner's safe baseline)"
     },
     "textContract": {
       "source": "index"
@@ -1115,6 +1169,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -1166,8 +1222,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -1209,6 +1268,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -1249,6 +1310,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -1297,6 +1360,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -1342,6 +1407,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -1393,8 +1460,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -1452,8 +1522,14 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "gilded-token",
+      "token": {
+        "cardId": "b2_trexbaby",
+        "count": 1
+      },
+      "basis": "derived:token-id",
+      "goldenTextSource": "index:goldenText",
+      "description": "the summon factory carries goldenTokens — a gilded body summons the SAME 1 × 'b2_trexbaby', gilded"
     },
     "textContract": {
       "source": "index"
@@ -1478,7 +1554,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "gildedDelta": {
       "kind": "multiply",
       "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "basis": "derived:default",
+      "description": "default gilded doubling of printed numbers (the owner's safe baseline)"
     },
     "textContract": {
       "source": "index"
@@ -1532,6 +1609,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -1583,8 +1662,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -1615,7 +1697,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "gildedDelta": {
       "kind": "multiply",
       "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "basis": "derived:default",
+      "description": "default gilded doubling of printed numbers (the owner's safe baseline)"
     },
     "textContract": {
       "source": "index"
@@ -1661,8 +1744,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -1708,6 +1794,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -1735,6 +1823,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -1764,7 +1854,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "gildedDelta": {
       "kind": "multiply",
       "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "basis": "derived:default",
+      "description": "default gilded doubling of printed numbers (the owner's safe baseline)"
     },
     "textContract": {
       "source": "index"
@@ -1796,7 +1887,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "gildedDelta": {
       "kind": "multiply",
       "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "basis": "derived:default",
+      "description": "default gilded doubling of printed numbers (the owner's safe baseline)"
     },
     "textContract": {
       "source": "index"
@@ -1824,9 +1916,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "tier:4"
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -1866,6 +1959,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -1911,8 +2006,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -1950,9 +2048,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -2011,8 +2110,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -2059,8 +2161,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -2105,8 +2210,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -2138,7 +2246,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "gildedDelta": {
       "kind": "multiply",
       "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "basis": "derived:default",
+      "description": "default gilded doubling of printed numbers (the owner's safe baseline)"
     },
     "textContract": {
       "source": "index"
@@ -2201,8 +2310,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -2258,8 +2370,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -2305,6 +2420,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -2355,9 +2472,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -2411,6 +2529,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -2440,7 +2560,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "gildedDelta": {
       "kind": "multiply",
       "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "basis": "derived:default",
+      "description": "default gilded doubling of printed numbers (the owner's safe baseline)"
     },
     "textContract": {
       "source": "index"
@@ -2480,6 +2601,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -2540,8 +2663,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -2600,8 +2726,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -2650,7 +2779,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "gildedDelta": {
       "kind": "multiply",
       "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "basis": "derived:default",
+      "description": "default gilded doubling of printed numbers (the owner's safe baseline)"
     },
     "textContract": {
       "source": "index"
@@ -2710,6 +2840,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -2756,8 +2888,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -2815,8 +2950,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -2881,6 +3019,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -2946,6 +3086,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -2999,6 +3141,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -3046,8 +3190,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -3106,8 +3253,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -3156,7 +3306,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "gildedDelta": {
       "kind": "multiply",
       "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "basis": "derived:default",
+      "description": "default gilded doubling of printed numbers (the owner's safe baseline)"
     },
     "textContract": {
       "source": "index"
@@ -3216,8 +3367,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -3275,8 +3429,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -3330,9 +3487,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -3381,6 +3539,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -3423,6 +3583,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -3480,8 +3642,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -3510,6 +3675,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "multiplier": {
@@ -3557,9 +3724,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -3584,7 +3752,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "gildedDelta": {
       "kind": "multiply",
       "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "basis": "derived:default",
+      "description": "default gilded doubling of printed numbers (the owner's safe baseline)"
     },
     "textContract": {
       "source": "index"
@@ -3629,8 +3798,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -3681,7 +3853,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "gildedDelta": {
       "kind": "multiply",
       "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "basis": "derived:default",
+      "description": "default gilded doubling of printed numbers (the owner's safe baseline)"
     },
     "textContract": {
       "source": "index"
@@ -3712,7 +3885,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "gildedDelta": {
       "kind": "multiply",
       "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "basis": "derived:default",
+      "description": "default gilded doubling of printed numbers (the owner's safe baseline)"
     },
     "textContract": {
       "source": "index"
@@ -3756,8 +3930,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -3797,9 +3974,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -3843,9 +4021,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -3871,8 +4050,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "tier:3"
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -3908,9 +4090,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -3938,9 +4121,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "tier:5"
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -3968,9 +4152,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "tier:1"
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -4010,6 +4195,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -4057,8 +4244,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -4102,8 +4292,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -4129,7 +4322,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "gildedDelta": {
       "kind": "multiply",
       "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "basis": "derived:default",
+      "description": "default gilded doubling of printed numbers (the owner's safe baseline)"
     },
     "textContract": {
       "source": "index"
@@ -4173,9 +4367,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -4214,6 +4409,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -4262,6 +4459,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -4310,8 +4509,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -4353,8 +4555,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -4402,8 +4607,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -4449,6 +4657,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -4497,8 +4707,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -4543,6 +4756,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -4588,8 +4803,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -4638,6 +4856,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -4683,6 +4903,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -4731,6 +4953,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -4785,6 +5009,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -4834,8 +5060,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -4880,6 +5109,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -4907,6 +5138,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -4952,6 +5185,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -4994,6 +5229,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -5042,8 +5279,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -5102,6 +5342,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -5150,8 +5392,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -5196,6 +5441,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -5226,6 +5473,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -5274,6 +5523,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -5322,6 +5573,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -5364,6 +5617,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -5408,8 +5663,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -5455,9 +5713,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -5504,9 +5763,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -5552,9 +5812,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -5594,9 +5855,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -5620,6 +5882,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "none",
+      "basis": "derived:ungildable",
       "description": "noTriple — this card never combines into a golden"
     },
     "textContract": {
@@ -5660,9 +5923,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -5704,6 +5968,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -5752,8 +6018,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -5801,8 +6070,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -5853,6 +6125,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -5906,6 +6180,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -5951,6 +6227,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -5996,6 +6274,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -6045,6 +6325,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -6090,8 +6372,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -6139,8 +6424,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -6185,8 +6473,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -6243,6 +6534,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -6288,8 +6581,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -6350,8 +6646,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -6400,6 +6699,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -6460,8 +6761,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -6525,6 +6829,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -6575,8 +6881,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -6622,8 +6931,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -6668,6 +6980,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -6699,7 +7013,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "gildedDelta": {
       "kind": "multiply",
       "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "basis": "derived:default",
+      "description": "default gilded doubling of printed numbers (the owner's safe baseline)"
     },
     "textContract": {
       "source": "index"
@@ -6728,6 +7043,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "multiplier": {
@@ -6783,6 +7100,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -6825,6 +7144,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -6870,8 +7191,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "owner-ruling",
+      "goldenTextSource": "index:goldenText",
+      "description": "owner ruling 2026-08-28 (q-conv-family-castPayoff): \"gilded baal doubles its consume quantity\" — the baseline ×2, named by the owner as the contrast case to Mykel's reshape"
     },
     "textContract": {
       "source": "index"
@@ -6921,8 +7245,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -6973,6 +7300,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -7002,8 +7331,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "tier:4"
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text repeats the plain body unchanged — nothing in the printed effect moves, so the gild is the base-stat ×2 baseline and nothing more"
     },
     "textContract": {
       "source": "index"
@@ -7065,6 +7397,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -7114,6 +7448,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -7160,7 +7496,9 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "basis": "owner-ruling",
+      "goldenTextSource": "index:goldenText",
+      "description": "owner ruling 2026-08-28 (q-conv-family-castPayoff): \"high king mykel goes from 1 adjacent to both adjacent minions\" — the gild changes the SHAPE of the target set, not a printed number"
     },
     "textContract": {
       "source": "index"
@@ -7208,6 +7546,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -7259,8 +7599,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -7308,8 +7651,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -7366,8 +7712,14 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "gilded-token",
+      "token": {
+        "cardId": "dw_soldier",
+        "count": 1
+      },
+      "basis": "derived:token-id",
+      "goldenTextSource": "index:goldenText",
+      "description": "the summon factory carries goldenTokens — a gilded body summons the SAME 1 × 'dw_soldier', gilded"
     },
     "textContract": {
       "source": "index"
@@ -7415,8 +7767,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -7461,8 +7816,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -7489,6 +7847,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -7534,6 +7894,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -7582,8 +7944,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -7631,8 +7996,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -7679,8 +8047,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -7725,8 +8096,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -7781,6 +8155,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -7822,8 +8198,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text repeats the plain body unchanged — nothing in the printed effect moves, so the gild is the base-stat ×2 baseline and nothing more"
     },
     "textContract": {
       "source": "index"
@@ -7867,8 +8246,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -7907,8 +8289,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text repeats the plain body unchanged — nothing in the printed effect moves, so the gild is the base-stat ×2 baseline and nothing more"
     },
     "textContract": {
       "source": "index"
@@ -7956,6 +8341,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -7984,7 +8371,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "gildedDelta": {
       "kind": "multiply",
       "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "basis": "derived:default",
+      "description": "default gilded doubling of printed numbers (the owner's safe baseline)"
     },
     "textContract": {
       "source": "index"
@@ -8030,6 +8418,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -8081,6 +8471,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -8126,8 +8518,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -8154,6 +8549,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -8194,9 +8591,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -8242,9 +8640,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -8292,8 +8691,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -8343,9 +8745,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -8371,9 +8774,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "tier:3"
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -8419,9 +8823,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -8460,6 +8865,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -8506,6 +8913,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -8544,9 +8953,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -8574,9 +8984,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "tier:2"
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -8618,6 +9029,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -8665,9 +9078,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -8705,9 +9119,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -8735,7 +9150,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "gildedDelta": {
       "kind": "multiply",
       "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "basis": "derived:default",
+      "description": "default gilded doubling of printed numbers (the owner's safe baseline)"
     },
     "textContract": {
       "source": "index"
@@ -8779,8 +9195,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -8811,7 +9230,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "gildedDelta": {
       "kind": "multiply",
       "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "basis": "derived:default",
+      "description": "default gilded doubling of printed numbers (the owner's safe baseline)"
     },
     "textContract": {
       "source": "index"
@@ -8860,6 +9280,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -8900,9 +9322,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -8930,9 +9353,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "tier:3"
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -8957,7 +9381,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "gildedDelta": {
       "kind": "multiply",
       "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "basis": "derived:default",
+      "description": "default gilded doubling of printed numbers (the owner's safe baseline)"
     },
     "textContract": {
       "source": "index"
@@ -8992,9 +9417,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -9035,9 +9461,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -9078,9 +9505,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -9121,9 +9549,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -9164,9 +9593,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -9189,9 +9619,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "tier:1"
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -9226,9 +9657,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -9263,9 +9695,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -9306,9 +9739,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -9331,9 +9765,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "tier:1"
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -9375,9 +9810,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -9412,9 +9848,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -9449,9 +9886,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -9486,9 +9924,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -9529,9 +9968,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -9581,7 +10021,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "gildedDelta": {
       "kind": "multiply",
       "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "basis": "derived:default",
+      "description": "default gilded doubling of printed numbers (the owner's safe baseline)"
     },
     "textContract": {
       "source": "index"
@@ -9607,8 +10048,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "tier:2"
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -9646,9 +10090,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -9688,9 +10133,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -9738,7 +10184,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "gildedDelta": {
       "kind": "multiply",
       "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "basis": "derived:default",
+      "description": "default gilded doubling of printed numbers (the owner's safe baseline)"
     },
     "textContract": {
       "source": "index"
@@ -9778,6 +10225,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -9818,6 +10267,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -9860,6 +10311,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -9905,9 +10358,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -9956,8 +10410,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -10004,9 +10461,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -10055,6 +10513,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -10101,8 +10561,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -10144,6 +10607,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -10174,8 +10639,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "tier:3"
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -10203,9 +10671,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "tier:4"
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -10256,6 +10725,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -12213,7 +12684,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "gildedDelta": {
       "kind": "multiply",
       "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "basis": "derived:default",
+      "description": "default gilded doubling of printed numbers (the owner's safe baseline)"
     },
     "textContract": {
       "source": "index"
@@ -12258,6 +12730,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -12302,8 +12776,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -12352,9 +12829,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -12413,6 +12891,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -12441,9 +12921,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "tier:2"
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -12970,8 +13451,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -13004,7 +13488,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "gildedDelta": {
       "kind": "multiply",
       "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "basis": "derived:default",
+      "description": "default gilded doubling of printed numbers (the owner's safe baseline)"
     },
     "textContract": {
       "source": "index"
@@ -13071,7 +13556,9 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "a PARTIAL gild: the 2 × 'impscrap' summon count is pinned while the rest of the printed numbers double, so no single factor describes it — the authored gilded text (read from CARD_INDEX at check time) is the statement of the gilded form"
     },
     "textContract": {
       "source": "index"
@@ -13116,9 +13603,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -13188,6 +13676,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -13214,7 +13704,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "gildedDelta": {
       "kind": "multiply",
       "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "basis": "derived:default",
+      "description": "default gilded doubling of printed numbers (the owner's safe baseline)"
     },
     "textContract": {
       "source": "index"
@@ -13260,9 +13751,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -13290,9 +13782,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "tier:5"
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -13333,9 +13826,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -13377,7 +13871,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "gildedDelta": {
       "kind": "multiply",
       "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "basis": "derived:default",
+      "description": "default gilded doubling of printed numbers (the owner's safe baseline)"
     },
     "textContract": {
       "source": "index"
@@ -13423,6 +13918,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -13472,6 +13969,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -13511,6 +14010,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -13589,6 +14090,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -13633,8 +14136,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -13683,6 +14189,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -13733,8 +14241,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -13778,8 +14289,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -13827,8 +14341,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -13841,7 +14358,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "reviewStatus": "extracted",
     "extraction": {
       "extractor": "contracts-extract@1",
-      "confidence": "low"
+      "confidence": "low",
+      "unparsed": [
+        "gildedDelta.shape"
+      ]
     },
     "setIds": [
       "set2"
@@ -13867,8 +14387,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "other",
+      "basis": "unresolved",
+      "goldenTextSource": "index:goldenText",
+      "description": "authored gilded text shares the plain text's sentence but its numbers are neither equal nor doubled — no shape could be derived, and the extractor does not guess one (§4.3)"
     },
     "textContract": {
       "source": "index"
@@ -13913,8 +14435,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -13959,8 +14484,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -14005,6 +14533,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -14051,6 +14581,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -14093,6 +14625,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -14141,6 +14675,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -14186,6 +14722,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -14234,8 +14772,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "extra-proc",
+      "extra": 1,
+      "basis": "owner-ruling",
+      "goldenTextSource": "index:goldenText",
+      "description": "owner ruling 2026-08-28 (q-conv-family-avenge): \"gilded gemstorm instigator would proc an additional time (double its rubies)\" — one EXTRA resolution of the same 2-Ruby payload, which the gilded text prints as 4 Rubies"
     },
     "textContract": {
       "source": "index"
@@ -14284,6 +14825,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -14331,8 +14874,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -14384,8 +14930,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -14429,8 +14978,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -14492,6 +15044,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -14538,6 +15092,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -14586,6 +15142,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -14633,8 +15191,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -14660,8 +15221,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "tier:4"
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -14709,8 +15273,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -14763,6 +15330,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -14789,9 +15358,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "tier:5"
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -14841,7 +15411,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "gildedDelta": {
       "kind": "multiply",
       "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "basis": "derived:default",
+      "description": "default gilded doubling of printed numbers (the owner's safe baseline)"
     },
     "textContract": {
       "source": "index"
@@ -14904,6 +15475,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -14944,9 +15517,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -14993,9 +15567,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -15035,9 +15610,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -15081,9 +15657,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -15129,9 +15706,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -15158,8 +15736,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "tier:4"
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -15208,8 +15789,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -15255,9 +15839,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -15315,8 +15900,14 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "gilded-token",
+      "token": {
+        "cardId": "sabercub",
+        "count": 2
+      },
+      "basis": "derived:token-id",
+      "goldenTextSource": "index:goldenText",
+      "description": "the summon factory carries goldenTokens — a gilded body summons the SAME 2 × 'sabercub', gilded"
     },
     "textContract": {
       "source": "index"
@@ -15356,9 +15947,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -15385,6 +15977,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -15437,6 +16031,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -15483,9 +16079,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -15532,9 +16129,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -15573,6 +16171,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -15621,6 +16221,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -15652,7 +16254,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "gildedDelta": {
       "kind": "multiply",
       "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "basis": "derived:default",
+      "description": "default gilded doubling of printed numbers (the owner's safe baseline)"
     },
     "textContract": {
       "source": "index"
@@ -15700,6 +16303,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -15747,8 +16352,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -15793,8 +16401,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -15836,6 +16447,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -15885,6 +16498,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -15930,6 +16545,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -15975,8 +16592,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -16042,6 +16662,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -16081,6 +16703,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -16147,6 +16771,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -16191,8 +16817,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -16240,6 +16869,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -16288,8 +16919,14 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "gilded-token",
+      "token": {
+        "cardId": "n2_trooper",
+        "count": 1
+      },
+      "basis": "derived:token-id",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text names a Gilded 'n2_trooper' the plain text does not — the gild changes the token's IDENTITY, not the count"
     },
     "textContract": {
       "source": "index"
@@ -16334,8 +16971,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -16381,8 +17021,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -16441,6 +17084,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -16480,6 +17125,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -16506,8 +17153,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "tier:2"
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -16556,8 +17206,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -16582,7 +17235,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "gildedDelta": {
       "kind": "multiply",
       "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "basis": "derived:default",
+      "description": "default gilded doubling of printed numbers (the owner's safe baseline)"
     },
     "textContract": {
       "source": "index"
@@ -16629,8 +17283,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -16655,7 +17312,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "gildedDelta": {
       "kind": "multiply",
       "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "basis": "derived:default",
+      "description": "default gilded doubling of printed numbers (the owner's safe baseline)"
     },
     "textContract": {
       "source": "index"
@@ -16714,7 +17372,9 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "a PARTIAL gild: the 5 × 'nanobot' summon count is pinned while the rest of the printed numbers double, so no single factor describes it — the authored gilded text (read from CARD_INDEX at check time) is the statement of the gilded form"
     },
     "textContract": {
       "source": "index"
@@ -16755,6 +17415,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -16780,7 +17442,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "gildedDelta": {
       "kind": "multiply",
       "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "basis": "derived:default",
+      "description": "default gilded doubling of printed numbers (the owner's safe baseline)"
     },
     "textContract": {
       "source": "index"
@@ -16824,9 +17487,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -16870,9 +17534,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -16910,9 +17575,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -16966,6 +17632,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -17030,8 +17698,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -17081,9 +17752,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -17125,6 +17797,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -17172,9 +17846,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -17223,6 +17898,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -17271,6 +17948,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -17317,8 +17996,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -17358,9 +18040,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -17400,9 +18083,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -17442,6 +18126,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -17467,7 +18153,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "gildedDelta": {
       "kind": "multiply",
       "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "basis": "derived:default",
+      "description": "default gilded doubling of printed numbers (the owner's safe baseline)"
     },
     "textContract": {
       "source": "index"
@@ -21615,9 +22302,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -21664,9 +22352,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -21706,9 +22395,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -21756,8 +22446,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -21801,8 +22494,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -21848,9 +22544,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -21890,9 +22587,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -21920,9 +22618,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "tier:3"
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -21966,8 +22665,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -22007,9 +22709,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -22059,6 +22762,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -22082,9 +22787,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "tier:1"
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "Ruby — Rubies never combine into a golden",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -22128,9 +22834,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -22174,9 +22881,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -22214,9 +22922,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -30113,8 +30822,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -30153,6 +30865,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -30200,8 +30914,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -30243,6 +30960,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -30271,7 +30990,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "gildedDelta": {
       "kind": "multiply",
       "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "basis": "derived:default",
+      "description": "default gilded doubling of printed numbers (the owner's safe baseline)"
     },
     "textContract": {
       "source": "index"
@@ -30318,6 +31038,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -30365,8 +31087,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -30418,6 +31143,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -30480,6 +31207,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -30523,6 +31252,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -30563,9 +31294,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -30604,6 +31336,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -30664,6 +31398,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -30691,6 +31427,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -30741,9 +31479,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -30783,9 +31522,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -30829,8 +31569,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -30871,6 +31614,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -30910,8 +31655,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -30956,9 +31704,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -31013,9 +31762,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -31053,9 +31803,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -31093,9 +31844,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -31144,9 +31896,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -31190,9 +31943,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -31230,9 +31984,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -31270,9 +32025,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -31318,9 +32074,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -31358,9 +32115,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -31403,6 +32161,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -31460,9 +32220,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -31494,7 +32255,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "gildedDelta": {
       "kind": "multiply",
       "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "basis": "derived:default",
+      "description": "default gilded doubling of printed numbers (the owner's safe baseline)"
     },
     "textContract": {
       "source": "index"
@@ -31539,8 +32301,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -31580,9 +32345,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -31629,9 +32395,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -31681,7 +32448,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "gildedDelta": {
       "kind": "multiply",
       "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "basis": "derived:default",
+      "description": "default gilded doubling of printed numbers (the owner's safe baseline)"
     },
     "textContract": {
       "source": "index"
@@ -31730,8 +32498,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -31784,8 +32555,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -31813,9 +32587,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "tier:1"
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -31860,8 +32635,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -31908,9 +32686,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -31952,8 +32731,14 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "gilded-token",
+      "token": {
+        "cardId": "knit",
+        "count": 1
+      },
+      "basis": "derived:token-id",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text names a Gilded 'knit' the plain text does not — the gild changes the token's IDENTITY, not the count"
     },
     "textContract": {
       "source": "index"
@@ -31993,6 +32778,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -32033,9 +32820,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -32060,7 +32848,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "gildedDelta": {
       "kind": "multiply",
       "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "basis": "derived:default",
+      "description": "default gilded doubling of printed numbers (the owner's safe baseline)"
     },
     "textContract": {
       "source": "index"
@@ -32105,9 +32894,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -32153,9 +32943,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -32207,8 +32998,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -32256,8 +33050,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -32287,7 +33084,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "gildedDelta": {
       "kind": "multiply",
       "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "basis": "derived:default",
+      "description": "default gilded doubling of printed numbers (the owner's safe baseline)"
     },
     "textContract": {
       "source": "index"
@@ -32318,7 +33116,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "gildedDelta": {
       "kind": "multiply",
       "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "basis": "derived:default",
+      "description": "default gilded doubling of printed numbers (the owner's safe baseline)"
     },
     "textContract": {
       "source": "index"
@@ -32367,6 +33166,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -32380,7 +33181,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "reviewStatus": "extracted",
     "extraction": {
       "extractor": "contracts-extract@1",
-      "confidence": "high"
+      "confidence": "high",
+      "unparsed": [
+        "gildedDelta.shape"
+      ]
     },
     "setIds": [
       "set1"
@@ -32396,8 +33200,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "tier:6"
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "other",
+      "basis": "unresolved",
+      "goldenTextSource": "index:goldenText",
+      "description": "authored gilded text shares the plain text's sentence but its numbers are neither equal nor doubled — no shape could be derived, and the extractor does not guess one (§4.3)"
     },
     "textContract": {
       "source": "index"
@@ -32446,7 +33252,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "gildedDelta": {
       "kind": "multiply",
       "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "basis": "derived:default",
+      "description": "default gilded doubling of printed numbers (the owner's safe baseline)"
     },
     "textContract": {
       "source": "index"
@@ -32488,6 +33295,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -32531,7 +33340,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "gildedDelta": {
       "kind": "multiply",
       "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "basis": "derived:default",
+      "description": "default gilded doubling of printed numbers (the owner's safe baseline)"
     },
     "textContract": {
       "source": "index"
@@ -32582,8 +33392,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -32649,8 +33462,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -32676,8 +33492,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "tier:2"
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -32709,7 +33528,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "gildedDelta": {
       "kind": "multiply",
       "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "basis": "derived:default",
+      "description": "default gilded doubling of printed numbers (the owner's safe baseline)"
     },
     "textContract": {
       "source": "index"
@@ -32737,9 +33557,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "tier:3"
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -32779,9 +33600,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -32825,8 +33647,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -32880,7 +33705,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "gildedDelta": {
       "kind": "multiply",
       "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "basis": "derived:default",
+      "description": "default gilded doubling of printed numbers (the owner's safe baseline)"
     },
     "textContract": {
       "source": "index"
@@ -32920,9 +33746,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -32976,6 +33803,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -33023,9 +33852,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -33056,6 +33886,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "multiplier": {
@@ -33103,9 +33935,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -33137,7 +33970,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "gildedDelta": {
       "kind": "multiply",
       "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "basis": "derived:default",
+      "description": "default gilded doubling of printed numbers (the owner's safe baseline)"
     },
     "textContract": {
       "source": "index"
@@ -33160,9 +33994,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "tier:1"
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "Ruby — Rubies never combine into a golden",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -33216,6 +34051,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -33260,7 +34097,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "gildedDelta": {
       "kind": "multiply",
       "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "basis": "derived:default",
+      "description": "default gilded doubling of printed numbers (the owner's safe baseline)"
     },
     "textContract": {
       "source": "index"
@@ -33306,9 +34144,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -33351,6 +34190,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
@@ -33376,7 +34217,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "gildedDelta": {
       "kind": "multiply",
       "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "basis": "derived:default",
+      "description": "default gilded doubling of printed numbers (the owner's safe baseline)"
     },
     "textContract": {
       "source": "index"
@@ -33422,9 +34264,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -33469,9 +34312,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -33517,9 +34361,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -33563,9 +34408,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -33603,9 +34449,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "description": "default gilded doubling of printed numbers"
+      "kind": "not-applicable",
+      "reason": "spell — spells are never gilded (owner ruling 2026-08-28, R-GILD-02)",
+      "basis": "derived:ungildable",
+      "description": "R-GILD-02: checkTriples skips spells and Rubies, so this object can never BE gilded — the whole gilding aspect is inapplicable, and every gilded probe against it is skipped WITH this reason"
     },
     "textContract": {
       "source": "index"
@@ -33633,6 +34480,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "gildedDelta": {
       "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {

@@ -36,6 +36,8 @@ const TYPED_SKIPS: ReadonlySet<string> = new Set<SkipReason | string>([
   'no-driver-for-shape', 'covered-by-slice-oracle', 'covered-by-cited-lane', 'hero-power-behaviour-unextracted',
   'board-cap-would-clip', 'gilded-not-declared', 'contract-states-no-targets', 'no-limit-declared',
   'runtime-unobserved', 'sampled-out-this-rotation',
+  // the 2026-08-28 gilding-kind skips (R-GILD-01/-02)
+  'gild-not-applicable', 'gild-stated-by-golden-text', 'gild-shape-not-countable', 'gild-shape-unresolved',
 ]);
 
 describe('contract oracle at scale — the deterministic gate sample', () => {

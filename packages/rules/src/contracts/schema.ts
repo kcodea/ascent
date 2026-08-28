@@ -20,9 +20,11 @@
  *  7. Phases derived           → `TriggerContract.phaseBasis` records HOW the phase claim was produced:
  *                                'derived:phaseRegistry' (the extractor read TRIGGER_PHASES/PHASE_EXCUSED)
  *                                vs 'authored' (a hand claim). Derived phases regenerate; they cannot drift.
- *  8. Shape-changing gilds     → `GildedDeltaContract` union: 'multiply' (the ×2 default), 'reshape' (the
- *                                gilded form is a DIFFERENT effect body, optionally stated as EffectContracts),
- *                                'none' (noTriple / ungildable), 'other' (prose escape hatch, discouraged).
+ *  8. Shape-changing gilds     → `GildedDeltaContract` union. GROWN 2026-08-28 by the owner's four gilding
+ *                                rulings (see the block above the union): 'multiply' (the ×factor baseline),
+ *                                'gilded-token', 'reshape', 'extra-proc', 'not-applicable' (spells), plus the
+ *                                retained 'none' / 'other'. Every claim carries a `basis` saying how it was
+ *                                produced, so a derived shape can never masquerade as an owner ruling.
  *  9. textContract drift       → verbatim text is NEVER stored on a contract. `textContract.source: 'index'`
  *                                means the displayed-text leg is read from CARD_INDEX / RUNE_INDEX / QUEST_DEFS
  *                                / HEROES at check time; hand-authoring is reserved for `claims` ABOUT the text.
@@ -136,11 +138,80 @@ export interface EffectContract {
 
 // ── Friction 8: gilded deltas ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * OWNER RULINGS 2026-08-28 (the four REVISE decisions on q-conv-family-avenge / -castPayoff / -echo /
+ * -spellCast). Verbatim, in the owner's words:
+ *
+ *  · avenge     — "in some cases it summons more minions when gilded, in other cases it summons a gilded
+ *                  token instead. dunkey for example summons a gilded armadiyo, whereas gilded gemstorm
+ *                  instigator would proc an additional time (double its rubies)"
+ *  · castPayoff — "some versions double their numbers, some versions double their payoff or be unique. for
+ *                  example, gilded baal doubles its consume quantity, but high king mykel goes from 1
+ *                  adjacent to both adjacent minions."
+ *  · echo       — "i would say most of the time a gilded echo doubles its value, but like said previously,
+ *                  in some cases it summons a gilded token instead. i think doubling the output is the safe
+ *                  baseline with outliers being other behavior"
+ *  · spellCast  — "spells cannot be gilded"
+ *
+ * Read as a shape vocabulary: DOUBLING THE OUTPUT IS THE SAFE BASELINE ('multiply', factor 2 — the ×factor
+ * kind), with three sanctioned outlier shapes and one inapplicability:
+ *
+ *  · 'multiply'       — the ×factor baseline: the gild multiplies printed magnitudes (factor 2 everywhere today).
+ *  · 'gilded-token'   — SAME count, GILDED token identity (Dunkey → a gilded Armadiyo; engine signal:
+ *                       the summon factory's `goldenTokens` param, or a golden text that names "Gilded <X>").
+ *  · 'reshape'        — the gild changes the effect's SHAPE, not its number (High King Mykel: one adjacent
+ *                       Shout → BOTH adjacent). The authored golden text IS the statement of the gilded form;
+ *                       `goldenTextSource` points at it (friction 9 forbids storing the string itself).
+ *  · 'extra-proc'     — an EXTRA RESOLUTION rather than bigger printed numbers (Gemstorm Instigator: the gild
+ *                       procs an additional time — 2 Rubies twice, printed as 4).
+ *  · 'not-applicable' — the object can never BE gilded, so the whole gilding aspect is inapplicable. Spells
+ *                       (and Rubies) are the owner-ruled case: R-GILD-02 below; `checkTriples` skips them.
+ *  · 'none'           — gilding is possible but changes nothing (retained; today only reached by hand).
+ *  · 'other'          — the audited escape hatch. `basis: 'unresolved'` is its honest use: the extractor SAW
+ *                       an authored golden text it could not resolve into a shape and refused to guess one
+ *                       (the gap is listed in `extraction.unparsed` as 'gildedDelta.shape').
+ */
+export type GildedDeltaKind =
+  | 'multiply' | 'gilded-token' | 'reshape' | 'extra-proc' | 'not-applicable' | 'none' | 'other';
+
+/** HOW the shape claim was produced — the same honesty device as `TriggerContract.phaseBasis` (friction 7).
+ *  Derived bases regenerate from the defs and cannot drift; authored/owner-ruling bases are hand-owned. */
+export type GildedDeltaBasis =
+  | 'derived:default' // no authored golden text — the object inherits the ×2 baseline
+  | 'derived:golden-text' // a plain-vs-golden text diff resolved the shape
+  | 'derived:token-id' // the summon factory gilds its token (`goldenTokens`), or the golden text names "Gilded <X>"
+  | 'derived:ungildable' // the object can never be gilded (spell / Ruby / noTriple)
+  | 'owner-ruling' // an owner ruling names this shape (the 2026-08-28 gilding rulings)
+  | 'authored' // hand-authored on a curated contract
+  | 'unresolved'; // the shape could NOT be derived — never guessed; listed in extraction.unparsed
+
+/** The gilded token's identity claim. `count` is the GILDED count — for a true 'gilded-token' gild it equals
+ *  the plain count (the identity changes, the number does not). */
+export interface GildedTokenContract {
+  cardId: string;
+  count?: number;
+}
+
+interface GildedDeltaCommon {
+  description: string;
+  basis?: GildedDeltaBasis;
+  /** Friction 9: the authored gilded text is EVIDENCE for a reshape/gilded-token/extra-proc claim, but the
+   *  string is never stored — this names where the checker reads it (CARD_INDEX[contentId].goldenText). */
+  goldenTextSource?: 'index:goldenText';
+}
+
 export type GildedDeltaContract =
-  | { kind: 'multiply'; factor: number; description: string } // the default: gild multiplies printed magnitudes
-  | { kind: 'reshape'; effects?: EffectContract[]; description: string } // gild changes the SHAPE (Bellringer: left neighbour → both adjacent)
-  | { kind: 'none'; description: string } // cannot gild / gild changes nothing (noTriple)
-  | { kind: 'other'; description: string }; // audited escape hatch — prefer the three above
+  | (GildedDeltaCommon & { kind: 'multiply'; factor: number }) // the ×factor baseline (owner: "doubling the output is the safe baseline")
+  | (GildedDeltaCommon & { kind: 'gilded-token'; token: GildedTokenContract }) // same count, gilded token identity
+  | (GildedDeltaCommon & { kind: 'reshape'; effects?: EffectContract[] }) // the gild changes the SHAPE (Mykel: 1 adjacent → both)
+  | (GildedDeltaCommon & { kind: 'extra-proc'; extra: number }) // one extra resolution, not a bigger number (Gemstorm)
+  | (GildedDeltaCommon & { kind: 'not-applicable'; reason: string }) // spells/Rubies/ungildable — skipped WITH a reason
+  | (GildedDeltaCommon & { kind: 'none' }) // gild possible, changes nothing
+  | (GildedDeltaCommon & { kind: 'other' }); // audited escape hatch (basis 'unresolved' is its honest use)
+
+/** R-GILD-02's machine face: a content type the engine can never gild. `checkTriples` skips spells and
+ *  Rubies (packages/sim/src/reducer.ts), so their gilding aspect is inapplicable, not unprobed. */
+export const GILD_INAPPLICABLE_TYPES: ReadonlySet<ContractContentType> = new Set(['spell']);
 
 // ── Friction 5: copy semantics, both ends ─────────────────────────────────────────────────────────────────
 
@@ -254,8 +325,61 @@ export function contractErrors(c: ContentContract): string[] {
       errors.push(`${id}: effect '${e.kind}' uses amount formula 'other' with no description`);
     }
   }
-  if (c.gildedDelta && (c.gildedDelta.kind === 'other') && !c.gildedDelta.description.trim()) {
-    errors.push(`${id}: gildedDelta 'other' with no description — use multiply/reshape/none or describe it`);
+  errors.push(...gildedDeltaErrors(c));
+  return errors;
+}
+
+/**
+ * The gilding leg of the validator (owner rulings 2026-08-28). Each new kind carries the one field that
+ * makes it checkable, and R-GILD-02 ("spells are never gilded") is enforced structurally in BOTH directions:
+ * a spell must state 'not-applicable', and no other type may borrow the spell reason.
+ */
+export function gildedDeltaErrors(c: ContentContract): string[] {
+  const errors: string[] = [];
+  const id = c.contentId || '(blank)';
+  const g = c.gildedDelta;
+  if (!g) {
+    if (GILD_INAPPLICABLE_TYPES.has(c.contentType)) {
+      errors.push(`${id}: a '${c.contentType}' contract must state gildedDelta 'not-applicable' (R-GILD-02: spells are never gilded) — an absent claim reads as unprobed`);
+    }
+    return errors;
+  }
+  if (!g.description.trim()) errors.push(`${id}: gildedDelta '${g.kind}' with no description`);
+  switch (g.kind) {
+    case 'multiply':
+      if (!(g.factor > 0)) errors.push(`${id}: gildedDelta 'multiply' needs a positive factor`);
+      break;
+    case 'gilded-token':
+      if (!g.token?.cardId?.trim()) errors.push(`${id}: gildedDelta 'gilded-token' needs token.cardId — the gilded identity IS the claim`);
+      if (g.token?.count !== undefined && g.token.count < 0) errors.push(`${id}: gildedDelta 'gilded-token' token.count must be non-negative`);
+      break;
+    case 'extra-proc':
+      if (!Number.isInteger(g.extra) || g.extra < 1) errors.push(`${id}: gildedDelta 'extra-proc' needs an integer extra ≥ 1 (how many EXTRA resolutions the gild buys)`);
+      break;
+    case 'not-applicable':
+      if (!g.reason.trim()) errors.push(`${id}: gildedDelta 'not-applicable' needs a reason — an inapplicable aspect is SKIPPED WITH ITS REASON, never silently passed`);
+      break;
+    case 'other':
+      if (g.basis !== 'unresolved' && !g.description.trim()) {
+        errors.push(`${id}: gildedDelta 'other' with no description — use multiply/gilded-token/reshape/extra-proc/not-applicable, or describe it`);
+      }
+      break;
+    default:
+      break;
+  }
+  // R-GILD-02, both directions.
+  if (GILD_INAPPLICABLE_TYPES.has(c.contentType) && g.kind !== 'not-applicable') {
+    errors.push(`${id}: a '${c.contentType}' contract states gildedDelta '${g.kind}' — R-GILD-02 rules that spells are never gilded (owner, 2026-08-28), so the only legal claim is 'not-applicable'`);
+  }
+  // The reverse direction is narrowed to the types that can NEVER carry a spell body — a 'token' or 'gift'
+  // legitimately IS a spell (spell-token ids like `copycat` are `spell: true` AND `token: true`, and
+  // cardContentType resolves token first), so only a minion/henchman borrowing the spell excuse is a defect.
+  if ((c.contentType === 'minion' || c.contentType === 'henchman') && g.kind === 'not-applicable' && /\bspell\b/i.test(g.reason)) {
+    errors.push(`${id}: gildedDelta 'not-applicable' cites the spell reason on a '${c.contentType}' — R-GILD-02 covers spells only; state the real reason`);
+  }
+  // 'unresolved' is only honest when the gap is ALSO on the visible queue (§4.3).
+  if (g.basis === 'unresolved' && !(c.extraction?.unparsed ?? []).includes('gildedDelta.shape')) {
+    errors.push(`${id}: gildedDelta basis 'unresolved' must list 'gildedDelta.shape' in extraction.unparsed — an unresolved shape is a VISIBLE gap, never a silent one`);
   }
   return errors;
 }

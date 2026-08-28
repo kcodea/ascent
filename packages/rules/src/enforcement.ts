@@ -97,6 +97,11 @@ export const ENFORCEMENT_LANES: Record<string, EnforcementLane> = {
     file: 'packages/sim/src/docbot/textOracleSummons.test.ts',
     what: 'summon-effect reconciliation against printed text: copy counts, exact-stat carriage, and the gilded-badge convention on summoned copies',
   },
+  // ── Gilding shapes (owner rulings 2026-08-28: R-GILD-01 / R-GILD-02) ──
+  gildingKinds: {
+    file: 'packages/sim/src/docbot/gildingKinds.test.ts',
+    what: 'the gilded-shape vocabulary: every card contract carries a derived-or-owner-ruled GildedDeltaContract kind (multiply / gilded-token / reshape / extra-proc / not-applicable), the named exemplars are driven through the real engine (Dunkey summons ONE gilded Armadiyo; a plain ×2 card doubles its count), every spell is not-applicable with its reason, and each kind\'s oracle branch is sabotage-proven to flip',
+  },
   // ── Doc Bot 2.0 WP F: interaction intelligence ──
   interactionSweep: {
     file: 'packages/sim/src/docbot/interactionSweep.test.ts',

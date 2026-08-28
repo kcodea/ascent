@@ -86,27 +86,31 @@ const DEFAULTS: LobbyRailLookConfig = {
   railRadius: 1,
   seatRadius: 1,
 
-  seatBg: '#211c2e',
-  seatLine: '#ffffff',
-  nameCol: '#f2ecff',
+  // WARM-GILDED starting palette (owner ask 2026-08-28) — seats read as warm-brown plaques with a faint gold
+  // hairline, cream names, gold accents, matching the backplate's gilded frame + dark-warm-brown leather. A
+  // brightness hierarchy carries the read: resting seats dark, YOUR seat a warmer gold-brown, the next foe the
+  // brightest ember + its gold ring/glow. All mirrored into the styles.css fallbacks so prod paints it with no JS.
+  seatBg: '#2e2417',
+  seatLine: '#c8922e',
+  nameCol: '#f4ecdb',
 
-  youBg: '#1f3a5c',
-  youLine: '#8cc8ff',
+  youBg: '#3f2f14',
+  youLine: '#e6b45a',
 
   hpCol: '#ff8d8d',
-  armorCol: '#9fc7ff',
+  armorCol: '#c9c2b0',
   dmgCol: '#ff6b6b',
-  barA: '#ff8d8d',
-  barB: '#ffc38d',
-  youBarA: '#8cc8ff',
-  youBarB: '#b9e2ff',
-  barTrack: '#ffffff',
+  barA: '#ff8a6e',
+  barB: '#ffc978',
+  youBarA: '#e6b45a',
+  youBarB: '#ffe1a0',
+  barTrack: '#ffd9a0',
 
-  roundCol: '#ffffff',
+  roundCol: '#fff6e4',
   aliveCol: '#f4d58a',
   maxCol: '#ff9a9a',
 
-  foeBg: '#46292b',
+  foeBg: '#4d3117',
   foeRingCol: '#ffce82',
   foeRing: 0.7,
   foeGlowCol: '#ffaa50',

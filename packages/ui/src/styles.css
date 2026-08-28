@@ -8156,7 +8156,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .lobbyhead { display: flex; justify-content: space-between; align-items: center; flex: none; gap: calc(5 * var(--lfont));
   font-size: calc(9 * var(--lfont)); letter-spacing: 0.06em; text-transform: uppercase; color: rgba(255, 255, 255, 0.72); }
 /* Round + seats-left read a touch larger + bold (owner ask 2026-08-11) so the rail header carries the round HUD. */
-.lobbyround { font-size: calc(11 * var(--lfont)); font-weight: 800; color: var(--lby-round-col, #fff); letter-spacing: 0.05em; }
+.lobbyround { font-size: calc(11 * var(--lfont)); font-weight: 800; color: var(--lby-round-col, #fff6e4); letter-spacing: 0.05em; }
 .lobbyalive { font-size: calc(11 * var(--lfont)); font-weight: 800; color: var(--lby-alive-col, #f4d58a); }
 /* Max-loss chip — the round's most-you-can-lose readout, moved off the removed top-left plaque. */
 .lobbymax { display: inline-flex; align-items: center; gap: calc(2 * var(--lfont)); font-size: calc(10 * var(--lfont)); font-weight: 800; color: var(--lby-max-col, #ff9a9a); }
@@ -8226,13 +8226,13 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   grid-template-columns: calc(18 * var(--lrow) * var(--lby-face, 1)) 1fr auto; grid-template-rows: auto auto auto;
   align-items: center; column-gap: calc(4 * var(--lrow));
   padding: calc(3 * var(--lrow) * var(--lby-seat-pad, 1)) calc(5 * var(--lrow) * var(--lby-seat-pad, 1)) calc(4 * var(--lrow) * var(--lby-seat-pad, 1));
-  border-radius: calc(5 * var(--lrow) * var(--lby-seat-rad, 1)); font-size: calc(11 * var(--lfont)); color: var(--lby-name-col, #f2ecff);
-  background: var(--lby-seat-bg, #211c2e); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--lby-seat-line, #fff) 8%, transparent); }
-.lobbyseat.you { background: var(--lby-you-bg, #1f3a5c); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--lby-you-line, #8cc8ff) 60%, transparent); }
+  border-radius: calc(5 * var(--lrow) * var(--lby-seat-rad, 1)); font-size: calc(11 * var(--lfont)); color: var(--lby-name-col, #f4ecdb);
+  background: var(--lby-seat-bg, #2e2417); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--lby-seat-line, #c8922e) 8%, transparent); }
+.lobbyseat.you { background: var(--lby-you-bg, #3f2f14); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--lby-you-line, #e6b45a) 60%, transparent); }
 /* The NEXT opponent — lit BRIGHT so it reads at a glance now the "Next" pill is gone. A warm-gold seat + ring,
    plus an overlay whose glow PULSES via opacity only (a static shadow, opacity-animated — compositor-only per
    docs/performance.md; never a looping box-shadow). */
-.lobbyseat.foe { background: var(--lby-foe-bg, #46292b);
+.lobbyseat.foe { background: var(--lby-foe-bg, #4d3117);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--lby-foe-ring-col, #ffce82) 95%, transparent); }
 .lobbyseat.foe::after {
   content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
@@ -8256,7 +8256,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .lobbyseat.dead .lobbyname { text-decoration: line-through; }
 .lobbyhp { display: inline-flex; align-items: center; gap: calc(1 * var(--lfont)); font-weight: 700; color: var(--lby-hp-col, #ff8d8d); }
 .lobbyhp svg { width: calc(8 * var(--lfont)); height: calc(8 * var(--lfont)); }
-.lobbyarmor { color: var(--lby-armor-col, #9fc7ff); font-weight: 700; }
+.lobbyarmor { color: var(--lby-armor-col, #c9c2b0); font-weight: 700; }
 .lobbyplace { color: rgba(255, 255, 255, 0.62); font-weight: 700; }
 /* Health / placement sit on row 2 at the right, beside the round-damage number, now the name owns row 1. */
 .lobbyhp, .lobbyplace { grid-column: 3; grid-row: 2; justify-self: end; }
@@ -8266,10 +8266,10 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
    row of its own beneath the name so it reads as the seat's whole remaining pool at a glance, next to the exact
    number on the right. */
 .lobbybar { grid-column: 2 / span 2; grid-row: 3; height: calc(3 * var(--lrow)); border-radius: 999px;
-  background: color-mix(in srgb, var(--lby-bar-track, #fff) 10%, transparent); overflow: hidden; }
+  background: color-mix(in srgb, var(--lby-bar-track, #ffd9a0) 10%, transparent); overflow: hidden; }
 .lobbybar > span { display: block; height: 100%; border-radius: inherit;
-  background: linear-gradient(90deg, var(--lby-bar-a, #ff8d8d), var(--lby-bar-b, #ffc38d)); }
-.lobbyseat.you .lobbybar > span { background: linear-gradient(90deg, var(--lby-youbar-a, #8cc8ff), var(--lby-youbar-b, #b9e2ff)); }
+  background: linear-gradient(90deg, var(--lby-bar-a, #ff8a6e), var(--lby-bar-b, #ffc978)); }
+.lobbyseat.you .lobbybar > span { background: linear-gradient(90deg, var(--lby-youbar-a, #e6b45a), var(--lby-youbar-b, #ffe1a0)); }
 .lobbydmg { grid-column: 2; grid-row: 2; font-size: calc(9 * var(--lfont)); font-weight: 800; color: var(--lby-dmg-col, #ff6b6b);
   line-height: 1; min-height: calc(8 * var(--lfont)); animation: lobbydmgpop 420ms ease-out; }
 @keyframes lobbydmgpop {

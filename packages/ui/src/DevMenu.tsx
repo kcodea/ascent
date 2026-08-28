@@ -17,6 +17,7 @@ import { LoadScreenTuner } from './LoadScreenTuner';
 import { HeroDuelTuner } from './HeroDuelTuner';
 import { RulebookTriage } from './RulebookTriage';
 import { BugBoard } from './BugBoard';
+import { QaWorkbench } from './QaWorkbench';
 import { TitleVeilTuner } from './TitleVeilTuner';
 import { BoardEdgeTuner } from './BoardEdgeTuner';
 import { SecondPowerTuner } from './SecondPowerTuner';
@@ -240,6 +241,7 @@ export function DevMenu() {
   const [blOpen, setBlOpen] = useState(false);
   const [rbOpen, setRbOpen] = useState(false);
   const [bugOpen, setBugOpen] = useState(false);
+  const [qaOpen, setQaOpen] = useState(false);
   const [q, setQ] = useState('');
   const [cursor, setCursor] = useState(0);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -271,6 +273,7 @@ export function DevMenu() {
     { id: 'beatlab', icon: '🥁', label: 'Beat Lab', hint: 'Read-only viewer: the source-attributed trigger/consequence tree of the last action', run: () => setBlOpen(true) },
     { id: 'rulebook', icon: '📜', label: 'Rulebook Triage', hint: "The owner's ruling board — Doc Bot's queues as clickable Approve/Revise/Reject cards; clicks write decisions.json", run: () => setRbOpen(true) },
     { id: 'bugboard', icon: '🐛', label: 'Bug Board', hint: 'The bug inbox — triage player reports, hand-pick a stack, send the work order to Claude', run: () => setBugOpen(true) },
+    { id: 'qaworkbench', icon: '🔬', label: 'QA Workbench', hint: "Doc Bot's review surface — findings inbox, content detail, trace comparison, interaction matrix, text queue", run: () => setQaOpen(true) },
     // Destructive and irreversible, so it asks first and names the number — and it says what it does NOT touch,
     // because "reset the tuners" could reasonably be read as including the audio levels.
     {
@@ -462,6 +465,7 @@ export function DevMenu() {
       {blOpen && <BeatLab onClose={() => setBlOpen(false)} />}
       {rbOpen && <RulebookTriage onClose={() => setRbOpen(false)} />}
       {bugOpen && <BugBoard onClose={() => setBugOpen(false)} />}
+      {qaOpen && <QaWorkbench onClose={() => setQaOpen(false)} />}
       <BeatDraftBanner />
     </>
   );

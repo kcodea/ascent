@@ -1,0 +1,67 @@
+# DOCBOT WEEKLY / DEEP LANE (Doc Bot 2.0 WP G · blueprint §17.3) — the probes too expensive for a nightly.
+#
+# ADDITIVE and NON-BLOCKING by construction: separate from ci.yml, not a required check, cron-only plus
+# manual dispatch. It can never gate a PR — §17.4's rule is that only fast deterministic checks block a
+# merge, and everything here is either long-horizon or exploratory.
+#
+# What it adds over the nightly: a 4x lifecycle-seed budget (the greybox fuzzing + longer lifecycle
+# exploration §17.3 asks for), plus a guaranteed full contract and interaction sweep even in a week where
+# every nightly failed to start. `docbot:interactions` already runs every pair AND the §10.4 triples in one
+# pass, so there is no separate triples invocation to add.
+#
+# NOT here, on purpose: the retro reinject harness (packages/tools/retro/reinject.py). It is a Python
+# mutation harness that rewrites engine source in place and relies on a clean revert; it needs a toolchain
+# this image does not install, a killed run leaves a sabotaged checkout, and its verdicts are dated
+# citations that are worth more when a human ran them. It stays a manual attended run — the full rationale
+# is in docs/docbot2/ci-lanes.md §17.3. The part that DOES need automating (a catalog entry losing its
+# mapping) is already on the PR gate via retroMapErrors().
+name: Docbot Weekly
+
+on:
+  schedule:
+    # 04:23 UTC Sunday — deep off-peak, odd minute to dodge on-the-hour scheduling congestion.
+    - cron: '23 4 * * 0'
+  workflow_dispatch:
+    inputs:
+      runs:
+        description: 'Lifecycle runs to execute (nightly uses 6)'
+        required: false
+        default: '24'
+
+jobs:
+  deep:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+
+      - name: Long-horizon lifecycle exploration (§17.3 greybox fuzz + longer lifecycles)
+        continue-on-error: true
+        run: npm run docbot:nightly -- --runs ${{ github.event.inputs.runs || '24' }} --out artifacts/docbot-nightly
+
+      - name: Full contract sweep (unsampled)
+        continue-on-error: true
+        run: npm run docbot:contracts -- --out artifacts/docbot-contracts
+
+      - name: Full interaction sweep (every pair + the §10.4 triples) + anomaly oracle
+        continue-on-error: true
+        run: npm run docbot:interactions -- --out artifacts/docbot-interactions
+
+      # A red sweep is a FINDING, not a lost run — every step above continues so the fold and the upload
+      # still happen. The ledger is what a reviewer actually opens on Monday.
+      - name: Fold the week's findings into a ledger
+        if: always()
+        run: npm run docbot:ledger -- --in artifacts --ledger artifacts/ledger.json --print 40
+
+      - name: Upload the deep-lane artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: docbot-weekly-${{ github.run_id }}
+          path: artifacts/
+          retention-days: 90

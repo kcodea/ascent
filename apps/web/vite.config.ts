@@ -9,6 +9,7 @@ import { beatLabPlugin } from './beatLabPlugin';
 import { rulebookPlugin } from './rulebookPlugin';
 import { bugBoardPlugin } from './bugBoardPlugin';
 import { qaScenarioPlugin } from './qaScenarioPlugin';
+import { workbenchPlugin } from './workbenchPlugin';
 
 const r = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 
@@ -37,7 +38,10 @@ export default defineConfig(({ command }) => ({
   // service-role key from the untracked repo-root .env, which is exactly why it must never ship in a build.
   // `qaScenarioPlugin` (also `apply: 'serve'`) = the Scene Builder's /__qa-scenario/save fixture write
   // (Docbot handoff §4.5) — dev server only, like every other write endpoint above.
-  plugins: [react(), fxDefsPlugin(), uiAssetPlugin(), beatLabPlugin(), rulebookPlugin(), bugBoardPlugin(), qaScenarioPlugin()],
+  // `workbenchPlugin` (also `apply: 'serve'`) = the QA Workbench's READ-ONLY /__workbench/* endpoints
+  // (Doc Bot 2.0 §15): the gitignored findings ledger + sweep artifacts + curated scenario fixtures. It
+  // writes nothing — the workbench's one write (accepting a wording recommendation) reuses /__rulebook/decide.
+  plugins: [react(), fxDefsPlugin(), uiAssetPlugin(), beatLabPlugin(), rulebookPlugin(), bugBoardPlugin(), qaScenarioPlugin(), workbenchPlugin()],
   resolve: {
     alias: {
       '@game/core': r('../../packages/core/src/index.ts'),

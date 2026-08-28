@@ -39,6 +39,11 @@ export {
   type EnforcementLane, type EnforcementCheckEnv,
 } from './enforcement';
 export { applySeedHygiene, type SeedHygieneInput, type SeedHygieneResult } from './seedSupport';
+export {
+  PARKED_CLASSES, PARKED_CLASS_IDS, PARKED_REASON, PARKED_RETIRED_RULE_IDS, isParked, parkedClassForFamily,
+  parkedClassForFlag, parkedClassForTribe, parkedClassForTrigger, parkedClassOf, parkedSkipReason,
+  type ParkedClass, type ParkedReason, type ParkedSubject,
+} from './parked';
 export { ruleImpact, enforcementFiles, type RuleImpactInput, type RuleImpactReport, type TouchedRule } from './ruleImpact';
 export { rulesRevision } from './registryHash';
 

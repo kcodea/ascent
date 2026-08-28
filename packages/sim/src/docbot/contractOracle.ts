@@ -38,6 +38,7 @@ import {
   type ContentContract, type ContractAspectVerdict, type ContractMismatch, type ContractObservation,
   type DerivedContractStatus,
 } from '@game/rules/contracts/schema';
+import { PARKED_REASON } from '@game/rules/parked';
 import { createRun } from '../state';
 import { reduce } from '../reducer';
 import { parseQaScenario, runQaScenario } from '../qaScenario';
@@ -498,10 +499,11 @@ export function runContractSweep(opts: ContractSweepOptions): ContractSweepRepor
   const mismatchIds = new Set(mismatches.map((m) => m.contractId));
   const metaFailIds = new Set(ctx.metamorphic.filter((m) => !m.diff.ok).map((m) => m.contractId));
   const limitFailIds = new Set(ctx.limitChecks.filter((l) => !l.ok).map((l) => l.contractId));
+  const parkedDowngrades: Record<string, number> = {};
   for (const c of contracts) {
     const plan = planIndex.get(c.contentId)!;
     const sampled = sampledIds.has(c.contentId);
-    const direct: ContractAspectVerdict = !sampled
+    const directRaw: ContractAspectVerdict = !sampled
       ? {
           aspect: 'direct-suite', verdict: 'uncovered',
           detail: plan.cases.length === 0
@@ -511,6 +513,17 @@ export function runContractSweep(opts: ContractSweepOptions): ContractSweepRepor
       : (mismatchIds.has(c.contentId) || metaFailIds.has(c.contentId) || limitFailIds.has(c.contentId))
         ? { aspect: 'direct-suite', verdict: 'disagree', detail: 'direct execution disagreed with a stated claim (see mismatches/metamorphic/limitChecks)' }
         : { aspect: 'direct-suite', verdict: 'agree', detail: `${plan.cases.length} isolated case(s) executed through the real engine` };
+    // Owner-parked WIP (2026-08-28): the cases still RAN — the sweep keeps verifying — but a 'disagree' is a
+    // claim about intent, and a parked class has none yet. Downgrade, citing the parked reason.
+    let direct = directRaw;
+    if (c.parked && directRaw.verdict === 'disagree') {
+      parkedDowngrades[c.parked.classId] = (parkedDowngrades[c.parked.classId] ?? 0) + 1;
+      direct = {
+        aspect: 'direct-suite',
+        verdict: 'uncovered',
+        detail: `${PARKED_REASON} (${c.parked.classId}): executed and measured, but not asserted — ${c.parked.why} · measurement was: ${directRaw.detail ?? '(no detail)'}`,
+      };
+    }
     const aspects = [...(corrById.get(c.contentId)?.aspects ?? []), direct];
     const derived = deriveContractStatus(c.reviewStatus, aspects);
     statusTotals[derived] = (statusTotals[derived] ?? 0) + 1;
@@ -541,7 +554,14 @@ export function runContractSweep(opts: ContractSweepOptions): ContractSweepRepor
     }
   }
 
-  const findings = buildSweepFindings({ contracts: byId, mismatches, metamorphic: ctx.metamorphic, limitChecks: ctx.limitChecks, semanticRevision });
+  for (const [classId, n] of Object.entries(parkedDowngrades)) {
+    skippedByReason[`${PARKED_REASON}:${classId}`] = (skippedByReason[`${PARKED_REASON}:${classId}`] ?? 0) + n;
+  }
+
+  // A parked class has no stated intent, so a mismatch against it cannot be a finding about intent — the
+  // measurement stays in `mismatches`/`metamorphic` (visible, never dropped); only the FINDING is withheld.
+  const findings = buildSweepFindings({ contracts: byId, mismatches, metamorphic: ctx.metamorphic, limitChecks: ctx.limitChecks, semanticRevision })
+    .filter((f) => !f.contentIds.every((id) => byId.get(id)?.parked));
 
   return {
     contractsTotal: contracts.length,

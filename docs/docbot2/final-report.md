@@ -158,7 +158,7 @@ machine-refreshed one; the trade-off is that the number ages until someone re-ru
 
 ## 6. Rules and the owner's queue
 
-- **110** rules total: **31** approved, 43 retired, **72** needs-ruling.
+- **114** rules total: **31** approved, 49 retired, **9** needs-ruling.
 - Approved-but-unenforced: `R-PLAY-01`, `R-AURA-01` — pinned, shrink-only.
 - Release blockers (approved rules the engine violates, visible every run, never silently green):
   `R-AVWIN-02`, `R-AVWIN-10`.

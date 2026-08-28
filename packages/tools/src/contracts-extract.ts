@@ -19,7 +19,8 @@ import {
   AUTO_RETIRED_RULES, CONVENTION_PENDING, DECISIONS, RETIRED_IDS, applySeedHygiene, type RetiredRule,
 } from '@game/rules';
 import { CURATED_CONTRACTS } from '@game/rules/contracts/curated';
-import { buildConventionQuestions, corroborateContracts, extractAllContracts } from '@game/sim';
+import { PARKED_CLASSES } from '@game/rules/parked';
+import { buildConventionQuestions, conventionClusters, corroborateContracts, extractAllContracts } from '@game/sim';
 
 // ── 1. extraction ────────────────────────────────────────────────────────────────────────────────────────
 const extraction = extractAllContracts();
@@ -105,3 +106,17 @@ console.log(`DISAGREEMENT QUEUE (${screened.disagreements.length}):`);
 for (const d of screened.disagreements) console.log(`  · ${d.contractId} [${d.aspect}] ${d.detail}`);
 console.log(`CONVENTION QUESTIONS: ${hygiene.pending.length} pending (Sitting 1)`
   + (hygiene.newTombstones.length ? `; auto-retired ${hygiene.newTombstones.map((t) => t.id).join(', ')}` : ''));
+
+// PARKED WIP surfaces (owner triage 2026-08-28) — always printed, even at zero: a parked class must be
+// visible in the counts, never silently dropped. Un-parking is one edit in packages/rules/src/parked.ts.
+const suppressed = conventionClusters().parked;
+console.log(`PARKED (owner-declared WIP — no questions, no rules, contracts stamped '${'parked-wip'}'):`);
+for (const p of PARKED_CLASSES) {
+  const contracts = extraction.parked[p.id] ?? 0;
+  const sup = suppressed.find((s) => s.classId === p.id);
+  console.log(`  · ${p.id} (${p.label}, since ${p.since}): ${contracts} contracts stamped`
+    + `; ${sup ? sup.families.length : 0} family question(s) suppressed`
+    + `; ${sup ? sup.membersStripped : 0} member(s) stripped from the deck`);
+}
+console.log(`  corroboration: ${Object.values(screened.parked.byClass).reduce((a, b) => a + b, 0)} parked rows still measured`
+  + `; ${screened.parked.downgraded} intent claim(s) withheld`);

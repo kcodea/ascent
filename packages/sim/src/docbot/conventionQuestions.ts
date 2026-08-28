@@ -26,6 +26,8 @@ import { CARD_INDEX, QUEST_DEFS } from '@game/content';
 import { PRESENTATION_POLICIES } from '@game/core';
 import type { CardDef, Keyword } from '@game/core';
 import type { GameRule, RuleEnforcement } from '@game/rules'; // type-only: erased at build, never bundles the registry
+// Runtime, but the parked registry is a LEAF module (zero imports) — it carries no registry weight.
+import { parkedClassForFamily, parkedClassForTrigger, parkedClassOf } from '@game/rules/parked';
 import { HEROES } from '../heroes';
 import { POWER_FAMILY, type ActivationFamily } from './heroPowerFamilies';
 import { TRIGGER_PHASES } from './phaseRegistry';
@@ -127,47 +129,266 @@ export function gildClaimFor(fam: string, memberIds: readonly string[]): GildCla
   return OWNER_GILD_NOTES[fam] ?? GILD_DEFAULT;
 }
 
-// ── 1. Presentation timing families ──────────────────────────────────────────────────────────────────────
 
-function familyQuestions(): GameRule[] {
-  interface Cluster { factories: Set<string>; events: Set<string>; cardIds: Set<string> }
-  const clusters = new Map<string, Cluster>();
+// ── 1. Trigger clusters (was: presentation timing families) ──────────────────────────────────────────────
+
+/**
+ * OWNER RULING 2026-08-28 on `q-conv-family-economy` (REVISE), verbatim:
+ *   "this family seems extremely varied. there are cards that proc on sell in this category, there are some
+ *    shouts, there are cards that trigger from buying x cards, there are cards that learn other spells etc.
+ *    this does not seem like a cohesive family of cards or rulings to me."
+ *
+ * He was right, and the fault was the CLUSTER KEY. A presentation family is a PRESENTATION concept (which
+ * beat the effect gets), and several families collect factories that fire on completely different moments —
+ * `economy` alone spans 11 distinct trigger events. A card that says "all N of these trigger the same way"
+ * is then simply FALSE, and an approval on it would rule things the owner never read.
+ *
+ * So a family is only a legitimate question when it is single-trigger. Families that span more than one
+ * TRIGGER GROUP are dissolved and their factories re-clustered by trigger across ALL such families at once
+ * (so `economy` and `economyReact` do not each mint a duplicate "on sell" card). Every emitted card then
+ * names one trigger moment that every member genuinely shares — the machine-checkable version of the
+ * owner's complaint lives in conventionCohesion.test.ts.
+ *
+ * Anything that lands in no group is NOT forced into a false family: it becomes the residual card, which
+ * says out loud that its members are unrelated and that ruling each individually is the honest option.
+ */
+interface TriggerGroup {
+  id: string;
+  /** The plain-English trigger moment the card names. Must be true of EVERY member. */
+  label: string;
+  events: readonly string[];
+}
+
+const TRIGGER_GROUPS: readonly TriggerGroup[] = [
+  { id: 'sell', label: 'you sell a card', events: ['onSell', 'minionSold'] },
+  { id: 'buy', label: 'you buy a card', events: ['onBuy', 'cardsBought', 'spellBought'] },
+  { id: 'goldSpent', label: 'you spend Gold this turn', events: ['goldSpent'] },
+  { id: 'ruby', label: 'a Ruby is gained, played or cast', events: ['onRubyPlayed', 'onGetRuby', 'rubyCast'] },
+  { id: 'damaged', label: 'a friendly minion takes or deals damage', events: ['onDamaged', 'friendlyDemonDealtDamage'] },
+  { id: 'consume', label: 'this minion Consumes something', events: ['onConsume'] },
+  { id: 'gainAttack', label: 'a friendly minion gains Attack', events: ['onGainAttack'] },
+  { id: 'overflow', label: 'a summon overflows a full board', events: ['summonOverflow'] },
+];
+
+const GROUP_OF_EVENT: Readonly<Record<string, TriggerGroup>> = Object.fromEntries(
+  TRIGGER_GROUPS.flatMap((g) => g.events.map((e) => [e, g] as const)),
+);
+
+/** The trigger group an event belongs to, or undefined (an ungrouped event lands in the residual card). */
+export const triggerGroupOf = (event: string): TriggerGroup | undefined => GROUP_OF_EVENT[event];
+
+/** One emitted convention cluster, exported so the cohesion test can judge it independently. */
+export interface ConventionCluster {
+  /** The rule id this cluster becomes. */
+  ruleId: string;
+  kind: 'family' | 'trigger' | 'residual';
+  /** The presentation family, for `kind: 'family'`. */
+  family?: string;
+  /** Every trigger event the cluster's factories fire on. */
+  events: string[];
+  factories: string[];
+  memberIds: string[];
+  /** Set when this cluster came out of a dissolved (multi-trigger) family. */
+  fromFamilies?: string[];
+}
+
+/** The parked classes this build suppressed, and what they cost the deck (visible, never silent). */
+export interface ParkedSuppression { classId: string; families: string[]; membersStripped: number }
+
+/** Every card the deck may bind — parked (owner-WIP) content is stripped from EVERY card's member list, so
+ *  approving a convention can never silently rule a surface the owner has not designed yet. */
+const liveCards = (): CardDef[] => sortedCards().filter((c) => !isParkedCard(c.id));
+
+const isParkedCard = (id: string): boolean => {
+  const def = CARD_INDEX[id];
+  if (!def) return false;
+  return !!parkedClassOf({
+    tribes: [def.tribe, def.tribe2],
+    flags: def.celestial ? ['celestial'] : [],
+    triggers: def.effects.map((e) => e.on),
+  });
+};
+
+interface RawFamily { factories: Set<string>; events: Set<string> }
+
+function rawFamilies(): Map<string, RawFamily> {
+  const families = new Map<string, RawFamily>();
   for (const [key, entry] of Object.entries(PRESENTATION_POLICIES)) {
     const m = /^factory:([^:]+):([^:]+)$/.exec(key);
     if (!m) continue; // non-factory policy keys carry no content cluster
     const fam = (entry as { family?: string }).family;
     if (!fam) continue;
-    const c = clusters.get(fam) ?? { factories: new Set(), events: new Set(), cardIds: new Set() };
-    c.factories.add(m[1]!);
-    c.events.add(m[2]!);
-    clusters.set(fam, c);
+    const f = families.get(fam) ?? { factories: new Set(), events: new Set() };
+    f.factories.add(m[1]!);
+    f.events.add(m[2]!);
+    families.set(fam, f);
   }
-  const cards = sortedCards();
-  for (const c of clusters.values()) {
-    for (const def of cards) if (def.effects.some((e) => c.factories.has(e.do))) c.cardIds.add(def.id);
+  return families;
+}
+
+/** How many distinct trigger GROUPS a family spans (an ungrouped event counts as its own group). */
+const groupSpread = (events: Iterable<string>): Set<string> =>
+  new Set([...events].map((e) => triggerGroupOf(e)?.id ?? `ungrouped:${e}`));
+
+const matchingCards = (factories: ReadonlySet<string>, events: ReadonlySet<string>): string[] =>
+  sortedCards().filter((def) => def.effects.some((e) => factories.has(e.do) && events.has(e.on))).map((def) => def.id).sort();
+
+/** The member list a card may print: matching cards MINUS anything in a parked class. */
+const membersOf = (factories: ReadonlySet<string>, events: ReadonlySet<string>): string[] =>
+  matchingCards(factories, events).filter((id) => !isParkedCard(id));
+
+/**
+ * The deterministic cluster plan: single-trigger families keep their family card (and their id — no
+ * needless re-sitting); multi-trigger families dissolve into shared per-trigger-group cards plus one honest
+ * residual. Parked families emit nothing at all.
+ */
+export function conventionClusters(): { clusters: ConventionCluster[]; parked: ParkedSuppression[] } {
+  const families = rawFamilies();
+  const parkedByClass = new Map<string, ParkedSuppression>();
+
+  const coherent: Array<[string, RawFamily]> = [];
+  const dissolved: Array<[string, RawFamily]> = [];
+  for (const [fam, f] of [...families.entries()].sort(([a], [b]) => (a < b ? -1 : 1))) {
+    const p = parkedClassForFamily(fam);
+    if (p) {
+      const row = parkedByClass.get(p.id) ?? { classId: p.id, families: [], membersStripped: 0 };
+      row.families.push(fam);
+      row.membersStripped += matchingCards(f.factories, f.events).length;
+      parkedByClass.set(p.id, row);
+      continue;
+    }
+    (groupSpread(f.events).size > 1 ? dissolved : coherent).push([fam, f]);
   }
-  return [...clusters.entries()].sort(([a], [b]) => (a < b ? -1 : 1)).map(([fam, c]) => {
-    const memberIds = [...c.cardIds].sort();
-    const events = [...c.events].sort();
-    const phases = [...new Set(events.map((e) => TRIGGER_PHASES[e] ?? 'unknown'))].sort();
-    const exemplar = memberIds[0];
-    const gild = gildClaimFor(fam, memberIds);
+
+  const clusters: ConventionCluster[] = coherent.map(([fam, f]) => ({
+    ruleId: `q-conv-family-${fam}`,
+    kind: 'family' as const,
+    family: fam,
+    events: [...f.events].sort(),
+    factories: [...f.factories].sort(),
+    memberIds: membersOf(f.factories, f.events),
+  }));
+
+  // Re-cluster every dissolved family's (factory, event) pairs by trigger group, POOLED across families —
+  // one "when you sell" card, not one per family that happened to own a sell factory.
+  const byGroup = new Map<string, { events: Set<string>; factories: Set<string>; families: Set<string> }>();
+  const ungrouped = { events: new Set<string>(), factories: new Set<string>(), families: new Set<string>() };
+  for (const [fam, f] of dissolved) {
+    for (const [key, entry] of Object.entries(PRESENTATION_POLICIES)) {
+      const m = /^factory:([^:]+):([^:]+)$/.exec(key);
+      if (!m || (entry as { family?: string }).family !== fam) continue;
+      const [, factory, event] = m as unknown as [string, string, string];
+      if (parkedClassForTrigger(event)) continue; // a parked trigger never reaches the deck
+      const g = triggerGroupOf(event);
+      const bucket = g
+        ? byGroup.get(g.id) ?? { events: new Set<string>(), factories: new Set<string>(), families: new Set<string>() }
+        : ungrouped;
+      bucket.events.add(event);
+      bucket.factories.add(factory);
+      bucket.families.add(fam);
+      if (g) byGroup.set(g.id, bucket);
+    }
+  }
+
+  for (const g of TRIGGER_GROUPS) {
+    const bucket = byGroup.get(g.id);
+    if (!bucket) continue;
+    clusters.push({
+      ruleId: `q-conv-trigger-${g.id}`,
+      kind: 'trigger',
+      events: [...bucket.events].sort(),
+      factories: [...bucket.factories].sort(),
+      memberIds: membersOf(bucket.factories, bucket.events),
+      fromFamilies: [...bucket.families].sort(),
+    });
+  }
+  if (ungrouped.events.size) {
+    clusters.push({
+      ruleId: 'q-conv-trigger-residual',
+      kind: 'residual',
+      events: [...ungrouped.events].sort(),
+      factories: [...ungrouped.factories].sort(),
+      memberIds: membersOf(ungrouped.factories, ungrouped.events),
+      fromFamilies: [...ungrouped.families].sort(),
+    });
+  }
+
+  return {
+    clusters: clusters.sort((a, b) => (a.ruleId < b.ruleId ? -1 : 1)),
+    parked: [...parkedByClass.values()].sort((a, b) => (a.classId < b.classId ? -1 : 1)),
+  };
+}
+
+function familyQuestions(): GameRule[] {
+  return conventionClusters().clusters.map((c) => {
+    const exemplar = c.memberIds[0];
+    const n = c.memberIds.length;
+    const phases = [...new Set(c.events.map((e) => TRIGGER_PHASES[e] ?? 'unknown'))].sort().join('/');
+    // The gilding half rides the trigger-keyed cards too (main's WP-D work, ported onto this structure):
+    // the owner's per-family notes still key on the family name, so a card born of the re-cluster falls
+    // through to the derived claim (spells-never-gild / mixed / ×2 baseline), which is the honest reading —
+    // he annotated avenge/castPayoff/echo, none of which were split.
+    const gild = gildClaimFor(c.family ?? '', c.memberIds);
+
+    if (c.kind === 'family') {
+      return rule({
+        id: c.ruleId,
+        title: `'${c.family}' family · ${n} cards`,
+        statement: `All ${n} '${c.family}' cards trigger the same way. ${gild.statement}` + CLICKS('', ''),
+        domain: 'triggers',
+        currentBehaviour: `${c.factories.length} effect factories across ${n} cards dispatch through the '${c.family}' presentation family, all on the single trigger '${c.events[0]}' (${phases}); the factoryPhase lane gates each (trigger, factory) pair.`
+          + ` Gilding: ${gild.currentBehaviour}`,
+        ...(exemplar ? {
+          cardText: `Exemplar — ${nameOf(exemplar)}: "${textOf(exemplar)}" · Members: ${memberLine(c.memberIds)}`,
+          example: `${nameOf(exemplar)} follows the '${c.family}' convention — its trigger fires on ${c.events[0]}. ${gild.example}`,
+        } : {
+          cardText: `(no live cards currently use the '${c.family}' family's factories)`,
+          example: `any future '${c.family}' card inherits this convention at authoring time.`,
+        }),
+        ...(n ? { contentIds: c.memberIds } : {}),
+      });
+    }
+
+    if (c.kind === 'trigger') {
+      const label = TRIGGER_GROUPS.find((x) => `q-conv-trigger-${x.id}` === c.ruleId)!.label;
+      return rule({
+        id: c.ruleId,
+        title: `Trigger: ${label} · ${n} cards`,
+        // No em-dash inside the sentence: the fly-through ratchet counts words BEFORE the first '—', so an
+        // in-sentence dash would hide the rest of the claim from the bar it is supposed to be measured by.
+        statement: `All ${n} of these fire on one trigger: ${label}. ${gild.statement}` + CLICKS('', ''),
+        domain: 'triggers',
+        currentBehaviour: `${c.factories.length} effect factories across ${n} cards dispatch on ${c.events.map((e) => `'${e}'`).join(', ')} (${phases}) — re-clustered by TRIGGER out of the ${c.fromFamilies?.map((f) => `'${f}'`).join(' + ')} presentation ${c.fromFamilies!.length > 1 ? 'families' : 'family'} on the owner's 2026-08-28 ruling; the factoryPhase lane gates each (trigger, factory) pair.`
+          + ` Gilding: ${gild.currentBehaviour}`,
+        ...(exemplar ? {
+          cardText: `Exemplar — ${nameOf(exemplar)}: "${textOf(exemplar)}" · Members: ${memberLine(c.memberIds)}`,
+          example: `${nameOf(exemplar)} fires when ${label}, like every other card here. ${gild.example}`,
+        } : {
+          cardText: `(no live card currently fires on ${label})`,
+          example: `any future card that fires when ${label} inherits this convention.`,
+        }),
+        ...(n ? { contentIds: c.memberIds } : {}),
+      });
+    }
+
+    // Residual — say the incoherence out loud rather than forcing a false family (owner ruling 2026-08-28).
     return rule({
-      id: `q-conv-family-${fam}`,
-      title: `'${fam}' family · ${memberIds.length} cards`,
-      statement: `All ${memberIds.length} '${fam}' cards trigger the same way. ${gild.statement}`
-        + CLICKS('', ''),
+      id: c.ruleId,
+      title: `Unrelated leftovers · ${n} cards`,
+      statement: `These ${n} are unrelated: they share no trigger. Ruling each individually is the honest option.` + CLICKS('', ''),
       domain: 'triggers',
-      currentBehaviour: `${c.factories.size} effect factories across ${memberIds.length} cards dispatch through the '${fam}' presentation family; the factoryPhase lane gates each (trigger, factory) pair.`
+      // The statement stays about the INCOHERENCE — folding a gilding claim into it would assert one
+      // convention over cards that share nothing. The claim is still recorded, in currentBehaviour.
+      currentBehaviour: `${c.factories.length} factories left over after the ${c.fromFamilies?.map((f) => `'${f}'`).join(' + ')} ${c.fromFamilies!.length > 1 ? 'families were' : 'family was'} re-clustered by trigger; they share NO trigger — ${c.events.map((e) => `'${e}'`).join(', ')} (${phases}).`
         + ` Gilding: ${gild.currentBehaviour}`,
       ...(exemplar ? {
-        cardText: `Exemplar — ${nameOf(exemplar)}: "${textOf(exemplar)}" · Members: ${memberLine(memberIds)}`,
-        example: `${nameOf(exemplar)} follows the '${fam}' convention — its trigger fires on ${events[0]}. ${gild.example}`,
+        cardText: `No shared trigger: ${c.events.join(' · ')} · Members: ${memberLine(c.memberIds)}`,
+        example: `${nameOf(exemplar)} and the rest have nothing in common but leftover status — approving one statement over all of them would rule things you never read.`,
       } : {
-        cardText: `(no live cards currently use the '${fam}' family's factories)`,
-        example: `any future '${fam}' card inherits this convention at authoring time.`,
+        cardText: `No shared trigger: ${c.events.join(' · ')} · (no live members)`,
+        example: 'nothing live carries these triggers today — the card exists so the leftovers are never silently dropped.',
       }),
-      ...(memberIds.length ? { contentIds: memberIds } : {}),
+      ...(n ? { contentIds: c.memberIds } : {}),
     });
   });
 }
@@ -196,7 +417,7 @@ const KEYWORD_CONTRACTS: ReadonlyArray<{ code: Keyword; name: string; semantics:
 ];
 
 function keywordQuestions(): GameRule[] {
-  const cards = sortedCards();
+  const cards = liveCards();
   return KEYWORD_CONTRACTS.map(({ code, name, semantics }) => {
     const memberIds = cards.filter((c) => c.keywords.includes(code)).map((c) => c.id);
     const exemplar = memberIds[0];
@@ -262,19 +483,6 @@ function heroFamilyQuestions(): GameRule[] {
 
 // ── 4. Quest reward shapes ───────────────────────────────────────────────────────────────────────────────
 
-/**
- * PARKED BY ARCHIVE (owner ruling 2026-08-28) — appended to every `q-conv-quest-reward-*` rule's
- * `currentBehaviour`, because that field's whole job is to state what the implementation does TODAY so a
- * ruling is made against facts rather than memory. Today, quests are archived content.
- *
- * These rules are NOT retired. They describe the reward ENGINE's shape, the owner may still rule on them, and
- * a quest redesign will revive the content they cover — retiring them would throw away a standing question
- * that is still worth answering. What changes is only that the reader is told the content is inactive.
- *
- * Crucially the enforcement lane still RUNS: economyScan grants every quest through `devGrant` (which the
- * archive deliberately leaves ungated) and checks each reward's magnitude against its def. So these rules are
- * parked, not unverifiable — and the engine they describe is the same one every RUNE pays out through.
- */
 const QUEST_ARCHIVE_NOTE =
   ' — PARKED BY ARCHIVE 2026-08-28: the quest system is archived (QUESTS_ARCHIVED), so no quest can be offered'
   + ' or completed in play. The reward engine is untouched and still swept: economyScan grants every quest via'
@@ -325,7 +533,7 @@ function questShapeQuestions(): GameRule[] {
 // ── 5. Global conventions (hand-authored: owner specs/designs not yet pinned as R- rules) ────────────────
 
 function globalQuestions(): GameRule[] {
-  const cards = sortedCards();
+  const cards = liveCards();
   const goldenTextIds = cards.filter((c) => c.goldenText).map((c) => c.id);
   const multiplierIds = cards.filter((c) => c.triggerMultiplier).map((c) => c.id);
   const avengeIds = cards.filter((c) => c.effects.some((e) => e.on === 'avenge')).map((c) => c.id);
@@ -342,8 +550,6 @@ function globalQuestions(): GameRule[] {
         + 'The outlier shapes are the owner\'s 2026-08-28 rulings, now carried per card as the contract\'s gildedDelta kind (R-GILD-01); spells and Rubies are not-applicable (R-GILD-02).',
       ...(gildEx ? {
         cardText: `Exemplar — ${nameOf(gildEx)}: "${textOf(gildEx)}" → gilded: "${plain(CARD_INDEX[gildEx]?.goldenText)}"`,
-        // The baseline exemplar WRITES the ×2 out in full; the outlier exemplar is named beside it so the
-        // card shows both halves of the rule (owner rulings 2026-08-28).
         example: `${nameOf(gildEx)}'s gilded text just writes the ×2 out in full — while gilded ${nameOf('b2_dunkey')} instead summons ONE gilded ${nameOf('b2_armadiyo')}.`,
       } : {}),
       evidence: [{ kind: 'code', ref: 'packages/core/src/types.ts CardDef.goldenText docblock' }],

@@ -17,7 +17,8 @@ describe('Kringle prints BOTH halves of its per-card grant', () => {
 
     const one = perCardPlayedText('dw_foreman', 1)!;
     expect(one, 'one card played → the full +1/+2, not a bare Attack number').toContain('{{+1/+2}}');
-    expect(one, 'and the rate keeps both halves too').toContain('(+1/+2 per card played');
+    expect(one, 'and the rate keeps both halves too').toContain('(+1/+2 for each card you played');
+    expect(one, 'both ends of the Dwarf line, as the card prints').toContain('left and right-most Dwarves');
     expect(one, 'no Attack-only phrasing survives').not.toContain('Attack');
 
     // It scales, both halves together.

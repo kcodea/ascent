@@ -56,6 +56,39 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-08-28',
+    label: 'Choose One',
+    changes: [
+      {
+        category: 'Card Change',
+        text: 'Apples now offers a board buff instead of a second shop buff — and its shop half got bigger.',
+        details: [
+          'Choose One: give this shop +2/+4 (was +1/+3), or give 2 random friendly minions +1/+1.',
+          'The old "next shop +2/+4" option is gone — both halves used to buff shops, which left the card with nothing to offer a board you already own.',
+        ],
+      },
+      {
+        category: 'Card Change',
+        text: 'Kringle now pays both ends of your Dwarf line.',
+        details: [
+          'End of Turn: gives your left AND right-most Dwarves +1/+2 for each card you played this turn (was the left-most Dwarf only).',
+          'With a single Dwarf on board, that Dwarf is both ends and is buffed once.',
+        ],
+      },
+      {
+        category: 'Card Change',
+        text: 'Chef Gary Toast hits harder: +4/+4 per Dwarf played, up from +3/+3.',
+      },
+      {
+        category: 'UI / Info',
+        text: 'Six more Choose One cards now wear art for the branch you picked.',
+        details: [
+          "Runic Beetle, Veinbreaker, Coppercoat Spellsword, Crest of the Climb, Facetwright's Choice and Field Maneuvers each show their own second-option art once resolved.",
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-08-28',
     label: 'Ruby Wording',
     changes: [
       {

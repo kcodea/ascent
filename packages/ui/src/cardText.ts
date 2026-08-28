@@ -1003,14 +1003,14 @@ export function tallyBuffText(cardId: string, deathrattlesTriggered: number, gol
  * itself.
  */
 /**
- * Kringle (ex-Closing-Time Foreman) — "+N Attack per card played this turn" folded into the Attack it will really give.
+ * Kringle (ex-Closing-Time Foreman) — "+N/+N for each card played this turn" folded into what it will really give.
  *
  * Same rule as `perGoldSpentText`: a live magnitude prints the number it produces, not the rate. Nothing played
  * yet means the rate IS the answer, so the printed text stands.
  */
 export function perCardPlayedText(cardId: string, cardsPlayedThisTurn: number, golden = false): string | null {
   const def = CARD_INDEX[cardId];
-  const eff = def?.effects.find((e) => e.do === 'endOfTurnBuffLeftmostTribePerCard');
+  const eff = def?.effects.find((e) => e.do === 'endOfTurnBuffEndsTribePerCard');
   if (!def || !eff) return null;
   if (cardsPlayedThisTurn <= 0) return null;
   const params = (eff.params ?? {}) as { attack?: number; health?: number };
@@ -1024,7 +1024,8 @@ export function perCardPlayedText(cardId: string, cardsPlayedThisTurn: number, g
   const rate = perH > 0 ? `+${perA}/+${perH}` : `+${perA} Attack`;
   const grant = perH > 0 ? `+${perA * cardsPlayedThisTurn}/+${perH * cardsPlayedThisTurn}` : `+${perA * cardsPlayedThisTurn} Attack`;
   // Plain parentheses, no `_italics_` — the Card renderer only knows **bold**, so underscores print literally.
-  return `**End of Turn:** give your **left-most Dwarf {{${grant}}}** (${rate} per card played this turn).`;
+  // Owner change 2026-08-28: both ENDS of the Dwarf line, so the live text names both too.
+  return `**End of Turn:** give your **left and right-most Dwarves {{${grant}}}** (${rate} for each card you played this turn).`;
 }
 
 export function perGoldSpentText(cardId: string, goldSpentThisTurn: number, golden = false): string | null {

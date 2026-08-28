@@ -34,7 +34,7 @@ describe('Drunken Oaf — +3/+3 per Ale (was +2/+2)', () => {
 describe('Kringle — +1/+2 per card played (was +1/+1)', () => {
   it('the printed grant and params read 1/2', () => {
     const def = Object.values(CARD_INDEX).find((c) => c.name === 'Kringle')!;
-    const eff = def.effects.find((e) => e.do === 'endOfTurnBuffLeftmostTribePerCard')!;
+    const eff = def.effects.find((e) => e.do === 'endOfTurnBuffEndsTribePerCard')!;
     expect(eff.params).toMatchObject({ attack: 1, health: 2 });
     expect(def.text).toContain('+1/+2');
     expect(def.goldenText).toContain('+2/+4');

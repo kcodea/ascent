@@ -399,6 +399,8 @@ export const RETIRED_RULES: RetiredRule[] = [
       'OWNER RULED 2026-08-28 (Sitting-2, APPROVE): Chronos\'s endOfTurn multiplier composes by the same law — the sibling half of q-interact2-32aa654f. Encoded as standing rule R-MULT-02 and pinned by matrix fixture P12 (Uron + Chronos collapse to one extra End-of-Turn fire, not two); this also resolves interaction-ambiguities.md Q1.',
     retiredAt: '2026-08-28',
     enforcement: INTERACTION_PIN,
+  },
+
   // ── Convention deck, owner triage 2026-08-28: the economy split + the Orbit/Celestial park ────────────
   // These five ids are SUPERSEDED, never recycled. Their replacements carry NEW q-conv-trigger-* ids (or,
   // for the parked classes, no id at all — a parked surface is not asked about). The cohesion pin is the

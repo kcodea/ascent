@@ -1,7 +1,7 @@
 import { makeRng, type QuestDef, type Tribe } from '@game/core';
 import { CARD_INDEX, QUEST_DEFS } from '@game/content';
 import { setIdOf } from './cardPool';
-import { CONFIG } from './config';
+import { CONFIG, QUESTS_ARCHIVED } from './config';
 import { getHero } from './heroes';
 import { mixSeed, TAG, type RunState } from './state';
 
@@ -16,6 +16,9 @@ export function questBucketFor(q: QuestDef): 5 | 11 {
 /** The quest-offer plan for the current turn: which bucket to draw from, and whether it's restricted to Lesser
  *  quests (Fi's bonus turn-4 offer). Null = not a quest turn for this run/hero.
  *
+ *  ⚠️ ARCHIVED 2026-08-28 (owner). `QUESTS_ARCHIVED` short-circuits this to `null` before anything below runs;
+ *  the rest of this docblock describes the system as it behaves once un-archived.
+ *
  *  `CONFIG.questsEnabled = false` is the master off-switch for the UNIVERSAL quest turns (waves 5 & 11) — the
  *  ones every hero gets. The quest-NATIVE hero powers (Fi's Errand, Coran's Pathfinder) are checked ABOVE that
  *  gate, so those heroes keep their own quest access even when the universal system is off (mirrors how the
@@ -26,6 +29,19 @@ export function isHeroQuestPlan(p: QuestOfferPlan): p is { heroQuest: string } {
   return 'heroQuest' in p;
 }
 export function questOfferPlan(s: RunState): QuestOfferPlan | null {
+  // ── THE ARCHIVE GATE (owner ruling 2026-08-28) ─────────────────────────────────────────────────────────
+  // The quest system is archived. This is the ONLY function that can mint a quest offer — both mint sites
+  // (`createRun` in state.ts for the turn-1 hero quest, and the turn advance in reducer.ts for every other
+  // turn) call it and generate nothing when it returns null. So one `return null` here makes the whole
+  // system inert in every mode, on every seed, for every hero: no offer → no `questOffer` → the overlay
+  // never opens, `buyQuest` never has an index to buy, `activeQuests` stays empty and objectives never tick.
+  //
+  // It sits ABOVE the hero-native checks on purpose. `CONFIG.questsEnabled` never could archive the system
+  // because the quest-NATIVE heroes were checked above it by design; Fi and Coran are now `wip` as well
+  // (heroes.ts), so this gate and that flag close the same door from both sides.
+  //
+  // Everything below is retained verbatim, unreachable, so un-archiving is a one-line revert.
+  if (QUESTS_ARCHIVED) return null;
   const hp = getHero(s.heroId).power.kind;
   // HERO QUESTS (Fi / Coran, owner rework 2026-08-21) — a TURN-1 two-option Discover from that hero's own
   // private quest list. This replaced both heroes' old powers outright (Fi's turn-4 Errand, Coran's turn-10

@@ -33,7 +33,7 @@ import {
 import { CURATED_CONTRACT_IDS, allContracts } from '@game/rules/contracts';
 import { ENFORCEMENT_LANES } from '@game/rules';
 import {
-  RETRO_INTERACTION_MAP, buildInteractionGraph, candidatePairs, graphStats, releaseBlockerFindings,
+  RETRO_INTERACTION_MAP, archivedInventory, buildInteractionGraph, candidatePairs, graphStats, releaseBlockerFindings,
   runAnomalyOracle, runContractSweep, runInteractionSweep, runRewriteAdvisor, runTextSweep, textObjectOf,
   type DocbotFinding, type FindingClass,
 } from '@game/sim';
@@ -64,6 +64,9 @@ export interface FinalReport {
     runes: number; epicRunes: number; quests: number;
     /** The contract registry's own count of active objects (cards + runes + quests + hero powers). */
     activeObjects: number;
+    /** How much of `activeObjects` covers an ARCHIVED content class — a system switched off but neither
+     *  deleted nor un-contracted. Reported, never subtracted; see `ARCHIVED_CONTENT_TYPES`. */
+    archived: { byType: Record<string, number>; total: number };
   };
 
   contracts: {
@@ -237,6 +240,11 @@ export function buildFinalReport(opts: BuildReportOptions = {}): FinalReport {
       epicRunes: EPIC_RUNES.length,
       quests: QUEST_DEFS.length,
       activeObjects: contracts.length,
+      /** Contracts belonging to an ARCHIVED content class (owner ruling 2026-08-28: the quest system and the
+       *  henchman system). These are still extracted, still gated by the WP B inventory check and still swept
+       *  by the oracle/text lanes — this line exists so 118 contracts' worth of INACTIVE content is visibly
+       *  labelled instead of being read as live coverage. See `ARCHIVED_CONTENT_TYPES` in contractExtract.ts. */
+      archived: archivedInventory(contracts),
     },
 
     contracts: {
@@ -344,6 +352,11 @@ export function buildFinalReport(opts: BuildReportOptions = {}): FinalReport {
 export function headlineNumbers(r: FinalReport): Record<string, number> {
   return {
     'contracts.total': r.contracts.total,
+    // The ARCHIVED-content count is a HEADLINE number on purpose (owner ruling 2026-08-28). Archiving a
+    // content class is exactly the move that can make coverage evaporate unnoticed, so the drift rail makes
+    // the number a documented claim: the final report must state how much of its coverage is of inactive
+    // content, and the moment that figure moves the gate fails until the doc is rewritten.
+    'inventory.archived.total': r.inventory.archived.total,
     'contracts.curated': r.contracts.curated,
     'contracts.derived.corroborated': r.contracts.derived['corroborated'] ?? 0,
     'contracts.withDirectExecution.of': r.contracts.withDirectExecution.of,

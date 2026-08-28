@@ -119,7 +119,10 @@ export interface HeroDef {
   /** PRACTICE-ONLY: playable, but withheld from PLAY mode — the Ascent picker and generated rival seats.
    *  Distinct from `wip`, which hides a hero from every picker including Practice. This is for a hero that
    *  works but is being reworked: the owner can still play it in Practice while it is off the ladder.
-   *  (Fi + Coran, owner 2026-08-23 — the hero-quest pair is being redesigned.) */
+   *
+   *  **No hero carries this today.** Its only users were Fi + Coran (2026-08-23), and the 2026-08-28 ruling
+   *  archived that pair outright — Practice included — so they moved to `wip`. The flag is kept because the
+   *  middle ground it expresses ("off the ladder, still playable") is a real one we will want again. */
   practiceOnly?: boolean;
   /** This hero's HENCHMAN (owner spec 2026-08-03): a hero-bound minion recruitable once per run for `cost`
    *  Gold, where the effective price falls every round — WIN −3, LOSS −2 — floored at 0 (`henchmanCostOf`).
@@ -385,7 +388,11 @@ export const HEROES: HeroDef[] = [
   },
   {
     id: 'fi',
-    practiceOnly: true, // withheld from Play while the hero quests are reworked (owner 2026-08-23)
+    // ARCHIVED 2026-08-28 pending redesign — the quest system is retired (owner: "coran and fi should be
+    // archived for now. they will be redesigned and should not show in our hero list for practice nor play").
+    // `wip` (not the old `practiceOnly`) is the flag that means exactly that: out of Play AND Practice AND the
+    // Mimic/Void/Power-Shifter Discover pools, while the def stays in HEROES so old saves and replays resolve.
+    wip: true,
     name: 'Fi',
     blurb: 'Sets out on turn one and never looks back — the road pays early.',
     resolve: 30,
@@ -441,7 +448,8 @@ export const HEROES: HeroDef[] = [
   },
   {
     id: 'coran',
-    practiceOnly: true, // withheld from Play while the hero quests are reworked (owner 2026-08-23)
+    // ARCHIVED 2026-08-28 pending redesign — the quest system is retired. See Fi above; same ruling.
+    wip: true,
     name: 'Coran',
     blurb: 'Reads the whole trail on the first morning — and walks it to the summit.',
     resolve: 30,

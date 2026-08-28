@@ -50,6 +50,12 @@ if (has('json')) {
   console.log(`  ${r.inventory.cards} cards (${r.inventory.spells} spells, ${r.inventory.tokens} tokens) · ${r.inventory.heroes} hero powers`
     + ` · ${r.inventory.runes}+${r.inventory.epicRunes} runes · ${r.inventory.quests} quests`);
   console.log(`  active content objects under contract: ${r.inventory.activeObjects}`);
+  // ARCHIVED content classes stay UNDER CONTRACT and stay swept — this line labels them so an inactive
+  // system's coverage is never mistaken for live coverage, and never silently disappears either.
+  if (r.inventory.archived.total > 0) {
+    const by = Object.entries(r.inventory.archived.byType).map(([k, v]) => `${k} ${v}`).join(' · ');
+    console.log(`  …of which ARCHIVED content classes: ${r.inventory.archived.total} (${by}) — contracts kept, systems switched off`);
+  }
 
   console.log('\n── §20 coverage ──');
   console.log(`  with a contract:            ${pct(r.contracts.withContract.of, r.contracts.withContract.total)}  (${r.contracts.curated} curated · ${r.contracts.extracted} extracted)`);

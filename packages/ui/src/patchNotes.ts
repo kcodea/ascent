@@ -71,6 +71,35 @@ export const PATCH_NOTES: PatchNote[] = [
     ],
   },
   {
+    date: '2026-08-28',
+    label: 'Focusing on Runes',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: 'Quests are out of the game for now while we focus on Runes.',
+        details: [
+          'No quest turns: turns 5 and 11 are ordinary Shop turns.',
+          'The quest picker no longer appears, and no objectives are tracked.',
+          'Runes are unaffected — the Runeforge still opens on turn 6, and the Epic Runeforge on turn 9.',
+          'A run already in progress keeps the quest it was carrying, and it still completes and pays out.',
+        ],
+      },
+      {
+        category: 'Hero Change',
+        text: 'Fi and Coran are temporarily out of the roster while they are redesigned.',
+        details: [
+          'Both are off the hero list in Play and in Practice.',
+          'Their powers were built entirely around Quests, so they come back with the redesign.',
+          'Neither can turn up through Mimic, the Void or Power Shifter either.',
+        ],
+      },
+      {
+        category: 'Card Change',
+        text: 'Henchmen are removed for now — no hero offers one.',
+      },
+    ],
+  },
+  {
     date: '2026-08-27',
     label: 'Combat Arena',
     changes: [

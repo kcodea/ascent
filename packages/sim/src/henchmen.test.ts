@@ -5,13 +5,31 @@ import { createRun, henchmanOffer, type RunState } from './state';
 import { reduce } from './reducer';
 
 /**
- * HENCHMEN (owner spec 2026-08-03): every hero has a hero-bound minion, never shop-offered, recruitable once
- * per run at a Gold cost that FALLS each round — win −3, loss −2 (draw −2: the spec keys the two named
- * outcomes and "every round" means the price always moves; a draw is a non-win). The card is a minion like
- * any other once recruited.
+ * HENCHMEN — ARCHIVED 2026-08-28 (owner triage, `q-conv-global-henchman-pricing`: *"henchmen are not in the
+ * game and are extremely WIP / being removed for now"*).
+ *
+ * The system it was built for (owner spec 2026-08-03): every hero has a hero-bound minion, never shop-offered,
+ * recruitable once per run at a Gold cost that FALLS each round — win −3, loss −2, floored at 0.
+ *
+ * What this file asserts now is the ARCHIVE, in the shape the archived-content contract demands, and it is
+ * three separate claims that must not be collapsed into one:
+ *
+ *   1. INERT — `henchmanOffer` is the single producer of an offer, so with it gated there is no offer for any
+ *      hero on any turn, `buyHenchman` no-ops even when the Gold is there, and the StatusBar chip (which
+ *      renders only on a non-null offer) never appears.
+ *   2. RESOLVABLE — `HENCHMEN` and every hero's `henchman` link still resolve through `CARD_INDEX`, so a save
+ *      or replay in which a henchman was already recruited still loads and the minion is still a real minion.
+ *   3. REVERSIBLE — the decay STATE machinery is untouched and still accrues, so flipping `HENCHMEN_ARCHIVED`
+ *      back to false restores a correctly-priced offer rather than a broken one. This is the claim that keeps
+ *      the archive an archive instead of a slow deletion.
+ *
+ * ⚠️ Corrected while archiving: the old comment here said the placeholder "rides the WIP Warden (withheld from
+ * the picker)". Warden is not and never was `wip` — it is the FIRST hero in the registry and fully playable,
+ * so the placeholder henchman chip was live in Play for every Warden run. That, not tidiness, is why this
+ * needed a switch rather than a comment.
  */
 
-const HERO = 'warden'; // the placeholder henchman rides the WIP Warden (withheld from the picker)
+const HERO = 'warden'; // the only hero with a `henchman` link authored (placeholder `hm_test_squire`)
 
 const withCombat = (s: RunState, result: 'win' | 'lose' | 'draw'): RunState => {
   // Drive the real settle path: a minimal fake CombatResult through the same reducer action the game uses.
@@ -19,54 +37,44 @@ const withCombat = (s: RunState, result: 'win' | 'lose' | 'draw'): RunState => {
   return { ...r, phase: 'recruit' };
 };
 
-describe('henchman cost decay', () => {
-  it('a WIN knocks 3 Gold off, a LOSS 2, floored at 0', () => {
+describe('the henchman system is ARCHIVED', () => {
+  it('offers nothing — for the one hero that has a henchman authored, or any other, on any turn', () => {
     let s = createRun(1, HERO);
-    expect(henchmanOffer(s)).toMatchObject({ cardId: 'hm_test_squire', cost: 10 });
+    expect(henchmanOffer(s), 'the archived system must mint no offer at run start').toBeNull();
+    // …and it stays null across rounds, so no amount of decay can bring the chip back.
+    for (const result of ['win', 'lose', 'draw', 'win'] as const) {
+      s = withCombat(s, result);
+      expect(henchmanOffer(s), `an offer appeared after a ${result}`).toBeNull();
+    }
+    expect(henchmanOffer(createRun(1, 'soren')), 'a hero with no henchman authored offers nothing either').toBeNull();
+  });
+
+  it('`buyHenchman` no-ops — even with the Gold, and even fully decayed', () => {
+    // Both refusal paths through the reducer: rich enough to have afforded the base cost, and a discount large
+    // enough that the henchman would have been FREE. Neither can produce the card.
+    const rich: RunState = { ...createRun(1, HERO), embers: 20 };
+    expect(reduce(rich, { type: 'buyHenchman' }), 'a funded buy must be refused').toBe(rich);
+    const free: RunState = { ...createRun(1, HERO), embers: 0, henchmanDiscount: 99 };
+    expect(reduce(free, { type: 'buyHenchman' }), 'a free buy must be refused').toBe(free);
+    for (const s of [rich, free]) {
+      expect(s.hand.some((c) => c.cardId === 'hm_test_squire'), 'no henchman reached the hand').toBe(false);
+      expect(s.henchmanBought).toBeFalsy();
+    }
+  });
+
+  it('the decay STATE still accrues — the archive is reversible, not a slow deletion', () => {
+    // `henchmanDiscount` is banked at combat settle regardless of hero (reducer, resolveCombat). Keeping that
+    // alive is what makes un-archiving restore a correctly-priced offer instead of one stuck at base cost.
+    let s = createRun(1, HERO);
+    expect(s.henchmanDiscount ?? 0).toBe(0);
     s = withCombat(s, 'win');
-    expect(henchmanOffer(s)!.cost).toBe(7);
+    expect(s.henchmanDiscount, 'a WIN banks 3').toBe(3);
     s = withCombat(s, 'lose');
-    expect(henchmanOffer(s)!.cost).toBe(5);
-    for (let i = 0; i < 4; i++) s = withCombat(s, 'win');
-    expect(henchmanOffer(s)!.cost, 'the price floors at 0, never negative').toBe(0);
-  });
-
-  it('a hero with no henchman authored offers nothing', () => {
-    const s = createRun(1, 'soren');
-    expect(henchmanOffer(s)).toBeNull();
-    expect(reduce(s, { type: 'buyHenchman' })).toBe(s); // the action no-ops
+    expect(s.henchmanDiscount, 'a LOSS banks 2 on top').toBe(5);
   });
 });
 
-describe('recruiting the henchman', () => {
-  it('pays the decayed cost, grants the minion to hand, once per run', () => {
-    let s: RunState = { ...createRun(1, HERO), embers: 8 };
-    s = withCombat(s, 'win'); // 10 → 7
-    s = { ...s, embers: 8 };
-    const before = s.hand.length;
-    s = reduce(s, { type: 'buyHenchman' });
-    expect(s.embers).toBe(1); // paid 7
-    expect(s.hand.length).toBe(before + 1);
-    expect(s.hand.some((c) => c.cardId === 'hm_test_squire')).toBe(true);
-    expect(s.henchmanBought).toBe(true);
-    expect(henchmanOffer(s), 'once per run — the offer retires').toBeNull();
-    expect(reduce(s, { type: 'buyHenchman' })).toBe(s);
-  });
-
-  it('cannot be recruited without the Gold', () => {
-    const s: RunState = { ...createRun(1, HERO), embers: 9 }; // cost 10
-    expect(reduce(s, { type: 'buyHenchman' })).toBe(s);
-  });
-
-  it('a FREE henchman (fully decayed) still recruits cleanly at 0 Gold', () => {
-    let s: RunState = { ...createRun(1, HERO), embers: 0, henchmanDiscount: 99 };
-    s = reduce(s, { type: 'buyHenchman' });
-    expect(s.embers).toBe(0);
-    expect(s.hand.some((c) => c.cardId === 'hm_test_squire')).toBe(true);
-  });
-});
-
-describe('henchman registry doctrine', () => {
+describe('henchman registry doctrine (unchanged by the archive — resolvable, in no pool)', () => {
   it('every henchman card carries the flag and appears in NO set pool', () => {
     expect(HENCHMEN.length).toBeGreaterThan(0);
     for (const h of HENCHMEN) {

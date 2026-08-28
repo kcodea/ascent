@@ -2717,6 +2717,13 @@ function reduceCore(state: RunState, action: Action): RunState {
         || power.kind === 'pathfinder' || power.kind === 'epicRuneforge' || power.kind === 'recurringGoldcrafter'
         || power.kind === 'vanguard' || power.kind === 'luckySeat' || power.kind === 'exhibition'
         || power.kind === 'startingReflector'
+        // `heroQuest` (Fi / Coran) joined this list on 2026-08-28 with the quest archive. It was always a
+        // start-of-run passive and always belonged here; the omission was masked because both heroes opened
+        // the run holding a quest modal, and `modalOpen` refused the click before it could reach this chain.
+        // With the offer archived that shield is gone, and without this line a `heroPower` action would fall
+        // through to the FORTIFY else-branch — an archived power handing out a free buff (the smell already
+        // documented in heroPowerFamilies.ts). A passive power does nothing when clicked, archived or not.
+        || power.kind === 'heroQuest'
       ) {
         // Passive powers have no activation — the work happens elsewhere (spell math, the buy/sell case,
         // settleCombat, the turn-advance quest/discover/Goldcrafter hooks). Nothing to do on a power click.

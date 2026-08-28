@@ -92,7 +92,34 @@ toHand, hpGrant, spellProgress, questTrigger`.
 
 ---
 
-## Quests
+## Quests — ⚠️ ARCHIVED (owner ruling 2026-08-28)
+
+> **The quest system is OFF. Nothing below happens in the game today.**
+>
+> Owner ruling, 2026-08-28: *"we have more or less retired quests for now. we can archive that system fully,
+> it can be more or less turned off and away from our code for now as we are centering on runes for the
+> foreseeable future."*
+>
+> `QUESTS_ARCHIVED` (`packages/sim/src/config.ts`) short-circuits `questOfferPlan` to `null` before any rule
+> below is reached. That function is the ONLY producer of a quest offer — both mint sites (`createRun` for the
+> turn-1 hero quest, the turn advance in `reducer.ts` for everything else) go through it — so in every mode,
+> on every seed, for every hero: no offer is generated, the quest overlay never opens, `buyQuest` has nothing
+> to take, `activeQuests` stays empty and no objective ever advances.
+>
+> **This is an ARCHIVE, not a deletion.** `QUEST_DEFS` / `QUEST_INDEX`, the objective machinery, the reward
+> engine (`applyQuestReward`) and the quest UI are all intact and every quest id still resolves — the
+> `ARCHIVED_CARDS` / `ARCHIVED_RUNES` contract. A run or replay recorded before the archive still loads, still
+> ticks its quest and still pays it out (`questArchiveSaves.test.ts`). The reward engine in particular MUST
+> stay live: every **rune** in the game pays out through it.
+>
+> **Note the older `CONFIG.questsEnabled` flag is NOT this switch and never could have been** — it gates only
+> the universal turn-5/11 offers, and the quest-native heroes were deliberately checked above it. Setting it
+> back to `true` no longer reopens anything (`systemToggles.test.ts`).
+>
+> Fi and Coran, whose whole powers were hero quests, are `wip` — withheld from Play, from Practice and from
+> every hero-power Discover pool — pending redesign. Their defs stay in `HEROES` so saves and replays resolve.
+
+The rules the system will have again when it is un-archived, unchanged below:
 
 - Quest turns are **waves 5 and 11** (`questOfferPlan`: `s.wave === 5` / `=== 11`), gated by the
   master switch `CONFIG.questsEnabled`.
@@ -109,7 +136,24 @@ toHand, hpGrant, spellProgress, questTrigger`.
   families (Opening Act / Resonant Path — a Shout, Echo and Rally spelling each) never offer two variants at
   once, and hero quests never appear in the universal turn-5/11 offers.
 
-Source: `packages/sim/src/quests.ts`.
+Source: `packages/sim/src/quests.ts`; the archive switch, `packages/sim/src/config.ts`.
+
+---
+
+## Henchmen — ⚠️ ARCHIVED (owner ruling 2026-08-28)
+
+A **henchman** was a hero-bound minion, never sold in the Shop, recruitable once per run at a price that fell
+every round (win −3, loss −2, floored at 0). Owner triage, 2026-08-28: *"henchmen are not in the game and are
+extremely WIP / being removed for now."*
+
+`HENCHMEN_ARCHIVED` gates `henchmanOffer` (`packages/sim/src/state.ts`), the single producer of an offer. With
+it null, `buyHenchman` refuses and the StatusBar's henchman chip — which renders only on a non-null offer —
+never appears. As with quests this is an archive: the `HENCHMEN` registry, the `HeroDef.henchman` link and the
+cost-decay state all stay live and resolvable, so un-archiving restores a correctly-priced offer rather than a
+broken one.
+
+Only one henchman was ever authored (a placeholder on Warden), and because Warden is the first and fully
+playable hero, that placeholder was reachable in real games until this ruling.
 
 ---
 

@@ -42,7 +42,7 @@ export { minimizeFailure, specToScenario, scenarioRepro, violationPredicate, typ
 export { makeFinding, fingerprintFinding, emitFindingsJson, type DocbotFinding, type FindingDraft, type FindingIdentity } from './findings';
 export { runNightly, runLifecycle, runLobbySweep, buildFailureArtifact, nightlyReportJson, DEFAULT_NIGHTLY, type NightlyConfig, type NightlyReport, type NightlyRunReport, type NightlyFailure } from './nightlyLane';
 // ── Doc Bot 2.0 WP B: the knowledge foundation ───────────────────────────────────────────────────────────
-export { extractAllContracts, activeContentIds, EXTRACTOR_ID, type ExtractionResult } from './contractExtract';
+export { extractAllContracts, activeContentIds, archivedInventory, ARCHIVED_CONTENT_TYPES, EXTRACTOR_ID, type ExtractionResult } from './contractExtract';
 export { corroborateContracts, CORROBORATION_ASPECTS, type CorroborationReport, type CorroborationSources, type ContractCorroborationRow, type CorroborationDisagreement, type CorroborationAspect } from './contractCorroboration';
 export { buildConventionQuestions, CONVENTION_QUEUE } from './conventionQuestions';
 // ── Doc Bot 2.0 WP D: contract verification at scale ─────────────────────────────────────────────────────

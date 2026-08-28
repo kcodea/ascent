@@ -1,7 +1,7 @@
 import { makeRng } from '@game/core';
 import type { CombatOutcome, CombatResult, EffectDef, Keyword, QuestObjectiveEvent, Rng, Tribe } from '@game/core';
 import { CARD_INDEX, SETS, activeSet, poolFor, type SetId } from '@game/content';
-import { CONFIG, RIFT_BONUS_ARMOR, activeRift, type RiftId } from './config';
+import { CONFIG, HENCHMEN_ARCHIVED, RIFT_BONUS_ARMOR, activeRift, type RiftId } from './config';
 import { DEFAULT_HERO_ID, getHero, powerDiscoverPool } from './heroes';
 import { generateQuestOffer, questOfferPlan } from './quests';
 import { queueDiscover } from './recruit';
@@ -1860,6 +1860,12 @@ export const isPlayerAction = (a: Action): boolean => !COMBAT_FLOW_ACTIONS.has(a
 /** The hero's henchman offer for this run, priced with the accrued win/loss decay — or null when the hero has
  *  no henchman authored yet (most heroes today) or it was already recruited (once per run). */
 export function henchmanOffer(state: RunState): { cardId: string; cost: number } | null {
+  // ── THE ARCHIVE GATE (owner ruling 2026-08-28: "henchmen are not in the game and are extremely WIP /
+  // being removed for now") ────────────────────────────────────────────────────────────────────────────
+  // The single producer of a henchman offer. `buyHenchman` (reducer.ts) refuses without one and the
+  // StatusBar chip renders only when this is non-null, so this line takes the whole system out of play
+  // while `HENCHMEN` and every hero's `henchman` link stay resolvable. See `HENCHMEN_ARCHIVED` (config.ts).
+  if (HENCHMEN_ARCHIVED) return null;
   const h = getHero(state.heroId).henchman;
   if (!h || state.henchmanBought) return null;
   return { cardId: h.cardId, cost: Math.max(0, h.cost - (state.henchmanDiscount ?? 0)) };

@@ -4111,15 +4111,15 @@ describe('hero powers (@game/sim)', () => {
     expect(s.hand.some((c) => c.cardId === 'chronos')).toBe(true);
   });
 
-  it("Fi's Errand opens a TWO-option hero quest on turn 1 (rework 2026-08-21)", () => {
-    // The run OPENS holding the offer — turn 1 never passes through a turn advance, so this has to be minted
-    // in `createRun` (the mistake that would look like "the power does nothing" if it were left to the advance).
+  it("Fi's Errand is ARCHIVED — the run opens on no hero quest (owner ruling 2026-08-28)", () => {
+    // Fi's 2026-08-21 rework minted a two-option offer inside `createRun`, because turn 1 never passes through
+    // a turn advance. That mint site reads `questOfferPlan`, which the archive gates, so the run now opens
+    // clean — and Fi is `wip` besides, so no picker can reach her in the first place.
     const s = createRun(1, 'fi');
     expect(s.wave).toBe(1);
-    expect(s.questOffer).toHaveLength(2);
-    // Both from Fi's OWN list, never the universal pool.
-    expect(s.questOffer!.every((id) => QUEST_INDEX[id]!.heroQuest === 'fi')).toBe(true);
-    // A non-quest hero opens with nothing.
+    expect(s.questOffer).toBeUndefined();
+    expect(s.activeQuests ?? []).toEqual([]);
+    // A non-quest hero opens with nothing either — unchanged.
     expect(createRun(1, 'soren').questOffer).toBeUndefined();
   });
 
@@ -5251,9 +5251,12 @@ describe('wave-relative board strength rating (@game/sim)', () => {
 });
 
 describe('quests (M3 framework)', () => {
-  it('questOfferPlan maps the two quest-turns (5 & 11) and nothing else; questBucketFor splits the tiers', () => {
-    expect(questOfferPlan({ ...createRun(1), wave: 5 })).toEqual({ bucket: 5 });
-    expect(questOfferPlan({ ...createRun(1), wave: 11 })).toEqual({ bucket: 11 });
+  it('questOfferPlan is ARCHIVED to null on every wave; questBucketFor still splits the tiers', () => {
+    // ARCHIVED 2026-08-28: `questOfferPlan` used to map waves 5 → {bucket:5} and 11 → {bucket:11} under
+    // `pinSet1Era()`. The archive gate returns before the bucket mapping is reached, so every wave is null now.
+    // `questBucketFor` is pure content classification and is untouched — it is what a redesign will re-read.
+    expect(questOfferPlan({ ...createRun(1), wave: 5 })).toBeNull();
+    expect(questOfferPlan({ ...createRun(1), wave: 11 })).toBeNull();
     expect(questOfferPlan({ ...createRun(1), wave: 4 })).toBeNull();
     expect(questOfferPlan({ ...createRun(1), wave: 8 })).toBeNull();
     expect(questOfferPlan({ ...createRun(1), wave: 12 })).toBeNull();
@@ -5311,23 +5314,23 @@ describe('quests (M3 framework)', () => {
     expect(offer.map((id) => QUEST_INDEX[id]!.tribe)).toContain('beast');
   });
 
-  it('advancing into wave 5 opens the quest shop with the tavern ALREADY rolled behind it (shop-informed pick)', () => {
+  it('advancing into wave 5 opens a NORMAL shop — no quest phase, and nothing is locked behind one', () => {
+    // ARCHIVED 2026-08-28. This used to assert the quest-turn ceremony: the offer opens with the tavern already
+    // rolled behind it, tavern actions locked until a pick, and `buyQuest` not re-rolling the shop. What must
+    // be true now is the opposite AND stronger — the wave-5 advance must land on an ordinary, fully PLAYABLE
+    // shop turn. A gate that produced no offer but still set the modal flag would soft-lock the run here, so
+    // the `roll` below is the real assertion: it must actually do something.
     let s: RunState = { ...createRun(1), wave: 4, phase: 'recruit', resolve: 200 };
     s = reduce(s, { type: 'faceOmen' }); // → combat (empty board loses, but survives at 200 Resolve)
     s = reduce(s, { type: 'resolveCombat' }); // → advance to wave 5
     expect(s.wave).toBe(5);
-    expect(s.questOffer?.length).toBe(4);
-    // The shop is rolled UP FRONT now, so it can be inspected (minimized) while choosing the quest.
+    expect(s.questOffer, 'wave 5 is an ordinary shop turn now').toBeUndefined();
+    expect(s.activeQuests ?? []).toEqual([]);
     expect(s.shop.length).toBeGreaterThan(0);
-    // Locked: a normal tavern action is still a no-op (same state reference) while the quest offer is open.
-    expect(reduce(s, { type: 'roll' })).toBe(s);
-    // Buy the quest → it moves to activeQuests and the offer clears; the shop is already there (no re-roll).
-    const shopBefore = s.shop.map((o) => o.uid);
-    const bought = reduce(s, { type: 'buyQuest', index: 0 });
-    expect(bought.questOffer).toBeUndefined();
-    expect(bought.activeQuests?.length).toBe(1);
-    expect(bought.activeQuests![0]!.questId).toBe(s.questOffer![0]);
-    expect(bought.shop.map((o) => o.uid)).toEqual(shopBefore); // same shop — buyQuest didn't re-roll
+    // NOT locked: a normal tavern action goes through (a new state, not the same reference back).
+    const rolled = reduce({ ...s, embers: 10 }, { type: 'roll' });
+    expect(rolled.shop.length).toBeGreaterThan(0);
+    expect(rolled, 'the shop is live — no phantom modal lock').not.toBe(s);
   });
 
   it('an objective ticks on its tracked action and applies its reward at the threshold', () => {
@@ -5349,11 +5352,13 @@ describe('quests (M3 framework)', () => {
     expect(s.hand.some((c) => { const d = CARD_INDEX[c.cardId]; return d?.tribe === 'beast' || d?.tribe2 === 'beast'; })).toBe(true);
   });
 
-  it('a full bot run passes cleanly through the quest turns (no soft-lock)', () => {
+  it('a full bot run passes cleanly through the old quest turns and picks up NO quest (no soft-lock)', () => {
     const end = playToEnd(1);
     expect(['gameover', 'victory']).toContain(end.phase); // terminated, not stuck at the step cap
-    // One quest bought per quest-turn REACHED (buys happen in recruit, before that wave's combat).
-    expect(end.activeQuests?.length ?? 0).toBe([5, 11].filter((w) => end.wave >= w).length);
+    // ARCHIVED 2026-08-28: this used to assert one quest bought per quest-turn reached. A whole bot run driving
+    // the real reducer past waves 5 and 11 is the broadest evidence available that the archive is total — the
+    // driver takes every offer it is shown, so an empty `activeQuests` at the end means it was never shown one.
+    expect(end.activeQuests ?? [], 'a full run acquired a quest — an offer leaked somewhere').toEqual([]);
   });
 
   it('a summon objective counts tokens, not just the played card (Pennycat = 2 toward the goal)', () => {

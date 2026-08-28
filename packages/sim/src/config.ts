@@ -51,8 +51,12 @@ export const CONFIG = {
 
   // Quests: the master on/off for the UNIVERSAL quest turns (waves 5 & 11 — the ones every hero gets). `false`
   // → those become ordinary shop turns (no quest phase / panel / objectives / rewards). Quest-native heroes
-  // (Fi's Errand, Coran's Pathfinder) keep their own quest access regardless — see `questOfferPlan`. Default on.
-  questsEnabled: false, // OFF for set 2 (owner 2026-07-31) — Fi/Coran keep their native quest turns
+  // (Fi's Errand, Coran's Pathfinder) keep their own quest access regardless — see `questOfferPlan`.
+  //
+  // ⚠️ SUPERSEDED by `QUESTS_ARCHIVED` (below), which sits ABOVE this and every hero-native path. This flag is
+  // kept because `pinSet1Era()` and the set-1-era test files still set it, and a replayed set-1 run reads it —
+  // but flipping it back to `true` no longer produces a quest offer while the archive switch is on.
+  questsEnabled: false, // OFF for set 2 (owner 2026-07-31) — superseded by QUESTS_ARCHIVED 2026-08-28
 
   // Runeforge: the master on/off for the Runeforge as a UNIVERSAL system. `true` → EVERY hero visits the basic
   // Runeforge on turn 6 and the Epic Runeforge on turn 9 (free — no hero-power charge). `false` → only the
@@ -61,6 +65,39 @@ export const CONFIG = {
   // forge to all heroes); if both are on, turn 6 still opens exactly one basic forge. Default off.
   runeforgeEnabled: true, // ON for set 2 (owner 2026-07-31): basic forge turn 6, epic turn 9, every hero
 };
+
+/**
+ * ── ARCHIVED SYSTEMS (owner ruling 2026-08-28) ─────────────────────────────────────────────────────────
+ *
+ * The owner's words: *"we have more or less retired quests for now. we can archive that system fully, it can
+ * be more or less turned off and away from our code for now as we are centering on runes for the foreseeable
+ * future."* And, in the same triage sitting, on henchmen: *"henchmen are not in the game and are extremely
+ * WIP / being removed for now."*
+ *
+ * These are ARCHIVE switches, not feature toggles. The distinction matters and is the whole design:
+ *
+ *  · **Nothing is deleted.** `QUEST_DEFS` / `QUEST_INDEX`, the objective machinery, `applyQuestReward`, the
+ *    quest UI and `HENCHMEN` all stay exactly where they were, fully resolvable by id. A saved run or a
+ *    replay that carries a quest still loads, still ticks, still pays out — the archived-content contract
+ *    (`ARCHIVED_CARDS` / `ARCHIVED_RUNES`): resolvable by id, member of no pool.
+ *  · **The PRODUCERS go dark, at ONE chokepoint each.** `questOfferPlan` (quests.ts) and `henchmanOffer`
+ *    (state.ts) are the only two functions in the codebase that can mint an offer, and each returns `null`
+ *    unconditionally while its switch is on. That is what makes "inert" provable rather than incidental:
+ *    with no offer there is no `questOffer`, so the quest overlay never opens, `buyQuest` has nothing to
+ *    buy, `activeQuests` stays empty and objectives never advance — in ANY mode, on ANY seed.
+ *  · **`devGrant` is deliberately NOT gated.** The reward engine must stay callable: Doc Bot's economy
+ *    sweep grants every quest through it to check reward magnitudes, and every RUNE in the game pays out
+ *    through `applyQuestReward`. Archiving the quest *content class* must not take the rune engine's
+ *    coverage down with it.
+ *
+ * Flipping either back to `false` restores the system wholesale — that is the point of archiving rather
+ * than demolishing.
+ */
+export const QUESTS_ARCHIVED = true;
+
+/** See `QUESTS_ARCHIVED`. Gates `henchmanOffer` (state.ts) — the single producer of a henchman offer, and
+ *  therefore of the StatusBar's henchman chip, which renders only when that offer is non-null. */
+export const HENCHMEN_ARCHIVED = true;
 
 /** Keshi's Crown: the tavern-tier bank threshold that grants a Triple Reward — a single-number retune from
  *  here alone. Read by `keshiCrownBuy` (reducer.ts) and the UI's StatusBar (both the compact and expanded

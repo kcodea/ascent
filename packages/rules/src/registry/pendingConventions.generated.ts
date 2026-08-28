@@ -1113,7 +1113,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "title": "Henchman pricing",
     "statement": "Your Henchman is recruitable once per run. Its cost drops 3 after a win, 2 after a loss, never below 0. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "heroes",
-    "currentBehaviour": "henchmanCostOf applies win −3 / loss −2 with a 0 floor; recruit is once per run.",
+    "currentBehaviour": "henchmanCostOf applies win −3 / loss −2 with a 0 floor; recruit is once per run. — PARKED BY ARCHIVE 2026-08-28 (owner: \"henchmen are not in the game and are extremely WIP / being removed for now\"). `henchmanOffer` is gated by HENCHMEN_ARCHIVED, so no henchman is offerable and the pricing decay this rule describes cannot be observed in play. The decay STATE still accrues and henchmen.test.ts still asserts it, so the rule remains checkable and un-archiving restores it exactly. The ruling stands — it is the content that is inactive, not the convention.",
     "cardText": "Exemplar — Warden's henchman (hm_test_squire, base 10 Gold): after a win and a loss it costs 10 − 3 − 2 = 5.",
     "example": "base cost 10, then W/L/W → 10 − 3 − 2 − 3 = 2 Gold."
   },
@@ -1648,7 +1648,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "statement": "Taunt means: enemies must attack your Taunt minions before anything else — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "keywords",
     "currentBehaviour": "One shared engine path implements Taunt for all 20 carriers.",
-    "cardText": "Exemplar — Armadiyo: \"Taunt. Echo: give your Beasts +2/+4 wherever they are.\" · Carriers: Armadiyo · Dawnclaw · Wolvie · Blaster · Fel Spikes · Chipper · Knocked · Big Huggies · Brunni · Twilight Emissary · Gryphon · Candleback Bulwark · … and 8 more",
+    "cardText": "Exemplar — Armadiyo: \"Taunt. Echo: give your Beast Aura +2/+4.\" · Carriers: Armadiyo · Dawnclaw · Wolvie · Blaster · Fel Spikes · Chipper · Knocked · Big Huggies · Brunni · Twilight Emissary · Gryphon · Candleback Bulwark · … and 8 more",
     "example": "Armadiyo carries Taunt — in play, enemies must attack your Taunt minions before anything else.",
     "contentIds": [
       "b2_armadiyo",
@@ -2024,7 +2024,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "title": "'combatFlag' rewards · 14 quests",
     "statement": "These 14 quests pay the same 'combatFlag' reward through one shared engine — no special cases. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "categories",
-    "currentBehaviour": "applyQuestReward resolves all 14 through the same 'combatFlag' branch.",
+    "currentBehaviour": "applyQuestReward resolves all 14 through the same 'combatFlag' branch. — PARKED BY ARCHIVE 2026-08-28: the quest system is archived (QUESTS_ARCHIVED), so no quest can be offered or completed in play. The reward engine is untouched and still swept: economyScan grants every quest via devGrant and asserts its payout, and every rune resolves through the same applyQuestReward.",
     "cardText": "Exemplar — Blood Trail (beast, lesser): objective buy × 5 → reward 'combatFlag' · Members: Blood Trail · Assembly Line · Umbral Energy · Deep Hunger · Contract Rewrite · Law of Teeth · The Old Hunt · Feeding Line · Empty Graves · Shared Circuit · Pit Without End · Echoing Coop · … and 2 more",
     "example": "completing Blood Trail pays its 'combatFlag' reward through the shared engine.",
     "contentIds": [
@@ -2063,7 +2063,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "title": "'echoRepeat' rewards · 3 quests",
     "statement": "These 3 quests pay the same 'echoRepeat' reward through one shared engine — no special cases. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "categories",
-    "currentBehaviour": "applyQuestReward resolves all 3 through the same 'echoRepeat' branch.",
+    "currentBehaviour": "applyQuestReward resolves all 3 through the same 'echoRepeat' branch. — PARKED BY ARCHIVE 2026-08-28: the quest system is archived (QUESTS_ARCHIVED), so no quest can be offered or completed in play. The reward engine is untouched and still swept: economyScan grants every quest via devGrant and asserts its payout, and every rune resolves through the same applyQuestReward.",
     "cardText": "Exemplar — Grave Contract (neutral, lesser): objective deathrattle × 7 → reward 'echoRepeat' · Members: Grave Contract · Opening Act · Resonant Path",
     "example": "completing Grave Contract pays its 'echoRepeat' reward through the shared engine.",
     "contentIds": [
@@ -2091,7 +2091,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "title": "'grant' rewards · 28 quests",
     "statement": "These 28 quests pay the same 'grant' reward through one shared engine — no special cases. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "categories",
-    "currentBehaviour": "applyQuestReward resolves all 28 through the same 'grant' branch.",
+    "currentBehaviour": "applyQuestReward resolves all 28 through the same 'grant' branch. — PARKED BY ARCHIVE 2026-08-28: the quest system is archived (QUESTS_ARCHIVED), so no quest can be offered or completed in play. The reward engine is untouched and still swept: economyScan grants every quest via devGrant and asserts its payout, and every rune resolves through the same applyQuestReward.",
     "cardText": "Exemplar — Forest Grove (beast, lesser): objective summon × 8 → reward 'grant' · Members: Forest Grove · Forager's Trail · Hoard Spark · Coin Hoard · Grave Robber · Scrap Contract · Gilded Chance · Key Findings · Apex Hunt · Trophy Den · Skybound Pact · Kingdom of Bones · … and 16 more",
     "example": "completing Forest Grove pays its 'grant' reward through the shared engine.",
     "contentIds": [
@@ -2144,7 +2144,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "title": "'multi' rewards · 20 quests",
     "statement": "These 20 quests pay the same 'multi' reward through one shared engine — no special cases. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "categories",
-    "currentBehaviour": "applyQuestReward resolves all 20 through the same 'multi' branch.",
+    "currentBehaviour": "applyQuestReward resolves all 20 through the same 'multi' branch. — PARKED BY ARCHIVE 2026-08-28: the quest system is archived (QUESTS_ARCHIVED), so no quest can be offered or completed in play. The reward engine is untouched and still swept: economyScan grants every quest via devGrant and asserts its payout, and every rune resolves through the same applyQuestReward.",
     "cardText": "Exemplar — Imp Census (demon, lesser): objective summonImp × 4 → reward 'multi' · Members: Imp Census · Dark Bargain · The Epic Runeforge · Feed the Alpha · Hoardwake Ritual · Overclocked Core · Leader of the Pack · Anomalous Reactor · Parliament of Flame · Funeral Engine · Infinite Assembly · Rulebreaker's Crown · … and 8 more",
     "example": "completing Imp Census pays its 'multi' reward through the shared engine.",
     "contentIds": [
@@ -2189,7 +2189,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "title": "'rallyRepeat' rewards · 3 quests",
     "statement": "These 3 quests pay the same 'rallyRepeat' reward through one shared engine — no special cases. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "categories",
-    "currentBehaviour": "applyQuestReward resolves all 3 through the same 'rallyRepeat' branch.",
+    "currentBehaviour": "applyQuestReward resolves all 3 through the same 'rallyRepeat' branch. — PARKED BY ARCHIVE 2026-08-28: the quest system is archived (QUESTS_ARCHIVED), so no quest can be offered or completed in play. The reward engine is untouched and still swept: economyScan grants every quest via devGrant and asserts its payout, and every rune resolves through the same applyQuestReward.",
     "cardText": "Exemplar — Spark Permit (neutral, lesser): objective castSpell × 10 → reward 'rallyRepeat' · Members: Spark Permit · Opening Act · Resonant Path",
     "example": "completing Spark Permit pays its 'rallyRepeat' reward through the shared engine.",
     "contentIds": [
@@ -2217,7 +2217,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "title": "'recurringEndOfTurn' rewards · 6 quests",
     "statement": "These 6 quests pay the same 'recurringEndOfTurn' reward through one shared engine — no special cases. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "categories",
-    "currentBehaviour": "applyQuestReward resolves all 6 through the same 'recurringEndOfTurn' branch.",
+    "currentBehaviour": "applyQuestReward resolves all 6 through the same 'recurringEndOfTurn' branch. — PARKED BY ARCHIVE 2026-08-28: the quest system is archived (QUESTS_ARCHIVED), so no quest can be offered or completed in play. The reward engine is untouched and still swept: economyScan grants every quest via devGrant and asserts its payout, and every rune resolves through the same applyQuestReward.",
     "cardText": "Exemplar — Echoing Roar (dragon, greater): objective shout × 7 → reward 'recurringEndOfTurn' · Members: Echoing Roar · Blueprint Cache · Forsaken Speed · Clinging On · Open Tab · Runic Refrain",
     "example": "completing Echoing Roar pays its 'recurringEndOfTurn' reward through the shared engine.",
     "contentIds": [
@@ -2248,7 +2248,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "title": "'recurringGrant' rewards · 3 quests",
     "statement": "These 3 quests pay the same 'recurringGrant' reward through one shared engine — no special cases. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "categories",
-    "currentBehaviour": "applyQuestReward resolves all 3 through the same 'recurringGrant' branch.",
+    "currentBehaviour": "applyQuestReward resolves all 3 through the same 'recurringGrant' branch. — PARKED BY ARCHIVE 2026-08-28: the quest system is archived (QUESTS_ARCHIVED), so no quest can be offered or completed in play. The reward engine is untouched and still swept: economyScan grants every quest via devGrant and asserts its payout, and every rune resolves through the same applyQuestReward.",
     "cardText": "Exemplar — The Red Trail (beast, greater): objective spendGold × 18 → reward 'recurringGrant' · Members: The Red Trail · Ossuary Rite · Implosion",
     "example": "completing The Red Trail pays its 'recurringGrant' reward through the shared engine.",
     "contentIds": [
@@ -2276,7 +2276,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "title": "Rarer reward kinds · 40 quests",
     "statement": "These rarer reward kinds all use the same shared engine — no special cases: 'shoutRepeat' ×3, 'spellRepeat' ×3, 'gainGold' ×2, 'grantRune' ×2, 'minionCost' ×2, 'rubyExtraCasts' ×2, 'rubyStatGain' ×2, 'aleExtraCasts' ×1, 'attachmentDeal' ×1, 'beastPlayBuff' ×1, 'boneThrone' ×1, 'consumeDoubleFirstEachTurn' ×1, 'discover' ×1, 'dupeFirstBuy' ×1, 'endlessVerse' ×1, 'fodderReward' ×1, 'freeFirstBuy' ×1, 'friedCircuits' ×1, 'gainMaxGold' ×1, 'gildCopies' ×1, 'goldFodder' ×1, 'motherlode' ×1, 'questGoldTribeBuff' ×1, 'scalingTribeAura' ×1, 'scheduleRuneforge' ×1, 'shopBuffOnRefresh' ×1, 'shopBuffPerShouts' ×1, 'shoutEdgeBuff' ×1, 'tier7Access' ×1, 'tribeRallySlaughterExtra' ×1, 'undeadSpellAura' ×1. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "categories",
-    "currentBehaviour": "Each kind is one applyQuestReward branch; no per-quest special cases.",
+    "currentBehaviour": "Each kind is one applyQuestReward branch; no per-quest special cases. — PARKED BY ARCHIVE 2026-08-28: the quest system is archived (QUESTS_ARCHIVED), so no quest can be offered or completed in play. The reward engine is untouched and still swept: economyScan grants every quest via devGrant and asserts its payout, and every rune resolves through the same applyQuestReward.",
     "cardText": "'shoutRepeat': Warm Embers · 'spellRepeat': Spell Thesis · 'gainGold': Bone Ledger · 'grantRune': Spare Forge · 'minionCost': Merchant's Mark · 'rubyExtraCasts': Gem Circuit · 'rubyStatGain': Open the Vein · 'aleExtraCasts': Bottomless Cellar · 'attachmentDeal': Attachment Issues · 'beastPlayBuff': Den Marker",
     "example": "Warm Embers pays its 'shoutRepeat' reward through the same engine as every other quest.",
     "contentIds": [

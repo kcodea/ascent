@@ -321,14 +321,31 @@ export function asymSummonBuffText(cardId: string, summonBonus: number, golden =
  * over whatever live text the chain resolved, so it composes with every value-injecting helper. Green-marked,
  * like every live value.
  */
-export interface RuneTextFlags { matriarch?: boolean; brokerage?: boolean; livingTreasure?: boolean; facetwright?: boolean }
+export interface RuneTextFlags { matriarch?: boolean; brokerage?: boolean; livingTreasure?: boolean }
 export function runeModifiedNote(cardId: string, flags: RuneTextFlags | undefined): string | null {
   if (!flags) return null;
   if (flags.matriarch && cardId === 'b2_runebloom') return '{{Triggers twice (Rune of the Matriarch).}}';
   if (flags.brokerage && cardId === 'k_rubybroker') return '{{No per-turn limit (Rune of Brokerage).}}';
   if (flags.livingTreasure && cardId === 'gemheart-shard') return '{{Echo: summon an exact copy of this without Echo (Rune of Living Treasure).}}';
-  if (flags.facetwright && cardId === 'facetwright') return '{{Gives BOTH effects (Rune of Facetwright).}}';
+  // (Facetwright's "gives both effects" note used to live here. It is now the general (Both) rendering below,
+  // which every "does both branches" source shares — a card that does both must READ as doing both, not carry
+  // a footnote under a "Choose One:" label that is no longer true.)
   return null;
+}
+
+/**
+ * (BOTH) — the printed text for a Choose One whose branches are ALL enabled (see `chooseBothActive` in
+ * `@game/sim`, the single predicate every consumer reads). The leading "Choose One:" label is replaced by a
+ * coloured **(Both)** and BOTH option texts print after it, so the card says exactly what it will do rather
+ * than offering a choice it will not ask for (owner ruling 2026-08-28).
+ *
+ * Golden-aware, like every other live-text helper: a golden instance reads each option's `goldenText`, which
+ * is where the doubled magnitude lives. Returns null for a card with no Choose One.
+ */
+export function chooseBothText(cardId: string, golden: boolean): string | null {
+  const opts = CARD_INDEX[cardId]?.chooseOne;
+  if (!opts?.length) return null;
+  return `{{(Both)}} ${opts.map((o) => (golden ? (o.goldenText ?? o.text) : o.text)).join(' ')}`;
 }
 
 export function cadenceProgressText(cardId: string, eotTick: number, golden = false): string | null {

@@ -56,6 +56,22 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-08-28',
+    label: 'Choose One',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: 'Choose One now asks for your choice BEFORE you pick a target, clicking away cancels and returns the card to your hand, and a card that already does both effects says (Both) and skips the prompt.',
+        details: [
+          'Play the card, pick your side, then aim — the old flow made you aim first, which meant choosing after you had already committed.',
+          'Nothing happens until the choice is settled: a Choose One minion waits in your hand until you pick, so it is never left on the board mid-decision.',
+          'Click away from the options (or away while aiming) to cancel. The card comes straight back to your hand with nothing spent and nothing triggered.',
+          'When every branch is already switched on — a Gilded Orivax, or Facetwright\'s Choice and Veinbreaker with their runes — the card no longer asks a question with one answer. It reads (Both) and prints both effects, wherever you see it.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-08-28',
     label: 'Auras',
     changes: [
       {

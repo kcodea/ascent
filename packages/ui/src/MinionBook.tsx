@@ -2,8 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import type { CSSProperties } from 'react';
 import type { CardDef, QuestReward, Tribe } from '@game/core';
 import { CARD_INDEX, EPIC_RUNES, QUEST_DEFS, RUNES, activeSet, poolFor } from '@game/content';
-import { HEROES } from '@game/sim';
+import { HEROES, chooseBothActive, type RunState } from '@game/sim';
 import { Card, mdBold, type CardView } from './Card';
+import { chooseBothText } from './cardText';
 import { QuestCard } from './QuestCard';
 import { RuneCard } from './RuneCard';
 import { heroArt } from './art';
@@ -191,8 +192,11 @@ const ZOOM_STEP = 0.2;
  *  reference, not a live board, so no run buffs. `gilded` shows the tripled/golden form: doubled stats, the
  *  golden frame, and the card's golden text (Card falls back to doubling the printed numbers when a card has
  *  no explicit goldenText). */
-function toView(c: CardDef, gilded = false): CardView {
+function toView(c: CardDef, gilded = false, run?: RunState): CardView {
   const mul = gilded ? 2 : 1;
+  // (Both): the Compendium is run-scoped (it lists what THIS run can find), so a Choose One the run already
+  // makes do both must read that way here as well — the same predicate every other surface uses.
+  const both = run && chooseBothActive(run, { golden: gilded }, c) ? chooseBothText(c.id, gilded) : null;
   return {
     name: c.name,
     cardId: c.id,
@@ -201,8 +205,8 @@ function toView(c: CardDef, gilded = false): CardView {
     attack: c.attack * mul,
     health: c.health * mul,
     keywords: c.keywords,
-    text: c.text,
-    goldenText: c.goldenText,
+    text: both ?? c.text,
+    goldenText: both ?? c.goldenText,
     golden: gilded,
     baseAttack: c.attack * mul,
     baseHealth: c.health * mul,
@@ -577,7 +581,7 @@ export function MinionBook() {
             <div className="book-grid" style={{ '--book-zoom': zoom } as CSSProperties}>
               {filtered.map((c) => (
                 <div className="book-cell" key={c.id}>
-                  <Card card={toView(c, gilded)} forceFull suppressPop plated />
+                  <Card card={toView(c, gilded, run)} forceFull suppressPop plated />
                 </div>
               ))}
             </div>

@@ -34,6 +34,7 @@ const UNIT_LESS: { file: string; id: string; why: string }[] = [
   { file: 'StatusBar.tsx', id: 'hero-power-spark', why: 'fires at the hero power button, not a unit' },
   { file: 'Recruit.tsx', id: 'hero-power-target', why: 'fires at the click point on the targeted unit (cursor anchor), not via slot anchors' },
   { file: 'useCiaEnchantedFx.ts', id: 'cia-hp', why: 'fires on a SHOP offer card the moment Cia enchants it (recruit phase) — anchored to the card DOM rect, not a combat slot, and never replayed' },
+  { file: 'useChooseBothFx.ts', id: 'choose-one-both', why: 'a persistent MARKER on a hand / shop / Discover CARD, keyed by the `data-choose-both` DOM hook and followed by rect — a Discover option has no uid at all, and none of the three surfaces is a combat slot' },
   { file: 'QuestBadges.tsx', id: 'rune-slot-break', why: 'fires at the locked 3rd rune slot in the HUD badge row, not a unit' },
   { file: 'runeTriggerFx.ts', id: '<dynamic>', why: 'fires on a rune BADGE in the status bar — a HUD node, not a unit, so there is no uid to pass' },
 ];

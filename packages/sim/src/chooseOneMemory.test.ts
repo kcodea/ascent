@@ -34,9 +34,10 @@ describe('Choose One — the board remembers which branch it became', () => {
     expect(s.board.find((c) => c.uid === 'gf')?.chosenOption).toBe(0);
   });
 
-  it('records the branch on a TARGETED Choose One as soon as it is picked, before the target is chosen', () => {
-    // Runic Beetle defers to a target pick. The branch is already decided at that point, so it must be
-    // recorded then — waiting for the target would leave the card showing both options mid-aim.
+  it('records the branch on a TARGETED Choose One when the summon lands, at the end of choose → target', () => {
+    // Runic Beetle: choose FIRST, then aim (owner ruling 2026-08-28). The body stays in HAND through both
+    // steps — that is what makes a click-away cancel clean — so `chosenOption` is stamped on the instance the
+    // moment it is actually summoned, which is also the first moment there is a board card to print text on.
     let s: RunState = {
       ...createRun(1),
       board: [{ uid: 'ally', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false }],
@@ -44,8 +45,11 @@ describe('Choose One — the board remembers which branch it became', () => {
     };
     s = reduce(s, { type: 'play', uid: 'rb' });
     expect(s.chooseOne?.cardId).toBe('beetle');
+    expect(s.board.some((c) => c.uid === 'rb'), 'the summon is deferred until the choice resolves').toBe(false);
     s = reduce(s, { type: 'chooseOne', index: 0 });
-    expect(s.pendingTarget).toBeDefined(); // still aiming
+    expect(s.pendingTarget?.deferredPlay, 'now aiming, still unplayed').toBe(true);
+    expect(s.hand.some((c) => c.uid === 'rb')).toBe(true);
+    s = reduce(s, { type: 'battlecryTarget', targetUid: 'ally' });
     expect(s.board.find((c) => c.uid === 'rb')?.chosenOption).toBe(0);
   });
 

@@ -13,7 +13,7 @@ import { activePowers, getHero, gildCopiesNeeded, hasPower, powerDiscoverPool } 
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard, oppKey } from './opponents';
 import type { BoardSnapshot } from './snapshot';
-import { noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, roundedSpellbookCostOf, buyoutCostOf, commissionOffer, COMMISSION_DELAY, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, stampSharedSpoils, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, rubyStatBonus, consumeGrimoireCharge, countRubyAsShopSpell, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, buyHealthAura, undeadBuyBonus, weldMagnetic , defIsTribe} from './recruit';
+import { noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, roundedSpellbookCostOf, buyoutCostOf, commissionOffer, COMMISSION_DELAY, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, stampSharedSpoils, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, chooseBothActive, chooseOneNeedsChoice, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, rubyStatBonus, consumeGrimoireCharge, countRubyAsShopSpell, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, buyHealthAura, undeadBuyBonus, weldMagnetic , defIsTribe} from './recruit';
 import { handCap, mixSeed, reservedHandSlots, TAG, henchmanOffer, type Action, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type ShopCard, type CiaSuit, type Commission, type CommissionKind, type RunState, type RubyLandedFx, gateUses, procRune, procRuneId, runeBuffMagnitude } from './state';
 import { alignmentsOf } from './alignment';
 import { RUNE_DUP_SWEETENER, RUNE_DUP_UNIQUE, forgeFilteredDuplicate, runeStacksOf } from './runeDup';
@@ -1077,7 +1077,7 @@ function reduceCore(state: RunState, action: Action): RunState {
   // Letting the transitions through is safe: the modal is untouched and presents itself in the next recruit
   // phase, which is where a Discover can be answered anyway.
   const combatTransition = action.type === 'resolveCombat' || action.type === 'settleCombat';
-  if (modalOpen(state) && !combatTransition && action.type !== 'discover' && action.type !== 'chooseOne' && action.type !== 'battlecryTarget' && action.type !== 'buyQuest' && action.type !== 'pickPower' && action.type !== 'buyRune' && action.type !== 'skipRuneforge' && action.type !== 'rerollRuneforge' && action.type !== 'devGrant' && action.type !== 'closeScout' && !endTurnEscapesAim) {
+  if (modalOpen(state) && !combatTransition && action.type !== 'discover' && action.type !== 'chooseOne' && action.type !== 'cancelChoice' && action.type !== 'battlecryTarget' && action.type !== 'buyQuest' && action.type !== 'pickPower' && action.type !== 'buyRune' && action.type !== 'skipRuneforge' && action.type !== 'rerollRuneforge' && action.type !== 'devGrant' && action.type !== 'closeScout' && !endTurnEscapesAim) {
     return state;
   }
 
@@ -1342,6 +1342,42 @@ function reduceCore(state: RunState, action: Action): RunState {
 
       const def = CARD_INDEX[card.cardId];
 
+      // ── CHOOSE ONE: THE CHOICE COMES FIRST (owner ruling 2026-08-28) ─────────────────────────────────────
+      // "You should drag the spell up, then choose one, then target a minion to buff." So playing a Choose One
+      // card COMMITS NOTHING: no card leaves hand, no minion reaches the board, no counter moves, no RNG is
+      // drawn. All this branch does is open the prompt.
+      //
+      // Once the branch is picked, the play is REPLAYED from the top with the pick in hand (`chooseOnePick`),
+      // so every consequence below — the cards-played meter, `playedThisTurn`, the board splice + Odelle, the
+      // summon buffs in `playCard`, the Attachment/Refrain riders (and Refrain's RNG roll), triples, the golden
+      // Discover — fires exactly ONCE, AFTER the choice, in the same order it always did. That equivalence is
+      // what makes the deferral safe for old recordings: the action SEQUENCE for a minion Choose One is
+      // unchanged (`play` → `chooseOne` → maybe `battlecryTarget`), only the moment the body appears moves.
+      //
+      // It is also what makes a cancel a pure no-op: there is nothing to undo.
+      //
+      // Skipped for a card whose branches are ALREADY all enabled (`chooseBothActive` — a golden Orivax, or
+      // Facetwright / Veinbreaker under their runes): those never prompt, so they fall straight through and
+      // resolve every branch at the normal site.
+      //
+      // LEGACY REPLAY SHAPE: before this change a targeted Choose One SPELL was aimed during the drag, so an
+      // old recording carries `play { targetUid }`. That shape still routes down the old target-first path
+      // (see the spell branch below) — `!action.targetUid` is what separates the two, and nothing in the new
+      // flow ever sends a `targetUid` on a Choose One play.
+      if (def?.chooseOne?.length && !card.borrowed && !action.targetUid
+          && s.chooseOnePick?.uid !== card.uid && chooseOneNeedsChoice(s, card, def)) {
+        // A minion needs a free board slot before we bother asking (a spell takes none). Checked here as well
+        // as at the normal site so a full board refuses the play outright rather than prompting for nothing.
+        if (!def.spell && !def.ruby && s.board.length >= CONFIG.boardMax) return state;
+        // A targeted Choose One SPELL with no legal target fizzles before the prompt (kept in hand, nothing
+        // spent) — exactly as it did when the drag had to hit a target, and so the pick can never open an aim
+        // with no answer. Minions deliberately do NOT fizzle: a Runic Beetle with no other Beast has always
+        // played and auto-granted to itself, and the pick step still resolves it that way.
+        if (def.spell && def.target && chooseOneTargetPool(s, def).length === 0) return state;
+        s.chooseOne = { uid: card.uid, cardId: def.id, spell: !!def.spell, toIndex: action.toIndex };
+        return s;
+      }
+
       // Set 2 — the play-count meter (Mountainbond). "Cards" means EVERYTHING you play: minions, spells and
       // Rubies alike (owner 2026-07-29). It was on the minion branch only, so spells never counted. Fired here,
       // once, before the type branches — every branch below is a real play. A fizzle (no legal target) returns
@@ -1528,10 +1564,24 @@ function reduceCore(state: RunState, action: Action): RunState {
         // Spell Choose One (Apples): a SPELL choice — its own thing, NOT a Battlecry. Pause for the pick,
         // keeping the spell in hand; the chosen effect is cast (and the spell consumed) in `chooseOne`.
         if (def.chooseOne?.length) {
-          // A *targeted* Choose One spell (Anomaly Reactor = friendly; Crest of the Climb = any): the drag already
-          // aimed — capture the target uid now so the chosen option lands on it. `any` also accepts a tavern
-          // offer (buff it pre-buy). No valid target → fizzle (spell kept in hand).
-          if (def.target === 'friendly' || def.target === 'any') {
+          // THE PICK IS ALREADY IN (the new flow, replaying the deferred play): cast the chosen branch — with
+          // its target, when the target step ran — and consume the spell. Every cast-bookkeeping rider lives in
+          // the shared resolver so the choice step and the target step can never drift.
+          const pick = s.chooseOnePick?.uid === card.uid ? s.chooseOnePick : undefined;
+          if (pick) {
+            s.chooseOnePick = undefined;
+            return resolveChooseOneSpell(s, card, def, pick.index, pick.targetUid) ?? state;
+          }
+          // (BOTH) — a Choose One whose branches are all enabled already never prompts: it resolves every
+          // branch right now, still aiming from the drag if the card targets.
+          if (chooseBothActive(s, card, def)) {
+            return resolveChooseOneSpell(s, card, def, 0, action.targetUid) ?? state;
+          }
+          // LEGACY TARGET-FIRST SHAPE (pre-2026-08-28 recordings only): the drag already aimed, so capture the
+          // target uid now and let the pick land on it. `any` also accepts a tavern offer (buff it pre-buy).
+          // No valid target → fizzle (spell kept in hand). The live game never produces this shape any more —
+          // it is kept solely so old `replayActions` logs reproduce.
+          if (action.targetUid && (def.target === 'friendly' || def.target === 'any')) {
             const boardTarget = s.board.find((c) => c.uid === action.targetUid);
             const offer = def.target === 'any' ? s.shop.find((o) => o.uid === action.targetUid && !CARD_INDEX[o.cardId]?.spell) : undefined;
             if (!boardTarget && !offer) return state;
@@ -1811,17 +1861,29 @@ function reduceCore(state: RunState, action: Action): RunState {
           }
         }
       }
-      // Choose One: pause for the player's pick before resolving triples / the golden Discover.
-      if (CARD_INDEX[card.cardId]?.chooseOne?.length) {
-        // RUNE OF THE UNBROKEN VEIN: a Veinbreaker applies BOTH options and never prompts. The body is
-        // already on the board here, so both halves resolve through the same `applyChooseOne` path a picked
-        // option uses — each keeps its own golden scaling and buff-FX attribution, in printed order.
-        if (s.runeUnbrokenVein && card.cardId === 'k_veinbreaker') {
-          procRuneId(s, 'rune_unbroken_vein');
-          for (const opt of CARD_INDEX[card.cardId]!.chooseOne!) applyChooseOne(s, card, opt.effects);
+      // Choose One: the branch was decided BEFORE the body ever reached the board (see the deferral at the top
+      // of this case), so by the time we get here either a pick is in hand or every branch is already enabled.
+      const coDef = CARD_INDEX[card.cardId];
+      if (coDef?.chooseOne?.length) {
+        // (BOTH) — a golden Orivax, or Veinbreaker under the Rune of the Unbroken Vein: apply every option.
+        // Both halves resolve through the same `applyChooseOne` path a picked option uses, so each keeps its
+        // own golden scaling and buff-FX attribution, in printed order.
+        if (chooseBothActive(s, card, coDef)) {
+          if (s.runeUnbrokenVein && card.cardId === 'k_veinbreaker') procRuneId(s, 'rune_unbroken_vein');
+          for (const opt of coDef.chooseOne) applyChooseOne(s, card, opt.effects);
         } else {
-          s.chooseOne = { uid: card.uid, cardId: card.cardId };
-          return s;
+          const pick = s.chooseOnePick?.uid === card.uid ? s.chooseOnePick : undefined;
+          const option = pick ? coDef.chooseOne[pick.index] : undefined;
+          // No pick reached us — the deferral guard above should have caught it. Re-open rather than resolve
+          // an arbitrary branch (the play is already committed at this point, so it must not silently vanish).
+          if (!pick || !option) { s.chooseOne = { uid: card.uid, cardId: card.cardId }; return s; }
+          s.chooseOnePick = undefined;
+          card.chosenOption = pick.index; // the body only ever does this one thing now — its text narrows to it
+          // A TARGETED branch (Runic Beetle) lands on the target the aim step already chose; with no legal
+          // target the grant auto-picks (falls back to self), exactly as it always did.
+          const target = pick.targetUid ? s.board.find((c) => c.uid === pick.targetUid) : undefined;
+          if (target) applyChooseOneTarget(s, card, option.effects, target);
+          else applyChooseOne(s, card, option.effects);
         }
       }
       // Targeted Battlecry (Toxin Tender → a friendly Undead): pause for the player to pick the target
@@ -1837,7 +1899,11 @@ function reduceCore(state: RunState, action: Action): RunState {
         return s;
       }
       const playedDef = CARD_INDEX[card.cardId];
-      if (playedDef?.target === 'friendly') {
+      // A Choose One owns its OWN targeting (the aim step ran before this replay, and the branch is already
+      // applied above), so it must not fall into the generic targeted-Battlecry prompt as well — Runic Beetle
+      // would open a second, meaningless aim. Before the deferral this block was unreachable for a Choose One
+      // because the prompt returned early.
+      if (playedDef?.target === 'friendly' && !playedDef.chooseOne?.length) {
         const hasTarget = playedDef.targetTribe
           ? s.board.some((c) => c.uid !== card.uid && isTribe(c, playedDef.targetTribe!))
           // `targetNotSelf` (Graverobber): a board holding ONLY this minion has no legal pick, so don't
@@ -1861,70 +1927,56 @@ function reduceCore(state: RunState, action: Action): RunState {
       const def = CARD_INDEX[co.cardId];
       const option = def?.chooseOne?.[action.index];
       if (!def || !option) return state;
-      // A SPELL choose-one (Apples): the spell is still in hand — cast its chosen effect (a synthetic def with
-      // just that option's effects, respecting Yazzus quantity), then consume it. Not a Battlecry.
-      if (co.spell) {
-        const hi = s.hand.findIndex((c) => c.uid === co.uid);
-        if (hi < 0) { s.chooseOne = undefined; return s; }
-        // A *targeted* spell Choose One (Anomaly Reactor) casts on the target the drag picked; the target may have
-        // been removed (sold) since — fizzle the cast but still consume the spell. Untargeted (Apples) → no target.
-        const target = co.targetUid ? s.board.find((c) => c.uid === co.targetUid) : undefined;
-        // `any` Choose One (Crest): the aim may have been a tavern offer, not a board minion — buff it pre-buy.
-        const offer = co.targetUid && !target ? s.shop.find((o) => o.uid === co.targetUid && !CARD_INDEX[o.cardId]?.spell) : undefined;
-        if (co.targetUid && !target && !offer) { s.hand.splice(hi, 1); s.chooseOne = undefined; return s; }
-        const casts = spellCasts(s, def);
-        // Rune of Facetwright: "they give both effects" — resolve EVERY branch instead of the picked one. The
-        // pick still happens (the player chooses which is highlighted), it just stops being exclusive. Scoped to
-        // the Facetwright's Choice spell by id, since the rune names that card rather than Choose One generally.
-        const bothBranches = s.runeFacetwright && def.id === 'facetwright';
-        const synthetic = { ...def, effects: bothBranches ? (def.chooseOne ?? []).flatMap((o) => o.effects) : option.effects };
-        for (let n = 0; n < casts; n++) {
-          if (offer) castSpellOnOffer(s, synthetic, offer);
-          else castSpell(s, synthetic, target);
-        }
-        if (!def.singleCast) s.nextSpellExtraCasts = undefined; // Nimbus charge spent (already folded into `casts`)
-        if (!def.singleCast && s.spellFirstDoubleEachTurn) s.spellFirstUsedThisTurn = true; // Spell Thesis freebie spent
-        if (!def.singleCast && s.runeSharedPour && ALE_IDS.includes(def.id) && !s.sharedPourUsedThisTurn) procRuneId(s, 'rune_shared_pour');
-        if (!def.singleCast && s.runeSharedPour && ALE_IDS.includes(def.id)) s.sharedPourUsedThisTurn = true; // Shared Pour freebie spent
-        s.hand.splice(hi, 1);
-        s.playedThisTurn = [...(s.playedThisTurn ?? []), co.cardId]; // Choose One spell counts as a card played (Rune of Action)
+      // ── LEGACY TARGET-FIRST SPELL (old recordings only) ────────────────────────────────────────────────
+      // A `play` that carried its `targetUid` opened this prompt with the target already pinned, and the card
+      // was already counted as played. Resolve it in place — do NOT replay the play, or the cards-played meter
+      // would tick twice for one card.
+      if (co.spell && co.targetUid) {
+        const out = resolveChooseOneSpell(s, s.hand.find((c) => c.uid === co.uid), def, action.index, co.targetUid);
         s.chooseOne = undefined;
-        checkTriples(s);
-        return s;
+        return out ?? s;
       }
-      const card = s.board.find((c) => c.uid === co.uid);
-      if (!card) return state;
-      // A *targeted* Choose One (Runic Beetle): once the buff is chosen, defer to the player picking a
-      // friendly target for it (via `battlecryTarget`) — but only when a viable target exists (tribe-
-      // restricted, never self). With none, resolve now so the grant auto-picks (falls back to self).
-      // Defer to targeting if the CHOSEN option needs a target — per-option `target` (The Godfodder's consume
-      // option) takes precedence over the card-level `target` (Runic Beetle, whose options both target).
+      // ── THE PICK, DEFERRED-PLAY FLOW ───────────────────────────────────────────────────────────────────
+      // Nothing has been played yet: the card is still in hand exactly as it was. A branch that needs a TARGET
+      // hands off to the aim step first; otherwise the play is replayed now, carrying the pick, so every
+      // consequence fires once and in order (see the deferral in `play`).
+      const held = s.hand.find((c) => c.uid === co.uid);
+      if (!held) { s.chooseOne = undefined; return s; }
+      // Per-option `target` (The Godfodder's consume option) takes precedence over the card-level one
+      // (Runic Beetle / Crest of the Climb, whose options all target).
       const optTarget = option.target ?? def.target;
-      if (optTarget === 'friendly') {
-        const openTribe = effectiveTargetTribe(s, def);
-        const hasTarget = openTribe
-          ? s.board.some((c) => c.uid !== card.uid && isTribe(c, openTribe))
-          : s.board.some((c) => c.uid !== card.uid);
-        if (hasTarget) {
+      if (optTarget === 'friendly' || optTarget === 'any') {
+        // Only aim when there is something legal to aim AT. With none, a spell has already fizzled at play
+        // time and a minion resolves now with the grant auto-picking (falls back to self) — unchanged.
+        if (chooseOneTargetPool(s, def).length > 0) {
           s.chooseOne = undefined;
-          card.chosenOption = action.index; // the branch is already decided; only its TARGET is still pending
-          s.pendingTarget = { uid: card.uid, cardId: card.cardId, optionIndex: action.index };
+          s.pendingTarget = {
+            uid: co.uid, cardId: co.cardId, optionIndex: action.index,
+            spell: !!co.spell, deferredPlay: true, toIndex: co.toIndex,
+          };
           return s;
         }
       }
-      // Orivax when GOLDEN gains BOTH options (`chooseBothWhenGolden`), not just the one picked. The prompt
-      // still opens and you still click a side — both apply on resolve, which is the honest reading of
-      // "Gilded: Gain both". Applied in option order so the log/FX are deterministic.
-      const chosen = card.golden && def.chooseBothWhenGolden ? def.chooseOne! : [option];
-      // Record WHICH branch this instance became so its printed text can narrow to just that one. A
-      // `chooseBothWhenGolden` golden gained both, so it records nothing and keeps the combined text.
-      if (chosen.length === 1) card.chosenOption = action.index;
-      for (const opt of chosen) applyChooseOne(s, card, opt.effects); // the chosen Battlecry (or all, if golden) resolves now
       s.chooseOne = undefined;
-      checkTriples(s);
-      if (card.golden) grantGoldenDiscover(s);
-      openNextStartOfTurnModal(s); // this modal owned the screen — open whatever queued behind it
-      return s;
+      s.chooseOnePick = { uid: co.uid, index: action.index };
+      const after = reduceCore(s, { type: 'play', uid: co.uid, toIndex: co.toIndex });
+      if (after === s) { s.chooseOnePick = undefined; return s; } // the replay refused — leave the card in hand
+      openNextStartOfTurnModal(after); // this modal owned the screen — open whatever queued behind it
+      return after;
+    }
+
+    case 'cancelChoice': {
+      // CLICK AWAY = CANCEL (owner ruling 2026-08-28). Because a Choose One commits NOTHING until its branch
+      // (and target) are settled, backing out is a pure no-op: the card never left hand, no Gold moved, no
+      // trigger fired, and — deliberately — no RNG was drawn, so `rngCursor` and `uidSeq` are untouched.
+      // Recorded as an action so a replay lives the abandoned play the same way the player did.
+      //
+      // It only ever cancels a DEFERRED Choose One. A legacy target-first prompt (`co.targetUid`) and an
+      // ordinary battlecry aim (Toxin Tender, already on the board with its body committed) are both left
+      // alone — there is no clean "untouched" state to return those to.
+      if (s.chooseOne && !s.chooseOne.targetUid) { s.chooseOne = undefined; return s; }
+      if (s.pendingTarget?.deferredPlay) { s.pendingTarget = undefined; return s; }
+      return state;
     }
 
     case 'closeScout': {
@@ -1936,6 +1988,21 @@ function reduceCore(state: RunState, action: Action): RunState {
     case 'battlecryTarget': {
       if (!s.pendingTarget) return state;
       const pt = s.pendingTarget;
+      // ── CHOOSE ONE, TARGET STEP (owner ruling 2026-08-28: choose → target → resolve) ────────────────────
+      // Nothing has been played yet — the card is still in hand. Validate the aim against the SAME pool the
+      // play-time guard and the pick step read, then complete the play by replaying it with the branch and
+      // the target in hand. A refused aim leaves the prompt up, so the player can pick again or click away.
+      if (pt.deferredPlay) {
+        const ptDefC = CARD_INDEX[pt.cardId];
+        if (!ptDefC) return state;
+        if (!chooseOneTargetPool(s, ptDefC, pt.uid).includes(action.targetUid)) return state;
+        s.pendingTarget = undefined;
+        s.chooseOnePick = { uid: pt.uid, index: pt.optionIndex ?? 0, targetUid: action.targetUid };
+        const done = reduceCore(s, { type: 'play', uid: pt.uid, toIndex: pt.toIndex });
+        if (done === s) { s.chooseOnePick = undefined; return s; } // the replay refused — card stays in hand
+        openNextStartOfTurnModal(done); // this modal owned the screen — open whatever queued behind it
+        return done;
+      }
       // Common Ground (spell two-target): `pt.uid` is a HAND spell, not a board minion. The picker chose the
       // SECOND friendly minion — cast the average onto it (the factory reads the FIRST from `pt.spellFirstUid`),
       // then consume the spell. A missing/duplicate target fizzles but still consumes the spell.
@@ -2871,7 +2938,12 @@ function reduceCore(state: RunState, action: Action): RunState {
       for (const o of s.shop) if (o.kept) o.kept = false;
       // An unresolved targeted Battlecry (the player ended the turn mid-pick) auto-resolves on the
       // carry — never strand a played Toxin Tender without its grant.
-      if (s.pendingTarget) {
+      if (s.pendingTarget?.deferredPlay) {
+        // A DEFERRED Choose One aim (the card is still in hand and nothing has resolved): ending the turn
+        // abandons it exactly like a click-away cancel — the card stays in hand untouched. Auto-resolving it
+        // would summon a minion the player never confirmed, into a board they can no longer arrange.
+        s.pendingTarget = undefined;
+      } else if (s.pendingTarget) {
         const pt = s.pendingTarget;
         const src = s.board.find((c) => c.uid === pt.uid);
         const def = src ? CARD_INDEX[src.cardId] : undefined;
@@ -3283,6 +3355,58 @@ function reduceCore(state: RunState, action: Action): RunState {
 }
 
 /** Playing a golden minion grants a Discover spell (peek one tier up) into the hand. */
+/**
+ * The legal aim for a Choose One's target step — board minions the card may hit, plus (for an `any` card) the
+ * tavern's minion offers. ONE pool, read by the play-time fizzle guard, the pick step's "is there anything to
+ * aim at" test, and the target step's validation, so those three can never disagree about what is aimable.
+ * `selfUid` excludes the card itself; under the deferred flow the body is still in hand, so it rarely applies.
+ */
+function chooseOneTargetPool(s: RunState, def: CardDef, selfUid?: string): string[] {
+  const tribe = effectiveTargetTribe(s, def); // Rune of Open Appetite can lift a tribe restriction
+  const board = s.board.filter((c) => c.uid !== selfUid && (!tribe || isTribe(c, tribe)));
+  const offers = def.target === 'any' ? s.shop.filter((o) => !CARD_INDEX[o.cardId]?.spell) : [];
+  return [...board.map((c) => c.uid), ...offers.map((o) => o.uid)];
+}
+
+/**
+ * Resolve a SPELL Choose One: cast the chosen branch (or EVERY branch, under `chooseBothActive`) on the
+ * optional target, then consume the spell from hand. Not a Battlecry — it is a spell cast, so it carries the
+ * full cast bookkeeping (Nimbus/Thesis/Shared Pour charges, `playedThisTurn`, triples).
+ *
+ * Shared by all three routes into it — the pick step for an untargeted spell, the target step for an aimed
+ * one, and the play itself when the card already does both — so they cannot drift. Returns the state, or
+ * `null` when the spell is no longer in hand (the caller keeps its own state).
+ */
+function resolveChooseOneSpell(
+  s: RunState, card: BoardCard | undefined, def: CardDef, index: number, targetUid?: string,
+): RunState | null {
+  if (!card) return null;
+  const hi = s.hand.findIndex((c) => c.uid === card.uid);
+  if (hi < 0) return null;
+  const target = targetUid ? s.board.find((c) => c.uid === targetUid) : undefined;
+  // An `any` Choose One (Crest of the Climb) may have aimed at a tavern offer, not a board minion — buff it pre-buy.
+  const offer = targetUid && !target ? s.shop.find((o) => o.uid === targetUid && !CARD_INDEX[o.cardId]?.spell) : undefined;
+  // The aim was answered but the target has gone (sold) since — fizzle the cast, still consume the spell.
+  if (targetUid && !target && !offer) { s.hand.splice(hi, 1); return s; }
+  const casts = spellCasts(s, def);
+  // (BOTH) — Rune of Facetwright's "they give both effects": resolve EVERY branch instead of the picked one.
+  const both = chooseBothActive(s, card, def);
+  const branches = both ? (def.chooseOne ?? []) : (def.chooseOne?.[index] ? [def.chooseOne[index]] : []);
+  const synthetic = { ...def, effects: branches.flatMap((o) => o.effects) };
+  for (let n = 0; n < casts; n++) {
+    if (offer) castSpellOnOffer(s, synthetic, offer);
+    else castSpell(s, synthetic, target);
+  }
+  if (!def.singleCast) s.nextSpellExtraCasts = undefined; // Nimbus charge spent (already folded into `casts`)
+  if (!def.singleCast && s.spellFirstDoubleEachTurn) s.spellFirstUsedThisTurn = true; // Spell Thesis freebie spent
+  if (!def.singleCast && s.runeSharedPour && ALE_IDS.includes(def.id) && !s.sharedPourUsedThisTurn) procRuneId(s, 'rune_shared_pour');
+  if (!def.singleCast && s.runeSharedPour && ALE_IDS.includes(def.id)) s.sharedPourUsedThisTurn = true; // Shared Pour freebie spent
+  s.hand.splice(hi, 1);
+  s.playedThisTurn = [...(s.playedThisTurn ?? []), def.id]; // counts as a card played (Rune of Action)
+  checkTriples(s);
+  return s;
+}
+
 function grantGoldenDiscover(s: RunState): void {
   // MIDAS: his Gilds pay a Gold Pouch instead of the Triple Reward. Swapped HERE rather than at the call sites
   // because every Gild route funnels through this one function — doing it per-site would guarantee a missed

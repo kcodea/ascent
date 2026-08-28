@@ -226,7 +226,7 @@ const ACTION_TYPES: Record<Action['type'], true> = {
   combatBladeAttackPreview: true, buy: true, buyHenchman: true, play: true, sell: true, roll: true,
   freeze: true, upgrade: true, reposition: true, reorderShop: true, reorderHand: true, heroPower: true,
   pickPower: true, discover: true, buyQuest: true, buyRune: true, skipRuneforge: true, rerollRuneforge: true,
-  chooseOne: true, battlecryTarget: true, closeScout: true, faceOmen: true, settleCombat: true,
+  chooseOne: true, cancelChoice: true, battlecryTarget: true, closeScout: true, faceOmen: true, settleCombat: true,
   resolveCombat: true, devGrant: true,
 };
 

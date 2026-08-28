@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { CARD_INDEX } from '@game/content';
+import { artVariantKey } from './art';
 
 /**
  * Choose One per-branch ART (owner 2026-07-25): a resolved instance wears the art of the branch it became.
@@ -53,5 +54,27 @@ describe('Choose One per-branch art', () => {
     const strayIdx = shaper.chooseOne!.findIndex((o) => /Stray/i.test(o.text));
     expect(strayIdx, 'the Stray branch is option index 1 → shaper2').toBe(1);
     expect(ALL_ART, 'shaper2 art is wired').toContain(`${shaper.id}${strayIdx + 1}`);
+  });
+});
+
+/**
+ * PER-BRANCH FRAMING (owner ask 2026-08-28). Framing is per IMAGE, not per card: the base art and a branch's
+ * art are different pictures and rarely want the same zoom and offset. Coppercoat Spellsword's second option
+ * inherited the base art's crop with no way to dial it.
+ */
+describe('branch art is framed under its own key', () => {
+  it('a resolved branch with its own art keys on the VARIANT, not the card', () => {
+    const shaper = CARD_INDEX['shaper']!;
+    expect(ALL_ART, 'fixture: the Stray branch art must exist for this to mean anything').toContain('shaper2');
+    expect(artVariantKey('shaper', 1), 'option index 1 frames under shaper2').toBe('shaper2');
+    expect(artVariantKey('shaper', 0), 'option 0 keeps the base art, so it keeps the base key').toBe('shaper');
+    expect(artVariantKey('shaper', undefined), 'an unresolved card is still the base').toBe('shaper');
+    expect(shaper.chooseOne, 'fixture sanity').toBeDefined();
+  });
+
+  it('a branch with NO art of its own falls back to the card key — nothing changes for those cards', () => {
+    // The Godfodder has a Choose One but no second-option illustration.
+    expect(ALL_ART, 'fixture: this card must have no branch art').not.toContain('godfodder2');
+    expect(artVariantKey('godfodder', 1)).toBe('godfodder');
   });
 });

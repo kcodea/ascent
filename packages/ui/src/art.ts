@@ -51,6 +51,21 @@ const SPELL_ART = indexArt(
 
 /** The illustrated art URL for a card id, or undefined if none has been added. `uid` lets cards
  *  with multiple art variants pick one per instance (stable across re-renders, ~50/50 split). */
+/**
+ * The key a card's art is FRAMED under — the card id, or `<id><N+1>` when a resolved Choose One is wearing a
+ * branch illustration that actually exists.
+ *
+ * Framing is per IMAGE, not per card: the base art and a branch's art are different pictures and rarely want
+ * the same zoom and offset. Keying the override on the card id alone meant Coppercoat Spellsword's second
+ * option inherited the base art's crop, with no way to dial it (owner ask 2026-08-28). A branch with no entry
+ * of its own still falls back to the card's, so nothing changes for the cards that never needed this.
+ */
+export const artVariantKey = (cardId: string, chosenOption?: number): string => {
+  if (chosenOption === undefined || chosenOption <= 0) return cardId;
+  const key = `${cardId}${chosenOption + 1}`;
+  return MINION_ART[key] ?? SPELL_ART[key] ? key : cardId;
+};
+
 export const artFor = (cardId?: string, uid?: string, chosenOption?: number): string | undefined => {
   if (!cardId) return undefined;
   // CHOOSE ONE: a resolved instance wears the art of the branch it BECAME (owner 2026-07-25). Option 0 keeps

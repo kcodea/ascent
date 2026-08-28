@@ -62,6 +62,8 @@ describe('no redundant PNG masters ship alongside their WebP builds', () => {
     // → 1045 (2026-08-28, the owner's Choose One branch art: 6 second-option files — beetle2,
     // k_veinbreaker2, n2_spellsword2, crestclimb2, facetwright2, fieldmaneuvers2. Net +5, not +6: the dead
     // `n2_coppercoat.webp` master was deleted in the same pass, so measured 1038 → 1044.)
-    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1045);
+    // → 1046 (2026-08-28, later the same day: apples2. The other three the owner named — facetwright2,
+    // beetle2, k_veinbreaker2 — were REDRAWN over files that already existed, so they cost nothing.)
+    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1046);
   });
 });

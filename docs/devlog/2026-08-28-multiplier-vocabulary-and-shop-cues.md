@@ -177,3 +177,32 @@ After `npm install`: **532 files, 7,682 tests** — 11 files and 102 tests that 
 CLAUDE.md already warns to run `npm install` inside a fresh worktree before trusting a local typecheck; the
 same applies to the PRIMARY checkout, and the failure mode here is quieter than the one documented (a missing
 optional dep skips files silently rather than erroring).
+
+
+## Follow-up 5: new branch art, and per-BRANCH art framing
+
+Owner dropped fresh Choose One second-option art: **apples2** (new), plus redraws of **facetwright2**,
+**beetle2**, and both halves of **Veinbreaker** (base and second option). Wired through `npm run art:wire`;
+only apples2 costs a file, since the rest overwrote art that already existed, so the itch ratchet moved 1045
+→ 1046.
+
+A process note worth repeating: `--apply` re-encodes every file in the jobs it runs, and webp encoding is not
+byte-stable, so each pass shows ~100–280 modified files for a handful of real changes. Revert everything that
+is not the intended change. Doing this in TWO passes (minions, then spells) also means the keep-list must
+cover BOTH passes' files — the second revert otherwise undoes the first pass's work, which happened here and
+cost a redraw of facetwright2 until it was spotted.
+
+### The framing override the owner actually asked for
+
+The pasted `cardArt.data.json` block turned out to be **byte-identical to what is already shipped** — 46 keys,
+no additions, no changes. So the ask was not "apply these values"; it was that Coppercoat Spellsword's SECOND
+OPTION needs its own framing and there was nowhere to put it.
+
+Framing was keyed on the card id alone, so a resolved branch inherited the base art's zoom and offset. Base
+art and branch art are different pictures and rarely want the same crop. `artVariantKey(cardId, chosenOption)`
+now resolves the key an image is framed under — `n2_spellsword2` when that branch art exists, the card id
+otherwise — and both the render (`cardArtVars`) and the tuner (`beginEditCardArt`) use it. Tuning a card while
+a resolved branch is on screen writes the BRANCH's entry.
+
+A branch with no entry of its own falls back to the card's, so this changed nothing for any existing card;
+`chooseOneArt.test.ts` pins both directions.

@@ -20,10 +20,6 @@ stable across re-renders (never spins) and no `Math.random`. Gated on the tuner'
 number outline width + colour, the random-rotation toggle, and the rotation range. The number also gained a
 thin outline (`-webkit-text-stroke` + `paint-order: stroke fill`) so digits read over the bright burst.
 
-**Owner-locked defaults** (2026-08-27): pop 2×, entry 0.1×, 1s, splash 4.2×, outline 2.35px `#b3b3b3`, random
-rotation ON up to ±45°. Baked into `floatConfig.ts` DEFAULTS **and** the styles.css fallbacks (`.float`,
-`.float.dmg`, the `floatup*` keyframes), per that config's ship convention.
-
 Verified: typecheck ✅, lint 0 errors ✅, build:web ✅. Owner-tuned + signed off live at 1×. (The one climbing
 Fel Spikes number keeps its single-pop hold keyframe — it gets the burst but not the bounce.)
 
@@ -39,3 +35,16 @@ Fel Spikes number keeps its single-pop hold keyframe — it gets the burst but n
   screen". `scale`/`translate`/`opacity` are separate animatable properties, so the two timelines don't clobber.
   Default 300ms reproduces the old 0–30%-of-1000ms pop exactly. The climbing Fel Spikes number (`floatupchold`)
   and the death float (`floatstickc`) keep their own single-timeline scale — the new knob is the main hit float.
+
+**Pop-displacement fix.** Splitting the pop onto the individual `scale` property left `floatupc`'s centring on
+the `transform` property — and the two compose as `scale · translate`, so the pop's scale MULTIPLIED the −50%
+centring offset: at the peak of a 1.7× bounce the number was displaced ~28px up-and-left, then swung back. It
+read as a broken/absent pop (owner noticed it on their own board when the opponent attacked in). Fix: `floatupc`
+now drives the individual `translate:` property, so it composes with `scale:` as `translate · scale` — the exact
+matrix the pre-split combined `transform: translate() scale()` produced. Verified in-browser: individual
+`translate:`+`scale:` reproduces the old rect at every scale (0.3 / 1 / 1.7), the mixed form did not.
+
+**Owner-locked defaults** (2026-08-27, re-tuned after the pop fix): number 42 / damage 48, 0.9s on screen, pop
+1.7× over a 400ms bounce, entry 0.3×, the SPIKY burst (art 2) at 2.84× nudged 2px left, a thin 1.5px black
+number outline, random rotation ON up to ±45°. Baked into `floatConfig.ts` DEFAULTS **and** the styles.css
+fallbacks (`.float`, `.float.dmg`, the `floatup*` / `dmgpop` keyframes), per that config's ship convention.

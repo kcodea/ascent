@@ -51,26 +51,27 @@ export interface FloatConfig {
   rotRange: number;
 }
 
-// Owner-locked 2026-08-27 (dev Damage Float tuner): a big pop (2×) with a snappy 0.1× entry over 1s, the
-// golden burst backdrop at 4.2× with a light-grey 2.35px number outline, and random per-hit splash rotation
-// up to ±45°. Mirrored into the styles.css fallbacks (`.float`, `.float.dmg`, the `floatup*` keyframes).
+// Owner-locked 2026-08-27 (dev Damage Float tuner): a 1.7× pop over a 400ms bounce, 0.3× entry, 0.9s on screen,
+// the SPIKY burst (art 2) at 2.84× nudged 2px left, a thin 1.5px black number outline, and random per-hit
+// splash rotation up to ±45°. Mirrored into the styles.css fallbacks (`.float`, `.float.dmg`, the `floatup*` /
+// `dmgpop` keyframes).
 const DEFAULTS: FloatConfig = {
-  size: 34,
-  dmgSize: 42,
-  durMs: 1000,
-  pop: 2,
-  popMs: 300, // the old 0–30% of a 1000ms float — reproduces the shipped pop timing
+  size: 42,
+  dmgSize: 48,
+  durMs: 900,
+  pop: 1.7,
+  popMs: 400,
   rise: 0, // 0 = the number sticks to the card (holds + fades in place) instead of drifting off
-  inScale: 0.1,
-  inY: 14,
-  splashImg: '1',
-  splashEm: 4.2,
+  inScale: 0.3,
+  inY: 0,
+  splashImg: '2',
+  splashEm: 2.84,
   numX: 0,
   numY: 0,
-  splashX: 0,
+  splashX: -2,
   splashY: 0,
-  numStroke: 2.35,
-  numStrokeColor: '#b3b3b3',
+  numStroke: 1.5,
+  numStrokeColor: '#000000',
   rotRandom: 1,
   rotRange: 45,
 };

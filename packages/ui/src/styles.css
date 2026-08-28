@@ -8132,7 +8132,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
      applying `transform: scale()` keeps the shadow and hairline crisp AND keeps the layout box honest — a
      transformed panel still reserves its untransformed width and can overlap the board. */
   --u: calc(var(--u-base) * var(--ui-scale, 0.96));
-  --lu: calc(var(--u) * var(--lby-scale, 0.94));
+  --lu: calc(var(--u) * var(--lby-scale, 0.84));
   --lrow: calc(var(--lu) * var(--lby-row, 1.91));
   --lfont: calc(var(--lu) * var(--lby-font, 0.99));
   --lfoe: calc(var(--lu) * var(--lby-foe, 0.5));
@@ -8140,7 +8140,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   /* `right`/`top` place the rail; the `--lby-x`/`--lby-y` nudge (🪑 Lobby Rail → Shift) is folded in HERE rather
      than via a `transform`, because a transform on the rail would re-anchor the fixed-position scout card. +X =
      right (so it SUBTRACTS from the right-edge gap); +Y = down. */
-  right: calc((var(--lby-right, 0) - var(--lby-x, 72)) * var(--lu)); top: calc(var(--lby-top, 13.5%) + var(--lby-y, -32) * var(--lu));
+  right: calc((var(--lby-right, 0) - var(--lby-x, -10)) * var(--lu)); top: calc(var(--lby-top, 13.5%) + var(--lby-y, 12) * var(--lu));
   /* Sizes to its rows, capped so a wild row scale can't run off the stage — and SCROLLS rather than clips at
      the cap, because silently hiding seat 8 is worse than a scrollbar. The cap is generous enough that the
      shipped defaults never reach it (measured: content ≈46% of stage height against a 66% cap). */

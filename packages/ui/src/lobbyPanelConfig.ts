@@ -42,13 +42,13 @@ export interface LobbyPanelConfig {
 /** Owner-tuned 2026-07-29 (🪑 Lobby Rail → Copy values). These are what ships — the exe and the itch build
  *  never run the tuner, so the CSS fallbacks below mirror them. */
 export const LOBBY_PANEL_DEFAULTS: LobbyPanelConfig = {
-  scale: 0.94,
+  scale: 0.84,
   width: 259,
   right: 0,
   top: 13.5,
   height: 100,
-  offsetX: 72,
-  offsetY: -32,
+  offsetX: -10,
+  offsetY: 12,
   rowScale: 1.91,
   fontScale: 0.99,
   foeScale: 0.5,

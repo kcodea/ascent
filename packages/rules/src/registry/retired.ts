@@ -377,6 +377,21 @@ export const RETIRED_RULES: RetiredRule[] = [
     enforcement: { kind: 'oracle', refs: ['textParse'], lastVerifiedAt: '2026-08-28' },
   },
 
+  {
+    id: 'q-conv-trigger-residual',
+    why:
+      'OWNER RULED 2026-08-28 (Sitting 4, REVISE — verbatim): "These are unique minions but they could share '
+      + 'families in some ways. gangplank and kegheart are cards that track when cards get added to hand, fel '
+      + 'conjurer is a start of turn get spell to hand, reflect and mirrorwing are when targeted by spell minions, '
+      + 'hellrider is a refresh mechanic minion. these families will be expanded on eventually so they shouldnt be '
+      + 'fully isolated cards." IMPLEMENTED: the four groupings the owner named became four real TRIGGER_GROUPS '
+      + '(gainCard, startOfTurn, spellTargeted, shopRefresh), so the residual bucket is now EMPTY and this card '
+      + 'cannot regenerate. The next card authored on any of those triggers joins a standing convention instead of '
+      + 're-opening a settled question.',
+    retiredAt: '2026-08-28',
+    enforcement: { kind: 'oracle', refs: ['contractExtraction'], lastVerifiedAt: '2026-08-28' },
+  },
+
   // ── E. The Sitting-2 anomaly deck (owner decisions 2026-08-28) — all three cards resolved, so the deck
   //    regenerates EMPTY. Each anomaly is gone because its cause was fixed, never because it was suppressed. ──
   {

@@ -83,6 +83,15 @@ const GILD_SHAPE_RULINGS: Readonly<Record<string, GildedDeltaContract>> = {
       + 'additional time (double its rubies)" — one EXTRA resolution of the same 2-Ruby payload, which the '
       + 'gilded text prints as 4 Rubies',
   },
+  b2_moonhowl: {
+    kind: 'extra-proc',
+    extra: 1,
+    basis: 'owner-ruling',
+    goldenTextSource: 'index:goldenText',
+    description: 'owner ruling 2026-08-28 (q-conv-trigger-buy): "Moonhowl for example adds an instance of '
+      + 'the effect, and does not double the amount granted" — the gild buys a SECOND teach per turn '
+      + '("Twice per turn"), not a bigger grant; one Mage-Pup each time either way',
+  },
   dw_brisbane: {
     kind: 'reshape',
     basis: 'owner-ruling',

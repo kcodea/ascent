@@ -70,7 +70,7 @@ staged scenario CONFIRMS a mismatch or exposes a genuine design fork.
 - combat mod runeWrangler — Rune of the Wrangler: Imps summoned by your Imp Wranglers have Ward + Taunt.
 - combat mod runeSylus (Rune of Sylus: "Get a Sylus. Your Sylus gain Start of Combat: double this minion's Health.") — Rune of Sylus: your Sylus double their own Health at Start of Combat.
 - combat mod runeGroveweaver — Rune of the Groveweaver: a Groveweaver's summon grant also lands on itself, in combat as well as shop.
-- combat mod runeEnchantment (Rune of Enchantment: "Whenever you cast a Shop spell, give your minions +2/+3 permanently (+4/+6 during combat).") — Rune of Enchantment (combat half): a combat cast gives your minions +2/+2.
+- combat mod runeEnchantment (Rune of Enchantment: "Whenever you cast a Shop spell, give your minions +2/+3 permanently (+4/+6 during combat).") — Rune of Enchantment (combat half): a combat cast gives your minions +4/+6. Carries the COPY COUNT since the 2026-08-27 duplicate rulings (a duplicate doubles the grant); `true` in older snapshots reads as 1.
 - combat mod runeDragonscale (Rune of Dragonscale: "Whenever a friendly Dragon attacks, give it Ward. 3 times per combat.") — Rune of Dragonscale: how many Dragon attacks still earn Ward this combat (the printed 3).
 - combat mod beastialSwarmLevel — Rune of Beastial Swarm — the current per-death buff amount (starts 2, +2 per Avenge(2), run-persisted).
 - combat mod runeRuins (Rune of Ruins: "When a friendly Demon deals damage, give your minions +2/+2.")
@@ -79,5 +79,5 @@ staged scenario CONFIRMS a mismatch or exposes a genuine design fork.
 - combat mod runeHerdingHorn (Rune of the Herding Horn: "Whenever you trigger a Rally, gain a free refresh.")
 - combat mod runeDeathtouchedApple (Rune of the Deathtouched Apple: "When a minion Rises, give it Rise. (2 uses per combat)")
 - combat mod runeStokedMenagerie (Rune of the Stoked Menagerie: "Start of Combat: if you control all 5 minion types, double the stats of 3 random minions.") — Rune of the Stoked Menagerie: SoC — controlling every active type doubles 3 random minions.
-- combat mod runeMastery (Rune of Mastery: "Whenever one of your effects Improves, it improves an additional time.") — Rune of Mastery (Epic): every "Improve" step this side's effects take applies twice (read via `CombatContext.improveRepsFor`; the recruit engine mirrors it off `RunState.runeMastery`).
+- combat mod runeMastery (Rune of Mastery: "Whenever one of your effects Improves, it improves an additional time.") — Rune of Mastery (Epic): +1 extra "Improve" step per copy held (read via `CombatContext.improveRepsFor`; the recruit engine mirrors it off `RunState.runeMastery`). Carries the COPY COUNT since the 2026-08-27 duplicate rulings; `true` in older snapshots reads as 1 (= the classic double).
 - combat mod oldPack (Rune of the Old Pack: "The first Beast you Resummon each combat returns with its full stats.") — Rune of the Old Pack: the first Beast resummoned each combat returns with its full stats.

@@ -102,7 +102,7 @@ export const SET2_SPELLS: CardDef[] = [
     cost: 1,
     target: 'any',
     effects: [{ on: 'cast', do: 'spellStealAdjacentRubies' }],
-    text: "Play **2 Rubies** on a minion. It **steals all Ruby buffs** from adjacent minions.",
+    text: "Cast **2 Rubies** on a minion. It **steals all Ruby buffs** from adjacent minions.",
   },
   // ── Ales (owner batch 2026-07-25; renamed from Work Orders 2026-07-26) ─────────────────────────────────────────────────────────────
   // A cycle of five cheap Tier-3 utility spells on one template: same tier, same cost, each paying a different
@@ -204,7 +204,7 @@ export const SET2_SPELLS: CardDef[] = [
     spell: true,
     cost: 3,
     effects: [{ on: 'cast', do: 'spellPlayRubiesAll', params: { rubies: 2 } }],
-    text: 'Play **2 Rubies** on all of your minions.',
+    text: 'Cast **2 Rubies** on all of your minions.',
   },
   {
     // "Steal" = take the offer into hand for free, exactly as a buy would shape it (offer buffs fold in).

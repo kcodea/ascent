@@ -8146,7 +8146,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   display: flex; flex-direction: column; gap: calc(5 * var(--lu)); pointer-events: none;
   /* A solid backing plate. Translucent rows over the board's stonework washed every name out to grey — the
      panel has to be its own surface, not a tint on the art behind it. */
-  padding: calc(8 * var(--lu)); border-radius: calc(9 * var(--lu));
+  padding: calc(8 * var(--lu) * var(--lby-pad, 1)); border-radius: calc(9 * var(--lu) * var(--lby-rail-rad, 1));
   /* The gilded backplate art IS the rail's surface (🖼️ Opponents Backplate tuner composes `.lobbyrail.lobbyrail`
      live with dim + size + position dials; the trailing colour is the fallback if the image can't load). The
      image carries its OWN gold frame, so there is no inset hairline — the padding above insets the rows off it. */
@@ -8156,10 +8156,10 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .lobbyhead { display: flex; justify-content: space-between; align-items: center; flex: none; gap: calc(5 * var(--lfont));
   font-size: calc(9 * var(--lfont)); letter-spacing: 0.06em; text-transform: uppercase; color: rgba(255, 255, 255, 0.72); }
 /* Round + seats-left read a touch larger + bold (owner ask 2026-08-11) so the rail header carries the round HUD. */
-.lobbyround { font-size: calc(11 * var(--lfont)); font-weight: 800; color: #fff; letter-spacing: 0.05em; }
-.lobbyalive { font-size: calc(11 * var(--lfont)); font-weight: 800; color: #f4d58a; }
+.lobbyround { font-size: calc(11 * var(--lfont)); font-weight: 800; color: var(--lby-round-col, #fff); letter-spacing: 0.05em; }
+.lobbyalive { font-size: calc(11 * var(--lfont)); font-weight: 800; color: var(--lby-alive-col, #f4d58a); }
 /* Max-loss chip — the round's most-you-can-lose readout, moved off the removed top-left plaque. */
-.lobbymax { display: inline-flex; align-items: center; gap: calc(2 * var(--lfont)); font-size: calc(10 * var(--lfont)); font-weight: 800; color: #ff9a9a; }
+.lobbymax { display: inline-flex; align-items: center; gap: calc(2 * var(--lfont)); font-size: calc(10 * var(--lfont)); font-weight: 800; color: var(--lby-max-col, #ff9a9a); }
 .lobbymax svg { width: calc(11 * var(--lfont)); height: calc(11 * var(--lfont)); color: #ff6b6b; }
 
 /* NEXT-FOE MARKER — the next opponent's seat is lit IN PLACE: a bright gold ring + gentle pulse on the row
@@ -8221,34 +8221,42 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 /* The table sizes to its rows, and the rows size to `--lrow` — so the row-scale dial actually changes row
    height. (They used to be `flex: 1` inside a fixed-height rail, which pinned every row to an equal share of a
    constant and left the dial doing nothing but resizing portraits.) The rail's height dial is now a CAP. */
-.lobbyseats { flex: none; display: flex; flex-direction: column; gap: calc(2 * var(--lrow)); }
+.lobbyseats { flex: none; display: flex; flex-direction: column; gap: calc(2 * var(--lrow) * var(--lby-gap, 1)); }
 .lobbyseat { position: relative; flex: none; display: grid;
-  grid-template-columns: calc(18 * var(--lrow)) 1fr auto; grid-template-rows: auto auto auto;
-  align-items: center; column-gap: calc(4 * var(--lrow)); padding: calc(3 * var(--lrow)) calc(5 * var(--lrow)) calc(4 * var(--lrow));
-  border-radius: calc(5 * var(--lrow)); font-size: calc(11 * var(--lfont)); color: #f2ecff;
-  background: #211c2e; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08); }
-.lobbyseat.you { background: #1f3a5c; box-shadow: inset 0 0 0 1px rgba(140, 200, 255, 0.6); }
+  grid-template-columns: calc(18 * var(--lrow) * var(--lby-face, 1)) 1fr auto; grid-template-rows: auto auto auto;
+  align-items: center; column-gap: calc(4 * var(--lrow));
+  padding: calc(3 * var(--lrow) * var(--lby-seat-pad, 1)) calc(5 * var(--lrow) * var(--lby-seat-pad, 1)) calc(4 * var(--lrow) * var(--lby-seat-pad, 1));
+  border-radius: calc(5 * var(--lrow) * var(--lby-seat-rad, 1)); font-size: calc(11 * var(--lfont)); color: var(--lby-name-col, #f2ecff);
+  background: var(--lby-seat-bg, #211c2e); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--lby-seat-line, #fff) 8%, transparent); }
+.lobbyseat.you { background: var(--lby-you-bg, #1f3a5c); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--lby-you-line, #8cc8ff) 60%, transparent); }
 /* The NEXT opponent — lit BRIGHT so it reads at a glance now the "Next" pill is gone. A warm-gold seat + ring,
    plus an overlay whose glow PULSES via opacity only (a static shadow, opacity-animated — compositor-only per
    docs/performance.md; never a looping box-shadow). */
-.lobbyseat.foe { background: #46292b; box-shadow: inset 0 0 0 1px rgba(255, 196, 120, 0.95); }
+.lobbyseat.foe { background: var(--lby-foe-bg, #46292b);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--lby-foe-ring-col, #ffce82) 95%, transparent); }
 .lobbyseat.foe::after {
   content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
-  box-shadow: inset 0 0 0 calc(0.7 * var(--lrow)) rgba(255, 206, 130, 0.95),
-    0 0 calc(7 * var(--lrow)) calc(1 * var(--lrow)) rgba(255, 170, 80, 0.55);
-  animation: lobbyfoepulse 1.5s ease-in-out infinite; }
-@keyframes lobbyfoepulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
+  box-shadow: inset 0 0 0 calc(var(--lby-foe-ring, 0.7) * var(--lrow)) color-mix(in srgb, var(--lby-foe-ring-col, #ffce82) 95%, transparent),
+    0 0 calc(var(--lby-foe-glow, 7) * var(--lrow)) calc(var(--lby-foe-spread, 1) * var(--lrow)) color-mix(in srgb, var(--lby-foe-glow-col, #ffaa50) 55%, transparent);
+  animation: lobbyfoepulse calc(var(--lby-foe-pulse-dur, 1.5) * 1s) ease-in-out infinite; }
+/* Optional left accent bar — an alternative next-foe marker to the ring/glow (width 0 by default, so it's off
+   until the tuner raises it). Static, no pulse; the ring/glow above carries the pulse. */
+.lobbyseat.foe::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0; border-radius: inherit; pointer-events: none;
+  width: calc(var(--lby-foe-bar, 0) * var(--lrow));
+  background: color-mix(in srgb, var(--lby-foe-bar-col, #ffce82) 95%, transparent); }
+@keyframes lobbyfoepulse { 0%, 100% { opacity: var(--lby-foe-pulse-min, 0.5); } 50% { opacity: 1; } }
 .lobbyseat.dead { opacity: 0.5; }
-.lobbyface { grid-row: 1 / span 3; width: calc(18 * var(--lrow)); height: calc(18 * var(--lrow));
-  border-radius: 50%; object-fit: cover; }
+.lobbyface { grid-row: 1 / span 3; width: calc(18 * var(--lrow) * var(--lby-face, 1)); height: calc(18 * var(--lrow) * var(--lby-face, 1));
+  border-radius: calc(var(--lby-face-rad, 50) * 1%); object-fit: cover; }
 /* The opponent NAME gets its own full-width row (owner ask 2026-08-28) — spans both non-portrait columns on
    row 1, with the health / damage stats moved to row 2 and the bar to row 3 below it. */
 .lobbynameline { grid-column: 2 / span 2; grid-row: 1; display: flex; align-items: center; gap: calc(3 * var(--lrow)); min-width: 0; }
 .lobbyname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lobbyseat.dead .lobbyname { text-decoration: line-through; }
-.lobbyhp { display: inline-flex; align-items: center; gap: calc(1 * var(--lfont)); font-weight: 700; color: #ff8d8d; }
+.lobbyhp { display: inline-flex; align-items: center; gap: calc(1 * var(--lfont)); font-weight: 700; color: var(--lby-hp-col, #ff8d8d); }
 .lobbyhp svg { width: calc(8 * var(--lfont)); height: calc(8 * var(--lfont)); }
-.lobbyarmor { color: #9fc7ff; font-weight: 700; }
+.lobbyarmor { color: var(--lby-armor-col, #9fc7ff); font-weight: 700; }
 .lobbyplace { color: rgba(255, 255, 255, 0.62); font-weight: 700; }
 /* Health / placement sit on row 2 at the right, beside the round-damage number, now the name owns row 1. */
 .lobbyhp, .lobbyplace { grid-column: 3; grid-row: 2; justify-self: end; }
@@ -8258,11 +8266,11 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
    row of its own beneath the name so it reads as the seat's whole remaining pool at a glance, next to the exact
    number on the right. */
 .lobbybar { grid-column: 2 / span 2; grid-row: 3; height: calc(3 * var(--lrow)); border-radius: 999px;
-  background: rgba(255, 255, 255, 0.10); overflow: hidden; }
+  background: color-mix(in srgb, var(--lby-bar-track, #fff) 10%, transparent); overflow: hidden; }
 .lobbybar > span { display: block; height: 100%; border-radius: inherit;
-  background: linear-gradient(90deg, #ff8d8d, #ffc38d); }
-.lobbyseat.you .lobbybar > span { background: linear-gradient(90deg, #8cc8ff, #b9e2ff); }
-.lobbydmg { grid-column: 2; grid-row: 2; font-size: calc(9 * var(--lfont)); font-weight: 800; color: #ff6b6b;
+  background: linear-gradient(90deg, var(--lby-bar-a, #ff8d8d), var(--lby-bar-b, #ffc38d)); }
+.lobbyseat.you .lobbybar > span { background: linear-gradient(90deg, var(--lby-youbar-a, #8cc8ff), var(--lby-youbar-b, #b9e2ff)); }
+.lobbydmg { grid-column: 2; grid-row: 2; font-size: calc(9 * var(--lfont)); font-weight: 800; color: var(--lby-dmg-col, #ff6b6b);
   line-height: 1; min-height: calc(8 * var(--lfont)); animation: lobbydmgpop 420ms ease-out; }
 @keyframes lobbydmgpop {
   0% { transform: translateY(calc(-2 * var(--lfont))) scale(1.3); opacity: 0; }

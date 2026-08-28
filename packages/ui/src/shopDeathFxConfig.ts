@@ -19,7 +19,16 @@
 export interface ShopDeathFxConfig {
   /** ms the borrowed body stays on the board before `resolveShopDeath` fires. 0 = resolve immediately. */
   landingMs: number;
-  /** ms after the commit before the Echo burst plays. */
+  /**
+   * When the Echo burst plays, relative to the moment the body is destroyed.
+   *
+   * NEGATIVE is a LEAD: the skull fires that many ms BEFORE the destruction, while the body is still on the
+   * board — which is what "trigger slightly earlier" means (owner 2026-08-28). A lead needs a window to live
+   * in, so it applies where one exists: Funeral on Loan's landing. A destroy that resolves in a single action
+   * (Graverobber) has no window, and a lead there clamps to 0.
+   *
+   * POSITIVE delays it past the destruction. 0 fires it as the body leaves.
+   */
   echoDelayMs: number;
   /** ms after the commit before the death dissolve plays. */
   deathDelayMs: number;
@@ -35,10 +44,11 @@ export interface ShopDeathFxConfig {
 }
 
 const DEFAULTS: ShopDeathFxConfig = {
-  // 300ms: long enough to read as "it landed", short enough not to feel like a stall. The owner's correction
-  // to the 480ms this shipped with.
-  landingMs: 300,
-  echoDelayMs: 0,
+  // The owner's tuned value (2026-08-28), dialled live and handed back: 480 → 300 → 200.
+  landingMs: 200,
+  // A 120ms LEAD, so the skull fires while the body is still there and the departure lands INTO it, rather
+  // than after it (owner: "can we have the pixi purple skull animation trigger slightly earlier?").
+  echoDelayMs: -120,
   deathDelayMs: 0,
   offsetX: 0,
   offsetY: 0,
@@ -78,7 +88,7 @@ export const SHOP_DEATH_FX_DEFAULTS: Readonly<ShopDeathFxConfig> = DEFAULTS;
 /** [min, max, step] per dial, for the tuner's sliders. */
 export const SHOP_DEATH_FX_RANGES: Partial<Record<keyof ShopDeathFxConfig, [number, number, number]>> = {
   landingMs: [0, 1200, 10],
-  echoDelayMs: [0, 800, 10],
+  echoDelayMs: [-400, 800, 10],
   deathDelayMs: [0, 800, 10],
   offsetX: [-200, 200, 1],
   offsetY: [-200, 200, 1],

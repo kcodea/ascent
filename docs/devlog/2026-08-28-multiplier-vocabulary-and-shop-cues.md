@@ -99,3 +99,24 @@ in production, like every other tuner.
 No Test button, deliberately: these cues can only be judged against a REAL death, and both producers are one
 click away in the Scene Builder. A synthetic fire would let you tune the flourish while telling you nothing
 about its timing against the body actually leaving, which is the thing being judged.
+
+
+## Follow-up 2: the Echo LEAD, and the owner's tuned values
+
+Owner dialled the panel live and handed back `landingMs: 200` (from 480 → 300 → 200), then asked for the
+purple skull to "trigger slightly earlier". It could not: with `echoDelayMs` floored at 0, the earliest the
+Echo could fire was the moment the body was destroyed, because the cue only reaches the UI in the batch the
+destruction produces. By then the moment has passed.
+
+So `echoDelayMs` now takes NEGATIVE values, and negative means a LEAD rather than a delay: the skull fires
+that many ms BEFORE the destruction, while the body is still on the board, so the departure lands INTO the
+burst instead of following it. Default −120ms.
+
+A lead needs a window to live in, and only Funeral on Loan has one — its landing. The lead is fired from the
+landing timer (the one place that knows the window), which records the uid so the cue effect does not play the
+same Echo again a beat later. A destroy that resolves in a single action (Graverobber) has no window at all, so
+a lead there clamps to 0; giving it one would mean the same two-step treatment, which is a gameplay-ordering
+change and was not made on a presentation ask.
+
+Owner's values are the shipped defaults now, not just a localStorage entry — but note that a machine which
+already tuned the panel keeps its stored values, so the new defaults only appear after Reset.

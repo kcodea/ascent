@@ -18,7 +18,7 @@ import type { TunerControl, TunerSpec, TunerUnit } from './tunerSchema';
  */
 const SPECS: Record<keyof ShopDeathFxConfig, [string, TunerUnit | undefined, string, string]> = {
   landingMs:    ['Time before destruction', 'ms', 'How long a borrowed minion (Funeral on Loan) stays on the board before it dies. 0 destroys it immediately.', 'Timing'],
-  echoDelayMs:  ['Echo delay', 'ms', 'Pause between the body leaving and the Echo burst firing.', 'Timing'],
+  echoDelayMs:  ['Echo timing', 'ms', 'When the Echo skull fires, relative to the body being destroyed. NEGATIVE fires it EARLIER, while the minion is still on the board — only Funeral on Loan has a window for that; a single-action destroy clamps to 0.', 'Timing'],
   deathDelayMs: ['Death delay', 'ms', 'Pause between the body leaving and the death dissolve firing.', 'Timing'],
 
   offsetX:      ['Horizontal offset', 'px', 'Nudges both animations sideways from where the card was.', 'Position'],

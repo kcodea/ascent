@@ -1674,6 +1674,16 @@ export function Recruit() {
   // layout effect). The warband cards mount on exactly this render, so passing it as `suppressPop`
   // makes them skip the mount-pop (no jiggle) while cards played later still pop normally.
   const returningFromCombat = prevPhaseRef.current === 'combat' && run.phase === 'recruit';
+  const findEl = useCallback(
+    (uid: string): Element | null =>
+      document.querySelector(
+        `[data-zone="warband"] [data-uid="${uid}"], [data-zone="tavern"] [data-uid="${uid}"]`,
+      ),
+    [],
+  );
+  /** Echoes already played by the LEAD below — skipped when their batch arrives, so one Echo is one burst. */
+  const preFiredEchoRef = useRef<Set<string>>(new Set());
+
   /**
    * THE SHOP'S TWO-STEP DEATH — the landing half (owner design 2026-08-28: "the minion should be coded to
    * literally land as if it was played, but then the immediate next action is that it is destroyed").
@@ -1689,19 +1699,28 @@ export function Recruit() {
   const pendingDeathUid = run.pendingDeath?.uid;
   useEffect(() => {
     if (!pendingDeathUid) return;
-    const ms = getShopDeathFxConfig().landingMs;
-    if (ms <= 0) { dispatch({ type: 'resolveShopDeath' }); return; }
-    const id = window.setTimeout(() => dispatch({ type: 'resolveShopDeath' }), ms);
-    return () => window.clearTimeout(id);
-  }, [pendingDeathUid, dispatch]);
+    const cfg = getShopDeathFxConfig();
+    const ms = Math.max(0, cfg.landingMs);
+    // THE ECHO LEAD (owner 2026-08-28: "trigger slightly earlier"). A negative `echoDelayMs` fires the skull
+    // BEFORE the destruction, while the body is still on the board — so the departure lands INTO the burst
+    // instead of following it. This is the only place a lead can happen: once the death commits, the moment
+    // has passed. The uid is recorded so the cue effect does not fire the same Echo again a beat later.
+    const lead = Math.min(ms, Math.max(0, -cfg.echoDelayMs));
+    const timers: number[] = [];
+    if (lead > 0 && cfg.echoEnabled) {
+      timers.push(window.setTimeout(() => {
+        const el = findEl(pendingDeathUid);
+        if (!el) return; // gone early (an interrupting action settled the death) — the cue effect covers it
+        const r = el.getBoundingClientRect();
+        preFiredEchoRef.current.add(pendingDeathUid);
+        pixiFx.deathrattle(r.left + r.width / 2 + cfg.offsetX, r.top + r.height / 2 + cfg.offsetY, r.width * cfg.sizeScale);
+      }, ms - lead));
+    }
+    if (ms <= 0) { dispatch({ type: 'resolveShopDeath' }); return () => timers.forEach(window.clearTimeout); }
+    timers.push(window.setTimeout(() => dispatch({ type: 'resolveShopDeath' }), ms));
+    return () => timers.forEach(window.clearTimeout);
+  }, [pendingDeathUid, dispatch, findEl]);
 
-  const findEl = useCallback(
-    (uid: string): Element | null =>
-      document.querySelector(
-        `[data-zone="warband"] [data-uid="${uid}"], [data-zone="tavern"] [data-uid="${uid}"]`,
-      ),
-    [],
-  );
   /**
    * SHOP DEATH + ECHO CUES (owner ask 2026-08-28) — the shop's answer to combat's death visuals.
    *
@@ -1745,6 +1764,7 @@ export function Recruit() {
         const anchors = anchorsForUnits(null, fx.uid);
         if (anchors) playDef('death-dissolve', anchors, { uids: { source: null, target: fx.uid } });
       };
+      if (fx.kind === 'echo' && preFiredEchoRef.current.delete(fx.uid)) continue; // the lead already played it
       if (fx.kind === 'echo' && !cfg.echoEnabled) continue;
       if (fx.kind === 'death' && !cfg.deathEnabled) continue;
       const delay = fx.kind === 'echo' ? cfg.echoDelayMs : cfg.deathDelayMs;

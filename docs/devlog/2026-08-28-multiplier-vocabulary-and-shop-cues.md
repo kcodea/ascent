@@ -146,3 +146,34 @@ place that knows a death happened — the FLIP effect just sees an ordinary boar
 the single commit that follows, so every other commit glides exactly as it always did.
 
 Owner's tuned lead (−40ms) is the shipped default.
+
+
+## Follow-up 4: three Choose One reports — and a blind spot in the local test run
+
+**Crest of the Climb still drew a target line while dragging.** The DROP path honoured "choose first" from the
+start; the AIM path did not. `computeCastingSpell` — the one gate that decides whether a dragged spell enters
+aim mode, shared by the reticle, the aim rAF and the re-render gate — knew nothing about Choose One, so a
+targeted Choose One still demanded a minion under the cursor. It takes the predicate now, threaded through
+`DragDecisionInput`, and the answer is derived once in `Recruit.tsx` for both the render and the rAF.
+
+**A shop Veinbreaker under Rune of the Unbroken Vein printed "Choose One:" while the copy in hand read
+(Both).** The predicate and the plumbing were both right; the tavern row and the spell slot simply build their
+view options as long inline literals, and `chooseBothState` was in neither. It is a named, hoisted `bothState`
+now, so a third surface is a one-word addition. A future global arm ("your next Choose One triggers both")
+belongs in `chooseBothActive` beside the two rune flags, and every surface reading that object lights up at
+once with no further wiring — which is what the owner asked for.
+
+**(Both) follows the tribe colour.** It used the green `{{…}}` marker, whose meaning is "a modified value of
+this card's own rule" — which (Both) is not. It has its own `<<…>>` marker rendering `.descboth`, coloured
+from `--c`, the tribe variable the card root already sets. A Kobold reads #e8763a, a Beast green.
+
+### The blind spot
+
+`chooseOneBoth.test.tsx` did not run. **jsdom was never installed in this checkout**, so every `.test.tsx`
+file silently reported "no tests" and the suite counted 521 files while CI ran more. The marker change above
+broke three assertions in that file and the local run stayed green.
+
+After `npm install`: **532 files, 7,682 tests** — 11 files and 102 tests that had been invisible all session.
+CLAUDE.md already warns to run `npm install` inside a fresh worktree before trusting a local typecheck; the
+same applies to the PRIMARY checkout, and the failure mode here is quieter than the one documented (a missing
+optional dep skips files silently rather than erroring).

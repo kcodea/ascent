@@ -2428,7 +2428,20 @@ export function Recruit() {
   // drag-motion rAF) so that effect can depend on it: when a spell drops back below the line mid-drag the
   // floating .dragcard REMOUNTS, and the rAF must re-run to position it — otherwise it strands at 0,0 (the
   // top-left "ghost card" bug).
-  const castingSpell = computeCastingSpell(drag, drag ? drag.y : 0, spellFloorRef.current);
+  /**
+   * Does the DRAGGED card still owe a Choose One decision? Such a card never enters aim mode: it is dragged up
+   * like an untargeted spell and the aim picker opens after the branch is picked (owner ruling 2026-08-28).
+   * A card whose branches are already settled — a Gilded Orivax, a Veinbreaker under its rune — keeps aiming
+   * straight from the drag, because there is no question to ask.
+   */
+  const dragAsksChoiceFirst = useMemo(
+    () => (drag ? chooseOneNeedsChoice(run, run.hand.find((c) => c.uid === drag.uid), CARD_INDEX[drag.view.cardId]) : false),
+    [drag, run],
+  );
+  const castingSpell = computeCastingSpell(drag, drag ? drag.y : 0, spellFloorRef.current, dragAsksChoiceFirst);
+  // The move-flush rAF runs outside render, so it reads the same answer through a ref.
+  const asksFirstRef = useRef(dragAsksChoiceFirst);
+  asksFirstRef.current = dragAsksChoiceFirst;
 
   // The weighted-drag rAF: while a card is actively dragged (and not snapping/magnet-sliding), smooth the
   // card's render position toward the cursor (OUTER element) and dive it toward its motion (INNER `.dragtilt`).
@@ -2680,6 +2693,21 @@ export function Recruit() {
   // `stabilize*` helpers reuse an object when its displayed content is unchanged, restoring the memo bailout so
   // only the card that actually changed re-renders. The returned map IS the next cache (current uids only, no
   // leak). See `cardViewEqual.ts`.
+  /**
+   * The run flags that decide (Both) — the ONE object every offer surface passes to `chooseBothActive`.
+   *
+   * The tavern row and the spell slot build their opts as long inline literals, and this field was simply not
+   * in either of them, so a shop Veinbreaker under Rune of the Unbroken Vein printed "Choose One:" and wore no
+   * marker while the copy in hand read (Both) (owner report 2026-08-28). Named and hoisted so a THIRD surface
+   * is a one-word addition rather than another thing to remember.
+   *
+   * A future global arm — "your next Choose One triggers both" — belongs in `chooseBothActive` alongside the
+   * two rune flags, and every surface reading this object lights up at once with no further wiring.
+   */
+  const bothState = useMemo(
+    () => ({ runeFacetwright: run.runeFacetwright, runeUnbrokenVein: run.runeUnbrokenVein }),
+    [run.runeFacetwright, run.runeUnbrokenVein],
+  );
   const shopViewCache = useRef(new Map<string, CardView>());
   const spellViewCache = useRef<CardView | null>(null);
   const refViewCache = useRef(new Map<string, CardView[]>());
@@ -2689,7 +2717,7 @@ export function Recruit() {
     // The spell-display opts (cost mod + bonuses) ride along too, so Spell Cart's spell offers in the minion
     // row read their right cost + value, like the spell slot.
     () => {
-      const fresh = new Map(run.shop.map((o) => [o.uid, shopView(o, { freeFirstBuy: (run.rift === 'freedom' || !!run.questFreeFirstBuy) && !run.freeBuyUsedThisTurn && !o.held && !CARD_INDEX[o.cardId]?.spell, cardBuffs: cardBuffsLive, tavernAtk: run.tavernBuyBonus.atk + (run.tavernBuyBonusTurn?.atk ?? 0), tavernHp: run.tavernBuyBonus.hp + (run.tavernBuyBonusTurn?.hp ?? 0), undeadAtk: run.undeadAttackBonus, undeadHp: run.undeadHealthBonus, undeadBuyAtk: run.undeadBuyAtk, beastBuyAtk: run.beastBuyAtk, beastBuyHp: run.beastBuyHp, magneticBuyAtk: run.magneticBuyAtk, magneticBuyHp: run.magneticBuyHp, deathrattlesTriggered: run.deathrattlesTriggered, spellsCast: run.spellsCast, spellsThisTurn: run.spellsThisTurn, soulsmanGold: run.soulsmanGold, impAura: run.impBuff, rubyCasts: run.rubyCasts, fodderConsumed: run.fodderConsumedThisTurn, spellCostMod: spellCostReduction(run, CARD_INDEX[o.cardId]), spellBonus, spellBonusH, frontToBackBonus: run.frontToBackBonus, frontToBackBonusH: run.frontToBackBonusH, growthBonus: run.growthBonus, goldSpent: run.goldSpentThisTurn, goldPouchValue: run.goldPouchValue, playedThisTurn: run.playedThisTurn, squirlScoutBuff: run.squirlScoutBuff, conductorBuff: run.conductorBuff, alesThisTurn: run.alesCastThisTurn, lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined, firstSpellThisTurnName: run.firstSpellThisTurnId ? CARD_INDEX[run.firstSpellThisTurnId]?.name : undefined, lastSpellThisTurnName: run.lastSpellThisTurnId ? CARD_INDEX[run.lastSpellThisTurnId]?.name : undefined, topTribe: dominantBoardTribe(run), minionCost: heroOfferPrice(run, o) ?? Math.max(0, minionCostOf(run) - gateUses(run.cadenceMinionOff)), juggler: getHero(run.heroId).power.kind === 'baldgecoin', castMult: CARD_INDEX[o.cardId]?.spell || CARD_INDEX[o.cardId]?.ruby ? spellCastCount(run, CARD_INDEX[o.cardId]!) : undefined, eotBuff: eotShopStats?.[o.uid] })] as const));
+      const fresh = new Map(run.shop.map((o) => [o.uid, shopView(o, { freeFirstBuy: (run.rift === 'freedom' || !!run.questFreeFirstBuy) && !run.freeBuyUsedThisTurn && !o.held && !CARD_INDEX[o.cardId]?.spell, cardBuffs: cardBuffsLive, tavernAtk: run.tavernBuyBonus.atk + (run.tavernBuyBonusTurn?.atk ?? 0), tavernHp: run.tavernBuyBonus.hp + (run.tavernBuyBonusTurn?.hp ?? 0), undeadAtk: run.undeadAttackBonus, undeadHp: run.undeadHealthBonus, undeadBuyAtk: run.undeadBuyAtk, beastBuyAtk: run.beastBuyAtk, beastBuyHp: run.beastBuyHp, magneticBuyAtk: run.magneticBuyAtk, magneticBuyHp: run.magneticBuyHp, deathrattlesTriggered: run.deathrattlesTriggered, spellsCast: run.spellsCast, spellsThisTurn: run.spellsThisTurn, soulsmanGold: run.soulsmanGold, impAura: run.impBuff, rubyCasts: run.rubyCasts, fodderConsumed: run.fodderConsumedThisTurn, spellCostMod: spellCostReduction(run, CARD_INDEX[o.cardId]), spellBonus, spellBonusH, frontToBackBonus: run.frontToBackBonus, frontToBackBonusH: run.frontToBackBonusH, growthBonus: run.growthBonus, goldSpent: run.goldSpentThisTurn, goldPouchValue: run.goldPouchValue, playedThisTurn: run.playedThisTurn, squirlScoutBuff: run.squirlScoutBuff, conductorBuff: run.conductorBuff, alesThisTurn: run.alesCastThisTurn, lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined, firstSpellThisTurnName: run.firstSpellThisTurnId ? CARD_INDEX[run.firstSpellThisTurnId]?.name : undefined, lastSpellThisTurnName: run.lastSpellThisTurnId ? CARD_INDEX[run.lastSpellThisTurnId]?.name : undefined, topTribe: dominantBoardTribe(run), minionCost: heroOfferPrice(run, o) ?? Math.max(0, minionCostOf(run) - gateUses(run.cadenceMinionOff)), juggler: getHero(run.heroId).power.kind === 'baldgecoin', castMult: CARD_INDEX[o.cardId]?.spell || CARD_INDEX[o.cardId]?.ruby ? spellCastCount(run, CARD_INDEX[o.cardId]!) : undefined, eotBuff: eotShopStats?.[o.uid], chooseBothState: bothState })] as const));
       shopViewCache.current = stabilizeViewMap(fresh, shopViewCache.current);
       return shopViewCache.current;
     },
@@ -2706,7 +2734,7 @@ export function Recruit() {
   );
   const spellView = useMemo(
     () => {
-      const fresh = run.spell ? shopView(run.spell, { spellCostMod: spellCostReduction(run, CARD_INDEX[run.spell.cardId]), spellBonus, spellBonusH, frontToBackBonus: run.frontToBackBonus, frontToBackBonusH: run.frontToBackBonusH, growthBonus: run.growthBonus, goldSpent: run.goldSpentThisTurn, goldPouchValue: run.goldPouchValue, rubyBonus: rubyStatBonus(run), tier7Access: hasTier7Access(run), playedThisTurn: run.playedThisTurn, castMult: CARD_INDEX[run.spell.cardId]?.spell || CARD_INDEX[run.spell.cardId]?.ruby ? spellCastCount(run, CARD_INDEX[run.spell.cardId]!) : undefined }) : null;
+      const fresh = run.spell ? shopView(run.spell, { spellCostMod: spellCostReduction(run, CARD_INDEX[run.spell.cardId]), spellBonus, spellBonusH, frontToBackBonus: run.frontToBackBonus, frontToBackBonusH: run.frontToBackBonusH, growthBonus: run.growthBonus, goldSpent: run.goldSpentThisTurn, goldPouchValue: run.goldPouchValue, rubyBonus: rubyStatBonus(run), tier7Access: hasTier7Access(run), playedThisTurn: run.playedThisTurn, castMult: CARD_INDEX[run.spell.cardId]?.spell || CARD_INDEX[run.spell.cardId]?.ruby ? spellCastCount(run, CARD_INDEX[run.spell.cardId]!) : undefined, chooseBothState: bothState }) : null;
       spellViewCache.current = stabilizeView(fresh, spellViewCache.current);
       return spellViewCache.current;
     },
@@ -3095,12 +3123,14 @@ export function Recruit() {
         deriveDragDecision({
           drag: d0, x, y, overZone: z, magSlide: magSlideRef.current, playFloor: playFloorRef.current, spellFloor: spellFloorRef.current,
           collapseY: getDragFeel().collapseY, boardMax: CONFIG.boardMax, board: run.board, spellUid: run.spell?.uid, geo: gateGeo,
+          asksChoiceFirst: asksFirstRef.current,
         });
       const shownDec = committed ? decOf(committed.x, committed.y, lastZone) : null;
       const decisionChanged =
         !shownDec ||
         !dragDecisionEqual(decOf(e.clientX, e.clientY, zone), shownDec) ||
-        computeCastingSpell(d0, e.clientY, spellFloorRef.current) !== computeCastingSpell(d0, committed!.y, spellFloorRef.current);
+        computeCastingSpell(d0, e.clientY, spellFloorRef.current, asksFirstRef.current)
+          !== computeCastingSpell(d0, committed!.y, spellFloorRef.current, asksFirstRef.current);
       if (decisionChanged || willBeActive !== (d0?.active ?? false) || zone !== lastZone) {
         committed = { x: e.clientX, y: e.clientY };
         lastZone = zone;
@@ -4200,6 +4230,7 @@ export function Recruit() {
     spellFloor: spellFloorRef.current,
     collapseY: getDragFeel().collapseY,
     boardMax: CONFIG.boardMax,
+    asksChoiceFirst: dragAsksChoiceFirst,
     board: run.board,
     spellUid: run.spell?.uid,
     geo: dragGeo,

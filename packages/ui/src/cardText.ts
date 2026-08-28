@@ -345,7 +345,9 @@ export function runeModifiedNote(cardId: string, flags: RuneTextFlags | undefine
 export function chooseBothText(cardId: string, golden: boolean): string | null {
   const opts = CARD_INDEX[cardId]?.chooseOne;
   if (!opts?.length) return null;
-  return `{{(Both)}} ${opts.map((o) => (golden ? (o.goldenText ?? o.text) : o.text)).join(' ')}`;
+  // `<<…>>` is the TRIBE-coloured marker (owner 2026-08-28) — not `{{…}}`, whose green means "a modified
+  // value of this card's own rule". A Kobold's (Both) reads in the Kobold orange, a Beast's in Beast green.
+  return `<<(Both)>> ${opts.map((o) => (golden ? (o.goldenText ?? o.text) : o.text)).join(' ')}`;
 }
 
 export function cadenceProgressText(cardId: string, eotTick: number, golden = false): string | null {

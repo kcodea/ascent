@@ -56,6 +56,21 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-08-28',
+    label: 'Opponents Rail',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: 'The opponents rail down the right edge got a full visual pass — a gilded backplate frame, warmer plaques, each opponent’s name on its own banner, and a shield icon on armor.',
+        details: [
+          'The next opponent you fight is lit brighter in place — a ring, glow and accent bar mark it, replacing the old “Next” label.',
+          'A seat’s health now reads larger and bold, and sits in the same spot whether or not the seat has armor.',
+          'The scouting card you open by hovering an opponent always stays fully on screen instead of being clipped at the edge.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-08-28',
     label: 'Multipliers',
     changes: [
       {

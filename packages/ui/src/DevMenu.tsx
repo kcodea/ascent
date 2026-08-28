@@ -12,6 +12,7 @@ import { RubyPowerFxTuner } from './RubyPowerFxTuner';
 import { CardPillsTuner } from './CardPillsTuner';
 import { CardArtTuner } from './CardArtTuner';
 import { LobbyPanelTuner } from './LobbyPanelTuner';
+import { LobbyRailLookTuner } from './LobbyRailLookTuner';
 import { TitleLogoTuner } from './TitleLogoTuner';
 import { LoadScreenTuner } from './LoadScreenTuner';
 import { HeroDuelTuner } from './HeroDuelTuner';
@@ -56,6 +57,7 @@ import { ReplayRailTuner } from './ReplayRailTuner';
 import { HeroCeremonyTuner } from './HeroCeremonyTuner';
 import { ChargeGlyphTuner } from './ChargeGlyphTuner';
 import { RuneforgeBgTuner } from './RuneforgeBgTuner';
+import { OpponentsBackplateTuner } from './OpponentsBackplateTuner';
 import { RuneSheenTuner } from './RuneSheenTuner';
 import { GlowTuner } from './GlowTuner';
 import { AlignArcTuner } from './AlignArcTuner';
@@ -125,6 +127,8 @@ const GROUPS: Group[] = [
       { key: 'cardart', icon: '🖌️', label: 'Card Art', C: CardArtTuner, hint: "One card's illustration: framing inside the window, plus hue/saturation/contrast" },
       { key: 'heropanel', icon: '🧍', label: 'Hero Panel', C: HeroPanelTuner, hint: 'The bottom-left hero tray' },
       { key: 'lobbypanel', icon: '🪑', label: 'Lobby Rail', C: LobbyPanelTuner, hint: 'The 8-seat table down the right edge' },
+      { key: 'opponentsbackplate', icon: '🖼️', label: 'Opponents Backplate', C: OpponentsBackplateTuner, hint: 'The gilded frame art behind the lobby rail', alt: 'lobby rail backdrop backplate frame' },
+      { key: 'lobbyraillook', icon: '🎨', label: 'Lobby Rail Look', C: LobbyRailLookTuner, hint: 'Colours, portraits, spacing, corners and the next-foe marker inside the rail', alt: 'lobby rail contents colours portraits next foe' },
       { key: 'secondpower', icon: '👥', label: 'Second Power', C: SecondPowerTuner, hint: "Void's second hero-power button — offset + scale", alt: 'void twin power position' },
       { key: 'boardedge', icon: '🌫️', label: 'Board Edge', C: BoardEdgeTuner, hint: 'The colour the board fades into on an ultrawide (wider than 16:9) window', alt: 'ultrawide margin side blend' },
       { key: 'modepick', icon: '🎛️', label: 'Play Mode Screen', C: ModePickTuner, hint: 'The MODE picker — each card, the art inside it, and the MODE title', alt: 'play screen mode picker' },

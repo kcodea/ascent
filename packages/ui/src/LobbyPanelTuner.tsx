@@ -22,13 +22,15 @@ const SPECS: Record<LobbyPanelKey, [string, TunerUnit | undefined, string, strin
   right:     ['Gap from right edge', 'px', 'Distance from the stage’s right edge.', 'Rail'],
   top:       ['Top edge', '%', 'Top of the rail, as a percentage of stage height.', 'Rail'],
   height:    ['Maximum height', '%', 'A CAP, not a fixed height — the rail sizes itself to its rows and scrolls past this rather than clipping.', 'Rail'],
+  offsetX:   ['Shift · horizontal', 'px', 'Nudge the WHOLE panel and its contents left/right. Positive = right.', 'Shift'],
+  offsetY:   ['Shift · vertical', 'px', 'Nudge the WHOLE panel and its contents up/down. Positive = down.', 'Shift'],
   rowScale:  ['Row size', '×', 'Seat-row box: its padding and portrait size.', 'Seat rows'],
   fontScale: ['Text size', '×', 'Seat-row text: name, health and damage.', 'Seat rows'],
   foeScale:  ['Card size', '×', 'The Next Foe card — its portrait and text.', 'Next foe'],
 };
 
 /** Declaration order IS render order, and controls sharing a group render together under its heading. */
-const ORDER: LobbyPanelKey[] = ['scale', 'width', 'right', 'top', 'height', 'rowScale', 'fontScale', 'foeScale'];
+const ORDER: LobbyPanelKey[] = ['scale', 'width', 'right', 'top', 'height', 'offsetX', 'offsetY', 'rowScale', 'fontScale', 'foeScale'];
 
 const controls: TunerControl<Extract<keyof LobbyPanelConfig, string>>[] = ORDER.map((key) => {
   const [label, unit, hint, group] = SPECS[key];

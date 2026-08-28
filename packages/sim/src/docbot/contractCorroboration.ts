@@ -27,6 +27,7 @@ import {
   deriveContractStatus,
   type ContentContract, type ContractAspectVerdict, type DerivedContractStatus, type ContractReviewStatus,
 } from '@game/rules/contracts/schema';
+import { PARKED_REASON } from '@game/rules/parked';
 import { PHASE_EXCUSED } from './phaseRegistry';
 import { playScan, type PlayScanResult } from './playScan';
 import { PLAY_EXCUSED, WATCHER_EXCUSED } from './historyRegistry';
@@ -68,6 +69,9 @@ export interface CorroborationReport {
   aspectTotals: Record<CorroborationAspect, { agree: number; disagree: number; uncovered: number }>;
   /** Derived-status counts (the report's headline: corroborated is DERIVED, never merged into approved). */
   statusTotals: Record<DerivedContractStatus, number>;
+  /** Owner-parked WIP contracts per class id, and how many verdicts were downgraded on their account.
+   *  Parked rows are still MEASURED and still counted — the lane simply stops asserting intent (2026-08-28). */
+  parked: { byClass: Record<string, number>; downgraded: number };
 }
 
 const CARD_TYPES = new Set(['minion', 'spell', 'token', 'gift', 'henchman']);
@@ -179,14 +183,32 @@ export function corroborateContracts(
     CORROBORATION_ASPECTS.map((a) => [a, { agree: 0, disagree: 0, uncovered: 0 }]),
   ) as CorroborationReport['aspectTotals'];
   const statusTotals: Record<string, number> = {};
+  const parkedByClass: Record<string, number> = {};
+  let parkedDowngraded = 0;
 
   for (const c of contracts) {
-    const aspects: ContractAspectVerdict[] = [
+    let aspects: ContractAspectVerdict[] = [
       phaseAspect(c),
       textStatAspect(c, sources),
       textSummonAspect(c, sources),
       runtimeAspect(c, scan),
     ];
+    if (c.parked) {
+      // KEEP VERIFYING, STOP ASSERTING INTENT (owner parking, 2026-08-28): every aspect is still measured
+      // above — a genuine mismatch is still visible in the row's detail — but a 'disagree' is a claim about
+      // INTENT, and the owner has said this surface has none yet. Downgrade to 'uncovered', citing why.
+      const p = c.parked;
+      parkedByClass[p.classId] = (parkedByClass[p.classId] ?? 0) + 1;
+      aspects = aspects.map((a) => {
+        if (a.verdict !== 'disagree') return a;
+        parkedDowngraded += 1;
+        return {
+          aspect: a.aspect,
+          verdict: 'uncovered' as const,
+          detail: `${PARKED_REASON} (${p.classId}): measured but not asserted — ${p.why} · measurement was: ${a.detail ?? '(no detail)'}`,
+        };
+      });
+    }
     for (const a of aspects) {
       aspectTotals[a.aspect as CorroborationAspect][a.verdict] += 1;
       if (a.verdict === 'disagree') disagreements.push({ contractId: c.contentId, aspect: a.aspect as CorroborationAspect, detail: a.detail ?? '' });
@@ -196,5 +218,11 @@ export function corroborateContracts(
     rows.push({ contractId: c.contentId, stored: c.reviewStatus, derived, aspects });
   }
 
-  return { rows, disagreements, aspectTotals, statusTotals: statusTotals as CorroborationReport['statusTotals'] };
+  return {
+    rows,
+    disagreements,
+    aspectTotals,
+    statusTotals: statusTotals as CorroborationReport['statusTotals'],
+    parked: { byClass: parkedByClass, downgraded: parkedDowngraded },
+  };
 }

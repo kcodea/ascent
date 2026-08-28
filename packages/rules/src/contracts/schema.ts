@@ -268,6 +268,27 @@ export interface ContractExtraction {
   unparsed?: string[];
 }
 
+// ── Parked WIP surfaces (owner triage 2026-08-28) ────────────────────────────────────────────────────────
+
+/**
+ * A stamp saying "the owner has declared this surface unfinished — the contract EXISTS, it still counts in
+ * every inventory, and the lanes keep measuring it, but nothing here may be read as INTENT."
+ *
+ * Deliberately a field rather than a `reviewStatus` value: parking is orthogonal to review (a parked draft
+ * is still an extracted draft), and a stored status must never hold a machine verdict. The registry of
+ * parked classes lives in `@game/rules/parked`; un-parking is one edit there.
+ */
+export interface ParkedContract {
+  /** The `ParkedClass.id` that parked this contract ('orbit', 'celestial', …). */
+  classId: string;
+  /** Always 'parked-wip' — the single machine-readable reason string every lane cites. */
+  reason: 'parked-wip';
+  /** The owner's own words for WHY. */
+  why: string;
+  /** ISO date the owner parked the class. */
+  since: string;
+}
+
 // ── The contract ─────────────────────────────────────────────────────────────────────────────────────────
 
 export interface ContentContract {
@@ -292,6 +313,8 @@ export interface ContentContract {
   multiplier?: MultiplierContract;
   textContract?: TextContract;
   relatedRuleIds?: string[];
+  /** Set when this contract's subject belongs to an owner-parked WIP class — see `ParkedContract`. */
+  parked?: ParkedContract;
   notes?: string;
 }
 
@@ -380,6 +403,16 @@ export function gildedDeltaErrors(c: ContentContract): string[] {
   // 'unresolved' is only honest when the gap is ALSO on the visible queue (§4.3).
   if (g.basis === 'unresolved' && !(c.extraction?.unparsed ?? []).includes('gildedDelta.shape')) {
     errors.push(`${id}: gildedDelta basis 'unresolved' must list 'gildedDelta.shape' in extraction.unparsed — an unresolved shape is a VISIBLE gap, never a silent one`);
+  }
+  if (c.parked) {
+    if (c.parked.reason !== 'parked-wip') errors.push(`${id}: parked stamp must cite reason 'parked-wip', not '${c.parked.reason}'`);
+    if (!c.parked.classId.trim()) errors.push(`${id}: parked stamp names no class id`);
+    if (!c.parked.why.trim()) errors.push(`${id}: parked stamp carries no owner wording (the record of WHY)`);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(c.parked.since)) errors.push(`${id}: parked stamp needs an ISO 'since' date`);
+    if (c.reviewStatus === 'approved') errors.push(`${id}: a parked contract can never be 'approved' — parking means no ruling exists`);
+  }
+  if (c.gildedDelta && (c.gildedDelta.kind === 'other') && !c.gildedDelta.description.trim()) {
+    errors.push(`${id}: gildedDelta 'other' with no description — use multiply/reshape/none or describe it`);
   }
   return errors;
 }

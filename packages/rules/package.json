@@ -6,6 +6,7 @@
   "main": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
+    "./parked": "./src/parked.ts",
     "./contracts": "./src/contracts/index.ts",
     "./contracts/schema": "./src/contracts/schema.ts",
     "./contracts/curated": "./src/contracts/curated/index.ts"

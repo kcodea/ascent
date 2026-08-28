@@ -44,7 +44,10 @@ export { runNightly, runLifecycle, runLobbySweep, buildFailureArtifact, nightlyR
 // ── Doc Bot 2.0 WP B: the knowledge foundation ───────────────────────────────────────────────────────────
 export { extractAllContracts, activeContentIds, archivedInventory, ARCHIVED_CONTENT_TYPES, EXTRACTOR_ID, type ExtractionResult } from './contractExtract';
 export { corroborateContracts, CORROBORATION_ASPECTS, type CorroborationReport, type CorroborationSources, type ContractCorroborationRow, type CorroborationDisagreement, type CorroborationAspect } from './contractCorroboration';
-export { buildConventionQuestions, CONVENTION_QUEUE } from './conventionQuestions';
+export {
+  buildConventionQuestions, conventionClusters, triggerGroupOf, CONVENTION_QUEUE,
+  type ConventionCluster, type ParkedSuppression,
+} from './conventionQuestions';
 // ── Doc Bot 2.0 WP D: contract verification at scale ─────────────────────────────────────────────────────
 export { planCases, CASE_TEMPLATES, SLICE_COVERED_IDS, type CasePlan, type CaseTemplateId, type SkipReason, type DriverId } from './isolatedCases';
 export { runVariantDiff, checkMetamorphic, type VariantDiffResult, type MetamorphicCheck, type MetamorphicLawId } from './variantDiff';

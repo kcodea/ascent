@@ -35,6 +35,20 @@ const CARRY_OVER_PIN: RuleEnforcement = { kind: 'oracle', refs: ['carryOver'], l
 const ORDER_GOLDENS_PIN: RuleEnforcement = { kind: 'oracle', refs: ['orderGoldens'], lastVerifiedAt: '2026-08-27' };
 const INTERACTION_PIN: RuleEnforcement = { kind: 'oracle', refs: ['interactionFamilyMatrix'], lastVerifiedAt: '2026-08-27' };
 
+// ── Convention-deck triage (2026-08-28): the split + the park each carry their own executable pin. ──
+/** The cohesion assertion — the machine-checkable form of the owner's "not a cohesive family" complaint. */
+const CONVENTION_COHESION_PIN: RuleEnforcement = {
+  kind: 'scenario',
+  refs: ['packages/sim/src/docbot/conventionCohesion.test.ts'],
+  lastVerifiedAt: '2026-08-28',
+};
+/** The parking pin: parked classes generate no questions, bind no members, and stamp their contracts. */
+const PARKED_PIN: RuleEnforcement = {
+  kind: 'scenario',
+  refs: ['packages/sim/src/docbot/conventionCohesion.test.ts', 'packages/rules/src/parked.test.ts'],
+  lastVerifiedAt: '2026-08-28',
+};
+
 export const RETIRED_RULES: RetiredRule[] = [
   {
     id: 'q-combatinert-b2_echohorn',
@@ -385,6 +399,68 @@ export const RETIRED_RULES: RetiredRule[] = [
       'OWNER RULED 2026-08-28 (Sitting-2, APPROVE): Chronos\'s endOfTurn multiplier composes by the same law — the sibling half of q-interact2-32aa654f. Encoded as standing rule R-MULT-02 and pinned by matrix fixture P12 (Uron + Chronos collapse to one extra End-of-Turn fire, not two); this also resolves interaction-ambiguities.md Q1.',
     retiredAt: '2026-08-28',
     enforcement: INTERACTION_PIN,
+  },
+
+  // ── Convention deck, owner triage 2026-08-28: the economy split + the Orbit/Celestial park ────────────
+  // These five ids are SUPERSEDED, never recycled. Their replacements carry NEW q-conv-trigger-* ids (or,
+  // for the parked classes, no id at all — a parked surface is not asked about). The cohesion pin is the
+  // machine-checkable form of the owner's complaint.
+  {
+    id: 'q-conv-family-economy',
+    why:
+      'OWNER RULED 2026-08-28 (REVISE — verbatim): "this family seems extremely varied. there are cards that '
+      + 'proc on sell in this category, there are some shouts, there are cards that trigger from buying x cards, '
+      + 'there are cards that learn other spells etc. this does not seem like a cohesive family of cards or '
+      + 'rulings to me." He was right: the \'economy\' PRESENTATION family spanned 11 distinct trigger events, so '
+      + 'its card\'s claim ("all 36 trigger the same way") was false. SUPERSEDED by the trigger-keyed re-cluster '
+      + '(q-conv-trigger-sell / -buy / -goldSpent / -ruby / -residual), each of whose members genuinely share the '
+      + 'trigger the card names. conventionCohesion.test.ts now fails any family card that repeats the mistake.',
+    retiredAt: '2026-08-28',
+    enforcement: CONVENTION_COHESION_PIN,
+  },
+  {
+    id: 'q-conv-family-economyReact',
+    why:
+      'SUPERSEDED 2026-08-28 by the same re-cluster as q-conv-family-economy (owner REVISE on that card): '
+      + '\'economyReact\' spanned 8 distinct trigger events and duplicated economy\'s trigger moments, so pooling '
+      + 'both families and re-clustering by TRIGGER was the only way to avoid two cards asking the same question. '
+      + 'Undecided when it left the board; its members now sit under q-conv-trigger-sell / -buy / -goldSpent / '
+      + '-ruby / -residual. The id is retired, not recycled.',
+    retiredAt: '2026-08-28',
+    enforcement: CONVENTION_COHESION_PIN,
+  },
+  {
+    id: 'q-conv-family-react',
+    why:
+      'SUPERSEDED 2026-08-28 by the audit the owner\'s economy ruling triggered: \'react\' was the third family '
+      + 'whose members did not share the trigger its card claimed (friendlyDemonDealtDamage, onConsume, onDamaged, '
+      + 'onGainAttack, summonOverflow — five unrelated moments under one "all N trigger the same way" statement). '
+      + 'Undecided when it left the board; re-clustered into q-conv-trigger-damaged / -consume / -gainAttack / '
+      + '-overflow. The id is retired, not recycled.',
+    retiredAt: '2026-08-28',
+    enforcement: CONVENTION_COHESION_PIN,
+  },
+  {
+    id: 'q-conv-family-orbit',
+    why:
+      'OWNER RULED 2026-08-28 (REVISE — verbatim): "orbit is extremely work in progress and should not receive '
+      + 'any true rules yet, neither should any celestial as they are temp minions". PARKED, not answered: the '
+      + '\'orbit\' family is registered in packages/rules/src/parked.ts, which suppresses its convention card, '
+      + 'strips Celestial content from every other card\'s member list, stamps its contracts \'parked-wip\' (still '
+      + 'counted, never dropped), and keeps the Doc Bot lanes measuring without asserting intent. Un-parking is '
+      + 'one edit: delete the class entry. The id is retired, not recycled — a resumed design gets a NEW id.',
+    retiredAt: '2026-08-28',
+    enforcement: PARKED_PIN,
+  },
+  {
+    id: 'q-conv-family-orbitReact',
+    why:
+      'OWNER RULED 2026-08-28 (REVISE — verbatim): "as stated before, orbit and celestials are masssive works in '
+      + 'progress right now." PARKED with its sibling under the \'orbit\' class in packages/rules/src/parked.ts — '
+      + 'no convention question, no approved rule, contracts stamped \'parked-wip\' and visible in the counts. '
+      + 'Un-parking is one edit. The id is retired, not recycled — a resumed design gets a NEW id.',
+    retiredAt: '2026-08-28',
+    enforcement: PARKED_PIN,
   },
 ];
 

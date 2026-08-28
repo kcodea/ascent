@@ -33,6 +33,8 @@ import {
   type EffectContract, type GildedDeltaContract, type TriggerContract,
 } from '@game/rules/contracts/schema';
 import { CURATED_CONTRACT_IDS } from '@game/rules/contracts/curated';
+// The parked registry is a LEAF module (zero imports) — safe at runtime on this side of the boundary.
+import { PARKED_REASON, parkedClassOf } from '@game/rules/parked';
 import { HEROES } from '../heroes';
 import { PHASE_EXCUSED, TRIGGER_PHASES } from './phaseRegistry';
 import { POWER_FAMILY } from './heroPowerFamilies';
@@ -358,6 +360,14 @@ function extractCard(def: CardDef): ContentContract {
   if (def.triggerMultiplier) tags.push(...def.triggerMultiplier.families.map((f) => `multiplier:${f}`));
   const sortedUnparsed = [...new Set(unparsed)].sort();
 
+  // Owner-parked WIP surface (2026-08-28): the contract is still emitted and still counted — it just carries
+  // a visible stamp saying nothing here may be read as intent. Un-parking is one edit in @game/rules/parked.
+  const parkedClass = parkedClassOf({
+    tribes,
+    flags: def.celestial ? ['celestial'] : [],
+    triggers: triggers.map((t) => t.event),
+  });
+
   return {
     contentId: def.id,
     contentType: cardContentType(def),
@@ -376,6 +386,9 @@ function extractCard(def: CardDef): ContentContract {
       ? { multiplier: { families: [...def.triggerMultiplier.families], extra: def.triggerMultiplier.extra, stacks: !!def.triggerMultiplier.stacks } }
       : {}),
     textContract: { source: 'index' },
+    ...(parkedClass
+      ? { parked: { classId: parkedClass.id, reason: PARKED_REASON, why: parkedClass.why, since: parkedClass.since } }
+      : {}),
   };
 }
 
@@ -501,6 +514,8 @@ export interface ExtractionResult {
   /** Ids skipped because the curated registry owns them (§4.6). */
   curatedSkipped: string[];
   inventory: Record<ContractContentType, number>;
+  /** Parked contracts per class id — VISIBLE in the counts, never dropped from the inventory (2026-08-28). */
+  parked: Record<string, number>;
 }
 
 /** The full deterministic sweep. Pure function of the content/hero registries. */
@@ -521,7 +536,9 @@ export function extractAllContracts(): ExtractionResult {
   const contracts = drafts.filter((c) => !CURATED_CONTRACT_IDS.has(c.contentId)).sort(sortByContentId);
   const inventory = {} as Record<ContractContentType, number>;
   for (const c of [...contracts]) inventory[c.contentType] = (inventory[c.contentType] ?? 0) + 1;
-  return { contracts, curatedSkipped, inventory };
+  const parked: Record<string, number> = {};
+  for (const c of contracts) if (c.parked) parked[c.parked.classId] = (parked[c.parked.classId] ?? 0) + 1;
+  return { contracts, curatedSkipped, inventory, parked };
 }
 
 /**

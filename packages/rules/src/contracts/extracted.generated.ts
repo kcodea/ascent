@@ -2565,6 +2565,12 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     },
     "textContract": {
       "source": "index"
+    },
+    "parked": {
+      "classId": "celestial",
+      "reason": "parked-wip",
+      "why": "Owner ruling 2026-08-28: \"neither should any celestial as they are temp minions\" — the whole tribe is temporary scaffolding, so no convention question may bind it and no contract may claim its intent.",
+      "since": "2026-08-28"
     }
   },
   {
@@ -2607,6 +2613,12 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     },
     "textContract": {
       "source": "index"
+    },
+    "parked": {
+      "classId": "celestial",
+      "reason": "parked-wip",
+      "why": "Owner ruling 2026-08-28: \"neither should any celestial as they are temp minions\" — the whole tribe is temporary scaffolding, so no convention question may bind it and no contract may claim its intent.",
+      "since": "2026-08-28"
     }
   },
   {
@@ -2671,6 +2683,12 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     },
     "textContract": {
       "source": "index"
+    },
+    "parked": {
+      "classId": "celestial",
+      "reason": "parked-wip",
+      "why": "Owner ruling 2026-08-28: \"neither should any celestial as they are temp minions\" — the whole tribe is temporary scaffolding, so no convention question may bind it and no contract may claim its intent.",
+      "since": "2026-08-28"
     }
   },
   {
@@ -2734,6 +2752,12 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     },
     "textContract": {
       "source": "index"
+    },
+    "parked": {
+      "classId": "celestial",
+      "reason": "parked-wip",
+      "why": "Owner ruling 2026-08-28: \"neither should any celestial as they are temp minions\" — the whole tribe is temporary scaffolding, so no convention question may bind it and no contract may claim its intent.",
+      "since": "2026-08-28"
     }
   },
   {
@@ -2784,6 +2808,12 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     },
     "textContract": {
       "source": "index"
+    },
+    "parked": {
+      "classId": "celestial",
+      "reason": "parked-wip",
+      "why": "Owner ruling 2026-08-28: \"neither should any celestial as they are temp minions\" — the whole tribe is temporary scaffolding, so no convention question may bind it and no contract may claim its intent.",
+      "since": "2026-08-28"
     }
   },
   {
@@ -2846,6 +2876,12 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     },
     "textContract": {
       "source": "index"
+    },
+    "parked": {
+      "classId": "celestial",
+      "reason": "parked-wip",
+      "why": "Owner ruling 2026-08-28: \"neither should any celestial as they are temp minions\" — the whole tribe is temporary scaffolding, so no convention question may bind it and no contract may claim its intent.",
+      "since": "2026-08-28"
     }
   },
   {
@@ -2896,6 +2932,12 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     },
     "textContract": {
       "source": "index"
+    },
+    "parked": {
+      "classId": "celestial",
+      "reason": "parked-wip",
+      "why": "Owner ruling 2026-08-28: \"neither should any celestial as they are temp minions\" — the whole tribe is temporary scaffolding, so no convention question may bind it and no contract may claim its intent.",
+      "since": "2026-08-28"
     }
   },
   {
@@ -2958,6 +3000,12 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     },
     "textContract": {
       "source": "index"
+    },
+    "parked": {
+      "classId": "celestial",
+      "reason": "parked-wip",
+      "why": "Owner ruling 2026-08-28: \"neither should any celestial as they are temp minions\" — the whole tribe is temporary scaffolding, so no convention question may bind it and no contract may claim its intent.",
+      "since": "2026-08-28"
     }
   },
   {
@@ -3025,6 +3073,12 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     },
     "textContract": {
       "source": "index"
+    },
+    "parked": {
+      "classId": "celestial",
+      "reason": "parked-wip",
+      "why": "Owner ruling 2026-08-28: \"neither should any celestial as they are temp minions\" — the whole tribe is temporary scaffolding, so no convention question may bind it and no contract may claim its intent.",
+      "since": "2026-08-28"
     }
   },
   {
@@ -3092,6 +3146,12 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     },
     "textContract": {
       "source": "index"
+    },
+    "parked": {
+      "classId": "celestial",
+      "reason": "parked-wip",
+      "why": "Owner ruling 2026-08-28: \"neither should any celestial as they are temp minions\" — the whole tribe is temporary scaffolding, so no convention question may bind it and no contract may claim its intent.",
+      "since": "2026-08-28"
     }
   },
   {
@@ -3147,6 +3207,12 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     },
     "textContract": {
       "source": "index"
+    },
+    "parked": {
+      "classId": "celestial",
+      "reason": "parked-wip",
+      "why": "Owner ruling 2026-08-28: \"neither should any celestial as they are temp minions\" — the whole tribe is temporary scaffolding, so no convention question may bind it and no contract may claim its intent.",
+      "since": "2026-08-28"
     }
   },
   {
@@ -3198,6 +3264,12 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     },
     "textContract": {
       "source": "index"
+    },
+    "parked": {
+      "classId": "celestial",
+      "reason": "parked-wip",
+      "why": "Owner ruling 2026-08-28: \"neither should any celestial as they are temp minions\" — the whole tribe is temporary scaffolding, so no convention question may bind it and no contract may claim its intent.",
+      "since": "2026-08-28"
     }
   },
   {
@@ -3261,6 +3333,12 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     },
     "textContract": {
       "source": "index"
+    },
+    "parked": {
+      "classId": "celestial",
+      "reason": "parked-wip",
+      "why": "Owner ruling 2026-08-28: \"neither should any celestial as they are temp minions\" — the whole tribe is temporary scaffolding, so no convention question may bind it and no contract may claim its intent.",
+      "since": "2026-08-28"
     }
   },
   {
@@ -3311,6 +3389,12 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     },
     "textContract": {
       "source": "index"
+    },
+    "parked": {
+      "classId": "celestial",
+      "reason": "parked-wip",
+      "why": "Owner ruling 2026-08-28: \"neither should any celestial as they are temp minions\" — the whole tribe is temporary scaffolding, so no convention question may bind it and no contract may claim its intent.",
+      "since": "2026-08-28"
     }
   },
   {
@@ -3375,6 +3459,12 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     },
     "textContract": {
       "source": "index"
+    },
+    "parked": {
+      "classId": "celestial",
+      "reason": "parked-wip",
+      "why": "Owner ruling 2026-08-28: \"neither should any celestial as they are temp minions\" — the whole tribe is temporary scaffolding, so no convention question may bind it and no contract may claim its intent.",
+      "since": "2026-08-28"
     }
   },
   {
@@ -3437,6 +3527,12 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     },
     "textContract": {
       "source": "index"
+    },
+    "parked": {
+      "classId": "celestial",
+      "reason": "parked-wip",
+      "why": "Owner ruling 2026-08-28: \"neither should any celestial as they are temp minions\" — the whole tribe is temporary scaffolding, so no convention question may bind it and no contract may claim its intent.",
+      "since": "2026-08-28"
     }
   },
   {

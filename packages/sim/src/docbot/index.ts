@@ -66,3 +66,21 @@ export {
   IMPLEMENTED_TAXONOMY,
   type ParsedTextContract, type TextBucket, type TextMismatch, type MismatchTaxonomyId, type TextSpan,
 } from './textParse/types';
+// ── Doc Bot 2.0 WP F: interaction intelligence ───────────────────────────────────────────────────────────
+export {
+  buildInteractionGraph, candidatePairs, graphErrors, graphStats, CHANNEL_OF_TRIGGER, MULTIPLIER_FAMILY_TRIGGERS,
+  type InteractionGraph, type InteractionNode, type InteractionEdge, type InteractionNodeKind,
+  type InteractionEdgeKind, type CandidatePair, type CandidateReport,
+} from './interactionGraph';
+export {
+  runInteractionSweep, verifyInteractionTable, PAIR_FAMILIES, TRIPLE_FAMILIES, INTERACTION_LANE,
+  type InteractionRun, type InteractionSweepOptions, type InteractionSweepReport, type InteractionVerdict,
+  type PairFamilyId, type TripleFamilyId, type BlockedReason,
+} from './interactionSweep';
+export { combinationKey, combinationParts } from './coverageKeys';
+export {
+  runAnomalyOracle, RULED_MULTIPLIER_FAMILIES, ANOMALY_LANE,
+  type AnomalyOracleOptions, type AnomalyOracleReport, type AnomalyDetectorId, type AnomalyFinding,
+} from './anomalyOracle';
+export { RETRO_INTERACTION_MAP, retroMapErrors, type RetroMapEntry } from './retroInteractionMap';
+export { buildInteractionQuestions, INTERACTION_QUEUE } from './interactionQuestions';

@@ -97,6 +97,11 @@ export const ENFORCEMENT_LANES: Record<string, EnforcementLane> = {
     file: 'packages/sim/src/docbot/textOracleSummons.test.ts',
     what: 'summon-effect reconciliation against printed text: copy counts, exact-stat carriage, and the gilded-badge convention on summoned copies',
   },
+  // ── Doc Bot 2.0 WP F: interaction intelligence ──
+  interactionSweep: {
+    file: 'packages/sim/src/docbot/interactionSweep.test.ts',
+    what: 'the generated §10.3 pairwise coverage table (trigger×multiplier, death×Avenge/Echo, Echo×Rise, copy×counter, gild×progress, rune×minion, spell×improvement, overflow×summon — real-engine diffs; blocked pairs visibly cited) plus the §9.7 anomaly oracle — an owner-ruled interaction card re-alarms here when the measured pair behaviour drifts',
+  },
 };
 
 /**

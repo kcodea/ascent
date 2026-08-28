@@ -110,7 +110,7 @@ const richBag = (id: string): LiveTextParams => ({
   lastSpellName: 'Spirit Fire', rememberedSpellNames: ['Spirit Fire', 'Growth'],
   impBank: { attack: 2, health: 3 }, firstSpellThisTurnName: 'Growth', lastSpellThisTurnName: 'Spirit Fire',
   keeperFirstSpellName: 'Growth',
-  runeFlags: { matriarch: true, brokerage: true, livingTreasure: true, facetwright: true },
+  runeFlags: { matriarch: true, brokerage: true, livingTreasure: true },
 });
 
 /** Per-card additions the generic bags must not set globally: `taughtSpellId` early-returns for ANY card, so

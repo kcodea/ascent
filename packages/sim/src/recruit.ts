@@ -7117,6 +7117,46 @@ export function openDiscover(state: RunState, spec: DiscoverSpec): void {
 }
 
 /**
+ * (BOTH) — is EVERY branch of this Choose One already enabled for this instance?
+ *
+ * THE SINGLE PREDICATE for that rule, and every consumer reads it (owner ruling 2026-08-28): the reducer's
+ * play/resolve paths, the live-text chains, and the drag gesture. Three independent sources grant "both"
+ * today and they used to be spelled out separately at each site, which is exactly how a rule forks —
+ * `chooseBothWhenGolden` was honoured only at the PICK (the prompt still opened), the Unbroken Vein already
+ * skipped the prompt, and Facetwright's rune did neither.
+ *
+ *  - `chooseBothWhenGolden` on a GOLDEN instance (Orivax, "Gilded: Gain both"),
+ *  - Rune of Facetwright on `facetwright` ("they give both effects"),
+ *  - Rune of the Unbroken Vein on `k_veinbreaker`.
+ *
+ * When it is true the prompt is SKIPPED ENTIRELY — playing the card just does both branches (and still aims
+ * first if the card targets) — and the printed text swaps its "Choose One:" label for a coloured (Both)
+ * followed by both option texts, so the card reads as exactly what it will do.
+ */
+export function chooseBothActive(
+  state: Pick<RunState, 'runeFacetwright' | 'runeUnbrokenVein'>,
+  card: { golden?: boolean } | undefined,
+  def: Pick<CardDef, 'id' | 'chooseOne' | 'chooseBothWhenGolden'> | undefined,
+): boolean {
+  if (!def?.chooseOne?.length) return false;
+  if (card?.golden && def.chooseBothWhenGolden) return true;
+  if (state.runeFacetwright && def.id === 'facetwright') return true;
+  if (state.runeUnbrokenVein && def.id === 'k_veinbreaker') return true;
+  return false;
+}
+
+/** Does playing this card have to STOP and ask? True for a Choose One whose branches are not already all
+ *  enabled — the gate the reducer defers the play behind, and the one the UI reads so a targeted Choose One
+ *  no longer demands its target during the drag. */
+export function chooseOneNeedsChoice(
+  state: Pick<RunState, 'runeFacetwright' | 'runeUnbrokenVein'>,
+  card: { golden?: boolean } | undefined,
+  def: Pick<CardDef, 'id' | 'chooseOne' | 'chooseBothWhenGolden'> | undefined,
+): boolean {
+  return !!def?.chooseOne?.length && !chooseBothActive(state, card, def);
+}
+
+/**
  * Every recruit-phase modal that OWNS the screen. Each renders as its own overlay behind an INDEPENDENT
  * guard in `Recruit.tsx` (`{run.discover && …}`, `{run.questOffer && …}`, …) with no mutual exclusion, so
  * two open at once are literally drawn on top of each other — which is exactly what the owner hit on

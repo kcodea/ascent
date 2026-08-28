@@ -252,6 +252,11 @@ export interface CardView {
   /** Choose One: the branch this instance picked. Drives ART only here — the per-branch TEXT is already
    *  resolved upstream (`instView` / `Unit`). Option N renders `<cardId><N+1>` when that art exists. */
   chosenOption?: number;
+  /** (BOTH) FX HOOK: a stable key stamped on the card root as `data-choose-both` when this card's Choose One
+   *  will resolve as BOTH branches (see `chooseBothActive`). It is the ONLY contract the looping marker FX
+   *  binds to (`useChooseBothFx` follows `[data-choose-both="<key>"]`), so the effect can be re-authored,
+   *  retargeted or removed without touching card rendering. Absent = the card does not qualify. */
+  chooseBothKey?: string;
   tribe: Tribe;
   /** Second tribe for dual-type minions — splits the card into both hues. */
   tribe2?: Tribe;
@@ -714,6 +719,7 @@ export const Card = memo(function Card({
       ref={sbRootRef}
       className={`card compact${showText ? ' showtext' : ''}${popin ? ' popin' : ''}${popDelay ? ' popdelay' : ''}${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${spellBuffed ? ' spellbuff' : ''}${battlecry ? ' bcasting' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.keywords.includes('ST') ? ' stealth' : ''}${card.keywords.includes('DS') ? ' dscard' : ''}${card.keywords.includes('R') ? ' reborncard' : ''}${card.keywords.includes('V') ? ' venomcard' : ''}${card.keywords.includes('W') ? ' flurrycard' : ''}${spellLike ? ' spellcard' : ''}${card.ruby ? ' rubycard' : ''}${card.cardId === 'discoverspell' ? ' triplecard' : ''}${useStdFrame ? ' stdframe' : ''}${(useStdFrame && hasTribeOval(card.tribe)) || (isTaunt && frameOk && hasTribeTaunt(card.tribe)) ? ' tribeframe' : ''}${useSpellFrame ? ' spellframe' : ''}${electrify ? ' electrify' : ''}${tripleReady ? ' tripready' : ''}${contraband ? ' contraband' : ''}${enchanted ? ' enchanted' : ''}${card.tribe2 ? ' dual' : ''}${locked ? ' locked' : ''}${usePlate ? ` plated plate-txt-${txtBucket}` : ''}`}
       data-uid={uid}
+      data-choose-both={card.chooseBothKey}
       style={{ '--c': `var(--t-${card.tribe})`, '--c2': `var(--t-${card.tribe2 ?? card.tribe})`,
         '--fan-rot': `${fanRot ?? 0}deg`,
         /* PER-CARD art framing (🖼️ Card Art tuner). Spread inline so it beats the frame family's own

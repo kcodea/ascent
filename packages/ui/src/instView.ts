@@ -1,11 +1,11 @@
 import type { Keyword } from '@game/core';
 import { CARD_INDEX } from '@game/content';
-import { CONFIG, dominantBoardTribe, hasTier7Access, rubyStatBonus, runeStacksOf, spellAttackBonus, spellDisplayText, spellHealthBonus, type BoardCard, type RunState } from '@game/sim';
+import { CONFIG, chooseBothActive, dominantBoardTribe, hasTier7Access, rubyStatBonus, runeStacksOf, spellAttackBonus, spellDisplayText, spellHealthBonus, type BoardCard, type RunState } from '@game/sim';
 import type { CardView } from './Card';
 import {
   abhorrentHorrorText, ascendProgressText, asymSummonBuffText, cadenceProgressText, cardTypeTallyText, chefRaagText, clingProgressText,
   cryptDrakeText, drunkenOafText, karthusText, engraveTallyText, escalatingCastText, guelProgressText, herzogText, hunterText, monkProgressText, packLeaderText, runescaleText, scTribeBuffPerPlayedText,
-  archivistText, ashenHeirText, attackGrantImproveText, castSpellPerGoldText, copyCastSpellText, runeModifiedNote, type RuneTextFlags, improvingSummonText, perCardPlayedText, rougeRogueText, perGoldSpentText, rallySpreadText, shopBuffImproveText, spellThresholdText, ritualistText, sergeantText, soulsmanText, squirlScoutText, conductorText, stepProgress, sporebatText, stewardText, thundeerText, summonBuffText, summonEscalatingText, summonFlatZooText, summonImproveText, soldProgressText, summitTierText, summonScalingText, tallyBuffText,
+  archivistText, ashenHeirText, chooseBothText, attackGrantImproveText, castSpellPerGoldText, copyCastSpellText, runeModifiedNote, type RuneTextFlags, improvingSummonText, perCardPlayedText, rougeRogueText, perGoldSpentText, rallySpreadText, shopBuffImproveText, spellThresholdText, ritualistText, sergeantText, soulsmanText, squirlScoutText, conductorText, stepProgress, sporebatText, stewardText, thundeerText, summonBuffText, summonEscalatingText, summonFlatZooText, summonImproveText, soldProgressText, summitTierText, summonScalingText, tallyBuffText,
   ancientWandererText, ascendantTierText, musterTrooperText,
   taughtSpellText, trailForagerText, transformProgressText, undeadBuyAtkText, watcherText, withImpStats,
 } from './cardText';
@@ -88,6 +88,11 @@ export interface LiveTextParams {
    *  that one thing, so it prints only that branch — listing the road not taken is a lie about what the body
    *  on your board now does (owner 2026-07-24). Absent for a shop/Discover preview, which still shows both. */
   chosenOption?: number;
+  /** (BOTH): every branch of this Choose One is already enabled for this instance — a golden `chooseBothWhenGolden`
+   *  card, or Facetwright / Veinbreaker under their runes. Computed by the ONE shared predicate
+   *  (`chooseBothActive` in `@game/sim`) that also decides whether the reducer prompts, so the printed text and
+   *  the actual behaviour can never disagree: the card prints a coloured (Both) with BOTH option texts. */
+  chooseBoth?: boolean;
   /** Dwarven Ales cast this recruit turn (`run.alesCastThisTurn`) — Drunken Oaf prints how many times its
    *  Start of Combat will actually fire. Player-only: an enemy's snapshot carries no Ale count, so a served
    *  Oaf falls back to its printed text like every other run-scoped scaler. */
@@ -110,6 +115,12 @@ export function liveCardText(cardId: string, p: LiveTextParams): { text: string;
   // currently carries a live-scaling value; when one does, its helper must be threaded through here too.
   const picked = p.chosenOption !== undefined ? c.chooseOne?.[p.chosenOption] : undefined;
   if (picked) return { text: picked.text, goldenText: picked.goldenText ?? picked.text };
+  // (BOTH) — the branches are all enabled, so there is no choice to print. Deliberately AFTER `picked`: a body
+  // that already resolved one branch keeps doing only that branch even if a rune arrives afterwards.
+  if (p.chooseBoth) {
+    const both = chooseBothText(cardId, p.golden);
+    if (both) return { text: both, goldenText: both };
+  }
   // A taught Mage-Pup prints the spell it will cast, resolved through the SAME live spell-text chain the shop
   // uses — so a taught Spirit Fire shows its spell-power-boosted numbers, not the printed base.
   if (p.taughtSpellId) {
@@ -235,7 +246,7 @@ export function instView(
   spellsCast = 0,
   clingEnchant?: { attack: number; health: number },
   fodderConsumed?: { attack: number; health: number },
-  live?: { undeadBuyAtk?: number; soulsmanGold?: number; impAura?: { attack: number; health: number }; cardBuffs?: Record<string, { attack: number; health: number }>; castMult?: number; goldSpent?: number; goldSpentRun?: number; goldPouchValue?: number; playedThisTurn?: string[]; squirlScoutBuff?: number; conductorBuff?: number; lastSpellName?: string; rememberedSpellNames?: readonly string[]; impBank?: { attack: number; health: number }; firstSpellThisTurnName?: string; lastSpellThisTurnName?: string; topTribe?: string | null; frontToBackBonusH?: number; onBoard?: boolean; eotTickOverride?: number; improveReps?: number; rubyCasts?: number; rubyBonus?: { attack: number; health: number }; grimoireCharged?: boolean; runeMammoth?: boolean; runeFlags?: RuneTextFlags; tier7Access?: boolean; alesThisTurn?: number },
+  live?: { undeadBuyAtk?: number; soulsmanGold?: number; impAura?: { attack: number; health: number }; cardBuffs?: Record<string, { attack: number; health: number }>; castMult?: number; goldSpent?: number; goldSpentRun?: number; goldPouchValue?: number; playedThisTurn?: string[]; squirlScoutBuff?: number; conductorBuff?: number; lastSpellName?: string; rememberedSpellNames?: readonly string[]; impBank?: { attack: number; health: number }; firstSpellThisTurnName?: string; lastSpellThisTurnName?: string; topTribe?: string | null; frontToBackBonusH?: number; onBoard?: boolean; eotTickOverride?: number; improveReps?: number; rubyCasts?: number; rubyBonus?: { attack: number; health: number }; grimoireCharged?: boolean; runeMammoth?: boolean; runeFlags?: RuneTextFlags; tier7Access?: boolean; alesThisTurn?: number; /** The run flags the (Both) predicate reads (`runeFacetwright` / `runeUnbrokenVein`) — passed rather than a precomputed boolean so the ONE predicate stays the only place the rule lives. */ chooseBothState?: { runeFacetwright?: boolean; runeUnbrokenVein?: boolean } },
 ): CardView {
   const c = CARD_INDEX[inst.cardId];
   const spell = c.spell === true || c.id === 'discoverspell';
@@ -244,6 +255,8 @@ export function instView(
   // pulse instead of jumping a turn later. Outside the animation this is the committed value.
   const eotTickShown = live?.eotTickOverride ?? inst.eotTick;
   // The full live rule text (+ golden variant) — shared with the shop / Discover via liveCardText.
+  // (BOTH) — the ONE predicate, shared with the printed text below and with the reducer's prompt decision.
+  const chooseBoth = chooseBothActive(live?.chooseBothState ?? {}, inst, c);
   const { text, goldenText } = liveCardText(inst.cardId, {
     tier, golden: !!inst.golden, spellBonus, spellBonusH, frontToBackBonus, frontToBackBonusH: live?.frontToBackBonusH ?? frontToBackBonus, spellsThisTurn, spellsCast, rubyCasts: live?.rubyCasts,
     deathrattlesTriggered, clingEnchant, fodderConsumed,
@@ -263,6 +276,7 @@ export function instView(
     rubyBonus: live?.rubyBonus,
     tier7Access: live?.tier7Access,
     chosenOption: inst.chosenOption, // a resolved Choose One prints only the branch it became
+    chooseBoth, // (Both) — no choice to print
     taughtSpellId: inst.taughtSpellId, // a Mage-Pup prints the spell it was taught
   });
   // `override` shows transient stats during the End-of-Turn animation (the per-proc value the minion
@@ -293,6 +307,9 @@ export function instView(
   return {
     name: c.name, cardId: c.id, tribe: inst.tribe, tribe2: c.tribe2,
     chosenOption: inst.chosenOption, // a resolved Choose One also wears the ART of the branch it became
+    // (Both) MARKER hook — a card still WAITING to be played (hand). A body already on the board has resolved
+    // its Choose One, so it is not a promise any more and carries no marker.
+    chooseBothKey: chooseBoth && !live?.onBoard ? inst.uid : undefined,
     universalTribe: !!c.universalTribe || !!(inst as { allTribes?: boolean }).allTribes,
     attack: shownAtk, health: shownHp,
     keywords: shownKeywords, text: shownText + tempTags,
@@ -347,7 +364,8 @@ export function liveBoardView(m: BoardCard, run: RunState): CardView {
       lastSpellThisTurnName: run.lastSpellThisTurnId ? CARD_INDEX[run.lastSpellThisTurnId]?.name : undefined,
       topTribe: dominantBoardTribe(run), rubyBonus: rubyStatBonus(run), tier7Access: hasTier7Access(run),
       runeMammoth: !!run.questFlags?.runeMammoth,
-      runeFlags: { matriarch: !!run.runeMatriarch, brokerage: !!run.runeBrokerage, livingTreasure: !!run.questFlags?.runeLivingTreasure, facetwright: !!run.runeFacetwright },
+      runeFlags: { matriarch: !!run.runeMatriarch, brokerage: !!run.runeBrokerage, livingTreasure: !!run.questFlags?.runeLivingTreasure },
+      chooseBothState: { runeFacetwright: run.runeFacetwright, runeUnbrokenVein: run.runeUnbrokenVein },
     },
   );
 }

@@ -15,13 +15,20 @@ describe('Rune of Facetwright', () => {
     expect(s.hand.filter((c) => c.cardId === FW).length).toBe(1);
   });
 
-  it('makes the cast give BOTH halves, not the picked one', () => {
-    // The whole rune: the card is "Choose One: +1 Attack OR +1 Health", and this makes it both.
+  it('makes the cast give BOTH halves, and skips the prompt entirely', () => {
+    // The whole rune: the card is "Choose One: +1 Attack OR +1 Health", and this makes it both. Since
+    // 2026-08-28 a card that already does both never ASKS (`chooseBothActive`) — the prompt was a decision with
+    // one outcome, and the card now prints a coloured (Both) with both branches instead.
     const play = (rune: boolean): RunState => {
       const base: RunState = { ...set2(), runeFacetwright: rune || undefined, hand: [
         { uid: 'f', cardId: FW, tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false },
       ] };
       const opened = reduce(base, { type: 'play', uid: 'f' });
+      if (rune) {
+        expect(opened.chooseOne, 'a (Both) card must not prompt').toBeUndefined();
+        expect(opened.hand.some((c) => c.uid === 'f'), 'the spell should have been consumed').toBe(false);
+        return opened;
+      }
       expect(opened.chooseOne?.cardId, 'the Choose One never opened').toBe(FW);
       return reduce(opened, { type: 'chooseOne', index: 0 }); // pick the ATTACK half
     };

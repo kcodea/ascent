@@ -38,6 +38,10 @@ export const ACTION_CATALOG = {
   reorderShop: { generation: 'never', reveal: false, note: 'shop position is cosmetic — nothing reads it live' },
   discover: { generation: 'mandatory', reveal: false, note: 'options are already visible; the PICK is not a reveal' },
   chooseOne: { generation: 'mandatory', reveal: false, note: 'both modes are printed on the card' },
+  // Backing out of a Choose One is a pure no-op (the card returns to hand untouched), so it can never improve
+  // a line — generating it would only widen the search with a branch that returns to where it started. A bot
+  // answers the prompt instead; the action exists for the player and for recordings.
+  cancelChoice: { generation: 'never', reveal: false, note: 'abandoning a Choose One returns to the same state — never worth searching' },
   battlecryTarget: { generation: 'mandatory', reveal: false, note: 'legal targets are all on the board' },
   buyQuest: { generation: 'mandatory', reveal: true, note: 'the reward can generate cards the bot has not seen' },
   pickPower: { generation: 'mandatory', reveal: false, note: 'adopting a hero power changes rules, not cards — nothing hidden is revealed' },

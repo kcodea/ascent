@@ -31,7 +31,8 @@ const CHOREO_EOT = (() => {
 if (import.meta.env.DEV) {
   (window as unknown as { __choreoEot?: boolean }).__choreoEot = CHOREO_EOT;
 }
-import { alignmentsOf, boardHasCelestial, computeCombatOdds, type CombatOdds, rubyCastCount, rubyStatBonus, CONFIG, RIFTS, hasTier7Access, maxTierFor, conjuredStats, cardBuff, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, dragonflameCasts, nextOpponent, lossDamageCap, playerLossDamage, minionCostOf, heroOfferPrice, dominantBoardTribe, effectiveTargetTribe, boardManaBonus, upgradeCostOf, nextRefreshCostOf, poolOf, type RunState, type ShopCard, type CardBuff, type BoardCard, type BoardSnapshot, gildCopiesNeeded, activePowers, gateUses, runeStacksOf } from '@game/sim';
+import { chooseBothText } from './cardText';
+import { alignmentsOf, boardHasCelestial, chooseBothActive, chooseOneNeedsChoice, computeCombatOdds, type CombatOdds, rubyCastCount, rubyStatBonus, CONFIG, RIFTS, hasTier7Access, maxTierFor, conjuredStats, cardBuff, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, dragonflameCasts, nextOpponent, lossDamageCap, playerLossDamage, minionCostOf, heroOfferPrice, dominantBoardTribe, effectiveTargetTribe, boardManaBonus, upgradeCostOf, nextRefreshCostOf, poolOf, type RunState, type ShopCard, type CardBuff, type BoardCard, type BoardSnapshot, gildCopiesNeeded, activePowers, gateUses, runeStacksOf } from '@game/sim';
 import { createPortal } from 'react-dom';
 import { setCardId, setCardStats, toggleCardKeyword, setEnemyStats, setEnemyCardId, toggleEnemyKeyword, removeEnemy } from './sandboxEdit';
 import { UnitEditor } from './UnitEditor';
@@ -71,6 +72,7 @@ import { getAuraFxConfig } from './auraFxConfig';
 import { applyWeldWiggle, weldCfgFor, weldLandMs } from './weldFxConfig';
 import { waveGapFor, coalesceBuffFxByTarget, getBuffFxConfig } from './buffFxConfig';
 import { useCiaEnchantedFx } from './useCiaEnchantedFx';
+import { useChooseBothFx } from './useChooseBothFx';
 import { getAimFxConfig } from './aimFxConfig';
 import { getInfuseFxConfig } from './infuseFxConfig';
 import { getConsumeFxConfig } from './consumeFxConfig';
@@ -504,7 +506,7 @@ function conjuredView(cardId: string, run: RunState): CardView | null {
   // Spells carry no stats to aura — with `spellLive` threaded, tokenRefView's view is now right for them.
   if (def.spell) return base;
   // A granted MINION reads like a shop offer of itself: the full live-text chain, not the printed base.
-  const lt = liveCardText(cardId, offerLiveTextParams(false, liveOptsFromRun(run)));
+  const lt = liveCardText(cardId, offerLiveTextParams(false, liveOptsFromRun(run), cardId));
   return { ...base, text: lt.text, ...conjuredStats(run, def) };
 }
 
@@ -584,6 +586,9 @@ interface ShopViewOpts {
   /** The run's tavern tier — Lantern Light's shop-slot text scales with it (audit 2026-08-06: the slot was
    *  the ONE surface not passing it, so the spell read base there and live everywhere else). */
   tier?: number;
+  /** The run flags the (Both) predicate reads — a Choose One offer whose branches are already all enabled
+   *  prints (Both) in the tavern too, not a choice the shop is lying about. */
+  chooseBothState?: { runeFacetwright?: boolean; runeUnbrokenVein?: boolean };
 }
 
 /** ShopViewOpts assembled from a raw RunState — the live-text inputs for surfaces that preview a card the
@@ -608,11 +613,18 @@ function liveOptsFromRun(run: RunState): ShopViewOpts {
     lastSpellThisTurnName: run.lastSpellThisTurnId ? CARD_INDEX[run.lastSpellThisTurnId]?.name : undefined,
     topTribe: dominantBoardTribe(run), rubyBonus: rubyStatBonus(run), tier7Access: hasTier7Access(run),
     tier: run.tier,
+    chooseBothState: { runeFacetwright: run.runeFacetwright, runeUnbrokenVein: run.runeUnbrokenVein },
   };
 }
 
+/** (Both) for an OFFER: the shared predicate, given only what a shop card knows (its gilded flag + the run
+ *  flags the offer builders already carry). One call site per surface, never a re-implementation of the rule. */
+function offerChoosesBoth(cardId: string, golden: boolean, o: ShopViewOpts): boolean {
+  return chooseBothActive(o.chooseBothState ?? {}, { golden }, CARD_INDEX[cardId]);
+}
+
 /** Build the LiveTextParams for a shop/Discover OFFER (no per-instance accruals — it isn't owned yet). */
-function offerLiveTextParams(golden: boolean, o: ShopViewOpts): LiveTextParams {
+function offerLiveTextParams(golden: boolean, o: ShopViewOpts, cardId?: string): LiveTextParams {
   return {
     tier: o.tier ?? 1, golden,
     spellBonus: o.spellBonus ?? 0, spellBonusH: o.spellBonusH ?? o.spellBonus ?? 0, frontToBackBonus: o.frontToBackBonus ?? 0,
@@ -621,6 +633,7 @@ function offerLiveTextParams(golden: boolean, o: ShopViewOpts): LiveTextParams {
     undeadBuyAtk: o.undeadBuyAtk ?? 0, soulsmanGold: o.soulsmanGold ?? 0, cardBuffs: o.cardBuffs, impAura: o.impAura, rubyCasts: o.rubyCasts,
     goldSpent: o.goldSpent ?? 0, goldSpentRun: o.goldSpentRun ?? 0, goldPouchValue: o.goldPouchValue ?? 0, playedThisTurn: o.playedThisTurn, squirlScoutBuff: o.squirlScoutBuff, conductorBuff: o.conductorBuff, alesThisTurn: o.alesThisTurn,
     lastSpellName: o.lastSpellName, firstSpellThisTurnName: o.firstSpellThisTurnName, lastSpellThisTurnName: o.lastSpellThisTurnName, topTribe: o.topTribe, rubyBonus: o.rubyBonus, tier7Access: o.tier7Access,
+    chooseBoth: cardId ? offerChoosesBoth(cardId, golden, o) : false,
   };
 }
 function shopView(card: ShopCard, opts: ShopViewOpts = {}): CardView {
@@ -636,8 +649,12 @@ function shopView(card: ShopCard, opts: ShopViewOpts = {}): CardView {
     const cost = Math.max(0, base - (opts.spellCostMod ?? 0));
     return {
       name: c.name, cardId: c.id, tribe: c.tribe, attack: 0, health: 0,
-      keywords: c.keywords, text: spellDisplayText(c.id, opts.spellBonus ?? 0, opts.frontToBackBonus ?? 0, opts.spellBonusH ?? opts.spellBonus ?? 0, opts.goldSpent ?? 0, opts.frontToBackBonusH ?? opts.frontToBackBonus ?? 0, opts.goldPouchValue ?? 0, { rubyBonus: opts.rubyBonus, playedThisTurn: opts.playedThisTurn, topTribe: opts.topTribe as never, tier: opts.tier, growthBonus: opts.growthBonus, juggler: opts.juggler }),
+      // A shop SPELL renders from `spellDisplayText`, not `liveCardText` — so the (Both) rendering has to be
+      // applied here too, or a Facetwright's Choice under its rune would read "Choose One:" in the tavern and
+      // (Both) everywhere else. Same predicate, same helper.
+      keywords: c.keywords, text: (offerChoosesBoth(c.id, false, opts) ? chooseBothText(c.id, false) : null) ?? spellDisplayText(c.id, opts.spellBonus ?? 0, opts.frontToBackBonus ?? 0, opts.spellBonusH ?? opts.spellBonus ?? 0, opts.goldSpent ?? 0, opts.frontToBackBonusH ?? opts.frontToBackBonus ?? 0, opts.goldPouchValue ?? 0, { rubyBonus: opts.rubyBonus, playedThisTurn: opts.playedThisTurn, topTribe: opts.topTribe as never, tier: opts.tier, growthBonus: opts.growthBonus, juggler: opts.juggler }),
       cost, costChanged: cost < base, spell: true,
+      chooseBothKey: offerChoosesBoth(c.id, false, opts) ? card.uid : undefined, // (Both) marker hook
       target: c.target, tier: c.tier, castMult: opts.castMult,
     };
   }
@@ -645,7 +662,7 @@ function shopView(card: ShopCard, opts: ShopViewOpts = {}): CardView {
   // stats are already final (golden ones already doubled), so no further folding — it restores intact on buy.
   if (card.held) {
     const h = card.held;
-    const lt = liveCardText(c.id, offerLiveTextParams(!!h.golden, opts));
+    const lt = liveCardText(c.id, offerLiveTextParams(!!h.golden, opts, c.id));
     return {
       name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2, universalTribe: !!c.universalTribe,
       attack: h.attack, health: h.health, keywords: h.keywords,
@@ -679,7 +696,7 @@ function shopView(card: ShopCard, opts: ShopViewOpts = {}): CardView {
   const goldMul = card.golden ? 2 : 1;
   // Every scaling offer (Grim, Guel, Taragosa, Spirit Worgen, …) shows its live value in the tavern, not just
   // on the board — the same live-text chain the board uses (instView), via the shared liveCardText.
-  const lt = liveCardText(c.id, offerLiveTextParams(!!card.golden, opts));
+  const lt = liveCardText(c.id, offerLiveTextParams(!!card.golden, opts, c.id));
   // Itemize the buy-time buffs the offer previews (Fortify, run enchant, Staff of Guel, tribe buy-aura) so the
   // tavern inspect shows WHERE the boosted stats come from — the same sources the reducer's buy path records.
   const offerBuffs: { source: string; attack: number; health: number; count: number }[] = [];
@@ -696,6 +713,7 @@ function shopView(card: ShopCard, opts: ShopViewOpts = {}): CardView {
   if (card.golden) pushBuff('Golden Touch', c.attack, c.health); // gilded doubles the base stats
   return {
     name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2, universalTribe: !!c.universalTribe,
+    chooseBothKey: offerChoosesBoth(c.id, !!card.golden, opts) ? card.uid : undefined, // (Both) marker hook
     attack: (c.attack + addAtk) * goldMul + (opts.eotBuff?.attack ?? 0), health: (c.health + addHp) * goldMul + (opts.eotBuff?.health ?? 0),
     keywords: [...c.keywords, ...(card.keywords ?? []).filter((k) => !c.keywords.includes(k))],
     text: lt.text,
@@ -1676,6 +1694,32 @@ export function Recruit() {
     return () => { delete w.__fxSeek; };
   }, []);
 
+  /**
+   * (BOTH) MARKER — which cards the owner-authored `choose-one-both` loop rides right now.
+   *
+   * The keys are the `data-choose-both` values the card views stamp (see `CardView.chooseBothKey`), gathered
+   * from the three surfaces the owner named: an OPEN DISCOVER's options, the HAND, and the SHOP. Priority
+   * order matters — `useChooseBothFx` keeps only the first `CHOOSE_BOTH_FX_CAP` — so the surface the player is
+   * actually looking at comes first.
+   *
+   * This is also the PAUSE: an empty list tears every loop down. Combat, and any board-covering overlay that
+   * is not the Discover itself, yield `[]` rather than leaving emitters spending frames behind a backdrop
+   * (the same hard-teardown rule `useCiaEnchantedFx` follows when the fight starts).
+   */
+  const chooseBothKeys = useMemo(() => {
+    if (run.phase === 'combat' || inCombat) return [];
+    // The Discover overlay OWNS the screen — and its own options are exactly what must be marked there.
+    if (run.discover?.length && !discoverMin) {
+      return run.discover.map((id, i) => (chooseBothActive(run, undefined, CARD_INDEX[id]) ? `disc:${i}` : null)).filter((k): k is string => !!k);
+    }
+    // Any other overlay covering the board: nothing to mark, and nothing worth animating underneath it.
+    if (run.chooseOne || run.questOffer || run.powerOffer || run.runeforgeOffer || run.scoutedNextOpponent?.length || heroSelecting || overlayOpen) return [];
+    const hand = run.hand.filter((c) => chooseBothActive(run, c, CARD_INDEX[c.cardId])).map((c) => c.uid);
+    const shop = run.shop.filter((o) => chooseBothActive(run, o, CARD_INDEX[o.cardId])).map((o) => o.uid);
+    return [...hand, ...shop];
+  }, [run, inCombat, discoverMin, heroSelecting, overlayOpen]);
+  useChooseBothFx(chooseBothKeys);
+
   // A board-covering modal is open (Discover / Choose One / a quest or runeforge offer / a scouted board).
   useEffect(() => {
     // A minimized Discover / Quest overlay leaves the board visible, so it doesn't count as covering.
@@ -2582,12 +2626,12 @@ export function Recruit() {
   // During the End-of-Turn animation the board shows each minion's per-proc stats (`eotAnimStats`),
   // so the numbers visibly tick up as each effect fires; otherwise the real stats.
   const live = useMemo(
-    () => ({ undeadBuyAtk: run.undeadBuyAtk, soulsmanGold: run.soulsmanGold ?? 0, cardBuffs: cardBuffsLive, impAura: run.impBuff, rubyCasts: run.rubyCasts, goldSpent: run.goldSpentThisTurn ?? 0, goldSpentRun: run.goldSpent, goldPouchValue: run.goldPouchValue, playedThisTurn: run.playedThisTurn, squirlScoutBuff: run.squirlScoutBuff, conductorBuff: run.conductorBuff, alesThisTurn: run.alesCastThisTurn, lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined, firstSpellThisTurnName: run.firstSpellThisTurnId ? CARD_INDEX[run.firstSpellThisTurnId]?.name : undefined, lastSpellThisTurnName: run.lastSpellThisTurnId ? CARD_INDEX[run.lastSpellThisTurnId]?.name : undefined, topTribe: dominantBoardTribe(run), frontToBackBonusH: run.frontToBackBonusH, improveReps: run.runeMastery ? 1 + runeStacksOf(run, 'rune_mastery') : 1, rubyBonus: rubyStatBonus(run), tier7Access: hasTier7Access(run), grimoireCharged: (run.grimoireMult ?? 0) > 1, runeMammoth: !!run.questFlags?.runeMammoth, runeFlags: { matriarch: !!run.runeMatriarch, brokerage: !!run.runeBrokerage, livingTreasure: !!run.questFlags?.runeLivingTreasure, facetwright: !!run.runeFacetwright } }),
+    () => ({ undeadBuyAtk: run.undeadBuyAtk, soulsmanGold: run.soulsmanGold ?? 0, cardBuffs: cardBuffsLive, impAura: run.impBuff, rubyCasts: run.rubyCasts, goldSpent: run.goldSpentThisTurn ?? 0, goldSpentRun: run.goldSpent, goldPouchValue: run.goldPouchValue, playedThisTurn: run.playedThisTurn, squirlScoutBuff: run.squirlScoutBuff, conductorBuff: run.conductorBuff, alesThisTurn: run.alesCastThisTurn, lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined, firstSpellThisTurnName: run.firstSpellThisTurnId ? CARD_INDEX[run.firstSpellThisTurnId]?.name : undefined, lastSpellThisTurnName: run.lastSpellThisTurnId ? CARD_INDEX[run.lastSpellThisTurnId]?.name : undefined, topTribe: dominantBoardTribe(run), frontToBackBonusH: run.frontToBackBonusH, improveReps: run.runeMastery ? 1 + runeStacksOf(run, 'rune_mastery') : 1, rubyBonus: rubyStatBonus(run), tier7Access: hasTier7Access(run), grimoireCharged: (run.grimoireMult ?? 0) > 1, runeMammoth: !!run.questFlags?.runeMammoth, runeFlags: { matriarch: !!run.runeMatriarch, brokerage: !!run.runeBrokerage, livingTreasure: !!run.questFlags?.runeLivingTreasure }, chooseBothState: { runeFacetwright: run.runeFacetwright, runeUnbrokenVein: run.runeUnbrokenVein } }),
     // `run.board` is a dep because `topTribe` is derived from it — without it the memo held the stale tribe
     // (and the stale spell names) until some other dep happened to move (audit find, live-verified 2026-07-31).
     // `cardBuffsLive` is the value actually consumed (not raw `run.cardBuffs`) — listing it explicitly was an
     // audit find 2026-08-06: coverage was previously incidental via the board dep.
-    [run.undeadBuyAtk, run.soulsmanGold, cardBuffsLive, run.goldSpentThisTurn, run.goldSpent, run.goldPouchValue, run.playedThisTurn, run.squirlScoutBuff, run.conductorBuff, run.alesCastThisTurn, run.lastSpellCastId, run.firstSpellThisTurnId, run.lastSpellThisTurnId, run.board, run.frontToBackBonusH, run.runeMastery, run.runeStacks, run.rubyBonus, run.grimoireMult, run.questFlags?.runeMammoth, run.runeMatriarch, run.runeBrokerage, run.questFlags?.runeLivingTreasure, run.runeFacetwright, run.impBuff],
+    [run.undeadBuyAtk, run.soulsmanGold, cardBuffsLive, run.goldSpentThisTurn, run.goldSpent, run.goldPouchValue, run.playedThisTurn, run.squirlScoutBuff, run.conductorBuff, run.alesCastThisTurn, run.lastSpellCastId, run.firstSpellThisTurnId, run.lastSpellThisTurnId, run.board, run.frontToBackBonusH, run.runeMastery, run.runeStacks, run.rubyBonus, run.grimoireMult, run.questFlags?.runeMammoth, run.runeMatriarch, run.runeBrokerage, run.questFlags?.runeLivingTreasure, run.runeFacetwright, run.runeUnbrokenVein, run.impBuff],
   );
   // The board as RENDERED during End-of-Turn playback: the real board, plus any minion summoned this beat
   // (Moira re-firing a summoner) injected as a synthetic card, plus keywords granted this beat overlaid so the
@@ -3261,10 +3305,16 @@ export function Recruit() {
       const c = run.board.find((b) => b.uid === uid);
       return c ? isTribe(c, def.targetTribe) : false; // dual-types (Bane) are valid picks
     };
+    // An `any` Choose One (Crest of the Climb) may land on a TAVERN offer as well as a warband minion — the
+    // reducer's target pool says so, so the picker has to offer it, or choosing "+4 Attack" would silently
+    // narrow the spell to the board (it could always hit an offer when the drag did the aiming).
+    const aimsTavern = pendingTarget.deferredPlay && def?.target === 'any';
     const minionAt = (x: number, y: number): { uid: string } | null => {
       const el = document.elementFromPoint(x, y)?.closest('[data-zone="warband"] .row .card[data-uid]');
       const uid = el?.getAttribute('data-uid');
-      return uid && valid(uid) ? { uid } : null;
+      if (uid && valid(uid)) return { uid };
+      const offer = aimsTavern ? shopUidAt(x, y) : null;
+      return offer ? { uid: offer } : null;
     };
     // Same treatment as the hero-power aim: anchor measured once (the source card can't move while you
     // aim), coordinates driven straight into Pixi, and React state touched only when the target changes.
@@ -3296,7 +3346,11 @@ export function Recruit() {
     const pick = (e: PointerEvent): void => {
       if (e.button !== 0 || timeUp) return;
       const target = minionAt(e.clientX, e.clientY);
-      if (target) dispatch({ type: 'battlecryTarget', targetUid: target.uid });
+      if (target) { dispatch({ type: 'battlecryTarget', targetUid: target.uid }); return; }
+      // CLICK AWAY = CANCEL, but only for a DEFERRED Choose One aim (owner ruling 2026-08-28): nothing has
+      // been played, so the card simply returns to hand untouched. An ordinary battlecry aim still ignores the
+      // click and keeps aiming — its body is already on the board, so there is nothing clean to back out to.
+      if (pendingTarget.deferredPlay) dispatch({ type: 'cancelChoice' });
     };
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerdown', pick);
@@ -5192,7 +5246,12 @@ export function Recruit() {
     // spell hits the minion under the cursor; an untargeted spell just resolves once it's above the line.
     if (d.source === 'hand' && (d.view.spell || d.view.ruby)) {
       const up = y < spellFloorRef.current;
-      if (d.view.target === 'friendly' || d.view.target === 'any') {
+      // CHOOSE ONE ASKS FIRST (owner ruling 2026-08-28: "drag the spell up, then choose one, then target a
+      // minion to buff"). A targeted Choose One is therefore dragged up like an UNTARGETED spell — the drop
+      // needs no target at all; the prompt opens, and the aim picker takes over once a branch is chosen. Only
+      // when the card will not ask (`chooseBothActive`) does it keep aiming from the drag.
+      const asksFirst = chooseOneNeedsChoice(run, run.hand.find((c) => c.uid === d.uid), CARD_INDEX[d.view.cardId]);
+      if ((d.view.target === 'friendly' || d.view.target === 'any') && !asksFirst) {
         // Explicit drop only: release squarely over a friendly minion (or, for `any` spells like Shatter,
         // a tavern offer). No auto-target in empty space (that silently buffed a random minion — felt broken).
         const targetUid = boardUidAt(x, y) ?? (d.view.target === 'any' ? shopUidAt(x, y) : null);
@@ -5228,7 +5287,9 @@ export function Recruit() {
       }
       if (up) {
         dispatch({ type: 'play', uid: d.uid });
-        fireSpellCastFx(d.view.cardId, { x, y });   // authored def if bound; else the generic spark
+        // A Choose One that is about to open its prompt casts nothing yet — firing the cast FX here would
+        // flash a spell that has not resolved (and would fire again on the real cast).
+        if (!asksFirst) fireSpellCastFx(d.view.cardId, { x, y }); // authored def if bound; else the generic spark
         return true;
       }
       return false;
@@ -5907,14 +5968,22 @@ export function Recruit() {
       )}
 
       {run.chooseOne && (
-        <div className="discover-ov" role="dialog" aria-label="Choose One">
+        // CLICK OUTSIDE THE OPTIONS = CANCEL (owner ruling 2026-08-28): the card returns to hand untouched.
+        // Nothing was committed when it was played, so this is a pure no-op in the reducer — no effects, no
+        // Gold, no triggers, no RNG. The handler is on the BACKDROP and checks `currentTarget`, so a click
+        // that lands on the panel (or on an option card) is never a cancel. Escape does the same.
+        <div
+          className="discover-ov" role="dialog" aria-label="Choose One" tabIndex={-1}
+          onPointerDown={(e) => { if (!(e.target as Element).closest('.disc-slot')) dispatch({ type: 'cancelChoice' }); }}
+          onKeyDown={(e) => { if (e.key === 'Escape') dispatch({ type: 'cancelChoice' }); }}
+        >
           {/* Reuses the DISCOVER chrome (transparent panel, dark-glass banner, card row) rather than the old
               bespoke cream text-buttons — a Choose One is the same kind of decision as a Discover, so the
               player picks a CARD, not a paragraph (owner 2026-07-24). Each option renders the real card with
               only that branch's text printed, so what you click is exactly what lands on your board. */}
           <div className="disc-panel">
             <div className="disc-banner"><span className="disp">Choose One</span></div>
-            <div className="disc-sub">{CARD_INDEX[run.chooseOne.cardId]?.name}</div>
+            <div className="disc-sub">{CARD_INDEX[run.chooseOne.cardId]?.name} · click away to cancel</div>
             <div className="disc-cards">
               {(() => {
                 // A golden Choose One doubles each option's effect (gold(self) in the factories) — so show each
@@ -5991,7 +6060,10 @@ export function Recruit() {
                 const lt = liveCardText(c.id, {
                   ...offerLiveTextParams(false, { ...liveOptsFromRun(run), cardBuffs: cardBuffsLive }),
                   runeMammoth: !!run.questFlags?.runeMammoth,
-                  runeFlags: { matriarch: !!run.runeMatriarch, brokerage: !!run.runeBrokerage, livingTreasure: !!run.questFlags?.runeLivingTreasure, facetwright: !!run.runeFacetwright },
+                  runeFlags: { matriarch: !!run.runeMatriarch, brokerage: !!run.runeBrokerage, livingTreasure: !!run.questFlags?.runeLivingTreasure },
+                  // (Both): a Discovered Choose One the run already makes do both reads as (Both) here too —
+                  // the option row is where you decide to take it, so it must not promise a choice it won't ask.
+                  chooseBoth: chooseBothActive(run, undefined, c),
                   maxTier: maxTierFor(run.rift),
                 });
                 return (
@@ -6001,7 +6073,9 @@ export function Recruit() {
                       // place of the Attack/Health badges (owner 2026-07-24: spells were showing a meaningless
                       // 0/1 here). Every other surface passes these through `instView`; this panel builds its
                       // card view by hand, which is how they got dropped.
-                      card={{ name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2, universalTribe: !!c.universalTribe, attack: c.attack, health: c.health, keywords: c.keywords, text: lt.text, goldenText: lt.goldenText, tier: c.tier, spell: !!c.spell, ruby: !!c.ruby }}
+                      card={{ name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2, universalTribe: !!c.universalTribe, attack: c.attack, health: c.health, keywords: c.keywords, text: lt.text, goldenText: lt.goldenText, tier: c.tier, spell: !!c.spell, ruby: !!c.ruby,
+                        // (Both) marker hook — a Discover option has no uid, so it is keyed by its slot.
+                        chooseBothKey: chooseBothActive(run, undefined, c) ? `disc:${i}` : undefined }}
                       onClick={() => dispatch({ type: 'discover', index: i })}
                     />
                   </div>

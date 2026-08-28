@@ -1789,7 +1789,19 @@ export interface RunState {
    *  battlecry): the card is still in HAND and its chosen effect is cast (then consumed) on pick. `targetUid`
    *  is set for a *targeted* spell Choose One (Anomaly Reactor): the drag already picked the target minion, so
    *  the chosen option's effect is cast ON that target rather than untargeted. */
-  chooseOne?: { uid: string; cardId: string; spell?: boolean; targetUid?: string };
+  chooseOne?: {
+    uid: string; cardId: string; spell?: boolean; targetUid?: string;
+    /** The warband slot the card was dropped into, captured at play time and replayed into the completing
+     *  `play` once the branch is picked. Minion Choose Ones only — a spell takes no slot. */
+    toIndex?: number;
+  };
+  /** TRANSIENT, single-dispatch scratch (never meaningful across actions, and nothing persists it): the branch
+   *  the player just picked for `uid`, handed to the `play` case as it REPLAYS the deferred play. See the
+   *  Choose One deferral in `reducer.ts` — a Choose One card commits nothing when you play it, so the pick is
+   *  applied by re-running `play` from the top, which is what keeps every consequence (cards-played meter,
+   *  summon buffs, Refrain's RNG roll, triples, the golden Discover) firing exactly once and in the same
+   *  order it always did. */
+  chooseOnePick?: { uid: string; index: number; targetUid?: string };
   /** A played minion with a *targeted* Battlecry (`CardDef.target === 'friendly'`, e.g. Toxin Tender),
    *  on the board and waiting for the player to pick the friendly minion its Battlecry hits. Resolved
    *  by `battlecryTarget`; auto-resolves on the carry if the turn ends first. `optionIndex` marks a deferred
@@ -1798,7 +1810,14 @@ export interface RunState {
     /** Common Ground: this pending aim belongs to a SPELL in HAND (not a board battlecry) whose FIRST target
      *  is already picked (`spellFirstUid`); the aim picker chooses the SECOND friendly minion, then the two are
      *  averaged and the spell (`uid` = its hand uid) is consumed. */
-    spell?: boolean; spellFirstUid?: string };
+    spell?: boolean; spellFirstUid?: string;
+    /** CHOOSE ONE, target step (owner ruling 2026-08-28: choose first, THEN target). The card has NOT been
+     *  played yet — it is still in hand, nothing has resolved, and the play completes (spell cast / minion
+     *  summoned + Battlecry) only once the target is picked. That is what makes a click-away cancel here a
+     *  pure no-op instead of stranding a chosen-but-unplaced card. */
+    deferredPlay?: boolean;
+    /** The warband slot captured at play time, replayed into the completing `play` (minions only). */
+    toIndex?: number };
   /** The most recent combat's result, for the UI to replay. Transient. */
   lastCombat?: CombatResult;
   /** OPPONENT PINNING: the exact board fought each wave, keyed by wave number — the full served
@@ -1837,6 +1856,12 @@ export type Action =
   | { type: 'skipRuneforge' } // Runeforge: leave without buying (closes the forge)
   | { type: 'rerollRuneforge' } // Runeforge: re-roll the offered runes once, for 2 Gold
   | { type: 'chooseOne'; index: number }
+  /** Click away from a Choose One (the option prompt OR its target step) — the card returns to hand exactly
+   *  as it was: no effects, no Gold moved, no triggers fired, no RNG drawn. It is a real ACTION rather than a
+   *  UI-only dismiss so a recording replays the abandoned play the same way the player lived it. Only ever
+   *  cancels a DEFERRED Choose One; an ordinary battlecry aim (Toxin Tender, already on the board) is
+   *  untouched by it. */
+  | { type: 'cancelChoice' }
   | { type: 'battlecryTarget'; targetUid: string }
   | { type: 'closeScout' } // Farseer's Report: dismiss the scout reveal
   | { type: 'faceOmen' }

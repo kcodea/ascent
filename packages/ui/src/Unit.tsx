@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { CARD_INDEX } from '@game/content';
-import { hasTier7Access, spellAttackBonus, spellHealthBonus } from '@game/sim';
+import { chooseBothActive, hasTier7Access, spellAttackBonus, spellHealthBonus } from '@game/sim';
 import { Card, type CardView } from './Card';
 import { stepProgress } from './cardText';
 import { liveCardText } from './instView';
@@ -74,6 +74,10 @@ function UnitInner({ u, side, anim, triggered, rallyPulse, watcherPulse, framePu
         impAura: foe ? undefined : run.impBuff, // enemyScalers carries no Imp Aura → an enemy Raag reads its printed text
         cardBuffs: foe ? undefined : run.cardBuffs,
         chosenOption: u.chosenOption, // a resolved Choose One prints only the branch it became
+        // (Both) — a golden Orivax / a Veinbreaker under its rune records NO branch (it gained them all), so in
+        // combat it must still read as doing both rather than falling back to a "Choose One:" it never asked.
+        // Player-side only: an enemy snapshot carries no run, the same fallback every run-scoped input takes.
+        chooseBoth: foe ? false : chooseBothActive(run, u, def),
         rallySpreadAtk: u.rallySpreadAtk, // Sunmane: the rally's live escalating grant
         taughtSpellId: u.taughtSpellId, // a Mage-Pup names the spell it was taught
         spellProgress: u.spellProgress, ascendProgress: u.ascendProgress, summonBonus: u.summonBonus,
@@ -112,7 +116,7 @@ function UnitInner({ u, side, anim, triggered, rallyPulse, watcherPulse, framePu
         tier7Access: foe ? false : hasTier7Access(run),
         zooSummons: foe ? undefined : zooSummons, // Beardsley + Rune of the Zoo: the next summon's live grant
 
-        runeFlags: foe ? undefined : { matriarch: !!run.runeMatriarch, brokerage: !!run.runeBrokerage, livingTreasure: !!run.questFlags?.runeLivingTreasure, facetwright: !!run.runeFacetwright },
+        runeFlags: foe ? undefined : { matriarch: !!run.runeMatriarch, brokerage: !!run.runeBrokerage, livingTreasure: !!run.questFlags?.runeLivingTreasure },
         // Rune of Rebirth: only the body the Start-of-Combat grant actually landed on prints the Echo.
         rebirthOwner: u.grantedEcho,
       })

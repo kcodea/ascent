@@ -43,7 +43,10 @@ const TYPED_SKIPS: ReadonlySet<string> = new Set<SkipReason | string>([
 describe('contract oracle at scale — the deterministic gate sample', () => {
   it('sweeps the whole registry and is deterministic (§4.4)', () => {
     expect(sweep.contractsTotal).toBe(CONTRACTS.length);
-    expect(sweep.contractsTotal).toBeGreaterThanOrEqual(900); // 13 curated + 888 extracted today
+    // 901 → 885 on 2026-08-28: the owner archived the 16 Celestials ("leaving set 3 empty of minions now"),
+    // and an archived card is out of the contract sweep. A floor, not an equality — it guards against the
+    // sweep silently collapsing, and content is expected to grow past it again.
+    expect(sweep.contractsTotal).toBeGreaterThanOrEqual(880); // 13 curated + 872 extracted today
     const again = runContractSweep({ contracts: CONTRACTS, sampleMod: GATE_SAMPLE_MOD, corroboration: { playScanResult: scan } });
     const key = (r: typeof sweep) => stableStringify({
       observations: r.observations, mismatches: r.mismatches,

@@ -361,6 +361,7 @@ export const RETIRED_RULES: RetiredRule[] = [
       + 'textParse lane pins the vocabulary (a live card reusing the retired phrasing re-alarms).',
     retiredAt: '2026-08-28',
     enforcement: { kind: 'oracle', refs: ['textParse'], lastVerifiedAt: '2026-08-28' },
+  },
 
   // ── E. The Sitting-2 anomaly deck (owner decisions 2026-08-28) — all three cards resolved, so the deck
   //    regenerates EMPTY. Each anomaly is gone because its cause was fixed, never because it was suppressed. ──

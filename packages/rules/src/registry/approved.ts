@@ -533,6 +533,8 @@ export const APPROVED_RULES: GameRule[] = [
       + '\'gild-not-applicable\' skip carrying the reason, and the text lane alarms if a spell ever grows an '
       + 'authored gilded body.',
     enforcement: { kind: 'oracle', refs: ['gildingKinds'], lastVerifiedAt: '2026-08-28' },
+  },
+
   // ── Sitting-2 / keyword-convention rulings (owner triage 2026-08-28) ───────────────────────────────────
   {
     id: 'R-RISE-01',

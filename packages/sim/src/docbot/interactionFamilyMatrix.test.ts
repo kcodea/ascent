@@ -288,26 +288,30 @@ describe('Doc Bot — trigger-family interaction matrix', () => {
       'a GILDED marked body doubles the whole forced fire, like triggerEcho\'s gild fold').toBe((gilded.triggers - 1) * 2);
   });
 
-  // P12 — endOfTurn × endOfTurn multipliers. Owner APPROVE 2026-08-28 (q-interact2-32aa654f /
-  // q-interact2-faeb3c44, standing rule R-MULT-02): the endOfTurn family composes by the SAME law as the
-  // ruled ones — non-stacking cards collapse to the single best (Gilded counting double), and the one-shot
-  // extras add on top of that fold. This was ambiguity Q1's second half (Uron + Chronos), now ruled.
-  it('P12: End-of-Turn fires = 1 + best non-stacking multiplier — Uron + Chronos collapse to 2×, never 3×', () => {
+  // P12 — endOfTurn × endOfTurn multipliers, under R-MULT-02 as REVISED on 2026-08-28.
+  //
+  // This lane used to pin "Uron + Chronos collapse to 2×, never 3×", which was right under the all-additive
+  // model it was approved against that morning. The owner's wording rule replaced that model the same day:
+  // Chronos prints "twice" (a MULTIPLIER) and Uron prints "an additional time" (ADDITIVE), so the two now
+  // compose as (1 + 1) × 2 = 4. The lane is kept, not deleted — it is the tripwire that caught the change.
+  it('P12: End-of-Turn fires = (1 + additive) × multiplier — Uron + Chronos make 4×', () => {
     const reps = (board: BoardCard[], oneShot = false): number => {
       const s = base(board);
       if (oneShot) (s as { extraEotThisTurn?: boolean }).extraEotThisTurn = true; // Chrono Staff's per-turn extra
       return endOfTurnRepeats(s);
     };
     expect(reps([card('a', 'footman')]), 'control: End of Turn fires once').toBe(1);
-    expect(reps([card('a', 'chronos')]), 'Chronos alone: 1 + 1').toBe(2);
-    expect(reps([card('a', 'uron')]), 'Uron alone: 1 + 1 (the same family, a different card)').toBe(2);
+    expect(reps([card('a', 'chronos')]), 'Chronos alone: ×2').toBe(2);
+    expect(reps([card('a', 'uron')]), 'Uron alone: 1 + 1 additive').toBe(2);
     expect(reps([card('a', 'chronos'), card('b', 'uron')]),
-      'R-MULT-02: two DIFFERENT non-stacking cards of one family collapse to best-of — 2×, not 3×').toBe(2);
-    expect(reps([card('a', 'chronos', { golden: true })]), 'gild doubles the contribution (1 + 2)').toBe(3);
+      'R-MULT-02 (revised): Uron adds a fire, Chronos doubles the total — (1 + 1) × 2').toBe(4);
+    expect(reps([card('a', 'chronos'), card('b', 'chronos')]),
+      'two Chronos are still ×2 — a multiplier does not stack with copies of itself').toBe(2);
+    expect(reps([card('a', 'chronos', { golden: true })]), 'golden buys ONE more trigger: ×3').toBe(3);
     expect(reps([card('a', 'chronos', { golden: true }), card('b', 'uron')]),
-      'best-of picks the golden Chronos (2), not the sum of both cards').toBe(3);
+      '(1 + 1) × 3').toBe(6);
     expect(reps([card('a', 'chronos'), card('b', 'uron')], true),
-      'the one-shot extra adds ON TOP of the collapsed fold — 1 + best(1) + 1').toBe(3);
+      'the one-shot extra adds ON TOP of the fold — (1 + 1) × 2 + 1').toBe(5);
   });
 
   // P13 — startOfCombat × the same multiplier, in the OTHER phase: the family-agnostic law holds in combat

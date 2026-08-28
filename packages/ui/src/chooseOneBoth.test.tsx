@@ -42,7 +42,8 @@ describe('(Both) — the printed text', () => {
     for (const s of SOURCES) {
       const def = CARD_INDEX[s.id]!;
       const text = chooseBothText(s.id, s.golden)!;
-      expect(text, `${s.id}: the (Both) label must be a live-coloured marker`).toMatch(/^\{\{\(Both\)\}\} /);
+      // `<<…>>` is the TRIBE-coloured marker (owner 2026-08-28), not the green `{{…}}` "modified value" one.
+      expect(text, `${s.id}: the (Both) label must be the tribe-coloured marker`).toMatch(/^<<\(Both\)>> /);
       expect(text.toLowerCase(), `${s.id}: no choice is being offered any more`).not.toContain('choose one');
       for (const opt of def.chooseOne!) {
         expect(text, `${s.id}: every branch must print`).toContain(s.golden ? (opt.goldenText ?? opt.text) : opt.text);
@@ -90,13 +91,13 @@ describe('(Both) — every render chain agrees', () => {
     };
   };
 
-  it('the DOM renders the (Both) string, with the label styled green rather than leaked as braces', () => {
+  it("the DOM renders the (Both) string, with the label styled in the card's TRIBE colour", () => {
     for (const s of SOURCES) {
       const text = chooseBothText(s.id, s.golden)!;
       m.render(<Card card={viewOf(s.id, s.golden, text)} forceFull />);
       expect(descTextOf(m.container), `${s.id}: the DOM must show the helper string`).toBe(plainOf(text));
-      const greens = [...m.container.querySelectorAll('.desc .descup')].map((el) => el.textContent);
-      expect(greens, `${s.id}: (Both) must render as a coloured span`).toContain('(Both)');
+      const tinted = [...m.container.querySelectorAll('.desc .descboth')].map((el) => el.textContent);
+      expect(tinted, `${s.id}: (Both) must render as a tribe-coloured span`).toContain('(Both)');
     }
   });
 

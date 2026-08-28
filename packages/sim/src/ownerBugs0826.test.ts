@@ -21,11 +21,18 @@ describe('Funeral on Loan: a borrowed Echo that SUMMONS still fits on a 6-body b
     // SIX real bodies + the borrowed card in hand = the exact reported board.
     s = {
       ...s,
-      board: Array.from({ length: 6 }, (_, i) => body(`f${i}`, 'dw_orin')),
+      // SIX DISTINCT cards. Six copies of one minion would TRIPLE now that a shop death checks triples
+      // (owner ask 2026-08-28), collapsing the very board this test needs full.
+      board: ['sandbag', 'alley', 'pack', 'impscrap', 'trickster', 'ritualist'].map((id, i) => body(`f${i}`, id)),
       hand: [{ ...body('bor', summoner.id), borrowed: true }],
     } as unknown as RunState;
     const before = s.board.length;
+    // TWO steps since 2026-08-28 (owner design): the body lands, then the death fires its Echo and takes it
+    // away. What this test pins — that the Echo's summon fits, because the dying body frees its slot — is
+    // unchanged; it just belongs to the second step now.
     s = reduce(s, { type: 'play', uid: 'bor', toIndex: 6 } as Action);
+    expect(s.board.some((c) => c.uid === 'bor'), 'step 1: the borrowed body really lands').toBe(true);
+    s = reduce(s, { type: 'resolveShopDeath' } as Action);
     // The borrowed body is gone (it always is), but its Echo's summon took the freed slot.
     expect(s.board.some((c) => c.uid === 'bor'), 'the borrowed body never stays').toBe(false);
     expect(s.board.length, 'the Echo summoned into the vacated slot').toBe(before + 1);

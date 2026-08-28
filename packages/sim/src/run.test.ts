@@ -70,7 +70,7 @@ function playToEnd(seed: number): RunState {
     } else if (s.chooseOne) {
       s = reduce(s, { type: 'chooseOne', index: 0 }); // resolve a pending Choose One (Runic Beetle / Wildwood Shaper)
     } else if (s.pendingTarget) {
-      s = reduce(s, { type: 'battlecryTarget', targetUid: s.board[0]?.uid ?? s.pendingTarget.uid }); // pick a target (Runic Beetle / Toxin Tender)
+      s = reduce(reduce(s, { type: 'battlecryTarget', targetUid: s.board[0]?.uid ?? s.pendingTarget.uid }), { type: 'resolveShopDeath' }); // pick a target (Runic Beetle / Toxin Tender)
     } else if (s.discover) {
       s = reduce(s, { type: 'discover', index: 0 }); // resolve a pending Discover (triple reward / Discover spell)
     } else if (s.phase === 'combat') {
@@ -426,7 +426,7 @@ describe('run loop (@game/sim)', () => {
       hand: [{ uid: 'g', cardId: 'graverobber', tribe: 'undead', attack: 4, health: 4, keywords: [], golden: false }],
     };
     s = reduce(s, { type: 'play', uid: 'g' }); // Graverobber to board + pendingTarget
-    s = reduce(s, { type: 'battlecryTarget', targetUid: 't' }); // destroy the Whelpmother
+    s = reduce(reduce(s, { type: 'battlecryTarget', targetUid: 't' }), { type: 'resolveShopDeath' }); // destroy the Whelpmother
     expect(s.board.find((c) => c.uid === 't')).toBeUndefined(); // destroyed
     expect(s.board.filter((c) => c.cardId === 'twilightwhelp').length).toBe(2); // its Deathrattle summoned 2 Whelps
     expect(s.hand.some((c) => CARD_INDEX[c.cardId]?.spell && CARD_INDEX[c.cardId]?.tier === 4)).toBe(true); // a tier-4 spell (Whelpmother is T4)
@@ -443,11 +443,11 @@ describe('run loop (@game/sim)', () => {
     s = reduce(s, { type: 'play', uid: 'g' });
     const self = s.board.find((c) => c.cardId === 'graverobber')!.uid;
     const before = s.hand.length;
-    s = reduce(s, { type: 'battlecryTarget', targetUid: self }); // aim at itself → rejected
+    s = reduce(reduce(s, { type: 'battlecryTarget', targetUid: self }), { type: 'resolveShopDeath' }); // aim at itself → rejected
     expect(s.board.some((c) => c.uid === self)).toBe(true); // still alive — it did not eat itself
     expect(s.pendingTarget).toBeDefined(); // the prompt stays open for a legal pick
     expect(s.hand.length).toBe(before); // and no spell was granted
-    s = reduce(s, { type: 'battlecryTarget', targetUid: 't' }); // a legal target still resolves normally
+    s = reduce(reduce(s, { type: 'battlecryTarget', targetUid: 't' }), { type: 'resolveShopDeath' }); // a legal target still resolves normally
     expect(s.board.find((c) => c.uid === 't')).toBeUndefined();
     expect(s.pendingTarget).toBeUndefined();
   });
@@ -473,7 +473,7 @@ describe('run loop (@game/sim)', () => {
       hand: [{ uid: 'g', cardId: 'graverobber', tribe: 'undead', attack: 4, health: 4, keywords: [], golden: false }],
     };
     s = reduce(s, { type: 'play', uid: 'g' });
-    s = reduce(s, { type: 'battlecryTarget', targetUid: 'm' }); // destroy Mumi → its Deathrattle should fire
+    s = reduce(reduce(s, { type: 'battlecryTarget', targetUid: 'm' }), { type: 'resolveShopDeath' }); // destroy Mumi → its Deathrattle should fire
     expect(s.board.find((c) => c.uid === 'm')).toBeUndefined(); // Mumi destroyed
     expect(s.board.find((c) => c.uid === 'u')?.keywords).toContain('R'); // the highest-Attack friendly Undead got Rise
   });
@@ -488,7 +488,7 @@ describe('run loop (@game/sim)', () => {
       hand: [{ uid: 'g', cardId: 'graverobber', tribe: 'undead', attack: 4, health: 4, keywords: [], golden: false }],
     };
     s = reduce(s, { type: 'play', uid: 'g' });
-    s = reduce(s, { type: 'battlecryTarget', targetUid: 'grim' });
+    s = reduce(reduce(s, { type: 'battlecryTarget', targetUid: 'grim' }), { type: 'resolveShopDeath' });
     expect(s.board.find((c) => c.uid === 'grim')).toBeUndefined(); // destroyed
     // Grim's new Echo (2026-08-12): a flat +8/+8 to your Beasts → the surviving Beast gets +8/+8.
     expect(s.board.find((c) => c.uid === 'b')!.attack).toBe(1 + 8);
@@ -506,7 +506,7 @@ describe('run loop (@game/sim)', () => {
       hand: [{ uid: 'g', cardId: 'graverobber', tribe: 'undead', attack: 4, health: 4, keywords: [], golden: false }],
     };
     s = reduce(s, { type: 'play', uid: 'g' });
-    s = reduce(s, { type: 'battlecryTarget', targetUid: 'grim' });
+    s = reduce(reduce(s, { type: 'battlecryTarget', targetUid: 'grim' }), { type: 'resolveShopDeath' });
     expect(s.board.find((c) => c.uid === 'b')!.attack).toBe(1 + 16); // +8/+8 fired twice (once + one Sylus)
   });
 
@@ -518,7 +518,7 @@ describe('run loop (@game/sim)', () => {
       hand: [{ uid: 'g', cardId: 'graverobber', tribe: 'undead', attack: 4, health: 4, keywords: [], golden: false }],
     };
     s = reduce(s, { type: 'play', uid: 'g' });
-    s = reduce(s, { type: 'battlecryTarget', targetUid: 't' }); // destroy → its Echo fires out of combat
+    s = reduce(reduce(s, { type: 'battlecryTarget', targetUid: 't' }), { type: 'resolveShopDeath' }); // destroy → its Echo fires out of combat
     expect(s.activeQuests![0]!.progress).toBe(1); // the recruit-phase Echo ticked the quest (was 0 before this fix)
   });
 
@@ -913,7 +913,7 @@ describe('run loop (@game/sim)', () => {
     let s = setup();
     s = reduce(s, { type: 'play', uid: 'te' });
     expect(s.pendingTarget).toBeDefined(); // waits for the player to pick a Dragon
-    s = reduce(s, { type: 'battlecryTarget', targetUid: 'd2' }); // the SMALL Dragon, not the auto-pick
+    s = reduce(reduce(s, { type: 'battlecryTarget', targetUid: 'd2' }), { type: 'resolveShopDeath' }); // the SMALL Dragon, not the auto-pick
     expect(s.pendingTarget).toBeUndefined();
     const d2 = s.board.find((c) => c.uid === 'd2')!;
     expect([d2.attack, d2.health]).toEqual([3, 3]); // 1/1 + 2/2
@@ -951,7 +951,7 @@ describe('run loop (@game/sim)', () => {
     s = reduce(s, { type: 'chooseOne', index: 0 }); // pick Rise → now defers to a target
     expect(s.chooseOne).toBeUndefined();
     expect(s.pendingTarget).toBeDefined(); // waiting for the player to choose the Beast
-    s = reduce(s, { type: 'battlecryTarget', targetUid: 'o' }); // give it to the Alleycat (not the highest-Attack Beast)
+    s = reduce(reduce(s, { type: 'battlecryTarget', targetUid: 'o' }), { type: 'resolveShopDeath' }); // give it to the Alleycat (not the highest-Attack Beast)
     expect(s.pendingTarget).toBeUndefined();
     expect(s.board.find((c) => c.uid === 'o')?.keywords).toContain('R'); // the CHOSEN Beast got it
     expect(s.board.find((c) => c.uid === 'p')?.keywords).not.toContain('R'); // not the auto-pick
@@ -959,7 +959,7 @@ describe('run loop (@game/sim)', () => {
     let f = setup();
     f = reduce(f, { type: 'play', uid: 'rb' });
     f = reduce(f, { type: 'chooseOne', index: 1 }); // Flurry
-    f = reduce(f, { type: 'battlecryTarget', targetUid: 'p' });
+    f = reduce(reduce(f, { type: 'battlecryTarget', targetUid: 'p' }), { type: 'resolveShopDeath' });
     expect(f.board.find((c) => c.uid === 'p')?.keywords).toContain('W');
   });
 
@@ -6153,7 +6153,7 @@ describe('quest fixes: recruit-summoned Imp buff + triple-on-quest-grant', () =>
     const impsWith = (impBuff: { attack: number; health: number }): BoardCard[] => {
       let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', impBuff, board: [mk('ik', 'impking')], hand: [mk('gr', 'graverobber')] };
       s = reduce(s, { type: 'play', uid: 'gr' });
-      s = reduce(s, { type: 'battlecryTarget', targetUid: 'ik' });
+      s = reduce(reduce(s, { type: 'battlecryTarget', targetUid: 'ik' }), { type: 'resolveShopDeath' });
       return s.board.filter((c) => c.cardId === 'impscrap');
     };
     const base = impsWith({ attack: 0, health: 0 });

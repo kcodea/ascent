@@ -90,6 +90,7 @@ import { getFlipConfig } from './flipConfig';
 import { getTrailConfig } from './trailConfig';
 import { cardFxScale } from './fx/cardScale';
 import { playDef, canPlayDefs } from './fx/playDef';
+import { getShopDeathFxConfig } from './shopDeathFxConfig';
 import { anchorsForUnits } from './fx/combatAnchors';
 import { rubyLandHolds } from './choreo/channels/rubyLanded';
 import { captureRecruitSeqs, recruitMomentsSince, recruitSeqsOf, selfBuffMoment, shoutMoment, spellCastMoment } from './choreo/recruitMoments';
@@ -1680,6 +1681,121 @@ export function Recruit() {
       ),
     [],
   );
+  /** Echoes already played by the LEAD below — skipped when their batch arrives, so one Echo is one burst. */
+  const preFiredEchoRef = useRef<Set<string>>(new Set());
+  /** Set when a death cue fires, consumed by the commit FLIP below: the survivors hold before sliding
+   *  into the dead minion's slot, so the death reads before the board rearranges (owner 2026-08-28). */
+  const shiftHoldRef = useRef(0);
+
+  /**
+   * THE SHOP'S TWO-STEP DEATH — the landing half (owner design 2026-08-28: "the minion should be coded to
+   * literally land as if it was played, but then the immediate next action is that it is destroyed").
+   *
+   * The reducer LANDS the body and stops, leaving `pendingDeath`. The board therefore really holds it, and it
+   * renders through the ordinary arrival path — no projection, no held state, nothing special. This effect is
+   * the pause: it lets that landing sit on screen for one beat, then dispatches the death.
+   *
+   * Deliberately dumb and unskippable-safe: the reducer settles the same pending death on ANY next action, so
+   * if this timer is cut short by a click, a route change, or an unmount, the outcome is identical — the
+   * player just does not see the pause. That is what keeps a real intermediate game state safe.
+   */
+  const pendingDeathUid = run.pendingDeath?.uid;
+  useEffect(() => {
+    if (!pendingDeathUid) return;
+    const cfg = getShopDeathFxConfig();
+    const ms = Math.max(0, cfg.landingMs);
+    // THE ECHO LEAD (owner 2026-08-28: "trigger slightly earlier"). A negative `echoDelayMs` fires the skull
+    // BEFORE the destruction, while the body is still on the board — so the departure lands INTO the burst
+    // instead of following it. This is the only place a lead can happen: once the death commits, the moment
+    // has passed. The uid is recorded so the cue effect does not fire the same Echo again a beat later.
+    const lead = Math.min(ms, Math.max(0, -cfg.echoDelayMs));
+    const timers: number[] = [];
+    if (lead > 0 && cfg.echoEnabled) {
+      timers.push(window.setTimeout(() => {
+        const el = findEl(pendingDeathUid);
+        if (!el) return; // gone early (an interrupting action settled the death) — the cue effect covers it
+        const r = el.getBoundingClientRect();
+        preFiredEchoRef.current.add(pendingDeathUid);
+        pixiFx.deathrattle(r.left + r.width / 2 + cfg.offsetX, r.top + r.height / 2 + cfg.offsetY, r.width * cfg.sizeScale);
+      }, ms - lead));
+    }
+    if (ms <= 0) { dispatch({ type: 'resolveShopDeath' }); return () => timers.forEach(window.clearTimeout); }
+    timers.push(window.setTimeout(() => dispatch({ type: 'resolveShopDeath' }), ms));
+    return () => timers.forEach(window.clearTimeout);
+  }, [pendingDeathUid, dispatch, findEl]);
+
+  /**
+   * SHOP DEATH + ECHO CUES (owner ask 2026-08-28) — the shop's answer to combat's death visuals.
+   *
+   * The shop has no beat playback (only End of Turn plays beats), so these ride the same per-action scratch
+   * channel every other shop FX uses. The vocabulary is COMBAT'S, deliberately: the same event should not look
+   * like two different things depending on the phase.
+   *
+   *   · an Echo TRIGGERED    → `pixiFx.deathrattle` — the painted skull-shatter. From ANY source: a shop
+   *                             destroy, Ossuary Rite, Rune of the Reliquary, a Gravetwin's copy.
+   *   · a body DIED          → the authored `death-dissolve` def.
+   *   · a body that is RISING → neither: it re-forms rather than dissolving.
+   *
+   * POSITION. A dead body is already off the board by the time this runs, so `findEl` cannot find it. The
+   * cache below keeps the last known centre of every board card; this effect reads it BEFORE the refresh
+   * effect (declared after it, so it runs after) overwrites it with the new layout.
+   */
+  const lastCentreRef = useRef<Map<string, { x: number; y: number; w: number }>>(new Map());
+  const prevShopFxSeq = useRef(run.shopFxSeq);
+  useLayoutEffect(() => {
+    const seq = run.shopFxSeq;
+    if (seq === undefined || seq === prevShopFxSeq.current) return;
+    prevShopFxSeq.current = seq; // advance FIRST — fires exactly once per action, like the Ruby cue above
+    const cues = run.shopDeathFx ?? [];
+    const cfg = getShopDeathFxConfig(); // read at FIRE TIME, so a tuner edit applies to the next death
+    // WHICH BODIES DIED THIS ACTION. An Echo belonging to a dying body must play WHERE THE CARD WAS (owner
+    // 2026-08-28) — so for those we go straight to the last-known centre and never consult the live DOM,
+    // where the uid is either absent or, after a Rise, a DIFFERENT body standing in its place.
+    const dying = new Set(cues.filter((f) => f.kind === 'death').map((f) => f.uid));
+    // Hold the row for the NEXT commit's slide. Set here rather than in the FLIP effect because only
+    // this one knows a death happened; the FLIP effect sees an ordinary board change.
+    if (dying.size > 0) shiftHoldRef.current = Math.max(0, cfg.shiftDelayMs);
+    for (const fx of cues) {
+      const cached = lastCentreRef.current.get(fx.uid);
+      const live = dying.has(fx.uid) ? null : findEl(fx.uid);
+      const base = live
+        ? (() => { const r = live.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width }; })()
+        : cached;
+      if (!base) continue;
+      const at = { x: base.x + cfg.offsetX, y: base.y + cfg.offsetY, w: base.w * cfg.sizeScale };
+      const fire = (): void => {
+        if (fx.kind === 'echo') { pixiFx.deathrattle(at.x, at.y, at.w); return; }
+        if (fx.rise) { pixiFx.flashBloom(at.x, at.y, RISE_BURST); return; }
+        if (!canPlayDefs()) return;
+        const anchors = anchorsForUnits(null, fx.uid);
+        if (anchors) playDef('death-dissolve', anchors, { uids: { source: null, target: fx.uid } });
+      };
+      if (fx.kind === 'echo' && preFiredEchoRef.current.delete(fx.uid)) continue; // the lead already played it
+      if (fx.kind === 'echo' && !cfg.echoEnabled) continue;
+      if (fx.kind === 'death' && !cfg.deathEnabled) continue;
+      const delay = fx.kind === 'echo' ? cfg.echoDelayMs : cfg.deathDelayMs;
+      if (delay > 0) window.setTimeout(fire, delay); else fire();
+    }
+  }, [run.shopFxSeq, run.shopDeathFx, findEl]);
+
+  /**
+   * Refresh the last-known-centre cache. Declared AFTER the cue effect on purpose: React runs layout effects
+   * in declaration order, so the cue above still sees the PREVIOUS layout — which is the only place a body
+   * that just died still has a position. Reads at most a board's worth of rects, once per render (never per
+   * frame), and skips entirely mid-drag where renders are frequent and nothing is dying.
+   */
+  useLayoutEffect(() => {
+    if (dragRef.current?.active) return;
+    const next = new Map<string, { x: number; y: number; w: number }>();
+    for (const el of document.querySelectorAll<HTMLElement>(FLIP_SEL_WARBAND)) {
+      const uid = el.dataset.uid;
+      if (!uid) continue;
+      const r = el.getBoundingClientRect();
+      next.set(uid, { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width });
+    }
+    lastCentreRef.current = next;
+  });
+
   const replay = useCombatReplay(run.lastCombat, { active: fighting, findEl, combatSpeed, paused: overlayOpen, rampEnabled });
 
   // DEV (proc harness): publish the live replay's `seekTo` on a window handle so the FX workbench's rail-mode
@@ -2312,7 +2428,20 @@ export function Recruit() {
   // drag-motion rAF) so that effect can depend on it: when a spell drops back below the line mid-drag the
   // floating .dragcard REMOUNTS, and the rAF must re-run to position it — otherwise it strands at 0,0 (the
   // top-left "ghost card" bug).
-  const castingSpell = computeCastingSpell(drag, drag ? drag.y : 0, spellFloorRef.current);
+  /**
+   * Does the DRAGGED card still owe a Choose One decision? Such a card never enters aim mode: it is dragged up
+   * like an untargeted spell and the aim picker opens after the branch is picked (owner ruling 2026-08-28).
+   * A card whose branches are already settled — a Gilded Orivax, a Veinbreaker under its rune — keeps aiming
+   * straight from the drag, because there is no question to ask.
+   */
+  const dragAsksChoiceFirst = useMemo(
+    () => (drag ? chooseOneNeedsChoice(run, run.hand.find((c) => c.uid === drag.uid), CARD_INDEX[drag.view.cardId]) : false),
+    [drag, run],
+  );
+  const castingSpell = computeCastingSpell(drag, drag ? drag.y : 0, spellFloorRef.current, dragAsksChoiceFirst);
+  // The move-flush rAF runs outside render, so it reads the same answer through a ref.
+  const asksFirstRef = useRef(dragAsksChoiceFirst);
+  asksFirstRef.current = dragAsksChoiceFirst;
 
   // The weighted-drag rAF: while a card is actively dragged (and not snapping/magnet-sliding), smooth the
   // card's render position toward the cursor (OUTER element) and dive it toward its motion (INNER `.dragtilt`).
@@ -2564,6 +2693,21 @@ export function Recruit() {
   // `stabilize*` helpers reuse an object when its displayed content is unchanged, restoring the memo bailout so
   // only the card that actually changed re-renders. The returned map IS the next cache (current uids only, no
   // leak). See `cardViewEqual.ts`.
+  /**
+   * The run flags that decide (Both) — the ONE object every offer surface passes to `chooseBothActive`.
+   *
+   * The tavern row and the spell slot build their opts as long inline literals, and this field was simply not
+   * in either of them, so a shop Veinbreaker under Rune of the Unbroken Vein printed "Choose One:" and wore no
+   * marker while the copy in hand read (Both) (owner report 2026-08-28). Named and hoisted so a THIRD surface
+   * is a one-word addition rather than another thing to remember.
+   *
+   * A future global arm — "your next Choose One triggers both" — belongs in `chooseBothActive` alongside the
+   * two rune flags, and every surface reading this object lights up at once with no further wiring.
+   */
+  const bothState = useMemo(
+    () => ({ runeFacetwright: run.runeFacetwright, runeUnbrokenVein: run.runeUnbrokenVein }),
+    [run.runeFacetwright, run.runeUnbrokenVein],
+  );
   const shopViewCache = useRef(new Map<string, CardView>());
   const spellViewCache = useRef<CardView | null>(null);
   const refViewCache = useRef(new Map<string, CardView[]>());
@@ -2573,7 +2717,7 @@ export function Recruit() {
     // The spell-display opts (cost mod + bonuses) ride along too, so Spell Cart's spell offers in the minion
     // row read their right cost + value, like the spell slot.
     () => {
-      const fresh = new Map(run.shop.map((o) => [o.uid, shopView(o, { freeFirstBuy: (run.rift === 'freedom' || !!run.questFreeFirstBuy) && !run.freeBuyUsedThisTurn && !o.held && !CARD_INDEX[o.cardId]?.spell, cardBuffs: cardBuffsLive, tavernAtk: run.tavernBuyBonus.atk + (run.tavernBuyBonusTurn?.atk ?? 0), tavernHp: run.tavernBuyBonus.hp + (run.tavernBuyBonusTurn?.hp ?? 0), undeadAtk: run.undeadAttackBonus, undeadHp: run.undeadHealthBonus, undeadBuyAtk: run.undeadBuyAtk, beastBuyAtk: run.beastBuyAtk, beastBuyHp: run.beastBuyHp, magneticBuyAtk: run.magneticBuyAtk, magneticBuyHp: run.magneticBuyHp, deathrattlesTriggered: run.deathrattlesTriggered, spellsCast: run.spellsCast, spellsThisTurn: run.spellsThisTurn, soulsmanGold: run.soulsmanGold, impAura: run.impBuff, rubyCasts: run.rubyCasts, fodderConsumed: run.fodderConsumedThisTurn, spellCostMod: spellCostReduction(run, CARD_INDEX[o.cardId]), spellBonus, spellBonusH, frontToBackBonus: run.frontToBackBonus, frontToBackBonusH: run.frontToBackBonusH, growthBonus: run.growthBonus, goldSpent: run.goldSpentThisTurn, goldPouchValue: run.goldPouchValue, playedThisTurn: run.playedThisTurn, squirlScoutBuff: run.squirlScoutBuff, conductorBuff: run.conductorBuff, alesThisTurn: run.alesCastThisTurn, lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined, firstSpellThisTurnName: run.firstSpellThisTurnId ? CARD_INDEX[run.firstSpellThisTurnId]?.name : undefined, lastSpellThisTurnName: run.lastSpellThisTurnId ? CARD_INDEX[run.lastSpellThisTurnId]?.name : undefined, topTribe: dominantBoardTribe(run), minionCost: heroOfferPrice(run, o) ?? Math.max(0, minionCostOf(run) - gateUses(run.cadenceMinionOff)), juggler: getHero(run.heroId).power.kind === 'baldgecoin', castMult: CARD_INDEX[o.cardId]?.spell || CARD_INDEX[o.cardId]?.ruby ? spellCastCount(run, CARD_INDEX[o.cardId]!) : undefined, eotBuff: eotShopStats?.[o.uid] })] as const));
+      const fresh = new Map(run.shop.map((o) => [o.uid, shopView(o, { freeFirstBuy: (run.rift === 'freedom' || !!run.questFreeFirstBuy) && !run.freeBuyUsedThisTurn && !o.held && !CARD_INDEX[o.cardId]?.spell, cardBuffs: cardBuffsLive, tavernAtk: run.tavernBuyBonus.atk + (run.tavernBuyBonusTurn?.atk ?? 0), tavernHp: run.tavernBuyBonus.hp + (run.tavernBuyBonusTurn?.hp ?? 0), undeadAtk: run.undeadAttackBonus, undeadHp: run.undeadHealthBonus, undeadBuyAtk: run.undeadBuyAtk, beastBuyAtk: run.beastBuyAtk, beastBuyHp: run.beastBuyHp, magneticBuyAtk: run.magneticBuyAtk, magneticBuyHp: run.magneticBuyHp, deathrattlesTriggered: run.deathrattlesTriggered, spellsCast: run.spellsCast, spellsThisTurn: run.spellsThisTurn, soulsmanGold: run.soulsmanGold, impAura: run.impBuff, rubyCasts: run.rubyCasts, fodderConsumed: run.fodderConsumedThisTurn, spellCostMod: spellCostReduction(run, CARD_INDEX[o.cardId]), spellBonus, spellBonusH, frontToBackBonus: run.frontToBackBonus, frontToBackBonusH: run.frontToBackBonusH, growthBonus: run.growthBonus, goldSpent: run.goldSpentThisTurn, goldPouchValue: run.goldPouchValue, playedThisTurn: run.playedThisTurn, squirlScoutBuff: run.squirlScoutBuff, conductorBuff: run.conductorBuff, alesThisTurn: run.alesCastThisTurn, lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined, firstSpellThisTurnName: run.firstSpellThisTurnId ? CARD_INDEX[run.firstSpellThisTurnId]?.name : undefined, lastSpellThisTurnName: run.lastSpellThisTurnId ? CARD_INDEX[run.lastSpellThisTurnId]?.name : undefined, topTribe: dominantBoardTribe(run), minionCost: heroOfferPrice(run, o) ?? Math.max(0, minionCostOf(run) - gateUses(run.cadenceMinionOff)), juggler: getHero(run.heroId).power.kind === 'baldgecoin', castMult: CARD_INDEX[o.cardId]?.spell || CARD_INDEX[o.cardId]?.ruby ? spellCastCount(run, CARD_INDEX[o.cardId]!) : undefined, eotBuff: eotShopStats?.[o.uid], chooseBothState: bothState })] as const));
       shopViewCache.current = stabilizeViewMap(fresh, shopViewCache.current);
       return shopViewCache.current;
     },
@@ -2590,7 +2734,7 @@ export function Recruit() {
   );
   const spellView = useMemo(
     () => {
-      const fresh = run.spell ? shopView(run.spell, { spellCostMod: spellCostReduction(run, CARD_INDEX[run.spell.cardId]), spellBonus, spellBonusH, frontToBackBonus: run.frontToBackBonus, frontToBackBonusH: run.frontToBackBonusH, growthBonus: run.growthBonus, goldSpent: run.goldSpentThisTurn, goldPouchValue: run.goldPouchValue, rubyBonus: rubyStatBonus(run), tier7Access: hasTier7Access(run), playedThisTurn: run.playedThisTurn, castMult: CARD_INDEX[run.spell.cardId]?.spell || CARD_INDEX[run.spell.cardId]?.ruby ? spellCastCount(run, CARD_INDEX[run.spell.cardId]!) : undefined }) : null;
+      const fresh = run.spell ? shopView(run.spell, { spellCostMod: spellCostReduction(run, CARD_INDEX[run.spell.cardId]), spellBonus, spellBonusH, frontToBackBonus: run.frontToBackBonus, frontToBackBonusH: run.frontToBackBonusH, growthBonus: run.growthBonus, goldSpent: run.goldSpentThisTurn, goldPouchValue: run.goldPouchValue, rubyBonus: rubyStatBonus(run), tier7Access: hasTier7Access(run), playedThisTurn: run.playedThisTurn, castMult: CARD_INDEX[run.spell.cardId]?.spell || CARD_INDEX[run.spell.cardId]?.ruby ? spellCastCount(run, CARD_INDEX[run.spell.cardId]!) : undefined, chooseBothState: bothState }) : null;
       spellViewCache.current = stabilizeView(fresh, spellViewCache.current);
       return spellViewCache.current;
     },
@@ -2979,12 +3123,14 @@ export function Recruit() {
         deriveDragDecision({
           drag: d0, x, y, overZone: z, magSlide: magSlideRef.current, playFloor: playFloorRef.current, spellFloor: spellFloorRef.current,
           collapseY: getDragFeel().collapseY, boardMax: CONFIG.boardMax, board: run.board, spellUid: run.spell?.uid, geo: gateGeo,
+          asksChoiceFirst: asksFirstRef.current,
         });
       const shownDec = committed ? decOf(committed.x, committed.y, lastZone) : null;
       const decisionChanged =
         !shownDec ||
         !dragDecisionEqual(decOf(e.clientX, e.clientY, zone), shownDec) ||
-        computeCastingSpell(d0, e.clientY, spellFloorRef.current) !== computeCastingSpell(d0, committed!.y, spellFloorRef.current);
+        computeCastingSpell(d0, e.clientY, spellFloorRef.current, asksFirstRef.current)
+          !== computeCastingSpell(d0, committed!.y, spellFloorRef.current, asksFirstRef.current);
       if (decisionChanged || willBeActive !== (d0?.active ?? false) || zone !== lastZone) {
         committed = { x: e.clientX, y: e.clientY };
         lastZone = zone;
@@ -4084,6 +4230,7 @@ export function Recruit() {
     spellFloor: spellFloorRef.current,
     collapseY: getDragFeel().collapseY,
     boardMax: CONFIG.boardMax,
+    asksChoiceFirst: dragAsksChoiceFirst,
     board: run.board,
     spellUid: run.spell?.uid,
     geo: dragGeo,
@@ -4270,6 +4417,9 @@ export function Recruit() {
     // state, and an absent element is one that did not move — which is the same outcome it had before.
     // (Perf capture 2026-08-06: `layout:flip` was 4,511 ms of 5,010 ms measured — 90% of all work, ~9.2 ms
     // per call against a 4.17 ms budget at 240 Hz, firing ~50×/s during a drag.)
+    // Consumed once: the hold applies to the single commit that follows the death, never to later ones.
+    const shiftHold = shiftHoldRef.current;
+    shiftHoldRef.current = 0;
     const draggingNow = dragRef.current?.active ?? false;
     const flipSel = !draggingNow ? FLIP_SELECTOR
       : gapIndex >= 0 && shopGapIndex < 0 ? FLIP_SEL_WARBAND
@@ -4347,7 +4497,13 @@ export function Recruit() {
           gsap.fromTo(
             el,
             { x: delta },
-            { x: 0, duration: flipCfg.commitMs / 1000, ease: 'power2.out', clearProps: 'transform,transition' },
+            {
+              x: 0, duration: flipCfg.commitMs / 1000, ease: 'power2.out', clearProps: 'transform,transition',
+              // A DEATH holds the row still for a beat first (owner 2026-08-28) — the survivors seed at their
+              // old offsets and simply wait there, so the gap stays open under the animation playing over it.
+              // Zero for every other commit, which is `gsap`'s default and the behaviour this always had.
+              ...(shiftHold > 0 ? { delay: shiftHold / 1000 } : {}),
+            },
           );
         }
       }

@@ -6,7 +6,7 @@ import { lobbyOpponentBoard } from './lobby/runLobby';
 import { poolOf } from './cardPool';
 import { CONFIG, hasTier7Access, maxTierFor, SHIFTER_OPTIONS } from './config';
 import { getHero, spellAmplifyBonus, hasPower, activePowers, primaryPower, powerDiscoverPool } from './heroes';
-import { handCap, reservedHandSlots, mixSeed, TAG, type AuraFxTribe, type BoardCard, type BuffFxEvent, type CiaSuit, type CommissionKind, type DiscoverSpec, type RunState, type ShopCard, gateUses, procRune, procRuneId, runeBuffMagnitude } from './state';
+import { handCap, reservedHandSlots, mixSeed, TAG, type AuraFxTribe, type BoardCard, type BuffFxEvent, type CiaSuit, type CommissionKind, type DiscoverSpec, type RunState, type ShopCard, type ShopDeathFx, gateUses, procRune, procRuneId, runeBuffMagnitude } from './state';
 export { ALE_IDS };
 import { returnToPool, rollShop, rollSpellShop, takeFromPool, refillShopFiltered, elevateShop } from './shop';
 import { runeStacksOf } from './runeDup';
@@ -2031,6 +2031,11 @@ function fireRecruitDeathrattles(ctx: RecruitContext, minion: BoardCard, effects
   const effects = effectsOverride ?? [...(CARD_INDEX[minion.cardId]?.effects ?? []), ...(minion.copiedEcho ?? [])];
   if (!effects.length) return;
   const hasDR = effects.some((e) => e.on === 'onDeath');
+  // THE ECHO CUE (owner ask 2026-08-28): "the echo animation ... should play ANYTIME an echo is triggered".
+  // Stamped HERE because this is the single chokepoint every shop Echo passes through — a destroy, Ossuary
+  // Rite, Deathsayer, Rune of the Reliquary, a Gravetwin's copied Echo, a borrowed body's departure. Putting
+  // it at the call sites instead is how the next one silently ships without its animation.
+  if (hasDR) stampShopFx(ctx.state, { kind: 'echo', uid: minion.uid, cardId: minion.cardId });
   const fireOnce = (): void => {
     for (const eff of effects) {
       if (eff.on !== 'onDeath') continue;
@@ -2089,6 +2094,13 @@ function fireRecruitDeathrattles(ctx: RecruitContext, minion: BoardCard, effects
  * Funeral on Loan's borrowed body is not dying, its LOAN is ending, and a Rise there would let a borrowed
  * minion stay on the board, which is the one thing that card must never do.
  */
+/** Record a shop cue (a death, or an Echo triggering) for the UI to play. Per-action scratch: `reduce` clears
+ *  the list and the UI reads it once, gated on `shopFxSeq`. */
+export function stampShopFx(state: RunState, fx: ShopDeathFx): void {
+  (state.shopDeathFx ??= []).push(fx);
+  state.shopFxSeq = (state.shopFxSeq ?? 0) + 1;
+}
+
 export function destroyMinionInShop(
   ctx: RecruitContext,
   target: BoardCard,
@@ -2105,35 +2117,74 @@ export function destroyMinionInShop(
   // whole function returns (it diffs around `run()`), so clearing on the way out would hide the flag from the
   // one reader it exists for. Each destroy resets it, so nothing can go stale.
   RISING = willRise ? new Set([target.uid]) : null;
+  stampShopFx(state, { kind: 'death', uid: target.uid, cardId: target.cardId, ...(willRise ? { rise: true } : {}) });
+  const wasVacating = state.vacatingUid;
   try {
-    state.board.splice(idx, 1);          // 1. it genuinely leaves — frees the slot for the Echo's summons
+    // 1. The body STAYS in its slot while its Echo fires, marked VACATING — the same mechanism Funeral on
+    //    Loan uses. Two things depend on it, and both were broken when this removed the body first:
+    //      · POSITION. `summon(card, nearUid)` splices next to the summoner; with the summoner already gone
+    //        `nearUid` resolves to -1 and the summons APPEND right-most. A Graverobber eating a minion in slot 1
+    //        put its two Imps at the far end of the board instead of in its place (owner report 2026-08-28:
+    //        "it should be summoned as if the minion died where it did").
+    //      · CAPACITY. A vacating body must not consume a summon slot, or an Echo that summons is silently
+    //        dead on a full board.
+    //    Combat reaches the same result the other way round (remove, then summon into the vacated slot); what
+    //    matters is that the summons end up where the body died, which is what a player sees.
+    state.vacatingUid = target.uid;
     const summonedFrom = state.board.length;
-    fireRecruitDeathrattles(ctx, target); // 2. its Echo
+    fireRecruitDeathrattles(ctx, target); // 2. its Echo, anchored on the still-present body
     fireOnFriendDeath(state, target);     // 3. watchers (a shop destroy is a real death)
-    if (!willRise) return;
-    // 4. Rise. Board cap gates it, exactly as combat's does: the Echo resolved FIRST and its summons may have
-    // taken the room, in which case the body simply does not come back.
-    if (state.board.length >= CONFIG.boardMax) return;
-    const base = def?.attack ?? target.attack;
-    const risen: BoardCard = {
-      ...target,
-      // A FRESH uid on purpose. The risen body is a new instance — base stats, printed keywords, no buffs —
-      // and, load-bearing for presentation: the departure diff reports a death by finding a uid that is no
-      // longer on the board. Reusing the uid (as combat does, where an explicit `death` event carries the
-      // signal) would mean the body never leaves as far as the diff can see, so the death would animate
-      // nowhere and we would be back to the snap this whole change removes.
-      uid: `r${state.uidSeq++}`,
-      attack: base * (target.golden ? 2 : 1),
-      health: 1,
-      // Printed keywords minus the spent Rise; granted ones are shed with the buffs.
-      keywords: (def?.keywords ?? []).filter((k) => k !== 'R'),
-      buffs: undefined,
-    };
-    // To the RIGHT of whatever the Echo summoned into the vacated space (owner ruling 2026-07-06, combat).
-    const grew = state.board.length - summonedFrom;
-    const at = Math.min(state.board.length, idx + Math.max(0, grew));
-    state.board.splice(at, 0, risen);
-  } finally { /* RISING is reset by the next destroy — see above */ }
+    state.vacatingUid = wasVacating;
+    // 4. …and NOW it leaves. Found by uid: the Echo's summons have shifted the indices around it.
+    const gone = state.board.findIndex((c) => c.uid === target.uid);
+    if (gone >= 0) state.board.splice(gone, 1);
+    // 5. Rise returns into the space it just left — `summonedFrom - 1` discounts the body itself, which was
+    //    still on the board when the baseline was taken.
+    if (willRise) riseReturn(state, target, gone >= 0 ? gone : idx, Math.max(0, summonedFrom - 1));
+  } finally {
+    state.vacatingUid = wasVacating;
+    /* RISING is reset by the next destroy — see above */
+  }
+}
+
+/**
+ * THE RISE RETURN — one implementation, shared by every shop path that kills a body, so a Rise can never mean
+ * two different things depending on which card did the killing (owner correction 2026-08-28: "if a minion has
+ * rise that is discovered, it should rise in the same way a destroyed minion with rise would").
+ *
+ * Combat's contract, verbatim (owner ruling on `q-conv-keyword-r`): the body returns at its **base Attack**
+ * (golden ×2) with **1 Health**, "before any auras or effects are added" — so buffs and granted keywords are
+ * shed and the Rise itself is spent. The board cap gates it exactly as combat's does: the Echo resolved FIRST,
+ * and if its summons took the room the body simply does not come back.
+ *
+ * @param slot         the index the body occupied before it left
+ * @param summonedFrom board length immediately after it left — anything beyond this is what the Echo summoned,
+ *                     and the return goes to its RIGHT (owner ruling 2026-07-06).
+ */
+function riseReturn(state: RunState, target: BoardCard, slot: number, summonedFrom: number): void {
+  if (state.board.length >= CONFIG.boardMax) return;
+  const def = CARD_INDEX[target.cardId];
+  const base = def?.attack ?? target.attack;
+  const risen: BoardCard = {
+    ...target,
+    // A FRESH uid on purpose. The risen body is a new instance — base stats, printed keywords, no buffs —
+    // and, load-bearing for presentation: the departure diff reports a death by finding a uid that is no
+    // longer on the board. Reusing the uid (as combat does, where an explicit `death` event carries the
+    // signal) would mean the body never leaves as far as the diff can see, so the death would animate
+    // nowhere and we would be back to the snap this whole change removes.
+    uid: `r${state.uidSeq++}`,
+    attack: base * (target.golden ? 2 : 1),
+    health: 1,
+    // Printed keywords minus the spent Rise; granted ones are shed with the buffs.
+    keywords: (def?.keywords ?? []).filter((k) => k !== 'R'),
+    buffs: undefined,
+    // A risen body is a body you now OWN — it is no longer on loan (Funeral on Loan). Without this the flag
+    // would ride the clone and the next turn's expiry sweep would look at a card that is not in hand.
+    borrowed: undefined,
+  };
+  const grew = state.board.length - summonedFrom;
+  const at = Math.min(state.board.length, slot + Math.max(0, grew));
+  state.board.splice(at, 0, risen);
 }
 
 /**
@@ -4993,20 +5044,16 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const target = payload.target;
     if (!target) return;
     const tier = CARD_INDEX[target.cardId]?.tier ?? 1;
-    // The destroy is its OWN beat: the death, the Echo it fires and any Rise are one ritual with one animation
-    // window, separate from the spell that arrives afterwards. Before this they were bare mutations inside
-    // Graverobber's Shout scope, so the body just stopped existing at commit (owner report 2026-08-28).
-    withRecruitTrigger(
-      ctx,
-      {
-        phase: 'recruit',
-        source: { kind: 'minion', id: target.cardId, uid: target.uid, side: 'player', label: CARD_INDEX[target.cardId]?.name },
-        trigger: 'onDeath',
-        policy: 'ownBeat',
-        policyKey: 'system:destroy:shopDeath',
-      },
-      () => destroyMinionInShop(ctx, target),
-    );
+    // TWO STEPS, like Funeral on Loan (owner 2026-08-28: "graverobber is still janky - can you add the same
+    // polish"). The victim is MARKED as dying and stays on the board for this action; its Echo, its departure
+    // and any Rise are the next one. That window is the whole point: it is where the death smoke and the Echo
+    // skull have room to play, and where the Echo's LEAD can fire while the body is still there. Resolving it
+    // inline gave the animations nothing to play over — the body was simply absent at commit.
+    //
+    // ORDERING NOTE: the spell below now arrives BEFORE the Echo rather than after it. Graverobber's spell is
+    // its SHOUT's payoff and belongs to the play; the death is what moved. The one visible consequence is a
+    // full hand — a spell taking the last slot can crowd out a card the Echo would have granted.
+    ctx.state.pendingDeath = { uid: target.uid, kind: 'destroy' };
     const pool = poolOf(ctx.state).spells.filter((c) => c.tier === tier);
     if (pool.length === 0) return;
     const rng = makeRng(ctx.state.rngCursor);
@@ -8645,17 +8692,30 @@ export function triggerBorrowedEcho(state: RunState, card: BoardCard): void {
  * the board, occupy a space, and then show the death and echo animation"; it used to be one instant mutation
  * with nothing to animate).
  *
- * Deliberately NOT routed through `destroyMinionInShop`, for two reasons that are both load-bearing:
- *   · ORDER. That helper removes the body FIRST (combat's order, so the Echo's summons can fill the slot).
- *     A borrowed body must stay ON the board while its Echo fires — positional Echoes need real neighbours
- *     (owner report 2026-08-04: a borrowed Dawnclaw "does not trigger the adjacent shouts").
- *   · RISE. The loan ENDING is not a death; a Rise there would let a borrowed minion stay, which is the one
- *     thing this card must never allow.
+ * Deliberately NOT routed through `destroyMinionInShop`, for ONE reason: ORDER. That helper removes the body
+ * FIRST (combat's order, so the Echo's summons can fill the slot), but a borrowed body must stay ON the board
+ * while its Echo fires — positional Echoes need real neighbours (owner report 2026-08-04: a borrowed Dawnclaw
+ * "does not trigger the adjacent shouts").
  *
- * Watchers are likewise not notified, exactly as before this change — whether a loan expiry should count as a
- * friendly death is an open design question, not something to alter while fixing presentation.
+ * RISE STILL APPLIES. This path originally opted out, on the reasoning that the loan ending is not a death and
+ * a Rise would let a borrowed minion stay. The owner overruled that (2026-08-28): "if a minion has rise that is
+ * discovered, it should rise in the same way a destroyed minion with rise would." So it shares `riseReturn`
+ * with every other shop death — a discovered Rise carrier really does leave you a body, at base Attack with 1
+ * Health, and that is the payoff for discovering one.
+ *
+ * Watchers are still not notified, exactly as before — whether a loan expiry should count as a friendly death
+ * is an open design question, not something to alter while fixing presentation.
  */
-export function withBorrowedArrival(state: RunState, card: BoardCard, at: number): void {
+/**
+ * FUNERAL ON LOAN, step 1 — the borrowed minion LANDS, exactly as a played minion does, and stops there.
+ *
+ * Owner design 2026-08-28: "the minion should be coded to literally land as if it was played, but then the
+ * immediate next action is that it is destroyed." So the landing is a real committed state — the board really
+ * holds the body — and `pendingDeath` marks it as dying next. The UI draws an ordinary arrival, then
+ * dispatches `resolveShopDeath`; anything that is not a UI (a bot, a test, a replay) resolves the same pending
+ * death on its very next action, so the outcome never depends on who is watching.
+ */
+export function landBorrowed(state: RunState, card: BoardCard, at: number): void {
   withRecruitTrigger(
     makeContext(state),
     {
@@ -8667,10 +8727,24 @@ export function withBorrowedArrival(state: RunState, card: BoardCard, at: number
     },
     () => { state.board.splice(at, 0, card); },
   );
+  state.pendingDeath = { uid: card.uid, kind: 'loan' };
 }
 
-/** The borrowed body's Echo and its departure — one beat, so the death animation has a window to play in. */
-export function withBorrowedDeath(state: RunState, card: BoardCard): void {
+/**
+ * Step 2 — the landed body dies: its Echo, its departure, its Rise. Shared by both shop deaths.
+ *
+ * A `loan` body still owes its Echo (its Shout fired when it landed). A `destroy` body has already had its
+ * killer's Shout resolve, and simply dies here.
+ *
+ * Both keep the body ON the board while the Echo fires, so its summons land where it died — the owner's
+ * "summoned as if the minion died where it did".
+ */
+export function settlePendingDeath(state: RunState): void {
+  const pending = state.pendingDeath;
+  if (!pending) return;
+  state.pendingDeath = undefined;
+  const card = state.board.find((c) => c.uid === pending.uid);
+  if (!card) return; // already gone (a save round-trip, an odd path) — nothing owed
   withRecruitTrigger(
     makeContext(state),
     {
@@ -8681,15 +8755,25 @@ export function withBorrowedDeath(state: RunState, card: BoardCard): void {
       policyKey: 'system:destroy:shopDeath',
     },
     () => {
-      // It is on the board ONLY to be seen; mark it vacating so its own Echo's summons may take its slot.
-      state.vacatingUid = card.uid;
+      const willRise = card.keywords.includes('R');
+      RISING = willRise ? new Set([card.uid]) : null;
+      // The body is dying: the authored dissolve plays for it (suppressed when it is rising — it re-forms).
+      stampShopFx(state, { kind: 'death', uid: card.uid, cardId: card.cardId, ...(willRise ? { rise: true } : {}) });
+      const wasVacating = state.vacatingUid;
+      state.vacatingUid = card.uid; // its Echo's summons land in its place, and it costs no summon slot
+      const summonedFrom = state.board.length;
       try {
-        triggerBorrowedEcho(state, card);
+        if (pending.kind === 'loan') triggerBorrowedEcho(state, card);
+        else fireRecruitDeathrattles(makeContext(state), card);
+        // A destroy is a real death for watchers (owner ruling 2026-08-26). A loan EXPIRY still is not —
+        // whether it should be is an open design question, deliberately unchanged here.
+        if (pending.kind === 'destroy') fireOnFriendDeath(state, card);
       } finally {
-        state.vacatingUid = undefined;
-        // Find it by uid — the Echo may have summoned bodies around it and shifted the index.
+        state.vacatingUid = wasVacating;
         const gone = state.board.findIndex((c) => c.uid === card.uid);
         if (gone >= 0) state.board.splice(gone, 1);
+        // `summonedFrom - 1` discounts the body itself, still on the board when the baseline was taken.
+        if (willRise && gone >= 0) riseReturn(state, card, gone, Math.max(0, summonedFrom - 1));
       }
     },
   );

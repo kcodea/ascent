@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { CARD_INDEX } from '@game/content';
 import { createRun, reduce, reduceWithPresentation, type BoardCard, type RunState } from './index';
+import { fireRecruitDeathrattlesForTest } from './recruit';
 import type { SourceTriggerEvent, CardDestroyedConsequence } from '@game/core';
 
 /**
@@ -17,12 +18,19 @@ const body = (cardId: string, uid: string): BoardCard => {
 };
 const run = (): RunState => ({ ...createRun(1), embers: 20 });
 
-/** Graverobber is a targeted Shout: playing it opens the picker, `battlecryTarget` resolves it. */
-const graverob = (s: RunState, targetUid: string): RunState => {
+/**
+ * Graverobber is a targeted Shout: playing it opens the picker, `battlecryTarget` marks the victim as dying,
+ * and — since 2026-08-28 — the death itself is the NEXT action, so the victim stays on the board for one
+ * committed state and its death has a window to animate in. Most assertions below are about the OUTCOME, so
+ * this helper takes both steps; `graverobAim` stops after the first for the tests that inspect the pause.
+ */
+const graverobAim = (s: RunState, targetUid: string): RunState => {
   const opened = reduce(s, { type: 'play', uid: 'gr' });
   expect(opened.pendingTarget?.uid, 'the aim picker never opened').toBe('gr');
   return reduce(opened, { type: 'battlecryTarget', targetUid });
 };
+const graverob = (s: RunState, targetUid: string): RunState =>
+  reduce(graverobAim(s, targetUid), { type: 'resolveShopDeath' });
 
 describe('Graverobber destroys in the shop', () => {
   it('a minion with NO Rise is gone for good', () => {
@@ -89,15 +97,60 @@ describe('Graverobber destroys in the shop', () => {
   });
 });
 
-describe('Funeral on Loan', () => {
-  it('the borrowed body never stays — Rise does NOT rescue it', () => {
-    // The loan ENDING is not a death. If Rise applied here a borrowed minion could stay on the board, which is
-    // the one thing this card must never allow.
+describe('Funeral on Loan — the two-step death', () => {
+  // Owner design 2026-08-28: "the minion should be coded to literally land as if it was played, but then the
+  // immediate next action is that it is destroyed." So the landing is a REAL committed state.
+  it('step 1: the borrowed minion actually lands and takes its slot', () => {
+    let s = run();
+    const borrowed = { ...body('pack', 'loan'), borrowed: true } as BoardCard;
+    s = { ...s, board: [body('sandbag', 'a')], hand: [borrowed] };
+    s = reduce(s, { type: 'play', uid: 'loan', toIndex: 0 });
+    expect(s.board.map((c) => c.uid), 'it must really be on the board, in the slot it was dropped in')
+      .toEqual(['loan', 'a']);
+    expect(s.pendingDeath, 'and be marked as dying next').toEqual({ uid: 'loan', kind: 'loan' });
+    expect(s.board.filter((c) => c.cardId === 'pup'), 'its Echo has NOT fired yet — that is step 2').toHaveLength(0);
+  });
+
+  it('step 2: it dies, its Echo fires, and it leaves', () => {
+    let s = run();
+    const borrowed = { ...body('pack', 'loan'), borrowed: true } as BoardCard;
+    s = { ...s, board: [], hand: [borrowed] };
+    s = reduce(s, { type: 'play', uid: 'loan', toIndex: 0 });
+    s = reduce(s, { type: 'resolveShopDeath' });
+    expect(s.pendingDeath).toBeUndefined();
+    expect(s.board.some((c) => c.uid === 'loan'), 'the borrowed body stayed on the board').toBe(false);
+    expect(s.board.filter((c) => c.cardId === 'pup'), 'its Echo resolved on the way out').toHaveLength(2);
+  });
+
+  it('ANY next action settles it — a bot or a replay never sees the landing', () => {
+    // This is what makes the intermediate state safe: it exists only for whoever is watching the screen.
+    let s = run();
+    const borrowed = { ...body('pack', 'loan'), borrowed: true } as BoardCard;
+    s = { ...s, board: [], hand: [borrowed], embers: 20 };
+    const landed = reduce(s, { type: 'play', uid: 'loan', toIndex: 0 });
+    const viaResolve = reduce(landed, { type: 'resolveShopDeath' });
+    const viaRoll = reduce(landed, { type: 'roll' });
+    expect(viaRoll.pendingDeath, 'an unrelated action must still settle the death').toBeUndefined();
+    expect(viaRoll.board.map((c) => c.cardId), 'and reach the same board as the explicit resolve')
+      .toEqual(viaResolve.board.map((c) => c.cardId));
+  });
+
+  it('a borrowed minion WITH Rise rises, exactly like any other shop death', () => {
+    // Owner correction 2026-08-28: "if a minion has rise that is discovered, it should rise in the same way a
+    // destroyed minion with rise would."
+    const def = CARD_INDEX['anubis']!;
     let s = run();
     const borrowed = { ...body('anubis', 'loan'), borrowed: true } as BoardCard;
     s = { ...s, board: [], hand: [borrowed] };
     s = reduce(s, { type: 'play', uid: 'loan', toIndex: 0 });
-    expect(s.board.some((c) => c.cardId === 'anubis'), 'a borrowed Rise carrier stayed on the board').toBe(false);
+    s = reduce(s, { type: 'resolveShopDeath' });
+    const risen = s.board.find((c) => c.cardId === 'anubis');
+    expect(risen, 'a discovered Rise carrier must leave a body behind').toBeDefined();
+    expect(risen!.uid, 'the risen body is a fresh instance').not.toBe('loan');
+    expect(risen!.attack, 'base Attack, the same contract every shop Rise follows').toBe(def.attack);
+    expect(risen!.health).toBe(1);
+    expect(risen!.keywords, 'the Rise was spent').not.toContain('R');
+    expect(risen!.borrowed, 'the body is yours now — it is no longer on loan').toBeUndefined();
   });
 });
 
@@ -116,37 +169,113 @@ describe('a shop destroy emits a real beat', () => {
     expect(JSON.stringify(reduceWithPresentation(opened, act, true).state)).toBe(JSON.stringify(plain));
   });
 
-  it('Graverobber: the death is its own beat, and the destroyed body reports the slot it left', () => {
+  it('Graverobber: the victim is MARKED dying, then dies on the second action with its slot reported', () => {
     const s = { ...run(), board: [body('sandbag', 'a'), body('anubis', 'victim')], hand: [body('graverobber', 'gr')] };
-    const opened = reduce(s, { type: 'play', uid: 'gr' });
-    const { batch } = reduceWithPresentation(opened, { type: 'battlecryTarget', targetUid: 'victim' }, true);
-    const events = batch!.events;
+    const aimed = graverobAim(s, 'victim');
+    expect(aimed.pendingDeath, 'step 1 marks the victim, it does not remove it').toEqual({ uid: 'victim', kind: 'destroy' });
+    expect(aimed.board.some((c) => c.uid === 'victim'), 'the body stays for one committed state — the animation window').toBe(true);
 
+    const { batch } = reduceWithPresentation(aimed, { type: 'resolveShopDeath' }, true);
+    const events = batch!.events;
     const death = events.find((e) => (e as { type: string }).type === 'sourceTrigger'
       && (e as SourceTriggerEvent).policyKey === 'system:destroy:shopDeath') as SourceTriggerEvent | undefined;
     expect(death, 'the destroy never got its own beat').toBeDefined();
     expect(death!.source.uid, 'the beat belongs to the body that died').toBe('victim');
 
-    const destroyed = events.filter((e): e is CardDestroyedConsequence =>
-      (e as { type: string }).type === 'cardDestroyed') as CardDestroyedConsequence[];
-    const mine = destroyed.find((d) => d.target.uid === 'victim');
+    const mine = events.filter((e): e is CardDestroyedConsequence =>
+      (e as { type: string }).type === 'cardDestroyed').find((d) => d.target.uid === 'victim');
     expect(mine, 'no cardDestroyed for the body that left the board').toBeDefined();
-    expect(mine!.index, 'the slot it vacated \u2014 without it the projection has nowhere to animate').toBe(1);
+    expect(mine!.index, 'the slot it vacated — without it the projection has nowhere to animate').toBe(1);
     expect(mine!.rise, 'Anubis carries Rise, so the death must be flagged as a return').toBe(true);
   });
 
-  it('Funeral on Loan: the arrival and the death are SEPARATE beats, in that order', () => {
+  it('Funeral on Loan: the landing and the death are separate ACTIONS, each with its own beat', () => {
     const borrowed = { ...body('anubis', 'loan'), borrowed: true };
     const s = { ...run(), board: [], hand: [borrowed] };
-    const { batch } = reduceWithPresentation(s, { type: 'play', uid: 'loan', toIndex: 0 }, true);
-    const events = batch!.events;
-    const keys = events
+    const landed = reduceWithPresentation(s, { type: 'play', uid: 'loan', toIndex: 0 }, true);
+    const landKeys = landed.batch!.events
       .filter((e): e is SourceTriggerEvent => (e as { type: string }).type === 'sourceTrigger')
       .map((e) => e.policyKey);
-    const arrive = keys.indexOf('system:destroy:shopArrival');
-    const die = keys.indexOf('system:destroy:shopDeath');
-    expect(arrive, 'the borrowed body never got an arrival beat').toBeGreaterThanOrEqual(0);
-    expect(die, 'the borrowed body never got a death beat').toBeGreaterThanOrEqual(0);
-    expect(arrive, 'it must be SEEN to take a slot before it is taken away').toBeLessThan(die);
+    expect(landKeys, 'the landing must be its own beat').toContain('system:destroy:shopArrival');
+    expect(landKeys, 'and the death must NOT be in the same action — that is the whole point')
+      .not.toContain('system:destroy:shopDeath');
+
+    const died = reduceWithPresentation(landed.state, { type: 'resolveShopDeath' }, true);
+    const dieKeys = died.batch!.events
+      .filter((e): e is SourceTriggerEvent => (e as { type: string }).type === 'sourceTrigger')
+      .map((e) => e.policyKey);
+    expect(dieKeys, 'the death is the second action').toContain('system:destroy:shopDeath');
+    const destroyed = died.batch!.events.find((e): e is CardDestroyedConsequence =>
+      (e as { type: string }).type === 'cardDestroyed' && (e as CardDestroyedConsequence).target.uid === 'loan');
+    expect(destroyed, 'the departure must be reported so it can animate').toBeDefined();
+    expect(destroyed!.rise, 'Anubis carries Rise, so the death is flagged as a return').toBe(true);
+  });
+});
+
+/**
+ * TRIPLES. An Echo or a Rise can put a third copy on the board, and a shop death is no exception (owner
+ * report 2026-08-28). Funeral on Loan never checked: its play path returned before reaching any triple check.
+ */
+describe('a shop death still completes triples', () => {
+  it("Funeral on Loan: a borrowed Echo's summons triple with the copies you already own", () => {
+    // Mama Pup's Echo summons two Pups. With one Pup already on board, that is three → a golden Pup.
+    let s = run();
+    const borrowed = { ...body('pack', 'loan'), borrowed: true } as BoardCard;
+    s = { ...s, board: [body('pup', 'p1')], hand: [borrowed] };
+    s = reduce(s, { type: 'play', uid: 'loan', toIndex: 1 });
+    s = reduce(s, { type: 'resolveShopDeath' });
+    // The combined golden lands in HAND (that is what `combineIntoGolden` does), so count both zones.
+    const pups = [...s.board, ...s.hand].filter((c) => c.cardId === 'pup');
+    expect(pups.some((c) => c.golden), 'three Pups must combine into a golden one').toBe(true);
+    expect(pups, 'and the three singles are consumed by the combine').toHaveLength(1);
+  });
+
+  it('Graverobber: the same, through its own destroy path', () => {
+    let s = run();
+    s = { ...s, board: [body('pup', 'p1'), body('pack', 'victim')], hand: [body('graverobber', 'gr')] };
+    s = graverob(s, 'victim');
+    const pups = [...s.board, ...s.hand].filter((c) => c.cardId === 'pup');
+    expect(pups.some((c) => c.golden), 'three Pups must combine into a golden one').toBe(true);
+  });
+});
+
+/**
+ * THE SHOP CUES. The shop has no beat playback, so death and Echo visuals ride the per-action scratch
+ * channel. What matters is that they are STAMPED — an Echo that triggers with no cue is an animation that
+ * silently never plays, which is the class of bug this whole batch is about.
+ */
+describe('shop death and Echo cues', () => {
+  it('a destroy stamps a death cue and an Echo cue', () => {
+    let s = run();
+    s = { ...s, board: [body('pack', 'victim')], hand: [body('graverobber', 'gr')] };
+    s = graverob(s, 'victim');
+    const kinds = (s.shopDeathFx ?? []).filter((f) => f.uid === 'victim').map((f) => f.kind);
+    expect(kinds, 'both the death and its Echo must be cued').toEqual(expect.arrayContaining(['death', 'echo']));
+  });
+
+  it('a RISING body is cued as a rise, so it does not dissolve', () => {
+    let s = run();
+    s = { ...s, board: [body('anubis', 'victim')], hand: [body('graverobber', 'gr')] };
+    s = graverob(s, 'victim');
+    const death = (s.shopDeathFx ?? []).find((f) => f.kind === 'death' && f.uid === 'victim');
+    expect(death?.rise, 'the body re-forms — it must not play the dissolve').toBe(true);
+  });
+
+  it('an Echo triggered WITHOUT a death still cues', () => {
+    // The owner's rule: "the echo animation ... should play ANYTIME an echo is triggered" — not only on death.
+    // Asserted at the CHOKEPOINT every shop Echo passes through (`fireRecruitDeathrattles`), which is where the
+    // cue is stamped, so it holds for every caller: Ossuary Rite, Deathsayer, Rune of the Reliquary, a
+    // Gravetwin's copied Echo, a destroy. A per-card fixture would only ever prove one of them.
+    const s = { ...run(), board: [body('pack', 'alive')] };
+    fireRecruitDeathrattlesForTest(s, s.board[0]!);
+    const echoes = (s.shopDeathFx ?? []).filter((f) => f.kind === 'echo' && f.uid === 'alive');
+    expect(echoes, 'a triggered Echo must cue its animation even with no death').toHaveLength(1);
+    expect(s.board.some((c) => c.uid === 'alive'), 'and the minion is still alive').toBe(true);
+  });
+
+  it('a card with NO Echo cues nothing — no empty animation on an innocent body', () => {
+    const s = { ...run(), board: [body('sandbag', 'plain')] };
+    fireRecruitDeathrattlesForTest(s, s.board[0]!);
+    expect((s.shopDeathFx ?? []).filter((f) => f.kind === 'echo')).toHaveLength(0);
   });
 });

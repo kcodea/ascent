@@ -177,6 +177,26 @@ describe('spell cast', () => {
     expect(computeCastingSpell(d, 400, 400)).toBe(false); // y === playFloor is NOT above it
     expect(computeCastingSpell(drag({ source: 'hand', view: view({ spell: false }) }), 100, 400)).toBe(false);
   });
+
+  /**
+   * CHOOSE ONE ASKS FIRST (owner ruling 2026-08-28: "drag the spell up, then choose one, then target a minion
+   * to buff"). The DROP path honoured this from the start; the AIM path did not, so Crest of the Climb still
+   * drew a target line and demanded a minion under the cursor while being dragged (owner report, same day).
+   */
+  it('a targeted Choose One that still owes a choice never enters aim mode', () => {
+    const d = drag({ source: 'hand', view: friendlySpell });
+    expect(computeCastingSpell(d, 399, 400, false), 'control: it aims when nothing is owed').toBe(true);
+    expect(computeCastingSpell(d, 399, 400, true), 'it must be dragged up like an UNTARGETED spell').toBe(false);
+  });
+
+  it('...and so it offers no target under the cursor', () => {
+    // A board with a minion under the cursor, so the control genuinely has something to aim at.
+    const geo = gridGeo({ warband: ['m0', 'm1'] });
+    const at = { drag: drag({ source: 'hand', view: friendlySpell }), x: 50, y: 100, playFloor: 400, geo };
+    expect(deriveDragDecision(input(at)).castTargetUid, 'control: an ordinary targeted spell picks up a target').toBe('m0');
+    expect(deriveDragDecision(input({ ...at, asksChoiceFirst: true })).castTargetUid,
+      'a card that will ask first must not pre-pick a target').toBeNull();
+  });
 });
 
 describe('rubies (set 2) aim like a targeted friendly spell', () => {

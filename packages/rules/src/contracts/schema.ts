@@ -235,8 +235,13 @@ export interface CopySubjectContract {
 
 export interface MultiplierContract {
   families: string[];
-  extra: number;
+  /** ADDITIVE kind: extra fires per copy. Mutually exclusive with `factor`. */
+  extra?: number;
   stacks: boolean;
+  /** MULTIPLIER kind (owner vocabulary rule 2026-08-28: a card printing "twice" multiplies). Copies of one
+   *  card do not stack; different multiplier cards multiply with each other, and the product applies to the
+   *  additive total — `(1 + Σ extra) × Π factor`. */
+  factor?: number;
   /** R-AVWIN-07: the multiplier re-runs RESOLUTION, never progress counting. Stated only where ruled/known. */
   resolutionOnly?: boolean;
 }

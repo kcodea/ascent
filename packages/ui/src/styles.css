@@ -1706,6 +1706,10 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 
 /* a rune-GRANTED rule in card text (Rune of Rebirth's blue "Rebirth" on every minion) — static color only */
 .desc .descrune { color: #2f6fd0; font-weight: 800; }
+/* (Both) on a Choose One whose branches are all enabled — the CARD'S OWN TRIBE colour (`--c`, set on the
+   card root), so a Kobold reads orange and a Beast green (owner ask 2026-08-28). Falls back to the neutral
+   tribe colour if a surface ever renders this text without the card's tribe context. */
+.desc .descboth { color: var(--c, var(--t-neutral)); font-weight: 800; }
 
 /* keyword tooltip — reveals after ~1.5s of hover (handoff) */
 .tip { position: absolute; bottom: calc(100% + 9px); left: 50%; transform: translateX(-50%); width: 210px; background: var(--ink); color: #fff; border-radius: 11px; padding: 10px 12px; font-size: 11.5px; line-height: 1.4; font-weight: 600; box-shadow: 0 10px 28px -8px rgba(0, 0, 0, 0.55); opacity: 0; pointer-events: none; z-index: 30; transition: opacity 0.15s; }

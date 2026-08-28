@@ -15,6 +15,15 @@ const body = (uid: string, cardId: string): BoardCard =>
 
 const borrowed = (uid: string, cardId: string): BoardCard => ({ ...body(uid, cardId), borrowed: true } as BoardCard);
 
+/**
+ * Play a borrowed card AND settle it. Since 2026-08-28 a borrowed play is TWO steps (owner design): the body
+ * literally lands and takes its slot, and the death — its Echo, its departure, its Rise — is the next action,
+ * so the UI can show a minion landing and then dying. These tests are about what the ECHO does, so they take
+ * both steps at once; the two-step behaviour itself is pinned in `shopDestroy.test.ts`.
+ */
+const playBorrowed = (s: RunState, uid: string, toIndex: number): RunState =>
+  reduce(reduce(s, { type: 'play', uid, toIndex }), { type: 'resolveShopDeath' });
+
 describe('a borrowed minion occupies its drop slot while the Echo fires', () => {
   it('Legion Shepherd (rework 2026-08-18): its shop Echo buffs Imps +5/+5 and summons an Imp', () => {
     // The old "summon 4 Imps, overflow → aura" shape is gone. Now the Echo is a flat +5/+5 Imp aura plus one Imp
@@ -24,13 +33,13 @@ describe('a borrowed minion occupies its drop slot while the Echo fires', () => 
       board: [body('b1', 'sandbag'), body('b2', 'sandbag'), body('b3', 'sandbag'), body('b4', 'sandbag'), body('b5', 'sandbag'), body('b6', 'sandbag')],
       hand: [borrowed('sh', 'dm_shepherd')],
     };
-    const after = reduce(s, { type: 'play', uid: 'sh', toIndex: 3 });
+    const after = playBorrowed(s, 'sh', 3);
     expect(after.board.some((c) => c.uid === 'sh'), 'the borrowed body must not STAY').toBe(false);
     expect(after.impBuff, 'the flat +5/+5 Imp aura landed').toEqual({ attack: 5, health: 5 });
 
     // …and on an EMPTIER board the Imp it summons actually lands (room in the line).
     const roomy: RunState = { ...s, board: s.board.slice(0, 3), hand: [borrowed('sh', 'dm_shepherd')] };
-    const a2 = reduce(roomy, { type: 'play', uid: 'sh', toIndex: 0 });
+    const a2 = playBorrowed(roomy, 'sh', 0);
     expect(a2.board.filter((c) => c.cardId === 'impscrap').length, 'the summoned Imp lands with room to spare').toBe(1);
     expect(a2.impBuff, 'the +5/+5 aura is unconditional').toEqual({ attack: 5, health: 5 });
   });
@@ -40,7 +49,7 @@ describe('a borrowed minion occupies its drop slot while the Echo fires', () => 
       ...createRun(11), embers: 30, shop: [],
       board: [body('f1', 'sandbag')], hand: [borrowed('m', 'b2_mammoth')],
     };
-    const after = reduce(s, { type: 'play', uid: 'm', toIndex: 1 });
+    const after = playBorrowed(s, 'm', 1);
     expect(after.board.some((c) => c.uid === 'm'), 'the loan expires').toBe(false);
     expect(after.board.length, 'the Echo summoned Beasts onto the board').toBeGreaterThan(1);
   });
@@ -50,7 +59,7 @@ describe('a borrowed minion occupies its drop slot while the Echo fires', () => 
       ...createRun(11), embers: 30, shop: [],
       board: [body('f1', 'sandbag')], hand: [borrowed('b', 'b2_bullseye')],
     };
-    const after = reduce(s, { type: 'play', uid: 'b', toIndex: 1 });
+    const after = playBorrowed(s, 'b', 1);
     const summoned = after.board.filter((c) => c.uid !== 'f1' && c.uid !== 'b');
     expect(summoned.length, 'one Beast summoned').toBe(1);
     expect([summoned[0]!.attack, summoned[0]!.health], 'stats set to 7/7').toEqual([7, 7]);
@@ -63,7 +72,7 @@ describe('a borrowed minion occupies its drop slot while the Echo fires', () => 
       board: [kob], hand: [borrowed('kb', 'k_kobabyboldies')],
     };
     const before = kob.attack + kob.health;
-    const after = reduce(s, { type: 'play', uid: 'kb', toIndex: 1 });
+    const after = playBorrowed(s, 'kb', 1);
     const k = after.board.find((c) => c.uid === 'k1')!;
     expect(k.attack + k.health, 'the Kobold gained Ruby stats').toBeGreaterThan(before);
   });
@@ -73,7 +82,7 @@ describe('a borrowed minion occupies its drop slot while the Echo fires', () => 
       ...createRun(11), embers: 30, shop: [{ uid: 's0', cardId: 'sandbag' }],
       board: [], hand: [borrowed('h', 'dm_hank')],
     };
-    const after = reduce(s, { type: 'play', uid: 'h', toIndex: 0 });
+    const after = playBorrowed(s, 'h', 0);
     expect(after.rightmostSlotBuff?.attack ?? 0, 'the right-most slot accrued a permanent buff').toBeGreaterThan(0);
   });
 
@@ -81,7 +90,7 @@ describe('a borrowed minion occupies its drop slot while the Echo fires', () => 
     const s: RunState = {
       ...createRun(11), embers: 30, shop: [], board: [], hand: [borrowed('w', 'b2_wolvie')],
     };
-    const after = reduce(s, { type: 'play', uid: 'w', toIndex: 0 });
+    const after = playBorrowed(s, 'w', 0);
     expect(after.pendingSummonBuff, 'the Echo armed the next-summon buff').toMatchObject({ tribe: 'beast', attack: 2, health: 4 });
   });
 
@@ -93,7 +102,7 @@ describe('a borrowed minion occupies its drop slot while the Echo fires', () => 
       hand: [borrowed('dc', 'b2_dawnclaw')],
     };
     const before = s.board[1]!.attack;
-    const after = reduce(s, { type: 'play', uid: 'dc', toIndex: 1 }); // between the Captain and the Dwarf
+    const after = playBorrowed(s, 'dc', 1); // between the Captain and the Dwarf
     expect(after.board.some((c) => c.uid === 'dc'), 'the loan expires — Dawnclaw must not stay').toBe(false);
     const dw2 = after.board.find((c) => c.uid === 'dw2')!;
     expect(dw2.attack, "the Captain's re-fired Shout must buff its fellow Dwarf").toBeGreaterThan(before);

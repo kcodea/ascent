@@ -18,6 +18,7 @@
 import { SPEC as AlignArcSpec } from './AlignArcTuner';
 import { SPEC as AimFxSpec } from './AimFxTuner';
 import { SPEC as AuraFxSpec } from './AuraFxTuner';
+import { SPEC as ShopDeathFxSpec } from './ShopDeathFxTuner';
 import { SPEC as BookSpec } from './BookTuner';
 import { SPEC as BuffDrawerSpec } from './BuffDrawerTuner';
 import { SPEC as BuffFxSpec } from './BuffFxTuner';
@@ -75,6 +76,7 @@ import { TUNERS_RESET_EVENT, type TunerSpec } from './tunerSchema';
 export const ALL_TUNER_SPECS: TunerSpec<never>[] = [
   AimFxSpec,
   AuraFxSpec,
+  ShopDeathFxSpec,
   BookSpec,
   BuffDrawerSpec,
   BuffFxSpec,

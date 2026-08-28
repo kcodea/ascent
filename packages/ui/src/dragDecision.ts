@@ -52,6 +52,8 @@ export interface DragGeo {
 }
 
 export interface DragDecisionInput {
+  /** See `computeCastingSpell` — a Choose One that will ask before it aims never enters aim mode. */
+  asksChoiceFirst?: boolean;
   drag: DragLike | null;
   /** The pointer position to evaluate the decision at (the exact cursor, or the last committed point). */
   x: number;
@@ -95,13 +97,24 @@ export const NO_DRAG_DECISION: DragDecision = {
 /** A targeted spell dragged from the hand enters "aiming" only once its centre is ABOVE the play floor — below
  *  that (down in the hand) it's a reorder, so the reticle stays hidden. Shared by the render (`castingSpell`,
  *  which also gates the floating-card mount / aim rAF) and the decision below, so both agree on the boundary. */
-export function computeCastingSpell(drag: DragLike | null, y: number, playFloor: number): boolean {
+export function computeCastingSpell(
+  drag: DragLike | null,
+  y: number,
+  playFloor: number,
+  /** True when this card will ASK before it aims — a Choose One whose branch is not already decided. Such a
+   *  card is dragged up like an UNTARGETED spell: no reticle, no aim line, no target under the cursor. The
+   *  aim picker takes over after the branch is chosen (owner ruling 2026-08-28: "drag the spell up, then
+   *  choose one, then target a minion to buff"). The drop path already honoured this; the reticle did not,
+   *  so Crest of the Climb still drew a target line while dragging (owner report, same day). */
+  asksChoiceFirst = false,
+): boolean {
   return (
     !!drag?.active &&
     drag.source === 'hand' &&
     // A Ruby (set 2) aims like a targeted spell — same drag-to-cast, different card class.
     (!!drag.view.spell || !!drag.view.ruby) &&
     (drag.view.target === 'friendly' || drag.view.target === 'any') &&
+    !asksChoiceFirst &&
     y < playFloor
   );
 }
@@ -120,7 +133,7 @@ export function deriveDragDecision(inp: DragDecisionInput): DragDecision {
   // Insertion / hover tracks the dragged card's CENTRE (not the raw pointer, which is offset by wherever you
   // grabbed the card) — so the drop slot lands where the card visually sits.
   const dragCx = x - drag.ox + drag.w / 2;
-  const castingSpell = computeCastingSpell(drag, y, spellFloor);
+  const castingSpell = computeCastingSpell(drag, y, spellFloor, inp.asksChoiceFirst);
 
   const magHoverTarget =
     drag.active && drag.source === 'hand' && drag.view.keywords.includes('M') && overZone === 'warband'

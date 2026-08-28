@@ -35,8 +35,8 @@ export function mount(node: ReactNode): Mounted {
 
 /**
  * What a rules string SHOULD read as once the Card has rendered it: the same sanctioned transforms the Card
- * applies (`mdBold` folds `renameTerms` then bolds; `descUp`/`descTemp`/`descRune` turn the `{{…}}`/`((…))`/
- * `[[…]]` markers into styled spans), reduced to plain text. `textContent` of the rendered `.desc` must equal
+ * applies (`mdBold` folds `renameTerms` then bolds; `descUp`/`descTemp`/`descRune`/`descBoth` turn the
+ * `{{…}}`/`((…))`/`[[…]]`/`<<…>>` markers into styled spans), reduced to plain text. `textContent` of the rendered `.desc` must equal
  * this exactly — anything else means the DOM is showing something other than what the helper computed.
  */
 export function plainOf(s: string): string {
@@ -45,7 +45,8 @@ export function plainOf(s: string): string {
       .replace(/\*\*(.+?)\*\*/g, '$1') // <b> — textContent keeps the content
       .replace(/\{\{(.+?)\}\}/g, '$1') // green "modified value" span
       .replace(/\(\((.+?)\)\)/g, '($1)') // gold "temporary" span keeps visible parens
-      .replace(/\[\[(.+?)\]\]/g, '$1'), // blue "rune-granted" span
+      .replace(/\[\[(.+?)\]\]/g, '$1') // blue "rune-granted" span
+      .replace(/<<(.+?)>>/g, '$1'), // TRIBE-coloured (Both) span
   );
 }
 

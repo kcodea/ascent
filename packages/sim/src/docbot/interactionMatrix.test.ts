@@ -38,12 +38,14 @@ describe('Doc Bot — interaction matrix', () => {
     const p = rep.effects[0]!.params as { attack?: number; health?: number };
     const tgtTribe = (rep as { targetTribe?: string }).targetTribe ?? 'beast';
     for (const m of multipliers) {
-      const extra = (m as { triggerMultiplier: { extra: number } }).triggerMultiplier.extra;
+      // Either shape: `factor` for a "twice" multiplier, `1 + extra` for an "additional time" card
+      // (owner wording rule 2026-08-28). One multiplier on the board, so its declared factor IS the total.
+      const tm = (m as { triggerMultiplier: { extra?: number; factor?: number } }).triggerMultiplier;
+      const mult = tm.factor ?? 1 + (tm.extra ?? 0);
       const s0 = base([card('tgt', 'pup', { tribe: tgtTribe as never }), card('mult', m!.id)]);
       let s1 = reduce({ ...s0, hand: [card('rep', rep.id)] }, { type: 'play', uid: 'rep' });
       if (s1.pendingTarget) s1 = reduce(s1, { type: 'battlecryTarget', targetUid: 'tgt' });
       const t = s1.board.find((c) => c.uid === 'tgt')!;
-      const mult = 1 + extra;
       expect([t.attack - 1, t.health - 1],
         `${m!.id} claims Battlecries fire ${mult}×: ${rep.id}'s +${p.attack}/+${p.health} should land as +${(p.attack ?? 0) * mult}/+${(p.health ?? 0) * mult}, landed +${t.attack - 1}/+${t.health - 1}`)
         .toEqual([(p.attack ?? 0) * mult, (p.health ?? 0) * mult]);

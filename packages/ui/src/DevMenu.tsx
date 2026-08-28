@@ -27,6 +27,7 @@ import { StepProcFxTuner } from './StepProcFxTuner';
 import { QuestTendrilTuner } from './QuestTendrilTuner';
 import { HeroBuffFxTuner } from './HeroBuffFxTuner';
 import { AuraFxTuner } from './AuraFxTuner';
+import { ShopDeathFxTuner } from './ShopDeathFxTuner';
 import { WeldFxTuner } from './WeldFxTuner';
 import { BuffFxTuner } from './BuffFxTuner';
 import { InfuseFxTuner } from './InfuseFxTuner';
@@ -186,6 +187,7 @@ const GROUPS: Group[] = [
       { key: 'infusefx', icon: '🍖', label: 'Fodder Infusion', C: InfuseFxTuner, hint: 'The tendrils that send Fodder to the shop', alt: 'consume' },
       { key: 'consumefx', icon: '🍖', label: 'Consume FX', C: ConsumeFxTuner, hint: 'The eaten-minion shake / taffy / pull + bands' },
       { key: 'weldfx', icon: '🔩', label: 'Weld', C: WeldFxTuner, hint: 'An Attachment fusing onto its host minion', alt: 'magnetize attach' },
+      { key: 'shopdeathfx', icon: '💀', label: 'Shop Death & Echo', C: ShopDeathFxTuner, hint: 'Deaths and Echo bursts in the shop — timings, position, and how long a borrowed minion lingers', alt: 'destroy funeral graverobber deathrattle' },
     ],
   },
   {

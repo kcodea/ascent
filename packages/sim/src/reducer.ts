@@ -13,7 +13,7 @@ import { activePowers, getHero, gildCopiesNeeded, hasPower, powerDiscoverPool } 
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard, oppKey } from './opponents';
 import type { BoardSnapshot } from './snapshot';
-import { noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, roundedSpellbookCostOf, buyoutCostOf, commissionOffer, COMMISSION_DELAY, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, stampSharedSpoils, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, chooseBothActive, chooseOneNeedsChoice, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, rubyStatBonus, consumeGrimoireCharge, countRubyAsShopSpell, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, withBorrowedArrival, withBorrowedDeath, buyHealthAura, undeadBuyBonus, weldMagnetic , defIsTribe} from './recruit';
+import { noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, roundedSpellbookCostOf, buyoutCostOf, commissionOffer, COMMISSION_DELAY, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, stampSharedSpoils, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, chooseBothActive, chooseOneNeedsChoice, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, rubyStatBonus, consumeGrimoireCharge, countRubyAsShopSpell, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, landBorrowed, settlePendingDeath, buyHealthAura, undeadBuyBonus, weldMagnetic , defIsTribe} from './recruit';
 import { handCap, mixSeed, reservedHandSlots, TAG, henchmanOffer, type Action, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type ShopCard, type CiaSuit, type Commission, type CommissionKind, type RunState, type RubyLandedFx, gateUses, procRune, procRuneId, runeBuffMagnitude } from './state';
 import { alignmentsOf } from './alignment';
 import { RUNE_DUP_SWEETENER, RUNE_DUP_UNIQUE, forgeFilteredDuplicate, runeStacksOf } from './runeDup';
@@ -641,6 +641,10 @@ export function reduce(state: RunState, action: Action): RunState {
   // across dispatches). For a rejected no-op reduceCore returns `state` itself → `next.recruitBuffFx` stays [].
   state.recruitBuffFx = [];
   state.aleGranted = []; // per-action scratch: which Dwarf generated an Ale this action (aleGrantSeq stays monotonic)
+  // Per-action scratch: shop death / Echo cues (shopFxSeq stays monotonic). Cleared only when it HOLDS
+  // something — assigning [] unconditionally would add the field to a state that never had it, which a
+  // no-op expectation (a refused action must return an identical state) correctly reads as a change.
+  if (state.shopDeathFx?.length) state.shopDeathFx = [];
   state.auraFx = undefined; // same per-action scratch contract as recruitBuffFx (auraFxSeq stays monotonic)
   state.veinstormStamped = undefined; // per-action scratch: which offers Veinstorm gemmed (veinstormFxSeq stays monotonic)
   // Weld FX does NOT use the per-action scratch contract above, and must not: React BATCHES dispatches, so
@@ -664,6 +668,21 @@ export function reduce(state: RunState, action: Action): RunState {
       state.servedBoards = { ...(state.servedBoards ?? {}), [state.wave]: preview };
       if (softening) state.streakSoftened = true;
     }
+  }
+  // THE TWO-STEP SHOP DEATH, safety half (owner design 2026-08-28). A body that has LANDED and is dying
+  // (`pendingDeath`) must never survive into another action: whatever the player does next, the death resolves
+  // FIRST. `resolveShopDeath` is the UI's explicit "the landing has been on screen long enough" — every other
+  // action settles it implicitly, so a bot, a test or a replay that simply keeps playing reaches exactly the
+  // state a player who watched the animation reaches. The intermediate state is therefore visible ONLY to
+  // whoever is looking at the screen; it can never be built on.
+  if (state.pendingDeath && action.type !== 'resolveShopDeath') {
+    // Same carve-out reduceCore uses: deep-clone everything but the two large read-only structures.
+    const { lastCombat: lc, servedBoards: sb, ...rest } = state;
+    const settled = structuredClone(rest) as RunState;
+    settled.lastCombat = lc;
+    settled.servedBoards = sb;
+    settlePendingDeath(settled);
+    state = settled;
   }
   const next = reduceCore(state, action);
   // ── "WHEN A CARD IS ADDED TO YOUR HAND" (Gangplank, Rune of Heavy Payroll) ──────────────────────────────
@@ -1050,6 +1069,8 @@ function reduceCore(state: RunState, action: Action): RunState {
   // open, an out-of-phase action) used to pay the full structuredClone below for nothing.
   // A finished run (loss or victory) takes no more actions — restart goes through the store.
   if (state.phase === 'gameover' || state.phase === 'victory') return state;
+  // Nothing owed — a late or duplicate resolve (the UI timer racing a click) is a free no-op, not a clone.
+  if (action.type === 'resolveShopDeath' && !state.pendingDeath) return state;
 
   // Recruit actions apply only in the recruit phase; `settleCombat` / `resolveCombat` only in combat.
   if (state.phase !== 'recruit' && action.type !== 'resolveCombat' && action.type !== 'settleCombat') return state;
@@ -1397,8 +1418,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         // TWO BEATS, not one silent mutation (owner report 2026-08-28). The arrival is seen to take a slot,
         // and the Echo + departure get an animation window of their own — the gameplay and its ORDER are
         // unchanged, both helpers live in recruit.ts beside the trigger primitive they use.
-        withBorrowedArrival(s, card, at);
-        withBorrowedDeath(s, card);
+        landBorrowed(s, card, at);
         return s;
       }
 
@@ -2227,6 +2247,18 @@ function reduceCore(state: RunState, action: Action): RunState {
       return s;
     }
 
+    // The second half of the shop's two-step death. Resolved HERE rather than in `reduce`'s guard so it flows
+    // through every piece of machinery an ordinary action gets — the hand-arrival diff (an Echo that grants a
+    // card), the onGainAttack diff, quest ticks, the FX scratch buffers. An early return from the guard skipped
+    // all of it, and a borrowed Echo's Ruby cue silently never fired.
+    case 'resolveShopDeath':
+      settlePendingDeath(s);
+      // An Echo (or a Rise) can put a THIRD copy of something on the board — Mama Pup's two Pups beside one
+      // you already own, a risen body beside its twins. The old borrowed path returned before ever reaching a
+      // triple check, so Funeral on Loan could hand you three of a kind and simply leave them there (owner
+      // report 2026-08-28). Graverobber's destroy already checked, via its battlecryTarget case.
+      checkTriples(s);
+      return s;
     case 'devGrant': {
       // DEV Scene Builder only — drop a quest or rune into the run without playing to the turn that offers it.
       // Everything routes through the SAME reward engine a real buy/completion uses (`applyQuestReward`), so a

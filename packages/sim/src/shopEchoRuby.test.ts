@@ -16,7 +16,7 @@ const borrowed = (uid: string, cardId: string): BoardCard =>
 describe('Geode Guardian borrowed from Funeral on Loan', () => {
   it('summons two Taunted Golems carrying Rubies', () => {
     const s: RunState = { ...createRun(4), board: [], hand: [borrowed('g', 'k_geode')], embers: 20 };
-    const after = reduce(s, { type: 'play', uid: 'g' });
+    const after = reduce(reduce(s, { type: 'play', uid: 'g' }), { type: 'resolveShopDeath' });
     expect(after.board.some((c) => c.uid === 'g'), 'the borrowed body is destroyed on play').toBe(false);
     const golems = after.board.filter((c) => c.cardId === 'gemheart-shard');
     expect(golems.length, 'the Echo must summon two Golems').toBe(2);
@@ -31,7 +31,7 @@ describe('Geode Guardian borrowed from Funeral on Loan', () => {
     // The cue is derived by the reducer from the 'Ruby' buff-count delta, so it needs no wiring here — but it
     // is exactly what the owner asked to see, so pin that it actually reaches the UI channel.
     const s: RunState = { ...createRun(4), board: [], hand: [borrowed('g', 'k_geode')], embers: 20 };
-    const after = reduce(s, { type: 'play', uid: 'g' });
+    const after = reduce(reduce(s, { type: 'play', uid: 'g' }), { type: 'resolveShopDeath' });
     expect(after.rubyLandedFx?.length, 'no Ruby-landed cue → no animation').toBeGreaterThan(0);
     expect(after.rubyLandedFxSeq ?? 0).toBeGreaterThan(0);
   });
@@ -41,13 +41,13 @@ describe('Faultline Scrapper borrowed from Funeral on Loan', () => {
   it('raises the run Ruby strength', () => {
     const s: RunState = { ...createRun(4), board: [], hand: [borrowed('f', 'k_faultline')], embers: 20 };
     const before = s.rubyBonus?.attack ?? 0;
-    const after = reduce(s, { type: 'play', uid: 'f' });
+    const after = reduce(reduce(s, { type: 'play', uid: 'f' }), { type: 'resolveShopDeath' });
     expect(after.rubyBonus?.attack ?? 0, 'the Echo must raise Ruby Attack').toBe(before + 1);
   });
 
   it('fires the Ruby-POWER cue, so the flourish plays', () => {
     const s: RunState = { ...createRun(4), board: [], hand: [borrowed('f', 'k_faultline')], embers: 20 };
-    const after = reduce(s, { type: 'play', uid: 'f' });
+    const after = reduce(reduce(s, { type: 'play', uid: 'f' }), { type: 'resolveShopDeath' });
     expect(after.rubyPowerFxAtk ?? 0, 'no Ruby-power cue → no flourish').toBeGreaterThan(0);
     expect(after.rubyPowerFxSeq ?? 0).toBeGreaterThan(0);
   });
@@ -55,7 +55,7 @@ describe('Faultline Scrapper borrowed from Funeral on Loan', () => {
   it('a GOLDEN borrowed Scrapper doubles the gain', () => {
     const g: BoardCard = { ...borrowed('f', 'k_faultline'), golden: true };
     const s: RunState = { ...createRun(4), board: [], hand: [g], embers: 20 };
-    const after = reduce(s, { type: 'play', uid: 'f' });
+    const after = reduce(reduce(s, { type: 'play', uid: 'f' }), { type: 'resolveShopDeath' });
     expect(after.rubyBonus?.attack ?? 0).toBe((s.rubyBonus?.attack ?? 0) + 2);
   });
 });

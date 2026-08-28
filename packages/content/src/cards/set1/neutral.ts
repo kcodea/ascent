@@ -115,9 +115,11 @@ export const NEUTRAL: CardDef[] = [
     health: 4,
     keywords: [],
     effects: [],
-    triggerMultiplier: { families: ['battlecry'], extra: 1 },
-    text: 'Your **Battlecries** fire **1 more** time.',
-    goldenText: 'Your **Battlecries** fire **2 more** times.',
+    // "twice" — a MULTIPLIER (owner 2026-08-28). Two Drakkos are still twice; Drakko × a different
+    // multiplier is ×4. Golden buys one more trigger, not a doubled factor.
+    triggerMultiplier: { families: ['battlecry'], factor: 2 },
+    text: 'Your **Shouts** trigger **twice**.',
+    goldenText: 'Your **Shouts** trigger **three times**.',
   },
   {
     // Deathrattle doubler. Golden procs 2 more times; multiple Sylus DO stack (additive).
@@ -129,9 +131,10 @@ export const NEUTRAL: CardDef[] = [
     health: 7,
     keywords: [],
     effects: [],
+    // "1 additional time" — ADDITIVE, so every copy counts: two Sylus mean three Echoes.
     triggerMultiplier: { families: ['deathrattle'], extra: 1, stacks: true },
-    text: '**In combat,** your Deathrattles proc **1 more** time.',
-    goldenText: '**In combat,** your Deathrattles proc **2 more** times.',
+    text: 'Your **Echoes** trigger **1 additional** time.',
+    goldenText: 'Your **Echoes** trigger **2 additional** times.',
   },
   {
     // End-of-Turn doubler (recruit). Golden triggers 2 more times; multiple Chronos do NOT
@@ -144,9 +147,10 @@ export const NEUTRAL: CardDef[] = [
     health: 6,
     keywords: [],
     effects: [],
-    triggerMultiplier: { families: ['endOfTurn'], extra: 1 },
-    text: 'Your **End of Turn** effects trigger **1 more** time.',
-    goldenText: 'Your **End of Turn** effects trigger **2 more** times.',
+    // "twice" — a MULTIPLIER, same family of wording as Drakko.
+    triggerMultiplier: { families: ['endOfTurn'], factor: 2 },
+    text: 'Your **End of Turn** effects trigger **twice**.',
+    goldenText: 'Your **End of Turn** effects trigger **three times**.',
   },
   {
     // Spell doubler (recruit) — AIMED spells only. While on your board, each spell you *aim at a minion*

@@ -81,7 +81,7 @@ function useBadgePop(value: number): RefObject<HTMLSpanElement> {
 // load. Imported HERE rather than only from the dev tuner because the tuner is stripped from production —
 // without this, any non-identity default baked into that file would silently never apply to players.
 import './cardPillsConfig';
-import { artFor } from './art';
+import { artFor, artVariantKey } from './art';
 import { renameTerms } from './terms';
 import { KeywordDefs } from './KeywordDefs';
 import { detectCardKeywords } from './detectCardKeywords';
@@ -228,6 +228,12 @@ const descTemp = (s: string): string => s.replace(/\(\((.+?)\)\)/g, '<span class
  *  2026-08-20). Blue, not green: green means "a modified value of this card's own rule"; blue is a rule a
  *  held rune ADDS to the card. */
 const descRune = (s: string): string => s.replace(/\[\[(.+?)\]\]/g, '<span class="descrune">$1</span>');
+/** A <<…>> marker — the (Both) label on a Choose One whose branches are all enabled. Coloured by the card's
+ *  own TRIBE (owner ask 2026-08-28: "make the (Both) text logic follow the tribe color logic — kobolds should
+ *  be that orangey/red color"), which the card root already exposes as `--c`; a Kobold reads #e8763a, a Beast
+ *  green, and so on. Its own marker rather than reusing `descup` because that green means "a modified value of
+ *  this card's own rule", which (Both) is not. */
+const descBoth = (s: string): string => s.replace(/<<(.+?)>>/g, '<span class="descboth">$1</span>');
 /**
  * Golden (tripled) cards show their numbers doubled to match the doubled effect:
  * "+1/+1" → "+2/+2", "deal 3" / "deal **3**" → "deal 6", "3 to every" → "6 to
@@ -625,7 +631,7 @@ export const Card = memo(function Card({
   // re-ran the full pipeline — renameTerms' 23 regexes + the bold/marker passes — AND handed React a fresh
   // string, forcing a dangerouslySetInnerHTML re-parse. That cost fired on all ~22 on-screen cards at once
   // whenever a shared prop flipped (drag start/end, hero arm), inside the same frame as the drag's FLIP.
-  const rulesHtml = useMemo(() => descRune(descTemp(descUp(mdBold(shownText)))), [shownText]);
+  const rulesHtml = useMemo(() => descBoth(descRune(descTemp(descUp(mdBold(shownText))))), [shownText]);
   // The card's primary mechanic glyph for the medallion — the first mechanic the card itself has (see
   // mechIcon.ts). `null` → a blank badge. Never the tribe.
   const mechIcon = resolveMechIcon(card);
@@ -724,7 +730,9 @@ export const Card = memo(function Card({
         '--fan-rot': `${fanRot ?? 0}deg`,
         /* PER-CARD art framing (🖼️ Card Art tuner). Spread inline so it beats the frame family's own
            `--artY`/`--artZoom` on specificity; a card with no override contributes nothing at all here. */
-        ...(cardArtVars(card.cardId) ?? {}),
+        // Framed under the BRANCH's key when a resolved Choose One is wearing branch art, falling back to
+        // the card's own entry — the base and the branch are different pictures (owner ask 2026-08-28).
+        ...(cardArtVars(card.cardId ? artVariantKey(card.cardId, card.chosenOption) : undefined, card.cardId) ?? {}),
         // Spell-buff cue dials (✨ Spell Buff tuner) — only while the burst is on, so nothing else pays for them.
         ...(sbCfg ? { '--sb-grow': sbCfg.growScale, '--sb-grow-ms': `${sbCfg.growMs}ms`, '--sb-grow-ease': growEaseCss(sbCfg), '--sb-shrink-ms': `${sbCfg.shrinkMs}ms`, '--sb-shrink-ease': shrinkEaseCss(sbCfg), '--sb-ms': `${sbCfg.sparkMs}ms`, '--sb-alpha': sbCfg.sparkAlpha, '--sb-glow': `${sbCfg.sparkGlow}px`, '--sb-grav': `${sbCfg.sparkGravity}px`, '--sb-oy': `${sbCfg.blastOriginY}%`, '--sb-ease': sparkEaseCss(sbCfg) } : {}),
         transform: handSlidePx
@@ -738,7 +746,9 @@ export const Card = memo(function Card({
         if (!isPickingCardArt()) return;
         e.preventDefault();
         e.stopPropagation();
-        beginEditCardArt(card.cardId!);
+        // Dial the picture that is actually on screen: tuning a resolved branch writes the BRANCH's entry,
+        // not the base card's, so the two can be framed independently.
+        beginEditCardArt(artVariantKey(card.cardId!, card.chosenOption));
       } : undefined}
       onMouseEnter={hasPopup && !dragging ? (e) => showRefTip(e.currentTarget) : undefined}
       onMouseLeave={hasPopup ? hideRefTip : undefined}

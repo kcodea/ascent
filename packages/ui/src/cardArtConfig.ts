@@ -254,8 +254,12 @@ export function cardArtVersion(): number {
  * stacking context and forces its own compositing layer, so declaring one unconditionally would make every
  * card on screen pay for a feature almost none of them use.
  */
-export function cardArtVars(cardId: string | undefined): Record<string, string> | undefined {
-  const a = getCardArt(cardId);
+/**
+ * `fallbackId` lets a BRANCH art key (`n2_spellsword2`) inherit the card's own framing until someone dials the
+ *  branch specifically — so adding per-branch overrides changed nothing for the cards that had none.
+ */
+export function cardArtVars(cardId: string | undefined, fallbackId?: string): Record<string, string> | undefined {
+  const a = getCardArt(cardId) ?? (fallbackId ? getCardArt(fallbackId) : undefined);
   if (!a) return undefined;
   const out: Record<string, string> = {};
   if (a.x) out['--ca-tx'] = `${a.x}%`;

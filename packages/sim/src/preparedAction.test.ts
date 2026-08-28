@@ -56,10 +56,11 @@ describe('prepared faceOmen === dispatched faceOmen', () => {
 
   it('`before` keeps its GAMEPLAY state — the recruit scene stays renderable while playback runs', () => {
     // `reduce` deliberately resets per-action FX scratch on the INPUT before its clone (documented at the top
-    // of `reduce`), so those four fields are expected to move. Everything the recruit screen actually reads —
+    // of `reduce`), so those fields are expected to move. Everything the recruit screen actually reads —
     // board, hand, shop, Gold, phase, runes, quests — must be exactly as it was, or preparing would snap the
     // scene to its post-End-of-Turn values before a single beat has played (blueprint §25's first trap).
-    const SCRATCH = new Set(['recruitBuffFx', 'auraFx', 'veinstormStamped', 'weldFxBaseSeq']);
+    // `shopDeathFx` joined the list on 2026-08-28 (the shop death / Echo cues).
+    const SCRATCH = new Set(['recruitBuffFx', 'auraFx', 'veinstormStamped', 'weldFxBaseSeq', 'shopDeathFx']);
     const before = eotRun();
     const snapshot = JSON.parse(JSON.stringify(before)) as Record<string, unknown>;
     const prepared = prepareActionWithPresentation(before, faceOmen);

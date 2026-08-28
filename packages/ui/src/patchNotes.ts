@@ -56,6 +56,40 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-08-28',
+    label: 'Multipliers',
+    changes: [
+      {
+        category: 'Card Change',
+        text: 'Trigger multipliers now say exactly how they combine — "twice" multiplies, "additional" adds up.',
+        details: [
+          'Drakko the Drummer: "Your Shouts trigger twice." Two Drakkos are still twice — a multiplier does not stack with itself.',
+          'Chronos: "Your End of Turn effects trigger twice." Same rule.',
+          'Sylus the Reaper: "Your Echoes trigger 1 additional time." Every copy counts, so two Sylus mean three Echoes.',
+          'Zyff and Uron read "an additional time", so they stack too — two Urons now mean three triggers, where before the second did nothing.',
+          'The two kinds combine: Drakko + Zyff means a Shout triggers FOUR times — Zyff adds a trigger, then Drakko doubles the total.',
+          'Gilded Drakko and Chronos now read "three times".',
+        ],
+      },
+      {
+        category: 'UI / Info',
+        text: 'Deaths and Echoes in the shop now animate, the same way they do in combat.',
+        details: [
+          'A minion destroyed in the shop plays the death dissolve; one that is rising plays its return instead.',
+          'The Echo burst plays anytime an Echo triggers in the shop — from a destroy, a rune, or any card that triggers one.',
+        ],
+      },
+      {
+        category: 'Card Change',
+        text: 'Minions summoned by a shop Echo now arrive where the minion died, and can complete triples.',
+        details: [
+          "A destroyed minion's summons used to appear at the far right of your board instead of in its place.",
+          'Funeral on Loan never checked for triples, so three of a kind could sit uncombined. It does now.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-08-28',
     label: 'Destroy & Rise',
     changes: [
       {
@@ -64,7 +98,7 @@ export const PATCH_NOTES: PatchNote[] = [
         details: [
           'Graverobber eating a minion with Rise no longer kills it outright: it returns at its base Attack with 1 Health, its Rise spent.',
           'Its Echo still resolves first, so if the Echo fills your board there is no room and the Rise is lost — the same rule combat uses.',
-          "Funeral on Loan is unaffected: a borrowed minion's loan ending is not a death, so Rise never keeps it on your board.",
+          'Funeral on Loan follows the same rule: discover a minion with Rise, play it this turn, and after its Echo it rises and stays on your board.',
         ],
       },
       {

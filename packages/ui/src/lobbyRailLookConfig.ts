@@ -76,50 +76,50 @@ export interface LobbyRailLookConfig {
 /** Owner-tunable; these mirror the CSS fallbacks in the `.lobbyrail` / `.lobbyseat` block, so production paints
  *  them with no JS. Bake a tune by pasting Copy values here AND updating those fallbacks. */
 const DEFAULTS: LobbyRailLookConfig = {
-  faceScale: 1,
-  faceRadius: 50,
+  // Owner-tuned 2026-08-28 (🎨 Lobby Rail Look → Copy values). Warm-brown plaques with a gold hairline, a bold
+  // blue YOUR-seat, hot-red health bars, and a fierce red-glowing next foe with a thick left accent bar + a deep
+  // pulse. Portraits slightly larger + squarer, rows pulled well in off the frame, tight seat padding, square
+  // rail corners. All mirrored into the styles.css fallbacks below so prod paints it with no JS.
+  faceScale: 1.14,
+  faceRadius: 22,
 
-  railPad: 1,
-  seatPad: 1,
-  rowGap: 1,
+  railPad: 2.55,
+  seatPad: 0.3,
+  rowGap: 1.1,
 
-  railRadius: 1,
-  seatRadius: 1,
+  railRadius: 0,
+  seatRadius: 0.55,
 
-  // WARM-GILDED starting palette (owner ask 2026-08-28) — seats read as warm-brown plaques with a faint gold
-  // hairline, cream names, gold accents, matching the backplate's gilded frame + dark-warm-brown leather. A
-  // brightness hierarchy carries the read: resting seats dark, YOUR seat a warmer gold-brown, the next foe the
-  // brightest ember + its gold ring/glow. All mirrored into the styles.css fallbacks so prod paints it with no JS.
-  seatBg: '#2e2417',
-  seatLine: '#c8922e',
-  nameCol: '#f4ecdb',
+  seatBg: '#6b492e',
+  seatLine: '#d4941c',
+  nameCol: '#ffffff',
 
-  youBg: '#3f2f14',
-  youLine: '#e6b45a',
+  youBg: '#0e69be',
+  youLine: '#0011ff',
 
-  hpCol: '#ff8d8d',
-  armorCol: '#c9c2b0',
-  dmgCol: '#ff6b6b',
-  barA: '#ff8a6e',
-  barB: '#ffc978',
+  hpCol: '#fb3737',
+  armorCol: '#bfbfbf',
+  dmgCol: '#ff3d3d',
+  barA: '#ff5024',
+  barB: '#fe0101',
   youBarA: '#e6b45a',
-  youBarB: '#ffe1a0',
-  barTrack: '#ffd9a0',
+  youBarB: '#69d100',
+  barTrack: '#5c431f',
 
   roundCol: '#fff6e4',
   aliveCol: '#f4d58a',
   maxCol: '#ff9a9a',
 
-  foeBg: '#4d3117',
-  foeRingCol: '#ffce82',
-  foeRing: 0.7,
-  foeGlowCol: '#ffaa50',
-  foeGlow: 7,
-  foeSpread: 1,
-  foeBarCol: '#ffce82',
-  foeBar: 0,
-  foePulseDur: 1.5,
-  foePulseMin: 0.5,
+  foeBg: '#801900',
+  foeRingCol: '#ff8080',
+  foeRing: 1.05,
+  foeGlowCol: '#ff5252',
+  foeGlow: 17.5,
+  foeSpread: 5,
+  foeBarCol: '#ff8080',
+  foeBar: 3.1,
+  foePulseDur: 1.7,
+  foePulseMin: 0.1,
 };
 
 export { DEFAULTS as LOBBY_RAIL_LOOK_DEFAULTS };

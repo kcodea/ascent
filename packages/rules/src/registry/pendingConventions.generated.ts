@@ -1648,7 +1648,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "statement": "Taunt means: enemies must attack your Taunt minions before anything else — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "keywords",
     "currentBehaviour": "One shared engine path implements Taunt for all 20 carriers.",
-    "cardText": "Exemplar — Armadiyo: \"Taunt. Echo: give your Beasts +2/+4 wherever they are.\" · Carriers: Armadiyo · Dawnclaw · Wolvie · Blaster · Fel Spikes · Chipper · Knocked · Big Huggies · Brunni · Twilight Emissary · Gryphon · Candleback Bulwark · … and 8 more",
+    "cardText": "Exemplar — Armadiyo: \"Taunt. Echo: give your Beast Aura +2/+4.\" · Carriers: Armadiyo · Dawnclaw · Wolvie · Blaster · Fel Spikes · Chipper · Knocked · Big Huggies · Brunni · Twilight Emissary · Gryphon · Candleback Bulwark · … and 8 more",
     "example": "Armadiyo carries Taunt — in play, enemies must attack your Taunt minions before anything else.",
     "contentIds": [
       "b2_armadiyo",

@@ -8229,12 +8229,12 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
    constant and left the dial doing nothing but resizing portraits.) The rail's height dial is now a CAP. */
 .lobbyseats { flex: none; display: flex; flex-direction: column; gap: calc(2 * var(--lrow) * var(--lby-gap, 1.1)); }
 .lobbyseat { position: relative; flex: none; display: grid;
-  grid-template-columns: calc(18 * var(--lrow) * var(--lby-face, 1.45)) 1fr auto; grid-template-rows: auto auto auto;
+  grid-template-columns: calc(18 * var(--lrow) * var(--lby-face, 1.5)) 1fr auto; grid-template-rows: auto auto auto;
   align-items: center; column-gap: calc(4 * var(--lrow));
   padding: calc(3 * var(--lrow) * var(--lby-seat-pad, 0.75)) calc(5 * var(--lrow) * var(--lby-seat-pad, 0.75)) calc(4 * var(--lrow) * var(--lby-seat-pad, 0.75));
   border-radius: calc(5 * var(--lrow) * var(--lby-seat-rad, 0.55)); font-size: calc(11 * var(--lfont)); color: var(--lby-name-col, #fff);
   background: var(--lby-seat-bg, #6b492e); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--lby-seat-line, #d4941c) 8%, transparent); }
-.lobbyseat.you { background: var(--lby-you-bg, #0e69be); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--lby-you-line, #0011ff) 60%, transparent); }
+.lobbyseat.you { background: var(--lby-you-bg, #003d75); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--lby-you-line, #00fbff) 60%, transparent); }
 /* The NEXT opponent — lit BRIGHT so it reads at a glance now the "Next" pill is gone. A warm-gold seat + ring,
    plus an overlay whose glow PULSES via opacity only (a static shadow, opacity-animated — compositor-only per
    docs/performance.md; never a looping box-shadow). */
@@ -8249,14 +8249,14 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
    until the tuner raises it). Static, no pulse; the ring/glow above carries the pulse. */
 .lobbyseat.foe::before {
   content: ''; position: absolute; left: 0; top: 0; bottom: 0; border-radius: inherit; pointer-events: none;
-  width: calc(var(--lby-foe-bar, 3.1) * var(--lrow));
-  background: color-mix(in srgb, var(--lby-foe-bar-col, #ff8080) 95%, transparent); }
+  width: calc(var(--lby-foe-bar, 2.7) * var(--lrow));
+  background: color-mix(in srgb, var(--lby-foe-bar-col, #ffc370) 95%, transparent); }
 @keyframes lobbyfoepulse { 0%, 100% { opacity: var(--lby-foe-pulse-min, 0.1); } 50% { opacity: 1; } }
 .lobbyseat.dead { opacity: 0.5; }
 /* Portrait sits on rows 2–3 (owner ask 2026-08-28), BELOW the full-width name — sharing those rows with the
    health/damage stats (row 2) and the bar (row 3) in the columns to its right, so the name banners the whole
    seat and the portrait + bar sit together beneath it. */
-.lobbyface { grid-column: 1; grid-row: 2 / span 2; width: calc(18 * var(--lrow) * var(--lby-face, 1.45)); height: calc(18 * var(--lrow) * var(--lby-face, 1.45));
+.lobbyface { grid-column: 1; grid-row: 2 / span 2; width: calc(18 * var(--lrow) * var(--lby-face, 1.5)); height: calc(18 * var(--lrow) * var(--lby-face, 1.5));
   border-radius: calc(var(--lby-face-rad, 22) * 1%); object-fit: cover; }
 /* The name banners the WHOLE seat on its own row — spans every column on row 1, over the portrait column too
    (owner ask 2026-08-28), with the portrait + health/damage + bar all below it. */
@@ -8265,31 +8265,31 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   font-size: calc(11 * var(--lfont) * var(--lby-name-size, 1.5)); font-weight: 800; }
 .lobbyseat.dead .lobbyname { text-decoration: line-through; }
 .lobbyhp { display: inline-flex; align-items: center; gap: calc(1 * var(--lfont)); font-weight: 800; color: var(--lby-hp-col, #fb3737);
-  font-size: calc(11 * var(--lfont) * var(--lby-hp-size, 1.55)); }
-.lobbyhp svg { width: calc(8 * var(--lfont) * var(--lby-hp-size, 1.55)); height: calc(8 * var(--lfont) * var(--lby-hp-size, 1.55)); }
+  font-size: calc(11 * var(--lfont) * var(--lby-hp-size, 1.45)); }
+.lobbyhp svg { width: calc(8 * var(--lfont) * var(--lby-hp-size, 1.45)); height: calc(8 * var(--lfont) * var(--lby-hp-size, 1.45)); }
 /* Armor reads as a little shield + the number (owner ask 2026-08-28), replacing the old "+N". The shield glyph
    strokes in currentColor, so it takes the armor ink. */
-.lobbyarmor { display: inline-flex; align-items: center; gap: calc(1 * var(--lfont)); color: var(--lby-armor-col, #bfbfbf); font-weight: 800; }
-.lobbyarmor svg { width: calc(8 * var(--lfont) * var(--lby-hp-size, 1.55)); height: calc(8 * var(--lfont) * var(--lby-hp-size, 1.55)); }
+.lobbyarmor { display: inline-flex; align-items: center; gap: calc(1 * var(--lfont)); color: var(--lby-armor-col, #a3a3a3); font-weight: 800; }
+.lobbyarmor svg { width: calc(8 * var(--lfont) * var(--lby-hp-size, 1.45)); height: calc(8 * var(--lfont) * var(--lby-hp-size, 1.45)); }
 .lobbyplace { color: rgba(255, 255, 255, 0.62); font-weight: 700; }
 /* Health / placement sit on row 2 at the right, beside the round-damage number, now the name owns row 1. */
-.lobbyhp, .lobbyplace { grid-column: 3; grid-row: 2; justify-self: start; transform: translateX(calc(var(--lby-hp-x, 2) * var(--lrow))); }
+.lobbyhp, .lobbyplace { grid-column: 3; grid-row: 2; justify-self: start; transform: translateX(calc(var(--lby-hp-x, 9) * var(--lrow))); }
 /* The health number LEFT-aligns at a fixed start toward the right (owner ask 2026-08-28): it reserves a width
    sized to the biggest reading, so the number sits in the SAME spot whether or not the seat has armor — armor
    extends rightward into the reserve instead of shoving the number left the way right-alignment did. The reserve
    scales with the health-text dial so the ratio holds as the text grows. */
-.lobbyhp { min-width: calc(30 * var(--lrow) * var(--lby-hp-size, 1.55)); }
+.lobbyhp { min-width: calc(30 * var(--lrow) * var(--lby-hp-size, 1.45)); }
 /* Damage from the round that just resolved — sits under the name, so the row keeps ONE stable shape whether or
    not a number is present (an inline cell reflowed the health column between seats). */
 /* HEALTH BAR — the element was rendered by the panel but had no rule at all, so it painted nothing. Given a
    row of its own beneath the name so it reads as the seat's whole remaining pool at a glance, next to the exact
    number on the right. */
-.lobbybar { grid-column: 2 / span 2; grid-row: 3; height: calc(3 * var(--lrow) * var(--lby-bar-thick, 1.4)); border-radius: 999px;
-  background: color-mix(in srgb, var(--lby-bar-track, #5c431f) 10%, transparent); overflow: hidden; }
+.lobbybar { grid-column: 2 / span 2; grid-row: 3; height: calc(3 * var(--lrow) * var(--lby-bar-thick, 2.05)); border-radius: 999px;
+  background: color-mix(in srgb, var(--lby-bar-track, #000000) 10%, transparent); overflow: hidden; }
 .lobbybar > span { display: block; height: 100%; border-radius: inherit;
   background: linear-gradient(90deg, var(--lby-bar-a, #ff5024), var(--lby-bar-b, #fe0101)); }
 .lobbyseat.you .lobbybar > span { background: linear-gradient(90deg, var(--lby-youbar-a, #ff5024), var(--lby-youbar-b, #fe0101)); }
-.lobbydmg { grid-column: 2; grid-row: 2; font-size: calc(9 * var(--lfont) * var(--lby-dmg-size, 1.6)); font-weight: 800; color: var(--lby-dmg-col, #ff3d3d);
+.lobbydmg { grid-column: 2; grid-row: 2; font-size: calc(9 * var(--lfont) * var(--lby-dmg-size, 1.35)); font-weight: 800; color: var(--lby-dmg-col, #e18484);
   line-height: 1; min-height: calc(8 * var(--lfont)); animation: lobbydmgpop 420ms ease-out; }
 @keyframes lobbydmgpop {
   0% { transform: translateY(calc(-2 * var(--lfont))) scale(1.3); opacity: 0; }

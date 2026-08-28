@@ -87,7 +87,7 @@ const DEFAULTS: LobbyRailLookConfig = {
   // blue YOUR-seat, hot-red health bars, and a fierce red-glowing next foe with a thick left accent bar + a deep
   // pulse. Portraits slightly larger + squarer, rows pulled well in off the frame, tight seat padding, square
   // rail corners. All mirrored into the styles.css fallbacks below so prod paints it with no JS.
-  faceScale: 1.45,
+  faceScale: 1.5,
   faceRadius: 22,
 
   nameScale: 1.5,
@@ -103,21 +103,21 @@ const DEFAULTS: LobbyRailLookConfig = {
   seatLine: '#d4941c',
   nameCol: '#ffffff',
 
-  youBg: '#0e69be',
-  youLine: '#0011ff',
+  youBg: '#003d75',
+  youLine: '#00fbff',
 
-  healthScale: 1.55,
-  barThick: 1.4,
-  dmgScale: 1.6,
-  hpShift: 2,
+  healthScale: 1.45,
+  barThick: 2.05,
+  dmgScale: 1.35,
+  hpShift: 9,
   hpCol: '#fb3737',
-  armorCol: '#bfbfbf',
-  dmgCol: '#ff3d3d',
+  armorCol: '#a3a3a3',
+  dmgCol: '#e18484',
   barA: '#ff5024',
   barB: '#fe0101',
   youBarA: '#ff5024',
   youBarB: '#fe0101',
-  barTrack: '#5c431f',
+  barTrack: '#000000',
 
   roundCol: '#fff6e4',
   aliveCol: '#f4d58a',
@@ -129,8 +129,8 @@ const DEFAULTS: LobbyRailLookConfig = {
   foeGlowCol: '#ff5252',
   foeGlow: 14,
   foeSpread: 5,
-  foeBarCol: '#ff8080',
-  foeBar: 3.1,
+  foeBarCol: '#ffc370',
+  foeBar: 2.7,
   foePulseDur: 1.7,
   foePulseMin: 0.1,
 };

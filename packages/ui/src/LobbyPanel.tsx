@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   boardIntel, getHero, lastPlayerEncounter, lastRoundDamage, lossDamageCap, playerOpponent, seatResults,
   type LobbySeatState, type RunLobby, type SeatIntel,
@@ -201,10 +202,11 @@ function ScoutCard({ lobby, seat, intel, at, pinned, onClose }: {
     const top = Math.max(m + h / 2, Math.min(at.top, vh - m - h / 2));
     setClamp({ top, right });
   }, [at.top, at.right, seat.id, pinned]);
-  return (
-    // POSITION: FIXED, anchored to the measured seat and clamped to the viewport (see above). The rail is a
-    // scroll container, but `fixed` escapes its overflow clipping and the rail has no transform/filter, so
-    // nothing re-anchors the card — the only failure mode left is running off a screen edge, which the clamp fixes.
+  // PORTALED to <body>, then position:fixed + viewport-clamped. Rendered inside the rail, the card could be
+  // swallowed by the rail's backplate/overflow on some viewports (owner report 2026-08-28) — as a direct child
+  // of <body> no rail ancestor can clip or re-anchor it. The clamp (above) keeps it on-screen; z-index keeps it
+  // in front.
+  return createPortal(
     <div ref={cardRef} className={`lobbyscout${pinned ? ' pinned' : ''}`} role={pinned ? 'dialog' : 'tooltip'}
       aria-label={pinned ? `${seat.label} — scouting report` : undefined}
       style={clamp
@@ -281,6 +283,7 @@ function ScoutCard({ lobby, seat, intel, at, pinned, onClose }: {
           </div>
         ))}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

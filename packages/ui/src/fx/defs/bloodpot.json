@@ -1620,7 +1620,7 @@
       "primitive": "burst",
       "name": "target burst",
       "anchor": "target",
-      "at": 140,
+      "at": 170,
       "params": {
         "count": 267,
         "interval": 600,
@@ -2171,7 +2171,7 @@
       "primitive": "burst",
       "name": "target burst",
       "anchor": "target",
-      "at": 140,
+      "at": 190,
       "params": {
         "count": 110,
         "interval": 600,

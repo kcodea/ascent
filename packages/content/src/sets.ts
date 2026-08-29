@@ -94,6 +94,31 @@ const SET1_TIER7_IN_SET2: readonly CardDef[] = TIER7.filter((c) => ['uron', 'sal
 const SET1_SPELLS_IN_SET2: readonly CardDef[] = SPELLS.filter((s) => !s.token && !SET2_DROPPED_SPELLS.has(s.id));
 
 /**
+ * SET 2 KOBOLDS that carry into SET 3 (owner list 2026-08-28). Eleven of set 2's twenty-three, opted in BY ID
+ * — the same manifest pattern Karwind, the set-1 Beasts and the set-1 Neutrals use, so a new set-2 Kobold
+ * never leaks into set 3 by being added to `SET2_KOBOLDS`.
+ *
+ * SHARED definitions, not forks: re-speccing one of these for set 3 would rebalance set 2 with it. If set 3
+ * ever wants its own version of a card here, fork it into `cards/set3/` under a new id rather than editing
+ * the set-2 card.
+ *
+ * The owner's list spans T1 → T7 (two T1s, a T2, four T4s, two T5s, a T6, a T7), so it is a curve rather than
+ * a slice of the tribe — it plays as a tribe from the first shop.
+ *
+ * Every one of them is a RUBY card, which needs nothing added here: `ruby` and the Gemheart Golem are
+ * `token: true` and live in the global `ALL_CARDS`, so they resolve through `CARD_INDEX` in any set. Set
+ * membership only governs what can be DRAWN, and a token is never drawn — it is only reachable through a card
+ * that names it. That is exactly the property the set docs call out, and it is why the Ruby engine carries
+ * over without set 3 opting into set 2's Ruby spells.
+ */
+const SET2_KOBOLDS_IN_SET3: readonly CardDef[] = SET2_KOBOLDS.filter((c) =>
+  [
+    'k_beggy', 'k_chipwick', 'k_geode', 'k_blazer', 'k_gemheart', 'k_kobe',
+    'k_veinbreaker', 'k_boulderdash', 'k_kobabyboldies', 'k_deepdelve', 'k_alchemist',
+  ].includes(c.id),
+);
+
+/**
  * ── Card sets ──────────────────────────────────────────────────────────────────────────────────────────
  *
  * A **set** is the pool of cards a run can draw from. Sets are built in parallel and switched live, exactly
@@ -191,20 +216,22 @@ export const SETS: Record<SetId, SetDef> = {
   set3: {
     id: 'set3',
     name: 'Set 3',
-    blurb: 'Scaffold — no cards yet.',
+    blurb: 'In development.',
     // NEVER flip this on while `own` is empty: `activeSet()` is first-enabled-wins in declaration order, so
     // enabling an empty set ahead of a real one would put every NEW run on an empty pool. Play it in the
     // Scene Builder instead — its set picker offers disabled sets on purpose, precisely for this.
     enabled: false,
-    // Empty until the roster is decided. `selectRunTribes` picks a run's active tribes from this list, so
-    // an empty roster means "neutral glue only" — consistent with a set that has no cards.
-    tribes: [],
+    // `selectRunTribes` picks a run's active tribes from this list, so a tribe absent here can never be a
+    // run's tribe no matter how many of its cards the pool holds — which is why adding the Kobolds (2026-08-28)
+    // meant adding 'kobold' in the same breath.
+    tribes: ['kobold'],
     // Starts EMPTY and opts cards IN, the same manifest pattern set 2 uses. Add `inherits: 'set2'` (+
     // `excludes`) instead if set 3 should start from set 2's pool and trim; both compose, and `own` always
     // appends last so adding cards never disturbs an inherited prefix.
-    // Celestial test units first, then the shared neutral spell toolkit — spells appended LAST so growing
-    // the minion roster never disturbs spell positions (the same ordering discipline as the other sets).
-    own: [...SET3_CARDS, ...SET3_SHARED_SPELLS], // → packages/content/src/cards/set3/*.ts
+    // Set 3's own cards first, then the carried-over Kobolds, then the shared neutral spell toolkit — spells
+    // appended LAST so growing the minion roster never disturbs spell positions (the same ordering discipline
+    // as the other sets), and new minions appended after the existing ones for the same reason.
+    own: [...SET3_CARDS, ...SET2_KOBOLDS_IN_SET3, ...SET3_SHARED_SPELLS], // → packages/content/src/cards/set3/*.ts
   },
 };
 

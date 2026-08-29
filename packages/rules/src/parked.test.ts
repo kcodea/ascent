@@ -91,8 +91,25 @@ describe('the parked registry', () => {
 describe('parked contracts are stamped, counted, and never approved', () => {
   const parked = EXTRACTED_CONTRACTS.filter((c) => c.parked);
 
-  it('the parked contracts exist in the registry (visible in the counts, never dropped)', () => {
-    expect(parked.length, 'no contract carries a parked stamp — regenerate with `npm run contracts:extract`').toBeGreaterThan(10);
+  /**
+   * ZERO parked contracts is the CORRECT state as of 2026-08-28: the owner archived the whole Celestial tribe
+   * ("extremely and completely re-worked ... leaving set 3 empty of minions now"), and the parked classes
+   * — `celestial` and `orbit` — had no other members. The classes stay declared and armed for the rework.
+   *
+   * So this asserts the INVARIANT the old `> 10` was standing in for: every contract that matches a parked
+   * class carries a stamp. It holds at zero, and it starts biting again the moment one reworked Celestial
+   * lands — which a raw population count could not do.
+   */
+  it('every contract that MATCHES a parked class carries its stamp — none is silently dropped', () => {
+    const shouldBeParked = EXTRACTED_CONTRACTS.filter((c) => parkedClassOf({
+      tribes: c.tribes ?? [],
+      flags: (c.tags ?? []).includes('celestial') ? ['celestial'] : [],
+      triggers: (c.triggers ?? []).map((t) => t.event),
+    }));
+    for (const c of shouldBeParked) {
+      expect(c.parked, `${c.contentId} matches a parked class but carries no stamp`).toBeTruthy();
+    }
+    expect(parked.length, 'every stamped contract must be one that matches a class').toBe(shouldBeParked.length);
   });
 
   it('every stamp is structurally valid and cites the owner', () => {
@@ -105,7 +122,14 @@ describe('parked contracts are stamped, counted, and never approved', () => {
   });
 
   it('a parked contract can never be stored as approved (the validator refuses it)', () => {
-    const sabotage = { ...parked[0]!, reviewStatus: 'approved' as const };
+    // Built from a SYNTHETIC contract, not `parked[0]`: this proves the validator's rule, and it must keep
+    // proving it when no live content happens to be parked (as on 2026-08-28, once the Celestials were
+    // archived). Reading a live row made the test disappear exactly when the rule still mattered.
+    const sabotage = {
+      ...EXTRACTED_CONTRACTS[0]!,
+      parked: { classId: PARKED_CLASSES[0]!.id, reason: PARKED_REASON, why: PARKED_CLASSES[0]!.why, since: '2026-08-28' },
+      reviewStatus: 'approved' as const,
+    };
     expect(contractErrors(sabotage).join(' ')).toContain('never be \'approved\'');
   });
 

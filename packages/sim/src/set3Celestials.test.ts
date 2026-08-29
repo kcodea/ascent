@@ -27,11 +27,21 @@ const FILLER = ['pack', 'alley', 'stray', 'sandbag', 'pup'] as const;
 const staged = (board: BoardCard[], hand: BoardCard[]): RunState =>
   ({ ...createRun(1), phase: 'recruit', embers: 50, board, hand } as RunState);
 
-describe('the tribe is real and drawable', () => {
-  it('every set-3 minion is a Celestial by TRIBE, not just the legacy flag', () => {
-    const buyable = poolFor('set3').buyable;
-    expect(buyable.length).toBeGreaterThan(10);
-    expect(buyable.every((c) => c.tribe === 'celestial'), 'promoted to a real tribe').toBe(true);
+describe('the tribe is ARCHIVED, and its mechanics still hold', () => {
+  // Owner 2026-08-28: "celestials have been extremely and completely re-worked ... leaving set 3 empty of
+  // minions now." The sixteen moved to the MINION ARCHIVE — out of every pool, still resolvable by id.
+  it('set 3 offers no minions', () => {
+    expect(poolFor('set3').buyable, 'the rework has not landed yet').toEqual([]);
+  });
+
+  it('...but the archived Celestials still resolve, which is what keeps the tests below meaningful', () => {
+    // EVERY test in this file drives real Alignment and Orbit behaviour through the reducer using these ids.
+    // They keep working because an archived card is removed from PLAY, not from CARD_INDEX — so this file
+    // remains the pinned specification of the two mechanics the reworked tribe will be built on.
+    for (const id of ['c3_familiar', 'c3_binary', 'c3_orrery']) {
+      expect(CARD_INDEX[id], `${id} must still resolve`).toBeTruthy();
+      expect(CARD_INDEX[id]!.tribe, `${id} keeps its tribe`).toBe('celestial');
+    }
   });
 });
 

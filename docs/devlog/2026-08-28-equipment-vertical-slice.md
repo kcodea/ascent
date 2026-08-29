@@ -111,3 +111,27 @@ nothing grants a reduction yet.
 "after you cast a Shop spell" listeners, spell-multiplier duplication) while never entering the hand and never
 counting as a card played. No Equipment uses it yet; the contract is tested against a definition constructed
 in the test rather than a card added to the registry.
+
+
+## Art
+
+`AlchemistFrank.png` and `Bloodpot.png` wired through `npm run art:wire`, which needed two new jobs:
+
+- **set-3 minions**, scoped to `Neutrals` only. The Celestial folders still hold art for the sixteen archived
+  earlier the same day, and wiring them would ship art — and itch file count — for cards that are out of play.
+  Widen that list when the reworked tribe lands, which is exactly when those files mean something again.
+- **equipment**, its own source folder and its own destination (`art/equipment/`), matched against the
+  EQUIPMENT registry by name. Deliberately not the minion folder: an Equipment is granted by a card but is not
+  one, and sharing a folder would let an icon shadow a card with the same id.
+
+`equipmentArtFor` indexes that folder; the button shows the icon when one exists and falls back to its glyph
+otherwise, so an Equipment authored ahead of its art still renders.
+
+With Frank's portrait wired, `e3_` came OUT of the `allTypesPill` art exclusion. Only the archived `c3_` set
+is excluded now, so the next Equip minion authored without art fails that gate rather than silently shipping a
+tribe sprite.
+
+Art ratchet 1046 → 1048 (two files).
+
+`Heroes/FranticFrank.png` is a DIFFERENT card and was left alone — the strict name matcher never guessed at it,
+which is the whole reason that matcher is strict.

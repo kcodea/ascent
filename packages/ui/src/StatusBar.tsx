@@ -7,6 +7,7 @@ import { dragonTamerCostOf, INDY_GILD_RECHARGE_GOLD, KESHI_CROWN_THRESHOLD, roun
 import { henchmanOffer } from '@game/sim';
 import { equipmentCostOf, equipmentState, equipmentText, equipmentUsesLeft, selectedEquipment, selectedEquipmentDef } from '@game/sim';
 import { CARD_INDEX, EQUIPMENT_INDEX } from '@game/content';
+import { equipmentArtFor } from './art';
 import { heroArt, heroPowerArt, questArt, runeArt } from './art';
 import { Icon } from './Icon';
 import { BuffsFrame } from './BuffsFrame';
@@ -171,6 +172,7 @@ export function StatusBar() {
   const equipRule = selectedEquipDef && selectedEquip
     ? equipmentText(selectedEquipDef, selectedEquip.version)
     : '';
+  const equipArt = equipmentArtFor(selectedEquipDef?.id);
   // HENCHMAN offer (owner spec 2026-08-03): the hero's bound recruit at its decayed price — null for the many
   // heroes with none authored yet, and after the once-per-run buy. PLACEHOLDER SURFACE: a plain chip under the
   // power pill so the mechanic is playable end-to-end; the real presentation is Mike's to design.
@@ -864,7 +866,10 @@ export function StatusBar() {
                 }}
               >
                 <span className="hpb-glow" aria-hidden="true" />
-                <span className="hpb-glyph" aria-hidden="true">⚒</span>
+                {/* The authored icon when one exists; the glyph is the fallback, exactly as before any art. */}
+                {equipArt
+                  ? <span className="hpb-artwrap" aria-hidden="true"><img className="hpb-art" src={equipArt} alt="" draggable={false} /></span>
+                  : <span className="hpb-glyph" aria-hidden="true">⚒</span>}
               </button>
               {equipCost ? <span className="hpcost"><span className="costn">{equipCost}</span></span> : null}
               {/* The SHARED allowance, not a per-Equipment charge — labelled as uses left so a player with a

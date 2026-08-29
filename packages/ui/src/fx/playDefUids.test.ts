@@ -29,7 +29,7 @@ const UNIT_LESS: { file: string; id: string; why: string }[] = [
   { file: 'Recruit.tsx', id: 'coin', why: 'fires at the gold pill' },
   { file: 'EndTurnButton.tsx', id: 'impact-dust', why: 'fires at the button' },
   { file: 'EquipFxTuner.tsx', id: 'equipment-spark', why: "the tuner's TEST fire — screen coords with no run and no unit; the real call in Recruit.tsx carries the source uid" },
-  { file: 'EquipFxTuner.tsx', id: 'bloodpot', why: "the tuner's TEST fire for the USE effect — slot to a stand-in point, no run and no unit; the real call carries the target uid" },
+  { file: 'EquipFxTuner.tsx', id: '<dynamic>', why: "the tuner's TEST fire for the USE effect — the SELECTED Equipment's own def, slot to a stand-in point, no run and no unit; the real call carries the target uid" },
   { file: 'RefreshButton.tsx', id: 'impact-dust', why: 'fires at the button' },
   { file: 'TavernUpButton.tsx', id: 'shop-tier-up', why: 'fires at the button' },
   { file: 'FreezeButton.tsx', id: 'freeze-blast', why: 'fires at the button' },

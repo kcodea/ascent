@@ -101,6 +101,8 @@ export const TITAN_HAMMER: EquipmentDefinition = {
   effectId: 'equipmentSetStats',
   params: { attack: 50, health: 50 },
   gildedParams: { attack: 100, health: 100 },
+  useFxId: 'titan-hammer',
+  useSfxId: 'titanhammer',
 };
 
 export const EQUIPMENT: readonly EquipmentDefinition[] = [BLOODPOT, TITAN_HAMMER];

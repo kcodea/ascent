@@ -3,7 +3,9 @@ import {
   type EquipFxConfig,
 } from './equipFxConfig';
 import { TunerPanel } from './TunerPanel';
+import { selectedEquipmentDef } from '@game/sim';
 import { sfx } from './sfx';
+import { useGame } from './store';
 import { canPlayDefs, playDef } from './fx/playDef';
 import type { TunerAction, TunerControl, TunerSpec, TunerUnit } from './tunerSchema';
 
@@ -68,18 +70,32 @@ function testEquip(): void {
   if (cfg.sfxOn) sfx.equipClang(cfg.sfxDelayMs);
 }
 
-/** Fire the USE cue: the Equipment's own def travelling from the slot to a point out on the board. */
+/**
+ * Fire the USE cue for whichever Equipment is CURRENTLY SELECTED — its own def, from the slot to a point out
+ * on the board, with its own clip.
+ *
+ * It followed the selection once a second Equipment existed. Bloodpot travels from the slot and lands; the
+ * Titan Hammer is anchored entirely on its target and plays there. Two very different cues that want
+ * different offsets, so a test button hardwired to one of them can only tune half the system.
+ *
+ * Falls back to Bloodpot when nothing is held, so the button still does something on a board with no Equip
+ * minion — which is most of the time you would be sitting here dialling.
+ */
 function testUse(): void {
   const cfg = getEquipFxConfig();
+  const run = useGame.getState().run;
+  const def = run ? selectedEquipmentDef(run) : undefined;
+  const fxId = def?.useFxId ?? 'bloodpot';
+  const sfxId = def?.useSfxId ?? 'bloodpot';
   const slotEl = document.querySelector<HTMLElement>('.equipslot .heropowerbtn');
   const r = slotEl?.getBoundingClientRect();
   const from = r ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : { x: 200, y: window.innerHeight - 200 };
   // A stand-in destination out on the board, so the travel is judged over a realistic distance.
   const to = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
   if (canPlayDefs()) {
-    window.setTimeout(() => { playDef('bloodpot', { source: from, target: to, cursor: to }); }, cfg.useDelayMs);
+    window.setTimeout(() => { playDef(fxId, { source: from, target: to, cursor: to }); }, cfg.useDelayMs);
   }
-  if (cfg.useSfxOn) sfx.equipmentUse('bloodpot', cfg.useSfxDelayMs);
+  if (cfg.useSfxOn) sfx.equipmentUse(sfxId, cfg.useSfxDelayMs);
 }
 
 const actions: TunerAction[] = [
@@ -90,7 +106,7 @@ const actions: TunerAction[] = [
   },
   {
     label: '▶ use',
-    hint: "Bloodpot's use effect, travelling from the slot to the middle of the board, with its clip.",
+    hint: "The SELECTED Equipment's use effect and clip, fired from the slot at the middle of the board. Bloodpot when none is held.",
     run: testUse,
   },
   {

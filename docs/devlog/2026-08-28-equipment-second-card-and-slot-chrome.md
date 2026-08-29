@@ -90,6 +90,21 @@ show up there at all because they are gitignored — they only surfaced as an ar
 redundant masters. Reverting the tree and deleting the PNGs that duplicated a webp restored it. Check the
 diff after any `--apply`; the two files you wanted should be the only ones in it.
 
+## The Hammer's own cue
+
+The owner authored a `titan-hammer` FX def and a `titanhammer` clip mid-pass, both now wired through the
+Equipment's own `useFxId` / `useSfxId` — no UI change needed, which is the point of those fields.
+
+It reads very differently from Bloodpot: every layer is anchored on **target** and fires at `at: 0`, so it
+lands *on* the minion rather than travelling from the slot the way the potion does. That made the FX tuner's
+"▶ use" button a problem — it was hardwired to Bloodpot, so half the system had no way to be timed. It now
+fires whichever Equipment is **selected**, falling back to Bloodpot when none is held.
+
+That change cost a registry update: the tuner's `playDef` stopped being a literal and became a second
+data-resolved call site. Rather than widen the "no dynamic playDef outside the binding resolvers" invariant,
+both Equipment exceptions are now named in `DYNAMIC_CALL_SITES` and in the test, with the same fix recorded
+against them — moving the Equipment-use moment into `recruitCues.ts` retires both lines at once.
+
 ## Debt logged, not paid
 
 The art-file ratchet needed its third +2 bump of the day (→ 1050). There is real slack nobody has spent: the

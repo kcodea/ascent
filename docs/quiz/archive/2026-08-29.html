@@ -1,0 +1,481 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Ascent Quiz #17 — 2026-08-29</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f6f5f1;
+    --panel: #ffffff;
+    --panel-border: #e2e0d8;
+    --text: #201f1c;
+    --muted: #6e6c64;
+    --accent: #3457d5;
+    --accent-soft: rgba(52, 87, 213, 0.10);
+    --accent-border: rgba(52, 87, 213, 0.28);
+    --correct: #1c8a52;
+    --correct-bg: rgba(28, 138, 82, 0.10);
+    --correct-border: rgba(28, 138, 82, 0.38);
+    --wrong: #bd3f27;
+    --wrong-bg: rgba(189, 63, 39, 0.09);
+    --wrong-border: rgba(189, 63, 39, 0.35);
+    --code-bg: rgba(52, 87, 213, 0.07);
+    --shadow: 0 10px 26px rgba(32, 31, 28, 0.07);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #17181c;
+      --panel: #1f2025;
+      --panel-border: #2d2f36;
+      --text: #eceae3;
+      --muted: #96958c;
+      --accent: #7c9bff;
+      --accent-soft: rgba(124, 155, 255, 0.12);
+      --accent-border: rgba(124, 155, 255, 0.32);
+      --correct: #52c98a;
+      --correct-bg: rgba(82, 201, 138, 0.12);
+      --correct-border: rgba(82, 201, 138, 0.34);
+      --wrong: #e58469;
+      --wrong-bg: rgba(229, 132, 105, 0.12);
+      --wrong-border: rgba(229, 132, 105, 0.34);
+      --code-bg: rgba(124, 155, 255, 0.10);
+      --shadow: 0 10px 26px rgba(0, 0, 0, 0.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #17181c;
+    --panel: #1f2025;
+    --panel-border: #2d2f36;
+    --text: #eceae3;
+    --muted: #96958c;
+    --accent: #7c9bff;
+    --accent-soft: rgba(124, 155, 255, 0.12);
+    --accent-border: rgba(124, 155, 255, 0.32);
+    --correct: #52c98a;
+    --correct-bg: rgba(82, 201, 138, 0.12);
+    --correct-border: rgba(82, 201, 138, 0.34);
+    --wrong: #e58469;
+    --wrong-bg: rgba(229, 132, 105, 0.12);
+    --wrong-border: rgba(229, 132, 105, 0.34);
+    --code-bg: rgba(124, 155, 255, 0.10);
+    --shadow: 0 10px 26px rgba(0, 0, 0, 0.35);
+  }
+  * { box-sizing: border-box; }
+  html, body { background: var(--bg); }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    display: flex;
+    justify-content: center;
+    padding: 40px 16px 64px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { width: 100%; max-width: 680px; }
+  header { margin-bottom: 26px; }
+  .kicker {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.75rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 8px;
+  }
+  header h1 {
+    font-size: 1.6rem;
+    margin: 0 0 6px;
+    font-weight: 700;
+    text-wrap: balance;
+  }
+  header p { color: var(--muted); margin: 0; font-size: 0.94rem; }
+  .progress-bar {
+    height: 6px;
+    border-radius: 999px;
+    background: var(--panel-border);
+    overflow: hidden;
+    margin: 20px 0 8px;
+  }
+  .progress-fill {
+    height: 100%;
+    background: var(--accent);
+    width: 0%;
+    transition: width 0.35s ease;
+  }
+  .status-row {
+    display: flex;
+    justify-content: space-between;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.8rem;
+    color: var(--muted);
+    margin-bottom: 22px;
+    font-variant-numeric: tabular-nums;
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 14px;
+    padding: 26px;
+    margin-bottom: 16px;
+    box-shadow: var(--shadow);
+  }
+  .qtag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.02em;
+    color: var(--accent);
+    background: var(--accent-soft);
+    border: 1px solid var(--accent-border);
+    padding: 3px 10px;
+    border-radius: 6px;
+    margin-bottom: 14px;
+  }
+  .qtext {
+    font-size: 1.08rem;
+    line-height: 1.55;
+    margin: 0 0 20px;
+    max-width: 62ch;
+  }
+  .qtext code {
+    font-family: "IBM Plex Mono", monospace;
+    background: var(--code-bg);
+    padding: 1.5px 6px;
+    border-radius: 5px;
+    font-size: 0.88em;
+  }
+  .choices { display: flex; flex-direction: column; gap: 9px; }
+  .choice {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    text-align: left;
+    width: 100%;
+    background: transparent;
+    border: 1px solid var(--panel-border);
+    color: var(--text);
+    padding: 12px 14px;
+    border-radius: 9px;
+    font-family: inherit;
+    font-size: 0.95rem;
+    line-height: 1.45;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease;
+  }
+  .choice:hover:not(:disabled) {
+    border-color: var(--accent-border);
+    background: var(--accent-soft);
+  }
+  .choice:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .choice:disabled { cursor: default; }
+  .choice .letter {
+    flex: 0 0 auto;
+    width: 22px;
+    height: 22px;
+    border-radius: 5px;
+    background: var(--code-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--muted);
+    margin-top: 1px;
+  }
+  .choice.correct { border-color: var(--correct-border); background: var(--correct-bg); }
+  .choice.correct .letter { background: var(--correct); color: var(--panel); }
+  .choice.wrong { border-color: var(--wrong-border); background: var(--wrong-bg); }
+  .choice.wrong .letter { background: var(--wrong); color: var(--panel); }
+  .explain {
+    margin-top: 16px;
+    padding: 15px 16px;
+    border-radius: 9px;
+    background: var(--accent-soft);
+    border: 1px solid var(--accent-border);
+    font-size: 0.92rem;
+    line-height: 1.6;
+    color: var(--text);
+    display: none;
+  }
+  .explain.show { display: block; }
+  .explain code {
+    font-family: "IBM Plex Mono", monospace;
+    background: var(--code-bg);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 0.88em;
+  }
+  .nextbtn {
+    margin-top: 18px;
+    display: none;
+    background: var(--accent);
+    color: var(--panel);
+    border: none;
+    padding: 10px 18px;
+    border-radius: 8px;
+    font-family: inherit;
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+  }
+  .nextbtn.show { display: inline-block; }
+  .nextbtn:hover { filter: brightness(1.1); }
+  .nextbtn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .summary { text-align: center; padding: 40px 24px; }
+  .summary .line { color: var(--muted); font-size: 0.95rem; }
+  .summary .score {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 2.8rem;
+    font-weight: 600;
+    margin: 10px 0;
+    font-variant-numeric: tabular-nums;
+  }
+  .summary .encourage { margin-top: 16px; font-size: 1.05rem; max-width: 46ch; margin-left: auto; margin-right: auto; text-wrap: balance; }
+  footer { text-align: center; color: var(--muted); font-size: 0.8rem; margin-top: 22px; }
+  @media (prefers-reduced-motion: reduce) {
+    .progress-fill { transition: none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="kicker">docs/quiz · daily architecture quiz</div>
+    <h1>Ascent Quiz #17</h1>
+    <p>2026-08-29 · 10 questions on how the game is actually coded</p>
+  </header>
+  <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+  <div class="status-row">
+    <span id="qCounter">Question 1 / 10</span>
+    <span id="scoreCounter">Score: 0</span>
+  </div>
+  <div id="quizArea"></div>
+  <footer>Graded right here in your browser — nothing leaves this page.</footer>
+</div>
+
+<script>
+const QUESTIONS = [
+  {
+    topic: "types-basics",
+    question: "packages/core/src/types.ts declares <code>export type Side = 'player' | 'enemy';</code>, and combat events like <code>{ type: 'death'; target: string; side: Side; ... }</code> use it everywhere a side needs tagging. Compared to writing <code>isPlayer: boolean</code> instead, what's the real advantage of the two-string-literal union?",
+    choices: [
+      "TypeScript unions perform a runtime check on every comparison, while plain booleans don't",
+      "A value like <code>side === 'enemy'</code> is self-documenting at the call site, instead of a bare <code>true</code>/<code>false</code> that forces you to remember which one means which — and it leaves room to add a third case later without secretly repurposing what a boolean already means",
+      "It's required because JavaScript doesn't actually support a boolean type",
+      "String comparisons execute faster than boolean comparisons, so it's a performance choice"
+    ],
+    answer: 1,
+    explanation: "Reading <code>side === 'enemy'</code> tells you exactly what's being checked; <code>isPlayer === false</code> makes you go look up what false was supposed to mean. Named literals also scale — Ascent could add a third side (say, a neutral/environmental one) as a new string without hijacking what <code>true</code>/<code>false</code> already meant elsewhere. Options A, C, and D are all false: JS has real booleans, TypeScript's union checking is entirely compile-time (erased before the code runs), and neither form is meaningfully faster — this is a readability and extensibility choice, not a performance one."
+  },
+  {
+    topic: "immutability",
+    question: "packages/core/src/effects/factories.ts has combat effect code that does <code>m.keywords.push('EG');</code> — directly mutating (pushing into) an array on <code>m</code>, a live combat Minion — right next to the comment <code>// mutates the per-combat clone, never a shared CardDef</code>. Given CLAUDE.md's rule \"never mutate shared CardDefs,\" how is mutating <code>m.keywords</code> here NOT a violation of that rule?",
+    choices: [
+      "It's technically a violation, but the team accepts occasional rule-breaking in performance-critical effect code",
+      "<code>.push()</code> doesn't count as \"mutation\" in JavaScript — only reassigning a variable with <code>=</code> does",
+      "<code>m</code> is a per-combat clone made fresh for this one fight (never the shared CardDef every card lookup points to), so mutating it can't leak into anyone else's game — the rule protects SHARED data specifically, it doesn't ban mutation everywhere",
+      "Keywords are stored as plain strings, and strings are immutable in JS, so pushing one onto an array is always safe"
+    ],
+    answer: 2,
+    explanation: "The rule's target is CARD_INDEX's shared CardDefs — the one object every board and every run points to for a given card id. <code>m</code>, by contrast, was built fresh for this fight (via <code>instantiate()</code>), so pushing a keyword onto its own private array can never corrupt anyone else's copy. That's exactly what the inline comment is flagging: this looks like the kind of mutation the architecture forbids, but it isn't, because the object being mutated isn't shared. Option B is false — <code>.push()</code> absolutely mutates the underlying array in place; option D confuses string immutability (true, but irrelevant here) with array mutability (false — arrays of strings are still fully mutable)."
+  },
+  {
+    topic: "reducer-run-state",
+    question: "packages/sim/src/state.ts defines <code>COMBAT_FLOW_ACTIONS = new Set(['faceOmen', 'settleCombat', 'resolveCombat'])</code> and then <code>export const isPlayerAction = (a: Action): boolean => !COMBAT_FLOW_ACTIONS.has(a.type);</code>. <code>RunState</code> has no <code>isPlayerAction</code> field anywhere. Why compute this with a function instead of just storing a boolean on the state?",
+    choices: [
+      "There's nothing to store — \"is this a player action\" isn't a fact about the current STATE, it's a fact about whichever ACTION just came in, decided freshly each time from one small lookup, so there's no field to keep in sync and no way for it to go stale",
+      "Storing an extra boolean field would make <code>RunState</code> too large to fit in memory",
+      "Zustand doesn't allow storing plain booleans in application state, only computed getters",
+      "Because <code>Action</code> is a TypeScript union, a membership check like <code>.has(a.type)</code> doesn't actually work at runtime, so it has to be recomputed by a separate function instead"
+    ],
+    answer: 0,
+    explanation: "<code>isPlayerAction</code> isn't a property of the RUN — it's a property of whatever action is being processed right now, so there is no meaningful state to persist; the function just answers the question fresh, every time, from one Set lookup. Storing it on RunState would be redundant at best and a source of stale-data bugs at worst (what if the field wasn't updated for the current action?). Option C is also a trap: this is <code>packages/sim/src/state.ts</code>'s RunState, not the Zustand UI store in <code>packages/ui/src/store.ts</code> — two different \"state\" concepts in this codebase. Option D is wrong too: <code>Set.has()</code> checking a plain string field works fine at runtime regardless of how the type was declared."
+  },
+  {
+    topic: "zustand-store",
+    question: "packages/ui/src/store.ts creates the store with <code>create&lt;GameStore&gt;((set, get) => ({ ... }))</code> — TWO parameters, not just <code>set</code>. One action reads: <code>openTitle: () => { get().flushSave(); set({ showTitle: true, heroChoices: null }); }</code>. What is <code>get()</code> doing there that <code>set()</code> alone couldn't?",
+    choices: [
+      "<code>get()</code> fetches fresh data from a server API, while <code>set()</code> only ever touches values already sitting in memory",
+      "<code>get()</code> is boilerplate Zustand always passes whether or not an action uses it — on its own it does nothing here",
+      "<code>get()</code> returns a fixed snapshot of the store from the moment it was FIRST created, useful for resetting fields back to their defaults",
+      "<code>get()</code> lets an action read the store's CURRENT state and actions from inside another action — here, <code>openTitle</code> reaches for the already-defined <code>flushSave</code> action and calls it — while <code>set()</code> is only for writing new state; reading-then-writing needs both"
+    ],
+    answer: 3,
+    explanation: "<code>openTitle</code> needs to do two different things: run another action that already exists on the store (<code>flushSave</code>), then write new state. <code>set()</code> can only write; it has no way to reach an existing action or read a live value, so Zustand hands every store creator a <code>get()</code> alongside <code>set()</code> specifically for that read side. Option C is wrong — <code>get()</code> always returns the CURRENT store, not a frozen initial one; option A invents a network call that isn't happening (this is pure in-memory app state); option B undersells it — <code>get()</code> is doing real, load-bearing work in this exact line."
+  },
+  {
+    topic: "event-bus",
+    question: "packages/core/src/events.ts's <code>CombatBus.emit(event, payload)</code> starts with <code>const list = this.handlers.get(event); if (!list) return;</code>. What happens if <code>simulate()</code> emits a GameEvent that not a single minion on the board happens to be listening for?",
+    choices: [
+      "<code>emit()</code> quietly does nothing and returns — firing an event nobody subscribed to is a normal, harmless no-op, not an error",
+      "It throws a runtime error, since every emitted event is expected to have at least one handler registered",
+      "It queues the event and retries emitting it on the next combat step, in case a handler registers late",
+      "It logs a console warning but otherwise lets combat continue normally"
+    ],
+    answer: 0,
+    explanation: "<code>this.handlers.get(event)</code> returns <code>undefined</code> when nothing has ever called <code>.on()</code> for that event, and the very next line — <code>if (!list) return;</code> — just exits. No error, no warning, no queueing: publish/subscribe is built to be safe to fire into the void, since most boards won't have a minion listening for most events most of the time. Options B, C, and D all invent extra behavior that isn't in the code — CombatBus stays deliberately minimal, exactly as its own doc comment (\"a minimal synchronous event bus\") advertises."
+  },
+  {
+    topic: "cards-in-sets",
+    question: "packages/content/src/sets.ts's <code>activeSet()</code> loops the registry for the first <code>enabled: true</code> set, and ends with a fallback: <code>return SETS.set1;</code>. The registry's own doctrine is \"AT MOST ONE set is active at a time.\" If that doctrine always holds, this fallback line should never actually run. Why write it anyway?",
+    choices: [
+      "It's dead code left over from before the registry existed, and it could safely be deleted",
+      "<code>SETS.set1</code> is the only set that's actually enabled right now, so the fallback and the loop always return the same thing anyway",
+      "It's a safety net for a scenario the type system can't rule out — someone accidentally flipping every set's <code>enabled</code> flag off — so a run still gets a valid set back instead of <code>activeSet()</code> returning <code>undefined</code> and crashing something downstream",
+      "TypeScript requires every function to end with an unconditional <code>return</code> statement, even one that can never actually be reached"
+    ],
+    answer: 2,
+    explanation: "Nothing in the TYPE SYSTEM enforces \"exactly one set is enabled\" — that's just a convention the registry's comments ask humans to follow, and humans (or a bad merge) can break conventions. If every <code>enabled</code> flag were ever <code>false</code> at once, the loop would find nothing, and without the fallback, <code>activeSet()</code> would return <code>undefined</code> — likely crashing <code>createRun</code> the moment it tried to read a property off it. Option B is actually false right now: it's Set 2 that's live (<code>enabled: true</code>), not Set 1, which makes the fallback meaningfully different from the loop's real answer. Option D is also false — TypeScript has no such requirement; this is a deliberate defensive choice, not a syntax rule."
+  },
+  {
+    topic: "package-boundaries",
+    question: "CLAUDE.md's ownership map lists the \"Shared boundary (coordinate before changing)\" as <code>packages/core/src/types.ts</code>, the package public entrypoints, AND \"any new card-data ↔ UI contract.\" A change to what a <code>CardDef</code> field MEANS is entirely inside Kevin's owned files (<code>packages/content/**</code>). Why would that still need coordinating with Mike, the UI owner?",
+    choices: [
+      "It doesn't — anything inside a file one dev owns outright can be changed freely without telling the other dev first",
+      "Even though the FILE physically lives in Kevin's package, Mike's UI code reads and renders that same field — changing what it means (or dropping it) can silently break how the UI displays or interprets it, so the boundary that actually matters is the shared DATA CONTRACT, not which folder the file sits in",
+      "Every content change legally requires Mike's sign-off, because <code>packages/content</code> technically imports from <code>packages/ui</code>",
+      "It's only a formality — an automated CI check actually blocks a content change from merging until Mike approves it"
+    ],
+    answer: 1,
+    explanation: "File ownership and data-contract ownership aren't the same thing. Kevin can freely rename an internal helper inside <code>packages/content</code>, but a card-data field is also a promise the UI is reading and rendering off of — change its meaning without telling Mike and his rendering code silently goes stale or breaks, even though he never touched the file that changed. That's exactly why CLAUDE.md calls out the CONTRACT, not the folder, as the thing to coordinate on. Option C has the dependency direction backwards (content never imports ui — ui imports content); option D invents an enforcement mechanism that doesn't exist here — this is discipline, not a bot."
+  },
+  {
+    topic: "effects-as-subscriptions",
+    question: "packages/core/src/types.ts's <code>CardDef</code> has <code>effects: EffectDef[]</code> — an ARRAY of <code>{ on, do, params? }</code> objects, not a single <code>EffectDef</code>. What does making it an array let a single card do?",
+    choices: [
+      "Run the same effect multiple times per trigger, since the array's length controls how many times it fires",
+      "Store a fallback effect that only runs if the first entry in the array throws an error",
+      "Let zod validate the field, since zod can only validate arrays and not single objects",
+      "Subscribe to several different trigger events independently — one card can carry BOTH a Battlecry entry (<code>on</code> = play) AND a separate Deathrattle entry (<code>on</code> = death) in the same array, each wired to its own factory via its own <code>do</code> id"
+    ],
+    answer: 3,
+    explanation: "A single <code>EffectDef</code> can only subscribe to one <code>on</code> event with one <code>do</code> factory. Making the field an array lets one card register as many independent subscriptions as it needs — a minion with both a Battlecry AND a Deathrattle just has two entries in its <code>effects</code> array, each firing off its own event with no interference between them. Option A misreads what controls repeat-firing (that's the separate trigger-multiplier system, not array length); option B invents error-handling logic that doesn't exist; option C is false — zod validates single objects (and every field inside them) just as easily as arrays."
+  },
+  {
+    topic: "effect-timing-pipeline",
+    question: "<code>BoardMinion</code> (the run-board version of a card) has its own <code>attack</code>/<code>health</code> fields, separate from the CardDef's base <code>attack</code>/<code>health</code>. When a shop Battlecry buffs a minion, which numbers actually change, and why does <code>instantiate()</code> read the BoardMinion's numbers going into combat instead of recomputing the Battlecry?",
+    choices: [
+      "The Battlecry's bump is baked straight into the BoardMinion's own <code>attack</code>/<code>health</code> (the CardDef's base numbers never change); <code>instantiate()</code> just reads those already-baked numbers, because the Battlecry already resolved once in the shop and re-running it during <code>simulate()</code> would double-apply it",
+      "Both the CardDef and the BoardMinion get updated identically when a Battlecry fires, so it doesn't actually matter which one <code>instantiate()</code> reads",
+      "The Battlecry re-runs from scratch every combat, and BoardMinion's attack/health fields are just an unused display cache that combat ignores",
+      "<code>instantiate()</code> reads the CardDef's base attack/health and re-applies every shop buff itself right as combat starts"
+    ],
+    answer: 0,
+    explanation: "Recruit-phase effects (Battlecry, buff-on-summon) \"bake into stats before combat\" — the buff gets applied ONCE, in the shop, directly onto that card's spot on the board (its <code>BoardMinion</code>), never onto the shared CardDef (which stays untouched per the immutability rule). <code>instantiate()</code> then simply carries those already-baked numbers into the live Minion at combat start — it has no reason to re-run the Battlecry, and doing so would apply the buff a second time. Option B is false and actually contradicts \"never mutate shared CardDefs\"; options C and D both describe a system that re-derives the buff at combat time, which is precisely the design the bake-before-combat split exists to avoid."
+  },
+  {
+    topic: "testing-vitest",
+    question: "The root <code>vitest.config.ts</code> has <code>test: { include: ['packages/**/*.test.ts', 'apps/**/*.test.ts'] }</code>, and <code>npm test</code> runs a single <code>vitest run</code> at the repo root — unlike <code>npm run typecheck</code>, which is split into two separate <code>tsc</code> passes (<code>typecheck:pkgs</code> then <code>typecheck:web</code>). What does that glob pattern let Vitest do?",
+    choices: [
+      "Automatically generate a <code>.test.ts</code> file for any source file that doesn't already have one",
+      "Run each package's tests in a fully separate process, mirroring how <code>typecheck:pkgs</code>/<code>typecheck:web</code> split their work",
+      "Discover and run every <code>*.test.ts</code> file across all five packages (core, content, sim, ui, tools) in one command, with no separate Vitest config needed per package",
+      "Skip type-checking inside test files, since <code>.test.ts</code> files are excluded from the glob pattern <code>tsc</code> itself uses"
+    ],
+    answer: 2,
+    explanation: "The <code>include</code> glob tells Vitest exactly where to look — any <code>*.test.ts</code> file anywhere under <code>packages/</code> or <code>apps/</code> — so one <code>vitest run</code> at the root sweeps up every package's tests without needing a per-package config or command. That's a genuinely different shape from <code>typecheck</code>, which is deliberately SPLIT because ui/apps/web need DOM/JSX type libraries the engine packages don't. Option B gets that backwards — testing is unified here, not split; option A invents test-generation that doesn't exist; option D is a non sequitur — this config controls which files Vitest RUNS, and has nothing to do with how <code>tsc</code> typechecks test files separately."
+  }
+];
+
+let current = 0;
+let score = 0;
+let answered = false;
+
+const quizArea = document.getElementById('quizArea');
+const progressFill = document.getElementById('progressFill');
+const qCounter = document.getElementById('qCounter');
+const scoreCounter = document.getElementById('scoreCounter');
+
+function render() {
+  if (current >= QUESTIONS.length) {
+    renderSummary();
+    return;
+  }
+  const q = QUESTIONS[current];
+  answered = false;
+  progressFill.style.width = ((current) / QUESTIONS.length * 100) + '%';
+  qCounter.textContent = `Question ${current + 1} / ${QUESTIONS.length}`;
+  scoreCounter.textContent = `Score: ${score}`;
+
+  const letters = ['A', 'B', 'C', 'D'];
+  quizArea.innerHTML = `
+    <div class="card">
+      <span class="qtag">${q.topic}</span>
+      <p class="qtext">${q.question}</p>
+      <div class="choices" id="choicesWrap">
+        ${q.choices.map((c, i) => `
+          <button class="choice" data-idx="${i}">
+            <span class="letter">${letters[i]}</span>
+            <span>${c}</span>
+          </button>
+        `).join('')}
+      </div>
+      <div class="explain" id="explainBox"></div>
+      <button class="nextbtn" id="nextBtn">${current === QUESTIONS.length - 1 ? 'See results →' : 'Next question →'}</button>
+    </div>
+  `;
+
+  const buttons = quizArea.querySelectorAll('.choice');
+  buttons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (answered) return;
+      answered = true;
+      const idx = parseInt(btn.getAttribute('data-idx'), 10);
+      const correct = idx === q.answer;
+      if (correct) score++;
+      buttons.forEach(b => {
+        b.disabled = true;
+        const bi = parseInt(b.getAttribute('data-idx'), 10);
+        if (bi === q.answer) b.classList.add('correct');
+        else if (bi === idx) b.classList.add('wrong');
+      });
+      const explainBox = document.getElementById('explainBox');
+      explainBox.innerHTML = (correct ? '✅ <strong>Correct!</strong> ' : '❌ <strong>Not quite.</strong> ') + q.explanation;
+      explainBox.classList.add('show');
+      document.getElementById('nextBtn').classList.add('show');
+      scoreCounter.textContent = `Score: ${score}`;
+    });
+  });
+
+  document.getElementById('nextBtn').addEventListener('click', () => {
+    current++;
+    render();
+  });
+}
+
+function renderSummary() {
+  progressFill.style.width = '100%';
+  qCounter.textContent = `Question ${QUESTIONS.length} / ${QUESTIONS.length}`;
+  scoreCounter.textContent = `Score: ${score}`;
+  const pct = Math.round((score / QUESTIONS.length) * 100);
+  let line;
+  if (pct === 100) line = "Perfect score! You're reading this codebase like you wrote it.";
+  else if (pct >= 80) line = "Great work — you're building real intuition for how this all fits together.";
+  else if (pct >= 50) line = "Solid effort — a few concepts to revisit, and it'll click more each day.";
+  else line = "Everyone starts somewhere — re-read the explanations above, tomorrow's quiz will circle back.";
+
+  quizArea.innerHTML = `
+    <div class="card summary">
+      <div class="line">Quiz complete</div>
+      <div class="score">${score} / ${QUESTIONS.length}</div>
+      <div class="line">${pct}%</div>
+      <div class="encourage">${line}</div>
+    </div>
+  `;
+}
+
+render();
+</script>
+</body>
+</html>

@@ -58,6 +58,11 @@ export interface HeroDuelConfig {
   runeX: number;
   runeY: number;
   runeGap: number;
+  /** PER-RUNE nudges (design px) on top of the row placement — one pair per slot, top to bottom (owner ask
+   *  2026-08-29). Unused slots' knobs are simply inert. */
+  rune1X: number; rune1Y: number;
+  rune2X: number; rune2Y: number;
+  rune3X: number; rune3Y: number;
   /** Gap (ms) between each tallied number leaving its card. */
   tallyStagger: number;
   /** Flight time (ms) of a tallied number to the counter. */
@@ -78,11 +83,11 @@ export interface HeroDuelConfig {
 // the styles.css `--hd-*` fallbacks in sync with these (they mirror this table).
 const DEFAULTS: HeroDuelConfig = {
   oppScale: 2.4,
-  oppX: 185,
+  oppX: 208,
   oppY: -10,
-  nameScale: 0.77,
+  nameScale: 0.65,
   nameX: 0,
-  nameY: 22,
+  nameY: 23,
   hpScale: 0.65,
   hpX: 0,
   hpY: -23,
@@ -108,9 +113,12 @@ const DEFAULTS: HeroDuelConfig = {
   sfxCounterDelay: -1220,
   sfxCounterVol: 1,
   runeScale: 1,
-  runeX: 75,
-  runeY: 0,
+  runeX: -148,
+  runeY: -19,
   runeGap: 20,
+  rune1X: 0, rune1Y: 0,
+  rune2X: 0, rune2Y: 0,
+  rune3X: 0, rune3Y: 0,
   tallyStagger: 130,
   tallyFly: 430,
   pillHold: 260,
@@ -154,6 +162,9 @@ export const HERO_DUEL_RANGES: Record<keyof HeroDuelConfig, [number, number, num
   runeX: [-300, 300, 1],
   runeY: [-300, 300, 1],
   runeGap: [0, 40, 1],
+  rune1X: [-300, 300, 1], rune1Y: [-300, 300, 1],
+  rune2X: [-300, 300, 1], rune2Y: [-300, 300, 1],
+  rune3X: [-300, 300, 1], rune3Y: [-300, 300, 1],
   tallyStagger: [0, 500, 5],
   tallyFly: [80, 1500, 10],
   pillHold: [0, 1500, 10],
@@ -197,6 +208,9 @@ export const HERO_DUEL_DESC: Record<keyof HeroDuelConfig, string> = {
   runeX: 'Move the rune row horizontally from the portrait.',
   runeY: 'Move the rune row vertically.',
   runeGap: 'Space between the rune badges.',
+  rune1X: 'Nudge the FIRST (top) rune badge horizontally.', rune1Y: 'Nudge the first rune badge vertically.',
+  rune2X: 'Nudge the SECOND rune badge horizontally.', rune2Y: 'Nudge the second rune badge vertically.',
+  rune3X: 'Nudge the THIRD rune badge horizontally.', rune3Y: 'Nudge the third rune badge vertically.',
   tallyStagger: 'Gap between each damage number leaving its card.',
   tallyFly: 'How long a damage number takes to reach the counter.',
   pillHold: 'Pause after the pill appears, before the hero winds up.',
@@ -247,6 +261,10 @@ export function applyHeroDuelVars(): void {
   r.setProperty('--hd-rune-s', String(cfg.runeScale));
   r.setProperty('--hd-rune-x', `${cfg.runeX}px`);
   r.setProperty('--hd-rune-y', `${cfg.runeY}px`);
+  for (const n of [1, 2, 3] as const) {
+    r.setProperty(`--hd-rune${n}-x`, `${cfg[`rune${n}X`]}px`);
+    r.setProperty(`--hd-rune${n}-y`, `${cfg[`rune${n}Y`]}px`);
+  }
   r.setProperty('--hd-rune-gap', `${cfg.runeGap}px`);
 }
 

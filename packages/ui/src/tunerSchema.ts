@@ -83,6 +83,7 @@ export const PANEL_EMBLEMS: Record<string, string> = {
   questtendril: '🏆',
   chargeglyph: '🔋',
   runeforgebg: '🪨',
+  runeforgelook: '🔨',
   platedissolve: '🌀',
   platecoalesce: '🪄',
   plategild: '👑',

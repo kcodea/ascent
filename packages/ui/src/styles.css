@@ -9389,10 +9389,17 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
    spot; the drop is a one-shot translate+fade keyed to mount. */
 .combatopp {
   position: fixed;
-  left: calc(var(--bar-x) + 0.85 * var(--gw) + var(--rfb-x, -123px) * var(--scale));
-  top: calc(var(--bar-y) + var(--rfb-y, 270px) * var(--scale));
-  /* The ⚔️ Hero Duel tuner's placement rides the WRAPPER, never the body — the body is what GSAP lunges. */
-  transform: translate(calc(-50% + var(--hd-opp-x, 208px)), calc(-50% + var(--hd-opp-y, -10px))) scale(var(--hd-opp-s, 2.4));
+  /* ANCHORED TO THE FOE HERO POWER (owner ask 2026-08-29): the portrait pins off the SAME top-right stage
+     corner the power icon uses (--hd-power-x/y), so the two ride together and both stay locked to the board at
+     any stage size — instead of the old Refresh-button anchor with a RAW-px oppX/oppY nudge that skewed off the
+     board on a non-fullscreen stage. oppX/oppY now nudge the portrait off the power anchor, × --scale like every
+     other pinned element (positive X = rightward, positive Y = down). */
+  left: auto;
+  right: calc(50% - var(--gw) / 2 + 20 * var(--u) - var(--hd-power-x, -386px) * var(--scale) - var(--hd-opp-x, 144px) * var(--scale));
+  top: calc(20 * var(--u) + var(--hd-power-y, 191px) * var(--scale) + var(--hd-opp-y, 41px) * var(--scale));
+  /* The ⚔️ Hero Duel tuner's placement rides the WRAPPER, never the body — the body is what GSAP lunges.
+     translate(50%,-50%) centres the portrait on the right/top anchor point. */
+  transform: translate(50%, -50%) scale(var(--hd-opp-s, 2.4));
   z-index: 42;                      /* just above the refresh button it lands on */
   pointer-events: none;
 }

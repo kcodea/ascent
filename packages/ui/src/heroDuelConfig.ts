@@ -82,9 +82,11 @@ export interface HeroDuelConfig {
 // Owner-tuned baseline (2026-08-25, re-tuned 2026-08-27: slower heavier strike, quicker settle). Keep
 // the styles.css `--hd-*` fallbacks in sync with these (they mirror this table).
 const DEFAULTS: HeroDuelConfig = {
+  // oppX/oppY are REFERENCE px (× --scale in styles.css) offset from the foe HERO POWER anchor — the portrait
+  // rides with the power so both stay pinned to the board at any stage size (owner ask 2026-08-29).
   oppScale: 2.4,
-  oppX: 208,
-  oppY: -10,
+  oppX: 144,
+  oppY: 41,
   nameScale: 0.65,
   nameX: 0,
   nameY: 23,
@@ -178,8 +180,8 @@ export const HERO_DUEL_RANGES: Record<keyof HeroDuelConfig, [number, number, num
 
 export const HERO_DUEL_DESC: Record<keyof HeroDuelConfig, string> = {
   oppScale: "Size of the opponent's portrait that drops in for the fight.",
-  oppX: "Move the opponent's portrait horizontally from its Refresh-button anchor.",
-  oppY: "Move the opponent's portrait vertically from its anchor.",
+  oppX: "Move the opponent's portrait horizontally from its foe-hero-power anchor.",
+  oppY: "Move the opponent's portrait vertically from its foe-hero-power anchor.",
   nameScale: "Size of the opponent's name plate.",
   nameX: "Move the name plate horizontally.",
   nameY: "Move the name plate vertically (it sits above the portrait).",

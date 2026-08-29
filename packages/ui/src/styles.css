@@ -3183,9 +3183,12 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
 /* Dark "pill/glass" restyle of the hero box + health box — matches the quest-badge / name-pill aesthetic
    (the dark gradient + gold-mix border the `.hplabel` already uses) instead of the old cream/white boxes. */
 .statusbar .hero {
-  background: linear-gradient(180deg, #241a13, #17110c);
-  border-color: color-mix(in srgb, var(--gold) 55%, #000);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 calc(4 * var(--u)) calc(12 * var(--u)) -4px var(--shadow);
+  /* The dark circular BACKING is GONE (owner ask 2026-08-29): the portrait art is scaled/offset off the
+     frame by the 🧍 tuner, so the backing peeked out beneath it as a misaligned dark crescent. The box is
+     now an invisible layout anchor — the art circle, the pills and the Resolve box carry the whole look. */
+  background: none;
+  border: none;
+  box-shadow: none;
 }
 .statusbar .hero .nm { color: #f4ecdb; }
 .statusbar .hero .hpbox {

@@ -9422,6 +9422,13 @@ body.duel-attacker-opp .combatopp-hp { opacity: 0; }
   pointer-events: auto;
 }
 /* The tip opens to the LEFT of the badge (the row sits at the board's right edge). */
+/* PER-RUNE nudges (owner ask 2026-08-29) — one pair per slot from the ⚔️ tuner, composing ONTO the row
+   placement. nth-child is safe: the runes column contains only .combatopp-rune children. The independent
+   `translate` property (not `transform`) so the badge's transform-based trigger BOUNCE composes with the
+   nudge instead of stomping it mid-animation. */
+.combatopp-rune:nth-child(1) { translate: var(--hd-rune1-x, 0px) var(--hd-rune1-y, 0px); }
+.combatopp-rune:nth-child(2) { translate: var(--hd-rune2-x, 0px) var(--hd-rune2-y, 0px); }
+.combatopp-rune:nth-child(3) { translate: var(--hd-rune3-x, 0px) var(--hd-rune3-y, 0px); }
 .combatopp-rune .questbadge-tip { bottom: auto; top: 50%; left: auto; right: calc(100% + 8px); transform: translateY(-50%); }
 
 @keyframes combatoppdrop {

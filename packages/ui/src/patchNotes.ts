@@ -56,6 +56,43 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-08-28',
+    label: 'Equipment',
+    changes: [
+      {
+        category: 'New Card',
+        text: 'EQUIPMENT — some minions hand you a tool you can use every shop phase, for as long as they live.',
+        details: [
+          'An Equip minion grants its Equipment the moment you play it. The Equipment appears in its own slot beside your hero power.',
+          'Using one costs Gold and spends your Equipment use for the turn — you get one use per turn, shared across every Equipment you hold.',
+          'Your hero power is untouched: the two are spent separately, so holding an Equipment never costs you your power.',
+          'Lose the minion and you lose its Equipment. Keep it and the Equipment comes back every turn.',
+          'A Gilded Equip minion upgrades its Equipment, and holding two sources of the same one keeps the better version.',
+        ],
+      },
+      {
+        category: 'New Card',
+        text: 'Alchemist Frank — a Tier 1 Neutral who equips the Bloodpot: give a friendly minion +3/+3.',
+      },
+      {
+        category: 'New Card',
+        text: 'Titan Sculptor — a Tier 6 Neutral who equips the Titan Hammer: SET a friendly minion to 50/50.',
+        details: [
+          'It sets, rather than adds — a smaller minion is raised to 50/50, and a bigger one is brought down to it.',
+          'Gilded, the Hammer sets 100/100.',
+        ],
+      },
+      {
+        category: 'UI / Info',
+        text: 'Holding more than one Equipment? Hover the slot and the others slide out to the right — click one to switch.',
+        details: [
+          'Switching is free: it costs no Gold and no use, so you can change your mind before committing.',
+          'Each option shows its icon, its name and what it costs right now.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-08-28',
     label: 'Opponents Rail',
     changes: [
       {

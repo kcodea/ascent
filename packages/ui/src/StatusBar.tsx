@@ -847,6 +847,13 @@ export function StatusBar() {
         {equipOptions.length > 0 && selectedEquip && selectedEquipDef && (
           <div className={`heropanel equipslot${equipArmed ? ' armed' : equipReady ? ' ready' : ''}`}>
             <div className="hpwrap">
+              {/* THE FRAME (owner art 2026-08-28: "add the equipment frame around the equipment"). A sibling
+                  of the button rather than a background ON it: the button is a square box whose art is
+                  clipped to a circle, and a frame painted as its background would be clipped with it. As a
+                  sibling it can also be sent BEHIND the icon or left in front of it, which is a dial.
+                  `aria-hidden` + no pointer events — it is chrome, and must never eat the click that arms. */}
+              <img className="equipframe" src={`${import.meta.env.BASE_URL}frames/equipment-frame.webp`}
+                   alt="" aria-hidden="true" draggable={false} />
               <button
                 type="button"
                 className={`heropowerbtn${equipArmed ? ' armed' : equipReady ? ' ready' : ''}`}
@@ -900,7 +907,10 @@ export function StatusBar() {
                 a mouse crossing a button, and the transition is transform + opacity only. The rail is a child
                 of the slot so the pointer never leaves the hover target crossing into it. */}
             {equipOptions.length > 1 && !equipArmed && (
-              <div className="equiprail" role="group" aria-label="Choose Equipment">
+              <div className="equiprail">
+                {/* The outer box carries the hoverable GAP as padding; this inner one is the visible panel.
+                    Splitting them is what stops the rail closing while the pointer crosses to it. */}
+                <div className="equiprail-in" role="group" aria-label="Choose Equipment">
                 {equipOptions.map((g) => {
                   const def = EQUIPMENT_INDEX[g.equipmentId];
                   const art = equipmentArtFor(g.equipmentId);
@@ -926,6 +936,7 @@ export function StatusBar() {
                     </button>
                   );
                 })}
+                </div>
               </div>
             )}
           </div>

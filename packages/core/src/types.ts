@@ -436,7 +436,7 @@ export type EffectFactoryId =
   | 'grantEquipment' // the `equip` factory: hands the player the Equipment named by `params.equipmentId`
   | 'equipmentBuffTarget' // Bloodpot: one Equipment TRIGGER — +atk/+hp onto the chosen friendly minion
   | 'equipmentCastSpell' // an EQUIPMENT SPELL: casts its named Shop spell through the real cast pipeline
-  | 'equipmentSetStats' // Titan Chisel: SETS the target's stats rather than adding to them
+  | 'equipmentSetStats' // Titan Hammer: SETS the target's stats rather than adding to them
   | 'deathrattleGrantShield'
   | 'onShieldBreakGrantShield'
   | 'onShieldBreakDamage'

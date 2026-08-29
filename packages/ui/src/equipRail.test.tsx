@@ -43,7 +43,7 @@ function twoEquipment(over: Partial<RunState> = {}): RunState {
     equipment: {
       available: [
         { equipmentId: 'bloodpot', version: 'plain', sourceUids: ['f'], grantedTurn: 1 },
-        { equipmentId: 'titan_chisel', version: 'plain', sourceUids: ['s'], grantedTurn: 1 },
+        { equipmentId: 'titan_hammer', version: 'plain', sourceUids: ['s'], grantedTurn: 1 },
       ],
       baseActivations: 1, bonusActivations: 0, activationsSpent: 0,
       temporaryCostReduction: 0,
@@ -70,7 +70,7 @@ describe('the Equipment rail', () => {
     show(twoEquipment());
     expect(rail(), 'a player holding two Equipment gets a rail').not.toBeNull();
     expect(rows().map((b) => b.querySelector('.equiprail-name')?.textContent))
-      .toEqual(['Bloodpot', 'Titan Chisel']);
+      .toEqual(['Bloodpot', 'Titan Hammer']);
     expect(rows().map((b) => b.querySelector('.equiprail-cost')?.textContent), 'the printed costs')
       .toEqual(['1', '3']);
   });
@@ -87,8 +87,8 @@ describe('the Equipment rail', () => {
     expect(slotLabel()).toBe('Bloodpot');
     pointerDown(rows()[1]!);
     ui.render(<StatusBar />);
-    expect(useGame.getState().run.equipment?.selectedEquipmentId, 'the reducer moved').toBe('titan_chisel');
-    expect(slotLabel(), 'and the slot followed').toBe('Titan Chisel');
+    expect(useGame.getState().run.equipment?.selectedEquipmentId, 'the reducer moved').toBe('titan_hammer');
+    expect(slotLabel(), 'and the slot followed').toBe('Titan Hammer');
     expect(rows().map((b) => b.classList.contains('on')), 'the mark moved with it').toEqual([false, true]);
   });
 

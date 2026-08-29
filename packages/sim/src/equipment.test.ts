@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { BLOODPOT, CARD_INDEX, TITAN_CHISEL } from '@game/content';
+import { BLOODPOT, CARD_INDEX, TITAN_HAMMER } from '@game/content';
 import { createRun, reduce, type Action, type BoardCard, type RunState } from './index';
 import { equipmentState, equipmentUsesLeft, selectedEquipment } from './equipment';
 import { fireEquipmentTriggers } from './recruit';
@@ -463,11 +463,11 @@ describe('using an Equipment cues its own effect', () => {
 });
 
 /**
- * TITAN CHISEL (owner add 2026-08-28) — the second Equipment, and the first that lets the MULTI-Equipment
+ * TITAN HAMMER (owner add 2026-08-28) — the second Equipment, and the first that lets the MULTI-Equipment
  * paths be tested at all: the selector, board-order fallback and last-used restoration were written against a
  * collection that never had more than one entry in it.
  */
-describe('Titan Chisel — setting stats, not adding them', () => {
+describe('Titan Hammer — setting stats, not adding them', () => {
   const sculptor = (over: Partial<RunState> = {}): RunState => {
     const s = run({ hand: [body('sc', 'e3_sculptor')], board: [body('t', 'sandbag')], ...over });
     return play(s, 'sc', 1);
@@ -476,11 +476,11 @@ describe('Titan Chisel — setting stats, not adding them', () => {
   it('SETS the target to 50/50, whatever it was', () => {
     let s = sculptor();
     s = activate(s, 't');
-    expect(statsOf(s, 't'), 'a 1/1 is chiselled UP').toEqual([50, 50]);
+    expect(statsOf(s, 't'), 'a 1/1 is hammered UP').toEqual([50, 50]);
     expect(s.embers, 'and it costs 3').toBe(17);
   });
 
-  it('chisels a BIGGER body DOWN — setting is not buffing', () => {
+  it('hammers a BIGGER body DOWN — setting is not buffing', () => {
     let s = sculptor({ board: [body('t', 'sandbag', { attack: 90, health: 80 })] });
     s = activate(s, 't');
     expect(statsOf(s, 't'), '90/80 becomes 50/50, not 140/130').toEqual([50, 50]);
@@ -507,9 +507,9 @@ describe('Titan Chisel — setting stats, not adding them', () => {
     const card = CARD_INDEX['e3_sculptor']!;
     expect(card.text).toContain('50/50');
     expect(card.goldenText).toContain('100/100');
-    expect(TITAN_CHISEL.baseCost, 'and the cost the card prints').toBe(3);
-    expect(TITAN_CHISEL.params).toEqual({ attack: 50, health: 50 });
-    expect(TITAN_CHISEL.gildedParams).toEqual({ attack: 100, health: 100 });
+    expect(TITAN_HAMMER.baseCost, 'and the cost the card prints').toBe(3);
+    expect(TITAN_HAMMER.params).toEqual({ attack: 50, health: 50 });
+    expect(TITAN_HAMMER.gildedParams).toEqual({ attack: 100, health: 100 });
   });
 });
 
@@ -528,46 +528,46 @@ describe('holding TWO Equipment', () => {
 
   it('both are held, and the LEFT-MOST is selected', () => {
     const s = both();
-    expect(equipmentState(s).available.map((g) => g.equipmentId)).toEqual(['bloodpot', 'titan_chisel']);
+    expect(equipmentState(s).available.map((g) => g.equipmentId)).toEqual(['bloodpot', 'titan_hammer']);
     expect(equipmentState(s).selectedEquipmentId, 'the first granted keeps the slot').toBe('bloodpot');
   });
 
   it('swapping to the other is free, and then IT is what activates', () => {
     let s = both();
     const gold = s.embers;
-    s = act(s, { type: 'selectEquipment', equipmentId: 'titan_chisel' });
+    s = act(s, { type: 'selectEquipment', equipmentId: 'titan_hammer' });
     expect(s.embers, 'swapping costs nothing').toBe(gold);
     expect(equipmentUsesLeft(s), 'and spends no allowance').toBe(1);
     s = activate(s, 't');
-    expect(statsOf(s, 't'), 'the CHISEL fired, not Bloodpot').toEqual([50, 50]);
-    expect(s.embers, 'at the Chisel\u2019s cost, not Bloodpot\u2019s').toBe(gold - 3);
+    expect(statsOf(s, 't'), 'the HAMMER fired, not Bloodpot').toEqual([50, 50]);
+    expect(s.embers, 'at the Hammer\u2019s cost, not Bloodpot\u2019s').toBe(gold - 3);
   });
 
   it('the shared allowance is spent by EITHER — one activation between them', () => {
     let s = both();
     s = activate(s, 't'); // Bloodpot
     expect(equipmentUsesLeft(s)).toBe(0);
-    s = act(s, { type: 'selectEquipment', equipmentId: 'titan_chisel' });
+    s = act(s, { type: 'selectEquipment', equipmentId: 'titan_hammer' });
     const stats = statsOf(s, 't');
     s = activate(s, 't');
-    expect(statsOf(s, 't'), 'the Chisel cannot fire on a spent allowance').toEqual(stats);
+    expect(statsOf(s, 't'), 'the Hammer cannot fire on a spent allowance').toEqual(stats);
   });
 
   it('the rebuild restores the LAST USED one, not the left-most', () => {
     let s = both();
-    s = act(s, { type: 'selectEquipment', equipmentId: 'titan_chisel' });
+    s = act(s, { type: 'selectEquipment', equipmentId: 'titan_hammer' });
     s = activate(s, 't');
-    expect(equipmentState(s).lastUsedEquipmentId).toBe('titan_chisel');
+    expect(equipmentState(s).lastUsedEquipmentId).toBe('titan_hammer');
     s = nextTurn(s);
     expect(equipmentState(s).available, 'both re-equip').toHaveLength(2);
     expect(equipmentState(s).selectedEquipmentId, 'and the one actually used comes back selected')
-      .toBe('titan_chisel');
+      .toBe('titan_hammer');
   });
 
   it('cues once PER EQUIPMENT at the rebuild — two Equipment, two cues', () => {
     let s = both();
     s = nextTurn(s);
     const cues = (s.equipFx ?? []).filter((f) => f.kind === 'reequip');
-    expect(cues.map((c) => c.equipmentId), 'in board order').toEqual(['bloodpot', 'titan_chisel']);
+    expect(cues.map((c) => c.equipmentId), 'in board order').toEqual(['bloodpot', 'titan_hammer']);
   });
 });

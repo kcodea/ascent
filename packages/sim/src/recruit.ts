@@ -2782,14 +2782,14 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   },
 
   /**
-   * TITAN CHISEL — one Equipment TRIGGER: SET the target's stats, rather than add to them.
+   * TITAN HAMMER — one Equipment TRIGGER: SET the target's stats, rather than add to them.
    *
    * Its own factory because setting is not buffing, and the difference matters in both directions: a 2/1 and a
-   * 40/40 both end up 50/50, so the Chisel is a floor as much as a ceiling. Recorded as a `Titan Chisel` buff
+   * 40/40 both end up 50/50, so the Hammer is a floor as much as a ceiling. Recorded as a `Titan Hammer` buff
    * entry carrying the DELTA it actually applied, so the inspect itemises where the stats came from like any
-   * other source — without that, a chiselled body shows 50/50 attributed to nothing.
+   * other source — without that, a hammered body shows 50/50 attributed to nothing.
    *
-   * A negative delta is real (chiselling DOWN a bigger body) and is recorded as such rather than clamped: the
+   * A negative delta is real (hammering DOWN a bigger body) and is recorded as such rather than clamped: the
    * itemisation has to add up to what the card shows.
    */
   equipmentSetStats: (ctx, self, params, payload) => {

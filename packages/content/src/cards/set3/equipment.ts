@@ -37,7 +37,7 @@ export const SET3_EQUIPMENT: readonly CardDef[] = [
   {
     // The second Equip minion (owner 2026-08-28), and the first to put TWO Equipment in play at once — which
     // is what the slot's selector, the board-order fallback and last-used restoration exist for. A T6 body
-    // because the Chisel is a finisher: it does not scale a board, it decides one minion.
+    // because the Hammer is a finisher: it does not scale a board, it decides one minion.
     id: 'e3_sculptor',
     name: 'Titan Sculptor',
     tribe: 'neutral',
@@ -45,8 +45,8 @@ export const SET3_EQUIPMENT: readonly CardDef[] = [
     attack: 10,
     health: 8,
     keywords: [],
-    effects: [{ on: 'equip', do: 'grantEquipment', params: { equipmentId: 'titan_chisel' } }],
-    text: "**Equip Titan Chisel (3):** Set a friendly minion's stats to **50/50**.",
-    goldenText: "**Equip Titan Chisel (3):** Set a friendly minion's stats to **100/100**.",
+    effects: [{ on: 'equip', do: 'grantEquipment', params: { equipmentId: 'titan_hammer' } }],
+    text: "**Equip Titan Hammer (3):** Set a friendly minion's stats to **50/50**.",
+    goldenText: "**Equip Titan Hammer (3):** Set a friendly minion's stats to **100/100**.",
   },
 ];

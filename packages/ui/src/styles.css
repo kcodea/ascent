@@ -904,6 +904,15 @@ body.etb-glow-preview .etbwrap:not(.pressed):not(:disabled) .etb-gem {
   border-radius: var(--etb-tip-radius, 11px); padding: var(--etb-tip-pad-y, 11px) var(--etb-tip-pad-x, 5px);
   box-shadow: 0 3px 9px -3px rgba(0, 0, 0, 0.6); z-index: 6;
 }
+/* END COMBAT pill — the End-Turn tip in its combat-done (.ready) state, restyled via the Combat Controls tuner
+   (--cc-end-*). Scoped to .ready so the RECRUIT End-Turn tip (.urgent, the SAME element) keeps its own look. */
+.etbwrap.ready .etb-tip {
+  font-size: var(--cc-end-size, 13.5px);
+  border-radius: var(--cc-end-radius, 11px);
+  border: var(--cc-end-bw, 2px) solid var(--cc-end-border, #6e5019);
+  background: linear-gradient(180deg, var(--cc-end-bg, #211812), color-mix(in srgb, var(--cc-end-bg, #211812) 65%, #000));
+  color: var(--cc-end-text, #f4ecdb);
+}
 .etbwrap:not(:disabled):hover .etb-tip, .etbwrap.urgent .etb-tip, .etbwrap.ready .etb-tip { opacity: 1; transform: translateX(calc(-50% + var(--etb-tip-x, 108px))) translateY(0); }
 /* LOBBY: the End Turn label is centred on a button that sits well right of centre, and its right half ran
    under the seat rail — the rail's z-index simply hid the text rather than avoiding it. Shift it left by the
@@ -924,10 +933,10 @@ body.etb-glow-preview .etbwrap:not(.pressed):not(:disabled) .etb-gem {
   top: calc(var(--bar-y) + 0.055 * var(--gh));
   transform: translate(-50%, -50%);
   display: inline-flex; align-items: center; gap: 8px;
-  font-family: var(--font-ui); font-weight: 800; font-size: 14px; letter-spacing: 0.03em; color: #f4ecdb;
-  background: linear-gradient(180deg, #211812, #16100b);
-  border: 2px solid color-mix(in srgb, var(--gold) 55%, #000);
-  border-radius: 12px; padding: 8px 18px;
+  font-family: var(--font-ui); font-weight: 800; font-size: var(--cc-sum-size, 14px); letter-spacing: 0.03em; color: var(--cc-sum-text, #f4ecdb);
+  background: linear-gradient(180deg, var(--cc-sum-bg, #211812), color-mix(in srgb, var(--cc-sum-bg, #211812) 65%, #000));
+  border: var(--cc-sum-bw, 2px) solid var(--cc-sum-border, #6e5019);
+  border-radius: var(--cc-sum-radius, 12px); padding: 8px 18px;
   box-shadow: 0 3px 9px -3px rgba(0, 0, 0, 0.6);
   cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
   z-index: 41;
@@ -4558,10 +4567,10 @@ body.aiming, body.aiming * { cursor: none !important; }
 .app.combat .buffsframe { display: none; }
 /* Skip button — pinned ABOVE the End Turn / End Combat diamond (owner move 2026-08-11), same stage anchor +
    `--etb-x/y` offsets as the Summary pill (they never show at once: Skip during the replay, Summary after). */
-.combathud-skip { position: fixed; left: calc(var(--bar-x) + 0.5 * var(--gw) + 96px * var(--scale)); top: calc(var(--bar-y) + 0.055 * var(--gh)); transform: translate(-50%, -50%); z-index: 41; display: inline-flex; align-items: center; justify-content: center; gap: calc(7 * var(--u)); font-family: var(--font-ui); font-weight: 800; font-size: calc(15 * var(--u)); letter-spacing: 0.04em; color: #fff; background: var(--acc); border: 2px solid var(--acc-dk); padding: calc(8 * var(--u)) calc(20 * var(--u)); border-radius: calc(11 * var(--u)); box-shadow: 0 calc(4 * var(--u)) 0 var(--acc-dk); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; animation: fadein 0.25s ease; }
+.combathud-skip { position: fixed; left: calc(var(--bar-x) + 0.5 * var(--gw) + 96px * var(--scale)); top: calc(var(--bar-y) + 0.055 * var(--gh)); transform: translate(-50%, -50%); z-index: 41; display: inline-flex; align-items: center; justify-content: center; gap: calc(7 * var(--u)); font-family: var(--font-ui); font-weight: 800; font-size: calc(var(--cc-skip-size, 15) * var(--u)); letter-spacing: 0.04em; color: var(--cc-skip-text, #fff); background: var(--cc-skip-bg, #f0902e); border: var(--cc-skip-bw, 2px) solid var(--cc-skip-border, #c46f17); padding: calc(8 * var(--u)) calc(20 * var(--u)); border-radius: calc(var(--cc-skip-radius, 11) * var(--u)); box-shadow: 0 calc(4 * var(--u)) 0 var(--cc-skip-border, #c46f17); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; animation: fadein 0.25s ease; }
 .combathud-skip svg { width: calc(16 * var(--u)); height: calc(16 * var(--u)); }
-.combathud-skip:hover { background: var(--acc-dk); }
-.combathud-skip:active { transform: translate(-50%, -50%) translateY(calc(2 * var(--u))); box-shadow: 0 calc(2 * var(--u)) 0 var(--acc-dk); }
+.combathud-skip:hover { background: var(--cc-skip-border, #c46f17); }
+.combathud-skip:active { transform: translate(-50%, -50%) translateY(calc(2 * var(--u))); box-shadow: 0 calc(2 * var(--u)) 0 var(--cc-skip-border, #c46f17); }
 /* post-combat Combat Log overlay */
 .logov { position: fixed; inset: 0; z-index: 200; display: grid; place-items: center; background: rgba(20, 15, 10, 0.55); animation: logfade 0.16s ease; }
 @keyframes logfade { from { opacity: 0; } to { opacity: 1; } }

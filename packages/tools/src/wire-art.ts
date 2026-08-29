@@ -15,7 +15,7 @@
 import { readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import sharp from 'sharp';
-import { CARD_INDEX, EPIC_RUNES, QUEST_DEFS, RUNES, poolFor } from '@game/content';
+import { CARD_INDEX, EPIC_RUNES, EQUIPMENT, QUEST_DEFS, RUNES, poolFor } from '@game/content';
 import { HEROES } from '@game/sim';
 
 const APPLY = process.argv.includes('--apply');
@@ -209,7 +209,30 @@ const QUEST_ALIASES: Record<string, string> = {
 const questsByName = new Map<string, string>();
 for (const q of QUEST_DEFS) { questsByName.set(norm(q.name), q.id); questsByName.set(noThe(q.name), q.id); }
 
+// EQUIPMENT index by NAME (owner handoff 2026-08-28). Its own class: an Equipment is granted by a card but
+// is not one, so it needs its own index and its own destination — a Bloodpot icon must never land in the
+// minion art folder and shadow a card with a similar name.
+const equipmentByName = new Map<string, string>();
+for (const e of EQUIPMENT) equipmentByName.set(norm(e.name), e.id);
+
 const JOBS: Job[] = [
+  {
+    // SET-3 minions (2026-08-28). Scoped like the set-1 job and placed FIRST for the same reason: if a name
+    // ever exists in two sets, the later job wins the slot, and set 3 is the least established. Today it is
+    // the Equipment reference card; the Celestial folders are here for the rework.
+    label: 'set-3 minions', src: 'C:/Game Assets/Ascent Art/Set 3 Minions',
+    // NEUTRALS ONLY for now. The Celestial folder still holds art for the sixteen archived on 2026-08-28, and
+    // wiring it would ship art — and itch file-count — for cards that are out of play. Widen this list when
+    // the reworked tribe lands, which is exactly when those files start meaning something again.
+    dirs: ['Neutrals'],
+    dest: 'packages/ui/src/art/minions', index: cardsByName, aliases: ALIASES,
+  },
+  {
+    // EQUIPMENT icons — their own class, their own folder, their own destination. Matched against the
+    // EQUIPMENT registry by name, so a file can only land on an Equipment that actually exists.
+    label: 'equipment', src: 'C:/Game Assets/Ascent Art/Equipment',
+    dirs: ['.'], dest: 'packages/ui/src/art/equipment', index: equipmentByName, aliases: {},
+  },
   {
     // SET-1 minions (owner ask 2026-08-03: "I refreshed some set 1 demons"). This folder had never been a
     // job, so set-1 portraits were only ever hand-dropped. Deliberately FIRST so that if a name exists in

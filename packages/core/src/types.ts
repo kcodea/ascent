@@ -203,6 +203,9 @@ export type GameEvent =
   | 'cardsPlayed' // recruit phase: the player PLAYED a card — the play-count twin of `cardsBought` (Mountainbond)
   | 'onSell' // recruit phase: this minion is sold (Hoard Whelp — get Gold, Beggy — get Rubies)
   | 'startOfTurn' // recruit phase: a shop turn begins — the symmetric twin of `endOfTurn` (Gemline Martyr)
+  | 'equip' // recruit phase: this minion GRANTS its Equipment — on play, and again at every Start of Turn
+         // rebuild. Shout-shaped (it fires as the body enters play) but it is not a Shout: it re-fires on
+         // the rebuild, and its payload is a grant to the PLAYER rather than an effect on the board.
   | 'onGainCard' // recruit phase: a card was added to your hand via the conjure/grant path (Gangplank)
   | 'onRubyPlayed' // set 2 recruit phase: a Ruby was played on THIS minion (Ruby Broker → Gold, Resonance Idol → bounce)
   | 'rubyPlayedAnywhere' // Candle Conduit: a Ruby was played on ANY friendly minion (passive marker — the ruby paths scan for it; never dispatched through the bus)
@@ -430,6 +433,10 @@ export type EffectFactoryId =
   | 'scGrantSpellCastExtra' // Runebloom Matriarch: Start of Combat — your Shop Spells cast N extra times this fight
   | 'scGrantShieldTribe'
   | 'scGrantReborn' // Gravewarden: Start of Combat — give a friendly Undead (not self) Rise; golden two
+  | 'grantEquipment' // the `equip` factory: hands the player the Equipment named by `params.equipmentId`
+  | 'equipmentBuffTarget' // Bloodpot: one Equipment TRIGGER — +atk/+hp onto the chosen friendly minion
+  | 'equipmentCastSpell' // an EQUIPMENT SPELL: casts its named Shop spell through the real cast pipeline
+  | 'equipmentSetStats' // Titan Hammer: SETS the target's stats rather than adding to them
   | 'deathrattleGrantShield'
   | 'onShieldBreakGrantShield'
   | 'onShieldBreakDamage'

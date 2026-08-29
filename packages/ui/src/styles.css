@@ -3119,6 +3119,174 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
 .heropanel2 .hpb-glyph { display: grid; place-items: center; width: 100%; height: 100%; font-size: 26px; color: #d8ccb6; }
 .heropanel2 .hplabel { pointer-events: none; }
 
+/* EQUIPMENT (owner handoff 2026-08-28) — the minion-granted ability, in its OWN slot with its own seat.
+   Driven by the ⚒️ Equipment Slot tuner (`--eqs-*`, equipSlotConfig.ts), NOT by the Second Power tuner: it
+   briefly rode the `.heropanel2` seat with an offset, and Void's TWO powers collided with it the moment one
+   appeared. Separate seats also mean neither tuner silently moves the other's block.
+   Same shape as the second-power rule — scoped to out-specify the base `.heropanel` seat, and reference px
+   multiplied by `--scale` so it holds its place at every resolution. */
+.statusbar .heropanel.equipslot {
+  /* Fallbacks MIRROR `equipSlotConfig.ts`'s baked defaults, so a paint before the config module has applied
+     its vars lands in the right seat rather than the pre-tuning one. Update both together. */
+  left: calc(var(--bar-x) + 0.19 * var(--gw) + (var(--hpb-x, 15px) * var(--scale)) + (var(--eqs-x, -248) * 1px * var(--scale)));
+  top: calc(var(--bar-y) + 0.45 * var(--gh) + (var(--hpb-y, 303px) * var(--scale)) + (var(--eqs-y, -260) * 1px * var(--scale)));
+  transform: translate(-50%, -50%) scale(var(--eqs-scale, 0.99));
+  z-index: 42; }
+/* The glyph/label treatment the second-power block uses — the Equipment button is the same kind of control,
+   so it should read the same when an Equipment ships without an icon. */
+.equipslot .hpb-glyph { display: grid; place-items: center; width: 100%; height: 100%; font-size: 26px; color: #d8ccb6; }
+.equipslot .hplabel { pointer-events: none; }
+
+/* ARRIVING AND LEAVING (owner ask 2026-08-28: "add a brief fade in/fade out for the equipment so it doesn't
+   simply disappear immediately").
+
+   Fading in is a mount animation and costs nothing. Fading OUT needs the panel to still exist, and it does
+   not — the slot renders off `run.equipment`, so the moment the last source dies the data is gone. `StatusBar`
+   keeps a snapshot alive for `--eqs-fade-out` and renders it under `.leaving`; that timer reads the SAME dial
+   this rule does, so the fade and the unmount cannot drift apart.
+
+   Both are ONE-SHOT, so animating `transform` alongside opacity is fine — CLAUDE.md's ban is on LOOPING paint
+   animations, and neither of these is a paint property anyway.
+
+   The leaving copy is `pointer-events: none` as well as inert in the markup: it is a picture of an Equipment
+   the player no longer holds, and it must not sit under the cursor on its way out. */
+@keyframes equipslotin {
+  from { opacity: 0; transform: translate(-50%, -50%) scale(calc(var(--eqs-scale, 0.99) * 0.86)); }
+  to   { opacity: 1; transform: translate(-50%, -50%) scale(var(--eqs-scale, 0.99)); }
+}
+@keyframes equipslotout {
+  from { opacity: 1; transform: translate(-50%, -50%) scale(var(--eqs-scale, 0.99)); }
+  to   { opacity: 0; transform: translate(-50%, -50%) scale(calc(var(--eqs-scale, 0.99) * 0.9)); }
+}
+.statusbar .heropanel.equipslot.entering {
+  animation: equipslotin var(--eqs-fade-in, 180ms) ease-out both; }
+.statusbar .heropanel.equipslot.leaving {
+  pointer-events: none;
+  animation: equipslotout var(--eqs-fade-out, 260ms) ease-in both; }
+/* A player who asked for less motion gets the opacity and none of the scale. */
+@media (prefers-reduced-motion: reduce) {
+  @keyframes equipslotin  { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes equipslotout { from { opacity: 1; } to { opacity: 0; } }
+}
+
+/* THE FRAME (owner art 2026-08-28: "add the equipment frame around the equipment"). Sized as a multiple of
+   the button's own 128u box, so it tracks the button at every resolution instead of needing its own scale
+   chain. `--eqf-behind` flips it between a backing plate and a surround the icon sits under — both read very
+   differently against a round icon, and which one wins is the owner's call, so it is a dial rather than a
+   decision made here.
+
+   `--eqf-on` rides OPACITY rather than `display`, because CSS cannot branch a keyword on a numeric var and a
+   single hidden composited image costs nothing measurable. The whole thing is inert to the pointer — chrome
+   must never eat the click that arms the Equipment. */
+.equipslot .equipframe {
+  position: absolute; left: 50%; top: 50%; pointer-events: none;
+  width: calc(128 * var(--u) * var(--eqf-scale, 1.42)); height: auto;
+  transform: translate(-50%, -50%)
+             translate(calc(var(--eqf-x, 0) * 1px), calc(var(--eqf-y, 0) * 1px));
+  opacity: var(--eqf-on, 1);
+  z-index: calc(1 + 4 * (1 - var(--eqf-behind, 0))); }
+
+/* The three floating readouts. Each keeps the seat it already had and takes a tuned OFFSET on top, so
+   switching the frame on moves nothing until the owner starts dialling. Each composes its offset AFTER the
+   base rule's own transform, which is why the translate is repeated rather than replaced. */
+.equipslot .hpcost {
+  transform: translate(calc(var(--eqc-x, 0) * 1px), calc(var(--eqc-y, 0) * 1px)) scale(var(--eqc-scale, 1)); }
+.equipslot .hpwrap .hpb-tally {
+  transform: translateX(-50%)
+             translate(calc(var(--equ-x, 0) * 1px), calc(var(--equ-y, 0) * 1px)) scale(var(--equ-scale, 1)); }
+.equipslot .hplabel {
+  transform: translate(calc(var(--eqn-x, 0) * 1px), calc(var(--eqn-y, 0) * 1px)) scale(var(--eqn-scale, 1)); }
+/* No `cursor` declaration here on purpose — the global gauntlet rule paints `.btn, button`, and a plain
+   keyword cursor on a class selector out-specifies it and swaps in the OS arrow (CLAUDE.md's UI convention). */
+/* THE SELECTOR RAIL (owner ask 2026-08-28) — the Equipment options slide out to the RIGHT on hover, replacing
+   a permanent row of text buttons beneath the slot. Reveal is pure CSS on the slot's own `:hover` /
+   `:focus-within`, so crossing a button costs no React render.
+
+   It is a CHILD of `.equipslot` on purpose: the pointer never leaves the hover target on its way into the
+   rail, so the rail cannot flicker out from under the cursor. `left: 100%` plus a small gap means there is no
+   dead strip between them either.
+
+   PERF: the reveal animates `transform` + `opacity` ONLY (compositor-only, and one-shot, not looping) — see
+   CLAUDE.md's north-star rule. `visibility` rides the same transition so the hidden rail is untabbable and
+   unhittable rather than merely transparent.
+
+   NO `cursor` declaration — the global gauntlet rule paints `button`, and a plain keyword cursor on a class
+   selector out-specifies it and swaps in the OS arrow. */
+/* ── The reach problem (owner report 2026-08-28: "it needs more leeway on moving the mouse over to the panel
+   to select an equipment. it fades before i can mouse over an option every single time") ──────────────────
+
+   TWO causes, both fixed here.
+
+   1. THE GAP WAS DEAD SPACE. The rail sat `margin-left: 10px` off the slot, and that 10px belonged to
+      neither: the pointer left the slot, hovered nothing, and the rail closed before it arrived. The gap is
+      now the rail's own left PADDING — same visual separation, except the strip is part of the rail's hover
+      box, so the pointer is never over nothing on the way across. The panel styling moved to `.equiprail-in`
+      so the padding stays transparent rather than reading as a wide box.
+
+   2. IT CLOSED INSTANTLY. Now it LINGERS `--eqr-grace` (tunable, default 320ms) on the way out, which covers
+      a diagonal exit off the slot's corner or an overshoot past the rail. The delay is on the CLOSE only —
+      opening stays immediate, because a menu that hesitates before appearing feels broken.
+
+   PERF: still transform + opacity only, still one-shot. */
+.equiprail {
+  position: absolute; left: 100%; top: 50%;
+  padding-left: calc(var(--eqr-x, 10) * 1px);
+  opacity: 0; visibility: hidden; pointer-events: none; z-index: 61;
+  transform: translate(-14px, -50%)
+             translateY(calc(var(--eqr-y, 0) * 1px)) scale(var(--eqr-scale, 1));
+  transform-origin: left center;
+  transition: opacity 0.15s ease var(--eqr-grace, 320ms),
+              transform 0.19s cubic-bezier(0.2, 0.9, 0.25, 1) var(--eqr-grace, 320ms),
+              visibility 0s linear calc(var(--eqr-grace, 320ms) + 0.19s); }
+.equipslot:hover .equiprail,
+.equipslot:focus-within .equiprail {
+  opacity: 1; visibility: visible; pointer-events: auto;
+  transform: translate(0, -50%)
+             translateY(calc(var(--eqr-y, 0) * 1px)) scale(var(--eqr-scale, 1));
+  transition: opacity 0.15s ease, transform 0.19s cubic-bezier(0.2, 0.9, 0.25, 1), visibility 0s; }
+
+/* The visible panel. Separate from `.equiprail` so the hoverable gap above can stay transparent. */
+.equiprail-in {
+  display: flex; flex-direction: column; gap: 5px; padding: 7px;
+  border-radius: 13px; background: rgba(12, 9, 20, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 14px 34px -10px rgba(0, 0, 0, 0.7); }
+
+.equiprailbtn {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  padding: 4px 10px 4px 4px; border-radius: 10px; text-align: left;
+  color: rgba(255, 255, 255, 0.68); background: rgba(28, 22, 40, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  transition: color 0.12s, background 0.12s, border-color 0.12s; }
+.equiprailbtn:hover { color: #f6efe2; background: rgba(48, 36, 70, 0.9); border-color: rgba(255, 255, 255, 0.3); }
+/* The current pick reads as SETTLED rather than as another thing to press — accent border, no hover lift. */
+.equiprailbtn.on { color: #f6efe2; background: rgba(40, 30, 60, 0.92); border-color: var(--acc); }
+
+.equiprail-icon { flex: 0 0 auto; display: grid; place-items: center; width: 30px; height: 30px;
+  border-radius: 8px; overflow: hidden; background: rgba(0, 0, 0, 0.35); }
+.equiprail-icon img { width: 100%; height: 100%; object-fit: cover; }
+.equiprail-glyph { font-size: 17px; color: #d8ccb6; }
+.equiprail-name { flex: 1 1 auto; white-space: nowrap; font-family: var(--font-ui); font-size: 12.5px;
+  font-weight: 800; letter-spacing: 0.03em; }
+/* The cost sits on the row because the whole point of a swap is choosing what you can afford right now. */
+.equiprail-cost { flex: 0 0 auto; min-width: 17px; text-align: center; font-family: var(--font-ui);
+  font-size: 12px; font-weight: 900; color: var(--acc); }
+
+/* THE EQUIP FLASH — a body granting its Equipment, and the brisker re-equip refresh at Start of Turn. Both
+   are ONE-SHOT, so they may touch paint properties: CLAUDE.md's ban is on LOOPING paint animations. */
+@keyframes equipflash {
+  0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.6); }
+  35%  { opacity: 1; transform: translate(-50%, -50%) scale(1.06); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.3); }
+}
+.equipflash { position: fixed; z-index: 60; pointer-events: none; width: 74px; height: 74px; border-radius: 50%;
+  border: 3px solid #e8c66a; box-shadow: 0 0 26px 6px rgba(232, 198, 106, 0.55);
+  animation: equipflash 420ms ease-out forwards; }
+/* The rebuild's per-source refresh: same shape, quicker and dimmer, so several Equip minions read as a sweep
+   rather than as a queue of full equips. */
+.equipflash.reequip { width: 56px; height: 56px; border-color: rgba(232, 198, 106, 0.7);
+  box-shadow: 0 0 16px 3px rgba(232, 198, 106, 0.35); animation-duration: 260ms; }
+
 /* HERO-POWER DISCOVER (Mimic / Void) — the pick plaques inside the quest-shop chrome. */
 .power-ov-cards { display: flex; gap: 22px; justify-content: center; }
 .powerpick { display: flex; flex-direction: column; align-items: center; gap: 8px; width: 240px; padding: 18px 16px 16px;

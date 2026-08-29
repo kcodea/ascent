@@ -49,6 +49,19 @@ const SPELL_ART = indexArt(
   import.meta.glob('./art/spells/*.{png,webp}', { eager: true, query: '?url', import: 'default' }) as ArtModules,
 );
 
+/**
+ * EQUIPMENT icons (owner handoff 2026-08-28) — its own glob, keyed by EQUIPMENT id. Deliberately separate
+ * from the minion and spell indexes: an Equipment is granted by a card but is not one, and sharing a folder
+ * would let a Bloodpot icon shadow a card that happened to share its id.
+ */
+const EQUIPMENT_ART = indexArt(
+  import.meta.glob('./art/equipment/*.{png,webp}', { eager: true, query: '?url', import: 'default' }) as ArtModules,
+);
+
+/** The icon for an Equipment, or undefined — the button falls back to its glyph, as it did before any art. */
+export const equipmentArtFor = (equipmentId?: string): string | undefined =>
+  (equipmentId ? EQUIPMENT_ART[equipmentId] : undefined);
+
 /** The illustrated art URL for a card id, or undefined if none has been added. `uid` lets cards
  *  with multiple art variants pick one per instance (stable across re-renders, ~50/50 split). */
 /**

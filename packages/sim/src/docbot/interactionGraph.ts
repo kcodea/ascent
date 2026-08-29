@@ -63,6 +63,9 @@ export interface InteractionGraph {
 
 /** Trigger event → the channel its payload rides. Best-effort, honest: unmapped events are REPORTED. */
 export const CHANNEL_OF_TRIGGER: Readonly<Record<string, string>> = {
+  // Equipment is granted as a body ENTERS PLAY (and re-granted at the rebuild), so it shares the summon
+  // channel with every other arrival-driven trigger — that is what an Equip minion interacts with.
+  equip: 'summon',
   onDeath: 'death',
   avenge: 'death',
   onKill: 'death',

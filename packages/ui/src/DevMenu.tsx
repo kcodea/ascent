@@ -29,6 +29,8 @@ import { QuestTendrilTuner } from './QuestTendrilTuner';
 import { HeroBuffFxTuner } from './HeroBuffFxTuner';
 import { AuraFxTuner } from './AuraFxTuner';
 import { ShopDeathFxTuner } from './ShopDeathFxTuner';
+import { EquipFxTuner } from './EquipFxTuner';
+import { EquipSlotTuner } from './EquipSlotTuner';
 import { WeldFxTuner } from './WeldFxTuner';
 import { BuffFxTuner } from './BuffFxTuner';
 import { InfuseFxTuner } from './InfuseFxTuner';
@@ -192,6 +194,8 @@ const GROUPS: Group[] = [
       { key: 'consumefx', icon: '🍖', label: 'Consume FX', C: ConsumeFxTuner, hint: 'The eaten-minion shake / taffy / pull + bands' },
       { key: 'weldfx', icon: '🔩', label: 'Weld', C: WeldFxTuner, hint: 'An Attachment fusing onto its host minion', alt: 'magnetize attach' },
       { key: 'shopdeathfx', icon: '💀', label: 'Shop Death & Echo', C: ShopDeathFxTuner, hint: 'Deaths and Echo bursts in the shop — timings, position, and how long a borrowed minion lingers', alt: 'destroy funeral graverobber deathrattle' },
+      { key: 'equipfx', icon: '⚒️', label: 'Equip FX & Clang', C: EquipFxTuner, hint: 'The equip burst on the source and the slot, and the metallic clang — their relative timing', alt: 'equipment bloodpot frank sfx' },
+      { key: 'equipslot', icon: '🧪', label: 'Equipment Slot', C: EquipSlotTuner, hint: 'The whole Equipment block — its seat, the frame around the button, the cost / name / uses readouts, and the hover selector rail', alt: 'bloodpot position placement layout frame cost pill name pill selector rail hover' },
     ],
   },
   {

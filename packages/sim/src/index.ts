@@ -70,3 +70,12 @@ export { canRallyInShop, ralliersOf, fireShopRally, fireRallies, runeLastingCade
 export { socBoardEffects, fireShopStartOfCombat, fireStartOfCombats, runeCombatProwessBeats } from './recruit'; // the shop-side START-OF-COMBAT dispatcher (Effect Arena Step 4) — Rune of Combat Prowess
 export { addBuff, boardManaBonus, cardBuff, conjuredStats, dragonTamerCostOf, roundedSpellbookCostOf, buyoutCostOf, allInPayoutOf, exhibitionGrantOf, tempestGrantOf, bladeMasteryGrantOf, hoardWhelpStatsOf, TEMPEST_KILLS_PER_STEP, BLADE_ATTACKS_PER_STEP, heroPowerText, CIA_SUIT_TEXT, COMMISSION_TEXT, COMMISSION_NAME, COMMISSION_REWARD, commissionOffer, aegisGrantOf, COMMISSION_DELAY, threeDistinctTypes, stampSableBond, heroOfferPrice, endOfTurnRepeats, isTribe, magnetizeTargets, modalOpen, chooseBothActive, chooseOneNeedsChoice, offerBuyStats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueOf, sellValueWithBonus, spellCasts, rubyCastCount, spellCostReduction, isStatSpell, implosionCasts, dragonflameCasts, spellDisplayText, dominantBoardTribe, gildMinion, effectiveTargetTribe, spellStatBonus, spellAttackBonus, spellHealthBonus, rubyStatBonus, undeadBuyBonus, type EotStepFx } from './recruit';
 export * from './heroSurface';
+
+// EQUIPMENT (owner handoff 2026-08-28) — the public read surface. The UI derives its whole slot from these:
+// nothing about Equipment lives in a visual component, so moving it to a dedicated button later is a UI
+// change only.
+export {
+  BASE_EQUIPMENT_ACTIVATIONS, equipmentCostOf, equipmentParams, equipmentSourceAlive, equipmentState,
+  equipmentText, equipmentUsesLeft, holdsEquipment, rebuildEquipment, selectedEquipment, selectedEquipmentDef,
+  type ReequipCue,
+} from './equipment';

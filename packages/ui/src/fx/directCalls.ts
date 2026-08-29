@@ -40,6 +40,9 @@ export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   // by the hero strike, whose impact goes through `playContactImpact` instead (see choreo/heroStrike.ts).
   'damage-burst': ['useCombatReplay.ts'],
   'death-dissolve': ['Recruit.tsx', 'useCombatReplay.ts'],
+  // Bloodpot's USE def, called literally only by the tuner's test fire — the real play resolves it from the
+  // Equipment's own `useFxId` (see the dynamic-site note below).
+  'equipment-spark': ['EquipFxTuner.tsx', 'Recruit.tsx'],
   'freeze-blast': ['FreezeButton.tsx'],
   'hero-power-spark': ['StatusBar.tsx'],
   'hero-power-target': ['Recruit.tsx'],
@@ -67,6 +70,19 @@ export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
  * time anything above it moved, which trains people to update it without reading — the opposite of a guard.
  */
 export const DYNAMIC_CALL_SITES: Readonly<Record<string, number>> = {
+  // EQUIPMENT USE (2026-08-28). One `playDef(eq.useFxId, …)`: which def plays when an Equipment is used is
+  // DATA — the Equipment names it, so a new one brings its own cue with no UI change.
+  //
+  // ARCHITECTURAL DEBT, stated rather than hidden: every other data-resolved def id comes from
+  // `bindings.json` through one of the resolver files below, which is why "no dynamic call site outside the
+  // binding resolvers" was true until now. An Equipment-use MOMENT belongs in `recruitCues.ts` alongside the
+  // shop's other bindings; it lives at the cue site today because the moment/binding plumbing is a wider
+  // change than the vertical slice called for. Moving it there deletes this entry.
+  'Recruit.tsx': 1,
+  // The same resolution in the TUNER's test fire: it plays the SELECTED Equipment's def so both cues can be
+  // timed, rather than being hardwired to Bloodpot's. Same debt, same fix — moving the moment into
+  // `recruitCues.ts` retires this line with the one above it.
+  'EquipFxTuner.tsx': 1,
   'choreo/score.ts': 5,
   // The shop's binding path, the recruit-phase twin of score.ts's. Five `playDef(binding.def, …)`: the
   // per-card cascade (`fireLand`), the shop-gem volley's single spanning play (`runShopRubiedSpan`), the

@@ -1,12 +1,13 @@
 import { ALE_IDS, alignAllows, makeRng, SILENT_ONPLAY, COMBAT_REPLAYABLE_BATTLECRIES, extraTriggerFires, foldEchoExtraFires, socTwilightExtraFires, ARENA_EFFECTS, beatIdentity, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
-import { CARD_INDEX, recurringEotOwner } from '@game/content';
+import { CARD_INDEX, EQUIPMENT_INDEX, recurringEotOwner, type EquipmentDefinition } from '@game/content';
+import { equipmentParams as equipmentParamsFor, grantEquipment as grantEquipmentToPlayer, holdsEquipment } from './equipment';
 import { currentCollector } from './activeCollector';
 import { alignmentOf } from './alignment';
 import { lobbyOpponentBoard } from './lobby/runLobby';
 import { poolOf } from './cardPool';
 import { CONFIG, hasTier7Access, maxTierFor, SHIFTER_OPTIONS } from './config';
 import { getHero, spellAmplifyBonus, hasPower, activePowers, primaryPower, powerDiscoverPool } from './heroes';
-import { handCap, reservedHandSlots, mixSeed, TAG, type AuraFxTribe, type BoardCard, type BuffFxEvent, type CiaSuit, type CommissionKind, type DiscoverSpec, type RunState, type ShopCard, type ShopDeathFx, gateUses, procRune, procRuneId, runeBuffMagnitude } from './state';
+import { handCap, reservedHandSlots, mixSeed, TAG, type AuraFxTribe, type BoardCard, type BuffFxEvent, type CiaSuit, type CommissionKind, type DiscoverSpec, type EquipFx, type RunState, type ShopCard, type ShopDeathFx, gateUses, procRune, procRuneId, runeBuffMagnitude } from './state';
 export { ALE_IDS };
 import { returnToPool, rollShop, rollSpellShop, takeFromPool, refillShopFiltered, elevateShop } from './shop';
 import { runeStacksOf } from './runeDup';
@@ -2096,6 +2097,61 @@ function fireRecruitDeathrattles(ctx: RecruitContext, minion: BoardCard, effects
  */
 /** Record a shop cue (a death, or an Echo triggering) for the UI to play. Per-action scratch: `reduce` clears
  *  the list and the UI reads it once, gated on `shopFxSeq`. */
+/**
+ * Fire an Equipment's triggers. Lives HERE, not in the reducer, because the recruit factory table is private
+ * to this module — effect resolution belongs beside the effects, and the reducer keeps owning the ACTION
+ * (validation, Gold, the shared allowance).
+ *
+ * `triggers` is a COUNT the caller snapshot before the loop. Every repeat uses the SAME target (handoff);
+ * an Equipment with a random target re-rolls inside its own factory, exactly as every other repeated effect
+ * in this engine already does.
+ */
+export function fireEquipmentTriggers(
+  state: RunState,
+  def: EquipmentDefinition,
+  version: 'plain' | 'gilded',
+  self: BoardCard,
+  target: BoardCard | undefined,
+  triggers: number,
+): boolean {
+  const fn = RECRUIT_FACTORIES[def.effectId];
+  if (!fn) return false; // an unknown effect id is a content error — never a paid-for no-op
+  const ctx = makeContext(state);
+  const params = equipmentParamsFor(def, version);
+  for (let t = 0; t < triggers; t += 1) {
+    withEquipmentTriggerBeat(state, def.id, t, () => {
+      fn(ctx, self, params, { minion: self, ...(target ? { target } : {}) });
+    });
+  }
+  return true;
+}
+
+/**
+ * ONE Equipment TRIGGER, on its own beat. Each repeat is a separate trigger for listeners and for the Beat
+ * Lab, carrying its index — which is the causality the replay cannot store (replay v2 is state replay), so
+ * it lives here on the presentation channel instead. See `docs/replay-v2-causality.md`.
+ */
+export function withEquipmentTriggerBeat(state: RunState, equipmentId: string, index: number, run: () => void): void {
+  withRecruitTrigger(
+    makeContext(state),
+    {
+      phase: 'recruit',
+      source: { kind: 'system', id: `equipment:${equipmentId}`, label: 'Equipment', side: 'player' },
+      trigger: 'equipmentTrigger',
+      policy: 'ownBeat',
+      policyKey: 'system:equipment:trigger',
+      repeatIndex: index,
+    },
+    run,
+  );
+}
+
+/** Record an equip / re-equip cue for the UI. Same per-action scratch contract as `stampShopFx`. */
+export function stampEquipFx(state: RunState, fx: EquipFx): void {
+  (state.equipFx ??= []).push(fx);
+  state.equipFxSeq = (state.equipFxSeq ?? 0) + 1;
+}
+
 export function stampShopFx(state: RunState, fx: ShopDeathFx): void {
   (state.shopDeathFx ??= []).push(fx);
   state.shopFxSeq = (state.shopFxSeq ?? 0) + 1;
@@ -2711,6 +2767,77 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   scGainKeyword: (ctx, self, params) => {
     ARENA_EFFECTS.scGainKeyword(shopArena(ctx.state, self), params);
   },
+  /**
+   * EQUIP — hand the player the Equipment this minion grants (owner handoff 2026-08-28). Fired when the body
+   * is PLAYED and again for every surviving source at the Start-of-Turn rebuild, which is why the grant logic
+   * lives in `grantEquipment` rather than here: both paths must apply the same duplicate / Gilded precedence.
+   *
+   * The factory reads the Equipment by ID from its own params, so a card names its Equipment in exactly one
+   * place and the card and the registry can never disagree.
+   */
+  grantEquipment: (ctx, self, params) => {
+    const def = EQUIPMENT_INDEX[str(params.equipmentId)];
+    if (!def) return; // an unknown id is a content error the schema catches — never a silent half-grant
+    grantEquipmentToPlayer(ctx.state, self, def);
+  },
+
+  /**
+   * TITAN HAMMER — one Equipment TRIGGER: SET the target's stats, rather than add to them.
+   *
+   * Its own factory because setting is not buffing, and the difference matters in both directions: a 2/1 and a
+   * 40/40 both end up 50/50, so the Hammer is a floor as much as a ceiling. Recorded as a `Titan Hammer` buff
+   * entry carrying the DELTA it actually applied, so the inspect itemises where the stats came from like any
+   * other source — without that, a hammered body shows 50/50 attributed to nothing.
+   *
+   * A negative delta is real (hammering DOWN a bigger body) and is recorded as such rather than clamped: the
+   * itemisation has to add up to what the card shows.
+   */
+  equipmentSetStats: (ctx, self, params, payload) => {
+    const target = payload.target;
+    if (!target) return;
+    const attack = num(params.attack, 0);
+    const health = num(params.health, 0);
+    const dA = attack - target.attack;
+    const dH = health - target.health;
+    target.attack = attack;
+    target.health = health;
+    if (dA !== 0 || dH !== 0) {
+      (target.buffs ??= []).push({ source: nameOf(self), attack: dA, health: dH, count: 1 });
+    }
+  },
+
+  /**
+   * AN EQUIPMENT SPELL — one Equipment TRIGGER that CASTS a named Shop spell (owner handoff 2026-08-28).
+   *
+   * Routed through `castSpell`, the REAL cast path, which is the entire point of the classification: it is
+   * what makes the cast count as a Shop spell, pick up Shop-spell improvements, wake "after you cast a Shop
+   * spell" listeners and be duplicable by spell multipliers — for free, because none of that is reimplemented
+   * here. The spell never enters the hand and is never offered in the Shop (it is cast directly), and it does
+   * not count as a card PLAYED, since nothing left a hand.
+   *
+   * No Equipment uses this yet. It exists because the handoff asked for the classification to be built ahead
+   * of the roster — and because the alternative, discovering later that Equipment effects were never in the
+   * spell pipeline, is exactly the class of gap this system keeps producing.
+   */
+  equipmentCastSpell: (ctx, _self, params, payload) => {
+    const spell = CARD_INDEX[str(params.spellId)];
+    if (!spell?.spell) return; // not a spell id — never a silent bespoke effect
+    castSpell(ctx.state, spell, payload.target);
+  },
+
+  /**
+   * BLOODPOT — one Equipment TRIGGER: +attack/+health onto the chosen friendly minion.
+   *
+   * ONE trigger, deliberately: the repeat count lives in the activation (see `activateEquipment`), which calls
+   * this once per trigger with the SAME target. Putting the repeat inside the factory would make "triggers an
+   * additional time" impossible to express for any other Equipment.
+   */
+  equipmentBuffTarget: (ctx, self, params, payload) => {
+    const target = payload.target;
+    if (!target) return;
+    addBuff(target, nameOf(self), num(params.attack, 0), num(params.health, 0));
+  },
+
   scGrantReborn: (ctx, self, params) => {
     ARENA_EFFECTS.scGrantReborn(shopArena(ctx.state, self), params);
   },
@@ -10686,6 +10813,37 @@ export function playCard(state: RunState, played: BoardCard): void {
   // The PLAY itself sparks the side it landed on — any minion (the owner's "play a minion on Dusk" case).
   // Harmless without the HUD: a board with no Celestial renders no strip, so the note goes unseen.
   noteAlignSpark(state, myAlign);
+  // EQUIP (owner handoff 2026-08-28) — resolved BEFORE the Shout, on its own beat. Shout-shaped in that it
+  // fires as the body enters play, but it is NOT a Shout: it re-fires at every Start-of-Turn rebuild, and its
+  // payload is a grant to the PLAYER rather than an effect on the board. Kept out of the `onPlay` loop below
+  // so a card can carry both, and so nothing that re-fires Shouts (Drakko, Myra, Resonance) re-grants
+  // Equipment as a side effect — a grant is idempotent, but the animation and the event would not be.
+  for (const effect of def.effects) {
+    if (effect.on !== 'equip') continue;
+    const fn = RECRUIT_FACTORIES[effect.do];
+    if (!fn) continue;
+    // Asked BEFORE the grant, because the grant is what makes it true. See `holdsEquipment` for the ruling:
+    // a duplicate source — Gilded or not — adds nothing to equip, so it announces nothing.
+    const alreadyHeld = holdsEquipment(state, str(effect.params?.equipmentId));
+    withRecruitTrigger(
+      ctx,
+      {
+        phase: 'recruit',
+        source: { kind: 'minion', id: played.cardId, uid: played.uid, side: 'player', label: def.name },
+        trigger: 'equip',
+        policy: 'ownBeat',
+        policyKey: 'system:equipment:equip',
+      },
+      () => { fn(ctx, played, effect.params ?? {}, { minion: played }); },
+    );
+    const granted = EQUIPMENT_INDEX[str(effect.params?.equipmentId)];
+    if (!alreadyHeld) {
+      stampEquipFx(state, {
+        kind: 'equip', uid: played.uid, cardId: played.cardId,
+        ...(granted ? { equipmentId: granted.id } : {}),
+      });
+    }
+  }
   const hasBattlecry = def.effects.some((e) => e.on === 'onPlay' && !SILENT_ONPLAY.has(e.do) && alignAllows(e, myAlign));
   for (const effect of def.effects) {
     if (effect.on !== 'onPlay') continue;

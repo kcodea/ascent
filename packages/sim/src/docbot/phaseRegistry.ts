@@ -44,6 +44,7 @@ export const TRIGGER_PHASES: Readonly<Record<string, 'recruit' | 'combat' | 'bot
   shopRefreshed: 'recruit',
   rubyCast: 'recruit',
   startOfTurn: 'recruit',
+  equip: 'recruit', // Equipment is a SHOP mechanic — granted on play and rebuilt at Start of Turn, never in combat
   endOfTurn: 'recruit', // combat carries a few arena-backed EoT bodies for replay effects; dispatch itself is shop-side
   orbit: 'recruit', // Celestial alignment is a shop mechanic
   orbitFired: 'recruit',

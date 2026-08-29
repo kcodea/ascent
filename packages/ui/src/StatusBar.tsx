@@ -5,7 +5,9 @@ import { Card, mdBold } from './Card';
 import { instView } from './instView';
 import { dragonTamerCostOf, INDY_GILD_RECHARGE_GOLD, KESHI_CROWN_THRESHOLD, roundedSpellbookCostOf, buyoutCostOf, allInPayoutOf, exhibitionGrantOf, tempestGrantOf, bladeMasteryGrantOf, hoardWhelpStatsOf, TEMPEST_KILLS_PER_STEP, BLADE_ATTACKS_PER_STEP, heroPowerText, commissionOffer, COMMISSION_NAME, COMMISSION_REWARD, COMMISSION_DELAY, getHero, spellAmplifyBonus, spellAttackBonus, spellHealthBonus, rubyStatBonus, heroPowerLockTurns, activePowers, type RunState, type HeroPower } from '@game/sim';
 import { henchmanOffer } from '@game/sim';
-import { CARD_INDEX } from '@game/content';
+import { equipmentCostOf, equipmentState, equipmentText, equipmentUsesLeft, selectedEquipment, selectedEquipmentDef } from '@game/sim';
+import { CARD_INDEX, EQUIPMENT_INDEX } from '@game/content';
+import { equipmentArtFor } from './art';
 import { heroArt, heroPowerArt, questArt, runeArt } from './art';
 import { Icon } from './Icon';
 import { BuffsFrame } from './BuffsFrame';
@@ -13,6 +15,7 @@ import { QuestBadges } from './QuestBadges';
 import { gatherRunBuffs } from './runBuffs';
 import { questObjectiveText, questProgressText, questRewardText, questRewardLiveText, questRewardLiveOf } from './questText';
 import { QUEST_INDEX, RUNE_INDEX } from '@game/content';
+import { getEquipSlotConfig } from './equipSlotConfig';
 import { sfx } from './sfx';
 import { playDef } from './fx/playDef';
 import { useGame } from './store';
@@ -152,6 +155,63 @@ export function StatusBar() {
   const powers = activePowers(run);
   const power = powers[0]!;
   const secondPower = powers[1];
+
+  // ── EQUIPMENT readouts (owner handoff 2026-08-28) ─────────────────────────────────────────────────────
+  // Derived from `run.equipment`, never from slot-local state: the handoff requires that game-state and
+  // effect code make no assumption about which visual component Equipment lives in.
+  const equipArmed = useGame((s) => s.equipArmed);
+  const armEquipment = useGame((s) => s.armEquipment);
+  const equipOptions = equipmentState(run).available;
+  const selectedEquip = selectedEquipment(run);
+  const selectedEquipDef = selectedEquipmentDef(run);
+  const equipUses = equipmentUsesLeft(run);
+  const equipCost = selectedEquipDef ? equipmentCostOf(run, selectedEquipDef) : 0;
+  // Visible but DISABLED when unaffordable or spent — the handoff is explicit that the slot keeps showing the
+  // Equipment and explains why it cannot be used, rather than vanishing.
+  const equipReady = !!selectedEquipDef && run.phase === 'recruit' && equipUses > 0 && run.embers >= equipCost;
+  // The wording for the version this player actually holds — a Gilded source prints the Gilded rule.
+  const equipRule = selectedEquipDef && selectedEquip
+    ? equipmentText(selectedEquipDef, selectedEquip.version)
+    : '';
+  const equipArt = equipmentArtFor(selectedEquipDef?.id);
+
+  /**
+   * THE LEAVING FADE (owner ask 2026-08-28: "can you add a brief fade in/fade out for the equipment so it
+   * doesn't simply disappear immediately?").
+   *
+   * Fading IN is free — a CSS animation on mount. Fading OUT is not: the slot renders off `run.equipment`, so
+   * the frame the source minion dies or is sold, there is nothing left to paint. React has already unmounted
+   * the thing we want to watch leave.
+   *
+   * So the panel LINGERS. The last frame that had an Equipment is kept, and when the run stops having one the
+   * panel keeps rendering FROM THAT SNAPSHOT for the length of the fade, then drops. The lingering copy is
+   * inert — no rail, no arming, button disabled — because it is a picture of something the player no longer
+   * has, and letting them click it would be a lie about state.
+   *
+   * A ref, not state, for the snapshot itself: it is written on every render that has an Equipment and must
+   * never cause one. Only the leaving FLAG is state, because that is the thing a re-render has to react to.
+   */
+  const hasEquip = equipOptions.length > 0 && !!selectedEquip && !!selectedEquipDef;
+  const equipSnapRef = useRef<{ name: string; rule: string; art?: string; cost: number; version: string } | null>(null);
+  if (hasEquip) {
+    equipSnapRef.current = {
+      name: selectedEquipDef!.name, rule: equipRule, art: equipArt,
+      cost: equipCost, version: selectedEquip!.version,
+    };
+  }
+  const [equipLeaving, setEquipLeaving] = useState(false);
+  const hadEquipRef = useRef(hasEquip);
+  useEffect(() => {
+    if (hadEquipRef.current === hasEquip) return;
+    hadEquipRef.current = hasEquip;
+    if (hasEquip) { setEquipLeaving(false); return; }
+    setEquipLeaving(true);
+    const t = window.setTimeout(() => { setEquipLeaving(false); }, getEquipSlotConfig().fadeOutMs);
+    return () => { window.clearTimeout(t); };
+  }, [hasEquip]);
+  // What the leaving copy paints from. Null only if the slot has never held anything, in which case
+  // `equipLeaving` is false too and none of this renders.
+  const equipSnap = equipSnapRef.current;
   // HENCHMAN offer (owner spec 2026-08-03): the hero's bound recruit at its decayed price — null for the many
   // heroes with none authored yet, and after the once-per-run buy. PLACEHOLDER SURFACE: a plain chip under the
   // power pill so the mechanic is playable end-to-end; the real presentation is Mike's to design.
@@ -814,6 +874,131 @@ export function StatusBar() {
             </div>
           );
         })()}
+        {/* ── EQUIPMENT (owner handoff 2026-08-28) ────────────────────────────────────────────────────────
+            A minion-granted, hero-power-shaped ability in the SECOND slot. It renders BESIDE a native second
+            power rather than replacing it: the handoff's rule is that both stay reachable and their usage is
+            independent, and this engine already tracks slot-1 usage separately, so covering one with the other
+            would be hiding state that is still live.
+
+            Deliberately built off `run.equipment` rather than any slot-local state — the handoff asks that
+            "game-state and effect code must not assume Equipment permanently lives inside a particular visual
+            component", and moving this to a dedicated button later should be a change to THIS block alone. */}
+        {!hasEquip && equipLeaving && equipSnap && (
+          /* THE LEAVING COPY — the last Equipment, on its way out. Inert by construction: no rail, no
+             tooltip, a disabled button. See the `equipLeaving` block above for why it exists at all.
+             `aria-hidden` because a screen reader should not be told about something already gone. */
+          <div className="heropanel equipslot leaving" aria-hidden="true">
+            <div className="hpwrap">
+              <img className="equipframe" src={`${import.meta.env.BASE_URL}frames/equipment-frame.webp`}
+                   alt="" aria-hidden="true" draggable={false} />
+              <button type="button" className="heropowerbtn" disabled tabIndex={-1}>
+                <span className="hpb-glow" aria-hidden="true" />
+                {equipSnap.art
+                  ? <span className="hpb-artwrap" aria-hidden="true"><img className="hpb-art" src={equipSnap.art} alt="" draggable={false} /></span>
+                  : <span className="hpb-glyph" aria-hidden="true">⚒</span>}
+              </button>
+              {equipSnap.cost ? <span className="hpcost"><span className="costn">{equipSnap.cost}</span></span> : null}
+            </div>
+            <div className="hplabel">{equipSnap.name}</div>
+          </div>
+        )}
+        {hasEquip && selectedEquip && selectedEquipDef && (
+          <div className={`heropanel equipslot entering${equipArmed ? ' armed' : equipReady ? ' ready' : ''}`}>
+            <div className="hpwrap">
+              {/* THE FRAME (owner art 2026-08-28: "add the equipment frame around the equipment"). A sibling
+                  of the button rather than a background ON it: the button is a square box whose art is
+                  clipped to a circle, and a frame painted as its background would be clipped with it. As a
+                  sibling it can also be sent BEHIND the icon or left in front of it, which is a dial.
+                  `aria-hidden` + no pointer events — it is chrome, and must never eat the click that arms. */}
+              <img className="equipframe" src={`${import.meta.env.BASE_URL}frames/equipment-frame.webp`}
+                   alt="" aria-hidden="true" draggable={false} />
+              <button
+                type="button"
+                className={`heropowerbtn${equipArmed ? ' armed' : equipReady ? ' ready' : ''}`}
+                disabled={!equipReady && !equipArmed}
+                aria-label={`${selectedEquipDef.name} — ${renameTerms(equipRule).replace(/\*\*/g, '')}`}
+                onPointerDown={(e) => {
+                  e.stopPropagation();
+                  if (!equipReady || equipArmed) return;
+                  sfx.pulse();
+                  const r = e.currentTarget.getBoundingClientRect();
+                  const c = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+                  playDef('hero-power-spark', { source: c, target: c });
+                  // Untargeted Equipment fires immediately; a targeting one ARMS and waits for a pick — and
+                  // because activation is atomic, nothing has been spent until that pick happens.
+                  if (selectedEquipDef.targetMode === 'none') dispatch({ type: 'activateEquipment' });
+                  else armEquipment();
+                }}
+              >
+                <span className="hpb-glow" aria-hidden="true" />
+                {/* The authored icon when one exists; the glyph is the fallback, exactly as before any art. */}
+                {equipArt
+                  ? <span className="hpb-artwrap" aria-hidden="true"><img className="hpb-art" src={equipArt} alt="" draggable={false} /></span>
+                  : <span className="hpb-glyph" aria-hidden="true">⚒</span>}
+              </button>
+              {equipCost ? <span className="hpcost"><span className="costn">{equipCost}</span></span> : null}
+              {/* The SHARED allowance, not a per-Equipment charge — labelled as uses left so a player with a
+                  bonus activation can see there is a second one to spend. */}
+              <span className="hpb-tally">{equipUses}</span>
+            </div>
+            <div className="hplabel">{selectedEquipDef.name}</div>
+            <div className="herotip" role="tooltip">
+              <b>{selectedEquipDef.name}</b>{selectedEquip.version === 'gilded' ? ' · gilded' : ''}
+              <span className="herotip-rule" dangerouslySetInnerHTML={{ __html: mdBold(equipRule) }} />
+              <span className="herotip-rule">
+                {equipUses > 0 ? `${equipUses} Equipment use${equipUses === 1 ? '' : 's'} left this turn` : 'No Equipment uses left this turn'}
+                {equipCost > 0 && run.embers < equipCost ? ' · not enough Gold' : ''}
+              </span>
+            </div>
+            {/* THE SELECTOR — a rail that slides out to the RIGHT on hover (owner ask 2026-08-28: "when i
+                mouse over the equipment, can it show the available equipment options slide out to the right?
+                then i can click on an option to select it"). It replaced a permanent row of text buttons
+                under the slot, which spent space every turn on a choice that is made rarely.
+
+                Only when there is a choice to make — with one Equipment a picker is a control that can only
+                do nothing. Swapping is free by contract: no Gold, no use, no exhaustion change.
+
+                NOT rendered while ARMED. An armed Equipment means the player is aiming at the board, and a
+                rail hanging off the slot would sit under the cursor on the way out and eat the pick.
+
+                Reveal is CSS (`:hover`/`:focus-within` on the slot) rather than React state — no re-render on
+                a mouse crossing a button, and the transition is transform + opacity only. The rail is a child
+                of the slot so the pointer never leaves the hover target crossing into it. */}
+            {equipOptions.length > 1 && !equipArmed && (
+              <div className="equiprail">
+                {/* The outer box carries the hoverable GAP as padding; this inner one is the visible panel.
+                    Splitting them is what stops the rail closing while the pointer crosses to it. */}
+                <div className="equiprail-in" role="group" aria-label="Choose Equipment">
+                {equipOptions.map((g) => {
+                  const def = EQUIPMENT_INDEX[g.equipmentId];
+                  const art = equipmentArtFor(g.equipmentId);
+                  const on = g.equipmentId === selectedEquip.equipmentId;
+                  return (
+                    <button
+                      key={g.equipmentId}
+                      type="button"
+                      className={`equiprailbtn${on ? ' on' : ''}`}
+                      aria-pressed={on}
+                      onPointerDown={(e) => {
+                        e.stopPropagation();
+                        if (on) return;
+                        sfx.equipmentSelect(getEquipSlotConfig().selectVolume);
+                        dispatch({ type: 'selectEquipment', equipmentId: g.equipmentId });
+                      }}
+                    >
+                      <span className="equiprail-icon" aria-hidden="true">
+                        {art ? <img src={art} alt="" draggable={false} /> : <span className="equiprail-glyph">⚒</span>}
+                      </span>
+                      <span className="equiprail-name">{def?.name ?? g.equipmentId}</span>
+                      {def ? <span className="equiprail-cost">{equipmentCostOf(run, def)}</span> : null}
+                    </button>
+                  );
+                })}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

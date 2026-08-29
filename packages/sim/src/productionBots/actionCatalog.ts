@@ -60,6 +60,11 @@ export const ACTION_CATALOG = {
   // The shop's two-step death: the landing is on screen, this ends it. A bot never needs to dispatch it —
   // every other action settles the same pending death first, so the outcome is identical either way.
   resolveShopDeath: { generation: 'automatic', reveal: false, note: 'settles a landed body that is dying; implicit in every other action' },
+  // EQUIPMENT (owner handoff 2026-08-28). Not generated yet: the bot has no Equipment policy, and inventing
+  // one before the mechanic is proven would bury real Equipment bugs under bot noise. `never` rather than
+  // `automatic` because a bot COULD meaningfully choose these once it knows how to value them.
+  selectEquipment: { generation: 'never', reveal: false, note: 'free swap of the shown Equipment; no bot policy yet' },
+  activateEquipment: { generation: 'never', reveal: false, note: 'spends Gold + the shared allowance; no bot policy yet' },
   devGrant: { generation: 'never', reveal: false, note: 'development tooling — not available to a bot' },
 } satisfies Record<Action['type'], ActionDescriptor>;
 

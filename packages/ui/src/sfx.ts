@@ -470,6 +470,38 @@ export const sfx = {
     if (playSample('tavernupgrade', 'upgrade')) return;
     chord([392, 523, 659], { dur: 0.14, type: 'triangle', vol: 0.12, category: 'upgrade' }, 0.07);
   },
+  /**
+   * EQUIPPING — the metallic clang when a minion grants its Equipment (owner ask 2026-08-28).
+   *
+   * `delay` is passed straight to `playSample`, which schedules on the AUDIO clock rather than a timer — so
+   * the clang stays locked to the visual it is timed against even when the main thread is busy. That is why
+   * the tuner dials milliseconds here instead of the caller wrapping this in a `setTimeout`.
+   *
+   * Synth fallback is a short metallic ping, so the cue still reads if the clip has not decoded yet.
+   */
+  equipClang: (delay = 0) => {
+    if (playSample('equipclang', 'equip', delay / 1000)) return;
+    tone({ freq: 2100, dur: 0.12, type: 'square', vol: 0.09, slideTo: 900, category: 'equip' });
+  },
+  /**
+   * USING an Equipment — the clip the Equipment itself names (`useSfxId`), so a new one brings its own sound
+   * without touching this file. `delay` schedules on the audio clock, as `equipClang` does, so the cue stays
+   * locked to the visual it is timed against.
+   */
+  /**
+   * Picking a different Equipment from the selector rail (owner ask 2026-08-28). `vol` is the Equipment Slot
+   * tuner's dial, applied ON TOP of the clip's category + per-clip gains rather than replacing them — so the
+   * UI bus still governs it and the dial only decides how this one reads against the slot's other sounds.
+   */
+  equipmentSelect: (vol = 1) => {
+    if (vol <= 0) return;
+    if (playSample('equipmentselect', 'ui', 0, ({ gain }) => { gain.gain.value *= vol; })) return;
+    tone({ freq: 880, dur: 0.06, type: 'triangle', vol: 0.08 * vol, category: 'ui' });
+  },
+  equipmentUse: (clipId: string, delay = 0) => {
+    if (playSample(clipId, 'equip', delay / 1000)) return;
+    tone({ freq: 520, dur: 0.18, type: 'sine', vol: 0.1, slideTo: 300, category: 'equip' });
+  },
   // Choosing a hero / pressing the hero-power button — the sourced "pulse" clip; synth ping fallback.
   pulse: () => {
     if (playSample('pulse', 'pulse')) return;

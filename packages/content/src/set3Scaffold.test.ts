@@ -3,22 +3,38 @@ import { SETS, poolFor, activeSet } from './sets';
 import { CARD_INDEX } from './index';
 
 /**
- * Set 3 is registered but EMPTY (owner ask 2026-08-03) so it can be selected in the Scene Builder and filled
- * in later. These pins guard the two ways a scaffold set can go wrong.
+ * Set 3's roster, pinned. It is still DISABLED, so these are the guards that let it be filled in safely — the
+ * two ways a set under construction goes wrong are landing a real run on it and perturbing the sets that ship.
  */
 describe('set 3 scaffold', () => {
-  it('holds NO minions, and the shared neutral spell toolkit', () => {
-    // Grew three times, then emptied. The Celestial test units (2026-08-03) were replaced by the real tribe
-    // (owner roster 2026-08-05), and on 2026-08-28 the owner archived that tribe too: "celestials have been
-    // extremely and completely re-worked ... leaving set 3 empty of minions now."
+  it('holds the Equip minions, the carried-over Kobolds, and the shared neutral spell toolkit', () => {
+    // Grew three times, emptied, and is now being refilled. The Celestial test units (2026-08-03) were
+    // replaced by the real tribe (owner roster 2026-08-05), and on 2026-08-28 the owner archived that tribe
+    // too: "celestials have been extremely and completely re-worked ... leaving set 3 empty of minions now."
     //
-    // So set 3 is a spell-only scaffold again. The spell count still pins the DRAWABLE shared pool (the
-    // sheet's reward/gift rows — Copycat, Bloodlust, Implosion, Goldcrafter — are tokens, global by doctrine
-    // and not set members), because that half was never part of the rework.
+    // The spell count still pins the DRAWABLE shared pool (the sheet's reward/gift rows — Copycat, Bloodlust,
+    // Implosion, Goldcrafter — are tokens, global by doctrine and not set members).
     expect(SETS.set3).toBeDefined();
     const p = poolFor('set3');
     expect(p.setId).toBe('set3');
-    expect(p.buyable.map((c) => c.id), 'set 3 has no minions until the rework lands').toEqual([]);
+    // ORDER IS THE ASSERTION, not just membership: shop draws index into this list, so a card inserted in the
+    // middle rather than appended would silently reseed every set-3 shop.
+    //
+    // The EQUIPMENT work first — Alchemist Frank (the handoff's reference card) and Titan Sculptor, which is
+    // what puts two Equipment in play at once — then the eleven set-2 Kobolds the owner carried over
+    // (2026-08-28), shared definitions rather than forks.
+    expect(p.buyable.map((c) => c.id)).toEqual([
+      'e3_frank', 'e3_sculptor',
+      'k_chipwick', 'k_veinbreaker', 'k_gemheart', 'k_deepdelve', 'k_geode', 'k_kobabyboldies',
+      'k_alchemist', 'k_kobe', 'k_boulderdash', 'k_beggy', 'k_blazer',
+    ]);
+    // The Kobolds must be reachable AS A TRIBE, not merely present: `selectRunTribes` reads this list, so a
+    // pool full of Kobolds with an empty `tribes` could never roll a Kobold run.
+    expect(SETS.set3.tribes).toEqual(['kobold']);
+    // Their Ruby engine needs no set membership — `ruby` and the Gemheart Golem are tokens, global by the
+    // same doctrine as the gift spells above, reachable only through a card that names them.
+    expect(p.all.some((c) => c.id === 'ruby'), 'a token is never a set member').toBe(false);
+    expect(CARD_INDEX['ruby'], 'but it must still resolve').toBeTruthy();
     // EVERY Celestial — both the 2026-08-03 test units and the 2026-08-05 tribe — is gone from the POOL but
     // still resolvable by id, which is the whole point of archiving rather than deleting: a saved run, a
     // replay or a captured board from either fortnight still loads.
@@ -52,5 +68,8 @@ describe('set 3 scaffold', () => {
     expect(poolFor('set1').all.length).toBeGreaterThan(0);
     expect(poolFor('set2').all.length).toBeGreaterThan(0);
     expect(poolFor('set2').all.some((c) => c.id === 'k_alchemist')).toBe(true);
+    // Set 3 taking eleven of set 2's Kobolds is a SHARED reference, not a move: set 2 keeps every one of
+    // them. 22 buyable of 23 authored — Gem Sage is a token, so it is in neither set's drawable pool.
+    expect(poolFor('set2').buyable.filter((c) => c.tribe === 'kobold')).toHaveLength(22);
   });
 });

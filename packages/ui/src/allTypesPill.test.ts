@@ -60,6 +60,9 @@ describe('art coverage for live cards', () => {
     const minions = wired('packages/ui/src/art/minions');
     const spells = wired('packages/ui/src/art/spells');
     const missing = Object.values(CARD_INDEX)
+      // `c3_` (the archived Celestials) stays excluded — out of play, and its art is not wired. `e3_` is NOT
+      // excluded: Alchemist Frank has his portrait, so every Equip minion is held to the same bar as any other
+      // card, and the next one authored without art fails here rather than shipping a tribe sprite.
       .filter((c) => !c.id.startsWith('c3_') && !c.id.startsWith('hm_test_') && !ART_PENDING.has(c.id))
       .filter((c) => !minions.has(c.id) && !spells.has(c.id))
       .map((c) => `${c.id} (${c.name})`);

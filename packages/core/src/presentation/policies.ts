@@ -930,6 +930,11 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   // window. Folding it is exactly the bug being fixed (owner report 2026-08-28).
   'system:destroy:shopDeath': { policy: 'ownBeat', family: 'echo' },
   'system:destroy:shopArrival': { policy: 'ownBeat', family: 'grant' },
+  // The card-effect key the `equip` trigger produces. Its own beat: the grant is a visible moment (the
+  // icon flying into the slot), not a fold-in on the Shout's.
+  'factory:grantEquipment:equip': { policy: 'ownBeat', family: 'grant' },
+  'system:equipment:equip': { policy: 'ownBeat', family: 'grant' },
+  'system:equipment:trigger': { policy: 'ownBeat', family: 'heroPayout' },
 };
 
 /** Look up a key; undefined = unclassified (the tripwire's failure condition). */

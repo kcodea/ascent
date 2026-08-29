@@ -10,10 +10,11 @@
  * objects so a reward wrapping a card grant is covered too.
  */
 import { describe, expect, it } from 'vitest';
-import { CARD_INDEX, EPIC_RUNES, QUEST_DEFS, RUNES } from '@game/content';
+import { EQUIPMENT_INDEX, CARD_INDEX, EPIC_RUNES, QUEST_DEFS, RUNES } from '@game/content';
 
-/** Param keys that end in `Id` but do not name a card. */
-const NOT_A_CARD_ID = new Set(['sourceId']);
+/** Param keys that end in `Id` but do not name a card. Each is checked against its OWN registry below, so
+ *  widening this set never means "unchecked" — it means "checked somewhere else". */
+const NOT_A_CARD_ID = new Set(['sourceId', 'equipmentId']);
 
 function unresolved(owner: string, obj: unknown, out: string[]): void {
   if (!obj || typeof obj !== 'object') return;
@@ -25,6 +26,24 @@ function unresolved(owner: string, obj: unknown, out: string[]): void {
     }
   }
 }
+
+/**
+ * `equipmentId` names an EQUIPMENT (owner handoff 2026-08-28), not a card — so it is excluded from the
+ * CARD_INDEX sweep above and checked against its own registry here. Exactly the same failure it is guarding
+ * against (#719: a mis-typed id surviving to runtime as a silent no-op), just a different index.
+ */
+describe('Doc Bot — Equipment reference integrity', () => {
+  it('every `equipmentId` param resolves in EQUIPMENT_INDEX', () => {
+    const bad: string[] = [];
+    for (const c of Object.values(CARD_INDEX)) {
+      for (const e of c?.effects ?? []) {
+        const id = e.params?.equipmentId;
+        if (typeof id === 'string' && !EQUIPMENT_INDEX[id]) bad.push(`${c!.id}: '${id}'`);
+      }
+    }
+    expect(bad, 'an Equipment id that resolves nowhere is a grant that silently does nothing').toEqual([]);
+  });
+});
 
 describe('Doc Bot — reference integrity', () => {
   it('every id-suffixed param in cards, runes, and quests resolves in CARD_INDEX', () => {

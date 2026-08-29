@@ -64,6 +64,16 @@ describe('no redundant PNG masters ship alongside their WebP builds', () => {
     // `n2_coppercoat.webp` master was deleted in the same pass, so measured 1038 → 1044.)
     // → 1046 (2026-08-28, later the same day: apples2. The other three the owner named — facetwright2,
     // beetle2, k_veinbreaker2 — were REDRAWN over files that already existed, so they cost nothing.)
-    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1046);
+    // → 1048 (2026-08-28, the Equipment slice: Alchemist Frank's portrait + the Bloodpot icon = 2 files. The
+    // icon lives in a NEW `art/equipment/` dir, which the walk picks up automatically — an Equipment is not a
+    // minion and must not share that folder.)
+    // → 1050 (2026-08-28, the second Equipment: Titan Sculptor's portrait + the Titan Hammer icon = 2 files.)
+    //
+    // NB there is real SLACK available that nobody has spent yet: the 16 Celestials archived on 2026-08-28 —
+    // and ~40 other archived cards — still have their art shipping in `art/minions/`, unreachable by any live
+    // card. Reclaiming it is a bigger win than any of these +2s, and belongs in its own pass rather than
+    // riding a content PR. (The stated rationale has also drifted: at +176 the whole-zip count passed 1000
+    // some time ago, so this ceiling is now a growth ratchet rather than the cap it names.)
+    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1050);
   });
 });

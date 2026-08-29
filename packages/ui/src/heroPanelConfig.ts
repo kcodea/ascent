@@ -19,11 +19,11 @@ export interface HeroPanelConfig {
   panelY: number;
   /** Whole panel — scale (×), about its bottom-left anchor. */
   panelScale: number;
-  /** Whole panel — the portrait SQUARE's width (design px, × --u). 0 = the snug default square. The
-   *  portrait art fills the square, so resizing scales the art with it (never ejects it). */
-  panelW: number;
-  /** Whole panel — the portrait square's height (design px, × --u). 0 = the snug default. */
-  panelH: number;
+  /** Whole panel — the portrait circle's SIZE (design px, × --u; one dial drives width AND height, keeping
+   *  the box square so the ROUND portrait stays a true circle — the old separate width/height pair could
+   *  squash it into an ellipse, owner report 2026-08-29). 0 = the snug default. The portrait art fills the
+   *  box, so resizing scales the art with it (never ejects it). */
+  panelSize: number;
   /** Hero portrait (the framed art) — design-px offset (× --u). */
   portraitX: number;
   portraitY: number;
@@ -47,7 +47,7 @@ export interface HeroPanelConfig {
 // Owner-tuned by eye in the 🧍 tuner and baked as the shipped look (2026-07-16). Mirror changes into the
 // styles.css `var(--hpn-*, …)` fallbacks.
 const DEFAULTS: HeroPanelConfig = {
-  panelX: 58, panelY: -109, panelScale: 3.1, panelW: 87, panelH: 89,
+  panelX: 58, panelY: -109, panelScale: 3.1, panelSize: 88,
   portraitX: 0, portraitY: 0, portraitScale: 1.2,
   playerNameX: -200, playerNameY: -200, playerNameScale: 0.4,
   heroNameX: 0, heroNameY: -9, heroNameScale: 0.6,
@@ -57,7 +57,7 @@ const DEFAULTS: HeroPanelConfig = {
 /** Slider bounds for the DEV tuner — [min, max, step] per key. */
 export const HPN_RANGES: Record<keyof HeroPanelConfig, [number, number, number]> = {
   panelX: [-400, 800, 1], panelY: [-800, 400, 1], panelScale: [0.4, 2.5, 0.01],
-  panelW: [0, 500, 1], panelH: [0, 400, 1],
+  panelSize: [0, 500, 1],
   portraitX: [-200, 200, 1], portraitY: [-200, 200, 1], portraitScale: [0.4, 2.5, 0.01],
   playerNameX: [-200, 200, 1], playerNameY: [-200, 200, 1], playerNameScale: [0.4, 2.5, 0.01],
   heroNameX: [-200, 200, 1], heroNameY: [-200, 200, 1], heroNameScale: [0.4, 2.5, 0.01],
@@ -69,8 +69,7 @@ export const HPN_DESC: Record<keyof HeroPanelConfig, string> = {
   panelX: 'Whole panel — horizontal offset (stage px × scale) from its bottom-left corner anchor.',
   panelY: 'Whole panel — vertical offset. Positive = down.',
   panelScale: 'Whole panel — overall size (×), scaling about the bottom-left anchor.',
-  panelW: 'Portrait square — width (design px). 0 = the snug default. The art fills the square.',
-  panelH: 'Portrait square — height (design px). 0 = the snug default.',
+  panelSize: 'Portrait circle — size (design px; width and height together, so it stays round). 0 = the snug default.',
   portraitX: 'Hero portrait — horizontal nudge (design px).',
   portraitY: 'Hero portrait — vertical nudge (design px).',
   portraitScale: 'Hero portrait — size (×). The hero-name pill rides this too (it lives on the frame).',
@@ -114,9 +113,9 @@ export function applyHeroPanelVars(): void {
     `${base}${base ? ' ' : ''}translate(calc(${x} * var(--u)), calc(${y} * var(--u))) scale(${s})`;
   root.setProperty('--hpn-panel-t', `translate(calc(${cfg.panelX}px * var(--scale)), calc(${cfg.panelY}px * var(--scale))) scale(${cfg.panelScale})`);
   // Tray dimensions — 0 means AUTO: remove the var so the CSS fallback (`auto`) takes over.
-  if (cfg.panelW > 0) root.setProperty('--hpn-panel-w', `calc(${cfg.panelW} * var(--u))`);
+  if (cfg.panelSize > 0) root.setProperty('--hpn-panel-w', `calc(${cfg.panelSize} * var(--u))`);
   else root.removeProperty('--hpn-panel-w');
-  if (cfg.panelH > 0) root.setProperty('--hpn-panel-h', `calc(${cfg.panelH} * var(--u))`);
+  if (cfg.panelSize > 0) root.setProperty('--hpn-panel-h', `calc(${cfg.panelSize} * var(--u))`);
   else root.removeProperty('--hpn-panel-h');
   root.setProperty('--hpn-portrait-t', t(cfg.portraitX, cfg.portraitY, cfg.portraitScale));
   root.setProperty('--hpn-pname-t', t(cfg.playerNameX, cfg.playerNameY, cfg.playerNameScale, 'translate(-50%, -55%)'));

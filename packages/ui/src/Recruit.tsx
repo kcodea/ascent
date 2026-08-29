@@ -3414,7 +3414,20 @@ export function Recruit() {
     // ANCHOR: measured ONCE per aim. The hero-power button cannot move while you're aiming, so re-reading
     // its rect on every pointermove was pure waste (and the same "cache the reads" rule the drag path
     // already follows via `insertRectsRef`).
-    const anchorEl = document.querySelector('.statusbar .heropowerbtn') ?? document.querySelector('.statusbar .hero .f');
+    //
+    // ...and it must be the button that is ACTUALLY ARMED. `.statusbar .heropowerbtn` matches the FIRST power
+    // button in document order, which is always the hero's native one — so aiming Equipment drew its line out
+    // of the hero power instead (owner report 2026-08-28). Three buttons can exist at once now (native, a
+    // second power, Equipment), so the anchor is chosen from what is armed rather than from what is first.
+    const anchorSel = equipArmed
+      ? '.statusbar .equippanel .heropowerbtn'
+      : heroArmedSlot === 1
+        ? '.statusbar .heropanel2:not(.equippanel) .heropowerbtn'
+        : '.statusbar .heropanel:not(.heropanel2) .heropowerbtn';
+    const anchorEl = document.querySelector(anchorSel)
+      // Fall back to the first button, then the hero frame — an anchor is better than no aim line at all.
+      ?? document.querySelector('.statusbar .heropowerbtn')
+      ?? document.querySelector('.statusbar .hero .f');
     if (!anchorEl) return;
     const ar = anchorEl.getBoundingClientRect();
     const ox = ar.left + ar.width / 2;
@@ -3469,7 +3482,7 @@ export function Recruit() {
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', up);
     };
-  }, [heroArmed, equipArmed, armEquipment, heroTargetsTavern, heroTargetsTavernOnly, heroTargetsNoGolden, run.board, run.spell?.uid, timeUp, dispatch, armHero, inCombat]);
+  }, [heroArmed, equipArmed, armEquipment, heroArmedSlot, heroTargetsTavern, heroTargetsTavernOnly, heroTargetsNoGolden, run.board, run.spell?.uid, timeUp, dispatch, armHero, inCombat]);
 
   // Targeted Battlecry (Toxin Tender): once the minion is played it sits on the board with a pending
   // target — aim a glowing line from it to a friendly minion and click to grant the keyword (mirrors

@@ -135,3 +135,18 @@ Art ratchet 1046 → 1048 (two files).
 
 `Heroes/FranticFrank.png` is a DIFFERENT card and was left alone — the strict name matcher never guessed at it,
 which is the whole reason that matcher is strict.
+
+
+## The aim line came out of the wrong button
+
+Owner report, on the first live look: Bloodpot was selected and armed, but the targeting line was drawn from
+the hero's Aegis power.
+
+`.statusbar .heropowerbtn` matches the FIRST power button in document order, which is always the hero's native
+one. That was fine when there was only ever one armable button; there can now be three at once (native, a
+native second power, Equipment). The anchor is chosen from what is ARMED now, not from what is first — with
+the old first-match kept as a fallback, because an aim line from the wrong place still beats no aim line.
+
+Worth noting the shape of the bug: nothing about it was Equipment-specific. Void's second power had the same
+latent fault — arming slot 1 drew its line from slot 0 — and it went unnoticed because a two-power hero is a
+rare pick. The fix covers all three.

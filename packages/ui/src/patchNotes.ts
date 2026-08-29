@@ -56,6 +56,36 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-08-29',
+    label: 'Fixes',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: 'A sheen sweeps the Equipment art whenever the slot shows a new one.',
+        details: [
+          'It plays on the first Equipment you get, and whenever you swap the slot to a different one.',
+          'It stays quiet when you play another copy of an Equip minion you already have — the slot is showing the same thing.',
+        ],
+      },
+      {
+        category: 'Card Change',
+        text: 'Cards that arrive in your hand DURING a fight now trigger the minions that watch for them.',
+        details: [
+          'Gangplank and Kegheart Dwarf react the moment a card reaches your hand mid-combat, so the payout can help win the fight that earned it — before, the stats only showed up back in the shop.',
+          'A Ruby minted in combat counts as a card arriving, the same as it does in the shop.',
+        ],
+      },
+      {
+        category: 'Hero Change',
+        text: "Sable: a Soulbound minion that gets tripled no longer breaks the bond.",
+        details: [
+          'The bond follows the minion into its golden copy, the way its buffs and progress already do.',
+          'If BOTH bound minions merge into the same golden, the bond ends for the turn rather than binding that minion to itself.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-08-29',
     label: 'Combat Curtain',
     changes: [
       {

@@ -177,3 +177,103 @@ describe('the slot fades out instead of vanishing', () => {
       .not.toBeNull();
   });
 });
+
+
+/**
+ * THE ART SHEEN fires on a CHANGE OF PICTURE, not on an equip (owner ask 2026-08-29).
+ *
+ * *"this sheen should not play if the player already has equipment shown and they play another equip minion …
+ * the first equip / going from 0→1 equipment, or when equipment is swapped in the slot."*
+ *
+ * Note this is a DIFFERENT question from the equip cue's gate. That one asks "did you acquire something?"
+ * (`holdsEquipment`); this asks "did the slot's picture change?". They agree on a duplicate Frank — silent
+ * either way — and they deliberately disagree elsewhere, which is why both exist.
+ */
+describe('the sheen plays only when the shown art changes', () => {
+  beforeEach(() => { vi.useFakeTimers(); });
+  afterEach(() => { vi.useRealTimers(); });
+
+  const sheen = (): Element | null => ui.container.querySelector('.equipsheen');
+  /** Let the scheduled fire land, then re-render. */
+  const settle = (): void => {
+    act(() => { vi.advanceTimersByTime(2000); });
+    ui.render(<StatusBar />);
+  };
+  const oneEquipment = (id: 'bloodpot' | 'titan_hammer'): RunState => {
+    const s = twoEquipment();
+    s.equipment!.available = s.equipment!.available.filter((g) => g.equipmentId === id);
+    s.equipment!.selectedEquipmentId = id;
+    return s;
+  };
+  /**
+   * Mount with an EMPTY slot, then show `run`.
+   *
+   * A fresh mount is not a change of picture, so it does not sweep — correct (StatusBar remounts on every
+   * return from combat, and a sweep there would be a flourish nobody asked for), but it means a test that
+   * mounts straight into a held Equipment observes nothing. Every case below therefore starts from empty and
+   * transitions, which is also what actually happens in play.
+   */
+  const arrive = (run: RunState): void => {
+    show({ ...twoEquipment(), equipment: undefined } as RunState);
+    show(run);
+  };
+
+  it('sweeps on the FIRST Equipment — 0 → 1 is a new picture', () => {
+    show({ ...twoEquipment(), equipment: undefined } as RunState);
+    expect(sheen(), 'nothing shown, nothing to sweep').toBeNull();
+    show(oneEquipment('bloodpot'));
+    settle();
+    expect(sheen(), 'the first Equipment shows new art').not.toBeNull();
+  });
+
+  it('sweeps when the rail SWAPS the slot to different art', () => {
+    arrive(oneEquipment('bloodpot'));
+    settle();
+    expect(sheen(), 'the arrival itself swept').not.toBeNull();
+    show(twoEquipment()); // still Bloodpot selected — no change of picture
+    settle();
+    const swapped = { ...twoEquipment() } as RunState;
+    swapped.equipment = { ...swapped.equipment!, selectedEquipmentId: 'titan_hammer' };
+    show(swapped);
+    settle();
+    expect(sheen(), 'the swap put different art in the slot').not.toBeNull();
+  });
+
+  it('does NOT sweep when a second copy of the SAME Equipment is played', () => {
+    // The owner's case: Bloodpot already shown, another Alchemist Frank hits the board. Same picture.
+    arrive(oneEquipment('bloodpot'));
+    settle();
+    // Compare the ELEMENT, not its class: a fresh sweep remounts the band under a new key, so identity is
+    // what distinguishes "swept again" from "still the first one". (Comparing the class string passes either
+    // way — this assertion was vacuous until that was noticed.)
+    const marker = ui.container.querySelector('.equipsheen');
+    expect(marker, 'the arrival swept').not.toBeNull();
+    const secondFrank = oneEquipment('bloodpot');
+    secondFrank.equipment!.available[0]!.sourceUids = ['f', 'f2']; // a second source, same Equipment
+    show(secondFrank);
+    settle();
+    expect(ui.container.querySelector('.equipsheen'),
+      'no new sweep — the slot is showing the same art it already was').toBe(marker);
+  });
+
+  it('does NOT sweep when the Equipment is merely re-held at Start of Turn', () => {
+    arrive(oneEquipment('bloodpot'));
+    settle();
+    const marker = ui.container.querySelector('.equipsheen');
+    expect(marker, 'the arrival swept').not.toBeNull();
+    show({ ...oneEquipment('bloodpot'), wave: 2 } as RunState);
+    settle();
+    expect(ui.container.querySelector('.equipsheen'), 'the rebuild shows the same picture')
+      .toBe(marker);
+  });
+
+  it('rides INSIDE the art wrapper, so it can never cross the frame png', () => {
+    arrive(oneEquipment('bloodpot'));
+    settle();
+    // The owner was explicit: "it should play on the card art itself and not the equipment slot png". The
+    // wrapper is the circular clip, so containment is structural rather than a value someone has to maintain.
+    expect(ui.container.querySelector('.hpb-artwrap .equipsheen'), 'must be a child of the art clip')
+      .not.toBeNull();
+    expect(ui.container.querySelector('.equipframe .equipsheen'), 'and never of the frame').toBeNull();
+  });
+});

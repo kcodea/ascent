@@ -1681,6 +1681,45 @@ export const ARENA_EFFECTS = {
   /** Twilight Sentinel — THIS body gains a keyword (the align-gated halves live on the card). Re-granting
    *  a keyword it already has is a no-op, so an End-of-Turn replay after the real Start of Combat (or a
    *  second End of Turn) never stacks pills. */
+  /**
+   * ── "WHEN A CARD IS ADDED TO YOUR HAND" — the CROSS-PHASE bodies ────────────────────────────────────────
+   *
+   * Owner rule (2026-08-29): *"cards added to hand is an effect in recruit + shop and should trigger effects
+   * that track them in all places."* A card can reach your hand mid-COMBAT too — every `ctx.grantToHand` and
+   * every Ruby a combat effect mints — and until now none of those fired these reactors during the fight.
+   * The stats still arrived at settle, on the recruit board, so the bug read as "Gangplank didn't trigger":
+   * the payout came too late to affect the fight it was earned in.
+   *
+   * They live HERE, in the arena, rather than being reimplemented on the combat side, because a hand-written
+   * combat twin is exactly how the shop and combat halves of an effect drift apart. Each phase supplies its
+   * own DISPATCHER (the shop's hand uid-diff in `reduce`, combat's `grantToHand` chokepoint); the body below
+   * is the single thing they both run.
+   *
+   * `gained` is the arriving card — the payload that makes Kegheart's Ale filter possible. It is a third
+   * argument rather than a `params` key because it is per-FIRING data, not authored content.
+   */
+
+  /** Gangplank — a card reached hand: give ONE RANDOM friendly minion of `tribe` +attack/+health.
+   *  Random, not left-most (owner report 2026-08-20) — one `rng.int` over the board-ordered pool, the same
+   *  draw the recruit half made, so a replayed run picks the same body. */
+  onGainCardBuffTribe(arena: EffectArena, params: Record<string, unknown>): void {
+    const tribe = str(params.tribe);
+    const pool = arena.friends().filter((c) => !tribe || arena.isTribe(c, tribe));
+    if (pool.length === 0) return;
+    const rng = arena.rng();
+    const target = pool[rng.int(pool.length)]!;
+    const g = gold(arena);
+    arena.buff(target, num(params.attack, 1) * g, num(params.health, 2) * g);
+  },
+
+  /** Kegheart Dwarf — "Whenever you get a Dwarven Ale, gain +3/+3" (golden +6/+6). Filters on the ARRIVING
+   *  card being one of the five Ales, so every source pays it without knowing Kegheart exists. */
+  onGainAleBuffSelf(arena: EffectArena, params: Record<string, unknown>, gained?: string): void {
+    if (!gained || !ALE_IDS.includes(gained)) return;
+    const g = gold(arena);
+    arena.buff(arena.self, num(params.attack, 3) * g, num(params.health, 3) * g);
+  },
+
   scGainKeyword(arena: EffectArena, params: Record<string, unknown>): void {
     const kw = str(params.keyword);
     if (!kw || arena.self.keywords.includes(kw)) return;

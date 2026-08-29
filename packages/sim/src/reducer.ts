@@ -3751,7 +3751,41 @@ function combineIntoGolden(s: RunState, tripleId: string, combined: BoardCard[])
   // the hand is full the golden goes onto the board rather than over-capping the hand — the reward is never lost.
   if (s.hand.length < handCap(s)) s.hand.push(goldenCard);
   else s.board.push(goldenCard);
+  carrySableBond(s, combined, goldenCard.uid);
   s.triplesMade++; // run-wide tally — surfaced as opponent intel in board snapshots
+}
+
+/**
+ * SABLE'S SOULBIND ACROSS A TRIPLE (owner report 2026-08-29: "sable's hero power breaks if a minion who is
+ * soulbound gets tripled").
+ *
+ * The bond is two run-board UIDs, and a triple destroys its copies and mints a golden with a fresh uid — so a
+ * bonded body that tripled left `sableBond` pointing at a uid nothing could resolve. The mirror needs BOTH
+ * ends, so the power went dead for the rest of the turn, in silence, in both phases (combat matches on the
+ * same run-board uid via `sourceUid`).
+ *
+ * The bond FOLLOWS the body, which is what every other per-instance value in `combineIntoGolden` already does
+ * — buffs, spell progress, ascend progress, the earliest boughtWave. A triple is a merge, not a death.
+ *
+ * TWO ends collapsing into ONE golden ends the bond instead. A self-bond is not a bond: `addBuff` would find
+ * the partner to be the same body and pay every buff twice, which is a worse bug than the one being fixed and
+ * exactly the trap the Rune of Shared Spoils already documents ("a single Dwarf on the board is both ends, so
+ * it must not pay itself").
+ */
+function carrySableBond(s: RunState, consumed: readonly BoardCard[], goldenUid: string): void {
+  const bond = s.sableBond;
+  if (!bond) return;
+  const gone = new Set(consumed.map((c) => c.uid));
+  const hitA = gone.has(bond.a);
+  const hitB = gone.has(bond.b);
+  if (!hitA && !hitB) return;         // this triple touched neither end
+  if (hitA && hitB) s.sableBond = undefined; // both ends merged — no pair left to bond
+  else s.sableBond = { ...bond, a: hitA ? goldenUid : bond.a, b: hitB ? goldenUid : bond.b };
+  // RE-STAMP, for the same reason the hero power stamps on activation: `SABLE` is captured ONCE at the top of
+  // `reduceCore` and holds the uids as they were then. A triple resolves mid-dispatch — the played body's own
+  // Battlecry, or any effect after it, can still buff — so without this the rest of THIS action would keep
+  // mirroring against the uid that just stopped existing.
+  stampSableBond(s);
 }
 
 /**

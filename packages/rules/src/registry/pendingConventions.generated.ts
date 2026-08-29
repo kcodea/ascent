@@ -2187,7 +2187,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "title": "Trigger: a card is added to your hand · 2 cards",
     "statement": "All 2 of these fire on one trigger: a card is added to your hand. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
-    "currentBehaviour": "2 effect factories across 2 cards dispatch on 'onGainCard' (recruit) — re-clustered by TRIGGER out of the 'economyReact' presentation family on the owner's 2026-08-28 ruling; the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
+    "currentBehaviour": "2 effect factories across 2 cards dispatch on 'onGainCard' (both) — re-clustered by TRIGGER out of the 'economyReact' presentation family on the owner's 2026-08-28 ruling; the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
     "cardText": "Exemplar — Gangplank: \"When a card is added to your hand, give a random friendly Dwarf +1/+2.\" · Members: Gangplank · Kegheart Dwarf",
     "example": "Gangplank fires when a card is added to your hand, like every other card here. its printed numbers double when the card is gilded.",
     "contentIds": [

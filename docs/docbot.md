@@ -215,6 +215,61 @@ Measured retro catch rate: **14/14** (docs/docbot-roadmap.md) — the #1176 temp
 the per-instance oracle under the 11 R-AVWIN owner rulings, with the two current engine violations pinned
 shrink-only in `temporalWindow.test.ts` (`KNOWN_VIOLATIONS`) until fixed.
 
+## The 2026-08-29 wave — two lanes that encode a MISS, not a bug
+
+Both owner reports that day were already covered by an existing lane *in principle*. Neither was caught. The
+interesting half is why, so these two lanes audit the auditing.
+
+### 9. Combat-emit agreement (`combatEmitAgreement.test.ts`)
+
+*"gangplank doesnt trigger when cards are added to hand in combat."*
+
+Lane 1 exists precisely to find a trigger with no factory in a phase that dispatches it. It computes
+`needCombat` **from `TRIGGER_PHASES`** — and `onGainCard` was written down as `'recruit'`, with the note
+*"combat has no dispatch site for it"*. The note was false; `ctx.grantToHand` had existed all along. So
+`needCombat` was `false` and lane 1's combat half switched itself off for that trigger. **The lane whose job
+is finding missing combat factories could not see a missing combat factory.**
+
+One wrong word in a hand-maintained registry disabled a rail, silently, and nothing downstream could tell.
+So this lane stops trusting the registry on that point: it scans `packages/core/src` for `bus.emit('<name>')`
+and demands every trigger combat actually emits be `'combat'`/`'both'`, or waived in `COMBAT_EMIT_WAIVED`
+with a reason. Waivers are checked back — one naming a trigger combat no longer emits is a failure, so the
+list cannot rot into scenery.
+
+A **source** scan, not a runtime probe, on purpose: a probe only sees the emits a scenario reaches, so "not
+observed" would mean "the probe didn't get there" — the evidence gap `beats:audit` warns about. `bus.emit`
+takes a literal at every site, so the source answers *can this happen at all* exactly.
+
+**The class rule: a registry that gates another check must be derivable from the thing it describes.**
+
+### 10. Uid survives a triple (`uidSurvivesTriple.test.ts`)
+
+*"sable's hero power breaks if a minion who is soulbound gets tripled."*
+
+Sable's bond is two run-board uids; a triple consumes its copies and mints a golden with a fresh one, so the
+bond pointed at a uid nothing could resolve — and since mirroring needs both ends, the power went dead for
+the turn, silently, in both phases.
+
+`combineIntoGolden` carries a dozen per-instance values forward **by hand**. Each is a line someone
+remembered to write. A reference held *outside* the card, in run state, has no such line and nothing to
+remind the next author it needs one.
+
+The obvious implementation — scan `state.ts` for fields whose name contains "uid" — **would not have caught
+this**: the bond's fields are `a` and `b`. So the detector is behavioural instead: record the uids a triple
+destroys, deep-walk the whole post-triple `RunState`, flag any string equal to one of them. No naming
+convention, no field registry to keep in step, and it sees a new field the day it is added.
+
+Deliberate dangling refs (presentation cues naming the body that just vanished) are allowed by path, with
+reasons, and one test *forges* a dangling ref to prove the walk can still see one — a detector nobody has
+watched fail is not evidence.
+
+**It earned its place on the first run**, flagging `firstShoutUid`: written on the turn's first Shout, read
+by nothing, its docstring naming a consumer (Rune of Refrain) that actually uses the just-played `card.uid`.
+Harmless today and only today — the moment someone implements "return the turn's *first* Shout" off that
+field, they inherit the Sable bug. Recorded as such rather than filed away as a cue.
+
+---
+
 ## Extending Doc Bot
 
 New trigger → classify it in `TRIGGER_PHASES` (read the dispatchers first). New dual-phase factory → implement

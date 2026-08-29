@@ -624,6 +624,22 @@ export function simulate(
   // Sable's Soulbind re-entrancy guard — declared beside `ctx` because `ctx.buff` mirrors onto its partner by
   // calling itself. See the mirror block inside `buff`.
   let soulbindMirroring = false;
+
+  /**
+   * "A card was added to your hand" — broadcast to the side's reactors (owner report 2026-08-29). Called from
+   * `ctx.grantToHand` and `ctx.grantRubies`, the only two ways a card reaches a hand mid-fight.
+   *
+   * DEPTH-GUARDED even though nothing today needs it: no current `onGainCard` reactor grants a card, so the
+   * chain cannot recurse — but this is a broadcast whose handlers run arbitrary effects, and the one that
+   * eventually grants a card would otherwise loop forever with no symptom until it hung a fight. One level
+   * is all the game means: a card arriving pays out, and whatever that payout grants does not pay out again.
+   */
+  let gainCardDepth = 0;
+  function emitGainCard(cardId: string, side: Side): void {
+    if (gainCardDepth > 0) return;
+    gainCardDepth++;
+    try { bus.emit('onGainCard', { cardId, side }); } finally { gainCardDepth--; }
+  }
   const ctx: CombatContext = {
     rng,
     bus,
@@ -855,6 +871,15 @@ export function simulate(
       if (side === 'player') {
         handGrants.push(cardId);
         emit({ type: 'toHand', cardId, side, source: sourceUid });
+        // "A card was added to your hand" — the reactors (Gangplank, Kegheart Dwarf) fire NOW, during the
+        // fight, not only at settle (owner report 2026-08-29). This is the one combat chokepoint every
+        // grant-to-hand passes through, which is exactly why the trigger belongs here rather than at the
+        // dozen call sites that grant.
+        //
+        // PLAYER-SIDE ONLY, and that is a property of the engine rather than a choice made here: a served
+        // enemy board has no hand at all, so `grantToHand` already drops enemy grants two lines up. An enemy
+        // Gangplank therefore never reacts — the card never reaches a hand for it to react to.
+        emitGainCard(cardId, side);
       }
     },
     grantSpellPower: (attack, health, side, sourceUid) => {
@@ -872,7 +897,12 @@ export function simulate(
       // `playerRubyGrants`, minted with the run's live rubyBonus). Emit a `toHand` per Ruby for the replay.
       if (side !== 'player' || count <= 0) return;
       rubyGrants.n += count;
-      for (let i = 0; i < count; i++) emit({ type: 'toHand', cardId: 'ruby', side, source: sourceUid });
+      // A Ruby IS a card reaching hand — the shop half has fired `onGainCard` per mint since 2026-08-26, so
+      // combat matches it: one reactor firing per Ruby, alongside each `toHand`.
+      for (let i = 0; i < count; i++) {
+        emit({ type: 'toHand', cardId: 'ruby', side, source: sourceUid });
+        emitGainCard('ruby', side);
+      }
     },
     queueNextTurnSpellCopy: (count, side) => {
       // Player-only (enemies have no run state to arm) — accumulated and carried back via

@@ -3227,17 +3227,12 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  recipient (deterministic — arrange your line), and it may be Gangplank itself ("a friendly Dwarf" includes
    *  it). Fired by `fireOnGainCard` off the conjure/grant path; golden doubles the grant. */
   onGainCardBuffTribe: (ctx, self, params) => {
-    const tribe = str(params.tribe);
-    // RANDOM among the eligible bodies (owner report 2026-08-20: Gangplank "is only targeting left-most
-    // dwarf... it should be random"). It was `.find(...)`, i.e. always the left-most match — a seating
-    // decision the card never claimed to make. Seeded off the run cursor like every other random recruit
-    // pick (Rune of the Glider, the Chipper Sticker), so it stays deterministic and replayable.
-    const pool = ctx.state.board.filter((c) => !tribe || isTribe(c, tribe as never));
-    if (pool.length === 0) return;
-    const rng = makeRng(ctx.state.rngCursor);
-    const target = pool[rng.int(pool.length)]!;
-    ctx.state.rngCursor = rng.state();
-    addBuff(target, nameOf(self), num(params.attack, 1) * gold(self), num(params.health, 2) * gold(self));
+    // MOVED TO THE ARENA (2026-08-29). The body now serves both phases — a card reaching hand mid-COMBAT
+    // fires it too, through `grantToHand` — so the shop and combat halves cannot drift. Behaviour here is
+    // unchanged: still RANDOM among the eligible bodies (owner report 2026-08-20: Gangplank "is only
+    // targeting left-most dwarf... it should be random"), still one draw off the run cursor, so replays and
+    // pinned boards pick the same target as before.
+    ARENA_EFFECTS.onGainCardBuffTribe(shopArena(ctx.state, self), params);
   },
 
   /** Set 2 — Grevlin & Co. (a minion was sold): every `count` minions you sell, this Demon consumes the
@@ -6944,8 +6939,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  Call all pay it, without any of them needing to know Kegheart exists. `payload.cardId` is what makes the
    *  filter possible: the event used to carry only "a card arrived". */
   onGainAleBuffSelf: (ctx, self, params, payload) => {
-    if (!ALE_IDS.includes(payload.cardId ?? '')) return;
-    addBuff(self, nameOf(self), num(params.attack, 3) * gold(self), num(params.health, 3) * gold(self));
+    // Arena-backed since 2026-08-29, for the same reason as Gangplank above: an Ale a combat effect grants
+    // now pays this during the fight, through the one shared body.
+    ARENA_EFFECTS.onGainAleBuffSelf(shopArena(ctx.state, self), params, payload.cardId);
   },
 
   /** NINEFOLD BROKER — "After you buy a minion, get a random Shop spell OF THE SAME TIER. Can trigger 9 times."

@@ -22,10 +22,22 @@
  *                       second-copy swallows are a ratcheted duplicate-policy backlog.
  *   8. spellPowerFolding — every stat-spell factory folds spell power or says why not (#817/#731 class).
  *
+ * Two more, from the 2026-08-29 owner reports — both encode a MISS rather than a bug, which is what makes
+ * them lanes instead of regression tests:
+ *
+ *   9. combatEmitAgreement — every trigger combat actually emits is classified as combat/both in
+ *                       `TRIGGER_PHASES`, or waived with a reason. Born because `onGainCard` was written
+ *                       down as recruit-only, which switched OFF lane 1's combat half for it: the lane that
+ *                       exists to find missing combat factories could not see one. A registry that gates
+ *                       another check has to be derivable from the thing it describes.
+ *  10. uidSurvivesTriple — no run state points at a body a triple destroyed (Sable's Soulbind held two
+ *                       run-board uids and a triple minted a fresh one). A deep walk, not a field list: the
+ *                       bond's fields are `a`/`b`, so no naming convention would ever have found it.
+ *
  * `npm run docbot` prints the full report, including the needs-triage backlog the tests tolerate but track.
  * Doctrine and the ledger of what each lane has caught: docs/docbot.md.
  */
-export { TRIGGER_PHASES, PHASE_EXCUSED, COMBAT_CASTING_FACTORIES, type PhaseExcuse } from './phaseRegistry';
+export { TRIGGER_PHASES, PHASE_EXCUSED, COMBAT_CASTING_FACTORIES, COMBAT_EMIT_WAIVED, type PhaseExcuse } from './phaseRegistry';
 export { TRIBE_RATCHET, PREDICATE_FILES, RAW_TRIBE_COMPARE_SOURCE } from './tribeRatchet';
 export { RUNE_DIFF_EXCUSED, SPELL_POWER_EXCUSED, TURN_RESET_EXCUSED } from './historyRegistry';
 export { runeSwallowScan } from './runeSwallowScan';

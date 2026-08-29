@@ -3129,7 +3129,10 @@ body.dragging .statusbar .hero { pointer-events: none; }
    out to strike), and holds the art + name + attack pill so they travel together. `overflow: visible` so the
    overhanging attack pill is never clipped. */
 .statusbar .hero .herolunge {
-  position: absolute; inset: 0; border-radius: 50%; background: var(--ink); overflow: visible;
+  /* No dark socket fill any more (owner ask 2026-08-29: with the art scaled/offset off the box by the 🧍
+     tuner, the disc peeked out beneath the portrait). During a hero strike the vacated spot now simply
+     shows the board art — the empty socket read better than the misaligned disc ever did. */
+  position: absolute; inset: 0; border-radius: 50%; overflow: visible;
 }
 .statusbar .hero .f { background: transparent; }
 

@@ -190,10 +190,12 @@ body { background: #160f08; }
    2026-08-29), still above the statusbar (z40). Scale/opacity from the ⚔️ Hero Duel tuner. The `passive`
    class on the element is what defeats the player-button 'can't afford' dim: it breaks that rule's :not()
    chain at match level instead of fighting its specificity. */
-.heropowerbtn.opp-power { position: fixed; top: calc(20 * var(--u) + var(--hd-power-y, 153px));
+.heropowerbtn.opp-power { position: fixed; top: calc(20 * var(--u) + var(--hd-power-y, 299px) * var(--scale));
   /* Anchored to the STAGE's right edge, not the viewport's (owner ask 2026-08-29): 50% - gw/2 is the
-     letterbox margin, so the icon holds its spot beside the board on any monitor width. */
-  right: calc(50% - var(--gw) / 2 + 20 * var(--u) - var(--hd-power-x, -309px)); z-index: 41; pointer-events: none;
+     letterbox margin, so the icon holds its spot beside the board on any monitor width. The --hd-power-x/y
+     offsets are REFERENCE px × --scale (like every other pinned element), so the icon shrinks/moves WITH the
+     board on a non-fullscreen stage instead of skewing off it (owner report 2026-08-29). */
+  right: calc(50% - var(--gw) / 2 + 20 * var(--u) - var(--hd-power-x, -605px) * var(--scale)); z-index: 41; pointer-events: none;
   transform: scale(var(--hd-power-s, 0.87)); transform-origin: top right; opacity: var(--hd-power-alpha, 0.99); }
 /* Hover tooltip (owner ask 2026-08-29): pointer-events back ON for hover only — there is no .hpb-glow child
    here, so the player-button hover-glow rules have nothing to light, and no handlers exist to click. The tip
@@ -205,8 +207,8 @@ body { background: #160f08; }
    vars the icon uses: horizontally centred on the icon's box, 12px below it. Shown via the adjacent-sibling
    hover combinator, same 0.35s delay as the player's tip. */
 .herotip.opp-power-tip { position: fixed; z-index: 101; bottom: auto;
-  top: calc(20 * var(--u) + var(--hd-power-y, 153px) + 128 * var(--u) * var(--hd-power-s, 0.87) + 12px);
-  left: auto; right: calc(50% - var(--gw) / 2 + 20 * var(--u) - var(--hd-power-x, -309px) + 64 * var(--u) * var(--hd-power-s, 0.87));
+  top: calc(20 * var(--u) + var(--hd-power-y, 299px) * var(--scale) + 128 * var(--u) * var(--hd-power-s, 0.87) + 12px * var(--scale));
+  left: auto; right: calc(50% - var(--gw) / 2 + 20 * var(--u) - var(--hd-power-x, -605px) * var(--scale) + 64 * var(--u) * var(--hd-power-s, 0.87));
   transform: translateX(50%); }
 .heropowerbtn.opp-power:hover + .herotip.opp-power-tip { opacity: 1; transition-delay: 0.35s; }
 

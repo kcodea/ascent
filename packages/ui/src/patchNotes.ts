@@ -83,6 +83,10 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'UI / Info',
+        text: 'The Equipment slot fades in and out instead of popping.',
+      },
+      {
+        category: 'UI / Info',
         text: 'The equip flourish now only plays when you actually equip something new.',
         details: [
           'Playing a second copy of an Equip minion is silent — you already hold that Equipment.',

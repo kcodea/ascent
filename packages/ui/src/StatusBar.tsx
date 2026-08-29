@@ -174,6 +174,44 @@ export function StatusBar() {
     ? equipmentText(selectedEquipDef, selectedEquip.version)
     : '';
   const equipArt = equipmentArtFor(selectedEquipDef?.id);
+
+  /**
+   * THE LEAVING FADE (owner ask 2026-08-28: "can you add a brief fade in/fade out for the equipment so it
+   * doesn't simply disappear immediately?").
+   *
+   * Fading IN is free — a CSS animation on mount. Fading OUT is not: the slot renders off `run.equipment`, so
+   * the frame the source minion dies or is sold, there is nothing left to paint. React has already unmounted
+   * the thing we want to watch leave.
+   *
+   * So the panel LINGERS. The last frame that had an Equipment is kept, and when the run stops having one the
+   * panel keeps rendering FROM THAT SNAPSHOT for the length of the fade, then drops. The lingering copy is
+   * inert — no rail, no arming, button disabled — because it is a picture of something the player no longer
+   * has, and letting them click it would be a lie about state.
+   *
+   * A ref, not state, for the snapshot itself: it is written on every render that has an Equipment and must
+   * never cause one. Only the leaving FLAG is state, because that is the thing a re-render has to react to.
+   */
+  const hasEquip = equipOptions.length > 0 && !!selectedEquip && !!selectedEquipDef;
+  const equipSnapRef = useRef<{ name: string; rule: string; art?: string; cost: number; version: string } | null>(null);
+  if (hasEquip) {
+    equipSnapRef.current = {
+      name: selectedEquipDef!.name, rule: equipRule, art: equipArt,
+      cost: equipCost, version: selectedEquip!.version,
+    };
+  }
+  const [equipLeaving, setEquipLeaving] = useState(false);
+  const hadEquipRef = useRef(hasEquip);
+  useEffect(() => {
+    if (hadEquipRef.current === hasEquip) return;
+    hadEquipRef.current = hasEquip;
+    if (hasEquip) { setEquipLeaving(false); return; }
+    setEquipLeaving(true);
+    const t = window.setTimeout(() => { setEquipLeaving(false); }, getEquipSlotConfig().fadeOutMs);
+    return () => { window.clearTimeout(t); };
+  }, [hasEquip]);
+  // What the leaving copy paints from. Null only if the slot has never held anything, in which case
+  // `equipLeaving` is false too and none of this renders.
+  const equipSnap = equipSnapRef.current;
   // HENCHMAN offer (owner spec 2026-08-03): the hero's bound recruit at its decayed price — null for the many
   // heroes with none authored yet, and after the once-per-run buy. PLACEHOLDER SURFACE: a plain chip under the
   // power pill so the mechanic is playable end-to-end; the real presentation is Mike's to design.
@@ -845,8 +883,27 @@ export function StatusBar() {
             Deliberately built off `run.equipment` rather than any slot-local state — the handoff asks that
             "game-state and effect code must not assume Equipment permanently lives inside a particular visual
             component", and moving this to a dedicated button later should be a change to THIS block alone. */}
-        {equipOptions.length > 0 && selectedEquip && selectedEquipDef && (
-          <div className={`heropanel equipslot${equipArmed ? ' armed' : equipReady ? ' ready' : ''}`}>
+        {!hasEquip && equipLeaving && equipSnap && (
+          /* THE LEAVING COPY — the last Equipment, on its way out. Inert by construction: no rail, no
+             tooltip, a disabled button. See the `equipLeaving` block above for why it exists at all.
+             `aria-hidden` because a screen reader should not be told about something already gone. */
+          <div className="heropanel equipslot leaving" aria-hidden="true">
+            <div className="hpwrap">
+              <img className="equipframe" src={`${import.meta.env.BASE_URL}frames/equipment-frame.webp`}
+                   alt="" aria-hidden="true" draggable={false} />
+              <button type="button" className="heropowerbtn" disabled tabIndex={-1}>
+                <span className="hpb-glow" aria-hidden="true" />
+                {equipSnap.art
+                  ? <span className="hpb-artwrap" aria-hidden="true"><img className="hpb-art" src={equipSnap.art} alt="" draggable={false} /></span>
+                  : <span className="hpb-glyph" aria-hidden="true">⚒</span>}
+              </button>
+              {equipSnap.cost ? <span className="hpcost"><span className="costn">{equipSnap.cost}</span></span> : null}
+            </div>
+            <div className="hplabel">{equipSnap.name}</div>
+          </div>
+        )}
+        {hasEquip && selectedEquip && selectedEquipDef && (
+          <div className={`heropanel equipslot entering${equipArmed ? ' armed' : equipReady ? ' ready' : ''}`}>
             <div className="hpwrap">
               {/* THE FRAME (owner art 2026-08-28: "add the equipment frame around the equipment"). A sibling
                   of the button rather than a background ON it: the button is a square box whose art is

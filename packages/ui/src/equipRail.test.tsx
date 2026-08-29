@@ -17,7 +17,7 @@
  * Driven through the real store + reducer rather than a stubbed prop, so a change to how the slot reads
  * `run.equipment` fails here rather than passing against a fixture.
  */
-import { describe, expect, it, beforeEach, afterEach } from 'vitest';
+import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
 import { act } from 'react';
 import { createRun, type BoardCard, type RunState } from '@game/sim';
 import { StatusBar } from './StatusBar';
@@ -116,5 +116,64 @@ describe('the Equipment rail', () => {
   it('its buttons are not `.heropowerbtn` — that selector anchors the aim line', () => {
     show(twoEquipment());
     expect(ui.container.querySelectorAll('.equiprail .heropowerbtn')).toHaveLength(0);
+  });
+});
+
+
+/**
+ * THE ARRIVE / LEAVE FADE (owner ask 2026-08-28: "add a brief fade in/fade out for the equipment so it
+ * doesn't simply disappear immediately").
+ *
+ * The fade itself is a CSS animation jsdom will not run. What is asserted here is the part that is real
+ * logic, and the part that would rot silently: the slot must STAY MOUNTED after the run stops having an
+ * Equipment, painting a snapshot, and then actually go away. A leaving copy that never unmounted would look
+ * completely correct in a screenshot.
+ */
+describe('the slot fades out instead of vanishing', () => {
+  beforeEach(() => { vi.useFakeTimers(); });
+  afterEach(() => { vi.useRealTimers(); });
+
+  const gone = (run: RunState): RunState => ({ ...run, equipment: undefined, board: [] } as RunState);
+
+  it('keeps painting the last Equipment after it is lost, then drops it', () => {
+    const held = twoEquipment();
+    show(held);
+    expect(ui.container.querySelector('.equipslot.entering'), 'it arrives with the enter class').not.toBeNull();
+
+    show(gone(held));
+    const leaving = ui.container.querySelector('.equipslot.leaving');
+    expect(leaving, 'the slot is still on screen, on its way out').not.toBeNull();
+    expect(leaving!.querySelector('.hplabel')?.textContent, 'painting the Equipment that was lost')
+      .toBe('Bloodpot');
+
+    act(() => { vi.advanceTimersByTime(1000); });
+    ui.render(<StatusBar />);
+    expect(ui.container.querySelector('.equipslot'), 'and then it is gone for good').toBeNull();
+  });
+
+  it('the leaving copy is INERT — it is a picture of something you no longer have', () => {
+    const held = twoEquipment();
+    show(held);
+    show(gone(held));
+    const leaving = ui.container.querySelector('.equipslot.leaving')!;
+    expect(leaving.getAttribute('aria-hidden'), 'and hidden from a screen reader').toBe('true');
+    expect(leaving.querySelector('.equiprail'), 'no selector to open').toBeNull();
+    expect(leaving.querySelector<HTMLButtonElement>('.heropowerbtn')!.disabled, 'and nothing to press')
+      .toBe(true);
+  });
+
+  it('re-equipping mid-fade cancels the leave rather than stacking a second slot', () => {
+    const held = twoEquipment();
+    show(held);
+    show(gone(held));
+    expect(ui.container.querySelectorAll('.equipslot')).toHaveLength(1);
+    show(held); // it came back before the timer ran out
+    expect(ui.container.querySelectorAll('.equipslot'), 'ONE slot, not a live one beside a ghost')
+      .toHaveLength(1);
+    expect(ui.container.querySelector('.equipslot.leaving')).toBeNull();
+    act(() => { vi.advanceTimersByTime(1000); });
+    ui.render(<StatusBar />);
+    expect(ui.container.querySelector('.equipslot'), 'and the stale timer does not remove the live one')
+      .not.toBeNull();
   });
 });

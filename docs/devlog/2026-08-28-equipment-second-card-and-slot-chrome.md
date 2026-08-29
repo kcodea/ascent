@@ -134,6 +134,31 @@ New `equipmentselect` clip on the rail's pick, with a **Pick volume** dial in th
 on top of the category and per-clip gains rather than replacing them, so the UI bus still governs it and the
 dial only decides how the pick reads against the slot's other sounds.
 
+## The slot fades instead of vanishing
+
+Owner ask: *"add a brief fade in/fade out for the equipment so it doesn't simply disappear immediately."*
+
+Fading **in** is free — an animation on mount. Fading **out** is not, and the reason is worth writing down:
+the slot renders off `run.equipment`, so the frame the last source dies or is sold there is nothing left to
+paint. React has already unmounted the thing you want to watch leave.
+
+So the panel **lingers**. A snapshot of the last Equipment that was held — name, art, cost — is kept in a ref
+(written during render, never causing one), and when the run stops having an Equipment the panel keeps
+rendering from that snapshot for the fade's length, then drops. The lingering copy is inert by construction:
+no rail, no arming, a disabled button, `aria-hidden`. It is a picture of something the player no longer has,
+and letting them click it would be a lie about state.
+
+The fade duration is one dial read by **both** the CSS animation and the JS timer that keeps the copy alive,
+so they cannot drift into a cut-short fade or a ghost that outstays it.
+
+Three tests, because a leaving copy that never unmounted would look perfectly correct in a screenshot: that
+it stays and paints the lost Equipment, that it is inert, and that re-equipping mid-fade cancels the leave
+instead of leaving a live slot beside a ghost.
+
+While in there: the seat's CSS fallbacks still carried the pre-tuning numbers, so a paint landing before the
+config module applied its vars would have put the slot in its old position. They mirror the baked defaults
+now, with a note to update both together.
+
 ## Debt logged, not paid
 
 The art-file ratchet needed its third +2 bump of the day (→ 1050). There is real slack nobody has spent: the

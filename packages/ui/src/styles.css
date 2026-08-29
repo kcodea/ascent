@@ -3126,14 +3126,48 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
    Same shape as the second-power rule — scoped to out-specify the base `.heropanel` seat, and reference px
    multiplied by `--scale` so it holds its place at every resolution. */
 .statusbar .heropanel.equipslot {
-  left: calc(var(--bar-x) + 0.19 * var(--gw) + (var(--hpb-x, 15px) * var(--scale)) + (var(--eqs-x, 74) * 1px * var(--scale)));
-  top: calc(var(--bar-y) + 0.45 * var(--gh) + (var(--hpb-y, 303px) * var(--scale)) + (var(--eqs-y, -232) * 1px * var(--scale)));
-  transform: translate(-50%, -50%) scale(var(--eqs-scale, 0.9));
+  /* Fallbacks MIRROR `equipSlotConfig.ts`'s baked defaults, so a paint before the config module has applied
+     its vars lands in the right seat rather than the pre-tuning one. Update both together. */
+  left: calc(var(--bar-x) + 0.19 * var(--gw) + (var(--hpb-x, 15px) * var(--scale)) + (var(--eqs-x, -248) * 1px * var(--scale)));
+  top: calc(var(--bar-y) + 0.45 * var(--gh) + (var(--hpb-y, 303px) * var(--scale)) + (var(--eqs-y, -260) * 1px * var(--scale)));
+  transform: translate(-50%, -50%) scale(var(--eqs-scale, 0.99));
   z-index: 42; }
 /* The glyph/label treatment the second-power block uses — the Equipment button is the same kind of control,
    so it should read the same when an Equipment ships without an icon. */
 .equipslot .hpb-glyph { display: grid; place-items: center; width: 100%; height: 100%; font-size: 26px; color: #d8ccb6; }
 .equipslot .hplabel { pointer-events: none; }
+
+/* ARRIVING AND LEAVING (owner ask 2026-08-28: "add a brief fade in/fade out for the equipment so it doesn't
+   simply disappear immediately").
+
+   Fading in is a mount animation and costs nothing. Fading OUT needs the panel to still exist, and it does
+   not — the slot renders off `run.equipment`, so the moment the last source dies the data is gone. `StatusBar`
+   keeps a snapshot alive for `--eqs-fade-out` and renders it under `.leaving`; that timer reads the SAME dial
+   this rule does, so the fade and the unmount cannot drift apart.
+
+   Both are ONE-SHOT, so animating `transform` alongside opacity is fine — CLAUDE.md's ban is on LOOPING paint
+   animations, and neither of these is a paint property anyway.
+
+   The leaving copy is `pointer-events: none` as well as inert in the markup: it is a picture of an Equipment
+   the player no longer holds, and it must not sit under the cursor on its way out. */
+@keyframes equipslotin {
+  from { opacity: 0; transform: translate(-50%, -50%) scale(calc(var(--eqs-scale, 0.99) * 0.86)); }
+  to   { opacity: 1; transform: translate(-50%, -50%) scale(var(--eqs-scale, 0.99)); }
+}
+@keyframes equipslotout {
+  from { opacity: 1; transform: translate(-50%, -50%) scale(var(--eqs-scale, 0.99)); }
+  to   { opacity: 0; transform: translate(-50%, -50%) scale(calc(var(--eqs-scale, 0.99) * 0.9)); }
+}
+.statusbar .heropanel.equipslot.entering {
+  animation: equipslotin var(--eqs-fade-in, 180ms) ease-out both; }
+.statusbar .heropanel.equipslot.leaving {
+  pointer-events: none;
+  animation: equipslotout var(--eqs-fade-out, 260ms) ease-in both; }
+/* A player who asked for less motion gets the opacity and none of the scale. */
+@media (prefers-reduced-motion: reduce) {
+  @keyframes equipslotin  { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes equipslotout { from { opacity: 1; } to { opacity: 0; } }
+}
 
 /* THE FRAME (owner art 2026-08-28: "add the equipment frame around the equipment"). Sized as a multiple of
    the button's own 128u box, so it tracks the button at every resolution instead of needing its own scale

@@ -45,6 +45,20 @@ export interface EquipSlotConfig {
   /** 1 puts the frame BEHIND the art (a backing plate), 0 in front of it (a surround the art sits under). */
   frameBehind: number;
 
+  // ── Arriving and leaving ────────────────────────────────────────────────────────────────────────────────
+  /** ms the slot takes to fade IN when an Equipment is acquired. */
+  fadeInMs: number;
+  /**
+   * ms the slot takes to fade OUT when the last source dies or is sold (owner ask 2026-08-28: "add a brief
+   * fade in/fade out for the equipment so it doesn't simply disappear immediately").
+   *
+   * This one is load-bearing beyond the look: the panel renders off `run.equipment`, so the leaving copy is
+   * kept alive by a timer of exactly this length. Lower it and the fade is cut short; raise it and a stale
+   * picture of a lost Equipment lingers on screen. `StatusBar` reads it at the moment the Equipment goes, so
+   * the timer and the CSS can never disagree.
+   */
+  fadeOutMs: number;
+
   // ── The three floating readouts ─────────────────────────────────────────────────────────────────────────
   /** Gold cost — the frame has a round boss at its top-left that this is meant to drop into. */
   costX: number;
@@ -97,6 +111,11 @@ const DEFAULTS: EquipSlotConfig = {
 
   frameOn: 1, frameX: 0, frameY: 0, frameScale: 1.42, frameBehind: 0,
 
+  // "Brief" — long enough not to pop, short enough that a sold minion's slot is gone before the next click.
+  // Out is slower than in: arriving is one of several things happening at once on a play, while leaving is
+  // the only thing moving and reads as abrupt at the same speed.
+  fadeInMs: 180, fadeOutMs: 260,
+
   costX: 0, costY: 0, costScale: 1,
   nameX: 0, nameY: 0, nameScale: 1,
   usesX: 0, usesY: 0, usesScale: 1.29,
@@ -120,6 +139,9 @@ const RANGES: Record<keyof EquipSlotConfig, [number, number, number]> = {
   frameY: [-120, 120, 1],
   frameScale: [0.8, 2.6, 0.01],
   frameBehind: [0, 1, 1],
+
+  fadeInMs: [0, 900, 10],
+  fadeOutMs: [0, 900, 10],
 
   costX: [-160, 160, 1],
   costY: [-160, 160, 1],
@@ -161,6 +183,7 @@ const VARS: Record<keyof EquipSlotConfig, string> = {
   x: '--eqs-x', y: '--eqs-y', scale: '--eqs-scale',
   frameOn: '--eqf-on', frameX: '--eqf-x', frameY: '--eqf-y', frameScale: '--eqf-scale',
   frameBehind: '--eqf-behind',
+  fadeInMs: '--eqs-fade-in', fadeOutMs: '--eqs-fade-out',
   costX: '--eqc-x', costY: '--eqc-y', costScale: '--eqc-scale',
   nameX: '--eqn-x', nameY: '--eqn-y', nameScale: '--eqn-scale',
   usesX: '--equ-x', usesY: '--equ-y', usesScale: '--equ-scale',
@@ -174,8 +197,9 @@ export function applyEquipSlotVars(): void {
   const root = document.documentElement.style;
   for (const [key, v] of Object.entries(VARS) as [keyof EquipSlotConfig, string][]) {
     if (!v) continue; // a dial the stylesheet has no use for (see VARS)
-    // The grace period is the one dial the stylesheet needs a UNIT on — it feeds a transition-delay.
-    root.setProperty(v, key === 'railGraceMs' ? `${cfg[key]}ms` : String(cfg[key]));
+    // The timing dials are the ones the stylesheet needs a UNIT on — they feed durations and delays.
+    const ms = key === 'railGraceMs' || key === 'fadeInMs' || key === 'fadeOutMs';
+    root.setProperty(v, ms ? `${cfg[key]}ms` : String(cfg[key]));
   }
 }
 
@@ -201,6 +225,9 @@ const SPECS: Record<keyof EquipSlotConfig, [string, string | undefined, string, 
   frameX: ['Frame X', 'px', 'Frame offset from the button centre.', 'Frame'],
   frameY: ['Frame Y', 'px', 'Frame offset from the button centre.', 'Frame'],
   frameScale: ['Frame size', '×', 'Multiple of the button own box — 1 is exactly button-sized, so the frame needs more than 1 to sit AROUND it.', 'Frame'],
+  fadeInMs: ['Fade in', 'ms', 'How long the slot takes to appear when you equip something.', 'Arriving & leaving'],
+  fadeOutMs: ['Fade out', 'ms', 'How long it takes to go when the last source dies or is sold. Also how long the leaving copy is kept alive, so the fade and the timer cannot disagree.', 'Arriving & leaving'],
+
   frameBehind: ['Behind art', undefined, '1 puts the frame behind the icon (a backing plate), 0 in front (a surround the icon sits under).', 'Frame'],
 
   costX: ['Cost X', 'px', 'The Gold cost pill. The frame has a round boss at its top-left made for it.', 'Cost pill'],

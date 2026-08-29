@@ -48,9 +48,9 @@ export interface HeroPanelConfig {
 // styles.css `var(--hpn-*, …)` fallbacks.
 const DEFAULTS: HeroPanelConfig = {
   panelX: 58, panelY: -109, panelScale: 3.1, panelSize: 88,
-  portraitX: 0, portraitY: 0, portraitScale: 1.2,
+  portraitX: 0, portraitY: -1, portraitScale: 1.17, // owner re-bake 2026-08-29 (with the backing discs gone)
   playerNameX: -200, playerNameY: -200, playerNameScale: 0.4,
-  heroNameX: 0, heroNameY: -9, heroNameScale: 0.6,
+  heroNameX: 0, heroNameY: -9, heroNameScale: 0.5,
   resolveX: 0, resolveY: 53, resolveScale: 0.51, // owner re-bake 2026-08-17 for the full board: dead-centre now, 2px further down
 };
 

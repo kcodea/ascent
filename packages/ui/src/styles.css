@@ -2946,7 +2946,7 @@ body.modalup .app { z-index: auto; }
 /* Chains draped over the LOCKED third rune slot — same 3rd-node anchor + counter-scale as the sheen so it stays
    glued to the slot through the Quest-nodes Scale slider; its own `--rch-*` nudge from the 💠 Rune Sheen tuner.
    Sits ABOVE the sheen (z 6) and does not blend — it reads as solid chains over the empty slot. */
-.questbadges .rune-chains { position: absolute; left: 0; top: 0; z-index: 6; pointer-events: none; -webkit-user-drag: none; height: auto; transform-origin: 50% 50%; width: calc(var(--rch-w, 54) * var(--u-base)); transform: translate(calc(var(--rch-x, 129) * var(--u) + var(--qb3-x, 30px) * var(--scale)), calc(var(--rch-y, -5) * var(--u) + var(--qb3-y, 23px) * var(--scale))) scale(calc(1 / var(--qb-s, 1.09))); }
+.questbadges .rune-chains { position: absolute; left: 0; top: 0; z-index: 6; pointer-events: none; -webkit-user-drag: none; height: auto; transform-origin: 50% 50%; width: calc(var(--rch-w, 54) * var(--u-base)); transform: translate(calc(var(--rch-x, 131) * var(--u) + var(--qb3-x, 30px) * var(--scale)), calc(var(--rch-y, -3) * var(--u) + var(--qb3-y, 23px) * var(--scale))) scale(calc(1 / var(--qb-s, 1.09))); }
 /* Reserve one rune-row's height while the 3rd slot is chained, so the bottom-anchored row doesn't grow (and slide
    the chains) as the first two runes arrive — the chains hold one spot from turn 1 onward. */
 .questbadges.hasrunelock { min-height: calc(53 * var(--u)); }
@@ -3078,7 +3078,7 @@ body.dragging .statusbar .hero { pointer-events: none; }
 /* Portrait fills the square (inset by the frame padding) — resizing the square resizes the art WITH it;
    the 🧍 portrait dials then fine-seat it. `overflow: visible` lets the hero-name pill eclipse its bottom
    (the pill lives inside, so it rides the portrait transform too). */
-.statusbar .hero .f { position: absolute; inset: calc(6 * var(--u)); width: auto; height: auto; overflow: visible; border-radius: 50%; transform: var(--hpn-portrait-t, scale(1.2)); }
+.statusbar .hero .f { position: absolute; inset: calc(6 * var(--u)); width: auto; height: auto; overflow: visible; border-radius: 50%; transform: var(--hpn-portrait-t, translate(calc(0 * var(--u)), calc(-1 * var(--u))) scale(1.17)); }
 .statusbar .hero .f .heroimg { border-radius: inherit; }
 .statusbar .hero .f svg { width: calc(42 * var(--u)); height: calc(42 * var(--u)); }
 /* Hover affordance — the portrait darkens to a near-black scrim and spells out the click action (owner ask
@@ -3108,7 +3108,7 @@ body.dragging .statusbar .hero { pointer-events: none; }
 .statusbar .hero .f.hasbuffs:hover .herobuffs-arrow { opacity: 1; transform: translate(-50%, -92%); }
 /* Hero name — a pill eclipsing the BOTTOM edge of the portrait (mirrors the player-name pill eclipsing the top). */
 .statusbar .hero .heroname {
-  position: absolute; left: 50%; bottom: 0; transform: var(--hpn-hname-t, translate(-50%, 52%) translate(calc(0 * var(--u)), calc(-9 * var(--u))) scale(0.6)); z-index: 4;
+  position: absolute; left: 50%; bottom: 0; transform: var(--hpn-hname-t, translate(-50%, 52%) translate(calc(0 * var(--u)), calc(-9 * var(--u))) scale(0.5)); z-index: 4;
   max-width: calc(124 * var(--u)); padding: calc(2 * var(--u)) calc(13 * var(--u));
   background: linear-gradient(180deg, #fff, #f3ead4); color: var(--ink); border: 2px solid var(--gold); border-radius: 999px;
   font-family: var(--font-ui); font-weight: 800; font-size: calc(14 * var(--u)); letter-spacing: 0.02em; line-height: 1.1;

@@ -4717,7 +4717,7 @@ function advanceCombat(s: RunState): void {
   // restores the last-used Equipment when its source survived. One cue per SOURCE BODY for the UI, even
   // though duplicates collapse into a single selector entry.
   for (const cue of rebuildEquipment(s)) {
-    stampEquipFx(s, { kind: 'reequip', uid: cue.uid, cardId: cue.cardId });
+    stampEquipFx(s, { kind: 'reequip', uid: cue.uid, cardId: cue.cardId, equipmentId: cue.equipmentId });
   }
   // Rune of Copies (Epic): each turn setup, copy a random board minion to hand (the immediate copy fired on
   // buy) — one copy per rune copy held (recurring family, owner 2026-08-27).

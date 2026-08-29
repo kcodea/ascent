@@ -83,7 +83,27 @@ export const BLOODPOT: EquipmentDefinition = {
   useSfxId: 'bloodpot',
 };
 
-export const EQUIPMENT: readonly EquipmentDefinition[] = [BLOODPOT];
+/**
+ * TITAN CHISEL — the second Equipment (owner 2026-08-28), and the first to prove the SELECTOR: two Equipment
+ * held at once is what the swap control, the board-order fallback and last-used restoration exist for.
+ *
+ * SETS stats rather than adding them, which is why it needs its own factory: a body chiselled to 50/50 is
+ * 50/50 whatever it was, so a 2/1 and a 40/40 end up identical. Gilding doubles the printed numbers, the
+ * gilding baseline.
+ */
+export const TITAN_CHISEL: EquipmentDefinition = {
+  id: 'titan_chisel',
+  name: 'Titan Chisel',
+  text: "Set a friendly minion's stats to **50/50**.",
+  goldenText: "Set a friendly minion's stats to **100/100**.",
+  baseCost: 3,
+  targetMode: 'friendly',
+  effectId: 'equipmentSetStats',
+  params: { attack: 50, health: 50 },
+  gildedParams: { attack: 100, health: 100 },
+};
+
+export const EQUIPMENT: readonly EquipmentDefinition[] = [BLOODPOT, TITAN_CHISEL];
 
 export const EQUIPMENT_INDEX: Readonly<Record<string, EquipmentDefinition>> =
   Object.fromEntries(EQUIPMENT.map((e) => [e.id, e]));

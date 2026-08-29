@@ -52,6 +52,9 @@ const ART_PENDING = new Set<string>([
   // properly-named `UnbridledMight.png` that resolved the old UnbridledWrath near-miss). Grand Larceny is
   // the one Gift still awaiting a master.
   'gift_larceny',
+  // Titan Sculptor (owner add 2026-08-28) — authored ahead of its portrait. Its Equipment, Titan Chisel, has
+  // no icon either; the slot button falls back to its glyph, which is why that fallback exists.
+  'e3_sculptor',
 ]);
 
 describe('art coverage for live cards', () => {

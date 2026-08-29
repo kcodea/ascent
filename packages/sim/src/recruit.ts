@@ -2782,6 +2782,31 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   },
 
   /**
+   * TITAN CHISEL — one Equipment TRIGGER: SET the target's stats, rather than add to them.
+   *
+   * Its own factory because setting is not buffing, and the difference matters in both directions: a 2/1 and a
+   * 40/40 both end up 50/50, so the Chisel is a floor as much as a ceiling. Recorded as a `Titan Chisel` buff
+   * entry carrying the DELTA it actually applied, so the inspect itemises where the stats came from like any
+   * other source — without that, a chiselled body shows 50/50 attributed to nothing.
+   *
+   * A negative delta is real (chiselling DOWN a bigger body) and is recorded as such rather than clamped: the
+   * itemisation has to add up to what the card shows.
+   */
+  equipmentSetStats: (ctx, self, params, payload) => {
+    const target = payload.target;
+    if (!target) return;
+    const attack = num(params.attack, 0);
+    const health = num(params.health, 0);
+    const dA = attack - target.attack;
+    const dH = health - target.health;
+    target.attack = attack;
+    target.health = health;
+    if (dA !== 0 || dH !== 0) {
+      (target.buffs ??= []).push({ source: nameOf(self), attack: dA, health: dH, count: 1 });
+    }
+  },
+
+  /**
    * AN EQUIPMENT SPELL — one Equipment TRIGGER that CASTS a named Shop spell (owner handoff 2026-08-28).
    *
    * Routed through `castSpell`, the REAL cast path, which is the entire point of the classification: it is
@@ -10808,7 +10833,11 @@ export function playCard(state: RunState, played: BoardCard): void {
       },
       () => { fn(ctx, played, effect.params ?? {}, { minion: played }); },
     );
-    stampEquipFx(state, { kind: 'equip', uid: played.uid, cardId: played.cardId });
+    const granted = EQUIPMENT_INDEX[str(effect.params?.equipmentId)];
+    stampEquipFx(state, {
+      kind: 'equip', uid: played.uid, cardId: played.cardId,
+      ...(granted ? { equipmentId: granted.id } : {}),
+    });
   }
   const hasBattlecry = def.effects.some((e) => e.on === 'onPlay' && !SILENT_ONPLAY.has(e.do) && alignAllows(e, myAlign));
   for (const effect of def.effects) {

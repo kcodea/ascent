@@ -885,25 +885,47 @@ export function StatusBar() {
                 {equipCost > 0 && run.embers < equipCost ? ' · not enough Gold' : ''}
               </span>
             </div>
-            {/* THE SELECTOR. Only when there is a choice to make — with one Equipment and no native second
-                power, a picker would be a control that can only do nothing. Swapping is free by contract: no
-                Gold, no use, no exhaustion change. */}
-            {equipOptions.length > 1 && (
-              <div className="equipswap" role="group" aria-label="Choose Equipment">
-                {equipOptions.map((g) => (
-                  <button
-                    key={g.equipmentId}
-                    type="button"
-                    className={`equipswapbtn${g.equipmentId === selectedEquip.equipmentId ? ' on' : ''}`}
-                    title={EQUIPMENT_INDEX[g.equipmentId]?.name}
-                    onPointerDown={(e) => {
-                      e.stopPropagation();
-                      dispatch({ type: 'selectEquipment', equipmentId: g.equipmentId });
-                    }}
-                  >
-                    {EQUIPMENT_INDEX[g.equipmentId]?.name ?? g.equipmentId}
-                  </button>
-                ))}
+            {/* THE SELECTOR — a rail that slides out to the RIGHT on hover (owner ask 2026-08-28: "when i
+                mouse over the equipment, can it show the available equipment options slide out to the right?
+                then i can click on an option to select it"). It replaced a permanent row of text buttons
+                under the slot, which spent space every turn on a choice that is made rarely.
+
+                Only when there is a choice to make — with one Equipment a picker is a control that can only
+                do nothing. Swapping is free by contract: no Gold, no use, no exhaustion change.
+
+                NOT rendered while ARMED. An armed Equipment means the player is aiming at the board, and a
+                rail hanging off the slot would sit under the cursor on the way out and eat the pick.
+
+                Reveal is CSS (`:hover`/`:focus-within` on the slot) rather than React state — no re-render on
+                a mouse crossing a button, and the transition is transform + opacity only. The rail is a child
+                of the slot so the pointer never leaves the hover target crossing into it. */}
+            {equipOptions.length > 1 && !equipArmed && (
+              <div className="equiprail" role="group" aria-label="Choose Equipment">
+                {equipOptions.map((g) => {
+                  const def = EQUIPMENT_INDEX[g.equipmentId];
+                  const art = equipmentArtFor(g.equipmentId);
+                  const on = g.equipmentId === selectedEquip.equipmentId;
+                  return (
+                    <button
+                      key={g.equipmentId}
+                      type="button"
+                      className={`equiprailbtn${on ? ' on' : ''}`}
+                      aria-pressed={on}
+                      onPointerDown={(e) => {
+                        e.stopPropagation();
+                        if (on) return;
+                        sfx.tick();
+                        dispatch({ type: 'selectEquipment', equipmentId: g.equipmentId });
+                      }}
+                    >
+                      <span className="equiprail-icon" aria-hidden="true">
+                        {art ? <img src={art} alt="" draggable={false} /> : <span className="equiprail-glyph">⚒</span>}
+                      </span>
+                      <span className="equiprail-name">{def?.name ?? g.equipmentId}</span>
+                      {def ? <span className="equiprail-cost">{equipmentCostOf(run, def)}</span> : null}
+                    </button>
+                  );
+                })}
               </div>
             )}
           </div>

@@ -3136,11 +3136,54 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
 .equipslot .hplabel { pointer-events: none; }
 /* No `cursor` declaration here on purpose — the global gauntlet rule paints `.btn, button`, and a plain
    keyword cursor on a class selector out-specifies it and swaps in the OS arrow (CLAUDE.md's UI convention). */
-.equipswap { display: flex; gap: 4px; justify-content: center; margin-top: 4px; }
-.equipswapbtn { padding: 2px 7px; border-radius: 7px; font-family: var(--font-ui); font-size: 11px; font-weight: 800;
-  letter-spacing: 0.04em; color: rgba(255, 255, 255, 0.62); background: rgba(12, 9, 20, 0.66);
-  border: 1px solid rgba(255, 255, 255, 0.16); }
-.equipswapbtn.on { color: #f6efe2; border-color: var(--acc); background: rgba(40, 30, 60, 0.8); }
+/* THE SELECTOR RAIL (owner ask 2026-08-28) — the Equipment options slide out to the RIGHT on hover, replacing
+   a permanent row of text buttons beneath the slot. Reveal is pure CSS on the slot's own `:hover` /
+   `:focus-within`, so crossing a button costs no React render.
+
+   It is a CHILD of `.equipslot` on purpose: the pointer never leaves the hover target on its way into the
+   rail, so the rail cannot flicker out from under the cursor. `left: 100%` plus a small gap means there is no
+   dead strip between them either.
+
+   PERF: the reveal animates `transform` + `opacity` ONLY (compositor-only, and one-shot, not looping) — see
+   CLAUDE.md's north-star rule. `visibility` rides the same transition so the hidden rail is untabbable and
+   unhittable rather than merely transparent.
+
+   NO `cursor` declaration — the global gauntlet rule paints `button`, and a plain keyword cursor on a class
+   selector out-specifies it and swaps in the OS arrow. */
+.equiprail {
+  position: absolute; left: 100%; top: 50%; margin-left: 10px;
+  display: flex; flex-direction: column; gap: 5px; padding: 7px;
+  border-radius: 13px; background: rgba(12, 9, 20, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 14px 34px -10px rgba(0, 0, 0, 0.7);
+  opacity: 0; visibility: hidden; pointer-events: none; z-index: 61;
+  transform: translate(-14px, -50%);
+  transition: opacity 0.15s ease, transform 0.19s cubic-bezier(0.2, 0.9, 0.25, 1), visibility 0s linear 0.19s; }
+.equipslot:hover .equiprail,
+.equipslot:focus-within .equiprail {
+  opacity: 1; visibility: visible; pointer-events: auto;
+  transform: translate(0, -50%);
+  transition: opacity 0.15s ease, transform 0.19s cubic-bezier(0.2, 0.9, 0.25, 1), visibility 0s; }
+
+.equiprailbtn {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  padding: 4px 10px 4px 4px; border-radius: 10px; text-align: left;
+  color: rgba(255, 255, 255, 0.68); background: rgba(28, 22, 40, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  transition: color 0.12s, background 0.12s, border-color 0.12s; }
+.equiprailbtn:hover { color: #f6efe2; background: rgba(48, 36, 70, 0.9); border-color: rgba(255, 255, 255, 0.3); }
+/* The current pick reads as SETTLED rather than as another thing to press — accent border, no hover lift. */
+.equiprailbtn.on { color: #f6efe2; background: rgba(40, 30, 60, 0.92); border-color: var(--acc); }
+
+.equiprail-icon { flex: 0 0 auto; display: grid; place-items: center; width: 30px; height: 30px;
+  border-radius: 8px; overflow: hidden; background: rgba(0, 0, 0, 0.35); }
+.equiprail-icon img { width: 100%; height: 100%; object-fit: cover; }
+.equiprail-glyph { font-size: 17px; color: #d8ccb6; }
+.equiprail-name { flex: 1 1 auto; white-space: nowrap; font-family: var(--font-ui); font-size: 12.5px;
+  font-weight: 800; letter-spacing: 0.03em; }
+/* The cost sits on the row because the whole point of a swap is choosing what you can afford right now. */
+.equiprail-cost { flex: 0 0 auto; min-width: 17px; text-align: center; font-family: var(--font-ui);
+  font-size: 12px; font-weight: 900; color: var(--acc); }
 
 /* THE EQUIP FLASH — a body granting its Equipment, and the brisker re-equip refresh at Start of Turn. Both
    are ONE-SHOT, so they may touch paint properties: CLAUDE.md's ban is on LOOPING paint animations. */

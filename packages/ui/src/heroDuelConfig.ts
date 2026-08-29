@@ -92,12 +92,12 @@ const DEFAULTS: HeroDuelConfig = {
   hpX: 0,
   hpY: -23,
   // REFERENCE px (× --scale in styles.css), so the icon stays pinned to the board at any stage size — was raw
-  // px, which skewed off the board on a non-fullscreen stage (owner report 2026-08-29). The owner's tuned
-  // fullscreen look (raw -309 / 153 at --scale 0.5109) converts to these reference-px values.
-  powerX: -605,
-  powerY: 299,
+  // px, which skewed off the board on a non-fullscreen stage (owner report 2026-08-29). Owner-tuned on the
+  // fixed (scale-relative) build.
+  powerX: -386,
+  powerY: 191,
   powerScale: 0.87,
-  powerAlpha: 0.99,
+  powerAlpha: 1,
   pillScale: 0.72,
   pillX: -60,
   pillY: -16,

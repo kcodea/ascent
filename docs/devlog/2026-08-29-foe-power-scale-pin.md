@@ -12,11 +12,10 @@ on a non-fullscreen (smaller-`--scale`) stage the base anchor scaled while the o
 
 **Fix.** Multiply `--hd-power-x` and `--hd-power-y` by `var(--scale)` in both the icon and its hover tooltip
 (`.opp-power` + `.opp-power-tip`), matching every other pinned element. That changes the values' meaning from
-raw px to reference px, so the owner-tuned fullscreen look (`-309 / 153` measured at `--scale` 0.5109375)
-converts to reference-px defaults: **powerX -309 → -605, powerY 153 → 299** (`raw / 0.5109375`). At the owner's
-fullscreen these reproduce the same pixel position (±0.2px); at every other stage size the icon now scales with
-the board. `powerScale`/`powerAlpha` are a transform-multiplier and opacity — scale-invariant, unchanged; the
-icon's *size* was already correct (its `128 * var(--u)` box scales via `--u`).
+raw px to reference px. The owner then re-tuned on the fixed build to the shipped defaults **powerX -386,
+powerY 191** (reference px), plus **powerAlpha 1**. At every stage size the icon now scales with the board.
+`powerScale`/`powerAlpha` are a transform-multiplier and opacity — scale-invariant; the icon's *size* was
+already correct (its `128 * var(--u)` box scales via `--u`).
 
 Files: `packages/ui/src/styles.css` (the two `.opp-power*` rules), `packages/ui/src/heroDuelConfig.ts`
 (DEFAULTS). Dev tuner (⚔️ Hero Duel) unchanged; a saved localStorage value now means reference px, so a stale

@@ -143,7 +143,8 @@ describe('DIRECT_CALL_SITES is a derivation, not a list', () => {
     expect(directCallDefIds()).toEqual([
       // 'bloodpot' left this list on 2026-08-28: the tuner's use-test stopped naming it literally and now
       // plays whichever Equipment is selected, so it reaches the game only through the dynamic path.
-      'ale-bubbles', 'board-wipe', 'choose-one-both', 'cia-hp', 'click-puff', 'coin', 'coins', 'consume-pull', 'damage-burst', 'death-dissolve',
+      // 'board-wipe' left on 2026-08-29: the curtain moved above the FX canvas and the streak call was retired.
+      'ale-bubbles', 'choose-one-both', 'cia-hp', 'click-puff', 'coin', 'coins', 'consume-pull', 'damage-burst', 'death-dissolve',
       'equipment-spark',
       'freeze-blast', 'hero-power-spark', 'hero-power-target', 'impact-dust', 'landing-dust', 'ruby-gem-apply',
       'rune-buff-unit', 'rune-slot-break', 'shop-buff-aura', 'shop-tier-up', 'strike-impact', 'tallyanimation1', 'watcher-pulse',

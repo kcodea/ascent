@@ -28,7 +28,6 @@
 /** def id → the `packages/ui/src`-relative files that fire it. Generated; see the header. */
 export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   'ale-bubbles': ['Recruit.tsx', 'choreo/score.ts'],
-  'board-wipe': ['Recruit.tsx'],   // the combat-entry/exit board wipe's Pixi garnish
   'choose-one-both': ['useChooseBothFx.ts'],   // the persistent (Both) marker on hand / shop / Discover cards
   'cia-hp': ['useCiaEnchantedFx.ts'],
   'click-puff': ['Recruit.tsx'],

@@ -49,7 +49,7 @@
   --board: url('/augustfullboard.webp');
   /* The COMBAT board — the same Aug-25 master with the top-right tray removed, exported by
      `npm run board:export` onto the identical canvas/framing as --board. Painted by a second
-     `.boardbg` layer (`.boardbg--combat`) that a one-shot clip-path wipe reveals on combat entry. */
+     `.boardbg` layer (`.boardbg--combat`) that snaps in while the `.wipecurtain` covers the scene. */
   --board-combat: url('/augustboardcombat.webp');
   /* The board art's own aspect (3840x2143). `.boardbg` needs it to compute the art's WIDTH from the stage
      height. Update it if the art changes — swapping in art of a different shape without this gets sized off
@@ -81,6 +81,12 @@
   --board-edge-col: #312361;
   --board-edge-col-0: rgb(49 35 97 / 0);
   --board-edge-fade: 186px;
+  /* VERTICAL blend (owner ask 2026-08-29): the Aug-25 masters carry less sky than the canvas, so the board
+     webps have TRANSPARENT bands above/below the painting; `.boardbg` fills them with this colour fading
+     into the art's top/bottom edges. Tuned live in the Board Edge tuner (boardEdgeConfig.ts mirrors these). */
+  --board-vedge-col: #313164;
+  --board-vedge-col-0: rgb(49 49 100 / 0);
+  --board-vedge-fade: 140px;
   /* TITLE-SCREEN VEIL — the dark navy vignette on `.titlescreen::before`, live-tunable via `titleVeilConfig.ts`
      (which overrides these on `:root` at runtime; keep in sync with its DEFAULTS — the pre-JS / no-JS paint).
      An elliptical radial: transparent core over the floating city, navy hugging the bowed edges. */
@@ -177,6 +183,33 @@ body { background: #160f08; }
 /* The hero frame is no longer clickable (the power fires from its button only) — don't show the action cursor on it.
    A disabled power button keeps the game's custom default cursor (not the bare OS arrow), like the other ctl buttons. */
 .heropowerbtn:disabled { cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
+/* FOE HERO POWER (owner ask 2026-08-29) — the display-only twin in the screen's top-right corner during
+   combat (rendered by CombatOpponent, staged with it under the curtain). Same box/clip as the player's
+   button via the shared class; pointer-events none keeps it inert and hover-glow-free. */
+/* z41: BELOW the foe portrait (.combatopp z42) so the portrait seats over it where they overlap (owner ask
+   2026-08-29), still above the statusbar (z40). Scale/opacity from the ⚔️ Hero Duel tuner. The `passive`
+   class on the element is what defeats the player-button 'can't afford' dim: it breaks that rule's :not()
+   chain at match level instead of fighting its specificity. */
+.heropowerbtn.opp-power { position: fixed; top: calc(20 * var(--u) + var(--hd-power-y, 153px));
+  /* Anchored to the STAGE's right edge, not the viewport's (owner ask 2026-08-29): 50% - gw/2 is the
+     letterbox margin, so the icon holds its spot beside the board on any monitor width. */
+  right: calc(50% - var(--gw) / 2 + 20 * var(--u) - var(--hd-power-x, -309px)); z-index: 41; pointer-events: none;
+  transform: scale(var(--hd-power-s, 0.87)); transform-origin: top right; opacity: var(--hd-power-alpha, 0.99); }
+/* Hover tooltip (owner ask 2026-08-29): pointer-events back ON for hover only — there is no .hpb-glow child
+   here, so the player-button hover-glow rules have nothing to light, and no handlers exist to click. The tip
+   re-anchors BELOW, centre-aligned (the player's sits above-centred, which would run off screen from the
+   top-right corner). Same 0.35s hover delay as the player's. */
+.heropowerbtn.opp-power { pointer-events: auto; }
+/* The tip is the icon's fixed-position SIBLING at z101 (above the portrait z42/z100) so the ICON itself can
+   stay seated below the portrait at all times (owner ask 2026-08-29). Anchored from the same --hd-power-*
+   vars the icon uses: horizontally centred on the icon's box, 12px below it. Shown via the adjacent-sibling
+   hover combinator, same 0.35s delay as the player's tip. */
+.herotip.opp-power-tip { position: fixed; z-index: 101; bottom: auto;
+  top: calc(20 * var(--u) + var(--hd-power-y, 153px) + 128 * var(--u) * var(--hd-power-s, 0.87) + 12px);
+  left: auto; right: calc(50% - var(--gw) / 2 + 20 * var(--u) - var(--hd-power-x, -309px) + 64 * var(--u) * var(--hd-power-s, 0.87));
+  transform: translateX(50%); }
+.heropowerbtn.opp-power:hover + .herotip.opp-power-tip { opacity: 1; transition-delay: 0.35s; }
+
 /* closed fist while a card is being dragged */
 body.dragging, body.dragging * { cursor: url('/cursors/hand_closed.svg') 13 12, grabbing !important; }
 .disp { font-family: var(--font-title), sans-serif; }
@@ -215,6 +248,14 @@ canvas.spr { image-rendering: pixelated; display: block; }
   --_board-l: calc(50% - var(--_board-w) / 2 + var(--board-x, 0px) * var(--scale));
   --_board-r: calc(50% + var(--_board-w) / 2 + var(--board-x, 0px) * var(--scale));
   --_board-fade: calc(var(--board-edge-fade) * var(--scale));
+  /* The art's on-screen HEIGHT + the PAINTING's top/bottom Y inside it. The exported webps are transparent
+     above row 278 and below row 1913 of 2143 (board-export.ts's TOP_PAD/h — the fractions below MIRROR that
+     transform; update together): the vertical blend fades from those edges outward over the bands. */
+  --_board-hh: calc(var(--_board-w) / var(--board-aspect));
+  --_board-tt: calc(50% + var(--board-y, 5px) * var(--scale) - var(--_board-hh) / 2);
+  --_art-top: calc(var(--_board-tt) + var(--_board-hh) * 0.1297);
+  --_art-bot: calc(var(--_board-tt) + var(--_board-hh) * 0.8927);
+  --_board-vfade: calc(var(--board-vedge-fade) * var(--scale));
   background:
     linear-gradient(rgb(28 22 16 / calc(0.34 * var(--scrim, 0))), rgb(28 22 16 / calc(0.46 * var(--scrim, 0)))),
     /* Side-blend: solid `--board-edge-col` across each margin, fading into the art by `--_board-fade`. On a
@@ -226,31 +267,85 @@ canvas.spr { image-rendering: pixelated; display: block; }
       var(--board-edge-col-0) calc(var(--_board-r) - var(--_board-fade)),
       var(--board-edge-col) var(--_board-r),
       var(--board-edge-col) 100%),
+    /* Vertical blend: solid `--board-vedge-col` over the transparent bands above/below the painting, fading
+       into the art by `--_board-vfade` from each painted edge (owner-tunable — Board Edge tuner). */
+    linear-gradient(to bottom,
+      var(--board-vedge-col) 0,
+      var(--board-vedge-col) var(--_art-top),
+      var(--board-vedge-col-0) calc(var(--_art-top) + var(--_board-vfade)),
+      var(--board-vedge-col-0) calc(var(--_art-bot) - var(--_board-vfade)),
+      var(--board-vedge-col) var(--_art-bot),
+      var(--board-vedge-col) 100%),
     var(--board) calc(50% + var(--board-x, 0px) * var(--scale)) calc(50% + var(--board-y, 5px) * var(--scale)) / var(--_board-w) auto no-repeat,
     var(--bg);
 }
 /* COMBAT BOARD LAYER — a second .boardbg painting the combat art. The modifier only swaps which art the
    shared background stack reads (`--board` is re-pointed at `--board-combat`), so the two layers can never
-   drift in size or position. Revealed left→right by a one-shot clip-path transition when combat begins
-   (`.wiped` added) and hidden right→left when it ends (`.wiped` removed). clip-path is a paint property,
-   but this is a sanctioned ONE-SHOT transition (see CLAUDE.md perf rules). A mid-combat resume mounts the
-   layer with `.wiped` already present, so it shows instantly with no transition. The duration is supplied
-   at runtime by Recruit's `WIPE_MS` via an inline `--wipe-dur`; the `550ms` fallback below is just a safety default. */
-.boardbg--combat { --board: var(--board-combat); clip-path: inset(0 100% 0 0);
-  transition: clip-path var(--wipe-dur, 550ms) cubic-bezier(.4, 0, .2, 1); }
-.boardbg--combat.wiped { clip-path: inset(0 0 0 0); }
-/* The glowing wipe FRONT — a soft blue-white energy edge riding the clip seam. Same duration + easing as
-   the clip transition so the two can never desync; compositor-only transform + a short opacity gate
-   (`.sweeping` while a wipe is in flight). Static blur/gradient — nothing paint-animated in a loop. */
-.wipefront { position: fixed; top: 0; bottom: 0; left: -15vw; width: 30vw; z-index: 0;
+   drift in size or position. No clip animation of its own: the SWAP happens while the `.wipecurtain` below
+   fully hides the scene (see Recruit's wipe state machine), so the layer just snaps via `.shown`. */
+.boardbg--combat { --board: var(--board-combat); display: none; }
+.boardbg--combat.shown { display: block; }
+/* THE WIPE CURTAIN — the two-stage combat transition (owner ask 2026-08-28). The boot splash's dark-blue
+   gradient sweeps L→R over the ENTIRE scene (cards, lobby rail, hero panels, banners — a BODY portal at z105:
+   above the out-of-app fixed panels (.statusbar z40, .combatopp z100, .eotbanner z95) AND above the z110 Pixi FX canvas + every transient float layer (spell sparks z121, fodder ghosts z120,
+   damage/death floats z112, flying hand-grants — the occasional straggler from the End-of-Turn beats was
+   popping in over the blue, owner report 2026-08-29, hence z250): everything below the deliberate
+   full-screen overlays (Esc z300, hero select z400, loss numbers z2000 — decisive combats skip the curtain)
+   is covered by construction; nothing of the game
+   rides on top), holds a beat at full blue while the phase's own animations settle underneath, then sweeps
+   L→R off to reveal the finished scene. Same choreography in both directions. clip-path is a paint property,
+   but each sweep is a sanctioned ONE-SHOT transition (see CLAUDE.md perf rules). The duration is supplied at
+   runtime by Recruit's `WIPE_MS` via an inline `--wipe-dur`; the `450ms` fallback is a safety default.
+   Cycle (owner ask 2026-08-28 — the exit sweeps the OTHER way, so the clip round-trips with no resets):
+   base (parked LEFT) → `.full` (entry cover, edge L→R) → `.gone` (entry reveal, edge L→R; parked RIGHT
+   through combat) → `.full` (exit cover, edge R→L) → base (exit reveal, edge R→L). `.snap` is unused on the
+   curtain and kept only for the front. */
+.wipecurtain { position: fixed; inset: 0; z-index: 250; pointer-events: none;
+  background: radial-gradient(ellipse 60% 60% at 50% 50%, #24468a 0%, #0a1730 100%);
+  clip-path: inset(0 100% 0 0);
+  transition: clip-path var(--wipe-dur, 450ms) cubic-bezier(.4, 0, .2, 1); }
+.wipecurtain.full { clip-path: inset(0 0 0 0); }
+.wipecurtain.gone { clip-path: inset(0 0 0 100%); }
+/* HOLD states wear `.settle` (owner bug report 2026-08-28: brief combat-board flashes during the covered
+   beat). The state machine's backstop timer can outrun the real sweep on a hitchy combat-entry frame —
+   advancing to the covered state (which swaps the board) while the clip transition is still mid-flight.
+   `settle` kills the transition for the hold, SNAPPING the clip to its `.full` target: a no-op when the
+   sweep genuinely finished (the normal path), an instant catch-up when it hadn't — either way the curtain
+   is provably at full cover in the same frame the board swaps, so the flash cannot exist. */
+.wipecurtain.settle { transition: none; }
+.wipecurtain.snap { transition: none; }
+/* NOW FACING — the versus announcement centred on the blue (owner ask 2026-08-28). A CHILD of the curtain,
+   so the parent's clip-path sweeps it in and out with the blue; no animation of its own beyond a gentle
+   one-shot settle. Entry curtain only (Recruit gates the markup). */
+.wipevs { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  display: flex; flex-direction: column; align-items: center; gap: calc(14 * var(--u, 1px));
+  animation: wipevsin 480ms cubic-bezier(0.16, 1, 0.3, 1) backwards; animation-delay: 120ms; }
+@keyframes wipevsin { from { opacity: 0; transform: translate(-50%, -46%) scale(0.94); } }
+.wipevs-label { font-family: var(--font-ui); font-weight: 800; font-size: calc(38 * var(--u, 1px));
+  letter-spacing: 0.34em; text-transform: uppercase; color: #9fc0f5; text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5); }
+.wipevs-face { width: calc(290 * var(--u, 1px)); height: calc(290 * var(--u, 1px)); border-radius: 50%; /* matches the in-combat foe portrait: 116u x its 2.5 wrapper scale */
+  object-fit: cover; border: calc(4 * var(--u, 1px)) solid #c9a35c;
+  box-shadow: 0 0 0 calc(2 * var(--u, 1px)) rgba(10, 23, 48, 0.9), 0 14px 40px -10px rgba(0, 0, 0, 0.7); }
+.wipevs-name { font-family: var(--font-ui); font-weight: 900; font-size: calc(34 * var(--u, 1px));
+  color: #fff; text-shadow: 0 2px 12px rgba(0, 0, 0, 0.6); }
+/* The glowing wipe FRONT — a soft blue-white energy edge riding the curtain's seam. Same duration + easing
+   as the curtain's clip transition so the two can never desync; compositor-only transform, static
+   blur/gradient — nothing paint-animated in a loop. `.go` sweeps it L→R; `.snap` parks it back at the left
+   edge instantly (opacity 0, so the jump is invisible) ready for the next stage. Rendered AFTER the curtain
+   at the same z, so it paints above the blue. */
+.wipefront { position: fixed; top: 0; bottom: 0; left: -15vw; width: 30vw; z-index: 250;
   pointer-events: none; opacity: 0; mix-blend-mode: screen;
   background:
     radial-gradient(60% 50% at 50% 50%, rgba(255, 255, 255, .55), rgba(160, 200, 255, .28) 40%, rgba(90, 130, 255, 0) 70%),
     linear-gradient(to right, rgba(120, 160, 255, 0), rgba(190, 215, 255, .5) 46%, rgba(255, 255, 255, .85) 50%, rgba(190, 215, 255, .5) 54%, rgba(120, 160, 255, 0));
   filter: blur(2px); transform: translateX(0);
-  transition: transform var(--wipe-dur, 550ms) cubic-bezier(.4, 0, .2, 1), opacity 120ms linear; }
-.wipefront.wiped { transform: translateX(100vw); }
+  transition: transform var(--wipe-dur, 450ms) cubic-bezier(.4, 0, .2, 1), opacity 120ms linear; }
+.wipefront.go { transform: translateX(100vw); }
+/* Exit sweeps travel R→L (owner ask 2026-08-28): the front parks at the RIGHT edge and `.go` brings it home. */
+.wipefront.rtl { transform: translateX(100vw); }
+.wipefront.rtl.go { transform: translateX(0); }
 .wipefront.sweeping { opacity: 1; }
+.wipefront.snap { transition: none; }
 /* With the omen + row labels gone and the hand tucked under the status bar, let the
    Tavern + Warband settle lower: auto margins centre the block in the freed space. */
 /* Tavern offers and Warband mirror each other across the board's centre rope: each half
@@ -684,6 +779,12 @@ body.dragging .etbwrap { pointer-events: none; } /* a card dragged across it dro
    default (4× blur-8 rgba(120,200,255,0.95)). Static filter + the opacity-cheap `filter` transition below. */
 .etbwrap .etb-gem { transition: filter 0.16s ease; }
 .etbwrap:not(:disabled):not(.pressed):hover .etb-gem {
+  filter: var(--etb-gemglow, drop-shadow(0 0 8px rgba(120, 200, 255, 0.95)) drop-shadow(0 0 8px rgba(120, 200, 255, 0.95)) drop-shadow(0 0 8px rgba(120, 200, 255, 0.95)) drop-shadow(0 0 8px rgba(120, 200, 255, 0.95))) brightness(var(--etb-gem-hover, 1.53));
+}
+/* END COMBAT state (owner ask 2026-08-29): once the replay finishes, the pressed diamond doubles as the
+   return-to-shop control — give it the SAME hover glow as the shop's End Turn gem. A separate rule because
+   the base hover excludes `.pressed` (which combat keeps); `.ready` marks the button live again. */
+.etbwrap.ready:not(:disabled):hover .etb-gem {
   filter: var(--etb-gemglow, drop-shadow(0 0 8px rgba(120, 200, 255, 0.95)) drop-shadow(0 0 8px rgba(120, 200, 255, 0.95)) drop-shadow(0 0 8px rgba(120, 200, 255, 0.95)) drop-shadow(0 0 8px rgba(120, 200, 255, 0.95))) brightness(var(--etb-gem-hover, 1.53));
 }
 /* Tuner's "glow always on" preview — pins the gem hover glow so its blur/strength/colour sliders can be
@@ -4258,7 +4359,10 @@ body.aiming, body.aiming * { cursor: none !important; }
 .app { position: relative; }
 
 /* the shop closing: the control bar + the tavern offers fold up and fade out */
-.app.combat:not(.fighting) .zone[data-zone='tavern'] .row { animation: shopclose 0.45s ease forwards; }
+/* The old shop fold-up at combat entry is GONE (owner ask 2026-08-29): the offers stand untouched while
+   the entry curtain covers them and are simply replaced by the enemy row under the blue. (A first retarget
+   of this rule to .staged folded the freshly-mounted ENEMY row instead — its forwards fill held the enemies
+   invisible until .fighting, which read as minions popping in after the curtain.) */
 @keyframes shopclose {
   0% { opacity: 1; transform: translateY(0) scale(1); }
   100% { opacity: 0; transform: translateY(-30px) scale(0.9); }
@@ -4359,7 +4463,9 @@ body.aiming, body.aiming * { cursor: none !important; }
 /* …but not while a unit is collapsing (death) or expanding (summon) — this rule is more specific than
    `.unit.dying` / `.unit.summoned`, so without the exclusion it would override their reflow animation and
    enemy survivors wouldn't slide into the gap (player survivors do, since the warband has no arrival rule). */
-.app.fighting .zone[data-zone='tavern'] .unit:not(.dying):not(.summoned) { animation: enemyarrive 0.5s cubic-bezier(0.34, 1.4, 0.64, 1); }
+/* Arrival bounce now plays under the curtain (.staged.combat — the units mount there), so the reveal shows
+   the enemies already seated instead of bouncing in at fight start (owner ask 2026-08-29). */
+.app.staged.combat .zone[data-zone='tavern'] .unit:not(.dying):not(.summoned) { animation: enemyarrive 0.5s cubic-bezier(0.34, 1.4, 0.64, 1); }
 @keyframes enemyarrive {
   0% { opacity: 0; transform: translateY(-64px) scale(0.9); }
   100% { opacity: 1; transform: translateY(0) scale(1); }
@@ -9167,7 +9273,10 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   transition: transform 420ms cubic-bezier(0.4, 0, 0.2, 1), opacity 320ms ease-out;
   will-change: transform;
 }
-.app.combat .lobbyrail { transform: translateX(115%); opacity: 0; pointer-events: none; }
+/* Slide away on `.staged` — the wipe curtain's covered window — not on `.combat` (the raw phase): the rail
+   holds still while the entry curtain sweeps over it and does its slide UNDER the blue, and on exit it
+   slides back under the blue too, so the reveal sweep always exposes it settled (owner ask 2026-08-28). */
+.app.staged .lobbyrail { transform: translateX(115%); opacity: 0; pointer-events: none; }
 
 /* 1b. THE FOE ARRIVES — the opponent's hero portrait drops onto the Refresh button's anchor (that button is
    inert in combat, so the space is free). Same top-right base point as `.rfbwrap`, so the two occupy the same
@@ -9177,7 +9286,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   left: calc(var(--bar-x) + 0.85 * var(--gw) + var(--rfb-x, -123px) * var(--scale));
   top: calc(var(--bar-y) + var(--rfb-y, 270px) * var(--scale));
   /* The ⚔️ Hero Duel tuner's placement rides the WRAPPER, never the body — the body is what GSAP lunges. */
-  transform: translate(calc(-50% + var(--hd-opp-x, 0px)), calc(-50% + var(--hd-opp-y, 0px))) scale(var(--hd-opp-s, 2.5));
+  transform: translate(calc(-50% + var(--hd-opp-x, 185px)), calc(-50% + var(--hd-opp-y, -10px))) scale(var(--hd-opp-s, 2.4));
   z-index: 42;                      /* just above the refresh button it lands on */
   pointer-events: none;
 }
@@ -9241,7 +9350,7 @@ body.duel-attacker-opp .combatopp-hp { opacity: 0; }
      then equals the player's rune size exactly (owner ask: match the player's runes), independent of how big
      the portrait is tuned. The flex gap lives in the row's own (pre-counter-scale) space, so layout stays
      clean. `transform-origin: left center` keeps the row anchored as it scales. */
-  transform: translate(var(--hd-rune-x, 75px), calc(-50% + var(--hd-rune-y, 0px))) scale(calc(var(--hd-rune-s, 1) / var(--hd-opp-s, 2.5)));
+  transform: translate(var(--hd-rune-x, 75px), calc(-50% + var(--hd-rune-y, 0px))) scale(calc(var(--hd-rune-s, 1) / var(--hd-opp-s, 2.4)));
   transform-origin: left center;
   display: flex; flex-direction: column; gap: var(--hd-rune-gap, 20px);
   pointer-events: auto;
@@ -9275,7 +9384,7 @@ body.duel-attacker-opp .combatopp-hp { opacity: 0; }
   background: linear-gradient(180deg, #fff, #f3ead4); border: 2px solid var(--gold); border-radius: 999px;
   padding: calc(2 * var(--u)) calc(13 * var(--u)); white-space: nowrap;
   box-shadow: 0 calc(2 * var(--u)) calc(6 * var(--u)) -2px var(--shadow);
-  transform: translate(var(--hd-name-x, 0px), var(--hd-name-y, 22px)) scale(var(--hd-name-s, 0.52));
+  transform: translate(var(--hd-name-x, 0px), var(--hd-name-y, 22px)) scale(var(--hd-name-s, 0.77));
 }
 /* Opponent HEALTH — the SAME pill the PLAYER wears in the HUD (owner ask 2026-08-25): the dark gradient box,
    dark-gold border, threat-pink heart and lightened number from `.statusbar .hero .hpbox`, verbatim. */
@@ -9286,7 +9395,7 @@ body.duel-attacker-opp .combatopp-hp { opacity: 0; }
   padding: calc(6 * var(--u)) calc(14 * var(--u));
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 2px 6px rgba(0, 0, 0, 0.3);
   font-family: var(--font-ui); font-weight: 800; font-size: calc(24 * var(--u)); line-height: 1; color: #ff9db0;
-  transform: translate(var(--hd-hp-x, 0px), var(--hd-hp-y, -23px)) scale(var(--hd-hp-s, 0.68));
+  transform: translate(var(--hd-hp-x, 0px), var(--hd-hp-y, -23px)) scale(var(--hd-hp-s, 0.65));
 }
 .combatopp-hp svg { flex: none; width: calc(24 * var(--u)); height: calc(24 * var(--u)); color: var(--threat); }
 .combatopp-armor { margin-left: calc(3 * var(--u)); font-size: calc(17 * var(--u)); color: #b7c2cf; }

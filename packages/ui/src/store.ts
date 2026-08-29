@@ -264,6 +264,13 @@ interface GameStore {
    *  whole sequence from the shop. Never set in production. */
   duelPreview: boolean;
   setDuelPreview: (v: boolean) => void;
+  /** The combat transition's CURTAIN-STAGED window (Recruit's wipe state machine): true from the moment the
+   *  combat-entry curtain fully covers the scene until the combat-EXIT curtain fully covers it again.
+   *  Components whose combat entrance/exit should play BEHIND the blue — the foe portrait's drop
+   *  (CombatOpponent), the lobby rail's slide (`.app.staged`) — key their moves on this instead of the raw
+   *  phase, so the reveal sweep always exposes them already seated (owner ask 2026-08-28). */
+  combatStaged: boolean;
+  setCombatStaged: (v: boolean) => void;
   heroAtkPill: { side: 'player' | 'opp'; amount: number; buffed?: boolean; leaving?: boolean } | null;
   setHeroAtkPill: (p: { side: 'player' | 'opp'; amount: number; buffed?: boolean; leaving?: boolean } | null) => void;
   /** THE RED DAMAGE-TAKEN NUMBER (owner ask 2026-08-25) — the big blocky number that pops in the CENTRE of the
@@ -1639,6 +1646,8 @@ export const useGame = create<GameStore>((set, get) => ({
   setEndTurnAnimating: (v) => set({ endTurnAnimating: v }),
   duelPreview: false,
   setDuelPreview: (v) => set({ duelPreview: v }),
+  combatStaged: false,
+  setCombatStaged: (v) => set({ combatStaged: v }),
   heroAtkPill: null,
   setHeroAtkPill: (p) => set({ heroAtkPill: p }),
   oppDmgDealt: 0,

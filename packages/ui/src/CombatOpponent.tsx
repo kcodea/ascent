@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useGame } from './store';
-import { playerOpponent } from '@game/sim';
+import { playerOpponent, getHero } from '@game/sim';
 import { RUNE_INDEX } from '@game/content';
-import { heroArt, runeArt } from './art';
+import { heroArt, runeArt, heroPowerArt } from './art';
 import { mdBold } from './Card';
 import { Icon } from './Icon';
 
@@ -24,30 +24,32 @@ import { Icon } from './Icon';
  */
 export function CombatOpponent(): JSX.Element | null {
   const lobby = useGame((s) => s.run.lobby);
+  // Keyed on the wipe curtain's STAGED window, not the raw phase (owner ask 2026-08-28): the drop-in and the
+  // fade-and-fall exit both play while the blue curtain hides the scene, so the reveal sweep always exposes
+  // the portrait already seated (and the shop reveal never shows it mid-fall). See store.combatStaged.
+  const staged = useGame((s) => s.combatStaged);
   const inCombat = useGame((s) => s.run.phase === 'combat');
   const pill = useGame((s) => s.heroAtkPill);
   const dmg = useGame((s) => s.heroDmgTaken);
   const preview = useGame((s) => s.duelPreview);
   const dmgDealt = useGame((s) => s.oppDmgDealt);
 
-  // ENTRANCE + EXIT. The portrait drops in when combat starts and now LEAVES with a matching fade-and-fall when
-  // combat ends (owner ask 2026-08-25). To animate the exit the component must outlive `active` going false, so
-  // it holds a `phase` and — during the exit — renders the JUST-FOUGHT foe from a cache (the live
-  // `playerOpponent` has already advanced to next round by then).
-  const active = !!lobby && (inCombat || preview);   // `preview` = the dev tuner's Test button
+  // ENTRANCE + EXIT. The drop-in animation still plays (behind the curtain — invisible, but it keeps the dev
+  // tuner's Test preview honest), while the old visible fade-and-fall exit is GONE: the curtain fully covers
+  // the portrait when `staged` flips off, so it now just unmounts instantly under the blue (owner ask
+  // 2026-08-28). The fought foe is cached because `staged` outlives the phase: during the exit-cover window
+  // the run has already resolved and `playerOpponent` points at the NEXT round's pairing — rendering LIVE
+  // there would flash the next foe's face for a beat before the curtain swallows the portrait.
+  const active = !!lobby && (staged || preview);   // `preview` = the dev tuner's Test button
   const [phase, setPhase] = useState<'hidden' | 'in' | 'out'>('hidden');
   const cached = useRef<ReturnType<typeof playerOpponent> | null>(null);
   const live = active && lobby ? playerOpponent(lobby) : null;
-  if (live?.seat) cached.current = live;
+  if ((inCombat || preview) && live?.seat) cached.current = live;
   useEffect(() => {
-    if (active) { setPhase('in'); return undefined; }
-    if (!cached.current) { setPhase('hidden'); return undefined; }   // never showed a foe → just hide
-    setPhase('out');
-    const t = window.setTimeout(() => setPhase('hidden'), 420);
-    return () => window.clearTimeout(t);
+    setPhase(active ? 'in' : 'hidden');
   }, [active]);
 
-  const shown = active ? live : cached.current;
+  const shown = inCombat || preview ? live : cached.current;
   if (phase === 'hidden' || !shown?.seat) return null;
   const next = shown;
   const seat = shown.seat;
@@ -73,6 +75,7 @@ export function CombatOpponent(): JSX.Element | null {
     //   .combatopp-body  — the LUNGE target: the portrait (and its attack pill) ONLY, so the strike carries
     //                      just the face — the name and health do not fly with it, exactly as the player's
     //                      health stays put while the portrait lunges.
+    <>
     <div className={`combatopp${leaving ? ' leaving' : ''}`} aria-hidden="true">
       <div className="combatopp-drop">
         <div className="combatopp-name">{seat.label}</div>
@@ -115,7 +118,34 @@ export function CombatOpponent(): JSX.Element | null {
           })}
         </div>
       )}
-    </div>,
+    </div>
+    {/* FOE HERO POWER (owner ask 2026-08-29) — the opponent's power icon pinned to the screen's top-right
+        corner for the fight. Same classes as the player's .heropowerbtn so the circle treatment can never
+        drift, but display-only: no cost coin, no name pill, no interactions (pointer-events: none in CSS —
+        which also keeps the player-button hover glow rules from firing on it). A SIBLING of .combatopp, not
+        a child: the wrapper's transform would hijack this element's fixed positioning. */}
+    {heroPowerArt(seat.heroId) && (
+      <>
+      <div className="heropowerbtn opp-power passive">
+        <span className="hpb-artwrap" aria-hidden="true"><img className="hpb-art" src={heroPowerArt(seat.heroId)} alt="" draggable={false} /></span>
+      </div>
+      {/* Hover tooltip — the same .herotip face the player's power shows (owner ask 2026-08-29), with the foe
+          hero's STATIC power text (no live run numbers — we don't simulate the foe's shop state). A SIBLING
+          of the icon, not a child: the icon must stay seated BELOW the portrait (z41) even while hovered, and
+          a child could never out-stack the portrait from inside the icon's own stacking context. The sibling
+          floats at z101 and is positioned/shown off the same --hd-power-* vars + the :hover + combinator. */}
+      {(() => {
+        const power = getHero(seat.heroId)?.power;
+        return power ? (
+          <div className="herotip opp-power-tip" role="tooltip">
+            <b>{power.name}</b>{power.passive ? ' · passive' : ''}
+            <span className="herotip-rule" dangerouslySetInnerHTML={{ __html: mdBold(power.text) }} />
+          </div>
+        ) : null;
+      })()}
+      </>
+    )}
+    </>,
     document.body,
   );
 }

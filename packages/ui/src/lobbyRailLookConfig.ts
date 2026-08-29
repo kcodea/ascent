@@ -83,33 +83,33 @@ export interface LobbyRailLookConfig {
 /** Owner-tunable; these mirror the CSS fallbacks in the `.lobbyrail` / `.lobbyseat` block, so production paints
  *  them with no JS. Bake a tune by pasting Copy values here AND updating those fallbacks. */
 const DEFAULTS: LobbyRailLookConfig = {
-  // Owner-tuned 2026-08-28 (🎨 Lobby Rail Look → Copy values). Warm-brown plaques with a gold hairline, a bold
+  // Owner-tuned 2026-08-28, re-tuned 2026-08-29 (🎨 Lobby Rail Look → Copy values). Warm-brown plaques with a gold hairline, a bold
   // blue YOUR-seat, hot-red health bars, and a fierce red-glowing next foe with a thick left accent bar + a deep
   // pulse. Portraits slightly larger + squarer, rows pulled well in off the frame, tight seat padding, square
   // rail corners. All mirrored into the styles.css fallbacks below so prod paints it with no JS.
-  faceScale: 1.5,
-  faceRadius: 22,
+  faceScale: 1.74,
+  faceRadius: 50,
 
   nameScale: 1.5,
 
   railPad: 4.5,
   seatPad: 0.75,
-  rowGap: 1.1,
+  rowGap: 0.65,
 
   railRadius: 0,
   seatRadius: 0.55,
 
-  seatBg: '#6b492e',
-  seatLine: '#d4941c',
+  seatBg: '#47311f',
+  seatLine: '#ffa600',
   nameCol: '#ffffff',
 
   youBg: '#003d75',
   youLine: '#00fbff',
 
   healthScale: 1.45,
-  barThick: 2.05,
+  barThick: 1.25,
   dmgScale: 1.35,
-  hpShift: 9,
+  hpShift: 7,
   hpCol: '#fb3737',
   armorCol: '#a3a3a3',
   dmgCol: '#e18484',

@@ -321,12 +321,15 @@ canvas.spr { image-rendering: pixelated; display: block; }
   display: flex; flex-direction: column; align-items: center; gap: calc(14 * var(--u, 1px));
   animation: wipevsin 480ms cubic-bezier(0.16, 1, 0.3, 1) backwards; animation-delay: 120ms; }
 @keyframes wipevsin { from { opacity: 0; transform: translate(-50%, -46%) scale(0.94); } }
-.wipevs-label { font-family: var(--font-ui); font-weight: 800; font-size: calc(38 * var(--u, 1px));
+/* The curtain announcements wear the TITLE's font (owner ask 2026-08-29 — Cinzel Decorative 600, the
+   shipped --title-font): retuning the logo font in the 🏔️ tuner re-dresses the curtain to match. The face
+   is loaded at boot by the title screen, so it is always ready by the first fight. */
+.wipevs-label { font-family: var(--title-font, 'Cinzel Decorative', 'Outfit', sans-serif); font-weight: var(--title-weight, 600); font-size: calc(38 * var(--u, 1px));
   letter-spacing: 0.34em; text-transform: uppercase; color: #9fc0f5; text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5); }
 .wipevs-face { width: calc(290 * var(--u, 1px)); height: calc(290 * var(--u, 1px)); border-radius: 50%; /* matches the in-combat foe portrait: 116u x its 2.5 wrapper scale */
   object-fit: cover; border: calc(4 * var(--u, 1px)) solid #c9a35c;
   box-shadow: 0 0 0 calc(2 * var(--u, 1px)) rgba(10, 23, 48, 0.9), 0 14px 40px -10px rgba(0, 0, 0, 0.7); }
-.wipevs-name { font-family: var(--font-ui); font-weight: 900; font-size: calc(34 * var(--u, 1px));
+.wipevs-name { font-family: var(--title-font, 'Cinzel Decorative', 'Outfit', sans-serif); font-weight: var(--title-weight, 600); font-size: calc(34 * var(--u, 1px));
   color: #fff; text-shadow: 0 2px 12px rgba(0, 0, 0, 0.6); }
 /* The glowing wipe FRONT — a soft blue-white energy edge riding the curtain's seam. Same duration + easing
    as the curtain's clip transition so the two can never desync; compositor-only transform, static
@@ -2946,7 +2949,7 @@ body.modalup .app { z-index: auto; }
 /* Chains draped over the LOCKED third rune slot — same 3rd-node anchor + counter-scale as the sheen so it stays
    glued to the slot through the Quest-nodes Scale slider; its own `--rch-*` nudge from the 💠 Rune Sheen tuner.
    Sits ABOVE the sheen (z 6) and does not blend — it reads as solid chains over the empty slot. */
-.questbadges .rune-chains { position: absolute; left: 0; top: 0; z-index: 6; pointer-events: none; -webkit-user-drag: none; height: auto; transform-origin: 50% 50%; width: calc(var(--rch-w, 54) * var(--u-base)); transform: translate(calc(var(--rch-x, 129) * var(--u) + var(--qb3-x, 30px) * var(--scale)), calc(var(--rch-y, -5) * var(--u) + var(--qb3-y, 23px) * var(--scale))) scale(calc(1 / var(--qb-s, 1.09))); }
+.questbadges .rune-chains { position: absolute; left: 0; top: 0; z-index: 6; pointer-events: none; -webkit-user-drag: none; height: auto; transform-origin: 50% 50%; width: calc(var(--rch-w, 54) * var(--u-base)); transform: translate(calc(var(--rch-x, 131) * var(--u) + var(--qb3-x, 30px) * var(--scale)), calc(var(--rch-y, -3) * var(--u) + var(--qb3-y, 23px) * var(--scale))) scale(calc(1 / var(--qb-s, 1.09))); }
 /* Reserve one rune-row's height while the 3rd slot is chained, so the bottom-anchored row doesn't grow (and slide
    the chains) as the first two runes arrive — the chains hold one spot from turn 1 onward. */
 .questbadges.hasrunelock { min-height: calc(53 * var(--u)); }
@@ -3072,13 +3075,13 @@ body.dragging .statusbar .hero { pointer-events: none; }
   transform: var(--hpn-panel-t, translate(calc(58px * var(--scale)), calc(-109px * var(--scale))) scale(3.1)); transform-origin: bottom left;
   /* Square dimensions — the 🧍 tuner's width/height dials (design px × --u); unset (0) = the snug
      default square. The portrait FILLS the square (inset by the padding), so a resize never ejects it. */
-  width: var(--hpn-panel-w, calc(87 * var(--u))); height: var(--hpn-panel-h, calc(89 * var(--u)));
+  width: var(--hpn-panel-w, calc(88 * var(--u))); height: var(--hpn-panel-h, calc(88 * var(--u))); /* one size, both axes — the round portrait must stay circular (owner 2026-08-29) */
   box-sizing: border-box;
 }
 /* Portrait fills the square (inset by the frame padding) — resizing the square resizes the art WITH it;
    the 🧍 portrait dials then fine-seat it. `overflow: visible` lets the hero-name pill eclipse its bottom
    (the pill lives inside, so it rides the portrait transform too). */
-.statusbar .hero .f { position: absolute; inset: calc(6 * var(--u)); width: auto; height: auto; overflow: visible; border-radius: 50%; transform: var(--hpn-portrait-t, scale(1.2)); }
+.statusbar .hero .f { position: absolute; inset: calc(6 * var(--u)); width: auto; height: auto; overflow: visible; border-radius: 50%; transform: var(--hpn-portrait-t, translate(calc(0 * var(--u)), calc(-1 * var(--u))) scale(1.17)); }
 .statusbar .hero .f .heroimg { border-radius: inherit; }
 .statusbar .hero .f svg { width: calc(42 * var(--u)); height: calc(42 * var(--u)); }
 /* Hover affordance — the portrait darkens to a near-black scrim and spells out the click action (owner ask
@@ -3108,7 +3111,7 @@ body.dragging .statusbar .hero { pointer-events: none; }
 .statusbar .hero .f.hasbuffs:hover .herobuffs-arrow { opacity: 1; transform: translate(-50%, -92%); }
 /* Hero name — a pill eclipsing the BOTTOM edge of the portrait (mirrors the player-name pill eclipsing the top). */
 .statusbar .hero .heroname {
-  position: absolute; left: 50%; bottom: 0; transform: var(--hpn-hname-t, translate(-50%, 52%) translate(calc(0 * var(--u)), calc(-9 * var(--u))) scale(0.6)); z-index: 4;
+  position: absolute; left: 50%; bottom: 0; transform: var(--hpn-hname-t, translate(-50%, 52%) translate(calc(0 * var(--u)), calc(-9 * var(--u))) scale(0.5)); z-index: 4;
   max-width: calc(124 * var(--u)); padding: calc(2 * var(--u)) calc(13 * var(--u));
   background: linear-gradient(180deg, #fff, #f3ead4); color: var(--ink); border: 2px solid var(--gold); border-radius: 999px;
   font-family: var(--font-ui); font-weight: 800; font-size: calc(14 * var(--u)); letter-spacing: 0.02em; line-height: 1.1;
@@ -3129,7 +3132,10 @@ body.dragging .statusbar .hero { pointer-events: none; }
    out to strike), and holds the art + name + attack pill so they travel together. `overflow: visible` so the
    overhanging attack pill is never clipped. */
 .statusbar .hero .herolunge {
-  position: absolute; inset: 0; border-radius: 50%; background: var(--ink); overflow: visible;
+  /* No dark socket fill any more (owner ask 2026-08-29: with the art scaled/offset off the box by the 🧍
+     tuner, the disc peeked out beneath the portrait). During a hero strike the vacated spot now simply
+     shows the board art — the empty socket read better than the misaligned disc ever did. */
+  position: absolute; inset: 0; border-radius: 50%; overflow: visible;
 }
 .statusbar .hero .f { background: transparent; }
 
@@ -3183,9 +3189,12 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
 /* Dark "pill/glass" restyle of the hero box + health box — matches the quest-badge / name-pill aesthetic
    (the dark gradient + gold-mix border the `.hplabel` already uses) instead of the old cream/white boxes. */
 .statusbar .hero {
-  background: linear-gradient(180deg, #241a13, #17110c);
-  border-color: color-mix(in srgb, var(--gold) 55%, #000);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 calc(4 * var(--u)) calc(12 * var(--u)) -4px var(--shadow);
+  /* The dark circular BACKING is GONE (owner ask 2026-08-29): the portrait art is scaled/offset off the
+     frame by the 🧍 tuner, so the backing peeked out beneath it as a misaligned dark crescent. The box is
+     now an invisible layout anchor — the art circle, the pills and the Resolve box carry the whole look. */
+  background: none;
+  border: none;
+  box-shadow: none;
 }
 .statusbar .hero .nm { color: #f4ecdb; }
 .statusbar .hero .hpbox {
@@ -8406,22 +8415,22 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
      applying `transform: scale()` keeps the shadow and hairline crisp AND keeps the layout box honest — a
      transformed panel still reserves its untransformed width and can overlap the board. */
   --u: calc(var(--u-base) * var(--ui-scale, 0.96));
-  --lu: calc(var(--u) * var(--lby-scale, 0.84));
+  --lu: calc(var(--u) * var(--lby-scale, 0.82));
   --lrow: calc(var(--lu) * var(--lby-row, 1.91));
-  --lfont: calc(var(--lu) * var(--lby-font, 0.99));
+  --lfont: calc(var(--lu) * var(--lby-font, 0.9));
   --lfoe: calc(var(--lu) * var(--lby-foe, 0.5));
   position: absolute; z-index: 60;
   /* `right`/`top` place the rail; the `--lby-x`/`--lby-y` nudge (🪑 Lobby Rail → Shift) is folded in HERE rather
      than via a `transform`, because a transform on the rail would re-anchor the fixed-position scout card. +X =
      right (so it SUBTRACTS from the right-edge gap); +Y = down. */
-  right: calc((var(--lby-right, 0) - var(--lby-x, -10)) * var(--lu)); top: calc(var(--lby-top, 13.5%) + var(--lby-y, 12) * var(--lu));
+  right: calc((var(--lby-right, 0) - var(--lby-x, -23)) * var(--lu)); top: calc(var(--lby-top, 13.5%) + var(--lby-y, 10) * var(--lu));
   /* Sizes to its rows, capped so a wild row scale can't run off the stage — and SCROLLS rather than clips at
      the cap, because silently hiding seat 8 is worse than a scrollbar. The cap is generous enough that the
      shipped defaults never reach it (measured: content ≈46% of stage height against a 66% cap). */
   /* Scrolls if it ever exceeds the cap, but the scrollbar itself is HIDDEN — at the shipped sizes all eight seats
      fit, and a hover-triggered overlay scrollbar over the gilded frame read as a defect (owner report 2026-08-28). */
   height: auto; max-height: var(--lby-h, 100%); overflow-y: auto; overflow-x: hidden; scrollbar-width: none;
-  width: calc(var(--lby-w, 259) * var(--lu));
+  width: calc(var(--lby-w, 251) * var(--lu));
   display: flex; flex-direction: column; gap: calc(5 * var(--lu)); pointer-events: none;
   /* A solid backing plate. Translucent rows over the board's stonework washed every name out to grey — the
      panel has to be its own surface, not a tint on the art behind it. */
@@ -8501,13 +8510,13 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 /* The table sizes to its rows, and the rows size to `--lrow` — so the row-scale dial actually changes row
    height. (They used to be `flex: 1` inside a fixed-height rail, which pinned every row to an equal share of a
    constant and left the dial doing nothing but resizing portraits.) The rail's height dial is now a CAP. */
-.lobbyseats { flex: none; display: flex; flex-direction: column; gap: calc(2 * var(--lrow) * var(--lby-gap, 1.1)); }
+.lobbyseats { flex: none; display: flex; flex-direction: column; gap: calc(2 * var(--lrow) * var(--lby-gap, 0.65)); }
 .lobbyseat { position: relative; flex: none; display: grid;
-  grid-template-columns: calc(18 * var(--lrow) * var(--lby-face, 1.5)) 1fr auto; grid-template-rows: auto auto auto;
+  grid-template-columns: calc(18 * var(--lrow) * var(--lby-face, 1.74)) 1fr auto; grid-template-rows: auto auto auto;
   align-items: center; column-gap: calc(4 * var(--lrow));
   padding: calc(3 * var(--lrow) * var(--lby-seat-pad, 0.75)) calc(5 * var(--lrow) * var(--lby-seat-pad, 0.75)) calc(4 * var(--lrow) * var(--lby-seat-pad, 0.75));
   border-radius: calc(5 * var(--lrow) * var(--lby-seat-rad, 0.55)); font-size: calc(11 * var(--lfont)); color: var(--lby-name-col, #fff);
-  background: var(--lby-seat-bg, #6b492e); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--lby-seat-line, #d4941c) 8%, transparent); }
+  background: var(--lby-seat-bg, #47311f); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--lby-seat-line, #ffa600) 8%, transparent); }
 .lobbyseat.you { background: var(--lby-you-bg, #003d75); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--lby-you-line, #00fbff) 60%, transparent); }
 /* The NEXT opponent — lit BRIGHT so it reads at a glance now the "Next" pill is gone. A warm-gold seat + ring,
    plus an overlay whose glow PULSES via opacity only (a static shadow, opacity-animated — compositor-only per
@@ -8530,8 +8539,8 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 /* Portrait sits on rows 2–3 (owner ask 2026-08-28), BELOW the full-width name — sharing those rows with the
    health/damage stats (row 2) and the bar (row 3) in the columns to its right, so the name banners the whole
    seat and the portrait + bar sit together beneath it. */
-.lobbyface { grid-column: 1; grid-row: 2 / span 2; width: calc(18 * var(--lrow) * var(--lby-face, 1.5)); height: calc(18 * var(--lrow) * var(--lby-face, 1.5));
-  border-radius: calc(var(--lby-face-rad, 22) * 1%); object-fit: cover; }
+.lobbyface { grid-column: 1; grid-row: 2 / span 2; width: calc(18 * var(--lrow) * var(--lby-face, 1.74)); height: calc(18 * var(--lrow) * var(--lby-face, 1.74));
+  border-radius: calc(var(--lby-face-rad, 50) * 1%); object-fit: cover; }
 /* The name banners the WHOLE seat on its own row — spans every column on row 1, over the portrait column too
    (owner ask 2026-08-28), with the portrait + health/damage + bar all below it. */
 .lobbynameline { grid-column: 1 / -1; grid-row: 1; display: flex; align-items: center; gap: calc(3 * var(--lrow)); min-width: 0; }
@@ -8547,7 +8556,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .lobbyarmor svg { width: calc(8 * var(--lfont) * var(--lby-hp-size, 1.45)); height: calc(8 * var(--lfont) * var(--lby-hp-size, 1.45)); }
 .lobbyplace { color: rgba(255, 255, 255, 0.62); font-weight: 700; }
 /* Health / placement sit on row 2 at the right, beside the round-damage number, now the name owns row 1. */
-.lobbyhp, .lobbyplace { grid-column: 3; grid-row: 2; justify-self: start; transform: translateX(calc(var(--lby-hp-x, 9) * var(--lrow))); }
+.lobbyhp, .lobbyplace { grid-column: 3; grid-row: 2; justify-self: start; transform: translateX(calc(var(--lby-hp-x, 7) * var(--lrow))); }
 /* The health number LEFT-aligns at a fixed start toward the right (owner ask 2026-08-28): it reserves a width
    sized to the biggest reading, so the number sits in the SAME spot whether or not the seat has armor — armor
    extends rightward into the reserve instead of shoving the number left the way right-alignment did. The reserve
@@ -8558,7 +8567,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 /* HEALTH BAR — the element was rendered by the panel but had no rule at all, so it painted nothing. Given a
    row of its own beneath the name so it reads as the seat's whole remaining pool at a glance, next to the exact
    number on the right. */
-.lobbybar { grid-column: 2 / span 2; grid-row: 3; height: calc(3 * var(--lrow) * var(--lby-bar-thick, 2.05)); border-radius: 999px;
+.lobbybar { grid-column: 2 / span 2; grid-row: 3; height: calc(3 * var(--lrow) * var(--lby-bar-thick, 1.25)); border-radius: 999px;
   background: color-mix(in srgb, var(--lby-bar-track, #000000) 10%, transparent); overflow: hidden; }
 .lobbybar > span { display: block; height: 100%; border-radius: inherit;
   background: linear-gradient(90deg, var(--lby-bar-a, #ff5024), var(--lby-bar-b, #fe0101)); }

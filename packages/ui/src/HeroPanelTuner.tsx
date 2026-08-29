@@ -18,8 +18,7 @@ const SPECS: Record<keyof HeroPanelConfig, [string, TunerUnit | undefined, strin
   panelY:          ['Vertical offset', 'px', 'Offset from that anchor. Positive moves down.', 'Whole panel'],
   panelScale:      ['Size', '×', 'Overall panel size, scaling about the bottom-left anchor.', 'Whole panel'],
 
-  panelW:          ['Width', 'px', 'Portrait square width. 0 means size snugly to the art, which is the default.', 'Portrait square'],
-  panelH:          ['Height', 'px', 'Portrait square height. 0 means size snugly to the art.', 'Portrait square'],
+  panelSize:       ['Size', 'px', 'Portrait circle size — one dial for width and height, so the round portrait stays a true circle. 0 means size snugly to the art.', 'Portrait circle'],
 
   portraitX:       ['Horizontal nudge', 'px', 'Slides the hero portrait inside its square.', 'Portrait'],
   portraitY:       ['Vertical nudge', 'px', 'Slides the portrait vertically.', 'Portrait'],
@@ -41,7 +40,7 @@ const SPECS: Record<keyof HeroPanelConfig, [string, TunerUnit | undefined, strin
 /** Declaration order IS render order, and controls sharing a group render together under its heading. */
 const ORDER: (keyof HeroPanelConfig)[] = [
   'panelX', 'panelY', 'panelScale',
-  'panelW', 'panelH',
+  'panelSize',
   'portraitX', 'portraitY', 'portraitScale',
   'playerNameX', 'playerNameY', 'playerNameScale',
   'heroNameX', 'heroNameY', 'heroNameScale',

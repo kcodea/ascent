@@ -9352,7 +9352,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   left: calc(var(--bar-x) + 0.85 * var(--gw) + var(--rfb-x, -123px) * var(--scale));
   top: calc(var(--bar-y) + var(--rfb-y, 270px) * var(--scale));
   /* The ⚔️ Hero Duel tuner's placement rides the WRAPPER, never the body — the body is what GSAP lunges. */
-  transform: translate(calc(-50% + var(--hd-opp-x, 185px)), calc(-50% + var(--hd-opp-y, -10px))) scale(var(--hd-opp-s, 2.4));
+  transform: translate(calc(-50% + var(--hd-opp-x, 208px)), calc(-50% + var(--hd-opp-y, -10px))) scale(var(--hd-opp-s, 2.4));
   z-index: 42;                      /* just above the refresh button it lands on */
   pointer-events: none;
 }
@@ -9416,7 +9416,7 @@ body.duel-attacker-opp .combatopp-hp { opacity: 0; }
      then equals the player's rune size exactly (owner ask: match the player's runes), independent of how big
      the portrait is tuned. The flex gap lives in the row's own (pre-counter-scale) space, so layout stays
      clean. `transform-origin: left center` keeps the row anchored as it scales. */
-  transform: translate(var(--hd-rune-x, 75px), calc(-50% + var(--hd-rune-y, 0px))) scale(calc(var(--hd-rune-s, 1) / var(--hd-opp-s, 2.4)));
+  transform: translate(var(--hd-rune-x, -148px), calc(-50% + var(--hd-rune-y, -19px))) scale(calc(var(--hd-rune-s, 1) / var(--hd-opp-s, 2.4)));
   transform-origin: left center;
   display: flex; flex-direction: column; gap: var(--hd-rune-gap, 20px);
   pointer-events: auto;
@@ -9457,7 +9457,7 @@ body.duel-attacker-opp .combatopp-hp { opacity: 0; }
   background: linear-gradient(180deg, #fff, #f3ead4); border: 2px solid var(--gold); border-radius: 999px;
   padding: calc(2 * var(--u)) calc(13 * var(--u)); white-space: nowrap;
   box-shadow: 0 calc(2 * var(--u)) calc(6 * var(--u)) -2px var(--shadow);
-  transform: translate(var(--hd-name-x, 0px), var(--hd-name-y, 22px)) scale(var(--hd-name-s, 0.77));
+  transform: translate(var(--hd-name-x, 0px), var(--hd-name-y, 23px)) scale(var(--hd-name-s, 0.65));
 }
 /* Opponent HEALTH — the SAME pill the PLAYER wears in the HUD (owner ask 2026-08-25): the dark gradient box,
    dark-gold border, threat-pink heart and lightened number from `.statusbar .hero .hpbox`, verbatim. */

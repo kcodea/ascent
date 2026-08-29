@@ -66,6 +66,49 @@ Two details that are the actual work:
 The golden usually lands in **hand**, so the re-pointed bond is inert until it is played. That is correct
 rather than a gap: the body is not on the board, so there is nothing to mirror onto.
 
+## Two Doc Bot lanes, because both bugs were already "covered"
+
+Owner ask, after the fixes: *"add the logic that would catch these bugs in the future to docbot's oracle so
+he knows to make similar scans for other cards and mechanics."*
+
+The uncomfortable part is that lane 1 (`factoryPhase`) already exists to catch exactly bug 1's shape, and
+`combineIntoGolden` is already the place bug 2's shape gets handled. Neither fired. So the new lanes audit the
+*auditing* rather than re-testing the two cards.
+
+### 9. `combatEmitAgreement` — a registry that gates a check must be derivable
+
+`factoryPhase` computes `needCombat` **from `TRIGGER_PHASES`**, and `onGainCard` was written down as
+`'recruit'` with the note *"combat has no dispatch site for it"*. False — `ctx.grantToHand` had existed all
+along. So `needCombat` was `false`, and the lane whose entire job is finding missing combat factories could
+not see one. **One wrong word in a hand-maintained registry switched off a rail, silently.**
+
+The lane now scans `packages/core/src` for `bus.emit('<name>')` and demands every trigger combat actually
+emits be `'combat'`/`'both'` or waived with a reason. A source scan rather than a runtime probe, because a
+probe only sees what a scenario reaches — "not observed" would mean "the probe didn't get there".
+
+It found three more disagreements on its first run: `battlecryTriggered` and `spellCast` (both legitimate —
+combat answers them under different factory ids, now written down as waivers instead of living in a comment)
+and `onLoseDivineShield` (engine-internal, never authored as a card trigger).
+
+### 10. `uidSurvivesTriple` — a deep walk, not a field list
+
+The obvious version scans `state.ts` for fields whose name contains "uid". **That version would not have
+caught this bug**: the bond's fields are `a` and `b`.
+
+So: record the uids a triple destroys, deep-walk the whole post-triple `RunState`, flag any string equal to
+one. No naming convention, no field registry to keep in step, and it sees a new field the day it is added.
+Deliberate dangling refs (presentation cues naming the body that just vanished) are allowed by path with
+reasons, and one test *forges* a dangling ref to prove the walk can still see one — a detector nobody has
+watched fail is not evidence.
+
+**It earned its place immediately** by flagging `firstShoutUid`: written on the turn's first Shout and read by
+nothing, with a docstring naming a consumer (Rune of Refrain) that actually uses the just-played `card.uid`.
+Harmless today and only today — the moment someone implements "return the turn's *first* Shout" off that
+field, they inherit the Sable bug. Recorded as a finding in the allowance rather than filed away as a cue.
+
+Both lanes were verified against the original bugs: reverting `carrySableBond` fails lane 10, and restoring
+`onGainCard: 'recruit'` fails lane 9.
+
 ## A note on the tooling, not the code
 
 Chasing bug 1, a `git stash push <paths>` was rejected by this git's argument parsing, and the `;` chaining a

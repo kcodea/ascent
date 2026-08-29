@@ -161,6 +161,10 @@ const NEW_LANES: Array<[string, string, string]> = [
   ['findings ledger', 'packages/sim/src/docbot/ledger.test.ts', 'WP G: the fingerprint fold is deterministic, order-insensitive and idempotent (npm run docbot:ledger)'],
   ['graduation refusals', 'packages/tools/src/bug-graduate.test.ts', 'WP G: a flaky repro, an unruled expectation or an unapproved citation each REFUSE (npm run bugs:graduate)'],
   ['final report', 'packages/tools/src/docbot-report.test.ts', 'WP H: docs/docbot2/final-report.md re-derived from the live registries — a drifted headline number fails the gate (npm run docbot:report)'],
+  // ── 2026-08-29: two lanes that audit the AUDITING. Both owner bugs that day were already covered by an
+  //    existing lane in principle, and neither was caught — see docs/docbot.md for why. ──
+  ['combat-emit agreement', 'packages/sim/src/docbot/combatEmitAgreement.test.ts', "every trigger combat EMITS is classified combat/both in TRIGGER_PHASES or waived — a misclassification silently switched off the factoryPhase lane's combat half for onGainCard (Gangplank)"],
+  ['uid survives a triple', 'packages/sim/src/docbot/uidSurvivesTriple.test.ts', "no run state points at a body a triple destroyed (Sable's Soulbind held run-board uids) — a deep walk, because the bond's fields are named `a`/`b` and no naming convention would find them"],
 ];
 console.log('\n── 16+. the Doc Bot 2.0 lane roll-call — each file existsSync-checked so this inventory cannot rot ──');
 console.log('   (most gate in `npm test`; the two tools lanes gate there too — the sweep CLIs beside them are nightly/weekly)');

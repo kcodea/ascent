@@ -35,7 +35,11 @@ export const TRIGGER_PHASES: Readonly<Record<string, 'recruit' | 'combat' | 'bot
   onBuy: 'recruit',
   onSell: 'recruit',
   onConsume: 'recruit',
-  onGainCard: 'recruit',
+  // 2026-08-29: WAS 'recruit' ("combat has no dispatch site for it") — false, and the misclassification is
+  // exactly what hid the Gangplank bug: `factoryPhase` skips the combat side of a trigger declared
+  // recruit-only, so a missing combat factory was never a hole. Combat emits it from `ctx.grantToHand` and
+  // `ctx.grantRubies`. See `combatEmitAgreement.test.ts`, the oracle that now derives this from source.
+  onGainCard: 'both',
   onGetRuby: 'recruit',
   cardsBought: 'recruit',
   goldSpent: 'recruit',
@@ -160,3 +164,34 @@ export const COMBAT_CASTING_FACTORIES: ReadonlySet<string> = new Set([
   'rallyCastNamedSpell', // Flamebeat Drake
   'onTribeAttackCastNamedSpell', // Warflame
 ]);
+
+/**
+ * ── COMBAT-EMIT WAIVERS (added 2026-08-29, after the Gangplank miss) ───────────────────────────────────────
+ *
+ * `combatEmitAgreement.test.ts` scans `packages/core/src` for `bus.emit('<trigger>')` and demands that every
+ * trigger COMBAT ACTUALLY EMITS is declared 'combat' or 'both' above — or waived here with a reason.
+ *
+ * WHY THIS EXISTS. `TRIGGER_PHASES` is hand-maintained from "find its dispatch sites first; do not guess",
+ * and `onGainCard` was written down as recruit-only with the note *"combat has no dispatch site for it"*.
+ * That was wrong — `ctx.grantToHand` had existed the whole time — and because `factoryPhase` derives
+ * `needCombat` FROM this table, the misclassification made the combat half of the check disappear. The lane
+ * that exists to catch missing combat factories could not see a missing combat factory. One wrong word in a
+ * registry silently switched off a whole rail.
+ *
+ * So the registry is no longer trusted on this point: the emit sites in the engine are, and a disagreement
+ * has to be either fixed or written down.
+ *
+ * A waiver is NOT "combat doesn't really emit this". It is "combat emits it, and the factory ids its handlers
+ * use are covered another way" — which must stay true and stay stated.
+ */
+export const COMBAT_EMIT_WAIVED: Readonly<Record<string, string>> = {
+  // Combat DOES emit these, but the bodies that answer them are registered under DIFFERENT factory ids than
+  // the recruit-side watchers content declares against this trigger — so demanding a combat factory for the
+  // recruit pair would be demanding the wrong thing. Both were audited on 2026-08-29 alongside the Gangplank
+  // fix and their combat factories are present.
+  battlecryTriggered: "combat re-fires notify through the caller; its handlers are separate combat factory ids, all present (audited 2026-08-29)",
+  spellCast: "the recruit pair is the SHOP watcher; combat's spell-cast watchers dispatch through their own factory ids, all present (audited 2026-08-29)",
+  // Not a card trigger at all — an internal keyword-loss signal with no `on:` in any card, so no content pair
+  // exists for it to classify. Left unlisted in TRIGGER_PHASES on purpose.
+  onLoseDivineShield: 'engine-internal signal, never authored as a card trigger (no content uses it as `on`)',
+};

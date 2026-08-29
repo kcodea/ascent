@@ -7078,7 +7078,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "triggers": [
       {
         "event": "onGainCard",
-        "phase": "shop",
+        "phase": "both",
         "phaseBasis": "derived:phaseRegistry"
       }
     ],
@@ -7178,7 +7178,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "triggers": [
       {
         "event": "onGainCard",
-        "phase": "shop",
+        "phase": "both",
         "phaseBasis": "derived:phaseRegistry"
       }
     ],

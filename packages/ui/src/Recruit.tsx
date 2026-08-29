@@ -91,6 +91,7 @@ import { getTrailConfig } from './trailConfig';
 import { cardFxScale } from './fx/cardScale';
 import { playDef, canPlayDefs } from './fx/playDef';
 import { getShopDeathFxConfig } from './shopDeathFxConfig';
+import { getEquipFxConfig } from './equipFxConfig';
 import { anchorsForUnits } from './fx/combatAnchors';
 import { rubyLandHolds } from './choreo/channels/rubyLanded';
 import { captureRecruitSeqs, recruitMomentsSince, recruitSeqsOf, selfBuffMoment, shoutMoment, spellCastMoment } from './choreo/recruitMoments';
@@ -1731,11 +1732,16 @@ export function Recruit() {
    *
    * Rides the per-action scratch channel every other shop FX uses, NOT a beat: only End of Turn plays beats,
    * so a Start-of-Turn re-equip beat would be recorded and never performed (owner decision, after that gap was
-   * found). One flash per SOURCE BODY in board order — duplicates collapse into one selector entry but each
+   * found). One cue per SOURCE BODY in board order — duplicates collapse into one selector entry but each
    * source still announces itself, which is what the handoff asks for.
    *
-   * Kept BRISK by construction: the flashes are CSS one-shots fired together, not a queue that the player
-   * waits through. Nothing here gates gameplay — the state has already committed.
+   * THREE things fire, and their relative timing is the owner's to dial (⚙ Equip FX tuner): the authored
+   * `equipment-spark` def on the SOURCE, the same def on the SLOT as the icon lands, and the metallic clang.
+   * The CSS ring underneath is the always-on floor — authored defs do not ship in production, so without it
+   * an equip would be silent and invisible there.
+   *
+   * Kept BRISK by construction: everything is fired together (staggered per source), not queued behind the
+   * player. Nothing here gates gameplay — the state has already committed.
    */
   const prevEquipFxSeq = useRef(run.equipFxSeq);
   useLayoutEffect(() => {
@@ -1744,32 +1750,61 @@ export function Recruit() {
     prevEquipFxSeq.current = seq; // advance FIRST — exactly once per action
     const cues = run.equipFx ?? [];
     if (cues.length === 0) return;
-    // The slot the icon lands in. Absent (a hero with no second slot rendered yet) → flash the source only.
+    const cfg = getEquipFxConfig(); // read at FIRE TIME, so a tuner edit applies to the next equip
+    // Where the icon lands. Absent (no second slot rendered yet) → the source half still plays.
     const slotEl = document.querySelector<HTMLElement>('.equippanel .heropowerbtn');
-    const slot = slotEl?.getBoundingClientRect();
-    const nodes: HTMLElement[] = [];
+    const slotR = slotEl?.getBoundingClientRect();
+    const slot = slotR ? { x: slotR.left + slotR.width / 2, y: slotR.top + slotR.height / 2 } : null;
+    const timers: number[] = [];
+    const retire: Array<() => void> = [];
     cues.forEach((cue, i) => {
       const el = findEl(cue.uid);
-      const from = el?.getBoundingClientRect();
-      // A brief emphasis on the SOURCE, then the slot itself flashes — the handoff's "energy travels toward
-      // the slot" reduced to its two readable moments, which is all that survives at this speed anyway.
-      for (const r of [from, slot]) {
-        if (!r) continue;
+      const r = el?.getBoundingClientRect();
+      const from = r ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : null;
+      // A REBUILD fires one cue per surviving source, so it is staggered and (by default) quieter than a
+      // fresh equip — a full spark per source every turn is a lot of screen for a bookkeeping step.
+      const isRe = cue.kind === 'reequip';
+      const base = i * cfg.staggerMs;
+      // Both halves carry the SOURCE uid. The slot burst plays at a button rather than on a card, but it is
+      // still ABOUT that minion's equip — so a react layer bound to the source fires for either half, which
+      // is what `uids` is for. The target is the unit only where the burst actually sits on one.
+      const spark = (at: { x: number; y: number } | null, delay: number, onUnit: boolean): void => {
+        if (!at || !canPlayDefs()) return;
+        if (isRe && !cfg.reequipSparkOn) return;
+        const fire = (): void => {
+          const stop = playDef(
+            'equipment-spark',
+            { source: at, target: at, cursor: at },
+            { uids: { source: cue.uid, target: onUnit ? cue.uid : null } },
+          );
+          // `playDef` hands back a retire fn — called on cleanup so a route change mid-burst leaves nothing.
+          if (stop) retire.push(stop);
+        };
+        if (delay > 0) timers.push(window.setTimeout(fire, delay)); else fire();
+      };
+      if (cfg.sourceOn) spark(from, base + cfg.sourceDelayMs, true);
+      if (cfg.slotOn) spark(slot, base + cfg.slotDelayMs, false);
+      // The clang is scheduled on the AUDIO clock (see `sfx.equipClang`), so it cannot drift from the visual.
+      if (cfg.sfxOn && (!isRe || cfg.reequipSparkOn)) sfx.equipClang(base + cfg.sfxDelayMs);
+      // The CSS ring stays as the always-on floor: it reads even in production, where authored defs do not
+      // ship (`canPlayDefs()` is false), so an equip is never silent-and-invisible.
+      for (const at of [from, slot]) {
+        if (!at) continue;
         const n = document.createElement('div');
-        n.className = `equipflash${cue.kind === 'reequip' ? ' reequip' : ''}`;
-        n.style.left = `${r.left + r.width / 2}px`;
-        n.style.top = `${r.top + r.height / 2}px`;
-        // Stagger by SOURCE so several Equip minions read left-to-right rather than as one blur.
-        n.style.animationDelay = `${i * 70}ms`;
+        n.className = `equipflash${isRe ? ' reequip' : ''}`;
+        n.style.left = `${at.x}px`;
+        n.style.top = `${at.y}px`;
+        n.style.animationDelay = `${base}ms`;
         document.body.appendChild(n);
-        nodes.push(n);
+        retire.push(() => n.remove());
       }
-      if (from) sfx.pulse(); // the metallic equip cue
     });
-    // Every node is removed on cleanup as well as on its own timer, so a route change mid-flash leaves nothing
-    // behind — the same discipline the looping FX players follow.
-    const id = window.setTimeout(() => { for (const n of nodes) n.remove(); }, 900);
-    return () => { window.clearTimeout(id); for (const n of nodes) n.remove(); };
+    const sweep = window.setTimeout(() => { for (const f of retire.splice(0)) f(); }, 1600);
+    return () => {
+      window.clearTimeout(sweep);
+      for (const t of timers) window.clearTimeout(t);
+      for (const f of retire.splice(0)) f();
+    };
   }, [run.equipFxSeq, run.equipFx, findEl]);
 
   /**

@@ -150,3 +150,36 @@ the old first-match kept as a fallback, because an aim line from the wrong place
 Worth noting the shape of the bug: nothing about it was Equipment-specific. Void's second power had the same
 latent fault — arming slot 1 drew its line from slot 0 — and it went unnoticed because a two-power hero is a
 rare pick. The fix covers all three.
+
+
+## The authored equip effect, the clang, and a tuner for their timing
+
+The owner authored `equipment-spark` in the FX workbench (four layers: two shard bursts and two shockwaves,
+900ms) and recorded `equipclang.wav`. Both are wired to the moment a minion grants its Equipment.
+
+**Three things fire, and their RELATIVE timing is the whole question** — which of the source burst, the slot
+burst and the clang leads, and by how much, can only be judged by eye and ear together. So all of it is dialed
+from the ⚒️ Equip FX & Clang tuner rather than guessed at in code: a delay per element, an on/off per element
+(so a pair can be isolated), a per-source stagger for rebuilds, and a switch for whether the Start-of-Turn
+re-equip plays the full spark or stays as the quieter ring.
+
+**The clang schedules on the AUDIO clock**, not a `setTimeout`. `playSample` already takes a `delay` that goes
+to the Web Audio node, so what the owner tunes holds at any frame rate instead of drifting whenever the main
+thread is busy. That is the reason the dial is in milliseconds and the caller does not wrap the call in a
+timer.
+
+The CSS ring stays underneath as the always-on floor: authored defs do not ship in production
+(`canPlayDefs()` is false there), so without it an equip would be silent and invisible for players.
+
+### Two FX gates fired, both correctly
+
+- `playDefUids` — a unit-aimed `playDef` must carry `uids`, or be listed as unit-less WITH a reason. Both
+  halves now carry the SOURCE uid: the slot burst plays at a button rather than on a card, but it is still
+  ABOUT that minion's equip, so a react layer bound to the source fires for either half. Only the tuner's test
+  fire is listed as unit-less — it plays at screen coordinates with no run and no unit.
+- `directCalls` — the call-site registry is a derivation, not a list, so it had to learn the new id.
+
+### Verified live
+
+`window.__fxFires` (the FX layer's own record) shows `equipment-spark` firing four times for two equips —
+source and slot for each — spaced ~70ms apart, matching the configured stagger.

@@ -134,6 +134,7 @@ describe('DIRECT_CALL_SITES is a derivation, not a list', () => {
   it('finds every effect the game plays from code', () => {
     expect(directCallDefIds()).toEqual([
       'ale-bubbles', 'board-wipe', 'choose-one-both', 'cia-hp', 'click-puff', 'coin', 'coins', 'consume-pull', 'damage-burst', 'death-dissolve',
+      'equipment-spark',
       'freeze-blast', 'hero-power-spark', 'hero-power-target', 'impact-dust', 'landing-dust', 'ruby-gem-apply',
       'rune-buff-unit', 'rune-slot-break', 'shop-buff-aura', 'shop-tier-up', 'strike-impact', 'tallyanimation1', 'watcher-pulse',
     ]);

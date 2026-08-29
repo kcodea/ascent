@@ -40,6 +40,7 @@ export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   // by the hero strike, whose impact goes through `playContactImpact` instead (see choreo/heroStrike.ts).
   'damage-burst': ['useCombatReplay.ts'],
   'death-dissolve': ['Recruit.tsx', 'useCombatReplay.ts'],
+  'equipment-spark': ['EquipFxTuner.tsx', 'Recruit.tsx'],
   'freeze-blast': ['FreezeButton.tsx'],
   'hero-power-spark': ['StatusBar.tsx'],
   'hero-power-target': ['Recruit.tsx'],

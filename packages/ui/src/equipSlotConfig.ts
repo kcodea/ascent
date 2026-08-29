@@ -105,7 +105,9 @@ const DEFAULTS: EquipSlotConfig = {
   // Generous on purpose. A rail that lingers a beat too long costs nothing; one that vanishes early is the
   // bug being fixed.
   railGraceMs: 320,
-  selectVolume: 1,
+  // Well under the clip's own level: the pick is a confirmation, not an event. It fires on a hover-menu
+  // click, so it is the one sound here a player can trigger repeatedly while just browsing.
+  selectVolume: 0.3,
 };
 
 const RANGES: Record<keyof EquipSlotConfig, [number, number, number]> = {

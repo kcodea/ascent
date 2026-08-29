@@ -227,6 +227,32 @@ Consume, Discover.
 
 Source: `packages/ui/src/terms.ts`.
 
+### "A card is added to your hand" — every source, every phase (owner rule 2026-08-29)
+
+*"cards added to hand is an effect in recruit + shop and should trigger effects that track them in all
+places."*
+
+A card **arriving in your hand** is an event in its own right, and every effect that watches for it
+(Gangplank, Kegheart Dwarf, the Rune of Heavy Payroll) fires **wherever the card arrives from**:
+
+- **Any source counts.** Buying a minion or a Shop spell, taking a Discover pick, a triple's golden, an Ale,
+  a minted Ruby, a conjure, a rune or hero grant, restoring a displaced minion — all of them. There is no
+  privileged "grant path": a card is a card.
+- **Any phase counts.** Including **mid-combat**. A combat effect that grants a card to hand (a Deathrattle
+  copy, a minted Ruby) fires these reactors **during the fight**, so the payout can affect the fight that
+  earned it — not only afterwards when the card settles into the next shop.
+
+The one asymmetry, and it follows from the engine rather than from this rule: a **served enemy board has no
+hand**, so nothing ever reaches one and an enemy's watcher never fires. The event is scoped to the side whose
+hand actually received the card.
+
+**How it is enforced.** Each phase supplies its own dispatcher — the shop diffs the hand by uid in `reduce`
+(so a new `hand.push` site cannot forget to fire it), combat emits from `ctx.grantToHand` / `ctx.grantRubies`
+(the only two ways a card reaches a hand mid-fight). Both run the *same* effect bodies, in
+`ARENA_EFFECTS`, so the two phases cannot drift apart.
+
+---
+
 ### Aura — the run-wide scope noun (owner ruling 2026-08-28)
 
 A grant that reaches a whole tribe/class **wherever its members sit** — the board, your hand, the Shop, and

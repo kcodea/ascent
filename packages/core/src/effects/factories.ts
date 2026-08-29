@@ -27,6 +27,12 @@ const str = (v: unknown): string => (typeof v === 'string' ? v : '');
 /** Tripled minions fire their buff/damage effects at doubled magnitude. */
 const mul = (self: Minion): number => (self.golden ? 2 : 1);
 
+/** `onGainCard` is a BUS broadcast, and the bus reaches every subscribed body on BOTH sides. "Your hand" means
+ *  the owner's, so a reactor only fires for a card that reached its OWN side's hand — without this an enemy
+ *  Gangplank would pay itself every time the player conjured something. */
+const gainedByOwnSide = (self: Minion, payload: unknown): boolean =>
+  (payload as { side?: Side } | undefined)?.side === self.side;
+
 /** Set 2 — "Play `per` Rubies on your [tribe] minions" in COMBAT: every living friend of `tribe` (or all
  *  friends if `tribe` is empty) gets `per` Ruby buffs, a Ruby being base 1/1 + this side's `rubyBonus`. The gift
  *  is PERMANENT — recorded as `permaGain` for EVERY recipient (not just Engraved ones; owner: Ruby buffs are
@@ -846,6 +852,29 @@ let scavversChainDepth = 0;
  * `simulate()` (see `registerEffects`).
  */
 export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
+  /**
+   * ── "WHEN A CARD IS ADDED TO YOUR HAND", IN COMBAT (owner report 2026-08-29) ───────────────────────────
+   *
+   * *"gangplank doesnt trigger when cards are added to hand in combat… cards added to hand is an effect in
+   * recruit + shop and should trigger effects that track them in all places."*
+   *
+   * These two had NO combat factory at all, which is why they were silent mid-fight: `registerEffect` skips
+   * any effect whose `do` has no entry in this table, so the bus never carried `onGainCard` and no reactor
+   * was ever subscribed. The shop's hand uid-diff still paid out at settle, so the stats did arrive — one
+   * fight too late to matter.
+   *
+   * Both delegate to the SHARED arena body, the same one the recruit factories now call, so the two phases
+   * run one implementation and cannot drift. `ctx.grantToHand` and `ctx.grantRubies` emit the event.
+   */
+  onGainCardBuffTribe: (ctx, self, params, payload) => {
+    if (!gainedByOwnSide(self, payload)) return;
+    ARENA_EFFECTS.onGainCardBuffTribe(combatArena(ctx, self), params);
+  },
+  onGainAleBuffSelf: (ctx, self, params, payload) => {
+    if (!gainedByOwnSide(self, payload)) return;
+    ARENA_EFFECTS.onGainAleBuffSelf(combatArena(ctx, self), params, (payload as { cardId?: string }).cardId);
+  },
+
   /** Deathrattle: summon `count` copies of token `tokenId` beside self. (Echo Warden adds copies
    *  in the summon path itself — see `simulate`'s summonMinion — so it isn't applied here.) */
   // ARENA-MIGRATED (Step 3): one body in arena.ts (fixed / goldenTokens / keyword all live there now).

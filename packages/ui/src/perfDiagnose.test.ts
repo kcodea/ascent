@@ -11,7 +11,7 @@
  *   · a correlation is never dressed up as an attribution.
  */
 import { describe, expect, it } from 'vitest';
-import { compareRuns, diagnose, phaseBreakdown, worstSpikes } from './perfDiagnose';
+import { compareRuns, diagnose, phaseBreakdown, subjectOf, worstSpikes } from './perfDiagnose';
 import type { PerfBucket } from './perfMonitor';
 
 /** One second of timeline. Defaults are a clean 60 Hz frame; override what a case is about. */
@@ -232,5 +232,67 @@ describe('run-over-run comparison', () => {
 
   it('says nothing at all when either side is too thin to judge', () => {
     expect(compareRuns(diagnose(secs(1)), run({ worst: 90 }))).toEqual([]);
+  });
+});
+
+
+/**
+ * POINTING AT CONTENT (owner ask 2026-08-29: *"i want the perf hud to be so good that it points at cards or
+ * mechanics or effects that are causing slowdowns"*).
+ *
+ * The instrumentation encodes its subject in the timing LABEL — `fx:<defId>` from `playDef`,
+ * `reduce:<action>` and `reduce:<action>:<cardId>` from the store. These pin that a finding names the thing
+ * a person can act on rather than the key the code happened to use, and that the suggested fix matches the
+ * KIND of thing it found: advice about pooling a shader is worthless when the cost is a reducer pass.
+ */
+describe('perf diagnosis — naming the culprit', () => {
+  it('decodes an effect, a card, a mechanic and plain code', () => {
+    expect(subjectOf('fx:titan-hammer')).toMatchObject({ kind: 'effect', id: 'titan-hammer' });
+    expect(subjectOf('reduce:play:dw_foreman')).toMatchObject({ kind: 'card', id: 'dw_foreman' });
+    expect(subjectOf('reduce:endTurn')).toMatchObject({ kind: 'mechanic', id: 'endTurn' });
+    expect(subjectOf('someBlock')).toMatchObject({ kind: 'code', id: 'someBlock' });
+  });
+
+  it('names the CARD when one card owns the cost', () => {
+    const d = diagnose(secs(20, {
+      hz: 60, worst: 70, jank: 3,
+      timings: { 'reduce:play:dw_foreman': { n: 3, total: 180, max: 62 } },
+    }));
+    const hit = d.verdicts.find((v) => v.id.includes('dw_foreman'))!;
+    expect(hit.title, 'the card id belongs in the headline').toContain('dw_foreman');
+    expect(hit.title, 'and it should read as a sentence, not a log key').toContain('Playing');
+    expect(hit.suggestion, 'the advice must be about a CARD').toMatch(/effects|board|clone/i);
+  });
+
+  it('names the EFFECT when an authored def owns the cost, with FX-specific advice', () => {
+    const d = diagnose(secs(20, {
+      hz: 60, worst: 90, jank: 4,
+      timings: { 'fx:titan-hammer': { n: 6, total: 300, max: 84 } },
+    }));
+    const hit = d.verdicts.find((v) => v.id.includes('titan-hammer'))!;
+    expect(hit.title).toContain('titan-hammer');
+    expect(hit.title).toContain('Firing');
+    // The spawn is where §3b's collision freeze lived, so the fix must talk about shaders and pooling —
+    // not about card effects.
+    expect(hit.suggestion).toMatch(/shader|pool|texture/i);
+  });
+
+  it('falls back to the ACTION when no single card owns it', () => {
+    const d = diagnose(secs(20, {
+      hz: 60, worst: 70, jank: 3,
+      timings: { 'reduce:endTurn': { n: 2, total: 120, max: 65 } },
+    }));
+    const hit = d.verdicts.find((v) => v.id.includes('endTurn'))!;
+    expect(hit.title).toContain('Resolving');
+    expect(hit.suggestion, 'and the advice points at the resolution path, not at content')
+      .toMatch(/every dispatch|sweeps|snapshot/i);
+  });
+
+  it('keeps working for a label it has never seen', () => {
+    // Instrumenting something new must never require editing the decoder to stay correct.
+    const d = diagnose(secs(20, { hz: 60, worst: 70, jank: 3, timings: { brandNewThing: { n: 1, total: 60, max: 60 } } }));
+    const hit = d.verdicts.find((v) => v.id.includes('brandNewThing'))!;
+    expect(hit.title).toContain('brandNewThing');
+    expect(hit.confidence).toBe('measured');
   });
 });

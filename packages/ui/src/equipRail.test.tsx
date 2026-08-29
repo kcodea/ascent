@@ -23,6 +23,11 @@ import { createRun, type BoardCard, type RunState } from '@game/sim';
 import { StatusBar } from './StatusBar';
 import { useGame } from './store';
 import { mount, type Mounted } from './renderedText.mount';
+import { playDef } from './fx/playDef';
+
+/** The FX layer needs a live Pixi renderer, which jsdom has none of — so the two entry points are stubbed and
+ *  the assertions are about WHETHER a cue fired, which is the rule under test. */
+vi.mock('./fx/playDef', () => ({ playDef: vi.fn(), canPlayDefs: () => true }));
 
 /** jsdom has no `PointerEvent`; React's onPointerDown listens for the event TYPE, so a MouseEvent does. */
 const pointerDown = (el: HTMLElement): void => {
@@ -275,5 +280,64 @@ describe('the sheen plays only when the shown art changes', () => {
     expect(ui.container.querySelector('.hpb-artwrap .equipsheen'), 'must be a child of the art clip')
       .not.toBeNull();
     expect(ui.container.querySelector('.equipframe .equipsheen'), 'and never of the frame').toBeNull();
+  });
+});
+
+
+/**
+ * "EMPTY" — the cue when the Equipment allowance hits zero (owner ask 2026-08-29).
+ *
+ * *"this should only play when the player has 0 equipment uses left. if a player then GAINS an equipment use
+ * somehow, and then again uses it and hits 0, this would play as well."*
+ *
+ * So it watches the TRANSITION to zero, not the state of being at zero. That distinction is the whole rule:
+ * a value check would fire every render while empty, and a "once per turn" latch would miss the second
+ * emptying after a bonus use. These pin both halves.
+ */
+describe('the empty cue fires on the transition to zero', () => {
+  const fired = (): number => (playDef as unknown as { mock: { calls: unknown[][] } }).mock.calls
+    .filter((c) => c[0] === 'equipment-used-up').length;
+
+  const withUses = (spent: number, bonus = 0): RunState => {
+    const s = twoEquipment();
+    s.equipment = { ...s.equipment!, activationsSpent: spent, bonusActivations: bonus };
+    return s;
+  };
+
+  beforeEach(() => { (playDef as unknown as { mockClear: () => void }).mockClear(); });
+
+  it('does not fire while a use remains', () => {
+    show(withUses(0));           // 1 use left
+    expect(fired()).toBe(0);
+  });
+
+  it('fires when the last use is spent', () => {
+    show(withUses(0));
+    show(withUses(1));           // 1 → 0
+    expect(fired()).toBe(1);
+  });
+
+  it('does not fire again while it simply STAYS empty', () => {
+    show(withUses(0));
+    show(withUses(1));
+    expect(fired()).toBe(1);
+    show({ ...withUses(1), embers: 12 } as RunState); // an unrelated change, still empty
+    expect(fired(), 'being at zero is not the event — arriving at zero is').toBe(1);
+  });
+
+  it('fires AGAIN after a bonus use is granted and spent', () => {
+    // The owner's second case, and the one a "once per turn" latch would get wrong.
+    show(withUses(0));
+    show(withUses(1));                 // 1 → 0, fires
+    show(withUses(1, 1));              // a bonus use arrives: 0 → 1, silent
+    expect(fired()).toBe(1);
+    show(withUses(2, 1));              // spent again: 1 → 0
+    expect(fired(), 'emptying a second time is a second event').toBe(2);
+  });
+
+  it('is silent on a fresh mount that is already empty', () => {
+    // StatusBar remounts on every return from combat; puffing then would be a cue for nothing that happened.
+    show(withUses(1));
+    expect(fired()).toBe(0);
   });
 });

@@ -47,6 +47,9 @@ function color(worst: number, th: FrameThresholds): string {
 export function PerfHud({ onClose }: { onClose?: () => void }) {
   const [bucket, setBucket] = useState<PerfBucket | null>(perfMonitor.latest());
   const [open, setOpen] = useState(true);
+  /** MINIMIZED folds the panel to its title bar — sparkline and body both go. Distinct from `open`, which
+   *  only collapses the detail rows: minimized is "get out of the way", collapsed is "just the graph". */
+  const [min, setMin] = useState(false);
   const [copied, setCopied] = useState(false);
   const fpsRef = useRef<HTMLSpanElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -181,7 +184,15 @@ export function PerfHud({ onClose }: { onClose?: () => void }) {
   const hot = b ? Object.entries(b.timings ?? {}).sort((x, y) => y[1].max - x[1].max).slice(0, 5) : [];
 
   return (
-    <div className={`perfhud${open ? ' open' : ''}`} ref={panelRef} style={panelStyle}>
+    <div
+      className={`perfhud${open ? ' open' : ''}${min ? ' min' : ''}`}
+      ref={panelRef}
+      /* MINIMIZED drops the persisted HEIGHT so the panel folds to its header. The drag/resize hook writes
+         height as an INLINE style, which no stylesheet rule can outrank without `!important` — so the fold
+         has to happen here, at the same level, rather than in CSS. The stored height is untouched and comes
+         back on expand: minimizing must not silently resize a panel you had sized deliberately. */
+      style={min ? { ...panelStyle, height: 'auto' } : panelStyle}
+    >
       <div className="perfhud-h drag" onPointerDown={headerPointerDown}>
         <span className="perfhud-title">◆ Perf</span>
         <span className="perfhud-fps" ref={fpsRef}>–</span>
@@ -189,15 +200,39 @@ export function PerfHud({ onClose }: { onClose?: () => void }) {
         <span className="perfhud-worst" style={{ color: color(b?.worst ?? 0, th) }}>
           {b ? `${b.worst.toFixed(0)}ms` : '–'}
         </span>
-        <button className="perfhud-x" onClick={() => setOpen((o) => !o)} title={open ? 'Collapse' : 'Expand'}>
-          {open ? '▾' : '▸'}
-        </button>
-        {onClose && <button className="perfhud-x" onClick={onClose} title="Hide the HUD">✕</button>}
+        {/* THE CONTROLS SIT INSIDE THE DRAG HANDLE, so each one has to stop `pointerdown` reaching it (owner
+            report 2026-08-29: "make it so the X actually closes the window"). The header captures the pointer
+            to drag the panel, and a captured pointer never delivers the click that follows — so the buttons
+            looked live, highlighted on hover, and did nothing. Moving them out of the header would cost the
+            whole top edge as a drag target; stopping propagation keeps both. */}
+        <button
+          className="perfhud-x"
+          onPointerDown={(e) => { e.stopPropagation(); }}
+          onClick={() => { setMin((m) => !m); }}
+          title={min ? 'Expand the panel' : 'Minimize to the title bar'}
+          aria-label={min ? 'Expand' : 'Minimize'}
+        >{min ? '▢' : '—'}</button>
+        <button
+          className="perfhud-x"
+          onPointerDown={(e) => { e.stopPropagation(); }}
+          onClick={() => { setOpen((o) => !o); }}
+          title={open ? 'Collapse the details' : 'Show the details'}
+          aria-label={open ? 'Collapse details' : 'Show details'}
+        >{open ? '▾' : '▸'}</button>
+        {onClose && (
+          <button
+            className="perfhud-x close"
+            onPointerDown={(e) => { e.stopPropagation(); }}
+            onClick={onClose}
+            title="Close the HUD and stop recording. The timeline is KEPT — open Perf Analytics to read or save it."
+            aria-label="Close"
+          >✕</button>
+        )}
       </div>
 
-      <canvas className="perfhud-spark" ref={canvasRef} height={SPARK_H} />
+      {!min && <canvas className="perfhud-spark" ref={canvasRef} height={SPARK_H} />}
 
-      {open && (
+      {open && !min && (
         <div className="perfhud-body">
           {/* The calibration everything below is measured against — the thresholds are meaningless without
               it, and "60 Hz (assumed)" is the tell that no window has been measured yet. */}

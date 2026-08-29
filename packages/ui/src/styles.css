@@ -6583,71 +6583,89 @@ svg { width: 18px; height: 18px; }
    + resized by the shared useDraggablePanel hook, so it persists like every tuner.
    Chrome uses --font-ui; NUMBERS use tabular mono so they don't jitter as digits change width.
    Deliberately cheap to render: no blur, no filters, no animated paint properties. */
+/* ── PERF HUD (owner ask 2026-08-29: "make the perf-hud black with white/colored text so it's easier to
+   read … make the text larger") ────────────────────────────────────────────────────────────────────────────
+
+   It used to wear the game's parchment card (`--card` on `--ink`), which is right for a player-facing panel
+   and wrong for this: the HUD sits ON TOP of a bright, busy board, at small sizes, and is read at a glance
+   while something is going wrong. Dark ground with high-contrast type wins that fight; the parchment did not.
+
+   Type went up across the board (fps 17→24px, rows 11→13px, sub-heads 9.5→11px) for the same reason — this is
+   a readout, not chrome, and it was sized like chrome. */
 .perfhud {
   position: fixed; right: calc(var(--bar-x) + 16px); bottom: calc(var(--bar-y) + 64px); z-index: 200;
-  width: 268px; box-sizing: border-box;
-  background: var(--card); border: 2px solid var(--line); border-radius: 14px;
-  box-shadow: 0 16px 40px -8px rgba(0, 0, 0, 0.5);
-  font-family: var(--font-ui); color: var(--ink);
-  resize: both; overflow: hidden; min-width: 210px; max-width: 92vw; min-height: 62px; max-height: 88vh;
-  /* Column flex so the RESIZE grip actually works: header + sparkline keep their natural height and the
-     body takes the remainder and scrolls. Without this the body would size to its content and simply be
-     clipped by overflow:hidden when the panel is dragged smaller — resizable in name only. */
+  width: 320px; box-sizing: border-box;
+  background: #0b0c10; border: 1px solid rgba(255, 255, 255, 0.16); border-radius: 12px;
+  box-shadow: 0 18px 48px -10px rgba(0, 0, 0, 0.75);
+  font-family: var(--font-ui); color: #f1ece2;
+  resize: both; overflow: hidden; min-width: 240px; max-width: 92vw; min-height: 44px; max-height: 88vh;
+  /* Column flex so the RESIZE grip works: header + sparkline keep their natural height, the body takes the
+     remainder and scrolls. Without it the body sizes to content and is simply clipped. */
   display: flex; flex-direction: column;
 }
+/* MINIMIZED — folded to the header alone. `resize` is dropped with it, because a grip on a 40px strip drags
+   into a shape you then have to fix. */
+.perfhud.min { resize: none; min-height: 0; }
 .perfhud-h {
-  display: flex; align-items: center; gap: 6px; padding: 7px 9px 6px; flex: 0 0 auto;
-  border-bottom: 1px solid var(--line);
+  display: flex; align-items: center; gap: 7px; padding: 9px 10px; flex: 0 0 auto;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
+.perfhud.min .perfhud-h { border-bottom: none; }
 .perfhud-h.drag { cursor: move; user-select: none; touch-action: none; }
 .perfhud-title {
-  font-size: 10px; font-weight: 800; color: var(--acc-dk);
-  text-transform: uppercase; letter-spacing: 0.09em;
+  font-size: 11px; font-weight: 800; color: var(--acc);
+  text-transform: uppercase; letter-spacing: 0.1em;
 }
 .perfhud-fps {
-  margin-left: auto; font-size: 17px; font-weight: 800; color: var(--ink); line-height: 1;
+  margin-left: auto; font-size: 24px; font-weight: 800; color: #fff; line-height: 1;
   font-variant-numeric: tabular-nums; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
-.perfhud-unit { font-size: 10px; font-weight: 700; color: var(--ink3); margin-left: -3px; }
+.perfhud-unit { font-size: 11px; font-weight: 700; color: #8f9099; margin-left: -2px; }
 .perfhud-worst {
-  min-width: 40px; text-align: right; font-size: 12px; font-weight: 800;
+  min-width: 48px; text-align: right; font-size: 15px; font-weight: 800;
   font-variant-numeric: tabular-nums; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 .perfhud-x {
-  width: 18px; height: 18px; padding: 0; flex: 0 0 auto; cursor: pointer;
-  border: 1px solid var(--line); border-radius: 5px; background: var(--bg2);
-  color: var(--ink2); font-size: 9px; line-height: 1; font-family: var(--font-ui);
+  width: 24px; height: 24px; padding: 0; flex: 0 0 auto;
+  border: 1px solid rgba(255, 255, 255, 0.18); border-radius: 6px; background: rgba(255, 255, 255, 0.06);
+  color: #cfd2da; font-size: 12px; line-height: 1; font-family: var(--font-ui);
 }
-.perfhud-x:hover { background: var(--card); color: var(--ink); border-color: var(--acc); }
-/* Full-bleed under the header; height is fixed in JS (SPARK_H) but width follows the resize grip. */
-.perfhud-spark { display: block; width: 100%; height: 34px; flex: 0 0 auto; background: color-mix(in srgb, var(--bg2) 55%, var(--card)); }
-.perfhud-body { padding: 7px 9px 9px; overflow: auto; flex: 1 1 auto; min-height: 0; }
+.perfhud-x:hover { background: rgba(255, 255, 255, 0.14); color: #fff; border-color: var(--acc); }
+/* Close reads as destructive on hover, so it is never confused with the fold beside it. */
+.perfhud-x.close:hover { background: var(--threat); border-color: var(--threat); color: #fff; }
+/* Full-bleed under the header; height is fixed in JS (SPARK_H), width follows the resize grip. */
+.perfhud-spark { display: block; width: 100%; height: 34px; flex: 0 0 auto; background: #05060a; }
+.perfhud-body { padding: 9px 11px 11px; overflow: auto; flex: 1 1 auto; min-height: 0; }
 .perfhud-sub {
-  font-weight: 800; font-size: 9.5px; color: var(--acc-dk); text-transform: uppercase; letter-spacing: 0.07em;
-  margin: 9px 0 3px; border-top: 1px solid var(--line); padding-top: 7px;
+  font-weight: 800; font-size: 11px; color: var(--acc); text-transform: uppercase; letter-spacing: 0.08em;
+  margin: 11px 0 4px; border-top: 1px solid rgba(255, 255, 255, 0.1); padding-top: 8px;
 }
-.perfhud-row { display: flex; justify-content: space-between; gap: 10px; padding: 1.5px 0; font-size: 11px; }
-.perfhud-row > span { color: var(--ink3); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.perfhud-row { display: flex; justify-content: space-between; gap: 10px; padding: 2px 0; font-size: 13px; }
+.perfhud-row > span { color: #9fa2ad; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .perfhud-row > b {
-  color: var(--ink); font-weight: 800; text-align: right; white-space: nowrap;
+  color: #fff; font-weight: 800; text-align: right; white-space: nowrap;
   font-variant-numeric: tabular-nums; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
-.perfhud-row.warn > b { color: var(--threat-dk); }
-.perfhud-empty { font-size: 10.5px; color: var(--ink3); font-style: italic; padding: 1px 0; }
-/* THE LIVE VERDICT — the HUD's headline. Severity colours the left rail; the confidence chip is what stops
-   a correlation reading as a fact at a glance. One-shot paint only; nothing here animates. */
+.perfhud-row.warn > b { color: #ff7a90; }
+.perfhud-empty { font-size: 12px; color: #8f9099; font-style: italic; padding: 2px 0; }
+.perfhud-btns button {
+  font-size: 12px; padding: 5px 9px; border-radius: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.18); background: rgba(255, 255, 255, 0.07); color: #e7e3d9; }
+.perfhud-btns button:hover { background: rgba(255, 255, 255, 0.15); border-color: var(--acc); color: #fff; }
+/* THE LIVE VERDICT — the HUD's headline. Severity colours the left rail; the confidence chip is what stops a
+   correlation reading as a fact at a glance. One-shot paint only; nothing here animates. */
 .perfhud-verdict {
-  margin: 8px 0 6px; padding: 7px 9px 7px 11px; border-radius: 8px;
-  background: rgba(0, 0, 0, 0.22); border-left: 3px solid var(--acc); }
-.perfhud-verdict.sev-critical { border-left-color: var(--threat); }
+  margin: 9px 0 7px; padding: 9px 10px 9px 12px; border-radius: 9px;
+  background: rgba(255, 255, 255, 0.05); border-left: 3px solid var(--acc); }
+.perfhud-verdict.sev-critical { border-left-color: var(--threat); background: rgba(229, 68, 107, 0.12); }
 .perfhud-verdict.sev-info { border-left-color: rgba(255, 255, 255, 0.28); }
-.perfhud-verdict b { display: block; font-size: 12px; line-height: 1.3; color: #f6efe2; }
-.perfhud-verdict i { display: block; margin-top: 4px; font-size: 10.5px; line-height: 1.35; font-style: normal;
-  color: rgba(255, 255, 255, 0.62); }
-.perfhud-conf { display: inline-block; margin-top: 4px; padding: 1px 6px; border-radius: 999px;
-  font-size: 9px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
-.perfhud-conf.measured { color: #0d1a12; background: #4bbf87; }
-.perfhud-conf.correlated { color: #f6efe2; background: rgba(255, 255, 255, 0.16); }
+.perfhud-verdict b { display: block; font-size: 13.5px; line-height: 1.3; color: #fff; }
+.perfhud-verdict i { display: block; margin-top: 5px; font-size: 12px; line-height: 1.4; font-style: normal;
+  color: #a9acb6; }
+.perfhud-conf { display: inline-block; margin-top: 5px; padding: 2px 7px; border-radius: 999px;
+  font-size: 10px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+.perfhud-conf.measured { color: #06180f; background: #4bbf87; }
+.perfhud-conf.correlated { color: #f1ece2; background: rgba(255, 255, 255, 0.18); }
 
 .perfhud-btns { display: flex; gap: 4px; margin-top: 9px; }
 .perfhud-btns button {

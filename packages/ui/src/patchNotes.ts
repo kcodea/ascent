@@ -56,6 +56,20 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-08-29',
+    label: 'Equipment',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: 'Your Equipment puffs out when you spend your last use for the turn.',
+        details: [
+          'Only when you actually run out — spending one of two uses leaves the other and stays quiet.',
+          'If something grants you an extra use, spending that one puffs again.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-08-29',
     label: 'Kringle',
     changes: [
       {

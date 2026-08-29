@@ -42,6 +42,9 @@ export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   // Bloodpot's USE def, called literally only by the tuner's test fire — the real play resolves it from the
   // Equipment's own `useFxId` (see the dynamic-site note below).
   'equipment-spark': ['EquipFxTuner.tsx', 'Recruit.tsx'],
+  // The slot running out of uses. Fired from StatusBar because the allowance is what it is about, and the
+  // slot is where the allowance is shown — there is no board unit to hang it on.
+  'equipment-used-up': ['StatusBar.tsx'],
   'freeze-blast': ['FreezeButton.tsx'],
   'hero-power-spark': ['StatusBar.tsx'],
   'hero-power-target': ['Recruit.tsx'],

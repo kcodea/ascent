@@ -120,8 +120,56 @@ export interface Diagnosis {
   thin: boolean;
 }
 
+/**
+ * WHAT A TIMING LABEL IS ABOUT (owner ask 2026-08-29: *"i want the perf hud to be so good that it points at
+ * cards or mechanics or effects that are causing slowdowns"*).
+ *
+ * The instrumentation encodes its subject in the label — `fx:<defId>` from `playDef`, `reduce:<action>` and
+ * `reduce:<action>:<cardId>` from the store's dispatch. Decoding it here is what lets a finding say "the
+ * effect `titan-hammer`" or "playing **dw_foreman**" instead of printing a raw key and leaving the reader to
+ * know the naming scheme.
+ *
+ * An unrecognised label falls back to `code`, so instrumenting something new never has to touch this file to
+ * keep working — it simply gets the generic phrasing until someone teaches it the new prefix.
+ */
+export type SubjectKind = 'effect' | 'card' | 'mechanic' | 'code';
+export interface Subject { kind: SubjectKind; id: string; label: string }
+
+export function subjectOf(label: string): Subject {
+  if (label.startsWith('fx:')) {
+    const id = label.slice(3);
+    return { kind: 'effect', id, label: `the effect \`${id}\`` };
+  }
+  if (label.startsWith('reduce:')) {
+    const rest = label.slice(7);
+    const i = rest.indexOf(':');
+    if (i > 0) {
+      const action = rest.slice(0, i);
+      const cardId = rest.slice(i + 1);
+      return { kind: 'card', id: cardId, label: `**${cardId}** (on ${action})` };
+    }
+    return { kind: 'mechanic', id: rest, label: `the \`${rest}\` action` };
+  }
+  return { kind: 'code', id: label, label: `\`${label}\`` };
+}
+
 const round = (n: number, p = 1): number => +n.toFixed(p);
 const pct = (n: number): string => `${Math.round(n * 100)}%`;
+
+/** How a finding opens, per subject. "Playing X took" reads as a sentence; "X took" reads as a log line. */
+const SUBJECT_VERB: Record<SubjectKind, string> = {
+  effect: 'Firing', card: 'Playing', mechanic: 'Resolving', code: '',
+};
+/**
+ * The next step, per subject — because the useful advice genuinely differs. Telling someone to "pool the
+ * shader" when the cost is a reducer pass wastes their time as surely as no advice at all.
+ */
+const SUBJECT_FIX: Record<SubjectKind, string> = {
+  effect: "Measured at the SPAWN — a shader compile, a texture upload or a big allocation as the effect starts (this is where §3b's 160 ms collision freeze lived). Pool the shader and its container, pre-warm the link at load, and never free a compiled GL program.",
+  card: 'Measured attribution to ONE card. Read its effects: a fan-out over the board, a deep clone, or a cascade that re-enters the reducer. Compare against a plain vanilla minion in the same slot to separate the card from the action.',
+  mechanic: 'Measured attribution to the whole action, with no single card owning it — so it is the resolution path itself. Look at what runs for EVERY dispatch of it: board-wide sweeps, snapshots, autosave.',
+  code: 'This is measured attribution, not a guess — the milliseconds are on the clock for that block. Make it cheaper, defer it off the frame that shows it, or split it across frames.',
+};
 const top = (rec: Record<string, number> | undefined, n: number): { label: string; n: number }[] =>
   Object.entries(rec ?? {}).map(([label, v]) => ({ label, n: v })).sort((a, b) => b.n - a.n).slice(0, n);
 
@@ -329,12 +377,13 @@ export function diagnose(buckets: readonly PerfBucket[]): Diagnosis {
   const hot = [...acc.entries()].sort((a, b) => b[1].max - a[1].max);
   for (const [label, t] of hot.slice(0, 3)) {
     if (t.max <= budgetMs) break; // ranked by max, so once one fits the budget the rest do too
+    const sub = subjectOf(label);
     v.push({
       id: `hotspot:${label}`,
       severity: t.max > th.jankMs ? 'critical' : 'warn',
-      title: `${label} took ${round(t.max)} ms in its worst call`,
+      title: `${SUBJECT_VERB[sub.kind]} ${sub.label} took ${round(t.max)} ms in its worst call`,
       detail: `Called ${t.n}× for ${round(t.total)} ms total. One call alone is ${round(t.max / budgetMs, 1)}× the frame budget.`,
-      suggestion: 'This is measured attribution, not a guess — the milliseconds are on the clock for that block. Make it cheaper, defer it off the frame that shows it, or split it across frames.',
+      suggestion: SUBJECT_FIX[sub.kind],
       confidence: 'measured',
     });
   }

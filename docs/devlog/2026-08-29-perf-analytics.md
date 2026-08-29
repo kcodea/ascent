@@ -84,3 +84,64 @@ The screen sits at `z-index: 600` — above the title screen's 450. It shipped a
 it from the title (where the dev menu also lives) mounted it perfectly and rendered it entirely behind the
 title art. Worth remembering for any future dev overlay: the dev menu is reachable from the title, so anything
 it opens has to outrank the title.
+
+---
+
+## Follow-up the same day: the HUD reads like a HUD, and the report names content
+
+### It is black now, and bigger
+
+Owner: *"make the perf-hud black with white/colored text so it's easier to read … make the text larger."*
+
+It wore the game's parchment card, which is right for a player-facing panel and wrong for this one: the HUD
+sits **on top of** a bright busy board, at small sizes, and is read at a glance while something is going
+wrong. Dark ground with high-contrast type wins that fight. Type went up across the board (fps 17→24px, rows
+11→13px) for the same reason — it is a readout, and it was sized like chrome.
+
+### Why the ✕ did nothing
+
+*"make it so the X actually closes the window."* It was wired correctly the whole time. The buttons sit inside
+the header, which is the **drag handle** — so `pointerdown` on the ✕ started a drag, the header captured the
+pointer, and a captured pointer never delivers the click that follows. The button highlighted on hover and did
+nothing, which is exactly what a dead control looks like.
+
+Each control stops propagation now. Moving them out of the header would have cost the whole top edge as a drag
+target; this keeps both. **Minimize** is a separate control from collapse: minimize folds to the title bar
+(and drops the persisted inline height, which no stylesheet rule could outrank), collapse hides the detail rows
+and keeps the sparkline.
+
+Closing stops recording but **keeps the log** — the tooltip says so, because losing a session to a misread
+button would be the worst possible outcome for this particular tool.
+
+### The report points at cards, effects and mechanics
+
+*"i want the perf hud to be so good that it points at cards or mechanics or effects that are causing
+slowdowns."*
+
+Three chokepoints already existed; they just were not carrying their subject.
+
+- **`playDef`** is the one path every authored effect takes, so timing it there attributes the SPAWN cost to
+  the def by name — `fx:titan-hammer`, not a generic tally. That spawn is precisely where §3b's 160 ms
+  collision freeze lived.
+- **The store's dispatch** already timed `reduce:<action>` — mechanic-level cost. It now folds in the card id
+  when the action names one, so a timing reads `reduce:play:dw_foreman` and the finding can point at the card.
+- **`subjectOf()`** decodes those labels into something a person can act on, and each KIND gets its own
+  suggested fix: shader pooling for an effect, "read its effects, compare against a vanilla minion" for a
+  card, "what runs on every dispatch" for a mechanic. Advice about pooling a shader wastes an afternoon when
+  the cost is a reducer pass.
+
+An unrecognised label degrades to generic phrasing rather than breaking, so instrumenting something new never
+requires editing the decoder to stay correct — a test pins that.
+
+All of it is free when the monitor is off: `measure()` is a bare passthrough with no clock reads.
+
+### The "empty" cue
+
+The owner's `equipment-used-up` effect fires when the Equipment allowance reaches zero — on the **transition**,
+not the state. Spending the first of two uses is silent; spending the second fires. A bonus use takes it off
+zero and spending that one fires again, which falls out of watching the edge rather than the value with no
+special case for how it got back above zero. A fresh mount already at zero is silent, because StatusBar
+remounts on every return from combat.
+
+Verified by sabotage: swapping the edge test for a value test fails the suite.
+

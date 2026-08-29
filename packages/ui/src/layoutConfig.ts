@@ -96,9 +96,9 @@ export const LAYOUT_VARS: LayoutVarDef[] = [
 
   // Gold pill (bottom-right circle). X/Y are INSETS from the board's right / bottom edge (bigger = further in);
   // Scale sizes the whole circle. Match the styles.css `.goldpill` fallbacks.
-  { key: 'goldS', cssVar: '--gold-s', label: 'Scale', group: 'Gold pill', min: 0.5, max: 2.5, step: 0.01, def: 1.68, fmt: 'mul' },
-  { key: 'goldX', cssVar: '--gold-x', label: 'Inset from right', group: 'Gold pill', min: -200, max: 800, step: 1, def: 409, fmt: 'px' },
-  { key: 'goldY', cssVar: '--gold-y', label: 'Inset from bottom', group: 'Gold pill', min: -200, max: 800, step: 1, def: 426, fmt: 'px' },
+  { key: 'goldS', cssVar: '--gold-s', label: 'Scale', group: 'Gold pill', min: 0.5, max: 2.5, step: 0.01, def: 1.69, fmt: 'mul' },
+  { key: 'goldX', cssVar: '--gold-x', label: 'Inset from right', group: 'Gold pill', min: -200, max: 800, step: 1, def: 408, fmt: 'px' },
+  { key: 'goldY', cssVar: '--gold-y', label: 'Inset from bottom', group: 'Gold pill', min: -200, max: 800, step: 1, def: 423, fmt: 'px' },
 
   // Tavern-tier text pill (on the Tavern Up stone). X/Y nudge it off the stone's bottom-centre; Scale sizes it.
   { key: 'tierS', cssVar: '--tierpill-s', label: 'Scale', group: 'Tavern tier', min: 0.4, max: 2.5, step: 0.01, def: 1.21, fmt: 'mul' },

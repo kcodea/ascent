@@ -329,7 +329,9 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .wipevs-face { width: calc(290 * var(--u, 1px)); height: calc(290 * var(--u, 1px)); border-radius: 50%; /* matches the in-combat foe portrait: 116u x its 2.5 wrapper scale */
   object-fit: cover; border: calc(4 * var(--u, 1px)) solid #c9a35c;
   box-shadow: 0 0 0 calc(2 * var(--u, 1px)) rgba(10, 23, 48, 0.9), 0 14px 40px -10px rgba(0, 0, 0, 0.7); }
-.wipevs-name { font-family: var(--title-font, 'Cinzel Decorative', 'Outfit', sans-serif); font-weight: var(--title-weight, 600); font-size: calc(34 * var(--u, 1px));
+/* The player NAME stays in the UI face (owner ask 2026-08-29) — only the announcement label wears the
+   title font. */
+.wipevs-name { font-family: var(--font-ui); font-weight: 900; font-size: calc(34 * var(--u, 1px));
   color: #fff; text-shadow: 0 2px 12px rgba(0, 0, 0, 0.6); }
 /* The glowing wipe FRONT — a soft blue-white energy edge riding the curtain's seam. Same duration + easing
    as the curtain's clip transition so the two can never desync; compositor-only transform, static

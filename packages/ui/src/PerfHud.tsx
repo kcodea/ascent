@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { perfMonitor, perfThresholds, type PerfBucket, type FrameThresholds } from './perfMonitor';
 import { thresholdsFor } from './refreshRate';
-import { useDraggablePanel } from './useDraggablePanel';
+import { DevPanelContext, useDraggablePanel } from './useDraggablePanel';
 import { diagnose, type Diagnosis } from './perfDiagnose';
 import { buildReport } from './perfReport';
 import { saveRun, toRun } from './perfStore';
@@ -44,7 +44,11 @@ function color(worst: number, th: FrameThresholds): string {
   return '#1f9d6b'; // --tier-2 green
 }
 
-export function PerfHud({ onClose }: { onClose?: () => void }) {
+/**
+ * The panel proper. It carries NO close of its own: the ✕ is the one `useDraggablePanel` injects, wired
+ * through the provider in `PerfHud` below.
+ */
+function PerfHudPanel() {
   const [bucket, setBucket] = useState<PerfBucket | null>(perfMonitor.latest());
   const [open, setOpen] = useState(true);
   /** MINIMIZED folds the panel to its title bar — sparkline and body both go. Distinct from `open`, which
@@ -54,7 +58,7 @@ export function PerfHud({ onClose }: { onClose?: () => void }) {
   const fpsRef = useRef<HTMLSpanElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const histRef = useRef<PerfBucket[]>([]);
-  const { panelRef, headerPointerDown, panelStyle } = useDraggablePanel('perfhud');
+  const { panelRef, panelElRef, headerPointerDown, panelStyle } = useDraggablePanel('perfhud');
 
   // One re-render per closed bucket (1/s). The sparkline redraw rides the same tick.
   useEffect(() => perfMonitor.subscribe((b) => {
@@ -175,6 +179,55 @@ export function PerfHud({ onClose }: { onClose?: () => void }) {
     });
   }, []);
 
+  /**
+   * THE FOLD, done imperatively — because the size is owned imperatively.
+   *
+   * `useDraggablePanel` restores a saved size by writing `el.style.height` directly (so the browser's native
+   * resize grip owns it with no React style fighting), and a `ResizeObserver` writes back whatever height it
+   * observes. Setting `height: auto` from React therefore folded the panel AND persisted 44px as its size —
+   * so expanding restored a 44px panel, and reopening later got the same (owner report 2026-08-29:
+   * "minimizing it doesnt actually dock it").
+   *
+   * So the pre-fold height is stashed here and written back on expand, at the same level the hook works at.
+   * It is also restored on unmount: closing while minimized would otherwise save the folded height and the
+   * HUD would come back as a sliver.
+   */
+  /**
+   * HEAL A FOLDED HEIGHT SAVED BY THE BROKEN BUILD.
+   *
+   * Before the fix above, minimizing let the ResizeObserver persist the folded 44px as the panel's SIZE — so
+   * anyone who minimized once has a saved height that reopens the HUD as a sliver, and would read the fix as
+   * "still broken". The stored value is dropped when it is too short to be a real panel; the hook then falls
+   * back to the CSS size. One-way and cheap: nobody deliberately resizes this to less than a header.
+   */
+  useEffect(() => {
+    const el = panelElRef.current;
+    if (!el) return;
+    const h = parseFloat(el.style.height || '0');
+    if (h > 0 && h < 120) {
+      el.style.height = '';
+      try {
+        const k = 'ascent.devpanel.perfhud';
+        const saved = JSON.parse(localStorage.getItem(k) ?? '{}') as { height?: number };
+        delete saved.height;
+        localStorage.setItem(k, JSON.stringify(saved));
+      } catch { /* storage unavailable — the inline clear above is still the fix that matters */ }
+    }
+  }, [panelElRef]);
+
+  const heightBeforeMin = useRef<string>('');
+  useEffect(() => {
+    const el = panelElRef.current;
+    if (!el) return;
+    if (min) {
+      heightBeforeMin.current = el.style.height;
+      el.style.height = 'auto';
+      return () => { if (heightBeforeMin.current) el.style.height = heightBeforeMin.current; };
+    }
+    if (heightBeforeMin.current) { el.style.height = heightBeforeMin.current; heightBeforeMin.current = ''; }
+    return undefined;
+  }, [min, panelElRef]);
+
   const b = bucket;
   // Re-read every bucket render (1/s), never cached: the detected refresh can move mid-session.
   const th = perfThresholds();
@@ -187,11 +240,7 @@ export function PerfHud({ onClose }: { onClose?: () => void }) {
     <div
       className={`perfhud${open ? ' open' : ''}${min ? ' min' : ''}`}
       ref={panelRef}
-      /* MINIMIZED drops the persisted HEIGHT so the panel folds to its header. The drag/resize hook writes
-         height as an INLINE style, which no stylesheet rule can outrank without `!important` — so the fold
-         has to happen here, at the same level, rather than in CSS. The stored height is untouched and comes
-         back on expand: minimizing must not silently resize a panel you had sized deliberately. */
-      style={min ? { ...panelStyle, height: 'auto' } : panelStyle}
+      style={panelStyle}
     >
       <div className="perfhud-h drag" onPointerDown={headerPointerDown}>
         <span className="perfhud-title">◆ Perf</span>
@@ -219,15 +268,11 @@ export function PerfHud({ onClose }: { onClose?: () => void }) {
           title={open ? 'Collapse the details' : 'Show the details'}
           aria-label={open ? 'Collapse details' : 'Show details'}
         >{open ? '▾' : '▸'}</button>
-        {onClose && (
-          <button
-            className="perfhud-x close"
-            onPointerDown={(e) => { e.stopPropagation(); }}
-            onClick={onClose}
-            title="Close the HUD and stop recording. The timeline is KEPT — open Perf Analytics to read or save it."
-            aria-label="Close"
-          >✕</button>
-        )}
+        {/* NO ✕ HERE. `useDraggablePanel` injects a `.devpanel-close` button into every dev panel it
+            manages, pinned to the panel's top-right — so adding one to the header produced TWO (owner report
+            2026-08-29: "the ui bar too it has 2 x's"), and the prominent one was the injected one, which did
+            nothing because this panel was mounted outside any `DevPanelContext.Provider`. The provider below
+            wires that button to the real close instead. */}
       </div>
 
       {!min && <canvas className="perfhud-spark" ref={canvasRef} height={SPARK_H} />}
@@ -310,5 +355,21 @@ function Row({ k, v, warn }: { k: string; v: string; warn?: boolean }) {
     <div className={`perfhud-row${warn ? ' warn' : ''}`}>
       <span>{k}</span><b>{v}</b>
     </div>
+  );
+}
+
+/**
+ * `useDraggablePanel` injects a ✕ into every panel it manages and wires it to `DevPanelContext`'s `close`.
+ * This panel was mounted outside any provider, so that button — the prominent one, pinned to the panel's
+ * top-right — called a no-op, which is why closing appeared broken (owner report 2026-08-29). It now gets a
+ * provider whose `close` is the real one, the way `SceneBuilder` already does it.
+ *
+ * That also removes the second ✕: with the injected button working, the header does not need its own.
+ */
+export function PerfHud({ onClose }: { onClose?: () => void }): JSX.Element {
+  return (
+    <DevPanelContext.Provider value={{ close: () => onClose?.() }}>
+      <PerfHudPanel />
+    </DevPanelContext.Provider>
   );
 }

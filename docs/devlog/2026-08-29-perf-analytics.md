@@ -145,3 +145,36 @@ remounts on every return from combat.
 
 Verified by sabotage: swapping the edge test for a value test fails the suite.
 
+### The two ✕s, and why the wrong one was the one you could see
+
+Owner: *"fix the ui bar too it has 2 x's"* — and, from the pass before, *"make it so the X actually closes
+the window."* Both were the same root cause, and the earlier fix addressed the wrong button.
+
+`useDraggablePanel` **injects** a `.devpanel-close` ✕ into every panel it manages, pinned to the panel's
+top-right, and wires it to `DevPanelContext`'s `close`. The perf HUD was mounted in `Game.tsx` **outside any
+provider**, so that button called the context's default no-op — while the header carried a second ✕ of my own
+that did work but was the less prominent of the two. Clicking the obvious one did nothing.
+
+The panel is wrapped in its own provider now, the way `SceneBuilder` already does it, so the injected button
+closes it for real — and the header's duplicate is gone. One ✕, and it is the one that looks like the close
+button.
+
+The earlier "the drag handle swallowed the click" fix was still real and still needed for the remaining
+header controls; it just was not the whole story.
+
+### Minimizing did not dock it
+
+*"minimizing it doesnt actually dock it."*
+
+The fold set `height: auto` from React. But `useDraggablePanel` owns size **imperatively** — it restores a
+saved height by writing `el.style.height` so the native resize grip has nothing fighting it, and a
+`ResizeObserver` persists whatever height it observes. So folding wrote 44px into storage as the panel's
+size, and expanding restored a 44px panel. The next open got the same sliver.
+
+The fold is imperative now, at the level the hook works at: stash the pre-fold height, write `auto`, put it
+back on expand — and on unmount too, since closing while minimized would otherwise save the folded height.
+
+**Plus a heal**, because the broken build already persisted bad values: a stored height too short to be a real
+panel is dropped on mount and the CSS size takes over. Without it the fix would read as "still broken" on any
+machine that had minimized once — which is every machine that tried the feature.
+

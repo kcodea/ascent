@@ -59,6 +59,14 @@ export const PATCH_NOTES: PatchNote[] = [
     label: 'Fixes',
     changes: [
       {
+        category: 'UI / Info',
+        text: 'A sheen sweeps the Equipment art whenever the slot shows a new one.',
+        details: [
+          'It plays on the first Equipment you get, and whenever you swap the slot to a different one.',
+          'It stays quiet when you play another copy of an Equip minion you already have — the slot is showing the same thing.',
+        ],
+      },
+      {
         category: 'Card Change',
         text: 'Cards that arrive in your hand DURING a fight now trigger the minions that watch for them.',
         details: [

@@ -59,6 +59,30 @@ export interface EquipSlotConfig {
    */
   fadeOutMs: number;
 
+  // ── The sheen ───────────────────────────────────────────────────────────────────────────────────────────
+  /** 1 sweeps a band of light across the Equipment ART when the slot's picture changes, 0 never. */
+  sheenOn: number;
+  /**
+   * ms relative to the SLOT BURST — negative fires the sheen EARLIER than the burst, positive later.
+   *
+   * Anchored to the burst rather than to the cue so "earlier" means something: the cue is time zero, and an
+   * offset before it could only clamp. The burst is the moment the icon lands, which is what the sheen is
+   * reacting to.
+   */
+  sheenDelayMs: number;
+  /** How long the band takes to cross. Lower is faster. */
+  sheenSpeedMs: number;
+  /** Band width as a percentage of the art circle — a wide band reads as a wash, a narrow one as a glint. */
+  sheenSize: number;
+  /** 0 sweeps left → right, 1 right → left. */
+  sheenDir: number;
+  /** 1 plays the sheen clip, 0 silences it. */
+  sheenSfxOn: number;
+  /** Volume of the sheen clip, as a multiple of its normal level. */
+  sheenSfxVolume: number;
+  /** ms relative to the SLOT BURST for the clip — negative is earlier, same anchor as the visual. */
+  sheenSfxDelayMs: number;
+
   // ── The three floating readouts ─────────────────────────────────────────────────────────────────────────
   /** Gold cost — the frame has a round boss at its top-left that this is meant to drop into. */
   costX: number;
@@ -116,6 +140,11 @@ const DEFAULTS: EquipSlotConfig = {
   // the only thing moving and reads as abrupt at the same speed.
   fadeInMs: 180, fadeOutMs: 260,
 
+  // Lands just after the icon does, and crosses briskly — it is a reaction to the new art, not a flourish of
+  // its own. Sized as a glint rather than a wash so the art stays readable underneath.
+  sheenOn: 1, sheenDelayMs: 60, sheenSpeedMs: 620, sheenSize: 38, sheenDir: 0,
+  sheenSfxOn: 1, sheenSfxVolume: 0.5, sheenSfxDelayMs: 60,
+
   costX: 0, costY: 0, costScale: 1,
   nameX: 0, nameY: 0, nameScale: 1,
   usesX: 0, usesY: 0, usesScale: 1.29,
@@ -142,6 +171,15 @@ const RANGES: Record<keyof EquipSlotConfig, [number, number, number]> = {
 
   fadeInMs: [0, 900, 10],
   fadeOutMs: [0, 900, 10],
+
+  sheenOn: [0, 1, 1],
+  sheenDelayMs: [-400, 900, 10],
+  sheenSpeedMs: [120, 2000, 10],
+  sheenSize: [10, 120, 1],
+  sheenDir: [0, 1, 1],
+  sheenSfxOn: [0, 1, 1],
+  sheenSfxVolume: [0, 2, 0.05],
+  sheenSfxDelayMs: [-400, 900, 10],
 
   costX: [-160, 160, 1],
   costY: [-160, 160, 1],
@@ -184,6 +222,9 @@ const VARS: Record<keyof EquipSlotConfig, string> = {
   frameOn: '--eqf-on', frameX: '--eqf-x', frameY: '--eqf-y', frameScale: '--eqf-scale',
   frameBehind: '--eqf-behind',
   fadeInMs: '--eqs-fade-in', fadeOutMs: '--eqs-fade-out',
+  sheenSpeedMs: '--eqsh-speed', sheenSize: '--eqsh-size', sheenDir: '--eqsh-dir',
+  // Read at FIRE time by StatusBar / sfx, not painted (see the empty entries at the end of VARS).
+  sheenOn: '', sheenDelayMs: '', sheenSfxOn: '', sheenSfxVolume: '', sheenSfxDelayMs: '',
   costX: '--eqc-x', costY: '--eqc-y', costScale: '--eqc-scale',
   nameX: '--eqn-x', nameY: '--eqn-y', nameScale: '--eqn-scale',
   usesX: '--equ-x', usesY: '--equ-y', usesScale: '--equ-scale',
@@ -198,7 +239,7 @@ export function applyEquipSlotVars(): void {
   for (const [key, v] of Object.entries(VARS) as [keyof EquipSlotConfig, string][]) {
     if (!v) continue; // a dial the stylesheet has no use for (see VARS)
     // The timing dials are the ones the stylesheet needs a UNIT on — they feed durations and delays.
-    const ms = key === 'railGraceMs' || key === 'fadeInMs' || key === 'fadeOutMs';
+    const ms = key === 'railGraceMs' || key === 'fadeInMs' || key === 'fadeOutMs' || key === 'sheenSpeedMs';
     root.setProperty(v, ms ? `${cfg[key]}ms` : String(cfg[key]));
   }
 }
@@ -226,6 +267,15 @@ const SPECS: Record<keyof EquipSlotConfig, [string, string | undefined, string, 
   frameY: ['Frame Y', 'px', 'Frame offset from the button centre.', 'Frame'],
   frameScale: ['Frame size', '×', 'Multiple of the button own box — 1 is exactly button-sized, so the frame needs more than 1 to sit AROUND it.', 'Frame'],
   fadeInMs: ['Fade in', 'ms', 'How long the slot takes to appear when you equip something.', 'Arriving & leaving'],
+  sheenOn: ['Show sheen', undefined, '1 sweeps a band of light across the Equipment art when the picture changes, 0 never.', 'Sheen'],
+  sheenDelayMs: ['Sheen timing', 'ms', 'Relative to the slot burst — NEGATIVE fires the sheen earlier than the burst, positive later.', 'Sheen'],
+  sheenSpeedMs: ['Sheen speed', 'ms', 'How long the band takes to cross. Lower is faster.', 'Sheen'],
+  sheenSize: ['Sheen width', '%', 'Band width as a share of the art circle. Narrow reads as a glint, wide as a wash.', 'Sheen'],
+  sheenDir: ['Direction', undefined, '0 sweeps left → right, 1 right → left.', 'Sheen'],
+  sheenSfxOn: ['Sheen sound', undefined, '1 plays the sheen clip, 0 silences it — for judging the sweep alone.', 'Sheen'],
+  sheenSfxVolume: ['Sheen volume', '×', "Multiple of the clip's normal level. Rides on top of the UI bus.", 'Sheen'],
+  sheenSfxDelayMs: ['Sheen sound timing', 'ms', 'Same anchor as the visual: negative is earlier than the slot burst. Audio clock, so it cannot drift.', 'Sheen'],
+
   fadeOutMs: ['Fade out', 'ms', 'How long it takes to go when the last source dies or is sold. Also how long the leaving copy is kept alive, so the fade and the timer cannot disagree.', 'Arriving & leaving'],
 
   frameBehind: ['Behind art', undefined, '1 puts the frame behind the icon (a backing plate), 0 in front (a surround the icon sits under).', 'Frame'],
@@ -256,6 +306,30 @@ const controls: TunerControl<Extract<keyof EquipSlotConfig, string>>[] =
     return { key, label, unit, hint, group, min, max, step } as TunerControl<Extract<keyof EquipSlotConfig, string>>;
   });
 
+/**
+ * Replay the sheen on the LIVE slot without needing to swap Equipment for it.
+ *
+ * The sheen fires only when the slot's art actually changes, which is correct in play and painful to tune:
+ * judging a 60ms offset would otherwise mean buying a second Equipment and swapping back and forth. This
+ * re-plays the exact band the real trigger mounts — same class, same CSS, same clip — by hand.
+ */
+function testSheen(): void {
+  if (typeof document === 'undefined') return;
+  const wrap = document.querySelector<HTMLElement>('.equipslot .hpb-artwrap');
+  if (!wrap) return; // no Equipment on screen; the panel note says one is needed
+  wrap.querySelectorAll('.equipsheen').forEach((n) => { n.remove(); });
+  const burst = 140; // the slot burst's own default; the real cue reads it from the Equip FX tuner
+  window.setTimeout(() => {
+    const band = document.createElement('span');
+    band.className = `equipsheen${cfg.sheenDir === 1 ? ' rev' : ''}`;
+    band.addEventListener('animationend', () => { band.remove(); });
+    wrap.appendChild(band);
+  }, Math.max(0, burst + cfg.sheenDelayMs));
+  if (cfg.sheenSfxOn) void import('./sfx').then((m) => {
+    m.sfx.equipmentSheen(cfg.sheenSfxVolume, Math.max(0, burst + cfg.sheenSfxDelayMs));
+  });
+}
+
 export const SPEC: TunerSpec<EquipSlotConfig> = {
   id: 'equipslot',                 // FROZEN — indexes this panel's dragged position in localStorage
   title: 'Equipment Slot',
@@ -265,6 +339,11 @@ export const SPEC: TunerSpec<EquipSlotConfig> = {
   reset: resetEquipSlotConfig,
   defaults: DEFAULTS,
   controls,
+  actions: [{
+    label: '▶ sheen',
+    hint: 'Replays the sweep on the Equipment currently in the slot, at the tuned offset and with its clip. Needs an Equipment on screen.',
+    run: testSheen,
+  }],
 };
 
 // Apply at load so the seat is live before the first paint (the boardConfig-era pattern).

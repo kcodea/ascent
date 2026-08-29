@@ -3306,6 +3306,44 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
 .equipslot .hpb-glyph { display: grid; place-items: center; width: 100%; height: 100%; font-size: 26px; color: #d8ccb6; }
 .equipslot .hplabel { pointer-events: none; }
 
+/* THE ART SHEEN (owner ask 2026-08-29) — the same lamp-catch band the menu plaques and the tavern/end-turn
+   buttons use (`mbsheen`), so the surfaces keep speaking one language, but bounded to the Equipment ART.
+
+   It sits INSIDE `.hpb-artwrap`, which is already the circular clip (`border-radius: 50%; overflow: hidden`)
+   the icon rides in — so the sweep is cut off by the art and never crosses the frame png, which is what the
+   owner asked for. Nothing here needs its own clip.
+
+   ONE-SHOT, so the ban on animating paint properties does not apply — and it does not touch any: the band's
+   gradient is static and only `transform` + `opacity` move, which is compositor-only either way.
+
+   `--eqsh-dir` flips the sweep by negating the travel, and `scaleX(-1)` mirrors the gradient with it so the
+   bright edge still leads. Reduced motion drops the sweep to a plain fade, since the whole point is motion. */
+@keyframes equipsheen {
+  from { transform: translateX(-140%) skewX(-18deg); opacity: 0; }
+  22%  { opacity: 1; }
+  to   { transform: translateX(320%) skewX(-18deg); opacity: 0; }
+}
+@keyframes equipsheenrev {
+  from { transform: translateX(320%) skewX(-18deg); opacity: 0; }
+  22%  { opacity: 1; }
+  to   { transform: translateX(-140%) skewX(-18deg); opacity: 0; }
+}
+.equipsheen {
+  position: absolute; top: 0; bottom: 0; left: 0; z-index: 3; pointer-events: none;
+  width: calc(var(--eqsh-size, 38) * 1%);
+  background: linear-gradient(100deg, transparent, rgba(255, 244, 214, 0.16) 44%,
+    rgba(255, 250, 232, 0.4) 52%, rgba(255, 244, 214, 0.14) 60%, transparent);
+  opacity: 0;
+  animation: equipsheen var(--eqsh-speed, 620ms) cubic-bezier(0.22, 0.6, 0.28, 1); }
+/* Right → left. The direction cannot come from a numeric CSS var (there is no way to pick an
+   `animation-name` from a number), so the trigger stamps this class from the tuner's dial instead. The
+   gradient is mirrored with `scaleX(-1)` so the bright edge still LEADS the sweep rather than trailing it. */
+.equipsheen.rev { animation-name: equipsheenrev; transform: scaleX(-1); }
+@media (prefers-reduced-motion: reduce) {
+  @keyframes equipsheen    { from { opacity: 0; } 40% { opacity: 0.8; } to { opacity: 0; } }
+  @keyframes equipsheenrev { from { opacity: 0; } 40% { opacity: 0.8; } to { opacity: 0; } }
+}
+
 /* ARRIVING AND LEAVING (owner ask 2026-08-28: "add a brief fade in/fade out for the equipment so it doesn't
    simply disappear immediately").
 

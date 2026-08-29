@@ -498,6 +498,16 @@ export const sfx = {
     if (playSample('equipmentselect', 'ui', 0, ({ gain }) => { gain.gain.value *= vol; })) return;
     tone({ freq: 880, dur: 0.06, type: 'triangle', vol: 0.08 * vol, category: 'ui' });
   },
+  /**
+   * The sheen sweeping the Equipment art when the slot's picture CHANGES (owner ask 2026-08-29). `vol` is the
+   * Equipment Slot tuner's dial, multiplied on top of the clip's category + per-clip gains rather than
+   * replacing them; `delay` schedules on the AUDIO clock so it cannot drift from the visual sweep.
+   */
+  equipmentSheen: (vol = 1, delay = 0) => {
+    if (vol <= 0) return;
+    if (playSample('equipmentsheen', 'ui', Math.max(0, delay) / 1000, ({ gain }) => { gain.gain.value *= vol; })) return;
+    tone({ freq: 1500, dur: 0.14, type: 'sine', vol: 0.06 * vol, slideTo: 2400, category: 'ui' });
+  },
   equipmentUse: (clipId: string, delay = 0) => {
     if (playSample(clipId, 'equip', delay / 1000)) return;
     tone({ freq: 520, dur: 0.18, type: 'sine', vol: 0.1, slideTo: 300, category: 'equip' });

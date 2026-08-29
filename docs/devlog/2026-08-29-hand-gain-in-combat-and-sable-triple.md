@@ -119,3 +119,54 @@ read, for a moment, exactly like "main is broken".
 Nothing was lost (git keeps the entry when a pop conflicts, and it is still in the list), but the lesson is
 cheap to record: **chain stash push/pop with `&&`, never `;`** — a `;` runs the restore even when the save
 never happened.
+
+## The Equipment art sheen
+
+Owner ask: the shared sheen (the menu plaques', the hero-damage one) on the Equipment, *"on the card art
+itself and not the equipment slot png, so the sheen only passes over the art"*, with dials for timing, speed,
+size, direction and the clip.
+
+**Containment is structural, not tuned.** The band is a child of `.hpb-artwrap` — the circular
+`overflow: hidden` clip the icon already rides in — so it physically cannot cross onto the frame. Nothing to
+maintain, and a test asserts the parentage rather than any measurement.
+
+### The trigger is the PICTURE, not the equip
+
+Owner: *"this sheen should not play if the player already has equipment shown and they play another equip
+minion … the first equip / going from 0→1, or when equipment is swapped in the slot."*
+
+So it keys on the Equipment id **currently shown**, and nothing else. Worth noting this is a *different*
+question from the equip cue's gate added yesterday: `holdsEquipment` asks "did you acquire something?", the
+sheen asks "did the picture change?". They agree on a duplicate Frank and deliberately disagree elsewhere —
+swapping the rail to an Equipment you already hold acquires nothing, yet the art changes, so the sheen plays
+and the equip burst does not. Two rules, both right, kept separate.
+
+A fresh mount does not sweep either: StatusBar remounts on every return from combat, and a sweep there would
+be a flourish nobody asked for.
+
+### Two test bugs worth recording, because both were invisible
+
+1. The "does not sweep on a duplicate" test compared the band's **class string** — identical whether or not a
+   new sweep happened, so it passed under a deliberately broken implementation. It compares the DOM node
+   identity now (a fresh sweep remounts under a new key). Only the sabotage run exposed it.
+2. Three tests mounted straight into a held Equipment and then asserted a sweep — but a mount is not a change,
+   so they were asserting against behaviour that correctly never happens. They start from an empty slot and
+   transition now, which is also what play does.
+
+Both were caught by sabotaging the implementation and finding the suite still green. A test that passes
+against a broken implementation is worse than no test, because it is counted.
+
+### The dials
+
+Timing (negative = earlier), speed, width, direction, and the clip's volume and timing — all in the Equipment
+Slot tuner under **Sheen**. Both offsets are anchored to the **slot burst** rather than to the cue, so
+"earlier" means something: the cue is time zero and an offset before it could only clamp, while the burst is
+the moment the icon lands, which is what the sheen is reacting to.
+
+Direction needed a class rather than a CSS var — there is no way to pick an `animation-name` from a number —
+so the trigger stamps `.rev`, and the gradient mirrors with it so the bright edge still leads.
+
+The panel carries a **▶ sheen** button: the real trigger only fires on a genuine art change, and judging a
+60ms offset by buying a second Equipment and swapping back and forth is exactly the friction that stops a
+tuner being used.
+

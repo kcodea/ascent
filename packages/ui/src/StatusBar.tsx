@@ -15,6 +15,7 @@ import { QuestBadges } from './QuestBadges';
 import { gatherRunBuffs } from './runBuffs';
 import { questObjectiveText, questProgressText, questRewardText, questRewardLiveText, questRewardLiveOf } from './questText';
 import { QUEST_INDEX, RUNE_INDEX } from '@game/content';
+import { getEquipFxConfig } from './equipFxConfig';
 import { getEquipSlotConfig } from './equipSlotConfig';
 import { sfx } from './sfx';
 import { playDef } from './fx/playDef';
@@ -191,6 +192,49 @@ export function StatusBar() {
    * A ref, not state, for the snapshot itself: it is written on every render that has an Equipment and must
    * never cause one. Only the leaving FLAG is state, because that is the thing a re-render has to react to.
    */
+  /**
+   * THE ART SHEEN (owner ask 2026-08-29) — a band of light sweeps the Equipment ART when the slot's PICTURE
+   * changes, with a clip alongside it.
+   *
+   * ── The trigger is the ART, not the equip ─────────────────────────────────────────────────────────────
+   *
+   * Owner: *"this sheen should not play if the player already has equipment shown and they play another equip
+   * minion … the first equip / going from 0→1 equipment, or when equipment is swapped in the slot."*
+   *
+   * So it keys on the Equipment ID CURRENTLY SHOWN, and nothing else. A second Alchemist Frank leaves that id
+   * unchanged and is silent — which lands in the same place as the equip cue's own gate (`holdsEquipment`),
+   * but for a different reason and by a different route: that one asks "did you acquire something?", this one
+   * asks "did the picture change?". They agree on a duplicate Frank and disagree elsewhere — swapping the rail
+   * to an Equipment you already held acquires nothing, yet the art changes, so the sheen plays and the equip
+   * burst does not. Keeping them separate is what makes both correct.
+   *
+   * The Start-of-Turn rebuild is silent for the same reason: same id, same picture.
+   *
+   * `key`-remounting the band is what restarts the CSS animation — re-adding a class to a live element does
+   * not replay it, and a swap back and forth must sweep each time.
+   */
+  const shownEquipId = selectedEquipDef?.id;
+  // The seq restarts the animation; `rev` carries the direction dial, which CSS cannot read from a number.
+  const [sheen, setSheen] = useState<{ seq: number; rev: boolean }>({ seq: 0, rev: false });
+  const lastShownRef = useRef<string | undefined>(shownEquipId);
+  useEffect(() => {
+    if (lastShownRef.current === shownEquipId) return;
+    lastShownRef.current = shownEquipId;
+    if (!shownEquipId) return; // losing the slot is a fade-out, not an arrival
+    const cfg = getEquipSlotConfig();
+    if (!cfg.sheenOn) return;
+    // Both offsets are relative to the SLOT BURST — the moment the icon lands — so a negative dial reads as
+    // "before the burst" rather than clamping against the cue.
+    const burst = getEquipFxConfig().slotDelayMs;
+    const at = Math.max(0, burst + cfg.sheenDelayMs);
+    const rev = cfg.sheenDir === 1;
+    const t = window.setTimeout(() => { setSheen((p) => ({ seq: p.seq + 1, rev })); }, at);
+    if (cfg.sheenSfxOn) {
+      sfx.equipmentSheen(cfg.sheenSfxVolume, Math.max(0, burst + cfg.sheenSfxDelayMs));
+    }
+    return () => { window.clearTimeout(t); };
+  }, [shownEquipId]);
+
   const hasEquip = equipOptions.length > 0 && !!selectedEquip && !!selectedEquipDef;
   const equipSnapRef = useRef<{ name: string; rule: string; art?: string; cost: number; version: string } | null>(null);
   if (hasEquip) {
@@ -933,7 +977,16 @@ export function StatusBar() {
                 <span className="hpb-glow" aria-hidden="true" />
                 {/* The authored icon when one exists; the glyph is the fallback, exactly as before any art. */}
                 {equipArt
-                  ? <span className="hpb-artwrap" aria-hidden="true"><img className="hpb-art" src={equipArt} alt="" draggable={false} /></span>
+                  ? (
+                    <span className="hpb-artwrap" aria-hidden="true">
+                      <img className="hpb-art" src={equipArt} alt="" draggable={false} />
+                      {/* The band lives INSIDE the art wrapper on purpose (owner: "it should play on the card
+                          art itself and not the equipment slot png"). That wrapper is already the circular
+                          clip, so the sweep is bounded by the art and cannot cross the frame. Remounted by
+                          `key` to replay the animation. */}
+                      {sheen.seq > 0 && <span key={sheen.seq} className={`equipsheen${sheen.rev ? ' rev' : ''}`} />}
+                    </span>
+                  )
                   : <span className="hpb-glyph" aria-hidden="true">⚒</span>}
               </button>
               {equipCost ? <span className="hpcost"><span className="costn">{equipCost}</span></span> : null}

@@ -4,7 +4,8 @@ import { perfMonitor } from './perfMonitor';
 import type { PerfBucket } from './perfMonitor';
 import { compareRuns, diagnose, type Diagnosis, type Severity, type Spike } from './perfDiagnose';
 import { buildReport } from './perfReport';
-import { clearRuns, deleteRun, listRuns, loadRun, type PerfRunMeta } from './perfStore';
+import { clearRuns, deleteRun, listRuns, loadRun, toRun, type PerfRunMeta } from './perfStore';
+import { deleteCloudRun, listCloudRuns, loadCloudRun, uploadRun, type CloudRunMeta } from './perfCloud';
 
 /**
  * PERF ANALYTICS — the screen that turns recordings into decisions (owner ask 2026-08-29: *"a new
@@ -138,22 +139,34 @@ export function PerfScreen(): JSX.Element | null {
   const close = useGame((s) => s.closePerf);
 
   const [runs, setRuns] = useState<PerfRunMeta[]>([]);
+  /**
+   * SHARED RECORDINGS (owner ask 2026-08-29). `null` while unread; `'notReady'` when the table has not been
+   * created yet — which is a SETUP state, not an error, and is worded that way. Everything local keeps
+   * working either way, which is the whole point of separating the two lists.
+   */
+  const [cloud, setCloud] = useState<CloudRunMeta[] | 'notReady' | null>(null);
+  const [tab, setTab] = useState<'local' | 'cloud'>('local');
+  const [busy, setBusy] = useState('');
   const [cur, setCur] = useState<Loaded | null>(null);
   const [prev, setPrev] = useState<Loaded | null>(null);
   const [picked, setPicked] = useState<number | null>(null);
   const [copied, setCopied] = useState('');
 
   const refresh = useCallback(() => { void listRuns().then(setRuns); }, []);
+  const refreshCloud = useCallback(() => {
+    void listCloudRuns().then((r) => { setCloud(r.kind === 'ok' ? r.runs : r.kind === 'notReady' ? 'notReady' : []); });
+  }, []);
 
   // Load only when the screen opens — nothing here costs anything while the game is running.
   useEffect(() => {
     if (!open) return;
     refresh();
+    refreshCloud();
     // The LIVE recording is offered first when one is in progress: the most common reason to open this is
     // "that felt bad just now", and making you stop and save first would lose the moment.
     const liveBuckets = [...perfMonitor.history()];
     if (liveBuckets.length > 0) setCur({ meta: null, buckets: liveBuckets, d: diagnose(liveBuckets) });
-  }, [open, refresh]);
+  }, [open, refresh, refreshCloud]);
 
   useEffect(() => { if (!open) { setPicked(null); setCopied(''); } }, [open]);
 
@@ -161,6 +174,34 @@ export function PerfScreen(): JSX.Element | null {
     const run = await loadRun(id);
     if (!run) return;
     const loaded: Loaded = { meta: run, buckets: run.buckets, d: diagnose(run.buckets) };
+    if (into === 'cur') { setCur(loaded); setPicked(null); } else setPrev(loaded);
+  }, []);
+
+  /** Publish the open recording so the other machine can read it. */
+  const share = useCallback(() => {
+    if (!cur) return;
+    setBusy('sharing…');
+    const st = useGame.getState();
+    const run = cur.meta ?? toRun(cur.buckets, {
+      id: `${Date.now()}`, startedAt: Date.now() - cur.buckets.length * 1000,
+      build: `${__APP_VERSION__}+${__BUILD_SHA__}`, mode: st.run?.mode, heroId: st.run?.heroId,
+    });
+    void uploadRun({ ...run, buckets: cur.buckets }, st.playerName || 'dev').then((r) => {
+      setBusy(r.kind === 'ok' ? '✓ shared'
+        : r.kind === 'notReady' ? 'Supabase table not created yet — see docs/performance.md'
+        : `Share failed: ${r.error}`);
+      if (r.kind === 'ok') refreshCloud();
+      window.setTimeout(() => { setBusy(''); }, 5000);
+    });
+  }, [cur, refreshCloud]);
+
+  /** Load a SHARED recording's timeline into the open slot (or the comparison slot). */
+  const pickCloud = useCallback(async (meta: CloudRunMeta, into: 'cur' | 'prev' = 'cur') => {
+    setBusy('loading…');
+    const buckets = await loadCloudRun(meta.id);
+    setBusy(buckets ? '' : 'Could not load that recording.');
+    if (!buckets) { window.setTimeout(() => { setBusy(''); }, 4000); return; }
+    const loaded: Loaded = { meta, buckets, d: diagnose(buckets) };
     if (into === 'cur') { setCur(loaded); setPicked(null); } else setPrev(loaded);
   }, []);
 
@@ -194,25 +235,67 @@ export function PerfScreen(): JSX.Element | null {
         <div className="perfsc-body">
           {/* ── Recordings ─────────────────────────────────────────────────────────────────────────────── */}
           <aside className="perfsc-runs">
+            <div className="perfsc-tabs" role="tablist">
+              <button role="tab" aria-selected={tab === 'local'} className={tab === 'local' ? 'on' : ''}
+                onClick={() => { setTab('local'); }}>This machine</button>
+              <button role="tab" aria-selected={tab === 'cloud'} className={tab === 'cloud' ? 'on' : ''}
+                onClick={() => { setTab('cloud'); refreshCloud(); }}>Shared</button>
+            </div>
             <div className="perfsc-runs-head">
-              <h4>Recordings</h4>
-              {runs.length > 0 && (
+              <h4>{tab === 'local' ? 'Recordings' : 'Shared recordings'}</h4>
+              {tab === 'local' && runs.length > 0 && (
                 <button className="perfsc-mini" onClick={() => { void clearRuns().then(refresh); }}>clear all</button>
               )}
+              {tab === 'cloud' && (
+                <button className="perfsc-mini" onClick={refreshCloud}>refresh</button>
+              )}
             </div>
-            {cur && !cur.meta && (
+            {tab === 'cloud' ? (
+              cloud === 'notReady' ? (
+                <p className="perfsc-empty">
+                  <b>Not set up yet.</b> The <code>perf_runs</code> table has not been created in Supabase.
+                  Everything on <b>This machine</b> works without it — see <code>docs/performance.md</code>
+                  {' '}for the four steps.
+                </p>
+              ) : cloud === null ? <p className="perfsc-empty">Loading…</p>
+              : cloud.length === 0 ? (
+                <p className="perfsc-empty">
+                  Nothing shared yet. Dev clients upload automatically when you leave the tab, or press
+                  {' '}<b>Share</b> on an open recording.
+                </p>
+              ) : cloud.map((r) => (
+                <div key={r.id} className={`perfsc-run${cur?.meta?.id === r.id ? ' on' : ''}`}>
+                  <button onClick={() => { void pickCloud(r); }}>
+                    <b>{r.note && r.note !== 'auto' ? r.note : fmtDate(r.startedAt)}</b>
+                    <span>{r.author || 'unknown'} · {r.seconds}s · {r.hz}Hz · worst {r.worstFrame.toFixed(1)}ms</span>
+                    {r.build ? <i>{r.build}</i> : null}
+                  </button>
+                  <div className="perfsc-run-acts">
+                    <button title="Compare the open recording against this one"
+                      onClick={() => { void pickCloud(r, 'prev'); }}>vs</button>
+                    {/* Only your own rows offer a delete — RLS refuses anyone else's, so showing the button
+                        would be offering something that cannot work. */}
+                    {r.mine && (
+                      <button title="Delete this shared recording"
+                        onClick={() => { void deleteCloudRun(r.id).then(refreshCloud); }}>✕</button>
+                    )}
+                  </div>
+                </div>
+              ))
+            ) : null}
+            {tab === 'local' && cur && !cur.meta && (
               <button className="perfsc-run on" onClick={() => { setCur({ meta: null, buckets: [...perfMonitor.history()], d: diagnose([...perfMonitor.history()]) }); }}>
                 <b>Live recording</b>
                 <span>{cur.d.seconds}s · in progress</span>
               </button>
             )}
-            {runs.length === 0 && (
+            {tab === 'local' && runs.length === 0 && (
               <p className="perfsc-empty">
                 No saved recordings yet. Turn the perf monitor on in the dev menu, play, then press <b>save</b>
                 {' '}on the HUD.
               </p>
             )}
-            {runs.map((r) => (
+            {tab === 'local' && runs.map((r) => (
               <div key={r.id} className={`perfsc-run${cur?.meta?.id === r.id ? ' on' : ''}`}>
                 <button onClick={() => { void pick(r.id, 'cur'); }}>
                   <b>{r.note || fmtDate(r.startedAt)}</b>
@@ -250,7 +333,9 @@ export function PerfScreen(): JSX.Element | null {
                   <div className="perfsc-stat"><b>{Math.round(cur.d.attribution * 100)}<i>%</i></b><span>time attributed</span></div>
                   <div className="perfsc-actions">
                     <button className="perfsc-copy" onClick={copy}>📋 Copy report for Claude</button>
+                    <button className="perfsc-share" onClick={share} title="Upload this recording so the other machine can read it">⬆ Share</button>
                     {copied ? <span className="perfsc-copied">{copied}</span> : null}
+                    {busy ? <span className="perfsc-copied">{busy}</span> : null}
                   </div>
                 </section>
 

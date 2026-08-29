@@ -156,6 +156,48 @@ an attribution or clears it.
 are still dropping, the cost is in render, paint, style recalc or GC — and the screen says so, pointing at the
 paint-property-in-a-loop trap from §4 rather than reporting "no hotspots" and looking clean.
 
+### It records itself in dev
+
+Since 2026-08-29 the monitor **auto-starts in dev clients** (`import.meta.env.DEV`) — no flag, no menu trip.
+The production build still ships it dormant, which is the guarantee that matters: recording is cheap but not
+free, and a diagnostic that runs unasked is a cost every player pays for a tool only we use. A dev client is
+already paying StrictMode and an unminified bundle; the sampler is noise beside that, and always-on is what
+makes a regression turn up on its own rather than only when someone thought to look.
+
+Turning it **off** is remembered. The dev-menu toggle and the HUD's ✕ both write `ascent.perf`, and an
+explicit `0` beats the dev default — so a dev profiling something else can silence it and it stays silent
+across reloads. `?perf=1` / `?perf=0` still work everywhere, including prod.
+
+### Sharing a recording between machines
+
+A dev client **uploads one row per sitting**, automatically, when you leave the tab (close, switch away,
+alt-tab) and at least 45 seconds were recorded. There is a **Share** button on the analytics screen for doing
+it on demand. Both land in the **Shared** tab, which every signed-in dev can read.
+
+That cross-machine half is the thing a local tool structurally cannot do: Mike's refresh rate, GPU and
+hardware are not Kevin's, and a spike that only reproduces on one of them is exactly the kind that survives
+for months.
+
+#### Setting it up (Supabase — one time, owner runs it)
+
+**Until this is done nothing breaks.** Recording, the HUD and the whole local analytics screen work exactly as
+they do now; the Shared tab says *"Not set up yet"* instead of erroring.
+
+1. Open the Supabase dashboard → **SQL Editor** → **New query**.
+2. Paste the `perf_runs` block from the bottom of [`schema.sql`](../schema.sql) (table + indexes + the three
+   RLS policies) and **Run**.
+3. Verify from a terminal — this should stop being `404`:
+   ```bash
+   curl -s -o /dev/null -w "%{http_code}
+"      "$VITE_SUPABASE_URL/rest/v1/perf_runs?select=id&limit=1"      -H "apikey: $VITE_SUPABASE_ANON_KEY" -H "Authorization: Bearer $VITE_SUPABASE_ANON_KEY"
+   ```
+   `404` = the table is still missing. `200` or `401` = it exists (the policies are `to authenticated`, so an
+   anon key legitimately sees nothing).
+4. In-game: dev menu → 📈 → **Shared**. Press **Share** on a recording and it should appear.
+
+No Edge Function is involved, unlike `bug_reports` — a perf log is our own telemetry from our own dev
+clients, so an insert-own / read-all policy pair is the right size and there is nothing to deploy.
+
 ### Where recordings live
 
 IndexedDB (`ascent.perf`), on your machine, capped at 25 runs and pruned oldest-first — **not** localStorage,

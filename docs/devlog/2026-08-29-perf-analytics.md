@@ -178,3 +178,49 @@ back on expand — and on unmount too, since closing while minimized would other
 panel is dropped on mount and the CSS size takes over. Without it the fix would read as "still broken" on any
 machine that had minimized once — which is every machine that tried the feature.
 
+---
+
+## Follow-up: automatic in dev, and shared between machines
+
+Owner: *"set it up so that the perf hud runs automatically in dev clients and uploads to supabase and drops
+it into a performance viewer in game for us."*
+
+This reverses the earlier "keep it opt-in" ruling for **dev clients only**, which is the version that always
+made sense: the objection to auto-recording was that a diagnostic running unasked is a cost every player
+pays for a tool only we use. A dev client is not a player. It is already paying StrictMode and an unminified
+bundle, so the sampler is noise beside that — and the production build still ships dormant, so the guarantee
+in `perfMonitor`'s header is untouched.
+
+`enabledByFlag` became a **tri-state** rather than a boolean to make that work: stored `1` wins, stored `0`
+wins, and *no stored opinion* falls through to `import.meta.env.DEV`. That is what lets a dev profiling
+something else silence it and have it stay silent — a plain `on-by-default-in-dev` boolean would have
+re-enabled itself on the next reload, which is the sort of thing that makes people disable a tool for good.
+
+### One row per sitting, not one per minute
+
+The upload fires on **`visibilitychange` → hidden**, once per session, and only past 45 recorded seconds.
+
+The alternatives are worse in specific ways worth writing down: a periodic upload makes a row every few
+minutes and turns the viewer into a scroll; `beforeunload` is unreliable in every browser; on-demand-only is
+what the Share button already is. Hidden-once produces one meaningful row per sitting without anyone
+remembering to press anything, and the sampler already ignores hidden time so nothing is lost by acting on
+that moment.
+
+### No Edge Function
+
+`bug_reports` goes through one because it is user-submitted content needing server-side validation and rate
+limiting. A perf log is our own telemetry from our own dev clients, so a plain **insert-own / read-all**
+policy pair is the right size — the same shape `run_history` already uses. One less thing to deploy, and the
+owner's setup is a single SQL paste.
+
+### Not-set-up is a state, not an error
+
+The one design decision I would defend hardest here: a missing table is detected specifically (Postgres'
+"relation does not exist") and surfaced as **"Not set up yet"** with a pointer to the four steps — never as a
+database error. Everything local keeps working, which is why the two lists are separate rather than merged.
+
+Verified before shipping: an anon REST probe of `perf_runs` returns **404** today, and the Shared tab shows
+the setup message rather than an error. After the owner runs the SQL that probe should return 200 or 401 —
+either means the table exists, since the policies are `to authenticated` and an anon key legitimately sees
+nothing.
+

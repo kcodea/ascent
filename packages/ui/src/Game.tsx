@@ -29,6 +29,17 @@ import { PatchNotes } from './PatchNotesOverlay';
 import { BugReportModal } from './bug-report/BugReportModal';
 import { installBugReportHotkey } from './bug-report/bugReportHotkey';
 import { PerfHud } from './PerfHud';
+import { uploadRun } from './perfCloud';
+import { toRun } from './perfStore';
+
+/** Seconds of live recording an auto-share needs before it is worth a row. A reload is not a session. */
+const MIN_AUTO_SHARE_SECONDS = 45;
+
+/** Persist the perf choice, so closing the HUD in a dev client keeps it closed across reloads (the dev
+ *  default only applies when no opinion is stored — see `enabledByFlag`). */
+function setPerfFlag(on: boolean): void {
+  try { localStorage.setItem('ascent.perf', on ? '1' : '0'); } catch { /* ignore */ }
+}
 import { perfMonitor, perfEnabledByFlag } from './perfMonitor';
 import { Icon } from './Icon';
 import { ErrorBoundary } from './ErrorBoundary';
@@ -101,7 +112,49 @@ export function Game() {
     const onMove = (): void => perfMonitor.count('pointermoves');
     window.addEventListener('pointermove', onMove, { passive: true });
     perfMonitor.start();
-    return () => { window.removeEventListener('pointermove', onMove); perfMonitor.stop(); };
+
+    /**
+     * AUTO-SHARE (owner ask 2026-08-29: "uploads to supabase and drops it into a performance viewer in game
+     * for us").
+     *
+     * ONE row per session, uploaded when the tab is hidden — closing, switching away, or alt-tabbing out.
+     * That moment is chosen because it is the only one that reliably means "this session is done for now",
+     * and because the sampler is already ignoring hidden time, so nothing is lost by acting on it.
+     *
+     * Alternatives considered and rejected: a periodic upload makes a row every few minutes and turns the
+     * viewer into a scroll; uploading on `beforeunload` is unreliable in every browser; uploading on demand
+     * only is what the Share button already does. Hidden-once is the shape that produces one meaningful row
+     * per sitting without anyone remembering to press anything.
+     *
+     * Guarded on MIN_AUTO_SHARE_SECONDS so a reload or a quick tab-out does not publish a five-second
+     * nothing, and latched so a session that is hidden and shown repeatedly uploads once.
+     */
+    let shared = false;
+    const onHide = (): void => {
+      if (!document.hidden || shared) return;
+      const buckets = perfMonitor.history();
+      if (buckets.filter((b) => !b.hidden).length < MIN_AUTO_SHARE_SECONDS) return;
+      shared = true;
+      const st = useGame.getState();
+      void uploadRun(
+        toRun(buckets, {
+          id: `${Date.now()}`,
+          startedAt: Date.now() - buckets.length * 1000,
+          build: `${__APP_VERSION__}+${__BUILD_SHA__}`,
+          mode: st.run?.mode,
+          heroId: st.run?.heroId,
+          note: 'auto',
+        }),
+        st.playerName || 'dev',
+      );
+    };
+    document.addEventListener('visibilitychange', onHide);
+
+    return () => {
+      window.removeEventListener('pointermove', onMove);
+      document.removeEventListener('visibilitychange', onHide);
+      perfMonitor.stop();
+    };
   }, [perfOn]);
 
   // UI-hover SFX: one delegated pointerover listener for the whole app (mounted once). Plays a soft cue when
@@ -290,7 +343,7 @@ export function Game() {
       {import.meta.env.DEV && bugScenarioLoaded && <BugScenarioPanel />}
       {/* Frame-health HUD. Ships in production but stays dormant unless opted into (?perf=1 /
           localStorage / the dev menu) — a slowness report is only trustworthy against the prod build. */}
-      {perfOn && <PerfHud onClose={() => setPerfOn(false)} />}
+      {perfOn && <PerfHud onClose={() => { setPerfFlag(false); setPerfOn(false); }} />}
       {/* DEV-ONLY (owner 2026-08-24): the Balance Report reads dev/session telemetry and must not ship in the
           exe or itch repacks, which are production `build:web` bundles where `import.meta.env.DEV` is false. */}
       {import.meta.env.DEV && <BalancePanel />}

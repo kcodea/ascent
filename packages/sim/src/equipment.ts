@@ -113,6 +113,26 @@ export function grantEquipment(run: RunState, source: BoardCard, def: EquipmentD
   return granted;
 }
 
+/**
+ * Does the player ALREADY hold this Equipment?
+ *
+ * The gate on the equip cue (owner ruling 2026-08-28): *"we need to add logic to only play the equip
+ * animation and sfx if a new equipment is actually equipped… if i have an alchemist frank on the board and i
+ * play another, it should not play that animation, as i have not equipped new equipment."*
+ *
+ * Keyed on the Equipment ID, not on the version, because the owner's reason covers both: *"if i have a gilded
+ * alchemist frank and i play a non gilded alchemist frank, that would also NOT play the sound, because it is
+ * not equipping new equipment."* By that reasoning a plain → Gilded UPGRADE is also not new Equipment — the
+ * same Bloodpot, improved — so it is silent too. The grant still happens either way; only the announcement is
+ * gated, and `grantEquipment` is untouched.
+ *
+ * Deliberately a predicate on run state rather than a flag returned from the grant: any future granter (a
+ * spell, a rune, a hero power) gets the same rule for free by asking before it grants.
+ */
+export function holdsEquipment(run: Pick<RunState, 'equipment'>, equipmentId: string): boolean {
+  return equipmentState(run).available.some((g) => g.equipmentId === equipmentId);
+}
+
 /** One source body that re-equipped, for the UI's per-source cue. */
 export interface ReequipCue { uid: string; cardId: string; equipmentId: string }
 

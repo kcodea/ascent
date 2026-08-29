@@ -105,6 +105,35 @@ data-resolved call site. Rather than widen the "no dynamic playDef outside the b
 both Equipment exceptions are now named in `DYNAMIC_CALL_SITES` and in the test, with the same fix recorded
 against them — moving the Equipment-use moment into `recruitCues.ts` retires both lines at once.
 
+## The equip cue announces ACQUISITION, not the play
+
+Owner ruling: *"we need to add logic to only play the equip animation and sfx if a new equipment is actually
+equipped."* A second Alchemist Frank equips nothing — the Bloodpot is already in hand — so it says nothing.
+
+The gate is keyed on the Equipment **id**, not the version, because the owner's own reasoning covers both
+directions: *"if i have a gilded alchemist frank and i play a non gilded alchemist frank, that would also NOT
+play the sound, because it is not equipping new equipment."* By that logic a plain → Gilded **upgrade** is
+also not new Equipment — the same Bloodpot, improved — so it is silent too. That case the owner did not
+enumerate; it is decided from the reason they gave, and `holdsEquipment` is the single line that changes if
+an upgrade should announce itself after all.
+
+Only the announcement is gated. The grant is untouched: duplicate sources still register, still hold the
+entry alive, still decide Gilded precedence — a test asserts each of those alongside the silence, because a
+cue fix that quietly stopped granting would look identical from the outside.
+
+`holdsEquipment` is a predicate on run state rather than a flag returned from the grant, so any future
+granter — a spell, a rune, a hero power — inherits the rule by asking before it grants.
+
+## Two dials baked, one added
+
+The owner's tuned slot values are now the defaults: the seat moved a long way left and up, the uses tally to
+1.29×, the rail to 1.18×. The frame, cost pill and name pill were judged correct as authored, so their zeros
+mean "measured and left alone" rather than "never looked at".
+
+New `equipmentselect` clip on the rail's pick, with a **Pick volume** dial in the same panel. It multiplies
+on top of the category and per-clip gains rather than replacing them, so the UI bus still governs it and the
+dial only decides how the pick reads against the slot's other sounds.
+
 ## Debt logged, not paid
 
 The art-file ratchet needed its third +2 bump of the day (→ 1050). There is real slack nobody has spent: the

@@ -83,6 +83,14 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'UI / Info',
+        text: 'The equip flourish now only plays when you actually equip something new.',
+        details: [
+          'Playing a second copy of an Equip minion is silent — you already hold that Equipment.',
+          'The minion still counts: it keeps the Equipment alive, and a Gilded copy still upgrades it.',
+        ],
+      },
+      {
+        category: 'UI / Info',
         text: 'Holding more than one Equipment? Hover the slot and the others slide out to the right — click one to switch.',
         details: [
           'Switching is free: it costs no Gold and no use, so you can change your mind before committing.',

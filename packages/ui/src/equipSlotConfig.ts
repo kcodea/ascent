@@ -66,6 +66,15 @@ export interface EquipSlotConfig {
   /** Rail size. */
   railScale: number;
   /**
+   * Volume of the pick sound, as a multiple of the clip's normal level (owner ask 2026-08-28: "i added an sfx
+   * for equipment select when a new equipment is picked from the rail. can you add its volume to the
+   * equipment slot tuner").
+   *
+   * Applied ON TOP of the category and per-clip gains in `audio/config`, so muting the UI bus still mutes it
+   * and this dial only decides how loud the pick reads against the rest of the slot's sounds. 0 silences it.
+   */
+  selectVolume: number;
+  /**
    * How long the rail LINGERS after the pointer leaves, in ms.
    *
    * Owner report: "it needs more leeway on moving the mouse over to the panel to select an equipment. it fades
@@ -77,21 +86,26 @@ export interface EquipSlotConfig {
   railGraceMs: number;
 }
 
+/**
+ * THE OWNER'S TUNED VALUES, baked 2026-08-28 — these are shipped placement, not starting guesses. The seat
+ * moved a long way left and up from where it was first dropped; the frame, cost pill and name pill were all
+ * judged correct as authored and kept at their neutral offsets, so a zero here means "measured and left
+ * alone", not "never looked at".
+ */
 const DEFAULTS: EquipSlotConfig = {
-  x: 74, y: -232, scale: 0.9,
+  x: -248, y: -260, scale: 0.99,
 
   frameOn: 1, frameX: 0, frameY: 0, frameScale: 1.42, frameBehind: 0,
 
-  // Starting seats, not considered ones — the ask was explicitly for dials to place these. They begin where
-  // the readouts already sat, so turning the frame on moves nothing until the owner starts dialling.
   costX: 0, costY: 0, costScale: 1,
   nameX: 0, nameY: 0, nameScale: 1,
-  usesX: 0, usesY: 0, usesScale: 1,
+  usesX: 0, usesY: 0, usesScale: 1.29,
 
-  railX: 10, railY: 0, railScale: 1,
+  railX: 10, railY: 0, railScale: 1.18,
   // Generous on purpose. A rail that lingers a beat too long costs nothing; one that vanishes early is the
   // bug being fixed.
   railGraceMs: 320,
+  selectVolume: 1,
 };
 
 const RANGES: Record<keyof EquipSlotConfig, [number, number, number]> = {
@@ -119,6 +133,7 @@ const RANGES: Record<keyof EquipSlotConfig, [number, number, number]> = {
   railY: [-200, 200, 1],
   railScale: [0.5, 1.8, 0.01],
   railGraceMs: [0, 1200, 20],
+  selectVolume: [0, 2, 0.05],
 };
 
 export { DEFAULTS as EQUIP_SLOT_DEFAULTS };
@@ -148,12 +163,15 @@ const VARS: Record<keyof EquipSlotConfig, string> = {
   nameX: '--eqn-x', nameY: '--eqn-y', nameScale: '--eqn-scale',
   usesX: '--equ-x', usesY: '--equ-y', usesScale: '--equ-scale',
   railX: '--eqr-x', railY: '--eqr-y', railScale: '--eqr-scale', railGraceMs: '--eqr-grace',
+  // Read at FIRE time by `sfx.equipmentSelect`, not painted — there is nothing for CSS to do with a volume.
+  selectVolume: '',
 };
 
 export function applyEquipSlotVars(): void {
   if (typeof document === 'undefined') return;
   const root = document.documentElement.style;
   for (const [key, v] of Object.entries(VARS) as [keyof EquipSlotConfig, string][]) {
+    if (!v) continue; // a dial the stylesheet has no use for (see VARS)
     // The grace period is the one dial the stylesheet needs a UNIT on — it feeds a transition-delay.
     root.setProperty(v, key === 'railGraceMs' ? `${cfg[key]}ms` : String(cfg[key]));
   }
@@ -199,6 +217,7 @@ const SPECS: Record<keyof EquipSlotConfig, [string, string | undefined, string, 
   railY: ['Rail Y', 'px', 'Raises or lowers the rail against the slot.', 'Selector rail'],
   railScale: ['Rail size', '×', 'Size of the selector rows.', 'Selector rail'],
   railGraceMs: ['Linger', 'ms', 'How long the rail stays after the pointer leaves. Covers a diagonal exit or an overshoot — raise it if it still fades too early.', 'Selector rail'],
+  selectVolume: ['Pick volume', '×', 'How loud the pick sound is, as a multiple of its normal level. Rides on top of the UI bus, so 0 silences just this one.', 'Selector rail'],
 };
 
 const controls: TunerControl<Extract<keyof EquipSlotConfig, string>>[] =

@@ -15,6 +15,7 @@ import { QuestBadges } from './QuestBadges';
 import { gatherRunBuffs } from './runBuffs';
 import { questObjectiveText, questProgressText, questRewardText, questRewardLiveText, questRewardLiveOf } from './questText';
 import { QUEST_INDEX, RUNE_INDEX } from '@game/content';
+import { getEquipSlotConfig } from './equipSlotConfig';
 import { sfx } from './sfx';
 import { playDef } from './fx/playDef';
 import { useGame } from './store';
@@ -924,7 +925,7 @@ export function StatusBar() {
                       onPointerDown={(e) => {
                         e.stopPropagation();
                         if (on) return;
-                        sfx.tick();
+                        sfx.equipmentSelect(getEquipSlotConfig().selectVolume);
                         dispatch({ type: 'selectEquipment', equipmentId: g.equipmentId });
                       }}
                     >

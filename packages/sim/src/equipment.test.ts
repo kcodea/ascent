@@ -402,14 +402,13 @@ describe('equip cues do not pile up', () => {
   it('each play cues ONCE — the list is not cumulative', () => {
     // The bug: `equipFx` was never cleared between actions, so the UI (which replays the whole list when the
     // seq changes) fired the animation once per Equip minion EVER played. The fifth Frank played it five times.
-    // TWO copies, deliberately: a third would complete a TRIPLE and combine them into a golden mid-test,
-    // emptying the board the assertions depend on.
-    let s = run({ hand: [body('f1', 'e3_frank'), body('f2', 'e3_frank')] });
-    s = play(s, 'f1', 0);
+    // Two DIFFERENT Equipment, so each play genuinely equips something — a duplicate is silent now (below).
+    let s = run({ hand: [body('f', 'e3_frank'), body('sc', 'e3_sculptor')], embers: 30 });
+    s = play(s, 'f', 0);
     expect(s.equipFx, 'one cue after the first play').toHaveLength(1);
-    s = play(s, 'f2', 1);
+    s = play(s, 'sc', 1);
     expect(s.equipFx, 'still ONE after the second — not two').toHaveLength(1);
-    expect(s.equipFx![0]!.uid, 'and it is the body that just landed').toBe('f2');
+    expect(s.equipFx![0]!.uid, 'and it is the body that just landed').toBe('sc');
   });
 
   it('an unrelated action clears the previous cue rather than replaying it', () => {
@@ -418,6 +417,56 @@ describe('equip cues do not pile up', () => {
     expect(s.equipFx).toHaveLength(1);
     s = act(s, { type: 'roll' });
     expect(s.equipFx ?? [], 'a roll is not an equip').toEqual([]);
+  });
+});
+
+/**
+ * Owner ruling 2026-08-28: *"we need to add logic to only play the equip animation and sfx if a new equipment
+ * is actually equipped."* The grant itself is unchanged — duplicate sources still register, still hold the
+ * entry alive, still decide Gilded precedence. Only the ANNOUNCEMENT is gated.
+ */
+describe('the equip cue announces ACQUISITION, not the play', () => {
+  it('a second Alchemist Frank equips nothing new, so it is silent', () => {
+    // Owner: "if i have an alchemist frank on the board and i play another, it should not play that
+    // animation, as i have not equipped new equipment." TWO copies, not three — a third triples them away.
+    let s = run({ hand: [body('f1', 'e3_frank'), body('f2', 'e3_frank')] });
+    s = play(s, 'f1', 0);
+    expect(s.equipFx, 'the FIRST one really did equip a Bloodpot').toHaveLength(1);
+    s = play(s, 'f2', 1);
+    expect(s.equipFx ?? [], 'the second announces nothing').toEqual([]);
+    // …and it still GRANTED: the gate is on the cue alone, never on the state.
+    expect(equipmentState(s).available[0]!.sourceUids, 'both sources are registered').toEqual(['f1', 'f2']);
+  });
+
+  it('a plain Frank under a GILDED one is silent — it is not equipping new Equipment', () => {
+    // Owner: "if i have a gilded alchemist frank and i play a non gilded alchemist frank, that would also NOT
+    // play the sound, because it is not equipping new equipment."
+    let s = run({ hand: [body('g', 'e3_frank', { golden: true }), body('p', 'e3_frank')] });
+    s = play(s, 'g', 0);
+    expect(s.equipFx).toHaveLength(1);
+    s = play(s, 'p', 1);
+    expect(s.equipFx ?? [], 'silent').toEqual([]);
+    expect(equipmentState(s).available[0]!.version, 'and the plain body never downgrades the entry')
+      .toBe('gilded');
+  });
+
+  it('a GILDED Frank over a plain one is silent too — the same Bloodpot, improved', () => {
+    // Not a case the owner enumerated, decided from the reason they gave for the two that they did: an
+    // upgrade is not NEW Equipment. Flagged rather than assumed silently — if an upgrade should announce
+    // itself, `holdsEquipment` is the one place that changes.
+    let s = run({ hand: [body('p', 'e3_frank'), body('g', 'e3_frank', { golden: true })] });
+    s = play(s, 'p', 0);
+    s = play(s, 'g', 1);
+    expect(s.equipFx ?? [], 'silent').toEqual([]);
+    expect(equipmentState(s).available[0]!.version, 'but the upgrade DID land').toBe('gilded');
+  });
+
+  it('a DIFFERENT Equipment always announces, however many others are held', () => {
+    let s = run({ hand: [body('f', 'e3_frank'), body('sc', 'e3_sculptor')], embers: 30 });
+    s = play(s, 'f', 0);
+    s = play(s, 'sc', 1);
+    expect(s.equipFx, 'the Hammer is new, so it announces').toHaveLength(1);
+    expect(s.equipFx![0]!.equipmentId).toBe('titan_hammer');
   });
 });
 

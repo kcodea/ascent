@@ -488,6 +488,16 @@ export const sfx = {
    * without touching this file. `delay` schedules on the audio clock, as `equipClang` does, so the cue stays
    * locked to the visual it is timed against.
    */
+  /**
+   * Picking a different Equipment from the selector rail (owner ask 2026-08-28). `vol` is the Equipment Slot
+   * tuner's dial, applied ON TOP of the clip's category + per-clip gains rather than replacing them — so the
+   * UI bus still governs it and the dial only decides how this one reads against the slot's other sounds.
+   */
+  equipmentSelect: (vol = 1) => {
+    if (vol <= 0) return;
+    if (playSample('equipmentselect', 'ui', 0, ({ gain }) => { gain.gain.value *= vol; })) return;
+    tone({ freq: 880, dur: 0.06, type: 'triangle', vol: 0.08 * vol, category: 'ui' });
+  },
   equipmentUse: (clipId: string, delay = 0) => {
     if (playSample(clipId, 'equip', delay / 1000)) return;
     tone({ freq: 520, dur: 0.18, type: 'sine', vol: 0.1, slideTo: 300, category: 'equip' });

@@ -170,9 +170,14 @@ across reloads. `?perf=1` / `?perf=0` still work everywhere, including prod.
 
 ### Sharing a recording between machines
 
-A dev client **uploads one row per sitting**, automatically, when you leave the tab (close, switch away,
-alt-tab) and at least 45 seconds were recorded. There is a **Share** button on the analytics screen for doing
-it on demand. Both land in the **Shared** tab, which every signed-in dev can read.
+A dev client **uploads one row per GAME**, automatically, when a real game ends (win or loss) and at least
+45 seconds were recorded — so a row holds one game's whole timeline and can be compared against another game.
+
+Leaving the tab mid-game uploads too, as a **fallback** for the game you abandon halfway. A finished game
+publishes at its end and an abandoned one publishes when you go — never both, since they share one latch.
+
+There is also a **Share** button on the analytics screen for doing it on demand. All of it lands in the
+**Shared** tab, which every signed-in dev can read.
 
 That cross-machine half is the thing a local tool structurally cannot do: Mike's refresh rate, GPU and
 hardware are not Kevin's, and a spike that only reproduces on one of them is exactly the kind that survives

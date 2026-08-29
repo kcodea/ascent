@@ -245,3 +245,20 @@ line in the effect:
 The HUD and the manual **Share** button are deliberately *not* gated by this: deliberately profiling the
 Scene Builder is a real thing to want. The scope governs only what uploads on its own.
 
+### One row per GAME, not per sitting
+
+The owner, reading the setup steps: *"this will auto upload after games right?"* — which it did not. It
+uploaded when the tab was hidden, producing a row per **sitting**: close enough to sound right, and wrong in
+the way that matters, because a row spanning two games and a menu cannot be compared against anything. The
+whole point of the feature is "analytics of games".
+
+It now publishes on the phase transition into `gameover` / `victory`, so a row is one game's timeline. The
+hidden-tab upload survives as the **fallback** for a game abandoned halfway — a finished game publishes at
+its end, an abandoned one when you leave, never both, since they share one latch.
+
+Subscribed to the store rather than driven off the component's `phase` prop, so it fires once on the
+TRANSITION rather than on every render while the end screen is up. Worth checking rather than assuming: the
+guard reads `prevState`, and if the subscription did not deliver one, `prev?.phase` would be permanently
+`undefined` and every store change would look like a transition. Verified in the browser that
+`useGame.subscribe` delivers `(state, prevState)`.
+

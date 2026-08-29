@@ -117,23 +117,23 @@ export function Game() {
 
     /**
      * AUTO-SHARE (owner ask 2026-08-29: "uploads to supabase and drops it into a performance viewer in game
-     * for us").
+     * for us" — and, asked directly, "this will auto upload after games right?").
      *
-     * ONE row per session, uploaded when the tab is hidden — closing, switching away, or alt-tabbing out.
-     * That moment is chosen because it is the only one that reliably means "this session is done for now",
-     * and because the sampler is already ignoring hidden time, so nothing is lost by acting on it.
+     * **AT THE END OF A GAME**, which is what "analytics of games" means: one row per completed game, holding
+     * that game's whole timeline. The first version uploaded when the tab was hidden, which produced a row
+     * per SITTING rather than per game — close enough to sound right and wrong in a way that matters, since
+     * a row spanning two games and a menu cannot be compared against anything.
      *
-     * Alternatives considered and rejected: a periodic upload makes a row every few minutes and turns the
-     * viewer into a scroll; uploading on `beforeunload` is unreliable in every browser; uploading on demand
-     * only is what the Share button already does. Hidden-once is the shape that produces one meaningful row
-     * per sitting without anyone remembering to press anything.
+     * A hidden-tab upload survives as the FALLBACK, for the game you abandon halfway: leaving with a real run
+     * in progress still publishes what was recorded. So a finished game uploads at its end, and an abandoned
+     * one uploads when you go — never both, because the latch is shared.
      *
      * Guarded on MIN_AUTO_SHARE_SECONDS so a reload or a quick tab-out does not publish a five-second
-     * nothing, and latched so a session that is hidden and shown repeatedly uploads once.
+     * nothing, and on `isRealPlayRun` so only real games are captured.
      */
     let shared = false;
-    const onHide = (): void => {
-      if (!document.hidden || shared) return;
+    const publish = (note: string): void => {
+      if (shared) return;
       const st = useGame.getState();
       if (!isRealPlayRun(st.run)) return;        // see `isRealPlayRun` — auto-capture is real games only
       const buckets = perfMonitor.history();
@@ -146,16 +146,25 @@ export function Game() {
           build: `${__APP_VERSION__}+${__BUILD_SHA__}`,
           mode: st.run?.mode,
           heroId: st.run?.heroId,
-          note: 'auto',
+          note,
         }),
         st.playerName || 'dev',
       );
     };
+    // The end of the game. Subscribed to the store rather than driven by this component's `phase` prop so the
+    // upload fires once on the TRANSITION, not on every render while the end screen is up.
+    const unsub = useGame.subscribe((st, prevSt) => {
+      const p = st.run?.phase;
+      if (p === prevSt.run?.phase) return;
+      if (p === 'gameover' || p === 'victory') publish(`game ${p === 'victory' ? 'won' : 'lost'}`);
+    });
+    const onHide = (): void => { if (document.hidden) publish('abandoned'); };
     document.addEventListener('visibilitychange', onHide);
 
     return () => {
       window.removeEventListener('pointermove', onMove);
       document.removeEventListener('visibilitychange', onHide);
+      unsub();
       perfMonitor.stop();
     };
   }, [perfOn]);

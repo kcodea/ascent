@@ -32,12 +32,12 @@ if (import.meta.env.DEV) {
   (window as unknown as { __choreoEot?: boolean }).__choreoEot = CHOREO_EOT;
 }
 import { chooseBothText } from './cardText';
-import { alignmentsOf, boardHasCelestial, chooseBothActive, chooseOneNeedsChoice, computeCombatOdds, type CombatOdds, rubyCastCount, rubyStatBonus, CONFIG, RIFTS, hasTier7Access, maxTierFor, conjuredStats, cardBuff, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, dragonflameCasts, nextOpponent, lossDamageCap, playerLossDamage, minionCostOf, heroOfferPrice, dominantBoardTribe, effectiveTargetTribe, boardManaBonus, upgradeCostOf, nextRefreshCostOf, poolOf, type RunState, type ShopCard, type CardBuff, type BoardCard, type BoardSnapshot, gildCopiesNeeded, activePowers, gateUses, runeStacksOf } from '@game/sim';
+import { playerOpponent, alignmentsOf, boardHasCelestial, chooseBothActive, chooseOneNeedsChoice, computeCombatOdds, type CombatOdds, rubyCastCount, rubyStatBonus, CONFIG, RIFTS, hasTier7Access, maxTierFor, conjuredStats, cardBuff, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, dragonflameCasts, nextOpponent, lossDamageCap, playerLossDamage, minionCostOf, heroOfferPrice, dominantBoardTribe, effectiveTargetTribe, boardManaBonus, upgradeCostOf, nextRefreshCostOf, poolOf, type RunState, type ShopCard, type CardBuff, type BoardCard, type BoardSnapshot, gildCopiesNeeded, activePowers, gateUses, runeStacksOf } from '@game/sim';
 import { createPortal } from 'react-dom';
 import { setCardId, setCardStats, toggleCardKeyword, setEnemyStats, setEnemyCardId, toggleEnemyKeyword, removeEnemy } from './sandboxEdit';
 import { UnitEditor } from './UnitEditor';
 import { Card, mdBold, type CardView } from './Card';
-import { heroPowerArt } from './art';
+import { heroPowerArt, heroArt } from './art';
 import { beginDragTrace, cancelDragTrace, endDragTrace, sampleDragTrace } from './replay/dragTrace';
 import { SYM_KINDS } from './choreo/channels/float';
 import { stabilizeViewMap, stabilizeRefMap, stabilizeView } from './cardViewEqual';
@@ -1500,6 +1500,11 @@ export function Recruit() {
   /** Monotonic strike counter — keys the red damage-taken number so it remounts + replays its pop each swing. */
   const lossSeqSeqRef = useRef(0);                // guards single-run per combat
   const endTurnPendingRef = useRef(false); // the end-of-turn beat sequence is playing before combat
+  /** +padding between the LAST End-of-Turn beat and the combat curtain (owner ask 2026-08-29) — the final
+   *  proc gets a breath before the blue sweeps. Turns with NO beats skip it (their fast paths dispatch
+   *  immediately, so an empty turn still cuts straight to the curtain). */
+  const EOT_COMBAT_PAD_MS = 500;
+  const eotPadFiredRef = useRef(false); // once-guard: the unmount safety net's finish() must not double-schedule
   // CHOREOGRAPHER PR 4: cancels the authoritative player's rAF loop and force-commits, so unmounting
   // mid-animation can never strand a prepared transaction with End Turn locked.
   const eotCancelRef = useRef<null | (() => void)>(null);
@@ -1586,42 +1591,83 @@ export function Recruit() {
   }, [run.wave, inCombat]);
   const [combatStage, setCombatStage] = useState<'closing' | 'fighting'>('closing');
   const fighting = inCombat && combatStage === 'fighting';
-  // BOARD WIPE — the combat backdrop's reveal. 'in' (sweep L→R, combat art appears) → 'combat' (holding)
-  // → 'out' (sweep R→L, shop art returns) → 'idle'. Advanced by the clip-path transition's transitionend;
-  // a run RESUMED mid-combat initialises straight to 'combat' so the layer shows with no transition.
-  const [wipe, setWipe] = useState<'idle' | 'in' | 'combat' | 'out'>(() => (run.phase === 'combat' ? 'combat' : 'idle'));
-  // the board wipe's duration — single source: the CSS var below is set FROM this, and the backstop timer
-  // derives from it (+150ms margin), so retuning here can never strand the state machine mid-sweep.
-  const WIPE_MS = 550;
-  const wipeRef = useRef(wipe);
-  wipeRef.current = wipe;
+  // BOARD WIPE — a TWO-STAGE full-scene CURTAIN (owner ask 2026-08-28). The first version clipped only the
+  // background layer, so everything the phase flip animates (the lobby rail sliding away, the opponent
+  // portrait dropping in, the shop closing) played in plain view WHILE the wipe swept — the owner asked for
+  // the wipe to swallow those instead. So the curtain (`.wipecurtain`, the boot splash's dark-blue gradient,
+  // z ABOVE the whole in-app scene, below the Pixi FX canvas) sweeps L→R over EVERYTHING, holds a beat at
+  // full blue while the scene settles underneath (and the combat backdrop snaps in, no clip animation of its
+  // own any more), then sweeps L→R off to reveal the finished combat scene. Leaving combat runs the same
+  // choreography (cover → swap back → reveal) — every front in the game travels the same direction. Sweeps
+  // advance on the curtain's clip-path transitionend (+ a backstop timer); holds advance on their own timer.
+  // A run RESUMED mid-combat initialises straight to 'combat' (curtain parked, combat backdrop shown).
+  type WipeState = 'idle' | 'coverIn' | 'coveredIn' | 'revealIn' | 'combat' | 'coverOut' | 'coveredOut' | 'revealOut';
+  const [wipe, setWipe] = useState<WipeState>(() => (run.phase === 'combat' ? 'combat' : 'idle'));
+  // Per-STAGE sweep duration + the full-blue hold between stages — single source: the CSS var below is set
+  // FROM WIPE_MS, and the backstop timer derives from it (+150ms margin), so retuning here can never strand
+  // the state machine mid-sweep.
+  const WIPE_MS = 450;
+  // ENTRY holds long enough to read the NOW FACING announcement on the blue; EXIT has no announcement and
+  // stays snappy.
+  const WIPE_HOLD_IN_MS = 900;
+  const WIPE_HOLD_OUT_MS = 700;
+  const wipeSweeping = wipe === 'coverIn' || wipe === 'revealIn' || wipe === 'coverOut' || wipe === 'revealOut';
+  // The EXIT sequence sweeps the OTHER way (R→L, owner ask 2026-08-28) — and that makes the curtain's clip
+  // cycle a natural round trip with no resets: parked LEFT (idle) → full (entry cover, L→R) → parked RIGHT
+  // (reveal, L→R — where it stays through combat) → full (exit cover, R→L) → parked LEFT again (exit
+  // reveal, R→L).
+  const wipeExiting = wipe === 'coverOut' || wipe === 'coveredOut' || wipe === 'revealOut';
   const wipeTimeoutRef = useRef<number | undefined>(undefined);
   const advanceWipe = useCallback((): void => {
-    setWipe((w) => (w === 'in' ? 'combat' : w === 'out' ? 'idle' : w));
+    setWipe((w) => (w === 'coverIn' ? 'coveredIn' : w === 'revealIn' ? 'combat' : w === 'coverOut' ? 'coveredOut' : w === 'revealOut' ? 'idle' : w));
   }, []);
+  // Hold timers (the beat at full blue) + the sweep backstop live in one effect keyed on the state.
   useEffect(() => {
-    if (inCombat) setWipe((w) => (w === 'combat' || w === 'in' ? w : 'in'));
-    else setWipe((w) => (w === 'combat' || w === 'in' ? 'out' : w));
-    // The wipe's Pixi garnish — a def the owner authors/tunes in the FX workbench, fired along the front's
-    // path (left→right entering combat, right→left leaving). `playDef` declines harmlessly (null) when the
-    // renderer isn't up yet. Deliberately NOT keyed on `wipe`: this effect runs exactly once per phase flip.
-    const entering = inCombat;
-    const alreadyThere = entering ? wipeRef.current === 'combat' || wipeRef.current === 'in' : wipeRef.current === 'idle' || wipeRef.current === 'out';
-    if (!alreadyThere) {
-      const y = window.innerHeight / 2;
-      const w = window.innerWidth;
-      playDef('board-wipe', entering ? { source: { x: 0, y }, target: { x: w, y } } : { source: { x: w, y }, target: { x: 0, y } });
+    if (wipe === 'coveredIn' || wipe === 'coveredOut') {
+      const t = window.setTimeout(() => setWipe(wipe === 'coveredIn' ? 'revealIn' : 'revealOut'), wipe === 'coveredIn' ? WIPE_HOLD_IN_MS : WIPE_HOLD_OUT_MS);
+      return () => window.clearTimeout(t);
     }
-  }, [inCombat]);
-  // BACKSTOP — a dropped/never-fired transitionend (a backgrounded tab, a retargeted zero-delta transition)
-  // would otherwise wedge `wipe` at 'in'/'out' forever, leaving `.wipefront`'s glow lit indefinitely even
-  // though the board itself looks fine. Mirror `onWipeEnd`'s advance on a timer a bit past the CSS duration;
-  // the real transitionend (below) clears it so the two paths never double-fire.
-  useEffect(() => {
-    if (wipe !== 'in' && wipe !== 'out') return undefined;
-    wipeTimeoutRef.current = window.setTimeout(advanceWipe, WIPE_MS + 150);
+    if (!wipeSweeping) return undefined;
+    wipeTimeoutRef.current = window.setTimeout(advanceWipe, WIPE_MS + 400);
     return () => window.clearTimeout(wipeTimeoutRef.current);
-  }, [wipe, advanceWipe]);
+  }, [wipe, wipeSweeping, advanceWipe]);
+  useEffect(() => {
+    // A DECISIVE combat exits to the END SCREEN (gameover/victory), not the shop — no curtain, no
+    // "returning to shop" announcement (owner ask 2026-08-28). Snap the machine home; the end screen
+    // covers the scene itself.
+    if (!inCombat && run.phase !== 'recruit') { setWipe('idle'); return; }
+    if (inCombat) setWipe((w) => (w === 'idle' || w === 'coverOut' || w === 'coveredOut' || w === 'revealOut' ? 'coverIn' : w));
+    else setWipe((w) => (w === 'combat' || w === 'coverIn' || w === 'coveredIn' || w === 'revealIn' ? 'coverOut' : w));
+    // (The wipe once fired a Pixi streak def here — retired 2026-08-28 when the curtain moved ABOVE the FX
+    // canvas so it sweeps over scene FX like the End-Turn gem smoke; a def on that canvas would play
+    // invisibly behind the blue. The CSS `.wipefront` glow carries the front's look. The `board-wipe` def
+    // stays committed in the workbench for a future dedicated above-curtain layer.)
+  }, [inCombat]);
+  // What each element wears per state. The curtain is FULL through the whole covered middle of both
+  // sequences; parked RIGHT (`gone`) from the entry reveal through combat; parked LEFT (base) otherwise.
+  // No snap/reset class: every parked position is where the previous sweep naturally left it.
+  const curtainClass = `wipecurtain${
+    wipe === 'coveredIn' || wipe === 'coveredOut' ? ' full settle'
+    : wipe === 'coverIn' || wipe === 'coverOut' ? ' full'
+    : wipe === 'revealIn' || wipe === 'combat' ? ' gone' : ''
+  }`;
+  const combatBgShown = wipe === 'coveredIn' || wipe === 'revealIn' || wipe === 'combat' || wipe === 'coverOut';
+  // COMBAT UNITS render on the staged window too (owner ask 2026-08-29): the warband's recruit-cards→Unit
+  // swap and the enemy row's arrival both happen while the curtain fully hides the board, so the entry
+  // reveal exposes BOTH armies already standing (they hold ~300ms before the first attack — see the
+  // combatStage settle), and the shop cards stay untouched in view while the entry cover sweeps.
+  const combatUnitsShown = inCombat && combatBgShown;
+  // Publish the staged window so components OUTSIDE this file (the foe portrait, a portal) can key their
+  // combat entrance/exit on "the curtain is hiding me" instead of the raw phase — see store.combatStaged.
+  // The same window drives the `.app.staged` class (the lobby rail's slide-away) below.
+  const setCombatStaged = useGame((s) => s.setCombatStaged);
+  useEffect(() => { setCombatStaged(combatBgShown); }, [combatBgShown, setCombatStaged]);
+  // SHOP OVERLAYS WAIT FOR THE CURTAIN (owner ask 2026-08-28) — the Runeforge / quest / power / Discover /
+  // Choose One / scout offers exist in run state the instant combat resolves, but their overlays must not
+  // open over the exit curtain: hold their RENDER (state is untouched — the shop timer's pause already keys
+  // on the offers' existence, so nothing ticks while held) until the reveal sweep finishes, the same way
+  // the start-of-combat beat waits for the entry reveal.
+  const overlaysHeld = !inCombat && wipe !== 'idle';
   const onWipeEnd = useCallback((e: ReactTransitionEvent<HTMLDivElement>): void => {
     if (e.propertyName !== 'clip-path') return;
     window.clearTimeout(wipeTimeoutRef.current);
@@ -1630,7 +1676,10 @@ export function Recruit() {
   // End-Combat crossfade: 'out' fades every combat unit + FX canvas away together, then the phase swaps and
   // 'in' fades the recruit board + survivors back together — one synchronized two-beat transition (see the CSS
   // `.app.combatout`/`.combatin`), so nothing snaps or staggers when you leave the arena.
-  const [combatOutro, setCombatOutro] = useState<null | 'out' | 'in'>(null);
+  // RETIRED as End Combat's exit (owner ask 2026-08-29 — the curtain covers the leave; see `endCombat`).
+  // The `.combatout`/`.combatin` classes live on, driven only by `skipFade` (Skip stays in combat and still
+  // crossfades). Kept as a const so the className derivation below reads unchanged.
+  const combatOutro: null | 'out' | 'in' = null;
   // Skip-combat uses the SAME crossfade (everything fades out together), but instead of swapping to the shop it
   // freezes the replay, kills all audio, jumps to the resolved board under cover of opacity 0, then fades that
   // final board back in. A replacement one-shot will play in its place later (owner).
@@ -1952,13 +2001,13 @@ export function Recruit() {
   // A board-covering modal is open (Discover / Choose One / a quest or runeforge offer / a scouted board).
   useEffect(() => {
     // A minimized Discover / Quest overlay leaves the board visible, so it doesn't count as covering.
-    const modalCovering = (run.discover && !discoverMin) || (run.questOffer && !questMin) || run.powerOffer || (run.runeforgeOffer && !forgeMin) || run.chooseOne || (run.scoutedNextOpponent?.length ?? 0) > 0;
+    const modalCovering = !overlaysHeld && ((run.discover && !discoverMin) || (run.questOffer && !questMin) || run.powerOffer || (run.runeforgeOffer && !forgeMin) || run.chooseOne || (run.scoutedNextOpponent?.length ?? 0) > 0);
     // The hero portrait / pills / power diamond live OUTSIDE the overlay's backdrop root (their own fixed
     // stacking contexts), so the overlay's backdrop-filter can't blur them — mark the body and let CSS blur
     // + dim them to match the rest of the covered board (owner report 2026-07-16). One-shot filter change.
     document.body.classList.toggle('modalup', !!modalCovering);
     return () => document.body.classList.remove('modalup');
-  }, [run.discover, run.chooseOne, discoverMin, run.questOffer, run.powerOffer, questMin, run.runeforgeOffer, forgeMin]);
+  }, [run.discover, run.chooseOne, discoverMin, run.questOffer, run.powerOffer, questMin, run.runeforgeOffer, forgeMin, overlaysHeld]);
   // B2: each Discover opens expanded — reset the minimized flag whenever the pending Discover changes.
   useEffect(() => { setDiscoverMin(false); }, [run.discover]);
   // Each quest offer opens expanded too — reset the minimized flag when the offer changes.
@@ -2016,12 +2065,21 @@ export function Recruit() {
     setCombatStage('closing');
     setEndTurnFlash(true);
     const banner = window.setTimeout(() => setEndTurnFlash(false), 850);
-    const t = window.setTimeout(() => setCombatStage('fighting'), 480);
     return () => {
-      window.clearTimeout(t);
       window.clearTimeout(banner);
     };
   }, [inCombat, run.lastCombat]);
+  // START OF COMBAT waits for the CURTAIN, not a fixed 480ms (owner ask 2026-08-28): with the two-stage
+  // wipe, the old timer let the opening beats play while the scene was still covered/being revealed. The
+  // enemies arrive and the replay begins only once the reveal sweep has fully exposed the arena
+  // (`wipe === 'combat'`). A mid-combat resume initialises the wipe there, so it starts immediately.
+  useEffect(() => {
+    if (!(inCombat && wipe === 'combat')) return undefined;
+    // +800ms settle AFTER the reveal (owner ask 2026-08-29): the armies stand on the exposed arena for a
+    // breath before the first attack, instead of the fight igniting the frame the curtain clears.
+    const t = window.setTimeout(() => setCombatStage('fighting'), 800);
+    return () => window.clearTimeout(t);
+  }, [inCombat, wipe]);
 
   // A Skip mutes ALL audio (stopAllAudio) and leaves it muted through the resolved-combat screen; un-mute once
   // the fight is left (back to the shop) so the next fight — and the shop — has sound again.
@@ -2051,23 +2109,32 @@ export function Recruit() {
   // Leaving the arena: fade EVERYTHING out together (units + FX) for one beat, THEN swap to the shop and fade
   // the recruit board + survivors back in together — a single synchronized crossfade instead of an abrupt
   // snap. `resolveCombat` is deferred to the end of the fade-out so the swap happens under cover of opacity 0.
+  // Leaving the arena rides the CURTAIN, not the old `combatout` unit crossfade (owner ask 2026-08-29: the
+  // armies no longer fade — they simply stand until the blue sweeps over them). The click starts the exit
+  // cover sweep IMMEDIATELY, while the phase is still combat; the actual resolve is deferred to the moment
+  // the curtain reaches full cover (`coveredOut` — see the wipe hold effect), so the combat→shop swap always
+  // happens out of sight. `wipeExitRef` carries the pending exit across that gap and doubles as the
+  // double-click guard. (`skipFade` still uses the old crossfade classes — Skip stays in combat.)
+  const wipeExitRef = useRef(false);
   const endCombat = useCallback((): void => {
-    setCombatOutro((o) => {
-      if (o) return o; // already transitioning — ignore a double-click
-      window.setTimeout(() => {
-        // SANDBOX REPLAY: leave the phase, resolve NOTHING. `resolveCombat`'s own guard is only
-        // `phase === 'combat' && lastCombat` — it does not re-check `combatSettled` — so dispatching it here
-        // would settle the lobby round and run `advanceCombat` a SECOND time for a fight already resolved:
-        // wave +1, embers refilled, a fresh opponent served, and the board you authored stranded a wave back.
-        // The replay must be a pure animation, so its exit is a pure phase flip (see store `exitReplay`).
-        if (sandboxReplay) exitReplay();
-        else dispatch({ type: 'resolveCombat' });
-        setCombatOutro('in');
-        window.setTimeout(() => setCombatOutro(null), 260); // clear once the fade-in has played
-      }, 200); // fade-out duration (matches the CSS .combatout transition)
-      return 'out';
-    });
-  }, [dispatch, sandboxReplay, exitReplay]);
+    if (wipeExitRef.current) return; // already leaving — ignore a double-click
+    wipeExitRef.current = true;
+    setWipe('coverOut');
+  }, []);
+  useEffect(() => {
+    if (wipe !== 'coveredOut' || !wipeExitRef.current) return;
+    wipeExitRef.current = false;
+    // The old `combatout` crossfade also faded the FX canvas; without it, long-lived combat particles could
+    // outlive the fight and drift over the revealed shop. Kill them here, out of sight under the full blue.
+    pixiFx.clearParticles();
+    // SANDBOX REPLAY: leave the phase, resolve NOTHING. `resolveCombat`'s own guard is only
+    // `phase === 'combat' && lastCombat` — it does not re-check `combatSettled` — so dispatching it here
+    // would settle the lobby round and run `advanceCombat` a SECOND time for a fight already resolved:
+    // wave +1, embers refilled, a fresh opponent served, and the board you authored stranded a wave back.
+    // The replay must be a pure animation, so its exit is a pure phase flip (see store `exitReplay`).
+    if (sandboxReplay) exitReplay();
+    else dispatch({ type: 'resolveCombat' });
+  }, [wipe, dispatch, sandboxReplay, exitReplay]);
 
   // Skip the replay — the same synchronized fade as End Combat, but it stays IN combat: freeze all motion
   // (GSAP) + kill all audio, hold a beat so everything visibly pauses and fades out together, then jump the
@@ -4821,6 +4888,7 @@ export function Recruit() {
 
     if (heroArmed) armHero(); // a stray armed Hero Power must not fire mid-animation
     if (equipArmed) armEquipment(); // …and a stray armed Equipment likewise
+    eotPadFiredRef.current = false;
     endTurnPendingRef.current = true;
     setEndTurnAnimating(true); // interaction lock (§12.5): shop, board, hero power and End Turn all disabled
     setEotShopStats(null);
@@ -5026,6 +5094,11 @@ export function Recruit() {
         setEotTransforms(p.transformedCards.size ? new Map(p.transformedCards) : EMPTY_TRANSFORMS);
       },
       onComplete: () => {
+        // Same +pad as the legacy path's completion (see EOT_COMBAT_PAD_MS). Once-guarded because the
+        // unmount safety net's `finish()` can re-deliver completion while the pad timer is pending.
+        if (eotPadFiredRef.current) return;
+        eotPadFiredRef.current = true;
+        window.setTimeout(() => {
         setEotProcUids(new Set());
         setEotPulseUids(new Set());
         setElectrifyUids(new Set());
@@ -5046,6 +5119,7 @@ export function Recruit() {
         prevShopEatSeq.current = committedShopEatSeq;
         prevShopEatHoldSeq.current = committedShopEatSeq;
         setEotConsumedUids(new Set());
+        }, EOT_COMBAT_PAD_MS);
       },
     });
 
@@ -5138,15 +5212,18 @@ export function Recruit() {
     const GAP = 170;
     const playBeat = (i: number): void => {
       if (i >= beats.length) {
-        setEotProcUids(new Set());
-        setEotPulseUids(new Set());
-        setElectrifyUids(new Set());
-        endTurnPendingRef.current = false;
-        setEndTurnAnimating(false);
-        // Drop the previews in the SAME commit `faceOmen` puts the real cards in hand, or the two lists
-        // would both render for a frame and the hand would visibly double.
-        setEotGrants([]);
-        dispatch({ type: 'faceOmen' });
+        // The whole completion block is DEFERRED by the pad so the previews still drop in the SAME commit
+        // `faceOmen` puts the real cards in hand (the two lists would otherwise both render for a frame and
+        // the hand would visibly double). The board stays locked through the pad (endTurnAnimating holds).
+        window.setTimeout(() => {
+          setEotProcUids(new Set());
+          setEotPulseUids(new Set());
+          setElectrifyUids(new Set());
+          endTurnPendingRef.current = false;
+          setEndTurnAnimating(false);
+          setEotGrants([]);
+          dispatch({ type: 'faceOmen' });
+        }, EOT_COMBAT_PAD_MS);
         return;
       }
       const b = beats[i]!;
@@ -5632,7 +5709,7 @@ export function Recruit() {
 
   return (
     <div
-      className={`app${run.lobby ? ' lobby' : ''}${compactCards ? ' compactui' : ''}${inCombat ? ' combat' : ''}${fighting ? ' fighting' : ''}${replay.shaking || lossShake ? ' shaking' : ''}${replay.critShaking ? ' shaking-crit' : ''}${
+      className={`app${run.lobby ? ' lobby' : ''}${compactCards ? ' compactui' : ''}${inCombat ? ' combat' : ''}${combatBgShown ? ' staged' : ''}${fighting ? ' fighting' : ''}${replay.shaking || lossShake ? ' shaking' : ''}${replay.critShaking ? ' shaking-crit' : ''}${
         inCombat && replay.done ? ` done ${replay.result}` : ''
       }${combatOutro === 'out' || skipFade === 'out' ? ' combatout' : combatOutro === 'in' || skipFade === 'in' ? ' combatin' : ''}${
         skipFade === 'out' ? ' combatfrozen' : ''
@@ -5642,11 +5719,43 @@ export function Recruit() {
       {/* Board art on a full-viewport layer behind the 16:9 stage — extends into the margins on off-16:9 monitors
           (see `.boardbg` in styles.css) rather than letterboxing to black. */}
       <div className="boardbg" aria-hidden="true" />
-      {/* COMBAT board layer + the glowing wipe front (see `.boardbg--combat` / `.wipefront` in styles.css).
-          Tree position is load-bearing: after `.boardbg` (paints above it), before the charge glyph and
-          every zone (paints below them) — the same sandwich the FX canvases use. */}
-      <div className={`boardbg boardbg--combat${wipe === 'in' || wipe === 'combat' ? ' wiped' : ''}`} aria-hidden="true" onTransitionEnd={onWipeEnd} style={{ '--wipe-dur': `${WIPE_MS}ms` } as CSSProperties} />
-      <div className={`wipefront${wipe === 'in' || wipe === 'combat' ? ' wiped' : ''}${wipe === 'in' || wipe === 'out' ? ' sweeping' : ''}`} aria-hidden="true" style={{ '--wipe-dur': `${WIPE_MS}ms` } as CSSProperties} />
+      {/* COMBAT board layer — a second `.boardbg` painting the combat art. No clip animation of its own any
+          more: it snaps in/out while the CURTAIN below fully hides the swap (see the wipe state machine).
+          Tree position after `.boardbg` keeps it painting above the shop art, below every zone. */}
+      <div className={`boardbg boardbg--combat${combatBgShown ? ' shown' : ''}`} aria-hidden="true" />
+      {/* The CURTAIN + its glowing front: PORTALED TO BODY at z105 — the hero panel (.statusbar z40), the
+          foe portrait (.combatopp, a body portal itself, z42/z100), and the eot banner (z95) all live
+          OUTSIDE `.app` in their own fixed stacking contexts, so an in-app curtain could never cover them
+          (owner report 2026-08-28: both hero panels floated over the blue). z105 beats them all and stays
+          below the Pixi FX canvas (z110), so the streak rides the blue. The curtain's clip-path transition
+          is the sanctioned one-shot kind. */}
+      {createPortal(<>
+      <div className={curtainClass} aria-hidden="true" onTransitionEnd={onWipeEnd} style={{ '--wipe-dur': `${WIPE_MS}ms` } as CSSProperties}>
+        {/* NOW FACING — the versus announcement on the blue (owner ask 2026-08-28). A child of the curtain,
+            so its clip-path carries it: the cover sweep reveals the splash and the reveal sweep wipes it
+            away, no timing of its own. Entry only (the exit curtain is a plain blue beat), lobby runs only
+            (practice/tutorial have no foe seat to announce). */}
+        {(wipe === 'coverIn' || wipe === 'coveredIn' || wipe === 'revealIn') && run.lobby && (() => {
+          const foe = playerOpponent(run.lobby);
+          if (!foe?.seat) return null;
+          return (
+            <div className="wipevs">
+              <div className="wipevs-label">Now Facing</div>
+              <img className="wipevs-face" src={heroArt(foe.seat.heroId)} alt="" draggable={false} />
+              <div className="wipevs-name">{foe.seat.label}</div>
+            </div>
+          );
+        })()}
+        {/* The exit curtain's own announcement (owner ask 2026-08-28) — label only, no foe to introduce. */}
+        {wipeExiting && (
+          <div className="wipevs">
+            <div className="wipevs-label">Returning to Shop</div>
+          </div>
+        )}
+      </div>
+      {/* `rtl` also during 'combat' so the front PARKS at the right edge, ready for the exit's R→L launch. */}
+      <div className={`wipefront${wipeExiting || wipe === 'combat' ? ' rtl' : ''}${wipeSweeping ? ' go sweeping' : ' snap'}`} aria-hidden="true" style={{ '--wipe-dur': `${WIPE_MS}ms` } as CSSProperties} />
+      </>, document.body)}
       {/* Charge glyph — the board's etched sigil, anchored to the board midline. Lives HERE (a direct child of
           `.app`, before the zones) rather than inside the warband zone, so the warband layout offset (x/y/scale)
           never moves it; it stays on the board sigil. z:0 + earliest tree position keeps it BEHIND the cards but
@@ -5751,21 +5860,27 @@ export function Recruit() {
           art at full strength. The max-tier condition lives in the component (the broken "complete" gem). */}
       {/* Freeze — pinned TOP-RIGHT, opposite the Tavern stone. NOT gated on `timeUp` (owner 2026-07-21):
           freezing after the clock runs out is a legitimate last action — the shop is still on screen until
-          the End-of-Turn animation starts, and the reducer never gated it, only this button did. */}
+          the End-of-Turn animation starts, and the reducer never gated it, only this button did.
+          Hidden during combat like the other shop controls (owner ask 2026-08-29) — gated on the curtain's
+          staged window so it vanishes and returns under the blue. */}
+      {!combatBgShown && (
       <FreezeButton
         frozen={!!run.frozen}
         disabled={eotAnimating || !!run.questOffer || !!run.powerOffer || !!run.runeforgeOffer}
         combat={inCombat}
         onFreeze={() => dispatch({ type: 'freeze' })}
       />
-      {/* Refresh — the standalone crystal pinned TOP-CENTRE, replacing the tray's Reroll plaque. Rolling is a
-          shop action, so in combat this is inert (see the component) — but it stays MOUNTED through both
-          phases (owner ask 2026-08-17), like the Tavern stone and Freeze, so the board keeps its furniture
-          instead of half of it vanishing at the phase change. */}
+      )}
+      {/* Refresh — the standalone crystal pinned TOP-CENTRE, replacing the tray's Reroll plaque. It used to
+          stay mounted through combat as inert furniture (owner ask 2026-08-17), but the foe portrait now
+          drops onto this very anchor and the owner asked for it GONE during the fight (2026-08-29). Gated on
+          the curtain's staged window — not the raw phase — so it vanishes and returns under the blue, never
+          in view. */}
       {/* `nextRefreshCostOf`, not `refreshCostOf`: the pill prints what THIS roll charges, folding banked
           free rolls AND Rune of Window Shopping's first-3-free allowance (bug 3abab276 — the pill kept
           showing 1 while the rune paid). Same helper gates `disabled`, so a free roll stays clickable at
           0 Gold, matching the reducer's charge order exactly. */}
+      {!combatBgShown && (
       <RefreshButton
         cost={nextRefreshCostOf(run)}
         freeRolls={run.freeRolls}
@@ -5773,6 +5888,12 @@ export function Recruit() {
         combat={inCombat}
         onRefresh={() => dispatch({ type: 'roll' })}
       />
+      )}
+      {/* Tavern stone + Gold — hidden during combat with the rest of the shop furniture (owner ask
+          2026-08-29, superseding the 2026-07-16 "passive tier indicator" and 2026-08-17 "gold in both
+          phases" rulings): with the curtain staging every entrance/exit, the combat scene keeps only the
+          fight's own controls. Both gate on the staged window so they swap under the blue. */}
+      {!combatBgShown && (
       <TavernUpButton
         tier={run.tier}
         maxTier={maxTierFor(run.rift)} // Summit raises the ceiling to 7
@@ -5781,10 +5902,10 @@ export function Recruit() {
         combat={inCombat}
         onUpgrade={() => dispatch({ type: 'upgrade' })}
       />
-      {/* Gold — a standalone glass pill pinned bottom-right of the board. Shown in BOTH phases (owner ask
-          2026-08-17): it's a pure readout with no interaction to gate, and your purse doesn't change during a
-          fight, so keeping it up costs nothing and stops the corner emptying out mid-combat. */}
+      )}
+      {!combatBgShown && (
       <GoldPill gold={run.embers} nextTurnGold={nextTurnGold} afterNextGold={afterNextGold} wave={run.wave} />
+      )}
 
       {/* Skip the combat replay — pinned ABOVE the End Turn / End Combat diamond (owner move 2026-08-11; it was
           a top-centre HUD, and the replay-speed slider moved to the Esc menu's Combat section). */}
@@ -5808,7 +5929,7 @@ export function Recruit() {
 
       <div className={`zone${run.frozen && !inCombat ? ' frozen' : ''}`} data-zone="tavern">
         <div className="row">
-          {fighting ? (
+          {combatUnitsShown ? (
             replay.visibleFrame.enemy.map((u) => (
               <Unit
                 key={u.uid}
@@ -5891,7 +6012,7 @@ export function Recruit() {
 
       <div className={`zone${overWarband || wouldMagnetize ? ' dropok' : ''}`} data-zone="warband">
         <div className="row warband">
-          {inCombat ? (
+          {combatUnitsShown ? (
             replay.visibleFrame.player.map((u) => (
               <Unit
                 key={u.uid}
@@ -6293,7 +6414,7 @@ export function Recruit() {
         </div>
       )}
 
-      {run.chooseOne && (
+      {!overlaysHeld && run.chooseOne && (
         // CLICK OUTSIDE THE OPTIONS = CANCEL (owner ruling 2026-08-28): the card returns to hand untouched.
         // Nothing was committed when it was played, so this is a pure no-op in the reducer — no effects, no
         // Gold, no triggers, no RNG. The handler is on the BACKDROP and checks `currentTarget`, so a click
@@ -6355,7 +6476,7 @@ export function Recruit() {
 
       {/* One orange button, always in the same fixed spot just below the Discover cards — it toggles between
           Minimize (inspect the board) and Return, so the player can flip back and forth without moving the mouse. */}
-      {run.discover && (
+      {!overlaysHeld && run.discover && (
         <button
           className="disc-toggle"
           onClick={() => setDiscoverMin((m) => !m)}
@@ -6367,7 +6488,7 @@ export function Recruit() {
         </button>
       )}
 
-      {run.discover && !discoverMin && (
+      {!overlaysHeld && run.discover && !discoverMin && (
         <div className="discover-ov" role="dialog" aria-label="Discover a card">
           {/* WebGL burst layer — sits behind the cards (z0) but above the overlay's dark backdrop, so the
               golden magic reads white-hot without covering the UI. Driven by discoverFx (see the effect). */}
@@ -6416,12 +6537,12 @@ export function Recruit() {
       {/* Farseer's Report — a read-only Discover-style reveal of the next opponent's scouted minions, at their
           actual stats (green above the printed base; golden treatment for a triple). No pick; the Close button
           sits where the Discover MINIMIZE toggle usually is (`.disc-toggle`, fixed). Reuses the `.discover-ov` chrome. */}
-      {run.scoutedNextOpponent && run.scoutedNextOpponent.length > 0 && (
+      {!overlaysHeld && run.scoutedNextOpponent && run.scoutedNextOpponent.length > 0 && (
         <button className="disc-toggle" onClick={() => dispatch({ type: 'closeScout' })} title="Close the scout">
           <Icon name="eye" /> Close
         </button>
       )}
-      {run.scoutedNextOpponent && run.scoutedNextOpponent.length > 0 && (
+      {!overlaysHeld && run.scoutedNextOpponent && run.scoutedNextOpponent.length > 0 && (
         <div className="discover-ov" role="dialog" aria-label="Scouted minions">
           <div className="disc-panel">
             <span className="disc-gem disc-gem-top" aria-hidden="true" />
@@ -6448,7 +6569,7 @@ export function Recruit() {
       {/* Quest overlay — mirrors the Discover flow: a blurred modal that can be MINIMIZED to inspect the shop
           (rolled up front now) + board, then returned to, so the quest pick is shop-informed. Reuses the
           `.discover-ov` chrome (blur backdrop, panel, gems); the toggle sits in the same fixed spot. */}
-      {run.questOffer && (
+      {!overlaysHeld && run.questOffer && (
         <button
           className="disc-toggle quest-toggle"
           onClick={() => setQuestMin((m) => !m)}
@@ -6459,7 +6580,7 @@ export function Recruit() {
             : <><Icon name="eye" /> Inspect the shop</>}
         </button>
       )}
-      {run.questOffer && !questMin && (
+      {!overlaysHeld && run.questOffer && !questMin && (
         <div className="discover-ov quest-ov" role="dialog" aria-label="Choose a quest">
           <div className="disc-panel quest-ov-panel">
             <span className="disc-gem disc-gem-top" aria-hidden="true" />
@@ -6479,7 +6600,7 @@ export function Recruit() {
       {/* HERO-POWER DISCOVER (Mimic every turn / Void's turn-4 pair): pick one of two hero powers. Modelled on
           the Quest Shop overlay — same panel chrome, but the "cards" are power plaques (art + name + rule).
           Mandatory: no minimize, no skip — the reducer blocks everything else while it is open. */}
-      {run.powerOffer && (
+      {!overlaysHeld && run.powerOffer && (
         <div className="discover-ov quest-ov power-ov" role="dialog" aria-label="Choose a hero power">
           <div className="disc-panel quest-ov-panel">
             <span className="disc-gem disc-gem-top" aria-hidden="true" />
@@ -6517,7 +6638,7 @@ export function Recruit() {
       {/* Runeforge: a stone/engraved shop. Buy ONE of the offered runes (or Skip), then it closes and the shop
           begins. A minimize toggle lets you inspect the board behind it. The Runesmith's turn-6 forge draws the
           normal runeset; a quest can open the higher-power EPIC forge (`runeforgeEpic`) — same UI, Epic label. */}
-      {run.runeforgeOffer && (
+      {!overlaysHeld && run.runeforgeOffer && (
         <button
           className="disc-toggle forge-toggle"
           onClick={() => setForgeMin((m) => !m)}
@@ -6528,7 +6649,7 @@ export function Recruit() {
             : <><Icon name="eye" /> Inspect the board</>}
         </button>
       )}
-      {run.runeforgeOffer && !forgeMin && (
+      {!overlaysHeld && run.runeforgeOffer && !forgeMin && (
         <div className={`discover-ov forge-ov${run.runeforgeEpic ? ' forge-epic' : ''}`} role="dialog" aria-label={run.runeforgeEpic ? 'The Epic Runeforge' : 'The Runeforge'}>
           <div className="disc-panel forge-panel">
             <div className="disc-banner forge-banner"><Icon name="anvil" /><span className="disp">{run.runeforgeEpic ? 'Epic Runeforge' : 'Runeforge'}</span></div>

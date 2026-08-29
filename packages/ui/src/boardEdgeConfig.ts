@@ -22,19 +22,28 @@ export interface BoardEdgeConfig {
   col: string;
   /** How far (design px, × --scale) the blend reaches INTO the art from each edge. */
   fade: number;
+  /** VERTICAL blend (owner ask 2026-08-29): the Aug-25 board masters carry less sky than the canvas, so the
+   *  exported webps have TRANSPARENT bands above/below the painting and `.boardbg` fills them with this
+   *  colour, fading into the art's top/bottom edges — the vertical twin of the ultrawide side blend. */
+  vcol: string;
+  /** How far (design px, × --scale) the vertical blend reaches INTO the art from the top/bottom edges. */
+  vfade: number;
 }
 
 const DEFAULTS: BoardEdgeConfig = {
   col: '#312361',
   fade: 186,
+  vcol: '#313164',   // sampled from the art's own top-edge rows
+  vfade: 140,
 };
 
 /** `[min, max, step]` for the numeric knobs. */
-const BE_RANGES: Record<'fade', [number, number, number]> = {
+const BE_RANGES: Record<'fade' | 'vfade', [number, number, number]> = {
   fade: [0, 400, 2],
+  vfade: [0, 400, 2],
 };
 
-export const BE_COLOR_KEYS = ['col'] as const;
+export const BE_COLOR_KEYS = ['col', 'vcol'] as const;
 /** The shipped values, exported so the tuner can mark which controls you've moved. */
 export { DEFAULTS as BOARD_EDGE_DEFAULTS };
 
@@ -68,6 +77,10 @@ export function applyBoardEdgeVars(): void {
   root.setProperty('--board-edge-col', cfg.col);
   root.setProperty('--board-edge-col-0', `rgb(${r} ${g} ${b} / 0)`);
   root.setProperty('--board-edge-fade', `${cfg.fade}px`);
+  const [vr, vg, vb] = hexToRgb(cfg.vcol);
+  root.setProperty('--board-vedge-col', cfg.vcol);
+  root.setProperty('--board-vedge-col-0', `rgb(${vr} ${vg} ${vb} / 0)`);
+  root.setProperty('--board-vedge-fade', `${cfg.vfade}px`);
 }
 
 export function setBoardEdgeValue(key: keyof BoardEdgeConfig, value: number | string): void {
@@ -85,6 +98,8 @@ export function resetBoardEdgeConfig(): void {
 const controls: TunerControl<Extract<keyof BoardEdgeConfig, string>>[] = [
   { key: 'col', label: 'Blend colour', hint: 'The colour the ultrawide side margins fill with and fade from into the board edge.', group: 'Ultrawide side blend', kind: 'color', min: 0, max: 0, step: 0 },
   { key: 'fade', label: 'Blend reach', unit: 'px', hint: 'How far the colour fades INTO the board art from each edge. 0 = a hard colour field; higher = a softer, longer blend.', group: 'Ultrawide side blend', min: BE_RANGES.fade[0], max: BE_RANGES.fade[1], step: BE_RANGES.fade[2] },
+  { key: 'vcol', label: 'Blend colour', hint: 'The colour the bands above/below the board art fill with and fade from into the painting.', group: 'Vertical blend', kind: 'color', min: 0, max: 0, step: 0 },
+  { key: 'vfade', label: 'Blend reach', unit: 'px', hint: 'How far the colour fades INTO the board art from its top/bottom edges.', group: 'Vertical blend', min: BE_RANGES.vfade[0], max: BE_RANGES.vfade[1], step: BE_RANGES.vfade[2] },
 ];
 
 export const SPEC: TunerSpec<BoardEdgeConfig> = {

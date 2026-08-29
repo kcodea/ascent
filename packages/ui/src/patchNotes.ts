@@ -55,6 +55,24 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-08-29',
+    label: 'Combat Curtain',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: 'Combat entrances got a full makeover: a blue curtain sweeps the board, announces NOW FACING with your opponent, and reveals both armies standing ready — then sweeps the other way back to the shop.',
+        details: [
+          "Ending your turn sweeps a dark-blue curtain across the whole board; your opponent's portrait and name are announced on it before the arena is revealed.",
+          'Both armies are revealed already in position and hold a beat before the first attack.',
+          'Returning to the shop plays the curtain in the opposite direction, with everything back in place when it clears.',
+          "The fight screen is decluttered: the shop's Tier stone, Refresh crystal, Freeze gem and Gold coin step aside during combat and return with the shop.",
+          "Your opponent's hero power now shows beside their portrait during the fight — hover it to read what it does.",
+          'Fights that end your run (or win you the lobby) skip the curtain and go straight to the results.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-08-28',
     label: 'Equipment',
     changes: [

@@ -26,6 +26,12 @@ export interface HeroDuelConfig {
   hpScale: number;
   hpX: number;
   hpY: number;
+  /** The foe's HERO POWER icon — the display-only circle pinned top-right during combat. Px offsets from
+   *  its corner anchor (positive X = rightward, positive Y = down). */
+  powerX: number;
+  powerY: number;
+  powerScale: number;
+  powerAlpha: number;
   /** The OPPONENT's attack pill — scale, and px offsets from its portrait's bottom centre. */
   pillScale: number;
   pillX: number;
@@ -71,15 +77,19 @@ export interface HeroDuelConfig {
 // Owner-tuned baseline (2026-08-25, re-tuned 2026-08-27: slower heavier strike, quicker settle). Keep
 // the styles.css `--hd-*` fallbacks in sync with these (they mirror this table).
 const DEFAULTS: HeroDuelConfig = {
-  oppScale: 2.5,
-  oppX: 0,
-  oppY: 0,
-  nameScale: 0.52,
+  oppScale: 2.4,
+  oppX: 185,
+  oppY: -10,
+  nameScale: 0.77,
   nameX: 0,
   nameY: 22,
-  hpScale: 0.68,
+  hpScale: 0.65,
   hpX: 0,
   hpY: -23,
+  powerX: -309,
+  powerY: 153,
+  powerScale: 0.87,
+  powerAlpha: 0.99,
   pillScale: 0.72,
   pillX: -60,
   pillY: -16,
@@ -119,6 +129,10 @@ export const HERO_DUEL_RANGES: Record<keyof HeroDuelConfig, [number, number, num
   hpScale: [0.4, 3, 0.01],
   hpX: [-200, 200, 1],
   hpY: [-200, 200, 1],
+  powerX: [-800, 800, 1],
+  powerY: [-800, 800, 1],
+  powerScale: [0.3, 2.5, 0.01],
+  powerAlpha: [0, 1, 0.01],
   pillScale: [0.4, 3, 0.01],
   pillX: [-120, 120, 1],
   pillY: [-120, 120, 1],
@@ -158,6 +172,10 @@ export const HERO_DUEL_DESC: Record<keyof HeroDuelConfig, string> = {
   hpScale: "Size of the opponent's health pill.",
   hpX: 'Move the health pill horizontally.',
   hpY: 'Move the health pill vertically (it sits below the portrait).',
+  powerX: "Move the foe's hero-power icon horizontally from its top-right corner anchor.",
+  powerY: "Move the foe's hero-power icon vertically from its corner anchor.",
+  powerScale: "Size of the foe's hero-power icon.",
+  powerAlpha: "Opacity of the foe's hero-power icon (1 = solid).",
   pillScale: "Size of the opponent's attack pill.",
   pillX: "Move the opponent's attack pill horizontally.",
   pillY: "Move the opponent's attack pill vertically.",
@@ -213,6 +231,10 @@ export function applyHeroDuelVars(): void {
   r.setProperty('--hd-hp-s', String(cfg.hpScale));
   r.setProperty('--hd-hp-x', `${cfg.hpX}px`);
   r.setProperty('--hd-hp-y', `${cfg.hpY}px`);
+  r.setProperty('--hd-power-x', `${cfg.powerX}px`);
+  r.setProperty('--hd-power-y', `${cfg.powerY}px`);
+  r.setProperty('--hd-power-s', String(cfg.powerScale));
+  r.setProperty('--hd-power-alpha', String(cfg.powerAlpha));
   r.setProperty('--hd-pill-opp-s', String(cfg.pillScale));
   r.setProperty('--hd-pill-opp-x', `${cfg.pillX}px`);
   r.setProperty('--hd-pill-opp-y', `${cfg.pillY}px`);

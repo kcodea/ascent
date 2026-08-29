@@ -558,6 +558,11 @@ interface GameStore {
   showRecentGames: boolean;
   openRecentGames: () => void;
   closeRecentGames: () => void;
+  /** The Perf Analytics overlay is open (owner ask 2026-08-29). DEV-facing: it reads recordings the perf
+   *  monitor saved, and the monitor itself is still opt-in, so this is empty until someone records. */
+  showPerf: boolean;
+  openPerf: () => void;
+  closePerf: () => void;
   /** The Career overlay (match history + per-hero stats) is open. */
   showCareer: boolean;
   /** WHOSE career is on screen. `null` = your own. Set when opening another player's from the leaderboard
@@ -1816,6 +1821,9 @@ export const useGame = create<GameStore>((set, get) => ({
   showRecentGames: false,
   openRecentGames: () => set({ showRecentGames: true }),
   closeRecentGames: () => set({ showRecentGames: false }),
+  showPerf: false,
+  openPerf: () => set({ showPerf: true }),
+  closePerf: () => set({ showPerf: false }),
   showCareer: false,
   careerOf: null,
   openCareer: (of) => set({ showCareer: true, careerOf: of ?? null }),

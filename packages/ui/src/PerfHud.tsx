@@ -2,6 +2,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { perfMonitor, perfThresholds, type PerfBucket, type FrameThresholds } from './perfMonitor';
 import { thresholdsFor } from './refreshRate';
 import { useDraggablePanel } from './useDraggablePanel';
+import { diagnose, type Diagnosis } from './perfDiagnose';
+import { buildReport } from './perfReport';
+import { saveRun, toRun } from './perfStore';
+import { useGame } from './store';
 
 /**
  * PERF HUD — the frame-health readout (owner ask 2026-07-19: "track slowdowns and what is causing it, and
@@ -31,6 +35,8 @@ import { useDraggablePanel } from './useDraggablePanel';
  * warns at 8.33 ms where a 60 Hz one warns at 33.3. The `display` row shows which calibration is in force.
  */
 const SPARK_H = 34;
+/** How often (in closed buckets) the live diagnosis re-runs while the panel is open. See `live` below. */
+const DIAGNOSE_EVERY = 5;
 
 function color(worst: number, th: FrameThresholds): string {
   if (worst > th.jankMs) return '#e5446b'; // --threat
@@ -111,10 +117,58 @@ export function PerfHud({ onClose }: { onClose?: () => void }) {
     });
   }, [bucket, open]);
 
+  /**
+   * THE LIVE VERDICT — the top finding for the session so far, on the HUD face.
+   *
+   * The old HUD showed only the CURRENT second, so reading it meant holding a minute of numbers in your head
+   * and doing the diagnosis yourself. This runs the same engine the perf screen uses and prints its worst
+   * finding in one line.
+   *
+   * Deliberately throttled and gated: `diagnose` walks every bucket, and a 40-minute session is 2400 of them.
+   * It runs only while the panel is EXPANDED, and only every `DIAGNOSE_EVERY` buckets — so the collapsed HUD
+   * costs exactly what it did before, and the expanded one pays a linear pass every few seconds rather than
+   * every frame. A perf tool that shows up in its own measurements is worthless.
+   */
+  const [live, setLive] = useState<Diagnosis | null>(null);
+  /** Buckets seen at the last diagnosis. A ref, not state, so throttling never re-runs the effect it gates. */
+  const lastDiagRef = useRef(-1);
+  useEffect(() => {
+    if (!open || !bucket) return;
+    const n = perfMonitor.history().length;
+    if (lastDiagRef.current >= 0 && n - lastDiagRef.current < DIAGNOSE_EVERY) return;
+    lastDiagRef.current = n;
+    setLive(diagnose(perfMonitor.history()));
+  }, [open, bucket]);
+
+  const [saved, setSaved] = useState('');
+  const save = useCallback(() => {
+    const buckets = perfMonitor.history();
+    if (buckets.length === 0) { setSaved('nothing recorded'); return; }
+    const st = useGame.getState();
+    const note = window.prompt('Label this recording (optional) — e.g. "after the sheen change"') ?? undefined;
+    void saveRun(toRun(buckets, {
+      id: `${Date.now()}`,
+      startedAt: Date.now() - buckets.length * 1000,
+      build: `${__APP_VERSION__}+${__BUILD_SHA__}`,
+      mode: st.run?.mode,
+      heroId: st.run?.heroId,
+      note: note || undefined,
+    })).then((ok) => {
+      setSaved(ok ? '✓ saved' : 'storage unavailable');
+      window.setTimeout(() => { setSaved(''); }, 2500);
+    });
+  }, []);
+
+  /** The markdown report — the same artefact the perf screen copies, so both paths say the same thing. */
   const copy = useCallback(() => {
-    void navigator.clipboard.writeText(JSON.stringify(perfMonitor.summary(), null, 2)).then(() => {
+    const st = useGame.getState();
+    const text = buildReport({
+      buckets: perfMonitor.history(),
+      meta: { build: `${__APP_VERSION__}+${__BUILD_SHA__}`, mode: st.run?.mode, heroId: st.run?.heroId },
+    });
+    void navigator.clipboard.writeText(text).then(() => {
       setCopied(true);
-      setTimeout(() => setCopied(false), 1200);
+      setTimeout(() => setCopied(false), 1600);
     });
   }, []);
 
@@ -156,6 +210,35 @@ export function PerfHud({ onClose }: { onClose?: () => void }) {
           <Row k={`long / jank (>${th.longFrameMs}/${th.jankMs}ms)`} v={b ? `${b.long} / ${b.jank}` : '–'} warn={(b?.jank ?? 0) > 0} />
           <Row k="longest task" v={b?.task ? `${b.task.toFixed(0)} ms` : '–'} warn={(b?.task ?? 0) > th.jankMs} />
 
+          {/* THE HEADLINE. What the whole tool is for: one sentence naming the worst thing, and whether it is
+              measured or merely correlated — a distinction that decides whether it is worth an afternoon. */}
+          {live && !live.thin && live.verdicts[0] && (
+            <div className={`perfhud-verdict sev-${live.verdicts[0].severity}`}>
+              <b>{live.verdicts[0].title}</b>
+              <span className={`perfhud-conf ${live.verdicts[0].confidence}`}>
+                {live.verdicts[0].confidence === 'measured' ? 'measured' : 'lead'}
+              </span>
+              <i>{live.verdicts[0].suggestion}</i>
+            </div>
+          )}
+          {live && !live.thin && (
+            <Row
+              k="session"
+              v={`${live.seconds}s · worst ${live.worstFrame.toFixed(1)}ms · ${live.jankFrames} dropped`}
+              warn={live.worstFrame > th.jankMs}
+            />
+          )}
+          {/* Where the run's pain actually is. Two lines, worst phase first — the full table is on the screen. */}
+          {live && live.phases.filter((p) => p.seconds >= 3).length > 1 && (
+            <>
+              <div className="perfhud-sub">Worst phases</div>
+              {live.phases.filter((p) => p.seconds >= 3).slice(0, 2).map((p) => (
+                <Row key={p.phase} k={p.phase} v={`${p.jankRate}/s dropped · worst ${p.worst.toFixed(1)}ms`}
+                  warn={p.overBudget} />
+              ))}
+            </>
+          )}
+
           <div className="perfhud-sub">Hotspots · measured</div>
           {hot.length === 0
             ? <div className="perfhud-empty">nothing measured this second</div>
@@ -171,9 +254,15 @@ export function PerfHud({ onClose }: { onClose?: () => void }) {
           <Row k="marks" v={marks.length ? marks.map(([k, v]) => `${k}×${v}`).join(' ') : '–'} />
 
           <div className="perfhud-btns">
-            <button onClick={() => perfMonitor.exportLog()} title="Download the full timeline as JSON">⬇ log</button>
-            <button onClick={copy} title="Copy the rolled-up summary">{copied ? '✓ copied' : '⧉ summary'}</button>
-            <button onClick={() => { perfMonitor.clear(); histRef.current = []; }} title="Clear the timeline">↺</button>
+            <button onClick={copy} title="Copy a markdown report — findings, phases and worst moments — ready to paste to Claude">
+              {copied ? '✓ copied' : '📋 report'}
+            </button>
+            <button onClick={save} title="Save this recording so the Perf Analytics screen can compare it against later ones">
+              {saved || '💾 save'}
+            </button>
+            <button onClick={() => { useGame.getState().openPerf(); }} title="Open Perf Analytics — findings, phases, timeline, comparison">📈</button>
+            <button onClick={() => perfMonitor.exportLog()} title="Download the full timeline as JSON">⬇</button>
+            <button onClick={() => { perfMonitor.clear(); histRef.current = []; setLive(null); lastDiagRef.current = -1; }} title="Clear the timeline">↺</button>
           </div>
         </div>
       )}

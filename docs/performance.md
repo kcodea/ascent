@@ -118,6 +118,56 @@ Add a mark anywhere with `perfMonitor.mark('label')` — it's a no-op when the m
 don't need a guard.
 
 
+## The Perf Analytics screen (reading a session after the fact)
+
+The HUD answers *is it smooth right now*. **Perf Analytics** (dev menu → 📈) answers the four questions you
+have afterwards, and is where a slowdown actually gets diagnosed.
+
+Open it from the dev menu at any time — it reads saved recordings, so it works from the title screen as well
+as mid-run. The monitor itself is still **opt-in** (`?perf=1`, `localStorage.ascent.perf`, or the dev menu):
+recording is cheap but not free, and a diagnostic that runs unasked is a cost every player pays for a tool
+only we use.
+
+### What it tells you
+
+| | |
+|---|---|
+| **Findings** | Plain English, worst first, each with a next step. `plateGild took 96 ms in its worst call` — not a table of percentiles you have to interpret. |
+| **By phase** | Frame health split by shop / combat / End of Turn, compared by dropped frames **per second** so a long shop phase does not out-rank a short combat one on volume. |
+| **Timeline** | One column per second, coloured against the budget. Click any second for what fired in it — marks, measured timings, live FX counts. |
+| **vs an earlier run** | Pick any saved recording to compare against. Answers "did my change regress this?" directly. |
+| **Copy report** | The whole analysis as markdown, ready to paste to Claude. |
+
+### MEASURED vs POSSIBLE LEAD — the distinction the whole tool rests on
+
+Every finding carries its confidence, and they are visually different on purpose:
+
+- **MEASURED** — the milliseconds are on the clock for that named block. A culprit.
+- **POSSIBLE LEAD** — it *co-occurs* with the symptom. A bucket is a whole second and several things share
+  one, so this ranks what to look at; it never names a cause.
+
+Reading a lead as a fact is how an afternoon gets spent on the wrong thing. If a lead matters, the tool tells
+you how to promote it: wrap the suspect in `perfMonitor.time()` and re-record, which converts the guess into
+an attribution or clears it.
+
+### Absence is a finding too
+
+**A low "time attributed" percentage is information, not a gap.** If almost nothing we time is slow and frames
+are still dropping, the cost is in render, paint, style recalc or GC — and the screen says so, pointing at the
+paint-property-in-a-loop trap from §4 rather than reporting "no hotspots" and looking clean.
+
+### Where recordings live
+
+IndexedDB (`ascent.perf`), on your machine, capped at 25 runs and pruned oldest-first — **not** localStorage,
+whose ~5 MB budget is shared with `ascent.save`. Press **save** on the HUD to keep a recording (it prompts for
+a label, e.g. "after the sheen change"); the build sha is stamped automatically so a comparison can name which
+change moved the number. Nothing is uploaded anywhere.
+
+The reasoning lives in `packages/ui/src/perfDiagnose.ts` and is unit-tested — the sampler is rAF-bound and
+cannot run headlessly, which is exactly why the analysis was split out of it.
+
+---
+
 ## 1. The two kinds of cost (and who can measure them)
 
 | Cost | Where | Who measures |

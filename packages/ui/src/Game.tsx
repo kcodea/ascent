@@ -11,6 +11,7 @@ import { Leaderboard } from './Leaderboard';
 import { Rankings } from './Rankings';
 import { RecentGames } from './RecentGames';
 import { Career } from './Career';
+import { PerfScreen } from './PerfScreen';
 import { AvatarPicker } from './AvatarPicker';
 import { TutorialController } from './tutorial/TutorialController';
 import { AccountPanel } from './AccountPanel';
@@ -314,6 +315,8 @@ export function Game() {
       <Rankings />
       <RecentGames />
       <Career />
+      {/* Perf analytics — self-gates on `showPerf`, renders nothing until opened from the dev menu. */}
+      <PerfScreen />
       <AvatarPicker />
       <AccountPanel />
       {/* REPLAY VIEWER: the round rail (left) + the transport bar. Both self-gate on `replaySession`;

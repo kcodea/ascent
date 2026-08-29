@@ -70,13 +70,44 @@ Adding a trigger and a card tripped seven gates, every one of them correctly:
 - `allTypesPill` — Frank has no art yet; `e3_` joins `c3_` as set-3 scaffold.
 - `contractExtract` + the report drift rail — regenerated.
 
-## Not built (deliberately)
+## The UI
 
-The UI slot, the selector, native-second-power coexistence, and the equip/re-equip animation are NOT here.
-The engine is complete and tested first, which is the handoff's own implementation order (UI is step 9-10 of
-13). `equipFx` cues are already emitted, so the UI half is a consumer, not a redesign.
+The second slot renders from `run.equipment` and nothing else — the handoff requires that "game-state and
+effect code must not assume Equipment permanently lives inside a particular visual component", so moving it to
+a dedicated button later is a change to one block.
 
-Also unbuilt, and flagged: **Equipment Spells** (the classification exists in the handoff but no Equipment
-casts one yet), **combat effect queuing** (nothing queues one), and **cost-reduction sources** (the field and
-its floor exist; nothing grants it). Each is state + a factory away, deliberately not invented ahead of a card
-that needs it.
+- With **no** native second power, Equipment takes the second slot outright (it inherits the `.heropanel2`
+  seat). With one, `.beside` offsets it a button-width; they are never stacked, because their usage budgets
+  are independent and covering one would hide live state.
+- **Arming is its own flag** (`equipArmed`), not a shared "armed" boolean: a player may hold Equipment and a
+  native power at once, and one shared flag would let arming either silently cancel the other. Arming either
+  clears the other deliberately, in the store, where that rule is visible.
+- The selector renders only when there is more than one option — with a single Equipment, a picker is a
+  control that can only do nothing.
+- Unaffordable or spent → visible but **disabled**, with the tooltip saying which, per the handoff.
+- Equip / re-equip flashes are CSS one-shots fired from the per-action cue list, staggered by source so several
+  Equip minions read left-to-right rather than as one blur. They are removed on cleanup as well as on their
+  timer, so a route change mid-flash leaves nothing behind.
+
+### Verified live
+
+Driven through a throwaway Practice run in the browser, not just in tests: playing Frank granted Bloodpot and
+fired the cue; the panel rendered "Bloodpot", cost 1, 1 use, enabled; pressing it armed; activating on a target
+paid 1 Gold and applied +3/+3; the panel then read 0 uses and disabled itself; and a full turn cycle
+(faceOmen → settleCombat → resolveCombat) re-equipped it with the allowance back to 1 and a re-equip cue. No
+console errors.
+
+## Not built, deliberately
+
+**Combat-effect queuing.** The handoff describes it, but no Equipment queues one, so building the state now
+would be an empty box with no observable behaviour to test — and the handoff's own instruction is to implement
+only Frank. It is state plus a factory away when a card needs it.
+
+**Cost-reduction SOURCES.** The field, its additive stacking and the zero floor all exist and are tested;
+nothing grants a reduction yet.
+
+**Equipment Spells ARE built** — the handoff asked for the classification ahead of the roster, so
+`equipmentCastSpell` routes through the real `castSpell` path (a Shop-spell cast, Shop-spell improvements,
+"after you cast a Shop spell" listeners, spell-multiplier duplication) while never entering the hand and never
+counting as a card played. No Equipment uses it yet; the contract is tested against a definition constructed
+in the test rather than a card added to the registry.

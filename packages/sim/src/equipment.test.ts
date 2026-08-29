@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { BLOODPOT, CARD_INDEX } from '@game/content';
 import { createRun, reduce, type Action, type BoardCard, type RunState } from './index';
 import { equipmentState, equipmentUsesLeft, selectedEquipment } from './equipment';
+import { fireEquipmentTriggers } from './recruit';
 
 /**
  * EQUIPMENT — the first vertical slice (owner handoff 2026-08-28).
@@ -321,5 +322,71 @@ describe('the registry and the card agree', () => {
     expect(frank.goldenText).toContain('+6/+6');
     expect(BLOODPOT.params).toEqual({ attack: 3, health: 3 });
     expect(BLOODPOT.gildedParams).toEqual({ attack: 6, health: 6 });
+  });
+});
+
+describe('no valid target', () => {
+  it('an empty board leaves the Equipment visible but unusable, and spends nothing', () => {
+    // Frank himself is the only body once played, and Bloodpot may target him — so this uses a targetUid that
+    // does not exist, which is what "no valid target" reduces to at the action boundary.
+    let s = run({ hand: [body('f', 'e3_frank')] });
+    s = play(s, 'f');
+    const gold = s.embers;
+    s = activate(s, 'nobody');
+    expect(s.embers, 'a target that does not exist spends nothing').toBe(gold);
+    expect(equipmentUsesLeft(s)).toBe(1);
+    expect(equipmentState(s).available, 'and the Equipment is still held').toHaveLength(1);
+  });
+
+  it('Bloodpot can target its own source — a lone Frank is still a legal play', () => {
+    let s = run({ hand: [body('f', 'e3_frank')] });
+    s = play(s, 'f');
+    s = activate(s, 'f');
+    expect(statsOf(s, 'f'), 'Frank buffs himself').toEqual([6, 6]);
+  });
+});
+
+describe('native hero power and Equipment are independent', () => {
+  it('using Equipment does not touch the hero-power charge, and vice versa', () => {
+    let s = run({ hand: [body('f', 'e3_frank')], board: [body('t', 'sandbag')] });
+    s = play(s, 'f', 1);
+    const heroReadyBefore = s.heroReady;
+    s = activate(s, 't');
+    expect(s.heroReady, 'the native power is untouched by an Equipment activation').toBe(heroReadyBefore);
+    expect(s.heroReady2, 'and so is the second slot').toBe(undefined);
+    // The reverse: spending the hero power leaves the Equipment allowance alone.
+    let s2 = run({ hand: [body('f', 'e3_frank')], board: [body('t', 'sandbag')] });
+    s2 = play(s2, 'f', 1);
+    s2 = { ...s2, heroReady: false }; // as a used hero power leaves it
+    expect(equipmentUsesLeft(s2), 'the Equipment allowance is its own budget').toBe(1);
+  });
+});
+
+describe('the Equipment Spell classification', () => {
+  /**
+   * No Equipment casts a spell yet — the handoff asked for the classification to be BUILT ahead of the roster.
+   * Asserted against a definition constructed here rather than one added to the registry: the contract is the
+   * pipeline, not a card, and inventing a live card to test it would be exactly the roster the handoff said
+   * not to build.
+   */
+  it('casts through the REAL Shop-spell path, so it counts as a cast', () => {
+    const spell = Object.values(CARD_INDEX).find((c) => c?.spell && !c.token && !c.ruby)!;
+    let s = run({ hand: [body('f', 'e3_frank')], board: [body('t', 'sandbag')] });
+    s = play(s, 'f', 1);
+    const castsBefore = s.spellsCast;
+    const playedBefore = (s.playedThisTurn ?? []).length;
+    const handBefore = s.hand.length;
+    fireEquipmentTriggers(
+      s,
+      { id: 'test_eq', name: 'Test', text: '', baseCost: 0, targetMode: 'friendly',
+        effectId: 'equipmentCastSpell', params: { spellId: spell.id } },
+      'plain',
+      s.board.find((c) => c.uid === 'f')!,
+      s.board.find((c) => c.uid === 't'),
+      1,
+    );
+    expect(s.spellsCast, 'an Equipment Spell IS a Shop spell cast').toBe(castsBefore + 1);
+    expect((s.playedThisTurn ?? []).length, 'but never a card PLAYED — nothing left a hand').toBe(playedBefore);
+    expect(s.hand.length, 'and it never enters the hand').toBe(handBefore);
   });
 });

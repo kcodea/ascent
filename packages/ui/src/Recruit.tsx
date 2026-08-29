@@ -817,6 +817,8 @@ export function Recruit() {
   // The ARMED slot's wielded power (Mimic's disguise / Void's pair — `activePowers`), not the native hero's:
   // the aim-target rules below must describe the power that will actually fire.
   const heroArmedSlot = useGame((s) => s.heroArmedSlot);
+  const equipArmed = useGame((s) => s.equipArmed);
+  const armEquipment = useGame((s) => s.armEquipment);
   const heroPowerKind = (activePowers(run)[heroArmedSlot] ?? activePowers(run)[0]!).kind;
   // Quillen's Archive files a friendly OR a Shop minion, so it accepts tavern picks like Fortify does.
   // Sable's Soulbind: the two bound ends wear a ring for the turn the bond is live. Expired by wave, exactly as
@@ -1723,6 +1725,52 @@ export function Recruit() {
     timers.push(window.setTimeout(() => dispatch({ type: 'resolveShopDeath' }), ms));
     return () => timers.forEach(window.clearTimeout);
   }, [pendingDeathUid, dispatch, findEl]);
+
+  /**
+   * EQUIP / RE-EQUIP CUES (owner handoff 2026-08-28) — a body granting its Equipment.
+   *
+   * Rides the per-action scratch channel every other shop FX uses, NOT a beat: only End of Turn plays beats,
+   * so a Start-of-Turn re-equip beat would be recorded and never performed (owner decision, after that gap was
+   * found). One flash per SOURCE BODY in board order — duplicates collapse into one selector entry but each
+   * source still announces itself, which is what the handoff asks for.
+   *
+   * Kept BRISK by construction: the flashes are CSS one-shots fired together, not a queue that the player
+   * waits through. Nothing here gates gameplay — the state has already committed.
+   */
+  const prevEquipFxSeq = useRef(run.equipFxSeq);
+  useLayoutEffect(() => {
+    const seq = run.equipFxSeq;
+    if (seq === undefined || seq === prevEquipFxSeq.current) return;
+    prevEquipFxSeq.current = seq; // advance FIRST — exactly once per action
+    const cues = run.equipFx ?? [];
+    if (cues.length === 0) return;
+    // The slot the icon lands in. Absent (a hero with no second slot rendered yet) → flash the source only.
+    const slotEl = document.querySelector<HTMLElement>('.equippanel .heropowerbtn');
+    const slot = slotEl?.getBoundingClientRect();
+    const nodes: HTMLElement[] = [];
+    cues.forEach((cue, i) => {
+      const el = findEl(cue.uid);
+      const from = el?.getBoundingClientRect();
+      // A brief emphasis on the SOURCE, then the slot itself flashes — the handoff's "energy travels toward
+      // the slot" reduced to its two readable moments, which is all that survives at this speed anyway.
+      for (const r of [from, slot]) {
+        if (!r) continue;
+        const n = document.createElement('div');
+        n.className = `equipflash${cue.kind === 'reequip' ? ' reequip' : ''}`;
+        n.style.left = `${r.left + r.width / 2}px`;
+        n.style.top = `${r.top + r.height / 2}px`;
+        // Stagger by SOURCE so several Equip minions read left-to-right rather than as one blur.
+        n.style.animationDelay = `${i * 70}ms`;
+        document.body.appendChild(n);
+        nodes.push(n);
+      }
+      if (from) sfx.pulse(); // the metallic equip cue
+    });
+    // Every node is removed on cleanup as well as on its own timer, so a route change mid-flash leaves nothing
+    // behind — the same discipline the looping FX players follow.
+    const id = window.setTimeout(() => { for (const n of nodes) n.remove(); }, 900);
+    return () => { window.clearTimeout(id); for (const n of nodes) n.remove(); };
+  }, [run.equipFxSeq, run.equipFx, findEl]);
 
   /**
    * SHOP DEATH + ECHO CUES (owner ask 2026-08-28) — the shop's answer to combat's death visuals.
@@ -3341,14 +3389,16 @@ export function Recruit() {
   // tavern spell); a tavern buff rides in when the offer is bought. Release off a minion to
   // cancel; a plain click stays armed for a follow-up click.
   useEffect(() => {
-    if (!heroArmed || inCombat) {
+    if ((!heroArmed && !equipArmed) || inCombat) {
       setAimTargetUid(null);
       return;
     }
     let moved = false;
     // Fortify may buff a tavern offer; Gild / Encore are warband-only (you can't gild or replay an
     // unbought offer), so they only accept warband targets.
-    const sel = heroTargetsTavernOnly
+    const sel = equipArmed
+      ? '[data-zone="warband"] .row .card[data-uid]' // Bloodpot (and every Equipment so far) buffs YOUR board
+      : heroTargetsTavernOnly
       ? `[data-zone="tavern"] .row .card[data-uid]${SB_FOE_EXCLUDE}` // Albus upgrades the SHOP, never your board
       : heroTargetsTavern
         ? `[data-zone="warband"] .row .card[data-uid], [data-zone="tavern"] .row .card[data-uid]${SB_FOE_EXCLUDE}`
@@ -3401,12 +3451,16 @@ export function Recruit() {
       if (!moved) return; // a plain click — stays armed for a follow-up click
       const target = minionAt(e.clientX, e.clientY);
       if (target && !timeUp) {
-        dispatch({ type: 'heroPower', uid: target.uid, slot: useGame.getState().heroArmedSlot }); // Void: fire the ARMED slot's power
+        // EQUIPMENT and a hero power share the aim gesture but are different actions — and different usage
+        // budgets. Whichever is armed is the one that fires; arming either clears the other (see the store).
+        if (equipArmed) dispatch({ type: 'activateEquipment', targetUid: target.uid });
+        else dispatch({ type: 'heroPower', uid: target.uid, slot: useGame.getState().heroArmedSlot }); // Void: fire the ARMED slot's power
         // The authored 'hero-power-target' FX at the targeted unit (owner ask 2026-08-14). Feed the click
         // point to source/target AND cursor — the def anchors on `cursor`, which is ORIGIN if unsupplied.
         const p = { x: e.clientX, y: e.clientY };
         playDef('hero-power-target', { source: p, target: p, cursor: p });
-      } else armHero(); // released without a valid target — snaps back / cancels
+      } else if (equipArmed) armEquipment(); // released on nothing — cancels, spending no Gold and no use
+      else armHero(); // released without a valid target — snaps back / cancels
     };
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up);
@@ -3415,7 +3469,7 @@ export function Recruit() {
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', up);
     };
-  }, [heroArmed, heroTargetsTavern, heroTargetsTavernOnly, heroTargetsNoGolden, run.board, run.spell?.uid, timeUp, dispatch, armHero, inCombat]);
+  }, [heroArmed, equipArmed, armEquipment, heroTargetsTavern, heroTargetsTavernOnly, heroTargetsNoGolden, run.board, run.spell?.uid, timeUp, dispatch, armHero, inCombat]);
 
   // Targeted Battlecry (Toxin Tender): once the minion is played it sits on the board with a pending
   // target — aim a glowing line from it to a friendly minion and click to grant the keyword (mirrors
@@ -3945,14 +3999,14 @@ export function Recruit() {
   // rAF-coalesced move handlers, so this effect no longer drives them — it only owns the SPELL-drag line
   // and the teardown, and it carries a dep array (it previously ran on EVERY render, re-writing
   // `document.body.classList` each time).
-  const aimingNow = !!((heroArmed || pendingTarget) || (castingSpell && drag));
+  const aimingNow = !!((heroArmed || equipArmed || pendingTarget) || (castingSpell && drag));
   useEffect(() => {
     if (castingSpell && drag) {
       // Use the exact live position, not the quantised state, so this render-time placement agrees with the
       // per-frame update in `flushMove` (otherwise the line would flick back 8px on every commit).
       const lp = dragPosRef.current ?? { x: drag.x, y: drag.y };
       pixiFx.setAimLine({ x: drag.startX, y: drag.startY }, lp, !!castTargetUid, getAimFxConfig());
-    } else if (!heroArmed && !pendingTarget) {
+    } else if (!heroArmed && !equipArmed && !pendingTarget) {
       pixiFx.clearAimLine(); // no targeting gesture of any kind is live
     }
     // While the targeter is live, the aim line IS the pointer — hide the OS cursor (restored the moment
@@ -3961,7 +4015,7 @@ export function Recruit() {
     // `castTargetUid` is deliberately NOT a dep: it's declared further down the component, so naming it here
     // would evaluate it during render and hit the TDZ (the effect BODY reads it fine — that runs after).
     // It's derived from `drag` anyway, which is a dep, so every change that matters already re-runs this.
-  }, [aimingNow, heroArmed, pendingTarget, castingSpell, drag]);
+  }, [aimingNow, heroArmed, equipArmed, pendingTarget, castingSpell, drag]);
   useEffect(() => () => { pixiFx.clearAimLine(); document.body.classList.remove('aiming'); }, []); // never strand the line/cursor on unmount
 
   // The Fodder-eat choreography (owner redesign 2026-07-16): the ghost card POPS IN hovering above the
@@ -4631,7 +4685,7 @@ export function Recruit() {
     if (e.button !== 0) return;
     const t = e.target as HTMLElement;
     if (t.closest('[data-zone] .card')) { sfx.cardTouch(); return; }
-    if (heroArmed || drag) return;
+    if (heroArmed || equipArmed || drag) return;
     if (t.closest('button, a, input, [role="dialog"], .bar, .shopbar')) return;
     sfx.clickThock();
     // Small dust at the cursor (sibling of the card-landing dust) — the authored `click-puff` def. Feed the
@@ -4694,6 +4748,7 @@ export function Recruit() {
     for (const c of [...run.board, ...run.hand]) baseStats[c.uid] = { attack: c.attack, health: c.health };
 
     if (heroArmed) armHero(); // a stray armed Hero Power must not fire mid-animation
+    if (equipArmed) armEquipment(); // …and a stray armed Equipment likewise
     endTurnPendingRef.current = true;
     setEndTurnAnimating(true); // interaction lock (§12.5): shop, board, hero power and End Turn all disabled
     setEotShopStats(null);
@@ -5003,6 +5058,7 @@ export function Recruit() {
     const baseTick: Record<string, number> = {};
     for (const c of run.board) baseTick[c.uid] = c.eotTick ?? 0;
     if (heroArmed) armHero(); // a stray armed Hero Power shouldn't fire mid-animation
+    if (equipArmed) armEquipment();
     endTurnPendingRef.current = true;
     setEndTurnAnimating(true); // lock the shop / board / hero power while the beats play
     setEotShopStats(null); // fresh shop-buff climb for this turn (drained + baked when combat starts)

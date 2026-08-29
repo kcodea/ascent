@@ -244,6 +244,10 @@ interface GameStore {
   run: RunState;
   /** UI flag: Hero Power is armed and waiting for a target minion. */
   heroArmed: boolean;
+  /** EQUIPMENT is armed for targeting — the same UI-only arming `heroArmed` uses, deliberately a SEPARATE
+   *  flag: a player may hold Equipment and a native second power at once, and their usage is independent, so
+   *  one shared "armed" boolean would let arming either cancel the other. */
+  equipArmed: boolean;
   /** WHICH wielded power is armed (Void holds two): 0 = the main button, 1 = the second. */
   heroArmedSlot: number;
   /** UI flag: the end-of-turn proc animation is playing — recruit actions stay locked until it ends. */
@@ -437,6 +441,9 @@ interface GameStore {
   cancelPresentationAction: (reason: string) => void;
   /** Toggle Hero Power targeting mode. */
   armHero: (slot?: number) => void;
+  /** Toggle Equipment targeting. Arming is UI state only — activation is atomic, so nothing reaches the
+   *  reducer until a target is picked, which is exactly why cancelling costs nothing. */
+  armEquipment: () => void;
   /** Open / close the inspect overlay for a card. */
   inspectCard: (view: CardView) => void;
   clearInspect: () => void;
@@ -1360,6 +1367,7 @@ function commitResolvedAction(
       run: next,
       savedRun,
       heroArmed: false, // any action clears targeting
+      equipArmed: false,
       inspect: null, // …and closes the inspect overlay
       sellTick: action.type === 'sell' ? s.sellTick + 1 : s.sellTick,
       // BEAT SYSTEM (PR 3): publish this action's presentation batch (DEV only — null in prod). `beatRevision`
@@ -1455,6 +1463,7 @@ export const useGame = create<GameStore>((set, get) => ({
   },
   heroArmed: false,
   heroArmedSlot: 0,
+  equipArmed: false,
   endTurnAnimating: false,
   combatEnemyDeaths: 0,
   combatBuffs: null,
@@ -1625,7 +1634,8 @@ export const useGame = create<GameStore>((set, get) => ({
     if (import.meta.env.DEV) console.warn(`[choreographer] prepared action cancelled: ${reason}`);
     set({ presentationTx: null });
   },
-  armHero: (slot = 0) => set((s) => ({ heroArmed: !s.heroArmed, heroArmedSlot: slot })),
+  armHero: (slot = 0) => set((s) => ({ heroArmed: !s.heroArmed, heroArmedSlot: slot, equipArmed: false })),
+  armEquipment: () => set((s) => ({ equipArmed: !s.equipArmed, heroArmed: false })),
   setEndTurnAnimating: (v) => set({ endTurnAnimating: v }),
   duelPreview: false,
   setDuelPreview: (v) => set({ duelPreview: v }),

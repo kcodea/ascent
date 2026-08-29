@@ -2782,6 +2782,25 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   },
 
   /**
+   * AN EQUIPMENT SPELL — one Equipment TRIGGER that CASTS a named Shop spell (owner handoff 2026-08-28).
+   *
+   * Routed through `castSpell`, the REAL cast path, which is the entire point of the classification: it is
+   * what makes the cast count as a Shop spell, pick up Shop-spell improvements, wake "after you cast a Shop
+   * spell" listeners and be duplicable by spell multipliers — for free, because none of that is reimplemented
+   * here. The spell never enters the hand and is never offered in the Shop (it is cast directly), and it does
+   * not count as a card PLAYED, since nothing left a hand.
+   *
+   * No Equipment uses this yet. It exists because the handoff asked for the classification to be built ahead
+   * of the roster — and because the alternative, discovering later that Equipment effects were never in the
+   * spell pipeline, is exactly the class of gap this system keeps producing.
+   */
+  equipmentCastSpell: (ctx, _self, params, payload) => {
+    const spell = CARD_INDEX[str(params.spellId)];
+    if (!spell?.spell) return; // not a spell id — never a silent bespoke effect
+    castSpell(ctx.state, spell, payload.target);
+  },
+
+  /**
    * BLOODPOT — one Equipment TRIGGER: +attack/+health onto the chosen friendly minion.
    *
    * ONE trigger, deliberately: the repeat count lives in the activation (see `activateEquipment`), which calls

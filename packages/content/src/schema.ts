@@ -255,6 +255,7 @@ export const EffectFactoryIdSchema = z.enum([
   'scGrantReborn',
   'grantEquipment', // the `equip` factory: hands the player the Equipment named by `params.equipmentId`
   'equipmentBuffTarget', // Bloodpot: one Equipment TRIGGER — +atk/+hp onto the chosen friendly minion
+  'equipmentCastSpell', // an EQUIPMENT SPELL: casts its named Shop spell through the real cast pipeline
   'deathrattleGrantShield',
   'onShieldBreakGrantShield',
   'onShieldBreakDamage',

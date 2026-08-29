@@ -41,6 +41,19 @@ export interface EquipmentDefinition {
   /** Params for `effectId`. A Gilded source uses `gildedParams` when present. */
   params?: Record<string, number | string>;
   gildedParams?: Record<string, number | string>;
+  /**
+   * EQUIPMENT SPELL (owner handoff 2026-08-28) — this Equipment CASTS a named Shop spell rather than
+   * resolving a bespoke effect. Set it and use `equipmentCastSpell` as the `effectId`.
+   *
+   * The classification is what matters, and it is deliberately NARROW: an Equipment Spell goes through the
+   * real Shop-spell pipeline, so it counts as a Shop spell cast, receives Shop-spell improvements, wakes
+   * "after you cast a Shop spell" listeners and can be duplicated by spell multipliers — while never entering
+   * the hand, never being offered in the Shop, and never counting as a card PLAYED.
+   *
+   * The handoff's warning is the reason this is opt-in per Equipment rather than a property of Equipment in
+   * general: "Avoid treating every Equipment effect as a spell." Bloodpot is not one.
+   */
+  spellId?: string;
 }
 
 /**

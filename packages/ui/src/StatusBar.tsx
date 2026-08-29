@@ -5,7 +5,8 @@ import { Card, mdBold } from './Card';
 import { instView } from './instView';
 import { dragonTamerCostOf, INDY_GILD_RECHARGE_GOLD, KESHI_CROWN_THRESHOLD, roundedSpellbookCostOf, buyoutCostOf, allInPayoutOf, exhibitionGrantOf, tempestGrantOf, bladeMasteryGrantOf, hoardWhelpStatsOf, TEMPEST_KILLS_PER_STEP, BLADE_ATTACKS_PER_STEP, heroPowerText, commissionOffer, COMMISSION_NAME, COMMISSION_REWARD, COMMISSION_DELAY, getHero, spellAmplifyBonus, spellAttackBonus, spellHealthBonus, rubyStatBonus, heroPowerLockTurns, activePowers, type RunState, type HeroPower } from '@game/sim';
 import { henchmanOffer } from '@game/sim';
-import { CARD_INDEX } from '@game/content';
+import { equipmentCostOf, equipmentState, equipmentText, equipmentUsesLeft, selectedEquipment, selectedEquipmentDef } from '@game/sim';
+import { CARD_INDEX, EQUIPMENT_INDEX } from '@game/content';
 import { heroArt, heroPowerArt, questArt, runeArt } from './art';
 import { Icon } from './Icon';
 import { BuffsFrame } from './BuffsFrame';
@@ -152,6 +153,24 @@ export function StatusBar() {
   const powers = activePowers(run);
   const power = powers[0]!;
   const secondPower = powers[1];
+
+  // ── EQUIPMENT readouts (owner handoff 2026-08-28) ─────────────────────────────────────────────────────
+  // Derived from `run.equipment`, never from slot-local state: the handoff requires that game-state and
+  // effect code make no assumption about which visual component Equipment lives in.
+  const equipArmed = useGame((s) => s.equipArmed);
+  const armEquipment = useGame((s) => s.armEquipment);
+  const equipOptions = equipmentState(run).available;
+  const selectedEquip = selectedEquipment(run);
+  const selectedEquipDef = selectedEquipmentDef(run);
+  const equipUses = equipmentUsesLeft(run);
+  const equipCost = selectedEquipDef ? equipmentCostOf(run, selectedEquipDef) : 0;
+  // Visible but DISABLED when unaffordable or spent — the handoff is explicit that the slot keeps showing the
+  // Equipment and explains why it cannot be used, rather than vanishing.
+  const equipReady = !!selectedEquipDef && run.phase === 'recruit' && equipUses > 0 && run.embers >= equipCost;
+  // The wording for the version this player actually holds — a Gilded source prints the Gilded rule.
+  const equipRule = selectedEquipDef && selectedEquip
+    ? equipmentText(selectedEquipDef, selectedEquip.version)
+    : '';
   // HENCHMAN offer (owner spec 2026-08-03): the hero's bound recruit at its decayed price — null for the many
   // heroes with none authored yet, and after the once-per-run buy. PLACEHOLDER SURFACE: a plain chip under the
   // power pill so the mechanic is playable end-to-end; the real presentation is Mike's to design.
@@ -814,6 +833,76 @@ export function StatusBar() {
             </div>
           );
         })()}
+        {/* ── EQUIPMENT (owner handoff 2026-08-28) ────────────────────────────────────────────────────────
+            A minion-granted, hero-power-shaped ability in the SECOND slot. It renders BESIDE a native second
+            power rather than replacing it: the handoff's rule is that both stay reachable and their usage is
+            independent, and this engine already tracks slot-1 usage separately, so covering one with the other
+            would be hiding state that is still live.
+
+            Deliberately built off `run.equipment` rather than any slot-local state — the handoff asks that
+            "game-state and effect code must not assume Equipment permanently lives inside a particular visual
+            component", and moving this to a dedicated button later should be a change to THIS block alone. */}
+        {equipOptions.length > 0 && selectedEquip && selectedEquipDef && (
+          <div className={`heropanel heropanel2 equippanel${secondPower ? ' beside' : ''}${equipArmed ? ' armed' : equipReady ? ' ready' : ''}`}>
+            <div className="hpwrap">
+              <button
+                type="button"
+                className={`heropowerbtn${equipArmed ? ' armed' : equipReady ? ' ready' : ''}`}
+                disabled={!equipReady && !equipArmed}
+                aria-label={`${selectedEquipDef.name} — ${renameTerms(equipRule).replace(/\*\*/g, '')}`}
+                onPointerDown={(e) => {
+                  e.stopPropagation();
+                  if (!equipReady || equipArmed) return;
+                  sfx.pulse();
+                  const r = e.currentTarget.getBoundingClientRect();
+                  const c = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+                  playDef('hero-power-spark', { source: c, target: c });
+                  // Untargeted Equipment fires immediately; a targeting one ARMS and waits for a pick — and
+                  // because activation is atomic, nothing has been spent until that pick happens.
+                  if (selectedEquipDef.targetMode === 'none') dispatch({ type: 'activateEquipment' });
+                  else armEquipment();
+                }}
+              >
+                <span className="hpb-glow" aria-hidden="true" />
+                <span className="hpb-glyph" aria-hidden="true">⚒</span>
+              </button>
+              {equipCost ? <span className="hpcost"><span className="costn">{equipCost}</span></span> : null}
+              {/* The SHARED allowance, not a per-Equipment charge — labelled as uses left so a player with a
+                  bonus activation can see there is a second one to spend. */}
+              <span className="hpb-tally">{equipUses}</span>
+            </div>
+            <div className="hplabel">{selectedEquipDef.name}</div>
+            <div className="herotip" role="tooltip">
+              <b>{selectedEquipDef.name}</b>{selectedEquip.version === 'gilded' ? ' · gilded' : ''}
+              <span className="herotip-rule" dangerouslySetInnerHTML={{ __html: mdBold(equipRule) }} />
+              <span className="herotip-rule">
+                {equipUses > 0 ? `${equipUses} Equipment use${equipUses === 1 ? '' : 's'} left this turn` : 'No Equipment uses left this turn'}
+                {equipCost > 0 && run.embers < equipCost ? ' · not enough Gold' : ''}
+              </span>
+            </div>
+            {/* THE SELECTOR. Only when there is a choice to make — with one Equipment and no native second
+                power, a picker would be a control that can only do nothing. Swapping is free by contract: no
+                Gold, no use, no exhaustion change. */}
+            {equipOptions.length > 1 && (
+              <div className="equipswap" role="group" aria-label="Choose Equipment">
+                {equipOptions.map((g) => (
+                  <button
+                    key={g.equipmentId}
+                    type="button"
+                    className={`equipswapbtn${g.equipmentId === selectedEquip.equipmentId ? ' on' : ''}`}
+                    title={EQUIPMENT_INDEX[g.equipmentId]?.name}
+                    onPointerDown={(e) => {
+                      e.stopPropagation();
+                      dispatch({ type: 'selectEquipment', equipmentId: g.equipmentId });
+                    }}
+                  >
+                    {EQUIPMENT_INDEX[g.equipmentId]?.name ?? g.equipmentId}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

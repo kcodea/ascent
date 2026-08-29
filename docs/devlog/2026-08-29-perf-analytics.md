@@ -224,3 +224,24 @@ the setup message rather than an error. After the owner runs the SQL that probe 
 either means the table exists, since the policies are `to authenticated` and an anon key legitimately sees
 nothing.
 
+### Auto-capture is scoped to real games
+
+Owner: *"the auto perf hud stuff should only capture full real 'play' mode games."*
+
+Automatic capture is for what players actually experience, and everything else records numbers that would
+mislead a comparison rather than inform it: **practice** runs a 3× shop timer and unlimited health, the
+**Scene Builder sandbox** exists to hold pathological boards still and its spikes would dominate every
+ranking, **tutorial** is scripted and short, **rift** is its own ruleset. Idling on the title is not a game
+either, so a run must exist.
+
+The predicate has two traps in it, which is why it is a tested module (`perfCaptureScope.ts`) rather than a
+line in the effect:
+
+- `mode` is **optional**, and absent means `'ascent'` — a mode-equality check that forgot that would silently
+  stop capturing the most common case.
+- the sandbox is an **additive flag**, not its own `RunMode`, so a mode-only check lets the Scene Builder
+  straight through.
+
+The HUD and the manual **Share** button are deliberately *not* gated by this: deliberately profiling the
+Scene Builder is a real thing to want. The scope governs only what uploads on its own.
+

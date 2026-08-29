@@ -60,6 +60,14 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'UI / Info',
+        text: 'Gilding an Equip minion now announces the upgrade — the equip flourish plays again.',
+        details: [
+          'Playing a Gilded copy over the plain version upgrades what is in your slot, so it gets the same feedback a brand-new Equipment does.',
+          'A second Gilded copy after that is silent — the slot is already at its best.',
+        ],
+      },
+      {
+        category: 'UI / Info',
         text: 'Your Equipment puffs out when you spend your last use for the turn.',
         details: [
           'Only when you actually run out — spending one of two uses leaves the other and stays quiet.',

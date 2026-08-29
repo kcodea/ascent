@@ -31,9 +31,11 @@ import { installBugReportHotkey } from './bug-report/bugReportHotkey';
 import { PerfHud } from './PerfHud';
 import { uploadRun } from './perfCloud';
 import { toRun } from './perfStore';
+import { isRealPlayRun } from './perfCaptureScope';
 
 /** Seconds of live recording an auto-share needs before it is worth a row. A reload is not a session. */
 const MIN_AUTO_SHARE_SECONDS = 45;
+
 
 /** Persist the perf choice, so closing the HUD in a dev client keeps it closed across reloads (the dev
  *  default only applies when no opinion is stored — see `enabledByFlag`). */
@@ -132,10 +134,11 @@ export function Game() {
     let shared = false;
     const onHide = (): void => {
       if (!document.hidden || shared) return;
+      const st = useGame.getState();
+      if (!isRealPlayRun(st.run)) return;        // see `isRealPlayRun` — auto-capture is real games only
       const buckets = perfMonitor.history();
       if (buckets.filter((b) => !b.hidden).length < MIN_AUTO_SHARE_SECONDS) return;
       shared = true;
-      const st = useGame.getState();
       void uploadRun(
         toRun(buckets, {
           id: `${Date.now()}`,

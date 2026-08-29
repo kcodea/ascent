@@ -117,6 +117,12 @@ also not new Equipment — the same Bloodpot, improved — so it is silent too. 
 enumerate; it is decided from the reason they gave, and `holdsEquipment` is the single line that changes if
 an upgrade should announce itself after all.
 
+> **SUPERSEDED 2026-08-29.** The owner ruled the other way, which is why that line was flagged: *"if you gild
+> an equip card with the basic version of that equipment, then playing the GILDED version … should re-play
+> the equip animation and sfx etc … there should be player feedback for the interaction."* The predicate is
+> now `equipIsNews`, and the rule is **does what you hold change** rather than **is this id new** — a Gilded
+> source over a plain entry announces, a Gilded source over an already-gilded one does not.
+
 Only the announcement is gated. The grant is untouched: duplicate sources still register, still hold the
 entry alive, still decide Gilded precedence — a test asserts each of those alongside the silence, because a
 cue fix that quietly stopped granting would look identical from the outside.

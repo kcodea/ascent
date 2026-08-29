@@ -114,21 +114,47 @@ export function grantEquipment(run: RunState, source: BoardCard, def: EquipmentD
 }
 
 /**
- * Does the player ALREADY hold this Equipment?
+ * Is this grant WORTH ANNOUNCING — i.e. does the player end up holding something they did not have?
  *
- * The gate on the equip cue (owner ruling 2026-08-28): *"we need to add logic to only play the equip
- * animation and sfx if a new equipment is actually equipped… if i have an alchemist frank on the board and i
- * play another, it should not play that animation, as i have not equipped new equipment."*
+ * The gate on the equip cue. Two owner rulings, in order:
  *
- * Keyed on the Equipment ID, not on the version, because the owner's reason covers both: *"if i have a gilded
- * alchemist frank and i play a non gilded alchemist frank, that would also NOT play the sound, because it is
- * not equipping new equipment."* By that reasoning a plain → Gilded UPGRADE is also not new Equipment — the
- * same Bloodpot, improved — so it is silent too. The grant still happens either way; only the announcement is
- * gated, and `grantEquipment` is untouched.
+ * 2026-08-28: *"only play the equip animation and sfx if a new equipment is actually equipped… if i have an
+ * alchemist frank on the board and i play another, it should not play that animation."* Plus: *"if i have a
+ * gilded alchemist frank and i play a non gilded alchemist frank, that would also NOT play the sound."*
  *
- * Deliberately a predicate on run state rather than a flag returned from the grant: any future granter (a
- * spell, a rune, a hero power) gets the same rule for free by asking before it grants.
+ * 2026-08-29, deciding the case the first ruling left open: *"if you gild an equip card with the basic
+ * version of that equipment, then playing the GILDED version and equipping the GILDED version of the
+ * equipment should re-play the equip animation and sfx etc, since that it is a 'new' equipment being added.
+ * it still takes the place of the non-gilded version in your equipment, but there should be player feedback
+ * for the interaction."*
+ *
+ * So the rule is not "is this id new" — it is **does what you hold change**:
+ *
+ *   · id not held            → new Equipment            → ANNOUNCE
+ *   · held, incoming plain   → nothing changes           → silent
+ *   · held plain, incoming GILDED → the entry upgrades   → ANNOUNCE
+ *   · held gilded, incoming gilded → already at the top  → silent
+ *
+ * The upgrade case is the interesting one and it is exactly what the shape here has to express: a Gilded
+ * source really does replace what sits in the slot, so it is a change the player made and should see, even
+ * though the Equipment's NAME is unchanged.
+ *
+ * A predicate on run state rather than a flag returned from the grant, so any future granter (a spell, a
+ * rune, a hero power) inherits the rule by asking before it grants. `grantEquipment` is untouched either
+ * way — only the announcement is gated, never the grant.
  */
+export function equipIsNews(
+  run: Pick<RunState, 'equipment'>,
+  equipmentId: string,
+  incomingGolden: boolean,
+): boolean {
+  const held = equipmentState(run).available.find((g) => g.equipmentId === equipmentId);
+  if (!held) return true;                                   // a genuinely new Equipment
+  return incomingGolden && held.version !== 'gilded';        // …or the upgrade to Gilded
+}
+
+/** Does the player hold this Equipment at all, in any version? Kept for callers that want membership rather
+ *  than the announcement rule above. */
 export function holdsEquipment(run: Pick<RunState, 'equipment'>, equipmentId: string): boolean {
   return equipmentState(run).available.some((g) => g.equipmentId === equipmentId);
 }

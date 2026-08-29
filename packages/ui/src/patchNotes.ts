@@ -56,6 +56,20 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-08-29',
+    label: 'Kringle',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: "Kringle's End of Turn buff now lands one hit per card you played, instead of a single lump.",
+        details: [
+          'Same stats as before — five cards played is still +5/+10, it just arrives as five hits in a row.',
+          'The more you played, the bigger the flurry.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-08-29',
     label: 'Fixes',
     changes: [
       {

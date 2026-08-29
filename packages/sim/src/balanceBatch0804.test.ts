@@ -108,6 +108,46 @@ describe('Kringle — +1/+1 per card played (owner balance 2026-08-04)', () => {
     expect(lead.attack - 3, '+1 Attack × 3 cards').toBe(3);
     expect(lead.health - 3, '+2 Health × 3 cards (owner balance 2026-08-15)').toBe(6);
   });
+
+  /**
+   * ITEMIZED (owner ask 2026-08-29): *"give +1/+2 and repeat for every card played this turn, so the animation
+   * triggers for every card played rapidly … much more exciting than 1 single animation."*
+   *
+   * The stat total is unchanged, which is the point — so the assertion that matters is the FX SHAPE, not the
+   * numbers. Without the per-card nesting, `captureBuffFx`'s before/after diff collapses the whole loop back
+   * into a single event and the animation is exactly as it was.
+   */
+  it('itemizes the grant: one FX wave per card played, both ends together in each', () => {
+    const s: RunState = {
+      ...createRun(1), phase: 'recruit', embers: 20, tier: 5,
+      // Kringle at one end and a second Dwarf at the other, so each wave has TWO recipients.
+      board: [card('k', 'dw_foreman'), card('mid', 'dw_brunni'), card('r', 'dw_brunni')],
+      playedThisTurn: ['a', 'b', 'c'],
+      recruitBuffFx: [],
+    };
+    applyEndOfTurn(s);
+
+    const mine = s.recruitBuffFx.filter((e) => e.sourceCardId === 'dw_foreman');
+    const waves = [...new Set(mine.map((e) => e.fxWave))];
+    expect(waves, 'three cards played → three waves, tagged 0,1,2 so the UI can stagger between them')
+      .toEqual([0, 1, 2]);
+    // Kringle is the LEFT end and buffs itself, but a source never draws a tendril to itself (`captureBuffFx`
+    // skips it — self-buffs use the pulse channel), so the recorded target each wave is the right-most Dwarf.
+    for (const w of waves) {
+      const inWave = mine.filter((e) => e.fxWave === w);
+      expect(inWave.every((e) => e.attack === 1 && e.health === 2),
+        `wave ${w} carries the per-card grant, not the lump total`).toBe(true);
+    }
+
+    // …and KRINGLE'S OWN contribution still sums to what the single lump gave. Measured from its recorded
+    // events rather than from the board, because the other Dwarf on this board has an End-of-Turn buff of its
+    // own — reading final stats would be measuring both cards and calling it Kringle's.
+    const toRight = mine.filter((e) => e.targetUid === 'r');
+    expect([
+      toRight.reduce((n, e) => n + e.attack, 0),
+      toRight.reduce((n, e) => n + e.health, 0),
+    ], 'three waves of +1/+2 sum to the same +3/+6 the single lump gave').toEqual([3, 6]);
+  });
 });
 
 describe('Rune of Distillation — "Spells", and now Rubies too', () => {

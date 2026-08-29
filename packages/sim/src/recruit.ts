@@ -3298,17 +3298,40 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *
    *  Owner change 2026-08-28 (was left-most only, `endOfTurnBuffLeftmostTribePerCard`). One Dwarf on board is
    *  BOTH ends, and it is buffed ONCE — the card names two bodies, not two grants, so the ends are deduped by
-   *  identity before anything is added. */
+   *  identity before anything is added.
+   *
+   *  ── ITEMIZED, one grant PER CARD PLAYED (owner ask 2026-08-29) ────────────────────────────────────────
+   *
+   *  *"give +1/+2 and repeat for every card played this turn, so the animation triggers for every card played
+   *  rapidly. this will be much more exciting than 1 single animation for the buff."*
+   *
+   *  The stat outcome is IDENTICAL — n × (+1/+2) is +n/+2n, the same number the live text already prints. What
+   *  changes is that it now reads as n hits landing in sequence instead of one lump.
+   *
+   *  This is not a new pattern: it is the owner's 2026-07-17 ruling for `"+x/+y per z"` End-of-Turn effects,
+   *  which `runRecurringEndOfTurn` has followed since ("10 Attachments read as ten +2/+2 hits landing
+   *  sequentially, not one +20/+20 lump"). Kringle simply predates the conversion.
+   *
+   *  Each card played is one WAVE: both ends are buffed inside a single `captureBuffFx` so they pulse
+   *  together, and the wave tag lets the UI stagger BETWEEN waves. Without the per-wave capture the diff would
+   *  collapse the whole loop back into one event — `captureBuffFx` measures before/after, so the nesting is
+   *  what produces separate animations, not the loop. */
   endOfTurnBuffEndsTribePerCard: (ctx, self, params) => {
     const tribe = str(params.tribe);
     const matches = ctx.state.board.filter((c) => !tribe || isTribe(c, tribe as never));
     if (matches.length === 0) return;
     const ends = matches.length === 1 ? [matches[0]!] : [matches[0]!, matches[matches.length - 1]!];
     const played = ctx.state.playedThisTurn?.length ?? 0;
-    const a = num(params.attack, 1) * gold(self) * played;
-    const h = num(params.health, 0) * gold(self) * played; // Kringle +1/+2 (owner balance 2026-08-15)
-    if (a <= 0 && h <= 0) return;
-    for (const target of ends) addBuff(target, nameOf(self), a, h);
+    const a = num(params.attack, 1) * gold(self);
+    const h = num(params.health, 0) * gold(self); // Kringle +1/+2 (owner balance 2026-08-15)
+    if (played <= 0 || (a <= 0 && h <= 0)) return;
+    for (let wave = 0; wave < played; wave++) {
+      const before = ctx.state.recruitBuffFx.length;
+      captureBuffFx(ctx.state, self, 'minion', () => {
+        for (const target of ends) addBuff(target, nameOf(self), a, h);
+      });
+      for (let i = before; i < ctx.state.recruitBuffFx.length; i++) ctx.state.recruitBuffFx[i]!.fxWave = wave;
+    }
   },
 
   /** Chirurgeon: every `every` cards bought, get a random Shop spell. The buy tally lives on the CARD

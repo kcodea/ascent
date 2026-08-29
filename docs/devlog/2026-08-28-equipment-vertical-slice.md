@@ -236,3 +236,34 @@ Equipment instead, so it breaks that invariant.
 Rather than hide it, both the registry and the invariant test now name the exception with its reason: an
 Equipment-use MOMENT belongs in `recruitCues.ts` alongside the shop's other bindings, and moving it there
 deletes the entry. It lives at the cue site today because the moment/binding plumbing is wider than this slice.
+
+
+## The Equipment slot is its own seat now
+
+Owner: "it is not working with void right now with 2 hero powers. can we separate the second hero power and
+equipment slots for me? I want a tuner for the equipment slot."
+
+Equipment shipped riding the `.heropanel2` seat with a `.beside` nudge, on the assumption that a hero rarely
+has a second power. Void has TWO, and the two blocks collided the moment one appeared. The borrowed seat had a
+second fault that would have bitten later: nudging the Second Power tuner silently moved Equipment, which is
+not something either dial claims to do.
+
+So Equipment has `--eqs-*` of its own (`equipSlotConfig.ts`, 🧪 Equipment Slot tuner: X, Y, scale), seated
+above the hero per the owner's screenshot. The two slots are placed independently and neither tuner can
+surprise the other. `.equipslot` replaces `.heropanel2 .equippanel .beside` entirely, so there is no shared
+selector left to re-couple them by accident.
+
+Every FX and aim selector followed: the equip spark, the use travel and the targeting line all resolve
+`.equipslot .heropowerbtn`. The aim anchor's second-power branch also got simpler — it no longer has to exclude
+Equipment, because Equipment is no longer a `.heropanel2`.
+
+### Verified live, on the case that broke
+
+A Void run holding two powers AND Bloodpot: main power (317, 763), second power (375, 909), Equipment
+(370, 590) — no pair overlapping. Pressing the Equipment button armed it, the authored `bloodpot` def fired,
+the target went 1/1 → 4/4, and the use cue carried the right Equipment id and target uid.
+
+One thing worth recording from that session: the button read DISABLED on the first attempt, which looked like
+a bug and was not — the shared allowance had been spent by an earlier activation on the same state. The slot
+correctly showed the Equipment and refused to fire it, which is the handoff's "visible but disabled" rule
+working.

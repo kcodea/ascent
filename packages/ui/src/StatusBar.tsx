@@ -845,7 +845,7 @@ export function StatusBar() {
             "game-state and effect code must not assume Equipment permanently lives inside a particular visual
             component", and moving this to a dedicated button later should be a change to THIS block alone. */}
         {equipOptions.length > 0 && selectedEquip && selectedEquipDef && (
-          <div className={`heropanel heropanel2 equippanel${secondPower ? ' beside' : ''}${equipArmed ? ' armed' : equipReady ? ' ready' : ''}`}>
+          <div className={`heropanel equipslot${equipArmed ? ' armed' : equipReady ? ' ready' : ''}`}>
             <div className="hpwrap">
               <button
                 type="button"

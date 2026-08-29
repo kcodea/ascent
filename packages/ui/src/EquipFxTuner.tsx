@@ -56,7 +56,7 @@ function testEquip(): void {
   const cfg = getEquipFxConfig();
   const at = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
   // The slot's real position when one is on screen, so the two halves are judged at their true separation.
-  const slotEl = document.querySelector<HTMLElement>('.equippanel .heropowerbtn');
+  const slotEl = document.querySelector<HTMLElement>('.equipslot .heropowerbtn');
   const r = slotEl?.getBoundingClientRect();
   const slot = r ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : { x: at.x + 220, y: at.y + 160 };
   const spark = (p: { x: number; y: number }, delay: number): void => {
@@ -71,7 +71,7 @@ function testEquip(): void {
 /** Fire the USE cue: the Equipment's own def travelling from the slot to a point out on the board. */
 function testUse(): void {
   const cfg = getEquipFxConfig();
-  const slotEl = document.querySelector<HTMLElement>('.equippanel .heropowerbtn');
+  const slotEl = document.querySelector<HTMLElement>('.equipslot .heropowerbtn');
   const r = slotEl?.getBoundingClientRect();
   const from = r ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : { x: 200, y: window.innerHeight - 200 };
   // A stand-in destination out on the board, so the travel is judged over a realistic distance.

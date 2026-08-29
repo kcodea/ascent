@@ -1752,7 +1752,7 @@ export function Recruit() {
     if (cues.length === 0) return;
     const cfg = getEquipFxConfig(); // read at FIRE TIME, so a tuner edit applies to the next equip
     // Where the icon lands. Absent (no second slot rendered yet) → the source half still plays.
-    const slotEl = document.querySelector<HTMLElement>('.equippanel .heropowerbtn');
+    const slotEl = document.querySelector<HTMLElement>('.equipslot .heropowerbtn');
     const slotR = slotEl?.getBoundingClientRect();
     const slot = slotR ? { x: slotR.left + slotR.width / 2, y: slotR.top + slotR.height / 2 } : null;
     const timers: number[] = [];
@@ -3479,10 +3479,10 @@ export function Recruit() {
     // of the hero power instead (owner report 2026-08-28). Three buttons can exist at once now (native, a
     // second power, Equipment), so the anchor is chosen from what is armed rather than from what is first.
     const anchorSel = equipArmed
-      ? '.statusbar .equippanel .heropowerbtn'
+      ? '.statusbar .equipslot .heropowerbtn'
       : heroArmedSlot === 1
-        ? '.statusbar .heropanel2:not(.equippanel) .heropowerbtn'
-        : '.statusbar .heropanel:not(.heropanel2) .heropowerbtn';
+        ? '.statusbar .heropanel2 .heropowerbtn'
+        : '.statusbar .heropanel:not(.heropanel2):not(.equipslot) .heropowerbtn';
     const anchorEl = document.querySelector(anchorSel)
       // Fall back to the first button, then the hero frame — an anchor is better than no aim line at all.
       ?? document.querySelector('.statusbar .heropowerbtn')

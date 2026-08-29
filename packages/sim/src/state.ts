@@ -402,10 +402,18 @@ export interface BuffFxEvent {
  *  gone from the board for a death, which is why the UI keeps a last-known-position cache. */
 /** One equip cue: a body granting its Equipment, on play or at the Start-of-Turn rebuild. */
 export interface EquipFx {
-  /** `equip` is a fresh grant (the full animation); `reequip` is the turn-start refresh (a brief flash). */
-  kind: 'equip' | 'reequip';
+  /**
+   * `equip`   — a fresh grant (the full animation),
+   * `reequip` — the turn-start refresh (one per EQUIPMENT, not per source — owner ruling 2026-08-28),
+   * `use`     — an activation: the Equipment's own effect, travelling from the slot to what it was cast on.
+   */
+  kind: 'equip' | 'reequip' | 'use';
   uid: string;
   cardId: string;
+  /** `use` only: the Equipment that fired, so the UI can look up its authored FX and SFX. */
+  equipmentId?: string;
+  /** `use` only: what it was cast on — the travel destination. Absent for an untargeted Equipment. */
+  targetUid?: string;
 }
 
 export interface ShopDeathFx {

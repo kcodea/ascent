@@ -483,6 +483,15 @@ export const sfx = {
     if (playSample('equipclang', 'equip', delay / 1000)) return;
     tone({ freq: 2100, dur: 0.12, type: 'square', vol: 0.09, slideTo: 900, category: 'equip' });
   },
+  /**
+   * USING an Equipment — the clip the Equipment itself names (`useSfxId`), so a new one brings its own sound
+   * without touching this file. `delay` schedules on the audio clock, as `equipClang` does, so the cue stays
+   * locked to the visual it is timed against.
+   */
+  equipmentUse: (clipId: string, delay = 0) => {
+    if (playSample(clipId, 'equip', delay / 1000)) return;
+    tone({ freq: 520, dur: 0.18, type: 'sine', vol: 0.1, slideTo: 300, category: 'equip' });
+  },
   // Choosing a hero / pressing the hero-power button — the sourced "pulse" clip; synth ping fallback.
   pulse: () => {
     if (playSample('pulse', 'pulse')) return;

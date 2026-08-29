@@ -26,7 +26,11 @@ const SPECS: Record<keyof EquipFxConfig, [string, TunerUnit | undefined, string,
   sourceDelayMs: ['Source burst', 'ms', 'When the burst fires on the MINION granting the Equipment.', 'Timing'],
   slotDelayMs: ['Slot burst', 'ms', 'When the burst fires on the Equipment BUTTON — the icon arriving.', 'Timing'],
   sfxDelayMs: ['Clang', 'ms', 'When the metallic clang plays. Scheduled on the audio clock, so it cannot drift from the visual.', 'Timing'],
-  staggerMs: ['Per-source stagger', 'ms', 'Gap between sources when several Equip minions re-equip at once, so a rebuild reads left-to-right instead of as one blur.', 'Timing'],
+  staggerMs: ['Per-source stagger', 'ms', 'Gap between DIFFERENT Equipment at a rebuild, so several read left-to-right instead of as one blur. Duplicate sources of the same Equipment cue once, not once each.', 'Timing'],
+
+  useDelayMs: ['Use effect', 'ms', "When the Equipment's own effect plays on activation — it travels from the slot to whatever it was cast on.", 'Using it'],
+  useSfxDelayMs: ['Use sound', 'ms', 'When the use clip plays. Audio clock, so it cannot drift from the travel.', 'Using it'],
+  useSfxOn: ['Use sound', undefined, '1 plays the use clip, 0 silences it — for judging the travel alone.', 'Using it'],
 
   sourceOn: ['Source burst', undefined, '1 plays the burst on the source minion, 0 silences it — for judging the slot and clang alone.', 'On / off'],
   slotOn: ['Slot burst', undefined, '1 plays the burst on the Equipment button, 0 silences it.', 'On / off'],
@@ -37,6 +41,7 @@ const SPECS: Record<keyof EquipFxConfig, [string, TunerUnit | undefined, string,
 /** Declaration order IS render order; controls sharing a group render under its heading. */
 const ORDER: (keyof EquipFxConfig)[] = [
   'sourceDelayMs', 'slotDelayMs', 'sfxDelayMs', 'staggerMs',
+  'useDelayMs', 'useSfxDelayMs', 'useSfxOn',
   'sourceOn', 'slotOn', 'sfxOn', 'reequipSparkOn',
 ];
 
@@ -63,11 +68,30 @@ function testEquip(): void {
   if (cfg.sfxOn) sfx.equipClang(cfg.sfxDelayMs);
 }
 
+/** Fire the USE cue: the Equipment's own def travelling from the slot to a point out on the board. */
+function testUse(): void {
+  const cfg = getEquipFxConfig();
+  const slotEl = document.querySelector<HTMLElement>('.equippanel .heropowerbtn');
+  const r = slotEl?.getBoundingClientRect();
+  const from = r ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : { x: 200, y: window.innerHeight - 200 };
+  // A stand-in destination out on the board, so the travel is judged over a realistic distance.
+  const to = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+  if (canPlayDefs()) {
+    window.setTimeout(() => { playDef('bloodpot', { source: from, target: to, cursor: to }); }, cfg.useDelayMs);
+  }
+  if (cfg.useSfxOn) sfx.equipmentUse('bloodpot', cfg.useSfxDelayMs);
+}
+
 const actions: TunerAction[] = [
   {
     label: '▶ equip',
     hint: 'Fires the whole cue — source burst, slot burst and clang — at their tuned offsets.',
     run: testEquip,
+  },
+  {
+    label: '▶ use',
+    hint: "Bloodpot's use effect, travelling from the slot to the middle of the board, with its clip.",
+    run: testUse,
   },
   {
     label: '▶ clang only',

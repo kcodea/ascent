@@ -123,8 +123,12 @@ describe('DIRECT_CALL_SITES is a derivation, not a list', () => {
   // for combat moments, `recruitCues.ts` for shop ones, and `runeTriggerFx.ts` for the HUD (a rune badge,
   // which the score cannot anchor to — see that file's header). Same path, three times, not a new kind of
   // caller: each resolves a binding and plays its `def`.
-  it('has no dynamic call site outside the binding resolvers', () => {
-    expect(Object.keys(DYNAMIC_CALL_SITES).sort()).toEqual(['choreo/recruitCues.ts', 'choreo/score.ts', 'runeTriggerFx.ts', 'useCombatReplay.ts']);
+  it('has no dynamic call site outside the binding resolvers — plus one recorded exception', () => {
+    // `Recruit.tsx` is the EQUIPMENT USE cue (2026-08-28): the def id is data on the Equipment rather than a
+    // `bindings.json` row, so it resolves at the cue site instead of in a resolver. That is real debt, not a
+    // second pattern — an Equipment-use moment belongs in `recruitCues.ts`, and moving it there should shrink
+    // this list back to the four resolvers. Listed so the exception is reviewable rather than silent.
+    expect(Object.keys(DYNAMIC_CALL_SITES).sort()).toEqual(['Recruit.tsx', 'choreo/recruitCues.ts', 'choreo/score.ts', 'runeTriggerFx.ts', 'useCombatReplay.ts']);
   });
 
   // The seven migrated effects the library used to call inert, plus `ruby-gem-apply` — authored in the
@@ -133,7 +137,7 @@ describe('DIRECT_CALL_SITES is a derivation, not a list', () => {
   // plus `watcher-pulse`, fired directly from `useCombatReplay.ts`'s trigger-medallion effect.
   it('finds every effect the game plays from code', () => {
     expect(directCallDefIds()).toEqual([
-      'ale-bubbles', 'board-wipe', 'choose-one-both', 'cia-hp', 'click-puff', 'coin', 'coins', 'consume-pull', 'damage-burst', 'death-dissolve',
+      'ale-bubbles', 'bloodpot', 'board-wipe', 'choose-one-both', 'cia-hp', 'click-puff', 'coin', 'coins', 'consume-pull', 'damage-burst', 'death-dissolve',
       'equipment-spark',
       'freeze-blast', 'hero-power-spark', 'hero-power-target', 'impact-dust', 'landing-dust', 'ruby-gem-apply',
       'rune-buff-unit', 'rune-slot-break', 'shop-buff-aura', 'shop-tier-up', 'strike-impact', 'tallyanimation1', 'watcher-pulse',

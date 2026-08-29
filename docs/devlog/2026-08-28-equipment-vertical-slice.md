@@ -183,3 +183,56 @@ The CSS ring stays underneath as the always-on floor: authored defs do not ship 
 
 `window.__fxFires` (the FX layer's own record) shows `equipment-spark` firing four times for two equips —
 source and slot for each — spaced ~70ms apart, matching the configured stagger.
+
+
+## Two live bugs, and the Bloodpot use effect
+
+### The equip animation fired once per Frank ever played
+
+Owner: "my 5th alchemist frank plays the animation and sfx 5 times in a row."
+
+`equipFx` was **never cleared**. Every other per-action scratch buffer is reset at the top of `reduce`; this
+one was declared, stamped and read, and nothing emptied it. The UI replays the whole list whenever the seq
+changes, so the list length WAS the repeat count.
+
+The clear now happens on the CLONE inside `reduceCore`, not on the input, which is strictly better than the
+older input-side pattern: every rejection returns before that clone, so a refused action is byte-identical.
+The input-side version could not promise that once a buffer held something — and a test asserting "a refused
+activation changes nothing" caught exactly that while I was fixing the first bug. `shopDeathFx` moved with it.
+
+### One re-equip cue per EQUIPMENT, not per source
+
+Owner: "if i have 2 alchemist franks on board, only 1 of them re-equips the blood pot, not both of them."
+
+This overrides the handoff, which asked for "an individual re-equip beat for every Equip minion, including
+duplicate sources". Duplicates already collapse into one selector entry, so one animation is what the player
+is being told about; five Franks firing five identical bursts reads as a bug rather than as information.
+
+EVERY source still re-equips — that is what keeps duplicate and Gilded precedence working — only the CUE is
+deduplicated, attributed to the left-most source, which board order already favours.
+
+### Using an Equipment plays its own effect
+
+The owner authored `bloodpot` (smoke, two bursts, and a ribbon on the `travel` anchor) and `bloodpot.wav`. The
+Equipment NAMES both (`useFxId` / `useSfxId`), so the def travels from the slot to whatever it was cast on and
+a future Equipment brings its own cue with no UI change. ONE travel per activation, not per trigger — the
+handoff's rule that repeats "communicate repetition without replaying the full animation".
+
+The tuner grew a Using-it group: delays for the effect and its clip, an on/off for the sound, and a ▶ use test
+that fires slot-to-board so the travel is judged over a real distance.
+
+### A fixture trap, for the third time today
+
+Three copies of one card TRIPLE. A three-Frank fixture combined itself into a golden mid-test and emptied the
+board the assertions depended on — the same shape as the sandbag fixture in the Apples test and the six-Orin
+board in `ownerBugs0826`. Two copies is the most a duplicate-source test can use.
+
+### Recorded debt: one dynamic playDef outside the resolvers
+
+`directCalls.test.ts` enforces that a dynamic `playDef(someVariable)` only appears in a BINDING RESOLVER —
+every other data-resolved def id comes from `bindings.json`. The Equipment-use cue reads its id off the
+Equipment instead, so it breaks that invariant.
+
+Rather than hide it, both the registry and the invariant test now name the exception with its reason: an
+Equipment-use MOMENT belongs in `recruitCues.ts` alongside the shop's other bindings, and moving it there
+deletes the entry. It lives at the cue site today because the moment/binding plumbing is wider than this slice.

@@ -1,5 +1,5 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type TransitionEvent as ReactTransitionEvent } from 'react';
-import { CARD_INDEX, QUEST_INDEX, RUNE_INDEX, referencedCardIds } from '@game/content';
+import { CARD_INDEX, EQUIPMENT_INDEX, QUEST_INDEX, RUNE_INDEX, referencedCardIds } from '@game/content';
 import { compileTimeline } from './choreographer/compileTimeline';
 import { normalizePresentationBatch } from './choreographer/adapters/presentationBatchAdapter';
 import { createTimelinePlayer, runTimeline } from './choreographer/livePlayer';
@@ -1757,7 +1757,31 @@ export function Recruit() {
     const slot = slotR ? { x: slotR.left + slotR.width / 2, y: slotR.top + slotR.height / 2 } : null;
     const timers: number[] = [];
     const retire: Array<() => void> = [];
-    cues.forEach((cue, i) => {
+    // USING an Equipment is its own shape: the Equipment's authored def travels FROM the slot TO what it was
+    // cast on (owner 2026-08-28), with the clip the Equipment names. Handled before the grant cues below
+    // because it shares nothing with them but the channel.
+    for (const cue of cues) {
+      if (cue.kind !== 'use') continue;
+      const eq = cue.equipmentId ? EQUIPMENT_INDEX[cue.equipmentId] : undefined;
+      if (!eq) continue;
+      const tEl = cue.targetUid ? findEl(cue.targetUid) : null;
+      const tR = tEl?.getBoundingClientRect();
+      // No target (an untargeted Equipment) → the effect plays ON the slot rather than travelling nowhere.
+      const to = tR ? { x: tR.left + tR.width / 2, y: tR.top + tR.height / 2 } : slot;
+      if (eq.useFxId && slot && to && canPlayDefs()) {
+        const fire = (): void => {
+          const stop = playDef(
+            eq.useFxId!,
+            { source: slot, target: to, cursor: to },
+            { uids: { source: null, target: cue.targetUid ?? null } },
+          );
+          if (stop) retire.push(stop);
+        };
+        if (cfg.useDelayMs > 0) timers.push(window.setTimeout(fire, cfg.useDelayMs)); else fire();
+      }
+      if (eq.useSfxId && cfg.useSfxOn) sfx.equipmentUse(eq.useSfxId, cfg.useSfxDelayMs);
+    }
+    cues.filter((c) => c.kind !== 'use').forEach((cue, i) => {
       const el = findEl(cue.uid);
       const r = el?.getBoundingClientRect();
       const from = r ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : null;

@@ -123,8 +123,13 @@ export interface ReequipCue { uid: string; cardId: string; equipmentId: string }
  * There are no Start-of-Turn priority LAYERS in this engine — it is an imperative sequence — so "first" is
  * positional, and a test pins that position rather than trusting the comment.
  *
- * Returns the sources that re-equipped, in board order, one entry PER SOURCE BODY (duplicates included) —
- * the UI plays one re-equip cue each, even though duplicates collapse into a single selector entry.
+ * Returns one cue per EQUIPMENT, in board order, attributed to its LEFT-MOST source.
+ *
+ * Per EQUIPMENT, not per source body — owner ruling 2026-08-28, overriding the handoff's "play an individual
+ * re-equip beat for every Equip minion": "if i have 2 alchemist franks on board, only 1 of them re-equips the
+ * blood pot, not both of them." Duplicates already collapse into one selector entry, so one animation is what
+ * the player is actually being told about; five Franks firing five identical bursts read as a bug, not as
+ * information.
  */
 export function rebuildEquipment(run: RunState): ReequipCue[] {
   const lastUsed = equipmentState(run).lastUsedEquipmentId;
@@ -139,11 +144,16 @@ export function rebuildEquipment(run: RunState): ReequipCue[] {
     ...(lastUsed ? { lastUsedEquipmentId: lastUsed } : {}),
   };
   const cues: ReequipCue[] = [];
+  const cued = new Set<string>();
   // LEFT TO RIGHT: board order decides the fallback selection, so the scan order IS a rule, not an accident.
+  // EVERY source still re-equips (that is what keeps duplicate/Gilded precedence working) — only the CUE is
+  // deduplicated, and it is attributed to the left-most source, which is the one board order already favours.
   for (const card of run.board) {
     const def = equipmentOf(CARD_INDEX[card.cardId]);
     if (!def) continue;
     grantEquipment(run, card, def);
+    if (cued.has(def.id)) continue;
+    cued.add(def.id);
     cues.push({ uid: card.uid, cardId: card.cardId, equipmentId: def.id });
   }
   const e = run.equipment;

@@ -30,6 +30,12 @@ export interface EquipFxConfig {
   /** 1 = the RE-EQUIP (Start of Turn) refresh plays the same def, 0 = only the CSS flash. Off by default:
    *  a full spark per surviving source every turn is a lot of screen for a bookkeeping step. */
   reequipSparkOn: number;
+  /** ms before the USE effect plays — the Equipment's own def, travelling from the slot to its target. */
+  useDelayMs: number;
+  /** ms before the USE clip plays. Audio clock, so it cannot drift from the travel. */
+  useSfxDelayMs: number;
+  /** 1 = play the use clip, 0 = silent (for judging the travel alone). */
+  useSfxOn: number;
 }
 
 const DEFAULTS: EquipFxConfig = {
@@ -43,6 +49,10 @@ const DEFAULTS: EquipFxConfig = {
   sfxOn: 1,
   staggerMs: 70,
   reequipSparkOn: 0,
+  useDelayMs: 0,
+  // The clip starts with the travel rather than the landing — a potion is thrown, not seated.
+  useSfxDelayMs: 0,
+  useSfxOn: 1,
 };
 
 const KEY = 'ascent.fx.equip.v1';
@@ -83,4 +93,7 @@ export const EQUIP_FX_RANGES: Partial<Record<keyof EquipFxConfig, [number, numbe
   sfxOn: [0, 1, 1],
   staggerMs: [0, 400, 5],
   reequipSparkOn: [0, 1, 1],
+  useDelayMs: [0, 800, 10],
+  useSfxDelayMs: [0, 800, 10],
+  useSfxOn: [0, 1, 1],
 };

@@ -244,14 +244,17 @@ describe('duplicate and Gilded sources', () => {
     expect(equipmentState(s).available[0]!.version, 'the rebuild reads the surviving sources').toBe('plain');
   });
 
-  it('every duplicate source gets its OWN re-equip cue, though they collapse to one option', () => {
+  it('duplicate sources cue ONCE between them, and still collapse to one option', () => {
+    // Owner ruling 2026-08-28, overriding the handoff's per-minion beat: "if i have 2 alchemist franks on
+    // board, only 1 of them re-equips the blood pot, not both of them."
     let s = run({ hand: [body('f1', 'e3_frank'), body('f2', 'e3_frank')] });
     s = play(s, 'f1');
     s = play(s, 'f2', 1);
     s = nextTurn(s);
     const cues = (s.equipFx ?? []).filter((f) => f.kind === 'reequip');
-    expect(cues.map((c) => c.uid), 'one cue per body, in board order').toEqual(['f1', 'f2']);
+    expect(cues.map((c) => c.uid), 'one cue, on the left-most source').toEqual(['f1']);
     expect(equipmentState(s).available, 'still one option').toHaveLength(1);
+    expect(equipmentState(s).available[0]!.sourceUids, 'though BOTH still re-equipped').toEqual(['f1', 'f2']);
   });
 });
 
@@ -388,5 +391,73 @@ describe('the Equipment Spell classification', () => {
     expect(s.spellsCast, 'an Equipment Spell IS a Shop spell cast').toBe(castsBefore + 1);
     expect((s.playedThisTurn ?? []).length, 'but never a card PLAYED — nothing left a hand').toBe(playedBefore);
     expect(s.hand.length, 'and it never enters the hand').toBe(handBefore);
+  });
+});
+
+/**
+ * FX CUES are per-ACTION scratch. Both bugs below were reported live on 2026-08-28 and are the kind that only
+ * show up after several plays, so they are pinned by counting rather than by eye.
+ */
+describe('equip cues do not pile up', () => {
+  it('each play cues ONCE — the list is not cumulative', () => {
+    // The bug: `equipFx` was never cleared between actions, so the UI (which replays the whole list when the
+    // seq changes) fired the animation once per Equip minion EVER played. The fifth Frank played it five times.
+    // TWO copies, deliberately: a third would complete a TRIPLE and combine them into a golden mid-test,
+    // emptying the board the assertions depend on.
+    let s = run({ hand: [body('f1', 'e3_frank'), body('f2', 'e3_frank')] });
+    s = play(s, 'f1', 0);
+    expect(s.equipFx, 'one cue after the first play').toHaveLength(1);
+    s = play(s, 'f2', 1);
+    expect(s.equipFx, 'still ONE after the second — not two').toHaveLength(1);
+    expect(s.equipFx![0]!.uid, 'and it is the body that just landed').toBe('f2');
+  });
+
+  it('an unrelated action clears the previous cue rather than replaying it', () => {
+    let s = run({ hand: [body('f', 'e3_frank')], embers: 20 });
+    s = play(s, 'f');
+    expect(s.equipFx).toHaveLength(1);
+    s = act(s, { type: 'roll' });
+    expect(s.equipFx ?? [], 'a roll is not an equip').toEqual([]);
+  });
+});
+
+describe('the rebuild cues once per EQUIPMENT, not per source', () => {
+  it('two Franks re-equip one Bloodpot and cue ONCE', () => {
+    // Owner ruling 2026-08-28, overriding the handoff: "if i have 2 alchemist franks on board, only 1 of them
+    // re-equips the blood pot, not both of them." Two copies, not three — a third triples them away.
+    let s = run({ hand: [body('f1', 'e3_frank'), body('f2', 'e3_frank')] });
+    s = play(s, 'f1', 0);
+    s = play(s, 'f2', 1);
+    s = nextTurn(s);
+    const cues = (s.equipFx ?? []).filter((f) => f.kind === 'reequip');
+    expect(cues, 'one cue, not two').toHaveLength(1);
+    expect(cues[0]!.uid, 'attributed to the LEFT-MOST source').toBe('f1');
+    // …while every source still re-equips, which is what keeps duplicate/Gilded precedence working.
+    expect(equipmentState(s).available[0]!.sourceUids).toEqual(['f1', 'f2']);
+  });
+});
+
+describe('using an Equipment cues its own effect', () => {
+  it('stamps ONE use cue carrying the Equipment and its target', () => {
+    let s = run({ hand: [body('f', 'e3_frank')], board: [body('t', 'sandbag')] });
+    s = play(s, 'f', 1);
+    s = activate(s, 't');
+    const uses = (s.equipFx ?? []).filter((f) => f.kind === 'use');
+    expect(uses, 'one use cue').toHaveLength(1);
+    expect(uses[0]!.equipmentId, 'so the UI can look up its authored FX and clip').toBe('bloodpot');
+    expect(uses[0]!.targetUid, 'and where the effect travels to').toBe('t');
+  });
+
+  it('repeats do NOT replay it — one travel per activation, however many triggers', () => {
+    let s = run({ hand: [body('f', 'e3_frank')], board: [body('t', 'sandbag')] });
+    s = play(s, 'f', 1);
+    s.equipmentExtraTriggers = 2; // three triggers
+    s = activate(s, 't');
+    expect((s.equipFx ?? []).filter((f) => f.kind === 'use'), 'still one').toHaveLength(1);
+  });
+
+  it('Bloodpot names the FX and clip it plays, so a new Equipment needs no UI change', () => {
+    expect(BLOODPOT.useFxId).toBe('bloodpot');
+    expect(BLOODPOT.useSfxId).toBe('bloodpot');
   });
 });

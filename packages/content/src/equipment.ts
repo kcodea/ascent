@@ -54,6 +54,14 @@ export interface EquipmentDefinition {
    * general: "Avoid treating every Equipment effect as a spell." Bloodpot is not one.
    */
   spellId?: string;
+  /**
+   * PRESENTATION for USING it (owner 2026-08-28). Both optional, and both named BY THE EQUIPMENT so a new one
+   * brings its own cue without a UI change:
+   *  · `useFxId`  — an authored FX def, played from the Equipment BUTTON to the target it was cast on.
+   *  · `useSfxId` — an audio clip in `ui/src/audio/`, scheduled on the audio clock beside it.
+   */
+  useFxId?: string;
+  useSfxId?: string;
 }
 
 /**
@@ -71,6 +79,8 @@ export const BLOODPOT: EquipmentDefinition = {
   effectId: 'equipmentBuffTarget',
   params: { attack: 3, health: 3 },
   gildedParams: { attack: 6, health: 6 },
+  useFxId: 'bloodpot',
+  useSfxId: 'bloodpot',
 };
 
 export const EQUIPMENT: readonly EquipmentDefinition[] = [BLOODPOT];

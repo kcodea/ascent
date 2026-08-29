@@ -646,10 +646,6 @@ export function reduce(state: RunState, action: Action): RunState {
   // across dispatches). For a rejected no-op reduceCore returns `state` itself → `next.recruitBuffFx` stays [].
   state.recruitBuffFx = [];
   state.aleGranted = []; // per-action scratch: which Dwarf generated an Ale this action (aleGrantSeq stays monotonic)
-  // Per-action scratch: shop death / Echo cues (shopFxSeq stays monotonic). Cleared only when it HOLDS
-  // something — assigning [] unconditionally would add the field to a state that never had it, which a
-  // no-op expectation (a refused action must return an identical state) correctly reads as a change.
-  if (state.shopDeathFx?.length) state.shopDeathFx = [];
   state.auraFx = undefined; // same per-action scratch contract as recruitBuffFx (auraFxSeq stays monotonic)
   state.veinstormStamped = undefined; // per-action scratch: which offers Veinstorm gemmed (veinstormFxSeq stays monotonic)
   // Weld FX does NOT use the per-action scratch contract above, and must not: React BATCHES dispatches, so
@@ -1129,6 +1125,15 @@ function reduceCore(state: RunState, action: Action): RunState {
   // record (as both existing writers already do) — mutating in place would leak across states.
   const { lastCombat, servedBoards, ...rest } = state;
   const s = structuredClone(rest) as RunState;
+  // PER-ACTION FX SCRATCH (shop deaths / Echoes, and equip cues) is cleared HERE, on the CLONE, not on the
+  // input above. Two things depend on that:
+  //   · a REFUSED action returns `state` untouched — every rejection above happens before this clone, so a
+  //     no-op is byte-identical, which the older input-side clears could not promise once the buffer held
+  //     something;
+  //   · the action's own stamps still start from empty, which is what stops cues ACCUMULATING — the bug that
+  //     made the fifth Alchemist Frank play the equip animation five times (owner report 2026-08-28).
+  if (s.shopDeathFx?.length) s.shopDeathFx = [];
+  if (s.equipFx?.length) s.equipFx = [];
   s.lastCombat = lastCombat;
   s.servedBoards = servedBoards;
   // Sable: mirror this turn's Soulbind onto the stateless `addBuff` hook. MUST be stamped from the DRAFT `s`,
@@ -2302,6 +2307,12 @@ function reduceCore(state: RunState, action: Action): RunState {
         uid: `eq:${def.id}`, cardId: def.id, tribe: 'neutral', attack: 0, health: 0, keywords: [], golden: false,
       };
       if (!fireEquipmentTriggers(s, def, granted.version, self, target, triggers)) return state;
+      // ONE use cue per ACTIVATION, not per trigger — the handoff's rule for repeats is that they "communicate
+      // repetition without replaying the full animation", so a three-trigger Bloodpot is one travel, not three.
+      stampEquipFx(s, {
+        kind: 'use', uid: self.uid, cardId: self.cardId, equipmentId: def.id,
+        ...(target ? { targetUid: target.uid } : {}),
+      });
       checkTriples(s); // an Equipment that summons or grants can still complete a triple
       return s;
     }

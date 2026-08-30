@@ -45,6 +45,7 @@ import { deriveDragDecision, dragDecisionEqual, computeCastingSpell, type DragGe
 import { QuestCard } from './QuestCard';
 import { RuneCard } from './RuneCard';
 import { RuneLockIn, type RuneLockInCard } from './RuneLockIn';
+import { captureRuneLockIn } from './runeLockInCapture';
 import { getRuneLockInConfig, stretchLockIn } from './runeLockInConfig';
 import { combatGains } from './combatGains';
 import { instView, liveCardText, type LiveTextParams } from './instView';
@@ -1789,6 +1790,8 @@ export function Recruit() {
    * forge, which is what lets the ceremony play after the thing it is about is gone.
    */
   const [lockIn, setLockIn] = useState<RuneLockInCard[] | null>(null);
+  /** See the store field: set only by `replayPlayer`, never by live play. */
+  const runeLockInCue = useGame((st) => st.runeLockInCue);
   /** Dev-only slow-motion for the demo — the real ceremony always plays at its authored speed. */
   const [lockInSlow, setLockInSlow] = useState(1);
   /**
@@ -1798,26 +1801,13 @@ export function Recruit() {
    */
   const lockInDemoRef = useRef<((slow?: number) => void) | null>(null);
   const startRuneLockIn = useCallback((el: HTMLElement | null, chosenIndex: number): void => {
-    const offer = useGame.getState().run.runeforgeOffer;
-    if (!el || !offer) return;
-    // Measure EVERY card once, now — the row is about to stop existing. `.runecard` siblings are the cards
-    // in offer order, so the index lines up with the offer array without threading ids through the DOM.
-    const row = el.closest('.forge-cards');
-    const els = row ? [...row.querySelectorAll<HTMLElement>('.runecard')] : [el];
-    const cards: RuneLockInCard[] = [];
-    offer.forEach((id, i) => {
-      const rune = RUNE_INDEX[id];
-      const node = els[i];
-      if (!rune || !node) return;
-      const r = node.getBoundingClientRect();
-      cards.push({
-        rune,
-        cost: Math.max(0, rune.cost - (useGame.getState().run.runeforgeDiscounts?.[i] ?? 0)),
-        rect: { x: r.left, y: r.top, w: r.width, h: r.height },
-        chosen: i === chosenIndex,
-      });
-    });
-    if (cards.some((c) => c.chosen)) { setLockInSlow(1); setLockIn(cards); }
+    const run = useGame.getState().run;
+    if (!el || !run.runeforgeOffer) return;
+    // Measure EVERY card once, now — the row is about to stop existing. Shared with the REPLAY path
+    // (`captureRuneLockIn`) so a replayed ceremony is measured exactly as a live one is; two copies of this
+    // would drift, and the drift would show as the cards jumping on the ceremony's first frame.
+    const cards = captureRuneLockIn(run.runeforgeOffer, run.runeforgeDiscounts, chosenIndex, el);
+    if (cards) { setLockInSlow(1); setLockIn(cards); }
   }, []);
 
   // Publish the demo: three real runes laid out where the forge puts them, middle one chosen.
@@ -6799,6 +6789,17 @@ export function Recruit() {
           cards={lockIn}
           onDone={() => { setLockIn(null); }}
           timing={lockInSlow === 1 ? undefined : stretchLockIn(getRuneLockInConfig(), lockInSlow)}
+        />
+      )}
+      {/* The same ceremony, armed by PLAYBACK rather than by a click (`replayPlayer` measured the forge row
+          the instant before the frame that cleared it). Kept as a second mount rather than merged into the
+          state above so the two paths cannot interfere: a live ceremony is never interrupted by a scrub, and
+          clearing the cue is the player's business, not this component's local state. */}
+      {runeLockInCue && (
+        <RuneLockIn
+          key={`cue:${runeLockInCue.find((c) => c.chosen)?.rune.id ?? 'x'}`}
+          cards={runeLockInCue}
+          onDone={() => { useGame.setState({ runeLockInCue: null }); }}
         />
       )}
       {!overlaysHeld && run.runeforgeOffer && !forgeMin && (

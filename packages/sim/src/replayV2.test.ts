@@ -398,3 +398,37 @@ describe('drag paths ride the frame (owner ask 2026-08-19: "1:1 hands")', () => 
     expect(roundTrip.drag).toEqual(f0.drag);
   });
 });
+
+/**
+ * `causeIndex` (added 2026-08-30) records the causing action's index so playback can reproduce a CHOICE and
+ * not merely its outcome — `buyRune` clears the whole offer, so which rune was picked is otherwise only
+ * recoverable by diffing owned runes, which a duplicate purchase makes ambiguous.
+ */
+describe('causeIndex survives capture and delta expansion', () => {
+  it('is absent when the action had no index', () => {
+    const run = createRun(1, 'warden');
+    expect(shopFrameOf(run, 'turnStart', 0).causeIndex).toBeUndefined();
+  });
+
+  it('rides a keyframe', () => {
+    const run = createRun(1, 'warden');
+    expect(shopFrameOf(run, 'buyRune', 0, 2).causeIndex).toBe(2);
+  });
+
+  it('rides a DELTA frame and survives expansion — the path a real recording takes', () => {
+    const run = createRun(1, 'warden');
+    const key = shopFrameOf(run, 'turnStart', 0);
+    const { frame } = deltaShopFrameOf(key.view, { ...run, embers: run.embers + 1 }, 'buyRune', 10, 1);
+    expect(frame.causeIndex).toBe(1);
+    const expanded = expandFrames([key, frame]);
+    expect(expanded[1]).toMatchObject({ kind: 'shop', cause: 'buyRune', causeIndex: 1 });
+  });
+
+  it('index 0 is not lost to a falsy check', () => {
+    const run = createRun(1, 'warden');
+    const key = shopFrameOf(run, 'turnStart', 0);
+    const { frame } = deltaShopFrameOf(key.view, run, 'buyRune', 10, 0);
+    expect(frame.causeIndex).toBe(0);
+    expect(expandFrames([key, frame])[1]).toMatchObject({ causeIndex: 0 });
+  });
+});

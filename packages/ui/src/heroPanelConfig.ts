@@ -112,6 +112,10 @@ export function applyHeroPanelVars(): void {
   const t = (x: number, y: number, s: number, base = ''): string =>
     `${base}${base ? ' ' : ''}translate(calc(${x} * var(--u)), calc(${y} * var(--u))) scale(${s})`;
   root.setProperty('--hpn-panel-t', `translate(calc(${cfg.panelX}px * var(--scale)), calc(${cfg.panelY}px * var(--scale))) scale(${cfg.panelScale})`);
+  // The panel scale ALSO published as a bare number: the FOE's Buffs pop-out multiplies it in (and divides
+  // out its own wrapper's scale) so the two Buffs panels render the same on-screen size by construction —
+  // it can't be extracted from the composite transform string above in calc().
+  root.setProperty('--hpn-panel-s', String(cfg.panelScale));
   // Tray dimensions — 0 means AUTO: remove the var so the CSS fallback (`auto`) takes over.
   if (cfg.panelSize > 0) root.setProperty('--hpn-panel-w', `calc(${cfg.panelSize} * var(--u))`);
   else root.removeProperty('--hpn-panel-w');

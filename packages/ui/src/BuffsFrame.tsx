@@ -9,10 +9,12 @@ import type { gatherRunBuffs } from './runBuffs';
  * (see `.herobuffs` in styles.css). `rows` is computed once in `StatusBar` (so the portrait's up-arrow
  * affordance can gate on the same count). Renders nothing when there are no buffs.
  */
-export function BuffsFrame({ open, rows }: { open: boolean; rows: ReturnType<typeof gatherRunBuffs> }) {
+export function BuffsFrame({ open, rows, drop }: { open: boolean; rows: ReturnType<typeof gatherRunBuffs>; drop?: boolean }) {
   if (rows.length === 0) return null;
   return (
-    <div className={`herobuffs${open ? ' open' : ''}`} aria-hidden={!open}>
+    // `drop` — the FOE variant (owner ask 2026-08-30): anchored under the opponent portrait and expanding
+    // DOWNWARD instead of up (see `.combatopp-drop .herobuffs` in styles.css).
+    <div className={`herobuffs${open ? ' open' : ''}${drop ? ' drop' : ''}`} aria-hidden={!open}>
       <div className="herobuffs-body">
         <div className="herobuffs-title">Buffs</div>
         {rows.map((r) => (

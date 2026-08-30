@@ -6,6 +6,8 @@ import { RUNE_INDEX } from '@game/content';
 import { heroArt, runeArt, heroPowerArt } from './art';
 import { mdBold } from './Card';
 import { Icon } from './Icon';
+import { BuffsFrame } from './BuffsFrame';
+import { gatherSnapshotBuffs } from './runBuffs';
 
 /**
  * THE COMBAT OPPONENT — the foe's hero portrait, dropped in over the Refresh button for the fight (owner ask
@@ -49,6 +51,12 @@ export function CombatOpponent(): JSX.Element | null {
     setPhase(active ? 'in' : 'hidden');
   }, [active]);
 
+  // FOE BUFFS PANEL (owner ask 2026-08-30) — the same click-the-portrait pop-out the player has, dropping
+  // DOWN under the foe's health pill. Rows come off the served board's captured snapshot; bots/legacy
+  // snapshots yield none, and with no rows there is no arrow, no hover prompt, and the click is a no-op —
+  // exactly the player portrait's gating. Fresh state per mount, so a new fight always opens closed.
+  const [buffsOpen, setBuffsOpen] = useState(false);
+
   const shown = inCombat || preview ? live : cached.current;
   if (phase === 'hidden' || !shown?.seat) return null;
   const next = shown;
@@ -62,6 +70,8 @@ export function CombatOpponent(): JSX.Element | null {
   // The foe's owned RUNES — from the served board's captured snapshot (bots/authored seats have none). Rendered
   // with the SAME `.questbadge.runebadge` markup the player uses, so art, hover tip and pulse animation match.
   const runes = (next?.board.snapshot?.runes ?? []).filter((id) => RUNE_INDEX[id]);
+  const buffRows = gatherSnapshotBuffs(next?.board.snapshot);
+  const hasBuffs = buffRows.length > 0;
   // PORTAL to <body>: `.combatopp` must be able to paint ABOVE the player's statusbar (z40) when the foe
   // strikes. It used to live inside `.app` (a z-index:1 stacking context), which capped it under the
   // statusbar — the earlier fix raised the whole `.app`, which dragged the board layer over the player and
@@ -80,10 +90,20 @@ export function CombatOpponent(): JSX.Element | null {
       <div className="combatopp-drop">
         <div className="combatopp-name">{seat.label}</div>
         <div className="combatopp-body">
-          <div className="combatopp-portrait">
+          <div
+            className={`combatopp-portrait${hasBuffs ? ' hasbuffs' : ''}${buffsOpen ? ' buffsopen' : ''}`}
+            onClick={() => { if (hasBuffs) setBuffsOpen((o) => !o); }}
+            role={hasBuffs ? 'button' : undefined}
+          >
             {/* The foe's ATTACK PILL — same badge the player wears; inside the body so it rides the lunge. */}
             {pill?.side === 'opp' && <span key="hero-atk-opp" className={`hero-atk hero-atk-opp${pill.buffed ? ' buffed' : ''}${pill.leaving ? ' leaving' : ''}`}>{pill.buffed && <span className="atk-sheen" aria-hidden="true"><span className="atk-sheen-bar" /></span>}{pill.amount}</span>}
             {art ? <img className="combatopp-img" src={art} alt="" draggable={false} /> : <Icon name="anvil" />}
+            {/* Hover affordance — the same darkened prompt the player's portrait wears (owner ask 2026-08-30). */}
+            {hasBuffs && (
+              <span className="herohover" aria-hidden="true">
+                Click hero portrait to open / close the Buffs Panel
+              </span>
+            )}
           </div>
           {/* The RED damage-taken number — centred on the portrait, OUTSIDE the clipped circle so it can overrun. */}
           {dmg?.side === 'opp' && <span key={`dmg${dmg.seq}`} className="hero-dmgtaken">−{dmg.amount}</span>}
@@ -91,7 +111,13 @@ export function CombatOpponent(): JSX.Element | null {
         <div className="combatopp-hp">
           <Icon name="heart" />{shownResolve}
           {shownArmor > 0 && <span className="combatopp-armor">+{shownArmor}</span>}
+          {/* Buffs affordance — the little arrow riding BELOW the health pill (the player's rides the
+              portrait's top; the foe's panel drops the other way). */}
+          {hasBuffs && <span className="oppbuffs-arrow" aria-hidden="true">{buffsOpen ? '▴' : '▾'}</span>}
         </div>
+        {/* The foe's run-buffs pop-out — expands DOWNWARD out of the group's bottom edge when the portrait
+            is clicked (see `.combatopp-drop .herobuffs` in styles.css). */}
+        <BuffsFrame open={buffsOpen} rows={buffRows} drop />
       </div>
       {/* The foe's RUNES — a column beside the portrait (positions/scale from the ⚔️ Hero Duel tuner). Same
           badge component as the player's, so hover + the trigger bounce animate identically. `pointer-events`

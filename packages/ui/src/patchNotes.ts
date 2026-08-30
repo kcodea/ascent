@@ -56,6 +56,21 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-08-30',
+    label: 'Foe Intel',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: "Click your opponent's portrait in combat to see their run-wide Buffs Panel — the same window your own portrait opens.",
+        details: [
+          'Hovering the foe portrait shows the same prompt yours does; the panel drops down below their health pill, with an arrow cue underneath it.',
+          "It lists the buffs their board actually brings to the fight — Spell power, Ruby power, and their tribe auras — read from the run that built it.",
+          'Opponents with no run-wide buffs show no arrow or prompt, exactly like your own portrait.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-08-30',
     label: 'Gem Portal',
     changes: [
       {

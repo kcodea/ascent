@@ -56,6 +56,21 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-08-30',
+    label: 'The Pulse',
+    changes: [
+      {
+        category: 'Hero Change',
+        text: "The Auctioneer's Pulse now has its own effect and sound, playing on the minion you call back.",
+        details: [
+          'A burst and a double shockwave land on the target minion, replacing the generic targeting spark.',
+          'It comes with its own sound cue.',
+          'No change to what the Pulse does — it still triggers a friendly minion’s Shout.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-08-30',
     label: 'Replay Rail',
     changes: [
       {

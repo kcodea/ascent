@@ -98,6 +98,20 @@ export type CloudList =
   | { kind: 'notReady' }
   | { kind: 'failed'; error: string };
 
+/**
+ * The note the pre-2026-08-30 tab-hide fallback stamped on a half-played game. Those rows are already in the
+ * table and cannot be un-uploaded, so the viewer hides them (owner ask: *"i also dont want to see abandoned
+ * games in that tab, only completed games"*). New ones are no longer written at all — see `Game.tsx`.
+ *
+ * Matched EXACTLY, against the string the auto-publisher generated, so a manual Share whose note happens to
+ * contain the word is not swallowed with them.
+ */
+const LEGACY_ABANDONED_NOTE = 'abandoned';
+
+/** Does this row belong in the shared tab? Exported so the rule is tested directly rather than through a
+ *  network call — the whole rule is one comparison, and burying it in a callback is how it drifts. */
+export const isCompletedRow = (note: string | null | undefined): boolean => note !== LEGACY_ABANDONED_NOTE;
+
 /** Every shared recording, newest first. Buckets are NOT fetched — the list never needs them. */
 export async function listCloudRuns(limit = 40): Promise<CloudList> {
   const c = supabaseClient();
@@ -109,7 +123,8 @@ export async function listCloudRuns(limit = 40): Promise<CloudList> {
       .order('created_at', { ascending: false })
       .limit(limit);
     if (error) return isMissingTable(error.message) ? { kind: 'notReady' } : { kind: 'failed', error: error.message };
-    const rows = (data ?? []) as Record<string, unknown>[];
+    const rows = ((data ?? []) as Record<string, unknown>[])
+      .filter((r) => isCompletedRow(r.note as string | null));   // completed games only
     return {
       kind: 'ok',
       runs: rows.map((r) => ({

@@ -1597,10 +1597,11 @@ export function Recruit() {
   // background layer, so everything the phase flip animates (the lobby rail sliding away, the opponent
   // portrait dropping in, the shop closing) played in plain view WHILE the wipe swept — the owner asked for
   // the wipe to swallow those instead. So the curtain (`.wipecurtain`, the boot splash's dark-blue gradient,
-  // z ABOVE the whole in-app scene, below the Pixi FX canvas) sweeps L→R over EVERYTHING, holds a beat at
-  // full blue while the scene settles underneath (and the combat backdrop snaps in, no clip animation of its
-  // own any more), then sweeps L→R off to reveal the finished combat scene. Leaving combat runs the same
-  // choreography (cover → swap back → reveal) — every front in the game travels the same direction. Sweeps
+  // z ABOVE the whole in-app scene, below the Pixi FX canvas) BLOOMS RADIALLY out of the End Turn gem over
+  // EVERYTHING (owner ask 2026-08-29 — the gem as a portal), holds a beat at full blue while the scene
+  // settles underneath (and the combat backdrop snaps in, no clip animation of its own any more), then gets
+  // sucked back into the gem to reveal the finished combat scene. Leaving combat runs the same choreography
+  // (cover → swap back → reveal) from the same gem (now End Combat). Sweeps
   // advance on the curtain's clip-path transitionend (+ a backstop timer); holds advance on their own timer.
   // A run RESUMED mid-combat initialises straight to 'combat' (curtain parked, combat backdrop shown).
   type WipeState = 'idle' | 'coverIn' | 'coveredIn' | 'revealIn' | 'combat' | 'coverOut' | 'coveredOut' | 'revealOut';
@@ -1614,11 +1615,34 @@ export function Recruit() {
   const WIPE_HOLD_IN_MS = 900;
   const WIPE_HOLD_OUT_MS = 700;
   const wipeSweeping = wipe === 'coverIn' || wipe === 'revealIn' || wipe === 'coverOut' || wipe === 'revealOut';
-  // The EXIT sequence sweeps the OTHER way (R→L, owner ask 2026-08-28) — and that makes the curtain's clip
-  // cycle a natural round trip with no resets: parked LEFT (idle) → full (entry cover, L→R) → parked RIGHT
-  // (reveal, L→R — where it stays through combat) → full (exit cover, R→L) → parked LEFT again (exit
-  // reveal, R→L).
+  // RADIAL variant (owner ask 2026-08-29): the curtain BLOOMS out of the End Turn gem — as if the gem
+  // itself bends space to carry you to combat — and every reveal is the blue getting sucked BACK into it.
+  // Same state machine, same timings; only the clip geometry changed (circle() at the gem instead of the
+  // L→R/R→L inset sweeps). Cover = radius 0 → full; reveal = radius full → 0; both parked states are the
+  // zero-radius circle, so the cycle still round-trips with no resets.
   const wipeExiting = wipe === 'coverOut' || wipe === 'coveredOut' || wipe === 'revealOut';
+  // GEM ORIGIN — measured ONCE at the start of each cover sweep (a one-shot layout read, not per-frame;
+  // see CLAUDE.md perf rules), then handed to the CSS as `--wipe-cx/--wipe-cy/--wipe-r`. The radius is the
+  // distance to the farthest viewport corner, so `.full` provably covers the whole screen from any anchor.
+  // The gem element (`.etb-gembox` inside `.etbwrap`) is the same control in both directions — End Turn on
+  // entry, End Combat on exit — so both blooms erupt from the same diamond.
+  const [wipeOrigin, setWipeOrigin] = useState<{ cx: number; cy: number; r: number } | null>(null);
+  useLayoutEffect(() => {
+    if (wipe !== 'coverIn' && wipe !== 'coverOut') return;
+    const vw = window.innerWidth, vh = window.innerHeight;
+    let cx = vw * 0.84, cy = vh * 0.62; // fallback ≈ where the gem sits on the stage
+    const gem = document.querySelector('.etbwrap .etb-gembox') ?? document.querySelector('.etbwrap');
+    if (gem) {
+      const b = gem.getBoundingClientRect();
+      cx = b.left + b.width / 2; cy = b.top + b.height / 2;
+    }
+    const r = Math.ceil(Math.hypot(Math.max(cx, vw - cx), Math.max(cy, vh - cy)));
+    setWipeOrigin({ cx, cy, r });
+  }, [wipe]);
+  const wipeVars = {
+    '--wipe-dur': `${WIPE_MS}ms`,
+    ...(wipeOrigin ? { '--wipe-cx': `${wipeOrigin.cx}px`, '--wipe-cy': `${wipeOrigin.cy}px`, '--wipe-r': `${wipeOrigin.r}px` } : {}),
+  } as CSSProperties;
   const wipeTimeoutRef = useRef<number | undefined>(undefined);
   const advanceWipe = useCallback((): void => {
     setWipe((w) => (w === 'coverIn' ? 'coveredIn' : w === 'revealIn' ? 'combat' : w === 'coverOut' ? 'coveredOut' : w === 'revealOut' ? 'idle' : w));
@@ -1646,8 +1670,9 @@ export function Recruit() {
     // stays committed in the workbench for a future dedicated above-curtain layer.)
   }, [inCombat]);
   // What each element wears per state. The curtain is FULL through the whole covered middle of both
-  // sequences; parked RIGHT (`gone`) from the entry reveal through combat; parked LEFT (base) otherwise.
-  // No snap/reset class: every parked position is where the previous sweep naturally left it.
+  // sequences; parked at the zero-radius circle (`gone` = base geometry) from the entry reveal through
+  // combat and again after the exit reveal — every parked position is where the previous bloom naturally
+  // collapsed to, so no snap/reset class is needed on the curtain.
   const curtainClass = `wipecurtain${
     wipe === 'coveredIn' || wipe === 'coveredOut' ? ' full settle'
     : wipe === 'coverIn' || wipe === 'coverOut' ? ' full'
@@ -5799,7 +5824,7 @@ export function Recruit() {
           below the Pixi FX canvas (z110), so the streak rides the blue. The curtain's clip-path transition
           is the sanctioned one-shot kind. */}
       {createPortal(<>
-      <div className={curtainClass} aria-hidden="true" onTransitionEnd={onWipeEnd} style={{ '--wipe-dur': `${WIPE_MS}ms` } as CSSProperties}>
+      <div className={curtainClass} aria-hidden="true" onTransitionEnd={onWipeEnd} style={wipeVars}>
         {/* NOW FACING — the versus announcement on the blue (owner ask 2026-08-28). A child of the curtain,
             so its clip-path carries it: the cover sweep reveals the splash and the reveal sweep wipes it
             away, no timing of its own. Entry only (the exit curtain is a plain blue beat), lobby runs only
@@ -5822,8 +5847,14 @@ export function Recruit() {
           </div>
         )}
       </div>
-      {/* `rtl` also during 'combat' so the front PARKS at the right edge, ready for the exit's R→L launch. */}
-      <div className={`wipefront${wipeExiting || wipe === 'combat' ? ' rtl' : ''}${wipeSweeping ? ' go sweeping' : ' snap'}`} aria-hidden="true" style={{ '--wipe-dur': `${WIPE_MS}ms` } as CSSProperties} />
+      {/* The glow RING rides the bloom's seam: `grow` expands it with a cover, no class shrinks it back to
+          base with a reveal, and the holds park it snapped fully open (invisible — opacity rides
+          `sweeping`) so the following reveal launches from where the cover ended. */}
+      <div className={`wipefront${
+        wipe === 'coverIn' || wipe === 'coverOut' ? ' grow sweeping'
+        : wipe === 'revealIn' || wipe === 'revealOut' ? ' sweeping'
+        : wipe === 'coveredIn' || wipe === 'coveredOut' ? ' open snap'
+        : ' snap'}`} aria-hidden="true" style={wipeVars} />
       </>, document.body)}
       {/* Charge glyph — the board's etched sigil, anchored to the board midline. Lives HERE (a direct child of
           `.app`, before the zones) rather than inside the warband zone, so the warband layout offset (x/y/scale)

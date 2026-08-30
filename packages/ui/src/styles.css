@@ -288,26 +288,29 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .boardbg--combat { --board: var(--board-combat); display: none; }
 .boardbg--combat.shown { display: block; }
 /* THE WIPE CURTAIN — the two-stage combat transition (owner ask 2026-08-28). The boot splash's dark-blue
-   gradient sweeps L→R over the ENTIRE scene (cards, lobby rail, hero panels, banners — a BODY portal at z105:
+   gradient covers the ENTIRE scene (cards, lobby rail, hero panels, banners — a BODY portal at z105:
    above the out-of-app fixed panels (.statusbar z40, .combatopp z100, .eotbanner z95) AND above the z110 Pixi FX canvas + every transient float layer (spell sparks z121, fodder ghosts z120,
    damage/death floats z112, flying hand-grants — the occasional straggler from the End-of-Turn beats was
    popping in over the blue, owner report 2026-08-29, hence z250): everything below the deliberate
    full-screen overlays (Esc z300, hero select z400, loss numbers z2000 — decisive combats skip the curtain)
    is covered by construction; nothing of the game
-   rides on top), holds a beat at full blue while the phase's own animations settle underneath, then sweeps
-   L→R off to reveal the finished scene. Same choreography in both directions. clip-path is a paint property,
+   rides on top), holds a beat at full blue while the phase's own animations settle underneath, then
+   collapses off to reveal the finished scene. Same choreography in both directions. clip-path is a paint property,
    but each sweep is a sanctioned ONE-SHOT transition (see CLAUDE.md perf rules). The duration is supplied at
    runtime by Recruit's `WIPE_MS` via an inline `--wipe-dur`; the `450ms` fallback is a safety default.
-   Cycle (owner ask 2026-08-28 — the exit sweeps the OTHER way, so the clip round-trips with no resets):
-   base (parked LEFT) → `.full` (entry cover, edge L→R) → `.gone` (entry reveal, edge L→R; parked RIGHT
-   through combat) → `.full` (exit cover, edge R→L) → base (exit reveal, edge R→L). `.snap` is unused on the
-   curtain and kept only for the front. */
+   RADIAL variant (owner ask 2026-08-29): the curtain is a CIRCLE anchored on the End Turn gem — it blooms
+   out of the gem to cover (radius 0 → `--wipe-r`, the farthest viewport corner, measured by Recruit at each
+   cover start along with `--wipe-cx/--wipe-cy`), and every reveal is the blue collapsing back INTO the gem
+   (radius → 0). Both parked states are the zero-radius circle, so the cycle round-trips with no resets:
+   base (parked in the gem) → `.full` (entry bloom) → `.gone` (entry collapse; parked through combat) →
+   `.full` (exit bloom, from the End Combat gem) → base (exit collapse). `.snap` is unused on the curtain
+   and kept only for the front. */
 .wipecurtain { position: fixed; inset: 0; z-index: 250; pointer-events: none;
   background: radial-gradient(ellipse 60% 60% at 50% 50%, #24468a 0%, #0a1730 100%);
-  clip-path: inset(0 100% 0 0);
+  clip-path: circle(0px at var(--wipe-cx, 84%) var(--wipe-cy, 62%));
   transition: clip-path var(--wipe-dur, 450ms) cubic-bezier(.4, 0, .2, 1); }
-.wipecurtain.full { clip-path: inset(0 0 0 0); }
-.wipecurtain.gone { clip-path: inset(0 0 0 100%); }
+.wipecurtain.full { clip-path: circle(var(--wipe-r, 150vmax) at var(--wipe-cx, 84%) var(--wipe-cy, 62%)); }
+.wipecurtain.gone { clip-path: circle(0px at var(--wipe-cx, 84%) var(--wipe-cy, 62%)); }
 /* HOLD states wear `.settle` (owner bug report 2026-08-28: brief combat-board flashes during the covered
    beat). The state machine's backstop timer can outrun the real sweep on a hitchy combat-entry frame —
    advancing to the covered state (which swaps the board) while the clip transition is still mid-flight.
@@ -335,22 +338,24 @@ canvas.spr { image-rendering: pixelated; display: block; }
    title font. */
 .wipevs-name { font-family: var(--font-ui); font-weight: 900; font-size: calc(34 * var(--u, 1px));
   color: #fff; text-shadow: 0 2px 12px rgba(0, 0, 0, 0.6); }
-/* The glowing wipe FRONT — a soft blue-white energy edge riding the curtain's seam. Same duration + easing
-   as the curtain's clip transition so the two can never desync; compositor-only transform, static
-   blur/gradient — nothing paint-animated in a loop. `.go` sweeps it L→R; `.snap` parks it back at the left
-   edge instantly (opacity 0, so the jump is invisible) ready for the next stage. Rendered AFTER the curtain
-   at the same z, so it paints above the blue. */
-.wipefront { position: fixed; top: 0; bottom: 0; left: -15vw; width: 30vw; z-index: 250;
-  pointer-events: none; opacity: 0; mix-blend-mode: screen;
-  background:
-    radial-gradient(60% 50% at 50% 50%, rgba(255, 255, 255, .55), rgba(160, 200, 255, .28) 40%, rgba(90, 130, 255, 0) 70%),
-    linear-gradient(to right, rgba(120, 160, 255, 0), rgba(190, 215, 255, .5) 46%, rgba(255, 255, 255, .85) 50%, rgba(190, 215, 255, .5) 54%, rgba(120, 160, 255, 0));
-  filter: blur(2px); transform: translateX(0);
+/* The glowing wipe FRONT — now a blue-white energy RING riding the bloom's seam. A circle div centred on
+   the gem (same `--wipe-cx/--wipe-cy/--wipe-r` vars as the curtain) whose ring gradient sits at its outer
+   edge; scaling it 0→1 with the SAME duration + easing as the curtain's clip transition keeps the ring
+   glued to the circle's edge (both interpolate linearly in progress, so they can never desync).
+   Compositor-only transform, static gradient (softness baked into the stops — no filter: the div is
+   viewport-scale, a blur would be an expensive one-shot paint for nothing). `grow`/`open` expand it, base
+   collapses it back into the gem; `.snap` parks it instantly (opacity 0, so the jump is invisible).
+   Rendered AFTER the curtain at the same z, so it paints above the blue. */
+.wipefront { position: fixed; left: var(--wipe-cx, 84vw); top: var(--wipe-cy, 62vh);
+  width: calc(var(--wipe-r, 120vmax) * 2); height: calc(var(--wipe-r, 120vmax) * 2);
+  margin: calc(-1 * var(--wipe-r, 120vmax)) 0 0 calc(-1 * var(--wipe-r, 120vmax));
+  border-radius: 50%; z-index: 250; pointer-events: none; opacity: 0; mix-blend-mode: screen;
+  background: radial-gradient(closest-side,
+    rgba(120, 160, 255, 0) 0%, rgba(120, 160, 255, 0) 84%,
+    rgba(190, 215, 255, .45) 92%, rgba(255, 255, 255, .85) 97%, rgba(160, 200, 255, 0) 100%);
+  transform: scale(0.004);
   transition: transform var(--wipe-dur, 450ms) cubic-bezier(.4, 0, .2, 1), opacity 120ms linear; }
-.wipefront.go { transform: translateX(100vw); }
-/* Exit sweeps travel R→L (owner ask 2026-08-28): the front parks at the RIGHT edge and `.go` brings it home. */
-.wipefront.rtl { transform: translateX(100vw); }
-.wipefront.rtl.go { transform: translateX(0); }
+.wipefront.grow, .wipefront.open { transform: scale(1); }
 .wipefront.sweeping { opacity: 1; }
 .wipefront.snap { transition: none; }
 /* With the omen + row labels gone and the hand tucked under the status bar, let the

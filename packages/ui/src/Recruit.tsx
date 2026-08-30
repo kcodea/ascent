@@ -112,6 +112,7 @@ import { useCombatReplay } from './useCombatReplay';
 import { turnClock, useTurnSeconds, useTurnTimeUp } from './turnClock';
 import { chargeTune, useChargePreview } from './chargeGlyphTune';
 import { ChargeMotes } from './chargeMotes';
+import { wipeFx } from './wipeFx';
 
 gsap.registerPlugin(Flip);
 
@@ -1611,7 +1612,11 @@ export function Recruit() {
   // inset→circle switch happens between empty parked states (both cover nothing). The one wrinkle is the
   // EXIT bloom: it must START from the zero circle, but combat parks the curtain on the reveal's inset
   // sliver — so `primeOut` snaps it to the zero circle for one frame before `coverOut` launches.
-  type WipeState = 'idle' | 'coverIn' | 'coveredIn' | 'revealIn' | 'combat' | 'primeOut' | 'coverOut' | 'coveredOut' | 'revealOut';
+  // `chargeIn` is the ENTRY's anticipation beat (owner ask 2026-08-29, the gem "charge-up tell"): the
+  // curtain stays parked while wipeFx spirals motes into the gem, then the bloom erupts. The EXIT reuses
+  // `primeOut` for the same tell — it already parks the zero circle, so it just holds for the charge
+  // duration instead of one frame.
+  type WipeState = 'idle' | 'chargeIn' | 'coverIn' | 'coveredIn' | 'revealIn' | 'combat' | 'primeOut' | 'coverOut' | 'coveredOut' | 'revealOut';
   const [wipe, setWipe] = useState<WipeState>(() => (run.phase === 'combat' ? 'combat' : 'idle'));
   // Per-STAGE sweep duration + the full-blue hold between stages — single source: the CSS var below is set
   // FROM WIPE_MS, and the backstop timer derives from it (+150ms margin), so retuning here can never strand
@@ -1621,6 +1626,9 @@ export function Recruit() {
   // stays snappy.
   const WIPE_HOLD_IN_MS = 900;
   const WIPE_HOLD_OUT_MS = 700;
+  // The gem tell's length (both directions) — long enough to read as anticipation, short enough not to lag
+  // the transition.
+  const WIPE_CHARGE_MS = 260;
   const wipeSweeping = wipe === 'coverIn' || wipe === 'revealIn' || wipe === 'coverOut' || wipe === 'revealOut';
   const wipeExiting = wipe === 'primeOut' || wipe === 'coverOut' || wipe === 'coveredOut' || wipe === 'revealOut';
   // GEM ORIGIN — measured ONCE at the start of each cover sweep (a one-shot layout read, not per-frame;
@@ -1629,9 +1637,11 @@ export function Recruit() {
   // The gem element (`.etb-gembox` inside `.etbwrap`) is the same control in both directions — End Turn on
   // entry, End Combat on exit — so both blooms erupt from the same diamond.
   const [wipeOrigin, setWipeOrigin] = useState<{ cx: number; cy: number; r: number } | null>(null);
+  const wipeOriginRef = useRef<{ cx: number; cy: number; r: number } | null>(null);
   useLayoutEffect(() => {
-    // Exit measures at `primeOut` — the vars must be committed before `coverOut` launches the bloom.
-    if (wipe !== 'coverIn' && wipe !== 'primeOut') return;
+    // Both tells precede their bloom, so measuring here commits the vars (and the ref the FX reads)
+    // before `coverIn`/`coverOut` launches.
+    if (wipe !== 'chargeIn' && wipe !== 'primeOut') return;
     const vw = window.innerWidth, vh = window.innerHeight;
     let cx = vw * 0.84, cy = vh * 0.62; // fallback ≈ where the gem sits on the stage
     const gem = document.querySelector('.etbwrap .etb-gembox') ?? document.querySelector('.etbwrap');
@@ -1640,7 +1650,20 @@ export function Recruit() {
       cx = b.left + b.width / 2; cy = b.top + b.height / 2;
     }
     const r = Math.ceil(Math.hypot(Math.max(cx, vw - cx), Math.max(cy, vh - cy)));
+    wipeOriginRef.current = { cx, cy, r };
     setWipeOrigin({ cx, cy, r });
+  }, [wipe]);
+  // WIPE FX — the above-curtain Pixi layer (see wipeFx.ts). Warmed once on mount so the async Pixi init
+  // is long done before the first combat; each state fires its one-shot as it begins. A decisive combat
+  // snaps the machine to 'idle' — clear() kills any in-flight motes so nothing drifts over the end screen.
+  useEffect(() => { wipeFx.warm(); }, []);
+  useEffect(() => {
+    const o = wipeOriginRef.current;
+    if (wipe === 'idle') { wipeFx.clear(); return; }
+    if (!o) return;
+    if (wipe === 'chargeIn' || wipe === 'primeOut') wipeFx.charge(o.cx, o.cy, WIPE_CHARGE_MS + 80);
+    else if (wipe === 'coverIn') wipeFx.bloom(o.cx, o.cy, o.r, WIPE_MS);
+    else if (wipe === 'coverOut') { wipeFx.bloom(o.cx, o.cy, o.r, WIPE_MS); wipeFx.inhale(o.cx, o.cy, o.r, WIPE_MS + 200); }
   }, [wipe]);
   const wipeVars = {
     '--wipe-dur': `${WIPE_MS}ms`,
@@ -1656,10 +1679,10 @@ export function Recruit() {
       const t = window.setTimeout(() => setWipe(wipe === 'coveredIn' ? 'revealIn' : 'revealOut'), wipe === 'coveredIn' ? WIPE_HOLD_IN_MS : WIPE_HOLD_OUT_MS);
       return () => window.clearTimeout(t);
     }
-    // The prime frame: the zero-circle park is committed by this render; one short beat later the bloom
-    // launches from it (a timer, not rAF, so a background tab can't stall the exit).
-    if (wipe === 'primeOut') {
-      const t = window.setTimeout(() => setWipe('coverOut'), 30);
+    // The tell beats: the zero-circle park is committed by this render; the charge FX plays on the gem,
+    // then the bloom launches (a timer, not rAF, so a background tab can't stall the machine).
+    if (wipe === 'chargeIn' || wipe === 'primeOut') {
+      const t = window.setTimeout(() => setWipe(wipe === 'chargeIn' ? 'coverIn' : 'coverOut'), WIPE_CHARGE_MS);
       return () => window.clearTimeout(t);
     }
     if (!wipeSweeping) return undefined;
@@ -1671,8 +1694,8 @@ export function Recruit() {
     // "returning to shop" announcement (owner ask 2026-08-28). Snap the machine home; the end screen
     // covers the scene itself.
     if (!inCombat && run.phase !== 'recruit') { setWipe('idle'); return; }
-    if (inCombat) setWipe((w) => (w === 'idle' || w === 'primeOut' || w === 'coverOut' || w === 'coveredOut' || w === 'revealOut' ? 'coverIn' : w));
-    else setWipe((w) => (w === 'combat' || w === 'coverIn' || w === 'coveredIn' || w === 'revealIn' ? 'primeOut' : w));
+    if (inCombat) setWipe((w) => (w === 'idle' || w === 'primeOut' || w === 'coverOut' || w === 'coveredOut' || w === 'revealOut' ? 'chargeIn' : w));
+    else setWipe((w) => (w === 'combat' || w === 'chargeIn' || w === 'coverIn' || w === 'coveredIn' || w === 'revealIn' ? 'primeOut' : w));
     // (The wipe once fired a Pixi streak def here — retired 2026-08-28 when the curtain moved ABOVE the FX
     // canvas so it sweeps over scene FX like the End-Turn gem smoke; a def on that canvas would play
     // invisibly behind the blue. The CSS `.wipefront` glow carries the front's look. The `board-wipe` def

@@ -385,6 +385,9 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .wipebar.rtl.go { transform: translateX(0); }
 .wipebar.sweeping { opacity: 1; }
 .wipebar.snap { transition: none; }
+/* The ABOVE-CURTAIN Pixi canvas (wipeFx.ts) — z255 so its motes/runes ride ON the blue (curtain + fronts
+   are z250) while staying under the deliberate overlays (Esc z300+). Hidden + ticker stopped when idle. */
+.wipefx-canvas { position: fixed; inset: 0; z-index: 255; pointer-events: none; }
 /* With the omen + row labels gone and the hand tucked under the status bar, let the
    Tavern + Warband settle lower: auto margins centre the block in the freed space. */
 /* Tavern offers and Warband mirror each other across the board's centre rope: each half

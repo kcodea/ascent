@@ -124,9 +124,14 @@ export function Game() {
      * per SITTING rather than per game — close enough to sound right and wrong in a way that matters, since
      * a row spanning two games and a menu cannot be compared against anything.
      *
-     * A hidden-tab upload survives as the FALLBACK, for the game you abandon halfway: leaving with a real run
-     * in progress still publishes what was recorded. So a finished game uploads at its end, and an abandoned
-     * one uploads when you go — never both, because the latch is shared.
+     * ONLY COMPLETED GAMES (owner ask 2026-08-30: *"i also dont want to see abandoned games in that tab, only
+     * completed games"*). The first version also published on tab-hide, so a half-played game left a row too.
+     * That was defensible as "capture what we can" and wrong as analytics: an abandoned run's timeline stops
+     * mid-shop, its phase mix is whatever the player happened to be doing, and it sits in the list looking
+     * exactly like a real game next to games that can legitimately be compared with each other.
+     *
+     * Nothing replaces it. A game that is not finished is not a data point, and the honest way to have fewer
+     * bad rows is to stop writing them — not to write them and filter on read.
      *
      * Guarded on MIN_AUTO_SHARE_SECONDS so a reload or a quick tab-out does not publish a five-second
      * nothing, and on `isRealPlayRun` so only real games are captured.
@@ -139,6 +144,11 @@ export function Game() {
       const buckets = perfMonitor.history();
       if (buckets.filter((b) => !b.hidden).length < MIN_AUTO_SHARE_SECONDS) return;
       shared = true;
+      // SAY SO WHEN IT FAILS. This was fire-and-forget, which meant a dev client that recorded a whole game
+      // and then could not publish it — signed out is the common one, since `uploadRun` needs a user id for
+      // the insert-own RLS policy — looked identical to one that never recorded at all. The first time that
+      // mattered, the question it produced was "why are none of Mike's games in the shared tab", and nothing
+      // anywhere had a answer. A dev tool may fail quietly; it may not fail invisibly.
       void uploadRun(
         toRun(buckets, {
           id: `${Date.now()}`,
@@ -149,7 +159,13 @@ export function Game() {
           note,
         }),
         st.playerName || 'dev',
-      );
+      ).then((r) => {
+        if (r.kind === 'ok') return;
+        const why = r.kind === 'notReady'
+          ? 'the perf_runs table does not exist yet — run schema.sql'
+          : r.error;
+        console.warn(`[perf] this game was recorded but NOT shared: ${why}`);
+      });
     };
     // The end of the game. Subscribed to the store rather than driven by this component's `phase` prop so the
     // upload fires once on the TRANSITION, not on every render while the end screen is up.
@@ -158,12 +174,9 @@ export function Game() {
       if (p === prevSt.run?.phase) return;
       if (p === 'gameover' || p === 'victory') publish(`game ${p === 'victory' ? 'won' : 'lost'}`);
     });
-    const onHide = (): void => { if (document.hidden) publish('abandoned'); };
-    document.addEventListener('visibilitychange', onHide);
 
     return () => {
       window.removeEventListener('pointermove', onMove);
-      document.removeEventListener('visibilitychange', onHide);
       unsub();
       perfMonitor.stop();
     };

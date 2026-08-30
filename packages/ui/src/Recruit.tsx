@@ -1656,7 +1656,12 @@ export function Recruit() {
   // WIPE FX — the above-curtain Pixi layer (see wipeFx.ts). Warmed once on mount so the async Pixi init
   // is long done before the first combat; each state fires its one-shot as it begins. A decisive combat
   // snaps the machine to 'idle' — clear() kills any in-flight motes so nothing drifts over the end screen.
-  useEffect(() => { wipeFx.warm(); }, []);
+  useEffect(() => {
+    wipeFx.warm();
+    // Warm the exit splash's shop vignette too (the foe face is boot-loaded by the title screen; this one
+    // has no other loader, and a first-exit pop-in on the blue would read as a blip).
+    new Image().src = `${import.meta.env.BASE_URL}return-to-shop.webp`;
+  }, []);
   useEffect(() => {
     const o = wipeOriginRef.current;
     if (wipe === 'idle') { wipeFx.clear(); return; }
@@ -5874,10 +5879,12 @@ export function Recruit() {
             </div>
           );
         })()}
-        {/* The exit curtain's own announcement (owner ask 2026-08-28) — label only, no foe to introduce. */}
+        {/* The exit curtain's own announcement (owner ask 2026-08-28; shop vignette added 2026-08-30) —
+            the same format as NOW FACING, with the shop art in the circle instead of a foe portrait. */}
         {wipeExiting && (
           <div className="wipevs">
             <div className="wipevs-label">Returning to Shop</div>
+            <img className="wipevs-face" src={`${import.meta.env.BASE_URL}return-to-shop.webp`} alt="" draggable={false} />
           </div>
         )}
       </div>

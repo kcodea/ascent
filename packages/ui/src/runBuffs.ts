@@ -1,5 +1,5 @@
 import { CARD_INDEX, poolFor } from '@game/content';
-import { spellAttackBonus, spellHealthBonus, type RunState, cardBuff } from '@game/sim';
+import { spellAttackBonus, spellHealthBonus, type RunState, type BoardSnapshot, cardBuff } from '@game/sim';
 import type { CombatEvent } from '@game/core';
 
 export interface BuffRow {
@@ -200,5 +200,32 @@ export function gatherRunBuffs(run: RunState, combat?: CombatBuffDelta | null): 
     rows.push({ key: 'guel', label: 'Guel · per spell', value: `+${g}/+${g}` });
   }
 
+  return rows;
+}
+
+/**
+ * The FOE's run-wide buffs, read off a served board's captured `BoardSnapshot` (owner ask 2026-08-30 — the
+ * opponent portrait opens the same Buffs Panel the player's does). The snapshot carries the owner's
+ * run-level combat scalers (see `snapshot.ts`); rows mirror `gatherRunBuffs`'s labels/format exactly so the
+ * two panels read identically. Shop-only rows (Shop Stats, shop-slot enchants, Veinstorm, Max Gold, the
+ * on-board Mama Bear / Guel live rows) have no snapshot fields — they don't affect the fight — so the foe
+ * panel simply lists what its board actually brings. Legacy/bot snapshots lack most fields → few/no rows,
+ * and the affordance gates on rows existing, same as the player's.
+ */
+export function gatherSnapshotBuffs(snap: BoardSnapshot | undefined): BuffRow[] {
+  if (!snap) return [];
+  const rows: BuffRow[] = [];
+  const pair = (key: string, label: string, a: number, h: number): void => {
+    if (a > 0 || h > 0) rows.push({ key, label, value: `+${a}/+${h}` });
+  };
+  pair('spell', 'Spell power', snap.spellPower?.attack ?? 0, snap.spellPower?.health ?? 0);
+  pair('ruby', 'Ruby power', snap.rubyBonus?.attack ?? 0, snap.rubyBonus?.health ?? 0);
+  pair('undead', 'Undead Aura', (snap.undeadBuyAtk ?? 0) + (snap.undeadAura?.attack ?? 0), snap.undeadAura?.health ?? 0);
+  pair('fodder', 'Fodder Aura', snap.cardBuffs?.fred?.attack ?? 0, snap.cardBuffs?.fred?.health ?? 0);
+  pair('imp', 'Imp Aura', snap.impAura?.attack ?? 0, snap.impAura?.health ?? 0);
+  pair('cling', 'Cling Drones', snap.cardBuffs?.cling?.attack ?? 0, snap.cardBuffs?.cling?.health ?? 0);
+  pair('knit', 'Spear Warden Aura', snap.cardBuffs?.knit?.attack ?? 0, snap.cardBuffs?.knit?.health ?? 0);
+  pair('magnetic', 'Attachment Aura', snap.magneticAura?.attack ?? 0, snap.magneticAura?.health ?? 0);
+  pair('beast', 'Beast Aura', snap.beastBuyAtk ?? 0, 0);
   return rows;
 }

@@ -44,6 +44,8 @@ import { stabilizeViewMap, stabilizeRefMap, stabilizeView } from './cardViewEqua
 import { deriveDragDecision, dragDecisionEqual, computeCastingSpell, type DragGeo, type DragDecision } from './dragDecision';
 import { QuestCard } from './QuestCard';
 import { RuneCard } from './RuneCard';
+import { RuneLockIn, type RuneLockInCard } from './RuneLockIn';
+import { RUNE_LOCKIN_DEFAULTS, stretchLockIn } from './runeLockInTiming';
 import { combatGains } from './combatGains';
 import { instView, liveCardText, type LiveTextParams } from './instView';
 import { getSpellBuffFxConfig } from './spellBuffFxConfig';
@@ -1713,7 +1715,71 @@ export function Recruit() {
   }, [run.lastCombat, run.seed, run.wave]);
   const [discoverMin, setDiscoverMin] = useState(false); // B2: the Discover overlay is minimized (inspect the board)
   const [questMin, setQuestMin] = useState(false); // the Quest overlay is minimized (inspect the shop rolled behind it)
-  const [forgeMin, setForgeMin] = useState(false); // the Runeforge overlay is minimized (inspect the board behind it)
+  const [forgeMin, setForgeMin] = useState(false);
+
+  /**
+   * RUNE LOCK-IN CEREMONY (owner ask 2026-08-29) — the short flourish after a rune is bought.
+   *
+   * Held HERE rather than inside the forge overlay because the overlay is exactly what disappears: buying
+   * clears `runeforgeOffer`, so anything owned by that subtree unmounts with it. This state outlives the
+   * forge, which is what lets the ceremony play after the thing it is about is gone.
+   */
+  const [lockIn, setLockIn] = useState<RuneLockInCard[] | null>(null);
+  /** Dev-only slow-motion for the demo — the real ceremony always plays at its authored speed. */
+  const [lockInSlow, setLockInSlow] = useState(1);
+  /**
+   * DEV handle so the ceremony can be replayed without reaching a rune wave — the same shape as
+   * `window.__perfHud` / `window.__pixiFx`. Tuning a 1.4s sequence by playing to the Runeforge each time is
+   * the kind of friction that means it never gets tuned.
+   */
+  const lockInDemoRef = useRef<((slow?: number) => void) | null>(null);
+  const startRuneLockIn = useCallback((el: HTMLElement | null, chosenIndex: number): void => {
+    const offer = useGame.getState().run.runeforgeOffer;
+    if (!el || !offer) return;
+    // Measure EVERY card once, now — the row is about to stop existing. `.runecard` siblings are the cards
+    // in offer order, so the index lines up with the offer array without threading ids through the DOM.
+    const row = el.closest('.forge-cards');
+    const els = row ? [...row.querySelectorAll<HTMLElement>('.runecard')] : [el];
+    const cards: RuneLockInCard[] = [];
+    offer.forEach((id, i) => {
+      const rune = RUNE_INDEX[id];
+      const node = els[i];
+      if (!rune || !node) return;
+      const r = node.getBoundingClientRect();
+      cards.push({
+        rune,
+        cost: Math.max(0, rune.cost - (useGame.getState().run.runeforgeDiscounts?.[i] ?? 0)),
+        rect: { x: r.left, y: r.top, w: r.width, h: r.height },
+        chosen: i === chosenIndex,
+      });
+    });
+    if (cards.some((c) => c.chosen)) { setLockInSlow(1); setLockIn(cards); }
+  }, []);
+
+  // Publish the demo: three real runes laid out where the forge puts them, middle one chosen.
+  useEffect(() => {
+    lockInDemoRef.current = (slow = 1): void => {
+      const ids = Object.keys(RUNE_INDEX).slice(0, 3);
+      // RuneCard's own natural size, so the preview is laid out like the real forge row rather than at an
+      // invented size. Measured from a live card; the real ceremony never guesses — it reads each card's rect.
+      const w = 159;
+      const h = 257;
+      const gap = 28;
+      const x0 = window.innerWidth / 2 - (w * 3 + gap * 2) / 2;
+      const y = window.innerHeight / 2 - h / 2;
+      const cards = ids.map((id, i) => ({
+        rune: RUNE_INDEX[id]!,
+        cost: RUNE_INDEX[id]!.cost,
+        rect: { x: x0 + i * (w + gap), y, w, h },
+        chosen: i === 1,
+      }));
+      setLockInSlow(Math.max(1, slow));
+      setLockIn(cards);
+    };
+    const win = window as unknown as { __runeLockIn?: (slow?: number) => void };
+    win.__runeLockIn = (slow) => lockInDemoRef.current?.(slow);
+    return () => { delete (window as unknown as { __runeLockIn?: (slow?: number) => void }).__runeLockIn; };
+  }, []); // the Runeforge overlay is minimized (inspect the board behind it)
   const [logTab, setLogTab] = useState<'gains' | 'procs' | 'log'>('gains'); // Permanent gains · Procs · blow-by-blow log
   // Per-card stat snapshot (attack + health) for the recruit-phase buff flash (declared up here so the
   // combat→recruit transition can re-sync it and avoid a spurious flash on the way back in).
@@ -6649,6 +6715,15 @@ export function Recruit() {
             : <><Icon name="eye" /> Inspect the board</>}
         </button>
       )}
+      {/* The lock-in ceremony. Outside the forge's own gate on purpose — it plays AFTER `runeforgeOffer`
+          clears, which is precisely when the forge is gone. */}
+      {lockIn && (
+        <RuneLockIn
+          cards={lockIn}
+          onDone={() => { setLockIn(null); }}
+          timing={lockInSlow === 1 ? undefined : stretchLockIn(RUNE_LOCKIN_DEFAULTS, lockInSlow)}
+        />
+      )}
       {!overlaysHeld && run.runeforgeOffer && !forgeMin && (
         <div className={`discover-ov forge-ov${run.runeforgeEpic ? ' forge-epic' : ''}`} role="dialog" aria-label={run.runeforgeEpic ? 'The Epic Runeforge' : 'The Runeforge'}>
           <div className="disc-panel forge-panel">
@@ -6664,7 +6739,17 @@ export function Recruit() {
                 // arrive cheaper — the buy path charges the same number.
                 const liveCost = Math.max(0, rune.cost - (run.runeforgeDiscounts?.[i] ?? 0));
                 return (
-                  <RuneCard key={id} rune={rune} cost={liveCost} affordable={run.embers >= liveCost} duplicating={!!run.runeDuplication && !!run.runeforgeEpic} onBuy={() => dispatch({ type: 'buyRune', index: i })} />
+                  <RuneCard
+                    key={id} rune={rune} cost={liveCost} affordable={run.embers >= liveCost}
+                    duplicating={!!run.runeDuplication && !!run.runeforgeEpic}
+                    onBuy={(el) => {
+                      // CAPTURE BEFORE DISPATCH. The buy clears `runeforgeOffer`, so this overlay unmounts on
+                      // the same frame — after that there is nothing on screen to measure. The ceremony
+                      // re-renders clones at these exact rects, which is why the handover is invisible.
+                      startRuneLockIn(el, i);
+                      dispatch({ type: 'buyRune', index: i });
+                    }}
+                  />
                 );
               })}
             </div>

@@ -52,7 +52,9 @@ function cardViewOf(id: string, golden = false): CardView | null {
 export function RuneCard({ rune, affordable, onBuy, cost, duplicating }: {
   rune: RuneDef;
   affordable: boolean;
-  onBuy: () => void;
+  /** The clicked card's own element comes back with the call so the lock-in ceremony can read its rect at
+   *  click time — the forge overlay unmounts the moment the buy resolves, taking the geometry with it. */
+  onBuy: (el: HTMLElement | null) => void;
   /** Live price when it differs from the printed one (the forge's pivot discount) — rendered green. */
   cost?: number;
   /** Rune of Duplication is held, so this Epic will be copied on purchase. Runes whose reward cannot express
@@ -94,7 +96,7 @@ export function RuneCard({ rune, affordable, onBuy, cost, duplicating }: {
   return (
     <button
       className={`runecard${rune.epic ? ' runecard-epic' : ''}${art ? ' has-art' : ''}${affordable ? '' : ' cantafford'}`}
-      onClick={affordable ? onBuy : undefined}
+      onClick={affordable ? (e) => { onBuy(e.currentTarget); } : undefined}
       disabled={!affordable}
       onMouseEnter={hasPreview ? (e) => show(e.currentTarget) : undefined}
       onMouseLeave={hasPreview ? hide : undefined}

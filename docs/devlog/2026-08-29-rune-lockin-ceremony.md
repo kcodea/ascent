@@ -165,3 +165,20 @@ The CSS takes the tuned values as custom properties, and the settle's overshoot 
 the tuned final size rather than as fixed numbers — otherwise raising "Final size" would leave a
 fixed-magnitude wobble behind at the end of a much bigger move.
 
+## The owner's bake
+
+Four values moved from what I authored, and each says something about the ceremony:
+
+- **The pay-off was rushed.** The lock lands later (380 → 430) and the tableau holds longer (900 → 1080) with
+  a slower fade (260 → 300). My pass slammed the frame shut almost the instant the card arrived and had the
+  whole thing gone before it registered. **~1.38s** total now.
+- **The clang fires 150ms EARLY.** `sfxDelayMs: -150` looks wrong written down and is right in the ear: a
+  struck-metal sample has its attack at the very start, so scheduling the file to *begin* on impact puts the
+  bang *after* the impact. Leading the visual is what lands them together — and it is exactly why the dial is
+  anchored to the lock beat rather than to the click, where a negative offset would have had nowhere to go.
+- **And it sits well back at 0.2.** The moment already has a flash and a snap carrying it; at full level the
+  clang competed with the picture instead of landing under it.
+
+The slide, the clamp and the flash came back unchanged, so those values mean "watched and left alone" rather
+than "never looked at".
+

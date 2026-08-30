@@ -12,7 +12,7 @@ import type { TunerControl, TunerSpec } from './tunerSchema';
  *
  * Click a rune → it leaves for the centre on that frame, from exactly where it sat, growing as it goes, while
  * the others clear behind it → it arrives, a gold frame clamps shut on it and a flash bursts out → a beat →
- * everything fades back to the board. ~1.16s, no input.
+ * everything fades back to the board. ~1.38s, no input.
  *
  * The hero ceremony is the model for its STRUCTURE and deliberately not for its length: that one ends on a
  * Start Game button and is allowed to take its time, this one happens mid-run and its whole job is to say
@@ -74,6 +74,23 @@ export interface RuneLockInConfig {
   sfxDelayMs: number;
 }
 
+/**
+ * THE OWNER'S TUNED VALUES, baked 2026-08-29 — shipped pacing, not starting guesses. The slide, the clamp and
+ * the flash were all judged correct as authored and kept, so a value matching the original here means
+ * "watched and left alone", not "never looked at".
+ *
+ * What moved, and what it says about the ceremony:
+ *
+ * · **The lock lands later** (380 → 430) and the tableau **holds longer** (900 → 1080) with a slower fade
+ *   (260 → 300). The first pass rushed the pay-off: the frame slammed shut almost the instant the card
+ *   arrived, and the whole thing was gone before it had registered. ~1.38s total now.
+ * · **The clang fires 150ms EARLY** (`sfxDelayMs: -150`), which looks wrong written down and is right in the
+ *   ear: a struck-metal sample has its attack at the very start, so scheduling the file to *begin* on impact
+ *   puts the bang after it. Leading the visual is what lands them together.
+ * · The board dims a touch more (0.62 → 0.68), and the clang sits **well** back at 0.2. It is a punctuation
+ *   mark on a moment that already has a flash and a snap carrying it — at full level it competed with the
+ *   picture instead of landing under it. (0.9 was the first bake; the owner came back with 0.2.)
+ */
 const DEFAULTS: RuneLockInConfig = {
   exitDelayMs: 0,
   exitMs: 240,
@@ -81,9 +98,9 @@ const DEFAULTS: RuneLockInConfig = {
   focusDelayMs: 0,
   focusMs: 380,
   settleMs: 130,
-  lockAtMs: 380,
-  holdMs: 900,
-  fadeMs: 260,
+  lockAtMs: 430,
+  holdMs: 1080,
+  fadeMs: 300,
 
   clampMs: 250,
   clampFrom: 1.55,
@@ -91,10 +108,10 @@ const DEFAULTS: RuneLockInConfig = {
   flashSize: 62,
 
   focusScale: 1.5,
-  veilAlpha: 0.62,
+  veilAlpha: 0.68,
 
-  sfxVolume: 1,
-  sfxDelayMs: 0,
+  sfxVolume: 0.2,
+  sfxDelayMs: -150,
 };
 
 const RANGES: Record<keyof RuneLockInConfig, [number, number, number]> = {

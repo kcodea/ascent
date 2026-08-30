@@ -563,5 +563,26 @@
   "q-conv-trigger-sell": {
     "decision": "approve",
     "decidedAt": "2026-08-28T14:19:20.904Z"
+  },
+  "q-conv-trigger-gainCard": {
+    "decision": "approve",
+    "decidedAt": "2026-08-30T03:10:17.472Z"
+  },
+  "q-conv-family-grant": {
+    "decision": "revise",
+    "note": "this is correct for now, but gilding may have different effects within the grant family. they will be specified though",
+    "decidedAt": "2026-08-30T03:10:58.109Z"
+  },
+  "q-conv-trigger-shopRefresh": {
+    "decision": "approve",
+    "decidedAt": "2026-08-30T03:11:08.097Z"
+  },
+  "q-conv-trigger-spellTargeted": {
+    "decision": "approve",
+    "decidedAt": "2026-08-30T03:11:20.503Z"
+  },
+  "q-conv-trigger-startOfTurn": {
+    "decision": "approve",
+    "decidedAt": "2026-08-30T03:11:29.741Z"
   }
 }

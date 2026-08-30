@@ -9621,14 +9621,17 @@ body.duel-attacker-opp .combatopp-hp { opacity: 0; }
   opacity: 0.82;
 }
 /* The DOWNWARD pop-out: same `.herobuffs` panel, re-anchored under the drop group and grown from its TOP
-   edge. The body's scale divides out the duel wrapper's scale so the panel reads the same size as the
-   player's; the closed nudge inverts (up toward the portrait) so the open slide travels down. */
+   edge. The body's scale MATCHES the player's shop panel exactly, by construction (owner ask 2026-08-30):
+   the player's panel inherits the hero panel's whole-panel scale (`--hpn-panel-s`, baked 3.1), so the foe's
+   multiplies that in and divides out its own duel wrapper's scale (`--hd-opp-s`) — retuning either panel
+   keeps the two Buffs panels the same on-screen size. The closed nudge inverts (up toward the portrait) so
+   the open slide travels down. */
 .combatopp-drop { position: relative; }
 .combatopp-drop .herobuffs { position: absolute; left: 50%; top: calc(100% + 6 * var(--u)); bottom: auto; }
 .combatopp-drop .herobuffs-body {
   transform-origin: top center;
   translate: -50% 0;
-  scale: calc(var(--bfd-body-s, 0.47) / var(--hd-opp-s, 2.4));
+  scale: calc(var(--bfd-body-s, 0.47) * var(--hpn-panel-s, 3.1) / var(--hd-opp-s, 2.4));
   transform: translateY(calc(-10 * var(--u)));
 }
 .combatopp-drop .herobuffs.open .herobuffs-body { transform: translateY(0); }

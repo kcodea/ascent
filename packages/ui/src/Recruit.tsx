@@ -3851,6 +3851,20 @@ export function Recruit() {
     }
   }, [run.wave, turnSeconds, heroSelecting, showTitle]);
 
+  /**
+   * REPLAY PACING for the shop clock (owner report 2026-08-30: *"speed doesnt change the time's speed"*).
+   *
+   * The countdown below is the one clock in the game that free-ran on wall time: a literal
+   * `setTimeout(tick, 1000)`. Playback speed scales how fast FRAMES advance, so at 3x a recorded turn went by
+   * in a third of the time while the timer on screen still counted one second per real second — the replay
+   * and its own clock disagreeing on how long the turn was.
+   *
+   * Dividing the tick by the speed keeps them telling the same story. Live play has no `replaySession`, so
+   * the divisor is 1 and nothing about the real game's timing changes.
+   */
+  const replaySpeed = useGame((st) => st.replaySession?.speed ?? 1);
+  const tickMs = (): number => 1000 / Math.max(0.1, replaySpeed);
+
   // Round timer: count down each recruit turn; at 0 the player is forced into combat (paused while a
   // Discover pick is open, and frozen while the hero picker is open). UI-only — the engine is untimed.
   // A self-scheduling loop (not keyed on `seconds`, which no longer lives in React state): it reads/
@@ -3869,11 +3883,11 @@ export function Recruit() {
       const next = cur - 1;
       if (next === 0) sfx.turnExplode(); // timer hits 0 — shop locks; syncs with the charge glyph's completion flash
       turnClock.set(next); // (the last-5s tick beeps were retired — the charge-glyph turnCharge cue replaces them)
-      id = window.setTimeout(tick, 1000);
+      id = window.setTimeout(tick, tickMs());
     };
-    id = window.setTimeout(tick, 1000);
+    id = window.setTimeout(tick, tickMs());
     return () => window.clearTimeout(id);
-  }, [run.phase, run.discover, run.questOffer, run.powerOffer, run.runeforgeOffer, run.pendingTarget, run.chooseOne, heroSelecting, overlayOpen, run.wave]);
+  }, [run.phase, run.discover, run.questOffer, run.powerOffer, run.runeforgeOffer, run.pendingTarget, run.chooseOne, heroSelecting, overlayOpen, run.wave, replaySpeed]);
 
   // Detect a self-buff (a minion's own stats jump in the recruit phase) and fire its self-buff cue. The
   // readout itself is the badge's own job now — see the cut below.

@@ -9541,6 +9541,12 @@ body.duel-attacker-opp .combatopp-hp { opacity: 0; }
   transform: translate(var(--hd-rune-x, -148px), calc(-50% + var(--hd-rune-y, -19px))) scale(calc(var(--hd-rune-s, 1) / var(--hd-opp-s, 2.4)));
   transform-origin: left center;
   display: flex; flex-direction: column; gap: var(--hd-rune-gap, 20px);
+  /* FIXED 3-SLOT HEIGHT (owner report 2026-08-30): the column is -50% centred, so with flex-grown height a
+     2-rune foe's shorter stack re-centred and every slot drifted off the per-slot nudges (dialed on a
+     3-rune foe). Pinning the box to the full 3-badge stack height (badges are 53u border-box) makes slot N
+     land in the same place at any rune count; badges fill from the top. */
+  height: calc(3 * 53 * var(--u) + 2 * var(--hd-rune-gap, 20px));
+  justify-content: flex-start;
   pointer-events: auto;
 }
 /* The tip opens to the LEFT of the badge (the row sits at the board's right edge). */

@@ -56,6 +56,21 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-08-30',
+    label: 'Watching & Rolling',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: 'Replays are for watching — the board controls no longer respond to clicks — and card art no longer slides sideways when you roll.',
+        details: [
+          'End Turn, Freeze, Refresh and the rest are inert while a replay plays. They never did anything, but they used to press and play their sound, which read as broken.',
+          'Cards can still be hovered and read while you watch.',
+          'Shop cards used to grow slightly as they arrived, which dragged their art a few pixels to the left — most visibly on cards whose art sits off-centre. They now rise and fade without growing.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-08-30',
     label: 'Replay Controls',
     changes: [
       {

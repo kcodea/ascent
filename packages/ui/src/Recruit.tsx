@@ -2840,6 +2840,22 @@ export function Recruit() {
   const prevWarbandGapRef = useRef(-1);
   const prevShopGapRef = useRef(-1);
   const prevHandGapRef = useRef(-1);
+  /**
+   * WATCHING, not playing (owner report 2026-08-30: *"the buttons in game like end turn, freeze, and refresh
+   * etc should not be clickable as a viewer in a replay ... it looks weird and causes bugs"*).
+   *
+   * The reducer was already safe — `dispatch` swallows every action while `replaying` — so nothing a viewer
+   * clicked ever changed the run. What still happened was all the PRESENTATION around the click: the button
+   * pressed and played its sound, a card started a drag, the hero power armed and waited for a target that
+   * would never resolve. A control that depresses and does nothing reads as broken, and an armed hero power
+   * with no way to fire it is the "bug" in the report.
+   *
+   * So the board goes inert as a whole (a `viewing` class, see `.app.viewing` in styles.css) rather than
+   * `disabled` being threaded through two dozen controls — one gate cannot be forgotten by the next control
+   * somebody adds. HOVER is deliberately left alive: reading a card mid-replay is the point of watching one.
+   */
+  const viewing = useGame((st) => !!st.replaySession);
+
   const timeUp = useTurnTimeUp(); // turn timer expired: lock everything but End Turn (flips once/turn — see turnClock)
 
   // TIMER-0 CRASH SNAPSHOT (owner ask 2026-08-24). The autosave only writes at PHASE boundaries; a run sitting
@@ -3210,6 +3226,10 @@ export function Recruit() {
   const onCardPointerDown = useCallback(
     (e: ReactPointerEvent): void => {
       if (e.button !== 0 || inCombat || useGame.getState().endTurnAnimating) return; // no dragging in combat / mid end-of-turn
+      // A REPLAY VIEWER may not drag. The buy/sell it would produce is swallowed by `dispatch` anyway, so the
+      // only thing a drag could do here is pick a card up and put it back — while fighting the playback that
+      // owns the board. Read live from the store: this callback's deps do not include the session.
+      if (useGame.getState().replaying) return;
       // Edit mode claims the click outright: a bare pointerdown on a board card otherwise starts a drag, and a
       // drag that begins under an open editor would move the card you are editing. Read sbEditMode/run LIVE
       // from the store (not the component-scope `sbEditMode`/`run` closed over here) — this callback's deps
@@ -4959,6 +4979,7 @@ export function Recruit() {
   //  • a primary click on the *empty table* (no card/control) → the click "thock" + a tiny dust puff.
   const onBoardPointerDown = (e: React.PointerEvent<HTMLDivElement>): void => {
     if (e.button !== 0) return;
+    if (viewing) return;   // replay viewer — no card touch cue, no drag, no click thock (see `viewing`)
     const t = e.target as HTMLElement;
     if (t.closest('[data-zone] .card')) { sfx.cardTouch(); return; }
     if (heroArmed || equipArmed || drag) return;
@@ -5850,7 +5871,7 @@ export function Recruit() {
         inCombat && replay.done ? ` done ${replay.result}` : ''
       }${combatOutro === 'out' || skipFade === 'out' ? ' combatout' : combatOutro === 'in' || skipFade === 'in' ? ' combatin' : ''}${
         skipFade === 'out' ? ' combatfrozen' : ''
-      }`}
+      }${viewing ? ' viewing' : ''}`}
       onPointerDown={onBoardPointerDown}
     >
       {/* Board art on a full-viewport layer behind the 16:9 stage — extends into the margins on off-16:9 monitors

@@ -521,6 +521,17 @@ export const sfx = {
     if (playSample('runeselect', 'ui', Math.max(0, delay) / 1000, ({ gain }) => { gain.gain.value *= vol; })) return;
     tone({ freq: 620, dur: 0.16, type: 'triangle', vol: 0.1 * vol, slideTo: 940, category: 'ui' });
   },
+  /**
+   * The Auctioneer's Pulse landing on the minion it calls back (owner-authored clip, 2026-08-30).
+   *
+   * Hero-power specific rather than the generic `pulse`: the Pulse is a bespoke moment with its own authored
+   * FX (`auctioneer-hp`), and a sound is half of what makes a hero power feel like that hero's.
+   */
+  auctioneerPower: (vol = 1) => {
+    if (vol <= 0) return;
+    if (playSample('auctioneerhp', 'ui', 0, ({ gain }) => { gain.gain.value *= vol; })) return;
+    tone({ freq: 480, dur: 0.2, type: 'triangle', vol: 0.1 * vol, slideTo: 760, category: 'ui' });
+  },
   equipmentUse: (clipId: string, delay = 0) => {
     if (playSample(clipId, 'equip', delay / 1000)) return;
     tone({ freq: 520, dur: 0.18, type: 'sine', vol: 0.1, slideTo: 300, category: 'equip' });

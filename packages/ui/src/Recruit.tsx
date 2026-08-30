@@ -3740,7 +3740,31 @@ export function Recruit() {
         // The authored 'hero-power-target' FX at the targeted unit (owner ask 2026-08-14). Feed the click
         // point to source/target AND cursor — the def anchors on `cursor`, which is ORIGIN if unsupplied.
         const p = { x: e.clientX, y: e.clientY };
-        playDef('hero-power-target', { source: p, target: p, cursor: p });
+        // THE AUCTIONEER'S PULSE has its own authored effect + clip (owner 2026-08-30), and it plays INSTEAD
+        // of the generic spark rather than on top of it: `auctioneer-hp` is four layers of particles and two
+        // shockwaves, and stacking the generic burst under that reads as two effects fired by accident.
+        //
+        // Anchored on the MINION, not on the pointer. The owner's ask is "played on the target minion" and
+        // the def's own layers all anchor `target`, so the click point — which can land anywhere on a card,
+        // including its corner — is the wrong origin. `minionAt` already found the element, so its rect gives
+        // the true centre for free.
+        const isAuctioneer = !equipArmed && useGame.getState().run.heroId === 'myra';
+        if (isAuctioneer) {
+          // The same selector `minionAt` used to FIND it, so the two cannot disagree about what a targetable
+          // minion is. Falls back to the click point if the card has gone (it cannot have, on this frame —
+          // but an FX is never worth a crash).
+          const el = document.querySelector<HTMLElement>(`[data-zone="warband"] .row .card[data-uid="${target.uid}"]`);
+          const r = el?.getBoundingClientRect();
+          const c = r ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : p;
+          // The UID travels too, not just the point (see `playDefUids.test.ts`). Every layer here is Pixi
+          // today, which needs only coordinates — but a def that omits the uid keeps working right up until
+          // someone adds a `react` layer to it, and then animates nobody. That defect shipped three times in
+          // one day, which is why the guard exists; passing it costs nothing.
+          playDef('auctioneer-hp', { source: c, target: c, cursor: c }, { uids: { target: target.uid } });
+          sfx.auctioneerPower();
+        } else {
+          playDef('hero-power-target', { source: p, target: p, cursor: p });
+        }
       } else if (equipArmed) armEquipment(); // released on nothing — cancels, spending no Gold and no use
       else armHero(); // released without a valid target — snaps back / cancels
     };

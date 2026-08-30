@@ -55,6 +55,22 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-08-30',
+    label: 'Gem Portal',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: 'The combat curtain now erupts from the End Turn gem — the gem charges up, blooms the blue over the whole scene, then a sweep reveals the arena.',
+        details: [
+          'A short charge-up on the gem (motes spiraling in, a swelling flare) telegraphs the transition before it fires.',
+          'The cover is a circle blooming out of the gem, trailed by stardust and swirling wisps along its edge; the reveal is a clean linear sweep (right-to-left into combat, left-to-right back to shop).',
+          'Returning to shop, the End Combat gem drinks the scene back in — motes and sparks stream into it as the blue closes.',
+          'Smoother than before on big screens: the glow front was rebuilt to stay off the main thread.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-08-29',
     label: 'Runeforge',
     changes: [

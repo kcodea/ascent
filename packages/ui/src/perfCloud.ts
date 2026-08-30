@@ -1,6 +1,7 @@
 import { supabaseClient } from './remoteBoards';
 import { currentUserId } from './identity';
 import { diagnose } from './perfDiagnose';
+import { displaySubject, phaseName } from './perfNames';
 import type { PerfBucket } from './perfMonitor';
 import type { PerfRun, PerfRunMeta } from './perfStore';
 
@@ -69,7 +70,7 @@ export async function uploadRun(run: PerfRun, author: string): Promise<CloudResu
   try {
     // The diagnosis travels WITH the row so the list can show a verdict without loading a timeline, and so a
     // row stays readable even if the rules change later — what it says is what the client concluded then.
-    const d = diagnose(run.buckets);
+    const d = diagnose(run.buckets, displaySubject);
     const { data, error } = await c.from('perf_runs').insert([{
       user_id: userId,
       author,

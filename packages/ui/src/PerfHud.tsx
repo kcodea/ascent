@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { perfMonitor, perfThresholds, type PerfBucket, type FrameThresholds } from './perfMonitor';
+import { displaySubject, phaseName, shortName } from './perfNames';
 import { thresholdsFor } from './refreshRate';
 import { DevPanelContext, useDraggablePanel } from './useDraggablePanel';
 import { diagnose, type Diagnosis } from './perfDiagnose';
@@ -144,7 +145,7 @@ function PerfHudPanel() {
     const n = perfMonitor.history().length;
     if (lastDiagRef.current >= 0 && n - lastDiagRef.current < DIAGNOSE_EVERY) return;
     lastDiagRef.current = n;
-    setLive(diagnose(perfMonitor.history()));
+    setLive(diagnose(perfMonitor.history(), displaySubject));
   }, [open, bucket]);
 
   const [saved, setSaved] = useState('');
@@ -323,15 +324,18 @@ function PerfHudPanel() {
           {hot.length === 0
             ? <div className="perfhud-empty">nothing measured this second</div>
             : hot.map(([k, v]) => (
-              <Row key={k} k={`${k}${v.n > 1 ? ` ×${v.n}` : ''}`} v={`${v.max.toFixed(1)} ms`} warn={v.max > th.longFrameMs} />
+              // In-game names, not internal addresses (owner ask 2026-08-30). `title` keeps the raw label
+              // one hover away, so a row stays greppable once you want to go and find it in the source.
+              <Row key={k} k={`${shortName(k)}${v.n > 1 ? ` ×${v.n}` : ''}`} v={`${v.max.toFixed(1)} ms`}
+                   warn={v.max > th.longFrameMs} title={k} />
             ))}
 
           <div className="perfhud-sub">Scene</div>
           {b && Object.entries(b.counts).map(([k, v]) => <Row key={k} k={k} v={String(v)} />)}
           <Row k="heap" v={b?.heapMb ? `${b.heapMb.toFixed(0)} MB` : 'n/a'} />
           <Row k="dom nodes" v={b ? String(b.nodes) : '–'} />
-          <Row k="context" v={b ? `${b.phase ?? '–'}${b.wave !== undefined ? ` · wave ${b.wave}` : ''}` : '–'} />
-          <Row k="marks" v={marks.length ? marks.map(([k, v]) => `${k}×${v}`).join(' ') : '–'} />
+          <Row k="context" v={b ? `${b.phase ? phaseName(b.phase) : '–'}${b.wave !== undefined ? ` · wave ${b.wave}` : ''}` : '–'} />
+          <Row k="marks" v={marks.length ? marks.map(([k, v]) => `${shortName(k)}×${v}`).join(' ') : '–'} />
 
           <div className="perfhud-btns">
             <button onClick={copy} title="Copy a markdown report — findings, phases and worst moments — ready to paste to Claude">
@@ -350,9 +354,10 @@ function PerfHudPanel() {
   );
 }
 
-function Row({ k, v, warn }: { k: string; v: string; warn?: boolean }) {
+/** `title` carries the RAW measured label behind a friendly name, so a row stays greppable on hover. */
+function Row({ k, v, warn, title }: { k: string; v: string; warn?: boolean; title?: string }) {
   return (
-    <div className={`perfhud-row${warn ? ' warn' : ''}`}>
+    <div className={`perfhud-row${warn ? ' warn' : ''}`} title={title}>
       <span>{k}</span><b>{v}</b>
     </div>
   );

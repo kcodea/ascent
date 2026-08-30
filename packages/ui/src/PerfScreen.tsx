@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useGame } from './store';
 import { perfMonitor } from './perfMonitor';
+import { displaySubject, phaseName } from './perfNames';
 import type { PerfBucket } from './perfMonitor';
 import { compareRuns, diagnose, type Diagnosis, type Severity, type Spike } from './perfDiagnose';
 import { buildReport } from './perfReport';
@@ -165,7 +166,7 @@ export function PerfScreen(): JSX.Element | null {
     // The LIVE recording is offered first when one is in progress: the most common reason to open this is
     // "that felt bad just now", and making you stop and save first would lose the moment.
     const liveBuckets = [...perfMonitor.history()];
-    if (liveBuckets.length > 0) setCur({ meta: null, buckets: liveBuckets, d: diagnose(liveBuckets) });
+    if (liveBuckets.length > 0) setCur({ meta: null, buckets: liveBuckets, d: diagnose(liveBuckets, displaySubject) });
   }, [open, refresh, refreshCloud]);
 
   useEffect(() => { if (!open) { setPicked(null); setCopied(''); } }, [open]);
@@ -173,7 +174,7 @@ export function PerfScreen(): JSX.Element | null {
   const pick = useCallback(async (id: string, into: 'cur' | 'prev') => {
     const run = await loadRun(id);
     if (!run) return;
-    const loaded: Loaded = { meta: run, buckets: run.buckets, d: diagnose(run.buckets) };
+    const loaded: Loaded = { meta: run, buckets: run.buckets, d: diagnose(run.buckets, displaySubject) };
     if (into === 'cur') { setCur(loaded); setPicked(null); } else setPrev(loaded);
   }, []);
 
@@ -201,7 +202,7 @@ export function PerfScreen(): JSX.Element | null {
     const buckets = await loadCloudRun(meta.id);
     setBusy(buckets ? '' : 'Could not load that recording.');
     if (!buckets) { window.setTimeout(() => { setBusy(''); }, 4000); return; }
-    const loaded: Loaded = { meta, buckets, d: diagnose(buckets) };
+    const loaded: Loaded = { meta, buckets, d: diagnose(buckets, displaySubject) };
     if (into === 'cur') { setCur(loaded); setPicked(null); } else setPrev(loaded);
   }, []);
 
@@ -284,7 +285,7 @@ export function PerfScreen(): JSX.Element | null {
               ))
             ) : null}
             {tab === 'local' && cur && !cur.meta && (
-              <button className="perfsc-run on" onClick={() => { setCur({ meta: null, buckets: [...perfMonitor.history()], d: diagnose([...perfMonitor.history()]) }); }}>
+              <button className="perfsc-run on" onClick={() => { setCur({ meta: null, buckets: [...perfMonitor.history()], d: diagnose([...perfMonitor.history()], displaySubject) }); }}>
                 <b>Live recording</b>
                 <span>{cur.d.seconds}s · in progress</span>
               </button>

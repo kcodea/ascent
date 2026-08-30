@@ -1,4 +1,5 @@
 import { compareRuns, diagnose, type Diagnosis } from './perfDiagnose';
+import { displaySubject, phaseName } from './perfNames';
 import type { PerfRunMeta } from './perfStore';
 import type { PerfBucket } from './perfMonitor';
 
@@ -29,7 +30,10 @@ const ms = (n: number): string => `${n.toFixed(1)}ms`;
 
 /** How a spike's second is described — the annotation that makes it triageable rather than just big. */
 function spikeLine(s: Diagnosis['spikes'][number], budgetMs: number): string {
-  const where = [s.phase, s.wave !== undefined ? `wave ${s.wave}` : null].filter(Boolean).join(' ');
+  // In-game words, not internal phase ids (owner ask 2026-08-30): "Shop, wave 4" reads as a moment in a game;
+  // "recruit 4" reads as a log line you still have to decode.
+  const where = [s.phase ? phaseName(s.phase) : null, s.wave !== undefined ? `wave ${s.wave}` : null]
+    .filter(Boolean).join(', ');
   const parts: string[] = [`- **${ms(s.worst)}** (${(s.worst / budgetMs).toFixed(1)}× budget) at ${(s.t / 1000).toFixed(0)}s${where ? ` — ${where}` : ''}`];
   if (s.task > 0) parts.push(`  - longest blocking task: ${ms(s.task)}`);
   if (s.timings.length) {
@@ -49,7 +53,7 @@ export interface ReportInput {
 
 /** The full report. Markdown, self-contained, safe to paste anywhere. */
 export function buildReport(input: ReportInput): string {
-  const d = diagnose(input.buckets);
+  const d = diagnose(input.buckets, displaySubject);
   const L: string[] = [];
   const m = input.meta ?? {};
 
@@ -100,7 +104,7 @@ export function buildReport(input: ReportInput): string {
     L.push('| phase | seconds | median fps | p95 | worst | dropped/s | |');
     L.push('|---|---|---|---|---|---|---|');
     for (const p of phases) {
-      L.push(`| ${p.phase} | ${p.seconds} | ${p.fpsMed} | ${ms(p.p95)} | ${ms(p.worst)}${p.overBudget ? ' ⚠' : ''} | ${p.jankRate} | \`${bar(p.jankRate, maxRate)}\` |`);
+      L.push(`| ${phaseName(p.phase)} | ${p.seconds} | ${p.fpsMed} | ${ms(p.p95)} | ${ms(p.worst)}${p.overBudget ? ' ⚠' : ''} | ${p.jankRate} | \`${bar(p.jankRate, maxRate)}\` |`);
     }
     L.push('');
   }
@@ -116,7 +120,7 @@ export function buildReport(input: ReportInput): string {
 
   // ── Comparison, when one was picked. ───────────────────────────────────────────────────────────────────
   if (input.previous) {
-    const prev = diagnose(input.previous.buckets);
+    const prev = diagnose(input.previous.buckets, displaySubject);
     const regs = compareRuns(prev, d);
     L.push(`## Compared with ${new Date(input.previous.meta.startedAt).toISOString().slice(0, 16).replace('T', ' ')}`);
     if (input.previous.meta.note) L.push(`_(that run: "${input.previous.meta.note}")_`);

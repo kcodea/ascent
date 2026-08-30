@@ -68,7 +68,9 @@ describe('perf report', () => {
       ],
     });
     expect(r).toContain('## Worst moments');
-    expect(r).toContain('combat');
+    // The phase is named as the GAME names it, not by its internal id (owner ask 2026-08-30: in-game names).
+    expect(r, 'the phase reads as a moment in a game').toContain('Combat');
+    expect(r, '…and not as the internal phase id').not.toContain('| combat |');
     expect(r).toContain('wave 9');
     expect(r, 'the measured block is the shortlist').toContain('plateGild');
     expect(r).toContain('fx:crit');

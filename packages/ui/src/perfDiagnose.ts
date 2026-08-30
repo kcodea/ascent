@@ -135,6 +135,16 @@ export interface Diagnosis {
 export type SubjectKind = 'effect' | 'card' | 'mechanic' | 'code';
 export interface Subject { kind: SubjectKind; id: string; label: string }
 
+/**
+ * How a subject is turned into display text. Injected rather than imported so `perfDiagnose` keeps NO content
+ * dependency — the whole engine stays a pure function of buckets, which is what makes its tests hermetic.
+ * `perfNames.ts` supplies the real implementation at the edge (owner ask 2026-08-30: in-game names).
+ */
+export type SubjectNamer = (sub: Subject, rawLabel: string) => string;
+
+/** The default: the raw, content-free label. */
+export const rawNamer: SubjectNamer = (sub) => sub.label;
+
 export function subjectOf(label: string): Subject {
   if (label.startsWith('fx:')) {
     const id = label.slice(3);
@@ -240,7 +250,7 @@ export function worstSpikes(live: readonly PerfBucket[], n = 8): Spike[] {
  * A rule earns its place by being ACTIONABLE — every one names a next step, and where this codebase has a
  * known pattern for the symptom, it names that pattern rather than offering general advice.
  */
-export function diagnose(buckets: readonly PerfBucket[]): Diagnosis {
+export function diagnose(buckets: readonly PerfBucket[], namer: SubjectNamer = rawNamer): Diagnosis {
   const live = buckets.filter((b) => !b.hidden);
   const hz = runHz(live);
   const th = thresholdsFor(hz);
@@ -381,7 +391,7 @@ export function diagnose(buckets: readonly PerfBucket[]): Diagnosis {
     v.push({
       id: `hotspot:${label}`,
       severity: t.max > th.jankMs ? 'critical' : 'warn',
-      title: `${SUBJECT_VERB[sub.kind]} ${sub.label} took ${round(t.max)} ms in its worst call`,
+      title: `${SUBJECT_VERB[sub.kind]} ${namer(sub, label)} took ${round(t.max)} ms in its worst call`,
       detail: `Called ${t.n}× for ${round(t.total)} ms total. One call alone is ${round(t.max / budgetMs, 1)}× the frame budget.`,
       suggestion: SUBJECT_FIX[sub.kind],
       confidence: 'measured',

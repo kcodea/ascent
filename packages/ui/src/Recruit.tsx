@@ -1599,12 +1599,19 @@ export function Recruit() {
   // the wipe to swallow those instead. So the curtain (`.wipecurtain`, the boot splash's dark-blue gradient,
   // z ABOVE the whole in-app scene, below the Pixi FX canvas) BLOOMS RADIALLY out of the End Turn gem over
   // EVERYTHING (owner ask 2026-08-29 — the gem as a portal), holds a beat at full blue while the scene
-  // settles underneath (and the combat backdrop snaps in, no clip animation of its own any more), then gets
-  // sucked back into the gem to reveal the finished combat scene. Leaving combat runs the same choreography
-  // (cover → swap back → reveal) from the same gem (now End Combat). Sweeps
+  // settles underneath (and the combat backdrop snaps in, no clip animation of its own any more), then a
+  // LINEAR sweep carries the reveal (entry R→L, exit L→R — the hybrid, owner ask 2026-08-29). Leaving
+  // combat runs the same choreography (bloom from the End Combat gem → swap back → linear reveal). Sweeps
   // advance on the curtain's clip-path transitionend (+ a backstop timer); holds advance on their own timer.
   // A run RESUMED mid-combat initialises straight to 'combat' (curtain parked, combat backdrop shown).
-  type WipeState = 'idle' | 'coverIn' | 'coveredIn' | 'revealIn' | 'combat' | 'coverOut' | 'coveredOut' | 'revealOut';
+  // HYBRID geometry (owner ask 2026-08-29): COVERS are radial blooms out of the gem; REVEALS are the
+  // linear sweeps (entry reveal R→L, exit reveal L→R). circle() and inset() can't interpolate, but no
+  // transition ever crosses shapes: the circle→inset switch happens during the fully-covered hold
+  // (`.full.settle`, transition:none — both values are full cover, so the swap is invisible), and the
+  // inset→circle switch happens between empty parked states (both cover nothing). The one wrinkle is the
+  // EXIT bloom: it must START from the zero circle, but combat parks the curtain on the reveal's inset
+  // sliver — so `primeOut` snaps it to the zero circle for one frame before `coverOut` launches.
+  type WipeState = 'idle' | 'coverIn' | 'coveredIn' | 'revealIn' | 'combat' | 'primeOut' | 'coverOut' | 'coveredOut' | 'revealOut';
   const [wipe, setWipe] = useState<WipeState>(() => (run.phase === 'combat' ? 'combat' : 'idle'));
   // Per-STAGE sweep duration + the full-blue hold between stages — single source: the CSS var below is set
   // FROM WIPE_MS, and the backstop timer derives from it (+150ms margin), so retuning here can never strand
@@ -1615,12 +1622,7 @@ export function Recruit() {
   const WIPE_HOLD_IN_MS = 900;
   const WIPE_HOLD_OUT_MS = 700;
   const wipeSweeping = wipe === 'coverIn' || wipe === 'revealIn' || wipe === 'coverOut' || wipe === 'revealOut';
-  // RADIAL variant (owner ask 2026-08-29): the curtain BLOOMS out of the End Turn gem — as if the gem
-  // itself bends space to carry you to combat — and every reveal is the blue getting sucked BACK into it.
-  // Same state machine, same timings; only the clip geometry changed (circle() at the gem instead of the
-  // L→R/R→L inset sweeps). Cover = radius 0 → full; reveal = radius full → 0; both parked states are the
-  // zero-radius circle, so the cycle still round-trips with no resets.
-  const wipeExiting = wipe === 'coverOut' || wipe === 'coveredOut' || wipe === 'revealOut';
+  const wipeExiting = wipe === 'primeOut' || wipe === 'coverOut' || wipe === 'coveredOut' || wipe === 'revealOut';
   // GEM ORIGIN — measured ONCE at the start of each cover sweep (a one-shot layout read, not per-frame;
   // see CLAUDE.md perf rules), then handed to the CSS as `--wipe-cx/--wipe-cy/--wipe-r`. The radius is the
   // distance to the farthest viewport corner, so `.full` provably covers the whole screen from any anchor.
@@ -1628,7 +1630,8 @@ export function Recruit() {
   // entry, End Combat on exit — so both blooms erupt from the same diamond.
   const [wipeOrigin, setWipeOrigin] = useState<{ cx: number; cy: number; r: number } | null>(null);
   useLayoutEffect(() => {
-    if (wipe !== 'coverIn' && wipe !== 'coverOut') return;
+    // Exit measures at `primeOut` — the vars must be committed before `coverOut` launches the bloom.
+    if (wipe !== 'coverIn' && wipe !== 'primeOut') return;
     const vw = window.innerWidth, vh = window.innerHeight;
     let cx = vw * 0.84, cy = vh * 0.62; // fallback ≈ where the gem sits on the stage
     const gem = document.querySelector('.etbwrap .etb-gembox') ?? document.querySelector('.etbwrap');
@@ -1653,6 +1656,12 @@ export function Recruit() {
       const t = window.setTimeout(() => setWipe(wipe === 'coveredIn' ? 'revealIn' : 'revealOut'), wipe === 'coveredIn' ? WIPE_HOLD_IN_MS : WIPE_HOLD_OUT_MS);
       return () => window.clearTimeout(t);
     }
+    // The prime frame: the zero-circle park is committed by this render; one short beat later the bloom
+    // launches from it (a timer, not rAF, so a background tab can't stall the exit).
+    if (wipe === 'primeOut') {
+      const t = window.setTimeout(() => setWipe('coverOut'), 30);
+      return () => window.clearTimeout(t);
+    }
     if (!wipeSweeping) return undefined;
     wipeTimeoutRef.current = window.setTimeout(advanceWipe, WIPE_MS + 400);
     return () => window.clearTimeout(wipeTimeoutRef.current);
@@ -1662,23 +1671,25 @@ export function Recruit() {
     // "returning to shop" announcement (owner ask 2026-08-28). Snap the machine home; the end screen
     // covers the scene itself.
     if (!inCombat && run.phase !== 'recruit') { setWipe('idle'); return; }
-    if (inCombat) setWipe((w) => (w === 'idle' || w === 'coverOut' || w === 'coveredOut' || w === 'revealOut' ? 'coverIn' : w));
-    else setWipe((w) => (w === 'combat' || w === 'coverIn' || w === 'coveredIn' || w === 'revealIn' ? 'coverOut' : w));
+    if (inCombat) setWipe((w) => (w === 'idle' || w === 'primeOut' || w === 'coverOut' || w === 'coveredOut' || w === 'revealOut' ? 'coverIn' : w));
+    else setWipe((w) => (w === 'combat' || w === 'coverIn' || w === 'coveredIn' || w === 'revealIn' ? 'primeOut' : w));
     // (The wipe once fired a Pixi streak def here — retired 2026-08-28 when the curtain moved ABOVE the FX
     // canvas so it sweeps over scene FX like the End-Turn gem smoke; a def on that canvas would play
     // invisibly behind the blue. The CSS `.wipefront` glow carries the front's look. The `board-wipe` def
     // stays committed in the workbench for a future dedicated above-curtain layer.)
   }, [inCombat]);
-  // What each element wears per state. The curtain is FULL through the whole covered middle of both
-  // sequences; parked at the zero-radius circle (`gone` = base geometry) from the entry reveal through
-  // combat and again after the exit reveal — every parked position is where the previous bloom naturally
-  // collapsed to, so no snap/reset class is needed on the curtain.
+  // What each element wears per state. Covers wear `full` (the bloom, circle geometry); the holds wear
+  // `full settle` (which ALSO swaps the clip to the full-cover inset, transition:none — the invisible
+  // shape change that lets the reveal run linear); `gone` is the entry reveal's R→L retreat (parked
+  // through combat), `gone rtl` the exit reveal's L→R retreat; base and `primeOut` park on the zero
+  // circle, ready for the next bloom.
   const curtainClass = `wipecurtain${
     wipe === 'coveredIn' || wipe === 'coveredOut' ? ' full settle'
     : wipe === 'coverIn' || wipe === 'coverOut' ? ' full'
-    : wipe === 'revealIn' || wipe === 'combat' ? ' gone' : ''
+    : wipe === 'revealIn' || wipe === 'combat' ? ' gone'
+    : wipe === 'revealOut' ? ' gone rtl' : ''
   }`;
-  const combatBgShown = wipe === 'coveredIn' || wipe === 'revealIn' || wipe === 'combat' || wipe === 'coverOut';
+  const combatBgShown = wipe === 'coveredIn' || wipe === 'revealIn' || wipe === 'combat' || wipe === 'primeOut' || wipe === 'coverOut';
   // COMBAT UNITS render on the staged window too (owner ask 2026-08-29): the warband's recruit-cards→Unit
   // swap and the enemy row's arrival both happen while the curtain fully hides the board, so the entry
   // reveal exposes BOTH armies already standing (they hold ~300ms before the first attack — see the
@@ -2213,7 +2224,7 @@ export function Recruit() {
   const endCombat = useCallback((): void => {
     if (wipeExitRef.current) return; // already leaving — ignore a double-click
     wipeExitRef.current = true;
-    setWipe('coverOut');
+    setWipe('primeOut'); // one parked-circle frame, then the exit bloom (see the wipe hold effect)
   }, []);
   useEffect(() => {
     if (wipe !== 'coveredOut' || !wipeExitRef.current) return;
@@ -5847,13 +5858,15 @@ export function Recruit() {
           </div>
         )}
       </div>
-      {/* The glow RING rides the bloom's seam: `grow` expands it with a cover, no class shrinks it back to
-          base with a reveal, and the holds park it snapped fully open (invisible — opacity rides
-          `sweeping`) so the following reveal launches from where the cover ended. */}
-      <div className={`wipefront${
-        wipe === 'coverIn' || wipe === 'coverOut' ? ' grow sweeping'
-        : wipe === 'revealIn' || wipe === 'revealOut' ? ' sweeping'
-        : wipe === 'coveredIn' || wipe === 'coveredOut' ? ' open snap'
+      {/* TWO glow fronts for the hybrid: the RING rides the bloom's seam on covers (grows with the circle,
+          parked snapped at base otherwise), and the vertical BAR rides the linear reveals — parked at the
+          launch edge during each hold (entry reveal runs R→L so it parks RIGHT during coveredIn; exit
+          reveal runs L→R from its LEFT home). Opacity rides `sweeping` on both, so parking is invisible. */}
+      <div className={`wipefront${wipe === 'coverIn' || wipe === 'coverOut' ? ' grow sweeping' : ' snap'}`} aria-hidden="true" style={wipeVars} />
+      <div className={`wipebar${
+        wipe === 'revealIn' ? ' rtl go sweeping'
+        : wipe === 'revealOut' ? ' go sweeping'
+        : wipe === 'coveredIn' ? ' rtl snap'
         : ' snap'}`} aria-hidden="true" style={wipeVars} />
       </>, document.body)}
       {/* Charge glyph — the board's etched sigil, anchored to the board midline. Lives HERE (a direct child of

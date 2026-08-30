@@ -298,19 +298,27 @@ canvas.spr { image-rendering: pixelated; display: block; }
    collapses off to reveal the finished scene. Same choreography in both directions. clip-path is a paint property,
    but each sweep is a sanctioned ONE-SHOT transition (see CLAUDE.md perf rules). The duration is supplied at
    runtime by Recruit's `WIPE_MS` via an inline `--wipe-dur`; the `450ms` fallback is a safety default.
-   RADIAL variant (owner ask 2026-08-29): the curtain is a CIRCLE anchored on the End Turn gem — it blooms
-   out of the gem to cover (radius 0 → `--wipe-r`, the farthest viewport corner, measured by Recruit at each
-   cover start along with `--wipe-cx/--wipe-cy`), and every reveal is the blue collapsing back INTO the gem
-   (radius → 0). Both parked states are the zero-radius circle, so the cycle round-trips with no resets:
-   base (parked in the gem) → `.full` (entry bloom) → `.gone` (entry collapse; parked through combat) →
-   `.full` (exit bloom, from the End Combat gem) → base (exit collapse). `.snap` is unused on the curtain
-   and kept only for the front. */
+   HYBRID geometry (owner ask 2026-08-29): COVERS are radial — a circle blooming out of the End Turn gem
+   (radius 0 → `--wipe-r`, the farthest viewport corner, measured by Recruit with `--wipe-cx/--wipe-cy`) —
+   and REVEALS are linear: the entry reveal retreats R→L, the exit reveal L→R. circle() and inset() can't
+   interpolate, so no transition ever crosses shapes: the covered HOLD (`.full.settle`, transition:none)
+   swaps the clip from the full circle to the full-cover inset invisibly (both cover everything), and the
+   empty parked states snap back to the zero circle invisibly (both cover nothing — Recruit's `primeOut`
+   guarantees the exit bloom launches from the zero circle, not the parked sliver). `.snap` is unused on
+   the curtain and kept only for the fronts. */
 .wipecurtain { position: fixed; inset: 0; z-index: 250; pointer-events: none;
   background: radial-gradient(ellipse 60% 60% at 50% 50%, #24468a 0%, #0a1730 100%);
   clip-path: circle(0px at var(--wipe-cx, 84%) var(--wipe-cy, 62%));
+  /* Hint the clip transition onto the compositor (Chromium composites basic-shape clip-path animations when
+     the element is promoted) — without it the near-fullscreen gradient repaints every frame of the bloom. */
+  will-change: clip-path;
   transition: clip-path var(--wipe-dur, 450ms) cubic-bezier(.4, 0, .2, 1); }
 .wipecurtain.full { clip-path: circle(var(--wipe-r, 150vmax) at var(--wipe-cx, 84%) var(--wipe-cy, 62%)); }
-.wipecurtain.gone { clip-path: circle(0px at var(--wipe-cx, 84%) var(--wipe-cy, 62%)); }
+/* The covered hold: same full cover, INSET shape — the invisible switch that lets the reveal run linear. */
+.wipecurtain.full.settle { clip-path: inset(0 0 0 0); }
+/* Entry reveal (R→L retreat; parked here through combat) / exit reveal (`.rtl`, L→R retreat). */
+.wipecurtain.gone { clip-path: inset(0 100% 0 0); }
+.wipecurtain.gone.rtl { clip-path: inset(0 0 0 100%); }
 /* HOLD states wear `.settle` (owner bug report 2026-08-28: brief combat-board flashes during the covered
    beat). The state machine's backstop timer can outrun the real sweep on a hitchy combat-entry frame —
    advancing to the covered state (which swaps the board) while the clip transition is still mid-flight.
@@ -342,22 +350,41 @@ canvas.spr { image-rendering: pixelated; display: block; }
    the gem (same `--wipe-cx/--wipe-cy/--wipe-r` vars as the curtain) whose ring gradient sits at its outer
    edge; scaling it 0→1 with the SAME duration + easing as the curtain's clip transition keeps the ring
    glued to the circle's edge (both interpolate linearly in progress, so they can never desync).
-   Compositor-only transform, static gradient (softness baked into the stops — no filter: the div is
-   viewport-scale, a blur would be an expensive one-shot paint for nothing). `grow`/`open` expand it, base
-   collapses it back into the gem; `.snap` parks it instantly (opacity 0, so the jump is invisible).
-   Rendered AFTER the curtain at the same z, so it paints above the blue. */
+   Compositor-only transform, static gradient (softness baked into the stops — no filter). The div is a
+   FIXED 1000px texture scaled UP to the live radius (owner report 2026-08-29: sizing the div at 2×radius
+   rasterized a ~4400px layer whose full weight hit the viewport exactly as the ring reached the screen
+   edge — a frame hitch at the end of every bloom; a small texture upscaled by the compositor costs nothing
+   and the upscale blur only softens the glow). `grow` expands it to `--wipe-front-scale` (= 2×radius /
+   1000, set by Recruit with the origin) during the cover blooms; `.snap` parks it back at base instantly
+   (opacity 0, so the jump is invisible). Rendered AFTER the curtain at the same z, so it paints above the
+   blue. */
 .wipefront { position: fixed; left: var(--wipe-cx, 84vw); top: var(--wipe-cy, 62vh);
-  width: calc(var(--wipe-r, 120vmax) * 2); height: calc(var(--wipe-r, 120vmax) * 2);
-  margin: calc(-1 * var(--wipe-r, 120vmax)) 0 0 calc(-1 * var(--wipe-r, 120vmax));
+  width: 1000px; height: 1000px; margin: -500px 0 0 -500px;
   border-radius: 50%; z-index: 250; pointer-events: none; opacity: 0; mix-blend-mode: screen;
   background: radial-gradient(closest-side,
     rgba(120, 160, 255, 0) 0%, rgba(120, 160, 255, 0) 84%,
     rgba(190, 215, 255, .45) 92%, rgba(255, 255, 255, .85) 97%, rgba(160, 200, 255, 0) 100%);
-  transform: scale(0.004);
+  transform: scale(0.004); will-change: transform, opacity;
   transition: transform var(--wipe-dur, 450ms) cubic-bezier(.4, 0, .2, 1), opacity 120ms linear; }
-.wipefront.grow, .wipefront.open { transform: scale(1); }
+.wipefront.grow { transform: scale(var(--wipe-front-scale, 4.4)); }
 .wipefront.sweeping { opacity: 1; }
 .wipefront.snap { transition: none; }
+/* The linear BAR front — rides the reveal sweeps' seam (the hybrid's second half; same look as the
+   original L→R front). Parks at the left edge; `.go` sweeps it L→R (exit reveal), `.rtl` parks it at the
+   RIGHT edge and `.rtl.go` brings it home R→L (entry reveal). Same duration + easing as the curtain's
+   inset transition so bar and seam can never desync; compositor-only transform, static gradient. */
+.wipebar { position: fixed; top: 0; bottom: 0; left: -15vw; width: 30vw; z-index: 250;
+  pointer-events: none; opacity: 0; mix-blend-mode: screen;
+  background:
+    radial-gradient(60% 50% at 50% 50%, rgba(255, 255, 255, .55), rgba(160, 200, 255, .28) 40%, rgba(90, 130, 255, 0) 70%),
+    linear-gradient(to right, rgba(120, 160, 255, 0), rgba(190, 215, 255, .5) 46%, rgba(255, 255, 255, .85) 50%, rgba(190, 215, 255, .5) 54%, rgba(120, 160, 255, 0));
+  filter: blur(2px); transform: translateX(0); will-change: transform, opacity;
+  transition: transform var(--wipe-dur, 450ms) cubic-bezier(.4, 0, .2, 1), opacity 120ms linear; }
+.wipebar.go { transform: translateX(100vw); }
+.wipebar.rtl { transform: translateX(100vw); }
+.wipebar.rtl.go { transform: translateX(0); }
+.wipebar.sweeping { opacity: 1; }
+.wipebar.snap { transition: none; }
 /* With the omen + row labels gone and the hand tucked under the status bar, let the
    Tavern + Warband settle lower: auto margins centre the block in the freed space. */
 /* Tavern offers and Warband mirror each other across the board's centre rope: each half

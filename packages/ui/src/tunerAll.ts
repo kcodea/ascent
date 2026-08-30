@@ -21,6 +21,7 @@ import { SPEC as AuraFxSpec } from './AuraFxTuner';
 import { SPEC as ShopDeathFxSpec } from './ShopDeathFxTuner';
 import { SPEC as EquipFxSpec } from './EquipFxTuner';
 import { SPEC as EquipSlotSpec } from './equipSlotConfig';
+import { SPEC as RuneLockInSpec } from './runeLockInConfig';
 import { SPEC as BookSpec } from './BookTuner';
 import { SPEC as BuffDrawerSpec } from './BuffDrawerTuner';
 import { SPEC as BuffFxSpec } from './BuffFxTuner';
@@ -84,6 +85,7 @@ export const ALL_TUNER_SPECS: TunerSpec<never>[] = [
   ShopDeathFxSpec,
   EquipFxSpec,
   EquipSlotSpec,
+  RuneLockInSpec,
   BookSpec,
   BuffDrawerSpec,
   BuffFxSpec,

@@ -508,6 +508,19 @@ export const sfx = {
     if (playSample('equipmentsheen', 'ui', Math.max(0, delay) / 1000, ({ gain }) => { gain.gain.value *= vol; })) return;
     tone({ freq: 1500, dur: 0.14, type: 'sine', vol: 0.06 * vol, slideTo: 2400, category: 'ui' });
   },
+  /**
+   * The rune lock-in clang — the gold frame slamming shut on the chosen rune (owner ask 2026-08-29).
+   *
+   * `delay` schedules on the AUDIO clock rather than a `setTimeout`, so the clang cannot drift away from the
+   * clamp it is supposed to be the sound of. That pairing is the whole point: this is not a generic
+   * confirmation beep, it is the noise the frame makes on contact, and a sound that lands 40ms late reads as
+   * a second event.
+   */
+  runeSelect: (vol = 1, delay = 0) => {
+    if (vol <= 0) return;
+    if (playSample('runeselect', 'ui', Math.max(0, delay) / 1000, ({ gain }) => { gain.gain.value *= vol; })) return;
+    tone({ freq: 620, dur: 0.16, type: 'triangle', vol: 0.1 * vol, slideTo: 940, category: 'ui' });
+  },
   equipmentUse: (clipId: string, delay = 0) => {
     if (playSample(clipId, 'equip', delay / 1000)) return;
     tone({ freq: 520, dur: 0.18, type: 'sine', vol: 0.1, slideTo: 300, category: 'equip' });

@@ -56,6 +56,21 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-08-29',
+    label: 'Runeforge',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: 'Locking in a rune now gets a short ceremony — the others clear away and your pick takes centre stage.',
+        details: [
+          'A gold frame closes onto your rune and a flash bursts out as it locks.',
+          'The rune is yours the instant you click; the flourish plays over the top and needs no input.',
+          'About a second and a half, then straight back to the board.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-08-29',
     label: 'Equipment',
     changes: [
       {

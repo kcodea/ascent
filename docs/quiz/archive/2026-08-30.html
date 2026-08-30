@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ascent Quiz #18 — 2026-08-30</title>
+<style>
+  :root {
+    --bg: #0f1420;
+    --panel: #1a2236;
+    --panel-border: #2c3752;
+    --text: #e8edf7;
+    --text-dim: #9aa7c2;
+    --accent: #6c8cff;
+    --accent-dim: #3c4a78;
+    --correct: #3ecf8e;
+    --correct-bg: rgba(62, 207, 142, 0.14);
+    --wrong: #ff6b6b;
+    --wrong-bg: rgba(255, 107, 107, 0.14);
+    --gold: #f0c674;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    min-height: 100%;
+  }
+  body {
+    display: flex;
+    justify-content: center;
+    padding: 32px 16px 64px;
+  }
+  .wrap { width: 100%; max-width: 680px; }
+  header {
+    text-align: center;
+    margin-bottom: 24px;
+  }
+  header h1 {
+    font-size: 1.5rem;
+    margin: 0 0 4px;
+    letter-spacing: 0.01em;
+  }
+  header .sub {
+    color: var(--text-dim);
+    font-size: 0.9rem;
+  }
+  .progress-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .progress-track {
+    flex: 1;
+    height: 8px;
+    background: var(--panel-border);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--gold));
+    width: 0%;
+    transition: width 0.35s ease;
+  }
+  .progress-label {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    white-space: nowrap;
+    min-width: 64px;
+    text-align: right;
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 14px;
+    padding: 24px;
+    margin-bottom: 16px;
+  }
+  .topic-tag {
+    display: inline-block;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--accent);
+    background: var(--accent-dim);
+    padding: 3px 9px;
+    border-radius: 999px;
+    margin-bottom: 12px;
+  }
+  .question {
+    font-size: 1.08rem;
+    line-height: 1.5;
+    margin-bottom: 18px;
+  }
+  .question code {
+    background: #0c1120;
+    border: 1px solid var(--panel-border);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 0.92em;
+    color: #cfe0ff;
+  }
+  .choices { display: flex; flex-direction: column; gap: 10px; }
+  .choice {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    text-align: left;
+    background: #131a2b;
+    border: 1px solid var(--panel-border);
+    color: var(--text);
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 0.97rem;
+    line-height: 1.4;
+    cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
+    transition: border-color 0.15s ease, background 0.15s ease, transform 0.1s ease;
+  }
+  .choice:hover:not(:disabled) {
+    border-color: var(--accent);
+    background: #17203a;
+  }
+  .choice:active:not(:disabled) { transform: scale(0.995); }
+  .choice:disabled { cursor: default; }
+  .choice .letter {
+    flex: none;
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+    background: var(--panel-border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text-dim);
+  }
+  .choice.correct { border-color: var(--correct); background: var(--correct-bg); }
+  .choice.correct .letter { background: var(--correct); color: #06251a; }
+  .choice.wrong { border-color: var(--wrong); background: var(--wrong-bg); }
+  .choice.wrong .letter { background: var(--wrong); color: #2a0808; }
+  .choice.dim { opacity: 0.55; }
+  .result-banner {
+    margin-top: 16px;
+    padding: 10px 14px;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 0.92rem;
+  }
+  .result-banner.good { background: var(--correct-bg); color: var(--correct); }
+  .result-banner.bad { background: var(--wrong-bg); color: var(--wrong); }
+  .explanation {
+    margin-top: 12px;
+    padding: 14px 16px;
+    background: #0f1626;
+    border: 1px solid var(--panel-border);
+    border-left: 3px solid var(--accent);
+    border-radius: 8px;
+    font-size: 0.93rem;
+    line-height: 1.55;
+    color: var(--text-dim);
+  }
+  .explanation strong { color: var(--text); }
+  .nav-row {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 18px;
+  }
+  .next-btn {
+    background: var(--accent);
+    color: #0a0e18;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+  }
+  .next-btn.show { opacity: 1; pointer-events: auto; }
+  .next-btn:hover { filter: brightness(1.08); }
+  .score-live {
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 0.85rem;
+    margin-bottom: 6px;
+  }
+  .final {
+    text-align: center;
+    padding: 36px 24px;
+  }
+  .final .big-score {
+    font-size: 3rem;
+    font-weight: 700;
+    margin: 8px 0 4px;
+    background: linear-gradient(90deg, var(--accent), var(--gold));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .final .line {
+    color: var(--text-dim);
+    margin-bottom: 20px;
+  }
+  .final .encourage {
+    font-size: 1.05rem;
+    color: var(--text);
+    margin-bottom: 24px;
+  }
+  .restart-btn {
+    background: transparent;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-size: 0.9rem;
+    cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
+  }
+  .restart-btn:hover { background: var(--accent-dim); }
+  .hidden { display: none; }
+  footer.tip {
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 0.78rem;
+    margin-top: 28px;
+    line-height: 1.5;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>🎓 Ascent Quiz #18</h1>
+    <div class="sub">2026-08-30 · How the game is built</div>
+  </header>
+
+  <div id="quizArea">
+    <div class="progress-row">
+      <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="progress-label" id="progressLabel">Q1 / 10</div>
+    </div>
+    <div class="score-live" id="scoreLive">Score so far: 0</div>
+    <div class="card" id="questionCard"></div>
+  </div>
+
+  <div id="finalArea" class="card final hidden"></div>
+
+  <footer class="tip">Architecture only — no game-rules spoilers here. Reply with your score and Claude will pick tomorrow's topics to match.</footer>
+</div>
+
+<script>
+const QUESTIONS = [
+  {
+    topic: "What a function is",
+    question: "In <code>packages/core/src/combat/simulate.ts</code>, there's a helper shaped like <code>const withEffect = (self, effect, run: () => void): void => { ...; run(); ... }</code>. Here <code>run</code> is itself a function, passed in as an argument to <code>withEffect</code>. What does that make <code>withEffect</code>?",
+    choices: [
+      "A pure function, because it has no side effects",
+      "A higher-order function, because it takes another function as one of its parameters",
+      "A recursive function, because it calls itself",
+      "An anonymous function, because it has no name"
+    ],
+    answer: 1,
+    explanation: "A <strong>higher-order function</strong> is simply one that takes a function as an argument (and/or returns one) — <code>withEffect</code> takes <code>run: () => void</code> and later calls it. That's a totally different property from purity (whether it avoids side effects — this one actually isn't pure, since it mutates the closed-over <code>effectCtx</code> variable), recursion (a function calling itself), or anonymity (having no name). Functions being able to travel around as ordinary values — passed into other functions, called later — is one of the most useful ideas in JavaScript."
+  },
+  {
+    topic: "Determinism",
+    question: "Two players who both start Ascent with the exact same random seed will see IDENTICAL shop offers, board draws, and combat outcomes throughout their runs. Which architectural property is this evidence of?",
+    choices: [
+      "Determinism: given the same inputs (seed, decisions), the engine always produces the same output",
+      "Immutability: the game state can never be changed once created",
+      "Purity: the shop function has no side effects",
+      "Encapsulation: the shop logic is hidden inside its own package"
+    ],
+    answer: 0,
+    explanation: "That's the textbook payoff of <strong>determinism</strong> from CLAUDE.md: same seed + same decisions → same everything, forever — which is exactly what makes shareable seeds and daily challenge runs possible. The other three are real, related engineering ideas, but they answer different questions: immutability is about not mutating existing data in place, purity is a property of an individual function's own behavior, and encapsulation is about hiding implementation details — none of them, on their own, guarantee that two independent players see an identical run."
+  },
+  {
+    topic: "The seeded RNG",
+    question: "<code>rng.ts</code>'s <code>makeRng</code> keeps its whole state in one variable — <code>let a = seed | 0;</code> — and <code>next()</code> begins with <code>a |= 0;</code> before doing any arithmetic. Plain JS numbers aren't naturally limited to 32 bits. What does that <code>| 0</code> actually do?",
+    choices: [
+      "It rounds <code>a</code> down to the nearest whole number, the same as Math.floor",
+      "It forces <code>a</code> into a 32-bit integer, discarding anything outside that range — because JS's bitwise operators always operate on 32-bit integers",
+      "It resets <code>a</code> back to the original seed on every call",
+      "It multiplies <code>a</code> by 1 — a leftover no-op from an earlier version"
+    ],
+    answer: 1,
+    explanation: "JavaScript's bitwise operators (<code>|</code>, <code>&amp;</code>, <code>&gt;&gt;&gt;</code>, ...) always coerce their operands to 32-bit signed integers first, so <code>x | 0</code> is a common idiom for forcing a number into that range. That's what keeps mulberry32's bit-twiddling math (the shifts and <code>Math.imul</code> calls) well-defined and bit-for-bit reproducible. It isn't quite Math.floor — they disagree on negative numbers (<code>Math.floor(-1.5)</code> is <code>-2</code>, but <code>(-1.5) | 0</code> is <code>-1</code>) — and it's neither a reset nor a no-op; it's doing real, load-bearing work every single call."
+  },
+  {
+    topic: "Sim/UI decoupling",
+    question: "Suppose the UI team wants to add a new \"replay speed\" control that lets you rewatch a finished combat at 2x or 0.5x speed. Per Ascent's sim/UI split, does building this feature require any change to <code>simulate()</code> in packages/core?",
+    choices: [
+      "No — simulate() already computed the whole fight; the UI just controls how fast it plays back its own copy of the event log",
+      "Yes — simulate() would need a new <code>speed</code> parameter to know how fast to run",
+      "Yes — the RNG would need to be re-seeded at a different rate for a faster replay",
+      "No — but only because packages/ui is allowed to directly mutate CombatEvent objects after the fact"
+    ],
+    answer: 0,
+    explanation: "The sim computes the whole outcome once, up front; the UI \"animates the event log on its own clock\" and never computes outcomes (CLAUDE.md's Architecture section). Playback speed is purely a question of how fast the UI steps through an already-finished array of events — core doesn't know or care. B and C both wrongly assume the engine has some notion of real-world pacing baked in. D gets the right answer for the wrong reason: the UI doesn't need to mutate anything at all to change its own playback speed."
+  },
+  {
+    topic: "The monorepo packages",
+    question: "CLAUDE.md's monorepo diagram shows dependencies flowing one way: content → core, sim → core + content, ui → all of them. If a file inside <code>packages/core</code> tried to <code>import</code> something from <code>packages/ui</code>, what would that violate?",
+    choices: [
+      "Nothing — any package can import from any other package as long as the code compiles",
+      "The one-directional dependency graph: core is meant to have zero @game/* dependencies of its own, so a reverse import would create a cycle and defeat the \"pure engine\" design",
+      "The ESLint Math.random ban, since packages/ui is exempt from that rule",
+      "TypeScript's module resolution, which would immediately throw a runtime error"
+    ],
+    answer: 1,
+    explanation: "The whole point of putting core at the bottom of the stack is that it stays ignorant of everything built on top of it — that's what lets <code>npm run harness</code> run the whole combat engine headlessly, with no UI, React, or browser involved at all. A core → ui import would run the dependency arrow backwards. A is wrong: this boundary is real architecture, even though (as far as this repo's tooling goes) nothing but discipline stops it today — there's no ESLint or build rule enforcing it directly. C names an unrelated rule. D confuses \"bad design\" with \"crashes\" — a monorepo's tooling would often resolve such an import just fine; the problem is architectural, not syntactic."
+  },
+  {
+    topic: "Pure functions",
+    question: "<code>packages/tools/src/balance.ts</code> calls <code>simulate(board, enemy, makeRng(...), CARD_INDEX)</code> inside a loop — once per matchup, potentially thousands of times in one balance run, each call getting its own fresh RNG and board data. Why is it safe to fire off that many <code>simulate()</code> calls back-to-back (or even in parallel) without them interfering with each other?",
+    choices: [
+      "Because simulate() is a pure function — each call only reads its own arguments and never touches any shared mutable state that another call could stomp on",
+      "Because packages/tools automatically restarts the whole process between calls to reset memory",
+      "Because JavaScript runs everything on true parallel threads by default",
+      "Because each call uses a slower \"safe mode\" that locks the CARD_INDEX object during combat"
+    ],
+    answer: 0,
+    explanation: "Purity means no side effects and no reliance on outside mutable state — so there is simply nothing for one <code>simulate()</code> call to leave behind that could corrupt another. That's exactly what makes hammering it thousands of times in a balance sweep trivially safe, with zero locks, resets, or cleanup needed between calls. B and D describe machinery that doesn't exist in this codebase, and C is flatly false — JavaScript is single-threaded by default, which makes purity's \"no shared state to worry about\" guarantee even more valuable, not less."
+  },
+  {
+    topic: "Data-driven cards",
+    question: "A new Ascent card is added as a plain data object — <code>{ id, attack, health, effects: [{ on: 'onPlay', do: 'battlecrySummon', params: {...} }] }</code> — rather than as a new TypeScript class with its own methods. Beyond avoiding bugs from bespoke code, what's a practical benefit this gives someone reviewing the pull request that adds the card?",
+    choices: [
+      "The reviewer can see the card's ENTIRE behavior in one small, self-contained diff — a few lines of data — instead of having to trace through new function bodies to know what it does",
+      "The reviewer no longer needs to run any tests, since data can't contain bugs",
+      "TypeScript automatically writes the card's in-game rules text for the player",
+      "The card becomes exempt from the zod schema validation other cards go through"
+    ],
+    answer: 0,
+    explanation: "Because a card is data plus a reference to an already-reviewed effect factory, its whole PR is typically a small, flat object literal — there's no new control flow, loop, or branch for a reviewer to trace. B is false and a little dangerous to believe: data absolutely can be wrong (a mistyped number, the wrong factory id) — which is exactly why <code>validateCards()</code>'s zod checks exist and still run on every card. C and D aren't things that happen here."
+  },
+  {
+    topic: "The event log",
+    question: "<code>simulate()</code>'s returned <code>events</code> array is plain, JSON-shaped data (numbers, strings, small objects) rather than live class instances. Besides being easy to loop over, what does that specifically enable that live objects with methods would not?",
+    choices: [
+      "It can be saved to a file, put in a database, or sent over a network, then loaded back later and replayed exactly — because plain data survives being serialized and deserialized, while a class instance's methods would be lost in that round trip",
+      "It runs faster in every single case, since class instances are always slower than plain objects in JavaScript",
+      "It lets the UI skip animating any event it happens not to like",
+      "It means the events array never needs to be checked or validated"
+    ],
+    answer: 0,
+    explanation: "Something like <code>JSON.stringify</code>/<code>JSON.parse</code> only preserves plain data — any methods living on a class instance simply vanish across that round trip, leaving you with a shell missing its behavior. Because <code>CombatEvent</code>s are already plain data, they survive being written out and read back untouched, which is exactly what a durable replay file or a \"share this fight\" feature needs. B repeats a common but false blanket claim about performance; C and D describe behavior nothing in the codebase does."
+  },
+  {
+    topic: "ESLint rules",
+    question: "<code>eslint.config.mjs</code> bans <code>Math.random</code> with <code>no-restricted-properties: [{ object: 'Math', property: 'random' }]</code>. This rule works by recognizing that exact syntax pattern, <code>Math.random</code>. If a developer instead wrote <code>const m = Math; const r = m.random();</code>, would this specific ESLint rule catch it?",
+    choices: [
+      "No — the rule matches the literal <code>Math.random</code> member-access pattern in the source text; <code>m.random()</code> uses a different name, and ESLint's static check has no way to know <code>m</code> secretly refers to Math",
+      "Yes — ESLint actually runs the code and would notice that <code>m</code> refers to Math at runtime",
+      "No — because packages/core is exempt from this particular rule",
+      "Yes — TypeScript's type checker rewrites <code>m.random()</code> back into <code>Math.random()</code> before ESLint ever sees it"
+    ],
+    answer: 0,
+    explanation: "ESLint is a <strong>static</strong> analyzer: it inspects the shape of your code (its syntax tree) without ever executing it, so a rule keyed to one specific object-plus-property pair can, in principle, be dodged by first aliasing the object under a different name. It's a genuinely useful thing to understand: lint rules catch recognizable patterns, not intent or behavior — a helpful guardrail, not an airtight guarantee. B is wrong because ESLint never runs your code; C is backwards (core is precisely where this ban is meant to apply); D describes something neither tool does — ESLint and tsc analyze the same source independently, they don't rewrite it for each other."
+  },
+  {
+    topic: "Performance patterns",
+    question: "CLAUDE.md's performance rule says never animate paint properties like <code>box-shadow</code> in a LOOPING animation, but explicitly allows a short ONE-SHOT transition (like the <code>cardbuff</code> pop) to touch paint properties if it's been profiled. Why does looping make this so much more costly than a one-shot?",
+    choices: [
+      "A looping animation repaints that expensive property on every single frame for as long as it keeps running, so the cost multiplies by the animation's entire duration — a one-shot pays that cost only once, briefly",
+      "Looping animations use more RAM per frame than one-shot animations do",
+      "One-shot animations are exempt because they only ever run on desktop, never on mobile",
+      "Paint properties are only expensive the very first time they're used; every use after that is free"
+    ],
+    answer: 0,
+    explanation: "The expensive part is the browser having to repaint that pixel region — and a continuous glow effect asks it to do that on every single frame, indefinitely, which is why it's banned outright. A one-shot pop asks the same question only a handful of times and then stops, which is small and controllable enough to just measure and confirm it's fine (per CLAUDE.md's \"a short one-shot... may touch paint properties if profiled\" carve-out). B, C, and D all invent mechanisms that aren't the actual reasoning — the real driver is simply how many times the cost gets paid, not memory, platform, or a one-time-only expense."
+  }
+];
+
+let idx = 0;
+let score = 0;
+let answered = false;
+
+const questionCard = document.getElementById('questionCard');
+const progressFill = document.getElementById('progressFill');
+const progressLabel = document.getElementById('progressLabel');
+const scoreLive = document.getElementById('scoreLive');
+const quizArea = document.getElementById('quizArea');
+const finalArea = document.getElementById('finalArea');
+
+function render() {
+  answered = false;
+  const q = QUESTIONS[idx];
+  progressFill.style.width = ((idx) / QUESTIONS.length * 100) + '%';
+  progressLabel.textContent = 'Q' + (idx + 1) + ' / ' + QUESTIONS.length;
+  scoreLive.textContent = 'Score so far: ' + score;
+
+  const letters = ['A', 'B', 'C', 'D'];
+  questionCard.innerHTML = `
+    <div class="topic-tag">${q.topic}</div>
+    <div class="question">${q.question}</div>
+    <div class="choices">
+      ${q.choices.map((c, i) => `
+        <button class="choice" data-i="${i}">
+          <span class="letter">${letters[i]}</span>
+          <span>${c}</span>
+        </button>
+      `).join('')}
+    </div>
+    <div id="resultSlot"></div>
+    <div class="nav-row"><button class="next-btn" id="nextBtn">${idx === QUESTIONS.length - 1 ? 'See results' : 'Next question →'}</button></div>
+  `;
+
+  const buttons = questionCard.querySelectorAll('.choice');
+  buttons.forEach(btn => {
+    btn.addEventListener('click', () => onAnswer(parseInt(btn.dataset.i, 10)));
+  });
+}
+
+function onAnswer(chosen) {
+  if (answered) return;
+  answered = true;
+  const q = QUESTIONS[idx];
+  const correct = chosen === q.answer;
+  if (correct) score++;
+
+  const buttons = questionCard.querySelectorAll('.choice');
+  buttons.forEach((btn, i) => {
+    btn.disabled = true;
+    if (i === q.answer) btn.classList.add('correct');
+    else if (i === chosen) btn.classList.add('wrong');
+    else btn.classList.add('dim');
+  });
+
+  const resultSlot = document.getElementById('resultSlot');
+  resultSlot.innerHTML = `
+    <div class="result-banner ${correct ? 'good' : 'bad'}">${correct ? '✓ Correct!' : '✗ Not quite.'}</div>
+    <div class="explanation">${q.explanation}</div>
+  `;
+
+  scoreLive.textContent = 'Score so far: ' + score;
+  document.getElementById('nextBtn').classList.add('show');
+}
+
+document.addEventListener('click', (e) => {
+  if (e.target && e.target.id === 'nextBtn') {
+    idx++;
+    if (idx >= QUESTIONS.length) {
+      showFinal();
+    } else {
+      render();
+    }
+  }
+});
+
+function showFinal() {
+  progressFill.style.width = '100%';
+  progressLabel.textContent = 'Done!';
+  quizArea.classList.add('hidden');
+  finalArea.classList.remove('hidden');
+
+  let line;
+  if (score === QUESTIONS.length) line = "Perfect score! You're reading this codebase like a pro.";
+  else if (score >= 8) line = "Excellent work — you've got a really solid handle on this.";
+  else if (score >= 6) line = "Good run — the architecture is clearly starting to click.";
+  else if (score >= 4) line = "Solid effort — a few of these ideas are worth a second look.";
+  else line = "Everyone starts somewhere — the whole point of the daily quiz is to build this up slowly.";
+
+  finalArea.innerHTML = `
+    <div class="topic-tag">Quiz #18 complete</div>
+    <div class="big-score">${score} / ${QUESTIONS.length}</div>
+    <div class="line">Ascent Quiz — 2026-08-30</div>
+    <div class="encourage">${line}</div>
+    <button class="restart-btn" id="restartBtn">Take it again</button>
+  `;
+  document.getElementById('restartBtn').addEventListener('click', () => {
+    idx = 0; score = 0;
+    quizArea.classList.remove('hidden');
+    finalArea.classList.add('hidden');
+    render();
+  });
+}
+
+render();
+</script>
+</body>
+</html>

@@ -112,20 +112,29 @@ export function RuneLockIn({ cards, onDone, timing = RUNE_LOCKIN_DEFAULTS }: Run
           '--rl-fade': `${timing.fadeMs}ms`,
           '--rl-dx': `${centre.dx}px`,
           '--rl-dy': `${centre.dy}px`,
+          '--rl-clamp': `${timing.clampMs}ms`,
+          '--rl-flash': `${timing.flashMs}ms`,
+          // The clamp closes INTO the lock beat rather than starting on it (see `clampMs`), so it is armed on
+          // the FOCUS phase and delayed to land exactly as the settle fires. Measured from when `focus`
+          // begins, because that is when the class that starts the animation appears.
+          '--rl-clamp-delay': `${Math.max(0, timing.lockAtMs - timing.clampMs - timing.focusDelayMs)}ms`,
         } as React.CSSProperties;
         return (
           <div key={`${c.rune.id}-${i}`} className={`runelock-card${c.chosen ? ' chosen' : ' other'}`} style={style}>
             {/* Inert clone — the real card is already gone, and nothing here may be clicked. */}
             <RuneCard rune={c.rune} cost={c.cost} affordable onBuy={() => { /* inert clone */ }} />
+            {/* THE CLAMP AND THE FLASH live INSIDE the chosen card's wrapper, so they inherit its travel and
+                its scale for free — no second set of coordinates to keep in step with the card's, and no
+                chance of the frame arriving anywhere but exactly on the rune. */}
+            {c.chosen && (
+              <>
+                <span className="runelock-clamp" aria-hidden="true" />
+                <span className="runelock-flash" aria-hidden="true" />
+              </>
+            )}
           </div>
         );
       })}
-      <div
-        className="runelock-mark"
-        style={{ '--rl-lock': `${timing.lockMs}ms`, '--rl-fade': `${timing.fadeMs}ms` } as React.CSSProperties}
-      >
-        <span className="runelock-word disp">Locked In</span>
-      </div>
     </div>,
     document.body,
   );

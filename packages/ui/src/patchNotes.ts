@@ -62,6 +62,7 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'UI / Info',
         text: 'Locking in a rune now gets a short ceremony — the others clear away and your pick takes centre stage.',
         details: [
+          'A gold frame closes onto your rune and a flash bursts out as it locks.',
           'The rune is yours the instant you click; the flourish plays over the top and needs no input.',
           'About a second and a half, then straight back to the board.',
         ],

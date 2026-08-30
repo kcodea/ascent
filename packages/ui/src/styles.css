@@ -9837,27 +9837,6 @@ body.duel-attacker-opp .combatopp-hp { opacity: 0; }
   to   { opacity: 0; transform: translate3d(var(--rl-dx, 0), var(--rl-dy, 0), 0) scale(1.34); }
 }
 
-/* THE MARK. Sits below the card's centre so it never covers the rune's own text — the player should be able
-   to read what they just bought while being told it is theirs. */
-.runelock-mark {
-  position: absolute; left: 50%; top: 50%; z-index: 3;
-  transform: translate(-50%, 190px); opacity: 0; }
-.runelock-locked .runelock-mark { animation: rl-mark-in var(--rl-lock, 220ms) cubic-bezier(0.2, 1.4, 0.3, 1) forwards; }
-.runelock-leaving .runelock-mark { animation: rl-mark-out var(--rl-fade, 260ms) ease forwards; }
-@keyframes rl-mark-in {
-  from { opacity: 0; transform: translate(-50%, 190px) scale(1.35); letter-spacing: 0.5em; }
-  to   { opacity: 1; transform: translate(-50%, 190px) scale(1); letter-spacing: 0.22em; }
-}
-@keyframes rl-mark-out {
-  from { opacity: 1; transform: translate(-50%, 190px) scale(1); }
-  to   { opacity: 0; transform: translate(-50%, 172px) scale(1); }
-}
-.runelock-word {
-  display: block; white-space: nowrap;
-  font-size: 30px; font-weight: 900; letter-spacing: 0.22em; text-transform: uppercase;
-  color: #ffe9bd;
-  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.55), 0 0 22px rgba(255, 196, 92, 0.55); }
-
 /* Reduced motion: the game does NOT gate its informational animation on this (see docs/performance.md §4 —
    ASCENT's motion carries gameplay meaning). But this ceremony is pure confirmation and carries nothing the
    board does not already show, so it is the rare case where calming it costs nothing. The beats still land in
@@ -9866,5 +9845,78 @@ body.duel-attacker-opp .combatopp-hp { opacity: 0; }
   @keyframes rl-exit       { from { opacity: 1; } to { opacity: 0; } }
   @keyframes rl-focus      { from { opacity: 1; } to { opacity: 1; transform: translate3d(var(--rl-dx, 0), var(--rl-dy, 0), 0) scale(1.44); } }
   @keyframes rl-settle     { from { transform: translate3d(var(--rl-dx, 0), var(--rl-dy, 0), 0) scale(1.44); } to { transform: translate3d(var(--rl-dx, 0), var(--rl-dy, 0), 0) scale(1.44); } }
-  @keyframes rl-mark-in    { from { opacity: 0; } to { opacity: 1; } }
+}
+
+/* ── THE GOLD CLAMP + FLASH (owner ask 2026-08-29) ────────────────────────────────────────────────────────
+   "a rectangle gold glow that closes in quickly on the rune and then a flash emits from the [rune]."
+
+   Both live INSIDE the chosen card's wrapper, so they inherit its travel and scale — there is no second set
+   of coordinates to keep in step, and the frame cannot arrive anywhere but exactly on the rune.
+
+   PERF: the glow is a STATIC box-shadow on an element whose `transform` and `opacity` animate. That is the
+   pattern CLAUDE.md prescribes for a glow (cf. `kwglow`) — the ban is on animating a paint property in a
+   LOOP, and nothing here loops, but a shrinking shadow would still repaint every frame of the close for no
+   gain. Animating the transform of a pre-painted shadow is compositor-only. */
+.runelock-clamp {
+  position: absolute; inset: -10px; pointer-events: none; z-index: 2;
+  border: 2px solid rgba(255, 214, 140, 0.95);
+  border-radius: 14px;
+  box-shadow:
+    0 0 18px 2px rgba(255, 198, 92, 0.55),
+    inset 0 0 22px 2px rgba(255, 214, 140, 0.35);
+  opacity: 0;
+  transform: scale(1.55);
+}
+/* Armed on FOCUS and delayed, so the close LANDS on the lock beat instead of starting there. Gating it on
+   `.runelock-locked` was the first version and it read as two separate events — the card snapping, then a
+   frame appearing afterwards. */
+.runelock-focus .runelock-clamp,
+.runelock-locked .runelock-clamp,
+.runelock-leaving .runelock-clamp {
+  animation: rl-clamp var(--rl-clamp, 260ms) cubic-bezier(0.3, 0, 0.2, 1) var(--rl-clamp-delay, 0ms) forwards; }
+/* Closes from well outside the card down onto it, arriving hard — the easing front-loads the travel so the
+   last few pixels are the fast ones, which is what makes it read as a clamp rather than a fade. */
+@keyframes rl-clamp {
+  from { opacity: 0; transform: scale(1.55); }
+  35%  { opacity: 1; }
+  to   { opacity: 1; transform: scale(1); }
+}
+.runelock-leaving .runelock-clamp { animation: rl-clamp-out var(--rl-fade, 260ms) ease forwards; }
+@keyframes rl-clamp-out {
+  from { opacity: 1; transform: scale(1); }
+  to   { opacity: 0; transform: scale(1.04); }
+}
+
+/* THE FLASH — bursts outward from the rune the instant the clamp lands. Same palette as the hero ceremony's
+   `hsc-flash`, so the two ceremonies read as the same game speaking. */
+.runelock-flash {
+  position: absolute; left: 50%; top: 50%; z-index: 3; pointer-events: none;
+  /* Sized in `vmin`, NOT in percentages. Percentage width AND height both resolve against the containing
+     block's WIDTH, so a card-relative flash came out barely wider than the card it was supposed to burst out
+     of — it read as a glow behind the art rather than light leaving the rune. A viewport-relative size also
+     keeps the burst the same size whatever the card's dimensions are. */
+  width: 62vmin; height: 62vmin; margin-left: -31vmin; margin-top: -31vmin;
+  border-radius: 50%;
+  /* SCREEN, not normal. Painted normally the burst sat over the card as a warm haze — technically on top and
+     reading as a filter rather than as light. Screen blending only ever brightens what is beneath it, which
+     is what a flash actually does to the thing it comes from. Not animated, so no per-frame blend cost. */
+  mix-blend-mode: screen;
+  background: radial-gradient(circle,
+    rgba(255, 253, 246, 1) 0%, rgba(255, 244, 214, 0.9) 26%,
+    rgba(246, 224, 168, 0.42) 48%, transparent 72%);
+  opacity: 0;
+}
+.runelock-locked .runelock-flash,
+.runelock-leaving .runelock-flash {
+  animation: rl-flash var(--rl-flash, 460ms) ease-out forwards; }
+/* Snaps open then spends most of its life dissipating — a flash is defined by how fast it ARRIVES. */
+@keyframes rl-flash {
+  0%   { opacity: 0; transform: scale(0.35); }
+  10%  { opacity: 1; transform: scale(0.72); }
+  100% { opacity: 0; transform: scale(1.55); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  @keyframes rl-clamp { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes rl-flash { 0% { opacity: 0; } 20% { opacity: 0.9; } 100% { opacity: 0; } }
 }

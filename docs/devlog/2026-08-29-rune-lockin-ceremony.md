@@ -19,7 +19,8 @@ of the way. Anything a player would want to skip is too long — so it is **1.36
 click.
 
 The sequence: click → the unchosen runes sweep out, staggered → the chosen one flies to centre and grows →
-it settles with a snap → **LOCKED IN** strikes in → a beat to read it → everything fades back to the board.
+it settles with a snap as a gold frame clamps shut on it and a flash bursts out → a beat → everything fades
+back to the board.
 
 ## The gameplay resolves FIRST
 
@@ -71,3 +72,36 @@ Reduced motion is the one place this diverges from the project rule that ASCENT 
 `prefers-reduced-motion` — because that rule exists to protect motion carrying *gameplay information*, and
 this ceremony carries none the board does not already show. The beats still land in the same order at the same
 times; only the travel is removed.
+
+---
+
+## Follow-up: the caption goes, the gold clamp arrives
+
+Two owner notes, the same evening.
+
+**"remove the locked in text that shows up."** Gone. The beat it sat on stays, because the words were never
+the thing doing the work: the card arriving hard, after an overshoot, is what says *that is decided*. The
+caption was narrating something the motion already said.
+
+**"a rectangle gold glow that closes in quickly on the rune and then a flash emits from the [rune]."** A gold
+frame closes from well outside the card down onto it, and a burst fires the instant it lands.
+
+Three decisions in that, each of which was wrong first:
+
+1. **The clamp LANDS on the lock beat; it does not start there.** The first version gated it on the `locked`
+   phase, so the card snapped and *then* a frame appeared — two events. It is armed on `focus` and delayed by
+   `lockAtMs − clampMs − focusDelayMs`, so the frame slamming shut and the card's snap are the same instant.
+   That coincidence is the whole effect.
+2. **The flash is sized in `vmin`, not percentages.** Percentage width *and height* both resolve against the
+   containing block's **width**, so a card-relative burst came out barely wider than the card it was meant to
+   burst out of — it read as a glow behind the art rather than light leaving the rune.
+3. **It blends `screen`.** Painted normally it sat over the card as a warm haze: technically on top, reading
+   as a filter. Screen only ever brightens what is beneath, which is what a flash actually does to the thing
+   it comes from.
+
+Both effects live **inside the chosen card's wrapper**, so they inherit its travel and scale for free — no
+second set of coordinates to keep in step, and the frame cannot arrive anywhere but exactly on the rune.
+
+The glow is a **static** box-shadow on an element whose transform and opacity animate — the `kwglow` pattern.
+A shrinking shadow would repaint every frame of the close for no gain.
+

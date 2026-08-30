@@ -33,10 +33,25 @@ export interface RuneLockInTiming {
   focusMs: number;
   /** Overshoot → settle. The snap that reads as the lock engaging. */
   settleMs: number;
-  /** The LOCKED IN mark appears. */
+  /**
+   * The settle fires — the snap that reads as the lock engaging.
+   *
+   * There used to be a LOCKED IN caption on this beat; the owner cut it (2026-08-29). The beat itself stays,
+   * because it was never the words doing the work: the card arriving hard, after an overshoot, is what says
+   * "that is decided". The caption was narrating something the motion already said.
+   */
   lockAtMs: number;
-  /** How long the mark takes to strike in. */
-  lockMs: number;
+  /**
+   * How long the gold clamp takes to close onto the rune (owner ask 2026-08-29: *"a rectangle gold glow that
+   * closes in quickly on the rune and then a flash emits"*).
+   *
+   * It LANDS on `lockAtMs` — the clamp starts at `lockAtMs - clampMs` so its arrival and the settle snap are
+   * the same instant. That coincidence is the effect: the frame slamming shut is what the card's snap is
+   * reacting to, and separating them by even 60ms reads as two events instead of one.
+   */
+  clampMs: number;
+  /** The flash bursting outward from the rune, fired the moment the clamp lands. */
+  flashMs: number;
   /** How long the whole tableau holds before it leaves. */
   holdMs: number;
   /** Everything fades back to the board. */
@@ -45,7 +60,7 @@ export interface RuneLockInTiming {
 
 /**
  * Defaults. The sequence: click (0) → others sweep out (90) → the chosen one flies to centre (170) → it
- * settles with a snap (~560) → LOCKED IN strikes (620) → a beat to read it (≈340ms) → fade (1100–1360).
+ * settles with a snap (~560) → the lock beat lands (620) → a beat to register it → fade (1100–1360).
  *
  * ~1.36s end to end. Long enough to register as a moment; short enough that the second time you see it you
  * are not waiting for it.
@@ -59,7 +74,8 @@ export const RUNE_LOCKIN_DEFAULTS: RuneLockInTiming = {
   focusMs: 390,
   settleMs: 130,
   lockAtMs: 620,
-  lockMs: 220,
+  clampMs: 260,
+  flashMs: 460,
   holdMs: 1100,
   fadeMs: 260,
 };

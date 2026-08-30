@@ -9403,13 +9403,11 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   color: rgba(255, 255, 255, 0.78); }
 .rounddock-row.active { background: rgba(196, 160, 92, 0.14); color: #fff; }
 .rounddock-val { text-align: center; color: var(--gl-value, #e6b45a); font-variant-numeric: tabular-nums; }
-.rounddock-handle { position: absolute; left: 100%; top: 50%; transform: translateY(-50%); z-index: 2;
-  width: 16px; height: 44px; border: none; border-radius: 0 8px 8px 0; background: #14111c;
-  box-shadow: 0 4px 14px -6px rgba(0, 0, 0, 0.7), inset 0 0 0 1px rgba(255, 255, 255, 0.09);
-  color: rgba(255, 255, 255, 0.7); font-weight: 800; font-size: 13px; line-height: 1;
-  cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; transition: left 180ms ease-out; }
-.rounddock-handle.open { left: calc(100% - 4px + var(--rrl-dock-w, 128px)); border-radius: 0 8px 8px 0; }
-.rounddock-handle:hover { color: #fff; }
+/* The dock's collapse chevron was REMOVED 2026-08-30 (owner: "the replay rail extension arrow dances
+   around when you try and click it. remove that functionality"). It sat at `left: 100%` and the `.open`
+   state moved it by the dock's own width with a 180ms `left` transition -- so clicking it slid the button
+   128px out from under the pointer, and clicking again slid it back. The dock is always open now, which
+   is what the rail is for; `.rounddock.open` is kept as the (only) state the aside renders in. */
 
 /* Drag ghost — the recorded card drag replayed as a floating card + closed-fist cursor (owner ask 2026-08-19:
    "1:1 hands"). The .ghostmover rides ONE Web-Animations transform along the recorded path (compositor-only —

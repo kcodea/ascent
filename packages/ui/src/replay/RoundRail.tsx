@@ -1,4 +1,4 @@
-import { memo, useCallback, useMemo, useState } from 'react';
+import { memo, useCallback, useMemo } from 'react';
 import type { RoundMark, RoundStat } from '@game/sim';
 import { useGame } from '../store';
 import { seekReplay, replayRoundMarks, replayRoundStats } from './replayPlayer';
@@ -60,8 +60,6 @@ const DockRow = memo(function DockRow({ stat, active }: {
 
 export function RoundRail(): JSX.Element | null {
   const session = useGame((st) => st.replaySession);
-  /** The dock starts open — it's the feature, not a power-user extra; the chevron collapses it. */
-  const [dockOpen, setDockOpen] = useState(true);
 
   // The marks and the rollup are computed once per startReplay and stable for the whole playback — memo on
   // the session's EXISTENCE (a fresh replay is a fresh session object chain starting from null).
@@ -73,7 +71,6 @@ export function RoundRail(): JSX.Element | null {
 
   /** Stable handler so the memoized rows never re-render for handler identity. */
   const onPick = useCallback((mark: RoundMark) => { seekReplay(mark.tMs); }, []);
-  const toggleDock = useCallback(() => setDockOpen((v) => !v), []);
 
   if (!session || marks.length === 0) return null;
   return (
@@ -96,7 +93,12 @@ export function RoundRail(): JSX.Element | null {
           <RailRow key={m.wave} mark={m} active={m.wave === session.round} onPick={onPick} />
         ))}
       </nav>
-      <aside className={`rounddock${dockOpen ? ' open' : ''}`} aria-hidden={!dockOpen} aria-label="Round metrics">
+      {/* Always open. The collapse chevron was REMOVED 2026-08-30 (owner: *"the replay rail extension arrow
+          dances around when you try and click it. remove that functionality"*) — the handle was anchored to
+          the dock's edge and transitioned `left` by the dock's width, so the act of clicking it slid it 128px
+          out from under the cursor, and clicking again slid it back. It was also collapsing the thing the
+          rail exists to show. */}
+      <aside className="rounddock open" aria-label="Round metrics">
         <div className="rounddock-head">
           <span title="Gold spent this round">Gold</span>
           <span title="Actions this turn">Acts</span>
@@ -113,15 +115,6 @@ export function RoundRail(): JSX.Element | null {
           );
         })}
       </aside>
-      <button
-        type="button"
-        className={`rounddock-handle pressable${dockOpen ? ' open' : ''}`}
-        onClick={toggleDock}
-        aria-label={dockOpen ? 'Collapse round metrics' : 'Expand round metrics'}
-        aria-expanded={dockOpen}
-      >
-        {dockOpen ? '‹' : '›'}
-      </button>
     </div>
   );
 }

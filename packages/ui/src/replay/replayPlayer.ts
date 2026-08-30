@@ -18,6 +18,8 @@ import {
 import { CARD_INDEX } from '@game/content';
 import type { CardView } from '../Card';
 import { useGame } from '../store';
+import { captureRuneLockIn, chosenRuneIndex } from '../runeLockInCapture';
+import type { RuneLockInCard } from '../RuneLockIn';
 import { synthRunFromShopView } from './synthRun';
 
 /** Shop-frame pacing bounds (before the speed divisor) — salvaged from the killed v1 driver. A FLOOR so a
@@ -197,6 +199,9 @@ function frameResets(): Partial<StoreState> {
     endTurnAnimating: false,
     inspect: null,
     replayDragGhost: null,
+    // A scrub away from a rune purchase must not leave the ceremony hanging on screen. The frame that ARMS
+    // one re-adds it after this spread.
+    runeLockInCue: null,
     combatEnemyDeaths: 0,
     combatBuffs: null,
     combatQuestDelta: null,
@@ -222,6 +227,22 @@ function nearestShopView(i: number): ShopView | null {
 
 /** Render frame `i` into the store. Shop frame → synthetic recruit run; combat frame → the surrounding shop
  *  world flipped to `phase: 'combat'` with the recorded fight as `lastCombat` (the arena animates it verbatim). */
+/**
+ * Measure the forge row and arm the ceremony for a recorded `buyRune`, if we can tell which rune it was.
+ *
+ * Silent no-op when anything is missing — an old recording without `causeIndex` whose purchase was a
+ * DUPLICATE (so the owned-rune diff is ambiguous), a forge row that is not on screen because the viewer
+ * scrubbed rather than played into it. A missing flourish is a fair trade for never crowning the wrong rune.
+ */
+function armReplayRuneLockIn(f: ShopFrame): RuneLockInCard[] | null {
+  const prev = useGame.getState().run;
+  const offer = prev.runeforgeOffer;
+  if (!offer?.length) return null;
+  const idx = chosenRuneIndex(f.causeIndex, offer, prev.ownedRunes, f.view.ownedRunes);
+  if (idx < 0) return null;
+  return captureRuneLockIn(offer, prev.runeforgeDiscounts, idx);
+}
+
 function renderFrame(i: number): void {
   stepElapsedSourceMs = 0; // a rendered frame starts a fresh step for the ledger
   stepArmedAtReal = null;
@@ -230,9 +251,21 @@ function renderFrame(i: number): void {
   const f = frames[i];
   if (!f) return;
   if (f.kind === 'shop') {
+    // THE RUNE LOCK-IN CEREMONY (owner ask 2026-08-30: it "doesnt appear to play during the replays which it
+    // absolutely should"). It is measured HERE, and nowhere else, because this is the last instant at which
+    // it CAN be: the forge row on screen belongs to the previous frame, and the `setState` below replaces it
+    // with a view whose `runeforgeOffer` is gone. One line later there is nothing left to measure.
+    //
+    // Live play cannot share this hook — there the click handler owns the moment, because only it knows
+    // which element was clicked. Both paths converge on `captureRuneLockIn`, so they produce one ceremony.
+    // Measured BEFORE the setState below (the row it measures is about to be replaced), applied INSIDE it —
+    // one render, and it lands after `frameResets()` so the reset that clears a stale ceremony cannot clear
+    // the one we just armed.
+    const lockInCue = f.cause === 'buyRune' ? armReplayRuneLockIn(f) : null;
     useGame.setState({
       run: synthRunFromShopView(f.view),
       ...frameResets(),
+      ...(lockInCue ? { runeLockInCue: lockInCue } : {}),
       replaySession: { index: i, total: frames.length, playing, speed, round: f.wave, authorName, partial },
     });
   } else {

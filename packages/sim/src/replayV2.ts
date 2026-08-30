@@ -83,6 +83,11 @@ export interface ShopFrame {
   view: ShopView;
   /** The drag that produced this action, when it was drag-driven (buy/play/sell/reorder/reposition). */
   drag?: DragPath;
+  /** The causing action's `index`, when it had one. Recorded so playback can reproduce a CHOICE, not just
+   *  its outcome: `buyRune` clears the whole offer, so which of the three was picked is otherwise only
+   *  recoverable by diffing owned runes - which a DUPLICATE purchase makes ambiguous. Added 2026-08-30 for
+   *  the lock-in ceremony; absent on earlier recordings, which fall back to that diff. */
+  causeIndex?: number;
 }
 
 /**
@@ -114,6 +119,8 @@ export interface CombatFrame extends Omit<CombatResult, 'oddsInput'> {
  * keyframe + the wave's deltas.
  */
 export interface ShopDeltaFrame {
+  /** See `ShopFrame.causeIndex`. */
+  causeIndex?: number;
   kind: 'shopDelta';
   wave: number;
   tMs: number;
@@ -185,8 +192,10 @@ export function projectShopView(run: RunState): ShopView {
 
 /** Build one FULL shop frame (a keyframe) from the run state AFTER an action — used for every `turnStart`
  *  (shop opening) and as the fallback when no previous view exists to delta against. */
-export function shopFrameOf(run: RunState, cause: ActionCause, tMs: number): ShopFrame {
-  return { kind: 'shop', wave: run.wave, tMs, cause, view: projectShopView(run) };
+export function shopFrameOf(run: RunState, cause: ActionCause, tMs: number, causeIndex?: number): ShopFrame {
+  const f: ShopFrame = { kind: 'shop', wave: run.wave, tMs, cause, view: projectShopView(run) };
+  if (typeof causeIndex === 'number') f.causeIndex = causeIndex;
+  return f;
 }
 
 /** JSON-model equality — the payload is JSON, so JSON equality is the equality that matters. */
@@ -202,6 +211,7 @@ export function deltaShopFrameOf(
   run: RunState,
   cause: ActionCause,
   tMs: number,
+  causeIndex?: number,
 ): { frame: ShopDeltaFrame; view: ShopView } {
   const view = projectShopView(run);
   const prev = prevView as unknown as Record<string, unknown>;
@@ -217,10 +227,9 @@ export function deltaShopFrameOf(
     if (!(k in prev) || !jsonEqual(prev[k], cur[k])) changed[k] = cur[k];
   }
   for (const k of Object.keys(prev)) if (!(k in cur)) removed.push(k);
-  return {
-    frame: { kind: 'shopDelta', wave: run.wave, tMs, cause, changed: changed as Partial<ShopView>, removed },
-    view,
-  };
+  const frame: ShopDeltaFrame = { kind: 'shopDelta', wave: run.wave, tMs, cause, changed: changed as Partial<ShopView>, removed };
+  if (typeof causeIndex === 'number') frame.causeIndex = causeIndex;
+  return { frame, view };
 }
 
 /**
@@ -240,8 +249,13 @@ export function expandFrames(frames: readonly ReplayFrame[]): (ShopFrame | Comba
     const next = { ...cur, ...f.changed } as ShopView;
     for (const k of f.removed) delete (next as unknown as Record<string, unknown>)[k];
     cur = next;
-    // `drag` carries through expansion — the playback ghost reads it off the expanded frame.
-    out.push({ kind: 'shop', wave: f.wave, tMs: f.tMs, cause: f.cause, view: next, ...(f.drag ? { drag: f.drag } : {}) });
+    // `drag` and `causeIndex` carry through expansion — playback reads both off the expanded frame (the
+    // ghost, and the rune lock-in ceremony respectively).
+    out.push({
+      kind: 'shop', wave: f.wave, tMs: f.tMs, cause: f.cause, view: next,
+      ...(f.drag ? { drag: f.drag } : {}),
+      ...(typeof f.causeIndex === 'number' ? { causeIndex: f.causeIndex } : {}),
+    });
   }
   return out;
 }

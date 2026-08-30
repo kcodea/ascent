@@ -3,6 +3,7 @@ import { CARD_INDEX, activeSet, type SetId } from '@game/content';
 import { CONFIG, HEROES, playableHeroes, practiceHeroes, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, resolveServerProfile, isPlayerAction, missingCardIds, nextOpponent, parseQaScenario, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, withLiveTelemetry, type TelemetryLog, beginDerive, observeAction, finishDerive, type DeriveState, reduce, reduceWithPresentation, resolveLobbyRating, serialize, snapshotBoard, socBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, combatFrameOf, deltaShopFrameOf, shopFrameOf, runRecord, type DragPath, type ReplayFrame, type ReplayV2, type ShopView, appendInspectEvent, type InspectEvent, type InspectSnapshot, createLobbyRun, createTutorialRun, type TutorialCourse, type PracticeConfig, DEFAULT_PRACTICE_CONFIG, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction } from '@game/sim';
 import type { PresentationBatch } from '@game/core';
 import { combatTimelineFrom } from './choreographer/combatTimeline';
+import type { RuneLockInCard } from './RuneLockIn';
 import { setCombatDraftProvider, setCombatLiveProvider } from './choreographer/combatHolds';
 import type { CompiledTimeline } from './choreographer/timelineTypes';
 import type { BoardMinion, Tribe } from '@game/core';
@@ -215,6 +216,11 @@ function actionSfx(action: Action, prev: RunState, next: RunState): void {
 
 /** Live transport state of a running replay — read by the replay overlay + round rail, driven by
  *  `replay/replayPlayer.ts` (Phase B of docs/replay-v2-handoff.md; the v1 shape with frame semantics). */
+/** The causing action's `index`, when it has one — recorded on the frame so playback can reproduce the
+ *  CHOICE and not merely its outcome (see `ShopFrame.causeIndex`). */
+const causeIndexOf = (a: Action): number | undefined =>
+  'index' in a && typeof (a as { index?: unknown }).index === 'number' ? (a as { index: number }).index : undefined;
+
 export interface ReplaySession {
   /** Index of the frame currently rendered (0 … total−1; snapped to `total` when `ended`). */
   index: number;
@@ -498,6 +504,11 @@ interface GameStore {
    *  disappears. Destructive + irreversible; the caller confirms first. */
   clearRun: () => void;
   /** The title screen is shown at boot + after a run ends — the front door to the modes. */
+  /** REPLAY-DRIVEN rune lock-in ceremony: the measured cards, set by `replayPlayer` the instant before the
+   *  frame that clears the offer lands. Recruit renders the ceremony from this exactly as it does from its
+   *  own click-path state. Null whenever no ceremony is playing. Never set during live play - the click
+   *  handler owns that path, because only it knows which element was clicked. */
+  runeLockInCue: RuneLockInCard[] | null;
   showTitle: boolean;
   /** The mode the next run will start in (set by startAscent/startPractice, read by pickHero). */
   pendingMode: RunMode;
@@ -1148,12 +1159,12 @@ function commitResolvedAction(
         // An ordinary recruit action: a DELTA against the previous frame's view (§8 — measured: full views
         // are ~7 KB and a human run takes ~250 actions; deltas keep the payload in the hundreds of KB).
         if (replayLastShopView) {
-          const d = deltaShopFrameOf(replayLastShopView, next, action.type, tMs);
+          const d = deltaShopFrameOf(replayLastShopView, next, action.type, tMs, causeIndexOf(action));
           if (dragPath) d.frame.drag = dragPath;
           replayLastShopView = d.view;
           replayFrames = [...replayFrames, d.frame];
         } else {
-          const frame = shopFrameOf(next, action.type, tMs); // no baseline (shouldn't happen) → keyframe
+          const frame = shopFrameOf(next, action.type, tMs, causeIndexOf(action)); // no baseline (shouldn't happen) → keyframe
           if (dragPath) frame.drag = dragPath;
           replayLastShopView = frame.view;
           replayFrames = [...replayFrames, frame];
@@ -1487,6 +1498,7 @@ export const useGame = create<GameStore>((set, get) => ({
   // Boot into the title screen (the front door); the hero picker opens once a mode is chosen.
   heroChoices: null,
   lastHeroOffer: [],
+  runeLockInCue: null,
   showTitle: true,
   showLeaderboard: false,
   pendingMode: 'ascent',

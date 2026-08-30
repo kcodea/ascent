@@ -56,6 +56,20 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-08-30',
+    label: 'Replay Rail',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: 'The round metrics beside a replay are simply always shown — the collapse arrow that slid away from your cursor is gone.',
+        details: [
+          'The arrow was pinned to the edge of the panel it opened, so pressing it moved it out from under the pointer.',
+          'Gold, Acts and Tier per round are always visible now.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-08-30',
     label: 'Replay Scrubbing',
     changes: [
       {

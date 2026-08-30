@@ -44,6 +44,9 @@ export interface LobbySeatState {
   /** Practice-bot seats only — the difficulty damage multiplier applied to this table's seat-vs-seat fights
    *  (and mirrored on the player's fight by `practiceBotDamageMult`). Absent everywhere else = 1. */
   botDamageMult?: number;
+  /** Practice-bot pacing: how hard bot seats hit EACH OTHER. See `BOT_SEAT_DAMAGE_MULT`. Absent = fall back
+   *  to `botDamageMult`, which is what an in-progress practice run saved before 2026-08-30 carries. */
+  botSeatDamageMult?: number;
   /** The seed its driver is rebuilt from. Unused for the player seat, whose board is the live run. */
   seed: number;
   resolve: number;
@@ -530,10 +533,14 @@ export function settleRunLobbyRound(lobby: RunLobby, playerResult: CombatResult)
   const eliminated: LobbySeatState[] = [];
   const hpBefore = new Map(lobby.seats.map((s) => [s.id, s.armor + s.resolve]));
   const cap = lossDamageCap(lobby.round);
-  // PRACTICE-BOT tables hit harder seat-to-seat (owner ask 2026-08-25). Read off the seats themselves —
-  // `botDamageMult` is stamped by `createPracticeBotLobby` — so the signature stays put and every other lobby
-  // (rated, practice-vs-players, tutorial) keeps a multiplier of exactly 1.
-  const seatDamageMult = lobby.seats.find((s) => s.botDamageMult)?.botDamageMult ?? 1;
+  // PRACTICE-BOT tables hit harder seat-to-seat (owner ask 2026-08-25). Read off the seats themselves - stamped
+  // by `createPracticeBotLobby` - so the signature stays put and every other lobby (rated, practice-vs-players,
+  // tutorial) keeps a multiplier of exactly 1.
+  //
+  // Prefers `botSeatDamageMult` (the PACING dial, difficulty-independent) and falls back to `botDamageMult`
+  // (the DIFFICULTY dial) so a practice run saved before they were split keeps resolving as it did.
+  const botSeat = lobby.seats.find((s) => s.botSeatDamageMult ?? s.botDamageMult);
+  const seatDamageMult = botSeat?.botSeatDamageMult ?? botSeat?.botDamageMult ?? 1;
 
   for (const [a, b] of pairs) {
     const playerSide = a.id === 's0' ? a : b.id === 's0' ? b : null;

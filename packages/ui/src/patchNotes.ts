@@ -56,6 +56,21 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-08-30',
+    label: 'Practice Bots',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: 'Practice bots now sit down with the same Resolve and Armor you do, instead of starting on little over half your health.',
+        details: [
+          'A bot table used to open at 18/17/16/15/14/13/12 against your 30 — visible on the round-1 standings. Every seat now starts level with you.',
+          'Bot games have not got longer: the bots hit each other harder to make up for the extra health, so a dominant run still finishes on the same clock.',
+          'How hard bots hit YOU is unchanged on all three difficulties.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-08-30',
     label: 'Foe Intel',
     changes: [
       {

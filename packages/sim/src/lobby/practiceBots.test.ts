@@ -171,6 +171,26 @@ describe('duplicate lobby handles get an adjective, not "(2)"', () => {
   });
 });
 
+describe('practice bots sit at a real lobby seat (owner ask 2026-08-30)', () => {
+  it('every bot starts on the SAME Resolve and Armor the player does', () => {
+    const s = createLobbyRun(42, 'aster', {}, 'practice', {
+      opponents: 'bots', botDifficulty: 'medium', health: 'normal', timeMult: 1, tribeSurge: null,
+    } as never);
+    const seats = s.lobby!.seats.filter((x) => x.id !== 's0');
+    expect(seats.length, 'a full bot table').toBeGreaterThan(3);
+    // The bug this pins: bots opened on round(30 * 0.6) - seatIndex, so the standings read 18/17/16/15/...
+    // opposite the player's 30. Comparing against the PLAYER's seat rather than a literal keeps this honest
+    // if starting Resolve is ever retuned.
+    const me = s.lobby!.seats.find((x) => x.id === 's0')!;
+    for (const seat of seats) {
+      expect(seat.resolve, `${seat.label} starts on the player's Resolve`).toBe(me.resolve);
+      expect(seat.armor, `${seat.label} starts on the player's Armor`).toBe(me.armor);
+    }
+    // …and no descending stagger hiding in there.
+    expect(new Set(seats.map((x) => x.resolve)).size, 'no per-seat health stagger').toBe(1);
+  });
+});
+
 describe('practice-bot games resolve on a sane clock (owner ask 2026-08-25: they ran far too long)', () => {
   /** Play a full bots game with a player board that scales at `skill` per wave (0 = do nothing). */
   const roundsToFinish = (difficulty: 'easy' | 'medium' | 'hard', skill: number): number => {

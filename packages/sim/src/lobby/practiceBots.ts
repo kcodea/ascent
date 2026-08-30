@@ -63,8 +63,28 @@ const TIER_RAMP: Record<BotDifficulty, number> = { easy: 3, medium: 2, hard: 1 }
  */
 export const BOT_DAMAGE_MULT: Record<BotDifficulty, number> = { easy: 1.5, medium: 2, hard: 2.5 };
 
-/** Bot seats start on this fraction of the player's Resolve (and no Armor) — see the seat build below. */
-const BOT_HEALTH_MULT = 0.6;
+/**
+ * How hard bot seats hit EACH OTHER. Difficulty-independent, and deliberately so.
+ *
+ * `BOT_DAMAGE_MULT` above is the DIFFICULTY dial: it scales what the player takes on the chin, so "easy" has
+ * to stay gentle. This one is the PACING dial: it decides how fast seven AI seats chew through each other,
+ * which is what actually sets the length of a bots game and has nothing to do with how hard the player's own
+ * fights are. They were one constant until 2026-08-30, which meant the only way to stop a game dragging was
+ * to also make it harder - or, as it went, to start the bots on 0.6x Resolve and let the standings show it.
+ *
+ * With the seats restored to full Resolve + Armor (see the seat build), the table has ~1.9x more health to
+ * get through, and this absorbs exactly that: a dominant run still finishes inside ~15 rounds on all three
+ * difficulties, while an easy bot hits the player no harder than it did yesterday.
+ *
+ * REACH FOR THIS FIRST if bot games drag. It is the lever with no side effects on difficulty or on fiction.
+ *
+ * 5 is where it stops mattering: `lossDamageCap` bounds a round's damage, so from about here a losing bot
+ * takes the cap and raising this further changes nothing (measured 2026-08-30 - a dominant run finishes in
+ * 19/16/15/15 rounds at 2/3/5/6). It is chosen as the smallest value that reaches that floor.
+ */
+export const BOT_SEAT_DAMAGE_MULT = 5;
+
+
 
 /** EASY scales rounds 4–16 down (owner: "scale rounds 4-16 back by 20-30%") — 25%, the midpoint. Rounds 1–3 are
  *  left alone so the opening is identically gentle. */
@@ -148,15 +168,23 @@ export function createPracticeBotLobby(seed: number, playerHeroId: string, diffi
       // fights resolve, so the bots eliminate each other on a sane clock. The PLAYER still faces the same curve:
       // the spread is small, and whichever seat they draw is within a few percent of the authored table.
       authoredBoards: variedBoards(authoredBoards, i),
-      // Bot seats start on LESS health than the player (who keeps the full Resolve + Armor). Seven seats each
-      // soaking 45 was the last brake on length — the table had to absorb ~315 points before a winner existed.
-      // A shorter bot pool shortens the sandbox without making the PLAYER's own fights any easier, and the
-      // per-seat stagger keeps them from all falling on the same round.
-      resolve: Math.max(10, Math.round(r.startingResolve * BOT_HEALTH_MULT) - i),
-      armor: 0,
+      // FULL Resolve and Armor - exactly what a real lobby seat gets (owner ask 2026-08-30: "practice bots
+      // still start at half hp or less ... fix this so they start at normal hp").
+      //
+      // They used to start on 0.6x Resolve, no Armor, staggered down by seat index - which is what put
+      // 18/17/16/15/14/13/12 opposite the player's 30 on the round-1 standings. It was a brake on GAME
+      // LENGTH, added 2026-08-25, and it worked; but it made the practice table visibly not a lobby, and the
+      // standings panel shows those numbers, so the sandbox lied about the very thing it exists to rehearse.
+      //
+      // Length is still governed - by the two levers that do it WITHOUT touching the fiction: TIER_RAMP (bots
+      // climb tiers, so their face damage actually grows) and BOT_DAMAGE_MULT. Those are the dials to reach
+      // for if bot games drag again; do NOT reach back for starting health.
+      resolve: r.startingResolve,
+      armor: r.startingArmor,
       alive: true,
       authoredTierRamp: TIER_RAMP[difficulty],
       botDamageMult: BOT_DAMAGE_MULT[difficulty],
+      botSeatDamageMult: BOT_SEAT_DAMAGE_MULT,
     });
   }
   return { version: 1, seed, round: 1, seats, encounters: [], finished: false, rules: r };

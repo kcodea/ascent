@@ -6583,57 +6583,90 @@ svg { width: 18px; height: 18px; }
    + resized by the shared useDraggablePanel hook, so it persists like every tuner.
    Chrome uses --font-ui; NUMBERS use tabular mono so they don't jitter as digits change width.
    Deliberately cheap to render: no blur, no filters, no animated paint properties. */
+/* ── PERF HUD (owner ask 2026-08-29: "make the perf-hud black with white/colored text so it's easier to
+   read … make the text larger") ────────────────────────────────────────────────────────────────────────────
+
+   It used to wear the game's parchment card (`--card` on `--ink`), which is right for a player-facing panel
+   and wrong for this: the HUD sits ON TOP of a bright, busy board, at small sizes, and is read at a glance
+   while something is going wrong. Dark ground with high-contrast type wins that fight; the parchment did not.
+
+   Type went up across the board (fps 17→24px, rows 11→13px, sub-heads 9.5→11px) for the same reason — this is
+   a readout, not chrome, and it was sized like chrome. */
 .perfhud {
   position: fixed; right: calc(var(--bar-x) + 16px); bottom: calc(var(--bar-y) + 64px); z-index: 200;
-  width: 268px; box-sizing: border-box;
-  background: var(--card); border: 2px solid var(--line); border-radius: 14px;
-  box-shadow: 0 16px 40px -8px rgba(0, 0, 0, 0.5);
-  font-family: var(--font-ui); color: var(--ink);
-  resize: both; overflow: hidden; min-width: 210px; max-width: 92vw; min-height: 62px; max-height: 88vh;
-  /* Column flex so the RESIZE grip actually works: header + sparkline keep their natural height and the
-     body takes the remainder and scrolls. Without this the body would size to its content and simply be
-     clipped by overflow:hidden when the panel is dragged smaller — resizable in name only. */
+  width: 320px; box-sizing: border-box;
+  background: #0b0c10; border: 1px solid rgba(255, 255, 255, 0.16); border-radius: 12px;
+  box-shadow: 0 18px 48px -10px rgba(0, 0, 0, 0.75);
+  font-family: var(--font-ui); color: #f1ece2;
+  resize: both; overflow: hidden; min-width: 240px; max-width: 92vw; min-height: 44px; max-height: 88vh;
+  /* Column flex so the RESIZE grip works: header + sparkline keep their natural height, the body takes the
+     remainder and scrolls. Without it the body sizes to content and is simply clipped. */
   display: flex; flex-direction: column;
 }
+/* MINIMIZED — folded to the header alone. `resize` is dropped with it, because a grip on a 40px strip drags
+   into a shape you then have to fix. */
+.perfhud.min { resize: none; min-height: 0; }
 .perfhud-h {
-  display: flex; align-items: center; gap: 6px; padding: 7px 9px 6px; flex: 0 0 auto;
-  border-bottom: 1px solid var(--line);
+  display: flex; align-items: center; gap: 7px; padding: 9px 10px; flex: 0 0 auto;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
+.perfhud.min .perfhud-h { border-bottom: none; }
 .perfhud-h.drag { cursor: move; user-select: none; touch-action: none; }
 .perfhud-title {
-  font-size: 10px; font-weight: 800; color: var(--acc-dk);
-  text-transform: uppercase; letter-spacing: 0.09em;
+  font-size: 11px; font-weight: 800; color: var(--acc);
+  text-transform: uppercase; letter-spacing: 0.1em;
 }
 .perfhud-fps {
-  margin-left: auto; font-size: 17px; font-weight: 800; color: var(--ink); line-height: 1;
+  margin-left: auto; font-size: 24px; font-weight: 800; color: #fff; line-height: 1;
   font-variant-numeric: tabular-nums; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
-.perfhud-unit { font-size: 10px; font-weight: 700; color: var(--ink3); margin-left: -3px; }
+.perfhud-unit { font-size: 11px; font-weight: 700; color: #8f9099; margin-left: -2px; }
 .perfhud-worst {
-  min-width: 40px; text-align: right; font-size: 12px; font-weight: 800;
+  min-width: 48px; text-align: right; font-size: 15px; font-weight: 800;
   font-variant-numeric: tabular-nums; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 .perfhud-x {
-  width: 18px; height: 18px; padding: 0; flex: 0 0 auto; cursor: pointer;
-  border: 1px solid var(--line); border-radius: 5px; background: var(--bg2);
-  color: var(--ink2); font-size: 9px; line-height: 1; font-family: var(--font-ui);
+  width: 24px; height: 24px; padding: 0; flex: 0 0 auto;
+  border: 1px solid rgba(255, 255, 255, 0.18); border-radius: 6px; background: rgba(255, 255, 255, 0.06);
+  color: #cfd2da; font-size: 12px; line-height: 1; font-family: var(--font-ui);
 }
-.perfhud-x:hover { background: var(--card); color: var(--ink); border-color: var(--acc); }
-/* Full-bleed under the header; height is fixed in JS (SPARK_H) but width follows the resize grip. */
-.perfhud-spark { display: block; width: 100%; height: 34px; flex: 0 0 auto; background: color-mix(in srgb, var(--bg2) 55%, var(--card)); }
-.perfhud-body { padding: 7px 9px 9px; overflow: auto; flex: 1 1 auto; min-height: 0; }
+.perfhud-x:hover { background: rgba(255, 255, 255, 0.14); color: #fff; border-color: var(--acc); }
+/* Close reads as destructive on hover, so it is never confused with the fold beside it. */
+.perfhud-x.close:hover { background: var(--threat); border-color: var(--threat); color: #fff; }
+/* Full-bleed under the header; height is fixed in JS (SPARK_H), width follows the resize grip. */
+.perfhud-spark { display: block; width: 100%; height: 34px; flex: 0 0 auto; background: #05060a; }
+.perfhud-body { padding: 9px 11px 11px; overflow: auto; flex: 1 1 auto; min-height: 0; }
 .perfhud-sub {
-  font-weight: 800; font-size: 9.5px; color: var(--acc-dk); text-transform: uppercase; letter-spacing: 0.07em;
-  margin: 9px 0 3px; border-top: 1px solid var(--line); padding-top: 7px;
+  font-weight: 800; font-size: 11px; color: var(--acc); text-transform: uppercase; letter-spacing: 0.08em;
+  margin: 11px 0 4px; border-top: 1px solid rgba(255, 255, 255, 0.1); padding-top: 8px;
 }
-.perfhud-row { display: flex; justify-content: space-between; gap: 10px; padding: 1.5px 0; font-size: 11px; }
-.perfhud-row > span { color: var(--ink3); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.perfhud-row { display: flex; justify-content: space-between; gap: 10px; padding: 2px 0; font-size: 13px; }
+.perfhud-row > span { color: #9fa2ad; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .perfhud-row > b {
-  color: var(--ink); font-weight: 800; text-align: right; white-space: nowrap;
+  color: #fff; font-weight: 800; text-align: right; white-space: nowrap;
   font-variant-numeric: tabular-nums; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
-.perfhud-row.warn > b { color: var(--threat-dk); }
-.perfhud-empty { font-size: 10.5px; color: var(--ink3); font-style: italic; padding: 1px 0; }
+.perfhud-row.warn > b { color: #ff7a90; }
+.perfhud-empty { font-size: 12px; color: #8f9099; font-style: italic; padding: 2px 0; }
+.perfhud-btns button {
+  font-size: 12px; padding: 5px 9px; border-radius: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.18); background: rgba(255, 255, 255, 0.07); color: #e7e3d9; }
+.perfhud-btns button:hover { background: rgba(255, 255, 255, 0.15); border-color: var(--acc); color: #fff; }
+/* THE LIVE VERDICT — the HUD's headline. Severity colours the left rail; the confidence chip is what stops a
+   correlation reading as a fact at a glance. One-shot paint only; nothing here animates. */
+.perfhud-verdict {
+  margin: 9px 0 7px; padding: 9px 10px 9px 12px; border-radius: 9px;
+  background: rgba(255, 255, 255, 0.05); border-left: 3px solid var(--acc); }
+.perfhud-verdict.sev-critical { border-left-color: var(--threat); background: rgba(229, 68, 107, 0.12); }
+.perfhud-verdict.sev-info { border-left-color: rgba(255, 255, 255, 0.28); }
+.perfhud-verdict b { display: block; font-size: 13.5px; line-height: 1.3; color: #fff; }
+.perfhud-verdict i { display: block; margin-top: 5px; font-size: 12px; line-height: 1.4; font-style: normal;
+  color: #a9acb6; }
+.perfhud-conf { display: inline-block; margin-top: 5px; padding: 2px 7px; border-radius: 999px;
+  font-size: 10px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+.perfhud-conf.measured { color: #06180f; background: #4bbf87; }
+.perfhud-conf.correlated { color: #f1ece2; background: rgba(255, 255, 255, 0.18); }
+
 .perfhud-btns { display: flex; gap: 4px; margin-top: 9px; }
 .perfhud-btns button {
   flex: 1; padding: 5px 4px; cursor: pointer; font-family: var(--font-ui); font-size: 10.5px; font-weight: 800;
@@ -9612,3 +9645,132 @@ body.duel-attacker-opp .combatopp-hp { opacity: 0; }
 .bgrsubmit:disabled { opacity: 0.45; }
 /* The §4.3 toast — bottom-center, self-clears; one-shot fade only. */
 .bgrtoast { position: fixed; left: 50%; bottom: 9%; transform: translateX(-50%); z-index: 570; font-family: var(--font-ui); font-weight: 700; font-size: 13.5px; color: var(--ink); background: color-mix(in srgb, var(--bg2) 94%, #000); border: 1.5px solid var(--line); border-radius: 12px; padding: 9px 16px; box-shadow: 0 12px 30px -12px rgba(0, 0, 0, 0.7); animation: fadein 0.15s ease; pointer-events: none; }
+
+/* ── PERF ANALYTICS SCREEN (owner ask 2026-08-29) ─────────────────────────────────────────────────────────
+   A DEV surface, so it borrows the game's panel language (dark parchment card, --acc accent, Outfit chrome,
+   tabular numerals) rather than earning bespoke art. Everything is one-shot paint: the screen is opened
+   deliberately, read, and closed. Nothing here loops and nothing animates while the game runs, because a
+   perf tool that shows up in its own measurements is worthless. */
+.perfsc-wrap {
+  /* ABOVE the title screen (z 450). It is a DEV tool opened from the dev menu, which is reachable from the
+     title as well as from a run, so anything below the title would open invisibly there — which is exactly
+     what happened the first time this shipped. Still below the dev menu button itself (9990), so the way in
+     is never covered by the thing it opens. */
+  position: fixed; inset: 0; z-index: 600; display: grid; place-items: center;
+  background: rgba(6, 8, 14, 0.82); backdrop-filter: blur(3px); }
+.perfsc {
+  width: min(1180px, 94vw); height: min(860px, 92vh); display: flex; flex-direction: column;
+  background: linear-gradient(180deg, #221a13, #171009); color: #efe6d6;
+  border: 2px solid var(--line); border-radius: 16px; overflow: hidden;
+  box-shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.8); }
+.perfsc-top { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1); }
+.perfsc-x { font-size: 18px; color: #d8ccb6; background: none; border: none; padding: 4px 10px; }
+.perfsc-body { flex: 1; display: grid; grid-template-columns: 250px 1fr; min-height: 0; }
+
+/* Recordings rail */
+.perfsc-runs { border-right: 1px solid rgba(255, 255, 255, 0.1); overflow-y: auto; padding: 10px; }
+.perfsc-runs-head { display: flex; align-items: baseline; justify-content: space-between; }
+.perfsc-runs h4, .perfsc-main h4 { font-family: var(--font-ui); font-size: 12px; font-weight: 800;
+  letter-spacing: 0.1em; text-transform: uppercase; color: #b7a68c; margin: 4px 0 8px; }
+.perfsc-main h4 small { font-weight: 600; letter-spacing: 0; text-transform: none; color: #8b7f70; }
+.perfsc-mini { font-size: 10px; color: #8b7f70; background: none; border: none; }
+.perfsc-run { display: flex; align-items: stretch; gap: 2px; margin-bottom: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 9px; overflow: hidden;
+  background: rgba(255, 255, 255, 0.03); }
+.perfsc-run.on { border-color: var(--acc); background: rgba(240, 144, 46, 0.12); }
+.perfsc-run > button:first-child { flex: 1; display: block; text-align: left; padding: 7px 9px;
+  background: none; border: none; color: inherit; }
+.perfsc-run b { display: block; font-size: 12px; color: #f6efe2; }
+.perfsc-run span { display: block; font-family: var(--font-ui); font-size: 10.5px; color: #9c8b71; }
+.perfsc-run i { display: block; font-size: 9.5px; font-style: normal; color: #6c5d48; }
+.perfsc-run-acts { display: flex; flex-direction: column; }
+.perfsc-run-acts button { flex: 1; padding: 0 7px; font-size: 10px; color: #9c8b71;
+  background: rgba(0, 0, 0, 0.2); border: none; }
+
+/* Analysis column */
+.perfsc-main { overflow-y: auto; padding: 14px 20px 28px; }
+.perfsc-main section { margin-bottom: 22px; }
+.perfsc-head { display: flex; flex-wrap: wrap; gap: 18px; align-items: flex-end; margin-bottom: 20px; }
+.perfsc-stat b { display: block; font-family: var(--font-ui); font-size: 30px; font-weight: 900;
+  line-height: 1; color: #f6efe2; font-variant-numeric: tabular-nums; }
+.perfsc-stat b i { font-size: 14px; font-style: normal; color: #9c8b71; }
+.perfsc-stat span { font-family: var(--font-ui); font-size: 10px; letter-spacing: 0.08em;
+  text-transform: uppercase; color: #9c8b71; }
+.perfsc-stat.bad b { color: var(--threat); }
+.perfsc-stat.warn b { color: var(--acc); }
+.perfsc-stat.ok b { color: #4bbf87; }
+.perfsc-actions { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+.perfsc-copy { padding: 9px 16px; border-radius: 10px; font-family: var(--font-ui); font-weight: 800;
+  font-size: 13px; color: #1a1208; background: var(--acc); border: none; }
+.perfsc-copied { font-size: 11px; color: #4bbf87; }
+
+/* Findings — severity on the rail, confidence as a chip. That pair IS the honesty story: a measured
+   attribution and a correlated lead must never look alike at a glance. */
+.perfsc-verdict { padding: 11px 14px; margin-bottom: 8px; border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04); border-left: 3px solid rgba(255, 255, 255, 0.25); }
+.perfsc-verdict.sev-critical { border-left-color: var(--threat); background: rgba(229, 68, 107, 0.09); }
+.perfsc-verdict.sev-warn { border-left-color: var(--acc); background: rgba(240, 144, 46, 0.08); }
+.perfsc-verdict-t { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }
+.perfsc-verdict-t b { font-size: 14px; color: #f6efe2; }
+.perfsc-verdict p { margin: 0 0 5px; font-size: 12.5px; line-height: 1.45; color: #cbbda6; }
+.perfsc-next { color: #9c8b71 !important; }
+.perfsc-next b { color: #b7a68c; font-size: 12px; }
+.perfsc-conf { flex: none; padding: 2px 7px; border-radius: 999px; font-family: var(--font-ui);
+  font-size: 9px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+.perfsc-conf.measured { color: #0d1a12; background: #4bbf87; }
+.perfsc-conf.correlated { color: #d8ccb6; background: rgba(255, 255, 255, 0.14); }
+
+/* Tables + timeline */
+.perfsc-table { width: 100%; border-collapse: collapse; font-family: var(--font-ui); font-size: 12px;
+  font-variant-numeric: tabular-nums; }
+.perfsc-table th { text-align: left; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
+  color: #8b7f70; padding: 4px 8px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); }
+.perfsc-table td { padding: 5px 8px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); color: #cbbda6; }
+.perfsc-table td.bad { color: var(--threat); font-weight: 800; }
+.perfsc-table td.ok { color: #4bbf87; }
+.perfsc-bar { display: inline-block; width: var(--w); height: 6px; margin-right: 6px; border-radius: 3px;
+  background: var(--acc); vertical-align: middle; }
+.perfsc-timeline { display: block; width: 100%; height: 92px; border-radius: 8px;
+  background: rgba(0, 0, 0, 0.28); }
+.perfsc-worst { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.perfsc-worst button { padding: 6px 10px; border-radius: 8px; text-align: left;
+  background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); color: inherit; }
+.perfsc-worst b { display: block; font-family: var(--font-ui); font-size: 13px; color: var(--threat); }
+.perfsc-worst span { display: block; font-size: 10px; color: #9c8b71; }
+.perfsc-worst i { display: block; font-size: 10px; font-style: normal; color: #6c5d48; }
+
+/* One inspected second */
+.perfsc-second { margin-top: 12px; padding: 12px; border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.08); }
+.perfsc-second-head { display: flex; flex-wrap: wrap; gap: 12px; align-items: baseline; margin-bottom: 10px;
+  font-family: var(--font-ui); font-size: 12px; font-variant-numeric: tabular-nums; color: #9c8b71; }
+.perfsc-second-head b { font-size: 14px; color: #f6efe2; }
+.perfsc-second-head .bad { color: var(--threat); font-weight: 800; }
+.perfsc-second-head .warn { color: var(--acc); font-weight: 800; }
+.perfsc-second-head .ok { color: #4bbf87; }
+.perfsc-chip { padding: 1px 8px; border-radius: 999px; background: rgba(255, 255, 255, 0.1); color: #d8ccb6; }
+.perfsc-second-cols { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.perfsc-second-cols h5 { margin: 0 0 6px; font-family: var(--font-ui); font-size: 10px; letter-spacing: 0.08em;
+  text-transform: uppercase; color: #8b7f70; }
+.perfsc-kv { display: flex; align-items: baseline; gap: 6px; font-family: var(--font-ui); font-size: 11.5px;
+  font-variant-numeric: tabular-nums; padding: 2px 0; }
+.perfsc-kv span { flex: 1; color: #cbbda6; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.perfsc-kv b { color: #f6efe2; }
+.perfsc-kv i { font-style: normal; color: #6c5d48; font-size: 10px; }
+.perfsc-empty { font-size: 11.5px; line-height: 1.5; color: #8b7f70; }
+.perfsc-empty.big { padding: 40px 0; font-size: 14px; text-align: center; }
+.perfsc-warnline { margin-top: 8px; font-size: 11.5px; color: var(--acc); }
+
+/* Shared / local tabs on the recordings rail (owner ask 2026-08-29 — the cloud viewer). */
+.perfsc-tabs { display: flex; gap: 4px; margin-bottom: 10px; }
+.perfsc-tabs button { flex: 1; padding: 6px 8px; border-radius: 8px; font-family: var(--font-ui);
+  font-size: 11px; font-weight: 800; letter-spacing: 0.04em; color: #9c8b71;
+  background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); }
+.perfsc-tabs button.on { color: #f6efe2; background: rgba(240, 144, 46, 0.16); border-color: var(--acc); }
+.perfsc-share { padding: 9px 14px; border-radius: 10px; font-family: var(--font-ui); font-weight: 800;
+  font-size: 13px; color: #f6efe2; background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2); }
+.perfsc-share:hover { background: rgba(255, 255, 255, 0.16); border-color: var(--acc); }
+.perfsc-empty code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px;
+  padding: 1px 4px; border-radius: 4px; background: rgba(255, 255, 255, 0.08); }

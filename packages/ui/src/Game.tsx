@@ -11,6 +11,7 @@ import { Leaderboard } from './Leaderboard';
 import { Rankings } from './Rankings';
 import { RecentGames } from './RecentGames';
 import { Career } from './Career';
+import { PerfScreen } from './PerfScreen';
 import { AvatarPicker } from './AvatarPicker';
 import { TutorialController } from './tutorial/TutorialController';
 import { AccountPanel } from './AccountPanel';
@@ -28,6 +29,19 @@ import { PatchNotes } from './PatchNotesOverlay';
 import { BugReportModal } from './bug-report/BugReportModal';
 import { installBugReportHotkey } from './bug-report/bugReportHotkey';
 import { PerfHud } from './PerfHud';
+import { uploadRun } from './perfCloud';
+import { toRun } from './perfStore';
+import { isRealPlayRun } from './perfCaptureScope';
+
+/** Seconds of live recording an auto-share needs before it is worth a row. A reload is not a session. */
+const MIN_AUTO_SHARE_SECONDS = 45;
+
+
+/** Persist the perf choice, so closing the HUD in a dev client keeps it closed across reloads (the dev
+ *  default only applies when no opinion is stored — see `enabledByFlag`). */
+function setPerfFlag(on: boolean): void {
+  try { localStorage.setItem('ascent.perf', on ? '1' : '0'); } catch { /* ignore */ }
+}
 import { perfMonitor, perfEnabledByFlag } from './perfMonitor';
 import { Icon } from './Icon';
 import { ErrorBoundary } from './ErrorBoundary';
@@ -100,7 +114,59 @@ export function Game() {
     const onMove = (): void => perfMonitor.count('pointermoves');
     window.addEventListener('pointermove', onMove, { passive: true });
     perfMonitor.start();
-    return () => { window.removeEventListener('pointermove', onMove); perfMonitor.stop(); };
+
+    /**
+     * AUTO-SHARE (owner ask 2026-08-29: "uploads to supabase and drops it into a performance viewer in game
+     * for us" — and, asked directly, "this will auto upload after games right?").
+     *
+     * **AT THE END OF A GAME**, which is what "analytics of games" means: one row per completed game, holding
+     * that game's whole timeline. The first version uploaded when the tab was hidden, which produced a row
+     * per SITTING rather than per game — close enough to sound right and wrong in a way that matters, since
+     * a row spanning two games and a menu cannot be compared against anything.
+     *
+     * A hidden-tab upload survives as the FALLBACK, for the game you abandon halfway: leaving with a real run
+     * in progress still publishes what was recorded. So a finished game uploads at its end, and an abandoned
+     * one uploads when you go — never both, because the latch is shared.
+     *
+     * Guarded on MIN_AUTO_SHARE_SECONDS so a reload or a quick tab-out does not publish a five-second
+     * nothing, and on `isRealPlayRun` so only real games are captured.
+     */
+    let shared = false;
+    const publish = (note: string): void => {
+      if (shared) return;
+      const st = useGame.getState();
+      if (!isRealPlayRun(st.run)) return;        // see `isRealPlayRun` — auto-capture is real games only
+      const buckets = perfMonitor.history();
+      if (buckets.filter((b) => !b.hidden).length < MIN_AUTO_SHARE_SECONDS) return;
+      shared = true;
+      void uploadRun(
+        toRun(buckets, {
+          id: `${Date.now()}`,
+          startedAt: Date.now() - buckets.length * 1000,
+          build: `${__APP_VERSION__}+${__BUILD_SHA__}`,
+          mode: st.run?.mode,
+          heroId: st.run?.heroId,
+          note,
+        }),
+        st.playerName || 'dev',
+      );
+    };
+    // The end of the game. Subscribed to the store rather than driven by this component's `phase` prop so the
+    // upload fires once on the TRANSITION, not on every render while the end screen is up.
+    const unsub = useGame.subscribe((st, prevSt) => {
+      const p = st.run?.phase;
+      if (p === prevSt.run?.phase) return;
+      if (p === 'gameover' || p === 'victory') publish(`game ${p === 'victory' ? 'won' : 'lost'}`);
+    });
+    const onHide = (): void => { if (document.hidden) publish('abandoned'); };
+    document.addEventListener('visibilitychange', onHide);
+
+    return () => {
+      window.removeEventListener('pointermove', onMove);
+      document.removeEventListener('visibilitychange', onHide);
+      unsub();
+      perfMonitor.stop();
+    };
   }, [perfOn]);
 
   // UI-hover SFX: one delegated pointerover listener for the whole app (mounted once). Plays a soft cue when
@@ -289,7 +355,7 @@ export function Game() {
       {import.meta.env.DEV && bugScenarioLoaded && <BugScenarioPanel />}
       {/* Frame-health HUD. Ships in production but stays dormant unless opted into (?perf=1 /
           localStorage / the dev menu) — a slowness report is only trustworthy against the prod build. */}
-      {perfOn && <PerfHud onClose={() => setPerfOn(false)} />}
+      {perfOn && <PerfHud onClose={() => { setPerfFlag(false); setPerfOn(false); }} />}
       {/* DEV-ONLY (owner 2026-08-24): the Balance Report reads dev/session telemetry and must not ship in the
           exe or itch repacks, which are production `build:web` bundles where `import.meta.env.DEV` is false. */}
       {import.meta.env.DEV && <BalancePanel />}
@@ -314,6 +380,8 @@ export function Game() {
       <Rankings />
       <RecentGames />
       <Career />
+      {/* Perf analytics — self-gates on `showPerf`, renders nothing until opened from the dev menu. */}
+      <PerfScreen />
       <AvatarPicker />
       <AccountPanel />
       {/* REPLAY VIEWER: the round rail (left) + the transport bar. Both self-gate on `replaySession`;

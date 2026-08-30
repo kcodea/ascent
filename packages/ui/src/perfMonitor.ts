@@ -220,13 +220,31 @@ class PerfMonitor {
   /** Running display-refresh estimate. Fed one window per bucket close — never per frame. */
   private refresh: RefreshState = initialRefreshState();
 
-  /** Opted in via `?perf=1` (sticky — it writes the flag) or `localStorage.ascent.perf`. Checked once. */
+  /**
+   * Should the monitor be running?
+   *
+   * `?perf=1` (sticky — it writes the flag) or `localStorage.ascent.perf`, and since 2026-08-29 **on by
+   * default in DEV clients** (owner ask: *"set it up so that the perf hud runs automatically in dev
+   * clients"*).
+   *
+   * Auto-start is scoped to `import.meta.env.DEV` and nothing else. The production build still ships this
+   * dormant, which is the guarantee this file opens with: recording is cheap but not free, and a diagnostic
+   * that runs unasked is a cost every player pays for a tool only we use. A dev client is already paying
+   * StrictMode and an unminified bundle — the sampler is noise beside that, and always-on is what makes a
+   * regression turn up on its own instead of only when someone thought to look.
+   *
+   * `?perf=0` / removing the flag still wins in dev: the explicit OFF is honoured, so a dev measuring
+   * something else can silence it. That is why the flag is read as a tri-state rather than a boolean.
+   */
   static enabledByFlag(): boolean {
     try {
       const q = new URLSearchParams(window.location.search).get('perf');
       if (q === '1') { localStorage.setItem('ascent.perf', '1'); return true; }
-      if (q === '0') { localStorage.removeItem('ascent.perf'); return false; }
-      return localStorage.getItem('ascent.perf') === '1';
+      if (q === '0') { localStorage.setItem('ascent.perf', '0'); return false; }
+      const flag = localStorage.getItem('ascent.perf');
+      if (flag === '1') return true;
+      if (flag === '0') return false;          // an explicit OFF beats the dev default
+      return !!import.meta.env.DEV;            // no opinion stored → on in dev, off in prod
     } catch { return false; }
   }
 

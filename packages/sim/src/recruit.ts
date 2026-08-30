@@ -1,6 +1,6 @@
 import { ALE_IDS, alignAllows, makeRng, SILENT_ONPLAY, COMBAT_REPLAYABLE_BATTLECRIES, extraTriggerFires, foldEchoExtraFires, socTwilightExtraFires, ARENA_EFFECTS, beatIdentity, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
 import { CARD_INDEX, EQUIPMENT_INDEX, recurringEotOwner, type EquipmentDefinition } from '@game/content';
-import { equipmentParams as equipmentParamsFor, grantEquipment as grantEquipmentToPlayer, holdsEquipment } from './equipment';
+import { equipIsNews, equipmentParams as equipmentParamsFor, grantEquipment as grantEquipmentToPlayer } from './equipment';
 import { currentCollector } from './activeCollector';
 import { alignmentOf } from './alignment';
 import { lobbyOpponentBoard } from './lobby/runLobby';
@@ -3298,17 +3298,40 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *
    *  Owner change 2026-08-28 (was left-most only, `endOfTurnBuffLeftmostTribePerCard`). One Dwarf on board is
    *  BOTH ends, and it is buffed ONCE — the card names two bodies, not two grants, so the ends are deduped by
-   *  identity before anything is added. */
+   *  identity before anything is added.
+   *
+   *  ── ITEMIZED, one grant PER CARD PLAYED (owner ask 2026-08-29) ────────────────────────────────────────
+   *
+   *  *"give +1/+2 and repeat for every card played this turn, so the animation triggers for every card played
+   *  rapidly. this will be much more exciting than 1 single animation for the buff."*
+   *
+   *  The stat outcome is IDENTICAL — n × (+1/+2) is +n/+2n, the same number the live text already prints. What
+   *  changes is that it now reads as n hits landing in sequence instead of one lump.
+   *
+   *  This is not a new pattern: it is the owner's 2026-07-17 ruling for `"+x/+y per z"` End-of-Turn effects,
+   *  which `runRecurringEndOfTurn` has followed since ("10 Attachments read as ten +2/+2 hits landing
+   *  sequentially, not one +20/+20 lump"). Kringle simply predates the conversion.
+   *
+   *  Each card played is one WAVE: both ends are buffed inside a single `captureBuffFx` so they pulse
+   *  together, and the wave tag lets the UI stagger BETWEEN waves. Without the per-wave capture the diff would
+   *  collapse the whole loop back into one event — `captureBuffFx` measures before/after, so the nesting is
+   *  what produces separate animations, not the loop. */
   endOfTurnBuffEndsTribePerCard: (ctx, self, params) => {
     const tribe = str(params.tribe);
     const matches = ctx.state.board.filter((c) => !tribe || isTribe(c, tribe as never));
     if (matches.length === 0) return;
     const ends = matches.length === 1 ? [matches[0]!] : [matches[0]!, matches[matches.length - 1]!];
     const played = ctx.state.playedThisTurn?.length ?? 0;
-    const a = num(params.attack, 1) * gold(self) * played;
-    const h = num(params.health, 0) * gold(self) * played; // Kringle +1/+2 (owner balance 2026-08-15)
-    if (a <= 0 && h <= 0) return;
-    for (const target of ends) addBuff(target, nameOf(self), a, h);
+    const a = num(params.attack, 1) * gold(self);
+    const h = num(params.health, 0) * gold(self); // Kringle +1/+2 (owner balance 2026-08-15)
+    if (played <= 0 || (a <= 0 && h <= 0)) return;
+    for (let wave = 0; wave < played; wave++) {
+      const before = ctx.state.recruitBuffFx.length;
+      captureBuffFx(ctx.state, self, 'minion', () => {
+        for (const target of ends) addBuff(target, nameOf(self), a, h);
+      });
+      for (let i = before; i < ctx.state.recruitBuffFx.length; i++) ctx.state.recruitBuffFx[i]!.fxWave = wave;
+    }
   },
 
   /** Chirurgeon: every `every` cards bought, get a random Shop spell. The buy tally lives on the CARD
@@ -10818,9 +10841,10 @@ export function playCard(state: RunState, played: BoardCard): void {
     if (effect.on !== 'equip') continue;
     const fn = RECRUIT_FACTORIES[effect.do];
     if (!fn) continue;
-    // Asked BEFORE the grant, because the grant is what makes it true. See `holdsEquipment` for the ruling:
-    // a duplicate source — Gilded or not — adds nothing to equip, so it announces nothing.
-    const alreadyHeld = holdsEquipment(state, str(effect.params?.equipmentId));
+    // Asked BEFORE the grant, because the grant is what makes it true. See `equipIsNews` for the two rulings
+    // behind it: a duplicate adds nothing and is silent, but a GILDED source over a plain entry upgrades what
+    // sits in the slot and is announced (owner 2026-08-29).
+    const isNews = equipIsNews(state, str(effect.params?.equipmentId), !!played.golden);
     withRecruitTrigger(
       ctx,
       {
@@ -10833,7 +10857,7 @@ export function playCard(state: RunState, played: BoardCard): void {
       () => { fn(ctx, played, effect.params ?? {}, { minion: played }); },
     );
     const granted = EQUIPMENT_INDEX[str(effect.params?.equipmentId)];
-    if (!alreadyHeld) {
+    if (isNews) {
       stampEquipFx(state, {
         kind: 'equip', uid: played.uid, cardId: played.cardId,
         ...(granted ? { equipmentId: granted.id } : {}),

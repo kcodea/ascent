@@ -18,7 +18,7 @@ import { QUEST_INDEX, RUNE_INDEX } from '@game/content';
 import { getEquipFxConfig } from './equipFxConfig';
 import { getEquipSlotConfig } from './equipSlotConfig';
 import { sfx } from './sfx';
-import { playDef } from './fx/playDef';
+import { canPlayDefs, playDef } from './fx/playDef';
 import { useGame } from './store';
 import { getHeroPowerBtnConfig } from './heroPowerBtnConfig';
 import { pixiFx } from './pixiFx';
@@ -236,6 +236,35 @@ export function StatusBar() {
   }, [shownEquipId]);
 
   const hasEquip = equipOptions.length > 0 && !!selectedEquip && !!selectedEquipDef;
+
+  /**
+   * "EMPTY" — the Equipment ran out of uses (owner ask 2026-08-29).
+   *
+   * *"there will be cases where players have more than 1 use available, this should only play when the player
+   * has 0 equipment uses left. if a player then GAINS an equipment use somehow, and then again uses it and
+   * hits 0, this would play as well. it's essentially an 'empty' effect."*
+   *
+   * So the trigger is the TRANSITION to zero, not the state of being at zero. Spending the first of two uses
+   * leaves one and is silent; spending the second empties it and fires. A bonus use granted mid-turn takes it
+   * off zero, and spending that one fires again — which falls out of watching the edge rather than the value,
+   * with no special case for "how did it get back above zero".
+   *
+   * A fresh mount at zero is silent for the same reason the sheen is: the ref starts at the current value, so
+   * only a change while mounted counts. Returning from combat would otherwise puff every time.
+   */
+  const equipEmptyRef = useRef(equipUses);
+  useEffect(() => {
+    const was = equipEmptyRef.current;
+    equipEmptyRef.current = equipUses;
+    if (!hasEquip || equipUses !== 0 || was === 0) return;
+    if (!canPlayDefs()) return;
+    const el = document.querySelector<HTMLElement>('.statusbar .equipslot .heropowerbtn');
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const at = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    playDef('equipment-used-up', { source: at, target: at, cursor: at });
+  }, [equipUses, hasEquip]);
+
   const equipSnapRef = useRef<{ name: string; rule: string; art?: string; cost: number; version: string } | null>(null);
   if (hasEquip) {
     equipSnapRef.current = {

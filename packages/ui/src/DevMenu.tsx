@@ -273,9 +273,17 @@ export function DevMenu() {
     setShown((s) => { if (!s.has(key)) return s; const n = new Set(s); n.delete(key); return n; }), []);
 
   const actions: Action[] = useMemo(() => [
-    { id: 'perf', icon: '📊', label: 'Perf HUD', hint: 'Frame-health overlay — also available in prod via ?perf=1',
-      run: () => (window as unknown as { __perfHud?: (on?: boolean) => void }).__perfHud?.(!perfMonitor.isRunning),
+    { id: 'perf', icon: '📊', label: 'Perf HUD',
+      hint: 'Frame-health overlay. ON BY DEFAULT in dev clients since 2026-08-29; toggling here is remembered, so an explicit off stays off across reloads. Also available in prod via ?perf=1',
+      run: () => {
+        const on = !perfMonitor.isRunning;
+        try { localStorage.setItem('ascent.perf', on ? '1' : '0'); } catch { /* ignore */ }
+        (window as unknown as { __perfHud?: (on?: boolean) => void }).__perfHud?.(on);
+      },
       live: () => perfMonitor.isRunning },
+    { id: 'perfscreen', icon: '📈', label: 'Perf Analytics',
+      hint: 'Findings, per-phase breakdown, jank timeline and run-over-run comparison — plus a report to paste to Claude',
+      run: () => { useGame.getState().openPerf(); } },
     { id: 'testfx', icon: '✨', label: 'Test FX', hint: 'Fire the spell-power flourish once on the board', run: () => pixiFx.test() },
     { id: 'testcrit', icon: '⚡', label: 'Test Crit', hint: 'Fire the critical-strike flourish once', run: () => pixiFx.testCrit() },
     { id: 'testflurry', icon: '🌬️', label: 'Test Flurry', hint: 'Fire the flurry wind-slash once', run: () => pixiFx.testFlurry() },

@@ -1,5 +1,6 @@
 /// <reference types="vite/client" />
 import { Container, type Renderer } from 'pixi.js';
+import { perfMonitor } from '../perfMonitor';
 import { pixiFx } from '../pixiFx';
 import { driveLayerHeads, type FxAnchors } from './anchors';
 import type { FxDef } from './def';
@@ -361,6 +362,23 @@ function staggerLayers<T extends { layers: readonly { at: number; stagger?: numb
 }
 
 export function playDef(id: string, anchors: FxAnchors, opts: PlayDefOptions = {}): (() => void) | null {
+  // PER-EFFECT ATTRIBUTION (owner ask 2026-08-29: "i want the perf hud to be so good that it points at cards
+  // or mechanics or effects that are causing slowdowns").
+  //
+  // This is the ONE chokepoint every authored effect passes through, so timing it here attributes the SPAWN
+  // cost of a fire to the def by name — `fx:titan-hammer` rather than a generic `fx:tendril` tally. That
+  // turns "some effect is expensive" into "this effect is expensive", which is the difference between a lead
+  // and a fix.
+  //
+  // What it measures is the SPAWN, not the effect's whole life: the particles keep costing frames after this
+  // returns, and that ongoing cost shows up in the FX counters instead. A shader compile, a texture upload
+  // and a big allocation all land here, which is exactly where the 160 ms collision freeze of §3b lived.
+  //
+  // Free when the monitor is off — `measure` is a bare passthrough with no clock reads (see perfMonitor).
+  return perfMonitor.measure(`fx:${id}`, () => playDefInner(id, anchors, opts));
+}
+
+function playDefInner(id: string, anchors: FxAnchors, opts: PlayDefOptions = {}): (() => void) | null {
   const stored = getDef(id);
   if (!stored) {
     // DEV-only because it is an AUTHORING mistake — a binding naming a def that isn't committed. The registry

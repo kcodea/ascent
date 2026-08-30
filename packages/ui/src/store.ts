@@ -558,6 +558,11 @@ interface GameStore {
   showRecentGames: boolean;
   openRecentGames: () => void;
   closeRecentGames: () => void;
+  /** The Perf Analytics overlay is open (owner ask 2026-08-29). DEV-facing: it reads recordings the perf
+   *  monitor saved, and the monitor itself is still opt-in, so this is empty until someone records. */
+  showPerf: boolean;
+  openPerf: () => void;
+  closePerf: () => void;
   /** The Career overlay (match history + per-hero stats) is open. */
   showCareer: boolean;
   /** WHOSE career is on screen. `null` = your own. Set when opening another player's from the leaderboard
@@ -1585,7 +1590,23 @@ export const useGame = create<GameStore>((set, get) => ({
       // batch for the Beat Lab viewer; prod stays on plain `reduce` (zero collector allocation). Gameplay
       // result is identical either way — the collector only records (proven by the equivalence test).
       const captureBeats = import.meta.env.DEV;
-      const beat = perfMonitor.measure(`reduce:${action.type}`, () =>
+      /**
+       * PER-CARD ATTRIBUTION (owner ask 2026-08-29: "i want the perf hud to be so good that it points at
+       * cards or mechanics or effects that are causing slowdowns").
+       *
+       * `reduce:<action>` already gave MECHANIC-level cost — how expensive a play is, versus a buy, versus
+       * End of Turn. What it could not say is WHICH CARD, and "playing something is slow" is not a fix.
+       *
+       * Actions that name a card get its id folded into the label, so the timing reads `reduce:play:dw_foreman`
+       * and the report can point at the card itself. Cardinality is bounded by what a session actually
+       * touches (a few dozen), not by the ~500-card pool.
+       */
+      const acted = 'uid' in action && typeof action.uid === 'string'
+        ? [...s.run.hand, ...s.run.board].find((c) => c.uid === action.uid)?.cardId
+          ?? s.run.shop.find((o) => o.uid === action.uid)?.cardId
+        : undefined;
+      const label = acted ? `reduce:${action.type}:${acted}` : `reduce:${action.type}`;
+      const beat = perfMonitor.measure(label, () =>
         captureBeats ? reduceWithPresentation(s.run, action, true) : { state: reduce(s.run, action), batch: null },
       );
       // CHOREOGRAPHER PR 3: resolution and commit are now separate steps sharing ONE commit path, so the
@@ -1816,6 +1837,9 @@ export const useGame = create<GameStore>((set, get) => ({
   showRecentGames: false,
   openRecentGames: () => set({ showRecentGames: true }),
   closeRecentGames: () => set({ showRecentGames: false }),
+  showPerf: false,
+  openPerf: () => set({ showPerf: true }),
+  closePerf: () => set({ showPerf: false }),
   showCareer: false,
   careerOf: null,
   openCareer: (of) => set({ showCareer: true, careerOf: of ?? null }),

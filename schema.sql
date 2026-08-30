@@ -483,3 +483,62 @@ drop policy if exists "read own bug reports" on public.bug_reports;
 create policy "read own bug reports"
   on public.bug_reports for select to authenticated
   using (auth.uid() = user_id);
+
+-- ─────────────────────────────────────────────────────────────────────────────────────────────────────────
+-- PERF RUNS (owner ask 2026-08-29: "set it up so that the perf hud runs automatically in dev clients and
+-- uploads to supabase and drops it into a performance viewer in game for us")
+--
+-- A recorded frame-health timeline from a DEV client. Both devs read every row — that is the whole point:
+-- "for us" means Kevin can look at a spike Mike recorded on different hardware, which is the one thing a
+-- local-only tool could never do.
+--
+-- ⚠️ UNTIL THIS IS RUN the feature degrades quietly: recording, the HUD and the LOCAL analytics screen all
+-- work exactly as they do today, and the Cloud tab shows "not set up yet" instead of erroring. Nothing
+-- breaks; the cross-machine half simply is not there.
+--
+-- NO EDGE FUNCTION, unlike `bug_reports`. A perf log is not user-submitted content that needs server-side
+-- validation or rate limiting — it is our own telemetry from our own dev clients, so a plain
+-- insert-own/read-all policy pair is the right size. One less thing to deploy.
+--
+-- SIZE. `buckets` is one row per recorded second, ~200 bytes each, capped at 2400 by the client's ring
+-- buffer — so a worst-case row is around half a megabyte of jsonb. The client also refuses to upload a
+-- timeline that would exceed PERF_MAX_UPLOAD_BYTES, so this cannot become an accidental blob store.
+create table if not exists public.perf_runs (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  -- Who recorded it, denormalised so the viewer's list needs no join to `profiles`.
+  author text not null default '',
+  -- The build. This is what makes a comparison mean something: "worse since which change?"
+  patch text not null,
+  -- Free-text label typed at save time ("after the sheen change").
+  note text null,
+  -- Context, denormalised for the list view so picking a run does not need the timeline loaded.
+  mode text null,
+  hero_id text null,
+  seconds int not null,
+  hz int not null,
+  worst_frame real not null,
+  jank_frames int not null,
+  fps_med real not null,
+  -- The timeline itself, and the diagnosis summary computed client-side at upload.
+  buckets jsonb not null,
+  summary jsonb null
+);
+
+-- The list view is "newest first, optionally filtered to a build".
+create index if not exists perf_runs_created on public.perf_runs(created_at desc);
+create index if not exists perf_runs_patch   on public.perf_runs(patch, created_at desc);
+
+alter table public.perf_runs enable row level security;
+
+drop policy if exists "read perf_runs"       on public.perf_runs;
+drop policy if exists "insert own perf_runs" on public.perf_runs;
+drop policy if exists "delete own perf_runs" on public.perf_runs;
+
+-- READ ALL: the point of uploading is that the other dev can see it.
+create policy "read perf_runs"       on public.perf_runs for select to authenticated using (true);
+-- INSERT OWN: you can only upload as yourself.
+create policy "insert own perf_runs" on public.perf_runs for insert to authenticated with check (auth.uid() = user_id);
+-- DELETE OWN: so a noisy recording can be tidied from inside the game, without a console trip.
+create policy "delete own perf_runs" on public.perf_runs for delete to authenticated using (auth.uid() = user_id);

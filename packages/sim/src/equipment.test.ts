@@ -450,15 +450,26 @@ describe('the equip cue announces ACQUISITION, not the play', () => {
       .toBe('gilded');
   });
 
-  it('a GILDED Frank over a plain one is silent too — the same Bloodpot, improved', () => {
-    // Not a case the owner enumerated, decided from the reason they gave for the two that they did: an
-    // upgrade is not NEW Equipment. Flagged rather than assumed silently — if an upgrade should announce
-    // itself, `holdsEquipment` is the one place that changes.
+  it('a GILDED Frank over a plain one ANNOUNCES — what you hold actually changed', () => {
+    // Owner ruling 2026-08-29, deciding the case the first ruling left open: "if you gild an equip card with
+    // the basic version of that equipment, then playing the GILDED version … should re-play the equip
+    // animation and sfx etc, since that it is a 'new' equipment being added … there should be player feedback
+    // for the interaction."
     let s = run({ hand: [body('p', 'e3_frank'), body('g', 'e3_frank', { golden: true })] });
     s = play(s, 'p', 0);
     s = play(s, 'g', 1);
-    expect(s.equipFx ?? [], 'silent').toEqual([]);
-    expect(equipmentState(s).available[0]!.version, 'but the upgrade DID land').toBe('gilded');
+    expect(s.equipFx, 'the slot now holds a better Bloodpot — that is worth announcing').toHaveLength(1);
+    expect(equipmentState(s).available[0]!.version).toBe('gilded');
+  });
+
+  it('a GILDED Frank over an ALREADY-gilded entry is silent — nothing changed', () => {
+    // The far side of the same rule: the upgrade is the event, not the gildedness. Once the entry is at the
+    // top there is nothing left to announce.
+    let s = run({ hand: [body('g1', 'e3_frank', { golden: true }), body('g2', 'e3_frank', { golden: true })] });
+    s = play(s, 'g1', 0);
+    expect(s.equipFx, 'the first gilded source is a new Equipment').toHaveLength(1);
+    s = play(s, 'g2', 1);
+    expect(s.equipFx ?? [], 'the second changes nothing').toEqual([]);
   });
 
   it('a DIFFERENT Equipment always announces, however many others are held', () => {

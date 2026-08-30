@@ -118,6 +118,103 @@ Add a mark anywhere with `perfMonitor.mark('label')` — it's a no-op when the m
 don't need a guard.
 
 
+## The Perf Analytics screen (reading a session after the fact)
+
+The HUD answers *is it smooth right now*. **Perf Analytics** (dev menu → 📈) answers the four questions you
+have afterwards, and is where a slowdown actually gets diagnosed.
+
+Open it from the dev menu at any time — it reads saved recordings, so it works from the title screen as well
+as mid-run. The monitor itself is still **opt-in** (`?perf=1`, `localStorage.ascent.perf`, or the dev menu):
+recording is cheap but not free, and a diagnostic that runs unasked is a cost every player pays for a tool
+only we use.
+
+### What it tells you
+
+| | |
+|---|---|
+| **Findings** | Plain English, worst first, each with a next step. `plateGild took 96 ms in its worst call` — not a table of percentiles you have to interpret. |
+| **By phase** | Frame health split by shop / combat / End of Turn, compared by dropped frames **per second** so a long shop phase does not out-rank a short combat one on volume. |
+| **Timeline** | One column per second, coloured against the budget. Click any second for what fired in it — marks, measured timings, live FX counts. |
+| **vs an earlier run** | Pick any saved recording to compare against. Answers "did my change regress this?" directly. |
+| **Copy report** | The whole analysis as markdown, ready to paste to Claude. |
+
+### MEASURED vs POSSIBLE LEAD — the distinction the whole tool rests on
+
+Every finding carries its confidence, and they are visually different on purpose:
+
+- **MEASURED** — the milliseconds are on the clock for that named block. A culprit.
+- **POSSIBLE LEAD** — it *co-occurs* with the symptom. A bucket is a whole second and several things share
+  one, so this ranks what to look at; it never names a cause.
+
+Reading a lead as a fact is how an afternoon gets spent on the wrong thing. If a lead matters, the tool tells
+you how to promote it: wrap the suspect in `perfMonitor.time()` and re-record, which converts the guess into
+an attribution or clears it.
+
+### Absence is a finding too
+
+**A low "time attributed" percentage is information, not a gap.** If almost nothing we time is slow and frames
+are still dropping, the cost is in render, paint, style recalc or GC — and the screen says so, pointing at the
+paint-property-in-a-loop trap from §4 rather than reporting "no hotspots" and looking clean.
+
+### It records itself in dev
+
+Since 2026-08-29 the monitor **auto-starts in dev clients** (`import.meta.env.DEV`) — no flag, no menu trip.
+The production build still ships it dormant, which is the guarantee that matters: recording is cheap but not
+free, and a diagnostic that runs unasked is a cost every player pays for a tool only we use. A dev client is
+already paying StrictMode and an unminified bundle; the sampler is noise beside that, and always-on is what
+makes a regression turn up on its own rather than only when someone thought to look.
+
+Turning it **off** is remembered. The dev-menu toggle and the HUD's ✕ both write `ascent.perf`, and an
+explicit `0` beats the dev default — so a dev profiling something else can silence it and it stays silent
+across reloads. `?perf=1` / `?perf=0` still work everywhere, including prod.
+
+### Sharing a recording between machines
+
+A dev client **uploads one row per GAME**, automatically, when a real game ends (win or loss) and at least
+45 seconds were recorded — so a row holds one game's whole timeline and can be compared against another game.
+
+Leaving the tab mid-game uploads too, as a **fallback** for the game you abandon halfway. A finished game
+publishes at its end and an abandoned one publishes when you go — never both, since they share one latch.
+
+There is also a **Share** button on the analytics screen for doing it on demand. All of it lands in the
+**Shared** tab, which every signed-in dev can read.
+
+That cross-machine half is the thing a local tool structurally cannot do: Mike's refresh rate, GPU and
+hardware are not Kevin's, and a spike that only reproduces on one of them is exactly the kind that survives
+for months.
+
+#### Setting it up (Supabase — one time, owner runs it)
+
+**Until this is done nothing breaks.** Recording, the HUD and the whole local analytics screen work exactly as
+they do now; the Shared tab says *"Not set up yet"* instead of erroring.
+
+1. Open the Supabase dashboard → **SQL Editor** → **New query**.
+2. Paste the `perf_runs` block from the bottom of [`schema.sql`](../schema.sql) (table + indexes + the three
+   RLS policies) and **Run**.
+3. Verify from a terminal — this should stop being `404`:
+   ```bash
+   curl -s -o /dev/null -w "%{http_code}
+"      "$VITE_SUPABASE_URL/rest/v1/perf_runs?select=id&limit=1"      -H "apikey: $VITE_SUPABASE_ANON_KEY" -H "Authorization: Bearer $VITE_SUPABASE_ANON_KEY"
+   ```
+   `404` = the table is still missing. `200` or `401` = it exists (the policies are `to authenticated`, so an
+   anon key legitimately sees nothing).
+4. In-game: dev menu → 📈 → **Shared**. Press **Share** on a recording and it should appear.
+
+No Edge Function is involved, unlike `bug_reports` — a perf log is our own telemetry from our own dev
+clients, so an insert-own / read-all policy pair is the right size and there is nothing to deploy.
+
+### Where recordings live
+
+IndexedDB (`ascent.perf`), on your machine, capped at 25 runs and pruned oldest-first — **not** localStorage,
+whose ~5 MB budget is shared with `ascent.save`. Press **save** on the HUD to keep a recording (it prompts for
+a label, e.g. "after the sheen change"); the build sha is stamped automatically so a comparison can name which
+change moved the number. Nothing is uploaded anywhere.
+
+The reasoning lives in `packages/ui/src/perfDiagnose.ts` and is unit-tested — the sampler is rAF-bound and
+cannot run headlessly, which is exactly why the analysis was split out of it.
+
+---
+
 ## 1. The two kinds of cost (and who can measure them)
 
 | Cost | Where | Who measures |

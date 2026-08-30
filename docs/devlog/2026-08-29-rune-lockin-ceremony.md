@@ -105,3 +105,35 @@ second set of coordinates to keep in step, and the frame cannot arrive anywhere 
 The glow is a **static** box-shadow on an element whose transform and opacity animate — the `kwglow` pattern.
 A shrinking shadow would repaint every frame of the close for no gain.
 
+## Follow-up: it slid backwards before it slid forwards
+
+Owner: *"the moment the rune is clicked, it kinda slinks back then comes to the front. i want that exact
+rune … to slide front and center while the others go away so it feels you selected that rune and it slid into
+the middle."*
+
+Two things were fighting the gesture:
+
+1. **A press-in shrink.** Modelled on the hero ceremony, where a card is *pressed* before a longer sequence
+   takes over. Here it put a contrary motion between the click and the travel — the card retreated, then
+   advanced, for one gesture from the player. Deleted; the card never shrinks at any point now.
+2. **A 170ms wait before travelling.** So even without the shrink there was a beat of nothing. The chosen
+   card now leaves on the frame it is clicked (`focusDelayMs: 0`), and the unchosen start clearing at the
+   same moment rather than a step earlier — them getting out of the way is what makes room, not a phase
+   before it.
+
+The ceremony opens on `focus` rather than a `press` phase, so the card is already travelling on the frame it
+mounts. Whole thing is 1.16s now, down from 1.36s.
+
+Verified by sampling the transform across the travel: scale goes 1.03 → 1.5 monotonically (it never dips
+below 1) while `tx` climbs 11 → 189px to the centre.
+
+### The demo was hiding the bug
+
+The preview chose the **middle** of three cards — which, in a centred row, is already at the screen centre.
+The travel delta was zero, so every screenshot I had taken showed the grow, the clamp and the flash and
+**none of the movement**. The demo picks the left card now.
+
+Worth remembering: a preview that makes the common case look right while excluding the interesting one is
+worse than no preview, because it is *reassuring*. Anything that stands in for the real thing should be
+checked for what it cannot show.
+

@@ -51,18 +51,23 @@ export interface RuneLockInProps {
   timing?: RuneLockInTiming;
 }
 
-/** Phase names exist so the CSS reads as the story rather than as a pile of class toggles. */
-type Phase = 'press' | 'focus' | 'locked' | 'leaving';
+/**
+ * Phase names exist so the CSS reads as the story rather than as a pile of class toggles.
+ *
+ * There is no `press`: the ceremony OPENS on `focus`, so the clicked card is already travelling on the frame
+ * it mounts. A press-in beat put a shrink between the click and the movement, which read as the card pulling
+ * away before coming forward (owner report 2026-08-29).
+ */
+type Phase = 'focus' | 'locked' | 'leaving';
 
 export function RuneLockIn({ cards, onDone, timing = RUNE_LOCKIN_DEFAULTS }: RuneLockInProps): JSX.Element | null {
-  const [phase, setPhase] = useState<Phase>('press');
+  const [phase, setPhase] = useState<Phase>('focus');
   const doneRef = useRef(onDone);
   doneRef.current = onDone;
 
   useEffect(() => {
     const t = timing;
     const timers = [
-      window.setTimeout(() => { setPhase('focus'); }, t.focusDelayMs),
       window.setTimeout(() => { setPhase('locked'); }, t.lockAtMs),
       window.setTimeout(() => { setPhase('leaving'); }, t.holdMs),
       // The caller unmounts us here. Driven by a timer rather than `animationend` on purpose: the fade is on

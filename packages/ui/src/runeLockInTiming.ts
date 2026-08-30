@@ -19,15 +19,21 @@
  * All values are measured FROM THE BUY CLICK.
  */
 export interface RuneLockInTiming {
-  /** The chosen card's press-into-the-surface acknowledgment — the click landing. */
-  pressMs: number;
   /** The unchosen runes begin leaving. */
   exitDelayMs: number;
   /** One unchosen rune's exit duration. */
   exitMs: number;
   /** Per-card stagger between the unchosen exits, so they read as a sweep rather than a blink. */
   exitStaggerMs: number;
-  /** The chosen rune starts travelling to centre. */
+  /**
+   * The chosen rune starts travelling to centre.
+   *
+   * ZERO, and that is the point (owner report 2026-08-29: *"the moment the rune is clicked, it kinda slinks
+   * back then comes to the front. i want that exact rune … to slide front and center"*). The first version
+   * played a press-in shrink and waited 170ms before travelling, so the card pulled AWAY from you and then
+   * came forward — two contrary motions where the player made one gesture. It now leaves the instant it is
+   * clicked, from exactly where it sits, and only ever grows.
+   */
   focusDelayMs: number;
   /** Travel + grow duration (into a slight overshoot). */
   focusMs: number;
@@ -59,24 +65,24 @@ export interface RuneLockInTiming {
 }
 
 /**
- * Defaults. The sequence: click (0) → others sweep out (90) → the chosen one flies to centre (170) → it
- * settles with a snap (~560) → the lock beat lands (620) → a beat to register it → fade (1100–1360).
+ * Defaults. The sequence: click (0) → the chosen rune leaves for centre AND the others start clearing, at
+ * once → it arrives, the gold frame clamps shut and a flash fires (380) → a beat to register it → fade
+ * (900–1160).
  *
- * ~1.36s end to end. Long enough to register as a moment; short enough that the second time you see it you
- * are not waiting for it.
+ * ~1.16s end to end. Nothing waits for anything else at the start: the card you clicked moves immediately,
+ * and the others getting out of its way is what makes room, not a step before it.
  */
 export const RUNE_LOCKIN_DEFAULTS: RuneLockInTiming = {
-  pressMs: 90,
-  exitDelayMs: 90,
-  exitMs: 260,
-  exitStaggerMs: 45,
-  focusDelayMs: 170,
-  focusMs: 390,
+  exitDelayMs: 0,
+  exitMs: 240,
+  exitStaggerMs: 40,
+  focusDelayMs: 0,
+  focusMs: 380,
   settleMs: 130,
-  lockAtMs: 620,
-  clampMs: 260,
+  lockAtMs: 380,
+  clampMs: 250,
   flashMs: 460,
-  holdMs: 1100,
+  holdMs: 900,
   fadeMs: 260,
 };
 

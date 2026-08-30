@@ -9808,22 +9808,23 @@ body.duel-attacker-opp .combatopp-hp { opacity: 0; }
   to   { opacity: 0; transform: translate3d(0, 26px, 0) scale(0.92); }
 }
 
-/* THE CHOSEN — a press, then the flight to centre, then a settle. Three separate one-shots rather than one
-   long curve, because the SNAP at the end is the bit that reads as "locked": a single easing cannot both
-   travel smoothly and arrive hard. */
-.runelock-card.chosen { animation: rl-press 90ms ease-out forwards; z-index: 2; }
+/* THE CHOSEN — it leaves for the centre on the frame it is clicked, from exactly where it sat, and only ever
+   GROWS (owner report 2026-08-29: "it kinda slinks back then comes to the front"). There used to be a press-in
+   shrink first, which put a contrary motion between the click and the travel: the card retreated and then
+   advanced, for one gesture from the player.
+
+   Travel and settle stay two one-shots rather than one long curve, because the SNAP at the end is what reads
+   as "locked" and a single easing cannot both travel smoothly and arrive hard. */
+.runelock-card.chosen { z-index: 2; }
 .runelock-focus .runelock-card.chosen,
 .runelock-locked .runelock-card.chosen,
 .runelock-leaving .runelock-card.chosen {
-  animation: rl-focus var(--rl-focus, 390ms) cubic-bezier(0.22, 0.9, 0.24, 1.06) forwards; }
+  animation: rl-focus var(--rl-focus, 380ms) cubic-bezier(0.22, 0.9, 0.24, 1.06) forwards; }
 .runelock-locked .runelock-card.chosen { animation: rl-settle var(--rl-settle, 130ms) cubic-bezier(0.3, 1.6, 0.4, 1) forwards; }
 .runelock-leaving .runelock-card.chosen { animation: rl-chosen-out var(--rl-fade, 260ms) ease forwards; }
-@keyframes rl-press {
-  from { transform: scale(1); }
-  to   { transform: scale(0.965); }
-}
+/* Starts at rest, exactly where the card is. No shrink anywhere in the sequence. */
 @keyframes rl-focus {
-  from { transform: translate3d(0, 0, 0) scale(0.965); }
+  from { transform: translate3d(0, 0, 0) scale(1); }
   to   { transform: translate3d(var(--rl-dx, 0), var(--rl-dy, 0), 0) scale(1.5); }
 }
 /* The overshoot resolving — a small snap back to the final size. */

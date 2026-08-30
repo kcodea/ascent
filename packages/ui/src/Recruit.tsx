@@ -1771,7 +1771,10 @@ export function Recruit() {
         rune: RUNE_INDEX[id]!,
         cost: RUNE_INDEX[id]!.cost,
         rect: { x: x0 + i * (w + gap), y, w, h },
-        chosen: i === 1,
+        // The LEFT card, not the middle one. The middle card of a centred row is already AT the screen centre,
+        // so choosing it makes the travel delta zero — the preview showed the grow and the clamp and hid the
+        // one thing the ceremony is mostly about. An off-centre pick exercises the real path.
+        chosen: i === 0,
       }));
       setLockInSlow(Math.max(1, slow));
       setLockIn(cards);

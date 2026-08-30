@@ -137,3 +137,31 @@ Worth remembering: a preview that makes the common case look right while excludi
 worse than no preview, because it is *reassuring*. Anything that stands in for the real thing should be
 checked for what it cannot show.
 
+## Follow-up: the clang, and a tuner for all of it
+
+**The sound.** `runeselect.mp3` plays as the gold frame closes. It is scheduled on the **audio clock**
+against the lock beat, not with a `setTimeout` — a clang that drifts 40ms off the frame it is supposed to be
+the sound *of* stops being that sound and becomes a second event.
+
+**The tuner** (dev menu → 🔒). Owner ask: *"a tuner that allows me to adjust timings of every aspect of this
+animation as well as the sound effect volume and timing."* Eighteen dials, grouped by the **beats of the
+ceremony** rather than by data type — *The slide · The others · The lock · The exit · Sound* — because that
+is the order they happen in and the order you judge them in. A flat list of eighteen millisecond fields would
+be technically complete and useless to tune against.
+
+Three decisions inside it:
+
+- **The two ▶ actions matter as much as the dials.** The ceremony is ~1.2s and only fires when a rune is
+  actually bought, so without a replay you would be playing to a Runeforge wave for every adjustment.
+  **slow 6×** stretches only the TIMINGS — sizes and volume stay put, so you are watching the same animation
+  slowly rather than a different one.
+- **The clang's offset is anchored to the LOCK BEAT, not the click.** The click is time zero, so a negative
+  offset there could only clamp; the lock is the moment the sound is supposed to *be*, so "40ms early" is a
+  thing you can actually ask for.
+- **The config is read ONCE when a ceremony starts.** Dragging a dial mid-play cannot retime a sequence that
+  is already running against the old numbers — it would produce a hybrid that is neither setting.
+
+The CSS takes the tuned values as custom properties, and the settle's overshoot is expressed as *fractions of*
+the tuned final size rather than as fixed numbers — otherwise raising "Final size" would leave a
+fixed-magnitude wobble behind at the end of a much bigger move.
+

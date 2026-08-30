@@ -31,6 +31,7 @@ import { AuraFxTuner } from './AuraFxTuner';
 import { ShopDeathFxTuner } from './ShopDeathFxTuner';
 import { EquipFxTuner } from './EquipFxTuner';
 import { EquipSlotTuner } from './EquipSlotTuner';
+import { RuneLockInTuner } from './RuneLockInTuner';
 import { WeldFxTuner } from './WeldFxTuner';
 import { BuffFxTuner } from './BuffFxTuner';
 import { InfuseFxTuner } from './InfuseFxTuner';
@@ -197,6 +198,7 @@ const GROUPS: Group[] = [
       { key: 'weldfx', icon: '🔩', label: 'Weld', C: WeldFxTuner, hint: 'An Attachment fusing onto its host minion', alt: 'magnetize attach' },
       { key: 'shopdeathfx', icon: '💀', label: 'Shop Death & Echo', C: ShopDeathFxTuner, hint: 'Deaths and Echo bursts in the shop — timings, position, and how long a borrowed minion lingers', alt: 'destroy funeral graverobber deathrattle' },
       { key: 'equipfx', icon: '⚒️', label: 'Equip FX & Clang', C: EquipFxTuner, hint: 'The equip burst on the source and the slot, and the metallic clang — their relative timing', alt: 'equipment bloodpot frank sfx' },
+      { key: 'runelockin', icon: '🔒', label: 'Rune Lock-In', C: RuneLockInTuner, hint: 'Every beat of the rune lock-in ceremony — the slide, the others clearing, the gold clamp, the flash, the fade, and the clang. Carries ▶ replay buttons, so no Runeforge wave needed', alt: 'rune ceremony lock in clamp flash clang timing animation runeforge' },
       { key: 'equipslot', icon: '🧪', label: 'Equipment Slot', C: EquipSlotTuner, hint: 'The whole Equipment block — its seat, the frame around the button, the cost / name / uses readouts, and the hover selector rail', alt: 'bloodpot position placement layout frame cost pill name pill selector rail hover' },
     ],
   },
@@ -284,9 +286,6 @@ export function DevMenu() {
     { id: 'perfscreen', icon: '📈', label: 'Perf Analytics',
       hint: 'Findings, per-phase breakdown, jank timeline and run-over-run comparison — plus a report to paste to Claude',
       run: () => { useGame.getState().openPerf(); } },
-    { id: 'runelock', icon: '🔒', label: 'Test Rune Lock-In',
-      hint: 'Replay the rune lock-in ceremony with three real runes, without playing to a Runeforge wave',
-      run: () => { (window as unknown as { __runeLockIn?: () => void }).__runeLockIn?.(); } },
     { id: 'testfx', icon: '✨', label: 'Test FX', hint: 'Fire the spell-power flourish once on the board', run: () => pixiFx.test() },
     { id: 'testcrit', icon: '⚡', label: 'Test Crit', hint: 'Fire the critical-strike flourish once', run: () => pixiFx.testCrit() },
     { id: 'testflurry', icon: '🌬️', label: 'Test Flurry', hint: 'Fire the flurry wind-slash once', run: () => pixiFx.testFlurry() },

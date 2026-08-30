@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { RuneDef } from '@game/core';
 import { RuneCard } from './RuneCard';
-import { RUNE_LOCKIN_DEFAULTS, lockInTotalMs, type RuneLockInTiming } from './runeLockInTiming';
+import { getRuneLockInConfig, lockInTotalMs, type RuneLockInConfig } from './runeLockInConfig';
+import { sfx } from './sfx';
 
 /**
  * RUNE LOCK-IN CEREMONY (owner ask 2026-08-29).
@@ -47,8 +48,8 @@ export interface RuneLockInCard {
 export interface RuneLockInProps {
   cards: RuneLockInCard[];
   onDone: () => void;
-  /** Dev tuner override. Production always plays the defaults. */
-  timing?: RuneLockInTiming;
+  /** Override, for the dev demo's slow-motion. Live play reads the tuner config. */
+  timing?: RuneLockInConfig;
 }
 
 /**
@@ -60,13 +61,18 @@ export interface RuneLockInProps {
  */
 type Phase = 'focus' | 'locked' | 'leaving';
 
-export function RuneLockIn({ cards, onDone, timing = RUNE_LOCKIN_DEFAULTS }: RuneLockInProps): JSX.Element | null {
+export function RuneLockIn({ cards, onDone, timing }: RuneLockInProps): JSX.Element | null {
   const [phase, setPhase] = useState<Phase>('focus');
   const doneRef = useRef(onDone);
   doneRef.current = onDone;
+  /** Read ONCE, when the ceremony starts — so a dial dragged mid-play cannot change the timing of a sequence
+   *  that is already running against the old numbers. */
+  const [t] = useState<RuneLockInConfig>(() => timing ?? getRuneLockInConfig());
 
   useEffect(() => {
-    const t = timing;
+    // THE CLANG — the sound of the frame closing, scheduled on the AUDIO clock against the lock beat so it
+    // cannot drift away from the clamp it is the sound of.
+    sfx.runeSelect(t.sfxVolume, Math.max(0, t.lockAtMs + t.sfxDelayMs));
     const timers = [
       window.setTimeout(() => { setPhase('locked'); }, t.lockAtMs),
       window.setTimeout(() => { setPhase('leaving'); }, t.holdMs),
@@ -76,7 +82,7 @@ export function RuneLockIn({ cards, onDone, timing = RUNE_LOCKIN_DEFAULTS }: Run
       window.setTimeout(() => { doneRef.current(); }, lockInTotalMs(t)),
     ];
     return () => { timers.forEach(window.clearTimeout); };
-  }, [timing]);
+  }, [t]);
 
   /** Where the chosen card ends up: the middle of the viewport, grown. */
   const centre = useMemo(() => {
@@ -98,7 +104,10 @@ export function RuneLockIn({ cards, onDone, timing = RUNE_LOCKIN_DEFAULTS }: Run
   return createPortal(
     <div className={`runelock runelock-${phase}`} aria-hidden="true">
       {/* The veil that pulls the board back so the chosen rune reads as the only thing on screen. */}
-      <div className="runelock-veil" />
+      <div
+        className="runelock-veil"
+        style={{ '--rl-veil': `${t.veilAlpha}`, '--rl-fade': `${t.fadeMs}ms` } as React.CSSProperties}
+      />
       {cards.map((c, i) => {
         const style = {
           left: `${c.rect.x}px`,
@@ -110,19 +119,22 @@ export function RuneLockIn({ cards, onDone, timing = RUNE_LOCKIN_DEFAULTS }: Run
           // which is exactly what the dev demo surfaced.
           '--rl-w': `${c.rect.w}px`,
           // The unchosen sweep out one after another; the chosen one has no stagger to wait through.
-          '--rl-delay': `${c.chosen ? 0 : i * timing.exitStaggerMs}ms`,
-          '--rl-exit': `${timing.exitMs}ms`,
-          '--rl-focus': `${timing.focusMs}ms`,
-          '--rl-settle': `${timing.settleMs}ms`,
-          '--rl-fade': `${timing.fadeMs}ms`,
+          '--rl-delay': `${c.chosen ? 0 : t.exitDelayMs + i * t.exitStaggerMs}ms`,
+          '--rl-exit': `${t.exitMs}ms`,
+          '--rl-focus': `${t.focusMs}ms`,
+          '--rl-settle': `${t.settleMs}ms`,
+          '--rl-fade': `${t.fadeMs}ms`,
           '--rl-dx': `${centre.dx}px`,
           '--rl-dy': `${centre.dy}px`,
-          '--rl-clamp': `${timing.clampMs}ms`,
-          '--rl-flash': `${timing.flashMs}ms`,
+          '--rl-clamp': `${t.clampMs}ms`,
+          '--rl-clamp-from': `${t.clampFrom}`,
+          '--rl-flash': `${t.flashMs}ms`,
+          '--rl-flash-size': `${t.flashSize}vmin`,
+          '--rl-scale': `${t.focusScale}`,
           // The clamp closes INTO the lock beat rather than starting on it (see `clampMs`), so it is armed on
           // the FOCUS phase and delayed to land exactly as the settle fires. Measured from when `focus`
           // begins, because that is when the class that starts the animation appears.
-          '--rl-clamp-delay': `${Math.max(0, timing.lockAtMs - timing.clampMs - timing.focusDelayMs)}ms`,
+          '--rl-clamp-delay': `${Math.max(0, t.lockAtMs - t.clampMs - t.focusDelayMs)}ms`,
         } as React.CSSProperties;
         return (
           <div key={`${c.rune.id}-${i}`} className={`runelock-card${c.chosen ? ' chosen' : ' other'}`} style={style}>

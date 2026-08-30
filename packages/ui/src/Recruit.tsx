@@ -45,7 +45,7 @@ import { deriveDragDecision, dragDecisionEqual, computeCastingSpell, type DragGe
 import { QuestCard } from './QuestCard';
 import { RuneCard } from './RuneCard';
 import { RuneLockIn, type RuneLockInCard } from './RuneLockIn';
-import { RUNE_LOCKIN_DEFAULTS, stretchLockIn } from './runeLockInTiming';
+import { getRuneLockInConfig, stretchLockIn } from './runeLockInConfig';
 import { combatGains } from './combatGains';
 import { instView, liveCardText, type LiveTextParams } from './instView';
 import { getSpellBuffFxConfig } from './spellBuffFxConfig';
@@ -6724,7 +6724,7 @@ export function Recruit() {
         <RuneLockIn
           cards={lockIn}
           onDone={() => { setLockIn(null); }}
-          timing={lockInSlow === 1 ? undefined : stretchLockIn(RUNE_LOCKIN_DEFAULTS, lockInSlow)}
+          timing={lockInSlow === 1 ? undefined : stretchLockIn(getRuneLockInConfig(), lockInSlow)}
         />
       )}
       {!overlaysHeld && run.runeforgeOffer && !forgeMin && (

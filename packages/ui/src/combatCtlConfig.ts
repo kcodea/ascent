@@ -19,13 +19,16 @@
  * px — the border width is px on all three.
  */
 export interface CombatCtlConfig {
-  // Summary pill (.combatsummary)
+  // Summary pill (.combatsummary) — X/Y are px offsets × --scale from its top-centre anchor
+  sumX: number; sumY: number;
   sumSize: number; sumRadius: number; sumBorderW: number;
   sumBg: string; sumText: string; sumBorder: string;
-  // End Combat pill (.etbwrap.ready .etb-tip)
+  // End Combat pill (.etbwrap.ready .etb-tip) — X/Y are raw px (an individual `translate:` on the tip)
+  endX: number; endY: number;
   endSize: number; endRadius: number; endBorderW: number;
   endBg: string; endText: string; endBorder: string;
-  // Skip button (.combathud-skip) — size/radius are × --u multipliers
+  // Skip button (.combathud-skip) — X/Y are px offsets × --scale; size/radius are × --u multipliers
+  skipX: number; skipY: number;
   skipSize: number; skipRadius: number; skipBorderW: number;
   skipBg: string; skipText: string; skipBorder: string;
 }
@@ -33,10 +36,13 @@ export interface CombatCtlConfig {
 // Mirror of the shipped styles.css look (theme tokens resolved to hex so the picker starts on the real colour):
 // the gold pill border is color-mix(--gold 55%, #000) ≈ #6e5019; --acc #f0902e / --acc-dk #c46f17 drive Skip.
 const DEFAULTS: CombatCtlConfig = {
+  sumX: 0, sumY: 0,
   sumSize: 14, sumRadius: 12, sumBorderW: 2,
   sumBg: '#211812', sumText: '#f4ecdb', sumBorder: '#6e5019',
+  endX: 0, endY: 0,
   endSize: 13.5, endRadius: 11, endBorderW: 2,
   endBg: '#211812', endText: '#f4ecdb', endBorder: '#6e5019',
+  skipX: 0, skipY: 0,
   skipSize: 15, skipRadius: 11, skipBorderW: 2,
   skipBg: '#f0902e', skipText: '#ffffff', skipBorder: '#c46f17',
 };
@@ -46,8 +52,11 @@ export const CC_RANGES: Record<
   Exclude<keyof CombatCtlConfig, 'sumBg' | 'sumText' | 'sumBorder' | 'endBg' | 'endText' | 'endBorder' | 'skipBg' | 'skipText' | 'skipBorder'>,
   [number, number, number]
 > = {
+  sumX: [-500, 500, 1], sumY: [-500, 500, 1],
   sumSize: [8, 32, 0.5], sumRadius: [0, 30, 1], sumBorderW: [0, 8, 0.5],
+  endX: [-500, 500, 1], endY: [-500, 500, 1],
   endSize: [8, 32, 0.5], endRadius: [0, 30, 1], endBorderW: [0, 8, 0.5],
+  skipX: [-500, 500, 1], skipY: [-500, 500, 1],
   skipSize: [8, 30, 0.5], skipRadius: [0, 30, 1], skipBorderW: [0, 8, 0.5],
 };
 
@@ -70,14 +79,18 @@ let cfg: CombatCtlConfig = (() => {
 export function applyCombatCtlVars(): void {
   if (typeof document === 'undefined') return;
   const s = document.documentElement.style;
-  // Summary pill (raw px).
+  // Summary pill (raw px). X/Y offsets are px, multiplied by --scale in styles.css.
+  s.setProperty('--cc-sum-x', `${cfg.sumX}px`);
+  s.setProperty('--cc-sum-y', `${cfg.sumY}px`);
   s.setProperty('--cc-sum-size', `${cfg.sumSize}px`);
   s.setProperty('--cc-sum-radius', `${cfg.sumRadius}px`);
   s.setProperty('--cc-sum-bw', `${cfg.sumBorderW}px`);
   s.setProperty('--cc-sum-bg', cfg.sumBg);
   s.setProperty('--cc-sum-text', cfg.sumText);
   s.setProperty('--cc-sum-border', cfg.sumBorder);
-  // End Combat pill (raw px).
+  // End Combat pill (raw px). X/Y are raw px — an individual `translate:` on the tip (composes with its transform).
+  s.setProperty('--cc-end-x', `${cfg.endX}px`);
+  s.setProperty('--cc-end-y', `${cfg.endY}px`);
   s.setProperty('--cc-end-size', `${cfg.endSize}px`);
   s.setProperty('--cc-end-radius', `${cfg.endRadius}px`);
   s.setProperty('--cc-end-bw', `${cfg.endBorderW}px`);
@@ -85,6 +98,9 @@ export function applyCombatCtlVars(): void {
   s.setProperty('--cc-end-text', cfg.endText);
   s.setProperty('--cc-end-border', cfg.endBorder);
   // Skip button — size/radius are UNITLESS × --u multipliers (the CSS multiplies by --u); border width is px.
+  // X/Y offsets are px, multiplied by --scale in styles.css.
+  s.setProperty('--cc-skip-x', `${cfg.skipX}px`);
+  s.setProperty('--cc-skip-y', `${cfg.skipY}px`);
   s.setProperty('--cc-skip-size', `${cfg.skipSize}`);
   s.setProperty('--cc-skip-radius', `${cfg.skipRadius}`);
   s.setProperty('--cc-skip-bw', `${cfg.skipBorderW}px`);

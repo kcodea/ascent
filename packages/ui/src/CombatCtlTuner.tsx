@@ -24,10 +24,14 @@ const ELEMENTS: { prefix: 'sum' | 'end' | 'skip'; group: string; scaled: boolean
 const controls: TunerControl<Key>[] = ELEMENTS.flatMap(({ prefix, group, scaled }) => {
   const range = (k: NumKey): [number, number, number] => CC_RANGES[k];
   const sizeUnit: TunerUnit = scaled ? '×' : 'px';
+  const [xMin, xMax, xStep] = range(`${prefix}X` as NumKey);
+  const [yMin, yMax, yStep] = range(`${prefix}Y` as NumKey);
   const [sMin, sMax, sStep] = range(`${prefix}Size` as NumKey);
   const [rMin, rMax, rStep] = range(`${prefix}Radius` as NumKey);
   const [bMin, bMax, bStep] = range(`${prefix}BorderW` as NumKey);
   return [
+    { key: `${prefix}X` as Key, label: 'X offset', unit: 'px', hint: 'Move the chip horizontally.', group, min: xMin, max: xMax, step: xStep },
+    { key: `${prefix}Y` as Key, label: 'Y offset', unit: 'px', hint: 'Move the chip vertically.', group, min: yMin, max: yMax, step: yStep },
     { key: `${prefix}Size` as Key, label: 'Text size', unit: sizeUnit, hint: 'Font size of the label.', group, min: sMin, max: sMax, step: sStep },
     { key: `${prefix}Radius` as Key, label: 'Corner radius', unit: sizeUnit, hint: 'Roundness of the corners.', group, min: rMin, max: rMax, step: rStep },
     { key: `${prefix}BorderW` as Key, label: 'Border width', unit: 'px', hint: 'Thickness of the outline.', group, min: bMin, max: bMax, step: bStep },

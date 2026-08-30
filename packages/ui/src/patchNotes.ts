@@ -56,6 +56,22 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-08-30',
+    label: 'Replay Scrubbing',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: 'The replay bar now covers ONE round at a time, so you can pick a round and scrub through it properly.',
+        details: [
+          'The timer shows your position within the round you are watching, not the whole game — on a long replay a single round used to be about forty pixels of bar.',
+          'Pick the round from the rail on the left; the bar then belongs entirely to that round.',
+          'Playback speed is a button with a menu (0.5x up to 5x) instead of a slider you had to drag onto the value you wanted.',
+          'The whole bar is chunkier, and the scrub track is easier to grab.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-08-30',
     label: 'Watching & Rolling',
     changes: [
       {

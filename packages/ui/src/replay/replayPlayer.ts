@@ -133,6 +133,38 @@ export function replayEffectiveTimes(): readonly number[] {
   return effTimes;
 }
 
+/**
+ * Each frame's WAVE, cached the same way and for the same reason.
+ *
+ * The transport is round-scoped (owner ask 2026-08-30: *"have the timer only show that round's time, not the
+ * full game. so the player clicks a round and can then easily scrub through that round"*), so every render
+ * needs the index range of the round it is sitting in. Walking the frames per render to find it would be an
+ * O(n) pass in a component that re-renders on the playback clock.
+ */
+let frameWaves: number[] = [];
+export function replayFrameWaves(): readonly number[] {
+  return frameWaves;
+}
+
+/**
+ * The [first, last] frame index of the round containing `index` — the transport bar's span.
+ *
+ * Frames are appended in wall-clock order and a run never returns to an earlier wave, so a round's frames are
+ * contiguous and a linear walk outward from `index` finds its edges without a search structure. Returns a
+ * degenerate span when there is nothing loaded, so the transport can read this every render without the
+ * caller special-casing an idle player.
+ */
+export function replayRoundSpan(index: number): { from: number; to: number } {
+  const n = frameWaves.length;
+  if (n === 0) return { from: 0, to: 0 };
+  const i = Math.max(0, Math.min(n - 1, index));
+  const wave = frameWaves[i];
+  if (wave === undefined) return { from: 0, to: n - 1 };
+  let from = i; while (from > 0 && frameWaves[from - 1] === wave) from--;
+  let to = i; while (to < n - 1 && frameWaves[to + 1] === wave) to++;
+  return { from, to };
+}
+
 /** Build the paced timeline: frame 0 at 0, each later frame at prev + paceStepMs(raw delta). */
 export function effectiveTimesOf(times: readonly number[]): number[] {
   const out: number[] = [];
@@ -452,6 +484,7 @@ export function startReplay(replay: ReplayV2, meta?: { authorName?: string }): v
   marks = roundMarks(expanded);
   stats = rollupRounds(expanded);
   frameTimes = expanded.map((f) => f.tMs);
+  frameWaves = expanded.map((f) => f.wave);
   effTimes = effectiveTimesOf(frameTimes);
   inspectTrail = replay.inspectTrail ?? []; // absent on recordings made before the trail existed
   idx = 0;
@@ -589,6 +622,7 @@ export function endReplay(): void {
   marks = [];
   stats = [];
   frameTimes = [];
+  frameWaves = [];
   effTimes = [];
   inspectTrail = [];
   partial = undefined;

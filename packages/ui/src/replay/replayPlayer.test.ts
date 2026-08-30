@@ -11,7 +11,7 @@ import {
   createRun, deltaShopFrameOf, expandFrames, reduce, shopFrameOf,
   SHOP_VIEW_EXCLUDED_KEYS, type DragPath, type InspectEvent, type ReplayFrame, type ReplayV2, type RunState,
 } from '@game/sim';
-import { clampStepMs, paceStepMs, endReplay, frameIndexAt, inspectEventsBetween, latestInspectAt, pauseReplay, playableDragPath, seekReplay, startReplay , effectiveTimesOf, setReplaySpeed, resumeReplay} from './replayPlayer';
+import { clampStepMs, paceStepMs, endReplay, frameIndexAt, inspectEventsBetween, latestInspectAt, pauseReplay, playableDragPath, seekReplay, startReplay , effectiveTimesOf, setReplaySpeed, resumeReplay, replayRoundSpan} from './replayPlayer';
 import { synthRunFromShopView } from './synthRun';
 import { useGame } from '../store';
 
@@ -449,5 +449,55 @@ describe('the step-progress ledger (owner report 2026-08-19: "the speed mod defi
       endReplay();
       vi.useRealTimers();
     }
+  });
+});
+
+/**
+ * ROUND-SCOPED TRANSPORT (owner ask 2026-08-30: *"have the timer only show that round's time, not the full
+ * game. so the player clicks a round and can then easily scrub through that round"*).
+ *
+ * The bar spans the CURRENT round, so it needs that round's frame span. Frames arrive in wall-clock order and
+ * a run never returns to an earlier wave, so a round's frames are contiguous — which is exactly the property
+ * these tests hold down, because the linear walk outward depends on it.
+ */
+describe('replayRoundSpan — the frame range of the round you are in', () => {
+  afterEach(() => { endReplay(); });
+
+  /** A replay whose frames carry the given waves, in order. */
+  const withWaves = (waves: number[]): ReplayV2 => {
+    const source = createRun(7, 'brackus');
+    const frames: ReplayFrame[] = waves.map((wave, i) => ({
+      ...shopFrameOf({ ...source, wave } as RunState, i === 0 ? 'turnStart' : 'roll', i * 100),
+    }));
+    return {
+      version: 2, seed: source.seed, heroId: source.heroId, mode: 'lobby',
+      author: 'brackus', patch: 'test', frames,
+      result: { placement: 1, record: { wins: 0, losses: 0, draws: 0 }, finalBoard: null },
+    } as ReplayV2;
+  };
+
+  it('spans exactly the contiguous run of frames sharing a wave', () => {
+    startReplay(withWaves([1, 1, 1, 2, 2, 3]));
+    expect(replayRoundSpan(0)).toEqual({ from: 0, to: 2 });
+    expect(replayRoundSpan(2)).toEqual({ from: 0, to: 2 }); // from the last frame of the round
+    expect(replayRoundSpan(3)).toEqual({ from: 3, to: 4 });
+    expect(replayRoundSpan(5)).toEqual({ from: 5, to: 5 }); // a one-frame round
+  });
+
+  it('clamps an out-of-range index instead of returning nonsense', () => {
+    startReplay(withWaves([1, 1, 2]));
+    expect(replayRoundSpan(-5)).toEqual({ from: 0, to: 1 });
+    expect(replayRoundSpan(99)).toEqual({ from: 2, to: 2 });
+  });
+
+  it('handles a single-round replay as one span', () => {
+    startReplay(withWaves([4, 4, 4, 4]));
+    expect(replayRoundSpan(2)).toEqual({ from: 0, to: 3 });
+  });
+
+  it('is total when no replay is loaded', () => {
+    // The transport reads this on every render; an idle player must not make it throw.
+    endReplay();
+    expect(replayRoundSpan(0)).toEqual({ from: 0, to: 0 });
   });
 });

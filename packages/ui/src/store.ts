@@ -2109,3 +2109,29 @@ if (import.meta.env.DEV) {
 if (import.meta.env.DEV && typeof window !== 'undefined') {
   (window as unknown as { useGame?: typeof useGame }).useGame = useGame;
 }
+
+/**
+ * Is the player in the PRE-RUN flow rather than in a run?
+ *
+ * The board (Recruit, the FX canvas, the status bar, the end screen) must not render while this is true
+ * (owner ruling 2026-08-30: *"no active game should be displayed or happening until the player actually
+ * enters a lobby"*).
+ *
+ * ── Why this needs to be a predicate at all ───────────────────────────────────────────────────────────────
+ *
+ * `showTitle: false` was doing two jobs: "the title screen is closed" AND "a run is on screen". They are not
+ * the same state, and every entry path proved it - `startAscent`, `startPractice`, `startRift` and
+ * `startLobby` all drop `showTitle` merely to OPEN a picker. The board sat mounted behind the title the whole
+ * time (a deliberate "dormant throwaway run"), so dropping the title uncovered it for however long the next
+ * overlay took to paint. That is the flash the owner saw pressing Practice.
+ *
+ * The three states below are every way to be pre-run: the title itself, the Practice options screen, and the
+ * hero picker. Anything that opens OVER the title (leaderboard, career, patch notes, the account panel)
+ * leaves `showTitle` true and is covered by the first term.
+ *
+ * NOTE it costs no extra mount: `Recruit` is keyed on run identity, so entering a run already remounts it.
+ * This only stops the previous/dormant run's board painting in the gap between two menus.
+ */
+export const isPreRun = (
+  s: Pick<GameStore, 'showTitle' | 'heroChoices' | 'practiceSetupOpen'>,
+): boolean => s.showTitle || s.heroChoices !== null || s.practiceSetupOpen;

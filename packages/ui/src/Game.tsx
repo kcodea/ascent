@@ -52,7 +52,7 @@ import { PixiFxLayer } from './PixiFxLayer';
 import { pixiFx, warmDiscoverFx } from './pixiFx';
 import { warmArt } from './art';
 import { sfx } from './sfx';
-import { useGame } from './store';
+import { useGame, isPreRun } from './store';
 
 /** Root of the playable game. `Recruit` owns the board and stays mounted across every
  *  phase — combat plays out *in place* (the shop closes, the enemies arrive, the
@@ -87,6 +87,8 @@ export function Game() {
   // sequence-diff ref re-inits at the target frame, so a jump across 30 frames can't fire 30 stale effects
   // (buys/welds still replay during ordinary frame stepping, which never bumps the epoch). 0 outside replays.
   const runKey = useGame((s) => `${s.run.seed}:${s.run.heroId}:${s.replaySeekEpoch}`);
+  // See `isPreRun`: the board must not render (or tick) until a run is actually entered.
+  const preRun = useGame(isPreRun);
   const [menuOpen, setMenuOpen] = useState(false);
   const [perfOn, setPerfOn] = useState(perfEnabledByFlag);
 
@@ -336,16 +338,30 @@ export function Game() {
 
   return (
     <ErrorBoundary>
-      <Recruit key={runKey} />
-      {/* WebGL effects overlay (particle impacts, flashes) — a transparent full-viewport Pixi
-          canvas drawn over the board; the combat replay fires effects into it at contact points. */}
-      <PixiFxLayer />
-      {phase === 'gameover' && <EndScreen won={false} />}
-      {phase === 'victory' && <EndScreen won={true} />}
+      {/* THE BOARD, and nothing of it before a run (owner ruling 2026-08-30: "no active game should be
+          displayed or happening until the player actually enters a lobby").
+
+          `showTitle: false` used to be the only gate, but it means "the title is closed", not "a run is on
+          screen" — every entry path (`startAscent`, `startPractice`, `startRift`, `startLobby`) drops it just
+          to open a picker. With the board mounted behind the title, that uncovered the dormant run for as
+          long as the next overlay took to paint: the flash on pressing Practice.
+
+          Unmounting rather than hiding is the point. A hidden board still runs — Recruit owns the shop clock
+          and the FX canvas keeps its ticker — and the ruling is "or happening", not just "displayed". */}
+      {!preRun && (
+        <>
+          <Recruit key={runKey} />
+          {/* WebGL effects overlay (particle impacts, flashes) — a transparent full-viewport Pixi
+              canvas drawn over the board; the combat replay fires effects into it at contact points. */}
+          <PixiFxLayer />
+          {phase === 'gameover' && <EndScreen won={false} />}
+          {phase === 'victory' && <EndScreen won={true} />}
+        </>
+      )}
       {/* Keyed on run identity like Recruit: the StatusBar's `prevHp` ref tracks Resolve across the run to
           float a "−X" when a wave breaks through. Without a key it persists across a new-run pick, so its ref
           holds the PREVIOUS run's HP — picking a hero with lower starting HP then floats a phantom "−X". */}
-      <StatusBar key={`sb:${runKey}`} />
+      {!preRun && <StatusBar key={`sb:${runKey}`} />}
       {showBook && <MinionBook />}
       <Inspect />
       <button className="gearbtn" onPointerDown={() => setMenuOpen(true)} title="Settings (Esc)" aria-label="Settings">

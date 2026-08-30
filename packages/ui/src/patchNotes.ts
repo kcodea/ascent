@@ -56,13 +56,27 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-08-30',
+    label: 'Clean Entry',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: 'Choosing a mode no longer flashes a game board on the way to the menu â nothing is running until you actually start a run.',
+        details: [
+          'Pressing Practice showed the board for an instant before the options screen appeared. It no longer does, and the same gap on Play, Rift and Lobby is closed too.',
+          'The board is not merely hidden before a run now â it is not running at all.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-08-30',
     label: 'Practice Bots',
     changes: [
       {
         category: 'UI / Info',
         text: 'Practice bots now sit down with the same Resolve and Armor you do, instead of starting on little over half your health.',
         details: [
-          'A bot table used to open at 18/17/16/15/14/13/12 against your 30 — visible on the round-1 standings. Every seat now starts level with you.',
+          'A bot table used to open at 18/17/16/15/14/13/12 against your 30 â visible on the round-1 standings. Every seat now starts level with you.',
           'Bot games have not got longer: the bots hit each other harder to make up for the extra health, so a dominant run still finishes on the same clock.',
           'How hard bots hit YOU is unchanged on all three difficulties.',
         ],

@@ -1716,7 +1716,7 @@ export function Recruit() {
     : wipe === 'coverIn' || wipe === 'coverOut' ? ' full'
     : wipe === 'revealIn' || wipe === 'combat' ? ' gone'
     : wipe === 'revealOut' ? ' gone rtl' : ''
-  }`;
+  }${wipeExiting ? ' exit' : ''}`;
   const combatBgShown = wipe === 'coveredIn' || wipe === 'revealIn' || wipe === 'combat' || wipe === 'primeOut' || wipe === 'coverOut';
   // COMBAT UNITS render on the staged window too (owner ask 2026-08-29): the warband's recruit-cards→Unit
   // swap and the enemy row's arrival both happen while the curtain fully hides the board, so the entry

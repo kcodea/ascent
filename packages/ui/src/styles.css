@@ -313,6 +313,10 @@ canvas.spr { image-rendering: pixelated; display: block; }
      the element is promoted) — without it the near-fullscreen gradient repaints every frame of the bloom. */
   will-change: clip-path;
   transition: clip-path var(--wipe-dur, 450ms) cubic-bezier(.4, 0, .2, 1); }
+/* The EXIT curtain wears a lighter, daylight-sky blue (owner ask 2026-08-30 — matched to the sky in the
+   Returning-to-Shop vignette, sampled ≈#2390f5→#61b6f9). The class flips while the curtain is parked
+   empty (primeOut) and clears at idle, so the gradient swap is never on screen. */
+.wipecurtain.exit { background: radial-gradient(ellipse 60% 60% at 50% 50%, #4a9be8 0%, #16406f 100%); }
 .wipecurtain.full { clip-path: circle(var(--wipe-r, 150vmax) at var(--wipe-cx, 84%) var(--wipe-cy, 62%)); }
 /* The covered hold: same full cover, INSET shape — the invisible switch that lets the reveal run linear. */
 .wipecurtain.full.settle { clip-path: inset(0 0 0 0); }

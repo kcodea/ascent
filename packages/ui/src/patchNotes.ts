@@ -56,6 +56,22 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-08-30',
+    label: 'Replay Controls',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: 'The replay bar can be dragged to scrub, shows how far through you are, and takes the keyboard — and playback speed now carries the shop timer with it.',
+        details: [
+          'Drag the bar to scrub, instead of clicking one spot at a time, with a handle showing where you are.',
+          'An elapsed / total time readout sits beside it.',
+          'Space plays and pauses, the arrow keys step a frame at a time, Home and End jump to either end.',
+          'The shop countdown used to tick at normal speed whatever the playback speed, so a fast replay disagreed with its own clock. It now runs at the speed you are watching.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-08-30',
     label: 'Replay Ceremony',
     changes: [
       {

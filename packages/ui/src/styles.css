@@ -9291,11 +9291,27 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   box-shadow: 0 16px 40px -12px rgba(0, 0, 0, 0.6); color: var(--gl-text, #eef4fb); font-family: var(--font-ui); }
 .replaybtn { font-family: var(--font-ui); font-weight: 800; font-size: 14px; min-width: 38px; height: 34px; padding: 0 8px; border-radius: 9px; border: 1.5px solid var(--gl-border, rgba(190, 214, 240, 0.4)); background: transparent; color: var(--gl-text, #eef4fb); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; display: grid; place-items: center; }
 .replaybtn:hover { border-color: var(--gl-border-top, rgba(226, 240, 255, 0.6)); }
-.replayprog { position: relative; width: 260px; height: 8px; border-radius: 5px; background: rgba(255, 255, 255, 0.14); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; overflow: hidden; }
+/* The scrub track. `overflow: visible` so the handle can overhang it; the FILL clips itself instead. Padded
+   vertically with a transparent hit area — an 8px-tall drag target is the mechanical half of "clunky". */
+.replayprog { position: relative; width: 260px; height: 8px; border-radius: 5px; background: rgba(255, 255, 255, 0.14); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; overflow: visible; touch-action: none; }
+.replayprog::before { content: ''; position: absolute; left: 0; right: 0; top: -8px; bottom: -8px; }
+.replayprog.scrubbing { background: rgba(255, 255, 255, 0.22); }
+/* The handle. Transform-only motion on a static shadow (CLAUDE.md's rule) and it grows while scrubbing so
+   the grab reads as engaged. */
+.replayprog-knob {
+  position: absolute; top: 50%; width: 14px; height: 14px; margin-left: -7px; border-radius: 50%;
+  background: var(--gl-accent, #a8d8ef); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.55);
+  transform: translateY(-50%) scale(1); transition: transform 120ms ease; pointer-events: none; }
+.replayprog.scrubbing .replayprog-knob { transform: translateY(-50%) scale(1.25); }
+/* Elapsed / total. Tabular figures so the bar does not jitter as the digits tick over. */
+.replaytime { font-weight: 700; font-size: 12px; font-variant-numeric: tabular-nums; opacity: 0.85; white-space: nowrap; }
+.replaytime i { opacity: 0.45; font-style: normal; }
 .replayprog-fill { position: absolute; left: 0; top: 0; bottom: 0; width: 100%; transform-origin: left center; background: var(--gl-accent, #a8d8ef); border-radius: 5px; will-change: transform; }
 .replayround { font-weight: 700; font-size: 13px; min-width: 70px; text-align: center; }
 .replayspeed { display: inline-flex; align-items: center; gap: 6px; font-weight: 800; font-size: 13px; color: var(--gl-value, #e6b45a); }
-.replayspeed input { width: 90px; accent-color: var(--gl-accent, #a8d8ef); cursor: pointer; }
+/* NOT a bare `cursor: pointer` — a class selector out-specifies the global rule and swaps the gauntlet back
+   to the OS arrow, which reads as the cursor breaking on this control (CLAUDE.md, UI conventions). */
+.replayspeed input { width: 90px; accent-color: var(--gl-accent, #a8d8ef); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
 /* Round rail — the left-hand per-round index (click a row → seek to that round's shop opening). Styled to
    match the lobby rail's solid backing plate (translucency over the stonework washes text out to grey).
    The FIXED positioning lives on `.roundrail-wrap` so the metrics dock can sit as an absolutely-positioned

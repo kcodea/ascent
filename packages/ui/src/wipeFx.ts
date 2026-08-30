@@ -10,7 +10,7 @@
  * replicated here numerically):
  *  - charge():  the gem's anticipation tell — motes spiral INTO the gem + a swelling flare, played during
  *               the pre-bloom beat (`chargeIn` / the stretched `primeOut`).
- *  - bloom():   stardust wake + tangential wisps + runic flickers emitted along the expanding seam.
+ *  - bloom():   stardust wake + tangential wisps emitted along the expanding seam.
  *  - inhale():  motes streaming INTO the gem from across the scene — played with the EXIT bloom, selling
  *               "the gem drinks the combat scene".
  * Everything is additive-blended pale blue/white (the curtain's palette) with a little gold. Worst case is
@@ -50,20 +50,6 @@ function cubicBezier(x1: number, y1: number, x2: number, y2: number): (t: number
 const seamEase = cubicBezier(0.4, 0, 0.2, 1);
 
 const PALETTE = [0x9fc0f5, 0xcfe0ff, 0xffffff, 0xbcd4ff] as const;
-const GOLD = 0xc9a35c;
-
-/** Hand-authored angular glyph strokes (32×32 box) — drawn with Graphics, NOT font glyphs: runic unicode
- *  renders as tofu on machines without a historic-scripts font, and these only need to READ arcane. */
-const GLYPHS: number[][][] = [
-  [[8, 28, 16, 4, 24, 28], [11, 18, 21, 18]],
-  [[18, 4, 10, 16, 16, 16, 12, 28]],
-  [[8, 4, 24, 28], [24, 4, 8, 28]],
-  [[10, 4, 10, 28], [10, 4, 22, 10, 10, 16], [10, 16, 22, 28]],
-  [[16, 4, 16, 28], [16, 12, 8, 4], [16, 12, 24, 4]],
-  [[12, 4, 12, 28], [12, 10, 22, 16, 12, 22]],
-  [[16, 4, 26, 24, 6, 24, 16, 4]],
-  [[20, 4, 12, 12, 20, 20, 12, 28]],
-];
 
 interface Particle {
   sp: Sprite;
@@ -86,7 +72,6 @@ class WipeFxController {
   private pending: Array<() => void> = [];
   private dotTex: Texture | null = null;
   private sparkTex: Texture | null = null;
-  private glyphTex: Texture[] = [];
 
   /** Kick the async Pixi init early (Recruit calls this on mount) so the very first wipe's FX are ready. */
   warm(): void {
@@ -119,15 +104,6 @@ class WipeFxController {
     spark.roundRect(-12, -1.5, 24, 3, 1.5).fill({ color: 0xffffff, alpha: 0.35 });
     spark.roundRect(-8, -0.8, 16, 1.6, 0.8).fill({ color: 0xffffff, alpha: 0.9 });
     this.sparkTex = app.renderer.generateTexture(spark);
-    this.glyphTex = GLYPHS.map((strokes) => {
-      const g = new Graphics();
-      for (const s of strokes) {
-        g.moveTo(s[0]!, s[1]!);
-        for (let i = 2; i < s.length; i += 2) g.lineTo(s[i]!, s[i + 1]!);
-      }
-      g.stroke({ width: 2.5, color: 0xffffff, cap: 'round', join: 'round' });
-      return app.renderer.generateTexture(g);
-    });
 
     app.ticker.add(() => this.tick(app.ticker.deltaMS));
     app.ticker.stop();
@@ -220,21 +196,22 @@ class WipeFxController {
     });
   }
 
-  /** THE BLOOM WAKE — stardust + tangential wisps + runic flickers emitted along the expanding seam. */
+  /** THE BLOOM WAKE — stardust + tangential wisps emitted along the expanding seam. (Runic flickers were
+   *  cut — owner call 2026-08-29: their hard pops read as animation blips on the blue.) */
   bloom(cx: number, cy: number, R: number, ms: number): void {
     this.run(() => {
-      const em: Emitter & { moteAcc: number; runeAcc: number } = {
-        age: 0, dur: ms, moteAcc: 0, runeAcc: 0,
+      const em: Emitter & { moteAcc: number } = {
+        age: 0, dur: ms, moteAcc: 0,
         update: (e, dt) => {
           const self = e as typeof em;
           const seamR = R * seamEase(Math.min(1, e.age / ms));
-          self.moteAcc += dt * 0.34; // ~150 motes over a 450ms sweep
+          self.moteAcc += dt * 0.62; // ~280 motes over a 450ms sweep
           while (self.moteAcc >= 1) {
             self.moteAcc -= 1;
             const ang = Math.random() * Math.PI * 2;
             const px = cx + Math.cos(ang) * seamR, py = cy + Math.sin(ang) * seamR;
             if (px < -40 || py < -40 || px > window.innerWidth + 40 || py > window.innerHeight + 40) continue;
-            const wisp = Math.random() < 0.28;
+            const wisp = Math.random() < 0.4;
             const speed = wisp ? 0 : 30 + Math.random() * 110; // px/s outward
             const tang = wisp ? (60 + Math.random() * 120) * (Math.random() < 0.5 ? 1 : -1) : (Math.random() - 0.5) * 30;
             const vx = (Math.cos(ang) * speed - Math.sin(ang) * tang) / 1000;
@@ -249,24 +226,6 @@ class WipeFxController {
               p.sp.scale.set(scale * (1 - t * 0.4));
             });
           }
-          self.runeAcc += dt / 55; // a glyph roughly every 55ms
-          while (self.runeAcc >= 1) {
-            self.runeAcc -= 1;
-            const ang = Math.random() * Math.PI * 2;
-            const px = cx + Math.cos(ang) * seamR, py = cy + Math.sin(ang) * seamR;
-            if (px < -40 || py < -40 || px > window.innerWidth + 40 || py > window.innerHeight + 40) continue;
-            const tex = this.glyphTex[(Math.random() * this.glyphTex.length) | 0]!;
-            const tint = Math.random() < 0.3 ? GOLD : 0xbcd4ff;
-            const rot = Math.random() * Math.PI * 2;
-            const vx = Math.cos(ang) * 0.03, vy = Math.sin(ang) * 0.03; // gentle outward drift
-            this.spawn(tex, px, py, tint, 480, (p, d) => {
-              p.sp.x += vx * d; p.sp.y += vy * d;
-              const t = p.age / p.life;
-              p.sp.alpha = t < 0.25 ? t * 4 : 1 - (t - 0.25) / 0.75;
-              p.sp.scale.set(0.55 + t * 0.35);
-              p.sp.rotation = rot;
-            });
-          }
         },
       };
       this.emitters.push(em);
@@ -277,7 +236,7 @@ class WipeFxController {
    *  drinking the combat scene back in). */
   inhale(cx: number, cy: number, R: number, ms: number): void {
     this.run(() => {
-      for (let i = 0; i < 70; i++) {
+      for (let i = 0; i < 120; i++) {
         const ang = Math.random() * Math.PI * 2;
         const r0 = 140 + Math.random() * Math.max(160, R * 0.75);
         const delay = Math.random() * ms * 0.45;
@@ -293,7 +252,7 @@ class WipeFxController {
         });
       }
       // A few sparks aligned to their travel direction, for streaky motion.
-      for (let i = 0; i < 14; i++) {
+      for (let i = 0; i < 24; i++) {
         const ang = Math.random() * Math.PI * 2;
         const r0 = 200 + Math.random() * Math.max(160, R * 0.7);
         const delay = Math.random() * ms * 0.4;

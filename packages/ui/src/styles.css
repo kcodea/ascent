@@ -8680,9 +8680,9 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   --lrow: calc(var(--lu) * var(--lby-row, 1.91));
   --lfont: calc(var(--lu) * var(--lby-font, 0.9));
   position: fixed; z-index: 80; transform: translateY(-50%);
-  width: calc(112 * var(--lu) * var(--sc-w, 2)); pointer-events: none;
-  display: flex; flex-direction: column; gap: calc(4 * var(--lu) * var(--sc-gap, 1.8));
-  padding: calc(7 * var(--lu) * var(--sc-pad, 1.8)); border-radius: calc(8 * var(--lu) * var(--sc-rad, 1));
+  width: calc(112 * var(--lu) * var(--sc-w, 2.35)); pointer-events: none;
+  display: flex; flex-direction: column; gap: calc(4 * var(--lu) * var(--sc-gap, 2.3));
+  padding: calc(7 * var(--lu) * var(--sc-pad, 2.3)); border-radius: calc(8 * var(--lu) * var(--sc-rad, 1));
   background: linear-gradient(180deg, var(--sc-bg1, #241a13), var(--sc-bg2, #17110c));
   border: 1px solid color-mix(in srgb, var(--sc-border, var(--gold)) 55%, #000);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 calc(4 * var(--lu)) calc(14 * var(--lu)) -4px var(--shadow);
@@ -8702,23 +8702,28 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 /* Tribe build+count on its OWN row, then tier + triples paired beneath it; each stat's title sits ABOVE its
    value (owner ask 2026-08-31 — the `<i>` label is authored before the `<b>` value in the DOM). */
 .lobbyscout-stats { display: flex; flex-direction: column; gap: calc(4 * var(--lu));
-  padding-top: calc(7 * var(--lu)); border-top: 1px solid rgba(255, 255, 255, 0.1); }
+  padding-top: calc(12 * var(--lu)); border-top: 1px solid rgba(255, 255, 255, 0.1); }
 .lobbyscout-statrow { display: grid; grid-template-columns: repeat(2, 1fr); gap: calc(3 * var(--lu)); }
 .lobbyscout-stat { display: flex; flex-direction: column; align-items: center; gap: calc(1 * var(--lu)); line-height: 1.1; }
 /* A horizontal rule between the tier/gilded-units pair and the tribe build below (owner ask 2026-08-31). */
-.lobbyscout-stat--wide { padding-top: calc(4 * var(--lu)); border-top: 1px solid rgba(255, 255, 255, 0.12); }
+.lobbyscout-stat--wide { padding-top: calc(8 * var(--lu)); border-top: 1px solid rgba(255, 255, 255, 0.12); }
 .lobbyscout-stat b { font-size: calc(11 * var(--lfont) * var(--sc-stat, 2)); font-weight: 800; color: var(--sc-stat-col, var(--acc)); }
 .lobbyscout-stat i { font-size: calc(7 * var(--lfont) * var(--sc-statlabel, 2)); font-style: normal; letter-spacing: 0.07em;
   text-transform: uppercase; color: var(--sc-label-col, #b7a98f); }
 .lobbyscout-stale { font-size: calc(7 * var(--lfont)); color: #8d8271; }
 .lobbyscout-empty { font-size: calc(8 * var(--lfont)); color: #8d8271; font-style: italic; }
 
-.lobbyscout-log { display: flex; flex-direction: column; gap: calc(2 * var(--lu));
-  padding-top: calc(7 * var(--lu)); border-top: 1px solid rgba(255, 255, 255, 0.1); }
+.lobbyscout-log { display: flex; flex-direction: column; gap: calc(8 * var(--lu));
+  padding-top: calc(12 * var(--lu)); border-top: 1px solid rgba(255, 255, 255, 0.1); }
 .lobbyscout-row { display: flex; justify-content: space-between; align-items: center; gap: calc(4 * var(--lu));
   font-size: calc(9 * var(--lfont) * var(--sc-histtext, 2)); }
 .lobbyscout-vs { display: inline-flex; align-items: center; gap: calc(3 * var(--lu)); min-width: 0; color: #d9cfba; }
 .lobbyscout-vslabel { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* ROUND column (owner ask 2026-08-31): the round each fight happened, titled, on the left of every row. */
+.lobbyscout-loghead { display: flex; }
+.lobbyscout-round { flex: none; min-width: calc(16 * var(--lu)); text-align: center; font-weight: 800; color: var(--sc-label-col, #b7a98f); }
+.lobbyscout-colhead { text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700;
+  font-size: calc(7 * var(--lfont) * var(--sc-statlabel, 2)); color: var(--sc-label-col, #b7a98f); }
 .lobbyscout-dmg { display: inline-flex; align-items: center; gap: calc(2 * var(--lu)); font-weight: 800; white-space: nowrap; }
 .lobbyscout-blast { width: calc(12 * var(--lfont) * var(--sc-histtext, 2)); height: calc(12 * var(--lfont) * var(--sc-histtext, 2));
   object-fit: contain; flex: none; }
@@ -8738,8 +8743,8 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .lobbyscout-row.draw .lobbyscout-result { color: #d9cfba; }
 /* Result colour rides the ROW, so the damage number reads as "what happened" rather than needing a separate
    win/loss glyph beside it. */
-.lobbyscout-row.win .lobbyscout-dmg { color: #6fe39a; }
-.lobbyscout-row.lose .lobbyscout-dmg { color: #ff6b6b; }
+.lobbyscout-row.win .lobbyscout-dmg { color: #4be081; }
+.lobbyscout-row.lose .lobbyscout-dmg { color: #ff5555; }
 .lobbyscout-row.draw .lobbyscout-dmg { color: #c9bca3; }
 
 /* ── SCOUT CARD — layout variants (dev A/B/C compare) ──────────────────────────────────────────────────────
@@ -8787,8 +8792,8 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 /* RUNES section (owner ask 2026-08-31): a "RUNES" title above three dotted-outline sockets marking where runes
    socket over the match; filled with rune art as the seat acquires them. The border + padding live on the
    section so the whole block reads as one unit. */
-.lobbyscout-runesec { display: flex; flex-direction: column; gap: calc(4 * var(--lu));
-  padding-top: calc(7 * var(--lu)); border-top: 1px solid rgba(255, 255, 255, 0.1); }
+.lobbyscout-runesec { display: flex; flex-direction: column; gap: calc(8 * var(--lu));
+  padding-top: calc(12 * var(--lu)); border-top: 1px solid rgba(255, 255, 255, 0.1); }
 .lobbyscout-runes { display: flex; justify-content: center; gap: calc(6 * var(--lu)); }
 .lobbyscout-socket { position: relative; flex: none;
   /* Full fight-log portrait size (owner ask 2026-08-31: do NOT shrink — the card is widened to fit all three). */

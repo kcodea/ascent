@@ -278,18 +278,27 @@ function ScoutCard({ lobby, seat, intel, at, pinned }: {
     <div className="lobbyscout-log">
       {results.length === 0 ? (
         <div className="lobbyscout-empty">No fights yet</div>
-      ) : results.map((r) => (
-        <div className={`lobbyscout-row ${r.outcome}`} key={r.round}>
-          <span className="lobbyscout-vs">
-            {r.foeHeroId
-              ? <img className="lobbyscout-foeface" src={heroArt(r.foeHeroId)} alt={r.foeLabel} title={r.foeLabel} />
-              : <span className="lobbyscout-vslabel">vs {r.foeLabel}</span>}
-          </span>
-          {/* The outcome sits BETWEEN the portrait and the damage (owner ask 2026-08-31). */}
-          <span className="lobbyscout-result">{OUTCOME_LABEL[r.outcome] ?? ''}</span>
-          <span className="lobbyscout-dmg"><img className="lobbyscout-blast" src="/blast-dmg-icon.webp" alt="" aria-hidden />{r.taken > 0 ? `−${r.taken}` : r.dealt > 0 ? `+${r.dealt}` : '0'}</span>
-        </div>
-      ))}
+      ) : (
+        <>
+          {/* A ROUND column on the left, titled (owner ask 2026-08-31). */}
+          <div className="lobbyscout-loghead">
+            <span className="lobbyscout-round lobbyscout-colhead">Round</span>
+          </div>
+          {results.map((r) => (
+            <div className={`lobbyscout-row ${r.outcome}`} key={r.round}>
+              <span className="lobbyscout-round">{r.round}</span>
+              <span className="lobbyscout-vs">
+                {r.foeHeroId
+                  ? <img className="lobbyscout-foeface" src={heroArt(r.foeHeroId)} alt={r.foeLabel} title={r.foeLabel} />
+                  : <span className="lobbyscout-vslabel">vs {r.foeLabel}</span>}
+              </span>
+              {/* The outcome sits BETWEEN the portrait and the damage (owner ask 2026-08-31). */}
+              <span className="lobbyscout-result">{OUTCOME_LABEL[r.outcome] ?? ''}</span>
+              <span className="lobbyscout-dmg"><img className="lobbyscout-blast" src="/blast-dmg-icon.webp" alt="" aria-hidden />{r.taken > 0 ? `−${r.taken}` : r.dealt > 0 ? `+${r.dealt}` : '0'}</span>
+            </div>
+          ))}
+        </>
+      )}
     </div>
   );
   // RUNE SOCKETS — always three (owner ask 2026-08-31): dotted-outline circles marking where runes socket over

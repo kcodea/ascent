@@ -8680,7 +8680,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   --lrow: calc(var(--lu) * var(--lby-row, 1.91));
   --lfont: calc(var(--lu) * var(--lby-font, 0.9));
   position: fixed; z-index: 80; transform: translateY(-50%);
-  width: calc(112 * var(--lu) * var(--sc-w, 2.35)); pointer-events: none;
+  width: calc(112 * var(--lu) * var(--sc-w, 2.6)); pointer-events: none;
   display: flex; flex-direction: column; gap: calc(4 * var(--lu) * var(--sc-gap, 2.3));
   padding: calc(7 * var(--lu) * var(--sc-pad, 2.3)); border-radius: calc(8 * var(--lu) * var(--sc-rad, 1));
   background: linear-gradient(180deg, var(--sc-bg1, #241a13), var(--sc-bg2, #17110c));
@@ -8721,9 +8721,10 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .lobbyscout-vslabel { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* ROUND column (owner ask 2026-08-31): the round each fight happened, titled, on the left of every row. */
 .lobbyscout-loghead { display: flex; }
-.lobbyscout-round { flex: none; min-width: calc(16 * var(--lu)); text-align: center; font-weight: 800; color: var(--sc-label-col, #b7a98f); }
+/* Fixed width so the "ROUND" title and the round numbers share ONE centred column (owner ask 2026-08-31). */
+.lobbyscout-round { flex: none; width: calc(34 * var(--lu)); text-align: center; font-weight: 800; color: var(--sc-label-col, #b7a98f); }
 .lobbyscout-colhead { text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700;
-  font-size: calc(7 * var(--lfont) * var(--sc-statlabel, 2)); color: var(--sc-label-col, #b7a98f); }
+  font-size: calc(6 * var(--lfont) * var(--sc-statlabel, 2)); color: var(--sc-label-col, #b7a98f); }
 .lobbyscout-dmg { display: inline-flex; align-items: center; gap: calc(2 * var(--lu)); font-weight: 800; white-space: nowrap; }
 .lobbyscout-blast { width: calc(12 * var(--lfont) * var(--sc-histtext, 2)); height: calc(12 * var(--lfont) * var(--sc-histtext, 2));
   object-fit: contain; flex: none; }

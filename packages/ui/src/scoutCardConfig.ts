@@ -35,7 +35,7 @@ export interface ScoutCardConfig {
 }
 
 const DEFAULTS: ScoutCardConfig = {
-  width: 2.35, pad: 2.3, radius: 1, gap: 2.3,
+  width: 2.6, pad: 2.3, radius: 1, gap: 2.3,
   // Text doubled all round (owner ask 2026-08-31: "increase the size of the text by 200%").
   nameSize: 2, heroSize: 2, statSize: 2, statLabelSize: 2, histText: 2,
   histFace: 1, socketSize: 1,

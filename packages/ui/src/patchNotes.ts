@@ -71,6 +71,19 @@ export const PATCH_NOTES: PatchNote[] = [
   },
   {
     date: '2026-08-31',
+    label: 'End of Turn',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: 'Cards granted at End of Turn no longer flash at double their number before settling.',
+        details: [
+          'Most visible on Rope Wrangler, which can hand you five cards at once.',
+          'Only the display was affected — you always received the right cards.',        ],
+      },
+    ],
+  },
+  {
+    date: '2026-08-31',
     label: 'Reflector',
     changes: [
       {
@@ -139,8 +152,7 @@ export const PATCH_NOTES: PatchNote[] = [
         details: [
           'A new forge illustration glows behind the panel.',
           'The stone banner became a gold plaque with a larger title; the Gold pill and rune tablets were resized and reseated.',
-          'The anvil icon and the sigil medallion were retired from the forge for a cleaner read (the Compendium keeps the medallion).',
-        ],
+          'The anvil icon and the sigil medallion were retired from the forge for a cleaner read (the Compendium keeps the medallion).',        ],
       },
     ],
   },

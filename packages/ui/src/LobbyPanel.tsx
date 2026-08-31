@@ -180,7 +180,7 @@ function readScoutVariant(): number {
   try { const v = Number(localStorage.getItem(SCOUT_VARIANT_KEY)); return v >= 1 && v <= SCOUT_VARIANTS ? v : 1; }
   catch { return 1; }
 }
-const OUTCOME_GLYPH: Record<string, string> = { win: '▲', lose: '▼', draw: '–' };
+const OUTCOME_LABEL: Record<string, string> = { win: 'WON', lose: 'LOST', draw: 'DREW' };
 
 /**
  * The hover read on one opponent: what they are playing, and how their last three fights went.
@@ -260,27 +260,20 @@ function ScoutCard({ lobby, seat, intel, at, pinned, onClose }: {
   const noIntel = <div className="lobbyscout-empty">No intel yet</div>;
   // ROUND HISTORY — the foe's PORTRAIT rather than their name (owner ask 2026-08-31), with the outcome-tinted
   // damage on the right. Falls back to the label if the hero art is missing.
-  const renderLog = (showGlyph: boolean): JSX.Element => (
+  const renderLog = (): JSX.Element => (
     <div className="lobbyscout-log">
       {results.length === 0 ? (
         <div className="lobbyscout-empty">No fights yet</div>
       ) : results.map((r) => (
         <div className={`lobbyscout-row ${r.outcome}`} key={r.round}>
           <span className="lobbyscout-vs">
-            {showGlyph && <span className="lobbyscout-glyph" aria-hidden>{OUTCOME_GLYPH[r.outcome]}</span>}
             {r.foeHeroId
-              ? (
-                <span className="lobbyscout-foe">
-                  <img className="lobbyscout-foeface" src={heroArt(r.foeHeroId)} alt={r.foeLabel} title={r.foeLabel} />
-                  {/* Hover (on a pinned card) reveals the outcome writ large over the portrait. */}
-                  <span className="lobbyscout-foeresult" aria-hidden>
-                    {r.outcome === 'win' ? 'WON' : r.outcome === 'lose' ? 'LOST' : 'DREW'}
-                  </span>
-                </span>
-              )
+              ? <img className="lobbyscout-foeface" src={heroArt(r.foeHeroId)} alt={r.foeLabel} title={r.foeLabel} />
               : <span className="lobbyscout-vslabel">vs {r.foeLabel}</span>}
           </span>
-          <span className="lobbyscout-dmg">{r.taken > 0 ? `−${r.taken}` : r.dealt > 0 ? `+${r.dealt}` : '0'}</span>
+          {/* The outcome sits BETWEEN the portrait and the damage (owner ask 2026-08-31). */}
+          <span className="lobbyscout-result">{OUTCOME_LABEL[r.outcome] ?? ''}</span>
+          <span className="lobbyscout-dmg"><Icon name="blast" />{r.taken > 0 ? `−${r.taken}` : r.dealt > 0 ? `+${r.dealt}` : '0'}</span>
         </div>
       ))}
     </div>
@@ -289,7 +282,9 @@ function ScoutCard({ lobby, seat, intel, at, pinned, onClose }: {
   // the match, filled with rune art as the seat acquires them. Filled sockets carry the same hover tip as a badge.
   const runeIds = (intel?.runes ?? []).filter((id) => RUNE_INDEX[id]);
   const runeSockets = intel ? (
-    <div className="lobbyscout-runes">
+    <div className="lobbyscout-runesec">
+      <div className="lobbyscout-sectitle">Runes</div>
+      <div className="lobbyscout-runes">
       {[0, 1, 2].map((i) => {
         const rune = runeIds[i] ? RUNE_INDEX[runeIds[i]!] : null;
         const rart = rune ? runeArt(rune.id) : null;
@@ -308,6 +303,7 @@ function ScoutCard({ lobby, seat, intel, at, pinned, onClose }: {
           </div>
         );
       })}
+      </div>
     </div>
   ) : null;
 
@@ -334,7 +330,7 @@ function ScoutCard({ lobby, seat, intel, at, pinned, onClose }: {
         {badges}
         {staleEl}
         <div className="lobbyscout-logtitle">Last fights</div>
-        {renderLog(true)}
+        {renderLog()}
         {runeSockets}
       </>
     );
@@ -356,7 +352,7 @@ function ScoutCard({ lobby, seat, intel, at, pinned, onClose }: {
         ) : noIntel}
         {badges}
         {staleEl}
-        {renderLog(false)}
+        {renderLog()}
         {runeSockets}
       </>
     );
@@ -378,7 +374,7 @@ function ScoutCard({ lobby, seat, intel, at, pinned, onClose }: {
         ) : noIntel}
         {badges}
         {staleEl}
-        {renderLog(false)}
+        {renderLog()}
         {runeSockets}
       </>
     );

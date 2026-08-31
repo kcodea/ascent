@@ -8681,7 +8681,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   --lfont: calc(var(--lu) * var(--lby-font, 0.9));
   position: fixed; z-index: 80; transform: translateY(-50%);
   width: calc(112 * var(--lu) * var(--sc-w, 2)); pointer-events: none;
-  display: flex; flex-direction: column; gap: calc(4 * var(--lu) * var(--sc-gap, 1.25));
+  display: flex; flex-direction: column; gap: calc(4 * var(--lu) * var(--sc-gap, 1.8));
   padding: calc(7 * var(--lu) * var(--sc-pad, 1.8)); border-radius: calc(8 * var(--lu) * var(--sc-rad, 1));
   background: linear-gradient(180deg, var(--sc-bg1, #241a13), var(--sc-bg2, #17110c));
   border: 1px solid color-mix(in srgb, var(--sc-border, var(--gold)) 55%, #000);
@@ -8702,7 +8702,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 /* Tribe build+count on its OWN row, then tier + triples paired beneath it; each stat's title sits ABOVE its
    value (owner ask 2026-08-31 — the `<i>` label is authored before the `<b>` value in the DOM). */
 .lobbyscout-stats { display: flex; flex-direction: column; gap: calc(4 * var(--lu));
-  padding-top: calc(4 * var(--lu)); border-top: 1px solid rgba(255, 255, 255, 0.1); }
+  padding-top: calc(7 * var(--lu)); border-top: 1px solid rgba(255, 255, 255, 0.1); }
 .lobbyscout-statrow { display: grid; grid-template-columns: repeat(2, 1fr); gap: calc(3 * var(--lu)); }
 .lobbyscout-stat { display: flex; flex-direction: column; align-items: center; gap: calc(1 * var(--lu)); line-height: 1.1; }
 /* A horizontal rule between the tier/gilded-units pair and the tribe build below (owner ask 2026-08-31). */
@@ -8714,12 +8714,13 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .lobbyscout-empty { font-size: calc(8 * var(--lfont)); color: #8d8271; font-style: italic; }
 
 .lobbyscout-log { display: flex; flex-direction: column; gap: calc(2 * var(--lu));
-  padding-top: calc(4 * var(--lu)); border-top: 1px solid rgba(255, 255, 255, 0.1); }
+  padding-top: calc(7 * var(--lu)); border-top: 1px solid rgba(255, 255, 255, 0.1); }
 .lobbyscout-row { display: flex; justify-content: space-between; align-items: center; gap: calc(4 * var(--lu));
   font-size: calc(9 * var(--lfont) * var(--sc-histtext, 2)); }
 .lobbyscout-vs { display: inline-flex; align-items: center; gap: calc(3 * var(--lu)); min-width: 0; color: #d9cfba; }
 .lobbyscout-vslabel { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.lobbyscout-dmg { font-weight: 800; white-space: nowrap; }
+.lobbyscout-dmg { display: inline-flex; align-items: center; gap: calc(2 * var(--lu)); font-weight: 800; white-space: nowrap; }
+.lobbyscout-dmg svg { width: calc(9 * var(--lfont) * var(--sc-histtext, 2)); height: calc(9 * var(--lfont) * var(--sc-histtext, 2)); }
 /* The foe's PORTRAIT in the fight log (owner ask 2026-08-31), replacing their name. Outcome tints its ring. */
 /* Matches the rail SEAT portrait exactly (same 18·lrow·lby-face expression, owner ask 2026-08-31); the
    `--sc-histface` dial scales it from there. */
@@ -8729,16 +8730,11 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .lobbyscout-row.win .lobbyscout-foeface { box-shadow: 0 0 0 1px #6fe39a; }
 .lobbyscout-row.lose .lobbyscout-foeface { box-shadow: 0 0 0 1px #ff6b6b; }
 .lobbyscout-row.draw .lobbyscout-foeface { box-shadow: 0 0 0 1px #c9bca3; }
-/* Hover a fight-log portrait (on a pinned card) to see WON / LOST writ large over it (owner ask 2026-08-31). */
-.lobbyscout-foe { position: relative; display: inline-grid; flex: none; }
-.lobbyscout-foeresult { position: absolute; inset: 0; display: grid; place-items: center; border-radius: 50%;
-  opacity: 0; pointer-events: none; transition: opacity 0.1s ease;
-  font-family: var(--font-ui); font-weight: 900; font-size: calc(9 * var(--lfont)); letter-spacing: 0.04em;
-  color: #fff; background: rgba(0, 0, 0, 0.62); text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9); }
-.lobbyscout-foe:hover .lobbyscout-foeresult { opacity: 1; }
-.lobbyscout-row.win .lobbyscout-foeresult { color: #7ef0a6; }
-.lobbyscout-row.lose .lobbyscout-foeresult { color: #ff8080; }
-.lobbyscout-row.draw .lobbyscout-foeresult { color: #d9cfba; }
+/* WON / LOST / DREW sits BETWEEN the portrait and the damage (owner ask 2026-08-31); colour rides the row. */
+.lobbyscout-result { font-family: var(--font-ui); font-weight: 900; letter-spacing: 0.05em; white-space: nowrap; }
+.lobbyscout-row.win .lobbyscout-result { color: #7ef0a6; }
+.lobbyscout-row.lose .lobbyscout-result { color: #ff8080; }
+.lobbyscout-row.draw .lobbyscout-result { color: #d9cfba; }
 /* Result colour rides the ROW, so the damage number reads as "what happened" rather than needing a separate
    win/loss glyph beside it. */
 .lobbyscout-row.win .lobbyscout-dmg { color: #6fe39a; }
@@ -8756,11 +8752,9 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   opacity: 0.82; }
 .lobbyscout-variant:hover { opacity: 1; }
 
-/* History win/loss glyph (V2) — colour rides the row like the damage number does. */
-.lobbyscout-glyph { font-size: calc(8 * var(--lfont)); }
-.lobbyscout-row.win .lobbyscout-glyph { color: #6fe39a; }
-.lobbyscout-row.lose .lobbyscout-glyph { color: #ff6b6b; }
-.lobbyscout-row.draw .lobbyscout-glyph { color: #c9bca3; }
+/* Section title sitting ABOVE its content — e.g. "RUNES" (owner ask 2026-08-31). Scales with the stat-label dial. */
+.lobbyscout-sectitle { font-size: calc(7 * var(--lfont) * var(--sc-statlabel, 2)); letter-spacing: 0.08em;
+  text-transform: uppercase; font-weight: 700; color: var(--sc-label-col, #b7a98f); }
 
 /* Meta line — "Tier N · N triples" (V2 + V3). */
 .lobbyscout-meta { display: flex; align-items: baseline; gap: calc(3 * var(--lu));
@@ -8789,10 +8783,12 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 50%, transparent); }
 .lobbyscout--v3 .lobbyscout-log { padding-top: calc(3 * var(--lu)); gap: calc(1 * var(--lu)); }
 
-/* RUNE SOCKETS — three dotted-outline circles (owner ask 2026-08-31) at the card's foot, marking where runes
-   socket over the match; filled with rune art as the seat acquires them. */
-.lobbyscout-runes { display: flex; justify-content: center; gap: calc(6 * var(--lu));
-  padding-top: calc(4 * var(--lu)); border-top: 1px solid rgba(255, 255, 255, 0.1); }
+/* RUNES section (owner ask 2026-08-31): a "RUNES" title above three dotted-outline sockets marking where runes
+   socket over the match; filled with rune art as the seat acquires them. The border + padding live on the
+   section so the whole block reads as one unit. */
+.lobbyscout-runesec { display: flex; flex-direction: column; gap: calc(4 * var(--lu));
+  padding-top: calc(7 * var(--lu)); border-top: 1px solid rgba(255, 255, 255, 0.1); }
+.lobbyscout-runes { display: flex; justify-content: center; gap: calc(6 * var(--lu)); }
 .lobbyscout-socket { position: relative; flex: none;
   /* Full fight-log portrait size (owner ask 2026-08-31: do NOT shrink — the card is widened to fit all three). */
   width: calc(18 * var(--lrow) * var(--lby-face, 1.74) * var(--sc-socket, 1));

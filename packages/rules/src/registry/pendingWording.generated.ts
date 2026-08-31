@@ -75,17 +75,17 @@ export const WORDING_PENDING: GameRule[] = [
   },
   {
     "id": "q-word-lg-keyword-01",
-    "title": "Wording: Ward vs Divine Shield · 44 vs 2",
+    "title": "Wording: Ward vs Divine Shield · 43 vs 2",
     "statement": "The shield keyword prints \"Ward\" everywhere; the last \"Divine Shield\" texts are updated to match. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "text",
     "status": "needs-ruling",
-    "currentBehaviour": "Both spellings are live: \"Ward\" in 44 printed texts, \"Divine Shield\" in 2. Approving picks \"Ward\"; the LG-KEYWORD-01 guide predicate then watches new text.",
+    "currentBehaviour": "Both spellings are live: \"Ward\" in 43 printed texts, \"Divine Shield\" in 2. Approving picks \"Ward\"; the LG-KEYWORD-01 guide predicate then watches new text.",
     "cardText": "\"Ward\" — Beardsley: \"Ward. Whenever you summon a Beast, give it +3/+3. Improves +3/+3 every 3 Beasts summoned.\" · \"Divine Shield\" — Selfless Sentinel: \"Deathrattle: give a friend a Divine Shield.\"",
     "example": "Selfless Sentinel would be re-worded to the \"Ward\" form; mechanics untouched.",
     "evidence": [
       {
         "kind": "docbot-scan",
-        "ref": "textParse.wording · LG-KEYWORD-01 (corpus survey: 44 vs 2)"
+        "ref": "textParse.wording · LG-KEYWORD-01 (corpus survey: 43 vs 2)"
       }
     ],
     "sourceQueue": "textParse.wording",
@@ -127,17 +127,17 @@ export const WORDING_PENDING: GameRule[] = [
   },
   {
     "id": "q-word-lg-position-01",
-    "title": "Wording: left-most vs leftmost · 71 vs 3",
+    "title": "Wording: left-most vs leftmost · 68 vs 3",
     "statement": "Positional words are hyphenated: \"left-most\" / \"right-most\", never \"leftmost\". — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "text",
     "status": "needs-ruling",
-    "currentBehaviour": "Both spellings are live: \"left-most\" in 71 printed texts, \"leftmost\" in 3. Approving picks \"left-most\"; the LG-POSITION-01 guide predicate then watches new text.",
+    "currentBehaviour": "Both spellings are live: \"left-most\" in 68 printed texts, \"leftmost\" in 3. Approving picks \"left-most\"; the LG-POSITION-01 guide predicate then watches new text.",
     "cardText": "\"left-most\" — Echohorn: \"Rally: trigger your left-most Echo.\" · \"leftmost\" — Deathsayer: \"Rally: before this attacks, trigger your leftmost Deathrattle.\"",
     "example": "Deathsayer would be re-worded to the \"left-most\" form; mechanics untouched.",
     "evidence": [
       {
         "kind": "docbot-scan",
-        "ref": "textParse.wording · LG-POSITION-01 (corpus survey: 71 vs 3)"
+        "ref": "textParse.wording · LG-POSITION-01 (corpus survey: 68 vs 3)"
       }
     ],
     "sourceQueue": "textParse.wording",
@@ -154,17 +154,17 @@ export const WORDING_PENDING: GameRule[] = [
   },
   {
     "id": "q-word-lg-trigger-01",
-    "title": "Wording: Shout vs Battlecry · 112 vs 44",
+    "title": "Wording: Shout vs Battlecry · 110 vs 42",
     "statement": "On-play triggers print \"Shout\" everywhere; every \"Battlecry\" in card text is updated to match. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "text",
     "status": "needs-ruling",
-    "currentBehaviour": "Both spellings are live: \"Shout\" in 112 printed texts, \"Battlecry\" in 44. Approving picks \"Shout\"; the LG-TRIGGER-01 guide predicate then watches new text.",
+    "currentBehaviour": "Both spellings are live: \"Shout\" in 110 printed texts, \"Battlecry\" in 42. Approving picks \"Shout\"; the LG-TRIGGER-01 guide predicate then watches new text.",
     "cardText": "\"Shout\" — Dawnclaw: \"Taunt. Echo: trigger an adjacent minion's Shout.\" · \"Battlecry\" — Pennycat: \"Battlecry: summon a 1/1 Stray next to it.\"",
     "example": "Pennycat would be re-worded to the \"Shout\" form; mechanics untouched.",
     "evidence": [
       {
         "kind": "docbot-scan",
-        "ref": "textParse.wording · LG-TRIGGER-01 (corpus survey: 112 vs 44)"
+        "ref": "textParse.wording · LG-TRIGGER-01 (corpus survey: 110 vs 42)"
       }
     ],
     "sourceQueue": "textParse.wording",
@@ -180,7 +180,6 @@ export const WORDING_PENDING: GameRule[] = [
       "cleric",
       "cryptbroker",
       "deathswarmer",
-      "drummer",
       "emissary",
       "fieldmechanic",
       "graverobber",
@@ -203,17 +202,17 @@ export const WORDING_PENDING: GameRule[] = [
   },
   {
     "id": "q-word-lg-trigger-02",
-    "title": "Wording: Echo vs Deathrattle · 94 vs 55",
+    "title": "Wording: Echo vs Deathrattle · 98 vs 53",
     "statement": "On-death triggers print \"Echo\" everywhere; every \"Deathrattle\" in card text is updated to match. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "text",
     "status": "needs-ruling",
-    "currentBehaviour": "Both spellings are live: \"Echo\" in 94 printed texts, \"Deathrattle\" in 55. Approving picks \"Echo\"; the LG-TRIGGER-02 guide predicate then watches new text.",
+    "currentBehaviour": "Both spellings are live: \"Echo\" in 98 printed texts, \"Deathrattle\" in 53. Approving picks \"Echo\"; the LG-TRIGGER-02 guide predicate then watches new text.",
     "cardText": "\"Echo\" — Armadiyo: \"Taunt. Echo: give your Beast Aura +2/+4.\" · \"Deathrattle\" — Amun Rab: \"Deathrattle: Summon 7 Imps and give your Imps +5/+5.\"",
     "example": "Amun Rab would be re-worded to the \"Echo\" form; mechanics untouched.",
     "evidence": [
       {
         "kind": "docbot-scan",
-        "ref": "textParse.wording · LG-TRIGGER-02 (corpus survey: 94 vs 55)"
+        "ref": "textParse.wording · LG-TRIGGER-02 (corpus survey: 98 vs 53)"
       }
     ],
     "sourceQueue": "textParse.wording",
@@ -248,7 +247,6 @@ export const WORDING_PENDING: GameRule[] = [
       "selfless",
       "sergeant",
       "spore",
-      "sylus",
       "trickster",
       "twilightwhelp",
       "wolvesden",
@@ -257,17 +255,17 @@ export const WORDING_PENDING: GameRule[] = [
   },
   {
     "id": "q-word-lg-verb-01",
-    "title": "Wording: trigger vs fire/proc · 98 vs 6",
+    "title": "Wording: trigger vs fire/proc · 93 vs 2",
     "statement": "Effects \"trigger\" — never \"fire\" or \"proc\". The three straggler texts are updated to match. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "text",
     "status": "needs-ruling",
-    "currentBehaviour": "Both spellings are live: \"trigger\" in 98 printed texts, \"fire/proc\" in 6. Approving picks \"trigger\"; the LG-VERB-01 guide predicate then watches new text.",
-    "cardText": "\"trigger\" — Dawnclaw: \"Taunt. Echo: trigger an adjacent minion's Shout.\" · \"fire/proc\" — Drakko the Drummer: \"Your Battlecries fire 1 more time.\"",
-    "example": "Drakko the Drummer would be re-worded to the \"trigger\" form; mechanics untouched.",
+    "currentBehaviour": "Both spellings are live: \"trigger\" in 93 printed texts, \"fire/proc\" in 2. Approving picks \"trigger\"; the LG-VERB-01 guide predicate then watches new text.",
+    "cardText": "\"trigger\" — Dawnclaw: \"Taunt. Echo: trigger an adjacent minion's Shout.\" · \"fire/proc\" — Graverobber: \"Battlecry: Destroy a friendly minion (procs its Deathrattle), then add a random Shop spell of its tier to your hand.\"",
+    "example": "Graverobber would be re-worded to the \"trigger\" form; mechanics untouched.",
     "evidence": [
       {
         "kind": "docbot-scan",
-        "ref": "textParse.wording · LG-VERB-01 (corpus survey: 98 vs 6)"
+        "ref": "textParse.wording · LG-VERB-01 (corpus survey: 93 vs 2)"
       }
     ],
     "sourceQueue": "textParse.wording",
@@ -278,9 +276,7 @@ export const WORDING_PENDING: GameRule[] = [
       ]
     },
     "contentIds": [
-      "drummer",
-      "graverobber",
-      "sylus"
+      "graverobber"
     ]
   },
   {
@@ -312,17 +308,17 @@ export const WORDING_PENDING: GameRule[] = [
   },
   {
     "id": "q-word-lg-zone-01",
-    "title": "Wording: Shop vs tavern · 204 vs 9",
+    "title": "Wording: Shop vs tavern · 196 vs 9",
     "statement": "The buy row is always \"the Shop\" in text; every remaining \"tavern\" is updated to match. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "text",
     "status": "needs-ruling",
-    "currentBehaviour": "Both spellings are live: \"Shop\" in 204 printed texts, \"tavern\" in 9. Approving picks \"Shop\"; the LG-ZONE-01 guide predicate then watches new text.",
+    "currentBehaviour": "Both spellings are live: \"Shop\" in 196 printed texts, \"tavern\" in 9. Approving picks \"Shop\"; the LG-ZONE-01 guide predicate then watches new text.",
     "cardText": "\"Shop\" — Aeon Guard: \"End of Turn: give your Shop spells +1/+1.\" · \"tavern\" — Korok, the Hungerer: \"When you buy 4 cards, give your Fodder +1/+1 and add 1 Fodder to your next tavern.\"",
     "example": "Korok, the Hungerer would be re-worded to the \"Shop\" form; mechanics untouched.",
     "evidence": [
       {
         "kind": "docbot-scan",
-        "ref": "textParse.wording · LG-ZONE-01 (corpus survey: 204 vs 9)"
+        "ref": "textParse.wording · LG-ZONE-01 (corpus survey: 196 vs 9)"
       }
     ],
     "sourceQueue": "textParse.wording",

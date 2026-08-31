@@ -338,7 +338,12 @@ export const SET2_NEUTRAL: CardDef[] = [
       { on: 'spellCastOnThis', do: 'onSpellCastOnThisSpreadRandom', params: { count: 1 } },
       { on: 'onRubyPlayed', do: 'onRubyPlayedSpreadRandom', params: { count: 1 } },
     ],
-    text: 'Spells cast on this **also cast** on a random friendly minion. **(Once per turn)**',
-    goldenText: 'Spells cast on this **also cast twice** on a random friendly minion. **(Once per turn)**',
+    // The text names RUBIES as well as spells, because the card reacts to both and they SHARE one
+    // once-per-turn allowance (see the two effects above, and the `spells + rubies !== 1` guard both
+    // factories use). Player report 224af0ee hit exactly that gap: two Rubies had landed on this Reflector
+    // that turn, so a spell cast on it afterwards did nothing — behaving correctly, and unexplainable from a
+    // card that only mentioned spells. A Ruby is not a Shop Spell, so "Spells" never covered it.
+    text: 'Spells and **Rubies** cast on this **also cast** on a random friendly minion. **(Once per turn)**',
+    goldenText: 'Spells and **Rubies** cast on this **also cast twice** on a random friendly minion. **(Once per turn)**',
   },
 ];

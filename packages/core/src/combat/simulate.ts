@@ -2467,7 +2467,7 @@ export function simulate(
     for (const t of targets) dealDamage(t, b.minion.attack, false, false, b.minion);
   }
 
-  function performAttack(attacker: Minion, defenderSide: Side, depth: number): void {
+  function performAttack(attacker: Minion, defenderSide: Side, depth: number, forcedTarget?: Minion): void {
     if (attacker.dead || attacker.health <= 0) return;
     // STOLEN INITIATIVE (spell): after the OPPONENT'S FIRST attack, the caster's right-most body strikes out of
     // turn order. Queued through the existing `attackNow` lane (the same one Solaris Fang / attack-on-summon
@@ -2501,6 +2501,9 @@ export function simulate(
       if (attacker.dead || attacker.health <= 0) break;
       if (rebornAtStart && !attacker.rebornAvailable) break; // it died and rose during this exchange
       let target = chooseTarget(defenderSide);
+      // PORKBELLY'S VANGUARD: the golem below is handed its summoner's victim, so it swings at that body
+      // rather than rolling its own. Only honoured while the body is still a live, legal target.
+      if (forcedTarget && !forcedTarget.dead && forcedTarget.health > 0) target = forcedTarget;
       // TUTORIAL scripted death: on the enemy's FIRST swing, steer it onto the flagged card (if still alive),
       // regardless of where the player placed it. One-shot; normal random targeting resumes after.
       if (forcedEnemyTargetPending && attacker.side === 'enemy') {
@@ -2509,6 +2512,39 @@ export function simulate(
         if (forced) target = forced;
       }
       if (!target) break;
+      // ── PORKBELLY: the vanguard swing (owner spec 2026-08-31) ────────────────────────────────────────────
+      //
+      // "When Porkbelly attacks, if there is space, he summons a Gemheart Golem that gains his Ruby bonuses
+      // (double if gilded), and the golem attacks Porkbelly's target FIRST. If the target dies, Porkbelly
+      // settles and does not attack or take any damage. If it does not die, Porkbelly completes his attack."
+      //
+      // Placed HERE — after the target is chosen, before the `attack` event is emitted — for the reason that
+      // makes the whole card work: a settled Porkbelly must leave no trace of a swing. Emitting first and
+      // cancelling later would show an attack that never happened, and would have already run the on-attack
+      // bus (Rally, the rune block above). Nothing has fired yet at this point.
+      //
+      // The golem takes a REAL attack through this same function (`forcedTarget`), so it retaliates, dies,
+      // procs Echoes and counts for everything a swing counts for. It is summoned beside Porkbelly, which
+      // puts it to his right and makes it the next body in the turn order — the owner's stated placement.
+      if (cards[attacker.cardId]?.vanguardGolem && !attacker.dead && attacker.health > 0 && depth < 6) {
+        const golemDef = cards['gemheart-shard'];
+        if (golemDef && countLiving(attacker.side) < 7) {
+          // The Gemheart read: the carried shop 'Ruby' buff plus this fight's gains, doubled when gilded —
+          // the same tally `rubyTallyOf` returns, so a Porkbelly with no Rubies still fields a plain 1/1.
+          const carried = attacker.buffs?.find((b) => b.source === 'Ruby');
+          const g = attacker.golden ? 2 : 1;
+          const atk = (1 + (carried?.attack ?? 0) + (attacker.rubyGain?.attack ?? 0)) * g;
+          const hp = (1 + (carried?.health ?? 0) + (attacker.rubyGain?.health ?? 0)) * g;
+          nextStep();
+          const golem = summonMinion(attacker.side, golemDef, attacker.uid, undefined, false, false,
+            { attack: atk, health: hp, maxHealth: hp });
+          if (golem && !golem.dead && golem.health > 0) performAttack(golem, defenderSide, depth + 1, target);
+        }
+      }
+      // The vanguard felled it (or something in that exchange did): Porkbelly settles. No swing, no
+      // retaliation, and — since nothing was emitted above — no attack in the log either.
+      if (target.dead || target.health <= 0) break;
+      if (attacker.dead || attacker.health <= 0) break; // the vanguard's exchange could have killed him too
       if (s > 0) nextStep(); // each Windfury swing is its own exchange
       // Critical Strike (Commander Impala): roll per swing — a hit doubles this swing's OUTGOING damage (main
       // hit + cleave splash), not the retaliation. Only consumes RNG for a minion that actually has critChance.

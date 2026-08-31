@@ -128,11 +128,11 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-family-echo",
-    "title": "'echo' family · 56 cards",
-    "statement": "All 56 'echo' cards trigger the same way. Gilding doubles their output; a few summon a gilded token instead. — ✓ yes · ✕ no (say why) · ✎ your wording",
+    "title": "'echo' family · 57 cards",
+    "statement": "All 57 'echo' cards trigger the same way. Gilding doubles their output; a few summon a gilded token instead. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
-    "currentBehaviour": "43 effect factories across 56 cards dispatch through the 'echo' presentation family, all on the single trigger 'onDeath' (both); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline is the safe reading, with Void Panther / T-Rex / Chicken Brawl gilding the token they summon instead of doubling the count (owner ruling 2026-08-28).",
-    "cardText": "Exemplar — Amun Rab: \"Deathrattle: Summon 7 Imps and give your Imps +5/+5.\" · Members: Amun Rab · Anubis · Ashen Heir · Armadiyo · Bullseye · Dawnclaw · Menagerie Mammoth · T-Rex · Voidmother · Wolvie · Bone Taxer · Brood Matron · … and 44 more",
+    "currentBehaviour": "43 effect factories across 57 cards dispatch through the 'echo' presentation family, all on the single trigger 'onDeath' (both); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline is the safe reading, with Void Panther / T-Rex / Chicken Brawl gilding the token they summon instead of doubling the count (owner ruling 2026-08-28).",
+    "cardText": "Exemplar — Amun Rab: \"Deathrattle: Summon 7 Imps and give your Imps +5/+5.\" · Members: Amun Rab · Anubis · Ashen Heir · Armadiyo · Bullseye · Dawnclaw · Menagerie Mammoth · T-Rex · Voidmother · Wolvie · Bone Taxer · Brood Matron · … and 45 more",
     "example": "Amun Rab follows the 'echo' convention — its trigger fires on onDeath. Gilded T-Rex summons one GILDED T-Rex Baby, while gilded Wolves Den summons 6 Crypt Wolves instead of 3.",
     "contentIds": [
       "amunrab",
@@ -167,6 +167,7 @@ export const CONVENTION_PENDING: GameRule[] = [
       "impoverseer",
       "jenkins",
       "junk",
+      "k3_veinchant",
       "k_alchemist",
       "k_faultline",
       "k_gemheart",
@@ -259,15 +260,17 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-family-grant",
-    "title": "'grant' family · 2 cards",
-    "statement": "All 2 'grant' cards trigger the same way. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
+    "title": "'grant' family · 4 cards",
+    "statement": "All 4 'grant' cards trigger the same way. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
-    "currentBehaviour": "1 effect factories across 2 cards dispatch through the 'grant' presentation family, all on the single trigger 'equip' (recruit); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Alchemist Frank: \"Equip Bloodpot (1): Give a friendly minion +3/+3.\" · Members: Alchemist Frank · Titan Sculptor",
+    "currentBehaviour": "1 effect factories across 4 cards dispatch through the 'grant' presentation family, all on the single trigger 'equip' (recruit); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
+    "cardText": "Exemplar — Alchemist Frank: \"Equip Bloodpot (1): Give a friendly minion +3/+3.\" · Members: Alchemist Frank · Titan Sculptor · Blast Surveyor · Prismpick Artificer",
     "example": "Alchemist Frank follows the 'grant' convention — its trigger fires on equip. its printed numbers double when the card is gilded.",
     "contentIds": [
       "e3_frank",
-      "e3_sculptor"
+      "e3_sculptor",
+      "k3_blastsurveyor",
+      "k3_prismpick"
     ]
   },
   {
@@ -313,11 +316,11 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-family-rally",
-    "title": "'rally' family · 39 cards",
-    "statement": "All 39 'rally' cards trigger the same way. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
+    "title": "'rally' family · 41 cards",
+    "statement": "All 41 'rally' cards trigger the same way. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
-    "currentBehaviour": "41 effect factories across 39 cards dispatch through the 'rally' presentation family, all on the single trigger 'onAttack' (both); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Echohorn: \"Rally: trigger your left-most Echo.\" · Members: Echohorn · Hawkus · Packstrider · Sunmane Herald · Chimerus · Chorus Engine · Crypt Drake · Chorus Drake · Cinderchef · Embercrest · Flamebeat Drake · Roarcollector · … and 27 more",
+    "currentBehaviour": "42 effect factories across 41 cards dispatch through the 'rally' presentation family, all on the single trigger 'onAttack' (both); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
+    "cardText": "Exemplar — Echohorn: \"Rally: trigger your left-most Echo.\" · Members: Echohorn · Hawkus · Packstrider · Sunmane Herald · Chimerus · Chorus Engine · Crypt Drake · Chorus Drake · Cinderchef · Embercrest · Flamebeat Drake · Roarcollector · … and 29 more",
     "example": "Echohorn follows the 'rally' convention — its trigger fires on onAttack. its printed numbers double when the card is gilded.",
     "contentIds": [
       "b2_echohorn",
@@ -341,6 +344,8 @@ export const CONVENTION_PENDING: GameRule[] = [
       "heraldapoc",
       "hoardbreaker",
       "jouster",
+      "k3_forksong",
+      "k3_korn",
       "k_blazer",
       "k_boulderdash",
       "k_crownvein",
@@ -380,7 +385,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "title": "'shout' family · 53 cards",
     "statement": "All 53 'shout' cards trigger the same way. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
-    "currentBehaviour": "48 effect factories across 53 cards dispatch through the 'shout' presentation family, all on the single trigger 'onPlay' (both); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
+    "currentBehaviour": "49 effect factories across 53 cards dispatch through the 'shout' presentation family, all on the single trigger 'onPlay' (both); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
     "cardText": "Exemplar — Pennycat: \"Battlecry: summon a 1/1 Stray next to it.\" · Members: Pennycat · Mage-Pup · Black Belt Brian · Buddy Buddy · Cinderwing Matron · Hoard Cleric · Crypt Broker · Commander Warpath · Broodfire · Brood Whelp · Scalefeather · Flutterdrake · … and 41 more",
     "example": "Pennycat follows the 'shout' convention — its trigger fires on onPlay. its printed numbers double when the card is gilded.",
     "contentIds": [
@@ -836,7 +841,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "title": "Gilding default: ×2",
     "statement": "A gilded card doubles its printed numbers. Outliers instead gild the summoned token, reshape the effect, or add a proc; spells never gild. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "gilding",
-    "currentBehaviour": "270 cards carry authored goldenText; every other card inherits the ×2 number-doubler. The outlier shapes are the owner's 2026-08-28 rulings, now carried per card as the contract's gildedDelta kind (R-GILD-01); spells and Rubies are not-applicable (R-GILD-02).",
+    "currentBehaviour": "284 cards carry authored goldenText; every other card inherits the ×2 number-doubler. The outlier shapes are the owner's 2026-08-28 rulings, now carried per card as the contract's gildedDelta kind (R-GILD-01); spells and Rubies are not-applicable (R-GILD-02).",
     "cardText": "Exemplar — Wolves Den: \"Deathrattle: Summon 3 Crypt Wolves.\" → gilded: \"Deathrattle: Summon 6 Crypt Wolves.\"",
     "example": "Wolves Den's gilded text just writes the ×2 out in full — while gilded Dunkey instead summons ONE gilded Armadiyo."
   },
@@ -1237,11 +1242,11 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-keyword-rl",
-    "title": "Rally [RL] · 30 carriers",
+    "title": "Rally [RL] · 32 carriers",
     "statement": "Rally means: triggers its effect each time this minion attacks — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "keywords",
-    "currentBehaviour": "One shared engine path implements Rally for all 30 carriers.",
-    "cardText": "Exemplar — Echohorn: \"Rally: trigger your left-most Echo.\" · Carriers: Echohorn · Packstrider · Sunmane Herald · Better Bot · Chimerus · Chorus Engine · Chorus Drake · Cinderchef · Embercrest · Flamebeat Drake · Roarcollector · Deathsayer · … and 18 more",
+    "currentBehaviour": "One shared engine path implements Rally for all 32 carriers.",
+    "cardText": "Exemplar — Echohorn: \"Rally: trigger your left-most Echo.\" · Carriers: Echohorn · Packstrider · Sunmane Herald · Better Bot · Chimerus · Chorus Engine · Chorus Drake · Cinderchef · Embercrest · Flamebeat Drake · Roarcollector · Deathsayer · … and 20 more",
     "example": "Echohorn carries Rally — in play, triggers its effect each time this minion attacks.",
     "contentIds": [
       "b2_echohorn",
@@ -1262,6 +1267,8 @@ export const CONVENTION_PENDING: GameRule[] = [
       "heraldapoc",
       "hoardbreaker",
       "jouster",
+      "k3_forksong",
+      "k3_korn",
       "k_blazer",
       "k_boulderdash",
       "k_crownvein",
@@ -2268,13 +2275,14 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-trigger-ruby",
-    "title": "Trigger: a Ruby is gained or cast · 3 cards",
-    "statement": "All 3 of these fire on one trigger: a Ruby is gained or cast. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
+    "title": "Trigger: a Ruby is gained or cast · 4 cards",
+    "statement": "All 4 of these fire on one trigger: a Ruby is gained or cast. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
-    "currentBehaviour": "6 effect factories across 3 cards dispatch on 'onGetRuby', 'onRubyPlayed', 'rubyCast' (both/recruit) — re-clustered by TRIGGER out of the 'economy' + 'economyReact' presentation families on the owner's 2026-08-28 ruling; the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Gemgorge Fiend: \"When you cast 3 spells, Consume a minion in the Shop.\" · Members: Gemgorge Fiend · Gem Sage · Reflector",
-    "example": "Gemgorge Fiend fires when a Ruby is gained or cast, like every other card here. its printed numbers double when the card is gilded.",
+    "currentBehaviour": "7 effect factories across 4 cards dispatch on 'onGetRuby', 'onRubyPlayed', 'rubyCast', 'rubyPlayedAnywhere' (both/combat/recruit) — re-clustered by TRIGGER out of the 'economy' + 'economyReact' presentation families on the owner's 2026-08-28 ruling; the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
+    "cardText": "Exemplar — Double Trouble: \"When a Ruby is cast on another minion in combat, cast a Ruby on this.\" · Members: Double Trouble · Gemgorge Fiend · Gem Sage · Reflector",
+    "example": "Double Trouble fires when a Ruby is gained or cast, like every other card here. its printed numbers double when the card is gilded.",
     "contentIds": [
+      "k3_doubletrouble",
       "k_gemgorge",
       "k_gemsage",
       "n2_reflector"
@@ -2383,14 +2391,15 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-trigger-startOfTurn",
-    "title": "Trigger: the turn starts · 1 card",
-    "statement": "The 1 card here fires on one trigger: the turn starts. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
+    "title": "Trigger: the turn starts · 2 cards",
+    "statement": "All 2 of these fire on one trigger: the turn starts. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
-    "currentBehaviour": "1 effect factories across 1 card dispatch on 'startOfTurn' (recruit) — re-clustered by TRIGGER out of the 'economy' presentation family on the owner's 2026-08-28 ruling; the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Fel Conjurer: \"Start of Turn: get a Quick Study.\" · Members: Fel Conjurer",
+    "currentBehaviour": "2 effect factories across 2 cards dispatch on 'startOfTurn' (recruit) — re-clustered by TRIGGER out of the 'economy' presentation family on the owner's 2026-08-28 ruling; the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
+    "cardText": "Exemplar — Fel Conjurer: \"Start of Turn: get a Quick Study.\" · Members: Fel Conjurer · Dealer",
     "example": "Fel Conjurer fires when the turn starts, like every other card here. its printed numbers double when the card is gilded.",
     "contentIds": [
-      "d2_felconjurer"
+      "d2_felconjurer",
+      "k3_forkedcrown"
     ]
   }
 ] as GameRule[];

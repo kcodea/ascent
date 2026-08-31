@@ -44,3 +44,29 @@ export function useTurnTimeUp(): boolean {
     () => seconds <= 0,
   );
 }
+
+/**
+ * What the turn clock should be set to when the recruit screen (re)opens a turn — the decision behind
+ * Recruit's clock-reset effect, extracted so it can be tested without a DOM.
+ *
+ * `null` means LEAVE THE CLOCK ALONE, and that is the case bug 9fceed6b turned on (player, 2026-08-31:
+ * *"timer from saving and quitting is not correct, it is restarting the timer from the beginning of the
+ * round"*). Quitting at 0:08 and pressing Continue gave a full 0:20, because the effect ran twice: the first
+ * pass applied the resumed 8 and consumed the one-shot, and the second — seeing no resume left — opened the
+ * turn at full time.
+ *
+ * That became reachable when the board stopped being mounted behind the title (2026-08-30): Continue used to
+ * be a re-render of a live component and is now a genuine MOUNT, which is where an effect is invoked twice.
+ *
+ * So the rule is remembered per WAVE rather than per run: once a wave's clock has been restored, this refuses
+ * to re-open that same turn — and the moment the wave advances it stops matching, so the next turn opens at
+ * full time like any other.
+ */
+export function turnClockReset(
+  args: { resume: number | null; resumedWave: number | null; wave: number; turnSeconds: number },
+): { set: number; consumeResume: boolean } | null {
+  const { resume, resumedWave, wave, turnSeconds } = args;
+  if (resume != null) return { set: resume, consumeResume: true };
+  if (resumedWave === wave) return null; // already restored this turn — a second pass must not clobber it
+  return { set: turnSeconds, consumeResume: false };
+}

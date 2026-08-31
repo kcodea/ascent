@@ -10,7 +10,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const DIRS = ['minions', 'heroes', 'effects', 'powers', 'quests', 'runes', 'spells', 'modes'].map((s) => join(ROOT, 'packages/ui/src/art', s));
+const DIRS = ['minions', 'heroes', 'effects', 'equipment', 'powers', 'quests', 'runes', 'spells', 'modes'].map((s) => join(ROOT, 'packages/ui/src/art', s));
 const MAX = 512;
 const QUALITY = 85;
 

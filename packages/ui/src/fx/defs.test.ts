@@ -277,7 +277,7 @@ describe('committed fx defs', () => {
 });
 
 /**
- * The CANVAS SLOT field (`slot: 'over' | 'under'`).
+ * The CANVAS SLOT field (`slot: 'over' | 'under' | 'above'`).
  *
  * Two things are worth locking down, and only one of them is about correctness:
  *
@@ -288,23 +288,36 @@ describe('committed fx defs', () => {
  *     file on disk. The omit-unless-set rule is enforced here or nowhere.
  */
 describe('committed defs — canvas slot', () => {
-  it('declares no slot at all, or exactly "under"', () => {
+  it('declares no slot at all, or exactly "under" / "above"', () => {
     const problems: string[] = [];
     for (const { stem, raw } of ENTRIES) {
       if (!isRecord(raw) || !('slot' in raw)) continue;
       if (raw.slot === 'over') {
         problems.push(`${stem}: writes the DEFAULT slot explicitly — omit the field instead`);
-      } else if (raw.slot !== 'under') {
-        problems.push(`${stem}: slot ${JSON.stringify(raw.slot)} is not 'under' and will silently draw OVER the cards`);
+      } else if (raw.slot !== 'under' && raw.slot !== 'above') {
+        problems.push(`${stem}: slot ${JSON.stringify(raw.slot)} is neither 'under' nor 'above', so it will silently draw OVER the cards`);
       }
     }
     expect(problems).toEqual([]);
   });
 
+  it('reserves the ABOVE-MODAL canvas for effects that are about a modal', () => {
+    // `above` draws over the Discover / Choose One overlays, which are otherwise deliberately above every
+    // board effect. A board moment drawn over the window that is asking the player a question is a bug, not
+    // a flourish — so the slot carries an explicit inventory rather than being available by default.
+    const ABOUT_A_MODAL = new Set(['prismatic-pick']);
+    const claimed = ENTRIES.filter((e) => isRecord(e.raw) && e.raw.slot === 'above').map((e) => e.stem);
+    expect(claimed.filter((s) => !ABOUT_A_MODAL.has(s)),
+      'a def took the above-modal canvas without being about a modal — check it, then add it here')
+      .toEqual([]);
+    expect([...ABOUT_A_MODAL].filter((s) => !claimed.includes(s)),
+      'this inventory names a def that no longer claims the slot — delete the entry').toEqual([]);
+  });
+
   it('survives coercion with the slot it declared', () => {
     const problems: string[] = [];
     for (const { stem, raw } of ENTRIES) {
-      const declared = isRecord(raw) && raw.slot === 'under' ? 'under' : undefined;
+      const declared = isRecord(raw) && (raw.slot === 'under' || raw.slot === 'above') ? raw.slot : undefined;
       const coerced = coerceDef(raw)?.slot;
       if (coerced !== declared) problems.push(`${stem}: declared ${String(declared)}, coerced to ${String(coerced)}`);
     }

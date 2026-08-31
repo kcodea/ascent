@@ -72,12 +72,15 @@ describe('no redundant PNG masters ship alongside their WebP builds', () => {
     // and Prismatic Pick icons = 11 files, net +10 — the new Gemheart Golem master REPLACED the existing
     // `gemheart-shard.webp` (one file serving both sets, which is what the owner asked for) and cost nothing.
     // Five set-3 Kobolds are still in `ART_PENDING` and will cost 5 more when their masters land.)
+    // → 1066 (2026-08-31, later the same day: the owner named three files whose card titles had moved
+    // (Flagrunner/Dealer/Jewel), plus three Choose One SECOND-branch arts that the earlier pass had left on
+    // the floor — k3_facetbound2, k3_jeweler2, k3_splitpick2. Six files; two Kobolds still pending.)
     //
     // NB there is real SLACK available that nobody has spent yet: the 16 Celestials archived on 2026-08-28 —
     // and ~40 other archived cards — still have their art shipping in `art/minions/`, unreachable by any live
     // card. Reclaiming it is a bigger win than any of these +2s, and belongs in its own pass rather than
     // riding a content PR. (The stated rationale has also drifted: at +176 the whole-zip count passed 1000
     // some time ago, so this ceiling is now a growth ratchet rather than the cap it names.)
-    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1061);
+    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1067);
   });
 });

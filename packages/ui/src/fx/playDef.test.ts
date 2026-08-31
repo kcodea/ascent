@@ -12,6 +12,7 @@ import {
   playDef,
   playableDef,
   playableLayers,
+  withCamera,
 } from './playDef';
 
 /**
@@ -242,5 +243,43 @@ describe('canPlayDefs / ensureDefsReady', () => {
   it('ensureDefsReady is idempotent and always resolves', async () => {
     await expect(ensureDefsReady()).resolves.toBeUndefined();
     await expect(ensureDefsReady()).resolves.toBeUndefined();
+  });
+});
+
+/**
+ * THE CAMERA ANCHOR (owner report 2026-08-31: Blast Pump "is going off in the top left of the screen ... even
+ * though the anchor in the effect is screen center").
+ *
+ * `resolveAnchor` answers `ORIGIN` — (0, 0) — for any anchor the caller did not stage, so a camera-anchored
+ * def played from a call site that staged only source/target landed in the corner. `withCamera` fills the one
+ * anchor that never depended on the caller, at the chokepoint every authored effect passes through.
+ */
+describe('withCamera', () => {
+  it('fills in the viewport centre when the caller staged no camera', () => {
+    // The suite is headless, so the window is staged here — which is also the honest shape of the assertion:
+    // the centre is read from the live viewport, not from a constant.
+    // @ts-expect-error — a two-field stand-in is everything this helper reads
+    globalThis.window = { innerWidth: 1600, innerHeight: 900 };
+    try {
+      const filled = withCamera({ source: { x: 10, y: 20 }, target: { x: 30, y: 40 } });
+      expect(filled.camera, 'the corner is never the right answer for a camera anchor').toEqual({ x: 800, y: 450 });
+      expect(filled.source, 'and it touches nothing else').toEqual({ x: 10, y: 20 });
+      expect(filled.target).toEqual({ x: 30, y: 40 });
+    } finally {
+      // @ts-expect-error — restoring the headless default the rest of the suite runs under
+      delete globalThis.window;
+    }
+  });
+
+  it('never overrides a camera the caller DID stage', () => {
+    // Three live call sites hand-roll the same expression, and the workbench stages its own from the sampled
+    // viewport. A default that overwrote those would be a second, competing definition.
+    const staged = { source: { x: 1, y: 2 }, camera: { x: 500, y: 600 } };
+    expect(withCamera(staged), 'the caller wins').toBe(staged);
+  });
+
+  it('leaves the anchors untouched with no DOM (the pure lanes must not need a window)', () => {
+    const bare = { source: { x: 1, y: 2 } };
+    expect(withCamera(bare), 'no window, no camera — and no crash').toBe(bare);
   });
 });

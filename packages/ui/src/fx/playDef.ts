@@ -378,7 +378,30 @@ export function playDef(id: string, anchors: FxAnchors, opts: PlayDefOptions = {
   return perfMonitor.measure(`fx:${id}`, () => playDefInner(id, anchors, opts));
 }
 
-function playDefInner(id: string, anchors: FxAnchors, opts: PlayDefOptions = {}): (() => void) | null {
+/**
+ * THE `camera` ANCHOR HAS ONE MEANING: the viewport centre.
+ *
+ * Every anchor a def can name resolves to `ORIGIN` — literally (0, 0), the top-left corner — when the caller
+ * did not stage it (`resolveAnchor`). For `source`/`target`/`slot` that is the honest answer: only the caller
+ * knows where the cards are. `camera` is different — it is the ONE anchor that does not depend on the caller
+ * at all, so a caller omitting it was never expressing "I have no camera", only "I forgot".
+ *
+ * That is exactly the bug the owner hit on 2026-08-31: Blast Pump's authored def is three camera-anchored
+ * bursts, the Equipment-use call staged `{ source, target, cursor }`, and the whole effect fired in the
+ * top-left corner of the screen. Three other live call sites had already hand-rolled this same expression,
+ * which is the tell that it belonged here rather than at each of them.
+ *
+ * Filled in HERE, at the single chokepoint every authored effect passes through, so a def authored against
+ * the workbench's camera (`viewport centre`) plays in the same place in the real game. Guarded for a
+ * DOM-less environment so the pure tests are unaffected.
+ */
+export function withCamera(anchors: FxAnchors): FxAnchors {
+  if (anchors.camera || typeof window === 'undefined') return anchors;
+  return { ...anchors, camera: { x: window.innerWidth / 2, y: window.innerHeight / 2 } };
+}
+
+function playDefInner(id: string, rawAnchors: FxAnchors, opts: PlayDefOptions = {}): (() => void) | null {
+  const anchors = withCamera(rawAnchors);
   const stored = getDef(id);
   if (!stored) {
     // DEV-only because it is an AUTHORING mistake — a binding naming a def that isn't committed. The registry

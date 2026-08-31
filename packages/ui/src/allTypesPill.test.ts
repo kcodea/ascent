@@ -55,10 +55,11 @@ const ART_PENDING = new Set<string>([
   // SET 3 KOBOLDS — the owner's roster (2026-08-30) shipping ahead of its art, exactly the case this seam
   // exists for. Set 3 is `enabled: false` and reachable only through the Scene Builder, so none of these can
   // reach a player un-arted. Delete each id the moment its master lands.
-  // The 2026-08-31 master batch landed art for nine of them; these five are what the owner's folder did not
-  // name. Four files in it (Dealer, Flagrunner, GemBus, Jewel) match no card in the roster and were left
-  // unwired rather than guessed at — the art rule is a NAME match, never an inference.
-  'k3_forkvein', 'k3_forkroad', 'k3_jeweler', 'k3_forksong', 'k3_forkedcrown',
+  // The 2026-08-31 master batch landed art for nine, and the owner then NAMED the three files whose card
+  // titles had moved since the art was drawn (Flagrunner → Forksong Herald, Dealer → Forked Crown,
+  // Jewel → Prismatic Jeweler). Two remain, and both are waiting on the owner rather than on a file:
+  // `GemBus` is unclaimed, and the `SplitpickApprentice` master is claimed by two cards at once.
+  'k3_forkvein', 'k3_forkroad',
 ]);
 
 describe('art coverage for live cards', () => {

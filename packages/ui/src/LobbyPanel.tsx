@@ -278,9 +278,12 @@ function ScoutCard({ lobby, seat, intel, at, pinned }: {
         <div className="lobbyscout-empty">No fights yet</div>
       ) : (
         <>
-          {/* A ROUND column on the left, titled (owner ask 2026-08-31). */}
+          {/* A titled header row over the four fight-log columns (owner ask 2026-08-31). */}
           <div className="lobbyscout-loghead">
-            <span className="lobbyscout-round lobbyscout-colhead">Round</span>
+            <span className="lobbyscout-colhead">Round</span>
+            <span className="lobbyscout-colhead">Vs</span>
+            <span className="lobbyscout-colhead">Outcome</span>
+            <span className="lobbyscout-colhead">Dmg</span>
           </div>
           {results.map((r) => (
             <div className={`lobbyscout-row ${r.outcome}`} key={r.round}>

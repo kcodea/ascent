@@ -8713,16 +8713,18 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .lobbyscout-stale { font-size: calc(7 * var(--lfont)); color: #8d8271; }
 .lobbyscout-empty { font-size: calc(8 * var(--lfont)); color: #8d8271; font-style: italic; }
 
-.lobbyscout-log { display: flex; flex-direction: column; gap: calc(8 * var(--lu));
-  padding-top: calc(12 * var(--lu)); border-top: 1px solid rgba(255, 255, 255, 0.1); }
-.lobbyscout-row { display: flex; justify-content: space-between; align-items: center; gap: calc(4 * var(--lu));
+/* GRID so the header titles and every row share the same four columns — ROUND / VS / OUTCOME / DMG (owner ask
+   2026-08-31). Rows + header are `display: contents`, so their cells become the grid's items and line up. */
+.lobbyscout-log { display: grid; grid-template-columns: calc(40 * var(--lu)) auto 1fr auto;
+  justify-items: center; align-items: center; column-gap: calc(6 * var(--lu)); row-gap: calc(8 * var(--lu));
+  padding-top: calc(12 * var(--lu)); border-top: 1px solid rgba(255, 255, 255, 0.1);
   font-size: calc(9 * var(--lfont) * var(--sc-histtext, 2)); }
+.lobbyscout-row, .lobbyscout-loghead { display: contents; }
+.lobbyscout-log .lobbyscout-empty { grid-column: 1 / -1; justify-self: start; }
 .lobbyscout-vs { display: inline-flex; align-items: center; gap: calc(3 * var(--lu)); min-width: 0; color: #d9cfba; }
 .lobbyscout-vslabel { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* ROUND column (owner ask 2026-08-31): the round each fight happened, titled, on the left of every row. */
-.lobbyscout-loghead { display: flex; }
-/* Fixed width so the "ROUND" title and the round numbers share ONE centred column (owner ask 2026-08-31). */
-.lobbyscout-round { flex: none; width: calc(34 * var(--lu)); text-align: center; font-weight: 800; color: var(--sc-label-col, #b7a98f); }
+/* The round number in the left (ROUND) column — centred by the grid's `justify-items`. */
+.lobbyscout-round { font-weight: 800; color: var(--sc-label-col, #b7a98f); }
 .lobbyscout-colhead { text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700;
   font-size: calc(6 * var(--lfont) * var(--sc-statlabel, 2)); color: var(--sc-label-col, #b7a98f); }
 .lobbyscout-dmg { display: inline-flex; align-items: center; gap: calc(2 * var(--lu)); font-weight: 800; white-space: nowrap; }
@@ -8761,7 +8763,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 
 /* Section title sitting ABOVE its content — e.g. "RUNES" (owner ask 2026-08-31). Scales with the stat-label dial. */
 .lobbyscout-sectitle { font-size: calc(7 * var(--lfont) * var(--sc-statlabel, 2)); letter-spacing: 0.08em;
-  text-transform: uppercase; font-weight: 700; color: var(--sc-label-col, #b7a98f); }
+  text-transform: uppercase; font-weight: 700; text-align: center; color: var(--sc-label-col, #b7a98f); }
 
 /* Meta line — "Tier N · N triples" (V2 + V3). */
 .lobbyscout-meta { display: flex; align-items: baseline; gap: calc(3 * var(--lu));

@@ -74,6 +74,7 @@ const CARD_REF_EFFECTS: Record<string, string> = {
   onKillCastSpell: 'spellId',
   rallyCastSpell: 'spellId',
   rallyCastNamedSpell: 'spellId',              // Flamebeat Drake -> Dragonflame
+  battlecryCastNamedSpell: 'spellId',          // Facetbound Martyr -> Veinstorm
   onTribeAttackCastNamedSpell: 'spellId',      // Warflame -> Dragonflame
   endOfTurnCastSpellEscalating: 'spellId',
   endOfTurnCastSpellOnSelf: 'spellId',        // Arnold -> Beefy

@@ -2819,6 +2819,24 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    * of the roster — and because the alternative, discovering later that Equipment effects were never in the
    * spell pipeline, is exactly the class of gap this system keeps producing.
    */
+  /**
+   * Shout / Choose One: cast a NAMED Shop spell `count` times (Facetbound Martyr, set 3).
+   *
+   * Goes through `castSpell`, the real Shop-spell pipeline, so each cast counts as a Shop spell cast and
+   * wakes every cast-watcher — the same reasoning `equipmentCastSpell` documents. Golden multiplies the
+   * count, and each repetition is a GENUINE cast rather than one doubled one, matching what golden means
+   * everywhere else.
+   *
+   * Untargeted only: `castSpell` takes an optional target and this passes none, so a spell that needs one
+   * would fizzle. Every caller today names an untargeted spell (Veinstorm); a targeted one would need the
+   * target threaded, which is a different factory rather than a quiet extension of this.
+   */
+  battlecryCastNamedSpell: (ctx, self, params) => {
+    const spell = CARD_INDEX[str(params.spellId)];
+    if (!spell?.spell) return; // not a spell id — never a silent bespoke effect
+    for (let i = 0; i < Math.max(1, num(params.count, 1)) * gold(self); i++) castSpell(ctx.state, spell, undefined);
+  },
+
   equipmentCastSpell: (ctx, _self, params, payload) => {
     const spell = CARD_INDEX[str(params.spellId)];
     if (!spell?.spell) return; // not a spell id — never a silent bespoke effect

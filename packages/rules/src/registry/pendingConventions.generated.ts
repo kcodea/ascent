@@ -383,7 +383,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "title": "'shout' family · 53 cards",
     "statement": "All 53 'shout' cards trigger the same way. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
-    "currentBehaviour": "48 effect factories across 53 cards dispatch through the 'shout' presentation family, all on the single trigger 'onPlay' (both); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
+    "currentBehaviour": "49 effect factories across 53 cards dispatch through the 'shout' presentation family, all on the single trigger 'onPlay' (both); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
     "cardText": "Exemplar — Pennycat: \"Battlecry: summon a 1/1 Stray next to it.\" · Members: Pennycat · Mage-Pup · Black Belt Brian · Buddy Buddy · Cinderwing Matron · Hoard Cleric · Crypt Broker · Commander Warpath · Broodfire · Brood Whelp · Scalefeather · Flutterdrake · … and 41 more",
     "example": "Pennycat follows the 'shout' convention — its trigger fires on onPlay. its printed numbers double when the card is gilded.",
     "contentIds": [
@@ -839,7 +839,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "title": "Gilding default: ×2",
     "statement": "A gilded card doubles its printed numbers. Outliers instead gild the summoned token, reshape the effect, or add a proc; spells never gild. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "gilding",
-    "currentBehaviour": "277 cards carry authored goldenText; every other card inherits the ×2 number-doubler. The outlier shapes are the owner's 2026-08-28 rulings, now carried per card as the contract's gildedDelta kind (R-GILD-01); spells and Rubies are not-applicable (R-GILD-02).",
+    "currentBehaviour": "278 cards carry authored goldenText; every other card inherits the ×2 number-doubler. The outlier shapes are the owner's 2026-08-28 rulings, now carried per card as the contract's gildedDelta kind (R-GILD-01); spells and Rubies are not-applicable (R-GILD-02).",
     "cardText": "Exemplar — Wolves Den: \"Deathrattle: Summon 3 Crypt Wolves.\" → gilded: \"Deathrattle: Summon 6 Crypt Wolves.\"",
     "example": "Wolves Den's gilded text just writes the ×2 out in full — while gilded Dunkey instead summons ONE gilded Armadiyo."
   },

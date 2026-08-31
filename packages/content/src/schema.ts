@@ -248,6 +248,7 @@ export const EffectFactoryIdSchema = z.enum([
   'deathrattleCastLastSpell',
   'rallyCastRandomTargetedSpell',
   'deathrattleTriggerAdjacentRally',
+  'battlecryCastNamedSpell',
   'rubyBounceExtra',
   'avengeCastRandomHandSpell',
   'scGrantSpellCastExtra',

@@ -58,6 +58,9 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:battlecryGainRandomMinion:onPlay': { policy: 'ownBeat', family: 'shout' },
   'factory:battlecryGainRandomMinion:onSell': { policy: 'ownBeat', family: 'economy' },
   'factory:battlecryGetRubies:onPlay': { policy: 'ownBeat', family: 'shout' },
+  // Facetbound Martyr's Veinstorm branch — its own beat, like every other Shout that produces a visible
+  // consequence; the spell it casts announces itself through the normal cast channel.
+  'factory:battlecryCastNamedSpell:onPlay': { policy: 'ownBeat', family: 'shout' },
   'factory:battlecryGildTarget:onPlay': { policy: 'ownBeat', family: 'shout' },
   'factory:battlecryGrantBeastHunt:onPlay': { policy: 'ownBeat', family: 'shout' },
   'factory:battlecryGrantBeastRitual:onPlay': { policy: 'ownBeat', family: 'shout' },

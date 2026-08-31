@@ -57,6 +57,7 @@ const ART_PENDING = new Set<string>([
   // reach a player un-arted. Delete each id the moment its master lands.
   'k3_korn', 'k3_splitpick', 'k3_forkvein', 'k3_forkroad', 'k3_veinchant', 'k3_jeweler',
   'k3_blastsurveyor',
+  'k3_facetbound',
 ]);
 
 describe('art coverage for live cards', () => {

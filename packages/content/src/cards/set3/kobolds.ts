@@ -154,4 +154,24 @@ export const SET3_KOBOLDS: CardDef[] = [
     text: '**Equip Blast Pump (1):** Cast **2 Rubies** on your minions.',
     goldenText: '**Equip Blast Pump (1):** Cast **4 Rubies** on your minions.',
   },
+  {
+    // The Ruby half is `battlecryPlayRubiesAll`; the Veinstorm half casts the named spell twice through the
+    // REAL Shop-spell pipeline, so each cast counts as a Shop spell cast and wakes every cast-watcher.
+    id: 'k3_facetbound',
+    name: 'Facetbound Martyr',
+    tribe: 'kobold',
+    tier: 5,
+    attack: 5,
+    health: 4,
+    keywords: [],
+    effects: [],
+    chooseOne: [
+      { text: 'Cast **3 Rubies** on your minions.', goldenText: 'Cast **6 Rubies** on your minions.',
+        effects: [{ on: 'onPlay', do: 'battlecryPlayRubiesAll', params: { count: 3 } }] },
+      { text: 'Cast **Veinstorm** 2 times.', goldenText: 'Cast **Veinstorm** 4 times.',
+        effects: [{ on: 'onPlay', do: 'battlecryCastNamedSpell', params: { spellId: 'veinstorm', count: 2 } }] },
+    ],
+    text: '**Choose One:** cast **3 Rubies** on your minions, or cast **Veinstorm** 2 times.',
+    goldenText: '**Choose One:** cast **6 Rubies** on your minions, or cast **Veinstorm** 4 times.',
+  },
 ];

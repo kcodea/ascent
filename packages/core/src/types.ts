@@ -291,6 +291,7 @@ export type EffectFactoryId =
   | 'onSpellCastBuffRandomTribe' // Runebloom Matriarch: each spell buffs N random tribe minions
   | 'summonBuffTribeAsym' // Groveweaver: a summoned tribe minion gets +atk/+hp at the current magnitude
   | 'onSpellCastImproveSummon' // Groveweaver: each spell cast improves that grant
+  | 'battlecryCastNamedSpell' // Facetbound Martyr — cast a named Shop spell N times (recruit)
   | 'battlecryCastTaughtSpell' // Mage-Pup: Shout — cast the spell this token was taught
   | 'grantMagePupTaught' // Moonhowl Mentor: a Shop Spell was bought — mint a Mage-Pup taught that spell, NOW
   | 'battlecryGrantBeastHunt' // Elderhorn (Hunt): your Beast Rallies + Slaughters fire an extra time

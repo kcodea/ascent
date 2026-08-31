@@ -31,6 +31,7 @@ describe('set 3 scaffold', () => {
       // Set 3's OWN Kobolds (the 2026-08-30 roster), appended in declaration order…
       'k3_korn', 'k3_splitpick', 'k3_forkvein', 'k3_forkroad', 'k3_veinchant', 'k3_jeweler',
       'k3_blastsurveyor',
+      'k3_facetbound',
       // …then the nine set-2 Kobolds it keeps.
       'k_chipwick', 'k_veinbreaker', 'k_gemheart', 'k_deepdelve', 'k_geode', 'k_kobabyboldies',
       'k_kobe', 'k_boulderdash', 'k_blazer',

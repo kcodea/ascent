@@ -55,6 +55,20 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-08-31',
+    label: 'Save & Quit',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: 'Saving and quitting mid-turn now returns you to the turn with the time you left it on, instead of restarting the round timer.',
+        details: [
+          'Quitting with 8 seconds left and pressing Continue used to hand back a full turn.',
+          'The time was always saved correctly — it was being overwritten on the way back in.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-08-30',
     label: 'The Pulse',
     changes: [

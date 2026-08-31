@@ -56,6 +56,21 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-08-31',
+    label: 'Scouting Report',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: 'Right-click OR left-click an opponent in the rail to open a bigger, reworked scouting report — and click away to close it.',
+        details: [
+          'It now shows their shop tier, gilded units (triples), the dominant tribe on their board with a count, three rune sockets, and a titled fight-history table.',
+          'Each past fight shows the round, the foe’s portrait, WON/LOST, and the damage — hover a rune to read what it does.',
+          'Clicking a different opponent switches straight to their report; clicking anywhere outside closes it.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-08-31',
     label: 'End of Turn',
     changes: [
       {
@@ -63,8 +78,7 @@ export const PATCH_NOTES: PatchNote[] = [
         text: 'Cards granted at End of Turn no longer flash at double their number before settling.',
         details: [
           'Most visible on Rope Wrangler, which can hand you five cards at once.',
-          'Only the display was affected — you always received the right cards.',
-        ],
+          'Only the display was affected — you always received the right cards.',        ],
       },
     ],
   },

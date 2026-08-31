@@ -367,12 +367,13 @@ function ScoutCard({ lobby, seat, intel, at, pinned, onClose }: {
         {head}
         {intel ? (
           <div className="lobbyscout-stats">
-            {/* Tribe build + count on its OWN row; every stat's title sits ABOVE its value (owner ask 2026-08-31). */}
-            <span className="lobbyscout-stat lobbyscout-stat--wide"><i>build</i><b>{tribeText}</b></span>
+            {/* Shop tier + gilded units paired, then the tribe build on its own row beneath (owner ask
+                2026-08-31); every stat's title sits ABOVE its value. */}
             <div className="lobbyscout-statrow">
-              <span className="lobbyscout-stat"><i>tier</i><b>T{intel.tier}</b></span>
-              <span className="lobbyscout-stat"><i>triples</i><b>{intel.triples}</b></span>
+              <span className="lobbyscout-stat"><i>shop tier</i><b>T{intel.tier}</b></span>
+              <span className="lobbyscout-stat"><i>gilded units</i><b>{intel.triples}</b></span>
             </div>
+            <span className="lobbyscout-stat lobbyscout-stat--wide"><i>build</i><b>{tribeText}</b></span>
           </div>
         ) : noIntel}
         {badges}

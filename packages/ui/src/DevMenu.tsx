@@ -63,6 +63,7 @@ import { RuneforgeBgTuner } from './RuneforgeBgTuner';
 import { RuneforgeLookTuner } from './RuneforgeLookTuner';
 import { OpponentsBackplateTuner } from './OpponentsBackplateTuner';
 import { RuneSheenTuner } from './RuneSheenTuner';
+import { CombatCtlTuner } from './CombatCtlTuner';
 import { GlowTuner } from './GlowTuner';
 import { AlignArcTuner } from './AlignArcTuner';
 import { CardPlateTuner } from './CardPlateTuner';
@@ -159,6 +160,7 @@ const GROUPS: Group[] = [
       { key: 'endturnbtn', icon: '💎', label: 'End Turn', C: EndTurnTuner, hint: 'The standalone End Turn diamond', alt: 'face the omen' },
       { key: 'heropowerbtn', icon: '💠', label: 'Hero Power', C: HeroPowerTuner, hint: 'The hero power diamond' },
       { key: 'tavernupbtn', icon: '🍺', label: 'Tavern Up', C: TavernUpTuner, hint: 'The tavern-upgrade stone button', alt: 'upgrade tier' },
+      { key: 'combatctl', icon: '🎚️', label: 'Combat Controls', C: CombatCtlTuner, hint: 'Look of the Summary pill, End Combat pill and Skip button — shape, colours, outline, text size', alt: 'summary skip end combat pill replay hud' },
     ],
   },
   {

@@ -150,9 +150,10 @@ const DEFAULTS: EquipSlotConfig = {
   usesX: 0, usesY: 0, usesScale: 1.29,
 
   railX: 10, railY: 0, railScale: 1.18,
-  // Generous on purpose. A rail that lingers a beat too long costs nothing; one that vanishes early is the
-  // bug being fixed.
-  railGraceMs: 320,
+  // 320 → 80 (owner tuning, 2026-08-31). The generous grace was set when a rail that vanished early was the
+  // bug being fixed; with the rail's placement settled, a quarter-second of lingering reads as the menu
+  // refusing to close. Still non-zero, so crossing the gap between the button and the rail does not drop it.
+  railGraceMs: 80,
   // Well under the clip's own level: the pick is a confirmation, not an event. It fires on a hover-menu
   // click, so it is the one sound here a player can trigger repeatedly while just browsing.
   selectVolume: 0.3,

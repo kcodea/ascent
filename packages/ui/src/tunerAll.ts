@@ -64,6 +64,7 @@ import { SPEC as RubyPowerFxSpec } from './RubyPowerFxTuner';
 import { SPEC as RuneforgeBgSpec } from './RuneforgeBgTuner';
 import { SPEC as RuneforgeLookSpec } from './RuneforgeLookTuner';
 import { SPEC as RuneSheenSpec } from './RuneSheenTuner';
+import { SPEC as CombatCtlSpec } from './CombatCtlTuner';
 import { SPEC as SmokeSpec } from './SmokeTuner';
 import { SPEC as SpellBuffFxSpec } from './SpellBuffFxTuner';
 import { SPEC as SpellPowerFxSpec } from './SpellPowerFxTuner';
@@ -129,6 +130,7 @@ export const ALL_TUNER_SPECS: TunerSpec<never>[] = [
   RuneforgeBgSpec,
   RuneforgeLookSpec,
   RuneSheenSpec,
+  CombatCtlSpec,
   SmokeSpec,
   SpellBuffFxSpec,
   SpellPowerFxSpec,

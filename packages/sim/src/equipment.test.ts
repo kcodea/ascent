@@ -631,3 +631,56 @@ describe('holding TWO Equipment', () => {
     expect(cues.map((c) => c.equipmentId), 'in board order').toEqual(['bloodpot', 'titan_hammer']);
   });
 });
+
+/**
+ * BLAST PUMP — the first EQUIPMENT SPELL (set-3 Kobold roster, 2026-08-30).
+ *
+ * Unlike Bloodpot and the Hammer it resolves no bespoke effect: it CASTS `rubyexcavation`, the shipped set-2
+ * Shop spell whose text is already its payload. That classification is the thing worth testing — the Rubies
+ * must arrive through the real Shop-spell pipeline, and Gilded must produce two GENUINE casts rather than one
+ * doubled one, which is what `count` on `equipmentCastSpell` exists for.
+ */
+describe('Blast Pump — an Equipment that casts a Shop spell', () => {
+  const armedPump = (golden = false): RunState => {
+    let s = run({
+      hand: [body('b', 'k3_blastsurveyor', { golden })],
+      board: [body('t', 'sandbag'), body('u', 'sandbag')],
+    });
+    s = play(s, 'b', 2);
+    return s;
+  };
+
+  it('grants Blast Pump, and using it Rubies EVERY friendly minion', () => {
+    let s = armedPump();
+    expect(equipmentState(s).available.map((g) => g.equipmentId)).toContain('blast_pump');
+    const before = ['t', 'u'].map((u) => statsOf(s, u));
+    s = activate(s); // targetMode 'none' — board-wide, nothing to aim at
+    const after = ['t', 'u'].map((u) => statsOf(s, u));
+    // 2 Rubies at base strength (1/1 each) on each body. Asserted as "grew by the same amount" rather than a
+    // literal, so a Ruby-strength retune does not make this a false alarm.
+    for (let i = 0; i < 2; i++) {
+      expect(after[i]![0], 'attack grew').toBeGreaterThan(before[i]![0]);
+      expect(after[i]![1], 'health grew').toBeGreaterThan(before[i]![1]);
+    }
+  });
+
+  it('GILDED casts it twice, so the board gains strictly more than the base version does', () => {
+    const gain = (golden: boolean): number => {
+      let s = armedPump(golden);
+      const before = statsOf(s, 't')[0];
+      s = activate(s);
+      return statsOf(s, 't')[0] - before;
+    };
+    const base = gain(false);
+    const gilded = gain(true);
+    expect(base, 'the base cast lands something').toBeGreaterThan(0);
+    expect(gilded, 'two genuine casts beat one').toBe(base * 2);
+  });
+
+  it('costs 1 Gold', () => {
+    let s = armedPump();
+    const before = s.embers;
+    s = activate(s);
+    expect(s.embers).toBe(before - 1);
+  });
+});

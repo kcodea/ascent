@@ -12,12 +12,17 @@ export type FxAnchorId = 'source' | 'target' | 'travel' | 'cursor' | 'slot' | 'c
  * a child of `.app` at z-index 0 — above the board backdrop (`.boardbg`), below every card. A ground slam,
  * a scorch mark, a pool of light: things that should read as happening ON the board rather than in front of it.
  *
+ * `'above'` is the third and rarest: a fixed canvas at z200, over the MODAL overlays (Discover / Choose One
+ * sit at z160, deliberately above every board effect). It exists for an effect that is ABOUT the modal — the
+ * flourish that fires as a Choose One window opens — and nothing else should reach for it: a board moment
+ * drawn over the modal that is asking the player a question is a bug, not a flourish.
+ *
  * **It is a GLOBAL layer, not a per-card one.** `under` puts the effect beneath *every* card on the board,
  * not beneath the one it is anchored to. DOM z-index and Pixi draw order are separate systems — the cards
  * are DOM, the effect is a single WebGL canvas — so "behind this card but in front of that one" is not
  * expressible and is deliberately out of scope.
  */
-export type FxSlot = 'over' | 'under';
+export type FxSlot = 'over' | 'under' | 'above';
 
 export interface FxLayer {
   primitive: string;

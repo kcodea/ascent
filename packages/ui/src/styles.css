@@ -8699,11 +8699,12 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .lobbyscout-hero { font-size: calc(8 * var(--lfont) * var(--sc-hero, 2)); color: var(--sc-label-col, #b7a98f);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-/* Three equal columns so the numbers line up between seats — the point is comparing opponents, and a
-   content-width layout makes two cards you open in sequence disagree about where "tier" sits. */
-.lobbyscout-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: calc(3 * var(--lu));
+/* Tribe build+count on its OWN row, then tier + triples paired beneath it; each stat's title sits ABOVE its
+   value (owner ask 2026-08-31 — the `<i>` label is authored before the `<b>` value in the DOM). */
+.lobbyscout-stats { display: flex; flex-direction: column; gap: calc(4 * var(--lu));
   padding-top: calc(4 * var(--lu)); border-top: 1px solid rgba(255, 255, 255, 0.1); }
-.lobbyscout-stat { display: flex; flex-direction: column; align-items: center; line-height: 1.1; }
+.lobbyscout-statrow { display: grid; grid-template-columns: repeat(2, 1fr); gap: calc(3 * var(--lu)); }
+.lobbyscout-stat { display: flex; flex-direction: column; align-items: center; gap: calc(1 * var(--lu)); line-height: 1.1; }
 .lobbyscout-stat b { font-size: calc(11 * var(--lfont) * var(--sc-stat, 2)); font-weight: 800; color: var(--sc-stat-col, var(--acc)); }
 .lobbyscout-stat i { font-size: calc(7 * var(--lfont) * var(--sc-statlabel, 2)); font-style: normal; letter-spacing: 0.07em;
   text-transform: uppercase; color: var(--sc-label-col, #b7a98f); }

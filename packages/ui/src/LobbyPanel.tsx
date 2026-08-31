@@ -223,7 +223,7 @@ function ScoutCard({ lobby, seat, intel, at, pinned, onClose }: {
   };
 
   // Shared reads + building blocks; each layout below arranges the SAME data differently.
-  const heroPower = getHero(seat.heroId).power.name;
+  const heroName = getHero(seat.heroId).name;
   const tribe = intel?.topTribe;
   const tribeLabel = tribe ? TRIBE_LABEL[tribe] : 'Mixed';
   const tribeCount = intel?.topTribeCount;
@@ -232,7 +232,7 @@ function ScoutCard({ lobby, seat, intel, at, pinned, onClose }: {
   const head = (
     <div className="lobbyscout-head">
       <span className="lobbyscout-name">{seat.label}</span>
-      <span className="lobbyscout-hero">{heroPower}</span>
+      <span className="lobbyscout-hero"><b>Hero:</b> {heroName}</span>
     </div>
   );
   // COMPLETED QUESTS as badges. Runes moved to the socket strip below (owner ask 2026-08-31).
@@ -346,7 +346,7 @@ function ScoutCard({ lobby, seat, intel, at, pinned, onClose }: {
           <span className="lobbyscout-name">{seat.label}</span>
           {intel ? <span className="lobbyscout-tag" style={{ '--c': tribeColor } as React.CSSProperties}>{tribeText}</span> : null}
         </div>
-        <span className="lobbyscout-hero">{heroPower}</span>
+        <span className="lobbyscout-hero"><b>Hero:</b> {heroName}</span>
         {intel ? (
           <div className="lobbyscout-meta lobbyscout-meta--tight">
             <span>Tier <b>{intel.tier}</b></span>
@@ -367,9 +367,12 @@ function ScoutCard({ lobby, seat, intel, at, pinned, onClose }: {
         {head}
         {intel ? (
           <div className="lobbyscout-stats">
-            <span className="lobbyscout-stat"><b>{tribeText}</b><i>build</i></span>
-            <span className="lobbyscout-stat"><b>T{intel.tier}</b><i>tier</i></span>
-            <span className="lobbyscout-stat"><b>{intel.triples}</b><i>triples</i></span>
+            {/* Tribe build + count on its OWN row; every stat's title sits ABOVE its value (owner ask 2026-08-31). */}
+            <span className="lobbyscout-stat lobbyscout-stat--wide"><i>build</i><b>{tribeText}</b></span>
+            <div className="lobbyscout-statrow">
+              <span className="lobbyscout-stat"><i>tier</i><b>T{intel.tier}</b></span>
+              <span className="lobbyscout-stat"><i>triples</i><b>{intel.triples}</b></span>
+            </div>
           </div>
         ) : noIntel}
         {badges}

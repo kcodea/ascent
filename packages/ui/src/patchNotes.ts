@@ -56,6 +56,21 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-08-30',
+    label: 'Forge Facelift',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: 'The Runeforge got a visual overhaul — illustrated backdrop, a gold title plaque, and bigger, cleaner rune tablets.',
+        details: [
+          'A new forge illustration glows behind the panel.',
+          'The stone banner became a gold plaque with a larger title; the Gold pill and rune tablets were resized and reseated.',
+          'The anvil icon and the sigil medallion were retired from the forge for a cleaner read (the Compendium keeps the medallion).',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-08-30',
     label: 'The Pulse',
     changes: [
       {

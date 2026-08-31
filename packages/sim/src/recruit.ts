@@ -7498,6 +7498,42 @@ export function openDiscover(state: RunState, spec: DiscoverSpec): void {
  * first if the card targets) — and the printed text swaps its "Choose One:" label for a coloured (Both)
  * followed by both option texts, so the card reads as exactly what it will do.
  */
+/**
+ * EVERY input the (Both) predicate reads, with NO optional fields.
+ *
+ * This exists because of a bug the type system could not catch (owner report 2026-08-31: the Prismatic
+ * Pick's "both effects" branch armed a charge and no card lit up). Three UI surfaces hand-rolled their own
+ * projection of the run —
+ *
+ *     { runeFacetwright: run.runeFacetwright, runeUnbrokenVein: run.runeUnbrokenVein }
+ *
+ * — written before charges existed. `chooseBothActive` takes a `Pick<RunState, …>`, and every field it picks
+ * is OPTIONAL on `RunState`, so a projection that silently dropped one still compiled. The predicate then
+ * read `chooseBothCharges` as undefined on every card view: no (Both) text, and no `data-choose-both` for
+ * the marker FX to bind to, while the FX list itself (built from the full run) happily produced keys for
+ * elements that were never stamped.
+ *
+ * Requiring every field is what makes a dropped one a COMPILE error, and `chooseBothStateOf` is what makes
+ * "add the new field to the projection" a single edit instead of three. Adding an input to the predicate
+ * without extending both is caught by the `chooseBothProjection` Doc Bot lane.
+ */
+export interface ChooseBothState {
+  runeFacetwright: boolean;
+  runeUnbrokenVein: boolean;
+  chooseBothCharges: number;
+}
+
+/** The one projection every surface passes to `chooseBothActive`. */
+export function chooseBothStateOf(
+  s: Pick<RunState, 'runeFacetwright' | 'runeUnbrokenVein' | 'chooseBothCharges'>,
+): ChooseBothState {
+  return {
+    runeFacetwright: !!s.runeFacetwright,
+    runeUnbrokenVein: !!s.runeUnbrokenVein,
+    chooseBothCharges: s.chooseBothCharges ?? 0,
+  };
+}
+
 export function chooseBothActive(
   state: Pick<RunState, 'runeFacetwright' | 'runeUnbrokenVein' | 'chooseBothCharges'>,
   card: { golden?: boolean } | undefined,

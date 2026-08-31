@@ -75,7 +75,7 @@ describe('no redundant PNG masters ship alongside their WebP builds', () => {
     // → 1066 (2026-08-31, later the same day: the owner named three files whose card titles had moved
     // (Flagrunner/Dealer/Jewel), plus three Choose One SECOND-branch arts that the earlier pass had left on
     // the floor — k3_facetbound2, k3_jeweler2, k3_splitpick2. Six files; two Kobolds still pending.)
-    // → 1068 (2026-08-31, the last of that batch: GemBus + GemBus2 → Forkroad Scavenger by owner
+    // → 1068 (2026-08-31, the last of that batch: GemBus + GemBus2 → Gem Bus by owner
     // ruling. Only Forkvein Prospector is unarted now, so this budget has one more file to give.)
     // → 1070 (2026-08-31, the Prismatic Pick's two Choose One BRANCH arts — prismatic_pick1 and
     // prismatic_pick2. An Equipment numbers every branch rather than reusing its icon for the first, so a

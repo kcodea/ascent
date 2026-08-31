@@ -291,10 +291,10 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   // filing this under `passive` put a ruby-trigger card in a cluster of `passive`-trigger cards and
   // dissolved the owner-approved `q-conv-family-passive` question by making that cluster incoherent.
   'factory:rubySelfCastPerOtherRuby:rubyPlayedAnywhere': { policy: 'foldedCue', family: 'economyReact' },
-  // Forksong Herald's Rally grant and Prismpick's first branch — a card arriving in hand is its own moment.
+  // Flagrunner's Rally grant and Prismpick's first branch — a card arriving in hand is its own moment.
   'factory:grantRandomChooseOne:onAttack': { policy: 'ownBeat', family: 'rally' },
-  // Forked Crown arms a run flag at the start of the turn — nothing lands on the board to animate.
-  // Forked Crown arms a run flag as the turn opens — nothing lands on the board, so no beat of its own.
+  // Dealer arms a run flag at the start of the turn — nothing lands on the board to animate.
+  // Dealer arms a run flag as the turn opens — nothing lands on the board, so no beat of its own.
   // The family is `economy`, matching the other `startOfTurn` effect: convention clusters are keyed on the
   // TRIGGER group, so filing a startOfTurn effect under `passive` would put it in a cluster of passive-trigger
   // cards and dissolve the owner-approved `q-conv-family-passive` question (the same trap Double Trouble hit).

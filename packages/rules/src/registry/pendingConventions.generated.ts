@@ -2395,7 +2395,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "statement": "All 2 of these fire on one trigger: the turn starts. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
     "currentBehaviour": "2 effect factories across 2 cards dispatch on 'startOfTurn' (recruit) — re-clustered by TRIGGER out of the 'economy' presentation family on the owner's 2026-08-28 ruling; the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Fel Conjurer: \"Start of Turn: get a Quick Study.\" · Members: Fel Conjurer · Forked Crown",
+    "cardText": "Exemplar — Fel Conjurer: \"Start of Turn: get a Quick Study.\" · Members: Fel Conjurer · Dealer",
     "example": "Fel Conjurer fires when the turn starts, like every other card here. its printed numbers double when the card is gilded.",
     "contentIds": [
       "d2_felconjurer",

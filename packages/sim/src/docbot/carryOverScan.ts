@@ -165,7 +165,7 @@ export const CARRY_OVER_EXCUSED: Readonly<Record<string, CarryOverExcuse>> = {
   cardsBoughtThisTurn: { kind: 'needs-staging', why: 'threaded into the combat side (combatSide.cardsBoughtThisTurn) for Frenzied Excavator; the fixture stages none' },
   moonhowlTeachesThisTurn: { kind: 'no-combat-meaning', why: 'per-turn teach CAP for Moonhowl Mentor buys; teaching happens on the buy itself, never mid-fight' },
   windowShopRolls: { kind: 'no-combat-meaning', why: 'Window Shopping\'s free-roll tally; rolls are a shop action' },
-  chooseBothCharges: { kind: 'no-combat-meaning', why: 'the armed "take BOTH halves" charges from Forked Crown; Choose One resolves when a HAND card is played in the shop, and a fight never plays one — the charge is spent or cleared before combat begins' },
+  chooseBothCharges: { kind: 'no-combat-meaning', why: 'the armed "take BOTH halves" charges from Dealer; Choose One resolves when a HAND card is played in the shop, and a fight never plays one — the charge is spent or cleared before combat begins' },
   restockUsedThisTurn: { kind: 'no-combat-meaning', why: 'Restock\'s per-turn shop latch; shop-only' },
   bargainBinUsedThisTurn: { kind: 'no-combat-meaning', why: 'Bargain Bin\'s per-turn shop latch; shop-only' },
   collectorUsedThisTurn: { kind: 'no-combat-meaning', why: 'Collector\'s per-turn buy latch; shop-only' },

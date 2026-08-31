@@ -10,7 +10,7 @@ import type { CardDef } from '@game/core';
  * ── The tribe's second axis: CHOOSE ONE ───────────────────────────────────────────────────────────────────
  *
  * Set 2's Kobolds were about Rubies alone. This roster keeps that and adds Choose One as the tribe's other
- * spine — most of the new cards are a fork in the road, and the roster's payoff cards (Forked Crown, Ruby
+ * spine — most of the new cards are a fork in the road, and the roster's payoff cards (Dealer, Ruby
  * Roach, Prismpick Artificer) reward taking those forks. That is why so many entries here carry `chooseOne`
  * rather than plain `effects`.
  *
@@ -84,7 +84,7 @@ export const SET3_KOBOLDS: CardDef[] = [
     // The T3 fork: a body now against Ruby fuel. `battlecryGainRandomMinion` with no tribe draws from the
     // run's pool at or below the tavern tier, so in a set-3 run it pulls Kobolds and neutrals.
     id: 'k3_forkroad',
-    name: 'Forkroad Scavenger',
+    name: 'Gem Bus',
     tribe: 'kobold',
     tier: 3,
     attack: 3,
@@ -122,7 +122,7 @@ export const SET3_KOBOLDS: CardDef[] = [
     // The tribe's Discover fork. `battlecryDiscoverMinion` takes a tribe, so the left branch is a true
     // three-card Kobold peek rather than a random grant; the right is the shared Shop-spell Discover.
     id: 'k3_jeweler',
-    name: 'Prismatic Jeweler',
+    name: 'Jewel',
     tribe: 'kobold',
     tier: 4,
     attack: 4,
@@ -205,7 +205,7 @@ export const SET3_KOBOLDS: CardDef[] = [
     // Rally: a Choose One card to hand. `grantRandomChooseOne` draws from the RUN's pool, so it can only
     // ever hand back something this set actually fields.
     id: 'k3_forksong',
-    name: 'Forksong Herald',
+    name: 'Flagrunner',
     tribe: 'kobold',
     tier: 4,
     attack: 4,
@@ -219,7 +219,7 @@ export const SET3_KOBOLDS: CardDef[] = [
     // `set` (not add) — "the FIRST Choose One card you play each turn", so the charge refreshes to exactly one
     // per turn and is never banked. The turn boundary clears charges first, then this re-grants.
     id: 'k3_forkedcrown',
-    name: 'Forked Crown',
+    name: 'Dealer',
     tribe: 'kobold',
     tier: 4,
     attack: 4,

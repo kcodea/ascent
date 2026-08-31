@@ -32,7 +32,7 @@ if (import.meta.env.DEV) {
   (window as unknown as { __choreoEot?: boolean }).__choreoEot = CHOREO_EOT;
 }
 import { chooseBothText } from './cardText';
-import { playerOpponent, alignmentsOf, boardHasCelestial, chooseBothActive, chooseOneNeedsChoice, computeCombatOdds, type CombatOdds, rubyCastCount, rubyStatBonus, CONFIG, RIFTS, hasTier7Access, maxTierFor, conjuredStats, cardBuff, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, dragonflameCasts, nextOpponent, lossDamageCap, playerLossDamage, minionCostOf, heroOfferPrice, dominantBoardTribe, effectiveTargetTribe, boardManaBonus, upgradeCostOf, nextRefreshCostOf, poolOf, type RunState, type ShopCard, type CardBuff, type BoardCard, type BoardSnapshot, gildCopiesNeeded, activePowers, gateUses, runeStacksOf } from '@game/sim';
+import { playerOpponent, alignmentsOf, boardHasCelestial, chooseBothActive, chooseBothStateOf, type ChooseBothState, chooseOneNeedsChoice, computeCombatOdds, type CombatOdds, rubyCastCount, rubyStatBonus, CONFIG, RIFTS, hasTier7Access, maxTierFor, conjuredStats, cardBuff, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, dragonflameCasts, nextOpponent, lossDamageCap, playerLossDamage, minionCostOf, heroOfferPrice, dominantBoardTribe, effectiveTargetTribe, boardManaBonus, upgradeCostOf, nextRefreshCostOf, poolOf, type RunState, type ShopCard, type CardBuff, type BoardCard, type BoardSnapshot, gildCopiesNeeded, activePowers, gateUses, runeStacksOf } from '@game/sim';
 import { createPortal } from 'react-dom';
 import { setCardId, setCardStats, toggleCardKeyword, setEnemyStats, setEnemyCardId, toggleEnemyKeyword, removeEnemy } from './sandboxEdit';
 import { UnitEditor } from './UnitEditor';
@@ -598,9 +598,11 @@ interface ShopViewOpts {
   /** The run's tavern tier — Lantern Light's shop-slot text scales with it (audit 2026-08-06: the slot was
    *  the ONE surface not passing it, so the spell read base there and live everywhere else). */
   tier?: number;
-  /** The run flags the (Both) predicate reads — a Choose One offer whose branches are already all enabled
-   *  prints (Both) in the tavern too, not a choice the shop is lying about. */
-  chooseBothState?: { runeFacetwright?: boolean; runeUnbrokenVein?: boolean };
+  /** The run state the (Both) predicate reads — a Choose One offer whose branches are already all enabled
+   *  prints (Both) in the tavern too, not a choice the shop is lying about. Built ONLY by
+   *  `chooseBothStateOf`: every field is required there precisely so a surface cannot drop one, which is how
+   *  the Prismatic Pick's charge went unpainted (owner report 2026-08-31). */
+  chooseBothState?: ChooseBothState;
 }
 
 /** ShopViewOpts assembled from a raw RunState — the live-text inputs for surfaces that preview a card the
@@ -625,7 +627,7 @@ function liveOptsFromRun(run: RunState): ShopViewOpts {
     lastSpellThisTurnName: run.lastSpellThisTurnId ? CARD_INDEX[run.lastSpellThisTurnId]?.name : undefined,
     topTribe: dominantBoardTribe(run), rubyBonus: rubyStatBonus(run), tier7Access: hasTier7Access(run),
     tier: run.tier,
-    chooseBothState: { runeFacetwright: run.runeFacetwright, runeUnbrokenVein: run.runeUnbrokenVein },
+    chooseBothState: chooseBothStateOf(run),
   };
 }
 
@@ -3022,8 +3024,8 @@ export function Recruit() {
    * two rune flags, and every surface reading this object lights up at once with no further wiring.
    */
   const bothState = useMemo(
-    () => ({ runeFacetwright: run.runeFacetwright, runeUnbrokenVein: run.runeUnbrokenVein }),
-    [run.runeFacetwright, run.runeUnbrokenVein],
+    () => chooseBothStateOf(run),
+    [run.runeFacetwright, run.runeUnbrokenVein, run.chooseBothCharges],
   );
   const shopViewCache = useRef(new Map<string, CardView>());
   const spellViewCache = useRef<CardView | null>(null);
@@ -3047,7 +3049,7 @@ export function Recruit() {
     // the shop row stayed on the old ones). Listing them makes the memo honest rather than relying on that
     // incidental rebuild; `stabilizeViewMap` keeps the `Card` bailout, so the added deps cost nothing when the
     // rendered content is unchanged.
-    [run.shop, run.rift, run.questFreeFirstBuy, run.freeBuyUsedThisTurn, run.cardBuffs, run.tavernBuyBonus, run.tavernBuyBonusTurn, run.undeadAttackBonus, run.undeadHealthBonus, run.undeadBuyAtk, run.beastBuyAtk, run.beastBuyHp, run.magneticBuyAtk, run.magneticBuyHp, run.deathrattlesTriggered, run.spellsCast, run.spellsThisTurn, run.soulsmanGold, run.fodderConsumedThisTurn, run.spellCostMod, spellBonus, spellBonusH, run.frontToBackBonus, run.board, run.nextSpellExtraCasts, run.goldSpentThisTurn, run.goldPouchValue, run.playedThisTurn, run.squirlScoutBuff, run.conductorBuff, run.alesCastThisTurn, run.frankClearanceTurn, eotShopStats, run.impBuff, run.rubyCasts, run.growthBonus, run.frontToBackBonusH, run.lastSpellCastId, run.firstSpellThisTurnId, run.lastSpellThisTurnId, run.cadenceMinionOff, run.tier],
+    [run.shop, run.rift, run.questFreeFirstBuy, run.freeBuyUsedThisTurn, run.cardBuffs, run.tavernBuyBonus, run.tavernBuyBonusTurn, run.undeadAttackBonus, run.undeadHealthBonus, run.undeadBuyAtk, run.beastBuyAtk, run.beastBuyHp, run.magneticBuyAtk, run.magneticBuyHp, run.deathrattlesTriggered, run.spellsCast, run.spellsThisTurn, run.soulsmanGold, run.fodderConsumedThisTurn, run.spellCostMod, spellBonus, spellBonusH, run.frontToBackBonus, run.board, run.nextSpellExtraCasts, run.goldSpentThisTurn, run.goldPouchValue, run.playedThisTurn, run.squirlScoutBuff, run.conductorBuff, run.alesCastThisTurn, run.frankClearanceTurn, eotShopStats, run.impBuff, run.rubyCasts, run.growthBonus, run.frontToBackBonusH, run.lastSpellCastId, run.firstSpellThisTurnId, run.lastSpellThisTurnId, run.cadenceMinionOff, run.tier, bothState],
   );
   const spellView = useMemo(
     () => {
@@ -3093,7 +3095,7 @@ export function Recruit() {
   // During the End-of-Turn animation the board shows each minion's per-proc stats (`eotAnimStats`),
   // so the numbers visibly tick up as each effect fires; otherwise the real stats.
   const live = useMemo(
-    () => ({ undeadBuyAtk: run.undeadBuyAtk, soulsmanGold: run.soulsmanGold ?? 0, cardBuffs: cardBuffsLive, impAura: run.impBuff, rubyCasts: run.rubyCasts, goldSpent: run.goldSpentThisTurn ?? 0, goldSpentRun: run.goldSpent, goldPouchValue: run.goldPouchValue, playedThisTurn: run.playedThisTurn, squirlScoutBuff: run.squirlScoutBuff, conductorBuff: run.conductorBuff, alesThisTurn: run.alesCastThisTurn, lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined, firstSpellThisTurnName: run.firstSpellThisTurnId ? CARD_INDEX[run.firstSpellThisTurnId]?.name : undefined, lastSpellThisTurnName: run.lastSpellThisTurnId ? CARD_INDEX[run.lastSpellThisTurnId]?.name : undefined, topTribe: dominantBoardTribe(run), frontToBackBonusH: run.frontToBackBonusH, improveReps: run.runeMastery ? 1 + runeStacksOf(run, 'rune_mastery') : 1, rubyBonus: rubyStatBonus(run), tier7Access: hasTier7Access(run), grimoireCharged: (run.grimoireMult ?? 0) > 1, runeMammoth: !!run.questFlags?.runeMammoth, runeFlags: { matriarch: !!run.runeMatriarch, brokerage: !!run.runeBrokerage, livingTreasure: !!run.questFlags?.runeLivingTreasure }, chooseBothState: { runeFacetwright: run.runeFacetwright, runeUnbrokenVein: run.runeUnbrokenVein } }),
+    () => ({ undeadBuyAtk: run.undeadBuyAtk, soulsmanGold: run.soulsmanGold ?? 0, cardBuffs: cardBuffsLive, impAura: run.impBuff, rubyCasts: run.rubyCasts, goldSpent: run.goldSpentThisTurn ?? 0, goldSpentRun: run.goldSpent, goldPouchValue: run.goldPouchValue, playedThisTurn: run.playedThisTurn, squirlScoutBuff: run.squirlScoutBuff, conductorBuff: run.conductorBuff, alesThisTurn: run.alesCastThisTurn, lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined, firstSpellThisTurnName: run.firstSpellThisTurnId ? CARD_INDEX[run.firstSpellThisTurnId]?.name : undefined, lastSpellThisTurnName: run.lastSpellThisTurnId ? CARD_INDEX[run.lastSpellThisTurnId]?.name : undefined, topTribe: dominantBoardTribe(run), frontToBackBonusH: run.frontToBackBonusH, improveReps: run.runeMastery ? 1 + runeStacksOf(run, 'rune_mastery') : 1, rubyBonus: rubyStatBonus(run), tier7Access: hasTier7Access(run), grimoireCharged: (run.grimoireMult ?? 0) > 1, runeMammoth: !!run.questFlags?.runeMammoth, runeFlags: { matriarch: !!run.runeMatriarch, brokerage: !!run.runeBrokerage, livingTreasure: !!run.questFlags?.runeLivingTreasure }, chooseBothState: chooseBothStateOf(run) }),
     // `run.board` is a dep because `topTribe` is derived from it — without it the memo held the stale tribe
     // (and the stale spell names) until some other dep happened to move (audit find, live-verified 2026-07-31).
     // `cardBuffsLive` is the value actually consumed (not raw `run.cardBuffs`) — listing it explicitly was an

@@ -204,7 +204,7 @@ export const PRISMATIC_PICK: EquipmentDefinition = {
       gildedParams: { count: 2 },
     },
     {
-      // ADDS charges (no `set`): "your NEXT Choose One card", on top of whatever a Forked Crown already armed.
+      // ADDS charges (no `set`): "your NEXT Choose One card", on top of whatever a Dealer already armed.
       text: 'Your next **Choose One** card this turn gains **both** effects.',
       goldenText: 'Your next **2 Choose One** cards this turn gain **both** effects.',
       effectId: 'grantChooseBothCharges',

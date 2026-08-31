@@ -12,6 +12,7 @@ import {
   playDef,
   playableDef,
   playableLayers,
+  withCamera,
 } from './playDef';
 
 /**
@@ -218,6 +219,32 @@ describe('playDef', () => {
     expect(playDef('test-play-no-renderer', { source: { x: 0, y: 0 }, target: { x: 10, y: 10 } })).toBeNull();
   });
 
+  /**
+   * THE AUX-CANVAS WAIT (owner report 2026-08-31: "the first prismatic pick doesn't trigger the animation" —
+   * and only the first). `under` / `above` canvases are created lazily, so the first effect wanting one used
+   * to be spent bringing it up. It now waits for the init and plays, and hands back a disposer that cancels a
+   * retry still in flight.
+   */
+  it('an AUX-slot def waits for its canvas instead of dropping the fire', async () => {
+    registerSavedDef(def([layer()], { id: 'test-play-above', slot: 'above' }));
+    const spy = vi.spyOn(pixiFx, 'ensureAboveSlot');
+    const stop = playDef('test-play-above', { source: { x: 0, y: 0 }, target: { x: 1, y: 1 } });
+    expect(stop, 'the caller gets a handle, not a dropped fire').toBeTypeOf('function');
+    expect(spy, 'and the canvas was asked to come up').toHaveBeenCalled();
+    // The retry lands on a still-null renderer here (headless, no GL) and must STOP — an ungated retry would
+    // spin on the memoised promise forever. Draining the microtask queue is what would expose that.
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(spy.mock.calls.length, 'exactly one retry, never a loop').toBeLessThanOrEqual(2);
+    expect(() => stop?.(), 'and disposing is safe whether or not the retry ran').not.toThrow();
+    spy.mockRestore();
+  });
+
+  it('the OVER slot still declines — a combat moment is past by the time a retry could land', () => {
+    registerSavedDef(def([layer()], { id: 'test-play-over-slot' }));
+    expect(playDef('test-play-over-slot', { source: { x: 0, y: 0 }, target: { x: 1, y: 1 } })).toBeNull();
+  });
+
   it('never throws for any of its refusal paths', () => {
     registerSavedDef(def([layer({ muted: true })], { id: 'test-play-all-muted' }));
     expect(() => playDef('test-play-all-muted', {})).not.toThrow();
@@ -242,5 +269,43 @@ describe('canPlayDefs / ensureDefsReady', () => {
   it('ensureDefsReady is idempotent and always resolves', async () => {
     await expect(ensureDefsReady()).resolves.toBeUndefined();
     await expect(ensureDefsReady()).resolves.toBeUndefined();
+  });
+});
+
+/**
+ * THE CAMERA ANCHOR (owner report 2026-08-31: Blast Pump "is going off in the top left of the screen ... even
+ * though the anchor in the effect is screen center").
+ *
+ * `resolveAnchor` answers `ORIGIN` — (0, 0) — for any anchor the caller did not stage, so a camera-anchored
+ * def played from a call site that staged only source/target landed in the corner. `withCamera` fills the one
+ * anchor that never depended on the caller, at the chokepoint every authored effect passes through.
+ */
+describe('withCamera', () => {
+  it('fills in the viewport centre when the caller staged no camera', () => {
+    // The suite is headless, so the window is staged here — which is also the honest shape of the assertion:
+    // the centre is read from the live viewport, not from a constant.
+    // @ts-expect-error — a two-field stand-in is everything this helper reads
+    globalThis.window = { innerWidth: 1600, innerHeight: 900 };
+    try {
+      const filled = withCamera({ source: { x: 10, y: 20 }, target: { x: 30, y: 40 } });
+      expect(filled.camera, 'the corner is never the right answer for a camera anchor').toEqual({ x: 800, y: 450 });
+      expect(filled.source, 'and it touches nothing else').toEqual({ x: 10, y: 20 });
+      expect(filled.target).toEqual({ x: 30, y: 40 });
+    } finally {
+      // @ts-expect-error — restoring the headless default the rest of the suite runs under
+      delete globalThis.window;
+    }
+  });
+
+  it('never overrides a camera the caller DID stage', () => {
+    // Three live call sites hand-roll the same expression, and the workbench stages its own from the sampled
+    // viewport. A default that overwrote those would be a second, competing definition.
+    const staged = { source: { x: 1, y: 2 }, camera: { x: 500, y: 600 } };
+    expect(withCamera(staged), 'the caller wins').toBe(staged);
+  });
+
+  it('leaves the anchors untouched with no DOM (the pure lanes must not need a window)', () => {
+    const bare = { source: { x: 1, y: 2 } };
+    expect(withCamera(bare), 'no window, no camera — and no crash').toBe(bare);
   });
 });

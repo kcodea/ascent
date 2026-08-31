@@ -68,6 +68,9 @@ export const KNOWN_TEXT_MISMATCH: Readonly<Record<string, KnownTextMismatch>> = 
   contractimp: { taxonomy: 'text-promises-absent-effect', kind: 'draft-contract-gap', why: 'Choose One token — same extractor choose-one blind spot as shaper' },
   crestclimb: { taxonomy: 'text-promises-absent-effect', kind: 'draft-contract-gap', why: 'Choose One spell — same extractor choose-one blind spot as shaper' },
   k_veinbreaker: { taxonomy: 'text-promises-absent-effect', kind: 'draft-contract-gap', why: 'Choose One card — same extractor choose-one blind spot as shaper' },
+  // Forkvein Prospector is k_veinbreaker's mechanic (both branches are rubyStatGain), so it reproduces the
+  // pin directly above it rather than being a new class of miss.
+  k3_forkvein: { taxonomy: 'text-promises-absent-effect', kind: 'draft-contract-gap', why: 'Choose One card — same extractor choose-one blind spot as shaper' },
   n2_spellsword: { taxonomy: 'text-promises-absent-effect', kind: 'draft-contract-gap', why: 'Choose One card — same extractor choose-one blind spot as shaper' },
   betterbot: {
     taxonomy: 'text-promises-absent-effect',

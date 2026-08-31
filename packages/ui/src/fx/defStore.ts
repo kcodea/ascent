@@ -240,10 +240,10 @@ export function coerceDef(raw: unknown): StoredFxDef | null {
     const tags = raw.tags.filter((t): t is string => typeof t === 'string' && t.trim() !== '').map((t) => t.trim());
     if (tags.length > 0) def.tags = tags;
   }
-  // Only the literal string `'under'` selects the under-card canvas. `'over'`, absent, a typo, `true`, a
-  // number — all mean the default slot, and all serialise back out as an OMISSION, so a def that never
-  // touched this field round-trips byte-identically.
-  if (raw.slot === 'under') def.slot = 'under';
+  // Only the literal strings `'under'` / `'above'` select a non-default canvas. `'over'`, absent, a typo,
+  // `true`, a number — all mean the default slot, and all serialise back out as an OMISSION, so a def that
+  // never touched this field round-trips byte-identically.
+  if (raw.slot === 'under' || raw.slot === 'above') def.slot = raw.slot;
   // The def-level ease, on the same omit-unless-usable terms. A curve needs at least MIN_CURVE_POINTS pairs
   // of finite numbers to have a span to interpolate over; anything else means "no ease" rather than a curve
   // to be repaired, because a half-read curve would silently retime the whole composition. The identity ramp
@@ -353,9 +353,9 @@ export function toStoredDef(
       ? { version: FX_DEF_VERSION, id, duration, layers }
       : { version: FX_DEF_VERSION, id, ...meta, duration, layers };
   if (typeof seed === 'number' && Number.isFinite(seed)) def.seed = seed;
-  // Written ONLY for the non-default slot, so an author who never touches the toggle keeps saving the exact
+  // Written ONLY for a non-default slot, so an author who never touches the toggle keeps saving the exact
   // JSON they saved before this field existed.
-  if (slot === 'under') def.slot = 'under';
+  if (slot === 'under' || slot === 'above') def.slot = slot;
   // Same rule as `slot`: the IDENTITY ramp is "no ease", so it is not written. An author who never draws one
   // keeps saving the exact JSON they saved before this field existed — and, more importantly, an author who
   // LOADS an eased def and re-saves it keeps the ease, which is the data-loss `label`/`tags` once had.

@@ -82,7 +82,11 @@ export const DYNAMIC_CALL_SITES: Readonly<Record<string, number>> = {
   // binding resolvers" was true until now. An Equipment-use MOMENT belongs in `recruitCues.ts` alongside the
   // shop's other bindings; it lives at the cue site today because the moment/binding plumbing is a wider
   // change than the vertical slice called for. Moving it there deletes this entry.
-  'Recruit.tsx': 1,
+  //
+  // TWO of them since 2026-08-31: a Choose One Equipment plays its def when the PROMPT OPENS rather than when
+  // the activation resolves (owner ask), so the same `eq.useFxId` is fired from a second site. Both are the
+  // same data-resolved id; both go away together when the moment moves into `recruitCues.ts`.
+  'Recruit.tsx': 2,
   // The same resolution in the TUNER's test fire: it plays the SELECTED Equipment's def so both cues can be
   // timed, rather than being hardwired to Bloodpot's. Same debt, same fix — moving the moment into
   // `recruitCues.ts` retires this line with the one above it.

@@ -32,12 +32,12 @@ if (import.meta.env.DEV) {
   (window as unknown as { __choreoEot?: boolean }).__choreoEot = CHOREO_EOT;
 }
 import { chooseBothText } from './cardText';
-import { playerOpponent, alignmentsOf, boardHasCelestial, chooseBothActive, chooseOneNeedsChoice, computeCombatOdds, type CombatOdds, rubyCastCount, rubyStatBonus, CONFIG, RIFTS, hasTier7Access, maxTierFor, conjuredStats, cardBuff, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, dragonflameCasts, nextOpponent, lossDamageCap, playerLossDamage, minionCostOf, heroOfferPrice, dominantBoardTribe, effectiveTargetTribe, boardManaBonus, upgradeCostOf, nextRefreshCostOf, poolOf, type RunState, type ShopCard, type CardBuff, type BoardCard, type BoardSnapshot, gildCopiesNeeded, activePowers, gateUses, runeStacksOf } from '@game/sim';
+import { playerOpponent, alignmentsOf, boardHasCelestial, chooseBothActive, chooseBothStateOf, type ChooseBothState, chooseOneNeedsChoice, computeCombatOdds, type CombatOdds, rubyCastCount, rubyStatBonus, CONFIG, RIFTS, hasTier7Access, maxTierFor, conjuredStats, cardBuff, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, dragonflameCasts, nextOpponent, lossDamageCap, playerLossDamage, minionCostOf, heroOfferPrice, dominantBoardTribe, effectiveTargetTribe, boardManaBonus, upgradeCostOf, nextRefreshCostOf, poolOf, type RunState, type ShopCard, type CardBuff, type BoardCard, type BoardSnapshot, gildCopiesNeeded, activePowers, gateUses, runeStacksOf } from '@game/sim';
 import { createPortal } from 'react-dom';
 import { setCardId, setCardStats, toggleCardKeyword, setEnemyStats, setEnemyCardId, toggleEnemyKeyword, removeEnemy } from './sandboxEdit';
 import { UnitEditor } from './UnitEditor';
 import { Card, mdBold, type CardView } from './Card';
-import { heroPowerArt, heroArt } from './art';
+import { heroPowerArt, heroArt, equipmentBranchArtFor } from './art';
 import { beginDragTrace, cancelDragTrace, endDragTrace, sampleDragTrace } from './replay/dragTrace';
 import { SYM_KINDS } from './choreo/channels/float';
 import { stabilizeViewMap, stabilizeRefMap, stabilizeView } from './cardViewEqual';
@@ -598,9 +598,11 @@ interface ShopViewOpts {
   /** The run's tavern tier — Lantern Light's shop-slot text scales with it (audit 2026-08-06: the slot was
    *  the ONE surface not passing it, so the spell read base there and live everywhere else). */
   tier?: number;
-  /** The run flags the (Both) predicate reads — a Choose One offer whose branches are already all enabled
-   *  prints (Both) in the tavern too, not a choice the shop is lying about. */
-  chooseBothState?: { runeFacetwright?: boolean; runeUnbrokenVein?: boolean };
+  /** The run state the (Both) predicate reads — a Choose One offer whose branches are already all enabled
+   *  prints (Both) in the tavern too, not a choice the shop is lying about. Built ONLY by
+   *  `chooseBothStateOf`: every field is required there precisely so a surface cannot drop one, which is how
+   *  the Prismatic Pick's charge went unpainted (owner report 2026-08-31). */
+  chooseBothState?: ChooseBothState;
 }
 
 /** ShopViewOpts assembled from a raw RunState — the live-text inputs for surfaces that preview a card the
@@ -625,7 +627,7 @@ function liveOptsFromRun(run: RunState): ShopViewOpts {
     lastSpellThisTurnName: run.lastSpellThisTurnId ? CARD_INDEX[run.lastSpellThisTurnId]?.name : undefined,
     topTribe: dominantBoardTribe(run), rubyBonus: rubyStatBonus(run), tier7Access: hasTier7Access(run),
     tier: run.tier,
-    chooseBothState: { runeFacetwright: run.runeFacetwright, runeUnbrokenVein: run.runeUnbrokenVein },
+    chooseBothState: chooseBothStateOf(run),
   };
 }
 
@@ -1936,6 +1938,10 @@ export function Recruit() {
       if (cue.kind !== 'use') continue;
       const eq = cue.equipmentId ? EQUIPMENT_INDEX[cue.equipmentId] : undefined;
       if (!eq) continue;
+      // A CHOOSE ONE Equipment already announced itself when its prompt opened (see the effect below), which
+      // is the moment that reads as pressing it. Playing again here would be two flourishes for one press —
+      // and the second would land on a screen that has moved on to the result.
+      if (eq.chooseOne?.length) continue;
       const tEl = cue.targetUid ? findEl(cue.targetUid) : null;
       const tR = tEl?.getBoundingClientRect();
       // No target (an untargeted Equipment) → the effect plays ON the slot rather than travelling nowhere.
@@ -3018,8 +3024,8 @@ export function Recruit() {
    * two rune flags, and every surface reading this object lights up at once with no further wiring.
    */
   const bothState = useMemo(
-    () => ({ runeFacetwright: run.runeFacetwright, runeUnbrokenVein: run.runeUnbrokenVein }),
-    [run.runeFacetwright, run.runeUnbrokenVein],
+    () => chooseBothStateOf(run),
+    [run.runeFacetwright, run.runeUnbrokenVein, run.chooseBothCharges],
   );
   const shopViewCache = useRef(new Map<string, CardView>());
   const spellViewCache = useRef<CardView | null>(null);
@@ -3043,7 +3049,7 @@ export function Recruit() {
     // the shop row stayed on the old ones). Listing them makes the memo honest rather than relying on that
     // incidental rebuild; `stabilizeViewMap` keeps the `Card` bailout, so the added deps cost nothing when the
     // rendered content is unchanged.
-    [run.shop, run.rift, run.questFreeFirstBuy, run.freeBuyUsedThisTurn, run.cardBuffs, run.tavernBuyBonus, run.tavernBuyBonusTurn, run.undeadAttackBonus, run.undeadHealthBonus, run.undeadBuyAtk, run.beastBuyAtk, run.beastBuyHp, run.magneticBuyAtk, run.magneticBuyHp, run.deathrattlesTriggered, run.spellsCast, run.spellsThisTurn, run.soulsmanGold, run.fodderConsumedThisTurn, run.spellCostMod, spellBonus, spellBonusH, run.frontToBackBonus, run.board, run.nextSpellExtraCasts, run.goldSpentThisTurn, run.goldPouchValue, run.playedThisTurn, run.squirlScoutBuff, run.conductorBuff, run.alesCastThisTurn, run.frankClearanceTurn, eotShopStats, run.impBuff, run.rubyCasts, run.growthBonus, run.frontToBackBonusH, run.lastSpellCastId, run.firstSpellThisTurnId, run.lastSpellThisTurnId, run.cadenceMinionOff, run.tier],
+    [run.shop, run.rift, run.questFreeFirstBuy, run.freeBuyUsedThisTurn, run.cardBuffs, run.tavernBuyBonus, run.tavernBuyBonusTurn, run.undeadAttackBonus, run.undeadHealthBonus, run.undeadBuyAtk, run.beastBuyAtk, run.beastBuyHp, run.magneticBuyAtk, run.magneticBuyHp, run.deathrattlesTriggered, run.spellsCast, run.spellsThisTurn, run.soulsmanGold, run.fodderConsumedThisTurn, run.spellCostMod, spellBonus, spellBonusH, run.frontToBackBonus, run.board, run.nextSpellExtraCasts, run.goldSpentThisTurn, run.goldPouchValue, run.playedThisTurn, run.squirlScoutBuff, run.conductorBuff, run.alesCastThisTurn, run.frankClearanceTurn, eotShopStats, run.impBuff, run.rubyCasts, run.growthBonus, run.frontToBackBonusH, run.lastSpellCastId, run.firstSpellThisTurnId, run.lastSpellThisTurnId, run.cadenceMinionOff, run.tier, bothState],
   );
   const spellView = useMemo(
     () => {
@@ -3089,7 +3095,7 @@ export function Recruit() {
   // During the End-of-Turn animation the board shows each minion's per-proc stats (`eotAnimStats`),
   // so the numbers visibly tick up as each effect fires; otherwise the real stats.
   const live = useMemo(
-    () => ({ undeadBuyAtk: run.undeadBuyAtk, soulsmanGold: run.soulsmanGold ?? 0, cardBuffs: cardBuffsLive, impAura: run.impBuff, rubyCasts: run.rubyCasts, goldSpent: run.goldSpentThisTurn ?? 0, goldSpentRun: run.goldSpent, goldPouchValue: run.goldPouchValue, playedThisTurn: run.playedThisTurn, squirlScoutBuff: run.squirlScoutBuff, conductorBuff: run.conductorBuff, alesThisTurn: run.alesCastThisTurn, lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined, firstSpellThisTurnName: run.firstSpellThisTurnId ? CARD_INDEX[run.firstSpellThisTurnId]?.name : undefined, lastSpellThisTurnName: run.lastSpellThisTurnId ? CARD_INDEX[run.lastSpellThisTurnId]?.name : undefined, topTribe: dominantBoardTribe(run), frontToBackBonusH: run.frontToBackBonusH, improveReps: run.runeMastery ? 1 + runeStacksOf(run, 'rune_mastery') : 1, rubyBonus: rubyStatBonus(run), tier7Access: hasTier7Access(run), grimoireCharged: (run.grimoireMult ?? 0) > 1, runeMammoth: !!run.questFlags?.runeMammoth, runeFlags: { matriarch: !!run.runeMatriarch, brokerage: !!run.runeBrokerage, livingTreasure: !!run.questFlags?.runeLivingTreasure }, chooseBothState: { runeFacetwright: run.runeFacetwright, runeUnbrokenVein: run.runeUnbrokenVein } }),
+    () => ({ undeadBuyAtk: run.undeadBuyAtk, soulsmanGold: run.soulsmanGold ?? 0, cardBuffs: cardBuffsLive, impAura: run.impBuff, rubyCasts: run.rubyCasts, goldSpent: run.goldSpentThisTurn ?? 0, goldSpentRun: run.goldSpent, goldPouchValue: run.goldPouchValue, playedThisTurn: run.playedThisTurn, squirlScoutBuff: run.squirlScoutBuff, conductorBuff: run.conductorBuff, alesThisTurn: run.alesCastThisTurn, lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined, firstSpellThisTurnName: run.firstSpellThisTurnId ? CARD_INDEX[run.firstSpellThisTurnId]?.name : undefined, lastSpellThisTurnName: run.lastSpellThisTurnId ? CARD_INDEX[run.lastSpellThisTurnId]?.name : undefined, topTribe: dominantBoardTribe(run), frontToBackBonusH: run.frontToBackBonusH, improveReps: run.runeMastery ? 1 + runeStacksOf(run, 'rune_mastery') : 1, rubyBonus: rubyStatBonus(run), tier7Access: hasTier7Access(run), grimoireCharged: (run.grimoireMult ?? 0) > 1, runeMammoth: !!run.questFlags?.runeMammoth, runeFlags: { matriarch: !!run.runeMatriarch, brokerage: !!run.runeBrokerage, livingTreasure: !!run.questFlags?.runeLivingTreasure }, chooseBothState: chooseBothStateOf(run) }),
     // `run.board` is a dep because `topTribe` is derived from it — without it the memo held the stale tribe
     // (and the stale spell names) until some other dep happened to move (audit find, live-verified 2026-07-31).
     // `cardBuffsLive` is the value actually consumed (not raw `run.cardBuffs`) — listing it explicitly was an
@@ -4245,6 +4251,34 @@ export function Recruit() {
       });
     }
   }, [run.board, inCombat]);
+
+  /**
+   * AN EQUIPMENT'S CHOOSE ONE OPENED → its authored flourish, over the window (owner ask 2026-08-31:
+   * "this effect should play WHEN the choose one happens ... on top of the choose one immediately").
+   *
+   * Keyed on the Equipment id rather than on a sequence number, because the prompt IS the event: it appears
+   * exactly once per press and cannot repeat without closing first. The ref is what makes a re-render during
+   * the open prompt a no-op.
+   *
+   * Fired immediately — no tuner delay. The prompt is a decision the player is about to make, so a flourish
+   * that arrives after they have started reading is late by definition.
+   *
+   * The def carries `slot: 'above'`, which is what puts it over the z160 overlay; a camera-anchored def
+   * needs no staged anchors (`playDef` fills the viewport centre in), but the centre is passed for source and
+   * target too so a future layer on another anchor still lands somewhere sensible rather than in the corner.
+   */
+  const prevChooseOneEq = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    const eqId = run.chooseOne?.equipmentId;
+    if (eqId === prevChooseOneEq.current) return;
+    prevChooseOneEq.current = eqId;
+    if (!eqId) return;
+    const eq = EQUIPMENT_INDEX[eqId];
+    if (!eq) return;
+    const c = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+    if (eq.useFxId && canPlayDefs()) playDef(eq.useFxId, { source: c, target: c, cursor: c, camera: c });
+    if (eq.useSfxId && getEquipFxConfig().useSfxOn) sfx.equipmentUse(eq.useSfxId);
+  }, [run.chooseOne?.equipmentId]);
 
   // Discover opened → erupt the golden magic burst on the overlay's behind-the-cards FX layer. Fired once
   // the burst app has initialised (attach resolves immediately if already created).
@@ -6644,13 +6678,49 @@ export function Recruit() {
               only that branch's text printed, so what you click is exactly what lands on your board. */}
           <div className="disc-panel">
             <div className="disc-banner"><span className="disp">Choose One</span></div>
-            <div className="disc-sub">{CARD_INDEX[run.chooseOne.cardId]?.name} · click away to cancel</div>
+            <div className="disc-sub">{(run.chooseOne.equipmentId ? EQUIPMENT_INDEX[run.chooseOne.equipmentId]?.name : CARD_INDEX[run.chooseOne.cardId]?.name)} · click away to cancel</div>
             <div className="disc-cards">
               {(() => {
                 // A golden Choose One doubles each option's effect (gold(self) in the factories) — so show each
                 // option's `goldenText` (Wildwood Shaper: +2/+6 / two Strays). The card is on the board (Battlecry
                 // Choose One) or in hand (spell Choose One).
                 const co = run.chooseOne!;
+                // AN EQUIPMENT'S CHOOSE ONE (Prismatic Pick): there is no card behind the prompt, so each
+                // option is drawn as the SOURCE MINION wearing that branch's text — the Artificer's own art
+                // and name, which is what the player is looking at when they press the Equipment button. The
+                // gilded wording follows the GRANT's version, not a board instance: a gilded Artificer can be
+                // sold and its Equipment kept, and the Pick stays gilded.
+                if (co.equipmentId) {
+                  const eq = EQUIPMENT_INDEX[co.equipmentId];
+                  if (!eq?.chooseOne?.length) return null;
+                  const grant = run.equipment?.available.find((g) => g.equipmentId === co.equipmentId);
+                  const gilded = grant?.version === 'gilded';
+                  // The source may have been sold — the Equipment outlives it within the turn — so fall back
+                  // to the Equipment's own identity rather than assuming a body is still standing.
+                  const srcUid = grant?.sourceUids.find((u) => run.board.some((b) => b.uid === u));
+                  const src = CARD_INDEX[run.board.find((b) => b.uid === srcUid)?.cardId ?? ''];
+                  return eq.chooseOne.map((opt, i) => (
+                    <div className="disc-slot" key={i} style={{ '--c': `var(--t-${src?.tribe ?? 'neutral'})` } as CSSProperties}>
+                      <Card
+                        card={{
+                          // Each branch wears its OWN illustration (owner 2026-08-31), passed explicitly
+                          // because the art is the Equipment's, not the card's — see `equipmentBranchArtFor`
+                          // for why an Equipment numbers every branch instead of reusing its icon for the first.
+                          artUrl: equipmentBranchArtFor(eq.id, i),
+                          name: eq.name, cardId: src?.id ?? eq.id, tribe: src?.tribe ?? 'neutral',
+                          universalTribe: false, golden: gilded,
+                          attack: src?.attack ?? 0, health: src?.health ?? 0, keywords: [],
+                          tier: src?.tier ?? 1, spell: false, ruby: false,
+                          text: gilded ? (opt.goldenText ?? opt.text) : opt.text,
+                          goldenText: opt.goldenText ?? opt.text,
+                        }}
+                        forceFull
+                        plated
+                        onClick={() => dispatch({ type: 'chooseOne', index: i })}
+                      />
+                    </div>
+                  ));
+                }
                 const c = CARD_INDEX[co.cardId];
                 if (!c) return null;
                 const inst = run.board.find((x) => x.uid === co.uid) ?? run.hand.find((x) => x.uid === co.uid);
@@ -6886,7 +6956,8 @@ export function Recruit() {
       {!overlaysHeld && run.runeforgeOffer && !forgeMin && (
         <div className={`discover-ov forge-ov${run.runeforgeEpic ? ' forge-epic' : ''}`} role="dialog" aria-label={run.runeforgeEpic ? 'The Epic Runeforge' : 'The Runeforge'}>
           <div className="disc-panel forge-panel">
-            <div className="disc-banner forge-banner"><Icon name="anvil" /><span className="disp">{run.runeforgeEpic ? 'Epic Runeforge' : 'Runeforge'}</span></div>
+            {/* Title only — the anvil icon was removed from the forge banner (owner ask 2026-08-30). */}
+            <div className="disc-banner forge-banner"><span className="disp">{run.runeforgeEpic ? 'Epic Runeforge' : 'Runeforge'}</span></div>
             {/* The player's CURRENT Gold — the runes charge Gold, so the panel must say what's in the purse
                 (owner ask 2026-07-16). Re-renders with every buy/re-roll (run.embers). */}
             <div className="forge-gold" title="Your Gold right now"><Icon name="mana" /><b>{run.embers}</b> Gold</div>

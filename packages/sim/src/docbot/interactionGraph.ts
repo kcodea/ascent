@@ -76,6 +76,7 @@ export const CHANNEL_OF_TRIGGER: Readonly<Record<string, string>> = {
   orbitFired: 'play',
   battlecryTriggered: 'play',
   cardsPlayed: 'play',
+  chooseOnePlayed: 'play',
   cast: 'spell-cast',
   spellCast: 'spell-cast',
   spellCastOnThis: 'spell-cast',

@@ -21,13 +21,21 @@ describe('set 3 scaffold', () => {
     // middle rather than appended would silently reseed every set-3 shop.
     //
     // The EQUIPMENT work first — Alchemist Frank (the handoff's reference card) and Titan Sculptor, which is
-    // what puts two Equipment in play at once — then the eleven set-2 Kobolds the owner carried over
-    // (2026-08-28), shared definitions rather than forks.
+    // what puts two Equipment in play at once — then the NINE set-2 Kobolds set 3 keeps.
+    //
+    // Nine, not the eleven carried over on 2026-08-28: the owner's full set-3 Kobold roster (2026-08-30) named
+    // exactly these, and anything absent from that roster leaves the set. `k_beggy` and `k_alchemist` went on
+    // that basis — see the set-2 assertions below, which pin that they are still perfectly good SET 2 cards.
     expect(p.buyable.map((c) => c.id)).toEqual([
       'e3_frank', 'e3_sculptor',
       'k_chipwick', 'k_veinbreaker', 'k_gemheart', 'k_deepdelve', 'k_geode', 'k_kobabyboldies',
-      'k_alchemist', 'k_kobe', 'k_boulderdash', 'k_beggy', 'k_blazer',
+      'k_kobe', 'k_boulderdash', 'k_blazer',
     ]);
+    // Dropped from set 3, and the ONLY thing that changed is set membership — leaving a set is not archiving.
+    expect(p.all.some((c) => c.id === 'k_beggy'), 'Beggy left set 3').toBe(false);
+    expect(p.all.some((c) => c.id === 'k_alchemist'), 'Brisbane left set 3').toBe(false);
+    expect(CARD_INDEX['k_beggy'], 'but both still resolve by id').toBeTruthy();
+    expect(CARD_INDEX['k_alchemist']).toBeTruthy();
     // The Kobolds must be reachable AS A TRIBE, not merely present: `selectRunTribes` reads this list, so a
     // pool full of Kobolds with an empty `tribes` could never roll a Kobold run.
     expect(SETS.set3.tribes).toEqual(['kobold']);

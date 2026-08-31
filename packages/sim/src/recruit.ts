@@ -2899,7 +2899,10 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   /** Set 2 — Shout/Rally: mint N Rubies into hand (base count × golden). Chipwick `Get 2 Rubies`,
    *  Tunnelcharger Rikk `Get 3` — the golden text doubles the count, so `count × gold(self)`. */
   getRubies: (ctx, self, params) => {
-    mintRubies(ctx.state, num(params.count, 1) * gold(self));
+    // `rubyId` names WHICH Ruby to mint (Facetbound Martyr's Warding Ruby); absent mints the plain one. The
+    // End-of-Turn twin `endOfTurnGetRubies` already took this param — the two mint through the same
+    // `mintRubies` and there was no reason for the Shout half to be the one that could not name a Ruby.
+    mintRubies(ctx.state, num(params.count, 1) * gold(self), str(params.rubyId) || RUBY_ID);
   },
 
   /** Set 2 — Gemgorge Fiend (Kobold/Demon): every 3 Rubies cast (the `rubyCast` cadence), Consume a random

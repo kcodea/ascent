@@ -155,8 +155,10 @@ export const SET3_KOBOLDS: CardDef[] = [
     goldenText: '**Equip Blast Pump (1):** Cast **4 Rubies** on your minions.',
   },
   {
-    // The Ruby half is `battlecryPlayRubiesAll`; the Veinstorm half casts the named spell twice through the
-    // REAL Shop-spell pipeline, so each cast counts as a Shop spell cast and wakes every cast-watcher.
+    // Owner rework 2026-08-30: the left branch is a WARDING RUBY (the set-2 token that also grants Ward),
+    // not a board-wide Ruby cast. `getRubies` names it through `rubyId`, the same way Wardstone Jeweler does
+    // on its End-of-Turn half. The right branch casts Veinstorm twice through the REAL Shop-spell pipeline,
+    // so each cast counts as a Shop spell cast and wakes every cast-watcher.
     id: 'k3_facetbound',
     name: 'Facetbound Martyr',
     tribe: 'kobold',
@@ -166,12 +168,12 @@ export const SET3_KOBOLDS: CardDef[] = [
     keywords: [],
     effects: [],
     chooseOne: [
-      { text: 'Cast **3 Rubies** on your minions.', goldenText: 'Cast **6 Rubies** on your minions.',
-        effects: [{ on: 'onPlay', do: 'battlecryPlayRubiesAll', params: { count: 3 } }] },
+      { text: 'Get a **Warding Ruby**.', goldenText: 'Get **2 Warding Rubies**.',
+        effects: [{ on: 'onPlay', do: 'getRubies', params: { count: 1, rubyId: 'warding-ruby' } }] },
       { text: 'Cast **Veinstorm** 2 times.', goldenText: 'Cast **Veinstorm** 4 times.',
         effects: [{ on: 'onPlay', do: 'battlecryCastNamedSpell', params: { spellId: 'veinstorm', count: 2 } }] },
     ],
-    text: '**Choose One:** cast **3 Rubies** on your minions, or cast **Veinstorm** 2 times.',
-    goldenText: '**Choose One:** cast **6 Rubies** on your minions, or cast **Veinstorm** 4 times.',
+    text: '**Choose One:** get a **Warding Ruby**, or cast **Veinstorm** 2 times.',
+    goldenText: '**Choose One:** get **2 Warding Rubies**, or cast **Veinstorm** 4 times.',
   },
 ];

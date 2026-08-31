@@ -93,7 +93,22 @@ const CARD_REF_EFFECTS: Record<string, string> = {
   deathrattleSummonRubyStats: 'tokenId',       // Gemheart -> Gemheart Shard
   echoSummonInheritAttackAndCharge: 'token',   // Anvilshade Smith -> Dwarf Soldier (param is `token`, not `tokenId`)
   endOfTurnGetRubies: 'rubyId',                // Wardstone Jeweler -> Warding Ruby
+  getRubies: 'rubyId',                         // Facetbound Martyr -> Warding Ruby (Shout half of the same mint)
 };
+
+/**
+ * Factories whose reference param is OPTIONAL — absent means a documented default, not a mistake.
+ *
+ * The check below stays STRICT for everything else on purpose: a missing `cardId` on `deathrattleGrantSpell`
+ * once granted the empty string and crashed the hand-grant preview (owner report 2026-07-25), and catching
+ * that is the whole reason the map exists. Only a factory that genuinely defaults belongs here.
+ *
+ *  · `getRubies` — no `rubyId` mints the PLAIN Ruby, which is what almost every caller wants (Chipwick).
+ *    Naming one (Facetbound Martyr's Warding Ruby) is the exception, and naming a MISSING one still throws.
+ */
+const CARD_REF_OPTIONAL = new Set<string>(['getRubies']);
+
+
 
 /**
  * Effects that name a card **in their code** rather than in their params — the token id is a string literal
@@ -158,7 +173,10 @@ export function validateCards(cards: CardDef[] = ALL_CARDS): void {
       const cardKey = CARD_REF_EFFECTS[effect.do];
       if (cardKey) {
         const refId = params[cardKey] as string | undefined;
-        if (!has(refId)) throw new Error(`${card.id}: ${effect.do} references missing card "${refId}"`);
+        // An OPTIONAL reference may be absent (see CARD_REF_OPTIONAL) — but naming a card that does not
+        // exist is still a hard error, which is the case the map is really guarding.
+        const optionalAndAbsent = refId === undefined && CARD_REF_OPTIONAL.has(effect.do);
+        if (!optionalAndAbsent && !has(refId)) throw new Error(`${card.id}: ${effect.do} references missing card "${refId}"`);
       }
     }
   }

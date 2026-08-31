@@ -7,7 +7,7 @@ import { ACE_DISCOUNT_MAX_TIER, ACE_TIER_DISCOUNT, CONFIG, INDY_GILD_RECHARGE_GO
 import { lobbyOpponentBoard, settleRunLobbyRound, playerEliminated, practicePlayerPlacement, playerLossDamage } from './lobby/runLobby';
 import { BOT_DAMAGE_MULT } from './lobby/practiceBots';
 import { accumulateContribution, tallyCombat } from './contribution';
-import { rollShop, topUpTavern, returnToPool, takeFromPool, rollCiaEnchants } from './shop';
+import { rollShop, topUpTavern, returnToPool, takeFromPool, rollCiaEnchants, tierSlots } from './shop';
 import { generateQuestOffer, questOfferPlan } from './quests';
 import { activePowers, getHero, gildCopiesNeeded, hasPower, powerDiscoverPool } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
@@ -254,6 +254,25 @@ export function nextRefreshCostOf(s: RunState): number {
 }
 
 /** Rune of Open Enrollment: append ONE extra offer of the board's most common type after a refresh. */
+/**
+ * Rune of Open Enrollment: after a Refresh, one Shop offer becomes a minion of your most common type.
+ *
+ * THE SHOP NEVER GROWS (owner ruling 2026-08-31, off player report 5c5b50a0 — *"rune of open enrollement
+ * overflows the shop. there are too many minions available ... so there are 7 options instead of 6"*):
+ * *"the shop should never overflow beyond its capacity, it should only ever replace available slots with
+ * affected minions or spells etc."*
+ *
+ * This used to `s.shop.push(...)`, which is what put a seventh offer in a six-slot row. It now fills a FREE
+ * slot when the row is short and REPLACES the right-most minion offer when it is full — the same shape Pete's
+ * `upgradeRightmostOffer` already used, under the same owner ruling from 2026-08-14 ("it upgrades the
+ * existing offer rather than adding an eighth").
+ *
+ * Replacing the right-most MINION specifically, never a spell or Ruby offer: those sit in the row but are not
+ * minion slots, and clobbering one would eat a different resource than the rune is about.
+ *
+ * The pool bookkeeping came along for free and was missing before: the displaced offer returns to the shared
+ * pool like a reroll, and the new one is taken from it, so copies stay a contested resource.
+ */
 function appendDominantTypeOffer(s: RunState): void {
   const tribe = dominantBoardTribe(s);
   if (!tribe) return;
@@ -262,7 +281,24 @@ function appendDominantTypeOffer(s: RunState): void {
   const rng = makeRng(s.rngCursor);
   const pick = pool[rng.int(pool.length)]!;
   s.rngCursor = rng.state();
-  s.shop.push({ uid: `s${s.uidSeq++}`, cardId: pick.id });
+
+  // A short row (cards bought since the refill) has a slot going spare — filling it is genuinely additional
+  // and grows nothing.
+  if (s.shop.length < tierSlots(s.tier)) {
+    takeFromPool(s, pick.id);
+    s.shop.push({ uid: `s${s.uidSeq++}`, cardId: pick.id });
+    return;
+  }
+  // Full row — replace the right-most MINION offer.
+  let idx = -1;
+  for (let i = s.shop.length - 1; i >= 0; i--) {
+    const d = CARD_INDEX[s.shop[i]!.cardId];
+    if (d && !d.spell && !d.ruby) { idx = i; break; }
+  }
+  if (idx < 0) return; // a row of nothing but spells — nothing to replace, and still no overflow
+  returnToPool(s, s.shop[idx]!.cardId);
+  takeFromPool(s, pick.id);
+  s.shop[idx] = { uid: `s${s.uidSeq++}`, cardId: pick.id };
 }
 
 /** Pete (Contrabanana): the RIGHT-MOST Shop minion is REPLACED by one from the tier ABOVE the Shop tier —

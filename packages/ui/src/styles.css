@@ -8720,7 +8720,8 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .lobbyscout-vs { display: inline-flex; align-items: center; gap: calc(3 * var(--lu)); min-width: 0; color: #d9cfba; }
 .lobbyscout-vslabel { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lobbyscout-dmg { display: inline-flex; align-items: center; gap: calc(2 * var(--lu)); font-weight: 800; white-space: nowrap; }
-.lobbyscout-dmg svg { width: calc(9 * var(--lfont) * var(--sc-histtext, 2)); height: calc(9 * var(--lfont) * var(--sc-histtext, 2)); }
+.lobbyscout-blast { width: calc(12 * var(--lfont) * var(--sc-histtext, 2)); height: calc(12 * var(--lfont) * var(--sc-histtext, 2));
+  object-fit: contain; flex: none; }
 /* The foe's PORTRAIT in the fight log (owner ask 2026-08-31), replacing their name. Outcome tints its ring. */
 /* Matches the rail SEAT portrait exactly (same 18·lrow·lby-face expression, owner ask 2026-08-31); the
    `--sc-histface` dial scales it from there. */

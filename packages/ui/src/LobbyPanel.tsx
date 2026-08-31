@@ -287,7 +287,7 @@ function ScoutCard({ lobby, seat, intel, at, pinned }: {
           </span>
           {/* The outcome sits BETWEEN the portrait and the damage (owner ask 2026-08-31). */}
           <span className="lobbyscout-result">{OUTCOME_LABEL[r.outcome] ?? ''}</span>
-          <span className="lobbyscout-dmg"><Icon name="blast" />{r.taken > 0 ? `−${r.taken}` : r.dealt > 0 ? `+${r.dealt}` : '0'}</span>
+          <span className="lobbyscout-dmg"><img className="lobbyscout-blast" src="/blast-dmg-icon.webp" alt="" aria-hidden />{r.taken > 0 ? `−${r.taken}` : r.dealt > 0 ? `+${r.dealt}` : '0'}</span>
         </div>
       ))}
     </div>

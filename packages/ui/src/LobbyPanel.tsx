@@ -170,6 +170,18 @@ const TRIBE_LABEL: Record<string, string> = {
   demon: 'Demons', kobold: 'Kobolds', dwarf: 'Dwarves', neutral: 'Neutral',
 };
 
+// DEV-only scout-card layout A/B/C compare (owner is choosing a formatting direction). The chosen variant
+// persists in localStorage so every hover card renders the same one; the on-card chip (dev builds only) cycles
+// it. Stripped from production — `import.meta.env.DEV` gates both the read default and the chip.
+const SCOUT_VARIANT_KEY = 'ascent.scoutVariant';
+const SCOUT_VARIANTS = 3;
+function readScoutVariant(): number {
+  if (!import.meta.env.DEV) return 1;
+  try { const v = Number(localStorage.getItem(SCOUT_VARIANT_KEY)); return v >= 1 && v <= SCOUT_VARIANTS ? v : 1; }
+  catch { return 1; }
+}
+const OUTCOME_GLYPH: Record<string, string> = { win: '▲', lose: '▼', draw: '–' };
+
 /**
  * The hover read on one opponent: what they are playing, and how their last three fights went.
  *
@@ -202,87 +214,166 @@ function ScoutCard({ lobby, seat, intel, at, pinned, onClose }: {
     const top = Math.max(m + h / 2, Math.min(at.top, vh - m - h / 2));
     setClamp({ top, right });
   }, [at.top, at.right, seat.id, pinned]);
+
+  const [variant, setVariant] = useState(readScoutVariant);
+  const cycleVariant = (): void => {
+    const next = (variant % SCOUT_VARIANTS) + 1;
+    setVariant(next);
+    try { localStorage.setItem(SCOUT_VARIANT_KEY, String(next)); } catch { /* ignore */ }
+  };
+
+  // Shared reads + building blocks; each layout below arranges the SAME data differently.
+  const heroPower = getHero(seat.heroId).power.name;
+  const tribe = intel?.topTribe;
+  const tribeLabel = tribe ? TRIBE_LABEL[tribe] : 'Mixed';
+  const tribeCount = intel?.topTribeCount;
+  const tribeText = tribeCount ? `${tribeLabel} ×${tribeCount}` : tribeLabel;
+  const tribeColor = tribe ? `var(--t-${tribe})` : 'var(--t-neutral)';
+  const head = (
+    <div className="lobbyscout-head">
+      <span className="lobbyscout-name">{seat.label}</span>
+      <span className="lobbyscout-hero">{heroPower}</span>
+    </div>
+  );
+  const badges = intel && ((intel.runes?.length ?? 0) > 0 || (intel.quests?.length ?? 0) > 0) ? (
+    <div className="oppbadges lobbyscout-badges">
+      {(intel.runes ?? []).filter((id) => RUNE_INDEX[id]).map((id) => {
+        const rune = RUNE_INDEX[id]!;
+        const rart = runeArt(rune.id);
+        return (
+          <div className="questbadge runebadge" key={`r:${id}`}>
+            {rart
+              ? <img className="questbadge-art" src={rart} alt="" aria-hidden />
+              : <span className="questbadge-emblem" aria-hidden><Icon name="sc" /></span>}
+            <div className="questbadge-tip" role="tooltip">
+              <b>{rune.name}</b>
+              <span className="questbadge-tip-reward" dangerouslySetInnerHTML={{ __html: mdBold(rune.text) }} />
+              <span className="questbadge-tip-state">Rune · active</span>
+            </div>
+          </div>
+        );
+      })}
+      {(intel.quests ?? []).filter((id) => QUEST_INDEX[id]).map((id) => {
+        const def = QUEST_INDEX[id]!;
+        const qart = questArt(def.id);
+        const c = def.tribe === 'neutral' ? 'var(--t-neutral)' : `var(--t-${def.tribe})`;
+        return (
+          <div className="questbadge" style={{ '--c': c } as React.CSSProperties} key={`q:${id}`}>
+            {qart
+              ? <img className="questbadge-art" src={qart} alt="" aria-hidden />
+              : <span className="questbadge-emblem" aria-hidden><Icon name="star" /></span>}
+            <div className="questbadge-tip" role="tooltip">
+              <b>{def.name}</b>
+              <span className="questbadge-tip-state">Quest · complete</span>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  ) : null;
+  const staleEl = stale ? <div className="lobbyscout-stale">as of round {intel!.round}</div> : null;
+  const noIntel = <div className="lobbyscout-empty">No intel yet</div>;
+  const renderLog = (showGlyph: boolean): JSX.Element => (
+    <div className="lobbyscout-log">
+      {results.length === 0 ? (
+        <div className="lobbyscout-empty">No fights yet</div>
+      ) : results.map((r) => (
+        <div className={`lobbyscout-row ${r.outcome}`} key={r.round}>
+          <span className="lobbyscout-vs">
+            {showGlyph && <span className="lobbyscout-glyph" aria-hidden>{OUTCOME_GLYPH[r.outcome]} </span>}
+            vs {r.foeLabel}
+          </span>
+          <span className="lobbyscout-dmg">{r.taken > 0 ? `−${r.taken}` : r.dealt > 0 ? `+${r.dealt}` : '0'}</span>
+        </div>
+      ))}
+    </div>
+  );
+
+  // ── The three candidate layouts (owner is choosing a direction). Same data, different formatting. ──
+  let body: JSX.Element;
+  if (variant === 2) {
+    // V2 — identity banner (dominant tribe front + centre) + a thin meta line, history given its own titled block.
+    body = (
+      <>
+        {head}
+        {intel ? (
+          <>
+            <div className="lobbyscout-identity" style={{ '--c': tribeColor } as React.CSSProperties}>
+              <span className="lobbyscout-tribe">{tribeLabel}</span>
+              {tribeCount ? <span className="lobbyscout-tribect">{tribeCount}</span> : null}
+            </div>
+            <div className="lobbyscout-meta">
+              <span>Tier <b>{intel.tier}</b></span>
+              <span className="lobbyscout-metadot">·</span>
+              <span><b>{intel.triples}</b> triples</span>
+            </div>
+          </>
+        ) : noIntel}
+        {badges}
+        {staleEl}
+        <div className="lobbyscout-logtitle">Last fights</div>
+        {renderLog(true)}
+      </>
+    );
+  } else if (variant === 3) {
+    // V3 — compact: name + tribe tag on one line, a tight meta line, everything denser (see CSS).
+    body = (
+      <>
+        <div className="lobbyscout-head lobbyscout-head--row">
+          <span className="lobbyscout-name">{seat.label}</span>
+          {intel ? <span className="lobbyscout-tag" style={{ '--c': tribeColor } as React.CSSProperties}>{tribeText}</span> : null}
+        </div>
+        <span className="lobbyscout-hero">{heroPower}</span>
+        {intel ? (
+          <div className="lobbyscout-meta lobbyscout-meta--tight">
+            <span>Tier <b>{intel.tier}</b></span>
+            <span className="lobbyscout-metadot">·</span>
+            <span><b>{intel.triples}</b> triples</span>
+          </div>
+        ) : noIntel}
+        {badges}
+        {staleEl}
+        {renderLog(false)}
+      </>
+    );
+  } else {
+    // V1 — refined current: a three-up stat strip, with the dominant tribe + count as the first stat.
+    body = (
+      <>
+        {head}
+        {intel ? (
+          <div className="lobbyscout-stats">
+            <span className="lobbyscout-stat"><b>{tribeText}</b><i>build</i></span>
+            <span className="lobbyscout-stat"><b>T{intel.tier}</b><i>tier</i></span>
+            <span className="lobbyscout-stat"><b>{intel.triples}</b><i>triples</i></span>
+          </div>
+        ) : noIntel}
+        {badges}
+        {staleEl}
+        {renderLog(false)}
+      </>
+    );
+  }
+
   // PORTALED to <body>, then position:fixed + viewport-clamped. Rendered inside the rail, the card could be
   // swallowed by the rail's backplate/overflow on some viewports (owner report 2026-08-28) — as a direct child
   // of <body> no rail ancestor can clip or re-anchor it. The clamp (above) keeps it on-screen; z-index keeps it
   // in front.
   return createPortal(
-    <div ref={cardRef} className={`lobbyscout${pinned ? ' pinned' : ''}`} role={pinned ? 'dialog' : 'tooltip'}
+    <div ref={cardRef} className={`lobbyscout lobbyscout--v${variant}${pinned ? ' pinned' : ''}`} role={pinned ? 'dialog' : 'tooltip'}
       aria-label={pinned ? `${seat.label} — scouting report` : undefined}
       style={clamp
         ? { top: clamp.top, right: clamp.right }
         : { top: at.top, right: `calc(100vw - ${at.right}px + 6px)`, visibility: 'hidden' }}
       onContextMenu={pinned ? (e) => { e.preventDefault(); onClose?.(); } : undefined}>
-      <div className="lobbyscout-head">
-        <span className="lobbyscout-name">{seat.label}</span>
-        <span className="lobbyscout-hero">{getHero(seat.heroId).power.name}</span>
-        {pinned && (
-          <button className="lobbyscout-x" onClick={onClose} aria-label="Close">×</button>
-        )}
-      </div>
-
-      {intel ? (
-        <div className="lobbyscout-stats">
-          <span className="lobbyscout-stat"><b>{intel.topTribe ? TRIBE_LABEL[intel.topTribe] : 'Mixed'}</b><i>build</i></span>
-          <span className="lobbyscout-stat"><b>T{intel.tier}</b><i>tier</i></span>
-          <span className="lobbyscout-stat"><b>{intel.triples}</b><i>triples</i></span>
-        </div>
-      ) : (
-        // Honest about not knowing, rather than printing zeroes that look like a read.
-        <div className="lobbyscout-empty">No intel yet</div>
+      {/* DEV-only A/B/C layout switch — corner chip, cycles + persists the chosen variant. Pointer-events auto so
+          it works even on the hover card, though pinning (right-click) is the reliable way to reach it. */}
+      {import.meta.env.DEV && (
+        <button className="lobbyscout-variant" onClick={(e) => { e.stopPropagation(); cycleVariant(); }}
+          title="Cycle scout-card layout (dev only)">V{variant}</button>
       )}
-      {/* ACTIVE QUESTS + RUNES (owner ask 2026-08-03) — what the seat is actually RUNNING, which is the part of
-          scouting that changes how you build against them. Same badge language as the opponent frame and your
-          own row, so one visual vocabulary covers every place a reward is shown; each carries its own hover. */}
-      {intel && ((intel.runes?.length ?? 0) > 0 || (intel.quests?.length ?? 0) > 0) && (
-        <div className="oppbadges lobbyscout-badges">
-          {(intel.runes ?? []).filter((id) => RUNE_INDEX[id]).map((id) => {
-            const rune = RUNE_INDEX[id]!;
-            const rart = runeArt(rune.id);
-            return (
-              <div className="questbadge runebadge" key={`r:${id}`}>
-                {rart
-                  ? <img className="questbadge-art" src={rart} alt="" aria-hidden />
-                  : <span className="questbadge-emblem" aria-hidden><Icon name="sc" /></span>}
-                <div className="questbadge-tip" role="tooltip">
-                  <b>{rune.name}</b>
-                  <span className="questbadge-tip-reward" dangerouslySetInnerHTML={{ __html: mdBold(rune.text) }} />
-                  <span className="questbadge-tip-state">Rune · active</span>
-                </div>
-              </div>
-            );
-          })}
-          {(intel.quests ?? []).filter((id) => QUEST_INDEX[id]).map((id) => {
-            const def = QUEST_INDEX[id]!;
-            const qart = questArt(def.id);
-            const c = def.tribe === 'neutral' ? 'var(--t-neutral)' : `var(--t-${def.tribe})`;
-            return (
-              <div className="questbadge" style={{ '--c': c } as React.CSSProperties} key={`q:${id}`}>
-                {qart
-                  ? <img className="questbadge-art" src={qart} alt="" aria-hidden />
-                  : <span className="questbadge-emblem" aria-hidden><Icon name="star" /></span>}
-                <div className="questbadge-tip" role="tooltip">
-                  <b>{def.name}</b>
-                  <span className="questbadge-tip-state">Quest · complete</span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-      {/* A stale read is labelled instead of being passed off as current — the seat has not fought since. */}
-      {stale && <div className="lobbyscout-stale">as of round {intel!.round}</div>}
-
-      <div className="lobbyscout-log">
-        {results.length === 0 ? (
-          <div className="lobbyscout-empty">No fights yet</div>
-        ) : results.map((r) => (
-          <div className={`lobbyscout-row ${r.outcome}`} key={r.round}>
-            <span className="lobbyscout-vs">vs {r.foeLabel}</span>
-            <span className="lobbyscout-dmg">{r.taken > 0 ? `−${r.taken}` : r.dealt > 0 ? `+${r.dealt}` : '0'}</span>
-          </div>
-        ))}
-      </div>
+      {pinned && <button className="lobbyscout-x" onClick={onClose} aria-label="Close">×</button>}
+      {body}
     </div>,
     document.body,
   );

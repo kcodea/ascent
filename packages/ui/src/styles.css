@@ -8715,6 +8715,50 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .lobbyscout-row.lose .lobbyscout-dmg { color: #ff6b6b; }
 .lobbyscout-row.draw .lobbyscout-dmg { color: #c9bca3; }
 
+/* ── SCOUT CARD — layout variants (dev A/B/C compare) ──────────────────────────────────────────────────────
+   Three candidate formattings share the same data; the dev chip cycles them. V1 = stat strip, V2 = identity
+   banner + history-forward, V3 = compact. The classes below add only what each variant needs beyond the base. */
+/* Dev-only layout switch chip, top-left corner. `pointer-events:auto` so it's clickable even on the hover card. */
+.lobbyscout-variant {
+  position: absolute; bottom: calc(100% + 2 * var(--lu)); left: 0; z-index: 2; pointer-events: auto;
+  padding: calc(1 * var(--lu)) calc(4 * var(--lu)); font-family: var(--font-ui); font-size: calc(8 * var(--lfont));
+  font-weight: 800; line-height: 1.4; color: #1a1206; background: var(--gold); border: none; border-radius: 999px;
+  opacity: 0.82; }
+.lobbyscout-variant:hover { opacity: 1; }
+
+/* History win/loss glyph (V2) — colour rides the row like the damage number does. */
+.lobbyscout-glyph { font-size: calc(8 * var(--lfont)); }
+.lobbyscout-row.win .lobbyscout-glyph { color: #6fe39a; }
+.lobbyscout-row.lose .lobbyscout-glyph { color: #ff6b6b; }
+.lobbyscout-row.draw .lobbyscout-glyph { color: #c9bca3; }
+
+/* Meta line — "Tier N · N triples" (V2 + V3). */
+.lobbyscout-meta { display: flex; align-items: baseline; gap: calc(3 * var(--lu));
+  font-size: calc(9 * var(--lfont)); color: #b7a98f; }
+.lobbyscout-meta b { color: #f4ecdb; font-weight: 800; }
+.lobbyscout-metadot { opacity: 0.5; }
+.lobbyscout-meta--tight { font-size: calc(8 * var(--lfont)); }
+
+/* V2 — identity banner: the dominant tribe front + centre, tinted by its tribe colour, count pushed right. */
+.lobbyscout-identity { display: flex; align-items: baseline; gap: calc(4 * var(--lu));
+  padding: calc(3 * var(--lu)) calc(6 * var(--lu)); border-radius: calc(6 * var(--lu));
+  background: color-mix(in srgb, var(--c) 22%, #17110c);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 55%, transparent); }
+.lobbyscout-tribe { font-size: calc(13 * var(--lfont)); font-weight: 800; color: color-mix(in srgb, var(--c) 78%, #fff); }
+.lobbyscout-tribect { margin-left: auto; font-size: calc(13 * var(--lfont)); font-weight: 800; color: #f4ecdb; }
+.lobbyscout-tribect::before { content: '\00d7'; opacity: 0.6; font-size: 0.82em; margin-right: 0.08em; }
+.lobbyscout-logtitle { font-size: calc(7 * var(--lfont)); letter-spacing: 0.08em; text-transform: uppercase; color: #8d8271; }
+
+/* V3 — compact: name + tribe tag on one row, denser spacing. */
+.lobbyscout--v3 { gap: calc(2 * var(--lu)); padding: calc(6 * var(--lu)); }
+.lobbyscout-head--row { flex-direction: row; align-items: center; gap: calc(4 * var(--lu)); }
+.lobbyscout-head--row .lobbyscout-name { flex: 1 1 auto; min-width: 0; }
+.lobbyscout-tag { flex: none; padding: calc(1 * var(--lu)) calc(4 * var(--lu)); border-radius: 999px;
+  font-size: calc(8 * var(--lfont)); font-weight: 800; white-space: nowrap;
+  color: color-mix(in srgb, var(--c) 80%, #fff); background: color-mix(in srgb, var(--c) 20%, #17110c);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 50%, transparent); }
+.lobbyscout--v3 .lobbyscout-log { padding-top: calc(3 * var(--lu)); gap: calc(1 * var(--lu)); }
+
 /* The table sizes to its rows, and the rows size to `--lrow` — so the row-scale dial actually changes row
    height. (They used to be `flex: 1` inside a fixed-height rail, which pinned every row to an equal share of a
    constant and left the dial doing nothing but resizing portraits.) The rail's height dial is now a CAP. */
@@ -8914,7 +8958,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
     0 calc(6 * var(--lu)) calc(18 * var(--lu)) -4px var(--shadow);
 }
 .lobbyscout-x {
-  margin-left: auto;
+  position: absolute; top: calc(4 * var(--lu)); right: calc(4 * var(--lu)); z-index: 2;
   width: calc(14 * var(--lu)); height: calc(14 * var(--lu));
   display: grid; place-items: center;
   font-family: var(--font-ui); font-size: calc(12 * var(--lu)); line-height: 1;

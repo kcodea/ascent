@@ -73,6 +73,9 @@ export interface SeatIntel {
   /** The board's DOMINANT tribe — the one most of its bodies share, which is what reads as "what they're
    *  playing". Absent when the board is all-neutral or empty. */
   topTribe?: Tribe;
+  /** How many of the board's bodies share `topTribe` — the count behind the dominant-tribe read. Absent
+   *  exactly when `topTribe` is (all-neutral or empty board). */
+  topTribeCount?: number;
   /** Round the intel is from, so a stale read is visible rather than presented as current. */
   round: number;
   /** COMPLETED quest ids on that board's run — the same set the seat's owner sees in their own badges.
@@ -470,6 +473,7 @@ export function boardIntel(board: PreparedBoard, round: number): SeatIntel {
   const runes = board.snapshot?.runes ?? [];
   return {
     tier: board.tier, triples: board.snapshot?.triples ?? 0, topTribe, round,
+    ...(topTribe ? { topTribeCount: best } : {}),
     ...(quests.length ? { quests } : {}),
     ...(runes.length ? { runes } : {}),
   };

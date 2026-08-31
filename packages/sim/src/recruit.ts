@@ -2819,10 +2819,32 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    * of the roster — and because the alternative, discovering later that Equipment effects were never in the
    * spell pipeline, is exactly the class of gap this system keeps producing.
    */
+  /**
+   * Shout / Choose One: cast a NAMED Shop spell `count` times (Facetbound Martyr, set 3).
+   *
+   * Goes through `castSpell`, the real Shop-spell pipeline, so each cast counts as a Shop spell cast and
+   * wakes every cast-watcher — the same reasoning `equipmentCastSpell` documents. Golden multiplies the
+   * count, and each repetition is a GENUINE cast rather than one doubled one, matching what golden means
+   * everywhere else.
+   *
+   * Untargeted only: `castSpell` takes an optional target and this passes none, so a spell that needs one
+   * would fizzle. Every caller today names an untargeted spell (Veinstorm); a targeted one would need the
+   * target threaded, which is a different factory rather than a quiet extension of this.
+   */
+  battlecryCastNamedSpell: (ctx, self, params) => {
+    const spell = CARD_INDEX[str(params.spellId)];
+    if (!spell?.spell) return; // not a spell id — never a silent bespoke effect
+    for (let i = 0; i < Math.max(1, num(params.count, 1)) * gold(self); i++) castSpell(ctx.state, spell, undefined);
+  },
+
   equipmentCastSpell: (ctx, _self, params, payload) => {
     const spell = CARD_INDEX[str(params.spellId)];
     if (!spell?.spell) return; // not a spell id — never a silent bespoke effect
-    castSpell(ctx.state, spell, payload.target);
+    // `count` casts the named spell that many times, which is how a GILDED Equipment Spell doubles: gilding
+    // swaps in `gildedParams`, and "twice the spell" has to mean two GENUINE casts, not one doubled one —
+    // the same rule golden follows everywhere else, so each cast counts as a Shop spell cast, receives
+    // Shop-spell improvements, and wakes every cast-watcher once per cast. Absent → one cast, as before.
+    for (let i = 0; i < Math.max(1, num(params.count, 1)); i++) castSpell(ctx.state, spell, payload.target);
   },
 
   /**
@@ -2877,7 +2899,10 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   /** Set 2 — Shout/Rally: mint N Rubies into hand (base count × golden). Chipwick `Get 2 Rubies`,
    *  Tunnelcharger Rikk `Get 3` — the golden text doubles the count, so `count × gold(self)`. */
   getRubies: (ctx, self, params) => {
-    mintRubies(ctx.state, num(params.count, 1) * gold(self));
+    // `rubyId` names WHICH Ruby to mint (Facetbound Martyr's Warding Ruby); absent mints the plain one. The
+    // End-of-Turn twin `endOfTurnGetRubies` already took this param — the two mint through the same
+    // `mintRubies` and there was no reason for the Shout half to be the one that could not name a Ruby.
+    mintRubies(ctx.state, num(params.count, 1) * gold(self), str(params.rubyId) || RUBY_ID);
   },
 
   /** Set 2 — Gemgorge Fiend (Kobold/Demon): every 3 Rubies cast (the `rubyCast` cadence), Consume a random
@@ -3061,6 +3086,31 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    * run can't otherwise have. Trigger-agnostic on purpose: the same factory serves Shout (`onPlay`),
    * End of Turn, and the Gold-spent threshold, because the `on:` field is what picks the moment.
    */
+  /**
+   * Grant a random CHOOSE ONE card to hand (Forksong Herald's Rally, Prismpick Artificer's first branch).
+   *
+   * Drawn from the run's own pool — minions and spells alike, anything printing a `chooseOne` — so a set
+   * without Choose One cards grants nothing rather than reaching outside the set. `conjureToHand` applies
+   * the hand cap and wakes every copy-watcher, exactly like any other conjure.
+   */
+  grantRandomChooseOne: (ctx, self, params) => {
+    const pool = poolOf(ctx.state);
+    const candidates = [...pool.buyable, ...pool.spells].filter((c) => (c.chooseOne?.length ?? 0) > 0);
+    if (candidates.length === 0) return;
+    conjureToHand(ctx.state, candidates, num(params.count, 1) * gold(self));
+  },
+
+  /**
+   * Grant BOTH-branch charges (Forked Crown's start of turn, Prismpick Artificer's second branch).
+   *
+   * `set` refreshes to exactly `count` (Forked Crown: "the FIRST Choose One card each turn" — one per turn,
+   * never banked); absent, charges ADD (Prismpick: "your NEXT Choose One card", on top of whatever is left).
+   */
+  grantChooseBothCharges: (ctx, self, params) => {
+    const n = num(params.count, 1) * gold(self);
+    ctx.state.chooseBothCharges = params.set ? n : (ctx.state.chooseBothCharges ?? 0) + n;
+  },
+
   grantRandomAle: (ctx, self, params) => {
     const ales = poolOf(ctx.state).spells.filter((c) => ALE_IDS.includes(c.id));
     if (ales.length === 0) return;
@@ -3089,6 +3139,21 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    * `fireOnRubyPlayed` is what lets the target's own "when a Ruby is played on this" effects see it (Ruby Broker's
    * Gold, Resonance Idol's bounce), which a bare `addBuff` would skip.
    */
+  /** Ruby Roach: whenever you play a Choose One card, cast `count` Rubies on your minions (x golden). Same
+   *  `addBuff('Ruby') + fireOnRubyPlayed` shape as `cardsPlayedPlayRubies`, so every "when a Ruby is played
+   *  on this" watcher (Ruby Broker's Gold, Resonance Idol's bounce) still sees them. */
+  chooseOnePlayedPlayRubies: (ctx, self, params) => {
+    const rb = ctx.state.rubyBonus ?? { attack: 0, health: 0 };
+    const per = num(params.count, 1) * gold(self);
+    const a = (1 + rb.attack) * per;
+    const h = (1 + rb.health) * per;
+    if (a <= 0 && h <= 0) return;
+    for (const c of [...ctx.state.board]) {
+      addBuff(c, 'Ruby', a, h);
+      fireOnRubyPlayed(ctx.state, c, a, h);
+    }
+  },
+
   cardsPlayedPlayRubies: (ctx, self, params) => {
     const rb = ctx.state.rubyBonus ?? { attack: 0, health: 0 };
     const per = num(params.count, 1) * gold(self);
@@ -7176,6 +7241,30 @@ export function applyGoldSpent(state: RunState, amount: number): void {
  * reads "after you play 8 cards", and `playedThisTurn` clears every turn so it could never reach 8 on a normal
  * curve. A run total is also kept on the state for live card text.
  */
+/**
+ * The player played a CHOOSE ONE card (Ruby Roach).
+ *
+ * A sibling of `applyCardsPlayed` rather than a parameter on it: that function is handed a COUNT and nothing
+ * else, deliberately — every consumer of it cares how many cards were played, not which. Ruby Roach is the
+ * first effect that needs the identity, so it gets its own signal instead of widening a shared one and
+ * making every existing caller pass something it does not have.
+ *
+ * Fired from the same place, so "played" means exactly what it means for the play-count meter: a real play,
+ * after the fizzle checks, once per card.
+ */
+export function applyChooseOnePlayed(state: RunState, def: CardDef): void {
+  if (!def.chooseOne?.length) return;
+  const ctx = makeContext(state);
+  for (const card of [...state.board]) {
+    const cd = CARD_INDEX[card.cardId];
+    if (!cd) continue;
+    for (const eff of cd.effects) {
+      if (eff.on !== 'chooseOnePlayed') continue;
+      RECRUIT_FACTORIES[eff.do]?.(ctx, card, eff.params ?? {}, { minion: card });
+    }
+  }
+}
+
 export function applyCardsPlayed(state: RunState, count: number): void {
   if (count <= 0) return;
   state.cardsPlayedTotal = (state.cardsPlayedTotal ?? 0) + count;
@@ -7409,8 +7498,44 @@ export function openDiscover(state: RunState, spec: DiscoverSpec): void {
  * first if the card targets) — and the printed text swaps its "Choose One:" label for a coloured (Both)
  * followed by both option texts, so the card reads as exactly what it will do.
  */
+/**
+ * EVERY input the (Both) predicate reads, with NO optional fields.
+ *
+ * This exists because of a bug the type system could not catch (owner report 2026-08-31: the Prismatic
+ * Pick's "both effects" branch armed a charge and no card lit up). Three UI surfaces hand-rolled their own
+ * projection of the run —
+ *
+ *     { runeFacetwright: run.runeFacetwright, runeUnbrokenVein: run.runeUnbrokenVein }
+ *
+ * — written before charges existed. `chooseBothActive` takes a `Pick<RunState, …>`, and every field it picks
+ * is OPTIONAL on `RunState`, so a projection that silently dropped one still compiled. The predicate then
+ * read `chooseBothCharges` as undefined on every card view: no (Both) text, and no `data-choose-both` for
+ * the marker FX to bind to, while the FX list itself (built from the full run) happily produced keys for
+ * elements that were never stamped.
+ *
+ * Requiring every field is what makes a dropped one a COMPILE error, and `chooseBothStateOf` is what makes
+ * "add the new field to the projection" a single edit instead of three. Adding an input to the predicate
+ * without extending both is caught by the `chooseBothProjection` Doc Bot lane.
+ */
+export interface ChooseBothState {
+  runeFacetwright: boolean;
+  runeUnbrokenVein: boolean;
+  chooseBothCharges: number;
+}
+
+/** The one projection every surface passes to `chooseBothActive`. */
+export function chooseBothStateOf(
+  s: Pick<RunState, 'runeFacetwright' | 'runeUnbrokenVein' | 'chooseBothCharges'>,
+): ChooseBothState {
+  return {
+    runeFacetwright: !!s.runeFacetwright,
+    runeUnbrokenVein: !!s.runeUnbrokenVein,
+    chooseBothCharges: s.chooseBothCharges ?? 0,
+  };
+}
+
 export function chooseBothActive(
-  state: Pick<RunState, 'runeFacetwright' | 'runeUnbrokenVein'>,
+  state: Pick<RunState, 'runeFacetwright' | 'runeUnbrokenVein' | 'chooseBothCharges'>,
   card: { golden?: boolean } | undefined,
   def: Pick<CardDef, 'id' | 'chooseOne' | 'chooseBothWhenGolden'> | undefined,
 ): boolean {
@@ -7418,7 +7543,28 @@ export function chooseBothActive(
   if (card?.golden && def.chooseBothWhenGolden) return true;
   if (state.runeFacetwright && def.id === 'facetwright') return true;
   if (state.runeUnbrokenVein && def.id === 'k_veinbreaker') return true;
+  // Forked Crown / Prismpick Artificer: a charge makes the NEXT Choose One resolve both branches, whatever
+  // card it is. Read-only here — the charge is spent by `spendChooseBothCharge` at the moment a play
+  // actually resolves, so merely LOOKING at a card (the UI asking whether it will prompt) cannot burn one.
+  if ((state.chooseBothCharges ?? 0) > 0) return true;
   return false;
+}
+
+/** Spend one BOTH charge, if the reason this card resolved both branches was a charge rather than a rune or
+ *  its own gilding. Called from the play paths, never from the predicate — see the note above. */
+export function spendChooseBothCharge(
+  state: Pick<RunState, 'runeFacetwright' | 'runeUnbrokenVein' | 'chooseBothCharges'>,
+  card: { golden?: boolean } | undefined,
+  def: Pick<CardDef, 'id' | 'chooseOne' | 'chooseBothWhenGolden'> | undefined,
+): void {
+  if ((state.chooseBothCharges ?? 0) <= 0) return;
+  // A card that would resolve both ANYWAY (golden Orivax, Facetwright/Veinbreaker under their runes) must not
+  // eat a charge it never needed.
+  const wouldAnyway = (card?.golden && def?.chooseBothWhenGolden)
+    || (state.runeFacetwright && def?.id === 'facetwright')
+    || (state.runeUnbrokenVein && def?.id === 'k_veinbreaker');
+  if (wouldAnyway) return;
+  state.chooseBothCharges = (state.chooseBothCharges ?? 0) - 1;
 }
 
 /** Does playing this card have to STOP and ask? True for a Choose One whose branches are not already all

@@ -201,6 +201,7 @@ export type GameEvent =
   | 'goldSpent' // recruit phase: the player spent Gold — fires per threshold (Acid, Banksly)
   | 'cardsBought' // recruit phase: the player bought a card — fires per threshold (Korok, Banksly)
   | 'cardsPlayed' // recruit phase: the player PLAYED a card — the play-count twin of `cardsBought` (Mountainbond)
+  | 'chooseOnePlayed' // recruit phase: the player played a CHOOSE ONE card specifically (Ruby Roach)
   | 'onSell' // recruit phase: this minion is sold (Hoard Whelp — get Gold, Beggy — get Rubies)
   | 'startOfTurn' // recruit phase: a shop turn begins — the symmetric twin of `endOfTurn` (Gemline Martyr)
   | 'equip' // recruit phase: this minion GRANTS its Equipment — on play, and again at every Start of Turn
@@ -291,6 +292,10 @@ export type EffectFactoryId =
   | 'onSpellCastBuffRandomTribe' // Runebloom Matriarch: each spell buffs N random tribe minions
   | 'summonBuffTribeAsym' // Groveweaver: a summoned tribe minion gets +atk/+hp at the current magnitude
   | 'onSpellCastImproveSummon' // Groveweaver: each spell cast improves that grant
+  | 'battlecryCastNamedSpell' // Facetbound Martyr — cast a named Shop spell N times (recruit)
+  | 'grantRandomChooseOne' // Flagrunner / Prismpick Artificer — a random Choose One card to hand
+  | 'chooseOnePlayedPlayRubies' // Ruby Roach — a Choose One play casts Rubies on your board
+  | 'grantChooseBothCharges' // Dealer / Prismpick Artificer — the next N Choose Ones resolve both branches
   | 'battlecryCastTaughtSpell' // Mage-Pup: Shout — cast the spell this token was taught
   | 'grantMagePupTaught' // Moonhowl Mentor: a Shop Spell was bought — mint a Mage-Pup taught that spell, NOW
   | 'battlecryGrantBeastHunt' // Elderhorn (Hunt): your Beast Rallies + Slaughters fire an extra time
@@ -429,6 +434,9 @@ export type EffectFactoryId =
   | 'rallyCastRandomTargetedSpell' // Badgington: Rally — cast a random targeted spell on another friendly Beast + copy to hand
   | 'deathrattleTriggerAdjacentRally' // Scavvers: Echo — trigger an adjacent minion's Rally
   | 'rubyBounceExtra' // Candle Conduit (passive marker): every Ruby played on your side bounces to 1 more minion
+  // Double Trouble (passive marker, set 3): when a Ruby is cast on ANOTHER friendly minion, cast that many on
+  // this. Scanned in `playRubyOn` like the bounce above, never dispatched through the bus.
+  | 'rubySelfCastPerOtherRuby'
   | 'avengeCastRandomHandSpell' // Menagerie Mammoth: Avenge (N) — cast a random spell from your hand (kept, not consumed)
   | 'scGrantSpellCastExtra' // Runebloom Matriarch: Start of Combat — your Shop Spells cast N extra times this fight
   | 'scGrantShieldTribe'
@@ -813,6 +821,11 @@ export interface CardDef {
   /** Mauron: when this attacks it also damages an ADJACENT enemy — ONE of them, or BOTH when gilded. Not
    *  Cleave, which always hits both and is a player-facing keyword; this is a per-card splash. */
   splashAdjacent?: boolean;
+  /** Porkbelly (set 3): when this attacks, it first summons a Gemheart Golem carrying this minion's Ruby
+   *  tally (doubled when gilded), and the GOLEM takes the swing at Porkbelly's own target. If the golem
+   *  fells it, Porkbelly settles — no swing, no retaliation. A card-def flag rather than an `onAttack`
+   *  effect because it INTERRUPTS the exchange, which no effect factory can reach. */
+  vanguardGolem?: boolean;
   /** This card makes whole FAMILIES of trigger fire extra times (Sylus, Drakko, Chronos, Uron). Resolved
    *  through `extraTriggerFires` — never by a hardcoded card-id check. */
   triggerMultiplier?: TriggerMultiplierDef;

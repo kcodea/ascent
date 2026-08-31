@@ -1412,6 +1412,17 @@ export interface RunState {
   runeSharedReflection?: boolean;
   /** Rune of the Unbroken Vein: a Veinbreaker applies BOTH Choose One options, no prompt. */
   runeUnbrokenVein?: boolean;
+  /**
+   * CHOOSE-ONE "BOTH" CHARGES — how many of the NEXT Choose One cards played this turn resolve every branch.
+   *
+   * A count rather than a flag because two cards spend it and they scale differently: Forked Crown refreshes
+   * it at the start of each turn (1, or 2 Gilded), and Prismpick Artificer's Equipment adds to it mid-turn.
+   * Both read through `chooseBothActive`, the single chokepoint that already answers "does this card resolve
+   * both branches", so neither card needs its own hook in the play path.
+   *
+   * Cleared at the turn boundary with the rest of the per-turn counters — "this turn" is the whole promise.
+   */
+  chooseBothCharges?: number;
   /** Rune of Living Growth: each Growth Mushy creates improves the Growth spell permanently. */
   runeLivingGrowth?: boolean;
   /** Living Growth's accrued improvement — added to every Growth cast (shop and combat). */
@@ -1873,6 +1884,10 @@ export interface RunState {
    *  the chosen option's effect is cast ON that target rather than untargeted. */
   chooseOne?: {
     uid: string; cardId: string; spell?: boolean; targetUid?: string;
+    /** EQUIPMENT Choose One (Prismatic Pick): the prompt belongs to an Equipment, not a card, so `cardId` is
+     *  the Equipment's id and there is no hand/board instance behind it. Set = resolve through
+     *  `activateEquipment` instead of replaying a `play`. */
+    equipmentId?: string;
     /** The warband slot the card was dropped into, captured at play time and replayed into the completing
      *  `play` once the branch is picked. Minion Choose Ones only — a spell takes no slot. */
     toIndex?: number;

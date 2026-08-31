@@ -1,8 +1,8 @@
 /** Audio config — the single source of truth for levels, buses, and the master limiter. Pure (no Web Audio):
  *  sfx.ts reads it to build/tune the graph; the dev desk edits it; helpers here are unit-tested. */
 
-export type BusName = 'ui' | 'combat' | 'voice' | 'hero';
-export const BUS_NAMES: BusName[] = ['ui', 'combat', 'voice', 'hero'];
+export type BusName = 'ui' | 'combat' | 'voice' | 'hero' | 'equipment';
+export const BUS_NAMES: BusName[] = ['ui', 'combat', 'voice', 'hero', 'equipment'];
 
 export interface CompConfig { threshold: number; knee: number; ratio: number; attack: number; release: number; }
 export interface BusConfig { gain: number; comp: CompConfig | null; }
@@ -28,6 +28,12 @@ export const CATEGORY_GAINS: Record<string, number> = {
   flurrylunge: 0.375, flurryhit: 0.375, cleave: 0.11,
   felSpikeEcho: 0.5, felSpikeEchoLand: 0.5,
   uihover: 0.08,
+  // ── Equipment (owner ask 2026-08-31: "add an equipment section for me ... named/titled based on the
+  //    card/effect so it is easier to understand what each effect is tied to"). One category PER CLIP, so a
+  //    fader moves exactly one sound, and every name says which card it belongs to (see CATEGORY_LABEL).
+  //    Seeded at the gains these clips already played at before they had faders of their own.
+  eqEquipClang: 0.6, eqSelect: 0.6, eqSheen: 0.6,
+  eqUseBloodpot: 0.6, eqUseTitanHammer: 0.6, eqUseBlastPump: 0.6, eqUsePrismaticPick: 0.6, eqUseOther: 0.6,
 };
 
 /** Which bus each category feeds (seeded default; reassignable live in the desk). */
@@ -41,7 +47,40 @@ export const CATEGORY_BUS: Record<string, BusName> = {
   felSpikeEcho: 'combat', felSpikeEchoLand: 'combat',
   cardVoice: 'voice', cardEffect: 'voice', cardDeath: 'voice',
   heroSelect: 'hero', heroPower: 'hero',
+  eqEquipClang: 'equipment', eqSelect: 'equipment', eqSheen: 'equipment',
+  eqUseBloodpot: 'equipment', eqUseTitanHammer: 'equipment', eqUseBlastPump: 'equipment',
+  eqUsePrismaticPick: 'equipment', eqUseOther: 'equipment',
 };
+
+/**
+ * Human names for the desk. A category KEY has to be a stable identifier (it is persisted in the saved config
+ * and in the exported tuning), while the fader needs to say what it is tied to — so the two are separate, and
+ * a category with no label simply shows its key, exactly as every existing one does.
+ */
+export const CATEGORY_LABEL: Record<string, string> = {
+  eqEquipClang: 'Equip clang — any Equip minion',
+  eqSelect: 'Equipment slot — swap',
+  eqSheen: 'Equipment slot — art sheen',
+  eqUseBloodpot: 'Bloodpot — use (Alchemist Frank)',
+  eqUseTitanHammer: 'Titan Hammer — use',
+  eqUseBlastPump: 'Blast Pump — use (Blast Surveyor)',
+  eqUsePrismaticPick: 'Prismatic Pick — Choose One opens (Prismpick Artificer)',
+  eqUseOther: 'Equipment use — any without its own fader',
+};
+
+/**
+ * An Equipment's `useSfxId` → the mixer category its clip is charged to. Keyed by CLIP, not by Equipment,
+ * because the clip is what the fader moves; an Equipment that names a clip already listed here shares its
+ * fader. Anything unlisted lands on `eqUseOther`, which is a visible prompt to give it a name rather than a
+ * silent fallback.
+ */
+export const EQUIPMENT_CLIP_CATEGORY: Record<string, string> = {
+  bloodpot: 'eqUseBloodpot',
+  titanhammer: 'eqUseTitanHammer',
+  blastpump: 'eqUseBlastPump',
+  prismaticpick: 'eqUsePrismaticPick',
+};
+export const equipmentClipCategory = (clipId: string): string => EQUIPMENT_CLIP_CATEGORY[clipId] ?? 'eqUseOther';
 
 const UNMAPPED: CategoryConfig = { bus: 'ui', gain: 0.6 };
 
@@ -61,7 +100,7 @@ function buildCategories(): Record<string, CategoryConfig> {
 export const DEFAULT_AUDIO_CONFIG: AudioConfig = {
   masterGain: 0.61,
   master: { threshold: -6, knee: 0, ratio: 20, attack: 0.001, release: 0.25 },
-  buses: { ui: { gain: 1, comp: null }, combat: { gain: 1, comp: null }, voice: { gain: 1, comp: null }, hero: { gain: 1, comp: null } },
+  buses: { ui: { gain: 1, comp: null }, combat: { gain: 1, comp: null }, voice: { gain: 1, comp: null }, hero: { gain: 1, comp: null }, equipment: { gain: 1, comp: null } },
   categories: buildCategories(),
   clips: {},
 };
@@ -77,6 +116,9 @@ export function mergeConfig(base: AudioConfig, saved: Partial<AudioConfig> | nul
       combat: { ...base.buses.combat, ...(s.buses?.combat ?? {}) },
       voice: { ...base.buses.voice, ...(s.buses?.voice ?? {}) },
       hero: { ...base.buses.hero, ...(s.buses?.hero ?? {}) },
+      // A config saved before the Equipment bus existed has no entry for it — the defaults fill it in, which
+      // is exactly what this merge is for.
+      equipment: { ...base.buses.equipment, ...(s.buses?.equipment ?? {}) },
     },
     categories: { ...base.categories, ...(s.categories ?? {}) },
     clips: { ...base.clips, ...(s.clips ?? {}) },

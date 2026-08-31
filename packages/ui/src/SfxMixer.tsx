@@ -3,7 +3,7 @@ import {
   getAudioConfig, setBusGain, setMasterComp, setCategory, previewSfx,
   meterLevel, gainReduction, exportConfig, playScene, SCENES,
 } from './sfx';
-import { BUS_NAMES, type BusName, type CompConfig, type CategoryConfig } from './audio/config';
+import { BUS_NAMES, CATEGORY_LABEL, type BusName, type CompConfig, type CategoryConfig } from './audio/config';
 import { useDraggablePanel } from './useDraggablePanel';
 
 const MASTER_DIALS: { k: keyof CompConfig; min: number; max: number; step: number }[] = [
@@ -117,12 +117,12 @@ export function SfxMixer() {
                   <input className="vfader sm" type="range" min={0} max={1} step={0.01} value={c.gain}
                     onChange={(e) => { setCategory(cat, { gain: Number(e.target.value) }); rerender(); }} />
                   {numField(c.gain, 0, 1, (n) => setCategory(cat, { gain: n }), `${cat} level`)}
-                  <button className="play" onClick={() => previewSfx(cat)} title={`Play ${cat}`}>▶</button>
+                  <button className="play" onClick={() => previewSfx(cat)} title={`Play ${CATEGORY_LABEL[cat] ?? cat}`}>▶</button>
                   <select value={c.bus} title="move this sound to another bus"
                     onChange={(e) => { setCategory(cat, { bus: e.target.value as BusName }); rerender(); }}>
                     {BUS_NAMES.map((x) => <option key={x} value={x}>{x}</option>)}
                   </select>
-                  <div className="cstrip-name" title={cat}>{cat}</div>
+                  <div className="cstrip-name" title={CATEGORY_LABEL[cat] ? `${CATEGORY_LABEL[cat]} (${cat})` : cat}>{CATEGORY_LABEL[cat] ?? cat}</div>
                 </div>
               ))}
             </div>

@@ -451,6 +451,20 @@ class FxController {
   private underIniting: Promise<void> | null = null;
   private pendingUnderMounts: Container[] = [];
 
+  // THE ABOVE-MODAL CANVAS. Same trick as the under canvas, in the other direction: a fixed, full-viewport
+  // canvas at z200 — over the Discover / Choose One overlays (z160), under the wipe (z255). It exists for an
+  // effect that is ABOUT the modal, which is the one case where "the modal sits above all effects" is the
+  // wrong answer (see `FxSlot`).
+  //
+  // Lazy and main-ticker-driven for exactly the reasons the under canvas is: a session that never fires an
+  // above-slot effect never pays for the GL context, and one clock means the two halves of a moment cannot
+  // tear apart by a frame. It needs no host registration — it is fixed to the viewport, so it mounts on
+  // `document.body` rather than inside `.app`.
+  private aboveApp: Application | null = null;
+  private aboveLayer: Container | null = null;
+  private aboveIniting: Promise<void> | null = null;
+  private pendingAboveMounts: Container[] = [];
+
   /**
    * Register (or clear) the DOM element the under-card canvas mounts into — `.pixifx-below`, a child of
    * `.app` (see `FxUnderSlot`). Idempotent, and safe in any order relative to `ensureUnderSlot()`: whichever
@@ -498,6 +512,48 @@ class FxController {
     this.pendingUnderMounts.length = 0;
   }
 
+  /** Bring the above-modal canvas up, if it isn't already. Fire-and-forget, exactly like `ensureUnderSlot`:
+   *  the first above-slot effect of a session may find no renderer and decline, which is why
+   *  `ensureDefsReady` pre-warms it when any committed def wants the slot. */
+  ensureAboveSlot(): Promise<void> {
+    if (typeof window === 'undefined') return Promise.resolve(); // SSR guard
+    if (this.aboveApp) return Promise.resolve();
+    this.aboveIniting ??= this.initAbove().catch((e) => {
+      console.error('[pixiFx] above-modal canvas init failed — above-slot effects disabled:', e);
+    });
+    return this.aboveIniting;
+  }
+
+  private async initAbove(): Promise<void> {
+    const res = Math.min(window.devicePixelRatio || 1, 2); // same DPR cap as the main overlay
+    const app = new Application();
+    await app.init({
+      resizeTo: window, backgroundAlpha: 0, antialias: true, autoDensity: true,
+      resolution: res, preference: 'webgl', powerPreference: 'high-performance',
+    });
+    const c = app.canvas;
+    c.className = 'pixifx-above'; // position/z live in styles.css beside every other layer's
+    c.style.pointerEvents = 'none';
+    c.style.display = 'block';
+    if (this.app) c.style.opacity = this.app.canvas.style.opacity || '1'; // inherit a mid-fade opacity
+    const layer = new Container();
+    app.stage.addChild(layer);
+    app.ticker.stop(); // the main ticker renders this — see `renderAbove`
+    this.aboveApp = app;
+    this.aboveLayer = layer;
+    document.body.appendChild(c);
+    for (const pending of this.pendingAboveMounts) layer.addChild(pending);
+    this.pendingAboveMounts.length = 0;
+  }
+
+  /** Render the above-modal stage, driven by the MAIN app's ticker. Skips while nothing is mounted, so an
+   *  idle above canvas costs one array-length read per frame — the `renderUnder` bargain. */
+  private renderAbove = (): void => {
+    const app = this.aboveApp;
+    if (!app || (this.aboveLayer?.children.length ?? 0) === 0) return;
+    app.renderer.render(app.stage);
+  };
+
   /** Render the under-card stage, driven by the MAIN app's ticker. Skips entirely while nothing is mounted
    *  there, so an idle under canvas costs one array-length read per frame. */
   private renderUnder = (): void => {
@@ -510,7 +566,9 @@ class FxController {
    *  descriptors, but each renderer uploads its own, so a layer rendered by the under canvas must be built
    *  with the under canvas's renderer or its uniforms land in the wrong context. */
   rendererFor(slot: FxSlot): Renderer | null {
-    return slot === 'under' ? this.underApp?.renderer ?? null : this.app?.renderer ?? null;
+    if (slot === 'under') return this.underApp?.renderer ?? null;
+    if (slot === 'above') return this.aboveApp?.renderer ?? null;
+    return this.app?.renderer ?? null;
   }
 
   /** Mount a container on the overlay stage. Returns a disposer. Safe to call before `attach()` resolves —
@@ -522,6 +580,17 @@ class FxController {
   mountLayer(c: Container, slot: FxSlot = 'over'): () => void {
     // The default argument is what makes this a true no-op for every existing caller: 'over' is the single
     // stage `mountLayer` has always used, and the branch below is byte-for-byte the old body.
+    if (slot === 'above') {
+      void this.ensureAboveSlot(); // async; the container queues until the canvas exists
+      if (this.aboveLayer) this.aboveLayer.addChild(c);
+      else this.pendingAboveMounts.push(c);
+      this.wake(); // renderAbove runs on the MAIN ticker — a mount while idle must present at least once
+      return () => {
+        this.aboveLayer?.removeChild(c);
+        const i = this.pendingAboveMounts.indexOf(c);
+        if (i >= 0) this.pendingAboveMounts.splice(i, 1);
+      };
+    }
     if (slot === 'under') {
       void this.ensureUnderSlot(); // async; the container queues until the canvas exists
       if (this.underLayer) this.underLayer.addChild(c);
@@ -648,7 +717,8 @@ class FxController {
     this.crescentTex = this.makeCrescentTexture(app);
     this.buildSkullTex(); // the Echo skull: ☠ rendered purple with its glow baked into the texture
     app.ticker.add(this.update);
-    app.ticker.add(this.renderUnder); // one clock for both canvases — see the UNDER slot notes above
+    app.ticker.add(this.renderUnder); // one clock for every canvas — see the UNDER slot notes above
+    app.ticker.add(this.renderAbove);
     if (this.autoIdle) app.ticker.stop(); // idle controller (discoverFx): don't render an empty stage until a burst
     // Expose the live FX counts to the perf HUD. Read once per 1s bucket, never per frame — these are the
     // numbers that explain a spike ("400 particles alive" / "7 rings converging"), so a hitch in the log
@@ -703,6 +773,7 @@ class FxController {
     resetFxPools();
     this.app.ticker.remove(this.update);
     this.app.ticker.remove(this.renderUnder);
+    this.app.ticker.remove(this.renderAbove);
     this.app.destroy({ removeView: true, releaseGlobalResources: true }, { children: true });
     if (this.underApp) {
       // `releaseGlobalResources` is FALSE here, unlike the main app above: the under canvas shares Pixi's
@@ -714,6 +785,15 @@ class FxController {
       this.underLayer = null;
       this.underIniting = null;
       this.pendingUnderMounts.length = 0;
+    }
+    if (this.aboveApp) {
+      // `releaseGlobalResources: false` for the same reason as the under canvas above — it shares Pixi's
+      // module-global caches with the main overlay, which has already been destroyed by this point.
+      this.aboveApp.destroy({ removeView: true }, { children: true });
+      this.aboveApp = null;
+      this.aboveLayer = null;
+      this.aboveIniting = null;
+      this.pendingAboveMounts.length = 0;
     }
     this.app = null;
     this.layer = null;

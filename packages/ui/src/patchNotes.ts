@@ -55,6 +55,20 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-08-31',
+    label: 'Reflector',
+    changes: [
+      {
+        category: 'Card Change',
+        text: "Reflector's text now says it reacts to Rubies as well as Spells, which it always did.",
+        details: [
+          'Spells and Rubies share its once-per-turn trigger, so a Ruby landing first uses it up — that was invisible from a card that only mentioned Spells.',
+          'No change to how the card behaves.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-08-30',
     label: 'The Pulse',
     changes: [

@@ -55,11 +55,12 @@ const ART_PENDING = new Set<string>([
   // SET 3 KOBOLDS — the owner's roster (2026-08-30) shipping ahead of its art, exactly the case this seam
   // exists for. Set 3 is `enabled: false` and reachable only through the Scene Builder, so none of these can
   // reach a player un-arted. Delete each id the moment its master lands.
-  // The 2026-08-31 master batch landed art for nine, and the owner then NAMED the three files whose card
-  // titles had moved since the art was drawn (Flagrunner → Forksong Herald, Dealer → Forked Crown,
-  // Jewel → Prismatic Jeweler). Two remain, and both are waiting on the owner rather than on a file:
-  // `GemBus` is unclaimed, and the `SplitpickApprentice` master is claimed by two cards at once.
-  'k3_forkvein', 'k3_forkroad',
+  // ONE left. The 2026-08-31 batch arted the roster: nine from name matches, three more once the owner named
+  // the files whose card titles had moved since the art was drawn (Flagrunner → Forksong Herald,
+  // Dealer → Forked Crown, Jewel → Prismatic Jeweler), and `GemBus` → Forkroad Scavenger by an
+  // owner ruling that also settled the `SplitpickApprentice` master, which two cards had claimed at once:
+  // Splitpick Apprentice keeps it. Forkvein Prospector is the only Kobold with no master at all.
+  'k3_forkvein',
 ]);
 
 describe('art coverage for live cards', () => {

@@ -55,6 +55,25 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-08-31',
+    label: 'Shop Capacity',
+    changes: [
+      {
+        category: 'Rune Change',
+        text: 'Rune of Open Enrollment no longer adds an extra Shop slot — it replaces an offer instead, so the Shop keeps its normal size.',
+        details: [
+          'It used to leave 7 minions in a 6-slot Shop.',
+          'When the Shop happens to be short a card, it still simply fills the empty slot.',
+          'The replaced minion goes back to the shared pool, exactly like a Refresh.',
+        ],
+      },
+      {
+        category: 'UI / Info',
+        text: "Coppercoat Spellsword's art is re-cropped.",
+      },
+    ],
+  },
+  {
     date: '2026-08-30',
     label: 'The Pulse',
     changes: [

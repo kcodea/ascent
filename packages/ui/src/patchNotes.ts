@@ -257,6 +257,13 @@ export const PATCH_NOTES: PatchNote[] = [
   },
   {
     date: '2026-08-29',
+    label: 'Combat Controls',
+    changes: [
+      { category: 'UI / Info', text: 'The combat controls — the Summary and End Combat pills and the Skip button — got a fresh look and tighter placement, and they now hold their spot on the board at any window size.' },
+    ],
+  },
+  {
+    date: '2026-08-29',
     label: 'Fixes',
     changes: [
       {

@@ -16,6 +16,7 @@ import {
   effectiveGain,
   busOf,
   BUS_NAMES,
+  equipmentClipCategory,
   type AudioConfig,
   type BusName,
   type CompConfig,
@@ -480,8 +481,8 @@ export const sfx = {
    * Synth fallback is a short metallic ping, so the cue still reads if the clip has not decoded yet.
    */
   equipClang: (delay = 0) => {
-    if (playSample('equipclang', 'equip', delay / 1000)) return;
-    tone({ freq: 2100, dur: 0.12, type: 'square', vol: 0.09, slideTo: 900, category: 'equip' });
+    if (playSample('equipclang', 'eqEquipClang', delay / 1000)) return;
+    tone({ freq: 2100, dur: 0.12, type: 'square', vol: 0.09, slideTo: 900, category: 'eqEquipClang' });
   },
   /**
    * USING an Equipment — the clip the Equipment itself names (`useSfxId`), so a new one brings its own sound
@@ -495,8 +496,8 @@ export const sfx = {
    */
   equipmentSelect: (vol = 1) => {
     if (vol <= 0) return;
-    if (playSample('equipmentselect', 'ui', 0, ({ gain }) => { gain.gain.value *= vol; })) return;
-    tone({ freq: 880, dur: 0.06, type: 'triangle', vol: 0.08 * vol, category: 'ui' });
+    if (playSample('equipmentselect', 'eqSelect', 0, ({ gain }) => { gain.gain.value *= vol; })) return;
+    tone({ freq: 880, dur: 0.06, type: 'triangle', vol: 0.08 * vol, category: 'eqSelect' });
   },
   /**
    * The sheen sweeping the Equipment art when the slot's picture CHANGES (owner ask 2026-08-29). `vol` is the
@@ -505,8 +506,8 @@ export const sfx = {
    */
   equipmentSheen: (vol = 1, delay = 0) => {
     if (vol <= 0) return;
-    if (playSample('equipmentsheen', 'ui', Math.max(0, delay) / 1000, ({ gain }) => { gain.gain.value *= vol; })) return;
-    tone({ freq: 1500, dur: 0.14, type: 'sine', vol: 0.06 * vol, slideTo: 2400, category: 'ui' });
+    if (playSample('equipmentsheen', 'eqSheen', Math.max(0, delay) / 1000, ({ gain }) => { gain.gain.value *= vol; })) return;
+    tone({ freq: 1500, dur: 0.14, type: 'sine', vol: 0.06 * vol, slideTo: 2400, category: 'eqSheen' });
   },
   /**
    * The rune lock-in clang — the gold frame slamming shut on the chosen rune (owner ask 2026-08-29).
@@ -533,8 +534,12 @@ export const sfx = {
     tone({ freq: 480, dur: 0.2, type: 'triangle', vol: 0.1 * vol, slideTo: 760, category: 'ui' });
   },
   equipmentUse: (clipId: string, delay = 0) => {
-    if (playSample(clipId, 'equip', delay / 1000)) return;
-    tone({ freq: 520, dur: 0.18, type: 'sine', vol: 0.1, slideTo: 300, category: 'equip' });
+    // PER-CLIP category (owner ask 2026-08-31), so the desk shows one named fader per Equipment rather than a
+    // single `equip` lump — `equipmentClipCategory` is the map, and an unlisted clip lands on `eqUseOther`,
+    // which reads as a prompt to name it.
+    const cat = equipmentClipCategory(clipId);
+    if (playSample(clipId, cat, delay / 1000)) return;
+    tone({ freq: 520, dur: 0.18, type: 'sine', vol: 0.1, slideTo: 300, category: cat });
   },
   // Choosing a hero / pressing the hero-power button — the sourced "pulse" clip; synth ping fallback.
   pulse: () => {
@@ -768,6 +773,13 @@ const SFX_PREVIEW: Record<string, () => void> = {
   discover: sfx.discover, discoverSelect: sfx.discoverSelect, taunt: sfx.taunt, reorder: sfx.reorder, deny: sfx.deny, freeze: sfx.freeze,
   unfreeze: sfx.unfreeze, pulse: sfx.pulse, triggerpulse: sfx.triggerPulse, triggerglow: sfx.triggerGlow, clickthock: sfx.clickThock, cardtouch: sfx.cardTouch, gemapply: sfx.gemApply, divineshieldbreak: sfx.shieldBreak, rebornshatter: sfx.rebornShatter, rebornsummon: sfx.rebornSummon, skullburst: sfx.skullBurst, inspect: sfx.inspect, upgrade: sfx.upgrade, roll: sfx.roll,
   uihover: sfx.uiHover,
+  // Equipment — each preview plays the clip its fader actually governs.
+  eqEquipClang: () => sfx.equipClang(),
+  eqSelect: () => sfx.equipmentSelect(),
+  eqSheen: () => sfx.equipmentSheen(),
+  eqUseBloodpot: () => sfx.equipmentUse('bloodpot'),
+  eqUseTitanHammer: () => sfx.equipmentUse('titanhammer'),
+  eqUseBlastPump: () => sfx.equipmentUse('blastpump'),
   felSpikeEcho: sfx.felSpikeEcho, felSpikeEchoLand: sfx.felSpikeEchoLand,
   combatStart: sfx.combatStart,
   // cardVoice is per-card; preview plays whichever card clip is present (first one found), or nothing.

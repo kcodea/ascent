@@ -5949,7 +5949,7 @@ svg { width: 18px; height: 18px; }
   overflow: auto; resize: both; box-sizing: border-box; display: flex; flex-direction: column; gap: 10px;
   background: #1c1a17; border: 2px solid #3a352e; border-radius: 14px; padding: 12px 14px;
   box-shadow: 0 16px 40px -8px rgba(0,0,0,0.55); font-family: var(--font-ui); color: #efe7db;
-  --ui: #ff8a3c; --combat: #e5556f; --voice: #56b6c9; --hero: #c79cff; }
+  --ui: #ff8a3c; --combat: #e5556f; --voice: #56b6c9; --hero: #c79cff; --equipment: #9ad17a; }
 .desk-h { font-weight: 800; font-size: 15px; color: #efe7db; flex: none; }
 .desk-h.drag { cursor: move; user-select: none; touch-action: none; }
 .desk-h span { font-size: 10px; font-weight: 700; color: #8a7f6d; text-transform: uppercase; letter-spacing: 0.06em; margin-left: 8px; }
@@ -5969,6 +5969,7 @@ svg { width: 18px; height: 18px; }
 .strip-bus { --acc: var(--ui); }
 .strip-bus.bus-ui { --acc: var(--ui); } .strip-bus.bus-combat { --acc: var(--combat); }
 .strip-bus.bus-voice { --acc: var(--voice); } .strip-bus.bus-hero { --acc: var(--hero); }
+.strip-bus.bus-equipment { --acc: var(--equipment); }
 .strip-bus .strip-name { color: var(--acc); }
 .strip-bus b, .strip-master b { font-size: 11px; font-weight: 800; color: #ffcf9e; font-variant-numeric: tabular-nums; }
 .strip-master { --acc: #ffcf9e; }
@@ -6020,11 +6021,13 @@ svg { width: 18px; height: 18px; }
   background: color-mix(in srgb, var(--acc, #888) 11%, transparent); border-radius: 9px; padding: 9px 11px; }
 .cat-group.bus-ui { --acc: var(--ui); } .cat-group.bus-combat { --acc: var(--combat); }
 .cat-group.bus-voice { --acc: var(--voice); } .cat-group.bus-hero { --acc: var(--hero); }
+.cat-group.bus-equipment { --acc: var(--equipment); }
 /* Category / bus label — much larger, in its own colour. */
 .cat-group-h { color: var(--acc); align-self: flex-start; font-size: 17px; font-weight: 800;
   letter-spacing: 0.03em; text-transform: uppercase; text-shadow: 0 1px 2px rgba(0,0,0,0.4); }
 .cat-group-h.bus-ui { --acc: var(--ui); } .cat-group-h.bus-combat { --acc: var(--combat); }
 .cat-group-h.bus-voice { --acc: var(--voice); } .cat-group-h.bus-hero { --acc: var(--hero); }
+.cat-group-h.bus-equipment { --acc: var(--equipment); }
 .cat-strips { display: flex; flex-wrap: wrap; gap: 10px; }
 .cstrip { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 68px; }
 .cstrip .vfader { accent-color: #cbb; }

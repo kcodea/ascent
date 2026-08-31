@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { DEFAULT_AUDIO_CONFIG, mergeConfig, effectiveGain, busOf, CATEGORY_GAINS } from './config';
+import { DEFAULT_AUDIO_CONFIG, mergeConfig, effectiveGain, busOf, CATEGORY_GAINS, BUS_NAMES } from './config';
 
 describe('DEFAULT_AUDIO_CONFIG', () => {
   it('keeps the master-limiter values + the owner-tuned master gain', () => {
@@ -11,14 +11,14 @@ describe('DEFAULT_AUDIO_CONFIG', () => {
       const c = DEFAULT_AUDIO_CONFIG.categories[key];
       expect(c, key).toBeDefined();
       expect(c.gain).toBe(CATEGORY_GAINS[key]);
-      expect(['ui', 'combat', 'voice', 'hero']).toContain(c.bus);
+      expect(BUS_NAMES).toContain(c.bus);
     }
   });
   it('routes the synth-only buff cue to the combat bus (its gain is inert but present)', () => {
     expect(DEFAULT_AUDIO_CONFIG.categories.buff.bus).toBe('combat');
   });
   it('buses default to unity gain, compressor bypassed', () => {
-    for (const b of ['ui', 'combat', 'voice', 'hero'] as const) {
+    for (const b of BUS_NAMES) {
       expect(DEFAULT_AUDIO_CONFIG.buses[b]).toEqual({ gain: 1, comp: null });
     }
   });

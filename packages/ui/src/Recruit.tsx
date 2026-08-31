@@ -6622,13 +6622,45 @@ export function Recruit() {
               only that branch's text printed, so what you click is exactly what lands on your board. */}
           <div className="disc-panel">
             <div className="disc-banner"><span className="disp">Choose One</span></div>
-            <div className="disc-sub">{CARD_INDEX[run.chooseOne.cardId]?.name} · click away to cancel</div>
+            <div className="disc-sub">{(run.chooseOne.equipmentId ? EQUIPMENT_INDEX[run.chooseOne.equipmentId]?.name : CARD_INDEX[run.chooseOne.cardId]?.name)} · click away to cancel</div>
             <div className="disc-cards">
               {(() => {
                 // A golden Choose One doubles each option's effect (gold(self) in the factories) — so show each
                 // option's `goldenText` (Wildwood Shaper: +2/+6 / two Strays). The card is on the board (Battlecry
                 // Choose One) or in hand (spell Choose One).
                 const co = run.chooseOne!;
+                // AN EQUIPMENT'S CHOOSE ONE (Prismatic Pick): there is no card behind the prompt, so each
+                // option is drawn as the SOURCE MINION wearing that branch's text — the Artificer's own art
+                // and name, which is what the player is looking at when they press the Equipment button. The
+                // gilded wording follows the GRANT's version, not a board instance: a gilded Artificer can be
+                // sold and its Equipment kept, and the Pick stays gilded.
+                if (co.equipmentId) {
+                  const eq = EQUIPMENT_INDEX[co.equipmentId];
+                  if (!eq?.chooseOne?.length) return null;
+                  const grant = run.equipment?.available.find((g) => g.equipmentId === co.equipmentId);
+                  const gilded = grant?.version === 'gilded';
+                  // The source may have been sold — the Equipment outlives it within the turn — so fall back
+                  // to the Equipment's own identity rather than assuming a body is still standing.
+                  const srcUid = grant?.sourceUids.find((u) => run.board.some((b) => b.uid === u));
+                  const src = CARD_INDEX[run.board.find((b) => b.uid === srcUid)?.cardId ?? ''];
+                  return eq.chooseOne.map((opt, i) => (
+                    <div className="disc-slot" key={i} style={{ '--c': `var(--t-${src?.tribe ?? 'neutral'})` } as CSSProperties}>
+                      <Card
+                        card={{
+                          name: eq.name, cardId: src?.id ?? eq.id, tribe: src?.tribe ?? 'neutral',
+                          universalTribe: false, golden: gilded,
+                          attack: src?.attack ?? 0, health: src?.health ?? 0, keywords: [],
+                          tier: src?.tier ?? 1, spell: false, ruby: false,
+                          text: gilded ? (opt.goldenText ?? opt.text) : opt.text,
+                          goldenText: opt.goldenText ?? opt.text,
+                        }}
+                        forceFull
+                        plated
+                        onClick={() => dispatch({ type: 'chooseOne', index: i })}
+                      />
+                    </div>
+                  ));
+                }
                 const c = CARD_INDEX[co.cardId];
                 if (!c) return null;
                 const inst = run.board.find((x) => x.uid === co.uid) ?? run.hand.find((x) => x.uid === co.uid);

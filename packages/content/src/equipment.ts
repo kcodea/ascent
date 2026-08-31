@@ -62,6 +62,32 @@ export interface EquipmentDefinition {
    */
   useFxId?: string;
   useSfxId?: string;
+  /**
+   * CHOOSE ONE on an Equipment (owner ask 2026-08-31: *"we need to build prismpick the way it's stated. when
+   * it's used it should open the choose one window"*). Present = using this Equipment opens the same Choose
+   * One window a card does, and the branch the player picks supplies the effect instead of `effectId`.
+   *
+   * The card rule carries over unchanged: **the prompt commits nothing.** No Gold, no allowance, no trigger —
+   * the activation is replayed from the top once a branch is picked, exactly as a deferred card play is, so
+   * every consequence fires once and cancelling is a pure no-op.
+   *
+   * Gilding rides `gildedParams` per branch, the Equipment system's own channel — equipment factories ignore
+   * the source's golden flag (see `equipmentBuffTarget`), and these branches reuse factories that do read it,
+   * so the activation hands them a non-gilded self and lets the params carry it. One channel, not two.
+   */
+  chooseOne?: readonly EquipmentChoice[];
+}
+
+/** One branch of an Equipment's Choose One. Same shape as a card's, minus the card. */
+export interface EquipmentChoice {
+  /** Printed on the option in the picker, as the player reads it. */
+  text: string;
+  /** The Gilded wording. Absent = the plain text is shown for a Gilded source too. */
+  goldenText?: string;
+  /** The recruit factory this branch resolves through. */
+  effectId: string;
+  params?: Record<string, number | string>;
+  gildedParams?: Record<string, number | string>;
 }
 
 /**
@@ -132,9 +158,56 @@ export const BLAST_PUMP: EquipmentDefinition = {
   spellId: 'rubyexcavation',
   params: { spellId: 'rubyexcavation' },
   gildedParams: { spellId: 'rubyexcavation', count: 2 },
+  // Authored by the owner in the FX tuner and published to `fx/defs/blast-pump.json` (2026-08-31), with a
+  // clip to match. Named here rather than in the UI so the Equipment carries its own presentation.
+  useFxId: 'blast-pump',
+  useSfxId: 'blastpump',
 };
 
-export const EQUIPMENT: readonly EquipmentDefinition[] = [BLOODPOT, TITAN_HAMMER, BLAST_PUMP];
+/**
+ * PRISMATIC PICK — Prismpick Artificer's Equipment (set-3 Kobold roster), and the first Equipment to open the
+ * CHOOSE ONE window.
+ *
+ * The two branches are the set's Choose One theme pointed at itself: one hands you another fork to take, the
+ * other makes the next fork you take pay both ways. `targetMode: 'none'` — neither branch aims at anything.
+ *
+ * `effectId` is never fired: the picked branch supplies the effect. It names the second branch's factory so
+ * that a build which somehow reached the activation without a pick resolves to something coherent rather than
+ * failing the unknown-effect guard.
+ *
+ * Gilded doubles both branches through `gildedParams` (2 cards / 2 charges), not through the source's golden
+ * flag — see the `chooseOne` field's note.
+ */
+export const PRISMATIC_PICK: EquipmentDefinition = {
+  id: 'prismatic_pick',
+  name: 'Prismatic Pick',
+  text: 'Choose One — get a random **Choose One** card; or your next **Choose One** card this turn gains **both** effects.',
+  goldenText: 'Choose One — get **2 random Choose One** cards; or your next **2 Choose One** cards this turn gain **both** effects.',
+  baseCost: 2,
+  targetMode: 'none',
+  effectId: 'grantChooseBothCharges',
+  params: { count: 1 },
+  gildedParams: { count: 2 },
+  chooseOne: [
+    {
+      text: 'Get a random **Choose One** card.',
+      goldenText: 'Get **2 random Choose One** cards.',
+      effectId: 'grantRandomChooseOne',
+      params: { count: 1 },
+      gildedParams: { count: 2 },
+    },
+    {
+      // ADDS charges (no `set`): "your NEXT Choose One card", on top of whatever a Forked Crown already armed.
+      text: 'Your next **Choose One** card this turn gains **both** effects.',
+      goldenText: 'Your next **2 Choose One** cards this turn gain **both** effects.',
+      effectId: 'grantChooseBothCharges',
+      params: { count: 1 },
+      gildedParams: { count: 2 },
+    },
+  ],
+};
+
+export const EQUIPMENT: readonly EquipmentDefinition[] = [BLOODPOT, TITAN_HAMMER, BLAST_PUMP, PRISMATIC_PICK];
 
 export const EQUIPMENT_INDEX: Readonly<Record<string, EquipmentDefinition>> =
   Object.fromEntries(EQUIPMENT.map((e) => [e.id, e]));

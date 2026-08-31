@@ -267,4 +267,22 @@ export const SET3_KOBOLDS: CardDef[] = [
     text: "Before this attacks, summon a **1/1 Gemheart Golem** plus this minion's Rubies, and it attacks first.",
     goldenText: "Before this attacks, summon a **2/2 Gemheart Golem** plus double this minion's Rubies, and it attacks first.",
   },
+  {
+    // The roster's SECOND Equip minion, and the first Equipment anywhere to open the Choose One window (owner
+    // ask 2026-08-31). The branches live on the Equipment (`PRISMATIC_PICK`), not here: the choice is made
+    // when the Pick is USED, once per activation, not once when the Artificer is played.
+    //
+    // Both branches point back at the set's Choose One theme — one hands you another fork, the other makes
+    // the next fork pay both ways — so the Artificer is the payoff for a board already built around forks.
+    id: 'k3_prismpick',
+    name: 'Prismpick Artificer',
+    tribe: 'kobold',
+    tier: 6,
+    attack: 8,
+    health: 8,
+    keywords: [],
+    effects: [{ on: 'equip', do: 'grantEquipment', params: { equipmentId: 'prismatic_pick' } }],
+    text: '**Equip Prismatic Pick (2): Choose One** — get a random **Choose One** card; or your next **Choose One** card this turn gains **both** effects.',
+    goldenText: '**Equip Prismatic Pick (2): Choose One** — get **2 random Choose One** cards; or your next **2 Choose One** cards this turn gain **both** effects.',
+  },
 ];

@@ -28,6 +28,9 @@ export interface ThisTurnClassification {
 }
 
 export const THIS_TURN_CLASSIFIED: Readonly<Record<string, ThisTurnClassification>> = {
+  // ── Equipment ──
+  k3_prismpick: { kind: 'no-combat-meaning', why: 'Prismpick Artificer prints the wording of its Equipment: "your next Choose One card this turn gains both effects". Choose One is resolved when a HAND card is played in the SHOP — a fight never plays one — so the armed charge has no combat half to lose. It is cleared at the turn rollover and excused in the carry-over scan for the same reason (R-TURN-01 conform).' },
+
   // ── gifts ──
   gift_encore: { kind: 'violation-fixed', why: 'Demand an Encore, "your Shouts trigger an extra time this turn": the extras used to evaporate at the shop/combat boundary. Fixed 2026-08-27 under R-TURN-01 — threaded as questCombatMods.encoreExtra, consumed by ctx.shoutCarryExtras on EVERY combat-triggered Shout (a turn-long buff, mirroring the shop counter).' },
   gift_arcane_clearance: { kind: 'no-combat-meaning', why: 'this-turn Shop-spell discount; nothing in the combat half of the turn can pay a cost (R-TURN-01 conform)' },

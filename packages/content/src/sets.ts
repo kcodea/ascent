@@ -112,9 +112,9 @@ const SET1_SPELLS_IN_SET2: readonly CardDef[] = SPELLS.filter((s) => !s.token &&
  * over without set 3 opting into set 2's Ruby spells.
  */
 /**
- * The set-2 Kobolds set 3 keeps. NINE, not the original eleven: the owner's full set-3 Kobold roster
- * (2026-08-30) names exactly these, and the rule attached to it was that anything absent from that roster
- * leaves the set. `k_beggy` and `k_alchemist` (Brisbane) were dropped on that basis.
+ * The set-2 Kobolds set 3 keeps. EIGHT, down from the original eleven: the owner's full set-3 Kobold roster
+ * (2026-08-30) named nine of them — `k_beggy` and `k_alchemist` (Brisbane) left on that basis — and
+ * `k_deepdelve` (Deepdelve Paragon) was pulled by a later owner call (2026-08-31).
  *
  * They are still perfectly good SET 2 cards and are untouched there — leaving a set is not archiving. This
  * list is the only thing that decides whether a set-2 card is drawable in a set-3 run.
@@ -122,7 +122,7 @@ const SET1_SPELLS_IN_SET2: readonly CardDef[] = SPELLS.filter((s) => !s.token &&
 const SET2_KOBOLDS_IN_SET3: readonly CardDef[] = SET2_KOBOLDS.filter((c) =>
   [
     'k_chipwick', 'k_geode', 'k_blazer', 'k_gemheart', 'k_kobe',
-    'k_veinbreaker', 'k_boulderdash', 'k_kobabyboldies', 'k_deepdelve',
+    'k_veinbreaker', 'k_boulderdash', 'k_kobabyboldies',
   ].includes(c.id),
 );
 

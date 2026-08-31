@@ -1884,6 +1884,10 @@ export interface RunState {
    *  the chosen option's effect is cast ON that target rather than untargeted. */
   chooseOne?: {
     uid: string; cardId: string; spell?: boolean; targetUid?: string;
+    /** EQUIPMENT Choose One (Prismatic Pick): the prompt belongs to an Equipment, not a card, so `cardId` is
+     *  the Equipment's id and there is no hand/board instance behind it. Set = resolve through
+     *  `activateEquipment` instead of replaying a `play`. */
+    equipmentId?: string;
     /** The warband slot the card was dropped into, captured at play time and replayed into the completing
      *  `play` once the branch is picked. Minion Choose Ones only — a spell takes no slot. */
     toIndex?: number;

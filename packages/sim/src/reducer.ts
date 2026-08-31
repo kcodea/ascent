@@ -18,7 +18,7 @@ import {
   equipmentCostOf, equipmentUsesLeft, expireEquipmentTurn, rebuildEquipment,
   selectEquipment, selectedEquipment,
 } from './equipment';
-import { noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, roundedSpellbookCostOf, buyoutCostOf, commissionOffer, COMMISSION_DELAY, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, stampSharedSpoils, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, chooseBothActive, chooseOneNeedsChoice, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, rubyStatBonus, consumeGrimoireCharge, countRubyAsShopSpell, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, landBorrowed, settlePendingDeath, stampEquipFx, fireEquipmentTriggers, buyHealthAura, undeadBuyBonus, weldMagnetic , defIsTribe} from './recruit';
+import { applyChooseOnePlayed, spendChooseBothCharge, noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, roundedSpellbookCostOf, buyoutCostOf, commissionOffer, COMMISSION_DELAY, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, stampSharedSpoils, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, chooseBothActive, chooseOneNeedsChoice, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, rubyStatBonus, consumeGrimoireCharge, countRubyAsShopSpell, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, landBorrowed, settlePendingDeath, stampEquipFx, fireEquipmentTriggers, buyHealthAura, undeadBuyBonus, weldMagnetic , defIsTribe} from './recruit';
 import { handCap, mixSeed, reservedHandSlots, TAG, henchmanOffer, type Action, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type ShopCard, type CiaSuit, type Commission, type CommissionKind, type RunState, type RubyLandedFx, gateUses, procRune, procRuneId, runeBuffMagnitude } from './state';
 import { alignmentsOf } from './alignment';
 import { RUNE_DUP_SWEETENER, RUNE_DUP_UNIQUE, forgeFilteredDuplicate, runeStacksOf } from './runeDup';
@@ -1414,6 +1414,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       // once, before the type branches — every branch below is a real play. A fizzle (no legal target) returns
       // the ORIGINAL `state`, so an increment on the draft is discarded with everything else, which is correct.
       applyCardsPlayed(s, 1);
+      applyChooseOnePlayed(s, def); // Ruby Roach — a Choose One play specifically (no-op for anything else)
 
       // Funeral on Loan: playing a BORROWED minion triggers its Echo out of combat, then it's destroyed.
       //
@@ -1894,6 +1895,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         // own golden scaling and buff-FX attribution, in printed order.
         if (chooseBothActive(s, card, coDef)) {
           if (s.runeUnbrokenVein && card.cardId === 'k_veinbreaker') procRuneId(s, 'rune_unbroken_vein');
+          spendChooseBothCharge(s, card, coDef); // Forked Crown / Prismpick — one card per charge
           for (const opt of coDef.chooseOne) applyChooseOne(s, card, opt.effects);
         } else {
           const pick = s.chooseOnePick?.uid === card.uid ? s.chooseOnePick : undefined;
@@ -3487,6 +3489,7 @@ function resolveChooseOneSpell(
   const casts = spellCasts(s, def);
   // (BOTH) — Rune of Facetwright's "they give both effects": resolve EVERY branch instead of the picked one.
   const both = chooseBothActive(s, card, def);
+  if (both) spendChooseBothCharge(s, card, def); // Forked Crown / Prismpick — one card per charge
   const branches = both ? (def.chooseOne ?? []) : (def.chooseOne?.[index] ? [def.chooseOne[index]] : []);
   const synthetic = { ...def, effects: branches.flatMap((o) => o.effects) };
   for (let n = 0; n < casts; n++) {
@@ -4481,6 +4484,10 @@ function advanceCombat(s: RunState): void {
   s.gorrBuys = undefined; // Gorr: the per-turn minion-buy tally resets
   s.freeBuyUsedThisTurn = false; // Freedom rift: the first minion each turn is free again
   s.spellFirstUsedThisTurn = false; // Spell Thesis: "first spell each turn casts twice" resets each turn
+  // Choose-One BOTH charges are per-turn — cleared here, then Forked Crown's start-of-turn effect (below in
+  // the same advance) re-grants its own. Clearing FIRST is what makes "the first Choose One each turn" true
+  // rather than letting an unspent charge accumulate.
+  s.chooseBothCharges = 0;
   // Ruby per-turn gates. NEITHER was reset before 2026-08-06 (owner report on Resonance): "first Ruby each
   // turn casts extra" fired once per RUN, and Gemscript's first-Ruby spell-power bump did the same.
   // Chef Gary Toast: clear each Chef's per-turn grant tally. NOT banked into a second field — the combat that

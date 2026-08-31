@@ -201,4 +201,45 @@ export const SET3_KOBOLDS: CardDef[] = [
     text: 'When a **Ruby** is cast on another minion in combat, cast a **Ruby** on this.',
     goldenText: 'When a **Ruby** is cast on another minion in combat, cast **2 Rubies** on this.',
   },
+  {
+    // Rally: a Choose One card to hand. `grantRandomChooseOne` draws from the RUN's pool, so it can only
+    // ever hand back something this set actually fields.
+    id: 'k3_forksong',
+    name: 'Forksong Herald',
+    tribe: 'kobold',
+    tier: 4,
+    attack: 4,
+    health: 6,
+    keywords: ['RL'],
+    effects: [{ on: 'onAttack', do: 'grantRandomChooseOne', params: { count: 1 } }],
+    text: '**Rally:** get a **Choose One** card.',
+    goldenText: '**Rally:** get **2 Choose One** cards.',
+  },
+  {
+    // `set` (not add) — "the FIRST Choose One card you play each turn", so the charge refreshes to exactly one
+    // per turn and is never banked. The turn boundary clears charges first, then this re-grants.
+    id: 'k3_forkedcrown',
+    name: 'Forked Crown',
+    tribe: 'kobold',
+    tier: 4,
+    attack: 4,
+    health: 3,
+    keywords: [],
+    effects: [{ on: 'startOfTurn', do: 'grantChooseBothCharges', params: { count: 1, set: 1 } }],
+    text: 'The **first Choose One** card you play each turn gains **both** effects.',
+    goldenText: 'The **first 2 Choose One** cards you play each turn gain **both** effects.',
+  },
+  {
+    // The Choose One payoff: every fork you take pays the whole board in Rubies.
+    id: 'k3_rubyroach',
+    name: 'Ruby Roach',
+    tribe: 'kobold',
+    tier: 6,
+    attack: 6,
+    health: 8,
+    keywords: [],
+    effects: [{ on: 'chooseOnePlayed', do: 'chooseOnePlayedPlayRubies', params: { count: 1 } }],
+    text: 'Whenever you play a **Choose One** card, cast a **Ruby** on your minions.',
+    goldenText: 'Whenever you play a **Choose One** card, cast **2 Rubies** on your minions.',
+  },
 ];

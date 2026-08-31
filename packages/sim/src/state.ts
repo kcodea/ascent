@@ -1412,6 +1412,17 @@ export interface RunState {
   runeSharedReflection?: boolean;
   /** Rune of the Unbroken Vein: a Veinbreaker applies BOTH Choose One options, no prompt. */
   runeUnbrokenVein?: boolean;
+  /**
+   * CHOOSE-ONE "BOTH" CHARGES — how many of the NEXT Choose One cards played this turn resolve every branch.
+   *
+   * A count rather than a flag because two cards spend it and they scale differently: Forked Crown refreshes
+   * it at the start of each turn (1, or 2 Gilded), and Prismpick Artificer's Equipment adds to it mid-turn.
+   * Both read through `chooseBothActive`, the single chokepoint that already answers "does this card resolve
+   * both branches", so neither card needs its own hook in the play path.
+   *
+   * Cleared at the turn boundary with the rest of the per-turn counters — "this turn" is the whole promise.
+   */
+  chooseBothCharges?: number;
   /** Rune of Living Growth: each Growth Mushy creates improves the Growth spell permanently. */
   runeLivingGrowth?: boolean;
   /** Living Growth's accrued improvement — added to every Growth cast (shop and combat). */

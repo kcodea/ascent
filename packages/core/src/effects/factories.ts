@@ -1205,6 +1205,19 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   battlecryGetRubies: (ctx, self, params) => {
     ctx.mintRubies(num(params.count, 1) * mul(self), self.side, self.uid);
   },
+  /**
+   * COMBAT twin of the recruit `grantRandomChooseOne` (Forksong Herald's Rally).
+   *
+   * A Rally fires mid-fight, so the recruit factory alone would mean the card did nothing at the only moment
+   * it can trigger — the silent-dispatch shape the `factoryPhase` lane exists to catch, and which it caught
+   * here. Same recipe as `grantRandomAle`: only cards actually in this run's pool, so a set without Choose One
+   * cards grants nothing rather than reaching outside the set.
+   */
+  grantRandomChooseOne: (ctx, self, params) => {
+    const pool = ctx.poolCards(self.side).filter((c) => (c.chooseOne?.length ?? 0) > 0);
+    if (pool.length === 0) return;
+    for (let i = 0; i < num(params.count, 1) * mul(self); i++) ctx.grantToHand(ctx.rng.pick(pool).id, self.side, self.uid);
+  },
   grantRandomAle: (ctx, self, params) => {
     // Same recipe as Rune of Last Call: only Ales actually in this run's pool (a set without them grants nothing).
     const ales = ctx.poolCards(self.side).filter((c) => ALE_IDS.includes(c.id));

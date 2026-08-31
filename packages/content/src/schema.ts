@@ -31,6 +31,7 @@ export const GameEventSchema = z.enum([
   'goldSpent',
   'cardsBought',
   'cardsPlayed',
+  'chooseOnePlayed',
   'onSell',
   'startOfTurn',
   'equip', // grants this minion's Equipment (on play, and on every Start of Turn rebuild)
@@ -249,6 +250,9 @@ export const EffectFactoryIdSchema = z.enum([
   'rallyCastRandomTargetedSpell',
   'deathrattleTriggerAdjacentRally',
   'battlecryCastNamedSpell',
+  'grantRandomChooseOne',
+  'grantChooseBothCharges',
+  'chooseOnePlayedPlayRubies',
   'rubyBounceExtra',
   'rubySelfCastPerOtherRuby',
   'avengeCastRandomHandSpell',

@@ -201,6 +201,7 @@ export type GameEvent =
   | 'goldSpent' // recruit phase: the player spent Gold — fires per threshold (Acid, Banksly)
   | 'cardsBought' // recruit phase: the player bought a card — fires per threshold (Korok, Banksly)
   | 'cardsPlayed' // recruit phase: the player PLAYED a card — the play-count twin of `cardsBought` (Mountainbond)
+  | 'chooseOnePlayed' // recruit phase: the player played a CHOOSE ONE card specifically (Ruby Roach)
   | 'onSell' // recruit phase: this minion is sold (Hoard Whelp — get Gold, Beggy — get Rubies)
   | 'startOfTurn' // recruit phase: a shop turn begins — the symmetric twin of `endOfTurn` (Gemline Martyr)
   | 'equip' // recruit phase: this minion GRANTS its Equipment — on play, and again at every Start of Turn
@@ -292,6 +293,9 @@ export type EffectFactoryId =
   | 'summonBuffTribeAsym' // Groveweaver: a summoned tribe minion gets +atk/+hp at the current magnitude
   | 'onSpellCastImproveSummon' // Groveweaver: each spell cast improves that grant
   | 'battlecryCastNamedSpell' // Facetbound Martyr — cast a named Shop spell N times (recruit)
+  | 'grantRandomChooseOne' // Forksong Herald / Prismpick Artificer — a random Choose One card to hand
+  | 'chooseOnePlayedPlayRubies' // Ruby Roach — a Choose One play casts Rubies on your board
+  | 'grantChooseBothCharges' // Forked Crown / Prismpick Artificer — the next N Choose Ones resolve both branches
   | 'battlecryCastTaughtSpell' // Mage-Pup: Shout — cast the spell this token was taught
   | 'grantMagePupTaught' // Moonhowl Mentor: a Shop Spell was bought — mint a Mage-Pup taught that spell, NOW
   | 'battlecryGrantBeastHunt' // Elderhorn (Hunt): your Beast Rallies + Slaughters fire an extra time

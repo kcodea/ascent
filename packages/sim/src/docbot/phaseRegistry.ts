@@ -68,6 +68,9 @@ export const TRIGGER_PHASES: Readonly<Record<string, 'recruit' | 'combat' | 'bot
   // (Candle Conduit's bounce, Double Trouble's self-cast). There is no recruit equivalent — the shop's Ruby
   // path is `fireOnRubyPlayed`, which is the `onRubyPlayed` row above.
   rubyPlayedAnywhere: 'combat',
+  // Ruby Roach. A RECRUIT-only signal: it fires from the play path beside the play-count meter, and there is
+  // no combat equivalent because Choose One is resolved in the shop, never mid-fight.
+  chooseOnePlayed: 'recruit',
   onPlay: 'both', // shop play + combat re-fires (Ryme, parting cries, Rune of Shared Scripture) — the Conductor chokepoint
   onDeath: 'both', // combat deaths + shop-side Echo re-fires (Funeral on Loan, Echohorn family)
   onSummon: 'both', // summons happen in both phases (recruit dispatch: fireOnSummon)

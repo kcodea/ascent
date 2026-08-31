@@ -8672,12 +8672,19 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   /* FIXED, not absolute: the rail is a scroll container (`overflow-y: auto`) and therefore CLIPS absolutely
      positioned descendants that fall outside it — which this card, opening to the rail's left, always does.
      `top`/`right` are supplied inline from the hovered seat's measured box. */
+  /* PORTALED to <body> (see LobbyPanel), so it CANNOT inherit the rail's --lu/--lrow/--lfont — derive them here
+     from the same globals, mirroring `.lobbyrail`. Without this every `calc(... * var(--lu))` collapses and images
+     fall back to their natural (huge) size (owner report 2026-08-31: "portraits utterly massive"). */
+  --u: calc(var(--u-base) * var(--ui-scale, 0.96));
+  --lu: calc(var(--u) * var(--lby-scale, 0.82));
+  --lrow: calc(var(--lu) * var(--lby-row, 1.91));
+  --lfont: calc(var(--lu) * var(--lby-font, 0.9));
   position: fixed; z-index: 80; transform: translateY(-50%);
-  width: calc(112 * var(--lu)); pointer-events: none;
-  display: flex; flex-direction: column; gap: calc(4 * var(--lu));
-  padding: calc(7 * var(--lu)); border-radius: calc(8 * var(--lu));
-  background: linear-gradient(180deg, #241a13, #17110c);
-  border: 1px solid color-mix(in srgb, var(--gold) 55%, #000);
+  width: calc(112 * var(--lu) * var(--sc-w, 2.6)); pointer-events: none;
+  display: flex; flex-direction: column; gap: calc(4 * var(--lu) * var(--sc-gap, 2.3));
+  padding: calc(7 * var(--lu) * var(--sc-pad, 2.3)); border-radius: calc(8 * var(--lu) * var(--sc-rad, 1.25));
+  background: linear-gradient(180deg, var(--sc-bg1, #47311f), var(--sc-bg2, #110c08));
+  border: 1px solid color-mix(in srgb, var(--sc-border, #ecca96) 55%, #000);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 calc(4 * var(--lu)) calc(14 * var(--lu)) -4px var(--shadow);
   /* One-shot fade+slide on open. Safe to touch opacity/transform here — this is not a looping animation, and
      both are compositor-only properties (docs/performance.md). */
@@ -8687,33 +8694,127 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   to { opacity: 1; transform: translateY(-50%) translateX(0); }
 }
 .lobbyscout-head { display: flex; flex-direction: column; line-height: 1.15; }
-.lobbyscout-name { font-size: calc(12 * var(--lfont)); font-weight: 800; color: #f4ecdb;
+.lobbyscout-name { font-size: calc(12 * var(--lfont) * var(--sc-name, 2)); font-weight: 800; color: var(--sc-name-col, #fff);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.lobbyscout-hero { font-size: calc(8 * var(--lfont)); color: #b7a98f;
+.lobbyscout-hero { font-size: calc(8 * var(--lfont) * var(--sc-hero, 2)); color: var(--sc-hero-col, #d9c7a8);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-/* Three equal columns so the numbers line up between seats — the point is comparing opponents, and a
-   content-width layout makes two cards you open in sequence disagree about where "tier" sits. */
-.lobbyscout-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: calc(3 * var(--lu));
-  padding-top: calc(4 * var(--lu)); border-top: 1px solid rgba(255, 255, 255, 0.1); }
-.lobbyscout-stat { display: flex; flex-direction: column; align-items: center; line-height: 1.1; }
-.lobbyscout-stat b { font-size: calc(11 * var(--lfont)); font-weight: 800; color: var(--acc); }
-.lobbyscout-stat i { font-size: calc(7 * var(--lfont)); font-style: normal; letter-spacing: 0.07em;
-  text-transform: uppercase; color: #b7a98f; }
+/* Tribe build+count on its OWN row, then tier + triples paired beneath it; each stat's title sits ABOVE its
+   value (owner ask 2026-08-31 — the `<i>` label is authored before the `<b>` value in the DOM). */
+.lobbyscout-stats { display: flex; flex-direction: column; gap: calc(4 * var(--lu));
+  padding-top: calc(12 * var(--lu)); border-top: 1px solid color-mix(in srgb, var(--sc-divider, #c17a45) 16%, transparent); }
+.lobbyscout-statrow { display: grid; grid-template-columns: repeat(2, 1fr); gap: calc(3 * var(--lu)); }
+.lobbyscout-stat { display: flex; flex-direction: column; align-items: center; gap: calc(1 * var(--lu)); line-height: 1.1; }
+/* A horizontal rule between the tier/gilded-units pair and the tribe build below (owner ask 2026-08-31). */
+.lobbyscout-stat--wide { padding-top: calc(8 * var(--lu)); border-top: 1px solid color-mix(in srgb, var(--sc-divider, #c17a45) 16%, transparent); }
+.lobbyscout-stat b { font-size: calc(11 * var(--lfont) * var(--sc-stat, 2)); font-weight: 800; color: var(--sc-stat-col, #f4d58a); }
+.lobbyscout-stat i { font-size: calc(7 * var(--lfont) * var(--sc-statlabel, 2)); font-style: normal; letter-spacing: 0.07em;
+  text-transform: uppercase; color: var(--sc-label-col, #b7a98f); }
 .lobbyscout-stale { font-size: calc(7 * var(--lfont)); color: #8d8271; }
 .lobbyscout-empty { font-size: calc(8 * var(--lfont)); color: #8d8271; font-style: italic; }
 
-.lobbyscout-log { display: flex; flex-direction: column; gap: calc(2 * var(--lu));
-  padding-top: calc(4 * var(--lu)); border-top: 1px solid rgba(255, 255, 255, 0.1); }
-.lobbyscout-row { display: flex; justify-content: space-between; align-items: baseline; gap: calc(4 * var(--lu));
-  font-size: calc(9 * var(--lfont)); }
-.lobbyscout-vs { color: #d9cfba; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.lobbyscout-dmg { font-weight: 800; white-space: nowrap; }
+/* GRID so the header titles and every row share the same four columns — ROUND / VS / OUTCOME / DMG (owner ask
+   2026-08-31). Rows + header are `display: contents`, so their cells become the grid's items and line up. */
+.lobbyscout-log { display: grid; grid-template-columns: calc(40 * var(--lu)) auto 1fr auto;
+  justify-items: center; align-items: center; column-gap: calc(6 * var(--lu)); row-gap: calc(8 * var(--lu));
+  padding-top: calc(12 * var(--lu)); border-top: 1px solid color-mix(in srgb, var(--sc-divider, #c17a45) 16%, transparent);
+  font-size: calc(9 * var(--lfont) * var(--sc-histtext, 2)); }
+.lobbyscout-row, .lobbyscout-loghead { display: contents; }
+.lobbyscout-log .lobbyscout-empty { grid-column: 1 / -1; justify-self: start; }
+.lobbyscout-vs { display: inline-flex; align-items: center; gap: calc(3 * var(--lu)); min-width: 0; color: #d9cfba; }
+.lobbyscout-vslabel { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* The round number in the left (ROUND) column — centred by the grid's `justify-items`. */
+.lobbyscout-round { font-weight: 800; color: var(--sc-label-col, #b7a98f); }
+.lobbyscout-colhead { text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700;
+  font-size: calc(6 * var(--lfont) * var(--sc-statlabel, 2)); color: var(--sc-label-col, #b7a98f);
+  padding-bottom: calc(7 * var(--lu)); }
+.lobbyscout-dmg { display: inline-flex; align-items: center; gap: calc(2 * var(--lu)); font-weight: 800; white-space: nowrap; }
+.lobbyscout-blast { width: calc(12 * var(--lfont) * var(--sc-histtext, 2)); height: calc(12 * var(--lfont) * var(--sc-histtext, 2));
+  object-fit: contain; flex: none; }
+/* The foe's PORTRAIT in the fight log (owner ask 2026-08-31), replacing their name. Outcome tints its ring. */
+/* Matches the rail SEAT portrait exactly (same 18·lrow·lby-face expression, owner ask 2026-08-31); the
+   `--sc-histface` dial scales it from there. */
+.lobbyscout-foeface { width: calc(18 * var(--lrow) * var(--lby-face, 1.74) * var(--sc-histface, 1));
+  height: calc(18 * var(--lrow) * var(--lby-face, 1.74) * var(--sc-histface, 1));
+  border-radius: 50%; object-fit: cover; flex: none; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.4); }
+.lobbyscout-row.win .lobbyscout-foeface { box-shadow: 0 0 0 2px var(--sc-win, #4be081); }
+.lobbyscout-row.lose .lobbyscout-foeface { box-shadow: 0 0 0 2px var(--sc-lose, #ff5555); }
+.lobbyscout-row.draw .lobbyscout-foeface { box-shadow: 0 0 0 2px var(--sc-draw, #c9bca3); }
+/* WON / LOST / DREW sits BETWEEN the portrait and the damage (owner ask 2026-08-31); colour rides the row. */
+.lobbyscout-result { font-family: var(--font-ui); font-weight: 900; letter-spacing: 0.05em; white-space: nowrap; }
+.lobbyscout-row.win .lobbyscout-result { color: var(--sc-win, #4be081); }
+.lobbyscout-row.lose .lobbyscout-result { color: var(--sc-lose, #ff5555); }
+.lobbyscout-row.draw .lobbyscout-result { color: var(--sc-draw, #c9bca3); }
 /* Result colour rides the ROW, so the damage number reads as "what happened" rather than needing a separate
    win/loss glyph beside it. */
-.lobbyscout-row.win .lobbyscout-dmg { color: #6fe39a; }
-.lobbyscout-row.lose .lobbyscout-dmg { color: #ff6b6b; }
-.lobbyscout-row.draw .lobbyscout-dmg { color: #c9bca3; }
+.lobbyscout-row.win .lobbyscout-dmg { color: var(--sc-win, #4be081); }
+.lobbyscout-row.lose .lobbyscout-dmg { color: var(--sc-lose, #ff5555); }
+.lobbyscout-row.draw .lobbyscout-dmg { color: var(--sc-draw, #c9bca3); }
+
+/* ── SCOUT CARD — layout variants (dev A/B/C compare) ──────────────────────────────────────────────────────
+   Three candidate formattings share the same data; the dev chip cycles them. V1 = stat strip, V2 = identity
+   banner + history-forward, V3 = compact. The classes below add only what each variant needs beyond the base. */
+/* Dev-only layout switch chip, top-left corner. `pointer-events:auto` so it's clickable even on the hover card. */
+.lobbyscout-variant {
+  position: absolute; bottom: calc(100% + 2 * var(--lu)); left: 0; z-index: 2; pointer-events: auto;
+  padding: calc(1 * var(--lu)) calc(4 * var(--lu)); font-family: var(--font-ui); font-size: calc(8 * var(--lfont));
+  font-weight: 800; line-height: 1.4; color: #1a1206; background: var(--gold); border: none; border-radius: 999px;
+  opacity: 0.82; }
+.lobbyscout-variant:hover { opacity: 1; }
+
+/* Section title sitting ABOVE its content — e.g. "RUNES" (owner ask 2026-08-31). Scales with the stat-label dial. */
+.lobbyscout-sectitle { font-size: calc(7 * var(--lfont) * var(--sc-statlabel, 2)); letter-spacing: 0.08em;
+  text-transform: uppercase; font-weight: 700; text-align: center; color: var(--sc-label-col, #b7a98f); }
+
+/* Meta line — "Tier N · N triples" (V2 + V3). */
+.lobbyscout-meta { display: flex; align-items: baseline; gap: calc(3 * var(--lu));
+  font-size: calc(9 * var(--lfont)); color: #b7a98f; }
+.lobbyscout-meta b { color: #f4ecdb; font-weight: 800; }
+.lobbyscout-metadot { opacity: 0.5; }
+.lobbyscout-meta--tight { font-size: calc(8 * var(--lfont)); }
+
+/* V2 — identity banner: the dominant tribe front + centre, tinted by its tribe colour, count pushed right. */
+.lobbyscout-identity { display: flex; align-items: baseline; gap: calc(4 * var(--lu));
+  padding: calc(3 * var(--lu)) calc(6 * var(--lu)); border-radius: calc(6 * var(--lu));
+  background: color-mix(in srgb, var(--c) 22%, #17110c);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 55%, transparent); }
+.lobbyscout-tribe { font-size: calc(13 * var(--lfont)); font-weight: 800; color: color-mix(in srgb, var(--c) 78%, #fff); }
+.lobbyscout-tribect { margin-left: auto; font-size: calc(13 * var(--lfont)); font-weight: 800; color: #f4ecdb; }
+.lobbyscout-tribect::before { content: '\00d7'; opacity: 0.6; font-size: 0.82em; margin-right: 0.08em; }
+.lobbyscout-logtitle { font-size: calc(7 * var(--lfont)); letter-spacing: 0.08em; text-transform: uppercase; color: #8d8271; }
+
+/* V3 — compact: name + tribe tag on one row, denser spacing. */
+.lobbyscout--v3 { gap: calc(2 * var(--lu)); padding: calc(6 * var(--lu)); }
+.lobbyscout-head--row { flex-direction: row; align-items: center; gap: calc(4 * var(--lu)); }
+.lobbyscout-head--row .lobbyscout-name { flex: 1 1 auto; min-width: 0; }
+.lobbyscout-tag { flex: none; padding: calc(1 * var(--lu)) calc(4 * var(--lu)); border-radius: 999px;
+  font-size: calc(8 * var(--lfont)); font-weight: 800; white-space: nowrap;
+  color: color-mix(in srgb, var(--c) 80%, #fff); background: color-mix(in srgb, var(--c) 20%, #17110c);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 50%, transparent); }
+.lobbyscout--v3 .lobbyscout-log { padding-top: calc(3 * var(--lu)); gap: calc(1 * var(--lu)); }
+
+/* RUNES section (owner ask 2026-08-31): a "RUNES" title above three dotted-outline sockets marking where runes
+   socket over the match; filled with rune art as the seat acquires them. The border + padding live on the
+   section so the whole block reads as one unit. */
+.lobbyscout-runesec { display: flex; flex-direction: column; gap: calc(14 * var(--lu));
+  padding-top: calc(12 * var(--lu)); border-top: 1px solid color-mix(in srgb, var(--sc-divider, #c17a45) 16%, transparent); }
+.lobbyscout-runes { display: flex; justify-content: center; gap: calc(6 * var(--lu)); }
+.lobbyscout-socket { position: relative; flex: none;
+  /* Full fight-log portrait size (owner ask 2026-08-31: do NOT shrink — the card is widened to fit all three). */
+  width: calc(18 * var(--lrow) * var(--lby-face, 1.74) * var(--sc-socket, 1));
+  height: calc(18 * var(--lrow) * var(--lby-face, 1.74) * var(--sc-socket, 1));
+  border-radius: 50%; display: grid; place-items: center;
+  border: 2px dashed color-mix(in srgb, var(--sc-socket-col, #d4941c) 55%, transparent); }
+.lobbyscout-socket.filled { border-style: solid; border-color: color-mix(in srgb, var(--sc-socket-col, #d4941c) 80%, transparent);
+  background: rgba(0, 0, 0, 0.28); }
+.lobbyscout-socketart { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+.lobbyscout-socket .questbadge-emblem { font-size: calc(11 * var(--lu) * var(--sc-socket, 1)); color: color-mix(in srgb, var(--gold) 70%, #fff); }
+/* A FILLED socket reveals the rune's effect tip on hover (owner ask 2026-08-31) — the socket is not a
+   `.questbadge`, so it needs its own hover trigger for the shared tip markup. Works on a pinned card. */
+.lobbyscout-socket:hover .questbadge-tip { opacity: 1; }
+/* Centre the rune tip over its socket (owner ask 2026-08-31) — scoped to sockets so other badge tips are
+   untouched. The shared tip anchors at `left: 0`; override to centre it on the node. */
+.lobbyscout-socket .questbadge-tip { left: 50%; right: auto; transform: translateX(-50%); }
 
 /* The table sizes to its rows, and the rows size to `--lrow` — so the row-scale dial actually changes row
    height. (They used to be `flex: 1` inside a fixed-height rail, which pinned every row to an equal share of a
@@ -8914,7 +9015,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
     0 calc(6 * var(--lu)) calc(18 * var(--lu)) -4px var(--shadow);
 }
 .lobbyscout-x {
-  margin-left: auto;
+  position: absolute; top: calc(4 * var(--lu)); right: calc(4 * var(--lu)); z-index: 2;
   width: calc(14 * var(--lu)); height: calc(14 * var(--lu));
   display: grid; place-items: center;
   font-family: var(--font-ui); font-size: calc(12 * var(--lu)); line-height: 1;

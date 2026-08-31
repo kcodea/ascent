@@ -6864,7 +6864,8 @@ export function Recruit() {
       {!overlaysHeld && run.runeforgeOffer && !forgeMin && (
         <div className={`discover-ov forge-ov${run.runeforgeEpic ? ' forge-epic' : ''}`} role="dialog" aria-label={run.runeforgeEpic ? 'The Epic Runeforge' : 'The Runeforge'}>
           <div className="disc-panel forge-panel">
-            <div className="disc-banner forge-banner"><Icon name="anvil" /><span className="disp">{run.runeforgeEpic ? 'Epic Runeforge' : 'Runeforge'}</span></div>
+            {/* Title only — the anvil icon was removed from the forge banner (owner ask 2026-08-30). */}
+            <div className="disc-banner forge-banner"><span className="disp">{run.runeforgeEpic ? 'Epic Runeforge' : 'Runeforge'}</span></div>
             {/* The player's CURRENT Gold — the runes charge Gold, so the panel must say what's in the purse
                 (owner ask 2026-07-16). Re-renders with every buy/re-roll (run.embers). */}
             <div className="forge-gold" title="Your Gold right now"><Icon name="mana" /><b>{run.embers}</b> Gold</div>

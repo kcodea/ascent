@@ -908,6 +908,18 @@ body.etb-glow-preview .etbwrap:not(.pressed):not(:disabled) .etb-gem {
   border-radius: var(--etb-tip-radius, 11px); padding: var(--etb-tip-pad-y, 11px) var(--etb-tip-pad-x, 5px);
   box-shadow: 0 3px 9px -3px rgba(0, 0, 0, 0.6); z-index: 6;
 }
+/* END COMBAT pill — the End-Turn tip in its combat-done (.ready) state, restyled via the Combat Controls tuner
+   (--cc-end-*). Scoped to .ready so the RECRUIT End-Turn tip (.urgent, the SAME element) keeps its own look. */
+.etbwrap.ready .etb-tip {
+  font-size: var(--cc-end-size, 12px);
+  border-radius: var(--cc-end-radius, 10px);
+  border: var(--cc-end-bw, 1px) solid var(--cc-end-border, #b07047);
+  background: linear-gradient(180deg, var(--cc-end-bg, #002242), color-mix(in srgb, var(--cc-end-bg, #002242) 65%, #000));
+  color: var(--cc-end-text, #f2f2f2);
+  /* X/Y nudge via the individual `translate` property so it COMPOSES with the tip's own `transform` (which owns
+     the centring + the slide-in animation) instead of overwriting it. */
+  translate: var(--cc-end-x, -4px) var(--cc-end-y, 0px);
+}
 .etbwrap:not(:disabled):hover .etb-tip, .etbwrap.urgent .etb-tip, .etbwrap.ready .etb-tip { opacity: 1; transform: translateX(calc(-50% + var(--etb-tip-x, 108px))) translateY(0); }
 /* LOBBY: the End Turn label is centred on a button that sits well right of centre, and its right half ran
    under the seat rail — the rail's z-index simply hid the text rather than avoiding it. Shift it left by the
@@ -924,14 +936,14 @@ body.etb-glow-preview .etbwrap:not(.pressed):not(:disabled) .etb-gem {
 .combatsummary {
   position: fixed;
   /* Top-centre, where the turn timer sits (owner ask 2026-08-25) — just left of centre, with Skip to the right. */
-  left: calc(var(--bar-x) + 0.5 * var(--gw) - 96px * var(--scale));
-  top: calc(var(--bar-y) + 0.055 * var(--gh));
+  left: calc(var(--bar-x) + 0.5 * var(--gw) - 96px * var(--scale) + var(--cc-sum-x, 89px) * var(--scale));
+  top: calc(var(--bar-y) + 0.055 * var(--gh) + var(--cc-sum-y, 57px) * var(--scale));
   transform: translate(-50%, -50%);
   display: inline-flex; align-items: center; gap: 8px;
-  font-family: var(--font-ui); font-weight: 800; font-size: 14px; letter-spacing: 0.03em; color: #f4ecdb;
-  background: linear-gradient(180deg, #211812, #16100b);
-  border: 2px solid color-mix(in srgb, var(--gold) 55%, #000);
-  border-radius: 12px; padding: 8px 18px;
+  font-family: var(--font-ui); font-weight: 800; font-size: var(--cc-sum-size, 23px); letter-spacing: 0.03em; color: var(--cc-sum-text, #f2f2f2);
+  background: linear-gradient(180deg, var(--cc-sum-bg, #006fd6), color-mix(in srgb, var(--cc-sum-bg, #006fd6) 65%, #000));
+  border: var(--cc-sum-bw, 1px) solid var(--cc-sum-border, #b07047);
+  border-radius: var(--cc-sum-radius, 30px); padding: 8px 18px;
   box-shadow: 0 3px 9px -3px rgba(0, 0, 0, 0.6);
   cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
   z-index: 41;
@@ -2366,12 +2378,12 @@ body.modalup .app { z-index: auto; }
   display: flex; align-items: center; gap: calc(6 * var(--u)); justify-content: center;
   margin: calc(-4 * var(--u)) auto calc(10 * var(--u)); padding: calc(4 * var(--u)) calc(16 * var(--u));
   width: fit-content; border-radius: 999px;
-  background: linear-gradient(180deg, var(--rfl-gold-bg, #2b2015), var(--rfl-gold-bg-dk, #1a130c));
+  background: linear-gradient(180deg, var(--rfl-gold-bg, #29160f), var(--rfl-gold-bg-dk, #180906));
   border: 2px solid color-mix(in srgb, var(--gold) 55%, #000);
-  color: var(--rfl-gold-text, #f4ecdb); font-family: var(--font-ui); font-weight: 800; font-size: calc(15 * var(--u));
+  color: var(--rfl-gold-text, #ffffff); font-family: var(--font-ui); font-weight: 800; font-size: calc(15 * var(--u));
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 2px 6px rgba(0, 0, 0, 0.3);
   /* 🔨 Runeforge Look: x/y nudge + scale, scoped to this element alone (not a shared `.disc-*` class). */
-  transform: translate(calc(var(--rfl-gold-x, 0) * var(--u)), calc(var(--rfl-gold-y, 0) * var(--u))) scale(var(--rfl-gold-scale, 1));
+  transform: translate(calc(var(--rfl-gold-x, 0) * var(--u)), calc(var(--rfl-gold-y, 23) * var(--u))) scale(var(--rfl-gold-scale, 1.6));
 }
 .forge-gold svg { width: calc(16 * var(--u)); height: calc(16 * var(--u)); color: var(--gold); }
 .forge-gold b { color: var(--gold); }
@@ -2459,19 +2471,19 @@ body.modalup .app { z-index: auto; }
    this costs one paint when the overlay opens. Every value is dialled by the 🪨 Runeforge Backdrop tuner. */
 .forge-ov {
   background:
-    url('/runeforgebg2.webp') 50% 55% / auto 90% no-repeat,
-    linear-gradient(rgba(14, 16, 22, 0.91), rgba(14, 16, 22, 0.91));
+    url('/runeforgebg2.webp') 50% 55% / auto 72% no-repeat,
+    linear-gradient(rgba(14, 16, 22, 0.96), rgba(14, 16, 22, 0.96));
 }
 /* Every geometry/colour knob below is dialled by the 🔨 Runeforge Look tuner (`runeforgeLookConfig.ts`) — the
    `--rfl-*` vars carry the shipped value as their fallback, so production (no tuner) paints identically. */
 .forge-banner {
-  background: linear-gradient(180deg, var(--rfl-plaque-lt, #6a6f7a) 0%, var(--rfl-plaque, #4a4e57) 55%, var(--rfl-plaque-dk, #363a42) 100%);
+  background: linear-gradient(180deg, var(--rfl-plaque-lt, #ffcb70) 0%, var(--rfl-plaque, #e3aa4d) 55%, var(--rfl-plaque-dk, #cf9638) 100%);
   border: 3px solid #23262d; border-radius: calc(11 * var(--u));
   display: inline-flex; align-items: center; gap: calc(10 * var(--u));
   box-shadow: 0 6px 16px -6px rgba(0, 0, 0, 0.7), inset 0 2px 0 rgba(255, 255, 255, 0.22), inset 0 -3px 8px rgba(0, 0, 0, 0.5);
   /* Preserves the base `.disc-banner` centering (`left: 50%; transform: translateX(-50%)`) while adding the
      tuner's own x/y nudge + scale — scale applies about centre first, then the position shifts. */
-  transform: translate(calc(-50% + var(--rfl-ban-x, 0) * var(--u)), calc(var(--rfl-ban-y, 0) * var(--u))) scale(var(--rfl-ban-scale, 1));
+  transform: translate(calc(-50% + var(--rfl-ban-x, 0) * var(--u)), calc(var(--rfl-ban-y, -143) * var(--u))) scale(var(--rfl-ban-scale, 1.67));
 }
 .forge-banner svg { width: calc(26 * var(--u)); height: calc(26 * var(--u)); color: #d7d3c6; filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.5)); }
 /* Engraved title: light stone fill, a dark chiseled shadow below + a faint top highlight = carved into the slab.
@@ -2480,35 +2492,35 @@ body.modalup .app { z-index: auto; }
 .forge-banner .disp {
   font-family: var(--title-font, 'Cinzel Decorative', 'Outfit', sans-serif);
   font-weight: var(--title-weight, 600);
-  font-size: calc(30 * var(--u) * var(--rfl-title-scale, 1)); color: var(--rfl-title-col, #e9e6dc);
+  font-size: calc(30 * var(--u) * var(--rfl-title-scale, 0.73)); color: var(--rfl-title-col, #120d13);
   letter-spacing: 0.08em; text-transform: uppercase;
   text-shadow: 0 1px 0 rgba(255, 255, 255, 0.18), 0 -1px 1px rgba(0, 0, 0, 0.6), 0 2px 3px rgba(0, 0, 0, 0.55);
 }
 .forge-sub { color: #c9c5ba; letter-spacing: 0.04em; }
 .forge-toggle {
-  top: calc(75% + var(--rfl-toggle-y, 0) * var(--u)); color: #e3e0d6;
+  top: calc(75% + var(--rfl-toggle-y, 160) * var(--u)); color: #e3e0d6;
   background: linear-gradient(180deg, #5b606b, #3f434c); border-color: #23262d;
   box-shadow: 0 calc(6 * var(--u)) calc(16 * var(--u)) -6px rgba(0, 0, 0, 0.6), inset 0 2px 0 rgba(255, 255, 255, 0.2), inset 0 -3px 6px rgba(0, 0, 0, 0.45);
   text-shadow: 0 1px 1px rgba(0, 0, 0, 0.5);
-  transform: translateX(-50%) scale(var(--rfl-toggle-scale, 1));
+  transform: translateX(-50%) scale(var(--rfl-toggle-scale, 1.48));
 }
 .forge-cards {
-  display: flex; gap: calc(var(--rfl-card-gap, 18) * var(--u)); justify-content: center;
-  margin-top: calc(16 * var(--u) + var(--rfl-row-y, 0) * var(--u)); align-items: stretch;
+  display: flex; gap: calc(var(--rfl-card-gap, 20) * var(--u)); justify-content: center;
+  margin-top: calc(16 * var(--u) + var(--rfl-row-y, 48) * var(--u)); align-items: stretch;
 }
 /* Card size for the Runeforge specifically — the compound selector (both classes) out-specifies the shared
    `.disc-cards` rule above without touching it, so Discover/Quest's own 1.3 stays exactly as shipped. The
    `--rfl-card-scale` default (1.3) reproduces that same multiplier. */
 .disc-cards.forge-cards {
-  --ch: calc(var(--ch-base) * var(--card-scale, 0.75) * var(--rfl-card-scale, 1.3));
+  --ch: calc(var(--ch-base) * var(--card-scale, 0.75) * var(--rfl-card-scale, 1.29));
   --cw: calc(var(--ch) * 0.752);
   --ccw: calc(var(--cw) * 0.85);
 }
 /* Re-roll + leave — a chiseled button row under the rune tablets. */
 .forge-actions {
   display: flex; align-items: center; justify-content: center; gap: calc(14 * var(--u));
-  margin-top: calc(18 * var(--u) + var(--rfl-footer-y, 0) * var(--u));
-  transform: scale(var(--rfl-footer-scale, 1)); transform-origin: top center;
+  margin-top: calc(18 * var(--u) + var(--rfl-footer-y, -3) * var(--u));
+  transform: scale(var(--rfl-footer-scale, 1.18)); transform-origin: top center;
 }
 .forge-skip { display: inline-flex; align-items: center; font-family: var(--font-ui); font-weight: 700; font-size: calc(13 * var(--u)); letter-spacing: 0.03em; color: #b9b5ab; background: rgba(255, 255, 255, 0.05); border: 2px solid rgba(255, 255, 255, 0.16); padding: calc(8 * var(--u)) calc(20 * var(--u)); border-radius: calc(11 * var(--u)); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
 .forge-skip:hover { color: #e6e2d7; border-color: rgba(255, 255, 255, 0.3); background: rgba(255, 255, 255, 0.09); }
@@ -2537,11 +2549,11 @@ body.modalup .app { z-index: auto; }
 /* Gold coin cost — a round gold coin overhanging the top-left corner (mirrors the spell cost coin's placement).
    x/y/scale nudges stay RAW px (no --u) — this component's own geometry is already unscaled raw px. */
 .runecard-cost {
-  position: absolute; top: calc(-16px + var(--rfl-cost-y, 0) * 1px); left: calc(-14px + var(--rfl-cost-x, 0) * 1px);
+  position: absolute; top: calc(-16px + var(--rfl-cost-y, 4) * 1px); left: calc(-14px + var(--rfl-cost-x, 6) * 1px);
   width: 52px; height: 52px; z-index: 6; border-radius: 50%; display: grid; place-items: center;
   background: radial-gradient(circle at 38% 30%, #ffe293, #eab63f 58%, #b9821f); border: 3px solid #1b1d22;
   box-shadow: 0 3px 7px rgba(0, 0, 0, 0.45), inset 0 2px 2px rgba(255, 255, 255, 0.55), inset 0 -3px 4px rgba(120, 80, 10, 0.4);
-  transform: scale(var(--rfl-cost-scale, 1));
+  transform: scale(var(--rfl-cost-scale, 1.18));
 }
 .runecard-cost .costn { font-family: var(--font-ui); font-weight: 900; font-size: 25px; color: #4a3208; text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35); }
 /* Rune sigil emblem (top, grey-framed) — mirrors QuestCard's tribe emblem. */
@@ -2549,7 +2561,7 @@ body.modalup .app { z-index: auto; }
   position: absolute; top: -22px; left: 50%; width: 50px; height: 50px; z-index: 5; display: grid; place-items: center;
   border-radius: 50%; background: radial-gradient(circle at 50% 34%, #3a3e46, #14161a); border: 3px solid var(--c);
   box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.5), 0 3px 9px rgba(0, 0, 0, 0.6), 0 0 16px -4px color-mix(in srgb, var(--c) 75%, transparent);
-  transform: translateX(-50%) scale(var(--rfl-emblem-scale, 1));
+  transform: translateX(-50%) scale(var(--rfl-emblem-scale, 0.5));
 }
 .runecard-emblem svg { width: 52%; height: 52%; color: #d3e6ec; }
 .runecard-head { position: relative; z-index: 2; padding: 34px 14px 0; text-align: center; }
@@ -2557,11 +2569,11 @@ body.modalup .app { z-index: auto; }
    tuner overrides that with a flat colour PER VARIANT (`--rfl-kicker-col` basic, `--rfl-kicker-epic-col` below
    for `.runecard-epic`), each defaulting to the literal colour that formula already produces, so an untouched
    panel reproduces the exact shipped pixels for both. */
-.runecard-kicker { font-family: var(--font-ui); font-weight: 800; font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--rfl-kicker-col, #b7bbc4); text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7); }
-.runecard-name { font-family: var(--font-title); font-weight: 800; font-size: calc(22px * var(--rfl-name-scale, 1)); line-height: 1.05; color: var(--rfl-name-col, #fff); text-shadow: 0 2px 7px rgba(0, 0, 0, 0.85); margin-top: 3px; }
+.runecard-kicker { font-family: var(--font-ui); font-weight: 800; font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--rfl-kicker-col, #647290); text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7); }
+.runecard-name { font-family: var(--font-title); font-weight: 800; font-size: calc(22px * var(--rfl-name-scale, 1.12)); line-height: 1.05; color: var(--rfl-name-col, #fff); text-shadow: 0 2px 7px rgba(0, 0, 0, 0.85); margin-top: 3px; }
 .runecard-body { position: relative; z-index: 2; margin-top: auto; padding: 12px; display: flex; flex-direction: column; }
-.runecard-sect { background: color-mix(in srgb, var(--rfl-rules-bg, #090a0d) 84%, transparent); border: 1px solid color-mix(in srgb, var(--c) 34%, rgba(0, 0, 0, 0.4)); border-radius: 10px; padding: 8px 11px; }
-.runecard-txt { font-weight: 700; font-size: 13px; line-height: 1.26; color: var(--rfl-rules-txt, #f1ece3); overflow-wrap: anywhere; text-align: left; }
+.runecard-sect { background: color-mix(in srgb, var(--rfl-rules-bg, #1b0e07) 84%, transparent); border: 1px solid color-mix(in srgb, var(--c) 34%, rgba(0, 0, 0, 0.4)); border-radius: 10px; padding: 8px 11px; }
+.runecard-txt { font-weight: 700; font-size: 13px; line-height: 1.26; color: var(--rfl-rules-txt, #ffffff); overflow-wrap: anywhere; text-align: left; }
 .runecard-txt b { color: #b7e4f0; font-weight: 800; }
 .runecard-lock { position: relative; z-index: 6; margin: 0 12px 11px; font-weight: 800; font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; color: #f0a0a0; }
 /* Epic runes — the frame, emblem border + glow key off `--c` (a single violet override moves them together);
@@ -2569,6 +2581,10 @@ body.modalup .app { z-index: auto; }
 .runecard-epic { --c: #b078e6; background: radial-gradient(125% 85% at 50% 18%, #2e2540, #16121f); }
 .runecard-epic .runecard-txt b { color: #e0c2ff; }
 .runecard-epic .runecard-kicker { color: var(--rfl-kicker-epic-col, #d4b5f1); }
+/* The sigil MEDALLION is retired from the forge (owner ask 2026-08-30) — hidden here and in the lock-in
+   ceremony's cloned card (which mirrors what the forge showed), but kept in the Compendium's read-only
+   rune cards, which this rule deliberately does not reach. */
+.forge-ov .runecard-emblem, .runelock-veil .runecard-emblem { display: none; }
 .forge-ov.forge-epic .forge-banner .disp { color: var(--rfl-epic-title-col, #efe0ff); text-shadow: 0 1px 0 rgba(255, 255, 255, 0.18), 0 -1px 1px rgba(0, 0, 0, 0.6), 0 0 22px rgba(176, 120, 230, 0.6); }
 .forge-ov.forge-epic .forge-banner svg { color: var(--rfl-epic-icon-col, #cda6f2); }
 
@@ -4562,10 +4578,10 @@ body.aiming, body.aiming * { cursor: none !important; }
 .app.combat .buffsframe { display: none; }
 /* Skip button — pinned ABOVE the End Turn / End Combat diamond (owner move 2026-08-11), same stage anchor +
    `--etb-x/y` offsets as the Summary pill (they never show at once: Skip during the replay, Summary after). */
-.combathud-skip { position: fixed; left: calc(var(--bar-x) + 0.5 * var(--gw) + 96px * var(--scale)); top: calc(var(--bar-y) + 0.055 * var(--gh)); transform: translate(-50%, -50%); z-index: 41; display: inline-flex; align-items: center; justify-content: center; gap: calc(7 * var(--u)); font-family: var(--font-ui); font-weight: 800; font-size: calc(15 * var(--u)); letter-spacing: 0.04em; color: #fff; background: var(--acc); border: 2px solid var(--acc-dk); padding: calc(8 * var(--u)) calc(20 * var(--u)); border-radius: calc(11 * var(--u)); box-shadow: 0 calc(4 * var(--u)) 0 var(--acc-dk); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; animation: fadein 0.25s ease; }
+.combathud-skip { position: fixed; left: calc(var(--bar-x) + 0.5 * var(--gw) + 96px * var(--scale) + var(--cc-skip-x, -95px) * var(--scale)); top: calc(var(--bar-y) + 0.055 * var(--gh) + var(--cc-skip-y, 49px) * var(--scale)); transform: translate(-50%, -50%); z-index: 41; display: inline-flex; align-items: center; justify-content: center; gap: calc(7 * var(--u)); font-family: var(--font-ui); font-weight: 800; font-size: calc(var(--cc-skip-size, 18) * var(--u)); letter-spacing: 0.04em; color: var(--cc-skip-text, #f2f2f2); background: var(--cc-skip-bg, #006fd6); border: var(--cc-skip-bw, 1px) solid var(--cc-skip-border, #b07047); padding: calc(8 * var(--u)) calc(20 * var(--u)); border-radius: calc(var(--cc-skip-radius, 30) * var(--u)); box-shadow: 0 calc(4 * var(--u)) 0 var(--cc-skip-border, #b07047); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; animation: fadein 0.25s ease; }
 .combathud-skip svg { width: calc(16 * var(--u)); height: calc(16 * var(--u)); }
-.combathud-skip:hover { background: var(--acc-dk); }
-.combathud-skip:active { transform: translate(-50%, -50%) translateY(calc(2 * var(--u))); box-shadow: 0 calc(2 * var(--u)) 0 var(--acc-dk); }
+.combathud-skip:hover { background: var(--cc-skip-border, #b07047); }
+.combathud-skip:active { transform: translate(-50%, -50%) translateY(calc(2 * var(--u))); box-shadow: 0 calc(2 * var(--u)) 0 var(--cc-skip-border, #b07047); }
 /* post-combat Combat Log overlay */
 .logov { position: fixed; inset: 0; z-index: 200; display: grid; place-items: center; background: rgba(20, 15, 10, 0.55); animation: logfade 0.16s ease; }
 @keyframes logfade { from { opacity: 0; } to { opacity: 1; } }
@@ -9596,14 +9612,14 @@ body.duel-attacker-opp .combatopp-hp { opacity: 0; }
      then equals the player's rune size exactly (owner ask: match the player's runes), independent of how big
      the portrait is tuned. The flex gap lives in the row's own (pre-counter-scale) space, so layout stays
      clean. `transform-origin: left center` keeps the row anchored as it scales. */
-  transform: translate(var(--hd-rune-x, -148px), calc(-50% + var(--hd-rune-y, -19px))) scale(calc(var(--hd-rune-s, 1) / var(--hd-opp-s, 2.4)));
+  transform: translate(calc(var(--hd-rune-x, -290px) * var(--scale)), calc(-50% + var(--hd-rune-y, -37px) * var(--scale))) scale(calc(var(--hd-rune-s, 1) / var(--hd-opp-s, 2.4)));
   transform-origin: left center;
-  display: flex; flex-direction: column; gap: var(--hd-rune-gap, 20px);
+  display: flex; flex-direction: column; gap: calc(var(--hd-rune-gap, 39px) * var(--scale));
   /* FIXED 3-SLOT HEIGHT (owner report 2026-08-30): the column is -50% centred, so with flex-grown height a
      2-rune foe's shorter stack re-centred and every slot drifted off the per-slot nudges (dialed on a
      3-rune foe). Pinning the box to the full 3-badge stack height (badges are 53u border-box) makes slot N
      land in the same place at any rune count; badges fill from the top. */
-  height: calc(3 * 53 * var(--u) + 2 * var(--hd-rune-gap, 20px));
+  height: calc(3 * 53 * var(--u) + 2 * var(--hd-rune-gap, 39px) * var(--scale));
   justify-content: flex-start;
   pointer-events: auto;
 }
@@ -9612,9 +9628,9 @@ body.duel-attacker-opp .combatopp-hp { opacity: 0; }
    placement. nth-child is safe: the runes column contains only .combatopp-rune children. The independent
    `translate` property (not `transform`) so the badge's transform-based trigger BOUNCE composes with the
    nudge instead of stomping it mid-animation. */
-.combatopp-rune:nth-child(1) { translate: var(--hd-rune1-x, 158px) var(--hd-rune1-y, 25px); }
-.combatopp-rune:nth-child(2) { translate: var(--hd-rune2-x, 87px) var(--hd-rune2-y, -28px); }
-.combatopp-rune:nth-child(3) { translate: var(--hd-rune3-x, 25px) var(--hd-rune3-y, -62px); }
+.combatopp-rune:nth-child(1) { translate: calc(var(--hd-rune1-x, 309px) * var(--scale)) calc(var(--hd-rune1-y, 49px) * var(--scale)); }
+.combatopp-rune:nth-child(2) { translate: calc(var(--hd-rune2-x, 170px) * var(--scale)) calc(var(--hd-rune2-y, -55px) * var(--scale)); }
+.combatopp-rune:nth-child(3) { translate: calc(var(--hd-rune3-x, 49px) * var(--scale)) calc(var(--hd-rune3-y, -121px) * var(--scale)); }
 .combatopp-rune .questbadge-tip { bottom: auto; top: 50%; left: auto; right: calc(100% + 8px); transform: translateY(-50%); }
 
 @keyframes combatoppdrop {
@@ -9643,7 +9659,7 @@ body.duel-attacker-opp .combatopp-hp { opacity: 0; }
   background: linear-gradient(180deg, #fff, #f3ead4); border: 2px solid var(--gold); border-radius: 999px;
   padding: calc(2 * var(--u)) calc(13 * var(--u)); white-space: nowrap;
   box-shadow: 0 calc(2 * var(--u)) calc(6 * var(--u)) -2px var(--shadow);
-  transform: translate(var(--hd-name-x, 0px), var(--hd-name-y, 23px)) scale(var(--hd-name-s, 0.65));
+  transform: translate(calc(var(--hd-name-x, 0px) * var(--scale)), calc(var(--hd-name-y, 45px) * var(--scale))) scale(var(--hd-name-s, 0.65));
 }
 /* Opponent HEALTH — the SAME pill the PLAYER wears in the HUD (owner ask 2026-08-25): the dark gradient box,
    dark-gold border, threat-pink heart and lightened number from `.statusbar .hero .hpbox`, verbatim. */
@@ -9654,7 +9670,7 @@ body.duel-attacker-opp .combatopp-hp { opacity: 0; }
   padding: calc(6 * var(--u)) calc(14 * var(--u));
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 2px 6px rgba(0, 0, 0, 0.3);
   font-family: var(--font-ui); font-weight: 800; font-size: calc(24 * var(--u)); line-height: 1; color: #ff9db0;
-  transform: translate(var(--hd-hp-x, 0px), var(--hd-hp-y, -23px)) scale(var(--hd-hp-s, 0.65));
+  transform: translate(calc(var(--hd-hp-x, 0px) * var(--scale)), calc(var(--hd-hp-y, -45px) * var(--scale))) scale(var(--hd-hp-s, 0.65));
 }
 .combatopp-hp svg { flex: none; width: calc(24 * var(--u)); height: calc(24 * var(--u)); color: var(--threat); }
 .combatopp-armor { margin-left: calc(3 * var(--u)); font-size: calc(17 * var(--u)); color: #b7c2cf; }
@@ -9714,7 +9730,7 @@ body.duel-attacker-opp .combatopp-hp { opacity: 0; }
    buffs it to full — exactly how a buffed minion's attack reads green. The RED `.float.dmg` box is reserved for
    the damage NUMBER (dealt/taken); this pill is the attack value. */
 .hero-atk {
-  position: absolute; left: calc(50% + var(--pill-x, 0px)); bottom: calc(-14 * var(--u) - var(--pill-y, 0px));
+  position: absolute; left: calc(50% + var(--pill-x, 0px) * var(--scale)); bottom: calc(-14 * var(--u) - var(--pill-y, 0px) * var(--scale));
   transform: translateX(-50%) scale(var(--pill-s, 1));
   z-index: 6; pointer-events: none;
   display: grid; place-items: center; overflow: hidden;
@@ -9746,8 +9762,8 @@ body.duel-attacker-opp .combatopp-hp { opacity: 0; }
   from { opacity: 1; transform: translateX(-50%) scale(var(--pill-s, 1)); }
   to   { opacity: 0; transform: translateX(-50%) scale(calc(var(--pill-s, 1) * 0.72)); }
 }
-.hero-atk-player { --pill-s: var(--hd-pill-player-s, 0.55); --pill-x: var(--hd-pill-player-x, 37px); --pill-y: var(--hd-pill-player-y, -6px); }
-.hero-atk-opp    { --pill-s: var(--hd-pill-opp-s, 0.72); --pill-x: var(--hd-pill-opp-x, -60px); --pill-y: var(--hd-pill-opp-y, -16px); }
+.hero-atk-player { --pill-s: var(--hd-pill-player-s, 0.55); --pill-x: var(--hd-pill-player-x, 72px); --pill-y: var(--hd-pill-player-y, -12px); }
+.hero-atk-opp    { --pill-s: var(--hd-pill-opp-s, 0.72); --pill-x: var(--hd-pill-opp-x, -117px); --pill-y: var(--hd-pill-opp-y, -31px); }
 @keyframes heroatkpop {
   from { opacity: 0; transform: translateX(-50%) scale(calc(var(--pill-s, 1) * 0.4)); }
   to   { opacity: 1; transform: translateX(-50%) scale(var(--pill-s, 1)); }

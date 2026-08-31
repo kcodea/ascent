@@ -70,6 +70,21 @@ export const PATCH_NOTES: PatchNote[] = [
   },
   {
     date: '2026-08-30',
+    label: 'Forge Facelift',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: 'The Runeforge got a visual overhaul — illustrated backdrop, a gold title plaque, and bigger, cleaner rune tablets.',
+        details: [
+          'A new forge illustration glows behind the panel.',
+          'The stone banner became a gold plaque with a larger title; the Gold pill and rune tablets were resized and reseated.',
+          'The anvil icon and the sigil medallion were retired from the forge for a cleaner read (the Compendium keeps the medallion).',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-08-30',
     label: 'The Pulse',
     changes: [
       {
@@ -267,6 +282,13 @@ export const PATCH_NOTES: PatchNote[] = [
           'The more you played, the bigger the flurry.',
         ],
       },
+    ],
+  },
+  {
+    date: '2026-08-29',
+    label: 'Combat Controls',
+    changes: [
+      { category: 'UI / Info', text: 'The combat controls — the Summary and End Combat pills and the Skip button — got a fresh look and tighter placement, and they now hold their spot on the board at any window size.' },
     ],
   },
   {

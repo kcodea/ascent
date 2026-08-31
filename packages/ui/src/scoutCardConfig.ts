@@ -35,8 +35,9 @@ export interface ScoutCardConfig {
 }
 
 const DEFAULTS: ScoutCardConfig = {
-  width: 1, pad: 1, radius: 1, gap: 1,
-  nameSize: 1, heroSize: 1, statSize: 1, statLabelSize: 1, histText: 1,
+  width: 1.5, pad: 1, radius: 1, gap: 1.25,
+  // Text doubled all round (owner ask 2026-08-31: "increase the size of the text by 200%").
+  nameSize: 2, heroSize: 2, statSize: 2, statLabelSize: 2, histText: 2,
   histFace: 1, socketSize: 1,
   bg1: '#241a13', bg2: '#17110c', border: '#c8922e',
   nameCol: '#f4ecdb', labelCol: '#b7a98f', statCol: '#f0902e',
@@ -51,11 +52,11 @@ const RANGES: Record<NumKey, [number, number, number]> = {
   pad: [0.3, 2.5, 0.05],
   radius: [0, 3, 0.05],
   gap: [0, 3, 0.05],
-  nameSize: [0.6, 2.5, 0.05],
-  heroSize: [0.6, 2.5, 0.05],
-  statSize: [0.6, 2.5, 0.05],
-  statLabelSize: [0.6, 2.5, 0.05],
-  histText: [0.6, 2.5, 0.05],
+  nameSize: [0.6, 3.5, 0.05],
+  heroSize: [0.6, 3.5, 0.05],
+  statSize: [0.6, 3.5, 0.05],
+  statLabelSize: [0.6, 3.5, 0.05],
+  histText: [0.6, 3.5, 0.05],
   histFace: [0.5, 3, 0.05],
   socketSize: [0.5, 3, 0.05],
 };

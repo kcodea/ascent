@@ -269,7 +269,15 @@ function ScoutCard({ lobby, seat, intel, at, pinned, onClose }: {
           <span className="lobbyscout-vs">
             {showGlyph && <span className="lobbyscout-glyph" aria-hidden>{OUTCOME_GLYPH[r.outcome]}</span>}
             {r.foeHeroId
-              ? <img className="lobbyscout-foeface" src={heroArt(r.foeHeroId)} alt={r.foeLabel} title={r.foeLabel} />
+              ? (
+                <span className="lobbyscout-foe">
+                  <img className="lobbyscout-foeface" src={heroArt(r.foeHeroId)} alt={r.foeLabel} title={r.foeLabel} />
+                  {/* Hover (on a pinned card) reveals the outcome writ large over the portrait. */}
+                  <span className="lobbyscout-foeresult" aria-hidden>
+                    {r.outcome === 'win' ? 'WON' : r.outcome === 'lose' ? 'LOST' : 'DREW'}
+                  </span>
+                </span>
+              )
               : <span className="lobbyscout-vslabel">vs {r.foeLabel}</span>}
           </span>
           <span className="lobbyscout-dmg">{r.taken > 0 ? `−${r.taken}` : r.dealt > 0 ? `+${r.dealt}` : '0'}</span>

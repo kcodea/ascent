@@ -8680,8 +8680,8 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   --lrow: calc(var(--lu) * var(--lby-row, 1.91));
   --lfont: calc(var(--lu) * var(--lby-font, 0.9));
   position: fixed; z-index: 80; transform: translateY(-50%);
-  width: calc(112 * var(--lu) * var(--sc-w, 1)); pointer-events: none;
-  display: flex; flex-direction: column; gap: calc(4 * var(--lu) * var(--sc-gap, 1));
+  width: calc(112 * var(--lu) * var(--sc-w, 1.5)); pointer-events: none;
+  display: flex; flex-direction: column; gap: calc(4 * var(--lu) * var(--sc-gap, 1.25));
   padding: calc(7 * var(--lu) * var(--sc-pad, 1)); border-radius: calc(8 * var(--lu) * var(--sc-rad, 1));
   background: linear-gradient(180deg, var(--sc-bg1, #241a13), var(--sc-bg2, #17110c));
   border: 1px solid color-mix(in srgb, var(--sc-border, var(--gold)) 55%, #000);
@@ -8694,9 +8694,9 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   to { opacity: 1; transform: translateY(-50%) translateX(0); }
 }
 .lobbyscout-head { display: flex; flex-direction: column; line-height: 1.15; }
-.lobbyscout-name { font-size: calc(12 * var(--lfont) * var(--sc-name, 1)); font-weight: 800; color: var(--sc-name-col, #f4ecdb);
+.lobbyscout-name { font-size: calc(12 * var(--lfont) * var(--sc-name, 2)); font-weight: 800; color: var(--sc-name-col, #f4ecdb);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.lobbyscout-hero { font-size: calc(8 * var(--lfont) * var(--sc-hero, 1)); color: var(--sc-label-col, #b7a98f);
+.lobbyscout-hero { font-size: calc(8 * var(--lfont) * var(--sc-hero, 2)); color: var(--sc-label-col, #b7a98f);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* Three equal columns so the numbers line up between seats — the point is comparing opponents, and a
@@ -8704,8 +8704,8 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .lobbyscout-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: calc(3 * var(--lu));
   padding-top: calc(4 * var(--lu)); border-top: 1px solid rgba(255, 255, 255, 0.1); }
 .lobbyscout-stat { display: flex; flex-direction: column; align-items: center; line-height: 1.1; }
-.lobbyscout-stat b { font-size: calc(11 * var(--lfont) * var(--sc-stat, 1)); font-weight: 800; color: var(--sc-stat-col, var(--acc)); }
-.lobbyscout-stat i { font-size: calc(7 * var(--lfont) * var(--sc-statlabel, 1)); font-style: normal; letter-spacing: 0.07em;
+.lobbyscout-stat b { font-size: calc(11 * var(--lfont) * var(--sc-stat, 2)); font-weight: 800; color: var(--sc-stat-col, var(--acc)); }
+.lobbyscout-stat i { font-size: calc(7 * var(--lfont) * var(--sc-statlabel, 2)); font-style: normal; letter-spacing: 0.07em;
   text-transform: uppercase; color: var(--sc-label-col, #b7a98f); }
 .lobbyscout-stale { font-size: calc(7 * var(--lfont)); color: #8d8271; }
 .lobbyscout-empty { font-size: calc(8 * var(--lfont)); color: #8d8271; font-style: italic; }
@@ -8713,7 +8713,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .lobbyscout-log { display: flex; flex-direction: column; gap: calc(2 * var(--lu));
   padding-top: calc(4 * var(--lu)); border-top: 1px solid rgba(255, 255, 255, 0.1); }
 .lobbyscout-row { display: flex; justify-content: space-between; align-items: center; gap: calc(4 * var(--lu));
-  font-size: calc(9 * var(--lfont) * var(--sc-histtext, 1)); }
+  font-size: calc(9 * var(--lfont) * var(--sc-histtext, 2)); }
 .lobbyscout-vs { display: inline-flex; align-items: center; gap: calc(3 * var(--lu)); min-width: 0; color: #d9cfba; }
 .lobbyscout-vslabel { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lobbyscout-dmg { font-weight: 800; white-space: nowrap; }
@@ -8726,6 +8726,16 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .lobbyscout-row.win .lobbyscout-foeface { box-shadow: 0 0 0 1px #6fe39a; }
 .lobbyscout-row.lose .lobbyscout-foeface { box-shadow: 0 0 0 1px #ff6b6b; }
 .lobbyscout-row.draw .lobbyscout-foeface { box-shadow: 0 0 0 1px #c9bca3; }
+/* Hover a fight-log portrait (on a pinned card) to see WON / LOST writ large over it (owner ask 2026-08-31). */
+.lobbyscout-foe { position: relative; display: inline-grid; flex: none; }
+.lobbyscout-foeresult { position: absolute; inset: 0; display: grid; place-items: center; border-radius: 50%;
+  opacity: 0; pointer-events: none; transition: opacity 0.1s ease;
+  font-family: var(--font-ui); font-weight: 900; font-size: calc(9 * var(--lfont)); letter-spacing: 0.04em;
+  color: #fff; background: rgba(0, 0, 0, 0.62); text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9); }
+.lobbyscout-foe:hover .lobbyscout-foeresult { opacity: 1; }
+.lobbyscout-row.win .lobbyscout-foeresult { color: #7ef0a6; }
+.lobbyscout-row.lose .lobbyscout-foeresult { color: #ff8080; }
+.lobbyscout-row.draw .lobbyscout-foeresult { color: #d9cfba; }
 /* Result colour rides the ROW, so the damage number reads as "what happened" rather than needing a separate
    win/loss glyph beside it. */
 .lobbyscout-row.win .lobbyscout-dmg { color: #6fe39a; }
@@ -8781,13 +8791,18 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .lobbyscout-runes { display: flex; justify-content: center; gap: calc(6 * var(--lu));
   padding-top: calc(4 * var(--lu)); border-top: 1px solid rgba(255, 255, 255, 0.1); }
 .lobbyscout-socket { position: relative; flex: none;
-  width: calc(22 * var(--lu) * var(--sc-socket, 1)); height: calc(22 * var(--lu) * var(--sc-socket, 1));
+  /* Same size as the fight-log portrait (= the rail seat portrait), owner ask 2026-08-31. */
+  width: calc(18 * var(--lrow) * var(--lby-face, 1.74) * var(--sc-socket, 1));
+  height: calc(18 * var(--lrow) * var(--lby-face, 1.74) * var(--sc-socket, 1));
   border-radius: 50%; display: grid; place-items: center;
-  border: 1px dashed color-mix(in srgb, var(--sc-border, var(--gold)) 55%, transparent); }
+  border: 2px dashed color-mix(in srgb, var(--sc-border, var(--gold)) 55%, transparent); }
 .lobbyscout-socket.filled { border-style: solid; border-color: color-mix(in srgb, var(--sc-border, var(--gold)) 80%, transparent);
   background: rgba(0, 0, 0, 0.28); }
 .lobbyscout-socketart { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
 .lobbyscout-socket .questbadge-emblem { font-size: calc(11 * var(--lu) * var(--sc-socket, 1)); color: color-mix(in srgb, var(--gold) 70%, #fff); }
+/* A FILLED socket reveals the rune's effect tip on hover (owner ask 2026-08-31) — the socket is not a
+   `.questbadge`, so it needs its own hover trigger for the shared tip markup. Works on a pinned card. */
+.lobbyscout-socket:hover .questbadge-tip { opacity: 1; }
 
 /* The table sizes to its rows, and the rows size to `--lrow` — so the row-scale dial actually changes row
    height. (They used to be `flex: 1` inside a fixed-height rail, which pinned every row to an equal share of a

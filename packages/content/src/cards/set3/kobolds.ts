@@ -64,7 +64,7 @@ export const SET3_KOBOLDS: CardDef[] = [
     // into the Attack half and the Health half. Deepvein Tender (set 2) is the same primitive with the
     // health half only, so this is that card's choice made explicit.
     id: 'k3_forkvein',
-    name: 'Forkvein Prospector',
+    name: 'Gemsmith',
     tribe: 'kobold',
     tier: 2,
     attack: 3,
@@ -185,13 +185,13 @@ export const SET3_KOBOLDS: CardDef[] = [
      * this ten, which is why it is a 6-drop and not a cheap one.
      *
      * "ANOTHER minion" is a real separation (same day's ruling): a Ruby cast on THIS never triggers it, and
-     * two Double Troubles do not feed each other -- its own Rubies land as stats and notify nobody, the guard
+     * two Troubles do not feed each other -- its own Rubies land as stats and notify nobody, the guard
      * that already stops two Resonance Idols pinging a Ruby between them forever.
      *
      * PERMANENCE IS INHERITED (owner note): a Ruby cast off a permanent one is itself permanent.
      */
     id: 'k3_doubletrouble',
-    name: 'Double Trouble',
+    name: 'Trouble',
     tribe: 'kobold',
     tier: 6,
     attack: 8,

@@ -15,8 +15,8 @@ import type { CardDef } from '@game/core';
  *
  *  1. **The source is excluded from its own effect.** "Give your OTHER Dragons +3/+3" must not buff the
  *     Dragon that said it.
- *  2. **Two copies do not feed each other.** Double Trouble reacts to a Ruby cast on another minion by
- *     casting one on itself; a second Double Trouble must not then see that as "a Ruby cast on another
+ *  2. **Two copies do not feed each other.** Trouble reacts to a Ruby cast on another minion by
+ *     casting one on itself; a second Trouble must not then see that as "a Ruby cast on another
  *     minion". Left alone, that is an infinite loop, and the codebase has already been bitten by exactly this
  *     shape twice — the comment on `applyRubyStats` records that two adjacent Resonance Idols would otherwise
  *     "ping a Ruby between each other forever", and Candle Conduit's bounce carries the same guard.
@@ -95,7 +95,7 @@ const SELF_EXCLUDING: Record<string, Exclusion> = {
   spellDevour: 'picks a partner by board index around `indexOf(self)`, so the source is never its own victim',
   rubySelfCastPerOtherRuby: 'the scan in `playRubyOn` skips `m === target`, so a Ruby landing on Double '
     + 'Trouble itself never triggers it — and its own payout goes through `applyRubyStats` (stats only, no '
-    + 'watchers), so a SECOND Double Trouble cannot see it either. Both halves of the owner ruling',
+    + 'watchers), so a SECOND Trouble cannot see it either. Both halves of the owner ruling',
 
   // ── Excludes only because the CARD asks it to ──────────────────────────────────────────────────────────
   rallyGiveAttackToOthers: 'the arena pool filters `m.uid !== arena.self.uid` — "Others" is the contract',

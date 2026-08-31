@@ -52,15 +52,9 @@ const ART_PENDING = new Set<string>([
   // properly-named `UnbridledMight.png` that resolved the old UnbridledWrath near-miss). Grand Larceny is
   // the one Gift still awaiting a master.
   'gift_larceny',
-  // SET 3 KOBOLDS — the owner's roster (2026-08-30) shipping ahead of its art, exactly the case this seam
-  // exists for. Set 3 is `enabled: false` and reachable only through the Scene Builder, so none of these can
-  // reach a player un-arted. Delete each id the moment its master lands.
-  // ONE left. The 2026-08-31 batch arted the roster: nine from name matches, three more once the owner named
-  // the files whose card titles had moved since the art was drawn (Flagrunner → Flagrunner,
-  // Dealer → Dealer, Jewel → Jewel), and `GemBus` → Gem Bus by an
-  // owner ruling that also settled the `SplitpickApprentice` master, which two cards had claimed at once:
-  // Splitpick Apprentice keeps it. Forkvein Prospector is the only Kobold with no master at all.
-  'k3_forkvein',
+  // SET 3 KOBOLDS: NONE LEFT. The whole roster is arted as of 2026-08-31 — the last master (Gemsmith, both
+  // Choose One branches) landed with the rename that gave the card its name. The seam above is what this
+  // list is for; it stays empty until the next batch ships ahead of its art.
 ]);
 
 describe('art coverage for live cards', () => {

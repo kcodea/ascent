@@ -65,7 +65,7 @@ export const TRIGGER_PHASES: Readonly<Record<string, 'recruit' | 'combat' | 'bot
   // ── dual-phase: both dispatchers exist; every factory used on this trigger must cover both or be excused ──
   onRubyPlayed: 'both', // shop plays + Bloodbinder-family playing Rubies mid-fight
   // COMBAT only, and it is not a dispatched trigger at all: `playRubyOn` SCANS living friendlies for it
-  // (Candle Conduit's bounce, Double Trouble's self-cast). There is no recruit equivalent — the shop's Ruby
+  // (Candle Conduit's bounce, Trouble's self-cast). There is no recruit equivalent — the shop's Ruby
   // path is `fireOnRubyPlayed`, which is the `onRubyPlayed` row above.
   rubyPlayedAnywhere: 'combat',
   // Ruby Roach. A RECRUIT-only signal: it fires from the play path beside the play-count meter, and there is
@@ -108,7 +108,7 @@ export const PHASE_EXCUSED: Readonly<Record<string, PhaseExcuse>> = {
   //    settle and replays them through their recruit factory — correct so long as the reason still holds. ──
   battlecryDoubleNextSpell: { phase: 'combat', kind: 'no-surface', why: 'arms a run flag (next spell casts twice); nothing to double mid-fight, replays at settle' },
   battlecryScoutSpread: { phase: 'combat', kind: 'other-channel', why: 'grows the run-wide squirlScoutBuff; combat reads the carried value, the increment is a play-time event' },
-  // Double Trouble's self-Ruby. Combat DOES implement it — just not through the factory map: `rubyPlayedAnywhere`
+  // Trouble's self-Ruby. Combat DOES implement it — just not through the factory map: `rubyPlayedAnywhere`
   // is a passive marker that `playRubyOn` SCANS living friendlies for (the same shape Candle Conduit's
   // `rubyBounceExtra` uses), because the reaction has to run inside the Ruby application it reacts to.
   rubySelfCastPerOtherRuby: { phase: 'combat', kind: 'outside-map', why: 'implemented in `playRubyOn` (core/effects/factories.ts), which scans living friendlies for the `rubyPlayedAnywhere` marker rather than dispatching it' },

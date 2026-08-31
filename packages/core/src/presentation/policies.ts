@@ -282,7 +282,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:rubyStatGain:cast': { policy: 'ownBeat', family: 'spellCast' },
   'factory:rubyStatGain:onPlay': { policy: 'ownBeat', family: 'shout' },
   'factory:rubyStatMultiplier:passive': { policy: 'passive', family: 'passive' },
-  // Double Trouble's self-Ruby. `foldedCue` because it is not a beat of its own: it rides the Ruby that
+  // Trouble's self-Ruby. `foldedCue` because it is not a beat of its own: it rides the Ruby that
   // triggered it, landing in the same instant, and its stat gain is drawn by the same Ruby-landed cue every
   // other Ruby uses. Giving it its own beat would announce a second event where the player saw one.
   //
@@ -297,7 +297,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   // Dealer arms a run flag as the turn opens — nothing lands on the board, so no beat of its own.
   // The family is `economy`, matching the other `startOfTurn` effect: convention clusters are keyed on the
   // TRIGGER group, so filing a startOfTurn effect under `passive` would put it in a cluster of passive-trigger
-  // cards and dissolve the owner-approved `q-conv-family-passive` question (the same trap Double Trouble hit).
+  // cards and dissolve the owner-approved `q-conv-family-passive` question (the same trap Trouble hit).
   'factory:grantChooseBothCharges:startOfTurn': { policy: 'passive', family: 'economy' },
   // Ruby Roach's payout rides the Choose One play that caused it, drawn by the usual Ruby-landed cue.
   'factory:chooseOnePlayedPlayRubies:chooseOnePlayed': { policy: 'foldedCue', family: 'economyReact' },

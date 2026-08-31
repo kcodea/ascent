@@ -172,7 +172,7 @@ const TRIGGER_GROUPS: readonly TriggerGroup[] = [
   // "we should probably standardize our ruby terminology to 'cast'" (owner, q-conv-trigger-ruby): a Ruby is
   // never PLAYED — 'played' is reserved for a card leaving your hand. The factory ids keep their old names
   // (internal; renaming them would churn run state for a display-only change).
-  // `rubyPlayedAnywhere` joined 2026-08-31 with Double Trouble. It is the same MOMENT as `onRubyPlayed` —
+  // `rubyPlayedAnywhere` joined 2026-08-31 with Trouble. It is the same MOMENT as `onRubyPlayed` —
   // a Ruby landing — seen by a watcher elsewhere on the board rather than by the target, so it belongs in
   // this group. Left ungrouped it dragged its card into whatever presentation family it carried, which is
   // what dissolved the (already-approved) 'passive' family question by making that cluster span two groups.

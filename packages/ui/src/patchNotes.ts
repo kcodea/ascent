@@ -55,6 +55,20 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-08-31',
+    label: 'End of Turn',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: 'Cards granted at End of Turn no longer flash at double their number before settling.',
+        details: [
+          'Most visible on Rope Wrangler, which can hand you five cards at once.',
+          'Only the display was affected — you always received the right cards.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-08-30',
     label: 'The Pulse',
     changes: [

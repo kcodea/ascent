@@ -111,6 +111,7 @@ import { gateBlocks as tutorialGateBlocks, notifyGateNudge as notifyTutorialGate
 import { Unit } from './Unit';
 import { useCombatReplay } from './useCombatReplay';
 import { turnClock, useTurnSeconds, useTurnTimeUp } from './turnClock';
+import { visibleHandPreviews } from './handPreview';
 import { chargeTune, useChargePreview } from './chargeGlyphTune';
 import { ChargeMotes } from './chargeMotes';
 import { wipeFx } from './wipeFx';
@@ -2615,11 +2616,27 @@ export function Recruit() {
      reducer, so the cards that materialise are exactly the ones that survive the commit — and a hand that is
      already full shows (and coalesces) nothing at all for the rest of the round. */
   const handRoom = Math.max(0, CONFIG.handMax - run.hand.length);
+  /* The hand size End of Turn STARTED with. Arrivals are measured against it, so the preview count can be
+     DERIVED rather than cleared in a callback that races the commit — see `visibleHandPreviews`, and player
+     report bb5195d5 (the hand briefly showing twice the granted cards). Captured when the preview list first
+     becomes non-empty, which is the beat the projection lands. */
+  const eotHandBaseRef = useRef(0);
+  if (eotGrants.length === 0) eotHandBaseRef.current = run.hand.length;
   const handPreviews = useMemo(
-    () => (inCombat && !run.combatSettled ? replay.handGrantsShown : eotGrants)
-      .filter((id) => !!CARD_INDEX[id])
-      .slice(0, handRoom),
-    [inCombat, run.combatSettled, replay.handGrantsShown, eotGrants, handRoom],
+    () => {
+      // COMBAT grants keep the old behaviour: they commit one at a time as the replay plays, so there is no
+      // batch commit to race and no baseline to measure against.
+      if (inCombat && !run.combatSettled) {
+        return replay.handGrantsShown.filter((id) => !!CARD_INDEX[id]).slice(0, handRoom);
+      }
+      return visibleHandPreviews({
+        previews: eotGrants.filter((id) => !!CARD_INDEX[id]),
+        baseHandSize: eotHandBaseRef.current,
+        handSize: run.hand.length,
+        room: handRoom,
+      });
+    },
+    [inCombat, run.combatSettled, replay.handGrantsShown, eotGrants, handRoom, run.hand.length],
   );
 
   /* In-combat grants (Deathrattle / Rally / Avenge / quest) and End-of-Turn grants alike. The hand visibly

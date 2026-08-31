@@ -1,6 +1,7 @@
 import type { CardDef } from '@game/core';
 import { SET3_CELESTIALS } from './celestials';
 import { SET3_EQUIPMENT } from './equipment';
+import { SET3_KOBOLDS } from './kobolds';
 
 /**
  * ── SET 3 — scaffold only ───────────────────────────────────────────────────────────────────────────────
@@ -24,4 +25,4 @@ import { SET3_EQUIPMENT } from './equipment';
  * An empty set draws an empty shop. That is expected here, not a bug: the Scene Builder prints its pool
  * counts and warns "this set has no cards yet" precisely so it reads as scaffolding.
  */
-export const SET3_CARDS: readonly CardDef[] = [...SET3_CELESTIALS, ...SET3_EQUIPMENT];
+export const SET3_CARDS: readonly CardDef[] = [...SET3_CELESTIALS, ...SET3_EQUIPMENT, ...SET3_KOBOLDS];

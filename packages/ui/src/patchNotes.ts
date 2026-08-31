@@ -55,6 +55,20 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-08-31',
+    label: 'Gemheart',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: 'The Gemheart Golem has new artwork.',
+        details: [
+          'Every card that summons one shows the new picture — it is a single shared portrait, so the Golem looks the same wherever it comes from.',
+          'Nothing about the Golem itself changed: same body, same stats, same Rubies.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-08-30',
     label: 'Forge Facelift',
     changes: [

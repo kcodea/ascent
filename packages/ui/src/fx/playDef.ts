@@ -320,6 +320,7 @@ function schedulePrewarm(prewarm: (renderer: Renderer | null) => void): void {
       // all `over` never creates a second GL context — the lazy half of "lazy on first use" — while a page
       // that will need one has it long before the first combat, so no fire is ever dropped waiting on init.
       if (listDefs().some((d) => d.slot === 'under')) void pixiFx.ensureUnderSlot();
+      if (listDefs().some((d) => d.slot === 'above')) void pixiFx.ensureAboveSlot();
       return;
     }
     waited += PREWARM_POLL_MS;
@@ -378,7 +379,33 @@ export function playDef(id: string, anchors: FxAnchors, opts: PlayDefOptions = {
   return perfMonitor.measure(`fx:${id}`, () => playDefInner(id, anchors, opts));
 }
 
-function playDefInner(id: string, anchors: FxAnchors, opts: PlayDefOptions = {}): (() => void) | null {
+/**
+ * THE `camera` ANCHOR HAS ONE MEANING: the viewport centre.
+ *
+ * Every anchor a def can name resolves to `ORIGIN` — literally (0, 0), the top-left corner — when the caller
+ * did not stage it (`resolveAnchor`). For `source`/`target`/`slot` that is the honest answer: only the caller
+ * knows where the cards are. `camera` is different — it is the ONE anchor that does not depend on the caller
+ * at all, so a caller omitting it was never expressing "I have no camera", only "I forgot".
+ *
+ * That is exactly the bug the owner hit on 2026-08-31: Blast Pump's authored def is three camera-anchored
+ * bursts, the Equipment-use call staged `{ source, target, cursor }`, and the whole effect fired in the
+ * top-left corner of the screen. Three other live call sites had already hand-rolled this same expression,
+ * which is the tell that it belonged here rather than at each of them.
+ *
+ * Filled in HERE, at the single chokepoint every authored effect passes through, so a def authored against
+ * the workbench's camera (`viewport centre`) plays in the same place in the real game. Guarded for a
+ * DOM-less environment so the pure tests are unaffected.
+ */
+export function withCamera(anchors: FxAnchors): FxAnchors {
+  if (anchors.camera || typeof window === 'undefined') return anchors;
+  return { ...anchors, camera: { x: window.innerWidth / 2, y: window.innerHeight / 2 } };
+}
+
+/** `retried` is internal: the one-shot guard on the aux-canvas wait below. Callers never pass it. */
+function playDefInner(
+  id: string, rawAnchors: FxAnchors, opts: PlayDefOptions = {}, retried = false,
+): (() => void) | null {
+  const anchors = withCamera(rawAnchors);
   const stored = getDef(id);
   if (!stored) {
     // DEV-only because it is an AUTHORING mistake — a binding naming a def that isn't committed. The registry
@@ -397,11 +424,39 @@ function playDefInner(id: string, anchors: FxAnchors, opts: PlayDefOptions = {})
   const slot = stored.slot ?? 'over';
   const renderer = pixiFx.rendererFor(slot);
   if (!renderer) {
-    // The under canvas is created lazily, so "not yet" is a normal first-fire state rather than an error —
-    // kick the init so the NEXT fire has one. (`ensureDefsReady`'s pre-warm normally gets there first; this
-    // is the backstop for a def bound after the pre-warm ran, e.g. a workbench commit mid-session.)
-    if (slot === 'under') void pixiFx.ensureUnderSlot();
-    return null;
+    // AN AUX CANVAS ISN'T UP YET → WAIT FOR IT AND PLAY, rather than dropping the fire.
+    //
+    // Owner report 2026-08-31: "the first prismatic pick doesn't trigger the animation" — and only the
+    // first. `under` and `above` are created LAZILY, so the first effect that wants one arrives before it
+    // exists. Kicking the init and returning null (what this did) means fire #1 is spent creating the canvas
+    // and fire #2 is the first the player actually sees. `ensureDefsReady`'s pre-warm usually hides that by
+    // bringing the canvas up early, but it polls for the main renderer with a give-up — a session that sits
+    // on the title screen past it never pre-warms, and the drop is back.
+    //
+    // Waiting is right for an aux slot specifically: the wait is a one-off canvas init at the start of a
+    // session, not a frame of gameplay, and these are shop/modal flourishes rather than a combat collision.
+    // The `over` slot still declines — its renderer is the main overlay, so a missing one means the overlay
+    // itself is gone, and a moment mid-fight is genuinely past by the time a retry could land.
+    //
+    // Exactly ONE retry (`retried`): if the init FAILED, `ensure…Slot` resolves with the renderer still
+    // null (the error is caught and logged there), and an ungated retry would spin on the memoised promise
+    // forever. The returned disposer cancels a retry still in flight, so a caller that tears down first —
+    // the (Both) marker's loop leaving the list — never gets a late effect it can no longer stop.
+    const ensure = slot === 'under' ? pixiFx.ensureUnderSlot()
+      : slot === 'above' ? pixiFx.ensureAboveSlot()
+        : null;
+    if (!ensure || retried) return null;
+    let cancelled = false;
+    let stop: (() => void) | null = null;
+    void ensure.then(() => {
+      if (cancelled) return;
+      stop = playDefInner(id, anchors, opts, true);
+    });
+    return () => {
+      cancelled = true;
+      stop?.();
+      stop = null;
+    };
   }
 
   // Per-call sizing, applied AFTER `getDef` — `scaleDef` reads the primitive registry, and nothing may do

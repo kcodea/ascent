@@ -18,7 +18,7 @@ import {
   equipmentCostOf, equipmentUsesLeft, expireEquipmentTurn, rebuildEquipment,
   selectEquipment, selectedEquipment,
 } from './equipment';
-import { noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, roundedSpellbookCostOf, buyoutCostOf, commissionOffer, COMMISSION_DELAY, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, stampSharedSpoils, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, chooseBothActive, chooseOneNeedsChoice, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, rubyStatBonus, consumeGrimoireCharge, countRubyAsShopSpell, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, landBorrowed, settlePendingDeath, stampEquipFx, fireEquipmentTriggers, buyHealthAura, undeadBuyBonus, weldMagnetic , defIsTribe} from './recruit';
+import { applyChooseOnePlayed, spendChooseBothCharge, noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, roundedSpellbookCostOf, buyoutCostOf, commissionOffer, COMMISSION_DELAY, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, stampSharedSpoils, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, chooseBothActive, chooseOneNeedsChoice, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, rubyStatBonus, consumeGrimoireCharge, countRubyAsShopSpell, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, landBorrowed, settlePendingDeath, stampEquipFx, fireEquipmentTriggers, buyHealthAura, undeadBuyBonus, weldMagnetic , defIsTribe} from './recruit';
 import { handCap, mixSeed, reservedHandSlots, TAG, henchmanOffer, type Action, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type ShopCard, type CiaSuit, type Commission, type CommissionKind, type RunState, type RubyLandedFx, gateUses, procRune, procRuneId, runeBuffMagnitude } from './state';
 import { alignmentsOf } from './alignment';
 import { RUNE_DUP_SWEETENER, RUNE_DUP_UNIQUE, forgeFilteredDuplicate, runeStacksOf } from './runeDup';
@@ -1894,6 +1894,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         // own golden scaling and buff-FX attribution, in printed order.
         if (chooseBothActive(s, card, coDef)) {
           if (s.runeUnbrokenVein && card.cardId === 'k_veinbreaker') procRuneId(s, 'rune_unbroken_vein');
+          spendChooseBothCharge(s, card, coDef); // Forked Crown / Prismpick — one card per charge
           for (const opt of coDef.chooseOne) applyChooseOne(s, card, opt.effects);
         } else {
           const pick = s.chooseOnePick?.uid === card.uid ? s.chooseOnePick : undefined;
@@ -1909,6 +1910,13 @@ function reduceCore(state: RunState, action: Action): RunState {
           if (target) applyChooseOneTarget(s, card, option.effects, target);
           else applyChooseOne(s, card, option.effects);
         }
+        // RUBY ROACH fires HERE, not at the top of the play (owner report 2026-08-31): "it should trigger
+        // after the Choose One card is fully played, so that it also receives the Ruby". By this line the
+        // minion is spliced onto the board and its chosen branch has resolved, so the Roach's board-wide Ruby
+        // lands on the card that earned it. Fired at the two RESOLUTION sites (here and the spell resolver)
+        // rather than the play entry, which is also what makes the deferred prompt safe: a play that only
+        // opens the picker resolves nothing, and must not pay.
+        applyChooseOnePlayed(s, coDef);
       }
       // Targeted Battlecry (Toxin Tender → a friendly Undead): pause for the player to pick the target
       // (resolved in `battlecryTarget`) — but only if a *viable* target exists. The tribe-restricted pick
@@ -1948,6 +1956,20 @@ function reduceCore(state: RunState, action: Action): RunState {
     case 'chooseOne': {
       if (!s.chooseOne) return state;
       const co = s.chooseOne;
+      // ── AN EQUIPMENT'S CHOOSE ONE (Prismatic Pick) ─────────────────────────────────────────────────────
+      // Ahead of the card lookup, because there is no card: the prompt belongs to the Equipment. Resolved by
+      // REPLAYING the activation with the pick in hand — the same trick the deferred card play uses, and for
+      // the same reason: the Gold, the allowance, the FX cue and the triple check all live at that one site
+      // and must not be duplicated here.
+      if (co.equipmentId) {
+        const eqDef = EQUIPMENT_INDEX[co.equipmentId];
+        if (!eqDef?.chooseOne?.[action.index]) return state;
+        s.chooseOne = undefined;
+        s.chooseOnePick = { uid: co.uid, index: action.index };
+        const done = reduceCore(s, { type: 'activateEquipment' });
+        if (done === s) { s.chooseOnePick = undefined; return s; } // the activation refused — nothing spent
+        return done;
+      }
       const def = CARD_INDEX[co.cardId];
       const option = def?.chooseOne?.[action.index];
       if (!def || !option) return state;
@@ -2284,6 +2306,21 @@ function reduceCore(state: RunState, action: Action): RunState {
       const def = granted ? EQUIPMENT_INDEX[granted.equipmentId] : undefined;
       if (!granted || !def) return state;
       if (equipmentUsesLeft(s) <= 0) return state; // the shared allowance is spent
+      // ── CHOOSE ONE on an Equipment (Prismatic Pick; owner ask 2026-08-31) ──────────────────────────────
+      // "When it's used it should open the Choose One window." Same contract as a Choose One CARD: opening
+      // the prompt COMMITS NOTHING — no Gold, no allowance, no trigger, no RNG — and the activation is
+      // replayed from the top once the branch is picked, so everything below fires exactly once. That is also
+      // what makes a cancel a pure no-op: there is nothing to undo.
+      const eqPick = s.chooseOnePick?.uid === `eq:${def.id}` ? s.chooseOnePick : undefined;
+      const eqBranch = def.chooseOne?.length ? def.chooseOne[eqPick?.index ?? -1] : undefined;
+      if (def.chooseOne?.length && !eqBranch) {
+        // The affordability check runs BEFORE the prompt too, so an unaffordable Pick never asks a question it
+        // cannot answer.
+        if (s.embers < equipmentCostOf(s, def)) return state;
+        s.chooseOne = { uid: `eq:${def.id}`, cardId: def.id, equipmentId: def.id };
+        return s;
+      }
+      s.chooseOnePick = undefined; // the pick is consumed by this activation, whatever happens below
       const cost = equipmentCostOf(s, def);
       if (s.embers < cost) return state; // unaffordable — visible but disabled, never a half-activation
       // A targeted Equipment needs a real, legal target. No target → the activation never happened: no Gold,
@@ -2306,7 +2343,15 @@ function reduceCore(state: RunState, action: Action): RunState {
       const self: BoardCard = src ?? {
         uid: `eq:${def.id}`, cardId: def.id, tribe: 'neutral', attack: 0, health: 0, keywords: [], golden: false,
       };
-      if (!fireEquipmentTriggers(s, def, granted.version, self, target, triggers)) return state;
+      // The picked branch supplies the effect. A branch's factory is a shared RECRUIT factory (the same
+      // `grantRandomChooseOne` Forksong Herald fires), and those DO read the source's golden flag — while
+      // Equipment expresses gilding through `gildedParams` (see `equipmentBuffTarget`, which ignores it). So
+      // the branch is handed a non-gilded self: one gilding channel, not two multiplying each other.
+      const fireDef = eqBranch
+        ? { ...def, effectId: eqBranch.effectId, params: eqBranch.params, gildedParams: eqBranch.gildedParams }
+        : def;
+      const fireSelf = eqBranch ? { ...self, golden: false } : self;
+      if (!fireEquipmentTriggers(s, fireDef, granted.version, fireSelf, target, triggers)) return state;
       // ONE use cue per ACTIVATION, not per trigger — the handoff's rule for repeats is that they "communicate
       // repetition without replaying the full animation", so a three-trigger Bloodpot is one travel, not three.
       stampEquipFx(s, {
@@ -3487,6 +3532,7 @@ function resolveChooseOneSpell(
   const casts = spellCasts(s, def);
   // (BOTH) — Rune of Facetwright's "they give both effects": resolve EVERY branch instead of the picked one.
   const both = chooseBothActive(s, card, def);
+  if (both) spendChooseBothCharge(s, card, def); // Forked Crown / Prismpick — one card per charge
   const branches = both ? (def.chooseOne ?? []) : (def.chooseOne?.[index] ? [def.chooseOne[index]] : []);
   const synthetic = { ...def, effects: branches.flatMap((o) => o.effects) };
   for (let n = 0; n < casts; n++) {
@@ -3499,6 +3545,9 @@ function resolveChooseOneSpell(
   if (!def.singleCast && s.runeSharedPour && ALE_IDS.includes(def.id)) s.sharedPourUsedThisTurn = true; // Shared Pour freebie spent
   s.hand.splice(hi, 1);
   s.playedThisTurn = [...(s.playedThisTurn ?? []), def.id]; // counts as a card played (Rune of Action)
+  // Ruby Roach — AFTER the branch has been cast (owner 2026-08-31), so anything the spell put on the board
+  // is standing to receive the Roach's Ruby. The minion half fires at its own resolution site.
+  applyChooseOnePlayed(s, def);
   checkTriples(s);
   return s;
 }
@@ -4481,6 +4530,10 @@ function advanceCombat(s: RunState): void {
   s.gorrBuys = undefined; // Gorr: the per-turn minion-buy tally resets
   s.freeBuyUsedThisTurn = false; // Freedom rift: the first minion each turn is free again
   s.spellFirstUsedThisTurn = false; // Spell Thesis: "first spell each turn casts twice" resets each turn
+  // Choose-One BOTH charges are per-turn — cleared here, then Forked Crown's start-of-turn effect (below in
+  // the same advance) re-grants its own. Clearing FIRST is what makes "the first Choose One each turn" true
+  // rather than letting an unspent charge accumulate.
+  s.chooseBothCharges = 0;
   // Ruby per-turn gates. NEITHER was reset before 2026-08-06 (owner report on Resonance): "first Ruby each
   // turn casts extra" fired once per RUN, and Gemscript's first-Ruby spell-power bump did the same.
   // Chef Gary Toast: clear each Chef's per-turn grant tally. NOT banked into a second field — the combat that

@@ -8682,9 +8682,9 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   position: fixed; z-index: 80; transform: translateY(-50%);
   width: calc(112 * var(--lu) * var(--sc-w, 2.6)); pointer-events: none;
   display: flex; flex-direction: column; gap: calc(4 * var(--lu) * var(--sc-gap, 2.3));
-  padding: calc(7 * var(--lu) * var(--sc-pad, 2.3)); border-radius: calc(8 * var(--lu) * var(--sc-rad, 1));
-  background: linear-gradient(180deg, var(--sc-bg1, #291c11), var(--sc-bg2, #17110c));
-  border: 1px solid color-mix(in srgb, var(--sc-border, #d4941c) 55%, #000);
+  padding: calc(7 * var(--lu) * var(--sc-pad, 2.3)); border-radius: calc(8 * var(--lu) * var(--sc-rad, 1.25));
+  background: linear-gradient(180deg, var(--sc-bg1, #47311f), var(--sc-bg2, #110c08));
+  border: 1px solid color-mix(in srgb, var(--sc-border, #ecca96) 55%, #000);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 calc(4 * var(--lu)) calc(14 * var(--lu)) -4px var(--shadow);
   /* One-shot fade+slide on open. Safe to touch opacity/transform here — this is not a looping animation, and
      both are compositor-only properties (docs/performance.md). */
@@ -8702,11 +8702,11 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 /* Tribe build+count on its OWN row, then tier + triples paired beneath it; each stat's title sits ABOVE its
    value (owner ask 2026-08-31 — the `<i>` label is authored before the `<b>` value in the DOM). */
 .lobbyscout-stats { display: flex; flex-direction: column; gap: calc(4 * var(--lu));
-  padding-top: calc(12 * var(--lu)); border-top: 1px solid color-mix(in srgb, var(--sc-divider, #d4941c) 16%, transparent); }
+  padding-top: calc(12 * var(--lu)); border-top: 1px solid color-mix(in srgb, var(--sc-divider, #c17a45) 16%, transparent); }
 .lobbyscout-statrow { display: grid; grid-template-columns: repeat(2, 1fr); gap: calc(3 * var(--lu)); }
 .lobbyscout-stat { display: flex; flex-direction: column; align-items: center; gap: calc(1 * var(--lu)); line-height: 1.1; }
 /* A horizontal rule between the tier/gilded-units pair and the tribe build below (owner ask 2026-08-31). */
-.lobbyscout-stat--wide { padding-top: calc(8 * var(--lu)); border-top: 1px solid color-mix(in srgb, var(--sc-divider, #d4941c) 16%, transparent); }
+.lobbyscout-stat--wide { padding-top: calc(8 * var(--lu)); border-top: 1px solid color-mix(in srgb, var(--sc-divider, #c17a45) 16%, transparent); }
 .lobbyscout-stat b { font-size: calc(11 * var(--lfont) * var(--sc-stat, 2)); font-weight: 800; color: var(--sc-stat-col, #f4d58a); }
 .lobbyscout-stat i { font-size: calc(7 * var(--lfont) * var(--sc-statlabel, 2)); font-style: normal; letter-spacing: 0.07em;
   text-transform: uppercase; color: var(--sc-label-col, #b7a98f); }
@@ -8717,7 +8717,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
    2026-08-31). Rows + header are `display: contents`, so their cells become the grid's items and line up. */
 .lobbyscout-log { display: grid; grid-template-columns: calc(40 * var(--lu)) auto 1fr auto;
   justify-items: center; align-items: center; column-gap: calc(6 * var(--lu)); row-gap: calc(8 * var(--lu));
-  padding-top: calc(12 * var(--lu)); border-top: 1px solid color-mix(in srgb, var(--sc-divider, #d4941c) 16%, transparent);
+  padding-top: calc(12 * var(--lu)); border-top: 1px solid color-mix(in srgb, var(--sc-divider, #c17a45) 16%, transparent);
   font-size: calc(9 * var(--lfont) * var(--sc-histtext, 2)); }
 .lobbyscout-row, .lobbyscout-loghead { display: contents; }
 .lobbyscout-log .lobbyscout-empty { grid-column: 1 / -1; justify-self: start; }
@@ -8797,7 +8797,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
    socket over the match; filled with rune art as the seat acquires them. The border + padding live on the
    section so the whole block reads as one unit. */
 .lobbyscout-runesec { display: flex; flex-direction: column; gap: calc(14 * var(--lu));
-  padding-top: calc(12 * var(--lu)); border-top: 1px solid color-mix(in srgb, var(--sc-divider, #d4941c) 16%, transparent); }
+  padding-top: calc(12 * var(--lu)); border-top: 1px solid color-mix(in srgb, var(--sc-divider, #c17a45) 16%, transparent); }
 .lobbyscout-runes { display: flex; justify-content: center; gap: calc(6 * var(--lu)); }
 .lobbyscout-socket { position: relative; flex: none;
   /* Full fight-log portrait size (owner ask 2026-08-31: do NOT shrink — the card is widened to fit all three). */

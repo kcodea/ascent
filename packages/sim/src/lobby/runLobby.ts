@@ -483,6 +483,8 @@ export function boardIntel(board: PreparedBoard, round: number): SeatIntel {
 export interface SeatResult {
   round: number;
   foeLabel: string;
+  /** The foe's hero id, so the rail's scout card can show their PORTRAIT rather than just a name. */
+  foeHeroId: string;
   outcome: CombatOutcome;
   dealt: number;
   taken: number;
@@ -496,15 +498,17 @@ export interface SeatResult {
  * would read as a stalemate that never happened.
  */
 export function seatResults(lobby: RunLobby, seatId: string, n = 3): SeatResult[] {
-  const label = (id: string): string => lobby.seats.find((s) => s.id === id)?.label ?? id;
+  const seatOf = (id: string) => lobby.seats.find((s) => s.id === id);
   const out: SeatResult[] = [];
   for (let i = lobby.encounters.length - 1; i >= 0 && out.length < n; i--) {
     const e = lobby.encounters[i]!;
     if (!e.fought || (e.a !== seatId && e.b !== seatId)) continue;
     const isA = e.a === seatId;
+    const foe = seatOf(isA ? e.b : e.a);
     out.push({
       round: e.round,
-      foeLabel: label(isA ? e.b : e.a),
+      foeLabel: foe?.label ?? (isA ? e.b : e.a),
+      foeHeroId: foe?.heroId ?? '',
       // `outcome` is written from A's side, so B reads it inverted.
       outcome: isA ? e.outcome : (e.outcome === 'win' ? 'lose' : e.outcome === 'lose' ? 'win' : 'draw'),
       dealt: isA ? e.damageToB : e.damageToA,

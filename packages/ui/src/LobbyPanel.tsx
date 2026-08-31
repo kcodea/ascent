@@ -235,24 +235,9 @@ function ScoutCard({ lobby, seat, intel, at, pinned, onClose }: {
       <span className="lobbyscout-hero">{heroPower}</span>
     </div>
   );
-  const badges = intel && ((intel.runes?.length ?? 0) > 0 || (intel.quests?.length ?? 0) > 0) ? (
+  // COMPLETED QUESTS as badges. Runes moved to the socket strip below (owner ask 2026-08-31).
+  const badges = intel && (intel.quests?.length ?? 0) > 0 ? (
     <div className="oppbadges lobbyscout-badges">
-      {(intel.runes ?? []).filter((id) => RUNE_INDEX[id]).map((id) => {
-        const rune = RUNE_INDEX[id]!;
-        const rart = runeArt(rune.id);
-        return (
-          <div className="questbadge runebadge" key={`r:${id}`}>
-            {rart
-              ? <img className="questbadge-art" src={rart} alt="" aria-hidden />
-              : <span className="questbadge-emblem" aria-hidden><Icon name="sc" /></span>}
-            <div className="questbadge-tip" role="tooltip">
-              <b>{rune.name}</b>
-              <span className="questbadge-tip-reward" dangerouslySetInnerHTML={{ __html: mdBold(rune.text) }} />
-              <span className="questbadge-tip-state">Rune · active</span>
-            </div>
-          </div>
-        );
-      })}
       {(intel.quests ?? []).filter((id) => QUEST_INDEX[id]).map((id) => {
         const def = QUEST_INDEX[id]!;
         const qart = questArt(def.id);
@@ -273,6 +258,8 @@ function ScoutCard({ lobby, seat, intel, at, pinned, onClose }: {
   ) : null;
   const staleEl = stale ? <div className="lobbyscout-stale">as of round {intel!.round}</div> : null;
   const noIntel = <div className="lobbyscout-empty">No intel yet</div>;
+  // ROUND HISTORY — the foe's PORTRAIT rather than their name (owner ask 2026-08-31), with the outcome-tinted
+  // damage on the right. Falls back to the label if the hero art is missing.
   const renderLog = (showGlyph: boolean): JSX.Element => (
     <div className="lobbyscout-log">
       {results.length === 0 ? (
@@ -280,16 +267,43 @@ function ScoutCard({ lobby, seat, intel, at, pinned, onClose }: {
       ) : results.map((r) => (
         <div className={`lobbyscout-row ${r.outcome}`} key={r.round}>
           <span className="lobbyscout-vs">
-            {showGlyph && <span className="lobbyscout-glyph" aria-hidden>{OUTCOME_GLYPH[r.outcome]} </span>}
-            vs {r.foeLabel}
+            {showGlyph && <span className="lobbyscout-glyph" aria-hidden>{OUTCOME_GLYPH[r.outcome]}</span>}
+            {r.foeHeroId
+              ? <img className="lobbyscout-foeface" src={heroArt(r.foeHeroId)} alt={r.foeLabel} title={r.foeLabel} />
+              : <span className="lobbyscout-vslabel">vs {r.foeLabel}</span>}
           </span>
           <span className="lobbyscout-dmg">{r.taken > 0 ? `−${r.taken}` : r.dealt > 0 ? `+${r.dealt}` : '0'}</span>
         </div>
       ))}
     </div>
   );
+  // RUNE SOCKETS — always three (owner ask 2026-08-31): dotted-outline circles marking where runes socket over
+  // the match, filled with rune art as the seat acquires them. Filled sockets carry the same hover tip as a badge.
+  const runeIds = (intel?.runes ?? []).filter((id) => RUNE_INDEX[id]);
+  const runeSockets = intel ? (
+    <div className="lobbyscout-runes">
+      {[0, 1, 2].map((i) => {
+        const rune = runeIds[i] ? RUNE_INDEX[runeIds[i]!] : null;
+        const rart = rune ? runeArt(rune.id) : null;
+        return (
+          <div className={`lobbyscout-socket${rune ? ' filled' : ''}`} key={i}>
+            {rune && (rart
+              ? <img className="lobbyscout-socketart" src={rart} alt="" aria-hidden />
+              : <span className="questbadge-emblem" aria-hidden><Icon name="sc" /></span>)}
+            {rune && (
+              <div className="questbadge-tip" role="tooltip">
+                <b>{rune.name}</b>
+                <span className="questbadge-tip-reward" dangerouslySetInnerHTML={{ __html: mdBold(rune.text) }} />
+                <span className="questbadge-tip-state">Rune · active</span>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  ) : null;
 
-  // ── The three candidate layouts (owner is choosing a direction). Same data, different formatting. ──
+  // ── The three candidate layouts (owner picked V1; the others stay for reference). Same data, different form. ──
   let body: JSX.Element;
   if (variant === 2) {
     // V2 — identity banner (dominant tribe front + centre) + a thin meta line, history given its own titled block.
@@ -313,6 +327,7 @@ function ScoutCard({ lobby, seat, intel, at, pinned, onClose }: {
         {staleEl}
         <div className="lobbyscout-logtitle">Last fights</div>
         {renderLog(true)}
+        {runeSockets}
       </>
     );
   } else if (variant === 3) {
@@ -334,10 +349,11 @@ function ScoutCard({ lobby, seat, intel, at, pinned, onClose }: {
         {badges}
         {staleEl}
         {renderLog(false)}
+        {runeSockets}
       </>
     );
   } else {
-    // V1 — refined current: a three-up stat strip, with the dominant tribe + count as the first stat.
+    // V1 — refined current: a three-up stat strip (dominant tribe + count first), portrait history, rune sockets.
     body = (
       <>
         {head}
@@ -351,6 +367,7 @@ function ScoutCard({ lobby, seat, intel, at, pinned, onClose }: {
         {badges}
         {staleEl}
         {renderLog(false)}
+        {runeSockets}
       </>
     );
   }

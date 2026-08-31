@@ -149,6 +149,31 @@ export function playRubyOn(ctx: CombatContext, self: Minion, target: Minion, per
       }
     }
   }
+  // DOUBLE TROUBLE (set 3): when a Ruby is cast on ANOTHER friendly minion, it casts that many on itself.
+  //
+  // PER RUBY, not per cast (owner ruling 2026-08-31: "a ruby being cast is 1 ruby, so if 2 rubies are cast,
+  // that would be 2 rubies"). `per` is the count this call is applying, so it is the multiplier — a single
+  // `playRubyOn` carrying 3 Rubies pays Double Trouble 3, not 1.
+  //
+  // "ANOTHER minion" is a real separation (owner ruling, same day): a Ruby landing on Double Trouble itself
+  // never triggers it, and — because the Ruby below goes through `applyRubyStats`, which is STATS ONLY and
+  // notifies nobody — a second Double Trouble cannot see this one's payout either. That is the same guard
+  // Candle Conduit's bounce and Resonance Idol rely on, and without it two of these would ping forever.
+  //
+  // PERMANENCE IS INHERITED (owner note): `engraved` is the flag computed for the triggering Ruby, so a Ruby
+  // cast off a permanent one is itself permanent — including when the Rune of Engraving Gems is what made the
+  // original permanent, since that decision is already folded into `engraved`.
+  for (const m of ctx.living(self.side)) {
+    if (m.dead || m === target) continue; // never off a Ruby cast on ITSELF — see "another minion" above
+    for (const eff of m.effects) {
+      if (eff.on !== 'rubyPlayedAnywhere' || eff.do !== 'rubySelfCastPerOtherRuby') continue;
+      const reps = per * num(eff.params?.count, 1) * (m.golden ? 2 : 1);
+      if (reps <= 0) continue;
+      // Its own Rubies are worth what any Ruby is worth right now — same strength, same Paragon multiplier —
+      // so it can never be quietly weaker than the Ruby that triggered it.
+      applyRubyStats(ctx, m, m, (1 + rb.attack) * reps * mult, (1 + rb.health) * reps * mult, engraved);
+    }
+  }
   // Rune of the Spellstone: this Ruby ALSO counts as a spell cast — fire the trigger so per-spell improvers
   // (Groveweaver, Sovereign, Guel's combat tally) advance, exactly as the recruit path counts it.
   if (ctx.spellstoneFor?.(self.side)) ctx.castSpell(self.side);

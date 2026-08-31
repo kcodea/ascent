@@ -282,6 +282,15 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:rubyStatGain:cast': { policy: 'ownBeat', family: 'spellCast' },
   'factory:rubyStatGain:onPlay': { policy: 'ownBeat', family: 'shout' },
   'factory:rubyStatMultiplier:passive': { policy: 'passive', family: 'passive' },
+  // Double Trouble's self-Ruby. `foldedCue` because it is not a beat of its own: it rides the Ruby that
+  // triggered it, landing in the same instant, and its stat gain is drawn by the same Ruby-landed cue every
+  // other Ruby uses. Giving it its own beat would announce a second event where the player saw one.
+  //
+  // `economyReact` is the family the OTHER Ruby reactions use (Ruby Broker's Gold, Resonance Idol's bounce)
+  // — and the family matters beyond presentation: convention clusters are keyed on the trigger GROUP, so
+  // filing this under `passive` put a ruby-trigger card in a cluster of `passive`-trigger cards and
+  // dissolved the owner-approved `q-conv-family-passive` question by making that cluster incoherent.
+  'factory:rubySelfCastPerOtherRuby:rubyPlayedAnywhere': { policy: 'foldedCue', family: 'economyReact' },
   'factory:scArmBleed:startOfCombat': { policy: 'ownBeat', family: 'startOfCombat' },
   'factory:scBeastAura:startOfCombat': { policy: 'ownBeat', family: 'startOfCombat' },
   'factory:scBuffAlliesPctSelf:startOfCombat': { policy: 'ownBeat', family: 'startOfCombat' },

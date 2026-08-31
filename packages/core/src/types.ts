@@ -430,6 +430,9 @@ export type EffectFactoryId =
   | 'rallyCastRandomTargetedSpell' // Badgington: Rally — cast a random targeted spell on another friendly Beast + copy to hand
   | 'deathrattleTriggerAdjacentRally' // Scavvers: Echo — trigger an adjacent minion's Rally
   | 'rubyBounceExtra' // Candle Conduit (passive marker): every Ruby played on your side bounces to 1 more minion
+  // Double Trouble (passive marker, set 3): when a Ruby is cast on ANOTHER friendly minion, cast that many on
+  // this. Scanned in `playRubyOn` like the bounce above, never dispatched through the bus.
+  | 'rubySelfCastPerOtherRuby'
   | 'avengeCastRandomHandSpell' // Menagerie Mammoth: Avenge (N) — cast a random spell from your hand (kept, not consumed)
   | 'scGrantSpellCastExtra' // Runebloom Matriarch: Start of Combat — your Shop Spells cast N extra times this fight
   | 'scGrantShieldTribe'

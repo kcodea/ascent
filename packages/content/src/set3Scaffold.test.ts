@@ -32,6 +32,7 @@ describe('set 3 scaffold', () => {
       'k3_korn', 'k3_splitpick', 'k3_forkvein', 'k3_forkroad', 'k3_veinchant', 'k3_jeweler',
       'k3_blastsurveyor',
       'k3_facetbound',
+      'k3_doubletrouble',
       // …then the nine set-2 Kobolds it keeps.
       'k_chipwick', 'k_veinbreaker', 'k_gemheart', 'k_deepdelve', 'k_geode', 'k_kobabyboldies',
       'k_kobe', 'k_boulderdash', 'k_blazer',

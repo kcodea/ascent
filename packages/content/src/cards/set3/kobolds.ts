@@ -176,4 +176,29 @@ export const SET3_KOBOLDS: CardDef[] = [
     text: '**Choose One:** get a **Warding Ruby**, or cast **Veinstorm** 2 times.',
     goldenText: '**Choose One:** get **2 Warding Rubies**, or cast **Veinstorm** 4 times.',
   },
+  {
+    /**
+     * DOUBLE TROUBLE — every Ruby that lands on someone else lands here too.
+     *
+     * PER RUBY, not per cast (owner ruling 2026-08-31: "a ruby being cast is 1 ruby, so if 2 rubies are cast,
+     * that would be 2 rubies"). A board-wide effect casting 2 Rubies across five other minions therefore pays
+     * this ten, which is why it is a 6-drop and not a cheap one.
+     *
+     * "ANOTHER minion" is a real separation (same day's ruling): a Ruby cast on THIS never triggers it, and
+     * two Double Troubles do not feed each other -- its own Rubies land as stats and notify nobody, the guard
+     * that already stops two Resonance Idols pinging a Ruby between them forever.
+     *
+     * PERMANENCE IS INHERITED (owner note): a Ruby cast off a permanent one is itself permanent.
+     */
+    id: 'k3_doubletrouble',
+    name: 'Double Trouble',
+    tribe: 'kobold',
+    tier: 6,
+    attack: 8,
+    health: 7,
+    keywords: [],
+    effects: [{ on: 'rubyPlayedAnywhere', do: 'rubySelfCastPerOtherRuby', params: { count: 1 } }],
+    text: 'When a **Ruby** is cast on another minion in combat, cast a **Ruby** on this.',
+    goldenText: 'When a **Ruby** is cast on another minion in combat, cast **2 Rubies** on this.',
+  },
 ];

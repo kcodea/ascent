@@ -93,6 +93,9 @@ const SELF_EXCLUDING: Record<string, Exclusion> = {
   onOrbitBuffShop: 'buffs SHOP OFFERS, which are a different zone from the board the source sits on',
   onOtherDemonConsumeEcho: 'the consuming Demon arrives in the payload; the shop minion consumed is the target',
   spellDevour: 'picks a partner by board index around `indexOf(self)`, so the source is never its own victim',
+  rubySelfCastPerOtherRuby: 'the scan in `playRubyOn` skips `m === target`, so a Ruby landing on Double '
+    + 'Trouble itself never triggers it — and its own payout goes through `applyRubyStats` (stats only, no '
+    + 'watchers), so a SECOND Double Trouble cannot see it either. Both halves of the owner ruling',
 
   // ── Excludes only because the CARD asks it to ──────────────────────────────────────────────────────────
   rallyGiveAttackToOthers: 'the arena pool filters `m.uid !== arena.self.uid` — "Others" is the contract',

@@ -54,6 +54,18 @@ export function LobbyPanel({ lobby }: { lobby: RunLobby }): JSX.Element | null {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [pinned]);
+  // CLICK-OUTSIDE CLOSES (owner ask 2026-08-31, replacing the corner ×). A click inside the card keeps it; a
+  // click on a seat is left to the seat's own handler (it switches/toggles the pin); anything else dismisses it.
+  useEffect(() => {
+    if (!pinned) return;
+    const onDown = (e: MouseEvent): void => {
+      const t = e.target as HTMLElement | null;
+      if (t && (t.closest('.lobbyscout') || t.closest('.lobbyseat'))) return;
+      setPinned(null);
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [pinned]);
 
   // WHAT YOU JUST DID TO THEM. The rail prints every seat's loss as a static number, but a win is the moment
   // the mode is about and shouldn't read the same as a draw until you scan the table — so the damage you dealt
@@ -126,6 +138,8 @@ export function LobbyPanel({ lobby }: { lobby: RunLobby }): JSX.Element | null {
               // Scouting is for OPPONENTS — your own board is on screen in front of you.
               onMouseEnter={isYou ? undefined : (e) => openScout(e, seat.id)}
               onMouseLeave={isYou ? undefined : () => setHovered((h) => (h?.id === seat.id ? null : h))}
+              // Left OR right click pins the card (and clicking a different seat switches to it) — owner ask 2026-08-31.
+              onClick={isYou ? undefined : (e) => pinScout(e, seat.id)}
               onContextMenu={isYou ? undefined : (e) => pinScout(e, seat.id)}
             >
               <img className="lobbyface" src={heroArt(seat.heroId)} alt="" />
@@ -155,7 +169,7 @@ export function LobbyPanel({ lobby }: { lobby: RunLobby }): JSX.Element | null {
               )}
               {hovered?.id === seat.id && pinned?.id !== seat.id && <ScoutCard lobby={lobby} seat={seat} intel={intel} at={hovered} />}
               {pinned?.id === seat.id && (
-                <ScoutCard lobby={lobby} seat={seat} intel={intel} at={pinned} pinned onClose={() => setPinned(null)} />
+                <ScoutCard lobby={lobby} seat={seat} intel={intel} at={pinned} pinned />
               )}
             </div>
           );
@@ -188,11 +202,11 @@ const OUTCOME_LABEL: Record<string, string> = { win: 'WON', lose: 'LOST', draw: 
  * Rendered ONLY while hovered rather than always-mounted-and-hidden — eight of these permanently in the tree,
  * each mapping the encounter log, is work the shop phase does not need to do every frame.
  */
-function ScoutCard({ lobby, seat, intel, at, pinned, onClose }: {
+function ScoutCard({ lobby, seat, intel, at, pinned }: {
   lobby: RunLobby; seat: LobbySeatState; intel?: SeatIntel; at: { top: number; right: number };
-  /** Pinned (right-clicked) rather than hovered: it takes pointer events so its rune/quest badges can be
-   *  hovered for their own tooltips, and it carries a close affordance. */
-  pinned?: boolean; onClose?: () => void;
+  /** Pinned (clicked) rather than hovered: it takes pointer events so its rune/quest badges can be hovered for
+   *  their own tooltips. Dismissed by clicking outside (handled in LobbyPanel), not a corner ×. */
+  pinned?: boolean;
 }): JSX.Element {
   const results = seatResults(lobby, seat.id, 3);
   const stale = intel && intel.round < lobby.round;
@@ -390,14 +404,16 @@ function ScoutCard({ lobby, seat, intel, at, pinned, onClose }: {
       style={clamp
         ? { top: clamp.top, right: clamp.right }
         : { top: at.top, right: `calc(100vw - ${at.right}px + 6px)`, visibility: 'hidden' }}
-      onContextMenu={pinned ? (e) => { e.preventDefault(); onClose?.(); } : undefined}>
-      {/* DEV-only A/B/C layout switch — corner chip, cycles + persists the chosen variant. Pointer-events auto so
-          it works even on the hover card, though pinning (right-click) is the reliable way to reach it. */}
+      // React portals bubble synthetic events through the REACT tree, so a click inside this card would reach the
+      // seat's onClick and toggle the pin shut. Stop it here; the native mousedown outside-handler (on document)
+      // still sees the click and keeps the card open.
+      onClick={pinned ? (e) => e.stopPropagation() : undefined}
+      onContextMenu={pinned ? (e) => { e.preventDefault(); e.stopPropagation(); } : undefined}>
+      {/* DEV-only A/B/C layout switch — corner chip, cycles + persists the chosen variant. */}
       {import.meta.env.DEV && (
         <button className="lobbyscout-variant" onClick={(e) => { e.stopPropagation(); cycleVariant(); }}
           title="Cycle scout-card layout (dev only)">V{variant}</button>
       )}
-      {pinned && <button className="lobbyscout-x" onClick={onClose} aria-label="Close">×</button>}
       {body}
     </div>,
     document.body,

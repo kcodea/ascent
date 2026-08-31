@@ -1,0 +1,481 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Ascent Quiz #19 — 2026-08-31</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f6f5f1;
+    --panel: #ffffff;
+    --panel-border: #e2e0d8;
+    --text: #201f1c;
+    --muted: #6e6c64;
+    --accent: #3457d5;
+    --accent-soft: rgba(52, 87, 213, 0.10);
+    --accent-border: rgba(52, 87, 213, 0.28);
+    --correct: #1c8a52;
+    --correct-bg: rgba(28, 138, 82, 0.10);
+    --correct-border: rgba(28, 138, 82, 0.38);
+    --wrong: #bd3f27;
+    --wrong-bg: rgba(189, 63, 39, 0.09);
+    --wrong-border: rgba(189, 63, 39, 0.35);
+    --code-bg: rgba(52, 87, 213, 0.07);
+    --shadow: 0 10px 26px rgba(32, 31, 28, 0.07);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #17181c;
+      --panel: #1f2025;
+      --panel-border: #2d2f36;
+      --text: #eceae3;
+      --muted: #96958c;
+      --accent: #7c9bff;
+      --accent-soft: rgba(124, 155, 255, 0.12);
+      --accent-border: rgba(124, 155, 255, 0.32);
+      --correct: #52c98a;
+      --correct-bg: rgba(82, 201, 138, 0.12);
+      --correct-border: rgba(82, 201, 138, 0.34);
+      --wrong: #e58469;
+      --wrong-bg: rgba(229, 132, 105, 0.12);
+      --wrong-border: rgba(229, 132, 105, 0.34);
+      --code-bg: rgba(124, 155, 255, 0.10);
+      --shadow: 0 10px 26px rgba(0, 0, 0, 0.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #17181c;
+    --panel: #1f2025;
+    --panel-border: #2d2f36;
+    --text: #eceae3;
+    --muted: #96958c;
+    --accent: #7c9bff;
+    --accent-soft: rgba(124, 155, 255, 0.12);
+    --accent-border: rgba(124, 155, 255, 0.32);
+    --correct: #52c98a;
+    --correct-bg: rgba(82, 201, 138, 0.12);
+    --correct-border: rgba(82, 201, 138, 0.34);
+    --wrong: #e58469;
+    --wrong-bg: rgba(229, 132, 105, 0.12);
+    --wrong-border: rgba(229, 132, 105, 0.34);
+    --code-bg: rgba(124, 155, 255, 0.10);
+    --shadow: 0 10px 26px rgba(0, 0, 0, 0.35);
+  }
+  * { box-sizing: border-box; }
+  html, body { background: var(--bg); }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    display: flex;
+    justify-content: center;
+    padding: 40px 16px 64px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { width: 100%; max-width: 680px; }
+  header { margin-bottom: 26px; }
+  .kicker {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.75rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 8px;
+  }
+  header h1 {
+    font-size: 1.6rem;
+    margin: 0 0 6px;
+    font-weight: 700;
+    text-wrap: balance;
+  }
+  header p { color: var(--muted); margin: 0; font-size: 0.94rem; }
+  .progress-bar {
+    height: 6px;
+    border-radius: 999px;
+    background: var(--panel-border);
+    overflow: hidden;
+    margin: 20px 0 8px;
+  }
+  .progress-fill {
+    height: 100%;
+    background: var(--accent);
+    width: 0%;
+    transition: width 0.35s ease;
+  }
+  .status-row {
+    display: flex;
+    justify-content: space-between;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.8rem;
+    color: var(--muted);
+    margin-bottom: 22px;
+    font-variant-numeric: tabular-nums;
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 14px;
+    padding: 26px;
+    margin-bottom: 16px;
+    box-shadow: var(--shadow);
+  }
+  .qtag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.02em;
+    color: var(--accent);
+    background: var(--accent-soft);
+    border: 1px solid var(--accent-border);
+    padding: 3px 10px;
+    border-radius: 6px;
+    margin-bottom: 14px;
+  }
+  .qtext {
+    font-size: 1.08rem;
+    line-height: 1.55;
+    margin: 0 0 20px;
+    max-width: 62ch;
+  }
+  .qtext code {
+    font-family: "IBM Plex Mono", monospace;
+    background: var(--code-bg);
+    padding: 1.5px 6px;
+    border-radius: 5px;
+    font-size: 0.88em;
+  }
+  .choices { display: flex; flex-direction: column; gap: 9px; }
+  .choice {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    text-align: left;
+    width: 100%;
+    background: transparent;
+    border: 1px solid var(--panel-border);
+    color: var(--text);
+    padding: 12px 14px;
+    border-radius: 9px;
+    font-family: inherit;
+    font-size: 0.95rem;
+    line-height: 1.45;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease;
+  }
+  .choice:hover:not(:disabled) {
+    border-color: var(--accent-border);
+    background: var(--accent-soft);
+  }
+  .choice:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .choice:disabled { cursor: default; }
+  .choice .letter {
+    flex: 0 0 auto;
+    width: 22px;
+    height: 22px;
+    border-radius: 5px;
+    background: var(--code-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--muted);
+    margin-top: 1px;
+  }
+  .choice.correct { border-color: var(--correct-border); background: var(--correct-bg); }
+  .choice.correct .letter { background: var(--correct); color: var(--panel); }
+  .choice.wrong { border-color: var(--wrong-border); background: var(--wrong-bg); }
+  .choice.wrong .letter { background: var(--wrong); color: var(--panel); }
+  .explain {
+    margin-top: 16px;
+    padding: 15px 16px;
+    border-radius: 9px;
+    background: var(--accent-soft);
+    border: 1px solid var(--accent-border);
+    font-size: 0.92rem;
+    line-height: 1.6;
+    color: var(--text);
+    display: none;
+  }
+  .explain.show { display: block; }
+  .explain code {
+    font-family: "IBM Plex Mono", monospace;
+    background: var(--code-bg);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 0.88em;
+  }
+  .nextbtn {
+    margin-top: 18px;
+    display: none;
+    background: var(--accent);
+    color: var(--panel);
+    border: none;
+    padding: 10px 18px;
+    border-radius: 8px;
+    font-family: inherit;
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+  }
+  .nextbtn.show { display: inline-block; }
+  .nextbtn:hover { filter: brightness(1.1); }
+  .nextbtn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .summary { text-align: center; padding: 40px 24px; }
+  .summary .line { color: var(--muted); font-size: 0.95rem; }
+  .summary .score {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 2.8rem;
+    font-weight: 600;
+    margin: 10px 0;
+    font-variant-numeric: tabular-nums;
+  }
+  .summary .encourage { margin-top: 16px; font-size: 1.05rem; max-width: 46ch; margin-left: auto; margin-right: auto; text-wrap: balance; }
+  footer { text-align: center; color: var(--muted); font-size: 0.8rem; margin-top: 22px; }
+  @media (prefers-reduced-motion: reduce) {
+    .progress-fill { transition: none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="kicker">docs/quiz · daily architecture quiz</div>
+    <h1>Ascent Quiz #19</h1>
+    <p>2026-08-31 · 10 questions on how the game is actually coded</p>
+  </header>
+  <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+  <div class="status-row">
+    <span id="qCounter">Question 1 / 10</span>
+    <span id="scoreCounter">Score: 0</span>
+  </div>
+  <div id="quizArea"></div>
+  <footer>Graded right here in your browser — nothing leaves this page.</footer>
+</div>
+
+<script>
+const QUESTIONS = [
+  {
+    topic: "types-basics",
+    question: "packages/core/src/types.ts declares <code>export type Tier = 1 | 2 | 3 | 4 | 5 | 6 | 7;</code> — a union of seven exact NUMBER literals, not a plain <code>number</code>. What does this buy you over just typing a card's tier field as <code>number</code>?",
+    choices: [
+      "It's required so <code>Tier</code> values can be compared with <code>===</code> — a plain <code>number</code> field could only use <code>&lt;</code> and <code>&gt;</code>",
+      "It lets the tier field hold either a number OR a string, since a union combines multiple types",
+      "TypeScript will reject a tier value of <code>8</code> or <code>2.5</code> at compile time, since only those seven exact numbers are valid — a plain <code>number</code> type would accept any number at all",
+      "It makes the tier field run faster at runtime, since TypeScript can store fewer bits for a small union"
+    ],
+    answer: 2,
+    explanation: "A literal union like <code>1 | 2 | 3 | 4 | 5 | 6 | 7</code> is the same trick this file uses for string literals (like <code>TriggerFamily</code>) — just with numbers: anywhere a <code>Tier</code> is expected, TypeScript flags an out-of-range or fractional value immediately, at compile time. Option D is wrong because TypeScript's types are erased before the code ever runs — a <code>Tier</code> is a plain JS number at runtime, no faster or slower than any other. Option B misreads what <code>|</code> is doing here — every alternative in this union is a number, never a string. Option A is also false: <code>===</code> and <code>&lt;</code>/<code>&gt;</code> both work on ordinary numbers regardless of any literal-union narrowing."
+  },
+  {
+    topic: "immutability",
+    question: "packages/core/src/combat/side.ts declares <code>export const EMPTY_SIDE: Readonly&lt;CombatSideState&gt; = Object.freeze({ ... });</code>. The <code>Readonly&lt;CombatSideState&gt;</code> TYPE already stops your own TypeScript code from compiling if it assigns to one of EMPTY_SIDE's fields. Why ALSO wrap the object literal in <code>Object.freeze()</code> — a real runtime call?",
+    choices: [
+      "<code>Readonly&lt;T&gt;</code> is a compile-time-only annotation, erased once the code is built; <code>Object.freeze()</code> is the one of the two that actually stops a mutation from happening while the game is running",
+      "<code>Object.freeze()</code> is required syntax — TypeScript won't let you declare a <code>Readonly&lt;T&gt;</code>-typed constant without it",
+      "<code>Readonly&lt;T&gt;</code> only works on arrays, not on plain objects like <code>CombatSideState</code>, so <code>Object.freeze()</code> fills the gap",
+      "<code>Object.freeze()</code> makes the object faster to read, which <code>Readonly&lt;T&gt;</code> alone doesn't guarantee"
+    ],
+    answer: 0,
+    explanation: "TypeScript's types — <code>Readonly&lt;T&gt;</code> included — exist only while checking your code and vanish entirely once compiled to plain JavaScript, so they enforce nothing once the game is actually running. <code>Object.freeze()</code> is a real JS runtime function that makes an object's own properties genuinely un-assignable, so <code>EMPTY_SIDE</code> can't be mutated even by code that slips past the type checker. Options B and C are simply false claims about the language — <code>Readonly&lt;T&gt;</code> works fine on plain objects and needs no freeze to compile. Option D sounds plausible but isn't why it's here — the file's own comment says it directly: \"Frozen: never mutate it — clone via <code>combatSide(...)</code> to override fields.\""
+  },
+  {
+    topic: "reducer-run-state",
+    question: "packages/sim/src/reducer.ts's <code>reduceCore(state, action)</code> opens with several early <code>if (...) return state;</code> guards — like rejecting an action while a modal is open — all BEFORE the function ever reaches its <code>structuredClone(rest)</code> deep-copy. Why does the ORDER matter: guards first, expensive clone second?",
+    choices: [
+      "TypeScript requires every early <code>return</code> in a function to appear before any <code>const</code> declarations",
+      "It guarantees the reducer never returns <code>state</code> unchanged, which would otherwise break React's re-render detection",
+      "<code>structuredClone</code> can only run once per dispatched action, so the guards make sure it's never accidentally called twice",
+      "A rejected/no-op action (a click while a Discover is open, an out-of-phase action) returns immediately without paying for a full deep clone of the run state — which used to happen on every no-op dispatch for nothing"
+    ],
+    answer: 3,
+    explanation: "<code>structuredClone</code> is comparatively expensive, and plenty of dispatched actions during normal play are illegal in the moment (a stray click during a modal, a wrong-phase action). Checking those cheap conditions and bailing out immediately avoids doing — and then throwing away — a full deep copy of the run state for a dispatch that changes nothing, echoing the same instinct CLAUDE.md applies to render performance. Option B has it backwards: returning <code>state</code> unchanged is exactly the CORRECT behavior for a no-op, and it's what lets a later reference check detect \"nothing happened.\" Options A and C are both invented rules with no basis in how TypeScript or <code>structuredClone</code> actually work."
+  },
+  {
+    topic: "zustand-store",
+    question: "Components read from the store like <code>const run = useGame((s) =&gt; s.run);</code> in packages/ui/src/SceneBuilder.tsx — passing a SELECTOR function into <code>useGame</code>, rather than grabbing the whole store at once. What's the practical benefit of the selector form?",
+    choices: [
+      "Selector functions run on a server instead of in the browser, which makes the initial page load faster",
+      "The component only re-renders when the specific piece of state the selector returns (here, <code>s.run</code>) actually changes — not on every unrelated change anywhere else in the store",
+      "It's required because a Zustand store can only be read once per component, and the selector caches that one read",
+      "It lets the component write directly to <code>s.run</code>, whereas grabbing the whole store is read-only"
+    ],
+    answer: 1,
+    explanation: "Zustand's <code>useGame(selector)</code> subscribes the component to just the slice the selector picks out, so a change to some unrelated store field (a UI toggle, say) doesn't trigger a re-render of a component that only cares about <code>run</code>. Grabbing the whole store instead would re-render on every single store update — exactly the kind of unnecessary work CLAUDE.md's performance rules warn against elsewhere in the codebase. Option A is invented — this is all client-side, in-memory state. Option C misdescribes Zustand (the hook can be called as often as needed). Option D is backwards: selectors are for READING state; writes go through the store's own actions, not through the selector."
+  },
+  {
+    topic: "event-bus",
+    question: "packages/core/src/combat/simulate.ts's <code>registerEffect()</code> wires a minion's effect onto the bus with <code>bus.on(effect.on, (payload) =&gt; { if (!minion.effects.includes(effect)) return; ... });</code>, right under a comment noting \"the CombatBus can't unregister, so a handler ... self-disables.\" Given <code>CombatBus</code> (packages/core/src/events.ts) only exposes <code>on()</code> and <code>emit()</code> — no <code>off()</code> — how does an old handler ever actually stop firing?",
+    choices: [
+      "<code>bus.on()</code> automatically replaces any previous handler registered for the same event, so only the newest one can ever run",
+      "It doesn't get removed from the bus at all — it stays registered for the rest of the combat, but the handler itself checks a condition (here, whether its effect is still on the minion) and returns immediately, doing nothing, when that condition fails",
+      "<code>emit()</code> deletes a handler from its internal list the first time that handler runs, so each one only ever fires once",
+      "The Map inside <code>CombatBus</code> is cleared automatically every time a minion dies, removing its handlers"
+    ],
+    answer: 1,
+    explanation: "There's genuinely no removal API on <code>CombatBus</code> — every handler ever registered for an event stays in that event's array for the rest of the combat. So the actual pattern for \"turning off\" old behavior (a minion that ascended into a new form, in this case) is a guard clause at the top of the handler itself that checks current state and bails out — registration is permanent, but whether it DOES anything when it fires is conditional. Options A, C, and D all describe automatic bus-side removal that doesn't exist; <code>emit()</code> just loops the full handler list every time, guard-or-no-guard."
+  },
+  {
+    topic: "cards-in-sets",
+    question: "packages/content/src/sets.ts's <code>poolFor()</code> builds a set's resolved pool with a helper — <code>if (seen.has(c.id)) return; seen.add(c.id); all.push(c);</code> — called first for every card the set <code>inherits</code>, then for every card in its own <code>own</code> list. If a card id happens to appear in BOTH the inherited pool and the set's own <code>own</code> list, which copy ends up in the resolved pool?",
+    choices: [
+      "The <code>own</code> copy — a set's own cards always take priority over anything it inherited, overwriting the earlier entry",
+      "Both copies end up in the pool, since <code>all.push(c)</code> runs once for each source regardless of <code>seen</code>",
+      "The inherited copy — because <code>inherits</code> is processed before <code>own</code>, the <code>seen</code> guard has already claimed that id by the time <code>own</code> is walked, so the later duplicate is silently skipped",
+      "Neither — <code>poolFor()</code> throws an error the moment it finds a duplicate id, the same way <code>SET3_SHARED_SPELL_IDS</code> throws on a missing one"
+    ],
+    answer: 2,
+    explanation: "The comment right on that line spells it out: \"a set can inherit AND redeclare an id; first wins, order stays stable.\" Since <code>poolFor()</code> walks the inherited pool first and only then the set's own <code>own</code> list, whichever copy is seen first — the inherited one, given this code's actual call order — claims the id, and <code>seen.has(c.id)</code> makes the later duplicate a silent no-op. Option A has the priority backwards. Option B ignores what the guard clause exists to prevent. Option D confuses this with different code entirely — <code>SET3_SHARED_SPELL_IDS</code>'s lookup throws on a MISSING id; <code>poolFor()</code> handles a duplicate quietly instead."
+  },
+  {
+    topic: "package-boundaries",
+    question: "CLAUDE.md's monorepo diagram lists <code>packages/tools/</code> (<code>@game/tools</code>, the headless balance runner + combat harness) as depending on <code>→ core+content</code> — notably NOT <code>sim</code>, the package that owns the shop/economy run loop. What does that tell you the balance tool CAN and CAN'T do?",
+    choices: [
+      "It can run full shop-economy runs but can't render any UI, since it also doesn't depend on <code>ui</code>",
+      "It can validate card data with zod but can't call <code>simulate()</code> at all, since <code>simulate()</code> lives in <code>sim</code>, not <code>core</code>",
+      "The dependency list is just documentation — <code>@game/tools</code>'s actual <code>package.json</code> can depend on anything regardless of what CLAUDE.md's diagram says",
+      "It can call <code>simulate()</code> directly against hand-built or generated boards (core + content are enough for that), but it can't run a full simulated shop/economy run — that logic lives in <code>sim</code>, which it doesn't depend on"
+    ],
+    answer: 3,
+    explanation: "<code>simulate()</code> itself lives in <code>core</code>, and card data lives in <code>content</code> — both of which <code>tools</code> depends on — so the balance harness can absolutely run raw combats. But the shop, tiers, triples, and Gold economy are <code>sim</code>'s job, and <code>tools</code> never imports it, so a balance script can't simulate an entire recruit-to-elimination run, only individual fights. Option B is wrong about where <code>simulate()</code> lives. Option A misreads the arrow — there was never a <code>ui</code> dependency to lose for a headless tool. Option C is a real risk in principle, but treating the diagram as pure fiction misses the point of documenting the boundary at all — CLAUDE.md's ownership map exists precisely so this kind of drift gets caught, not shrugged off."
+  },
+  {
+    topic: "effects-as-subscriptions",
+    question: "packages/core/src/combat/simulate.ts's <code>registerEffect(minion, effect)</code> — run once per effect on every minion at combat start — ends with <code>bus.on(effect.on, (payload) =&gt; { ... FACTORIES[effect.do]?.(ctx, minion, effect.params ?? {}, payload); });</code>. Given CLAUDE.md calls cards \"data + effect subscriptions,\" what in this codebase IS the actual \"subscription\" the phrase refers to?",
+    choices: [
+      "The <code>EffectDef.params</code> object, since it's what \"subscribes\" a minion to a particular numeric configuration",
+      "The <code>CardDef.effects</code> array's TypeScript type declaration — the subscription happens at compile time, not when combat starts",
+      "The <code>bus.on(effect.on, ...)</code> call itself — each <code>EffectDef</code> on a CardDef becomes one literal event-bus subscription, registered when the minion enters combat",
+      "The zod schema check in packages/content/src/schema.ts that validates <code>effect.do</code> against <code>EffectFactoryIdSchema</code>"
+    ],
+    answer: 2,
+    explanation: "This is the literal mechanism: <code>registerEffect()</code> takes a card's declared <code>EffectDef</code> and calls <code>bus.on(effect.on, ...)</code> — subscribing a handler to whichever <code>GameEvent</code> the effect cares about. When that event fires later in the fight, the handler looks up the matching function in <code>FACTORIES</code> and runs it. So \"effects as subscriptions\" isn't a metaphor — a card's data quite literally becomes bus subscriptions at combat setup. Options A and D describe real pieces of the pipeline (config data, and validation) but neither one performs the actual subscribing. Option B is wrong because nothing about a TypeScript type declaration happens at runtime; the subscription only exists once <code>registerEffect()</code> actually runs."
+  },
+  {
+    topic: "effect-timing-pipeline",
+    question: "A targeted Battlecry (recruit phase) can open a blocking UI state — packages/sim/src/reducer.ts's <code>reduceCore()</code> refuses most other actions while a <code>pendingTarget</code> is open, waiting for the player to click a target. A combat-time effect (a Deathrattle, say) never does anything like that, even though it might also need to pick a target. Why can't a combat-time effect pause and wait for a click the same way?",
+    choices: [
+      "<code>simulate()</code> is a plain synchronous function that runs a whole fight to completion in one call with no UI in the loop, so any targeting it needs must be resolved automatically by its own logic — there's no moment where it could pause and wait for a human",
+      "Combat-time effects are simply not allowed to target anything, by rule — only recruit-phase effects can pick targets",
+      "The reducer's <code>pendingTarget</code> field is shared by both phases, so a combat-time effect actually CAN reuse the same blocking mechanism",
+      "<code>bus.emit()</code> automatically pauses execution until the UI responds, for any event fired during combat"
+    ],
+    answer: 0,
+    explanation: "The recruit-phase reducer is dispatched one action at a time, so it's completely fine for an action to leave the run \"waiting\" in a modal state until the next player click arrives. <code>simulate()</code>, by contrast, is a pure function — called once, it runs the whole fight and returns a finished event log; there's no pause available inside it, and per CLAUDE.md the UI never computes outcomes, it only replays what already happened. So any combat-time targeting has to be decided by <code>simulate()</code>'s own rules rather than a live player pick. Option B is a fabricated restriction. Option C is wrong — <code>pendingTarget</code> is recruit-phase-only state; combat has no equivalent. Option D misdescribes <code>emit()</code>, which is a synchronous, immediate call with no pausing behavior at all."
+  },
+  {
+    topic: "testing-vitest",
+    question: "Ascent's test files live right next to the code they test — <code>perfMonitor.test.ts</code> beside <code>perfMonitor.ts</code>, <code>dragFeel.test.ts</code> beside <code>dragFeel.ts</code>, and so on across every package — rather than in a separate top-level <code>tests/</code> or <code>__tests__/</code> folder. The root <code>vitest.config.ts</code> picks them all up with one glob: <code>include: ['packages/**/*.test.ts', 'apps/**/*.test.ts']</code>. What does co-locating tests this way actually buy the team?",
+    choices: [
+      "Vitest literally cannot run a test file unless it sits in the same directory as the file it imports",
+      "It makes the production build smaller, since co-located test files get bundled into the shipped app for free",
+      "It's required so TypeScript's <code>typecheck:pkgs</code> step can see the test files — a separate <code>tests/</code> folder would be invisible to <code>tsc</code>",
+      "A test sits right beside the code it covers, so it's easy to find, easy to keep in sync when the source file moves or gets renamed, and the broad glob still discovers it automatically with zero extra registration"
+    ],
+    answer: 3,
+    explanation: "There's no technical requirement forcing tests to live next to their source — option A is false, since Vitest's glob would happily match a separate folder too. The real value is organizational: proximity makes a test easy to locate and easy to remember to update when the file it covers changes, and because the glob is a broad <code>packages/**/*.test.ts</code> pattern, any new co-located test file is picked up automatically with no per-file registration step. Option B is wrong and would be worrying if true — test files are never meant to ship in the production bundle. Option C is also wrong: <code>typecheck:pkgs</code>/<code>typecheck:web</code> use their own separate <code>tsconfig</code> <code>include</code> patterns, unrelated to Vitest's config."
+  }
+];
+
+let current = 0;
+let score = 0;
+let answered = false;
+
+const quizArea = document.getElementById('quizArea');
+const progressFill = document.getElementById('progressFill');
+const qCounter = document.getElementById('qCounter');
+const scoreCounter = document.getElementById('scoreCounter');
+
+function render() {
+  if (current >= QUESTIONS.length) {
+    renderSummary();
+    return;
+  }
+  const q = QUESTIONS[current];
+  answered = false;
+  progressFill.style.width = ((current) / QUESTIONS.length * 100) + '%';
+  qCounter.textContent = `Question ${current + 1} / ${QUESTIONS.length}`;
+  scoreCounter.textContent = `Score: ${score}`;
+
+  const letters = ['A', 'B', 'C', 'D'];
+  quizArea.innerHTML = `
+    <div class="card">
+      <span class="qtag">${q.topic}</span>
+      <p class="qtext">${q.question}</p>
+      <div class="choices" id="choicesWrap">
+        ${q.choices.map((c, i) => `
+          <button class="choice" data-idx="${i}">
+            <span class="letter">${letters[i]}</span>
+            <span>${c}</span>
+          </button>
+        `).join('')}
+      </div>
+      <div class="explain" id="explainBox"></div>
+      <button class="nextbtn" id="nextBtn">${current === QUESTIONS.length - 1 ? 'See results →' : 'Next question →'}</button>
+    </div>
+  `;
+
+  const buttons = quizArea.querySelectorAll('.choice');
+  buttons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (answered) return;
+      answered = true;
+      const idx = parseInt(btn.getAttribute('data-idx'), 10);
+      const correct = idx === q.answer;
+      if (correct) score++;
+      buttons.forEach(b => {
+        b.disabled = true;
+        const bi = parseInt(b.getAttribute('data-idx'), 10);
+        if (bi === q.answer) b.classList.add('correct');
+        else if (bi === idx) b.classList.add('wrong');
+      });
+      const explainBox = document.getElementById('explainBox');
+      explainBox.innerHTML = (correct ? '✅ <strong>Correct!</strong> ' : '❌ <strong>Not quite.</strong> ') + q.explanation;
+      explainBox.classList.add('show');
+      document.getElementById('nextBtn').classList.add('show');
+      scoreCounter.textContent = `Score: ${score}`;
+    });
+  });
+
+  document.getElementById('nextBtn').addEventListener('click', () => {
+    current++;
+    render();
+  });
+}
+
+function renderSummary() {
+  progressFill.style.width = '100%';
+  qCounter.textContent = `Question ${QUESTIONS.length} / ${QUESTIONS.length}`;
+  scoreCounter.textContent = `Score: ${score}`;
+  const pct = Math.round((score / QUESTIONS.length) * 100);
+  let line;
+  if (pct === 100) line = "Perfect score! You're reading this codebase like you wrote it.";
+  else if (pct >= 80) line = "Great work — you're building real intuition for how this all fits together.";
+  else if (pct >= 50) line = "Solid effort — a few concepts to revisit, and it'll click more each day.";
+  else line = "Everyone starts somewhere — re-read the explanations above, tomorrow's quiz will circle back.";
+
+  quizArea.innerHTML = `
+    <div class="card summary">
+      <div class="line">Quiz complete</div>
+      <div class="score">${score} / ${QUESTIONS.length}</div>
+      <div class="line">${pct}%</div>
+      <div class="encourage">${line}</div>
+    </div>
+  `;
+}
+
+render();
+</script>
+</body>
+</html>

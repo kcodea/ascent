@@ -77,12 +77,15 @@ describe('no redundant PNG masters ship alongside their WebP builds', () => {
     // the floor — k3_facetbound2, k3_jeweler2, k3_splitpick2. Six files; two Kobolds still pending.)
     // → 1068 (2026-08-31, the last of that batch: GemBus + GemBus2 → Forkroad Scavenger by owner
     // ruling. Only Forkvein Prospector is unarted now, so this budget has one more file to give.)
+    // → 1070 (2026-08-31, the Prismatic Pick's two Choose One BRANCH arts — prismatic_pick1 and
+    // prismatic_pick2. An Equipment numbers every branch rather than reusing its icon for the first, so a
+    // two-branch Equipment costs two files on top of its icon. See `equipmentBranchArtFor`.)
     //
     // NB there is real SLACK available that nobody has spent yet: the 16 Celestials archived on 2026-08-28 —
     // and ~40 other archived cards — still have their art shipping in `art/minions/`, unreachable by any live
     // card. Reclaiming it is a bigger win than any of these +2s, and belongs in its own pass rather than
     // riding a content PR. (The stated rationale has also drifted: at +176 the whole-zip count passed 1000
     // some time ago, so this ceiling is now a growth ratchet rather than the cap it names.)
-    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1069);
+    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1071);
   });
 });

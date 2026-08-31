@@ -395,6 +395,10 @@ canvas.spr { image-rendering: pixelated; display: block; }
 /* The ABOVE-CURTAIN Pixi canvas (wipeFx.ts) — z255 so its motes/runes ride ON the blue (curtain + fronts
    are z250) while staying under the deliberate overlays (Esc z300+). Hidden + ticker stopped when idle. */
 .wipefx-canvas { position: fixed; inset: 0; z-index: 255; pointer-events: none; }
+/* z200: the ABOVE-MODAL FX canvas (see `FxSlot` in fx/def.ts). Over the Discover / Choose One overlays
+   (z160, which are otherwise deliberately above every board effect) and under the wipe curtain (z255).
+   Only an effect that is ABOUT the modal belongs here. */
+.pixifx-above { position: fixed; inset: 0; z-index: 200; pointer-events: none; }
 /* With the omen + row labels gone and the hand tucked under the status bar, let the
    Tavern + Warband settle lower: auto margins centre the block in the freed space. */
 /* Tavern offers and Warband mirror each other across the board's centre rope: each half

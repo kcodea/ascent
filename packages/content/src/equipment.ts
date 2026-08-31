@@ -188,6 +188,13 @@ export const PRISMATIC_PICK: EquipmentDefinition = {
   effectId: 'grantChooseBothCharges',
   params: { count: 1 },
   gildedParams: { count: 2 },
+  // The authored def + clip the owner published 2026-08-31. For a Choose One Equipment these fire when the
+  // PROMPT OPENS rather than when the activation resolves (owner: "this effect should play WHEN the choose
+  // one happens ... on top of the choose one immediately"), which is also the only moment that reads as
+  // pressing the Pick — by the time a branch resolves, the player is looking at its result. The def declares
+  // `slot: 'above'` so it draws over the Choose One window instead of behind it.
+  useFxId: 'prismatic-pick',
+  useSfxId: 'prismaticpick',
   chooseOne: [
     {
       text: 'Get a random **Choose One** card.',

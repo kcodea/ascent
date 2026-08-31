@@ -33,7 +33,7 @@ export const CATEGORY_GAINS: Record<string, number> = {
   //    fader moves exactly one sound, and every name says which card it belongs to (see CATEGORY_LABEL).
   //    Seeded at the gains these clips already played at before they had faders of their own.
   eqEquipClang: 0.6, eqSelect: 0.6, eqSheen: 0.6,
-  eqUseBloodpot: 0.6, eqUseTitanHammer: 0.6, eqUseBlastPump: 0.6, eqUseOther: 0.6,
+  eqUseBloodpot: 0.6, eqUseTitanHammer: 0.6, eqUseBlastPump: 0.6, eqUsePrismaticPick: 0.6, eqUseOther: 0.6,
 };
 
 /** Which bus each category feeds (seeded default; reassignable live in the desk). */
@@ -48,7 +48,8 @@ export const CATEGORY_BUS: Record<string, BusName> = {
   cardVoice: 'voice', cardEffect: 'voice', cardDeath: 'voice',
   heroSelect: 'hero', heroPower: 'hero',
   eqEquipClang: 'equipment', eqSelect: 'equipment', eqSheen: 'equipment',
-  eqUseBloodpot: 'equipment', eqUseTitanHammer: 'equipment', eqUseBlastPump: 'equipment', eqUseOther: 'equipment',
+  eqUseBloodpot: 'equipment', eqUseTitanHammer: 'equipment', eqUseBlastPump: 'equipment',
+  eqUsePrismaticPick: 'equipment', eqUseOther: 'equipment',
 };
 
 /**
@@ -63,6 +64,7 @@ export const CATEGORY_LABEL: Record<string, string> = {
   eqUseBloodpot: 'Bloodpot — use (Alchemist Frank)',
   eqUseTitanHammer: 'Titan Hammer — use',
   eqUseBlastPump: 'Blast Pump — use (Blast Surveyor)',
+  eqUsePrismaticPick: 'Prismatic Pick — Choose One opens (Prismpick Artificer)',
   eqUseOther: 'Equipment use — any without its own fader',
 };
 
@@ -76,6 +78,7 @@ export const EQUIPMENT_CLIP_CATEGORY: Record<string, string> = {
   bloodpot: 'eqUseBloodpot',
   titanhammer: 'eqUseTitanHammer',
   blastpump: 'eqUseBlastPump',
+  prismaticpick: 'eqUsePrismaticPick',
 };
 export const equipmentClipCategory = (clipId: string): string => EQUIPMENT_CLIP_CATEGORY[clipId] ?? 'eqUseOther';
 

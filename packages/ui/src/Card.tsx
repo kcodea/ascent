@@ -258,6 +258,11 @@ export interface CardView {
   /** Choose One: the branch this instance picked. Drives ART only here — the per-branch TEXT is already
    *  resolved upstream (`instView` / `Unit`). Option N renders `<cardId><N+1>` when that art exists. */
   chosenOption?: number;
+  /** An EXPLICIT illustration, overriding the `cardId` lookup. The one caller is the Choose One picker when
+   *  the prompt belongs to an EQUIPMENT (Prismatic Pick): there is no card behind that decision, so its two
+   *  options are drawn as the Equipment wearing each branch's own art. Everything else leaves it unset and
+   *  resolves art the usual way. */
+  artUrl?: string;
   /** (BOTH) FX HOOK: a stable key stamped on the card root as `data-choose-both` when this card's Choose One
    *  will resolve as BOTH branches (see `chooseBothActive`). It is the ONLY contract the looping marker FX
    *  binds to (`useChooseBothFx` follows `[data-choose-both="<key>"]`), so the effect can be re-authored,
@@ -685,7 +690,8 @@ export const Card = memo(function Card({
   // While a card is being held/dragged, you're not "hovering" anything — drop any popup + don't open one.
   useEffect(() => { if (dragging) hideRefTip(); }, [dragging]);
   // Illustrated art (if any). `uid` lets multi-variant cards (Pup) pick a stable per-instance image.
-  const artUrl = artFor(card.cardId, uid, card.chosenOption);
+  // An explicit `card.artUrl` wins over the id lookup — see `CardView.artUrl` for the one caller that needs it.
+  const artUrl = card.artUrl ?? artFor(card.cardId, uid, card.chosenOption);
   // TAUNT frame: render the raster shield if the asset loads; on 404 fall back to the SVG placeholder.
   const [frameOk, setFrameOk] = useState(tauntFrameAvailable);
   const [starsOk, setStarsOk] = useState(tierStarsAvailable);

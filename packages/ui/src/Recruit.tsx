@@ -37,7 +37,7 @@ import { createPortal } from 'react-dom';
 import { setCardId, setCardStats, toggleCardKeyword, setEnemyStats, setEnemyCardId, toggleEnemyKeyword, removeEnemy } from './sandboxEdit';
 import { UnitEditor } from './UnitEditor';
 import { Card, mdBold, type CardView } from './Card';
-import { heroPowerArt, heroArt } from './art';
+import { heroPowerArt, heroArt, equipmentBranchArtFor } from './art';
 import { beginDragTrace, cancelDragTrace, endDragTrace, sampleDragTrace } from './replay/dragTrace';
 import { SYM_KINDS } from './choreo/channels/float';
 import { stabilizeViewMap, stabilizeRefMap, stabilizeView } from './cardViewEqual';
@@ -1936,6 +1936,10 @@ export function Recruit() {
       if (cue.kind !== 'use') continue;
       const eq = cue.equipmentId ? EQUIPMENT_INDEX[cue.equipmentId] : undefined;
       if (!eq) continue;
+      // A CHOOSE ONE Equipment already announced itself when its prompt opened (see the effect below), which
+      // is the moment that reads as pressing it. Playing again here would be two flourishes for one press —
+      // and the second would land on a screen that has moved on to the result.
+      if (eq.chooseOne?.length) continue;
       const tEl = cue.targetUid ? findEl(cue.targetUid) : null;
       const tR = tEl?.getBoundingClientRect();
       // No target (an untargeted Equipment) → the effect plays ON the slot rather than travelling nowhere.
@@ -4223,6 +4227,34 @@ export function Recruit() {
       });
     }
   }, [run.board, inCombat]);
+
+  /**
+   * AN EQUIPMENT'S CHOOSE ONE OPENED → its authored flourish, over the window (owner ask 2026-08-31:
+   * "this effect should play WHEN the choose one happens ... on top of the choose one immediately").
+   *
+   * Keyed on the Equipment id rather than on a sequence number, because the prompt IS the event: it appears
+   * exactly once per press and cannot repeat without closing first. The ref is what makes a re-render during
+   * the open prompt a no-op.
+   *
+   * Fired immediately — no tuner delay. The prompt is a decision the player is about to make, so a flourish
+   * that arrives after they have started reading is late by definition.
+   *
+   * The def carries `slot: 'above'`, which is what puts it over the z160 overlay; a camera-anchored def
+   * needs no staged anchors (`playDef` fills the viewport centre in), but the centre is passed for source and
+   * target too so a future layer on another anchor still lands somewhere sensible rather than in the corner.
+   */
+  const prevChooseOneEq = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    const eqId = run.chooseOne?.equipmentId;
+    if (eqId === prevChooseOneEq.current) return;
+    prevChooseOneEq.current = eqId;
+    if (!eqId) return;
+    const eq = EQUIPMENT_INDEX[eqId];
+    if (!eq) return;
+    const c = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+    if (eq.useFxId && canPlayDefs()) playDef(eq.useFxId, { source: c, target: c, cursor: c, camera: c });
+    if (eq.useSfxId && getEquipFxConfig().useSfxOn) sfx.equipmentUse(eq.useSfxId);
+  }, [run.chooseOne?.equipmentId]);
 
   // Discover opened → erupt the golden magic burst on the overlay's behind-the-cards FX layer. Fired once
   // the burst app has initialised (attach resolves immediately if already created).
@@ -6647,6 +6679,10 @@ export function Recruit() {
                     <div className="disc-slot" key={i} style={{ '--c': `var(--t-${src?.tribe ?? 'neutral'})` } as CSSProperties}>
                       <Card
                         card={{
+                          // Each branch wears its OWN illustration (owner 2026-08-31), passed explicitly
+                          // because the art is the Equipment's, not the card's — see `equipmentBranchArtFor`
+                          // for why an Equipment numbers every branch instead of reusing its icon for the first.
+                          artUrl: equipmentBranchArtFor(eq.id, i),
                           name: eq.name, cardId: src?.id ?? eq.id, tribe: src?.tribe ?? 'neutral',
                           universalTribe: false, golden: gilded,
                           attack: src?.attack ?? 0, health: src?.health ?? 0, keywords: [],

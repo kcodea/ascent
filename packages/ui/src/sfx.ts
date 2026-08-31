@@ -780,6 +780,7 @@ const SFX_PREVIEW: Record<string, () => void> = {
   eqUseBloodpot: () => sfx.equipmentUse('bloodpot'),
   eqUseTitanHammer: () => sfx.equipmentUse('titanhammer'),
   eqUseBlastPump: () => sfx.equipmentUse('blastpump'),
+  eqUsePrismaticPick: () => sfx.equipmentUse('prismaticpick'),
   felSpikeEcho: sfx.felSpikeEcho, felSpikeEchoLand: sfx.felSpikeEchoLand,
   combatStart: sfx.combatStart,
   // cardVoice is per-card; preview plays whichever card clip is present (first one found), or nothing.

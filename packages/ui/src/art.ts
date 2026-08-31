@@ -62,6 +62,18 @@ const EQUIPMENT_ART = indexArt(
 export const equipmentArtFor = (equipmentId?: string): string | undefined =>
   (equipmentId ? EQUIPMENT_ART[equipmentId] : undefined);
 
+/**
+ * The illustration for one BRANCH of an Equipment's Choose One — `<equipmentId><N+1>`, so Prismatic Pick's
+ * two options are `prismatic_pick1` and `prismatic_pick2`.
+ *
+ * Deliberately NOT the card convention (`artVariantKey`, where option 0 keeps the BASE file and only option
+ * N ≥ 1 gets a numbered one). A card's base art is the card itself, and its first branch is that same
+ * picture; an Equipment's base art is its ICON — a tool on a button — which is not what either branch should
+ * look like. So every branch is numbered, and the icon is only the fallback for a branch not yet drawn.
+ */
+export const equipmentBranchArtFor = (equipmentId: string, index: number): string | undefined =>
+  EQUIPMENT_ART[`${equipmentId}${index + 1}`] ?? EQUIPMENT_ART[equipmentId];
+
 /** The illustrated art URL for a card id, or undefined if none has been added. `uid` lets cards
  *  with multiple art variants pick one per instance (stable across re-renders, ~50/50 split). */
 /**

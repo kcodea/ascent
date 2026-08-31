@@ -2,6 +2,7 @@
   "version": 1,
   "id": "prismatic-pick",
   "duration": 900,
+  "slot": "above",
   "layers": [
     {
       "primitive": "burst",

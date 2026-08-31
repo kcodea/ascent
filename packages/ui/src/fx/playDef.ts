@@ -320,6 +320,7 @@ function schedulePrewarm(prewarm: (renderer: Renderer | null) => void): void {
       // all `over` never creates a second GL context — the lazy half of "lazy on first use" — while a page
       // that will need one has it long before the first combat, so no fire is ever dropped waiting on init.
       if (listDefs().some((d) => d.slot === 'under')) void pixiFx.ensureUnderSlot();
+      if (listDefs().some((d) => d.slot === 'above')) void pixiFx.ensureAboveSlot();
       return;
     }
     waited += PREWARM_POLL_MS;
@@ -424,6 +425,7 @@ function playDefInner(id: string, rawAnchors: FxAnchors, opts: PlayDefOptions = 
     // kick the init so the NEXT fire has one. (`ensureDefsReady`'s pre-warm normally gets there first; this
     // is the backstop for a def bound after the pre-warm ran, e.g. a workbench commit mid-session.)
     if (slot === 'under') void pixiFx.ensureUnderSlot();
+    if (slot === 'above') void pixiFx.ensureAboveSlot();
     return null;
   }
 

@@ -52,6 +52,10 @@ const ART_PENDING = new Set<string>([
   // properly-named `UnbridledMight.png` that resolved the old UnbridledWrath near-miss). Grand Larceny is
   // the one Gift still awaiting a master.
   'gift_larceny',
+  // SET 3 KOBOLDS — the owner's roster (2026-08-30) shipping ahead of its art, exactly the case this seam
+  // exists for. Set 3 is `enabled: false` and reachable only through the Scene Builder, so none of these can
+  // reach a player un-arted. Delete each id the moment its master lands.
+  'k3_korn', 'k3_splitpick', 'k3_forkvein', 'k3_forkroad', 'k3_veinchant', 'k3_jeweler',
 ]);
 
 describe('art coverage for live cards', () => {

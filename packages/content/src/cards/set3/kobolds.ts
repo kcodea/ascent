@@ -242,4 +242,29 @@ export const SET3_KOBOLDS: CardDef[] = [
     text: 'Whenever you play a **Choose One** card, cast a **Ruby** on your minions.',
     goldenText: 'Whenever you play a **Choose One** card, cast **2 Rubies** on your minions.',
   },
+  {
+    // PORKBELLY — the set's capstone, and the only card here that reaches into the attack sequence itself
+    // (`vanguardGolem` on the card def; the swing lives in `simulate`). Owner spec 2026-08-31:
+    //
+    //   "When Porkbelly attacks, if there is space to summon a minion, he summons a Gemheart Golem that gains
+    //    his Ruby bonuses (or double if gilded), and the golem attacks Porkbelly's target FIRST. If the target
+    //    dies, Porkbelly settles and does not attack or take any damage. If it does not die, Porkbelly
+    //    completes his attack. If the golem survives it remains on board (to the right of Porkbelly) and is
+    //    the next minion in line to attack."
+    //
+    // So he is a 13/6 that trades a disposable, Ruby-sized body into every swing: on a Ruby-fed board the
+    // vanguard clears the target outright and Porkbelly never takes retaliation at all, which is what makes
+    // a 6-Health capstone survivable. A full board summons nothing and he simply attacks.
+    id: 'k3_porkbelly',
+    name: 'Porkbelly',
+    tribe: 'kobold',
+    tier: 7,
+    attack: 13,
+    health: 6,
+    keywords: [],
+    vanguardGolem: true,
+    effects: [],
+    text: "Before this attacks, summon a **1/1 Gemheart Golem** plus this minion's Rubies, and it attacks first.",
+    goldenText: "Before this attacks, summon a **2/2 Gemheart Golem** plus double this minion's Rubies, and it attacks first.",
+  },
 ];

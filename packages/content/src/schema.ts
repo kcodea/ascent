@@ -556,6 +556,7 @@ export const CardDefSchema = z.object({
   universalTribe: z.boolean().optional(),
   attackImmuneAlways: z.boolean().optional(),
   splashAdjacent: z.boolean().optional(),
+  vanguardGolem: z.boolean().optional(),
   // TWO SHAPES, and the card's printed wording says which (owner vocabulary rule 2026-08-28):
   // "trigger twice" → `factor` (a multiplier; copies of one card do not stack, different cards multiply),
   // "trigger 1 additional time" → `extra` (additive; everything stacks). Exactly one of the two.

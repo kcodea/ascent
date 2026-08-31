@@ -821,6 +821,11 @@ export interface CardDef {
   /** Mauron: when this attacks it also damages an ADJACENT enemy — ONE of them, or BOTH when gilded. Not
    *  Cleave, which always hits both and is a player-facing keyword; this is a per-card splash. */
   splashAdjacent?: boolean;
+  /** Porkbelly (set 3): when this attacks, it first summons a Gemheart Golem carrying this minion's Ruby
+   *  tally (doubled when gilded), and the GOLEM takes the swing at Porkbelly's own target. If the golem
+   *  fells it, Porkbelly settles — no swing, no retaliation. A card-def flag rather than an `onAttack`
+   *  effect because it INTERRUPTS the exchange, which no effect factory can reach. */
+  vanguardGolem?: boolean;
   /** This card makes whole FAMILIES of trigger fire extra times (Sylus, Drakko, Chronos, Uron). Resolved
    *  through `extraTriggerFires` — never by a hardcoded card-id check. */
   triggerMultiplier?: TriggerMultiplierDef;

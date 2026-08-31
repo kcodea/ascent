@@ -59,7 +59,7 @@ const ART_PENDING = new Set<string>([
   'k3_blastsurveyor',
   'k3_facetbound',
   'k3_doubletrouble',
-  'k3_forksong', 'k3_forkedcrown', 'k3_rubyroach',
+  'k3_forksong', 'k3_forkedcrown', 'k3_rubyroach', 'k3_porkbelly',
 ]);
 
 describe('art coverage for live cards', () => {

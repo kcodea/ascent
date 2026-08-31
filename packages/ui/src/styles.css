@@ -8683,8 +8683,8 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   width: calc(112 * var(--lu) * var(--sc-w, 2.6)); pointer-events: none;
   display: flex; flex-direction: column; gap: calc(4 * var(--lu) * var(--sc-gap, 2.3));
   padding: calc(7 * var(--lu) * var(--sc-pad, 2.3)); border-radius: calc(8 * var(--lu) * var(--sc-rad, 1));
-  background: linear-gradient(180deg, var(--sc-bg1, #241a13), var(--sc-bg2, #17110c));
-  border: 1px solid color-mix(in srgb, var(--sc-border, var(--gold)) 55%, #000);
+  background: linear-gradient(180deg, var(--sc-bg1, #291c11), var(--sc-bg2, #17110c));
+  border: 1px solid color-mix(in srgb, var(--sc-border, #d4941c) 55%, #000);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 calc(4 * var(--lu)) calc(14 * var(--lu)) -4px var(--shadow);
   /* One-shot fade+slide on open. Safe to touch opacity/transform here — this is not a looping animation, and
      both are compositor-only properties (docs/performance.md). */
@@ -8694,20 +8694,20 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   to { opacity: 1; transform: translateY(-50%) translateX(0); }
 }
 .lobbyscout-head { display: flex; flex-direction: column; line-height: 1.15; }
-.lobbyscout-name { font-size: calc(12 * var(--lfont) * var(--sc-name, 2)); font-weight: 800; color: var(--sc-name-col, #f4ecdb);
+.lobbyscout-name { font-size: calc(12 * var(--lfont) * var(--sc-name, 2)); font-weight: 800; color: var(--sc-name-col, #fff);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.lobbyscout-hero { font-size: calc(8 * var(--lfont) * var(--sc-hero, 2)); color: var(--sc-label-col, #b7a98f);
+.lobbyscout-hero { font-size: calc(8 * var(--lfont) * var(--sc-hero, 2)); color: var(--sc-hero-col, #d9c7a8);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* Tribe build+count on its OWN row, then tier + triples paired beneath it; each stat's title sits ABOVE its
    value (owner ask 2026-08-31 — the `<i>` label is authored before the `<b>` value in the DOM). */
 .lobbyscout-stats { display: flex; flex-direction: column; gap: calc(4 * var(--lu));
-  padding-top: calc(12 * var(--lu)); border-top: 1px solid rgba(255, 255, 255, 0.1); }
+  padding-top: calc(12 * var(--lu)); border-top: 1px solid color-mix(in srgb, var(--sc-divider, #d4941c) 16%, transparent); }
 .lobbyscout-statrow { display: grid; grid-template-columns: repeat(2, 1fr); gap: calc(3 * var(--lu)); }
 .lobbyscout-stat { display: flex; flex-direction: column; align-items: center; gap: calc(1 * var(--lu)); line-height: 1.1; }
 /* A horizontal rule between the tier/gilded-units pair and the tribe build below (owner ask 2026-08-31). */
-.lobbyscout-stat--wide { padding-top: calc(8 * var(--lu)); border-top: 1px solid rgba(255, 255, 255, 0.12); }
-.lobbyscout-stat b { font-size: calc(11 * var(--lfont) * var(--sc-stat, 2)); font-weight: 800; color: var(--sc-stat-col, var(--acc)); }
+.lobbyscout-stat--wide { padding-top: calc(8 * var(--lu)); border-top: 1px solid color-mix(in srgb, var(--sc-divider, #d4941c) 16%, transparent); }
+.lobbyscout-stat b { font-size: calc(11 * var(--lfont) * var(--sc-stat, 2)); font-weight: 800; color: var(--sc-stat-col, #f4d58a); }
 .lobbyscout-stat i { font-size: calc(7 * var(--lfont) * var(--sc-statlabel, 2)); font-style: normal; letter-spacing: 0.07em;
   text-transform: uppercase; color: var(--sc-label-col, #b7a98f); }
 .lobbyscout-stale { font-size: calc(7 * var(--lfont)); color: #8d8271; }
@@ -8717,7 +8717,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
    2026-08-31). Rows + header are `display: contents`, so their cells become the grid's items and line up. */
 .lobbyscout-log { display: grid; grid-template-columns: calc(40 * var(--lu)) auto 1fr auto;
   justify-items: center; align-items: center; column-gap: calc(6 * var(--lu)); row-gap: calc(8 * var(--lu));
-  padding-top: calc(12 * var(--lu)); border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding-top: calc(12 * var(--lu)); border-top: 1px solid color-mix(in srgb, var(--sc-divider, #d4941c) 16%, transparent);
   font-size: calc(9 * var(--lfont) * var(--sc-histtext, 2)); }
 .lobbyscout-row, .lobbyscout-loghead { display: contents; }
 .lobbyscout-log .lobbyscout-empty { grid-column: 1 / -1; justify-self: start; }
@@ -8736,19 +8736,19 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .lobbyscout-foeface { width: calc(18 * var(--lrow) * var(--lby-face, 1.74) * var(--sc-histface, 1));
   height: calc(18 * var(--lrow) * var(--lby-face, 1.74) * var(--sc-histface, 1));
   border-radius: 50%; object-fit: cover; flex: none; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.4); }
-.lobbyscout-row.win .lobbyscout-foeface { box-shadow: 0 0 0 1px #6fe39a; }
-.lobbyscout-row.lose .lobbyscout-foeface { box-shadow: 0 0 0 1px #ff6b6b; }
-.lobbyscout-row.draw .lobbyscout-foeface { box-shadow: 0 0 0 1px #c9bca3; }
+.lobbyscout-row.win .lobbyscout-foeface { box-shadow: 0 0 0 2px var(--sc-win, #4be081); }
+.lobbyscout-row.lose .lobbyscout-foeface { box-shadow: 0 0 0 2px var(--sc-lose, #ff5555); }
+.lobbyscout-row.draw .lobbyscout-foeface { box-shadow: 0 0 0 2px var(--sc-draw, #c9bca3); }
 /* WON / LOST / DREW sits BETWEEN the portrait and the damage (owner ask 2026-08-31); colour rides the row. */
 .lobbyscout-result { font-family: var(--font-ui); font-weight: 900; letter-spacing: 0.05em; white-space: nowrap; }
-.lobbyscout-row.win .lobbyscout-result { color: #7ef0a6; }
-.lobbyscout-row.lose .lobbyscout-result { color: #ff8080; }
-.lobbyscout-row.draw .lobbyscout-result { color: #d9cfba; }
+.lobbyscout-row.win .lobbyscout-result { color: var(--sc-win, #4be081); }
+.lobbyscout-row.lose .lobbyscout-result { color: var(--sc-lose, #ff5555); }
+.lobbyscout-row.draw .lobbyscout-result { color: var(--sc-draw, #c9bca3); }
 /* Result colour rides the ROW, so the damage number reads as "what happened" rather than needing a separate
    win/loss glyph beside it. */
-.lobbyscout-row.win .lobbyscout-dmg { color: #4be081; }
-.lobbyscout-row.lose .lobbyscout-dmg { color: #ff5555; }
-.lobbyscout-row.draw .lobbyscout-dmg { color: #c9bca3; }
+.lobbyscout-row.win .lobbyscout-dmg { color: var(--sc-win, #4be081); }
+.lobbyscout-row.lose .lobbyscout-dmg { color: var(--sc-lose, #ff5555); }
+.lobbyscout-row.draw .lobbyscout-dmg { color: var(--sc-draw, #c9bca3); }
 
 /* ── SCOUT CARD — layout variants (dev A/B/C compare) ──────────────────────────────────────────────────────
    Three candidate formattings share the same data; the dev chip cycles them. V1 = stat strip, V2 = identity
@@ -8796,15 +8796,15 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
    socket over the match; filled with rune art as the seat acquires them. The border + padding live on the
    section so the whole block reads as one unit. */
 .lobbyscout-runesec { display: flex; flex-direction: column; gap: calc(8 * var(--lu));
-  padding-top: calc(12 * var(--lu)); border-top: 1px solid rgba(255, 255, 255, 0.1); }
+  padding-top: calc(12 * var(--lu)); border-top: 1px solid color-mix(in srgb, var(--sc-divider, #d4941c) 16%, transparent); }
 .lobbyscout-runes { display: flex; justify-content: center; gap: calc(6 * var(--lu)); }
 .lobbyscout-socket { position: relative; flex: none;
   /* Full fight-log portrait size (owner ask 2026-08-31: do NOT shrink — the card is widened to fit all three). */
   width: calc(18 * var(--lrow) * var(--lby-face, 1.74) * var(--sc-socket, 1));
   height: calc(18 * var(--lrow) * var(--lby-face, 1.74) * var(--sc-socket, 1));
   border-radius: 50%; display: grid; place-items: center;
-  border: 2px dashed color-mix(in srgb, var(--sc-border, var(--gold)) 55%, transparent); }
-.lobbyscout-socket.filled { border-style: solid; border-color: color-mix(in srgb, var(--sc-border, var(--gold)) 80%, transparent);
+  border: 2px dashed color-mix(in srgb, var(--sc-socket-col, #d4941c) 55%, transparent); }
+.lobbyscout-socket.filled { border-style: solid; border-color: color-mix(in srgb, var(--sc-socket-col, #d4941c) 80%, transparent);
   background: rgba(0, 0, 0, 0.28); }
 .lobbyscout-socketart { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
 .lobbyscout-socket .questbadge-emblem { font-size: calc(11 * var(--lu) * var(--sc-socket, 1)); color: color-mix(in srgb, var(--gold) 70%, #fff); }

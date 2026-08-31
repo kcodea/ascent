@@ -25,13 +25,19 @@ export interface ScoutCardConfig {
   // Portraits & runes
   histFace: number;   // × the foe portrait in the fight log
   socketSize: number; // × the rune sockets
-  // Colours
+  // Colours — one per component (owner ask 2026-08-31), tuned toward the lobby rail's palette.
   bg1: string;        // card gradient, top
   bg2: string;        // card gradient, bottom
-  border: string;     // frame + rune-socket outline hue
+  border: string;     // frame outline
+  divider: string;    // the thin rules between sections
   nameCol: string;    // opponent name ink
-  labelCol: string;   // hero-power + stat labels ink
-  statCol: string;    // stat values ink
+  heroCol: string;    // the "Hero: …" line
+  statCol: string;    // stat values (tier / gilded units / build)
+  labelCol: string;   // stat labels, section titles, column headers, round numbers
+  winCol: string;     // a WON fight — result text + damage + portrait ring
+  loseCol: string;    // a LOST fight
+  drawCol: string;    // a DREW fight
+  socketCol: string;  // rune-socket outline + fill
 }
 
 const DEFAULTS: ScoutCardConfig = {
@@ -39,8 +45,9 @@ const DEFAULTS: ScoutCardConfig = {
   // Text doubled all round (owner ask 2026-08-31: "increase the size of the text by 200%").
   nameSize: 2, heroSize: 2, statSize: 2, statLabelSize: 2, histText: 2,
   histFace: 1, socketSize: 1,
-  bg1: '#241a13', bg2: '#17110c', border: '#c8922e',
-  nameCol: '#f4ecdb', labelCol: '#b7a98f', statCol: '#f0902e',
+  bg1: '#291c11', bg2: '#17110c', border: '#d4941c', divider: '#d4941c',
+  nameCol: '#ffffff', heroCol: '#d9c7a8', statCol: '#f4d58a', labelCol: '#b7a98f',
+  winCol: '#4be081', loseCol: '#ff5555', drawCol: '#c9bca3', socketCol: '#d4941c',
 };
 
 export { DEFAULTS as SCOUT_CARD_DEFAULTS };
@@ -95,9 +102,15 @@ export function applyScoutCardVars(): void {
   s.setProperty('--sc-bg1', cfg.bg1);
   s.setProperty('--sc-bg2', cfg.bg2);
   s.setProperty('--sc-border', cfg.border);
+  s.setProperty('--sc-divider', cfg.divider);
   s.setProperty('--sc-name-col', cfg.nameCol);
-  s.setProperty('--sc-label-col', cfg.labelCol);
+  s.setProperty('--sc-hero-col', cfg.heroCol);
   s.setProperty('--sc-stat-col', cfg.statCol);
+  s.setProperty('--sc-label-col', cfg.labelCol);
+  s.setProperty('--sc-win', cfg.winCol);
+  s.setProperty('--sc-lose', cfg.loseCol);
+  s.setProperty('--sc-draw', cfg.drawCol);
+  s.setProperty('--sc-socket-col', cfg.socketCol);
 }
 
 export function setScoutCardValue(key: keyof ScoutCardConfig, value: number | string): void {
@@ -136,10 +149,16 @@ const controls: TunerControl<Extract<keyof ScoutCardConfig, string>>[] = [
 
   col('bg1', 'Background top', 'Colours', 'Top of the card’s background gradient.'),
   col('bg2', 'Background bottom', 'Colours', 'Bottom of the card’s background gradient.'),
-  col('border', 'Frame + sockets', 'Colours', 'The card frame and rune-socket outline hue.'),
+  col('border', 'Frame', 'Colours', 'The card’s outer frame hue.'),
+  col('divider', 'Divider lines', 'Colours', 'The thin rules between sections (painted subtly).'),
   col('nameCol', 'Name ink', 'Colours', 'Opponent name colour.'),
-  col('labelCol', 'Label ink', 'Colours', 'Hero-power subtitle and stat labels.'),
-  col('statCol', 'Stat value ink', 'Colours', 'The tribe / tier / triples values.'),
+  col('heroCol', 'Hero line ink', 'Colours', 'The "Hero: …" line.'),
+  col('statCol', 'Stat value ink', 'Colours', 'The shop tier / gilded units / build values.'),
+  col('labelCol', 'Label ink', 'Colours', 'Stat labels, section titles, column headers and round numbers.'),
+  col('winCol', 'Won colour', 'Outcome colours', 'A WON fight — its result text, damage and portrait ring.'),
+  col('loseCol', 'Lost colour', 'Outcome colours', 'A LOST fight.'),
+  col('drawCol', 'Drew colour', 'Outcome colours', 'A DREW fight.'),
+  col('socketCol', 'Rune socket', 'Colours', 'The rune-socket outline + fill hue.'),
 ];
 
 export const SPEC: TunerSpec<ScoutCardConfig> = {

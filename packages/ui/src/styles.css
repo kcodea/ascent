@@ -9601,14 +9601,14 @@ body.duel-attacker-opp .combatopp-hp { opacity: 0; }
      then equals the player's rune size exactly (owner ask: match the player's runes), independent of how big
      the portrait is tuned. The flex gap lives in the row's own (pre-counter-scale) space, so layout stays
      clean. `transform-origin: left center` keeps the row anchored as it scales. */
-  transform: translate(var(--hd-rune-x, -148px), calc(-50% + var(--hd-rune-y, -19px))) scale(calc(var(--hd-rune-s, 1) / var(--hd-opp-s, 2.4)));
+  transform: translate(calc(var(--hd-rune-x, -290px) * var(--scale)), calc(-50% + var(--hd-rune-y, -37px) * var(--scale))) scale(calc(var(--hd-rune-s, 1) / var(--hd-opp-s, 2.4)));
   transform-origin: left center;
-  display: flex; flex-direction: column; gap: var(--hd-rune-gap, 20px);
+  display: flex; flex-direction: column; gap: calc(var(--hd-rune-gap, 39px) * var(--scale));
   /* FIXED 3-SLOT HEIGHT (owner report 2026-08-30): the column is -50% centred, so with flex-grown height a
      2-rune foe's shorter stack re-centred and every slot drifted off the per-slot nudges (dialed on a
      3-rune foe). Pinning the box to the full 3-badge stack height (badges are 53u border-box) makes slot N
      land in the same place at any rune count; badges fill from the top. */
-  height: calc(3 * 53 * var(--u) + 2 * var(--hd-rune-gap, 20px));
+  height: calc(3 * 53 * var(--u) + 2 * var(--hd-rune-gap, 39px) * var(--scale));
   justify-content: flex-start;
   pointer-events: auto;
 }
@@ -9617,9 +9617,9 @@ body.duel-attacker-opp .combatopp-hp { opacity: 0; }
    placement. nth-child is safe: the runes column contains only .combatopp-rune children. The independent
    `translate` property (not `transform`) so the badge's transform-based trigger BOUNCE composes with the
    nudge instead of stomping it mid-animation. */
-.combatopp-rune:nth-child(1) { translate: var(--hd-rune1-x, 158px) var(--hd-rune1-y, 25px); }
-.combatopp-rune:nth-child(2) { translate: var(--hd-rune2-x, 87px) var(--hd-rune2-y, -28px); }
-.combatopp-rune:nth-child(3) { translate: var(--hd-rune3-x, 25px) var(--hd-rune3-y, -62px); }
+.combatopp-rune:nth-child(1) { translate: calc(var(--hd-rune1-x, 309px) * var(--scale)) calc(var(--hd-rune1-y, 49px) * var(--scale)); }
+.combatopp-rune:nth-child(2) { translate: calc(var(--hd-rune2-x, 170px) * var(--scale)) calc(var(--hd-rune2-y, -55px) * var(--scale)); }
+.combatopp-rune:nth-child(3) { translate: calc(var(--hd-rune3-x, 49px) * var(--scale)) calc(var(--hd-rune3-y, -121px) * var(--scale)); }
 .combatopp-rune .questbadge-tip { bottom: auto; top: 50%; left: auto; right: calc(100% + 8px); transform: translateY(-50%); }
 
 @keyframes combatoppdrop {
@@ -9648,7 +9648,7 @@ body.duel-attacker-opp .combatopp-hp { opacity: 0; }
   background: linear-gradient(180deg, #fff, #f3ead4); border: 2px solid var(--gold); border-radius: 999px;
   padding: calc(2 * var(--u)) calc(13 * var(--u)); white-space: nowrap;
   box-shadow: 0 calc(2 * var(--u)) calc(6 * var(--u)) -2px var(--shadow);
-  transform: translate(var(--hd-name-x, 0px), var(--hd-name-y, 23px)) scale(var(--hd-name-s, 0.65));
+  transform: translate(calc(var(--hd-name-x, 0px) * var(--scale)), calc(var(--hd-name-y, 45px) * var(--scale))) scale(var(--hd-name-s, 0.65));
 }
 /* Opponent HEALTH — the SAME pill the PLAYER wears in the HUD (owner ask 2026-08-25): the dark gradient box,
    dark-gold border, threat-pink heart and lightened number from `.statusbar .hero .hpbox`, verbatim. */
@@ -9659,7 +9659,7 @@ body.duel-attacker-opp .combatopp-hp { opacity: 0; }
   padding: calc(6 * var(--u)) calc(14 * var(--u));
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 2px 6px rgba(0, 0, 0, 0.3);
   font-family: var(--font-ui); font-weight: 800; font-size: calc(24 * var(--u)); line-height: 1; color: #ff9db0;
-  transform: translate(var(--hd-hp-x, 0px), var(--hd-hp-y, -23px)) scale(var(--hd-hp-s, 0.65));
+  transform: translate(calc(var(--hd-hp-x, 0px) * var(--scale)), calc(var(--hd-hp-y, -45px) * var(--scale))) scale(var(--hd-hp-s, 0.65));
 }
 .combatopp-hp svg { flex: none; width: calc(24 * var(--u)); height: calc(24 * var(--u)); color: var(--threat); }
 .combatopp-armor { margin-left: calc(3 * var(--u)); font-size: calc(17 * var(--u)); color: #b7c2cf; }
@@ -9719,7 +9719,7 @@ body.duel-attacker-opp .combatopp-hp { opacity: 0; }
    buffs it to full — exactly how a buffed minion's attack reads green. The RED `.float.dmg` box is reserved for
    the damage NUMBER (dealt/taken); this pill is the attack value. */
 .hero-atk {
-  position: absolute; left: calc(50% + var(--pill-x, 0px)); bottom: calc(-14 * var(--u) - var(--pill-y, 0px));
+  position: absolute; left: calc(50% + var(--pill-x, 0px) * var(--scale)); bottom: calc(-14 * var(--u) - var(--pill-y, 0px) * var(--scale));
   transform: translateX(-50%) scale(var(--pill-s, 1));
   z-index: 6; pointer-events: none;
   display: grid; place-items: center; overflow: hidden;
@@ -9751,8 +9751,8 @@ body.duel-attacker-opp .combatopp-hp { opacity: 0; }
   from { opacity: 1; transform: translateX(-50%) scale(var(--pill-s, 1)); }
   to   { opacity: 0; transform: translateX(-50%) scale(calc(var(--pill-s, 1) * 0.72)); }
 }
-.hero-atk-player { --pill-s: var(--hd-pill-player-s, 0.55); --pill-x: var(--hd-pill-player-x, 37px); --pill-y: var(--hd-pill-player-y, -6px); }
-.hero-atk-opp    { --pill-s: var(--hd-pill-opp-s, 0.72); --pill-x: var(--hd-pill-opp-x, -60px); --pill-y: var(--hd-pill-opp-y, -16px); }
+.hero-atk-player { --pill-s: var(--hd-pill-player-s, 0.55); --pill-x: var(--hd-pill-player-x, 72px); --pill-y: var(--hd-pill-player-y, -12px); }
+.hero-atk-opp    { --pill-s: var(--hd-pill-opp-s, 0.72); --pill-x: var(--hd-pill-opp-x, -117px); --pill-y: var(--hd-pill-opp-y, -31px); }
 @keyframes heroatkpop {
   from { opacity: 0; transform: translateX(-50%) scale(calc(var(--pill-s, 1) * 0.4)); }
   to   { opacity: 1; transform: translateX(-50%) scale(var(--pill-s, 1)); }

@@ -8726,7 +8726,8 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 /* The round number in the left (ROUND) column — centred by the grid's `justify-items`. */
 .lobbyscout-round { font-weight: 800; color: var(--sc-label-col, #b7a98f); }
 .lobbyscout-colhead { text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700;
-  font-size: calc(6 * var(--lfont) * var(--sc-statlabel, 2)); color: var(--sc-label-col, #b7a98f); }
+  font-size: calc(6 * var(--lfont) * var(--sc-statlabel, 2)); color: var(--sc-label-col, #b7a98f);
+  padding-bottom: calc(7 * var(--lu)); }
 .lobbyscout-dmg { display: inline-flex; align-items: center; gap: calc(2 * var(--lu)); font-weight: 800; white-space: nowrap; }
 .lobbyscout-blast { width: calc(12 * var(--lfont) * var(--sc-histtext, 2)); height: calc(12 * var(--lfont) * var(--sc-histtext, 2));
   object-fit: contain; flex: none; }
@@ -8795,7 +8796,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 /* RUNES section (owner ask 2026-08-31): a "RUNES" title above three dotted-outline sockets marking where runes
    socket over the match; filled with rune art as the seat acquires them. The border + padding live on the
    section so the whole block reads as one unit. */
-.lobbyscout-runesec { display: flex; flex-direction: column; gap: calc(8 * var(--lu));
+.lobbyscout-runesec { display: flex; flex-direction: column; gap: calc(14 * var(--lu));
   padding-top: calc(12 * var(--lu)); border-top: 1px solid color-mix(in srgb, var(--sc-divider, #d4941c) 16%, transparent); }
 .lobbyscout-runes { display: flex; justify-content: center; gap: calc(6 * var(--lu)); }
 .lobbyscout-socket { position: relative; flex: none;
@@ -8811,6 +8812,9 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 /* A FILLED socket reveals the rune's effect tip on hover (owner ask 2026-08-31) — the socket is not a
    `.questbadge`, so it needs its own hover trigger for the shared tip markup. Works on a pinned card. */
 .lobbyscout-socket:hover .questbadge-tip { opacity: 1; }
+/* Centre the rune tip over its socket (owner ask 2026-08-31) — scoped to sockets so other badge tips are
+   untouched. The shared tip anchors at `left: 0`; override to centre it on the node. */
+.lobbyscout-socket .questbadge-tip { left: 50%; right: auto; transform: translateX(-50%); }
 
 /* The table sizes to its rows, and the rows size to `--lrow` — so the row-scale dial actually changes row
    height. (They used to be `flex: 1` inside a fixed-height rail, which pinned every row to an equal share of a

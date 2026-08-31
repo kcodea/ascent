@@ -8680,7 +8680,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   --lrow: calc(var(--lu) * var(--lby-row, 1.91));
   --lfont: calc(var(--lu) * var(--lby-font, 0.9));
   position: fixed; z-index: 80; transform: translateY(-50%);
-  width: calc(112 * var(--lu) * var(--sc-w, 1.5)); pointer-events: none;
+  width: calc(112 * var(--lu) * var(--sc-w, 2)); pointer-events: none;
   display: flex; flex-direction: column; gap: calc(4 * var(--lu) * var(--sc-gap, 1.25));
   padding: calc(7 * var(--lu) * var(--sc-pad, 1.8)); border-radius: calc(8 * var(--lu) * var(--sc-rad, 1));
   background: linear-gradient(180deg, var(--sc-bg1, #241a13), var(--sc-bg2, #17110c));
@@ -8791,7 +8791,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .lobbyscout-runes { display: flex; justify-content: center; gap: calc(6 * var(--lu));
   padding-top: calc(4 * var(--lu)); border-top: 1px solid rgba(255, 255, 255, 0.1); }
 .lobbyscout-socket { position: relative; flex: none;
-  /* Same size as the fight-log portrait (= the rail seat portrait), owner ask 2026-08-31. */
+  /* Full fight-log portrait size (owner ask 2026-08-31: do NOT shrink — the card is widened to fit all three). */
   width: calc(18 * var(--lrow) * var(--lby-face, 1.74) * var(--sc-socket, 1));
   height: calc(18 * var(--lrow) * var(--lby-face, 1.74) * var(--sc-socket, 1));
   border-radius: 50%; display: grid; place-items: center;

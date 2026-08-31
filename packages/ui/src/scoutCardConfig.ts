@@ -35,7 +35,7 @@ export interface ScoutCardConfig {
 }
 
 const DEFAULTS: ScoutCardConfig = {
-  width: 1.5, pad: 1.8, radius: 1, gap: 1.25,
+  width: 2, pad: 1.8, radius: 1, gap: 1.25,
   // Text doubled all round (owner ask 2026-08-31: "increase the size of the text by 200%").
   nameSize: 2, heroSize: 2, statSize: 2, statLabelSize: 2, histText: 2,
   histFace: 1, socketSize: 1,
@@ -48,7 +48,7 @@ export { DEFAULTS as SCOUT_CARD_DEFAULTS };
 type NumKey = 'width' | 'pad' | 'radius' | 'gap' | 'nameSize' | 'heroSize' | 'statSize'
   | 'statLabelSize' | 'histText' | 'histFace' | 'socketSize';
 const RANGES: Record<NumKey, [number, number, number]> = {
-  width: [0.6, 2, 0.02],
+  width: [0.6, 2.8, 0.02],
   pad: [0.3, 2.5, 0.05],
   radius: [0, 3, 0.05],
   gap: [0, 3, 0.05],

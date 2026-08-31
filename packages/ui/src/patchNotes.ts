@@ -56,6 +56,20 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-08-31',
+    label: 'Reflector',
+    changes: [
+      {
+        category: 'Card Change',
+        text: "Reflector's text now says it reacts to Rubies as well as Spells, which it always did.",
+        details: [
+          'Spells and Rubies share its once-per-turn trigger, so a Ruby landing first uses it up — that was invisible from a card that only mentioned Spells.',
+          'No change to how the card behaves.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-08-31',
     label: 'Shop Capacity',
     changes: [
       {
@@ -82,8 +96,7 @@ export const PATCH_NOTES: PatchNote[] = [
         text: 'Saving and quitting mid-turn now returns you to the turn with the time you left it on, instead of restarting the round timer.',
         details: [
           'Quitting with 8 seconds left and pressing Continue used to hand back a full turn.',
-          'The time was always saved correctly — it was being overwritten on the way back in.',
-        ],
+          'The time was always saved correctly — it was being overwritten on the way back in.',        ],
       },
     ],
   },
@@ -111,7 +124,9 @@ export const PATCH_NOTES: PatchNote[] = [
         details: [
           'A new forge illustration glows behind the panel.',
           'The stone banner became a gold plaque with a larger title; the Gold pill and rune tablets were resized and reseated.',
-          'The anvil icon and the sigil medallion were retired from the forge for a cleaner read (the Compendium keeps the medallion).',        ],      },
+          'The anvil icon and the sigil medallion were retired from the forge for a cleaner read (the Compendium keeps the medallion).',
+        ],
+      },
     ],
   },
   {

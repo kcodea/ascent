@@ -219,6 +219,32 @@ describe('playDef', () => {
     expect(playDef('test-play-no-renderer', { source: { x: 0, y: 0 }, target: { x: 10, y: 10 } })).toBeNull();
   });
 
+  /**
+   * THE AUX-CANVAS WAIT (owner report 2026-08-31: "the first prismatic pick doesn't trigger the animation" —
+   * and only the first). `under` / `above` canvases are created lazily, so the first effect wanting one used
+   * to be spent bringing it up. It now waits for the init and plays, and hands back a disposer that cancels a
+   * retry still in flight.
+   */
+  it('an AUX-slot def waits for its canvas instead of dropping the fire', async () => {
+    registerSavedDef(def([layer()], { id: 'test-play-above', slot: 'above' }));
+    const spy = vi.spyOn(pixiFx, 'ensureAboveSlot');
+    const stop = playDef('test-play-above', { source: { x: 0, y: 0 }, target: { x: 1, y: 1 } });
+    expect(stop, 'the caller gets a handle, not a dropped fire').toBeTypeOf('function');
+    expect(spy, 'and the canvas was asked to come up').toHaveBeenCalled();
+    // The retry lands on a still-null renderer here (headless, no GL) and must STOP — an ungated retry would
+    // spin on the memoised promise forever. Draining the microtask queue is what would expose that.
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(spy.mock.calls.length, 'exactly one retry, never a loop').toBeLessThanOrEqual(2);
+    expect(() => stop?.(), 'and disposing is safe whether or not the retry ran').not.toThrow();
+    spy.mockRestore();
+  });
+
+  it('the OVER slot still declines — a combat moment is past by the time a retry could land', () => {
+    registerSavedDef(def([layer()], { id: 'test-play-over-slot' }));
+    expect(playDef('test-play-over-slot', { source: { x: 0, y: 0 }, target: { x: 1, y: 1 } })).toBeNull();
+  });
+
   it('never throws for any of its refusal paths', () => {
     registerSavedDef(def([layer({ muted: true })], { id: 'test-play-all-muted' }));
     expect(() => playDef('test-play-all-muted', {})).not.toThrow();

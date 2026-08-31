@@ -8705,6 +8705,8 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   padding-top: calc(4 * var(--lu)); border-top: 1px solid rgba(255, 255, 255, 0.1); }
 .lobbyscout-statrow { display: grid; grid-template-columns: repeat(2, 1fr); gap: calc(3 * var(--lu)); }
 .lobbyscout-stat { display: flex; flex-direction: column; align-items: center; gap: calc(1 * var(--lu)); line-height: 1.1; }
+/* A horizontal rule between the tier/gilded-units pair and the tribe build below (owner ask 2026-08-31). */
+.lobbyscout-stat--wide { padding-top: calc(4 * var(--lu)); border-top: 1px solid rgba(255, 255, 255, 0.12); }
 .lobbyscout-stat b { font-size: calc(11 * var(--lfont) * var(--sc-stat, 2)); font-weight: 800; color: var(--sc-stat-col, var(--acc)); }
 .lobbyscout-stat i { font-size: calc(7 * var(--lfont) * var(--sc-statlabel, 2)); font-style: normal; letter-spacing: 0.07em;
   text-transform: uppercase; color: var(--sc-label-col, #b7a98f); }

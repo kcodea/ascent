@@ -56,6 +56,7 @@ const ART_PENDING = new Set<string>([
   // exists for. Set 3 is `enabled: false` and reachable only through the Scene Builder, so none of these can
   // reach a player un-arted. Delete each id the moment its master lands.
   'k3_korn', 'k3_splitpick', 'k3_forkvein', 'k3_forkroad', 'k3_veinchant', 'k3_jeweler',
+  'k3_blastsurveyor',
 ]);
 
 describe('art coverage for live cards', () => {

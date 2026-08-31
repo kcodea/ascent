@@ -105,7 +105,36 @@ export const TITAN_HAMMER: EquipmentDefinition = {
   useSfxId: 'titanhammer',
 };
 
-export const EQUIPMENT: readonly EquipmentDefinition[] = [BLOODPOT, TITAN_HAMMER];
+/**
+ * BLAST PUMP — Blast Surveyor's Equipment (set-3 Kobold roster, 2026-08-30).
+ *
+ * An EQUIPMENT SPELL: it casts `rubyexcavation`, the shipped set-2 Shop spell whose text is already exactly
+ * this payload ("Cast 2 Rubies on all of your minions"). Naming the spell rather than re-implementing the
+ * effect is the whole point of the classification — the Rubies land through the real Shop-spell pipeline, so
+ * the activation counts as a Shop spell cast and every cast-watcher sees it.
+ *
+ * `targetMode: 'none'` because the payload is board-wide; there is nothing to aim at.
+ *
+ * GILDED casts it TWICE rather than naming a bigger spell — two genuine casts, which is what golden means
+ * everywhere else and what makes the printed "4 Rubies" true (2 + 2) without a second spell existing.
+ */
+export const BLAST_PUMP: EquipmentDefinition = {
+  id: 'blast_pump',
+  name: 'Blast Pump',
+  text: 'Cast **2 Rubies** on your minions.',
+  goldenText: 'Cast **4 Rubies** on your minions.',
+  baseCost: 1,
+  targetMode: 'none',
+  effectId: 'equipmentCastSpell',
+  // BOTH: `spellId` is the CLASSIFICATION (this Equipment is an Equipment Spell — see the field's doc), and
+  // `params.spellId` is what the factory reads. They name the same spell and must stay in step; Blast Pump is
+  // the first Equipment to use the classification at all, so this is the shape that establishes it.
+  spellId: 'rubyexcavation',
+  params: { spellId: 'rubyexcavation' },
+  gildedParams: { spellId: 'rubyexcavation', count: 2 },
+};
+
+export const EQUIPMENT: readonly EquipmentDefinition[] = [BLOODPOT, TITAN_HAMMER, BLAST_PUMP];
 
 export const EQUIPMENT_INDEX: Readonly<Record<string, EquipmentDefinition>> =
   Object.fromEntries(EQUIPMENT.map((e) => [e.id, e]));

@@ -2822,7 +2822,11 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   equipmentCastSpell: (ctx, _self, params, payload) => {
     const spell = CARD_INDEX[str(params.spellId)];
     if (!spell?.spell) return; // not a spell id — never a silent bespoke effect
-    castSpell(ctx.state, spell, payload.target);
+    // `count` casts the named spell that many times, which is how a GILDED Equipment Spell doubles: gilding
+    // swaps in `gildedParams`, and "twice the spell" has to mean two GENUINE casts, not one doubled one —
+    // the same rule golden follows everywhere else, so each cast counts as a Shop spell cast, receives
+    // Shop-spell improvements, and wakes every cast-watcher once per cast. Absent → one cast, as before.
+    for (let i = 0; i < Math.max(1, num(params.count, 1)); i++) castSpell(ctx.state, spell, payload.target);
   },
 
   /**

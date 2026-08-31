@@ -138,4 +138,20 @@ export const SET3_KOBOLDS: CardDef[] = [
     text: '**Choose One:** Discover a **Kobold**, or a **Shop spell**.',
     goldenText: '**Choose One:** Discover **2 Kobolds**, or **2 Shop spells**.',
   },
+  {
+    // The roster's Equip minion. Blast Pump is an EQUIPMENT SPELL — it casts `rubyexcavation`, the shipped
+    // set-2 Shop spell whose text is already this exact payload, rather than re-implementing it. That
+    // classification is not cosmetic: the Rubies land through the real Shop-spell pipeline, so using the
+    // Equipment counts as casting a Shop spell and every "after you cast a Shop spell" listener sees it.
+    id: 'k3_blastsurveyor',
+    name: 'Blast Surveyor',
+    tribe: 'kobold',
+    tier: 3,
+    attack: 4,
+    health: 4,
+    keywords: [],
+    effects: [{ on: 'equip', do: 'grantEquipment', params: { equipmentId: 'blast_pump' } }],
+    text: '**Equip Blast Pump (1):** Cast **2 Rubies** on your minions.',
+    goldenText: '**Equip Blast Pump (1):** Cast **4 Rubies** on your minions.',
+  },
 ];

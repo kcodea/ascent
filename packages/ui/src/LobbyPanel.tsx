@@ -209,7 +209,6 @@ function ScoutCard({ lobby, seat, intel, at, pinned }: {
   pinned?: boolean;
 }): JSX.Element {
   const results = seatResults(lobby, seat.id, 3);
-  const stale = intel && intel.round < lobby.round;
   // KEEP IT ON-SCREEN. The card is position:fixed and opens to the LEFT of the seat; on a large / fullscreen
   // viewport a seat can push it partly off-screen (owner report 2026-08-28). We measure it once and clamp its
   // `right`/`top` into the viewport with an 8px margin, keeping the CSS `translateY(-50%)` centring (so `top` is
@@ -270,7 +269,6 @@ function ScoutCard({ lobby, seat, intel, at, pinned }: {
       })}
     </div>
   ) : null;
-  const staleEl = stale ? <div className="lobbyscout-stale">as of round {intel!.round}</div> : null;
   const noIntel = <div className="lobbyscout-empty">No intel yet</div>;
   // ROUND HISTORY — the foe's PORTRAIT rather than their name (owner ask 2026-08-31), with the outcome-tinted
   // damage on the right. Falls back to the label if the hero art is missing.
@@ -351,7 +349,6 @@ function ScoutCard({ lobby, seat, intel, at, pinned }: {
           </>
         ) : noIntel}
         {badges}
-        {staleEl}
         <div className="lobbyscout-logtitle">Last fights</div>
         {renderLog()}
         {runeSockets}
@@ -374,7 +371,6 @@ function ScoutCard({ lobby, seat, intel, at, pinned }: {
           </div>
         ) : noIntel}
         {badges}
-        {staleEl}
         {renderLog()}
         {runeSockets}
       </>
@@ -396,7 +392,6 @@ function ScoutCard({ lobby, seat, intel, at, pinned }: {
           </div>
         ) : noIntel}
         {badges}
-        {staleEl}
         {renderLog()}
         {runeSockets}
       </>

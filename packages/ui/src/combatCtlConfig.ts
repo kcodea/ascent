@@ -35,16 +35,18 @@ export interface CombatCtlConfig {
 
 // Mirror of the shipped styles.css look (theme tokens resolved to hex so the picker starts on the real colour):
 // the gold pill border is color-mix(--gold 55%, #000) ≈ #6e5019; --acc #f0902e / --acc-dk #c46f17 drive Skip.
+// Owner-tuned + locked 2026-08-29 (dev 🎚️ Combat Controls tuner). Mirrored into the styles.css `--cc-*`
+// fallbacks. X/Y are board-pinned (Summary/Skip × --scale off the stage box; End Combat rides the diamond).
 const DEFAULTS: CombatCtlConfig = {
-  sumX: 0, sumY: 0,
-  sumSize: 14, sumRadius: 12, sumBorderW: 2,
-  sumBg: '#211812', sumText: '#f4ecdb', sumBorder: '#6e5019',
-  endX: 0, endY: 0,
-  endSize: 13.5, endRadius: 11, endBorderW: 2,
-  endBg: '#211812', endText: '#f4ecdb', endBorder: '#6e5019',
-  skipX: 0, skipY: 0,
-  skipSize: 15, skipRadius: 11, skipBorderW: 2,
-  skipBg: '#f0902e', skipText: '#ffffff', skipBorder: '#c46f17',
+  sumX: 89, sumY: 57,
+  sumSize: 23, sumRadius: 30, sumBorderW: 1,
+  sumBg: '#006fd6', sumText: '#f2f2f2', sumBorder: '#b07047',
+  endX: -4, endY: 0,
+  endSize: 12, endRadius: 10, endBorderW: 1,
+  endBg: '#002242', endText: '#f2f2f2', endBorder: '#b07047',
+  skipX: -95, skipY: 49,
+  skipSize: 18, skipRadius: 30, skipBorderW: 1,
+  skipBg: '#006fd6', skipText: '#f2f2f2', skipBorder: '#b07047',
 };
 
 /** Slider bounds for the DEV tuner — [min, max, step] per NUMERIC key (the six colour keys are pickers). */

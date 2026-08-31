@@ -17,4 +17,12 @@ Notes:
 - Skip is authored in `--u` (scales with the board), so its size/radius knobs are `× --u` multipliers, not px;
   the two pills are raw px.
 
-Verified: typecheck ✅, lint 0 errors ✅, build:web ✅. Dev-only; no production/player-facing change.
+**Position (added).** Each chip also got X/Y offset controls: Summary + Skip offset their `left`/`top` `× --scale`
+off the stage box (board-pinned — their stage-fraction position is `scale/gw`, constant for the fixed 16:9 stage,
+so they hold their spot at any window size/aspect); the End Combat pill nudges via an individual `translate:` so
+it composes with the tip's own transform/animation and rides the (already board-pinned) End-Turn diamond.
+
+**Owner-locked look (2026-08-29).** Baked the tuned values into `combatCtlConfig.ts` DEFAULTS + every styles.css
+`--cc-*` fallback: the Summary + Skip chips go blue (`#006fd6`) with a 1px `#b07047` outline, `#f2f2f2` text,
+30px radius, repositioned (Summary +89/+57, Skip −95/+49); the End Combat pill goes deep navy (`#002242`), 10px
+radius, 12px text. This is now a player-facing look change (patch note added). Verified: typecheck ✅, build:web ✅.

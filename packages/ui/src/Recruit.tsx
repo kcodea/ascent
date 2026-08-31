@@ -110,7 +110,7 @@ import { useGame } from './store';
 import { gateBlocks as tutorialGateBlocks, notifyGateNudge as notifyTutorialGateNudge } from './tutorial/gateBus';
 import { Unit } from './Unit';
 import { useCombatReplay } from './useCombatReplay';
-import { turnClock, useTurnSeconds, useTurnTimeUp } from './turnClock';
+import { turnClock, turnClockReset, useTurnSeconds, useTurnTimeUp } from './turnClock';
 import { chargeTune, useChargePreview } from './chargeGlyphTune';
 import { ChargeMotes } from './chargeMotes';
 import { wipeFx } from './wipeFx';
@@ -3881,23 +3881,45 @@ export function Recruit() {
 
   // Reset the round clock at the start of each recruit wave, and whenever the hero picker opens or
   // closes (so wave 1 always begins at full time the moment a hero is chosen — even on a fresh run
-  // that died on wave 1, where run.wave doesn't change). Recruit stays mounted across combat now.
+  // that died on wave 1, where run.wave doesn't change). Recruit stays mounted across combat, but NOT
+  // behind the title — the board unmounts there since 2026-08-30, so Continue is a fresh mount.
   // The clock lives in an external store (turnClock), NOT React state, so its per-second tick
   // re-renders only the tiny ring/rope subscribers — never the heavy card tree. See turnClock.ts.
   // Layout effect so the clock is full BEFORE the first paint (the store starts at 0 — without this the
   // first frame would flash "0" / a locked board until a passive effect ran).
+  /**
+   * The resume is a ONE-SHOT, and this effect can run more than once for the same turn — so remember which
+   * wave we restored, or the second pass overwrites the restored clock with a full one.
+   *
+   * That is the whole of bug 9fceed6b (player report 2026-08-31: *"timer from saving and quitting is not
+   * correct, it is restarting the timer from the beginning of the round"*). Quitting at 0:08 and pressing
+   * Continue gave 0:20. The first pass applied 8 and consumed `pendingResumeSeconds`; the second saw `null`
+   * and fell into the `else`, which opens the turn at full time.
+   *
+   * It began working this way when the board stopped being mounted behind the title (2026-08-30): Continue
+   * used to be a re-render of a live component and is now a genuine MOUNT, and a mount is where an effect
+   * gets invoked twice. The comment a few lines up still said "Recruit stays mounted" — it is corrected
+   * below, because a stale claim like that is how the next person misreads this.
+   */
+  const resumedWaveRef = useRef<number | null>(null);
   useLayoutEffect(() => {
     // Behind the title the clock is hidden and paused (via overlayOpen); the resumed value is applied the moment
     // showTitle flips back to false on Continue — this effect keys on showTitle precisely so that flip fires it.
     if (showTitle) return;
     // A resume hands us the exact seconds the turn was quit with (owner ask 2026-08-24); consume it one-shot.
-    // Otherwise (a fresh turn / new run) open at full time.
-    const resume = useGame.getState().pendingResumeSeconds;
-    if (resume != null) {
-      turnClock.set(resume);
+    // The DECISION lives in `turnClockReset` so it is testable without a DOM — see its tests, which pin the
+    // second-pass case this effect gets wrong on its own.
+    const next = turnClockReset({
+      resume: useGame.getState().pendingResumeSeconds,
+      resumedWave: resumedWaveRef.current,
+      wave: run.wave,
+      turnSeconds,
+    });
+    if (!next) return; // already restored this turn — leave the clock alone
+    turnClock.set(next.set);
+    if (next.consumeResume) {
       useGame.getState().clearPendingResume();
-    } else {
-      turnClock.set(turnSeconds);
+      resumedWaveRef.current = run.wave;
     }
   }, [run.wave, turnSeconds, heroSelecting, showTitle]);
 

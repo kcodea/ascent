@@ -9730,9 +9730,9 @@ body.duel-attacker-opp .combatopp-hp { opacity: 0; }
    placement. nth-child is safe: the runes column contains only .combatopp-rune children. The independent
    `translate` property (not `transform`) so the badge's transform-based trigger BOUNCE composes with the
    nudge instead of stomping it mid-animation. */
-.combatopp-rune:nth-child(1) { translate: calc(var(--hd-rune1-x, 309px) * var(--scale)) calc(var(--hd-rune1-y, 49px) * var(--scale)); }
-.combatopp-rune:nth-child(2) { translate: calc(var(--hd-rune2-x, 170px) * var(--scale)) calc(var(--hd-rune2-y, -55px) * var(--scale)); }
-.combatopp-rune:nth-child(3) { translate: calc(var(--hd-rune3-x, 49px) * var(--scale)) calc(var(--hd-rune3-y, -121px) * var(--scale)); }
+.combatopp-rune:nth-child(1) { translate: calc(var(--hd-rune1-x, 450px) * var(--scale)) calc(var(--hd-rune1-y, 87px) * var(--scale)); }
+.combatopp-rune:nth-child(2) { translate: calc(var(--hd-rune2-x, 360px) * var(--scale)) calc(var(--hd-rune2-y, -8px) * var(--scale)); }
+.combatopp-rune:nth-child(3) { translate: calc(var(--hd-rune3-x, 281px) * var(--scale)) calc(var(--hd-rune3-y, -75px) * var(--scale)); }
 
 /* PERSISTENT RUNE-SLOT BACKGROUNDS (owner ask 2026-08-31) — always visible, sitting BEHIND the runes and
    sharing the frame above so a rune overlays its slot. Each is placed + sized from the ⚔️ Hero Duel tuner
@@ -9742,11 +9742,11 @@ body.duel-attacker-opp .combatopp-hp { opacity: 0; }
 .combatopp-slot { flex: none; width: calc(53 * var(--u)); height: calc(53 * var(--u));
   background-repeat: no-repeat; background-position: center; background-size: contain; }
 .combatopp-slot.slot1 { background-image: url('/opp-rune-slot-1.webp');
-  translate: calc(var(--hd-slot1-x, 309px) * var(--scale)) calc(var(--hd-slot1-y, 49px) * var(--scale)); scale: var(--hd-slot1-s, 1); }
+  translate: calc(var(--hd-slot1-x, 450px) * var(--scale)) calc(var(--hd-slot1-y, 87px) * var(--scale)); scale: var(--hd-slot1-s, 1.65); }
 .combatopp-slot.slot2 { background-image: url('/opp-rune-slot-2.webp');
-  translate: calc(var(--hd-slot2-x, 170px) * var(--scale)) calc(var(--hd-slot2-y, -55px) * var(--scale)); scale: var(--hd-slot2-s, 1); }
+  translate: calc(var(--hd-slot2-x, 360px) * var(--scale)) calc(var(--hd-slot2-y, -8px) * var(--scale)); scale: var(--hd-slot2-s, 1.65); }
 .combatopp-slot.slot3 { background-image: url('/opp-rune-slot-3.webp');
-  translate: calc(var(--hd-slot3-x, 49px) * var(--scale)) calc(var(--hd-slot3-y, -121px) * var(--scale)); scale: var(--hd-slot3-s, 1); }
+  translate: calc(var(--hd-slot3-x, 281px) * var(--scale)) calc(var(--hd-slot3-y, -75px) * var(--scale)); scale: var(--hd-slot3-s, 1.65); }
 .combatopp-rune .questbadge-tip { bottom: auto; top: 50%; left: auto; right: calc(100% + 8px); transform: translateY(-50%); }
 
 @keyframes combatoppdrop {

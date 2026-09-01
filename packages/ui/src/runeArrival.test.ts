@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { arrivalClasses } from './QuestBadges';
+import { arrivalClasses } from './runeArrival';
 import type { RuneArrivalCue } from './useRuneArrivalFx';
 
 /**

@@ -105,8 +105,21 @@ export function Game() {
 
   // Perf HUD: start/stop the sampler with the toggle, and feed it the game context so every logged second
   // carries what was happening (a spike is only actionable if you know the phase + wave it landed in).
+  //
+  // RECORDING IS NOT THE SAME THING AS SHOWING THE HUD, and conflating them is why the shared tab was empty
+  // (owner report 2026-08-31: *"we are NOT getting automatically delivered results to that table"*).
+  //
+  // This effect used to open with `if (!perfOn) { perfMonitor.stop(); return; }` — so the sampler AND the
+  // end-of-game upload below both lived behind the HUD toggle. That toggle defaults to `import.meta.env.DEV`,
+  // which is FALSE in a production build — and the desktop exe is a production build. So on the client both
+  // devs actually play, nothing was ever sampled and the auto-share was never even subscribed: no rows, no
+  // warning, nothing to notice. The upload could not fail, because it never ran.
+  //
+  // The sampler is now unconditional and `perfOn` governs exactly one thing: whether the HUD is rendered
+  // (see the `{perfOn && <PerfHud …>}` below). The cost is a one-second tick and a passive pointermove
+  // counter, which is what the telemetry is made of — a sampler that only runs when someone remembers to
+  // open a dev panel is not telemetry.
   useEffect(() => {
-    if (!perfOn) { perfMonitor.stop(); return; }
     perfMonitor.registerContext(() => {
       const s = useGame.getState().run;
       return { phase: s.phase, wave: s.wave };
@@ -182,7 +195,7 @@ export function Game() {
       unsub();
       perfMonitor.stop();
     };
-  }, [perfOn]);
+  }, []);
 
   // UI-hover SFX: one delegated pointerover listener for the whole app (mounted once). Plays a soft cue when
   // the pointer ENTERS a MENU / selection control — any button (title / esc-menu / leaderboard / career menus,

@@ -1471,7 +1471,21 @@ export function Recruit() {
     }, 55);
     return () => { window.clearInterval(id); window.clearTimeout(settle); setGambleHold(null); };
   }, [run.gambleRoll?.seq, run.gambleRoll?.tier, run.gambleWonUid]);
-  const gambleHand = gambleHold ? run.hand.filter((c) => c.uid !== gambleHold) : run.hand;
+  /**
+   * The uid the Choose One prompt is previewing ON THE BOARD (see `chooseOnePreview`), or undefined. Hidden
+   * from the hand ROW while it stands there, so it is in one place rather than two.
+   *
+   * Filtered at the RENDER site, never out of `handViews`: the row asserts a view exists for every card it
+   * iterates (`handViews.get(m.uid)!`), so dropping the entry while the row still walked `run.hand` crashed
+   * Card on `undefined.attack` (caught live, 2026-09-01). The view map stays complete; only the row skips it.
+   */
+  const chooseOnePreviewUid = run.chooseOne && !run.chooseOne.spell && !run.chooseOne.equipmentId
+    ? run.chooseOne.uid
+    : undefined;
+  const handShown = chooseOnePreviewUid
+    ? run.hand.filter((c) => c.uid !== chooseOnePreviewUid)
+    : run.hand;
+  const gambleHand = gambleHold ? handShown.filter((c) => c.uid !== gambleHold) : handShown;
   // Minions summoned to the BOARD during End-of-Turn playback (Moira re-firing a summoner) — injected into the
   // rendered board on their beat so they arrive in real time, replaced by the real cards at commit (same uid).
   const [eotSummons, setEotSummons] = useState<{ uid: string; cardId: string; index?: number }[]>([]);
@@ -3250,11 +3264,11 @@ export function Recruit() {
   );
   const handViews = useMemo(
     () => perfMonitor.measure('view:hand', () => {
-      const fresh = new Map(run.hand.filter((m) => m.uid !== chooseOnePreview?.card.uid).map((m) => [m.uid, instView(m, run.tier, eotAnimStats?.[m.uid], spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave, run.spellsCast, run.cardBuffs?.cling, run.fodderConsumedThisTurn, CARD_INDEX[m.cardId]?.spell || CARD_INDEX[m.cardId]?.ruby ? { ...live, castMult: spellCastCount(run, CARD_INDEX[m.cardId]!) } : live)] as const));
+      const fresh = new Map(run.hand.map((m) => [m.uid, instView(m, run.tier, eotAnimStats?.[m.uid], spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave, run.spellsCast, run.cardBuffs?.cling, run.fodderConsumedThisTurn, CARD_INDEX[m.cardId]?.spell || CARD_INDEX[m.cardId]?.ruby ? { ...live, castMult: spellCastCount(run, CARD_INDEX[m.cardId]!) } : live)] as const));
       handViewCache.current = stabilizeViewMap(fresh, handViewCache.current);
       return handViewCache.current;
     }),
-    [run.hand, run.tier, eotAnimStats, spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave, run.spellsCast, run.cardBuffs, run.fodderConsumedThisTurn, live, run.board, run.nextSpellExtraCasts, chooseOnePreview],
+    [run.hand, run.tier, eotAnimStats, spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave, run.spellsCast, run.cardBuffs, run.fodderConsumedThisTurn, live, run.board, run.nextSpellExtraCasts],
   );
   // SPELL BUFF cue (owner 2026-07-23): when a hand SPELL or Ruby gets stronger, grow/shrink it and blast
   // sparks outward, so the player sees exactly which cards a spell buff touched. A spell's stats never
@@ -5063,7 +5077,9 @@ export function Recruit() {
   // Flip (not the warband/shop manual x-tween) so the cards keep their translateY tuck through the glide. Only
   // fires when a reorder actually captured a state — a buy/play that also changes the order is left to its own
   // pop-in.
-  const handOrderKey = run.hand.map((c) => c.uid).join(',');
+  // The RENDERED row, not `run.hand`: a card lifted out for the Choose One preview changes what the row
+  // shows, and the hand should close the gap behind it rather than jump when it comes back.
+  const handOrderKey = gambleHand.map((c) => c.uid).join(',');
   useLayoutEffect(() => {
     // Kill the hand cards' CSS `transition: transform` first (like the warband/shop commit does): on drop the
     // dragged card's slide resets to 0 and the neighbours' slides clear, and if the base transition is live it

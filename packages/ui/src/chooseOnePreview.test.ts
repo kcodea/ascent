@@ -38,15 +38,22 @@ describe('Choose One preview — shown on board, not put there', () => {
     expect(/s\.hand\.(splice|push)/.test(body), 'nor the hand').toBe(false);
   });
 
-  it('the preview is a RENDER projection, and only for a minion', () => {
-    const i = RECRUIT.indexOf('const chooseOnePreview');
+  it('only a MINION is previewed — a spell takes no slot, an Equipment has no card', () => {
+    // The gate lives on `chooseOnePreviewUid`, which BOTH the board splice and the hand row read, so the two
+    // can never disagree about which card is being previewed. (Anchored on the exact declaration: the memo
+    // below shares its prefix, and an earlier cut of this test matched the wrong one.)
+    const i = RECRUIT.indexOf('const chooseOnePreviewUid =');
+    expect(i, 'the gate exists').toBeGreaterThan(-1);
+    const decl = RECRUIT.slice(i, RECRUIT.indexOf(';', RECRUIT.indexOf('undefined', i)));
+    expect(decl.includes('!run.chooseOne.spell'), 'a spell Choose One is not previewed on the board').toBe(true);
+    expect(decl.includes('!run.chooseOne.equipmentId'), "and neither is an Equipment's prompt").toBe(true);
+  });
+
+  it('the previewed body is the HAND card itself — because the play committed nothing', () => {
+    const i = RECRUIT.indexOf('const chooseOnePreview = useMemo');
     expect(i, 'the projection exists').toBeGreaterThan(-1);
     const body = RECRUIT.slice(i, RECRUIT.indexOf('}, [', i));
-    // A spell takes no board slot, and an Equipment's prompt has no card at all — both must opt out.
-    expect(body.includes('co.spell'), 'a spell Choose One is not previewed on the board').toBe(true);
-    expect(body.includes('co.equipmentId'), "and neither is an Equipment's prompt").toBe(true);
-    // It reads the card out of HAND — where it still is, because the play committed nothing.
-    expect(body.includes('run.hand.find'), 'the previewed body is the hand card itself').toBe(true);
+    expect(body.includes('run.hand.find'), 'it reads the card out of hand, where it still is').toBe(true);
   });
 
   it('the coalesce captures BEFORE the state changes', () => {

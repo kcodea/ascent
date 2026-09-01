@@ -56,6 +56,16 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-01',
+    label: 'Frosted Glass',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: 'Discover and Choose One now open over the same blurred, darkened backdrop as the hero-select screen.',
+      },
+    ],
+  },
+  {
+    date: '2026-09-01',
     label: 'Rubetta',
     changes: [
       {

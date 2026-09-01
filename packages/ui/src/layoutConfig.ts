@@ -91,8 +91,8 @@ export const LAYOUT_VARS: LayoutVarDef[] = [
   { key: 'qb1Y', cssVar: '--qb1-y', label: 'Node 1 · Y', group: 'Quest nodes', min: -800, max: 800, step: 1, def: 53, fmt: 'px' },
   { key: 'qb2X', cssVar: '--qb2-x', label: 'Node 2 · X', group: 'Quest nodes', min: -800, max: 800, step: 1, def: 13, fmt: 'px' },
   { key: 'qb2Y', cssVar: '--qb2-y', label: 'Node 2 · Y', group: 'Quest nodes', min: -800, max: 800, step: 1, def: 5, fmt: 'px' },
-  { key: 'qb3X', cssVar: '--qb3-x', label: 'Node 3 · X', group: 'Quest nodes', min: -800, max: 800, step: 1, def: 30, fmt: 'px' },
-  { key: 'qb3Y', cssVar: '--qb3-y', label: 'Node 3 · Y', group: 'Quest nodes', min: -800, max: 800, step: 1, def: 23, fmt: 'px' },
+  { key: 'qb3X', cssVar: '--qb3-x', label: 'Node 3 · X', group: 'Quest nodes', min: -800, max: 800, step: 1, def: 36, fmt: 'px' },
+  { key: 'qb3Y', cssVar: '--qb3-y', label: 'Node 3 · Y', group: 'Quest nodes', min: -800, max: 800, step: 1, def: 20, fmt: 'px' },
 
   // Gold pill (bottom-right circle). X/Y are INSETS from the board's right / bottom edge (bigger = further in);
   // Scale sizes the whole circle. Match the styles.css `.goldpill` fallbacks.

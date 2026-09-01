@@ -63,7 +63,7 @@ export interface HeroPowerBtnConfig {
 // fallbacks.
 const DEFAULTS: HeroPowerBtnConfig = {
   x: 15,
-  y: 303,
+  y: 305,
   scale: 0.87,
   artX: 0,
   artY: 0,

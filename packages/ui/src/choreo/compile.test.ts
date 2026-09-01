@@ -190,3 +190,41 @@ describe('compileMoments — wave tags pace a multi-pass AoE echo (Fel Spikes)',
     }
   });
 });
+
+/**
+ * ONE SWING'S RESULTS ARE ONE BEAT (owner report 2026-09-01).
+ *
+ * The result-collapse merges a contiguous run of `dmg`/`death` into one moment — right for a single clash
+ * (damage, cleave, retaliation, deaths are one impact), wrong when two different swings' results sit next to
+ * each other. A summoned charger's exchange and the parked attacker's exchange became ONE beat, so the
+ * attacker's swing had no beat of its own and nothing could separate them: *"its attack follows immediately
+ * after the charging soldier attacks"* was them being literally simultaneous.
+ */
+describe('the collapse breaks between two swings', () => {
+  const ev = (o: Record<string, unknown>) => o as unknown as Parameters<typeof compileMoments>[0][number];
+
+  it('a later attacker’s first damage starts its own moment', () => {
+    const moments = compileMoments([
+      ev({ type: 'attack', attacker: 'A', defender: 'X', step: 1 }),   // A swings, its damage comes later
+      ev({ type: 'attack', attacker: 'B', defender: 'X', step: 2 }),   // B swings first (a charger)
+      ev({ type: 'dmg', target: 'X', amount: 3, source: 'B', step: 2 }),
+      ev({ type: 'dmg', target: 'B', amount: 9, source: 'X', step: 2 }), // retaliation — NOT a new swing
+      ev({ type: 'death', target: 'B', step: 3 }),
+      ev({ type: 'dmg', target: 'X', amount: 5, source: 'A', step: 4 }), // A's swing lands: a NEW beat
+      ev({ type: 'dmg', target: 'A', amount: 1, source: 'X', step: 4 }),
+    ], DEFAULT_RULES);
+    const shape = moments.map((m) => `${m.start},${m.end}`);
+    expect(shape, 'B’s exchange and A’s exchange must not share a beat').toEqual(['0,1', '1,2', '2,5', '5,7']);
+  });
+
+  it('an ORDINARY clash is untouched — a retaliation is not a new swing', () => {
+    const moments = compileMoments([
+      ev({ type: 'attack', attacker: 'A', defender: 'X', step: 1 }),
+      ev({ type: 'dmg', target: 'X', amount: 3, source: 'A', step: 1 }),
+      ev({ type: 'dmg', target: 'A', amount: 2, source: 'X', step: 1 }),
+      ev({ type: 'death', target: 'A', step: 2 }),
+    ], DEFAULT_RULES);
+    // The swing, then its whole impact — exactly as before. The run keeps its OWN opening damage.
+    expect(moments.map((m) => `${m.start},${m.end}`)).toEqual(['0,1', '1,4']);
+  });
+});

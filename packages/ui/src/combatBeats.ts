@@ -64,6 +64,21 @@ export function meleePairOfImpact(beats: Beat[], resultIndex: number): { attacke
 }
 
 export function buildBeats(events: CombatEvent[]): Beat[] {
+  // ONE SWING'S RESULTS ARE ONE BEAT — mirrors `swingOpeners` in `choreo/compile.ts`, which this function is
+  // the equivalence oracle for. Without it a summoned charger's exchange and the parked attacker's exchange
+  // collapse into a single beat (owner report 2026-09-01).
+  const opensSwing = new Array<boolean>(events.length).fill(false);
+  {
+    const pending = new Set<string>();
+    for (let i = 0; i < events.length; i++) {
+      const e = events[i]!;
+      if (e.type === 'attack') pending.add(e.attacker);
+      else if (e.type === 'dmg' && typeof e.source === 'string' && pending.has(e.source)) {
+        opensSwing[i] = true;
+        pending.delete(e.source);
+      }
+    }
+  }
   const beats: Beat[] = [];
   let i = 0;
   while (i < events.length) {
@@ -77,7 +92,8 @@ export function buildBeats(events: CombatEvent[]): Beat[] {
       // pause before it. This runs BEFORE the type rules so a wave is never split by an interleaved reactor buff.
       while (i < events.length && events[i]!.wave === w) i++;
     } else if (RESULT_TYPES.has(t)) {
-      while (i < events.length && events[i]!.wave === undefined && RESULT_TYPES.has(events[i]!.type)) i++; // group the impact
+      while (i < events.length && events[i]!.wave === undefined && RESULT_TYPES.has(events[i]!.type)
+        && !(i > start && opensSwing[i])) i++; // group the impact
     } else if (t === 'buff') {
       while (i < events.length && events[i]!.wave === undefined && events[i]!.type === 'buff') i++; // a multi-target buff lands at once
     } else if (t === 'attack') {

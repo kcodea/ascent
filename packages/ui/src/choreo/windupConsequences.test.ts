@@ -218,6 +218,38 @@ describe('an absorbed swing lengthens its wind-up — it does NOT park', () => {
     expect(line.includes('cfg.windupSettleMs'), 'the settle beat must extend it too').toBe(true);
   });
 
+  it('a float’s removal outlives the beat that spawned it', () => {
+    // *"dmg values being left behind from fel spike's trigger"* — owner, 2026-09-01.
+    //
+    // A float lives ~1.5s and is removed by its own timer. Those timers sat in the beat effect's `timers`
+    // array, whose cleanup clears everything on each beat change — so any float still on screen when the beat
+    // advanced lost its removal and stayed forever. Latent all along; splitting a swing's results into their
+    // own beats made the beats short enough to lose the race routinely.
+    //
+    // Same rule `scheduleRoll` and `echoVolleyTimersRef` already follow: a timer whose job outlives the beat
+    // that scheduled it does not belong to that beat.
+    expect(REPLAY.includes('floatTimersRef.current.push(window.setTimeout'),
+      'float removal must be scheduled on the combat-lifetime registry').toBe(true);
+    const spawn = REPLAY.slice(REPLAY.indexOf('onFloats: (spawned)'), REPLAY.indexOf('onAuraBurst:'));
+    expect(/timers\.push\(window\.setTimeout/.test(spawn),
+      'a float removal on the per-beat timers is cancelled the moment the beat advances').toBe(false);
+  });
+
+  it('a parked attacker waits a beat before committing its swing', () => {
+    // *"we need a slight delay after the final resolution before the echohorn actually commits its attack"* —
+    // owner, 2026-09-01. Its Echo has just finished (a spray, a charger's whole exchange) and the swing it has
+    // been holding should read as a deliberate act, not the tail of that.
+    //
+    // ADDITIVE, through the same `lead` path every other consequence hold uses. An earlier attempt REPLACED
+    // the hold and fired the release from the clock while the park was also driving the advance — two owners
+    // of one clock, which desynced the frame. This only lengthens a beat: no callbacks move, nothing else
+    // changes about who advances.
+    expect(REPLAY.includes('parkedCommitLead(next, events),'),
+      'the parked attacker’s damage beat must take the commit lead').toBe(true);
+    expect(REPLAY.includes('if (lead) d += lead / combatSpeedRef.current;'),
+      'and it must be ADDED to the hold, never replace it').toBe(true);
+  });
+
   it('and both dials are OFF for a swing with no buffs', () => {
     // `ctx.onWindupBuffs` is only supplied when the moment actually carries buffs, so an ordinary swing pays
     // neither — the whole point of keeping them as dials rather than folding them into the base pause.

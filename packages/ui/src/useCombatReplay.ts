@@ -847,6 +847,29 @@ export function echoWaveDamagedCount(events: CombatEvent[], dyingUid: string, wa
   return seen.size;
 }
 
+/**
+ * A beat of stillness before a PARKED attacker commits its swing (owner ask 2026-09-01).
+ *
+ * Returns 0 unless `next` carries the parked attacker's own damage — so an ordinary swing, and every beat of
+ * the Echo in between, are untouched. `parkedCommitRef` is written by the park and cleared by its release.
+ */
+function parkedCommitLead(next: Moment, events: CombatEvent[]): number {
+  const held = parkedCommitRef.uid;
+  if (!held) return 0;
+  for (let i = next.start; i < next.end; i++) {
+    const e = events[i];
+    if (e?.type === 'dmg' && e.source === held && e.wave === undefined) return PARKED_COMMIT_LEAD_MS;
+  }
+  return 0;
+}
+
+/** How long a parked attacker sits still after its Echo finishes, before its own swing lands. */
+const PARKED_COMMIT_LEAD_MS = 260;
+
+/** Who is currently parked, for `parkedCommitLead`. Module-scoped so the lead helper can sit beside its
+ *  siblings instead of the beat effect threading a ref through every one of them. */
+const parkedCommitRef: { uid: string | null } = { uid: null };
+
 /** The travel lead (ms, 1× speed) to HOLD before `next` when it is a `launchOnDeath` Echo damage wave whose
  *  spray was launched from a death in `shown` — so the wave's damage lands as the spikes connect. 0 otherwise. */
 function echoDeliveryLead(shown: Moment | undefined, next: Moment, events: CombatEvent[], cardIds: Map<string, string>): number {
@@ -1093,11 +1116,28 @@ export function useCombatReplay(
   // here instead, cleared ONLY on reset/seek (`cancelPendingRolls`), so every volley fires but a scrub cancels
   // the ones still pending.
   const echoVolleyTimersRef = useRef<number[]>([]);
+  /**
+   * FLOAT REMOVAL TIMERS — combat-lifetime, NOT per-beat (owner report 2026-09-01: *"dmg values being left
+   * behind from fel spike's trigger"*).
+   *
+   * A float lives ~1.5s and is removed by its own timer. Those timers used to sit in the beat effect's
+   * `timers` array, which its cleanup clears on every beat change — so any float still on screen when the beat
+   * advanced lost its removal and stayed forever. A Fel Spikes spray is the worst case: many floats, spawned
+   * across several fast wave beats.
+   *
+   * Latent all along, and exposed by splitting a swing's results into their own beats (2026-09-01) — more,
+   * shorter beats means the race is lost far more often. This is the same fix, for the same reason, that
+   * `scheduleRoll` and `echoVolleyTimersRef` already carry: a timer whose job outlives the beat that scheduled
+   * it does not belong to that beat.
+   */
+  const floatTimersRef = useRef<number[]>([]);
   // HELD WINDUP (Echohorn firing a forced Fel Spikes spray on its swing): its lunge PARKS at the top of the
   // wind-up while the whole spray plays across the following beats, then resumes its strike when the attacker's
   // own attack lands — or is killed if the spray killed the attacker first. Combat-lifetime (survives per-beat
   // cleanup); cleared on reset/seek.
-  const heldLungeRef = useRef<{ uid: string; tl: ReturnType<typeof gsap.timeline> } | null>(null);
+  /** A PARKED lunge: the attacker, the body it was swinging at, and the timeline holding its pose. The
+   *  `defender` is what lets a CANCELLED swing be told apart from a pending one — see the release below. */
+  const heldLungeRef = useRef<{ uid: string; defender: string; tl: ReturnType<typeof gsap.timeline> } | null>(null);
 
   // Schedule a buff's strike-delay timer in the combat-lifetime registry above (not the caller's per-beat
   // `timers`), so an ordinary beat advance cannot cancel it. When the delay elapses, hand off to `driveRoll`
@@ -1156,9 +1196,12 @@ export function useCombatReplay(
     // or a re-seek supersedes them (they'd otherwise fire a stale spray onto the new frame).
     for (const id of echoVolleyTimersRef.current) window.clearTimeout(id);
     echoVolleyTimersRef.current = [];
+    for (const id of floatTimersRef.current) window.clearTimeout(id);
+    floatTimersRef.current = [];
     // A parked held-windup lunge from a swing this instance already replayed must not survive a fresh combat or
     // a re-seek — kill it and drop the frozen pose.
     if (heldLungeRef.current) { heldLungeRef.current.tl.kill(); heldLungeRef.current = null; }
+    parkedCommitRef.uid = null; // a reset/re-seek drops the park, so it must drop its commit hold too
   }, []);
 
   /**
@@ -1560,6 +1603,16 @@ export function useCombatReplay(
       const lead = Math.max(
         deathConsequenceLead(shown, next, events, cardIds, atkUid),
         pulledHomeAttackerHold(shown, atkUid, events, cardIds),
+        // A PARKED attacker's own damage beat waits a moment first (owner ask 2026-09-01: *"we need a slight
+        // delay after the final resolution before the echohorn actually commits its attack"*). Its forced Echo
+        // has just finished — a spray, a charger's whole exchange — and the swing it has been holding should
+        // read as a separate, deliberate act rather than the tail of that.
+        //
+        // Deliberately ADDITIVE, through this same `lead` path every other consequence hold uses. The previous
+        // attempt REPLACED the hold and fired the release from this effect while the park was also driving the
+        // advance — two owners of one clock, which is what desynced the frame. This only lengthens a beat; it
+        // moves no callbacks and changes nothing about who advances.
+        parkedCommitLead(next, events),
       );
       if (lead) d += lead / combatSpeedRef.current;
     }
@@ -1915,12 +1968,12 @@ export function useCombatReplay(
           return [...merged, ...spawned.filter((s) => !present.has(s.id))];
         });
         const ids = new Set(spawned.map((s) => s.id));
-        timers.push(window.setTimeout(() => setFloats((arr) => arr.filter((x) => !ids.has(x.id))), getChoreoConfig().floatMs / combatSpeedRef.current));
+        floatTimersRef.current.push(window.setTimeout(() => setFloats((arr) => arr.filter((x) => !ids.has(x.id))), getChoreoConfig().floatMs / combatSpeedRef.current));
       },
       onDeathFloats: (deaths) => {
         setDeathFloats((arr) => [...arr, ...deaths.filter((s) => !arr.some((x) => x.id === s.id))]);
         const ids = new Set(deaths.map((s) => s.id));
-        timers.push(window.setTimeout(() => setDeathFloats((arr) => arr.filter((x) => !ids.has(x.id))), getChoreoConfig().deathFloatMs / combatSpeedRef.current));
+        floatTimersRef.current.push(window.setTimeout(() => setDeathFloats((arr) => arr.filter((x) => !ids.has(x.id))), getChoreoConfig().deathFloatMs / combatSpeedRef.current));
       },
       onAuraBurst: (uid) => burstDeathAuras(uid, rectOf(uid)),
       onShieldBreak: (uid) => breakShieldAura(rectOf(uid)),
@@ -2077,9 +2130,13 @@ export function useCombatReplay(
     if (held) {
       let died = false;
       let struck = false;
+      let targetGone = false;
+      // The WHOLE beat is scanned before deciding: the old loop broke on the attacker's death, so a beat
+      // carrying both its strike and its death read as a death alone.
       for (let i = beat.start; i < beat.end; i++) {
         const e = events[i];
-        if (e?.type === 'death' && e.target === held.uid) { died = true; break; }
+        if (e?.type === 'death' && e.target === held.uid) died = true;
+        if (e?.type === 'death' && e.target === held.defender) targetGone = true;
         if (e?.type === 'dmg' && e.source === held.uid && e.wave === undefined) struck = true;
       }
       if (died) {
@@ -2087,9 +2144,36 @@ export function useCombatReplay(
         const el = findEl(held.uid);
         if (el) { setTransition(el, ''); gsap.set(el, { clearProps: 'transform,zIndex' }); }
         heldLungeRef.current = null;
+        parkedCommitRef.uid = null;
       } else if (struck) {
         held.tl.play(); // resume: strike → contact → settle, out of the held pose
         heldLungeRef.current = null;
+        parkedCommitRef.uid = null;
+      } else if (targetGone) {
+        /**
+         * ITS TARGET DIED BEFORE IT COULD SWING — the swing is cancelled and the body relaxes.
+         *
+         * The park is released by the attacker's OWN damage landing. Since 2026-09-01 the engine SKIPS the
+         * clash when the target died in the wind-up (no damage out, no retaliation back), so that damage never
+         * comes and the release had no third way out: the attacker stood reared back for the rest of the
+         * fight. Two conditions were never enough — a swing can also simply be cancelled.
+         *
+         * Tweened home rather than the death branch's `clearProps` snap, because this body is alive and on
+         * screen: it should relax out of the pose, not teleport out of it. No strike — there is nothing left
+         * to hit, and lunging into an empty slot reads as a miss the engine never had.
+         */
+        held.tl.kill();
+        const el = findEl(held.uid);
+        if (el) {
+          gsap.to(el, {
+            x: 0, y: 0, rotation: 0, scale: 1,
+            duration: 0.24 / (combatSpeedRef.current > 0 ? combatSpeedRef.current : 1),
+            ease: 'power2.out',
+            onComplete: () => { setTransition(el, ''); gsap.set(el, { clearProps: 'transform,zIndex' }); },
+          });
+        }
+        heldLungeRef.current = null;
+        parkedCommitRef.uid = null;
       }
     }
     // Stop showing a CLIMBING Fel Spikes number on a unit that DIES: its number is a persistent (held) float,
@@ -2320,7 +2404,16 @@ export function useCombatReplay(
         engineAdvancingRef.current = tl !== null; // engine owns the advance; if it couldn't build, the scheduler falls back
         // Remember a PARKED lunge so a later beat can resume its strike (attacker's own hit) or kill it (attacker
         // died in the spray). Cleared on resolve/reset. If the lunge couldn't build, there's nothing to park.
-        heldLungeRef.current = heldWindup && tl !== null ? { uid: atkUid, tl } : null;
+        // A NON-PARKED swing must not clear an existing park: Echohorn's Rally can summon a body that attacks
+        // DURING the park, and an unconditional `: null` drops the handle to its held lunge — leaving it parked
+        // with nobody able to release it. A park is cleared only by its own release, or by a reset.
+        if (heldWindup && tl !== null) {
+          heldLungeRef.current = { uid: atkUid, defender: cur.primary.defender, tl };
+          parkedCommitRef.uid = atkUid;
+        } else if (heldLungeRef.current?.uid === atkUid) {
+          heldLungeRef.current = null;
+        parkedCommitRef.uid = null; // this attacker is swinging again, un-parked — its old park is void
+        }
         if (tl === null) breakWards?.(); // lunge cue dropped → no contact anchor to ride; shatter now so it isn't lost
       } else {
         setAttackUid(null);

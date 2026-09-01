@@ -83,6 +83,19 @@ export const PATCH_NOTES: PatchNote[] = [
         text: 'Gorun’s Blade Mastery now has its own effect and sound as it sharpens each swing.',
       },
       {
+        category: 'Card Change',
+        text: 'Everything a minion sets off by attacking now fully resolves before its own attack lands.',
+        details: [
+          'A Rally that triggers an Echo — Echohorn, Deathsayer — plays out completely first, summons and all.',
+          'A summoned minion that attacks immediately resolves its whole attack before the next one is summoned.',
+          'If the attacker’s target dies to all that, the attacker simply settles: no damage dealt, and none taken back.',
+        ],
+      },
+      {
+        category: 'UI / Info',
+        text: 'Each minion’s attack now gets its own moment, instead of sharing one with an attack that just happened.',
+      },
+      {
         category: 'UI / Info',
         text: 'Broodfire now sets its Dragons alight with its own effect and sound as it buffs them.',
       },

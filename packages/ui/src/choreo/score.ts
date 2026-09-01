@@ -13,6 +13,7 @@ import {
 } from './channels/rallyFired';
 import { releaseSummons } from '../fx/summonHold';
 import { getLungeConfig } from '../lungeConfig';
+import { authoredBuffDefFor } from './bindings';
 import type { FxBinding } from './bindings';
 import { cascade, scheduleLands } from '../fx/land';
 import { claimOrHold } from '../fx/statHold';
@@ -308,6 +309,54 @@ export function rallyDeliveredUids(moment: Moment, ctx: Pick<CueContext, 'events
   return boundRalliesIn(moment, ctx).flatMap((r) => r.delivered.flat());
 }
 
+/**
+ * The uid ACTING in this moment — the primary event's source, with the sourceless-damage fallback.
+ *
+ * A damage moment's primary can be sourceless: a Divine Shield pop (`shield`) leads the wave when the first
+ * target has a Ward, so `momentUnits` reads no source though the wave HAS an actor. The first `dmg` event's
+ * own `source` is that actor (every hit in one wave shares it). Undefined for legacy/sourceless damage, in
+ * which case this stays null and nothing downstream changes.
+ */
+function momentSourceUid(moment: Moment, ctx: Pick<CueContext, 'events'>): string | null {
+  const fromPrimary = momentUnits(moment.primary).source;
+  if (fromPrimary !== null) return fromPrimary;
+  for (let i = moment.start; i < moment.end; i++) {
+    const e = ctx.events[i];
+    if (e?.type === 'dmg' && typeof e.source === 'string') return e.source;
+  }
+  return null;
+}
+
+/**
+ * WHICH CARD OWNS THIS MOMENT for binding purposes — the SPELL when one was cast, otherwise the acting body.
+ *
+ * A combat cast (`sc`) names the caster's uid, so without the spell's own id a cast could only be identified
+ * by the minion that cast it — and an authored spell effect would have to be bound to every caster, with each
+ * new one arriving silently unanimated. `spellId` (stamped by every "X casts Y" emit) makes the SPELL the
+ * subject, which is what the player is watching:
+ *
+ *   *"i added a dragonflame effect that should play anytime dragonflame is played … from cards that cast it
+ *   in combat … whenever dragonflame is cast, the animation should play"* — owner, 2026-09-01
+ *
+ * The caster stays the fallback, so every existing `sc` binding (the Butcher's, the Tormentor's) resolves
+ * exactly as before: those emit no `spellId`, because they narrate rather than cast a card.
+ *
+ * ONE function, read by BOTH the `fxDef` channel (which def plays) and the `buffCast` channel (whether the
+ * stock tendril stands down for it). Two copies of this rule would be two chances for the def and the
+ * suppression to disagree about whose moment this is — and a disagreement there shows up as a tendril
+ * playing under an authored effect, or an authored effect with no tendril and nothing else.
+ */
+function momentBindingCard(moment: Moment, ctx: Pick<CueContext, 'events' | 'cardIds'>): string | null {
+  // BOTH event shapes a cast produces carry the spell: the announcement (`sc`) and each consequence (`buff`).
+  // The buff wave matters as much as the announcement — it is a moment of its own, and it is where the stock
+  // tendril lives, so attributing it to the caster is what made Dragonflame's casters "trigger tendrils
+  // instead" (owner report 2026-09-01).
+  const p = moment.primary;
+  const castSpellId = p.type === 'sc' || p.type === 'buff' ? p.spellId : undefined;
+  if (castSpellId !== undefined) return castSpellId;
+  return ctx.cardIds?.get(momentSourceUid(moment, ctx) ?? '') ?? null;
+}
+
 /** Run one moment's plain-effect cues (sfx + float + the three aura sub-channels). Each cue fires at
  *  `start + offset`: an offset ≤0 fires synchronously; a positive offset schedules a timer (÷combatSpeed
  *  unless `scaled:false`, e.g. the reborn re-form's fixed wall-clock). Returns a cleanup that cancels any
@@ -361,7 +410,17 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
       for (let i = moment.start; i < moment.end; i++) { const e = ctx.events[i]; if (e?.type === 'reborn') ctx.onReborn(e.target); }
     });
     else if (cue.ch === 'buffCast') at(cue, () => {
-      const casts = groupBuffCasts(moment, ctx.events);
+      // AUTHORED REPLACES STOCK (owner report 2026-09-01): *"flamebeat drake and warflame both cast dragonflame
+      // in combat, but both are triggering tendrils instead. please replace the tendrils with the dragonflame
+      // effect."* A `buffedOn` def plays ON each buffed minion — the same bodies the tendril reaches for and
+      // the same beat — so the two read as one effect drawn twice. This is the combat twin of the shop's rule
+      // (`Recruit.tsx` skips a tendril whose source has a `minionBuffed` binding), and the reason it keys off
+      // the FAN-OUT rather than "is anything bound": `buffed` is deliberately ADDITIVE (Karwind's flame-ring
+      // rides on top of its tendrils, owner ruling 2026-08-11), and `buffedOn` is the one that replaces.
+      // Per CAST, through the same helper the wind-up path uses (`authoredBuffDefFor`) — one rule, two very
+      // different callers. Filtering rather than standing the whole channel down keeps a moment that mixes a
+      // spell's buffs with an unrelated buffer's honest: the spell's play their def, the rest keep tendrils.
+      const casts = groupBuffCasts(moment, ctx.events).filter((c) => authoredBuffDefFor(c.spellId) === null);
       if (casts.length) ctx.onBuffCasts(casts);
     });
     else if (cue.ch === 'buffSelf') at(cue, () => {
@@ -554,37 +613,11 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
       // channel's death voicelines. It replaces a DOM lookup (`[data-card]`), which was the most suspect link
       // in this chain: it depended on the unit being rendered, findable by selector, and carrying an attribute
       // added for this feature. Combat state knows the answer without any of that.
-      const primaryUnits = momentUnits(moment.primary);
-      const target = primaryUnits.target;
-      let source = primaryUnits.source;
-      // A damage MOMENT's primary can be sourceless — a Divine Shield pop (`shield`) leads the wave when the
-      // first target has a Ward, so `momentUnits` reads no source though the wave HAS an actor. Fall back to the
-      // first `dmg` event's own `source` (every hit in one wave shares it), so a source→target binding — Fel
-      // Spikes' Echo volley — still attributes to the caster. `dmg.source` is undefined for legacy/sourceless
-      // damage, in which case this stays null and nothing changes.
-      if (source === null) {
-        for (let i = moment.start; i < moment.end; i++) {
-          const e = ctx.events[i];
-          if (e?.type === 'dmg' && typeof e.source === 'string') { source = e.source; break; }
-        }
-      }
-      /**
-       * WHICH CARD OWNS THIS MOMENT — the SPELL when one was cast, otherwise the body.
-       *
-       * A combat cast (`sc`) names the caster's uid, so without the spell's own id a cast could only be
-       * identified by the minion that cast it — and an authored spell effect would have to be bound to every
-       * caster, with each new one arriving silently unanimated. `spellId` (stamped by every "X casts Y" emit)
-       * makes the SPELL the subject, which is what the player is watching:
-       *
-       *   *"i added a dragonflame effect that should play anytime dragonflame is played. that includes from
-       *   hand, from cards that cast it in combat … whenever dragonflame is cast, the animation should play"*
-       *   — owner, 2026-09-01
-       *
-       * The caster stays the fallback, so every existing `sc` binding (the Butcher's, the Tormentor's) still
-       * resolves exactly as before: those emit no `spellId`, because they narrate rather than cast a card.
-       */
-      const castSpellId = moment.primary?.type === 'sc' ? moment.primary.spellId : undefined;
-      const cardId = castSpellId ?? ctx.cardIds?.get(source ?? '') ?? null;
+      const target = momentUnits(moment.primary).target;
+      // Both from the shared resolvers above, so the `buffCast` channel's stand-down decision and this
+      // channel's choice of def are answering the same question with the same code.
+      const source = momentSourceUid(moment, ctx);
+      const cardId = momentBindingCard(moment, ctx);
       // ale-bubbles (Set 2, Dwarves): a Dwarf that GENERATES a Dwarven Ale in combat — Doubletap Brewer's Echo,
       // Blade Thrower's Rally — emits a `toHand` event whose cardId is an Ale, carrying the generator's uid as
       // `source`. Burst from that unit. Keyed on the GRANTED card being an Ale (not on the generator's id), so
@@ -681,6 +714,19 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
           groupBuffCasts(moment, ctx.events).forEach((c, i) => {
             const fanAnchors = anchorsForUnits(c.source, c.target);
             if (fanAnchors) playDef(binding.def, fanAnchors, { uids: { source: c.source, target: c.target }, index: i });
+          });
+        });
+      } else if (binding.fanOut === 'buffedOn') {
+        at(cue, () => {
+          // Same recipients as `buffed`, ON each of them instead of travelling to them: BOTH anchors are the
+          // buffed unit, so a def authored against `source` (a column of flame, not a projectile) engulfs the
+          // minion that grew rather than firing from the caster. The recruit half of this rule lives in
+          // `runBuffedOnFire`, and the two must agree — a spell bound at both kinds is ONE authored effect,
+          // and having it land on the caster in combat and on the target in the shop would read as a bug in
+          // whichever phase the player saw second (owner 2026-09-01, Dragonflame).
+          groupBuffCasts(moment, ctx.events).forEach((c, i) => {
+            const fanAnchors = anchorsForUnits(c.target, c.target);
+            if (fanAnchors) playDef(binding.def, fanAnchors, { uids: { source: c.target, target: c.target }, index: i });
           });
         });
       } else {

@@ -5829,7 +5829,12 @@ export function Recruit() {
     // The minions this cast buffed THIS action are the trail targets (leftmost / 3 randoms); distinct uids.
     const targets = Array.from(new Set(st.recruitBuffFx.map((e) => e.targetUid)));
     if (targets.length > 0) spellCastOwnedRef.current = { seq: st.recruitFxSeq, uids: new Set(targets) };
-    const recipients = targets.map((uid) => ({ uid, count: 1 }));
+    // `count` is how many BUFFS landed on that body this action, not just that it was hit — a multicast spell
+    // buffs the same minion once per resolution, so the count IS the cast count for a `buffedOn` def (owner
+    // 2026-09-01). The ale volley ignores counts and fires once per distinct uid, exactly as before.
+    const hits = new Map<string, number>();
+    for (const e of st.recruitBuffFx) hits.set(e.targetUid, (hits.get(e.targetUid) ?? 0) + 1);
+    const recipients = targets.map((uid) => ({ uid, count: hits.get(uid) ?? 1 }));
     const ctx = {
       cardIdOf: (uid: string) => runRef.current.board.find((c) => c.uid === uid)?.cardId ?? null,
       measure: (uid: string) => { const el = document.querySelector<HTMLElement>(`[data-uid="${uid}"]`); return el ? restingCenterOf(el) : null; },

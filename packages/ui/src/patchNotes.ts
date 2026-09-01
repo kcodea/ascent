@@ -71,6 +71,14 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'UI / Info',
+        text: 'Everything a minion sets off by attacking now plays while it is still reared back, before the swing lands.',
+        details: [
+          'Spells cast from an attack — Flamebeat Drake, Warflame — resolve in the wind-up with their effects and stats.',
+          'Previously the lunge finished first and the consequences played afterwards.',
+        ],
+      },
+      {
+        category: 'UI / Info',
         text: 'Broodfire now sets its Dragons alight with its own effect and sound as it buffs them.',
       },
       {

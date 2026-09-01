@@ -36,7 +36,7 @@ import { isDeathrattleBufferCard } from './deathrattleBuffers';
 import { fireBuffFx } from './buffFxRender';
 import { cardFxScale } from './fx/cardScale';
 import { canPlayDefs, playDef } from './fx/playDef';
-import { bindingFor } from './choreo/bindings';
+import { authoredBuffDefFor, bindingFor } from './choreo/bindings';
 import { isRuneBuffSource, hasPower } from '@game/sim';
 import { anchorsForUnits } from './fx/combatAnchors';
 import { getDef } from './fx/fxDefs';
@@ -67,6 +67,11 @@ function notifyPresented(e: CombatEvent): void {
  *  hit counting the HP DOWN. Owner-tuned 2026-08-07 to 650ms (up from the shop's `DEFAULT_ROLL_MS`, 420) so the
  *  count runs slower and reads more clearly in a fight; it is its own constant precisely so a fight-paced roll
  *  can diverge from the shop's pace like this. */
+/** How long after an AUTHORED buff def lands its target's stat roll starts. The stock tendril uses its own
+ *  flight time; a def has no flight, so this is its stand-in — short, because the whole reason an on-attack
+ *  cast is absorbed into the wind-up is that its numbers should reconcile while the attacker is still held
+ *  (owner ask 2026-09-01). */
+const AUTHORED_BUFF_ROLL_MS = 140;
 const COMBAT_ROLL_MS = 650;
 
 /**
@@ -1359,6 +1364,23 @@ export function useCombatReplay(
       if (!tEl) continue; // target not on screen → nothing to land on
       const tr = tEl.getBoundingClientRect();
       const tc = { x: tr.left + tr.width / 2, y: tr.top + tr.height / 2 };
+      // AUTHORED REPLACES STOCK, per BUFF (owner report 2026-09-01: *"they are back to casting tendrils instead
+      // of dragonflame"*). A spell whose combat def is bound `buffedOn` plays ON the buffed unit INSTEAD of the
+      // generic tendril — the two reach the same body on the same beat, so firing both draws one effect twice.
+      //
+      // Decided here rather than at the moment level because an on-attack cast now resolves INSIDE the wind-up:
+      // the moment belongs to the ATTACK, so the spell is no longer visible from the moment's own binding and
+      // only the individual buff still knows which spell caused it.
+      const authored = authoredBuffDefFor(c.spellId);
+      if (authored !== null) {
+        playDef(authored, { source: tc, target: tc, cursor: tc, camera: { x: window.innerWidth / 2, y: window.innerHeight / 2 } },
+          { uids: { source: c.target, target: c.target } });
+        // The tendril's flight time is what normally releases the withheld stats; with no tendril, the roll
+        // rides the def's own arrival instead. Kept SHORT on purpose — the number should reconcile while the
+        // attacker is still held in its pre-strike pose, which is the whole point of absorbing the cast.
+        if (!perTarget.has(c.target)) perTarget.set(c.target, AUTHORED_BUFF_ROLL_MS);
+        continue;
+      }
       const cardId = cardIds.get(c.source) ?? '';
       const tribe = (CARD_INDEX[cardId]?.tribe ?? 'neutral') as Tribe;
       const sourceless = isDeathrattleBufferCard(cardId);
@@ -2147,8 +2169,20 @@ export function useCombatReplay(
         // 2026-08-24): the attacker holds its reared-back pose through the whole Echo — every pulse, skull and
         // volley — and strikes (or dies) only once its own `dmg` finally lands (the resume above). Marked by the
         // attacker emitting a `rally` on this swing (the force-triggered-Echo signal), before its own strike.
-        let heldWindup = false;
-        if (rallies) {
+        //
+        // WIDENED 2026-09-01 (owner ask): the park is no longer about forced Echoes specifically. *"we need all
+        // of the animations and stats to reconcile while the flamebeat is paused in his pre-attack animation,
+        // like echohorn does. we need this to be the case for all cases where buffs are applying or animations
+        // are firing from an attack."* So the signal is simply: did this swing ABSORB anything? A wind-up moment
+        // wider than the `attack` event itself is a swing with consequences — buffs, a cast, a summon, a forced
+        // Echo — and every one of them should resolve while the attacker holds its pose, not after the lunge
+        // has already landed. A plain swing absorbs nothing, so `end === start + 1` and nothing changes for it.
+        //
+        // The rally scan is kept as a SEPARATE reason rather than folded in: a forced Echo can resolve into
+        // events that are NOT absorbed (a Fel Spikes spray's `dmg`, a Dawnclaw Battlecry-replay), so its moment
+        // can be exactly one event wide and still need the park. Two independent reasons, either sufficient.
+        let heldWindup = cur.end > cur.start + 1;
+        if (!heldWindup && rallies) {
           for (let i = cur.start; i < events.length; i++) {
             const e = events[i];
             if (e?.type === 'attack' && i > cur.start) break;

@@ -216,7 +216,10 @@ function runSpellCastFire(moment: RecruitMoment, ctx: RecruitCueContext): () => 
   // KIND-level default (`spell-sparks`): a fanning default would fire a 122-particle burst once per buffed
   // minion for every spell in the game, and land it ON those minions rather than where the player cast it.
   // The ales declare `fanOut` explicitly and keep their cursor→minion volley unchanged.
-  const fansOut = binding.fanOut === 'buffed' && moment.recipients.length > 0;
+  const fansOut = (binding.fanOut === 'buffed' || binding.fanOut === 'buffedOn') && moment.recipients.length > 0;
+  // ON the buffed minion, not travelling to it — see `buffedOn` in `bindings.ts`. Handled before the single-fire
+  // branch because it is a fan-out with its OWN anchor convention, not a variant of the cursor volley below.
+  if (binding.fanOut === 'buffedOn' && fansOut) return runBuffedOnFire(moment, binding, ctx, src);
   // The single fire is at the RELEASE POINT — the cursor. `target` is deliberately the cursor too, not a
   // minion, so a `target`-anchored layer lands where the spell was actually cast (owner call 2026-08-19).
   if (!fansOut) {
@@ -251,6 +254,50 @@ function runSpellCastFire(moment: RecruitMoment, ctx: RecruitCueContext): () => 
     if (binding.sfx !== undefined) sfx[binding.sfx]?.(); // one sound for the volley, not one per target
   });
   return () => cancelAnimationFrame(raf);
+}
+
+/**
+ * A `buffedOn` cast: the def plays ON each minion the spell buffed, once per BUFF it landed there.
+ *
+ * `count` is how many times that minion was buffed by this action, which for a multicast spell IS the cast
+ * count — Dragonflame at ×2 buffs twice, so the same body carries two. Playing per buff rather than per
+ * recipient is what makes the owner's two asks one mechanism instead of two:
+ *
+ *   *"whenever dragonflame is cast, the animation should play, and should play each time it is cast"*
+ *   *"…it should be happening at the target of the buff's location"*   — owner, 2026-09-01
+ *
+ * So there is deliberately NO `moment.casts` repeat here: the buff events already encode the resolutions, and
+ * multiplying by the cast count on top would square them. The sound fires once per WAVE index (one per cast,
+ * however many minions that cast hit) rather than once per play, which is the same rule the ale volley uses.
+ *
+ * Measured inside one rAF for the same reason the volley below is: the buffed cards re-render on this commit
+ * (their stats changed), so their geometry is only trustworthy after layout.
+ */
+function runBuffedOnFire(
+  moment: RecruitMoment,
+  binding: FxBinding,
+  ctx: RecruitCueContext,
+  src: string | null,
+): () => void {
+  const timers: ReturnType<typeof setTimeout>[] = [];
+  const camera = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+  const waves = Math.max(1, ...moment.recipients.map((r) => r.count));
+  const raf = requestAnimationFrame(() => {
+    for (let wave = 0; wave < waves; wave++) {
+      const fire = (): void => {
+        for (const r of moment.recipients) {
+          if (r.count <= wave) continue; // this body was not buffed on this pass
+          const c = ctx.measure(r.uid);
+          if (!c) continue; // minion left the DOM (sold/tripled) before paint — skip it cleanly
+          playDef(binding.def, { source: c, target: c, cursor: c, camera }, { uids: { source: src, target: r.uid }, index: wave });
+        }
+        if (binding.sfx !== undefined) sfx[binding.sfx]?.();
+      };
+      if (wave === 0) fire();
+      else timers.push(setTimeout(fire, wave * SPELL_RECAST_GAP_MS));
+    }
+  });
+  return () => { cancelAnimationFrame(raf); for (const t of timers) clearTimeout(t); };
 }
 
 /** One land. Measured INSIDE the timer so a stagger that outlives a re-render — a triple collapsing three

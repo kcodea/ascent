@@ -77,7 +77,7 @@ describe('compileMoments — default rules reproduce buildBeats exactly', () => 
     expect(moments[1]).toMatchObject({ start: 1, end: 2, primary: { type: 'toHand', cardId: 'y' }, stepGroups: [[1]] });
   });
 
-  it('a shop-buff sc after an attack is absorbed into the attack wind-up (Demon Horse); an ordinary sc is not', () => {
+  it('a mid-combat sc after an attack is absorbed into the attack wind-up; a Start-of-Combat cast is not', () => {
     // Shop-buff flash: `attack` then `+1/+2 Shop` fold into ONE attack moment so the number fires in the lunge.
     const shop = compileMoments(
       [
@@ -89,16 +89,33 @@ describe('compileMoments — default rules reproduce buildBeats exactly', () => 
     );
     expect(shop[0]).toMatchObject({ start: 0, end: 2, primary: { type: 'attack' } }); // attack + sc together
     expect(shop[1]).toMatchObject({ primary: { type: 'dmg' } });
-    // An ordinary (non-Shop) sc after an attack stays its OWN beat — the predicate is shop-buff-only.
-    const other = compileMoments(
+    // Any other mid-combat narration folds in the same way, and — the point of widening it on 2026-09-01 —
+    // so does everything BEHIND it. A Rally that casts a spell runs `attack, rally, sc, buff…`; stopping at the
+    // `sc` orphaned the cast AND its buffs into post-lunge beats, which is what the owner saw as "the lunge
+    // completes, then all the animations trigger, then damage is dealt".
+    const cast = compileMoments(
       [
         { type: 'attack', source: 'a', target: 'b', step: 0 },
-        { type: 'sc', source: 'a', text: '+2 Spell Power', step: 1 },
+        { type: 'rally', source: 'a', target: 'a', step: 1 },
+        { type: 'sc', source: 'a', text: 'Flamebeat Drake casts Dragonflame', spellId: 'sp_dragonflame', step: 2 },
+        { type: 'buff', target: 'a', attack: 4, health: 4, source: 'a', step: 3 },
+        { type: 'dmg', target: 'b', amount: 3, step: 4 },
       ] as unknown as Parameters<typeof compileMoments>[0],
       DEFAULT_RULES,
     );
-    expect(other[0]).toMatchObject({ start: 0, end: 1, primary: { type: 'attack' } });
-    expect(other[1]).toMatchObject({ start: 1, end: 2, primary: { type: 'sc' } });
+    expect(cast[0], 'the whole cast belongs to the wind-up it came from').toMatchObject({ start: 0, end: 4, primary: { type: 'attack' } });
+    expect(cast[1]).toMatchObject({ primary: { type: 'dmg' } });
+    // A genuine START-OF-COMBAT cast is NOT a consequence of a swing and keeps its own beat. (The absorb loop
+    // only runs after an `attack` anyway; this pins the predicate itself.)
+    const soc = compileMoments(
+      [
+        { type: 'attack', source: 'a', target: 'b', step: 0 },
+        { type: 'sc', source: 'a', text: 'X casts Y', cast: true, step: 1 },
+      ] as unknown as Parameters<typeof compileMoments>[0],
+      DEFAULT_RULES,
+    );
+    expect(soc[0]).toMatchObject({ start: 0, end: 1, primary: { type: 'attack' } });
+    expect(soc[1]).toMatchObject({ start: 1, end: 2, primary: { type: 'sc' } });
   });
 
   it('empty log compiles to no moments', () => {

@@ -85,10 +85,12 @@
     "sp_dragonflame": {
       "spellCast": {
         "def": "dragonflame",
+        "fanOut": "buffedOn",
         "sfx": "dragonflame"
       },
-      "scNarrate": {
-        "def": "dragonflame"
+      "buffWave": {
+        "def": "dragonflame",
+        "fanOut": "buffedOn"
       }
     },
     "dm_butcher": {

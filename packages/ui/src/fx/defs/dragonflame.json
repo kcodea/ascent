@@ -5,7 +5,7 @@
   "layers": [
     {
       "primitive": "burst",
-      "anchor": "source",
+      "anchor": "target",
       "at": 0,
       "params": {
         "count": 150,
@@ -555,7 +555,7 @@
     },
     {
       "primitive": "smoke",
-      "anchor": "source",
+      "anchor": "target",
       "at": 30,
       "params": {
         "rate": 405,

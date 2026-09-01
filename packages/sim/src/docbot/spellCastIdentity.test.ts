@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { CARD_INDEX } from '@game/content';
+import { combatSide, makeRng, simulate, type BoardMinion } from '@game/core';
 
 /**
  * DOC BOT LANE `spellCastIdentity` — a combat spell cast says WHICH SPELL it was.
@@ -65,4 +67,56 @@ describe('Doc Bot — every combat cast names the spell it cast', () => {
       ).toBe(true);
     },
   );
+});
+
+/**
+ * THE CONSEQUENCES CARRY IT TOO — the half that actually reaches the player.
+ *
+ * A cast produces two kinds of event and they land in DIFFERENT presentation moments: the announcement
+ * (`sc`) and the buffs. The stock buff tendril lives on the buff wave, so identifying only the announcement
+ * left the wave attributed to the CASTER — which is exactly what the owner saw:
+ *
+ *   *"flamebeat drake and warflame both cast dragonflame in combat, but both are triggering tendrils instead."*
+ *
+ * `ctx.castingSpellId` marks the whole cast window so every buff inside it says which spell caused it. Run
+ * through the real simulator rather than asserted on the source, because the marker has to survive the cast
+ * pipeline (repeats, spell power, the arena adapter) to be worth anything.
+ */
+describe('Doc Bot — a spell’s BUFFS carry the spell too, not just its announcement', () => {
+  const bm = (cardId: string, uid: string, attack: number, health: number, keywords: string[] = []): BoardMinion =>
+    ({ cardId, attack, health, sourceUid: uid, keywords } as unknown as BoardMinion);
+
+  /** Flamebeat Drake's Rally casts Dragonflame; it swings with `RL`, so its own attack is the Rally. */
+  const fight = () => simulate(
+    [bm('d2_flamebeat', 'F', 4, 400, ['RL']), bm('d2_ashscribe', 'D', 0, 400)],
+    [{ cardId: 'sandbag', attack: 0, health: 9999 } as unknown as BoardMinion], makeRng(5), CARD_INDEX,
+    combatSide({ tier: 6 }), combatSide({ tier: 1 }));
+
+  it('Flamebeat Drake’s Rally cast announces the spell', () => {
+    const casts = fight().events.filter((e) => e.type === 'sc' && e.spellId === 'sp_dragonflame');
+    expect(casts.length, 'no Dragonflame cast was announced at all').toBeGreaterThan(0);
+  });
+
+  it('…and every buff that cast produced names it', () => {
+    const buffs = fight().events.filter((e) => e.type === 'buff' && e.source === 'm0');
+    expect(buffs.length, 'the cast granted nothing').toBeGreaterThan(0);
+    for (const b of buffs) {
+      expect(
+        (b as { spellId?: string }).spellId,
+        'this buff is attributed to the Drake, so its wave plays the Drake’s presentation, not the spell’s',
+      ).toBe('sp_dragonflame');
+    }
+  });
+
+  it('a buff OUTSIDE any cast is unmarked — the marker is a scope, not a default', () => {
+    // Karwind pumps Dragons directly, with no spell involved. A marker that leaked would make every buff in
+    // the fight claim to be a spell, and every buff wave would resolve the wrong binding.
+    const r = simulate(
+      [bm('karwind', 'K', 0, 400), bm('d2_ashscribe', 'D', 0, 400)],
+      [{ cardId: 'sandbag', attack: 0, health: 9999 } as unknown as BoardMinion], makeRng(5), CARD_INDEX,
+      combatSide({ tier: 6 }), combatSide({ tier: 1 }));
+    for (const e of r.events) {
+      if (e.type === 'buff') expect((e as { spellId?: string }).spellId, `${JSON.stringify(e)}`).toBeUndefined();
+    }
+  });
 });

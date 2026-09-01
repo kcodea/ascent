@@ -195,10 +195,12 @@ const CARD_BINDINGS: Record<string, Record<string, { def: string; fanOut?: strin
   // Paymaster Pimm's Shout pays you next turn — `coin-shout` on the card, with the max-Gold sound, which is
   // the first binding to carry an `sfx` at all (see `BINDING_SFX`).
   dm_butcher: { shout: { def: 'shop-buff-shout' }, scNarrate: { def: 'shop-buff-shout' } },
-  // Dragonflame is bound by the SPELL, on both phases' cast kinds — the shop's `spellCast` (played from hand)
-  // and combat's `scNarrate` (Flamebeat Drake's Rally, Warflame's Dragon-attack trigger, and any future
-  // caster, since the cast event now carries `spellId`). Owner 2026-09-01: it must play on every cast.
-  sp_dragonflame: { spellCast: { def: 'dragonflame', sfx: 'dragonflame' }, scNarrate: { def: 'dragonflame' } },
+  // Dragonflame is bound by the SPELL, on both phases — the shop's `spellCast` (played from hand) and combat's
+  // `buffWave`. `buffWave`, not `scNarrate`: the cast's ANNOUNCEMENT and its BUFFS are separate moments, and
+  // the buffs are both what the def plays on and where the stock tendril it replaces lives. Every combat
+  // caster is covered without naming one, because the buff events now carry the spell's `spellId`
+  // (Flamebeat Drake, Warflame, and whatever casts it next). Owner 2026-09-01.
+  sp_dragonflame: { spellCast: { def: 'dragonflame', fanOut: 'buffedOn', sfx: 'dragonflame' }, buffWave: { def: 'dragonflame', fanOut: 'buffedOn' } },
   dm_felspikes: { damage: { def: 'fel-spike', fanOut: 'struck', launchOnDeath: true } },
   dm_tormentor: { shout: { def: 'shop-buff-shout' }, scNarrate: { def: 'shop-buff-shout' } },
   dw_pimm: { shout: { def: 'coin-shout', sfx: 'maxGold' } },

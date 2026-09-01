@@ -93,12 +93,15 @@ export const DYNAMIC_CALL_SITES: Readonly<Record<string, number>> = {
   // timed, rather than being hardwired to Bloodpot's. Same debt, same fix — moving the moment into
   // `recruitCues.ts` retires this line with the one above it.
   'EquipFxTuner.tsx': 1,
-  'choreo/score.ts': 5,
-  // The shop's binding path, the recruit-phase twin of score.ts's. Five `playDef(binding.def, …)`: the
+  // SIX since 2026-09-01: the `buffedOn` fan-out is a sixth `playDef(binding.def, …)`, playing ON each buffed
+  // unit rather than travelling to it (Dragonflame). Same binding path, one more anchor convention.
+  'choreo/score.ts': 6,
+  // The shop's binding path, the recruit-phase twin of score.ts's. Six `playDef(binding.def, …)`: the
   // per-card cascade (`fireLand`), the shop-gem volley's single spanning play (`runShopRubiedSpan`), the
-  // shop-wide buff aura's single camera-anchored play (`runShopBuffAllFire`), and the `spellCast` cast-FX
-  // resolver `runSpellCastFire`'s point-only fire plus its per-target fire.
-  'choreo/recruitCues.ts': 5,
+  // shop-wide buff aura's single camera-anchored play (`runShopBuffAllFire`), the `spellCast` cast-FX
+  // resolver `runSpellCastFire`'s point-only fire plus its per-target fire, and `runBuffedOnFire`'s
+  // play-on-the-buffed-minion (2026-09-01, the recruit half of the `buffedOn` fan-out above).
+  'choreo/recruitCues.ts': 6,
   // The HUD's binding path — one `playDef(binding.def, …)` firing a rune's flourish on its own badge. Not a
   // moment cue: the combat score can only anchor to board units, so a rune badge is unreachable from it (see
   // `runeTriggerFx.ts`'s header) and this resolves its binding directly instead.
@@ -106,7 +109,11 @@ export const DYNAMIC_CALL_SITES: Readonly<Record<string, number>> = {
   // The death handler's projectile-Echo launch — one `playDef(echoBinding.def, …)` firing Fel Spikes' spike
   // volley from the dying body a beat before its damage lands (a `launchOnDeath` binding). Not a moment cue:
   // it deliberately fires OFF the damage beat, so it resolves its binding directly here (see `echoWaves`).
-  'useCombatReplay.ts': 1,
+  // TWO since 2026-09-01: the second is `fireBuffCasts` playing a spell's authored buff def INSTEAD of the
+  // stock tendril. It resolves through `authoredBuffDefFor` rather than a moment binding because an on-attack
+  // cast now resolves inside the wind-up — the moment belongs to the ATTACK, so only the individual buff still
+  // knows which spell caused it. Same data-resolved shape as the line above; same reason it is not a literal.
+  'useCombatReplay.ts': 2,
 };
 
 /** The files that fire `id` from code, or an empty array. Never null — callers render a list either way. */

@@ -860,8 +860,17 @@ export function castNamedSpellInCombat(ctx: CombatContext, self: Minion, spellId
     const friends = ctx.living(self.side);
     const targets = def.target ? (friends.length ? [ctx.rng.pick(friends)] : []) : undefined;
     if (def.target && (!targets || targets.length === 0)) return;
-    if (resolveCombatSpellCast(ctx, self, def, targets)) {
-      ctx.log({ type: 'sc', source: self.uid, text: `${self.name} casts ${def.name}`, spellId: def.id });
+    // Mark the cast's WHOLE window, so the buffs (and anything else) it produces carry the spell's identity —
+    // a buff wave is its own presentation moment, and without this it reads as the caster's wave. Saved and
+    // restored rather than cleared: a spell cast from inside another cast must not erase its parent's mark.
+    const outer = ctx.castingSpellId;
+    ctx.castingSpellId = def.id;
+    try {
+      if (resolveCombatSpellCast(ctx, self, def, targets)) {
+        ctx.log({ type: 'sc', source: self.uid, text: `${self.name} casts ${def.name}`, spellId: def.id });
+      }
+    } finally {
+      ctx.castingSpellId = outer;
     }
   });
 }

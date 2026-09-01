@@ -31,7 +31,7 @@ export const RESULT_TYPES = new Set<CombatEvent['type']>([
 /** On-attack "flash" events the sim emits between an `attack` and its damage — pulled into the attack's
  *  wind-up beat so they don't delay the impact. (Pure stat buffs to other minions, the rally cue, a
  *  rally-summoned token, the Stealth reveal — none of which change the attack's own damage numbers.) */
-const WINDUP_ABSORB = new Set<CombatEvent['type']>(['buff', 'rally', 'summon', 'reveal', 'improve']);
+const WINDUP_ABSORB = new Set<CombatEvent['type']>(['buff', 'rally', 'summon', 'reveal', 'improve', 'spellcast']);
 
 export interface Beat {
   start: number;
@@ -82,7 +82,13 @@ export function buildBeats(events: CombatEvent[]): Beat[] {
       i++; // the attack (the wind-up itself) …
       // … then absorb the on-attack flashes that precede the damage, so they play during the lunge and the
       // NEXT beat — the result run — lands at the connection. Stop at the first result event / new action / wave.
-      while (i < events.length && events[i]!.wave === undefined && WINDUP_ABSORB.has(events[i]!.type)) i++;
+      // A mid-combat NARRATION (`sc` without `cast`) is a flash too — a shop buff earned on the swing, or the
+      // announcement of a spell the swing cast. Absorbing it is what lets the loop carry on into the buffs
+      // BEHIND it, so a Rally that casts a spell keeps its whole cast inside the wind-up (owner 2026-09-01).
+      // Mirrors `isWindupNarration` in `choreo/compile.ts` — this function is that algorithm's oracle, so the
+      // two rules must move together or the equivalence tests start lying about which one is right.
+      while (i < events.length && events[i]!.wave === undefined
+        && (WINDUP_ABSORB.has(events[i]!.type) || (events[i]!.type === 'sc' && !(events[i]! as { cast?: true }).cast))) i++;
     } else {
       i++; // a single action (sc, a lone summon, toHand, maxGold, …)
     }

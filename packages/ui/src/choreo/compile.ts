@@ -31,16 +31,38 @@ export interface GroupingRules {
 export const DEFAULT_RULES: GroupingRules = {
   collapse: RESULT_TYPES,
   collapseRuns: new Set(['buff']),
-  absorbIntoWindup: new Set(['buff', 'rally', 'summon', 'reveal', 'improve', 'tribeAura']),
+  // `spellcast` joined on 2026-09-01. It is the side's running cast COUNTER (the UI's live tallies tick off
+  // it), emitted the instant a swing casts a spell — so it sat between the `attack` and everything the cast
+  // produced, and the absorb loop stopped dead on it. That one un-absorbed counter is what pushed a Rally's
+  // whole cast (its buffs, its narration, its authored FX) out of the wind-up and into beats after the lunge:
+  // *"the flame beat … completes the lunge, no damage is dealt or taken, and all the animations trigger. once
+  // they finish, damage is dealt and stats reconcile."*
+  absorbIntoWindup: new Set(['buff', 'rally', 'summon', 'reveal', 'improve', 'tribeAura', 'spellcast']),
 };
 
-/** A shop-buff narration (`+X/+Y Shop`, non-cast) is an on-attack FLASH just like the `buff` events already
- *  absorbed — a minion that buffs the Shop as it swings (Demon Horse, etc.). It only rides an `sc` instead of a
- *  `buff` event because its target is the Shop, not a combat unit. Fold it into the attacker's wind-up so its
- *  number + trigger pulse fire DURING the lunge (with the pulse), not as a detached beat after the swing (owner
- *  ask 2026-08-18). Predicate-based (not a type in `absorbIntoWindup`) so ordinary/spell-cast `sc` are untouched. */
-function isShopBuffFlash(e: CombatEvent): boolean {
-  return e.type === 'sc' && !e.cast && / Shop$/.test(e.text);
+/**
+ * A MID-COMBAT NARRATION (`sc` without `cast`) is an on-attack FLASH, exactly like the `buff` events already
+ * absorbed — it is something the swing caused, and it rides an `sc` only because it has no combat unit to
+ * target or because it announces a cast.
+ *
+ * This started narrower: a shop-buff line (`+X/+Y Shop`, Demon Horse buffing the tavern as it swings, owner ask
+ * 2026-08-18). It was widened to every non-cast `sc` on 2026-09-01, because the narrow version was what broke
+ * the swing that casts a spell:
+ *
+ *   *"the flame beat winds up and attacks, and completes the lunge, no damage is dealt or taken, and all the
+ *   animations trigger. once they finish, damage is dealt and stats reconcile … we need all of the animations
+ *   and stats to reconcile while the flamebeat is paused in his pre-attack animation, like echohorn does."*
+ *
+ * Flamebeat Drake's Rally casts Dragonflame, so its events run `attack, rally, sc, buff…`. The absorb loop
+ * STOPPED at that `sc`, which orphaned the cast AND every buff behind it into their own post-lunge beats — the
+ * swing finished, then its consequences played. Absorbing the narration lets the loop carry on into the buffs
+ * it announces, so the whole cast belongs to the wind-up it came from.
+ *
+ * A genuine Start-of-Combat cast (`cast: true`) is still untouched: it is not a consequence of a swing, and the
+ * absorb loop only runs after an `attack` event anyway.
+ */
+function isWindupNarration(e: CombatEvent): boolean {
+  return e.type === 'sc' && !e.cast;
 }
 
 /** A presentation moment — `Beat`-shaped (start/end/primary) so every existing consumer
@@ -92,7 +114,7 @@ export function compileMoments(events: CombatEvent[], rules: GroupingRules = DEF
       i++;
       // Both guards: never absorb across a WAVE boundary (partC), and DO absorb a shop-buff flash (Demon Horse).
       while (i < events.length && events[i]!.wave === undefined
-        && (rules.absorbIntoWindup.has(events[i]!.type) || isShopBuffFlash(events[i]!))) i++;
+        && (rules.absorbIntoWindup.has(events[i]!.type) || isWindupNarration(events[i]!))) i++;
     } else {
       i++;
     }

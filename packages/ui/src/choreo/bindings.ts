@@ -72,8 +72,18 @@ export interface FxBinding {
    * - `buffed`: once per unit this moment's source buffed SOMEONE ELSE (the cross-buff targets — Karwind
    *   pumping every Dragon). The mirror of `selfBuffed`: `groupBuffCasts` already collects exactly these
    *   source→target pairs for the tendril channel, so this rides the same grouping and plays on each target.
+   * - `buffedOn`: like `buffed`, but the def plays ON each buffed minion rather than TRAVELLING to it — both
+   *   anchors are that minion's own centre, the convention `minionBuffed` already uses (see `fireLand`).
+   *
+   *   The distinction is the def's shape, not the effect's. An Ale is a travelling volley authored against
+   *   `source` = the cursor, so `buffed`'s cursor→minion pair is what it wants. Dragonflame is a column of
+   *   flame authored against `source` = the thing it engulfs, so the same pair puts it at the cursor — which
+   *   is exactly what the owner reported on 2026-09-01: *"dragonflame's effect is happening at the cursor
+   *   location when it should be happening at the target of the buff's location."* Two anchor conventions
+   *   already existed in this codebase; this names the second one instead of leaving it reachable only from
+   *   the `minionBuffed` path.
    */
-  fanOut?: 'primary' | 'damaged' | 'struck' | 'selfBuffed' | 'buffed';
+  fanOut?: 'primary' | 'damaged' | 'struck' | 'selfBuffed' | 'buffed' | 'buffedOn';
   /**
    * A sound to fire alongside the def, named from {@link BINDING_SFX}.
    *
@@ -108,7 +118,7 @@ export interface FxBinding {
   launchOnDeath?: boolean;
 }
 
-const FAN_OUTS: readonly string[] = ['primary', 'damaged', 'struck', 'selfBuffed', 'buffed'];
+const FAN_OUTS: readonly string[] = ['primary', 'damaged', 'struck', 'selfBuffed', 'buffed', 'buffedOn'];
 
 /**
  * The sounds a binding may name. Deliberately a short list rather than every key of the `sfx` module: most of
@@ -454,6 +464,24 @@ function cloneTable(t: LayerTable): LayerTable {
  * so a card with its own look needs the narrower key. A `cardId` of null (no unit on screen, or the moment's
  * source is unknown) skips straight to the kind layer.
  */
+/**
+ * The authored def that REPLACES the stock buff tendril for a buff this spell caused, if there is one.
+ *
+ * One question, one answer, two very different callers: the combat score (a standalone `buffWave` moment) and
+ * the attack wind-up (`fireBuffCasts`, where a cast absorbed into a swing is only identifiable per-buff). They
+ * used to decide it separately, which is exactly how Dragonflame ended up playing its def in one path and the
+ * stock tendril in the other depending on whether the cast happened on a swing.
+ *
+ * Keyed at `buffWave` because that is where a spell declares its combat cast def, and gated on `buffedOn`
+ * because that fan-out is the one that MEANS "instead of": `buffed` is deliberately additive (Karwind's
+ * flame-ring rides on top of its tendrils, owner ruling 2026-08-11) and must keep its tendril.
+ */
+export function authoredBuffDefFor(spellId: string | undefined): string | null {
+  if (spellId === undefined) return null;
+  const b = bindingFor(spellId, 'buffWave');
+  return b?.fanOut === 'buffedOn' ? b.def : null;
+}
+
 export function bindingFor(cardId: string | null, kind: BindingKind): FxBinding | null {
   if (cardId !== null) {
     // `undefined` means "no opinion, keep looking"; an explicit `null` is a tombstone that STOPS here —

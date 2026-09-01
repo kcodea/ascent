@@ -110,7 +110,64 @@ and a second repeat would double-count it.
 
 Lane: **`spellCastIdentity`** — every `sc` emit whose text announces a cast must stamp `spellId`. The failure
 mode is silent and additive (copy the nearest `ctx.log`, omit the field, and that one caster just does not
-animate), so it is checked on the source rather than per card.
+animate), so it is checked on the source rather than per card. And **`buffedOnAnchor`** — both runners must
+anchor a `buffedOn` def on the buffed unit. Neither runner can execute here (one measures the DOM, the other
+drives Pixi), but the anchor PAIR each writes is exactly what broke, so that is what is pinned.
+
+## A swing's consequences belong to its wind-up
+
+> *"the flame beat winds up and attacks, and completes the lunge, no damage is dealt or taken, and all the
+> animations trigger. once they finish, damage is dealt and stats reconcile … we need all of the animations and
+> stats to reconcile while the flamebeat is paused in his pre-attack animation, like echohorn does. we need
+> this to be the case for all cases where buffs are applying or animations are firing from an attack."*
+
+The culprit was one un-absorbed counter. The real event order for that swing is:
+
+```
+attack · spellcast · buff · buff · buff · sc · dmg
+```
+
+`spellcast` is the side's running cast total — telemetry the live tallies tick off. It was not in
+`absorbIntoWindup`, so the absorb loop stopped dead one event in, and the entire cast (its buffs, its
+narration, its authored FX) fell out into beats after the lunge. Three changes:
+
+1. **`spellcast` is absorbed.** That is the fix.
+2. **Any mid-combat `sc` is absorbed**, not just a shop-buff line — so the loop does not stop at the cast's
+   announcement either. A genuine Start-of-Combat cast (`cast: true`) still keeps its own beat; it is not a
+   consequence of a swing.
+3. **The park is no longer rally-specific.** `heldWindup` was "this swing force-triggered an Echo", which is
+   exactly why Echohorn behaved and Flamebeat Drake did not. It is now `cur.end > cur.start + 1` — *did this
+   swing absorb anything?* A plain swing is one event wide and is untouched. The forced-Echo scan stays as a
+   SEPARATE reason: a forced Echo can resolve into events that are not absorbed (a Fel Spikes spray's `dmg`, a
+   Dawnclaw Battlecry replay), so its moment can be one event wide and still need the park.
+
+Both absorb rules are mirrored into `buildBeats`, the equivalence oracle, so the two cannot drift.
+
+**Blast radius, stated:** every swing that carries buffs now parks its lunge, not only casts and Echoes. That
+is what "all cases where buffs are applying" asks for, and it is the change most likely to feel different
+across the whole game.
+
+### …and then the tendrils came back
+
+Moving the cast inside the wind-up broke the tendril suppression, because there are **two** tendril paths and
+only one had it: a standalone buff wave goes through the score's `buffCast` cue, while a cast absorbed into a
+swing goes through `fireBuffCasts` in the replay hook. The moment now belongs to the ATTACK, so the
+moment-level binding could no longer see the spell at all.
+
+The rule moved down a level to match: `BuffCast` carries the `spellId` the sim already stamps on each buff
+event, and both paths ask one shared helper (`authoredBuffDefFor`), which returns a def only for a `buffedOn`
+binding — so Karwind's additive `buffed` keeps its tendrils. It FILTERS per cast rather than standing the
+channel down, so a moment mixing a spell's buffs with an unrelated buffer's stays honest.
+
+With no tendril there is no flight time to release the withheld stats on, so the roll rides the def's arrival
+on a short constant (`AUTHORED_BUFF_ROLL_MS`) — short because the whole point of absorbing the cast is that
+its numbers reconcile while the attacker is still held.
+
+Lane: **`windupConsequences`** — graded on a SIMULATED Flamebeat fight, not a hand-written log, because the
+ordering it depends on is the simulator's. Every buff Dragonflame causes must live inside an attack's wind-up,
+and the damage must stay a later beat (the fix must not collapse the swing into one moment either). The
+`buffedOnAnchor` lane now pins that BOTH tendril paths route through the shared helper — the invariant that
+would have caught this.
 
 ## Also
 

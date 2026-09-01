@@ -2248,7 +2248,7 @@ export type CombatEvent = (
   // outcomes. It exists because `applyRubyStats` routes through the same `ctx.buff` as every other stat gain,
   // leaving a Ruby indistinguishable in the log; the UI needs to tell them apart to play the Ruby cue on the
   // minion that received it (`ruby-gem-apply`) without firing on all 40-odd other buff sources.
-  | { type: 'buff'; target: string; attack: number; health: number; source: string; ruby?: true }
+  | { type: 'buff'; target: string; attack: number; health: number; source: string; ruby?: true; spellId?: string } // `spellId` = the spell whose cast produced this buff, when one did. Same purpose as the field on `sc`: a buff WAVE is its own presentation moment (the tendril channel lives there), so without this the wave is attributed to the BODY that cast — and an authored spell effect could not replace the stock tendril for the spell that caused it (owner report 2026-09-01: Dragonflame's casters "are triggering tendrils instead").
   | { type: 'improve'; target: string; amount: number; display?: number } // an Improve accrual ticked: `amount` = the accrual-field delta (what the replay folds into `summonBonus`); `display` = the magnitude to NARRATE when it differs (Mammoth: amount 1 proc, display +3)
   | { type: 'rally'; source: string; target: string } // Deathsayer's Rally fires `target`'s Deathrattle
   | { type: 'maxGold'; target: string; side: Side; amount: number } // Soulsman's Avenge raises your max Gold
@@ -2632,6 +2632,14 @@ export interface CombatResult {
  * push events only through this surface.
  */
 export interface CombatContext {
+  /**
+   * The spell currently being cast, if one is — set for the duration of a named-spell cast and restored after
+   * (see `castNamedSpellInCombat`). MUTABLE on purpose: it is a scope marker, not state. Every event emitted
+   * inside that window can stamp it, which is what gives a spell's consequences the spell's identity rather
+   * than only its caster's (owner ask 2026-09-01 — Dragonflame must animate as Dragonflame whichever minion
+   * cast it, and its authored effect must replace the stock buff tendril for that wave).
+   */
+  castingSpellId?: string;
   readonly rng: Rng;
   readonly bus: CombatBus;
   readonly boards: Record<Side, Minion[]>;

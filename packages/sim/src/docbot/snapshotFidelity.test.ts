@@ -88,6 +88,7 @@ function boardCardExemplar(): Required<BoardCard> {
     attack: 7,
     health: 9,
     sellOverride: 4,
+    chooseBothLeft: 1, // Dealer's own latch — per instance, so a snapshot has to carry it
     keywords: ['DS'] as Keyword[],
     golden: true,
     addedTribes: ['mech'],

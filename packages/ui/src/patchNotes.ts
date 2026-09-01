@@ -56,6 +56,29 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-01',
+    label: 'Dealer',
+    changes: [
+      {
+        category: 'Card Change',
+        text: 'Dealer starts watching for your first Choose One the moment she is played, instead of waiting for the next turn.',
+        details: [
+          'Each Dealer keeps her OWN tracker, so one bought after this turn’s first Choose One still pays for the next one.',
+          'Two Dealers on board at the start of a turn is still one card’s worth — they were both waiting for the same first card.',
+          'A Gilded Dealer carries two of her own, as her text says.',
+        ],
+      },
+      {
+        category: 'New Card',
+        text: 'Runespark Channeler (Kobold, Tier 5): whenever you cast a Shop spell, cast a Ruby on adjacent minions.',
+      },
+      {
+        category: 'UI / Info',
+        text: 'The (Both) marker now plays on the inspect view too, when the card you are reading will take both halves.',
+      },
+    ],
+  },
+  {
+    date: '2026-09-01',
     label: 'Rune Arrival',
     changes: [
       {

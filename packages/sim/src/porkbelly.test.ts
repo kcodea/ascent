@@ -99,4 +99,26 @@ describe('Porkbelly', () => {
     const r = fight([bm('k3_porkbelly', 'PB', 13, 6)], [bm('sandbag', 'E', 1, 400)]);
     expect(r.events.length, 'a bounded fight').toBeLessThan(5000);
   });
+
+
+  it('a RISEN target is a NEW target — Porkbelly does not settle against it', () => {
+    // Owner report 2026-08-31: *"rise is a 'new target' and should break chains like that."* The settle
+    // exists because the thing Porkbelly was going to hit is GONE; a Rise leaves a body standing in that
+    // slot, so settling would have him stand down in front of a live enemy he never touched.
+    //
+    // This passes on the current engine — the Rise resolves inside the vanguard's own exchange, so by the
+    // time the settle is decided the target is alive again and the check falls through. Pinned as a
+    // REGRESSION test rather than a fix: the behaviour the owner wants is the behaviour today, and the
+    // ordering it depends on (rise-before-settle-check) is exactly the kind of thing a later change to
+    // deferred deaths would break silently.
+    const r = fight(
+      rubyFed(),
+      [{ ...bm('sandbag', 'TAUNT', 1, 10), keywords: ['T', 'R'] }, bm('sandbag', 'BIG', 20, 400)],
+    );
+    const evs = r.events as readonly Ev[];
+    const reborn = evs.findIndex((e) => e.type === 'reborn');
+    expect(reborn, 'the taunt rose').toBeGreaterThanOrEqual(0);
+    const followUp = evs.findIndex((e, i) => i > reborn && e.type === 'attack' && e.attacker === 'm0');
+    expect(followUp, 'Porkbelly attacked the risen body rather than standing down').toBeGreaterThan(reborn);
+  });
 });

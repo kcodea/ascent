@@ -2135,18 +2135,23 @@ export function Recruit() {
    * is not the Discover itself, yield `[]` rather than leaving emitters spending frames behind a backdrop
    * (the same hard-teardown rule `useCiaEnchantedFx` follows when the fight starts).
    */
+  const inspectView = useGame((s) => s.inspect);
   const chooseBothKeys = useMemo(() => {
     if (run.phase === 'combat' || inCombat) return [];
     // The Discover overlay OWNS the screen — and its own options are exactly what must be marked there.
     if (run.discover?.length && !discoverMin) {
       return run.discover.map((id, i) => (chooseBothActive(run, undefined, CARD_INDEX[id]) ? `disc:${i}` : null)).filter((k): k is string => !!k);
     }
+    // THE INSPECT VIEW is the exception among covering overlays (owner ask 2026-08-31): the card being read
+    // whole is exactly where a "(Both)" promise wants a marker. Its key is prefixed so the ring binds to the
+    // overlay's card rather than the board token behind it (see `Inspect.tsx`).
+    if (inspectView?.chooseBothKey) return [`inspect:${inspectView.chooseBothKey}`];
     // Any other overlay covering the board: nothing to mark, and nothing worth animating underneath it.
     if (run.chooseOne || run.questOffer || run.powerOffer || run.runeforgeOffer || run.scoutedNextOpponent?.length || heroSelecting || overlayOpen) return [];
     const hand = run.hand.filter((c) => chooseBothActive(run, c, CARD_INDEX[c.cardId])).map((c) => c.uid);
     const shop = run.shop.filter((o) => chooseBothActive(run, o, CARD_INDEX[o.cardId])).map((o) => o.uid);
     return [...hand, ...shop];
-  }, [run, inCombat, discoverMin, heroSelecting, overlayOpen]);
+  }, [run, inCombat, discoverMin, heroSelecting, overlayOpen, inspectView]);
   useChooseBothFx(chooseBothKeys);
 
   // A board-covering modal is open (Discover / Choose One / a quest or runeforge offer / a scouted board).

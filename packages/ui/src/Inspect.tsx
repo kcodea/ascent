@@ -50,7 +50,19 @@ export function Inspect() {
             `isolation: isolate` on `.card.plated`: this overlay never renders during combat.
             Drop `stepProgress`: the step counter is anchored to the board-token layout, so in this centred
             overlay it lands mid-card (owner 2026-08-15). The counter isn't part of reading the card whole. */}
-        <Card card={{ ...inspect, stepProgress: undefined }} forceFull plated />
+        {/* The (Both) marker rides the inspect view too (owner ask 2026-08-31). Its own KEY, prefixed:
+            the marker binds by `data-choose-both` and takes the first match, so re-using the card's key here
+            would put the ring on the board token hidden behind this overlay. `Recruit` adds this key while
+            the overlay is up — see its `chooseBothKeys` memo. */}
+        <Card
+          card={{
+            ...inspect,
+            stepProgress: undefined,
+            chooseBothKey: inspect.chooseBothKey ? `inspect:${inspect.chooseBothKey}` : undefined,
+          }}
+          forceFull
+          plated
+        />
         <KeywordDefs card={inspect} />
       </div>
     </div>

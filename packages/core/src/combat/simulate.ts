@@ -2543,6 +2543,7 @@ export function simulate(
       }
       // The vanguard felled it (or something in that exchange did): Porkbelly settles. No swing, no
       // retaliation, and — since nothing was emitted above — no attack in the log either.
+      //
       if (target.dead || target.health <= 0) break;
       if (attacker.dead || attacker.health <= 0) break; // the vanguard's exchange could have killed him too
       if (s > 0) nextStep(); // each Windfury swing is its own exchange

@@ -3142,6 +3142,21 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    * `set` refreshes to exactly `count` (Forked Crown: "the FIRST Choose One card each turn" — one per turn,
    * never banked); absent, charges ADD (Prismpick: "your NEXT Choose One card", on top of whatever is left).
    */
+  /**
+   * DEALER — arm THIS BODY'S "first Choose One card you play" latch (owner ruling 2026-08-31).
+   *
+   * Fired from BOTH `onPlay` and `startOfTurn`, which is the whole fix: the effect used to be start-of-turn
+   * only, so a Dealer bought mid-turn sat inert until the next one — *"her card text doesn't activate until
+   * she's played, so she doesn't start looking for the 'first choose one played' until she is on the
+   * board."* Arriving arms her immediately; the turn boundary re-arms whoever is still standing.
+   *
+   * `set`, not add: her promise is "the FIRST card each turn", so a second arming refreshes to exactly her
+   * count rather than banking a second one. Gilded doubles it (her text reads "the first 2").
+   */
+  armChooseBoth: (ctx, self, params) => {
+    self.chooseBothLeft = num(params.count, 1) * gold(self);
+  },
+
   grantChooseBothCharges: (ctx, self, params) => {
     const n = num(params.count, 1) * gold(self);
     ctx.state.chooseBothCharges = params.set ? n : (ctx.state.chooseBothCharges ?? 0) + n;
@@ -5720,6 +5735,30 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   },
 
   // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases.
+  /**
+   * Set 3 — Runespark Channeler: whenever you cast a SHOP SPELL, cast a Ruby on this minion's neighbours.
+   *
+   * "Shop spell" is the load-bearing half of the wording (owner vocabulary rule): a RUBY is not a Shop spell,
+   * so a Ruby cast on something does NOT re-trigger this — which is also what stops a Channeler between two
+   * other Channelers from cascading Rubies across the board forever. `onSpellCast` is the Shop-spell channel
+   * and `onRubyPlayed` is the Ruby one; this deliberately only listens to the first.
+   *
+   * Adjacency is read at CAST time from the live board, so a board reorder between casts moves who benefits —
+   * the same rule every other adjacency effect in this file follows.
+   */
+  onSpellCastPlayRubiesAdjacent: (ctx, self, params) => {
+    const per = num(params.count, 1) * gold(self);
+    if (per <= 0) return;
+    const i = ctx.state.board.indexOf(self);
+    if (i < 0) return;
+    // `shopArena().playRubiesOn` is the one shop-side Ruby chokepoint — it mints at the run's live Ruby
+    // strength and fires the "when you get a Ruby" watchers, which a hand-rolled `addBuff` would skip.
+    const arena = shopArena(ctx.state, self);
+    for (const n of [ctx.state.board[i - 1], ctx.state.board[i + 1]]) {
+      if (n) arena.playRubiesOn(n, per);
+    }
+  },
+
   onSpellCastBuffRandomTribe: (ctx, self, params) => {
     ARENA_EFFECTS.onSpellCastBuffRandomTribe(shopArena(ctx.state, self), params);
   },
@@ -7557,21 +7596,30 @@ export interface ChooseBothState {
   runeFacetwright: boolean;
   runeUnbrokenVein: boolean;
   chooseBothCharges: number;
+  /**
+   * PER-INSTANCE latches on the board — Dealer's (owner ruling 2026-08-31).
+   *
+   * Deliberately a COUNT of armed bodies rather than a sum of their charges: the predicate only ever asks
+   * "is anything watching for the next Choose One", and summing would imply two Dealers cover two cards,
+   * which is exactly what the ruling says they do NOT do.
+   */
+  dealersArmed: number;
 }
 
 /** The one projection every surface passes to `chooseBothActive`. */
 export function chooseBothStateOf(
-  s: Pick<RunState, 'runeFacetwright' | 'runeUnbrokenVein' | 'chooseBothCharges'>,
+  s: Pick<RunState, 'runeFacetwright' | 'runeUnbrokenVein' | 'chooseBothCharges' | 'board'>,
 ): ChooseBothState {
   return {
     runeFacetwright: !!s.runeFacetwright,
     runeUnbrokenVein: !!s.runeUnbrokenVein,
     chooseBothCharges: s.chooseBothCharges ?? 0,
+    dealersArmed: (s.board ?? []).filter((c) => (c.chooseBothLeft ?? 0) > 0).length,
   };
 }
 
 export function chooseBothActive(
-  state: Pick<RunState, 'runeFacetwright' | 'runeUnbrokenVein' | 'chooseBothCharges'>,
+  state: Pick<RunState, 'runeFacetwright' | 'runeUnbrokenVein' | 'chooseBothCharges'> & { dealersArmed?: number },
   card: { golden?: boolean } | undefined,
   def: Pick<CardDef, 'id' | 'chooseOne' | 'chooseBothWhenGolden'> | undefined,
 ): boolean {
@@ -7583,24 +7631,33 @@ export function chooseBothActive(
   // card it is. Read-only here — the charge is spent by `spendChooseBothCharge` at the moment a play
   // actually resolves, so merely LOOKING at a card (the UI asking whether it will prompt) cannot burn one.
   if ((state.chooseBothCharges ?? 0) > 0) return true;
+  // DEALER, per instance (owner ruling 2026-08-31). Her latch is armed when she ARRIVES and re-armed each
+  // turn, so a Dealer played mid-turn starts watching immediately rather than waiting for the next one —
+  // which is the whole of the reported bug.
+  if ((state.dealersArmed ?? 0) > 0) return true;
   return false;
 }
 
 /** Spend one BOTH charge, if the reason this card resolved both branches was a charge rather than a rune or
  *  its own gilding. Called from the play paths, never from the predicate — see the note above. */
 export function spendChooseBothCharge(
-  state: Pick<RunState, 'runeFacetwright' | 'runeUnbrokenVein' | 'chooseBothCharges'>,
+  state: Pick<RunState, 'runeFacetwright' | 'runeUnbrokenVein' | 'chooseBothCharges' | 'board'>,
   card: { golden?: boolean } | undefined,
   def: Pick<CardDef, 'id' | 'chooseOne' | 'chooseBothWhenGolden'> | undefined,
 ): void {
-  if ((state.chooseBothCharges ?? 0) <= 0) return;
   // A card that would resolve both ANYWAY (golden Orivax, Facetwright/Veinbreaker under their runes) must not
   // eat a charge it never needed.
   const wouldAnyway = (card?.golden && def?.chooseBothWhenGolden)
     || (state.runeFacetwright && def?.id === 'facetwright')
     || (state.runeUnbrokenVein && def?.id === 'k_veinbreaker');
   if (wouldAnyway) return;
-  state.chooseBothCharges = (state.chooseBothCharges ?? 0) - 1;
+  if ((state.chooseBothCharges ?? 0) > 0) state.chooseBothCharges = (state.chooseBothCharges ?? 0) - 1;
+  // EVERY armed Dealer spends, not one of them (owner ruling 2026-08-31): *"starting a turn with 2 on board
+  // still only means the first played gets both effects."* They were all watching for the same first card,
+  // and it has now been played — so two Dealers are redundancy, never two cards' worth.
+  for (const c of state.board ?? []) {
+    if ((c.chooseBothLeft ?? 0) > 0) c.chooseBothLeft = (c.chooseBothLeft ?? 0) - 1;
+  }
 }
 
 /** Does playing this card have to STOP and ask? True for a Choose One whose branches are not already all

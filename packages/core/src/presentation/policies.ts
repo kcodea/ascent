@@ -298,7 +298,16 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   // The family is `economy`, matching the other `startOfTurn` effect: convention clusters are keyed on the
   // TRIGGER group, so filing a startOfTurn effect under `passive` would put it in a cluster of passive-trigger
   // cards and dissolve the owner-approved `q-conv-family-passive` question (the same trap Trouble hit).
-  'factory:grantChooseBothCharges:startOfTurn': { policy: 'passive', family: 'economy' },
+  // DEALER arms her own latch — on arrival and again each turn. Nothing lands on the board either way (the
+  // charge is a promise about the NEXT card played), so there is no consequence to animate and no beat to
+  // give it: `passive`, the same shape the run-level charge below carries. `economy`, not the `passive`
+  // family, because a `passive` family here dissolves an owner-approved convention question — the clusters
+  // key on trigger group, and that trap has been hit twice on this exact card.
+  'factory:armChooseBoth:onPlay': { policy: 'passive', family: 'economy' },
+  'factory:armChooseBoth:startOfTurn': { policy: 'passive', family: 'economy' },
+  // Runespark Channeler: a Shop spell casts Rubies on its neighbours. The Rubies themselves are the visible
+  // thing and they arrive through the standard Ruby-landed cue, so this rides that rather than owning a beat.
+  'factory:onSpellCastPlayRubiesAdjacent:spellCast': { policy: 'foldedCue', family: 'economyReact' },
   // Ruby Roach's payout rides the Choose One play that caused it, drawn by the usual Ruby-landed cue.
   'factory:chooseOnePlayedPlayRubies:chooseOnePlayed': { policy: 'foldedCue', family: 'economyReact' },
   'factory:scArmBleed:startOfCombat': { policy: 'ownBeat', family: 'startOfCombat' },

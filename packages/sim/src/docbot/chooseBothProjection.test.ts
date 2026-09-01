@@ -53,9 +53,23 @@ const fieldsRead = (body: string): Set<string> =>
   new Set([...body.matchAll(/\b(?:state|s)\.(\w+)/g)].map((m) => m[1]!));
 
 describe('Doc Bot — the (Both) predicate and its projection stay in step', () => {
+  /**
+   * A field the predicate reads that the projection DERIVES rather than copies, with what it derives it from.
+   *
+   * Dealer's latch is per BODY, not a run counter (owner ruling 2026-08-31), so the projection walks the
+   * board and hands the predicate a count. That is still the same contract — the predicate cannot read
+   * anything the projection does not supply — it just arrives under a different name, and a derivation that
+   * loses its source is the identical bug this lane exists for.
+   */
+  const DERIVED: Record<string, string> = { dealersArmed: 'board' };
+
   it('every run field the predicate reads is one the projection carries', () => {
     const predicate = fieldsRead(bodyOf('chooseBothActive'));
     const projection = fieldsRead(bodyOf('chooseBothStateOf'));
+    // A derived field counts as carried only if its SOURCE is read by the projection.
+    for (const [field, from] of Object.entries(DERIVED)) {
+      if (predicate.has(field) && projection.has(from)) { predicate.delete(field); projection.delete(from); }
+    }
     expect(predicate.size, 'the predicate reads run state at all (a parse floor)').toBeGreaterThan(1);
     expect([...predicate].filter((f) => !projection.has(f)),
       'chooseBothActive reads run state that chooseBothStateOf does not copy. Every UI surface passes the '
@@ -68,6 +82,9 @@ describe('Doc Bot — the (Both) predicate and its projection stay in step', () 
     // The other direction, so the builder cannot rot into a bag of fields nobody consults.
     const predicate = fieldsRead(bodyOf('chooseBothActive'));
     const projection = fieldsRead(bodyOf('chooseBothStateOf'));
+    for (const [field, from] of Object.entries(DERIVED)) {
+      if (predicate.has(field) && projection.has(from)) { predicate.delete(field); projection.delete(from); }
+    }
     expect([...projection].filter((f) => !predicate.has(f)),
       'the projection copies run state the predicate no longer reads — delete it').toEqual([]);
   });
@@ -76,8 +93,8 @@ describe('Doc Bot — the (Both) predicate and its projection stay in step', () 
     // The static halves above cannot prove the two agree at RUNTIME — only that they name the same fields. So
     // the charge is driven end to end: run → projection → predicate, which is the exact path a card view takes.
     const def = { id: 'anything', chooseOne: [{ text: 'a', effects: [] }, { text: 'b', effects: [] }] };
-    const armed = chooseBothStateOf({ chooseBothCharges: 1 });
-    const spent = chooseBothStateOf({ chooseBothCharges: 0 });
+    const armed = chooseBothStateOf({ chooseBothCharges: 1, board: [] });
+    const spent = chooseBothStateOf({ chooseBothCharges: 0, board: [] });
     expect(chooseBothActive(armed, undefined, def), 'an armed charge lights the card up').toBe(true);
     expect(chooseBothActive(spent, undefined, def), 'and no charge leaves it a real choice').toBe(false);
   });

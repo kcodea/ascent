@@ -225,7 +225,14 @@ export const SET3_KOBOLDS: CardDef[] = [
     attack: 4,
     health: 3,
     keywords: [],
-    effects: [{ on: 'startOfTurn', do: 'grantChooseBothCharges', params: { count: 1, set: 1 } }],
+    // BOTH hooks, and that pairing is the card (owner ruling 2026-08-31). `onPlay` arms her the moment she
+    // arrives — a Dealer bought mid-turn used to sit inert until the next turn — and `startOfTurn` re-arms
+    // whoever is still on board. The latch is PER INSTANCE, so a second Dealer bought after this turn's
+    // first Choose One brings her own fresh one.
+    effects: [
+      { on: 'onPlay', do: 'armChooseBoth', params: { count: 1 } },
+      { on: 'startOfTurn', do: 'armChooseBoth', params: { count: 1 } },
+    ],
     text: 'The **first Choose One** card you play each turn gains **both** effects.',
     goldenText: 'The **first 2 Choose One** cards you play each turn gain **both** effects.',
   },
@@ -284,5 +291,24 @@ export const SET3_KOBOLDS: CardDef[] = [
     effects: [{ on: 'equip', do: 'grantEquipment', params: { equipmentId: 'prismatic_pick' } }],
     text: '**Equip Prismatic Pick (2): Choose One** — get a random **Choose One** card; or your next **Choose One** card this turn gains **both** effects.',
     goldenText: '**Equip Prismatic Pick (2): Choose One** — get **2 random Choose One** cards; or your next **2 Choose One** cards this turn gain **both** effects.',
+  },
+  {
+    // Set 3 — the SPELL-reactive Kobold. "Shop spell" is load-bearing (owner vocabulary rule): a Ruby is not
+    // a Shop spell, so a Ruby landing on a neighbour cannot re-trigger this — which is also what keeps two
+    // Channelers side by side from cascading Rubies at each other forever.
+    //
+    // The owner's table printed the Gilded half as "play 2 Rubies"; normalised to CAST here so both halves
+    // use one verb for one mechanic. Play/cast are genuinely different hooks in this engine, and a card whose
+    // two texts disagree about which one it is would be a real ambiguity rather than a wording nicety.
+    id: 'k3_runespark',
+    name: 'Runespark Channeler',
+    tribe: 'kobold',
+    tier: 5,
+    attack: 5,
+    health: 8,
+    keywords: [],
+    effects: [{ on: 'spellCast', do: 'onSpellCastPlayRubiesAdjacent', params: { count: 1 } }],
+    text: 'Whenever you cast a **Shop spell**, cast a **Ruby** on adjacent minions.',
+    goldenText: 'Whenever you cast a **Shop spell**, cast **2 Rubies** on adjacent minions.',
   },
 ];

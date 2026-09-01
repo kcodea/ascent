@@ -2080,7 +2080,7 @@ export function simulate(
           if (taught.target && friends.length === 0) return;
           const targets = taught.target ? [rng.pick(friends)] : undefined;
           if (resolveCombatSpellCast(ctx, minion, taught, targets)) {
-            emit({ type: 'sc', source: minion.uid, text: `${minion.name} casts ${taught.name}` });
+            emit({ type: 'sc', source: minion.uid, text: `${minion.name} casts ${taught.name}`, spellId: taught.id });
           }
         });
       }

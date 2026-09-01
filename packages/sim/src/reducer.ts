@@ -5470,6 +5470,27 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
         for (const cardId of r.cards) (s.runeCadenceGrants ??= []).push({ cardId, everyTurns: r.everyTurns!, tick: 0, sourceId: def.id });
       } else {
         (s.questRecurringGrants ??= []).push(...r.cards);
+        // …and a RUNE pays its first copy IMMEDIATELY, on top of the recurrence (owner report 2026-09-01:
+        // "rune of hoardflame did not grant me a hoardflame"). The recurrence pays at TURN SETUP, and the
+        // Runeforge opens partway THROUGH a shop turn — after that turn's setup has already run — so without
+        // this the rune you just paid for hands you nothing until next turn. Exactly the bug (and the fix)
+        // `runeTribeDrip` below carries from 2026-08-20, and it is what these runes print: "Get a Hoardflame.
+        // Repeat every Start of Turn" — the *get* is now, the *repeat* is the list above.
+        //
+        // Scoped to runes on purpose. A QUEST's recurring grant completes mid-turn and keeps the one-turn
+        // delay it has always had; changing that would silently re-balance four shipped quests that never
+        // promised an immediate copy.
+        // Keyed off the DEF ID, not `sourceKind`: `multi` re-enters `applyQuestReward` without it (deliberately
+        // — that is what stops a multi-reward rune counting twice in `runeStacks`), and Hoardflame's grant is a
+        // sub-reward of a `multi`. `def.id` survives the spread; the parameter does not.
+        if (RUNE_INDEX[def.id]) {
+          for (const cardId of r.cards) {
+            const cardDef = CARD_INDEX[cardId];
+            if (!cardDef) continue;
+            conjureToHand(s, [cardDef], 1);
+            procRuneId(s, def.id); // the badge pulses for the copy it just handed over, as it does every turn
+          }
+        }
       }
       break;
     // ── 2026-08-19 owner rune batch ──────────────────────────────────────────────────────────────────────

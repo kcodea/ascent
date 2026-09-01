@@ -17021,7 +17021,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "reviewStatus": "extracted",
     "extraction": {
       "extractor": "contracts-extract@1",
-      "confidence": "high"
+      "confidence": "medium",
+      "unparsed": [
+        "onRallyBuffOnePerTribe.permanent"
+      ]
     },
     "setIds": [
       "set2"
@@ -17050,7 +17053,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "amount": {
           "kind": "const",
           "plain": {
-            "attack": 2,
+            "attack": 3,
             "health": 3
           }
         }

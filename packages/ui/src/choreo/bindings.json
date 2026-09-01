@@ -82,6 +82,15 @@
         "def": "broodfire-buff"
       }
     },
+    "sp_dragonflame": {
+      "spellCast": {
+        "def": "dragonflame",
+        "sfx": "dragonflame"
+      },
+      "scNarrate": {
+        "def": "dragonflame"
+      }
+    },
     "dm_butcher": {
       "shout": {
         "def": "shop-buff-shout"

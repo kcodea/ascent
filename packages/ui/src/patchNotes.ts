@@ -74,6 +74,34 @@ export const PATCH_NOTES: PatchNote[] = [
         text: 'Broodfire now sets its Dragons alight with its own effect and sound as it buffs them.',
       },
       {
+        category: 'UI / Info',
+        text: 'Dragonflame now plays its own effect and sound on every cast, wherever it was cast from.',
+        details: [
+          'From your hand, and from any minion that casts it mid-combat.',
+          'A multicast Dragonflame shows one burst per cast, not one per play.',
+        ],
+      },
+      {
+        category: 'Card Change',
+        text: 'Standard Bearer now gives a minion of each type +3/+3 for the fight, instead of +2/+3 permanently.',
+      },
+      {
+        category: 'Card Change',
+        text: 'Mirrorwing and Reflector now re-cast the whole spell, so they double your multicast instead of adding one cast.',
+        details: [
+          'A spell that was already casting 4 times now casts 8 on a Mirrorwing.',
+          'Rune of Shared Reflection spreads full casts too.',
+        ],
+      },
+      {
+        category: 'Rune Change',
+        text: 'Rune of Hoardflame and Rune of Dragon Breath now hand you their spell the moment you take them.',
+        details: [
+          'Previously the first copy did not arrive until the following turn.',
+          'The every-turn repeat is unchanged.',
+        ],
+      },
+      {
         category: 'New Card',
         text: "Kaura L'roft (Kobold, Tier 4): Equip Dueling Rubetta's — improve your Rubies, then cast a Ruby on your left and right-most Kobold.",
       },

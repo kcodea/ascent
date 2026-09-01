@@ -427,6 +427,11 @@ export const sfx = {
   // A specific card's DEATH SFX — drop `audio/cards/<cardId>.death.mp3` and it plays when that minion dies in
   // combat, LAYERED over the general death sound. Silent (no fallback) if the card has no death clip.
   cardDeath: (cardId: string) => { playSample(`cards/${cardId}.death`, 'cardDeath'); },
+  // DRAGONFLAME's cast sound, for the shop half of the spell (the combat half rides the `sc` event's `spellId`
+  // in `useCombatReplay`). Named in `BINDING_SFX` so the binding fires it WITH the def and the two cannot
+  // drift apart — a spell has no `onPlay` effect, so `store.ts`'s per-card effect hook (minions only) never
+  // reaches it. It plays the same `cards/sp_dragonflame.effect.mp3` clip both phases use, on the same fader.
+  dragonflame: () => { playSample('cards/sp_dragonflame.effect', 'cardEffect'); },
   // A hero is CHOSEN in Hero Select — drop `audio/heroes/<heroId>.mp3` and it plays, LAYERED over the generic
   // pulse. Silent (no fallback) if the hero has no clip.
   heroSelect: (heroId: string) => { playSample(`heroes/${heroId}`, 'heroSelect'); },

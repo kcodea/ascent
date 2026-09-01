@@ -191,6 +191,11 @@ function runShopBuffAllFire(moment: RecruitMoment, ctx: RecruitCueContext): () =
  *  offers and syncs with the badge roll rather than flashing before the row settles. Owner-set 2026-08-11. */
 const SHOP_SPAN_REFRESH_DELAY_MS = 150;
 
+/** The stagger between one authored cast play and the next when a spell resolves several times. 200ms is the
+ *  generic spark's own gap (`castSparks` in `Recruit.tsx`), kept identical so a bound spell and an unbound one
+ *  read as the same beat — the count is what changes, not the rhythm. */
+const SPELL_RECAST_GAP_MS = 200;
+
 /**
  * A `spellCast` moment: with no recipients (Golden/Reinforcing) this is ONE fire at the release point, no DOM
  * measure, no cascade — a tavern spell with nowhere to travel from/to, so `source`/`target`/`cursor` are all
@@ -215,9 +220,25 @@ function runSpellCastFire(moment: RecruitMoment, ctx: RecruitCueContext): () => 
   // The single fire is at the RELEASE POINT — the cursor. `target` is deliberately the cursor too, not a
   // minion, so a `target`-anchored layer lands where the spell was actually cast (owner call 2026-08-19).
   if (!fansOut) {
-    playDef(binding.def, { source: pt, target: pt, cursor: pt, camera }, { uids: { source: src, target: src } });
-    if (binding.sfx !== undefined) sfx[binding.sfx]?.();
-    return () => {};
+    // ONE PLAY PER RESOLUTION, not one per action (owner ask 2026-09-01: *"whenever dragonflame is cast, the
+    // animation should play, and should play each time it is cast … it should show all of the casts of it"*).
+    //
+    // A multicast spell resolves N times at the play site (Yazzus, Rune of Hoardflame / Dragon Breath, Spell
+    // Thesis…) but reaches presentation as ONE action, so a single play made a 4× cast look like a 1× cast.
+    // The generic spark path already staggered itself this way (`castSparks` in `Recruit.tsx`); an AUTHORED
+    // def had no equivalent, which meant binding a def to a spell silently cost it its repeat count.
+    //
+    // Only the single-fire shape. A `fanOut` def (the Ales) already models its own repetition through the
+    // Edward Keg-hands echo below, and stacking a second repeat on top would double-count it.
+    const repeats = Math.max(1, moment.casts ?? 1);
+    const fire = (): void => {
+      playDef(binding.def, { source: pt, target: pt, cursor: pt, camera }, { uids: { source: src, target: src } });
+      if (binding.sfx !== undefined) sfx[binding.sfx]?.();
+    };
+    fire();
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    for (let i = 1; i < repeats; i++) timers.push(setTimeout(fire, i * SPELL_RECAST_GAP_MS));
+    return () => { for (const t of timers) clearTimeout(t); };
   }
   // Targets (buff ales) → one fire per buffed minion, ALL AT ONCE, each travelling cursor→minion. The buffed
   // cards re-rendered this commit (stat change), so measure inside one rAF for post-layout geometry.

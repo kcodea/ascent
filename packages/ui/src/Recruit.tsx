@@ -5825,6 +5825,7 @@ export function Recruit() {
   const fireSpellCastFx = (cardId: string, pt: { x: number; y: number }): void => {
     if (!bindingFor(cardId, 'spellCast')) { castSparks(() => fireSpark(pt.x, pt.y), cardId); return; }
     const st = useGame.getState().run;
+    const def = CARD_INDEX[cardId];
     // The minions this cast buffed THIS action are the trail targets (leftmost / 3 randoms); distinct uids.
     const targets = Array.from(new Set(st.recruitBuffFx.map((e) => e.targetUid)));
     if (targets.length > 0) spellCastOwnedRef.current = { seq: st.recruitFxSeq, uids: new Set(targets) };
@@ -5834,7 +5835,11 @@ export function Recruit() {
       measure: (uid: string) => { const el = document.querySelector<HTMLElement>(`[data-uid="${uid}"]`); return el ? restingCenterOf(el) : null; },
     };
     // Base volley: from the cursor (release point).
-    runRecruitMomentCues(spellCastMoment(cardId, pt, recipients), ctx);
+    // The RESOLUTION COUNT rides along, so an authored def procs once per cast exactly as the generic spark
+    // does (`castSparks` above). Read from the run BEFORE this action's bookkeeping cleared its one-shot
+    // freebies would be wrong — this runs after the dispatch, and `spellCastCount` is the same read the
+    // spark path makes at the same moment, so the two agree by construction.
+    runRecruitMomentCues(spellCastMoment(cardId, pt, recipients, def ? spellCastCount(st, def) : 1), ctx);
     // EDWARD KEG-HANDS echo: Edward (`dw_edward`) makes Ales trigger twice (three times gilded) — the sim already
     // re-ran the buff, but we dedupe the targets, so the repeat would be invisible. Re-fire the SAME fan-out from
     // Edward's card: 1 extra volley for ×2, 2 for ×3 (gilded), each 80ms after the last. Gated on `recipients`

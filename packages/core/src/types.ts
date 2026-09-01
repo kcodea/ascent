@@ -281,7 +281,7 @@ export type EffectFactoryId =
   | 'minionSoldGrantSpell'         // Set 2 — Runic Archivist: every N minions sold, get a Shop spell
   | 'endOfTurnTriggerAdjacentShouts' // Set 2 — Moira: End of Turn, trigger both neighbours' Shouts
   | 'onRallyPlayRubiesTribe'       // Set 2 — Mineral Master: any friendly Rally plays Rubies on your tribe
-  | 'onRallyBuffOnePerTribe'       // Paragon: any friendly Rally buffs one minion of every type, permanently
+  | 'onRallyBuffOnePerTribe'       // Paragon: any friendly Rally buffs one minion of every type, permanently (`permanent: false` → for the fight only, Standard Bearer)
   | 'onSpellCastOnThisRecast' // Mirrorwing Hatchling: the first spell on this each turn casts again
   | 'onSpellCastOnThisSpreadAdjacent' // Runefire: it also casts on adjacent Dragons
   | 'onSpellCastOnThisSpreadRandom' // Reflector (Yirin): it also casts on one random other friendly minion
@@ -2226,7 +2226,7 @@ export interface MinionSnapshot {
  *  metadata — it never affects outcomes — letting the UI's moment compiler know true simultaneity instead
  *  of inferring it. Optional so synthetic fixtures (tests) can omit it; real sim output always carries it. */
 export type CombatEvent = (
-  | { type: 'sc'; source: string; text: string; cast?: true; side?: Side; grantsEcho?: true } // `cast` = a genuine Start-of-Combat damage cast (UI plays the zap + bolt + flash); absent = mid-combat narration (spell-power gain, etc.) — log + trigger pulse only. `side` is stamped on side-scoped gain telegraphs (Ruby Power — BOTH sides can gain it) so the Buffs drawer counts only the player's; player-only channels (Spell Power) never emit for an enemy and need no tag. `grantsEcho` marks the ONE minion a Start-of-Combat grant handed an exact-copy Echo (Rune of Rebirth), so the UI can print the rule on THAT body instead of on every minion you control.
+  | { type: 'sc'; source: string; text: string; cast?: true; side?: Side; grantsEcho?: true; spellId?: string } // `cast` = a genuine Start-of-Combat damage cast (UI plays the zap + bolt + flash); absent = mid-combat narration (spell-power gain, etc.) — log + trigger pulse only. `side` is stamped on side-scoped gain telegraphs (Ruby Power — BOTH sides can gain it) so the Buffs drawer counts only the player's; player-only channels (Spell Power) never emit for an enemy and need no tag. `grantsEcho` marks the ONE minion a Start-of-Combat grant handed an exact-copy Echo (Rune of Rebirth), so the UI can print the rule on THAT body instead of on every minion you control. `spellId` is the CARD ID of the spell this cast resolved, stamped by every "X casts Y" emit: without it a cast is identified only by the BODY that cast it, so an authored spell effect had to be bound to each caster and a new caster arrived silently unanimated (owner ask 2026-09-01: Dragonflame's animation must play "anytime dragonflame is played … anything").
   | { type: 'attack'; attacker: string; defender: string; swing: number; crit?: boolean }
   | { type: 'dmg'; target: string; amount: number; remainingHp: number; source?: string } // `source` = the uid that dealt this hit (attacker, poisoner, an AoE's caster). Optional: truly sourceless damage omits it. Lets presentation attribute a sourceless-looking damage MOMENT to its actor — e.g. Fel Spikes' Echo volley fires FROM the dying body (source→target FX), the way an `sc` event carries a Start-of-Combat cast's source.
   | { type: 'proccrit'; source: string; mult: number }

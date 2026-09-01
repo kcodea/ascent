@@ -1737,6 +1737,17 @@ export function useCombatReplay(
       washedTribes.add(e.tribe);
       fireCombatAuraWave(e.tribe);
     }
+    // A SPELL CAST MID-COMBAT plays the SPELL's own clip, not just the caster's (owner ask 2026-09-01:
+    // Dragonflame's sound must follow the spell "from cards that cast it in combat"). `spellId` is stamped on
+    // every "X casts Y" event, so this is the sound half of the same identity the FX binding reads in
+    // `score.ts` — without it the spell's clip could only be reached by giving every caster its own copy.
+    //
+    // NOT deduped by card the way the per-unit loop below is, and NOT gated on `trig`: two casts of the same
+    // spell in one beat are two casts, and the owner asked for every one of them to be shown.
+    for (let i = beat.start; i < beat.end; i++) {
+      const e = events[i];
+      if (e?.type === 'sc' && e.spellId) sfx.cardEffect(e.spellId);
+    }
     if (trig.size === 0 && beatWatchers.length === 0) return;
     sfx.triggerPulse(); // once per beat regardless of how many units pulse (the dedupe is built in too)
     // Each triggering unit also plays its OWN effect voiceline (cards/<id>.effect.mp3) — the combat half of the

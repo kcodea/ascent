@@ -568,7 +568,23 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
           if (e?.type === 'dmg' && typeof e.source === 'string') { source = e.source; break; }
         }
       }
-      const cardId = ctx.cardIds?.get(source ?? '') ?? null;
+      /**
+       * WHICH CARD OWNS THIS MOMENT — the SPELL when one was cast, otherwise the body.
+       *
+       * A combat cast (`sc`) names the caster's uid, so without the spell's own id a cast could only be
+       * identified by the minion that cast it — and an authored spell effect would have to be bound to every
+       * caster, with each new one arriving silently unanimated. `spellId` (stamped by every "X casts Y" emit)
+       * makes the SPELL the subject, which is what the player is watching:
+       *
+       *   *"i added a dragonflame effect that should play anytime dragonflame is played. that includes from
+       *   hand, from cards that cast it in combat … whenever dragonflame is cast, the animation should play"*
+       *   — owner, 2026-09-01
+       *
+       * The caster stays the fallback, so every existing `sc` binding (the Butcher's, the Tormentor's) still
+       * resolves exactly as before: those emit no `spellId`, because they narrate rather than cast a card.
+       */
+      const castSpellId = moment.primary?.type === 'sc' ? moment.primary.spellId : undefined;
+      const cardId = castSpellId ?? ctx.cardIds?.get(source ?? '') ?? null;
       // ale-bubbles (Set 2, Dwarves): a Dwarf that GENERATES a Dwarven Ale in combat — Doubletap Brewer's Echo,
       // Blade Thrower's Rally — emits a `toHand` event whose cardId is an Ale, carrying the generator's uid as
       // `source`. Burst from that unit. Keyed on the GRANTED card being an Ale (not on the generator's id), so

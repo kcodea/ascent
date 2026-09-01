@@ -83,6 +83,11 @@ const ALIASES: Record<string, string> = {
   // (`bighuggies` needed an alias while the card was mis-named "Bug Huggies"; the owner corrected the NAME to
   //  Big Huggies on 2026-07-31, so the filename matches exactly now and the alias is gone.)
   gemshard: 'gemheart-shard',        // the Gemheart Golem token, named in the source after its id
+  // Set-3 Kobolds, attributed but off by a letter or a word (2026-09-01, when the folder joined the job).
+  // Both had been hand-dropped into `art/minions` before that; the aliases bring them under the pipeline so
+  // the next refresh of either lands like every other file instead of needing a manual copy.
+  blastsurveryor: 'k3_blastsurveyor',  // the file has an extra 'r' — card is Blast Surveyor
+  kornonthekob: 'k3_korn',             // card is 'Korn and the Kob'
   groveweaveralt: 'b2_groveweaver',  // "GroveweaverAlt2" -> the b2_groveweaver2 variant slot
   cinderchancellor: 'dm_chancellor', // pre-rename name; RougeRogue.png wins the base slot, this fills `2`
   // 2026-07-31 renames. Hellrider and Lastlight now match their cards by name exactly, so they need no entry
@@ -221,10 +226,14 @@ const JOBS: Job[] = [
     // ever exists in two sets, the later job wins the slot, and set 3 is the least established. Today it is
     // the Equipment reference card; the Celestial folders are here for the rework.
     label: 'set-3 minions', src: 'C:/Game Assets/Ascent Art/Set 3 Minions',
-    // NEUTRALS ONLY for now. The Celestial folder still holds art for the sixteen archived on 2026-08-28, and
+    // NEUTRALS + KOBOLDS. The Celestial folder still holds art for the sixteen archived on 2026-08-28, and
     // wiring it would ship art — and itch file-count — for cards that are out of play. Widen this list when
     // the reworked tribe lands, which is exactly when those files start meaning something again.
-    dirs: ['Neutrals'],
+    //
+    // Kobolds joined the job on 2026-09-01 (owner: "wire new art for the kobold in set 3. i changed a handful
+    // of them"). Until then the set-3 Kobold portraits were hand-dropped, which meant every refresh was a
+    // manual copy outside the resize/webp/precedence pipeline — the exact drift this script exists to end.
+    dirs: ['Neutrals', 'Kobolds'],
     dest: 'packages/ui/src/art/minions', index: cardsByName, aliases: ALIASES,
   },
   {

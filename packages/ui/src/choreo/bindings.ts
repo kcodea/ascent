@@ -115,7 +115,7 @@ const FAN_OUTS: readonly string[] = ['primary', 'damaged', 'struck', 'selfBuffed
  * those are wired to a specific game beat and would read as a bug if a shop effect started firing them. Add
  * one here when an authored effect actually wants it.
  */
-export const BINDING_SFX = ['maxGold', 'buff', 'triple', 'triggerPulse'] as const;
+export const BINDING_SFX = ['maxGold', 'buff', 'triple', 'triggerPulse', 'dragonflame'] as const;
 export type BindingSfx = (typeof BINDING_SFX)[number];
 
 /**

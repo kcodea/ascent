@@ -39,6 +39,7 @@ import { UnitEditor } from './UnitEditor';
 import { Card, mdBold, type CardView } from './Card';
 import { heroPowerArt, heroArt, equipmentBranchArtFor } from './art';
 import { beginDragTrace, cancelDragTrace, endDragTrace, sampleDragTrace } from './replay/dragTrace';
+import { beginDragJank, installDragJankHandle, recordDragJank } from './dragJank';
 import { SYM_KINDS } from './choreo/channels/float';
 import { stabilizeViewMap, stabilizeRefMap, stabilizeView } from './cardViewEqual';
 import { deriveDragDecision, dragDecisionEqual, computeCastingSpell, type DragGeo, type DragDecision } from './dragDecision';
@@ -1806,6 +1807,8 @@ export function Recruit() {
    * clears `runeforgeOffer`, so anything owned by that subtree unmounts with it. This state outlives the
    * forge, which is what lets the ceremony play after the thing it is about is gone.
    */
+  // Publish `window.__dragJank()` once — the console handle for the snap-back trace (DEV only).
+  useEffect(() => { installDragJankHandle(); }, []);
   const [lockIn, setLockIn] = useState<RuneLockInCard[] | null>(null);
   /** See the store field: set only by `replayPlayer`, never by live play. */
   const runeLockInCue = useGame((st) => st.runeLockInCue);
@@ -2878,6 +2881,12 @@ export function Recruit() {
       const rotY = clamp(f.tiltGain * m.vx);
       writePos(f);
       if (tiltEl) tiltEl.style.transform = `rotateX(${rotX}deg) rotateY(${rotY}deg)`;
+      // DEV-only jank trace (see `dragJank.ts`): one push inside a loop that is already running, so an
+      // intermittent snap can be read off `window.__dragJank()` instead of guessed at. No-op in production.
+      recordDragJank({
+        t: now, dt, px: live.x, py: live.y, cx: m.rx, cy: m.ry, dx: d.x, dy: d.y,
+        reactDriven: reactDrivesDragRef.current,
+      });
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
@@ -3428,6 +3437,7 @@ export function Recruit() {
       // REPLAY V2 drag-path capture ("1:1 hands"): the grab point opens the trace. Capture is the product
       // (DEV + prod alike); guarded off during playback, where input is inert anyway. One push, no layout.
       if (!useGame.getState().replaying) beginDragTrace(view.cardId, e.clientX, e.clientY);
+      beginDragJank(); // DEV-only motion trace for the snap-back hunt (no-op in production)
       setDrag({
         uid, source, view,
         ox: w / 2, oy: h / 2,                        // anchor = centre → the card rides centred on the cursor

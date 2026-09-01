@@ -186,6 +186,9 @@ const BINDINGS: Record<string, { def: string }> = {
 const CARD_BINDINGS: Record<string, Record<string, { def: string; fanOut?: string; sfx?: string; critDef?: string; launchOnDeath?: boolean }>> = {
   b2_echohorn: { rally: { def: 'echohorn-target-sparkle' } },
   bloodbinder: { scCast: { def: 'ruby-lance', fanOut: 'damaged' } },
+  // Broodfire's Shout buffs every Dragon; the authored def cascades over each one it pumped (owner 2026-09-01).
+  // Shop-only by construction — a Shout has no combat moment — so there is no `buffWave` row to pair with it.
+  d2_broodfire: { minionBuffed: { def: 'broodfire-buff' } },
   // Karwind rings every Dragon it pumps — the combat `buffed` fan-out plays `flame-ring` once per cross-buffed
   // unit, and the shop's source-keyed `minionBuffed` moment plays it on each Dragon Karwind buffed in the tavern.
   karwind: { buffWave: { def: 'flame-ring', fanOut: 'buffed' }, minionBuffed: { def: 'flame-ring', critDef: 'flame-ring-crit' } },
@@ -723,11 +726,21 @@ describe('a bound def suppresses the stock shop tendril AND the flame flash', ()
   // Both stock cues (the buff tendril and Karwind's flame flash) key their suppression off the SAME question:
   // did a card with a `minionBuffed` binding buff this Dragon? The flash reads it via `recruitBuffFx`'s
   // per-event `sourceCardId`; the pins below guard the answers that question depends on. `onBattlecryBuffTribe`
-  // (which stamps the flash) is used by Karwind AND an unbound set-2 Dragon, so the discriminator MUST be the
-  // binding, never the card id — an id check would strip the unbound Dragon's flash too.
+  // (which stamps the flash) is used by Karwind AND by unbound tribe-buffers (set-1's Dragon and Beast
+  // battlecries), so the discriminator MUST be the binding, never the card id — an id check would strip the
+  // unbound buffers' flash too. Broodfire (`d2_broodfire`) used to be the set-2 example here; it is BOUND as
+  // of 2026-09-01, which is precisely the swap this suppression exists to perform.
 
   it('Karwind is bound at minionBuffed, so its tendril is suppressed', () => {
     expect(bindingFor('karwind', 'minionBuffed')).not.toBeNull();
+  });
+
+  // Broodfire's authored buff (owner, 2026-09-01: *"its animation plays on the dragons that are buffed"*).
+  // A `minionBuffed` binding is what makes the cue runner cascade the def over each buffed Dragon AND what
+  // suppresses the stock tendril/flash it replaces — so the KIND is load-bearing, not just the def id. Bound
+  // at the wrong kind the def would either never fire or fire on top of the stock cue.
+  it('Broodfire is bound at minionBuffed, so its authored def replaces the stock cue', () => {
+    expect(bindingFor('d2_broodfire', 'minionBuffed')?.def).toBe('broodfire-buff');
   });
 
   it('an unbound buffer keeps its tendril', () => {

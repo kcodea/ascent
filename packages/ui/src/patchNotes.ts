@@ -70,6 +70,10 @@ export const PATCH_NOTES: PatchNote[] = [
         text: 'A minion buffed as it attacks now shows its new stats BEFORE the swing goes out, instead of mid-lunge.',
       },
       {
+        category: 'UI / Info',
+        text: 'Broodfire now sets its Dragons alight with its own effect and sound as it buffs them.',
+      },
+      {
         category: 'New Card',
         text: "Kaura L'roft (Kobold, Tier 4): Equip Dueling Rubetta's — improve your Rubies, then cast a Ruby on your left and right-most Kobold.",
       },

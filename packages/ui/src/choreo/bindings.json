@@ -77,6 +77,11 @@
         "fanOut": "damaged"
       }
     },
+    "d2_broodfire": {
+      "minionBuffed": {
+        "def": "broodfire-buff"
+      }
+    },
     "dm_butcher": {
       "shout": {
         "def": "shop-buff-shout"

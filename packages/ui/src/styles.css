@@ -3060,7 +3060,7 @@ body.modalup .app { z-index: auto; }
    row. Defaults 0 = the plain row. The row transform on `.questbadges` still applies to the group. */
 .questbadges .questbadge:nth-child(1) { transform: translate(calc(var(--qb1-x, -5px) * var(--scale)), calc(var(--qb1-y, 53px) * var(--scale))); }
 .questbadges .questbadge:nth-child(2) { transform: translate(calc(var(--qb2-x, 13px) * var(--scale)), calc(var(--qb2-y, 5px) * var(--scale))); }
-.questbadges .questbadge:nth-child(3) { transform: translate(calc(var(--qb3-x, 30px) * var(--scale)), calc(var(--qb3-y, 23px) * var(--scale))); }
+.questbadges .questbadge:nth-child(3) { transform: translate(calc(var(--qb3-x, 36px) * var(--scale)), calc(var(--qb3-y, 20px) * var(--scale))); }
 /* Each badge is its own stacking context (the `transform` above), so a later sibling's art paints over a
    hovered badge's tooltip. Lift the hovered badge above its siblings (owner report 2026-08-31). */
 .questbadges .questbadge:hover { z-index: 10; }
@@ -3082,11 +3082,11 @@ body.modalup .app { z-index: auto; }
 .questbadges .rune-sheen { position: absolute; left: 0; top: 0; z-index: 5; pointer-events: none; -webkit-user-drag: none; height: auto; transform-origin: 50% 50%; }
 .questbadges .rune-sheen-1 { width: calc(var(--rsh1-w, 52) * var(--u-base)); transform: translate(calc(var(--rsh1-x, -1) * var(--u) + var(--qb1-x, -5px) * var(--scale)), calc(var(--rsh1-y, -1) * var(--u) + var(--qb1-y, 53px) * var(--scale))) scale(calc(1 / var(--qb-s, 1.09))); opacity: var(--rsh1-o, 1); mix-blend-mode: var(--rsh1-blend, hard-light); }
 .questbadges .rune-sheen-2 { width: calc(var(--rsh2-w, 52) * var(--u-base)); transform: translate(calc(var(--rsh2-x, 62) * var(--u) + var(--qb2-x, 13px) * var(--scale)), calc(var(--rsh2-y, -1) * var(--u) + var(--qb2-y, 5px) * var(--scale))) scale(calc(1 / var(--qb-s, 1.09))); opacity: var(--rsh2-o, 1); mix-blend-mode: var(--rsh2-blend, hard-light); }
-.questbadges .rune-sheen-3 { width: calc(var(--rsh3-w, 52) * var(--u-base)); transform: translate(calc(var(--rsh3-x, 132) * var(--u) + var(--qb3-x, 30px) * var(--scale)), calc(var(--rsh3-y, -3) * var(--u) + var(--qb3-y, 23px) * var(--scale))) scale(calc(1 / var(--qb-s, 1.09))); opacity: var(--rsh3-o, 1); mix-blend-mode: var(--rsh3-blend, hard-light); }
+.questbadges .rune-sheen-3 { width: calc(var(--rsh3-w, 52) * var(--u-base)); transform: translate(calc(var(--rsh3-x, 126) * var(--u) + var(--qb3-x, 36px) * var(--scale)), calc(var(--rsh3-y, 0) * var(--u) + var(--qb3-y, 20px) * var(--scale))) scale(calc(1 / var(--qb-s, 1.09))); opacity: var(--rsh3-o, 1); mix-blend-mode: var(--rsh3-blend, hard-light); }
 /* Chains draped over the LOCKED third rune slot — same 3rd-node anchor + counter-scale as the sheen so it stays
    glued to the slot through the Quest-nodes Scale slider; its own `--rch-*` nudge from the 💠 Rune Sheen tuner.
    Sits ABOVE the sheen (z 6) and does not blend — it reads as solid chains over the empty slot. */
-.questbadges .rune-chains { position: absolute; left: 0; top: 0; z-index: 6; pointer-events: none; -webkit-user-drag: none; height: auto; transform-origin: 50% 50%; width: calc(var(--rch-w, 54) * var(--u-base)); transform: translate(calc(var(--rch-x, 131) * var(--u) + var(--qb3-x, 30px) * var(--scale)), calc(var(--rch-y, -3) * var(--u) + var(--qb3-y, 23px) * var(--scale))) scale(calc(1 / var(--qb-s, 1.09))); }
+.questbadges .rune-chains { position: absolute; left: 0; top: 0; z-index: 6; pointer-events: none; -webkit-user-drag: none; height: auto; transform-origin: 50% 50%; width: calc(var(--rch-w, 54) * var(--u-base)); transform: translate(calc(var(--rch-x, 131) * var(--u) + var(--qb3-x, 36px) * var(--scale)), calc(var(--rch-y, -3) * var(--u) + var(--qb3-y, 20px) * var(--scale))) scale(calc(1 / var(--qb-s, 1.09))); }
 /* Reserve one rune-row's height while the 3rd slot is chained, so the bottom-anchored row doesn't grow (and slide
    the chains) as the first two runes arrive — the chains hold one spot from turn 1 onward. */
 .questbadges.hasrunelock { min-height: calc(53 * var(--u)); }

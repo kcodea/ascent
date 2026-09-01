@@ -5,6 +5,8 @@ import { fileURLToPath } from 'node:url';
 import { CARD_INDEX } from '@game/content';
 import { combatSide, makeRng, simulate, type BoardMinion } from '@game/core';
 import { compileMoments, DEFAULT_RULES } from './compile';
+import { groupBuffCasts } from './channels/buffCast';
+import { groupSelfBuffs } from './channels/buffSelf';
 
 /**
  * A SWING'S CONSEQUENCES BELONG TO ITS WIND-UP (owner ask 2026-09-01).
@@ -80,24 +82,146 @@ describe('an on-attack cast resolves inside the wind-up, not after the lunge', (
   });
 });
 
-describe('the park signal stays tied to the moment’s width', () => {
-  /** The hook cannot run here; its decision line can still be read. */
-  const REPLAY = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '../useCombatReplay.ts'), 'utf8');
+/**
+ * THE AUDIT (owner ask 2026-09-01: *"make sure this logic and timing applies across the board for any buffs
+ * that happen from attacks … traveling skald, fatecarver, boulderdash rubies, anything like that"*).
+ *
+ * Every on-attack stat change must be ABSORBED into the swing's moment (so it plays in the wind-up) and must
+ * turn the wind-up PAUSE on (so the numbers land before the strike). The two are separate mechanisms and a
+ * card can pass one and fail the other — Boulderdash did exactly that: its Ruby was absorbed, but the pause is
+ * gated on the stock buff cues and those deliberately skip a Ruby, so it rolled its stats with no hold.
+ *
+ * Graded per CARD on a real fight, because "which events does this card actually emit" is the whole question.
+ */
+describe('every on-attack stat change is absorbed AND pauses the wind-up', () => {
+  const STAT_CHANGE = new Set(['buff', 'tribeAura']);
 
-  it('any swing that absorbed something holds its pose', () => {
-    // `cur.end > cur.start + 1` IS the rule: a plain swing absorbs nothing and is one event wide, so it is
-    // untouched; a swing with consequences of any kind parks. Narrowing this back to a rally-only test is the
-    // regression — it is what left Flamebeat Drake lunging before its own cast had played.
-    expect(
-      /let heldWindup = cur\.end > cur\.start \+ 1;/.test(REPLAY),
-      'the park is no longer derived from the wind-up moment carrying consequences',
-    ).toBe(true);
+  /** A one-sided fight where `board` swings freely into an unkillable sandbag. */
+  const fightOf = (board: BoardMinion[]) => simulate(
+    board, [{ cardId: 'sandbag', attack: 0, health: 99999 } as unknown as BoardMinion], makeRng(5), CARD_INDEX,
+    combatSide({ tier: 6 }), combatSide({ tier: 1 }));
+
+  const CASES: [string, () => BoardMinion[]][] = [
+    // Rally → 3 permanent Rubies on itself. The `ruby` flag is why this one was missed.
+    ['Boulderdash (on-attack Rubies)', () => [bm('k_boulderdash', 'B', 3, 400, ['RL'])]],
+    // When another friendly Dragon attacks, buff IT — a buff-other on someone else's swing.
+    ['Traveling Skald (on-ally-attack buff)', () => [bm('d2_skald', 'S', 0, 400), bm('d2_ashscribe', 'D', 4, 400)]],
+    // Rally → casts Dragonflame, the case the whole thread started from.
+    ['Flamebeat Drake (on-attack cast)', () => [bm('d2_flamebeat', 'F', 4, 400, ['RL']), bm('d2_ashscribe', 'D', 0, 400)]],
+  ];
+
+  it.each(CASES)('%s: its stat changes ride the attacker’s own moment', (_name, board) => {
+    const { events } = fightOf(board());
+    const moments = compileMoments(events, DEFAULT_RULES);
+    const changes = events.map((e, i) => [e, i] as const).filter(([e]) => STAT_CHANGE.has(e.type));
+    // Every fixture must actually produce one, or the case is grading nothing.
+    expect(changes.length, 'this fixture produced no stat change at all').toBeGreaterThan(0);
+    // A stat change caused BY a swing sits inside that swing's moment. The defender's own on-damaged buff is
+    // a consequence of the DAMAGE, not the wind-up, so it legitimately lives in the damage moment — hence
+    // "at least one rides an attack" rather than "all of them do".
+    const inAttack = changes.filter(([, i]) => {
+      const home = moments.find((m) => i >= m.start && i < m.end);
+      return home?.primary.type === 'attack';
+    });
+    expect(inAttack.length, 'no stat change was absorbed into a wind-up').toBeGreaterThan(0);
   });
 
-  it('and the forced-Echo scan survives as a SEPARATE reason', () => {
-    // A forced Echo can resolve into events that are NOT absorbed (a Fel Spikes spray's `dmg`, a Dawnclaw
-    // Battlecry replay), so its moment can be one event wide and still need the park. Folding the two together
-    // would silently drop that case.
-    expect(/if \(!heldWindup && rallies\)/.test(REPLAY), 'the rally scan must remain as a second reason').toBe(true);
+  it.each(CASES)('%s: the swing carrying it turns the wind-up pause on', (_name, board) => {
+    const { events } = fightOf(board());
+    const moments = compileMoments(events, DEFAULT_RULES);
+    // Mirrors `windupStatChange` in `useCombatReplay`: the pause is on when the wind-up carries a stat change
+    // of ANY kind — including a Ruby, which the stock buff cues skip.
+    const carries = (m: { start: number; end: number }): boolean => {
+      for (let i = m.start; i < m.end; i++) if (STAT_CHANGE.has(events[i]!.type)) return true;
+      return false;
+    };
+    const attacksWithChanges = moments.filter((m) => m.primary.type === 'attack' && carries(m));
+    expect(attacksWithChanges.length, 'no attack moment carries a stat change to pause for').toBeGreaterThan(0);
+  });
+
+  it('the hook gates its pause on the stat change, not on the stock cues', () => {
+    // The compile-level checks above prove the EVENTS are in the right moment; this is the other half — that
+    // the replay actually pauses for them. Read from source (comments stripped) because the hook cannot run
+    // here. `windupStatChange` is the name of the rule; gating `onWindupBuffs` back on the two cue lists is
+    // the regression, and it is what left Boulderdash with no hold.
+    const replay = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '../useCombatReplay.ts'), 'utf8')
+      .replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\/[^\n]*/g, ' ');
+    expect(replay.includes('onWindupBuffs: windupStatChange'),
+      'the pause must be gated on the stat change, not on the stock cue lists').toBe(true);
+    expect(replay.includes("e?.type === 'buff' || e?.type === 'tribeAura'"),
+      'a Ruby buff and a run-wide aura must both count as a stat change').toBe(true);
+  });
+
+  it('a Ruby-on-attack also gets its badge ROLLED during the pause', () => {
+    // Pausing is only half of it. A Ruby's hold is placed by the `rubyFx` cue and released by whatever
+    // delivers the number — and `ruby-gem-apply`'s `react` layer does not carry it, so nothing does and the
+    // hold waits out `HOLD_TTL_MS` (1200ms), which lands just past the end of the pause. The wind-up path
+    // rolls them by hand instead, on the same lead the authored buff defs use.
+    const replay = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '../useCombatReplay.ts'), 'utf8')
+      .replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\/[^\n]*/g, ' ');
+    expect(replay.includes('windupRubyUids'), 'the swing must collect the units it Rubied').toBe(true);
+    expect(/for \(const uid of windupRubyUids\) scheduleRoll\(uid, AUTHORED_BUFF_ROLL_MS\);/.test(replay),
+      'their badges must be rolled on the wind-up clock, not left to the hold expiring').toBe(true);
+  });
+
+  it('and the gem def still has no `carries` layer — which is WHY the roll is driven by hand', () => {
+    // The alternative fix was to tick `carries` on `ruby-gem-apply`'s `react` layer. That is the owner's
+    // tuning surface, so the code does the work instead. If the def ever DOES start carrying the number, this
+    // fails — and the hand-rolled release should come out rather than fight it.
+    const def = JSON.parse(readFileSync(
+      join(dirname(fileURLToPath(import.meta.url)), '../fx/defs/ruby-gem-apply.json'), 'utf8')) as
+      { layers: { primitive: string; params?: Record<string, unknown> }[] };
+    const react = def.layers.find((l) => l.primitive === 'react');
+    expect(react, 'the gem lost its react layer entirely').toBeTruthy();
+    expect(react!.params?.carries, 'the gem now delivers its own number — drop the hand-rolled release').toBeFalsy();
+  });
+
+  it('a Ruby-on-attack counts, even though the stock buff cues skip it', () => {
+    // The specific miss. `groupBuffCasts`/`groupSelfBuffs` drop `ruby` buffs on purpose (the gem tells it), so
+    // a pause gated on their output alone leaves Boulderdash with none — which is what this asserts is fixed.
+    const { events } = fightOf([bm('k_boulderdash', 'B', 3, 400, ['RL'])]);
+    const rubies = events.filter((e) => e.type === 'buff' && (e as { ruby?: true }).ruby);
+    expect(rubies.length, 'Boulderdash cast no Rubies — re-check the fixture').toBeGreaterThan(0);
+    expect(groupBuffCasts(compileMoments(events, DEFAULT_RULES)[0]!, events).length
+      + groupSelfBuffs(compileMoments(events, DEFAULT_RULES)[0]!, events).length,
+    'if the stock cues ever stop skipping Rubies this test is measuring the wrong thing').toBe(0);
+  });
+});
+
+describe('an absorbed swing lengthens its wind-up — it does NOT park', () => {
+  /** The hook and the lunge timeline cannot run here; their decision lines can still be read. */
+  const HERE2 = dirname(fileURLToPath(import.meta.url));
+  /** COMMENTS STRIPPED. The comment above this very decision explains why the widened form was reverted, and
+   *  quotes it — so an un-stripped read would find the rejected rule in the prose that rejects it (the
+   *  `rallyGuard` trap, 2026-08-31, in its purest form). */
+  const REPLAY = readFileSync(join(HERE2, '../useCombatReplay.ts'), 'utf8')
+    .replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\/[^\n]*/g, ' ');
+  const ENGINE = readFileSync(join(HERE2, './engine.ts'), 'utf8');
+
+  it('the park stays the FORCED-ECHO signal', () => {
+    // Parking is beat-spanning: it advances the clock at the top of the wind-up and resumes the strike on a
+    // LATER beat. A forced Echo needs that (its consequences are their own beats); an ABSORBED cast does not
+    // (its consequences are inside this moment), and parking it let the damage beat start while the strike was
+    // still held — *"the damage is being dealt from the attack slightly too early, before the unit actually
+    // lunges into the attack"* (owner, 2026-09-01). Widening this back to the moment's width is the regression.
+    expect(REPLAY.includes('let heldWindup = false;'),
+      'the park must be the forced-Echo signal, not "did this swing absorb anything"').toBe(true);
+    expect(/cur\.end > cur\.start \+ 1/.test(REPLAY),
+      'the moment-width park is what dealt damage before the lunge').toBe(false);
+  });
+
+  it('the absorbed case is paid for in the WIND-UP PAUSE instead', () => {
+    // Which is where it belongs: fire the consequences, hold the pose, then strike. Everything after the pause
+    // — the lunge, its speed, contact, the damage riding it — keeps the timing it always had.
+    const line = ENGINE.slice(ENGINE.indexOf('rallyPauseMs:'), ENGINE.indexOf('rallyPauseMs:') + 220);
+    expect(line.includes('cfg.buffLeadMs'), 'the buff lead must still extend the pause').toBe(true);
+    expect(line.includes('cfg.windupSettleMs'), 'the settle beat must extend it too').toBe(true);
+  });
+
+  it('and both dials are OFF for a swing with no buffs', () => {
+    // `ctx.onWindupBuffs` is only supplied when the moment actually carries buffs, so an ordinary swing pays
+    // neither — the whole point of keeping them as dials rather than folding them into the base pause.
+    const line = ENGINE.slice(ENGINE.indexOf('rallyPauseMs:'), ENGINE.indexOf('rallyPauseMs:') + 220);
+    expect(/ctx\.onWindupBuffs \? cfg\.buffLeadMs \+ cfg\.windupSettleMs : 0/.test(line)).toBe(true);
   });
 });

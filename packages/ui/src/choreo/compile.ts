@@ -37,7 +37,20 @@ export const DEFAULT_RULES: GroupingRules = {
   // whole cast (its buffs, its narration, its authored FX) out of the wind-up and into beats after the lunge:
   // *"the flame beat … completes the lunge, no damage is dealt or taken, and all the animations trigger. once
   // they finish, damage is dealt and stats reconcile."*
-  absorbIntoWindup: new Set(['buff', 'rally', 'summon', 'reveal', 'improve', 'tribeAura', 'spellcast']),
+  // `questTrigger` joined on 2026-09-01, alongside `spellcast` and for the same reason: it is the pulse a
+  // quest or HERO POWER fires as it pays out (Gorun's Blade Mastery emits one on every swing), so it sits
+  // between the attack and the rest of the swing's consequences and stopped the absorb loop dead.
+  // `toHand` and the keyword pair joined on 2026-09-01, found by SWEEPING every on-attack card rather than by
+  // another report (owner: *"when my flagrunner attacks, his attack goes off, then the rally card is granted,
+  // and then the gorun animation goes off … both should happen BEFORE the lunge"*). A card conjured by a Rally
+  // is a consequence of the swing exactly like a buff is, and an un-absorbed one splits the swing AND strands
+  // everything behind it — which is why Gorun's grant looked late too. `keyword`/`keywordLost` are the same
+  // class (Tauntbreaker strips Taunt as it swings); they are listed together so a grant and a strip can never
+  // resolve on different sides of the lunge.
+  absorbIntoWindup: new Set([
+    'buff', 'rally', 'summon', 'reveal', 'improve', 'tribeAura', 'spellcast', 'questTrigger',
+    'toHand', 'keyword', 'keywordLost',
+  ]),
 };
 
 /**

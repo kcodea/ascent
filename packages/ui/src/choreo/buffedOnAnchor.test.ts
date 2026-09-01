@@ -65,17 +65,26 @@ describe('the buffedOn fan-out anchors on the buffed unit', () => {
     expect(/anchorsForUnits\(c\.source/.test(body), 'anchoring on the caster is the travelling convention').toBe(false);
   });
 
-  it('BOTH tendril paths drop an authored buff through the same helper', () => {
-    // *"flamebeat drake and warflame both cast dragonflame in combat, but both are triggering tendrils
-    // instead"* … and then, once on-attack casts moved inside the wind-up, *"they are back to casting tendrils
-    // instead of dragonflame"* — owner, 2026-09-01, twice, because there are TWO tendril paths.
+  it('ALL THREE stock buff channels drop an authored buff, through one helper', () => {
+    // *"flamebeat drake and warflame … are triggering tendrils instead"* → *"they are back to casting tendrils
+    // instead of dragonflame"* → *"they are also triggering a 'self buff' animation and i want to remove that
+    // animation"* — owner, 2026-09-01, three times, because the stock buff presentation has three entries and
+    // each was found separately:
     //
-    // A standalone buff wave goes through the score's `buffCast` cue; a cast absorbed into a swing goes through
-    // `fireBuffCasts` in the replay hook, where the moment belongs to the ATTACK and the spell is only visible
-    // per-buff. Both must ask `authoredBuffDefFor`, or a spell animates on one kind of beat and not the other.
-    const inScore = blockAt(read('./score.ts'), "cue.ch === 'buffCast'");
-    expect(inScore.includes('authoredBuffDefFor(c.spellId)'), "the score's tendril channel must filter authored buffs out").toBe(true);
-    expect(readReplay().includes('authoredBuffDefFor(c.spellId)'), 'the wind-up tendril path must drop authored buffs too').toBe(true);
+    //   · a tendril for a buff-OTHER (`fireBuffCasts`)
+    //   · a pulse for a buff-SELF (`fireSelfBuffs`) — a spell buffing a RANDOM friendly can roll its caster
+    //   · both reached from either a standalone buff wave OR an attack's wind-up
+    //
+    // The score's cue and the wind-up hand their casts to the SAME two functions, so the rule belongs there
+    // and nowhere else. Asserting it on both functions is what stops a fourth entry point growing its own copy.
+    const replay = readReplay();
+    for (const fn of ['fireBuffCasts', 'fireSelfBuffs']) {
+      expect(blockAt(replay, `const ${fn} = useCallback(`).includes('authoredBuffDefFor('),
+        `${fn} must drop a buff the spell's own def covers`).toBe(true);
+    }
+    // …and the score must NOT keep a second copy: two filters are two chances to disagree.
+    expect(read('./score.ts').includes('authoredBuffDefFor'),
+      'the substitution belongs to the fire* functions both channels funnel through').toBe(false);
   });
 
   it('the helper gates on the fan-out, so `buffed` keeps its tendril', () => {

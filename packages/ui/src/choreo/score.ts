@@ -13,7 +13,6 @@ import {
 } from './channels/rallyFired';
 import { releaseSummons } from '../fx/summonHold';
 import { getLungeConfig } from '../lungeConfig';
-import { authoredBuffDefFor } from './bindings';
 import type { FxBinding } from './bindings';
 import { cascade, scheduleLands } from '../fx/land';
 import { claimOrHold } from '../fx/statHold';
@@ -417,10 +416,10 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
       // (`Recruit.tsx` skips a tendril whose source has a `minionBuffed` binding), and the reason it keys off
       // the FAN-OUT rather than "is anything bound": `buffed` is deliberately ADDITIVE (Karwind's flame-ring
       // rides on top of its tendrils, owner ruling 2026-08-11), and `buffedOn` is the one that replaces.
-      // Per CAST, through the same helper the wind-up path uses (`authoredBuffDefFor`) — one rule, two very
-      // different callers. Filtering rather than standing the whole channel down keeps a moment that mixes a
-      // spell's buffs with an unrelated buffer's honest: the spell's play their def, the rest keep tendrils.
-      const casts = groupBuffCasts(moment, ctx.events).filter((c) => authoredBuffDefFor(c.spellId) === null);
+      // NB: the authored-def substitution is NOT made here. Both this channel and the attack wind-up hand their
+      // casts to the SAME `fireBuffCasts`, which owns that rule — one place, so a spell cannot animate on a
+      // standalone buff wave and tendril on a swing (which is exactly the bug that produced it).
+      const casts = groupBuffCasts(moment, ctx.events);
       if (casts.length) ctx.onBuffCasts(casts);
     });
     else if (cue.ch === 'buffSelf') at(cue, () => {

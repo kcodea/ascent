@@ -74,8 +74,13 @@ export const PATCH_NOTES: PatchNote[] = [
         text: 'Everything a minion sets off by attacking now plays while it is still reared back, before the swing lands.',
         details: [
           'Spells cast from an attack — Flamebeat Drake, Warflame — resolve in the wind-up with their effects and stats.',
+          'Rubies cast on an attack (Boulderdash) and hero-power grants (Gorun) now land their numbers there too.',
           'Previously the lunge finished first and the consequences played afterwards.',
         ],
+      },
+      {
+        category: 'Hero Change',
+        text: 'Gorun’s Blade Mastery now has its own effect and sound as it sharpens each swing.',
       },
       {
         category: 'UI / Info',

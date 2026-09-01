@@ -31,7 +31,9 @@ export const RESULT_TYPES = new Set<CombatEvent['type']>([
 /** On-attack "flash" events the sim emits between an `attack` and its damage — pulled into the attack's
  *  wind-up beat so they don't delay the impact. (Pure stat buffs to other minions, the rally cue, a
  *  rally-summoned token, the Stealth reveal — none of which change the attack's own damage numbers.) */
-const WINDUP_ABSORB = new Set<CombatEvent['type']>(['buff', 'rally', 'summon', 'reveal', 'improve', 'spellcast']);
+const WINDUP_ABSORB = new Set<CombatEvent['type']>([
+  'buff', 'rally', 'summon', 'reveal', 'improve', 'spellcast', 'questTrigger', 'toHand', 'keyword', 'keywordLost',
+]);
 
 export interface Beat {
   start: number;

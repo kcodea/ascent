@@ -36,7 +36,7 @@ import { isDeathrattleBufferCard } from './deathrattleBuffers';
 import { fireBuffFx } from './buffFxRender';
 import { cardFxScale } from './fx/cardScale';
 import { canPlayDefs, playDef } from './fx/playDef';
-import { authoredBuffDefFor, bindingFor } from './choreo/bindings';
+import { authoredBuffDefFor, bindingFor, labelBuffFxFor } from './choreo/bindings';
 import { isRuneBuffSource, hasPower } from '@game/sim';
 import { anchorsForUnits } from './fx/combatAnchors';
 import { getDef } from './fx/fxDefs';
@@ -1383,9 +1383,51 @@ export function useCombatReplay(
       }
       const cardId = cardIds.get(c.source) ?? '';
       const tribe = (CARD_INDEX[cardId]?.tribe ?? 'neutral') as Tribe;
-      const sourceless = isDeathrattleBufferCard(cardId);
+      /**
+       * SOURCELESS also covers a grant attributed to a NAME rather than a body (owner report 2026-09-01:
+       * *"gorun's buff doesn't get added at the right time, it's at resolution"*).
+       *
+       * `ctx.buff`'s `source` is usually the buffer's uid, but a hero power or a rune has no body on the
+       * board and passes a LABEL instead — `'Blade Mastery'`, `'Rune of the Wild Hunt'`, `'The Old Hunt'`,
+       * and about twenty more. `cardIds` has no entry for those, so `findEl` found nothing and the whole cast
+       * was `continue`d — dropping not just the tendril but the `scheduleRoll` with it, which is why the badge
+       * sat still until the hold expired long after the swing.
+       *
+       * A label grant genuinely has nowhere to travel FROM, which is exactly what the sourceless path is for
+       * (it rains a descend instead of drawing a tendril) — so this is the presentation it should have had all
+       * along, and it now gets its number rolled on the same clock as every other buff on the swing.
+       */
+      const sourceless = isDeathrattleBufferCard(cardId) || !cardIds.has(c.source);
       const sEl = sourceless ? null : findEl(c.source);
       if (!sourceless && !sEl) continue; // living-source buff needs a measurable source
+      // AUTHORED REPLACES STOCK, for a LABEL grant (owner 2026-09-01, Gorun's Blade Mastery). A hero power has
+      // no body to travel from, so its def rides the DESCEND convention the sourceless path already sets: the
+      // pair is a point above the card → the card itself, which is what `fireBuffFx` draws generically and what
+      // a `travel`-anchored ribbon reads as coming down onto the minion that earned it.
+      const labelFx = sourceless ? labelBuffFxFor(c.source) : null;
+      if (labelFx) {
+        // FROM THE HERO POWER BUTTON (owner report 2026-09-01: *"gorun's hero power trail isn't originating
+        // from the hero power button"*). A hero power has no body on the board, but it DOES have a control on
+        // screen, and that is where the player watches it charge — so a `travel`-anchored ribbon should leave
+        // from there rather than from a point in space above the card, which is what a generic descend uses.
+        //
+        // The ENEMY's power lives in its own corner (`.opp-power`), so the side is picked from where the
+        // buffed body actually is. If neither button is on screen the descend is the fallback: an effect
+        // slightly out of place beats no effect at all, and that was the pre-existing behaviour.
+        const onEnemy = !frameRef.current?.player.some((u) => u.uid === c.target);
+        const powerEl = document.querySelector<HTMLElement>(
+          onEnemy ? '.heropowerbtn.opp-power' : '.statusbar .heropanel:not(.heropanel2):not(.equipslot) .heropowerbtn',
+        ) ?? document.querySelector<HTMLElement>(onEnemy ? '.opp-power' : '.statusbar .heropowerbtn');
+        const pr = powerEl?.getBoundingClientRect();
+        const from = pr && (pr.width > 0 || pr.height > 0)
+          ? { x: pr.left + pr.width / 2, y: pr.top + pr.height / 2 }
+          : { x: tc.x, y: tc.y - tr.height };
+        playDef(labelFx.def, { source: from, target: tc, cursor: tc, camera: { x: window.innerWidth / 2, y: window.innerHeight / 2 } },
+          { uids: { source: c.target, target: c.target } });
+        if (labelFx.heroId) sfx.heroPower(labelFx.heroId);
+        if (!perTarget.has(c.target)) perTarget.set(c.target, AUTHORED_BUFF_ROLL_MS);
+        continue;
+      }
       const sr = sEl?.getBoundingClientRect();
       const strikeMs = fireBuffFx({
         source: sr ? { x: sr.left + sr.width / 2, y: sr.top + sr.height / 2 } : undefined,
@@ -1427,6 +1469,22 @@ export function useCombatReplay(
       // SLOT, not mid-flight: an ON-ATTACK self-buff is absorbed into the wind-up, so this fires while the
       // unit is leaning back — and the pulse marks the unit, so it belongs where the unit lives.
       const { cx, cy } = layoutRectOf(el);
+      // AUTHORED REPLACES STOCK — the third path, and the last one (owner report 2026-09-01: *"they are also
+      // triggering a 'self buff' animation and i want to remove that animation"*). A spell that buffs a RANDOM
+      // friendly can roll its own caster; that buff has `source === target`, so it is sorted here rather than
+      // into the tendril channel and needed the identical rule. Same helper, so all three paths agree.
+      //
+      // The def plays HERE rather than being skipped outright: this body was buffed like any other, so the
+      // spell's effect belongs on it — dropping the pulse without playing the def would leave the one minion
+      // the spell hit hardest showing nothing at all.
+      const authored = authoredBuffDefFor(s.spellId);
+      if (authored !== null) {
+        const at = { x: cx, y: cy };
+        playDef(authored, { source: at, target: at, cursor: at, camera: { x: window.innerWidth / 2, y: window.innerHeight / 2 } },
+          { uids: { source: s.uid, target: s.uid } });
+        if (unitOf(s.uid)) scheduleRoll(s.uid, AUTHORED_BUFF_ROLL_MS);
+        continue;
+      }
       const cardId = cardIds.get(s.uid) ?? '';
       const cfg = PULSE_PRESETS[pulsePreset(cardId, (CARD_INDEX[cardId]?.tribe ?? 'neutral') as Tribe)];
       pixiFx.pulse(cx, cy, cfg);
@@ -2160,6 +2218,40 @@ export function useCombatReplay(
         // pulse — the same split the `buffWave` path makes, so an on-attack aura-of-self reads like a standalone one.
         const windupCasts = groupBuffCasts(cur, events);
         const windupSelfBuffs = groupSelfBuffs(cur, events);
+        /**
+         * DOES THIS SWING CHANGE STATS AT ALL? — the question the wind-up pause actually turns on.
+         *
+         * `groupBuffCasts`/`groupSelfBuffs` answer "which stock buff cue should fire", and they deliberately
+         * skip a RUBY (its gem detonation tells it instead) and know nothing about a run-wide aura. Both are
+         * still stat changes the swing caused, so gating the PAUSE on those two lists alone meant a Ruby-on-
+         * attack (Boulderdash's Rally) rolled its numbers with no hold at all, while an ordinary buffer held
+         * (owner ask 2026-09-01: make the timing apply "across the board for any buffs that happen from
+         * attacks … to boulderdash rubies, to anything like that").
+         *
+         * Deliberately NOT included: `summon` (its arrival has its own hold) and `improve` (an accrual that
+         * feeds later summons — no badge on screen moves, so there is nothing to wait for).
+         */
+        let windupStatChange = windupCasts.length > 0 || windupSelfBuffs.length > 0;
+        /**
+         * The units this swing RUBIED, which need their badge rolled by hand.
+         *
+         * A Ruby's stat change is withheld by the `rubyFx` cue and released by whatever delivers it — and
+         * `ruby-gem-apply`'s `react` layer does NOT carry the number, so nothing delivers it and the hold
+         * simply EXPIRES. That expiry is `HOLD_TTL_MS` (1200ms), which lands just past the end of the
+         * wind-up pause: the gem detonates in the hold, the pause ends, the lunge goes out, and only then
+         * does the badge tick over. Exactly the report (owner 2026-09-01): *"boulderdash/maybe rubies are
+         * not updating the values until after the lunge."*
+         *
+         * Rolling them here puts them on the same clock as every other wind-up stat change, rather than
+         * making the fix an edit to an authored def (ticking `carries` on that `react` layer would also
+         * work, but that is the owner's tuning surface, not plumbing).
+         */
+        const windupRubyUids: string[] = [];
+        for (let i = cur.start; i < cur.end; i++) {
+          const e = events[i];
+          if (e?.type === 'buff' || e?.type === 'tribeAura') windupStatChange = true;
+          if (e?.type === 'buff' && e.ruby && !windupRubyUids.includes(e.target)) windupRubyUids.push(e.target);
+        }
         // HELD WINDUP: this swing's own Rally FORCE-TRIGGERS an Echo (Echohorn / Deathsayer). Whatever the Echo
         // does, the simulator resolves it BETWEEN the attacker's rally and the attacker's own strike, and only
         // the flash types (`buff`/`rally`/`summon`/…) get absorbed into the wind-up — a Fel Spikes spray's `dmg`,
@@ -2170,19 +2262,24 @@ export function useCombatReplay(
         // volley — and strikes (or dies) only once its own `dmg` finally lands (the resume above). Marked by the
         // attacker emitting a `rally` on this swing (the force-triggered-Echo signal), before its own strike.
         //
-        // WIDENED 2026-09-01 (owner ask): the park is no longer about forced Echoes specifically. *"we need all
-        // of the animations and stats to reconcile while the flamebeat is paused in his pre-attack animation,
-        // like echohorn does. we need this to be the case for all cases where buffs are applying or animations
-        // are firing from an attack."* So the signal is simply: did this swing ABSORB anything? A wind-up moment
-        // wider than the `attack` event itself is a swing with consequences — buffs, a cast, a summon, a forced
-        // Echo — and every one of them should resolve while the attacker holds its pose, not after the lunge
-        // has already landed. A plain swing absorbs nothing, so `end === start + 1` and nothing changes for it.
+        // ── WHY THIS IS STILL THE FORCED-ECHO SIGNAL, AND NOT "did this swing absorb anything" ──────────────
         //
-        // The rally scan is kept as a SEPARATE reason rather than folded in: a forced Echo can resolve into
-        // events that are NOT absorbed (a Fel Spikes spray's `dmg`, a Dawnclaw Battlecry-replay), so its moment
-        // can be exactly one event wide and still need the park. Two independent reasons, either sufficient.
-        let heldWindup = cur.end > cur.start + 1;
-        if (!heldWindup && rallies) {
+        // It was briefly widened to `cur.end > cur.start + 1` (2026-09-01) to get an on-attack CAST resolving
+        // inside the wind-up. That worked, and broke the swing: *"the damage is being dealt from the attack
+        // slightly too early, before the unit actually lunges into the attack."*
+        //
+        // Parking is a BEAT-SPANNING device. It advances the clock at the top of the wind-up and resumes the
+        // strike on a later beat, which is exactly right for a forced Echo — whose consequences land in beats
+        // of their own — and exactly wrong for a swing whose consequences were ABSORBED. Absorbed consequences
+        // are inside this very moment, so there is no later beat to wait for: parking just let the damage beat
+        // start while the strike was still held, and the numbers landed before the lunge had moved.
+        //
+        // The absorbed case needs no park at all. It needs a LONGER WIND-UP, which the lunge timeline already
+        // does (`rallyPauseMs` → fire the consequences → hold the pose → strike). Everything after the pause —
+        // the lunge, its speed, contact, and the damage that rides it — keeps its original timing, which is
+        // what the owner asked for: *"it should only be adding a slight pause before the lunge goes off."*
+        let heldWindup = false;
+        if (rallies) {
           for (let i = cur.start; i < events.length; i++) {
             const e = events[i];
             if (e?.type === 'attack' && i > cur.start) break;
@@ -2198,8 +2295,18 @@ export function useCombatReplay(
           // How many procs this swing carries — the wind-up stretches to fit their pulse→sparkle pairs.
           // Only Echohorn can exceed 1 today (see `rallyProcsFor`).
           rallyProcs: rallyProcsFor(cur, events, atkUid),
-          onWindupBuffs: (windupCasts.length || windupSelfBuffs.length)
-            ? () => { fireBuffCasts(windupCasts); fireSelfBuffs(windupSelfBuffs); }
+          // Supplying this does two things: it fires the stock buff cues at the top of the wind-up, AND it is
+          // what switches the wind-up PAUSE on (see `windupPauseS` in `channels/lunge.ts`). For a Ruby or an
+          // aura both lists are empty and the callback fires nothing — the gem and the board wash are told by
+          // their own channels — but the pause still happens, which is the whole point.
+          onWindupBuffs: windupStatChange
+            ? () => {
+              fireBuffCasts(windupCasts);
+              fireSelfBuffs(windupSelfBuffs);
+              // …and the Rubies' numbers, which have their own FX but no deliverer (see `windupRubyUids`).
+              // Same lead the authored buff defs use, so every number on this swing lands together.
+              for (const uid of windupRubyUids) scheduleRoll(uid, AUTHORED_BUFF_ROLL_MS);
+            }
             : undefined,
           onImpactAuras: breakWards,
           onCritImpact: cur.primary.crit ? () => setCritShake((n) => n + 1) : undefined,

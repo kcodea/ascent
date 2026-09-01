@@ -83,6 +83,20 @@ export interface LungeConfig {
    * than a constant. 0 restores the old timing exactly.
    */
   buffLeadMs: number;
+  /**
+   * A SLIGHT extra beat after the stats have landed, before the strike goes out (owner ask 2026-09-01:
+   * *"make sure the stats are fully adjusted before the lunge starts and add a SLIGHT pause afterwards"*).
+   *
+   * Separate from `buffLeadMs` on purpose, and not folded into it: `buffLeadMs` is tuned to "how long until
+   * the number has finished rolling", and this is "how long to sit still once it has". Rolling them together
+   * would mean re-tuning the first every time the second changed, and lose which of the two a given number
+   * was chosen for. Added on the same swings `buffLeadMs` is, so a swing with no buffs is untouched, and 0
+   * restores the timing exactly as it was before this dial existed.
+   *
+   * It does NOT touch the lunge itself — not its speed, its travel, its contact, or when damage lands. Those
+   * all follow the pause, unchanged; this only delays when they start.
+   */
+  windupSettleMs: number;
   /** Smack lead (s) — fire the impact sound + knockback this many seconds BEFORE the strike completes. */
   smackLead: number;
   /** Settle duration (s) — the elastic return to rest. */
@@ -131,6 +145,7 @@ const DEFAULTS: LungeConfig = {
   // Sized to cover a typical tendril travel + the combat roll (`COMBAT_ROLL_MS`, 650ms) so the number is
   // DONE before the strike leaves. A starting point for the owner's ear, not a baked value.
   buffLeadMs: 520,
+  windupSettleMs: 140,
   smackLead: 0.005,  // smack ~5ms before the strike lands (near-on-contact)
   settleDur: 1.11,   // owner 2026-07-21 (0.34 -> 1.11): a long, lazy elastic drift back to rest. NOTE this is
                      // far longer than the ~500ms post-impact hold, so a settle now visibly runs on THROUGH
@@ -161,6 +176,7 @@ export const LUNGE_RANGES: Record<keyof LungeConfig, [number, number, number]> =
   defenderSpin: [0, 30, 0.5],
   attackerRebound: [0, 20, 0.5],
   buffLeadMs: [0, 1200, 20],
+  windupSettleMs: [0, 600, 10],
   smackLead: [0, 0.12, 0.005],
   settleDur: [0.1, 1.2, 0.01],
   attackGap: [0, 0.7, 0.02],
@@ -196,7 +212,7 @@ export const LUNGE_GROUPS: { title: string; keys: (keyof LungeConfig)[] }[] = [
   { title: 'Strike · distance → duration', keys: ['targetSpeed', 'minStrikeDur', 'maxStrikeDur', 'strikeDur'] },
   { title: 'Strike · distance → ease', keys: ['bandShortPx', 'bandLongPx', 'easeShortIdx', 'easeMidIdx', 'easeLongIdx'] },
   { title: 'Contact · angle → tilt', keys: ['leadTilt', 'faceOnRamp', 'tiltAngleScale', 'defenderSpin', 'attackerRebound', 'smackLead'] },
-  { title: 'Wind-up · buffs', keys: ['buffLeadMs'] },
+  { title: 'Wind-up · buffs', keys: ['buffLeadMs', 'windupSettleMs'] },
   { title: 'Recovery', keys: ['settleDur', 'attackGap'] },
 ];
 

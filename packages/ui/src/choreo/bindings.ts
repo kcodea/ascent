@@ -476,6 +476,32 @@ function cloneTable(t: LayerTable): LayerTable {
  * because that fan-out is the one that MEANS "instead of": `buffed` is deliberately additive (Karwind's
  * flame-ring rides on top of its tendrils, owner ruling 2026-08-11) and must keep its tendril.
  */
+/**
+ * A grant attributed to a NAME rather than a body, and the authored effect that tells it.
+ *
+ * `ctx.buff`'s source is usually the buffer's uid, but a hero power or a rune has no body on the board and
+ * passes a LABEL instead — `'Blade Mastery'`, `'Rune of the Wild Hunt'`, and about twenty more. Those render
+ * through the SOURCELESS path (a descend, since there is nowhere to travel from), and this is the opt-in that
+ * replaces that generic rain with the effect the owner authored for it.
+ *
+ * A plain map rather than a row in `bindings.json`, because the key is not a card and not a moment kind: it is
+ * the string the SIMULATOR chose as the grant's source, and inventing a card id for it would make the binding
+ * table lie about what it is keyed by. `heroId` names the hero-power clip that plays with it, on the same
+ * `heroes/<id>.power.mp3` convention every other hero power uses.
+ *
+ * Keys must match the simulator's literal EXACTLY — `simulate.ts`'s `'Blade Mastery'` is the contract, and
+ * `docbot/onAttackStatTiming.test.ts` sweeps those literals so a rename cannot silently unbind this.
+ */
+const LABEL_BUFF_FX: Record<string, { def: string; heroId?: string }> = {
+  // GORUN — Blade Mastery, +3 Attack to the minion whose swing earned it (owner 2026-09-01).
+  'Blade Mastery': { def: 'gorun-hp', heroId: 'gorun' },
+};
+
+/** The authored effect for a label-sourced grant, or null to keep the generic descend. */
+export function labelBuffFxFor(source: string): { def: string; heroId?: string } | null {
+  return LABEL_BUFF_FX[source] ?? null;
+}
+
 export function authoredBuffDefFor(spellId: string | undefined): string | null {
   if (spellId === undefined) return null;
   const b = bindingFor(spellId, 'buffWave');

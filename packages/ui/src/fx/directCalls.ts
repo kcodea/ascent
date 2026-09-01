@@ -109,11 +109,16 @@ export const DYNAMIC_CALL_SITES: Readonly<Record<string, number>> = {
   // The death handler's projectile-Echo launch — one `playDef(echoBinding.def, …)` firing Fel Spikes' spike
   // volley from the dying body a beat before its damage lands (a `launchOnDeath` binding). Not a moment cue:
   // it deliberately fires OFF the damage beat, so it resolves its binding directly here (see `echoWaves`).
-  // TWO since 2026-09-01: the second is `fireBuffCasts` playing a spell's authored buff def INSTEAD of the
-  // stock tendril. It resolves through `authoredBuffDefFor` rather than a moment binding because an on-attack
-  // cast now resolves inside the wind-up — the moment belongs to the ATTACK, so only the individual buff still
-  // knows which spell caused it. Same data-resolved shape as the line above; same reason it is not a literal.
-  'useCombatReplay.ts': 2,
+  // THREE since 2026-09-01: `fireBuffCasts` and `fireSelfBuffs` each play a spell's authored buff def INSTEAD
+  // of their stock cue (the tendril and the in-place pulse). Both resolve through `authoredBuffDefFor` rather
+  // than a moment binding, because an on-attack cast now resolves inside the wind-up — the moment belongs to
+  // the ATTACK, so only the individual buff still knows which spell caused it. A spell that buffs a random
+  // friendly can roll its own caster, which is why the self-buff channel needs it too. Same data-resolved
+  // shape as the death-launch line above; same reason none of them is a literal.
+  // FOUR since 2026-09-01: the fourth is `fireBuffCasts` playing the authored effect for a LABEL-sourced
+  // grant (Gorun's Blade Mastery → `gorun-hp`), resolved through `labelBuffFxFor`. Data-resolved like the
+  // three above, and for the same reason none of them is a literal.
+  'useCombatReplay.ts': 4,
 };
 
 /** The files that fire `id` from code, or an empty array. Never null — callers render a list either way. */

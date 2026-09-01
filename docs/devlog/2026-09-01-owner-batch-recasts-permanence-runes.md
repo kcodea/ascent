@@ -169,6 +169,60 @@ and the damage must stay a later beat (the fix must not collapse the swing into 
 `buffedOnAnchor` lane now pins that BOTH tendril paths route through the shared helper — the invariant that
 would have caught this.
 
+## Everything a swing causes belongs to its wind-up — the whole sweep
+
+Five owner reports, one shape, found one card at a time until the last one was answered with a sweep instead
+of a fix.
+
+**The mechanism has three independent conditions**, and each failed on its own:
+
+1. **Absorbed** into the attack's moment, or it plays as a beat after the lunge.
+2. **The pause turned on**, so the attacker holds its pose while it resolves.
+3. **Attributable**, or presentation drops the buff and its badge roll with it.
+
+**(1) cost four reports.** The absorb loop stops at the first event type it does not recognise, which strands
+everything *behind* it too — so one stray type produces several symptoms and looks like several bugs.
+`spellcast` (a cast counter) broke Dragonflame; `questTrigger` (a hero-power pulse) broke Gorun; `toHand` (a
+Rally conjuring a card) broke Flagrunner *and made Gorun look late a second time*, because his correctly
+absorbed grant sat behind it. `keywordLost` (Tauntbreaker) was found by the sweep before anyone hit it, and
+`keyword` was added beside it so a grant and a strip cannot resolve on different sides of the lunge.
+
+**(2) broke for Rubies.** The pause was gated on the stock buff cues, and those deliberately skip a `ruby`
+buff (its gem tells it). Boulderdash's events were absorbed correctly and its swing never paused. Gated on
+"does this swing carry a stat change of any kind" now — Rubies and run-wide auras included.
+
+**(3) broke for every LABEL-sourced grant.** `ctx.buff`'s source is usually a uid, but a hero power or rune
+has no body and passes a name — `'Blade Mastery'`, `'Rune of the Wild Hunt'`, ~20 more. `fireBuffCasts`
+looked up an element, found none, and `continue`d the whole cast, dropping the `scheduleRoll` with it; the
+badge then waited out the hold's 1200ms expiry, landing after the lunge. Those now take the SOURCELESS path
+(a descend), which is what a grant with nowhere to travel from is for.
+
+### The park was the wrong tool
+
+Widening `heldWindup` to "did this swing absorb anything" worked and broke the swing: parking is BEAT-SPANNING
+— it advances the clock at the top of the wind-up and resumes the strike on a later beat, which is right for a
+forced Echo and wrong for an absorbed cast, whose consequences are in the same moment. The damage beat started
+while the strike was still held. The absorbed case needs a LONGER WIND-UP, not a park: fire the consequences,
+hold the pose, strike. `windupSettleMs` (140ms, tunable) is the owner's *"SLIGHT pause"* on top of
+`buffLeadMs`, kept separate because one is "until the number stops rolling" and the other is "sit still once
+it has". Everything after the pause keeps its original timing.
+
+### Rubies had no deliverer
+
+`ruby-gem-apply`'s `react` layer does not tick `carries`, so nothing releases the hold and it expires at
+`HOLD_TTL_MS` — 1200ms, against an 1100ms pause. The wind-up path rolls those badges by hand instead. Ticking
+`carries` on the def would also work; that is the owner's tuning surface, so a test fails if it ever starts
+carrying its own number, rather than letting both fight.
+
+### The lane
+
+**`onAttackStatTiming`** sweeps EVERY card with an `onAttack` effect (46 today), each partnered with a
+Rally-capable ally so the on-ally-attack cards fire, and asserts no unabsorbed event sits between a swing and
+its damage — reading the absorb set from `compile.ts` so a removal fails there and NAMES the cards it breaks.
+It also sweeps the simulator's label-sourced `ctx.buff` literals, pins that presentation treats an
+unattributable source as sourceless, and checks every authored label effect still names a label the simulator
+emits (there is no type connecting the two strings). That one check is what the four separate reports were.
+
 ## Also
 
 - Broodfire's authored buff FX + its per-card effect clip are wired (`minionBuffed` → `broodfire-buff`).

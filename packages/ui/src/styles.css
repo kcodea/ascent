@@ -9748,6 +9748,10 @@ body.duel-attacker-opp .combatopp-hp { opacity: 0; }
 .combatopp-slot.slot3 { background-image: url('/opp-rune-slot-3.webp');
   translate: calc(var(--hd-slot3-x, 281px) * var(--scale)) calc(var(--hd-slot3-y, -75px) * var(--scale)); scale: var(--hd-slot3-s, 1.65); }
 .combatopp-rune .questbadge-tip { bottom: auto; top: 50%; left: auto; right: calc(100% + 8px); transform: translateY(-50%); }
+/* Each rune is its own stacking context (the `translate`/`scale` props), so a later sibling's art paints OVER a
+   hovered rune's tooltip. Lift the hovered rune (its whole subtree, tip included) above the others (owner report
+   2026-08-31). Flex items honour z-index without positioning. */
+.combatopp-rune:hover { z-index: 10; }
 
 @keyframes combatoppdrop {
   from { opacity: 0; transform: translateY(-46px) scale(0.86); }

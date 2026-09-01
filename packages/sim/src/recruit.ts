@@ -824,7 +824,23 @@ export const COMMISSION_TEXT: Record<CommissionKind, string> = {
  *  reward — the card-text rule ("always show the current value of what this is doing") applied to a power.
  *  `which` picks the WIELDED power (Mimic's disguise, Void's pair) — every live-value branch below keys off
  *  the resolved power's kind, so an adopted Lucky Seat prints its suit exactly as the native hero would. */
-export function heroPowerText(state: RunState, which = 0): string {
+/**
+ * LIVE COMBAT TALLIES the hero-power text folds in (owner report 2026-08-31: *"gorun's hero power x/8 doesn't
+ * update in real time in combat"*).
+ *
+ * A counter that only advances at SETTLE is frozen for the whole fight — which is the one stretch a player is
+ * watching it. `RunState.bladeAttacks` is banked at settle, exactly as the simulator's own comment describes
+ * (combat reproduces the expression from `mods.bladeMastery.attacks` PLUS the attacks made so far this
+ * fight), so the printed text has to do the same addition or it prints yesterday's number.
+ *
+ * Optional and defaulting to nothing, so every shop-side caller is unchanged.
+ */
+export interface HeroPowerLive {
+  /** Friendly attacks made SO FAR in the fight being replayed (`combatQuestDelta.attack`). */
+  attacks?: number;
+}
+
+export function heroPowerText(state: RunState, which = 0, live: HeroPowerLive = {}): string {
   const power = activePowers(state)[which] ?? primaryPower(state);
   if (power.kind === 'luckySeat') {
     const suit = state.ciaSuit ?? 'hearts';
@@ -853,8 +869,10 @@ export function heroPowerText(state: RunState, which = 0): string {
     return `**End of Turn:** give your left and right-most minions **+${grant}/+${grant}**. Upgrades in **${toNext}** kill${toNext === 1 ? '' : 's'}. (${kills} killed)`;
   }
   if (power.kind === 'bladeMastery') {
-    const attacks = state.bladeAttacks ?? 0;
-    const grant = bladeMasteryGrantOf(state);
+    // The run's banked count PLUS this fight's so far — the same sum the simulator makes. Without the second
+    // half the counter sits still through the whole combat and only jumps at settle.
+    const attacks = (state.bladeAttacks ?? 0) + (live.attacks ?? 0);
+    const grant = bladeMasteryGrantOf({ ...state, bladeAttacks: attacks });
     const toNext = BLADE_ATTACKS_PER_STEP - (attacks % BLADE_ATTACKS_PER_STEP);
     return `When your minions attack, give them **+${grant} Attack** for the fight. Improves in **${toNext}** attack${toNext === 1 ? '' : 's'}. (${attacks} made)`;
   }

@@ -8684,7 +8684,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   display: flex; flex-direction: column; gap: calc(4 * var(--lu) * var(--sc-gap, 2.3));
   padding: calc(7 * var(--lu) * var(--sc-pad, 2.3)); border-radius: calc(8 * var(--lu) * var(--sc-rad, 1.25));
   background: linear-gradient(180deg, var(--sc-bg1, #47311f), var(--sc-bg2, #110c08));
-  border: 3px solid color-mix(in srgb, var(--sc-border, #ecca96) 55%, #000);
+  border: 3px solid color-mix(in srgb, var(--sc-border, #ffb685) 55%, #000);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 calc(4 * var(--lu)) calc(14 * var(--lu)) -4px var(--shadow);
   /* One-shot fade+slide on open. Safe to touch opacity/transform here — this is not a looping animation, and
      both are compositor-only properties (docs/performance.md). */

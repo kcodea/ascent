@@ -85,16 +85,16 @@ const DEFAULTS: HeroDuelConfig = {
   // oppX/oppY are REFERENCE px (× --scale in styles.css) offset from the foe HERO POWER anchor — the portrait
   // rides with the power so both stay pinned to the board at any stage size (owner ask 2026-08-29).
   oppScale: 2.4,
-  oppX: 144,
+  oppX: 176,
   oppY: 41,
   // name/hp/pill/rune offsets are now REFERENCE px (× --scale in styles.css) so the whole opponent panel stays
   // pinned to the board at any screen size (owner report 2026-08-29: runes read "off" on a friend's screen).
   nameScale: 0.65,
   nameX: 0,
-  nameY: 45,
+  nameY: 26,
   hpScale: 0.65,
   hpX: 0,
-  hpY: -45,
+  hpY: -31,
   // REFERENCE px (× --scale in styles.css), so the icon stays pinned to the board at any stage size — was raw
   // px, which skewed off the board on a non-fullscreen stage (owner report 2026-08-29). Owner-tuned on the
   // fixed (scale-relative) build.
@@ -103,10 +103,10 @@ const DEFAULTS: HeroDuelConfig = {
   powerScale: 0.87,
   powerAlpha: 1,
   pillScale: 0.72,
-  pillX: -117,
+  pillX: -71,
   pillY: -31,
   pillPlayerScale: 0.55,
-  pillPlayerX: 72,
+  pillPlayerX: 52,
   pillPlayerY: -12,
   dmgScale: 0.48,
   dmgX: 0,

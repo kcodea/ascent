@@ -22,32 +22,41 @@ describe('drag jank recorder', () => {
   afterEach(() => { warn.mockRestore(); });
 
   it('says nothing for ordinary weighted motion', () => {
-    // The card trails the pointer — same direction, smaller step. That is the FEEL, not a fault.
-    recordDragJank(frame({ t: 0, px: 0, cx: 0 }));
-    recordDragJank(frame({ t: 16, px: 40, cx: 22 }));
-    recordDragJank(frame({ t: 32, px: 80, cx: 55 }));
+    // The card trails the pointer and CLOSES the gap each frame. That is the feel, not a fault.
+    recordDragJank(frame({ t: 0, px: 100, cx: 0 }));   // 100px behind
+    recordDragJank(frame({ t: 16, px: 140, cx: 60 }));  // 80px behind — closing
+    recordDragJank(frame({ t: 32, px: 180, cx: 120 })); // 60px behind — closing
     expect(warn).not.toHaveBeenCalled();
   });
 
-  it('flags the card moving BACKWARD against a forward pointer', () => {
-    recordDragJank(frame({ t: 0, px: 200, cx: 190 }));
-    recordDragJank(frame({ t: 16, px: 240, cx: 190 - SNAP_PX - 10 }));
+  it('says nothing when the gap GROWS because the pointer outran the card', () => {
+    // A fast flick opens the gap without the card moving backwards at all — that is lag, which is authored.
+    // The rule has to tolerate it, or every quick drag cries wolf.
+    recordDragJank(frame({ t: 0, px: 100, cx: 60 }));
+    recordDragJank(frame({ t: 16, px: 400, cx: 150 }));
+    expect(warn, 'the card still moved toward the pointer').not.toHaveBeenCalled();
+  });
+
+  it('flags the card jumping AWAY from the pointer', () => {
+    recordDragJank(frame({ t: 0, px: 400, cx: 380 }));       // 20px behind
+    recordDragJank(frame({ t: 16, px: 405, cx: 200 }));      // 205px behind — it went backwards
     expect(warn).toHaveBeenCalledTimes(1);
     expect(String(warn.mock.calls[0]![0])).toContain('SNAP');
   });
 
-  it('stays quiet while React owns the transform', () => {
-    // A snap-back animation and a magnet slide are SUPPOSED to move the card against the pointer. Flagging
-    // those would bury the real event in noise from the two cases we already understand.
-    recordDragJank(frame({ t: 0, px: 200, cx: 190 }));
-    recordDragJank(frame({ t: 16, px: 240, cx: 0, reactDriven: true }));
-    expect(warn).not.toHaveBeenCalled();
+  it('flags a snap even while the hand is STILL — the blind spot in the first cut', () => {
+    // The most likely moment to notice a snap is while pausing, and the original rule (opposite direction to
+    // the pointer) skipped a still pointer outright.
+    recordDragJank(frame({ t: 0, px: 400, cx: 395 }));
+    recordDragJank(frame({ t: 16, px: 400, cx: 300 }));
+    expect(warn, 'a still pointer must not excuse a 95px jump').toHaveBeenCalledTimes(1);
   });
 
-  it('ignores a still pointer — a settling card is not a snap', () => {
-    // With the pointer parked, the card keeps easing in. Nothing has been contradicted.
-    recordDragJank(frame({ t: 0, px: 200, cx: 100 }));
-    recordDragJank(frame({ t: 16, px: 201, cx: 160 }));
+  it('stays quiet while React owns the transform', () => {
+    // A snap-back animation and a magnet slide are SUPPOSED to move the card away from the pointer. Flagging
+    // them would bury the real event in noise from the two cases we already understand.
+    recordDragJank(frame({ t: 0, px: 400, cx: 390 }));
+    recordDragJank(frame({ t: 16, px: 400, cx: 0, reactDriven: true }));
     expect(warn).not.toHaveBeenCalled();
   });
 

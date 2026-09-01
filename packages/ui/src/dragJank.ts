@@ -52,14 +52,24 @@ const CAPACITY = 240; // ~4s at 60fps, ~2s at 120 — enough to hold the run-up 
 let buffer: DragSample[] = [];
 let started = 0;
 
-/** A backward jump of the CARD against a forward pointer, in px, that counts as a snap worth flagging. */
-export const SNAP_PX = 24;
+/** How far the card may jump AWAY from the pointer in one frame before it counts as a snap. */
+export const SNAP_PX = 18;
+
+/** Whether this session has announced that the recorder is live. One line per SESSION, not per drag. */
+let announced = false;
 
 /** Begin a fresh recording. Called when a drag starts, so each drag is its own trace. */
 export function beginDragJank(): void {
   if (!import.meta.env.DEV) return;
   buffer = [];
   started = performance.now();
+  // ONE line, the first drag of the session. Without it, silence is ambiguous: "no snap happened" and "the
+  // recorder never ran" look identical, and the second is the more likely explanation for a filtered console
+  // showing nothing at all (owner, 2026-09-01).
+  if (!announced) {
+    announced = true;
+    console.warn('[drag] jank recorder armed — a snap prints here; window.__dragJank() for the trace.');
+  }
 }
 
 /**
@@ -76,14 +86,27 @@ export function recordDragJank(s: DragSample): void {
   buffer.push(s);
   if (buffer.length > CAPACITY) buffer.shift();
   if (!prev || s.reactDriven || prev.reactDriven) return; // a snap-back/magnet slide is SUPPOSED to move it
-  const dPointer = s.px - prev.px;
-  const dCard = s.cx - prev.cx;
-  if (Math.abs(dPointer) < 2) return;                     // the pointer barely moved — nothing to contradict
-  if (Math.sign(dCard) === Math.sign(dPointer) || Math.abs(dCard) < SNAP_PX) return;
-  // The card went the OTHER WAY, hard. That is the reported jank, and this is the frame it happened on.
+  // THE RULE: easing always CLOSES the gap to the pointer. `m.rx += (pointer - m.rx) * k` moves toward the
+  // target for any k in (0, 1], so a frame where the card ends up FURTHER from the pointer than it started is
+  // not motion — it is a discontinuity, and that is the jank.
+  //
+  // Measured as distance, deliberately, not as "moved the opposite way to the pointer" (the first cut). That
+  // version had two blind spots the owner would have hit: a snap while the hand is momentarily STILL — the
+  // most likely moment to notice one — was skipped outright, and so was a snap that happened to jump the same
+  // way the pointer was already going. Distance-to-target catches both, and needs no pointer motion at all.
+  // Both distances are measured to the SAME target — THIS frame's pointer — so the question is only "did the
+  // step move the card toward it". Measuring each frame against its own pointer was wrong and a test caught
+  // it: a fast flick moves the pointer away faster than the card can follow, so the gap grows while the card
+  // is easing perfectly. That version would have cried wolf on every quick drag, which is the one thing a
+  // detector must never do.
+  const before = Math.hypot(s.px - prev.cx, s.py - prev.cy);
+  const after = Math.hypot(s.px - s.cx, s.py - s.cy);
+  const opened = after - before;
+  if (opened < SNAP_PX) return;
   console.warn(
-    `[drag] SNAP at t=${Math.round(s.t)}ms: pointer moved ${Math.round(dPointer)}px, card moved `
-    + `${Math.round(dCard)}px (dt ${Math.round(s.dt)}ms). window.__dragJank() for the trace.`,
+    `[drag] SNAP at t=${Math.round(s.t)}ms: the card jumped ${Math.round(opened)}px AWAY from the pointer `
+    + `(gap ${Math.round(before)}px → ${Math.round(after)}px, dt ${Math.round(s.dt)}ms). `
+    + 'window.__dragJank() for the trace.',
   );
 }
 

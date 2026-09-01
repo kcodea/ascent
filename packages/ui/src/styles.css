@@ -2338,11 +2338,16 @@ img.tierbadge.tierstars,
 /* Discover overlay (triple reward) */
 /* z160: discover / choose-one must sit above ALL effects — the FX overlay (.pixifx z110), a freshly-placed
    card's z111 lift, and the Fodder swirl (z120) — so a unit that triggers Discover can't cover its own menu. */
-/* Dim, NOT blur (perf): `backdrop-filter: blur` is a full-viewport GPU pass sampling the whole framebuffer —
-   a heavy composite on the Discover-open frame, worst at the exe's native fullscreen res (owner report:
-   "discovers are a big one"). A slightly deeper solid scrim backgrounds the board just as well without the
-   per-composite cost. The matching hero/questbadges dim below drops its blur too, so the look stays uniform. */
+/* Dim, NOT `backdrop-filter` blur (perf): `backdrop-filter: blur` is a full-viewport GPU pass sampling the
+   whole framebuffer EVERY composited frame — a heavy cost on the Discover-open frame, worst at the exe's
+   native fullscreen res (owner report: "discovers are a big one"). The blur+darkening the owner asked to
+   match from the hero-select screen (2026-08-31) is therefore reproduced the way HERO SELECT itself does it
+   (`.heroselect::before`): a STATIC layer — the board art under the same dark gradient, blurred ONCE at
+   paint — not a live backdrop pass. Same recipe, same values, no per-frame cost. */
 .discover-ov { position: fixed; inset: 0; background: rgba(30, 20, 8, 0.74); display: grid; place-items: center; z-index: 160; animation: fadein 0.2s ease; }
+.discover-ov::before { content: ''; position: absolute; inset: -60px; z-index: -1; pointer-events: none;
+  background: linear-gradient(rgba(22, 15, 9, 0.62), rgba(22, 15, 9, 0.7)), var(--board) center / cover no-repeat, var(--bg);
+  filter: blur(16px); }
 /* While a Discover / quest / Runeforge overlay covers the board, the hero panel + power diamond + quest badges
    are parked — they are behind the modal now (see the stacking-context fix below) and must not take clicks.
    The hand-rolled dim they used to carry here (`filter: brightness(0.5) saturate(0.85)`) is GONE as of the

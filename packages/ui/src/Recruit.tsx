@@ -4919,8 +4919,14 @@ export function Recruit() {
   // gap moves during a drag* (not just on drop). GSAP Flip animates this robustly — it reads in a batch,
   // uses GPU transforms, and blends interruptions natively, so rapid gap moves don't storm the way the old
   // hand-rolled FLIP did (which is why that one had to be limited to discrete changes).
+  // The SHOP half of the flip key on its own. The tavern-rect snapshot below measures only tavern cards, so
+  // it must only re-run when the TAVERN could have moved — keying it on the combined `flipKey` re-measured
+  // every shop card's rect on every WARBAND gap crossing during a board drag (perf audit 2026-09-01; the Flip
+  // effect itself already narrows its selector to the row that moved, for exactly this reason). The gap-
+  // crossing frame is the worst frame of a drag, and this was a forced layout it did not need.
+  const shopFlipKey = displayShop.map((o) => o.uid).join(',') + '|' + spellShown + '|' + shopGapIndex;
   const flipKey =
-    displayShop.map((o) => o.uid).join(',') + '|' + spellShown + '|' + shopGapIndex + '|' +
+    shopFlipKey + '|' +
     displayBoard.map((m) => m.uid).join(',') + '|' + gapIndex + '|' + (collapsedLift ? '1' : '0');
   // Snapshot each shop card's centre + size (declared above, near the consume state that also reads it).
   useLayoutEffect(() => {
@@ -4933,7 +4939,7 @@ export function Recruit() {
       cur.set(uid, { cx: r.left + r.width / 2, cy: r.top + r.height / 2, w: r.width, h: r.height });
     }
     shopRectsRef.current = { prev: shopRectsRef.current.cur, cur };
-  }, [flipKey]);
+  }, [shopFlipKey]);
   // Carry each row's live gap to the next frame so `reorderIndexFromSlots` can place neighbours at their
   // CURRENT (shifted) spots (symmetric swap thresholds). Only while actually reordering (gap >= 0).
   useEffect(() => {
@@ -5155,6 +5161,13 @@ export function Recruit() {
      layout over at most `CONFIG.handMax` cards — the same shape as the warband's `commitRectsRef`. */
   useLayoutEffect(() => {
     if (inCombat) { handLeftsRef.current.clear(); return; }
+    // Skipped MID-DRAG, like the glide it feeds (perf audit 2026-09-01): this was the one layout read still
+    // firing on every committed drag frame, right after the Flip effect's transform writes. The glide above
+    // bails while a drag is active, so the snapshot is never consumed until the drop commit — by which point
+    // `drag` is null again (the ref mirrors state during render) and this runs. The hand's LAYOUT cannot
+    // change mid-drag (no dispatch lands during one; a drag only moves transforms, which `offsetLeft`
+    // ignores), so the snapshot the drop reads is the same one it would have read before.
+    if (dragRef.current?.active) return;
     perfMonitor.measure('layout:handglide', () => {
       const next = new Map<string, number>();
       for (const el of document.querySelectorAll<HTMLElement>('.row.hand > .card[data-uid]')) {

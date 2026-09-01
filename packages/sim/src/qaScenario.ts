@@ -417,9 +417,44 @@ const VOLATILE_KEYS = new Set([
  *  per-action volatile keys, stable-stringify. Deliberately does NOT strip rngCursor/uidCounter — they are
  *  deterministic, and hiding them would hide real divergence. */
 export function normalizeRunState(s: RunState): string {
-  const o = JSON.parse(JSON.stringify(s)) as Record<string, unknown>;
-  for (const k of VOLATILE_KEYS) delete o[k];
-  return stableStringify(o);
+  // BYTE-IDENTICAL to the original `stableStringify(JSON.parse(JSON.stringify(s)) minus VOLATILE_KEYS)`, at a
+  // fraction of the cost (perf audit 2026-09-01: this ran on EVERY accepted action in production, three full
+  // passes over the whole run — a deep JSON clone, a sorted recursive stringify, and a char-loop hash — with
+  // `lastCombat` (the previous fight's entire event log) and `servedBoards` (up to 17 board snapshots) inside).
+  //
+  // Two things make it cheap without changing a single output byte:
+  //  · The JSON round-trip was redundant. It existed to drop `undefined` and functions, and `stableStringify`
+  //    already does both (`.filter(x => x !== undefined)`, `JSON.stringify(v) ?? 'null'`). For every value
+  //    JSON can carry, the two agree — verified by the equivalence test beside this.
+  //  · The reducer shares `lastCombat` / `servedBoards` BY REFERENCE across dispatches, so their stringified
+  //    forms are memoised by identity and re-used until the reference changes. That keeps the hash EXACT — it
+  //    still covers every byte of them — while the common dispatch pays only for what actually got cloned.
+  //
+  // The rail contract holds: recorder and verifier still call this one function, so a mismatch still means
+  // the states diverged.
+  return stableStringifyTopLevel(s as unknown as Record<string, unknown>, VOLATILE_KEYS);
+}
+
+/** `stableStringify` of a top-level object, with per-VALUE memoisation by identity for the big sub-trees the
+ *  reducer shares across dispatches. Emits exactly what `stableStringify(obj minus skip)` would. */
+function stableStringifyTopLevel(o: Record<string, unknown>, skip: ReadonlySet<string>): string {
+  const parts: string[] = [];
+  for (const [k, x] of Object.entries(o).filter(([k, x]) => x !== undefined && !skip.has(k)).sort(([a], [b]) => (a < b ? -1 : 1))) {
+    parts.push(`${JSON.stringify(k)}:${memoStringify(x)}`);
+  }
+  return `{${parts.join(',')}}`;
+}
+
+/** Identity-keyed cache of `stableStringify` for object values. Only object values are cached (primitives
+ *  are cheaper to stringify than to look up), and the WeakMap means a dropped state frees its entry. */
+const stringifyMemo = new WeakMap<object, string>();
+function memoStringify(v: unknown): string {
+  if (v === null || typeof v !== 'object') return stableStringify(v);
+  const hit = stringifyMemo.get(v);
+  if (hit !== undefined) return hit;
+  const out = stableStringify(v);
+  stringifyMemo.set(v, out);
+  return out;
 }
 
 /** WP C — the per-action state-hash rail: FNV-1a over the normalized run state. Both sides of the exact-

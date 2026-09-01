@@ -90,49 +90,99 @@ const curveOf = (p: P, k: string): ReadonlyArray<CurvePoint> => (Array.isArray(p
  * builds each filter the frame it's first enabled, retimes amounts by their curves, and only rewrites
  * `container.filters` when the ACTIVE SET changes (adding/removing) — a plain retune touches no array.
  */
+/** A registry entry with its param keys resolved ONCE — see `FilterStack.frame`. */
+interface KeyedFilterSpec {
+  spec: FxFilterSpec;
+  on: string;
+  amt: string;
+  curve: string;
+  knobs: ReadonlyArray<{ knob: NonNullable<FxFilterSpec['knobs']>[number]; key: string }>;
+}
+
+/** Keys per registry, computed once per registry object. The registry is a module constant, so this is one
+ *  allocation for the life of the page instead of one per instance per frame. */
+const keyedRegistries = new WeakMap<readonly FxFilterSpec[], readonly KeyedFilterSpec[]>();
+function keyedRegistryOf(registry: readonly FxFilterSpec[]): readonly KeyedFilterSpec[] {
+  const hit = keyedRegistries.get(registry);
+  if (hit) return hit;
+  const out = registry.map((spec) => ({
+    spec,
+    on: onKey(spec.id),
+    amt: amtKey(spec.id),
+    curve: curveKey(spec.id),
+    knobs: (spec.knobs ?? []).map((knob) => ({ knob, key: knobKey(spec.id, knob.name) })),
+  }));
+  keyedRegistries.set(registry, out);
+  return out;
+}
+
 export class FilterStack {
   private readonly instances = new Map<string, Filter>();
   private coreBlur: BlurFilter | null = null;
   private activeKey = ''; // identity of the current container.filters set, to skip no-op rewrites
+  private readonly keyed: readonly KeyedFilterSpec[];
 
-  constructor(private readonly container: Container, private readonly registry: readonly FxFilterSpec[]) {}
+  constructor(private readonly container: Container, registry: readonly FxFilterSpec[]) {
+    this.keyed = keyedRegistryOf(registry);
+  }
 
+  /**
+   * Called once per frame from every particle/mesh primitive's `update()`.
+   *
+   * PERF (audit 2026-09-01): this used to allocate two arrays and ~31 template strings (one `<id>On` per
+   * registry entry) on EVERY call — ~34 objects per instance per frame, ~330k allocations/s across a busy
+   * board at 240 Hz — while not one committed def enables a single lab filter. The keys are now resolved once
+   * per registry, and the common case (no blur, nothing enabled) returns before allocating anything.
+   */
   frame(params: P, progress: number, dtSec: number): void {
+    const blurBase = num(params, 'blur');
+
+    // FAST PATH — nothing enabled. Keep the container's filters clear (once) and leave.
+    if (blurBase <= 0 && !this.anyEnabled(params)) {
+      if (this.activeKey !== '') { this.container.filters = []; this.activeKey = ''; }
+      return;
+    }
+
     const active: Filter[] = [];
-    const keyParts: string[] = [];
+    let key = '';
 
     // Core blur first (shared always-on knob), same semantics as blurFilter.ts.
-    const blurBase = num(params, 'blur');
     if (blurBase > 0) {
       if (!this.coreBlur) this.coreBlur = new BlurFilter({ strength: 0, quality: 5 });
       this.coreBlur.strength = Math.max(0, blurBase * sampleCurve(curveOf(params, 'blurCurve'), progress));
       active.push(this.coreBlur);
-      keyParts.push('blur');
+      key = 'blur';
     }
 
-    for (const f of this.registry) {
-      if (!bool(params, onKey(f.id))) continue;
+    for (const kf of this.keyed) {
+      if (!bool(params, kf.on)) continue;
+      const f = kf.spec;
       let inst = this.instances.get(f.id);
       if (!inst) { inst = f.make(); this.instances.set(f.id, inst); }
       const rec = inst as unknown as Record<string, number | boolean>;
       if (f.amountProp !== '') {
-        rec[f.amountProp] = Math.max(0, num(params, amtKey(f.id), f.amount[2]) * sampleCurve(curveOf(params, curveKey(f.id)), progress));
+        rec[f.amountProp] = Math.max(0, num(params, kf.amt, f.amount[2]) * sampleCurve(curveOf(params, kf.curve), progress));
       }
       if (f.animateTime) rec[f.timeProp ?? 'time'] = num(rec, f.timeProp ?? 'time') + dtSec;
-      for (const k of f.knobs ?? []) {
+      for (const { knob: k, key: kk } of kf.knobs) {
         rec[k.prop] = k.kind === 'toggle'
-          ? bool(params, knobKey(f.id, k.name))
-          : num(params, knobKey(f.id, k.name), k.kind === 'color' ? (k.defaultColor ?? 0xffffff) : (k.range?.[2] ?? 0));
+          ? bool(params, kk)
+          : num(params, kk, k.kind === 'color' ? (k.defaultColor ?? 0xffffff) : (k.range?.[2] ?? 0));
       }
       active.push(inst);
-      keyParts.push(f.id);
+      key = key === '' ? f.id : `${key},${f.id}`;
     }
 
-    const key = keyParts.join(',');
     if (key !== this.activeKey) {
       this.container.filters = active.length ? active : [];
       this.activeKey = key;
     }
+  }
+
+  /** Is any registry filter switched on in `params`? A plain loop over precomputed keys — no allocation. */
+  private anyEnabled(params: P): boolean {
+    for (const kf of this.keyed) if (params[kf.on] === true) return true;
+    return false;
   }
 
   destroy(): void {

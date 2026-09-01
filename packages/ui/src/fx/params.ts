@@ -201,10 +201,45 @@ export type ParamsOf<S extends FxParamSpecs> = {
               : S[K]['default'];
 };
 
-export function defaultsOf<S extends FxParamSpecs>(specs: S): ParamsOf<S> {
-  const out: Record<string, unknown> = {};
+/**
+ * Per-SPECS split of "which keys are plain immutable defaults" vs "which need a fresh copy per instance",
+ * computed once per specs object (they are module constants — `burst.ts`'s `SPECS`, etc.).
+ *
+ * PERF (audit 2026-09-01): `defaultsOf` walked every key of a ~210-key spec on EVERY layer spawn and
+ * deep-copied ~40 curve/palette arrays — a 6-layer def fanned to 7 units was ~9,000 allocations in one frame.
+ * The scalar defaults never change, so they are assembled once and spread; only the array-valued defaults
+ * are copied per call, which preserves the no-aliasing guarantee documented below exactly.
+ */
+interface SpecsPlan {
+  /** Every key whose default is a plain immutable value, with those defaults already assembled. */
+  scalars: Record<string, unknown>;
+  /** Keys whose defaults are arrays/objects and must be freshly copied per instance. */
+  copied: ReadonlyArray<{ key: string; kind: 'palette' | 'curve' | 'emitpoints' | 'gradient' }>;
+}
+const specsPlans = new WeakMap<FxParamSpecs, SpecsPlan>();
+function planOf(specs: FxParamSpecs): SpecsPlan {
+  const hit = specsPlans.get(specs);
+  if (hit) return hit;
+  const scalars: Record<string, unknown> = {};
+  const copied: Array<{ key: string; kind: 'palette' | 'curve' | 'emitpoints' | 'gradient' }> = [];
   for (const key of Object.keys(specs)) {
-    const spec = specs[key];
+    const spec = specs[key]!;
+    if (spec.kind === 'palette' || spec.kind === 'curve' || spec.kind === 'emitpoints' || spec.kind === 'gradient') {
+      copied.push({ key, kind: spec.kind });
+    } else {
+      scalars[key] = spec.default;
+    }
+  }
+  const plan = { scalars, copied };
+  specsPlans.set(specs, plan);
+  return plan;
+}
+
+export function defaultsOf<S extends FxParamSpecs>(specs: S): ParamsOf<S> {
+  const plan = planOf(specs);
+  const out: Record<string, unknown> = { ...plan.scalars };
+  for (const { key } of plan.copied) {
+    const spec = specs[key]!;
     // Palette defaults are arrays — copy so two instances (or two calls) never alias the same tuple and
     // mutate each other's colours through it. Curve defaults are nested arrays — deep-copy each [t, v] pair
     // for the same reason (a shallow spread would still alias the inner point arrays). Shape defaults are
@@ -217,7 +252,7 @@ export function defaultsOf<S extends FxParamSpecs>(specs: S): ParamsOf<S> {
     // gradient defaults are an array of stop objects — deep-copy each stop so no two instances alias the
     // same object (mirrors the palette/curve/emitpoints discipline above).
     else if (spec.kind === 'gradient') out[key] = spec.default.map((s) => ({ at: s.at, color: s.color }));
-    else out[key] = spec.default;
+    // (the plan only lists the four array-valued kinds, so there is no scalar fall-through here)
   }
   return out as ParamsOf<S>;
 }

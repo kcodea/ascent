@@ -21,6 +21,18 @@ The five buckets below are ordered by when we intend to act, not by size:
 
 ## Now
 
+- **Warm the FX shaders before the first play (perf — measured 2026-09-01).** The first minion played onto
+  the board in a run freezes the page for 0.6–0.8 s in the PROD build (8 headed-Chrome runs, main and
+  `perf/recruit-click-path` alike). A CPU profile attributes ~525 ms to `getProgramParameter` under Pixi's
+  `WebGLRenderer.start` — a synchronous first-use shader compile/link for the landing FX. Pre-compile the
+  primitives' programs (and the common shape textures) during the title / hero-select / ceremony screens, or
+  go async via `KHR_parallel_shader_compile` and poll `COMPLETION_STATUS_KHR`. Later plays still spike
+  70–160 ms intermittently on both builds (unattributed — likely more first-use variants / texture uploads);
+  re-measure those once the warm-up lands. Caveat: every measured run was cold-cache (fresh Chrome profile);
+  Chrome/Electron keep a shader cache on disk, so returning players may already see less — measure a
+  warm-cache run first to size the real-player win. Details + the table in
+  `docs/devlog/2026-09-01-perf-recruit-click-path.md`.
+
 - **Re-check the Aug-20 batch in play after the correction pass** (Night Market's per-turn shop buff, Skybound's real-time transform, the new sell-a-Demon Arcane Behemoth, the ten tribe runes paying on purchase — all shipped, see the devlog). What is left is the owner's eyes on whether the four now FEEL right, and whether the Behemoth's new payoff needs a cost/stat adjustment now that it scales off your own sales.
 
 - **The 16 rune-only minions now have their Runeforge entries — ART is what is left** (rune batch built

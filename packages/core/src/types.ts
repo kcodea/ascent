@@ -444,6 +444,7 @@ export type EffectFactoryId =
   | 'scGrantShieldTribe'
   | 'scGrantReborn' // Gravewarden: Start of Combat — give a friendly Undead (not self) Rise; golden two
   | 'grantEquipment' // the `equip` factory: hands the player the Equipment named by `params.equipmentId`
+  | 'equipmentRubyDuel' // Dueling Rubetta's — improve your Rubies, then Ruby your end Kobolds
   | 'equipmentBuffTarget' // Bloodpot: one Equipment TRIGGER — +atk/+hp onto the chosen friendly minion
   | 'equipmentCastSpell' // an EQUIPMENT SPELL: casts its named Shop spell through the real cast pipeline
   | 'equipmentSetStats' // Titan Hammer: SETS the target's stats rather than adding to them

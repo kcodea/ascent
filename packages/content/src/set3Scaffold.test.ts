@@ -33,9 +33,9 @@ describe('set 3 scaffold', () => {
       'k3_blastsurveyor',
       'k3_facetbound',
       'k3_doubletrouble',
-      'k3_forksong', 'k3_forkedcrown', 'k3_rubyroach', 'k3_porkbelly', 'k3_prismpick', 'k3_runespark',
+      'k3_forksong', 'k3_forkedcrown', 'k3_rubyroach', 'k3_porkbelly', 'k3_prismpick', 'k3_runespark', 'k3_kaura',
       // …then the nine set-2 Kobolds it keeps.
-      'k_chipwick', 'k_veinbreaker', 'k_gemheart', 'k_geode', 'k_kobabyboldies',
+      'k_chipwick', 'k_gemheart', 'k_geode', 'k_kobabyboldies',
       'k_kobe', 'k_boulderdash', 'k_blazer',
     ]);
     // Dropped from set 3, and the ONLY thing that changed is set membership — leaving a set is not archiving.

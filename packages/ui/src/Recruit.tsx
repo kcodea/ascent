@@ -3158,7 +3158,59 @@ export function Recruit() {
   // (Moira re-firing a summoner) injected as a synthetic card, plus keywords granted this beat overlaid so the
   // pip shows on the beat. GUARDED: with nothing projected this is `run.board` by identity, so normal play (and
   // the memo below) is byte-identical — the injection only activates during an EoT that summons / grants a kw.
+  /**
+   * THE CHOOSE ONE PREVIEW (owner ask 2026-08-31): *"when a choose one minion is played on board, they should
+   * remain on board as the choose one options are presented. if the player then cancels … the card should be
+   * removed from the board and coalesce back in hand."*
+   *
+   * PRESENTATION ONLY — the reducer's deferral is untouched. That matters more than it looks: the 2026-08-28
+   * ruling (a Choose One play commits nothing until the branch is picked) is what makes a cancel a true no-op
+   * and what keeps every consequence firing once, in order, on the replayed play. Reversing it would mean the
+   * minion really lands and a cancel has to un-land it — and REPLAYS record action sequences, so old
+   * recordings would replay `play` → `chooseOne` against different intermediate state.
+   *
+   * So the body is shown where it is going, not put there: spliced into the rendered board at the slot the
+   * player dropped it on (`chooseOne.toIndex`), and hidden from hand for as long as the prompt is open. Cancel
+   * simply stops previewing, and the card is in hand because it never left.
+   */
+  /**
+   * THE COALESCE (owner ask 2026-08-31): a cancelled Choose One minion glides from the board slot it was
+   * previewing back into the hand, rather than blinking between the two.
+   *
+   * GSAP Flip, the same tool the hand's own reorder uses — and it works across containers precisely because
+   * the card carries a stable `data-flip-id`. The capture has to happen BEFORE React commits the change, so
+   * it is taken in the cancel HANDLER (not a layout effect, which runs after the DOM has already moved) and
+   * replayed by the effect below once the card is back in its hand slot.
+   */
+  const coalesceRef = useRef<ReturnType<typeof Flip.getState> | null>(null);
+  const captureCoalesce = useCallback((): void => {
+    const uid = useGame.getState().run.chooseOne?.uid;
+    if (!uid) return;
+    const el = document.querySelector<HTMLElement>(`.row.board .card[data-uid="${CSS.escape(uid)}"]`)
+      ?? document.querySelector<HTMLElement>(`.card[data-uid="${CSS.escape(uid)}"]`);
+    coalesceRef.current = el ? Flip.getState(el) : null;
+  }, []);
+  useLayoutEffect(() => {
+    const st = coalesceRef.current;
+    if (!st || run.chooseOne) return;   // still open — the capture is for the frame it CLOSES
+    coalesceRef.current = null;
+    Flip.from(st, { duration: getFlipConfig().commitMs / 1000, ease: 'power2.out', absolute: true });
+  }, [run.chooseOne]);
+
+  const chooseOnePreview = useMemo<{ card: BoardCard; at: number } | null>(() => {
+    const co = run.chooseOne;
+    if (!co || co.spell || co.equipmentId) return null;      // a spell takes no slot; an Equipment has no card
+    const card = run.hand.find((c) => c.uid === co.uid);
+    if (!card) return null;
+    return { card, at: Math.max(0, Math.min(co.toIndex ?? run.board.length, run.board.length)) };
+  }, [run.chooseOne, run.hand, run.board.length]);
+
   const displayBoard = useMemo<BoardCard[]>(() => {
+    if (chooseOnePreview) {
+      const out = [...run.board];
+      out.splice(chooseOnePreview.at, 0, chooseOnePreview.card);
+      return out;
+    }
     if (!eotSummons.length && !eotKeywords.size && !eotTransforms.size) return run.board;
     const withKw = run.board.map((m) => {
       // TRANSFORMED THIS BEAT (Skybound Ascendant): swap the identity IN PLACE, keeping the uid and slot, so
@@ -3184,7 +3236,7 @@ export function Recruit() {
       out.splice(s.index !== undefined ? Math.min(s.index, out.length) : out.length, 0, ghost);
     }
     return out;
-  }, [run.board, eotSummons, eotKeywords, eotTransforms]);
+  }, [run.board, eotSummons, eotKeywords, eotTransforms, chooseOnePreview]);
   // `view:board` / `view:hand` (perf export): building the per-card view + live text for every board/hand card.
   // Memoized, but rebuilds whenever `run.board`/`run.hand` identity changes — i.e. every dispatch (buy/play/weld).
   // If a heavily-attached late-game board makes these dominate a fanout frame, this is where it shows.
@@ -3198,11 +3250,11 @@ export function Recruit() {
   );
   const handViews = useMemo(
     () => perfMonitor.measure('view:hand', () => {
-      const fresh = new Map(run.hand.map((m) => [m.uid, instView(m, run.tier, eotAnimStats?.[m.uid], spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave, run.spellsCast, run.cardBuffs?.cling, run.fodderConsumedThisTurn, CARD_INDEX[m.cardId]?.spell || CARD_INDEX[m.cardId]?.ruby ? { ...live, castMult: spellCastCount(run, CARD_INDEX[m.cardId]!) } : live)] as const));
+      const fresh = new Map(run.hand.filter((m) => m.uid !== chooseOnePreview?.card.uid).map((m) => [m.uid, instView(m, run.tier, eotAnimStats?.[m.uid], spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave, run.spellsCast, run.cardBuffs?.cling, run.fodderConsumedThisTurn, CARD_INDEX[m.cardId]?.spell || CARD_INDEX[m.cardId]?.ruby ? { ...live, castMult: spellCastCount(run, CARD_INDEX[m.cardId]!) } : live)] as const));
       handViewCache.current = stabilizeViewMap(fresh, handViewCache.current);
       return handViewCache.current;
     }),
-    [run.hand, run.tier, eotAnimStats, spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave, run.spellsCast, run.cardBuffs, run.fodderConsumedThisTurn, live, run.board, run.nextSpellExtraCasts],
+    [run.hand, run.tier, eotAnimStats, spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave, run.spellsCast, run.cardBuffs, run.fodderConsumedThisTurn, live, run.board, run.nextSpellExtraCasts, chooseOnePreview],
   );
   // SPELL BUFF cue (owner 2026-07-23): when a hand SPELL or Ruby gets stronger, grow/shrink it and blast
   // sparks outward, so the player sees exactly which cards a spell buff touched. A spell's stats never
@@ -6721,8 +6773,8 @@ export function Recruit() {
         // that lands on the panel (or on an option card) is never a cancel. Escape does the same.
         <div
           className="discover-ov" role="dialog" aria-label="Choose One" tabIndex={-1}
-          onPointerDown={(e) => { if (!(e.target as Element).closest('.disc-slot')) dispatch({ type: 'cancelChoice' }); }}
-          onKeyDown={(e) => { if (e.key === 'Escape') dispatch({ type: 'cancelChoice' }); }}
+          onPointerDown={(e) => { if (!(e.target as Element).closest('.disc-slot')) { captureCoalesce(); dispatch({ type: 'cancelChoice' }); } }}
+          onKeyDown={(e) => { if (e.key === 'Escape') { captureCoalesce(); dispatch({ type: 'cancelChoice' }); } }}
         >
           {/* Reuses the DISCOVER chrome (transparent panel, dark-glass banner, card row) rather than the old
               bespoke cream text-buttons — a Choose One is the same kind of decision as a Discover, so the

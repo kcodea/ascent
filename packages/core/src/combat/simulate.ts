@@ -2512,6 +2512,8 @@ export function simulate(
         if (forced) target = forced;
       }
       if (!target) break;
+      /** Set by the vanguard block below when its swing killed the target — including a death a Rise undid. */
+      let vanguardKilled = false;
       // ── PORKBELLY: the vanguard swing (owner spec 2026-08-31) ────────────────────────────────────────────
       //
       // "When Porkbelly attacks, if there is space, he summons a Gemheart Golem that gains his Ruby bonuses
@@ -2538,13 +2540,22 @@ export function simulate(
           nextStep();
           const golem = summonMinion(attacker.side, golemDef, attacker.uid, undefined, false, false,
             { attack: atk, health: hp, maxHealth: hp });
+          // A RISE HIDES A DEATH. `rebornAvailable` is spent by the Rise that brings a body back, so a target
+          // that had it before the vanguard swung and does not after DIED in that exchange — even though it
+          // is standing there alive again. Without this the settle reads `target.dead === false` and Porkbelly
+          // swings at a body his vanguard already killed (owner ruling 2026-09-01: he should NOT).
+          const couldRise = !!target.rebornAvailable;
           if (golem && !golem.dead && golem.health > 0) performAttack(golem, defenderSide, depth + 1, target);
+          if (couldRise && !target.rebornAvailable) vanguardKilled = true;
         }
       }
       // The vanguard felled it (or something in that exchange did): Porkbelly settles. No swing, no
       // retaliation, and — since nothing was emitted above — no attack in the log either.
       //
-      if (target.dead || target.health <= 0) break;
+      // `vanguardKilled` covers the case a liveness check cannot see: a target with Rise dies and comes
+      // straight back inside the vanguard's own exchange, so by the time we look it is alive at 1 Health.
+      // The owner's ruling is that the kill still happened and Porkbelly still settles.
+      if (target.dead || target.health <= 0 || vanguardKilled) break;
       if (attacker.dead || attacker.health <= 0) break; // the vanguard's exchange could have killed him too
       if (s > 0) nextStep(); // each Windfury swing is its own exchange
       // Critical Strike (Commander Impala): roll per swing — a hit doubles this swing's OUTGOING damage (main

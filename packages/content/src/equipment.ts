@@ -214,7 +214,33 @@ export const PRISMATIC_PICK: EquipmentDefinition = {
   ],
 };
 
-export const EQUIPMENT: readonly EquipmentDefinition[] = [BLOODPOT, TITAN_HAMMER, BLAST_PUMP, PRISMATIC_PICK];
+/**
+ * DUELING RUBETTA'S — Kaura L'roft's Equipment (set 3).
+ *
+ * One printed sentence, one factory (`equipmentRubyDuel`): the improve lands FIRST so the two Rubies it then
+ * throws are minted at the new strength. That ordering is the card, not an implementation detail.
+ *
+ * `targetMode: 'none'` — it picks its own recipients (your end Kobolds), so there is nothing to aim.
+ *
+ * Gilding doubles both halves through `gildedParams`, the Equipment channel.
+ */
+export const DUELING_RUBETTAS: EquipmentDefinition = {
+  id: 'dueling_rubettas',
+  name: "Dueling Rubetta's",
+  text: 'Improve your **Rubies** by **+1/+2** and cast a **Ruby** on your left and right-most **Kobold**.',
+  goldenText: 'Improve your **Rubies** by **+2/+4** and cast **2 Rubies** on your left and right-most **Kobold**.',
+  baseCost: 2,
+  targetMode: 'none',
+  effectId: 'equipmentRubyDuel',
+  params: { attack: 1, health: 2, rubies: 1 },
+  gildedParams: { attack: 2, health: 4, rubies: 2 },
+  // The owner's authored def + clip (2026-09-01). It plays ON the Rubbetta targets, alongside the standard
+  // Ruby-application cue rather than instead of it — the Rubies are still Rubies.
+  useFxId: 'dueling-rabettas',
+  useSfxId: 'duelingrubettas',
+};
+
+export const EQUIPMENT: readonly EquipmentDefinition[] = [BLOODPOT, TITAN_HAMMER, BLAST_PUMP, PRISMATIC_PICK, DUELING_RUBETTAS];
 
 export const EQUIPMENT_INDEX: Readonly<Record<string, EquipmentDefinition>> =
   Object.fromEntries(EQUIPMENT.map((e) => [e.id, e]));

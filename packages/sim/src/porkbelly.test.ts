@@ -101,16 +101,14 @@ describe('Porkbelly', () => {
   });
 
 
-  it('a RISEN target is a NEW target — Porkbelly does not settle against it', () => {
-    // Owner report 2026-08-31: *"rise is a 'new target' and should break chains like that."* The settle
-    // exists because the thing Porkbelly was going to hit is GONE; a Rise leaves a body standing in that
-    // slot, so settling would have him stand down in front of a live enemy he never touched.
+  it('a RISE does not un-settle him — the vanguard still killed his target', () => {
+    // Owner ruling 2026-09-01, correcting my earlier reading of this case: Porkbelly must NOT attack the
+    // risen body. The vanguard killed the thing he was going to hit; that the enemy came back is the enemy's
+    // business, and the settle is about the kill having happened.
     //
-    // This passes on the current engine — the Rise resolves inside the vanguard's own exchange, so by the
-    // time the settle is decided the target is alive again and the check falls through. Pinned as a
-    // REGRESSION test rather than a fix: the behaviour the owner wants is the behaviour today, and the
-    // ordering it depends on (rise-before-settle-check) is exactly the kind of thing a later change to
-    // deferred deaths would break silently.
+    // A liveness check alone CANNOT see this: the Rise resolves inside the vanguard's own exchange, so by the
+    // time the settle is decided the target is alive again at 1 Health. The tell is the spent `rebornAvailable`
+    // — a body that had a Rise before the swing and not after died during it.
     const r = fight(
       rubyFed(),
       [{ ...bm('sandbag', 'TAUNT', 1, 10), keywords: ['T', 'R'] }, bm('sandbag', 'BIG', 20, 400)],
@@ -118,7 +116,11 @@ describe('Porkbelly', () => {
     const evs = r.events as readonly Ev[];
     const reborn = evs.findIndex((e) => e.type === 'reborn');
     expect(reborn, 'the taunt rose').toBeGreaterThanOrEqual(0);
-    const followUp = evs.findIndex((e, i) => i > reborn && e.type === 'attack' && e.attacker === 'm0');
-    expect(followUp, 'Porkbelly attacked the risen body rather than standing down').toBeGreaterThan(reborn);
+    // Porkbelly's own next swing must not be at the risen body in that same exchange. Scoped by log window to
+    // the enemy's next attack, exactly as the plain settle case is — he may of course swing on a later turn.
+    const after = evs.findIndex((e, i) => i > reborn && e.type === 'attack' && (e.attacker === 'm3' || e.attacker === 'm4'));
+    const window = evs.slice(reborn + 1, after < 0 ? evs.length : after);
+    expect(window.some((e) => e.type === 'attack' && e.attacker === 'm0'),
+      'Porkbelly settled — the vanguard had already killed that target').toBe(false);
   });
 });

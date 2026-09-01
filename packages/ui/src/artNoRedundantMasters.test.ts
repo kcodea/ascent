@@ -86,12 +86,14 @@ describe('no redundant PNG masters ship alongside their WebP builds', () => {
     // those cost nothing.)
     // → 1073 (2026-09-01, Runespark Channeler — the spell-reactive Kobold the owner added after the
     // roster shipped. One file; it is not a Choose One, so it wants no branch art.)
+    // → 1075 (2026-09-01, Kaura L'roft + her Dueling Rubetta's icon — the roster's third Equip minion.
+    // Two files: a minion art and an Equipment icon, which live in different dirs and both count.)
     //
     // NB there is real SLACK available that nobody has spent yet: the 16 Celestials archived on 2026-08-28 —
     // and ~40 other archived cards — still have their art shipping in `art/minions/`, unreachable by any live
     // card. Reclaiming it is a bigger win than any of these +2s, and belongs in its own pass rather than
     // riding a content PR. (The stated rationale has also drifted: at +176 the whole-zip count passed 1000
     // some time ago, so this ceiling is now a growth ratchet rather than the cap it names.)
-    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1074);
+    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1076);
   });
 });

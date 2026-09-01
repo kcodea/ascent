@@ -311,4 +311,18 @@ export const SET3_KOBOLDS: CardDef[] = [
     text: 'Whenever you cast a **Shop spell**, cast a **Ruby** on adjacent minions.',
     goldenText: 'Whenever you cast a **Shop spell**, cast **2 Rubies** on adjacent minions.',
   },
+  {
+    // Set 3 — the THIRD Equip minion. Her Equipment improves your Rubies and then throws two at the ends of
+    // your Kobold line, in that order, so the Rubies it throws are minted at the strength it just set.
+    id: 'k3_kaura',
+    name: "Kaura L'roft",
+    tribe: 'kobold',
+    tier: 4,
+    attack: 6,
+    health: 4,
+    keywords: [],
+    effects: [{ on: 'equip', do: 'grantEquipment', params: { equipmentId: 'dueling_rubettas' } }],
+    text: "**Equip Dueling Rubetta's (2):** Improve your **Rubies** by **+1/+2** and cast a **Ruby** on your left and right-most **Kobold**.",
+    goldenText: "**Equip Dueling Rubetta's (2):** Improve your **Rubies** by **+2/+4** and cast **2 Rubies** on your left and right-most **Kobold**.",
+  },
 ];

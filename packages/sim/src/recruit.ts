@@ -2890,6 +2890,41 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    * this once per trigger with the SAME target. Putting the repeat inside the factory would make "triggers an
    * additional time" impossible to express for any other Equipment.
    */
+  /**
+   * Set 3 — Dueling Rubetta's (Kaura L'roft's Equipment): improve your Rubies, then cast a Ruby on your
+   * left-most and right-most KOBOLD.
+   *
+   * ONE factory for one printed sentence. Splitting it into two effects would give the Equipment two beats
+   * for a single activation, and the improve has to land BEFORE the casts — the two Rubies it then throws are
+   * minted at the new strength, which is the whole shape of the card.
+   *
+   * "left and right-most Kobold" is resolved over the Kobolds only, so a board with Kobolds at the ends and
+   * something else between them still feeds the ends. With exactly ONE Kobold on board it is both ends, and
+   * it takes the Rubies once — a single body cannot be duelled with itself.
+   *
+   * Gilding rides `gildedParams` (the Equipment channel), not the source's golden flag — see
+   * `equipmentBuffTarget` and the `chooseOne` note in `equipment.ts`.
+   */
+  equipmentRubyDuel: (ctx, self, params) => {
+    const a = num(params.attack, 0);
+    const h = num(params.health, 0);
+    if (a > 0 || h > 0) {
+      const b = ctx.state.rubyBonus ?? { attack: 0, health: 0 };
+      ctx.state.rubyBonus = { attack: b.attack + a, health: b.health + h };
+      // Rubies already in HAND grow too, the same rule `rubyStatGain` follows: "improve your Rubies" is about
+      // every Ruby you have, not only the ones you have not drawn yet.
+      for (const card of ctx.state.hand) {
+        if (CARD_INDEX[card.cardId]?.ruby) { card.attack += a; card.health += h; }
+      }
+    }
+    const kobolds = ctx.state.board.filter((c) => isTribe(c, 'kobold'));
+    if (kobolds.length === 0) return;
+    const ends = kobolds.length === 1 ? [kobolds[0]!] : [kobolds[0]!, kobolds[kobolds.length - 1]!];
+    const per = num(params.rubies, 1);
+    const arena = shopArena(ctx.state, self);
+    for (const k of ends) arena.playRubiesOn(k, per);
+  },
+
   equipmentBuffTarget: (ctx, self, params, payload) => {
     const target = payload.target;
     if (!target) return;

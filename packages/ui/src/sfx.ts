@@ -793,6 +793,7 @@ const SFX_PREVIEW: Record<string, () => void> = {
   eqUseTitanHammer: () => sfx.equipmentUse('titanhammer'),
   eqUseBlastPump: () => sfx.equipmentUse('blastpump'),
   eqUsePrismaticPick: () => sfx.equipmentUse('prismaticpick'),
+  eqUseDuelingRubettas: () => sfx.equipmentUse('duelingrubettas'),
   runeArrival: () => sfx.runeSelectImplosion(),
   felSpikeEcho: sfx.felSpikeEcho, felSpikeEchoLand: sfx.felSpikeEchoLand,
   combatStart: sfx.combatStart,

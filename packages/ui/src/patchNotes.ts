@@ -56,6 +56,31 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-01',
+    label: 'Rubetta',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: 'A Choose One minion now waits on the board while you pick, and glides back to your hand if you cancel.',
+        details: [
+          'Nothing is committed until you choose — cancelling is still completely free.',
+        ],
+      },
+      {
+        category: 'UI / Info',
+        text: 'A minion buffed as it attacks now shows its new stats BEFORE the swing goes out, instead of mid-lunge.',
+      },
+      {
+        category: 'New Card',
+        text: "Kaura L'roft (Kobold, Tier 4): Equip Dueling Rubetta's — improve your Rubies, then cast a Ruby on your left and right-most Kobold.",
+      },
+      {
+        category: 'Card Change',
+        text: 'Porkbelly settles when his Gemheart Golem kills the target, even if that target Rises.',
+      },
+    ],
+  },
+  {
+    date: '2026-09-01',
     label: 'Dealer',
     changes: [
       {

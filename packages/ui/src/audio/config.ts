@@ -51,7 +51,7 @@ export const CATEGORY_BUS: Record<string, BusName> = {
   runeArrival: 'ui',
   eqEquipClang: 'equipment', eqSelect: 'equipment', eqSheen: 'equipment',
   eqUseBloodpot: 'equipment', eqUseTitanHammer: 'equipment', eqUseBlastPump: 'equipment',
-  eqUsePrismaticPick: 'equipment', eqUseOther: 'equipment',
+  eqUsePrismaticPick: 'equipment', eqUseDuelingRubettas: 'equipment', eqUseOther: 'equipment',
 };
 
 /**
@@ -68,6 +68,7 @@ export const CATEGORY_LABEL: Record<string, string> = {
   eqUseTitanHammer: 'Titan Hammer — use',
   eqUseBlastPump: 'Blast Pump — use (Blast Surveyor)',
   eqUsePrismaticPick: 'Prismatic Pick — Choose One opens (Prismpick Artificer)',
+  eqUseDuelingRubettas: "Dueling Rubetta's — use (Kaura L'roft)",
   eqUseOther: 'Equipment use — any without its own fader',
 };
 
@@ -82,6 +83,7 @@ export const EQUIPMENT_CLIP_CATEGORY: Record<string, string> = {
   titanhammer: 'eqUseTitanHammer',
   blastpump: 'eqUseBlastPump',
   prismaticpick: 'eqUsePrismaticPick',
+  duelingrubettas: 'eqUseDuelingRubettas',
 };
 export const equipmentClipCategory = (clipId: string): string => EQUIPMENT_CLIP_CATEGORY[clipId] ?? 'eqUseOther';
 

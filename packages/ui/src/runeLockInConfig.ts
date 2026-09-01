@@ -72,6 +72,25 @@ export interface RuneLockInConfig {
    * offset before it could only clamp, while the lock is the moment the sound is supposed to BE.
    */
   sfxDelayMs: number;
+
+  // ── The arrival ─────────────────────────────────────────────────────────────────────────────────────────
+  /**
+   * THE FOURTH BEAT (owner ask 2026-08-31): *"after this, the fade happens and game screen goes back to
+   * normal. i want the rune that was selected to play an animation and for the art to pop in at that moment."*
+   *
+   * Measured from the END of the ceremony — the instant the layer unmounts and the board is back — because
+   * that is the moment it is a reaction to. Everything before it is measured from the click; this one cannot
+   * be, or a dial that lengthened the hold would silently drag the arrival with it.
+   */
+  arriveDelayMs: number;
+  /** How long the badge art takes to pop in. */
+  arrivePopMs: number;
+  /** How far past full size the pop overshoots. 1 = no overshoot. */
+  arrivePopScale: number;
+  /** The implosion's volume, as a multiple of the clip's normal level. 0 silences it. */
+  arriveSfxVolume: number;
+  /** ms relative to the implosion FIRING — negative leads the visual, positive trails it. */
+  arriveSfxDelayMs: number;
 }
 
 /**
@@ -112,6 +131,14 @@ const DEFAULTS: RuneLockInConfig = {
 
   sfxVolume: 0.2,
   sfxDelayMs: -150,
+
+  // Starting points, not baked values — the owner tunes these against the playback and they get re-baked, the
+  // same way the ceremony's own numbers were on 2026-08-29.
+  arriveDelayMs: 0,
+  arrivePopMs: 360,
+  arrivePopScale: 1.18,
+  arriveSfxVolume: 0.6,
+  arriveSfxDelayMs: 0,
 };
 
 const RANGES: Record<keyof RuneLockInConfig, [number, number, number]> = {
@@ -135,6 +162,12 @@ const RANGES: Record<keyof RuneLockInConfig, [number, number, number]> = {
 
   sfxVolume: [0, 2, 0.05],
   sfxDelayMs: [-400, 800, 10],
+
+  arriveDelayMs: [0, 1200, 10],
+  arrivePopMs: [80, 1200, 10],
+  arrivePopScale: [1, 2, 0.02],
+  arriveSfxVolume: [0, 2, 0.05],
+  arriveSfxDelayMs: [-400, 800, 10],
 };
 
 export { DEFAULTS as RUNE_LOCKIN_DEFAULTS };
@@ -178,6 +211,9 @@ export const lockInTotalMs = (t: RuneLockInConfig): number => t.holdMs + t.fadeM
 const TIME_KEYS: (keyof RuneLockInConfig)[] = [
   'exitDelayMs', 'exitMs', 'exitStaggerMs', 'focusDelayMs', 'focusMs', 'settleMs',
   'lockAtMs', 'holdMs', 'fadeMs', 'clampMs', 'flashMs', 'sfxDelayMs',
+  // The arrival stretches with everything else — a 6x playback that snapped the pop at full speed would be
+  // showing a different animation from the one being judged.
+  'arriveDelayMs', 'arrivePopMs', 'arriveSfxDelayMs',
 ];
 export const stretchLockIn = (t: RuneLockInConfig, factor: number): RuneLockInConfig => {
   const out = { ...t };
@@ -207,6 +243,12 @@ const SPECS: Record<keyof RuneLockInConfig, [string, string | undefined, string,
   veilAlpha: ['Board dim', undefined, 'How dark the board goes behind the ceremony. 0 leaves it untouched.', 'The exit'],
 
   sfxVolume: ['Clang volume', '×', 'Multiple of the clip’s normal level. Rides on top of the UI bus, so 0 silences just this one.', 'Sound'],
+  arriveDelayMs: ['Arrival delay', 'ms', 'Wait after the ceremony ENDS before the rune’s badge implodes and its art pops in. Measured from the end, not the click, so lengthening the hold does not drag it.', 'The arrival'],
+  arrivePopMs: ['Art pop', 'ms', 'How long the badge art takes to appear. It is held back for the whole ceremony, so this is the first time the rune is seen in the tray.', 'The arrival'],
+  arrivePopScale: ['Pop overshoot', '×', 'How far past full size the art punches before settling. 1 = no overshoot.', 'The arrival'],
+  arriveSfxVolume: ['Implosion volume', '×', 'Multiple of the clip’s normal level. Its own fader in the mixer too (Rune arrival).', 'The arrival'],
+  arriveSfxDelayMs: ['Implosion timing', 'ms', 'Relative to the implosion FIRING — negative leads the visual, positive trails it. Audio clock, so it cannot drift.', 'The arrival'],
+
   sfxDelayMs: ['Clang timing', 'ms', 'Relative to the LOCK BEAT — negative fires the clang before the frame lands, positive after. Audio clock, so it cannot drift from the visual.', 'Sound'],
 };
 

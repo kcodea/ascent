@@ -102,7 +102,13 @@ export function RuneCard({ rune, affordable, onBuy, cost, duplicating }: {
       onMouseLeave={hasPreview ? hide : undefined}
       aria-label={`${rune.name} — buy for ${shownCost} Gold`}
     >
-      {art && <img className="runecard-art" src={art} alt="" aria-hidden />}
+      {/* `decoding="sync"`: paint the art WITH the card in the same frame, the same reason `Card.tsx` does it.
+          This is what the lock-in ceremony's flicker was (owner report 2026-08-31: "there's still a slight
+          rebuilding of the runes and then it centers"). The ceremony re-renders every card as an inert CLONE
+          — a brand-new <img>, which by default decodes ASYNCHRONOUSLY even when the bytes are already in
+          cache. So the clone mounted, painted one frame of empty card, and only then showed the art: a blink
+          precisely at the hand-off, on the card the eye is following. */}
+      {art && <img className="runecard-art" src={art} alt="" aria-hidden decoding="sync" />}
       {/* Gold coin cost, overhanging the top-left corner (like a spell's cost). */}
       <span className={`runecard-cost${discounted ? ' discounted' : ''}`} title={discounted ? `Pivot discount — ${shownCost} Gold (was ${rune.cost})` : `Costs ${shownCost} Gold`}><span className="costn">{shownCost}</span></span>
       <span className="runecard-emblem" aria-hidden><Icon name="sc" /></span>

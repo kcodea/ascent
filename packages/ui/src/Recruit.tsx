@@ -1803,6 +1803,23 @@ export function Recruit() {
    * the kind of friction that means it never gets tuned.
    */
   const lockInDemoRef = useRef<((slow?: number) => void) | null>(null);
+  /**
+   * THE ARRIVAL HAND-OFF (owner ask 2026-08-31). A ceremony is about one rune, and the badge for that rune
+   * already exists — the buy resolved before the ceremony even mounted. So the ceremony OWNS the badge for
+   * its duration: `pending` holds the art back while the story is still being told, and `arrived` pops it in
+   * as the board comes back, which is the beat the implosion plays on.
+   *
+   * `occurrence` is which copy of this rune id the new badge is — the LAST one, since a bought rune is
+   * appended. Rune of Duplication makes that distinction real: it can put the same id in the tray twice, and
+   * only the copy just bought should be holding anything back.
+   */
+  const cueRuneArrival = useCallback((cards: RuneLockInCard[] | null, phase: 'pending' | 'arrived'): void => {
+    const chosen = cards?.find((c) => c.chosen);
+    if (!chosen) return;
+    const owned = useGame.getState().run.ownedRunes ?? [];
+    const occurrence = Math.max(0, owned.filter((r) => r === chosen.rune.id).length - 1);
+    useGame.getState().setRuneArrival({ runeId: chosen.rune.id, occurrence, phase });
+  }, []);
   const startRuneLockIn = useCallback((el: HTMLElement | null, chosenIndex: number): void => {
     const run = useGame.getState().run;
     if (!el || !run.runeforgeOffer) return;
@@ -1810,7 +1827,7 @@ export function Recruit() {
     // (`captureRuneLockIn`) so a replayed ceremony is measured exactly as a live one is; two copies of this
     // would drift, and the drift would show as the cards jumping on the ceremony's first frame.
     const cards = captureRuneLockIn(run.runeforgeOffer, run.runeforgeDiscounts, chosenIndex, el);
-    if (cards) { setLockInSlow(1); setLockIn(cards); }
+    if (cards) { setLockInSlow(1); setLockIn(cards); cueRuneArrival(cards, 'pending'); }
   }, []);
 
   // Publish the demo: three real runes laid out where the forge puts them, middle one chosen.
@@ -1835,6 +1852,10 @@ export function Recruit() {
       }));
       setLockInSlow(Math.max(1, slow));
       setLockIn(cards);
+      // The playback exists to judge ALIGNMENT (owner ask 2026-08-31), so it has to include the arrival —
+      // a preview that stopped at the fade would hide the one seam being tuned. The demo's rune is usually
+      // not owned, so `useRuneArrivalFx` finds no badge and skips the play: see the fallback there.
+      cueRuneArrival(cards, 'pending');
     };
     const win = window as unknown as { __runeLockIn?: (slow?: number) => void };
     win.__runeLockIn = (slow) => lockInDemoRef.current?.(slow);
@@ -6955,7 +6976,7 @@ export function Recruit() {
       {lockIn && (
         <RuneLockIn
           cards={lockIn}
-          onDone={() => { setLockIn(null); }}
+          onDone={() => { cueRuneArrival(lockIn, 'arrived'); setLockIn(null); }}
           timing={lockInSlow === 1 ? undefined : stretchLockIn(getRuneLockInConfig(), lockInSlow)}
         />
       )}
@@ -6967,7 +6988,7 @@ export function Recruit() {
         <RuneLockIn
           key={`cue:${runeLockInCue.find((c) => c.chosen)?.rune.id ?? 'x'}`}
           cards={runeLockInCue}
-          onDone={() => { useGame.setState({ runeLockInCue: null }); }}
+          onDone={() => { cueRuneArrival(runeLockInCue, 'arrived'); useGame.setState({ runeLockInCue: null }); }}
         />
       )}
       {!overlaysHeld && run.runeforgeOffer && !forgeMin && (

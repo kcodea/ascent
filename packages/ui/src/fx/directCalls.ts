@@ -57,6 +57,8 @@ export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   // half in score.ts is still a literal — see RUBY_LANDED_DEF.
   'ruby-gem-apply': ['choreo/score.ts'],
   'rune-buff-unit': ['Recruit.tsx', 'useCombatReplay.ts'],
+  // The implosion on a rune's BADGE as the lock-in ceremony hands it over (owner ask 2026-08-31).
+  'rune-select-implosion': ['useRuneArrivalFx.ts'],
   'rune-slot-break': ['QuestBadges.tsx'],
   'shop-buff-aura': ['useCombatReplay.ts'],
   'shop-tier-up': ['TavernUpButton.tsx'],

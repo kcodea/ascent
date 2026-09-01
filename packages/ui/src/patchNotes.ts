@@ -55,6 +55,21 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-09-01',
+    label: 'Rune Arrival',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: 'Picking a rune no longer blinks on its way to the centre, and the rune you chose now arrives in your tray with an effect of its own.',
+        details: [
+          'The chosen rune moves in one continuous motion — it used to flicker for a frame as the ceremony took over.',
+          'Its badge stays empty while the ceremony plays, then the artwork pops in as the board comes back.',
+          'The arrival has its own sound.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-08-31',
     label: 'Scouting Report',
     changes: [

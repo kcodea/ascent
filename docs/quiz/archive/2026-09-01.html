@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ascent Quiz #20 — 2026-09-01</title>
+<style>
+  :root {
+    --bg: #0f1420;
+    --panel: #1a2236;
+    --panel-border: #2c3752;
+    --text: #e8edf7;
+    --text-dim: #9aa7c2;
+    --accent: #6c8cff;
+    --accent-dim: #3c4a78;
+    --correct: #3ecf8e;
+    --correct-bg: rgba(62, 207, 142, 0.14);
+    --wrong: #ff6b6b;
+    --wrong-bg: rgba(255, 107, 107, 0.14);
+    --gold: #f0c674;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    min-height: 100%;
+  }
+  body {
+    display: flex;
+    justify-content: center;
+    padding: 32px 16px 64px;
+  }
+  .wrap { width: 100%; max-width: 680px; }
+  header {
+    text-align: center;
+    margin-bottom: 24px;
+  }
+  header h1 {
+    font-size: 1.5rem;
+    margin: 0 0 4px;
+    letter-spacing: 0.01em;
+  }
+  header .sub {
+    color: var(--text-dim);
+    font-size: 0.9rem;
+  }
+  .progress-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .progress-track {
+    flex: 1;
+    height: 8px;
+    background: var(--panel-border);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--gold));
+    width: 0%;
+    transition: width 0.35s ease;
+  }
+  .progress-label {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    white-space: nowrap;
+    min-width: 64px;
+    text-align: right;
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 14px;
+    padding: 24px;
+    margin-bottom: 16px;
+  }
+  .topic-tag {
+    display: inline-block;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--accent);
+    background: var(--accent-dim);
+    padding: 3px 9px;
+    border-radius: 999px;
+    margin-bottom: 12px;
+  }
+  .question {
+    font-size: 1.08rem;
+    line-height: 1.5;
+    margin-bottom: 18px;
+  }
+  .question code {
+    background: #0c1120;
+    border: 1px solid var(--panel-border);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 0.92em;
+    color: #cfe0ff;
+  }
+  .choices { display: flex; flex-direction: column; gap: 10px; }
+  .choice {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    text-align: left;
+    background: #131a2b;
+    border: 1px solid var(--panel-border);
+    color: var(--text);
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 0.97rem;
+    line-height: 1.4;
+    cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
+    transition: border-color 0.15s ease, background 0.15s ease, transform 0.1s ease;
+  }
+  .choice:hover:not(:disabled) {
+    border-color: var(--accent);
+    background: #17203a;
+  }
+  .choice:active:not(:disabled) { transform: scale(0.995); }
+  .choice:disabled { cursor: default; }
+  .choice .letter {
+    flex: none;
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+    background: var(--panel-border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text-dim);
+  }
+  .choice.correct { border-color: var(--correct); background: var(--correct-bg); }
+  .choice.correct .letter { background: var(--correct); color: #06251a; }
+  .choice.wrong { border-color: var(--wrong); background: var(--wrong-bg); }
+  .choice.wrong .letter { background: var(--wrong); color: #2a0808; }
+  .choice.dim { opacity: 0.55; }
+  .result-banner {
+    margin-top: 16px;
+    padding: 10px 14px;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 0.92rem;
+  }
+  .result-banner.good { background: var(--correct-bg); color: var(--correct); }
+  .result-banner.bad { background: var(--wrong-bg); color: var(--wrong); }
+  .explanation {
+    margin-top: 12px;
+    padding: 14px 16px;
+    background: #0f1626;
+    border: 1px solid var(--panel-border);
+    border-left: 3px solid var(--accent);
+    border-radius: 8px;
+    font-size: 0.93rem;
+    line-height: 1.55;
+    color: var(--text-dim);
+  }
+  .explanation strong { color: var(--text); }
+  .nav-row {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 18px;
+  }
+  .next-btn {
+    background: var(--accent);
+    color: #0a0e18;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+  }
+  .next-btn.show { opacity: 1; pointer-events: auto; }
+  .next-btn:hover { filter: brightness(1.08); }
+  .score-live {
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 0.85rem;
+    margin-bottom: 6px;
+  }
+  .final {
+    text-align: center;
+    padding: 36px 24px;
+  }
+  .final .big-score {
+    font-size: 3rem;
+    font-weight: 700;
+    margin: 8px 0 4px;
+    background: linear-gradient(90deg, var(--accent), var(--gold));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .final .line {
+    color: var(--text-dim);
+    margin-bottom: 20px;
+  }
+  .final .encourage {
+    font-size: 1.05rem;
+    color: var(--text);
+    margin-bottom: 24px;
+  }
+  .restart-btn {
+    background: transparent;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-size: 0.9rem;
+    cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
+  }
+  .restart-btn:hover { background: var(--accent-dim); }
+  .hidden { display: none; }
+  footer.tip {
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 0.78rem;
+    margin-top: 28px;
+    line-height: 1.5;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>🎓 Ascent Quiz #20</h1>
+    <div class="sub">2026-09-01 · How the game is built</div>
+  </header>
+
+  <div id="quizArea">
+    <div class="progress-row">
+      <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="progress-label" id="progressLabel">Q1 / 10</div>
+    </div>
+    <div class="score-live" id="scoreLive">Score so far: 0</div>
+    <div class="card" id="questionCard"></div>
+  </div>
+
+  <div id="finalArea" class="card final hidden"></div>
+
+  <footer class="tip">Architecture only — no game-rules spoilers here. Reply with your score and Claude will pick tomorrow's topics to match.</footer>
+</div>
+
+<script>
+const QUESTIONS = [
+  {
+    topic: "What a function is",
+    question: "In <code>packages/core/src/combat/simulate.ts</code>, the helper <code>function isTribeOf(m, tribe, cards) { ... }</code> has no <code>export</code> keyword in front of it — unlike <code>simulate()</code> itself, which is exported. What does that actually mean?",
+    choices: [
+      "isTribeOf only works on player minions, never enemy minions",
+      "Other files in the SAME package can still call it, since export/no-export is purely a naming convention",
+      "isTribeOf can only be called from inside simulate.ts itself — no other file, even in the same package, can import and call it directly",
+      "isTribeOf runs slower than an exported function because it isn't optimized"
+    ],
+    answer: 2,
+    explanation: "Whether a function has <code>export</code> in front of it decides whether OTHER files can <code>import</code> it at all — leaving it off makes <code>isTribeOf</code> private to simulate.ts, a small internal helper nobody outside that one file needs to know exists. That's not a convention you can bypass by trying anyway; it's enforced by the module system itself. It has nothing to do with which side a minion is on (A) or runtime speed (D) — both wrong reasons unrelated to what export/no-export controls."
+  },
+  {
+    topic: "Determinism",
+    question: "Two players both start today's daily run from the exact same seed. Player A buys a Beast-heavy board; Player B buys a completely different set of cards. Will their combats play out identically?",
+    choices: [
+      "Yes — the shared seed alone guarantees identical combats no matter what either player buys",
+      "No — determinism guarantees the SAME inputs produce the SAME outputs, but the two players' different card choices are different inputs, so their combats can diverge even from one shared seed",
+      "No — because Player B's choices make the game switch out of deterministic mode entirely",
+      "Yes, but only for the first combat; every combat after that is guaranteed to differ"
+    ],
+    answer: 1,
+    explanation: "Determinism is a guarantee about ONE fixed set of inputs, not a promise that everyone sharing a seed converges on the same run. The seed is only one input among several — the player's own choices (which cards, which targets) are also inputs to the engine, and different choices mean the two players are no longer feeding <code>simulate()</code> identical arguments, so nothing guarantees identical results. C invents a mode switch that doesn't exist, and D is just wrong — determinism doesn't wear off over time; if two players' inputs ever matched exactly, later combats would match too."
+  },
+  {
+    topic: "The seeded RNG",
+    question: "packages/sim/src/reducer.ts repeatedly does <code>const rng = makeRng(s.rngCursor); /* ...use rng.int(...)... */ s.rngCursor = rng.state();</code> — storing the result of <code>rng.state()</code>, a plain number, back onto <code>RunState</code>. Why does <code>Rng.state()</code> return a plain number instead of just handing back the whole <code>Rng</code> object to save?",
+    choices: [
+      "Because RunState needs to stay plain, serializable data (so a run can be saved/restored) — and a plain number can be stored and JSON-serialized, while the Rng object is a closure holding functions, which can't be serialized",
+      "Because returning the whole object would use too much memory to matter",
+      "Because rng.state() is faster to compute than returning the object reference",
+      "Because RunState.rngCursor is only used for display in the UI, never fed back into makeRng()"
+    ],
+    answer: 0,
+    explanation: "<code>rng.ts</code>'s own doc comment on <code>state()</code> spells this out: it \"lets a pure reducer thread RNG through plain, serializable state.\" <code>RunState</code> needs to be saveable/restorable as plain data, and a raw 32-bit integer fits that perfectly — but the <code>Rng</code> object returned by <code>makeRng()</code> is a closure bundling functions like <code>next</code>/<code>int</code>/<code>fork</code>, which have no meaningful JSON representation and would vanish across a save/load round trip. B and C invent reasons that aren't the actual design driver, and D is contradicted by the code you're looking at: <code>rngCursor</code> is fed straight back into <code>makeRng()</code> on the next action."
+  },
+  {
+    topic: "Sim/UI decoupling",
+    question: "Suppose Ascent wanted to add an accessibility mode that shows a finished combat as a scrolling text log (\"Wolf attacks Bear for 3\") instead of animated cards on a board. Per the sim/UI split, what would that require changing in packages/core?",
+    choices: [
+      "Nothing — simulate() already produced the same events array either presentation would read from; only the UI package would need a new way to render that data",
+      "simulate() would need a text-output mode flag added to its signature",
+      "The CombatEvent union would need a whole parallel text-only event type",
+      "Nothing changes, but only because packages/core is also responsible for rendering text to the screen"
+    ],
+    answer: 0,
+    explanation: "This is exactly what \"the UI animates the event log on its own clock\" (CLAUDE.md) buys: the SAME <code>events</code> array can drive a totally different presentation — animated board, scrolling text log, anything — because the sim's job stops at deciding what happened, not how it looks. B and C both wrongly assume core needs new machinery just because the UI wants a different look. D is simply false — packages/core never touches rendering of any kind, text or otherwise; that's entirely packages/ui's job."
+  },
+  {
+    topic: "The monorepo packages",
+    question: "packages/ui/package.json lists <code>@game/core</code>, <code>@game/content</code>, AND <code>@game/sim</code> as dependencies — not just core and content. Why does the UI need to depend on sim at all, rather than only the raw engine (core) and the card data (content)?",
+    choices: [
+      "Because sim is where run-level logic lives — the shop, the economy, the reducer that turns player actions into a new RunState — and the UI needs to drive and display an actual run, not just call simulate() directly",
+      "It's a mistake; sim should be removed from ui's dependencies",
+      "Because packages/ui re-exports @game/sim's code so packages/tools can use it too",
+      "Because @game/core secretly requires @game/sim to run combat"
+    ],
+    answer: 0,
+    explanation: "core gives you the raw combat engine, and content gives you card data, but neither one knows how to run a shop turn, spend Gold, or track a player's board across a whole run — that's what packages/sim's reducer and state module are for. The UI needs all of that to actually present and drive a run, so depending on sim (in addition to core and content) is the correct, intentional shape of the dependency graph, per CLAUDE.md's \"ui → all\" diagram — not a mistake (B). C and D describe relationships that don't exist: core has zero @game/* dependencies of its own (that's the whole point of the layering), and packages/tools imports directly from core/content itself rather than through ui."
+  },
+  {
+    topic: "Pure functions",
+    question: "Because simulate() is pure, a call like <code>simulate(board, enemy, rng, cards)</code> can always be replaced by whatever value it returns, without changing what the rest of the program does. Why doesn't that same trick work for a call to <code>Math.random()</code>?",
+    choices: [
+      "Because Math.random() is written in native code instead of JavaScript, so it can't be substituted",
+      "Because Math.random() can return a DIFFERENT value on every call even with no arguments at all, so replacing one specific call with \"the value it returned\" would freeze it to a single number forever, which is not equivalent behavior",
+      "Because Math.random() secretly takes hidden parameters that simulate() doesn't have",
+      "Because Math.random() is banned in this codebase, so the comparison doesn't apply"
+    ],
+    answer: 1,
+    explanation: "This substitution property (swap a call for its result with nothing else changing) only holds when a function's output depends solely on its inputs — <code>simulate()</code> qualifies, since the exact same arguments always produce the exact same <code>CombatResult</code>. <code>Math.random()</code> fails this outright: it takes no inputs at all yet returns something different practically every time, so \"the value it returned\" isn't a stand-in for \"a call to it\" — that's precisely the impurity this codebase's Math.random ban (eslint-rules) is designed to keep out of core/content/sim. A and C invent irrelevant mechanics, and D just restates the ban without explaining why it exists."
+  },
+  {
+    topic: "Data-driven cards",
+    question: "Because Ascent's cards are plain data objects validated by a zod schema, rather than TypeScript classes, which of these would be realistic to build as a tool WITHOUT writing any new game logic code?",
+    choices: [
+      "A brand-new effect primitive, like a card that reads a value never used by any existing effect",
+      "A script that reads a spreadsheet or CSV of new card stats/text and generates matching card data objects for packages/content — since a card is just data (numbers, strings, an id), not custom code",
+      "A change to how combat resolves ties between two minions of equal Attack",
+      "A new hero power that triggers a never-before-used combat event"
+    ],
+    answer: 1,
+    explanation: "Because a card boils down to plain fields (id, attack, health, an effects array referencing already-existing factory ids), generating them from an external, non-code source like a spreadsheet is entirely realistic — you're producing data, not writing behavior. The other three options all require someone to write and review new logic: a genuinely new effect primitive needs a new factory function (per CLAUDE.md, \"unless they need a genuinely new effect primitive\"), a new tie-resolution rule touches simulate() itself, and a hero power needing a brand-new event means extending the CombatEvent union — all real code changes, not just new data."
+  },
+  {
+    topic: "The event log",
+    question: "A player finishes watching a combat and clicks \"Watch again.\" Does the game need to call simulate() a second time to show the replay?",
+    choices: [
+      "Yes — simulate() must run again to regenerate the fight from scratch",
+      "No — the events array from the original simulate() call is just data sitting in memory (or storage); the UI can step through that same array again from the start, no re-simulation needed",
+      "Yes, but only if the player picked a different RNG seed for the rewatch",
+      "No — but only because Ascent caches a video recording of the first playback"
+    ],
+    answer: 1,
+    explanation: "This is the whole point of an <strong>event log</strong>: the outcome was already fully computed once, and the events array holds everything needed to reconstruct it on screen. \"Replaying\" just means resetting the UI's own playback cursor back to the start of the SAME array — nothing about the fight needs to be recomputed, and nothing about it could change on a second viewing. A and C both wrongly assume the outcome itself needs to be re-decided; D invents a video-recording mechanism this codebase doesn't have — it's replaying structured event data, not video."
+  },
+  {
+    topic: "ESLint rules",
+    question: "<code>eslint.config.mjs</code> bans Math.random using <code>no-restricted-properties</code>, a rule ESLint ships with built in — Ascent didn't have to write a custom lint plugin from scratch to enforce this. What does that tell you about how the ban was implemented?",
+    choices: [
+      "It was done by CONFIGURING an existing, general-purpose ESLint rule (which can restrict any object.property pair you name) rather than by writing new lint-checking code specific to Math.random",
+      "It means the rule only works in packages/core and nowhere else, by ESLint's own built-in design",
+      "It means the rule is automatically kept in sync with the CombatEvent union",
+      "It means TypeScript, not ESLint, is what actually enforces the ban"
+    ],
+    answer: 0,
+    explanation: "<code>no-restricted-properties</code> is a stock ESLint rule that takes a list of <code>{ object, property }</code> pairs to flag — Ascent's config just supplies <code>{ object: 'Math', property: 'random' }</code> as data. That's a common, useful pattern: reach for an existing, configurable rule before writing bespoke lint logic. B is wrong — the rule's reach is controlled entirely by the separate <code>files:</code> glob in the same config block, not anything built into the rule itself. C and D describe relationships that don't exist between these particular pieces of tooling."
+  },
+  {
+    topic: "Performance patterns",
+    question: "docs/performance.md splits performance work into two lanes: <code>npm run perf</code> (a headless harness) for one category of problem, and Chrome DevTools for another. If Mike notices the SHOP SCREEN feels janky while dragging a card, which tool should he reach for first, and why?",
+    choices: [
+      "npm run perf — because it's the faster command to type",
+      "Chrome DevTools — because a drag-and-drop hitch is a render/paint/layout problem (CSS repaints, React re-renders, GSAP), which only shows up in an actual browser compositor, not in headless Node",
+      "npm run perf — because it can profile React component re-renders directly",
+      "Neither — performance issues in Ascent can only be diagnosed by reading the source code"
+    ],
+    answer: 1,
+    explanation: "docs/performance.md draws exactly this line: engine/logic work (simulate(), the reducer, the run loop) is pure TypeScript that runs identically headless, so <code>npm run perf</code> can profile it in plain Node — but render/paint/animation problems (repaints, React reconciliation, GSAP, layout thrash) need a real compositor, which only exists in a browser, so those get profiled together in Chrome DevTools. A drag stutter is squarely a render-layer symptom, so DevTools is the right first stop, not the headless harness. A trivializes the choice into typing speed, C misattributes what the headless tool can see, and D ignores that this codebase has dedicated, documented tooling for exactly this kind of question."
+  }
+];
+
+let idx = 0;
+let score = 0;
+let answered = false;
+
+const questionCard = document.getElementById('questionCard');
+const progressFill = document.getElementById('progressFill');
+const progressLabel = document.getElementById('progressLabel');
+const scoreLive = document.getElementById('scoreLive');
+const quizArea = document.getElementById('quizArea');
+const finalArea = document.getElementById('finalArea');
+
+function render() {
+  answered = false;
+  const q = QUESTIONS[idx];
+  progressFill.style.width = ((idx) / QUESTIONS.length * 100) + '%';
+  progressLabel.textContent = 'Q' + (idx + 1) + ' / ' + QUESTIONS.length;
+  scoreLive.textContent = 'Score so far: ' + score;
+
+  const letters = ['A', 'B', 'C', 'D'];
+  questionCard.innerHTML = `
+    <div class="topic-tag">${q.topic}</div>
+    <div class="question">${q.question}</div>
+    <div class="choices">
+      ${q.choices.map((c, i) => `
+        <button class="choice" data-i="${i}">
+          <span class="letter">${letters[i]}</span>
+          <span>${c}</span>
+        </button>
+      `).join('')}
+    </div>
+    <div id="resultSlot"></div>
+    <div class="nav-row"><button class="next-btn" id="nextBtn">${idx === QUESTIONS.length - 1 ? 'See results' : 'Next question →'}</button></div>
+  `;
+
+  const buttons = questionCard.querySelectorAll('.choice');
+  buttons.forEach(btn => {
+    btn.addEventListener('click', () => onAnswer(parseInt(btn.dataset.i, 10)));
+  });
+}
+
+function onAnswer(chosen) {
+  if (answered) return;
+  answered = true;
+  const q = QUESTIONS[idx];
+  const correct = chosen === q.answer;
+  if (correct) score++;
+
+  const buttons = questionCard.querySelectorAll('.choice');
+  buttons.forEach((btn, i) => {
+    btn.disabled = true;
+    if (i === q.answer) btn.classList.add('correct');
+    else if (i === chosen) btn.classList.add('wrong');
+    else btn.classList.add('dim');
+  });
+
+  const resultSlot = document.getElementById('resultSlot');
+  resultSlot.innerHTML = `
+    <div class="result-banner ${correct ? 'good' : 'bad'}">${correct ? '✓ Correct!' : '✗ Not quite.'}</div>
+    <div class="explanation">${q.explanation}</div>
+  `;
+
+  scoreLive.textContent = 'Score so far: ' + score;
+  document.getElementById('nextBtn').classList.add('show');
+}
+
+document.addEventListener('click', (e) => {
+  if (e.target && e.target.id === 'nextBtn') {
+    idx++;
+    if (idx >= QUESTIONS.length) {
+      showFinal();
+    } else {
+      render();
+    }
+  }
+});
+
+function showFinal() {
+  progressFill.style.width = '100%';
+  progressLabel.textContent = 'Done!';
+  quizArea.classList.add('hidden');
+  finalArea.classList.remove('hidden');
+
+  let line;
+  if (score === QUESTIONS.length) line = "Perfect score! You're reading this codebase like a pro.";
+  else if (score >= 8) line = "Excellent work — you've got a really solid handle on this.";
+  else if (score >= 6) line = "Good run — the architecture is clearly starting to click.";
+  else if (score >= 4) line = "Solid effort — a few of these ideas are worth a second look.";
+  else line = "Everyone starts somewhere — the whole point of the daily quiz is to build this up slowly.";
+
+  finalArea.innerHTML = `
+    <div class="topic-tag">Quiz #20 complete</div>
+    <div class="big-score">${score} / ${QUESTIONS.length}</div>
+    <div class="line">Ascent Quiz — 2026-09-01</div>
+    <div class="encourage">${line}</div>
+    <button class="restart-btn" id="restartBtn">Take it again</button>
+  `;
+  document.getElementById('restartBtn').addEventListener('click', () => {
+    idx = 0; score = 0;
+    quizArea.classList.remove('hidden');
+    finalArea.classList.add('hidden');
+    render();
+  });
+}
+
+render();
+</script>
+</body>
+</html>

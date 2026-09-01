@@ -9645,7 +9645,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
      board on a non-fullscreen stage. oppX/oppY now nudge the portrait off the power anchor, × --scale like every
      other pinned element (positive X = rightward, positive Y = down). */
   left: auto;
-  right: calc(50% - var(--gw) / 2 + 20 * var(--u) - var(--hd-power-x, -386px) * var(--scale) - var(--hd-opp-x, 144px) * var(--scale));
+  right: calc(50% - var(--gw) / 2 + 20 * var(--u) - var(--hd-power-x, -386px) * var(--scale) - var(--hd-opp-x, 176px) * var(--scale));
   top: calc(20 * var(--u) + var(--hd-power-y, 191px) * var(--scale) + var(--hd-opp-y, 41px) * var(--scale));
   /* The ⚔️ Hero Duel tuner's placement rides the WRAPPER, never the body — the body is what GSAP lunges.
      translate(50%,-50%) centres the portrait on the right/top anchor point. */
@@ -9760,7 +9760,7 @@ body.duel-attacker-opp .combatopp-hp { opacity: 0; }
   background: linear-gradient(180deg, #fff, #f3ead4); border: 2px solid var(--gold); border-radius: 999px;
   padding: calc(2 * var(--u)) calc(13 * var(--u)); white-space: nowrap;
   box-shadow: 0 calc(2 * var(--u)) calc(6 * var(--u)) -2px var(--shadow);
-  transform: translate(calc(var(--hd-name-x, 0px) * var(--scale)), calc(var(--hd-name-y, 45px) * var(--scale))) scale(var(--hd-name-s, 0.65));
+  transform: translate(calc(var(--hd-name-x, 0px) * var(--scale)), calc(var(--hd-name-y, 26px) * var(--scale))) scale(var(--hd-name-s, 0.65));
 }
 /* Opponent HEALTH — the SAME pill the PLAYER wears in the HUD (owner ask 2026-08-25): the dark gradient box,
    dark-gold border, threat-pink heart and lightened number from `.statusbar .hero .hpbox`, verbatim. */
@@ -9771,7 +9771,7 @@ body.duel-attacker-opp .combatopp-hp { opacity: 0; }
   padding: calc(6 * var(--u)) calc(14 * var(--u));
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 2px 6px rgba(0, 0, 0, 0.3);
   font-family: var(--font-ui); font-weight: 800; font-size: calc(24 * var(--u)); line-height: 1; color: #ff9db0;
-  transform: translate(calc(var(--hd-hp-x, 0px) * var(--scale)), calc(var(--hd-hp-y, -45px) * var(--scale))) scale(var(--hd-hp-s, 0.65));
+  transform: translate(calc(var(--hd-hp-x, 0px) * var(--scale)), calc(var(--hd-hp-y, -31px) * var(--scale))) scale(var(--hd-hp-s, 0.65));
 }
 .combatopp-hp svg { flex: none; width: calc(24 * var(--u)); height: calc(24 * var(--u)); color: var(--threat); }
 .combatopp-armor { margin-left: calc(3 * var(--u)); font-size: calc(17 * var(--u)); color: #b7c2cf; }
@@ -9863,8 +9863,8 @@ body.duel-attacker-opp .combatopp-hp { opacity: 0; }
   from { opacity: 1; transform: translateX(-50%) scale(var(--pill-s, 1)); }
   to   { opacity: 0; transform: translateX(-50%) scale(calc(var(--pill-s, 1) * 0.72)); }
 }
-.hero-atk-player { --pill-s: var(--hd-pill-player-s, 0.55); --pill-x: var(--hd-pill-player-x, 72px); --pill-y: var(--hd-pill-player-y, -12px); }
-.hero-atk-opp    { --pill-s: var(--hd-pill-opp-s, 0.72); --pill-x: var(--hd-pill-opp-x, -117px); --pill-y: var(--hd-pill-opp-y, -31px); }
+.hero-atk-player { --pill-s: var(--hd-pill-player-s, 0.55); --pill-x: var(--hd-pill-player-x, 52px); --pill-y: var(--hd-pill-player-y, -12px); }
+.hero-atk-opp    { --pill-s: var(--hd-pill-opp-s, 0.72); --pill-x: var(--hd-pill-opp-x, -71px); --pill-y: var(--hd-pill-opp-y, -31px); }
 @keyframes heroatkpop {
   from { opacity: 0; transform: translateX(-50%) scale(calc(var(--pill-s, 1) * 0.4)); }
   to   { opacity: 1; transform: translateX(-50%) scale(var(--pill-s, 1)); }

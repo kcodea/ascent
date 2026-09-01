@@ -8,7 +8,7 @@
       "anchor": "target",
       "at": 0,
       "params": {
-        "rate": 80,
+        "rate": 75,
         "rateCurve": [
           [
             0,
@@ -19,10 +19,10 @@
             1
           ]
         ],
-        "life": 2710,
+        "life": 1260,
         "spread": 0.16,
-        "speed": 40,
-        "speedVar": 0.93,
+        "speed": 70,
+        "speedVar": 0.81,
         "reverse": false,
         "speedCurve": [
           [
@@ -40,7 +40,7 @@
         "turbScale": 0.054,
         "fieldPhase": 0.88,
         "emitShape": "ring",
-        "emitRadius": 115,
+        "emitRadius": 118,
         "emitFill": false,
         "emitDensity": 400,
         "emitPoints": [],
@@ -50,9 +50,9 @@
         "offsetY": 1,
         "inheritVel": 0,
         "shape": "shard",
-        "size": 34,
-        "sizeVar": 0.62,
-        "stretchX": 1,
+        "size": 41,
+        "sizeVar": 0.66,
+        "stretchX": 0.45,
         "stretchY": 1,
         "sizeCurve": [
           [
@@ -99,19 +99,19 @@
         "tintMode": "palette",
         "fadeIn": 0.08,
         "palette": [
-          45967,
-          16711887,
-          16711862,
-          32255
+          45980,
+          11731199,
+          16711803,
+          10486015
         ],
         "blendMode": "add",
-        "glow": 0.08,
+        "glow": 0,
         "noiseScale": 0.5,
         "warp": 0,
         "scroll": 0,
         "erode": 0,
         "gain": 1.24,
-        "blur": 2,
+        "blur": 0,
         "blurCurve": [
           [
             0,

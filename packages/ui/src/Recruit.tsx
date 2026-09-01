@@ -3413,9 +3413,17 @@ export function Recruit() {
       const h = el.offsetHeight || r.height;
       const fracX = r.width ? (e.clientX - r.left) / r.width : 0.5;
       const fracY = r.height ? (e.clientY - r.top) / r.height : 0.5;
-      // capture the pointer so move/up keep firing even if it leaves the window or races
-      // ahead of the floating card — events still bubble to the window listeners.
-      try { el.setPointerCapture(e.pointerId); } catch { /* unsupported / detached */ }
+      // CAPTURE ON A NODE THAT CANNOT GO AWAY (owner report 2026-09-01: a drag around the shop occasionally
+      // snapping back). Capture keeps move/up firing when the pointer leaves the window or outruns the
+      // floating card — events still bubble to the window listeners either way.
+      //
+      // It used to be taken on the CARD, and pointer capture dies with its element: any re-render that
+      // replaces that node — the shop row swaps a `<Card>` for a held-slot `<div>` under the same key, a row
+      // re-keys, a card is consumed out from under the gesture — releases it and fires `pointercancel`. The
+      // gesture was then over through no fault of the player's, which is what made it "snap back for no
+      // reason". `document.body` is not re-rendered by React at all, so the class is gone rather than
+      // narrowed. (`pointercancel` is handled as an ABORT rather than a drop now too — see `onCancel`.)
+      try { document.body.setPointerCapture(e.pointerId); } catch { /* unsupported / detached */ }
       dragIsTouchRef.current = e.pointerType !== 'mouse'; // touch/pen → snap to the finger (see dragIsTouchRef)
       // REPLAY V2 drag-path capture ("1:1 hands"): the grab point opens the trace. Capture is the product
       // (DEV + prod alike); guarded off during playback, where input is inert anyway. One push, no layout.
@@ -3733,9 +3741,34 @@ export function Recruit() {
         setOverZone(null);
       }
     };
+    /**
+     * A CANCEL IS NOT A DROP (owner report 2026-09-01: *"occasionally, dragging a shop minion around in the
+     * shop will have it snap back into place, and im not sure why it does it"*).
+     *
+     * `pointercancel` was wired straight to `onUp`, so an interrupted gesture ran the FULL drop resolution:
+     * it picked a zone from wherever the pointer happened to be, and either committed an action the player
+     * never finished or — over the shop, which is not a drop target — played the invalid-drop snap. That snap
+     * is the jarring bounce, and it arrives out of nowhere because no release happened.
+     *
+     * The browser fires a cancel when the gesture is taken away, and the commonest way that happens HERE is
+     * the captured element being replaced by a re-render (capture dies with the node). Which is to say: a
+     * cancel is usually OUR churn, not the player's intent — and resolving a drop from it is never right.
+     *
+     * So it aborts instead, on the same shape `onCtx` already uses: the drag ends, the card is where it
+     * always was, and nothing is dispatched. `setSnapping` is deliberately NOT set — the card was never
+     * anywhere else, so there is nothing to snap back FROM, and animating one is what made an interruption
+     * look like a rejected drop.
+     */
+    const onCancel = (): void => {
+      if (!dragRef.current) return;
+      cancelDragTrace();                 // an aborted drag never labels a later action
+      document.body.classList.remove('dragging');
+      setDrag(null);
+      setOverZone(null);
+    };
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
-    window.addEventListener('pointercancel', onUp);
+    window.addEventListener('pointercancel', onCancel);
     window.addEventListener('contextmenu', onCtx);
     return () => {
       if (moveRaf) cancelAnimationFrame(moveRaf);
@@ -3743,7 +3776,7 @@ export function Recruit() {
       insertRectsRef.current = null;
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
-      window.removeEventListener('pointercancel', onUp);
+      window.removeEventListener('pointercancel', onCancel);
       window.removeEventListener('contextmenu', onCtx);
     };
   }, [drag?.uid]);

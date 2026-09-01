@@ -40,8 +40,22 @@ export type BugSort = 'priority' | 'newest' | 'dupes';
 
 export const BUG_BOARD_STATUSES = ['new', 'triaged', 'reproduced', 'needs_info', 'fixed', 'closed', 'duplicate'] as const;
 export const BUG_BOARD_SEVERITIES = ['critical', 'high', 'medium', 'low'] as const;
-/** "Open" = still needs work — what "Send to Claude" ships when no stack is hand-picked. */
-export const OPEN_STATUSES: readonly string[] = ['new', 'triaged', 'needs_info'];
+/**
+ * "Open" = still needs work. Drives BOTH what the board shows by default (owner ask 2026-08-31: *"the bug
+ * board should only show unresolved bugs. any resolved/fixed bugs should go away"*) and what "Send to Claude"
+ * ships when no stack is hand-picked.
+ *
+ * `reproduced` JOINED THIS LIST on 2026-08-31, and its absence was a quiet bug of its own: a report confirmed
+ * to reproduce is the most actionable kind there is, and it was being left out of every default work order —
+ * triaging a bug to `reproduced` silently removed it from the queue it most belonged in.
+ *
+ * The RESOLVED statuses are the complement: `fixed`, `closed`, `duplicate`. They are hidden by default, not
+ * deleted — the `all` filter still reaches them, because a board that can't show you what was already fixed
+ * can't tell you a bug came back.
+ */
+export const OPEN_STATUSES: readonly string[] = ['new', 'triaged', 'reproduced', 'needs_info'];
+/** The filter value that means "every open status", as opposed to one named status or `all`. */
+export const UNRESOLVED_FILTER = 'unresolved';
 
 const ISSUE_ICONS: Record<string, string> = {
   mechanics: '⚙️', presentation: '🎬', text_mismatch: '📝', softlock: '🧊',
@@ -100,7 +114,9 @@ export function BugBoard({ onClose }: { onClose: () => void }): JSX.Element {
   const [loading, setLoading] = useState(true);
   const [hint, setHint] = useState<string | null>(null); // setup/availability hint — the board still renders
   const [error, setError] = useState<string | null>(null); // transient action error
-  const [statusFilter, setStatusFilter] = useState('all');
+  // Defaults to UNRESOLVED (owner ask 2026-08-31). A board that opens on everything ever filed buries the
+  // handful of rows that still need work under the ones that don't.
+  const [statusFilter, setStatusFilter] = useState<string>(UNRESOLVED_FILTER);
   const [typeFilter, setTypeFilter] = useState('all');
   const [patchFilter, setPatchFilter] = useState('all');
   const [sort, setSort] = useState<BugSort>('priority');
@@ -135,7 +151,7 @@ export function BugBoard({ onClose }: { onClose: () => void }): JSX.Element {
 
   const visible = useMemo(() => sortBoardRows(
     rows.filter((r) =>
-      (statusFilter === 'all' || r.status === statusFilter)
+      (statusFilter === 'all' || (statusFilter === UNRESOLVED_FILTER ? OPEN_STATUSES.includes(r.status) : r.status === statusFilter))
       && (typeFilter === 'all' || r.issue_type === typeFilter)
       && (patchFilter === 'all' || r.patch === patchFilter)),
     sort, dupeCounts,
@@ -214,7 +230,10 @@ export function BugBoard({ onClose }: { onClose: () => void }): JSX.Element {
 
       <div style={{ display: 'flex', gap: 6, padding: '8px 16px', flexWrap: 'wrap', alignItems: 'center', borderBottom: '1px solid #2a2e40' }}>
         <span style={pillLabel}>status</span>
-        <button onClick={() => setStatusFilter('all')} style={btn(statusFilter === 'all' ? '#3d5a3d' : '#2a2e40')}>all</button>
+        <button onClick={() => setStatusFilter(UNRESOLVED_FILTER)} style={btn(statusFilter === UNRESOLVED_FILTER ? '#3d5a3d' : '#2a2e40')} title="Every report that still needs work — the default">
+          unresolved ({OPEN_STATUSES.reduce((n, st) => n + (counts[st] ?? 0), 0)})
+        </button>
+        <button onClick={() => setStatusFilter('all')} style={btn(statusFilter === 'all' ? '#3d5a3d' : '#2a2e40')} title="Including fixed, closed and duplicates">all</button>
         {BUG_BOARD_STATUSES.filter((s) => counts[s]).map((s) => (
           <button key={s} onClick={() => setStatusFilter(s)} style={btn(statusFilter === s ? '#3d5a3d' : '#2a2e40')}>{s} ({counts[s]})</button>
         ))}

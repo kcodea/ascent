@@ -99,4 +99,28 @@ describe('Porkbelly', () => {
     const r = fight([bm('k3_porkbelly', 'PB', 13, 6)], [bm('sandbag', 'E', 1, 400)]);
     expect(r.events.length, 'a bounded fight').toBeLessThan(5000);
   });
+
+
+  it('a RISE does not un-settle him — the vanguard still killed his target', () => {
+    // Owner ruling 2026-09-01, correcting my earlier reading of this case: Porkbelly must NOT attack the
+    // risen body. The vanguard killed the thing he was going to hit; that the enemy came back is the enemy's
+    // business, and the settle is about the kill having happened.
+    //
+    // A liveness check alone CANNOT see this: the Rise resolves inside the vanguard's own exchange, so by the
+    // time the settle is decided the target is alive again at 1 Health. The tell is the spent `rebornAvailable`
+    // — a body that had a Rise before the swing and not after died during it.
+    const r = fight(
+      rubyFed(),
+      [{ ...bm('sandbag', 'TAUNT', 1, 10), keywords: ['T', 'R'] }, bm('sandbag', 'BIG', 20, 400)],
+    );
+    const evs = r.events as readonly Ev[];
+    const reborn = evs.findIndex((e) => e.type === 'reborn');
+    expect(reborn, 'the taunt rose').toBeGreaterThanOrEqual(0);
+    // Porkbelly's own next swing must not be at the risen body in that same exchange. Scoped by log window to
+    // the enemy's next attack, exactly as the plain settle case is — he may of course swing on a later turn.
+    const after = evs.findIndex((e, i) => i > reborn && e.type === 'attack' && (e.attacker === 'm3' || e.attacker === 'm4'));
+    const window = evs.slice(reborn + 1, after < 0 ? evs.length : after);
+    expect(window.some((e) => e.type === 'attack' && e.attacker === 'm0'),
+      'Porkbelly settled — the vanguard had already killed that target').toBe(false);
+  });
 });

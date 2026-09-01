@@ -8,6 +8,9 @@ import { questArt, runeArt } from './art';
 import { questObjectiveLines, questObjectiveText, questProgressText, questRewardText, questRewardLiveText, questRewardLiveOf } from './questText';
 import { questTally, runeCombatTally, runeTally } from './runeTally';
 import { useRuneTriggerFx, type RuneSlotPulse } from './runeTriggerFx';
+import { useRuneArrivalFx } from './useRuneArrivalFx';
+import { arrivalClasses } from './runeArrival';
+import { getRuneLockInConfig } from './runeLockInConfig';
 import { useGame, type CombatQuestDelta } from './store';
 import { playDef } from './fx/playDef';
 import { sfx } from './sfx';
@@ -80,6 +83,14 @@ export function QuestBadges() {
   const run = useGame((s) => s.run);
   const triggered = useGame((s) => s.combatTriggeredQuests); // ids pulsing this replay beat
   const completedNow = useGame((s) => s.combatCompletedQuests);
+  const runeArrival = useGame((s) => s.runeArrival); // the rune the lock-in ceremony is handing over
+  // The pop's shape is the ceremony's to own — it is the last beat of that sequence, tuned against it in the
+  // same panel. Read per render rather than captured, so a dial moved between arrivals takes effect.
+  const arrivalVars = useMemo(() => {
+    const t = getRuneLockInConfig();
+    return { '--rune-pop': `${t.arrivePopMs}ms`, '--rune-pop-scale': `${t.arrivePopScale}` } as CSSProperties;
+  }, [runeArrival?.seq]);
+  useRuneArrivalFx(runeArrival);
   const combatQuestDelta = useGame((s) => s.combatQuestDelta); // live combat progress during the replay (null otherwise) // ids that JUST completed mid-replay (pre-settle)
   // The chains show at the start of EVERY run (even for a hero that will get a 3rd rune) and BREAK once, 1000ms
   // after the 3rd-rune condition is met — a runeforge hero at run start, or the moment an enabling rune is
@@ -117,6 +128,9 @@ export function QuestBadges() {
     .filter((aq) => QUEST_INDEX[aq.questId])
     .filter((aq) => !(run.heroGrantArt?.kind === 'quest' && run.heroGrantArt.id === aq.questId));
   const runes = (run.ownedRunes ?? []).filter((id) => RUNE_INDEX[id]);
+  // Indexed against the RENDERED list, not `ownedRunes` — an unknown id is filtered out above, and indexing
+  // the two lists differently would shift every class by one from that point on.
+  const arrivalCls = arrivalClasses(runes, runeArrival);
   // The rune-trigger flourish fires off the SAME counters the badge bounces on, so the burst and the bounce
   // can never disagree about when a rune went off. Per SLOT, because Rune of Duplication puts one id in
   // `ownedRunes` twice (see `runeTriggerFx.ts`). Built unconditionally — hooks cannot sit behind the early
@@ -157,7 +171,13 @@ export function QuestBadges() {
           // unit draws its tendril from THIS node. Runes grant those too, so both node kinds carry it.
           // Keyed by SLOT, not id alone (audit fix 2026-08-06): Rune of Duplication legitimately puts the
           // same rune id in `ownedRunes` twice, and duplicate keys mis-reconciled the two badges' pulses.
-          <div className="questbadge runebadge" key={`${id}#${i}`} data-source-id={id} data-eot-effect={rune.reward?.kind === 'recurringEndOfTurn' ? rune.reward.effect : undefined}>
+          <div
+            className={`questbadge runebadge${arrivalCls[i] ?? ''}`}
+            key={`${id}#${i}`}
+            data-source-id={id}
+            data-eot-effect={rune.reward?.kind === 'recurringEndOfTurn' ? rune.reward.effect : undefined}
+            style={arrivalVars}
+          >
             {/* Keyed on the trigger count → remounts and replays the scale-punch bounce (like a unit's self-buff)
                 each time this rune's combat effect fires. The glow ring rides inside so it replays in lockstep. */}
             <div className="questbadge-inner" key={triggered[id] ?? 0} data-pulse={triggered[id] ?? 0}>

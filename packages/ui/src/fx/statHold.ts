@@ -260,6 +260,45 @@ export function holdOrigin(uid: string): HoldOrigin | null {
  * monotonic and a delivered hold simply does not exist. Closing it properly means the PLAYER knowing at fire
  * time that some layer carries the number, which is a def-level fact this primitive cannot see.
  */
+/**
+ * TWO WAYS TO NOT DOUBLE-WITHHOLD ONE CHANGE.
+ *
+ * `holdStat` accumulates equal-rank holds on purpose — two `effect`-rank placements usually ARE two changes.
+ * But a Ruby landing in combat is placed by two different sites for the SAME change (the replay's per-beat
+ * pass and the choreographer's per-Ruby pass), and accumulating there withholds it twice: the badge prints
+ * `current - 2x`, a value the unit never had, below its own floor, which is what paints the plate red
+ * (owner report 2026-08-31 — "the stats dance around a lot in combat, setting to randomly low values").
+ *
+ * Neither site can assume it runs first, so both got a rule, and they are named here rather than open-coded
+ * so the pair stays legible as ONE decision:
+ *
+ *  · `claimOrHold` — for the placer whose delta is a PART of the change (the per-Ruby cue). If something is
+ *    already withholding this unit, that hold covers this Ruby too; take it over so the effect still delivers
+ *    the number, and add nothing.
+ *  · `replaceHold` — for the placer whose delta is the WHOLE change (the replay's beat pass, which nets
+ *    same-beat damage into Health). It is authoritative, so it drops whatever is live and places its own.
+ *
+ * Whichever order they run in, exactly one hold survives carrying the beat's true total.
+ */
+export function claimOrHold(
+  uid: string,
+  delta: Partial<StatDelta>,
+  opts?: { ttlMs?: number; origin?: HoldOrigin; startAt?: number; rollMs?: number },
+): void {
+  if (heldFor(uid)) { claimStat(uid); return; }
+  holdStat(uid, delta, opts);
+}
+
+/** See `claimOrHold`. Drops any live hold, then places this one as the single authority for the unit. */
+export function replaceHold(
+  uid: string,
+  delta: Partial<StatDelta>,
+  opts?: { ttlMs?: number; origin?: HoldOrigin; startAt?: number; rollMs?: number },
+): void {
+  if (heldFor(uid)) releaseStat(uid);
+  holdStat(uid, delta, opts);
+}
+
 export function claimStat(uid: string): void {
   const h = holds.get(uid);
   if (h === undefined || h.until <= now()) return;

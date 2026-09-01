@@ -3139,6 +3139,25 @@ body.modalup .app { z-index: auto; }
   100% { transform: scale(1); filter: none; }
 }
 .questbadge-art { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; display: block; }
+/* THE RUNE ARRIVAL (owner ask 2026-08-31). A bought rune's badge exists from the moment the buy resolves —
+   before the lock-in ceremony has finished. `rune-arriving` holds its art back for the length of the
+   ceremony so the tray is not quietly ahead of the story; `rune-arrived` pops it in on the same beat the
+   implosion fires on the badge.
+
+   VISIBILITY, NOT DISPLAY, and no width/height change: the badge keeps its box the whole time, so nothing
+   in the tray reflows when the art lands. The pop itself is `transform` + `opacity` only (compositor-only)
+   and ONE-SHOT — the CLAUDE.md ban is on looping paint animations, which this is not. */
+.runebadge.rune-arriving .questbadge-art,
+.runebadge.rune-arriving .questbadge-emblem { visibility: hidden; }
+.runebadge.rune-arrived .questbadge-art,
+.runebadge.rune-arrived .questbadge-emblem {
+  animation: rune-pop var(--rune-pop, 360ms) cubic-bezier(0.2, 1.7, 0.4, 1) both;
+}
+@keyframes rune-pop {
+  from { opacity: 0; transform: scale(0.2); }
+  60%  { opacity: 1; transform: scale(var(--rune-pop-scale, 1.18)); }
+  to   { opacity: 1; transform: scale(1); }
+}
 .questbadge-emblem { display: flex; color: var(--c); }
 .questbadge-emblem svg { width: calc(28 * var(--u)); height: calc(28 * var(--u)); }
 .questbadge-chip { position: absolute; bottom: calc(-4 * var(--u)); right: calc(-6 * var(--u)); background: var(--ink); color: #fff; font-family: var(--font-ui); font-weight: 800; font-size: calc(9 * var(--u)); line-height: 1; padding: calc(2 * var(--u)) calc(5 * var(--u)); border-radius: calc(8 * var(--u)); font-variant-numeric: tabular-nums; white-space: nowrap; box-shadow: 0 calc(2 * var(--u)) calc(5 * var(--u)) -2px var(--shadow); }

@@ -55,6 +55,90 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-09-01',
+    label: 'Rubetta',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: 'A Choose One minion now waits on the board while you pick, and glides back to your hand if you cancel.',
+        details: [
+          'Nothing is committed until you choose — cancelling is still completely free.',
+        ],
+      },
+      {
+        category: 'UI / Info',
+        text: 'A minion buffed as it attacks now shows its new stats BEFORE the swing goes out, instead of mid-lunge.',
+      },
+      {
+        category: 'New Card',
+        text: "Kaura L'roft (Kobold, Tier 4): Equip Dueling Rubetta's — improve your Rubies, then cast a Ruby on your left and right-most Kobold.",
+      },
+      {
+        category: 'Card Change',
+        text: 'Porkbelly settles when his Gemheart Golem kills the target, even if that target Rises.',
+      },
+    ],
+  },
+  {
+    date: '2026-09-01',
+    label: 'Dealer',
+    changes: [
+      {
+        category: 'Card Change',
+        text: 'Dealer starts watching for your first Choose One the moment she is played, instead of waiting for the next turn.',
+        details: [
+          'Each Dealer keeps her OWN tracker, so one bought after this turn’s first Choose One still pays for the next one.',
+          'Two Dealers on board at the start of a turn is still one card’s worth — they were both waiting for the same first card.',
+          'A Gilded Dealer carries two of her own, as her text says.',
+        ],
+      },
+      {
+        category: 'New Card',
+        text: 'Runespark Channeler (Kobold, Tier 5): whenever you cast a Shop spell, cast a Ruby on adjacent minions.',
+      },
+      {
+        category: 'UI / Info',
+        text: 'The (Both) marker now plays on the inspect view too, when the card you are reading will take both halves.',
+      },
+    ],
+  },
+  {
+    date: '2026-09-01',
+    label: 'Rune Arrival',
+    changes: [
+      {
+        category: 'Card Change',
+        text: 'Apples now prints what it will actually give: its "2 random friendly minions" half folds in your Spell Power.',
+        details: [
+          'Only the printed number was wrong — the buff itself always included Spell Power.',
+          'Its other half (buffing this Shop) is flat by design and still prints its plain value.',
+          'Apples also counts as a stat spell now, so Rune of Thrift discounts it.',
+        ],
+      },
+      {
+        category: 'UI / Info',
+        text: 'Hovering a card that names a specific Ruby no longer also previews the plain Ruby, and a wide preview is centred instead of jammed against the left edge.',
+      },
+      {
+        category: 'UI / Info',
+        text: 'Stat numbers no longer dip to a wrong value (and flash red) while a Ruby lands in combat.',
+        details: [
+          'A minion buffed mid-fight could briefly show LESS than it had before the buff, then correct itself.',
+          'The stats themselves were always right — only the number on the badge was wrong, and only for a moment.',
+        ],
+      },
+      {
+        category: 'UI / Info',
+        text: 'Picking a rune no longer blinks on its way to the centre, and the rune you chose now arrives in your tray with an effect of its own.',
+        details: [
+          'The chosen rune moves in one continuous motion — it used to flicker for a frame as the ceremony took over.',
+          'Its badge stays empty while the ceremony plays, then the artwork pops in as the board comes back.',
+          'The arrival has its own sound.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-08-31',
     label: 'Rune Sockets',
     changes: [

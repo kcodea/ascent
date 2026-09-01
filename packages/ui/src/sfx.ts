@@ -517,6 +517,18 @@ export const sfx = {
    * confirmation beep, it is the noise the frame makes on contact, and a sound that lands 40ms late reads as
    * a second event.
    */
+  /**
+   * THE ARRIVAL (owner ask 2026-08-31): the implosion that plays on the rune's BADGE once the ceremony has
+   * faded and the board is back — the moment the rune becomes a thing you own rather than a thing you picked.
+   *
+   * Its own clip and its own fader, not a second use of `runeSelect`: that one is the clang of the frame
+   * clamping shut mid-ceremony, and the two now play seconds apart on different parts of the screen.
+   */
+  runeSelectImplosion: (vol = 1, delay = 0) => {
+    if (vol <= 0) return;
+    if (playSample('runeselectimplosion', 'runeArrival', Math.max(0, delay) / 1000, ({ gain }) => { gain.gain.value *= vol; })) return;
+    tone({ freq: 1180, dur: 0.22, type: 'sine', vol: 0.09 * vol, slideTo: 380, category: 'runeArrival' });
+  },
   runeSelect: (vol = 1, delay = 0) => {
     if (vol <= 0) return;
     if (playSample('runeselect', 'ui', Math.max(0, delay) / 1000, ({ gain }) => { gain.gain.value *= vol; })) return;
@@ -781,6 +793,8 @@ const SFX_PREVIEW: Record<string, () => void> = {
   eqUseTitanHammer: () => sfx.equipmentUse('titanhammer'),
   eqUseBlastPump: () => sfx.equipmentUse('blastpump'),
   eqUsePrismaticPick: () => sfx.equipmentUse('prismaticpick'),
+  eqUseDuelingRubettas: () => sfx.equipmentUse('duelingrubettas'),
+  runeArrival: () => sfx.runeSelectImplosion(),
   felSpikeEcho: sfx.felSpikeEcho, felSpikeEchoLand: sfx.felSpikeEchoLand,
   combatStart: sfx.combatStart,
   // cardVoice is per-card; preview plays whichever card clip is present (first one found), or nothing.

@@ -824,7 +824,23 @@ export const COMMISSION_TEXT: Record<CommissionKind, string> = {
  *  reward — the card-text rule ("always show the current value of what this is doing") applied to a power.
  *  `which` picks the WIELDED power (Mimic's disguise, Void's pair) — every live-value branch below keys off
  *  the resolved power's kind, so an adopted Lucky Seat prints its suit exactly as the native hero would. */
-export function heroPowerText(state: RunState, which = 0): string {
+/**
+ * LIVE COMBAT TALLIES the hero-power text folds in (owner report 2026-08-31: *"gorun's hero power x/8 doesn't
+ * update in real time in combat"*).
+ *
+ * A counter that only advances at SETTLE is frozen for the whole fight — which is the one stretch a player is
+ * watching it. `RunState.bladeAttacks` is banked at settle, exactly as the simulator's own comment describes
+ * (combat reproduces the expression from `mods.bladeMastery.attacks` PLUS the attacks made so far this
+ * fight), so the printed text has to do the same addition or it prints yesterday's number.
+ *
+ * Optional and defaulting to nothing, so every shop-side caller is unchanged.
+ */
+export interface HeroPowerLive {
+  /** Friendly attacks made SO FAR in the fight being replayed (`combatQuestDelta.attack`). */
+  attacks?: number;
+}
+
+export function heroPowerText(state: RunState, which = 0, live: HeroPowerLive = {}): string {
   const power = activePowers(state)[which] ?? primaryPower(state);
   if (power.kind === 'luckySeat') {
     const suit = state.ciaSuit ?? 'hearts';
@@ -853,8 +869,10 @@ export function heroPowerText(state: RunState, which = 0): string {
     return `**End of Turn:** give your left and right-most minions **+${grant}/+${grant}**. Upgrades in **${toNext}** kill${toNext === 1 ? '' : 's'}. (${kills} killed)`;
   }
   if (power.kind === 'bladeMastery') {
-    const attacks = state.bladeAttacks ?? 0;
-    const grant = bladeMasteryGrantOf(state);
+    // The run's banked count PLUS this fight's so far — the same sum the simulator makes. Without the second
+    // half the counter sits still through the whole combat and only jumps at settle.
+    const attacks = (state.bladeAttacks ?? 0) + (live.attacks ?? 0);
+    const grant = bladeMasteryGrantOf({ ...state, bladeAttacks: attacks });
     const toNext = BLADE_ATTACKS_PER_STEP - (attacks % BLADE_ATTACKS_PER_STEP);
     return `When your minions attack, give them **+${grant} Attack** for the fight. Improves in **${toNext}** attack${toNext === 1 ? '' : 's'}. (${attacks} made)`;
   }
@@ -1660,8 +1678,26 @@ const STAT_SPELL_EXTRAS: ReadonlySet<string> = new Set([
  *  `spellBuffTargetPerGold`, `spellBuffRandomPerTribe`, the shop-buff family, and more. The `spellBuff`
  *  PREFIX is the naming convention the whole buff family already follows, so new members are covered the day
  *  they are authored; `STAT_SPELL_EXTRAS` carries the few stat granters that sit outside that convention. */
+/**
+ * EVERY effect a card can fire, INCLUDING its Choose One branches.
+ *
+ * A Choose One card keeps its effects in `chooseOne[].effects` and usually has `effects: []`, so any lookup
+ * written as `def.effects.find(...)` is blind to it. That is not a hypothetical: Apples' second option
+ * ("2 random friendly minions +1/+1") fires `spellBuffRandomFriendlies`, which folds spell power — and its
+ * printed number never moved, because both the live-text path and `isStatSpell` were scanning `def.effects`
+ * alone (owner report 2026-08-31).
+ *
+ * One helper so the next lookup written against a card's effects cannot repeat it.
+ */
+export function allEffectsOf(def: CardDef | undefined): EffectDef[] {
+  if (!def) return [];
+  return [...def.effects, ...(def.chooseOne ?? []).flatMap((o) => o.effects ?? [])];
+}
+
 export function isStatSpell(def: CardDef | undefined): boolean {
-  return !!def?.effects.some((e) => e.on === 'cast' && (e.do.startsWith('spellBuff') || STAT_SPELL_EXTRAS.has(e.do)));
+  // Branch effects included: a Choose One spell that gives stats down one fork is a stat spell (it is exactly
+  // as discountable, and Rune of the Gilded Ledger can cast it). Apples was silently neither.
+  return allEffectsOf(def).some((e) => e.on === 'cast' && (e.do.startsWith('spellBuff') || STAT_SPELL_EXTRAS.has(e.do)));
 }
 
 /** Stat spells that put their stats on YOUR BOARD. The shop-buff family gives stats too — so Rune of Thrift
@@ -2854,6 +2890,41 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    * this once per trigger with the SAME target. Putting the repeat inside the factory would make "triggers an
    * additional time" impossible to express for any other Equipment.
    */
+  /**
+   * Set 3 — Dueling Rubetta's (Kaura L'roft's Equipment): improve your Rubies, then cast a Ruby on your
+   * left-most and right-most KOBOLD.
+   *
+   * ONE factory for one printed sentence. Splitting it into two effects would give the Equipment two beats
+   * for a single activation, and the improve has to land BEFORE the casts — the two Rubies it then throws are
+   * minted at the new strength, which is the whole shape of the card.
+   *
+   * "left and right-most Kobold" is resolved over the Kobolds only, so a board with Kobolds at the ends and
+   * something else between them still feeds the ends. With exactly ONE Kobold on board it is both ends, and
+   * it takes the Rubies once — a single body cannot be duelled with itself.
+   *
+   * Gilding rides `gildedParams` (the Equipment channel), not the source's golden flag — see
+   * `equipmentBuffTarget` and the `chooseOne` note in `equipment.ts`.
+   */
+  equipmentRubyDuel: (ctx, self, params) => {
+    const a = num(params.attack, 0);
+    const h = num(params.health, 0);
+    if (a > 0 || h > 0) {
+      const b = ctx.state.rubyBonus ?? { attack: 0, health: 0 };
+      ctx.state.rubyBonus = { attack: b.attack + a, health: b.health + h };
+      // Rubies already in HAND grow too, the same rule `rubyStatGain` follows: "improve your Rubies" is about
+      // every Ruby you have, not only the ones you have not drawn yet.
+      for (const card of ctx.state.hand) {
+        if (CARD_INDEX[card.cardId]?.ruby) { card.attack += a; card.health += h; }
+      }
+    }
+    const kobolds = ctx.state.board.filter((c) => isTribe(c, 'kobold'));
+    if (kobolds.length === 0) return;
+    const ends = kobolds.length === 1 ? [kobolds[0]!] : [kobolds[0]!, kobolds[kobolds.length - 1]!];
+    const per = num(params.rubies, 1);
+    const arena = shopArena(ctx.state, self);
+    for (const k of ends) arena.playRubiesOn(k, per);
+  },
+
   equipmentBuffTarget: (ctx, self, params, payload) => {
     const target = payload.target;
     if (!target) return;
@@ -3106,6 +3177,21 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    * `set` refreshes to exactly `count` (Forked Crown: "the FIRST Choose One card each turn" — one per turn,
    * never banked); absent, charges ADD (Prismpick: "your NEXT Choose One card", on top of whatever is left).
    */
+  /**
+   * DEALER — arm THIS BODY'S "first Choose One card you play" latch (owner ruling 2026-08-31).
+   *
+   * Fired from BOTH `onPlay` and `startOfTurn`, which is the whole fix: the effect used to be start-of-turn
+   * only, so a Dealer bought mid-turn sat inert until the next one — *"her card text doesn't activate until
+   * she's played, so she doesn't start looking for the 'first choose one played' until she is on the
+   * board."* Arriving arms her immediately; the turn boundary re-arms whoever is still standing.
+   *
+   * `set`, not add: her promise is "the FIRST card each turn", so a second arming refreshes to exactly her
+   * count rather than banking a second one. Gilded doubles it (her text reads "the first 2").
+   */
+  armChooseBoth: (ctx, self, params) => {
+    self.chooseBothLeft = num(params.count, 1) * gold(self);
+  },
+
   grantChooseBothCharges: (ctx, self, params) => {
     const n = num(params.count, 1) * gold(self);
     ctx.state.chooseBothCharges = params.set ? n : (ctx.state.chooseBothCharges ?? 0) + n;
@@ -5684,6 +5770,30 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   },
 
   // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases.
+  /**
+   * Set 3 — Runespark Channeler: whenever you cast a SHOP SPELL, cast a Ruby on this minion's neighbours.
+   *
+   * "Shop spell" is the load-bearing half of the wording (owner vocabulary rule): a RUBY is not a Shop spell,
+   * so a Ruby cast on something does NOT re-trigger this — which is also what stops a Channeler between two
+   * other Channelers from cascading Rubies across the board forever. `onSpellCast` is the Shop-spell channel
+   * and `onRubyPlayed` is the Ruby one; this deliberately only listens to the first.
+   *
+   * Adjacency is read at CAST time from the live board, so a board reorder between casts moves who benefits —
+   * the same rule every other adjacency effect in this file follows.
+   */
+  onSpellCastPlayRubiesAdjacent: (ctx, self, params) => {
+    const per = num(params.count, 1) * gold(self);
+    if (per <= 0) return;
+    const i = ctx.state.board.indexOf(self);
+    if (i < 0) return;
+    // `shopArena().playRubiesOn` is the one shop-side Ruby chokepoint — it mints at the run's live Ruby
+    // strength and fires the "when you get a Ruby" watchers, which a hand-rolled `addBuff` would skip.
+    const arena = shopArena(ctx.state, self);
+    for (const n of [ctx.state.board[i - 1], ctx.state.board[i + 1]]) {
+      if (n) arena.playRubiesOn(n, per);
+    }
+  },
+
   onSpellCastBuffRandomTribe: (ctx, self, params) => {
     ARENA_EFFECTS.onSpellCastBuffRandomTribe(shopArena(ctx.state, self), params);
   },
@@ -7521,21 +7631,30 @@ export interface ChooseBothState {
   runeFacetwright: boolean;
   runeUnbrokenVein: boolean;
   chooseBothCharges: number;
+  /**
+   * PER-INSTANCE latches on the board — Dealer's (owner ruling 2026-08-31).
+   *
+   * Deliberately a COUNT of armed bodies rather than a sum of their charges: the predicate only ever asks
+   * "is anything watching for the next Choose One", and summing would imply two Dealers cover two cards,
+   * which is exactly what the ruling says they do NOT do.
+   */
+  dealersArmed: number;
 }
 
 /** The one projection every surface passes to `chooseBothActive`. */
 export function chooseBothStateOf(
-  s: Pick<RunState, 'runeFacetwright' | 'runeUnbrokenVein' | 'chooseBothCharges'>,
+  s: Pick<RunState, 'runeFacetwright' | 'runeUnbrokenVein' | 'chooseBothCharges' | 'board'>,
 ): ChooseBothState {
   return {
     runeFacetwright: !!s.runeFacetwright,
     runeUnbrokenVein: !!s.runeUnbrokenVein,
     chooseBothCharges: s.chooseBothCharges ?? 0,
+    dealersArmed: (s.board ?? []).filter((c) => (c.chooseBothLeft ?? 0) > 0).length,
   };
 }
 
 export function chooseBothActive(
-  state: Pick<RunState, 'runeFacetwright' | 'runeUnbrokenVein' | 'chooseBothCharges'>,
+  state: Pick<RunState, 'runeFacetwright' | 'runeUnbrokenVein' | 'chooseBothCharges'> & { dealersArmed?: number },
   card: { golden?: boolean } | undefined,
   def: Pick<CardDef, 'id' | 'chooseOne' | 'chooseBothWhenGolden'> | undefined,
 ): boolean {
@@ -7547,24 +7666,33 @@ export function chooseBothActive(
   // card it is. Read-only here — the charge is spent by `spendChooseBothCharge` at the moment a play
   // actually resolves, so merely LOOKING at a card (the UI asking whether it will prompt) cannot burn one.
   if ((state.chooseBothCharges ?? 0) > 0) return true;
+  // DEALER, per instance (owner ruling 2026-08-31). Her latch is armed when she ARRIVES and re-armed each
+  // turn, so a Dealer played mid-turn starts watching immediately rather than waiting for the next one —
+  // which is the whole of the reported bug.
+  if ((state.dealersArmed ?? 0) > 0) return true;
   return false;
 }
 
 /** Spend one BOTH charge, if the reason this card resolved both branches was a charge rather than a rune or
  *  its own gilding. Called from the play paths, never from the predicate — see the note above. */
 export function spendChooseBothCharge(
-  state: Pick<RunState, 'runeFacetwright' | 'runeUnbrokenVein' | 'chooseBothCharges'>,
+  state: Pick<RunState, 'runeFacetwright' | 'runeUnbrokenVein' | 'chooseBothCharges' | 'board'>,
   card: { golden?: boolean } | undefined,
   def: Pick<CardDef, 'id' | 'chooseOne' | 'chooseBothWhenGolden'> | undefined,
 ): void {
-  if ((state.chooseBothCharges ?? 0) <= 0) return;
   // A card that would resolve both ANYWAY (golden Orivax, Facetwright/Veinbreaker under their runes) must not
   // eat a charge it never needed.
   const wouldAnyway = (card?.golden && def?.chooseBothWhenGolden)
     || (state.runeFacetwright && def?.id === 'facetwright')
     || (state.runeUnbrokenVein && def?.id === 'k_veinbreaker');
   if (wouldAnyway) return;
-  state.chooseBothCharges = (state.chooseBothCharges ?? 0) - 1;
+  if ((state.chooseBothCharges ?? 0) > 0) state.chooseBothCharges = (state.chooseBothCharges ?? 0) - 1;
+  // EVERY armed Dealer spends, not one of them (owner ruling 2026-08-31): *"starting a turn with 2 on board
+  // still only means the first played gets both effects."* They were all watching for the same first card,
+  // and it has now been played — so two Dealers are redundancy, never two cards' worth.
+  for (const c of state.board ?? []) {
+    if ((c.chooseBothLeft ?? 0) > 0) c.chooseBothLeft = (c.chooseBothLeft ?? 0) - 1;
+  }
 }
 
 /** Does playing this card have to STOP and ask? True for a Choose One whose branches are not already all
@@ -7856,8 +7984,12 @@ export function spellDisplayText(cardId: string, bonusA: number, escalation = 0,
   // Champion's / Defensive / Bloody Ale (spell-power audit 2026-08-02): their factories fold spell power, so
   // the printed magnitude goes live too. Champion's is a symmetric "+A/+H"; the other two print a single-stat
   // token ("+4 Health" / "+4 Attack") that becomes the full live "+A/+H" pair, like Lantern of Souls below.
-  const aleLeft = def.effects.find((e) => e.do === 'spellBuffLeftmost');
-  const aleRand = def.effects.find((e) => e.do === 'spellBuffRandomFriendlies');
+  // `allEffectsOf`, not `def.effects`: Apples' scaling grant lives in a Choose One BRANCH, and reading the
+  // top-level list alone is why its printed "+1/+1" never moved with spell power. The replace below targets
+  // that branch's OWN printed numbers, so a card whose other branch is flat (Apples' "+2/+4" shop buff, which
+  // takes no spell power by design) keeps that half exactly as authored.
+  const aleLeft = allEffectsOf(def).find((e) => e.do === 'spellBuffLeftmost');
+  const aleRand = allEffectsOf(def).find((e) => e.do === 'spellBuffRandomFriendlies');
   const ale = aleLeft ?? aleRand;
   if (ale) {
     const pa = Number((ale.params as { attack?: number } | undefined)?.attack ?? 0);

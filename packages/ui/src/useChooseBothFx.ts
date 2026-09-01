@@ -15,6 +15,9 @@ import { playDef } from './fx/playDef';
  */
 export const CHOOSE_BOTH_FX_CAP = 4;
 
+/** How many frames `sync` will wait for a card to paint before giving up on marking it. See `sync`. */
+export const RETRY_FRAMES = 10;
+
 /**
  * The looping (Both) marker: while a card's Choose One will resolve as BOTH branches, the owner-authored
  * `choose-one-both` def rides it continuously (owner ruling 2026-08-28 — a persistent marker, explicitly
@@ -42,10 +45,19 @@ export function useChooseBothFx(keys: readonly string[]): void {
   // and bumped through a state-free re-run by re-invoking the sync from the listener.
   const hiddenRef = useRef(false);
   const syncRef = useRef<() => void>(() => {});
+  /** A pending retry frame — see the `unmounted` note in `sync`. */
+  const retryRaf = useRef(0);
 
   useEffect(() => {
     const map = active.current;
+    let retries = 0;
     const sync = (): void => {
+      // Anything wanted but not yet in the DOM. `sync` runs when the KEY LIST changes, and a card added to
+      // hand this commit may not have painted yet — so the element lookup below finds nothing, the loop is
+      // skipped, and (before this) nothing ever came back for it: the marker simply never appeared on that
+      // card (owner report 2026-08-31 — "there are random times where it seems to bug out and not be shown
+      // in hand", and the right-most card being the newest is exactly the one most likely to miss).
+      let unmounted = false;
       const want = new Set(hiddenRef.current || !key ? [] : key.split(','));
       // Stop the loop on any card that no longer qualifies (the predicate flipped off, the card left the
       // zone, it fell past the cap, or the tab went away).
@@ -65,13 +77,25 @@ export function useChooseBothFx(keys: readonly string[]): void {
           return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
         };
         const start = at();
-        if (!start) continue; // not mounted yet — the next sync picks it up
+        if (!start) { unmounted = true; continue; } // not painted yet — retried below, not dropped
         const dispose = playDef('choose-one-both', { source: start, target: start, cursor: start }, { loop: true, follow: at });
         if (dispose) map.set(k, dispose);
+      }
+      // RETRY ON THE NEXT FRAME for anything that had not painted. Bounded: a key that never resolves is a
+      // card that left before it could be marked (played, sold, the zone changed), and retrying it forever
+      // would be a permanent rAF for a card that no longer exists. A handful of frames is far longer than a
+      // React commit + paint and still imperceptible.
+      if (unmounted && retries < RETRY_FRAMES) {
+        retries += 1;
+        if (retryRaf.current) cancelAnimationFrame(retryRaf.current);
+        retryRaf.current = requestAnimationFrame(() => { retryRaf.current = 0; sync(); });
       }
     };
     syncRef.current = sync;
     sync();
+    return () => {
+      if (retryRaf.current) { cancelAnimationFrame(retryRaf.current); retryRaf.current = 0; }
+    };
   }, [key]);
 
   useEffect(() => {

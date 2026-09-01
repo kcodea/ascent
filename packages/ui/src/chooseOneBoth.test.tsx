@@ -231,3 +231,49 @@ describe('(Both) — the looping marker', () => {
       .toEqual(['directCalls.ts', 'useChooseBothFx.ts']);
   });
 });
+
+/**
+ * A CARD THAT HAS NOT PAINTED YET STILL GETS ITS MARKER (owner report 2026-08-31: *"there are random times
+ * where it seems to bug out and not be shown in hand"*, and the right-most card missing it).
+ *
+ * `sync` runs when the KEY LIST changes. A card added to hand on that same commit may not be in the DOM yet,
+ * so the element lookup finds nothing — and before the retry, that card was simply skipped forever: there is
+ * no later sync unless the list changes again. The newest card is the one most likely to lose that race,
+ * which is why it read as "the right-most slot".
+ */
+describe('(Both) — a card that mounts a frame late', () => {
+  beforeEach(() => { plays = []; disposers.length = 0; });
+
+  const stubLate = (key: string): HTMLElement => {
+    const el = document.createElement('div');
+    el.className = 'card';
+    el.setAttribute('data-choose-both', key);
+    el.getBoundingClientRect = () => ({ left: 10, top: 10, width: 100, height: 140, right: 110, bottom: 150, x: 10, y: 10, toJSON: () => ({}) }) as DOMRect;
+    document.body.appendChild(el);
+    return el;
+  };
+
+  it('is picked up on a later frame instead of being dropped', async () => {
+    const { useChooseBothFx } = await import('./useChooseBothFx');
+    const Harness = ({ keys }: { keys: string[] }): null => { useChooseBothFx(keys); return null; };
+    // The key arrives BEFORE the element — the exact race.
+    const h = mount(<Harness keys={['late']} />);
+    expect(plays, 'nothing to bind to yet').toEqual([]);
+    stubLate('late');
+    // Two frames is well inside the retry budget.
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    expect(plays, 'the marker found the card once it painted').toEqual(['choose-one-both']);
+    h.unmount();
+  });
+
+  it('gives up eventually — a key that never appears must not retry forever', async () => {
+    const { useChooseBothFx, RETRY_FRAMES } = await import('./useChooseBothFx');
+    const Harness = ({ keys }: { keys: string[] }): null => { useChooseBothFx(keys); return null; };
+    const h = mount(<Harness keys={['never']} />);
+    for (let i = 0; i < RETRY_FRAMES + 3; i++) {
+      await new Promise((r) => requestAnimationFrame(r));
+    }
+    expect(plays, 'a card that left before it could be marked starts nothing').toEqual([]);
+    h.unmount();
+  });
+});

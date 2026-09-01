@@ -106,6 +106,9 @@ export interface PhaseExcuse {
 export const PHASE_EXCUSED: Readonly<Record<string, PhaseExcuse>> = {
   // ── onPlay (Shouts) with no combat factory: the economy-defer set. `replayCombatBattlecry` defers these to
   //    settle and replays them through their recruit factory — correct so long as the reason still holds. ──
+  armChooseBoth: { phase: 'combat', kind: 'no-surface', why: "Dealer arms her own 'first Choose One this "
+    + "turn' latch. Choose One is resolved when a HAND card is played in the SHOP, and a fight never plays "
+    + 'one — a combat re-fire would arm a latch nothing can spend before the turn boundary clears it' },
   battlecryDoubleNextSpell: { phase: 'combat', kind: 'no-surface', why: 'arms a run flag (next spell casts twice); nothing to double mid-fight, replays at settle' },
   battlecryScoutSpread: { phase: 'combat', kind: 'other-channel', why: 'grows the run-wide squirlScoutBuff; combat reads the carried value, the increment is a play-time event' },
   // Trouble's self-Ruby. Combat DOES implement it — just not through the factory map: `rubyPlayedAnywhere`

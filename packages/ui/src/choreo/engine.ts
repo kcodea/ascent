@@ -173,7 +173,12 @@ export function runAttackExchangeCues(
     onImpactAuras: ctx.onImpactAuras,
     // One extra stride per extra proc. Without it a gilded Echohorn's second pulse+sparkle would spill past
     // contact and read as detached from the swing that caused it.
-    rallyPauseMs: RALLY_PAUSE_MS + Math.max(0, (ctx.rallyProcs ?? 1) - 1) * RALLY_PROC_STRIDE_MS,
+    // …plus the BUFF LEAD when this swing actually carries a buff (owner ask 2026-08-31). The existing pause
+    // is long enough to LAUNCH the tendrils; this is what makes the attacker hold its pose until the number
+    // has finished rolling, so the stats are visibly on the card before the strike leaves. Costs nothing on a
+    // swing with no buffs, and `buffLeadMs: 0` restores the old timing exactly.
+    rallyPauseMs: RALLY_PAUSE_MS + Math.max(0, (ctx.rallyProcs ?? 1) - 1) * RALLY_PROC_STRIDE_MS
+      + (ctx.onWindupBuffs ? cfg.buffLeadMs : 0),
   });
 }
 

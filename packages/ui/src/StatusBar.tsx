@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import { renameTerms } from './terms';
 import { Card, mdBold } from './Card';
@@ -138,6 +138,12 @@ function heroPowerTallyOf(
 /** Bottom bar, rooted across the whole round: Embers and Resolve flank the hero. */
 export function StatusBar() {
   const run = useGame((s) => s.run);
+  // GORUN'S COUNTER, LIVE (owner report 2026-08-31). `run.bladeAttacks` is banked at settle, so during a fight
+  // the printed "improves in N attacks" was frozen for the whole combat — the one stretch anybody is watching
+  // it. `combatQuestDelta.attack` is the friendly-attack tally the replay already keeps for quests; folding it
+  // in makes the text count down with the swings, and it is null outside a fight so the shop is unchanged.
+  const combatAttacks = useGame((s) => s.combatQuestDelta?.attack ?? 0);
+  const heroPowerLive = useMemo(() => ({ attacks: combatAttacks }), [combatAttacks]);
   // While spectating a replay, the hero panel belongs to the RECORDED player, so show their name — not the
   // local account's. Falls back to your own name for normal play (replaySession is null outside playback).
   const playerName = useGame((s) => s.replaySession?.authorName ?? s.playerName);
@@ -328,7 +334,7 @@ export function StatusBar() {
       ? questRewardText(grantQuestDef.reward, { completed: true })
       : questObjectiveText(grantQuestDef.objective))
     : grantRuneDef ? grantRuneDef.text
-    : heroPowerText(run);
+    : heroPowerText(run, 0, heroPowerLive);
   // …and the REWARD, on its own line beneath. The objective alone says what to do but not what you get — the
   // half that decides whether the quest is worth steering the run toward (owner ask 2026-08-22). Only while
   // the quest is UNFINISHED: once complete, `powerRule` above has already flipped to the reward, and printing
@@ -889,7 +895,7 @@ export function StatusBar() {
             tuner drives `--hp2-x/--hp2-y/--hp2-scale` (secondPowerConfig.ts), with the CSS fallbacks as the
             shipped seat. A simplified button on purpose: the escalating-cost powers (Jensen/Tiff/Hunch/
             Harlan) key their coins off slot-0 state and are rare picks; the tooltip still shows the live rule
-            via heroPowerText(run, 1). */}
+            via heroPowerText(run, 1, heroPowerLive). */}
         {secondPower && (() => {
           const p2 = secondPower;
           const passive2 = !!p2.passive;
@@ -915,7 +921,7 @@ export function StatusBar() {
               <button
                 className={`heropowerbtn${passive2 ? ' passive' : armed2 ? ' armed' : ready2 ? ' ready' : ''}`}
                 disabled={passive2 || (!ready2 && !armed2)}
-                aria-label={`${p2.name} — ${renameTerms(heroPowerText(run, 1)).replace(/\*\*/g, '')}`}
+                aria-label={`${p2.name} — ${renameTerms(heroPowerText(run, 1, heroPowerLive)).replace(/\*\*/g, '')}`}
                 onPointerDown={(e) => {
                   e.stopPropagation();
                   if (passive2 || !ready2 || armed2) return;
@@ -942,7 +948,7 @@ export function StatusBar() {
               <div className="hplabel">{p2.name}</div>
               <div className="herotip" role="tooltip">
                 <b>{p2.name}</b>{passive2 ? ' · passive' : ''}
-                <span className="herotip-rule" dangerouslySetInnerHTML={{ __html: mdBold(heroPowerText(run, 1)) }} />
+                <span className="herotip-rule" dangerouslySetInnerHTML={{ __html: mdBold(heroPowerText(run, 1, heroPowerLive)) }} />
               </div>
             </div>
           );

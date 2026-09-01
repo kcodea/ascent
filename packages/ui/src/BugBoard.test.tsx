@@ -9,7 +9,7 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { act } from 'react';
 import {
-  BugBoard, defaultStackOf, moveInStack, sortBoardRows, statusCountsOf, type BugBoardRow,
+  BugBoard, OPEN_STATUSES, defaultStackOf, moveInStack, sortBoardRows, statusCountsOf, type BugBoardRow,
 } from './BugBoard';
 import { mount, type Mounted } from './renderedText.mount';
 
@@ -159,5 +159,35 @@ describe('BugBoard component', () => {
     m = mount(<BugBoard onClose={() => {}} />);
     await flush();
     expect(m.container.textContent).toContain('dev-server-only');
+  });
+});
+
+/**
+ * THE DEFAULT VIEW (owner ask 2026-08-31: *"the bug board should only show unresolved bugs. any
+ * resolved/fixed bugs should go away"*).
+ *
+ * Two claims worth pinning, because both were wrong before: what counts as unresolved, and that a
+ * `reproduced` report is one of them — it used to be excluded from every default work order, which is the
+ * opposite of what triaging a bug to "reproduced" should do.
+ */
+describe('BugBoard — unresolved is the default view', () => {
+  const mk = (id: string, status: string): BugBoardRow =>
+    ({ id, created_at: '2026-08-31', status, severity: 'medium', issue_type: 'mechanics', description: id } as BugBoardRow);
+
+  it('counts every status that still needs work as OPEN, reproduced included', () => {
+    expect([...OPEN_STATUSES].sort()).toEqual(['needs_info', 'new', 'reproduced', 'triaged']);
+  });
+
+  it('treats fixed / closed / duplicate as resolved, so they drop out of the default view', () => {
+    for (const done of ['fixed', 'closed', 'duplicate']) {
+      expect(OPEN_STATUSES.includes(done), `${done} must not be an open status`).toBe(false);
+    }
+  });
+
+  it('the default work order carries a reproduced report', () => {
+    // The regression this closes: `defaultStackOf` filters on OPEN_STATUSES, so a reproduced bug was
+    // silently missing from "Send to Claude (all open)".
+    const rows = [mk('a', 'new'), mk('b', 'reproduced'), mk('c', 'fixed')];
+    expect(defaultStackOf(rows, 'priority', {})).toEqual(['a', 'b']);
   });
 });

@@ -289,12 +289,14 @@ export type EffectFactoryId =
   | 'onRubyPlayedSpreadRandom' // Runefire: a RUBY played on it also lands on adjacent Dragons
   | 'scTriggerTribeShouts' // Thunderous Sovereign: Start of Combat — trigger your tribe's Shouts
   | 'rallyTriggerLeftmostTribeShout' // Chorus Drake: Rally — trigger your left-most other Dragon's Shout
-  | 'onSpellCastBuffRandomTribe' // Runebloom Matriarch: each spell buffs N random tribe minions
+  | 'onSpellCastBuffRandomTribe'
+  | 'onSpellCastPlayRubiesAdjacent' // Runespark Channeler: a Shop spell casts Rubies on this minion's neighbours
   | 'summonBuffTribeAsym' // Groveweaver: a summoned tribe minion gets +atk/+hp at the current magnitude
   | 'onSpellCastImproveSummon' // Groveweaver: each spell cast improves that grant
   | 'battlecryCastNamedSpell' // Facetbound Martyr — cast a named Shop spell N times (recruit)
   | 'grantRandomChooseOne' // Flagrunner / Prismpick Artificer — a random Choose One card to hand
   | 'chooseOnePlayedPlayRubies' // Ruby Roach — a Choose One play casts Rubies on your board
+  | 'armChooseBoth' // Dealer — arm THIS body's own first-Choose-One latch (per instance, not a run counter)
   | 'grantChooseBothCharges' // Dealer / Prismpick Artificer — the next N Choose Ones resolve both branches
   | 'battlecryCastTaughtSpell' // Mage-Pup: Shout — cast the spell this token was taught
   | 'grantMagePupTaught' // Moonhowl Mentor: a Shop Spell was bought — mint a Mage-Pup taught that spell, NOW
@@ -442,6 +444,7 @@ export type EffectFactoryId =
   | 'scGrantShieldTribe'
   | 'scGrantReborn' // Gravewarden: Start of Combat — give a friendly Undead (not self) Rise; golden two
   | 'grantEquipment' // the `equip` factory: hands the player the Equipment named by `params.equipmentId`
+  | 'equipmentRubyDuel' // Dueling Rubetta's — improve your Rubies, then Ruby your end Kobolds
   | 'equipmentBuffTarget' // Bloodpot: one Equipment TRIGGER — +atk/+hp onto the chosen friendly minion
   | 'equipmentCastSpell' // an EQUIPMENT SPELL: casts its named Shop spell through the real cast pipeline
   | 'equipmentSetStats' // Titan Hammer: SETS the target's stats rather than adding to them

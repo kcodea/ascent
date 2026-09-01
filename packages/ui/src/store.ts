@@ -509,6 +509,20 @@ interface GameStore {
    *  own click-path state. Null whenever no ceremony is playing. Never set during live play - the click
    *  handler owns that path, because only it knows which element was clicked. */
   runeLockInCue: RuneLockInCard[] | null;
+  /**
+   * THE ARRIVING RUNE (owner ask 2026-08-31) — which rune the lock-in ceremony is about, and how far along.
+   *
+   * The badge for a bought rune appears the instant the buy resolves, which is BEFORE the ceremony has even
+   * started playing: without this the rune was quietly already sitting in the tray while the ceremony was
+   * still telling you that you had won it. So the badge watches this cue and holds its art back
+   * (`phase: 'pending'`) for as long as the ceremony runs, then pops it in (`phase: 'arrived'`) as the board
+   * comes back — which is the moment the implosion plays on it.
+   *
+   * `seq` makes a repeat re-fire: buying the same rune twice in a run is legal (Rune of Duplication), and two
+   * identical cue objects would otherwise read as "no change".
+   */
+  runeArrival: { runeId: string; occurrence: number; phase: 'pending' | 'arrived'; seq: number } | null;
+  setRuneArrival: (a: { runeId: string; occurrence: number; phase: 'pending' | 'arrived' } | null) => void;
   showTitle: boolean;
   /** The mode the next run will start in (set by startAscent/startPractice, read by pickHero). */
   pendingMode: RunMode;
@@ -1499,6 +1513,12 @@ export const useGame = create<GameStore>((set, get) => ({
   heroChoices: null,
   lastHeroOffer: [],
   runeLockInCue: null,
+  runeArrival: null,
+  setRuneArrival: (a) => set((st) => (a
+    // A new PENDING starts a new sequence; a phase change on the rune already cued keeps its number, so the
+    // badge sees one continuous arrival rather than two.
+    ? { runeArrival: { ...a, seq: a.phase === 'pending' ? (st.runeArrival?.seq ?? 0) + 1 : (st.runeArrival?.seq ?? 1) } }
+    : { runeArrival: null })),
   showTitle: true,
   showLeaderboard: false,
   pendingMode: 'ascent',

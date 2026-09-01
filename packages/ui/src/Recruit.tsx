@@ -1471,7 +1471,21 @@ export function Recruit() {
     }, 55);
     return () => { window.clearInterval(id); window.clearTimeout(settle); setGambleHold(null); };
   }, [run.gambleRoll?.seq, run.gambleRoll?.tier, run.gambleWonUid]);
-  const gambleHand = gambleHold ? run.hand.filter((c) => c.uid !== gambleHold) : run.hand;
+  /**
+   * The uid the Choose One prompt is previewing ON THE BOARD (see `chooseOnePreview`), or undefined. Hidden
+   * from the hand ROW while it stands there, so it is in one place rather than two.
+   *
+   * Filtered at the RENDER site, never out of `handViews`: the row asserts a view exists for every card it
+   * iterates (`handViews.get(m.uid)!`), so dropping the entry while the row still walked `run.hand` crashed
+   * Card on `undefined.attack` (caught live, 2026-09-01). The view map stays complete; only the row skips it.
+   */
+  const chooseOnePreviewUid = run.chooseOne && !run.chooseOne.spell && !run.chooseOne.equipmentId
+    ? run.chooseOne.uid
+    : undefined;
+  const handShown = chooseOnePreviewUid
+    ? run.hand.filter((c) => c.uid !== chooseOnePreviewUid)
+    : run.hand;
+  const gambleHand = gambleHold ? handShown.filter((c) => c.uid !== gambleHold) : handShown;
   // Minions summoned to the BOARD during End-of-Turn playback (Moira re-firing a summoner) — injected into the
   // rendered board on their beat so they arrive in real time, replaced by the real cards at commit (same uid).
   const [eotSummons, setEotSummons] = useState<{ uid: string; cardId: string; index?: number }[]>([]);
@@ -1803,6 +1817,23 @@ export function Recruit() {
    * the kind of friction that means it never gets tuned.
    */
   const lockInDemoRef = useRef<((slow?: number) => void) | null>(null);
+  /**
+   * THE ARRIVAL HAND-OFF (owner ask 2026-08-31). A ceremony is about one rune, and the badge for that rune
+   * already exists — the buy resolved before the ceremony even mounted. So the ceremony OWNS the badge for
+   * its duration: `pending` holds the art back while the story is still being told, and `arrived` pops it in
+   * as the board comes back, which is the beat the implosion plays on.
+   *
+   * `occurrence` is which copy of this rune id the new badge is — the LAST one, since a bought rune is
+   * appended. Rune of Duplication makes that distinction real: it can put the same id in the tray twice, and
+   * only the copy just bought should be holding anything back.
+   */
+  const cueRuneArrival = useCallback((cards: RuneLockInCard[] | null, phase: 'pending' | 'arrived'): void => {
+    const chosen = cards?.find((c) => c.chosen);
+    if (!chosen) return;
+    const owned = useGame.getState().run.ownedRunes ?? [];
+    const occurrence = Math.max(0, owned.filter((r) => r === chosen.rune.id).length - 1);
+    useGame.getState().setRuneArrival({ runeId: chosen.rune.id, occurrence, phase });
+  }, []);
   const startRuneLockIn = useCallback((el: HTMLElement | null, chosenIndex: number): void => {
     const run = useGame.getState().run;
     if (!el || !run.runeforgeOffer) return;
@@ -1810,7 +1841,7 @@ export function Recruit() {
     // (`captureRuneLockIn`) so a replayed ceremony is measured exactly as a live one is; two copies of this
     // would drift, and the drift would show as the cards jumping on the ceremony's first frame.
     const cards = captureRuneLockIn(run.runeforgeOffer, run.runeforgeDiscounts, chosenIndex, el);
-    if (cards) { setLockInSlow(1); setLockIn(cards); }
+    if (cards) { setLockInSlow(1); setLockIn(cards); cueRuneArrival(cards, 'pending'); }
   }, []);
 
   // Publish the demo: three real runes laid out where the forge puts them, middle one chosen.
@@ -1835,6 +1866,10 @@ export function Recruit() {
       }));
       setLockInSlow(Math.max(1, slow));
       setLockIn(cards);
+      // The playback exists to judge ALIGNMENT (owner ask 2026-08-31), so it has to include the arrival —
+      // a preview that stopped at the fade would hide the one seam being tuned. The demo's rune is usually
+      // not owned, so `useRuneArrivalFx` finds no badge and skips the play: see the fallback there.
+      cueRuneArrival(cards, 'pending');
     };
     const win = window as unknown as { __runeLockIn?: (slow?: number) => void };
     win.__runeLockIn = (slow) => lockInDemoRef.current?.(slow);
@@ -2114,18 +2149,23 @@ export function Recruit() {
    * is not the Discover itself, yield `[]` rather than leaving emitters spending frames behind a backdrop
    * (the same hard-teardown rule `useCiaEnchantedFx` follows when the fight starts).
    */
+  const inspectView = useGame((s) => s.inspect);
   const chooseBothKeys = useMemo(() => {
     if (run.phase === 'combat' || inCombat) return [];
     // The Discover overlay OWNS the screen — and its own options are exactly what must be marked there.
     if (run.discover?.length && !discoverMin) {
       return run.discover.map((id, i) => (chooseBothActive(run, undefined, CARD_INDEX[id]) ? `disc:${i}` : null)).filter((k): k is string => !!k);
     }
+    // THE INSPECT VIEW is the exception among covering overlays (owner ask 2026-08-31): the card being read
+    // whole is exactly where a "(Both)" promise wants a marker. Its key is prefixed so the ring binds to the
+    // overlay's card rather than the board token behind it (see `Inspect.tsx`).
+    if (inspectView?.chooseBothKey) return [`inspect:${inspectView.chooseBothKey}`];
     // Any other overlay covering the board: nothing to mark, and nothing worth animating underneath it.
     if (run.chooseOne || run.questOffer || run.powerOffer || run.runeforgeOffer || run.scoutedNextOpponent?.length || heroSelecting || overlayOpen) return [];
     const hand = run.hand.filter((c) => chooseBothActive(run, c, CARD_INDEX[c.cardId])).map((c) => c.uid);
     const shop = run.shop.filter((o) => chooseBothActive(run, o, CARD_INDEX[o.cardId])).map((o) => o.uid);
     return [...hand, ...shop];
-  }, [run, inCombat, discoverMin, heroSelecting, overlayOpen]);
+  }, [run, inCombat, discoverMin, heroSelecting, overlayOpen, inspectView]);
   useChooseBothFx(chooseBothKeys);
 
   // A board-covering modal is open (Discover / Choose One / a quest or runeforge offer / a scouted board).
@@ -3089,10 +3129,19 @@ export function Recruit() {
       // value (owner 2026-07-25). Derived rather than hand-listed so a new Ruby card can never be forgotten —
       // there are ~20 of them across the Kobold line and the list would rot on the first one added.
       const mentionsRuby = !!def && !def.ruby && /\bRub(y|ies)\b/i.test(`${def.text} ${def.goldenText ?? ''}`);
-      const refs = [...new Set([
+      const named = [
         ...(CARD_REFERENCES[cardId] ?? []),
         ...(def ? referencedCardIds(def) : []),
-        ...(mentionsRuby ? ['ruby'] : []),
+      ];
+      // …but NOT when the card already names a PARTICULAR Ruby (owner report 2026-08-31: Facetbound Martyr
+      // previewed Warding Ruby, Veinstorm *and* a plain Ruby). The derived rule exists for a card that talks
+      // about Rubies in general — "cast a Ruby", "your Rubies" — and has nothing specific to show. A card that
+      // names one has already shown you the Ruby it means; adding the generic one on top both widens the
+      // popup and implies a second thing happens.
+      const namesARuby = named.some((id) => CARD_INDEX[id]?.ruby);
+      const refs = [...new Set([
+        ...named,
+        ...(mentionsRuby && !namesARuby ? ['ruby'] : []),
       ])].filter((id) => CARD_INDEX[id]);
       const spellLive = { a: spellBonus, h: spellBonusH, ftb: run.frontToBackBonus, ftbH: run.frontToBackBonusH ?? run.frontToBackBonus, goldSpent: run.goldSpentThisTurn ?? 0, goldPouchValue: run.goldPouchValue, tier: run.tier, growthBonus: run.growthBonus };
       // `cardBuffsLive`, NOT `run.cardBuffs` — the raw map holds only the PERMANENT enchants, so a Fodder
@@ -3123,7 +3172,59 @@ export function Recruit() {
   // (Moira re-firing a summoner) injected as a synthetic card, plus keywords granted this beat overlaid so the
   // pip shows on the beat. GUARDED: with nothing projected this is `run.board` by identity, so normal play (and
   // the memo below) is byte-identical — the injection only activates during an EoT that summons / grants a kw.
+  /**
+   * THE CHOOSE ONE PREVIEW (owner ask 2026-08-31): *"when a choose one minion is played on board, they should
+   * remain on board as the choose one options are presented. if the player then cancels … the card should be
+   * removed from the board and coalesce back in hand."*
+   *
+   * PRESENTATION ONLY — the reducer's deferral is untouched. That matters more than it looks: the 2026-08-28
+   * ruling (a Choose One play commits nothing until the branch is picked) is what makes a cancel a true no-op
+   * and what keeps every consequence firing once, in order, on the replayed play. Reversing it would mean the
+   * minion really lands and a cancel has to un-land it — and REPLAYS record action sequences, so old
+   * recordings would replay `play` → `chooseOne` against different intermediate state.
+   *
+   * So the body is shown where it is going, not put there: spliced into the rendered board at the slot the
+   * player dropped it on (`chooseOne.toIndex`), and hidden from hand for as long as the prompt is open. Cancel
+   * simply stops previewing, and the card is in hand because it never left.
+   */
+  /**
+   * THE COALESCE (owner ask 2026-08-31): a cancelled Choose One minion glides from the board slot it was
+   * previewing back into the hand, rather than blinking between the two.
+   *
+   * GSAP Flip, the same tool the hand's own reorder uses — and it works across containers precisely because
+   * the card carries a stable `data-flip-id`. The capture has to happen BEFORE React commits the change, so
+   * it is taken in the cancel HANDLER (not a layout effect, which runs after the DOM has already moved) and
+   * replayed by the effect below once the card is back in its hand slot.
+   */
+  const coalesceRef = useRef<ReturnType<typeof Flip.getState> | null>(null);
+  const captureCoalesce = useCallback((): void => {
+    const uid = useGame.getState().run.chooseOne?.uid;
+    if (!uid) return;
+    const el = document.querySelector<HTMLElement>(`.row.board .card[data-uid="${CSS.escape(uid)}"]`)
+      ?? document.querySelector<HTMLElement>(`.card[data-uid="${CSS.escape(uid)}"]`);
+    coalesceRef.current = el ? Flip.getState(el) : null;
+  }, []);
+  useLayoutEffect(() => {
+    const st = coalesceRef.current;
+    if (!st || run.chooseOne) return;   // still open — the capture is for the frame it CLOSES
+    coalesceRef.current = null;
+    Flip.from(st, { duration: getFlipConfig().commitMs / 1000, ease: 'power2.out', absolute: true });
+  }, [run.chooseOne]);
+
+  const chooseOnePreview = useMemo<{ card: BoardCard; at: number } | null>(() => {
+    const co = run.chooseOne;
+    if (!co || co.spell || co.equipmentId) return null;      // a spell takes no slot; an Equipment has no card
+    const card = run.hand.find((c) => c.uid === co.uid);
+    if (!card) return null;
+    return { card, at: Math.max(0, Math.min(co.toIndex ?? run.board.length, run.board.length)) };
+  }, [run.chooseOne, run.hand, run.board.length]);
+
   const displayBoard = useMemo<BoardCard[]>(() => {
+    if (chooseOnePreview) {
+      const out = [...run.board];
+      out.splice(chooseOnePreview.at, 0, chooseOnePreview.card);
+      return out;
+    }
     if (!eotSummons.length && !eotKeywords.size && !eotTransforms.size) return run.board;
     const withKw = run.board.map((m) => {
       // TRANSFORMED THIS BEAT (Skybound Ascendant): swap the identity IN PLACE, keeping the uid and slot, so
@@ -3149,7 +3250,7 @@ export function Recruit() {
       out.splice(s.index !== undefined ? Math.min(s.index, out.length) : out.length, 0, ghost);
     }
     return out;
-  }, [run.board, eotSummons, eotKeywords, eotTransforms]);
+  }, [run.board, eotSummons, eotKeywords, eotTransforms, chooseOnePreview]);
   // `view:board` / `view:hand` (perf export): building the per-card view + live text for every board/hand card.
   // Memoized, but rebuilds whenever `run.board`/`run.hand` identity changes — i.e. every dispatch (buy/play/weld).
   // If a heavily-attached late-game board makes these dominate a fanout frame, this is where it shows.
@@ -4976,7 +5077,9 @@ export function Recruit() {
   // Flip (not the warband/shop manual x-tween) so the cards keep their translateY tuck through the glide. Only
   // fires when a reorder actually captured a state — a buy/play that also changes the order is left to its own
   // pop-in.
-  const handOrderKey = run.hand.map((c) => c.uid).join(',');
+  // The RENDERED row, not `run.hand`: a card lifted out for the Choose One preview changes what the row
+  // shows, and the hand should close the gap behind it rather than jump when it comes back.
+  const handOrderKey = gambleHand.map((c) => c.uid).join(',');
   useLayoutEffect(() => {
     // Kill the hand cards' CSS `transition: transform` first (like the warband/shop commit does): on drop the
     // dragged card's slide resets to 0 and the neighbours' slides clear, and if the base transition is live it
@@ -6686,8 +6789,8 @@ export function Recruit() {
         // that lands on the panel (or on an option card) is never a cancel. Escape does the same.
         <div
           className="discover-ov" role="dialog" aria-label="Choose One" tabIndex={-1}
-          onPointerDown={(e) => { if (!(e.target as Element).closest('.disc-slot')) dispatch({ type: 'cancelChoice' }); }}
-          onKeyDown={(e) => { if (e.key === 'Escape') dispatch({ type: 'cancelChoice' }); }}
+          onPointerDown={(e) => { if (!(e.target as Element).closest('.disc-slot')) { captureCoalesce(); dispatch({ type: 'cancelChoice' }); } }}
+          onKeyDown={(e) => { if (e.key === 'Escape') { captureCoalesce(); dispatch({ type: 'cancelChoice' }); } }}
         >
           {/* Reuses the DISCOVER chrome (transparent panel, dark-glass banner, card row) rather than the old
               bespoke cream text-buttons — a Choose One is the same kind of decision as a Discover, so the
@@ -6955,7 +7058,7 @@ export function Recruit() {
       {lockIn && (
         <RuneLockIn
           cards={lockIn}
-          onDone={() => { setLockIn(null); }}
+          onDone={() => { cueRuneArrival(lockIn, 'arrived'); setLockIn(null); }}
           timing={lockInSlow === 1 ? undefined : stretchLockIn(getRuneLockInConfig(), lockInSlow)}
         />
       )}
@@ -6967,7 +7070,7 @@ export function Recruit() {
         <RuneLockIn
           key={`cue:${runeLockInCue.find((c) => c.chosen)?.rune.id ?? 'x'}`}
           cards={runeLockInCue}
-          onDone={() => { useGame.setState({ runeLockInCue: null }); }}
+          onDone={() => { cueRuneArrival(runeLockInCue, 'arrived'); useGame.setState({ runeLockInCue: null }); }}
         />
       )}
       {!overlaysHeld && run.runeforgeOffer && !forgeMin && (

@@ -96,6 +96,20 @@ export interface CardBuff {
 export interface BoardCard {
   uid: string;
   cardId: string;
+  /**
+   * DEALER'S OWN LATCH — how many more Choose One cards this body will make resolve BOTH branches
+   * (owner ruling 2026-08-31).
+   *
+   * PER INSTANCE, not a run counter, and that is the whole point: *"her card text doesn't activate until
+   * she's played, so she doesn't start looking for the 'first choose one played' until she is on the
+   * board. therefore, she has a fresh tracker."* Armed when she arrives AND re-armed each turn, so a Dealer
+   * bought mid-turn watches from that moment instead of waiting for the next turn — and a SECOND Dealer
+   * bought after the turn's first Choose One brings her own fresh latch with her.
+   *
+   * Spent by `spendChooseBothCharge`, which decrements EVERY armed body at once: two Dealers on board at the
+   * start of a turn were both waiting for the same first card, so they are redundancy, not two cards' worth.
+   */
+  chooseBothLeft?: number;
   tribe: Tribe;
   attack: number;
   health: number;

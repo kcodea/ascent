@@ -140,6 +140,19 @@ export const PATCH_NOTES: PatchNote[] = [
   },
   {
     date: '2026-08-31',
+    label: 'Rune Sockets',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: "During a fight, the opponent's runes now sit in three ornate sockets beside their portrait — always visible, so you can see how many runes they're carrying at a glance.",
+        details: [
+          'The three sockets always show; a rune the opponent owns fills its socket.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-08-31',
     label: 'Scouting Report',
     changes: [
       {

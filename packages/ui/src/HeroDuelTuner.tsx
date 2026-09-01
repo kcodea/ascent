@@ -58,6 +58,9 @@ const LABELS: Record<keyof HeroDuelConfig, [string, TunerUnit | undefined]> = {
   runeX:           ['Rune row X', 'px'],
   runeY:           ['Rune row Y', 'px'],
   runeGap:         ['Rune gap', 'px'],
+  slot1X: ['Slot 1 X', 'px'], slot1Y: ['Slot 1 Y', 'px'], slot1S: ['Slot 1 size', '×'],
+  slot2X: ['Slot 2 X', 'px'], slot2Y: ['Slot 2 Y', 'px'], slot2S: ['Slot 2 size', '×'],
+  slot3X: ['Slot 3 X', 'px'], slot3Y: ['Slot 3 Y', 'px'], slot3S: ['Slot 3 size', '×'],
   tallyStagger: ['Tally stagger', 'ms'],
   tallyFly:     ['Tally flight', 'ms'],
   pillHold:     ['Pill hold', 'ms'],
@@ -76,6 +79,9 @@ const GROUP: Record<keyof HeroDuelConfig, string> = {
   sfxTravelDelay: 'Sound', sfxTravelVol: 'Sound', sfxAddDelay: 'Sound', sfxAddVol: 'Sound', sfxImpactDelay: 'Sound', sfxImpactVol: 'Sound', sfxCounterDelay: 'Sound', sfxCounterVol: 'Sound',
   runeScale: 'Opponent runes', runeX: 'Opponent runes', runeY: 'Opponent runes', runeGap: 'Opponent runes',
   rune1X: 'Opponent runes', rune1Y: 'Opponent runes', rune2X: 'Opponent runes', rune2Y: 'Opponent runes', rune3X: 'Opponent runes', rune3Y: 'Opponent runes',
+  slot1X: 'Rune slots', slot1Y: 'Rune slots', slot1S: 'Rune slots',
+  slot2X: 'Rune slots', slot2Y: 'Rune slots', slot2S: 'Rune slots',
+  slot3X: 'Rune slots', slot3Y: 'Rune slots', slot3S: 'Rune slots',
   tallyStagger: 'Sequence', tallyFly: 'Sequence', pillHold: 'Sequence',
   strikeSpeed: 'Strike', impactPower: 'Strike', settleMs: 'Strike',
 };
@@ -90,6 +96,7 @@ const ORDER: (keyof HeroDuelConfig)[] = [
   'strikeSpeed', 'impactPower', 'settleMs',
   'sfxCounterDelay', 'sfxCounterVol', 'sfxTravelDelay', 'sfxTravelVol', 'sfxAddDelay', 'sfxAddVol', 'sfxImpactDelay', 'sfxImpactVol',
   'runeScale', 'runeX', 'runeY', 'runeGap',
+  'slot1X', 'slot1Y', 'slot1S', 'slot2X', 'slot2Y', 'slot2S', 'slot3X', 'slot3Y', 'slot3S',
 ];
 // Safety net: any config key not in ORDER is appended, so a newly-added dial can never silently fail to render.
 const ORDERED: (keyof HeroDuelConfig)[] = [

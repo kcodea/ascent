@@ -87,10 +87,10 @@ export const LAYOUT_VARS: LayoutVarDef[] = [
   { key: 'qbGap', cssVar: '--qb-gap', label: 'Separation', group: 'Quest nodes', min: 0, max: 30, step: 0.5, def: 11, fmt: 'mul' },
   // Per-node placement — the first three badges (quest/rune 1·2·3 in display order) each take an individual
   // X/Y nudge off their row slot, so all three can be positioned freely instead of only as a row. 0 = the row.
-  { key: 'qb1X', cssVar: '--qb1-x', label: 'Node 1 · X', group: 'Quest nodes', min: -800, max: 800, step: 1, def: -11, fmt: 'px' },
-  { key: 'qb1Y', cssVar: '--qb1-y', label: 'Node 1 · Y', group: 'Quest nodes', min: -800, max: 800, step: 1, def: 57, fmt: 'px' },
-  { key: 'qb2X', cssVar: '--qb2-x', label: 'Node 2 · X', group: 'Quest nodes', min: -800, max: 800, step: 1, def: 8, fmt: 'px' },
-  { key: 'qb2Y', cssVar: '--qb2-y', label: 'Node 2 · Y', group: 'Quest nodes', min: -800, max: 800, step: 1, def: 8, fmt: 'px' },
+  { key: 'qb1X', cssVar: '--qb1-x', label: 'Node 1 · X', group: 'Quest nodes', min: -800, max: 800, step: 1, def: -5, fmt: 'px' },
+  { key: 'qb1Y', cssVar: '--qb1-y', label: 'Node 1 · Y', group: 'Quest nodes', min: -800, max: 800, step: 1, def: 53, fmt: 'px' },
+  { key: 'qb2X', cssVar: '--qb2-x', label: 'Node 2 · X', group: 'Quest nodes', min: -800, max: 800, step: 1, def: 13, fmt: 'px' },
+  { key: 'qb2Y', cssVar: '--qb2-y', label: 'Node 2 · Y', group: 'Quest nodes', min: -800, max: 800, step: 1, def: 5, fmt: 'px' },
   { key: 'qb3X', cssVar: '--qb3-x', label: 'Node 3 · X', group: 'Quest nodes', min: -800, max: 800, step: 1, def: 30, fmt: 'px' },
   { key: 'qb3Y', cssVar: '--qb3-y', label: 'Node 3 · Y', group: 'Quest nodes', min: -800, max: 800, step: 1, def: 23, fmt: 'px' },
 

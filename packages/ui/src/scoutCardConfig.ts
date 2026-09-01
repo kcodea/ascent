@@ -45,7 +45,7 @@ const DEFAULTS: ScoutCardConfig = {
   // Text doubled all round (owner ask 2026-08-31: "increase the size of the text by 200%").
   nameSize: 2, heroSize: 2, statSize: 2, statLabelSize: 2, histText: 2,
   histFace: 1, socketSize: 1,
-  bg1: '#47311f', bg2: '#110c08', border: '#ecca96', divider: '#c17a45',
+  bg1: '#47311f', bg2: '#110c08', border: '#ffb685', divider: '#c17a45',
   nameCol: '#ffffff', heroCol: '#d9c7a8', statCol: '#f4d58a', labelCol: '#b7a98f',
   winCol: '#4be081', loseCol: '#ff5555', drawCol: '#c9bca3', socketCol: '#d4941c',
 };

@@ -69,7 +69,13 @@ export function CombatOpponent(): JSX.Element | null {
   const shownResolve = Math.max(0, seat.resolve - Math.max(0, dmgDealt - seat.armor));
   // The foe's owned RUNES — from the served board's captured snapshot (bots/authored seats have none). Rendered
   // with the SAME `.questbadge.runebadge` markup the player uses, so art, hover tip and pulse animation match.
-  const runes = (next?.board.snapshot?.runes ?? []).filter((id) => RUNE_INDEX[id]);
+  // DEV ONLY (owner ask 2026-08-31): `window.__oppRunes = ['rune_x', …]` forces the foe's runes so the rune-slot
+  // backgrounds can be tuned with real runes overlaid. Set it in the console, then hit the ⚔️ tuner's Test (or
+  // start a fight) to re-render. Stripped from production.
+  const forced = import.meta.env.DEV && typeof window !== 'undefined'
+    ? (window as unknown as { __oppRunes?: string[] }).__oppRunes
+    : undefined;
+  const runes = (forced ?? next?.board.snapshot?.runes ?? []).filter((id) => RUNE_INDEX[id]);
   const buffRows = gatherSnapshotBuffs(next?.board.snapshot);
   const hasBuffs = buffRows.length > 0;
   // PORTAL to <body>: `.combatopp` must be able to paint ABOVE the player's statusbar (z40) when the foe
@@ -118,6 +124,14 @@ export function CombatOpponent(): JSX.Element | null {
         {/* The foe's run-buffs pop-out — expands DOWNWARD out of the group's bottom edge when the portrait
             is clicked (see `.combatopp-drop .herobuffs` in styles.css). */}
         <BuffsFrame open={buffsOpen} rows={buffRows} drop />
+      </div>
+      {/* Persistent RUNE-SLOT backgrounds (owner ask 2026-08-31) — three art plates that ALWAYS show where the
+          foe's runes socket. Rendered BEFORE the runes so they sit behind them, and they share the runes'
+          positioning frame (⚔️ Hero Duel tuner → Rune slots) so a rune overlays its slot. */}
+      <div className="combatopp-runeslots" aria-hidden="true">
+        <div className="combatopp-slot slot1" />
+        <div className="combatopp-slot slot2" />
+        <div className="combatopp-slot slot3" />
       </div>
       {/* The foe's RUNES — a column beside the portrait (positions/scale from the ⚔️ Hero Duel tuner). Same
           badge component as the player's, so hover + the trigger bounce animate identically. `pointer-events`

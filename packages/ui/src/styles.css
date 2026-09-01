@@ -3058,9 +3058,12 @@ body.modalup .app { z-index: auto; }
 /* PER-NODE placement (owner ask 2026-08-11): the first three badges (quest/rune 1·2·3 in display order) each
    take an individual X/Y nudge off their row slot, so all three can be positioned freely instead of only as a
    row. Defaults 0 = the plain row. The row transform on `.questbadges` still applies to the group. */
-.questbadges .questbadge:nth-child(1) { transform: translate(calc(var(--qb1-x, -11px) * var(--scale)), calc(var(--qb1-y, 57px) * var(--scale))); }
-.questbadges .questbadge:nth-child(2) { transform: translate(calc(var(--qb2-x, 8px) * var(--scale)), calc(var(--qb2-y, 8px) * var(--scale))); }
+.questbadges .questbadge:nth-child(1) { transform: translate(calc(var(--qb1-x, -5px) * var(--scale)), calc(var(--qb1-y, 53px) * var(--scale))); }
+.questbadges .questbadge:nth-child(2) { transform: translate(calc(var(--qb2-x, 13px) * var(--scale)), calc(var(--qb2-y, 5px) * var(--scale))); }
 .questbadges .questbadge:nth-child(3) { transform: translate(calc(var(--qb3-x, 30px) * var(--scale)), calc(var(--qb3-y, 23px) * var(--scale))); }
+/* Each badge is its own stacking context (the `transform` above), so a later sibling's art paints over a
+   hovered badge's tooltip. Lift the hovered badge above its siblings (owner report 2026-08-31). */
+.questbadges .questbadge:hover { z-index: 10; }
 /* Rune sheen — three glossy discs, each an independent overlay over a rune node. Absolutely placed inside the
    (already group-transformed) badge row and driven by the 💠 Rune Sheen tuner's `--rshN-*` vars; width in --u
    with height auto keeps each disc's native aspect; pointer-events off so they never eat a badge hover. */
@@ -3077,9 +3080,9 @@ body.modalup .app { z-index: auto; }
    viewport unit, not a tuner) is intentionally kept so the sheen still tracks screen size. transform-origin at
    the top-left keeps the cancel math clean. Positioned ONLY by the 💠 Rune Sheen tuner (`--rshN-*`). */
 .questbadges .rune-sheen { position: absolute; left: 0; top: 0; z-index: 5; pointer-events: none; -webkit-user-drag: none; height: auto; transform-origin: 50% 50%; }
-.questbadges .rune-sheen-1 { width: calc(var(--rsh1-w, 52) * var(--u-base)); transform: translate(calc(var(--rsh1-x, -1) * var(--u) + var(--qb1-x, -11px) * var(--scale)), calc(var(--rsh1-y, -1) * var(--u) + var(--qb1-y, 57px) * var(--scale))) scale(calc(1 / var(--qb-s, 1.09))); opacity: var(--rsh1-o, 1); mix-blend-mode: var(--rsh1-blend, hard-light); }
-.questbadges .rune-sheen-2 { width: calc(var(--rsh2-w, 52) * var(--u-base)); transform: translate(calc(var(--rsh2-x, 63) * var(--u) + var(--qb2-x, 8px) * var(--scale)), calc(var(--rsh2-y, -1) * var(--u) + var(--qb2-y, 8px) * var(--scale))) scale(calc(1 / var(--qb-s, 1.09))); opacity: var(--rsh2-o, 1); mix-blend-mode: var(--rsh2-blend, hard-light); }
-.questbadges .rune-sheen-3 { width: calc(var(--rsh3-w, 52) * var(--u-base)); transform: translate(calc(var(--rsh3-x, 127) * var(--u) + var(--qb3-x, 30px) * var(--scale)), calc(var(--rsh3-y, -1) * var(--u) + var(--qb3-y, 23px) * var(--scale))) scale(calc(1 / var(--qb-s, 1.09))); opacity: var(--rsh3-o, 1); mix-blend-mode: var(--rsh3-blend, hard-light); }
+.questbadges .rune-sheen-1 { width: calc(var(--rsh1-w, 52) * var(--u-base)); transform: translate(calc(var(--rsh1-x, -1) * var(--u) + var(--qb1-x, -5px) * var(--scale)), calc(var(--rsh1-y, -1) * var(--u) + var(--qb1-y, 53px) * var(--scale))) scale(calc(1 / var(--qb-s, 1.09))); opacity: var(--rsh1-o, 1); mix-blend-mode: var(--rsh1-blend, hard-light); }
+.questbadges .rune-sheen-2 { width: calc(var(--rsh2-w, 52) * var(--u-base)); transform: translate(calc(var(--rsh2-x, 62) * var(--u) + var(--qb2-x, 13px) * var(--scale)), calc(var(--rsh2-y, -1) * var(--u) + var(--qb2-y, 5px) * var(--scale))) scale(calc(1 / var(--qb-s, 1.09))); opacity: var(--rsh2-o, 1); mix-blend-mode: var(--rsh2-blend, hard-light); }
+.questbadges .rune-sheen-3 { width: calc(var(--rsh3-w, 52) * var(--u-base)); transform: translate(calc(var(--rsh3-x, 132) * var(--u) + var(--qb3-x, 30px) * var(--scale)), calc(var(--rsh3-y, -3) * var(--u) + var(--qb3-y, 23px) * var(--scale))) scale(calc(1 / var(--qb-s, 1.09))); opacity: var(--rsh3-o, 1); mix-blend-mode: var(--rsh3-blend, hard-light); }
 /* Chains draped over the LOCKED third rune slot — same 3rd-node anchor + counter-scale as the sheen so it stays
    glued to the slot through the Quest-nodes Scale slider; its own `--rch-*` nudge from the 💠 Rune Sheen tuner.
    Sits ABOVE the sheen (z 6) and does not blend — it reads as solid chains over the empty slot. */
@@ -3320,7 +3323,7 @@ body.duel-attacker-opp .combatopp { z-index: 100; }
   /* Mirrors the End Turn diamond across the board's centre line (owner direction 2026-07-16): base
      0.19/0.45 of the stage + the 💠 tuner's px offsets × --scale. */
   left: calc(var(--bar-x) + 0.19 * var(--gw) + var(--hpb-x, 15px) * var(--scale));
-  top: calc(var(--bar-y) + 0.45 * var(--gh) + var(--hpb-y, 303px) * var(--scale));
+  top: calc(var(--bar-y) + 0.45 * var(--gh) + var(--hpb-y, 305px) * var(--scale));
   transform: translate(-50%, -50%) scale(var(--hpb-s, 0.87));
   align-self: auto; pointer-events: auto; z-index: 41;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(7 * var(--u));
@@ -3376,7 +3379,7 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
    "right of the hero, under the other power" holds at every resolution and follows the 💠 tuner's nudges. */
 .statusbar .heropanel.heropanel2 {
   left: calc(var(--bar-x) + 0.19 * var(--gw) + (var(--hpb-x, 15px) * var(--scale)) + (var(--hp2-x, 81) * 1px * var(--scale)));
-  top: calc(var(--bar-y) + 0.45 * var(--gh) + (var(--hpb-y, 303px) * var(--scale)) + (var(--hp2-y, 201) * 1px * var(--scale)));
+  top: calc(var(--bar-y) + 0.45 * var(--gh) + (var(--hpb-y, 305px) * var(--scale)) + (var(--hp2-y, 201) * 1px * var(--scale)));
   transform: translate(-50%, -50%) scale(var(--hp2-scale, 0.9));
   z-index: 42; }
 .heropanel2 .hpb-glyph { display: grid; place-items: center; width: 100%; height: 100%; font-size: 26px; color: #d8ccb6; }
@@ -3392,7 +3395,7 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
   /* Fallbacks MIRROR `equipSlotConfig.ts`'s baked defaults, so a paint before the config module has applied
      its vars lands in the right seat rather than the pre-tuning one. Update both together. */
   left: calc(var(--bar-x) + 0.19 * var(--gw) + (var(--hpb-x, 15px) * var(--scale)) + (var(--eqs-x, -248) * 1px * var(--scale)));
-  top: calc(var(--bar-y) + 0.45 * var(--gh) + (var(--hpb-y, 303px) * var(--scale)) + (var(--eqs-y, -260) * 1px * var(--scale)));
+  top: calc(var(--bar-y) + 0.45 * var(--gh) + (var(--hpb-y, 305px) * var(--scale)) + (var(--eqs-y, -260) * 1px * var(--scale)));
   transform: translate(-50%, -50%) scale(var(--eqs-scale, 0.99));
   z-index: 42; }
 /* The glyph/label treatment the second-power block uses — the Equipment button is the same kind of control,
@@ -8703,7 +8706,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   display: flex; flex-direction: column; gap: calc(4 * var(--lu) * var(--sc-gap, 2.3));
   padding: calc(7 * var(--lu) * var(--sc-pad, 2.3)); border-radius: calc(8 * var(--lu) * var(--sc-rad, 1.25));
   background: linear-gradient(180deg, var(--sc-bg1, #47311f), var(--sc-bg2, #110c08));
-  border: 1px solid color-mix(in srgb, var(--sc-border, #ecca96) 55%, #000);
+  border: 3px solid color-mix(in srgb, var(--sc-border, #ffb685) 55%, #000);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 calc(4 * var(--lu)) calc(14 * var(--lu)) -4px var(--shadow);
   /* One-shot fade+slide on open. Safe to touch opacity/transform here — this is not a looping animation, and
      both are compositor-only properties (docs/performance.md). */
@@ -9664,7 +9667,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
      board on a non-fullscreen stage. oppX/oppY now nudge the portrait off the power anchor, × --scale like every
      other pinned element (positive X = rightward, positive Y = down). */
   left: auto;
-  right: calc(50% - var(--gw) / 2 + 20 * var(--u) - var(--hd-power-x, -386px) * var(--scale) - var(--hd-opp-x, 144px) * var(--scale));
+  right: calc(50% - var(--gw) / 2 + 20 * var(--u) - var(--hd-power-x, -386px) * var(--scale) - var(--hd-opp-x, 176px) * var(--scale));
   top: calc(20 * var(--u) + var(--hd-power-y, 191px) * var(--scale) + var(--hd-opp-y, 41px) * var(--scale));
   /* The ⚔️ Hero Duel tuner's placement rides the WRAPPER, never the body — the body is what GSAP lunges.
      translate(50%,-50%) centres the portrait on the right/top anchor point. */
@@ -9726,7 +9729,8 @@ body.duel-attacker-opp .combatopp-hp { opacity: 0; }
    /`.runebadge` styling the player's runes wear (so art, hover tip and the trigger bounce all match). The
    ⚔️ Hero Duel tuner drives the row's scale/offset/gap; `--hd-rune-s` scales each badge, defaulting to 1 = the
    exact player rune size. `pointer-events: auto` here alone (the group is otherwise inert) enables the tips. */
-.combatopp-runes {
+.combatopp-runes,
+.combatopp-runeslots {
   position: absolute; left: 50%; top: 50%;
   /* COUNTER the portrait wrapper's `--hd-opp-s` scale so the badges render at TRUE size — `--hd-rune-s` = 1
      then equals the player's rune size exactly (owner ask: match the player's runes), independent of how big
@@ -9748,10 +9752,28 @@ body.duel-attacker-opp .combatopp-hp { opacity: 0; }
    placement. nth-child is safe: the runes column contains only .combatopp-rune children. The independent
    `translate` property (not `transform`) so the badge's transform-based trigger BOUNCE composes with the
    nudge instead of stomping it mid-animation. */
-.combatopp-rune:nth-child(1) { translate: calc(var(--hd-rune1-x, 309px) * var(--scale)) calc(var(--hd-rune1-y, 49px) * var(--scale)); }
-.combatopp-rune:nth-child(2) { translate: calc(var(--hd-rune2-x, 170px) * var(--scale)) calc(var(--hd-rune2-y, -55px) * var(--scale)); }
-.combatopp-rune:nth-child(3) { translate: calc(var(--hd-rune3-x, 49px) * var(--scale)) calc(var(--hd-rune3-y, -121px) * var(--scale)); }
+.combatopp-rune:nth-child(1) { translate: calc(var(--hd-rune1-x, 450px) * var(--scale)) calc(var(--hd-rune1-y, 87px) * var(--scale)); }
+.combatopp-rune:nth-child(2) { translate: calc(var(--hd-rune2-x, 360px) * var(--scale)) calc(var(--hd-rune2-y, -8px) * var(--scale)); }
+.combatopp-rune:nth-child(3) { translate: calc(var(--hd-rune3-x, 281px) * var(--scale)) calc(var(--hd-rune3-y, -75px) * var(--scale)); }
+
+/* PERSISTENT RUNE-SLOT BACKGROUNDS (owner ask 2026-08-31) — always visible, sitting BEHIND the runes and
+   sharing the frame above so a rune overlays its slot. Each is placed + sized from the ⚔️ Hero Duel tuner
+   (`Rune slots` → `--hd-slotN-*`); `translate`/`scale` are independent properties (like the rune nudges). */
+.combatopp-runeslots { pointer-events: none; z-index: 0; }
+.combatopp-runes { z-index: 1; }
+.combatopp-slot { flex: none; width: calc(53 * var(--u)); height: calc(53 * var(--u));
+  background-repeat: no-repeat; background-position: center; background-size: contain; }
+.combatopp-slot.slot1 { background-image: url('/opp-rune-slot-1.webp');
+  translate: calc(var(--hd-slot1-x, 450px) * var(--scale)) calc(var(--hd-slot1-y, 87px) * var(--scale)); scale: var(--hd-slot1-s, 1.65); }
+.combatopp-slot.slot2 { background-image: url('/opp-rune-slot-2.webp');
+  translate: calc(var(--hd-slot2-x, 360px) * var(--scale)) calc(var(--hd-slot2-y, -8px) * var(--scale)); scale: var(--hd-slot2-s, 1.65); }
+.combatopp-slot.slot3 { background-image: url('/opp-rune-slot-3.webp');
+  translate: calc(var(--hd-slot3-x, 281px) * var(--scale)) calc(var(--hd-slot3-y, -75px) * var(--scale)); scale: var(--hd-slot3-s, 1.65); }
 .combatopp-rune .questbadge-tip { bottom: auto; top: 50%; left: auto; right: calc(100% + 8px); transform: translateY(-50%); }
+/* Each rune is its own stacking context (the `translate`/`scale` props), so a later sibling's art paints OVER a
+   hovered rune's tooltip. Lift the hovered rune (its whole subtree, tip included) above the others (owner report
+   2026-08-31). Flex items honour z-index without positioning. */
+.combatopp-rune:hover { z-index: 10; }
 
 @keyframes combatoppdrop {
   from { opacity: 0; transform: translateY(-46px) scale(0.86); }
@@ -9779,7 +9801,7 @@ body.duel-attacker-opp .combatopp-hp { opacity: 0; }
   background: linear-gradient(180deg, #fff, #f3ead4); border: 2px solid var(--gold); border-radius: 999px;
   padding: calc(2 * var(--u)) calc(13 * var(--u)); white-space: nowrap;
   box-shadow: 0 calc(2 * var(--u)) calc(6 * var(--u)) -2px var(--shadow);
-  transform: translate(calc(var(--hd-name-x, 0px) * var(--scale)), calc(var(--hd-name-y, 45px) * var(--scale))) scale(var(--hd-name-s, 0.65));
+  transform: translate(calc(var(--hd-name-x, 0px) * var(--scale)), calc(var(--hd-name-y, 26px) * var(--scale))) scale(var(--hd-name-s, 0.65));
 }
 /* Opponent HEALTH — the SAME pill the PLAYER wears in the HUD (owner ask 2026-08-25): the dark gradient box,
    dark-gold border, threat-pink heart and lightened number from `.statusbar .hero .hpbox`, verbatim. */
@@ -9790,7 +9812,7 @@ body.duel-attacker-opp .combatopp-hp { opacity: 0; }
   padding: calc(6 * var(--u)) calc(14 * var(--u));
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 2px 6px rgba(0, 0, 0, 0.3);
   font-family: var(--font-ui); font-weight: 800; font-size: calc(24 * var(--u)); line-height: 1; color: #ff9db0;
-  transform: translate(calc(var(--hd-hp-x, 0px) * var(--scale)), calc(var(--hd-hp-y, -45px) * var(--scale))) scale(var(--hd-hp-s, 0.65));
+  transform: translate(calc(var(--hd-hp-x, 0px) * var(--scale)), calc(var(--hd-hp-y, -31px) * var(--scale))) scale(var(--hd-hp-s, 0.65));
 }
 .combatopp-hp svg { flex: none; width: calc(24 * var(--u)); height: calc(24 * var(--u)); color: var(--threat); }
 .combatopp-armor { margin-left: calc(3 * var(--u)); font-size: calc(17 * var(--u)); color: #b7c2cf; }
@@ -9882,8 +9904,8 @@ body.duel-attacker-opp .combatopp-hp { opacity: 0; }
   from { opacity: 1; transform: translateX(-50%) scale(var(--pill-s, 1)); }
   to   { opacity: 0; transform: translateX(-50%) scale(calc(var(--pill-s, 1) * 0.72)); }
 }
-.hero-atk-player { --pill-s: var(--hd-pill-player-s, 0.55); --pill-x: var(--hd-pill-player-x, 72px); --pill-y: var(--hd-pill-player-y, -12px); }
-.hero-atk-opp    { --pill-s: var(--hd-pill-opp-s, 0.72); --pill-x: var(--hd-pill-opp-x, -117px); --pill-y: var(--hd-pill-opp-y, -31px); }
+.hero-atk-player { --pill-s: var(--hd-pill-player-s, 0.55); --pill-x: var(--hd-pill-player-x, 52px); --pill-y: var(--hd-pill-player-y, -12px); }
+.hero-atk-opp    { --pill-s: var(--hd-pill-opp-s, 0.72); --pill-x: var(--hd-pill-opp-x, -71px); --pill-y: var(--hd-pill-opp-y, -31px); }
 @keyframes heroatkpop {
   from { opacity: 0; transform: translateX(-50%) scale(calc(var(--pill-s, 1) * 0.4)); }
   to   { opacity: 1; transform: translateX(-50%) scale(var(--pill-s, 1)); }

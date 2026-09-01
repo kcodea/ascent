@@ -63,5 +63,38 @@ callers mutate them. Median cost on a 7-key spec set is now ~1 µs.
 ## Verification
 
 `npm run typecheck`, `npm run lint` (0 errors), `npm test`, `npm run build:web` — all green on the branch.
-Not yet re-profiled in Chrome against the prod build; the audit's recruit-phase jank counts (947/989 frames)
-are the baseline to re-measure against once the rest of the ranked list lands.
+
+### Measured against main, prod builds, headed Chrome
+
+Four scripted runs per build (Practice, first hero, four turns of refresh / buy / play / reorder / sell with
+real mouse input via puppeteer-core), Chrome launched with the frame-rate limit and vsync off so a frame's
+length is its true cost. RTX 4080, 1888×1320. Frame = rAF-to-rAF interval.
+
+| phase | main worst frame per run | branch worst frame per run | median frame (both) |
+|---|---|---|---|
+| idle in the shop | 9 – 22 ms | 16 – 20 ms | 0.29 ms |
+| refresh | 14 – 21 ms | 16 – 20 ms | ~0.4 ms |
+| buy, turn 1 | 46 / 105 / 155 ms | 34 / 48 / 57 / 57 ms | ~0.45 ms |
+| buy, later turns | 16 – 44 ms | 16 – 45 ms | |
+| play, turn 1 | 573 – 812 ms | 568 – 775 ms | |
+| play, later turns | 14 – 136 ms (one 712) | 11 – 163 ms | |
+| reorder / sell | 12 – 167 ms | 19 – 181 ms | |
+
+**Honest reading: none of the five items moves a frame metric outside run-to-run noise.** The only phase
+that leans the branch's way is the turn-1 buy (worst frame roughly halved), and four runs is not enough to
+call that. The recruit screen already idles at ~0.3 ms a frame on this hardware — 240 Hz is not limited by the
+per-frame path these fixes trimmed; it is limited by discrete stalls the fixes never touched:
+
+- **The first play of a run freezes for 0.6 – 0.8 s on BOTH builds.** A CPU profile of the branch's
+  sourcemapped build attributes 525 ms of it to `getProgramParameter` under Pixi's `WebGLRenderer.start` —
+  a synchronous first-use shader compile/link for the landing FX. Warm the FX shaders during the title or
+  hero-select screen (or use `KHR_parallel_shader_compile`) and this disappears. Filed as follow-up work.
+- Later plays still spike to 70 – 160 ms intermittently on both builds; not yet attributed (likely further
+  first-use shader variants or texture uploads). Same follow-up.
+- `drawImage` on the 2D hero canvas is the next largest self-time in the play window (~7%).
+
+The audit's headless estimates for #1 stand (0.37 → 0.02 ms per action), but at 0.3 ms idle frames that
+saving is invisible in the frame data. Keep the branch for what it verifiably is: less work per action, less
+allocation churn, byte-identical behaviour — not a measured FPS win.
+
+Bench driver + analyzer live in the session scratchpad (`bench/run.js`, `bench/analyze.js`), not the repo.

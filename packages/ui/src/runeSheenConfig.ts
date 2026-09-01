@@ -53,7 +53,7 @@ export interface RuneSheenConfig {
 const DEFAULTS: RuneSheenConfig = {
   c1x: -1, c1y: -1, c1w: 52, c1o: 1, c1blend: 'hard-light',
   c2x: 62, c2y: -1, c2w: 52, c2o: 1, c2blend: 'hard-light',
-  c3x: 132, c3y: -3, c3w: 52, c3o: 1, c3blend: 'hard-light',
+  c3x: 126, c3y: 0, c3w: 52, c3o: 1, c3blend: 'hard-light',
   chx: 131, chy: -3, chw: 54, // chains seated over the 3rd rune slot (owner-tuned 2026-08-19, re-tuned 2026-08-29)
 };
 

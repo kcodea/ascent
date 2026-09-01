@@ -2348,6 +2348,10 @@ img.tierbadge.tierstars,
 .discover-ov::before { content: ''; position: absolute; inset: -60px; z-index: -1; pointer-events: none;
   background: linear-gradient(rgba(22, 15, 9, 0.62), rgba(22, 15, 9, 0.7)), var(--board) center / cover no-repeat, var(--bg);
   filter: blur(16px); }
+/* NOT on the Runeforge: the forge rides the same `.discover-ov` chrome but paints its own illustrated
+   backdrop on the element background, and a ::before out-paints an element's background — the frosted layer
+   was covering the forge art (owner report 2026-09-01). */
+.discover-ov.forge-ov::before { content: none; }
 /* While a Discover / quest / Runeforge overlay covers the board, the hero panel + power diamond + quest badges
    are parked — they are behind the modal now (see the stacking-context fix below) and must not take clicks.
    The hand-rolled dim they used to carry here (`filter: brightness(0.5) saturate(0.85)`) is GONE as of the

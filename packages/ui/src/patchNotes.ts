@@ -60,6 +60,14 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'UI / Info',
+        text: 'Stat numbers no longer dip to a wrong value (and flash red) while a Ruby lands in combat.',
+        details: [
+          'A minion buffed mid-fight could briefly show LESS than it had before the buff, then correct itself.',
+          'The stats themselves were always right — only the number on the badge was wrong, and only for a moment.',
+        ],
+      },
+      {
+        category: 'UI / Info',
         text: 'Picking a rune no longer blinks on its way to the centre, and the rune you chose now arrives in your tray with an effect of its own.',
         details: [
           'The chosen rune moves in one continuous motion — it used to flicker for a frame as the ceremony took over.',

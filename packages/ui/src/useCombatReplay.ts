@@ -43,7 +43,7 @@ import { getDef } from './fx/fxDefs';
 import { WATCHER_PULSE_DEF_ID, watcherPixiReady } from './fx/watcherPulse';
 import { watcherPulseUids } from './choreo/channels/watcherPulse';
 import { combatBuffDeltas, combatDamageDeltas, driveRoll } from './fx/combatBuffRoll';
-import { heldFor, holdStat, releaseStat } from './fx/statHold';
+import { heldFor, holdStat, releaseStat, replaceHold } from './fx/statHold';
 
 /** Card display name from its id (for combat-log lines about generated cards). */
 const cardName = (id: string): string => CARD_INDEX[id]?.name ?? id;
@@ -2326,7 +2326,17 @@ export function useCombatReplay(
       // value the unit never had. A net of 0 stores nothing (`holdStat` drops a zero delta), so the number
       // simply doesn't move, which is correct when a buff and a hit cancel out.
       const netHealth = d.health - (dmgByUid.get(d.uid) ?? 0);
-      holdStat(d.uid, { attack: d.attack, health: netHealth }, {
+      // NEVER ACCUMULATE ONTO A FOREIGN HOLD. The release pass above clears the holds THIS effect placed, but
+      // a cue can have placed one for the same beat — the Ruby cue in `choreo/score.ts` is the case that bit
+      // (owner report 2026-08-31). Equal ranks accumulate, so landing on top of one withholds the same change
+      // twice and prints a number below the unit's floor.
+      //
+      // Released rather than skipped, because THIS delta is the authoritative one: it is the whole beat and
+      // it nets same-beat damage into Health, which a per-Ruby land cannot see. Both sides of the race are
+      // covered — whichever placer runs first, exactly one hold survives with the correct total — and a
+      // carrying layer still claims whatever is live at its peak, so the gem keeps delivering its own number.
+      // Synchronous, inside this layout effect: no frame can paint the released value.
+      replaceHold(d.uid, { attack: d.attack, health: netHealth }, {
         origin: 'effect',
         ttlMs: COMBAT_HOLD_TTL_MS / (combatSpeedRef.current > 0 ? combatSpeedRef.current : 1),
       });

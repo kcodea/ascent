@@ -15,7 +15,7 @@ import { releaseSummons } from '../fx/summonHold';
 import { getLungeConfig } from '../lungeConfig';
 import type { FxBinding } from './bindings';
 import { cascade, scheduleLands } from '../fx/land';
-import { holdStat } from '../fx/statHold';
+import { claimOrHold } from '../fx/statHold';
 import { canPlayDefs, playDef } from '../fx/playDef';
 import { sfx } from '../sfx';
 import { anchorsForUnits } from '../fx/combatAnchors';
@@ -418,7 +418,21 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
         // the first gem's release, so the badge steps once rather than twice. Correct, just less expressive
         // than the gems themselves; splitting it needs a partial release, which needs the def to know the
         // per-gem amount.
-        for (const l of rubyLands) holdStat(l.uid, { attack: l.attack, health: l.health });
+        //
+        // CLAIM AN EXISTING HOLD; NEVER STACK ON ONE (owner report 2026-08-31: *"the stats dance around a
+        // lot in combat, setting to randomly low values / the badges go red, then they correct"*).
+        //
+        // The replay places ONE hold per unit for the whole beat's delta — Rubies included — at `effect`
+        // rank, and this cue is `effect` rank too. `holdStat` ACCUMULATES equal ranks, by design: two of them
+        // usually are two changes. Here they are the same change, so the Ruby was withheld TWICE and the
+        // badge printed `current - 2x` — a number the unit never had, below its own floor, which is what
+        // paints the plate red until the rolls catch up.
+        //
+        // The replay's delta is the authoritative one (it nets same-beat damage into Health, which a
+        // per-Ruby land cannot see), so the right move is to take that hold over rather than add to it:
+        // `claimStat` changes the OWNER and leaves the delta, the schedule and the expiry alone. Placing is
+        // still correct when nothing is live — a Ruby moment with no replay hold behind it.
+        for (const l of rubyLands) claimOrHold(l.uid, { attack: l.attack, health: l.health });
         for (const land of scheduleLands(cascade(rubyLands), {
           gap: RUBY_GAP_MS, beat: RUBY_BEAT_MS, speed: ctx.combatSpeed,
         })) {

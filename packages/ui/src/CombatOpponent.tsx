@@ -119,6 +119,14 @@ export function CombatOpponent(): JSX.Element | null {
             is clicked (see `.combatopp-drop .herobuffs` in styles.css). */}
         <BuffsFrame open={buffsOpen} rows={buffRows} drop />
       </div>
+      {/* Persistent RUNE-SLOT backgrounds (owner ask 2026-08-31) — three art plates that ALWAYS show where the
+          foe's runes socket. Rendered BEFORE the runes so they sit behind them, and they share the runes'
+          positioning frame (⚔️ Hero Duel tuner → Rune slots) so a rune overlays its slot. */}
+      <div className="combatopp-runeslots" aria-hidden="true">
+        <div className="combatopp-slot slot1" />
+        <div className="combatopp-slot slot2" />
+        <div className="combatopp-slot slot3" />
+      </div>
       {/* The foe's RUNES — a column beside the portrait (positions/scale from the ⚔️ Hero Duel tuner). Same
           badge component as the player's, so hover + the trigger bounce animate identically. `pointer-events`
           is re-enabled here alone (the rest of the group is inert) so the tooltips can be hovered. */}

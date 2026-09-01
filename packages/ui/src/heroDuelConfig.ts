@@ -63,6 +63,12 @@ export interface HeroDuelConfig {
   rune1X: number; rune1Y: number;
   rune2X: number; rune2Y: number;
   rune3X: number; rune3Y: number;
+  /** Persistent RUNE-SLOT background plates (owner ask 2026-08-31) — three art circles that ALWAYS show where
+   *  the opponent's runes will socket; the rune art overlays them. Each has its own X/Y (design px, × --scale)
+   *  and size, and shares the runes' positioning frame so they stay aligned. Slot 1 = right, 3 = left. */
+  slot1X: number; slot1Y: number; slot1S: number;
+  slot2X: number; slot2Y: number; slot2S: number;
+  slot3X: number; slot3Y: number; slot3S: number;
   /** Gap (ms) between each tallied number leaving its card. */
   tallyStagger: number;
   /** Flight time (ms) of a tallied number to the counter. */
@@ -126,6 +132,10 @@ const DEFAULTS: HeroDuelConfig = {
   rune1X: 309, rune1Y: 49,
   rune2X: 170, rune2Y: -55,
   rune3X: 49, rune3Y: -121,
+  // Slot backgrounds default to the rune positions (so they sit exactly behind), size 1.
+  slot1X: 309, slot1Y: 49, slot1S: 1,
+  slot2X: 170, slot2Y: -55, slot2S: 1,
+  slot3X: 49, slot3Y: -121, slot3S: 1,
   tallyStagger: 130,
   tallyFly: 430,
   pillHold: 260,
@@ -172,6 +182,9 @@ export const HERO_DUEL_RANGES: Record<keyof HeroDuelConfig, [number, number, num
   rune1X: [-300, 300, 1], rune1Y: [-300, 300, 1],
   rune2X: [-300, 300, 1], rune2Y: [-300, 300, 1],
   rune3X: [-300, 300, 1], rune3Y: [-300, 300, 1],
+  slot1X: [-300, 300, 1], slot1Y: [-300, 300, 1], slot1S: [0.3, 3, 0.01],
+  slot2X: [-300, 300, 1], slot2Y: [-300, 300, 1], slot2S: [0.3, 3, 0.01],
+  slot3X: [-300, 300, 1], slot3Y: [-300, 300, 1], slot3S: [0.3, 3, 0.01],
   tallyStagger: [0, 500, 5],
   tallyFly: [80, 1500, 10],
   pillHold: [0, 1500, 10],
@@ -218,6 +231,9 @@ export const HERO_DUEL_DESC: Record<keyof HeroDuelConfig, string> = {
   rune1X: 'Nudge the FIRST (top) rune badge horizontally.', rune1Y: 'Nudge the first rune badge vertically.',
   rune2X: 'Nudge the SECOND rune badge horizontally.', rune2Y: 'Nudge the second rune badge vertically.',
   rune3X: 'Nudge the THIRD rune badge horizontally.', rune3Y: 'Nudge the third rune badge vertically.',
+  slot1X: 'Move the FIRST (right) rune-slot background horizontally.', slot1Y: 'Move the first rune-slot background vertically.', slot1S: 'Size of the first rune-slot background.',
+  slot2X: 'Move the SECOND (middle) rune-slot background horizontally.', slot2Y: 'Move the second rune-slot background vertically.', slot2S: 'Size of the second rune-slot background.',
+  slot3X: 'Move the THIRD (left) rune-slot background horizontally.', slot3Y: 'Move the third rune-slot background vertically.', slot3S: 'Size of the third rune-slot background.',
   tallyStagger: 'Gap between each damage number leaving its card.',
   tallyFly: 'How long a damage number takes to reach the counter.',
   pillHold: 'Pause after the pill appears, before the hero winds up.',
@@ -271,6 +287,9 @@ export function applyHeroDuelVars(): void {
   for (const n of [1, 2, 3] as const) {
     r.setProperty(`--hd-rune${n}-x`, `${cfg[`rune${n}X`]}px`);
     r.setProperty(`--hd-rune${n}-y`, `${cfg[`rune${n}Y`]}px`);
+    r.setProperty(`--hd-slot${n}-x`, `${cfg[`slot${n}X`]}px`);
+    r.setProperty(`--hd-slot${n}-y`, `${cfg[`slot${n}Y`]}px`);
+    r.setProperty(`--hd-slot${n}-s`, String(cfg[`slot${n}S`]));
   }
   r.setProperty('--hd-rune-gap', `${cfg.runeGap}px`);
 }

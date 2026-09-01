@@ -59,6 +59,19 @@ export const PATCH_NOTES: PatchNote[] = [
     label: 'Rune Arrival',
     changes: [
       {
+        category: 'Card Change',
+        text: 'Apples now prints what it will actually give: its "2 random friendly minions" half folds in your Spell Power.',
+        details: [
+          'Only the printed number was wrong — the buff itself always included Spell Power.',
+          'Its other half (buffing this Shop) is flat by design and still prints its plain value.',
+          'Apples also counts as a stat spell now, so Rune of Thrift discounts it.',
+        ],
+      },
+      {
+        category: 'UI / Info',
+        text: 'Hovering a card that names a specific Ruby no longer also previews the plain Ruby, and a wide preview is centred instead of jammed against the left edge.',
+      },
+      {
         category: 'UI / Info',
         text: 'Stat numbers no longer dip to a wrong value (and flash red) while a Ruby lands in combat.',
         details: [

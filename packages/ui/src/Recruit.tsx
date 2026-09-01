@@ -3110,10 +3110,19 @@ export function Recruit() {
       // value (owner 2026-07-25). Derived rather than hand-listed so a new Ruby card can never be forgotten —
       // there are ~20 of them across the Kobold line and the list would rot on the first one added.
       const mentionsRuby = !!def && !def.ruby && /\bRub(y|ies)\b/i.test(`${def.text} ${def.goldenText ?? ''}`);
-      const refs = [...new Set([
+      const named = [
         ...(CARD_REFERENCES[cardId] ?? []),
         ...(def ? referencedCardIds(def) : []),
-        ...(mentionsRuby ? ['ruby'] : []),
+      ];
+      // …but NOT when the card already names a PARTICULAR Ruby (owner report 2026-08-31: Facetbound Martyr
+      // previewed Warding Ruby, Veinstorm *and* a plain Ruby). The derived rule exists for a card that talks
+      // about Rubies in general — "cast a Ruby", "your Rubies" — and has nothing specific to show. A card that
+      // names one has already shown you the Ruby it means; adding the generic one on top both widens the
+      // popup and implies a second thing happens.
+      const namesARuby = named.some((id) => CARD_INDEX[id]?.ruby);
+      const refs = [...new Set([
+        ...named,
+        ...(mentionsRuby && !namesARuby ? ['ruby'] : []),
       ])].filter((id) => CARD_INDEX[id]);
       const spellLive = { a: spellBonus, h: spellBonusH, ftb: run.frontToBackBonus, ftbH: run.frontToBackBonusH ?? run.frontToBackBonus, goldSpent: run.goldSpentThisTurn ?? 0, goldPouchValue: run.goldPouchValue, tier: run.tier, growthBonus: run.growthBonus };
       // `cardBuffsLive`, NOT `run.cardBuffs` — the raw map holds only the PERMANENT enchants, so a Fodder

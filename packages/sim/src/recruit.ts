@@ -1660,8 +1660,26 @@ const STAT_SPELL_EXTRAS: ReadonlySet<string> = new Set([
  *  `spellBuffTargetPerGold`, `spellBuffRandomPerTribe`, the shop-buff family, and more. The `spellBuff`
  *  PREFIX is the naming convention the whole buff family already follows, so new members are covered the day
  *  they are authored; `STAT_SPELL_EXTRAS` carries the few stat granters that sit outside that convention. */
+/**
+ * EVERY effect a card can fire, INCLUDING its Choose One branches.
+ *
+ * A Choose One card keeps its effects in `chooseOne[].effects` and usually has `effects: []`, so any lookup
+ * written as `def.effects.find(...)` is blind to it. That is not a hypothetical: Apples' second option
+ * ("2 random friendly minions +1/+1") fires `spellBuffRandomFriendlies`, which folds spell power — and its
+ * printed number never moved, because both the live-text path and `isStatSpell` were scanning `def.effects`
+ * alone (owner report 2026-08-31).
+ *
+ * One helper so the next lookup written against a card's effects cannot repeat it.
+ */
+export function allEffectsOf(def: CardDef | undefined): EffectDef[] {
+  if (!def) return [];
+  return [...def.effects, ...(def.chooseOne ?? []).flatMap((o) => o.effects ?? [])];
+}
+
 export function isStatSpell(def: CardDef | undefined): boolean {
-  return !!def?.effects.some((e) => e.on === 'cast' && (e.do.startsWith('spellBuff') || STAT_SPELL_EXTRAS.has(e.do)));
+  // Branch effects included: a Choose One spell that gives stats down one fork is a stat spell (it is exactly
+  // as discountable, and Rune of the Gilded Ledger can cast it). Apples was silently neither.
+  return allEffectsOf(def).some((e) => e.on === 'cast' && (e.do.startsWith('spellBuff') || STAT_SPELL_EXTRAS.has(e.do)));
 }
 
 /** Stat spells that put their stats on YOUR BOARD. The shop-buff family gives stats too — so Rune of Thrift
@@ -7856,8 +7874,12 @@ export function spellDisplayText(cardId: string, bonusA: number, escalation = 0,
   // Champion's / Defensive / Bloody Ale (spell-power audit 2026-08-02): their factories fold spell power, so
   // the printed magnitude goes live too. Champion's is a symmetric "+A/+H"; the other two print a single-stat
   // token ("+4 Health" / "+4 Attack") that becomes the full live "+A/+H" pair, like Lantern of Souls below.
-  const aleLeft = def.effects.find((e) => e.do === 'spellBuffLeftmost');
-  const aleRand = def.effects.find((e) => e.do === 'spellBuffRandomFriendlies');
+  // `allEffectsOf`, not `def.effects`: Apples' scaling grant lives in a Choose One BRANCH, and reading the
+  // top-level list alone is why its printed "+1/+1" never moved with spell power. The replace below targets
+  // that branch's OWN printed numbers, so a card whose other branch is flat (Apples' "+2/+4" shop buff, which
+  // takes no spell power by design) keeps that half exactly as authored.
+  const aleLeft = allEffectsOf(def).find((e) => e.do === 'spellBuffLeftmost');
+  const aleRand = allEffectsOf(def).find((e) => e.do === 'spellBuffRandomFriendlies');
   const ale = aleLeft ?? aleRand;
   if (ale) {
     const pa = Number((ale.params as { attack?: number } | undefined)?.attack ?? 0);

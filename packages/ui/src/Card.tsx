@@ -84,6 +84,7 @@ import './cardPillsConfig';
 import { artFor, artVariantKey } from './art';
 import { renameTerms } from './terms';
 import { KeywordDefs } from './KeywordDefs';
+import { refPopupLeft } from './refPreviewPlacement';
 import { detectCardKeywords } from './detectCardKeywords';
 import { Icon } from './Icon';
 import { Sprite } from './Sprite';
@@ -675,8 +676,11 @@ export const Card = memo(function Card({
       const nDefs = detectCardKeywords(card).length;
       const defsW = nDefs > 0 ? gap + Math.min(144, window.innerWidth * 0.25) * zoom : 0;
       const tipW = cardW * n + (n - 1) * gap + defsW; // cards laid left→right, plus the defs column
-      const flip = r.right + gap + tipW > window.innerWidth - 6; // off the right edge → show on the left
-      const left = flip ? Math.max(6, r.left - gap - tipW) : r.right + gap;
+      // Placement is `refPopupLeft`'s (its own module, and its own tests): right if it fits, else left, else
+      // CENTRED — never slammed against the left edge, which is what "shoved off to the left side of the
+      // screen" was (owner report 2026-08-31).
+      const left = refPopupLeft({ cardLeft: r.left, cardRight: r.right, tipW, viewportW: window.innerWidth, gap });
+      const flip = left < r.left;
       const estH = cardW * 1.5550; // plate aspect (800×1244) — clamp so it stays on-screen
       const top = Math.max(6, Math.min(r.top, window.innerHeight - estH - 6));
       setRefPos({ left, top, origin: flip ? 'right' : 'left' });

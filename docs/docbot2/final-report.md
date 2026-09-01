@@ -177,7 +177,7 @@ Reachable needs-ruling cards, waiting on a sitting the main session schedules �
 
 ## 7. Oracle families and sabotage evidence (§4.5)
 
-- **60** vitest lane files under `packages/sim/src/docbot/`.
+- **61** vitest lane files under `packages/sim/src/docbot/`.
 - **25** of them carry an in-file mutation/sabotage proof — a deliberate defect the lane must catch.
 - 19 named lanes are citable by a rule's `oracle` enforcement ref; `enforcement.test.ts` fs-checks each.
 

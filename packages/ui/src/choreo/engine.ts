@@ -178,7 +178,7 @@ export function runAttackExchangeCues(
     // has finished rolling, so the stats are visibly on the card before the strike leaves. Costs nothing on a
     // swing with no buffs, and `buffLeadMs: 0` restores the old timing exactly.
     rallyPauseMs: RALLY_PAUSE_MS + Math.max(0, (ctx.rallyProcs ?? 1) - 1) * RALLY_PROC_STRIDE_MS
-      + (ctx.onWindupBuffs ? cfg.buffLeadMs : 0),
+      + (ctx.onWindupBuffs ? cfg.buffLeadMs + cfg.windupSettleMs : 0),
   });
 }
 

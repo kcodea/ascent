@@ -748,7 +748,10 @@ export function simulate(
       if (health > 0) target.maxHealth += health;
       // Spread the flag in only when set, so a non-Ruby buff event keeps its EXACT previous shape — an explicit
       // `ruby: undefined` key would show up in the golden logs and in any deep-equality assertion over events.
-      emit({ type: 'buff', target: target.uid, attack, health, source, ...(ruby ? { ruby } : {}) });
+      // `castingSpellId` is set for the duration of a named-spell cast (see `castNamedSpellInCombat`), so a
+      // buff produced BY that spell says so. Presentation reads it to attribute the whole wave to the spell
+      // rather than to the caster's body — which is what lets a spell's authored def replace the stock tendril.
+      emit({ type: 'buff', target: target.uid, attack, health, source, ...(ruby ? { ruby } : {}), ...(ctx.castingSpellId !== undefined ? { spellId: ctx.castingSpellId } : {}) });
       // "Give <tribe> N total stats" (Skybound Pact / Taragosa's Inheritance): every positive combat stat gain on
       // a PLAYER minion counts toward its tribe(s), so combat buffs advance the `tribeStats` quest like recruit
       // ones (owner: Skybound Pact stats in combat should count). Uses the post-gainMult value actually applied.
@@ -2080,7 +2083,7 @@ export function simulate(
           if (taught.target && friends.length === 0) return;
           const targets = taught.target ? [rng.pick(friends)] : undefined;
           if (resolveCombatSpellCast(ctx, minion, taught, targets)) {
-            emit({ type: 'sc', source: minion.uid, text: `${minion.name} casts ${taught.name}` });
+            emit({ type: 'sc', source: minion.uid, text: `${minion.name} casts ${taught.name}`, spellId: taught.id });
           }
         });
       }

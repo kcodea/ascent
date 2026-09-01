@@ -113,8 +113,11 @@ export const SET2_NEUTRAL: CardDef[] = [
     goldenText: 'Whenever you trigger a **Rally**, give a minion of **every type** **+8/+8** permanently.',
   },
   {
-    // Owner add 2026-08-18: a cheaper, lower-tier Paragon — an all-type Rally payoff that snowballs one minion
-    // of every type. Same `onRallyBuffOnePerTribe` factory (gild doubles), at +2/+3.
+    // Owner add 2026-08-18: a cheaper, lower-tier Paragon — an all-type Rally payoff that spreads a buff over
+    // one minion of every type. Same `onRallyBuffOnePerTribe` factory (gild doubles).
+    // Owner rebalance 2026-09-01: +2/+3 → +3/+3, and the buff is no longer PERMANENT (`permanent: false`) —
+    // a bigger swing that lasts the fight, which is what separates it from Paragon at T3 rather than it being
+    // simply a smaller Paragon.
     id: 'n2_standardbearer',
     name: 'Standard Bearer',
     tribe: 'neutral',
@@ -123,9 +126,9 @@ export const SET2_NEUTRAL: CardDef[] = [
     health: 5,
     keywords: ['RL'],
     universalTribe: true,
-    effects: [{ on: 'onAttack', do: 'onRallyBuffOnePerTribe', params: { attack: 2, health: 3 } }],
-    text: '**Rally:** give a minion of **each type** **+2/+3** permanently.',
-    goldenText: '**Rally:** give a minion of **each type** **+4/+6** permanently.',
+    effects: [{ on: 'onAttack', do: 'onRallyBuffOnePerTribe', params: { attack: 3, health: 3, permanent: false } }],
+    text: '**Rally:** give a minion of **each type** **+3/+3**.',
+    goldenText: '**Rally:** give a minion of **each type** **+6/+6**.',
   },
   {
     // Owner roster addition 2026-07-29 (un-archived + T6 → T5, owner 2026-08-18). Two branches, deliberately

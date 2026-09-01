@@ -77,6 +77,22 @@
         "fanOut": "damaged"
       }
     },
+    "d2_broodfire": {
+      "minionBuffed": {
+        "def": "broodfire-buff"
+      }
+    },
+    "sp_dragonflame": {
+      "spellCast": {
+        "def": "dragonflame",
+        "fanOut": "buffedOn",
+        "sfx": "dragonflame"
+      },
+      "buffWave": {
+        "def": "dragonflame",
+        "fanOut": "buffedOn"
+      }
+    },
     "dm_butcher": {
       "shout": {
         "def": "shop-buff-shout"

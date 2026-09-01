@@ -221,12 +221,13 @@ describe('recruitMomentsSince', () => {
 
   it('a spellCast names its card as the source and carries the release point', () => {
     const m = spellCastMoment('wo_mine', { x: 120, y: 340 });
-    expect(m).toEqual({ kind: 'spellCast', sourceCardId: 'wo_mine', recipients: [], point: { x: 120, y: 340 } });
+    // `casts` defaults to 1 — one action, one resolution — and rises with the play site's multicast total.
+    expect(m).toEqual({ kind: 'spellCast', sourceCardId: 'wo_mine', recipients: [], point: { x: 120, y: 340 }, casts: 1 });
   });
 
   it('carries recipients when the cast buffed minions (trail targets)', () => {
     const m = spellCastMoment('wo_champion', { x: 10, y: 20 }, [{ uid: 'm1', count: 1 }]);
-    expect(m).toEqual({ kind: 'spellCast', sourceCardId: 'wo_champion', recipients: [{ uid: 'm1', count: 1 }], point: { x: 10, y: 20 } });
+    expect(m).toEqual({ kind: 'spellCast', sourceCardId: 'wo_champion', recipients: [{ uid: 'm1', count: 1 }], point: { x: 10, y: 20 }, casts: 1 });
   });
 
   it('marks a minionBuffed moment `crit` when a contributing event came from the body that critted', () => {

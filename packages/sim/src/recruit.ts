@@ -5626,15 +5626,37 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
 
   /** Set 2 — Mirrorwing Hatchling: the FIRST spell cast on this each turn casts again, on this.
    *  Guarded on `spellsOnThisTurn === 1` — the counter is bumped before this runs, so the re-cast below sees 2
-   *  and stops. Without that guard the card recurses forever, since its own effect is another cast on itself. */
+   *  and stops. Without that guard the card recurses forever, since its own effect is another cast on itself.
+   *
+   *  ── A FULL RE-CAST, NOT AN EXTRA TRIGGER (owner ruling 2026-09-01) ──────────────────────────────────────
+   *
+   *  *"mirrorwing's interaction should be a full re-cast of the spell, not an additional trigger OF the spell.
+   *  therefore it is a full multiplier … if a spell casts 4x, then casting it on mirrorwing would cast it 8x."*
+   *
+   *  So the loop is scaled by `spellCasts` — the SAME total the play site used — rather than firing one bare
+   *  resolution. It used to add a flat +1 however large the multiplier in front of it was (Rune of Hoardflame
+   *  alone: 2 → 3; with a Yazzus: 4 → 5), which read as the card getting relatively weaker the more multicast
+   *  you assembled — the opposite of what "casts again" says.
+   *
+   *  Re-reading `spellCasts` here is exact rather than approximate: the play site clears its one-shot freebies
+   *  (Nimbus' charge, Spell Thesis, Shared Pour) only AFTER its whole loop, so this read returns the identical
+   *  number and the re-cast is genuinely the same cast happening twice. Rune of Distillation already multiplied
+   *  its spread this way (`casts * runeStacksOf`); this brings the printed cards in line with it.
+   *
+   *  Termination is unaffected — every re-cast bumps the counter past 1 on its way in, so the guard above
+   *  still closes the loop no matter how many the multiplier asks for. */
   onSpellCastOnThisRecast: (ctx, self, params, payload) => {
     if (self.spellsOnThisTurn !== 1) return;
     const spellDef = (payload as { spellDef?: CardDef }).spellDef;
     if (!spellDef) return;
-    for (let i = 0; i < num(params.count, 1) * gold(self); i++) castSpell(ctx.state, spellDef, self);
+    for (let i = 0; i < num(params.count, 1) * gold(self) * spellCasts(ctx.state, spellDef); i++) {
+      castSpell(ctx.state, spellDef, self);
+    }
   },
 
   /** Yirin's Reflector: the FIRST spell cast on this each turn ALSO casts on ONE random other friendly minion.
+   *  A FULL cast, scaled by `spellCasts` — the same owner ruling as Mirrorwing above ("this is the same for
+   *  reflector"), and the same reasoning for why re-reading the multiplier here is exact.
    *  Runefire's shape with a seeded random target instead of the neighbours. Same first-per-turn guard, and for
    *  the same reason — the spread re-enters `castSpell`, and only the pre-bumped counter stops the recursion.
    *  Never re-casts on ITSELF (that would double-dip the original cast), so it no-ops on a lone board. */
@@ -5647,10 +5669,16 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const rng = makeRng(ctx.state.rngCursor);
     const pick = others[rng.int(others.length)]!;
     ctx.state.rngCursor = rng.state();
-    for (let r = 0; r < num(params.count, 1) * gold(self); r++) castSpell(ctx.state, spellDef, pick);
+    for (let r = 0; r < num(params.count, 1) * gold(self) * spellCasts(ctx.state, spellDef); r++) {
+      castSpell(ctx.state, spellDef, pick);
+    }
   },
 
   /** Set 2 — Runefire: the FIRST spell cast on this each turn ALSO casts on its adjacent `tribe` neighbours.
+   *  A FULL cast per neighbour, scaled by `spellCasts`. The owner named Mirrorwing and the Reflector; this is
+   *  the third member of the same family and the same sentence ("also casts on"), so it follows the ruling —
+   *  leaving it on the old flat-trigger reading would have made two spread cards disagree about what a spread
+   *  cast is.
    *  Same first-per-turn guard. Neighbours are board-adjacent (left/right), so it rewards seating it between
    *  two Dragons — and it never re-casts on ITSELF, which would double-dip the original cast. */
   onSpellCastOnThisSpreadAdjacent: (ctx, self, params, payload) => {
@@ -5665,7 +5693,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       (c): c is BoardCard => !!c && (!tribe || isTribe(c, tribe as never)),
     );
     for (const n of neighbours) {
-      for (let r = 0; r < num(params.count, 1) * gold(self); r++) castSpell(ctx.state, spellDef, n);
+      for (let r = 0; r < num(params.count, 1) * gold(self) * spellCasts(ctx.state, spellDef); r++) {
+        castSpell(ctx.state, spellDef, n);
+      }
     }
   },
 
@@ -8329,7 +8359,9 @@ export function fireOnMinionSold(state: RunState, sold: BoardCard): void {
 export function fireOnSpellCastOnThis(state: RunState, card: BoardCard, spellDef: CardDef): void {
   card.spellsOnThisTurn = (card.spellsOnThisTurn ?? 0) + 1;
   // RUNE OF SHARED REFLECTION: the first Shop spell cast on each Mirrorwing per turn ALSO casts on its
-  // adjacent Dragons. Runefire's spread shape, keyed by the rune instead of a printed effect — and per
+  // adjacent Dragons. FULL casts, scaled by `spellCasts`, for the same reason the three printed cards are
+  // (owner ruling 2026-09-01) — it is Runefire's spread wearing a rune, so it must not resolve differently.
+  // Runefire's spread shape, keyed by the rune instead of a printed effect — and per
   // MIRRORWING ("on each Mirrorwing"), riding the same per-instance first-spell counter the card's own
   // recast uses. Guarded to === 1 for the same reason that counter exists: the spread re-enters `castSpell`,
   // and the bump above is what stops a neighbouring Mirrorwing chain from recursing forever.
@@ -8338,7 +8370,9 @@ export function fireOnSpellCastOnThis(state: RunState, card: BoardCard, spellDef
     for (const nb of [state.board[at - 1], state.board[at + 1]]) {
       if (!nb || nb === card) continue;
       const nd = CARD_INDEX[nb.cardId];
-      if (nd?.tribe === 'dragon' || nd?.tribe2 === 'dragon') { procRuneId(state, 'rune_shared_reflection'); castSpell(state, spellDef, nb); }
+      if (nd?.tribe !== 'dragon' && nd?.tribe2 !== 'dragon') continue;
+      procRuneId(state, 'rune_shared_reflection');
+      for (let r = 0; r < spellCasts(state, spellDef); r++) castSpell(state, spellDef, nb);
     }
   }
   const def = CARD_INDEX[card.cardId];

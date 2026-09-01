@@ -44,9 +44,12 @@ describe('the buff lead', () => {
   });
 
   it('0 restores the old timing exactly', () => {
-    // The escape hatch has to be real: the owner may decide the pacing cost is not worth it.
+    // The escape hatch has to be real: the owner may decide the pacing cost is not worth it. Both wind-up
+    // dials sit inside ONE conditional — the lead ("until the number stops rolling") and the settle beat
+    // added beside it on 2026-09-01 ("sit still once it has") — so zeroing them restores the old pause and a
+    // swing with no stat change pays neither.
     const expr = pauseExpr();
-    expect(/\+ \(ctx\.onWindupBuffs \? cfg\.buffLeadMs : 0\)/.test(expr),
+    expect(/\+ \(ctx\.onWindupBuffs \? cfg\.buffLeadMs \+ cfg\.windupSettleMs : 0\)/.test(expr),
       'a zero lead must add literally nothing').toBe(true);
   });
 

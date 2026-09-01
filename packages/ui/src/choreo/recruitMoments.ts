@@ -114,13 +114,18 @@ export function selfBuffMoment(uid: string, cardId: string): RecruitMoment {
 /** A `spellCast` moment: a tavern spell cast, anchored at the release `point` and keyed by the spell's card
  *  id so each spell resolves its own binding. `recipients` defaults to empty — the anchor is the raw point, not
  *  a unit — but a BUFF ale (Champion's/Defensive/Bloody) passes the buffed minions here so the cue can fire once
- *  per recipient, cursor→minion, instead of a single point burst (Golden/Reinforcing stay point-only). */
+ *  per recipient, cursor→minion, instead of a single point burst (Golden/Reinforcing stay point-only).
+ *
+ *  `casts` is how many times the spell RESOLVED (the play site's `spellCasts` total). One action can be several
+ *  casts — Yazzus, Rune of Hoardflame, Spell Thesis — and the point burst plays once per cast so a doubled cast
+ *  visibly procs twice (owner ask 2026-09-01). Defaults to 1, which is every caller that has no count to give. */
 export function spellCastMoment(
   cardId: string,
   point: { x: number; y: number },
   recipients: RecruitRecipient[] = [],
+  casts = 1,
 ): RecruitMoment {
-  return { kind: 'spellCast', sourceCardId: cardId, recipients, point };
+  return { kind: 'spellCast', sourceCardId: cardId, recipients, point, casts };
 }
 
 /** One recipient of a moment, and how many times it received. `count` above 1 is a STACK — two Rubies on
@@ -148,6 +153,9 @@ export interface RecruitMoment {
   onRefresh?: boolean;
   /** spellCast only: the release point (page coords) the effect fires from — the `cursor` anchor. */
   point?: { x: number; y: number };
+  /** spellCast only: how many times the spell resolved. The point burst plays once per cast, so a multicast
+   *  reads as several procs rather than one (owner ask 2026-09-01). Absent = once. */
+  casts?: number;
   /** `shopBuffAll` only: how much the run-wide shop channel rose. Carried for a future def that wants to
    *  scale with the size of the buff (and for the cue's own logging); the shipped aura is a fixed play. */
   attack?: number;

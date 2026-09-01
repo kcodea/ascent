@@ -1186,7 +1186,13 @@ export const ARENA_EFFECTS = {
    *  the ATTACKER's `RL` keyword — an ordinary ally swing is not a Rally.
    *
    *  `buffPermanent` states the permanence the card prints: in combat it accrues `permaGain` (the Flowing Monk
-   *  channel) so the gifts ride home; in the shop a buff is already permanent. */
+   *  channel) so the gifts ride home; in the shop a buff is already permanent.
+   *
+   *  `permanent: false` (Standard Bearer, owner 2026-09-01) makes the gift last the FIGHT only — the same
+   *  recipients, the same fan-out, just an ordinary `buff` that never accrues `permaGain`. A param rather
+   *  than a second factory because permanence is the ONLY thing the two cards disagree about, and splitting
+   *  them would have left two copies of the pick-one-per-tribe rule to keep in step. Defaults to permanent,
+   *  so Paragon and every existing author keep the behaviour they printed. */
   onRallyBuffOnePerTribe(arena: EffectArena, params: Record<string, unknown>): void {
     const attacker = params.attacker as ArenaBody | undefined;
     if (!attacker || !attacker.keywords.includes('RL')) return;
@@ -1206,7 +1212,11 @@ export const ARENA_EFFECTS = {
       const pick = rng.pick(pool);
       if (!recipients.some((r) => r.uid === pick.uid)) recipients.push(pick);
     }
-    for (const r of recipients) arena.buffPermanent(r, a, h);
+    const permanent = params.permanent !== false;
+    for (const r of recipients) {
+      if (permanent) arena.buffPermanent(r, a, h);
+      else arena.buff(r, a, h);
+    }
   },
 
   /** Taragosa / Fatecarver — when any ally attacks, CAST GROWTH: buff every living friend. A real cast

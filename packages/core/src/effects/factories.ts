@@ -526,7 +526,7 @@ function combatArena(ctx: CombatContext, self: Minion): EffectArena {
       castInCombat(ctx, self, () => {
         // Resolved PER CAST, not hoisted: an escalating spell improves itself as it resolves.
         const did = resolveCombatSpellCast(ctx, self, def, targets);
-        if (did && !announced) { ctx.log({ type: 'sc', source: self.uid, text: `${self.name} casts ${def.name}` }); announced = true; }
+        if (did && !announced) { ctx.log({ type: 'sc', source: self.uid, text: `${self.name} casts ${def.name}`, spellId: def.id }); announced = true; }
       });
     },
     echoEffectsOf: (t) => (t as Minion).effects
@@ -860,8 +860,17 @@ export function castNamedSpellInCombat(ctx: CombatContext, self: Minion, spellId
     const friends = ctx.living(self.side);
     const targets = def.target ? (friends.length ? [ctx.rng.pick(friends)] : []) : undefined;
     if (def.target && (!targets || targets.length === 0)) return;
-    if (resolveCombatSpellCast(ctx, self, def, targets)) {
-      ctx.log({ type: 'sc', source: self.uid, text: `${self.name} casts ${def.name}` });
+    // Mark the cast's WHOLE window, so the buffs (and anything else) it produces carry the spell's identity —
+    // a buff wave is its own presentation moment, and without this it reads as the caster's wave. Saved and
+    // restored rather than cleared: a spell cast from inside another cast must not erase its parent's mark.
+    const outer = ctx.castingSpellId;
+    ctx.castingSpellId = def.id;
+    try {
+      if (resolveCombatSpellCast(ctx, self, def, targets)) {
+        ctx.log({ type: 'sc', source: self.uid, text: `${self.name} casts ${def.name}`, spellId: def.id });
+      }
+    } finally {
+      ctx.castingSpellId = outer;
     }
   });
 }
@@ -1577,7 +1586,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
       if (friends.length === 0) return;
       const targets = def.target ? [ctx.rng.pick(friends)] : undefined;
       if (resolveCombatSpellCast(ctx, self, def, targets)) {
-        ctx.log({ type: 'sc', source: self.uid, text: `${self.name} casts ${def.name}` });
+        ctx.log({ type: 'sc', source: self.uid, text: `${self.name} casts ${def.name}`, spellId: def.id });
       }
     });
   },
@@ -1673,7 +1682,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
         const targets = def.target ? (beasts.length > 0 ? [ctx.rng.pick(beasts)] : []) : undefined;
         if (def.target && (!targets || targets.length === 0)) return;
         if (resolveCombatSpellCast(ctx, self, def, targets)) {
-          ctx.log({ type: 'sc', source: self.uid, text: `${self.name} casts ${def.name}` });
+          ctx.log({ type: 'sc', source: self.uid, text: `${self.name} casts ${def.name}`, spellId: def.id });
         }
       });
     }
@@ -1705,7 +1714,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
       const targets = def.target ? (beasts.length > 0 ? [ctx.rng.pick(beasts)] : []) : undefined;
       if (def.target && (!targets || targets.length === 0)) return; // the last Beast died mid-repetition
       if (resolveCombatSpellCast(ctx, self, def, targets)) {
-        ctx.log({ type: 'sc', source: self.uid, text: `${self.name} casts ${def.name}` });
+        ctx.log({ type: 'sc', source: self.uid, text: `${self.name} casts ${def.name}`, spellId: def.id });
       }
     });
   },
@@ -1728,7 +1737,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
       const spell = ctx.rng.pick(pool);
       const target = ctx.rng.pick(beasts);
       if (resolveCombatSpellCast(ctx, self, spell, [target])) {
-        ctx.log({ type: 'sc', source: self.uid, text: `${self.name} casts ${spell.name}` });
+        ctx.log({ type: 'sc', source: self.uid, text: `${self.name} casts ${spell.name}`, spellId: spell.id });
         ctx.grantToHand(spell.id, self.side, self.uid); // …and a copy of THAT spell
       }
     });
@@ -1784,7 +1793,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
       const targets = def.target ? (friends.length > 0 ? [ctx.rng.pick(friends)] : []) : undefined;
       if (def.target && (!targets || targets.length === 0)) return;
       if (resolveCombatSpellCast(ctx, self, def, targets)) {
-        ctx.log({ type: 'sc', source: self.uid, text: `${self.name} casts ${def.name}` });
+        ctx.log({ type: 'sc', source: self.uid, text: `${self.name} casts ${def.name}`, spellId: def.id });
       }
     });
   },
@@ -1816,7 +1825,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
           const targets = def.target ? (pool.length > 0 ? [ctx.rng.pick(pool)] : []) : undefined;
           if (def.target && (!targets || targets.length === 0)) return;
           if (resolveCombatSpellCast(ctx, self, def, targets)) {
-            ctx.log({ type: 'sc', source: self.uid, text: `${self.name} casts ${def.name}` });
+            ctx.log({ type: 'sc', source: self.uid, text: `${self.name} casts ${def.name}`, spellId: def.id });
           }
         });
       }

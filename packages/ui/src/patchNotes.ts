@@ -70,6 +70,51 @@ export const PATCH_NOTES: PatchNote[] = [
         text: 'A minion buffed as it attacks now shows its new stats BEFORE the swing goes out, instead of mid-lunge.',
       },
       {
+        category: 'UI / Info',
+        text: 'Everything a minion sets off by attacking now plays while it is still reared back, before the swing lands.',
+        details: [
+          'Spells cast from an attack — Flamebeat Drake, Warflame — resolve in the wind-up with their effects and stats.',
+          'Rubies cast on an attack (Boulderdash) and hero-power grants (Gorun) now land their numbers there too.',
+          'Previously the lunge finished first and the consequences played afterwards.',
+        ],
+      },
+      {
+        category: 'Hero Change',
+        text: 'Gorun’s Blade Mastery now has its own effect and sound as it sharpens each swing.',
+      },
+      {
+        category: 'UI / Info',
+        text: 'Broodfire now sets its Dragons alight with its own effect and sound as it buffs them.',
+      },
+      {
+        category: 'UI / Info',
+        text: 'Dragonflame now plays its own effect and sound on every cast, wherever it was cast from.',
+        details: [
+          'From your hand, and from any minion that casts it mid-combat.',
+          'A multicast Dragonflame shows one burst per cast, not one per play.',
+        ],
+      },
+      {
+        category: 'Card Change',
+        text: 'Standard Bearer now gives a minion of each type +3/+3 for the fight, instead of +2/+3 permanently.',
+      },
+      {
+        category: 'Card Change',
+        text: 'Mirrorwing and Reflector now re-cast the whole spell, so they double your multicast instead of adding one cast.',
+        details: [
+          'A spell that was already casting 4 times now casts 8 on a Mirrorwing.',
+          'Rune of Shared Reflection spreads full casts too.',
+        ],
+      },
+      {
+        category: 'Rune Change',
+        text: 'Rune of Hoardflame and Rune of Dragon Breath now hand you their spell the moment you take them.',
+        details: [
+          'Previously the first copy did not arrive until the following turn.',
+          'The every-turn repeat is unchanged.',
+        ],
+      },
+      {
         category: 'New Card',
         text: "Kaura L'roft (Kobold, Tier 4): Equip Dueling Rubetta's — improve your Rubies, then cast a Ruby on your left and right-most Kobold.",
       },

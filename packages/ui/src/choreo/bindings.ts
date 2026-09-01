@@ -72,8 +72,18 @@ export interface FxBinding {
    * - `buffed`: once per unit this moment's source buffed SOMEONE ELSE (the cross-buff targets — Karwind
    *   pumping every Dragon). The mirror of `selfBuffed`: `groupBuffCasts` already collects exactly these
    *   source→target pairs for the tendril channel, so this rides the same grouping and plays on each target.
+   * - `buffedOn`: like `buffed`, but the def plays ON each buffed minion rather than TRAVELLING to it — both
+   *   anchors are that minion's own centre, the convention `minionBuffed` already uses (see `fireLand`).
+   *
+   *   The distinction is the def's shape, not the effect's. An Ale is a travelling volley authored against
+   *   `source` = the cursor, so `buffed`'s cursor→minion pair is what it wants. Dragonflame is a column of
+   *   flame authored against `source` = the thing it engulfs, so the same pair puts it at the cursor — which
+   *   is exactly what the owner reported on 2026-09-01: *"dragonflame's effect is happening at the cursor
+   *   location when it should be happening at the target of the buff's location."* Two anchor conventions
+   *   already existed in this codebase; this names the second one instead of leaving it reachable only from
+   *   the `minionBuffed` path.
    */
-  fanOut?: 'primary' | 'damaged' | 'struck' | 'selfBuffed' | 'buffed';
+  fanOut?: 'primary' | 'damaged' | 'struck' | 'selfBuffed' | 'buffed' | 'buffedOn';
   /**
    * A sound to fire alongside the def, named from {@link BINDING_SFX}.
    *
@@ -108,14 +118,14 @@ export interface FxBinding {
   launchOnDeath?: boolean;
 }
 
-const FAN_OUTS: readonly string[] = ['primary', 'damaged', 'struck', 'selfBuffed', 'buffed'];
+const FAN_OUTS: readonly string[] = ['primary', 'damaged', 'struck', 'selfBuffed', 'buffed', 'buffedOn'];
 
 /**
  * The sounds a binding may name. Deliberately a short list rather than every key of the `sfx` module: most of
  * those are wired to a specific game beat and would read as a bug if a shop effect started firing them. Add
  * one here when an authored effect actually wants it.
  */
-export const BINDING_SFX = ['maxGold', 'buff', 'triple', 'triggerPulse'] as const;
+export const BINDING_SFX = ['maxGold', 'buff', 'triple', 'triggerPulse', 'dragonflame'] as const;
 export type BindingSfx = (typeof BINDING_SFX)[number];
 
 /**
@@ -454,6 +464,50 @@ function cloneTable(t: LayerTable): LayerTable {
  * so a card with its own look needs the narrower key. A `cardId` of null (no unit on screen, or the moment's
  * source is unknown) skips straight to the kind layer.
  */
+/**
+ * The authored def that REPLACES the stock buff tendril for a buff this spell caused, if there is one.
+ *
+ * One question, one answer, two very different callers: the combat score (a standalone `buffWave` moment) and
+ * the attack wind-up (`fireBuffCasts`, where a cast absorbed into a swing is only identifiable per-buff). They
+ * used to decide it separately, which is exactly how Dragonflame ended up playing its def in one path and the
+ * stock tendril in the other depending on whether the cast happened on a swing.
+ *
+ * Keyed at `buffWave` because that is where a spell declares its combat cast def, and gated on `buffedOn`
+ * because that fan-out is the one that MEANS "instead of": `buffed` is deliberately additive (Karwind's
+ * flame-ring rides on top of its tendrils, owner ruling 2026-08-11) and must keep its tendril.
+ */
+/**
+ * A grant attributed to a NAME rather than a body, and the authored effect that tells it.
+ *
+ * `ctx.buff`'s source is usually the buffer's uid, but a hero power or a rune has no body on the board and
+ * passes a LABEL instead — `'Blade Mastery'`, `'Rune of the Wild Hunt'`, and about twenty more. Those render
+ * through the SOURCELESS path (a descend, since there is nowhere to travel from), and this is the opt-in that
+ * replaces that generic rain with the effect the owner authored for it.
+ *
+ * A plain map rather than a row in `bindings.json`, because the key is not a card and not a moment kind: it is
+ * the string the SIMULATOR chose as the grant's source, and inventing a card id for it would make the binding
+ * table lie about what it is keyed by. `heroId` names the hero-power clip that plays with it, on the same
+ * `heroes/<id>.power.mp3` convention every other hero power uses.
+ *
+ * Keys must match the simulator's literal EXACTLY — `simulate.ts`'s `'Blade Mastery'` is the contract, and
+ * `docbot/onAttackStatTiming.test.ts` sweeps those literals so a rename cannot silently unbind this.
+ */
+const LABEL_BUFF_FX: Record<string, { def: string; heroId?: string }> = {
+  // GORUN — Blade Mastery, +3 Attack to the minion whose swing earned it (owner 2026-09-01).
+  'Blade Mastery': { def: 'gorun-hp', heroId: 'gorun' },
+};
+
+/** The authored effect for a label-sourced grant, or null to keep the generic descend. */
+export function labelBuffFxFor(source: string): { def: string; heroId?: string } | null {
+  return LABEL_BUFF_FX[source] ?? null;
+}
+
+export function authoredBuffDefFor(spellId: string | undefined): string | null {
+  if (spellId === undefined) return null;
+  const b = bindingFor(spellId, 'buffWave');
+  return b?.fanOut === 'buffedOn' ? b.def : null;
+}
+
 export function bindingFor(cardId: string | null, kind: BindingKind): FxBinding | null {
   if (cardId !== null) {
     // `undefined` means "no opinion, keep looking"; an explicit `null` is a tombstone that STOPS here —

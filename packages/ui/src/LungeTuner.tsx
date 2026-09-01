@@ -52,6 +52,7 @@ const SPECS: Record<keyof LungeConfig, [string, TunerUnit | undefined, string]> 
   defenderSpin:    ['Defender spin', '°', 'How far the struck unit rotates from the impact.'],
   attackerRebound: ['Attacker rebound', '°', 'How far the attacker kicks back on contact.'],
   buffLeadMs: ['Buff lead', 'ms', 'Extra pause at the top of the wind-up when this swing carries a buff, so the STATS visibly land before the strike goes out. Every buffed attack is this much slower — 0 restores the old timing.'],
+  windupSettleMs: ['Buff settle', 'ms', 'A slight extra beat AFTER the stats have landed, before the strike goes out. Buff lead is “until the number stops rolling”; this is “sit still once it has”. Affects only when the lunge starts — never its speed, its contact, or when damage lands.'],
   smackLead:       ['Hit-sound lead', 's', 'How early before contact the hit sound plays, so it lands WITH the visual instead of after it.'],
 
   settleDur:       ['Settle', 's', 'How long the attacker takes to travel home and level out.'],

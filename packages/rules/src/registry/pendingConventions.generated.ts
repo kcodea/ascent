@@ -2279,8 +2279,8 @@ export const CONVENTION_PENDING: GameRule[] = [
     "statement": "All 4 of these fire on one trigger: a Ruby is gained or cast. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
     "currentBehaviour": "7 effect factories across 4 cards dispatch on 'onGetRuby', 'onRubyPlayed', 'rubyCast', 'rubyPlayedAnywhere' (both/combat/recruit) — re-clustered by TRIGGER out of the 'economy' + 'economyReact' presentation families on the owner's 2026-08-28 ruling; the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Double Trouble: \"When a Ruby is cast on another minion in combat, cast a Ruby on this.\" · Members: Double Trouble · Gemgorge Fiend · Gem Sage · Reflector",
-    "example": "Double Trouble fires when a Ruby is gained or cast, like every other card here. its printed numbers double when the card is gilded.",
+    "cardText": "Exemplar — Trouble: \"When a Ruby is cast on another minion in combat, cast a Ruby on this.\" · Members: Trouble · Gemgorge Fiend · Gem Sage · Reflector",
+    "example": "Trouble fires when a Ruby is gained or cast, like every other card here. its printed numbers double when the card is gilded.",
     "contentIds": [
       "k3_doubletrouble",
       "k_gemgorge",

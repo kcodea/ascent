@@ -75,17 +75,21 @@ describe('no redundant PNG masters ship alongside their WebP builds', () => {
     // → 1066 (2026-08-31, later the same day: the owner named three files whose card titles had moved
     // (Flagrunner/Dealer/Jewel), plus three Choose One SECOND-branch arts that the earlier pass had left on
     // the floor — k3_facetbound2, k3_jeweler2, k3_splitpick2. Six files; two Kobolds still pending.)
-    // → 1068 (2026-08-31, the last of that batch: GemBus + GemBus2 → Gem Bus by owner
-    // ruling. Only Forkvein Prospector is unarted now, so this budget has one more file to give.)
+    // → 1068 (2026-08-31, the last of that batch: the `GemBus` masters went to the card now called Gem Bus
+    // by owner ruling, which also settled the `SplitpickApprentice` master two cards had claimed at once.)
     // → 1070 (2026-08-31, the Prismatic Pick's two Choose One BRANCH arts — prismatic_pick1 and
     // prismatic_pick2. An Equipment numbers every branch rather than reusing its icon for the first, so a
     // two-branch Equipment costs two files on top of its icon. See `equipmentBranchArtFor`.)
+    // → 1072 (2026-08-31, the last set-3 art batch: Gemsmith + Gemsmith2 for the card renamed out of
+    // Forkvein Prospector. Two files, and the ROSTER IS NOW FULLY ARTED — `ART_PENDING`'s set-3 list is
+    // empty. The same batch REDREW Trouble, Dealer and Blast Surveyor over files that already existed, so
+    // those cost nothing.)
     //
     // NB there is real SLACK available that nobody has spent yet: the 16 Celestials archived on 2026-08-28 —
     // and ~40 other archived cards — still have their art shipping in `art/minions/`, unreachable by any live
     // card. Reclaiming it is a bigger win than any of these +2s, and belongs in its own pass rather than
     // riding a content PR. (The stated rationale has also drifted: at +176 the whole-zip count passed 1000
     // some time ago, so this ceiling is now a growth ratchet rather than the cap it names.)
-    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1071);
+    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1073);
   });
 });

@@ -153,11 +153,11 @@ export function playRubyOn(ctx: CombatContext, self: Minion, target: Minion, per
   //
   // PER RUBY, not per cast (owner ruling 2026-08-31: "a ruby being cast is 1 ruby, so if 2 rubies are cast,
   // that would be 2 rubies"). `per` is the count this call is applying, so it is the multiplier — a single
-  // `playRubyOn` carrying 3 Rubies pays Double Trouble 3, not 1.
+  // `playRubyOn` carrying 3 Rubies pays Trouble 3, not 1.
   //
-  // "ANOTHER minion" is a real separation (owner ruling, same day): a Ruby landing on Double Trouble itself
+  // "ANOTHER minion" is a real separation (owner ruling, same day): a Ruby landing on Trouble itself
   // never triggers it, and — because the Ruby below goes through `applyRubyStats`, which is STATS ONLY and
-  // notifies nobody — a second Double Trouble cannot see this one's payout either. That is the same guard
+  // notifies nobody — a second Trouble cannot see this one's payout either. That is the same guard
   // Candle Conduit's bounce and Resonance Idol rely on, and without it two of these would ping forever.
   //
   // PERMANENCE IS INHERITED (owner note): `engraved` is the flag computed for the triggering Ruby, so a Ruby

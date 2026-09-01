@@ -1370,16 +1370,26 @@ export function simulate(
     // token is OFF the board for the rest of the cascade, so a same-clash Deathrattle can no longer buff it
     // before it exists — which also keeps the buff/summon event order consistent for the UI's computeFrame.
     if (card.attackOnSummon || attackNow) {
-      // Board-cap enforced at QUEUE time, not flush time (owner bug 2026-08-11): a Rally/Echo that summons an
-      // attack-on-summon token while the board is FULL must fail NOW. Previously the summon sat on the queue and
-      // was placed at the next flushImmediateAttacks — which runs AFTER the current clash's death cascade, so the
-      // attacker's own death freed the slot and a summon that should have been rejected instead landed (reported:
-      // Echohorn on a full board triggers Chicken Brawl's Echo, dies, and the Charging Soldier appears anyway).
-      // When there's no room, run placeSummon inline: it emits summonOverflow (+ the Rune of Overflow payoff) and
-      // no-ops, exactly like a plain over-cap summon — the token is simply lost, board stays full.
-      if (living(side).length >= 7) {
-        return placeSummon(minion, side, card, nearUid, grantKeywords, golden, attackNow, copyStats, doubled);
-      }
+      /**
+       * BOARD CAP AT LAND TIME, SEQUENTIALLY (owner ruling 2026-09-01).
+       *
+       *   *"if it dies, the next charging soldier now has room and should be summoned and immediately attack …
+       *   the second summon from the chicken brawl is still from the first echohorn attack, so both of those
+       *   charging soldiers would trigger and attack before the echohorn's actual resolution attack."*
+       *
+       * Sylus doubles the Echo, so one wind-up queues two chargers. They land ONE AT A TIME (`flushImmediateAttacks`
+       * places each and takes its strike inline before the next), so the first can die to its own retaliation and
+       * free the slot the second needs. Checking the cap when they were QUEUED read the board before any of them
+       * had lived and died, and rejected the second on a fullness that no longer existed by its turn.
+       *
+       * `placeSummon` re-checks the cap as each one lands and emits `summonOverflow` when there is genuinely no
+       * room, so over-cap summons are still lost — just judged at the moment they actually arrive.
+       *
+       * This replaces the queue-time check added for the 2026-08-11 report (a token landing because the ATTACKER's
+       * own death freed the slot). That case is closed a different way now: an on-attack summon flushes during the
+       * WIND-UP, before the attacker's clash, so the attacker is still alive and still occupying its slot when the
+       * cap is judged — the death that used to make room happens after the decision, not before it.
+       */
       pendingAttackOnSummon.push({ summon: { minion, side, card, nearUid, grantKeywords, golden, copyStats, doubled } });
       return minion;
     }
@@ -2796,6 +2806,49 @@ export function simulate(
         }
       }
 
+      /**
+       * THE WIND-UP RESOLVES BEFORE THE SWING (owner ruling 2026-09-01).
+       *
+       *   *"echohorn should wind up and trigger rally, which triggers the chicken brawl. chicken brawl's
+       *   summoned minion attacks IMMEDIATELY … it is summoned and attacks BEFORE the echohorn's attack
+       *   resolves. the echo is always fully resolved before the attack goes off for a minion like echohorn
+       *   (this is the same logic for deathsayer)."*
+       *
+       * An attack-on-summon token DEFERS its whole summon onto `pendingAttackOnSummon` and lands at the next
+       * flush. Every flush point was AFTER a clash, so a token conjured by an on-attack trigger — Echohorn's
+       * Rally force-firing Chicken Brawl's Echo — landed and swung only once the attacker's own damage had
+       * already been dealt. Its arrival read as an afterthought to a swing it was supposed to precede.
+       *
+       * Draining the queue HERE, between the on-attack triggers above and the clash below, makes the wind-up a
+       * complete unit: everything the swing sets off finishes, and only then does the swing land. It supersedes
+       * the 2026-07-10 ruling ONLY for this window — a token queued by a DEATH cascade still flushes after that
+       * cascade, which is what that ruling was actually about.
+       *
+       * Guarded on `attacker.dead`: the flushed token can kill the attacker (it swings into a board that can
+       * retaliate), and a dead body must not go on to complete its own clash.
+       */
+      if (pendingAttackOnSummon.some((q) => q.summon)) flushImmediateAttacks(true);
+      if (attacker.dead || attacker.health <= 0) return;
+      /**
+       * THE TARGET DIED IN THE WIND-UP — so there is no clash (owner ruling 2026-09-01).
+       *
+       *   *"if echohorn attacks and triggers fel spikes, and that fel spike triggers and kills the initial
+       *   target, echohorn does not then take dmg from that now DEAD target. the echohorn simply settles and
+       *   does not take additional damage."*
+       *
+       * Everything the swing set off resolves before it lands (the flush above), and that includes damage: a
+       * forced Echo's spray can kill the very body being swung at. The clash below is written for a live
+       * exchange and ran anyway — so the attacker dealt its damage into a corpse AND took retaliation FROM
+       * that corpse, which is where the phantom hit came from.
+       *
+       * No retarget: the swing is spent, not redirected. That is what the owner asked for and it matches the
+       * presentation, which settles the attacker in place rather than lunging at an empty slot.
+       *
+       * A Reborn body that died and returned is NOT gone — `rebornAvailable` has flipped and it is on the
+       * board alive, so it fails this check and the clash proceeds against the risen body, as before.
+       */
+      if (target.dead || target.health <= 0 || !boards[target.side].includes(target)) return;
+
       const targetWasAlive = !target.dead && target.health > 0;
       const targetCouldReborn = target.rebornAvailable; // a Reborn target that "dies" returns to life
       const poison = attacker.keywords.includes('V'); // Venomous
@@ -2982,10 +3035,43 @@ export function simulate(
   // whole summon lands as one discrete beat past the cascade. A placed token queues its own strike as the next
   // item; a Whelp's hit can spawn the enemy's Whelps (a chain), bounded by IMMEDIATE_ATTACK_GUARD. A Whelp with
   // no living foe is skipped (combat may be ending).
-  function flushImmediateAttacks(): void {
+  /**
+   * Drain the immediate-attack queue.
+   *
+   * `onlySummons` drains ONLY the deferred SUMMONS, leaving queued strikes by bodies already on the board
+   * where they are. The wind-up flush (see `performAttack`) uses it because the owner's ruling is about a
+   * summoned body — *"chicken brawl's summoned minion attacks IMMEDIATELY"* — and an `attackNow` on an
+   * EXISTING body is a different mechanism whose ordering is tied to its own grant sequence: Solaris Fang's
+   * Avenge re-grants a Ward BEFORE each of its two strikes, so draining those early strips the second Ward.
+   */
+  function flushImmediateAttacks(onlySummons = false): void {
+    if (flushingImmediates) return; // already draining — see `flushingImmediates`
+    flushingImmediates = true;
+    try { drainImmediateAttacks(onlySummons); } finally { flushingImmediates = false; }
+  }
+
+  /**
+   * TRUE WHILE THE QUEUE IS DRAINING, so a flush cannot nest inside itself.
+   *
+   * Each queued token is landed and takes its strike INLINE, and that strike runs `performAttack` — which now
+   * flushes the queue during its own wind-up (the 2026-09-01 ordering rule). Without this guard the first
+   * charger's swing drained the queue mid-wind-up and ran the SECOND charger's entire summon, attack and death
+   * before its own damage landed:
+   *
+   *   summon m3 · attack m3 · summon m4 · attack m4 · dmg m4 · death m4 · dmg m3 · death m3
+   *
+   * The owner's rule is sequential — *"summons a charging soldier that attacks immediately and settles or
+   * dies, then the second is summoned … and attacks immediately, and then settles or dies"* — which is what
+   * the outer drain loop already produces on its own. It just has to be left alone to do it.
+   */
+  let flushingImmediates = false;
+
+  function drainImmediateAttacks(onlySummons: boolean): void {
     let guard = 0;
-    while (pendingAttackOnSummon.length > 0 && guard++ < IMMEDIATE_ATTACK_GUARD) {
-      const item = pendingAttackOnSummon.shift()!;
+    while (guard++ < IMMEDIATE_ATTACK_GUARD) {
+      const at = onlySummons ? pendingAttackOnSummon.findIndex((q) => q.summon) : (pendingAttackOnSummon.length > 0 ? 0 : -1);
+      if (at < 0) break;
+      const item = pendingAttackOnSummon.splice(at, 1)[0]!;
       // A deferred summon: land the token NOW (a fresh beat), then take its immediate strike as its own beat
       // right after — so it summons and swings as one discrete unit, past the cascade that queued it. Doing the
       // strike inline (not as a separate queue item) keeps a multi-token Deathrattle sequential: each token

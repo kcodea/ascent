@@ -37,8 +37,8 @@ const bm = (cardId: string, uid: string, attack: number, health: number, keyword
 const SANDBAG = { cardId: 'sandbag', attack: 0, health: 99999 } as unknown as BoardMinion;
 
 /** A one-sided fight so the player's swings resolve freely. `questMods` carries hero-power/rune combat mods. */
-function fight(board: BoardMinion[], questMods: Record<string, unknown> = {}) {
-  return simulate(board, [SANDBAG], makeRng(5), CARD_INDEX,
+function fight(board: BoardMinion[], questMods: Record<string, unknown> = {}, enemy: BoardMinion[] = [SANDBAG]) {
+  return simulate(board, enemy, makeRng(5), CARD_INDEX,
     combatSide({ tier: 6, questMods } as never), combatSide({ tier: 1 }));
 }
 
@@ -155,5 +155,96 @@ describe('Doc Bot — a swing that grants stats can always deliver them', () => 
       }
     }
     expect(offenders, 'these events sit in a wind-up unabsorbed — each one splits its swing and strands everything behind it').toEqual([]);
+  });
+});
+
+/**
+ * THE WIND-UP RESOLVES BEFORE THE SWING (owner ruling 2026-09-01).
+ *
+ *   *"echohorn should wind up and trigger rally, which triggers the chicken brawl. chicken brawl's summoned
+ *   minion attacks IMMEDIATELY … it is summoned and attacks BEFORE the echohorn's attack resolves. the echo is
+ *   always fully resolved before the attack goes off for a minion like echohorn (same logic for deathsayer)."*
+ *
+ * An attack-on-summon token DEFERS onto the immediate-attack queue and lands at the next flush. Every flush
+ * point was AFTER a clash, so a token conjured by an ON-ATTACK trigger landed only once the attacker's own
+ * damage had been dealt — its arrival read as an afterthought to the swing that caused it.
+ *
+ * This is an ENGINE ordering rule, not a presentation one (owner chose it over the presentation-only option),
+ * so it is graded on the event log: within one swing, every consequence of the wind-up precedes the attacker's
+ * own damage.
+ */
+describe('Doc Bot — a swing\u2019s wind-up fully resolves before the swing lands', () => {
+  it('a Rally-summoned charger attacks BEFORE the attacker\u2019s own damage', () => {
+    const { events } = fight([
+      bm('b2_echohorn', 'E', 5, 400, ['RL']),
+      bm('dw_chickenbrawl', 'C', 3, 3),
+    ]);
+    const swing = events.findIndex((e) => e.type === 'attack' && e.attacker === 'm0');
+    expect(swing, 'Echohorn never swung — re-check the fixture').toBeGreaterThan(-1);
+    const ownDamage = events.findIndex((e, i) => i > swing && e.type === 'dmg' && e.source === 'm0');
+    const summon = events.findIndex((e, i) => i > swing && e.type === 'summon');
+    expect(summon, 'the Rally summoned nothing — re-check the fixture').toBeGreaterThan(-1);
+    expect(ownDamage, 'the attacker never dealt its damage').toBeGreaterThan(-1);
+    expect(summon, 'the summon landed AFTER the swing it was supposed to precede').toBeLessThan(ownDamage);
+    // …and the charger's own swing, which is the half the owner actually watched go late.
+    const chargerSwing = events.findIndex((e, i) => i > summon && e.type === 'attack' && e.attacker !== 'm0');
+    expect(chargerSwing, 'the summoned body never attacked').toBeGreaterThan(-1);
+    expect(chargerSwing, 'the charger swung after the attacker it should have preceded').toBeLessThan(ownDamage);
+  });
+
+  it('a target killed IN the wind-up cancels the clash — no damage either way', () => {
+    /**
+     * *"if echohorn attacks and triggers fel spikes, and that fel spike triggers and kills the initial target,
+     * echohorn does not then take dmg from that now DEAD target. the echohorn simply settles."* — owner,
+     * 2026-09-01.
+     *
+     * Once a swing's consequences resolve BEFORE it lands, they can kill the body being swung at. The clash is
+     * written for a live exchange and ran anyway, so the attacker dealt damage into a corpse and — the part
+     * that actually showed — took RETALIATION from it. A phantom hit from a dead body.
+     */
+    const { events } = fight([
+      bm('b2_echohorn', 'E', 5, 400, ['RL']),
+      bm('dm_felspikes', 'F', 3, 3),
+    ], {}, [bm('d2_ashscribe', 'x', 1, 2), bm('d2_ashscribe', 'y', 1, 2)]);
+    const swing = events.findIndex((e) => e.type === 'attack' && e.attacker === 'm0');
+    expect(swing, 'Echohorn never swung — re-check the fixture').toBeGreaterThan(-1);
+    const defender = (events[swing] as { defender: string }).defender;
+    const deathAt = events.findIndex((e, i) => i > swing && e.type === 'death' && e.target === defender);
+    expect(deathAt, 'the spray never killed the target — re-check the fixture').toBeGreaterThan(-1);
+    // NOTHING may come back from the corpse: no retaliation onto the attacker, ever again from that body.
+    const fromCorpse = events.filter((e, i) => i > deathAt && e.type === 'dmg' && e.source === defender);
+    expect(fromCorpse, 'a dead body retaliated').toEqual([]);
+  });
+
+  it('a second charger lands when the first dies and frees its slot', () => {
+    /**
+     * *"if it dies, the next charging soldier now has room and should be summoned and immediately attack …
+     * both of those charging soldiers would trigger and attack before the echohorn's actual resolution
+     * attack."* — owner ruling 2026-09-01.
+     *
+     * The cap used to be judged when the tokens were QUEUED — before any of them had lived and died — so on a
+     * full board the second was rejected on a fullness that no longer existed by its turn. It is judged as
+     * each one LANDS now, which is what "usual board space rules" means when they land one at a time.
+     */
+    const src = readFileSync(join(HERE, '../../../core/src/combat/simulate.ts'), 'utf8')
+      .replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\/[^\n]*/g, ' ');
+    const queueBlock = src.slice(src.indexOf('if (card.attackOnSummon || attackNow)'));
+    const upToPush = queueBlock.slice(0, queueBlock.indexOf('pendingAttackOnSummon.push'));
+    expect(/living\(side\)\.length >= 7/.test(upToPush),
+      'the cap must not be judged at queue time — the board it reads is not the one the token lands on').toBe(false);
+    // …and `placeSummon` must still judge it, or nothing does and the board overflows.
+    const place = src.slice(src.indexOf('function placeSummon'));
+    expect(/living\(side\)\.length >= 7/.test(place.slice(0, place.indexOf('return minion'))),
+      'the cap must still be judged as each token lands').toBe(true);
+  });
+
+  it('an immediate strike by a body ALREADY on the board is NOT pulled early', () => {
+    // Scoped deliberately: the ruling is about a SUMMONED body. Solaris Fang's Avenge re-grants a Ward before
+    // each of its two immediate strikes, so draining those in the wind-up strips the second Ward — a different
+    // mechanism with its own ordering, and the reason the flush filters on `summon`.
+    const core = readFileSync(join(HERE, '../../../core/src/combat/simulate.ts'), 'utf8')
+      .replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\/[^\n]*/g, ' ');
+    expect(core.includes('flushImmediateAttacks(true)'),
+      'the wind-up flush must drain summons only').toBe(true);
   });
 });

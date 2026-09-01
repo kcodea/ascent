@@ -106,7 +106,42 @@ function groupBySteps(events: CombatEvent[], start: number, end: number): number
   return groups;
 }
 
+/**
+ * For each event index, does it open a NEW swing's results — the first damage dealt by an attacker whose
+ * `attack` event is still unresolved?
+ *
+ * ── Why the collapse needs this (owner report 2026-09-01) ──────────────────────────────────────────────────
+ *
+ * `collapse` merges a contiguous run of RESULT_TYPES into one moment, which is right for ONE clash: its
+ * damage, its cleave splash, the retaliation and the deaths are a single impact. But two different swings'
+ * results can sit next to each other, and then they merged too:
+ *
+ *     dmg<soldier · dmg<enemy · death · dmg<ECHOHORN · dmg<enemy      ← one beat
+ *
+ * A summoned charger's whole exchange and the parked attacker's whole exchange, in the same beat. Echohorn's
+ * swing therefore had no beat of its own, which is why no amount of holding or delaying could separate them —
+ * *"its attack follows immediately after the charging soldier attacks"* was them being literally simultaneous.
+ *
+ * The rule this expresses is simply **one swing's results are one beat**. A retaliation is not a new swing
+ * (the defender has no open `attack`), so an ordinary clash is untouched — which is what keeps this from
+ * re-pacing every fight in the game.
+ */
+function swingOpeners(events: CombatEvent[]): boolean[] {
+  const flags = new Array<boolean>(events.length).fill(false);
+  const pending = new Set<string>();
+  for (let i = 0; i < events.length; i++) {
+    const e = events[i]!;
+    if (e.type === 'attack') pending.add(e.attacker);
+    else if (e.type === 'dmg' && typeof e.source === 'string' && pending.has(e.source)) {
+      flags[i] = true;
+      pending.delete(e.source); // its swing has landed; later damage from it belongs to whatever caused that
+    }
+  }
+  return flags;
+}
+
 export function compileMoments(events: CombatEvent[], rules: GroupingRules = DEFAULT_RULES): Moment[] {
+  const opensSwing = swingOpeners(events);
   const moments: Moment[] = [];
   let i = 0;
   while (i < events.length) {
@@ -120,7 +155,10 @@ export function compileMoments(events: CombatEvent[], rules: GroupingRules = DEF
       // (the equivalence oracle) exactly. Real logs today carry no wave tags, so equivalence is untouched.
       while (i < events.length && events[i]!.wave === w) i++;
     } else if (rules.collapse.has(t)) {
-      while (i < events.length && events[i]!.wave === undefined && rules.collapse.has(events[i]!.type)) i++;
+      // `i > start` so a run always keeps its OWN opening damage — it is only a LATER swing's first damage
+      // that starts a new moment.
+      while (i < events.length && events[i]!.wave === undefined && rules.collapse.has(events[i]!.type)
+        && !(i > start && opensSwing[i])) i++;
     } else if (rules.collapseRuns.has(t)) {
       while (i < events.length && events[i]!.wave === undefined && events[i]!.type === t) i++;
     } else if (t === 'attack') {

@@ -359,6 +359,9 @@ class FxController {
   private layer: Container | null = null;
   private ready = false;
   private initing: Promise<void> | null = null;
+  /** Renderer-ready listeners (`onRendererReady`): called once per GL CONTEXT the controller brings up —
+   *  the main canvas on every `attach`, and each slot canvas when it is created. */
+  private rendererListeners: Array<(renderer: Renderer, slot: FxSlot) => void> = [];
   private sparkTex: Texture | null = null;
   private glowTex: Texture | null = null;
   private shardRectTex: Texture | null = null; // jagged spark: elongated rectangle
@@ -509,7 +512,7 @@ class FxController {
     this.underLayer = layer;
     if (this.underHost) this.underHost.appendChild(c);
     for (const pending of this.pendingUnderMounts) layer.addChild(pending);
-    this.pendingUnderMounts.length = 0;
+    this.pendingUnderMounts.length = 0;    this.fireRendererReady(app.renderer, 'under');
   }
 
   /** Bring the above-modal canvas up, if it isn't already. Fire-and-forget, exactly like `ensureUnderSlot`:
@@ -543,7 +546,7 @@ class FxController {
     this.aboveLayer = layer;
     document.body.appendChild(c);
     for (const pending of this.pendingAboveMounts) layer.addChild(pending);
-    this.pendingAboveMounts.length = 0;
+    this.pendingAboveMounts.length = 0;    this.fireRendererReady(app.renderer, 'above');
   }
 
   /** Render the above-modal stage, driven by the MAIN app's ticker. Skips while nothing is mounted, so an
@@ -735,6 +738,30 @@ class FxController {
     perfMonitor.registerCounter(`${ns}weld rings`, () => this.weldRings.length);
     perfMonitor.registerCounter(`${ns}spell arrows`, () => this.spellArrows.length);
     this.ready = true;
+    this.fireRendererReady(app.renderer, 'over');
+  }
+
+  /**
+   * Run `cb` with every renderer this controller has NOW, and with every one it creates LATER — the main
+   * canvas on each `attach()`, the under / above canvases as they come up. A GL context is where shader
+   * programs are compiled and cached, so anything that must be paid once per context (the FX pre-warm) hangs
+   * off this rather than polling for `renderer`: the main canvas only exists once the board mounts, which in
+   * real play is a title screen, a mode pick and a hero ceremony after the game loads — the old 8 s poll gave
+   * up long before that, so the warm-up never ran and the first fire of every session paid the compile
+   * (the 0.6–0.8 s first-play freeze measured 2026-09-01). Returns a disposer.
+   */
+  onRendererReady(cb: (renderer: Renderer, slot: FxSlot) => void): () => void {
+    this.rendererListeners.push(cb);
+    if (this.app) cb(this.app.renderer, 'over');
+    if (this.underApp) cb(this.underApp.renderer, 'under');
+    if (this.aboveApp) cb(this.aboveApp.renderer, 'above');
+    return () => { this.rendererListeners = this.rendererListeners.filter((l) => l !== cb); };
+  }
+
+  private fireRendererReady(renderer: Renderer, slot: FxSlot): void {
+    for (const cb of this.rendererListeners) {
+      try { cb(renderer, slot); } catch (e) { console.error('[pixiFx] renderer-ready listener failed:', e); }
+    }
   }
 
   /** Remove the canvas from the DOM and tear the app down. */

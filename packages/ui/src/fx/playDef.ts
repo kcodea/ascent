@@ -282,7 +282,7 @@ export function ensureDefsReady(): Promise<void> {
   // session on every path.
   readying ??= import('./primitives').then(
     (mod) => {
-      schedulePrewarm(mod.prewarmFxMaterials);
+      schedulePrewarm(mod.fxPrewarmSteps, mod.slotPrewarmSteps);
     },
     (e: unknown) => {
       console.warn('[fx] could not load the def primitives — defs will not play:', e);
@@ -294,40 +294,43 @@ export function ensureDefsReady(): Promise<void> {
 /** How long to keep waiting for the overlay's renderer before giving up on pre-warming, and how often to
  *  look. A few seconds is far longer than `pixiFx.attach()` has ever taken; the cap is only there so a
  *  session where the overlay never initialises (no WebGL) doesn't hold a timer forever. */
-const PREWARM_POLL_MS = 120;
-const PREWARM_GIVE_UP_MS = 8_000;
-
 /**
- * Run the FX shader pre-warm as soon as the overlay has a renderer — polling for it rather than assuming.
+ * Pay the FX shader links off the play path, once per GL context.
  *
- * The ordering here is the whole point and it is NOT guaranteed: `Game.tsx` calls `ensureDefsReady()` on
- * mount, and `pixiFx.attach()` → `init()` is an independent async chain that creates the `Application`. The
- * primitives' dynamic import usually resolves FIRST, so `pixiFx.renderer` is still null at that moment and a
- * straight-line `prewarmFxMaterials(pixiFx.renderer)` silently does nothing — leaving the ~68 ms-per-source
- * GLSL link to land on the first combat collision, which is exactly the frame we are trying to protect.
+ * Hangs off `pixiFx.onRendererReady` — NOT a poll. The first version polled `pixiFx.renderer` and gave up
+ * after 8 s; the board (and so the renderer) only mounts after the title screen, the mode pick and the hero
+ * ceremony, so in real play the poll always expired first and the warm-up never ran. Every session's first
+ * fire then compiled its programs synchronously: the 0.6–0.8 s first-play freeze measured 2026-09-01.
  *
- * Deliberately NOT awaited by `ensureDefsReady`: nothing should wait on a pre-warm, and a caller that fires a
- * def before the warm lands just pays the old first-fire cost once.
+ * The main canvas gets the pooled set; a slot canvas (its own context, its own program cache — and the one
+ * the landing FX actually plays on) gets a link-only set of the same programs. Both are spread one link per
+ * macrotask so the mount frame is not the one that absorbs them all. Each new context — a re-attach after
+ * `detach()` included — is warmed again, because its predecessor's programs died with it.
  */
-function schedulePrewarm(prewarm: (renderer: Renderer | null) => void): void {
+function schedulePrewarm(
+  steps: (renderer: Renderer | null) => Array<() => void>,
+  slotSteps: (renderer: Renderer | null) => Array<() => void>,
+): void {
   if (typeof window === 'undefined') return;
-  let waited = 0;
-  const tick = (): void => {
-    const renderer = pixiFx.renderer;
-    if (renderer) {
-      prewarm(renderer);
-      // Bring the under-card canvas up ONLY if something committed actually wants it. A page whose defs are
-      // all `over` never creates a second GL context — the lazy half of "lazy on first use" — while a page
-      // that will need one has it long before the first combat, so no fire is ever dropped waiting on init.
-      if (listDefs().some((d) => d.slot === 'under')) void pixiFx.ensureUnderSlot();
-      if (listDefs().some((d) => d.slot === 'above')) void pixiFx.ensureAboveSlot();
-      return;
-    }
-    waited += PREWARM_POLL_MS;
-    if (waited >= PREWARM_GIVE_UP_MS) return;
-    window.setTimeout(tick, PREWARM_POLL_MS);
-  };
-  tick();
+  pixiFx.onRendererReady((renderer, slot) => {
+    const queue = slot === 'over' ? steps(renderer) : slotSteps(renderer);
+    const next = (): void => {
+      const step = queue.shift();
+      if (!step) return;
+      // A context torn down mid-queue (a fast detach) is skipped; every warm is best-effort anyway and
+      // already swallows a failed link.
+      if (pixiFx.rendererFor(slot) === renderer) step();
+      window.setTimeout(next, 0);
+    };
+    window.setTimeout(next, 0);
+    if (slot !== 'over') return;
+    // Bring the under / above canvases up ONLY if something committed actually wants them. A page whose defs
+    // are all `over` never creates a second GL context — the lazy half of "lazy on first use" — while a page
+    // that will need one has it long before the first combat, so no fire is ever dropped waiting on init.
+    // Their warm-up arrives through this same listener when they come up.
+    if (listDefs().some((d) => d.slot === 'under')) void pixiFx.ensureUnderSlot();
+    if (listDefs().some((d) => d.slot === 'above')) void pixiFx.ensureAboveSlot();
+  });
 }
 
 // ─── the bridge ────────────────────────────────────────────────────────────────────────────────────────

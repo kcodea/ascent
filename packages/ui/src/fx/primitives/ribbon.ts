@@ -9,7 +9,7 @@ import { PALETTE_PRESETS, paletteTuple, tupleFloats } from '../palettes';
 import { FX_BLEND_MODES } from '../blendModes';
 import { registerPrimitive } from '../registry';
 import { makeRng } from '../rng';
-import { acquireShader, prewarmShaders, releaseShader } from '../shaderPool';
+import { acquireShader, linkShader, prewarmShaders, releaseShader } from '../shaderPool';
 import { CURVE_PRESETS } from '../curve';
 import {
   RIBBON_MAX_SEGMENTS,
@@ -426,6 +426,14 @@ function makeRibbonShader(): Shader {
  *  compile. See `primitives/index.ts`'s `prewarmFxMaterials`. */
 export function prewarmRibbonShaders(renderer: Renderer | null, count = 2): void {
   prewarmShaders(RIBBON_SHADER_KEY, count, renderer, makeRibbonShader);
+}
+
+/** Link the ribbon program on `renderer` WITHOUT pooling — for a slot canvas, whose context the module-global
+ *  pool does not serve. The returned shader must be kept alive by the caller so the program stays cached. */
+export function linkRibbonShaderOn(renderer: Renderer): Shader {
+  const shader = makeRibbonShader();
+  linkShader(renderer, shader);
+  return shader;
 }
 
 /**

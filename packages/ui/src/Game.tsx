@@ -89,6 +89,7 @@ export function Game() {
   const runKey = useGame((s) => `${s.run.seed}:${s.run.heroId}:${s.replaySeekEpoch}`);
   // See `isPreRun`: the board must not render (or tick) until a run is actually entered.
   const preRun = useGame(isPreRun);
+  const heroPicking = useGame((s) => s.heroChoices !== null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [perfOn, setPerfOn] = useState(perfEnabledByFlag);
 
@@ -364,9 +365,6 @@ export function Game() {
       {!preRun && (
         <>
           <Recruit key={runKey} />
-          {/* WebGL effects overlay (particle impacts, flashes) — a transparent full-viewport Pixi
-              canvas drawn over the board; the combat replay fires effects into it at contact points. */}
-          <PixiFxLayer />
           {phase === 'gameover' && <EndScreen won={false} />}
           {phase === 'victory' && <EndScreen won={true} />}
         </>
@@ -374,6 +372,18 @@ export function Game() {
       {/* Keyed on run identity like Recruit: the StatusBar's `prevHp` ref tracks Resolve across the run to
           float a "−X" when a wave breaks through. Without a key it persists across a new-run pick, so its ref
           holds the PREVIOUS run's HP — picking a hero with lower starting HP then floats a phantom "−X". */}
+      {/* WebGL effects overlay (particle impacts, flashes) — a transparent full-viewport Pixi canvas drawn over
+          the board; the combat replay fires effects into it at contact points.
+
+          Mounted from the HERO PICKER onward, not only with the board. The canvas is inert until a fire — no
+          run, no clock, nothing drawn — so it is outside the 2026-08-30 ruling above, and mounting it here is
+          what gives the FX shader pre-warm (`playDef.ts`'s `schedulePrewarm`, which hangs off this canvas's
+          renderer) the picker + ceremony seconds to compile in. Mounted with the board instead, every link
+          landed on the shop's card fly-in (a 180–420 ms hitch, measured 2026-09-01); before the pre-warm ran
+          at all, on the first minion played (0.6–0.8 s). One JSX position across both states, so the canvas
+          survives the picker → board transition without a detach/re-attach (which would throw its compiled
+          programs away with the context). */}
+      {(!preRun || heroPicking) && <PixiFxLayer />}
       {!preRun && <StatusBar key={`sb:${runKey}`} />}
       {showBook && <MinionBook />}
       <Inspect />

@@ -10,7 +10,7 @@ import { FX_BLEND_MODES } from '../blendModes';
 import { registerPrimitive } from '../registry';
 import { NOISE_GLSL, POSTERIZE_PAL_GLSL } from '../shaderChunks';
 import { bakeCurveLut, isIdentityCurve, CURVE_PRESETS } from '../curve';
-import { acquireShader, prewarmShaders, releaseShader } from '../shaderPool';
+import { acquireShader, linkShader, prewarmShaders, releaseShader } from '../shaderPool';
 
 /**
  * An expanding posterized shockwave ring — several concentric rings expanding outward from an anchor
@@ -467,6 +467,13 @@ function makeShockwaveShader(): Shader {
  *  compile. See `primitives/index.ts`'s `prewarmFxMaterials`. */
 export function prewarmShockwaveShaders(renderer: Renderer | null, count = 2): void {
   prewarmShaders(SHOCKWAVE_SHADER_KEY, count, renderer, makeShockwaveShader);
+}
+
+/** Link the shockwave program on `renderer` WITHOUT pooling — see `linkRibbonShaderOn`. */
+export function linkShockwaveShaderOn(renderer: Renderer): Shader {
+  const shader = makeShockwaveShader();
+  linkShader(renderer, shader);
+  return shader;
 }
 
 /**

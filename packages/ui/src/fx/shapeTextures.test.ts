@@ -45,3 +45,42 @@ describe('resolveParticleScale', () => {
     expect(scaleY).toBe(0);
   });
 });
+
+/**
+ * `prewarmShapeTextures` exists to pay Pixi's batch-shader link BEFORE the first fire (a measured 0.6 s
+ * first-play freeze, 2026-09-01). The link itself needs a GL context, so these pin the contract around it with
+ * a stub renderer: every built-in shape is baked through `generateTexture` exactly once, a second warm is a
+ * no-op (the per-renderer cache), a null renderer is a no-op, and a failing bake never escapes.
+ */
+describe('prewarmShapeTextures', () => {
+  const stubRenderer = (impl?: () => unknown) => {
+    const calls: unknown[] = [];
+    return { calls, renderer: { generateTexture: (opts: unknown) => { calls.push(opts); return impl ? impl() : { __tex: calls.length }; } } as unknown as import('pixi.js').Renderer };
+  };
+
+  it('bakes every built-in shape once through the renderer (the batcher links on the first of them)', async () => {
+    const { prewarmShapeTextures, getShapeTexture } = await import('./shapeTextures');
+    const { calls, renderer } = stubRenderer();
+    prewarmShapeTextures(renderer);
+    expect(calls.length).toBe(SHAPE_NAMES.length);
+    // …and the bake is the SAME cache the first fire reads, so it finds every shape already baked.
+    for (const shape of SHAPE_NAMES) getShapeTexture(renderer, shape);
+    expect(calls.length, 'a fire after the warm-up must not bake again').toBe(SHAPE_NAMES.length);
+  });
+
+  it('is idempotent per renderer, and independent across renderers (each GL context has its own cache)', async () => {
+    const { prewarmShapeTextures } = await import('./shapeTextures');
+    const a = stubRenderer(), b = stubRenderer();
+    prewarmShapeTextures(a.renderer); prewarmShapeTextures(a.renderer);
+    expect(a.calls.length).toBe(SHAPE_NAMES.length);
+    prewarmShapeTextures(b.renderer);
+    expect(b.calls.length, 'a second context must bake (and link) its own').toBe(SHAPE_NAMES.length);
+  });
+
+  it('is a no-op without a renderer and swallows a failing bake (the first fire pays instead)', async () => {
+    const { prewarmShapeTextures } = await import('./shapeTextures');
+    expect(() => prewarmShapeTextures(null)).not.toThrow();
+    const { renderer } = stubRenderer(() => { throw new Error('no GL'); });
+    expect(() => prewarmShapeTextures(renderer)).not.toThrow();
+  });
+});

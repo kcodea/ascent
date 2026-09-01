@@ -290,7 +290,7 @@ function ScoutCard({ lobby, seat, intel, at, pinned }: {
               <span className="lobbyscout-round">{r.round}</span>
               <span className="lobbyscout-vs">
                 {r.foeHeroId
-                  ? <img className="lobbyscout-foeface" src={heroArt(r.foeHeroId)} alt={r.foeLabel} title={r.foeLabel} />
+                  ? <img className="lobbyscout-foeface" src={heroArt(r.foeHeroId)} alt={r.foeLabel} />
                   : <span className="lobbyscout-vslabel">vs {r.foeLabel}</span>}
               </span>
               {/* The outcome sits BETWEEN the portrait and the damage (owner ask 2026-08-31). */}

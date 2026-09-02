@@ -33,6 +33,16 @@ Two failures worth knowing because both shipped here:
 - **Consequences without position.** A summon consequence that carries no board index makes the projection
   append the arrival, which then visibly snaps to its real slot at commit. Stamp the committed index.
 
+- **A repeated trigger must be COUNTED at the signal.** A multiplier (Drakko, a gild, Sylus) that repeats an
+  effect is only visible if the engine logs one event PER FIRE inside the repeat loop — `rally` and `shout`
+  both do — and the presentation scans per event, not per moment (`channels/rallyFired.ts`,
+  `channels/shoutFired.ts`). Narration lines (`sc`) are NOT a signal: they are absorbed silently, pulse a unit
+  at most once per beat, and float on one pixel — which is exactly how a gilded Drakko's three fires read as
+  one (2026-09-01). And a repeated effect whose CONSEQUENCES must read one at a time (stats rolling per fire)
+  needs one MOMENT per fire with its own frame commit, not cues staggered inside one beat — the swing that
+  caused them parks (the Echohorn hold) and strikes on its own damage beat. Staggered cues inside a stretched
+  wind-up were tried for Shout re-fires and rejected: every effect committed at once, then a frozen pause.
+
 Other rules:
 
 - Separate trigger presentation from consequences: a source may pulse first, with buffs/summons/casts landing

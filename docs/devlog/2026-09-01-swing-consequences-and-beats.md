@@ -101,3 +101,8 @@ tweens in between, `play()` runs an empty shell — a strike with no travel, int
 this occasionally. Two attempts to rebuild the strike instead were rolled back because each was paired with
 another change that regressed something else; the rebuild ALONE, on top of the beat split, is the outstanding
 work.
+
+> **Update, later the same day (`2026-09-01-shout-refire-beats.md`):** the release is now driven by the resumed
+> strike's own CONTACT — the beat clock resumes the timeline after the stillness and the lunge's `onParkedContact`
+> advances into the damage beat, so the numbers land on the hit instead of on a timer. A fallback timer covers
+> the empty-shell case, so it can no longer stall; the rebuild of a gutted timeline is still open.

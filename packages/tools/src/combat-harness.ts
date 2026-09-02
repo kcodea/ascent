@@ -78,6 +78,8 @@ function describe(ev: CombatEvent, names: Map<string, string>): string {
       return `   ◉ ${n(ev.target)}'s Avenge raises max Gold +${ev.amount}`;
     case 'rally':
       return `   ☠ ${n(ev.source)}'s Rally fires ${n(ev.target)}'s Deathrattle`;
+    case 'shout':
+      return `   📣 ${n(ev.source)} triggers ${n(ev.target)}'s Shout`;
     case 'toHand':
       return `   ✋ ${CARD_INDEX[ev.cardId]?.name ?? ev.cardId} added to hand`;
     case 'hpGrant':

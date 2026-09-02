@@ -51,6 +51,11 @@ export interface AttackCueCtx {
   holdAfterWindup?: boolean;
   /** Fired at the held-windup pause — the caller advances the beat here (see `holdAfterWindup`). */
   onWindupHeld?: () => void;
+  /** A PARKED swing's contact (`holdAfterWindup`): fired when the RESUMED strike connects. The caller binds
+   *  what it means at resume time — advancing the clock into the attacker's own damage beat — so the numbers
+   *  land ON the hit, the way an ordinary swing's `advance` does, instead of on a timer guessed at the park
+   *  (owner 2026-09-01: the parked strike "resolved extremely fast" — its damage committed before it landed). */
+  onParkedContact?: () => void;
 }
 
 /** ms the lunge holds at the top of the wind-up when a Rally fires, so its bright yellow pulse has time to
@@ -159,11 +164,12 @@ export function runAttackExchangeCues(
     // the strike target was solved from it — one frame, no mixed-measurement drift.
     attacker, dx: ldx, dy: ldy, speed: ctx.combatSpeed, flurry: hasFlurry,
     strike: strikeOffset, resolveStrike, strikeDur: geo.strikeDur, travel: geo.travel, leadTilt: geo.leadTilt, attackerRebound: cfg.attackerRebound,
-    // HELD WINDUP: the beat advances off the wind-up pause (`onWindupHeld`), and the later, resumed strike is
-    // decorative — so contact must NOT advance the clock again. A normal swing advances off contact as before.
+    // HELD WINDUP: the beat advances off the wind-up pause (`onWindupHeld`); the resumed strike's contact then
+    // fires `onParkedContact`, which the caller binds at RESUME time to the advance into its own damage beat —
+    // so the hit commits at contact, like an ordinary swing. A normal swing advances off contact as before.
     holdAfterWindup: ctx.holdAfterWindup === true,
     onWindupHeld: ctx.onWindupHeld,
-    onContact: ctx.holdAfterWindup === true ? () => {} : () => ctx.advance(),
+    onContact: ctx.holdAfterWindup === true ? () => ctx.onParkedContact?.() : () => ctx.advance(),
     onImpact: impact ? () => { playContactImpact(defender, ldx, ldy, power, ctx.combatSpeed, liveImpactAt(), spinDeg, crit, hasFlurry, flurrySlash, ctx.execute === true, hasCleave); if (crit) ctx.onCritImpact?.(); } : undefined,
     impactOffsetMs: impact?.offset ?? 0,
     hitStopMs: hasCleave ? getCleaveFxConfig().hitStopMs : 0,

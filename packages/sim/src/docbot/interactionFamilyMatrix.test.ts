@@ -243,9 +243,10 @@ describe('Doc Bot — trigger-family interaction matrix', () => {
       const r = simulate(board, [bm('cryptwolf', 'e0', 0, 4)], makeRng(7), CARD_INDEX,
         combatSide({ tier: 6 }), combatSide({ tier: 6 }));
       expect(r.result).toBe('win');
-      // One narration per re-trigger (the arena body), one +2/+2 buff per FIRE (Emissary's Battlecry) —
-      // the ratio is the fold.
-      const triggers = r.events.filter((e) => e.type === 'sc' && /triggers .*Shout/.test((e as { text?: string }).text ?? '')).length;
+      // One counted `shout` event per FIRE (2026-09-01 — it replaced the arena body's narration line), one
+      // +2/+2 buff per fire (Emissary's Battlecry): with Drakko both scale together, so the RATIO to the
+      // Drakko-less control is the fold.
+      const triggers = r.events.filter((e) => e.type === 'shout').length;
       const fires = r.events.filter((e) => e.type === 'buff'
         && (e as { attack?: number }).attack === 2 && (e as { health?: number }).health === 2).length;
       return { triggers, fires };
@@ -254,8 +255,10 @@ describe('Doc Bot — trigger-family interaction matrix', () => {
     expect(plain.triggers, 'the fixture must produce at least one Embercrest re-trigger').toBeGreaterThanOrEqual(1);
     expect(plain.fires, 'control: one fire per re-trigger').toBe(plain.triggers);
     const folded = run(true);
-    expect(folded.fires,
-      'with Drakko each re-trigger fires 2× (factories.ts replayShout folds drakkoRepeats — owner ruling q-interact-combat-shout-multipliers)').toBe(folded.triggers * 2);
+    // Per-FIRE events: with Drakko the fire count itself doubles against the control, and every fire still
+    // carries exactly one buff (factories.ts replayShout folds drakkoRepeats — owner ruling q-interact-combat-shout-multipliers).
+    expect(folded.triggers, 'with Drakko each re-trigger fires 2×').toBe(plain.triggers * 2);
+    expect(folded.fires, 'one buff per fire').toBe(folded.triggers);
   });
 
   // P11 — Empty Graves' forced Echo × the Echo multipliers + the marked body's gild.

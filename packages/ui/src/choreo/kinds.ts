@@ -12,7 +12,7 @@ export type MomentKind =
   | 'death'
   | 'riseDeath'
   | 'scCast' | 'scNarrate'
-  | 'summon' | 'buffWave' | 'reborn' | 'ascend' | 'rally' | 'toHand' | 'maxGold' | 'improve'
+  | 'summon' | 'buffWave' | 'reborn' | 'ascend' | 'rally' | 'shout' | 'toHand' | 'maxGold' | 'improve'
   | 'keyword' | 'keywordLost' | 'hpGrant' | 'spellProgress' | 'reveal' | 'tribeAura'
   | 'questTrigger' | 'questComplete';
 
@@ -46,6 +46,10 @@ export function momentKind(primary: CombatEvent): MomentKind {
     case 'reborn': return 'reborn';
     case 'ascend': return 'ascend';
     case 'rally': return 'rally';
+    // A Shout RE-FIRE — one moment per FIRE, carrying the consequences that fire produced (see the `shout`
+    // branch in `compileMoments`). Paced like a narration beat; scored like a buff wave, since that is what
+    // a re-fired Shout most often is.
+    case 'shout': return 'shout';
     case 'toHand': return 'toHand';
     case 'maxGold': return 'maxGold';
     case 'improve': return 'improve';

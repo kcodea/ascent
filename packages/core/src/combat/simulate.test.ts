@@ -1729,7 +1729,7 @@ describe('simulate (handoff A.3)', () => {
       [{ cardId: 'omen', attack: 40, health: 4000, keywords: [] }],
       1,
     );
-    expect(r.events.some((e) => e.type === 'sc' && /triggers Field Mechanic/.test(e.text)), 'Ryme named it').toBe(true);
+    expect(r.events.some((e) => e.type === 'shout'), 'Ryme fired it — a counted shout event').toBe(true);
     expect(r.playerHandGrants, 'granted live, carried back').toEqual(['patchjob']);
     expect(r.playerDeferredBattlecries?.map((d) => d.cardId) ?? [], 'nothing left to defer')
       .not.toContain('fieldmechanic');
@@ -1752,7 +1752,7 @@ describe('simulate (handoff A.3)', () => {
       .toEqual(['patchjob']);
     // …and it is announced ON the Deathrattle, not tacked on at the end of the log.
     const death = r.events.findIndex((e) => e.type === 'death');
-    const trigger = r.events.findIndex((e) => e.type === 'sc' && /triggers Field Mechanic/.test(e.text));
+    const trigger = r.events.findIndex((e) => e.type === 'shout');
     const grantAt = r.events.findIndex((e) => e.type === 'toHand');
     expect(grantAt).toBeGreaterThan(death);
     expect(grantAt).toBeGreaterThanOrEqual(trigger);
@@ -1776,7 +1776,7 @@ describe('simulate (handoff A.3)', () => {
       [{ cardId: 'omen', attack: 40, health: 4000, keywords: [] }],
       1,
     );
-    const fired = r.events.filter((e) => e.type === 'sc' && /triggers .*Battlecry/.test(e.text));
+    const fired = r.events.filter((e) => e.type === 'shout');
     expect(fired.length, 'both flanking Battlecries fire, not just the unblocked one').toBe(2);
   });
 
@@ -1804,7 +1804,7 @@ describe('simulate (handoff A.3)', () => {
       [{ cardId: 'omen', attack: 50, health: 2000, keywords: [] }],
       1,
     );
-    expect(r.events.filter((e) => e.type === 'sc' && /triggers/.test(e.text)).length).toBe(1); // 1 trigger narrated
+    expect(r.events.filter((e) => e.type === 'shout').length).toBe(1); // 1 trigger — one counted shout event
     // Flat +3/+3 (owner balance 2026-08-18: +4/+4 → +3/+3, and the 20% double clause was removed) — proves Karwind procced.
     const proc = r.events.some((e) => e.type === 'buff' && e.attack === 3 && e.health === 3);
     expect(proc, 'Karwind never procced').toBe(true);
@@ -1824,8 +1824,8 @@ describe('simulate (handoff A.3)', () => {
       [{ cardId: 'omen', attack: 50, health: 4000, keywords: [] }],
       1,
     );
-    // 2 neighbours × 2 (golden Ryme) × 2 (Drakko) = 8 triggers — one sc narration each.
-    expect(r.events.filter((e) => e.type === 'sc' && /triggers/.test(e.text)).length).toBe(8);
+    // 2 neighbours × 2 (golden Ryme) × 2 (Drakko) = 8 triggers — one counted shout event each.
+    expect(r.events.filter((e) => e.type === 'shout').length).toBe(8);
     // Karwind procs once per trigger. Since the 2026-08-07 rework the adjacency clause is GONE: every Dragon
     // takes the same flat +3/+3, so Karwind itself and the Hoard Cleric both collect on each of the 8 triggers
     // (Drakko is NEUTRAL and is passed over, as before). Owner balance 2026-08-18: +4/+4 → +3/+3 and the 20%
@@ -2985,9 +2985,9 @@ describe('simulate (handoff A.3)', () => {
       { cardId: 'tsshout', attack: 2, health: 20, sourceUid: 'SH' },
     ], [{ cardId: 'sandbag', attack: 0, health: 400 }], makeRng(3), { ...CARD_INDEX, tsshout: shouter, tssov: sov },
       combatSide({ tier: 6, tribes: ['dragon'] }), combatSide({ tier: 1 }));
-    // the Shout re-fired: a +3/+3 buff landed, and it was narrated so the replay can show it
+    // the Shout re-fired: a +3/+3 buff landed, and a counted `shout` event was logged so the replay can show it
     expect(r.events.some((e) => e.type === 'buff' && e.attack === 3 && e.health === 3)).toBe(true);
-    expect(r.events.some((e) => e.type === 'sc' && /triggers .*Battlecry/.test(e.text ?? ''))).toBe(true);
+    expect(r.events.some((e) => e.type === 'shout')).toBe(true);
   });
 
   it('set 2 — a triggered Shout procs KARWIND (the tribe’s own combo)', () => {

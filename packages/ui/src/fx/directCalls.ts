@@ -95,7 +95,7 @@ export const DYNAMIC_CALL_SITES: Readonly<Record<string, number>> = {
   'EquipFxTuner.tsx': 1,
   // SIX since 2026-09-01: the `buffedOn` fan-out is a sixth `playDef(binding.def, …)`, playing ON each buffed
   // unit rather than travelling to it (Dragonflame). Same binding path, one more anchor convention.
-  'choreo/score.ts': 6,
+  'choreo/score.ts': 7, // +1 on 2026-09-01: the `shoutFx` cue plays a `shout`-kind binding per re-fire proc
   // The shop's binding path, the recruit-phase twin of score.ts's. Six `playDef(binding.def, …)`: the
   // per-card cascade (`fireLand`), the shop-gem volley's single spanning play (`runShopRubiedSpan`), the
   // shop-wide buff aura's single camera-anchored play (`runShopBuffAllFire`), the `spellCast` cast-FX

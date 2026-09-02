@@ -17,8 +17,8 @@ describe('Dawnclaw re-fires a neighbour Shout', () => {
     const r = simulate(
       [bm('d2_broodwhelp', 1, 9999), bm('b2_dawnclaw', 1, 1)],
       [bm('sandbag', 50, 9999)], makeRng(4), CARD_INDEX, combatSide({ tier: 4 }), combatSide({ tier: 4 }));
-    const scs = r.events.filter((e) => e.type === 'sc').map((e) => (e as { text?: string }).text);
-    expect(scs.some((t) => t?.includes('Dawnclaw triggers')), 'the Echo did not re-fire the Shout').toBe(true);
+    // A re-fire is a counted `shout` event (2026-09-01), not a narration line.
+    expect(r.events.some((e) => e.type === 'shout'), 'the Echo did not re-fire the Shout').toBe(true);
     // The proof that matters: a buff SOURCED FROM THE NEIGHBOUR (m0) — the re-fired Shout itself. A loose
     // "any buff happened" assertion passes without the fix, because the enemy dummy buffs itself every swing.
     const fromShout = r.events.filter((e) => e.type === 'buff' && (e as { source?: string }).source === 'm0');
@@ -41,8 +41,7 @@ describe('Dawnclaw re-fires a neighbour Shout', () => {
     const r = simulate(
       [bm('d2_broodwhelp', 1, 1), bm('b2_dawnclaw', 1, 1)],
       [bm('sandbag', 50, 9999)], makeRng(4), CARD_INDEX, combatSide({ tier: 4 }), combatSide({ tier: 4 }));
-    const scs = r.events.filter((e) => e.type === 'sc').map((e) => (e as { text?: string }).text);
-    expect(scs.some((t) => t?.includes('Dawnclaw triggers'))).toBe(false);
+    expect(r.events.some((e) => e.type === 'shout')).toBe(false);
   });
 
   it('battlecryBuffTarget is registered as combat-replayable', () => {
@@ -62,7 +61,7 @@ describe('the rest of the audited combat Shouts', () => {
 
   it("Frenzied Excavator's Rubies land during combat (the reported case)", () => {
     const r = ECHO_BUFFS('k_frenzied');
-    expect(r.events.some((e) => e.type === 'sc' && (e as { text?: string }).text?.includes('Dawnclaw triggers'))).toBe(true);
+    expect(r.events.some((e) => e.type === 'shout')).toBe(true);
     // A RUBY buff specifically — `ctx.buff(..., true)` tags the event, so this can't pass on an ordinary buff.
     const rubies = r.events.filter((e) => e.type === 'buff' && (e as { ruby?: true }).ruby && (e as { source?: string }).source === 'm0');
     expect(rubies.length, 'the re-fired Excavator played no Ruby during combat').toBeGreaterThan(0);

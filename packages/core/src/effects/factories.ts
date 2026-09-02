@@ -451,10 +451,7 @@ function combatArena(ctx: CombatContext, self: Minion): EffectArena {
       // here (the combat verb) mirrors that boundary, so every arena consumer (Embercrest, …) inherits it
       // and cannot drift flat again. One `battlecryTriggered` emit per fire, matching Ryme's convention.
       const reps = drakkoRepeats(ctx, self.side);
-      for (let r = 0; r < reps; r++) {
-        replayCombatBattlecry(ctx, m);
-        ctx.bus.emit('battlecryTriggered', { side: self.side, minion: m });
-      }
+      for (let r = 0; r < reps; r++) fireShout(ctx, self, m);
     },
     hasEcho: (t, strict) => (t as Minion).effects.some((e) => e.on === 'onDeath' && (!strict || e.do.startsWith('deathrattle'))),
     triggerEchoOn: (t, strict) => {
@@ -564,6 +561,24 @@ const hasBattlecry = (m: Minion): boolean =>
  *  so one Drakko makes each trigger fire twice, a golden Drakko three times. */
 export const drakkoRepeats = (ctx: CombatContext, side: Side): number =>
   1 + extraTriggerFires('battlecry', ctx.living(side), (id) => ctx.getCard(id));
+
+/**
+ * ONE combat Shout re-fire, the way every re-trigger card does it (Dawnclaw / Ryme, Thunderous Sovereign,
+ * Chorus Drake, the arena's `replayShout` for Embercrest & co.): a COUNTED `shout` event, then the Battlecry's
+ * combat effect, then the `battlecryTriggered` bus emit (Karwind / Bane / Embermouth proc per fire).
+ *
+ * The event is the whole point (owner 2026-09-01). These sites used to log an `sc` narration line per fire,
+ * and narration is absorbed silently into the swing's wind-up — so a gilded Drakko's three fires of one Shout
+ * pulsed once, floated three identical numbers on one pixel, and were tallied under "Start of Combat". Like
+ * `rally`, a `shout` is logged INSIDE the repeat loop so the multiplier survives to the signal; the UI's
+ * `shoutFired` channel gives each fire its own beat, and the Combat Log / Procs tab name it as a Shout.
+ * Callers still own the repeat loop (`drakkoRepeats` × gild), so the count they compute is the count shown.
+ */
+export function fireShout(ctx: CombatContext, source: Minion, target: Minion): void {
+  ctx.log({ type: 'shout', source: source.uid, target: target.uid });
+  replayCombatBattlecry(ctx, target);
+  ctx.bus.emit('battlecryTriggered', { side: source.side, minion: target });
+}
 
 /** The Battlecry `do` ids `replayCombatBattlecry` runs IN COMBAT (they affect the live fight). Every other
  *  onPlay `do` is an economy/recruit battlecry — deferred to settle and replayed through its recruit factory.
@@ -3110,19 +3125,15 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
       repeats *= self.golden ? 2 : 1;
     }
     for (const n of neighbors) {
-      for (let r = 0; r < repeats; r++) {
-        ctx.log({ type: 'sc', source: self.uid, text: `${self.name} triggers ${n.name}'s Battlecry` });
-        replayCombatBattlecry(ctx, n); // the Battlecry's own combat effect (no-op for economy battlecries)
-        ctx.bus.emit('battlecryTriggered', { side: self.side, minion: n }); // procs Karwind / Bane per trigger
-      }
+      for (let r = 0; r < repeats; r++) fireShout(ctx, self, n); // one counted `shout` per fire — see `fireShout`
     }
   },
 
   /** Set 2 — Thunderous Sovereign (Start of Combat): trigger your `tribe` minions' Shouts.
    *
    *  Mirrors Ryme's trigger convention exactly, and all three parts matter: `drakkoRepeats` so Drakko doubles
-   *  each trigger in combat as it does in the shop, an `sc` narration so the replay can show it, and the
-   *  `battlecryTriggered` bus emit per fire so KARWIND and Bane proc — Karwind is a Dragon in this very tribe,
+   *  each trigger in combat as it does in the shop, a counted `shout` event so the replay can show EACH fire,
+   *  and the `battlecryTriggered` bus emit per fire so KARWIND and Bane proc — Karwind is a Dragon in this very tribe,
    *  so a missing emit would silently break the tribe's own headline combo.
    *  Economy battlecries are a no-op here by design: `replayCombatBattlecry` defers those to settle. */
   scTriggerTribeShouts: (ctx, self, params) => {
@@ -3131,11 +3142,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     for (const m of ctx.living(self.side)) {
       if (!hasBattlecry(m)) continue;
       if (tribe && !(m.tribe === tribe || m.tribe2 === tribe || ctx.getCard(m.cardId)?.universalTribe)) continue;
-      for (let r = 0; r < repeats; r++) {
-        ctx.log({ type: 'sc', source: self.uid, text: `${self.name} triggers ${m.name}'s Battlecry` });
-        replayCombatBattlecry(ctx, m);
-        ctx.bus.emit('battlecryTriggered', { side: self.side, minion: m });
-      }
+      for (let r = 0; r < repeats; r++) fireShout(ctx, self, m);
     }
   },
 
@@ -3160,11 +3167,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     );
     if (!target) return;
     const repeats = drakkoRepeats(ctx, self.side) * mul(self);
-    for (let r = 0; r < repeats; r++) {
-      ctx.log({ type: 'sc', source: self.uid, text: `${self.name} triggers ${target.name}'s Battlecry` });
-      replayCombatBattlecry(ctx, target);
-      ctx.bus.emit('battlecryTriggered', { side: self.side, minion: target });
-    }
+    for (let r = 0; r < repeats; r++) fireShout(ctx, self, target);
   },
 
   /** Karwind (combat half) — when a Battlecry is triggered on this side (Ryme re-firing an adjacent

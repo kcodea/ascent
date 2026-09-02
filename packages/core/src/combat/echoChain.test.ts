@@ -67,7 +67,7 @@ describe('the full chain: Echohorn → Dawnclaw → Drakko → Sylus (owner spec
     const stag = a.initial.player.find((m) => m.cardId === 'b2_echohorn');
     const swings = a.events.filter((ev) => ev.type === 'attack' && ev.attacker === stag?.uid).length;
     // Dawnclaw narrates each Shout it re-fires; the `sc` line is the observable per-fire beat.
-    const fires = a.events.filter((ev) => ev.type === 'sc' && /Battlecr|Shout/i.test(ev.text)).length;
+    const fires = a.events.filter((ev) => ev.type === 'shout').length; // one counted event per fire (2026-09-01)
     return swings === 0 ? 0 : fires / swings;
   }
 

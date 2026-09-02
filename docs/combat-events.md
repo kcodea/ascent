@@ -7,7 +7,7 @@ factual/terse by design — a reference, not prose. Verify against source before
 new phase: `packages/core/src/types.ts` (the `CombatEvent` union, ~line 455) and
 `packages/core/src/combat/simulate.ts` (the resolution loop).
 
-## 1. Event vocabulary (22 types)
+## 1. Event vocabulary (23 types)
 
 All events are stamped `{ ...payload, step?: number }` (§4). Grouped by family.
 
@@ -19,6 +19,7 @@ All events are stamped `{ ...payload, step?: number }` (§4). Grouped by family.
 | `attack` | `attacker, defender, swing` | One swing of an attack (`swing` = 0 first hit, 1 = Windfury's second). The wind-up; its own moment. |
 | `summon` | `minion: MinionSnapshot, side, index, source?` | A minion enters play (token, Deathrattle spawn, resummon). `source` = the uid it summoned near, if any. |
 | `rally` | `source, target` | Deathsayer's Rally fires `target`'s Deathrattle out of the normal death path. |
+| `shout` | `source, target` | A combat Shout RE-FIRE: `source` (Dawnclaw / Ryme / Thunderous Sovereign / Chorus Drake / Embercrest…) fires `target`'s Shout. One event PER FIRE (Drakko × gild), logged inside the repeat loop like `rally`, so the UI's `shoutFired` channel can pace each fire. Its consequence narration (`sc`) follows it contiguously. |
 
 ### Impact results (consequences of an action — collapse into one "impact" beat)
 
@@ -48,7 +49,7 @@ All events are stamped `{ ...payload, step?: number }` (§4). Grouped by family.
 | `spellProgress` | `target, amount` | Archmagus Guel: on-board spell tally after a combat cast (live countdown). |
 | `questTrigger` | `flag, side` | A completed quest / owned rune's COMBAT effect fired — `flag` maps to its badge id so the UI can pulse the node. |
 
-*(22 types total across the three tables above: Actions — sc, attack, summon, rally (4); Impact
+*(23 types total across the three tables above: Actions — sc, attack, summon, rally, shout (5); Impact
 results — dmg, shield, shieldUp, poison, venomLost, death, reborn, reveal, keyword, keywordLost, ascend (11);
 Board/meta — buff, improve, maxGold, toHand, hpGrant, spellProgress, questTrigger (7). This line is just the
 tally; the tables above are the authoritative per-type payload/meaning.)*

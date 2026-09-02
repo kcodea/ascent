@@ -51,6 +51,7 @@ export const FAMILY_BY_MOMENT: Record<MomentKind, string> = {
   reborn: 'reborn',
   ascend: 'stats',
   rally: 'rally',
+  shout: 'reaction',
   toHand: 'generatedCard',
   maxGold: 'resource',
   improve: 'improve',

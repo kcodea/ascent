@@ -132,7 +132,7 @@ const KIND_TO_KEY: Record<MomentKind, keyof ChoreoConfig> = {
   attackExchange: 'attack', damage: 'dmg', shieldPop: 'shield', shieldGain: 'shieldUp', poisonTick: 'poison',
   venomSpent: 'venomLost',
   death: 'death', riseDeath: 'death', scCast: 'sc', scNarrate: 'sc',
-  summon: 'summon', buffWave: 'buff', reborn: 'reborn', ascend: 'improve', rally: 'rally',
+  summon: 'summon', buffWave: 'buff', reborn: 'reborn', ascend: 'improve', rally: 'rally', shout: 'sc',
   toHand: 'toHand', maxGold: 'maxGold', improve: 'improve', keyword: 'buff', keywordLost: 'buff',
   hpGrant: 'hpGrant', spellProgress: 'hpGrant', reveal: 'summon',
   tribeAura: 'buff', // hold-times like a buff wave — an aura is a buff cue

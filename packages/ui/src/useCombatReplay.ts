@@ -22,6 +22,7 @@ import { rallyDeliveredUids, runMomentCues } from './choreo/score';
 import { anySummonHeld, holdSummon, isSummonHeld, releaseAllSummons, releaseSummons, subscribeSummonHolds, summonHoldVersion } from './fx/summonHold';
 import { notifyTutorialPresented } from './tutorial/presentationBus';
 import { attackSummonUids, rallyProcsFor } from './choreo/channels/rallyFired';
+import { shoutsAheadOf } from './choreo/channels/shoutFired';
 import { groupBuffCasts, type BuffCast } from './choreo/channels/buffCast';
 import { groupSelfBuffs, type SelfBuff } from './choreo/channels/buffSelf';
 import { runAttackExchangeCues, runRiseReturn } from './choreo/engine';
@@ -59,6 +60,7 @@ function notifyPresented(e: CombatEvent): void {
     case 'death': return notifyTutorialPresented({ kind: 'death', srcUid: e.target, srcCard: e.srcCard });
     case 'attack': return notifyTutorialPresented({ kind: 'attack', srcUid: e.attacker, srcCard: e.srcCard });
     case 'sc': return notifyTutorialPresented({ kind: e.cast ? 'startOfCombat' : 'shout', srcUid: e.source, srcCard: e.srcCard });
+    case 'shout': return notifyTutorialPresented({ kind: 'shout', srcUid: e.source, srcCard: e.srcCard });
     default: return;
   }
 }
@@ -486,6 +488,7 @@ function animFor(e: CombatEvent | undefined): Record<string, string> {
     case 'death': return { [e.target]: 'dying' };
     case 'summon': return { [e.minion.uid]: 'summoned' };
     case 'rally': return { [e.source]: 'sccast', [e.target]: 'flare' }; // Deathsayer pulses; the Deathrattle minion flares
+    case 'shout': return { [e.target]: 'sccast' }; // the Shout's owner flashes as it fires; the re-trigger source pulses per proc from `onShoutProc`
     case 'ascend': return { [e.target]: 'ascendpop' }; // transform: the new card pops in under the flash bloom (fired by onAscend)
     case 'reveal': return { [e.target]: 'revealed' }; // Stealth breaks (unit attacks) → a quick de-cloak shimmer into full view
     default: return {};
@@ -514,6 +517,7 @@ function narrateLog(e: CombatEvent, names: Map<string, string>): { text: string;
     case 'keywordLost': return { text: `${n(e.target)} loses ${KW_FLOAT[e.keyword] ?? e.keyword}${e.source ? ` to ${n(e.source)}` : ''}.`, kind: 'dmg' };
     case 'maxGold': return { text: `${n(e.target)}'s Avenge raises your max Gold by ${e.amount}.`, kind: 'buff' };
     case 'rally': return { text: `${n(e.source)}'s Rally triggers ${n(e.target)}'s Echo.`, kind: 'sc' };
+    case 'shout': return { text: `${n(e.source)} triggers ${n(e.target)}'s Shout.`, kind: 'sc' };
     case 'toHand': return { text: `${cardName(e.cardId)} is added to your hand.`, kind: 'summon' };
     default: return null;
   }
@@ -536,6 +540,7 @@ function narrate(e: CombatEvent, names: Map<string, string>): string | null {
     case 'keywordLost': return `${n(e.target)} loses ${KW_FLOAT[e.keyword] ?? e.keyword}!`;
     case 'maxGold': return `${n(e.target)} raises your max Gold by ${e.amount}!`;
     case 'rally': return `${n(e.source)}'s Rally fires ${n(e.target)}'s Echo!`;
+    case 'shout': return `${n(e.source)} triggers ${n(e.target)}'s Shout!`;
     case 'toHand': return `${cardName(e.cardId)} is added to your hand.`;
     default: return null;
   }
@@ -550,6 +555,7 @@ function procReport(events: CombatEvent[], names: Map<string, string>): { text: 
   const inc = (m: Map<string, number>, k: string): void => void m.set(k, (m.get(k) ?? 0) + 1);
   let attacks = 0, dmg = 0, deaths = 0, reborn = 0, poison = 0, shieldUp = 0, shieldBreak = 0;
   const rally = new Map<string, number>();
+  const shout = new Map<string, number>(); // a Shout re-fire, per source → owner pair (× Drakko fires)
   const generated = new Map<string, number>();
   const summoned = new Map<string, number>();
   const startCombat = new Map<string, number>(); // Start-of-Combat effects that fired (by source)
@@ -564,6 +570,7 @@ function procReport(events: CombatEvent[], names: Map<string, string>): { text: 
     else if (e.type === 'shieldUp') shieldUp++;
     else if (e.type === 'shield') shieldBreak++;
     else if (e.type === 'rally') inc(rally, `${n(e.source)} → ${n(e.target)}'s Echo`);
+    else if (e.type === 'shout') inc(shout, `${n(e.source)} → ${n(e.target)}'s Shout`);
     else if (e.type === 'sc') inc(startCombat, n(e.source));
     else if (e.type === 'toHand') inc(generated, e.source ? `${n(e.source)} → ${cardName(e.cardId)}` : cardName(e.cardId));
     else if (e.type === 'summon') {
@@ -592,6 +599,7 @@ function procReport(events: CombatEvent[], names: Map<string, string>): { text: 
   if (kw.length) out.push({ text: kw.join(' · '), kind: 'total' });
   if (startCombat.size) { out.push({ text: 'Start of Combat', kind: 'head' }); for (const [k, c] of startCombat) out.push({ text: c > 1 ? `${k} — ${c}×` : k, kind: 'sc' }); }
   if (rally.size) { out.push({ text: 'Rally', kind: 'head' }); for (const [k, c] of rally) out.push({ text: `${k} — ${c}×`, kind: 'rally' }); }
+  if (shout.size) { out.push({ text: 'Shout', kind: 'head' }); for (const [k, c] of shout) out.push({ text: `${k} — ${c}×`, kind: 'sc' }); }
   if (generated.size) { out.push({ text: 'Cards generated', kind: 'head' }); for (const [k, c] of generated) out.push({ text: `${k} — ${c}×`, kind: 'summon' }); }
   if (summoned.size) { out.push({ text: 'Summoned', kind: 'head' }); for (const [k, c] of summoned) out.push({ text: `${k} — ${c}×`, kind: 'summon' }); }
   if (buffs.size) { out.push({ text: 'Buffs', kind: 'head' }); for (const [k, t] of buffs) out.push({ text: `${k} — ${t.n}× (+${t.atk}/+${t.hp})`, kind: 'buff' }); }
@@ -870,6 +878,17 @@ const PARKED_COMMIT_LEAD_MS = 260;
  *  siblings instead of the beat effect threading a ref through every one of them. */
 const parkedCommitRef: { uid: string | null } = { uid: null };
 
+/**
+ * What a PARKED swing's contact does — bound at RESUME time (see the beat clock), read by the lunge's
+ * `onParkedContact`. Null while nothing is resuming, so a stray contact (a timeline replayed by a seek) is inert.
+ */
+const parkedContactRef: { current: (() => void) | null } = { current: null };
+
+/** If the resumed strike's contact never fires — a timeline gutted by an earlier kill plays as an empty shell
+ *  — the clock still advances after this long (ms at 1× speed), so a park can never stall the fight. Longer
+ *  than any strike drive (130–190 ms) plus its rebound, so a real contact always wins. */
+const PARKED_RESUME_FALLBACK_MS = 900;
+
 /** The travel lead (ms, 1× speed) to HOLD before `next` when it is a `launchOnDeath` Echo damage wave whose
  *  spray was launched from a death in `shown` — so the wave's damage lands as the spikes connect. 0 otherwise. */
 function echoDeliveryLead(shown: Moment | undefined, next: Moment, events: CombatEvent[], cardIds: Map<string, string>): number {
@@ -1072,6 +1091,58 @@ export function useCombatReplay(
   // once per proc, not once per Rally). Sharing the function is what guarantees the 2nd pulse is identical
   // to the 1st; the nonce is what makes it VISIBLE, since it keys the medallion's remount (see Card.tsx) and
   // a plain class re-add would not restart the CSS animation.
+  /**
+   * The "+A/+H Spell Power" narration flourish: the burst + climbing number over the source, and the held
+   * spells' pop. Factored out of the beat-start loop (2026-09-01) so it reads as one body; a Shout re-fire's
+   * narration rides its own fire's moment and so goes through this same loop, one fire at a time.
+   *
+   * PLAYER-SIDE ONLY. The `sc` narration carries no `side`, and an ENEMY spell-power source (an enemy Aeon
+   * Guard) resolved to an enemy unit — so the flourish drew on the opponent's half of the board (owner report).
+   * Gate on the player's uids: the initial player board plus everything the player summoned this fight.
+   */
+  const spellPowerNarration = useCallback((
+    e: CombatEvent | undefined,
+    playerUids: ReadonlySet<string>,
+    anchorOf: (uid: string) => { cx: number; cy: number; w: number; h: number } | null,
+  ): void => {
+    if (!e || e.type !== 'sc' || !e.source || !e.text) return;
+    const m = /^\+(-?\d+)\/\+(-?\d+) Spell Power$/.exec(e.text);
+    if (!m) return;
+    const gA = Number(m[1]), gH = Number(m[2]);
+    if (gA <= 0 && gH <= 0) return;
+    if (!playerUids.has(e.source)) return;
+    const a = anchorOf(e.source);
+    if (!a) return;
+    const { cx, cy, h } = a; // SLOT — the source can be mid-lunge when its spell power rises
+    pixiFx.spellPower(cx, cy, getSpellPowerFxConfig());
+    floatSpellPowerNumber(cx, cy - h * 0.3, gA, gH);
+    // …and pop the held SPELLS, whose printed values just moved. Without this the cards themselves only
+    // reacted at combat RESOLUTION (owner report): the hand-card cue is driven by a diff of the rendered live
+    // text, and run state doesn't change until settle — so mid-fight there is nothing for that diff to see.
+    // Firing from the narration beat puts it on the moment the gain actually happens.
+    fireSpellBuffOnHandSpells(useGame.getState().run.hand);
+  }, []);
+  /** The card-frame bloom alone (nonce → remount → the animation restarts), so a Shout's owner can bloom once
+   *  PER FIRE — the beat-level `sccast` flash class fires once per beat and cannot repeat within it. */
+  const bloomFrame = useCallback((uid: string): void => {
+    const fn = ++frameNonceRef.current;
+    setFramePulse((prev) => new Map(prev).set(uid, fn));
+    window.setTimeout(() => setFramePulse((prev) => { const m = new Map(prev); if (m.get(uid) === fn) m.delete(uid); return m; }), 1150);
+  }, []);
+  /** The light-blue WATCHER medallion + card-frame bloom on `uid` — a reaction card acting. The same pair the
+   *  beat-start watcher loop fires, factored so a Shout re-fire proc can pulse its re-triggering unit at the
+   *  proc's own time. */
+  const pulseWatcher = useCallback((uid: string): void => {
+    const wn = ++watcherNonceRef.current;
+    setWatcherPulse((prev) => new Map(prev).set(uid, wn));
+    window.setTimeout(() => setWatcherPulse((prev) => { const m = new Map(prev); if (m.get(uid) === wn) m.delete(uid); return m; }), 1150);
+    if (watcherPixiReady(!!getDef(WATCHER_PULSE_DEF_ID), canPlayDefs())) {
+      const a = anchorsForUnits(uid, uid);
+      if (a) playDef('watcher-pulse', a, { uids: { source: uid, target: uid } });
+    } else {
+      bloomFrame(uid);
+    }
+  }, [bloomFrame]);
   const firePulse = useCallback((uid: string): void => {
     sfx.triggerPulse();
     const n = ++rallyNonceRef.current;
@@ -1137,7 +1208,7 @@ export function useCombatReplay(
   // cleanup); cleared on reset/seek.
   /** A PARKED lunge: the attacker, the body it was swinging at, and the timeline holding its pose. The
    *  `defender` is what lets a CANCELLED swing be told apart from a pending one — see the release below. */
-  const heldLungeRef = useRef<{ uid: string; defender: string; tl: ReturnType<typeof gsap.timeline> } | null>(null);
+  const heldLungeRef = useRef<{ uid: string; defender: string; tl: ReturnType<typeof gsap.timeline>; resumed: boolean } | null>(null);
 
   // Schedule a buff's strike-delay timer in the combat-lifetime registry above (not the caller's per-beat
   // `timers`), so an ordinary beat advance cannot cancel it. When the delay elapses, hand off to `driveRoll`
@@ -1202,6 +1273,7 @@ export function useCombatReplay(
     // a re-seek — kill it and drop the frozen pose.
     if (heldLungeRef.current) { heldLungeRef.current.tl.kill(); heldLungeRef.current = null; }
     parkedCommitRef.uid = null; // a reset/re-seek drops the park, so it must drop its commit hold too
+    parkedContactRef.current = null;
   }, []);
 
   /**
@@ -1616,6 +1688,34 @@ export function useCombatReplay(
       );
       if (lead) d += lead / combatSpeedRef.current;
     }
+    // A PARKED swing whose own damage beat is `next`: after the stillness, RESUME the strike and let its real
+    // contact advance the clock — exactly what an ordinary swing's lunge does. The clock used to advance on the
+    // timer alone and the layout effect resumed the strike as the damage beat became current, so the numbers
+    // and the health had already changed while the attacker was still travelling — *"they attack immediately /
+    // resolve their attack extremely fast"* (owner 2026-09-01, on a Shout re-fire; the same gap Echohorn's
+    // forced Echo had carried as a known issue). Guarded so a park with no live timeline falls back to the
+    // timer, and a fallback timer covers a resumed timeline whose contact never comes.
+    const held = heldLungeRef.current;
+    if (parkedCommitLead(next, events) > 0 && held && !held.resumed) {
+      let fallback: number | null = null;
+      let done = false;
+      const go = (): void => {
+        if (done) return;
+        done = true;
+        if (fallback !== null) window.clearTimeout(fallback);
+        parkedContactRef.current = null;
+        setBeatIdx((k) => k + 1);
+      };
+      const id = window.setTimeout(() => {
+        const h = heldLungeRef.current;
+        if (!h || h.resumed) { go(); return; }
+        h.resumed = true;
+        parkedContactRef.current = go;
+        fallback = window.setTimeout(go, PARKED_RESUME_FALLBACK_MS / combatSpeedRef.current);
+        h.tl.play(); // strike → contact (→ `go`) → settle, out of the held pose
+      }, d);
+      return () => { window.clearTimeout(id); if (fallback !== null) window.clearTimeout(fallback); };
+    }
     const id = window.setTimeout(() => setBeatIdx((k) => k + 1), d);
     return () => window.clearTimeout(id);
     // `seekNonce`: not a cue, but a same-index re-seek must RESTART this hold rather than inherit whatever
@@ -1678,6 +1778,8 @@ export function useCombatReplay(
       notifyPresented(e);
       // NB: `rally` is intentionally NOT here — a Rally that fires as a unit attacks pulses YELLOW from the
       // lunge's wind-up pause instead (see the attack layout effect), so it reads at the swing, not beat-start.
+      // A `shout` pulses through `onShoutProc` (the re-triggering unit + the Shout's owner), not the white trigger.
+      if (e.type === 'shout') continue;
       if ((e.type === 'sc' || e.type === 'buff' || e.type === 'keyword') && e.source) trig.add(e.source);
       else if ((e.type === 'summon' || e.type === 'toHand') && e.source) trig.add(e.source);
       else if (e.type === 'improve' || e.type === 'maxGold' || e.type === 'hpGrant' || e.type === 'reborn') trig.add(e.target);
@@ -1719,29 +1821,7 @@ export function useCombatReplay(
     // SPELL POWER gained mid-combat: `grantSpellPower` already emits an `sc` narration carrying the SOURCE
     // unit and a "+A/+H Spell Power" text, so the flourish rides that rather than needing a new choreo
     // channel. Fired over the unit that caused it, matching the shop behaviour (owner ask 2026-07-21).
-    for (let i = beat.start; i < beat.end; i++) {
-      const e = events[i];
-      if (!e || e.type !== 'sc' || !e.source || !e.text) continue;
-      const m = /^\+(-?\d+)\/\+(-?\d+) Spell Power$/.exec(e.text);
-      if (!m) continue;
-      const gA = Number(m[1]), gH = Number(m[2]);
-      if (gA <= 0 && gH <= 0) continue;
-      // PLAYER-SIDE ONLY. The `sc` narration carries no `side`, and an ENEMY spell-power source (an enemy
-      // Aeon Guard) resolved to an enemy unit — so the flourish drew on the opponent's half of the board
-      // (owner report). Gate on a set of the player's uids: the initial player board plus everything the
-      // player summoned this fight. An enemy source isn't in the set, so it's skipped.
-      if (!playerUids.has(e.source)) continue;
-      const a = anchorOf(e.source);
-      if (!a) continue;
-      const { cx, cy, h } = a; // SLOT — the source can be mid-lunge when its spell power rises
-      pixiFx.spellPower(cx, cy, getSpellPowerFxConfig());
-      floatSpellPowerNumber(cx, cy - h * 0.3, gA, gH);
-      // …and pop the held SPELLS, whose printed values just moved. Without this the cards themselves only
-      // reacted at combat RESOLUTION (owner report): the hand-card cue is driven by a diff of the rendered live
-      // text, and run state doesn't change until settle — so mid-fight there is nothing for that diff to see.
-      // Firing from the narration beat puts it on the moment the gain actually happens.
-      fireSpellBuffOnHandSpells(useGame.getState().run.hand);
-    }
+    for (let i = beat.start; i < beat.end; i++) spellPowerNarration(events[i], playerUids, anchorOf);
     // SPELLS CAST mid-combat (owner ask 2026-08-07, for Yirin's Attunement): every player-side `spellcast`
     // event bumps the display-only counter, so the hero-power tracker ticks AS the casts happen.
     for (let i = beat.start; i < beat.end; i++) {
@@ -1948,6 +2028,10 @@ export function useCombatReplay(
       // `heldLungeRef` is the mid-swing attacker held through its Echo; suppress only its pulse here — the
       // sparkle (an authored `playDef`, not this callback) still fires per proc, and every other rallier pulses.
       onRallyPulse: (uid: string) => { if (heldLungeRef.current?.uid !== uid) firePulse(uid); },
+      // A Shout RE-FIRE's own moment (`channels/shoutFired.ts`): the re-triggering unit pulses (the reaction
+      // medallion), the Shout's owner blooms. Its consequences — the buff wave, the float, the Ruby — are this
+      // moment's own events and play through the ordinary channels; the swing that caused it is parked.
+      onShoutProc: (source: string, target: string) => { pulseWatcher(source); bloomFrame(target); },
 
       onShake: () => setShake((n) => n + 1),
       // Every float (including the killing-blow one) is anchored from this SLOT reading, taken once at
@@ -2139,13 +2223,20 @@ export function useCombatReplay(
         if (e?.type === 'death' && e.target === held.defender) targetGone = true;
         if (e?.type === 'dmg' && e.source === held.uid && e.wave === undefined) struck = true;
       }
-      if (died) {
+      if (held.resumed && (struck || died)) {
+        // The beat clock already resumed this strike and its contact (or the fallback) brought us here: the
+        // swing is in flight or landed, so the park is simply over. A death in this beat is handled the way a
+        // normal swing's retaliation death is — the dying-attacker pull-home — not by killing the pose.
+        heldLungeRef.current = null;
+        parkedCommitRef.uid = null;
+      } else if (died) {
         held.tl.kill(); // drop the parked pose so the death plays from rest; the lunge never fires
         const el = findEl(held.uid);
         if (el) { setTransition(el, ''); gsap.set(el, { clearProps: 'transform,zIndex' }); }
         heldLungeRef.current = null;
         parkedCommitRef.uid = null;
       } else if (struck) {
+        // Reached only when the clock could not resume (no live timeline at the time) — the old release.
         held.tl.play(); // resume: strike → contact → settle, out of the held pose
         heldLungeRef.current = null;
         parkedCommitRef.uid = null;
@@ -2370,11 +2461,22 @@ export function useCombatReplay(
             if (e?.type === 'rally' && e.source === atkUid) { heldWindup = true; break; }
           }
         }
+        // A SHOUT RE-FIRE ahead of this swing's own strike (Hawkus forcing Dawnclaw's Echo → Wardkeeper ×
+        // Drakko; Chorus Drake; Embercrest) parks the swing exactly like a forced Echo does: each fire is its
+        // own moment (`compileMoments`'s `shout` branch) with its own frame commit and number roll, played
+        // while the attacker holds its pose; the strike resumes on its own damage beat through the same
+        // `heldLungeRef` release (struck / died / target gone). Owner call 2026-09-01, after the absorbed
+        // version — every fire committing at once, then a frozen pause — was rejected.
+        if (!heldWindup && shoutsAheadOf(cur, events, atkUid)) heldWindup = true;
         const advance = () => setBeatIdx((k) => k + 1);
         const tl = runAttackExchangeCues(cur, atkEl, findEl(cur.primary.defender), d.x - a.x, d.y - a.y, {
           combatSpeed: combatSpeedRef.current, advance,
           holdAfterWindup: heldWindup,
           onWindupHeld: heldWindup ? advance : undefined,
+          // Bound at RESUME time by the beat clock (see `parkedContactRef`): the strike's contact advances into
+          // the attacker's own damage beat. Read through the ref so the timeline built now can fire the release
+          // decided many beats later.
+          onParkedContact: heldWindup ? () => parkedContactRef.current?.() : undefined,
           onRallyPulse: rallies ? () => firePulse(atkUid) : undefined,
           // How many procs this swing carries — the wind-up stretches to fit their pulse→sparkle pairs.
           // Only Echohorn can exceed 1 today (see `rallyProcsFor`).
@@ -2408,7 +2510,7 @@ export function useCombatReplay(
         // DURING the park, and an unconditional `: null` drops the handle to its held lunge — leaving it parked
         // with nobody able to release it. A park is cleared only by its own release, or by a reset.
         if (heldWindup && tl !== null) {
-          heldLungeRef.current = { uid: atkUid, defender: cur.primary.defender, tl };
+          heldLungeRef.current = { uid: atkUid, defender: cur.primary.defender, tl, resumed: false };
           parkedCommitRef.uid = atkUid;
         } else if (heldLungeRef.current?.uid === atkUid) {
           heldLungeRef.current = null;

@@ -47,6 +47,12 @@ export const DEFAULT_RULES: GroupingRules = {
   // everything behind it — which is why Gorun's grant looked late too. `keyword`/`keywordLost` are the same
   // class (Tauntbreaker strips Taunt as it swings); they are listed together so a grant and a strip can never
   // resolve on different sides of the lunge.
+  // `shout` is deliberately NOT here. A Shout RE-FIRED by a swing (Hawkus forcing Dawnclaw's Echo, Chorus
+  // Drake, Embercrest) is its own MOMENT per fire — see the `shout` branch in `compileMoments` — and the
+  // swing PARKS at the top of its wind-up while those play (the Echohorn hold). Absorbing the fires into the
+  // wind-up was tried first (2026-09-01) and rejected by the owner: every fire's effect then commits in one
+  // frame at the beat's start and the attacker stands frozen through a stretched pause — *"resolve shouts
+  // immediately instead of in chunks/sequences, and without numbers going up, everything just stands still"*.
   absorbIntoWindup: new Set([
     'buff', 'rally', 'summon', 'reveal', 'improve', 'tribeAura', 'spellcast', 'questTrigger',
     'toHand', 'keyword', 'keywordLost',
@@ -164,6 +170,14 @@ export function compileMoments(events: CombatEvent[], rules: GroupingRules = DEF
     } else if (t === 'attack') {
       i++;
       // Both guards: never absorb across a WAVE boundary (partC), and DO absorb a shop-buff flash (Demon Horse).
+      while (i < events.length && events[i]!.wave === undefined
+        && (rules.absorbIntoWindup.has(events[i]!.type) || isWindupNarration(events[i]!))) i++;
+    } else if (t === 'shout') {
+      // A SHOUT RE-FIRE and the consequences it produced — the contiguous run of consequence events behind it
+      // (a buff wave, a Ruby, a card to hand, its "+2/+0 Spell Power" narration), the same set a swing absorbs —
+      // are ONE moment. The next `shout` is not in that set, so a Drakko-repeated fire is one moment PER FIRE:
+      // its own frame commit, its own number roll, its own beat of screen time. MUST mirror `buildBeats`.
+      i++;
       while (i < events.length && events[i]!.wave === undefined
         && (rules.absorbIntoWindup.has(events[i]!.type) || isWindupNarration(events[i]!))) i++;
     } else {

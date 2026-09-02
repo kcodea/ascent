@@ -30,14 +30,20 @@ describe('mid-combat trigger beats — Dawnclaw + Deepvein Tender + Frenzied Exc
     .map((m, i) => ({ i, m, text: (m.primary as { text?: string }).text }))
     .filter((x) => x.m.kind === 'scNarrate' || x.m.kind === 'scCast');
 
-  const iDeep = narrations.find((n) => n.text?.includes('triggers Deepvein Tender'))?.i ?? -1;
-  const iPower = narrations.find((n) => n.text?.includes('Ruby Power'))?.i ?? -1;
-  const iExc = narrations.find((n) => n.text?.includes('triggers Frenzied Excavator'))?.i ?? -1;
+  // A Shout re-fire is a counted `shout` event (2026-09-01) and each fire is its own `shout`-kind moment,
+  // carrying the consequences that fire produced — found by the Shout owner's uid (board order: Deepvein ·
+  // Dawnclaw · Excavator). Deepvein's "Ruby Power" narration therefore rides DEEPVEIN'S moment.
+  const shoutAt = (uid: string): number => moments.findIndex((m) => m.kind === 'shout' && (m.primary as { target?: string }).target === uid);
+  const iDeep = shoutAt(r.initial.player[0]!.uid);
+  const inMoment = (i: number, pred: (e: (typeof r.events)[number]) => boolean): boolean =>
+    i >= 0 && r.events.slice(moments[i]!.start, moments[i]!.end).some(pred);
+  const iPower = inMoment(iDeep, (e) => e.type === 'sc' && (e as { text?: string }).text?.includes('Ruby Power') === true) ? iDeep : -1;
+  const iExc = shoutAt(r.initial.player[2]!.uid);
 
-  it('each trigger is its own narration beat, left to right: Deepvein → Ruby Power → Excavator', () => {
+  it('each trigger is its own beat, left to right: Deepvein (with its Ruby Power gain) → Excavator', () => {
     expect(iDeep, "Dawnclaw's Echo names Deepvein Tender").toBeGreaterThanOrEqual(0);
-    expect(iPower, 'the Ruby Power gain is telegraphed').toBeGreaterThan(iDeep);
-    expect(iExc, 'the Excavator fires AFTER Deepvein (left to right)').toBeGreaterThan(iPower);
+    expect(iPower, "the Ruby Power gain is telegraphed in Deepvein's own moment").toBe(iDeep);
+    expect(iExc, 'the Excavator fires AFTER Deepvein (left to right)').toBeGreaterThan(iDeep);
   });
 
   it("Dawnclaw's death beat precedes the whole cascade (the triggers ride the Echo, live)", () => {
@@ -54,7 +60,7 @@ describe('mid-combat trigger beats — Dawnclaw + Deepvein Tender + Frenzied Exc
       .filter((x) => x.lands.length > 0);
     expect(waves.length, 'a Ruby wave exists in the replay').toBeGreaterThan(0);
     const wave = waves[0]!;
-    expect(wave.i, 'the wave lands after the Excavator narration, mid-combat').toBeGreaterThan(iExc);
+    expect(wave.i, "the Rubies land IN the Excavator's own fire moment, mid-combat").toBe(iExc);
     for (const l of wave.lands) {
       expect(l.attack / l.count, 'a Ruby is base 1 Attack').toBe(1);
       expect(l.health / l.count, 'a Ruby is 2 Health — the +1 Deepvein JUST granted, in real time').toBe(2);

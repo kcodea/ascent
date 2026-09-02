@@ -11,6 +11,7 @@ import {
   ralliesFiredIn, rallyLeadMs, RALLY_GAP_MS, RALLY_PROC_STRIDE_MS, RALLY_PULSE_READ_MS,
   type RallyFired,
 } from './channels/rallyFired';
+import { shoutsFiredIn } from './channels/shoutFired';
 import { releaseSummons } from '../fx/summonHold';
 import { getLungeConfig } from '../lungeConfig';
 import type { FxBinding } from './bindings';
@@ -32,7 +33,7 @@ import { bindingFor } from './bindings';
  * instead by `engine.ts`'s `runAttackExchangeCues` from a `useLayoutEffect` — this file still owns the score
  * DATA for both.
  */
-export type Channel = 'sfx' | 'float' | 'lunge' | 'impact' | 'auraBurst' | 'auraBreak' | 'auraReform' | 'buffCast' | 'buffSelf' | 'improveSelf' | 'coins' | 'damageFx' | 'summonFx' | 'ascendFx' | 'executeFx' | 'fxDef' | 'rubyFx' | 'rallyFx';
+export type Channel = 'sfx' | 'float' | 'lunge' | 'impact' | 'auraBurst' | 'auraBreak' | 'auraReform' | 'buffCast' | 'buffSelf' | 'improveSelf' | 'coins' | 'damageFx' | 'summonFx' | 'ascendFx' | 'executeFx' | 'fxDef' | 'rubyFx' | 'rallyFx' | 'shoutFx';
 /** When a cue fires within its moment. `start`/`contact` are used today; `landed`/`end` are reserved for
  *  phase 3c (aura bursts) and phase 4 (authoring). */
 export type Anchor = 'start' | 'contact' | 'landed' | 'end';
@@ -72,6 +73,10 @@ const BASE: Cue[] = [
   // therefore could not see a Rally at all — which is why `kinds.rally` sat authored and unplayed until
   // 2026-08-04. This row scans the moment's own events instead. See `channels/rallyFired.ts`.
   { ch: 'rallyFx', at: 'start', offset: 0 },
+  // `shoutFx` — a Shout RE-FIRE (`shout` event) in this moment: pulse the re-triggering unit, bloom the Shout's
+  // owner, play a def bound at the `shout` kind. On every kind because a fire's moment is its own (`shout`
+  // kind) on the swing path AND the death path, but the scan is per event so nothing depends on the kind.
+  { ch: 'shoutFx', at: 'start', offset: 0 },
 ];
 const withReform = (): Cue[] => [...BASE, { ch: 'auraReform', at: 'start', offset: 460, scaled: false }];
 /** Every kind runs sfx + float + auraBurst + auraBreak + executeFx + fxDef at start (all adapters no-op for
@@ -124,6 +129,8 @@ export const SCORE_DEFAULTS: Record<MomentKind, Cue[]> = {
   // A real Start-of-Combat CAST (`sc` with `cast: true`) vs. mid-combat NARRATION, which classifies as
   // `scNarrate` and stays unbound so a spell-power line is silent.
   scCast: [...BASE], scNarrate: [...BASE],
+  // A Shout re-fire's own moment: what a buff wave / a summon show, plus `shoutFx` (in BASE) for the fire itself.
+  shout: [...BASE, { ch: 'buffCast', at: 'start', offset: 0 }, { ch: 'buffSelf', at: 'start', offset: 0 }, { ch: 'rubyFx', at: 'start', offset: 0 }, { ch: 'summonFx', at: 'start', offset: 250 }],
   // `summonFx` = a dust poof at the arriving unit, at +250ms (scaled) to land on the `summonpop` overshoot (the
   // "bounce") — by then the scale-in has grown the unit to a measurable, full size.
   summon: [...BASE, { ch: 'summonFx', at: 'start', offset: 250 }],
@@ -263,6 +270,9 @@ export interface CueContext {
    * because the non-combat callers and older tests have no medallion to flash.
    */
   onRallyPulse?: (uid: string) => void;
+  /** A Shout RE-FIRE in this moment (one per fire — each fire is its own moment, see `compileMoments`): the
+   *  caller pulses the re-triggering unit and blooms the Shout's owner. Optional like `onRallyPulse`. */
+  onShoutProc?: (source: string, target: string) => void;
 }
 
 /** The two units a moment is ABOUT, read off its PRIMARY event — what an authored def anchors to. `attack`
@@ -584,6 +594,28 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
           };
           if (land.at <= 0) fire();
           else timers.push(setTimeout(fire, land.at));
+        }
+      });
+    }
+    // A SHOUT RE-FIRED in this moment (`shout` event — normally exactly one, since each fire compiles to its own
+    // moment): pulse the re-triggering unit, bloom the Shout's owner, and play a def bound at the re-trigger
+    // card's `shout` kind at the pair's anchors. The fire's CONSEQUENCES (its buff wave, its narration float,
+    // its Ruby) are this moment's own events and play through the ordinary channels — that is the whole point
+    // of one-moment-per-fire: the frame commits, the numbers roll, and the next fire waits its turn.
+    else if (cue.ch === 'shoutFx') {
+      const fired = shoutsFiredIn(moment, ctx.events);
+      if (!fired.length) continue;
+      if (import.meta.env.DEV) {
+        for (const f of fired) console.info(`[fx] shout ${f.source}→${f.target}${f.count > 1 ? ` ×${f.count}` : ''}`);
+      }
+      at(cue, () => {
+        for (const f of fired) {
+          ctx.onShoutProc?.(f.source, f.target);
+          if (!canPlayDefs()) continue;
+          const binding = bindingFor(ctx.cardIds?.get(f.source) ?? null, 'shout');
+          if (!binding) continue;
+          const anchors = anchorsForUnits(f.source, f.target);
+          if (anchors) playDef(binding.def, anchors, { uids: { source: f.source, target: f.target } });
         }
       });
     }

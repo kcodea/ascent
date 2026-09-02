@@ -56,6 +56,21 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-01',
+    label: 'Repeated Shouts',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: 'Shouts re-triggered in combat now play out one fire at a time — a Drakko-repeated Shout reads as three, not one.',
+        details: [
+          'When a minion re-triggers a Shout mid-fight (Dawnclaw, Ryme, Thunderous Sovereign, Chorus Drake, Embercrest and friends), each fire gets its own beat: the re-triggering minion pulses, the owner of the Shout blooms per fire, and each fire floats its own number in turn.',
+          'An attack whose swing re-fires Shouts parks at the top of its wind-up while each fire plays out — one at a time, stats rolling per fire — then strikes.',
+          'The Combat Log names each fire (Dawnclaw triggers the Shout of Wardkeeper), and the Procs tab lists them under a new Shout section with their count.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-01',
     label: 'Frosted Glass',
     changes: [
       {

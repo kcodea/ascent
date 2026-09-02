@@ -107,6 +107,12 @@ export function buildBeats(events: CombatEvent[]): Beat[] {
       // two rules must move together or the equivalence tests start lying about which one is right.
       while (i < events.length && events[i]!.wave === undefined
         && (WINDUP_ABSORB.has(events[i]!.type) || (events[i]!.type === 'sc' && !(events[i]! as { cast?: true }).cast))) i++;
+    } else if (t === 'shout') {
+      // A Shout RE-FIRE + the consequences behind it (the same set a swing absorbs) — one beat per FIRE.
+      // Mirrors the `shout` branch in `choreo/compile.ts` (this function is its oracle).
+      i++;
+      while (i < events.length && events[i]!.wave === undefined
+        && (WINDUP_ABSORB.has(events[i]!.type) || (events[i]!.type === 'sc' && !(events[i]! as { cast?: true }).cast))) i++;
     } else {
       i++; // a single action (sc, a lone summon, toHand, maxGold, …)
     }

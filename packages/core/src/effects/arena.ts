@@ -1242,10 +1242,9 @@ export const ARENA_EFFECTS = {
       if (m.uid === arena.self.uid) continue;
       if (tribe && !arena.isTribe(m, tribe)) continue;
       if (!arena.hasEffect(m, 'onPlay')) continue;
-      for (let r = 0; r < reps; r++) {
-        arena.narrate(`${arena.nameOf(arena.self)} triggers ${arena.nameOf(m)}'s Shout`);
-        arena.replayShout(m);
-      }
+      // No `narrate` here: in combat `replayShout` logs a counted `shout` event per fire (the Combat Log names
+      // it from that), and the shop's narrate is a no-op — a narration line on top would double the log.
+      for (let r = 0; r < reps; r++) arena.replayShout(m);
     }
   },
 

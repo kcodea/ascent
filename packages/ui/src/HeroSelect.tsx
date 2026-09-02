@@ -121,6 +121,12 @@ export function HeroSelect() {
 
   return (
     <div className={`heroselect${active ? ' hsc-active' : ''}`} style={rootStyle}>
+      {/* Return to the main menu (owner ask 2026-09-01) — the same `.hsback` chrome the Title's mode-pick
+          wears, top-left. Hidden once a pick's ceremony is running: the launch is committing, and yanking
+          the screen out from under the machine mid-choreography is not a state it handles. */}
+      {!active && (
+        <button className="hsback" onPointerDown={() => { sfx.pulse(); openTitle(); }}>← Main Menu</button>
+      )}
       {/* The real brand lockup, not a text heading (owner ask 2026-08-22) — the same mark + wordmark the home
           screen wears, so the two screens read as one product. Pinned to the TOP of the screen and shrunk
           (owner ask 2026-08-24): it lives OUTSIDE `.hsbox` so the picker below centres on its own —

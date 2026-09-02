@@ -232,17 +232,33 @@ export function releaseParticleLayer(layer: ParticleLayer): void {
  * of a session doesn't pay for it. Best-effort: no renderer, or a renderer not yet ready, just leaves the
  * pool cold and the first fire behaves as it did before.
  */
+/** Placeholder style/shaping for a warm-up build — `resetLayer` overwrites every uniform on acquire, so
+ *  these only have to satisfy the material's construction. Shared by the pooled warm and the slot link. */
+const WARM_STYLE: ParticleStyle = {
+  palette: [0x000000, 0x000000, 0x000000, 0x000000],
+  bands: 4,
+  glow: 0,
+  plateau: 0.5,
+  fieldMix: 0,
+  tintMode: 'palette',
+};
+const WARM_SHAPING: ParticleShaping = { noise: [1, 1], warp: 0, scroll: 0, erode: 0, gain: 1 };
+
+/** Link the particle program on `renderer` WITHOUT pooling — for a slot canvas (under / above), whose GL
+ *  context the module-global pool never serves: a def firing there builds its layer against the slot's own
+ *  renderer (`buildLayer` via `acquireParticleLayer`, pool empty or not), so the pooled warm above leaves
+ *  its program cold. Measured 2026-09-01: the first under-slot fire of a session linked it for ~550 ms.
+ *  The returned shader must be kept alive by the caller so the program stays cached. */
+export function linkParticleMaterialOn(renderer: Renderer): Shader {
+  const shader = createParticleMaterial(renderer, WARM_STYLE, WARM_SHAPING);
+  linkShader(renderer, shader);
+  return shader;
+}
+
 export function prewarmParticleLayers(renderer: Renderer | null, count = 6): void {
   if (!renderer) return;
-  const style: ParticleStyle = {
-    palette: [0x000000, 0x000000, 0x000000, 0x000000],
-    bands: 4,
-    glow: 0,
-    plateau: 0.5,
-    fieldMix: 0,
-    tintMode: 'palette',
-  };
-  const shaping: ParticleShaping = { noise: [1, 1], warp: 0, scroll: 0, erode: 0, gain: 1 };
+  const style = WARM_STYLE;
+  const shaping = WARM_SHAPING;
   let linked = false;
   while (pool.length < Math.min(count, PARTICLE_LAYER_POOL_MAX)) {
     const layer = buildLayer(renderer, style, shaping);

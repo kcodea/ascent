@@ -102,6 +102,34 @@ export function getShapeTexture(renderer: Renderer, shape: ShapeName, _aspect: n
 }
 
 /**
+ * Bake every built-in shape NOW, off the play path — and with it, GL-link Pixi's DEFAULT BATCH SHADER.
+ *
+ * The first minion played in a run froze the page for 0.6–0.8 s in the prod build (8 headed-Chrome runs,
+ * 2026-09-01). A CPU profile through the sourcemaps put ~620 ms of it in `getProgramParameter` under
+ * `GlBatchAdaptor.start → GlShaderSystem.bind`, reached from THIS module's `generateTexture` — i.e. the very
+ * first `Graphics` the session ever rasterised compiled the batcher program (Pixi v8's multi-texture
+ * megashader, the most expensive link in the app) synchronously, on the first fire. `prewarmFxMaterials`
+ * already links the custom particle / ribbon / shockwave programs at load; it never touched the batcher,
+ * because nothing it built drew a Graphics. Baking the six shapes here does exactly what the first fire
+ * would have done, so the link (and the raster) is paid during a screen that has time to spare.
+ *
+ * Per RENDERER, like the cache it fills: each slot canvas (over / under / above) is its own GL context with
+ * its own program cache, so the batcher links once per context — warm every slot renderer that exists.
+ * Best-effort throughout: a failure leaves the first fire to bake, exactly as before.
+ */
+export function prewarmShapeTextures(renderer: Renderer | null): void {
+  if (!renderer) return;
+  for (const shape of SHAPE_NAMES) {
+    try {
+      getShapeTexture(renderer, shape);
+    } catch (e) {
+      if (import.meta.env.DEV) console.warn(`[fx] shape pre-bake failed for '${shape}' — first fire will pay for it:`, e);
+      return;
+    }
+  }
+}
+
+/**
  * A particle's `scaleX`/`scaleY` for a given `size` (the base, in px — what `size / SHAPE_UNIT` has always
  * meant) and a `stretchX`/`stretchY` multiplier (1 = the shape's own baked proportions, >1 wider/taller,
  * <1 narrower/shorter). Pulled out as a pure function — shared by `burst.ts` and `emitter.ts` so the

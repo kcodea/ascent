@@ -56,6 +56,20 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-01',
+    label: 'Hero Select',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: 'Hero select now shows each hero power’s Gold cost beside its name — (Cost: X), (Cost: Free), or (Passive).',
+      },
+      {
+        category: 'UI / Info',
+        text: 'A Main Menu button in the top-left of hero select takes you back to the title.',
+      },
+    ],
+  },
+  {
+    date: '2026-09-01',
     label: 'Reliquary Beats',
     changes: [
       {

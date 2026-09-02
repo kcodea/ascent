@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ascent Quiz #21 — 2026-09-02</title>
+<style>
+  :root {
+    --bg: #0f1420;
+    --panel: #1a2236;
+    --panel-border: #2c3752;
+    --text: #e8edf7;
+    --text-dim: #9aa7c2;
+    --accent: #6c8cff;
+    --accent-dim: #3c4a78;
+    --correct: #3ecf8e;
+    --correct-bg: rgba(62, 207, 142, 0.14);
+    --wrong: #ff6b6b;
+    --wrong-bg: rgba(255, 107, 107, 0.14);
+    --gold: #f0c674;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    min-height: 100%;
+  }
+  body {
+    display: flex;
+    justify-content: center;
+    padding: 32px 16px 64px;
+  }
+  .wrap { width: 100%; max-width: 680px; }
+  header {
+    text-align: center;
+    margin-bottom: 24px;
+  }
+  header h1 {
+    font-size: 1.5rem;
+    margin: 0 0 4px;
+    letter-spacing: 0.01em;
+  }
+  header .sub {
+    color: var(--text-dim);
+    font-size: 0.9rem;
+  }
+  .progress-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .progress-track {
+    flex: 1;
+    height: 8px;
+    background: var(--panel-border);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--gold));
+    width: 0%;
+    transition: width 0.35s ease;
+  }
+  .progress-label {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    white-space: nowrap;
+    min-width: 64px;
+    text-align: right;
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 14px;
+    padding: 24px;
+    margin-bottom: 16px;
+  }
+  .topic-tag {
+    display: inline-block;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--accent);
+    background: var(--accent-dim);
+    padding: 3px 9px;
+    border-radius: 999px;
+    margin-bottom: 12px;
+  }
+  .question {
+    font-size: 1.08rem;
+    line-height: 1.5;
+    margin-bottom: 18px;
+  }
+  .question code {
+    background: #0c1120;
+    border: 1px solid var(--panel-border);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 0.92em;
+    color: #cfe0ff;
+  }
+  .choices { display: flex; flex-direction: column; gap: 10px; }
+  .choice {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    text-align: left;
+    background: #131a2b;
+    border: 1px solid var(--panel-border);
+    color: var(--text);
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 0.97rem;
+    line-height: 1.4;
+    cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
+    transition: border-color 0.15s ease, background 0.15s ease, transform 0.1s ease;
+  }
+  .choice:hover:not(:disabled) {
+    border-color: var(--accent);
+    background: #17203a;
+  }
+  .choice:active:not(:disabled) { transform: scale(0.995); }
+  .choice:disabled { cursor: default; }
+  .choice .letter {
+    flex: none;
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+    background: var(--panel-border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text-dim);
+  }
+  .choice.correct { border-color: var(--correct); background: var(--correct-bg); }
+  .choice.correct .letter { background: var(--correct); color: #06251a; }
+  .choice.wrong { border-color: var(--wrong); background: var(--wrong-bg); }
+  .choice.wrong .letter { background: var(--wrong); color: #2a0808; }
+  .choice.dim { opacity: 0.55; }
+  .result-banner {
+    margin-top: 16px;
+    padding: 10px 14px;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 0.92rem;
+  }
+  .result-banner.good { background: var(--correct-bg); color: var(--correct); }
+  .result-banner.bad { background: var(--wrong-bg); color: var(--wrong); }
+  .explanation {
+    margin-top: 12px;
+    padding: 14px 16px;
+    background: #0f1626;
+    border: 1px solid var(--panel-border);
+    border-left: 3px solid var(--accent);
+    border-radius: 8px;
+    font-size: 0.93rem;
+    line-height: 1.55;
+    color: var(--text-dim);
+  }
+  .explanation strong { color: var(--text); }
+  .nav-row {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 18px;
+  }
+  .next-btn {
+    background: var(--accent);
+    color: #0a0e18;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+  }
+  .next-btn.show { opacity: 1; pointer-events: auto; }
+  .next-btn:hover { filter: brightness(1.08); }
+  .score-live {
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 0.85rem;
+    margin-bottom: 6px;
+  }
+  .final {
+    text-align: center;
+    padding: 36px 24px;
+  }
+  .final .big-score {
+    font-size: 3rem;
+    font-weight: 700;
+    margin: 8px 0 4px;
+    background: linear-gradient(90deg, var(--accent), var(--gold));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .final .line {
+    color: var(--text-dim);
+    margin-bottom: 20px;
+  }
+  .final .encourage {
+    font-size: 1.05rem;
+    color: var(--text);
+    margin-bottom: 24px;
+  }
+  .restart-btn {
+    background: transparent;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-size: 0.9rem;
+    cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
+  }
+  .restart-btn:hover { background: var(--accent-dim); }
+  .hidden { display: none; }
+  footer.tip {
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 0.78rem;
+    margin-top: 28px;
+    line-height: 1.5;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>🎓 Ascent Quiz #21</h1>
+    <div class="sub">2026-09-02 · How the game is built</div>
+  </header>
+
+  <div id="quizArea">
+    <div class="progress-row">
+      <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="progress-label" id="progressLabel">Q1 / 10</div>
+    </div>
+    <div class="score-live" id="scoreLive">Score so far: 0</div>
+    <div class="card" id="questionCard"></div>
+  </div>
+
+  <div id="finalArea" class="card final hidden"></div>
+
+  <footer class="tip">Architecture only — no game-rules spoilers here. Reply with your score and Claude will pick tomorrow's topics to match.</footer>
+</div>
+
+<script>
+const QUESTIONS = [
+  {
+    topic: "types-basics",
+    question: "packages/sim/src/state.ts declares <code>const COMBAT_FLOW_ACTIONS = new Set&lt;Action['type']&gt;(['faceOmen', 'settleCombat', 'resolveCombat']);</code>. <code>Action</code> is a big discriminated union like <code>{ type: 'buy'; uid: string } | { type: 'sell'; uid: string } | ...</code>. What does the <code>Action['type']</code> part actually give you?",
+    choices: [
+      "The literal string \"type\", used as a placeholder generic parameter with no real meaning",
+      "A brand-new type — the union of every variant's <code>type</code> field pulled straight out of <code>Action</code> (e.g. <code>'buy' | 'sell' | 'roll' | ...</code>) — so the Set is typed to only ever hold a real action-type string",
+      "One single, specific action's type, auto-picked by TypeScript",
+      "A compile error — you can't index a type with a string, only a value"
+    ],
+    answer: 1,
+    explanation: "TypeScript lets you index INTO a type the same way you'd index into a value — this is called an \"indexed access type.\" Since every variant of the <code>Action</code> union carries a <code>type</code> field, <code>Action['type']</code> extracts just that field's type across all of them: the union of every action's string literal. That's what makes <code>COMBAT_FLOW_ACTIONS</code> a <code>Set</code> TypeScript will flag if a nonexistent action name is ever typo'd into it. D is the tempting wrong answer, but indexing a TYPE with a string literal (naming a property) is valid, ordinary TypeScript — it's a different operation from indexing a runtime value."
+  },
+  {
+    topic: "immutability",
+    question: "packages/sim/src/reducer.ts has <code>card.keywords = [...card.keywords, 'DS'];</code> — building a brand-new array and reassigning it — instead of the shorter <code>card.keywords.push('DS')</code>. Here, <code>card</code> is already a private, per-run <code>BoardCard</code> sitting on <code>s.board</code>, not a shared <code>CardDef</code> — reducer.ts is free to mutate it directly. Why might the spread-and-reassign form still be preferred?",
+    choices: [
+      "<code>.push()</code> doesn't exist on TypeScript arrays, only <code>.concat()</code> does",
+      "It's a defensive, consistent habit: building a fresh array and reassigning reads the same everywhere <code>keywords</code> is touched, so nobody has to stop and check whether THIS particular array happens to be safe to mutate in place",
+      "<code>[...card.keywords, 'DS']</code> runs asynchronously, so it doesn't block the rest of reducer.ts the way <code>.push()</code> would",
+      "Using <code>.push()</code> here would trip the ESLint Math.random ban"
+    ],
+    answer: 1,
+    explanation: "<code>.push()</code> would work fine on this particular <code>BoardCard</code>, since it isn't a shared <code>CardDef</code>. But this codebase also has real, hard rules against mutating SHARED data (CLAUDE.md: \"Never mutate shared CardDefs\"), and consistently reaching for the non-mutating, rebuild-and-reassign pattern means a reader never has to pause at each call site and reason about whether array mutation happens to be safe there right now. A is false — <code>.push()</code> is a completely ordinary array method; C and D invent mechanics (async execution, an unrelated lint rule) that have nothing to do with this line."
+  },
+  {
+    topic: "reducer-run-state",
+    question: "Inside reducer.ts's <code>spendGold()</code>, Food for Gold's payoff reads: <code>(s.pendingTavern ??= []).push('fred');</code>. What does the <code>??=</code> operator do here?",
+    choices: [
+      "It's shorthand for <code>||=</code> — TypeScript treats the two identically",
+      "If <code>s.pendingTavern</code> is currently <code>null</code> or <code>undefined</code>, assign it a fresh empty array first — otherwise leave whatever's already there alone — and THEN push onto it",
+      "It resets <code>s.pendingTavern</code> back to an empty array every single time this line runs, then pushes",
+      "It's a comparison, checking whether <code>pendingTavern</code> is already an empty array"
+    ],
+    answer: 1,
+    explanation: "<code>??=</code> is the \"logical nullish assignment\" operator — shorthand for <code>s.pendingTavern = s.pendingTavern ?? []</code>. It only assigns when the left side is genuinely <code>null</code>/<code>undefined</code>, so a <code>pendingTavern</code> array already holding entries from earlier this same purchase keeps them, and the new Fodder is appended on top. That matters because the surrounding <code>while</code> loop can push multiple times in a single <code>spendGold()</code> call — a line that reset the array every time (C) would silently lose all but the last push. It's also narrower than <code>||=</code>, which reassigns on ANY falsy left side (0, '', NaN), not just a genuinely absent one — a real, common source of subtle bugs <code>??=</code> was added to JavaScript to avoid."
+  },
+  {
+    topic: "zustand-store",
+    question: "packages/ui/src/store.ts's <code>rollHeroChoices()</code> shuffles hero ids with plain <code>Math.floor(Math.random() * (i + 1))</code> — not the seeded <code>Rng</code>. CLAUDE.md bans <code>Math.random</code> in <code>core</code>/<code>content</code>/<code>sim</code>. Why is it fine right here, in a <code>ui</code> file?",
+    choices: [
+      "The ban only applies to files with the literal word \"core\" somewhere in their path, and store.ts doesn't match",
+      "Which 3 heroes get OFFERED on the pre-run picker screen isn't part of any deterministic run at all — it's a meta/presentation choice made before a run's seed is even relevant, so nothing here needs to be reproducible",
+      "ESLint simply doesn't run on <code>packages/ui</code> at all, so nothing there is ever checked",
+      "<code>Math.random()</code> is secretly seeded the same way <code>core</code>'s <code>Rng</code> is, just under a different name"
+    ],
+    answer: 1,
+    explanation: "The whole reason <code>Math.random</code> is banned in the sim-facing packages is that anything affecting a run's OUTCOME needs to flow through the one seeded <code>Rng</code> so replays and balance sims stay reproducible. Which heroes show up on the picker before a run even starts doesn't touch any in-progress run's outcome, so true randomness here is harmless — there's nothing to replay. A and D both invent a mechanism that doesn't exist; C overstates it — the ESLint config's <code>files:</code> glob excludes <code>ui</code> from THIS ONE rule specifically, not from linting altogether."
+  },
+  {
+    topic: "event-bus",
+    question: "packages/core/src/events.ts declares <code>CombatBus</code>'s field as <code>private readonly handlers = new Map&lt;GameEvent, EventHandler[]&gt;();</code>. Beyond what <code>readonly</code> already does, what does adding <code>private</code> buy here?",
+    choices: [
+      "It makes the Map itself immutable — no entries could ever be added or removed from it again",
+      "It stops code OUTSIDE the <code>CombatBus</code> class from reaching in and reading or changing <code>handlers</code> directly — every interaction has to go through the class's own <code>on()</code>/<code>emit()</code> methods",
+      "It's required syntax any time a class field is typed as a <code>Map</code>, with no effect on visibility",
+      "It prevents the Map from ever being garbage-collected"
+    ],
+    answer: 1,
+    explanation: "<code>private</code> is a TypeScript access modifier controlling which code can even NAME a field — only code written inside <code>CombatBus</code> itself can touch <code>this.handlers</code>; a minion's effect code or the simulator can only register or fire through the public <code>on()</code>/<code>emit()</code> methods, never bypass them to, say, rip out another minion's handler directly. That's a different, broader guarantee than <code>readonly</code>, which only stops <code>handlers</code> from being reassigned to point at a DIFFERENT Map — the Map's own contents can still change freely, which is exactly what <code>on()</code>/<code>emit()</code> do. A conflates the two; C and D are invented."
+  },
+  {
+    topic: "cards-in-sets",
+    question: "packages/content/src/sets.ts's <code>activeSet()</code> does <code>for (const s of Object.values(SETS)) if (s.enabled) return s;</code>, and the surrounding doc comment says this relies on set1/set2/set3 being visited in DECLARATION order. <code>SETS</code> is a plain object literal: <code>{ set1: {...}, set2: {...}, set3: {...} }</code>. What actually guarantees <code>Object.values(SETS)</code> walks them in exactly that order?",
+    choices: [
+      "Nothing does — plain-object key order in JavaScript is unspecified, so this is a latent bug waiting to happen",
+      "sets.ts calls <code>.sort()</code> on the object internally before iterating, even though that line isn't shown here",
+      "For ordinary string keys like these (not integer-like), JavaScript objects preserve INSERTION order — properties enumerate in the same order they were first written into the object literal",
+      "TypeScript silently reorders object keys alphabetically at compile time, and set1/set2/set3 just happen to already be alphabetical"
+    ],
+    answer: 2,
+    explanation: "Modern JavaScript has a real, specified rule for plain-object key order: integer-like keys (like \"0\", \"1\") sort numerically and come first, and every other (string) key follows in INSERTION order — the order it was first assigned. Since <code>set1</code>/<code>set2</code>/<code>set3</code> aren't integer-like, <code>Object.values(SETS)</code> is guaranteed to walk them in exactly the order they appear in the literal, which is precisely what <code>activeSet()</code>'s first-enabled-wins logic depends on. A is the tempting-but-outdated answer — that uncertainty only applied to very old, nonstandard engines; B and D both invent machinery that isn't in the code."
+  },
+  {
+    topic: "package-boundaries",
+    question: "CLAUDE.md's concurrency notes warn that a fresh git worktree starts with no <code>node_modules</code> of its own, so <code>@game/core</code>/<code>@game/sim</code>/<code>@game/content</code> imports resolve through symlinks pointing at the ROOT checkout's <code>packages/*</code> — whichever branch THAT happens to be sitting on. In practice, what does that mean for someone who opens a brand-new worktree and immediately runs <code>npm run typecheck</code>, before running <code>npm install</code> inside it?",
+    choices: [
+      "Nothing — every worktree automatically gets its own fully independent copy of each package",
+      "The typecheck command will refuse to run at all until <code>npm install</code> happens",
+      "Their own edited files under <code>packages/ui</code> (relative imports) get checked correctly, but any <code>@game/core</code>/<code>@game/sim</code>/<code>@game/content</code> code they import is actually the ROOT checkout's version — possibly parked on an unrelated branch — not their own worktree's code, until <code>npm install</code> runs there",
+      "It only ever affects <code>npm test</code>, never <code>npm run typecheck</code>"
+    ],
+    answer: 2,
+    explanation: "A git worktree shares the repo's full history but starts with no dependencies installed of its own; until <code>npm install</code> runs INSIDE it, workspace symlinks for packages it doesn't directly edit fall back to whatever the primary/root checkout already has — possibly on a completely different branch. That's exactly the \"phantom errors in files I never touched\" symptom CLAUDE.md documents from a real 2026-08-07 incident (three false <code>runeChef</code> errors). A is the wrong assumption that caused it; B and D both understate the problem — the command still runs and reports something, it's just checking against the wrong code, and the same workspace-symlink mechanism affects <code>typecheck</code>, <code>test</code>, and anything else that imports a sibling package."
+  },
+  {
+    topic: "effects-as-subscriptions",
+    question: "packages/core/src/effects/factories.ts declares <code>export type EffectFn = (ctx: CombatContext, self: Minion, params: Record&lt;string, unknown&gt;, payload: unknown) =&gt; void;</code>, and EVERY factory function in the file — whether it deals damage, buffs a tribe, or summons a token — matches that exact same 4-parameter shape. Why does that matter for how <code>FACTORIES</code> works as a lookup table?",
+    choices: [
+      "It doesn't really matter — TypeScript would happily let <code>FACTORIES</code> mix functions with different parameter shapes",
+      "Because every factory implements the identical <code>EffectFn</code> signature, the code that CALLS one — <code>FACTORIES[effect.do]?.(ctx, minion, params, payload)</code> — can invoke ANY of them the exact same way, with no special case per effect: one uniform interface is what lets a single call site dispatch every card's effect in the game",
+      "The shared signature is enforced by the zod schema in packages/content, not by TypeScript itself",
+      "<code>EffectFn</code> is purely a naming convention with no actual compile-time checking behind it"
+    ],
+    answer: 1,
+    explanation: "This is the same idea behind interfaces/polymorphism generally: once every implementation agrees on one call shape, the calling code doesn't need to know which specific one it picked — it just calls whatever it looked up. That uniformity is exactly what lets one dispatch site in <code>simulate()</code> treat hundreds of different card effects identically. A is wrong: <code>Partial&lt;Record&lt;EffectFactoryId, EffectFn&gt;&gt;</code> means TypeScript DOES require every value in that object literal to actually satisfy <code>EffectFn</code> — a mismatched signature is a compile error. C confuses two different layers: zod validates the DATA (the <code>do</code> string a card carries), while <code>EffectFn</code> is a TypeScript contract on the CODE a factory must implement. D is simply false."
+  },
+  {
+    topic: "effect-timing-pipeline",
+    question: "CLAUDE.md's card-text rule requires wiring a scaling effect's live value into BOTH <code>liveCardText</code> (shop/board/hand/Discover/end screen) AND <code>Unit.tsx</code> (combat) — never relying on just one shared helper. Given the recruit-phase-bake vs combat-time split, why does one scaling card need two separate wiring points instead of a single shared one?",
+    choices: [
+      "It's pure duplication with no real reason — the team just hasn't gotten around to unifying it",
+      "Because the two moments read from genuinely different live data: the recruit-phase views compute the number from the run's current shop/board state before any fight has started, while <code>Unit.tsx</code> shows it mid-combat, computed from live <code>Minion</code>/<code>CombatContext</code> state — there's no single object both sides can read from",
+      "<code>liveCardText</code> exists only for automated tests and is never actually shown to a player",
+      "Combat minions and shop cards use entirely different <code>CardDef</code> objects, so the split is really about separate data ownership rather than timing"
+    ],
+    answer: 1,
+    explanation: "This is a direct, visible symptom of the recruit-phase-bake vs combat-time architecture: a card's magnitude might depend on <code>RunState</code> (Gold spent, a quest tally) before combat starts, or on live <code>Minion</code>/<code>CombatContext</code> state once <code>simulate()</code> is mid-fight — two genuinely different data sources that exist at two different moments, so no single call site can read both. A dodges the actual architectural reason; C is false — <code>liveCardText</code> is exactly what players see in the shop and hand; D is a plausible-sounding trap, but CLAUDE.md's own rule is that a combat <code>Minion</code> is CLONED from the same <code>CardDef</code>, not a separately-owned definition."
+  },
+  {
+    topic: "testing-vitest",
+    question: "The root package.json declares two scripts: <code>\"test\": \"vitest run\"</code> and <code>\"test:watch\": \"vitest\"</code>. What does adding <code>run</code> actually change, and why does <code>npm test</code> (and CI) want that version?",
+    choices: [
+      "<code>vitest run</code> executes the whole suite once and exits with a pass/fail status code; plain <code>vitest</code> starts a persistent, interactive watch mode that stays running and re-runs tests on file changes — CI needs the former because it must actually finish and report success or failure",
+      "<code>vitest run</code> runs the tests in a stricter, more thorough mode, while plain <code>vitest</code> skips some checks for speed",
+      "The two commands are functionally identical; <code>run</code> is just a legacy alias kept around for old scripts",
+      "<code>vitest run</code> only runs a single, randomly chosen test file — useful for a quick smoke test, not full coverage"
+    ],
+    answer: 0,
+    explanation: "Vitest's default (no <code>run</code>) is a persistent watch-mode process — great for a developer iterating locally, which is exactly what <code>test:watch</code> is for. CI, though, needs a command that runs the suite exactly once, reports pass/fail through its exit code, and then terminates — that's precisely what the <code>run</code> subcommand does, which is why the CI-facing <code>npm test</code> script uses it instead of bare <code>vitest</code>. B, C, and D all invent behavior that <code>run</code> doesn't actually have — the difference is about WHEN the process exits, not test strictness or coverage."
+  }
+];
+
+let idx = 0;
+let score = 0;
+let answered = false;
+
+const questionCard = document.getElementById('questionCard');
+const progressFill = document.getElementById('progressFill');
+const progressLabel = document.getElementById('progressLabel');
+const scoreLive = document.getElementById('scoreLive');
+const quizArea = document.getElementById('quizArea');
+const finalArea = document.getElementById('finalArea');
+
+function render() {
+  answered = false;
+  const q = QUESTIONS[idx];
+  progressFill.style.width = ((idx) / QUESTIONS.length * 100) + '%';
+  progressLabel.textContent = 'Q' + (idx + 1) + ' / ' + QUESTIONS.length;
+  scoreLive.textContent = 'Score so far: ' + score;
+
+  const letters = ['A', 'B', 'C', 'D'];
+  questionCard.innerHTML = `
+    <div class="topic-tag">${q.topic}</div>
+    <div class="question">${q.question}</div>
+    <div class="choices">
+      ${q.choices.map((c, i) => `
+        <button class="choice" data-i="${i}">
+          <span class="letter">${letters[i]}</span>
+          <span>${c}</span>
+        </button>
+      `).join('')}
+    </div>
+    <div id="resultSlot"></div>
+    <div class="nav-row"><button class="next-btn" id="nextBtn">${idx === QUESTIONS.length - 1 ? 'See results' : 'Next question →'}</button></div>
+  `;
+
+  const buttons = questionCard.querySelectorAll('.choice');
+  buttons.forEach(btn => {
+    btn.addEventListener('click', () => onAnswer(parseInt(btn.dataset.i, 10)));
+  });
+}
+
+function onAnswer(chosen) {
+  if (answered) return;
+  answered = true;
+  const q = QUESTIONS[idx];
+  const correct = chosen === q.answer;
+  if (correct) score++;
+
+  const buttons = questionCard.querySelectorAll('.choice');
+  buttons.forEach((btn, i) => {
+    btn.disabled = true;
+    if (i === q.answer) btn.classList.add('correct');
+    else if (i === chosen) btn.classList.add('wrong');
+    else btn.classList.add('dim');
+  });
+
+  const resultSlot = document.getElementById('resultSlot');
+  resultSlot.innerHTML = `
+    <div class="result-banner ${correct ? 'good' : 'bad'}">${correct ? '✓ Correct!' : '✗ Not quite.'}</div>
+    <div class="explanation">${q.explanation}</div>
+  `;
+
+  scoreLive.textContent = 'Score so far: ' + score;
+  document.getElementById('nextBtn').classList.add('show');
+}
+
+document.addEventListener('click', (e) => {
+  if (e.target && e.target.id === 'nextBtn') {
+    idx++;
+    if (idx >= QUESTIONS.length) {
+      showFinal();
+    } else {
+      render();
+    }
+  }
+});
+
+function showFinal() {
+  progressFill.style.width = '100%';
+  progressLabel.textContent = 'Done!';
+  quizArea.classList.add('hidden');
+  finalArea.classList.remove('hidden');
+
+  let line;
+  if (score === QUESTIONS.length) line = "Perfect score! You're reading this codebase like a pro.";
+  else if (score >= 8) line = "Excellent work — you've got a really solid handle on this.";
+  else if (score >= 6) line = "Good run — the architecture is clearly starting to click.";
+  else if (score >= 4) line = "Solid effort — a few of these ideas are worth a second look.";
+  else line = "Everyone starts somewhere — the whole point of the daily quiz is to build this up slowly.";
+
+  finalArea.innerHTML = `
+    <div class="topic-tag">Quiz #21 complete</div>
+    <div class="big-score">${score} / ${QUESTIONS.length}</div>
+    <div class="line">Ascent Quiz — 2026-09-02</div>
+    <div class="encourage">${line}</div>
+    <button class="restart-btn" id="restartBtn">Take it again</button>
+  `;
+  document.getElementById('restartBtn').addEventListener('click', () => {
+    idx = 0; score = 0;
+    quizArea.classList.remove('hidden');
+    finalArea.classList.add('hidden');
+    render();
+  });
+}
+
+render();
+</script>
+</body>
+</html>

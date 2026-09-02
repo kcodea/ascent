@@ -128,6 +128,8 @@ export function applyConsequenceToProjection(
         ...base,
         grantedCards: [...projection.grantedCards, { uid: c.target.uid ?? c.id, cardId: c.cardId, zone: 'hand', eventId: c.id }],
       };
+    case 'echoFired':
+      return base; // the fire itself changes no projected state — its effects arrive as their own consequences
     case 'cardSummoned':
       // A summon is a BOARD arrival — tagged so the UI shows it on the board, not in the hand preview.
       // `index` rides through so the ghost renders in its committed slot (adjacent to its summoner).

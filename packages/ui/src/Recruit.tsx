@@ -5265,10 +5265,31 @@ export function Recruit() {
       return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
     };
     const presenterCtx: PresenterContext = {
-      // The generic green burst is retired (`.cardbuff`) — this beat has no unauthored fallback cue anymore,
-      // so a stat gain with no authored def plays nothing. Kept as a no-op (rather than removed) so
-      // `PresenterContext` stays satisfied; the registry still calls `ctx.statGain(...)`.
-      statGain: () => {},
+      // The generic green burst is retired (`.cardbuff`), so a stat gain with no SOURCE minion plays nothing
+      // here (a rune/quest ribbon, an aura wash and a Ruby are their own cues). A buff FROM another minion —
+      // Kringle paying the end Dwarves, an Echo buffing its neighbours — draws what the legacy commit-time
+      // replay drew for it: the source card's bound `minionBuffed` def when one is authored, else the stock
+      // source→target tendril. ON ITS BEAT now, because the End-of-Turn completion advances the legacy
+      // trackers past the commit (nothing may replay after the beats — owner 2026-09-01), and until this the
+      // commit replay was the ONLY place these tendrils were drawn under the authoritative path.
+      statGain: (uid, _zone, _attack, _health, from) => {
+        if (!from || from.uid === uid) return;
+        const target = centreOf(uid);
+        if (!target) return;
+        if (bindingFor(from.cardId, 'minionBuffed')) {
+          if (!canPlayDefs()) return;
+          runRecruitMomentCues(
+            { kind: 'minionBuffed', sourceCardId: from.cardId, recipients: [{ uid, count: 1 }] },
+            {
+              cardIdOf: (u) => runRef.current.board.find((c) => c.uid === u)?.cardId ?? null,
+              measure: (u) => { const el = document.querySelector<HTMLElement>(`[data-uid="${u}"]`); return el ? restingCenterOf(el) : null; },
+            },
+          );
+          return;
+        }
+        const source = centreOf(from.uid);
+        fireBuffFx({ source: source ?? undefined, target, cardId: from.cardId, tribe: CARD_INDEX[from.cardId]?.tribe ?? 'neutral', sourceless: !source });
+      },
       selfBuff: (uid) => {
         // A self-buff on this beat plays the authored self-buff def, mirroring the per-action `minionSelfBuffed`
         // path: routed through the same recruit cue runner, keyed by the minion's own card so a card override
@@ -5331,6 +5352,18 @@ export function Recruit() {
         playDef('ale-bubbles', { source: p, target: p }, { uids: { source: sourceUid, target: sourceUid } });
       },
       cardSummoned: () => { /* board arrivals animate through the existing summon path */ },
+      echoFired: (uid) => {
+        // The skull-shatter ON ITS BEAT, on the Echo minion — the same `pixiFx.deathrattle` the shop destroy
+        // and combat play. Marked pre-fired so the legacy commit-time `shopDeathFx` stamp for this uid (still
+        // written at the chokepoint) does not play it a second time at the phase flip.
+        const el = findEl(uid);
+        if (!el) return;
+        const cfg = getShopDeathFxConfig();
+        if (!cfg.echoEnabled) return;
+        const r = el.getBoundingClientRect();
+        preFiredEchoRef.current.add(uid);
+        pixiFx.deathrattle(r.left + r.width / 2 + cfg.offsetX, r.top + r.height / 2 + cfg.offsetY, r.width * cfg.sizeScale);
+      },
       cardDestroyed: (uid, zone, cardId, rise) => {
         // A shop offer consumed on its beat (Bob Blart's End of Turn) leaves the row NOW — so the minion
         // disappears as the eater procs, not at commit (owner report 2026-08-14). The crumble choreography
@@ -5422,6 +5455,14 @@ export function Recruit() {
         beatsById.set(beat.id, beat); // indexed here so a consequence can always resolve its source beat
         // Only a beat with a card instance can light a medallion; rune/quest beats animate via their rail.
         const uid = beat.source.uid;
+        // A MINION-sourced beat that belongs to a RUNE (Rune of the Reliquary firing an Echo, Lasting Cadence
+        // firing a Rally, Combat Prowess firing a Start of Combat — identity `rune:<id>:…`, source the acting
+        // minion) draws the rune's ribbon to that minion AS its beat lands. A rune-sourced beat's ribbons ride
+        // its consequences (`questTendril` in the presenters); a minion-sourced one has no rune-sourced
+        // consequence to hang them on, and the commit-time stamp lands after the phase flips (owner report
+        // 2026-09-01: the Reliquary "had no beats, animations or anything firing").
+        const runeId = beat.source.kind === 'minion' && beat.policyKey?.startsWith('rune:') ? beat.policyKey.split(':')[1] : undefined;
+        if (runeId && uid) presenterCtx.questTendril('rune', runeId, uid, 0);
         setEotProcUids(uid ? new Set([uid]) : new Set());
         setEotPulseUids(uid && beat.mode === 'ownBeat' ? new Set([uid]) : new Set());
         if (beat.mode === 'ownBeat') sfx.triggerPulse(); else sfx.triggerGlow();
@@ -5476,6 +5517,19 @@ export function Recruit() {
         const committedShopEatSeq = useGame.getState().run.shopEatenSeq;
         prevShopEatSeq.current = committedShopEatSeq;
         prevShopEatHoldSeq.current = committedShopEatSeq;
+        // The same rule for EVERY legacy per-action FX channel this commit bumps. The beats already presented
+        // the Rubies (`rubyPlayed`), the stat climbs and the shop buffs, so the moment-cue runner and the buff
+        // tendril watcher must not replay them at the phase flip — the board is still on screen under the
+        // combat curtain, and they DID replay (owner 2026-09-01: "kobebes triggers again at the end" — its
+        // Echo's Rubies cascading a second time at commit). Mid-shop actions bump these seqs outside this
+        // path and still animate exactly as before.
+        const committed = useGame.getState().run;
+        captureRecruitSeqs(committed, prevRecruitSeqs.current);
+        prevFxSeq.current = committed.recruitFxSeq;
+        // …and the Echo skulls: every End-of-Turn Echo played its skull on its own beat (`echoFired`), so the
+        // per-uid pre-fired set is not enough when one body fires twice (Chronos, or two runes on the same
+        // Echo) — the second stamp would still replay at the flip. Advance the stamp tracker like the rest.
+        prevShopFxSeq.current = committed.shopFxSeq;
         setEotConsumedUids(new Set());
         }, EOT_COMBAT_PAD_MS);
       },

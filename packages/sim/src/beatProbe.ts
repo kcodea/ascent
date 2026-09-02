@@ -68,6 +68,18 @@ export function defaultScenarios(): ProbeScenario[] {
       state: base({ board: [minion('b1', 'stray')], runeLapidary: true, playedThisTurn: ['a', 'b', 'c'] } as Partial<RunState>),
     },
     {
+      // Rune of the Reliquary: End of Turn fires the two left-most Echoes — one beat per Echo, sourced on the
+      // Echo minion, each with its summons + its `echoFired`. Was classified and never observed (owner report
+      // 2026-09-01: nothing on screen).
+      name: 'End of Turn — Reliquary Echoes',
+      state: base({ board: [minion('b1', 'pack'), minion('b2', 'manasaber'), minion('b3', 'stray')], questRecurringEndOfTurn: ['triggerLeftmostEcho'] } as Partial<RunState>),
+    },
+    {
+      // Rune of the Crucible Choir: the left-most Shout, then the left-most Echo — each its own minion-sourced beat.
+      name: 'End of Turn — Crucible Choir',
+      state: base({ board: [minion('b1', 'alley'), minion('b2', 'pack')], runeCrucibleChoir: true, ownedRunes: ['rune_crucible_choir'] } as Partial<RunState>),
+    },
+    {
       name: 'Start of Combat — Fleeting Vigor',
       state: base({ board: [minion('b1', 'stray')], fleetingVigor: { attack: 2, health: 2 } } as Partial<RunState>),
     },

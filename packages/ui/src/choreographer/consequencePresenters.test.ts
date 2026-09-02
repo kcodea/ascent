@@ -22,14 +22,14 @@ import type { ConsequenceEvent } from '@game/core';
 const ALL_CONSEQUENCE_TYPES = [
   'statsChanged', 'keywordChanged', 'cardSummoned', 'cardDestroyed', 'cardTransformed', 'cardGranted',
   'spellResolved', 'resourceChanged', 'shopChanged', 'auraChanged', 'counterChanged', 'rubyPlayed',
-  'fodderEaten',
+  'fodderEaten', 'echoFired',
 ] as const;
 
 const spyContext = () => ({
   statGain: vi.fn(), selfBuff: vi.fn(), rubyLanded: vi.fn(), spellPower: vi.fn(), impAura: vi.fn(), rubyAura: vi.fn(),
   cardGranted: vi.fn(), cardSummoned: vi.fn(), cardDestroyed: vi.fn(), shopBuffed: vi.fn(),
   resourceChanged: vi.fn(), counterChanged: vi.fn(), cardTransformed: vi.fn(), keywordChanged: vi.fn(),
-  questTendril: vi.fn(), tavernGust: vi.fn(), weldPulse: vi.fn(), fodderEaten: vi.fn(),
+  questTendril: vi.fn(), tavernGust: vi.fn(), weldPulse: vi.fn(), fodderEaten: vi.fn(), echoFired: vi.fn(),
 }) satisfies PresenterContext;
 
 const beat = { id: 'beat:1', source: { kind: 'minion', id: 'c', uid: 'src' } } as CompiledBeat;
@@ -39,6 +39,16 @@ const run = (consequence: ConsequenceEvent, ctx = spyContext()) => {
 };
 
 describe('every consequence type has a presenter', () => {
+  it('a buff FROM another minion carries its source to statGain; a self-buff and a rune buff do not', () => {
+    const others = { id: 'beat:1', source: { kind: 'minion', id: 'dw_foreman', uid: 'src' } } as CompiledBeat;
+    const gain = { type: 'statsChanged', id: 'e', sequence: 1, step: 1, target: { zone: 'board', uid: 'tgt', cardId: 'stray', side: 'player' }, attack: 2, health: 2, permanent: true } as ConsequenceEvent;
+    const a = spyContext(); presentConsequence({ consequence: gain, beat: others, ctx: a });
+    expect(a.statGain).toHaveBeenCalledWith('tgt', 'board', 2, 2, { uid: 'src', cardId: 'dw_foreman' });
+    const rune = { id: 'beat:2', source: { kind: 'rune', id: 'rune_reliquary' } } as CompiledBeat;
+    const b = spyContext(); presentConsequence({ consequence: gain, beat: rune, ctx: b });
+    expect(b.statGain).toHaveBeenCalledWith('tgt', 'board', 2, 2, undefined);
+  });
+
   it.each(ALL_CONSEQUENCE_TYPES)('%s is covered', (type) => {
     expect(CONSEQUENCE_PRESENTERS[type], `no presenter for '${type}' — it would resolve with nothing on screen`).toBeTypeOf('function');
   });
@@ -85,7 +95,8 @@ describe('presenters read the EVENT, not the card definition', () => {
 
   it('an ordinary buff FROM another minion draws the generic burst (source src, target u1)', () => {
     const ctx = run({ type: 'statsChanged', id: 's', sequence: 0, step: 1, target: { zone: 'board', uid: 'u1' }, attack: 2, health: 2, permanent: true, channel: 'ordinary' } as ConsequenceEvent);
-    expect(ctx.statGain).toHaveBeenCalledWith('u1', 'board', 2, 2);
+    // …carrying the GRANTING minion (the beat's source), so the beat can draw the source→target tendril.
+    expect(ctx.statGain).toHaveBeenCalledWith('u1', 'board', 2, 2, { uid: 'src', cardId: 'c' });
     expect(ctx.selfBuff).not.toHaveBeenCalled();
   });
 
@@ -209,5 +220,16 @@ describe('beat-level sequences (PR 6) — derived from events, not hardcoded eff
     expect(ctx.fodderEaten).toHaveBeenCalledWith({
       eaterUid: 'e1', fodderId: 'fred', attack: 1, health: 1, gainAttack: 2, gainHealth: 2,
     });
+  });
+});
+
+describe('echoFired', () => {
+  it('plays the Echo skull on the minion that fired, at its beat', () => {
+    const ctx = run({ type: 'echoFired', id: 'e1', sequence: 1, step: 1, target: { zone: 'board', uid: 'dawn', cardId: 'b2_dawnclaw', side: 'player' }, cardId: 'b2_dawnclaw' } as ConsequenceEvent);
+    expect(ctx.echoFired).toHaveBeenCalledWith('dawn', 'b2_dawnclaw');
+  });
+  it('is inert without a uid to anchor on', () => {
+    const ctx = run({ type: 'echoFired', id: 'e1', sequence: 1, step: 1, target: { zone: 'board', cardId: 'x', side: 'player' }, cardId: 'x' } as unknown as ConsequenceEvent);
+    expect(ctx.echoFired).not.toHaveBeenCalled();
   });
 });

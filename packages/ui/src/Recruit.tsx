@@ -5331,6 +5331,18 @@ export function Recruit() {
         playDef('ale-bubbles', { source: p, target: p }, { uids: { source: sourceUid, target: sourceUid } });
       },
       cardSummoned: () => { /* board arrivals animate through the existing summon path */ },
+      echoFired: (uid) => {
+        // The skull-shatter ON ITS BEAT, on the Echo minion — the same `pixiFx.deathrattle` the shop destroy
+        // and combat play. Marked pre-fired so the legacy commit-time `shopDeathFx` stamp for this uid (still
+        // written at the chokepoint) does not play it a second time at the phase flip.
+        const el = findEl(uid);
+        if (!el) return;
+        const cfg = getShopDeathFxConfig();
+        if (!cfg.echoEnabled) return;
+        const r = el.getBoundingClientRect();
+        preFiredEchoRef.current.add(uid);
+        pixiFx.deathrattle(r.left + r.width / 2 + cfg.offsetX, r.top + r.height / 2 + cfg.offsetY, r.width * cfg.sizeScale);
+      },
       cardDestroyed: (uid, zone, cardId, rise) => {
         // A shop offer consumed on its beat (Bob Blart's End of Turn) leaves the row NOW — so the minion
         // disappears as the eater procs, not at commit (owner report 2026-08-14). The crumble choreography
@@ -5422,6 +5434,14 @@ export function Recruit() {
         beatsById.set(beat.id, beat); // indexed here so a consequence can always resolve its source beat
         // Only a beat with a card instance can light a medallion; rune/quest beats animate via their rail.
         const uid = beat.source.uid;
+        // A MINION-sourced beat that belongs to a RUNE (Rune of the Reliquary firing an Echo, Lasting Cadence
+        // firing a Rally, Combat Prowess firing a Start of Combat — identity `rune:<id>:…`, source the acting
+        // minion) draws the rune's ribbon to that minion AS its beat lands. A rune-sourced beat's ribbons ride
+        // its consequences (`questTendril` in the presenters); a minion-sourced one has no rune-sourced
+        // consequence to hang them on, and the commit-time stamp lands after the phase flips (owner report
+        // 2026-09-01: the Reliquary "had no beats, animations or anything firing").
+        const runeId = beat.source.kind === 'minion' && beat.policyKey?.startsWith('rune:') ? beat.policyKey.split(':')[1] : undefined;
+        if (runeId && uid) presenterCtx.questTendril('rune', runeId, uid, 0);
         setEotProcUids(uid ? new Set([uid]) : new Set());
         setEotPulseUids(uid && beat.mode === 'ownBeat' ? new Set([uid]) : new Set());
         if (beat.mode === 'ownBeat') sfx.triggerPulse(); else sfx.triggerGlow();
@@ -5476,6 +5496,15 @@ export function Recruit() {
         const committedShopEatSeq = useGame.getState().run.shopEatenSeq;
         prevShopEatSeq.current = committedShopEatSeq;
         prevShopEatHoldSeq.current = committedShopEatSeq;
+        // The same rule for EVERY legacy per-action FX channel this commit bumps. The beats already presented
+        // the Rubies (`rubyPlayed`), the stat climbs and the shop buffs, so the moment-cue runner and the buff
+        // tendril watcher must not replay them at the phase flip — the board is still on screen under the
+        // combat curtain, and they DID replay (owner 2026-09-01: "kobebes triggers again at the end" — its
+        // Echo's Rubies cascading a second time at commit). Mid-shop actions bump these seqs outside this
+        // path and still animate exactly as before.
+        const committed = useGame.getState().run;
+        captureRecruitSeqs(committed, prevRecruitSeqs.current);
+        prevFxSeq.current = committed.recruitFxSeq;
         setEotConsumedUids(new Set());
         }, EOT_COMBAT_PAD_MS);
       },

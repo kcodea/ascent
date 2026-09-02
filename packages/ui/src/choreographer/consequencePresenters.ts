@@ -39,6 +39,9 @@ export interface PresenterContext {
   cardGranted: (cardId: string, uid: string, sourceUid?: string) => void;
   /** A minion was summoned to the board. */
   cardSummoned: (cardId: string, uid: string) => void;
+  /** An Echo fired on a body still on the board (Ossuary Rite, Deathsayer, Rune of the Reliquary) — the
+   *  skull-shatter on that minion, at its beat. */
+  echoFired: (uid: string, cardId: string) => void;
   /** A card left play — Fodder eaten, a shop offer consumed, a BOARD minion destroyed in the shop
    *  (Graverobber, Funeral on Loan). `cardId` and `rise` let the board case pick the same death visual combat
    *  picks: the Echo skull when the card has an onDeath effect, the authored dissolve when it does not, and
@@ -135,6 +138,10 @@ export const CONSEQUENCE_PRESENTERS: Record<ConsequenceEvent['type'], Consequenc
   cardSummoned: ({ consequence: c, ctx }) => {
     if (c.type !== 'cardSummoned') return;
     ctx.cardSummoned(c.cardId, c.target.uid ?? c.id);
+  },
+  echoFired: ({ consequence: c, ctx }) => {
+    if (c.type !== 'echoFired' || !c.target.uid) return;
+    ctx.echoFired(c.target.uid, c.cardId);
   },
   cardDestroyed: ({ consequence: c, ctx }) => {
     if (c.type !== 'cardDestroyed') return;

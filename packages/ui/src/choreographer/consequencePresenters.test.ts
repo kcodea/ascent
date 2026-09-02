@@ -22,14 +22,14 @@ import type { ConsequenceEvent } from '@game/core';
 const ALL_CONSEQUENCE_TYPES = [
   'statsChanged', 'keywordChanged', 'cardSummoned', 'cardDestroyed', 'cardTransformed', 'cardGranted',
   'spellResolved', 'resourceChanged', 'shopChanged', 'auraChanged', 'counterChanged', 'rubyPlayed',
-  'fodderEaten',
+  'fodderEaten', 'echoFired',
 ] as const;
 
 const spyContext = () => ({
   statGain: vi.fn(), selfBuff: vi.fn(), rubyLanded: vi.fn(), spellPower: vi.fn(), impAura: vi.fn(), rubyAura: vi.fn(),
   cardGranted: vi.fn(), cardSummoned: vi.fn(), cardDestroyed: vi.fn(), shopBuffed: vi.fn(),
   resourceChanged: vi.fn(), counterChanged: vi.fn(), cardTransformed: vi.fn(), keywordChanged: vi.fn(),
-  questTendril: vi.fn(), tavernGust: vi.fn(), weldPulse: vi.fn(), fodderEaten: vi.fn(),
+  questTendril: vi.fn(), tavernGust: vi.fn(), weldPulse: vi.fn(), fodderEaten: vi.fn(), echoFired: vi.fn(),
 }) satisfies PresenterContext;
 
 const beat = { id: 'beat:1', source: { kind: 'minion', id: 'c', uid: 'src' } } as CompiledBeat;
@@ -209,5 +209,16 @@ describe('beat-level sequences (PR 6) — derived from events, not hardcoded eff
     expect(ctx.fodderEaten).toHaveBeenCalledWith({
       eaterUid: 'e1', fodderId: 'fred', attack: 1, health: 1, gainAttack: 2, gainHealth: 2,
     });
+  });
+});
+
+describe('echoFired', () => {
+  it('plays the Echo skull on the minion that fired, at its beat', () => {
+    const ctx = run({ type: 'echoFired', id: 'e1', sequence: 1, step: 1, target: { zone: 'board', uid: 'dawn', cardId: 'b2_dawnclaw', side: 'player' }, cardId: 'b2_dawnclaw' } as ConsequenceEvent);
+    expect(ctx.echoFired).toHaveBeenCalledWith('dawn', 'b2_dawnclaw');
+  });
+  it('is inert without a uid to anchor on', () => {
+    const ctx = run({ type: 'echoFired', id: 'e1', sequence: 1, step: 1, target: { zone: 'board', cardId: 'x', side: 'player' }, cardId: 'x' } as unknown as ConsequenceEvent);
+    expect(ctx.echoFired).not.toHaveBeenCalled();
   });
 });

@@ -39,6 +39,7 @@ function describe(c: ConsequenceEvent): string {
     case 'statsChanged': return `stats ${c.attack >= 0 ? '+' : ''}${c.attack}/${c.health >= 0 ? '+' : ''}${c.health} → ${t}${c.channel && c.channel !== 'ordinary' ? ` (${c.channel})` : ''}`;
     case 'keywordChanged': return `${c.gained ? 'gain' : 'lose'} ${c.keyword} → ${t}`;
     case 'cardSummoned': return `summon ${c.cardId} → ${t}`;
+    case 'echoFired': return `echo fires ${c.cardId} @ ${t}`;
     case 'cardDestroyed': return `destroy ${t}`;
     case 'cardTransformed': return `transform ${t} → ${c.toCardId}`;
     case 'cardGranted': return `grant ${c.cardId} → ${t}`;

@@ -113,6 +113,20 @@ export interface CardSummonedConsequence extends ConsequenceBase {
    *  the ghost just appends. */
   index?: number;
 }
+/**
+ * An ECHO (Deathrattle) FIRED on a body that is still on the board — Ossuary Rite, Deathsayer, Rune of the
+ * Reliquary, a Gravetwin's copied Echo. Its EFFECTS ride the ordinary consequences (a summon, a stat grant);
+ * this is the fire itself, so the beat can play the skull-shatter on the Echo minion AT ITS BEAT. A shop
+ * DESTROY does not emit it — the body has already left the board, and `cardDestroyed` plays that skull.
+ * Before this (owner report 2026-09-01: "rune of the reliquary literally has no beats, animations or
+ * anything firing") the skull was a legacy commit-time stamp, which for an End-of-Turn Echo landed after the
+ * phase had flipped to combat — off screen.
+ */
+export interface EchoFiredConsequence extends ConsequenceBase {
+  type: 'echoFired';
+  target: ZoneTargetRef;
+  cardId: string;
+}
 export interface CardDestroyedConsequence extends ConsequenceBase {
   type: 'cardDestroyed';
   target: ZoneTargetRef;
@@ -218,7 +232,8 @@ export type ConsequenceEvent =
   | AuraChangedConsequence
   | CounterChangedConsequence
   | RubyPlayedConsequence
-  | FodderEatenConsequence;
+  | FodderEatenConsequence
+  | EchoFiredConsequence;
 
 export type GamePresentationEvent = SourceTriggerEvent | ConsequenceEvent;
 
@@ -245,7 +260,8 @@ export type ConsequenceDraft =
   | Omit<AuraChangedConsequence, 'id' | 'sequence' | 'step' | 'parentId'>
   | Omit<CounterChangedConsequence, 'id' | 'sequence' | 'step' | 'parentId'>
   | Omit<RubyPlayedConsequence, 'id' | 'sequence' | 'step' | 'parentId'>
-  | Omit<FodderEatenConsequence, 'id' | 'sequence' | 'step' | 'parentId'>;
+  | Omit<FodderEatenConsequence, 'id' | 'sequence' | 'step' | 'parentId'>
+  | Omit<EchoFiredConsequence, 'id' | 'sequence' | 'step' | 'parentId'>;
 
 /** What a mutation site hands the collector to open a trigger scope. */
 export interface BeginTriggerSpec {

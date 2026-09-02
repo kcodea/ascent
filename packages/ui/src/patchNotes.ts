@@ -56,6 +56,15 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-01',
+    label: 'Reliquary Beats',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: 'Rune of the Reliquary and Rune of the Crucible Choir now play each triggered minion as its own End-of-Turn beat.',
+        details: [
+          'Each Echo the Reliquary fires gets its own beat, left to right: the minion pulses, the Echo skull plays on it, and its summons or buffs land on that beat.',
+          'The Crucible Choir plays its Shout minion, then its Echo minion, the same way.',
+          'An Echo that does nothing in the shop no longer claims a beat, and the rune badge bursts once at the end instead of twice.',
     label: 'Repeated Shouts',
     changes: [
       {

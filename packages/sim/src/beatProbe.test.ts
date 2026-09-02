@@ -19,6 +19,11 @@ describe('the probe reports what gameplay really emitted', () => {
     expect(result.observed.get('rune:rune_coffers:endOfTurn'), 'Coffers emits').toBeTruthy();
     expect(result.observed.get('system:startOfCombat:fleetingVigor'), 'Fleeting Vigor emits').toBeTruthy();
     expect(result.observed.get('hero:repete:secondHand'), 'Re-Pete emits').toBeTruthy();
+    // Rune of the Reliquary — classified for weeks and never observed until 2026-09-01 (the owner saw nothing
+    // on screen). Two Echoes on the probe board → two minion-sourced beats, each with its summons + echoFired.
+    const reliquary = result.observed.get('rune:rune_reliquary:endOfTurn');
+    expect(reliquary, 'the Reliquary emits').toBeTruthy();
+    expect(reliquary!.consequences, 'and its beats carry the Echo consequences').toBeGreaterThan(0);
   });
 
   it('records how many consequences each beat carried', () => {

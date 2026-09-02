@@ -2073,6 +2073,13 @@ function fireRecruitDeathrattles(ctx: RecruitContext, minion: BoardCard, effects
   // Rite, Deathsayer, Rune of the Reliquary, a Gravetwin's copied Echo, a borrowed body's departure. Putting
   // it at the call sites instead is how the next one silently ships without its animation.
   if (hasDR) stampShopFx(ctx.state, { kind: 'echo', uid: minion.uid, cardId: minion.cardId });
+  // …and the BEAT SYSTEM's twin of that stamp: an `echoFired` consequence in the active trigger scope, so the
+  // Choreographer plays the skull on the Echo minion at its beat. Only while the body is STILL ON THE BOARD —
+  // a shop destroy removes it first and its `cardDestroyed` already plays the skull (no double). The stamp
+  // above stays for the legacy path; the presenter marks the uid pre-fired so the commit never replays it.
+  if (hasDR && ctx.collector.enabled && ctx.state.board.includes(minion)) {
+    ctx.collector.emit({ type: 'echoFired', target: { zone: 'board', uid: minion.uid, cardId: minion.cardId, side: 'player' }, cardId: minion.cardId });
+  }
   const fireOnce = (): void => {
     for (const eff of effects) {
       if (eff.on !== 'onDeath') continue;
@@ -10033,7 +10040,10 @@ export function applyEndOfTurn(state: RunState): void {
   // (PR 5): each gets its own labeled beat (rune/quest source), after the board effects (owner ruling #987).
   for (const eff of recurringEotEffects(state)) {
     for (let r = 0; r < repeats; r++) {
-      withRecruitTrigger(
+      // A SELF_BEAT effect (the Reliquary) opens one beat per acting minion itself — no outer scope, or the
+      // outer diff would emit every delta twice and an Echo-less board would leave an empty rune beat.
+      if (SELF_BEAT_RECURRING.has(eff)) runRecurringEndOfTurn(state, eff, false, { repeatIndex: r, repeatCount: repeats });
+      else withRecruitTrigger(
         ctx,
         { phase: 'endOfTurn', ...recurringBeatSpec(eff), repeatIndex: r, repeatCount: repeats },
         () => runRecurringEndOfTurn(state, eff),
@@ -10047,7 +10057,8 @@ export function applyEndOfTurn(state: RunState): void {
   if (limited?.length) {
     for (const entry of limited) {
       for (let r = 0; r < repeats; r++) {
-        withRecruitTrigger(
+        if (SELF_BEAT_RECURRING.has(entry.effect)) runRecurringEndOfTurn(state, entry.effect, false, { repeatIndex: r, repeatCount: repeats });
+        else withRecruitTrigger(
           ctx,
           { phase: 'endOfTurn', ...recurringBeatSpec(entry.effect), repeatIndex: r, repeatCount: repeats },
           () => runRecurringEndOfTurn(state, entry.effect),
@@ -10251,7 +10262,18 @@ export function recurringEotEffects(state: RunState): NonNullable<RunState['ques
  *  `captureBuffFx`, so the beat replays one descend per step — 10 Attachments read as ten +2/+2 hits landing
  *  sequentially, not one +20/+20 lump (owner ruling 2026-07-17; End-of-Turn only — Start-of-Combat lumps like
  *  Umbral Energy stay one-shot). Identical stat outcome either way. */
-function runRecurringEndOfTurn(state: RunState, effect: NonNullable<RunState['questRecurringEndOfTurn']>[number], itemizeFx = false): void {
+/** Recurring End-of-Turn effects that open their OWN per-source beats (one per acting minion) instead of
+ *  riding the loop's single rune/quest-sourced scope. The loop must not wrap these in a diffing scope: the
+ *  outer diff would see the same deltas and the projection would climb twice (the Lasting Cadence rule). */
+const SELF_BEAT_RECURRING: ReadonlySet<string> = new Set(['triggerLeftmostEcho', 'runeCrucibleChoir']);
+
+function runRecurringEndOfTurn(
+  state: RunState,
+  effect: NonNullable<RunState['questRecurringEndOfTurn']>[number],
+  itemizeFx = false,
+  /** The Chronos repeat this fire belongs to — forwarded onto the per-source beats a SELF_BEAT effect opens. */
+  beat?: { repeatIndex: number; repeatCount: number },
+): void {
   // Each `step` is one WAVE of the itemized reward — tagged so the UI can stagger BETWEEN waves while
   // firing everything inside a wave simultaneously.
   let wave = 0;
@@ -10290,10 +10312,26 @@ function runRecurringEndOfTurn(state: RunState, effect: NonNullable<RunState['qu
     // through the same replay paths every other re-fire uses (`replayBattlecry` = Myra's path,
     // `fireRecruitDeathrattles` = the shop-side Echo path Gravetwin uses). Two steps, so the projection plays
     // the Shout and the Echo as their own waves.
+    // …and, since 2026-09-01, each is ITS OWN BEAT sourced on the acting minion (the Reliquary pattern, owner:
+    // "each trigger needs its own beat … left to right"): the loop opens no scope for this effect
+    // (`SELF_BEAT_RECURRING`), so the Shout minion pulses with its Shout and the Echo minion with its skull.
+    const choirCtx = makeContext(state);
+    const choirBeat = (card: BoardCard, run: () => void): void => step(() => withRecruitTrigger(
+      choirCtx,
+      {
+        phase: 'endOfTurn',
+        source: { kind: 'minion', id: card.cardId, label: CARD_INDEX[card.cardId]?.name ?? card.cardId, uid: card.uid, side: 'player' },
+        trigger: 'endOfTurn',
+        ...beatIdentity('rune:rune_crucible_choir:endOfTurn'),
+        ...(beat ?? {}),
+      },
+      run,
+      { discardIfEmpty: true },
+    ));
     const shout = state.board.find((c) => { const d = CARD_INDEX[c.cardId]; return !!d && hasBattlecry(d); });
-    if (shout) { procRuneId(state, 'rune_crucible_choir'); step(() => replayBattlecry(state, shout)); }
+    if (shout) { procRuneId(state, 'rune_crucible_choir'); choirBeat(shout, () => { replayBattlecry(state, shout); }); }
     const echo = state.board.find((c) => CARD_INDEX[c.cardId]?.effects.some((e) => e.on === 'onDeath'));
-    if (echo) { procRuneId(state, 'rune_crucible_choir'); const choirCtx = makeContext(state); step(() => fireRecruitDeathrattles(choirCtx, echo)); }
+    if (echo) { procRuneId(state, 'rune_crucible_choir'); choirBeat(echo, () => fireRecruitDeathrattles(choirCtx, echo)); }
   } else if (effect === 'grantRandomAttachments') {
     conjureToHand(state, poolOf(state).buyable.filter((c) => c.tier <= state.tier && c.keywords.includes('M')), 2);
   } else if (effect === 'buffMechsPerAttachment') {
@@ -10339,8 +10377,38 @@ function runRecurringEndOfTurn(state: RunState, effect: NonNullable<RunState['qu
   } else if (effect === 'triggerLeftmostEcho') {
     // Rune of the Reliquary: fire your TWO left-most Echoes (Deathrattles) out of combat (owner 2026-08-19;
     // was one). Board order, so seating decides which two — deterministic, and no RNG consumed.
+    //
+    // ONE BEAT PER ECHO, sourced on the ECHO MINION (the Lasting Cadence pattern — owner report 2026-09-01:
+    // "literally has no beats, animations or anything firing"). Both fires used to land in the recurring loop's
+    // single rune-sourced scope: no minion to pulse, both Echoes' summons in one frame, and the skull only as a
+    // commit-time stamp that played after the phase flipped. Now the loop opens NO scope for this effect
+    // (`SELF_BEAT_RECURRING`); each Echo opens its own diffing scope here — its summons / stats are ITS
+    // consequences, `echoFired` plays its skull, the minion pulses — and an Echo whose shop half does nothing
+    // (a stripped copy) leaves no beat (`discardIfEmpty`).
+    //
+    // NO `procRuneId` here. The badge already bursts once at commit off the tendril stamp's SEQUENCE
+    // (`stampQuestTendril` → QuestBadges `seq`); the proc COUNT would be a second, independent fire of the
+    // same badge in the same commit (`runeTriggerFx`: `counted + seqFire`) — the owner saw exactly that as an
+    // "extra trigger at the end". The ribbon from the badge to each Echo is drawn ON the beat by the
+    // authoritative player (a minion-sourced beat whose identity is a rune's — see Recruit's `onBeatActivate`).
     const echoes = state.board.filter((c) => CARD_INDEX[c.cardId]?.effects.some((e) => e.on === 'onDeath')).slice(0, 2);
-    for (const echo of echoes) { stampQuestTendril(state, effect, echo.uid); fireRecruitDeathrattles(makeContext(state), echo); }
+    const ctx = makeContext(state);
+    for (const echo of echoes) {
+      const def = CARD_INDEX[echo.cardId];
+      stampQuestTendril(state, effect, echo.uid);
+      step(() => withRecruitTrigger(
+        ctx,
+        {
+          phase: 'endOfTurn',
+          source: { kind: 'minion', id: echo.cardId, label: def?.name ?? echo.cardId, uid: echo.uid, side: 'player' },
+          trigger: 'endOfTurn',
+          ...beatIdentity('rune:rune_reliquary:endOfTurn'),
+          ...(beat ?? {}),
+        },
+        () => fireRecruitDeathrattles(ctx, echo),
+        { discardIfEmpty: true },
+      ));
+    }
   } else if (effect === 'demonEatsRightmostShop') {
     // Rune of Hunger: your LEFT-most Demon eats the right-most Shop minion. Reuses `rightmostShopMinion` +
     // `consumeShopMinion`, so the eater gains exactly what a card-driven Consume would give it.

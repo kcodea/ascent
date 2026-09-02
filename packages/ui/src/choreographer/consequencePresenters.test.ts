@@ -39,6 +39,16 @@ const run = (consequence: ConsequenceEvent, ctx = spyContext()) => {
 };
 
 describe('every consequence type has a presenter', () => {
+  it('a buff FROM another minion carries its source to statGain; a self-buff and a rune buff do not', () => {
+    const others = { id: 'beat:1', source: { kind: 'minion', id: 'dw_foreman', uid: 'src' } } as CompiledBeat;
+    const gain = { type: 'statsChanged', id: 'e', sequence: 1, step: 1, target: { zone: 'board', uid: 'tgt', cardId: 'stray', side: 'player' }, attack: 2, health: 2, permanent: true } as ConsequenceEvent;
+    const a = spyContext(); presentConsequence({ consequence: gain, beat: others, ctx: a });
+    expect(a.statGain).toHaveBeenCalledWith('tgt', 'board', 2, 2, { uid: 'src', cardId: 'dw_foreman' });
+    const rune = { id: 'beat:2', source: { kind: 'rune', id: 'rune_reliquary' } } as CompiledBeat;
+    const b = spyContext(); presentConsequence({ consequence: gain, beat: rune, ctx: b });
+    expect(b.statGain).toHaveBeenCalledWith('tgt', 'board', 2, 2, undefined);
+  });
+
   it.each(ALL_CONSEQUENCE_TYPES)('%s is covered', (type) => {
     expect(CONSEQUENCE_PRESENTERS[type], `no presenter for '${type}' — it would resolve with nothing on screen`).toBeTypeOf('function');
   });
@@ -85,7 +95,8 @@ describe('presenters read the EVENT, not the card definition', () => {
 
   it('an ordinary buff FROM another minion draws the generic burst (source src, target u1)', () => {
     const ctx = run({ type: 'statsChanged', id: 's', sequence: 0, step: 1, target: { zone: 'board', uid: 'u1' }, attack: 2, health: 2, permanent: true, channel: 'ordinary' } as ConsequenceEvent);
-    expect(ctx.statGain).toHaveBeenCalledWith('u1', 'board', 2, 2);
+    // …carrying the GRANTING minion (the beat's source), so the beat can draw the source→target tendril.
+    expect(ctx.statGain).toHaveBeenCalledWith('u1', 'board', 2, 2, { uid: 'src', cardId: 'c' });
     expect(ctx.selfBuff).not.toHaveBeenCalled();
   });
 

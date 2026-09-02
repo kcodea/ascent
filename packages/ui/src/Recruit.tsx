@@ -5265,10 +5265,31 @@ export function Recruit() {
       return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
     };
     const presenterCtx: PresenterContext = {
-      // The generic green burst is retired (`.cardbuff`) — this beat has no unauthored fallback cue anymore,
-      // so a stat gain with no authored def plays nothing. Kept as a no-op (rather than removed) so
-      // `PresenterContext` stays satisfied; the registry still calls `ctx.statGain(...)`.
-      statGain: () => {},
+      // The generic green burst is retired (`.cardbuff`), so a stat gain with no SOURCE minion plays nothing
+      // here (a rune/quest ribbon, an aura wash and a Ruby are their own cues). A buff FROM another minion —
+      // Kringle paying the end Dwarves, an Echo buffing its neighbours — draws what the legacy commit-time
+      // replay drew for it: the source card's bound `minionBuffed` def when one is authored, else the stock
+      // source→target tendril. ON ITS BEAT now, because the End-of-Turn completion advances the legacy
+      // trackers past the commit (nothing may replay after the beats — owner 2026-09-01), and until this the
+      // commit replay was the ONLY place these tendrils were drawn under the authoritative path.
+      statGain: (uid, _zone, _attack, _health, from) => {
+        if (!from || from.uid === uid) return;
+        const target = centreOf(uid);
+        if (!target) return;
+        if (bindingFor(from.cardId, 'minionBuffed')) {
+          if (!canPlayDefs()) return;
+          runRecruitMomentCues(
+            { kind: 'minionBuffed', sourceCardId: from.cardId, recipients: [{ uid, count: 1 }] },
+            {
+              cardIdOf: (u) => runRef.current.board.find((c) => c.uid === u)?.cardId ?? null,
+              measure: (u) => { const el = document.querySelector<HTMLElement>(`[data-uid="${u}"]`); return el ? restingCenterOf(el) : null; },
+            },
+          );
+          return;
+        }
+        const source = centreOf(from.uid);
+        fireBuffFx({ source: source ?? undefined, target, cardId: from.cardId, tribe: CARD_INDEX[from.cardId]?.tribe ?? 'neutral', sourceless: !source });
+      },
       selfBuff: (uid) => {
         // A self-buff on this beat plays the authored self-buff def, mirroring the per-action `minionSelfBuffed`
         // path: routed through the same recruit cue runner, keyed by the minion's own card so a card override
@@ -5505,6 +5526,10 @@ export function Recruit() {
         const committed = useGame.getState().run;
         captureRecruitSeqs(committed, prevRecruitSeqs.current);
         prevFxSeq.current = committed.recruitFxSeq;
+        // …and the Echo skulls: every End-of-Turn Echo played its skull on its own beat (`echoFired`), so the
+        // per-uid pre-fired set is not enough when one body fires twice (Chronos, or two runes on the same
+        // Echo) — the second stamp would still replay at the flip. Advance the stamp tracker like the rest.
+        prevShopFxSeq.current = committed.shopFxSeq;
         setEotConsumedUids(new Set());
         }, EOT_COMBAT_PAD_MS);
       },

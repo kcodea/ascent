@@ -65,6 +65,12 @@ export const PATCH_NOTES: PatchNote[] = [
           'Each Echo the Reliquary fires gets its own beat, left to right: the minion pulses, the Echo skull plays on it, and its summons or buffs land on that beat.',
           'The Crucible Choir plays its Shout minion, then its Echo minion, the same way.',
           'An Echo that does nothing in the shop no longer claims a beat, and the rune badge bursts once at the end instead of twice.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-01',
     label: 'Repeated Shouts',
     changes: [
       {

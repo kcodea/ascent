@@ -27,6 +27,15 @@ describe('the commit after the beats replays nothing', () => {
     const block = REPLAY.slice(i, i + 2600);
     expect(block.includes('captureRecruitSeqs(committed, prevRecruitSeqs.current)'), 'the moment-cue runner (Ruby cascades) must not replay at commit').toBe(true);
     expect(block.includes('prevFxSeq.current = committed.recruitFxSeq'), 'the buff tendril watcher must not replay at commit').toBe(true);
+    expect(block.includes('prevShopFxSeq.current = committed.shopFxSeq'), 'nor the Echo-skull stamp (a body that fired twice)').toBe(true);
+  });
+
+  it('a buff FROM another minion draws on its beat what the commit replay used to draw (bound def, else the tendril)', () => {
+    const i = REPLAY.indexOf('statGain: (uid, _zone, _attack, _health, from) => {');
+    expect(i, 'statGain is no longer a no-op for a minion-sourced buff').toBeGreaterThan(-1);
+    const block = REPLAY.slice(i, i + 1400);
+    expect(block.includes("bindingFor(from.cardId, 'minionBuffed')"), 'the authored def wins').toBe(true);
+    expect(block.includes('fireBuffFx({'), 'else the stock tendril').toBe(true);
   });
 });
 

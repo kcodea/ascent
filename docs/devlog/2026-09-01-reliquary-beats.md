@@ -52,6 +52,26 @@ so it is visible. Summon-only Echoes bump neither seq, which is the inconsistenc
 now advances every legacy per-action tracker past the committed seqs — the same rule it already applied to the
 shop-consume watchers — so the commit replays nothing the beats presented.
 
+## What five adversarial verifiers turned up
+
+Five readers tried to refute the change, each through a different lens (gameplay parity, double/missing
+skulls, the commit-time suppression, the ribbon + badge, the audit + tripwires). Parity held under a
+122-case sweep of every Echo card plus Chronos / Choir / Djinn / overflow / Gravetwin / Catacomb scenarios.
+Two refutations were right and are fixed here:
+
+- **A body that fires twice** (Chronos, or the Choir and the Reliquary picking the same Echo) played two
+  skulls on its beats but the per-uid pre-fired SET only skipped one legacy stamp — the second replayed at the
+  flip. The completion now advances the stamp tracker too (`prevShopFxSeq`), like every other legacy channel.
+- **Suppressing the commit replay lost a channel.** Under the authoritative path, a buff FROM another
+  minion at End of Turn (Kringle paying the end Dwarves; an Echo buffing its neighbours) drew its tendril, or
+  its source card's bound `minionBuffed` def, ONLY through the commit-time replay — the presenter's `statGain`
+  was a no-op. It now draws that on the beat: the presenter passes the granting minion, and Recruit plays the
+  bound def when one is authored, else the stock source→target tendril.
+
+Noted, not changed: Lasting Cadence and Combat Prowess beats now also draw the rune ribbon to the acting
+minion (they matched the same rule); the Crucible Choir still bursts its badge at commit from its two proc
+counts; Djinn's Cadence root beat re-emits nested summons (pre-existing nesting design).
+
 ## Lanes
 
 - `sim/reliquaryBeats.test.ts` — two minion-sourced beats under the rune identity, in board order, each opening

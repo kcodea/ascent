@@ -21,8 +21,12 @@ import type { CompiledBeat } from './timelineTypes';
 
 /** Every FX capability a presenter may use. Implemented by `Recruit.tsx` from its existing helpers. */
 export interface PresenterContext {
-  /** Generic stat-gain burst on a card (skipped when a richer authored FX already covers that target). */
-  statGain: (uid: string, zone: string, attack: number, health: number) => void;
+  /** A stat gain on a card. `from` is the MINION whose beat granted it (a buff-others effect — Kringle paying
+   *  the end Dwarves, an Echo buffing its neighbours), so the beat can draw the source→target tendril or the
+   *  source card's bound `minionBuffed` def — the visuals the legacy commit-time replay used to draw for an
+   *  End-of-Turn buff, and nothing else draws now that the commit replays nothing. Undefined for a rune /
+   *  quest / spell / aura source (their ribbons and washes are their own cues). */
+  statGain: (uid: string, zone: string, attack: number, health: number, from?: { uid: string; cardId: string }) => void;
   /** A minion buffed ITSELF this beat — the authored self-buff def (`self-buff-gold`), the richer twin of the
    *  green `statGain` burst. Matches the per-action path so a self-buff looks the same on any beat. */
   selfBuff: (uid: string) => void;
@@ -112,7 +116,8 @@ export const CONSEQUENCE_PRESENTERS: Record<ConsequenceEvent['type'], Consequenc
       ctx.selfBuff(c.target.uid);
       return;
     }
-    ctx.statGain(c.target.uid, c.target.zone, c.attack, c.health);
+    ctx.statGain(c.target.uid, c.target.zone, c.attack, c.health,
+      beat.source.kind === 'minion' && beat.source.uid ? { uid: beat.source.uid, cardId: beat.source.id } : undefined);
   },
   rubyPlayed: ({ consequence: c, beat, ctx, index = 0 }) => {
     if (c.type !== 'rubyPlayed' || !c.target.uid) return;

@@ -204,7 +204,12 @@ export function HeroSelect() {
                       </div>
                     )}
                     <div className="hcpw">
-                      <b>{power.name}</b> · <span dangerouslySetInnerHTML={{ __html: mdBold(power.text) }} />
+                      {/* Power cost callout (owner ask 2026-09-01): actives show their Gold cost, a free
+                          active says Free; a PASSIVE is never cast, so a cost line would mislead — it says
+                          Passive instead. */}
+                      <b>{power.name}</b>{' '}
+                      <span className="hccost">{power.passive ? '(Passive)' : `(Cost: ${power.cost ? power.cost : 'Free'})`}</span>
+                      {' '}· <span dangerouslySetInnerHTML={{ __html: mdBold(power.text) }} />
                       {power.unlockWave && power.unlockWave > 1 && <span className="hclock">Unlocks turn {power.unlockWave}</span>}
                     </div>
                   </div>

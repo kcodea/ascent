@@ -4816,6 +4816,8 @@ body:has(.heroselect) .statusbar { visibility: hidden; }
 /* Starting Armor on a hero card — a steel chip beside the Resolve value. */
 .hcarmor { font-size: 17px; font-weight: 800; color: #fff; background: linear-gradient(#aab6c2, #7c8996); padding: 1px 8px; border-radius: 8px; }
 .hcpw { font-size: 17.5px; font-weight: 600; color: var(--ink2); line-height: 1.35; }
+/* The power's cost callout beside its name — quiet gold, so it reads as metadata rather than rules text. */
+.hcpw .hccost { color: #e8c877; font-weight: 700; white-space: nowrap; }
 .hcpw b { color: var(--acc-dk); font-weight: 800; }
 .hclock { font-family: var(--font-ui); font-weight: 800; font-size: 14px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--acc-dk); background: color-mix(in srgb, var(--acc) 16%, transparent); border: 1.5px solid color-mix(in srgb, var(--acc) 45%, transparent); padding: 4px 13px; border-radius: 8px; }
 .hcblurb { font-size: 13px; font-style: italic; color: var(--ink3); line-height: 1.4; margin-top: auto; padding-top: 6px; }

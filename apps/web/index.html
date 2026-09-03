@@ -128,8 +128,12 @@
       #bootsplash-bar > i {
         display: block; height: 100%; border-radius: 999px; background: #f0902e;
         transform: scaleX(var(--boot-p, 0)); transform-origin: left center;
-        transition: transform 180ms linear;
+        transition: transform 420ms ease-out;
       }
+      /* TWO HALVES: the first half is real progress (steps smoothed by the transition above); once every stage has
+         settled Boot adds `.is-finishing` and sets the fill to 1, so the second half is one smooth 1.5s glide and
+         the menu opens as it lands. Keep 1500ms in sync with FINISH_MS in Boot.tsx. */
+      #bootsplash.is-finishing #bootsplash-bar > i { transition: transform 1500ms cubic-bezier(0.22, 0.61, 0.36, 1); }
       /* "Click to begin" — the audio context needs a gesture, so the boot asks for one up front. Fades in with
          the bar; hidden the moment the click lands (`.is-unlocked`, set by the inline script or by Boot). */
       #bootsplash-cta {

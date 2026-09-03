@@ -27,6 +27,13 @@ import { PixiFxLayer } from './PixiFxLayer';
  */
 /** Minimum splash lifetime measured from the unlock click, so a warm load never snaps the menu open. */
 const SPLASH_MIN_MS = 3500;
+/** THE BAR IS TWO HALVES (owner ask 2026-09-03: "I still want the loading bar to be smooth"). The first half
+ *  is REAL progress — the loader's weighted mean mapped onto 0..0.5, so it can stall or jump as the network
+ *  does. The second half is a SMOOTH glide from 0.5 to 1 over `FINISH_MS`, started only once every stage has
+ *  settled; the menu opens when the glide lands. Real work is never hidden (the gate still waits for all of it),
+ *  the last stretch just always reads as one clean fill. */
+const REAL_HALF = 0.5;
+const FINISH_MS = 1500;
 /** Must match the `#bootsplash` opacity transition in index.html (900ms — the owner asked for a gentle
  *  dissolve into the menu rather than a quick wipe). */
 const FADE_MS = 900;
@@ -78,19 +85,29 @@ export function Boot({ children }: { children: ReactNode }): React.ReactElement 
 
     const onProgress = (p: number): void => {
       if (!alive) return;
-      el?.style.setProperty('--boot-p', p.toFixed(4));
-      setPct(p);
+      const shown = Math.min(REAL_HALF, p * REAL_HALF); // real work owns the first half of the bar
+      el?.style.setProperty('--boot-p', shown.toFixed(4));
+      setPct(shown);
     };
 
     let hold = 0;
+    let finish = 0;
     void runBootLoader({ unlocked, onProgress }).then(async (report) => {
       if (import.meta.env.DEV) console.info('[boot] loaded in %d ms', report.ms, report.stages);
       await unlocked;
       if (!alive) return;
+      // Everything is resident. Respect the minimum splash time first, THEN glide the second half of the bar
+      // (`.is-finishing` lengthens the fill transition to FINISH_MS in index.html), and open the gate as it lands.
       const elapsed = performance.now() - clickAt;
-      hold = window.setTimeout(() => { if (alive) setReady(true); }, Math.max(0, SPLASH_MIN_MS - elapsed));
+      hold = window.setTimeout(() => {
+        if (!alive) return;
+        el?.classList.add('is-finishing');
+        el?.style.setProperty('--boot-p', '1');
+        setPct(1);
+        finish = window.setTimeout(() => { if (alive) setReady(true); }, FINISH_MS);
+      }, Math.max(0, SPLASH_MIN_MS - FINISH_MS - elapsed));
     });
-    return () => { alive = false; window.clearTimeout(hold); };
+    return () => { alive = false; window.clearTimeout(hold); window.clearTimeout(finish); };
   }, [ready]);
 
   // READY → fade the splash off the mounted game, then remove the node.

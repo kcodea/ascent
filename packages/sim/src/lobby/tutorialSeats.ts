@@ -19,10 +19,13 @@ import type { LobbyRules, PreparedBoard, SeatDriver } from './types';
 import { DEFAULT_LOBBY_RULES } from './lobby';
 import type { LobbySeatState, RunLobby } from './runLobby';
 
-/** One authored opponent minion — only Attack/Health vary; identity is always the effectless `omen` token. */
+/** One authored opponent minion. By default identity is the effectless `omen` token and only Attack/Health vary;
+ *  a `cardId` swaps in a REAL card (practice-bot utility units, levels 6+) which brings that card's keywords and
+ *  effects while keeping the authored stat line. */
 export interface AuthoredOmen {
   attack: number;
   health: number;
+  cardId?: string;
 }
 
 /** Materialize a round's authored omen stat-line into real `omen` `BoardMinion`s (textless, keywordless —
@@ -30,10 +33,12 @@ export interface AuthoredOmen {
  *  base neutral side, which the reducer supplies when `PreparedBoard.snapshot` is omitted. */
 export function omenBoardMinions(board: readonly AuthoredOmen[]): BoardMinion[] {
   return board.map((m) => ({
-    cardId: 'omen',
+    cardId: m.cardId ?? 'omen',
     attack: Math.max(1, Math.round(m.attack)),
     health: Math.max(1, Math.round(m.health)),
-    keywords: [],
+    // A real card keeps its printed keywords (`instantiate` falls back to the CardDef when this is absent);
+    // an omen is explicitly keywordless.
+    ...(m.cardId ? {} : { keywords: [] }),
   }));
 }
 
@@ -46,12 +51,14 @@ export function omenBoardMinions(board: readonly AuthoredOmen[]): BoardMinion[] 
  *
  * Face damage in `simulate` is `opponent tier + 1 per surviving minion`, so the TIER — not the bodies' stats —
  * is what makes a win actually hurt. A seat with `authoredTierRamp` climbs a tier every `ramp` rounds (capped at
- * the real 6-tier ceiling), mirroring how a live board tiers up; without the field it stays tier 1.
+ * the real 6-tier ceiling), mirroring how a live board tiers up; without the field it stays on its start tier.
+ * `authoredTierStart` (default 1) is where the climb begins — the top practice-bot levels open above tier 1.
  */
-export function authoredTierFor(seat: Pick<LobbySeatState, 'authoredTierRamp'>, round: number): number {
+export function authoredTierFor(seat: Pick<LobbySeatState, 'authoredTierRamp' | 'authoredTierStart'>, round: number): number {
+  const start = Math.min(6, Math.max(1, seat.authoredTierStart ?? 1));
   const ramp = seat.authoredTierRamp;
-  if (!ramp || ramp <= 0) return 1;
-  return Math.min(6, 1 + Math.floor((Math.max(1, round) - 1) / ramp));
+  if (!ramp || ramp <= 0) return start;
+  return Math.min(6, start + Math.floor((Math.max(1, round) - 1) / ramp));
 }
 
 export function authoredSeat(seat: LobbySeatState): SeatDriver {

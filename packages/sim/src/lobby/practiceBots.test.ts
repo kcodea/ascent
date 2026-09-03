@@ -3,7 +3,7 @@
  * health toggle (invulnerable vs real elimination), and a tribe surge that doubles a tribe's shop odds.
  */
 import { describe, expect, it } from 'vitest';
-import { practiceBotBoard, createLobbyRun, createPracticeBotLobby, adjectiveHandle } from './index';
+import { practiceBotBoard, createLobbyRun, createPracticeBotLobby, adjectiveHandle, BOT_LEVELS, UTILITY_ROSTER, botTierFor, eligibleUtility, normalizeBotDifficulty, authoredTierFor, omenBoardMinions, type BotLevel } from './index';
 import { reduce, type RunState, type Action } from '../index';
 import { HEROES } from '../heroes';
 
@@ -15,36 +15,36 @@ const totals = (b: { attack: number; health: number }[]) => ({
 
 describe('practiceBotBoard — the authored NORMAL table', () => {
   it('matches the owner-supplied baseline sums (spot-checked rounds)', () => {
-    expect(totals(practiceBotBoard(1, 'medium'))).toEqual({ atk: 2, hp: 1, n: 1 });
-    expect(totals(practiceBotBoard(4, 'medium'))).toEqual({ atk: 10, hp: 10, n: 3 });
-    expect(totals(practiceBotBoard(7, 'medium'))).toEqual({ atk: 42, hp: 44, n: 5 });
-    expect(totals(practiceBotBoard(8, 'medium'))).toEqual({ atk: 82, hp: 88, n: 6 });
-    expect(totals(practiceBotBoard(16, 'medium'))).toEqual({ atk: 952, hp: 992, n: 7 });
+    expect(totals(practiceBotBoard(1, 3))).toEqual({ atk: 2, hp: 1, n: 1 });
+    expect(totals(practiceBotBoard(4, 3))).toEqual({ atk: 10, hp: 10, n: 3 });
+    expect(totals(practiceBotBoard(7, 3))).toEqual({ atk: 42, hp: 44, n: 5 });
+    expect(totals(practiceBotBoard(8, 3))).toEqual({ atk: 82, hp: 88, n: 6 });
+    expect(totals(practiceBotBoard(16, 3))).toEqual({ atk: 952, hp: 992, n: 7 });
   });
 
   it('grows on both axes and is front-loaded (biggest on the left)', () => {
-    const r10 = practiceBotBoard(10, 'medium');
+    const r10 = practiceBotBoard(10, 3);
     for (let i = 1; i < r10.length; i++) expect(r10[i]!.attack).toBeLessThanOrEqual(r10[i - 1]!.attack);
-    expect(totals(practiceBotBoard(12, 'medium')).atk).toBeGreaterThan(totals(practiceBotBoard(8, 'medium')).atk);
+    expect(totals(practiceBotBoard(12, 3)).atk).toBeGreaterThan(totals(practiceBotBoard(8, 3)).atk);
   });
 });
 
 describe('difficulty scales the right rounds', () => {
-  it('EASY weakens rounds 4+ but leaves the 1–3 opening identical', () => {
+  it('level 1 (the old Easy) weakens rounds 4+ but leaves the 1–3 opening identical', () => {
     for (const r of [1, 2, 3]) {
-      expect(practiceBotBoard(r, 'easy')).toEqual(practiceBotBoard(r, 'medium'));
+      expect(practiceBotBoard(r, 1)).toEqual(practiceBotBoard(r, 3));
     }
     for (const r of [4, 8, 16]) {
-      expect(totals(practiceBotBoard(r, 'easy')).atk).toBeLessThan(totals(practiceBotBoard(r, 'medium')).atk);
+      expect(totals(practiceBotBoard(r, 1)).atk).toBeLessThan(totals(practiceBotBoard(r, 3)).atk);
     }
   });
 
-  it('HARD strengthens rounds 7+ but leaves rounds 1–6 identical', () => {
+  it('level 5 (the old Hard) strengthens rounds 7+ but leaves rounds 1–6 identical', () => {
     for (const r of [1, 4, 6]) {
-      expect(practiceBotBoard(r, 'hard')).toEqual(practiceBotBoard(r, 'medium'));
+      expect(practiceBotBoard(r, 5)).toEqual(practiceBotBoard(r, 3));
     }
     for (const r of [7, 12, 16]) {
-      expect(totals(practiceBotBoard(r, 'hard')).atk).toBeGreaterThan(totals(practiceBotBoard(r, 'medium')).atk);
+      expect(totals(practiceBotBoard(r, 5)).atk).toBeGreaterThan(totals(practiceBotBoard(r, 3)).atk);
     }
   });
 });
@@ -52,14 +52,14 @@ describe('difficulty scales the right rounds', () => {
 describe('createLobbyRun — Practice opponents', () => {
   it('BOTS opponents seat seven authored omen bots; PLAYERS seat recorded/hybrid runs', () => {
     const bots = createLobbyRun(7, 'aster', {}, 'practice', {
-      opponents: 'bots', botDifficulty: 'medium', health: 'unlimited', timeMult: 1, tribeSurge: null,
+      opponents: 'bots', botDifficulty: 3, health: 'unlimited', timeMult: 1, tribeSurge: null,
     });
     expect(bots.mode).toBe('practice');
     expect(bots.practiceConfig?.opponents).toBe('bots');
     for (const seat of bots.lobby!.seats.slice(1)) expect(seat.kind).toBe('authored');
 
     const players = createLobbyRun(7, 'aster', {}, 'practice', {
-      opponents: 'players', botDifficulty: 'medium', health: 'unlimited', timeMult: 1, tribeSurge: null,
+      opponents: 'players', botDifficulty: 3, health: 'unlimited', timeMult: 1, tribeSurge: null,
     });
     for (const seat of players.lobby!.seats.slice(1)) expect(seat.kind).not.toBe('authored');
   });
@@ -67,7 +67,7 @@ describe('createLobbyRun — Practice opponents', () => {
 
 describe('health: unlimited vs normal', () => {
   const cfg = (health: 'unlimited' | 'normal') => ({
-    opponents: 'bots' as const, botDifficulty: 'hard' as const, health, timeMult: 1 as const, tribeSurge: null,
+    opponents: 'bots' as const, botDifficulty: 5 as const, health, timeMult: 1 as const, tribeSurge: null,
   });
   const playARound = (s: RunState): RunState => {
     for (const a of [{ type: 'faceOmen' }, { type: 'resolveCombat' }, { type: 'settleCombat' }] as Action[]) s = reduce(s, a);
@@ -99,7 +99,7 @@ describe('tribe surge doubles a tribe in the shop', () => {
   it('a beast surge yields more Beast offers than the same seed without it', () => {
     const roll = (tribeSurge: 'beast' | null): number => {
       let s = createLobbyRun(11, 'aster', {}, 'practice', {
-        opponents: 'players', botDifficulty: 'medium', health: 'unlimited', timeMult: 1, tribeSurge,
+        opponents: 'players', botDifficulty: 3, health: 'unlimited', timeMult: 1, tribeSurge,
       });
       // Tier up so the pool is broad, then reroll many times and count Beast offers.
       s = { ...s, tier: 4, embers: 999, maxEmbers: 999 };
@@ -126,7 +126,7 @@ function poolTribe(cardId: string): string {
 describe('practice-bots placement reflects performance (owner bug 2026-08-24: won but finished 8th)', () => {
   const runToEnd = (attack: number): number | undefined => {
     let s: RunState = createLobbyRun(77, 'aster', {}, 'practice', {
-      opponents: 'bots', botDifficulty: 'easy', health: 'unlimited', timeMult: 1, tribeSurge: null,
+      opponents: 'bots', botDifficulty: 1, health: 'unlimited', timeMult: 1, tribeSurge: null,
     });
     const board = Array.from({ length: 7 }, (_, i) => ({ uid: `p${i}`, cardId: 'b2_packstrider', attack, health: attack, keywords: [], effects: [], buffs: [] }));
     let guard = 0;
@@ -148,7 +148,7 @@ describe('practice-bots placement reflects performance (owner bug 2026-08-24: wo
 describe('practice bots read as real opponents', () => {
   it('every bot has a REAL hero portrait (so its rail icon is not a broken image) and a non-"Bot N" name', () => {
     const valid = new Set(HEROES.map((h) => h.id));
-    const lobby = createPracticeBotLobby(42, 'aster', 'medium');
+    const lobby = createPracticeBotLobby(42, 'aster', 3);
     const names = new Set<string>();
     for (const seat of lobby.seats.slice(1)) {
       expect(valid.has(seat.heroId), `${seat.heroId} is not a real hero`).toBe(true);
@@ -174,7 +174,7 @@ describe('duplicate lobby handles get an adjective, not "(2)"', () => {
 describe('practice bots sit at a real lobby seat (owner ask 2026-08-30)', () => {
   it('every bot starts on the SAME Resolve and Armor the player does', () => {
     const s = createLobbyRun(42, 'aster', {}, 'practice', {
-      opponents: 'bots', botDifficulty: 'medium', health: 'normal', timeMult: 1, tribeSurge: null,
+      opponents: 'bots', botDifficulty: 3, health: 'normal', timeMult: 1, tribeSurge: null,
     } as never);
     const seats = s.lobby!.seats.filter((x) => x.id !== 's0');
     expect(seats.length, 'a full bot table').toBeGreaterThan(3);
@@ -193,7 +193,7 @@ describe('practice bots sit at a real lobby seat (owner ask 2026-08-30)', () => 
 
 describe('practice-bot games resolve on a sane clock (owner ask 2026-08-25: they ran far too long)', () => {
   /** Play a full bots game with a player board that scales at `skill` per wave (0 = do nothing). */
-  const roundsToFinish = (difficulty: 'easy' | 'medium' | 'hard', skill: number): number => {
+  const roundsToFinish = (difficulty: BotLevel, skill: number): number => {
     let s: RunState = createLobbyRun(42, 'aster', {}, 'practice', {
       opponents: 'bots', botDifficulty: difficulty, health: 'normal', timeMult: 1, tribeSurge: null,
     });
@@ -211,7 +211,7 @@ describe('practice-bot games resolve on a sane clock (owner ask 2026-08-25: they
   };
 
   it('a WINNING player finishes in a reasonable number of rounds (was ~25 — the bots never thinned out)', () => {
-    for (const d of ['easy', 'medium', 'hard'] as const) {
+    for (const d of [1, 3, 5, 8, 10] as const) {
       const rounds = roundsToFinish(d, 7);
       expect(rounds, `${d}: a dominant run should not drag`).toBeLessThanOrEqual(15);
       expect(rounds, `${d}: …but it should still be a real game`).toBeGreaterThan(3);
@@ -219,9 +219,122 @@ describe('practice-bot games resolve on a sane clock (owner ask 2026-08-25: they
   });
 
   it('a do-nothing player is eliminated quickly, and harder bots kill faster', () => {
-    const easy = roundsToFinish('easy', 0);
-    const hard = roundsToFinish('hard', 0);
+    const easy = roundsToFinish(1, 0);
+    const hard = roundsToFinish(5, 0);
     expect(easy).toBeLessThanOrEqual(12);
     expect(hard, 'hard bots finish a hopeless run sooner than easy ones').toBeLessThan(easy);
+  });
+});
+
+describe('the 1–10 ladder (owner ask 2026-09-02: 5 = the old Hard)', () => {
+  it('every level is monotone: stats, damage and opening tier never go DOWN as the level rises', () => {
+    for (let l = 2; l <= 10; l++) {
+      const lo = BOT_LEVELS[(l - 1) as BotLevel], hi = BOT_LEVELS[l as BotLevel];
+      expect(hi.damageMult, `damage ${l}`).toBeGreaterThan(lo.damageMult);
+      expect(hi.statMult, `stats ${l}`).toBeGreaterThanOrEqual(lo.statMult);
+      expect(hi.tierRamp, `ramp ${l}`).toBeLessThanOrEqual(lo.tierRamp);
+      expect(hi.startTier, `start tier ${l}`).toBeGreaterThanOrEqual(lo.startTier);
+      expect(totals(practiceBotBoard(12, l as BotLevel)).hp, `r12 health ${l}`)
+        .toBeGreaterThanOrEqual(totals(practiceBotBoard(12, (l - 1) as BotLevel)).hp);
+    }
+  });
+
+  it('rounds 1–3 are the same gentle opening at EVERY level (stats only — utility may swap identity)', () => {
+    for (let l = 1; l <= 10; l++) for (const r of [1, 2, 3]) {
+      const b = practiceBotBoard(r, l as BotLevel).map((m) => ({ h: m.health }));
+      expect(b).toEqual(practiceBotBoard(r, 3).map((m) => ({ h: m.health })));
+    }
+  });
+
+  it("levels 1–5 are pure omens; 6+ field the level's utility slots once the roster is in tier", () => {
+    for (let l = 1; l <= 5; l++) for (let r = 1; r <= 16; r++) {
+      for (const m of practiceBotBoard(r, l as BotLevel)) expect(m.cardId).toBeUndefined();
+    }
+    for (let l = 6; l <= 10; l++) {
+      const b = practiceBotBoard(12, l as BotLevel, { seatSeed: 5 });
+      const real = b.filter((m) => m.cardId);
+      expect(real.length, `level ${l} fields its slots`).toBe(BOT_LEVELS[l as BotLevel].utilitySlots);
+      for (const m of real) expect(UTILITY_ROSTER.some((u) => u.cardId === m.cardId), `${m.cardId} is on the roster`).toBe(true);
+    }
+  });
+
+  it("a utility unit is never fielded before its unlock level or above the bot's current tier", () => {
+    for (let l = 6; l <= 10; l++) for (let r = 1; r <= 16; r++) for (let seat = 0; seat < 7; seat++) {
+      const tier = botTierFor(l as BotLevel, r);
+      for (const m of practiceBotBoard(r, l as BotLevel, { seatSeed: 100 + seat, spreadIndex: seat })) {
+        if (!m.cardId) continue;
+        const u = UTILITY_ROSTER.find((x) => x.cardId === m.cardId)!;
+        expect(u.unlock, `${m.cardId} at level ${l}`).toBeLessThanOrEqual(l);
+        expect(CARD_INDEX[m.cardId]!.tier, `${m.cardId} r${r} tier ${tier}`).toBeLessThanOrEqual(tier);
+      }
+    }
+    // Thane (tier 6, unlock 10) exists on the ladder and can actually appear at the top.
+    expect(eligibleUtility(10, 16).some((u) => u.cardId === 'dw_thane')).toBe(true);
+    expect(eligibleUtility(9, 16).some((u) => u.cardId === 'dw_thane')).toBe(false);
+  });
+
+  it("utility units take the SLOT's stats — except Venom, pinned at 1 Attack (owner ruling)", () => {
+    let sawVenom = false, sawOther = false;
+    const omenHp = practiceBotBoard(12, 3).map((m) => m.health);
+    for (let seat = 0; seat < 40; seat++) {
+      const b = practiceBotBoard(12, 10, { seatSeed: seat });
+      b.forEach((m, i) => {
+        if (!m.cardId) return;
+        // Slot stats: the health is the authored (scaled) slot health, not the card's printed line.
+        expect(m.health).toBe(Math.round(omenHp[i]! * BOT_LEVELS[10].statMult));
+        if (m.cardId === 'venom') { sawVenom = true; expect(m.attack).toBe(1); }
+        else { sawOther = true; expect(m.attack).toBeGreaterThan(10); }
+      });
+    }
+    expect(sawVenom && sawOther).toBe(true);
+  });
+
+  it('utility slots materialize as REAL cards with their printed keywords; omens stay keywordless', () => {
+    const minions = omenBoardMinions([{ attack: 9, health: 9 }, { attack: 9, health: 9, cardId: 'dm_felspikes' }]);
+    expect(minions[0]).toEqual({ cardId: 'omen', attack: 9, health: 9, keywords: [] });
+    expect(minions[1]!.cardId).toBe('dm_felspikes');
+    expect(minions[1]!.keywords, 'absent → instantiate uses the CardDef keywords (Taunt)').toBeUndefined();
+  });
+
+  it('the top levels open above tier 1 and the seat driver agrees with botTierFor', () => {
+    expect(botTierFor(10, 1)).toBe(3);
+    expect(botTierFor(10, 4)).toBe(6);
+    expect(botTierFor(1, 1)).toBe(1);
+    expect(botTierFor(1, 4)).toBe(2);
+    const lobby = createPracticeBotLobby(9, 'aster', 10);
+    const seat = lobby.seats[1]!;
+    for (const r of [1, 3, 6, 12]) expect(authoredTierFor(seat, r)).toBe(botTierFor(10, r));
+  });
+
+  it('seats draw DIFFERENT utility units and a rebuild redraws the same ones', () => {
+    const a = createPracticeBotLobby(9, 'aster', 10);
+    const b = createPracticeBotLobby(9, 'aster', 10);
+    expect(a.seats.map((s) => s.authoredBoards)).toEqual(b.seats.map((s) => s.authoredBoards));
+    const ids = a.seats.slice(1).map((s) => s.authoredBoards![11]!.filter((m) => m.cardId).map((m) => m.cardId).join(','));
+    expect(new Set(ids).size, 'not every seat fields the identical utility trio').toBeGreaterThan(1);
+  });
+
+  it('a level-10 bot board fights through simulate without blowing up (effects actually run)', () => {
+    let s: RunState = createLobbyRun(5, 'aster', {}, 'practice', {
+      opponents: 'bots', botDifficulty: 10, health: 'normal', timeMult: 1, tribeSurge: null,
+    });
+    s = { ...s, wave: 12, lobby: { ...s.lobby!, round: 12 } };
+    const board = Array.from({ length: 7 }, (_, i) => ({ uid: `p${i}`, cardId: 'b2_packstrider', attack: 60, health: 60, keywords: [], effects: [], buffs: [] }));
+    s = { ...s, board: board as never };
+    s = reduce(s, { type: 'faceOmen' } as Action);
+    expect(s.lastCombat, 'combat resolved').toBeTruthy();
+    const enemyIds = s.lastCombat!.initial.enemy.map((m) => m.cardId);
+    expect(enemyIds.some((id) => id !== 'omen'), 'the served board carried a utility unit').toBe(true);
+  });
+
+  it('legacy easy/medium/hard strings (old saves + drafts) normalize onto the ladder', () => {
+    expect(normalizeBotDifficulty('easy')).toBe(1);
+    expect(normalizeBotDifficulty('medium')).toBe(3);
+    expect(normalizeBotDifficulty('hard')).toBe(5);
+    expect(normalizeBotDifficulty(7)).toBe(7);
+    expect(normalizeBotDifficulty('9')).toBe(9);
+    expect(normalizeBotDifficulty(42)).toBe(10);
+    expect(normalizeBotDifficulty(undefined)).toBe(3);
+    expect(normalizeBotDifficulty('nonsense')).toBe(3);
   });
 });

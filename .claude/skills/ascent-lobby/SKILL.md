@@ -17,7 +17,10 @@ behaviour from a legacy symbol.**
 - **Practice is a configurable sandbox** (`run.practiceConfig`, owner 2026-08-24; setup screen
   `PracticeOptions.tsx` → `createLobbyRun(..., 'practice', cfg)`). The knobs: `opponents` (`players` = recorded
   seats, `bots` = seven authored scaling-omen seats from `lobby/practiceBots.ts`), `botDifficulty`
-  (easy/medium/hard scaling of the owner-authored per-round board table — medium is the baseline),
+  (a `BotLevel` 1–10 since 2026-09-02; the dials per level are the `BOT_LEVELS` table — 1/3/5 are the retired
+  Easy/Medium/Hard, 3 is the raw authored table, 6+ swap 1–3 omen slots for real utility minions from
+  `UTILITY_ROSTER`, gated by unlock level + the bot's current tier, at the SLOT's stats with Venom pinned to 1
+  Attack. Old 'easy'/'medium'/'hard' strings in saves/drafts go through `normalizeBotDifficulty`),
   `health` (`unlimited` = the classic invulnerability + round-15 curtain, gated in the reducer; `normal` =
   real elimination — the reducer gates now read `practiceConfig?.health !== 'normal'`), `timeMult` (feeds
   `practiceTimer`), and `tribeSurge` (a tribe whose shop cards get 2× draw weight in `shop.ts drawOfferId` —

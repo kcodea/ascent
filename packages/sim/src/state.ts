@@ -345,12 +345,18 @@ export type RunMode = 'ascent' | 'rift' | 'practice' | 'lobby' | 'tutorial';
 /** The tribes a Practice "tribe surge" can favour (a 100% draw-weight boost for that tribe's shop cards). */
 export type SurgeTribe = 'beast' | 'dragon' | 'kobold' | 'demon' | 'dwarf';
 
+/** Practice-bot difficulty, 1 (gentlest) to 10. 1/3/5 are the retired Easy/Medium/Hard; 6+ add utility minions.
+ *  The per-level dials live in `lobby/practiceBots.ts` (`BOT_LEVELS`). */
+export type BotLevel = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
+
 /** The Practice setup screen's choices (owner ask 2026-08-24). Pinned onto a practice run at creation. */
 export interface PracticeConfig {
   /** Who fills the other seven seats: recorded real player warbands, or effectless scaling bots. */
   opponents: 'players' | 'bots';
-  /** Bot strength when `opponents === 'bots'` — scales the authored per-round board table. */
-  botDifficulty: 'easy' | 'medium' | 'hard';
+  /** Bot strength when `opponents === 'bots'`, 1–10 — scales the authored per-round board table and, from 6,
+   *  mixes in utility minions. A saved run or persisted draft from before 2026-09-02 may still carry the old
+   *  'easy' | 'medium' | 'hard' strings: always read it through `normalizeBotDifficulty`. */
+  botDifficulty: BotLevel;
   /** `unlimited` = the classic Practice invulnerability + round-15 curtain; `normal` = real elimination. */
   health: 'unlimited' | 'normal';
   /** Shop-timer multiplier (1–4×), the same knob the in-run Practice timer dropdown drives. */
@@ -362,7 +368,7 @@ export interface PracticeConfig {
 /** The default Practice options — the classic Practice experience, so an untouched setup screen plays exactly
  *  as Practice always has (recorded opponents, invulnerable, 1× timer, no surge). */
 export const DEFAULT_PRACTICE_CONFIG: PracticeConfig = {
-  opponents: 'players', botDifficulty: 'medium', health: 'unlimited', timeMult: 1, tribeSurge: null,
+  opponents: 'players', botDifficulty: 3, health: 'unlimited', timeMult: 1, tribeSurge: null,
 };
 
 export type DiscoverSpec =

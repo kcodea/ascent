@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { CARD_INDEX, activeSet, type SetId } from '@game/content';
-import { CONFIG, HEROES, playableHeroes, practiceHeroes, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, resolveServerProfile, isPlayerAction, missingCardIds, nextOpponent, parseQaScenario, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, withLiveTelemetry, type TelemetryLog, beginDerive, observeAction, finishDerive, type DeriveState, reduce, reduceWithPresentation, resolveLobbyRating, serialize, snapshotBoard, socBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, combatFrameOf, deltaShopFrameOf, shopFrameOf, runRecord, type DragPath, type ReplayFrame, type ReplayV2, type ShopView, appendInspectEvent, type InspectEvent, type InspectSnapshot, createLobbyRun, createTutorialRun, type TutorialCourse, type PracticeConfig, DEFAULT_PRACTICE_CONFIG, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction } from '@game/sim';
+import { CONFIG, HEROES, playableHeroes, practiceHeroes, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, resolveServerProfile, isPlayerAction, missingCardIds, nextOpponent, parseQaScenario, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, withLiveTelemetry, type TelemetryLog, beginDerive, observeAction, finishDerive, type DeriveState, reduce, reduceWithPresentation, resolveLobbyRating, serialize, snapshotBoard, socBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, combatFrameOf, deltaShopFrameOf, shopFrameOf, runRecord, type DragPath, type ReplayFrame, type ReplayV2, type ShopView, appendInspectEvent, type InspectEvent, type InspectSnapshot, createLobbyRun, createTutorialRun, type TutorialCourse, type PracticeConfig, DEFAULT_PRACTICE_CONFIG, normalizeBotDifficulty, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction } from '@game/sim';
 import type { PresentationBatch } from '@game/core';
 import { combatTimelineFrom } from './choreographer/combatTimeline';
 import type { RuneLockInCard } from './RuneLockIn';
@@ -714,7 +714,9 @@ function loadPracticeConfig(): PracticeConfig {
   try {
     const raw = localStorage.getItem('ascent.practiceconfig');
     if (!raw) return { ...DEFAULT_PRACTICE_CONFIG };
-    return { ...DEFAULT_PRACTICE_CONFIG, ...(JSON.parse(raw) as Partial<PracticeConfig>) };
+    const parsed = JSON.parse(raw) as Partial<PracticeConfig>;
+    // Drafts saved before 2026-09-02 hold 'easy' | 'medium' | 'hard'; the ladder is 1–10 now.
+    return { ...DEFAULT_PRACTICE_CONFIG, ...parsed, botDifficulty: normalizeBotDifficulty(parsed.botDifficulty) };
   } catch { return { ...DEFAULT_PRACTICE_CONFIG }; }
 }
 function savePracticeConfig(cfg: PracticeConfig): void {

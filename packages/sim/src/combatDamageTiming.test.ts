@@ -45,7 +45,7 @@ describe('the player\'s Resolve reflects combat damage at END OF COMBAT', () => 
 
   it('PRACTICE invulnerability still shrugs it off (the run must not leak damage into the seat)', () => {
     let s = createLobbyRun(11, 'aster', {}, 'practice', {
-      opponents: 'players', botDifficulty: 'medium', health: 'unlimited', timeMult: 1, tribeSurge: null,
+      opponents: 'players', botDifficulty: 3, health: 'unlimited', timeMult: 1, tribeSurge: null,
     });
     const before = s.resolve + s.armor;
     s = fightAndLose(s);
@@ -57,7 +57,7 @@ describe('the player\'s Resolve reflects combat damage at END OF COMBAT', () => 
 
   it('PRACTICE on normal health DOES take it at end of combat', () => {
     let s = createLobbyRun(11, 'aster', {}, 'practice', {
-      opponents: 'players', botDifficulty: 'medium', health: 'normal', timeMult: 1, tribeSurge: null,
+      opponents: 'players', botDifficulty: 3, health: 'normal', timeMult: 1, tribeSurge: null,
     });
     const before = s.resolve + s.armor;
     s = fightAndLose(s);

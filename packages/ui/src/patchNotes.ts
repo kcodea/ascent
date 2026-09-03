@@ -56,6 +56,23 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-02',
+    label: 'Bot Levels',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: 'Practice bots now have ten difficulty levels instead of three, and the top levels field real utility minions.',
+        details: [
+          'Level 1 is the old Easy, level 3 the old Medium, level 5 the old Hard. Levels 2 and 4 sit between them.',
+          'Levels 6–10 go past the old Hard: bigger boards, a faster tier climb, higher starting tiers, and heavier hits.',
+          'From level 6, one to three bot minions each round are real cards with effects — Echoes that Ward allies or spray damage, Venomous, Cleave, Rally and more. Higher levels unlock nastier ones.',
+          'Those utility minions use the bot board’s stats for that round, so they scale with the game. Venom stays at 1 Attack.',
+          'Your saved Practice setup carries over: Easy, Medium and Hard become levels 1, 3 and 5.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-02',
     label: 'Buff FX',
     changes: [
       {

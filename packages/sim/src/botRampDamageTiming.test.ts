@@ -14,7 +14,7 @@ import { describe, expect, it } from 'vitest';
 import { createLobbyRun, reduce, type RunState, type Action } from './index';
 
 describe('bot damage ramp × end-of-combat health timing', () => {
-  for (const botDifficulty of ['easy', 'medium', 'hard'] as const) {
+  for (const botDifficulty of [1, 3, 5, 10] as const) {
     it(`${botDifficulty}: the end-of-combat value is the final value (no second jump in the shop)`, () => {
       let s: RunState = createLobbyRun(11, 'aster', {}, 'practice', {
         opponents: 'bots', botDifficulty, health: 'normal', timeMult: 1, tribeSurge: null,
@@ -36,7 +36,7 @@ describe('bot damage ramp × end-of-combat health timing', () => {
   }
 
   it('a harder difficulty costs more for the same fight', () => {
-    const costOf = (botDifficulty: 'easy' | 'hard'): number => {
+    const costOf = (botDifficulty: 1 | 5 | 10): number => {
       let s: RunState = createLobbyRun(11, 'aster', {}, 'practice', {
         opponents: 'bots', botDifficulty, health: 'normal', timeMult: 1, tribeSurge: null,
       });
@@ -45,6 +45,7 @@ describe('bot damage ramp × end-of-combat health timing', () => {
       for (const a of [{ type: 'faceOmen' }, { type: 'settleCombat' }] as Action[]) s = reduce(s, a);
       return before - (s.resolve + s.armor);
     };
-    expect(costOf('hard')).toBeGreaterThan(costOf('easy'));
+    expect(costOf(5)).toBeGreaterThan(costOf(1));
+    expect(costOf(10)).toBeGreaterThanOrEqual(costOf(5));
   });
 });

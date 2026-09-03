@@ -5,7 +5,7 @@ import { sideFromSnapshot } from './boardSide';
 import { poolOf, setIdOf } from './cardPool';
 import { ACE_DISCOUNT_MAX_TIER, ACE_TIER_DISCOUNT, CONFIG, INDY_GILD_RECHARGE_GOLD, KESHI_CROWN_THRESHOLD, maxTierFor, hasTier7Access } from './config';
 import { lobbyOpponentBoard, settleRunLobbyRound, playerEliminated, practicePlayerPlacement, playerLossDamage } from './lobby/runLobby';
-import { BOT_DAMAGE_MULT } from './lobby/practiceBots';
+import { botDamageMultFor } from './lobby/practiceBots';
 import { accumulateContribution, tallyCombat } from './contribution';
 import { rollShop, topUpTavern, returnToPool, takeFromPool, rollCiaEnchants, tierSlots } from './shop';
 import { generateQuestOffer, questOfferPlan } from './quests';
@@ -412,7 +412,7 @@ export function lossDamageCap(wave: number): number {
  *  run against recorded PLAYERS keeps the normal numbers. */
 export function practiceBotDamageMult(s: Pick<RunState, 'mode' | 'practiceConfig'>): number {
   if (s.mode !== 'practice' || s.practiceConfig?.opponents !== 'bots') return 1;
-  return BOT_DAMAGE_MULT[s.practiceConfig.botDifficulty] ?? 1;
+  return botDamageMultFor(s.practiceConfig.botDifficulty);
 }
 
 /** Merge a flat list of buffs by source (summing ±atk/±hp + count) — used to carry the inspect

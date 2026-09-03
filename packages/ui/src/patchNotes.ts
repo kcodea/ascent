@@ -55,6 +55,39 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-09-02',
+    label: 'Bot Levels',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: 'Practice bots now have ten difficulty levels instead of three, and the top levels field real utility minions.',
+        details: [
+          'Level 1 is the old Easy, level 3 the old Medium, level 5 the old Hard. Levels 2 and 4 sit between them.',
+          'Levels 6–10 go past the old Hard: bigger boards, a faster tier climb, higher starting tiers, and heavier hits.',
+          'From level 6, one to three bot minions each round are real cards with effects — Echoes that Ward allies or spray damage, Venomous, Cleave, Rally and more. Higher levels unlock nastier ones.',
+          'Those utility minions use the bot board’s stats for that round, so they scale with the game. Venom stays at 1 Attack.',
+          'Your saved Practice setup carries over: Easy, Medium and Hard become levels 1, 3 and 5.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-02',
+    label: 'Buff FX',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: 'The old buff flourishes are being retired to make way for new ones — when a minion is buffed in the shop or in combat, the stat numbers still tick up but the generic ribbon/glow no longer plays. New effects are on the way.',
+        details: [
+          'Removed the shop/combat “tendril” that reached from a buffer to the minion it pumped, and the “rain-down” version for buffs with no on-board source.',
+          'Removed the gold self-buff burst a minion showed when it buffed itself, and the tribe-aura wave that washed across your board.',
+          'Card-specific effects are untouched — Dragonflame, Karwind’s flame ring, Broodfire, the tavern Shout burst, and rune/quest reward ribbons all still play.',
+          'The stat-badge count-up, the shop-buff number float, and every sound are unchanged.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-09-01',
     label: 'Hero Select',
     changes: [

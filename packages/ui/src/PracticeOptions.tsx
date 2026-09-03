@@ -1,6 +1,6 @@
 import { useGame } from './store';
 import { sfx } from './sfx';
-import type { PracticeConfig, SurgeTribe } from '@game/sim';
+import { BOT_LEVELS, MAX_BOT_LEVEL, MIN_BOT_LEVEL, type BotLevel, type PracticeConfig, type SurgeTribe } from '@game/sim';
 
 /**
  * PRACTICE OPTIONS (owner ask 2026-08-24) — the setup screen shown after choosing Practice and before the hero
@@ -45,11 +45,17 @@ const OPPONENTS: { value: PracticeConfig['opponents']; label: string }[] = [
   { value: 'players', label: 'Players' },
   { value: 'bots', label: 'Bots' },
 ];
-const DIFFICULTY: { value: PracticeConfig['botDifficulty']; label: string }[] = [
-  { value: 'easy', label: 'Easy' },
-  { value: 'medium', label: 'Medium' },
-  { value: 'hard', label: 'Hard' },
-];
+/** 1–10 (owner ask 2026-09-02). 1/3/5 are the old Easy/Medium/Hard; 6+ add utility minions to the bot boards. */
+const DIFFICULTY: { value: BotLevel; label: string }[] = Array.from(
+  { length: MAX_BOT_LEVEL - MIN_BOT_LEVEL + 1 },
+  (_, i) => ({ value: (MIN_BOT_LEVEL + i) as BotLevel, label: String(MIN_BOT_LEVEL + i) }),
+);
+/** The hint under the level row — names the anchors so the numbers mean something. */
+function levelHint(level: BotLevel): string {
+  const named = level === 1 ? 'Easy' : level === 3 ? 'Medium' : level === 5 ? 'Hard' : null;
+  const utility = BOT_LEVELS[level].utilitySlots > 0 ? 'Bots field real utility minions.' : 'Stat-only bots.';
+  return named ? `${named}. ${utility}` : utility;
+}
 const HEALTH: { value: PracticeConfig['health']; label: string }[] = [
   { value: 'unlimited', label: 'Unlimited' },
   { value: 'normal', label: 'Normal' },
@@ -90,6 +96,7 @@ export function PracticeOptions() {
         />
         <Segmented
           label="Bot difficulty"
+          hint={levelHint(cfg.botDifficulty)}
           value={cfg.botDifficulty}
           options={DIFFICULTY}
           onPick={(v) => setDraft({ botDifficulty: v })}

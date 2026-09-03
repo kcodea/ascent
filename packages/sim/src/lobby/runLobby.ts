@@ -36,11 +36,13 @@ export interface LobbySeatState {
   /** `authored` seats only (the tutorial): the course's per-round omen board table (index = round − 1). Plain
    *  data so the seat stays serializable; `driverFor` builds an `authoredSeat` driver from it. Every authored
    *  seat in a tutorial lobby carries the SAME table, so the player faces the round's board whatever the pairing. */
-  authoredBoards?: { attack: number; health: number }[][];
+  authoredBoards?: { attack: number; health: number; cardId?: string }[][];
   /** Authored seats only — climb one tavern tier every N rounds (capped at 6), which is what makes losing to
    *  this seat actually cost Resolve (face damage = opponent tier + surviving minions). Absent = pinned tier 1,
    *  which is what the tutorial wants. See `authoredTierFor`. */
   authoredTierRamp?: number;
+  /** Authored seats only — the tier the climb starts from (default 1). The top practice-bot levels open higher. */
+  authoredTierStart?: number;
   /** Practice-bot seats only — the difficulty damage multiplier applied to this table's seat-vs-seat fights
    *  (and mirrored on the player's fight by `practiceBotDamageMult`). Absent everywhere else = 1. */
   botDamageMult?: number;

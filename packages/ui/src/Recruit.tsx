@@ -4194,6 +4194,7 @@ export function Recruit() {
         target,
         cardId: ev.sourceCardId, tribe: ev.sourceTribe,
         sourceless: ev.kind !== 'minion' || !sEl,
+        uids: { source: ev.sourceUid, target: ev.targetUid },
       });
     };
     // Collapse K Brightwing tendrils to one per target before grouping — see `coalesceBuffFxByTarget`. This is
@@ -5280,7 +5281,10 @@ export function Recruit() {
           return;
         }
         const source = centreOf(from.uid);
-        fireBuffFx({ source: source ?? undefined, target, cardId: from.cardId, tribe: CARD_INDEX[from.cardId]?.tribe ?? 'neutral', sourceless: !source });
+        fireBuffFx({
+          source: source ?? undefined, target, cardId: from.cardId, tribe: CARD_INDEX[from.cardId]?.tribe ?? 'neutral', sourceless: !source,
+          uids: { source: from.uid, target: uid },
+        });
       },
       selfBuff: (uid) => {
         // A self-buff on this beat plays the minion's own authored self-buff def, mirroring the per-action

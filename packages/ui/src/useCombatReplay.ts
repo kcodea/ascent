@@ -1542,6 +1542,7 @@ export function useCombatReplay(
         target: tc,
         cardId, tribe,
         sourceless,
+        uids: { source: c.source, target: c.target },
       });
       if (!perTarget.has(c.target)) perTarget.set(c.target, strikeMs);
     }

@@ -33,10 +33,13 @@ export function fireBuffFx(o: {
   cardId: string;
   tribe: Tribe;
   sourceless: boolean;
+  /** The buffer and the buffed unit, handed to `playDef` so a `react` layer knows which cards this is about
+   *  (see `playDefUids.test.ts` — an effect that forgets them plays on nobody). */
+  uids?: { source?: string | null; target?: string | null };
 }): number {
   if (o.sourceless || !o.source) {
     return tunedDescend(DESCEND_PRESETS[descendPreset(o.cardId, o.tribe)]!).dropMs;
   }
-  playDef('tendril-trail', { source: o.source, target: o.target });
+  playDef('tendril-trail', { source: o.source, target: o.target }, { uids: o.uids });
   return TENDRIL_TRAIL_TRAVEL_MS;
 }

@@ -10,10 +10,17 @@ const mockPlayDef = playDef as unknown as ReturnType<typeof vi.fn>;
 describe('fireBuffFx', () => {
   beforeEach(() => mockPlayDef.mockClear());
 
-  it('with a living source → plays the tendril-trail ribbon source→target', () => {
-    fireBuffFx({ source: { x: 0, y: 0 }, target: { x: 5, y: 5 }, cardId: 'x', tribe: 'beast', sourceless: false });
+  it('with a living source → plays the tendril-trail ribbon source→target, handing over both uids', () => {
+    fireBuffFx({
+      source: { x: 0, y: 0 }, target: { x: 5, y: 5 }, cardId: 'x', tribe: 'beast', sourceless: false,
+      uids: { source: 'buffer', target: 'buffed' },
+    });
     expect(mockPlayDef).toHaveBeenCalledTimes(1);
-    expect(mockPlayDef).toHaveBeenCalledWith('tendril-trail', { source: { x: 0, y: 0 }, target: { x: 5, y: 5 } });
+    expect(mockPlayDef).toHaveBeenCalledWith(
+      'tendril-trail',
+      { source: { x: 0, y: 0 }, target: { x: 5, y: 5 } },
+      { uids: { source: 'buffer', target: 'buffed' } },
+    );
   });
 
   // The roll lands when the ribbon arrives, so the returned time must track the DEF's own travel — retuning

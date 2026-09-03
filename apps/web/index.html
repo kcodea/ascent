@@ -34,7 +34,7 @@
     <div id="bootsplash">
       <img id="bootsplash-img" src="./ascenticon.png" alt="" aria-hidden="true" draggable="false" />
       <div id="bootsplash-bar"><i></i></div>
-      <div id="bootsplash-cta">Click to begin</div>
+      <div id="bootsplash-cta"><span>Click to begin</span></div>
     </div>
     <script>
       /* Fade the splash IN once the image has actually DECODED (owner ask 2026-08-22: "fade in from a black
@@ -134,23 +134,30 @@
          settled Boot adds `.is-finishing` and sets the fill to 1, so the second half is one smooth 1.5s glide and
          the menu opens as it lands. Keep 1500ms in sync with FINISH_MS in Boot.tsx. */
       #bootsplash.is-finishing #bootsplash-bar > i { transition: transform 1500ms cubic-bezier(0.22, 0.61, 0.36, 1); }
-      /* "Click to begin" — the audio context needs a gesture, so the boot asks for one up front. Fades in with
-         the bar; hidden the moment the click lands (`.is-unlocked`, set by the inline script or by Boot). */
+      /* "Click to begin" — the audio context needs a gesture, so the boot asks for one up front. The OUTER div
+         owns placement + the fade-in (arrives with the bar); the INNER span carries the idle life (owner ask
+         2026-09-03: "slowly pulsing in and out with a subtle hover effect, like the ASCENT logo"): a slow opacity
+         breath and a gentle bob on the same 5.2s ease-in-out clock + amplitude as the title mark's `titlebob`.
+         Both are compositor-only (opacity / transform). Hidden the moment the click lands (`.is-unlocked`). */
       #bootsplash-cta {
         position: absolute; left: 50%; transform: translateX(-50%);
         bottom: calc(var(--ls-bar-bottom, 22.5vh) - 34px);
         font-family: 'Outfit', system-ui, sans-serif; font-weight: 700; font-size: 15px; letter-spacing: 0.12em;
-        text-transform: uppercase; color: rgba(255, 255, 255, 0.82); text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+        text-transform: uppercase; color: rgba(255, 255, 255, 0.9); text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
         opacity: 0; transition: opacity 700ms ease-out; pointer-events: none; user-select: none;
-        animation: bootctapulse 1.6s ease-in-out infinite alternate;
       }
-      @keyframes bootctapulse { from { opacity: 0.55; } to { opacity: 1; } }
+      #bootsplash-cta > span {
+        display: inline-block;
+        animation: bootctabreathe 3.4s ease-in-out infinite alternate, bootctabob 5.2s ease-in-out infinite;
+      }
+      @keyframes bootctabreathe { from { opacity: 0.38; } to { opacity: 1; } }
+      @keyframes bootctabob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
       #bootsplash.is-in #bootsplash-cta { opacity: 1; }
       #bootsplash.is-unlocked #bootsplash-cta { display: none; }
       #bootsplash { cursor: url('./cursors/gauntlet_open.svg') 6 2, pointer; }
       /* The bar is progress feedback, not decoration — freeze motion for anyone who asked for less. */
       @media (prefers-reduced-motion: reduce) {
-        #bootsplash, #bootsplash-img, #bootsplash-bar, #bootsplash-bar > i, #bootsplash-cta { transition: none; animation: none; }
+        #bootsplash, #bootsplash-img, #bootsplash-bar, #bootsplash-bar > i, #bootsplash-cta, #bootsplash-cta > span { transition: none; animation: none; }
       }
     </style>
     <div id="root"></div>

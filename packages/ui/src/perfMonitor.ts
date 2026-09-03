@@ -99,6 +99,24 @@ export interface PerfBucket {
   hidden?: boolean;
 }
 
+/** One main-thread stall the browser attributed (PerformanceObserver 'longtask'), with the game context it
+ *  landed in. THE HITCH LOG: the first-use stalls the boot preload exists to remove are exactly these — a
+ *  shader link, an image decode, a clip decode — and the way to prove they are gone is to read this list after
+ *  a session and find nothing in it past the boot. */
+export interface Hitch {
+  /** ms since navigation start (the long task's `startTime`). */
+  at: number;
+  ms: number;
+  phase?: string;
+  wave?: number;
+  /** Marks pending in the bucket when it landed — the best cheap attribution available. */
+  marks: string[];
+}
+/** A long task shorter than this is not logged (the browser's own 'longtask' floor is 50 ms anyway). */
+export const HITCH_MS = 50;
+/** Ring size for the hitch log. */
+export const HITCH_LOG_MAX = 200;
+
 type CounterFn = () => number;
 type ContextFn = () => { phase?: string; wave?: number };
 
@@ -216,6 +234,7 @@ class PerfMonitor {
   private context: ContextFn = () => ({});
   private readonly buckets: PerfBucket[] = [];
   private observer: PerformanceObserver | null = null;
+  private readonly hitchLog: Hitch[] = [];
   private readonly listeners = new Set<(b: PerfBucket) => void>();
   /** Running display-refresh estimate. Fed one window per bucket close — never per frame. */
   private refresh: RefreshState = initialRefreshState();
@@ -270,6 +289,21 @@ class PerfMonitor {
 
   /** Register the game-context provider (phase / wave), so buckets carry what was happening. */
   registerContext(fn: ContextFn): void { this.context = fn; }
+
+  /** Fold one 'longtask' entry into the bucket AND the hitch log. Public so the log is testable without a
+   *  PerformanceObserver (which node lacks). */
+  recordLongTask(e: { startTime: number; duration: number }): void {
+    this.longestTask = Math.max(this.longestTask, e.duration);
+    if (e.duration < HITCH_MS) return;
+    const ctx = this.context();
+    const hitch: Hitch = { at: Math.round(e.startTime), ms: Math.round(e.duration), phase: ctx.phase, wave: ctx.wave, marks: [...this.pendingMarks.keys()] };
+    if (this.hitchLog.length >= HITCH_LOG_MAX) this.hitchLog.shift();
+    this.hitchLog.push(hitch);
+    if (import.meta.env.DEV) console.warn(`[hitch] ${hitch.ms} ms at ${(hitch.at / 1000).toFixed(1)}s`, ctx.phase ?? '', ctx.wave ?? '', hitch.marks.join(','));
+  }
+
+  /** Every long task ≥ HITCH_MS this session (newest last, capped at HITCH_LOG_MAX). */
+  hitches(): readonly Hitch[] { return this.hitchLog; }
 
   /** Annotate the timeline: `perfMonitor.mark('weld')` when an FX fires. No-op when not running, so call
    *  sites don't need to guard. This is what turns "a spike at t=412s" into "a spike on 7 batched welds". */
@@ -334,7 +368,7 @@ class PerfMonitor {
     // the browser, not inferred from frame gaps. Optional: not every engine implements the entry type.
     try {
       this.observer = new PerformanceObserver((list) => {
-        for (const e of list.getEntries()) this.longestTask = Math.max(this.longestTask, e.duration);
+        for (const e of list.getEntries()) this.recordLongTask(e);
       });
       this.observer.observe({ entryTypes: ['longtask'] });
     } catch { this.observer = null; }

@@ -48,7 +48,6 @@ import { ErrorBoundary } from './ErrorBoundary';
 import { ReplayOverlay } from './replay/ReplayOverlay';
 import { ReplayDragGhost } from './replay/ReplayDragGhost';
 import { RoundRail } from './replay/RoundRail';
-import { PixiFxLayer } from './PixiFxLayer';
 import { pixiFx, warmDiscoverFx } from './pixiFx';
 import { warmArt } from './art';
 import { sfx } from './sfx';
@@ -372,18 +371,9 @@ export function Game() {
       {/* Keyed on run identity like Recruit: the StatusBar's `prevHp` ref tracks Resolve across the run to
           float a "−X" when a wave breaks through. Without a key it persists across a new-run pick, so its ref
           holds the PREVIOUS run's HP — picking a hero with lower starting HP then floats a phantom "−X". */}
-      {/* WebGL effects overlay (particle impacts, flashes) — a transparent full-viewport Pixi canvas drawn over
-          the board; the combat replay fires effects into it at contact points.
-
-          Mounted from the HERO PICKER onward, not only with the board. The canvas is inert until a fire — no
-          run, no clock, nothing drawn — so it is outside the 2026-08-30 ruling above, and mounting it here is
-          what gives the FX shader pre-warm (`playDef.ts`'s `schedulePrewarm`, which hangs off this canvas's
-          renderer) the picker + ceremony seconds to compile in. Mounted with the board instead, every link
-          landed on the shop's card fly-in (a 180–420 ms hitch, measured 2026-09-01); before the pre-warm ran
-          at all, on the first minion played (0.6–0.8 s). One JSX position across both states, so the canvas
-          survives the picker → board transition without a detach/re-attach (which would throw its compiled
-          programs away with the context). */}
-      {(!preRun || heroPicking) && <PixiFxLayer />}
+      {/* The WebGL effects overlay (`PixiFxLayer`) is mounted by `Boot`, for the whole session, so the boot
+          warm-up's compiled programs + uploaded textures survive into play (2026-09-03). It used to mount here
+          from the hero picker onward; the ticker auto-idles, so a canvas with nothing to draw costs no frame. */}
       {!preRun && <StatusBar key={`sb:${runKey}`} />}
       {showBook && <MinionBook />}
       <Inspect />

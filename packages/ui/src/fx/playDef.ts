@@ -1,9 +1,9 @@
 /// <reference types="vite/client" />
-import { Container, type Renderer } from 'pixi.js';
+import { Container, type Renderer, type Texture } from 'pixi.js';
 import { perfMonitor } from '../perfMonitor';
 import { pixiFx } from '../pixiFx';
 import { driveLayerHeads, type FxAnchors } from './anchors';
-import type { FxDef } from './def';
+import type { FxDef, FxSlot } from './def';
 import type { StoredFxDef, StoredFxLayer } from './defStore';
 import { anchorsForUnits } from './combatAnchors';
 import { getDef, listDefs } from './fxDefs';
@@ -307,6 +307,12 @@ export function ensureDefsReady(): Promise<void> {
  * macrotask so the mount frame is not the one that absorbs them all. Each new context — a re-attach after
  * `detach()` included — is warmed again, because its predecessor's programs died with it.
  */
+/** One resolver per warmed slot: the promise settles when that context's step queue has drained. `warmFx`
+ *  waits on these. A context torn down mid-queue still resolves (its remaining steps are skipped). */
+const warmDone = new Map<FxSlot, Promise<void>>();
+let warmListeners: Array<() => void> = [];
+const notifyWarm = (): void => { for (const l of warmListeners) l(); };
+
 function schedulePrewarm(
   steps: (renderer: Renderer | null) => Array<() => void>,
   slotSteps: (renderer: Renderer | null) => Array<() => void>,
@@ -314,15 +320,19 @@ function schedulePrewarm(
   if (typeof window === 'undefined') return;
   pixiFx.onRendererReady((renderer, slot) => {
     const queue = slot === 'over' ? steps(renderer) : slotSteps(renderer);
-    const next = (): void => {
-      const step = queue.shift();
-      if (!step) return;
-      // A context torn down mid-queue (a fast detach) is skipped; every warm is best-effort anyway and
-      // already swallows a failed link.
-      if (pixiFx.rendererFor(slot) === renderer) step();
+    const done = new Promise<void>((resolve) => {
+      const next = (): void => {
+        const step = queue.shift();
+        if (!step) { resolve(); return; }
+        // A context torn down mid-queue (a fast detach) is skipped; every warm is best-effort anyway and
+        // already swallows a failed link.
+        if (pixiFx.rendererFor(slot) === renderer) step();
+        window.setTimeout(next, 0);
+      };
       window.setTimeout(next, 0);
-    };
-    window.setTimeout(next, 0);
+    });
+    warmDone.set(slot, done);
+    notifyWarm();
     if (slot !== 'over') return;
     // Bring the under / above canvases up ONLY if something committed actually wants them. A page whose defs
     // are all `over` never creates a second GL context — the lazy half of "lazy on first use" — while a page
@@ -331,6 +341,61 @@ function schedulePrewarm(
     if (listDefs().some((d) => d.slot === 'under')) void pixiFx.ensureUnderSlot();
     if (listDefs().some((d) => d.slot === 'above')) void pixiFx.ensureAboveSlot();
   });
+}
+
+/** The slots the committed defs will draw on — the set `warmFx` must see warmed before it resolves. */
+function slotsWanted(): FxSlot[] {
+  const out: FxSlot[] = ['over'];
+  if (listDefs().some((d) => d.slot === 'under')) out.push('under');
+  if (listDefs().some((d) => d.slot === 'above')) out.push('above');
+  return out;
+}
+
+/**
+ * BOOT WARM-UP (owner ruling 2026-09-03: no first-use hitches). Resolves once:
+ *   1. the primitives chunk is loaded (`ensureDefsReady`),
+ *   2. every wanted slot's renderer exists AND its program-link queue has drained (batch shader, particle,
+ *      ribbon, shockwave — the 0.6–0.8 s first-play freeze measured 2026-09-01), and
+ *   3. every shape/art texture has decoded and been UPLOADED to each live renderer, plus the hand-written
+ *      Echo skull — a `bind` is what makes Pixi create + upload the GL texture, so the first draw never does.
+ * Bounded by `timeoutMs` and resolves at once when there is no renderer at all (no WebGL): a warm-up can only
+ * ever make a first fire cheaper, never block the game.
+ */
+export async function warmFx(timeoutMs = 20000): Promise<void> {
+  if (typeof window === 'undefined') return;
+  const deadline = new Promise<void>((r) => window.setTimeout(r, timeoutMs));
+  await Promise.race([ensureDefsReady(), deadline]);
+  if (!hasPrimitives() || !pixiFx.renderer) return;
+  const queuesDrained = new Promise<void>((resolve) => {
+    const check = (): void => {
+      const wanted = slotsWanted();
+      if (wanted.every((sl) => warmDone.has(sl))) {
+        warmListeners = warmListeners.filter((l) => l !== check);
+        void Promise.all(wanted.map((sl) => warmDone.get(sl))).then(() => resolve());
+      }
+    };
+    warmListeners.push(check);
+    check();
+  });
+  await Promise.race([queuesDrained, deadline]);
+  // Textures: decode every library shape, then upload each to every live context.
+  const uploads = (async (): Promise<void> => {
+    const { awaitShapeTextures } = await import('./shapeLibrary');
+    const textures = [...(await awaitShapeTextures()), ...pixiFx.warmBuiltinTextures()];
+    for (const sl of slotsWanted()) {
+      const r = pixiFx.rendererFor(sl);
+      if (!r) continue;
+      // Only the GL system exposes `bind` (the overlay is created with `preference: 'webgl'`); any other
+      // backend simply uploads on first draw, as before.
+      const sys = r.texture as unknown as { bind?: (t: Texture | null, loc?: number) => void };
+      if (typeof sys.bind !== 'function') continue;
+      for (const t of textures) {
+        try { sys.bind(t, 0); } catch { /* best-effort: the first draw uploads instead */ }
+      }
+      try { sys.bind(null, 0); } catch { /* ignore */ }
+    }
+  })();
+  await Promise.race([uploads.catch(() => undefined), deadline]);
 }
 
 // ─── the bridge ────────────────────────────────────────────────────────────────────────────────────────

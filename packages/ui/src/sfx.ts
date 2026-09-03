@@ -216,25 +216,70 @@ const SAMPLE_URLS = {
   ...import.meta.glob('./audio/ceremony/*.mp3', { eager: true, query: '?url', import: 'default' }), // hero-select ceremony stingers (🎭 tuner owns their timing/volume)
 } as Record<string, string>;
 const buffers = new Map<string, AudioBuffer>();
-const loadingSamples = new Set<string>();
+/** In-flight fetch+decode per sample, so a boot preload and a lazy first play never double-load one clip. */
+const loadingSamples = new Map<string, Promise<void>>();
 // Key = path under ./audio/ minus extension: `./audio/roll.mp3` → `roll`, `./audio/cards/karthus.mp3` → `cards/karthus`.
 const sampleName = (path: string): string => path.replace(/^\.\/audio\//, '').replace(/\.(mp3|wav|mp4)$/, '');
 
-function loadSample(name: string): void {
+/** Number of shipped clips — the boot bar's denominator for the audio stage. */
+export const SAMPLE_COUNT = Object.keys(SAMPLE_URLS).length;
+
+/** Fetch + decode one clip. Resolves when its buffer is ready OR the load failed (never rejects); resolves
+ *  at once when already decoded or when there is no audio context yet (the context needs a user gesture —
+ *  see `unlockAudio`). */
+function loadSample(name: string): Promise<void> {
   const a = audio();
-  if (!a || buffers.has(name) || loadingSamples.has(name)) return;
+  if (!a || buffers.has(name)) return Promise.resolve();
+  const inFlight = loadingSamples.get(name);
+  if (inFlight) return inFlight;
   const entry = Object.entries(SAMPLE_URLS).find(([p]) => sampleName(p) === name);
-  if (!entry) return;
-  loadingSamples.add(name);
-  fetch(entry[1])
+  if (!entry) return Promise.resolve();
+  const job = fetch(entry[1])
     .then((r) => r.arrayBuffer())
     .then((ab) => a.decodeAudioData(ab))
-    .then((buf) => { buffers.set(name, buf); loadingSamples.delete(name); })
-    .catch(() => loadingSamples.delete(name));
+    .then((buf) => { buffers.set(name, buf); })
+    .catch(() => undefined)
+    .then(() => { loadingSamples.delete(name); });
+  loadingSamples.set(name, job);
+  return job;
 }
 
 function prefetchSamples(): void {
-  for (const path of Object.keys(SAMPLE_URLS)) loadSample(sampleName(path));
+  for (const path of Object.keys(SAMPLE_URLS)) void loadSample(sampleName(path));
+}
+
+/** Create + resume the audio context. MUST be called from a user gesture (a click/keypress): browsers refuse
+ *  to start audio before one, which is why the boot screen asks for a click before it decodes the clips. */
+export function unlockAudio(): void {
+  audio();
+}
+
+/**
+ * BOOT PRELOAD: fetch + decode EVERY clip, reporting progress, resolving once each has settled (decoded, failed,
+ * or timed out at `perClipMs`). Until 2026-09-03 the clips decoded lazily in one burst after the first click
+ * anywhere, so the first sound of each kind could play before its buffer was ready — and the burst itself landed
+ * right as play began. Requires the context to exist (`unlockAudio` from a gesture); without one it resolves
+ * immediately with full progress so the boot never waits on audio it cannot decode.
+ */
+export function preloadAllSamples(onProgress?: (loaded: number, total: number) => void, perClipMs = 15000): Promise<void> {
+  const names = Object.keys(SAMPLE_URLS).map(sampleName);
+  const total = names.length;
+  if (!audio()) { onProgress?.(total, total); return Promise.resolve(); }
+  let loaded = 0;
+  const one = (name: string): Promise<void> =>
+    new Promise<void>((resolve) => {
+      let settled = false;
+      const done = (): void => {
+        if (settled) return;
+        settled = true;
+        loaded += 1;
+        onProgress?.(loaded, total);
+        resolve();
+      };
+      void loadSample(name).then(done, done);
+      setTimeout(done, perClipMs);
+    });
+  return Promise.all(names.map(one)).then(() => undefined);
 }
 
 // Variant families: a logical clip (e.g. `smack`) can be backed by N numbered files (`smack1.mp3`…`smackN.mp3`);
@@ -272,7 +317,7 @@ function playSample(name: string, category: string, delay = 0, onNodes?: (nodes:
   const a = audio();
   if (!a || muted) return false;
   const buf = buffers.get(name);
-  if (!buf) { loadSample(name); return false; }
+  if (!buf) { void loadSample(name); return false; }
   const src = a.createBufferSource();
   src.buffer = buf;
   const g = a.createGain();

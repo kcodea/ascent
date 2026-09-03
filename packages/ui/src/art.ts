@@ -12,6 +12,8 @@
  * NB: `import.meta.glob`'s options MUST be an inline object literal — Vite analyses the call statically,
  * so a shared/hoisted options variable fails the build with "Invalid glob import syntax".
  */
+import { PUBLIC_ASSETS } from './publicAssets.generated';
+
 type ArtModules = Record<string, string>;
 
 /** Build an id → url map from a glob, preferring the `.webp` build copy when both formats exist. */
@@ -182,32 +184,27 @@ const AVATAR_SRC = new Map(AVATAR_ART.map((a) => [a.id, a.src] as const));
 /** Resolve a stored avatar id (`kind:key`) to its art URL — undefined if unset or no longer bundled. */
 export const avatarSrc = (id?: string | null): string | undefined => (id ? AVATAR_SRC.get(id) : undefined);
 
-/** App-level public assets (served from `apps/web/public/` at the site root) that also pop in when loaded
- *  lazily: the board backdrops + title art (CSS `url()` / title <img>) and the custom drag cursors (a cursor
- *  swap flashes the default arrow until its SVG is fetched). They live outside the ui package's globs, so
- *  they're listed by URL — keep in sync with `styles.css` `url()` refs + `apps/web/public/`. */
-// BASE_URL-relative (not root-absolute): itch serves the game from a CDN sub-path, where '/x.webp' 404s and the
-// warm-up silently skipped these (BASE_URL is '/' in dev, './' in the build — resolved against index.html).
-const PUBLIC_ART_URLS: string[] = [
-  `${import.meta.env.BASE_URL}augustfullboard.webp`, // the board (all resolutions; see styles.css --board)
-  `${import.meta.env.BASE_URL}augustboardcombat.webp`, // the combat variant the wipe reveals — preloaded so the first wipe never uncovers a half-loaded image
-  `${import.meta.env.BASE_URL}homescreen.webp`,
-  `${import.meta.env.BASE_URL}runeforgebg2.webp`, // Runeforge overlay backdrop — preloaded so the forge doesn't open on an empty scrim
-
-  `${import.meta.env.BASE_URL}cursors/gauntlet_default.svg`,
-  `${import.meta.env.BASE_URL}cursors/gauntlet_open.svg`,
-  `${import.meta.env.BASE_URL}cursors/hand_closed.svg`,
-  // The end-of-turn charge glyph's SHAPE — used as a CSS mask on `.chargeglyph .masked` (and sampled by
-  // chargeMotes). Preloaded because an unfetched mask means the layers paint UNMASKED for the first frame:
-  // the fill's blue gradient flashed as a full RECTANGLE as the charge began (owner report). Cached at boot
-  // → the mask applies on the glyph's first paint.
-  `${import.meta.env.BASE_URL}fx/turn-glyph.svg`,
+/**
+ * EVERY image the game can show, deduped — the boot preloader's set (owner ruling 2026-09-03: "I'd rather wait
+ * two minutes than experience pop-in hitches"). Two sources:
+ *   • every bundled art glob above — minions, spells, equipment, heroes, powers, quests, runes, mode tiles.
+ *     (Until 2026-09-03 only minions/heroes/powers were warmed; spell, quest and rune art, the equipment icons
+ *     and the mode tiles all popped in on first sight.)
+ *   • every image/SVG under `apps/web/public/` via the GENERATED manifest (`npm run assets:manifest`): the
+ *     board backdrops, the 87 frame/button/plate images, cursors, the damage burst, the rune-slot art…
+ *     `publicAssets.test.ts` fails when that list is stale, so a new public file can't silently miss the warm.
+ * Public paths are BASE_URL-relative (itch serves from a CDN sub-path where '/x.webp' 404s).
+ */
+export const ALL_IMAGE_URLS: readonly string[] = [
+  ...new Set([
+    ...Object.values(MINION_ART), ...Object.values(SPELL_ART), ...Object.values(EQUIPMENT_ART),
+    ...Object.values(HERO_ART), ...Object.values(POWER_ART), ...Object.values(QUEST_ART),
+    ...Object.values(RUNE_ART), ...Object.values(MODE_ART),
+    ...PUBLIC_ASSETS.map((p) => `${import.meta.env.BASE_URL}${p}`),
+  ]),
 ];
-
-/** Every bundled art URL (minions + heroes + powers) + the public backdrops/cursors, deduped — the warm-up set. */
-const ALL_ART_URLS: string[] = [
-  ...new Set([...Object.values(MINION_ART), ...Object.values(HERO_ART), ...Object.values(POWER_ART), ...PUBLIC_ART_URLS]),
-];
+/** Kept under its old name for the callers that read it. */
+const ALL_ART_URLS = ALL_IMAGE_URLS;
 
 let warmed = false;
 /** The preloader's Image objects, held for the session — dropping them lets the browser GC the elements and,
@@ -243,13 +240,17 @@ export function warmArt(): void {
 export const ART_COUNT = ALL_ART_URLS.length;
 
 /**
- * BLOCKING preload: fetch AND decode every bundled art file, resolving only once they're all cached (or have
- * individually failed / timed out). Unlike `warmArt` (fire-and-forget on idle), this is meant to gate a boot
- * loading screen so the game never renders a card before its art is decoded — no pop-in, guaranteed. Each image
- * has its own hard timeout so one stuck request can't hang the whole boot, and `onProgress(loaded, total)` fires
- * as each settles. Marks the warm-up done so a later `warmArt()` no-ops.
+ * BLOCKING preload: fetch AND DECODE every image in `ALL_IMAGE_URLS`, resolving only once each has settled
+ * (decoded, failed, or timed out). This gates the boot screen (Boot.tsx / bootLoader.ts) so nothing can render
+ * before its art is a decoded bitmap — no pop-in, no first-paint decode hitch. Each image has its own hard
+ * timeout so one stuck request can't hang the boot, and `onProgress(loaded, total)` fires as each settles.
+ * Marks the warm-up done so a later `warmArt()` no-ops.
+ *
+ * `decode()` IS awaited here (it used to be fire-and-forget, gating on `onload` alone): the decode is the CPU
+ * half of the pop-in, and on the board it lands on the first paint of each card. It is still raced against the
+ * per-item timeout, because `decode()` can stall in a throttled background tab.
  */
-export function preloadAllArt(onProgress?: (loaded: number, total: number) => void): Promise<void> {
+export function preloadAllArt(onProgress?: (loaded: number, total: number) => void, perItemMs = 12000): Promise<void> {
   if (typeof Image === 'undefined') return Promise.resolve();
   warmed = true;
   const urls = ALL_ART_URLS;
@@ -271,10 +272,13 @@ export function preloadAllArt(onProgress?: (loaded: number, total: number) => vo
       // Resolve as soon as the bytes are cached (`onload`) — the network round-trip is what causes the pop-in.
       // Kick `decode()` in the background too (best-effort) so first paint is instant, but never GATE on it:
       // `decode()` can stall in a backgrounded/throttled tab, and onload is the reliable signal.
-      img.onload = (): void => { void img.decode?.().catch(() => {}); done(); };
+      img.onload = (): void => {
+        const d = img.decode?.();
+        if (d) d.then(done, done); else done();
+      };
       img.onerror = done; // a missing/broken file shouldn't block the boot
       img.src = url;
-      window.setTimeout(done, 12000); // safety: never hang on a stuck fetch
+      window.setTimeout(done, perItemMs); // safety: never hang on a stuck fetch or a stalled decode
     });
   return Promise.all(urls.map(one)).then(() => undefined);
 }

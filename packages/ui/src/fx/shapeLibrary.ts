@@ -467,6 +467,17 @@ function ensureArtTexture(id: string): void {
 
 /** Every art slug that resolves right now, sorted: the ones the build-time glob can see, PLUS the ones only
  *  the overlay knows about (committed since the dev server last started — see `registerSavedArt`). */
+/**
+ * BOOT WARM-UP: hydrate the library and resolve once every imported / committed-art texture has decoded, with
+ * the decoded textures — the boot loader then uploads each to every live renderer (`warmFx` in playDef.ts),
+ * so the first def that draws `art:<slug>` never pays the decode OR the GPU upload on its first frame.
+ */
+export async function awaitShapeTextures(): Promise<Texture[]> {
+  initShapeLibrary();
+  await Promise.all([...decoding.values()]);
+  return [...textureCache.values()];
+}
+
 export function listCommittedArt(): string[] {
   // Self-initializing like every other entry point (see `initShapeLibrary`) — the overlay half of the answer
   // lives in hydrated state, so reading this before hydration would report only the globbed slugs. Re-entrant

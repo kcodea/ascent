@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ascent Quiz #22 — 2026-09-03</title>
+<style>
+  :root {
+    --bg: #0f1420;
+    --panel: #1a2236;
+    --panel-border: #2c3752;
+    --text: #e8edf7;
+    --text-dim: #9aa7c2;
+    --accent: #6c8cff;
+    --accent-dim: #3c4a78;
+    --correct: #3ecf8e;
+    --correct-bg: rgba(62, 207, 142, 0.14);
+    --wrong: #ff6b6b;
+    --wrong-bg: rgba(255, 107, 107, 0.14);
+    --gold: #f0c674;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    min-height: 100%;
+  }
+  body {
+    display: flex;
+    justify-content: center;
+    padding: 32px 16px 64px;
+  }
+  .wrap { width: 100%; max-width: 680px; }
+  header {
+    text-align: center;
+    margin-bottom: 24px;
+  }
+  header h1 {
+    font-size: 1.5rem;
+    margin: 0 0 4px;
+    letter-spacing: 0.01em;
+  }
+  header .sub {
+    color: var(--text-dim);
+    font-size: 0.9rem;
+  }
+  .progress-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .progress-track {
+    flex: 1;
+    height: 8px;
+    background: var(--panel-border);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--gold));
+    width: 0%;
+    transition: width 0.35s ease;
+  }
+  .progress-label {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    white-space: nowrap;
+    min-width: 64px;
+    text-align: right;
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 14px;
+    padding: 24px;
+    margin-bottom: 16px;
+  }
+  .topic-tag {
+    display: inline-block;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--accent);
+    background: var(--accent-dim);
+    padding: 3px 9px;
+    border-radius: 999px;
+    margin-bottom: 12px;
+  }
+  .question {
+    font-size: 1.08rem;
+    line-height: 1.5;
+    margin-bottom: 18px;
+  }
+  .question code {
+    background: #0c1120;
+    border: 1px solid var(--panel-border);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 0.92em;
+    color: #cfe0ff;
+  }
+  .choices { display: flex; flex-direction: column; gap: 10px; }
+  .choice {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    text-align: left;
+    background: #131a2b;
+    border: 1px solid var(--panel-border);
+    color: var(--text);
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 0.97rem;
+    line-height: 1.4;
+    cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
+    transition: border-color 0.15s ease, background 0.15s ease, transform 0.1s ease;
+  }
+  .choice:hover:not(:disabled) {
+    border-color: var(--accent);
+    background: #17203a;
+  }
+  .choice:active:not(:disabled) { transform: scale(0.995); }
+  .choice:disabled { cursor: default; }
+  .choice .letter {
+    flex: none;
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+    background: var(--panel-border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text-dim);
+  }
+  .choice.correct { border-color: var(--correct); background: var(--correct-bg); }
+  .choice.correct .letter { background: var(--correct); color: #06251a; }
+  .choice.wrong { border-color: var(--wrong); background: var(--wrong-bg); }
+  .choice.wrong .letter { background: var(--wrong); color: #2a0808; }
+  .choice.dim { opacity: 0.55; }
+  .result-banner {
+    margin-top: 16px;
+    padding: 10px 14px;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 0.92rem;
+  }
+  .result-banner.good { background: var(--correct-bg); color: var(--correct); }
+  .result-banner.bad { background: var(--wrong-bg); color: var(--wrong); }
+  .explanation {
+    margin-top: 12px;
+    padding: 14px 16px;
+    background: #0f1626;
+    border: 1px solid var(--panel-border);
+    border-left: 3px solid var(--accent);
+    border-radius: 8px;
+    font-size: 0.93rem;
+    line-height: 1.55;
+    color: var(--text-dim);
+  }
+  .explanation strong { color: var(--text); }
+  .nav-row {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 18px;
+  }
+  .next-btn {
+    background: var(--accent);
+    color: #0a0e18;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+  }
+  .next-btn.show { opacity: 1; pointer-events: auto; }
+  .next-btn:hover { filter: brightness(1.08); }
+  .score-live {
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 0.85rem;
+    margin-bottom: 6px;
+  }
+  .final {
+    text-align: center;
+    padding: 36px 24px;
+  }
+  .final .big-score {
+    font-size: 3rem;
+    font-weight: 700;
+    margin: 8px 0 4px;
+    background: linear-gradient(90deg, var(--accent), var(--gold));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .final .line {
+    color: var(--text-dim);
+    margin-bottom: 20px;
+  }
+  .final .encourage {
+    font-size: 1.05rem;
+    color: var(--text);
+    margin-bottom: 24px;
+  }
+  .restart-btn {
+    background: transparent;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-size: 0.9rem;
+    cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
+  }
+  .restart-btn:hover { background: var(--accent-dim); }
+  .hidden { display: none; }
+  footer.tip {
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 0.78rem;
+    margin-top: 28px;
+    line-height: 1.5;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>🎓 Ascent Quiz #22</h1>
+    <div class="sub">2026-09-03 · How the game is built</div>
+  </header>
+
+  <div id="quizArea">
+    <div class="progress-row">
+      <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="progress-label" id="progressLabel">Q1 / 10</div>
+    </div>
+    <div class="score-live" id="scoreLive">Score so far: 0</div>
+    <div class="card" id="questionCard"></div>
+  </div>
+
+  <div id="finalArea" class="card final hidden"></div>
+
+  <footer class="tip">Architecture only — no game-rules spoilers here. Reply with your score and Claude will pick tomorrow's topics to match.</footer>
+</div>
+
+<script>
+const QUESTIONS = [
+  {
+    topic: "what-is-a-function",
+    question: "simulate()'s signature ends with <code>config: CombatConfig = {}</code> — a single object bundling <code>playerAttacksFirst</code> and <code>playerRallyDouble</code> — instead of two separate boolean parameters. Why design it that way?",
+    choices: [
+      "TypeScript requires it — you can't have two boolean parameters next to each other in a function signature",
+      "An options object lets a caller name each flag at the call site (<code>{ playerAttacksFirst: true }</code>), skip flags it doesn't need thanks to the <code>= {}</code> default, and lets new flags get added later without touching every existing call site's argument order",
+      "Objects are faster for the JavaScript engine to pass into a function than primitive booleans",
+      "It's required for the function to stay deterministic — booleans alone would make simulate() non-deterministic"
+    ],
+    answer: 1,
+    explanation: "This is a common, genuinely useful pattern called an \"options object\" (or config object): once you have more than one or two optional flags, bundling them into a single object with a default (<code>= {}</code>) beats a long list of positional booleans — a caller doesn't have to remember argument ORDER or pass placeholder values for flags it doesn't care about, and a brand-new flag added tomorrow (say, <code>enemyAttacksFirst</code>) slots in without breaking every existing <code>simulate(...)</code> call. A, C, and D each invent a rule or performance claim that isn't real — TypeScript has no such restriction, and object-vs-primitive passing cost has nothing to do with why this shape was chosen."
+  },
+  {
+    topic: "deterministic-sim",
+    question: "How does <code>npm run harness</code> (packages/tools/src/combat-harness.ts) actually PROVE simulate() is deterministic, rather than just asserting it in a comment?",
+    choices: [
+      "It checks that the CLAUDE.md architecture doc contains the word \"deterministic\"",
+      "It runs the exact same seed through simulate() TWICE — as two genuinely separate calls — and does a hard equality check on the results (literally <code>JSON.stringify(a) === JSON.stringify(b)</code>), exiting with a nonzero status if they ever differ",
+      "It searches every file in packages/core for the text <code>Math.random</code> and fails if it finds any",
+      "It measures how long each simulate() call takes and fails if the two runs take a noticeably different amount of time"
+    ],
+    answer: 1,
+    explanation: "combat-harness.ts doesn't take determinism on faith — it runs simulate() a second time from the same seed and diffs the two results with <code>JSON.stringify(a) === JSON.stringify(b)</code>, printing \"an IDENTICAL\" or \"a DIFFERENT — BUG\" result and calling <code>process.exit(1)</code> on a mismatch. That's what makes \"proves determinism\" a literal, checkable claim rather than a comment nobody verifies. C describes the separate ESLint <code>no-restricted-properties</code> rule (a static-analysis check, not a runtime proof); A and D are invented."
+  },
+  {
+    topic: "seeded-rng",
+    question: "rng.ts's <code>next()</code> is documented as returning a \"Next float in [0, 1)\". Why does that matter for <code>int(maxExclusive)</code>, which computes <code>Math.floor(next() * maxExclusive)</code>?",
+    choices: [
+      "It doesn't really matter — [0, 1) and [0, 1] would produce the exact same range once you floor the result",
+      "Because next() can never actually reach 1, <code>next() * maxExclusive</code> can never reach <code>maxExclusive</code> either — so after flooring, the result always lands somewhere in <code>0</code> through <code>maxExclusive - 1</code>, exactly the valid index range for an array of that length",
+      "It only matters for <code>pick()</code>, since that's the one method that actually indexes into an array",
+      "It guarantees next() never returns a whole number, which the mulberry32 math specifically requires"
+    ],
+    answer: 1,
+    explanation: "The \"[0, 1)\" half-open notation means 0 is a possible result but 1 itself never is. That's exactly what keeps <code>int()</code> safe: if <code>next()</code> COULD return exactly 1, then for <code>maxExclusive = 5</code> you'd occasionally get <code>Math.floor(1 * 5) = 5</code> — an out-of-bounds index for a 5-element array (valid indices 0-4). Since it can't, <code>int()</code> always lands in range. B misses that <code>pick()</code> itself is built entirely on top of <code>int()</code> (<code>xs[rng.int(xs.length)]</code>), so the same guarantee is what keeps <code>pick()</code> safe too; A and D invent claims the code doesn't make."
+  },
+  {
+    topic: "sim-ui-decoupling",
+    question: "Some combat events carry a ready-made narration string baked in by simulate() itself — e.g. one effect emits <code>{ type: 'sc', text: \`\${minion.name} marks \${marked.length} enemies\` }</code> — rather than the UI assembling that sentence itself from raw event fields. What does baking the sentence into the event buy the UI?",
+    choices: [
+      "It saves memory, since a string takes up less space than the individual fields the UI would otherwise need to store",
+      "The UI can display combat narration for ANY card without knowing anything about what that specific card does — it just prints whatever <code>text</code> the event carries, so shipping a brand-new card never requires teaching the UI new \"here's what this effect should say\" logic",
+      "It lets simulate() control the exact font and color used to render combat text",
+      "It's required so the event can be converted to JSON — plain numbers by themselves aren't valid JSON"
+    ],
+    answer: 1,
+    explanation: "This is the sim/UI split paying off in a very concrete way: because the decision-making layer (simulate()) already knows exactly what happened, it can hand the presentation layer a plain, ready-to-show sentence instead of raw structured data the UI would have to interpret card-by-card. That means shipping a new card with a brand-new effect never requires the UI team to add a new \"how do I describe this\" branch — it just renders whatever text arrives. A and D invent constraints that aren't real (JSON handles numbers fine on their own), and C confuses game logic with rendering styling, which stays entirely in the UI's CSS."
+  },
+  {
+    topic: "monorepo-packages",
+    question: "Root package.json declares <code>\"workspaces\": [\"packages/*\", \"apps/*\"]</code>. What does that field actually do?",
+    choices: [
+      "It's documentation only — a comment for humans describing the repo's folder layout",
+      "It tells npm to treat every folder under <code>packages/</code> and <code>apps/</code> as its own local package and symlink them into one shared root <code>node_modules</code> — the real mechanism that lets <code>packages/ui</code> write <code>import { simulate } from '@game/core'</code> and have it resolve to the local source, not a published npm package",
+      "It's a Vite-only setting that affects <code>npm run dev</code> but nothing else",
+      "It's a list of packages that are permitted to depend on React"
+    ],
+    answer: 1,
+    explanation: "<code>workspaces</code> is npm's own built-in monorepo feature (\"npm workspaces\") — it's not decoration, it's the actual dependency-resolution mechanism. When npm sees <code>@game/core</code> listed as a dependency of another workspace package, it symlinks the LOCAL <code>packages/core</code> folder into the shared root <code>node_modules</code> instead of trying to download something from the npm registry, which is exactly what makes editing <code>packages/core</code> and immediately seeing the change in <code>packages/ui</code> work with zero publish step. A understates it (this line is executed by real tooling, not just read by humans); C and D invent scopes the field doesn't have."
+  },
+  {
+    topic: "pure-functions",
+    question: "simulate() calls <code>rng.next()</code> internally many times during a fight, and each call updates a private counter closed over inside the <code>rng</code> object it was passed. Given the codebase's rule that simulate() is a \"pure\" function with \"no side effects,\" how does that square with the fact that calling it DOES change something — the passed-in rng object's internal counter?",
+    choices: [
+      "It's a contradiction — simulate() secretly breaks the pure-function rule, and this is a known bug",
+      "Advancing the passed-in rng's internal counter is the entire reason a caller passes an <code>rng</code> argument in the first place — it's a documented, expected part of consuming randomness (the reducer even reads <code>rng.state()</code> afterward to save its place for later). \"No side effects\" means no HIDDEN changes to unrelated state, not that literally nothing in the world can change",
+      "It isn't really mutation, because next() returns a brand-new number each call rather than changing anything that already existed",
+      "It's harmless because the rng object is thrown away right after simulate() returns, so nothing outside can ever observe the change"
+    ],
+    answer: 1,
+    explanation: "\"Pure\" in practice describes a function's documented contract, not a claim that literally nothing changes anywhere. simulate() advancing its rng argument's internal state is exactly what the whole design expects — it's WHY <code>rng</code> is a parameter rather than a global, and reducer.ts deliberately reads <code>rng.state()</code> right afterward to persist that advanced position for the run's next step. Contrast that with an actually impure move, like reading <code>Date.now()</code> or mutating the DOM — those touch state completely outside the function's own documented inputs and outputs. C is factually wrong (the closure's variable genuinely gets reassigned each call); D contradicts real code — the reducer explicitly reads the rng's state back out, so the change is very much observed."
+  },
+  {
+    topic: "data-vs-code",
+    question: "content/src/index.ts builds <code>export const CARD_INDEX: Record&lt;string, CardDef&gt; = Object.fromEntries(...)</code> out of the individual card arrays exported by files like <code>cards/set1/beasts.ts</code>. Why build one combined lookup object instead of just having code search through the raw arrays whenever it needs a card by id?",
+    choices: [
+      "Object.fromEntries is required TypeScript syntax before an array of card objects can be type-checked",
+      "A <code>Record&lt;string, CardDef&gt;</code> lets any code look up a card by id in one direct step (<code>cards[id]</code>) instead of scanning through every array entry by entry each time — exactly the kind of fast lookup simulate()'s <code>ctx.getCard</code> needs during a fast-moving combat",
+      "It converts the cards from data into executable code, which simulate() requires before it can use them",
+      "It automatically removes duplicate card ids, which the raw per-file arrays could otherwise contain"
+    ],
+    answer: 1,
+    explanation: "This is a really common pattern: authoring content as small, readable arrays (one per file, grouped by tribe/set) but ALSO building one flat id→def map for fast lookup, since <code>cards['beast_pup']</code> is O(1) while scanning arrays is O(n) — and combat can call <code>getCard</code> a lot in one fight. A and C are invented (cards stay plain data objects the whole time; nothing gets \"converted\" to code). D describes a real side effect of Object.fromEntries with duplicate keys (later entries win), but that's not the actual reason this index exists — the reason is lookup speed and convenience."
+  },
+  {
+    topic: "event-log-replay",
+    question: "Inside simulate()'s <code>emit()</code> function: <code>events.push({ ...e, step: stepN, ...(inAvenge ? { avenge: true } : {}), ... })</code>. Why conditionally spread in <code>{ avenge: true }</code> only when <code>inAvenge</code> is true, instead of always including an <code>avenge: false</code> field on every single event?",
+    choices: [
+      "Because the CombatEvent type doesn't allow <code>avenge</code> to ever be set to <code>false</code> — only <code>true</code> or absent",
+      "Leaving the key off entirely — rather than always setting it, even to false — keeps most events in their original, minimal shape, which matters for exact deep-equality checks in tests and matches the same pattern used elsewhere in the file (like the <code>buff</code> event's optional <code>ruby</code> flag)",
+      "It's purely a file-size concern — one extra boolean per event would make combat replay files too large to load",
+      "stepN forces avenge to be omitted, since TypeScript doesn't allow two optional fields on the same object literal"
+    ],
+    answer: 1,
+    explanation: "This is a deliberate, minimal-shape convention: rather than every event object always carrying every possible optional field (most of them false/absent 99% of the time), the code only adds a key when it's actually relevant. That keeps the vast majority of events in their plain, original shape — which matters a lot for things like golden/snapshot tests doing exact structural comparisons, where an extra always-present <code>avenge: false</code> on every event would be pure noise. The same pattern shows up on the <code>buff</code> event's optional <code>ruby</code> flag elsewhere in this file. A, C, and D each invent a rule that isn't real — TypeScript is perfectly happy with multiple optional fields, and this has nothing to do with file size."
+  },
+  {
+    topic: "eslint-rules",
+    question: "eslint.config.mjs's <code>ignores</code> array excludes <code>supabase/functions/**</code>, with a comment explaining it's \"Deno (remote URL imports, Deno globals) — not part of the Node monorepo build.\" Why would you want ESLint to skip an entire folder like that?",
+    choices: [
+      "Deno code doesn't need linting at all, since it's type-safe by design",
+      "ESLint here is configured around THIS repo's Node/TypeScript conventions (module resolution, globals, etc.); code that runs under a genuinely different runtime with different rules would trip false-positive errors nobody could actually fix by changing the code — so the config scopes the linter to the code it's actually meant to check",
+      "Because Supabase functions are auto-generated files, and generated code is never linted anywhere in this repo",
+      "It's a temporary workaround for a known bug in ESLint's own Deno support"
+    ],
+    answer: 1,
+    explanation: "A monorepo can genuinely contain code meant for more than one runtime — here, Deno-flavored Supabase functions living alongside the Node/TypeScript engine. Linting the Deno code with Node-oriented rules (e.g. flagging its remote URL imports or unrecognized Deno globals as errors) would just generate noise nobody could fix without breaking that code's actual runtime, so the config explicitly scopes ESLint away from it. B and D are invented; A is also false — Deno code can absolutely have real bugs a linter could catch, it's just not THIS config's job to check it."
+  },
+  {
+    topic: "performance-memo",
+    question: "docs/performance.md distinguishes <code>hotspots</code> (real measured spans from <code>perfMonitor.measure()</code>) from <code>marks</code>/<code>suspects</code> (which the doc calls \"correlation, not attribution\"). It says hotspots are ranked by the WORST single call, not the total time spent across all calls. Why rank that way?",
+    choices: [
+      "The worst call is always the most recent one, so ranking by it just shows what happened most recently",
+      "A cheap operation called 10,000 times in a session can rack up a bigger TOTAL than the one 58ms stall that actually dropped a frame — ranking by total would bury the real culprit under that noise, while ranking by the single worst call surfaces the actual hitch a player felt",
+      "perfMonitor.measure() can technically only record one call at a time, so summing totals isn't possible",
+      "Total time is considered misleading because it can include time spent in other, unrelated browser tabs"
+    ],
+    answer: 1,
+    explanation: "This is the exact same \"worst frame, not mean\" philosophy the whole doc leads with, applied to a different metric: a hitch is ONE bad call, and a total-time ranking would let something cheap-but-frequent (called thousands of times a session) outrank the one genuinely slow call that actually caused a dropped frame. Ranking by the worst single call keeps the thing a player actually felt at the top of the list. A, C, and D all invent mechanics that aren't in the doc — measure() can record as many calls as you like, and browser performance timers don't leak time from other tabs."
+  }
+];
+
+let idx = 0;
+let score = 0;
+let answered = false;
+
+const questionCard = document.getElementById('questionCard');
+const progressFill = document.getElementById('progressFill');
+const progressLabel = document.getElementById('progressLabel');
+const scoreLive = document.getElementById('scoreLive');
+const quizArea = document.getElementById('quizArea');
+const finalArea = document.getElementById('finalArea');
+
+function render() {
+  answered = false;
+  const q = QUESTIONS[idx];
+  progressFill.style.width = ((idx) / QUESTIONS.length * 100) + '%';
+  progressLabel.textContent = 'Q' + (idx + 1) + ' / ' + QUESTIONS.length;
+  scoreLive.textContent = 'Score so far: ' + score;
+
+  const letters = ['A', 'B', 'C', 'D'];
+  questionCard.innerHTML = `
+    <div class="topic-tag">${q.topic}</div>
+    <div class="question">${q.question}</div>
+    <div class="choices">
+      ${q.choices.map((c, i) => `
+        <button class="choice" data-i="${i}">
+          <span class="letter">${letters[i]}</span>
+          <span>${c}</span>
+        </button>
+      `).join('')}
+    </div>
+    <div id="resultSlot"></div>
+    <div class="nav-row"><button class="next-btn" id="nextBtn">${idx === QUESTIONS.length - 1 ? 'See results' : 'Next question →'}</button></div>
+  `;
+
+  const buttons = questionCard.querySelectorAll('.choice');
+  buttons.forEach(btn => {
+    btn.addEventListener('click', () => onAnswer(parseInt(btn.dataset.i, 10)));
+  });
+}
+
+function onAnswer(chosen) {
+  if (answered) return;
+  answered = true;
+  const q = QUESTIONS[idx];
+  const correct = chosen === q.answer;
+  if (correct) score++;
+
+  const buttons = questionCard.querySelectorAll('.choice');
+  buttons.forEach((btn, i) => {
+    btn.disabled = true;
+    if (i === q.answer) btn.classList.add('correct');
+    else if (i === chosen) btn.classList.add('wrong');
+    else btn.classList.add('dim');
+  });
+
+  const resultSlot = document.getElementById('resultSlot');
+  resultSlot.innerHTML = `
+    <div class="result-banner ${correct ? 'good' : 'bad'}">${correct ? '✓ Correct!' : '✗ Not quite.'}</div>
+    <div class="explanation">${q.explanation}</div>
+  `;
+
+  scoreLive.textContent = 'Score so far: ' + score;
+  document.getElementById('nextBtn').classList.add('show');
+}
+
+document.addEventListener('click', (e) => {
+  if (e.target && e.target.id === 'nextBtn') {
+    idx++;
+    if (idx >= QUESTIONS.length) {
+      showFinal();
+    } else {
+      render();
+    }
+  }
+});
+
+function showFinal() {
+  progressFill.style.width = '100%';
+  progressLabel.textContent = 'Done!';
+  quizArea.classList.add('hidden');
+  finalArea.classList.remove('hidden');
+
+  let line;
+  if (score === QUESTIONS.length) line = "Perfect score! You're reading this codebase like a pro.";
+  else if (score >= 8) line = "Excellent work — you've got a really solid handle on this.";
+  else if (score >= 6) line = "Good run — the architecture is clearly starting to click.";
+  else if (score >= 4) line = "Solid effort — a few of these ideas are worth a second look.";
+  else line = "Everyone starts somewhere — the whole point of the daily quiz is to build this up slowly.";
+
+  finalArea.innerHTML = `
+    <div class="topic-tag">Quiz #22 complete</div>
+    <div class="big-score">${score} / ${QUESTIONS.length}</div>
+    <div class="line">Ascent Quiz — 2026-09-03</div>
+    <div class="encourage">${line}</div>
+    <button class="restart-btn" id="restartBtn">Take it again</button>
+  `;
+  document.getElementById('restartBtn').addEventListener('click', () => {
+    idx = 0; score = 0;
+    quizArea.classList.remove('hidden');
+    finalArea.classList.add('hidden');
+    render();
+  });
+}
+
+render();
+</script>
+</body>
+</html>

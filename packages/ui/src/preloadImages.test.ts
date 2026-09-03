@@ -18,6 +18,10 @@ describe('ALL_IMAGE_URLS (the boot preload set)', () => {
     }
   });
 
+  it('includes the hero-select portrait (a static import outside every glob)', () => {
+    expect(has('heroportrait')).toBe(true);
+  });
+
   it('is deduped, non-empty, and matches ART_COUNT', () => {
     expect(ALL_IMAGE_URLS.length).toBeGreaterThan(1000);
     expect(new Set(ALL_IMAGE_URLS).size).toBe(ALL_IMAGE_URLS.length);

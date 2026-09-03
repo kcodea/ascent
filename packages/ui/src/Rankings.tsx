@@ -109,7 +109,7 @@ export function Rankings() {
                   <span className="rankfav">
                     {hero ? (
                       <>
-                        <span className="rankportrait">{art ? <img src={art} alt={hero.name} draggable={false} /> : <Icon name="anvil" />}</span>
+                        <span className="rankportrait">{art ? <img decoding="sync" src={art} alt={hero.name} draggable={false} /> : <Icon name="anvil" />}</span>
                         {hero.name}
                       </>
                     ) : <span className="baldim">—</span>}

@@ -105,7 +105,7 @@ export function RuneCard({ rune, affordable, onBuy, cost, duplicating }: {
       {/* `decoding="sync"`: paint the art WITH the card in the same frame, the same reason `Card.tsx` does it.
           This is what the lock-in ceremony's flicker was (owner report 2026-08-31: "there's still a slight
           rebuilding of the runes and then it centers"). The ceremony re-renders every card as an inert CLONE
-          — a brand-new <img>, which by default decodes ASYNCHRONOUSLY even when the bytes are already in
+          — a brand-new <img decoding="sync">, which by default decodes ASYNCHRONOUSLY even when the bytes are already in
           cache. So the clone mounted, painted one frame of empty card, and only then showed the art: a blink
           precisely at the hand-off, on the card the eye is following. */}
       {art && <img className="runecard-art" src={art} alt="" aria-hidden decoding="sync" />}

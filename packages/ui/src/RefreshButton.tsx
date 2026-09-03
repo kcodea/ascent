@@ -98,7 +98,7 @@ export function RefreshButton({
       <span className="rfb-artbox" aria-hidden="true">
         {/* The "Refresh" wordmark is baked into this art (RefreshButton1), so the old floating glass label
             is gone — it would print "Refresh" twice. */}
-        <img className="rfb-art" src={`${F}refresh_button1.webp`} alt="" draggable={false} />
+        <img decoding="sync" className="rfb-art" src={`${F}refresh_button1.webp`} alt="" draggable={false} />
         {/* Ambient SHEEN — a glare bar sweeping the crystal's face, clipped to it; transform-only loop. */}
         <span className="rfb-sheen"><span className="rfb-sheen-bar" /></span>
       </span>

@@ -179,7 +179,7 @@ export function EndScreen({ won }: { won: boolean }) {
         <div className="endhero">
           <div className="endhero-portrait">
             {heroArt(hero.id) ? (
-              <img className="endhero-img" src={heroArt(hero.id)} alt={hero.name} draggable={false} />
+              <img decoding="sync" className="endhero-img" src={heroArt(hero.id)} alt={hero.name} draggable={false} />
             ) : (
               <Icon name="anvil" />
             )}

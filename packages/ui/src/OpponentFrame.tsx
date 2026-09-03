@@ -64,7 +64,7 @@ export function OpponentFrame() {
         {/* Author name — a pill centered over the top edge (symmetric, deliberate). */}
         <span className="opp-name">{name}</span>
         <div className="opp-pic">
-          {art ? <img src={art} alt={hero.name} draggable={false} /> : <Icon name="anvil" />}
+          {art ? <img decoding="sync" src={art} alt={hero.name} draggable={false} /> : <Icon name="anvil" />}
         </div>
         <div className="opp-info">
           <div className="opp-hero">{hero.name}</div>
@@ -102,7 +102,7 @@ export function OpponentFrame() {
             return (
               <div className="questbadge runebadge" key={`r:${id}`}>
                 {rart
-                  ? <img className="questbadge-art" src={rart} alt="" aria-hidden />
+                  ? <img decoding="sync" className="questbadge-art" src={rart} alt="" aria-hidden />
                   : <span className="questbadge-emblem" aria-hidden><Icon name="sc" /></span>}
                 <div className="questbadge-tip" role="tooltip">
                   <b>{rune.name}</b>
@@ -119,7 +119,7 @@ export function OpponentFrame() {
             return (
               <div className="questbadge" style={{ '--c': c } as CSSProperties} key={`q:${id}`}>
                 {qart
-                  ? <img className="questbadge-art" src={qart} alt="" aria-hidden />
+                  ? <img decoding="sync" className="questbadge-art" src={qart} alt="" aria-hidden />
                   : <span className="questbadge-emblem" aria-hidden><Icon name={TRIBE_ICON[def.tribe] ?? 'star'} /></span>}
                 <div className="questbadge-tip" role="tooltip">
                   <b>{def.name}</b>

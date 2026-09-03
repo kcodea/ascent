@@ -123,7 +123,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
       <div className="titleaccount">
         <button className="titleavatar" onClick={openAvatarPicker} data-tip="Change your avatar" aria-label="Change your avatar">
           {avatarSrc(playerAvatar)
-            ? <img src={avatarSrc(playerAvatar)} alt="Your avatar" draggable={false} />
+            ? <img decoding="sync" src={avatarSrc(playerAvatar)} alt="Your avatar" draggable={false} />
             : <span className="titleavatar-ph">{(effectiveName.trim()[0] ?? '').toUpperCase() || '☺'}</span>}
         </button>
         {editing ? (
@@ -278,7 +278,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
                 <div className="mcframe" data-mode="lobby" data-mp="play">
                   <div className="mcname">Play</div>
                   {modeArt('lobby')
-                    ? <div className="mcart-clip"><img className="mcframe-art" src={modeArt('lobby')} alt="" draggable={false} /></div>
+                    ? <div className="mcart-clip"><img decoding="sync" className="mcframe-art" src={modeArt('lobby')} alt="" draggable={false} /></div>
                     : <span className="mcemblem"><IconHelm /></span>}
                   <div className="mcdesc">Rating {rating}</div>
                 </div>
@@ -292,7 +292,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
                 <div className="mcframe" data-mode="learn" data-mp="learn">
                   <div className="mcname">Learn</div>
                   {modeArt('learn')
-                    ? <div className="mcart-clip"><img className="mcframe-art" src={modeArt('learn')} alt="" draggable={false} /></div>
+                    ? <div className="mcart-clip"><img decoding="sync" className="mcframe-art" src={modeArt('learn')} alt="" draggable={false} /></div>
                     : <span className="mcemblem"><IconHelm /></span>}
                   <div className="mcdesc">Tutorial + techniques.</div>
                 </div>
@@ -302,7 +302,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
                 <div className="mcframe" data-mode="practice" data-mp="practice">
                   <div className="mcname">Practice</div>
                   {modeArt('practice')
-                    ? <div className="mcart-clip"><img className="mcframe-art" src={modeArt('practice')} alt="" draggable={false} /></div>
+                    ? <div className="mcart-clip"><img decoding="sync" className="mcframe-art" src={modeArt('practice')} alt="" draggable={false} /></div>
                     : <span className="mcemblem"><IconHelm /></span>}
                   <div className="mcdesc">More time and unlimited Health.</div>
                 </div>
@@ -324,7 +324,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
                 <div className="mcframe" data-mode="learn">
                   <div className="mcname">Tutorial</div>
                   {modeArt('learn')
-                    ? <div className="mcart-clip"><img className="mcframe-art" src={modeArt('learn')} alt="" draggable={false} /></div>
+                    ? <div className="mcart-clip"><img decoding="sync" className="mcframe-art" src={modeArt('learn')} alt="" draggable={false} /></div>
                     : <span className="mcemblem"><IconHelm /></span>}
                   <div className="mcdesc">A coached first game — every mechanic, then graduate.</div>
                 </div>

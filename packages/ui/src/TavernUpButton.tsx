@@ -74,17 +74,17 @@ export function TavernUpButton({ tier, maxTier, cost, disabled, combat, onUpgrad
       {/* The orb, seated over the base's baked orb as the effect layer. At MAX tier it DIMS (owner ask
           2026-08-14 — the old "broken orb" swap was dropped). */}
       <span className="tvb-gembox" aria-hidden="true">
-        <img className="tvb-gem lit" src={`${F}tavernup_gem.webp`} alt="" draggable={false} />
+        <img decoding="sync" className="tvb-gem lit" src={`${F}tavernup_gem.webp`} alt="" draggable={false} />
         {/* Ambient SHEEN — a glare bar sweeping the gem's face, clipped to its circle; transform-only loop. */}
         <span className="tvb-sheen"><span className="tvb-sheen-bar" /></span>
       </span>
-      <img className="tvb-base" src={`${F}tavernup_base.webp`} alt="" draggable={false} />
+      <img decoding="sync" className="tvb-base" src={`${F}tavernup_base.webp`} alt="" draggable={false} />
       {/* Tier pips — the current tavern tier lit as an arc of segments around the orb. Each tier's art is a
           DIFFERENT width (the arc grows with the tier), exported at the base's scale — so each is sized by its
           OWN native width relative to the base (`PIP_W`; height auto keeps the aspect EXACT, never stretched)
           and top-anchored so the arc's apex lines up across tiers. tier7 is a placeholder copy of tier6. */}
       {[1, 2, 3, 4, 5, 6, 7].map((n) => (
-        <img
+        <img decoding="sync"
           key={n}
           className={`tvb-pips${n === pipTier ? ' on' : ''}`}
           src={`${F}tavernup_tier${n}.webp`}
@@ -100,7 +100,7 @@ export function TavernUpButton({ tier, maxTier, cost, disabled, combat, onUpgrad
           drop-shadow halo is clipped at its element box (any real blur floods the box and reads SQUARE).
           The gem is a circle, so a stacked BOX-SHADOW on a border-radius:50% span is exact, paints outside
           the element, and can never clip. */}
-      <img className="tvb-glow" src={`${F}tavernup_gem.webp`} alt="" draggable={false} aria-hidden="true" />
+      <img decoding="sync" className="tvb-glow" src={`${F}tavernup_gem.webp`} alt="" draggable={false} aria-hidden="true" />
       {/* Cost coin — the live upgrade cost (hidden at max tier — the broken gem tells that story — and
           during combat, where the stone is a passive tier indicator). */}
       {!maxed && !combat && (

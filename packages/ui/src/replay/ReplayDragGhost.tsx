@@ -57,7 +57,7 @@ export function ReplayDragGhost(): React.ReactElement | null {
             <Card card={ghost.view} suppressPop />
           </div>
         ) : null}
-        <img className="ghostfist" src={FIST_SRC} alt="" draggable={false} />
+        <img decoding="sync" className="ghostfist" src={FIST_SRC} alt="" draggable={false} />
       </div>
     </div>
   );

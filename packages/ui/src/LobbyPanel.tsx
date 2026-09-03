@@ -142,7 +142,7 @@ export function LobbyPanel({ lobby }: { lobby: RunLobby }): JSX.Element | null {
               onClick={isYou ? undefined : (e) => pinScout(e, seat.id)}
               onContextMenu={isYou ? undefined : (e) => pinScout(e, seat.id)}
             >
-              <img className="lobbyface" src={heroArt(seat.heroId)} alt="" />
+              <img decoding="sync" className="lobbyface" src={heroArt(seat.heroId)} alt="" />
               {/* The opponent name owns its own full-width row (styles.css `.lobbynameline`). The next foe is
                   marked by the seat's own bright pulsing glow (the `foe` class → `.lobbyseat.foe`), not a pill. */}
               <span className="lobbynameline">
@@ -258,7 +258,7 @@ function ScoutCard({ lobby, seat, intel, at, pinned }: {
         return (
           <div className="questbadge" style={{ '--c': c } as React.CSSProperties} key={`q:${id}`}>
             {qart
-              ? <img className="questbadge-art" src={qart} alt="" aria-hidden />
+              ? <img decoding="sync" className="questbadge-art" src={qart} alt="" aria-hidden />
               : <span className="questbadge-emblem" aria-hidden><Icon name="star" /></span>}
             <div className="questbadge-tip" role="tooltip">
               <b>{def.name}</b>
@@ -290,12 +290,12 @@ function ScoutCard({ lobby, seat, intel, at, pinned }: {
               <span className="lobbyscout-round">{r.round}</span>
               <span className="lobbyscout-vs">
                 {r.foeHeroId
-                  ? <img className="lobbyscout-foeface" src={heroArt(r.foeHeroId)} alt={r.foeLabel} />
+                  ? <img decoding="sync" className="lobbyscout-foeface" src={heroArt(r.foeHeroId)} alt={r.foeLabel} />
                   : <span className="lobbyscout-vslabel">vs {r.foeLabel}</span>}
               </span>
               {/* The outcome sits BETWEEN the portrait and the damage (owner ask 2026-08-31). */}
               <span className="lobbyscout-result">{OUTCOME_LABEL[r.outcome] ?? ''}</span>
-              <span className="lobbyscout-dmg"><img className="lobbyscout-blast" src="/blast-dmg-icon.webp" alt="" aria-hidden />{r.taken > 0 ? `−${r.taken}` : r.dealt > 0 ? `+${r.dealt}` : '0'}</span>
+              <span className="lobbyscout-dmg"><img decoding="sync" className="lobbyscout-blast" src="/blast-dmg-icon.webp" alt="" aria-hidden />{r.taken > 0 ? `−${r.taken}` : r.dealt > 0 ? `+${r.dealt}` : '0'}</span>
             </div>
           ))}
         </>
@@ -315,7 +315,7 @@ function ScoutCard({ lobby, seat, intel, at, pinned }: {
         return (
           <div className={`lobbyscout-socket${rune ? ' filled' : ''}`} key={i}>
             {rune && (rart
-              ? <img className="lobbyscout-socketart" src={rart} alt="" aria-hidden />
+              ? <img decoding="sync" className="lobbyscout-socketart" src={rart} alt="" aria-hidden />
               : <span className="questbadge-emblem" aria-hidden><Icon name="sc" /></span>)}
             {rune && (
               <div className="questbadge-tip" role="tooltip">

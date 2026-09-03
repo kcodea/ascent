@@ -34,6 +34,10 @@ export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   'cia-hp': ['useCiaEnchantedFx.ts'],
   'click-puff': ['Recruit.tsx'],
   'tallyanimation1': ['Recruit.tsx'],   // the hero-duel tally→attack-pill effect
+  // The generic buff-other ribbon (owner-authored 2026-09-02, replacing the stripped procedural tendril). Fired
+  // from the ONE shared buff-other path so the combat replay and the shop draw the same trail; a card's own
+  // authored def still takes precedence upstream of it (see `fireBuffFx`).
+  'tendril-trail': ['buffFxRender.ts'],
   coin: ['Recruit.tsx'],
   coins: ['useCombatReplay.ts'],
   'consume-pull': ['Recruit.tsx'],

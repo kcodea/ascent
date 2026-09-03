@@ -56,6 +56,22 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-02',
+    label: 'New Buff FX',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: 'The first two of the new buff effects are in: a gold shard-burst when a minion buffs itself, and a new ribbon trail when one minion buffs another.',
+        details: [
+          'Self-buff: when a minion buffs itself — in the shop, on a combat buff wave, or as it grows while being attacked — it bursts with a spray of gold shards and a ringing shockwave, right on the minion.',
+          'Buff trail: when a minion buffs another, a ribbon now streams from the buffer to the minion it pumped, with a flick of shards at the source, and the stat count-up lands as the ribbon arrives.',
+          'Cards with their own authored effect (Dragonflame, Karwind, Broodfire) keep it; the trail only plays where no card-specific effect exists.',
+          'Buffs with no on-board source (spells, a fallen Echo, hero powers) and the board-wide tribe-aura wash are still awaiting their new effects.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-02',
     label: 'Bot Levels',
     changes: [
       {

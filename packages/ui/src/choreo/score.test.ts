@@ -709,20 +709,23 @@ describe('fxDef channel — an authored effect replaces the stock damageFx burst
   });
 });
 
-/** The self-buff fan-out: one play per unit that buffed ITSELF, both anchors on that unit. */
-describe('fxDef channel — self-buff fan-out', () => {
+/**
+ * The self-buff fan-out — now SILENT. Its generic `self-buff-gold` binding (on `buffWave` and `attackExchange`)
+ * was REMOVED 2026-09-02 (owner ask: every stock shop/combat buff cue is being replaced by an authored pixi
+ * effect). The moments still fire — a Target Dummy still grows as it is hit — but with nothing bound to them,
+ * the fan-out plays no def. These are the regression guards that the generic cue stays gone: if a def is ever
+ * re-bound to either kind, the "plays nothing" assertions here go red.
+ */
+describe('fxDef channel — self-buff fan-out (generic def removed)', () => {
   const selfBuff = (uid: string): CombatEvent =>
     ({ type: 'buff', source: uid, target: uid, attack: 1, health: 0 }) as CombatEvent;
   const buffOther = (src: string, tgt: string): CombatEvent =>
     ({ type: 'buff', source: src, target: tgt, attack: 1, health: 0 }) as CombatEvent;
 
-  it('plays once per SELF-buffed unit, anchored on that unit at both ends', () => {
+  it('plays nothing for SELF-buffed units now the generic def is unbound', () => {
     const events = [selfBuff('u1'), selfBuff('u2')];
     runMomentCues(moment('buffWave', events), baseCtx(events));
-    expect(mockPlayDef).toHaveBeenCalledTimes(2);
-    expect(mockPlayDef.mock.calls.every((c) => c[0] === 'self-buff-gold')).toBe(true);
-    expect(mockAnchors).toHaveBeenCalledWith('u1', 'u1');
-    expect(mockAnchors).toHaveBeenCalledWith('u2', 'u2');
+    expect(mockPlayDef).not.toHaveBeenCalled();
   });
 
   // Buff-OTHER is the tendril channel's job; it has a real source→target pair and must not bloom on itself.
@@ -733,15 +736,14 @@ describe('fxDef channel — self-buff fan-out', () => {
   });
 
   // THE case the owner named: a Target Dummy growing as it is hit is ABSORBED into the wind-up and never
-  // produces a buffWave moment of its own.
-  it('covers a self-buff absorbed into an attack exchange', () => {
+  // produces a buffWave moment of its own. It used to bloom `self-buff-gold`; now it plays nothing.
+  it('plays nothing for a self-buff absorbed into an attack exchange', () => {
     const events: CombatEvent[] = [
       { type: 'attack', attacker: 'a', defender: 'b' } as CombatEvent,
       selfBuff('b'),
     ];
     runMomentCues(moment('attackExchange', events), baseCtx(events));
-    expect(mockPlayDef).toHaveBeenCalledWith('self-buff-gold', expect.anything(), { uids: { source: 'b', target: 'b' } });
-    expect(mockAnchors).toHaveBeenCalledWith('b', 'b');
+    expect(mockPlayDef).not.toHaveBeenCalled();
   });
 
   it('plays nothing on the overwhelming majority of exchanges, which carry no self-buff', () => {

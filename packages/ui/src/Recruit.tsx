@@ -71,7 +71,6 @@ import { getSwapFxConfig } from './swapFxConfig';
 import { getSpellPowerFxConfig, floatSpellPowerNumber } from './spellPowerFxConfig';
 import { getRubyPowerFxConfig, floatRubyPowerNumber } from './rubyPowerFxConfig';
 import { getQuestTendrilConfig, tendrilCfgFor } from './questTendrilConfig';
-import { getAuraFxConfig } from './auraFxConfig';
 import { applyWeldWiggle, weldCfgFor, weldLandMs } from './weldFxConfig';
 import { waveGapFor, coalesceBuffFxByTarget, getBuffFxConfig } from './buffFxConfig';
 import { useCiaEnchantedFx } from './useCiaEnchantedFx';
@@ -85,7 +84,6 @@ import { playPlateCoalesce } from './plateCoalesce';
 import { playPlateGild } from './plateGild';
 import { playBuySlide, type BuyFrom } from './buySlide';
 import { fireBuffFx } from './buffFxRender';
-import { buffPreset, wavePalette } from './buffPresets';
 import { ASCEND_PRESETS, ascendPreset } from './ascendPresets';
 import { getDragFeel } from './dragFeel';
 import { getLayout } from './layoutConfig';
@@ -4133,11 +4131,11 @@ export function Recruit() {
     const burstable = newly.filter((u) => !fxTargets.has(u) && !weldedNow.has(u));
     // The pulse channel = shop SELF-buffs (a minion buffing itself — Ashscribe): `captureBuffFx` skips them (no
     // source→target pair for a tendril) so they land here rather than in `recruitBuffFx`. Played through the
-    // bound self-buff def — default `self-buff-gold`, card-overridable via `cards.<id>.minionSelfBuffed` — via
-    // the SAME recruit cue runner rubyLanded/minionBuffed use, so combat and shop show the same self-buff
-    // effect. One moment per self-buffer, keyed by its own card. Only fires when defs can play (headless / the
-    // FX overlay not yet ready silently skips it — there is no generic fallback cue anymore). Fire-and-forget
-    // like the other recruit cues (no teardown collected).
+    // bound self-buff def for the minion's card, via the SAME recruit cue runner rubyLanded/minionBuffed use.
+    // The GENERIC `self-buff-gold` default on `minionSelfBuffed` was REMOVED 2026-09-02 (owner ask), so this now
+    // plays NOTHING unless the card carries its own `minionSelfBuffed` override — the moment is still fired
+    // (kept as the hook for a replacement effect) and there is no generic fallback cue. One moment per
+    // self-buffer, keyed by its own card; only fires when defs can play. Fire-and-forget (no teardown collected).
     if (burstable.length > 0 && canPlayDefs()) {
       for (const uid of burstable) {
         const cardId = runRef.current.board.find((c) => c.uid === uid)?.cardId;
@@ -4254,17 +4252,11 @@ export function Recruit() {
   // over the board region regardless of which cards match (the old per-card wash showed nothing when no matching
   // card was on screen). Full board width from the zone, vertical band hugging the card row. Colors come from the
   // tribe's tendril palette so the aura language matches the tribe's buff language.
-  const fireAuraWave = useCallback((tribe: NonNullable<RunState['auraFx']>[number]['tribe']): void => {
-    const zoneEl = document.querySelector('[data-zone="warband"]');
-    if (!zoneEl) return;
-    const z = zoneEl.getBoundingClientRect();
-    if (z.width < 8 || z.height < 8) return;
-    const rr = zoneEl.querySelector('.row.warband')?.getBoundingClientRect();
-    const y = rr && rr.height > 4 ? rr.top : z.top;
-    const h = rr && rr.height > 4 ? rr.height : z.height;
-    // Wave colours come from WAVE_PALETTES, not the tendril preset: the wave blends ADDITIVELY, where a
-    // dark tendril colour contributes almost no light (see buffPresets.ts).
-    pixiFx.auraWave({ x: z.left, y, w: z.width, h }, { ...getAuraFxConfig(), ...wavePalette(buffPreset('', tribe)) });
+  const fireAuraWave = useCallback((_tribe: NonNullable<RunState['auraFx']>[number]['tribe']): void => {
+    // GENERIC AURA-WAVE VISUAL REMOVED 2026-09-02 (owner ask: replace every stock buff cue with an authored
+    // pixi effect). The run-wide tribe-aura channel (`auraFxSeq` / `auraFx`) still bumps and fires this on the
+    // action it rose — so the moment + its tribe are preserved and a replacement effect anchored to the board
+    // region drops straight in here. Draws nothing in the meantime.
   }, []);
   useEffect(() => {
     if ((run.auraFxSeq ?? 0) === prevAuraSeq.current) return;
@@ -5291,9 +5283,10 @@ export function Recruit() {
         fireBuffFx({ source: source ?? undefined, target, cardId: from.cardId, tribe: CARD_INDEX[from.cardId]?.tribe ?? 'neutral', sourceless: !source });
       },
       selfBuff: (uid) => {
-        // A self-buff on this beat plays the authored self-buff def, mirroring the per-action `minionSelfBuffed`
-        // path: routed through the same recruit cue runner, keyed by the minion's own card so a card override
-        // applies. Only fires when defs can play — there is no generic fallback cue anymore.
+        // A self-buff on this beat plays the minion's own authored self-buff def, mirroring the per-action
+        // `minionSelfBuffed` path: routed through the same recruit cue runner, keyed by the minion's own card.
+        // The generic `self-buff-gold` default was REMOVED 2026-09-02 (owner ask), so this plays nothing unless
+        // the card has its own override — the moment is still fired as the hook for a replacement effect.
         const cardId = runRef.current.board.find((c) => c.uid === uid)?.cardId;
         if (cardId && canPlayDefs()) {
           runRecruitMomentCues(selfBuffMoment(uid, cardId), {

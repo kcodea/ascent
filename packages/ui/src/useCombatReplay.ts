@@ -8,8 +8,6 @@ import { getRubyPowerFxConfig, floatRubyPowerNumber } from './rubyPowerFxConfig'
 import { fireSpellBuffOnHandSpells, fireSpellBuffOnHandRubies } from './spellBuffFx';
 import { useGame } from './store'; // `useGame.getState()` — read the live hand for the mid-combat spell/Ruby buff cue
 import { pixiFx } from './pixiFx';
-import { getAuraFxConfig } from './auraFxConfig';
-import { buffPreset, wavePalette } from './buffPresets';
 import { sfx } from './sfx';
 import { getChoreoConfig } from './choreo/choreoConfig';
 import { applyFloatSpeed } from './floatConfig';
@@ -1005,16 +1003,11 @@ export function useCombatReplay(
   // Bloom the board aura-wash for a run-wide tribe aura that rose mid-combat — the same cue the recruit phase
   // shows off `auraFxSeq`, anchored to the player's board region. `'any'` (a board-wide aura) uses the neutral
   // palette. Mirrors Recruit.fireAuraWave 1:1 so the two phases read identically (owner ask 2026-07-21).
-  const fireCombatAuraWave = (tribe: string): void => {
-    const zoneEl = document.querySelector('[data-zone="warband"]');
-    if (!zoneEl) return;
-    const z = zoneEl.getBoundingClientRect();
-    if (z.width < 8 || z.height < 8) return;
-    const rr = zoneEl.querySelector('.row.warband')?.getBoundingClientRect();
-    const y = rr && rr.height > 4 ? rr.top : z.top;
-    const h = rr && rr.height > 4 ? rr.height : z.height;
-    const paletteTribe = (tribe === 'any' ? 'neutral' : tribe) as Parameters<typeof buffPreset>[1];
-    pixiFx.auraWave({ x: z.left, y, w: z.width, h }, { ...getAuraFxConfig(), ...wavePalette(buffPreset('', paletteTribe)) });
+  const fireCombatAuraWave = (_tribe: string): void => {
+    // GENERIC AURA-WAVE VISUAL REMOVED 2026-09-02 (owner ask: replace every stock buff cue with an authored
+    // pixi effect). The run-wide tribe-aura MOMENT still fires this on the beat it rose (see the `tribeAura`
+    // loop below) with the tribe in hand — so a replacement effect anchored to the board region drops straight
+    // in here. Draws nothing in the meantime.
   };
   // User-controlled replay speed (in-combat slider). 1 = the tuned default; >1 faster, <1 slower. Every
   // beat delay / float lifetime / final hold is divided by it, and each lunge is timeScaled to match.
@@ -1601,8 +1594,10 @@ export function useCombatReplay(
         continue;
       }
       const cardId = cardIds.get(s.uid) ?? '';
+      // GENERIC SELF-BUFF PULSE REMOVED 2026-09-02 (owner ask: replace every stock buff cue with an authored
+      // pixi effect). The moment + its roll are kept — `cfg` still supplies the hold time so the badge rolls on
+      // the same clock — and a replacement effect can fire here off `cx,cy`. Draws nothing in the meantime.
       const cfg = PULSE_PRESETS[pulsePreset(cardId, (CARD_INDEX[cardId]?.tribe ?? 'neutral') as Tribe)];
-      pixiFx.pulse(cx, cy, cfg);
 
       const tgt = unitOf(s.uid);
       if (!tgt) continue; // no frame entry → nothing to release
@@ -1912,7 +1907,10 @@ export function useCombatReplay(
     // board aura-wash off its `tribeAura` event — this one accumulated with NO cue at all and only showed up in
     // the next shop, so the moment it was earned looked like nothing happened (owner report 2026-07-31). Rides
     // the same `sc` narration shape spell power and Ruby power use, with the identical player-side gate.
-    let shopBuffAnchor: { cx: number; cy: number; uid: string } | null = null;
+    // The mid-combat Shop buff (Demon Horse and friends) still floats its "+A/+H" number here. The authored
+    // `shop-buff-aura` bloom that used to play alongside it was REMOVED 2026-09-02 (owner ask: replace every
+    // stock buff cue with an authored pixi effect) — the number float carries the read for now, and a
+    // replacement effect can fire off each buffer's anchor (`anchorOf(e.source)`) when one exists.
     for (let i = beat.start; i < beat.end; i++) {
       const e = events[i];
       if (!e || e.type !== 'sc' || !e.source || !e.text) continue;
@@ -1925,18 +1923,6 @@ export function useCombatReplay(
       if (!a) continue;
       const { cx, cy, h } = a;
       floatSpellPowerNumber(cx, cy - h * 0.3, gA, gH);
-      shopBuffAnchor = { cx, cy, uid: e.source };
-    }
-    // The authored `shop-buff-aura` bloom, in the LUNGE with the number — because the `sc` is now absorbed into
-    // the attack wind-up (choreo/compile.ts), this block runs at the attack beat's presentation. Previously the
-    // aura ONLY played later, over the shop row, on return to recruit (reducer's `tavernBuyBonus` diff) — so a
-    // Shop buff earned mid-combat had no on-attack bloom (owner report 2026-08-18). ONE camera-anchored play per
-    // beat (deduped over several shop-buffers), anchored at the last buffer for any source/target layers; the
-    // shop-row confirmation on return still fires there, a different surface.
-    if (shopBuffAnchor) {
-      const camera = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
-      const at = { x: shopBuffAnchor.cx, y: shopBuffAnchor.cy };
-      playDef('shop-buff-aura', { source: at, target: at, camera }, { uids: { source: shopBuffAnchor.uid, target: shopBuffAnchor.uid }, index: 0 });
     }
     // RUN-WIDE TRIBE AURA rose this beat (Ryme, Anubis's Lantern of Souls, Deathswarmer, …): bloom the board
     // aura-wash, the SAME cue the recruit phase shows off `auraFxSeq`. Player side only — the wash is a

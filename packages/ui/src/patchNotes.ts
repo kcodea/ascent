@@ -55,6 +55,15 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-09-03',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: 'The golden burst behind combat damage numbers is back in the downloadable and itch.io builds — it had been missing there since it shipped, while showing correctly in development.',
+      },
+    ],
+  },
+  {
     date: '2026-09-02',
     label: 'New Buff FX',
     changes: [

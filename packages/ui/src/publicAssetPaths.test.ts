@@ -62,4 +62,23 @@ describe('public asset paths are BASE_URL-relative', () => {
       'root-absolute public paths 404 on itch — prefix `import.meta.env.BASE_URL` (see Card.tsx)',
     ).toEqual([]);
   });
+
+  it('no source file puts a RELATIVE BASE_URL path inside a CSS url() string', () => {
+    // The second trap (shipped 2026-08-27, caught 2026-09-02): `url('${BASE_URL}fx/x.png')` is correct on
+    // itch's sub-path AND still broken there, because a production BASE_URL is `./` and Chromium resolves a
+    // relative url() inside a CSS custom property against the STYLESHEET that reads it (assets/), not the
+    // page. Resolve to an absolute URL first — see `publicAssetCssUrl` in floatConfig.ts.
+    const pattern = /url\(\s*['"`]?\$\{import\.meta\.env\.BASE_URL\}/;
+    const offenders: string[] = [];
+    for (const f of files) {
+      readFileSync(f, 'utf8').split('\n').forEach((line, i) => {
+        const code = line.replace(/\r$/, '').replace(/\/\/.*$/, '').replace(/^\s*\*.*$/, '');
+        if (pattern.test(code)) offenders.push(`${f.split(/[\\/]/).pop()}:${i + 1}  ${line.trim().slice(0, 90)}`);
+      });
+    }
+    expect(
+      offenders,
+      'a relative url() in a CSS variable resolves against assets/ in prod — use publicAssetCssUrl (floatConfig.ts)',
+    ).toEqual([]);
+  });
 });

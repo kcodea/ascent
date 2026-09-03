@@ -19,26 +19,22 @@
          parsed — a React-rendered splash cannot appear until after that, which on a cold load is the exact
          second the screen is blank. -->
     <link rel="preload" as="image" href="./ascenticon.png" fetchpriority="high" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Nunito+Sans:opsz,wght@6..12,400;6..12,600;6..12,700&family=Sora:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Cinzel+Decorative:wght@400;600;700&display=swap"
-      rel="stylesheet"
-    />
+    <!-- Fonts are SELF-HOSTED (@fontsource, imported in src/main.tsx) — no Google Fonts request, works offline in the exe. -->
   </head>
   <body>
     <!-- THE BOOT SPLASH lives in the document, not in React, for one reason: it must paint on the FIRST frame.
          Its CSS is inlined here for the same reason — waiting on the stylesheet (which ships with the bundle)
          would reintroduce the blank gap this exists to remove.
 
-         `Boot` (packages/ui/src/Boot.tsx) owns the rest of its life: it holds the splash for a FIXED 3.5s (the
-         bar fills via pure CSS over the same 3.5s), then adds `.is-out` to fade it and removes the node on
-         transitionend. Fading OPACITY only —
+         `Boot` (packages/ui/src/Boot.tsx) owns the rest of its life: it waits for the unlock click, drives the
+         bar with REAL progress over every asset (`--boot-p`), then adds `.is-out` to fade it and removes the
+         node on transitionend. Fading OPACITY only —
          compositor-only, per docs/performance.md; a filter/background fade here would repaint the whole
          viewport on every frame of the transition. -->
     <div id="bootsplash">
       <img id="bootsplash-img" src="./ascenticon.png" alt="" aria-hidden="true" draggable="false" />
       <div id="bootsplash-bar"><i></i></div>
+      <div id="bootsplash-cta"><span>Click to begin</span></div>
     </div>
     <script>
       /* Fade the splash IN once the image has actually DECODED (owner ask 2026-08-22: "fade in from a black
@@ -83,6 +79,16 @@
           i.addEventListener('load', reveal, { once: true });
           i.addEventListener('error', reveal, { once: true });
         }
+        /* THE UNLOCK CLICK, if it lands before the bundle has mounted: stamp it so Boot treats the game as
+           already unlocked (user activation is sticky for the document, so the audio context still starts).
+           Boot removes these listeners' job by reading `data-unlockedAt`; they are `once` so they never fire twice. */
+        var unlock = function () {
+          if (s.dataset.unlockedAt) return;
+          s.dataset.unlockedAt = String(Math.round(performance.now()));
+          s.classList.add('is-unlocked');
+        };
+        window.addEventListener('pointerdown', unlock, { once: true });
+        window.addEventListener('keydown', unlock, { once: true });
       })();
     </script>
     <style>
@@ -115,27 +121,43 @@
         opacity: 0; transition: opacity 700ms ease-out;   /* arrives with the logo, not before it */
       }
       #bootsplash.is-in #bootsplash-bar { opacity: 1; }
-      /* FAKE LOAD (owner ask 2026-08-24, made absolute 2026-08-25): the fill is a pure CSS transition — scaleX
-         0→1 over 3.5s the moment the splash reveals — and is not driven by real art progress. scaleX (not width)
-         so the whole animation is compositor-only, never a per-frame layout. The duration MUST match `SPLASH_MS`
-         in Boot.tsx: that timer is now the ONLY thing gating the menu, so the bar finishing and the splash
-         leaving are the same moment, whatever the real loading is doing. */
+      /* REAL PROGRESS (owner ruling 2026-09-03, replacing the 2026-08-25 fake 3.5s fill): `--boot-p` is written
+         by Boot.tsx as the loader advances (0..1); the fill is scaleX (compositor-only — never width). The short
+         transition smooths the steps between progress events. The menu opens when the loader finishes AND at
+         least 3.5s have passed since the unlock click, so a warm cache never snaps it open. */
       #bootsplash-bar > i {
         display: block; height: 100%; border-radius: 999px; background: #f0902e;
-        transform: scaleX(0); transform-origin: left center;
+        transform: scaleX(var(--boot-p, 0)); transform-origin: left center;
+        transition: transform 420ms ease-out;
       }
-      /* The fill is a keyframe ANIMATION, not a transition. A transition needs its scaleX(0) START state to have
-         been PAINTED in a prior frame — but the AscentIcon loads before the first paint on any warm/dev load, so
-         `.is-in` lands in the same frame the bar first renders and the transition has no "before" to animate
-         from: the bar just SNAPS full (owner report 2026-08-26: "instantly full"). An animation runs from its 0%
-         keyframe unconditionally, so it always fills over the 3.5s regardless of when `.is-in` is added. Keep the
-         duration in sync with `SPLASH_MS` in Boot.tsx (the gate opens when the fill completes). */
-      @keyframes bootbarfill { from { transform: scaleX(0); } to { transform: scaleX(1); } }
-      #bootsplash.is-in #bootsplash-bar > i { animation: bootbarfill 3500ms linear forwards; }
+      /* TWO HALVES: the first half is real progress (steps smoothed by the transition above); once every stage has
+         settled Boot adds `.is-finishing` and sets the fill to 1, so the second half is one smooth 1.5s glide;
+         "Click to begin" appears as it lands, and the click opens the menu. Keep 1500ms in sync with FINISH_MS in Boot.tsx. */
+      #bootsplash.is-finishing #bootsplash-bar > i { transition: transform 1500ms cubic-bezier(0.22, 0.61, 0.36, 1); }
+      /* "Click to begin" — the audio context needs a gesture, so the boot asks for one up front. The OUTER div
+         owns placement + the fade-in (arrives with the bar); the INNER span carries the idle life (owner ask
+         2026-09-03: "slowly pulsing in and out with a subtle hover effect, like the ASCENT logo"): a slow opacity
+         breath and a gentle bob on the same 5.2s ease-in-out clock + amplitude as the title mark's `titlebob`.
+         Both are compositor-only (opacity / transform). Shown only once loading is complete (`.is-loaded`); hidden the moment the click lands (`.is-unlocked`). */
+      #bootsplash-cta {
+        position: absolute; left: 50%; transform: translateX(-50%);
+        bottom: calc(var(--ls-bar-bottom, 22.5vh) - 34px);
+        font-family: 'Outfit', system-ui, sans-serif; font-weight: 700; font-size: 15px; letter-spacing: 0.12em;
+        text-transform: uppercase; color: rgba(255, 255, 255, 0.9); text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+        opacity: 0; transition: opacity 700ms ease-out; pointer-events: none; user-select: none;
+      }
+      #bootsplash-cta > span {
+        display: inline-block;
+        animation: bootctabreathe 3.4s ease-in-out infinite alternate, bootctabob 5.2s ease-in-out infinite;
+      }
+      @keyframes bootctabreathe { from { opacity: 0.38; } to { opacity: 1; } }
+      @keyframes bootctabob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+      #bootsplash.is-loaded #bootsplash-cta { opacity: 1; }  /* only once EVERY stage has settled and the bar has landed */
+      #bootsplash.is-unlocked #bootsplash-cta { display: none; }
+      #bootsplash { cursor: url('./cursors/gauntlet_open.svg') 6 2, pointer; }
       /* The bar is progress feedback, not decoration — freeze motion for anyone who asked for less. */
       @media (prefers-reduced-motion: reduce) {
-        #bootsplash, #bootsplash-img, #bootsplash-bar { transition: none; }
-        #bootsplash-bar > i, #bootsplash.is-in #bootsplash-bar > i { animation: none; transform: scaleX(1); }
+        #bootsplash, #bootsplash-img, #bootsplash-bar, #bootsplash-bar > i, #bootsplash-cta, #bootsplash-cta > span { transition: none; animation: none; }
       }
     </style>
     <div id="root"></div>

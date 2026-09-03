@@ -39,7 +39,7 @@ npm run build:web           # vite build — must succeed (this is what CI gates
 If all four are green, the environment is good. Then run the game:
 
 ```bash
-npm run dev                 # Vite dev server → open http://localhost:5173
+npm run dev                 # Vite dev server → open http://localhost:5173  (add ?skipboot to skip the full asset preload while iterating — DEV only)
 ```
 
 Headless tools (no browser): `npm run bot` (greedy bot plays a run), `npm run harness` (narrated combat +

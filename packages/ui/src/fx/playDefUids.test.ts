@@ -30,6 +30,7 @@ const UNIT_LESS: { file: string; id: string; why: string }[] = [
   { file: 'StatusBar.tsx', id: 'equipment-used-up', why: "the Equipment slot ran EMPTY — anchored on the slot button, which is HUD chrome and has no unit uid. The subject is the allowance, not a body on the board" },
   { file: 'EquipFxTuner.tsx', id: 'equipment-spark', why: "the tuner's TEST fire — screen coords with no run and no unit; the real call in Recruit.tsx carries the source uid" },
   { file: 'EquipFxTuner.tsx', id: '<dynamic>', why: "the tuner's TEST fire for the USE effect — the SELECTED Equipment's own def, slot to a stand-in point, no run and no unit; the real call carries the target uid" },
+  { file: 'warmAll.ts', id: '<dynamic>', why: 'the BOOT warm-up fires every committed def once at a stand-in stage under the splash — no run, no unit; a react layer correctly does nothing' },
   { file: 'RefreshButton.tsx', id: 'impact-dust', why: 'fires at the button' },
   { file: 'TavernUpButton.tsx', id: 'shop-tier-up', why: 'fires at the button' },
   { file: 'FreezeButton.tsx', id: 'freeze-blast', why: 'fires at the button' },

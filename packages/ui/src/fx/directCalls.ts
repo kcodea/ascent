@@ -112,6 +112,10 @@ export const DYNAMIC_CALL_SITES: Readonly<Record<string, number>> = {
   // moment cue: the combat score can only anchor to board units, so a rune badge is unreachable from it (see
   // `runeTriggerFx.ts`'s header) and this resolves its binding directly instead.
   'runeTriggerFx.ts': 1,
+  // The BOOT warm-up (2026-09-03): one `playDef(def.id, …)` in a loop over EVERY committed def, fired under
+  // the opaque splash so every filter/geometry/text path is paid before play. Not a binding at all — it is
+  // the mechanism that guarantees the bindings' first real fire is warm (see `fx/warmAll.ts`).
+  'fx/warmAll.ts': 1,
   // The death handler's projectile-Echo launch — one `playDef(echoBinding.def, …)` firing Fel Spikes' spike
   // volley from the dying body a beat before its damage lands (a `launchOnDeath` binding). Not a moment cue:
   // it deliberately fires OFF the damage beat, so it resolves its binding directly here (see `echoWaves`).

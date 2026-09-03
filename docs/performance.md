@@ -427,6 +427,38 @@ Two rules came out of adding the third:
   over and under halves of the same effect can never tear apart by a frame, and an idle under canvas costs
   one array-length read per frame rather than a full clear + present.
 
+> **Amendment 2026-09-03:** the MAIN `.pixifx` canvas is now mounted by `Boot` for the whole session, so the
+> boot warm-up can link its programs and upload its textures before the menu — and never detach (a detach
+> throws the compiled programs away with the context). Its ticker auto-idles, so an unused canvas draws
+> nothing per frame. The under/above slot canvases keep the lazy rule above: brought up only when a committed
+> def declares the slot.
+
+## 3e. The boot preload contract (2026-09-03)
+
+Owner ruling: *"I'd rather wait two minutes for the game to preload everything than experience pop-in
+hitches."* So **a first-use hitch is a defect, and the boot screen is where its cost is paid.**
+
+`packages/ui/src/bootLoader.ts` runs four stages behind a "Click to begin" splash, each item with its own
+timeout (boot is bounded), and the menu opens only when all four have settled:
+
+| Stage | What it warms | Where |
+|---|---|---|
+| images | every bundled art glob + every file in `apps/web/public/` (the GENERATED `publicAssets.generated.ts`), fetched **and decoded** | `art.ts` `preloadAllArt` |
+| fonts | every self-hosted face styles.css uses | `fontsPreload.ts` |
+| audio | every clip fetched + decoded — after the click (the context needs a gesture) | `sfx.ts` `preloadAllSamples` |
+| fx | the primitives chunk, every program link on every wanted slot, every shape/art texture uploaded — THEN every committed def + every hand-written effect fired twice under the splash, the second time under a long-task observer | `fx/playDef.ts` `warmFx`, `fx/warmAll.ts` |
+
+**When you add an asset:** a file under `public/` needs `npm run assets:manifest` (`publicAssets.test.ts`
+fails otherwise); art in a `packages/ui/src/art/*` glob is picked up automatically; a new font weight goes in
+`FONT_FACES` + `main.tsx` (pinned by `fontsPreload.test.ts`); a new lazily-built Pixi texture belongs in
+`pixiFx.warmBuiltinTextures`.
+
+**How to prove it:** `window.__boot.stages.fx.note` after boot reads e.g. `fired 70 defs + 23 effects; re-fire
+long tasks: 0` — the re-fire count is the measured residue of anything still cold. Then play a full run and
+read `window.__perf.hitches()` — every main-thread long task ≥ 50 ms with the phase it landed in. An entry
+during play is a lead; the DEV build also `console.warn`s each one as it happens. **Every boot wait is
+bounded** (`img.decode()` stalls forever in a hidden tab) — never add an unbounded await to a stage.
+
 ## 3d. Shop-phase audit, 2026-08-01 (A/B-measured)
 
 An idle-shop audit against the 240 Hz budget, in a live lobby shop (dev build — magnitudes shift in prod, the

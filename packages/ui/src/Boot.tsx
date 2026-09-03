@@ -1,28 +1,40 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import './styles.css'; // ensure the boot loading screen is styled even before <Game/> mounts
-import { preloadAllArt, ART_COUNT } from './art';
+import { runBootLoader, warmAllReport } from './bootLoader';
+import { unlockAudio } from './sfx';
+import { PixiFxLayer } from './PixiFxLayer';
 
 /**
- * Boot gate: holds a loading screen up front while EVERY bundled art file is fetched + decoded, so the game
- * never renders a card before its illustration is ready — no pop-in (the owner would rather wait a beat at boot
- * than see art appear late in the shop). Children (the actual <Game/>) don't mount until art is ready, so no
- * card can render early. A hard cap resolves the gate anyway if preloading stalls (offline / a broken CDN), so
- * boot can never hang. The loader runs on EVERY load (no skip flag) — cheap when art is already HTTP-cached
- * (onload fires instantly), and it always re-verifies art is ready before a card can render.
+ * Boot gate: a "Click to begin" splash, then a REAL loading bar over every asset the game will ever show or
+ * play, and the menu only when all of it is resident (owner ruling 2026-09-03: "I'd rather wait two minutes
+ * than experience pop-in hitches"). This reverses the 2026-08-25 fixed-3.5s splash — see `bootLoader.ts` for
+ * the four stages and why each exists.
  *
- * THE SPLASH ITSELF IS NOT RENDERED HERE (owner ask 2026-08-22: "an image that fades out after art is
- * loaded"). It lives in `apps/web/index.html` with inline CSS so it paints on the FIRST frame — a
- * React-rendered splash cannot appear until the ~3 MB bundle has parsed and mounted, which is precisely the
- * window it exists to cover. This component only drives it: progress while loading, then a fade-out.
+ * THE SPLASH ITSELF IS NOT RENDERED HERE (owner ask 2026-08-22). It lives in `apps/web/index.html` with inline
+ * CSS so it paints on the FIRST frame — a React-rendered splash cannot appear until the ~3 MB bundle has
+ * parsed and mounted, which is precisely the window it exists to cover. This component only drives it:
+ * the unlock, the progress (`--boot-p` on the splash node), then a fade-out.
  *
- * The fade is why children now mount BEFORE the splash leaves: the game renders underneath at full opacity
- * and the image dissolves off it. Swapping one for the other (the old behaviour) is what made it a cut.
+ * THE ORDER (owner ask 2026-09-03, final): everything loads AUTOMATICALLY from the first frame — the bar fills
+ * with real progress to its halfway mark, glides home once every stage has settled — and only THEN does
+ * "Click to begin" appear (`.is-loaded`). The click resumes the (already-decoded) audio context and opens the
+ * menu. A click made earlier is honoured too — the inline script stamps `data-unlockedAt` — so an eager
+ * player is taken straight through the moment the bar lands; user activation is sticky for the document, so
+ * `unlockAudio()` still gets a running context.
+ *
+ * THE FX CANVAS is mounted HERE, permanently, so its GL context exists before the loader warms it — and is
+ * never detached afterwards (a detach throws every compiled program away with the context). It used to mount
+ * from the hero picker onward (Game.tsx); its ticker auto-idles, so an unused canvas costs no per-frame work.
  */
-/** The splash's FIXED lifetime (owner ask 2026-08-25). The bar's CSS fill in index.html runs for exactly this
- *  long, and the gate opens when it completes — so the splash always lasts the same 3.5s whatever the real
- *  loading is doing. There is no hard cap any more because there is nothing left to hang on: the gate is this
- *  timer. Keep in sync with the `#bootsplash-bar > i` transition duration in index.html. */
-const SPLASH_MS = 3500;
+/** Minimum splash lifetime measured from the splash's reveal, so a warm load never snaps the bar full. */
+const SPLASH_MIN_MS = 3500;
+/** THE BAR IS TWO HALVES (owner ask 2026-09-03: "I still want the loading bar to be smooth"). The first half
+ *  is REAL progress — the loader's weighted mean mapped onto 0..0.5, so it can stall or jump as the network
+ *  does. The second half is a SMOOTH glide from 0.5 to 1 over `FINISH_MS`, started only once every stage has
+ *  settled; the menu opens when the glide lands. Real work is never hidden (the gate still waits for all of it),
+ *  the last stretch just always reads as one clean fill. */
+const REAL_HALF = 0.5;
+const FINISH_MS = 1500;
 /** Must match the `#bootsplash` opacity transition in index.html (900ms — the owner asked for a gentle
  *  dissolve into the menu rather than a quick wipe). */
 const FADE_MS = 900;
@@ -35,40 +47,79 @@ const FADE_IN_MS = 700;
 function splashEl(): HTMLElement | null {
   return typeof document === 'undefined' ? null : document.getElementById('bootsplash');
 }
+
+/** DEV-only escape hatch for iterating on the game itself (`?skipboot`): the full warm-up is ~1000 images +
+ *  every clip on every reload. Never honoured in a production build. */
+function skipBootRequested(): boolean {
+  return import.meta.env.DEV && typeof location !== 'undefined' && new URLSearchParams(location.search).has('skipboot');
+}
+
 export function Boot({ children }: { children: ReactNode }): React.ReactElement {
-  const [ready, setReady] = useState<boolean>(() => ART_COUNT === 0);
+  const [ready, setReady] = useState<boolean>(() => skipBootRequested());
   const [pct, setPct] = useState(0);
+  const [loadedUi, setLoadedUi] = useState(false);
 
   useEffect(() => {
     if (ready) return;
     // NB: no cross-run guard — under StrictMode the effect runs twice, and the first run's cleanup flips its
     // `alive` to false; a ref guard would block the second run from re-wiring state and deadlock the loader.
-    // Letting it run again is harmless (images are already HTTP-cached from the first pass).
+    // Letting it run again is harmless (every stage is idempotent: images are HTTP-cached, clips de-duplicate
+    // in flight, the FX warm-up is memoised per context).
     let alive = true;
-    const finish = (): void => {
+    const el = splashEl();
+    const clickedEarly = Number.isFinite(Number(el?.dataset.unlockedAt ?? NaN));
+
+    const unlocked = new Promise<void>((resolve) => {
+      const onUnlock = (): void => {
+        window.removeEventListener('pointerdown', onUnlock);
+        window.removeEventListener('keydown', onUnlock);
+        unlockAudio(); // inside the gesture, so the context starts running
+        el?.classList.add('is-unlocked');
+        resolve();
+      };
+      if (clickedEarly) { onUnlock(); return; }
+      window.addEventListener('pointerdown', onUnlock);
+      window.addEventListener('keydown', onUnlock);
+    });
+
+    const onProgress = (p: number): void => {
       if (!alive) return;
-      setReady(true);
+      const shown = Math.min(REAL_HALF, p * REAL_HALF); // real work owns the first half of the bar
+      el?.style.setProperty('--boot-p', shown.toFixed(4));
+      setPct(shown);
     };
-    // THE GATE IS A FIXED TIMER, NOTHING ELSE (owner ask 2026-08-25: "no matter what the actual loading that's
-    // being done is, it just shows a bar that fills over 3.5s and then goes to the menu"). It used to await the
-    // art preload as well, so a cold load left the bar sitting full — the splash outstayed its own animation by
-    // however long the fetches took (up to the old 20s cap). Now the splash lasts exactly SPLASH_MS every time.
-    //
-    // The preload still RUNS — it is simply never awaited — so the fetch/decode work still warms the cache in
-    // the background and most art is ready by the time anything renders. What it no longer does is HOLD the
-    // gate, which means on a genuinely cold, slow connection a card can now reach the screen before its art has
-    // decoded (the pop-in the old gate existed to prevent). That is the deliberate trade this ask makes.
-    // ANCHOR THE TIMER TO THE BAR, NOT TO REACT. The bar starts filling the instant the splash reveals (the
-    // inline script in index.html adds `.is-in` and stamps `data-inAt`), but this effect only runs once the
-    // ~3 MB bundle has parsed and mounted — measured ~900 ms later on a warm load. Timing SPLASH_MS from here
-    // would therefore leave the bar sitting full for however long the bundle took, which is the exact thing
-    // this ask removes. Counting from `inAt` makes the bar's completion and the menu the same moment.
-    // Absent stamp (no splash node / the image errored) → the full duration, which is the honest fallback.
-    const inAt = Number(splashEl()?.dataset.inAt ?? NaN);
-    const elapsed = Number.isFinite(inAt) ? performance.now() - inAt : 0;
-    const hold = window.setTimeout(finish, Math.max(0, SPLASH_MS - elapsed));
-    void preloadAllArt((loaded, total) => { if (alive) setPct(total ? loaded / total : 1); });
-    return () => { alive = false; window.clearTimeout(hold); };
+
+    let hold = 0;
+    let finish = 0;
+    const loaded = runBootLoader({ onProgress }).then((report) => new Promise<void>((resolve) => {
+      // `window.__boot` in EVERY build (the owner checks the exe): the stage timings + the fire-everything
+      // note — "re-fire long tasks: 0" is the measured claim that nothing is left cold.
+      (window as unknown as { __boot?: unknown }).__boot = { ...report, warmAll: warmAllReport() };
+      if (import.meta.env.DEV) {
+        console.info('[boot] loaded in %d ms', report.ms, report.stages);
+        const re = warmAllReport()?.secondPassLongTasks ?? [];
+        if (re.length) console.warn('[boot] the SECOND fire-everything pass still stalled — something is cold:', re);
+      }
+      if (!alive) return;
+      // Everything is resident. Respect the minimum splash time (from the splash's reveal), THEN glide the
+      // second half of the bar (`.is-finishing` lengthens the fill transition to FINISH_MS in index.html).
+      const inAt = Number(el?.dataset.inAt ?? NaN);
+      const elapsed = Number.isFinite(inAt) ? performance.now() - inAt : 0;
+      hold = window.setTimeout(() => {
+        if (!alive) return;
+        el?.classList.add('is-finishing');
+        el?.style.setProperty('--boot-p', '1');
+        setPct(1);
+        finish = window.setTimeout(() => {
+          if (!alive) return;
+          el?.classList.add('is-loaded'); // → "Click to begin" appears
+          setLoadedUi(true);
+          resolve();
+        }, FINISH_MS);
+      }, Math.max(0, SPLASH_MIN_MS - FINISH_MS - elapsed));
+    }));
+    void Promise.all([loaded, unlocked]).then(() => { if (alive) setReady(true); });
+    return () => { alive = false; window.clearTimeout(hold); window.clearTimeout(finish); };
   }, [ready]);
 
   // READY → fade the splash off the mounted game, then remove the node.
@@ -81,11 +132,8 @@ export function Boot({ children }: { children: ReactNode }): React.ReactElement 
     if (!ready) return;
     const el = splashEl();
     if (!el) return;
-    // The bar has already filled on its own CSS transition, which runs for exactly SPLASH_MS — nothing to finish.
-    // HOLD until the fade-IN has finished. With art HTTP-cached the gate can resolve in a few hundred ms —
-    // well inside the 700ms in-fade — and cutting to the out-fade there would snatch a half-visible image
-    // away. `inAt` is stamped by the inline reveal script; absent (image still loading) we wait the full
-    // in-fade rather than guess.
+    // HOLD until the fade-IN has finished (a skip-boot dev load can get here inside the 700ms in-fade, and
+    // cutting to the out-fade there would snatch a half-visible image away).
     const inAt = Number(el.dataset.inAt ?? NaN);
     const elapsed = Number.isFinite(inAt) ? performance.now() - inAt : 0;
     const hold = Math.max(0, FADE_IN_MS - elapsed);
@@ -108,12 +156,15 @@ export function Boot({ children }: { children: ReactNode }): React.ReactElement 
 
   return (
     <>
+      {/* The WebGL effects overlay — mounted for the whole session so the boot warm-up's compiled programs
+          and uploaded textures survive into play. See the header. */}
+      <PixiFxLayer />
       {ready ? children : null}
       {useFallback && (
         <div className="bootload" aria-live="polite" aria-busy="true">
           <div className="bootload-mark">ASCENT</div>
           <div className="bootload-bar"><div className="bootload-fill" style={{ width: `${Math.round(pct * 100)}%` }} /></div>
-          <div className="bootload-sub">Loading art… {Math.round(pct * 100)}%</div>
+          <div className="bootload-sub">{loadedUi ? 'Click to begin' : `Loading… ${Math.round(pct * 100)}%`}</div>
         </div>
       )}
       {/* Landscape-only on phones: CSS shows this only on a touch device held in portrait (see `.rotate-prompt`). */}

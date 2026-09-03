@@ -159,9 +159,11 @@ const BINDINGS: Record<string, { def: string }> = {
   // The first SHOP-phase binding — a recruit moment kind, not a combat one (see recruitMoments.ts).
   rubyLanded: { def: 'ruby-gem-apply' },
   shopRubied: { def: 'ruby-gem-veinstorm' },
-  // NB: `shopBuffAll` is absent on purpose — its generic `shop-buff-aura` binding was REMOVED 2026-09-02 (owner
-  // ask: every stock shop/combat buff cue is being replaced by an authored pixi effect). The channel still
-  // fires; nothing is bound to it. Asserted unbound below.
+  // The whole shop buffed by the run-wide `tavernBuyBonus` channel — camera-anchored, one play for the row.
+  // Distinct from `shopRubied` on purpose: gems go through their own span, and Veinstorm deliberately never
+  // touches this channel, so the two can never both fire for one event. The stock `shop-buff-aura` was
+  // stripped 2026-09-02 and REPLACED the same day by the owner-authored `shop-buff-purple`.
+  shopBuffAll: { def: 'shop-buff-purple' },
   // A rune's own effect firing, on its HUD badge. Deliberately not `questTrigger`: that kind is anchored by
   // the combat score, which can only reach board units, so it has never played (see `runeTriggerFx.ts`).
   runeTriggered: { def: 'rune-burst' },
@@ -170,9 +172,9 @@ const BINDINGS: Record<string, { def: string }> = {
   // The DEFAULT tavern-spell cast — every spell with no card binding of its own. Fires ONCE at the cursor
   // (no `fanOut`), which is what makes it safe as a default; the ales opt into the per-minion volley.
   spellCast: { def: 'spell-sparks' },
-  // NB: `minionSelfBuffed` is absent on purpose — its generic `self-buff-gold` binding was REMOVED 2026-09-02
-  // (owner ask), the shop twin of combat's buffWave/attackExchange self-buff. The channel still fires; nothing
-  // is bound to it. Asserted unbound below.
+  // Shop self-buffs — the recruit twin of combat's buffWave/attackExchange self-buff fan-out. The stock
+  // `self-buff-gold` was stripped 2026-09-02 and REPLACED the same day by the owner-authored `self-buff-burst`.
+  minionSelfBuffed: { def: 'self-buff-burst' },
   spellProgress: { def: 'spell-progress' },
   questTrigger: { def: 'quest-trigger' }, questComplete: { def: 'quest-complete' },
   // NB: `rally` is absent from this table on purpose — it is a committed TOMBSTONE, asserted below.
@@ -213,14 +215,18 @@ const CARD_BINDINGS: Record<string, Record<string, { def: string; fanOut?: strin
   wo_reinforcement: { spellCast: { def: 'reinforcing-ale', fanOut: 'buffed' } },
 };
 
-// NB: there is no `FANOUT_BINDINGS` table any more. `buffWave` and `attackExchange` used to carry the generic
-// self-buff fan-out (`self-buff-gold`, `selfBuffed`); both bindings were REMOVED 2026-09-02 (owner ask: every
-// stock shop/combat buff cue is being replaced by an authored pixi effect). The moments still fire — a Target
-// Dummy still grows as it is hit — but nothing is bound to them now. Asserted unbound below.
+/** Bindings that FAN OUT rather than playing once at the moment's own pair. `attackExchange` is in here for a
+ *  reason worth keeping: a self-buff absorbed into a wind-up never produces a `buffWave` moment, so binding
+ *  only to `buffWave` would miss a unit that grows as it is attacked. The def is the owner-authored
+ *  `self-buff-burst` (2026-09-02), which replaced the stripped stock `self-buff-gold` on the same moments. */
+const FANOUT_BINDINGS: Record<string, { def: string; fanOut: string }> = {
+  buffWave: { def: 'self-buff-burst', fanOut: 'selfBuffed' },
+  attackExchange: { def: 'self-buff-burst', fanOut: 'selfBuffed' },
+};
 
 describe('the bound kinds', () => {
   it('binds exactly the intended kind → def pairs, and nothing else', () => {
-    const expected: Record<string, { def: string; fanOut?: string }> = { ...BINDINGS };
+    const expected: Record<string, { def: string; fanOut?: string }> = { ...BINDINGS, ...FANOUT_BINDINGS };
     expect(effectiveTables().kinds).toEqual(expected);
   });
 
@@ -248,13 +254,13 @@ describe('the bound kinds', () => {
   // Kinds that already existed and already had FX must be untouched — a def on a NEIGHBOURING kind must never
   // reach them. (`damage` is the one that matters most: quest beats used to be classified as damage moments,
   // so binding their def there would have fired it on every hit in the fight.)
-  // `attackExchange`, `buffWave`, `minionSelfBuffed` and `shopBuffAll` JOINED this list on 2026-09-02: their
-  // generic self-buff / shop-aura bindings were removed (owner ask), so they must now read as unbound like
-  // everything else — the list keeps doing its job of catching a def bound somewhere nobody intended.
+  // `attackExchange` and `buffWave` are deliberately NOT on this list: both carry the self-buff fan-out (see
+  // FANOUT_BINDINGS). Everything else stays unbound, so the list keeps doing its job of catching a def bound
+  // somewhere nobody intended. (`tribeAura` — the board-wide aura wash — is the one buff cue still awaiting
+  // its replacement after the 2026-09-02 strip.)
   it('leaves every previously-effected kind unbound', () => {
     for (const kind of ['damage', 'death', 'riseDeath', 'shieldPop', 'poisonTick',
-      'scNarrate', 'summon', 'reborn', 'ascend', 'maxGold', 'improve', 'tribeAura',
-      'attackExchange', 'buffWave', 'minionSelfBuffed', 'shopBuffAll'] as const) {
+      'scNarrate', 'summon', 'reborn', 'ascend', 'maxGold', 'improve', 'tribeAura'] as const) {
       expect(bindingFor(null, kind), kind).toBeNull();
     }
   });

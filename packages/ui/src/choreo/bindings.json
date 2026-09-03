@@ -1,6 +1,17 @@
 {
   "version": 1,
   "kinds": {
+    "attackExchange": {
+      "def": "self-buff-burst",
+      "fanOut": "selfBuffed"
+    },
+    "buffWave": {
+      "def": "self-buff-burst",
+      "fanOut": "selfBuffed"
+    },
+    "minionSelfBuffed": {
+      "def": "self-buff-burst"
+    },
     "hpGrant": {
       "def": "hp-grant"
     },
@@ -40,6 +51,9 @@
     },
     "venomSpent": {
       "def": "venom-spent"
+    },
+    "shopBuffAll": {
+      "def": "shop-buff-purple"
     },
     "runeTriggered": {
       "def": "rune-burst"

@@ -101,10 +101,8 @@ describe('scanProcs', () => {
     const procs = scanProcs(combat, 'bloodbinder');
     const cast = procs.find((p) => p.kind === 'scCast');
     expect(cast?.boundDef).toBe('ruby-lance'); // bloodbinder's per-card binding
-    // attackExchange's generic `self-buff-gold` binding was removed 2026-09-02 (owner ask) — nothing is bound
-    // now, so this is the "null where nothing is bound" half of what surfacing `boundDef` is for.
     const sandbag = scanProcs(combat, 'sandbag').find((p) => p.kind === 'attackExchange');
-    expect(sandbag?.boundDef).toBeNull();
+    expect(sandbag?.boundDef).toBe('self-buff-burst'); // attackExchange's kind-level binding (owner-authored 2026-09-02)
   });
 
   it('returns an empty array — not a throw — for a card that never acted', () => {

@@ -149,7 +149,9 @@ describe('DIRECT_CALL_SITES is a derivation, not a list', () => {
       'ale-bubbles', 'auctioneer-hp', 'choose-one-both', 'cia-hp', 'click-puff', 'coin', 'coins', 'consume-pull', 'damage-burst', 'death-dissolve',
       'equipment-spark', 'equipment-used-up',
       'freeze-blast', 'hero-power-spark', 'hero-power-target', 'impact-dust', 'landing-dust', 'ruby-gem-apply',
-      'rune-buff-unit', 'rune-select-implosion', 'rune-slot-break', 'shop-tier-up', 'strike-impact', 'tallyanimation1', 'watcher-pulse',
+      // 'tendril-trail' joined on 2026-09-02: the owner-authored buff-other ribbon, fired from `buffFxRender.ts`.
+      // 'shop-buff-purple' joined the same day: the mid-combat Shop-buff bloom, fired from `useCombatReplay.ts`.
+      'rune-buff-unit', 'rune-select-implosion', 'rune-slot-break', 'shop-buff-purple', 'shop-tier-up', 'strike-impact', 'tallyanimation1', 'tendril-trail', 'watcher-pulse',
     ]);
   });
 

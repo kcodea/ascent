@@ -81,7 +81,7 @@ export const PATCH_NOTES: PatchNote[] = [
         details: [
           'Level 1 is the old Easy, level 3 the old Medium, level 5 the old Hard. Levels 2 and 4 sit between them.',
           'Levels 6–10 go past the old Hard: bigger boards, a faster tier climb, higher starting tiers, and heavier hits.',
-          'From level 6, one to three bot minions each round are real cards with effects — Echoes that Ward allies or spray damage, Venomous, Cleave, Rally and more. Higher levels unlock nastier ones.',
+          'From level 6, some rounds from round 7 onward swap one to three bot minions for real cards with effects — Echoes that Ward allies or spray damage, Venomous, Cleave, Rally and more. Higher levels unlock nastier ones and field them more often.',
           'Those utility minions use the bot board’s stats for that round, so they scale with the game. Venom stays at 1 Attack.',
           'Your saved Practice setup carries over: Easy, Medium and Hard become levels 1, 3 and 5.',
         ],

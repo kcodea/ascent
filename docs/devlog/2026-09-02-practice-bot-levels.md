@@ -15,7 +15,10 @@ levels feel *new*, not just bigger.
 - **Utility minions (levels 6+).** A level-gated roster of REAL cards (Lastlight, Venom, Fel Spikes, Broad-Axe
   Brakka, Jensen & Fi, Tauntbreaker, Anvilshade Smith, Solaris, Lieutenant Thane — owner list) replaces 1–3 omen
   slots a round. Each is also gated by the bot's current tier, so a tier-6 card never shows before the bots
-  could afford it. A fielded unit **takes the omen slot's authored stat line** (owner ruling) so the level's
+  could afford it. **Same-day follow-up (owner: tier-4 cards on turn 2 at level 10):** the tier gate alone let a
+  tier-3-start, tier-a-round table field mid-tier cards on round 2, and it fielded them EVERY round. Now nothing
+  appears before `UTILITY_FROM_ROUND` (7), and from there each seat rolls per round with the level's
+  `utilityChance` (40% at 6 → 80% at 10). Both are the assumption to retune, not the roster. A fielded unit **takes the omen slot's authored stat line** (owner ruling) so the level's
   curve is unchanged and the effects scale with the round; **Venom is pinned at 1 Attack** so it stays a trade
   piece. Which units + which slots are drawn per seat from the seat seed, so seats differ and a restored/replayed
   run redraws identically.

@@ -64,6 +64,9 @@ export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   // The implosion on a rune's BADGE as the lock-in ceremony hands it over (owner ask 2026-08-31).
   'rune-select-implosion': ['useRuneArrivalFx.ts'],
   'rune-slot-break': ['QuestBadges.tsx'],
+  // The mid-combat Shop-buff bloom (owner-authored 2026-09-02, replacing `shop-buff-aura` on this surface). The
+  // shop-row play goes through the `shopBuffAll` binding instead — see `runShopBuffAllFire`.
+  'shop-buff-purple': ['useCombatReplay.ts'],
   'shop-tier-up': ['TavernUpButton.tsx'],
   'strike-impact': ['choreo/channels/impact.ts'],
   'watcher-pulse': ['useCombatReplay.ts'],

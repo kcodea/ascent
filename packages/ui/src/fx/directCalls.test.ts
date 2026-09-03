@@ -150,7 +150,8 @@ describe('DIRECT_CALL_SITES is a derivation, not a list', () => {
       'equipment-spark', 'equipment-used-up',
       'freeze-blast', 'hero-power-spark', 'hero-power-target', 'impact-dust', 'landing-dust', 'ruby-gem-apply',
       // 'tendril-trail' joined on 2026-09-02: the owner-authored buff-other ribbon, fired from `buffFxRender.ts`.
-      'rune-buff-unit', 'rune-select-implosion', 'rune-slot-break', 'shop-tier-up', 'strike-impact', 'tallyanimation1', 'tendril-trail', 'watcher-pulse',
+      // 'shop-buff-purple' joined the same day: the mid-combat Shop-buff bloom, fired from `useCombatReplay.ts`.
+      'rune-buff-unit', 'rune-select-implosion', 'rune-slot-break', 'shop-buff-purple', 'shop-tier-up', 'strike-impact', 'tallyanimation1', 'tendril-trail', 'watcher-pulse',
     ]);
   });
 

@@ -159,9 +159,11 @@ const BINDINGS: Record<string, { def: string }> = {
   // The first SHOP-phase binding — a recruit moment kind, not a combat one (see recruitMoments.ts).
   rubyLanded: { def: 'ruby-gem-apply' },
   shopRubied: { def: 'ruby-gem-veinstorm' },
-  // NB: `shopBuffAll` is absent on purpose — its generic `shop-buff-aura` binding was REMOVED 2026-09-02 (owner
-  // ask: every stock shop/combat buff cue is being replaced by an authored pixi effect). The channel still
-  // fires; nothing is bound to it. Asserted unbound below.
+  // The whole shop buffed by the run-wide `tavernBuyBonus` channel — camera-anchored, one play for the row.
+  // Distinct from `shopRubied` on purpose: gems go through their own span, and Veinstorm deliberately never
+  // touches this channel, so the two can never both fire for one event. The stock `shop-buff-aura` was
+  // stripped 2026-09-02 and REPLACED the same day by the owner-authored `shop-buff-purple`.
+  shopBuffAll: { def: 'shop-buff-purple' },
   // A rune's own effect firing, on its HUD badge. Deliberately not `questTrigger`: that kind is anchored by
   // the combat score, which can only reach board units, so it has never played (see `runeTriggerFx.ts`).
   runeTriggered: { def: 'rune-burst' },
@@ -253,12 +255,12 @@ describe('the bound kinds', () => {
   // reach them. (`damage` is the one that matters most: quest beats used to be classified as damage moments,
   // so binding their def there would have fired it on every hit in the fight.)
   // `attackExchange` and `buffWave` are deliberately NOT on this list: both carry the self-buff fan-out (see
-  // FANOUT_BINDINGS). `shopBuffAll` JOINED it on 2026-09-02: its generic shop-aura binding was removed (owner
-  // ask) and nothing has replaced it yet. Everything else stays unbound, so the list keeps doing its job of
-  // catching a def bound somewhere nobody intended.
+  // FANOUT_BINDINGS). Everything else stays unbound, so the list keeps doing its job of catching a def bound
+  // somewhere nobody intended. (`tribeAura` — the board-wide aura wash — is the one buff cue still awaiting
+  // its replacement after the 2026-09-02 strip.)
   it('leaves every previously-effected kind unbound', () => {
     for (const kind of ['damage', 'death', 'riseDeath', 'shieldPop', 'poisonTick',
-      'scNarrate', 'summon', 'reborn', 'ascend', 'maxGold', 'improve', 'tribeAura', 'shopBuffAll'] as const) {
+      'scNarrate', 'summon', 'reborn', 'ascend', 'maxGold', 'improve', 'tribeAura'] as const) {
       expect(bindingFor(null, kind), kind).toBeNull();
     }
   });

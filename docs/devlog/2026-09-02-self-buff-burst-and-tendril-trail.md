@@ -1,9 +1,18 @@
-# 2026-09-02 — the first two replacement buff FX: `self-buff-burst` and `tendril-trail`
+# 2026-09-02 — the first replacement buff FX: `self-buff-burst`, `tendril-trail`, `shop-buff-purple`
 
 Same day as the strip ([2026-09-02-strip-generic-buff-fx](2026-09-02-strip-generic-buff-fx.md)). The owner
-authored two replacements in the workbench and they landed on the empty hooks the strip left behind. Two of
-the four generic cues are now re-covered; the sourceless descend and the tribe-aura wave are still awaiting
-theirs.
+authored three replacements in the workbench and they landed on the empty hooks the strip left behind. The
+self-buff, the buff-other tendril and the shop-wide buff are re-covered; the sourceless descend and the
+tribe-aura wave are still awaiting theirs.
+
+## `shop-buff-purple` — the `shopBuffAll` binding, on both surfaces
+
+Four camera-anchored bursts staggered 0/20/70/110 ms, squashed wide and lifted ~170 px — a violet spray that
+sweeps up across the shop row. Bound at `shopBuffAll`, which `runShopBuffAllFire` plays camera-anchored once
+for the whole row, exactly where `shop-buff-aura` came off. The mid-combat surface (a Demon Horse Shop buff
+earned mid-fight, owner report 2026-08-18) was restored too: the one literal `playDef('shop-buff-purple')` in
+`useCombatReplay`, in the lunge beside the "+A/+H" number, passing the buffer's uid. Registered in
+`DIRECT_CALL_SITES`. Saved by the workbench under that name; verified against the pasted def before binding.
 
 ## `self-buff-burst` — a binding, on the same three moments
 

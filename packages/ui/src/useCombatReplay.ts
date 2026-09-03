@@ -1908,10 +1908,7 @@ export function useCombatReplay(
     // board aura-wash off its `tribeAura` event — this one accumulated with NO cue at all and only showed up in
     // the next shop, so the moment it was earned looked like nothing happened (owner report 2026-07-31). Rides
     // the same `sc` narration shape spell power and Ruby power use, with the identical player-side gate.
-    // The mid-combat Shop buff (Demon Horse and friends) still floats its "+A/+H" number here. The authored
-    // `shop-buff-aura` bloom that used to play alongside it was REMOVED 2026-09-02 (owner ask: replace every
-    // stock buff cue with an authored pixi effect) — the number float carries the read for now, and a
-    // replacement effect can fire off each buffer's anchor (`anchorOf(e.source)`) when one exists.
+    let shopBuffAnchor: { cx: number; cy: number; uid: string } | null = null;
     for (let i = beat.start; i < beat.end; i++) {
       const e = events[i];
       if (!e || e.type !== 'sc' || !e.source || !e.text) continue;
@@ -1924,6 +1921,19 @@ export function useCombatReplay(
       if (!a) continue;
       const { cx, cy, h } = a;
       floatSpellPowerNumber(cx, cy - h * 0.3, gA, gH);
+      shopBuffAnchor = { cx, cy, uid: e.source };
+    }
+    // The authored shop-buff bloom, in the LUNGE with the number — because the `sc` is now absorbed into the
+    // attack wind-up (choreo/compile.ts), this block runs at the attack beat's presentation. Previously the
+    // bloom ONLY played later, over the shop row, on return to recruit (reducer's `tavernBuyBonus` diff) — so a
+    // Shop buff earned mid-combat had no on-attack bloom (owner report 2026-08-18). ONE camera-anchored play per
+    // beat (deduped over several shop-buffers), anchored at the last buffer for any source/target layers; the
+    // shop-row confirmation on return still fires there, a different surface. The def is the owner-authored
+    // `shop-buff-purple` (2026-09-02), which replaced the stripped stock `shop-buff-aura` on both surfaces.
+    if (shopBuffAnchor) {
+      const camera = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+      const at = { x: shopBuffAnchor.cx, y: shopBuffAnchor.cy };
+      playDef('shop-buff-purple', { source: at, target: at, camera }, { uids: { source: shopBuffAnchor.uid, target: shopBuffAnchor.uid }, index: 0 });
     }
     // RUN-WIDE TRIBE AURA rose this beat (Ryme, Anubis's Lantern of Souls, Deathswarmer, …): bloom the board
     // aura-wash, the SAME cue the recruit phase shows off `auraFxSeq`. Player side only — the wash is a

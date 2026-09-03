@@ -52,6 +52,9 @@
     "venomSpent": {
       "def": "venom-spent"
     },
+    "shopBuffAll": {
+      "def": "shop-buff-purple"
+    },
     "runeTriggered": {
       "def": "rune-burst"
     },

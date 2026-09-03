@@ -103,7 +103,7 @@ export function CombatOpponent(): JSX.Element | null {
           >
             {/* The foe's ATTACK PILL — same badge the player wears; inside the body so it rides the lunge. */}
             {pill?.side === 'opp' && <span key="hero-atk-opp" className={`hero-atk hero-atk-opp${pill.buffed ? ' buffed' : ''}${pill.leaving ? ' leaving' : ''}`}>{pill.buffed && <span className="atk-sheen" aria-hidden="true"><span className="atk-sheen-bar" /></span>}{pill.amount}</span>}
-            {art ? <img className="combatopp-img" src={art} alt="" draggable={false} /> : <Icon name="anvil" />}
+            {art ? <img decoding="sync" className="combatopp-img" src={art} alt="" draggable={false} /> : <Icon name="anvil" />}
             {/* Hover affordance — the same darkened prompt the player's portrait wears (owner ask 2026-08-30). */}
             {hasBuffs && (
               <span className="herohover" aria-hidden="true">
@@ -145,7 +145,7 @@ export function CombatOpponent(): JSX.Element | null {
               <div className="questbadge runebadge combatopp-rune" key={`${id}#${i}`} data-source-id={id}>
                 <div className="questbadge-inner">
                   {rart
-                    ? <img className="questbadge-art" src={rart} alt="" aria-hidden />
+                    ? <img decoding="sync" className="questbadge-art" src={rart} alt="" aria-hidden />
                     : <span className="questbadge-emblem" aria-hidden><Icon name="sc" /></span>}
                 </div>
                 <div className="questbadge-tip" role="tooltip">
@@ -167,7 +167,7 @@ export function CombatOpponent(): JSX.Element | null {
     {heroPowerArt(seat.heroId) && (
       <>
       <div className="heropowerbtn opp-power passive">
-        <span className="hpb-artwrap" aria-hidden="true"><img className="hpb-art" src={heroPowerArt(seat.heroId)} alt="" draggable={false} /></span>
+        <span className="hpb-artwrap" aria-hidden="true"><img decoding="sync" className="hpb-art" src={heroPowerArt(seat.heroId)} alt="" draggable={false} /></span>
       </div>
       {/* Hover tooltip — the same .herotip face the player's power shows (owner ask 2026-08-29), with the foe
           hero's STATIC power text (no live run numbers — we don't simulate the foe's shop state). A SIBLING

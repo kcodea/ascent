@@ -132,7 +132,7 @@ export function RecentGames(): JSX.Element | null {
               );
               const inner = (
                 <>
-                  <span className="matchportrait">{art ? <img src={art} alt={hero?.name ?? ''} draggable={false} /> : <Icon name="anvil" />}</span>
+                  <span className="matchportrait">{art ? <img decoding="sync" src={art} alt={hero?.name ?? ''} draggable={false} /> : <Icon name="anvil" />}</span>
                   <span className="matchmeta">
                     <span className="matchname">{r.author || 'Unnamed climber'}</span>
                     <span className="matchsub">{hero?.name ?? 'Unknown hero'}{whenText(r.createdAt) ? ` · ${whenText(r.createdAt)}` : ''}</span>

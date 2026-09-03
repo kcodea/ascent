@@ -659,7 +659,7 @@ export function StatusBar() {
               <span key={`dmg${heroDmgTaken.seq}`} className="hero-dmgtaken" aria-hidden="true">−{heroDmgTaken.amount}</span>
             )}
             {heroArt(hero.id) ? (
-              <img className="heroimg" src={heroArt(hero.id)} alt={hero.name} draggable={false} />
+              <img decoding="sync" className="heroimg" src={heroArt(hero.id)} alt={hero.name} draggable={false} />
             ) : (
               <Icon name="anvil" />
             )}
@@ -739,7 +739,7 @@ export function StatusBar() {
               {/* Art sits in a CIRCULAR clipping wrapper so the 💠 tuner's art offset/scale dials move the art
                   INSIDE the circle without moving the clip. */}
               {powerArt
-                ? <span className="hpb-artwrap" aria-hidden="true"><img className="hpb-art" src={powerArt} alt="" draggable={false} /></span>
+                ? <span className="hpb-artwrap" aria-hidden="true"><img decoding="sync" className="hpb-art" src={powerArt} alt="" draggable={false} /></span>
                 : <Icon name="sc" />}
               {/* The REFRESH bloom — a one-shot circular flash as the power re-arms (never a loop). */}
               {refreshFlash && <span className="hpb-flash" aria-hidden="true" />}
@@ -775,7 +775,7 @@ export function StatusBar() {
                   style={{ '--c': 'var(--t-neutral)' } as CSSProperties}
                   onClick={() => { setPickingCommission(false); dispatch({ type: 'heroPower', commission: kind, slot: pickerSlot }); }}
                 >
-                  {heroPowerArt(`cassen-${kind}`) && <img className="questcard-art" src={heroPowerArt(`cassen-${kind}`)} alt="" aria-hidden />}
+                  {heroPowerArt(`cassen-${kind}`) && <img decoding="sync" className="questcard-art" src={heroPowerArt(`cassen-${kind}`)} alt="" aria-hidden />}
                   <span className="questcard-emblem" aria-hidden><Icon name="target" /></span>
                   <div className="questcard-head">
                     <div className="questcard-tier">Commission · {COMMISSION_DELAY[kind]} turns</div>
@@ -808,7 +808,7 @@ export function StatusBar() {
                   style={{ '--c': 'var(--t-neutral)' } as CSSProperties}
                   onClick={() => { setPickingFlash(false); dispatch({ type: 'heroPower', flashPick: end, slot: pickerSlot }); }}
                 >
-                  {heroPowerArt(`flash-${end}`) && <img className="questcard-art" src={heroPowerArt(`flash-${end}`)} alt="" aria-hidden />}
+                  {heroPowerArt(`flash-${end}`) && <img decoding="sync" className="questcard-art" src={heroPowerArt(`flash-${end}`)} alt="" aria-hidden />}
                   <span className="questcard-emblem" aria-hidden><Icon name="target" /></span>
                   <div className="questcard-head">
                     <div className="questcard-tier">Claim · next combat</div>
@@ -936,7 +936,7 @@ export function StatusBar() {
               >
                 <span className="hpb-glow" aria-hidden="true" />
                 {art2
-                  ? <span className="hpb-artwrap" aria-hidden="true"><img className="hpb-art" src={art2} alt="" draggable={false} /></span>
+                  ? <span className="hpb-artwrap" aria-hidden="true"><img decoding="sync" className="hpb-art" src={art2} alt="" draggable={false} /></span>
                   : <span className="hpb-glyph" aria-hidden="true">✦</span>}
               </button>
               {/* Cost coin, tracker pill and centre magnitude — the same three the main power shows, from
@@ -968,12 +968,12 @@ export function StatusBar() {
              `aria-hidden` because a screen reader should not be told about something already gone. */
           <div className="heropanel equipslot leaving" aria-hidden="true">
             <div className="hpwrap">
-              <img className="equipframe" src={`${import.meta.env.BASE_URL}frames/equipment-frame.webp`}
+              <img decoding="sync" className="equipframe" src={`${import.meta.env.BASE_URL}frames/equipment-frame.webp`}
                    alt="" aria-hidden="true" draggable={false} />
               <button type="button" className="heropowerbtn" disabled tabIndex={-1}>
                 <span className="hpb-glow" aria-hidden="true" />
                 {equipSnap.art
-                  ? <span className="hpb-artwrap" aria-hidden="true"><img className="hpb-art" src={equipSnap.art} alt="" draggable={false} /></span>
+                  ? <span className="hpb-artwrap" aria-hidden="true"><img decoding="sync" className="hpb-art" src={equipSnap.art} alt="" draggable={false} /></span>
                   : <span className="hpb-glyph" aria-hidden="true">⚒</span>}
               </button>
               {equipSnap.cost ? <span className="hpcost"><span className="costn">{equipSnap.cost}</span></span> : null}
@@ -989,7 +989,7 @@ export function StatusBar() {
                   clipped to a circle, and a frame painted as its background would be clipped with it. As a
                   sibling it can also be sent BEHIND the icon or left in front of it, which is a dial.
                   `aria-hidden` + no pointer events — it is chrome, and must never eat the click that arms. */}
-              <img className="equipframe" src={`${import.meta.env.BASE_URL}frames/equipment-frame.webp`}
+              <img decoding="sync" className="equipframe" src={`${import.meta.env.BASE_URL}frames/equipment-frame.webp`}
                    alt="" aria-hidden="true" draggable={false} />
               <button
                 type="button"
@@ -1014,7 +1014,7 @@ export function StatusBar() {
                 {equipArt
                   ? (
                     <span className="hpb-artwrap" aria-hidden="true">
-                      <img className="hpb-art" src={equipArt} alt="" draggable={false} />
+                      <img decoding="sync" className="hpb-art" src={equipArt} alt="" draggable={false} />
                       {/* The band lives INSIDE the art wrapper on purpose (owner: "it should play on the card
                           art itself and not the equipment slot png"). That wrapper is already the circular
                           clip, so the sweep is bounded by the art and cannot cross the frame. Remounted by
@@ -1075,7 +1075,7 @@ export function StatusBar() {
                       }}
                     >
                       <span className="equiprail-icon" aria-hidden="true">
-                        {art ? <img src={art} alt="" draggable={false} /> : <span className="equiprail-glyph">⚒</span>}
+                        {art ? <img decoding="sync" src={art} alt="" draggable={false} /> : <span className="equiprail-glyph">⚒</span>}
                       </span>
                       <span className="equiprail-name">{def?.name ?? g.equipmentId}</span>
                       {def ? <span className="equiprail-cost">{equipmentCostOf(run, def)}</span> : null}

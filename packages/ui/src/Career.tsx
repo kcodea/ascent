@@ -229,7 +229,7 @@ export function Career() {
                     <div className="caravatar">{avatarChar || <Icon name="anvil" />}</div>
                   ) : (
                     <button className="caravatar pressable" onClick={openAvatarPicker} title="Change your avatar">
-                      {avatarImg ? <img src={avatarImg} alt="Your avatar" draggable={false} /> : avatarChar || <Icon name="anvil" />}
+                      {avatarImg ? <img decoding="sync" src={avatarImg} alt="Your avatar" draggable={false} /> : avatarChar || <Icon name="anvil" />}
                     </button>
                   )}
                 </div>
@@ -299,7 +299,7 @@ export function Career() {
                       {stats.perHero.map((h) => (
                         <div className="carherorow" key={h.heroId}>
                           <div className="carhero-portrait">
-                            {heroArt(h.heroId) ? <img src={heroArt(h.heroId)} alt={getHero(h.heroId).name} draggable={false} /> : <Icon name="anvil" />}
+                            {heroArt(h.heroId) ? <img decoding="sync" src={heroArt(h.heroId)} alt={getHero(h.heroId).name} draggable={false} /> : <Icon name="anvil" />}
                           </div>
                           <div className="carhero-name">{getHero(h.heroId).name}</div>
                           <div className="carhero-wl"><span className="chw-w">{h.lineWins}W</span>–<span className="chw-l">{h.lineLosses}L</span></div>
@@ -339,7 +339,7 @@ export function Career() {
                           onKeyDown={(ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); toggle(i); } }}
                         >
                           <div className="lbportrait">
-                            {heroArt(e.heroId) ? <img src={heroArt(e.heroId)} alt={getHero(e.heroId).name} draggable={false} /> : <Icon name="anvil" />}
+                            {heroArt(e.heroId) ? <img decoding="sync" src={heroArt(e.heroId)} alt={getHero(e.heroId).name} draggable={false} /> : <Icon name="anvil" />}
                           </div>
                           <div className="lbinfo">
                             <div className="lbname">

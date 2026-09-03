@@ -19,7 +19,7 @@ const TITLE_LOGO_SRC = `${import.meta.env.BASE_URL}frames/title-logo.png`;
 export function AscentLogo({ className, headingClass = 'disp titleword' }: { className: string; headingClass?: string }) {
   return (
     <div className={className}>
-      <img className="crest" src={TITLE_LOGO_SRC} alt="" aria-hidden="true" draggable={false} />
+      <img decoding="sync" className="crest" src={TITLE_LOGO_SRC} alt="" aria-hidden="true" draggable={false} />
       <h1 className={headingClass}>{getTitleText().wordmark}</h1>
     </div>
   );

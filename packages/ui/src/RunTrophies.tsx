@@ -25,7 +25,7 @@ export function RunTrophies({ quests, runes }: { quests?: string[]; runes?: stri
         return (
           <div className="runtrophy runetrophy" key={`r-${rune.id}`}>
             <div className="runtrophy-inner">
-              {art ? <img className="runtrophy-art" src={art} alt="" aria-hidden /> : <span className="runtrophy-emblem" aria-hidden><Icon name="anvil" /></span>}
+              {art ? <img decoding="sync" className="runtrophy-art" src={art} alt="" aria-hidden /> : <span className="runtrophy-emblem" aria-hidden><Icon name="anvil" /></span>}
             </div>
             <div className="runtrophy-tip" role="tooltip">
               <b>{rune.name}</b>
@@ -40,7 +40,7 @@ export function RunTrophies({ quests, runes }: { quests?: string[]; runes?: stri
         return (
           <div className="runtrophy" style={{ ['--c' as string]: def.tribe === 'neutral' ? 'var(--t-neutral)' : `var(--t-${def.tribe})` }} key={`q-${def.id}`}>
             <div className="runtrophy-inner">
-              {art ? <img className="runtrophy-art" src={art} alt="" aria-hidden /> : <span className="runtrophy-emblem" aria-hidden><Icon name={TRIBE_ICON[def.tribe]} /></span>}
+              {art ? <img decoding="sync" className="runtrophy-art" src={art} alt="" aria-hidden /> : <span className="runtrophy-emblem" aria-hidden><Icon name={TRIBE_ICON[def.tribe]} /></span>}
             </div>
             <div className="runtrophy-tip" role="tooltip">
               <b>{def.name}</b>

@@ -536,7 +536,7 @@ export function MinionBook() {
                     <div className="book-cell" key={h.id}>
                       <div className="bookhero">
                         <div className="bookhero-art">
-                          {art ? <img src={art} alt={h.name} draggable={false} /> : <Icon name="shield" />}
+                          {art ? <img decoding="sync" src={art} alt={h.name} draggable={false} /> : <Icon name="shield" />}
                         </div>
                         <div className="bookhero-name">{h.name}</div>
                         <div className="bookhero-hp" title="Starting Health + Armor">

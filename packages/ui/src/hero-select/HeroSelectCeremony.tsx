@@ -384,7 +384,7 @@ export function HeroSelectCeremony({ state, dispatch, cardEls }: Props) {
         <div className="herocard big hsc-clone-card" style={{ width: BIG_CARD_W, transform: `scale(${k})` }}>
           <div ref={frameRef} className="hcframe">
             <div className="hcname">{hero.name}</div>
-            {art ? <img className="hcframe-art" src={art} alt="" draggable={false} /> : <Icon name="anvil" />}
+            {art ? <img decoding="sync" className="hcframe-art" src={art} alt="" draggable={false} /> : <Icon name="anvil" />}
             <div className="hchp">
               <Icon name="heart" />
               {hero.resolve}
@@ -441,11 +441,11 @@ export function HeroSelectCeremony({ state, dispatch, cardEls }: Props) {
               }}
               aria-hidden="true"
             >
-              <img src={art} alt="" draggable={false} />
+              <img decoding="sync" src={art} alt="" draggable={false} />
             </div>
             {flashed && (
               <>
-                <img
+                <img decoding="sync"
                   className="hsc-ring"
                   src={ringArt}
                   alt=""

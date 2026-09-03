@@ -183,7 +183,7 @@ export function QuestBadges() {
             <div className="questbadge-inner" key={triggered[id] ?? 0} data-pulse={triggered[id] ?? 0}>
               {(triggered[id] ?? 0) > 0 && <span className="questbadge-pulse" aria-hidden />}
               {art
-                ? <img className="questbadge-art" src={art} alt="" aria-hidden />
+                ? <img decoding="sync" className="questbadge-art" src={art} alt="" aria-hidden />
                 : <span className="questbadge-emblem" aria-hidden><Icon name="sc" /></span>}
             </div>
             {/* LIVE METER (owner ask 2026-08-03) — a rune that fires on a threshold shows how close it is,
@@ -232,7 +232,7 @@ export function QuestBadges() {
             <div className="questbadge pending" style={{ '--c': cP } as CSSProperties} key={aq.questId}>
               <div className="questbadge-inner">
                 {art ? (
-                  <img className="questbadge-art" src={art} alt="" aria-hidden />
+                  <img decoding="sync" className="questbadge-art" src={art} alt="" aria-hidden />
                 ) : (
                   <span className="questbadge-emblem" aria-hidden><Icon name={TRIBE_ICON[def.tribe]} /></span>
                 )}
@@ -291,7 +291,7 @@ export function QuestBadges() {
             <div className="questbadge-inner" key={pulse} data-pulse={pulse}>
               {pulse > 0 && <span className="questbadge-pulse" aria-hidden />}
               {art ? (
-                <img className="questbadge-art" src={art} alt="" aria-hidden />
+                <img decoding="sync" className="questbadge-art" src={art} alt="" aria-hidden />
               ) : (
                 <span className="questbadge-emblem" aria-hidden><Icon name={TRIBE_ICON[def.tribe]} /></span>
               )}
@@ -326,14 +326,14 @@ export function QuestBadges() {
           discs still `mix-blend-mode` against the badges behind them. LAST children: absolutely positioned (DOM
           order sets paint order — they ride on top) and keep the badges' `:nth-child` stagger counting from 1. */}
       {runes.length > 0 && [1, 2, 3].map((n) => (
-        <img key={n} className={`rune-sheen rune-sheen-${n}`} src={`${F}rune-sheen-${n}.webp`} alt="" draggable={false} aria-hidden />
+        <img decoding="sync" key={n} className={`rune-sheen rune-sheen-${n}`} src={`${F}rune-sheen-${n}.webp`} alt="" draggable={false} aria-hidden />
       ))}
       {/* CHAINS on the LOCKED third rune slot (owner ask 2026-08-19): shown once the rune row is up but the 3rd
           slot is empty AND out of reach — most runs only ever get 2 (basic forge turn 6, epic turn 9). It clears
           the instant the slot could be filled (a runeforge-native hero / Rune of the Epic Forge) or actually is
           (a 3rd owned rune, e.g. via Duplication). Placement from the 💠 Rune Sheen tuner (`--rch-*`). */}
       {showChains && (
-        <img className="rune-chains" src={`${F}rune-chains.webp`} alt="" draggable={false} aria-hidden />
+        <img decoding="sync" className="rune-chains" src={`${F}rune-chains.webp`} alt="" draggable={false} aria-hidden />
       )}
     </div>
   );

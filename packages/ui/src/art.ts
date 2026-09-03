@@ -13,6 +13,9 @@
  * so a shared/hoisted options variable fails the build with "Invalid glob import syntax".
  */
 import { PUBLIC_ASSETS } from './publicAssets.generated';
+// The one image reached by a STATIC import rather than a glob or public/ (the hero-select ceremony portrait).
+// Listed here by hand so the boot warms it; `preloadImages.test.ts` pins it.
+import heroSelectPortraitUrl from './hero-select/heroportrait.png';
 
 type ArtModules = Record<string, string>;
 
@@ -201,6 +204,7 @@ export const ALL_IMAGE_URLS: readonly string[] = [
     ...Object.values(HERO_ART), ...Object.values(POWER_ART), ...Object.values(QUEST_ART),
     ...Object.values(RUNE_ART), ...Object.values(MODE_ART),
     ...PUBLIC_ASSETS.map((p) => `${import.meta.env.BASE_URL}${p}`),
+    heroSelectPortraitUrl,
   ]),
 ];
 /** Kept under its old name for the callers that read it. */

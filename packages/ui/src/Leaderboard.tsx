@@ -106,7 +106,7 @@ export function Leaderboard() {
                 <div className="lbentry-head">
                   <div className="lbrank">{i + 1}</div>
                   <div className="lbportrait">
-                    {art ? <img src={art} alt={hero.name} draggable={false} /> : <Icon name="anvil" />}
+                    {art ? <img decoding="sync" src={art} alt={hero.name} draggable={false} /> : <Icon name="anvil" />}
                   </div>
                   <div className="lbinfo">
                     <div className="lbname">{r.author || hero.name}</div>

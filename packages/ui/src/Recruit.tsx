@@ -6160,7 +6160,7 @@ export function Recruit() {
           return (
             <div className="wipevs">
               <div className="wipevs-label">Now Facing</div>
-              <img className="wipevs-face" src={heroArt(foe.seat.heroId)} alt="" draggable={false} />
+              <img decoding="sync" className="wipevs-face" src={heroArt(foe.seat.heroId)} alt="" draggable={false} />
               <div className="wipevs-name">{foe.seat.label}</div>
             </div>
           );
@@ -6170,7 +6170,7 @@ export function Recruit() {
         {wipeExiting && (
           <div className="wipevs">
             <div className="wipevs-label">Returning to Shop</div>
-            <img className="wipevs-face" src={`${import.meta.env.BASE_URL}return-to-shop.webp`} alt="" draggable={false} />
+            <img decoding="sync" className="wipevs-face" src={`${import.meta.env.BASE_URL}return-to-shop.webp`} alt="" draggable={false} />
           </div>
         )}
       </div>
@@ -7086,7 +7086,7 @@ export function Recruit() {
                 return (
                   <button key={hid} className="powerpick pressable" onClick={() => { sfx.pulse(); dispatch({ type: 'pickPower', index: i }); }}>
                     <span className="powerpick-art">
-                      {art ? <img src={art} alt="" draggable={false} /> : <span className="powerpick-glyph" aria-hidden>✦</span>}
+                      {art ? <img decoding="sync" src={art} alt="" draggable={false} /> : <span className="powerpick-glyph" aria-hidden>✦</span>}
                     </span>
                     <span className="powerpick-name disp">{h.power.name}</span>
                     <span className="powerpick-hero">{h.name}</span>

@@ -790,15 +790,15 @@ export const Card = memo(function Card({
       {align && <div className={`alignarc aa-${align}`} aria-hidden="true" />}
       {/* Backplate — the ornate card body behind everything, on hand + dragged-from-hand cards only. FIRST
           child so tree order paints it behind every sibling; `.card.plated` isolates so its z-index can't
-          escape into neighbouring cards. `<img>` rather than a CSS background so a 404 is detectable. */}
+          escape into neighbouring cards. `<img decoding="sync">` rather than a CSS background so a 404 is detectable. */}
       {usePlate && (
         <>
           {/* Hover glow, plate edition — a COPY of the plate art seated behind the real one, carrying a
               static drop-shadow halo. Only its OPACITY animates (compositor-only), exactly how `.cglow`
               handles the frame; the real plate is opaque, so only the outward halo is ever visible. Same
               src, so the browser serves it from cache — no second decode. */}
-          <img className="plateglow" src={plateSrcFor(card.tribe)} alt="" aria-hidden="true" draggable={false} />
-          <img
+          <img decoding="sync" className="plateglow" src={plateSrcFor(card.tribe)} alt="" aria-hidden="true" draggable={false} />
+          <img decoding="sync"
             className="cardplate"
             src={plateSrcFor(card.tribe)}
             alt=""
@@ -849,14 +849,14 @@ export const Card = memo(function Card({
             lowest, so it sits BEHIND the plaque (owner 2026-07-26) and reads as light radiating out from
             behind it rather than washing over its face. Opacity is the only animated property (`.tierglow`). */}
         {card.tier === 7 && <span className="tierbadge tierglow" aria-hidden="true" />}
-        <img
+        <img decoding="sync"
           className="tierbadge tierplate"
           src={tierPlateSrc(!!card.golden)}
           alt=""
           aria-hidden="true"
           draggable={false}
         />
-        <img
+        <img decoding="sync"
           className="tierbadge tierstars"
           data-tier={card.tier}
           src={tierStarsSrc(card.tier)}
@@ -976,12 +976,12 @@ export const Card = memo(function Card({
           <>
             {/* grounding shadow (see styles.css "GROUNDING SHADOW"): a black, blurred copy of the frame seated
                 behind the art, so the shield reads as sitting on the board rather than floating. */}
-            <img className="tframe tframe-img cshadow" src={tauntFrameSrcFor(card.tribe, !!card.golden)} alt="" aria-hidden="true" />
+            <img decoding="sync" className="tframe tframe-img cshadow" src={tauntFrameSrcFor(card.tribe, !!card.golden)} alt="" aria-hidden="true" />
             {/* hover glow (see styles.css ".cglow"): a pure-teal SILHOUETTE of the frame seated behind the art
                 (z0) — a masked child (the bright rim) inside a parent that casts the soft bloom. Not a frame-PNG
                 copy, so it's always teal and W/H-scalable with no gold/silver frame ever showing. */}
             <div className="cglow" aria-hidden="true"><span className="cglow-rim" /></div>
-            <img
+            <img decoding="sync"
               className="tframe tframe-img"
               src={tauntFrameSrcFor(card.tribe, !!card.golden)}
               alt=""
@@ -1023,12 +1023,12 @@ export const Card = memo(function Card({
           <>
             {/* grounding shadow (see styles.css "GROUNDING SHADOW") — a black, blurred copy of the oval seated
                 behind the art so the card sits on the board. */}
-            <img className="cframe cframe-img cshadow" src={stdFrameSrcFor(card.tribe, !!card.golden)} alt="" aria-hidden="true" />
+            <img decoding="sync" className="cframe cframe-img cshadow" src={stdFrameSrcFor(card.tribe, !!card.golden)} alt="" aria-hidden="true" />
             {/* hover glow (see styles.css ".cglow"): a pure-teal SILHOUETTE of the frame seated behind the art
                 (z0) — a masked child (the bright rim) inside a parent that casts the soft bloom. Not a frame-PNG
                 copy, so it's always teal and W/H-scalable with no gold/silver frame ever showing. */}
             <div className="cglow" aria-hidden="true"><span className="cglow-rim" /></div>
-            <img
+            <img decoding="sync"
               className="cframe cframe-img"
               src={stdFrameSrcFor(card.tribe, !!card.golden)}
               alt=""
@@ -1049,12 +1049,12 @@ export const Card = memo(function Card({
           <>
             {/* grounding shadow (see styles.css "GROUNDING SHADOW") — a black, blurred copy of the square seated
                 behind the art so the spell sits on the board. */}
-            <img className="cframe cframe-img cshadow" src={SPELL_FRAME_SRC} alt="" aria-hidden="true" />
+            <img decoding="sync" className="cframe cframe-img cshadow" src={SPELL_FRAME_SRC} alt="" aria-hidden="true" />
             {/* hover glow (see styles.css ".cglow"): a pure-teal SILHOUETTE of the frame seated behind the art
                 (z0) — a masked child (the bright rim) inside a parent that casts the soft bloom. Not a frame-PNG
                 copy, so it's always teal and W/H-scalable with no gold/silver frame ever showing. */}
             <div className="cglow" aria-hidden="true"><span className="cglow-rim" /></div>
-            <img
+            <img decoding="sync"
               className="cframe cframe-img"
               src={SPELL_FRAME_SRC}
               alt=""
@@ -1107,7 +1107,7 @@ export const Card = memo(function Card({
             text reads cleanly. FIRST child so tree order paints it behind every text sibling; `.drawer` keeps
             NO z-index (load-bearing — see styles.css) so this needs none either. Dialed in the 🔤 Card Text
             tuner (backbox · size/x/y/opacity/blend). */}
-        <img className="descbox" src={DESC_BOX_SRC} alt="" aria-hidden="true" draggable={false} />
+        <img decoding="sync" className="descbox" src={DESC_BOX_SRC} alt="" aria-hidden="true" draggable={false} />
         <div className="cn">{card.name}</div>
         {card.text && (
           <div className="desc">

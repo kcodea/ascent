@@ -55,6 +55,21 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-09-03',
+    label: 'Loading',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: 'The game now loads everything up front: click to begin, watch a real loading bar, and nothing pops in or hitches the first time you see it.',
+        details: [
+          'The loading screen now asks for a click, then loads every card, rune, quest and frame image, every sound, the fonts, and warms up the combat effects before the menu opens. The bar shows real progress.',
+          'First-time stutters — the first sound of a kind, the first effect of a kind, art appearing a beat late — are gone in exchange for a longer first load.',
+          'Fonts are bundled with the game, so text no longer shifts as they arrive and the desktop version renders correctly offline.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-09-02',
     label: 'New Buff FX',
     changes: [

@@ -60,12 +60,16 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'UI / Info',
-        text: 'The game now loads everything up front: click to begin, watch a real loading bar, and nothing pops in or hitches the first time you see it.',
+        text: 'The game now loads everything up front — a real loading bar, then "Click to begin" — so nothing pops in or hitches the first time you see it.',
         details: [
-          'The loading screen now asks for a click, then loads every card, rune, quest and frame image, every sound, the fonts, and warms up the combat effects before the menu opens. The bar shows real progress.',
+          'The loading screen now loads every card, rune, quest and frame image, every sound, the fonts, and fires every combat effect once behind the scenes before the menu opens. The bar shows real progress; "Click to begin" appears once it is done.',
           'First-time stutters — the first sound of a kind, the first effect of a kind, art appearing a beat late — are gone in exchange for a longer first load.',
           'Fonts are bundled with the game, so text no longer shifts as they arrive and the desktop version renders correctly offline.',
         ],
+      },
+      {
+        category: 'UI / Info',
+        text: 'The golden burst behind combat damage numbers is back in the downloadable and itch.io builds — it had been missing there since it shipped, while showing correctly in development.',
       },
     ],
   },

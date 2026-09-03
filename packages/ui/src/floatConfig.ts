@@ -97,13 +97,25 @@ export const FLOAT_RANGES: Record<Exclude<keyof FloatConfig, 'numStrokeColor' | 
   rotRange: [0, 45, 1],
 };
 
-/** The two burst PNGs the picker chooses between (served from `apps/web/public/fx/`). The path is prefixed
- *  with `import.meta.env.BASE_URL` (which ends in `/`) so it resolves under itch.io's CDN sub-path — a bare
- *  `/fx/…` string literal 404s there (Vite rewrites `url(/…)` in CSS but not a JS string; see
- *  `publicAssetPaths.test.ts`). */
+/** A public asset path as an ABSOLUTE `url()` for use inside a CSS custom property.
+ *
+ *  Two traps stack here. A bare `/fx/…` literal 404s under itch.io's CDN sub-path, so the path must carry
+ *  `import.meta.env.BASE_URL` (see `publicAssetPaths.test.ts`). But in a production build that base is `./`,
+ *  and Chromium resolves a RELATIVE url() inside a custom property against the stylesheet that reads the
+ *  variable — `assets/index-*.css` — not the page. So the burst was requested from `assets/fx/…`, which does
+ *  not exist, and every damage number in the itch + desktop builds lost its backdrop (owner report
+ *  2026-09-02). Dev never showed it: its base is `/`, already absolute. Resolving against `document.baseURI`
+ *  here makes the value absolute in every environment (dev `/`, itch sub-path, the desktop `app://` scheme). */
+export function publicAssetCssUrl(relPath: string, baseURI?: string): string {
+  // `document` is absent in the node test environment that imports this module for its pure helpers.
+  const base = baseURI ?? (typeof document !== 'undefined' ? document.baseURI : 'http://localhost/');
+  return `url('${new URL(`${import.meta.env.BASE_URL}${relPath}`, base).href}')`;
+}
+
+/** The two burst PNGs the picker chooses between (served from `apps/web/public/fx/`). */
 const SPLASH_IMG_URL: Record<string, string> = {
-  '1': `url('${import.meta.env.BASE_URL}fx/damage-splash.png')`,
-  '2': `url('${import.meta.env.BASE_URL}fx/damage-splash-2.png')`,
+  '1': publicAssetCssUrl('fx/damage-splash.png'),
+  '2': publicAssetCssUrl('fx/damage-splash-2.png'),
 };
 /** The shipped values, exported so the tuner can mark which controls you have moved away from them. */
 export { DEFAULTS as FLOAT_DEFAULTS };

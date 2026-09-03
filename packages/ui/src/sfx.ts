@@ -22,6 +22,7 @@ import {
   type CompConfig,
   type CategoryConfig,
 } from './audio/config';
+import { familyOf } from './audio/clipFamily';
 import { SCENES } from './audio/scenes';
 
 export { SCENES };
@@ -536,8 +537,8 @@ export const sfx = {
   },
   runeSelect: (vol = 1, delay = 0) => {
     if (vol <= 0) return;
-    if (playSample('runeselect', 'ui', Math.max(0, delay) / 1000, ({ gain }) => { gain.gain.value *= vol; })) return;
-    tone({ freq: 620, dur: 0.16, type: 'triangle', vol: 0.1 * vol, slideTo: 940, category: 'ui' });
+    if (playSample('runeselect', 'runeselect', Math.max(0, delay) / 1000, ({ gain }) => { gain.gain.value *= vol; })) return;
+    tone({ freq: 620, dur: 0.16, type: 'triangle', vol: 0.1 * vol, slideTo: 940, category: 'runeselect' });
   },
   /**
    * The Auctioneer's Pulse landing on the minion it calls back (owner-authored clip, 2026-08-30).
@@ -547,8 +548,8 @@ export const sfx = {
    */
   auctioneerPower: (vol = 1) => {
     if (vol <= 0) return;
-    if (playSample('auctioneerhp', 'ui', 0, ({ gain }) => { gain.gain.value *= vol; })) return;
-    tone({ freq: 480, dur: 0.2, type: 'triangle', vol: 0.1 * vol, slideTo: 760, category: 'ui' });
+    if (playSample('auctioneerhp', 'auctioneerhp', 0, ({ gain }) => { gain.gain.value *= vol; })) return;
+    tone({ freq: 480, dur: 0.2, type: 'triangle', vol: 0.1 * vol, slideTo: 760, category: 'auctioneerhp' });
   },
   equipmentUse: (clipId: string, delay = 0) => {
     // PER-CLIP category (owner ask 2026-08-31), so the desk shows one named fader per Equipment rather than a
@@ -854,6 +855,25 @@ export function setCategory(cat: string, patch: Partial<CategoryConfig>): void {
   const prev: CategoryConfig = cfg.categories[cat] ?? { bus: 'ui', gain: 0.6 };
   cfg.categories[cat] = { ...prev, ...patch };
   persistConfig();
+}
+/** Every committed clip's sample-name (`heroes/keshi`, `TallyTravel`, `buy1`), sorted — the desk derives one
+ *  channel fader per clip from the audio glob, so a newly-dropped file appears on the board with no code. */
+export function clipNames(): string[] {
+  return Object.keys(SAMPLE_URLS).map(sampleName).sort();
+}
+/** A clip's per-clip channel gain: a multiplier ON TOP of its category's group fader (1 = untouched). */
+export function clipGain(clip: string): number {
+  return cfg.clips[clip] ?? 1;
+}
+/** Set a clip's per-clip channel gain (the `clips` multiplier) — persists. Exactly 1 clears the override so the
+ *  config stays sparse (only moved clips are stored). */
+export function setClipGain(clip: string, v: number): void {
+  if (v === 1) delete cfg.clips[clip]; else cfg.clips[clip] = v;
+  persistConfig();
+}
+/** Play ONE exact clip at its category's effective gain — the desk's per-clip ▶ (silent until decoded). */
+export function previewClip(clip: string): void {
+  playSample(clip, familyOf(clip));
 }
 /** Peak level 0..1 for a meter key ('master' | bus name). */
 export function meterLevel(key: string): number {

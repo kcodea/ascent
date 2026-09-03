@@ -2,8 +2,10 @@ import { useEffect, useRef, useState } from 'react';
 import {
   getAudioConfig, setBusGain, setMasterComp, setCategory, previewSfx,
   meterLevel, gainReduction, exportConfig, playScene, SCENES,
+  clipNames, clipGain, setClipGain, previewClip,
 } from './sfx';
 import { BUS_NAMES, CATEGORY_LABEL, type BusName, type CompConfig, type CategoryConfig } from './audio/config';
+import { familyOf, CLIP_LABEL } from './audio/clipFamily';
 import { useDraggablePanel } from './useDraggablePanel';
 
 const MASTER_DIALS: { k: keyof CompConfig; min: number; max: number; step: number }[] = [
@@ -49,6 +51,14 @@ export function SfxMixer() {
   );
   const catsByBus = (b: BusName): [string, CategoryConfig][] =>
     Object.entries(cfg.categories).filter(([, c]) => c.bus === b);
+  // Every committed clip bucketed under its category (group) — so a bundle category (attack, heroSelect, …)
+  // can show one channel fader per clip beneath its group fader. Derived from the audio glob, so a new file
+  // just appears. A 1-clip category is left as its single group fader (that fader already IS its one sound).
+  const clipsByCat = new Map<string, string[]>();
+  for (const clip of clipNames()) {
+    const cat = familyOf(clip);
+    (clipsByCat.get(cat) ?? clipsByCat.set(cat, []).get(cat)!).push(clip);
+  }
   const copy = (): void => {
     void navigator.clipboard?.writeText(exportConfig());
     setCopied(true); window.setTimeout(() => setCopied(false), 1400);
@@ -123,6 +133,22 @@ export function SfxMixer() {
                     {BUS_NAMES.map((x) => <option key={x} value={x}>{x}</option>)}
                   </select>
                   <div className="cstrip-name" title={CATEGORY_LABEL[cat] ? `${CATEGORY_LABEL[cat]} (${cat})` : cat}>{CATEGORY_LABEL[cat] ?? cat}</div>
+                  {/* Per-clip CHANNEL faders — one per sound bundled under this group. Only when the group holds
+                      MORE than one clip; a 1-clip category's group fader above already moves its single sound.
+                      Each fader is a multiplier on top of the group (1 = untouched → the mix is unchanged). */}
+                  {(clipsByCat.get(cat) ?? []).length > 1 && (
+                    <div className="clip-faders">
+                      {(clipsByCat.get(cat) ?? []).map((clip) => (
+                        <div className="clipstrip" key={clip}>
+                          <button className="play" onClick={() => previewClip(clip)} title={`Play ${CLIP_LABEL[clip] ?? clip}`}>▶</button>
+                          <input className="chfader" type="range" min={0} max={2} step={0.01} value={clipGain(clip)}
+                            onChange={(e) => { setClipGain(clip, Number(e.target.value)); rerender(); }} />
+                          {numField(clipGain(clip), 0, 2, (n) => setClipGain(clip, n), `${clip} channel level (× group)`)}
+                          <div className="clipstrip-name" title={clip}>{CLIP_LABEL[clip] ?? clip}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

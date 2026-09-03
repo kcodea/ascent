@@ -29,6 +29,9 @@ export const CATEGORY_GAINS: Record<string, number> = {
   felSpikeEcho: 0.5, felSpikeEchoLand: 0.5,
   uihover: 0.08,
   runeArrival: 0.6,
+  // Clips that used to ride the generic `ui` fallback (0.6) with no fader of their own — seeded at that exact
+  // level so the mix is unchanged; now visible/tunable. `ceremony` bundles the hero-select stingers.
+  ceremony: 0.6, auctioneerhp: 0.6, runeselect: 0.6,
   // ── Equipment (owner ask 2026-08-31: "add an equipment section for me ... named/titled based on the
   //    card/effect so it is easier to understand what each effect is tied to"). One category PER CLIP, so a
   //    fader moves exactly one sound, and every name says which card it belongs to (see CATEGORY_LABEL).
@@ -49,6 +52,9 @@ export const CATEGORY_BUS: Record<string, BusName> = {
   cardVoice: 'voice', cardEffect: 'voice', cardDeath: 'voice',
   heroSelect: 'hero', heroPower: 'hero',
   runeArrival: 'ui',
+  // Bus routing is inert today (every bus is gain 1, no comp), so this only changes where they GROUP on the
+  // desk, not the sound: the hero-select stingers + the Auctioneer power sit on the hero bus, rune-select on ui.
+  ceremony: 'hero', auctioneerhp: 'hero', runeselect: 'ui',
   eqEquipClang: 'equipment', eqSelect: 'equipment', eqSheen: 'equipment',
   eqUseBloodpot: 'equipment', eqUseTitanHammer: 'equipment', eqUseBlastPump: 'equipment',
   eqUsePrismaticPick: 'equipment', eqUseDuelingRubettas: 'equipment', eqUseOther: 'equipment',
@@ -61,6 +67,9 @@ export const CATEGORY_BUS: Record<string, BusName> = {
  */
 export const CATEGORY_LABEL: Record<string, string> = {
   runeArrival: 'Rune arrival — implosion on the badge',
+  ceremony: 'Ceremony — hero-select stingers',
+  auctioneerhp: 'Auctioneer — hero power',
+  runeselect: 'Rune select — frame clang',
   eqEquipClang: 'Equip clang — any Equip minion',
   eqSelect: 'Equipment slot — swap',
   eqSheen: 'Equipment slot — art sheen',

@@ -6090,6 +6090,17 @@ svg { width: 18px; height: 18px; }
   font-size: 9px; padding: 1px 2px; }
 .cstrip-name { font-size: 9px; line-height: 1.18; color: #b7a998; text-align: center; width: 100%;
   overflow-wrap: anywhere; }
+/* Per-clip CHANNEL faders under a bundle category's group fader (attack, heroSelect, …). A strip that has them
+   widens to fit compact horizontal rows; each row is ▶ · fader · number · name. */
+.cstrip:has(.clip-faders) { width: 236px; }
+.clip-faders { display: flex; flex-direction: column; gap: 3px; width: 100%; margin-top: 5px; padding-top: 5px;
+  border-top: 1px solid #3a332a; }
+.clipstrip { display: flex; align-items: center; gap: 5px; width: 100%; }
+.clipstrip .play { flex: none; }
+.chfader { flex: none; width: 74px; height: 14px; accent-color: #cbb; }
+.clipstrip .numf { flex: none; width: 44px; }
+.clipstrip-name { flex: 1 1 auto; min-width: 0; font-size: 9px; color: #b7a998; text-align: left;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .desk-export { flex: none; padding: 7px; border-radius: 9px; border: 1px solid #ff8a3c;
   background: rgba(255,138,60,.16); color: #ffcf9e; font-family: var(--font-ui); font-weight: 800; font-size: 13px; cursor: pointer; }

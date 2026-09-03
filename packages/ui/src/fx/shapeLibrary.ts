@@ -472,9 +472,12 @@ function ensureArtTexture(id: string): void {
  * the decoded textures — the boot loader then uploads each to every live renderer (`warmFx` in playDef.ts),
  * so the first def that draws `art:<slug>` never pays the decode OR the GPU upload on its first frame.
  */
-export async function awaitShapeTextures(): Promise<Texture[]> {
+export async function awaitShapeTextures(timeoutMs = 4000): Promise<Texture[]> {
   initShapeLibrary();
-  await Promise.all([...decoding.values()]);
+  // Bounded: `img.decode()` can stall indefinitely in a hidden/throttled tab (the same trap art.ts guards
+  // against), and a stalled decode must not hold the boot — whatever HAS decoded by then gets uploaded, and
+  // the rest uploads on its first draw, as before.
+  await Promise.race([Promise.all([...decoding.values()]), new Promise<void>((r) => setTimeout(r, timeoutMs))]);
   return [...textureCache.values()];
 }
 

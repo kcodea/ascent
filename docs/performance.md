@@ -446,16 +446,18 @@ timeout (boot is bounded), and the menu opens only when all four have settled:
 | images | every bundled art glob + every file in `apps/web/public/` (the GENERATED `publicAssets.generated.ts`), fetched **and decoded** | `art.ts` `preloadAllArt` |
 | fonts | every self-hosted face styles.css uses | `fontsPreload.ts` |
 | audio | every clip fetched + decoded — after the click (the context needs a gesture) | `sfx.ts` `preloadAllSamples` |
-| fx | the primitives chunk, every program link on every wanted slot, every shape/art texture uploaded | `fx/playDef.ts` `warmFx` |
+| fx | the primitives chunk, every program link on every wanted slot, every shape/art texture uploaded — THEN every committed def + every hand-written effect fired twice under the splash, the second time under a long-task observer | `fx/playDef.ts` `warmFx`, `fx/warmAll.ts` |
 
 **When you add an asset:** a file under `public/` needs `npm run assets:manifest` (`publicAssets.test.ts`
 fails otherwise); art in a `packages/ui/src/art/*` glob is picked up automatically; a new font weight goes in
 `FONT_FACES` + `main.tsx` (pinned by `fontsPreload.test.ts`); a new lazily-built Pixi texture belongs in
 `pixiFx.warmBuiltinTextures`.
 
-**How to prove it:** play a full run in a prod build, then read `window.__perf.hitches()` — every main-thread
-long task ≥ 50 ms with the phase it landed in. An entry during play is a lead; the DEV build also
-`console.warn`s each one as it happens.
+**How to prove it:** `window.__boot.stages.fx.note` after boot reads e.g. `fired 70 defs + 23 effects; re-fire
+long tasks: 0` — the re-fire count is the measured residue of anything still cold. Then play a full run and
+read `window.__perf.hitches()` — every main-thread long task ≥ 50 ms with the phase it landed in. An entry
+during play is a lead; the DEV build also `console.warn`s each one as it happens. **Every boot wait is
+bounded** (`img.decode()` stalls forever in a hidden tab) — never add an unbounded await to a stage.
 
 ## 3d. Shop-phase audit, 2026-08-01 (A/B-measured)
 

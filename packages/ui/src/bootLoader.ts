@@ -22,7 +22,8 @@
 import { preloadAllArt } from './art';
 import { preloadFonts } from './fontsPreload';
 import { preloadAllSamples } from './sfx';
-import { warmFx } from './fx/playDef';
+import { warmFx, warmFxTimings } from './fx/playDef';
+import { warmEverything, type WarmAllReport } from './fx/warmAll';
 
 export type StageName = 'images' | 'fonts' | 'audio' | 'fx';
 
@@ -45,7 +46,9 @@ export function bootProgress(
   return wsum > 0 ? Math.min(1, Math.max(0, sum / wsum)) : 1;
 }
 
-export interface StageResult { ms: number; ok: boolean }
+export interface StageResult { ms: number; ok: boolean; note?: string }
+/** The fire-everything report (see fx/warmAll.ts), surfaced on the boot report as `fx`. */
+export type { WarmAllReport };
 export interface BootReport { ms: number; stages: Record<StageName, StageResult> }
 
 /** A stage runner: reports `(loaded, total)` as it goes and resolves when settled. Never rejects by contract,
@@ -63,8 +66,19 @@ const DEFAULT_RUNNERS: Record<StageName, StageRunner> = {
   images: (p) => preloadAllArt(p),
   fonts: (p) => preloadFonts(p),
   audio: (p) => preloadAllSamples(p),
-  fx: async (p) => { await warmFx(); p(1, 1); },
+  fx: async (p) => {
+    await warmFx();
+    p(1, 2);
+    // Then FIRE EVERYTHING under the splash — every committed def + every hand-written effect, twice: once to
+    // warm whatever a program link cannot (filters, geometry, text, the Discover canvas), once under a
+    // long-task observer to MEASURE what is still cold. See fx/warmAll.ts.
+    lastWarmAll = await warmEverything();
+    p(2, 2);
+  },
 };
+let lastWarmAll: WarmAllReport | null = null;
+/** The most recent fire-everything report, for the boot report + `window.__boot`. */
+export const warmAllReport = (): WarmAllReport | null => lastWarmAll;
 
 export async function runBootLoader(opts: BootLoaderOptions): Promise<BootReport> {
   const now = opts.now ?? ((): number => (typeof performance !== 'undefined' ? performance.now() : Date.now()));
@@ -87,6 +101,12 @@ export async function runBootLoader(opts: BootLoaderOptions): Promise<BootReport
     }
     fractions[name] = 1;
     stages[name] = { ms: Math.round(now() - s0), ok };
+    if (name === 'fx' && lastWarmAll) {
+      const r = lastWarmAll;
+      stages.fx.note = `warmFx ${Object.entries(warmFxTimings).map(([k, v]) => `${k} ${v}ms`).join(', ')}; fired ${r.first.defs} defs + ${r.first.handWritten} effects; re-fire long tasks: ${r.secondPassLongTasks.length}`
+        + (r.secondPassLongTasks.length ? ` (${r.secondPassLongTasks.join(', ')} ms)` : '')
+        + (r.first.failed.length ? `; could not fire: ${r.first.failed.join(', ')}` : '');
+    }
     emit();
   };
 

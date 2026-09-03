@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import './styles.css'; // ensure the boot loading screen is styled even before <Game/> mounts
-import { runBootLoader } from './bootLoader';
+import { runBootLoader, warmAllReport } from './bootLoader';
 import { unlockAudio } from './sfx';
 import { PixiFxLayer } from './PixiFxLayer';
 
@@ -92,7 +92,14 @@ export function Boot({ children }: { children: ReactNode }): React.ReactElement 
     let hold = 0;
     let finish = 0;
     const loaded = runBootLoader({ onProgress }).then((report) => new Promise<void>((resolve) => {
-      if (import.meta.env.DEV) console.info('[boot] loaded in %d ms', report.ms, report.stages);
+      // `window.__boot` in EVERY build (the owner checks the exe): the stage timings + the fire-everything
+      // note — "re-fire long tasks: 0" is the measured claim that nothing is left cold.
+      (window as unknown as { __boot?: unknown }).__boot = { ...report, warmAll: warmAllReport() };
+      if (import.meta.env.DEV) {
+        console.info('[boot] loaded in %d ms', report.ms, report.stages);
+        const re = warmAllReport()?.secondPassLongTasks ?? [];
+        if (re.length) console.warn('[boot] the SECOND fire-everything pass still stalled — something is cold:', re);
+      }
       if (!alive) return;
       // Everything is resident. Respect the minimum splash time (from the splash's reveal), THEN glide the
       // second half of the bar (`.is-finishing` lengthens the fill transition to FINISH_MS in index.html).

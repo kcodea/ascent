@@ -132,7 +132,11 @@ describe('DIRECT_CALL_SITES is a derivation, not a list', () => {
     // That is real debt, not a second pattern — an Equipment-use moment belongs in `recruitCues.ts`, and
     // moving it there retires BOTH lines and shrinks this back to the four resolvers. Listed so the exception
     // stays reviewable rather than silent.
-    expect(Object.keys(DYNAMIC_CALL_SITES).sort()).toEqual(['EquipFxTuner.tsx', 'Recruit.tsx', 'choreo/recruitCues.ts', 'choreo/score.ts', 'runeTriggerFx.ts', 'useCombatReplay.ts']);
+    //
+    // A THIRD, of a different kind (2026-09-03): `fx/warmAll.ts` is the BOOT warm-up, which plays EVERY
+    // committed def once under the splash. It resolves nothing — it is what makes every resolver's first real
+    // fire warm — so it is not debt, but it is a dynamic `playDef` and belongs in this recorded set.
+    expect(Object.keys(DYNAMIC_CALL_SITES).sort()).toEqual(['EquipFxTuner.tsx', 'Recruit.tsx', 'choreo/recruitCues.ts', 'choreo/score.ts', 'fx/warmAll.ts', 'runeTriggerFx.ts', 'useCombatReplay.ts']);
   });
 
   // The seven migrated effects the library used to call inert, plus `ruby-gem-apply` — authored in the

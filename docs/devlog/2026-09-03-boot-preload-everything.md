@@ -42,9 +42,22 @@ Owner answers on the two forks: **click to begin, then load** (so audio can deco
   hitches" is verified after a session, rather than assumed.
 - **DEV escape:** `?skipboot` skips the gate (never in a production build).
 
+## Fire everything (owner: "I don't want these running cold on first use")
+
+Linking programs and uploading textures is not sufficient: a glow/blur FILTER compiles its own program on
+first render (185 + 50 layers across the 70 defs), Graphics build geometry on first draw, crit text
+rasterises per key, and the Discover overlay's canvas is its own GL context. `fx/warmAll.ts` therefore plays
+EVERY committed def and fires EVERY hand-written pixiFx effect once under the opaque splash, then fires them
+all a SECOND time under a long-task observer. The second pass is the measurement: `window.__boot` carries
+`stages.fx.note` — e.g. `fired 70 defs + 23 effects; re-fire long tasks: 0` — in every build, and the DEV build
+warns when the re-fire still stalls. Two guard tests (`directCalls.test.ts`, `playDefUids.test.ts`) record
+the warm-up as a known dynamic `playDef` site.
+
+Two traps found while landing it: the FX stage must WAIT for Pixi's async renderer (the first version bailed
+with "no WebGL" and fired nothing), and every wait must be bounded — `img.decode()` stalls indefinitely in a
+hidden tab, which turned a 4 s stage into a 24 s one until `awaitShapeTextures` got its own cap.
+
 ## Still first-use by design (known, measured next)
 
-- The Discover overlay's own FX canvas (`discoverFx`) attaches when the overlay first opens — its own GL
-  context. Candidate for a boot attach if the hitch log shows it.
-- "CRIT!" text textures are keyed by size/colour and rasterised on first use per key.
 - React's first render of each screen (JIT). Not an asset; measured by the hitch log, not preloadable.
+- Crit text for a multiplier other than 2x/3x rasterises on first use (the warm-up bakes those two).

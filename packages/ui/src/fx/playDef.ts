@@ -361,23 +361,56 @@ function slotsWanted(): FxSlot[] {
  * Bounded by `timeoutMs` and resolves at once when there is no renderer at all (no WebGL): a warm-up can only
  * ever make a first fire cheaper, never block the game.
  */
+/** Resolve once the MAIN ('over') canvas has a renderer — immediately if it already does — or at `timeoutMs`.
+ *  The overlay's `Application.init` is async, so a warm-up that starts on the same frame the layer mounts
+ *  must wait for it rather than conclude "no WebGL" (which is how the first version of the boot warm-up
+ *  silently fired nothing, 2026-09-03). */
+export function awaitOverRenderer(timeoutMs = 20000): Promise<boolean> {
+  if (typeof window === 'undefined') return Promise.resolve(false);
+  if (pixiFx.renderer) return Promise.resolve(true);
+  return new Promise<boolean>((resolve) => {
+    let done = false;
+    const off = pixiFx.onRendererReady((_r, slot) => {
+      if (slot !== 'over' || done) return;
+      done = true; off(); resolve(true);
+    });
+    window.setTimeout(() => { if (!done) { done = true; off(); resolve(!!pixiFx.renderer); } }, timeoutMs);
+  });
+}
+
+/** Per-phase wall-clock of the last `warmFx`, for the boot report (which phase is slow is the whole question). */
+export const warmFxTimings: Record<string, number> = {};
+
 export async function warmFx(timeoutMs = 20000): Promise<void> {
   if (typeof window === 'undefined') return;
   const deadline = new Promise<void>((r) => window.setTimeout(r, timeoutMs));
+  let t = performance.now();
+  const lap = (k: string): void => { warmFxTimings[k] = Math.round(performance.now() - t); t = performance.now(); };
   await Promise.race([ensureDefsReady(), deadline]);
-  if (!hasPrimitives() || !pixiFx.renderer) return;
-  const queuesDrained = new Promise<void>((resolve) => {
+  lap('defs');
+  if (!hasPrimitives()) return;
+  if (!(await awaitOverRenderer(timeoutMs))) return;
+  lap('renderer');
+  // The MAIN slot always comes up (the canvas is mounted by Boot). The under/above slots are brought up by the
+  // prewarm only when a committed def declares them — and the UNDER canvas also needs its host inside `.app`,
+  // which does not exist at boot (Recruit is not mounted). So: wait for 'over' fully, then give each optional
+  // slot a short grace to report in, and move on without it (its programs link when it first mounts, exactly
+  // as before). Waiting the full deadline here is what made the FX stage take 24 s on 2026-09-03.
+  const drained = (slot: FxSlot, graceMs: number): Promise<void> => new Promise<void>((resolve) => {
+    let done = false;
+    const finish = (): void => { if (done) return; done = true; warmListeners = warmListeners.filter((l) => l !== check); resolve(); };
     const check = (): void => {
-      const wanted = slotsWanted();
-      if (wanted.every((sl) => warmDone.has(sl))) {
-        warmListeners = warmListeners.filter((l) => l !== check);
-        void Promise.all(wanted.map((sl) => warmDone.get(sl))).then(() => resolve());
-      }
+      const p = warmDone.get(slot);
+      if (p) void p.then(finish);
     };
     warmListeners.push(check);
     check();
+    window.setTimeout(finish, graceMs);
   });
-  await Promise.race([queuesDrained, deadline]);
+  await Promise.race([drained('over', timeoutMs), deadline]);
+  lap('overQueue');
+  await Promise.all(slotsWanted().filter((sl) => sl !== 'over').map((sl) => drained(sl, 2500)));
+  lap('slotQueues');
   // Textures: decode every library shape, then upload each to every live context.
   const uploads = (async (): Promise<void> => {
     const { awaitShapeTextures } = await import('./shapeLibrary');
@@ -396,6 +429,7 @@ export async function warmFx(timeoutMs = 20000): Promise<void> {
     }
   })();
   await Promise.race([uploads.catch(() => undefined), deadline]);
+  lap('uploads');
 }
 
 // ─── the bridge ────────────────────────────────────────────────────────────────────────────────────────

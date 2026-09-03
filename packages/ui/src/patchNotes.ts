@@ -55,6 +55,22 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-09-02',
+    label: 'Buff FX',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: 'The old buff flourishes are being retired to make way for new ones — when a minion is buffed in the shop or in combat, the stat numbers still tick up but the generic ribbon/glow no longer plays. New effects are on the way.',
+        details: [
+          'Removed the shop/combat “tendril” that reached from a buffer to the minion it pumped, and the “rain-down” version for buffs with no on-board source.',
+          'Removed the gold self-buff burst a minion showed when it buffed itself, and the tribe-aura wave that washed across your board.',
+          'Card-specific effects are untouched — Dragonflame, Karwind’s flame ring, Broodfire, the tavern Shout burst, and rune/quest reward ribbons all still play.',
+          'The stat-badge count-up, the shop-buff number float, and every sound are unchanged.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-09-01',
     label: 'Hero Select',
     changes: [

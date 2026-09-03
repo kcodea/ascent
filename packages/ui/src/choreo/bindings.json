@@ -1,19 +1,8 @@
 {
   "version": 1,
   "kinds": {
-    "attackExchange": {
-      "def": "self-buff-gold",
-      "fanOut": "selfBuffed"
-    },
-    "buffWave": {
-      "def": "self-buff-gold",
-      "fanOut": "selfBuffed"
-    },
     "hpGrant": {
       "def": "hp-grant"
-    },
-    "minionSelfBuffed": {
-      "def": "self-buff-gold"
     },
     "keyword": {
       "def": "keyword-gain"
@@ -51,9 +40,6 @@
     },
     "venomSpent": {
       "def": "venom-spent"
-    },
-    "shopBuffAll": {
-      "def": "shop-buff-aura"
     },
     "runeTriggered": {
       "def": "rune-burst"

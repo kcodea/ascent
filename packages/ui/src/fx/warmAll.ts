@@ -22,6 +22,7 @@ import { getAimFxConfig } from '../aimFxConfig';
 import { getSpellPowerFxConfig } from '../spellPowerFxConfig';
 import { getRubyPowerFxConfig } from '../rubyPowerFxConfig';
 import { getStepProcFxConfig } from '../stepProcFxConfig';
+import { getRefreshConfig } from '../refreshConfig';
 import { tendrilCfgFor } from '../questTendrilConfig';
 import { buffPreset, wavePalette } from '../buffPresets';
 import { fireBuffFx } from '../buffFxRender';
@@ -90,6 +91,8 @@ function fireAllHandWritten(): { ok: number; failed: string[] } {
   const fires: Array<[string, () => void]> = [
     ['critText', () => { pixiFx.procCritText(cx, cy - h * 0.45, '2x'); pixiFx.procCritText(cx, cy - h * 0.45, '3x'); }],
     ['critImpact', () => pixiFx.critImpact(cx, cy, 1, 0, rect)],
+    ['impactPulse', () => { pixiFx.impactPulse(cx, cy); pixiFx.impactPulse(cx, cy, 1, { radius: 1, life: 1, rings: 2 }); }],
+    ['refreshBlast', () => { const c = getRefreshConfig(); pixiFx.refreshBlast(cx, cy, { count: c.blastCount, speed: c.blastSpeed, spread: c.blastSpread, life: c.blastLife, size: c.blastSize, color: c.blastColor }); }],
     ['windSlash', () => pixiFx.windSlash(cx, cy, 1, 0)],
     ['executeStrike', () => pixiFx.executeStrike(cx, cy)],
     ['weldPulse', () => { pixiFx.weldPulse(cx, cy, weldCfgFor('play')); pixiFx.weldPulse(cx, cy, weldCfgFor('auto')); }],

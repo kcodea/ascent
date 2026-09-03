@@ -23,22 +23,15 @@ describe('runBootLoader', () => {
   const instant: StageRunner = async (p) => { p(1, 1); };
   const stepped = (n: number): StageRunner => async (p) => { for (let i = 1; i <= n; i++) { await Promise.resolve(); p(i, n); } };
 
-  it('starts images/fonts/fx at once and holds audio until unlocked', async () => {
-    let unlock!: () => void;
-    const unlocked = new Promise<void>((r) => { unlock = r; });
-    let audioStarted = false;
+  it('runs every stage immediately (no gesture needed) and reports full progress', async () => {
+    const started = new Set<string>();
     const seen: number[] = [];
-    const done = runBootLoader({
-      unlocked,
+    const mk = (name: string): StageRunner => async (p) => { started.add(name); p(1, 1); };
+    const report = await runBootLoader({
       onProgress: (p) => seen.push(p),
-      runners: { images: instant, fonts: instant, fx: instant, audio: async (p) => { audioStarted = true; p(1, 1); } },
+      runners: { images: mk('images'), fonts: mk('fonts'), fx: mk('fx'), audio: mk('audio') },
     });
-    await new Promise((r) => setTimeout(r, 5));
-    expect(audioStarted).toBe(false);
-    expect(Math.max(...seen)).toBeCloseTo(1 - STAGE_WEIGHTS.audio, 6);
-    unlock();
-    const report = await done;
-    expect(audioStarted).toBe(true);
+    expect([...started].sort()).toEqual(['audio', 'fonts', 'fx', 'images']);
     expect(seen[seen.length - 1]).toBe(1);
     expect(report.stages.audio.ok).toBe(true);
   });
@@ -46,7 +39,6 @@ describe('runBootLoader', () => {
   it('reports monotonic progress ending at 1, and a failed stage as ok:false without blocking', async () => {
     const seen: number[] = [];
     const report = await runBootLoader({
-      unlocked: Promise.resolve(),
       onProgress: (p) => seen.push(p),
       runners: { images: stepped(4), fonts: stepped(2), audio: instant, fx: async () => { throw new Error('no webgl'); } },
     });

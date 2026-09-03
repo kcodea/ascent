@@ -10,10 +10,11 @@
  * Four stages, each with its own progress and its own timeouts (a stuck item can never hang the boot):
  *   images — every bundled art file + every public/ image, fetched AND decoded          (art.ts)
  *   fonts  — every self-hosted face the stylesheet uses                                  (fontsPreload.ts)
- *   audio  — every clip fetched + decoded; needs the audio context, which needs a user
- *            gesture, so this stage starts when `unlocked` resolves (the splash click)   (sfx.ts)
+ *   audio  — every clip fetched + decoded on a SUSPENDED context (a page may create one before any gesture,
+ *            and decodeAudioData works while suspended; the click later just resumes it)   (sfx.ts)
  *   fx     — the Pixi canvas' program links + every shape/art texture uploaded            (fx/playDef.ts)
- * Images, fonts and FX start at once; only audio waits for the click. The bar shows the weighted mean.
+ * Every stage starts the moment this runs (owner ask 2026-09-03: "auto load everything and THEN the click to
+ * begin text should show up only after it's fully loaded"). The bar shows the weighted mean.
  *
  * Pure where it can be: the weights + `bootProgress` are unit-tested; the stage runners are injectable so
  * the pipeline itself is tested without a browser.
@@ -52,8 +53,6 @@ export interface BootReport { ms: number; stages: Record<StageName, StageResult>
 export type StageRunner = (onProgress: (loaded: number, total: number) => void) => Promise<void>;
 
 export interface BootLoaderOptions {
-  /** Resolves on the player's unlock gesture (the splash click). Gates the audio stage only. */
-  unlocked: Promise<void>;
   onProgress: (p: number) => void;
   /** Test seam / a build without a stage (e.g. no WebGL) — defaults to the real runners. */
   runners?: Partial<Record<StageName, StageRunner>>;
@@ -75,8 +74,7 @@ export async function runBootLoader(opts: BootLoaderOptions): Promise<BootReport
   const t0 = now();
   const emit = (): void => opts.onProgress(bootProgress(fractions));
 
-  const run = async (name: StageName, gate?: Promise<void>): Promise<void> => {
-    if (gate) await gate;
+  const run = async (name: StageName): Promise<void> => {
     const s0 = now();
     let ok = true;
     try {
@@ -92,6 +90,6 @@ export async function runBootLoader(opts: BootLoaderOptions): Promise<BootReport
     emit();
   };
 
-  await Promise.all([run('images'), run('fonts'), run('fx'), run('audio', opts.unlocked)]);
+  await Promise.all([run('images'), run('fonts'), run('fx'), run('audio')]);
   return { ms: Math.round(now() - t0), stages };
 }

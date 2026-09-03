@@ -248,22 +248,31 @@ function prefetchSamples(): void {
   for (const path of Object.keys(SAMPLE_URLS)) void loadSample(sampleName(path));
 }
 
-/** Create + resume the audio context. MUST be called from a user gesture (a click/keypress): browsers refuse
- *  to start audio before one, which is why the boot screen asks for a click before it decodes the clips. */
-export function unlockAudio(): void {
+/** Create the audio context WITHOUT a gesture. It comes up suspended — browsers refuse to START audio before a
+ *  gesture — but `decodeAudioData` works on a suspended context, which is what lets the boot decode every clip
+ *  before the player has clicked anything. */
+export function ensureAudioContext(): void {
   audio();
+}
+
+/** Resume the context. Call from a user gesture (the boot's "Click to begin"); the decoded clips are already
+ *  waiting, so the first sound plays at once. */
+export function unlockAudio(): void {
+  const a = audio();
+  if (a && a.state === 'suspended') void a.resume();
 }
 
 /**
  * BOOT PRELOAD: fetch + decode EVERY clip, reporting progress, resolving once each has settled (decoded, failed,
  * or timed out at `perClipMs`). Until 2026-09-03 the clips decoded lazily in one burst after the first click
  * anywhere, so the first sound of each kind could play before its buffer was ready — and the burst itself landed
- * right as play began. Requires the context to exist (`unlockAudio` from a gesture); without one it resolves
- * immediately with full progress so the boot never waits on audio it cannot decode.
+ * right as play began. Creates the (suspended) context itself; if the engine refuses one it resolves at once
+ * with full progress so the boot never waits on audio it cannot decode.
  */
 export function preloadAllSamples(onProgress?: (loaded: number, total: number) => void, perClipMs = 15000): Promise<void> {
   const names = Object.keys(SAMPLE_URLS).map(sampleName);
   const total = names.length;
+  ensureAudioContext();
   if (!audio()) { onProgress?.(total, total); return Promise.resolve(); }
   let loaded = 0;
   const one = (name: string): Promise<void> =>

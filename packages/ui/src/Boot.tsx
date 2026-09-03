@@ -15,17 +15,18 @@ import { PixiFxLayer } from './PixiFxLayer';
  * parsed and mounted, which is precisely the window it exists to cover. This component only drives it:
  * the unlock, the progress (`--boot-p` on the splash node), then a fade-out.
  *
- * THE CLICK. Browsers refuse to create an audio context before a user gesture, so the audio stage cannot
- * start until the player clicks. Everything else (images, fonts, the FX warm-up) starts the instant this
- * mounts. A click made before the bundle finished parsing is honoured too: the inline script stamps
- * `data-unlockedAt`, and Chromium's user activation is sticky for the document, so `unlockAudio()` from this
- * effect still gets a running context.
+ * THE ORDER (owner ask 2026-09-03, final): everything loads AUTOMATICALLY from the first frame — the bar fills
+ * with real progress to its halfway mark, glides home once every stage has settled — and only THEN does
+ * "Click to begin" appear (`.is-loaded`). The click resumes the (already-decoded) audio context and opens the
+ * menu. A click made earlier is honoured too — the inline script stamps `data-unlockedAt` — so an eager
+ * player is taken straight through the moment the bar lands; user activation is sticky for the document, so
+ * `unlockAudio()` still gets a running context.
  *
  * THE FX CANVAS is mounted HERE, permanently, so its GL context exists before the loader warms it — and is
  * never detached afterwards (a detach throws every compiled program away with the context). It used to mount
  * from the hero picker onward (Game.tsx); its ticker auto-idles, so an unused canvas costs no per-frame work.
  */
-/** Minimum splash lifetime measured from the unlock click, so a warm load never snaps the menu open. */
+/** Minimum splash lifetime measured from the splash's reveal, so a warm load never snaps the bar full. */
 const SPLASH_MIN_MS = 3500;
 /** THE BAR IS TWO HALVES (owner ask 2026-09-03: "I still want the loading bar to be smooth"). The first half
  *  is REAL progress — the loader's weighted mean mapped onto 0..0.5, so it can stall or jump as the network
@@ -56,7 +57,7 @@ function skipBootRequested(): boolean {
 export function Boot({ children }: { children: ReactNode }): React.ReactElement {
   const [ready, setReady] = useState<boolean>(() => skipBootRequested());
   const [pct, setPct] = useState(0);
-  const [unlockedUi, setUnlockedUi] = useState(false);
+  const [loadedUi, setLoadedUi] = useState(false);
 
   useEffect(() => {
     if (ready) return;
@@ -66,19 +67,17 @@ export function Boot({ children }: { children: ReactNode }): React.ReactElement 
     // in flight, the FX warm-up is memoised per context).
     let alive = true;
     const el = splashEl();
-    let clickAt = Number(el?.dataset.unlockedAt ?? NaN);
+    const clickedEarly = Number.isFinite(Number(el?.dataset.unlockedAt ?? NaN));
 
     const unlocked = new Promise<void>((resolve) => {
       const onUnlock = (): void => {
         window.removeEventListener('pointerdown', onUnlock);
         window.removeEventListener('keydown', onUnlock);
-        if (!Number.isFinite(clickAt)) clickAt = performance.now();
         unlockAudio(); // inside the gesture, so the context starts running
         el?.classList.add('is-unlocked');
-        if (alive) setUnlockedUi(true);
         resolve();
       };
-      if (Number.isFinite(clickAt)) { onUnlock(); return; }
+      if (clickedEarly) { onUnlock(); return; }
       window.addEventListener('pointerdown', onUnlock);
       window.addEventListener('keydown', onUnlock);
     });
@@ -92,21 +91,27 @@ export function Boot({ children }: { children: ReactNode }): React.ReactElement 
 
     let hold = 0;
     let finish = 0;
-    void runBootLoader({ unlocked, onProgress }).then(async (report) => {
+    const loaded = runBootLoader({ onProgress }).then((report) => new Promise<void>((resolve) => {
       if (import.meta.env.DEV) console.info('[boot] loaded in %d ms', report.ms, report.stages);
-      await unlocked;
       if (!alive) return;
-      // Everything is resident. Respect the minimum splash time first, THEN glide the second half of the bar
-      // (`.is-finishing` lengthens the fill transition to FINISH_MS in index.html), and open the gate as it lands.
-      const elapsed = performance.now() - clickAt;
+      // Everything is resident. Respect the minimum splash time (from the splash's reveal), THEN glide the
+      // second half of the bar (`.is-finishing` lengthens the fill transition to FINISH_MS in index.html).
+      const inAt = Number(el?.dataset.inAt ?? NaN);
+      const elapsed = Number.isFinite(inAt) ? performance.now() - inAt : 0;
       hold = window.setTimeout(() => {
         if (!alive) return;
         el?.classList.add('is-finishing');
         el?.style.setProperty('--boot-p', '1');
         setPct(1);
-        finish = window.setTimeout(() => { if (alive) setReady(true); }, FINISH_MS);
+        finish = window.setTimeout(() => {
+          if (!alive) return;
+          el?.classList.add('is-loaded'); // → "Click to begin" appears
+          setLoadedUi(true);
+          resolve();
+        }, FINISH_MS);
       }, Math.max(0, SPLASH_MIN_MS - FINISH_MS - elapsed));
-    });
+    }));
+    void Promise.all([loaded, unlocked]).then(() => { if (alive) setReady(true); });
     return () => { alive = false; window.clearTimeout(hold); window.clearTimeout(finish); };
   }, [ready]);
 
@@ -152,7 +157,7 @@ export function Boot({ children }: { children: ReactNode }): React.ReactElement 
         <div className="bootload" aria-live="polite" aria-busy="true">
           <div className="bootload-mark">ASCENT</div>
           <div className="bootload-bar"><div className="bootload-fill" style={{ width: `${Math.round(pct * 100)}%` }} /></div>
-          <div className="bootload-sub">{unlockedUi ? `Loading… ${Math.round(pct * 100)}%` : 'Click to begin'}</div>
+          <div className="bootload-sub">{loadedUi ? 'Click to begin' : `Loading… ${Math.round(pct * 100)}%`}</div>
         </div>
       )}
       {/* Landscape-only on phones: CSS shows this only on a touch device held in portrait (see `.rotate-prompt`). */}

@@ -131,14 +131,14 @@
         transition: transform 420ms ease-out;
       }
       /* TWO HALVES: the first half is real progress (steps smoothed by the transition above); once every stage has
-         settled Boot adds `.is-finishing` and sets the fill to 1, so the second half is one smooth 1.5s glide and
-         the menu opens as it lands. Keep 1500ms in sync with FINISH_MS in Boot.tsx. */
+         settled Boot adds `.is-finishing` and sets the fill to 1, so the second half is one smooth 1.5s glide;
+         "Click to begin" appears as it lands, and the click opens the menu. Keep 1500ms in sync with FINISH_MS in Boot.tsx. */
       #bootsplash.is-finishing #bootsplash-bar > i { transition: transform 1500ms cubic-bezier(0.22, 0.61, 0.36, 1); }
       /* "Click to begin" — the audio context needs a gesture, so the boot asks for one up front. The OUTER div
          owns placement + the fade-in (arrives with the bar); the INNER span carries the idle life (owner ask
          2026-09-03: "slowly pulsing in and out with a subtle hover effect, like the ASCENT logo"): a slow opacity
          breath and a gentle bob on the same 5.2s ease-in-out clock + amplitude as the title mark's `titlebob`.
-         Both are compositor-only (opacity / transform). Hidden the moment the click lands (`.is-unlocked`). */
+         Both are compositor-only (opacity / transform). Shown only once loading is complete (`.is-loaded`); hidden the moment the click lands (`.is-unlocked`). */
       #bootsplash-cta {
         position: absolute; left: 50%; transform: translateX(-50%);
         bottom: calc(var(--ls-bar-bottom, 22.5vh) - 34px);
@@ -152,7 +152,7 @@
       }
       @keyframes bootctabreathe { from { opacity: 0.38; } to { opacity: 1; } }
       @keyframes bootctabob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
-      #bootsplash.is-in #bootsplash-cta { opacity: 1; }
+      #bootsplash.is-loaded #bootsplash-cta { opacity: 1; }  /* only once EVERY stage has settled and the bar has landed */
       #bootsplash.is-unlocked #bootsplash-cta { display: none; }
       #bootsplash { cursor: url('./cursors/gauntlet_open.svg') 6 2, pointer; }
       /* The bar is progress feedback, not decoration — freeze motion for anyone who asked for less. */

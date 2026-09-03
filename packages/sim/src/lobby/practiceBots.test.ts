@@ -3,7 +3,7 @@
  * health toggle (invulnerable vs real elimination), and a tribe surge that doubles a tribe's shop odds.
  */
 import { describe, expect, it } from 'vitest';
-import { practiceBotBoard, createLobbyRun, createPracticeBotLobby, adjectiveHandle, BOT_LEVELS, UTILITY_ROSTER, botTierFor, eligibleUtility, normalizeBotDifficulty, authoredTierFor, omenBoardMinions, type BotLevel } from './index';
+import { practiceBotBoard, createLobbyRun, createPracticeBotLobby, adjectiveHandle, BOT_LEVELS, UTILITY_ROSTER, UTILITY_FROM_ROUND, botTierFor, eligibleUtility, normalizeBotDifficulty, authoredTierFor, omenBoardMinions, type BotLevel } from './index';
 import { reduce, type RunState, type Action } from '../index';
 import { HEROES } from '../heroes';
 
@@ -251,10 +251,17 @@ describe('the 1–10 ladder (owner ask 2026-09-02: 5 = the old Hard)', () => {
       for (const m of practiceBotBoard(r, l as BotLevel)) expect(m.cardId).toBeUndefined();
     }
     for (let l = 6; l <= 10; l++) {
-      const b = practiceBotBoard(12, l as BotLevel, { seatSeed: 5 });
-      const real = b.filter((m) => m.cardId);
-      expect(real.length, `level ${l} fields its slots`).toBe(BOT_LEVELS[l as BotLevel].utilitySlots);
-      for (const m of real) expect(UTILITY_ROSTER.some((u) => u.cardId === m.cardId), `${m.cardId} is on the roster`).toBe(true);
+      // Utility is a per-round ROLL, so scan seats for one that fired; when it fires it fills every slot.
+      let fired = 0;
+      for (let seed = 0; seed < 30; seed++) {
+        const real = practiceBotBoard(12, l as BotLevel, { seatSeed: seed }).filter((m) => m.cardId);
+        if (real.length === 0) continue;
+        fired++;
+        expect(real.length, `level ${l} fills its slots when it fires`).toBe(BOT_LEVELS[l as BotLevel].utilitySlots);
+        for (const m of real) expect(UTILITY_ROSTER.some((u) => u.cardId === m.cardId), `${m.cardId} is on the roster`).toBe(true);
+      }
+      expect(fired, `level ${l} fires on SOME seats`).toBeGreaterThan(0);
+      expect(fired, `level ${l} does NOT fire on every seat`).toBeLessThan(30);
     }
   });
 
@@ -268,6 +275,11 @@ describe('the 1–10 ladder (owner ask 2026-09-02: 5 = the old Hard)', () => {
         expect(CARD_INDEX[m.cardId]!.tier, `${m.cardId} r${r} tier ${tier}`).toBeLessThanOrEqual(tier);
       }
     }
+    // NEVER before round 7, whatever the level or tier (owner report 2026-09-02: tier-4 cards on turn 2).
+    for (let l = 6; l <= 10; l++) for (let r = 1; r < UTILITY_FROM_ROUND; r++) for (let seed = 0; seed < 20; seed++) {
+      for (const m of practiceBotBoard(r, l as BotLevel, { seatSeed: seed })) expect(m.cardId, `level ${l} r${r}`).toBeUndefined();
+    }
+    expect(eligibleUtility(10, UTILITY_FROM_ROUND - 1)).toEqual([]);
     // Thane (tier 6, unlock 10) exists on the ladder and can actually appear at the top.
     expect(eligibleUtility(10, 16).some((u) => u.cardId === 'dw_thane')).toBe(true);
     expect(eligibleUtility(9, 16).some((u) => u.cardId === 'dw_thane')).toBe(false);
@@ -323,8 +335,8 @@ describe('the 1–10 ladder (owner ask 2026-09-02: 5 = the old Hard)', () => {
     s = { ...s, board: board as never };
     s = reduce(s, { type: 'faceOmen' } as Action);
     expect(s.lastCombat, 'combat resolved').toBeTruthy();
-    const enemyIds = s.lastCombat!.initial.enemy.map((m) => m.cardId);
-    expect(enemyIds.some((id) => id !== 'omen'), 'the served board carried a utility unit').toBe(true);
+    const fielded = s.lobby!.seats.slice(1).some((seat) => seat.authoredBoards![11]!.some((m) => m.cardId));
+    expect(fielded, 'some seat fields a utility unit on round 12').toBe(true);
   });
 
   it('legacy easy/medium/hard strings (old saves + drafts) normalize onto the ladder', () => {

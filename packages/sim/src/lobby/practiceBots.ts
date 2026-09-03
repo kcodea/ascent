@@ -67,8 +67,12 @@ export interface BotLevelSpec {
   /** Multiplier on what the PLAYER takes from a lost fight (mirrored in the reducer's `practiceBotDamageMult`)
    *  and on seat-vs-seat bot fights via `botDamageMult`. */
   damageMult: number;
-  /** How many omen slots a round are swapped for real utility minions (levels 6+). Capped by the row length. */
+  /** How many omen slots are swapped for real utility minions on a round that fields them (levels 6+). Capped
+   *  by the row length. */
   utilitySlots: number;
+  /** The per-round chance (0–1) that a seat fields utility at all, from `UTILITY_FROM_ROUND` on. Owner
+   *  2026-09-02: "not ALL the time" — a level-10 table that fielded Thane every round read as a cheat. */
+  utilityChance: number;
 }
 
 /**
@@ -76,16 +80,16 @@ export interface BotLevelSpec {
  * Hard; 2 and 4 interpolate; 6–10 push past anything that existed and start mixing in utility minions.
  */
 export const BOT_LEVELS: Record<BotLevel, BotLevelSpec> = {
-  1:  { statMult: 0.75, statFrom: 4, tierRamp: 3, startTier: 1, damageMult: 1.5,  utilitySlots: 0 },
-  2:  { statMult: 0.87, statFrom: 4, tierRamp: 3, startTier: 1, damageMult: 1.75, utilitySlots: 0 },
-  3:  { statMult: 1,    statFrom: 1, tierRamp: 2, startTier: 1, damageMult: 2,    utilitySlots: 0 },
-  4:  { statMult: 1.07, statFrom: 7, tierRamp: 1, startTier: 1, damageMult: 2.25, utilitySlots: 0 },
-  5:  { statMult: 1.15, statFrom: 7, tierRamp: 1, startTier: 1, damageMult: 2.5,  utilitySlots: 0 },
-  6:  { statMult: 1.25, statFrom: 7, tierRamp: 1, startTier: 1, damageMult: 2.75, utilitySlots: 1 },
-  7:  { statMult: 1.35, statFrom: 7, tierRamp: 1, startTier: 2, damageMult: 3,    utilitySlots: 1 },
-  8:  { statMult: 1.5,  statFrom: 7, tierRamp: 1, startTier: 2, damageMult: 3.25, utilitySlots: 2 },
-  9:  { statMult: 1.65, statFrom: 7, tierRamp: 1, startTier: 3, damageMult: 3.5,  utilitySlots: 2 },
-  10: { statMult: 1.8,  statFrom: 7, tierRamp: 1, startTier: 3, damageMult: 3.75, utilitySlots: 3 },
+  1:  { statMult: 0.75, statFrom: 4, tierRamp: 3, startTier: 1, damageMult: 1.5,  utilitySlots: 0, utilityChance: 0 },
+  2:  { statMult: 0.87, statFrom: 4, tierRamp: 3, startTier: 1, damageMult: 1.75, utilitySlots: 0, utilityChance: 0 },
+  3:  { statMult: 1,    statFrom: 1, tierRamp: 2, startTier: 1, damageMult: 2,    utilitySlots: 0, utilityChance: 0 },
+  4:  { statMult: 1.07, statFrom: 7, tierRamp: 1, startTier: 1, damageMult: 2.25, utilitySlots: 0, utilityChance: 0 },
+  5:  { statMult: 1.15, statFrom: 7, tierRamp: 1, startTier: 1, damageMult: 2.5,  utilitySlots: 0, utilityChance: 0 },
+  6:  { statMult: 1.25, statFrom: 7, tierRamp: 1, startTier: 1, damageMult: 2.75, utilitySlots: 1, utilityChance: 0.4 },
+  7:  { statMult: 1.35, statFrom: 7, tierRamp: 1, startTier: 2, damageMult: 3,    utilitySlots: 1, utilityChance: 0.5 },
+  8:  { statMult: 1.5,  statFrom: 7, tierRamp: 1, startTier: 2, damageMult: 3.25, utilitySlots: 2, utilityChance: 0.6 },
+  9:  { statMult: 1.65, statFrom: 7, tierRamp: 1, startTier: 3, damageMult: 3.5,  utilitySlots: 2, utilityChance: 0.7 },
+  10: { statMult: 1.8,  statFrom: 7, tierRamp: 1, startTier: 3, damageMult: 3.75, utilitySlots: 3, utilityChance: 0.8 },
 };
 
 export const MIN_BOT_LEVEL: BotLevel = 1;
@@ -160,8 +164,16 @@ export const UTILITY_ROSTER: readonly UtilityUnit[] = [
   { cardId: 'dw_thane', unlock: 10 },                  // Rally: give its Attack to 2 others
 ];
 
-/** The roster entries a bot at `level` may field on `round` (unlocked AND within its tier). */
+/**
+ * The first (1-based) round ANY utility unit may appear, at any level. The tier gate alone was not enough: a
+ * level-10 table opens at tier 3 and climbs a tier a round, so tier-4 cards were on the board by round 2
+ * (owner report 2026-09-02, "that's not possible"). Real players do not have those bodies before the mid-game.
+ */
+export const UTILITY_FROM_ROUND = 7;
+
+/** The roster entries a bot at `level` may field on `round` (round floor, unlocked, AND within its tier). */
 export function eligibleUtility(level: BotLevel, round: number): UtilityUnit[] {
+  if (round < UTILITY_FROM_ROUND) return [];
   const tier = botTierFor(level, round);
   return UTILITY_ROSTER.filter((u) => u.unlock <= level && (CARD_INDEX[u.cardId]?.tier ?? Infinity) <= tier);
 }
@@ -204,10 +216,15 @@ function pickIndices(rng: Rng, len: number, n: number): number[] {
 /** Swap up to `utilitySlots` omen slots of a row for eligible utility units (level 6+). Which units and which
  *  slots is drawn from `rng`, so every seat's draw differs while a restored/replayed run redraws identically. */
 function placeUtility(row: AuthoredOmen[], round: number, level: BotLevel, rng: Rng): AuthoredOmen[] {
-  const want = Math.min(BOT_LEVELS[level].utilitySlots, row.length);
-  if (want <= 0) return row;
+  const { utilitySlots, utilityChance } = BOT_LEVELS[level];
+  const want = Math.min(utilitySlots, row.length);
+  if (want <= 0 || utilityChance <= 0) return row;
   const pool = eligibleUtility(level, round);
   if (pool.length === 0) return row;
+  // Not every round: one roll per seat per round decides whether this board fields utility at all. Rolled
+  // AFTER the pool check so a level's early rounds (no eligible units) never consume RNG, and rolled before
+  // the picks so the picks' draw is unchanged on the rounds that do fire.
+  if (rng.next() >= utilityChance) return row;
   const n = Math.min(want, pool.length);
   const units = pickIndices(rng, pool.length, n).map((i) => pool[i]!);
   const slots = pickIndices(rng, row.length, n);

@@ -55,6 +55,21 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-09-04',
+    label: 'Effects frame cap',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: 'Settings has a new Performance section with an effects frame cap: Display, 60, 120, 144, 240 or 360. It limits combat effects and card motion on high-refresh displays.',
+        details: [
+          'It caps combat effects and card motion only — the rest of the game still runs at your display’s refresh. To cap the whole game, use your GPU driver’s per-app frame limit.',
+          'It cannot raise the rate above the refresh rate of your display, so options above it are shown dimmed and do nothing.',
+          'Your choice is remembered between sessions.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-09-03',
     label: 'Standard Bearer',
     changes: [

@@ -50,6 +50,7 @@ import { ReplayDragGhost } from './replay/ReplayDragGhost';
 import { RoundRail } from './replay/RoundRail';
 import { PixiFxLayer } from './PixiFxLayer';
 import { pixiFx, warmDiscoverFx } from './pixiFx';
+import { applyFpsCap } from './fpsCap';
 import { warmArt } from './art';
 import { sfx } from './sfx';
 import { useGame, isPreRun } from './store';
@@ -258,6 +259,11 @@ export function Game() {
   // …and build the Discover overlay's separate Pixi app on idle, so the first Discover doesn't pay a ~60-108ms
   // WebGL-context stall mid-shop (see `warmDiscoverFx`).
   useEffect(() => { warmDiscoverFx(); }, []);
+
+  // Frame-rate cap (Settings → Performance): push the persisted choice onto the Pixi + GSAP clocks on mount
+  // and whenever it changes. See fpsCap.ts for what it can and cannot cap.
+  const fpsCap = useGame((s) => s.fpsCap);
+  useEffect(() => { applyFpsCap(fpsCap); }, [fpsCap]);
   // The game now fills the window at a fixed 16:9 (no resolution picker → no `data-res`), draws one board
   // (`--board` = the CSS default), and applies no readability dim — so there's no res/scrim/board state to persist.
 

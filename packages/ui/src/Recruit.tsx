@@ -6045,7 +6045,13 @@ export function Recruit() {
       const to = prevHandGapRef.current >= 0 ? prevHandGapRef.current : handIndexAt(cx, d.uid);
       if (from >= 0 && from !== to) {
         const els = [...document.querySelectorAll<HTMLElement>('.row.hand .card[data-uid]')].filter((el) => el.dataset.uid !== d.uid);
-        handReorderFlipRef.current = Flip.getState(els);
+        // `simple: true` (owner drag-stutter trace 2026-09-04): without it, Flip's default capture builds a global
+        // matrix per card by APPENDING a temporary element, reading three rects and removing it — a forced layout
+        // per card, twice (from + to state). On a 7-card hand that was ~40 recalc/layout pairs inside ONE React
+        // commit, 36 ms each, fired every time the dragged card crossed a hand slot: 13 dropped frames on a
+        // 360 Hz display per crossing. The hand fan has no rotation (`--fan-rot: 0deg`), so the bounding-box
+        // capture is exact; the board's own drag flip already used it (see `flipStateRef`).
+        handReorderFlipRef.current = Flip.getState(els, { simple: true });
         dispatch({ type: 'reorderHand', uid: d.uid, toIndex: to });
       }
       return true;

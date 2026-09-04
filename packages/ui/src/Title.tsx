@@ -359,7 +359,9 @@ export function Title({ onSettings }: { onSettings: () => void }) {
         </div>
       )}
 
-      <div className="titleversion">v{__APP_VERSION__}</div>
+      {/* Version + the exact commit the bundle was built from (`*` = built on a dirty tree, so NOT that commit).
+          This is how a player and `git log` agree on which build is running — read it off the exe. */}
+      <div className="titleversion" title={`built ${__BUILD_DATE__}`}>v{__APP_VERSION__} · {__BUILD_SHA__}{__BUILD_DIRTY__ ? '*' : ''}</div>
     </div>
   );
 }

@@ -2,6 +2,10 @@
 // Declared here so the UI typechecks. Only reference these in app-only code (not in headless/test paths).
 declare const __APP_VERSION__: string;
 declare const __BUILD_SHA__: string;
+/** True when the build ran on a tree with uncommitted/untracked changes — the bundle is not `__BUILD_SHA__`. */
+declare const __BUILD_DIRTY__: boolean;
+/** ISO timestamp of the build. */
+declare const __BUILD_DATE__: string;
 
 // Vite env vars (apps/web/.env*) — the optional Supabase board backend (see remoteBoards.ts). Absent → the
 // remote sync no-ops and the game runs fully offline off the committed pool.

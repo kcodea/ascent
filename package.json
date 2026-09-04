@@ -65,6 +65,7 @@
     "dump-cards": "tsx packages/tools/src/dump-cards.ts",
     "tutorial:sync": "tsx packages/tools/src/tutorial-copy-sync.ts",
     "optimize-art": "node scripts/optimize-art.mjs",
+    "optimize-frames": "node scripts/optimize-frames.mjs",
     "task": "node scripts/worktree.mjs new",
     "task:list": "node scripts/worktree.mjs list",
     "task:done": "node scripts/worktree.mjs done",

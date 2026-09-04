@@ -18,7 +18,18 @@
  */
 const { Menu, app, BrowserWindow, ipcMain, protocol, net, shell } = require('electron');
 const path = require('node:path');
+const fs = require('node:fs');
 const { pathToFileURL } = require('node:url');
+
+// ── SMOKE MODE (scripts/release-desktop.mjs) ──────────────────────────────────────────────────────────────
+// `ASCENT_SMOKE=1` turns the shell into a self-check of the packaged bundle: a windowed (not fullscreen) boot
+// that waits for the boot loader — which preloads EVERY image, font, clip and effect the game will ever show —
+// then writes a JSON report to `ASCENT_SMOKE_OUT` and exits non-zero if anything was missing: an `app://`
+// asset the handler could not find, a boot stage that failed, a font that failed to load, or an FX def that
+// would not fire. The point is that the check runs against the exe's own `resources/dist`, over the exe's own
+// protocol handler — the exact code path a player's machine takes — not against a dev server.
+const SMOKE = process.env.ASCENT_SMOKE === '1';
+const smoke = { requests: 0, missing: [], consoleErrors: [] };
 
 /** The web build. Packaged: copied into resources/ by electron-builder. Dev: read straight from the repo. */
 const DIST = app.isPackaged
@@ -50,7 +61,7 @@ function createWindow() {
     // BORDERLESS FULLSCREEN by default. Electron's `fullscreen` on Windows is the borderless kind (it does not
     // take an exclusive display mode), which is what a game wants: no chrome, instant alt-tab. The width/height
     // below are the WINDOWED size — what you get after F11 or the Fullscreen toggle, never the initial state.
-    fullscreen: true,
+    fullscreen: !SMOKE,
     width: 1600,
     height: 950,
     minWidth: 1024,
@@ -90,7 +101,45 @@ function createWindow() {
     return { action: 'deny' };
   });
   void win.loadURL('app://ascent/index.html');
+  if (SMOKE) runSmoke(win);
   return win;
+}
+
+/** Poll for the boot report, gather the failure evidence, write it, exit. Never hangs: hard cap at 4 minutes. */
+function runSmoke(win) {
+  const started = Date.now();
+  const finish = async (timedOut) => {
+    let boot = null;
+    let fontErrors = [];
+    try {
+      boot = await win.webContents.executeJavaScript('window.__boot ? JSON.parse(JSON.stringify(window.__boot)) : null', true);
+      fontErrors = await win.webContents.executeJavaScript(
+        "Array.from(document.fonts).filter((f) => f.status === 'error').map((f) => f.family + ' ' + f.weight)", true);
+    } catch (e) { smoke.consoleErrors.push(`executeJavaScript failed: ${e}`); }
+    const stages = boot?.stages ?? {};
+    const stageFail = Object.values(stages).some((st) => !st.ok);
+    const warmFailed = boot?.warmAll?.first?.failed ?? [];
+    const ok = !timedOut && !!boot && !stageFail && smoke.missing.length === 0 && fontErrors.length === 0 && warmFailed.length === 0;
+    const report = { ok, timedOut, ms: Date.now() - started, boot, warmFailed, fontErrors, requests: smoke.requests, missing: smoke.missing, consoleErrors: smoke.consoleErrors };
+    const out = process.env.ASCENT_SMOKE_OUT;
+    if (out) fs.writeFileSync(out, JSON.stringify(report, null, 2));
+    else console.log(JSON.stringify(report, null, 2));
+    app.exit(ok ? 0 : 1);
+  };
+  win.webContents.on('console-message', (_e, level, message) => {
+    if (level >= 3) smoke.consoleErrors.push(message); // 3 = error
+  });
+  win.webContents.on('did-fail-load', (_e, code, desc) => { smoke.consoleErrors.push(`did-fail-load ${code} ${desc}`); void finish(false); });
+  const poll = setInterval(async () => {
+    if (Date.now() - started > 4 * 60_000) { clearInterval(poll); return finish(true); }
+    let done = false;
+    try { done = await win.webContents.executeJavaScript('!!window.__boot', true); } catch { /* not loaded yet */ }
+    if (done) {
+      clearInterval(poll);
+      // Give the fire-everything pass + font loads a beat to settle their final requests before reading.
+      setTimeout(() => void finish(false), 1500);
+    }
+  }, 500);
 }
 
 // The renderer's only two levers (see preload.cjs). `quit` is what Settings → Quit game calls; the UI owns
@@ -108,6 +157,13 @@ app.whenReady().then(() => {
     const target = path.normalize(path.join(DIST, rel));
     // Path-traversal guard: a crafted `app://ascent/../../…` must not escape the bundle.
     if (!target.startsWith(DIST)) return new Response('Forbidden', { status: 403 });
+    // A request for a file the bundle does not contain is a real 404 (not a protocol error), and in smoke
+    // mode it is recorded — this is the authoritative "every asset the game asked for exists" check.
+    if (!fs.existsSync(target)) {
+      if (SMOKE) smoke.missing.push(rel);
+      return new Response('Not Found', { status: 404 });
+    }
+    if (SMOKE) smoke.requests++;
     return net.fetch(pathToFileURL(target).toString());
   });
 

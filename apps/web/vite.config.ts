@@ -19,6 +19,13 @@ const pkgVersion = (createRequire(import.meta.url)('../../package.json') as { ve
 const buildSha = (() => {
   try { return execSync('git rev-parse --short HEAD').toString().trim(); } catch { return 'dev'; }
 })();
+// DIRTY = the tree has uncommitted or untracked changes, so the bundle is NOT the commit the SHA names (an
+// untracked fx def or art file is globbed straight in). `scripts/release-desktop.mjs` refuses a dirty tree; the
+// badge shows a `*` so a hand build can never pass for a release. Untracked files count, ignored ones don't.
+const buildDirty = (() => {
+  try { return execSync('git status --porcelain --untracked-files=all').toString().trim().length > 0; } catch { return true; }
+})();
+const buildDate = new Date().toISOString();
 
 // Resolve workspace packages straight to their TS source so Vite compiles them
 // directly (no per-package build step). Boundaries stay enforced by imports.
@@ -29,6 +36,8 @@ export default defineConfig(({ command }) => ({
   define: {
     __APP_VERSION__: JSON.stringify(pkgVersion),
     __BUILD_SHA__: JSON.stringify(buildSha),
+    __BUILD_DIRTY__: JSON.stringify(buildDirty),
+    __BUILD_DATE__: JSON.stringify(buildDate),
   },
   // `fxDefsPlugin`, `uiAssetPlugin`, and `beatLabPlugin` are all `apply: 'serve'` — they add write endpoints to
   // the dev server ONLY, and are inert (never instantiated) in a production build. `fxDefsPlugin` = the FX

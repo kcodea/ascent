@@ -41,9 +41,14 @@ describe('Standard Bearer — the Rally buff lasts the FIGHT, not the run (owner
    * The BEHAVIOURAL half, and the only one that actually proves the change: `playerPermaBuffs` is the channel
    * a combat gift rides home on. Standard Bearer must still move stats inside the fight (it is a real buff)
    * and put NOTHING on that channel; Paragon must keep putting its gift there.
+   *
+   * The BEARER self-rallies (attack + `RL`): as of 2026-09-03 Standard Bearer is `selfOnly`, so a 0-attack
+   * bystander merely WATCHING packstrider's Rally no longer fires it (that watcher behaviour was the bug this
+   * pins elsewhere). packstrider stays on the board as a second, ignored rallier. Paragon is a watcher by
+   * design, but self-rallying exercises its permanence identically — its gift rides home however it triggers.
    */
   const rallyFight = (bearerId: string) => simulate(
-    [bm(bearerId, 'S', 0, 400), bm('b2_packstrider', 'B', 5, 400, ['RL'])],
+    [bm(bearerId, 'S', 40, 400, ['RL']), bm('b2_packstrider', 'B', 5, 400, ['RL'])],
     [{ cardId: 'sandbag', attack: 0, health: 9999 } as unknown as BoardMinion], makeRng(5), CARD_INDEX,
     combatSide({ tier: 6 }), combatSide({ tier: 1 }));
 

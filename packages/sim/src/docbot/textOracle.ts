@@ -421,6 +421,10 @@ export const ORACLE_ARM: Readonly<Record<string, { minion?: Partial<BoardMinion>
     minion: { summonBonus: 3 },
     why: 'scTribeBuffImproving params are attack:0/step:0 — the whole rate is the countTribeSummon accrual (+3 per Beast played); summonBonus=3 stages "one Beast played", which is the printed +3/+3',
   },
+  n2_standardbearer: {
+    minion: { keywords: ['RL'] },
+    why: 'Standard Bearer is a SELF-only Rally as of 2026-09-03 (the `selfOnly` param) — it no longer buffs on the fixture cryptwolf\'s Rally, and the base subject carries no keywords, so it must be armed with its OWN RL to fire its Rally on its own swing. Its +3/+3 (golden +6/+6) then lands on one recipient per tribe',
+  },
 };
 
 /** Seeded from the scan's own first full run (2026-08-26) — every entry was INVESTIGATED before excusal

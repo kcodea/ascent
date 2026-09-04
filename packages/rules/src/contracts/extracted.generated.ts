@@ -17023,7 +17023,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "extractor": "contracts-extract@1",
       "confidence": "medium",
       "unparsed": [
-        "onRallyBuffOnePerTribe.permanent"
+        "onRallyBuffOnePerTribe.permanent",
+        "onRallyBuffOnePerTribe.selfOnly"
       ]
     },
     "setIds": [

@@ -52,7 +52,7 @@ export interface TitleConfig {
 }
 
 // Owner-tuned in the 🏔️ Title Logo tuner and baked as the shipped look (2026-08-22): the fantasy raster logo
-// large and pulled left over the wordmark, Cinzel Decorative 600 in white with a soft dark text glow, a dark
+// large and pulled left over the wordmark, Cinzel Decorative 700 in white with a soft dark text glow, a dark
 // halo on the logo, and a SEPARATE float. (`logoColor` is inert while the logo is a raster PNG — kept for when
 // a vector mark returns.)
 const DEFAULTS: TitleConfig = {
@@ -62,7 +62,7 @@ const DEFAULTS: TitleConfig = {
   y: -38,
   font: 'Cinzel Decorative',
   fontCustom: '',
-  fontWeight: 600,
+  fontWeight: 700,
   logoColor: '#fffdfa',
   textColor: '#ffffff',
   textGlowSize: 11,

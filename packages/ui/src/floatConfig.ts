@@ -106,17 +106,30 @@ export const FLOAT_RANGES: Record<Exclude<keyof FloatConfig, 'numStrokeColor' | 
  *  not exist, and every damage number in the itch + desktop builds lost its backdrop (owner report
  *  2026-09-02). Dev never showed it: its base is `/`, already absolute. Resolving against `document.baseURI`
  *  here makes the value absolute in every environment (dev `/`, itch sub-path, the desktop `app://` scheme). */
-export function publicAssetCssUrl(relPath: string, baseURI?: string): string {
+export function publicAssetUrl(relPath: string, baseURI?: string): string {
   // `document` is absent in the node test environment that imports this module for its pure helpers.
   const base = baseURI ?? (typeof document !== 'undefined' ? document.baseURI : 'http://localhost/');
-  return `url('${new URL(`${import.meta.env.BASE_URL}${relPath}`, base).href}')`;
+  return new URL(`${import.meta.env.BASE_URL}${relPath}`, base).href;
+}
+export function publicAssetCssUrl(relPath: string, baseURI?: string): string {
+  return `url('${publicAssetUrl(relPath, baseURI)}')`;
 }
 
 /** The two burst PNGs the picker chooses between (served from `apps/web/public/fx/`). */
-const SPLASH_IMG_URL: Record<string, string> = {
-  '1': publicAssetCssUrl('fx/damage-splash.png'),
-  '2': publicAssetCssUrl('fx/damage-splash-2.png'),
+const SPLASH_IMG_SRC: Record<string, string> = {
+  '1': publicAssetUrl('fx/damage-splash.png'),
+  '2': publicAssetUrl('fx/damage-splash-2.png'),
 };
+const SPLASH_IMG_URL: Record<string, string> = Object.fromEntries(Object.entries(SPLASH_IMG_SRC).map(([k, v]) => [k, `url('${v}')`]));
+
+/** The burst art the damage float renders as an `<img decoding="sync">` (2026-09-03). It used to be a CSS
+ *  `::before` background, which has no sync-decode guarantee: the compositor defers any image over ~512 KB
+ *  decoded on first sight and can evict it between fights, so the first burst of a session (or after a long
+ *  gap) painted a frame after its number. An image element with `decoding="sync"` is the platform's one
+ *  guarantee that the burst is drawn on the same frame as the number — every time. */
+export function splashImgSrc(): string {
+  return SPLASH_IMG_SRC[cfg.splashImg] ?? SPLASH_IMG_SRC['1']!;
+}
 /** The shipped values, exported so the tuner can mark which controls you have moved away from them. */
 export { DEFAULTS as FLOAT_DEFAULTS };
 

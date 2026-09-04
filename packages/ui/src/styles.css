@@ -4329,21 +4329,19 @@ body.hglow-preview .card.plated .plateglow { opacity: 1; }
 .deathfloat { position: fixed; z-index: 112; pointer-events: none; transform: translate(-50%, -50%); }
 .deathfloat .float { position: static; right: auto; bottom: auto; display: inline-block; animation-name: floatstickc; animation-duration: var(--death-float-dur, 0.9s); }
 /* The damage number's backdrop is the golden burst splash (owner art 2026-08-27), replacing the old red
-   `--threat` pill. It rides on a `::before` BEHIND the number — z-index -1 inside the float's own z25 stacking
+   `--threat` pill. It is an `<img class="dmgsplash" decoding="sync">` INSIDE the float, BEHIND the number (an <img>, not a `::before`, since 2026-09-03: only an image element can carry decoding=sync, the compositor's guarantee the burst paints on the SAME frame as the number) — z-index -1 inside the float's own z25 stacking
    context — so the number + burst are ONE element: they pop, bounce, rise and fade together exactly as the
    pill did (owner ask: "the number reacts in the same manner as the png"). The burst is a STATIC image scaled
    to `contain` and animated only via the float's transform/opacity — compositor-only, so it costs no more per
    frame than the solid pill, and every float shares the one 384px texture. Its size scales with the number
    (em) and is tunable via `--dmg-splash-size`. */
 .float.dmg { color: #fff; padding: 0 6px; font-size: var(--float-dmg-size, 48px); -webkit-text-stroke: var(--dmg-num-stroke, 1.5px) var(--dmg-num-stroke-color, #000000); paint-order: stroke fill; filter: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.5)); }
-.float.dmg::before {
-  content: ''; position: absolute; left: 50%; top: 50%; z-index: -1; pointer-events: none;
-  width: var(--dmg-splash-size, 2.84em); aspect-ratio: 1 / 1;
+.float.dmg .dmgsplash {
+  position: absolute; left: 50%; top: 50%; z-index: -1; pointer-events: none; user-select: none;
+  width: var(--dmg-splash-size, 2.84em); height: auto; aspect-ratio: 1 / 1; object-fit: contain;
   /* `--dmg-splash-rot` is set inline per-float (Recruit.tsx) when Random rotation is on; 0 otherwise.
      `--dmg-splash-x/y` nudge the backplate relative to the number (tuner). */
   transform: translate(calc(-50% + var(--dmg-splash-x, -2px)), calc(-50% + var(--dmg-splash-y, 0px))) rotate(var(--dmg-splash-rot, 0deg));
-  /* `--dmg-splash-img` selects which burst art (tuner); defaults to the first splash. */
-  background: var(--dmg-splash-img, url('/fx/damage-splash-2.png')) center / contain no-repeat;
 }
 /* A damage number sits in the CENTRE of the struck card (not the corner) so it reads as the hit landing on
    the minion. Centred via top/left 50% + a translate(-50%,-50%) baked into `floatupc` (a plain transform here

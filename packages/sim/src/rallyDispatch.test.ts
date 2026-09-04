@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { CARD_INDEX } from '@game/content';
 import { createRun, projectEndOfTurnSteps, questEndOfTurnBeats, reduce, type RunState } from './index';
-import { applyEndOfTurn, canRallyInShop, fireRallies, ralliersOf } from './recruit';
+import { applyEndOfTurn, canRallyInShop, fireRallies, fireShopRally, ralliersOf } from './recruit';
 
 /**
  * THE SHOP-SIDE RALLY DISPATCHER (Effect Arena Step 4) + RUNE OF LASTING CADENCE.
@@ -307,5 +307,24 @@ describe('a SHOP Rally is a Rally TRIGGER for the quest tallies (owner ruling 20
     // chokepoint honours the same sentence.
     const next = reduce(armed({ questFlags: { runeHerdingHorn: true }, freeRolls: 0 } as never), { type: 'faceOmen' });
     expect(next.freeRolls, 'three rallies bank three refreshes for next turn').toBe(3);
+  });
+});
+
+describe('Standard Bearer (selfOnly) does not watch OTHER Rallies in the shop (owner bug 2026-09-03)', () => {
+  // `fireShopRally` broadcasts a rally to EVERY board body's onAttack effects. Standard Bearer's
+  // `onRallyBuffOnePerTribe` carries no own-attack guard (it is a watcher, like Paragon), so before the
+  // `selfOnly` gate it fired on every minion's shop Rally. Its text says "Rally:" — its own only.
+  it('a non-Standard-Bearer Rally leaves Standard Bearer unbuffed', () => {
+    const s = run([bc('sb', 'n2_standardbearer'), bc('x', 'd2_cinderchef')]);
+    const before = statsOf(s, 'sb');
+    fireShopRally(s, s.board.find((b) => b.uid === 'x')!); // Cinderchef rallies, not Standard Bearer
+    expect(statsOf(s, 'sb'), 'must not fire on another minion shop Rally').toBe(before);
+  });
+
+  it('its OWN shop Rally still buffs (a universal-tribe recipient of its own gift)', () => {
+    const s = run([bc('sb', 'n2_standardbearer'), bc('x', 'd2_cinderchef')]);
+    const before = statsOf(s, 'sb');
+    fireShopRally(s, s.board.find((b) => b.uid === 'sb')!);
+    expect(statsOf(s, 'sb'), 'its own Rally buffs one minion of every type, including itself').not.toBe(before);
   });
 });

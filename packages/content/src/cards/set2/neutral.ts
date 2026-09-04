@@ -118,6 +118,9 @@ export const SET2_NEUTRAL: CardDef[] = [
     // Owner rebalance 2026-09-01: +2/+3 → +3/+3, and the buff is no longer PERMANENT (`permanent: false`) —
     // a bigger swing that lasts the fight, which is what separates it from Paragon at T3 rather than it being
     // simply a smaller Paragon.
+    // Owner fix 2026-09-03: `selfOnly: true` — Standard Bearer prints "**Rally:**" (its OWN rally), so it must
+    // NOT fire as a watcher on every ally's Rally the way Paragon does. Without the flag the shared
+    // `onRallyBuffOnePerTribe` watcher dispatch buffed on every friendly Rally attack (owner bug report).
     id: 'n2_standardbearer',
     name: 'Standard Bearer',
     tribe: 'neutral',
@@ -126,7 +129,7 @@ export const SET2_NEUTRAL: CardDef[] = [
     health: 5,
     keywords: ['RL'],
     universalTribe: true,
-    effects: [{ on: 'onAttack', do: 'onRallyBuffOnePerTribe', params: { attack: 3, health: 3, permanent: false } }],
+    effects: [{ on: 'onAttack', do: 'onRallyBuffOnePerTribe', params: { attack: 3, health: 3, permanent: false, selfOnly: true } }],
     text: '**Rally:** give a minion of **each type** **+3/+3**.',
     goldenText: '**Rally:** give a minion of **each type** **+6/+6**.',
   },

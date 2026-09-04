@@ -56,6 +56,20 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-03',
+    label: 'Standard Bearer',
+    changes: [
+      {
+        category: 'Card Change',
+        text: 'Standard Bearer now triggers only when IT attacks, matching its "Rally:" text. It was mistakenly buffing every time any of your Rally minions attacked.',
+        details: [
+          'Bug fix: Standard Bearer had been acting like Paragon (a board-wide watcher), firing its +3/+3 spread on every friendly Rally, in both the shop and combat.',
+          'It is a Rally minion, so its buff still fires each time Standard Bearer swings; it just no longer piggybacks on the Rallies of your other minions. Paragon is unchanged.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-03',
     label: 'Loading',
     changes: [
       {

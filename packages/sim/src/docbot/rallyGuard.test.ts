@@ -39,6 +39,14 @@ const FACTORIES = readFileSync(
   'utf8',
 );
 
+/** The shared arena bodies. Some Rally factories (`onRallyBuffOnePerTribe`) are a SIDE-broadcast in
+ *  `factories.ts` but hold a per-card `selfOnly` gate in the arena body — read the arena source too so the
+ *  self-only assertion below can see that gate. */
+const ARENA = readFileSync(
+  join(dirname(fileURLToPath(import.meta.url)), '../../../core/src/effects/arena.ts'),
+  'utf8',
+);
+
 /**
  * factory id -> its body text, parsed once, WITH COMMENTS STRIPPED.
  *
@@ -72,9 +80,12 @@ const GUARD = /minion !== self|minion\?\.uid !== self\.uid|minion\.uid !== self\
  */
 const BROADCAST_BY_DESIGN: Record<string, string> = {
   onRallyBuffOnePerTribe:
-    'Paragon / Standard Bearer print "whenever you TRIGGER a Rally" — any friendly Rally, not this body\'s '
-    + 'swing. It guards on SIDE (`minion.side !== self.side`) instead, which is the correct gate for that '
-    + 'wording, and passes the attacker through to the arena so the payout knows who swung',
+    'Paragon prints "whenever you TRIGGER a Rally" — any friendly Rally, not this body\'s swing (and Paragon '
+    + 'carries no RL keyword, so it is not even a `live` Rally card here). The factories.ts wrapper guards on '
+    + 'SIDE (`minion.side !== self.side`) and passes the attacker to the arena, which is the correct broadcast '
+    + 'gate for that wording. Standard Bearer SHARES this factory but prints "**Rally:**" (its own swing) — it '
+    + 'is held self-only by the `selfOnly` param honoured in the arena body, pinned by the dedicated assertion '
+    + 'below rather than by this exemption (owner bug 2026-09-03: it had been buffing on every friendly Rally)',
 };
 
 /**
@@ -145,5 +156,23 @@ describe('Doc Bot — a Rally fires on its OWN swing', () => {
     const reachable = new Set(live.flatMap(rallyFactoriesOf));
     expect(Object.keys(BROADCAST_BY_DESIGN).filter((f) => !reachable.has(f)),
       'these declarations match no live Rally card — delete them so the list stays a real inventory').toEqual([]);
+  });
+
+  // The one card the broadcast exemption above can no longer speak for. Standard Bearer prints "**Rally:**"
+  // (its own swing) yet SHARES Paragon's side-broadcast factory, so nothing at the factory level makes it a
+  // Rally rather than a watcher. The ONLY thing that does is the `selfOnly` param honoured in the arena body —
+  // and that is exactly what shipped missing (owner report 2026-09-03: "whenever ANY rally minion attacks, it
+  // is buffing other units"). Pin BOTH halves so a future edit cannot silently revert it to a watcher.
+  it('Standard Bearer is a SELF-only Rally, not an ally-attack watcher (owner bug 2026-09-03)', () => {
+    const sb = ALL_CARDS.find((c) => c.id === 'n2_standardbearer');
+    const eff = sb?.effects.find((e) => e.on === 'onAttack' && e.do === 'onRallyBuffOnePerTribe');
+    expect(
+      (eff?.params as { selfOnly?: boolean } | undefined)?.selfOnly,
+      'n2_standardbearer must set `selfOnly: true` — without it the shared broadcast factory buffs on EVERY friendly Rally',
+    ).toBe(true);
+    expect(
+      /params\.selfOnly === true && attacker\.uid !== arena\.self\.uid/.test(ARENA),
+      'onRallyBuffOnePerTribe must HONOUR selfOnly — gate the buff off the attacker being this body',
+    ).toBe(true);
   });
 });

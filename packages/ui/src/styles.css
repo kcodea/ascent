@@ -341,7 +341,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
 /* The curtain announcements wear the TITLE's font (owner ask 2026-08-29 — Cinzel Decorative 600, the
    shipped --title-font): retuning the logo font in the 🏔️ tuner re-dresses the curtain to match. The face
    is loaded at boot by the title screen, so it is always ready by the first fight. */
-.wipevs-label { font-family: var(--title-font, 'Cinzel Decorative', 'Outfit', sans-serif); font-weight: var(--title-weight, 600); font-size: calc(38 * var(--u, 1px));
+.wipevs-label { font-family: var(--title-font, 'Cinzel Decorative', 'Outfit', sans-serif); font-weight: var(--title-weight, 700); font-size: calc(38 * var(--u, 1px));
   letter-spacing: 0.34em; text-transform: uppercase; color: #9fc0f5; text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5); }
 /* On the lighter exit blue the pale label washes out — RETURNING TO SHOP goes full white (owner ask
    2026-08-30). */
@@ -2500,7 +2500,7 @@ body.modalup .app { z-index: auto; }
    this banner to match (owner ask 2026-08-29; shipped change, not a tuner knob). */
 .forge-banner .disp {
   font-family: var(--title-font, 'Cinzel Decorative', 'Outfit', sans-serif);
-  font-weight: var(--title-weight, 600);
+  font-weight: var(--title-weight, 700);
   font-size: calc(30 * var(--u) * var(--rfl-title-scale, 0.73)); color: var(--rfl-title-col, #120d13);
   letter-spacing: 0.08em; text-transform: uppercase;
   text-shadow: 0 1px 0 rgba(255, 255, 255, 0.18), 0 -1px 1px rgba(0, 0, 0, 0.6), 0 2px 3px rgba(0, 0, 0, 0.55);
@@ -5162,7 +5162,7 @@ body:has(.titlescreen) .version { visibility: hidden; }
   animation: var(--title-logo-float-name, titlebob) var(--title-logo-float-speed, 5.2s) ease-in-out infinite; }
 /* Wordmark font is the tuner's pick (falling back to the shipped title stack); the tuner's text glow is an
    EXTRA shadow appended after the base legibility + blue shadows (transparent no-op when off). */
-.titleword { font-family: var(--title-font, var(--font-title)); font-weight: var(--title-weight, 600); font-size: 86px; letter-spacing: 0.1em; color: var(--title-text-color, #ffffff); margin: 0;
+.titleword { font-family: var(--title-font, var(--font-title)); font-weight: var(--title-weight, 700); font-size: 86px; letter-spacing: 0.1em; color: var(--title-text-color, #ffffff); margin: 0;
   text-shadow: 0 2px 3px rgba(0, 0, 0, 0.6), 0 0 40px rgba(120, 175, 255, 0.28), var(--title-text-glow, 0 0 11px #5c4e4e, 0 0 11px #5c4e4e);
   --bob-amp: var(--title-text-float-amp, 4.5px);
   animation: var(--title-text-float-name, titlebob) var(--title-text-float-speed, 5.2s) ease-in-out infinite; }

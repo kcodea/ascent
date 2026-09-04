@@ -4347,6 +4347,33 @@ describe('Paragon (onRallyBuffOnePerTribe) scales with Rally doublers (owner 202
   });
 });
 
+describe('Standard Bearer (selfOnly) fires on its OWN Rally only, not as a watcher (owner bug 2026-09-03)', () => {
+  // Unlike Paragon ("whenever you trigger a Rally"), Standard Bearer prints "**Rally:**" — its own attack only.
+  // It shares Paragon's `onRallyBuffOnePerTribe` factory, which is a RALLY_WATCHER, so before the `selfOnly`
+  // gate it also fired whenever ANY friendly Rally minion attacked (owner report). +3/+3 is its buff.
+  const sbFires = (r: { events: CombatEvent[] }): number =>
+    r.events.filter((e) => e.type === 'buff' && e.attack === 3 && e.health === 3).length;
+
+  it('does NOT buff when ANOTHER Rally minion attacks', () => {
+    // A rallying Beast that one-shots the dummy, so the fight ends on ITS swing and Standard Bearer never
+    // attacks — the only thing that could fire it here is the (now-gated) watcher path.
+    const board: BoardMinion[] = [
+      { cardId: 'stray', attack: 60, health: 60, keywords: ['RL'] },
+      { cardId: 'n2_standardbearer', attack: 3, health: 60 },
+    ];
+    const enemy: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 60 }];
+    const r = simulate(board, enemy, makeRng(1), CARD_INDEX, combatSide({ tier: 6, tribes: ALL_TRIBES }), combatSide({ tier: 1 }));
+    expect(sbFires(r)).toBe(0);
+  });
+
+  it('DOES buff on its OWN Rally', () => {
+    const board: BoardMinion[] = [{ cardId: 'n2_standardbearer', attack: 40, health: 60, keywords: ['RL'] }];
+    const enemy: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 60 }];
+    const r = simulate(board, enemy, makeRng(1), CARD_INDEX, combatSide({ tier: 6, tribes: ALL_TRIBES }), combatSide({ tier: 1 }));
+    expect(sbFires(r)).toBeGreaterThan(0);
+  });
+});
+
 describe('Rune of Mastery (batch 7b) — combat Improve steps apply twice', () => {
   const simMods = (p: BoardMinion[], e: BoardMinion[], seed: number, mods = {}) =>
     simulate(p, e, makeRng(seed), CARD_INDEX, combatSide({ tier: 6, tribes: ALL_TRIBES, questMods: mods }), combatSide());

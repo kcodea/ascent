@@ -1196,6 +1196,14 @@ export const ARENA_EFFECTS = {
   onRallyBuffOnePerTribe(arena: EffectArena, params: Record<string, unknown>): void {
     const attacker = params.attacker as ArenaBody | undefined;
     if (!attacker || !attacker.keywords.includes('RL')) return;
+    // SELF-ONLY (Standard Bearer): its text prints "**Rally:**", meaning ITS OWN rally — not Paragon's
+    // board-wide watch on every ally's Rally. But this effect is a `RALLY_WATCHER_EFFECT`, so the shared
+    // dispatch INVOKES it for every Rally attacker (combat's `refireRallyWatchers`, and the shop adapter which
+    // — unlike the self-rally adapters — carries no `payload.minion !== self` guard). Gate it to no-op unless
+    // the attacker IS this body. Paragon omits the flag and stays the watcher its text promises. A param, not a
+    // second factory, for the same reason `permanent` is one — the two cards disagree about only this. (owner
+    // report 2026-09-03: Standard Bearer was buffing whenever ANY Rally minion attacked.)
+    if (params.selfOnly === true && attacker.uid !== arena.self.uid) return;
     const g = gold(arena);
     const a = num(params.attack, 3) * g;
     const h = num(params.health, 3) * g;

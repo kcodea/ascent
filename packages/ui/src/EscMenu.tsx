@@ -112,10 +112,12 @@ export function EscMenu({ onClose }: { onClose: () => void }) {
           <span className="ebs">Long fights speed up, then ease back down for the finish</span>
         </button>
         <div className="escsec">Performance</div>
-        {/* FRAME RATE CAP (owner ask 2026-09-04). Caps the effects + GSAP clocks; CSS still runs at the display
-            refresh. An option above the display's refresh does nothing — the window is vsynced — hence the
-            note. "Display" = uncapped. */}
-        <div className="escfps" role="radiogroup" aria-label="Frame rate cap">
+        {/* EFFECTS FRAME CAP (owner ask 2026-09-04; relabelled the same day). Caps the Pixi effects + GSAP clocks
+            ONLY — CSS (hover, drag, fly-ins, floats, the wipe) runs at the display refresh and the app has no lever
+            over it (Electron caps frame rate for offscreen windows only). The owner expected a whole-game 60 fps on a
+            360 Hz display and saw no change, hence the note pointing at the GPU driver's per-app limit. An option
+            above the display's refresh does nothing — the window is vsynced. "Display" = uncapped. */}
+        <div className="escfps" role="radiogroup" aria-label="Effects frame cap">
           {FPS_CAP_OPTIONS.map((cap) => (
             <button
               key={cap}
@@ -128,7 +130,7 @@ export function EscMenu({ onClose }: { onClose: () => void }) {
             </button>
           ))}
         </div>
-        <div className="escnote">Frame rate cap — effects and card motion. Lower it if late fights feel choppy. Options above your display's refresh have no effect.</div>
+        <div className="escnote">Effects frame cap — combat effects and card motion only; the rest of the game runs at your display's refresh. To cap the whole game, use your GPU driver's per-app frame limit. Options above your display's refresh have no effect.</div>
         {/* Desktop shell only. The run is saved continuously, so closing the app loses nothing — but it is
             still the one button that ends the session, hence the confirm. */}
         {isDesktop() && (

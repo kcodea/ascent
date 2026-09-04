@@ -1,5 +1,6 @@
 /**
- * FRAME RATE CAP (owner ask 2026-09-04: "a setting for 60, 120, 144, 240 and 360").
+ * EFFECTS FRAME CAP (owner ask 2026-09-04: "a setting for 60, 120, 144, 240 and 360"; relabelled the same day
+ * after the owner, on a 360 Hz display, capped at 60 and saw no whole-game change — see below for why).
  *
  * The game animates on three clocks: the Pixi effects ticker (every canvas renders from the MAIN controller's
  * ticker), GSAP (lunges, fly-ins, drag glide) and CSS transitions/animations. The first two have a built-in

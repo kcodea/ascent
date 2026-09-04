@@ -40,13 +40,6 @@ load-bearing rules:
 - **Don't deep-clone large read-only state** (the reducer shares `lastCombat` by reference).
 - Always confirm a "slow" report against the **prod build**, not `npm run dev` (StrictMode + Vite dev are
   much slower than what players run).
-- **Nothing runs cold on first use — the boot pays for it** (owner ruling 2026-09-03). Every image, font,
-  clip, shader and effect is loaded/fired behind the boot screen (`packages/ui/src/bootLoader.ts`,
-  `fx/warmAll.ts`). The rule is machine-enforced: a new `public/` file needs `npm run assets:manifest`
-  (`publicAssets.test.ts`), a new font weight goes in `FONT_FACES` (`fontsPreload.test.ts`), a new pixiFx fire
-  method must be fired in `warmAll.ts` (`warmAll.test.ts`), a new committed def is covered by construction,
-  and art/audio globs are automatic. Prove it, don't assert it: `window.__boot.stages.fx.note` after boot
-  ("re-fire long tasks: 0") and `window.__perf.hitches()` after a run. See `docs/performance.md` §3e.
 
 ## UI conventions
 

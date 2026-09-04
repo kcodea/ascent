@@ -2,23 +2,6 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import gsap from 'gsap';
 import { Boot, Game } from '@game/ui';
-// SELF-HOSTED FONTS (2026-09-03). They came from Google Fonts with `display=swap` — text painted in the
-// fallback and re-flowed as each face arrived (a first-use hitch on every screen that used a new weight),
-// and the desktop exe ran on fallback fonts whenever it had no internet. Vite bundles the woff2 files; the
-// boot loader (`preloadFonts`) then loads every face below before the menu opens. Keep this list in step with
-// `FONT_FACES` in packages/ui/src/fontsPreload.ts — fontsPreload.test.ts pins the two together.
-import '@fontsource/outfit/400.css';
-import '@fontsource/outfit/500.css';
-import '@fontsource/outfit/600.css';
-import '@fontsource/outfit/700.css';
-import '@fontsource/outfit/800.css';
-import '@fontsource/outfit/900.css';
-import '@fontsource/nunito-sans/400.css';
-import '@fontsource/nunito-sans/600.css';
-import '@fontsource/nunito-sans/700.css';
-import '@fontsource/cinzel-decorative/400.css';
-import '@fontsource/cinzel-decorative/700.css';
-import '@fontsource/cinzel-decorative/900.css';
 
 // A main-thread frame hitch (a Pixi FX burst, GC, a heavy render) makes GSAP apply the whole missed
 // delta on its next tick — JUMPING an in-flight lunge past its motion, so the swing snaps home unseen

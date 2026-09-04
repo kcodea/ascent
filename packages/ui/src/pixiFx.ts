@@ -1832,13 +1832,6 @@ class FxController {
    *  Synchronous (no asset fetch) — a `deathrattle()` before it exists simply no-ops. The canvas keeps its glow
    *  padding, and `skullSrcW`/`skullSrcH` are the full padded box; the Pixi sprite scales uniformly, so the
    *  tall silhouette's aspect is preserved and display sizing tracks its width (see `deathrattle`). */
-  /** BOOT WARM-UP: build the lazily-made hand-written textures now (the Echo skull) and hand them back so the
-   *  boot loader can upload them to the GPU — otherwise the first Echo of a run bakes + uploads on its beat. */
-  warmBuiltinTextures(): Texture[] {
-    if (!this.skullTex) this.buildSkullTex();
-    return this.skullTex ? [this.skullTex] : [];
-  }
-
   private buildSkullTex(): void {
     if (typeof document === 'undefined') return;
     try {

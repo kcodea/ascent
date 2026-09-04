@@ -8,7 +8,7 @@
     "start": "electron ."
   },
   "devDependencies": {
-    "electron": "^32.2.0",
+    "electron": "^44.2.0",
     "rcedit": "^5.0.2"
   },
   "author": "kcodea"

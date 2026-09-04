@@ -101,7 +101,7 @@ import { bindingFor } from './choreo/bindings';
 import { scheduleLands, waves as asWaves } from './fx/land';
 import { holdStat, releaseStat } from './fx/statHold';
 import { fodderGainHolds, type FodderGain } from './fx/fodderGains';
-import { applyFloatSpeed, getFloatConfig } from './floatConfig';
+import { applyFloatSpeed, getFloatConfig, splashImgSrc } from './floatConfig';
 import gsap from 'gsap';
 import { Flip } from 'gsap/Flip';
 import { useGame } from './store';
@@ -6637,7 +6637,10 @@ export function Recruit() {
                   style={{ left: f.x, top: f.y, width: f.w, height: f.h } as CSSProperties}
                   aria-hidden="true"
                 >
-                  <span className={`float ${f.kind}${sym ? ' sym' : ''}${f.climb ? ' climb' : ''}`} style={splashStyle}>{f.text}</span>
+                  <span className={`float ${f.kind}${sym ? ' sym' : ''}${f.climb ? ' climb' : ''}`} style={splashStyle}>
+                    {f.kind === 'dmg' && <img className="dmgsplash" src={splashImgSrc()} alt="" aria-hidden draggable={false} decoding="sync" />}
+                    {f.text}
+                  </span>
                 </div>
               );
             })}
@@ -6645,7 +6648,10 @@ export function Recruit() {
                 is removed), so the number reads + lingers at the spot the minion fell. */}
             {replay.deathFloats.map((f) => (
               <div key={`death-${f.id}`} className="deathfloat" style={{ left: f.x, top: f.y } as CSSProperties} aria-hidden="true">
-                <span className={`float ${f.kind}`}>{f.text}</span>
+                <span className={`float ${f.kind}`}>
+                  {f.kind === 'dmg' && <img className="dmgsplash" src={splashImgSrc()} alt="" aria-hidden draggable={false} decoding="sync" />}
+                  {f.text}
+                </span>
               </div>
             ))}
           </>,

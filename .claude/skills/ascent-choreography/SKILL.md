@@ -64,16 +64,3 @@ paint properties if profiled.
 `npm run beats:audit`, focused Choreographer/Beat Lab tests, and live playback at normal, accelerated and
 skipped speeds. When a beat's job is to *reserve time*, assert the compiled timeline's duration grows with the
 number of effects — counting beats does not prove they got room.
-
-## Nothing runs cold (the boot standard, 2026-09-03)
-
-Every effect is fired once under the boot splash and once more under a long-task observer
-(`fx/warmAll.ts`); `window.__boot.stages.fx.note` must read `re-fire long tasks: 0`. When you add an effect:
-
-- a **committed def** is covered automatically (`warmAll` plays `listDefs()`);
-- a **new pixiFx method** that fires something must be added to `fireAllHandWritten` — `warmAll.test.ts`
-  fails CI otherwise (or list it in `NOT_A_FIRE` with a reason if it is lifecycle, not a fire);
-- a **new lazily-built texture/program** belongs in `pixiFx.warmBuiltinTextures` or the fire list;
-- a **new canvas** (own GL context) is attached offscreen at boot like `discoverFx`;
-- every boot wait is **bounded** — `img.decode()` and friends stall in a hidden tab.
-

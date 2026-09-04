@@ -62,7 +62,6 @@
     "pool:prune": "tsx packages/tools/src/prune-pool.ts",
     "sfx:import": "tsx packages/tools/src/sfx-import.ts",
     "sfx:manifest": "tsx packages/tools/src/sfx-manifest.ts",
-    "assets:manifest": "tsx packages/tools/src/public-manifest.ts",
     "dump-cards": "tsx packages/tools/src/dump-cards.ts",
     "tutorial:sync": "tsx packages/tools/src/tutorial-copy-sync.ts",
     "optimize-art": "node scripts/optimize-art.mjs",

@@ -81,7 +81,10 @@ if (!existsSync(rcedit)) {
   console.warn('! apps/desktop/icon.ico missing — run `node scripts/make-icon.mjs`. Exe keeps the Electron icon.');
 } else {
   console.log('• stamping icon + version info into the exe');
-  execFileSync(rcedit, [
+  // RETRY: the exe was copied+renamed a moment ago, and Windows Defender scans a fresh 186 MB executable on
+  // write — for a few seconds it holds the file, and rcedit's open-for-write fails with no useful message
+  // (exit 1, empty stderr; the same command run 30 s later succeeds — hit on the first release:desktop run).
+  const stampExe = () => execFileSync(rcedit, [
     exe,
     '--set-icon', ico,
     '--set-file-version', version,
@@ -93,6 +96,14 @@ if (!existsSync(rcedit)) {
     '--set-version-string', 'InternalName', 'ASCENT',
     '--set-version-string', 'OriginalFilename', 'ASCENT.exe',
   ], { stdio: 'inherit' });
+  const { setTimeout: sleep } = await import('node:timers/promises');
+  for (let attempt = 1; ; attempt++) {
+    try { stampExe(); break; } catch (e) {
+      if (attempt >= 6) throw e;
+      console.warn(`  rcedit failed (attempt ${attempt}/6, likely the AV scan still holds the exe) — retrying in 5 s`);
+      await sleep(5000);
+    }
+  }
 }
 const { size } = await stat(exe);
 console.log(`\n✓ ${path.relative(root, exe)}  (${(size / 1024 / 1024).toFixed(1)} MB exe, runtime alongside it)`);

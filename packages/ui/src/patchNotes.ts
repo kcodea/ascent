@@ -55,6 +55,20 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-09-04',
+    label: 'Frame rate cap',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: 'Settings has a new Performance section with a frame rate cap: Display, 60, 120, 144, 240 or 360. Lower it if late fights feel choppy.',
+        details: [
+          'The cap applies to combat effects and card motion; it cannot raise the rate above the refresh rate of your display, so options above it are shown dimmed and do nothing.',
+          'Your choice is remembered between sessions.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-09-03',
     label: 'Standard Bearer',
     changes: [

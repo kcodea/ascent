@@ -356,6 +356,10 @@ function sampleLut(lut: Float32Array, t: number): number {
 
 class FxController {
   private app: Application | null = null;
+  /** Frame-rate cap for this controller's ticker (0 = uncapped). Every canvas renders from the MAIN app's
+   *  ticker, so one cap per controller covers over/under/above. Remembered so a cap set before the canvas
+   *  exists applies when it comes up — see fpsCap.ts. */
+  private maxFps = 0;
   private layer: Container | null = null;
   private ready = false;
   private initing: Promise<void> | null = null;
@@ -413,6 +417,13 @@ class FxController {
   setPerfLabel(label: string): void { this.label = label; }
 
   /** Track the stage scale so combat particle bursts shrink with the cards (see `fxScale`). Idempotent; cheap. */
+  /** Cap the effects ticker (fpsCap.ts). 0 = the display's refresh. Applies now if the app exists, and at
+   *  init otherwise. */
+  setMaxFps(fps: number): void {
+    this.maxFps = fps > 0 ? fps : 0;
+    if (this.app) this.app.ticker.maxFPS = this.maxFps;
+  }
+
   setScale(stageScale: number): void {
     this.fxScale = stageScale > 0 ? stageScale : 1;
   }
@@ -719,6 +730,7 @@ class FxController {
     this.wispTex = this.makeWispTexture(app);
     this.crescentTex = this.makeCrescentTexture(app);
     this.buildSkullTex(); // the Echo skull: ☠ rendered purple with its glow baked into the texture
+    app.ticker.maxFPS = this.maxFps;
     app.ticker.add(this.update);
     app.ticker.add(this.renderUnder); // one clock for every canvas — see the UNDER slot notes above
     app.ticker.add(this.renderAbove);

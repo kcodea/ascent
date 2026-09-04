@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { loadFpsCap, saveFpsCap } from './fpsCap';
 import { CARD_INDEX, activeSet, type SetId } from '@game/content';
 import { CONFIG, HEROES, playableHeroes, practiceHeroes, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, resolveServerProfile, isPlayerAction, missingCardIds, nextOpponent, parseQaScenario, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, withLiveTelemetry, type TelemetryLog, beginDerive, observeAction, finishDerive, type DeriveState, reduce, reduceWithPresentation, resolveLobbyRating, serialize, snapshotBoard, socBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, combatFrameOf, deltaShopFrameOf, shopFrameOf, runRecord, type DragPath, type ReplayFrame, type ReplayV2, type ShopView, appendInspectEvent, type InspectEvent, type InspectSnapshot, createLobbyRun, createTutorialRun, type TutorialCourse, type PracticeConfig, DEFAULT_PRACTICE_CONFIG, normalizeBotDifficulty, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction } from '@game/sim';
 import type { PresentationBatch } from '@game/core';
@@ -355,6 +356,9 @@ interface GameStore {
    *  then back down for the finish. On by default. See combatRampConfig.ts. */
   combatRampUp: boolean;
   setCombatRampUp: (on: boolean) => void;
+  /** Frame-rate cap for the effects + GSAP clocks (0 = display refresh). Persisted; applied by Game.tsx. */
+  fpsCap: number;
+  setFpsCap: (cap: number) => void;
   /** PRACTICE-only shop-timer multiplier (1–4×), chosen from the dropdown beside the clock. 1× is the scored
    *  mode's clock exactly; 3× is the default (what practice was fixed at before). Persisted. */
   practiceTimer: number;
@@ -1573,6 +1577,11 @@ export const useGame = create<GameStore>((set, get) => ({
     const combatSpeed = Math.min(5, Math.max(0.5, Math.round(speed * 10) / 10)); // clamp 0.5–5×, snap to 0.1
     try { localStorage.setItem('ascent.combatspeed', String(combatSpeed)); } catch { /* ignore */ }
     set({ combatSpeed });
+  },
+  fpsCap: loadFpsCap(),
+  setFpsCap: (cap) => {
+    saveFpsCap(cap);
+    set({ fpsCap: cap });
   },
   combatRampUp: loadCombatRampUp(),
   setCombatRampUp: (on) => {

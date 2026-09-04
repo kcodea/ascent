@@ -5426,6 +5426,13 @@ svg { width: 18px; height: 18px; }
 .escov { position: fixed; inset: 0; z-index: 500; display: grid; place-items: center; background: rgba(20, 14, 7, 0.62); backdrop-filter: blur(3px); animation: fadein 0.16s ease; }
 .escpanel { zoom: var(--ui-zoom); background: var(--card); border: 2px solid var(--line); border-radius: 22px; padding: 26px 26px 20px; min-width: 380px; box-shadow: 0 26px 64px -16px rgba(0, 0, 0, 0.62); }
 .escpanel .esch { font-weight: 800; font-size: 28px; color: var(--ink); text-align: center; }
+/* Frame-rate cap row (Settings → Performance): six compact radio-style buttons on one line. Reuses `.escbtn`
+   for the look + the gauntlet cursor; `.dim` marks an option above the display's refresh (inert). */
+.escfps { display: flex; gap: 6px; margin-bottom: 8px; }
+.escfps .escfpsopt { flex: 1 1 0; min-width: 0; padding: 9px 4px; text-align: center; }
+.escfps .escfpsopt .ebl { font-size: 13px; white-space: nowrap; }
+.escfps .escfpsopt.dim { opacity: 0.45; }
+.escnote { font-family: var(--font-ui); font-size: 12px; color: var(--ink3); text-align: center; margin: 0 8px 8px; line-height: 1.35; }
 .escsec { font-family: var(--font-ui); font-weight: 700; font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink3); text-align: center; margin: 16px 0 10px; }
 .escres { display: grid; gap: 8px; }
 .escboards { display: grid; gap: 8px; }

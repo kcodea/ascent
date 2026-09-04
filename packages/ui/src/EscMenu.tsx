@@ -12,6 +12,8 @@ import { useState } from 'react';
 import { isDesktop, quitGame, toggleFullscreen } from './desktop';
 import { getVolume, isMuted, setVolume, sfx, toggleMute } from './sfx';
 import { useGame } from './store';
+import { FPS_CAP_OPTIONS, fpsCapLabel } from './fpsCap';
+import { perfThresholds } from './perfMonitor';
 import { endReplay } from './replay/replayPlayer';
 
 export function EscMenu({ onClose }: { onClose: () => void }) {
@@ -27,6 +29,9 @@ export function EscMenu({ onClose }: { onClose: () => void }) {
   const setCombatSpeed = useGame((s) => s.setCombatSpeed);
   const combatRampUp = useGame((s) => s.combatRampUp);
   const setCombatRampUp = useGame((s) => s.setCombatRampUp);
+  const fpsCap = useGame((s) => s.fpsCap);
+  const setFpsCap = useGame((s) => s.setFpsCap);
+  const displayHz = perfThresholds().refreshHz;
   // Desktop only (see desktop.ts): the browser build has no shell to close. Two-tap confirm —
   // closing the app mid-run is the most destructive button in here.
   const [confirmQuit, setConfirmQuit] = useState(false);
@@ -106,6 +111,24 @@ export function EscMenu({ onClose }: { onClose: () => void }) {
           <span className="ebl">Auto-ramp speed{combatRampUp ? ' ✓' : ''}</span>
           <span className="ebs">Long fights speed up, then ease back down for the finish</span>
         </button>
+        <div className="escsec">Performance</div>
+        {/* FRAME RATE CAP (owner ask 2026-09-04). Caps the effects + GSAP clocks; CSS still runs at the display
+            refresh. An option above the display's refresh does nothing — the window is vsynced — hence the
+            note. "Display" = uncapped. */}
+        <div className="escfps" role="radiogroup" aria-label="Frame rate cap">
+          {FPS_CAP_OPTIONS.map((cap) => (
+            <button
+              key={cap}
+              className={`escbtn pressable escfpsopt${fpsCap === cap ? ' on' : ''}${cap > 0 && displayHz > 0 && cap > displayHz + 1 ? ' dim' : ''}`}
+              onPointerDown={() => { if (fpsCap !== cap) { setFpsCap(cap); sfx.pulse(); } }}
+              role="radio"
+              aria-checked={fpsCap === cap}
+            >
+              <span className="ebl">{fpsCapLabel(cap, displayHz)}</span>
+            </button>
+          ))}
+        </div>
+        <div className="escnote">Frame rate cap — effects and card motion. Lower it if late fights feel choppy. Options above your display's refresh have no effect.</div>
         {/* Desktop shell only. The run is saved continuously, so closing the app loses nothing — but it is
             still the one button that ends the session, hence the confirm. */}
         {isDesktop() && (

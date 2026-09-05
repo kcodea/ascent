@@ -15,11 +15,15 @@
  *
  * The build's `base: './'` (see apps/web/vite.config.ts, set for itch.io's CDN sub-path) is what makes this
  * work unchanged — every asset resolves relative to `app://ascent/`.
+ *
+ * ── The handler serves from disk WITH cache headers (2026-09-04) ──────────────────────────────────────
+ * It used to proxy every request through `net.fetch(file://…)` with no headers, so Chromium could cache
+ * nothing and re-requested every evicted image/clip/chunk through a main-process round trip — the exe hitched
+ * ("worse as the game went on") while the identical bundle was smooth in Chrome. See the handler.
  */
 const { Menu, app, BrowserWindow, ipcMain, protocol, net, shell } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs');
-const { pathToFileURL } = require('node:url');
 
 // ── SMOKE MODE (scripts/release-desktop.mjs) ──────────────────────────────────────────────────────────────
 // `ASCENT_SMOKE=1` turns the shell into a self-check of the packaged bundle: a windowed (not fullscreen) boot
@@ -151,6 +155,13 @@ ipcMain.on('ascent:toggle-fullscreen', (event) => {
 });
 
 app.whenReady().then(() => {
+  const MIME = {
+    '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8',
+    '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.webmanifest': 'application/manifest+json',
+    '.png': 'image/png', '.webp': 'image/webp', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.svg': 'image/svg+xml',
+    '.ico': 'image/x-icon', '.mp3': 'audio/mpeg', '.wav': 'audio/wav', '.mp4': 'audio/mp4', '.ogg': 'audio/ogg',
+    '.woff2': 'font/woff2', '.woff': 'font/woff', '.ttf': 'font/ttf', '.wasm': 'application/wasm', '.txt': 'text/plain; charset=utf-8',
+  };
   protocol.handle('app', (request) => {
     const { pathname } = new URL(request.url);
     const rel = pathname === '/' || pathname === '' ? '/index.html' : decodeURIComponent(pathname);
@@ -164,7 +175,22 @@ app.whenReady().then(() => {
       return new Response('Not Found', { status: 404 });
     }
     if (SMOKE) smoke.requests++;
-    return net.fetch(pathToFileURL(target).toString());
+    // SERVE FROM DISK WITH CACHE HEADERS (2026-09-04). This used to proxy through `net.fetch(file://…)` with no
+    // headers, so Chromium could not cache a single response: every image, clip or chunk the renderer needed —
+    // and needed AGAIN once its cache evicted it under memory pressure — was a fresh round trip through the main
+    // process. The owner measured it: the same bundle was "butter smooth" in Chrome from a local static server,
+    // hitched in the exe "worse as the game went on", and a bisect exe loading over http was smooth in this same
+    // shell. Vite's `assets/` are content-hashed (immutable forever); the rest is fixed for the life of the exe.
+    const body = require('node:fs').readFileSync(target);
+    const ext = path.extname(target).toLowerCase();
+    return new Response(body, {
+      status: 200,
+      headers: {
+        'Content-Type': MIME[ext] ?? 'application/octet-stream',
+        'Content-Length': String(body.byteLength),
+        'Cache-Control': rel.startsWith('/assets/') ? 'public, max-age=31536000, immutable' : 'public, max-age=86400',
+      },
+    });
   });
 
   createWindow();

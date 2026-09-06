@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ascent Quiz #25 — 2026-09-06</title>
+<style>
+  :root {
+    --bg: #0f1420;
+    --panel: #1a2236;
+    --panel-border: #2c3752;
+    --text: #e8edf7;
+    --text-dim: #9aa7c2;
+    --accent: #6c8cff;
+    --accent-dim: #3c4a78;
+    --correct: #3ecf8e;
+    --correct-bg: rgba(62, 207, 142, 0.14);
+    --wrong: #ff6b6b;
+    --wrong-bg: rgba(255, 107, 107, 0.14);
+    --gold: #f0c674;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    min-height: 100%;
+  }
+  body {
+    display: flex;
+    justify-content: center;
+    padding: 32px 16px 64px;
+  }
+  .wrap { width: 100%; max-width: 680px; }
+  header {
+    text-align: center;
+    margin-bottom: 24px;
+  }
+  header h1 {
+    font-size: 1.5rem;
+    margin: 0 0 4px;
+    letter-spacing: 0.01em;
+  }
+  header .sub {
+    color: var(--text-dim);
+    font-size: 0.9rem;
+  }
+  .progress-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .progress-track {
+    flex: 1;
+    height: 8px;
+    background: var(--panel-border);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--gold));
+    width: 0%;
+    transition: width 0.35s ease;
+  }
+  .progress-label {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    white-space: nowrap;
+    min-width: 64px;
+    text-align: right;
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 14px;
+    padding: 24px;
+    margin-bottom: 16px;
+  }
+  .topic-tag {
+    display: inline-block;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--accent);
+    background: var(--accent-dim);
+    padding: 3px 9px;
+    border-radius: 999px;
+    margin-bottom: 12px;
+  }
+  .question {
+    font-size: 1.08rem;
+    line-height: 1.5;
+    margin-bottom: 18px;
+  }
+  .question code {
+    background: #0c1120;
+    border: 1px solid var(--panel-border);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 0.92em;
+    color: #cfe0ff;
+  }
+  .choices { display: flex; flex-direction: column; gap: 10px; }
+  .choice {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    text-align: left;
+    background: #131a2b;
+    border: 1px solid var(--panel-border);
+    color: var(--text);
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 0.97rem;
+    line-height: 1.4;
+    cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
+    transition: border-color 0.15s ease, background 0.15s ease, transform 0.1s ease;
+  }
+  .choice code {
+    background: #0c1120;
+    border: 1px solid var(--panel-border);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 0.92em;
+    color: #cfe0ff;
+  }
+  .choice:hover:not(:disabled) {
+    border-color: var(--accent);
+    background: #17203a;
+  }
+  .choice:active:not(:disabled) { transform: scale(0.995); }
+  .choice:disabled { cursor: default; }
+  .choice .letter {
+    flex: none;
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+    background: var(--panel-border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text-dim);
+  }
+  .choice.correct { border-color: var(--correct); background: var(--correct-bg); }
+  .choice.correct .letter { background: var(--correct); color: #06251a; }
+  .choice.wrong { border-color: var(--wrong); background: var(--wrong-bg); }
+  .choice.wrong .letter { background: var(--wrong); color: #2a0808; }
+  .choice.dim { opacity: 0.55; }
+  .result-banner {
+    margin-top: 16px;
+    padding: 10px 14px;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 0.92rem;
+  }
+  .result-banner.good { background: var(--correct-bg); color: var(--correct); }
+  .result-banner.bad { background: var(--wrong-bg); color: var(--wrong); }
+  .explanation {
+    margin-top: 12px;
+    padding: 14px 16px;
+    background: #0f1626;
+    border: 1px solid var(--panel-border);
+    border-left: 3px solid var(--accent);
+    border-radius: 8px;
+    font-size: 0.93rem;
+    line-height: 1.55;
+    color: var(--text-dim);
+  }
+  .explanation code {
+    background: #0c1120;
+    border: 1px solid var(--panel-border);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 0.92em;
+    color: #cfe0ff;
+  }
+  .explanation strong { color: var(--text); }
+  .nav-row {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 18px;
+  }
+  .next-btn {
+    background: var(--accent);
+    color: #0a0e18;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+  }
+  .next-btn.show { opacity: 1; pointer-events: auto; }
+  .next-btn:hover { filter: brightness(1.08); }
+  .score-live {
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 0.85rem;
+    margin-bottom: 6px;
+  }
+  .final {
+    text-align: center;
+    padding: 36px 24px;
+  }
+  .final .big-score {
+    font-size: 3rem;
+    font-weight: 700;
+    margin: 8px 0 4px;
+    background: linear-gradient(90deg, var(--accent), var(--gold));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .final .line {
+    color: var(--text-dim);
+    margin-bottom: 20px;
+  }
+  .final .encourage {
+    font-size: 1.05rem;
+    color: var(--text);
+    margin-bottom: 24px;
+  }
+  .restart-btn {
+    background: transparent;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-size: 0.9rem;
+    cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
+  }
+  .restart-btn:hover { background: var(--accent-dim); }
+  .hidden { display: none; }
+  footer.tip {
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 0.78rem;
+    margin-top: 28px;
+    line-height: 1.5;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>🎓 Ascent Quiz #25</h1>
+    <div class="sub">2026-09-06 · How the game is built</div>
+  </header>
+
+  <div id="quizArea">
+    <div class="progress-row">
+      <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="progress-label" id="progressLabel">Q1 / 10</div>
+    </div>
+    <div class="score-live" id="scoreLive">Score so far: 0</div>
+    <div class="card" id="questionCard"></div>
+  </div>
+
+  <div id="finalArea" class="card final hidden"></div>
+
+  <footer class="tip">Architecture only — no game-rules spoilers here. Reply with your score and Claude will pick tomorrow's topics to match.</footer>
+</div>
+
+<script>
+const QUESTIONS = [
+  {
+    topic: "types-basics",
+    question: "packages/core/src/types.ts defines two separate interfaces for what feels like \"one minion\": <code>BoardMinion</code> (almost every field optional — <code>keywords?</code>, <code>golden?</code>, <code>critChance?</code>, …) and <code>Minion</code>, documented as \"A live combat instance. Mutable for the duration of one <code>simulate()</code> call,\" with required fields like <code>uid</code>, <code>name</code>, and <code>tribe</code>. Why two interfaces instead of one shared shape used everywhere?",
+    choices: [
+      "TypeScript interfaces can't be reused across two different files, so a second copy had to be declared for combat code.",
+      "They model the SAME minion at two different lifecycle phases: <code>BoardMinion</code> only records overrides/deltas from the CardDef while it sits in the shop, and <code>Minion</code> is a fully resolved, ready-to-fight snapshot built fresh for one combat.",
+      "<code>Minion</code> is a newer replacement for <code>BoardMinion</code> that hasn't fully replaced it yet — old code still references the deprecated one.",
+      "Optional properties (<code>?</code>) are only legal on interfaces under 15 fields, and <code>BoardMinion</code> hit that limit, forcing a split."
+    ],
+    answer: 1,
+    explanation: "<code>BoardMinion</code> is what actually gets saved/persisted on the run board — mostly optional because most minions never touch most of those fields (Bloodlust, Gravetwin's copied Echo, etc. are rare exceptions). <code>Minion</code> is what <code>instantiate()</code> builds right before a fight: a complete, required-field snapshot combat can rely on without checking for <code>undefined</code> everywhere. Choice A is false — interfaces are ordinary exported types, reusable anywhere they're imported; C invents a deprecation that isn't in the code; D invents a field-count rule TypeScript doesn't have."
+  },
+  {
+    topic: "immutability",
+    question: "packages/sim/src/reducer.ts's exported <code>reduce(state, action)</code> begins with three lines that look surprising for code that prides itself on immutability: <code>state.recruitBuffFx = []; state.auraFx = undefined; state.veinstormStamped = undefined;</code> — mutating the INCOMING <code>state</code> object directly, before <code>reduceCore</code> even makes its clone. Why doesn't this break the \"don't mutate shared state\" discipline?",
+    choices: [
+      "It's actually a leftover bug that should be fixed — the team just hasn't gotten to it yet.",
+      "It doesn't count as mutation because <code>undefined</code> and <code>[]</code> are primitive-like values, not objects.",
+      "<code>reduce()</code> is exempt from the mutation rule because it's the outermost exported function in the file, so nothing else calls it recursively.",
+      "These three fields are per-action scratch buffers that get overwritten on every single dispatch anyway — resetting them on the input before the clone is a deliberate, narrow exception, not the same risk as mutating a long-lived CardDef or board state something else might still be reading."
+    ],
+    answer: 3,
+    explanation: "The comment right above these lines explains it: these fields exist to carry ONE action's FX captures forward, and they're reset to empty on the way IN so a rejected/no-op action's clone starts clean rather than accumulating stale captures from a previous dispatch. Immutability's real purpose is protecting data something else might still depend on (a shared CardDef, another minion's stats) — a throwaway per-dispatch scratch field that's about to be fully rewritten doesn't carry that risk. A invents a bug that isn't one (it's intentional and commented); B is simply false — assigning <code>[]</code>/<code>undefined</code> to an object's property is mutation regardless of what the new value is; C describes no real JavaScript/TypeScript rule."
+  },
+  {
+    topic: "reducer-run-state",
+    question: "packages/sim/src/state.ts's <code>deserialize(json)</code> doesn't just <code>JSON.parse</code> the save and return it. It also calls <code>createRun()</code> to build a brand-new default run for the same seed/hero/mode, then does <code>const state = { ...defaults, ...parsed };</code>. What problem does that spread-merge solve?",
+    choices: [
+      "A save written before some newer <code>RunState</code> field existed would otherwise load with that field simply missing — merging the parsed save OVER a fresh default run means every field the old save doesn't have automatically gets that field's normal fresh-run value, instead of crashing or reading as <code>undefined</code>.",
+      "It compresses the save file by dropping any field that matches the default value.",
+      "It re-validates every field of the save against the zod content schema before the run is allowed to resume.",
+      "<code>createRun()</code> re-rolls a brand-new random seed so two loads of the same save file never look identical."
+    ],
+    answer: 0,
+    explanation: "The code itself calls this technique \"heal-by-construction\": object spread applies left-to-right, so any key present in <code>parsed</code> overrides <code>defaults</code>, but a key ADDED to <code>RunState</code> since the save was written simply keeps its <code>defaults</code> value, because <code>parsed</code> never had it to override. The comment explicitly names the OLD approach — a hand-maintained list of <code>??=</code> fallbacks — as the thing that kept missing fields (<code>history</code>, <code>tavernBuyBonus</code>, <code>spellCostMod</code>, <code>freeRolls</code>) and crashed or corrupted old saves. B invents a size-optimization that isn't the point (and would make old-save compatibility worse, not better); C confuses this with <code>validateCards()</code>, a completely different system; D is wrong — <code>deserialize</code> reuses <code>parsed.seed</code>, which is exactly why a reload replays identically rather than differently."
+  },
+  {
+    topic: "zustand-store",
+    question: "packages/ui/src/store.ts reads and writes to <code>localStorage</code> in several places (the saved run, the player's avatar/name, the combat-speed preference), and every read is wrapped like this: <code>try { return localStorage.getItem('ascent.avatar') || null; } catch { return null; }</code>. Why bother with a try/catch around something as simple as reading a string?",
+    choices: [
+      "It's required syntax — TypeScript won't compile any call to <code>localStorage.getItem</code> unless it's inside a try/catch block.",
+      "<code>localStorage</code> is asynchronous, so the try/catch is actually there to catch a pending Promise rejection.",
+      "<code>localStorage</code> access can throw in real browser conditions Ascent doesn't control — private/incognito mode, a user who's disabled storage, or a full quota — so the store treats it as best-effort and degrades gracefully (missing avatar, no resumed run) instead of crashing the whole app over a preference.",
+      "It protects against a race condition where two browser tabs write to <code>localStorage</code> at the exact same millisecond."
+    ],
+    answer: 2,
+    explanation: "This is defensive coding at a system boundary: the browser environment (not Ascent's own code) decides whether storage is even available, so every touch point is wrapped so a blocked/unavailable <code>localStorage</code> degrades play gracefully rather than throwing an uncaught exception that would break the whole title screen over a cosmetic preference. A is false — <code>localStorage</code> is a completely ordinary synchronous API with no such compiler requirement. B is false too — <code>localStorage</code> methods are synchronous and never return Promises. D describes a real but unrelated browser concern that a try/catch around a single <code>getItem</code> call wouldn't even address."
+  },
+  {
+    topic: "event-bus",
+    question: "packages/core/src/events.ts's very first line is <code>import type { GameEvent } from './types';</code> — the <code>type</code> keyword right after <code>import</code>. <code>CombatBus</code> then uses <code>GameEvent</code> only to type its <code>Map</code> keys and its <code>on()</code>/<code>emit()</code> parameters. What does the <code>type</code> keyword change about this import?",
+    choices: [
+      "It makes the import lazy — <code>GameEvent</code> is only actually loaded into memory the first time <code>on()</code> is called.",
+      "It marks the import as type-only: TypeScript erases it entirely at compile time, so <code>events.ts</code> has zero runtime dependency on whatever code produces <code>GameEvent</code> — only a compile-time shape check, not an actual value CombatBus reads or calls.",
+      "Nothing observable — <code>import type</code> and a plain <code>import</code> compile down to identical JavaScript.",
+      "It's required because <code>GameEvent</code> is defined in a different npm package, and cross-package imports must always use <code>import type</code>."
+    ],
+    answer: 1,
+    explanation: "<code>import type</code> tells the compiler this import exists purely to check shapes at compile time — since <code>GameEvent</code> is a string-literal union (a type, not a runtime value), there's nothing to import at runtime anyway, and the whole line disappears from the compiled output. That's a nice illustration of how loosely coupled the bus really is: it doesn't care what the strings mean, only that callers pass strings from the right union. A and D invent mechanics (lazy loading, cross-package rules) that don't exist; C is wrong — the compiled JS genuinely differs, since a plain <code>import</code> of a type-only value can leave a dead or invalid import depending on the module system, while <code>import type</code> guarantees it's stripped."
+  },
+  {
+    topic: "cards-in-sets",
+    question: "packages/sim/src/cardPool.ts doesn't call <code>poolFor(state.setId)</code> directly from everywhere that needs a run's card pool. Instead it exports a one-line wrapper: <code>export function poolOf(state) { return poolFor(state.setId ?? 'set1'); }</code>, and the rest of the sim package calls <code>poolOf(state)</code> instead. What does that extra layer buy?",
+    choices: [
+      "It's purely a naming convenience — <code>poolOf(state)</code> and <code>poolFor(state.setId)</code> behave identically in every case, with no functional difference.",
+      "It caches the resolved pool across multiple calls in the same tick, which <code>poolFor</code> alone doesn't already do.",
+      "It converts the set-scoped pool back into the old flat, pre-sets pool format for backward compatibility.",
+      "It's the one place that defaults a possibly-missing <code>setId</code> to <code>'set1'</code> — so every run-facing call site automatically handles a save written before sets existed (which has no <code>setId</code> field at all), instead of every caller having to remember that fallback itself."
+    ],
+    answer: 3,
+    explanation: "<code>poolFor</code> already has its own internal <code>SETS[setId] ?? SETS.set1</code> fallback for an unrecognized id, but <code>poolOf</code>'s job is different: it's the seam every run-facing call site actually uses, and by defaulting <code>state.setId ?? 'set1'</code> in ONE place, no caller elsewhere in <code>packages/sim</code> needs to remember that a pre-sets save has no <code>setId</code> at all. <code>poolFor</code> already memoizes its own results independently (via its own cache Map), so B misattributes an existing behavior to the wrong function; A undersells the real defaulting behavior; C describes something the code doesn't do: pools stay set-scoped, they're never flattened back."
+  },
+  {
+    topic: "package-boundaries",
+    question: "packages/core/package.json, packages/content/package.json, packages/sim/package.json, and packages/ui/package.json all declare an <code>\"exports\"</code> field pointing at their public entrypoint. <code>apps/web/package.json</code> has no <code>exports</code> field at all. Why is that fine?",
+    choices: [
+      "<code>exports</code> only controls what OTHER packages are allowed to import FROM a given package; apps/web is the final consuming application that nothing else in the monorepo ever imports from, so it has no public surface to declare.",
+      "It's an oversight — apps/web should have one too, it's just never been added.",
+      "Apps aren't part of npm workspaces, so the <code>exports</code> field doesn't apply to them at all.",
+      "<code>exports</code> is only required for packages published to the public npm registry, and apps/web is private."
+    ],
+    answer: 0,
+    explanation: "<code>exports</code> exists to declare and enforce a package's public API for anyone importing it — it's meaningful precisely because <code>packages/ui</code> needs to say what apps/web (and nothing else) is allowed to reach into. Since nothing imports FROM apps/web (it's the leaf of the dependency graph — the actual shipped app), there's no boundary for <code>exports</code> to protect, so omitting it isn't a gap. C is wrong — apps/web IS a real workspace (it matches the <code>apps/*</code> glob) and simply doesn't need this particular field; D confuses <code>exports</code> with npm's *publish*-privacy setting (<code>\"private\": true</code>), a separate, unrelated field."
+  },
+  {
+    topic: "effects-as-subscriptions",
+    question: "packages/content/src/schema.ts validates every card effect's optional config bag with <code>params: z.record(z.unknown()).optional()</code> — it checks that <code>params</code>, if present, is SOME plain object, but not what keys or value types it should have. If a card author writes <code>params: { amt: 3 }</code> for a factory that actually reads <code>params.amount</code>, what happens?",
+    choices: [
+      "<code>validateCards()</code> throws at content-load time, the same way an unrecognized <code>do</code> string does, because zod checks every factory's expected params shape against its <code>EffectFactoryId</code>.",
+      "TypeScript's compiler catches the typo at build time, since <code>params</code> is strongly typed per <code>EffectFactoryId</code>.",
+      "The schema passes it — <code>z.record(z.unknown())</code> can't know that THIS particular factory expects an <code>amount</code> key — and the factory function silently reads <code>params.amount</code> as <code>undefined</code> at runtime, most likely producing a 0 or a no-op with no error anywhere.",
+      "The card fails to load, but with a generic \"invalid params\" error rather than naming the missing key."
+    ],
+    answer: 2,
+    explanation: "<code>z.record(z.unknown())</code> is deliberately generic — it validates the CONTAINER (an object of string keys to anything), not any specific factory's expected fields, because zod has no way to know which of the many <code>EffectFactoryId</code>s a given <code>params</code> object is meant for. That's very different from the whitelisted <code>do</code> field itself, which zod DOES validate against <code>EffectFactoryIdSchema</code> and rejects a typo loudly. A and D both invent validation that isn't in the schema; B is wrong too — <code>EffectDef.params</code> is typed in TypeScript as <code>Record&lt;string, unknown&gt;</code>, exactly as loose as the zod schema and equally unable to catch a per-factory key typo."
+  },
+  {
+    topic: "effect-timing-pipeline",
+    question: "<code>CombatContext</code> (what every combat-time effect factory actually receives) stores things like <code>spellsThisTurn: number</code> and <code>beastsPlayedThisTurn: number</code> as plain frozen numbers, captured \"at combat start\" — rather than, say, holding a live reference to the run's <code>RunState</code> and reading <code>state.spellsThisTurn</code> whenever a factory needs it. Why?",
+    choices: [
+      "Numbers are faster for the CPU to read than object properties, so it's a micro-optimization with no architectural reason behind it.",
+      "<code>RunState</code> lives in packages/sim, and <code>simulate()</code>/<code>CombatContext</code> live in packages/core, which has zero dependency on sim — a combat effect literally cannot hold a reference to something core doesn't even know the type of, so anything recruit-phase it needs must be copied into <code>CombatContext</code> as plain data before combat starts.",
+      "It's a bug — a live reference would be more accurate, since the counters could in principle still change mid-combat.",
+      "<code>RunState</code> doesn't actually have a <code>spellsThisTurn</code> field at all, so there's nothing to reference."
+    ],
+    answer: 1,
+    explanation: "This is the sim/UI-style decoupling applied one layer deeper: packages/core (where <code>simulate()</code> and <code>CombatContext</code> live) never imports from packages/sim (where <code>RunState</code> is defined), so a combat effect physically cannot reach into a live <code>RunState</code> even if it wanted to — the only way recruit-phase information reaches combat is by the reducer copying a frozen snapshot value in before <code>simulate()</code> is ever called. A invents a performance rationale that isn't the real reason (object-property reads aren't meaningfully slower); C is backwards — freezing these values at combat start is CORRECT, because turn-scoped counters like spells-cast are meant to describe what happened before the fight, not keep changing mid-combat; D is false — <code>RunState</code> does track a per-turn spell count, which the reducer captures into <code>CombatContext</code> at combat start."
+  },
+  {
+    topic: "testing-vitest",
+    question: "Root <code>vitest.config.ts</code>'s <code>include</code> glob is <code>['packages/**/*.test.ts', 'apps/**/*.test.ts']</code> — every package, not just the engine ones. And indeed, packages/tools (the headless balance/harness package) has its own real test files: <code>sfx-import.lib.test.ts</code> and <code>sfx-manifest.lib.test.ts</code>. What does that tell you about testing in Ascent?",
+    choices: [
+      "It's a mistake — packages/tools is dev tooling, and its tests should be excluded from <code>npm test</code>, but nobody has updated the glob yet.",
+      "<code>sfx-import.lib.test.ts</code> only runs when <code>npm run harness</code> is invoked, separately from <code>npm test</code>.",
+      "packages/tools is secretly a dependency of packages/core, so its tests are really testing core's code indirectly.",
+      "Testing isn't reserved for core/content/sim's deterministic engine code — any package, including a dev-tooling package like packages/tools, gets picked up by the same one broad glob and run by the same one <code>npm test</code> command, as long as its files match <code>*.test.ts</code>."
+    ],
+    answer: 3,
+    explanation: "The glob doesn't special-case any package by name or purpose — it matches <code>*.test.ts</code> anywhere under packages/ or apps/, so a tooling script that happens to have logic worth testing (parsing/importing SFX manifests) gets the exact same treatment as <code>simulate.test.ts</code>. A assumes a limitation that isn't real — there's no principled reason to exclude tooling code from tests, and nothing suggests it's unintentional; B invents a separate test-runner path that doesn't exist (<code>npm run harness</code> runs <code>combat-harness.ts</code> directly, unrelated to vitest); C misdescribes the actual dependency direction from the Monorepo diagram — packages/tools depends on core+content, not the reverse."
+  }
+];
+
+let idx = 0;
+let score = 0;
+let answered = false;
+
+const questionCard = document.getElementById('questionCard');
+const progressFill = document.getElementById('progressFill');
+const progressLabel = document.getElementById('progressLabel');
+const scoreLive = document.getElementById('scoreLive');
+const quizArea = document.getElementById('quizArea');
+const finalArea = document.getElementById('finalArea');
+
+function render() {
+  answered = false;
+  const q = QUESTIONS[idx];
+  progressFill.style.width = ((idx) / QUESTIONS.length * 100) + '%';
+  progressLabel.textContent = 'Q' + (idx + 1) + ' / ' + QUESTIONS.length;
+  scoreLive.textContent = 'Score so far: ' + score;
+
+  const letters = ['A', 'B', 'C', 'D'];
+  questionCard.innerHTML = `
+    <div class="topic-tag">${q.topic}</div>
+    <div class="question">${q.question}</div>
+    <div class="choices">
+      ${q.choices.map((c, i) => `
+        <button class="choice" data-i="${i}">
+          <span class="letter">${letters[i]}</span>
+          <span>${c}</span>
+        </button>
+      `).join('')}
+    </div>
+    <div id="resultSlot"></div>
+    <div class="nav-row"><button class="next-btn" id="nextBtn">${idx === QUESTIONS.length - 1 ? 'See results' : 'Next question →'}</button></div>
+  `;
+
+  const buttons = questionCard.querySelectorAll('.choice');
+  buttons.forEach(btn => {
+    btn.addEventListener('click', () => onAnswer(parseInt(btn.dataset.i, 10)));
+  });
+}
+
+function onAnswer(chosen) {
+  if (answered) return;
+  answered = true;
+  const q = QUESTIONS[idx];
+  const correct = chosen === q.answer;
+  if (correct) score++;
+
+  const buttons = questionCard.querySelectorAll('.choice');
+  buttons.forEach((btn, i) => {
+    btn.disabled = true;
+    if (i === q.answer) btn.classList.add('correct');
+    else if (i === chosen) btn.classList.add('wrong');
+    else btn.classList.add('dim');
+  });
+
+  const resultSlot = document.getElementById('resultSlot');
+  resultSlot.innerHTML = `
+    <div class="result-banner ${correct ? 'good' : 'bad'}">${correct ? '✓ Correct!' : '✗ Not quite.'}</div>
+    <div class="explanation">${q.explanation}</div>
+  `;
+
+  scoreLive.textContent = 'Score so far: ' + score;
+  document.getElementById('nextBtn').classList.add('show');
+}
+
+document.addEventListener('click', (e) => {
+  if (e.target && e.target.id === 'nextBtn') {
+    idx++;
+    if (idx >= QUESTIONS.length) {
+      showFinal();
+    } else {
+      render();
+    }
+  }
+});
+
+function showFinal() {
+  progressFill.style.width = '100%';
+  progressLabel.textContent = 'Done!';
+  quizArea.classList.add('hidden');
+  finalArea.classList.remove('hidden');
+
+  let line;
+  if (score === QUESTIONS.length) line = "Perfect score! You're reading this codebase like a pro.";
+  else if (score >= 8) line = "Excellent work — you've got a really solid handle on this.";
+  else if (score >= 6) line = "Good run — the architecture is clearly starting to click.";
+  else if (score >= 4) line = "Solid effort — a few of these ideas are worth a second look.";
+  else line = "Everyone starts somewhere — the whole point of the daily quiz is to build this up slowly.";
+
+  finalArea.innerHTML = `
+    <div class="topic-tag">Quiz #25 complete</div>
+    <div class="big-score">${score} / ${QUESTIONS.length}</div>
+    <div class="line">Ascent Quiz — 2026-09-06</div>
+    <div class="encourage">${line}</div>
+    <button class="restart-btn" id="restartBtn">Take it again</button>
+  `;
+  document.getElementById('restartBtn').addEventListener('click', () => {
+    idx = 0; score = 0;
+    quizArea.classList.remove('hidden');
+    finalArea.classList.add('hidden');
+    render();
+  });
+}
+
+render();
+</script>
+</body>
+</html>

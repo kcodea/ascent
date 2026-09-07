@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ascent Quiz #26 — 2026-09-07</title>
+<style>
+  :root {
+    --bg: #0f1420;
+    --panel: #1a2236;
+    --panel-border: #2c3752;
+    --text: #e8edf7;
+    --text-dim: #9aa7c2;
+    --accent: #6c8cff;
+    --accent-dim: #3c4a78;
+    --correct: #3ecf8e;
+    --correct-bg: rgba(62, 207, 142, 0.14);
+    --wrong: #ff6b6b;
+    --wrong-bg: rgba(255, 107, 107, 0.14);
+    --gold: #f0c674;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    min-height: 100%;
+  }
+  body {
+    display: flex;
+    justify-content: center;
+    padding: 32px 16px 64px;
+  }
+  .wrap { width: 100%; max-width: 680px; }
+  header {
+    text-align: center;
+    margin-bottom: 24px;
+  }
+  header h1 {
+    font-size: 1.5rem;
+    margin: 0 0 4px;
+    letter-spacing: 0.01em;
+  }
+  header .sub {
+    color: var(--text-dim);
+    font-size: 0.9rem;
+  }
+  .progress-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .progress-track {
+    flex: 1;
+    height: 8px;
+    background: var(--panel-border);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--gold));
+    width: 0%;
+    transition: width 0.35s ease;
+  }
+  .progress-label {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    white-space: nowrap;
+    min-width: 64px;
+    text-align: right;
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 14px;
+    padding: 24px;
+    margin-bottom: 16px;
+  }
+  .topic-tag {
+    display: inline-block;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--accent);
+    background: var(--accent-dim);
+    padding: 3px 9px;
+    border-radius: 999px;
+    margin-bottom: 12px;
+  }
+  .question {
+    font-size: 1.08rem;
+    line-height: 1.5;
+    margin-bottom: 18px;
+  }
+  .question code {
+    background: #0c1120;
+    border: 1px solid var(--panel-border);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 0.92em;
+    color: #cfe0ff;
+  }
+  .choices { display: flex; flex-direction: column; gap: 10px; }
+  .choice {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    text-align: left;
+    background: #131a2b;
+    border: 1px solid var(--panel-border);
+    color: var(--text);
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 0.97rem;
+    line-height: 1.4;
+    cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
+    transition: border-color 0.15s ease, background 0.15s ease, transform 0.1s ease;
+  }
+  .choice code {
+    background: #0c1120;
+    border: 1px solid var(--panel-border);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 0.92em;
+    color: #cfe0ff;
+  }
+  .choice:hover:not(:disabled) {
+    border-color: var(--accent);
+    background: #17203a;
+  }
+  .choice:active:not(:disabled) { transform: scale(0.995); }
+  .choice:disabled { cursor: default; }
+  .choice .letter {
+    flex: none;
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+    background: var(--panel-border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text-dim);
+  }
+  .choice.correct { border-color: var(--correct); background: var(--correct-bg); }
+  .choice.correct .letter { background: var(--correct); color: #06251a; }
+  .choice.wrong { border-color: var(--wrong); background: var(--wrong-bg); }
+  .choice.wrong .letter { background: var(--wrong); color: #2a0808; }
+  .choice.dim { opacity: 0.55; }
+  .result-banner {
+    margin-top: 16px;
+    padding: 10px 14px;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 0.92rem;
+  }
+  .result-banner.good { background: var(--correct-bg); color: var(--correct); }
+  .result-banner.bad { background: var(--wrong-bg); color: var(--wrong); }
+  .explanation {
+    margin-top: 12px;
+    padding: 14px 16px;
+    background: #0f1626;
+    border: 1px solid var(--panel-border);
+    border-left: 3px solid var(--accent);
+    border-radius: 8px;
+    font-size: 0.93rem;
+    line-height: 1.55;
+    color: var(--text-dim);
+  }
+  .explanation code {
+    background: #0c1120;
+    border: 1px solid var(--panel-border);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 0.92em;
+    color: #cfe0ff;
+  }
+  .explanation strong { color: var(--text); }
+  .nav-row {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 18px;
+  }
+  .next-btn {
+    background: var(--accent);
+    color: #0a0e18;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+  }
+  .next-btn.show { opacity: 1; pointer-events: auto; }
+  .next-btn:hover { filter: brightness(1.08); }
+  .score-live {
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 0.85rem;
+    margin-bottom: 6px;
+  }
+  .final {
+    text-align: center;
+    padding: 36px 24px;
+  }
+  .final .big-score {
+    font-size: 3rem;
+    font-weight: 700;
+    margin: 8px 0 4px;
+    background: linear-gradient(90deg, var(--accent), var(--gold));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .final .line {
+    color: var(--text-dim);
+    margin-bottom: 20px;
+  }
+  .final .encourage {
+    font-size: 1.05rem;
+    color: var(--text);
+    margin-bottom: 24px;
+  }
+  .restart-btn {
+    background: transparent;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-size: 0.9rem;
+    cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
+  }
+  .restart-btn:hover { background: var(--accent-dim); }
+  .hidden { display: none; }
+  footer.tip {
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 0.78rem;
+    margin-top: 28px;
+    line-height: 1.5;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>🎓 Ascent Quiz #26</h1>
+    <div class="sub">2026-09-07 · How the game is built</div>
+  </header>
+
+  <div id="quizArea">
+    <div class="progress-row">
+      <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="progress-label" id="progressLabel">Q1 / 10</div>
+    </div>
+    <div class="score-live" id="scoreLive">Score so far: 0</div>
+    <div class="card" id="questionCard"></div>
+  </div>
+
+  <div id="finalArea" class="card final hidden"></div>
+
+  <footer class="tip">Architecture only — no game-rules spoilers here. Reply with your score and Claude will pick tomorrow's topics to match.</footer>
+</div>
+
+<script>
+const QUESTIONS = [
+  {
+    topic: "what-is-a-function",
+    question: "packages/sim/src/reducer.ts has a small helper: <code>function mergeBuffs(buffs: CardBuff[]): CardBuff[] { const out: CardBuff[] = []; for (const b of buffs) { const e = out.find((x) =&gt; x.source === b.source); if (e) { e.attack += b.attack; e.health += b.health; e.count += b.count; } else out.push({ ...b }); } return out; }</code>. Its parameter type and its return type are the exact same shape, <code>CardBuff[]</code>. Does that mean <code>mergeBuffs</code> just hands back the same list it was given, unchanged?",
+    choices: [
+      "Yes — since the input and output types match exactly, the function must be returning its argument as-is.",
+      "No — a function's parameter type and return type only describe the SHAPE of the data going in and out; what happens in between is entirely up to the function's body, and here it builds a brand-new, possibly-shorter array by combining entries that share the same <code>source</code>.",
+      "No — but only because JavaScript automatically prevents a function from ever returning its own input.",
+      "Yes, except when the input array is empty, in which case it returns <code>undefined</code> instead."
+    ],
+    answer: 1,
+    explanation: "A function's types only promise \"you'll get a <code>CardBuff[]</code> out if you give me a <code>CardBuff[]</code> in\" — they say nothing about whether the values are touched. <code>mergeBuffs</code>'s body walks the list and merges any buffs sharing a <code>source</code> into one combined entry, so <code>out</code> is often a shorter, genuinely different array than <code>buffs</code>. A is the classic mistake of assuming same-type-in/same-type-out means \"no-op\"; C invents a JavaScript rule that doesn't exist — plenty of real functions do return their own argument unchanged; D is wrong too — on an empty array the loop just never runs, and <code>out</code> returns as <code>[]</code>, not <code>undefined</code>."
+  },
+  {
+    topic: "pure-functions",
+    question: "<code>simulate()</code>'s return statement builds <code>const alive = boards.player.filter((m) =&gt; !m.dead &amp;&amp; m.health &gt; 0).map((m) =&gt; m.cardId);</code>. Does calling <code>.filter()</code> here change the original <code>boards.player</code> array in place, or does it produce a completely separate new array?",
+    choices: [
+      "<code>.filter()</code> always mutates the array it's called on, removing the entries that don't match — <code>boards.player</code> itself ends up shorter afterward.",
+      "<code>.filter()</code> returns a brand-new array containing only the matching entries, leaving <code>boards.player</code> completely untouched — exactly the kind of non-mutating building block a pure function like <code>simulate()</code> relies on to build its return value without touching its own inputs.",
+      "It depends on whether <code>boards.player</code> was declared with <code>const</code> or <code>let</code>.",
+      "<code>.filter()</code> mutates the array, but only when its callback returns <code>false</code> for at least one element."
+    ],
+    answer: 1,
+    explanation: "<code>Array.prototype.filter</code> (and <code>.map</code>, right after it in the same line) are two of JavaScript's classic non-mutating array methods — they read the array and hand back a fresh one, never touching the original. That's exactly why <code>simulate()</code> can freely chain <code>.filter().map()</code> on its own internal board state and still keep its promise of never mutating the inputs it was given. A and D both invent mutation <code>.filter()</code> doesn't do; C confuses <code>const</code>/<code>let</code> (which only controls whether the VARIABLE can be reassigned) with whether an array METHOD mutates its target — a separate, per-method question entirely."
+  },
+  {
+    topic: "data-vs-code",
+    question: "packages/content/src/sets.ts resolves Set 3's shared spell list purely by STRING ID: <code>SET3_SHARED_SPELL_IDS.map((id) =&gt; { const def = SET3_SPELL_SOURCES.find((c) =&gt; c.id === id); if (!def) throw new Error(...); return def; })</code>. Why look the spells up by id and throw if one's missing, instead of just writing the actual spell objects directly into this list a second time?",
+    choices: [
+      "Looking up by id lets this file avoid importing the individual spell arrays at all.",
+      "Throwing is required because zod validation can only run inside a <code>.map()</code> callback.",
+      "Writing the real card object twice — once in its own set1/set2 file, once again here — would create two independent copies of the same card that could quietly drift out of sync after a balance edit; resolving by id keeps ONE source of truth, and the <code>throw</code> turns a typo'd or renamed id into a loud, immediate crash at load time instead of a silently-missing spell nobody notices until it's played.",
+      "It's purely a TypeScript typing requirement — plain object literals aren't allowed inside a <code>.map()</code> callback."
+    ],
+    answer: 2,
+    explanation: "This is \"cards are data\" applied to references BETWEEN data: a spell already exists as one real <code>CardDef</code> in its own set1/set2 file, so Set 3 reaches for it by id instead of duplicating it — duplication is exactly what invites two copies to disagree later. The <code>throw</code> is the enforcement: a typo'd id fails LOUD at import time rather than quietly leaving a hole in the shared spell pool. A has it backwards — the file still imports the source arrays via <code>SET3_SPELL_SOURCES</code>, it just looks *within* them by id; B and D invent constraints that don't exist here — nothing in this snippet involves zod, and plain object literals are completely ordinary inside <code>.map()</code>."
+  },
+  {
+    topic: "deterministic-sim",
+    question: "CLAUDE.md says: \"Opponents are pinned. Each run records the exact board it fought every wave (<code>servedBoards</code>) so a restored/replayed run serves those verbatim.\" Given that <code>simulate()</code> is already fully deterministic from a seed, why does a run ALSO need to separately save <code>servedBoards</code> — why isn't \"reseed and re-run the same matchmaking later\" enough to reproduce a replay?",
+    choices: [
+      "It isn't really necessary — <code>servedBoards</code> is just a performance cache, not something a correct replay actually depends on.",
+      "Matchmaking pulls opponent boards from a pool that can itself change between when a run was originally played and when it's later replayed — so re-running matchmaking from the same seed against a DIFFERENT pool could hand back a different opponent, even though <code>simulate()</code> itself would still be perfectly deterministic given whichever boards it's fed.",
+      "<code>simulate()</code>'s determinism only covers the RNG for combat damage rolls, not which minions appear on a board at all.",
+      "Saving <code>servedBoards</code> is purely a data-storage format choice with no bearing on whether a replay reproduces correctly."
+    ],
+    answer: 1,
+    explanation: "Determinism means \"same inputs → same output\" — but that guarantee is only as strong as how many of the REAL inputs you actually pin down. <code>simulate()</code>'s seed determines the fight once it's handed two boards, but WHICH boards matchmaking would pick can depend on the opponent pool, which gets regenerated over time (<code>npm run pool</code>) — so re-deriving the matchup from scratch later isn't safe. Pinning <code>servedBoards</code> freezes that other input explicitly, so a replay years later still fights the exact boards it fought originally. A and D understate this — it's a correctness requirement, not an optimization; C is wrong, since <code>simulate()</code>'s determinism does cover which minions summon and act, given whatever board it's handed."
+  },
+  {
+    topic: "seeded-rng",
+    question: "rng.ts's <code>fork()</code> is written as <code>fork: () =&gt; makeRng((next() * 4294967296) &gt;&gt;&gt; 0)</code> — it calls the PARENT rng's own <code>next()</code> to derive the child's seed. If some code calls <code>parent.fork()</code> twice in a row, one right after the other, are the two returned child <code>Rng</code>s identical (same seed, same future numbers) or different?",
+    choices: [
+      "Identical, because <code>fork()</code>'s formula is fixed — the same expression always produces the same seed no matter when it runs.",
+      "Different, because each <code>fork()</code> call consumes one draw from the parent's <code>next()</code>, which advances the parent's internal state — so the second call sees an already-advanced parent and derives a different seed than the first call did.",
+      "Identical, because <code>makeRng</code> remembers the last seed it was given and reuses it for any call arriving within the same tick.",
+      "It's unpredictable which one happens, since <code>next()</code> involves genuine randomness that can't be reasoned about in advance."
+    ],
+    answer: 1,
+    explanation: "<code>fork()</code>'s formula isn't evaluated in a vacuum — <code>next()</code> reads AND rewrites the parent's closed-over state variable <code>a</code> every time it's called, so the second <code>fork()</code> call's <code>next()</code> runs against a DIFFERENT <code>a</code> than the first call's did, producing a different child seed. A ignores that <code>next()</code> has a side effect on the parent; C invents a caching mechanism <code>makeRng</code> doesn't have. D is the important one to catch: \"seeded RNG\" means fully determined by its internal state, not literally unpredictable — mulberry32 is 100% reproducible, just not obvious to compute in your head."
+  },
+  {
+    topic: "monorepo-packages",
+    question: "apps/web/package.json's dependencies are just <code>{ \"@game/ui\": \"*\", \"react\": ..., \"react-dom\": ... }</code> — no <code>@game/core</code>, <code>@game/content</code>, or <code>@game/sim</code> listed at all, even though the game obviously needs all of them to run. Why doesn't apps/web need to depend on them directly?",
+    choices: [
+      "It's a bug — apps/web can't actually reach engine or content code without listing them, so something must be broken.",
+      "Vite bundles those packages in automatically at build time regardless of what package.json says, so listing them would be redundant.",
+      "apps/web only ever imports from <code>@game/ui</code> (which itself depends on core/content/sim, per CLAUDE.md's Monorepo diagram); since apps/web's own code never imports core/content/sim directly, it only needs to declare the one package whose exports it actually touches.",
+      "<code>@game/core</code>, <code>@game/content</code>, and <code>@game/sim</code> are dev-only tools stripped out of the production build, so the shipped app genuinely doesn't need them."
+    ],
+    answer: 2,
+    explanation: "A package's <code>dependencies</code> list should mirror what its OWN code actually imports — apps/web's whole job (see <code>main.tsx</code>) is rendering <code>&lt;Boot&gt;&lt;Game /&gt;&lt;/Boot&gt;</code> from <code>@game/ui</code>, and everything ui itself needs is already declared in ui's own package.json. npm workspaces resolve that transitively, so nothing is missing at runtime. A is wrong because nothing is actually missing — this is standard dependency hygiene, not a bug; D is false — core/content/sim are the real engine and game data, very much shipped in the production build, just reached indirectly through ui."
+  },
+  {
+    topic: "sim-ui-decoupling",
+    question: "Ascent shows a pre-combat odds bar. <code>packages/sim/src/odds.ts</code>'s <code>computeCombatOdds()</code> builds that number by calling <code>simulate()</code> 200 times in a loop with different RNG draws and counting how many come back as wins. Given that this preview bar isn't the actual fight that's about to happen, does computing it via 200 real <code>simulate()</code> calls violate the rule that \"the UI never computes outcomes\"?",
+    choices: [
+      "Yes — a preview number should come from a lighter-weight UI-side estimate, not the real combat engine, since it isn't the fight that's actually going to happen.",
+      "No — <code>computeCombatOdds</code> lives in <code>packages/sim</code> and builds its number entirely by re-running the SAME authoritative <code>simulate()</code> the real fight will use, just many times with different RNG draws; the UI still isn't computing anything, it's just displaying a statistic the engine itself generated.",
+      "No, but only because the odds bar is cosmetic, so a wrong answer there wouldn't matter the way a wrong real-combat result would.",
+      "Yes — but it's accepted as a deliberate, documented exception to the rule, purely for the sake of performance."
+    ],
+    answer: 1,
+    explanation: "\"The UI never computes outcomes\" is about WHERE the authority for outcomes lives, not about whether a number happens to be a preview. <code>computeCombatOdds</code> is <code>@game/sim</code> code, and every one of its 200 samples is a genuine <code>simulate()</code> call, deferred to idle time so it doesn't cost a frame on the End Turn click — the UI's job stays exactly what it always is: display a value the engine produced. C invents an excuse that isn't needed since the rule was never bent; D describes an exception that doesn't exist — nothing about this breaks the sim/UI split at all."
+  },
+  {
+    topic: "event-log-replay",
+    question: "<code>CombatResult.playerQuestEvents</code> is a SEPARATE array from the main <code>events</code> log — <code>{ step: number; kind: '...'; tribes: Tribe[] }[]</code> — but tagged with the same <code>step</code> numbers those events use, so the UI can \"LIVE-TICK quest progress during the replay: an entry with step ≤ the replay's current step is already counted.\" Why tag each quest-tick with a <code>step</code> at all, instead of just adding the whole quest tally to the UI the instant combat resolves?",
+    choices: [
+      "Without a <code>step</code> number, the UI would have no way to know which quest objective was actually being tracked.",
+      "Tagging with <code>step</code> lets a quest's progress bar advance in lockstep with the animated replay — a kill that happens at beat 12 shouldn't bump the on-screen quest counter until the replay has actually PLAYED beat 12, rather than the UI jumping straight to the final tally before the player has watched the fight.",
+      "<code>step</code> is only there for save-file compatibility with older replays recorded before quest tracking existed.",
+      "Without <code>step</code>, <code>playerQuestEvents</code> couldn't be serialized to JSON for storage."
+    ],
+    answer: 1,
+    explanation: "This is the same principle behind the whole event-log/replay design, applied to quests specifically: <code>simulate()</code> computes the entire fight — including every quest tick — up front, but the UI animates it back out at its own pace, so quest progress needs its own timeline of WHEN each tick becomes true on screen, matched against the same step numbers the combat beats use. Without that, a quest bar would either lag behind or leap to its final count before the corresponding kill has even animated. A misreads the fields — <code>kind</code>/<code>tribes</code> already identify which objective, so <code>step</code> isn't for identification; C and D invent constraints that aren't real — plain numbers serialize to JSON fine, and this has nothing to do with save compatibility."
+  },
+  {
+    topic: "eslint-rules",
+    question: "eslint.config.mjs's Math.random ban applies to <code>files: ['packages/core/**/*.ts', 'packages/content/**/*.ts', 'packages/sim/**/*.ts', 'packages/tools/**/*.ts']</code> — note <code>packages/tools</code> is in that list too, even though CLAUDE.md's Architecture section only calls out core/content/sim as needing the seeded RNG. Why does the ban extend to packages/tools as well?",
+    choices: [
+      "It's overly cautious — <code>packages/tools</code> is just dev scripts, so including it doesn't actually do anything useful.",
+      "<code>packages/tools</code> contains <code>build-pool.ts</code>, which <code>npm run pool</code> uses to generate the COMMITTED opponent pool data — if that generation step used real <code>Math.random</code>, the pool file it writes into the repo would come out different on every regeneration, exactly the kind of unreproducibility the whole engine is built to avoid.",
+      "ESLint's <code>no-restricted-properties</code> rule can only be scoped to exactly four packages at a time, so <code>packages/tools</code> had to be lumped in with the real engine packages.",
+      "<code>packages/tools</code> re-exports <code>packages/core</code>'s code, so anything banned in core is automatically banned in every package that imports it."
+    ],
+    answer: 1,
+    explanation: "The determinism rule isn't really about which FOLDER code lives in — it's about which code's OUTPUT needs to be reproducible. <code>packages/tools/src/build-pool.ts</code> generates and commits real game data (the opponent pool), so a nondeterministic build script would make that committed data un-reproducible from one run to the next — the same failure mode <code>Math.random</code> in the engine itself would cause. A dismisses a real, documented risk; C invents a limit <code>no-restricted-properties</code> doesn't have (an ESLint rule can target any file glob you give it); D describes something ESLint doesn't do — banning a property in one file has no automatic effect on files that merely import it."
+  },
+  {
+    topic: "performance-memo",
+    question: "docs/performance.md's refresh-rate calibration is asymmetric on purpose: a FASTER reading (a shorter frame interval) is adopted into the HUD's thresholds immediately, but a SLOWER reading needs three consecutive corroborating windows before the HUD re-calibrates down. Why treat \"faster\" and \"slower\" evidence so differently instead of just averaging every new reading in right away?",
+    choices: [
+      "It's a bug the team hasn't gotten around to fixing — both directions should really update just as quickly.",
+      "A short frame interval can't be faked by an unrelated slowdown — nothing but a genuinely fast display can produce one, so it's trusted instantly; a single slow interval, though, could just be a one-off hiccup (a background tab briefly stealing CPU), so the HUD waits for a real pattern before concluding the display itself got slower — otherwise one bad frame could wrongly convince the HUD it's running on a slower screen than it really is.",
+      "Slower readings are ignored entirely — only faster readings are ever used to set the thresholds.",
+      "The three-window rule exists purely to reduce how often the HUD's on-screen numbers visually update, for readability."
+    ],
+    answer: 1,
+    explanation: "This is a general lesson about trusting evidence asymmetrically based on how fakeable it is: nothing can produce an interval SHORTER than the display's true refresh rate, so a fast reading is unambiguous proof of the ceiling and gets adopted at once — but plenty of ordinary noise (a stolen CPU moment, a warm-up frame) can produce a slow one without the display having actually changed, so slow evidence has to repeat before the HUD trusts it. C is wrong — slower readings absolutely do get adopted, just only after three consecutive corroborating windows, not zero; D misreads the purpose, which is calibration correctness, not readability; A dismisses a deliberate, documented design choice as an oversight."
+  }
+];
+
+let idx = 0;
+let score = 0;
+let answered = false;
+
+const questionCard = document.getElementById('questionCard');
+const progressFill = document.getElementById('progressFill');
+const progressLabel = document.getElementById('progressLabel');
+const scoreLive = document.getElementById('scoreLive');
+const quizArea = document.getElementById('quizArea');
+const finalArea = document.getElementById('finalArea');
+
+function render() {
+  answered = false;
+  const q = QUESTIONS[idx];
+  progressFill.style.width = ((idx) / QUESTIONS.length * 100) + '%';
+  progressLabel.textContent = 'Q' + (idx + 1) + ' / ' + QUESTIONS.length;
+  scoreLive.textContent = 'Score so far: ' + score;
+
+  const letters = ['A', 'B', 'C', 'D'];
+  questionCard.innerHTML = `
+    <div class="topic-tag">${q.topic}</div>
+    <div class="question">${q.question}</div>
+    <div class="choices">
+      ${q.choices.map((c, i) => `
+        <button class="choice" data-i="${i}">
+          <span class="letter">${letters[i]}</span>
+          <span>${c}</span>
+        </button>
+      `).join('')}
+    </div>
+    <div id="resultSlot"></div>
+    <div class="nav-row"><button class="next-btn" id="nextBtn">${idx === QUESTIONS.length - 1 ? 'See results' : 'Next question →'}</button></div>
+  `;
+
+  const buttons = questionCard.querySelectorAll('.choice');
+  buttons.forEach(btn => {
+    btn.addEventListener('click', () => onAnswer(parseInt(btn.dataset.i, 10)));
+  });
+}
+
+function onAnswer(chosen) {
+  if (answered) return;
+  answered = true;
+  const q = QUESTIONS[idx];
+  const correct = chosen === q.answer;
+  if (correct) score++;
+
+  const buttons = questionCard.querySelectorAll('.choice');
+  buttons.forEach((btn, i) => {
+    btn.disabled = true;
+    if (i === q.answer) btn.classList.add('correct');
+    else if (i === chosen) btn.classList.add('wrong');
+    else btn.classList.add('dim');
+  });
+
+  const resultSlot = document.getElementById('resultSlot');
+  resultSlot.innerHTML = `
+    <div class="result-banner ${correct ? 'good' : 'bad'}">${correct ? '✓ Correct!' : '✗ Not quite.'}</div>
+    <div class="explanation">${q.explanation}</div>
+  `;
+
+  scoreLive.textContent = 'Score so far: ' + score;
+  document.getElementById('nextBtn').classList.add('show');
+}
+
+document.addEventListener('click', (e) => {
+  if (e.target && e.target.id === 'nextBtn') {
+    idx++;
+    if (idx >= QUESTIONS.length) {
+      showFinal();
+    } else {
+      render();
+    }
+  }
+});
+
+function showFinal() {
+  progressFill.style.width = '100%';
+  progressLabel.textContent = 'Done!';
+  quizArea.classList.add('hidden');
+  finalArea.classList.remove('hidden');
+
+  let line;
+  if (score === QUESTIONS.length) line = "Perfect score! You're reading this codebase like a pro.";
+  else if (score >= 8) line = "Excellent work — you've got a really solid handle on this.";
+  else if (score >= 6) line = "Good run — the architecture is clearly starting to click.";
+  else if (score >= 4) line = "Solid effort — a few of these ideas are worth a second look.";
+  else line = "Everyone starts somewhere — the whole point of the daily quiz is to build this up slowly.";
+
+  finalArea.innerHTML = `
+    <div class="topic-tag">Quiz #26 complete</div>
+    <div class="big-score">${score} / ${QUESTIONS.length}</div>
+    <div class="line">Ascent Quiz — 2026-09-07</div>
+    <div class="encourage">${line}</div>
+    <button class="restart-btn" id="restartBtn">Take it again</button>
+  `;
+  document.getElementById('restartBtn').addEventListener('click', () => {
+    idx = 0; score = 0;
+    quizArea.classList.remove('hidden');
+    finalArea.classList.add('hidden');
+    render();
+  });
+}
+
+render();
+</script>
+</body>
+</html>

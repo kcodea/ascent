@@ -41,7 +41,7 @@
       "def": "spell-cast"
     },
     "shieldGain": {
-      "def": "ward-gained"
+      "def": "ward-gain-blast"
     },
     "spellProgress": {
       "def": "spell-progress"

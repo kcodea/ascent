@@ -394,7 +394,7 @@ describe('fxDef channel', () => {
     // a shieldUp carries a target but no source → the missing side is passed as null
     expect(mockAnchors).toHaveBeenCalledWith(null, 'b');
     expect(mockPlayDef).toHaveBeenCalledTimes(1);
-    expect(mockPlayDef).toHaveBeenCalledWith('ward-gained', { target: { x: 5, y: 7 } },
+    expect(mockPlayDef).toHaveBeenCalledWith('ward-gain-blast', { target: { x: 5, y: 7 } },
       // the uids ride alongside the anchors so a `react` layer can find the CARD, not just the point
       { uids: { source: null, target: 'b' } });
   });
@@ -421,12 +421,12 @@ describe('fxDef channel', () => {
     expect(mockPlayDef).not.toHaveBeenCalled();
   });
 
-  // An unknown def id is `playDef`'s own null return — a build without ward-gained.json must not throw here.
+  // An unknown def id is `playDef`'s own null return — a build without ward-gain-blast.json must not throw here.
   it('tolerates an unknown def (playDef returns null)', () => {
     mockPlayDef.mockReturnValue(null);
     const c = baseCtx([{ type: 'shieldUp', target: 'b' }] as CombatEvent[]);
     expect(() => runMomentCues(shieldUpMoment(), c)).not.toThrow();
-    expect(mockPlayDef).toHaveBeenCalledWith('ward-gained', expect.anything(), expect.anything());
+    expect(mockPlayDef).toHaveBeenCalledWith('ward-gain-blast', expect.anything(), expect.anything());
   });
 
   it('honours `enabled: false`', () => {
@@ -480,7 +480,7 @@ describe('fxDef channel', () => {
   // `[source, target]` is what `anchorsForUnits` receives: `null` = "this moment has no such end", which folds
   // onto the other end (see combatAnchors.ts). Both null = no anchors at all in the real DOM.
   it.each([
-    [{ type: 'shieldUp', target: 'b' }, 'shieldGain', 'ward-gained', [null, 'b']],
+    [{ type: 'shieldUp', target: 'b' }, 'shieldGain', 'ward-gain-blast', [null, 'b']],
     [{ type: 'venomLost', target: 'b' }, 'venomSpent', 'venom-spent', [null, 'b']],
     // the CASTER: an `sc` carries a source and no target, so the flash folds onto the unit that cast
     [{ type: 'sc', source: 'a', text: 'zap', cast: true }, 'scCast', 'spell-cast', ['a', null]],
@@ -525,7 +525,7 @@ describe('fxDef channel', () => {
   // of these would fire the sibling's def on the wrong beat: `poison` (an Execute KILL) would play "venom spent",
   // a spell-power narration line would flash a caster muzzle, and every hit in the fight would play a quest tick.
   it.each([
-    [{ type: 'shield', target: 'b' }, 'shieldPop'],          // Ward CONSUMED — must not play `ward-gained`
+    [{ type: 'shield', target: 'b' }, 'shieldPop'],          // Ward CONSUMED — must not play `ward-gain-blast`
     [{ type: 'poison', target: 'b' }, 'poisonTick'],         // Execute proc — must not play `venom-spent`
     [{ type: 'sc', source: 'a', text: '+1/+1 Spell Power' }, 'scNarrate'], // narration — must not play `spell-cast`
     [{ type: 'dmg', target: 'b', amount: 3, remainingHp: 1 }, 'damage'],   // a real hit — must not play a quest def

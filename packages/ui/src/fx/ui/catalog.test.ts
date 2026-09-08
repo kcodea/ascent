@@ -93,7 +93,7 @@ describe('bindingsByDef', () => {
   const index = bindingsByDef();
 
   it('maps a def id to the moment kinds whose cue names it', () => {
-    expect(index.get('ward-gained')?.kinds).toContain('shieldGain');
+    expect(index.get('ward-gain-blast')?.kinds).toContain('shieldGain');
   });
 
   it('maps a def id to the cards that override to it, with their tribes', () => {
@@ -163,7 +163,7 @@ describe('codeCoverage', () => {
 
   // A def with a binding belongs in the kind list above; repeating it here would double-count the map.
   it('does not repeat a bound def', () => {
-    expect(rows.some((r) => r.defId === 'ward-gained')).toBe(false);
+    expect(rows.some((r) => r.defId === 'ward-gain-blast')).toBe(false);
   });
 
   // The blind spot is STATED. A view that silently under-reports is the failure being fixed, so the caveat
@@ -182,7 +182,7 @@ describe('kindCoverage', () => {
   });
 
   it('names the def for a bound kind', () => {
-    expect(coverage.find((c) => c.kind === 'shieldGain')?.def).toBe('ward-gained');
+    expect(coverage.find((c) => c.kind === 'shieldGain')?.def).toBe('ward-gain-blast');
   });
 
   // Gaps are the entire point of the coverage lens.
@@ -233,7 +233,7 @@ describe('buildCatalog', () => {
 
   it('carries the derived facets and the bindings on each entry', async () => {
     await import('../primitives');
-    const entry = buildCatalog().find((e) => e.def.id === 'ward-gained');
+    const entry = buildCatalog().find((e) => e.def.id === 'ward-gain-blast');
     expect(entry?.facets.shape).toBeTruthy();
     expect(entry?.bindings.kinds).toContain('shieldGain');
     expect(entry?.usage).toBe('bound');

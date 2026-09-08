@@ -95,7 +95,7 @@ import { getShopDeathFxConfig } from './shopDeathFxConfig';
 import { getEquipFxConfig } from './equipFxConfig';
 import { anchorsForUnits } from './fx/combatAnchors';
 import { rubyLandHolds } from './choreo/channels/rubyLanded';
-import { captureRecruitSeqs, recruitMomentsSince, recruitSeqsOf, selfBuffMoment, shoutMoment, spellCastMoment } from './choreo/recruitMoments';
+import { captureRecruitSeqs, recruitMomentsSince, recruitSeqsOf, selfBuffMoment, shieldGainMoment, shoutMoment, spellCastMoment } from './choreo/recruitMoments';
 import { runRecruitMomentCues } from './choreo/recruitCues';
 import { bindingFor } from './choreo/bindings';
 import { scheduleLands, waves as asWaves } from './fx/land';
@@ -4156,6 +4156,31 @@ export function Recruit() {
     // place, at the same moment, saying the same thing. The generic green card-flash that used to draw the
     // eye here (`.cardbuff`) is retired too — the self-buff cue above and the badge's own roll carry that job.
   }, [run.board, run.hand, run.shop, inCombat, run.recruitBuffFx]);
+
+  // SHOP WARD GAIN (owner ask 2026-09-08): a minion ALREADY in play that GAINS Ward (`'DS'`) in the shop — a
+  // Battlecry / Shout / rune granting Divine Shield — fires `ward-gain-blast`, the recruit twin of combat's
+  // `shieldGain` moment (the `shieldUp` event resolves the SAME binding). A keyword board-diff, like the
+  // self-buff detector above: a uid present LAST render WITHOUT Ward that now HAS it "gained" it; a uid that
+  // first appears this render already warded came with it and does not fire. Combat owns its own shieldGain
+  // cue (the `shieldUp` moment), so this idles during a fight.
+  const prevWardRef = useRef<Map<string, boolean> | null>(null);
+  useEffect(() => {
+    if (inCombat) { prevWardRef.current = null; return; }
+    const prev = prevWardRef.current;
+    if (prev && canPlayDefs()) {
+      for (const c of run.board) {
+        if (!c.keywords.includes('DS')) continue;
+        // `false` = was on board last render withOUT Ward → it just gained it. `undefined` (arrived this
+        // render) and `true` (already warded) both skip.
+        if (prev.get(c.uid) !== false) continue;
+        runRecruitMomentCues(shieldGainMoment(c.uid, c.cardId), {
+          cardIdOf: (u) => runRef.current.board.find((b) => b.uid === u)?.cardId ?? null,
+          measure: (u) => { const el = document.querySelector<HTMLElement>(`[data-uid="${u}"]`); return el ? restingCenterOf(el) : null; },
+        });
+      }
+    }
+    prevWardRef.current = new Map(run.board.map((c) => [c.uid, c.keywords.includes('DS')]));
+  }, [run.board, inCombat]);
 
   // Replay a batch of captured buff-other events as source→target tendrils (living minion) or descends
   // (spell / Deathrattle / sourceless), using the same renderer as combat. Shared by the per-action watcher

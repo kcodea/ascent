@@ -113,7 +113,7 @@ describe('bindingFor', () => {
   });
 
   it('falls back to the kind for a card with no entry at that kind', () => {
-    expect(bindingFor('bloodbinder', 'shieldGain')).toEqual({ def: 'ward-gained' });
+    expect(bindingFor('bloodbinder', 'shieldGain')).toEqual({ def: 'ward-gain-blast' });
     expect(bindingFor('somethingelse', 'scCast')).toEqual({ def: 'spell-cast' });
   });
 
@@ -153,7 +153,7 @@ describe('effectiveTables', () => {
  * failure mode this whole subsystem keeps reproducing. It stays invisible until someone authors that def.
  */
 const BINDINGS: Record<string, { def: string }> = {
-  shieldGain: { def: 'ward-gained' }, venomSpent: { def: 'venom-spent' }, scCast: { def: 'spell-cast' },
+  shieldGain: { def: 'ward-gain-blast' }, venomSpent: { def: 'venom-spent' }, scCast: { def: 'spell-cast' },
   reveal: { def: 'stealth-break' }, keyword: { def: 'keyword-gain' }, keywordLost: { def: 'keyword-lost' },
   toHand: { def: 'to-hand' }, hpGrant: { def: 'hp-grant' },
   // The first SHOP-phase binding — a recruit moment kind, not a combat one (see recruitMoments.ts).

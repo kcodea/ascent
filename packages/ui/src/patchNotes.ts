@@ -55,6 +55,19 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-09-08',
+    label: 'Ward FX',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: 'Gaining Ward now has a proper burst — a spray of shards and a ringing shockwave — whenever a minion gains it, in the shop as well as in combat.',
+        details: [
+          'The new effect plays every way a unit gains Ward mid-combat, and now also in the shop, where a Battlecry, Shout or rune granting Ward to one of your minions previously showed only the dome with no flourish.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-09-04',
     label: 'Effects frame cap',
     changes: [

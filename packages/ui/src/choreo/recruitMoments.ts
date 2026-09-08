@@ -82,9 +82,13 @@ export type RecruitMomentKind =
    */
   | 'shout'
   /** A tavern spell was cast; anchored at the release `point`, keyed by the spell's card id. */
-  | 'spellCast';
+  | 'spellCast'
+  /** A minion GAINED Ward (`'DS'`) in the shop — a Battlecry/Shout/rune granting Divine Shield to a unit
+   *  already in play. The recruit twin of combat's `shieldGain` moment (the `shieldUp` event): one binding
+   *  (`shieldGain`) serves both phases. Detected by a keyword board-diff in `Recruit.tsx`, like the self-buff. */
+  | 'shieldGain';
 
-export const RECRUIT_MOMENT_KINDS: readonly RecruitMomentKind[] = ['rubyLanded', 'shopRubied', 'shopBuffAll', 'minionBuffed', 'minionSelfBuffed', 'shout', 'spellCast'];
+export const RECRUIT_MOMENT_KINDS: readonly RecruitMomentKind[] = ['rubyLanded', 'shopRubied', 'shopBuffAll', 'minionBuffed', 'minionSelfBuffed', 'shout', 'spellCast', 'shieldGain'];
 
 /**
  * A `shout` moment, built here rather than inline at the call site so the kind has a NAMED emitter in this
@@ -109,6 +113,16 @@ export function shoutMoment(uid: string, cardId: string): RecruitMoment {
  */
 export function selfBuffMoment(uid: string, cardId: string): RecruitMoment {
   return { kind: 'minionSelfBuffed', sourceCardId: cardId, recipients: [{ uid, count: 1 }] };
+}
+
+/**
+ * A `shieldGain` moment — a minion that GAINED Ward (`'DS'`) in the shop. Same shape as `selfBuffMoment`: the
+ * recipient IS the source, keyed by its own card so a per-card override could apply, else the kind default
+ * (`ward-gain-blast`). Emitted from `Recruit.tsx`'s keyword board-diff (a unit already in play that newly has
+ * Ward), the recruit-phase twin of combat's `shieldGain` moment — the same binding fires in both phases.
+ */
+export function shieldGainMoment(uid: string, cardId: string): RecruitMoment {
+  return { kind: 'shieldGain', sourceCardId: cardId, recipients: [{ uid, count: 1 }] };
 }
 
 /** A `spellCast` moment: a tavern spell cast, anchored at the release `point` and keyed by the spell's card

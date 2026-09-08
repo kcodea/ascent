@@ -5,7 +5,7 @@
   "focus": "ARCHITECTURE ONLY \u2014 how the game is coded/structured. NEVER ask game-rules questions (see daily-prompt.md).",
   "difficulty": 1,
   "difficultyScale": "1 = gentlest (what is a function, what is a package). 5 = deep (trace an event through the architecture). Ramp only per the rules in daily-prompt.md.",
-  "totalQuizzes": 26,
+  "totalQuizzes": 27,
   "recentScores": [],
   "topics": {
     "what-is-a-function": {
@@ -49,44 +49,44 @@
       "lastAsked": "2026-09-07"
     },
     "types-basics": {
-      "asked": 12,
-      "lastAsked": "2026-09-06"
+      "asked": 13,
+      "lastAsked": "2026-09-08"
     },
     "immutability": {
-      "asked": 12,
-      "lastAsked": "2026-09-06"
+      "asked": 13,
+      "lastAsked": "2026-09-08"
     },
     "reducer-run-state": {
-      "asked": 12,
-      "lastAsked": "2026-09-06"
+      "asked": 13,
+      "lastAsked": "2026-09-08"
     },
     "zustand-store": {
-      "asked": 12,
-      "lastAsked": "2026-09-06"
+      "asked": 13,
+      "lastAsked": "2026-09-08"
     },
     "event-bus": {
-      "asked": 12,
-      "lastAsked": "2026-09-06"
+      "asked": 13,
+      "lastAsked": "2026-09-08"
     },
     "cards-in-sets": {
-      "asked": 12,
-      "lastAsked": "2026-09-06"
+      "asked": 13,
+      "lastAsked": "2026-09-08"
     },
     "package-boundaries": {
-      "asked": 12,
-      "lastAsked": "2026-09-06"
+      "asked": 13,
+      "lastAsked": "2026-09-08"
     },
     "effects-as-subscriptions": {
-      "asked": 12,
-      "lastAsked": "2026-09-06"
+      "asked": 13,
+      "lastAsked": "2026-09-08"
     },
     "effect-timing-pipeline": {
-      "asked": 12,
-      "lastAsked": "2026-09-06"
+      "asked": 13,
+      "lastAsked": "2026-09-08"
     },
     "testing-vitest": {
-      "asked": 12,
-      "lastAsked": "2026-09-06"
+      "asked": 13,
+      "lastAsked": "2026-09-08"
     }
   },
   "curriculum": [
@@ -693,6 +693,25 @@
       ],
       "scored": null,
       "note": "Still no score ever reported by Mike, so mastery/difficulty untouched (difficulty held at 1). Picked the 10 topics with the oldest lastAsked (2026-09-05, asked=11-12 -- the group quiz #24/#22/#20/... previously covered) since the types-basics/... group (lastAsked 2026-09-06) is now more recent. Re-read the real source for each topic to find angles genuinely new vs the last several cycles on this group (reducer.ts mergeBuffs() as a same-type-in/same-type-out function that still does real transformation work; simulate()'s filter().map() chain on boards.player as non-mutating array methods; sets.ts's SET3_SHARED_SPELL_IDS resolved by string id against SET3_SPELL_SOURCES with a throw-on-missing guard, framed as single-source-of-truth data references; CLAUDE.md's servedBoards pinning reasoned through WHY determinism from a seed alone is not enough once matchmaking draws from a pool that can itself change over time; rng.ts's fork() calling the parent's own next() twice in a row producing two DIFFERENT children, not identical ones; apps/web/package.json listing only @game/ui (not core/content/sim) as a dependency; odds.ts's computeCombatOdds() running 200 real simulate() calls from @game/sim to build the pre-combat odds bar, framed as evidence the sim/UI split holds even for a preview stat; CombatResult.playerQuestEvents as a step-tagged timeline separate from the main events array so quest progress bars live-tick in sync with the replay; eslint.config.mjs's banMathRandom.files including packages/tools (not just core/content/sim) because npm run pool commits real generated data; and docs/performance.md's asymmetric refresh-rate calibration -- a faster reading adopted immediately, a slower one needing three corroborating windows). Checked archived HTML back through 2026-08-28 for each topic before writing today's angles to confirm none repeated."
+    },
+    {
+      "date": "2026-09-08",
+      "quizNumber": 27,
+      "difficulty": 1,
+      "topics": [
+        "types-basics",
+        "immutability",
+        "reducer-run-state",
+        "zustand-store",
+        "event-bus",
+        "cards-in-sets",
+        "package-boundaries",
+        "effects-as-subscriptions",
+        "effect-timing-pipeline",
+        "testing-vitest"
+      ],
+      "scored": null,
+      "note": "Still no score ever reported by Mike, so mastery/difficulty untouched (difficulty held at 1). Picked the 10 topics with the oldest lastAsked (2026-09-06, asked=12 -- the group quiz #3/#5/#7/#9/#11/#13/#15/#17/#19/#21/#23/#25 previously covered) since the what-is-a-function/... group (lastAsked 2026-09-07) is now more recent. Used a subagent to grep every question/explanation from all 12 prior archived HTML files on this exact topic set (2026-08-15/17/19/21/23/25/27/29/31 and 2026-09-02/04/06) to enumerate every angle already used per topic, then verified each candidate fact directly against live source before writing a genuinely new 13th angle per topic: types.ts's `QuestRewardKind = QuestReward['kind']` indexed-access type pulling a literal-string union out of the whole QuestReward discriminated union, a fresh types-basics angle (a TS language feature) distinct from all 12 prior union/readonly/optional-property/indexed-access/BoardMinion-vs-Minion questions; minion.ts's instantiate() cloning `keywords` into a new array but reusing `card.effects` by direct reference in the common (no copiedEcho) case, reasoned through via keywords getting mutated in place elsewhere (factories.ts's `m.keywords.push('EG')`) while effects never does, a fresh immutability angle contrasting clone-vs-share by real mutation risk rather than a blanket rule; state.ts's handCap() computed fresh from `runeforgeOffer` every call instead of stored as its own RunState field, a fresh reducer-run-state angle about derived-vs-stored state; store.ts's real DEV/prod branch in dispatch() (`reduceWithPresentation` vs plain `reduce`, proven-equivalent per its own comment), a fresh zustand-store angle distinct from the prior imports/CareerFocus/top-level-side-effect/toggleCompact/get()+set()/selector/rollHeroChoices-exemption/actionSfx/localStorage-try-catch questions; the GameEvent-(trigger channel)-vs-CombatEvent-(replay log) distinction as two separate unions serving different consumers, a fresh event-bus angle after 12 cycles had covered essentially every line of the 29-line CombatBus file itself; sets.ts's `own` appended last and WHY pool order is seed/index-load-bearing for `rng.int(pool.length)` shop draws, a fresh cards-in-sets angle; a genuine, verified documentation-drift gotcha in package-boundaries -- CLAUDE.md's monorepo diagram says tools depends on \"core+content\" only, but packages/tools/package.json's real dependencies list also includes @game/sim; schema.ts's EffectFactoryIdSchema as a zod enum hand-duplicated from types.ts's EffectFactoryId TS union with no automatic sync, a fresh effects-as-subscriptions angle about validation-schema drift risk; reducer.ts's settleCombat() carrying result.playerSummonBonus back onto the matching board card by sourceUid -- the return trip from combat into RunState, complementing rather than repeating prior bake-into-combat (outward trip) questions; and vitest.setup.ts's force-disable of every RIFTS entry before the suite runs, so deterministic economy/quest tests assert the base game rather than whatever live-ops overlay happens to be toggled that day. All ten facts were confirmed by direct reads of the live files (types.ts, minion.ts, factories.ts, state.ts, reducer.ts, store.ts, events.ts, sets.ts, packages/tools/package.json, CLAUDE.md, schema.ts, vitest.setup.ts), not inferred from the archives. Verified the embedded QUESTIONS array parses as valid JS (10 questions, 4 choices each, in-range answer index) before publishing. Published as an interactive Artifact and archived to docs/quiz/archive/2026-09-08.html."
     }
   ],
   "notes": "2026-08-15: refocused to ARCHITECTURE ONLY per Mike \u2014 removed game-rules topics (shop-vs-combat, auto-battler-loop) and expanded the code-architecture curriculum. Do not quiz on game rules; see the hard constraint in daily-prompt.md."

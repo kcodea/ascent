@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ascent Quiz #27 — 2026-09-08</title>
+<style>
+  :root {
+    --bg: #0f1420;
+    --panel: #1a2236;
+    --panel-border: #2c3752;
+    --text: #e8edf7;
+    --text-dim: #9aa7c2;
+    --accent: #6c8cff;
+    --accent-dim: #3c4a78;
+    --correct: #3ecf8e;
+    --correct-bg: rgba(62, 207, 142, 0.14);
+    --wrong: #ff6b6b;
+    --wrong-bg: rgba(255, 107, 107, 0.14);
+    --gold: #f0c674;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    min-height: 100%;
+  }
+  body {
+    display: flex;
+    justify-content: center;
+    padding: 32px 16px 64px;
+  }
+  .wrap { width: 100%; max-width: 680px; }
+  header {
+    text-align: center;
+    margin-bottom: 24px;
+  }
+  header h1 {
+    font-size: 1.5rem;
+    margin: 0 0 4px;
+    letter-spacing: 0.01em;
+  }
+  header .sub {
+    color: var(--text-dim);
+    font-size: 0.9rem;
+  }
+  .progress-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .progress-track {
+    flex: 1;
+    height: 8px;
+    background: var(--panel-border);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--gold));
+    width: 0%;
+    transition: width 0.35s ease;
+  }
+  .progress-label {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    white-space: nowrap;
+    min-width: 64px;
+    text-align: right;
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 14px;
+    padding: 24px;
+    margin-bottom: 16px;
+  }
+  .topic-tag {
+    display: inline-block;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--accent);
+    background: var(--accent-dim);
+    padding: 3px 9px;
+    border-radius: 999px;
+    margin-bottom: 12px;
+  }
+  .question {
+    font-size: 1.08rem;
+    line-height: 1.5;
+    margin-bottom: 18px;
+  }
+  .question code {
+    background: #0c1120;
+    border: 1px solid var(--panel-border);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 0.92em;
+    color: #cfe0ff;
+  }
+  .choices { display: flex; flex-direction: column; gap: 10px; }
+  .choice {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    text-align: left;
+    background: #131a2b;
+    border: 1px solid var(--panel-border);
+    color: var(--text);
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 0.97rem;
+    line-height: 1.4;
+    cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
+    transition: border-color 0.15s ease, background 0.15s ease, transform 0.1s ease;
+  }
+  .choice code {
+    background: #0c1120;
+    border: 1px solid var(--panel-border);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 0.92em;
+    color: #cfe0ff;
+  }
+  .choice:hover:not(:disabled) {
+    border-color: var(--accent);
+    background: #17203a;
+  }
+  .choice:active:not(:disabled) { transform: scale(0.995); }
+  .choice:disabled { cursor: default; }
+  .choice .letter {
+    flex: none;
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+    background: var(--panel-border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text-dim);
+  }
+  .choice.correct { border-color: var(--correct); background: var(--correct-bg); }
+  .choice.correct .letter { background: var(--correct); color: #06251a; }
+  .choice.wrong { border-color: var(--wrong); background: var(--wrong-bg); }
+  .choice.wrong .letter { background: var(--wrong); color: #2a0808; }
+  .choice.dim { opacity: 0.55; }
+  .result-banner {
+    margin-top: 16px;
+    padding: 10px 14px;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 0.92rem;
+  }
+  .result-banner.good { background: var(--correct-bg); color: var(--correct); }
+  .result-banner.bad { background: var(--wrong-bg); color: var(--wrong); }
+  .explanation {
+    margin-top: 12px;
+    padding: 14px 16px;
+    background: #0f1626;
+    border: 1px solid var(--panel-border);
+    border-left: 3px solid var(--accent);
+    border-radius: 8px;
+    font-size: 0.93rem;
+    line-height: 1.55;
+    color: var(--text-dim);
+  }
+  .explanation code {
+    background: #0c1120;
+    border: 1px solid var(--panel-border);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 0.92em;
+    color: #cfe0ff;
+  }
+  .explanation strong { color: var(--text); }
+  .nav-row {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 18px;
+  }
+  .next-btn {
+    background: var(--accent);
+    color: #0a0e18;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+  }
+  .next-btn.show { opacity: 1; pointer-events: auto; }
+  .next-btn:hover { filter: brightness(1.08); }
+  .score-live {
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 0.85rem;
+    margin-bottom: 6px;
+  }
+  .final {
+    text-align: center;
+    padding: 36px 24px;
+  }
+  .final .big-score {
+    font-size: 3rem;
+    font-weight: 700;
+    margin: 8px 0 4px;
+    background: linear-gradient(90deg, var(--accent), var(--gold));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .final .line {
+    color: var(--text-dim);
+    margin-bottom: 20px;
+  }
+  .final .encourage {
+    font-size: 1.05rem;
+    color: var(--text);
+    margin-bottom: 24px;
+  }
+  .restart-btn {
+    background: transparent;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-size: 0.9rem;
+    cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
+  }
+  .restart-btn:hover { background: var(--accent-dim); }
+  .hidden { display: none; }
+  footer.tip {
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 0.78rem;
+    margin-top: 28px;
+    line-height: 1.5;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>🎓 Ascent Quiz #27</h1>
+    <div class="sub">2026-09-08 · How the game is built</div>
+  </header>
+
+  <div id="quizArea">
+    <div class="progress-row">
+      <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="progress-label" id="progressLabel">Q1 / 10</div>
+    </div>
+    <div class="score-live" id="scoreLive">Score so far: 0</div>
+    <div class="card" id="questionCard"></div>
+  </div>
+
+  <div id="finalArea" class="card final hidden"></div>
+
+  <footer class="tip">Architecture only — no game-rules spoilers here. Reply with your score and Claude will pick tomorrow's topics to match.</footer>
+</div>
+
+<script>
+const QUESTIONS = [
+  {
+    topic: "types-basics",
+    question: "<code>packages/core/src/types.ts</code> declares a big discriminated union <code>QuestReward</code> (variants like <code>{ kind: 'buffBoard'; ... }</code>, <code>{ kind: 'grant'; ... }</code>, <code>{ kind: 'shoutDouble'; ... }</code>, dozens more), then separately declares <code>export type QuestRewardKind = QuestReward['kind'];</code>. What does that second line actually produce?",
+    choices: [
+      "It creates an array at runtime containing every <code>QuestReward</code> object currently defined in the file.",
+      "It's a type error — you can't index a union type with a string like that; TypeScript would reject <code>QuestReward['kind']</code>.",
+      "A NEW union type containing just the literal string values every variant's <code>kind</code> field can be (<code>'buffBoard' | 'grant' | 'shoutDouble' | …</code>) — pulled straight out of <code>QuestReward</code> instead of retyped by hand, so it can't drift out of sync when a variant is added or renamed.",
+      "It aliases <code>QuestRewardKind</code> to mean exactly the same thing as <code>QuestReward</code> itself — the two names are interchangeable."
+    ],
+    answer: 2,
+    explanation: "This is TypeScript's indexed access type: <code>Union['prop']</code> distributes across every member and collects the type of that property from each, so <code>QuestRewardKind</code> automatically becomes the union of every <code>kind</code> literal that exists across <code>QuestReward</code>'s ~20 variants. Because it's derived rather than hand-retyped, adding a new <code>QuestReward</code> variant grows <code>QuestRewardKind</code> for free. B is wrong — indexing a union like this is completely valid TypeScript; A invents runtime behavior (types vanish at compile time); D is false since <code>QuestRewardKind</code> is a much narrower type than the full <code>QuestReward</code> union of whole objects."
+  },
+  {
+    topic: "immutability",
+    question: "<code>packages/core/src/combat/minion.ts</code>'s <code>instantiate()</code> clones <code>keywords</code> into a brand-new array (<code>board.keywords ? [...board.keywords] : [...card.keywords]</code>) before handing it to the live <code>Minion</code>, but for <code>effects</code> it does <code>board.copiedEcho?.length ? [...card.effects, ...board.copiedEcho] : card.effects</code> — in the common case (no copied Echo), it just assigns <code>card.effects</code> directly, the SAME array the shared <code>CardDef</code> owns, no clone at all. Why is that safe given CLAUDE.md's \"never mutate shared CardDefs\" rule?",
+    choices: [
+      "Because combat code reads <code>effects</code> to register handlers on the bus but never pushes/removes elements from that array in place — <code>keywords</code>, by contrast, DOES get mutated in place elsewhere (e.g. <code>m.keywords.push('EG')</code> in <code>packages/core/src/effects/factories.ts</code>), so only <code>keywords</code> needs its own copy.",
+      "It's a bug — sharing <code>card.effects</code> should have been cloned too, and it just hasn't caused a visible problem yet.",
+      "<code>effects</code> arrays are readonly at the TypeScript type level, so no clone is needed because the compiler blocks any attempt to mutate them.",
+      "<code>copiedEcho</code> always has at least one entry in practice, so the shared-reference branch never actually executes."
+    ],
+    answer: 0,
+    explanation: "The clone-or-share choice tracks the field's real mutation risk, not a blanket rule: <code>effects</code> is only ever iterated to wire event-bus handlers at combat start, so reusing the CardDef's own array costs nothing and risks nothing, while <code>keywords</code> genuinely gets pushed into in place by combat effects — a shared array there would leak an Engraved grant across every minion referencing that CardDef. C is false: nothing in <code>EffectDef[]</code>'s type prevents mutation. D is false — <code>copiedEcho</code> (Gravetwin's copied Echo) is the rare exception, not the common path, so the shared-reference branch is exactly the usual case."
+  },
+  {
+    topic: "reducer-run-state",
+    question: "<code>packages/sim/src/state.ts</code>'s <code>handCap(state)</code> computes the hand's current capacity as <code>state.runeforgeOffer ? CONFIG.handMaxRuneTurn : CONFIG.handMax</code> fresh every time it's called, rather than storing a <code>handCap</code> field on <code>RunState</code> that gets updated whenever the Runeforge opens or closes. What's the benefit of computing it instead of storing it?",
+    choices: [
+      "Storing a number on <code>RunState</code> is technically impossible in TypeScript once a value depends on more than one field.",
+      "There's nothing to update or keep in sync — anywhere code needs the cap, it just recomputes it from the one existing flag (<code>runeforgeOffer</code>), so it can never drift out of sync with whether the forge is actually open.",
+      "<code>structuredClone()</code> in the reducer cannot copy plain numeric fields, so any field like <code>handCap</code> would be lost every time the state clones.",
+      "Functions run faster than reading an object property, so this is purely a performance optimization."
+    ],
+    answer: 1,
+    explanation: "This is the \"derived state\" principle: instead of a redundant stored copy some code path could forget to update (or forget to reset when the forge closes), the value is recomputed from the single source of truth every time it's needed — code that opens/closes the forge only has to keep <code>runeforgeOffer</code> correct, and <code>handCap</code> trails along automatically. A and C invent technical limitations that don't exist (<code>structuredClone</code> handles primitives fine, and multi-field derived values are ordinary TypeScript). D is a red herring — the real win here is correctness/simplicity, not speed."
+  },
+  {
+    topic: "zustand-store",
+    question: "<code>packages/ui/src/store.ts</code>'s <code>dispatch</code> action picks between two ways to run an action depending on <code>import.meta.env.DEV</code>: <code>captureBeats ? reduceWithPresentation(s.run, action, true) : { state: reduce(s.run, action), batch: null }</code>. A comment above it says gameplay is identical either way — the collector only records. Why is it safe for dev and prod builds to take different code paths here?",
+    choices: [
+      "Production and development are allowed to diverge because replays are never shared between them, so a resulting mismatch would never be visible.",
+      "<code>reduce</code> is a legacy function scheduled for deletion, and <code>reduceWithPresentation</code> is its real replacement already used everywhere except this one file.",
+      "The DEV branch runs a completely separate simulation implementation, used only to catch discrepancies with the production path.",
+      "<code>reduceWithPresentation</code> only ADDS a recorded presentation batch on top of the same <code>reduce</code> logic — the actual gameplay outcome is unchanged either way, so which path runs never affects what a player experiences, only whether a dev-only Beat Lab batch gets captured."
+    ],
+    answer: 3,
+    explanation: "<code>packages/sim/src/reducer.ts</code>'s <code>reduceWithPresentation</code> literally calls <code>reduce(state, action)</code> internally and wraps it with a batch collector — the gameplay state it returns is the exact same object <code>reduce</code> alone would produce, just accompanied by an extra record of what happened, kept off entirely in prod for zero allocation cost. A dodges the real reason; B and C both invent a second implementation or a deprecation that isn't in the code — there's only ever one <code>reduce</code>."
+  },
+  {
+    topic: "event-bus",
+    question: "<code>packages/core/src/events.ts</code>'s <code>CombatBus</code> subscribes to and emits values from the <code>GameEvent</code> union (things like <code>'onDeath'</code>, <code>'onSummon'</code> — the trigger names a card's <code>EffectDef.on</code> names). <code>packages/core/src/types.ts</code>'s <code>CombatEvent</code> union is a completely different type, used for the REPLAY LOG entries (like <code>{ type: 'death', target, side }</code>) pushed onto <code>CombatResult.events</code> for the UI to animate. Why does the codebase need two separate unions for what sounds like the same underlying happening?",
+    choices: [
+      "<code>GameEvent</code> is the internal effect-trigger channel used only inside <code>simulate()</code> to wire cards' abilities (<code>bus.on</code>/<code>bus.emit</code>); <code>CombatEvent</code> is the external, serializable replay-log vocabulary the UI animates from <code>CombatResult.events</code> — they serve different consumers and can evolve independently.",
+      "They're actually aliases for the same union; the two names are just historical duplicates that should be merged.",
+      "<code>GameEvent</code> only exists for the recruit phase, and <code>CombatEvent</code> only exists for combat — so they never overlap in when they fire.",
+      "<code>CombatEvent</code> is a subtype of <code>GameEvent</code>, so every combat event is also a valid event-bus channel name."
+    ],
+    answer: 0,
+    explanation: "A minion dying fires the <code>GameEvent</code> <code>'onDeath'</code> internally so a Deathrattle handler reacts, and separately <code>simulate()</code> pushes a <code>CombatEvent</code> <code>{ type: 'death', ... }</code> onto the log for the UI — same real event, two different type systems doing two different jobs. B is false: the two unions don't even share value names (<code>'onDeath'</code> vs <code>'death'</code>). C is false — both fire almost exclusively during combat. D invents a subtype relation that doesn't exist in the code."
+  },
+  {
+    topic: "cards-in-sets",
+    question: "<code>packages/content/src/sets.ts</code>'s own doc comment says a set's resolved pool is <code>inherits − excludes + own</code>, resolved in that order, and that <code>own</code> appends at the END \"so a set adding cards never disturbs the inherited prefix.\" The same file says shop draws use <code>rng.int(pool.length)</code> over that resolved list. Why does the ORDER cards land in matter enough to spell out this rule?",
+    choices: [
+      "TypeScript requires array literals to list their spread sources in alphabetical order, so <code>own</code> has to physically stay last regardless of gameplay.",
+      "The order only affects a drop-down list shown in developer tooling — it has no effect on which cards a real run can draw.",
+      "Shop draws pick cards with <code>rng.int(pool.length)</code> over the resolved pool array, so the pool's exact order and size determine what a given RNG roll lands on — appending new cards at the END keeps every existing index (and every existing seed) pointing at the same card it always did.",
+      "Cards are drawn in order, top of the array first, so putting <code>own</code> last just means new cards are only offered after every inherited card has already been bought."
+    ],
+    answer: 2,
+    explanation: "<code>sets.ts</code> is explicit that a set's pool order and size are load-bearing. Inserting new cards anywhere but the end would shift every later index, silently changing what an old seed/replay draws at that index — appending at the end is what lets a set grow without perturbing existing seeds. B understates the real determinism stakes; D misreads <code>rng.int(pool.length)</code> as a queue instead of a uniform random index; A is a fabricated TypeScript rule."
+  },
+  {
+    topic: "package-boundaries",
+    question: "CLAUDE.md's monorepo diagram lists <code>packages/tools/</code> (<code>@game/tools</code>) as depending on \"→ core+content\" only. But <code>packages/tools/package.json</code>'s real <code>dependencies</code> field lists all THREE: <code>@game/core</code>, <code>@game/content</code>, AND <code>@game/sim</code>. What does that mismatch actually tell you?",
+    choices: [
+      "It's a sign that <code>package.json</code> dependencies are purely decorative and don't affect what a package can actually import — only the diagram in CLAUDE.md is enforced.",
+      "The diagram in CLAUDE.md has drifted out of date — tools' real dependency graph now includes <code>sim</code>, and <code>package.json</code> (not a markdown comment) is what actually governs what a package can import, since npm workspaces resolves modules from it.",
+      "<code>@game/sim</code> secretly re-exports <code>@game/content</code> under the name <code>@game/core</code>, so tools' dependency list is technically still accurate.",
+      "npm automatically adds every workspace package as a dependency of every other package, so the \"sim\" entry is just npm's default and doesn't reflect a real code dependency."
+    ],
+    answer: 1,
+    explanation: "A package's own <code>package.json</code> <code>dependencies</code> field is what npm workspaces actually uses to resolve <code>import ... from '@game/sim'</code> — a markdown diagram is documentation, and documentation can go stale exactly the way CLAUDE.md itself warns about elsewhere. This is a real, verifiable case of it: <code>packages/tools/package.json</code> genuinely lists <code>@game/sim</code>. A gets the enforcement backwards; C and D invent mechanisms that don't exist."
+  },
+  {
+    topic: "effects-as-subscriptions",
+    question: "<code>packages/content/src/schema.ts</code>'s <code>EffectFactoryIdSchema</code> is a zod enum that hand-lists every legal effect id as its own string literal — a separate list from the <code>EffectFactoryId</code> TypeScript union already declared in <code>packages/core/src/types.ts</code>. If someone adds a new id to <code>types.ts</code>'s union but forgets to add the matching string to <code>schema.ts</code>, what happens?",
+    choices: [
+      "Nothing — zod automatically derives its enum values from the exported TypeScript union at compile time, so the two lists can never go out of sync.",
+      "TypeScript raises a compile error the moment <code>schema.ts</code> and <code>types.ts</code> disagree about the set of valid ids.",
+      "The card silently falls back to a default no-op effect instead of being rejected.",
+      "A card whose data references the new id fails zod validation at load time (rejected as an id the schema doesn't recognize), even though it's a perfectly valid <code>EffectFactoryId</code> as far as TypeScript is concerned — the two lists have to be kept in sync by hand."
+    ],
+    answer: 3,
+    explanation: "<code>schema.ts</code> is kept in lockstep with the compile-time <code>CardDef</code> shape manually: TypeScript types are erased at runtime, so zod has no mechanical way to read <code>EffectFactoryId</code> and generate its enum from it. A missing entry means a perfectly legitimate new effect id gets rejected by the runtime validator. A invents an automatic bridge that doesn't exist; B is wrong because TS can't compare a zod enum's values against a type union at compile time; C invents fallback behavior zod's <code>.enum()</code> doesn't have."
+  },
+  {
+    topic: "effect-timing-pipeline",
+    question: "<code>packages/sim/src/reducer.ts</code>'s <code>settleCombat(s, result)</code> runs after every combat and includes a loop that, when <code>result.playerSummonBonus</code> is present, finds the matching board card by <code>sourceUid</code> and sets <code>card.summonBonus = bonus</code>. What's this doing, architecturally?",
+    choices: [
+      "Carrying a per-instance value a combat-time effect grew DURING the fight (like an Avenge improving its own summon buff) back OUT of the fight and onto the matching board card in <code>RunState</code> — the reverse trip of \"recruit bakes into combat,\" so the next shop turn's stats/text reflect what happened in the fight that just ended.",
+      "Restoring the board to EXACTLY what it looked like before combat started, discarding anything that happened during the fight.",
+      "Deleting <code>sourceUid</code> from every surviving minion so the same combat bonus can't be applied twice.",
+      "Recomputing every minion's Battlecry from scratch now that the fight has revealed new information."
+    ],
+    answer: 0,
+    explanation: "The recruit-bakes-into-combat rule only covers the outward trip; some combat-time effects (an Avenge that grows a minion's own future summon buff) produce a NEW permanent value mid-fight that has to travel back the other way. <code>CombatResult.playerSummonBonus</code> is exactly that carry-back channel, matched to the originating <code>BoardMinion</code> by <code>sourceUid</code> so the run board — not just the fight that just ended — keeps the improvement. B is backwards (this persists a change, it doesn't revert one); C and D describe operations the quoted code simply doesn't perform."
+  },
+  {
+    topic: "testing-vitest",
+    question: "The root <code>vitest.setup.ts</code> — wired in via <code>vitest.config.ts</code>'s <code>setupFiles</code> — runs this before every test file: it imports <code>RIFTS</code> from <code>packages/sim/src/config</code> and force-sets <code>enabled = false</code> on every one of them. Why does the test suite forcibly disable every rift before any test runs?",
+    choices: [
+      "Rifts are deprecated and this line is dead code left over from before rifts were removed from the game entirely.",
+      "Enabled rifts would cause every test file to throw a <code>ReferenceError</code> at import time, the same crash the <code>navigator</code> polyfill (in the very same setup file) fixes for a different reason.",
+      "So the deterministic economy/quest tests exercise the BASE game rules — rifts are live-ops overlays that can change the economy, and letting whichever rift happens to be enabled leak into the suite would make results depend on what's toggled that day rather than a stable baseline; a dedicated rift test pins its own run state to test rift behavior directly.",
+      "It's required so <code>structuredClone()</code> inside the reducer can run without throwing on a rift-carrying <code>RunState</code>."
+    ],
+    answer: 2,
+    explanation: "The file's own comment says it directly: rifts are \"a temporary overlay on the base economy/rules,\" and the deterministic economy + quest tests are meant to assert the BASE game, so the suite retires every rift up front rather than letting production config leak in and make results depend on the day's live-ops toggles. B confuses this with the unrelated <code>navigator</code>/pixi.js fix a few lines above it in the same file; A and D invent reasoning with no basis in the comment or the code."
+  }
+];
+
+let idx = 0;
+let score = 0;
+let answered = false;
+
+const questionCard = document.getElementById('questionCard');
+const progressFill = document.getElementById('progressFill');
+const progressLabel = document.getElementById('progressLabel');
+const scoreLive = document.getElementById('scoreLive');
+const quizArea = document.getElementById('quizArea');
+const finalArea = document.getElementById('finalArea');
+
+function render() {
+  answered = false;
+  const q = QUESTIONS[idx];
+  progressFill.style.width = ((idx) / QUESTIONS.length * 100) + '%';
+  progressLabel.textContent = 'Q' + (idx + 1) + ' / ' + QUESTIONS.length;
+  scoreLive.textContent = 'Score so far: ' + score;
+
+  const letters = ['A', 'B', 'C', 'D'];
+  questionCard.innerHTML = `
+    <div class="topic-tag">${q.topic}</div>
+    <div class="question">${q.question}</div>
+    <div class="choices">
+      ${q.choices.map((c, i) => `
+        <button class="choice" data-i="${i}">
+          <span class="letter">${letters[i]}</span>
+          <span>${c}</span>
+        </button>
+      `).join('')}
+    </div>
+    <div id="resultSlot"></div>
+    <div class="nav-row"><button class="next-btn" id="nextBtn">${idx === QUESTIONS.length - 1 ? 'See results' : 'Next question →'}</button></div>
+  `;
+
+  const buttons = questionCard.querySelectorAll('.choice');
+  buttons.forEach(btn => {
+    btn.addEventListener('click', () => onAnswer(parseInt(btn.dataset.i, 10)));
+  });
+}
+
+function onAnswer(chosen) {
+  if (answered) return;
+  answered = true;
+  const q = QUESTIONS[idx];
+  const correct = chosen === q.answer;
+  if (correct) score++;
+
+  const buttons = questionCard.querySelectorAll('.choice');
+  buttons.forEach((btn, i) => {
+    btn.disabled = true;
+    if (i === q.answer) btn.classList.add('correct');
+    else if (i === chosen) btn.classList.add('wrong');
+    else btn.classList.add('dim');
+  });
+
+  const resultSlot = document.getElementById('resultSlot');
+  resultSlot.innerHTML = `
+    <div class="result-banner ${correct ? 'good' : 'bad'}">${correct ? '✓ Correct!' : '✗ Not quite.'}</div>
+    <div class="explanation">${q.explanation}</div>
+  `;
+
+  scoreLive.textContent = 'Score so far: ' + score;
+  document.getElementById('nextBtn').classList.add('show');
+}
+
+document.addEventListener('click', (e) => {
+  if (e.target && e.target.id === 'nextBtn') {
+    idx++;
+    if (idx >= QUESTIONS.length) {
+      showFinal();
+    } else {
+      render();
+    }
+  }
+});
+
+function showFinal() {
+  progressFill.style.width = '100%';
+  progressLabel.textContent = 'Done!';
+  quizArea.classList.add('hidden');
+  finalArea.classList.remove('hidden');
+
+  let line;
+  if (score === QUESTIONS.length) line = "Perfect score! You're reading this codebase like a pro.";
+  else if (score >= 8) line = "Excellent work — you've got a really solid handle on this.";
+  else if (score >= 6) line = "Good run — the architecture is clearly starting to click.";
+  else if (score >= 4) line = "Solid effort — a few of these ideas are worth a second look.";
+  else line = "Everyone starts somewhere — the whole point of the daily quiz is to build this up slowly.";
+
+  finalArea.innerHTML = `
+    <div class="topic-tag">Quiz #27 complete</div>
+    <div class="big-score">${score} / ${QUESTIONS.length}</div>
+    <div class="line">Ascent Quiz — 2026-09-08</div>
+    <div class="encourage">${line}</div>
+    <button class="restart-btn" id="restartBtn">Take it again</button>
+  `;
+  document.getElementById('restartBtn').addEventListener('click', () => {
+    idx = 0; score = 0;
+    quizArea.classList.remove('hidden');
+    finalArea.classList.add('hidden');
+    render();
+  });
+}
+
+render();
+</script>
+</body>
+</html>

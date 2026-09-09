@@ -46,7 +46,7 @@ axis, with any gap visible as a typed queue entry rather than as silence.
 | **Text classification bucket** | 903 | 903 (100%) | `textParse.test.ts` — every object lands in exactly one of four buckets; an unresolved parse is a queue entry, never a pass |
 | **Contract-oracle applicability** | 903 | 903 (100%) | `contractOracle.test.ts` — every contract is planned into §10.1 case templates; every unexecuted applicable case carries a typed skip reason |
 | **Interaction-graph membership** | 903 | 903 (100%) | `interactionGraph.test.ts` — every contract is a graph node; unmapped triggers are reported as a visible to-do (29 today) |
-| **Rulebook** | 116 rules (33 approved) | — | `enforcement.test.ts` — every approved rule names a backing lane file that must exist on disk |
+| **Rulebook** | 128 rules (44 approved) | — | `enforcement.test.ts` — every approved rule names a backing lane file that must exist on disk |
 
 **The inventory itself:** 483 cards (115 spells, 81 tokens), 59 hero powers, 142 + 139 runes, 117 quests —
 903 contracted objects in total (901 until 2026-08-28, when the owner archived the 16 Celestials — "leaving set 3 empty of minions now" — and every count in this report moved with them; +2 again the same day for the two Equipment reference cards).  Of those contracts, 13 are hand-authored curated ones and the rest are

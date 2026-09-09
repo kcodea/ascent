@@ -1,5 +1,6 @@
 /**
- * HAND-AUTHORED pending rulings — currently EMPTY: the 2026-08-27 triage round 2 drained the board.
+ * HAND-AUTHORED pending rulings — currently EMPTY: the 2026-08-27 triage round 2 drained the board, and the one
+ * card added since (q-gangplank-self-buff, 2026-09-09) was decided the same day → R-TARGET-01 + a tombstone.
  *
  * The 24 cards that lived here (q-runedup-1..8 families, q-copy-gilded-badge, q-carry-demand-encore,
  * q-carry-warm-embers-double-dip, q-snap-impbank/rallyspreadatk/one-combat-marks/granted-effects/

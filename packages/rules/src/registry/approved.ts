@@ -847,4 +847,113 @@ export const APPROVED_RULES: GameRule[] = [
       + 'channel, and the scenario drives it through simulate() with an injected probe card.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/handBuffInCombat.test.ts', 'packages/ui/src/useCombatReplay.test.ts'], lastVerifiedAt: '2026-09-09' },
   },
+  {
+    id: 'R-RISE-03',
+    title: 'Rise watchers fire in both phases — a shop Rise pays out, permanently',
+    statement:
+      '"When a friendly minion Rises" is an event of its own, and it fires wherever the Rise happens: in combat '
+      + 'when a body returns, and in the shop when a destroyed body returns (R-RISE-02). The payout of a watcher in '
+      + 'the shop is permanent — the stats AND any keyword it grants (the Ward of Revenant) — exactly as any recruit-phase '
+      + 'gain is; in combat the board half is a normal combat gain and a hand half is permanent (R-HAND-02). Only a '
+      + 'FRIENDLY Rise counts: an enemy body returning wakes nothing on your side.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-09 (set-3 Undead roster review, answers 3–5)', quote: 'friendly only … if minions rise in shop, that would trigger rising tide and that buff would be permanent since it\'s in recruit. this will be a common trigger/effect in set 3 so make sure that logic is wired correctly for minions rising in recruit.' },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts (the onRise bus emit after the reborn return); packages/sim/src/recruit.ts fireOnRise (off riseReturn in settlePendingDeath)' },
+    ],
+    contentIds: ['u3_revenant', 'u3_risingtide'],
+    currentBehaviour:
+      'Conforms (built with the ruling, 2026-09-09). One trigger, `onRise`, dispatched from the single Rise site of each '
+      + 'phase with the risen body in the payload; the watchers are side-guarded in combat and land shop grants through '
+      + '`addBuff` / the keyword list. Pinned for Revenant and Rising Tide in both phases, including an enemy Rise doing nothing.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3Undead.test.ts'], lastVerifiedAt: '2026-09-09' },
+  },
+  {
+    id: 'R-TEXT-01',
+    title: 'A minion that casts a named spell prints the spell, not its value',
+    statement:
+      'A minion whose effect CASTS a named spell (Watcher, Soul-Lantern Hierophant, Anubis: "cast Lantern of Souls") '
+      + 'prints the spell name and stops. It never restates what the spell does or the number it will produce; the '
+      + 'spell is an associated card of the minion, and its hover preview carries the live, spell-power-aware value '
+      + '— exactly as a Ruby is previewed from the Kobolds that cast it. The live-text rule for scaling values is '
+      + 'satisfied by the preview, not by the caster.',
+    domain: 'text',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-09 (Hierophant card review)', quote: 'the text should simply be "Avenge (3): cast Lantern of Souls" and then the lantern of souls should be a hover preview associated card, like a ruby.' },
+      { kind: 'owner-chat', ref: 'CLAUDE.md, live-text rule — the sanctioned exception (owner ruling 2026-07-15)', quote: 'a minion that casts a named spell may name the spell and let the hover-preview of the spell show its live value, instead of restating it' },
+    ],
+    contentIds: ['watcher', 'u3_hierophant', 'anubis'],
+    currentBehaviour:
+      'Conforms — 2026-09-09: Watcher and the Hierophant lost their "— your Undead get +N" tails; `watcherText` (the '
+      + 'helper that restated the Lantern value on Watcher) is retired to a no-op; `CARD_REF_EFFECTS` maps every '
+      + 'named-spell caster factory (`rallyCastTribeAttack`, `deathrattleCastTribeAttack`, `avengeCastTribeAttack`) '
+      + 'to its `spellId`, which is what the hover preview reads.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/cardText.test.ts', 'packages/content/src/refPreview.test.ts'], lastVerifiedAt: '2026-09-09' },
+  },
+  {
+    id: 'R-AURA-02',
+    title: 'An Aura-affecting spell is permanent from any phase — Lantern of Souls in combat included',
+    statement:
+      'A spell whose effect changes an Aura (Lantern of Souls: "your Undead Aura gets +3 Attack") is permanent '
+      + 'wherever it is cast. A combat cast — a Rally, an Avenge, an Echo — raises the run-wide Aura exactly as a '
+      + 'shop cast does: carried back at settle and in force for the rest of the run. There is no combat-only Aura.',
+    domain: 'auras',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-09 (triple confirmation)', quote: 'lantern of souls is always permanent since it is an aura affecting spell … therefore, lantern of soul casts in combat are always permanent.' },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts grantUndeadAura → CombatResult.playerUndeadAuraGain; packages/sim/src/reducer.ts settle → undeadAttackBonus' },
+    ],
+    contentIds: ['lanternofsouls', 'watcher', 'u3_hierophant', 'anubis'],
+    currentBehaviour:
+      'Conforms: every combat Lantern cast goes through the arena verbs `castRepeat` + `grantUndeadAura`, whose gain is '
+      + 'carried back on `playerUndeadAuraGain` and added to the run Aura at settle. Pinned by the Hierophant case '
+      + '(a combat Avenge cast carries +3 back) and the shop cast in run.test.ts.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3Undead.test.ts', 'packages/sim/src/run.test.ts'], lastVerifiedAt: '2026-09-09' },
+  },
+  {
+    id: 'R-RISE-04',
+    title: 'A risen body is the card as printed: improvements reset, Auras re-applied, in both phases',
+    statement:
+      'When a body returns via Rise it is the card AS PRINTED: base Attack (golden doubled), 1 Health, the printed '
+      + 'keywords minus the spent Rise. Everything the instance had accrued goes with the buffs — a per-instance '
+      + 'improvement (the grown Echo of Sergey, the tally of a Chef, an overflow bank, an End-of-Turn escalation), a copied '
+      + 'Echo, a granted keyword. The Auras of the run are then re-applied on top, as for any fresh copy: the Undead '
+      + 'Aura, a per-card Aura (the Spear Warden one). The same rule in both phases.',
+    domain: 'keywords',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-09 (Deathfibrillator reports)', quote: 'it rose with its buffed text still. this should reset per our rise rules … the deathswarmer and the new spear warden were both deathfibrillatored and neither have undead attack aura buffs nor the spear warden buff.' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts riseReturn (a fresh body from the def + cardBuff + the buy Auras); packages/core/src/combat/simulate.ts the Rise block (resets + applyAuras(m, true))' },
+    ],
+    contentIds: ['sergeant', 'knit', 'deathswarmer'],
+    currentBehaviour:
+      'Conforms — 2026-09-09: the shop Rise builds the body fresh instead of spreading the dying card (which had '
+      + 'carried buffs and improvements) and folds in the per-card enchant + buy Auras; the combat Rise now also '
+      + 'clears the per-instance improvements it used to keep. The Undead Aura is a display fold on both.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3Undead.test.ts'], lastVerifiedAt: '2026-09-09' },
+  },
+  {
+    id: 'R-RISE-05',
+    title: 'A rising body holds its slot — its Echo resolves first, and a summon with no room overflows',
+    statement:
+      'A minion that will Rise keeps its board slot while it is dead. Its Echo resolves before the Rise, and a '
+      + 'minion that Echo would summon finds no room on a full board: the summon overflows (Squatimus, Flowing Monk '
+      + 'pay off) and the rising body returns. If the rising body itself cannot fit — its slot was taken by another '
+      + 'return or a placed summon — that too counts as an overflow, and the body stays dead. Both phases. '
+      + 'Supersedes the 2026-07-02 reading under which a dying Rise body held no slot.',
+    domain: 'keywords',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-09 (Rodrick / Squatimus report)', quote: 'a rising minion does hold a slot/space. it cannot summon when the board is full, and the echo triggers before the rise does, but it DOES count as overflowing if a rising minion does not fit.' },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts risingReserved / occupied (every room check); packages/sim/src/recruit.ts settlePendingDeath (no vacating for a riser) + riseReturn → fireSummonOverflow' },
+    ],
+    contentIds: ['u3_rodrick', 'u3_squatimus'],
+    currentBehaviour:
+      'Conforms — 2026-09-09: combat reserves the slot through the Echo and fires `summonOverflow` for a return that '
+      + 'does not fit; the shop keeps the rising body on the board through its Echo (no `vacatingUid`), so the summon '
+      + 'path sees a full board, and `riseReturn` fires the same overflow dispatcher when it has no room.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3Undead.test.ts'], lastVerifiedAt: '2026-09-09' },
+  },
 ];

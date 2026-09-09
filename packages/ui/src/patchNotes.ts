@@ -56,6 +56,37 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-09',
+    label: 'Set 3 Undead',
+    changes: [
+      {
+        category: 'New Card',
+        text: 'Eleven new Undead join Set 3, alongside eleven returning Undead.',
+        details: [
+          'Rising Pup (Tier 1): Taunt, Rise.',
+          'Noggin (Tier 2): Rise. Echo — a random friendly Undead gets +2/+2.',
+          'Robinson (Tier 3): Equip Coffin Flop (2) — Discover an Undead minion.',
+          'Adeptus (Tier 3): Echo — your Shop spells get +1 Attack.',
+          'EMS (Tier 4): Equip Deathfibrillator (2) — give a target Undead Rise, then destroy it.',
+          'Cage Breaker (Tier 4): Shout — destroy a friendly Undead to Discover an Undead.',
+          'Revenant (Tier 5): after a friendly minion Rises, gains Ward and +7/+7.',
+          'Rising Tide (Tier 5): when a friendly minion Rises, your minions on board and in hand get +4/+5.',
+          'Squatimus (Tier 5): whenever a summoned minion does not fit, your minions get +2/+2 permanently.',
+          'Warden Rodrick (Tier 5): Echo — summon a Spear Warden.',
+          'Soul-Lantern Hierophant (Tier 6): Avenge (3) — cast Lantern of Souls.',
+          'Returning from Set 1: Deathswarmer, Spear Warden, Footman Captain, Mumi, Pillager, Soulsman, Deathsayer, Professor Greg, Sergey, Forsaken Mage and Anubis, Last Gate.',
+        ],
+      },
+      { category: 'Card Change', text: 'Deathswarmer is now a 0/3. Mumi moves to Tier 3 as a 5/2. Sergeant is renamed Sergey with new art. Anubis is now Anubis, Last Gate.' },
+      { category: 'Card Change', text: 'Rise now has watchers in both phases: a minion that Rises in the shop triggers Revenant and Rising Tide, and those gains are permanent.' },
+      { category: 'Card Change', text: 'Fixed: destroying a minion in the shop no longer fires the Echoes of your OTHER minions (a Footman Captain beside the victim was summoning a Footman).' },
+      { category: 'UI / Info', text: 'A minion that Rises in the shop now plays out in beats: the keyword flash, the full death, then the reborn re-form on its return.' },
+      { category: 'Card Change', text: 'A risen minion is the card as printed: improvements it had grown (the Echo of Sergey) reset, and it comes back wearing your Auras (Spear Warden, Undead Aura).' },
+      { category: 'Card Change', text: 'Rising Tide is now Undead / Spirit. Spirit and Celestial are Set 3 tribes.' },
+      { category: 'Card Change', text: 'A minion with Rise keeps its slot while it dies: its Echo fires first, and on a full board an Echo summon overflows instead of taking that slot. The minion comes back.' },
+    ],
+  },
+  {
+    date: '2026-09-09',
     label: 'Kobold tweaks',
     changes: [
       { category: 'Card Change', text: 'Gem Bus has been retired from Set 3.' },

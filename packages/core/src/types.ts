@@ -5,7 +5,7 @@ import type { CombatBus } from './events';
  *  BOTH the recruit factories and the combat ones (Slaughter / Rally / Echo grants) need it. */
 export const ALE_IDS: readonly string[] = ['wo_mine', 'wo_reinforcement', 'wo_champion', 'wo_health', 'wo_attack'];
 
-export type Tribe = 'beast' | 'undead' | 'mech' | 'dragon' | 'demon' | 'neutral' | 'kobold' | 'dwarf' | 'celestial';
+export type Tribe = 'beast' | 'undead' | 'mech' | 'dragon' | 'demon' | 'neutral' | 'kobold' | 'dwarf' | 'celestial' | 'spirit'; // 'spirit' + 'celestial': set 3's new tribes (owner 2026-09-09)
 
 /** Keyword codes (handoff A.4). */
 export type Keyword =
@@ -181,6 +181,7 @@ export type GameEvent =
   | 'orbitFired'
   | 'onSummon'
   | 'onDeath'
+  | 'onRise' // a FRIENDLY minion returned via Rise — BOTH phases (owner 2026-09-09: Rise watchers fire on a shop Rise too, and a recruit-phase payout is permanent). Payload `{ minion, side }` = the risen body
   | 'onAttack'
   | 'onGainAttack' // a minion's Attack rose mid-combat (emitted by ctx.buff when the delta > 0) — Hunter
   | 'onDamaged' // a minion took damage that landed (emitted by dealDamage) — Gryphon
@@ -273,6 +274,13 @@ export type EffectFactoryId =
   | 'rallyProcDeathrattle' // Rally: when this attacks, fire your leftmost minion's Deathrattle first (Deathsayer)
   | 'deathrattleGrantSpell' // Deathrattle: add a spell to your hand after combat (Arcane Weaver)
   | 'deathrattleBuffHandTribe' // Echo: give the <tribe> minions IN YOUR HAND +a/+h — both phases; in combat it is permanent (R-HAND-02)
+  | 'onRiseBuffSelfWard' // Set 3 Undead — Revenant: after a friendly minion Rises, this gains Ward and +a/+h (stacks)
+  | 'onRiseBuffBoardAndHand' // Set 3 Undead — Rising Tide: when a friendly minion Rises, your minions on board AND in hand +a/+h
+  | 'overflowBuffAllPermanent' // Set 3 Undead — Squatimus: a summon that does not fit → your minions +a/+h PERMANENTLY (both phases)
+  | 'deathrattleBuffRandomTribe' // Set 3 Undead — Noggin: Echo — a random friendly <tribe> +a/+h (both phases)
+  | 'battlecryDestroyForDiscover' // Set 3 Undead — Cage Breaker: Shout — destroy a friendly <tribe> (its Echo + Rise fire) to Discover a <tribe>; combat grants a random one
+  | 'equipmentRiseThenDestroy' // Set 3 Undead — Deathfibrillator: give the target Rise, then destroy it (it returns)
+  | 'avengeCastTribeAttack' // Set 3 Undead — Soul-Lantern Hierophant: Avenge (N) — cast Lantern of Souls (the Rally body, avenge-windowed)
   | 'battlecryBuffTribeImproving' // Scalechanter: Shout — buff a tribe by base + its improvements
   | 'onBattlecryImproveSelf' // Scalechanter: every N Shouts triggered, improve its own magnitude
   | 'deathrattleQueueNextSpellCopy' // Mushy: Echo — copy the first spell you cast next turn

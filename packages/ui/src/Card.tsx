@@ -206,6 +206,7 @@ let cardPlateAvailable = true;
 const TRIBE_LABEL: Record<Tribe, string> = {
   beast: 'Beast', dragon: 'Dragon', mech: 'Mech', undead: 'Undead', demon: 'Demon', neutral: 'Neutral', kobold: 'Kobold', dwarf: 'Dwarf',
   celestial: 'Celestial',
+  spirit: 'Spirit',
 };
 /** Each tribe's own footer glyph (handoff: the symbol matches the type — paw = Beast, etc.). */
 const TRIBE_ICON: Record<Tribe, string> = {
@@ -214,6 +215,8 @@ const TRIBE_ICON: Record<Tribe, string> = {
   // the Dawn/Dusk cycle. A proper emblem (and the cardplate + tribe colour the other tribes got) is
   // presentation work, not content work.
   celestial: 'clock',
+  // PLACEHOLDER glyph for the set-3 Spirit tribe (owner 2026-09-09) — same caveat as Celestial above.
+  spirit: 'clock',
 };
 
 /** Render rules text to HTML: fold the player-facing keyword rename (Battlecry→Shout, …) in FIRST, then bold

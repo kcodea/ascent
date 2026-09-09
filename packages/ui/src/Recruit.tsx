@@ -73,6 +73,7 @@ import { getRubyPowerFxConfig, floatRubyPowerNumber } from './rubyPowerFxConfig'
 import { getQuestTendrilConfig, tendrilCfgFor } from './questTendrilConfig';
 import { applyWeldWiggle, weldCfgFor, weldLandMs } from './weldFxConfig';
 import { waveGapFor, coalesceBuffFxByTarget, getBuffFxConfig } from './buffFxConfig';
+import { reformReborn } from './choreo/channels/aura';
 import { useCiaEnchantedFx } from './useCiaEnchantedFx';
 import { useChooseBothFx } from './useChooseBothFx';
 import { getAimFxConfig } from './aimFxConfig';
@@ -121,7 +122,13 @@ gsap.registerPlugin(Flip);
 /** RISE, in the shop (owner ruling 2026-08-28) — the body dies and re-forms, so it must NOT dissolve. A short
  *  bloom marks the death; the return then arrives as an ordinary summon. Screen blend + a warm glow, the same
  *  language the ascend flash speaks, so a re-forming body reads as a return rather than as a kill. */
-const RISE_BURST = { flashSize: 150, flashMs: 320, flashAlpha: 0.75, colorGlow: '#ffd27f', blend: 'screen' as const };
+// (RISE_BURST retired 2026-09-09: a rising body now dies in full and re-forms on return; see the `rise` shop cue.)
+/** A KEYWORD GRANTED in the shop (Rise from a Deathfibrillator, Ward from Orin) — a short cool flash on the card, so
+ *  the grant is a beat of its own before whatever follows it (owner 2026-09-09). Combat floats the keyword name;
+ *  the shop's pip already names it, so the flash is the cue. */
+const KEYWORD_FLASH = { flashSize: 110, flashMs: 260, flashAlpha: 0.6, colorGlow: '#9fd8ff', blend: 'screen' as const };
+/** The reborn re-form's offset after the death, matching combat's `auraReform` cue (score.ts `withReform`, 460ms). */
+const RISE_REFORM_MS = 460;
 
 const EMPTY_KW: ReadonlyMap<string, ReadonlySet<string>> = new Map();
 const EMPTY_TRANSFORMS: ReadonlyMap<string, string> = new Map();
@@ -1955,6 +1962,13 @@ export function Recruit() {
    * player. Nothing here gates gameplay — the state has already committed.
    */
   const prevEquipFxSeq = useRef(run.equipFxSeq);
+  /** Retire fns for USE defs (Deathfibrillator, Bloodpot). Held OUTSIDE the cue effect on purpose: that effect
+   *  re-runs (and cleans up) on the very next action — and an aimed Equipment's next action is the target's
+   *  two-step death, ~200ms later — which was cutting the def off mid-play (owner report 2026-09-09: "it should
+   *  just play out over top of whatever happens in that slot"). A use def now runs to its own end; these are
+   *  only retired on unmount. */
+  const useDefStopsRef = useRef<Array<() => void>>([]);
+  useEffect(() => () => { for (const f of useDefStopsRef.current.splice(0)) f(); }, []);
   useLayoutEffect(() => {
     const seq = run.equipFxSeq;
     if (seq === undefined || seq === prevEquipFxSeq.current) return;
@@ -1985,14 +1999,15 @@ export function Recruit() {
       const to = tR ? { x: tR.left + tR.width / 2, y: tR.top + tR.height / 2 } : slot;
       if (eq.useFxId && slot && to && canPlayDefs()) {
         const fire = (): void => {
-          const stop = playDef(
-            eq.useFxId!,
-            { source: slot, target: to, cursor: to },
-            { uids: { source: null, target: cue.targetUid ?? null } },
-          );
-          if (stop) retire.push(stop);
+          // `useFxAt: 'target'` — the def was authored ON the unit (every layer anchors `source`), so its source
+          // IS the aimed body; the default keeps the slot→target travel shape (Bloodpot, Titan Hammer).
+          const from = eq.useFxAt === 'target' ? to : slot;
+          // Fixed points, no unit binding: the def must outlive the aimed body (it may die on the next beat).
+          const stop = playDef(eq.useFxId!, { source: from, target: to, cursor: to });
+          if (stop) useDefStopsRef.current.push(stop);
         };
-        if (cfg.useDelayMs > 0) timers.push(window.setTimeout(fire, cfg.useDelayMs)); else fire();
+        // The delayed fire lives with the def, not the cue effect's timer list (which the next action clears).
+        if (cfg.useDelayMs > 0) { const t = window.setTimeout(fire, cfg.useDelayMs); useDefStopsRef.current.push(() => window.clearTimeout(t)); } else fire();
       }
       if (eq.useSfxId && cfg.useSfxOn) sfx.equipmentUse(eq.useSfxId, cfg.useSfxDelayMs);
       // An Equipment that CAST Shop spells (Pourman's Keg → a random Ale) plays each spell's own cast
@@ -2098,7 +2113,11 @@ export function Recruit() {
       const at = { x: base.x + cfg.offsetX, y: base.y + cfg.offsetY, w: base.w * cfg.sizeScale };
       const fire = (): void => {
         if (fx.kind === 'echo') { pixiFx.deathrattle(at.x, at.y, at.w); return; }
-        if (fx.rise) { pixiFx.flashBloom(at.x, at.y, RISE_BURST); return; }
+        // A RISEN body has returned (owner 2026-09-09): combat's reborn re-form on the new card, one beat after the
+        // death it followed. `base` was read from the live, freshly-mounted element above.
+        if (fx.kind === 'rise') { reformReborn({ cx: at.x, cy: at.y, w: base.w, h: base.w * 1.4 }); return; }
+        // A body that will Rise dies IN FULL first (dissolve here, its Echo skull on its own cue) — the return is
+        // the `rise` cue above, not a bloom in place (owner 2026-09-09: "just as if it had happened in combat").
         if (!canPlayDefs()) return;
         const anchors = anchorsForUnits(null, fx.uid);
         if (anchors) playDef('death-dissolve', anchors, { uids: { source: null, target: fx.uid } });
@@ -2106,7 +2125,7 @@ export function Recruit() {
       if (fx.kind === 'echo' && preFiredEchoRef.current.delete(fx.uid)) continue; // the lead already played it
       if (fx.kind === 'echo' && !cfg.echoEnabled) continue;
       if (fx.kind === 'death' && !cfg.deathEnabled) continue;
-      const delay = fx.kind === 'echo' ? cfg.echoDelayMs : cfg.deathDelayMs;
+      const delay = fx.kind === 'echo' ? cfg.echoDelayMs : fx.kind === 'rise' ? cfg.deathDelayMs + RISE_REFORM_MS : cfg.deathDelayMs;
       if (delay > 0) window.setTimeout(fire, delay); else fire();
     }
   }, [run.shopFxSeq, run.shopDeathFx, findEl]);
@@ -5443,10 +5462,9 @@ export function Recruit() {
         const el = findEl(uid);
         if (!el) return;
         const r = el.getBoundingClientRect();
-        if (rise) {
-          pixiFx.flashBloom(r.left + r.width / 2, r.top + r.height / 2, RISE_BURST);
-          return;
-        }
+        // A rising body dies IN FULL (owner 2026-09-09) — its return is the `rise` shop cue (the reborn re-form
+        // on the new body), so `rise` no longer short-circuits to a bloom in place.
+        void rise;
         const hasEcho = !!cardId && !!CARD_INDEX[cardId]?.effects?.some((e) => e.on === 'onDeath');
         if (hasEcho) { pixiFx.deathrattle(r.left + r.width / 2, r.top + r.height / 2, r.width); return; }
         if (!canPlayDefs()) return;
@@ -5469,7 +5487,15 @@ export function Recruit() {
           flashSize: cfg.flashSize, flashMs: cfg.flashMs, flashAlpha: cfg.flashAlpha, colorGlow: cfg.colorGlow, blend: 'screen',
         });
       },
-      keywordChanged: () => { /* keyword pips render from the projection */ },
+      keywordChanged: (uid, _keyword, gained) => {
+        // The pip itself renders from the projection; the GRANT gets a flash so it reads as its own beat before
+        // whatever it enables (a Deathfibrillator's Rise, then the death) — owner 2026-09-09. Losses stay silent.
+        if (!gained) return;
+        const el = findEl(uid);
+        if (!el) return;
+        const r = el.getBoundingClientRect();
+        pixiFx.flashBloom(r.left + r.width / 2, r.top + r.height / 2, KEYWORD_FLASH);
+      },
       // ── PR 6: the beat-level sequences, now event-derived rather than hardcoded per effect ──
       questTendril: (kind, sourceId, targetUid, index) => {
         if (!getQuestTendrilConfig().enabled) return;

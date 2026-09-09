@@ -5,7 +5,7 @@ import { z } from 'zod';
  * type in `@game/core` is the canonical compile-time shape; this schema guards
  * the *data* at load and is kept in lockstep with it.
  */
-export const TribeSchema = z.enum(['beast', 'undead', 'mech', 'dragon', 'demon', 'neutral', 'kobold', 'dwarf', 'celestial']);
+export const TribeSchema = z.enum(['beast', 'undead', 'mech', 'dragon', 'demon', 'neutral', 'kobold', 'dwarf', 'celestial', 'spirit']);
 
 export const KeywordSchema = z.enum(['T', 'DS', 'V', 'W', 'R', 'C', 'M', 'SC', 'CN', 'FD', 'IMM', 'ST', 'RL', 'SL', 'CR', 'EG']);
 
@@ -13,6 +13,7 @@ export const GameEventSchema = z.enum([
   'onPlay',
   'onSummon',
   'onDeath',
+  'onRise',
   'onAttack',
   'onGainAttack',
   'onDamaged',
@@ -486,6 +487,9 @@ export const EffectFactoryIdSchema = z.enum([
   'minionSoldBuffSelf', 'endOfTurnBuffAdjacentPerCard', 'equipmentCastRandomAle', 'onTribeSummonedBuffRandomOthers',
   'deathrattleGoldNextTurn', 'onTribeGainAttackBuffSelf', 'equipmentBonusTurnTime',
   'deathrattleBuffHandTribe', // R-HAND-02 (2026-09-09): buff hand minions of a tribe — permanent in both phases
+  // Set 3 Undead (2026-09-09)
+  'onRiseBuffSelfWard', 'onRiseBuffBoardAndHand', 'overflowBuffAllPermanent', 'deathrattleBuffRandomTribe',
+  'battlecryDestroyForDiscover', 'equipmentRiseThenDestroy', 'avengeCastTribeAttack',
   'impInheritOnDeath', 'impInheritOnSummon', 'echoCastRememberedSpells', 'echoResummonDeadBeasts',
   'setArmor',
   'battlecryGainGoldNextTurn', 'cardsPlayedPlayRubies', 'onTribeSummonedBuffTribe', 'onSpellCastBuffOnePerTribe', 'spellCastTriggerAdjacentShouts', // Hoardmaster Krik: every N cards bought, mint Rubies to hand

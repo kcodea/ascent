@@ -28,6 +28,7 @@ describe('isDeathrattleBufferCard', () => {
     const EXCLUDED: Record<string, string> = {
       // Spear Warden — the owner wants it reframed as an "echo-aura", kept out until that design lands.
       deathrattleBuffCardTypeRunWide: 'run-wide enchant, emits no combat buff-other',
+      deathrattleBuffSpellPower: 'run-wide spell power (Adeptus / Skullblade), emits no combat buff-other',
       // Right Hand Hank — buffs the next SHOP (a carry-back), not a live board minion, so no combat cue.
       deathrattleBuffRightmostSlot: 'carry-back shop-slot buff, emits no combat buff-other',
       // Malphas (Echo half) — buffs the next SHOP (a tavern-buy carry-back), not a live board minion.

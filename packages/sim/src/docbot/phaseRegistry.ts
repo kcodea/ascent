@@ -44,6 +44,7 @@ export const TRIGGER_PHASES: Readonly<Record<string, 'recruit' | 'combat' | 'bot
   cardsBought: 'recruit',
   goldSpent: 'recruit',
   minionSold: 'recruit',
+  onRise: 'both', // a friendly Rise — combat's `bus.emit('onRise')` and the shop's `fireOnRise` (owner 2026-09-09)
   spellBought: 'recruit',
   shopRefreshed: 'recruit',
   rubyCast: 'recruit',

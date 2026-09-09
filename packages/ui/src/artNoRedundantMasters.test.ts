@@ -95,6 +95,8 @@ describe('no redundant PNG masters ship alongside their WebP builds', () => {
     // riding a content PR. (The stated rationale has also drifted: at +176 the whole-zip count passed 1000
     // some time ago, so this ceiling is now a growth ratchet rather than the cap it names.)
     // +10 on 2026-09-09: the set-3 Dwarf roster (7 minion portraits, 2 Equipment icons, Rune of Living Magic).
-    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1086);
+    // +11 the same day: the set-3 Undead roster (10 new portraits + the Deathfibrillator icon; 8 reskins replaced in place).
+    // +2 the same day: the Hierophant's portrait + the Coffin Flop icon (second Undead art pass); +1 Tankerchief.
+    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1100);
   });
 });

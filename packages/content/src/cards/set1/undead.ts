@@ -87,8 +87,8 @@ export const UNDEAD: CardDef[] = [
     health: 1,
     keywords: [],
     effects: [{ on: 'onDeath', do: 'deathrattleSummon', params: { tokenId: 'footman' } }],
-    text: '**Deathrattle:** Summon a **Footman**.',
-    goldenText: '**Deathrattle:** Summon **2 Footmen**.',
+    text: '**Echo:** summon a **Footman**.',
+    goldenText: '**Echo:** summon **2 Footmen**.',
   },
   {
     // Rally engine: each time it attacks, it fires your leftmost friendly Deathrattle *before* the hit
@@ -101,8 +101,8 @@ export const UNDEAD: CardDef[] = [
     health: 5,
     keywords: ['RL'],
     effects: [{ on: 'onAttack', do: 'rallyProcDeathrattle' }],
-    text: '**Rally:** before this attacks, trigger your leftmost Deathrattle.',
-    goldenText: '**Rally:** before this attacks, trigger your leftmost Deathrattle **twice**.',
+    text: '**Rally:** trigger your left-most **Echo** before this attacks.',
+    goldenText: '**Rally:** trigger your left-most **Echo** twice before this attacks.',
   },
   {
     // Battlecry: give your Undead +1 Attack wherever they are (board + hand immediately via
@@ -111,12 +111,13 @@ export const UNDEAD: CardDef[] = [
     name: 'Deathswarmer',
     tribe: 'undead',
     tier: 1,
-    attack: 1,
+    attack: 0,
     health: 3,
     keywords: [],
     effects: [{ on: 'onPlay', do: 'battlecryBuffUndeadAttack', params: { amount: 1 } }],
-    text: '**Battlecry:** Give your **Undead Aura** **+1 Attack**.',
-    goldenText: '**Battlecry:** Give your **Undead Aura** **+2 Attack**.',
+    // Set-3 roster (owner 2026-09-09): 1/3 → 0/3; "wherever they are" IS the Undead Aura (board, hand, future).
+    text: '**Shout:** give your **Undead Aura +1 Attack**.',
+    goldenText: '**Shout:** give your **Undead Aura +2 Attack**.',
   },
   {
     id: 'pillager',
@@ -127,8 +128,8 @@ export const UNDEAD: CardDef[] = [
     health: 2,
     keywords: [],
     effects: [{ on: 'onDeath', do: 'deathrattleGrantCardToHand', params: { cardId: 'emberpouch', count: 1 } }],
-    text: '**Deathrattle:** Get a **Gold Pouch**.',
-    goldenText: '**Deathrattle:** Get **2 Gold Pouches**.',
+    text: '**Echo:** get a **Gold Pouch**.',
+    goldenText: '**Echo:** get **2 Gold Pouches**.',
   },
   {
     // Rise-spreader: a fragile glass body whose Deathrattle hands a random friendly Undead a Rise
@@ -136,13 +137,13 @@ export const UNDEAD: CardDef[] = [
     id: 'mumi',
     name: 'Mumi',
     tribe: 'undead',
-    tier: 2,
-    attack: 3,
-    health: 1,
+    tier: 3,
+    attack: 5,
+    health: 2,
     keywords: [],
     effects: [{ on: 'onDeath', do: 'deathrattleGrantReborn', params: { tribe: 'undead' } }],
-    text: '**Deathrattle:** give a friendly **Undead** **Rise**.',
-    goldenText: '**Deathrattle:** give **two** friendly **Undead** **Rise**.',
+    text: '**Echo:** give a friendly **Undead** **Rise**.',
+    goldenText: '**Echo:** give **two** friendly **Undead** **Rise**.',
   },
   {
     // Grave Body: at Start of Combat (or when summoned mid-fight — Empty Graves' token), copy the Deathrattle of
@@ -184,7 +185,7 @@ export const UNDEAD: CardDef[] = [
     // gains Attack in combat, the HP grant permanently improves by +2 (golden +4). Tracked via
     // `self.hpGrantBonus` on the Minion instance.
     id: 'sergeant',
-    name: 'Sergeant',
+    name: 'Sergey',
     tribe: 'undead',
     tier: 5,
     attack: 6,
@@ -194,8 +195,9 @@ export const UNDEAD: CardDef[] = [
       { on: 'onDeath', do: 'deathrattleBuffAllHealth', params: { health: 2 } },
       { on: 'onGainAttack', do: 'onGainAttackImproveHpGrant', params: { improve: 2 } },
     ],
-    text: '**Deathrattle:** Give your minions **+2 Health**. Improves each time Sergeant gains Attack.',
-    goldenText: '**Deathrattle:** Give your minions **+4 Health**. Improves **+4** each time Sergeant gains Attack.',
+    // Renamed + reskinned Sergey for the set-3 roster (owner 2026-09-09); the id stays — saved runs store ids.
+    text: '**Echo:** give your minions **+2 Health**. Improve this whenever Sergey gains Attack.',
+    goldenText: '**Echo:** give your minions **+4 Health**. Improve this by **+4** whenever Sergey gains Attack.',
   },
   {
     // When you cast a spell, give your Undead +4 Attack wherever they are (board + hand) and stack the
@@ -298,8 +300,9 @@ export const UNDEAD: CardDef[] = [
     health: 3,
     keywords: ['RL'],
     effects: [{ on: 'onAttack', do: 'rallyCastTribeAttack', params: { tribe: 'undead', amount: 3, spellId: 'lanternofsouls' } }],
-    text: '**Rally:** cast **Lantern of Souls** — your Undead get **+3/+0** for the rest of the run.',
-    goldenText: '**Rally:** cast **Lantern of Souls** twice — your Undead get **+6/+0** for the rest of the run.',
+    // Names the spell and stops (owner ruling 2026-09-09, R-TEXT-01): the spell's hover preview carries the value.
+    text: '**Rally:** cast **Lantern of Souls**.',
+    goldenText: '**Rally:** cast **Lantern of Souls** twice.',
   },
   {
     // Battlecry: destroy a targeted friendly minion — proccing its Deathrattle in the shop (summons/buffs bake

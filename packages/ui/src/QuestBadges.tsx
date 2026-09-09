@@ -20,7 +20,7 @@ import './runeSheenConfig'; // side-effect: reflects the --rsh-* rune-sheen vars
 const F = `${import.meta.env.BASE_URL}frames/`;
 
 /** Each tribe's emblem glyph — the fallback when a quest has no art yet (mirrors QuestCard). */
-const TRIBE_ICON: Record<Tribe, string> = { beast: 'paw', dragon: 'flame', mech: 'gear', undead: 'skull', demon: 'eye', neutral: 'star', kobold: 'crown', dwarf: 'anvil', celestial: 'clock' };
+const TRIBE_ICON: Record<Tribe, string> = { beast: 'paw', dragon: 'flame', mech: 'gear', undead: 'skull', demon: 'eye', neutral: 'star', kobold: 'crown', dwarf: 'anvil', celestial: 'clock', spirit: 'clock' };
 
 
 /** Live combat progress for a quest objective during the replay, mirroring the reducer's `combatEventCount`.

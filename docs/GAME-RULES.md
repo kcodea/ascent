@@ -274,6 +274,40 @@ Pinned by `handBuffInCombat.test.ts` and the replay helper's test.
 
 ---
 
+### "When a friendly minion Rises" — both phases, permanent in the shop (owner rule 2026-09-09, R-RISE-03)
+
+*"if minions rise in shop, that would trigger rising tide and that buff would be permanent since it's in
+recruit. this will be a common trigger/effect in set 3."*
+
+A **Rise** — a body with the keyword returning after it dies — is an event its watchers (Revenant, Rising Tide)
+hear **wherever it happens**:
+
+- **In combat**, when the body returns to the line. A watcher's board grant is a normal combat gain; a hand
+  grant is permanent (R-HAND-02).
+- **In the shop**, when a destroyed body returns (Cage Breaker, the Deathfibrillator, any destroy — R-RISE-02).
+  Everything a watcher grants there is **permanent**: the stats and any keyword (Revenant's Ward).
+- **Friendly only.** An enemy body Rising is not your Rise; your watchers stay quiet.
+
+**How it is enforced.** One trigger, `onRise`, from the single Rise site of each phase (`bus.emit` in
+`simulate.ts`, `fireOnRise` off the shop's `riseReturn`), with the risen body in the payload. Pinned in
+`set3Undead.test.ts` for both phases and for the enemy case.
+
+---
+
+### A named-spell caster prints the spell, not its value (owner rule 2026-09-09, R-TEXT-01)
+
+A minion whose effect **casts a named spell** — Watcher, Soul-Lantern Hierophant, Anubis — reads "cast
+**Lantern of Souls**." and stops. The spell is the minion's associated card, previewed on hover with its live,
+spell-power-aware value, the way a Ruby is previewed from the Kobolds that cast it. The caster never restates
+the number.
+
+### An Aura-affecting spell is permanent from any phase (owner rule 2026-09-09, R-AURA-02)
+
+Lantern of Souls raises the **Undead Aura** for the rest of the run whether it is cast in the shop or in
+combat (a Rally, an Avenge, an Echo). Combat casts carry the gain back at settle. There is no combat-only Aura.
+
+---
+
 ### Aura — the run-wide scope noun (owner ruling 2026-08-28)
 
 A grant that reaches a whole tribe/class **wherever its members sit** — the board, your hand, the Shop, and

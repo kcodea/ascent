@@ -43,7 +43,18 @@ describe('set 3 scaffold', () => {
       'dw3_thymes', 'dw3_tankerchief',
       'dw_brunni', 'dw_coinfire', 'dw_brakka', 'dw_dorrin', 'dw_foreman', 'dw_brewer', 'dw_tapkeeper',
       'dw_bladethrower', 'dw_thane', 'dw_pimm', 'dw_edward', 'dw_mountainbond', 'dw_billings', 'dw_gangplank',
+      // …then the UNDEAD (owner roster 2026-09-09): set 3's eleven new ones, then the eleven set-1 Undead it keeps
+      // (shared definitions; four re-specced in place because set 1 is disabled). Ossuary Colossus was pulled.
+      'u3_poochy', 'u3_noggin', 'u3_robinson', 'u3_adeptus', 'u3_ems', 'u3_cagebreaker', 'u3_revenant',
+      'u3_risingtide', 'u3_squatimus', 'u3_rodrick', 'u3_hierophant',
+      'profgreg', 'knit', 'deathlesshand', 'deathsayer', 'deathswarmer', 'pillager', 'mumi', 'sergeant',
+      'forsakenweaver', 'soulsman', 'anubis',
     ]);
+    // The set-1 Undead NOT on the roster stay out (owner confirmation 2026-09-09), still resolvable.
+    for (const id of ['spore', 'karthus', 'ryme', 'gravebody', 'thunderingabomination', 'steadfast', 'wolvesden', 'gravewarden', 'cryptscribe', 'watcher', 'graverobber', 'bonetaxer', 'cryptbroker', 'gravetwin']) {
+      expect(p.all.some((c) => c.id === id), id + ' left out of set 3').toBe(false);
+      expect(CARD_INDEX[id], id + ' still resolves').toBeTruthy();
+    }
     // Gem Bus ARCHIVED (owner 2026-09-09): in no set, still resolvable.
     expect(p.all.some((c) => c.id === 'k3_forkroad'), 'Gem Bus archived').toBe(false);
     expect(CARD_INDEX['k3_forkroad']?.name).toBe('Gem Bus');
@@ -59,7 +70,7 @@ describe('set 3 scaffold', () => {
     expect(CARD_INDEX['k_alchemist']).toBeTruthy();
     // The Kobolds must be reachable AS A TRIBE, not merely present: `selectRunTribes` reads this list, so a
     // pool full of Kobolds with an empty `tribes` could never roll a Kobold run.
-    expect(SETS.set3.tribes).toEqual(['kobold', 'dwarf']);
+    expect(SETS.set3.tribes).toEqual(['kobold', 'dwarf', 'undead', 'spirit', 'celestial']);
     // Their Ruby engine needs no set membership — `ruby` and the Gemheart Golem are tokens, global by the
     // same doctrine as the gift spells above, reachable only through a card that names them.
     expect(p.all.some((c) => c.id === 'ruby'), 'a token is never a set member').toBe(false);

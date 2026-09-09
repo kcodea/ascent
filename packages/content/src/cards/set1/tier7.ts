@@ -83,7 +83,7 @@ export const TIER7: CardDef[] = [
     // Undead capstone: Rise itself, hand Rise to the whole board on death, and cast Lantern of Souls for a
     // permanent run-wide Undead Attack buff. Three payoffs on one 8/5 body.
     id: 'anubis',
-    name: 'Anubis',
+    name: 'Anubis, Last Gate', // set-3 roster name (owner 2026-09-09); the id stays
     tribe: 'undead',
     tier: 7,
     attack: 8,
@@ -93,8 +93,8 @@ export const TIER7: CardDef[] = [
       { on: 'onDeath', do: 'deathrattleGrantRebornAll', params: {} },
       { on: 'onDeath', do: 'deathrattleCastTribeAttack', params: { tribe: 'undead', amount: 3 } },
     ],
-    text: '**Deathrattle:** Give your minions **Reborn**. Cast **Lantern of Souls**.',
-    goldenText: '**Deathrattle:** Give your minions **Reborn**. Cast **Lantern of Souls** twice.',
+    text: '**Echo:** give your minions **Rise** and cast **Lantern of Souls**.',
+    goldenText: '**Echo:** give your minions **Rise** and cast **Lantern of Souls** twice.',
   },
   {
     // A Tier 7 body you're rewarded for GETTING RID of — the anti-carry. Selling it opens two Tier 6

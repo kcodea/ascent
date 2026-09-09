@@ -2263,30 +2263,78 @@ export function destroyMinionInShop(
  * @param summonedFrom board length immediately after it left — anything beyond this is what the Echo summoned,
  *                     and the return goes to its RIGHT (owner ruling 2026-07-06).
  */
-function riseReturn(state: RunState, target: BoardCard, slot: number, summonedFrom: number): void {
-  if (state.board.length >= CONFIG.boardMax) return;
+function riseReturn(state: RunState, target: BoardCard, slot: number, summonedFrom: number): BoardCard | undefined {
+  // A rising body held its slot through its Echo, so this only fails if something else filled the board — and
+  // then the return COUNTS AS AN OVERFLOW (owner 2026-09-09), the same event a summon with no room fires.
+  if (state.board.length >= CONFIG.boardMax) { fireSummonOverflow(state); return undefined; }
   const def = CARD_INDEX[target.cardId];
-  const base = def?.attack ?? target.attack;
+  const mul = target.golden ? 2 : 1;
+  // THE PRINTED BODY, with the run's Auras re-applied on top — combat's Rise exactly (base Attack × golden, 1
+  // Health, the def's keywords minus Rise, then `applyAuras(m, true)`). The shop's Auras are the run enchants a
+  // fresh copy of the card would carry: the per-card enchant (Spear Warden's own Aura via `cardBuffs`) and the
+  // Undead Aura (`undeadBuyBonus` / `buyHealthAura`). Owner report 2026-09-09: a Deathfibrillated Spear Warden and
+  // Deathswarmer came back with neither.
+  //
+  // Built FRESH rather than spread from the dying body (owner report 2026-09-09: Sergey "rose with its buffed
+  // text still"): a risen body is the card as printed — no buffs, no per-instance improvements (Sergey's Echo HP
+  // grant, a Chef's tally, an overflow bank, a copied Echo), no granted keyword, no loan flag. Only `golden`
+  // survives, as in combat.
+  //
+  // A FRESH uid on purpose, and load-bearing for presentation: the departure diff reports a death by finding a
+  // uid that is no longer on the board. Reusing the uid (as combat does, where an explicit `death` event carries
+  // the signal) would mean the body never leaves as far as the diff can see, so the death would animate nowhere.
+  const cb = def ? cardBuff(state, def.id) : { attack: 0, health: 0 };
   const risen: BoardCard = {
-    ...target,
-    // A FRESH uid on purpose. The risen body is a new instance — base stats, printed keywords, no buffs —
-    // and, load-bearing for presentation: the departure diff reports a death by finding a uid that is no
-    // longer on the board. Reusing the uid (as combat does, where an explicit `death` event carries the
-    // signal) would mean the body never leaves as far as the diff can see, so the death would animate
-    // nowhere and we would be back to the snap this whole change removes.
     uid: `r${state.uidSeq++}`,
-    attack: base * (target.golden ? 2 : 1),
-    health: 1,
-    // Printed keywords minus the spent Rise; granted ones are shed with the buffs.
+    cardId: target.cardId,
+    tribe: target.tribe,
+    attack: Math.max(0, (def?.attack ?? target.attack) * mul + cb.attack + (def ? undeadBuyBonus(state, def) : 0)),
+    health: 1 + cb.health + (def ? buyHealthAura(state, def) : 0),
     keywords: (def?.keywords ?? []).filter((k) => k !== 'R'),
-    buffs: undefined,
-    // A risen body is a body you now OWN — it is no longer on loan (Funeral on Loan). Without this the flag
-    // would ride the clone and the next turn's expiry sweep would look at a card that is not in hand.
-    borrowed: undefined,
+    golden: target.golden,
   };
   const grew = state.board.length - summonedFrom;
   const at = Math.min(state.board.length, slot + Math.max(0, grew));
   state.board.splice(at, 0, risen);
+  // The RETURN is its own beat (owner 2026-09-09: "show the minion rise again, just as if it had happened in
+  // combat"): the UI plays combat's reborn re-form on the new body once it has mounted.
+  stampShopFx(state, { kind: 'rise', uid: risen.uid, cardId: risen.cardId });
+  return risen;
+}
+
+/**
+ * A summon (or a Rise return — owner 2026-09-09) found no room: the board's `summonOverflow` watchers pay off
+ * (Flowing Monk, Squatimus). The one shop dispatcher for the event, shared by the summon path and `riseReturn`.
+ */
+export function fireSummonOverflow(state: RunState): void {
+  const ctx = makeContext(state);
+  for (const c of [...state.board]) {
+    const def = CARD_INDEX[c.cardId];
+    if (!def) continue;
+    for (const effect of def.effects) {
+      if (effect.on !== 'summonOverflow') continue;
+      const fn = RECRUIT_FACTORIES[effect.do];
+      if (fn) captureBuffFx(state, c, 'minion', () => fn(ctx, c, effect.params ?? {}, { minion: c }));
+    }
+  }
+}
+
+/**
+ * `onRise` in the SHOP (owner ruling 2026-09-09): a body returning via Rise outside combat notifies the board's
+ * Rise watchers (Revenant, Rising Tide) exactly as combat's `bus.emit('onRise')` does — and because this is the
+ * recruit phase, whatever they grant is permanent (a shop buff is; a hand buff always is, R-HAND-02). Called
+ * from the one shop Rise site (`settlePendingDeath` → `riseReturn`); the risen body is in the payload, and the
+ * watcher may be the riser itself.
+ */
+export function fireOnRise(state: RunState, risen: BoardCard): void {
+  const ctx = makeContext(state);
+  for (const card of [...state.board]) {
+    for (const effect of instanceEffects(card)) {
+      if (effect.on !== 'onRise') continue;
+      const fn = RECRUIT_FACTORIES[effect.do];
+      if (fn) captureBuffFx(state, card, 'minion', () => fn(ctx, card, effect.params ?? {}, { minion: risen }));
+    }
+  }
 }
 
 /**
@@ -3686,6 +3734,62 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       addBuff(avail.splice(rng.int(avail.length), 1)[0]!, nameOf(self), a, h);
     }
     ctx.state.rngCursor = rng.state();
+  },
+
+  // ── Set 3 Undead (owner roster 2026-09-09) ──────────────────────────────────────────────────────────────
+
+  /** Noggin (Echo, shop half): a random friendly <tribe> +a/+h — the arena body, own-death guarded. */
+  deathrattleBuffRandomTribe: (ctx, self, params, payload) => {
+    if ((payload as { minion?: BoardCard })?.minion !== self) return;
+    ARENA_EFFECTS.deathrattleBuffRandomTribe(shopArena(ctx.state, self), params);
+  },
+
+  /** Adeptus (Echo, shop half): +a Attack to your Shop spells, run-wide — Coppercoat's arena body, guarded to
+   *  this body's own death (combat's `deathrattleBuffSpellPower` is the same channel, `grantSpellPower`). */
+  deathrattleBuffSpellPower: (ctx, self, params, payload) => {
+    if ((payload as { minion?: BoardCard })?.minion !== self) return;
+    ARENA_EFFECTS.battlecryGrantSpellPowerRun(shopArena(ctx.state, self), params);
+  },
+
+  /** Revenant (shop half): a friendly minion Rose in the shop → Ward + stats, permanent (owner 2026-09-09). */
+  onRiseBuffSelfWard: (ctx, self, params) => {
+    if (!ctx.state.board.some((c) => c.uid === self.uid)) return;
+    ARENA_EFFECTS.onRiseBuffSelfWard(shopArena(ctx.state, self), params);
+  },
+
+  /** Rising Tide (shop half): board + hand, both permanent here. */
+  onRiseBuffBoardAndHand: (ctx, self, params) => {
+    if (!ctx.state.board.some((c) => c.uid === self.uid)) return;
+    ARENA_EFFECTS.onRiseBuffBoardAndHand(shopArena(ctx.state, self), params);
+  },
+
+  /** Squatimus (shop half): a shop summon that found no room → your minions +a/+h. A shop buff is permanent. */
+  overflowBuffAllPermanent: (ctx, self, params) => {
+    ARENA_EFFECTS.overflowBuffAllPermanent(shopArena(ctx.state, self), params);
+  },
+
+  /** Cage Breaker (Shout, aimed): DESTROY a friendly <tribe> — the two-step death Graverobber uses, so its Echo,
+   *  its departure and its Rise get their beat — then Discover a <tribe> at the tavern tier (owner 2026-09-09:
+   *  "any undead up to the player's current tavern tier"). The Discover is queued behind the pending death. */
+  battlecryDestroyForDiscover: (ctx, self, params, payload) => {
+    const target = payload.target;
+    if (!target) return;
+    const tribe = (str(params.tribe) || undefined) as Tribe | undefined;
+    if (tribe && !isTribe(target, tribe)) return; // aimed at the wrong tribe — no death, no Discover
+    ctx.state.pendingDeath = { uid: target.uid, kind: 'destroy' };
+    for (let i = 0; i < gold(self); i++) queueDiscover(ctx.state, { kind: 'minion', tier: ctx.state.tier, tribe, exclude: self.cardId });
+  },
+
+  /** Deathfibrillator (one Equipment TRIGGER, aimed): give the target Rise, then destroy it — it returns at base
+   *  Attack / 1 Health through the shop's death sequence (R-RISE-02), its Echo fired on the way. A non-<tribe>
+   *  target is a no-op (the text says "a target Undead"; the aim picker is tribe-blind). */
+  equipmentRiseThenDestroy: (ctx, _self, params, payload) => {
+    const target = payload.target;
+    if (!target || !ctx.state.board.some((c) => c.uid === target.uid)) return;
+    const tribe = (str(params.tribe) || undefined) as Tribe | undefined;
+    if (tribe && !isTribe(target, tribe)) return;
+    if (!target.keywords.includes('R')) target.keywords = [...target.keywords, 'R'];
+    ctx.state.pendingDeath = { uid: target.uid, kind: 'destroy' };
   },
 
   /** Echo (shop half): buff the `tribe` minions in your hand. Same body as combat through the arena; a shop
@@ -5548,7 +5652,10 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  Rise; the "random" pick becomes the highest-Attack carry out of combat. Granting the `R` keyword is enough —
    *  combat's `instantiate` re-arms `rebornAvailable` from it. Golden grants Rise to two friends. */
   // ARENA-MIGRATED (Step 3): random in both phases (standing owner ruling); one body.
-  deathrattleGrantReborn: (ctx, self, params) => {
+  deathrattleGrantReborn: (ctx, self, params, payload) => {
+    // Own-death guard (fix 2026-09-09): `fireOnFriendDeath` offers EVERY shop death to the board's on-death
+    // effects, and without this Mumi handed Rise to a random Undead whenever ANY friend was destroyed.
+    if (payload?.minion && payload.minion !== self) return;
     ARENA_EFFECTS.deathrattleGrantReborn(shopArena(ctx.state, self), params);
   },
 
@@ -8255,12 +8362,22 @@ function fire(
  * and are NOT re-fired here — the dead card itself is skipped). Sells are not deaths; Consume/devour and
  * destroy effects are.
  */
+/**
+ * The `onDeath` factories that WATCH another friendly death (they read the dead body from the payload) — the only
+ * ones the shop's friendly-death broadcast may reach. Every other `onDeath` factory is a body's OWN Echo, fired by
+ * `fireRecruitDeathrattles` when that body dies; offering those a friend's death fired them as if the WATCHER
+ * had died (owner report 2026-09-09: a Deathfibrillator on Spear Warden summoned a Footman — Footman Captain's
+ * Echo, on Spear Warden's death). Combat has the same split, enforced per factory by its `minion !== self` guard;
+ * the shop enforces it here, once, so a new Echo factory cannot forget.
+ */
+const FRIEND_DEATH_WATCHERS: ReadonlySet<string> = new Set(['onFriendDeathSummon', 'onFriendDeathGainEcho', 'impInheritOnDeath']);
+
 export function fireOnFriendDeath(state: RunState, dead: BoardCard): void {
   const ctx = makeContext(state);
   for (const card of [...state.board]) {
     if (card.uid === dead.uid) continue;
     for (const effect of instanceEffects(card)) {
-      if (effect.on !== 'onDeath') continue;
+      if (effect.on !== 'onDeath' || !FRIEND_DEATH_WATCHERS.has(effect.do)) continue;
       const fn = RECRUIT_FACTORIES[effect.do];
       if (fn) captureBuffFx(state, card, 'minion', () => fn(ctx, card, effect.params ?? {}, { minion: dead }));
     }
@@ -8507,15 +8624,7 @@ function makeContext(state: RunState): RecruitContext {
       const vacating = state.vacatingUid && state.board.some((c) => c.uid === state.vacatingUid) ? 1 : 0;
       if (state.board.length - vacating >= CONFIG.boardMax) {
         // Overflow — the summon can't fit the full board. Flowing Monk pays off on the wasted body.
-        for (const c of [...state.board]) {
-          const def = CARD_INDEX[c.cardId];
-          if (!def) continue;
-          for (const effect of def.effects) {
-            if (effect.on !== 'summonOverflow') continue;
-            const fn = RECRUIT_FACTORIES[effect.do];
-            if (fn) captureBuffFx(ctx.state, c, 'minion', () => fn(ctx, c, effect.params ?? {}, { minion: c }));
-          }
-        }
+        fireSummonOverflow(state);
         return undefined;
       }
       const buff = cardBuff(state, card.id); // a conjured Fodder carries Ritualist's run buff
@@ -9383,7 +9492,10 @@ export function settlePendingDeath(state: RunState): void {
       // The body is dying: the authored dissolve plays for it (suppressed when it is rising — it re-forms).
       stampShopFx(state, { kind: 'death', uid: card.uid, cardId: card.cardId, ...(willRise ? { rise: true } : {}) });
       const wasVacating = state.vacatingUid;
-      state.vacatingUid = card.uid; // its Echo's summons land in its place, and it costs no summon slot
+      // A body that will NOT rise vacates its slot for its Echo's summons ("in the place of the minion dying").
+      // A RISING body HOLDS its slot (owner ruling 2026-09-09): its Echo resolves first, and on a full board the
+      // summon overflows — Squatimus / Flowing Monk pay off on it — while the body itself returns.
+      if (!willRise) state.vacatingUid = card.uid;
       const summonedFrom = state.board.length;
       try {
         if (pending.kind === 'loan') triggerBorrowedEcho(state, card);
@@ -9396,7 +9508,10 @@ export function settlePendingDeath(state: RunState): void {
         const gone = state.board.findIndex((c) => c.uid === card.uid);
         if (gone >= 0) state.board.splice(gone, 1);
         // `summonedFrom - 1` discounts the body itself, still on the board when the baseline was taken.
-        if (willRise && gone >= 0) riseReturn(state, card, gone, Math.max(0, summonedFrom - 1));
+        if (willRise && gone >= 0) {
+          const risen = riseReturn(state, card, gone, Math.max(0, summonedFrom - 1));
+          if (risen) fireOnRise(state, risen);
+        }
       }
     },
   );

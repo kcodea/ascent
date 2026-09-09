@@ -62,6 +62,10 @@ export interface EquipmentDefinition {
    */
   useFxId?: string;
   useSfxId?: string;
+  /** Where the def's `source` anchor sits when it plays: the Equipment SLOT (default — a def that travels from
+   *  the button to the target, like Bloodpot) or the aimed TARGET (a def authored in the workbench ON the unit,
+   *  like the Deathfibrillator's shock). */
+  useFxAt?: 'slot' | 'target';
   /**
    * CHOOSE ONE on an Equipment (owner ask 2026-08-31: *"we need to build prismpick the way it's stated. when
    * it's used it should open the choose one window"*). Present = using this Equipment opens the same Choose
@@ -281,7 +285,43 @@ export const THYMEPIECE: EquipmentDefinition = {
   useSfxId: 'thymepiece',
 };
 
-export const EQUIPMENT: readonly EquipmentDefinition[] = [BLOODPOT, TITAN_HAMMER, BLAST_PUMP, PRISMATIC_PICK, DUELING_RUBETTAS, POURMANS_KEG, THYMEPIECE];
+/**
+ * COFFIN FLOP — Robinson's Equipment (set-3 Undead roster, 2026-09-09): Discover an Undead minion, at the tavern
+ * tier. `battlecryDiscoverMinion` is the Sea Urchin factory — it queues a real Discover from the run's pinned
+ * pool, so the offer is exactly what a Shout would show. No target to aim.
+ */
+export const COFFIN_FLOP: EquipmentDefinition = {
+  id: 'coffin_flop',
+  name: 'Coffin Flop',
+  text: 'Discover an **Undead** minion.',
+  goldenText: 'Discover an **Undead** minion, twice.',
+  baseCost: 2,
+  targetMode: 'none',
+  effectId: 'battlecryDiscoverMinion',
+  params: { tribe: 'undead' },
+  gildedParams: { tribe: 'undead', count: 2 },
+};
+
+/**
+ * DEATHFIBRILLATOR — EMS's Equipment (set-3 Undead roster, 2026-09-09): give a target Undead Rise, then destroy
+ * it. The body returns through the shop's death sequence (R-RISE-02) with its Echo fired — a paid, aimed
+ * "trigger this Echo and keep the body". Aimed at a non-Undead it does nothing (the picker is tribe-blind).
+ */
+export const DEATHFIBRILLATOR: EquipmentDefinition = {
+  id: 'deathfibrillator',
+  name: 'Deathfibrillator',
+  text: 'Give a target **Undead** **Rise**, then destroy it.',
+  baseCost: 2,
+  targetMode: 'friendly',
+  effectId: 'equipmentRiseThenDestroy',
+  params: { tribe: 'undead' },
+  // The owner's authored def + clip (2026-09-09). Played from the slot to the aimed body on activation.
+  useFxId: 'deathfibrillator',
+  useSfxId: 'deathfibrillator',
+  useFxAt: 'target', // the def is authored on the unit (both layers anchor `source`)
+};
+
+export const EQUIPMENT: readonly EquipmentDefinition[] = [BLOODPOT, TITAN_HAMMER, BLAST_PUMP, PRISMATIC_PICK, DUELING_RUBETTAS, POURMANS_KEG, THYMEPIECE, COFFIN_FLOP, DEATHFIBRILLATOR];
 
 export const EQUIPMENT_INDEX: Readonly<Record<string, EquipmentDefinition>> =
   Object.fromEntries(EQUIPMENT.map((e) => [e.id, e]));

@@ -28,6 +28,12 @@ const OTHER: Record<Side, Side> = { player: 'enemy', enemy: 'player' };
 // scale with Rally doublers. Paragon (`onRallyBuffOnePerTribe`) is the one such today. Generic ally-attack
 // watchers (Crypt Drake) are intentionally NOT here — they count every swing, not every Rally.
 const RALLY_WATCHER_EFFECTS = new Set<string>(['onRallyBuffOnePerTribe']);
+/** Every `onAttack` effect that is gated on the ATTACKER carrying `RL` — i.e. "when a Rally is triggered"
+ *  watchers on OTHER bodies (Paragon / Standard Bearer, Hawkus, Mineral Master). A FREE Rally (Rune of
+ *  Rallying, Backbeat, Hunting Bell, `triggerRally`) is a Rally trigger for these exactly as it already is for
+ *  the quest tallies — it used to run only the rallier's own effects, so Hawkus stayed dark on the rune's
+ *  Start-of-Combat Rally while lighting on every real swing (Bug Board 7e04222d, 2026-09-09). */
+const FREE_RALLY_WATCHER_EFFECTS = new Set<string>(['onRallyBuffOnePerTribe', 'onRallyProcLeftmostEcho', 'onRallyPlayRubiesTribe']);
 const ITERATION_GUARD = 300;
 const REATTACK_GUARD = 50;
 /** Rune of Ruins: the flat per-stat grant each landed friendly-Demon hit gives that side's board. */
@@ -1663,6 +1669,16 @@ export function simulate(
       for (const effect of minion.effects) {
         if (effect.on !== 'onAttack') continue;
         withEffect(minion, effect, () => FACTORIES[effect.do]?.(ctx, minion, effect.params ?? {}, { minion, side: minion.side }));
+      }
+      // …and the Rally WATCHERS on the rest of the side hear it, as they do a real swing (the `onAttack` bus
+      // is deliberately NOT emitted — a free Rally is not an attack, and ally-ATTACK watchers must stay quiet).
+      for (const m of boards[side]) {
+        if (m === minion || m.dead || m.health <= 0) continue;
+        for (const effect of m.effects) {
+          if (effect.on === 'onAttack' && FREE_RALLY_WATCHER_EFFECTS.has(effect.do)) {
+            withEffect(m, effect, () => FACTORIES[effect.do]?.(ctx, m, effect.params ?? {}, { minion, side: minion.side }));
+          }
+        }
       }
     }
     if ((minion.rallyMechAtk ?? 0) > 0) {

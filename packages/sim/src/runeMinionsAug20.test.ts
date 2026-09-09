@@ -256,15 +256,14 @@ describe('rune-only minions — recruit effects', () => {
     expect(CARD_INDEX[after.cardId]!.tier, 'exactly one Tier higher').toBe(fromTier + 1);
   });
 
-  it('…and it CLAMPS at the run ceiling: no Tier 7 without Tier-7 access', () => {
-    // A Tier-6 neighbour on an ordinary run re-rolls at SIX. Tier 7 is reachable only through the Summit
-    // path (`hasTier7Access`), and a transform must not be a back door into it.
+  it('…and it reaches Tier 7 even WITHOUT Tier-7 access (owner ruling 2026-09-09, Bug Board cb45dc41)', () => {
+    // Skybound is an authored Tier-7 source: "up to Tier 7" means seven on every run, not the Shop's ceiling.
     const six = Object.values(CARD_INDEX).find((d) => d.tier === 6 && !d.spell && !d.ruby && !d.token && d.tribe === 'dragon')!;
     const s = recruit({ tier: 6, board: [recruitBody(six.id, 'nb'), recruitBody('d2_ascendant', 'sk')] });
     expect(hasTier7Access(s), 'the fixture run has no Tier-7 access').toBe(false);
     applyEndOfTurn(s);
     const after = s.board.find((c) => c.uid === 'nb')!;
-    expect(CARD_INDEX[after.cardId]!.tier, 'clamped to the run ceiling').toBe(6);
+    expect(CARD_INDEX[after.cardId]!.tier, 'seven regardless').toBe(7);
   });
 
   it('…and WITH Tier-7 access it reaches seven', () => {

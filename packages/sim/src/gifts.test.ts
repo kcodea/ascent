@@ -93,3 +93,59 @@ describe('Grave Invitation actually grants its keywords', () => {
     expect(s.discoverKeywords, 'the pick must gain Rise + Taunt').toEqual(['R', 'T']);
   });
 });
+
+/**
+ * TARGETED GIFT PAYOUTS (Bug Board 9852e16f, 2026-09-09: "give a minion +2 attack and then double its attack is
+ * broken on mirrorwing. zero effect"). Not Mirrorwing: the four targeted Gifts read `payload.target` — the
+ * Battlecry-target call shape — and `applyCastEffects` only ever sent `{ minion }`, so every one of them
+ * consumed the card, counted the cast and changed nothing. The cast path now sends the target too.
+ */
+describe('targeted Gift payouts', () => {
+  const board = (extra: Record<string, unknown> = {}) => [{ uid: 'm1', cardId: 'd2_riverdrake', tribe: 'dragon', attack: 3, health: 3, keywords: [], golden: false, ...extra }];
+  const cast = (giftId: string, over: Partial<RunState> = {}): RunState => {
+    let st = createRun(1, 'kindness');
+    st = { ...st, board: board() as never, hand: [{ uid: 'g1', cardId: giftId, tribe: 'neutral', attack: 0, health: 1, keywords: [] }] as never, ...over } as RunState;
+    return reduce(st, { type: 'play', uid: 'g1', targetUid: 'm1' } as Action);
+  };
+  const m1 = (s: RunState) => s.board.find((c) => c.uid === 'm1')!;
+
+  it('Unbridled Might: +2 Attack, THEN double — a 3-Attack body ends at 10', () => {
+    const s = cast('gift_unbridled');
+    expect(m1(s).attack).toBe(10);
+    expect(s.hand.length, 'the Gift was consumed').toBe(0);
+  });
+
+  it('Ironclad Favor: Taunt + double Health', () => {
+    const s = cast('gift_ironclad');
+    expect(m1(s).health).toBe(6);
+    expect(m1(s).keywords).toContain('T');
+  });
+
+  it("Champion's Regalia: Ward, Critical Strike and Flurry", () => {
+    const s = cast('gift_regalia');
+    for (const k of ['DS', 'CR', 'W']) expect(m1(s).keywords, k).toContain(k);
+  });
+
+  it('Parting Gifts: the target is sold and its stats land on up to two other friendlies', () => {
+    let st = createRun(1, 'kindness');
+    // Distinct cards on purpose: three more Riverdrakes would TRIPLE with the target (that is a feature, not this lane).
+    st = { ...st, board: [...board(), ...board({ uid: 'm2', cardId: 'stray', tribe: 'beast' }), ...board({ uid: 'm3', cardId: 'k_chipwick', tribe: 'kobold' }), ...board({ uid: 'm4', cardId: 'sandbag', tribe: 'neutral' })] as never,
+      hand: [{ uid: 'g1', cardId: 'gift_parting_gifts', tribe: 'neutral', attack: 0, health: 1, keywords: [] }] as never } as RunState;
+    const before = st.embers;
+    const s = reduce(st, { type: 'play', uid: 'g1', targetUid: 'm1' } as Action);
+    expect(s.board.some((c) => c.uid === 'm1'), 'the target was sold').toBe(false);
+    expect(s.embers, 'and paid out').toBeGreaterThan(before);
+    const grew = s.board.filter((c) => c.attack === 6 && c.health === 6);
+    expect(grew.length, 'exactly two others took its 3/3').toBe(2);
+  });
+
+  it("on a Mirrorwing the Gift pays once and does NOT feed its first-Shop-spell re-cast (a Gift is never a Shop spell)", () => {
+    let st = createRun(1, 'kindness');
+    st = { ...st, board: [{ uid: 'm1', cardId: 'd2_mirrorwing', tribe: 'dragon', attack: 2, health: 4, keywords: [], golden: false }, ...board({ uid: 'm2' })] as never,
+      hand: [{ uid: 'g1', cardId: 'gift_unbridled', tribe: 'neutral', attack: 0, health: 1, keywords: [] }] as never } as RunState;
+    const s = reduce(st, { type: 'play', uid: 'g1', targetUid: 'm1' } as Action);
+    expect(m1(s).attack, '(2 + 2) × 2').toBe(8);
+    expect(m1(s).spellsOnThisTurn ?? 0, 'a Gift is not a Shop spell — no re-cast credit').toBe(0);
+    expect(s.board.find((c) => c.uid === 'm2')!.attack, 'nothing re-cast onto the other friendly').toBe(3);
+  });
+});

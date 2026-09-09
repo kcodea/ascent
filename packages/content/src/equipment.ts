@@ -240,7 +240,46 @@ export const DUELING_RUBETTAS: EquipmentDefinition = {
   useSfxId: 'duelingrubettas',
 };
 
-export const EQUIPMENT: readonly EquipmentDefinition[] = [BLOODPOT, TITAN_HAMMER, BLAST_PUMP, PRISMATIC_PICK, DUELING_RUBETTAS];
+/**
+ * POURMAN'S KEG — Pourman's Equipment (set-3 Dwarf roster, 2026-09-09): cast a RANDOM Dwarven Ale.
+ *
+ * Not an Equipment SPELL in the `spellId` sense — there is no single named spell to classify it by — but the
+ * factory still routes the pick through `castSpell`, the real Shop-spell pipeline, so the Ale counts as a cast,
+ * takes Edward Keg-hands' extra trigger, pays the Ale runes and wakes every cast-watcher exactly as a hand-cast
+ * Ale does. Every Ale is untargeted, so `targetMode: 'none'`. Gilded casts two (two GENUINE casts).
+ */
+export const POURMANS_KEG: EquipmentDefinition = {
+  id: 'pourmans_keg',
+  name: "Pourman's Keg",
+  text: 'Cast a random **Dwarven Ale**.',
+  goldenText: 'Cast **2 random Dwarven Ales**.',
+  baseCost: 1,
+  targetMode: 'none',
+  effectId: 'equipmentCastRandomAle',
+  params: { count: 1 },
+  gildedParams: { count: 2 },
+};
+
+/**
+ * THYMEPIECE — Thymes's Equipment (set-3 Dwarf roster, 2026-09-09): +30 seconds on NEXT turn's clock.
+ *
+ * The only Equipment that touches the timer rather than the board. The seconds bank in
+ * `RunState.bonusTurnSecondsNextTurn` and become `bonusTurnSeconds` at the turn flip, which the recruit clock
+ * adds on top of the wave's base time (owner 2026-09-09: applies to whatever timer the mode runs, and stacks).
+ */
+export const THYMEPIECE: EquipmentDefinition = {
+  id: 'thymepiece',
+  name: 'Thymepiece',
+  text: 'Gain **30 seconds** on your turn timer next turn.',
+  goldenText: 'Gain **60 seconds** on your turn timer next turn.',
+  baseCost: 3,
+  targetMode: 'none',
+  effectId: 'equipmentBonusTurnTime',
+  params: { seconds: 30 },
+  gildedParams: { seconds: 60 },
+};
+
+export const EQUIPMENT: readonly EquipmentDefinition[] = [BLOODPOT, TITAN_HAMMER, BLAST_PUMP, PRISMATIC_PICK, DUELING_RUBETTAS, POURMANS_KEG, THYMEPIECE];
 
 export const EQUIPMENT_INDEX: Readonly<Record<string, EquipmentDefinition>> =
   Object.fromEntries(EQUIPMENT.map((e) => [e.id, e]));

@@ -1016,7 +1016,9 @@ export function tallyBuffText(cardId: string, deathrattlesTriggered: number, gol
  */
 export function perCardPlayedText(cardId: string, cardsPlayedThisTurn: number, golden = false): string | null {
   const def = CARD_INDEX[cardId];
-  const eff = def?.effects.find((e) => e.do === 'endOfTurnBuffEndsTribePerCard');
+  // Kringle (the Dwarf line's two ends) and Striker (set 3: its two neighbours, any tribe) share the counter and
+  // the per-card rate; only the recipients differ, so one helper prints both.
+  const eff = def?.effects.find((e) => e.do === 'endOfTurnBuffEndsTribePerCard' || e.do === 'endOfTurnBuffAdjacentPerCard');
   if (!def || !eff) return null;
   if (cardsPlayedThisTurn <= 0) return null;
   const params = (eff.params ?? {}) as { attack?: number; health?: number };
@@ -1030,6 +1032,9 @@ export function perCardPlayedText(cardId: string, cardsPlayedThisTurn: number, g
   const rate = perH > 0 ? `+${perA}/+${perH}` : `+${perA} Attack`;
   const grant = perH > 0 ? `+${perA * cardsPlayedThisTurn}/+${perH * cardsPlayedThisTurn}` : `+${perA * cardsPlayedThisTurn} Attack`;
   // Plain parentheses, no `_italics_` — the Card renderer only knows **bold**, so underscores print literally.
+  if (eff.do === 'endOfTurnBuffAdjacentPerCard') {
+    return `**End of Turn:** give adjacent minions **{{${grant}}}** (${rate} for each card you played this turn).`;
+  }
   // Owner change 2026-08-28: both ENDS of the Dwarf line, so the live text names both too.
   return `**End of Turn:** give your **left and right-most Dwarves {{${grant}}}** (${rate} for each card you played this turn).`;
 }

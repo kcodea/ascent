@@ -52,6 +52,10 @@ const ART_PENDING = new Set<string>([
   // properly-named `UnbridledMight.png` that resolved the old UnbridledWrath near-miss). Grand Larceny is
   // the one Gift still awaiting a master.
   'gift_larceny',
+  // SET 3 DWARVES (2026-09-09): seven of the eight new Dwarves shipped with their masters; Tankerchief's is the
+  // one still owed (no attributed file in the Dwarves masters folder — only an un-named UUID file, which the
+  // art rule forbids guessing from). Delete this the moment `Tankerchief.png` lands.
+  'dw3_tankerchief',
   // SET 3 KOBOLDS: NONE LEFT. The whole roster is arted as of 2026-08-31 — the last master (Gemsmith, both
   // Choose One branches) landed with the rename that gave the card its name. The seam above is what this
   // list is for; it stays empty until the next batch ships ahead of its art.

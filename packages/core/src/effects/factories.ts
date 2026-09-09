@@ -26,6 +26,9 @@ const num = (v: unknown, fallback = 0): number => (typeof v === 'number' ? v : f
 const str = (v: unknown): string => (typeof v === 'string' ? v : '');
 /** Tripled minions fire their buff/damage effects at doubled magnitude. */
 const mul = (self: Minion): number => (self.golden ? 2 : 1);
+/** Re-entrancy depth of the "a Dwarf gained Attack" watchers (Kneel / Tankerchief) — see `onTribeGainAttackBuffSelf`.
+ *  Module-local like `huntGuard`: combat is synchronous and single-threaded, so a counter is exactly right. */
+let gainWatchDepth = 0;
 
 /** `onGainCard` is a BUS broadcast, and the bus reaches every subscribed body on BOTH sides. "Your hand" means
  *  the owner's, so a reactor only fires for a card that reached its OWN side's hand — without this an enemy
@@ -1053,6 +1056,36 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   onKillGrantGold: (ctx, self, params, payload) => {
     if ((payload as { attacker?: Minion }).attacker !== self) return;
     ctx.grantBonusGold(num(params.gold, 2) * mul(self), self.side);
+  },
+
+  /** Tromboneer (set 3) — Echo: `amount` one-time Gold into the next shop (golden doubles), through the same
+   *  `playerBonusGold` carry-back Bounty Bot uses — the bank that sits on top of the 10-Gold cap (owner
+   *  2026-09-09: uncapped). Own-death guarded; every Echo multiplier re-fires it like any other Deathrattle. */
+  deathrattleGoldNextTurn: (ctx, self, params, payload) => {
+    if ((payload as MinionPayload).minion !== self) return;
+    ctx.grantBonusGold(num(params.amount, 3) * mul(self), self.side);
+  },
+
+  /** Kneel / Tankerchief (set 3) — "when a Dwarf gains Attack, this gains +a/+h", combat half. `ctx.buff` emits
+   *  `onGainAttack` for every positive Attack delta, so a Thane Rally that lifts two Dwarves reaches this twice
+   *  (owner 2026-09-09: per Dwarf). Friendly, living, NOT self. `gainWatchDepth` is the owner's no-ping-pong
+   *  rule: a watcher's own grant (Tankerchief's +1 Attack) is itself a gain, and while any watcher is granting
+   *  no watcher listens — so two Tankerchiefs settle instead of alternating forever. */
+  onTribeGainAttackBuffSelf: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || !minion || minion === self || minion.side !== self.side || minion.dead) return;
+    const tribe = str(params.tribe);
+    if (tribe && !combatArena(ctx, self).isTribe(minion, tribe)) return;
+    if (gainWatchDepth > 0) return;
+    const a = num(params.attack, 0) * mul(self);
+    const h = num(params.health, 0) * mul(self);
+    if (a <= 0 && h <= 0) return;
+    gainWatchDepth += 1;
+    try {
+      ctx.buff(self, a, h, self.uid);
+    } finally {
+      gainWatchDepth -= 1;
+    }
   },
 
   /** Hoardbreaker Drake — Slaughter (on kill): "cast" a board-wide stat spell (Growth) — buff all living

@@ -869,7 +869,10 @@ export function Recruit() {
   const practiceTimer = useGame((st) => st.practiceTimer);
   // Tutorial + sandbox get an effectively-infinite clock: a first-time player should never be rushed while
   // reading a lesson (blueprint §6.4: "Timer — Disabled"), and the sandbox is a dev rig.
-  const turnSeconds = run.sandbox || run.mode === 'tutorial' ? 99999 : Math.max(CHARGE_SECONDS + 1, (Math.min(80, TURN_SECONDS + (run.wave - 1) * 4 + (run.wave >= 6 ? 6 : 0)) + (run.wave >= 12 ? 12 : 0)) * (run.mode === 'practice' ? practiceTimer : 1));
+  // Thymepiece (set 3) banks flat seconds onto the NEXT turn's clock (`run.bonusTurnSeconds`, set at the turn
+  // flip). Added AFTER the practice multiplier and the cap — a bought 30s is 30s in every mode — but not to the
+  // tutorial/sandbox clock, which is already effectively infinite.
+  const turnSeconds = run.sandbox || run.mode === 'tutorial' ? 99999 : Math.max(CHARGE_SECONDS + 1, (Math.min(80, TURN_SECONDS + (run.wave - 1) * 4 + (run.wave >= 6 ? 6 : 0)) + (run.wave >= 12 ? 12 : 0)) * (run.mode === 'practice' ? practiceTimer : 1)) + (run.bonusTurnSeconds ?? 0);
 
   // Projected STARTING Gold for the next two waves (the Gold-cell hover) — cap-aware, folding in board mana
   // income (Money Bot) and the one-turn Hoarder/Robin bank (into Wave+1 only, since it's consumed then).
@@ -1992,6 +1995,17 @@ export function Recruit() {
         if (cfg.useDelayMs > 0) timers.push(window.setTimeout(fire, cfg.useDelayMs)); else fire();
       }
       if (eq.useSfxId && cfg.useSfxOn) sfx.equipmentUse(eq.useSfxId, cfg.useSfxDelayMs);
+      // An Equipment that CAST Shop spells (Pourman's Keg → a random Ale) plays each spell's own cast
+      // presentation from the slot — the authored def / spark, the trail onto the minions it buffed, Edward's
+      // echo and the cast clip — exactly the path a hand-cast Ale takes on release (owner ask 2026-09-09).
+      // Staggered so two pours (Gilded) read as two.
+      if (cue.spellIds?.length && slot) {
+        cue.spellIds.forEach((spellId, i) => {
+          const pour = (): void => { sfx.castSpell(); fireSpellCastFx(spellId, slot); };
+          const delay = cfg.useDelayMs + i * 220;
+          if (delay > 0) timers.push(window.setTimeout(pour, delay)); else pour();
+        });
+      }
     }
     cues.filter((c) => c.kind !== 'use').forEach((cue, i) => {
       const el = findEl(cue.uid);

@@ -73,6 +73,8 @@ const fakeArena = (uids: string[], seed: number, golden = false): { arena: Effec
     spellsThisTurn: () => 0,
     grantRandomFromPool: () => {},
     grantNamedCard: () => {},
+    handMinions: () => [],
+    buffHand: () => {},
     grantRandomSpells: () => {},
     // SC-family verbs (Step 3 item 4) — inert in this stub; coverage lives in socDispatch.test.ts.
     armBleed: () => {},

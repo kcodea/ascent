@@ -55,7 +55,7 @@ export const DEFAULT_RULES: GroupingRules = {
   // immediately instead of in chunks/sequences, and without numbers going up, everything just stands still"*.
   absorbIntoWindup: new Set([
     'buff', 'rally', 'summon', 'reveal', 'improve', 'tribeAura', 'spellcast', 'questTrigger',
-    'toHand', 'keyword', 'keywordLost',
+    'toHand', 'handBuff', 'keyword', 'keywordLost',
   ]),
 };
 

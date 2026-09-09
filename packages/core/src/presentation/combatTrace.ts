@@ -99,6 +99,7 @@ export const COMBAT_TRACE_COVERAGE: Record<CombatEvent['type'], CombatTraceCover
   shout: { source: 'always', target: 'always', amount: 'never', note: 'a combat Shout re-fire: the re-triggering unit and the owner of the Shout; one event per fire (Drakko x gild)' },
   maxGold: { source: 'never', target: 'always', amount: 'always', note: 'the Avenge payoff target + amount; the granter only via key/srcCard stamps' },
   toHand: { source: 'sometimes', target: 'always', amount: 'never', note: 'target = the granted card (cardId, no uid — hand cards get uids at settle); granter uid when stamped' },
+  handBuff: { source: 'sometimes', target: 'always', amount: 'never', note: 'target = the HAND card (its run uid + cardId); the +atk/+hp ride detail; granter uid when stamped (R-HAND-02)' },
   hpGrant: { source: 'never', target: 'always', amount: 'always', note: 'live text tick on the target itself' },
   spellProgress: { source: 'never', target: 'always', amount: 'always', note: 'live tally tick on the target itself' },
   questTrigger: { source: 'never', target: 'never', amount: 'never', note: 'a badge-pulse marker — flag + side in detail; the quest/rune id resolves via content, post-hoc' },
@@ -158,6 +159,8 @@ function project(e: CombatEvent): Pick<CombatSemanticEvent, 'source' | 'target' 
       return { target: { uid: e.target, side: e.side }, amount: e.amount, detail: { side: e.side } };
     case 'toHand':
       return defined({ ...(e.source ? { source: { uid: e.source } } : {}), target: { cardId: e.cardId, side: e.side }, detail: { side: e.side } });
+    case 'handBuff':
+      return defined({ ...(e.source ? { source: { uid: e.source } } : {}), target: { uid: e.uid, cardId: e.cardId, side: e.side }, detail: det({ attack: e.attack, health: e.health, side: e.side }) });
     case 'hpGrant':
     case 'spellProgress':
       return { target: { uid: e.target }, amount: e.amount };

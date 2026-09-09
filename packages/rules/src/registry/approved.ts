@@ -823,4 +823,28 @@ export const APPROVED_RULES: GameRule[] = [
       + '("Gangplank is the only one here, so it is its own recipient").',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/handGainInCombat.test.ts'], lastVerifiedAt: '2026-09-09' },
   },
+  {
+    id: 'R-HAND-02',
+    title: 'A card buffed in hand keeps the buff — permanently, in every phase',
+    statement:
+      'A stat buff that lands on a card IN YOUR HAND is permanent, whatever phase granted it. A combat effect '
+      + 'that buffs a hand card mid-fight leaves that card buffed in the next shop and for the rest of the run, '
+      + 'exactly as a recruit-phase hand buff does. It is also shown as it happens: the replay grows the hand '
+      + 'card on the beat the buff fires, not when the fight settles.',
+    domain: 'persistence',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-09 (this ruling)', quote: 'cards buffed in hand are always permanent. so if something buffs a card in hand during combat, that card in hand retains the buff. the buff also needs to show in real time like all of our other effects do.' },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts ctx.buffHand → CombatResult.playerHandBuffs; packages/sim/src/reducer.ts settle (addBuff onto the run hand); packages/ui/src/useCombatReplay.ts handBuffsShownThrough' },
+    ],
+    currentBehaviour:
+      'Conforms (built with the ruling, 2026-09-09). Combat reaches the hand through ONE verb, `ctx.buffHand`: it '
+      + 'logs a `handBuff` event and accumulates `playerHandBuffs`, which settle applies to the run hand with '
+      + '`addBuff` (attributed to the granting body). The arena verbs `handMinions` / `buffHand` give both phases '
+      + 'the same body — the shop adapter buffs the hand cards directly. The hand row adds the reached deltas '
+      + 'on the beat of each buff and drops them at settle, when the permanent buff is in the run hand itself. '
+      + 'No shipped card buffs the hand mid-fight yet; `deathrattleBuffHandTribe` is the first factory on the '
+      + 'channel, and the scenario drives it through simulate() with an injected probe card.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/handBuffInCombat.test.ts', 'packages/ui/src/useCombatReplay.test.ts'], lastVerifiedAt: '2026-09-09' },
+  },
 ];

@@ -157,6 +157,13 @@ export interface EffectArena {
   /** Grant `count` copies of a NAMED card to hand. Combat rides `grantToHand` (announced + flown in the
    *  replay); the shop conjures (run-buff bake + hand cap). */
   grantNamedCard(cardId: string, count: number): void;
+  /** The MINIONS in this side's hand, as arena bodies (spells / Rubies excluded). Combat reads its start-of-fight
+   *  snapshot minus anything already summoned out; the shop reads the live hand. */
+  handMinions(): ArenaBody[];
+  /** Buff one hand card by +attack/+health. R-HAND-02 (owner 2026-09-09): a hand buff is PERMANENT in both
+   *  phases — the shop adds it like any recruit buff; combat rides `ctx.buffHand`, which carries it back to the
+   *  run hand at settle and logs it so the replay grows the card live. */
+  buffHand(t: ArenaBody, attack: number, health: number): void;
   /** Grant `count` random Shop spells. Each phase's legacy pick: combat's `grantRandomSpell` channel resolves
    *  at settle (≤ tavern tier; `exactTier` is not expressible there and keeps its legacy shop-only meaning);
    *  the shop conjures from the pinned pool's spells. */
@@ -739,6 +746,20 @@ export const ARENA_EFFECTS = {
     arena.grantRandomFromPool(
       (c) => ALE_IDS.includes(c.id),
       (typeof params.count === 'number' ? params.count : 1) * (arena.self.golden ? 2 : 1));
+  },
+
+  /** Echo: give the `tribe` minions in your hand +a/+h (golden doubles). The first hand-buffing effect; its
+   *  whole point is to exercise the R-HAND-02 channel in both phases. */
+  deathrattleBuffHandTribe(arena: EffectArena, params: Record<string, unknown>): void {
+    const tribe = String(params.tribe ?? '');
+    const g = arena.self.golden ? 2 : 1;
+    const a = (typeof params.attack === 'number' ? params.attack : 0) * g;
+    const h = (typeof params.health === 'number' ? params.health : 0) * g;
+    if (a === 0 && h === 0) return;
+    for (const card of arena.handMinions()) {
+      if (tribe && !arena.isTribe(card, tribe)) continue; // the shared predicate — an all-types body counts
+      arena.buffHand(card, a, h);
+    }
   },
 
   /** Big Huggies — Echo: put a named spell in hand (golden grants two). */

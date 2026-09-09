@@ -143,7 +143,7 @@ export const SCORE_DEFAULTS: Record<MomentKind, Cue[]> = {
   buffWave: [...BASE, { ch: 'buffCast', at: 'start', offset: 0 }, { ch: 'buffSelf', at: 'start', offset: 0 }, { ch: 'rubyFx', at: 'start', offset: 0 }],
   reborn: withReform(),
   ascend: [...BASE, { ch: 'ascendFx', at: 'start', offset: 0 }],
-  rally: [...BASE], toHand: [...BASE],
+  rally: [...BASE], toHand: [...BASE], handBuff: [...BASE],
   maxGold: [...BASE, { ch: 'coins', at: 'start', offset: 0 }],
   improve: [...BASE, { ch: 'improveSelf', at: 'start', offset: 0 }],
   keyword: [...BASE], keywordLost: [...BASE],

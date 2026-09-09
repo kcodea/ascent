@@ -1,5 +1,5 @@
 import type { CardDef, CombatContext, EffectFactoryId, Keyword, Minion, Side, Tribe } from '../types';
-import { ARENA_EFFECTS, type EffectArena } from './arena';
+import { ARENA_EFFECTS, type ArenaBody, type EffectArena } from './arena';
 import { ALE_IDS, extraTriggerFires } from '../types';
 
 /** Re-entrancy guard for Hunter's onGainAttack aura (its +Attack grant would re-fire onGainAttack). Keyed by the
@@ -312,6 +312,13 @@ function combatArena(ctx: CombatContext, self: Minion): EffectArena {
       return ctx.summon(self.side, ctx.getCard(id), self.uid, kw, opts?.golden ?? false, opts?.charge ?? false, ov);
     },
     grantNamedCard: (cardId, count) => { for (let i = 0; i < count; i++) ctx.grantToHand(cardId, self.side, self.uid); },
+    // Hand bodies carry their def's tribes so the arena's `isTribe` (which reads `tribe` / `tribe2` / the
+    // all-types flag off the body) answers for them exactly as it does for a board body.
+    handMinions: () => ctx.handMinionsFor(self.side).map((hcard) => {
+      const d = ctx.getCard(hcard.cardId);
+      return { ...hcard, keywords: [], tribe: d?.tribe, tribe2: d?.tribe2 } as unknown as ArenaBody;
+    }),
+    buffHand: (t, a, h) => ctx.buffHand(t.uid, a, h, self.side, self.uid),
     grantRandomSpells: (count) => ctx.grantRandomSpell(count, self.side, self.uid),
     playRubiesOn: (t, per, permanent) => playRubyOn(ctx, self, t as Minion, per, permanent === true),
     gainRubyStats: (t, a, h) => applyRubyStats(ctx, self, t as Minion, a, h),
@@ -1545,6 +1552,12 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   deathrattleGrantSpell: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
     ARENA_EFFECTS.deathrattleGrantSpell(combatArena(ctx, self), params);
+  },
+
+  /** Echo: buff the `tribe` minions in your hand — R-HAND-02: permanent, carried back, shown live. */
+  deathrattleBuffHandTribe: (ctx, self, params, payload) => {
+    if ((payload as MinionPayload).minion !== self) return;
+    ARENA_EFFECTS.deathrattleBuffHandTribe(combatArena(ctx, self), params);
   },
 
   /** Deathrattle (Sporeling): give ALL living friends +atk/+hp (golden doubles). On a true death the dying

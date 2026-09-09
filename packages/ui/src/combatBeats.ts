@@ -32,7 +32,7 @@ export const RESULT_TYPES = new Set<CombatEvent['type']>([
  *  wind-up beat so they don't delay the impact. (Pure stat buffs to other minions, the rally cue, a
  *  rally-summoned token, the Stealth reveal — none of which change the attack's own damage numbers.) */
 const WINDUP_ABSORB = new Set<CombatEvent['type']>([
-  'buff', 'rally', 'summon', 'reveal', 'improve', 'spellcast', 'questTrigger', 'toHand', 'keyword', 'keywordLost',
+  'buff', 'rally', 'summon', 'reveal', 'improve', 'spellcast', 'questTrigger', 'toHand', 'handBuff', 'keyword', 'keywordLost',
 ]);
 
 export interface Beat {

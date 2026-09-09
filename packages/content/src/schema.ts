@@ -485,6 +485,7 @@ export const EffectFactoryIdSchema = z.enum([
   // Set 3 Dwarves (2026-09-09)
   'minionSoldBuffSelf', 'endOfTurnBuffAdjacentPerCard', 'equipmentCastRandomAle', 'onTribeSummonedBuffRandomOthers',
   'deathrattleGoldNextTurn', 'onTribeGainAttackBuffSelf', 'equipmentBonusTurnTime',
+  'deathrattleBuffHandTribe', // R-HAND-02 (2026-09-09): buff hand minions of a tribe — permanent in both phases
   'impInheritOnDeath', 'impInheritOnSummon', 'echoCastRememberedSpells', 'echoResummonDeadBeasts',
   'setArmor',
   'battlecryGainGoldNextTurn', 'cardsPlayedPlayRubies', 'onTribeSummonedBuffTribe', 'onSpellCastBuffOnePerTribe', 'spellCastTriggerAdjacentShouts', // Hoardmaster Krik: every N cards bought, mint Rubies to hand

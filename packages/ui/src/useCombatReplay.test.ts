@@ -3,7 +3,7 @@ import { combatSide, makeRng, simulate, type BoardMinion, type CombatEvent, type
 import { compileMoments } from './choreo/compile';
 import { deferAvengeAfterSummons } from './choreo/avengeOrder';
 import { CARD_INDEX } from '@game/content';
-import { computeFrame, grantsShownThrough, layoutRectOf } from './useCombatReplay';
+import { computeFrame, grantsShownThrough, handBuffsShownThrough, layoutRectOf } from './useCombatReplay';
 import { deferClashBuffs } from './choreo/clashOrder';
 
 const snap = (over: Partial<MinionSnapshot> & { uid: string; cardId: string }): MinionSnapshot => ({
@@ -93,6 +93,22 @@ describe('layoutRectOf', () => {
    to play, so the beat ON SCREEN is `beats[beatIdx - 1]`; these tests pin that off-by-one, because widening it
    by a beat puts every card in hand BEFORE its own pulse (owner report 2026-07-27: with two Avenge granters,
    both pulses fired and only then did the two cards coalesce). */
+describe('handBuffsShownThrough — R-HAND-02: a hand card grows ON its own beat, summed per card', () => {
+  it('reaches a hand buff at the beat that emits it, sums repeats, and ignores the enemy side', () => {
+    const events: CombatEvent[] = [
+      { type: 'attack', attacker: 'a', defender: 'x', swing: 0 } as unknown as CombatEvent,
+      { type: 'handBuff', uid: 'h1', cardId: 'dw_brunni', side: 'player', attack: 2, health: 3, source: 'a' },
+      { type: 'handBuff', uid: 'h1', cardId: 'dw_brunni', side: 'player', attack: 1, health: 0 },
+      { type: 'handBuff', uid: 'e9', cardId: 'dw_brunni', side: 'enemy', attack: 9, health: 9 },
+      { type: 'death', target: 'x' } as unknown as CombatEvent,
+    ];
+    const beats = [{ start: 0, end: 4, primary: events[0]! }, { start: 4, end: 5, primary: events[4]! }];
+    expect(handBuffsShownThrough(events, beats, 0)).toEqual({});
+    expect(handBuffsShownThrough(events, beats, 1)).toEqual({ h1: { attack: 3, health: 3 } });
+    expect(handBuffsShownThrough(events, beats, 2)).toEqual({ h1: { attack: 3, health: 3 } });
+  });
+});
+
 describe('grantsShownThrough — a combat grant appears ON its own beat', () => {
   it('a real Deathrattle grant is shown at the beat that emits it, not the one after', () => {
     // Scrap Vendor dies early and its Deathrattle grants a Patch Job.

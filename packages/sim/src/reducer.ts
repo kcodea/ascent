@@ -4075,6 +4075,19 @@ function settleCombat(s: RunState, result: CombatResult): void {
       takeFromPool(s, cardId);
     }
   }
+  // R-HAND-02 (owner 2026-09-09): "cards buffed in hand are always permanent" — a hand card a combat effect
+  // buffed keeps the buff, applied here exactly as a recruit-phase hand buff would be (`addBuff`, so the
+  // inspect panel attributes it). Matched by uid: a hand card summoned OUT mid-fight (Rope Wrangler) is no
+  // longer in the hand and simply finds nothing. The label is the granting body's card name when the combat
+  // uid resolves against the fight's initial snapshot, else the generic 'Combat'.
+  if (result.playerHandBuffs) {
+    for (const b of result.playerHandBuffs) {
+      const card = s.hand.find((c) => c.uid === b.uid);
+      if (!card) continue;
+      const srcId = b.source ? result.initial.player.find((m) => m.uid === b.source)?.cardId : undefined;
+      addBuff(card, (srcId && CARD_INDEX[srcId]?.name) || 'Combat', b.attack, b.health);
+    }
+  }
   // Rune of the Trophy: the first friendly minion to Slaughter this combat arrives as a plain base-stat
   // copy in hand for the next shop (the same conjure shape as playerHandGrants above — run enchants +
   // tribe bonds apply; a full hand forfeits it).

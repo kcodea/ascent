@@ -253,6 +253,27 @@ hand actually received the card.
 
 ---
 
+### "A card buffed in hand keeps the buff" — permanent, every phase (owner rule 2026-09-09, R-HAND-02)
+
+*"cards buffed in hand are always permanent. so if something buffs a card in hand during combat, that card in
+hand retains the buff. the buff also needs to show in real time like all of our other effects do."*
+
+A stat buff that lands on a card **in your hand** is **permanent**, whichever phase granted it:
+
+- **In the shop** it is an ordinary recruit buff (a Ruby-strength rise growing the Rubies you hold, a
+  rune's "your Dwarves +2/+2" reaching the Dwarves in hand).
+- **In combat** a hand card an effect buffs keeps the buff into the next shop and for the rest of the run —
+  there is no "for this combat" scope on a hand card, because a hand card is never in the fight.
+- **It shows as it happens.** The replay grows the hand card on the beat the buff fires, the same way a
+  board buff moves stats on the body as it lands; settle then makes it the card's own.
+
+**How it is enforced.** Combat reaches the hand through one verb (`ctx.buffHand`), which logs a `handBuff`
+event and carries `playerHandBuffs` back for settle to apply with `addBuff`. Both phases share the arena body
+(`buffHandTribe`), so a hand-buffing effect cannot be permanent in one phase and temporary in the other.
+Pinned by `handBuffInCombat.test.ts` and the replay helper's test.
+
+---
+
 ### Aura — the run-wide scope noun (owner ruling 2026-08-28)
 
 A grant that reaches a whole tribe/class **wherever its members sit** — the board, your hand, the Shop, and

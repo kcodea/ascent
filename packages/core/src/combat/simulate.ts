@@ -175,6 +175,7 @@ export function simulate(
   let uidCounter = 0;
   const mkUid = (): string => `m${uidCounter++}`;
   const handGrants: string[] = []; // cards the player's deathrattles add to hand after combat
+  const handBuffs: { uid: string; attack: number; health: number; source?: string }[] = []; // R-HAND-02: hand cards buffed mid-fight, carried back permanently
   /** Rune of Grave Refreshment's per-side Echo counter. Combat-local: the rune reads "in combat", so the
    *  remainder is deliberately NOT banked across fights. */
   const echoRefreshTick: Record<Side, number> = { player: 0, enemy: 0 };
@@ -890,6 +891,23 @@ export function simulate(
         // Gangplank therefore never reacts — the card never reaches a hand for it to react to.
         emitGainCard(cardId, side);
       }
+    },
+    handMinionsFor: (side) => {
+      const pool = (side === 'player' ? playerState.handMinions : enemyState.handMinions) ?? [];
+      return pool.filter((h) => !handSummonedUids.has(h.uid));
+    },
+    buffHand: (uid, attack, health, side, sourceUid) => {
+      // R-HAND-02 (owner 2026-09-09): "cards buffed in hand are always permanent". Player-only for the same
+      // structural reason as `grantToHand` — a served enemy board carries no hand. The snapshot entry is grown
+      // too, so a later hand-summon (Rope Wrangler's Echo) fields the buffed body; the run hand is grown at
+      // settle from the carry-back; and the event lets the replay grow the hand card on its beat.
+      if (side !== 'player' || (attack === 0 && health === 0)) return;
+      const card = (playerState.handMinions ?? []).find((h) => h.uid === uid);
+      if (!card || handSummonedUids.has(uid)) return;
+      card.attack += attack;
+      card.health += health;
+      handBuffs.push({ uid, attack, health, ...(sourceUid ? { source: sourceUid } : {}) });
+      emit({ type: 'handBuff', uid, cardId: card.cardId, side, attack, health, ...(sourceUid ? { source: sourceUid } : {}) });
     },
     grantSpellPower: (attack, health, side, sourceUid) => {
       // Player-only (enemies have no run state) — accumulate and carry back via playerSpellPower.
@@ -4117,6 +4135,7 @@ export function simulate(
     playerAscendCount: playerAscendCount.length > 0 ? playerAscendCount : undefined,
     playerPermaBuffs: playerPermaBuffs.length > 0 ? playerPermaBuffs : undefined,
     playerHandGrants: handGrants.length > 0 ? handGrants : undefined,
+    playerHandBuffs: handBuffs.length > 0 ? handBuffs : undefined,
     playerRubyGrants: rubyGrants.n > 0 ? rubyGrants.n : undefined,
     playerNextTurnSpellCopies: nextTurnSpellCopies.n > 0 ? nextTurnSpellCopies.n : undefined,
     playerRubyBonusGain: (rubyBonusGain.player.attack > 0 || rubyBonusGain.player.health > 0) ? { ...rubyBonusGain.player } : undefined,

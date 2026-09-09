@@ -735,17 +735,12 @@ export function ritualistText(cardId: string, golden: boolean, eotBonus: number)
  * states the current Lantern buff. Golden casts it twice (the buff doubles). Returns null for other cards or
  * a zero bonus (the printed +3/+0 — golden +6/+0 — is already accurate).
  */
-export function watcherText(cardId: string, golden: boolean, spellBonusAttack: number, spellBonusHealth: number): string | null {
-  if (spellBonusAttack <= 0 && spellBonusHealth <= 0) return null;
-  const def = CARD_INDEX[cardId];
-  const eff = def?.effects.find((e) => e.do === 'rallyCastTribeAttack');
-  if (!def || !eff) return null;
-  const base = Number((eff.params as { amount?: number })?.amount ?? 3);
-  const mult = golden ? 2 : 1;
-  const a = (base + spellBonusAttack) * mult;
-  const h = spellBonusHealth * mult;
-  const src = golden ? (def.goldenText ?? def.text) : def.text;
-  return src.replace(/\*\*\+\d+\/\+\d+\*\*/, `{{+${a}/+${h}}}`);
+export function watcherText(_cardId: string, _golden: boolean, _spellBonusAttack: number, _spellBonusHealth: number): string | null {
+  // RETIRED 2026-09-09 (owner ruling, R-TEXT-01): a minion that casts a NAMED spell prints only the spell's name —
+  // "Rally: cast Lantern of Souls." — and the spell's hover preview carries its live value (spell power folded
+  // in, as for a Ruby). Restating the number on the caster was the drift this rule ends. Kept as a no-op so the
+  // live-text chain and its callers need no edit; a future caster wanting a restated value is a rule change.
+  return null;
 }
 
 /**

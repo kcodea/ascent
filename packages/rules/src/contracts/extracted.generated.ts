@@ -34485,6 +34485,9 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "tribes": [
       "undead"
     ],
+    "keywords": [
+      "R"
+    ],
     "tags": [
       "tier:5"
     ],

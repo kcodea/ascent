@@ -162,12 +162,16 @@ describe('cardText helpers', () => {
   });
 
 
-  it('watcherText shows the live Lantern buff +x/+y (spell power in both stats); golden casts twice', () => {
-    expect(watcherText('watcher', false, 2, 2)).toContain('{{+5/+2}}'); // base 3 + sp 2 attack, sp 2 health
-    expect(watcherText('watcher', true, 2, 2)).toContain('{{+10/+4}}'); // ×2 casts
-    expect(watcherText('watcher', false, 2, 0)).toContain('{{+5/+0}}'); // attack spell power only
-    expect(watcherText('watcher', false, 0, 0)).toBeNull(); // no spell power → printed +3/+0 (golden +6/+0)
-    expect(watcherText('spore', false, 2, 2)).toBeNull(); // not Watcher
+  it('watcherText is retired — a named-spell caster prints only the spell (R-TEXT-01, owner 2026-09-09)', () => {
+    // Watcher and the Hierophant say "cast Lantern of Souls." and stop; the Lantern's own hover preview carries
+    // the live value. The helper never rewrites the caster's text again, whatever the spell power.
+    expect(watcherText('watcher', false, 2, 2)).toBeNull();
+    expect(watcherText('watcher', true, 2, 2)).toBeNull();
+    expect(CARD_INDEX['watcher']!.text).toBe('**Rally:** cast **Lantern of Souls**.');
+    expect(CARD_INDEX['u3_hierophant']!.text).toBe('**Avenge (3):** cast **Lantern of Souls**.');
+    for (const id of ['watcher', 'u3_hierophant', 'anubis']) {
+      expect(CARD_INDEX[id]!.text, id + ' names the spell and nothing about its value').not.toMatch(/\+\d/);
+    }
   });
 
   it('abhorrentHorrorText shows the pending Start-of-Combat gain from Fodder consumed this turn (golden-aware)', () => {

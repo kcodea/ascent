@@ -300,8 +300,9 @@ export const UNDEAD: CardDef[] = [
     health: 3,
     keywords: ['RL'],
     effects: [{ on: 'onAttack', do: 'rallyCastTribeAttack', params: { tribe: 'undead', amount: 3, spellId: 'lanternofsouls' } }],
-    text: '**Rally:** cast **Lantern of Souls** — your Undead get **+3/+0** for the rest of the run.',
-    goldenText: '**Rally:** cast **Lantern of Souls** twice — your Undead get **+6/+0** for the rest of the run.',
+    // Names the spell and stops (owner ruling 2026-09-09, R-TEXT-01): the spell's hover preview carries the value.
+    text: '**Rally:** cast **Lantern of Souls**.',
+    goldenText: '**Rally:** cast **Lantern of Souls** twice.',
   },
   {
     // Battlecry: destroy a targeted friendly minion — proccing its Deathrattle in the shop (summons/buffs bake

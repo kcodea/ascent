@@ -195,5 +195,7 @@ describe('Noggin, Squatimus, Adeptus, Warden Rodrick, Hierophant', () => {
     expect(r.events.some((e) => e.type === 'summon' && (e as { minion: { cardId: string } }).minion.cardId === 'knit')).toBe(true);
     const h = fight([bm('sandbag', { attack: 1, health: 1 }), bm('sandbag', { attack: 1, health: 1 }), bm('sandbag', { attack: 1, health: 1 }), bm('u3_hierophant')], [foe(20, 60)]);
     expect(h.events.some((e) => e.type === 'spellcast'), 'Lantern of Souls cast').toBe(true);
+    // R-AURA-02: an Aura-affecting spell cast in combat is permanent — the Lantern's +3 carries back to the run.
+    expect(h.playerUndeadAuraGain?.attack, 'the Undead Aura gain carries back').toBeGreaterThanOrEqual(3);
   });
 });

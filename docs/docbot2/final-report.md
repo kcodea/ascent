@@ -46,7 +46,7 @@ axis, with any gap visible as a typed queue entry rather than as silence.
 | **Text classification bucket** | 921 | 921 (100%) | `textParse.test.ts` — every object lands in exactly one of four buckets; an unresolved parse is a queue entry, never a pass |
 | **Contract-oracle applicability** | 921 | 921 (100%) | `contractOracle.test.ts` — every contract is planned into §10.1 case templates; every unexecuted applicable case carries a typed skip reason |
 | **Interaction-graph membership** | 921 | 921 (100%) | `interactionGraph.test.ts` — every contract is a graph node; unmapped triggers are reported as a visible to-do (29 today) |
-| **Rulebook** | 130 rules (46 approved) | — | `enforcement.test.ts` — every approved rule names a backing lane file that must exist on disk |
+| **Rulebook** | 132 rules (48 approved) | — | `enforcement.test.ts` — every approved rule names a backing lane file that must exist on disk |
 
 **The inventory itself:** 483 cards (115 spells, 81 tokens), 59 hero powers, 142 + 139 runes, 117 quests —
 921 contracted objects in total (901 until 2026-08-28, when the owner archived the 16 Celestials — "leaving set 3 empty of minions now" — and every count in this report moved with them; +2 again the same day for the two Equipment reference cards; +8 on 2026-09-09 for the eight new set-3 Dwarves, −1 the same day when Gem Bus was archived; +11 the same day for the eleven new set-3 Undead).  Of those contracts, 13 are hand-authored curated ones and the rest are
@@ -104,7 +104,7 @@ Every applicable case that did not run says why. This is the §4.3 substrate; no
 | parsed-equivalent | 358 |
 | verified-mismatch | 9 |
 | approved-exception | 0 |
-| **unresolved-parse** | 536 |
+| **unresolved-parse** | 535 |
 
 Every one of the 9 mismatches is registry-pinned with a reason (0 unpinned, 0 stale pins — both gated).
 Eight of the nine are **draft-contract gaps**, not text defects: the extractor could not parse a Choose One
@@ -115,7 +115,7 @@ plain).
 The rewrite advisor produced 4 wording recommendations against the 27-entry language guide. They are
 suggestions with `suggestedText`; nothing is ever applied to production content (§23).
 
-**536 unresolved parses is the honest headline of this section.** They are classified, queued, ratcheted
+**535 unresolved parses is the honest headline of this section.** They are classified, queued, ratcheted
 grow-loudly, and never counted as clean passes — but they are also 59% of the corpus, and the parser's
 conservatism is why the "text checked against approved mechanics" DoD item is partial.
 
@@ -123,7 +123,7 @@ conservatism is why the "text checked against approved mechanics" DoD item is pa
 
 ## 4. Interaction intelligence (§18-F)
 
-- Graph: **1578** nodes / **4876** edges over the contract registry (content, effect-family, trigger-family,
+- Graph: **1578** nodes / **4877** edges over the contract registry (content, effect-family, trigger-family,
   channel, keyword, multiplier, copy-mode, counter, zone, phase-boundary nodes).
 - Applicability: **97400** candidate pairs against 407253 naive all-pairs (21.9%) — the producer → channel →
   consumer join is what makes pairwise tractable at all.

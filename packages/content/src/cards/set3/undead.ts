@@ -151,10 +151,10 @@ export const SET3_UNDEAD: CardDef[] = [
     tier: 5,
     attack: 4,
     health: 7,
-    keywords: [],
+    keywords: ['R'], // owner 2026-09-09: Rise in addition to the Echo
     effects: [{ on: 'onDeath', do: 'deathrattleSummon', params: { tokenId: 'knit' } }],
-    text: '**Echo:** summon a **Spear Warden**.',
-    goldenText: '**Echo:** summon **2 Spear Wardens**.',
+    text: '**Rise. Echo:** summon a **Spear Warden**.',
+    goldenText: '**Rise. Echo:** summon **2 Spear Wardens**.',
   },
   {
     // Watcher's Lantern body behind the shared Avenge window: every 3 friendly deaths, +3 Undead Aura for the run.
@@ -166,7 +166,8 @@ export const SET3_UNDEAD: CardDef[] = [
     health: 9,
     keywords: [],
     effects: [{ on: 'avenge', do: 'avengeCastTribeAttack', params: { count: 3, tribe: 'undead', amount: 3, spellId: 'lanternofsouls' } }],
-    text: '**Avenge (3):** cast **Lantern of Souls** — your Undead get **+3 Attack** for the rest of the run.',
-    goldenText: '**Avenge (3):** cast **Lantern of Souls** twice — your Undead get **+6 Attack** for the rest of the run.',
+    // Names the spell and stops (owner ruling 2026-09-09, R-TEXT-01): the spell's hover preview carries the value.
+    text: '**Avenge (3):** cast **Lantern of Souls**.',
+    goldenText: '**Avenge (3):** cast **Lantern of Souls** twice.',
   },
 ];

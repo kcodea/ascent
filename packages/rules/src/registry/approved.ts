@@ -869,4 +869,47 @@ export const APPROVED_RULES: GameRule[] = [
       + '`addBuff` / the keyword list. Pinned for Revenant and Rising Tide in both phases, including an enemy Rise doing nothing.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3Undead.test.ts'], lastVerifiedAt: '2026-09-09' },
   },
+  {
+    id: 'R-TEXT-01',
+    title: 'A minion that casts a named spell prints the spell, not its value',
+    statement:
+      'A minion whose effect CASTS a named spell (Watcher, Soul-Lantern Hierophant, Anubis: "cast Lantern of Souls") '
+      + 'prints the spell name and stops. It never restates what the spell does or the number it will produce; the '
+      + 'spell is an associated card of the minion, and its hover preview carries the live, spell-power-aware value '
+      + '— exactly as a Ruby is previewed from the Kobolds that cast it. The live-text rule for scaling values is '
+      + 'satisfied by the preview, not by the caster.',
+    domain: 'text',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-09 (Hierophant card review)', quote: 'the text should simply be "Avenge (3): cast Lantern of Souls" and then the lantern of souls should be a hover preview associated card, like a ruby.' },
+      { kind: 'owner-chat', ref: 'CLAUDE.md, live-text rule — the sanctioned exception (owner ruling 2026-07-15)', quote: 'a minion that casts a named spell may name the spell and let the hover-preview of the spell show its live value, instead of restating it' },
+    ],
+    contentIds: ['watcher', 'u3_hierophant', 'anubis'],
+    currentBehaviour:
+      'Conforms — 2026-09-09: Watcher and the Hierophant lost their "— your Undead get +N" tails; `watcherText` (the '
+      + 'helper that restated the Lantern value on Watcher) is retired to a no-op; `CARD_REF_EFFECTS` maps every '
+      + 'named-spell caster factory (`rallyCastTribeAttack`, `deathrattleCastTribeAttack`, `avengeCastTribeAttack`) '
+      + 'to its `spellId`, which is what the hover preview reads.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/cardText.test.ts', 'packages/content/src/refPreview.test.ts'], lastVerifiedAt: '2026-09-09' },
+  },
+  {
+    id: 'R-AURA-02',
+    title: 'An Aura-affecting spell is permanent from any phase — Lantern of Souls in combat included',
+    statement:
+      'A spell whose effect changes an Aura (Lantern of Souls: "your Undead Aura gets +3 Attack") is permanent '
+      + 'wherever it is cast. A combat cast — a Rally, an Avenge, an Echo — raises the run-wide Aura exactly as a '
+      + 'shop cast does: carried back at settle and in force for the rest of the run. There is no combat-only Aura.',
+    domain: 'auras',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-09 (triple confirmation)', quote: 'lantern of souls is always permanent since it is an aura affecting spell … therefore, lantern of soul casts in combat are always permanent.' },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts grantUndeadAura → CombatResult.playerUndeadAuraGain; packages/sim/src/reducer.ts settle → undeadAttackBonus' },
+    ],
+    contentIds: ['lanternofsouls', 'watcher', 'u3_hierophant', 'anubis'],
+    currentBehaviour:
+      'Conforms: every combat Lantern cast goes through the arena verbs `castRepeat` + `grantUndeadAura`, whose gain is '
+      + 'carried back on `playerUndeadAuraGain` and added to the run Aura at settle. Pinned by the Hierophant case '
+      + '(a combat Avenge cast carries +3 back) and the shop cast in run.test.ts.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3Undead.test.ts', 'packages/sim/src/run.test.ts'], lastVerifiedAt: '2026-09-09' },
+  },
 ];

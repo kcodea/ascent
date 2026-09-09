@@ -311,6 +311,9 @@ export const DEATHFIBRILLATOR: EquipmentDefinition = {
   targetMode: 'friendly',
   effectId: 'equipmentRiseThenDestroy',
   params: { tribe: 'undead' },
+  // The owner's authored def + clip (2026-09-09). Played from the slot to the aimed body on activation.
+  useFxId: 'deathfibrillator',
+  useSfxId: 'deathfibrillator',
 };
 
 export const EQUIPMENT: readonly EquipmentDefinition[] = [BLOODPOT, TITAN_HAMMER, BLAST_PUMP, PRISMATIC_PICK, DUELING_RUBETTAS, POURMANS_KEG, THYMEPIECE, COFFIN_FLOP, DEATHFIBRILLATOR];

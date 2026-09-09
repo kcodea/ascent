@@ -37,7 +37,7 @@ export const CATEGORY_GAINS: Record<string, number> = {
   //    fader moves exactly one sound, and every name says which card it belongs to (see CATEGORY_LABEL).
   //    Seeded at the gains these clips already played at before they had faders of their own.
   eqEquipClang: 0.6, eqSelect: 0.6, eqSheen: 0.6,
-  eqUseBloodpot: 0.6, eqUseTitanHammer: 0.6, eqUseBlastPump: 0.6, eqUsePrismaticPick: 0.6, eqUseThymepiece: 0.6, eqUseOther: 0.6,
+  eqUseBloodpot: 0.6, eqUseTitanHammer: 0.6, eqUseBlastPump: 0.6, eqUsePrismaticPick: 0.6, eqUseThymepiece: 0.6, eqUseDeathfibrillator: 0.6, eqUseOther: 0.6,
 };
 
 /** Which bus each category feeds (seeded default; reassignable live in the desk). */
@@ -57,7 +57,7 @@ export const CATEGORY_BUS: Record<string, BusName> = {
   ceremony: 'hero', auctioneerhp: 'hero', runeselect: 'ui',
   eqEquipClang: 'equipment', eqSelect: 'equipment', eqSheen: 'equipment',
   eqUseBloodpot: 'equipment', eqUseTitanHammer: 'equipment', eqUseBlastPump: 'equipment',
-  eqUsePrismaticPick: 'equipment', eqUseDuelingRubettas: 'equipment', eqUseThymepiece: 'equipment', eqUseOther: 'equipment',
+  eqUsePrismaticPick: 'equipment', eqUseDuelingRubettas: 'equipment', eqUseThymepiece: 'equipment', eqUseDeathfibrillator: 'equipment', eqUseOther: 'equipment',
 };
 
 /**
@@ -79,6 +79,7 @@ export const CATEGORY_LABEL: Record<string, string> = {
   eqUsePrismaticPick: 'Prismatic Pick — Choose One opens (Prismpick Artificer)',
   eqUseDuelingRubettas: "Dueling Rubetta's — use (Kaura L'roft)",
   eqUseThymepiece: 'Thymepiece — use (Thymes)',
+  eqUseDeathfibrillator: 'Deathfibrillator — use (EMS)',
   eqUseOther: 'Equipment use — any without its own fader',
 };
 
@@ -95,6 +96,7 @@ export const EQUIPMENT_CLIP_CATEGORY: Record<string, string> = {
   prismaticpick: 'eqUsePrismaticPick',
   duelingrubettas: 'eqUseDuelingRubettas',
   thymepiece: 'eqUseThymepiece',
+  deathfibrillator: 'eqUseDeathfibrillator',
 };
 export const equipmentClipCategory = (clipId: string): string => EQUIPMENT_CLIP_CATEGORY[clipId] ?? 'eqUseOther';
 

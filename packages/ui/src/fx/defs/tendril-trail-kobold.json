@@ -12,9 +12,9 @@
         "bands": 4,
         "plateau": 0.9,
         "palette": [
-          10638121,
-          15234618,
-          15838601,
+          10627369,
+          16728128,
+          15829385,
           16374216
         ],
         "blendMode": "normal",
@@ -50,6 +50,11 @@
         "waveAmp": 0,
         "waveFreq": 2,
         "waveSpeed": 3.4,
+        "crackleAmp": 0,
+        "crackleSteps": 7,
+        "crackleFlicker": 12,
+        "wanderAmp": 0,
+        "wanderScale": 3,
         "drain": 450,
         "segments": 32,
         "blur": 0,
@@ -63,8 +68,8 @@
             1
           ]
         ],
-        "advancedBloomOn": false,
-        "advancedBloomAmt": 2.96,
+        "advancedBloomOn": true,
+        "advancedBloomAmt": 0.13,
         "advancedBloomCurve": [
           [
             0,
@@ -79,7 +84,7 @@
         "advancedBloom_brightness": 3,
         "advancedBloom_blur": 8,
         "bloomOn": true,
-        "bloomAmt": 1.5,
+        "bloomAmt": 2,
         "bloomCurve": [
           [
             0,
@@ -91,7 +96,7 @@
           ]
         ],
         "glowOn": true,
-        "glowAmt": 1.3,
+        "glowAmt": 4.2,
         "glowCurve": [
           [
             0,
@@ -102,10 +107,10 @@
             1
           ]
         ],
-        "glow_inner": 0,
-        "glow_alpha": 1,
+        "glow_inner": 5.4,
+        "glow_alpha": 0.67,
         "glow_knockout": false,
-        "glow_color": 15636587,
+        "glow_color": 16656384,
         "godrayOn": false,
         "godrayAmt": 0.5,
         "godrayCurve": [
@@ -149,7 +154,7 @@
         ],
         "radialBlur_kernel": 5,
         "radialBlur_radius": -1,
-        "motionBlurOn": false,
+        "motionBlurOn": true,
         "motionBlurAmt": 30,
         "motionBlurCurve": [
           [
@@ -316,7 +321,7 @@
             1
           ]
         ],
-        "outlineOn": false,
+        "outlineOn": true,
         "outlineAmt": 2,
         "outlineCurve": [
           [
@@ -330,7 +335,7 @@
         ],
         "outline_alpha": 1,
         "outline_knockout": false,
-        "outline_color": 0,
+        "outline_color": 13777980,
         "rgbSplitOn": false,
         "rgbSplitAmt": -10,
         "rgbSplitCurve": [
@@ -346,7 +351,7 @@
         "rgbSplit_greenY": 10,
         "rgbSplit_blueX": 0,
         "glitchOn": false,
-        "glitchAmt": 50,
+        "glitchAmt": 52,
         "glitchCurve": [
           [
             0,
@@ -357,8 +362,8 @@
             1
           ]
         ],
-        "glitch_slices": 50,
-        "glitch_dir": 194,
+        "glitch_slices": 24,
+        "glitch_dir": 275,
         "dropShadowOn": false,
         "dropShadowAmt": 4,
         "dropShadowCurve": [
@@ -526,7 +531,7 @@
         ],
         "drag": 0.885,
         "gravity": -160,
-        "pointGravity": 410,
+        "pointGravity": 0,
         "life": 1070,
         "orientToVelocity": false,
         "spinMul": 1,
@@ -601,7 +606,7 @@
         "palette": [
           10638121,
           15234618,
-          15838601,
+          15829385,
           16374216
         ],
         "blendMode": "add",
@@ -1151,7 +1156,7 @@
         "palette": [
           10638121,
           15234618,
-          15838601,
+          15807026,
           16374216
         ],
         "blendMode": "add",
@@ -1172,8 +1177,8 @@
         "scroll": 1.4,
         "erode": 0.35,
         "gain": 1.4,
-        "advancedBloomOn": false,
-        "advancedBloomAmt": 1.3,
+        "advancedBloomOn": true,
+        "advancedBloomAmt": 1.7,
         "advancedBloomCurve": [
           [
             0,

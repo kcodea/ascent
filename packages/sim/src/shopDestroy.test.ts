@@ -71,20 +71,20 @@ describe('Graverobber destroys in the shop', () => {
     expect(risen.health, 'golden doubles Attack but NEVER Health (owner ruling 2026-07-02)').toBe(1);
   });
 
-  it('a full board gates the Rise, exactly as combat does — the Echo resolves FIRST and can take the room', () => {
-    // Imp King's Echo summons 2 Imps into the slot the body just vacated. Rise is granted onto the INSTANCE
-    // (a granted keyword still triggers the return; it is simply not reprinted on the risen body), so this
-    // exercises the ordering that matters: the body leaves, the Echo fills the board, and the return is then
-    // refused for want of a slot — combat's rule, not a shop-only shortcut.
+  it('a rising body HOLDS its slot, exactly as combat does — the Echo resolves FIRST but cannot take the room', () => {
+    // Owner ruling 2026-09-09 (superseding the 2026-07-02 "the body holds no slot"): Imp King's Echo summons 2
+    // Imps while the body still stands in its slot. 4 others + victim + Graverobber = 6: the first Imp fits (7),
+    // the second overflows, the victim leaves (6) and returns (7) — as printed, without the granted Rise.
     let s = run();
     const victim = body('impking', 'victim');
     victim.keywords = [...victim.keywords, 'R'];
     const others = ['sandbag', 'alley', 'trickster', 'ritualist'].map((id, i) => body(id, `o${i}`));
     s = { ...s, board: [...others, victim], hand: [body('graverobber', 'gr')] };
-    s = graverob(s, 'victim'); // 5 + Graverobber = 6, victim leaves = 5, its 2 Imps arrive = 7 (full)
-    expect(s.board.some((c) => c.uid === 'victim'), 'the corpse is still there').toBe(false);
-    expect(s.board.length, 'the Echo should have filled the board').toBe(7);
-    expect(s.board.filter((c) => c.cardId === 'impking'), 'no room — the Rise is gated').toHaveLength(0);
+    s = graverob(s, 'victim');
+    expect(s.board.some((c) => c.uid === 'victim'), 'the corpse is gone — a fresh body returned').toBe(false);
+    expect(s.board.filter((c) => c.cardId === 'impscrap'), 'one Imp fit, one overflowed').toHaveLength(1);
+    expect(s.board.filter((c) => c.cardId === 'impking'), 'the King returned').toHaveLength(1);
+    expect(s.board.length).toBe(7);
   });
 
   it('still pays its spell: the destroy is a means, not the whole card', () => {

@@ -2264,7 +2264,9 @@ export function destroyMinionInShop(
  *                     and the return goes to its RIGHT (owner ruling 2026-07-06).
  */
 function riseReturn(state: RunState, target: BoardCard, slot: number, summonedFrom: number): BoardCard | undefined {
-  if (state.board.length >= CONFIG.boardMax) return undefined;
+  // A rising body held its slot through its Echo, so this only fails if something else filled the board — and
+  // then the return COUNTS AS AN OVERFLOW (owner 2026-09-09), the same event a summon with no room fires.
+  if (state.board.length >= CONFIG.boardMax) { fireSummonOverflow(state); return undefined; }
   const def = CARD_INDEX[target.cardId];
   const mul = target.golden ? 2 : 1;
   // THE PRINTED BODY, with the run's Auras re-applied on top — combat's Rise exactly (base Attack × golden, 1
@@ -2298,6 +2300,23 @@ function riseReturn(state: RunState, target: BoardCard, slot: number, summonedFr
   // combat"): the UI plays combat's reborn re-form on the new body once it has mounted.
   stampShopFx(state, { kind: 'rise', uid: risen.uid, cardId: risen.cardId });
   return risen;
+}
+
+/**
+ * A summon (or a Rise return — owner 2026-09-09) found no room: the board's `summonOverflow` watchers pay off
+ * (Flowing Monk, Squatimus). The one shop dispatcher for the event, shared by the summon path and `riseReturn`.
+ */
+export function fireSummonOverflow(state: RunState): void {
+  const ctx = makeContext(state);
+  for (const c of [...state.board]) {
+    const def = CARD_INDEX[c.cardId];
+    if (!def) continue;
+    for (const effect of def.effects) {
+      if (effect.on !== 'summonOverflow') continue;
+      const fn = RECRUIT_FACTORIES[effect.do];
+      if (fn) captureBuffFx(state, c, 'minion', () => fn(ctx, c, effect.params ?? {}, { minion: c }));
+    }
+  }
 }
 
 /**
@@ -8605,15 +8624,7 @@ function makeContext(state: RunState): RecruitContext {
       const vacating = state.vacatingUid && state.board.some((c) => c.uid === state.vacatingUid) ? 1 : 0;
       if (state.board.length - vacating >= CONFIG.boardMax) {
         // Overflow — the summon can't fit the full board. Flowing Monk pays off on the wasted body.
-        for (const c of [...state.board]) {
-          const def = CARD_INDEX[c.cardId];
-          if (!def) continue;
-          for (const effect of def.effects) {
-            if (effect.on !== 'summonOverflow') continue;
-            const fn = RECRUIT_FACTORIES[effect.do];
-            if (fn) captureBuffFx(ctx.state, c, 'minion', () => fn(ctx, c, effect.params ?? {}, { minion: c }));
-          }
-        }
+        fireSummonOverflow(state);
         return undefined;
       }
       const buff = cardBuff(state, card.id); // a conjured Fodder carries Ritualist's run buff
@@ -9481,7 +9492,10 @@ export function settlePendingDeath(state: RunState): void {
       // The body is dying: the authored dissolve plays for it (suppressed when it is rising — it re-forms).
       stampShopFx(state, { kind: 'death', uid: card.uid, cardId: card.cardId, ...(willRise ? { rise: true } : {}) });
       const wasVacating = state.vacatingUid;
-      state.vacatingUid = card.uid; // its Echo's summons land in its place, and it costs no summon slot
+      // A body that will NOT rise vacates its slot for its Echo's summons ("in the place of the minion dying").
+      // A RISING body HOLDS its slot (owner ruling 2026-09-09): its Echo resolves first, and on a full board the
+      // summon overflows — Squatimus / Flowing Monk pay off on it — while the body itself returns.
+      if (!willRise) state.vacatingUid = card.uid;
       const summonedFrom = state.board.length;
       try {
         if (pending.kind === 'loan') triggerBorrowedEcho(state, card);

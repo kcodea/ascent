@@ -230,11 +230,12 @@ describe('Doc Bot — a swing\u2019s wind-up fully resolves before the swing lan
       .replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\/[^\n]*/g, ' ');
     const queueBlock = src.slice(src.indexOf('if (card.attackOnSummon || attackNow)'));
     const upToPush = queueBlock.slice(0, queueBlock.indexOf('pendingAttackOnSummon.push'));
-    expect(/living\(side\)\.length >= 7/.test(upToPush),
+    expect(/(living\(side\)\.length|occupied\(side\)) >= 7/.test(upToPush),
       'the cap must not be judged at queue time — the board it reads is not the one the token lands on').toBe(false);
     // …and `placeSummon` must still judge it, or nothing does and the board overflows.
     const place = src.slice(src.indexOf('function placeSummon'));
-    expect(/living\(side\)\.length >= 7/.test(place.slice(0, place.indexOf('return minion'))),
+    // `occupied(side)` = living + the slots held by bodies mid-Rise (owner 2026-09-09).
+    expect(/(living\(side\)\.length|occupied\(side\)) >= 7/.test(place.slice(0, place.indexOf('return minion'))),
       'the cap must still be judged as each token lands').toBe(true);
   });
 

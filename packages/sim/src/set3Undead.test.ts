@@ -163,6 +163,43 @@ describe('a shop Rise returns the PRINTED body with the Auras on top (owner repo
   });
 });
 
+describe('a rising body HOLDS its slot (owner ruling 2026-09-09) — Rodrick on a full board', () => {
+  const six = ['u3_squatimus', 'dw_brunni', 'dw_coinfire', 'dw_pimm', 'e3_frank', 'u3_poochy'];
+  it('SHOP: the Echo summon overflows (Squatimus pays), and Rodrick returns', () => {
+    let s = run({ board: [body('rod', 'u3_rodrick'), ...six.map((id, i) => body(`b${i}`, id))], hand: [body('ems', 'u3_ems')] });
+    expect(s.board.length).toBe(7);
+    // EMS goes to hand-only use: the board is full, so play it into… no room. Aim the Deathfibrillator from an
+    // already-granted Equipment instead: grant by playing EMS onto a 6-body board first, then fill the 7th.
+    s = run({ board: [body('rod', 'u3_rodrick'), ...six.slice(0, 5).map((id, i) => body(`b${i}`, id))], hand: [body('ems', 'u3_ems')] });
+    s = act(s, { type: 'play', uid: 'ems', toIndex: 0 });
+    expect(s.board.length).toBe(7);
+    s = act(s, { type: 'activateEquipment', targetUid: 'rod' });
+    s = act(s, { type: 'resolveShopDeath' });
+    expect(s.board.length, 'still seven').toBe(7);
+    expect(s.board.some((c) => c.cardId === 'knit'), 'the Spear Warden found no room').toBe(false);
+    expect(s.board.some((c) => c.cardId === 'u3_rodrick'), 'Rodrick came back').toBe(true);
+    // Every body that was standing when the Warden overflowed wears the buff; the returned Rodrick is the card as
+    // printed (R-RISE-04), so he alone comes back without it.
+    for (const c of s.board) {
+      if (c.cardId === 'u3_rodrick') expect(c.buffs, 'the risen body is printed').toBeUndefined();
+      else expect(c.buffs?.find((b) => b.source === 'Squatimus'), c.cardId + ' got the overflow buff').toMatchObject({ attack: 2, health: 2 });
+    }
+  });
+  it('COMBAT: the same — overflow fires, Rodrick rises, no Warden', () => {
+    const r = fight([bm('u3_rodrick', { sourceUid: 'rod' } as Partial<BoardMinion>), bm('u3_squatimus', { sourceUid: 'sq', health: 60 } as Partial<BoardMinion>),
+      ...[0, 1, 2, 3, 4].map((i) => ({ sourceUid: `s${i}`, cardId: 'sandbag', attack: 1, health: 60, keywords: [] } as unknown as BoardMinion))], [foe(20, 30)]);
+    // Rodrick dies TWICE in this fight: the first death Rises (its Warden finds no room — the slot is held),
+    // the second is real (no Rise left), and THAT Echo's Warden fits into the slot the body finally freed.
+    const rebornAt = r.events.findIndex((e) => e.type === 'reborn');
+    expect(rebornAt, 'Rodrick rose').toBeGreaterThanOrEqual(0);
+    const wardens = r.events.map((e, i) => [e, i] as const).filter(([e]) => e.type === 'summon' && (e as { minion: { cardId: string } }).minion.cardId === 'knit');
+    expect(wardens.length, 'one Warden, from the REAL death').toBe(1);
+    expect(wardens[0]![1], 'and only after the Rise').toBeGreaterThan(rebornAt);
+    const sq = uidOf(r, 'u3_squatimus');
+    expect(r.events.filter((e) => e.type === 'buff' && (e as { source: string }).source === sq).length, 'Squatimus paid the overflow').toBeGreaterThanOrEqual(6);
+  });
+});
+
 describe('Cage Breaker + Coffin Flop — Discovers at the tavern tier', () => {
   it('Cage Breaker: the target dies (its Echo fires), then an Undead Discover opens at the tavern tier', () => {
     let s = run({ tier: 4, board: [body('m', 'u3_poochy', { keywords: ['T'] }), body('b', 'dw_brunni')], hand: [body('cb', 'u3_cagebreaker')] });

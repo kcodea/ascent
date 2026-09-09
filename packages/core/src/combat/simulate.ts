@@ -603,6 +603,11 @@ export function simulate(
   });
 
   const living = (side: Side): Minion[] => boards[side].filter((m) => !m.dead && m.health > 0);
+  /** Slots held by bodies mid-Rise (dead for the duration of their own Echo, but returning). A RISING BODY HOLDS
+   *  ITS SLOT (owner ruling 2026-09-09, superseding 2026-07-02): its Echo resolves first, and a summon that Echo
+   *  makes finds no room on a full board — it overflows. Read by every room check through `occupied`. */
+  const risingReserved: Record<Side, number> = { player: 0, enemy: 0 };
+  const occupied = (side: Side): number => living(side).length + risingReserved[side];
   // Like `living`, but RETAINS a body already at ≤0 HP whose death is being DEFERRED across a multi-volley
   // Echo (Fel Spikes): it stays on the board until the spray's flush, so a later volley / re-fire re-hits the
   // SAME accumulating set instead of skipping a body volley 1 already dropped. Only differs from `living` while
@@ -1196,7 +1201,7 @@ export function simulate(
       for (const rec of [...deadBeasts[side]]) {
         if (brought >= count) break;
         if (rec.uid === excludeUid || resummonedUids.has(rec.uid)) continue;
-        if (living(side).length >= 7) break;
+        if (occupied(side) >= 7) break;
         const def = cards[rec.cardId];
         if (!def) continue;
         resummonedUids.add(rec.uid);
@@ -1428,8 +1433,9 @@ export function simulate(
    */
   function placeSummon(minion: Minion, side: Side, card: CardDef, nearUid: string | undefined, grantKeywords: Keyword[] | undefined, golden: boolean, attackNow: boolean, copyStats: { attack: number; health: number; maxHealth: number; divineShield?: boolean; rebornAvailable?: boolean } | undefined, doubled: boolean): Minion {
     // Board cap of 7 (handoff A.2): a full board can't receive summons — but Flowing Monk pays off
-    // on the wasted body (the combat half of its recruit overflow buff).
-    if (living(side).length >= 7) {
+    // on the wasted body (the combat half of its recruit overflow buff). `occupied`, not `living`: a body
+    // mid-Rise still holds its slot (owner 2026-09-09).
+    if (occupied(side) >= 7) {
       bus.emit('summonOverflow', { side });
       // Rune of Overflow: a summon that does not fit buffs your whole board PERMANENTLY. Buffed live here so it
       // matters this fight, and banked for the carry-back so it survives the settle — the word "permanently" is
@@ -2009,6 +2015,7 @@ export function simulate(
       minion.health = 0;
       emit({ type: 'death', target: minion.uid, side: minion.side, rise: true });
       nextStep(); // the rattle's effects are a separate resolution from the death itself
+      risingReserved[minion.side] += 1; // the slot stays held through the Echo (owner 2026-09-09)
       fireOwnDeathrattles(minion, killer); // a Rise death still has a killer — Jensen & Fi must reach it
       // A Rise death is a REAL death (owner ruling 2026-07-27, reversing 2026-07-02/07-06): it counts for
       // Avenge, the enemy-death tally, friendly-death quests and on-death watchers. The body genuinely leaves
@@ -2024,14 +2031,14 @@ export function simulate(
       deaths[minion.side] += 1;
       if (minion.side === 'player') questEvents.push({ step: stepN, kind: 'friendlyDeath', tribes: [] });
       emitAvenge(minion.side, deaths[minion.side], minion);
-      // Board cap gates the Rise (owner ruling 2026-07-02): the Deathrattle resolved FIRST — its summons can
-      // take the last slots, since the dying body holds none — and if the side is at 7 living the minion does
-      // NOT return: it stays dead for real, and NOW counts as a true death (Avenge + enemy tally). It already
-      // emitted its (rise-flagged) death above, so we don't push a second one, and there's NO `onDeath`
-      // broadcast (watchers treat Rise deaths as non-deaths; the rattle already fired, incl. Sylus re-procs).
+      risingReserved[minion.side] -= 1; // the reservation ends: the return itself takes the slot
+      // A RISING BODY HOLDS ITS SLOT (owner ruling 2026-09-09, superseding the 2026-07-02 "holds none"): the Echo
+      // resolved first and could not take this slot. If the side is somehow at 7 living anyway (another Rise or
+      // a placed summon filled it), the return does not fit — and that COUNTS AS AN OVERFLOW ("it DOES count as
+      // overflowing if a rising minion does not fit"): the overflow watchers fire, and the body stays dead for
+      // real. Its (rise-flagged) death was already emitted and tallied above, so nothing is pushed twice.
       if (living(minion.side).length >= 7) {
-        // The death was already tallied above (every Rise counts now), so this branch only has to stop the
-        // body returning — double-counting here would make a capped Rise worth two Avenge ticks.
+        bus.emit('summonOverflow', { side: minion.side });
         return;
       }
       // Rise: revive the SAME body (keeps its uid → "reborn attacks again" + every per-instance carry-back
@@ -2409,7 +2416,7 @@ export function simulate(
     // enemy side, exactly like the player's Reclaimer). FIFO within a side; player-only queues behave as before.
     for (let i = 0; i < pendingResummons.length; ) {
       const { anchor, board, side } = pendingResummons[i]!;
-      if (living(side).length >= 7) { i++; continue; }
+      if (occupied(side) >= 7) { i++; continue; }
       pendingResummons.splice(i, 1);
       nextStep(); // each reclaimed body re-entering is its own moment
       const copy = instantiate(board, side, cards, mkUid);

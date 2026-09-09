@@ -1309,10 +1309,11 @@ describe('simulate (handoff A.3)', () => {
     expect(packDeath).toBeLessThan(firstPup); // …and only then does the rattle summon
   });
 
-  it('a full board blocks the Rise — the Deathrattle resolves first, and if its summons fill the board the minion stays dead', () => {
-    // Board cap rule (owner ruling 2026-07-02): Rattle procs BEFORE the Rise; the dying body holds no slot
-    // during the rattle. Mama Pup (R) + 5 sandbags: she dies attacking the 20/20 wall → her 2 Pups take the
-    // board to 7 living → no room → she does NOT return (a real death, exactly one death event, no reborn).
+  it('a rising body HOLDS its slot — its Deathrattle resolves first, its summons overflow on a full board, and it returns', () => {
+    // Owner ruling 2026-09-09 (superseding 2026-07-02): the dying Rise body KEEPS its slot through the rattle.
+    // Mama Pup (R) + 5 sandbags: she dies attacking the 20/20 wall → 5 living + her held slot = 6 → ONE Pup
+    // fits, the other overflows → she returns (one rise-flagged death, a reborn). With 3 sandbags: 3 + 1 held
+    // = 4, both Pups fit, and she still returns.
     const p: BoardMinion[] = [
       { cardId: 'pack', attack: 1, health: 1, keywords: ['R'] },
       { cardId: 'sandbag', attack: 0, health: 1 },
@@ -1323,12 +1324,16 @@ describe('simulate (handoff A.3)', () => {
     ];
     const a = run(p, [{ cardId: 'omen', attack: 20, health: 20 }], 3);
     const packUid = a.initial.player[0]!.uid;
-    expect(a.events.filter((e) => e.type === 'summon' && e.minion.cardId === 'pup').length).toBe(2); // rattle fired
-    expect(a.events.some((e) => e.type === 'reborn')).toBe(false); // …but the board was full → no Rise
-    expect(a.events.filter((e) => e.type === 'death' && e.target === packUid).length).toBe(1); // one real death
-    // Contrast: with only 3 sandbags there's room after the Pups (4+2 = 6 living) → the Rise happens.
+    // Judged up to her RISE: her later, real death (no Rise left) may summon Pups into the slot it frees.
+    const rebornAt = a.events.findIndex((e) => e.type === 'reborn');
+    expect(rebornAt, 'she returns').toBeGreaterThanOrEqual(0);
+    expect(a.events.slice(0, rebornAt).filter((e) => e.type === 'summon' && e.minion.cardId === 'pup').length, 'one Pup fit (5 living + the held slot = 6), the other overflowed').toBe(1);
+    expect(a.events.filter((e) => e.type === 'death' && e.target === packUid).length).toBe(1); // one rise-flagged death
+    // Contrast: with only 3 sandbags (3 + the held slot = 4) both Pups fit AND she returns.
     const b = run(p.slice(0, 4), [{ cardId: 'omen', attack: 20, health: 20 }], 3);
-    expect(b.events.some((e) => e.type === 'reborn')).toBe(true);
+    const rebornB = b.events.findIndex((e) => e.type === 'reborn');
+    expect(rebornB).toBeGreaterThanOrEqual(0);
+    expect(b.events.slice(0, rebornB).filter((e) => e.type === 'summon' && e.minion.cardId === 'pup').length).toBe(2);
   });
 
   it('a Deathrattle-summoned token next to the dead attacker attacks next — before the minion to its right', () => {

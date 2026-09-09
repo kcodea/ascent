@@ -934,4 +934,26 @@ export const APPROVED_RULES: GameRule[] = [
       + 'clears the per-instance improvements it used to keep. The Undead Aura is a display fold on both.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3Undead.test.ts'], lastVerifiedAt: '2026-09-09' },
   },
+  {
+    id: 'R-RISE-05',
+    title: 'A rising body holds its slot — its Echo resolves first, and a summon with no room overflows',
+    statement:
+      'A minion that will Rise keeps its board slot while it is dead. Its Echo resolves before the Rise, and a '
+      + 'minion that Echo would summon finds no room on a full board: the summon overflows (Squatimus, Flowing Monk '
+      + 'pay off) and the rising body returns. If the rising body itself cannot fit — its slot was taken by another '
+      + 'return or a placed summon — that too counts as an overflow, and the body stays dead. Both phases. '
+      + 'Supersedes the 2026-07-02 reading under which a dying Rise body held no slot.',
+    domain: 'keywords',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-09 (Rodrick / Squatimus report)', quote: 'a rising minion does hold a slot/space. it cannot summon when the board is full, and the echo triggers before the rise does, but it DOES count as overflowing if a rising minion does not fit.' },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts risingReserved / occupied (every room check); packages/sim/src/recruit.ts settlePendingDeath (no vacating for a riser) + riseReturn → fireSummonOverflow' },
+    ],
+    contentIds: ['u3_rodrick', 'u3_squatimus'],
+    currentBehaviour:
+      'Conforms — 2026-09-09: combat reserves the slot through the Echo and fires `summonOverflow` for a return that '
+      + 'does not fit; the shop keeps the rising body on the board through its Echo (no `vacatingUid`), so the summon '
+      + 'path sees a full board, and `riseReturn` fires the same overflow dispatcher when it has no room.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3Undead.test.ts'], lastVerifiedAt: '2026-09-09' },
+  },
 ];

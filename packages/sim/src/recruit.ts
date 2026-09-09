@@ -2038,6 +2038,35 @@ export function mintRubies(
   }
 }
 
+/**
+ * Set 3 — mint `count` copies of a card-minted hand spell (Tower Shield, Clue) into hand, honouring the hand
+ * cap. The Ruby mint's shape minus the Ruby watchers: a hand spell is not a Ruby, so `onGetRuby` never fires;
+ * it IS a card arriving in hand, so the `onGainCard` round fires per copy (Gangplank) under the same ledger
+ * contract as `mintRubies` / `conjureToHand`.
+ */
+export function mintHandSpells(state: RunState, cardId: string, count: number): void {
+  const def = CARD_INDEX[cardId];
+  if (!def || !def.gift) return; // only the Gift class mints this way — anything else is a content error
+  let minted = 0;
+  for (let i = 0; i < count && state.hand.length < handCap(state); i++) {
+    state.hand.push({
+      uid: `b${state.uidSeq++}`,
+      cardId,
+      tribe: def.tribe,
+      attack: def.attack,
+      health: def.health,
+      keywords: [...def.keywords],
+      golden: false,
+    });
+    minted++;
+  }
+  for (let i = 0; i < minted; i++) {
+    const arrived = state.hand[state.hand.length - minted + i];
+    if (arrived) (state.gainCardFiredUids ??= []).push(arrived.uid);
+    fireOnGainCard(state, cardId);
+  }
+}
+
 /** Set 2 — fire every board minion's `onGetRuby` effects (Candle Conduit) when a Ruby is gained, plus the
  *  run-level Motherlode reward, which is the same rule with no minion source. */
 function fireOnRubyGained(state: RunState): void {
@@ -3142,6 +3171,22 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  the cadence minters use; a Shout-shaped wrapper so the option can sit in `chooseOne[].effects`. */
   battlecryGetRubies: (ctx, self, params) => {
     mintRubies(ctx.state, num(params.count, 1) * gold(self));
+  },
+
+  /** Set 3 — Defender (Shout) / Magnifying Glass (Equip): mint `count` copies of the named hand spell (Tower
+   *  Shield, Clue) into hand, × golden. An Equipment passes its gilded SOURCE as `self`, so a gilded Glass mints
+   *  double through the same multiplier. */
+  battlecryGetHandSpell: (ctx, self, params) => {
+    mintHandSpells(ctx.state, str(params.cardId), num(params.count, 1) * gold(self));
+  },
+
+  /** Set 3 — Clue (cast): the target gets the run's CURRENT Clue value (1 + `clueBonus`, no spell power), then
+   *  the value goes up by one for every Clue after it. Read-then-bump, so a Yazzus-repeated cast pays 1/1 then
+   *  2/2 — each repeat is a real Clue. `self` is the TARGET (the spell-cast convention). */
+  clueBuffTarget: (ctx, self, params) => {
+    const v = 1 + (ctx.state.clueBonus ?? 0);
+    addBuff(self, str(params._source) || 'Clue', v, v);
+    ctx.state.clueBonus = (ctx.state.clueBonus ?? 0) + 1;
   },
 
   /** Set 2 — Frenzied Excavator (Shout): play `rubies` Rubies on EVERY friendly minion (× golden).
@@ -8115,9 +8160,17 @@ export function spellHealthBonus(state: RunState): number {
  * base text for non-stat spells or a zero bonus. Convention: a stat spell's text shows "+A/+B" matching
  * its `spellBuffTarget` params, so it can be substituted.
  */
-export function spellDisplayText(cardId: string, bonusA: number, escalation = 0, bonusH = bonusA, goldSpent = 0, escalationH = escalation, goldPouchValue = 0, extra?: { rubyBonus?: { attack: number; health: number }; playedThisTurn?: string[]; tier?: number; topTribe?: Tribe | null; growthBonus?: number; juggler?: boolean }): string {
+export function spellDisplayText(cardId: string, bonusA: number, escalation = 0, bonusH = bonusA, goldSpent = 0, escalationH = escalation, goldPouchValue = 0, extra?: { rubyBonus?: { attack: number; health: number }; clueBonus?: number; playedThisTurn?: string[]; tier?: number; topTribe?: Tribe | null; growthBonus?: number; juggler?: boolean }): string {
   const def = CARD_INDEX[cardId];
   if (!def) return '';
+  // Set 3 — a FLAT hand spell (Tower Shield: every cast effect opts out of spell power via `flat`) prints exactly
+  // its base — folding the run's spell power into the text would promise a value the cast never grants.
+  if (def.gift && def.effects.length > 0 && def.effects.every((e) => e.on !== 'cast' || e.params?.flat === true)) return def.text;
+  // Set 3 — a CLUE reads live: base 1/1 + the run's `clueBonus` (the value its cast will grant right now).
+  if (def.id === 'clue') {
+    const cb = extra?.clueBonus ?? 0;
+    return cb > 0 ? def.text.replace('**+1/+1**', `**{{+${1 + cb}/+${1 + cb}}}**`) : def.text;
+  }
   // A RUBY itself reads live: base 1/1 + the run's `rubyBonus`. Needed since hovering any card that mentions
   // Rubies now previews the Ruby (owner 2026-07-25) — a preview promising "+1/+1" while the real Ruby grants
   // +3/+3 would be exactly the stale-number defect the live-text rule exists to prevent.

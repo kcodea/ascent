@@ -321,7 +321,24 @@ export const DEATHFIBRILLATOR: EquipmentDefinition = {
   useFxAt: 'target', // the def is authored on the unit (both layers anchor `source`)
 };
 
-export const EQUIPMENT: readonly EquipmentDefinition[] = [BLOODPOT, TITAN_HAMMER, BLAST_PUMP, PRISMATIC_PICK, DUELING_RUBETTAS, POURMANS_KEG, THYMEPIECE, COFFIN_FLOP, DEATHFIBRILLATOR];
+/**
+ * MAGNIFYING GLASS — Inspector Pell's Equipment (set-3 Neutral roster, 2026-09-09): mint two Clues into hand
+ * (`cards/set3/handSpells.ts`). Untargeted. The factory multiplies by the SOURCE's gilding, so a gilded Pell
+ * mints four with the same params — `gildedParams` restates them only so the entry reads complete.
+ */
+export const MAGNIFYING_GLASS: EquipmentDefinition = {
+  id: 'magnifying_glass',
+  name: 'Magnifying Glass',
+  text: 'Get **2 Clues**.',
+  goldenText: 'Get **4 Clues**.',
+  baseCost: 1,
+  targetMode: 'none',
+  effectId: 'battlecryGetHandSpell',
+  params: { cardId: 'clue', count: 2 },
+  gildedParams: { cardId: 'clue', count: 2 },
+};
+
+export const EQUIPMENT: readonly EquipmentDefinition[] = [BLOODPOT, TITAN_HAMMER, BLAST_PUMP, PRISMATIC_PICK, DUELING_RUBETTAS, POURMANS_KEG, THYMEPIECE, COFFIN_FLOP, DEATHFIBRILLATOR, MAGNIFYING_GLASS];
 
 export const EQUIPMENT_INDEX: Readonly<Record<string, EquipmentDefinition>> =
   Object.fromEntries(EQUIPMENT.map((e) => [e.id, e]));

@@ -660,6 +660,9 @@ export interface RunState {
   /** Set 2 — the run's Ruby STRENGTH: the extra Attack/Health every NEW Ruby is minted with, on top of the
    *  base 1/1 (raised by "Your Rubies gain +X"; future Rubies only, never retroactive). Absent = base 1/1. */
   rubyBonus?: { attack: number; health: number };
+  /** Set 3 — the run's CLUE value above the base 1/1: every Clue cast grants `1 + clueBonus`, then raises it by
+   *  one ("Improve your Clues by +1/+1"). Read at cast, so Clues in hand are live by construction. Absent = 0. */
+  clueBonus?: number;
   /** Rubies cast this run / this turn — the Ruby-only cast counter (NOT `spellsCast`, which is Shop Spells).
    *  Cards that trigger on the umbrella of BOTH read `spellsCast + rubyCasts`. Absent = 0. */
   rubyCasts?: number;

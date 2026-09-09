@@ -56,6 +56,21 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-09',
+    label: 'Set 3 Neutrals II',
+    changes: [
+      {
+        category: 'New Card',
+        text: 'Two more Set 3 Neutrals, each with a new kind of free hand spell: Defender hands out Tower Shields, Inspector Pell investigates for Clues.',
+        details: [
+          'Defender (Tier 2, 2/2): Shout — get 2 Tower Shields. A Tower Shield is a free spell: give a friendly minion +2/+1 and Taunt.',
+          'Inspector Pell (Tier 3, 2/5): Equip Magnifying Glass (1) — get 2 Clues. A Clue is a free spell: give a friendly minion +1/+1, then every Clue after it gives +1/+1 more.',
+          'Tower Shields and Clues count as spells you cast, but they are not Shop spells: nothing copies them, and they take no spell power. The Set 3 Yazzus repeats them, as it does every targeted spell.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-09',
     label: 'Set 3 Neutrals I',
     changes: [
       {

@@ -34,8 +34,10 @@ function factoriesApplyingSpellPower(): Set<string> {
 const APPLIES = factoriesApplyingSpellPower();
 
 /** Every shop spell whose cast effect picks up spell power. */
+// `flat: true` on a cast effect opts that grant OUT of spell power inside the factory (Crest of the Climb's
+// branches; the set-3 Tower Shield), so such a spell never scales and must not be swept.
 const SCALING_SPELLS = ALL_CARDS.filter(
-  (c) => c.spell && !c.token && (c.effects ?? []).some((e) => e.on === 'cast' && APPLIES.has(e.do)),
+  (c) => c.spell && !c.token && (c.effects ?? []).some((e) => e.on === 'cast' && APPLIES.has(e.do) && e.params?.flat !== true),
 );
 
 describe('spell power is visible on every spell that gets it', () => {

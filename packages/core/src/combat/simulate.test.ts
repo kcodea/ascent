@@ -1328,7 +1328,7 @@ describe('simulate (handoff A.3)', () => {
     const rebornAt = a.events.findIndex((e) => e.type === 'reborn');
     expect(rebornAt, 'she returns').toBeGreaterThanOrEqual(0);
     expect(a.events.slice(0, rebornAt).filter((e) => e.type === 'summon' && e.minion.cardId === 'pup').length, 'one Pup fit (5 living + the held slot = 6), the other overflowed').toBe(1);
-    expect(a.events.filter((e) => e.type === 'death' && e.target === packUid).length).toBe(1); // one rise-flagged death
+    expect(a.events.filter((e) => e.type === 'death' && e.target === packUid).length).toBe(2); // the rise-flagged death, then the real one once her Rise is spent
     // Contrast: with only 3 sandbags (3 + the held slot = 4) both Pups fit AND she returns.
     const b = run(p.slice(0, 4), [{ cardId: 'omen', attack: 20, health: 20 }], 3);
     const rebornB = b.events.findIndex((e) => e.type === 'reborn');

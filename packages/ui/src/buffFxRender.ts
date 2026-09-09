@@ -13,6 +13,10 @@ import { tunedDescend } from './buffFxConfig';
 const TENDRIL_TRAIL_TRAVEL_MS: number =
   tendrilTrail.layers.find((l) => l.primitive === 'ribbon')?.travelMs ?? 384;
 
+/** Tribes with a per-tribe `tendril-trail-<tribe>` variant (a palette-swap of the generic). `neutral` and the
+ *  archived `celestial` are absent — they keep the generic ribbon, as does any tribe not listed here. */
+const TENDRIL_TRIBES = new Set<Tribe>(['beast', 'demon', 'dragon', 'dwarf', 'kobold', 'mech', 'undead']);
+
 /**
  * Fire ONE generic buff-other effect and return the strike/landing time (ms) so the caller can schedule the
  * target's stat-badge roll. The single path shared by the combat replay (`useCombatReplay.fireBuffCasts`) and
@@ -40,6 +44,14 @@ export function fireBuffFx(o: {
   if (o.sourceless || !o.source) {
     return tunedDescend(DESCEND_PRESETS[descendPreset(o.cardId, o.tribe)]!).dropMs;
   }
-  playDef('tendril-trail', { source: o.source, target: o.target }, { uids: o.uids });
+  // PER-TRIBE RIBBON: the BUFFER's tribe picks its variant (Warhorn Captain = dwarf → `tendril-trail-dwarf`).
+  // Each variant is a palette-swap of the generic, so its ribbon travelMs is unchanged and the roll still lands
+  // on `TENDRIL_TRAIL_TRAVEL_MS` for all of them. A listed tribe fires a DATA-RESOLVED id (a dynamic playDef —
+  // see `fx/directCalls.ts`); neutral / an unlisted tribe keeps the literal generic.
+  if (TENDRIL_TRIBES.has(o.tribe)) {
+    playDef(`tendril-trail-${o.tribe}`, { source: o.source, target: o.target }, { uids: o.uids });
+  } else {
+    playDef('tendril-trail', { source: o.source, target: o.target }, { uids: o.uids });
+  }
   return TENDRIL_TRAIL_TRAVEL_MS;
 }

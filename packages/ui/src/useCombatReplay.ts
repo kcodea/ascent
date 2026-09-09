@@ -2028,7 +2028,14 @@ export function useCombatReplay(
       // A Shout RE-FIRE's own moment (`channels/shoutFired.ts`): the re-triggering unit pulses (the reaction
       // medallion), the Shout's owner blooms. Its consequences — the buff wave, the float, the Ruby — are this
       // moment's own events and play through the ordinary channels; the swing that caused it is parked.
-      onShoutProc: (source: string, target: string) => { pulseWatcher(source); bloomFrame(target); },
+      // When a `shout` burst is bound (the generic `shout-icon-effect`, or a card override) the `shoutFx` cue
+      // plays it ON the re-triggering unit (source-anchored, at the pair's anchors), so suppress that unit's
+      // stock watcher pulse — the burst replaces it, exactly as the shop suppresses a bound Shout's medallion
+      // pulse. The owner's frame bloom stays. Same `bindingFor` check the `shoutFx` cue makes to play the def.
+      onShoutProc: (source: string, target: string) => {
+        if (!bindingFor(cardIds.get(source) ?? null, 'shout')) pulseWatcher(source);
+        bloomFrame(target);
+      },
 
       onShake: () => setShake((n) => n + 1),
       // Every float (including the killing-blow one) is anchored from this SLOT reading, taken once at

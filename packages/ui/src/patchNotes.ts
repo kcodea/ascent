@@ -56,6 +56,16 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-09',
+    label: 'Shout FX',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: 'When a minion’s Shout fires, it now bursts with a new effect in place of the old medallion pulse — in the shop as it’s played, and in combat when a card re-triggers another minion’s Shout.',
+      },
+    ],
+  },
+  {
+    date: '2026-09-09',
     label: 'Tribe buff trails',
     changes: [
       {

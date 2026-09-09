@@ -277,6 +277,8 @@ export const THYMEPIECE: EquipmentDefinition = {
   effectId: 'equipmentBonusTurnTime',
   params: { seconds: 30 },
   gildedParams: { seconds: 60 },
+  // The owner's clip (2026-09-09). No authored def yet — the slot plays the clip alone until one is published.
+  useSfxId: 'thymepiece',
 };
 
 export const EQUIPMENT: readonly EquipmentDefinition[] = [BLOODPOT, TITAN_HAMMER, BLAST_PUMP, PRISMATIC_PICK, DUELING_RUBETTAS, POURMANS_KEG, THYMEPIECE];

@@ -4288,7 +4288,9 @@ export function Recruit() {
     const rubyOwned = new Set((run.rubyLandedFx ?? []).map((l) => l.uid));
     const aleOwned = spellCastOwnedRef.current.seq === run.recruitFxSeq ? spellCastOwnedRef.current.uids : new Set<string>();
     const owned = (rubyOwned.size > 0 || aleOwned.size > 0) ? new Set<string>([...rubyOwned, ...aleOwned]) : null;
-    const events = owned ? run.recruitBuffFx.filter((e) => !owned.has(e.targetUid)) : run.recruitBuffFx;
+    // An Ale's claim covers only the SPELL-kind entries on its targets: a reaction the Ale caused on the same
+    // body (Kneel's self-buff) is a separate cue that still plays as itself.
+    const events = owned ? run.recruitBuffFx.filter((e) => !(rubyOwned.has(e.targetUid) || (aleOwned.has(e.targetUid) && e.kind === 'spell'))) : run.recruitBuffFx;
     if (events.length === 0) return;
     replayBuffFxEvents(events);
   }, [run.recruitFxSeq]);
@@ -5930,13 +5932,18 @@ export function Recruit() {
     const st = useGame.getState().run;
     const def = CARD_INDEX[cardId];
     // The minions this cast buffed THIS action are the trail targets (leftmost / 3 randoms); distinct uids.
-    const targets = Array.from(new Set(st.recruitBuffFx.map((e) => e.targetUid)));
+    // SPELL-kind entries only (the sourceless capture the cast itself runs under): a minion REACTING to the
+    // cast — Kneel gaining Health because a Dwarf the Ale lifted gained Attack — records a `minion`-kind
+    // self-buff in the same action, and sweeping that in made the Ale's trail land on Kneel and suppressed
+    // his own self-buff cue (owner report 2026-09-09).
+    const spellHits = st.recruitBuffFx.filter((e) => e.kind === 'spell');
+    const targets = Array.from(new Set(spellHits.map((e) => e.targetUid)));
     if (targets.length > 0) spellCastOwnedRef.current = { seq: st.recruitFxSeq, uids: new Set(targets) };
     // `count` is how many BUFFS landed on that body this action, not just that it was hit — a multicast spell
     // buffs the same minion once per resolution, so the count IS the cast count for a `buffedOn` def (owner
     // 2026-09-01). The ale volley ignores counts and fires once per distinct uid, exactly as before.
     const hits = new Map<string, number>();
-    for (const e of st.recruitBuffFx) hits.set(e.targetUid, (hits.get(e.targetUid) ?? 0) + 1);
+    for (const e of spellHits) hits.set(e.targetUid, (hits.get(e.targetUid) ?? 0) + 1);
     const recipients = targets.map((uid) => ({ uid, count: hits.get(uid) ?? 1 }));
     const ctx = {
       cardIdOf: (uid: string) => runRef.current.board.find((c) => c.uid === uid)?.cardId ?? null,

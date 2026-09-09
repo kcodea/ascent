@@ -83,6 +83,8 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:battlecryBuffAdjacent:onPlay': { policy: 'ownBeat', family: 'shout' },
   'factory:battlecryGetHandSpell:onPlay': { policy: 'ownBeat', family: 'shout' },
   'factory:clueBuffTarget:cast': { policy: 'ownBeat', family: 'spellCast' },
+  'factory:rallySummonAndGetRally:onAttack': { policy: 'ownBeat', family: 'rally' },
+  'factory:startOfTurnEquipmentCharge:startOfTurn': { policy: 'passive', family: 'economy' },
   'factory:battlecrySummon:onPlay': { policy: 'ownBeat', family: 'shout' },
   'factory:battlecryTargetConsumesShop:onPlay': { policy: 'ownBeat', family: 'shout' },
   'factory:battlecryTriggeredOwnDeathrattle:battlecryTriggered': { policy: 'foldedCue', family: 'shoutReact' },

@@ -56,6 +56,21 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-09',
+    label: 'Set 3 Neutrals III',
+    changes: [
+      {
+        category: 'New Card',
+        text: 'The last three Set 3 Neutrals: Highway Hustler, Warband Recruiter and Equipment Charger. The Neutral roster is complete.',
+        details: [
+          'Highway Hustler (Tier 2, 2/3): Equip Whiplass-o (2) — steal the highest-Tier minion in the Shop. A gilded Hustler steals two.',
+          'Warband Recruiter (Tier 4, 4/5): Rally — summon a random Rally minion and get a copy of it. Works in combat and when a Rally is triggered in the shop.',
+          'Equipment Charger (Tier 4, 6/2): Start of Turn — gain an Equipment charge for the turn. Golden gives two.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-09',
     label: 'Set 3 Neutrals II',
     changes: [
       {

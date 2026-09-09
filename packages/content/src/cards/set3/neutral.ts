@@ -57,6 +57,54 @@ export const SET3_NEUTRAL: readonly CardDef[] = [
     goldenText: '**Equip Magnifying Glass (1):** get **4 Clues**.',
   },
   {
+    // Equip minion: Whiplass-o (2 Gold) steals the highest-TIER minion in the Shop into your hand (owner
+    // 2026-09-09: highest tier, not highest Attack; a gilded Hustler steals two). The theft is the existing
+    // `stealTavernMinion` primitive with a `pick` rule, so a stolen card carries exactly what a bought one does.
+    id: 'n3_hustler',
+    name: 'Highway Hustler',
+    tribe: 'neutral',
+    tier: 2,
+    attack: 2,
+    health: 3,
+    keywords: [],
+    effects: [{ on: 'equip', do: 'grantEquipment', params: { equipmentId: 'whiplasso' } }],
+    text: '**Equip Whiplass-o (2):** steal the highest-Tier minion in the Shop.',
+    goldenText: '**Equip Whiplass-o (2):** steal the **2** highest-Tier minions in the Shop.',
+  },
+  {
+    // Rally: SUMMON a random Rally minion beside this AND GET a copy in hand (owner 2026-09-09: "yes and yes").
+    // Both phases: in combat the summon fights now and the copy carries back to hand at settle; in the shop
+    // (a triggered Rally) the summon lands on the board and the copy goes to hand. Golden: twice. The pool is
+    // the run's set's Rally minions, never the Recruiter itself — a chain of Recruiters summoning Recruiters
+    // is bounded by the board, but it reads as a loop and adds nothing.
+    id: 'n3_recruiter',
+    name: 'Warband Recruiter',
+    tribe: 'neutral',
+    tier: 4,
+    attack: 4,
+    health: 5,
+    keywords: ['RL'],
+    effects: [{ on: 'onAttack', do: 'rallySummonAndGetRally', params: {} }],
+    text: '**Rally:** summon and get a random **Rally** minion.',
+    goldenText: '**Rally:** summon and get **2** random **Rally** minions.',
+  },
+  {
+    // Start of Turn (fires as the shop reopens, right after the Equipment allowance is rebuilt): one extra
+    // Equipment activation this turn. The bonus lives in `equipment.bonusActivations`, which the turn rebuild
+    // zeroes — so it is a per-turn grant, never banked. Golden: two. Renamed from "Equipment Inspector" on the
+    // owner's sheet (2026-09-09: "rename Equipment Inspector -> Equipment Charger").
+    id: 'n3_charger',
+    name: 'Equipment Charger',
+    tribe: 'neutral',
+    tier: 4,
+    attack: 6,
+    health: 2,
+    keywords: [],
+    effects: [{ on: 'startOfTurn', do: 'startOfTurnEquipmentCharge', params: { count: 1 } }],
+    text: '**Start of Turn:** gain an **Equipment charge**.',
+    goldenText: '**Start of Turn:** gain **2 Equipment charges**.',
+  },
+  {
     // A Choose One between one big body and two medium ones. Option 1 TARGETS (a per-option `target`, the
     // Godfodder shape) and rides the shared targeted-Shout body; option 2 is a new Shout-family arena effect
     // (`battlecryBuffAdjacent`) so a combat re-fire (Ryme, Myra) buffs its neighbours there too. Golden doubles.

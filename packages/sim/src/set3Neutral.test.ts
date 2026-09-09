@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { combatSide, makeRng, simulate, type BoardMinion } from '@game/core';
 import { ARCHIVED_CARDS, CARD_INDEX, poolFor } from '@game/content';
 import { createRun, reduce, type Action, type BoardCard, type RunState } from './index';
-import { rubyCastCount, spellCasts, spellDisplayText } from './recruit';
+import { rubyCastCount, spellCasts, spellDisplayText, isRallyDef } from './recruit';
+import { equipmentUsesLeft } from './equipment';
 
 /**
  * SET 3 — NEUTRALS, tranche 1 (owner roster 2026-09-09). The carried-over roster is pinned by
@@ -25,6 +26,9 @@ const hand = (uid: string, cardId: string, golden = false): BoardCard => {
   const d = CARD_INDEX[cardId]!;
   return { uid, cardId, tribe: d.tribe, attack: d.attack, health: d.health, keywords: [...d.keywords], golden };
 };
+const foe = (attack: number, health: number): BoardMinion => ({ cardId: 'sandbag', attack, health, keywords: [] } as unknown as BoardMinion);
+const fightWithHand = (mine: BoardMinion[], foes: BoardMinion[]) =>
+  simulate(mine, foes, makeRng(11), CARD_INDEX, combatSide({ tier: 6, poolIds: poolFor('set3').all.map((c) => c.id) }), combatSide({ tier: 6 }));
 const bm = (cardId: string, over: Partial<BoardMinion> = {}): BoardMinion => {
   const d = CARD_INDEX[cardId]!;
   return { cardId, attack: d.attack, health: d.health, keywords: [...d.keywords], ...over } as unknown as BoardMinion;
@@ -195,5 +199,64 @@ describe('Clue — improves itself', () => {
     g = reduce(g, { type: 'play', uid: 'p', toIndex: 0 } as Action);
     g = reduce(g, { type: 'activateEquipment' } as Action);
     expect(g.hand.filter((c) => c.cardId === 'clue')).toHaveLength(4);
+  });
+});
+
+/* ── tranche 3: Highway Hustler + Whiplass-o, Warband Recruiter, Equipment Charger ──────────────────────── */
+
+describe('Whiplass-o — steal the highest-Tier Shop minion', () => {
+  const shop = (ids: string[]) => ids.map((cardId, i) => ({ uid: `o${i}`, cardId, cost: 3 }));
+  it('takes the top-Tier offer (left-most on a tie) into hand; a gilded Hustler takes two', () => {
+    let s = run({ hand: [hand('h', 'n3_hustler')], embers: 10, shop: shop(['venom', 'jenkins', 'blaster', 'wayfinder']) as never });
+    s = reduce(s, { type: 'play', uid: 'h', toIndex: 0 } as Action);
+    expect(s.equipment?.available.some((g) => g.equipmentId === 'whiplasso')).toBe(true);
+    s = reduce(s, { type: 'activateEquipment' } as Action);
+    expect(s.hand.map((c) => c.cardId)).toEqual(['jenkins']); // T5 beats T4/T4/T3
+    expect(s.shop.map((o) => o.cardId)).toEqual(['venom', 'blaster', 'wayfinder']);
+
+    let g = run({ hand: [hand('h', 'n3_hustler', true)], embers: 10, shop: shop(['venom', 'blaster', 'wayfinder', 'jenkins']) as never });
+    g = reduce(g, { type: 'play', uid: 'h', toIndex: 0 } as Action);
+    g = reduce(g, { type: 'activateEquipment' } as Action);
+    // (a golden card in hand also carries the gilding's Discover token — not part of the theft)
+    expect(g.hand.map((c) => c.cardId).filter((id) => id !== 'discoverspell')).toEqual(['jenkins', 'blaster']); // T5, then the left-most T4
+    expect(g.shop.map((o) => o.cardId)).toEqual(['venom', 'wayfinder']);
+  });
+});
+
+describe('Warband Recruiter — Rally: summon and get a random Rally minion', () => {
+  it('in combat: a Rally minion is summoned beside it and a copy is granted to hand', () => {
+    const r = fightWithHand([bm('n3_recruiter')], [foe(1, 30), foe(1, 30), foe(1, 30)]);
+    const summoned = r.events.filter((e) => e.type === 'summon' && (e as { side?: string }).side === 'player');
+    expect(summoned.length).toBeGreaterThan(0);
+    const summonedIds = summoned.map((e) => (e as { minion: { cardId: string } }).minion.cardId);
+    for (const id of summonedIds) expect(isRallyDef(CARD_INDEX[id]!), `${id} is a Rally minion`).toBe(true);
+    expect(summonedIds).not.toContain('n3_recruiter');
+    const granted = r.events.filter((e) => e.type === 'toHand');
+    expect(granted.length).toBeGreaterThan(0);
+  });
+
+  it('the pool rule: drawable, keyword RL, an onAttack effect; the Recruiter is one itself', () => {
+    expect(isRallyDef(CARD_INDEX['n3_recruiter']!)).toBe(true);
+    expect(isRallyDef(CARD_INDEX['tauntbreaker']!)).toBe(true);
+    expect(isRallyDef(CARD_INDEX['venom']!)).toBe(false);
+    expect(poolFor('set3').buyable.filter(isRallyDef).length).toBeGreaterThan(1);
+  });
+});
+
+describe('Equipment Charger — Start of Turn: an extra Equipment charge', () => {
+  it('the turn after it is on board, the allowance is one higher (golden: two); the bonus never banks', () => {
+    const turn = (s: RunState): RunState => {
+      for (const a of [{ type: 'faceOmen' }, { type: 'settleCombat' }, { type: 'resolveCombat' }] as Action[]) s = reduce(s, a);
+      return s;
+    };
+    const base = run({ board: [body('c', 'n3_charger'), body('f', 'e3_frank')] });
+    const plainBefore = equipmentUsesLeft(turn(run({ board: [body('f', 'e3_frank')] })));
+    let s = turn(base);
+    expect(s.phase).toBe('recruit');
+    expect(equipmentUsesLeft(s)).toBe(plainBefore + 1);
+    s = turn(s); // a second turn: still +1, not +2 — the bonus is rebuilt each turn
+    expect(equipmentUsesLeft(s)).toBe(plainBefore + 1);
+    const g = turn(run({ board: [body('c', 'n3_charger', { golden: true }), body('f', 'e3_frank')] }));
+    expect(equipmentUsesLeft(g)).toBe(plainBefore + 2);
   });
 });

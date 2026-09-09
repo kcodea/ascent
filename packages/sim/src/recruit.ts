@@ -2740,6 +2740,33 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     if (payload.minion !== self) return;
     ARENA_EFFECTS.rallySummonImpBuffImps(shopArena(ctx.state, self), params);
   },
+  /** Set 3 — Warband Recruiter (Rally, SHOP twin of the combat factory): summon a random Rally minion of the
+   *  run's set beside this AND get a copy in hand (hand full → the copy lands on the board instead, the shared
+   *  `grantMinionToHandOrBoard` rule). × golden. Never itself. The summon is a fresh body (no pool copy taken);
+   *  the hand copy claims one, as a granted card does. */
+  rallySummonAndGetRally: (ctx, self, params, payload) => {
+    void params;
+    if (payload.minion !== self) return;
+    const state = ctx.state;
+    const pool = poolOf(state).buyable.filter((c) => isRallyDef(c) && c.id !== self.cardId);
+    if (pool.length === 0) return;
+    for (let n = 0; n < gold(self); n++) {
+      const rng = makeRng(state.rngCursor);
+      const pick = pool[rng.int(pool.length)]!;
+      state.rngCursor = rng.state();
+      if (state.board.length < CONFIG.boardMax) {
+        const at = state.board.indexOf(self);
+        const cb = cardBuff(state, pick.id);
+        const body: BoardCard = {
+          uid: `b${state.uidSeq++}`, cardId: pick.id, tribe: pick.tribe,
+          attack: pick.attack + cb.attack, health: pick.health + cb.health, keywords: [...pick.keywords], golden: false,
+        };
+        state.board.splice(at < 0 ? state.board.length : at + 1, 0, body);
+        fireSummonBuffs(state, body);
+      }
+      grantMinionToHandOrBoard(state, pick, false);
+    }
+  },
   rallySpreadTribeBuff: (ctx, self, params, payload) => {
     if (payload.minion !== self) return;
     ARENA_EFFECTS.rallySpreadTribeBuff(shopArena(ctx.state, self), params);
@@ -3171,6 +3198,15 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  the cadence minters use; a Shout-shaped wrapper so the option can sit in `chooseOne[].effects`. */
   battlecryGetRubies: (ctx, self, params) => {
     mintRubies(ctx.state, num(params.count, 1) * gold(self));
+  },
+
+  /** Set 3 — Equipment Charger (Start of Turn): `count` extra Equipment activations THIS turn (× golden). The
+   *  turn's allowance was just rebuilt (`rebuildEquipment` runs before `applyStartOfTurn`), so the bonus sits on
+   *  top of the base and is zeroed again at the next rebuild — a per-turn grant, never banked. */
+  startOfTurnEquipmentCharge: (ctx, self, params) => {
+    const eq = ctx.state.equipment;
+    if (!eq) return;
+    eq.bonusActivations += num(params.count, 1) * gold(self);
   },
 
   /** Set 3 — Defender (Shout) / Magnifying Glass (Equip): mint `count` copies of the named hand spell (Tower
@@ -6703,27 +6739,40 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   /** Lasso — cast: steal a random MINION offer from the tavern into the hand (free). Picks via the
    *  seeded rng, removes it from the shop, and adds it as a BoardCard (base + any offer buff bakes in,
    *  mirroring a buy). Fizzles gracefully on an empty shop or a full hand. */
-  stealTavernMinion: (ctx, _self) => {
+  stealTavernMinion: (ctx, _self, params) => {
     const state = ctx.state;
-    if (state.shop.length === 0 || state.hand.length >= handCap(state)) return;
-    const rng = makeRng(state.rngCursor);
-    const idx = rng.int(state.shop.length);
-    state.rngCursor = rng.state();
-    const offer = state.shop[idx]!;
-    const card = CARD_INDEX[offer.cardId];
-    if (!card) return;
-    state.shop.splice(idx, 1); // stolen — leaves the tavern (the pooled copy travels with it to the hand)
-    const cb = cardBuff(state, card.id); // a stolen Fodder carries Ritualist's run buff, like a buy
-    state.hand.push({
-      uid: `b${state.uidSeq++}`,
-      cardId: card.id,
-      tribe: card.tribe,
-      // Stolen like a buy → also carries the run-wide Undead Attack bonus (undeadBuyAtk).
-      attack: card.attack + cb.attack + (offer.atk ?? 0) + undeadBuyBonus(state, card),
-      health: card.health + cb.health + (offer.hp ?? 0) + buyHealthAura(state, card),
-      keywords: [...card.keywords, ...(offer.keywords ?? []).filter((k) => !card.keywords.includes(k))],
-      golden: false,
-    });
+    // `pick: 'highestTier'` (Whiplass-o, 2026-09-09): the top-Tier offer, left-most on a tie — deterministic, no
+    // RNG spent. The default (Deep Delve Writ) stays a random offer. `count` repeats the theft (a gilded Hustler).
+    const highest = str(params.pick) === 'highestTier';
+    for (let n = 0; n < Math.max(1, num(params.count, 1)); n++) {
+      if (state.shop.length === 0 || state.hand.length >= handCap(state)) return;
+      let idx: number;
+      if (highest) {
+        idx = 0;
+        for (let i = 1; i < state.shop.length; i++) {
+          if ((CARD_INDEX[state.shop[i]!.cardId]?.tier ?? 0) > (CARD_INDEX[state.shop[idx]!.cardId]?.tier ?? 0)) idx = i;
+        }
+      } else {
+        const rng = makeRng(state.rngCursor);
+        idx = rng.int(state.shop.length);
+        state.rngCursor = rng.state();
+      }
+      const offer = state.shop[idx]!;
+      const card = CARD_INDEX[offer.cardId];
+      if (!card) return;
+      state.shop.splice(idx, 1); // stolen — leaves the tavern (the pooled copy travels with it to the hand)
+      const cb = cardBuff(state, card.id); // a stolen Fodder carries Ritualist's run buff, like a buy
+      state.hand.push({
+        uid: `b${state.uidSeq++}`,
+        cardId: card.id,
+        tribe: card.tribe,
+        // Stolen like a buy → also carries the run-wide Undead Attack bonus (undeadBuyAtk).
+        attack: card.attack + cb.attack + (offer.atk ?? 0) + undeadBuyBonus(state, card),
+        health: card.health + cb.health + (offer.hp ?? 0) + buyHealthAura(state, card),
+        keywords: [...card.keywords, ...(offer.keywords ?? []).filter((k) => !card.keywords.includes(k))],
+        golden: false,
+      });
+    }
   },
 
   /** Staff of Guel — cast: a PERMANENT run-wide buff to every minion bought from the tavern from now
@@ -10559,6 +10608,11 @@ export function runeLastingCadenceBeats(state: RunState): BoardCard[] {
  * deliberately simple (no Chronos/beat repeats) — the one card that uses it wants a single per-turn tick, and
  * the simpler Start-of-Turn rune handlers next to it dispatch the same way.
  */
+/** A drawable minion with a Rally — the pool Warband Recruiter summons from, in both phases. */
+export function isRallyDef(c: CardDef): boolean {
+  return !c.spell && !c.token && c.keywords.includes('RL') && (c.effects ?? []).some((e) => e.on === 'onAttack');
+}
+
 export function applyStartOfTurn(state: RunState): void {
   const ctx = makeContext(state);
   for (const card of [...state.board]) {

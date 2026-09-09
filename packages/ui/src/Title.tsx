@@ -244,7 +244,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
           {import.meta.env.DEV && (
             <>
               <span className="tsdot">·</span>
-              <button onClick={() => { sfx.pulse(); startSceneBuilder(); }} data-tip="Scene Builder — dev sandbox: any board, any enemy, unlimited gold">Scene Builder</button>
+              <button onClick={() => { sfx.pulse(); startSceneBuilder(); }} data-tip="Scene Builder — dev sandbox: a lobby game against bots where you can't be eliminated; any board, any enemy, god or normal rules">Scene Builder</button>
             </>
           )}
         </div>

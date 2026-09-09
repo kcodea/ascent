@@ -3440,7 +3440,12 @@ function reduceCore(state: RunState, action: Action): RunState {
       try {
         // LOBBY MODE: the opponent is the seat the lobby paired you with, not a pool pick. Everything
         // downstream — carry-backs, settlement, the replay — is unchanged; only the board differs.
-        const lobbyFoe = s.lobby ? lobbyOpponentBoard(s.lobby) : null;
+        // SCENE BUILDER (a lobby run since 2026-09-09): a board the RIG authored for this wave — marked by
+        // `sandboxFoeWave`, never by the pin's mere presence, which the turn boundary also stamps — is served
+        // instead of the seat, so "Next enemy: 7 glass dummies" still means exactly that. The lobby round then
+        // settles from that fight as if the paired seat had brought it, which is what keeps the table moving.
+        const rigPinned = s.sandbox === true && s.sandboxFoeWave === s.wave && pinned && served !== null;
+        const lobbyFoe = s.lobby && !rigPinned ? lobbyOpponentBoard(s.lobby) : null;
         const e = lobbyFoe
           ? { enemy: lobbyFoe.minions, tier: lobbyFoe.tier }
           : served ? { enemy: opponentBoard(served), tier: served.tier ?? s.tier } : proceduralEnemy();
@@ -4434,13 +4439,16 @@ function advanceCombat(s: RunState): void {
     s.phase = 'gameover';
     if (s.lobby) s.lobby.seats[0]!.placement = practicePlayerPlacement(s.lobby);
   };
-  if (practiceInvulnerable && s.wave >= CONFIG.courseRounds) {
+  // The SCENE BUILDER sandbox is an invulnerable practice-bots lobby (2026-09-09) with NO curtain: a dev rig
+  // has no run length — it ends only when its lobby does (every bot dead, or the stalemate backstop).
+  const curtained = practiceInvulnerable && s.sandbox !== true;
+  if (curtained && s.wave >= CONFIG.courseRounds) {
     endPractice();
     return;
   }
   // PRACTICE-lobby curtain: the player can't die (invulnerable), so the run ends after round 15 unless the
   // lobby already finished (every bot dead = the practice "win", handled by the lobby check below).
-  if (practiceInvulnerable && s.lobby && !s.lobby.finished && s.wave >= 15) {
+  if (curtained && s.lobby && !s.lobby.finished && s.wave >= 15) {
     endPractice();
     return;
   }

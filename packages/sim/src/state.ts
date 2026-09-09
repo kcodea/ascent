@@ -549,6 +549,13 @@ export interface RunState {
    *  launched as its own thing from the title, and mounts the Scene Builder control panel. Additive flag so
    *  it needs no new RunMode + no mode-switch audit. Absent = a normal run. */
   sandbox?: boolean;
+  /** Scene Builder sandbox (dev): the wave whose `servedBoards` entry the RIG authored (the "Next enemy"
+   *  dummies, "+ add enemy", or a click-to-edit of the foe row). A sandbox is a LOBBY run since 2026-09-09, and
+   *  a lobby fight normally serves the paired seat's board, not the `servedBoards` pin — the pin is also
+   *  stamped by the reducer's turn-boundary pool pick, so its mere presence cannot mean "the rig wants this".
+   *  This marker is what tells `faceOmen` to serve the pin instead of the seat, for THIS wave only. Absent or
+   *  stale (an earlier wave) = fight the lobby foe as normal. Plain data, so it survives export/import. */
+  sandboxFoeWave?: number;
   /** Practice options (owner ask 2026-08-24): the knobs chosen on the Practice setup screen, pinned onto the
    *  run at creation. Absent on every non-practice run (and on a default-options practice run). Read by the
    *  lobby (bot vs recorded opponents), the reducer (health → invulnerability + curtain), and the shop (tribe

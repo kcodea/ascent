@@ -173,3 +173,46 @@ describe('the staged opponent board', () => {
     expect(toggleEnemyKeyword(on, 0, 'DS').minions[0].keywords).toEqual([]);
   });
 });
+
+/* ── the board the fight will serve (the sandbox is a lobby game, 2026-09-09) ─────────────────────────── */
+import { createLobbyRun, playerOpponent } from '@game/sim';
+import { foeSnapshotOf } from './sandboxEdit';
+
+describe('foeSnapshotOf — what the row shows and the fight serves', () => {
+  const lobbyRun = () => ({
+    ...createLobbyRun(7, 'warden', {}, 'practice', { opponents: 'bots', botDifficulty: 5, health: 'unlimited', timeMult: 1, tribeSurge: null }),
+    sandbox: true,
+  });
+
+  it('an un-authored lobby wave shows the paired seat, staged at ITS tier (a bot seat has no snapshot)', () => {
+    const run = lobbyRun();
+    const seat = playerOpponent(run.lobby!)!;
+    const snap = foeSnapshotOf(run)!;
+    expect(snap.minions.map((m) => m.cardId)).toEqual(seat.board.minions.map((m) => m.cardId));
+    expect(snap.tier).toBe(seat.board.tier);
+    expect(snap.wave).toBe(run.wave);
+  });
+
+  it('the turn boundary\'s pool pick does NOT replace the seat — only an authored pin does', () => {
+    const run = lobbyRun();
+    const pin = { ...foeSnapshotOf(run)!, minions: [{ cardId: 'sandbag', attack: 0, health: 1, keywords: [] }] };
+    const withPoolPick = { ...run, servedBoards: { [run.wave]: pin } };
+    expect(foeSnapshotOf(withPoolPick)!.minions[0]!.cardId).not.toBe('sandbag');
+    const authored = { ...withPoolPick, sandboxFoeWave: run.wave };
+    expect(foeSnapshotOf(authored)!.minions[0]!.cardId).toBe('sandbag');
+  });
+
+  it('a stale marker (earlier wave) falls back to the seat', () => {
+    const run = lobbyRun();
+    const pin = { ...foeSnapshotOf(run)!, minions: [{ cardId: 'sandbag', attack: 0, health: 1, keywords: [] }] };
+    const stale = { ...run, wave: 4, servedBoards: { 4: pin }, sandboxFoeWave: 1 };
+    expect(foeSnapshotOf(stale)!.minions[0]!.cardId).not.toBe('sandbag');
+  });
+
+  it('without a lobby (a loaded non-lobby scenario) it is simply the pin, or null', () => {
+    const none = { wave: 1, servedBoards: {} };
+    expect(foeSnapshotOf(none)).toBeNull();
+    const pin = { ...stagedBoard(1, [{ cardId: 'sandbag', attack: 0, health: 1, keywords: [] }]) };
+    expect(foeSnapshotOf({ wave: 1, servedBoards: { 1: pin } })).toBe(pin);
+  });
+});

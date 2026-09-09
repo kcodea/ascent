@@ -737,13 +737,15 @@ export function lobbyOpponentBoard(
  */
 export function createLobbyRun(
   seed: number, heroId: string, rules: Partial<LobbyRules> = {}, mode: 'lobby' | 'practice' = 'lobby',
-  practiceConfig?: PracticeConfig,
+  practiceConfig?: PracticeConfig, setId?: SetId,
 ): RunState {
   // PRACTICE is a lobby too since 2026-07-31 — same 8 seats, same recorded opponents (reads the shared pool;
   // writes nothing back), same flow. Its extra rules (invulnerability, the round-15 curtain, the shop-timer
   // multiplier) all key off `mode === 'practice'` downstream. Practice OPTIONS (2026-08-24) refine that: bot
   // opponents replace recorded ones, and `health: 'normal'` turns off the invulnerability + curtain.
-  const run = createRun(seed, heroId, mode);
+  // `setId` (optional) pins the run to a specific card set — the Scene Builder plays an unreleased set this
+  // way. Omitted = the live set, exactly as `createRun` defaults it.
+  const run = setId === undefined ? createRun(seed, heroId, mode) : createRun(seed, heroId, mode, undefined, setId);
   // The run pins its set at creation; the lobby seats from the SAME set, so a set-2 run never faces a seat
   // driven by a set-1 recording (whose bodies are cards this run cannot otherwise see).
   // BOTS opponents: seat seven authored, scaling omen boards instead of recorded player runs.

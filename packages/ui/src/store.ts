@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { loadFpsCap, saveFpsCap } from './fpsCap';
 import { CARD_INDEX, activeSet, type SetId } from '@game/content';
-import { CONFIG, HEROES, playableHeroes, practiceHeroes, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, resolveServerProfile, isPlayerAction, missingCardIds, nextOpponent, parseQaScenario, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, withLiveTelemetry, type TelemetryLog, beginDerive, observeAction, finishDerive, type DeriveState, reduce, reduceWithPresentation, resolveLobbyRating, serialize, snapshotBoard, socBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, combatFrameOf, deltaShopFrameOf, shopFrameOf, runRecord, type DragPath, type ReplayFrame, type ReplayV2, type ShopView, appendInspectEvent, type InspectEvent, type InspectSnapshot, createLobbyRun, createTutorialRun, type TutorialCourse, type PracticeConfig, DEFAULT_PRACTICE_CONFIG, normalizeBotDifficulty, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction } from '@game/sim';
+import { HEROES, playableHeroes, practiceHeroes, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, resolveServerProfile, isPlayerAction, missingCardIds, nextOpponent, parseQaScenario, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, withLiveTelemetry, type TelemetryLog, beginDerive, observeAction, finishDerive, type DeriveState, reduce, reduceWithPresentation, resolveLobbyRating, serialize, snapshotBoard, socBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, combatFrameOf, deltaShopFrameOf, shopFrameOf, runRecord, type DragPath, type ReplayFrame, type ReplayV2, type ShopView, appendInspectEvent, type InspectEvent, type InspectSnapshot, createLobbyRun, createTutorialRun, type TutorialCourse, type PracticeConfig, type BotLevel, DEFAULT_PRACTICE_CONFIG, normalizeBotDifficulty, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction } from '@game/sim';
 import type { PresentationBatch } from '@game/core';
 import { combatTimelineFrom } from './choreographer/combatTimeline';
 import type { RuneLockInCard } from './RuneLockIn';
@@ -541,10 +541,20 @@ interface GameStore {
    *  (the course forces its own hero, Aster) and builds an authored `tutorial`-mode lobby run directly, exactly
    *  like the Scene Builder skips the picker. The coaching layer keys off `run.mode === 'tutorial'`. */
   startTutorial: (course: TutorialCourse) => void;
-  /** Launch the Scene Builder sandbox (dev) — a fresh run flagged `sandbox`, bypassing the hero picker, with
-   *  a big Gold float. Its own entry from the title, not a mode in the picker. Optionally pick the hero (the
-   *  panel's hero dropdown re-launches to swap, so the hero's createRun setup runs). */
-  startSceneBuilder: (heroId?: string, setId?: SetId) => void;
+  /** Launch the Scene Builder sandbox (dev) — a fresh PRACTICE-BOTS LOBBY run flagged `sandbox` (2026-09-09;
+   *  it was a course-mode practice run before), bypassing the hero picker. Its own entry from the title, not a
+   *  mode in the picker. Optionally pick the hero / set / bot level (the panel's dropdowns re-launch to swap,
+   *  so the hero's createRun setup runs and the lobby is rebuilt). The player's seat is invulnerable whatever
+   *  `sbRules` says; the rules only decide the clock and the Gold. */
+  startSceneBuilder: (heroId?: string, setId?: SetId, botLevel?: BotLevel) => void;
+  /** SANDBOX ONLY (dev). `god` = infinite time + Gold (the rig's classic feel); `normal` = the real shop
+   *  clock and the real per-turn Gold, with every authoring tool still live. Persisted, so the rig reopens the
+   *  way you left it. Read by Recruit (the clock) and the Scene Builder panel (the Gold refill). */
+  sbRules: SandboxRules;
+  setSbRules: (rules: SandboxRules) => void;
+  /** SANDBOX ONLY (dev). The bot strength the sandbox lobby is built with (1–10). Persisted; a change
+   *  re-launches the rig, since the seats are built at creation. */
+  sbBotLevel: BotLevel;
   /** SANDBOX ONLY (dev). Click-to-edit is armed: a click on a board minion opens the unit editor instead of
    *  starting a drag / a buy. A MODE rather than a modifier because a bare click already means something on
    *  both rows, and the rig has to leave normal play intact — the shop phase is where some of the
@@ -705,6 +715,18 @@ export const displayHandle = (author: string | null | undefined, discriminator: 
 /** Persisted PRACTICE shop-timer multiplier (1–4×), defaulting to 3 — the fixed multiplier practice used before
  *  it was made choosable (owner 2026-07-25), so an existing player's practice runs feel unchanged. 1× is exactly
  *  the scored mode's clock. Best-effort, like the combat speed. */
+/** SANDBOX (dev) rules — see `sbRules` on the store. `god` is the rig's classic feel (infinite time + Gold);
+ *  `normal` runs the real shop clock and the real per-turn Gold. The player is invulnerable under both. */
+export type SandboxRules = 'god' | 'normal';
+const SB_RULES_KEY = 'ascent.sb.rules';
+const SB_BOT_KEY = 'ascent.sb.botlevel';
+function loadSbRules(): SandboxRules {
+  try { return localStorage.getItem(SB_RULES_KEY) === 'normal' ? 'normal' : 'god'; } catch { return 'god'; }
+}
+function loadSbBotLevel(): BotLevel {
+  try { return normalizeBotDifficulty(localStorage.getItem(SB_BOT_KEY) ?? 5); } catch { return 5; }
+}
+
 function loadPracticeTimer(): number {
   try {
     const v = Number(localStorage.getItem('ascent.practicetimer'));
@@ -1816,18 +1838,40 @@ export const useGame = create<GameStore>((set, get) => ({
       return { run, savedRun: run, lastRunBoards: 0, presentationTx: null, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, showTitle: false, avatarPickerOpen: false, replayActions: [], capturedBoards: [], replayFrames: beginReplayCapture(run), replayPartial: false };
     });
   },
-  startSceneBuilder: (heroId = 'warden', setId = activeSet().id) => {
+  startSceneBuilder: (heroId = 'warden', setId = activeSet().id, botLevel) => {
     dropBoardFx();
-    set(() => {
-      // Sandbox runs on `practice` mechanics (unscored, generous timer) but is flagged `sandbox` and skips the
-      // hero picker — it's a testing rig, not a scored climb. Re-creating the run per hero runs that hero's
-      // own createRun setup (Chaos / Disco Dan / Brackus openers). 999 Gold to start.
-      // `setId` lets the rig play an UNRELEASED set (set 2 in development) without flipping the global switch
-      // and moving real players onto it — the run pins it like any other, so nothing leaks into set 1.
-      const run: RunState = { ...createRun(randomSeed(), heroId, 'practice', CONFIG.defaultLine, setId), sandbox: true, embers: 999, tier: 1 };
-      return { run, savedRun: null, lastRunBoards: 0, presentationTx: null, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, showTitle: false, avatarPickerOpen: false, replayActions: [], capturedBoards: [], replayFrames: beginReplayCapture(run), replayPartial: false, sandboxReplay: false };
+    set((s) => {
+      // The sandbox is a LOBBY GAME AGAINST BOTS (owner ask 2026-09-09) — the same eight seats, pairing,
+      // rail and elimination a real game has, so what you build is tested against the flow players meet.
+      // It rides the practice-bots lobby with `health: 'unlimited'`: the player's seat is INVULNERABLE
+      // regardless of the rules toggle (the reducer restores it every round), and `sandbox` exempts the run
+      // from practice's round-15/17 curtains, so it ends only when the lobby does. It skips the hero picker —
+      // it's a testing rig, not a scored climb. Re-creating the run per hero runs that hero's own createRun
+      // setup (Chaos / Disco Dan / Brackus openers) and rebuilds the seats.
+      // `setId` lets the rig play an UNRELEASED set without flipping the global switch and moving real
+      // players onto it — the run pins it like any other, so nothing leaks into the live set.
+      // GOD rules start on 999 Gold (the panel keeps it topped up); NORMAL rules start on the real opening Gold.
+      const level = botLevel ?? s.sbBotLevel;
+      const config: PracticeConfig = { opponents: 'bots', botDifficulty: level, health: 'unlimited', timeMult: 1, tribeSurge: null };
+      const base = createLobbyRun(randomSeed(), heroId, {}, 'practice', config, setId);
+      const run: RunState = { ...base, sandbox: true, tier: 1, ...(s.sbRules === 'god' ? { embers: 999 } : {}) };
+      warmLobbyDrivers(run); // build the bot seats while the shop opens, not on the first End Turn
+      if (level !== s.sbBotLevel) try { localStorage.setItem(SB_BOT_KEY, String(level)); } catch { /* ignore */ }
+      return { run, sbBotLevel: level, savedRun: null, lastRunBoards: 0, presentationTx: null, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, showTitle: false, avatarPickerOpen: false, replayActions: [], capturedBoards: [], replayFrames: beginReplayCapture(run), replayPartial: false, sandboxReplay: false };
     });
   },
+  sbRules: loadSbRules(),
+  setSbRules: (rules) => set((s) => {
+    try { localStorage.setItem(SB_RULES_KEY, rules); } catch { /* ignore */ }
+    if (rules === s.sbRules) return { sbRules: rules };
+    // Flipping mid-run moves the Gold to where the new rules would have it: god tops up to the float, normal
+    // clamps back to this turn's real budget (the reducer's turn-start value, `maxEmbers`). The clock follows
+    // on its own — Recruit derives it from `sbRules`. Nothing else about the run changes.
+    if (!s.run.sandbox) return { sbRules: rules };
+    const embers = rules === 'god' ? 999 : Math.min(s.run.embers, s.run.maxEmbers + (s.run.maxGoldBonus ?? 0));
+    return { sbRules: rules, run: { ...s.run, embers } };
+  }),
+  sbBotLevel: loadSbBotLevel(),
   sbEditMode: false,
   setSbEditMode: (on) => set({ sbEditMode: on }),
   sbTavernShowsEnemy: false,

@@ -1,5 +1,5 @@
 import type { BoardMinion, CardDef, Keyword } from '@game/core';
-import type { BoardCard, BoardSnapshot } from '@game/sim';
+import { playerOpponent, type BoardCard, type BoardSnapshot, type RunState } from '@game/sim';
 
 /**
  * The Scene Builder's board edits, as PURE data transforms — the rules half of the sandbox editor.
@@ -121,7 +121,7 @@ const powerOf = (minions: BoardMinion[]): number =>
  * selected through `pickOpponent`, so `origin` / `threat` / `seed` / `remote` are all inert; `resolve` is
  * display-only; and `tier` is NOT inert — it feeds loss damage (`enemyState.tier` in `simulate`).
  */
-export function stagedBoard(wave: number, minions: BoardMinion[]): BoardSnapshot {
+export function stagedBoard(wave: number, minions: BoardMinion[], tier = 7): BoardSnapshot {
   // The stats are passed through `applyStats` EXPLICITLY (not as an empty patch, which copies untouched) so
   // this entry point honours the same floors as every other one — the file's "health floors at 1" invariant
   // has to be true of the board that actually gets pinned, whoever staged the minions.
@@ -133,7 +133,7 @@ export function stagedBoard(wave: number, minions: BoardMinion[]): BoardSnapshot
     wave,
     heroId: 'warden', // no served-board hero-power branch — see procStage.ts
     resolve: 30,      // display-only
-    tier: 7,          // NOT inert: feeds loss damage
+    tier,             // NOT inert: feeds loss damage — 7 for a rig dummy; a staged seat keeps its own
     triples: 0,
     tribes: [],
     threat: 'glass',
@@ -196,4 +196,24 @@ export function removeEnemy(snap: BoardSnapshot, index: number): BoardSnapshot {
   if (index < 0 || index >= snap.minions.length || snap.minions.length <= 1) return snap;
   const minions = snap.minions.filter((_, i) => i !== index);
   return { ...snap, minions, power: powerOf(minions) };
+}
+
+/**
+ * The opponent board the coming fight will SERVE, as the rig should show and edit it (2026-09-09, the sandbox
+ * became a lobby game): the rig's own pin once it has authored this wave (`sandboxFoeWave`), else the paired
+ * seat's board, else — no lobby (a loaded non-lobby scenario) — whatever pin the run carries. Null when there
+ * is nothing to show.
+ *
+ * A bot seat's prepared board carries bodies + tier but no `BoardSnapshot` (authored boards never came from
+ * one), so the seat's board is STAGED into one at its own tier — `tier` feeds loss damage, so a level-5 bot's
+ * tier-2 round-1 board must not be pinned as a tier-7 wall the moment you edit it. Marked `origin: 'self'`
+ * like every rig board; the metadata audit in `stagedBoard` applies. Pure: never writes, so the caller decides
+ * whether an edit turns the seat's board into an authored pin (it should — that is how `applyFoe` works).
+ */
+export function foeSnapshotOf(run: Pick<RunState, 'wave' | 'lobby' | 'servedBoards' | 'sandboxFoeWave'>): BoardSnapshot | null {
+  const authored = run.sandboxFoeWave === run.wave;
+  if (authored || !run.lobby) return run.servedBoards?.[run.wave] ?? null;
+  const foe = playerOpponent(run.lobby);
+  if (!foe) return null;
+  return foe.board.snapshot ?? stagedBoard(run.wave, foe.board.minions, foe.board.tier);
 }

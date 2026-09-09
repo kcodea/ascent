@@ -34,7 +34,7 @@ if (import.meta.env.DEV) {
 import { chooseBothText } from './cardText';
 import { playerOpponent, alignmentsOf, boardHasCelestial, chooseBothActive, chooseBothStateOf, type ChooseBothState, chooseOneNeedsChoice, computeCombatOdds, type CombatOdds, rubyCastCount, rubyStatBonus, CONFIG, RIFTS, hasTier7Access, maxTierFor, conjuredStats, cardBuff, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, dragonflameCasts, nextOpponent, lossDamageCap, playerLossDamage, minionCostOf, heroOfferPrice, dominantBoardTribe, effectiveTargetTribe, boardManaBonus, upgradeCostOf, nextRefreshCostOf, poolOf, type RunState, type ShopCard, type CardBuff, type BoardCard, type BoardSnapshot, gildCopiesNeeded, activePowers, gateUses, runeStacksOf } from '@game/sim';
 import { createPortal } from 'react-dom';
-import { setCardId, setCardStats, toggleCardKeyword, setEnemyStats, setEnemyCardId, toggleEnemyKeyword, removeEnemy } from './sandboxEdit';
+import { setCardId, setCardStats, toggleCardKeyword, setEnemyStats, setEnemyCardId, toggleEnemyKeyword, removeEnemy, foeSnapshotOf } from './sandboxEdit';
 import { UnitEditor } from './UnitEditor';
 import { Card, mdBold, type CardView } from './Card';
 import { heroPowerArt, heroArt, equipmentBranchArtFor } from './art';
@@ -874,12 +874,16 @@ export function Recruit() {
   // 1x being exactly the scored mode's clock. Was a fixed 3x, which is still the default so existing practice
   // runs feel unchanged. Scored modes always run at 1x — the multiplier is never consulted outside practice.
   const practiceTimer = useGame((st) => st.practiceTimer);
-  // Tutorial + sandbox get an effectively-infinite clock: a first-time player should never be rushed while
-  // reading a lesson (blueprint §6.4: "Timer — Disabled"), and the sandbox is a dev rig.
+  const sbRules = useGame((st) => st.sbRules);
+  // Tutorial + the sandbox under GOD rules get an effectively-infinite clock: a first-time player should never
+  // be rushed while reading a lesson (blueprint §6.4: "Timer — Disabled"), and the rig is for building. Under
+  // NORMAL rules (2026-09-09) the sandbox runs the REAL clock — 1×, not the practice multiplier, since the point
+  // of the switch is to feel the shipped pace.
   // Thymepiece (set 3) banks flat seconds onto the NEXT turn's clock (`run.bonusTurnSeconds`, set at the turn
   // flip). Added AFTER the practice multiplier and the cap — a bought 30s is 30s in every mode — but not to the
   // tutorial/sandbox clock, which is already effectively infinite.
-  const turnSeconds = run.sandbox || run.mode === 'tutorial' ? 99999 : Math.max(CHARGE_SECONDS + 1, (Math.min(80, TURN_SECONDS + (run.wave - 1) * 4 + (run.wave >= 6 ? 6 : 0)) + (run.wave >= 12 ? 12 : 0)) * (run.mode === 'practice' ? practiceTimer : 1)) + (run.bonusTurnSeconds ?? 0);
+  const infiniteClock = (run.sandbox === true && sbRules === 'god') || run.mode === 'tutorial';
+  const turnSeconds = infiniteClock ? 99999 : Math.max(CHARGE_SECONDS + 1, (Math.min(80, TURN_SECONDS + (run.wave - 1) * 4 + (run.wave >= 6 ? 6 : 0)) + (run.wave >= 12 ? 12 : 0)) * (run.mode === 'practice' && !run.sandbox ? practiceTimer : 1)) + (run.bonusTurnSeconds ?? 0);
 
   // Projected STARTING Gold for the next two waves (the Gold-cell hover) — cap-aware, folding in board mana
   // income (Money Bot) and the one-turn Hoarder/Robin bank (into Wave+1 only, since it's consumed then).
@@ -4907,14 +4911,19 @@ export function Recruit() {
   // SANDBOX ONLY: the pinned opponent board (if any) for the CURRENT wave, and the click handler that opens
   // the unit editor on one of its slots. Mirrors `sbEditing`'s uid+rect pattern, but keyed by index — a
   // `BoardSnapshot`'s minions are a plain array with no uid of their own.
-  const sbEnemySnap: BoardSnapshot | null = run.servedBoards?.[run.wave] ?? null;
+  // A LOBBY sandbox (2026-09-09) fights the paired seat unless the rig authored this wave (`sandboxFoeWave`),
+  // so with no authored pin the row shows the seat's board — what the fight will actually serve — instead of
+  // the turn boundary's unused pool pick. Editing it writes an authored pin (below), which then takes over.
+  // Only computed while the row is showing: resolving the seat prepares a driver board, which is not free.
+  const sbEnemySnap: BoardSnapshot | null = sbTavernShowsEnemy && run.sandbox ? foeSnapshotOf(run) : null;
   const applyFoe = (next: BoardSnapshot): void => {
     // Never persist a zero-minion pin: an empty served board ends combat before it starts, which reads as a
     // broken rig rather than an authored one. `removeEnemy` already refuses at one minion, so this is
     // belt-and-braces against any future caller of `applyFoe` that isn't as careful.
     if (next.minions.length === 0) return;
     const liveRun = useGame.getState().run;
-    useGame.setState({ run: { ...liveRun, servedBoards: { ...(liveRun.servedBoards ?? {}), [liveRun.wave]: next } } });
+    // `sandboxFoeWave` is what makes a lobby fight serve this pin instead of the paired seat.
+    useGame.setState({ run: { ...liveRun, servedBoards: { ...(liveRun.servedBoards ?? {}), [liveRun.wave]: next }, sandboxFoeWave: liveRun.wave } });
   };
   const onSbEnemyPointerDown = (e: React.PointerEvent): void => {
     // Read live: this handler is recreated every render (not a useCallback), so `sbEditMode`/`run` ARE
@@ -6324,7 +6333,7 @@ export function Recruit() {
             (`turnSeconds` is already effectively infinite there; this just removes the misleading countdown). */}
         {run.mode !== 'tutorial' && (
           <div className="statstrip">
-            <ShopTimer practice={run.mode === 'practice'} />
+            <ShopTimer practice={run.mode === 'practice' && !run.sandbox} />
           </div>
         )}
         {/* Action tray — the turn's actions grouped into one control bar (Reroll · Freeze), framed by

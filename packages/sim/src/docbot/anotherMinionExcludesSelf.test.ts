@@ -80,6 +80,7 @@ type Exclusion = string | { param: string; expect: boolean; why: string };
 const SELF_EXCLUDING: Record<string, Exclusion> = {
   // ── Always excludes ────────────────────────────────────────────────────────────────────────────────────
   battlecryBuffTribeOthersAttack: 'arena skips `f.uid === arena.self.uid` before buffing',
+  onTribeSummonedBuffRandomOthers: 'recruit builds `avail` as `board.filter(c => c.uid !== self.uid …)` before the seeded draw (Hank Pepe, set 3; also declines its own arrival)',
   scBuffAlliesPctSelf: 'arena buffs `arena.friends()` filtered to `m.uid !== arena.self.uid`',
   onTribeAttackBuffAttacker: 'returns early on `minion === self` — the attacker must be someone else',
   avengeGiveAttack: 'the recipient walk skips `self`',

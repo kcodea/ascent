@@ -53,6 +53,7 @@ export const THIS_TURN_CLASSIFIED: Readonly<Record<string, ThisTurnClassificatio
   chronostaff: { kind: 'conforms', why: '"EoT effects trigger 1 more time this turn": folded into endOfTurnRepeats at faceOmen, so the extra applies to the EoT that ends this very turn' },
   ropewrangler: { kind: 'conforms', why: 'EoT casts Lasso per 6 Gold spent this turn — resolves at EoT with the full tally' },
   dw_foreman: { kind: 'conforms', why: 'EoT buffs per card played this turn — resolves at EoT with the full tally' },
+  dw3_striker: { kind: 'conforms', why: 'Kringle-shaped (set 3): EoT buffs its neighbours per card played this turn — resolves at EoT with the full tally' },
   d2_runefire: { kind: 'conforms', why: 'ARCHIVED. EoT re-casts the last Shop spell cast this turn — resolves at EoT while the record is live' },
   d2_spellvault: { kind: 'conforms', why: 'ARCHIVED. EoT copies the first Shop spell cast this turn — resolves at EoT while the record is live' },
   rune_spending: { kind: 'conforms', why: 'EoT buffs per Gold spent this turn — resolves at EoT with the full tally' },

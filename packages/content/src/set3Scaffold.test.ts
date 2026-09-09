@@ -37,7 +37,18 @@ describe('set 3 scaffold', () => {
       // …then the nine set-2 Kobolds it keeps.
       'k_chipwick', 'k_gemheart', 'k_geode', 'k_kobabyboldies',
       'k_kobe', 'k_boulderdash', 'k_blazer',
+      // …then the DWARVES (owner roster 2026-09-09): set 3's eight new ones, appended AFTER the Kobolds so no
+      // Kobold moved, then the fourteen set-2 Dwarves it keeps (shared definitions, same as the Kobolds).
+      'dw3_shiftbroker', 'dw3_striker', 'dw3_pourman', 'dw3_hankpepe', 'dw3_tromboneer', 'dw3_kneel',
+      'dw3_thymes', 'dw3_tankerchief',
+      'dw_brunni', 'dw_coinfire', 'dw_brakka', 'dw_dorrin', 'dw_foreman', 'dw_brewer', 'dw_tapkeeper',
+      'dw_bladethrower', 'dw_thane', 'dw_pimm', 'dw_edward', 'dw_mountainbond', 'dw_billings', 'dw_gangplank',
     ]);
+    // The set-2 Dwarves NOT on the roster stay set-2-only (owner confirmation 2026-09-09), still resolvable.
+    for (const id of ['dw_orin', 'dw_ironlung', 'dw_wardkeeper', 'dw_runemaster', 'dw_anvilshade', 'dw_chef', 'dw_bucky', 'dw_kegheart']) {
+      expect(p.all.some((c) => c.id === id), id + ' left out of set 3').toBe(false);
+      expect(CARD_INDEX[id], id + ' still resolves').toBeTruthy();
+    }
     // Dropped from set 3, and the ONLY thing that changed is set membership — leaving a set is not archiving.
     expect(p.all.some((c) => c.id === 'k_beggy'), 'Beggy left set 3').toBe(false);
     expect(p.all.some((c) => c.id === 'k_alchemist'), 'Brisbane left set 3').toBe(false);
@@ -45,7 +56,7 @@ describe('set 3 scaffold', () => {
     expect(CARD_INDEX['k_alchemist']).toBeTruthy();
     // The Kobolds must be reachable AS A TRIBE, not merely present: `selectRunTribes` reads this list, so a
     // pool full of Kobolds with an empty `tribes` could never roll a Kobold run.
-    expect(SETS.set3.tribes).toEqual(['kobold']);
+    expect(SETS.set3.tribes).toEqual(['kobold', 'dwarf']);
     // Their Ruby engine needs no set membership — `ruby` and the Gemheart Golem are tokens, global by the
     // same doctrine as the gift spells above, reachable only through a card that names them.
     expect(p.all.some((c) => c.id === 'ruby'), 'a token is never a set member').toBe(false);
@@ -63,7 +74,10 @@ describe('set 3 scaffold', () => {
       expect(p.all.some((c) => c.id === id), id + ' should be archived, not in the set').toBe(false);
       expect(CARD_INDEX[id], id + ' must still resolve').toBeTruthy();
     }
-    expect(p.spells.length).toBe(59); // 58 + Power Shifter (2026-08-22)
+    // 58 + Power Shifter (2026-08-22) + the five Dwarven Ales (2026-09-09). The Ales are drawable set-2 spells,
+    // not tokens, so — unlike the Ruby — the Dwarves' Ale engine DOES need them opted in.
+    expect(p.spells.length).toBe(64);
+    expect(p.spells.filter((c) => c.name.includes('Ale')).map((c) => c.id).sort()).toEqual(['wo_attack', 'wo_champion', 'wo_health', 'wo_mine', 'wo_reinforcement']);
     expect(p.spells.some((c) => c.id === 'apples')).toBe(true);
     expect(p.spells.some((c) => c.id === 'sparkplug')).toBe(true); // Waking Rift
     expect(p.spells.some((c) => c.id === 'copycat'), 'gift spells stay out of the pool').toBe(false);

@@ -56,6 +56,36 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-09',
+    label: 'Set 3 Dwarves',
+    changes: [
+      {
+        category: 'New Card',
+        text: 'Eight new Dwarves join Set 3, alongside fourteen returning Dwarves and the Dwarven Ales.',
+        details: [
+          'Shift Broker (Tier 1): when you sell a minion, gains +1 Attack.',
+          'Striker (Tier 2): End of Turn, gives its neighbours +1 Attack for each card you played this turn.',
+          "Pourman (Tier 2): Equip Pourman's Keg (1) — cast a random Dwarven Ale.",
+          'Hank Pepe (Tier 3): when you play a Dwarf, three other Dwarves get +1/+1.',
+          'Tromboneer (Tier 4): Echo — gain 3 Gold next turn, on top of the usual cap.',
+          'Kneel (Tier 4): when a Dwarf gains Attack, gains +2 Health. Works in the shop and in combat.',
+          'Thymes (Tier 6): Equip Thymepiece (3) — 30 more seconds on next turn\'s timer.',
+          'Tankerchief (Tier 7): when a Dwarf gains Attack, gains +1/+4.',
+          'Returning from Set 2: Paymaster Pimm, Brunni, Coinfire Forewoman, Gangplank, Baby Gastrid, Blade Thrower, Broad-Axe Brakka, Billings, Doubletap Brewer, Edward Keg-hands, Kringle, Mountainbond, Lieutenant Thane and Tapkeeper.',
+        ],
+      },
+      {
+        category: 'Card Change',
+        text: 'Kringle (and Striker) now repeat their End of Turn once per card you played, as separate triggers.',
+        details: ['Each repeat is its own buff, so anything that watches a Dwarf gaining Attack (Kneel, Tankerchief) reacts once per card played rather than once for the whole End of Turn.'],
+      },
+      {
+        category: 'UI / Info',
+        text: 'Striker and Kringle show the Attack they will actually hand out this End of Turn as you play cards.',
+      },
+    ],
+  },
+  {
+    date: '2026-09-09',
     label: 'Rune of Warding keeps its Engrave',
     changes: [
       {

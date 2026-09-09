@@ -688,6 +688,13 @@ export type EffectFactoryId =
   | 'echoResummonDeadBeasts' // Mossmemory Colossus: bring back the first 3 other dead Beasts
   | 'setArmor' // Mend (2026-08-07): set Armor to N — a floor, not a grant
   | 'echoSummonInheritAttackAndCharge' // Set 2 Dwarves (combat)
+  | 'minionSoldBuffSelf' // Set 3 Dwarves — Shift Broker: when you sell a minion, this gains Attack
+  | 'endOfTurnBuffAdjacentPerCard' // Set 3 Dwarves — Striker: End of Turn, adjacent minions +N Attack per card played
+  | 'equipmentCastRandomAle' // Set 3 Dwarves — Pourman's Keg: cast a random Dwarven Ale through the spell pipeline
+  | 'onTribeSummonedBuffRandomOthers' // Set 3 Dwarves — Hank Pepe: when you play a Dwarf, N random OTHER Dwarves +a/+h
+  | 'deathrattleGoldNextTurn' // Set 3 Dwarves — Tromboneer: Echo — Gold next turn (both phases; uncapped bank)
+  | 'onTribeGainAttackBuffSelf' // Set 3 Dwarves — Kneel / Tankerchief: when a friendly Dwarf gains Attack, this gains +a/+h
+  | 'equipmentBonusTurnTime' // Set 3 Dwarves — Thymepiece: bank seconds onto next turn's clock
   | 'battlecryGainGoldNextTurn' // Set 2 Dwarves — Paymaster Pimm
   | 'cardsPlayedPlayRubies' // Set 2 Dwarves — Mountainbond
   | 'onTribeSummonedBuffTribe' // Set 2 Dwarves — Chef Gary Toast (watches OTHER plays, not its own Shout)

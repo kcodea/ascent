@@ -118,6 +118,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:deathrattleGrantRebornAll:onDeath': { policy: 'ownBeat', family: 'echo' },
   'factory:deathrattleGrantShield:onDeath': { policy: 'ownBeat', family: 'echo' },
   'factory:deathrattleGrantSpell:onDeath': { policy: 'ownBeat', family: 'echo' },
+  'factory:deathrattleGoldNextTurn:onDeath': { policy: 'ownBeat', family: 'echo' }, // Tromboneer (set 3)
   'factory:deathrattleGrantWardRandom:onDeath': { policy: 'ownBeat', family: 'echo' },
   'factory:deathrattleMaxGold:onDeath': { policy: 'ownBeat', family: 'echo' },
   'factory:deathrattlePlayRubiesTribe:onDeath': { policy: 'ownBeat', family: 'echo' },
@@ -137,6 +138,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:endOfTurnAdjacentConsumeFodder:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
   'factory:endOfTurnBonusGold:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
   'factory:endOfTurnBuffEndsTribePerCard:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
+  'factory:endOfTurnBuffAdjacentPerCard:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' }, // Striker (set 3)
   'factory:endOfTurnBuffSpellsAndImps:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
   'factory:endOfTurnBuffWeakestDragon:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
   'factory:endOfTurnCopyCastSpell:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
@@ -173,6 +175,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:impInheritOnDeath:onDeath': { policy: 'ownBeat', family: 'echo' },
   'factory:impInheritOnSummon:onSummon': { policy: 'foldedCue', family: 'summonReact' },
   'factory:minionSoldGrantSpell:minionSold': { policy: 'ownBeat', family: 'economy' },
+  'factory:minionSoldBuffSelf:minionSold': { policy: 'ownBeat', family: 'economy' }, // Shift Broker (set 3)
   'factory:onAllyAttackBuffAll:onAttack': { policy: 'ownBeat', family: 'rally' },
   'factory:onAllyAttackCastGrowth:onAttack': { policy: 'ownBeat', family: 'rally' },
   'factory:onAllyTribeAttackBuffSelf:onAttack': { policy: 'ownBeat', family: 'rally' },
@@ -187,6 +190,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:onFriendDeathSummon:onDeath': { policy: 'ownBeat', family: 'echo' },
   'factory:onFriendlyAttackBuffTribe:onAttack': { policy: 'ownBeat', family: 'rally' },
   'factory:onGainAttackBuffImproving:onGainAttack': { policy: 'foldedCue', family: 'react' },
+  'factory:onTribeGainAttackBuffSelf:onGainAttack': { policy: 'foldedCue', family: 'react' }, // Kneel / Tankerchief (set 3)
   'factory:onGainAttackImproveHpGrant:onGainAttack': { policy: 'foldedCue', family: 'react' },
   'factory:onImpAttackBuffImps:onAttack': { policy: 'ownBeat', family: 'rally' },
   'factory:onKillBuffFodder:onKill': { policy: 'ownBeat', family: 'slaughter' },
@@ -236,6 +240,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:onTribePlayedBuffSelfPerSpell:onSummon': { policy: 'foldedCue', family: 'summonReact' },
   'factory:onTribePlayedConsumeShop:onSummon': { policy: 'foldedCue', family: 'summonReact' },
   'factory:onTribeSummonedBuffTribe:onSummon': { policy: 'foldedCue', family: 'summonReact' },
+  'factory:onTribeSummonedBuffRandomOthers:onSummon': { policy: 'foldedCue', family: 'summonReact' }, // Hank Pepe (set 3)
   'factory:orbitBuffAlignedCelestials:orbit': { policy: 'ownBeat', family: 'orbit' },
   'factory:orbitBuffArriver:orbit': { policy: 'ownBeat', family: 'orbit' },
   'factory:orbitBuffCelestialsPerBuffStack:orbit': { policy: 'ownBeat', family: 'orbit' },

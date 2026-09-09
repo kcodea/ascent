@@ -1,4 +1,4 @@
-import type { CardDef, Tribe } from '@game/core';
+import { ALE_IDS, type CardDef, type Tribe } from '@game/core';
 import { NEUTRAL } from './cards/set1/neutral';
 import { BEASTS } from './cards/set1/beasts';
 import { DRAGONS } from './cards/set1/dragons';
@@ -14,7 +14,7 @@ import { SET2_NEUTRAL } from './cards/set2/neutral';
 import { SET2_DRAGONS } from './cards/set2/dragons';
 import { SET2_BEASTS } from './cards/set2/beasts';
 import { SET2_SPELLS } from './cards/set2/spells';
-import { SET3_CARDS } from './cards/set3';
+import { SET3_CARDS, SET3_DWARVES } from './cards/set3';
 
 /**
  * SET 3's SHARED SPELL POOL (owner list 2026-08-03: "they will be there no matter what") — the neutral spell
@@ -128,6 +128,30 @@ const SET2_KOBOLDS_IN_SET3: readonly CardDef[] = SET2_KOBOLDS.filter((c) =>
 );
 
 /**
+ * SET 2 DWARVES that carry into SET 3 (owner roster 2026-09-09): fourteen of set 2's Dwarves, opted in BY ID —
+ * SHARED definitions, not forks, exactly like the Kobolds above (a re-spec here would rebalance set 2 too; fork
+ * into `cards/set3/dwarves.ts` under a new id if set 3 ever wants its own version). Set 2 keeps every one.
+ *
+ * The set-2 Dwarves NOT on the roster (Orin, Warhorn Captain, Wardkeeper, Auric Runemaster, Anvilshade Smith,
+ * Chef Gary Toast, Bucky, Baal, Brill, Exgalloper, Chicken Brawl, High King Mykel, Sharpshooter, Arnold,
+ * Kegheart) stay set-2-only by owner confirmation — leaving a set is not archiving.
+ */
+const SET2_DWARVES_IN_SET3: readonly CardDef[] = SET2_DWARVES.filter((c) =>
+  [
+    'dw_pimm', 'dw_brunni', 'dw_coinfire', 'dw_gangplank', 'dw_dorrin', 'dw_bladethrower', 'dw_brakka',
+    'dw_billings', 'dw_brewer', 'dw_edward', 'dw_foreman', 'dw_mountainbond', 'dw_thane', 'dw_tapkeeper',
+  ].includes(c.id),
+);
+
+/**
+ * The DWARVEN ALES carry into set 3 unchanged (owner 2026-09-09: "the same"). They are drawable set-2 Shop
+ * spells rather than tokens, so — unlike the Ruby — they DO need set membership: `grantRandomAle` and the Keg
+ * draw from `poolOf(state).spells`, and a set without them would hand out nothing. Resolved by id against
+ * `ALE_IDS`, the engine's own list, so the two cannot disagree.
+ */
+const SET2_ALES_IN_SET3: readonly CardDef[] = SET2_SPELLS.filter((c) => ALE_IDS.includes(c.id));
+
+/**
  * ── Card sets ──────────────────────────────────────────────────────────────────────────────────────────
  *
  * A **set** is the pool of cards a run can draw from. Sets are built in parallel and switched live, exactly
@@ -233,14 +257,17 @@ export const SETS: Record<SetId, SetDef> = {
     // `selectRunTribes` picks a run's active tribes from this list, so a tribe absent here can never be a
     // run's tribe no matter how many of its cards the pool holds — which is why adding the Kobolds (2026-08-28)
     // meant adding 'kobold' in the same breath.
-    tribes: ['kobold'],
+    tribes: ['kobold', 'dwarf'], // Dwarves joined 2026-09-09 (Gold / Ale / "gains Attack")
     // Starts EMPTY and opts cards IN, the same manifest pattern set 2 uses. Add `inherits: 'set2'` (+
     // `excludes`) instead if set 3 should start from set 2's pool and trim; both compose, and `own` always
     // appends last so adding cards never disturbs an inherited prefix.
     // Set 3's own cards first, then the carried-over Kobolds, then the shared neutral spell toolkit — spells
     // appended LAST so growing the minion roster never disturbs spell positions (the same ordering discipline
     // as the other sets), and new minions appended after the existing ones for the same reason.
-    own: [...SET3_CARDS, ...SET2_KOBOLDS_IN_SET3, ...SET3_SHARED_SPELLS], // → packages/content/src/cards/set3/*.ts
+    // Then the Dwarves (2026-09-09): set 3's own first, then the carried set-2 ones — APPENDED after the Kobolds
+    // rather than folded into `SET3_CARDS`, so the Kobolds' positions never moved. The Ales are spells and go
+    // last with the other spells.
+    own: [...SET3_CARDS, ...SET2_KOBOLDS_IN_SET3, ...SET3_DWARVES, ...SET2_DWARVES_IN_SET3, ...SET3_SHARED_SPELLS, ...SET2_ALES_IN_SET3], // → packages/content/src/cards/set3/*.ts
   },
 };
 

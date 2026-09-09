@@ -584,5 +584,9 @@
   "q-conv-trigger-startOfTurn": {
     "decision": "approve",
     "decidedAt": "2026-08-30T03:11:29.741Z"
+  },
+  "q-gangplank-self-buff": {
+    "decision": "approve",
+    "decidedAt": "2026-09-09T03:36:09.301Z"
   }
 }

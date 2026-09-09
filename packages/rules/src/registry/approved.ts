@@ -801,4 +801,26 @@ export const APPROVED_RULES: GameRule[] = [
       + 'grant applying stats by hand). Every other SoC rune grant already went through `ctx.buff`.',
     enforcement: { kind: 'scenario', refs: ['packages/core/src/combat/runeWardingEngrave.test.ts', 'packages/core/src/combat/simulate.test.ts'], lastVerifiedAt: '2026-09-09' },
   },
+  {
+    id: 'R-TARGET-01',
+    title: '"A random friendly <tribe>" includes the source — a lone Gangplank buffs itself',
+    statement:
+      'An effect that gives "a random friendly Dwarf" (or any random friendly member of a type) picks from EVERY '
+      + 'living friendly minion of that type, the source included. Gangplank standing alone as the only Dwarf '
+      + 'gains its own +1/+2 on every card added to hand. Excluding the source needs the word "another" in the '
+      + 'printed text; without it, "friendly" means the whole side.',
+    domain: 'targeting',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'decisions.json q-gangplank-self-buff (Rulebook board, 2026-09-09)', quote: 'APPROVE — keep as printed: it may buff itself.' },
+      { kind: 'owner-chat', ref: 'Bug Board 38d186a6 (round 2, 2026-09-09) — the report that raised it', quote: 'gangplank can buff itsself if its the only dwarf on board' },
+    ],
+    cardText: 'When a card is added to your hand, give a **random** friendly **Dwarf +1/+2**.',
+    contentIds: ['dw_gangplank'],
+    currentBehaviour:
+      'Conforms: `onGainCardBuffTribe` (arena.ts) picks from every living friendly body of the tribe via the shared '
+      + 'tribe predicate, the source among them. Pinned by the lone-Gangplank case in handGainInCombat.test.ts '
+      + '("Gangplank is the only one here, so it is its own recipient").',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/handGainInCombat.test.ts'], lastVerifiedAt: '2026-09-09' },
+  },
 ];

@@ -477,6 +477,15 @@ export const RETIRED_RULES: RetiredRule[] = [
     retiredAt: '2026-08-28',
     enforcement: PARKED_PIN,
   },
+  {
+    id: 'q-gangplank-self-buff',
+    why:
+      'OWNER RULED 2026-09-09 (Rulebook board, APPROVE): a lone Gangplank MAY buff itself — "a random friendly Dwarf" '
+      + 'includes the source; excluding it would need the word "another" in the text. Raised by Bug Board 38d186a6. '
+      + 'Standing rule R-TARGET-01; pinned by the lone-Gangplank case in handGainInCombat.test.ts.',
+    retiredAt: '2026-09-09',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/handGainInCombat.test.ts'], lastVerifiedAt: '2026-09-09' },
+  },
 ];
 
 export const RETIRED_IDS: ReadonlySet<string> = new Set(RETIRED_RULES.map((r) => r.id));

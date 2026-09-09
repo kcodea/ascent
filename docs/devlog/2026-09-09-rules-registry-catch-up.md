@@ -26,11 +26,12 @@ The eight R-RUNEDUP rules and R-SHOUT-01 still said their implementation "rides 
 / "feat/this-turn-rule". Both shipped the same day they were ruled (#1264, #1262); the entries now say so and
 name what conforms.
 
-## One new pending card
+## Gangplank — asked and answered the same day
 
-`q-gangplank-self-buff` (pendingManual.ts): Bug Board 38d186a6 — may a lone Gangplank buff itself? Closed by
-design on the board pending this ruling; recommendation is to keep the printed reading. It reaches the DEV
-MENU → Rulebook board like every other card.
+`q-gangplank-self-buff` went to the Rulebook board (Bug Board 38d186a6: may a lone Gangplank buff itself?)
+and the owner APPROVED it within the hour: keep as printed. It is now **R-TARGET-01** ("a random friendly
+<tribe>" includes the source; excluding it needs the word "another"), tombstoned in retired.ts, pinned by the
+lone-Gangplank case in `handGainInCombat.test.ts`. decisions.json carries the click.
 
 Not touched: decisions.json (owner clicks only), the generated queues, KNOWN_VIOLATIONS (R-AVWIN-02/10 still
 reproduce — nothing since 2026-08-27 changed the clash death order or the summoning-death baseline).

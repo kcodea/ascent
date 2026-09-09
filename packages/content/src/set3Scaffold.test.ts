@@ -29,7 +29,7 @@ describe('set 3 scaffold', () => {
     expect(p.buyable.map((c) => c.id)).toEqual([
       'e3_frank', 'e3_sculptor',
       // Set 3's OWN Kobolds (the 2026-08-30 roster), appended in declaration order…
-      'k3_korn', 'k3_splitpick', 'k3_forkvein', 'k3_forkroad', 'k3_veinchant', 'k3_jeweler',
+      'k3_korn', 'k3_splitpick', 'k3_forkvein', 'k3_veinchant', 'k3_jeweler', // Gem Bus (k3_forkroad) archived 2026-09-09
       'k3_blastsurveyor',
       'k3_facetbound',
       'k3_doubletrouble',
@@ -44,6 +44,9 @@ describe('set 3 scaffold', () => {
       'dw_brunni', 'dw_coinfire', 'dw_brakka', 'dw_dorrin', 'dw_foreman', 'dw_brewer', 'dw_tapkeeper',
       'dw_bladethrower', 'dw_thane', 'dw_pimm', 'dw_edward', 'dw_mountainbond', 'dw_billings', 'dw_gangplank',
     ]);
+    // Gem Bus ARCHIVED (owner 2026-09-09): in no set, still resolvable.
+    expect(p.all.some((c) => c.id === 'k3_forkroad'), 'Gem Bus archived').toBe(false);
+    expect(CARD_INDEX['k3_forkroad']?.name).toBe('Gem Bus');
     // The set-2 Dwarves NOT on the roster stay set-2-only (owner confirmation 2026-09-09), still resolvable.
     for (const id of ['dw_orin', 'dw_ironlung', 'dw_wardkeeper', 'dw_runemaster', 'dw_anvilshade', 'dw_chef', 'dw_bucky', 'dw_kegheart']) {
       expect(p.all.some((c) => c.id === id), id + ' left out of set 3').toBe(false);

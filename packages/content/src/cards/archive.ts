@@ -951,4 +951,25 @@ export const ARCHIVED_CARDS: CardDef[] = [
     text: '**Rally:** summon an **Imp** and give your **Imps +1/+1**.',
     goldenText: '**Rally:** summon **2 Imps** and give your **Imps +2/+2**.',
   },
+  {
+    // ARCHIVED 2026-09-09 (owner). Moved verbatim from set3/kobolds.ts (SET3_KOBOLDS). Name: Gem Bus.
+    // The T3 fork: a body now against Ruby fuel. `battlecryGainRandomMinion` with no tribe draws from the
+    // run's pool at or below the tavern tier, so in a set-3 run it pulls Kobolds and neutrals.
+    id: 'k3_forkroad',
+    name: 'Gem Bus',
+    tribe: 'kobold',
+    tier: 3,
+    attack: 3,
+    health: 4,
+    keywords: [],
+    effects: [],
+    chooseOne: [
+      { text: 'Get a random minion.', goldenText: 'Get **2** random minions.',
+        effects: [{ on: 'onPlay', do: 'battlecryGainRandomMinion', params: { count: 1 } }] },
+      { text: 'Get **3 Rubies**.', goldenText: 'Get **6 Rubies**.',
+        effects: [{ on: 'onPlay', do: 'battlecryGetRubies', params: { count: 3 } }] },
+    ],
+    text: '**Choose One:** get a random minion, or get **3 Rubies**.',
+    goldenText: '**Choose One:** get **2** random minions, or get **6 Rubies**.',
+  },
 ];

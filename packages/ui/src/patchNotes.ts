@@ -55,6 +55,16 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-09-09',
+    label: 'Tribe buff trails',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: 'The ribbon that streams from a minion to an ally it buffs is now colored by the buffer’s tribe — green for Beasts, violet for Demons, gold for Dwarves, and so on.',
+      },
+    ],
+  },
+  {
     date: '2026-09-08',
     label: 'Ward FX',
     changes: [

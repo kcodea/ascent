@@ -125,6 +125,11 @@ export const DYNAMIC_CALL_SITES: Readonly<Record<string, number>> = {
   // grant (Gorun's Blade Mastery → `gorun-hp`), resolved through `labelBuffFxFor`. Data-resolved like the
   // three above, and for the same reason none of them is a literal.
   'useCombatReplay.ts': 4,
+  // PER-TRIBE BUFF RIBBON (2026-09-09). One `playDef(`tendril-trail-${tribe}`, …)` in `fireBuffFx`: the buffer's
+  // TRIBE picks its ribbon variant, so the id is data-resolved (from the tribe) rather than a literal — the
+  // same shape as a binding, keyed on the source's tribe instead of a `bindings.json` row. The generic
+  // `tendril-trail` fallback in the sibling branch stays a literal and remains in `DIRECT_CALL_SITES`.
+  'buffFxRender.ts': 1,
 };
 
 /** The files that fire `id` from code, or an empty array. Never null — callers render a list either way. */

@@ -132,7 +132,11 @@ describe('DIRECT_CALL_SITES is a derivation, not a list', () => {
     // That is real debt, not a second pattern — an Equipment-use moment belongs in `recruitCues.ts`, and
     // moving it there retires BOTH lines and shrinks this back to the four resolvers. Listed so the exception
     // stays reviewable rather than silent.
-    expect(Object.keys(DYNAMIC_CALL_SITES).sort()).toEqual(['EquipFxTuner.tsx', 'Recruit.tsx', 'choreo/recruitCues.ts', 'choreo/score.ts', 'runeTriggerFx.ts', 'useCombatReplay.ts']);
+    //
+    // A THIRD of the same kind (2026-09-09): `buffFxRender.ts` picks a per-tribe `tendril-trail-<tribe>` from
+    // the buffer's tribe — a data-resolved id (like a binding, keyed on tribe rather than a bindings.json row),
+    // not a fourth caller pattern. Listed for the same reason.
+    expect(Object.keys(DYNAMIC_CALL_SITES).sort()).toEqual(['EquipFxTuner.tsx', 'Recruit.tsx', 'buffFxRender.ts', 'choreo/recruitCues.ts', 'choreo/score.ts', 'runeTriggerFx.ts', 'useCombatReplay.ts']);
   });
 
   // The seven migrated effects the library used to call inert, plus `ruby-gem-apply` — authored in the

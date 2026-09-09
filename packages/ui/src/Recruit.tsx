@@ -1962,6 +1962,13 @@ export function Recruit() {
    * player. Nothing here gates gameplay — the state has already committed.
    */
   const prevEquipFxSeq = useRef(run.equipFxSeq);
+  /** Retire fns for USE defs (Deathfibrillator, Bloodpot). Held OUTSIDE the cue effect on purpose: that effect
+   *  re-runs (and cleans up) on the very next action — and an aimed Equipment's next action is the target's
+   *  two-step death, ~200ms later — which was cutting the def off mid-play (owner report 2026-09-09: "it should
+   *  just play out over top of whatever happens in that slot"). A use def now runs to its own end; these are
+   *  only retired on unmount. */
+  const useDefStopsRef = useRef<Array<() => void>>([]);
+  useEffect(() => () => { for (const f of useDefStopsRef.current.splice(0)) f(); }, []);
   useLayoutEffect(() => {
     const seq = run.equipFxSeq;
     if (seq === undefined || seq === prevEquipFxSeq.current) return;
@@ -1995,14 +2002,12 @@ export function Recruit() {
           // `useFxAt: 'target'` — the def was authored ON the unit (every layer anchors `source`), so its source
           // IS the aimed body; the default keeps the slot→target travel shape (Bloodpot, Titan Hammer).
           const from = eq.useFxAt === 'target' ? to : slot;
-          const stop = playDef(
-            eq.useFxId!,
-            { source: from, target: to, cursor: to },
-            { uids: { source: null, target: cue.targetUid ?? null } },
-          );
-          if (stop) retire.push(stop);
+          // Fixed points, no unit binding: the def must outlive the aimed body (it may die on the next beat).
+          const stop = playDef(eq.useFxId!, { source: from, target: to, cursor: to });
+          if (stop) useDefStopsRef.current.push(stop);
         };
-        if (cfg.useDelayMs > 0) timers.push(window.setTimeout(fire, cfg.useDelayMs)); else fire();
+        // The delayed fire lives with the def, not the cue effect's timer list (which the next action clears).
+        if (cfg.useDelayMs > 0) { const t = window.setTimeout(fire, cfg.useDelayMs); useDefStopsRef.current.push(() => window.clearTimeout(t)); } else fire();
       }
       if (eq.useSfxId && cfg.useSfxOn) sfx.equipmentUse(eq.useSfxId, cfg.useSfxDelayMs);
       // An Equipment that CAST Shop spells (Pourman's Keg → a random Ale) plays each spell's own cast

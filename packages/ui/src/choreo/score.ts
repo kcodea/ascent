@@ -614,8 +614,13 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
           if (!canPlayDefs()) continue;
           const binding = bindingFor(ctx.cardIds?.get(f.source) ?? null, 'shout');
           if (!binding) continue;
-          const anchors = anchorsForUnits(f.source, f.target);
-          if (anchors) playDef(binding.def, anchors, { uids: { source: f.source, target: f.target } });
+          // Play the shout FX ON THE OWNER (`f.target`) — whose Shout is firing — not travelling from the
+          // re-triggering unit. Both anchors are the owner, so a combat re-fire is byte-for-byte the shop cast
+          // (the recruit path fires with source === target too), which is what the def was authored against:
+          // an `aimMode:'travel'` layer degenerates to its `angle` there, so the burst sprays exactly as in the
+          // shop rather than aiming along the re-triggerer→owner axis (owner ask 2026-09-09).
+          const anchors = anchorsForUnits(f.target, f.target);
+          if (anchors) playDef(binding.def, anchors, { uids: { source: f.target, target: f.target } });
         }
       });
     }

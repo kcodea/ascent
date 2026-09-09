@@ -4157,12 +4157,15 @@ export function Recruit() {
     // eye here (`.cardbuff`) is retired too — the self-buff cue above and the badge's own roll carry that job.
   }, [run.board, run.hand, run.shop, inCombat, run.recruitBuffFx]);
 
-  // SHOP WARD GAIN (owner ask 2026-09-08): a minion ALREADY in play that GAINS Ward (`'DS'`) in the shop — a
-  // Battlecry / Shout / rune granting Divine Shield — fires `ward-gain-blast`, the recruit twin of combat's
-  // `shieldGain` moment (the `shieldUp` event resolves the SAME binding). A keyword board-diff, like the
-  // self-buff detector above: a uid present LAST render WITHOUT Ward that now HAS it "gained" it; a uid that
-  // first appears this render already warded came with it and does not fire. Combat owns its own shieldGain
-  // cue (the `shieldUp` moment), so this idles during a fight.
+  // SHOP WARD GAIN (owner ask 2026-09-08): a minion that GAINS Ward (`'DS'`) in the shop — a Battlecry / Shout /
+  // rune granting Divine Shield — fires `ward-gain-blast`, the recruit twin of combat's `shieldGain` moment
+  // (the `shieldUp` event resolves the SAME binding). A keyword board-diff, like the self-buff detector above.
+  // Combat owns its own shieldGain cue (the `shieldUp` moment), so this idles during a fight.
+  //
+  // Two ways to gain it: an EXISTING minion transitions no-Ward → Ward, and a minion PLAYED THIS ACTION whose
+  // own Shout grants it (Oathshield Orin — "Shout: gain Ward"), which arrives already warded in one reducer
+  // action. The discriminator for a just-arrived minion is its CARD DEF: a base-Ward minion you BOUGHT lists
+  // `'DS'` in its def and came with it (no blast); Orin's def has no `'DS'` and its Shout added it (blast).
   const prevWardRef = useRef<Map<string, boolean> | null>(null);
   useEffect(() => {
     if (inCombat) { prevWardRef.current = null; return; }
@@ -4170,9 +4173,12 @@ export function Recruit() {
     if (prev && canPlayDefs()) {
       for (const c of run.board) {
         if (!c.keywords.includes('DS')) continue;
-        // `false` = was on board last render withOUT Ward → it just gained it. `undefined` (arrived this
-        // render) and `true` (already warded) both skip.
-        if (prev.get(c.uid) !== false) continue;
+        const had = prev.get(c.uid);
+        if (had === true) continue; // already warded last render
+        // `undefined` = new on the board this render: a GAIN only if the card doesn't grant Ward intrinsically
+        // (an on-play Shout/Battlecry added it), not a bought base-Ward minion. `false` = an existing minion
+        // that just transitioned to Ward — always a gain.
+        if (had === undefined && (CARD_INDEX[c.cardId]?.keywords.includes('DS') ?? false)) continue;
         runRecruitMomentCues(shieldGainMoment(c.uid, c.cardId), {
           cardIdOf: (u) => runRef.current.board.find((b) => b.uid === u)?.cardId ?? null,
           measure: (u) => { const el = document.querySelector<HTMLElement>(`[data-uid="${u}"]`); return el ? restingCenterOf(el) : null; },

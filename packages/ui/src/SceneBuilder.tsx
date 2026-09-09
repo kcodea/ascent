@@ -1,21 +1,29 @@
 import { useMemo, useRef, useState } from 'react';
 import { CARD_INDEX, RUNES, EPIC_RUNES, SETS, activeSet, poolFor, type SetId } from '@game/content';
-import { HEROES, runQaScenario, validateQaScenario, type BoardSnapshot, type QaScenarioV1, type RunState, type ShopCard } from '@game/sim';
+import { HEROES, runQaScenario, validateQaScenario, type BoardSnapshot, type BotLevel, type QaScenarioV1, type RunState, type ShopCard } from '@game/sim';
 import { buildQaScenario, reproCommandFor, scenarioFileName, scenarioFileText, QA_SCENARIO_FIXTURE_DIR } from './qaScenarioBridge';
 import type { Keyword } from '@game/core';
 import { useGame } from './store';
 import { useDraggablePanel, DevPanelContext } from './useDraggablePanel';
 import { turnClock } from './turnClock';
-import { addEnemy, stagedBoard, MAX_BOARD } from './sandboxEdit';
+import { addEnemy, stagedBoard, foeSnapshotOf, MAX_BOARD } from './sandboxEdit';
 
 /**
  * DEV-only SCENE BUILDER control panel — the sandbox rig launched from the title (its own mode, see
  * `startSceneBuilder`). It mutates the LIVE run via the store, so every real system (buy-time effects,
  * combat, quests, FX) runs exactly as in a normal game — nothing bypasses the sim.
  *
- * Layout: a header, then labelled sections (Hero · Economy · Board · Enemies · Cards), each a compact row so
- * the whole rig reads at a glance. Collapsible so it can tuck out of the way while you watch a fight.
- * Stripped from production with the rest of the dev tooling.
+ * Since 2026-09-09 the sandbox is a LOBBY GAME AGAINST BOTS (the practice-bots lobby, invulnerable seat, no
+ * curtain), not the retired course mode — so the rail, pairing and elimination all run for real. The RULES
+ * toggle picks the feel: GOD (infinite time + Gold) or NORMAL (the real clock + real per-turn Gold); every
+ * authoring tool works under both, and the player cannot be eliminated under either.
+ *
+ * Layout (2026-09-09): a brass nameplate carrying the live readout (round · seats left · rules), then five
+ * FOLDABLE sections — Setup (hero · set · rules · bots), Table (Gold / time / sweeps as tiles + the tier row),
+ * Enemy (which row shows, edit mode, dummies), Library (one search, Cards | Runes tabs, one list) and
+ * Scenarios (the bug-report + QA bridges, folded by default). Fold state is remembered per section. The whole
+ * panel collapses to a strip so it can tuck out of the way while you watch a fight. It wears the tuner
+ * panels' slate (`.scenebuilder` in styles.css). Stripped from production with the rest of the dev tooling.
  */
 type CardRow = { id: string; name: string; tier: number; spell: boolean; tribe: string; hay: string };
 type RuneRow = { id: string; name: string; cost: number; epic: boolean; hay: string };
@@ -77,7 +85,18 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
   const sbTavernShowsEnemy = useGame((s) => s.sbTavernShowsEnemy);
   const setSbTavernShowsEnemy = useGame((s) => s.setSbTavernShowsEnemy);
   const replayLastCombat = useGame((s) => s.replayLastCombat);
+  const sbRules = useGame((s) => s.sbRules);
+  const setSbRules = useGame((s) => s.setSbRules);
+  const sbBotLevel = useGame((s) => s.sbBotLevel);
   const { panelRef, headerPointerDown, panelStyle, raise } = useDraggablePanel('scenebuilder');
+  // Library tab (cards / runes share the search box + list) and the per-section fold state (remembered).
+  const [lib, setLib] = useState<'cards' | 'runes'>('cards');
+  const [folded, setFolded] = useState<Record<string, boolean>>(loadFolded);
+  const fold = (id: string, closed: boolean): void => setFolded((f) => {
+    const next = { ...f, [id]: closed };
+    try { localStorage.setItem(SB_FOLD_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+    return next;
+  });
 
   // BUG SCENARIO bridge (bug reporter PR 4): load a `scenario.json` (the bug CLI's export) into the rig —
   // file picker or pasted JSON, both routed through the store's `loadBugScenario` (validation + the
@@ -196,8 +215,9 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
   const results = useMemo(() => all.filter((c) => matches(c.hay, terms)).slice(0, 80), [all, terms]);
   const runeResults = useMemo(() => allRunes.filter((r) => matches(r.hay, terms)), [allRunes, terms]);
 
-  // ∞ gold — top the pool back up whenever it dips (default on). Cheap: a subscribe on `run.embers`.
-  if (refill && run && (run.embers ?? 0) < 900) {
+  // ∞ gold — top the pool back up whenever it dips (default on). GOD rules only: under NORMAL rules the
+  // reducer's per-turn Gold is the whole point. Cheap: a subscribe on `run.embers`.
+  if (refill && sbRules === 'god' && run && (run.embers ?? 0) < 900) {
     queueMicrotask(() => mutate((r) => ({ ...r, embers: 999 })));
   }
 
@@ -223,217 +243,211 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
       })),
       seed: 1, origin: 'self',
     };
-    return { ...r, servedBoards: { ...(r.servedBoards ?? {}), [r.wave]: board } };
+    // `sandboxFoeWave` marks the pin as RIG-AUTHORED — the lobby fight serves it instead of the paired seat.
+    return { ...r, servedBoards: { ...(r.servedBoards ?? {}), [r.wave]: board }, sandboxFoeWave: r.wave };
   });
+
+  // The board the coming fight will serve, as the rig sees it: the rig's own pin once it has authored this
+  // wave, else the paired seat's board (a lobby sandbox), else nothing. Mirrors Recruit's `sbEnemySnap`.
+  const rigAuthored = run?.sandboxFoeWave === run?.wave;
+  const foeSnap: BoardSnapshot | null = run && sbTavernShowsEnemy ? foeSnapshotOf(run) : null;
+  const foeCount = foeSnap?.minions.length ?? 0;
 
   // "+ add enemy" writes through `mutate` too, but composes `stagedBoard` + `addEnemy` from `sandboxEdit.ts`
   // rather than hand-building a `BoardSnapshot` (unlike `setEnemies` above, which predates that module) — this
   // is the same envelope + clamp rules the tavern-row editor uses, so a card added here and one added by
   // editing an existing slot are indistinguishable. `stagedBoard(wave, [])`'s zero-minion result is never
   // itself written: `addEnemy` fills it in the same call, so the store never observes an empty pin.
+  // Starts from the board the row is SHOWING (the seat's, in an un-authored lobby wave), so adding to what you
+  // see is what you get — and the write stamps `sandboxFoeWave`, which is what makes the fight serve it.
   const addEnemyFromPanel = (): void => mutate((r) => {
-    const snap = r.servedBoards?.[r.wave] ?? stagedBoard(r.wave, []);
+    const snap = foeSnapshotOf(r) ?? stagedBoard(r.wave, []);
     const first = pool.buyable[0];
     if (first === undefined) return r; // this set has no buyable cards — nothing to add
-    return { ...r, servedBoards: { ...(r.servedBoards ?? {}), [r.wave]: addEnemy(snap, first.id, (id) => CARD_INDEX[id]) } };
+    return { ...r, servedBoards: { ...(r.servedBoards ?? {}), [r.wave]: addEnemy(snap, first.id, (id) => CARD_INDEX[id]) }, sandboxFoeWave: r.wave };
   });
+
+  const foeShown = sbTavernShowsEnemy;
+  const roundLabel = run?.lobby ? `round ${run.lobby.round} · ${run.lobby.seats.filter((x) => x.alive).length} left` : `wave ${run?.wave ?? 1}`;
 
   return (
     <>
     <div className={`sfxmix lunge scenebuilder${collapsed ? ' collapsed' : ''}${minimized ? ' minimized' : ''}`} ref={panelRef} style={panelStyle}>
+      {/* NAMEPLATE — the struck-brass header the tuner panels wear. The live readout (round · rules) sits in
+          it so the collapsed strip still says what the rig is doing. */}
       <div className="sfxmix-h drag sb-head" onPointerDown={headerPointerDown}>
-        <span>🧩 Scene Builder</span>
+        <span className="sb-emblem" aria-hidden>🧩</span>
+        <span className="sb-title">Scene Builder</span>
+        <span className="sb-status">{roundLabel} · {sbRules === 'god' ? 'god' : 'normal'}</span>
         <button className="sb-collapse" onPointerDown={(e) => e.stopPropagation()} onClick={() => setCollapsed((c) => !c)} title={collapsed ? 'Expand' : 'Collapse'}>{collapsed ? '▸' : '▾'}</button>
       </div>
 
       {!collapsed && (
         <div className="sb-body">
-          {/* HERO + SET — both restart the sandbox, and each carries the OTHER's current value so switching
-              hero can't silently drop you back to the live set (or vice versa). */}
-          <div className="sb-sec">
-            <div className="sb-label">Hero</div>
-            <select
-              className="sb-select"
-              value={run?.heroId ?? 'warden'}
-              onChange={(e) => startSceneBuilder(e.target.value, setId)}
-              title="Switch hero (restarts the sandbox so the hero's opener runs)"
-            >
-              {HERO_OPTIONS.map((h) => <option key={h.id} value={h.id}>{h.name}</option>)}
-            </select>
-          </div>
-
-          {/* SET */}
-          <div className="sb-sec">
-            <div className="sb-label">Card set</div>
-            <select
-              className="sb-select"
-              value={setId}
-              onChange={(e) => startSceneBuilder(run?.heroId ?? 'warden', e.target.value as SetId)}
-              title="Play an unreleased set here without flipping the global switch — real runs are unaffected"
-            >
-              {SET_OPTIONS.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}{s.enabled ? ' (live)' : ''} — {s.minions} minions, {s.spells} spells
-                </option>
-              ))}
-            </select>
+          {/* SETUP — hero + set side by side. Both restart the sandbox, and each carries the OTHER's current
+              value so switching hero can't silently drop you back to the live set (or vice versa). */}
+          <Sec id="setup" title="Setup" folded={folded} onFold={fold}>
+            <div className="sb-two">
+              <label className="sb-field">
+                <span className="sb-mini">hero</span>
+                <select className="sb-select" value={run?.heroId ?? 'warden'}
+                  onChange={(e) => startSceneBuilder(e.target.value, setId)}
+                  title="Switch hero (restarts the sandbox so the hero's opener runs)">
+                  {HERO_OPTIONS.map((h) => <option key={h.id} value={h.id}>{h.name}</option>)}
+                </select>
+              </label>
+              <label className="sb-field">
+                <span className="sb-mini">set</span>
+                <select className="sb-select" value={setId}
+                  onChange={(e) => startSceneBuilder(run?.heroId ?? 'warden', e.target.value as SetId)}
+                  title="Play an unreleased set here without flipping the global switch — real runs are unaffected">
+                  {SET_OPTIONS.map((s) => (
+                    <option key={s.id} value={s.id}>{s.name}{s.enabled ? ' (live)' : ''} — {s.minions}m · {s.spells}s</option>
+                  ))}
+                </select>
+              </label>
+            </div>
             {pool.buyable.length === 0 && (
               <div className="sb-mini sb-warn">this set has no cards yet — the shop will be empty</div>
             )}
-          </div>
-
-          {/* ECONOMY */}
-          <div className="sb-sec">
-            <div className="sb-label">Economy</div>
-            <div className="sb-row">
-              <button className="sb-btn" onClick={giveGold}>+1000 g</button>
-              <label className="sb-chk" title="Keep Gold topped up">
-                <input type="checkbox" checked={refill} onChange={(e) => setRefill(e.target.checked)} /> ∞ gold
+            {/* RULES — the sandbox is a lobby game against bots (2026-09-09). GOD keeps the rig's classic feel
+                (infinite time + Gold); NORMAL runs the real clock and the real per-turn Gold. Both keep every
+                authoring tool, and the player's seat is invulnerable under both. Flipping is live; the bot
+                level rebuilds the lobby, so it relaunches like the hero and set pickers do. */}
+            <div className="sb-seg" role="radiogroup" aria-label="Sandbox rules">
+              <button type="button" role="radio" aria-checked={sbRules === 'god'}
+                className={`sb-seg-btn${sbRules === 'god' ? ' on' : ''}`} onClick={() => setSbRules('god')}
+                title="Infinite time and Gold — build anything, nothing rushes you">✦ God mode</button>
+              <button type="button" role="radio" aria-checked={sbRules === 'normal'}
+                className={`sb-seg-btn${sbRules === 'normal' ? ' on' : ''}`} onClick={() => setSbRules('normal')}
+                title="The real shop clock and the real per-turn Gold — every authoring tool stays live">⏱ Normal</button>
+            </div>
+            <div className="sb-two sb-two-tight">
+              <label className="sb-field">
+                <span className="sb-mini">bots</span>
+                <select className="sb-select" value={sbBotLevel}
+                  onChange={(e) => startSceneBuilder(run?.heroId ?? 'warden', setId, Number(e.target.value) as BotLevel)}
+                  title="Bot strength for the seven other seats (restarts the sandbox — the seats are built at creation)">
+                  {([1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const).map((n) => (
+                    <option key={n} value={n}>level {n}{n === 1 ? ' — gentlest' : n === 10 ? ' — hardest' : ''}</option>
+                  ))}
+                </select>
               </label>
-              <button className="sb-btn" onClick={freezeTime} title="Freeze the turn timer">❄ freeze time</button>
+              <button className="sb-btn sb-btn-tall" onClick={() => startSceneBuilder(run?.heroId ?? 'warden', setId)} title="Start the sandbox over with a fresh lobby (same hero, set and rules)">↺ restart</button>
             </div>
-            <div className="sb-row">
+            <div className="sb-mini sb-note">you can't be eliminated under either rule set</div>
+          </Sec>
+
+          {/* TABLE — Gold, time, tier and the board sweeps, as one grid of same-sized tiles. */}
+          <Sec id="table" title="Table" folded={folded} onFold={fold}>
+            <div className="sb-tiles">
+              <button className="sb-tile" onClick={giveGold} title="Add 1000 Gold"><b>+1000</b> gold</button>
+              {sbRules === 'god' ? (
+                <button className={`sb-tile${refill ? ' on' : ''}`} onClick={() => setRefill((r) => !r)} title="Keep Gold topped up at 999" aria-pressed={refill}><b>∞</b> refill</button>
+              ) : (
+                <button className="sb-tile" onClick={freezeTime} title="Freeze the turn timer"><b>❄</b> freeze</button>
+              )}
+              {sbRules === 'god' && <button className="sb-tile" onClick={freezeTime} title="Freeze the turn timer"><b>❄</b> freeze</button>}
+              <button className="sb-tile" onClick={clearShop} title="Empty the shop row"><b>⌫</b> shop</button>
+              <button className="sb-tile" onClick={clearBoard} title="Empty your board"><b>⌫</b> board</button>
+              <button className="sb-tile sb-tile-warn" onClick={clearAll} title="Empty shop, board and hand"><b>⌫</b> all</button>
+            </div>
+            <div className="sb-row sb-tierrow">
               <span className="sb-mini">tier</span>
-              {[1, 2, 3, 4, 5, 6, 7].map((t) => (
-                <button key={t} className={`sb-tier${run?.tier === t ? ' on' : ''}`} onClick={() => setTier(t)}>{t}</button>
-              ))}
-            </div>
-          </div>
-
-          {/* BOARD */}
-          <div className="sb-sec">
-            <div className="sb-label">Board</div>
-            <div className="sb-row">
-              <button className="sb-btn" onClick={clearShop}>clear shop</button>
-              <button className="sb-btn" onClick={clearBoard}>clear board</button>
-              <button className="sb-btn" onClick={clearAll}>clear all</button>
-            </div>
-          </div>
-
-          {/* EDITING — the two rig modes. Edit mode arms click-to-edit on both rows; the row toggle decides
-              whether the top row shows the shop or the opponent you are about to fight. Both are sandbox-only
-              and neither changes run state, so the shop is exactly as you left it when you flip back. */}
-          <div className="sb-sec">
-            <div className="sb-label">Editing</div>
-            <div className="sb-row">
-              <button
-                className={`sb-btn${sbEditMode ? ' sb-primary' : ''}`}
-                onClick={() => setSbEditMode(!sbEditMode)}
-                title="Click a minion on either row to set its card, attack, health and keywords"
-              >
-                {sbEditMode ? '✎ edit mode ON' : 'edit mode'}
-              </button>
-              <button
-                className={`sb-btn${sbTavernShowsEnemy ? ' sb-primary' : ''}`}
-                onClick={() => setSbTavernShowsEnemy(!sbTavernShowsEnemy)}
-                title="Swap the top row between the shop and the opponent pinned for the coming fight"
-              >
-                {sbTavernShowsEnemy ? 'showing: enemy' : 'showing: shop'}
-              </button>
-            </div>
-            {sbTavernShowsEnemy && (
-              <div className="sb-row">
-                <button
-                  className="sb-btn"
-                  disabled={(run?.servedBoards?.[run.wave]?.minions.length ?? 0) >= MAX_BOARD}
-                  onClick={addEnemyFromPanel}
-                >
-                  + add enemy
-                </button>
-                <span className="sb-mini">{run?.servedBoards?.[run.wave]?.minions.length ?? 0} / {MAX_BOARD}</span>
+              <div className="sb-seg sb-seg-7" role="radiogroup" aria-label="Tavern tier">
+                {[1, 2, 3, 4, 5, 6, 7].map((t) => (
+                  <button key={t} type="button" role="radio" aria-checked={run?.tier === t} className={`sb-seg-btn${run?.tier === t ? ' on' : ''}`} onClick={() => setTier(t)}>{t}</button>
+                ))}
               </div>
-            )}
-            {/* Tuning an effect means watching the same moment many times. This re-mounts the replay on the
-                CombatResult already stored — same boards, same seed, same beats — and resolves nothing, so
-                the wave stays pinned and the boards you authored survive. */}
-            {/* Recruit phase ONLY. The panel is mounted through combat too, and a click DURING a live fight
-                re-entered a phase it was already in — which skipped that fight's own resolution path and, on
-                a loss, left the arena with no enabled way out. There is nothing to re-watch mid-fight. */}
-            {run?.lastCombat !== undefined && run.phase === 'recruit' && (
-              <div className="sb-row">
-                <button className="sb-btn sb-primary" onClick={replayLastCombat} title="Watch the last fight again — nothing advances">
-                  ↻ run it again
-                </button>
-              </div>
-            )}
-          </div>
+            </div>
+          </Sec>
 
-          {/* ENEMIES */}
-          <div className="sb-sec">
-            <div className="sb-label">Next enemy</div>
-            <div className="sb-row">
-              <label className="sb-num">×<input type="number" min={1} max={7} value={enemyN} onChange={(e) => setEnemyN(Number(e.target.value))} /></label>
-              <label className="sb-num">hp<input type="number" min={1} value={enemyHp} onChange={(e) => setEnemyHp(Number(e.target.value))} /></label>
-              <label className="sb-num">atk<input type="number" min={0} value={enemyAtk} onChange={(e) => setEnemyAtk(Number(e.target.value))} /></label>
-              <button className="sb-btn sb-primary" onClick={() => setEnemies(enemyHp, enemyAtk, enemyN)}>set</button>
+          {/* ENEMY — what the top row shows, click-to-edit, and the pinned dummies. Both toggles are
+              sandbox-only and neither changes run state, so the shop is exactly as you left it when you
+              flip back. */}
+          <Sec id="enemy" title="Enemy" folded={folded} onFold={fold}
+            right={foeShown ? <span className="sb-count">{foeCount} / {MAX_BOARD}{run?.lobby && !rigAuthored ? ' · paired seat' : rigAuthored ? ' · authored' : ''}</span> : undefined}>
+            <div className="sb-seg" role="radiogroup" aria-label="Top row shows">
+              <button type="button" role="radio" aria-checked={!foeShown} className={`sb-seg-btn${!foeShown ? ' on' : ''}`} onClick={() => setSbTavernShowsEnemy(false)} title="The top row shows the shop">shop row</button>
+              <button type="button" role="radio" aria-checked={foeShown} className={`sb-seg-btn${foeShown ? ' on' : ''}`} onClick={() => setSbTavernShowsEnemy(true)} title="The top row shows the opponent you are about to fight">enemy row</button>
+            </div>
+            <div className="sb-tiles sb-tiles-3">
+              <button className={`sb-tile${sbEditMode ? ' on' : ''}`} onClick={() => setSbEditMode(!sbEditMode)} aria-pressed={sbEditMode}
+                title="Click a minion on either row to set its card, attack, health and keywords"><b>✎</b> {sbEditMode ? 'editing' : 'edit'}</button>
+              <button className="sb-tile" disabled={!foeShown || foeCount >= MAX_BOARD} onClick={addEnemyFromPanel}
+                title={foeShown ? 'Add a minion to the enemy row' : 'Show the enemy row first'}><b>+</b> enemy</button>
+              {/* Tuning an effect means watching the same moment many times. This re-mounts the replay on the
+                  CombatResult already stored — same boards, same seed, same beats — and resolves nothing.
+                  Recruit phase ONLY: a click DURING a live fight re-entered a phase it was already in. */}
+              <button className="sb-tile" disabled={run?.lastCombat === undefined || run.phase !== 'recruit'} onClick={replayLastCombat}
+                title="Watch the last fight again — nothing advances"><b>↻</b> rewatch</button>
+            </div>
+            <div className="sb-row sb-dummies">
+              <span className="sb-mini">dummies</span>
+              <label className="sb-num" title="How many">×<input type="number" min={1} max={7} value={enemyN} onChange={(e) => setEnemyN(Number(e.target.value))} /></label>
+              <label className="sb-num" title="Health">hp<input type="number" min={1} value={enemyHp} onChange={(e) => setEnemyHp(Number(e.target.value))} /></label>
+              <label className="sb-num" title="Attack">atk<input type="number" min={0} value={enemyAtk} onChange={(e) => setEnemyAtk(Number(e.target.value))} /></label>
+              <button className="sb-btn sb-primary" onClick={() => setEnemies(enemyHp, enemyAtk, enemyN)} title="Pin these dummies as the next fight's opponent">set</button>
             </div>
             <div className="sb-row">
               <button className="sb-btn" onClick={() => setEnemies(1, 0, 7)} title="7 glass dummies (1 hp)">glass ×7</button>
               <button className="sb-btn" onClick={() => setEnemies(300, 0, 1)} title="1 tank dummy (300 hp)">tank</button>
               <button className="sb-btn" onClick={() => setEnemies(20, 20, 5)} title="5 bruisers (20/20)">bruisers</button>
             </div>
-          </div>
+          </Sec>
 
-          {/* SEARCH — one box filters the three libraries below (cards, quests, runes). */}
-          <div className="sb-sec">
-            <div className="sb-label">Search</div>
+          {/* LIBRARY — one search box, Cards and Runes as tabs over one tall list. ↵ adds the top card. */}
+          <Sec id="library" title="Library" folded={folded} onFold={fold}
+            right={<div className="sb-tabs" role="tablist">
+              <button type="button" role="tab" aria-selected={lib === 'cards'} className={`sb-tab${lib === 'cards' ? ' on' : ''}`} onClick={() => setLib('cards')}>cards <em>{results.length}</em></button>
+              <button type="button" role="tab" aria-selected={lib === 'runes'} className={`sb-tab${lib === 'runes' ? ' on' : ''}`} onClick={() => setLib('runes')}>runes <em>{runeResults.length}</em></button>
+            </div>}>
             <input
               className="sb-search"
-              placeholder="name, id, tribe, keyword… — ↵ adds the top match to the shop"
+              placeholder={lib === 'cards' ? 'name, id, tribe, keyword… ↵ adds the top match to the shop' : 'rune name, id, text…'}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => {
                 // Rapid-fire keyboard add (owner ask 2026-08-14): Enter drops the top card match into the shop
                 // without reaching for the mouse. The text is re-selected, not cleared, so a second Enter adds
                 // ANOTHER copy of the same card and typing over it switches to the next — never leaving the box.
-                if (e.key === 'Enter' && results.length > 0) {
+                if (e.key === 'Enter') {
                   e.preventDefault();
-                  addToShop(results[0]!.id);
+                  if (lib === 'cards' && results.length > 0) addToShop(results[0]!.id);
+                  else if (lib === 'runes' && runeResults.length > 0) grantRune(runeResults[0]!.id);
                   e.currentTarget.select();
                 }
               }}
-              title="Matches name, id, tribe, keywords, rules text and effect ids. Space-separated terms must ALL match. Press ↵ to add the top match to the shop (again for another copy)."
+              title="Matches name, id, tribe, keywords, rules text and effect ids. Space-separated terms must ALL match. ↵ adds the top match (again for another copy)."
             />
-          </div>
-
-          {/* CARDS */}
-          <div className="sb-sec">
-            <div className="sb-label">Cards → shop <span className="sb-count">{results.length}</span></div>
             <div className="sb-results">
-              {results.map((c) => (
+              {lib === 'cards' ? results.map((c) => (
                 <button key={c.id} className="sb-card" onClick={() => addToShop(c.id)} title={`Add ${c.name} (Tier ${c.tier}) to the shop`}>
                   <span className={`sb-t sb-t${c.tier}`}>{c.tier}</span>
                   <span className="sb-name">{c.name}</span>
                   {c.spell && <span className="sb-tag">spell</span>}
                 </button>
-              ))}
-              {results.length === 0 && <div className="sb-empty">no matches</div>}
-            </div>
-          </div>
-
-          {/* QUESTS — REMOVED from the menu 2026-08-28 (owner): quests are not being actively developed, so
-              the library was offering a surface nobody is building against. The `devGrant` quest path and
-              `QUEST_DEFS` are untouched — this is the MENU only, so re-adding it is putting this block back. */}
-
-          {/* RUNES — granting one applies its reward for the run, exactly like buying it in the Runeforge. */}
-          <div className="sb-sec">
-            <div className="sb-label">Runes → owned <span className="sb-count">{runeResults.length}</span></div>
-            <div className="sb-results">
-              {runeResults.map((r) => (
+              )) : runeResults.map((r) => (
+                // Granting a rune applies its reward for the run, exactly like buying it in the Runeforge.
                 <button key={r.id} className="sb-card" onClick={() => grantRune(r.id)} title={`Grant ${r.name} — its reward applies for the run (free here)`}>
                   <span className="sb-name">{r.name}</span>
                   {r.epic && <span className="sb-tag">epic</span>}
                 </button>
               ))}
-              {runeResults.length === 0 && <div className="sb-empty">no matches</div>}
+              {(lib === 'cards' ? results : runeResults).length === 0 && <div className="sb-empty">no matches</div>}
             </div>
-          </div>
+          </Sec>
 
-          {/* BUG SCENARIO — load a report's scenario.json (bug CLI export) into the rig. The run enters as a
-              sandbox (no saves / uploads / drafts — see `loadBugScenario`); the report side panel mounts on
-              load. A content-mismatch file loads read-only (panel + banner) without replacing the run. */}
-          <div className="sb-sec">
-            <div className="sb-label">Bug scenario</div>
+          {/* QUESTS — REMOVED from the menu 2026-08-28 (owner): quests are not being actively developed. The
+              `devGrant` quest path and `QUEST_DEFS` are untouched — re-adding it is putting the block back. */}
+
+          {/* SCENARIOS — the bug-report and QA bridges. Folded by default: they are the rig's I/O, not its
+              daily controls. Bug: load a report's scenario.json (bug CLI export); the run enters as a sandbox
+              (no saves / uploads / drafts — see `loadBugScenario`). QA: export this run as a QaScenarioV1,
+              import one back, run it headlessly right here, or save it as a checked-in fixture. */}
+          <Sec id="scenarios" title="Scenarios" folded={folded} onFold={fold} defaultFolded
+            right={bugScenario ? <span className="sb-count" title={bugScenario.reportId}>bug loaded</span> : undefined}>
+            <div className="sb-sub">Bug report</div>
             {bugScenario ? (
               <div className="sb-row">
                 <span className="sb-mini sb-name" title={bugScenario.reportId}>loaded: {bugScenario.reportId}</span>
@@ -442,44 +456,26 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
             ) : (
               <>
                 <div className="sb-row">
-                  <input
-                    ref={bugFileRef}
-                    type="file"
-                    accept=".json,application/json"
-                    style={{ display: 'none' }}
+                  <input ref={bugFileRef} type="file" accept=".json,application/json" style={{ display: 'none' }}
                     onChange={(e) => {
                       const file = e.target.files?.[0];
                       e.target.value = ''; // re-picking the same file must fire onChange again
                       if (!file) return;
                       void file.text().then(loadBugText).catch(() => setBugErrors(['Could not read the file.']));
-                    }}
-                  />
+                    }} />
                   <button className="sb-btn" onClick={() => bugFileRef.current?.click()} title="Load a scenario.json exported by npm run bugs:repro">📂 load file…</button>
                   <button className="sb-btn sb-primary" disabled={bugJson.trim() === ''} onClick={() => loadBugText(bugJson)} title="Load the pasted JSON">load JSON</button>
                 </div>
-                <textarea
-                  className="sb-search sb-bugpaste"
-                  rows={2}
-                  placeholder="…or paste a scenario.json here"
-                  value={bugJson}
-                  onChange={(e) => setBugJson(e.target.value)}
-                />
+                <textarea className="sb-search sb-bugpaste" rows={2} placeholder="…or paste a scenario.json here" value={bugJson} onChange={(e) => setBugJson(e.target.value)} />
               </>
             )}
-            {bugErrors.length > 0 && (
-              <div className="sb-mini sb-warn">{bugErrors.join(' ')}</div>
-            )}
-          </div>
+            {bugErrors.length > 0 && <div className="sb-mini sb-warn">{bugErrors.join(' ')}</div>}
 
-          {/* QA SCENARIO — the QaScenarioV1 bridge (§4.5). Export serializes THIS run (a pinned enemy for the
-              current wave exports as a combat scenario); import hydrates through the same sandbox door as the
-              bug bridge above; run-headless executes the export through the pure @game/sim runner right here. */}
-          <div className="sb-sec">
-            <div className="sb-label">QA scenario</div>
+            <div className="sb-sub">QA scenario</div>
             <div className="sb-row">
               <button className="sb-btn" onClick={exportQa} title="Serialize this run as a QaScenarioV1 — downloads the JSON and copies it to the clipboard">⬇ export</button>
-              <button className="sb-btn" onClick={runHeadless} title="Run the current export through the headless scenario runner (real engine, no UI) and show its summary">▶ run headless</button>
-              <button className="sb-btn" onClick={copyRepro} title="Copy the deterministic reproduction command for this scenario's id">⎘ repro cmd</button>
+              <button className="sb-btn" onClick={runHeadless} title="Run the current export through the headless scenario runner (real engine, no UI) and show its summary">▶ headless</button>
+              <button className="sb-btn" onClick={copyRepro} title="Copy the deterministic reproduction command for this scenario's id">⎘ repro</button>
             </div>
             <div className="sb-row">
               <button className="sb-btn" onClick={saveFixture} title={`Write the export into ${QA_SCENARIO_FIXTURE_DIR} via the dev server (refuses to overwrite unless armed)`}>💾 save fixture</button>
@@ -488,32 +484,21 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
               </label>
             </div>
             <div className="sb-row">
-              <input
-                ref={qaFileRef}
-                type="file"
-                accept=".json,application/json"
-                style={{ display: 'none' }}
+              <input ref={qaFileRef} type="file" accept=".json,application/json" style={{ display: 'none' }}
                 onChange={(e) => {
                   const file = e.target.files?.[0];
                   e.target.value = ''; // re-picking the same file must fire onChange again
                   if (!file) return;
                   void file.text().then(importQaText).catch(() => setQaErrors(['Could not read the file.']));
-                }}
-              />
+                }} />
               <button className="sb-btn" onClick={() => qaFileRef.current?.click()} title="Load a QaScenarioV1 JSON file into the rig (validated; sandbox — nothing writes)">📂 import file…</button>
               <button className="sb-btn sb-primary" disabled={qaJson.trim() === ''} onClick={() => importQaText(qaJson)} title="Import the pasted scenario JSON">import JSON</button>
             </div>
-            <textarea
-              className="sb-search sb-bugpaste"
-              rows={2}
-              placeholder="…or paste a QaScenarioV1 JSON here"
-              value={qaJson}
-              onChange={(e) => setQaJson(e.target.value)}
-            />
+            <textarea className="sb-search sb-bugpaste" rows={2} placeholder="…or paste a QaScenarioV1 JSON here" value={qaJson} onChange={(e) => setQaJson(e.target.value)} />
             {qaStatus !== '' && <div className="sb-mini">{qaStatus}</div>}
             {qaErrors.length > 0 && <div className="sb-mini sb-warn">{qaErrors.join(' · ')}</div>}
             {qaSummary !== '' && <pre className="sb-mini sb-qa-summary">{qaSummary}</pre>}
-          </div>
+          </Sec>
         </div>
       )}
     </div>
@@ -524,5 +509,31 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
         onClick={() => { onRestore(); raise(); }}>🧩</button>
     )}
     </>
+  );
+}
+
+/** Where a section's fold state is remembered, per section id. A property of how you are working, not of the
+ *  run, so it lives beside the panel's dragged position rather than in any run state. */
+const SB_FOLD_KEY = 'ascent.sb.fold';
+function loadFolded(): Record<string, boolean> {
+  try { return (JSON.parse(localStorage.getItem(SB_FOLD_KEY) || '{}') as Record<string, boolean>) ?? {}; } catch { return {}; }
+}
+
+/** One foldable section: a brass heading you can click shut, an optional right-hand slot (a count, tabs). */
+function Sec({ id, title, right, folded, onFold, defaultFolded, children }: {
+  id: string; title: string; right?: React.ReactNode; folded: Record<string, boolean>;
+  onFold: (id: string, closed: boolean) => void; defaultFolded?: boolean; children: React.ReactNode;
+}): JSX.Element {
+  const closed = folded[id] ?? defaultFolded ?? false;
+  return (
+    <div className={`sb-sec${closed ? ' folded' : ''}`}>
+      <div className="sb-label">
+        <button type="button" className="sb-fold" onClick={() => onFold(id, !closed)} aria-expanded={!closed} title={closed ? 'Expand' : 'Fold'}>
+          <span className="sb-caret" aria-hidden>{closed ? '▸' : '▾'}</span>{title}
+        </button>
+        {right !== undefined && <span className="sb-label-r">{right}</span>}
+      </div>
+      {!closed && children}
+    </div>
   );
 }

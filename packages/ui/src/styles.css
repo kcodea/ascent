@@ -7503,6 +7503,14 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .sb-num input { width: calc(44 * var(--u)); background: #1c1810; border: 1px solid #56492c; color: #f0e6cf; border-radius: calc(4 * var(--u)); padding: calc(3 * var(--u)) calc(5 * var(--u)); font-size: calc(12 * var(--u)); }
 
 .sb-select { width: 100%; background: #1c1810; border: 1px solid #56492c; color: #f0e6cf; border-radius: calc(5 * var(--u)); padding: calc(5 * var(--u)) calc(8 * var(--u)); font-size: calc(13 * var(--u)); cursor: pointer; }
+.sb-select-inline { width: auto; flex: 1; min-width: 0; padding: calc(3 * var(--u)) calc(6 * var(--u)); font-size: calc(12 * var(--u)); }
+/* RULES — a two-way segmented control (god / normal). One lit segment, so the current rules read at a glance
+   even with the panel collapsed to a strip. Static colours only; no looping paint. */
+.sb-seg { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 1px solid #56492c; border-radius: calc(6 * var(--u)); overflow: hidden; background: #1c1810; }
+.sb-seg-btn { background: transparent; border: 0; color: #a8997a; padding: calc(5 * var(--u)) calc(6 * var(--u)); font-size: calc(12 * var(--u)); font-weight: 800; letter-spacing: 0.02em; cursor: pointer; transition: background 0.12s ease, color 0.12s ease; }
+.sb-seg-btn + .sb-seg-btn { border-left: 1px solid #56492c; }
+.sb-seg-btn:hover { color: #f0e6cf; background: #2a2415; }
+.sb-seg-btn.on { background: var(--acc, #f4be35); color: #241a08; }
 
 .sb-search { width: 100%; box-sizing: border-box; background: #1c1810; border: 1px solid #56492c; color: #f0e6cf; border-radius: calc(6 * var(--u)); padding: calc(5 * var(--u)) calc(8 * var(--u)); font-size: calc(13 * var(--u)); }
 .sb-search:focus { outline: none; border-color: var(--acc, #f4be35); }
@@ -7532,6 +7540,114 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 /* QA scenario bridge: the headless runner's compact summary — monospace, scrolls inside itself, never widens
    the panel. (No cursor rule — dev text block, not interactive.) */
 .sb-qa-summary { margin: calc(4 * var(--u)) 0 0; padding: calc(6 * var(--u)); max-height: calc(140 * var(--u)); overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font-family: ui-monospace, Consolas, monospace; font-size: calc(10 * var(--u)); background: rgba(0, 0, 0, 0.35); border-radius: calc(6 * var(--u)); }
+
+/* ---- SCENE BUILDER SKIN (2026-09-09) — the panel wears the tuner panels' struck-brass slate, scoped to
+   `.scenebuilder` so the bug-report side panel (which shares the `.sb-*` vocabulary) keeps its own look.
+   Sections fold, the table controls are same-sized tiles, and the library is one list under two tabs.
+   PERFORMANCE: static gradients + shadows; hover/active states are short one-shot transitions, never loops. */
+.scenebuilder {
+  --sb-face: #1d1913; --sb-well: #100d08; --sb-raise: #262019; --sb-line: #3f372c; --sb-line2: #4f4437;
+  --sb-ink: #efe7db; --sb-ink2: #c9bda6; --sb-ink3: #9a8c74; --sb-brass: #c8a45c; --sb-brass-dk: #6b5526;
+  width: calc(300 * var(--u)); color: var(--sb-ink); border: 1px solid var(--sb-line2); border-radius: 14px; padding: 0 0 calc(10 * var(--u));
+  background:
+    repeating-linear-gradient(0deg, rgba(255, 235, 200, 0.014) 0 1px, transparent 1px 3px),
+    radial-gradient(120% 60% at 50% -8%, #2b2620 0%, #1d1913 55%, #151109 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 238, 205, 0.10), inset 0 -1px 0 rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(200, 146, 46, 0.16), 0 22px 50px -14px rgba(0, 0, 0, 0.85);
+}
+.scenebuilder.collapsed { width: calc(220 * var(--u)); padding-bottom: 0; }
+.scenebuilder .sb-head { margin: 0; padding: calc(8 * var(--u)) calc(34 * var(--u)) calc(8 * var(--u)) calc(12 * var(--u)); gap: calc(8 * var(--u));
+  border-radius: 13px 13px 0 0; border-bottom: 1px solid var(--sb-brass-dk); justify-content: flex-start;
+  background: linear-gradient(180deg, #3a3227 0%, #2a2419 100%); box-shadow: inset 0 1px 0 rgba(255, 240, 205, 0.13), 0 1px 0 rgba(0, 0, 0, 0.5); }
+.scenebuilder.collapsed .sb-head { border-radius: 13px; border-bottom: 0; }
+.scenebuilder .sb-emblem { flex: none; width: calc(22 * var(--u)); height: calc(22 * var(--u)); display: grid; place-items: center; font-size: calc(12 * var(--u)); border-radius: 7px;
+  background: radial-gradient(120% 120% at 30% 20%, #5c4a24, #332a19); border: 1px solid #7a5f22; box-shadow: inset 0 1px 0 rgba(255, 232, 180, 0.25), 0 1px 2px rgba(0, 0, 0, 0.6); }
+.scenebuilder .sb-title { font-size: calc(14 * var(--u)); font-weight: 800; color: #fbeccd; text-shadow: 0 1px 0 rgba(0, 0, 0, 0.65); letter-spacing: 0.02em; text-transform: none; }
+.scenebuilder .sb-status { flex: 1; min-width: 0; font-size: calc(10 * var(--u)); font-weight: 700; color: var(--sb-ink3); text-transform: uppercase; letter-spacing: 0.08em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.scenebuilder .sb-collapse { flex: none; color: #a89468; font-size: calc(12 * var(--u)); padding: 0 calc(3 * var(--u)); }
+.scenebuilder .sb-collapse:hover { color: #f0d9a4; }
+.scenebuilder .sb-body { gap: 0; padding: 0 calc(12 * var(--u)); }
+
+/* sections: brass heading with a fold caret and a rule that fades out of the brass */
+.scenebuilder .sb-sec { gap: calc(6 * var(--u)); padding: calc(4 * var(--u)) 0 calc(10 * var(--u)); border-bottom: 1px solid #2f2820; }
+.scenebuilder .sb-sec.folded { padding-bottom: calc(4 * var(--u)); }
+.scenebuilder .sb-sec:last-child { border-bottom: 0; }
+.scenebuilder .sb-label { gap: calc(6 * var(--u)); padding: calc(6 * var(--u)) 0 calc(2 * var(--u)); color: var(--sb-brass); letter-spacing: 0.13em; text-shadow: 0 1px 0 rgba(0, 0, 0, 0.6); }
+.scenebuilder .sb-label::after { content: ''; flex: 1; height: 1px; order: 5; background: linear-gradient(90deg, rgba(200, 146, 46, 0.55), rgba(200, 146, 46, 0.10) 60%, transparent); }
+.scenebuilder .sb-label-r { order: 9; display: inline-flex; align-items: center; gap: calc(4 * var(--u)); }
+.scenebuilder .sb-fold { display: inline-flex; align-items: center; gap: calc(5 * var(--u)); border: 0; background: none; padding: 0; color: inherit; font: inherit; letter-spacing: inherit; text-transform: inherit; cursor: pointer; }
+.scenebuilder .sb-fold:hover { color: #f0d9a4; }
+.scenebuilder .sb-caret { font-size: calc(9 * var(--u)); width: calc(8 * var(--u)); color: #9a8154; }
+.scenebuilder .sb-count { order: 9; font-size: calc(9 * var(--u)); color: #a2947a; background: #241f17; border: 1px solid #3d3529; border-radius: 999px; padding: 1px calc(6 * var(--u)); letter-spacing: 0.04em; text-transform: none; }
+.scenebuilder .sb-sub { font-size: calc(10 * var(--u)); font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--sb-ink3); margin-top: calc(4 * var(--u)); }
+.scenebuilder .sb-mini { color: var(--sb-ink3); }
+.scenebuilder .sb-note { font-style: italic; opacity: 0.85; }
+.scenebuilder .sb-warn { color: #e0a866; }
+
+/* fields: recessed wells */
+.scenebuilder .sb-two { display: grid; grid-template-columns: 1fr 1fr; gap: calc(6 * var(--u)); }
+.scenebuilder .sb-two-tight { grid-template-columns: 1fr auto; align-items: end; }
+.scenebuilder .sb-field { display: flex; flex-direction: column; gap: calc(2 * var(--u)); min-width: 0; }
+.scenebuilder .sb-field .sb-mini { font-size: calc(9 * var(--u)); letter-spacing: 0.08em; text-transform: uppercase; font-weight: 800; }
+.scenebuilder .sb-select, .scenebuilder .sb-search, .scenebuilder .sb-num input {
+  background: var(--sb-well); border: 1px solid #443a2c; color: var(--sb-ink); box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.75); border-radius: calc(7 * var(--u)); }
+.scenebuilder .sb-select { padding: calc(5 * var(--u)) calc(7 * var(--u)); font-size: calc(12 * var(--u)); font-weight: 700; min-width: 0; }
+.scenebuilder .sb-select:focus, .scenebuilder .sb-search:focus, .scenebuilder .sb-num input:focus { outline: none; border-color: var(--sb-brass); }
+.scenebuilder .sb-search { padding: calc(6 * var(--u)) calc(9 * var(--u)); font-size: calc(12 * var(--u)); font-weight: 700; }
+.scenebuilder .sb-search::placeholder { color: var(--sb-ink3); font-weight: 600; }
+
+/* buttons: raised on the face */
+.scenebuilder .sb-btn { background: linear-gradient(180deg, #2a2419, #201b13); border: 1px solid #443a2c; color: var(--sb-ink2); border-radius: calc(7 * var(--u)); padding: calc(5 * var(--u)) calc(9 * var(--u)); font-weight: 800; transition: border-color 0.12s ease, color 0.12s ease; }
+.scenebuilder .sb-btn:hover:not(:disabled) { color: #f0d9a4; border-color: var(--sb-brass); background: linear-gradient(180deg, #2f281d, #241e15); }
+.scenebuilder .sb-btn:disabled { opacity: 0.4; cursor: default; }
+.scenebuilder .sb-btn.sb-primary { background: var(--sb-brass); color: #241a08; border-color: #e2c27a; }
+.scenebuilder .sb-btn.sb-primary:hover:not(:disabled) { color: #241a08; background: #d9b56a; }
+.scenebuilder .sb-btn-tall { align-self: stretch; }
+.scenebuilder .sb-chk { color: var(--sb-ink2); }
+.scenebuilder .sb-chk input { accent-color: var(--sb-brass); }
+
+/* segmented controls — one lit segment */
+.scenebuilder .sb-seg { border: 1px solid #443a2c; background: var(--sb-well); box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.6); border-radius: calc(7 * var(--u)); }
+.scenebuilder .sb-seg-7 { grid-template-columns: repeat(7, 1fr); flex: 1; }
+.scenebuilder .sb-seg-btn { color: var(--sb-ink3); padding: calc(5 * var(--u)) calc(4 * var(--u)); }
+.scenebuilder .sb-seg-btn + .sb-seg-btn { border-left: 1px solid #2f2820; }
+.scenebuilder .sb-seg-btn:hover { color: var(--sb-ink); background: var(--sb-raise); }
+.scenebuilder .sb-seg-btn.on { background: var(--sb-brass); color: #241a08; }
+.scenebuilder .sb-tierrow { gap: calc(8 * var(--u)); flex-wrap: nowrap; }
+.scenebuilder .sb-tierrow .sb-mini { font-size: calc(9 * var(--u)); letter-spacing: 0.08em; text-transform: uppercase; font-weight: 800; flex: none; }
+
+/* tiles — same-sized action buttons */
+.scenebuilder .sb-tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: calc(4 * var(--u)); }
+.scenebuilder .sb-tile { display: flex; align-items: center; justify-content: center; gap: calc(5 * var(--u)); min-width: 0; padding: calc(6 * var(--u)) calc(4 * var(--u));
+  border: 1px solid var(--sb-line); border-radius: calc(8 * var(--u)); background: linear-gradient(180deg, #24201a, #1c1812); color: var(--sb-ink2);
+  font-size: calc(11 * var(--u)); font-weight: 700; cursor: pointer; white-space: nowrap; box-shadow: inset 0 1px 0 rgba(255, 238, 205, 0.05);
+  transition: border-color 0.12s ease, background 0.12s ease, color 0.12s ease; }
+.scenebuilder .sb-tile b { font-size: calc(12 * var(--u)); color: var(--sb-brass); font-weight: 900; }
+.scenebuilder .sb-tile:hover:not(:disabled) { border-color: var(--sb-brass); color: var(--sb-ink); background: linear-gradient(180deg, #2f281d, #241e15); }
+.scenebuilder .sb-tile:disabled { opacity: 0.4; cursor: default; }
+.scenebuilder .sb-tile.on { border-color: #b8923d; background: linear-gradient(180deg, #3b2f17, #2a2212); color: #f6e3b4; }
+.scenebuilder .sb-tile-warn:hover:not(:disabled) { border-color: #b0402e; color: #ffb3a3; }
+.scenebuilder .sb-tile-warn:hover:not(:disabled) b { color: #ffb3a3; }
+
+/* enemy dummies */
+.scenebuilder .sb-dummies { flex-wrap: nowrap; }
+.scenebuilder .sb-dummies .sb-mini:first-child { font-size: calc(9 * var(--u)); letter-spacing: 0.08em; text-transform: uppercase; font-weight: 800; flex: none; }
+.scenebuilder .sb-num { color: var(--sb-ink3); }
+.scenebuilder .sb-num input { width: calc(40 * var(--u)); padding: calc(4 * var(--u)) calc(5 * var(--u)); }
+
+/* library tabs + list */
+.scenebuilder .sb-tabs { display: inline-flex; gap: calc(3 * var(--u)); }
+.scenebuilder .sb-tab { border: 1px solid transparent; background: transparent; border-radius: 999px; padding: calc(2 * var(--u)) calc(8 * var(--u)); color: var(--sb-ink3);
+  font-size: calc(10 * var(--u)); font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer; display: inline-flex; gap: calc(4 * var(--u)); align-items: center;
+  transition: background 0.12s ease, color 0.12s ease; }
+.scenebuilder .sb-tab em { font-style: normal; font-size: calc(9 * var(--u)); opacity: 0.75; font-variant-numeric: tabular-nums; }
+.scenebuilder .sb-tab:hover { color: var(--sb-ink); background: var(--sb-raise); }
+.scenebuilder .sb-tab.on { color: #241a08; background: var(--sb-brass); border-color: #e2c27a; }
+.scenebuilder .sb-results { max-height: calc(300 * var(--u)); }
+.scenebuilder .sb-card { background: linear-gradient(180deg, #24201a, #1c1812); border-color: var(--sb-line); color: var(--sb-ink2); border-radius: calc(7 * var(--u)); padding: calc(4 * var(--u)) calc(7 * var(--u)); }
+.scenebuilder .sb-card:hover { border-color: var(--sb-brass); color: var(--sb-ink); background: linear-gradient(180deg, #2f281d, #241e15); }
+.scenebuilder .sb-empty { color: var(--sb-ink3); }
+.scenebuilder .sb-bugpaste { min-height: calc(30 * var(--u)); }
+.scenebuilder .sb-qa-summary { background: var(--sb-well); border: 1px solid #443a2c; }
 .bsc-id { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bsc-banner { background: #3a2413; border: 1px solid #a0632a; border-radius: calc(6 * var(--u)); color: #f0b978; font-size: calc(12 * var(--u)); line-height: 1.4; padding: calc(6 * var(--u)) calc(8 * var(--u)); }
 .bsc-badges { gap: calc(4 * var(--u)); }

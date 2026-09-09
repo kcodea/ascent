@@ -80,6 +80,7 @@ const CARD_REF_EFFECTS: Record<string, string> = {
   endOfTurnCastSpellOnSelf: 'spellId',        // Arnold -> Beefy
   onAllyAttackCastGrowth: 'spellId',
   rallyCastTribeAttack: 'spellId',
+  avengeCastTribeAttack: 'spellId', // Soul-Lantern Hierophant (set 3)
   battlecryGrantSpell: 'spellId',
   startOfTurnGetSpellImproveRubies: 'spellId',  // Gemline Martyr -> Veinstorm
   orbitCastSpell: 'spellId',                    // Worldseed Gardener -> Sprout / Growth

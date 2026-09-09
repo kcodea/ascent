@@ -2089,6 +2089,10 @@ export function simulate(
       const after = at > slot ? arr[at - 1]!.uid : undefined; // anchor the UI re-slot to the token on its left
       nextStep(); // the body's return is its own moment, after the rattle's summons
       emit({ type: 'reborn', target: minion.uid, hp: minion.health, attack: minion.attack, keywords: [...minion.keywords], ...(after ? { after } : {}) });
+      // `onRise` — the Rise watchers (Revenant, Rising Tide). Emitted once the body is BACK (auras re-applied,
+      // re-slotted) so a watcher that buffs "your minions" reaches the risen body itself. The shop's twin is
+      // `fireOnRise` in recruit.ts, off the same return (owner 2026-09-09: both phases, shop payouts permanent).
+      bus.emit('onRise', { minion, side: minion.side });
       // A Rise IS a summon, in FULL (owner ruling 2026-08-12, superseding the 2026-07-13 "quest count only"
       // carve-out): the returned body runs the same summon-entry suite as any placed summon — onSummon
       // watchers (Beardsley / King Oona / Groveweaver), tribe auras, the Zoo ordinal, Remains, Emberline,

@@ -26,11 +26,11 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-family-avenge",
-    "title": "'avenge' family · 18 cards",
-    "statement": "All 18 'avenge' cards trigger the same way. Gilding doubles their output, except a few that summon a gilded token or add a proc. — ✓ yes · ✕ no (say why) · ✎ your wording",
+    "title": "'avenge' family · 19 cards",
+    "statement": "All 19 'avenge' cards trigger the same way. Gilding doubles their output, except a few that summon a gilded token or add a proc. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
-    "currentBehaviour": "19 effect factories across 18 cards dispatch through the 'avenge' presentation family, all on the single trigger 'avenge' (combat); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline, with Dunkey/Muster General/Steadfast Sentinel summoning a GILDED token at the same count, and Gemstorm Instigator buying one extra proc (owner ruling 2026-08-28).",
-    "cardText": "Exemplar — Dunkey: \"Avenge (4): summon an Armadiyo.\" · Members: Dunkey · Solaris · Bone Taxer · Brood Matron · Grobbus · Gemstorm Instigator · Gem Portsmith · Kennelmaster · Muster General · Pit Supplier · Professor Greg · Solaris Fang · … and 6 more",
+    "currentBehaviour": "20 effect factories across 19 cards dispatch through the 'avenge' presentation family, all on the single trigger 'avenge' (combat); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline, with Dunkey/Muster General/Steadfast Sentinel summoning a GILDED token at the same count, and Gemstorm Instigator buying one extra proc (owner ruling 2026-08-28).",
+    "cardText": "Exemplar — Dunkey: \"Avenge (4): summon an Armadiyo.\" · Members: Dunkey · Solaris · Bone Taxer · Brood Matron · Grobbus · Gemstorm Instigator · Gem Portsmith · Kennelmaster · Muster General · Pit Supplier · Professor Greg · Solaris Fang · … and 7 more",
     "example": "Dunkey follows the 'avenge' convention — its trigger fires on avenge. Gilded Dunkey summons ONE gilded Armadiyo, not two plain ones.",
     "contentIds": [
       "b2_dunkey",
@@ -50,6 +50,7 @@ export const CONVENTION_PENDING: GameRule[] = [
       "spellappraiser",
       "steadfast",
       "stuntdrake",
+      "u3_hierophant",
       "weaver"
     ]
   },
@@ -128,11 +129,11 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-family-echo",
-    "title": "'echo' family · 58 cards",
-    "statement": "All 58 'echo' cards trigger the same way. Gilding doubles their output; a few summon a gilded token instead. — ✓ yes · ✕ no (say why) · ✎ your wording",
+    "title": "'echo' family · 61 cards",
+    "statement": "All 61 'echo' cards trigger the same way. Gilding doubles their output; a few summon a gilded token instead. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
-    "currentBehaviour": "44 effect factories across 58 cards dispatch through the 'echo' presentation family, all on the single trigger 'onDeath' (both); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline is the safe reading, with Void Panther / T-Rex / Chicken Brawl gilding the token they summon instead of doubling the count (owner ruling 2026-08-28).",
-    "cardText": "Exemplar — Amun Rab: \"Deathrattle: Summon 7 Imps and give your Imps +5/+5.\" · Members: Amun Rab · Anubis · Ashen Heir · Armadiyo · Bullseye · Dawnclaw · Menagerie Mammoth · T-Rex · Voidmother · Wolvie · Bone Taxer · Brood Matron · … and 46 more",
+    "currentBehaviour": "46 effect factories across 61 cards dispatch through the 'echo' presentation family, all on the single trigger 'onDeath' (both); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline is the safe reading, with Void Panther / T-Rex / Chicken Brawl gilding the token they summon instead of doubling the count (owner ruling 2026-08-28).",
+    "cardText": "Exemplar — Amun Rab: \"Deathrattle: Summon 7 Imps and give your Imps +5/+5.\" · Members: Amun Rab · Anubis, Last Gate · Ashen Heir · Armadiyo · Bullseye · Dawnclaw · Menagerie Mammoth · T-Rex · Voidmother · Wolvie · Bone Taxer · Brood Matron · … and 49 more",
     "example": "Amun Rab follows the 'echo' convention — its trigger fires on onDeath. Gilded T-Rex summons one GILDED T-Rex Baby, while gilded Wolves Den summons 6 Crypt Wolves instead of 3.",
     "contentIds": [
       "amunrab",
@@ -192,6 +193,9 @@ export const CONVENTION_PENDING: GameRule[] = [
       "spore",
       "trickster",
       "twilightwhelp",
+      "u3_adeptus",
+      "u3_noggin",
+      "u3_rodrick",
       "wolvesden"
     ]
   },
@@ -262,11 +266,11 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-family-grant",
-    "title": "'grant' family · 7 cards",
-    "statement": "All 7 'grant' cards trigger the same way. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
+    "title": "'grant' family · 9 cards",
+    "statement": "All 9 'grant' cards trigger the same way. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
-    "currentBehaviour": "1 effect factories across 7 cards dispatch through the 'grant' presentation family, all on the single trigger 'equip' (recruit); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Pourman: \"Equip Pourman's Keg (1): cast a random Dwarven Ale.\" · Members: Pourman · Thymes · Alchemist Frank · Titan Sculptor · Blast Surveyor · Kaura L'roft · Prismpick Artificer",
+    "currentBehaviour": "1 effect factories across 9 cards dispatch through the 'grant' presentation family, all on the single trigger 'equip' (recruit); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
+    "cardText": "Exemplar — Pourman: \"Equip Pourman's Keg (1): cast a random Dwarven Ale.\" · Members: Pourman · Thymes · Alchemist Frank · Titan Sculptor · Blast Surveyor · Kaura L'roft · Prismpick Artificer · EMS · Robinson",
     "example": "Pourman follows the 'grant' convention — its trigger fires on equip. its printed numbers double when the card is gilded.",
     "contentIds": [
       "dw3_pourman",
@@ -275,7 +279,9 @@ export const CONVENTION_PENDING: GameRule[] = [
       "e3_sculptor",
       "k3_blastsurveyor",
       "k3_kaura",
-      "k3_prismpick"
+      "k3_prismpick",
+      "u3_ems",
+      "u3_robinson"
     ]
   },
   {
@@ -387,11 +393,11 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-family-shout",
-    "title": "'shout' family · 53 cards",
-    "statement": "All 53 'shout' cards trigger the same way. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
+    "title": "'shout' family · 54 cards",
+    "statement": "All 54 'shout' cards trigger the same way. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
-    "currentBehaviour": "49 effect factories across 53 cards dispatch through the 'shout' presentation family, all on the single trigger 'onPlay' (both); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Pennycat: \"Battlecry: summon a 1/1 Stray next to it.\" · Members: Pennycat · Mage-Pup · Black Belt Brian · Buddy Buddy · Cinderwing Matron · Hoard Cleric · Crypt Broker · Commander Warpath · Broodfire · Brood Whelp · Scalefeather · Flutterdrake · … and 41 more",
+    "currentBehaviour": "50 effect factories across 54 cards dispatch through the 'shout' presentation family, all on the single trigger 'onPlay' (both); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
+    "cardText": "Exemplar — Pennycat: \"Battlecry: summon a 1/1 Stray next to it.\" · Members: Pennycat · Mage-Pup · Black Belt Brian · Buddy Buddy · Cinderwing Matron · Hoard Cleric · Crypt Broker · Commander Warpath · Broodfire · Brood Whelp · Scalefeather · Flutterdrake · … and 42 more",
     "example": "Pennycat follows the 'shout' convention — its trigger fires on onPlay. its printed numbers double when the card is gilded.",
     "contentIds": [
       "alley",
@@ -446,6 +452,7 @@ export const CONVENTION_PENDING: GameRule[] = [
       "scrapherald",
       "seaurchin",
       "squirlscout",
+      "u3_cagebreaker",
       "wayfinder"
     ]
   },
@@ -847,7 +854,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "title": "Gilding default: ×2",
     "statement": "A gilded card doubles its printed numbers. Outliers instead gild the summoned token, reshape the effect, or add a proc; spells never gild. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "gilding",
-    "currentBehaviour": "293 cards carry authored goldenText; every other card inherits the ×2 number-doubler. The outlier shapes are the owner's 2026-08-28 rulings, now carried per card as the contract's gildedDelta kind (R-GILD-01); spells and Rubies are not-applicable (R-GILD-02).",
+    "currentBehaviour": "302 cards carry authored goldenText; every other card inherits the ×2 number-doubler. The outlier shapes are the owner's 2026-08-28 rulings, now carried per card as the contract's gildedDelta kind (R-GILD-01); spells and Rubies are not-applicable (R-GILD-02).",
     "cardText": "Exemplar — Wolves Den: \"Deathrattle: Summon 3 Crypt Wolves.\" → gilded: \"Deathrattle: Summon 6 Crypt Wolves.\"",
     "example": "Wolves Den's gilded text just writes the ×2 out in full — while gilded Dunkey instead summons ONE gilded Armadiyo."
   },
@@ -924,11 +931,11 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-global-threshold-scope",
-    "title": "Threshold counters · 18 Avenge carriers",
+    "title": "Threshold counters · 19 Avenge carriers",
     "statement": "Combat counters (Avenge) reset when the fight ends. Shop counters last the whole run. Progress never crosses between them. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "persistence",
     "currentBehaviour": "Avenge progress lives in per-combat instance state; quest/cadence counters live in run state and persist.",
-    "cardText": "Exemplar — Dunkey: \"Avenge (4): summon an Armadiyo.\" · Avenge carriers: Dunkey · Solaris · Bone Taxer · Brood Matron · Grobbus · Gemstorm Instigator · Gem Portsmith · Kennelmaster · Muster General · Pit Supplier · Professor Greg · Solaris Fang · … and 6 more",
+    "cardText": "Exemplar — Dunkey: \"Avenge (4): summon an Armadiyo.\" · Avenge carriers: Dunkey · Solaris · Bone Taxer · Brood Matron · Grobbus · Gemstorm Instigator · Gem Portsmith · Kennelmaster · Muster General · Pit Supplier · Professor Greg · Solaris Fang · … and 7 more",
     "example": "Dunkey at 2 of 3 deaths when combat ends starts the next combat at 0 — but a quest at 4 of 5 buys stays at 4 next turn.",
     "contentIds": [
       "b2_dunkey",
@@ -948,6 +955,7 @@ export const CONVENTION_PENDING: GameRule[] = [
       "spellappraiser",
       "steadfast",
       "stuntdrake",
+      "u3_hierophant",
       "weaver"
     ]
   },
@@ -1220,16 +1228,17 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-keyword-r",
-    "title": "Rise [R] · 3 carriers",
+    "title": "Rise [R] · 4 carriers",
     "statement": "Rise means: the first time this dies, it returns with 1 Health (its Rise spent) — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "keywords",
-    "currentBehaviour": "One shared engine path implements Rise for all 3 carriers.",
-    "cardText": "Exemplar — Anubis: \"Deathrattle: Give your minions Reborn. Cast Lantern of Souls.\" · Carriers: Anubis · Footman · Chaos Attachment",
-    "example": "Anubis carries Rise — in play, the first time this dies, it returns with 1 Health (its Rise spent).",
+    "currentBehaviour": "One shared engine path implements Rise for all 4 carriers.",
+    "cardText": "Exemplar — Anubis, Last Gate: \"Echo: give your minions Rise and cast Lantern of Souls.\" · Carriers: Anubis, Last Gate · Footman · Chaos Attachment · Poochy",
+    "example": "Anubis, Last Gate carries Rise — in play, the first time this dies, it returns with 1 Health (its Rise spent).",
     "contentIds": [
       "anubis",
       "footman",
-      "symbioticattachment"
+      "symbioticattachment",
+      "u3_poochy"
     ]
   },
   {
@@ -1392,11 +1401,11 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-keyword-t",
-    "title": "Taunt [T] · 17 carriers",
+    "title": "Taunt [T] · 18 carriers",
     "statement": "Taunt means: enemies must attack your Taunt minions before anything else — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "keywords",
-    "currentBehaviour": "One shared engine path implements Taunt for all 17 carriers.",
-    "cardText": "Exemplar — Armadiyo: \"Taunt. Echo: give your Beast Aura +2/+4.\" · Carriers: Armadiyo · Dawnclaw · Wolvie · Fel Spikes · Chipper · Knocked · Big Huggies · Brunni · Twilight Emissary · Gryphon · Geode Guardian · Kobe · … and 5 more",
+    "currentBehaviour": "One shared engine path implements Taunt for all 18 carriers.",
+    "cardText": "Exemplar — Armadiyo: \"Taunt. Echo: give your Beast Aura +2/+4.\" · Carriers: Armadiyo · Dawnclaw · Wolvie · Fel Spikes · Chipper · Knocked · Big Huggies · Brunni · Twilight Emissary · Gryphon · Geode Guardian · Kobe · … and 6 more",
     "example": "Armadiyo carries Taunt — in play, enemies must attack your Taunt minions before anything else.",
     "contentIds": [
       "b2_armadiyo",
@@ -1415,7 +1424,8 @@ export const CONVENTION_PENDING: GameRule[] = [
       "ryme",
       "sabercub",
       "sandbag",
-      "trainingdummy"
+      "trainingdummy",
+      "u3_poochy"
     ]
   },
   {
@@ -2174,7 +2184,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "statement": "All 4 of these fire on one trigger: a friendly minion gains Attack. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
     "currentBehaviour": "3 effect factories across 4 cards dispatch on 'onGainAttack' (both) — re-clustered by TRIGGER out of the 'react' presentation family on the owner's 2026-08-28 ruling; the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Kneel: \"When a Dwarf gains Attack, this gains +2 Health.\" · Members: Kneel · Tankerchief · Hunter · Sergeant",
+    "cardText": "Exemplar — Kneel: \"When a Dwarf gains Attack, this gains +2 Health.\" · Members: Kneel · Tankerchief · Hunter · Sergey",
     "example": "Kneel fires when a friendly minion gains Attack, like every other card here. its printed numbers double when the card is gilded.",
     "contentIds": [
       "dw3_kneel",
@@ -2256,15 +2266,16 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-trigger-overflow",
-    "title": "Trigger: a summon overflows a full board · 2 cards",
-    "statement": "All 2 of these fire on one trigger: a summon overflows a full board. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
+    "title": "Trigger: a summon overflows a full board · 3 cards",
+    "statement": "All 3 of these fire on one trigger: a summon overflows a full board. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
-    "currentBehaviour": "2 effect factories across 2 cards dispatch on 'summonOverflow' (both) — re-clustered by TRIGGER out of the 'react' presentation family on the owner's 2026-08-28 ruling; the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Flowing Monk: \"When you summon a minion that doesn't fit, Engrave 2 friendly minions +2/+2. Improves by +2/+2 every 5 overflows.\" · Members: Flowing Monk · Cratering Hulk",
+    "currentBehaviour": "3 effect factories across 3 cards dispatch on 'summonOverflow' (both) — re-clustered by TRIGGER out of the 'react' presentation family on the owner's 2026-08-28 ruling; the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
+    "cardText": "Exemplar — Flowing Monk: \"When you summon a minion that doesn't fit, Engrave 2 friendly minions +2/+2. Improves by +2/+2 every 5 overflows.\" · Members: Flowing Monk · Cratering Hulk · Squatimus",
     "example": "Flowing Monk fires when a summon overflows a full board, like every other card here. its printed numbers double when the card is gilded.",
     "contentIds": [
       "monk",
-      "thunderingabomination"
+      "thunderingabomination",
+      "u3_squatimus"
     ]
   },
   {

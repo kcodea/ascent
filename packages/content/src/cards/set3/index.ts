@@ -3,6 +3,7 @@ import { SET3_CELESTIALS } from './celestials';
 import { SET3_EQUIPMENT } from './equipment';
 import { SET3_KOBOLDS } from './kobolds';
 export { SET3_DWARVES } from './dwarves';
+export { SET3_UNDEAD } from './undead';
 
 /**
  * ── SET 3 — scaffold only ───────────────────────────────────────────────────────────────────────────────

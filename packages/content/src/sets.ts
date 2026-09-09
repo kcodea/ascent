@@ -14,7 +14,7 @@ import { SET2_NEUTRAL } from './cards/set2/neutral';
 import { SET2_DRAGONS } from './cards/set2/dragons';
 import { SET2_BEASTS } from './cards/set2/beasts';
 import { SET2_SPELLS } from './cards/set2/spells';
-import { SET3_CARDS, SET3_DWARVES } from './cards/set3';
+import { SET3_CARDS, SET3_DWARVES, SET3_UNDEAD } from './cards/set3';
 
 /**
  * SET 3's SHARED SPELL POOL (owner list 2026-08-03: "they will be there no matter what") — the neutral spell
@@ -152,6 +152,22 @@ const SET2_DWARVES_IN_SET3: readonly CardDef[] = SET2_DWARVES.filter((c) =>
 const SET2_ALES_IN_SET3: readonly CardDef[] = SET2_SPELLS.filter((c) => ALE_IDS.includes(c.id));
 
 /**
+ * SET 1 UNDEAD that carry into SET 3 (owner roster 2026-09-09): eleven of set 1's Undead, opted in BY ID — shared
+ * definitions. Set 1 is DISABLED, so the four the roster re-specced (Deathswarmer 0/3, Mumi T3 5/2, Sergeant →
+ * Sergey, Anubis → "Anubis, Last Gate") were changed in place rather than forked (owner call 2026-09-09).
+ * The set-1 Undead NOT on the roster (Sporeling, Karthus, Ryme, Grave Body, Cratering Hulk, Steadfast Champion,
+ * Wolves Den, Gravewarden, Crypt Scribe, Watcher, Graverobber, Bone Taxer, Crypt Broker, Gravetwin) stay out by
+ * owner confirmation. Anubis lives in set 1's TIER7 list, hence the second filter.
+ */
+const SET1_UNDEAD_IN_SET3: readonly CardDef[] = [
+  ...UNDEAD.filter((c) => [
+    'deathswarmer', 'knit', 'deathlesshand', 'mumi', 'pillager', 'soulsman', 'deathsayer', 'profgreg',
+    'sergeant', 'forsakenweaver',
+  ].includes(c.id)),
+  ...TIER7.filter((c) => c.id === 'anubis'),
+];
+
+/**
  * ── Card sets ──────────────────────────────────────────────────────────────────────────────────────────
  *
  * A **set** is the pool of cards a run can draw from. Sets are built in parallel and switched live, exactly
@@ -257,7 +273,7 @@ export const SETS: Record<SetId, SetDef> = {
     // `selectRunTribes` picks a run's active tribes from this list, so a tribe absent here can never be a
     // run's tribe no matter how many of its cards the pool holds — which is why adding the Kobolds (2026-08-28)
     // meant adding 'kobold' in the same breath.
-    tribes: ['kobold', 'dwarf'], // Dwarves joined 2026-09-09 (Gold / Ale / "gains Attack")
+    tribes: ['kobold', 'dwarf', 'undead'], // Dwarves joined 2026-09-09 (Gold / Ale / "gains Attack"); Undead the same day (Rise / Echo / overflow)
     // Starts EMPTY and opts cards IN, the same manifest pattern set 2 uses. Add `inherits: 'set2'` (+
     // `excludes`) instead if set 3 should start from set 2's pool and trim; both compose, and `own` always
     // appends last so adding cards never disturbs an inherited prefix.
@@ -267,7 +283,8 @@ export const SETS: Record<SetId, SetDef> = {
     // Then the Dwarves (2026-09-09): set 3's own first, then the carried set-2 ones — APPENDED after the Kobolds
     // rather than folded into `SET3_CARDS`, so the Kobolds' positions never moved. The Ales are spells and go
     // last with the other spells.
-    own: [...SET3_CARDS, ...SET2_KOBOLDS_IN_SET3, ...SET3_DWARVES, ...SET2_DWARVES_IN_SET3, ...SET3_SHARED_SPELLS, ...SET2_ALES_IN_SET3], // → packages/content/src/cards/set3/*.ts
+    // Then the Undead (2026-09-09): set 3's own, then the carried set-1 ones — appended after the Dwarves, spells still last.
+    own: [...SET3_CARDS, ...SET2_KOBOLDS_IN_SET3, ...SET3_DWARVES, ...SET2_DWARVES_IN_SET3, ...SET3_UNDEAD, ...SET1_UNDEAD_IN_SET3, ...SET3_SHARED_SPELLS, ...SET2_ALES_IN_SET3], // → packages/content/src/cards/set3/*.ts
   },
 };
 

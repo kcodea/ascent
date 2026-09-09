@@ -9,6 +9,7 @@ import { CARD_INDEX } from '@game/content';
 export const DEATHRATTLE_BUFF_FACTORIES: ReadonlySet<string> = new Set([
   'deathrattleBuffTribe', 'deathrattleBuffTribeByTally', 'deathrattleBuffAll', 'deathrattleBuffAllHealth',
   'deathrattleBuffImps', 'deathrattleBuffRandom', 'deathrattleBuffAllRandomStat',
+  'deathrattleBuffRandomTribe', // Noggin (set 3): a random friendly Undead
   'deathrattleGiveHealth', 'deathrattleSummonOverflowBuff',
   'deathrattleBuffFodder', 'deathrattleBuffAllByImpAura',
   'deathrattleBuffCelestials', // Equinox Duelist (Dusk Echo) — buffs the OTHER Celestials it leaves behind // Burial Imp / Chef Raag — buff OTHERS on death (their

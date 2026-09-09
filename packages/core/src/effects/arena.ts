@@ -762,6 +762,49 @@ export const ARENA_EFFECTS = {
     }
   },
 
+  // ── Set 3 Undead (owner roster 2026-09-09) ──────────────────────────────────────────────────────────────
+
+  /** Noggin — Echo: a RANDOM friendly minion of `tribe` +a/+h (golden doubles). Seeded off the phase's own rng. */
+  deathrattleBuffRandomTribe(arena: EffectArena, params: Record<string, unknown>): void {
+    const tribe = String(params.tribe ?? '');
+    const g = arena.self.golden ? 2 : 1;
+    const a = (typeof params.attack === 'number' ? params.attack : 2) * g;
+    const h = (typeof params.health === 'number' ? params.health : 2) * g;
+    const pool = arena.friends().filter((f) => f.uid !== arena.self.uid && (!tribe || arena.isTribe(f, tribe)));
+    if (pool.length === 0) return;
+    arena.buff(pool[arena.rng().int(pool.length)]!, a, h);
+  },
+
+  /** Revenant — after a friendly minion Rises: this gains Ward (if it has none) and +a/+h, stacking per Rise.
+   *  In the shop the gain is permanent by construction (owner 2026-09-09: "both the stats and the ward"). */
+  onRiseBuffSelfWard(arena: EffectArena, params: Record<string, unknown>): void {
+    const g = arena.self.golden ? 2 : 1;
+    const a = (typeof params.attack === 'number' ? params.attack : 7) * g;
+    const h = (typeof params.health === 'number' ? params.health : 7) * g;
+    if (!arena.hasShield(arena.self)) arena.grantShield(arena.self);
+    arena.buff(arena.self, a, h);
+  },
+
+  /** Rising Tide — when a friendly minion Rises: your minions ON BOARD and IN HAND +a/+h. The hand half rides
+   *  `buffHand`, so in combat it is permanent (R-HAND-02) while the board half is a normal combat gain; in the
+   *  shop both halves are permanent (owner 2026-09-09). */
+  onRiseBuffBoardAndHand(arena: EffectArena, params: Record<string, unknown>): void {
+    const g = arena.self.golden ? 2 : 1;
+    const a = (typeof params.attack === 'number' ? params.attack : 4) * g;
+    const h = (typeof params.health === 'number' ? params.health : 5) * g;
+    for (const f of arena.friends()) arena.buff(f, a, h);
+    for (const c of arena.handMinions()) arena.buffHand(c, a, h);
+  },
+
+  /** Squatimus — a summon that does not fit: your minions +a/+h PERMANENTLY. `buffPermanent` is the arena's
+   *  carry-back verb (combat records it as an Engrave-style gain; a shop buff is permanent already). */
+  overflowBuffAllPermanent(arena: EffectArena, params: Record<string, unknown>): void {
+    const g = arena.self.golden ? 2 : 1;
+    const a = (typeof params.attack === 'number' ? params.attack : 2) * g;
+    const h = (typeof params.health === 'number' ? params.health : 2) * g;
+    for (const f of arena.friends()) arena.buffPermanent(f, a, h);
+  },
+
   /** Big Huggies — Echo: put a named spell in hand (golden grants two). */
   deathrattleGrantSpell(arena: EffectArena, params: Record<string, unknown>): void {
     const id = typeof params.cardId === 'string' ? params.cardId : '';

@@ -19,6 +19,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:avengeCopyLeftmostHandSpell:avenge': { policy: 'ownBeat', family: 'avenge' },
   'factory:avengeGiveAttack:avenge': { policy: 'ownBeat', family: 'avenge' },
   'factory:avengeGrantRandomSpell:avenge': { policy: 'ownBeat', family: 'avenge' },
+  'factory:avengeCastTribeAttack:avenge': { policy: 'ownBeat', family: 'avenge' }, // Soul-Lantern Hierophant (set 3)
   'factory:avengeGrantSpell:avenge': { policy: 'ownBeat', family: 'avenge' },
   'factory:avengeGrantSpellPower:avenge': { policy: 'ownBeat', family: 'avenge' },
   'factory:avengeImproveSummon:avenge': { policy: 'ownBeat', family: 'avenge' },
@@ -50,6 +51,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:battlecryCopyCastSpell:onPlay': { policy: 'ownBeat', family: 'shout' },
   'factory:battlecryCopyEcho:onPlay': { policy: 'ownBeat', family: 'shout' },
   'factory:battlecryDestroyForSpell:onPlay': { policy: 'ownBeat', family: 'shout' },
+  'factory:battlecryDestroyForDiscover:onPlay': { policy: 'ownBeat', family: 'shout' }, // Cage Breaker (set 3)
   'factory:battlecryDiscoverMinion:onPlay': { policy: 'ownBeat', family: 'shout' },
   'factory:battlecryDiscoverSpell:onPlay': { policy: 'ownBeat', family: 'shout' },
   'factory:battlecryDoubleNextSpell:onPlay': { policy: 'ownBeat', family: 'shout' },
@@ -125,6 +127,8 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:deathrattleReplayAdjacentBattlecry:onDeath': { policy: 'ownBeat', family: 'echo' },
   'factory:deathrattleRubyStatGain:onDeath': { policy: 'ownBeat', family: 'echo' },
   'factory:deathrattleSummon:onDeath': { policy: 'ownBeat', family: 'echo' },
+  'factory:deathrattleBuffRandomTribe:onDeath': { policy: 'ownBeat', family: 'echo' }, // Noggin (set 3)
+  'factory:deathrattleBuffSpellPower:onDeath': { policy: 'ownBeat', family: 'echo' }, // Adeptus (set 3) / Skullblade
   'factory:deathrattleSummonGolemsWithRuby:onDeath': { policy: 'ownBeat', family: 'echo' },
   'factory:deathrattleSummonOverflowBuff:onDeath': { policy: 'ownBeat', family: 'echo' },
   'factory:deathrattleSummonRandomTribe:onDeath': { policy: 'ownBeat', family: 'echo' },
@@ -253,6 +257,9 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:orbitGrantSpellPower:orbit': { policy: 'ownBeat', family: 'orbit' },
   'factory:orbitSellValue:orbit': { policy: 'ownBeat', family: 'orbit' },
   'factory:overflowBuffRandom:summonOverflow': { policy: 'foldedCue', family: 'react' },
+  'factory:overflowBuffAllPermanent:summonOverflow': { policy: 'foldedCue', family: 'react' }, // Squatimus (set 3)
+  'factory:onRiseBuffSelfWard:onRise': { policy: 'foldedCue', family: 'react' }, // Revenant (set 3)
+  'factory:onRiseBuffBoardAndHand:onRise': { policy: 'foldedCue', family: 'react' }, // Rising Tide (set 3)
   'factory:rallyBuff:onAttack': { policy: 'ownBeat', family: 'rally' },
   'factory:rallyBuffAttachments:onAttack': { policy: 'ownBeat', family: 'rally' },
   'factory:rallyBuffCelestials:onAttack': { policy: 'ownBeat', family: 'rally' },

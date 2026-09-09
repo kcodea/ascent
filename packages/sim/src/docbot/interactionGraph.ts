@@ -67,6 +67,7 @@ export const CHANNEL_OF_TRIGGER: Readonly<Record<string, string>> = {
   // channel with every other arrival-driven trigger — that is what an Equip minion interacts with.
   equip: 'summon',
   onDeath: 'death',
+  onRise: 'death', // a Rise is the tail of a death — the watchers (Revenant, Rising Tide) interact with what kills
   avenge: 'death',
   onKill: 'death',
   onSummon: 'summon',

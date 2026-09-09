@@ -1554,6 +1554,53 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     ARENA_EFFECTS.deathrattleGrantSpell(combatArena(ctx, self), params);
   },
 
+  // ── Set 3 Undead (owner roster 2026-09-09) ──────────────────────────────────────────────────────────────
+
+  deathrattleBuffRandomTribe: (ctx, self, params, payload) => {
+    if ((payload as MinionPayload).minion !== self) return;
+    ARENA_EFFECTS.deathrattleBuffRandomTribe(combatArena(ctx, self), params);
+  },
+
+  /** Revenant — `onRise` (a friendly body returned). Side-guarded; the riser may be Revenant itself. */
+  onRiseBuffSelfWard: (ctx, self, params, payload) => {
+    const { side } = payload as MinionPayload;
+    if (self.dead || side !== self.side) return;
+    ARENA_EFFECTS.onRiseBuffSelfWard(combatArena(ctx, self), params);
+  },
+
+  /** Rising Tide — `onRise`: board (a combat gain) + hand (permanent, R-HAND-02). */
+  onRiseBuffBoardAndHand: (ctx, self, params, payload) => {
+    const { side } = payload as MinionPayload;
+    if (self.dead || side !== self.side) return;
+    ARENA_EFFECTS.onRiseBuffBoardAndHand(combatArena(ctx, self), params);
+  },
+
+  /** Squatimus — `summonOverflow` (this side's summon found no room): your minions +a/+h, carried back. */
+  overflowBuffAllPermanent: (ctx, self, params, payload) => {
+    const { side } = payload as { side: Side };
+    if (self.dead || side !== self.side) return;
+    ARENA_EFFECTS.overflowBuffAllPermanent(combatArena(ctx, self), params);
+  },
+
+  /** Cage Breaker — a combat-triggered Shout has no Shop to Discover from and no aim: it grants a random
+   *  minion of the tribe through the usual Discover-in-combat channel (owner 2026-09-09). The DESTROY half is
+   *  shop-only — combat has no "destroy a friendly" verb, and a re-fired Shout mid-fight paying a body for a
+   *  card would be a different card. */
+  battlecryDestroyForDiscover: (ctx, self, params) => {
+    ctx.grantRandomMinion(mul(self), str(params.tribe) || undefined, self.side, self.cardId, self.uid);
+  },
+
+  /** Soul-Lantern Hierophant — Avenge (N): cast Lantern of Souls. The Rally body (`rallyCastTribeAttack`)
+   *  behind the shared avenge window, so every N friendly deaths cast it once (golden: the body casts twice). */
+  avengeCastTribeAttack: (ctx, self, params, payload) => {
+    const { side, count } = payload as { side: Side; count: number };
+    if (self.dead || side !== self.side) return;
+    const x = Math.max(1, num(params.count, 3));
+    const seen = avengeCountFor(self, count);
+    if (seen <= 0 || seen % x !== 0) return;
+    ARENA_EFFECTS.rallyCastTribeAttack(combatArena(ctx, self), params);
+  },
+
   /** Echo: buff the `tribe` minions in your hand — R-HAND-02: permanent, carried back, shown live. */
   deathrattleBuffHandTribe: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;

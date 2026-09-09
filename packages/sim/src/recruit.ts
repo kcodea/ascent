@@ -2263,8 +2263,8 @@ export function destroyMinionInShop(
  * @param summonedFrom board length immediately after it left — anything beyond this is what the Echo summoned,
  *                     and the return goes to its RIGHT (owner ruling 2026-07-06).
  */
-function riseReturn(state: RunState, target: BoardCard, slot: number, summonedFrom: number): void {
-  if (state.board.length >= CONFIG.boardMax) return;
+function riseReturn(state: RunState, target: BoardCard, slot: number, summonedFrom: number): BoardCard | undefined {
+  if (state.board.length >= CONFIG.boardMax) return undefined;
   const def = CARD_INDEX[target.cardId];
   const base = def?.attack ?? target.attack;
   const risen: BoardCard = {
@@ -2287,6 +2287,25 @@ function riseReturn(state: RunState, target: BoardCard, slot: number, summonedFr
   const grew = state.board.length - summonedFrom;
   const at = Math.min(state.board.length, slot + Math.max(0, grew));
   state.board.splice(at, 0, risen);
+  return risen;
+}
+
+/**
+ * `onRise` in the SHOP (owner ruling 2026-09-09): a body returning via Rise outside combat notifies the board's
+ * Rise watchers (Revenant, Rising Tide) exactly as combat's `bus.emit('onRise')` does — and because this is the
+ * recruit phase, whatever they grant is permanent (a shop buff is; a hand buff always is, R-HAND-02). Called
+ * from the one shop Rise site (`settlePendingDeath` → `riseReturn`); the risen body is in the payload, and the
+ * watcher may be the riser itself.
+ */
+export function fireOnRise(state: RunState, risen: BoardCard): void {
+  const ctx = makeContext(state);
+  for (const card of [...state.board]) {
+    for (const effect of instanceEffects(card)) {
+      if (effect.on !== 'onRise') continue;
+      const fn = RECRUIT_FACTORIES[effect.do];
+      if (fn) captureBuffFx(state, card, 'minion', () => fn(ctx, card, effect.params ?? {}, { minion: risen }));
+    }
+  }
 }
 
 /**
@@ -3686,6 +3705,62 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       addBuff(avail.splice(rng.int(avail.length), 1)[0]!, nameOf(self), a, h);
     }
     ctx.state.rngCursor = rng.state();
+  },
+
+  // ── Set 3 Undead (owner roster 2026-09-09) ──────────────────────────────────────────────────────────────
+
+  /** Noggin (Echo, shop half): a random friendly <tribe> +a/+h — the arena body, own-death guarded. */
+  deathrattleBuffRandomTribe: (ctx, self, params, payload) => {
+    if ((payload as { minion?: BoardCard })?.minion !== self) return;
+    ARENA_EFFECTS.deathrattleBuffRandomTribe(shopArena(ctx.state, self), params);
+  },
+
+  /** Adeptus (Echo, shop half): +a Attack to your Shop spells, run-wide — Coppercoat's arena body, guarded to
+   *  this body's own death (combat's `deathrattleBuffSpellPower` is the same channel, `grantSpellPower`). */
+  deathrattleBuffSpellPower: (ctx, self, params, payload) => {
+    if ((payload as { minion?: BoardCard })?.minion !== self) return;
+    ARENA_EFFECTS.battlecryGrantSpellPowerRun(shopArena(ctx.state, self), params);
+  },
+
+  /** Revenant (shop half): a friendly minion Rose in the shop → Ward + stats, permanent (owner 2026-09-09). */
+  onRiseBuffSelfWard: (ctx, self, params) => {
+    if (!ctx.state.board.some((c) => c.uid === self.uid)) return;
+    ARENA_EFFECTS.onRiseBuffSelfWard(shopArena(ctx.state, self), params);
+  },
+
+  /** Rising Tide (shop half): board + hand, both permanent here. */
+  onRiseBuffBoardAndHand: (ctx, self, params) => {
+    if (!ctx.state.board.some((c) => c.uid === self.uid)) return;
+    ARENA_EFFECTS.onRiseBuffBoardAndHand(shopArena(ctx.state, self), params);
+  },
+
+  /** Squatimus (shop half): a shop summon that found no room → your minions +a/+h. A shop buff is permanent. */
+  overflowBuffAllPermanent: (ctx, self, params) => {
+    ARENA_EFFECTS.overflowBuffAllPermanent(shopArena(ctx.state, self), params);
+  },
+
+  /** Cage Breaker (Shout, aimed): DESTROY a friendly <tribe> — the two-step death Graverobber uses, so its Echo,
+   *  its departure and its Rise get their beat — then Discover a <tribe> at the tavern tier (owner 2026-09-09:
+   *  "any undead up to the player's current tavern tier"). The Discover is queued behind the pending death. */
+  battlecryDestroyForDiscover: (ctx, self, params, payload) => {
+    const target = payload.target;
+    if (!target) return;
+    const tribe = (str(params.tribe) || undefined) as Tribe | undefined;
+    if (tribe && !isTribe(target, tribe)) return; // aimed at the wrong tribe — no death, no Discover
+    ctx.state.pendingDeath = { uid: target.uid, kind: 'destroy' };
+    for (let i = 0; i < gold(self); i++) queueDiscover(ctx.state, { kind: 'minion', tier: ctx.state.tier, tribe, exclude: self.cardId });
+  },
+
+  /** Deathfibrillator (one Equipment TRIGGER, aimed): give the target Rise, then destroy it — it returns at base
+   *  Attack / 1 Health through the shop's death sequence (R-RISE-02), its Echo fired on the way. A non-<tribe>
+   *  target is a no-op (the text says "a target Undead"; the aim picker is tribe-blind). */
+  equipmentRiseThenDestroy: (ctx, _self, params, payload) => {
+    const target = payload.target;
+    if (!target || !ctx.state.board.some((c) => c.uid === target.uid)) return;
+    const tribe = (str(params.tribe) || undefined) as Tribe | undefined;
+    if (tribe && !isTribe(target, tribe)) return;
+    if (!target.keywords.includes('R')) target.keywords = [...target.keywords, 'R'];
+    ctx.state.pendingDeath = { uid: target.uid, kind: 'destroy' };
   },
 
   /** Echo (shop half): buff the `tribe` minions in your hand. Same body as combat through the arena; a shop
@@ -5548,7 +5623,10 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  Rise; the "random" pick becomes the highest-Attack carry out of combat. Granting the `R` keyword is enough —
    *  combat's `instantiate` re-arms `rebornAvailable` from it. Golden grants Rise to two friends. */
   // ARENA-MIGRATED (Step 3): random in both phases (standing owner ruling); one body.
-  deathrattleGrantReborn: (ctx, self, params) => {
+  deathrattleGrantReborn: (ctx, self, params, payload) => {
+    // Own-death guard (fix 2026-09-09): `fireOnFriendDeath` offers EVERY shop death to the board's on-death
+    // effects, and without this Mumi handed Rise to a random Undead whenever ANY friend was destroyed.
+    if (payload?.minion && payload.minion !== self) return;
     ARENA_EFFECTS.deathrattleGrantReborn(shopArena(ctx.state, self), params);
   },
 
@@ -9396,7 +9474,10 @@ export function settlePendingDeath(state: RunState): void {
         const gone = state.board.findIndex((c) => c.uid === card.uid);
         if (gone >= 0) state.board.splice(gone, 1);
         // `summonedFrom - 1` discounts the body itself, still on the board when the baseline was taken.
-        if (willRise && gone >= 0) riseReturn(state, card, gone, Math.max(0, summonedFrom - 1));
+        if (willRise && gone >= 0) {
+          const risen = riseReturn(state, card, gone, Math.max(0, summonedFrom - 1));
+          if (risen) fireOnRise(state, risen);
+        }
       }
     },
   );

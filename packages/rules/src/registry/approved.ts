@@ -847,4 +847,26 @@ export const APPROVED_RULES: GameRule[] = [
       + 'channel, and the scenario drives it through simulate() with an injected probe card.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/handBuffInCombat.test.ts', 'packages/ui/src/useCombatReplay.test.ts'], lastVerifiedAt: '2026-09-09' },
   },
+  {
+    id: 'R-RISE-03',
+    title: 'Rise watchers fire in both phases — a shop Rise pays out, permanently',
+    statement:
+      '"When a friendly minion Rises" is an event of its own, and it fires wherever the Rise happens: in combat '
+      + 'when a body returns, and in the shop when a destroyed body returns (R-RISE-02). The payout of a watcher in '
+      + 'the shop is permanent — the stats AND any keyword it grants (the Ward of Revenant) — exactly as any recruit-phase '
+      + 'gain is; in combat the board half is a normal combat gain and a hand half is permanent (R-HAND-02). Only a '
+      + 'FRIENDLY Rise counts: an enemy body returning wakes nothing on your side.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-09 (set-3 Undead roster review, answers 3–5)', quote: 'friendly only … if minions rise in shop, that would trigger rising tide and that buff would be permanent since it\'s in recruit. this will be a common trigger/effect in set 3 so make sure that logic is wired correctly for minions rising in recruit.' },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts (the onRise bus emit after the reborn return); packages/sim/src/recruit.ts fireOnRise (off riseReturn in settlePendingDeath)' },
+    ],
+    contentIds: ['u3_revenant', 'u3_risingtide'],
+    currentBehaviour:
+      'Conforms (built with the ruling, 2026-09-09). One trigger, `onRise`, dispatched from the single Rise site of each '
+      + 'phase with the risen body in the payload; the watchers are side-guarded in combat and land shop grants through '
+      + '`addBuff` / the keyword list. Pinned for Revenant and Rising Tide in both phases, including an enemy Rise doing nothing.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3Undead.test.ts'], lastVerifiedAt: '2026-09-09' },
+  },
 ];

@@ -18,21 +18,21 @@
           16777215
         ],
         "blendMode": "normal",
-        "glow": 0,
+        "glow": 0.3,
         "noiseAlong": 0.5,
         "noiseAcross": 18.2,
         "warp": 1.03,
         "scroll": 1.4,
         "erode": 1.2,
         "gain": 2,
-        "head": 0.165,
+        "head": 0.01,
         "tail": 0.3,
-        "soft": 2.2,
+        "soft": 0.5,
         "length": 2400,
-        "width": 25,
+        "width": 34,
         "alpha": 1,
-        "headPinch": 0.11,
-        "tailFeather": 1.15,
+        "headPinch": 0.32,
+        "tailFeather": 1.35,
         "widthCurve": [
           [
             0,
@@ -48,9 +48,14 @@
           ]
         ],
         "waveAmp": 0,
-        "waveFreq": 2,
-        "waveSpeed": 3.4,
-        "drain": 450,
+        "waveFreq": 9.3,
+        "waveSpeed": 32.9,
+        "crackleAmp": 0,
+        "crackleSteps": 14,
+        "crackleFlicker": 24.5,
+        "wanderAmp": 0,
+        "wanderScale": 0.2,
+        "drain": 3020,
         "segments": 32,
         "blur": 0,
         "blurCurve": [
@@ -331,8 +336,8 @@
         "outline_alpha": 1,
         "outline_knockout": false,
         "outline_color": 0,
-        "rgbSplitOn": false,
-        "rgbSplitAmt": -10,
+        "rgbSplitOn": true,
+        "rgbSplitAmt": -44,
         "rgbSplitCurve": [
           [
             0,
@@ -343,8 +348,8 @@
             1
           ]
         ],
-        "rgbSplit_greenY": 10,
-        "rgbSplit_blueX": 0,
+        "rgbSplit_greenY": 3,
+        "rgbSplit_blueX": 12,
         "glitchOn": false,
         "glitchAmt": 50,
         "glitchCurve": [
@@ -1083,7 +1088,7 @@
         "pointGravity": 0,
         "life": 930,
         "orientToVelocity": false,
-        "spinMul": 1,
+        "spinMul": 3.3,
         "spinCurve": [
           [
             0,
@@ -1436,8 +1441,8 @@
         "outline_alpha": 1,
         "outline_knockout": false,
         "outline_color": 0,
-        "rgbSplitOn": false,
-        "rgbSplitAmt": -10,
+        "rgbSplitOn": true,
+        "rgbSplitAmt": -46,
         "rgbSplitCurve": [
           [
             0,
@@ -1448,8 +1453,8 @@
             1
           ]
         ],
-        "rgbSplit_greenY": 10,
-        "rgbSplit_blueX": 0,
+        "rgbSplit_greenY": 1,
+        "rgbSplit_blueX": -1,
         "glitchOn": false,
         "glitchAmt": 100,
         "glitchCurve": [

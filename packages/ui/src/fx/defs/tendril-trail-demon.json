@@ -14,7 +14,7 @@
         "palette": [
           8143016,
           11623664,
-          13671926,
+          11357174,
           15323643
         ],
         "blendMode": "normal",
@@ -25,11 +25,11 @@
         "scroll": 1.4,
         "erode": 1.2,
         "gain": 2,
-        "head": 0.165,
+        "head": 0.06,
         "tail": 0.3,
         "soft": 2.2,
         "length": 2400,
-        "width": 25,
+        "width": 18,
         "alpha": 1,
         "headPinch": 0.11,
         "tailFeather": 1.15,
@@ -50,7 +50,12 @@
         "waveAmp": 0,
         "waveFreq": 2,
         "waveSpeed": 3.4,
-        "drain": 450,
+        "crackleAmp": 0,
+        "crackleSteps": 7,
+        "crackleFlicker": 12,
+        "wanderAmp": 0,
+        "wanderScale": 3,
+        "drain": 1280,
         "segments": 32,
         "blur": 0,
         "blurCurve": [
@@ -91,7 +96,7 @@
           ]
         ],
         "glowOn": true,
-        "glowAmt": 1.3,
+        "glowAmt": 3.6,
         "glowCurve": [
           [
             0,

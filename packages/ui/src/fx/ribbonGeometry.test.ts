@@ -232,6 +232,133 @@ describe('writeRibbonPositions — wave', () => {
   });
 });
 
+// Shared helper: centre-line y-displacement of `b` vs `a` at every sample, and the max |x-displacement|
+// (which must stay ~0 for a perpendicular offset on a horizontal spine).
+function centreOffsets(a: Float32Array, b: Float32Array): { dys: number[]; maxAbsDx: number } {
+  const dys: number[] = [];
+  let maxAbsDx = 0;
+  for (let i = 0; i <= RIBBON_SEGMENTS; i++) {
+    const cxA = (a[i * 4] + a[i * 4 + 2]) / 2, cyA = (a[i * 4 + 1] + a[i * 4 + 3]) / 2;
+    const cxB = (b[i * 4] + b[i * 4 + 2]) / 2, cyB = (b[i * 4 + 1] + b[i * 4 + 3]) / 2;
+    dys.push(cyB - cyA);
+    maxAbsDx = Math.max(maxAbsDx, Math.abs(cxB - cxA));
+  }
+  return { dys, maxAbsDx };
+}
+
+describe('writeRibbonPositions — crackle', () => {
+  it('is a byte-identical no-op at crackleAmp 0, whatever steps/flicker/time', () => {
+    const on = new Float32Array((RIBBON_SEGMENTS + 1) * 4);
+    const plain = new Float32Array((RIBBON_SEGMENTS + 1) * 4);
+    writeRibbonPositions(on, straight, 40, { crackleAmp: 0, crackleSteps: 13, crackleFlicker: 20, timeSec: 4.2 });
+    writeRibbonPositions(plain, straight, 40);
+    expect(Array.from(on)).toEqual(Array.from(plain));
+  });
+
+  it('leaves a wave-only ribbon byte-identical — the crackle/wander terms contribute exactly 0', () => {
+    const waveOnly = new Float32Array((RIBBON_SEGMENTS + 1) * 4);
+    const explicitZero = new Float32Array((RIBBON_SEGMENTS + 1) * 4);
+    writeRibbonPositions(waveOnly, straight, 40, { waveAmp: 20, waveFreq: 3, waveSpeed: 5, timeSec: 1.3 });
+    writeRibbonPositions(explicitZero, straight, 40, { waveAmp: 20, waveFreq: 3, waveSpeed: 5, timeSec: 1.3, crackleAmp: 0, wanderAmp: 0 });
+    expect(Array.from(explicitZero)).toEqual(Array.from(waveOnly));
+  });
+
+  it('displaces the spine perpendicular to the tangent', () => {
+    const plain = new Float32Array((RIBBON_SEGMENTS + 1) * 4);
+    const crackled = new Float32Array((RIBBON_SEGMENTS + 1) * 4);
+    writeRibbonPositions(plain, straight, 40);
+    writeRibbonPositions(crackled, straight, 40, { crackleAmp: 60, crackleSteps: 6, crackleFlicker: 0, timeSec: 0 });
+    const { dys, maxAbsDx } = centreOffsets(plain, crackled);
+    expect(maxAbsDx).toBeLessThan(1e-3); // perpendicular to a horizontal tangent → no x drift
+    expect(Math.max(...dys.map(Math.abs))).toBeGreaterThan(2); // and it actually moved
+  });
+
+  it('anchors both ends, so the trail still meets its source and target', () => {
+    const plain = new Float32Array((RIBBON_SEGMENTS + 1) * 4);
+    const crackled = new Float32Array((RIBBON_SEGMENTS + 1) * 4);
+    writeRibbonPositions(plain, straight, 40);
+    writeRibbonPositions(crackled, straight, 40, { crackleAmp: 80, crackleSteps: 9, crackleFlicker: 0 });
+    const { dys } = centreOffsets(plain, crackled);
+    expect(Math.abs(dys[0])).toBeLessThan(1e-3); // head
+    expect(Math.abs(dys[RIBBON_SEGMENTS])).toBeLessThan(1e-3); // tail
+  });
+
+  it('re-strikes with time when flicker > 0, and freezes to the path when flicker is 0', () => {
+    const a = new Float32Array((RIBBON_SEGMENTS + 1) * 4);
+    const b = new Float32Array((RIBBON_SEGMENTS + 1) * 4);
+    writeRibbonPositions(a, straight, 40, { crackleAmp: 30, crackleSteps: 6, crackleFlicker: 10, timeSec: 0 });
+    writeRibbonPositions(b, straight, 40, { crackleAmp: 30, crackleSteps: 6, crackleFlicker: 10, timeSec: 0.5 }); // 5 strobes on
+    expect(Array.from(a)).not.toEqual(Array.from(b));
+
+    const f0 = new Float32Array((RIBBON_SEGMENTS + 1) * 4);
+    const f9 = new Float32Array((RIBBON_SEGMENTS + 1) * 4);
+    writeRibbonPositions(f0, straight, 40, { crackleAmp: 30, crackleSteps: 6, crackleFlicker: 0, timeSec: 0 });
+    writeRibbonPositions(f9, straight, 40, { crackleAmp: 30, crackleSteps: 6, crackleFlicker: 0, timeSec: 9 });
+    expect(Array.from(f0)).toEqual(Array.from(f9));
+  });
+});
+
+describe('writeRibbonPositions — wander', () => {
+  it('is a byte-identical no-op at wanderAmp 0, whatever scale/time', () => {
+    const on = new Float32Array((RIBBON_SEGMENTS + 1) * 4);
+    const plain = new Float32Array((RIBBON_SEGMENTS + 1) * 4);
+    writeRibbonPositions(on, straight, 40, { wanderAmp: 0, wanderScale: 9, timeSec: 2.1 });
+    writeRibbonPositions(plain, straight, 40);
+    expect(Array.from(on)).toEqual(Array.from(plain));
+  });
+
+  it('displaces the spine perpendicular to the tangent', () => {
+    const plain = new Float32Array((RIBBON_SEGMENTS + 1) * 4);
+    const wandered = new Float32Array((RIBBON_SEGMENTS + 1) * 4);
+    writeRibbonPositions(plain, straight, 40);
+    writeRibbonPositions(wandered, straight, 40, { wanderAmp: 60, wanderScale: 4, timeSec: 0 });
+    const { dys, maxAbsDx } = centreOffsets(plain, wandered);
+    expect(maxAbsDx).toBeLessThan(1e-3);
+    expect(Math.max(...dys.map(Math.abs))).toBeGreaterThan(2);
+  });
+
+  it('anchors both ends, so the trail still meets its source and target', () => {
+    const plain = new Float32Array((RIBBON_SEGMENTS + 1) * 4);
+    const wandered = new Float32Array((RIBBON_SEGMENTS + 1) * 4);
+    writeRibbonPositions(plain, straight, 40);
+    writeRibbonPositions(wandered, straight, 40, { wanderAmp: 80, wanderScale: 5 });
+    const { dys } = centreOffsets(plain, wandered);
+    expect(Math.abs(dys[0])).toBeLessThan(1e-3);
+    expect(Math.abs(dys[RIBBON_SEGMENTS])).toBeLessThan(1e-3);
+  });
+
+  it('drifts with time', () => {
+    const t0 = new Float32Array((RIBBON_SEGMENTS + 1) * 4);
+    const t1 = new Float32Array((RIBBON_SEGMENTS + 1) * 4);
+    writeRibbonPositions(t0, straight, 40, { wanderAmp: 40, wanderScale: 4, timeSec: 0 });
+    writeRibbonPositions(t1, straight, 40, { wanderAmp: 40, wanderScale: 4, timeSec: 1.5 });
+    expect(Array.from(t0)).not.toEqual(Array.from(t1));
+  });
+});
+
+describe('writeRibbonPositions — travel styles are distinct + deterministic', () => {
+  it('crackle, wander and wave are three different shapes at the same amplitude', () => {
+    const wv = new Float32Array((RIBBON_SEGMENTS + 1) * 4);
+    const cr = new Float32Array((RIBBON_SEGMENTS + 1) * 4);
+    const wa = new Float32Array((RIBBON_SEGMENTS + 1) * 4);
+    writeRibbonPositions(wv, straight, 40, { waveAmp: 30, waveFreq: 3, waveSpeed: 0 });
+    writeRibbonPositions(cr, straight, 40, { crackleAmp: 30, crackleSteps: 6, crackleFlicker: 0 });
+    writeRibbonPositions(wa, straight, 40, { wanderAmp: 30, wanderScale: 3 });
+    expect(Array.from(cr)).not.toEqual(Array.from(wv));
+    expect(Array.from(wa)).not.toEqual(Array.from(wv));
+    expect(Array.from(cr)).not.toEqual(Array.from(wa));
+  });
+
+  it('is deterministic — same params + time reproduce identical geometry (a replay needs this)', () => {
+    const a = new Float32Array((RIBBON_SEGMENTS + 1) * 4);
+    const b = new Float32Array((RIBBON_SEGMENTS + 1) * 4);
+    const shape = { crackleAmp: 30, crackleSteps: 6, crackleFlicker: 10, wanderAmp: 20, wanderScale: 4, timeSec: 2.5 };
+    writeRibbonPositions(a, straight, 40, shape);
+    writeRibbonPositions(b, straight, 40, shape);
+    expect(Array.from(a)).toEqual(Array.from(b));
+  });
+});
+
 describe('writeRibbonPositions — segments', () => {
   it('defaults to RIBBON_SEGMENTS, so passing it explicitly is a byte-identical no-op', () => {
     const explicit = new Float32Array((RIBBON_SEGMENTS + 1) * 4);

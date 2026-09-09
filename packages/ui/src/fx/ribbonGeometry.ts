@@ -49,7 +49,31 @@ export interface RibbonShape {
   waveFreq?: number;
   /** Wave travel speed in rad/sec. Default 3. Irrelevant while `waveAmp` is 0. */
   waveSpeed?: number;
-  /** The caller's clock in seconds — what makes the wave travel. Default 0 (a frozen wave). */
+  /**
+   * CRACKLE (lightning) — amplitude (px) of a SHARP, jagged perpendicular displacement ADDED on top of the
+   * smooth wave: the spine is broken into `crackleSteps` straight segments whose kinks are pseudo-random, so
+   * the trail reads as a lightning bolt rather than a snake. Default 0 — and like `waveAmp`, 0 contributes
+   * nothing, so it is a no-op until dialled up. The displacement is enveloped to 0 at both ends, so the trail
+   * still meets its source and target.
+   */
+  crackleAmp?: number;
+  /** Number of straight jagged segments along the length. Default 7. Irrelevant while `crackleAmp` is 0. */
+  crackleSteps?: number;
+  /** How many times a second the crackle re-strikes into a new random shape (0 = a shape frozen to the path).
+   *  Default 12. Irrelevant while `crackleAmp` is 0. */
+  crackleFlicker?: number;
+  /**
+   * WANDER (vine) — amplitude (px) of a SLOW, smooth pseudo-random perpendicular meander ADDED on top of the
+   * wave: value noise sampled along the length, so the trail curves organically and erratically like a
+   * growing vine rather than in a regular sine. Default 0 (a no-op, same rule as the others). Enveloped to 0
+   * at both ends so the trail still meets its source and target.
+   */
+  wanderAmp?: number;
+  /** Spatial frequency of the wander meander along the length — higher = tighter, curlier wandering. Default
+   *  3. Irrelevant while `wanderAmp` is 0. */
+  wanderScale?: number;
+  /** The caller's clock in seconds — what makes the wave travel, the crackle flicker, and the wander drift.
+   *  Default 0 (everything frozen). */
   timeSec?: number;
   /** Spine resample resolution. Clamped to [`RIBBON_MIN_SEGMENTS`, `RIBBON_MAX_SEGMENTS`].
    *  Default `RIBBON_SEGMENTS`. */
@@ -164,6 +188,35 @@ function writeTangent(xs: Float32Array, ys: Float32Array, i: number, last: numbe
   tangent[1] = ty / m;
 }
 
+/** Deterministic hash of a lattice point (`i`) and a seed (`s`) → [0, 1). The classic `fract(sin·big)` hash:
+ *  no allocation, no RNG state, and identical on every machine — a crackle/wander is the same shape for the
+ *  same time on every client, which a replay needs. Good enough for FX noise; not for anything cryptographic. */
+function hashLattice(i: number, s: number): number {
+  const v = Math.sin(i * 127.1 + s * 311.7) * 43758.5453;
+  return v - Math.floor(v);
+}
+
+/** Smooth value noise in [-1, 1] at position `x`, seeded by `s`: interpolate hashed lattice points with a
+ *  smoothstep so the result meanders GENTLY (a vine), never jumps. Allocation-free. */
+function valueNoise(x: number, s: number): number {
+  const i = Math.floor(x);
+  const f = x - i;
+  const u = f * f * (3 - 2 * f); // smoothstep → C1-continuous, no kinks
+  const a = hashLattice(i, s) * 2 - 1;
+  const b = hashLattice(i + 1, s) * 2 - 1;
+  return a + (b - a) * u;
+}
+
+/** Jagged noise in [-1, 1] at position `x`, seeded by `s`: interpolate hashed lattice points LINEARLY so the
+ *  kinks stay sharp (a lightning bolt), the opposite of `valueNoise`'s smoothing. Allocation-free. */
+function jaggedNoise(x: number, s: number): number {
+  const i = Math.floor(x);
+  const f = x - i; // linear interp = hard corners at every lattice point
+  const a = hashLattice(i, s) * 2 - 1;
+  const b = hashLattice(i + 1, s) * 2 - 1;
+  return a + (b - a) * f;
+}
+
 /**
  * Lay the ribbon along `spine` (head first) and extrude it to `width`.
  *
@@ -190,6 +243,11 @@ export function writeRibbonPositions(
     waveAmp = 0,
     waveFreq = 2,
     waveSpeed = 3,
+    crackleAmp = 0,
+    crackleSteps = 7,
+    crackleFlicker = 12,
+    wanderAmp = 0,
+    wanderScale = 3,
     timeSec = 0,
   } = shape;
   const segments = clampRibbonSegments(shape.segments ?? RIBBON_SEGMENTS);
@@ -216,18 +274,39 @@ export function writeRibbonPositions(
     resampledY[i] = a.y + (b.y - a.y) * f;
   }
 
-  // Optional wave pass: displace each sample along its own normal (-ty, tx) by a travelling sine, into a
-  // second scratch pair. Writing to a SEPARATE buffer (rather than in place) is what keeps the neighbour
-  // differences honest — an in-place shift would feed already-displaced neighbours to later tangents. The
-  // extrude pass below then reads the displaced spine, so its tangents follow the wave and the width stays
-  // perpendicular to the WAVY centreline (a real snake, not a sheared band).
-  // At waveAmp === 0 this pass is skipped entirely and the extrude reads the untouched resample, so the
-  // default is bit-for-bit the original geometry.
-  const waved = waveAmp !== 0;
+  // Optional displacement pass: shift each sample along its own normal (-ty, tx) into a second scratch pair.
+  // Writing to a SEPARATE buffer (rather than in place) is what keeps the neighbour differences honest — an
+  // in-place shift would feed already-displaced neighbours to later tangents. The extrude pass below then
+  // reads the displaced spine, so its tangents follow the displacement and the width stays perpendicular to
+  // the displaced centreline (a real snake/bolt/vine, not a sheared band).
+  //
+  // Three ADDITIVE travel styles share this pass, each a no-op at its own zero amplitude:
+  //   • WAVE   — a smooth travelling sine (`waveAmp`), the original snake.
+  //   • CRACKLE— sharp jagged kinks (`crackleAmp`) that re-strike over time — lightning.
+  //   • WANDER — slow smooth value-noise meander (`wanderAmp`) — an erratic vine.
+  // Crackle and wander are ENVELOPED by sin(πt) (0 at both ends) so, however wild the middle gets, the trail
+  // still meets its source and target; the wave is left un-enveloped exactly as it was. At waveAmp ===
+  // crackleAmp === wanderAmp === 0 the whole pass is skipped and the extrude reads the untouched resample, so
+  // the default is bit-for-bit the original geometry — and a wave-only def (crackle/wander 0) is byte-for-byte
+  // identical to before this change, since the added terms contribute exactly 0.
+  const waved = waveAmp !== 0 || crackleAmp !== 0 || wanderAmp !== 0;
   if (waved) {
     for (let i = 0; i <= segments; i++) {
       writeTangent(resampledX, resampledY, i, segments);
-      const offset = waveAmp * Math.sin((i / segments) * waveFreq * TAU + timeSec * waveSpeed);
+      const t = i / segments;
+      let offset = waveAmp === 0 ? 0 : waveAmp * Math.sin(t * waveFreq * TAU + timeSec * waveSpeed);
+      if (crackleAmp !== 0 || wanderAmp !== 0) {
+        const env = Math.sin(t * Math.PI); // anchor both ends: 0 at head (t=0) and tail (t=1), 1 mid-trail
+        if (crackleAmp !== 0) {
+          // `crackleFlicker` quantises time into discrete strikes: each new strobe reseeds the whole bolt, so
+          // it snaps between shapes rather than sliding. 0 → one fixed shape pinned to the path.
+          const strobe = crackleFlicker > 0 ? Math.floor(timeSec * crackleFlicker) : 0;
+          offset += crackleAmp * env * jaggedNoise(t * Math.max(1, crackleSteps), strobe);
+        }
+        if (wanderAmp !== 0) {
+          offset += wanderAmp * env * valueNoise(t * wanderScale + timeSec, 0);
+        }
+      }
       wavedX[i] = resampledX[i] - tangent[1] * offset;
       wavedY[i] = resampledY[i] + tangent[0] * offset;
     }

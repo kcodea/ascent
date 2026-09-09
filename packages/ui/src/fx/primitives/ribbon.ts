@@ -270,6 +270,29 @@ const SPECS = {
     enabledWhen: { param: 'waveAmp', above: 0 },
     help: 'How fast the wave travels along the trail; 0 freezes it in place so the bends stay pinned to the path. Does nothing while Wave depth is 0.',
   },
+  crackleAmp: {
+    kind: 'slider', label: 'Crackle depth', group: 'Shape', min: 0, max: 300, step: 0.5, default: 0, axis: 'scale',
+    help: 'Amplitude (px) of a SHARP, jagged sideways displacement added on top of the wave — the spine breaks into straight kinked segments, so the trail reads as a lightning bolt. 0 = off. Tapers to nothing at both ends, so the trail still meets its start and end.',
+  },
+  crackleSteps: {
+    kind: 'slider', label: 'Crackle steps', group: 'Shape', min: 2, max: 40, step: 1, default: 7,
+    enabledWhen: { param: 'crackleAmp', above: 0 },
+    help: 'How many straight jagged segments the bolt breaks into. Higher = finer, busier zig-zag. Only bites once Crackle depth is above 0.',
+  },
+  crackleFlicker: {
+    kind: 'slider', label: 'Crackle flicker', group: 'Shape', min: 0, max: 40, step: 0.5, default: 12,
+    enabledWhen: { param: 'crackleAmp', above: 0 },
+    help: 'How many times a second the bolt re-strikes into a fresh random shape; 0 freezes one shape pinned to the path. Does nothing while Crackle depth is 0.',
+  },
+  wanderAmp: {
+    kind: 'slider', label: 'Wander depth', group: 'Shape', min: 0, max: 300, step: 0.5, default: 0, axis: 'scale',
+    help: 'Amplitude (px) of a SLOW, smooth, erratic meander added on top of the wave — the trail curves organically like a growing vine instead of a regular sine. 0 = off. Tapers to nothing at both ends, so the trail still meets its start and end.',
+  },
+  wanderScale: {
+    kind: 'slider', label: 'Wander scale', group: 'Shape', min: 0.2, max: 24, step: 0.1, default: 3,
+    enabledWhen: { param: 'wanderAmp', above: 0 },
+    help: 'Spatial frequency of the wander — higher = tighter, curlier wandering; lower = long lazy curves. Only bites once Wander depth is above 0.',
+  },
   drain: {
     kind: 'slider', label: 'Drain', group: 'Shape', min: 0, max: 8000, step: 10, default: 0, axis: 'scale',
     help: 'How fast (px/sec) the tail retracts into the head once the head STOPS moving — the trail carries on arriving and shrinks to nothing, instead of freezing as a static streak or blinking out whole when the layer ends. 0 (the default) is the old freeze-in-place behaviour.',
@@ -504,6 +527,11 @@ class RibbonInstance implements FxInstance<RibbonParams> {
     waveAmp: number;
     waveFreq: number;
     waveSpeed: number;
+    crackleAmp: number;
+    crackleSteps: number;
+    crackleFlicker: number;
+    wanderAmp: number;
+    wanderScale: number;
     timeSec: number;
     segments: number;
   };
@@ -522,6 +550,11 @@ class RibbonInstance implements FxInstance<RibbonParams> {
       waveAmp: params.waveAmp,
       waveFreq: params.waveFreq,
       waveSpeed: params.waveSpeed,
+      crackleAmp: params.crackleAmp,
+      crackleSteps: params.crackleSteps,
+      crackleFlicker: params.crackleFlicker,
+      wanderAmp: params.wanderAmp,
+      wanderScale: params.wanderScale,
       timeSec: 0,
       segments: clampRibbonSegments(params.segments),
     };
@@ -651,6 +684,11 @@ class RibbonInstance implements FxInstance<RibbonParams> {
     this.shape.waveAmp = next.waveAmp;
     this.shape.waveFreq = next.waveFreq;
     this.shape.waveSpeed = next.waveSpeed;
+    this.shape.crackleAmp = next.crackleAmp;
+    this.shape.crackleSteps = next.crackleSteps;
+    this.shape.crackleFlicker = next.crackleFlicker;
+    this.shape.wanderAmp = next.wanderAmp;
+    this.shape.wanderScale = next.wanderScale;
     // Resolution change: rewrite (never resize) the UV + index buffers in place and re-upload them. This
     // only fires on an inspector edit, never per frame — the buffers themselves are permanent.
     const segments = clampRibbonSegments(next.segments);

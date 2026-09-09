@@ -81,6 +81,8 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:battlecryScoutSpread:onPlay': { policy: 'ownBeat', family: 'shout' },
   'factory:battlecryConductorAdjacent:onPlay': { policy: 'ownBeat', family: 'shout' },
   'factory:battlecryBuffAdjacent:onPlay': { policy: 'ownBeat', family: 'shout' },
+  'factory:battlecryGetHandSpell:onPlay': { policy: 'ownBeat', family: 'shout' },
+  'factory:clueBuffTarget:cast': { policy: 'ownBeat', family: 'spellCast' },
   'factory:battlecrySummon:onPlay': { policy: 'ownBeat', family: 'shout' },
   'factory:battlecryTargetConsumesShop:onPlay': { policy: 'ownBeat', family: 'shout' },
   'factory:battlecryTriggeredOwnDeathrattle:battlecryTriggered': { policy: 'foldedCue', family: 'shoutReact' },

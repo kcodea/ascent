@@ -79,6 +79,8 @@ export interface LiveTextParams {
   maxTier?: number;
   /** The run's Ruby bonus (Set 2) — Veinstorm shows the live Ruby stat line (1/1 + this) it grants the shop. */
   rubyBonus?: { attack: number; health: number };
+  /** Set 3 — the run's Clue value above base (a held Clue prints `1 + clueBonus`). */
+  clueBonus?: number;
   /** Sunmane Herald's live escalating rally value (combat-only) — its printed "+3" is only the opening rung. */
   rallySpreadAtk?: number;
   /** Mage-Pup: the spell Moonhowl Mentor taught THIS token, so its Shout line can print that spell's actual
@@ -127,7 +129,7 @@ export function liveCardText(cardId: string, p: LiveTextParams): { text: string;
     const taught = taughtSpellText(c.id, p.taughtSpellId, spellDisplayText(
       p.taughtSpellId, p.spellBonus, p.frontToBackBonus, p.spellBonusH, p.goldSpent ?? 0,
       p.frontToBackBonusH ?? p.frontToBackBonus, p.goldPouchValue ?? 0,
-      { rubyBonus: p.rubyBonus, playedThisTurn: Array.isArray(p.playedThisTurn) ? p.playedThisTurn : undefined, tier: p.tier },
+      { rubyBonus: p.rubyBonus, clueBonus: p.clueBonus, playedThisTurn: Array.isArray(p.playedThisTurn) ? p.playedThisTurn : undefined, tier: p.tier },
     ));
     if (taught) return { text: taught, goldenText: taught };
   }
@@ -135,7 +137,7 @@ export function liveCardText(cardId: string, p: LiveTextParams): { text: string;
     c.id === 'discoverspell'
       ? `**Discover** a **Tier ${Math.min(p.maxTier ?? CONFIG.maxTier, (p.grantedTier ?? p.tier) + 1)}** minion.` // frozen at grant tier
       : c.spell
-        ? spellDisplayText(c.id, p.spellBonus, p.frontToBackBonus, p.spellBonusH, p.goldSpent ?? 0, p.frontToBackBonusH ?? p.frontToBackBonus, p.goldPouchValue ?? 0, { rubyBonus: p.rubyBonus, playedThisTurn: Array.isArray(p.playedThisTurn) ? p.playedThisTurn : undefined, tier: p.tier, topTribe: p.topTribe as never, growthBonus: p.growthBonus })
+        ? spellDisplayText(c.id, p.spellBonus, p.frontToBackBonus, p.spellBonusH, p.goldSpent ?? 0, p.frontToBackBonusH ?? p.frontToBackBonus, p.goldPouchValue ?? 0, { rubyBonus: p.rubyBonus, clueBonus: p.clueBonus, playedThisTurn: Array.isArray(p.playedThisTurn) ? p.playedThisTurn : undefined, tier: p.tier, topTribe: p.topTribe as never, growthBonus: p.growthBonus })
         : transformProgressText(c.id, p.spellProgress ?? 0) ??
             ascendProgressText(c.id, p.ascendProgress ?? 0) ??
             cryptDrakeText(c.id, p.golden, p.attackSeen ?? 0, p.summonBonus ?? 0) ?? // live grant + combat countdown
@@ -245,7 +247,7 @@ export function instView(
   spellsCast = 0,
   clingEnchant?: { attack: number; health: number },
   fodderConsumed?: { attack: number; health: number },
-  live?: { undeadBuyAtk?: number; soulsmanGold?: number; impAura?: { attack: number; health: number }; cardBuffs?: Record<string, { attack: number; health: number }>; castMult?: number; goldSpent?: number; goldSpentRun?: number; goldPouchValue?: number; playedThisTurn?: string[]; squirlScoutBuff?: number; conductorBuff?: number; lastSpellName?: string; rememberedSpellNames?: readonly string[]; impBank?: { attack: number; health: number }; firstSpellThisTurnName?: string; lastSpellThisTurnName?: string; topTribe?: string | null; frontToBackBonusH?: number; onBoard?: boolean; eotTickOverride?: number; improveReps?: number; rubyCasts?: number; rubyBonus?: { attack: number; health: number }; grimoireCharged?: boolean; runeMammoth?: boolean; runeFlags?: RuneTextFlags; tier7Access?: boolean; alesThisTurn?: number; /** The run flags the (Both) predicate reads (`runeFacetwright` / `runeUnbrokenVein`) — passed rather than a precomputed boolean so the ONE predicate stays the only place the rule lives. */ chooseBothState?: { runeFacetwright?: boolean; runeUnbrokenVein?: boolean } },
+  live?: { undeadBuyAtk?: number; soulsmanGold?: number; impAura?: { attack: number; health: number }; cardBuffs?: Record<string, { attack: number; health: number }>; castMult?: number; goldSpent?: number; goldSpentRun?: number; goldPouchValue?: number; playedThisTurn?: string[]; squirlScoutBuff?: number; conductorBuff?: number; lastSpellName?: string; rememberedSpellNames?: readonly string[]; impBank?: { attack: number; health: number }; firstSpellThisTurnName?: string; lastSpellThisTurnName?: string; topTribe?: string | null; frontToBackBonusH?: number; onBoard?: boolean; eotTickOverride?: number; improveReps?: number; rubyCasts?: number; rubyBonus?: { attack: number; health: number }; clueBonus?: number; grimoireCharged?: boolean; runeMammoth?: boolean; runeFlags?: RuneTextFlags; tier7Access?: boolean; alesThisTurn?: number; /** The run flags the (Both) predicate reads (`runeFacetwright` / `runeUnbrokenVein`) — passed rather than a precomputed boolean so the ONE predicate stays the only place the rule lives. */ chooseBothState?: { runeFacetwright?: boolean; runeUnbrokenVein?: boolean } },
 ): CardView {
   const c = CARD_INDEX[inst.cardId];
   const spell = c.spell === true || c.id === 'discoverspell';
@@ -272,7 +274,7 @@ export function instView(
     topTribe: live?.topTribe,
     runeMammoth: live?.runeMammoth,
     runeFlags: live?.runeFlags,
-    rubyBonus: live?.rubyBonus,
+    rubyBonus: live?.rubyBonus, clueBonus: live?.clueBonus,
     tier7Access: live?.tier7Access,
     chosenOption: inst.chosenOption, // a resolved Choose One prints only the branch it became
     chooseBoth, // (Both) — no choice to print
@@ -361,7 +363,7 @@ export function liveBoardView(m: BoardCard, run: RunState): CardView {
       rememberedSpellNames: (run.rememberedSpellIds ?? []).map((id) => CARD_INDEX[id]?.name).filter((n): n is string => !!n),
       firstSpellThisTurnName: run.firstSpellThisTurnId ? CARD_INDEX[run.firstSpellThisTurnId]?.name : undefined,
       lastSpellThisTurnName: run.lastSpellThisTurnId ? CARD_INDEX[run.lastSpellThisTurnId]?.name : undefined,
-      topTribe: dominantBoardTribe(run), rubyBonus: rubyStatBonus(run), tier7Access: hasTier7Access(run),
+      topTribe: dominantBoardTribe(run), rubyBonus: rubyStatBonus(run), clueBonus: run.clueBonus, tier7Access: hasTier7Access(run),
       runeMammoth: !!run.questFlags?.runeMammoth,
       runeFlags: { matriarch: !!run.runeMatriarch, brokerage: !!run.runeBrokerage, livingTreasure: !!run.questFlags?.runeLivingTreasure },
       chooseBothState: { runeFacetwright: run.runeFacetwright, runeUnbrokenVein: run.runeUnbrokenVein },

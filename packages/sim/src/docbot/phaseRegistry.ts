@@ -119,6 +119,7 @@ export const PHASE_EXCUSED: Readonly<Record<string, PhaseExcuse>> = {
   battlecryDestroyForSpell: { phase: 'combat', kind: 'no-surface', why: 'destroys a SHOP offer to gain its spell; no shop exists mid-fight' },
   getEchoAndTrigger: { phase: 'combat', kind: 'no-surface', why: 'grants an Echo chosen in the shop and triggers it there; a re-fire has no chosen Echo to reproduce' },
   battlecryCopyEcho: { phase: 'combat', kind: 'state-missing', why: 'Gravetwin copies a CHOSEN target’s Echo; a combat re-fire has no way to reproduce the choice (documented in replayCombatBattlecry)' },
+  battlecryGetHandSpell: { phase: 'combat', kind: 'no-surface', why: 'mints hand spells (Tower Shield / Clue) into the HAND; no hand mid-fight, replays at settle like every other hand grant' },
   battlecryAllDemonsConsume: { phase: 'combat', kind: 'no-surface', why: 'Demons Consume from the SHOP; no shop exists mid-fight, replays at settle' },
   battlecryBuffTargetPerGoldSpent: { phase: 'combat', kind: 'state-missing', why: 'Baby Gastrid scales off goldSpentThisTurn, which CombatContext does not carry (documented in replayCombatBattlecry)' },
   battlecryGildTarget: { phase: 'combat', kind: 'no-surface', why: 'gilds a shop/board target through the recruit gild pipeline; deferred to settle' },

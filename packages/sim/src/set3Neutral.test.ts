@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { combatSide, makeRng, simulate, type BoardMinion } from '@game/core';
 import { ARCHIVED_CARDS, CARD_INDEX, poolFor } from '@game/content';
 import { createRun, reduce, type Action, type BoardCard, type RunState } from './index';
-import { rubyCastCount, spellCasts } from './recruit';
+import { rubyCastCount, spellCasts, spellDisplayText } from './recruit';
 
 /**
  * SET 3 — NEUTRALS, tranche 1 (owner roster 2026-09-09). The carried-over roster is pinned by
@@ -121,5 +121,79 @@ describe('roster housekeeping', () => {
   it('Sylus and Drakko wear their short names in every set (ids unchanged)', () => {
     expect(CARD_INDEX['sylus']!.name).toBe('Sylus');
     expect(CARD_INDEX['drummer']!.name).toBe('Drakko');
+  });
+});
+
+/* ── tranche 2: the hand spells (Tower Shield, Clue), Defender, Inspector Pell ──────────────────────────── */
+import { GIFT_IDS } from '@game/content';
+
+describe('Tower Shield — a card-minted Gift', () => {
+  it('Defender mints two (golden: four); the shield is free, aimed, and no set sells it', () => {
+    let s = run({ hand: [hand('d', 'n3_defender')] });
+    s = reduce(s, { type: 'play', uid: 'd', toIndex: 0 } as Action);
+    expect(s.hand.filter((c) => c.cardId === 'tower_shield')).toHaveLength(2);
+    let g = run({ hand: [hand('d', 'n3_defender', true)] });
+    g = reduce(g, { type: 'play', uid: 'd', toIndex: 0 } as Action);
+    expect(g.hand.filter((c) => c.cardId === 'tower_shield')).toHaveLength(4);
+    const d = CARD_INDEX['tower_shield']!;
+    expect([d.gift, d.spell, d.cost, d.target]).toEqual([true, true, 0, 'friendly']);
+    for (const set of ['set1', 'set2', 'set3'] as const) expect(poolFor(set).all.some((c) => c.id === 'tower_shield'), set).toBe(false);
+    expect(GIFT_IDS).not.toContain('tower_shield'); // Merry Christmas's Gift Discover must never offer one
+  });
+
+  it('casting gives +2/+1 and Taunt, ignores spell power, counts as a spell cast but never as copy food', () => {
+    let s = run({ board: [body('t', 'venom')], hand: [hand('ts', 'tower_shield')], spellBonus: { attack: 5, health: 5 }, lastSpellCastId: 'growth' });
+    const before = s.spellsCast;
+    s = reduce(s, { type: 'play', uid: 'ts', targetUid: 't' } as Action);
+    expect([at(s, 't').attack, at(s, 't').health]).toEqual([3, 2]);
+    expect(at(s, 't').keywords).toContain('T');
+    expect(s.hand.some((c) => c.cardId === 'tower_shield')).toBe(false);
+    expect(s.spellsCast).toBe(before + 1);
+    expect(s.lastSpellCastId, 'Steward of Spells never copies a Gift').toBe('growth');
+  });
+
+  it('the set-3 Yazzus repeats it; set 1\'s Yazzus does not', () => {
+    let s = run({ board: [body('y', 'n3_yazzus'), body('t', 'venom')], hand: [hand('ts', 'tower_shield')] });
+    s = reduce(s, { type: 'play', uid: 'ts', targetUid: 't' } as Action);
+    expect([at(s, 't').attack, at(s, 't').health]).toEqual([5, 3]);
+    let o = run({ board: [body('y', 'yazzus'), body('t', 'venom')], hand: [hand('ts', 'tower_shield')] });
+    o = reduce(o, { type: 'play', uid: 'ts', targetUid: 't' } as Action);
+    expect([at(o, 't').attack, at(o, 't').health]).toEqual([3, 2]);
+  });
+});
+
+describe('Clue — improves itself', () => {
+  it('each cast grants the current value, then raises it: +1/+1, then +2/+2, then +3/+3', () => {
+    let s = run({ board: [body('t', 'venom')], hand: [hand('c1', 'clue'), hand('c2', 'clue'), hand('c3', 'clue')] });
+    s = reduce(s, { type: 'play', uid: 'c1', targetUid: 't' } as Action);
+    expect([at(s, 't').attack, at(s, 't').health, s.clueBonus]).toEqual([2, 2, 1]);
+    s = reduce(s, { type: 'play', uid: 'c2', targetUid: 't' } as Action);
+    expect([at(s, 't').attack, at(s, 't').health, s.clueBonus]).toEqual([4, 4, 2]);
+    s = reduce(s, { type: 'play', uid: 'c3', targetUid: 't' } as Action);
+    expect([at(s, 't').attack, at(s, 't').health, s.clueBonus]).toEqual([7, 7, 3]);
+  });
+
+  it('a Yazzus-repeated Clue is two real Clues: +1/+1 then +2/+2, and the value climbs twice', () => {
+    let s = run({ board: [body('y', 'n3_yazzus'), body('t', 'venom')], hand: [hand('c1', 'clue')] });
+    s = reduce(s, { type: 'play', uid: 'c1', targetUid: 't' } as Action);
+    expect([at(s, 't').attack, at(s, 't').health, s.clueBonus]).toEqual([4, 4, 2]);
+  });
+
+  it('the printed value is live', () => {
+    expect(spellDisplayText('clue', 0, 0, 0, 0, 0, 0, { clueBonus: 0 })).toContain('**+1/+1**');
+    expect(spellDisplayText('clue', 0, 0, 0, 0, 0, 0, { clueBonus: 3 })).toContain('{{+4/+4}}');
+    expect(spellDisplayText('clue', 0, 0, 0, 0, 0, 0, { clueBonus: 3 })).toContain('Improve your Clues by **+1/+1**');
+  });
+
+  it('Inspector Pell\'s Magnifying Glass mints two Clues (a gilded Pell: four)', () => {
+    let s = run({ hand: [hand('p', 'n3_pell')], embers: 10 });
+    s = reduce(s, { type: 'play', uid: 'p', toIndex: 0 } as Action);
+    expect(s.equipment?.available.some((g) => g.equipmentId === 'magnifying_glass')).toBe(true);
+    s = reduce(s, { type: 'activateEquipment' } as Action);
+    expect(s.hand.filter((c) => c.cardId === 'clue')).toHaveLength(2);
+    let g = run({ hand: [hand('p', 'n3_pell', true)], embers: 10 });
+    g = reduce(g, { type: 'play', uid: 'p', toIndex: 0 } as Action);
+    g = reduce(g, { type: 'activateEquipment' } as Action);
+    expect(g.hand.filter((c) => c.cardId === 'clue')).toHaveLength(4);
   });
 });

@@ -267,11 +267,11 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-family-grant",
-    "title": "'grant' family · 9 cards",
-    "statement": "All 9 'grant' cards trigger the same way. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
+    "title": "'grant' family · 10 cards",
+    "statement": "All 10 'grant' cards trigger the same way. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
-    "currentBehaviour": "1 effect factories across 9 cards dispatch through the 'grant' presentation family, all on the single trigger 'equip' (recruit); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Pourman: \"Equip Pourman's Keg (1): cast a random Dwarven Ale.\" · Members: Pourman · Thymes · Alchemist Frank · Titan Sculptor · Blast Surveyor · Kaura L'roft · Prismpick Artificer · EMS · Robinson",
+    "currentBehaviour": "1 effect factories across 10 cards dispatch through the 'grant' presentation family, all on the single trigger 'equip' (recruit); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
+    "cardText": "Exemplar — Pourman: \"Equip Pourman's Keg (1): cast a random Dwarven Ale.\" · Members: Pourman · Thymes · Alchemist Frank · Titan Sculptor · Blast Surveyor · Kaura L'roft · Prismpick Artificer · Inspector Pell · EMS · Robinson",
     "example": "Pourman follows the 'grant' convention — its trigger fires on equip. its printed numbers double when the card is gilded.",
     "contentIds": [
       "dw3_pourman",
@@ -281,6 +281,7 @@ export const CONVENTION_PENDING: GameRule[] = [
       "k3_blastsurveyor",
       "k3_kaura",
       "k3_prismpick",
+      "n3_pell",
       "u3_ems",
       "u3_robinson"
     ]
@@ -394,11 +395,11 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-family-shout",
-    "title": "'shout' family · 54 cards",
-    "statement": "All 54 'shout' cards trigger the same way. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
+    "title": "'shout' family · 55 cards",
+    "statement": "All 55 'shout' cards trigger the same way. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
-    "currentBehaviour": "51 effect factories across 54 cards dispatch through the 'shout' presentation family, all on the single trigger 'onPlay' (both); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Pennycat: \"Battlecry: summon a 1/1 Stray next to it.\" · Members: Pennycat · Mage-Pup · Black Belt Brian · Buddy Buddy · Cinderwing Matron · Hoard Cleric · Crypt Broker · Commander Warpath · Broodfire · Brood Whelp · Scalefeather · Flutterdrake · … and 42 more",
+    "currentBehaviour": "52 effect factories across 55 cards dispatch through the 'shout' presentation family, all on the single trigger 'onPlay' (both); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
+    "cardText": "Exemplar — Pennycat: \"Battlecry: summon a 1/1 Stray next to it.\" · Members: Pennycat · Mage-Pup · Black Belt Brian · Buddy Buddy · Cinderwing Matron · Hoard Cleric · Crypt Broker · Commander Warpath · Broodfire · Brood Whelp · Scalefeather · Flutterdrake · … and 43 more",
     "example": "Pennycat follows the 'shout' convention — its trigger fires on onPlay. its printed numbers double when the card is gilded.",
     "contentIds": [
       "alley",
@@ -449,6 +450,7 @@ export const CONVENTION_PENDING: GameRule[] = [
       "n2_conductor",
       "n2_deepchef",
       "n2_muckslinger",
+      "n3_defender",
       "nimbus",
       "scrapherald",
       "seaurchin",
@@ -559,11 +561,11 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-family-spellCast",
-    "title": "'spellCast' family · 99 cards",
-    "statement": "All 99 'spellCast' cards trigger the same way. These are the spells themselves, and spells are never gilded. — ✓ yes · ✕ no (say why) · ✎ your wording",
+    "title": "'spellCast' family · 101 cards",
+    "statement": "All 101 'spellCast' cards trigger the same way. These are the spells themselves, and spells are never gilded. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
-    "currentBehaviour": "90 effect factories across 99 cards dispatch through the 'spellCast' presentation family, all on the single trigger 'cast' (recruit); the factoryPhase lane gates each (trigger, factory) pair. Gilding: INAPPLICABLE — checkTriples skips spells and Rubies, so no member of this family can ever BE gilded (R-GILD-02, owner ruling 2026-08-28).",
-    "cardText": "Exemplar — Anomaly Reactor: \"Give a friendly minion All types — it counts as every tribe and gets all of their buffs.\" · Members: Anomaly Reactor · Eyes of Aresmar · Bloodlust · Bulwark · Carnival Coin · Chrono Staff · Common Ground · Consume · Copycat · Cupcakes · Decoy Sigil · Deep Delve Writ · … and 87 more",
+    "currentBehaviour": "91 effect factories across 101 cards dispatch through the 'spellCast' presentation family, all on the single trigger 'cast' (recruit); the factoryPhase lane gates each (trigger, factory) pair. Gilding: INAPPLICABLE — checkTriples skips spells and Rubies, so no member of this family can ever BE gilded (R-GILD-02, owner ruling 2026-08-28).",
+    "cardText": "Exemplar — Anomaly Reactor: \"Give a friendly minion All types — it counts as every tribe and gets all of their buffs.\" · Members: Anomaly Reactor · Eyes of Aresmar · Bloodlust · Bulwark · Carnival Coin · Chrono Staff · Clue · Common Ground · Consume · Copycat · Cupcakes · Decoy Sigil · … and 89 more",
     "example": "Anomaly Reactor follows the 'spellCast' convention — its trigger fires on cast. three copies of it never combine into a golden one, so it has no gilded form at all.",
     "contentIds": [
       "anomalyreactor",
@@ -572,6 +574,7 @@ export const CONVENTION_PENDING: GameRule[] = [
       "bulwark",
       "carnivalcoin",
       "chronostaff",
+      "clue",
       "commonground",
       "consume",
       "copycat",
@@ -655,6 +658,7 @@ export const CONVENTION_PENDING: GameRule[] = [
       "strangerevision",
       "summoningbulwark",
       "summonstone",
+      "tower_shield",
       "tribeschoice",
       "turnabout",
       "undeadarmy",
@@ -856,7 +860,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "title": "Gilding default: ×2",
     "statement": "A gilded card doubles its printed numbers. Outliers instead gild the summoned token, reshape the effect, or add a proc; spells never gild. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "gilding",
-    "currentBehaviour": "305 cards carry authored goldenText; every other card inherits the ×2 number-doubler. The outlier shapes are the owner's 2026-08-28 rulings, now carried per card as the contract's gildedDelta kind (R-GILD-01); spells and Rubies are not-applicable (R-GILD-02).",
+    "currentBehaviour": "307 cards carry authored goldenText; every other card inherits the ×2 number-doubler. The outlier shapes are the owner's 2026-08-28 rulings, now carried per card as the contract's gildedDelta kind (R-GILD-01); spells and Rubies are not-applicable (R-GILD-02).",
     "cardText": "Exemplar — Wolves Den: \"Deathrattle: Summon 3 Crypt Wolves.\" → gilded: \"Deathrattle: Summon 6 Crypt Wolves.\"",
     "example": "Wolves Den's gilded text just writes the ×2 out in full — while gilded Dunkey instead summons ONE gilded Armadiyo."
   },

@@ -608,6 +608,8 @@ export type EffectFactoryId =
   | 'battlecryBuffBeastAttack' // (legacy) give your Beasts +Attack wherever they are; stacks into future buys
   | 'battlecryScoutSpread' // Squirl Scout: Battlecry — give a random friendly +N/+N per Beast owned; N snowballs per Squirl Scout played
   | 'battlecryBuffAdjacent' // Splitboon Adept: Shout — give adjacent minions +atk/+hp (golden doubles)
+  | 'battlecryGetHandSpell' // Defender / Magnifying Glass: mint `count` copies of a hand spell (Tower Shield, Clue) — × golden
+  | 'clueBuffTarget' // Clue (cast): give the target the run's current Clue value, then improve Clues by +1/+1
   | 'battlecryConductorAdjacent' // Conductor: Shout — give adjacent minions +2N/+3N; N snowballs per Conductor played (×2 gilded)
   | 'battlecryBuffMagnetics' // Scrap Herald: Battlecry — give your Magnetic minions +atk/+hp wherever they are; stacks into future buys
   | 'battlecryBuffImps' // Imp Overseer: Battlecry — give your Imps +atk/+hp run-wide (shared impBuff enchant)
@@ -863,6 +865,10 @@ export interface CardDef {
    *  outside every set manifest, so they are absent from `poolOf()` by construction; this flag is what the
    *  cast-time copy/repeat paths key on. Gifts are free (`cost: 0`) and arrive in hand from a rune or hero. */
   gift?: boolean;
+  /** A TARGETED Gift the set-3 Yazzus may repeat (Tower Shield, Clue — owner 2026-09-09: "your targeted spells
+   *  cast an additional time"). Every other cast multiplier still leaves a Gift alone. Only meaningful with
+   *  `gift: true` and a `target`. */
+  giftMulticast?: boolean;
   /** Warding Ruby (set 2): a Ruby that ALSO grants this keyword (Ward = `DS`) to the minion it's played on —
    *  permanent when cast in the shop phase (the reducer's play-Ruby branch bakes it onto the board card). */
   rubyGrantKeyword?: Keyword;

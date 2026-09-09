@@ -22,8 +22,10 @@ import {
 import { resetShaderPools } from '../shaderPool';
 import { prewarmShapeTextures } from '../shapeTextures';
 import { linkRibbonShaderOn, prewarmRibbonShaders } from './ribbon';
+import { linkLightningShaderOn, prewarmLightningShaders } from './lightning';
 import { linkShockwaveShaderOn, prewarmShockwaveShaders } from './shockwave';
 import './ribbon';
+import './lightning';
 import './burst';
 import './shockwave';
 import './emitter';
@@ -59,6 +61,7 @@ export function fxPrewarmSteps(renderer: Renderer | null): Array<() => void> {
     () => prewarmShapeTextures(renderer), // Pixi's OWN batch shader — the 0.6 s first-play freeze
     () => prewarmParticleLayers(renderer),
     () => prewarmRibbonShaders(renderer),
+    () => prewarmLightningShaders(renderer),
     () => prewarmShockwaveShaders(renderer),
   ];
 }
@@ -91,6 +94,7 @@ export function slotPrewarmSteps(renderer: Renderer | null): Array<() => void> {
     () => prewarmShapeTextures(renderer),
     keep(linkParticleMaterialOn),
     keep(linkRibbonShaderOn),
+    keep(linkLightningShaderOn),
     keep(linkShockwaveShaderOn),
   ];
 }

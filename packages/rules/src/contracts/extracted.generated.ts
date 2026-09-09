@@ -34390,7 +34390,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "tier": 5,
     "tribes": [
-      "undead"
+      "undead",
+      "spirit"
     ],
     "tags": [
       "tier:5"

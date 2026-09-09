@@ -5,7 +5,7 @@ import type { CombatBus } from './events';
  *  BOTH the recruit factories and the combat ones (Slaughter / Rally / Echo grants) need it. */
 export const ALE_IDS: readonly string[] = ['wo_mine', 'wo_reinforcement', 'wo_champion', 'wo_health', 'wo_attack'];
 
-export type Tribe = 'beast' | 'undead' | 'mech' | 'dragon' | 'demon' | 'neutral' | 'kobold' | 'dwarf' | 'celestial';
+export type Tribe = 'beast' | 'undead' | 'mech' | 'dragon' | 'demon' | 'neutral' | 'kobold' | 'dwarf' | 'celestial' | 'spirit'; // 'spirit' + 'celestial': set 3's new tribes (owner 2026-09-09)
 
 /** Keyword codes (handoff A.4). */
 export type Keyword =

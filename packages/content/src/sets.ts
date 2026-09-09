@@ -273,7 +273,9 @@ export const SETS: Record<SetId, SetDef> = {
     // `selectRunTribes` picks a run's active tribes from this list, so a tribe absent here can never be a
     // run's tribe no matter how many of its cards the pool holds — which is why adding the Kobolds (2026-08-28)
     // meant adding 'kobold' in the same breath.
-    tribes: ['kobold', 'dwarf', 'undead'], // Dwarves joined 2026-09-09 (Gold / Ale / "gains Attack"); Undead the same day (Rise / Echo / overflow)
+    // Dwarves joined 2026-09-09 (Gold / Ale / "gains Attack"); Undead the same day (Rise / Echo / overflow). Spirit +
+    // Celestial are set 3's BRAND-NEW tribes (owner 2026-09-09) — space reserved here; their rosters follow.
+    tribes: ['kobold', 'dwarf', 'undead', 'spirit', 'celestial'],
     // Starts EMPTY and opts cards IN, the same manifest pattern set 2 uses. Add `inherits: 'set2'` (+
     // `excludes`) instead if set 3 should start from set 2's pool and trim; both compose, and `own` always
     // appends last so adding cards never disturbs an inherited prefix.

@@ -122,6 +122,7 @@ export const SET3_UNDEAD: CardDef[] = [
     id: 'u3_risingtide',
     name: 'Rising Tide',
     tribe: 'undead',
+    tribe2: 'spirit', // owner 2026-09-09: an Undead / Spirit
     tier: 5,
     attack: 8,
     health: 2,

@@ -2075,6 +2075,15 @@ export function simulate(
       minion.rallySpellWeld = undefined;
       minion.emptyGravesRally = undefined;
       minion.bloodlustRally = undefined;
+      // A risen body is the card AS PRINTED (owner 2026-09-09, R-RISE-01): the per-instance improvements it had
+      // accrued — Sergey's Echo HP grant, a Chef's tally, an overflow bank, an End-of-Turn escalation — reset
+      // with its stats and keywords, exactly as the shop's Rise rebuilds the body from the def.
+      minion.hpGrantBonus = undefined;
+      minion.summonBonus = 0;
+      minion.eotBonus = undefined;
+      minion.sellBonus = undefined;
+      minion.overflowBonus = undefined;
+      minion.chefGrantedLast = undefined;
       // …and its AVENGE progress restarts (owner: "1/3 should reset to 0/3"). Avenge counts are a side-level
       // deaths tally, so the reset is a per-instance BASELINE: everything before this moment no longer counts
       // for this body. Stamped AFTER its own rise-death was tallied, so that death isn't "progress" either.

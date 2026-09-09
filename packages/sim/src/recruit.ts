@@ -2266,23 +2266,30 @@ export function destroyMinionInShop(
 function riseReturn(state: RunState, target: BoardCard, slot: number, summonedFrom: number): BoardCard | undefined {
   if (state.board.length >= CONFIG.boardMax) return undefined;
   const def = CARD_INDEX[target.cardId];
-  const base = def?.attack ?? target.attack;
+  const mul = target.golden ? 2 : 1;
+  // THE PRINTED BODY, with the run's Auras re-applied on top — combat's Rise exactly (base Attack × golden, 1
+  // Health, the def's keywords minus Rise, then `applyAuras(m, true)`). The shop's Auras are the run enchants a
+  // fresh copy of the card would carry: the per-card enchant (Spear Warden's own Aura via `cardBuffs`) and the
+  // Undead Aura (`undeadBuyBonus` / `buyHealthAura`). Owner report 2026-09-09: a Deathfibrillated Spear Warden and
+  // Deathswarmer came back with neither.
+  //
+  // Built FRESH rather than spread from the dying body (owner report 2026-09-09: Sergey "rose with its buffed
+  // text still"): a risen body is the card as printed — no buffs, no per-instance improvements (Sergey's Echo HP
+  // grant, a Chef's tally, an overflow bank, a copied Echo), no granted keyword, no loan flag. Only `golden`
+  // survives, as in combat.
+  //
+  // A FRESH uid on purpose, and load-bearing for presentation: the departure diff reports a death by finding a
+  // uid that is no longer on the board. Reusing the uid (as combat does, where an explicit `death` event carries
+  // the signal) would mean the body never leaves as far as the diff can see, so the death would animate nowhere.
+  const cb = def ? cardBuff(state, def.id) : { attack: 0, health: 0 };
   const risen: BoardCard = {
-    ...target,
-    // A FRESH uid on purpose. The risen body is a new instance — base stats, printed keywords, no buffs —
-    // and, load-bearing for presentation: the departure diff reports a death by finding a uid that is no
-    // longer on the board. Reusing the uid (as combat does, where an explicit `death` event carries the
-    // signal) would mean the body never leaves as far as the diff can see, so the death would animate
-    // nowhere and we would be back to the snap this whole change removes.
     uid: `r${state.uidSeq++}`,
-    attack: base * (target.golden ? 2 : 1),
-    health: 1,
-    // Printed keywords minus the spent Rise; granted ones are shed with the buffs.
+    cardId: target.cardId,
+    tribe: target.tribe,
+    attack: Math.max(0, (def?.attack ?? target.attack) * mul + cb.attack + (def ? undeadBuyBonus(state, def) : 0)),
+    health: 1 + cb.health + (def ? buyHealthAura(state, def) : 0),
     keywords: (def?.keywords ?? []).filter((k) => k !== 'R'),
-    buffs: undefined,
-    // A risen body is a body you now OWN — it is no longer on loan (Funeral on Loan). Without this the flag
-    // would ride the clone and the next turn's expiry sweep would look at a card that is not in hand.
-    borrowed: undefined,
+    golden: target.golden,
   };
   const grew = state.board.length - summonedFrom;
   const at = Math.min(state.board.length, slot + Math.max(0, grew));

@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { combatSide, makeRng, simulate, type BoardMinion, type CombatEvent } from '@game/core';
 import { CARD_INDEX, EQUIPMENT_INDEX, SETS, poolFor } from '@game/content';
 import { createRun, reduce, type Action, type BoardCard, type RunState } from './index';
-import { fireRecruitDeathrattlesForTest, spellAttackBonus } from './recruit';
+import { displayedStatsOf, fireRecruitDeathrattlesForTest, spellAttackBonus } from './recruit';
 
 /**
  * SET 3 — UNDEAD (owner roster 2026-09-09). Eleven new cards; the eleven carried-over set-1 Undead are pinned by
@@ -130,6 +130,36 @@ describe("a friendly death in the shop reaches only the WATCHERS — never anoth
     expect(s.board.find((c) => c.cardId === 'mumi')!.keywords, "Mumi's Echo stayed asleep too").not.toContain('R');
     // …but the Warden's OWN Echo fired on the way out: the Spear Warden Aura grew.
     expect(s.cardBuffs?.['knit']?.attack ?? 0).toBeGreaterThanOrEqual(3);
+  });
+});
+
+describe('a shop Rise returns the PRINTED body with the Auras on top (owner reports 2026-09-09)', () => {
+  it('Sergey loses his accrued Echo grant; a Spear Warden comes back wearing its Aura and the Undead Aura', () => {
+    let s = run({
+      board: [body('sg', 'sergeant', { hpGrantBonus: 12, buffs: [{ source: 'Growth', attack: 3, health: 3, count: 1 }], attack: 9, health: 9 }), body('sw', 'knit'), body('ds', 'deathswarmer')],
+      hand: [body('ems', 'u3_ems')],
+      cardBuffs: { knit: { attack: 6, health: 4 } }, // the Spear Warden Aura, already grown twice
+      undeadAttackBonus: 5, // the Undead Aura
+    });
+    s = act(s, { type: 'play', uid: 'ems', toIndex: 0 });
+    s = act(s, { type: 'activateEquipment', targetUid: 'sg' });
+    s = act(s, { type: 'resolveShopDeath' });
+    const sergey = s.board.find((c) => c.cardId === 'sergeant')!;
+    expect(sergey.hpGrantBonus, 'the Echo improvement is gone').toBeUndefined();
+    expect(sergey.buffs, 'and the buffs').toBeUndefined();
+    // Stored stats are the printed body at 1 Health; the Undead Aura is a DISPLAY fold (never stored), so the
+    // card the player reads shows it on top — exactly as any fresh Undead does.
+    expect([sergey.attack, sergey.health]).toEqual([CARD_INDEX['sergeant']!.attack, 1]);
+    expect(displayedStatsOf(s, sergey).attack, 'the Undead Aura folds in on display').toBe(CARD_INDEX['sergeant']!.attack + 5);
+    // The Warden: printed 3 + its own Aura (+6, then +9 after its Echo grew it on the way out) + the Undead Aura.
+    s = { ...s, embers: 20, equipment: s.equipment ? { ...s.equipment, activationsSpent: 0 } : s.equipment };
+    s = act(s, { type: 'activateEquipment', targetUid: 'sw' });
+    s = act(s, { type: 'resolveShopDeath' });
+    const warden = s.board.find((c) => c.cardId === 'knit')!;
+    expect(warden.uid).not.toBe('sw');
+    expect(warden.attack, 'printed 3 + its own Aura 9 (stored)').toBe(3 + 9);
+    expect(warden.health).toBe(1 + (4 + 2));
+    expect(displayedStatsOf(s, warden).attack, '+ the Undead Aura on display').toBe(3 + 9 + 5);
   });
 });
 

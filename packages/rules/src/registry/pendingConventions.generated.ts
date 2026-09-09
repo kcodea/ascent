@@ -783,11 +783,11 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-global-dual-tribe",
-    "title": "Dual & universal tribes · 20 carriers",
+    "title": "Dual & universal tribes · 21 carriers",
     "statement": "A dual-tribe minion counts as both tribes, everywhere. A universal minion counts as every tribe. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "categories",
     "currentBehaviour": "isTribe/tribe predicates fold tribe2 and universalTribe; the tribePredicates lane sweeps raw comparisons.",
-    "cardText": "Exemplar — Bane: \"After you trigger a Shout, give your Imps +3/+3 this run.\" · Carriers: Bane · Crypt Drake · Crypt Wolf · Fel Conjurer · Baal · High King Mykel · Mountainbond · Heckbinder · Gemgorge Fiend · Lab Experiment · Evolving Abomination · Paragon · … and 8 more",
+    "cardText": "Exemplar — Bane: \"After you trigger a Shout, give your Imps +3/+3 this run.\" · Carriers: Bane · Crypt Drake · Crypt Wolf · Fel Conjurer · Baal · High King Mykel · Mountainbond · Heckbinder · Gemgorge Fiend · Lab Experiment · Evolving Abomination · Paragon · … and 9 more",
     "example": "Bane receives BOTH tribes' buffs and satisfies either tribe's quest counters.",
     "contentIds": [
       "bane",
@@ -809,6 +809,7 @@ export const CONVENTION_PENDING: GameRule[] = [
       "spiritpup",
       "spiritworgen",
       "symbioticattachment",
+      "u3_risingtide",
       "wolvesden"
     ]
   },

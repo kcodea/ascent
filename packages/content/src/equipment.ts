@@ -62,6 +62,10 @@ export interface EquipmentDefinition {
    */
   useFxId?: string;
   useSfxId?: string;
+  /** Where the def's `source` anchor sits when it plays: the Equipment SLOT (default — a def that travels from
+   *  the button to the target, like Bloodpot) or the aimed TARGET (a def authored in the workbench ON the unit,
+   *  like the Deathfibrillator's shock). */
+  useFxAt?: 'slot' | 'target';
   /**
    * CHOOSE ONE on an Equipment (owner ask 2026-08-31: *"we need to build prismpick the way it's stated. when
    * it's used it should open the choose one window"*). Present = using this Equipment opens the same Choose
@@ -314,6 +318,7 @@ export const DEATHFIBRILLATOR: EquipmentDefinition = {
   // The owner's authored def + clip (2026-09-09). Played from the slot to the aimed body on activation.
   useFxId: 'deathfibrillator',
   useSfxId: 'deathfibrillator',
+  useFxAt: 'target', // the def is authored on the unit (both layers anchor `source`)
 };
 
 export const EQUIPMENT: readonly EquipmentDefinition[] = [BLOODPOT, TITAN_HAMMER, BLAST_PUMP, PRISMATIC_PICK, DUELING_RUBETTAS, POURMANS_KEG, THYMEPIECE, COFFIN_FLOP, DEATHFIBRILLATOR];

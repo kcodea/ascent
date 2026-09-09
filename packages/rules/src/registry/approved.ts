@@ -912,4 +912,26 @@ export const APPROVED_RULES: GameRule[] = [
       + '(a combat Avenge cast carries +3 back) and the shop cast in run.test.ts.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3Undead.test.ts', 'packages/sim/src/run.test.ts'], lastVerifiedAt: '2026-09-09' },
   },
+  {
+    id: 'R-RISE-04',
+    title: 'A risen body is the card as printed: improvements reset, Auras re-applied, in both phases',
+    statement:
+      'When a body returns via Rise it is the card AS PRINTED: base Attack (golden doubled), 1 Health, the printed '
+      + 'keywords minus the spent Rise. Everything the instance had accrued goes with the buffs — a per-instance '
+      + 'improvement (the grown Echo of Sergey, the tally of a Chef, an overflow bank, an End-of-Turn escalation), a copied '
+      + 'Echo, a granted keyword. The Auras of the run are then re-applied on top, as for any fresh copy: the Undead '
+      + 'Aura, a per-card Aura (the Spear Warden one). The same rule in both phases.',
+    domain: 'keywords',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-09 (Deathfibrillator reports)', quote: 'it rose with its buffed text still. this should reset per our rise rules … the deathswarmer and the new spear warden were both deathfibrillatored and neither have undead attack aura buffs nor the spear warden buff.' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts riseReturn (a fresh body from the def + cardBuff + the buy Auras); packages/core/src/combat/simulate.ts the Rise block (resets + applyAuras(m, true))' },
+    ],
+    contentIds: ['sergeant', 'knit', 'deathswarmer'],
+    currentBehaviour:
+      'Conforms — 2026-09-09: the shop Rise builds the body fresh instead of spreading the dying card (which had '
+      + 'carried buffs and improvements) and folds in the per-card enchant + buy Auras; the combat Rise now also '
+      + 'clears the per-instance improvements it used to keep. The Undead Aura is a display fold on both.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3Undead.test.ts'], lastVerifiedAt: '2026-09-09' },
+  },
 ];

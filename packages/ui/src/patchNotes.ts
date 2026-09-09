@@ -80,6 +80,8 @@ export const PATCH_NOTES: PatchNote[] = [
       { category: 'Card Change', text: 'Rise now has watchers in both phases: a minion that Rises in the shop triggers Revenant and Rising Tide, and those gains are permanent.' },
       { category: 'Card Change', text: 'Fixed: destroying a minion in the shop no longer fires the Echoes of your OTHER minions (a Footman Captain beside the victim was summoning a Footman).' },
       { category: 'UI / Info', text: 'A minion that Rises in the shop now plays out in beats: the keyword flash, the full death, then the reborn re-form on its return.' },
+      { category: 'Card Change', text: 'A risen minion is the card as printed: improvements it had grown (the Echo of Sergey) reset, and it comes back wearing your Auras (Spear Warden, Undead Aura).' },
+      { category: 'Card Change', text: 'Rising Tide is now Undead / Spirit. Spirit and Celestial are Set 3 tribes.' },
     ],
   },
   {

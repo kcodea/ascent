@@ -70,7 +70,7 @@ describe('set 3 scaffold', () => {
     expect(CARD_INDEX['k_alchemist']).toBeTruthy();
     // The Kobolds must be reachable AS A TRIBE, not merely present: `selectRunTribes` reads this list, so a
     // pool full of Kobolds with an empty `tribes` could never roll a Kobold run.
-    expect(SETS.set3.tribes).toEqual(['kobold', 'dwarf', 'undead']);
+    expect(SETS.set3.tribes).toEqual(['kobold', 'dwarf', 'undead', 'spirit', 'celestial']);
     // Their Ruby engine needs no set membership — `ruby` and the Gemheart Golem are tokens, global by the
     // same doctrine as the gift spells above, reachable only through a card that names them.
     expect(p.all.some((c) => c.id === 'ruby'), 'a token is never a set member').toBe(false);

@@ -1992,9 +1992,12 @@ export function Recruit() {
       const to = tR ? { x: tR.left + tR.width / 2, y: tR.top + tR.height / 2 } : slot;
       if (eq.useFxId && slot && to && canPlayDefs()) {
         const fire = (): void => {
+          // `useFxAt: 'target'` — the def was authored ON the unit (every layer anchors `source`), so its source
+          // IS the aimed body; the default keeps the slot→target travel shape (Bloodpot, Titan Hammer).
+          const from = eq.useFxAt === 'target' ? to : slot;
           const stop = playDef(
             eq.useFxId!,
-            { source: slot, target: to, cursor: to },
+            { source: from, target: to, cursor: to },
             { uids: { source: null, target: cue.targetUid ?? null } },
           );
           if (stop) retire.push(stop);

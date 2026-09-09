@@ -70,6 +70,7 @@ function matchRunIndex(entries: RunHistoryEntry[], f: CareerFocus): number {
 const TRIBE_LABEL: Record<Tribe, string> = {
   beast: 'Beast', dragon: 'Dragon', mech: 'Mech', undead: 'Undead', demon: 'Demon', neutral: 'Neutral', kobold: 'Kobold', dwarf: 'Dwarf',
   celestial: 'Celestial',
+  spirit: 'Spirit',
 };
 
 /** One row in the Insights rail — icon chip, label left, value right (mockup 2026-07-16). */

@@ -45,8 +45,8 @@ export const SET3_KOBOLDS: CardDef[] = [
     id: 'k3_splitpick',
     name: 'Splitpick Apprentice',
     tribe: 'kobold',
-    tier: 2,
-    attack: 2,
+    tier: 3, // owner balance 2026-09-09: T2 2/3 → T3 5/3
+    attack: 5,
     health: 3,
     keywords: [],
     effects: [],
@@ -79,26 +79,6 @@ export const SET3_KOBOLDS: CardDef[] = [
     ],
     text: '**Choose One:** give your Rubies **+1 Attack**, or **+1 Health**.',
     goldenText: '**Choose One:** give your Rubies **+2 Attack**, or **+2 Health**.',
-  },
-  {
-    // The T3 fork: a body now against Ruby fuel. `battlecryGainRandomMinion` with no tribe draws from the
-    // run's pool at or below the tavern tier, so in a set-3 run it pulls Kobolds and neutrals.
-    id: 'k3_forkroad',
-    name: 'Gem Bus',
-    tribe: 'kobold',
-    tier: 3,
-    attack: 3,
-    health: 4,
-    keywords: [],
-    effects: [],
-    chooseOne: [
-      { text: 'Get a random minion.', goldenText: 'Get **2** random minions.',
-        effects: [{ on: 'onPlay', do: 'battlecryGainRandomMinion', params: { count: 1 } }] },
-      { text: 'Get **3 Rubies**.', goldenText: 'Get **6 Rubies**.',
-        effects: [{ on: 'onPlay', do: 'battlecryGetRubies', params: { count: 3 } }] },
-    ],
-    text: '**Choose One:** get a random minion, or get **3 Rubies**.',
-    goldenText: '**Choose One:** get **2** random minions, or get **6 Rubies**.',
   },
   {
     // Echo (a death trigger) hands back the Veinstorm spell.

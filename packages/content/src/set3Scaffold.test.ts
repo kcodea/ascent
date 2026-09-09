@@ -29,7 +29,7 @@ describe('set 3 scaffold', () => {
     expect(p.buyable.map((c) => c.id)).toEqual([
       'e3_frank', 'e3_sculptor',
       // Set 3's OWN Kobolds (the 2026-08-30 roster), appended in declaration order…
-      'k3_korn', 'k3_splitpick', 'k3_forkvein', 'k3_forkroad', 'k3_veinchant', 'k3_jeweler',
+      'k3_korn', 'k3_splitpick', 'k3_forkvein', 'k3_veinchant', 'k3_jeweler', // Gem Bus (k3_forkroad) archived 2026-09-09
       'k3_blastsurveyor',
       'k3_facetbound',
       'k3_doubletrouble',
@@ -38,6 +38,9 @@ describe('set 3 scaffold', () => {
       'k_chipwick', 'k_gemheart', 'k_geode', 'k_kobabyboldies',
       'k_kobe', 'k_boulderdash', 'k_blazer',
     ]);
+    // Gem Bus ARCHIVED (owner 2026-09-09): in no set, still resolvable.
+    expect(p.all.some((c) => c.id === 'k3_forkroad'), 'Gem Bus archived').toBe(false);
+    expect(CARD_INDEX['k3_forkroad']?.name).toBe('Gem Bus');
     // Dropped from set 3, and the ONLY thing that changed is set membership — leaving a set is not archiving.
     expect(p.all.some((c) => c.id === 'k_beggy'), 'Beggy left set 3').toBe(false);
     expect(p.all.some((c) => c.id === 'k_alchemist'), 'Brisbane left set 3').toBe(false);

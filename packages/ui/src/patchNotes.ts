@@ -56,6 +56,14 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-09',
+    label: 'Kobold tweaks',
+    changes: [
+      { category: 'Card Change', text: 'Gem Bus has been retired from Set 3.' },
+      { category: 'Card Change', text: 'Splitpick Apprentice moves to Tier 3 as a 5/3 (was Tier 2, 2/3).' },
+    ],
+  },
+  {
+    date: '2026-09-09',
     label: 'Rune of Warding keeps its Engrave',
     changes: [
       {

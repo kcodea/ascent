@@ -2287,6 +2287,9 @@ function riseReturn(state: RunState, target: BoardCard, slot: number, summonedFr
   const grew = state.board.length - summonedFrom;
   const at = Math.min(state.board.length, slot + Math.max(0, grew));
   state.board.splice(at, 0, risen);
+  // The RETURN is its own beat (owner 2026-09-09: "show the minion rise again, just as if it had happened in
+  // combat"): the UI plays combat's reborn re-form on the new body once it has mounted.
+  stampShopFx(state, { kind: 'rise', uid: risen.uid, cardId: risen.cardId });
   return risen;
 }
 
@@ -8333,12 +8336,22 @@ function fire(
  * and are NOT re-fired here — the dead card itself is skipped). Sells are not deaths; Consume/devour and
  * destroy effects are.
  */
+/**
+ * The `onDeath` factories that WATCH another friendly death (they read the dead body from the payload) — the only
+ * ones the shop's friendly-death broadcast may reach. Every other `onDeath` factory is a body's OWN Echo, fired by
+ * `fireRecruitDeathrattles` when that body dies; offering those a friend's death fired them as if the WATCHER
+ * had died (owner report 2026-09-09: a Deathfibrillator on Spear Warden summoned a Footman — Footman Captain's
+ * Echo, on Spear Warden's death). Combat has the same split, enforced per factory by its `minion !== self` guard;
+ * the shop enforces it here, once, so a new Echo factory cannot forget.
+ */
+const FRIEND_DEATH_WATCHERS: ReadonlySet<string> = new Set(['onFriendDeathSummon', 'onFriendDeathGainEcho', 'impInheritOnDeath']);
+
 export function fireOnFriendDeath(state: RunState, dead: BoardCard): void {
   const ctx = makeContext(state);
   for (const card of [...state.board]) {
     if (card.uid === dead.uid) continue;
     for (const effect of instanceEffects(card)) {
-      if (effect.on !== 'onDeath') continue;
+      if (effect.on !== 'onDeath' || !FRIEND_DEATH_WATCHERS.has(effect.do)) continue;
       const fn = RECRUIT_FACTORIES[effect.do];
       if (fn) captureBuffFx(state, card, 'minion', () => fn(ctx, card, effect.params ?? {}, { minion: dead }));
     }

@@ -91,6 +91,7 @@ describe('onRise — SHOP: a Rise outside combat fires the watchers, and their p
     s = act(s, { type: 'resolveShopDeath' });
     const risen = s.board.find((c) => c.cardId === 'u3_poochy')!;
     expect(risen.uid, 'a NEW body came back').not.toBe('p');
+    expect((s.shopDeathFx ?? []).some((f) => f.kind === 'rise' && f.uid === risen.uid), 'the return is its own cue').toBe(true);
     expect(risen.health, 'back at 1 Health, then Rising Tide +5').toBe(1 + 5);
     // Revenant: Ward + 7/7, attributed to itself — permanent (a shop buff is).
     expect(at(s, 'rev').keywords).toContain('DS');
@@ -115,6 +116,20 @@ describe('onRise — SHOP: a Rise outside combat fires the watchers, and their p
     s = act(s, { type: 'discover', index: 0 });
     s = act(s, { type: 'resolveShopDeath' });
     expect(at(s, 'rev').buffs?.find((b) => b.source === 'Revenant')).toMatchObject({ attack: 14, health: 14, count: 2 });
+  });
+});
+
+describe("a friendly death in the shop reaches only the WATCHERS — never another body's own Echo", () => {
+  it('Deathfibrillator on Spear Warden beside Footman Captain: no Footman (owner report 2026-09-09)', () => {
+    let s = run({ board: [body('sw', 'knit'), body('cap', 'deathlesshand'), body('m', 'mumi')], hand: [body('ems', 'u3_ems')] });
+    s = act(s, { type: 'play', uid: 'ems', toIndex: 0 });
+    s = act(s, { type: 'activateEquipment', targetUid: 'sw' });
+    s = act(s, { type: 'resolveShopDeath' });
+    expect(s.board.some((c) => c.cardId === 'footman'), "Footman Captain's Echo stayed asleep").toBe(false);
+    expect(s.board.filter((c) => c.cardId === 'knit').length, 'the Warden returned').toBe(1);
+    expect(s.board.find((c) => c.cardId === 'mumi')!.keywords, "Mumi's Echo stayed asleep too").not.toContain('R');
+    // …but the Warden's OWN Echo fired on the way out: the Spear Warden Aura grew.
+    expect(s.cardBuffs?.['knit']?.attack ?? 0).toBeGreaterThanOrEqual(3);
   });
 });
 

@@ -78,6 +78,8 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       { category: 'Card Change', text: 'Deathswarmer is now a 0/3. Mumi moves to Tier 3 as a 5/2. Sergeant is renamed Sergey with new art. Anubis is now Anubis, Last Gate.' },
       { category: 'Card Change', text: 'Rise now has watchers in both phases: a minion that Rises in the shop triggers Revenant and Rising Tide, and those gains are permanent.' },
+      { category: 'Card Change', text: 'Fixed: destroying a minion in the shop no longer fires the Echoes of your OTHER minions (a Footman Captain beside the victim was summoning a Footman).' },
+      { category: 'UI / Info', text: 'A minion that Rises in the shop now plays out in beats: the keyword flash, the full death, then the reborn re-form on its return.' },
     ],
   },
   {

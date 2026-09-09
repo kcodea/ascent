@@ -440,10 +440,12 @@ export interface EquipFx {
 }
 
 export interface ShopDeathFx {
-  kind: 'death' | 'echo';
+  /** `death` — the body dies (dissolve / skull); `echo` — its Echo fires; `rise` — a RISEN body has returned
+   *  (the new uid): the UI plays combat's reborn re-form on it (owner 2026-09-09). */
+  kind: 'death' | 'echo' | 'rise';
   uid: string;
   cardId: string;
-  /** Death only: the body is rising, so it must NOT dissolve (it re-forms). */
+  /** Death only: the body will Rise. Since 2026-09-09 it dies in full anyway — the return is the `rise` cue. */
   rise?: boolean;
 }
 

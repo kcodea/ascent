@@ -3593,15 +3593,14 @@ export function simulate(
           if (!lead.keywords.includes('DS')) lead.keywords.push('DS');
           emit({ type: 'shieldUp', target: lead.uid });
         }
-        // TRIPLE the current Health (owner sheet 2026-07-30; was double), lifting maxHealth with it so
-        // healing/Rise can't clip it back down. `gain` is 2x because it is ADDED to the existing body.
-        // One tripling per copy held (boolean-flag family, owner 2026-08-27) — each reads the grown Health.
-        for (let k = 0; k < flagCopiesOf(rside, 'runeWarding'); k++) {
-          const gain = lead.health * 2;
-          lead.health += gain;
-          lead.maxHealth = Math.max(lead.maxHealth ?? lead.health, lead.health);
-          emit({ type: 'buff', target: lead.uid, attack: 0, health: gain, source: lead.uid });
-        }
+        // TRIPLE the current Health (owner sheet 2026-07-30; was double). `gain` is 2x because it is ADDED to
+        // the existing body. One tripling per copy held (boolean-flag family, owner 2026-08-27) — each reads
+        // the grown Health. Through `ctx.buff`, like every other Start-of-Combat rune grant: it lifts
+        // maxHealth so healing/Rise can't clip the body back down, AND it is the one place Engrave is
+        // resolved — a warded Dragon beside a Transcendant keeps its tripled Health after the fight. The old
+        // direct `lead.health +=` bypassed that, so the rune's gain silently evaporated at carry-back
+        // (Bug Board 7130a89b, 2026-09-09).
+        for (let k = 0; k < flagCopiesOf(rside, 'runeWarding'); k++) ctx.buff(lead, 0, lead.health * 2, lead.uid);
       }
     }
     // RUNE OF HELD STRENGTH (owner rework 2026-08-27, q-runedup-oneshot revise — was a one-shot on purchase):

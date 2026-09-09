@@ -56,6 +56,17 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-09',
+    label: 'Rune of Warding keeps its Engrave',
+    changes: [
+      {
+        category: 'Card Change',
+        text: "Rune of Warding's tripled Health now carries back to the shop when the warded minion is Engraved.",
+        details: ['A Dragon standing beside a Transcendant (or any Engraved minion) keeps the Health the rune gave it at Start of Combat, like every other combat gain. It was tripled for the fight and quietly lost afterwards.'],
+      },
+    ],
+  },
+  {
+    date: '2026-09-09',
     label: 'Bug Board round 2',
     changes: [
       { category: 'Hero Change', text: "Kindness's targeted Gifts now do what they say.", details: ["Unbridled Might (+2 Attack, then double), Ironclad Favor (Taunt + double Health), Champion's Regalia (Ward, Critical Strike, Flurry) and Parting Gifts were consuming the card without paying out."] },

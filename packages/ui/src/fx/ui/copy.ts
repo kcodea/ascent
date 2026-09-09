@@ -41,6 +41,10 @@ export const PRIMITIVE_COPY: Record<string, FxCopy> = {
     label: 'Trail',
     blurb: 'A tapering band that follows the moving head — a motion trail. Needs a scenario that MOVES.',
   },
+  lightning: {
+    label: 'Bolt',
+    blurb: 'A branching electric bolt that reaches to its target, dwells, then releases. Zaps, arcs, arcane strikes.',
+  },
   shockwave: {
     label: 'Ring',
     blurb: 'An expanding ring pushing outward from a point. Blasts, slams, pulses.',

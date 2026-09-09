@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "id": "lightning",
+  "duration": 1100,
+  "layers": [
+    {
+      "primitive": "lightning",
+      "anchor": "source",
+      "at": 0,
+      "life": 1100,
+      "params": {}
+    }
+  ]
+}

@@ -53,6 +53,7 @@ export const FAMILY_BY_MOMENT: Record<MomentKind, string> = {
   rally: 'rally',
   shout: 'reaction',
   toHand: 'generatedCard',
+  handBuff: 'hand-buff',
   maxGold: 'resource',
   improve: 'improve',
   keyword: 'keywordGrant',
@@ -76,7 +77,7 @@ const REACTION_KINDS = new Set<MomentKind>(['scNarrate', 'shieldPop', 'poisonTic
 
 /** The combat events a moment carries that are worth showing as consequences of it. */
 const CONSEQUENCE_TYPES = new Set<CombatEvent['type']>([
-  'dmg', 'buff', 'summon', 'death', 'improve', 'toHand', 'maxGold', 'keyword', 'shieldUp', 'rally', 'reveal',
+  'dmg', 'buff', 'summon', 'death', 'improve', 'toHand', 'handBuff', 'maxGold', 'keyword', 'shieldUp', 'rally', 'reveal',
 ]);
 
 /** A source label for a moment, preferring the unit it happened to. */

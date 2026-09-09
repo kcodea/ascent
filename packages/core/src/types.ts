@@ -272,6 +272,7 @@ export type EffectFactoryId =
   | 'rallyGrantMagnetic' // Mechanical Jouster — Rally: when this attacks, add a random Magnetic Mech to hand
   | 'rallyProcDeathrattle' // Rally: when this attacks, fire your leftmost minion's Deathrattle first (Deathsayer)
   | 'deathrattleGrantSpell' // Deathrattle: add a spell to your hand after combat (Arcane Weaver)
+  | 'deathrattleBuffHandTribe' // Echo: give the <tribe> minions IN YOUR HAND +a/+h — both phases; in combat it is permanent (R-HAND-02)
   | 'battlecryBuffTribeImproving' // Scalechanter: Shout — buff a tribe by base + its improvements
   | 'onBattlecryImproveSelf' // Scalechanter: every N Shouts triggered, improve its own magnitude
   | 'deathrattleQueueNextSpellCopy' // Mushy: Echo — copy the first spell you cast next turn
@@ -2261,6 +2262,7 @@ export type CombatEvent = (
   | { type: 'rally'; source: string; target: string } // Deathsayer's Rally fires `target`'s Deathrattle
   | { type: 'maxGold'; target: string; side: Side; amount: number } // Soulsman's Avenge raises your max Gold
   | { type: 'toHand'; cardId: string; side: Side; source?: string } // a combat effect adds a card to your hand (Arcane Weaver)
+  | { type: 'handBuff'; uid: string; cardId: string; side: Side; attack: number; health: number; source?: string } // a combat effect buffs a card IN YOUR HAND — permanent (R-HAND-02, owner 2026-09-09), carried back via `playerHandBuffs`; the replay grows the hand card live
   | { type: 'hpGrant'; target: string; amount: number } // Sergeant: live HP-grant amount after each Attack-gain improvement
   | { type: 'spellProgress'; target: string; amount: number } // Archmagus Guel: on-board spell tally after a combat cast (live countdown)
   | { type: 'questTrigger'; flag: string; side: Side } // a completed quest / owned rune's COMBAT effect fired — `flag` maps to its badge id so the UI can pulse the node
@@ -2530,6 +2532,9 @@ export interface CombatResult {
   playerPermaBuffs?: { sourceUid: string; attack: number; health: number; engraved: boolean; ruby?: boolean }[];
   /** Card ids the player's combat deathrattles grant to the hand after combat (Arcane Weaver). */
   playerHandGrants?: string[];
+  /** R-HAND-02: buffs a combat effect gave cards IN THE HAND — applied to the run hand at settle, permanently.
+   *  `source` is the combat uid of the granting body (for the inspect label). */
+  playerHandBuffs?: { uid: string; attack: number; health: number; source?: string }[];
   /** Set 2 — Rubies to mint into the hand after combat (Rikk / Gemline "Get N Rubies" in combat). Minted with
    *  the run's live `rubyBonus` at settle, so they match a shop-minted Ruby. */
   playerRubyGrants?: number;
@@ -2758,6 +2763,13 @@ export interface CombatContext {
   asEcho?(side: Side, fn: () => void, source?: Minion): void;
   /** Queue a card to be added to that side's hand after combat (player only is persisted). */
   grantToHand(cardId: string, side: Side, sourceUid?: string): void;
+  /** The side's hand MINIONS as snapshotted at combat start (player only — a served board has no hand),
+   *  minus any already summoned out of it. Read-only; buff one through `buffHand`. */
+  handMinionsFor(side: Side): readonly { uid: string; cardId: string; attack: number; health: number }[];
+  /** R-HAND-02 (owner 2026-09-09): buff a card IN THE HAND, mid-fight. PERMANENT — carried back via
+   *  `CombatResult.playerHandBuffs` and applied to the run hand at settle like any recruit buff — and logged
+   *  as a `handBuff` event so the replay grows the hand card on its beat. Player-only. */
+  buffHand(uid: string, attack: number, health: number, side: Side, sourceUid?: string): void;
   /** Permanently raise the run-wide spell power by +atk/+hp (Skullblade's Deathrattle). Player-only;
    *  accumulated and carried back via `CombatResult.playerSpellPower`, applied in the run loop. `sourceUid`
    *  (the granting minion) telegraphs it mid-combat as an `sc` narration. */

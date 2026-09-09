@@ -6,7 +6,7 @@ import { combatKeyedHoldMs } from '../choreographer/combatHolds';
 /** Moment kinds whose hold is a plain timeout — the only ones an authored hold may replace. */
 export const KEYED_HOLD_KINDS = new Set([
   'questTrigger', 'questComplete', 'buffWave', 'improve', 'keyword', 'keywordLost',
-  'tribeAura', 'hpGrant', 'toHand', 'maxGold', 'spellProgress',
+  'tribeAura', 'hpGrant', 'toHand', 'handBuff', 'maxGold', 'spellProgress',
 ]);
 import { getChoreoConfig, beatDelay } from './choreoConfig';
 

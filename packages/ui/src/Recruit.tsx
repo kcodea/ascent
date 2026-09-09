@@ -3274,13 +3274,23 @@ export function Recruit() {
     }),
     [displayBoard, run.tier, eotAnimStats, eotAnimTick, spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave, run.spellsCast, run.cardBuffs, run.fodderConsumedThisTurn, live],
   );
+  // R-HAND-02 (owner 2026-09-09): a hand card a combat effect buffs grows ON ITS BEAT. The replay's reached
+  // deltas ride the same stat-override slot the End-of-Turn animation uses, on top of the run hand's stats;
+  // once the fight settles the buff is in the run hand itself and the replay's map is empty again.
+  const combatHandBuffs = inCombat && !run.combatSettled ? replay.handBuffsShown : null;
+  const handStatOverride = (m: BoardCard): { attack: number; health: number } | undefined => {
+    const d = combatHandBuffs?.[m.uid];
+    if (d) return { attack: m.attack + d.attack, health: m.health + d.health };
+    return eotAnimStats?.[m.uid];
+  };
   const handViews = useMemo(
     () => perfMonitor.measure('view:hand', () => {
-      const fresh = new Map(run.hand.map((m) => [m.uid, instView(m, run.tier, eotAnimStats?.[m.uid], spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave, run.spellsCast, run.cardBuffs?.cling, run.fodderConsumedThisTurn, CARD_INDEX[m.cardId]?.spell || CARD_INDEX[m.cardId]?.ruby ? { ...live, castMult: spellCastCount(run, CARD_INDEX[m.cardId]!) } : live)] as const));
+      const fresh = new Map(run.hand.map((m) => [m.uid, instView(m, run.tier, handStatOverride(m), spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave, run.spellsCast, run.cardBuffs?.cling, run.fodderConsumedThisTurn, CARD_INDEX[m.cardId]?.spell || CARD_INDEX[m.cardId]?.ruby ? { ...live, castMult: spellCastCount(run, CARD_INDEX[m.cardId]!) } : live)] as const));
       handViewCache.current = stabilizeViewMap(fresh, handViewCache.current);
       return handViewCache.current;
     }),
-    [run.hand, run.tier, eotAnimStats, spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave, run.spellsCast, run.cardBuffs, run.fodderConsumedThisTurn, live, run.board, run.nextSpellExtraCasts],
+    // `handStatOverride` is a per-render closure over `eotAnimStats` + `combatHandBuffs`; both are listed below.
+    [run.hand, run.tier, eotAnimStats, combatHandBuffs, spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave, run.spellsCast, run.cardBuffs, run.fodderConsumedThisTurn, live, run.board, run.nextSpellExtraCasts],
   );
   // SPELL BUFF cue (owner 2026-07-23): when a hand SPELL or Ruby gets stronger, grow/shrink it and blast
   // sparks outward, so the player sees exactly which cards a spell buff touched. A spell's stats never

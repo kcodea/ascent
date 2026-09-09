@@ -24,6 +24,7 @@ const LIVE: Record<string, string> = {
   playerSpellEscalationGain: "the '<spell> improves +A/+H' sc narration → combatEscalationPreview",
   playerSpellPower: "the '+A/+H Spell Power' sc narration → spellPower flourish + hand-spell pop",
   playerHandGrants: "the 'toHand' event — the card flies to hand on the trigger beat",
+  playerHandBuffs: "the 'handBuff' event — the hand card grows on the trigger beat (R-HAND-02; useCombatReplay.handBuffsShownThrough)",
   playerRubyMints: "the 'toHand'-style mint beat in the replay (each Ruby flies to hand on its trigger)",
   playerPermaBuffs: "the 'buff' events themselves — the stats move on the body as they land",
   playerImpBuffGain: "the 'tribeAura' event — the board wash + Buffs-panel row tick",

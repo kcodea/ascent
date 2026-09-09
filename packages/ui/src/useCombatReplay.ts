@@ -194,6 +194,7 @@ export interface UnitFrame {
 
 // Stable empty list for the hand-grant memo — a fresh [] each render would churn every downstream memo.
 const EMPTY_GRANTS: string[] = [];
+const EMPTY_HAND_BUFFS: Record<string, { attack: number; health: number }> = {};
 
 const fromSnap = (s: MinionSnapshot): UnitFrame => ({
   uid: s.uid, cardId: s.cardId, name: s.name, tribe: s.tribe, attack: s.attack, health: s.health,
@@ -240,6 +241,23 @@ function recordBuff(buffs: MinionBuff[], source: string, attack: number, health:
 export function grantsShownThrough(events: CombatEvent[], beats: Beat[], beatIdx: number): string[] {
   const through = beatIdx === 0 ? 0 : (beats[beatIdx - 1]?.end ?? events.length);
   return events.slice(0, through).flatMap((e) => (e.type === 'toHand' ? [e.cardId] : []));
+}
+
+/**
+ * R-HAND-02 (owner 2026-09-09): the hand-card buffs the replay has REACHED, summed per hand uid — the same
+ * beat-cursor read `grantsShownThrough` makes, so a hand card grows on the beat its `handBuff` event plays,
+ * not when the fight settles. The hand row adds these deltas onto the run hand's stats until settle lands
+ * the permanent buff (at which point the replay resets and this is empty again — no double count).
+ */
+export function handBuffsShownThrough(events: CombatEvent[], beats: Beat[], beatIdx: number): Record<string, { attack: number; health: number }> {
+  const through = beatIdx === 0 ? 0 : (beats[beatIdx - 1]?.end ?? events.length);
+  const out: Record<string, { attack: number; health: number }> = {};
+  for (const e of events.slice(0, through)) {
+    if (e.type !== 'handBuff' || e.side !== 'player') continue;
+    const cur = out[e.uid] ?? { attack: 0, health: 0 };
+    out[e.uid] = { attack: cur.attack + e.attack, health: cur.health + e.health };
+  }
+  return out;
 }
 
 /**
@@ -517,6 +535,7 @@ function narrateLog(e: CombatEvent, names: Map<string, string>): { text: string;
     case 'rally': return { text: `${n(e.source)}'s Rally triggers ${n(e.target)}'s Echo.`, kind: 'sc' };
     case 'shout': return { text: `${n(e.source)} triggers ${n(e.target)}'s Shout.`, kind: 'sc' };
     case 'toHand': return { text: `${cardName(e.cardId)} is added to your hand.`, kind: 'summon' };
+    case 'handBuff': return { text: `${cardName(e.cardId)} in your hand grows +${e.attack}/+${e.health}.`, kind: 'buff' };
     default: return null;
   }
 }
@@ -540,6 +559,7 @@ function narrate(e: CombatEvent, names: Map<string, string>): string | null {
     case 'rally': return `${n(e.source)}'s Rally fires ${n(e.target)}'s Echo!`;
     case 'shout': return `${n(e.source)} triggers ${n(e.target)}'s Shout!`;
     case 'toHand': return `${cardName(e.cardId)} is added to your hand.`;
+    case 'handBuff': return `${cardName(e.cardId)} in your hand grows +${e.attack}/+${e.health}.`;
     default: return null;
   }
 }
@@ -633,6 +653,9 @@ export interface CombatReplay {
   handGrant: { cardId: string; key: number } | null;
   /** Card ids granted to the hand so far in the replay — appended to the combat hand so it grows live. */
   handGrantsShown: string[];
+  /** R-HAND-02: per hand uid, the stat deltas the replay has reached — the hand row adds them so a buffed
+   *  hand card grows on its beat. Empty once the fight settles (the buff is then in the run hand itself). */
+  handBuffsShown: Record<string, { attack: number; health: number }>;
   /** uids whose effect fired in the current window — their trigger medallion pulses. */
   triggerUids: Set<string>;
   /** uid → a per-fire nonce for units mid-Rally (used as the medallion `key` so each pulse restarts). */
@@ -2951,9 +2974,13 @@ export function useCombatReplay(
     () => (active ? grantsShownThrough(events, beats, beatIdx) : EMPTY_GRANTS),
     [active, beatIdx, beats, events],
   );
+  const handBuffsShown = useMemo(
+    () => (active ? handBuffsShownThrough(events, beats, beatIdx) : EMPTY_HAND_BUFFS),
+    [active, beatIdx, beats, events],
+  );
 
   return {
-    frame, visibleFrame, anims, lungeUid, projectiles, floats, deathFloats, log, fullLog, procs, handGrant, handGrantsShown,
+    frame, visibleFrame, anims, lungeUid, projectiles, floats, deathFloats, log, fullLog, procs, handGrant, handGrantsShown, handBuffsShown,
     triggerUids: triggers,
     rallyPulseUids: rallyPulse,
     watcherPulseUids: watcherPulse,

@@ -158,6 +158,9 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
       const def = CARD_INDEX[cardId];
       if (def) conjureToHand(state, [def], count);
     },
+    // Minions only, matching the combat snapshot (`handMinions` in the faceOmen build excludes spells + Rubies).
+    handMinions: () => state.hand.filter((c) => { const d = CARD_INDEX[c.cardId]; return !!d && !d.spell && !d.ruby; }),
+    buffHand: (t, a, h) => addBuff(t as BoardCard, nameOf(self), a, h),
     grantRandomSpells: (count, exactTier) => {
       const ok = exactTier != null
         ? (c: CardDef) => c.tier === exactTier
@@ -3683,6 +3686,13 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       addBuff(avail.splice(rng.int(avail.length), 1)[0]!, nameOf(self), a, h);
     }
     ctx.state.rngCursor = rng.state();
+  },
+
+  /** Echo (shop half): buff the `tribe` minions in your hand. Same body as combat through the arena; a shop
+   *  Echo lands it directly on the hand cards — permanent by construction (R-HAND-02). Own-death guarded. */
+  deathrattleBuffHandTribe: (ctx, self, params, payload) => {
+    if ((payload as { minion?: BoardCard })?.minion !== self) return;
+    ARENA_EFFECTS.deathrattleBuffHandTribe(shopArena(ctx.state, self), params);
   },
 
   /** Tromboneer (Echo, shop half): Gold for the NEXT turn only, through `bonusEmbersNextTurn` — the one-turn

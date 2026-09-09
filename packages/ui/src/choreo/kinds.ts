@@ -12,7 +12,7 @@ export type MomentKind =
   | 'death'
   | 'riseDeath'
   | 'scCast' | 'scNarrate'
-  | 'summon' | 'buffWave' | 'reborn' | 'ascend' | 'rally' | 'shout' | 'toHand' | 'maxGold' | 'improve'
+  | 'summon' | 'buffWave' | 'reborn' | 'ascend' | 'rally' | 'shout' | 'toHand' | 'handBuff' | 'maxGold' | 'improve'
   | 'keyword' | 'keywordLost' | 'hpGrant' | 'spellProgress' | 'reveal' | 'tribeAura'
   | 'questTrigger' | 'questComplete';
 
@@ -51,6 +51,7 @@ export function momentKind(primary: CombatEvent): MomentKind {
     // a re-fired Shout most often is.
     case 'shout': return 'shout';
     case 'toHand': return 'toHand';
+    case 'handBuff': return 'handBuff'; // R-HAND-02: a hand card grew mid-fight — its own moment, paced like a buff
     case 'maxGold': return 'maxGold';
     case 'improve': return 'improve';
     case 'keyword': return 'keyword';

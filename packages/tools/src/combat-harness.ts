@@ -82,6 +82,8 @@ function describe(ev: CombatEvent, names: Map<string, string>): string {
       return `   📣 ${n(ev.source)} triggers ${n(ev.target)}'s Shout`;
     case 'toHand':
       return `   ✋ ${CARD_INDEX[ev.cardId]?.name ?? ev.cardId} added to hand`;
+    case 'handBuff':
+      return `   ✋ ${CARD_INDEX[ev.cardId]?.name ?? ev.cardId} in hand +${ev.attack}/+${ev.health} (permanent)`;
     case 'hpGrant':
       return `   ✦ ${n(ev.target)} HP-grant now +${ev.amount}`;
     case 'spellProgress':

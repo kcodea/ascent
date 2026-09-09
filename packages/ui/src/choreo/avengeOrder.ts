@@ -34,6 +34,7 @@ function targetOf(e: CombatEvent): string | undefined {
     case 'sc': return e.source;
     case 'rally': return e.target;
     case 'toHand':
+    case 'handBuff':
     case 'questTrigger':
     case 'attack': return undefined;
     default: return (e as { target?: string }).target;

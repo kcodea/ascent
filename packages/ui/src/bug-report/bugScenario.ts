@@ -211,6 +211,7 @@ export function combatEventLines(result: CombatResult): CombatEventLine[] {
       case 'rally': text = `${n(e.source)} fires ${n(e.target)}'s Echo`; break;
       case 'maxGold': text = `${n(e.target)} raises max Gold by ${e.amount} (${e.side})`; break;
       case 'toHand': text = `${e.cardId} to hand (${e.side})${e.source ? ` from ${n(e.source)}` : ''}`; break;
+      case 'handBuff': text = `${e.cardId} in hand +${e.attack}/+${e.health} (${e.side})${e.source ? ` from ${n(e.source)}` : ''}`; break;
       case 'ascend': text = `${n(e.target)} transforms into ${e.into}`; break;
       case 'tribeAura': text = `${e.side} ${e.tribe} aura +${e.attack ?? 0}/+${e.health ?? 0}${e.aura ? ` (${e.aura})` : ''}`; break;
       case 'spellcast': text = `${e.side} spell resolves (total ${e.count})`; break;

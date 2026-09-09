@@ -35,7 +35,7 @@ export function watcherPulseUids(
     const e = events[i];
     if (!e) continue;
     if ((e.type === 'sc' || e.type === 'buff' || e.type === 'keyword' || e.type === 'rally') && e.source) take(e.source);
-    else if ((e.type === 'summon' || e.type === 'toHand') && e.source) take(e.source);
+    else if ((e.type === 'summon' || e.type === 'toHand' || e.type === 'handBuff') && e.source) take(e.source);
     else if (e.type === 'improve' || e.type === 'maxGold' || e.type === 'hpGrant' || e.type === 'reborn') take(e.target);
   }
   return out;

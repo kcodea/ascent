@@ -32,7 +32,9 @@ const SWEEP = runTextSweep({ contracts: CONTRACTS });
 
 /** The grow-loudly cap on the unresolved queue (first full run 2026-08-27: 534 of 901). Shrink freely;
  *  raising it is a conscious act that names the new unparsed content in the PR. */
-const UNRESOLVED_CAP = 540;
+// 540 → 541 on 2026-09-09: Set 3 Neutrals tranche 3 (Highway Hustler / Warband Recruiter / Equipment Charger) —
+// three new texts, one of which the grammar does not yet parse.
+const UNRESOLVED_CAP = 541;
 /** Collapse floor: the parser fully consuming fewer objects than this means a grammar regression. */
 const PARSED_FLOOR = 340;
 

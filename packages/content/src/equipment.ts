@@ -338,7 +338,24 @@ export const MAGNIFYING_GLASS: EquipmentDefinition = {
   gildedParams: { cardId: 'clue', count: 2 },
 };
 
-export const EQUIPMENT: readonly EquipmentDefinition[] = [BLOODPOT, TITAN_HAMMER, BLAST_PUMP, PRISMATIC_PICK, DUELING_RUBETTAS, POURMANS_KEG, THYMEPIECE, COFFIN_FLOP, DEATHFIBRILLATOR, MAGNIFYING_GLASS];
+/**
+ * WHIPLASS-O — Highway Hustler's Equipment (set-3 Neutral roster, 2026-09-09): steal the highest-Tier minion in
+ * the Shop into your hand. Untargeted (the pick is a rule, not a choice). `pick: 'highestTier'` is read by the
+ * shared `stealTavernMinion`; ties go to the left-most offer. A gilded Hustler steals two (`gildedParams`).
+ */
+export const WHIPLASSO: EquipmentDefinition = {
+  id: 'whiplasso',
+  name: 'Whiplass-o',
+  text: 'Steal the highest-Tier minion in the Shop.',
+  goldenText: 'Steal the **2** highest-Tier minions in the Shop.',
+  baseCost: 2,
+  targetMode: 'none',
+  effectId: 'stealTavernMinion',
+  params: { pick: 'highestTier', count: 1 },
+  gildedParams: { pick: 'highestTier', count: 2 },
+};
+
+export const EQUIPMENT: readonly EquipmentDefinition[] = [BLOODPOT, TITAN_HAMMER, BLAST_PUMP, PRISMATIC_PICK, DUELING_RUBETTAS, POURMANS_KEG, THYMEPIECE, COFFIN_FLOP, DEATHFIBRILLATOR, MAGNIFYING_GLASS, WHIPLASSO];
 
 export const EQUIPMENT_INDEX: Readonly<Record<string, EquipmentDefinition>> =
   Object.fromEntries(EQUIPMENT.map((e) => [e.id, e]));

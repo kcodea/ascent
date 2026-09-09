@@ -393,6 +393,8 @@ export const EffectFactoryIdSchema = z.enum([
   'battlecryBuffAdjacent',
   'battlecryGetHandSpell',
   'clueBuffTarget',
+  'rallySummonAndGetRally',
+  'startOfTurnEquipmentCharge',
   'battlecryBuffMagnetics',
   'battlecryBuffImps',
   'goldSpentBuffFodder',

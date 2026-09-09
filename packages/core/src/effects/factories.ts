@@ -1289,6 +1289,21 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     if (pool.length === 0) return;
     for (let i = 0; i < num(params.count, 1) * mul(self); i++) ctx.grantToHand(ctx.rng.pick(pool).id, self.side, self.uid);
   },
+  /** Set 3 — Warband Recruiter (Rally): summon a random Rally minion of the run's pool beside this AND grant a
+   *  copy to hand (carried back at settle). × golden. Never itself. Own attack only — the standard Rally gate. */
+  rallySummonAndGetRally: (ctx, self, params, payload) => {
+    void params;
+    const { minion } = payload as MinionPayload;
+    if (self.dead || minion !== self) return; // Rally: this minion's own attack only
+    const pool = ctx.poolCards(self.side).filter((c) =>
+      !!c && !c.spell && !c.token && c.keywords.includes('RL') && c.effects.some((e) => e.on === 'onAttack') && c.id !== self.cardId);
+    if (pool.length === 0) return;
+    for (let i = 0; i < mul(self); i++) {
+      const pick = ctx.rng.pick(pool);
+      ctx.summon(self.side, pick, self.uid, undefined, false, false);
+      ctx.grantToHand(pick.id, self.side, self.uid);
+    }
+  },
   grantRandomAle: (ctx, self, params) => {
     // Same recipe as Rune of Last Call: only Ales actually in this run's pool (a set without them grants nothing).
     const ales = ctx.poolCards(self.side).filter((c) => ALE_IDS.includes(c.id));

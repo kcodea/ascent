@@ -610,6 +610,8 @@ export type EffectFactoryId =
   | 'battlecryBuffAdjacent' // Splitboon Adept: Shout — give adjacent minions +atk/+hp (golden doubles)
   | 'battlecryGetHandSpell' // Defender / Magnifying Glass: mint `count` copies of a hand spell (Tower Shield, Clue) — × golden
   | 'clueBuffTarget' // Clue (cast): give the target the run's current Clue value, then improve Clues by +1/+1
+  | 'rallySummonAndGetRally' // Warband Recruiter: Rally — summon a random Rally minion AND get a copy in hand (both phases)
+  | 'startOfTurnEquipmentCharge' // Equipment Charger: Start of Turn — +count Equipment activations this turn
   | 'battlecryConductorAdjacent' // Conductor: Shout — give adjacent minions +2N/+3N; N snowballs per Conductor played (×2 gilded)
   | 'battlecryBuffMagnetics' // Scrap Herald: Battlecry — give your Magnetic minions +atk/+hp wherever they are; stacks into future buys
   | 'battlecryBuffImps' // Imp Overseer: Battlecry — give your Imps +atk/+hp run-wide (shared impBuff enchant)

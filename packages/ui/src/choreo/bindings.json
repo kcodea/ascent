@@ -63,6 +63,9 @@
     },
     "epicRuneTriggered": {
       "def": "epic-rune-burst"
+    },
+    "shout": {
+      "def": "shout-icon-effect"
     }
   },
   "cards": {

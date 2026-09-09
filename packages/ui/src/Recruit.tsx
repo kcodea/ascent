@@ -4319,8 +4319,15 @@ export function Recruit() {
       .map((c) => c.uid);
     prevBoardUidsRef.current = new Set(run.board.map((c) => c.uid));
     if (fresh.length === 0) return;
-    setBattlecryUids((s) => new Set([...s, ...fresh]));
-    sfx.triggerPulse(); // a Battlecry officially fires → the medallion pulse cue (deduped)
+    // A Shout with an authored burst (the generic `shout` binding → `shout-icon-effect`, or a card override)
+    // shows the burst INSTEAD of the medallion pulse — the same suppression the `spellCast` / `minionBuffed`
+    // cues use above so a bound effect never double-ups with the stock CSS pulse. A Shout with no binding keeps
+    // the medallion pulse as the fallback. The Shout SOUND stays either way.
+    const pulseFallback = fresh.filter(
+      (uid) => !bindingFor(run.board.find((c) => c.uid === uid)?.cardId ?? null, 'shout'),
+    );
+    setBattlecryUids((s) => new Set([...s, ...pulseFallback]));
+    sfx.triggerPulse(); // the Shout sound stays, whether the visual is the burst or the medallion pulse (deduped)
     // The SAME signal, published as a bindable moment. `fresh` is already "a minion whose Shout just fired",
     // which is the source `recruitMoments.ts` requires before a kind may exist — this adds no new detection,
     // it names the one that was already driving the medallion.
@@ -4349,7 +4356,7 @@ export function Recruit() {
        the medallion keeps `.pulsing`, and React moving a keyed child on a warband reorder re-inserts its DOM
        node — which RESTARTS the CSS animation. So a long-dead Battlecry flashed again every time you shuffled
        cards past it. Same defect, and same fix, as the combat medallion hold (#735). */
-    for (const uid of fresh) {
+    for (const uid of pulseFallback) { // only the uids that actually got the medallion pulse need a clear
       const prevT = bcTimersRef.current.get(uid);
       if (prevT !== undefined) window.clearTimeout(prevT);
       bcTimersRef.current.set(uid, window.setTimeout(() => {

@@ -172,6 +172,11 @@ const BINDINGS: Record<string, { def: string }> = {
   // The DEFAULT tavern-spell cast — every spell with no card binding of its own. Fires ONCE at the cursor
   // (no `fanOut`), which is what makes it safe as a default; the ales opt into the per-minion volley.
   spellCast: { def: 'spell-sparks' },
+  // The DEFAULT Shout — every shouting minion with no card binding of its own (owner-authored 2026-09-09,
+  // replacing the CSS medallion pulse). Fires ON the shouter in the shop (`shoutMoment` → `fireLand`) and on
+  // the re-triggering unit for a combat re-fire (`shoutFx`). The three card rows below (butcher/tormentor/pimm)
+  // still shadow it with their own Shout defs. The stock CSS pulse is suppressed where this plays.
+  shout: { def: 'shout-icon-effect' },
   // Shop self-buffs — the recruit twin of combat's buffWave/attackExchange self-buff fan-out. The stock
   // `self-buff-gold` was stripped 2026-09-02 and REPLACED the same day by the owner-authored `self-buff-burst`.
   minionSelfBuffed: { def: 'self-buff-burst' },

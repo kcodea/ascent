@@ -122,7 +122,7 @@ gsap.registerPlugin(Flip);
 /** RISE, in the shop (owner ruling 2026-08-28) — the body dies and re-forms, so it must NOT dissolve. A short
  *  bloom marks the death; the return then arrives as an ordinary summon. Screen blend + a warm glow, the same
  *  language the ascend flash speaks, so a re-forming body reads as a return rather than as a kill. */
-const RISE_BURST = { flashSize: 150, flashMs: 320, flashAlpha: 0.75, colorGlow: '#ffd27f', blend: 'screen' as const };
+// (RISE_BURST retired 2026-09-09: a rising body now dies in full and re-forms on return; see the `rise` shop cue.)
 /** A KEYWORD GRANTED in the shop (Rise from a Deathfibrillator, Ward from Orin) — a short cool flash on the card, so
  *  the grant is a beat of its own before whatever follows it (owner 2026-09-09). Combat floats the keyword name;
  *  the shop's pip already names it, so the flash is the cue. */

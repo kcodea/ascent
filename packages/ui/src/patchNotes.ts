@@ -62,8 +62,8 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'New Card',
         text: 'Eleven new Undead join Set 3, alongside eleven returning Undead.',
         details: [
-          'Poochy (Tier 1): Taunt, Rise.',
-          'Noggin (Tier 2): Echo — a random friendly Undead gets +2/+2.',
+          'Rising Pup (Tier 1): Taunt, Rise.',
+          'Noggin (Tier 2): Rise. Echo — a random friendly Undead gets +2/+2.',
           'Robinson (Tier 3): Equip Coffin Flop (2) — Discover an Undead minion.',
           'Adeptus (Tier 3): Echo — your Shop spells get +1 Attack.',
           'EMS (Tier 4): Equip Deathfibrillator (2) — give a target Undead Rise, then destroy it.',

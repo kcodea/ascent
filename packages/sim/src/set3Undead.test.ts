@@ -237,7 +237,9 @@ describe('Noggin, Squatimus, Adeptus, Warden Rodrick, Hierophant', () => {
   it('Noggin: a RANDOM friendly Undead, never a non-Undead — both phases', () => {
     const r = fight([bm('u3_noggin'), bm('dw_brunni'), bm('mumi')], [foe(20, 20)]);
     const nog = uidOf(r, 'u3_noggin');
-    const hits = r.events.filter((e) => e.type === 'buff' && (e as { source: string }).source === nog) as unknown as { target: string; attack: number }[];
+    // Noggin has Rise now: its FIRST death's Echo is the one under test (it returns, dies again, and Echoes again).
+    const rebornAt = r.events.findIndex((e) => e.type === 'reborn');
+    const hits = r.events.slice(0, rebornAt).filter((e) => e.type === 'buff' && (e as { source: string }).source === nog) as unknown as { target: string; attack: number }[];
     expect(hits.length).toBe(1);
     expect(hits[0]!.target).toBe(uidOf(r, 'mumi'));
     expect(hits[0]!.attack).toBe(2);

@@ -104,7 +104,7 @@ Every applicable case that did not run says why. This is the §4.3 substrate; no
 | parsed-equivalent | 358 |
 | verified-mismatch | 9 |
 | approved-exception | 0 |
-| **unresolved-parse** | 535 |
+| **unresolved-parse** | 536 |
 
 Every one of the 9 mismatches is registry-pinned with a reason (0 unpinned, 0 stale pins — both gated).
 Eight of the nine are **draft-contract gaps**, not text defects: the extractor could not parse a Choose One
@@ -115,7 +115,7 @@ plain).
 The rewrite advisor produced 4 wording recommendations against the 27-entry language guide. They are
 suggestions with `suggestedText`; nothing is ever applied to production content (§23).
 
-**535 unresolved parses is the honest headline of this section.** They are classified, queued, ratcheted
+**536 unresolved parses is the honest headline of this section.** They are classified, queued, ratcheted
 grow-loudly, and never counted as clean passes — but they are also 59% of the corpus, and the parser's
 conservatism is why the "text checked against approved mechanics" DoD item is partial.
 
@@ -123,7 +123,7 @@ conservatism is why the "text checked against approved mechanics" DoD item is pa
 
 ## 4. Interaction intelligence (§18-F)
 
-- Graph: **1578** nodes / **4877** edges over the contract registry (content, effect-family, trigger-family,
+- Graph: **1578** nodes / **4878** edges over the contract registry (content, effect-family, trigger-family,
   channel, keyword, multiplier, copy-mode, counter, zone, phase-boundary nodes).
 - Applicability: **97400** candidate pairs against 407253 naive all-pairs (21.9%) — the producer → channel →
   consumer join is what makes pairwise tractable at all.

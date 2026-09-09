@@ -27,7 +27,7 @@ export const SET3_UNDEAD: CardDef[] = [
   {
     // The vanilla body with the tribe's keyword: it returns once.
     id: 'u3_poochy',
-    name: 'Poochy',
+    name: 'Rising Pup', // renamed from Poochy (owner 2026-09-09); the id stays
     tribe: 'undead',
     tier: 1,
     attack: 2,
@@ -44,10 +44,10 @@ export const SET3_UNDEAD: CardDef[] = [
     tier: 2,
     attack: 2,
     health: 2,
-    keywords: [],
+    keywords: ['R'], // owner 2026-09-09: Rise in addition to the Echo
     effects: [{ on: 'onDeath', do: 'deathrattleBuffRandomTribe', params: { tribe: 'undead', attack: 2, health: 2 } }],
-    text: '**Echo:** give a random friendly **Undead +2/+2**.',
-    goldenText: '**Echo:** give a random friendly **Undead +4/+4**.',
+    text: '**Rise. Echo:** give a random friendly **Undead +2/+2**.',
+    goldenText: '**Rise. Echo:** give a random friendly **Undead +4/+4**.',
   },
   {
     // An EQUIP Undead: Coffin Flop is a real Discover from the run's pinned pool at the tavern tier.

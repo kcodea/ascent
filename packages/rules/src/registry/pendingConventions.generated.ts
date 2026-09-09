@@ -1229,16 +1229,17 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-keyword-r",
-    "title": "Rise [R] · 5 carriers",
+    "title": "Rise [R] · 6 carriers",
     "statement": "Rise means: the first time this dies, it returns with 1 Health (its Rise spent) — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "keywords",
-    "currentBehaviour": "One shared engine path implements Rise for all 5 carriers.",
-    "cardText": "Exemplar — Anubis, Last Gate: \"Echo: give your minions Rise and cast Lantern of Souls.\" · Carriers: Anubis, Last Gate · Footman · Chaos Attachment · Poochy · Warden Rodrick",
+    "currentBehaviour": "One shared engine path implements Rise for all 6 carriers.",
+    "cardText": "Exemplar — Anubis, Last Gate: \"Echo: give your minions Rise and cast Lantern of Souls.\" · Carriers: Anubis, Last Gate · Footman · Chaos Attachment · Noggin · Rising Pup · Warden Rodrick",
     "example": "Anubis, Last Gate carries Rise — in play, the first time this dies, it returns with 1 Health (its Rise spent).",
     "contentIds": [
       "anubis",
       "footman",
       "symbioticattachment",
+      "u3_noggin",
       "u3_poochy",
       "u3_rodrick"
     ]

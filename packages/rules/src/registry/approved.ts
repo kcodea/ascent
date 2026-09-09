@@ -272,7 +272,7 @@ export const APPROVED_RULES: GameRule[] = [
     domain: 'runes',
     status: 'approved',
     evidence: [{ kind: 'owner-chat', ref: 'decisions.json q-runedup-recurring (triage round 2, 2026-08-27)', quote: 'APPROVE — second copy doubles the recurrence.' }],
-    currentBehaviour: 'Not yet implemented at ruling time (duplicates were dead buys per runeSwallowScan); implementation rides feat/rune-duplicate-stacking.',
+    currentBehaviour: 'Conforms — shipped in #1264 (2026-08-27, feat/rune-duplicate-stacking): a second copy adds one more fire per recurrence; the runeSwallowScan surface re-alarms if a duplicate ever swallows again.',
     enforcement: { kind: 'oracle', refs: ['runeSwallowScan'], lastVerifiedAt: '2026-08-27' },
   },
   {
@@ -288,7 +288,7 @@ export const APPROVED_RULES: GameRule[] = [
       kind: 'owner-chat', ref: 'decisions.json q-runedup-threshold (triage round 2, 2026-08-27)',
       quote: 'A second copy copy should double the output. i.e. 2 rune of the returning pack, every 6 beast summons you\'d get 2 random beasts, etc.',
     }],
-    currentBehaviour: 'Not yet implemented at ruling time; implementation rides feat/rune-duplicate-stacking.',
+    currentBehaviour: 'Conforms — shipped in #1264 (2026-08-27, feat/rune-duplicate-stacking); pinned by the runeSwallowScan surface.',
     enforcement: { kind: 'oracle', refs: ['runeSwallowScan'], lastVerifiedAt: '2026-08-27' },
   },
   {
@@ -301,7 +301,7 @@ export const APPROVED_RULES: GameRule[] = [
     domain: 'runes',
     status: 'approved',
     evidence: [{ kind: 'owner-chat', ref: 'decisions.json q-runedup-repeat (triage round 2, 2026-08-27)', quote: 'APPROVE — +1 repetition per copy for the whole repeat family.' }],
-    currentBehaviour: 'Not yet implemented at ruling time; implementation rides feat/rune-duplicate-stacking.',
+    currentBehaviour: 'Conforms — shipped in #1264 (2026-08-27, feat/rune-duplicate-stacking); pinned by the runeSwallowScan surface.',
     enforcement: { kind: 'oracle', refs: ['runeSwallowScan'], lastVerifiedAt: '2026-08-27' },
   },
   {
@@ -319,7 +319,7 @@ export const APPROVED_RULES: GameRule[] = [
       kind: 'owner-chat', ref: 'decisions.json q-runedup-oneshot (triage round 2, 2026-08-27)',
       quote: 'this should re-fire the one-shot reward again, but in the case where they would still get no value if done immediately, it should stack the effect for next turn. … rune of the ornate clock should do nothing if duplicated, that one is unique. rune of the held strength should not be a one-shot rune and should be a "Start of Combat: give xyz" rune so fix that too.',
     }],
-    currentBehaviour: 'Not yet implemented at ruling time; implementation (incl. the Held Strength redesign) rides feat/rune-duplicate-stacking.',
+    currentBehaviour: 'Conforms — shipped in #1264 (2026-08-27): one-shots re-grant or bank, Ornate Clock stays unique, and Rune of Held Strength is now a Start-of-Combat grant (the left and right-most minions gain the stats of the left-most card held in hand when the combat was built).',
     enforcement: { kind: 'oracle', refs: ['runeSwallowScan'], lastVerifiedAt: '2026-08-27' },
   },
   {
@@ -333,7 +333,7 @@ export const APPROVED_RULES: GameRule[] = [
     domain: 'runes',
     status: 'approved',
     evidence: [{ kind: 'owner-chat', ref: 'decisions.json q-runedup-boolean-flags (triage round 2, 2026-08-27)', quote: 'APPROVE — fire-once-per-copy for repeatable boolean flags, sweetener for the true one-offs.' }],
-    currentBehaviour: 'Only the runeAvenge dispatchers consumed flagCopies at ruling time; implementation rides feat/rune-duplicate-stacking.',
+    currentBehaviour: 'Conforms — shipped in #1264 (2026-08-27): `flagCopiesOf` is consulted by every repeatable boolean flag (Rune of Warding triples once per copy, Rune of Rallying fires the left-most Rally once per copy, …).',
     enforcement: { kind: 'oracle', refs: ['runeSwallowScan'], lastVerifiedAt: '2026-08-27' },
   },
   {
@@ -346,7 +346,7 @@ export const APPROVED_RULES: GameRule[] = [
     domain: 'runes',
     status: 'approved',
     evidence: [{ kind: 'owner-chat', ref: 'decisions.json q-runedup-sweetener-floor (triage round 2, 2026-08-27)', quote: 'APPROVE — half cost rounded up in Gold + a free refresh.' }],
-    currentBehaviour: 'No sweetener existed at ruling time; implementation rides feat/rune-duplicate-stacking.',
+    currentBehaviour: 'Conforms — shipped in #1264 (2026-08-27): the reducer pays half the cost rounded up in Gold plus a free refresh for every non-stacking duplicate.',
     enforcement: { kind: 'oracle', refs: ['runeSwallowScan'], lastVerifiedAt: '2026-08-27' },
   },
   {
@@ -359,7 +359,7 @@ export const APPROVED_RULES: GameRule[] = [
     domain: 'runes',
     status: 'approved',
     evidence: [{ kind: 'owner-chat', ref: 'decisions.json q-runedup-forge-filter (triage round 2, 2026-08-27)', quote: 'APPROVE — filter non-stacking owned runes out of forge offers; ship with the sweetener.' }],
-    currentBehaviour: 'The forge could offer any owned rune at ruling time; implementation rides feat/rune-duplicate-stacking.',
+    currentBehaviour: 'Conforms — shipped in #1264 (2026-08-27): the forge filters owned sweetener-only runes out of its offers.',
     enforcement: { kind: 'oracle', refs: ['runeSwallowScan'], lastVerifiedAt: '2026-08-27' },
   },
   {
@@ -376,7 +376,7 @@ export const APPROVED_RULES: GameRule[] = [
       kind: 'owner-chat', ref: 'decisions.json q-runedup-unique-engines (triage round 2, 2026-08-27)',
       quote: 'generally, try and double the effect when possible. rune of structure = you get 2 random shop spells. rune of summoning = your imps get +4/+4, rune of contraband doubles the output of the ale/ruby per trigger etc.',
     }],
-    currentBehaviour: 'Duplicates were dead buys at ruling time; implementation rides feat/rune-duplicate-stacking.',
+    currentBehaviour: 'Conforms — shipped in #1264 (2026-08-27); the doubled Rune of Summoning step is also why #1285 fixed the SINGLE copy to its printed +2/+2 (R-RUNE-SUM-01).',
     enforcement: { kind: 'oracle', refs: ['runeSwallowScan'], lastVerifiedAt: '2026-08-27' },
   },
   {
@@ -450,7 +450,7 @@ export const APPROVED_RULES: GameRule[] = [
       kind: 'owner-chat', ref: 'decisions.json q-carry-warm-embers-double-dip (triage round 2, 2026-08-27)',
       quote: 'first shout each turn = the first shout triggered EACH shop or combat phase. so if a shout gets triggered through parting cry in combat on turn 7, then the first shout in turn 8 is a separate charge, so both should work.',
     }],
-    currentBehaviour: 'Close but unruled at ruling time (combat consumed a per-fight copy of the pool); the per-phase semantics ride feat/this-turn-rule, pinned by the carryOver lane.',
+    currentBehaviour: 'Conforms — shipped in #1262 (2026-08-27, the THIS TURN rule): each phase carries its own first-Shout charge; pinned by the carryOver lane.',
     enforcement: { kind: 'oracle', refs: ['carryOver'], lastVerifiedAt: '2026-08-27' },
   },
 
@@ -601,5 +601,204 @@ export const APPROVED_RULES: GameRule[] = [
       + 'this ruling also resolves interaction-ambiguities.md Q1 and takes endOfTurn/startOfCombat off the '
       + 'anomaly oracle\'s unruled-composition worklist.',
     enforcement: { kind: 'oracle', refs: ['interactionFamilyMatrix', 'interactionSweep'], lastVerifiedAt: '2026-08-28' },
+  },
+  // ── Late-2026-08 / early-2026-09 fixes and rulings (owner reports + Bug Board rounds 1–2), entered 2026-09-09 ──
+  {
+    id: 'R-TIER-01',
+    title: 'Skybound Ascendant reaches Tier 7 on every run — an authored Tier-7 source is not bound by the Tier-7 access gate',
+    statement:
+      'A card that prints "up to Tier 7" transforms up to Tier 7 on EVERY run. The Shop\'s Tier-7 access gate '
+      + '(Summit runs, quest grants) governs what the Shop can OFFER, not what an authored effect can produce: '
+      + 'Skybound Ascendant steps its left neighbour up to seven on a plain run, and a neighbour already at '
+      + 'seven re-rolls at seven. The printed 7 is always true, so the live text never rewrites it to 6.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [{
+      kind: 'owner-chat', ref: 'Bug Board cb45dc41 (round 2, 2026-09-09) — overruling the first by-design close',
+      quote: 'it should work up to tier 7 always. it is not bound by t6 rules.',
+    }],
+    cardText: '**End of Turn:** transform the minion to the **left** into a random minion **one Tier higher** (up to **Tier 7**).',
+    contentIds: ['d2_ascendant'],
+    currentBehaviour:
+      'Conforms — #1374: `endOfTurnTransformLeftTierUp` clamps to a constant 7 (was `hasTier7Access ? 7 : 6`), '
+      + 'and the `ascendantTierText` live-text rewrite is deleted. Clockwork Assistant\'s Discover still reads the '
+      + 'run ceiling — it is a Shop offer, which is exactly what the gate governs.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/runeMinionsAug20.test.ts', 'packages/ui/src/instView.test.ts'], lastVerifiedAt: '2026-09-09' },
+  },
+  {
+    id: 'R-GIFT-01',
+    title: 'A targeted Gift pays out on the minion the player chose',
+    statement:
+      'Kindness\'s targeted Gifts (Unbridled Might, Ironclad, Regalia, Parting Gifts) do exactly what they print '
+      + 'to the chosen target — the cast payload carries the aimed minion, and a Gift whose text says "then" '
+      + 'applies its steps in printed order (+2 Attack, THEN double). Mirrorwing pays its once-per-turn re-cast '
+      + 'once, never for a Gift with no target.',
+    domain: 'gifts',
+    status: 'approved',
+    evidence: [
+      { kind: 'fix-pr', ref: '#1374 (Bug Board 9852e16f, priority 6)', quote: 'give a minion + 2 attack and then double its attack is broken on mirrorwing. zero effect.' },
+      { kind: 'card-text', ref: 'packages/content/src/cards/gifts.ts', quote: 'Give a friendly minion **+2 Attack**, then **double its Attack**.' },
+    ],
+    contentIds: ['gift_unbridled', 'gift_ironclad', 'gift_regalia', 'gift_parting_gifts'],
+    currentBehaviour:
+      'Conforms — #1374: `applyCastEffects` in recruit.ts hands the targeted factories `payload.target` (they '
+      + 'read `target`, the payload only carried `minion`), so every targeted Gift resolves on the aimed body. '
+      + 'Pinned per Gift, through the real reducer.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/gifts.test.ts'], lastVerifiedAt: '2026-09-09' },
+  },
+  {
+    id: 'R-RALLY-01',
+    title: 'A free Rally is a triggered Rally — the "when a Rally is triggered" watchers fire on it',
+    statement:
+      'A Rally fired without a swing (Rune of Rallying at Start of Combat, Backbeat, Hunting Bell) is a Rally '
+      + 'TRIGGERED, so every watcher whose text says "when a Rally is triggered" / "whenever you trigger a Rally" '
+      + '(Hawkus → your left-most Echo, Paragon, Rubies-on-Rally) fires on it exactly as on a swing\'s Rally. No '
+      + 'attack happens and no on-attack bus event is emitted — the watchers are reached directly.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'fix-pr', ref: '#1374 (Bug Board 7e04222d, priority 8)', quote: 'hawkus doesnt seem to be triggering dawnclaw after a rally unit triggers its rally effect' },
+      { kind: 'card-text', ref: 'b2_hawkus', quote: 'When a **Rally** is triggered, trigger your **left-most Echo**.' },
+    ],
+    contentIds: ['b2_hawkus', 'rune_rallying'],
+    currentBehaviour:
+      'Conforms — #1374: `fireFreeRally` in simulate.ts runs `FREE_RALLY_WATCHER_EFFECTS` (onRallyBuffOnePerTribe, '
+      + 'onRallyProcLeftmostEcho, onRallyPlayRubiesTribe) over the rallier\'s board after its own on-attack effects.',
+    enforcement: { kind: 'scenario', refs: ['packages/core/src/combat/freeRallyWatchers.test.ts'], lastVerifiedAt: '2026-09-09' },
+  },
+  {
+    id: 'R-RALLY-02',
+    title: '"Rally:" is the card\'s own swing; "whenever you trigger a Rally" is a watcher — sharing a factory does not share the trigger',
+    statement:
+      'A card that prints "**Rally:**" fires on ITS OWN swing only (Standard Bearer). A card that prints '
+      + '"whenever you trigger a Rally" / "when a Rally is triggered" is a WATCHER and fires on every friendly '
+      + 'Rally (Paragon). Two cards sharing one effect factory must still honour their own printed wording — '
+      + 'the wiring carries a `selfOnly` gate, not a second factory.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [{
+      kind: 'fix-pr', ref: '#1361 (owner report 2026-09-03)',
+      quote: 'standard bearer is acting as a watcher … whenever ANY rally minion attacks, it is buffing other units.',
+    }],
+    cardText: '**Rally:** give a minion of **each type** **+3/+3**.',
+    contentIds: ['n2_standardbearer'],
+    currentBehaviour:
+      'Conforms — #1361: `onRallyBuffOnePerTribe` takes `selfOnly`, gating `attacker.uid !== arena.self.uid` in both '
+      + 'dispatch paths (combat\'s refireRallyWatchers, the shop\'s fireShopRally); Standard Bearer sets it, Paragon does not. '
+      + 'The rallyGuard lane classifies every Rally wording against its dispatch.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/docbot/rallyGuard.test.ts', 'packages/sim/src/rallyDispatch.test.ts'], lastVerifiedAt: '2026-09-09' },
+  },
+  {
+    id: 'R-SHOP-01',
+    title: 'The Shop never overflows its capacity',
+    statement:
+      'The Shop row is sized by its tier and nothing grows it past that: an effect that adds an offer (Rune of '
+      + 'Open Enrollment, Pete\'s dominant-type offer, any future "add a minion to the Shop") fills a FREE slot '
+      + 'when the row is short and otherwise REPLACES an existing offer, returning the displaced card to the pool. '
+      + 'A seventh card at Tier 6 is a defect.',
+    domain: 'economy',
+    status: 'approved',
+    evidence: [{
+      kind: 'owner-chat', ref: 'Bug Board 5c5b50a0 (round 1, 2026-08-31, #1325)',
+      quote: 'the shop should never overflow beyond its capacity, it should only ever replace available slots with affected minions or spells etc.',
+    }],
+    contentIds: ['rune_open_enrollment'],
+    currentBehaviour:
+      'Conforms — #1325: `appendDominantTypeOffer` fills a free slot or replaces the right-most minion offer (Pete\'s '
+      + '2026-08-14 shape); the shopCapacity lane sweeps every Shop-growing effect against `tierSlots(tier)`.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/docbot/shopCapacity.test.ts'], lastVerifiedAt: '2026-09-09' },
+  },
+  {
+    id: 'R-REFLECT-01',
+    title: 'Reflector: Spells and Rubies share ONE once-per-turn re-cast',
+    statement:
+      'Reflector\'s "(Once per turn)" is a single allowance shared by both things it reacts to: the first Spell '
+      + 'OR Ruby cast on it each turn is re-cast on a random friendly minion, and nothing else cast on it that '
+      + 'turn reflects. Two Rubies then a Crest of the Climb reflects only the first Ruby; Crest first on a fresh '
+      + 'Reflector reflects the Crest.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'fix-pr', ref: '#1326 (Bug Board 224af0ee, priority 2) — the text was the defect, the engine was right', quote: 'Spells and **Rubies** cast on this also cast on a random friendly minion. (Once per turn)' },
+      { kind: 'test', ref: 'packages/sim/src/reflectorSharedAllowance.test.ts (#1374 — the behaviour lane the text PR shipped without)' },
+    ],
+    cardText: 'Spells and **Rubies** cast on this **also cast** on a random friendly minion. **(Once per turn)**',
+    contentIds: ['n2_reflector'],
+    currentBehaviour:
+      'Conforms: both factories (`spellCastOnThis`, `onRubyPlayed`) guard on `spellsOnThisTurn + rubiesOnThisTurn === 1`, '
+      + 'so the allowance is one per turn across both kinds. Pinned in both orders through the real reducer.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/reflectorSharedAllowance.test.ts'], lastVerifiedAt: '2026-09-09' },
+  },
+  {
+    id: 'R-RUNE-SUM-01',
+    title: 'Rune of Summoning pays the +2/+2 it prints — the text is the contract',
+    statement:
+      'When a rune\'s printed step and its factory disagree, the PRINTED step is the contract: Rune of Summoning '
+      + 'improves your Imps by +2/+2 per spell cast (the factory paid +1/+1). Rune of Mastery and a second copy '
+      + 'multiply that step (+4/+4), which is how the owner\'s duplicate ruling fixed which side was right.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'decisions.json q-runedup-unique-engines (2026-08-27)', quote: 'rune of summoning = your imps get +4/+4' },
+      { kind: 'fix-pr', ref: '#1285 (2026-08-28) — the text oracle surfaced the drift' },
+    ],
+    contentIds: ['rune_summoning'],
+    currentBehaviour: 'Conforms — #1285: the step is a named constant read by the single copy, Mastery and extra copies.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/runes.test.ts'], lastVerifiedAt: '2026-09-09' },
+  },
+  {
+    id: 'R-HAND-01',
+    title: 'Hand-gain watchers fire in combat, when the card arrives — not at carry-back',
+    statement:
+      '"When a card is added to your hand" (Gangplank) fires the moment a card reaches the hand, in EITHER phase: '
+      + 'a card granted mid-combat (`grantToHand`, `grantRubies`) triggers the watcher during that fight, so the '
+      + 'payout can affect the fight that earned it. A payout that lands on the shop board after the fight is late, '
+      + 'and late is a defect.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [{ kind: 'fix-pr', ref: '#1297 (owner report 2026-08-29)', quote: 'GANGPLANK DOESN\'T TRIGGER WHEN CARDS ARE ADDED TO HAND IN COMBAT' }],
+    cardText: 'When a card is added to your hand, give a **random** friendly **Dwarf +1/+2**.',
+    contentIds: ['dw_gangplank'],
+    currentBehaviour:
+      'Conforms — #1297: `onGainCard` bodies moved to ARENA_EFFECTS so both phases run one implementation; combat emits '
+      + 'from `ctx.grantToHand` / `ctx.grantRubies`, the only two ways a card reaches a hand mid-fight.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/handGainInCombat.test.ts'], lastVerifiedAt: '2026-09-09' },
+  },
+  {
+    id: 'R-RISE-02',
+    title: 'Rise works outside combat — a Shop destroy follows combat\'s death sequence',
+    statement:
+      'A minion destroyed in the Shop (sold-by-effect, consumed, sacrificed) dies the way it would in combat: its '
+      + 'departure is a consequence of its own, and a body with Rise returns in the Shop exactly as it would in a '
+      + 'fight (base Attack, 1 Health — R-RISE-01). Rise is a keyword, not a combat-only keyword.',
+    domain: 'keywords',
+    status: 'approved',
+    evidence: [{ kind: 'fix-pr', ref: '#1289 (owner ruling 2026-08-28)', quote: 'makes Rise fire in the shop (owner ruling)' }],
+    currentBehaviour:
+      'Conforms — #1289/#1290: every Shop destroy routes through one helper that follows combat\'s death sequence and fires Rise.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/shopDestroy.test.ts'], lastVerifiedAt: '2026-09-09' },
+  },
+  {
+    id: 'R-ENGRAVE-01',
+    title: 'Every combat stat gain resolves through the one buff chokepoint — Engrave sees all of them',
+    statement:
+      'Engrave (the EG keyword, and the Transcendant adjacency aura "while alive and adjacent") is resolved at the '
+      + 'moment stats are gained, inside the single combat buff path. So EVERY combat stat gain — rune grants at '
+      + 'Start of Combat included — must go through that path; a gain applied by direct assignment is invisible to '
+      + 'Engrave and evaporates at carry-back. Rune of Warding\'s tripled Health on a warded Dragon beside a '
+      + 'Transcendant carries back like any other gain. Ordering is not the question: there is no "before the '
+      + 'Engrave" — the aura is read live on each gain.',
+    domain: 'persistence',
+    status: 'approved',
+    evidence: [
+      { kind: 'fix-pr', ref: '#1377 (Bug Board 7130a89b, 2026-09-09)', quote: 'rune of warding does not work with a dragon and transcendance. i believe "start of combat" occurs before transcendants engrave effect' },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts ctx.buff — the Transcendant adjacency read (owner respec 2026-08-17)' },
+    ],
+    cardText: '**Ward.** Adjacent **Dragons** are **Engraved**.',
+    contentIds: ['d2_transcendence', 'rune_warding'],
+    currentBehaviour:
+      'Conforms — #1377: Warding\'s tripling calls `ctx.buff` once per rune copy (it was the last Start-of-Combat rune '
+      + 'grant applying stats by hand). Every other SoC rune grant already went through `ctx.buff`.',
+    enforcement: { kind: 'scenario', refs: ['packages/core/src/combat/runeWardingEngrave.test.ts', 'packages/core/src/combat/simulate.test.ts'], lastVerifiedAt: '2026-09-09' },
   },
 ];

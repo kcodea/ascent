@@ -17,4 +17,31 @@
  */
 import type { GameRule } from '../schema';
 
-export const MANUAL_PENDING: GameRule[] = [];
+export const MANUAL_PENDING: GameRule[] = [
+  {
+    id: 'q-gangplank-self-buff',
+    title: 'Gangplank: may its hand-gain buff land on ITSELF when it is the only Dwarf?',
+    statement:
+      'Gangplank\'s "give a random friendly Dwarf +1/+2" picks from ALL friendly Dwarves, Gangplank included — so a lone '
+      + 'Gangplank buffs itself on every card it draws. Keep that (it is a Dwarf, and "friendly" includes itself), or '
+      + 'should it read "ANOTHER friendly Dwarf" and do nothing when it stands alone? — ✓ yes (keep: it may buff itself) '
+      + '· ✕ no (say why — e.g. "another friendly Dwarf") · ✎ your wording',
+    domain: 'targeting',
+    status: 'needs-ruling',
+    evidence: [{
+      kind: 'owner-chat', ref: 'Bug Board 38d186a6 (round 2, 2026-09-09 — closed by design pending this question)',
+      quote: 'gangplank can buff itsself if its the only dwarf on board',
+    }],
+    cardText: 'When a card is added to your hand, give a **random** friendly **Dwarf +1/+2**.',
+    example:
+      'Cassen, wave 5: Gangplank is the only Dwarf on the board; a card is added to hand; Gangplank gains +1/+2 itself. '
+      + 'With a second Dwarf beside it, the +1/+2 goes to either at random.',
+    currentBehaviour:
+      'The random-Dwarf pick does NOT exclude the source: the pool is every living friendly Dwarf (all-types bodies '
+      + 'included), Gangplank among them. Matches the printed text literally ("a random friendly Dwarf"); no other card '
+      + 'in the pool prints "another" for this shape, so there is no convention to borrow.',
+    recommendation: 'Keep as printed — it may buff itself. If the owner wants the exclusion, the text changes to "another friendly Dwarf" and the pick skips the source.',
+    sourceQueue: 'bug-board',
+    contentIds: ['dw_gangplank'],
+  },
+];

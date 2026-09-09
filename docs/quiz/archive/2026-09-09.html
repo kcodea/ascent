@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ascent Quiz #28 — 2026-09-09</title>
+<style>
+  :root {
+    --bg: #0f1420;
+    --panel: #1a2236;
+    --panel-border: #2c3752;
+    --text: #e8edf7;
+    --text-dim: #9aa7c2;
+    --accent: #6c8cff;
+    --accent-dim: #3c4a78;
+    --correct: #3ecf8e;
+    --correct-bg: rgba(62, 207, 142, 0.14);
+    --wrong: #ff6b6b;
+    --wrong-bg: rgba(255, 107, 107, 0.14);
+    --gold: #f0c674;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    min-height: 100%;
+  }
+  body {
+    display: flex;
+    justify-content: center;
+    padding: 32px 16px 64px;
+  }
+  .wrap { width: 100%; max-width: 680px; }
+  header {
+    text-align: center;
+    margin-bottom: 24px;
+  }
+  header h1 {
+    font-size: 1.5rem;
+    margin: 0 0 4px;
+    letter-spacing: 0.01em;
+  }
+  header .sub {
+    color: var(--text-dim);
+    font-size: 0.9rem;
+  }
+  .progress-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .progress-track {
+    flex: 1;
+    height: 8px;
+    background: var(--panel-border);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--gold));
+    width: 0%;
+    transition: width 0.35s ease;
+  }
+  .progress-label {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    white-space: nowrap;
+    min-width: 64px;
+    text-align: right;
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 14px;
+    padding: 24px;
+    margin-bottom: 16px;
+  }
+  .topic-tag {
+    display: inline-block;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--accent);
+    background: var(--accent-dim);
+    padding: 3px 9px;
+    border-radius: 999px;
+    margin-bottom: 12px;
+  }
+  .question {
+    font-size: 1.08rem;
+    line-height: 1.5;
+    margin-bottom: 18px;
+  }
+  .question code {
+    background: #0c1120;
+    border: 1px solid var(--panel-border);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 0.92em;
+    color: #cfe0ff;
+  }
+  .choices { display: flex; flex-direction: column; gap: 10px; }
+  .choice {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    text-align: left;
+    background: #131a2b;
+    border: 1px solid var(--panel-border);
+    color: var(--text);
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 0.97rem;
+    line-height: 1.4;
+    cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
+    transition: border-color 0.15s ease, background 0.15s ease, transform 0.1s ease;
+  }
+  .choice code {
+    background: #0c1120;
+    border: 1px solid var(--panel-border);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 0.92em;
+    color: #cfe0ff;
+  }
+  .choice:hover:not(:disabled) {
+    border-color: var(--accent);
+    background: #17203a;
+  }
+  .choice:active:not(:disabled) { transform: scale(0.995); }
+  .choice:disabled { cursor: default; }
+  .choice .letter {
+    flex: none;
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+    background: var(--panel-border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text-dim);
+  }
+  .choice.correct { border-color: var(--correct); background: var(--correct-bg); }
+  .choice.correct .letter { background: var(--correct); color: #06251a; }
+  .choice.wrong { border-color: var(--wrong); background: var(--wrong-bg); }
+  .choice.wrong .letter { background: var(--wrong); color: #2a0808; }
+  .choice.dim { opacity: 0.55; }
+  .result-banner {
+    margin-top: 16px;
+    padding: 10px 14px;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 0.92rem;
+  }
+  .result-banner.good { background: var(--correct-bg); color: var(--correct); }
+  .result-banner.bad { background: var(--wrong-bg); color: var(--wrong); }
+  .explanation {
+    margin-top: 12px;
+    padding: 14px 16px;
+    background: #0f1626;
+    border: 1px solid var(--panel-border);
+    border-left: 3px solid var(--accent);
+    border-radius: 8px;
+    font-size: 0.93rem;
+    line-height: 1.55;
+    color: var(--text-dim);
+  }
+  .explanation code {
+    background: #0c1120;
+    border: 1px solid var(--panel-border);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 0.92em;
+    color: #cfe0ff;
+  }
+  .explanation strong { color: var(--text); }
+  .nav-row {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 18px;
+  }
+  .next-btn {
+    background: var(--accent);
+    color: #0a0e18;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+  }
+  .next-btn.show { opacity: 1; pointer-events: auto; }
+  .next-btn:hover { filter: brightness(1.08); }
+  .score-live {
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 0.85rem;
+    margin-bottom: 6px;
+  }
+  .final {
+    text-align: center;
+    padding: 36px 24px;
+  }
+  .final .big-score {
+    font-size: 3rem;
+    font-weight: 700;
+    margin: 8px 0 4px;
+    background: linear-gradient(90deg, var(--accent), var(--gold));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .final .line {
+    color: var(--text-dim);
+    margin-bottom: 20px;
+  }
+  .final .encourage {
+    font-size: 1.05rem;
+    color: var(--text);
+    margin-bottom: 24px;
+  }
+  .restart-btn {
+    background: transparent;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-size: 0.9rem;
+    cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
+  }
+  .restart-btn:hover { background: var(--accent-dim); }
+  .hidden { display: none; }
+  footer.tip {
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 0.78rem;
+    margin-top: 28px;
+    line-height: 1.5;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>🎓 Ascent Quiz #28</h1>
+    <div class="sub">2026-09-09 · How the game is built</div>
+  </header>
+
+  <div id="quizArea">
+    <div class="progress-row">
+      <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="progress-label" id="progressLabel">Q1 / 10</div>
+    </div>
+    <div class="score-live" id="scoreLive">Score so far: 0</div>
+    <div class="card" id="questionCard"></div>
+  </div>
+
+  <div id="finalArea" class="card final hidden"></div>
+
+  <footer class="tip">Architecture only — no game-rules spoilers here. Reply with your score and Claude will pick tomorrow's topics to match.</footer>
+</div>
+
+<script>
+const QUESTIONS = [
+  {
+    topic: "what-is-a-function",
+    question: "In <code>packages/core/src/combat/simulate.ts</code>, a helper called <code>runeAvenge(everyN, flag, mask, fire)</code> is defined once but CALLED about a dozen times — once per Avenge-granting rune — and each call passes it two different callback functions: a <code>mask</code> (decides whether the rune applies) and a <code>fire</code> (runs the rune's actual effect). What does this pattern demonstrate about functions?",
+    choices: [
+      "A function can take other functions as parameters, letting one small helper stand in for a dozen near-identical <code>bus.on('avenge', ...)</code> blocks",
+      "Functions in TypeScript can only accept primitive values (strings, numbers, booleans) as arguments",
+      "<code>runeAvenge</code> must secretly be a class, since it behaves differently on each call",
+      "Passing a function as an argument automatically makes the code run asynchronously"
+    ],
+    answer: 0,
+    explanation: "<code>runeAvenge</code> stores <code>mask</code> and <code>fire</code> and calls them itself from inside its own body once the Avenge threshold is hit. That's a higher-order function: in JS/TS, functions are ordinary values you can pass around just like a number or string. Without this helper, each of the ~10 Avenge runes would need its own near-duplicate <code>bus.on('avenge', ...)</code> block. C is the tempting wrong answer — nothing about behaving differently per call requires a class; that's exactly what parameters (including function-typed ones) are for."
+  },
+  {
+    topic: "deterministic-sim",
+    question: "<code>packages/sim/src/run.test.ts</code> has a test that calls <code>computeCombatOdds(JSON.parse(JSON.stringify(input)), setup().seed, 1)</code> and expects the result to equal the odds computed from the original, un-round-tripped <code>input</code>. What does passing this test actually prove?",
+    choices: [
+      "That the odds calculation depends only on the plain data inside <code>input</code> plus the seed — nothing hidden, like a function reference or a live class instance, is secretly required to reproduce it",
+      "That <code>JSON.stringify</code> and <code>JSON.parse</code> are themselves deterministic built-in functions",
+      "That <code>computeCombatOdds</code> caches its previous answer and just returns the cached value unchanged",
+      "That the test is flaky, and the round-trip exists only to reset some internal counter between runs"
+    ],
+    answer: 0,
+    explanation: "If <code>input</code> secretly needed something JSON can't represent — a live object with methods, a Map, a class instance — round-tripping it through <code>JSON.stringify</code>/<code>JSON.parse</code> would strip that away and the recomputed odds would differ (or the call would crash). Getting back the identical answer proves <code>input</code> is fully described by plain, serializable data — exactly what the test's own comment says a mid-combat save/resume relies on. B is a true but beside-the-point fact; it's not what this specific assertion is checking."
+  },
+  {
+    topic: "seeded-rng",
+    question: "Inside <code>next()</code> in <code>packages/core/src/rng.ts</code>, the bit-mixing step uses <code>Math.imul(a ^ (a >>> 15), 1 | a)</code> rather than the ordinary <code>*</code> multiplication operator. Why <code>Math.imul</code> specifically?",
+    choices: [
+      "<code>Math.imul</code> performs correct 32-bit integer multiplication; plain <code>*</code> on large numbers in JS can silently lose precision (JS numbers are 64-bit floats), which would corrupt the exact bit pattern mulberry32's mixing depends on",
+      "<code>Math.imul</code> is required because TypeScript doesn't allow the <code>*</code> operator inside arrow functions",
+      "<code>Math.imul</code> offloads the multiplication to a background thread for better performance",
+      "It's purely a style choice — swapping it for plain <code>*</code> would produce byte-identical output"
+    ],
+    answer: 0,
+    explanation: "JavaScript numbers are 64-bit floats, so multiplying two large 32-bit integers with plain <code>*</code> can quietly drop low-order bits — exactly the bits this algorithm needs for good pseudo-random mixing. <code>Math.imul</code> truncates its inputs to 32-bit integers and multiplies with correct integer overflow, giving the exact bit pattern mulberry32 was designed around. D is the trap: swapping it out would NOT be a no-op — it would quietly degrade (or outright change) the RNG's output stream, breaking every recorded seed's replay."
+  },
+  {
+    topic: "sim-ui-decoupling",
+    question: "<code>packages/ui/src/choreo/channels/sfx.ts</code>'s <code>playMomentSfx</code> walks the SAME <code>events: CombatEvent[]</code> array the visuals read, switching on <code>e.type</code> (<code>'attack'</code>, <code>'death'</code>, <code>'buff'</code>, ...) to decide which sound clip to play for a beat. What does this tell you about the sim/UI split?",
+    choices: [
+      "The split isn't only about visuals — ANY presentation channel, audio included, can be driven entirely off the same event log, with zero changes needed to <code>simulate()</code>",
+      "Sound effects are actually computed inside <code>simulate()</code> itself and shipped to the UI already attached to each event",
+      "Audio has to be handled as a special case, because <code>CombatEvent</code> doesn't carry enough information for sound",
+      "<code>playMomentSfx</code> quietly calls <code>simulate()</code> a second time just to work out which sounds to play"
+    ],
+    answer: 0,
+    explanation: "<code>playMomentSfx</code> never touches <code>simulate()</code> — it reads the events array combat already produced and maps <code>e.type</code> to a clip (<code>sfx.attack</code>, <code>sfx.death</code>, and so on). That's the exact same principle CLAUDE.md states for visuals (\"the UI animates the event log on its own clock\"), just applied to a completely different presentation channel. B is the trap: nothing in <code>CombatEvent</code>'s shape names a specific sound file — that mapping lives entirely in the UI, not the engine."
+  },
+  {
+    topic: "monorepo-packages",
+    question: "In <code>packages/sim/package.json</code>, <code>packages/ui/package.json</code>, and <code>packages/tools/package.json</code>, internal dependencies are declared like <code>\"@game/core\": \"*\"</code> — a bare wildcard, instead of a real version range like <code>\"^2.1.0\"</code>. Why?",
+    choices: [
+      "Because npm workspaces links sibling packages straight to their local source folder — there's no published registry version to pin, so a real semver range wouldn't constrain anything meaningful",
+      "Because <code>\"*\"</code> tells npm to always fetch the very latest version of that package from the public npm registry",
+      "It's a placeholder the team forgot to fill in with a real version before shipping",
+      "<code>\"*\"</code> disables type-checking for that specific dependency"
+    ],
+    answer: 0,
+    explanation: "These packages are never published to npm — the root <code>package.json</code>'s <code>\"workspaces\"</code> field makes npm symlink <code>packages/core</code> straight into <code>node_modules/@game/core</code> for every sibling that depends on it. There's no version to negotiate; it's always \"whatever's on disk right now,\" so <code>\"*\"</code> honestly reads as \"local workspace dependency,\" not a real semver constraint. B describes what <code>\"*\"</code> would mean for a REAL published registry package — it just isn't what's happening here, since these package names never resolve outside the workspace."
+  },
+  {
+    topic: "pure-functions",
+    question: "<code>packages/ui/src/cardText.ts</code> has around twenty small functions like <code>summonBuffText(cardId, summonBonus, golden)</code> that take plain values in and return a display string, with no reads of outside state and nothing cached. Why does that matter for CLAUDE.md's rule that printed card text must always show the card's CURRENT live value?",
+    choices: [
+      "Because the function is pure, calling it again with this beat's numbers always produces a freshly correct string — there's no stale cached text sitting around that could drift out of sync with the game state",
+      "Because pure functions execute faster than impure ones, which is what makes updating text every frame possible",
+      "Purity is irrelevant here, since <code>packages/ui</code> is exempt from every architecture rule in CLAUDE.md",
+      "These functions must be pure because they technically live inside <code>packages/core</code>"
+    ],
+    answer: 0,
+    explanation: "A pure function has no memory between calls — every call to <code>summonBuffText(cardId, summonBonus, golden)</code> recomputes the string from scratch off whatever numbers you hand it. That's exactly the property that makes \"always show the live value\" trivially correct: call it again with the current numbers and you get the current text, automatically, with nothing to invalidate or forget to update. D is wrong — <code>cardText.ts</code> lives in <code>packages/ui</code>, not <code>packages/core</code>; writing it pure was a good practice the team chose, not the ESLint-enforced determinism rule (that one only targets <code>Math.random</code> in core/content/sim/tools)."
+  },
+  {
+    topic: "data-vs-code",
+    question: "<code>packages/sim/src/heroes.ts</code>'s own header comment describes heroes as \"data-driven, like cards... Adding a hero = a new entry here + (only if it needs a brand-new effect) a new <code>kind</code> branch in the reducer.\" How does a hero power's <code>kind</code> field actually get \"run\" when a player uses it?",
+    choices: [
+      "The <code>heroPower</code> action's handler in <code>packages/sim/src/reducer.ts</code> checks <code>power.kind</code> against known string values (e.g. <code>if (power.kind === 'gild') { ... }</code>) — the string is a label real code recognizes, not code that executes on its own",
+      "The <code>kind</code> string is compiled directly into its own JavaScript function at build time",
+      "The reducer passes the <code>kind</code> string to <code>eval()</code> to run the matching effect",
+      "Every distinct hero power <code>kind</code> requires its own separate file inside <code>packages/content</code>"
+    ],
+    answer: 0,
+    explanation: "Heroes generalize the same data-vs-code idea cards use, but with a different wiring mechanism: instead of a <code>FACTORIES</code> lookup table keyed by an effect id, the reducer's <code>case 'heroPower'</code> block checks <code>power.kind</code> against a chain of known strings and runs the matching branch inline. The DATA (the hero's <code>kind</code> string) still can't do anything by itself — it only means something because real code in the reducer was written to recognize that exact string. C is the tempting wrong answer: nothing in the engine ever calls <code>eval()</code> — that would undermine both security and determinism, not how this works at all."
+  },
+  {
+    topic: "event-log-replay",
+    question: "In <code>packages/core/src/types.ts</code>, a <code>CombatEvent</code> like <code>{ type: 'attack'; attacker: string; defender: string; ... }</code> stores <code>attacker</code> and <code>defender</code> as plain uid STRINGS, not as the actual live <code>Minion</code> object being attacked. Why does that matter for replay?",
+    choices: [
+      "It keeps each event as a small, self-contained reference (like a foreign key) instead of embedding a full minion snapshot in every event — safe to serialize with no duplication or circular structure, and the UI looks up that minion's current state by uid whenever it needs it",
+      "Plain strings simply take up less memory than any other JavaScript value could",
+      "Minion objects can't be compared with <code>===</code>, so uid strings are used as a substitute",
+      "It's a workaround for <code>Minion</code> not having its own <code>attack</code> field"
+    ],
+    answer: 0,
+    explanation: "If an event embedded the actual minion object, you'd either be duplicating (and quickly staling) a full snapshot of that minion in every event it appears in, or holding a live reference that could later point at something mutated or removed — both bad for data meant to be saved, sent, or replayed byte-for-byte. A uid is just a lookup key: cheap to store, safe to serialize, and the UI re-resolves \"what does minion X look like right now\" on its own. It's the same reference-by-id pattern used everywhere in real data design — a database foreign key, for instance — rather than denormalized, embedded copies."
+  },
+  {
+    topic: "eslint-rules",
+    question: "<code>eslint.config.mjs</code> has a block scoped to <code>files: ['apps/desktop/**/*.cjs']</code> that turns <code>@typescript-eslint/no-require-imports</code> OFF, even though the repo-wide config (via <code>tseslint.configs.recommended</code>) normally flags <code>require(...)</code> calls as an error. Why carve out this specific exception?",
+    choices: [
+      "Electron's main process is loaded directly by Electron as CommonJS (not bundled), so <code>require()</code> is the correct, working way to reach <code>electron</code> and Node builtins there — the general rule would otherwise flag perfectly valid code",
+      "Files ending in <code>.cjs</code> are always excluded from ESLint entirely, by default",
+      "The team disabled the rule everywhere in the repo and only re-enabled it outside <code>apps/desktop</code>",
+      "<code>require()</code> calls execute faster than <code>import</code> statements, so performance-sensitive files are exempted"
+    ],
+    answer: 0,
+    explanation: "Most of the repo is genuine ESM (<code>import</code>/<code>export</code>), where a stray <code>require()</code> would be a real mistake worth flagging. But <code>apps/desktop</code>'s <code>.cjs</code> main-process files are actually run as CommonJS by Electron itself, so <code>require</code> isn't a slip there — it's the only thing that works. The <code>files:</code> glob scopes the override to exactly those files, leaving the rule active everywhere else. It's the same \"scope a rule with <code>files:</code>\" mechanism the <code>Math.random</code> ban itself relies on — just flipped to turn a rule OFF instead of on."
+  },
+  {
+    topic: "performance-memo",
+    question: "<code>docs/performance.md</code> section 3c says a full-viewport Pixi/WebGL canvas \"is a GL context, a compositing layer the browser has to blend every frame, and a per-frame clear-and-present even when it draws nothing\" — and recommends creating extra canvases lazily, only on first real use. What's the underlying performance lesson?",
+    choices: [
+      "An idle resource that still gets touched every single frame — even just to draw nothing — is NOT free; allocate it lazily, only once something will actually use it",
+      "WebGL canvases only cost real performance while something is actively animating on them",
+      "The fix is to pre-create every possible canvas at app startup so none of them ever stutter later",
+      "Compositing layers are a purely visual concept, with no measurable frame-time cost of their own"
+    ],
+    answer: 0,
+    explanation: "Even a canvas rendering nothing still costs a clear-and-present plus a layer the browser must composite every frame — \"idle\" isn't \"free\" for a GPU resource like this. The fix the doc lands on: build the canvas lazily (only when a def actually declares that slot needs it) and drive it off the main ticker instead of giving it its own, so an unused canvas costs roughly one array-length check per frame instead of a full render. B is the trap the doc explicitly calls out: an idle canvas still pays a real per-frame cost, animating or not."
+  }
+];
+
+let idx = 0;
+let score = 0;
+let answered = false;
+
+const questionCard = document.getElementById('questionCard');
+const progressFill = document.getElementById('progressFill');
+const progressLabel = document.getElementById('progressLabel');
+const scoreLive = document.getElementById('scoreLive');
+const quizArea = document.getElementById('quizArea');
+const finalArea = document.getElementById('finalArea');
+
+function render() {
+  answered = false;
+  const q = QUESTIONS[idx];
+  progressFill.style.width = ((idx) / QUESTIONS.length * 100) + '%';
+  progressLabel.textContent = 'Q' + (idx + 1) + ' / ' + QUESTIONS.length;
+  scoreLive.textContent = 'Score so far: ' + score;
+
+  const letters = ['A', 'B', 'C', 'D'];
+  questionCard.innerHTML = `
+    <div class="topic-tag">${q.topic}</div>
+    <div class="question">${q.question}</div>
+    <div class="choices">
+      ${q.choices.map((c, i) => `
+        <button class="choice" data-i="${i}">
+          <span class="letter">${letters[i]}</span>
+          <span>${c}</span>
+        </button>
+      `).join('')}
+    </div>
+    <div id="resultSlot"></div>
+    <div class="nav-row"><button class="next-btn" id="nextBtn">${idx === QUESTIONS.length - 1 ? 'See results' : 'Next question →'}</button></div>
+  `;
+
+  const buttons = questionCard.querySelectorAll('.choice');
+  buttons.forEach(btn => {
+    btn.addEventListener('click', () => onAnswer(parseInt(btn.dataset.i, 10)));
+  });
+}
+
+function onAnswer(chosen) {
+  if (answered) return;
+  answered = true;
+  const q = QUESTIONS[idx];
+  const correct = chosen === q.answer;
+  if (correct) score++;
+
+  const buttons = questionCard.querySelectorAll('.choice');
+  buttons.forEach((btn, i) => {
+    btn.disabled = true;
+    if (i === q.answer) btn.classList.add('correct');
+    else if (i === chosen) btn.classList.add('wrong');
+    else btn.classList.add('dim');
+  });
+
+  const resultSlot = document.getElementById('resultSlot');
+  resultSlot.innerHTML = `
+    <div class="result-banner ${correct ? 'good' : 'bad'}">${correct ? '✓ Correct!' : '✗ Not quite.'}</div>
+    <div class="explanation">${q.explanation}</div>
+  `;
+
+  scoreLive.textContent = 'Score so far: ' + score;
+  document.getElementById('nextBtn').classList.add('show');
+}
+
+document.addEventListener('click', (e) => {
+  if (e.target && e.target.id === 'nextBtn') {
+    idx++;
+    if (idx >= QUESTIONS.length) {
+      showFinal();
+    } else {
+      render();
+    }
+  }
+});
+
+function showFinal() {
+  progressFill.style.width = '100%';
+  progressLabel.textContent = 'Done!';
+  quizArea.classList.add('hidden');
+  finalArea.classList.remove('hidden');
+
+  let line;
+  if (score === QUESTIONS.length) line = "Perfect score! You're reading this codebase like a pro.";
+  else if (score >= 8) line = "Excellent work — you've got a really solid handle on this.";
+  else if (score >= 6) line = "Good run — the architecture is clearly starting to click.";
+  else if (score >= 4) line = "Solid effort — a few of these ideas are worth a second look.";
+  else line = "Everyone starts somewhere — the whole point of the daily quiz is to build this up slowly.";
+
+  finalArea.innerHTML = `
+    <div class="topic-tag">Quiz #28 complete</div>
+    <div class="big-score">${score} / ${QUESTIONS.length}</div>
+    <div class="line">Ascent Quiz — 2026-09-09</div>
+    <div class="encourage">${line}</div>
+    <button class="restart-btn" id="restartBtn">Take it again</button>
+  `;
+  document.getElementById('restartBtn').addEventListener('click', () => {
+    idx = 0; score = 0;
+    quizArea.classList.remove('hidden');
+    finalArea.classList.add('hidden');
+    render();
+  });
+}
+
+render();
+</script>
+</body>
+</html>

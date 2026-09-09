@@ -1,4 +1,5 @@
 /// <reference types="vite/client" />
+import { ART_ALIAS } from './artAlias';
 
 /**
  * Per-card illustrated art. Drop a PNG named by the card id into
@@ -35,11 +36,6 @@ const hashStr = (s: string): number => {
   return Math.abs(h);
 };
 
-/** Art-file aliases: a card id → a different art filename. Lets us ship updated art under a new name without
- *  renaming the card. Now EMPTY — the full art refresh (2026-06-26) names every master by card id, so the old
- *  aliases (heckbinder2 / combinator2 / guel2 / demonanomaly2 / goldfont / goldpouch — all pre-refresh art)
- *  were retired and their stale files deleted; the mechanism stays for future one-off art swaps. */
-const ART_ALIAS: Record<string, string> = {};
 
 /** SPELL + Ruby art — same contract as minions, in its own directory so the two sets stay easy to manage:
  *  drop a PNG named by the CARD ID into `packages/ui/src/art/spells/<id>.png`. Wired 2026-07-24 (owner).

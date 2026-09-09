@@ -390,6 +390,7 @@ export const EffectFactoryIdSchema = z.enum([
   'battlecryBuffBeastAttack',
   'battlecryScoutSpread',
   'battlecryConductorAdjacent',
+  'battlecryBuffAdjacent',
   'battlecryBuffMagnetics',
   'battlecryBuffImps',
   'goldSpentBuffFodder',

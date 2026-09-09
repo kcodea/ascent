@@ -36,7 +36,7 @@ describe('Doc Bot — combat-mod lane', () => {
   });
 
   it('the scenario-conditional INERT queue is pinned (60 as of 2026-08-26)', () => {
-    const PIN = 60; // named-card auto-staging (owner audit 2026-08-26) drained three; the rest are Doc Bot's staging backlog
+    const PIN = 59; // named-card auto-staging (owner audit 2026-08-26) drained three; the rest are Doc Bot's staging backlog. 60 → 59 on 2026-09-09 (Set 3 Neutrals tranche 1)
     expect(scan.inert.length, `${scan.inert.length} mod(s) changed NOTHING in the staged fight (pin ${PIN}):\n  ${scan.inert.join(', ')}\nAbove the pin: a NEW mod never acted — stage its trigger or raise the pin consciously in review. (Soulbind sat exactly here for five days as a shipped no-op, #832.)`).toBeLessThanOrEqual(PIN);
     expect(scan.inert.length, `only ${scan.inert.length} inert now (pin ${PIN}) — you staged some; lower the pin.`).toBeGreaterThanOrEqual(PIN);
   });

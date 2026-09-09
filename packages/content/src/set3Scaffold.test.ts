@@ -49,6 +49,12 @@ describe('set 3 scaffold', () => {
       'u3_risingtide', 'u3_squatimus', 'u3_rodrick', 'u3_hierophant',
       'profgreg', 'knit', 'deathlesshand', 'deathsayer', 'deathswarmer', 'pillager', 'mumi', 'sergeant',
       'forsakenweaver', 'soulsman', 'anubis',
+      // …then the NEUTRALS (owner roster 2026-09-09, tranche 1): set 3's own — Blaster back from the archive,
+      // Splitboon Adept, the set-3 Yazzus fork — then the carried set-1 and set-2 neutrals (shared definitions).
+      'blaster', 'n3_splitboon', 'n3_yazzus',
+      'drummer', 'sylus', 'chronos', 'joker', 'venom', 'tauntbreaker', 'blackbelt', 'jenkins', 'stewardofspells',
+      'arenaheckler', 'wayfinder', 'salvatore',
+      'n2_spellsword', 'n2_bellringer', 'k_pouchpincher', 'n2_paragon',
     ]);
     // The set-1 Undead NOT on the roster stay out (owner confirmation 2026-09-09), still resolvable.
     for (const id of ['spore', 'karthus', 'ryme', 'gravebody', 'thunderingabomination', 'steadfast', 'wolvesden', 'gravewarden', 'cryptscribe', 'watcher', 'graverobber', 'bonetaxer', 'cryptbroker', 'gravetwin']) {

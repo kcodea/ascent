@@ -2,6 +2,7 @@ import type { CardDef } from '@game/core';
 import { SET3_CELESTIALS } from './celestials';
 import { SET3_EQUIPMENT } from './equipment';
 import { SET3_KOBOLDS } from './kobolds';
+import { SET3_NEUTRAL } from './neutral';
 export { SET3_DWARVES } from './dwarves';
 export { SET3_UNDEAD } from './undead';
 
@@ -31,3 +32,7 @@ export { SET3_UNDEAD } from './undead';
 // the carried-over set-2 Kobolds, because appending to this list would insert them ahead of those Kobolds and
 // reseed every set-3 shop. The manifest spells the order out; this list stays the pre-Dwarf prefix.
 export const SET3_CARDS: readonly CardDef[] = [...SET3_CELESTIALS, ...SET3_EQUIPMENT, ...SET3_KOBOLDS];
+
+/** Set 3's own NEUTRALS (2026-09-09) — appended after the Undead in `SETS.set3.own`, never folded into
+ *  `SET3_CARDS`, for the same positions-never-move reason as the Dwarves and Undead. */
+export { SET3_NEUTRAL };

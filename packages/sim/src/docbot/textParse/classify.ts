@@ -67,6 +67,7 @@ export const KNOWN_TEXT_MISMATCH: Readonly<Record<string, KnownTextMismatch>> = 
   godfodder: { taxonomy: 'text-promises-absent-effect', kind: 'draft-contract-gap', why: 'Choose One card — same extractor choose-one blind spot as shaper' },
   contractimp: { taxonomy: 'text-promises-absent-effect', kind: 'draft-contract-gap', why: 'Choose One token — same extractor choose-one blind spot as shaper' },
   crestclimb: { taxonomy: 'text-promises-absent-effect', kind: 'draft-contract-gap', why: 'Choose One spell — same extractor choose-one blind spot as shaper' },
+  n3_splitboon: { taxonomy: 'text-promises-absent-effect', kind: 'draft-contract-gap', why: 'Choose One card (Set 3 Neutrals, 2026-09-09) — same extractor choose-one blind spot as shaper' },
   k_veinbreaker: { taxonomy: 'text-promises-absent-effect', kind: 'draft-contract-gap', why: 'Choose One card — same extractor choose-one blind spot as shaper' },
   // Gemsmith is k_veinbreaker's mechanic (both branches are rubyStatGain), so it reproduces the
   // pin directly above it rather than being a new class of miss.

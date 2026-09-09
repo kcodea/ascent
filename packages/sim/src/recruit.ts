@@ -1239,9 +1239,19 @@ export function buffCardTypeRunWide(state: RunState, cardId: string, a: number, 
  * UI's cast-spark replay) use `spellCasts`, which also applies the aimed-spell / singleCast exemptions.
  */
 function spellCastMult(state: RunState): number {
-  const yazzus = state.board.filter((c) => c.cardId === 'yazzus');
+  // Set 3's Yazzus (`n3_yazzus`, 2026-09-09) is a FORK with the same doubling here; its wider scope (Rubies and
+  // hand spells too) lives in `rubyCastCount` / the hand-spell path. Either id counts; best single copy wins.
+  const yazzus = state.board.filter((c) => c.cardId === 'yazzus' || c.cardId === 'n3_yazzus');
   if (yazzus.some((c) => c.golden)) return 3;
   return yazzus.length > 0 ? 2 : 1;
+}
+
+/** The set-3 Yazzus' extra casts for a NON-Shop targeted spell (a Ruby, a Tower Shield, a Clue): 2 if a golden
+ *  copy is on board, 1 for a plain one, else 0. Set 1's Yazzus says "Shop spells" and stays out of this. */
+export function yazzusExtraCasts(state: RunState): number {
+  const y = state.board.filter((c) => c.cardId === 'n3_yazzus');
+  if (y.some((c) => c.golden)) return 2;
+  return y.length > 0 ? 1 : 0;
 }
 
 /**
@@ -1284,6 +1294,8 @@ export function rubyCastCount(state: RunState): number {
   // shadowing the other. `firstEachTurn` is read-only here for the same reason `spellCasts` is: the freebie is
   // spent by the real cast path bumping `rubyCastsThisTurn`, so the UI can preview the badge without consuming it.
   extra += state.rubyExtraCasts ?? 0;
+  // Set 3's Yazzus: "your TARGETED spells cast an additional time" — a Ruby is a targeted spell (owner 2026-09-09).
+  extra += yazzusExtraCasts(state);
   // First-N gate: `rubyCastsThisTurn` counts Ruby PLAYS (not resolved casts — a doubled first Ruby must not
   // eat the second slot of Resonance's 2-Ruby window), reset each turn.
   if ((state.rubyCastsThisTurn ?? 0) < (state.rubyFirstCastWindow ?? 1)) extra += state.rubyFirstExtraCasts ?? 0;
@@ -7242,6 +7254,10 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   // ARENA-MIGRATED (Shout family): one body in arena.ts serves both phases. The INCREMENT stays here because
   // it is a play-time event ("every Conductor PLAYED"); the grant itself is the shared arena body, which is
   // what makes the same Shout resolve during COMBAT re-fires instead of silently deferring to settle.
+  /** Splitboon Adept — Shout: adjacent minions +atk/+hp (golden doubles). Arena body; both phases. */
+  battlecryBuffAdjacent: (ctx, self, params) => {
+    ARENA_EFFECTS.battlecryBuffAdjacent(shopArena(ctx.state, self), params);
+  },
   battlecryConductorAdjacent: (ctx, self, params) => {
     const state = ctx.state;
     state.conductorBuff = (state.conductorBuff ?? 0) + gold(self) * improveReps(state);

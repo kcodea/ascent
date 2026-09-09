@@ -108,7 +108,7 @@ export const NEUTRAL: CardDef[] = [
     // A Battlecry that opens a Discover (Black Belt Brian) opens one per fire — Brian + Drakko → 2 spells.
     // Resolved in @game/sim via `drummerRepeats`. No combat factory → inert in combat (just a 2/4 body).
     id: 'drummer',
-    name: 'Drakko the Drummer',
+    name: 'Drakko', // 'Drakko the Drummer' until 2026-09-09 (owner: rename for all sets; id unchanged)
     tribe: 'neutral',
     tier: 5,
     attack: 2,
@@ -124,7 +124,7 @@ export const NEUTRAL: CardDef[] = [
   {
     // Deathrattle doubler. Golden procs 2 more times; multiple Sylus DO stack (additive).
     id: 'sylus',
-    name: 'Sylus the Reaper',
+    name: 'Sylus', // 'Sylus the Reaper' until 2026-09-09 (owner: rename for all sets; id unchanged)
     tribe: 'neutral',
     tier: 5,
     attack: 1,

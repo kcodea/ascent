@@ -185,8 +185,8 @@ export const BLAST_PUMP: EquipmentDefinition = {
 export const PRISMATIC_PICK: EquipmentDefinition = {
   id: 'prismatic_pick',
   name: 'Prismatic Pick',
-  text: 'Choose One — get a random **Choose One** card; or your next **Choose One** card this turn gains **both** effects.',
-  goldenText: 'Choose One — get **2 random Choose One** cards; or your next **2 Choose One** cards this turn gain **both** effects.',
+  text: 'Choose One — **Discover** a **Choose One** card; or your next **Choose One** card this turn gains **both** effects.',
+  goldenText: 'Choose One — **Discover** a **Choose One** card, **twice**; or your next **2 Choose One** cards this turn gain **both** effects.',
   baseCost: 2,
   targetMode: 'none',
   effectId: 'grantChooseBothCharges',
@@ -201,9 +201,10 @@ export const PRISMATIC_PICK: EquipmentDefinition = {
   useSfxId: 'prismaticpick',
   chooseOne: [
     {
-      text: 'Get a random **Choose One** card.',
-      goldenText: 'Get **2 random Choose One** cards.',
-      effectId: 'grantRandomChooseOne',
+      // Owner 2026-09-09: a Discover, not a random grant — you pick the Choose One card from three.
+      text: '**Discover** a **Choose One** card.',
+      goldenText: '**Discover** a **Choose One** card, **twice**.',
+      effectId: 'discoverChooseOne',
       params: { count: 1 },
       gildedParams: { count: 2 },
     },

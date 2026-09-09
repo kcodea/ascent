@@ -45,13 +45,13 @@ describe('Prismatic Pick', () => {
     expect(cancelled.chooseOnePick, 'no pick left behind to poison the next activation').toBeUndefined();
   });
 
-  it('branch 1 hands you a Choose One card, paying Gold and the allowance exactly once', () => {
+  it('branch 1 opens a Discover of Choose One cards (owner 2026-09-09), paying Gold and the allowance exactly once', () => {
     const s = armed();
     const asked = act(s, { type: 'activateEquipment' });
     const done = act(asked, { type: 'chooseOne', index: 0 });
-    expect(done.hand.length, 'a card arrived').toBe(1);
-    const granted = CARD_INDEX[done.hand[0]!.cardId];
-    expect(granted?.chooseOne?.length, 'and it is a Choose One card').toBeGreaterThan(0);
+    expect(done.hand.length, 'nothing is handed over — you choose').toBe(0);
+    expect(done.discover?.length, 'three Choose One cards to pick from').toBe(3);
+    for (const id of done.discover ?? []) expect(CARD_INDEX[id]?.chooseOne?.length, `${id} is a Choose One card`).toBeGreaterThan(0);
     expect(s.embers - done.embers, 'the Pick costs 2, charged once').toBe(2);
     expect(equipmentUsesLeft(done), 'one allowance, not two').toBe(equipmentUsesLeft(s) - 1);
     expect(done.chooseOnePick, 'the pick was consumed').toBeUndefined();
@@ -62,6 +62,14 @@ describe('Prismatic Pick', () => {
     const done = act(act(s, { type: 'activateEquipment' }), { type: 'chooseOne', index: 1 });
     expect(done.chooseBothCharges, 'one charge armed').toBe(1);
     expect(s.embers - done.embers, 'still charged once').toBe(2);
+  });
+
+  it('a GILDED Artificer opens the Discover twice — the second queued behind the first', () => {
+    const s = armed({}, true);
+    const done = act(act(s, { type: 'activateEquipment' }), { type: 'chooseOne', index: 0 });
+    expect(done.discover?.length, 'the first Discover is open').toBe(3);
+    expect(done.discoverQueue?.length, 'and a second waits behind it').toBe(1);
+    expect(done.hand.length, 'still nothing handed over').toBe(s.hand.length);
   });
 
   it('a GILDED Artificer doubles the branch — through the Equipment, not twice over', () => {

@@ -106,6 +106,19 @@ export const PATCH_NOTES: PatchNote[] = [
   },
   {
     date: '2026-09-09',
+    label: 'Prismatic Pick',
+    changes: [
+      {
+        category: 'Card Change',
+        text: 'Prismatic Pick\'s first option now lets you Discover a Choose One card instead of handing you a random one.',
+        details: [
+          'Prismatic Pick (Prismpick Artificer\'s Equipment): Choose One — Discover a Choose One card (a gilded Pick opens the Discover twice); or your next Choose One card this turn gains both effects.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-09',
     label: 'Set 3 Undead',
     changes: [
       {

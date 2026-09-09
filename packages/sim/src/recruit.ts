@@ -8116,7 +8116,11 @@ export function applyCastEffects(ctx: RecruitContext, spellDef: CardDef, target?
         trigger: 'cast',
         ...beatIdentity(`factory:${effect.do}:cast`),
       },
-      () => captureBuffFx(ctx.state, undefined, 'spell', () => fn(ctx, target as BoardCard, params, { minion: target as BoardCard })),
+      // `target` rides the payload too (additive — every other cast factory ignores it): the four TARGETED
+      // Gifts read `payload.target`, copying the Battlecry-target call shape, and this site never sent it —
+      // so Unbridled Might / Ironclad Favor / Champion's Regalia / Parting Gifts consumed the card, counted the
+      // cast, and changed nothing (Bug Board 9852e16f, 2026-09-09).
+      () => captureBuffFx(ctx.state, undefined, 'spell', () => fn(ctx, target as BoardCard, params, { minion: target as BoardCard, target: target as BoardCard })),
     );
   }
 }
@@ -10944,9 +10948,24 @@ function snapshotStats(state: RunState): StatSnap {
  * diff never mutates. Bails to a bare `run()` when nothing is capturing, so the common (NOOP) path pays one
  * boolean. This is the shared primitive behind the migrated Shout (PR 3) and End-of-Turn (PR 5) triggers.
  */
+/**
+ * NESTED SCOPES (Bug Board bb5195d5 / af51e5a3, 2026-09-09 — Rope Wrangler "displays 2x the cards given to
+ * hand"): a scope discovers its consequences by DIFFING state around `run()`, and a scope opened INSIDE it
+ * (`castSpell` → `applyCastEffects` opens one per cast) diffs the same window. The outer scope's baseline was
+ * taken before the cast, so every card the cast granted — and every stat it changed (Arnold's End-of-Turn
+ * Beefy read +16/+16 for a real +8/+8) — was emitted twice, once per nesting level. The projection dedupes by
+ * event id, so the hand row drew two previews per stolen card until the commit wiped them.
+ *
+ * The rule now: a scope only ever emits what IT changed. Each open scope is a frame on this stack; when a
+ * child opens, the parent FLUSHES (emits what it did so far, in order) and when the child closes the parent
+ * RE-BASES past the child's window. Un-nested scopes are byte-for-byte what they were. Gameplay is untouched
+ * (the diff never mutates; the NOOP collector still gets a bare `run()`).
+ */
+const recruitTriggerFrames: Array<{ flush: () => void; rebase: () => void }> = [];
+
 function withRecruitTrigger(
   ctx: RecruitContext,
-  spec: { source: TriggerSourceRef; trigger: string; policy: PresentationPolicy; phase: PresentationPhase; repeatIndex?: number; repeatCount?: number; policyKey?: string; family?: string; occurrenceKey?: string },
+  spec: { source: TriggerSourceRef; trigger: string; policy: PresentationPolicy; phase: PresentationPhase; repeatIndex?: number; repeatCount?: number; policyKey?: string; family?: string; occurrence?: number },
   run: () => void,
   /** `discardIfEmpty`: drop the trigger from the batch if the effect recorded NOTHING — for broadcast
    *  dispatches (the shop rally) where the effect's own guard decides after the scope is already open. */
@@ -10954,160 +10973,177 @@ function withRecruitTrigger(
 ): void {
   const collector = ctx.collector;
   if (!collector.enabled) { run(); return; }
-  const state = ctx.state;
-  const before = snapshotStats(state);
-  // BEAT SYSTEM (PR 6b/6c): NON-OVERLAPPING consequence diffs beyond stats. All diffed (not wired per-effect —
-  // the technique projectEndOfTurnSteps uses) so any future effect is caught, and all orthogonal to (or, for
-  // rubies, carved out of) the board/hand stat diff so the proven statsChanged equivalence holds.
-  const rubyCountOf = (c: { buffs?: { source: string; count: number }[] }): number => c.buffs?.find((b) => b.source === 'Ruby')?.count ?? 0;
-  const rubyBefore = new Map(state.board.map((c) => [c.uid, rubyCountOf(c)]));
-  const handBefore = new Set(state.hand.map((c) => c.uid));
-  const boardBefore = new Set(state.board.map((c) => c.uid));
-  // Slot + cardId per uid, so a body that LEAVES can name the position it left (the projection cannot
-  // recover either once the body is off the board).
-  const slotBefore = new Map(state.board.map((c, bi) => [c.uid, { index: bi, cardId: c.cardId }]));
-  const kwBefore = new Map(state.board.map((c) => [c.uid, new Set(c.keywords)]));
-  const cardIdBefore = new Map(state.board.map((c) => [c.uid, c.cardId]));
-  const shopBefore = new Map(state.shop.map((o) => [o.uid, offerBuyStats(state, o)]));
-  const attachBefore = new Map(state.board.map((c) => [c.uid, c.attachments ?? 0]));
-  const spBefore = { a: spellAttackBonus(state), h: spellHealthBonus(state) };
-  const impBefore = { a: state.impBuff?.attack ?? 0, h: state.impBuff?.health ?? 0 };
-  const eatenBefore = (state.fodderEaten ?? []).length;
-  const shopEatenBefore = (state.shopEaten ?? []).length;
-  const rb = state.rubyBonus ?? { attack: 0, health: 0 };
-  // begin/end rather than withTrigger so the handle survives for the empty-scope discard below.
-  // CHOREOGRAPHER PR 1: forward the identity fields verbatim (the primitive must not drop them).
+  // The parent has done work of its own before this child opened: attribute it to the parent NOW, while the
+  // parent is still the active scope, so the child's changes cannot be mistaken for the parent's later.
+  const parent = recruitTriggerFrames[recruitTriggerFrames.length - 1];
+  parent?.flush();
+  /** Take the baselines; returns the diff-and-emit for everything that changes after this point. */
+  const snapshot = (): (() => void) => {
+    const state = ctx.state;
+    const before = snapshotStats(state);
+    // BEAT SYSTEM (PR 6b/6c): NON-OVERLAPPING consequence diffs beyond stats. All diffed (not wired per-effect —
+    // the technique projectEndOfTurnSteps uses) so any future effect is caught, and all orthogonal to (or, for
+    // rubies, carved out of) the board/hand stat diff so the proven statsChanged equivalence holds.
+    const rubyCountOf = (c: { buffs?: { source: string; count: number }[] }): number => c.buffs?.find((b) => b.source === 'Ruby')?.count ?? 0;
+    const rubyBefore = new Map(state.board.map((c) => [c.uid, rubyCountOf(c)]));
+    const handBefore = new Set(state.hand.map((c) => c.uid));
+    const boardBefore = new Set(state.board.map((c) => c.uid));
+    // Slot + cardId per uid, so a body that LEAVES can name the position it left (the projection cannot
+    // recover either once the body is off the board).
+    const slotBefore = new Map(state.board.map((c, bi) => [c.uid, { index: bi, cardId: c.cardId }]));
+    const kwBefore = new Map(state.board.map((c) => [c.uid, new Set(c.keywords)]));
+    const cardIdBefore = new Map(state.board.map((c) => [c.uid, c.cardId]));
+    const shopBefore = new Map(state.shop.map((o) => [o.uid, offerBuyStats(state, o)]));
+    const attachBefore = new Map(state.board.map((c) => [c.uid, c.attachments ?? 0]));
+    const spBefore = { a: spellAttackBonus(state), h: spellHealthBonus(state) };
+    const impBefore = { a: state.impBuff?.attack ?? 0, h: state.impBuff?.health ?? 0 };
+    const eatenBefore = (state.fodderEaten ?? []).length;
+    const shopEatenBefore = (state.shopEaten ?? []).length;
+    const rb = state.rubyBonus ?? { attack: 0, health: 0 };
+    // begin/end rather than withTrigger so the handle survives for the empty-scope discard below.
+    // CHOREOGRAPHER PR 1: forward the identity fields verbatim (the primitive must not drop them).
+    return (): void => {
+        for (const [uid, was] of before) {
+          const now = state.board.find((c) => c.uid === uid) ?? state.hand.find((c) => c.uid === uid);
+          if (!now) continue;
+          // BEAT SYSTEM (PR 6c): rubies this trigger played on this minion are their OWN consequence (rubyPlayed),
+          // not a generic stat bump — so the viewer/player can fire the gem cascade. Carve the ruby portion out of
+          // the stat delta (each Ruby adds 1+rubyBonus per axis); any REMAINING delta is a real ordinary buff.
+          const rubyN = rubyCountOf(now) - (rubyBefore.get(uid) ?? 0);
+          // Carry the stat delta alongside the count: `rubyBonus` lives in run state, and making presentation
+          // re-derive it is the exact "subtract your way to the number" trap this system exists to remove.
+          if (rubyN > 0) collector.emit({
+            type: 'rubyPlayed',
+            target: { zone: was.zone, uid, cardId: now.cardId, side: 'player' },
+            count: rubyN,
+            attack: rubyN * (1 + rb.attack),
+            health: rubyN * (1 + rb.health),
+          });
+          const da = now.attack - was.a - rubyN * (1 + rb.attack);
+          const dh = now.health - was.h - rubyN * (1 + rb.health);
+          if (da === 0 && dh === 0) continue;
+          collector.emit({ type: 'statsChanged', target: { zone: was.zone, uid, cardId: now.cardId, side: 'player' }, attack: da, health: dh, permanent: true, channel: 'ordinary' });
+        }
+        // Cards this trigger put in hand (conjures / grants), in arrival order.
+        for (const c of state.hand) {
+          if (handBefore.has(c.uid)) continue;
+          collector.emit({ type: 'cardGranted', target: { zone: 'hand', uid: c.uid, cardId: c.cardId, side: 'player' }, cardId: c.cardId });
+        }
+        // Minions this trigger summoned to the BOARD (Moira re-firing a summoner's Shout) — the board sibling of
+        // the hand-grant loop above. Without this, an End-of-Turn summon snapped onto the board only at commit.
+        // `index` = the slot the body actually occupies (the shop summons ADJACENT to the summoner), so the
+        // projection renders the arrival in its true slot from the first frame instead of appending it
+        // right-most and letting the commit "correct" it (owner report 2026-08-20).
+        state.board.forEach((c, bi) => {
+          if (boardBefore.has(c.uid)) return;
+          collector.emit({ type: 'cardSummoned', target: { zone: 'board', uid: c.uid, cardId: c.cardId, side: 'player' }, cardId: c.cardId, index: bi });
+        });
+        // Bodies this trigger REMOVED from the board — the departure sibling of the summon loop above, and for a
+        // long time the missing half of it. A Graverobber destroy, a Funeral on Loan body vacating after its Echo,
+        // any future destroy: all of them emitted NOTHING, so the board simply had one fewer minion when the phase
+        // committed. There was no beat to hang a death animation on, which is precisely why these read as instant
+        // and janky (owner report 2026-08-28). `index` is the slot it held; `rise` marks a body that is coming
+        // straight back, so the UI plays the death without treating the slot as freed.
+        //
+        // Fodder and eaten Shop offers are NOT caught here — they were never board minions (`fodderEaten` /
+        // `shopChanged: consumed` carry those, above), so there is no double-report.
+        for (const [uid, was] of slotBefore) {
+          if (state.board.some((c) => c.uid === uid)) continue;
+          collector.emit({
+            type: 'cardDestroyed',
+            target: { zone: 'board', uid, cardId: was.cardId, side: 'player' },
+            index: was.index,
+            ...(RISING?.has(uid) ? { rise: true } : {}),
+          });
+        }
+        // Bodies this trigger TRANSFORMED IN PLACE — same uid, new cardId (Skybound Ascendant's End-of-Turn
+        // tier-up). Without this the only trace of a transform in the batch was a stat delta with the NEW
+        // cardId on it, so the card visibly changed only when the phase committed: the effect resolved
+        // invisibly inside the End-of-Turn commit instead of animating on its own beat (owner report
+        // 2026-08-20). The projection already speaks `cardTransformed`; nothing was emitting it.
+        for (const c of state.board) {
+          const wasId = cardIdBefore.get(c.uid);
+          if (wasId === undefined || wasId === c.cardId) continue;
+          collector.emit({ type: 'cardTransformed', target: { zone: 'board', uid: c.uid, cardId: wasId, side: 'player' }, toCardId: c.cardId });
+        }
+        // Keywords this trigger granted/removed on an EXISTING board minion (a re-fired keyword Shout). A minion
+        // that arrived THIS trigger carries its keywords in with `cardSummoned`, so only pre-existing ones diff.
+        for (const c of state.board) {
+          const was = kwBefore.get(c.uid);
+          if (!was) continue;
+          for (const kw of c.keywords) if (!was.has(kw)) collector.emit({ type: 'keywordChanged', target: { zone: 'board', uid: c.uid, cardId: c.cardId, side: 'player' }, keyword: kw, gained: true });
+          for (const kw of was) if (!c.keywords.includes(kw)) collector.emit({ type: 'keywordChanged', target: { zone: 'board', uid: c.uid, cardId: c.cardId, side: 'player' }, keyword: kw, gained: false });
+        }
+        // Shop offers this trigger grew (Market Tormentor's re-fired Shout, Soul Defiler's buy bonus) — one per uid.
+        for (const o of state.shop) {
+          const b = shopBefore.get(o.uid);
+          if (!b) continue;
+          const now = offerBuyStats(state, o);
+          const da = now.attack - b.attack;
+          const dh = now.health - b.health;
+          if (da > 0 || dh > 0) collector.emit({ type: 'shopChanged', change: 'buffed', target: { zone: 'shop', uid: o.uid, cardId: o.cardId, side: 'player' }, attack: da, health: dh });
+        }
+        // BEAT SYSTEM (PR 6c): spell-power / imp-aura rises — two-axis auraChanged (Aeon Guard, Void Curator).
+        const spA = spellAttackBonus(state) - spBefore.a, spH = spellHealthBonus(state) - spBefore.h;
+        if (spA !== 0 || spH !== 0) collector.emit({ type: 'auraChanged', aura: 'spellPower', amount: spA + spH, attack: spA, health: spH });
+        const impA = (state.impBuff?.attack ?? 0) - impBefore.a, impH = (state.impBuff?.health ?? 0) - impBefore.h;
+        if (impA !== 0 || impH !== 0) collector.emit({ type: 'auraChanged', aura: 'impAura', amount: impA + impH, attack: impA, health: impH });
+        // BEAT SYSTEM: ruby-STRENGTH rises (Deepvein Tender's "Your Rubies gain +1 Health", Facetwright, quest
+        // rewards) — the run-wide `rubyBonus`, its own `auraChanged` aura. Without this a proc that only raises
+        // ruby strength (no Ruby held to bump) emitted NOTHING, so re-triggered by Moira it showed no beat at all
+        // (owner report 2026-08-14). Parallels the spellPower/impAura aura emits directly above.
+        const rubyA = (state.rubyBonus?.attack ?? 0) - rb.attack, rubyH = (state.rubyBonus?.health ?? 0) - rb.health;
+        if (rubyA !== 0 || rubyH !== 0) collector.emit({ type: 'auraChanged', aura: 'ruby', amount: rubyA + rubyH, attack: rubyA, health: rubyH });
+        // BEAT SYSTEM (PR 6c): welds (Attachments this trigger bolted onto a Mech) as a counter, one per host.
+        for (const c of state.board) {
+          const wb = attachBefore.get(c.uid);
+          const now = c.attachments ?? 0;
+          if (wb !== undefined && now > wb) collector.emit({ type: 'counterChanged', counter: 'attachments', amount: now - wb, valueAfter: now });
+        }
+        // BEAT SYSTEM (PR 6c): Fodder this trigger consumed → cardDestroyed, one per eaten token.
+        for (const e of (state.fodderEaten ?? []).slice(eatenBefore)) {
+          // TWO consequences on purpose: `cardDestroyed` is the token leaving play, `fodderEaten` is the meal —
+          // who ate it and what they gained. The crumble choreography needs the second; a destroy alone cannot
+          // express it, which is why this visual stayed on the legacy path until now.
+          collector.emit({ type: 'cardDestroyed', target: { zone: 'board', cardId: e.fodderId, side: 'player' } });
+          collector.emit({
+            type: 'fodderEaten', eaterUid: e.eaterUid, fodderId: e.fodderId,
+            attack: e.attack, health: e.health, gainAttack: e.gainA, gainHealth: e.gainH,
+            deliveryKey: 'consume.depart',
+          });
+        }
+        // BEAT SYSTEM: Shop minions this trigger CONSUMED (Bob Blart's End of Turn, Feastmaster Vhal) — the
+        // shop-side sibling of the Fodder diff above. TWO consequences, matching Fodder: `shopChanged: consumed`
+        // is the offer leaving the row (so it disappears ON the beat, not at commit — owner report 2026-08-14
+        // "the minions dont disappear when blart procs in real time"), and `fodderEaten` carries the meal so the
+        // eat choreography flies the stats into the eater. The eaten offer is gone from `state.shop`, so it is
+        // never caught by the surviving-offer `buffed` diff — `state.shopEaten` is the only record of it.
+        for (const e of (state.shopEaten ?? []).slice(shopEatenBefore)) {
+          collector.emit({ type: 'shopChanged', change: 'consumed', target: { zone: 'shop', uid: e.uid, cardId: e.cardId, side: 'player' } });
+          collector.emit({
+            type: 'fodderEaten', eaterUid: e.eaterUid, fodderId: e.cardId,
+            attack: e.attack, health: e.health, gainAttack: e.gainA, gainHealth: e.gainH,
+            deliveryKey: 'consume.depart',
+          });
+        }
+    };
+  };
+  let emitSince = snapshot();
+  const frame = {
+    flush: (): void => { emitSince(); emitSince = snapshot(); },
+    rebase: (): void => { emitSince = snapshot(); },
+  };
+  recruitTriggerFrames.push(frame);
   const handle = collector.beginTrigger({ ...spec });
   try {
-    (() => {
-      run();
-      for (const [uid, was] of before) {
-        const now = state.board.find((c) => c.uid === uid) ?? state.hand.find((c) => c.uid === uid);
-        if (!now) continue;
-        // BEAT SYSTEM (PR 6c): rubies this trigger played on this minion are their OWN consequence (rubyPlayed),
-        // not a generic stat bump — so the viewer/player can fire the gem cascade. Carve the ruby portion out of
-        // the stat delta (each Ruby adds 1+rubyBonus per axis); any REMAINING delta is a real ordinary buff.
-        const rubyN = rubyCountOf(now) - (rubyBefore.get(uid) ?? 0);
-        // Carry the stat delta alongside the count: `rubyBonus` lives in run state, and making presentation
-        // re-derive it is the exact "subtract your way to the number" trap this system exists to remove.
-        if (rubyN > 0) collector.emit({
-          type: 'rubyPlayed',
-          target: { zone: was.zone, uid, cardId: now.cardId, side: 'player' },
-          count: rubyN,
-          attack: rubyN * (1 + rb.attack),
-          health: rubyN * (1 + rb.health),
-        });
-        const da = now.attack - was.a - rubyN * (1 + rb.attack);
-        const dh = now.health - was.h - rubyN * (1 + rb.health);
-        if (da === 0 && dh === 0) continue;
-        collector.emit({ type: 'statsChanged', target: { zone: was.zone, uid, cardId: now.cardId, side: 'player' }, attack: da, health: dh, permanent: true, channel: 'ordinary' });
-      }
-      // Cards this trigger put in hand (conjures / grants), in arrival order.
-      for (const c of state.hand) {
-        if (handBefore.has(c.uid)) continue;
-        collector.emit({ type: 'cardGranted', target: { zone: 'hand', uid: c.uid, cardId: c.cardId, side: 'player' }, cardId: c.cardId });
-      }
-      // Minions this trigger summoned to the BOARD (Moira re-firing a summoner's Shout) — the board sibling of
-      // the hand-grant loop above. Without this, an End-of-Turn summon snapped onto the board only at commit.
-      // `index` = the slot the body actually occupies (the shop summons ADJACENT to the summoner), so the
-      // projection renders the arrival in its true slot from the first frame instead of appending it
-      // right-most and letting the commit "correct" it (owner report 2026-08-20).
-      state.board.forEach((c, bi) => {
-        if (boardBefore.has(c.uid)) return;
-        collector.emit({ type: 'cardSummoned', target: { zone: 'board', uid: c.uid, cardId: c.cardId, side: 'player' }, cardId: c.cardId, index: bi });
-      });
-      // Bodies this trigger REMOVED from the board — the departure sibling of the summon loop above, and for a
-      // long time the missing half of it. A Graverobber destroy, a Funeral on Loan body vacating after its Echo,
-      // any future destroy: all of them emitted NOTHING, so the board simply had one fewer minion when the phase
-      // committed. There was no beat to hang a death animation on, which is precisely why these read as instant
-      // and janky (owner report 2026-08-28). `index` is the slot it held; `rise` marks a body that is coming
-      // straight back, so the UI plays the death without treating the slot as freed.
-      //
-      // Fodder and eaten Shop offers are NOT caught here — they were never board minions (`fodderEaten` /
-      // `shopChanged: consumed` carry those, above), so there is no double-report.
-      for (const [uid, was] of slotBefore) {
-        if (state.board.some((c) => c.uid === uid)) continue;
-        collector.emit({
-          type: 'cardDestroyed',
-          target: { zone: 'board', uid, cardId: was.cardId, side: 'player' },
-          index: was.index,
-          ...(RISING?.has(uid) ? { rise: true } : {}),
-        });
-      }
-      // Bodies this trigger TRANSFORMED IN PLACE — same uid, new cardId (Skybound Ascendant's End-of-Turn
-      // tier-up). Without this the only trace of a transform in the batch was a stat delta with the NEW
-      // cardId on it, so the card visibly changed only when the phase committed: the effect resolved
-      // invisibly inside the End-of-Turn commit instead of animating on its own beat (owner report
-      // 2026-08-20). The projection already speaks `cardTransformed`; nothing was emitting it.
-      for (const c of state.board) {
-        const wasId = cardIdBefore.get(c.uid);
-        if (wasId === undefined || wasId === c.cardId) continue;
-        collector.emit({ type: 'cardTransformed', target: { zone: 'board', uid: c.uid, cardId: wasId, side: 'player' }, toCardId: c.cardId });
-      }
-      // Keywords this trigger granted/removed on an EXISTING board minion (a re-fired keyword Shout). A minion
-      // that arrived THIS trigger carries its keywords in with `cardSummoned`, so only pre-existing ones diff.
-      for (const c of state.board) {
-        const was = kwBefore.get(c.uid);
-        if (!was) continue;
-        for (const kw of c.keywords) if (!was.has(kw)) collector.emit({ type: 'keywordChanged', target: { zone: 'board', uid: c.uid, cardId: c.cardId, side: 'player' }, keyword: kw, gained: true });
-        for (const kw of was) if (!c.keywords.includes(kw)) collector.emit({ type: 'keywordChanged', target: { zone: 'board', uid: c.uid, cardId: c.cardId, side: 'player' }, keyword: kw, gained: false });
-      }
-      // Shop offers this trigger grew (Market Tormentor's re-fired Shout, Soul Defiler's buy bonus) — one per uid.
-      for (const o of state.shop) {
-        const b = shopBefore.get(o.uid);
-        if (!b) continue;
-        const now = offerBuyStats(state, o);
-        const da = now.attack - b.attack;
-        const dh = now.health - b.health;
-        if (da > 0 || dh > 0) collector.emit({ type: 'shopChanged', change: 'buffed', target: { zone: 'shop', uid: o.uid, cardId: o.cardId, side: 'player' }, attack: da, health: dh });
-      }
-      // BEAT SYSTEM (PR 6c): spell-power / imp-aura rises — two-axis auraChanged (Aeon Guard, Void Curator).
-      const spA = spellAttackBonus(state) - spBefore.a, spH = spellHealthBonus(state) - spBefore.h;
-      if (spA !== 0 || spH !== 0) collector.emit({ type: 'auraChanged', aura: 'spellPower', amount: spA + spH, attack: spA, health: spH });
-      const impA = (state.impBuff?.attack ?? 0) - impBefore.a, impH = (state.impBuff?.health ?? 0) - impBefore.h;
-      if (impA !== 0 || impH !== 0) collector.emit({ type: 'auraChanged', aura: 'impAura', amount: impA + impH, attack: impA, health: impH });
-      // BEAT SYSTEM: ruby-STRENGTH rises (Deepvein Tender's "Your Rubies gain +1 Health", Facetwright, quest
-      // rewards) — the run-wide `rubyBonus`, its own `auraChanged` aura. Without this a proc that only raises
-      // ruby strength (no Ruby held to bump) emitted NOTHING, so re-triggered by Moira it showed no beat at all
-      // (owner report 2026-08-14). Parallels the spellPower/impAura aura emits directly above.
-      const rubyA = (state.rubyBonus?.attack ?? 0) - rb.attack, rubyH = (state.rubyBonus?.health ?? 0) - rb.health;
-      if (rubyA !== 0 || rubyH !== 0) collector.emit({ type: 'auraChanged', aura: 'ruby', amount: rubyA + rubyH, attack: rubyA, health: rubyH });
-      // BEAT SYSTEM (PR 6c): welds (Attachments this trigger bolted onto a Mech) as a counter, one per host.
-      for (const c of state.board) {
-        const wb = attachBefore.get(c.uid);
-        const now = c.attachments ?? 0;
-        if (wb !== undefined && now > wb) collector.emit({ type: 'counterChanged', counter: 'attachments', amount: now - wb, valueAfter: now });
-      }
-      // BEAT SYSTEM (PR 6c): Fodder this trigger consumed → cardDestroyed, one per eaten token.
-      for (const e of (state.fodderEaten ?? []).slice(eatenBefore)) {
-        // TWO consequences on purpose: `cardDestroyed` is the token leaving play, `fodderEaten` is the meal —
-        // who ate it and what they gained. The crumble choreography needs the second; a destroy alone cannot
-        // express it, which is why this visual stayed on the legacy path until now.
-        collector.emit({ type: 'cardDestroyed', target: { zone: 'board', cardId: e.fodderId, side: 'player' } });
-        collector.emit({
-          type: 'fodderEaten', eaterUid: e.eaterUid, fodderId: e.fodderId,
-          attack: e.attack, health: e.health, gainAttack: e.gainA, gainHealth: e.gainH,
-          deliveryKey: 'consume.depart',
-        });
-      }
-      // BEAT SYSTEM: Shop minions this trigger CONSUMED (Bob Blart's End of Turn, Feastmaster Vhal) — the
-      // shop-side sibling of the Fodder diff above. TWO consequences, matching Fodder: `shopChanged: consumed`
-      // is the offer leaving the row (so it disappears ON the beat, not at commit — owner report 2026-08-14
-      // "the minions dont disappear when blart procs in real time"), and `fodderEaten` carries the meal so the
-      // eat choreography flies the stats into the eater. The eaten offer is gone from `state.shop`, so it is
-      // never caught by the surviving-offer `buffed` diff — `state.shopEaten` is the only record of it.
-      for (const e of (state.shopEaten ?? []).slice(shopEatenBefore)) {
-        collector.emit({ type: 'shopChanged', change: 'consumed', target: { zone: 'shop', uid: e.uid, cardId: e.cardId, side: 'player' } });
-        collector.emit({
-          type: 'fodderEaten', eaterUid: e.eaterUid, fodderId: e.cardId,
-          attack: e.attack, health: e.health, gainAttack: e.gainA, gainHealth: e.gainH,
-          deliveryKey: 'consume.depart',
-        });
-      }
-    })();
+    run();
+    emitSince();
   } finally {
+    recruitTriggerFrames.pop();
     collector.endTrigger(handle);
     if (opts?.discardIfEmpty) collector.discardIfEmpty(handle);
+    // What the child changed is the child's; the parent continues from the state the child left behind.
+    parent?.rebase();
   }
 }
 

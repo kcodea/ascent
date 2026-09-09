@@ -931,7 +931,11 @@ export const Card = memo(function Card({
         {/* Card Art transform session (dev). Mounted on the CARD ROOT, not inside `.art`: the art window
             clips, so buttons parented there could never sit outside the card. The drag maths still measures
             `.art` (see CardArtEditor) because the stored offset is a % of the ART window, not the card. */}
-        {card.cardId && editingCardArt() === card.cardId && <CardArtEditor cardId={card.cardId} />}
+        {/* Keyed by the ART VARIANT, not the card id: a resolved Choose One branch opens its session under
+            `artVariantKey(id, chosenOption)` (see the double-click above), so comparing against the bare id never
+            mounted the editor for a branch — Coppercoat Spellsword's option-2 art could not be framed at all
+            (Bug Board 507425ef). Same key in, same key mounted, and the session writes the BRANCH entry. */}
+        {card.cardId && editingCardArt() === artVariantKey(card.cardId, card.chosenOption) && <CardArtEditor cardId={artVariantKey(card.cardId, card.chosenOption)} />}
 
         {/* WARD GLASS (Divine Shield) — the "engulf the frame" layer (owner-chosen approach B, 2026-07-21).
             The `.ward` dome above is trimmed to the ART window by design, so it can never reach the gold.

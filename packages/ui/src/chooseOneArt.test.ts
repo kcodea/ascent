@@ -78,3 +78,15 @@ describe('branch art is framed under its own key', () => {
     expect(artVariantKey('godfodder', 1)).toBe('godfodder');
   });
 });
+
+describe('the art editor mounts under the same key the double-click opened it with (Bug Board 507425ef)', () => {
+  it('Card compares editingCardArt() against the VARIANT key, so a Choose One branch can be framed', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { join, dirname } = await import('node:path');
+    const { fileURLToPath } = await import('node:url');
+    const src = readFileSync(join(dirname(fileURLToPath(import.meta.url)), 'Card.tsx'), 'utf8');
+    expect(src.includes('beginEditCardArt(artVariantKey(card.cardId!, card.chosenOption))'), 'the session opens under the variant key').toBe(true);
+    expect(src.includes("editingCardArt() === artVariantKey(card.cardId, card.chosenOption) && <CardArtEditor cardId={artVariantKey(card.cardId, card.chosenOption)} />"),
+      'and mounts the editor under that same key — comparing against the bare card id never mounted it for option 2').toBe(true);
+  });
+});

@@ -56,6 +56,15 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-09',
+    label: 'Bug Board round 2',
+    changes: [
+      { category: 'Hero Change', text: "Kindness's targeted Gifts now do what they say.", details: ["Unbridled Might (+2 Attack, then double), Ironclad Favor (Taunt + double Health), Champion's Regalia (Ward, Critical Strike, Flurry) and Parting Gifts were consuming the card without paying out."] },
+      { category: 'Card Change', text: 'A free Rally (Rune of Rallying, Backbeat, Hunting Bell) now triggers Rally watchers like Hawkus, Paragon and Mineral Master.', details: ['It already counted as a Rally for quests; now the cards that react to a Rally react to it too.'] },
+      { category: 'UI / Info', text: 'Rope Wrangler no longer previews twice the cards it steals during End of Turn.', details: ['Any End-of-Turn effect that casts a spell showed its results doubled in the preview until the turn committed.'] },
+    ],
+  },
+  {
+    date: '2026-09-09',
     label: 'Shout FX',
     changes: [
       {

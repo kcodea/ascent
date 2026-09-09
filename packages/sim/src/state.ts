@@ -434,6 +434,9 @@ export interface EquipFx {
   equipmentId?: string;
   /** `use` only: what it was cast on — the travel destination. Absent for an untargeted Equipment. */
   targetUid?: string;
+  /** `use` only: the Shop spells this activation cast (Pourman's Keg → its random Ale), in cast order. The UI
+   *  plays each one's authored cast presentation from the slot — the same path a hand-cast Ale takes. */
+  spellIds?: string[];
 }
 
 export interface ShopDeathFx {
@@ -572,6 +575,12 @@ export interface RunState {
   /** Extra Gold granted at the start of next turn (Hoarder's Battlecry / Safety Deposit Box / Robin's
    *  Spoils). Consumed when the next recruit turn's Gold is set, then cleared. Absent = 0. */
   bonusEmbersNextTurn?: number;
+  /** Set 3 — Thymepiece: extra SECONDS banked for the NEXT recruit turn's clock. Moved into `bonusTurnSeconds`
+   *  at the turn flip (beside the Gold bank above), then cleared. Absent = 0. */
+  bonusTurnSecondsNextTurn?: number;
+  /** Set 3 — Thymepiece: extra seconds on THIS turn's clock. The UI adds it to the wave's base time; the sim
+   *  never reads a clock, so this is pure hand-off state. Absent = 0. */
+  bonusTurnSeconds?: number;
   /** Set 2 — Mushy: a charge to copy the FIRST spell you cast on/after `activateWave` (= the wave
    *  AFTER the Echo fired, so "next turn" is exact whether it died in combat or was re-fired in recruit).
    *  `count` copies (golden 2, multiple Scalefeathers sum). Spent + cleared by that first cast. */
@@ -1646,6 +1655,15 @@ export interface RunState {
    *  `reduce` ALSO diffs the hand so the ~17 other insertion sites can't silently skip the trigger. This ledger
    *  is what keeps the two from double-firing on the same card. Cleared at the top of every action. */
   gainCardFiredUids?: string[];
+  /** Per-action: board uids whose Attack gain ALREADY dispatched its `onGainAttack` reactors + watchers inside
+   *  the action — the per-card End-of-Turn waves (Striker / Kringle) fire them per WAVE so "when a Dwarf gains
+   *  Attack" pays once per card played (owner 2026-09-09). The action-boundary diff and the End-of-Turn
+   *  projection skip these, or the same gain would dispatch twice. Cleared at the top of every action. */
+  gainAttackFiredUids?: string[];
+  /** Per-action: the Shop spells an Equipment activation CAST this action (Pourman's Keg's Ale picks), in cast
+   *  order. Stamped onto the `use` EquipFx cue so the UI plays each spell's own cast animation + clip from the
+   *  slot. Cleared at the top of every action. */
+  equipmentSpellCasts?: string[];
   /** FUNERAL ON LOAN: the uid of a board body that occupies its slot but is ALREADY DOOMED — the borrowed
    *  minion, spliced in only so positional Echoes (Dawnclaw's neighbours, Legion Shepherd's counting) see a
    *  real board, and removed the instant its Echo finishes. Summon capacity must not count it: it is leaving,

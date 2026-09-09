@@ -3479,17 +3479,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const matches = ctx.state.board.filter((c) => !tribe || isTribe(c, tribe as never));
     if (matches.length === 0) return;
     const ends = matches.length === 1 ? [matches[0]!] : [matches[0]!, matches[matches.length - 1]!];
-    const played = ctx.state.playedThisTurn?.length ?? 0;
     const a = num(params.attack, 1) * gold(self);
     const h = num(params.health, 0) * gold(self); // Kringle +1/+2 (owner balance 2026-08-15)
-    if (played <= 0 || (a <= 0 && h <= 0)) return;
-    for (let wave = 0; wave < played; wave++) {
-      const before = ctx.state.recruitBuffFx.length;
-      captureBuffFx(ctx.state, self, 'minion', () => {
-        for (const target of ends) addBuff(target, nameOf(self), a, h);
-      });
-      for (let i = before; i < ctx.state.recruitBuffFx.length; i++) ctx.state.recruitBuffFx[i]!.fxWave = wave;
-    }
+    eotPerCardWaves(ctx.state, self, ends, a, h);
   },
 
   /** Chirurgeon: every `every` cards bought, get a random Shop spell. The buy tally lives on the CARD
@@ -3628,6 +3620,100 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const guard = str(params.guard) || 'self';
     if ((guard === 'rally' || guard === 'self') && payload?.minion !== self) return;
     ARENA_EFFECTS.combatGrantAle(shopArena(ctx.state, self), params);
+  },
+
+  // ── Set 3 Dwarves (owner roster 2026-09-09) ─────────────────────────────────────────────────────────────
+
+  /** Shift Broker (minionSold): this gains +N Attack whenever you sell a minion — ANY minion, any tribe (owner
+   *  2026-09-09). Board sells only, structurally: a card in hand cannot be sold. Golden doubles the grant. */
+  minionSoldBuffSelf: (ctx, self, params) => {
+    const a = num(params.attack, 1) * gold(self);
+    if (a <= 0 || !ctx.state.board.some((c) => c.uid === self.uid)) return;
+    addBuff(self, nameOf(self), a, 0);
+  },
+
+  /** Striker (End of Turn): its two NEIGHBOURS (any tribe) gain +N Attack for each card played this turn —
+   *  Kringle's counter (`playedThisTurn`: minions AND spells, Striker's own play included if it was played this
+   *  turn) and Kringle's per-card FX waves, pointed at the adjacent slots instead of the tribe's ends. */
+  endOfTurnBuffAdjacentPerCard: (ctx, self, params) => {
+    const idx = ctx.state.board.findIndex((c) => c.uid === self.uid);
+    if (idx < 0) return;
+    const sides = [ctx.state.board[idx - 1], ctx.state.board[idx + 1]].filter((c): c is BoardCard => !!c);
+    eotPerCardWaves(ctx.state, self, sides, num(params.attack, 1) * gold(self), 0);
+  },
+
+  /** Pourman's Keg (one Equipment TRIGGER): cast `count` RANDOM Dwarven Ales through `castSpell`, the real
+   *  Shop-spell pipeline — so each pour counts as an Ale cast (Edward's extra trigger, the Ale runes, every
+   *  cast-watcher) exactly as a hand-cast one does, while never entering the hand or counting as a card PLAYED.
+   *  Every Ale is untargeted, so no target is threaded. Seeded off the run cursor: replay-faithful. */
+  equipmentCastRandomAle: (ctx, _self, params) => {
+    const ales = poolOf(ctx.state).spells.filter((c) => ALE_IDS.includes(c.id));
+    if (ales.length === 0) return;
+    const rng = makeRng(ctx.state.rngCursor);
+    const picks: CardDef[] = [];
+    for (let i = 0; i < Math.max(1, num(params.count, 1)); i++) picks.push(ales[rng.int(ales.length)]!);
+    ctx.state.rngCursor = rng.state();
+    // `castSpell` is ONE cast; the Ale multiplier (Edward Keg-hands, the Bottomless Cask, Shared Pour) is applied
+    // by the caller looping it — the same shape the reducer's play path and Mirrorwing's re-cast use — so a
+    // Keg pour under Edward pours twice exactly as a hand-cast Ale does.
+    for (const spell of picks) {
+      // Recorded ONCE per pick (not per multiplied cast): the UI's cast presentation already replays Edward's
+      // echo itself, exactly as it does for a hand-cast Ale.
+      (ctx.state.equipmentSpellCasts ??= []).push(spell.id);
+      for (let i = 0; i < spellCasts(ctx.state, spell); i++) castSpell(ctx.state, spell, undefined);
+    }
+  },
+
+  /** Hank Pepe (a Dwarf was played): `count` RANDOM OTHER Dwarves on the BOARD gain +a/+h. Never fires on
+   *  Hank's own arrival and never picks Hank (owner 2026-09-09); the arriving Dwarf is eligible. Same seeded
+   *  draw-without-replacement Billings uses, so it is replay-faithful and never double-buffs one body. */
+  onTribeSummonedBuffRandomOthers: (ctx, self, params, payload) => {
+    const { minion } = payload as { minion?: BoardCard };
+    const tribe = str(params.tribe);
+    if (!minion || minion.uid === self.uid) return;
+    if (tribe && !isTribe(minion, tribe as never)) return;
+    const a = num(params.attack, 1) * gold(self);
+    const h = num(params.health, 1) * gold(self);
+    if (a <= 0 && h <= 0) return;
+    const avail = ctx.state.board.filter((c) => c.uid !== self.uid && (!tribe || isTribe(c, tribe as never)));
+    if (avail.length === 0) return;
+    const rng = makeRng(ctx.state.rngCursor);
+    const n = num(params.count, 3);
+    for (let k = 0; k < n && avail.length > 0; k++) {
+      addBuff(avail.splice(rng.int(avail.length), 1)[0]!, nameOf(self), a, h);
+    }
+    ctx.state.rngCursor = rng.state();
+  },
+
+  /** Tromboneer (Echo, shop half): Gold for the NEXT turn only, through `bonusEmbersNextTurn` — the one-turn
+   *  bank that sits ON TOP of the 10-Gold cap (owner 2026-09-09: not capped). Guarded to its own death, since
+   *  `fireOnFriendDeath` offers every shop death to the board's on-death watchers. Golden doubles. */
+  deathrattleGoldNextTurn: (ctx, self, params, payload) => {
+    if ((payload as { minion?: BoardCard })?.minion !== self) return;
+    ctx.state.bonusEmbersNextTurn = (ctx.state.bonusEmbersNextTurn ?? 0) + num(params.amount, 3) * gold(self);
+  },
+
+  /** Kneel / Tankerchief (shop half): ANOTHER friendly Dwarf on the board gained Attack → this gains +a/+h.
+   *  Reached through `fireOnGainAttack`'s watcher broadcast (`GAIN_ATTACK_WATCHERS`), once per Dwarf that
+   *  gained — so a Coinfire proc that lifts four Dwarves pays four times (owner 2026-09-09). The gainer's own
+   *  copy of this effect is offered too and declines here (`minion.uid === self.uid`). A watcher's grant is
+   *  never re-diffed by the reducer, so Tankerchief's +1 Attack cannot wake the other watchers. */
+  onTribeGainAttackBuffSelf: (ctx, self, params, payload) => {
+    const { minion } = payload as { minion?: BoardCard };
+    if (!minion || minion.uid === self.uid) return;
+    const tribe = str(params.tribe);
+    if (tribe && !isTribe(minion, tribe as never)) return;
+    if (!ctx.state.board.some((c) => c.uid === self.uid)) return; // board only — never a watcher in hand
+    const a = num(params.attack, 0) * gold(self);
+    const h = num(params.health, 0) * gold(self);
+    if (a <= 0 && h <= 0) return;
+    addBuff(self, nameOf(self), a, h);
+  },
+
+  /** Thymepiece (one Equipment TRIGGER): bank `seconds` onto NEXT turn's clock. The reducer moves the bank into
+   *  `bonusTurnSeconds` at the turn flip and the recruit clock adds it; two activations stack. */
+  equipmentBonusTurnTime: (ctx, _self, params) => {
+    ctx.state.bonusTurnSecondsNextTurn = (ctx.state.bonusTurnSecondsNextTurn ?? 0) + Math.max(0, num(params.seconds, 30));
   },
 
   /** Anvilshade Smith (Echo): summon a token that inherits this body's Attack. The combat half also makes it
@@ -8547,16 +8633,71 @@ function fireBattlecryTriggered(state: RunState): void {
  *  weld, triples). Matches combat's `onGainAttack` semantics (only the minion whose Attack rose reacts). The
  *  combat path is separate (the bus emits onGainAttack inside `simulate`'s `ctx.buff`), so this never
  *  double-fires across the two phases. */
+
+/**
+ * "REPEAT for every card played this turn" (Kringle, Striker — owner ruling 2026-09-09): one End-of-Turn grant
+ * per card played, each a SEPARATE INSTANCE rather than one grant of N× the rate. The difference is what the
+ * board's watchers see: "when a Dwarf gains Attack" (Kneel / Tankerchief) and the self-reactors (Hunter,
+ * Sergeant) must fire once per wave, so each wave dispatches `fireOnGainAttack` for the bodies it lifted —
+ * instead of leaving it to the action boundary, which diffs the whole action once and would pay one trigger
+ * for N waves. The uids are recorded in `gainAttackFiredUids` so that boundary (and the End-of-Turn projection)
+ * skip them rather than dispatching the same gain a second time.
+ *
+ * Every wave keeps Kringle's `fxWave` tag, so the UI still plays the grants as N visible pulses.
+ */
+function eotPerCardWaves(state: RunState, self: BoardCard, targets: readonly BoardCard[], a: number, h: number): void {
+  const played = state.playedThisTurn?.length ?? 0;
+  if (played <= 0 || (a <= 0 && h <= 0) || targets.length === 0) return;
+  for (let wave = 0; wave < played; wave++) {
+    const before = state.recruitBuffFx.length;
+    captureBuffFx(state, self, 'minion', () => {
+      for (const target of targets) addBuff(target, nameOf(self), a, h);
+    });
+    for (let i = before; i < state.recruitBuffFx.length; i++) state.recruitBuffFx[i]!.fxWave = wave;
+    if (a > 0) {
+      for (const target of targets) {
+        if (!state.board.some((c) => c.uid === target.uid)) continue;
+        (state.gainAttackFiredUids ??= []).push(target.uid);
+        captureBuffFx(state, target, 'minion', () => fireOnGainAttack(state, target));
+      }
+    }
+  }
+}
+
+/**
+ * `onGainAttack` factories that watch OTHER bodies (Kneel / Tankerchief: "when a Dwarf gains Attack"). The shop
+ * dispatcher below offers a gain to every board minion carrying one of these, with the GAINER in the payload
+ * — the combat bus already broadcasts `onGainAttack` to every handler, so this is the shop's half of the same
+ * contract. Kept as an explicit allow-list because the pre-existing self-reactors (Hunter, Sergeant) ignore the
+ * payload and assume the gainer is `self`; broadcasting to them would misfire.
+ */
+const GAIN_ATTACK_WATCHERS: ReadonlySet<string> = new Set(['onTribeGainAttackBuffSelf']);
+
 export function fireOnGainAttack(state: RunState, card: BoardCard): void {
   const def = CARD_INDEX[card.cardId];
   // Fast path: the reducer calls this for EVERY board minion whose Attack rose, so bail before the
-  // (relatively costly) makeContext unless this card actually has a dispatchable onGainAttack reactor.
-  if (!def || !def.effects.some((e) => e.on === 'onGainAttack' && RECRUIT_FACTORIES[e.do])) return;
+  // (relatively costly) makeContext unless this card actually has a dispatchable onGainAttack reactor — or
+  // another board body is watching for exactly this.
+  const ownReacts = !!def && def.effects.some((e) => e.on === 'onGainAttack' && RECRUIT_FACTORIES[e.do]);
+  const watchers = state.board.filter((c) => c.uid !== card.uid
+    && CARD_INDEX[c.cardId]?.effects.some((e) => e.on === 'onGainAttack' && GAIN_ATTACK_WATCHERS.has(e.do)));
+  if (!ownReacts && watchers.length === 0) return;
   const ctx = makeContext(state);
-  for (const effect of def.effects) {
-    if (effect.on !== 'onGainAttack') continue;
-    const fn = RECRUIT_FACTORIES[effect.do];
-    if (fn) fn(ctx, card, effect.params ?? {}, { minion: card });
+  if (def && ownReacts) {
+    for (const effect of def.effects) {
+      if (effect.on !== 'onGainAttack') continue;
+      const fn = RECRUIT_FACTORIES[effect.do];
+      if (fn) fn(ctx, card, effect.params ?? {}, { minion: card });
+    }
+  }
+  // Watchers, in board order. Each is its own capture so the self-buff FX is sourced from the watcher rather
+  // than folded into the gainer's tendril.
+  for (const w of watchers) {
+    for (const effect of CARD_INDEX[w.cardId]?.effects ?? []) {
+      if (effect.on !== 'onGainAttack' || !GAIN_ATTACK_WATCHERS.has(effect.do)) continue;
+      const fn = RECRUIT_FACTORIES[effect.do];
+      if (fn) captureBuffFx(state, w, 'minion', () => fn(ctx, w, effect.params ?? {}, { minion: card }));
+    }
   }
 }
 
@@ -10628,12 +10769,18 @@ export function projectEndOfTurnSteps(state: RunState): {
     // Action, Lassoing, …) fires `rune-buff-unit` on it, on the beat — the same source-label diff the shop uses.
     const runeBuffBefore = new Map([...clone.board, ...clone.hand].map((c) => [c.uid, runeBuffMagnitude(c)]));
     captureBuffFx(clone, source, 'minion', run); // sourceless (quest/rune beat) → sourceUid stays unset → the UI descends
-    for (const c of clone.board) {
+    // Gainers are resolved BEFORE any reactor runs: an `onGainAttack` watcher (Tankerchief) grants itself Attack
+    // while reacting, and reading `c.attack` live would then count that grant as a fresh gain and re-fire the
+    // other watchers — the ping-pong the owner ruled out (2026-09-09).
+    // …and a gain the beat ALREADY dispatched per instance (a Striker / Kringle wave) is not dispatched again.
+    const alreadyGained = new Set(clone.gainAttackFiredUids ?? []);
+    const gainers = clone.board.filter((c) => {
       const prev = atkBefore.get(c.uid);
-      if (prev !== undefined && c.attack > prev && !gainFired.has(c.uid)) {
-        gainFired.add(c.uid);
-        captureBuffFx(clone, c, 'minion', () => fireOnGainAttack(clone, c));
-      }
+      return prev !== undefined && c.attack > prev && !gainFired.has(c.uid) && !alreadyGained.has(c.uid);
+    });
+    for (const c of gainers) {
+      gainFired.add(c.uid);
+      captureBuffFx(clone, c, 'minion', () => fireOnGainAttack(clone, c));
     }
     // Welds this beat produced — diffed by host `attachments`, so EVERY auto-weld path is caught
     // (Combinator, Cling Drones, Money Bots, and any future EoT welder) without per-effect wiring.

@@ -752,12 +752,18 @@ export function reduce(state: RunState, action: Action): RunState {
   if (next !== state && state.phase === 'recruit') {
     const before = new Map(state.board.map((c) => [c.uid, c.attack]));
     const handBefore = next.hand.length; // grows if a quest completing this action grants a card → triple-check
-    for (const c of next.board) {
+    // Gainers are resolved BEFORE any reactor runs: a watcher (Tankerchief — "when a Dwarf gains Attack, this
+    // gains +1/+4") raises its own Attack while reacting, and reading `c.attack` live would count that grant as
+    // a fresh gain and re-fire the other watchers — the ping-pong the owner ruled out (2026-09-09).
+    // …and a gain the action ALREADY dispatched per instance (a Striker / Kringle wave) is not dispatched again.
+    const alreadyGained = new Set(next.gainAttackFiredUids ?? []);
+    const gainers = next.board.filter((c) => {
       const prev = before.get(c.uid);
-      // Wrap the reactor so Hunter's "give your minions +Health" buff-to-others is captured as shop-buff FX,
-      // sourced from the reacting minion `c` (a minion tendril), same as any other buff-other.
-      if (prev !== undefined && c.attack > prev) captureBuffFx(next, c, 'minion', () => fireOnGainAttack(next, c));
-    }
+      return prev !== undefined && c.attack > prev && !alreadyGained.has(c.uid);
+    });
+    // Wrap the reactor so Hunter's "give your minions +Health" buff-to-others is captured as shop-buff FX,
+    // sourced from the reacting minion `c` (a minion tendril), same as any other buff-other.
+    for (const c of gainers) captureBuffFx(next, c, 'minion', () => fireOnGainAttack(next, c));
     // "Give Dragons N total stats" (Skybound Pact / Taragosa's Inheritance): sum the +Attack/+Health BUFFS a
     // Dragon present BEFORE and AFTER this action received (base stats of new Dragons are excluded — only gains
     // on existing Dragons, board + hand). Advances the `tribeStats` objective by that total.
@@ -1192,6 +1198,8 @@ function reduceCore(state: RunState, action: Action): RunState {
   s.fodderEaten = [];
   s.shopEaten = []; // Set 2's shop-minion consume swirl — same per-action contract, separate channel
   s.gainCardFiredUids = []; // per-action: which hand arrivals already fired onGainCard (see the hand diff in `reduce`)
+  s.gainAttackFiredUids = []; // per-action: Attack gains already dispatched inside the action (per-card EoT waves)
+  s.equipmentSpellCasts = []; // per-action: spells an Equipment activation cast (the Keg's Ale) — for the use cue
 
   switch (action.type) {
     case 'buy': {
@@ -2393,6 +2401,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       stampEquipFx(s, {
         kind: 'use', uid: self.uid, cardId: self.cardId, equipmentId: def.id,
         ...(target ? { targetUid: target.uid } : {}),
+        ...(s.equipmentSpellCasts?.length ? { spellIds: [...s.equipmentSpellCasts] } : {}),
       });
       checkTriples(s); // an Equipment that summons or grants can still complete a triple
       return s;
@@ -4460,6 +4469,9 @@ function advanceCombat(s: RunState): void {
   // Hoarder's Battlecry banks bonus Gold for this turn (consumed now).
   s.embers = s.maxEmbers + (s.maxGoldBonus ?? 0) + boardManaBonus(s) + (s.bonusEmbersNextTurn ?? 0);
   s.bonusEmbersNextTurn = 0;
+  // Thymepiece: the seconds banked last turn become this turn's clock bonus (same one-turn shape as the Gold).
+  s.bonusTurnSeconds = s.bonusTurnSecondsNextTurn ?? 0;
+  s.bonusTurnSecondsNextTurn = 0;
   s.heroReady = true;
   s.heroReady2 = true; // Void's second power recharges on the same clock
   s.heroUsesThisTurn = 0; // Fibbsy's twice-per-turn budget refills

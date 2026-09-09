@@ -2,6 +2,7 @@ import type { CardDef } from '@game/core';
 import { SET3_CELESTIALS } from './celestials';
 import { SET3_EQUIPMENT } from './equipment';
 import { SET3_KOBOLDS } from './kobolds';
+export { SET3_DWARVES } from './dwarves';
 
 /**
  * ── SET 3 — scaffold only ───────────────────────────────────────────────────────────────────────────────
@@ -25,4 +26,7 @@ import { SET3_KOBOLDS } from './kobolds';
  * An empty set draws an empty shop. That is expected here, not a bug: the Scene Builder prints its pool
  * counts and warns "this set has no cards yet" precisely so it reads as scaffolding.
  */
+// The Dwarves (`dwarves.ts`, 2026-09-09) are deliberately NOT folded in here: `SETS.set3.own` places them AFTER
+// the carried-over set-2 Kobolds, because appending to this list would insert them ahead of those Kobolds and
+// reseed every set-3 shop. The manifest spells the order out; this list stays the pre-Dwarf prefix.
 export const SET3_CARDS: readonly CardDef[] = [...SET3_CELESTIALS, ...SET3_EQUIPMENT, ...SET3_KOBOLDS];

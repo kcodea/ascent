@@ -151,6 +151,7 @@ export const PHASE_EXCUSED: Readonly<Record<string, PhaseExcuse>> = {
   summonBuffTribeImprove: { phase: 'combat', kind: 'no-surface', why: 'OWNER RULED 2026-08-26: correct — Den Mother does not feed from combat summons.' },
   countTribeSummon: { phase: 'combat', kind: 'no-surface', why: 'OWNER RULED 2026-08-26: correct — "played" means from hand in the shop; combat summons do not feed the counter (Pack Leader text clarified to say "in the Shop").' },
   onTribeSummonedBuffTribe: { phase: 'combat', kind: 'no-surface', why: 'OWNER RULED 2026-08-26: correct — "when you play a Dwarf" is a shop event.' },
+  onTribeSummonedBuffRandomOthers: { phase: 'combat', kind: 'no-surface', why: 'Hank Pepe (set 3) — the same ruling as Chef Gary Toast above: "when you play a Dwarf" is a shop event, and combat summons are not plays.' },
   onTribePlayedBuffSelfPerSpell: { phase: 'combat', kind: 'no-surface', why: 'OWNER RULED 2026-08-26: correct — Vaultkeeper does not gain stats from combat summons.' },
 
   // ── onRubyPlayed in combat (Bloodbinder-family plays real Rubies mid-fight) ──

@@ -4,6 +4,7 @@ import { CardDefSchema } from './schema';
 import { TOKENS } from './cards/set1/tokens';
 import { HENCHMEN } from './cards/henchmen';
 import { GIFTS } from './cards/gifts';
+import { SET3_HAND_SPELLS } from './cards/set3/handSpells';
 import { SET2_TOKENS } from './cards/set2/tokens';
 import { ENEMY } from './cards/set1/enemy';
 import { SETS, poolFor } from './sets';
@@ -11,6 +12,7 @@ import { SETS, poolFor } from './sets';
 export * from './sets';
 export { HENCHMEN } from './cards/henchmen';
 export { GIFTS, GIFT_IDS } from './cards/gifts'; // a card class of its own — member of no set (see gifts.ts)
+export { SET3_HAND_SPELLS } from './cards/set3/handSpells'; // card-minted Gifts (Tower Shield, Clue) — member of no set, not in GIFT_IDS
 export { ARCHIVED_CARDS } from './cards/archive'; // resolvable by id, member of no set — see the archive contract
 
 /**
@@ -33,6 +35,8 @@ export const ALL_CARDS: CardDef[] = [
   // GIFTS follow the same doctrine as TOKENS/HENCHMEN: resolvable by id (a rune or hero hands one out),
   // member of NO set — so `poolFor()` can never offer one in a shop or a pool-based Discover.
   ...GIFTS,
+  // Card-minted hand spells (Tower Shield, Clue): Gift-class, reachable only through the card that mints them.
+  ...SET3_HAND_SPELLS,
   ...ENEMY,
   ...ARCHIVED_CARDS, // resolvable by id (saved runs / replays), member of NO set — never drawable
 ].filter((card, i, arr) => arr.findIndex((c) => c.id === card.id) === i); // a shared card appears once
@@ -93,6 +97,7 @@ const CARD_REF_EFFECTS: Record<string, string> = {
   deathrattleGrantSpell: 'cardId',             // Big Huggies -> Staff of Guel
   deathrattleSummonRubyStats: 'tokenId',       // Gemheart -> Gemheart Shard
   echoSummonInheritAttackAndCharge: 'token',   // Anvilshade Smith -> Dwarf Soldier (param is `token`, not `tokenId`)
+  battlecryGetHandSpell: 'cardId',             // Defender -> Tower Shield; Magnifying Glass -> Clue (set-3 hand spells)
   endOfTurnGetRubies: 'rubyId',                // Wardstone Jeweler -> Warding Ruby
   getRubies: 'rubyId',                         // Facetbound Martyr -> Warding Ruby (Shout half of the same mint)
 };

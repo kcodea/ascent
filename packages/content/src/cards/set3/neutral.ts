@@ -27,6 +27,36 @@ export const SET3_NEUTRAL: readonly CardDef[] = [
     goldenText: '**Taunt. Echo:** deal **6** damage to ALL minions.',
   },
   {
+    // Shout: two Tower Shields to hand (a free +2/+1-and-Taunt hand spell each — `cards/set3/handSpells.ts`).
+    // Golden mints four. The mint is the shared `battlecryGetHandSpell`, the same factory the Magnifying Glass
+    // uses for Clues, so one primitive serves every card that hands out a hand spell.
+    id: 'n3_defender',
+    name: 'Defender',
+    tribe: 'neutral',
+    tier: 2,
+    attack: 2,
+    health: 2,
+    keywords: [],
+    effects: [{ on: 'onPlay', do: 'battlecryGetHandSpell', params: { cardId: 'tower_shield', count: 2 } }],
+    text: '**Shout:** get **2 Tower Shields**.',
+    goldenText: '**Shout:** get **4 Tower Shields**.',
+  },
+  {
+    // Equip minion: its Magnifying Glass (1 Gold) mints two Clues (`cards/set3/handSpells.ts`) — the run's
+    // Clue value grows by one per Clue cast, so the Glass is a self-improving engine. `equipmentId` is the
+    // only place the card names its Equipment; cost, wording and effect come from the registry entry.
+    id: 'n3_pell',
+    name: 'Inspector Pell',
+    tribe: 'neutral',
+    tier: 3,
+    attack: 2,
+    health: 5,
+    keywords: [],
+    effects: [{ on: 'equip', do: 'grantEquipment', params: { equipmentId: 'magnifying_glass' } }],
+    text: '**Equip Magnifying Glass (1):** get **2 Clues**.',
+    goldenText: '**Equip Magnifying Glass (1):** get **4 Clues**.',
+  },
+  {
     // A Choose One between one big body and two medium ones. Option 1 TARGETS (a per-option `target`, the
     // Godfodder shape) and rides the shared targeted-Shout body; option 2 is a new Shout-family arena effect
     // (`battlecryBuffAdjacent`) so a combat re-fire (Ryme, Myra) buffs its neighbours there too. Golden doubles.

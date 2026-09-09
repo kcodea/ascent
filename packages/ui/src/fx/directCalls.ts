@@ -69,6 +69,9 @@ export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   'shop-buff-purple': ['useCombatReplay.ts'],
   'shop-tier-up': ['TavernUpButton.tsx'],
   'strike-impact': ['choreo/channels/impact.ts'],
+  // A consumed / death-lost Ward (owner-authored 2026-09-09, replacing the `shatterAt('shield')` shard-burst;
+  // the `sfx.shieldBreak` sound is unchanged). Fired from the aura channel's two Ward-loss sites.
+  'ward-lost-blast': ['choreo/channels/aura.ts'],
   'watcher-pulse': ['useCombatReplay.ts'],
 };
 

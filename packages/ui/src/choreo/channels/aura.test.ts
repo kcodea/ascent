@@ -1,9 +1,16 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { pixiFx } from '../../pixiFx';
 import { sfx } from '../../sfx';
+// The Ward-loss burst is the owner-authored `ward-lost-blast` def, fired through `playDef` (2026-09-09,
+// replacing the old `shatterAt('shield')` gold-shard burst; the sound is unchanged). Mock at the MODULE —
+// `playDef` is a bare function export — so these assertions check WHICH def fired and where, like impact.test.
+vi.mock('../../fx/playDef', () => ({ playDef: vi.fn(() => null) }));
+import { playDef } from '../../fx/playDef';
 import { burstDeathAuras, breakShieldAura, reformReborn } from './aura';
 
-afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers(); vi.unstubAllGlobals(); });
+const playDefMock = vi.mocked(playDef);
+
+afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers(); vi.unstubAllGlobals(); playDefMock.mockClear(); });
 
 // The suite runs in bare Node (no jsdom — see vitest.config.ts), so stub the single `document.querySelector`
 // call the aura channel makes: return a card whose classList carries the given marker classes, or null.
@@ -26,26 +33,28 @@ describe('burstDeathAuras', () => {
     expect(shieldSfx).not.toHaveBeenCalled(); // no ward marker → no gold-break sound
   });
 
-  it('a Warded unit shatters gold (shield) at the rect + shieldBreak sound', () => {
+  it('a Warded unit bursts ward-lost-blast at the rect + shieldBreak sound', () => {
     stubCard('dscard');
     const shatter = vi.spyOn(pixiFx, 'shatterAt').mockImplementation(() => {});
     const shieldSfx = vi.spyOn(sfx, 'shieldBreak').mockImplementation(() => {});
     const reborn = vi.spyOn(sfx, 'rebornShatter').mockImplementation(() => {});
     burstDeathAuras('u1', RECT);
-    expect(shatter).toHaveBeenCalledWith(200, 150, 80, 100, 'shield');
+    expect(playDefMock).toHaveBeenCalledWith('ward-lost-blast', { target: { x: 200, y: 150 } }, { uids: { source: null, target: 'u1' } });
+    expect(shatter).not.toHaveBeenCalledWith(200, 150, 80, 100, 'shield'); // the shard-burst was replaced by the def
     expect(shieldSfx).toHaveBeenCalledTimes(1);
     expect(reborn).not.toHaveBeenCalled();
   });
 
-  it('a unit carrying BOTH auras bursts each once', () => {
+  it('a unit carrying BOTH auras bursts each once — ward via the def, reborn via the shatter', () => {
     stubCard('dscard', 'reborncard');
     const shatter = vi.spyOn(pixiFx, 'shatterAt').mockImplementation(() => {});
     vi.spyOn(sfx, 'shieldBreak').mockImplementation(() => {});
     vi.spyOn(sfx, 'rebornShatter').mockImplementation(() => {});
     burstDeathAuras('u1', RECT);
-    expect(shatter).toHaveBeenCalledWith(200, 150, 80, 100, 'shield');
+    expect(playDefMock).toHaveBeenCalledWith('ward-lost-blast', { target: { x: 200, y: 150 } }, { uids: { source: null, target: 'u1' } });
+    expect(playDefMock).toHaveBeenCalledTimes(1);
     expect(shatter).toHaveBeenCalledWith(200, 150, 80, 100, 'reborn');
-    expect(shatter).toHaveBeenCalledTimes(2);
+    expect(shatter).toHaveBeenCalledTimes(1);
   });
 
   it('a unit carrying no aura marker bursts nothing', () => {
@@ -64,19 +73,17 @@ describe('burstDeathAuras', () => {
 });
 
 describe('breakShieldAura', () => {
-  it('shatters the consumed ward at the given rect (gold shards) + sound — no Pixi bubble needed', () => {
-    const shatter = vi.spyOn(pixiFx, 'shatterAt').mockImplementation(() => {});
+  it('bursts ward-lost-blast at the given rect, carrying the losing unit uid + sound — no Pixi bubble needed', () => {
     const s = vi.spyOn(sfx, 'shieldBreak').mockImplementation(() => {});
-    breakShieldAura({ cx: 200, cy: 150, w: 80, h: 100 });
-    expect(shatter).toHaveBeenCalledWith(200, 150, 80, 100, 'shield');
+    breakShieldAura({ cx: 200, cy: 150, w: 80, h: 100 }, 'u7');
+    expect(playDefMock).toHaveBeenCalledWith('ward-lost-blast', { target: { x: 200, y: 150 } }, { uids: { source: null, target: 'u7' } });
     expect(s).toHaveBeenCalledTimes(1);
   });
 
   it('with no rect (unit not measurable) plays only the sound', () => {
-    const shatter = vi.spyOn(pixiFx, 'shatterAt').mockImplementation(() => {});
     const s = vi.spyOn(sfx, 'shieldBreak').mockImplementation(() => {});
-    breakShieldAura(null);
-    expect(shatter).not.toHaveBeenCalled();
+    breakShieldAura(null, 'u7');
+    expect(playDefMock).not.toHaveBeenCalled();
     expect(s).toHaveBeenCalledTimes(1);
   });
 });

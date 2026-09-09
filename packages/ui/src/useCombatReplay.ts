@@ -2057,7 +2057,7 @@ export function useCombatReplay(
         floatTimersRef.current.push(window.setTimeout(() => setDeathFloats((arr) => arr.filter((x) => !ids.has(x.id))), getChoreoConfig().deathFloatMs / combatSpeedRef.current));
       },
       onAuraBurst: (uid) => burstDeathAuras(uid, rectOf(uid)),
-      onShieldBreak: (uid) => breakShieldAura(rectOf(uid)),
+      onShieldBreak: (uid) => breakShieldAura(rectOf(uid), uid),
       onReborn: (uid) => reformReborn(rebornRects.get(uid) ?? rectOf(uid)),
       // Execute proc → the crescent strike at the VICTIM's slot (the unit being destroyed), read at fire time
       // so a tuner edit applies to the next proc.
@@ -2372,7 +2372,7 @@ export function useCombatReplay(
       // lunge — the gold shatter has to pop where the bubble visibly is (mid-strike, at contact), not back at
       // the unit's empty slot. The opposite call from the unit-marking FX; don't "fix" this to match them.
       const rectFor = (uid: string) => { const r = findEl(uid)?.getBoundingClientRect(); return r ? { cx: r.left + r.width / 2, cy: r.top + r.height / 2, w: r.width, h: r.height } : null; };
-      const breakWards = wardTargets.length ? () => { for (const t of wardTargets) breakShieldAura(rectFor(t)); } : undefined;
+      const breakWards = wardTargets.length ? () => { for (const t of wardTargets) breakShieldAura(rectFor(t), t); } : undefined;
       if (atkEl && a && d) {
         setAttackUid(cur.primary.attacker);
         // A Rally firing as THIS unit attacks → the lunge pauses at the top of the wind-up and flashes the

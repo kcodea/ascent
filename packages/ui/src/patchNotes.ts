@@ -66,6 +66,16 @@ export const PATCH_NOTES: PatchNote[] = [
   },
   {
     date: '2026-09-08',
+    label: 'Ward Break FX',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: 'Losing a Ward now bursts with a new effect — a hard spray of shards and a shockwave — whether it is consumed by a hit or lost when its bearer dies. The break sound is unchanged.',
+      },
+    ],
+  },
+  {
+    date: '2026-09-08',
     label: 'Ward FX',
     changes: [
       {

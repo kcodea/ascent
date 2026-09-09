@@ -3322,6 +3322,18 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     conjureToHand(ctx.state, candidates, num(params.count, 1) * gold(self));
   },
 
+  /** Prismatic Pick, branch 1 (owner 2026-09-09: "Discover a Choose One card" instead of a random one): a pool
+   *  Discover over every Choose One card the run's set can draw — minions AND spells (Crest of the Climb,
+   *  Facetwright's Choice…), the same candidate rule `grantRandomChooseOne` uses. `count` Discovers, queued
+   *  behind one another (a gilded Pick opens two). Gilding rides `gildedParams`, so `self` is not consulted. */
+  discoverChooseOne: (ctx, self, params) => {
+    void self;
+    const pool = poolOf(ctx.state);
+    const ids = [...pool.buyable, ...pool.spells].filter((c) => (c.chooseOne?.length ?? 0) > 0).map((c) => c.id);
+    if (ids.length === 0) return;
+    for (let i = 0; i < num(params.count, 1); i++) queueDiscover(ctx.state, { kind: 'pool', ids });
+  },
+
   /**
    * Grant BOTH-branch charges (Forked Crown's start of turn, Prismpick Artificer's second branch).
    *
@@ -7913,7 +7925,9 @@ export function openDiscover(state: RunState, spec: DiscoverSpec): void {
     // Spells are excluded because the pool Discover was built for MINIONS — except GIFTS (owner design
     // 2026-08-26), which are spells by nature and are offered as a class by Merry Christmas and Kindness.
     // Without this exemption a Gift Discover filtered itself to empty and silently never opened.
-    const pool = spec.ids.filter((id) => CARD_INDEX[id] && (!CARD_INDEX[id]!.spell || CARD_INDEX[id]!.gift));
+    // …and CHOOSE ONE spells (Prismatic Pick's "Discover a Choose One card", 2026-09-09) — an explicit pool that
+    // names them means them; the minion-only default guards the callers that never meant to offer a spell.
+    const pool = spec.ids.filter((id) => CARD_INDEX[id] && (!CARD_INDEX[id]!.spell || CARD_INDEX[id]!.gift || (CARD_INDEX[id]!.chooseOne?.length ?? 0) > 0));
     if (pool.length === 0) return;
     const rng = makeRng(state.rngCursor);
     const avail = [...pool];

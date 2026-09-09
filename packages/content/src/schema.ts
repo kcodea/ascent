@@ -253,6 +253,7 @@ export const EffectFactoryIdSchema = z.enum([
   'deathrattleTriggerAdjacentRally',
   'battlecryCastNamedSpell',
   'grantRandomChooseOne',
+  'discoverChooseOne',
   'armChooseBoth',
   'grantChooseBothCharges',
   'chooseOnePlayedPlayRubies',

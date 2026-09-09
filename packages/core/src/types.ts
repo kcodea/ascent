@@ -304,6 +304,7 @@ export type EffectFactoryId =
   | 'onSpellCastImproveSummon' // Groveweaver: each spell cast improves that grant
   | 'battlecryCastNamedSpell' // Facetbound Martyr — cast a named Shop spell N times (recruit)
   | 'grantRandomChooseOne' // Flagrunner / Prismpick Artificer — a random Choose One card to hand
+  | 'discoverChooseOne' // Prismatic Pick (branch 1, 2026-09-09) — Discover a Choose One card (minion or spell)
   | 'chooseOnePlayedPlayRubies' // Ruby Roach — a Choose One play casts Rubies on your board
   | 'armChooseBoth' // Dealer — arm THIS body's own first-Choose-One latch (per instance, not a run counter)
   | 'grantChooseBothCharges' // Dealer / Prismpick Artificer — the next N Choose Ones resolve both branches

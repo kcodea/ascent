@@ -7,6 +7,11 @@ fixed with a lane where a fix was due, and closed with `npm run bugs:close`.
 
 ## Fixed in this stack
 
+**Skybound Ascendant reaches Tier 7 always** (`cb45dc41`). First closed as by-design — the transform was
+clamped to the run's Tier-7 access gate and the live text rewrote "Tier 7" to "Tier 6" without it. Owner
+overruled within the hour: *"it should work up to tier 7 always. it is not bound by t6 rules."* The ceiling is
+now 7 on every run, the "Tier 6" rewrite is gone, and the lane that pinned the clamp now pins seven.
+
 **Kindness's targeted Gifts did nothing** (`9852e16f`, filed as "great presets … broken on mirrorwing").
 Not Mirrorwing. Unbridled Might, Ironclad Favor, Champion's Regalia and Parting Gifts all read
 `payload.target` — the Battlecry-target call shape — and `applyCastEffects` only ever sent `{ minion }`, so
@@ -43,8 +48,8 @@ double-click the resolved option-2 card in the dev tuner and Save writes a branc
 
 ## By design
 
-- `cb45dc41` Skybound Ascendant stays Tier 6 — Tier 7 needs Tier-7 access (Summit or a quest grant); the
-  card's live text already says "up to Tier 6" in such a run. Existing lanes pin both branches.
+(Skybound was here for an hour — see above.)
+
 - `38d186a6` Gangplank buffs itself — "a random friendly Dwarf" includes itself; the repo excludes self only
   where a card says "other". **Owner question:** should it read "another friendly Dwarf"? One line in the
   shared arena body + text + patch note if so.

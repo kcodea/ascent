@@ -7228,13 +7228,16 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   /** SKYBOUND ASCENDANT — "End of Turn: transform the minion to the LEFT into a random minion from ONE TIER
    *  HIGHER, up to Tier 7."
    *
-   *  Strange Revision's transform (base swaps, gained stats ride along), stepped UP a tier and clamped to the
-   *  run's own ceiling — `maxTierFor` / `hasTier7Access`, so Tier 7 is only ever reachable on a Summit run and
-   *  a non-Summit board tops out at 6. A neighbour already at the ceiling re-rolls at the ceiling rather than
-   *  doing nothing, which keeps the effect a reroll at the top of the curve instead of a dead line.
+   *  Strange Revision's transform (base swaps, gained stats ride along), stepped UP a tier, up to SEVEN on every
+   *  run (owner ruling 2026-09-09 — an authored Tier-7 source, not bound by the Shop's Tier-7 access gate). A
+   *  neighbour already at seven re-rolls at seven rather than doing nothing, which keeps the effect a reroll at
+   *  the top of the curve instead of a dead line.
    *  Golden walks the two minions to the left. */
   endOfTurnTransformLeftTierUp: (ctx, self) => {
-    const ceiling = hasTier7Access(ctx.state) ? 7 : maxTierFor(ctx.state.rift);
+    // ALWAYS 7 (owner ruling 2026-09-09, Bug Board cb45dc41: "it should work up to tier 7 always. it is not
+    // bound by t6 rules"). Skybound is an authored Tier-7 source like Teleport Summit / CIA's spades — the
+    // `hasTier7Access` gate is for the SHOP's tier, not for this transform.
+    const ceiling = 7;
     const i = ctx.state.board.indexOf(self);
     if (i <= 0) return;
     for (let n = 0; n < gold(self); n++) {

@@ -182,19 +182,6 @@ export function summitTierText(cardId: string, tier7Access: boolean): string | n
   return `${def.text.replace(/\.$/, '')} {{(up to Tier 7)}}`;
 }
 
-/**
- * SKYBOUND ASCENDANT — its "(up to Tier 7)" is the same PROMISE Beyond the Summit makes, and the transform
- * is clamped to the run's real ceiling (`hasTier7Access`), so on an ordinary run the honest number is SIX.
- * Printed live on both chains rather than left as a static 7 (the hard live-value rule + owner 2026-08-20:
- * text says what the card does).
- */
-export function ascendantTierText(cardId: string, golden: boolean, tier7Access: boolean): string | null {
-  if (cardId !== 'd2_ascendant' || tier7Access) return null; // with access the printed "Tier 7" is already true
-  const def = CARD_INDEX[cardId];
-  if (!def) return null;
-  const base = (golden && def.goldenText) || def.text;
-  return base.replace('**Tier 7**', '**{{Tier 6}}**');
-}
 
 /**
  * Menagerie Mammoth (`onSummonTribeBuffImproveSelf`) — an Attack-only grant that climbs by `step` every time it

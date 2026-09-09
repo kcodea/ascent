@@ -58,11 +58,13 @@ describe('liveCardText — the single source of truth shared by shop + combat', 
     expect(liveCardText('n2_muster', { ...base, summonBonus: 3 }).text).toContain('{{4/4}} Trooper');
     expect(liveCardText('n2_muster', base).text, 'no Avenge yet → the printed 1/1 is accurate').toBe(CARD_INDEX['n2_muster']!.text);
     // Without Tier-7 access the printed promise is a lie — it prints the honest six instead.
-    expect(liveCardText('d2_ascendant', base).text).toContain('{{Tier 6}}');
-    expect(liveCardText('d2_ascendant', { ...base, tier7Access: true }).text, 'with access the printed 7 stands')
-      .toBe(CARD_INDEX['d2_ascendant']!.text);
-    expect(liveCardText('d2_ascendant', { ...base, golden: true }).text, 'the golden variant is clamped too')
-      .toContain('{{Tier 6}}');
+    // Skybound reaches Tier 7 on EVERY run (owner ruling 2026-09-09, Bug Board cb45dc41) — the printed 7 is
+    // always true, so the text is never rewritten to 6, with or without Tier-7 access.
+    expect(liveCardText('d2_ascendant', base).text).toBe(CARD_INDEX['d2_ascendant']!.text);
+    expect(liveCardText('d2_ascendant', { ...base, tier7Access: true }).text).toBe(CARD_INDEX['d2_ascendant']!.text);
+    const golden = liveCardText('d2_ascendant', { ...base, golden: true }).text;
+    expect(golden).toContain('Tier 7');
+    expect(golden).not.toContain('Tier 6');
   });
 
   it('folds in Ritualist’s per-tick grant + the run-wide Eternal Knight tally (metric append) in one call', () => {

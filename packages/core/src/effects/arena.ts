@@ -1147,6 +1147,16 @@ export const ARENA_EFFECTS = {
    *  in-combat Shout re-fire treated it as "economy" and deferred it to settle — i.e. it did nothing during
    *  the fight (owner report 2026-08-26). N is floored at 1 so a body that never went through the shop's play
    *  path (summoned, Discovered onto the board) still pays its printed +2/+3 rather than nothing. */
+  /** Splitboon Adept (Choose One): give the two adjacent bodies +atk/+hp — golden doubles. Shout family, so a
+   *  combat re-fire (Ryme / Myra) buffs its neighbours in the fight, exactly as Conductor's does. */
+  battlecryBuffAdjacent(arena: EffectArena, params: Record<string, unknown>): void {
+    const g = arena.self.golden ? 2 : 1;
+    const a = (typeof params.attack === 'number' ? params.attack : 0) * g;
+    const h = (typeof params.health === 'number' ? params.health : 0) * g;
+    if (a <= 0 && h <= 0) return;
+    for (const adj of arena.neighboursOf(arena.self)) arena.buff(adj, a, h);
+  },
+
   battlecryConductorAdjacent(arena: EffectArena, params: Record<string, unknown>): void {
     const n = Math.max(1, arena.conductorTally());
     const a = (typeof params.attack === 'number' ? params.attack : 2) * n;

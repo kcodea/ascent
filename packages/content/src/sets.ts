@@ -14,7 +14,7 @@ import { SET2_NEUTRAL } from './cards/set2/neutral';
 import { SET2_DRAGONS } from './cards/set2/dragons';
 import { SET2_BEASTS } from './cards/set2/beasts';
 import { SET2_SPELLS } from './cards/set2/spells';
-import { SET3_CARDS, SET3_DWARVES, SET3_UNDEAD } from './cards/set3';
+import { SET3_CARDS, SET3_DWARVES, SET3_UNDEAD, SET3_NEUTRAL } from './cards/set3';
 
 /**
  * SET 3's SHARED SPELL POOL (owner list 2026-08-03: "they will be there no matter what") — the neutral spell
@@ -168,6 +168,27 @@ const SET1_UNDEAD_IN_SET3: readonly CardDef[] = [
 ];
 
 /**
+ * NEUTRALS that carry into SET 3 (owner roster 2026-09-09) — opted in BY ID from set 1 and set 2, SHARED
+ * definitions like every other carry-over (a re-spec here would rebalance the source set; set 3's own version
+ * of a card is a FORK in `cards/set3/neutral.ts` under a new id — Yazzus is the first).
+ *
+ * Owner rulings on the roster: Bellringer Voss, Wayfinder, Black Belt Brian and Steward of Spells keep their
+ * CURRENT stats (the sheet's numbers were stale); Sylus and Drakko are renamed for every set (display only,
+ * ids unchanged); Blaster is restored from the archive as a set-3 card (`cards/set3/neutral.ts`).
+ * Salvatore McKlusky and Anubis live in set 1's TIER7 list, hence the second filter.
+ */
+const SET1_NEUTRALS_IN_SET3: readonly CardDef[] = [
+  ...NEUTRAL.filter((c) => [
+    'venom', 'arenaheckler', 'tauntbreaker', 'wayfinder', 'blackbelt', 'jenkins', 'sylus', 'drummer', 'chronos',
+    'stewardofspells', 'joker',
+  ].includes(c.id)),
+  ...TIER7.filter((c) => c.id === 'salvatore'),
+];
+const SET2_NEUTRALS_IN_SET3: readonly CardDef[] = SET2_NEUTRAL.filter((c) =>
+  ['k_pouchpincher', 'n2_spellsword', 'n2_bellringer', 'n2_paragon'].includes(c.id),
+);
+
+/**
  * ── Card sets ──────────────────────────────────────────────────────────────────────────────────────────
  *
  * A **set** is the pool of cards a run can draw from. Sets are built in parallel and switched live, exactly
@@ -286,7 +307,8 @@ export const SETS: Record<SetId, SetDef> = {
     // rather than folded into `SET3_CARDS`, so the Kobolds' positions never moved. The Ales are spells and go
     // last with the other spells.
     // Then the Undead (2026-09-09): set 3's own, then the carried set-1 ones — appended after the Dwarves, spells still last.
-    own: [...SET3_CARDS, ...SET2_KOBOLDS_IN_SET3, ...SET3_DWARVES, ...SET2_DWARVES_IN_SET3, ...SET3_UNDEAD, ...SET1_UNDEAD_IN_SET3, ...SET3_SHARED_SPELLS, ...SET2_ALES_IN_SET3], // → packages/content/src/cards/set3/*.ts
+    // Then the NEUTRALS (2026-09-09): set 3's own (Blaster, Splitboon, the set-3 Yazzus…), then the carried set-1 and set-2 ones.
+    own: [...SET3_CARDS, ...SET2_KOBOLDS_IN_SET3, ...SET3_DWARVES, ...SET2_DWARVES_IN_SET3, ...SET3_UNDEAD, ...SET1_UNDEAD_IN_SET3, ...SET3_NEUTRAL, ...SET1_NEUTRALS_IN_SET3, ...SET2_NEUTRALS_IN_SET3, ...SET3_SHARED_SPELLS, ...SET2_ALES_IN_SET3], // → packages/content/src/cards/set3/*.ts
   },
 };
 

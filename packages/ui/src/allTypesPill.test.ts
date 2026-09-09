@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { readdirSync, existsSync } from 'node:fs';
 import { CARD_INDEX } from '@game/content';
 import { HEROES } from '@game/sim';
+import { ART_ALIAS } from './artAlias';
 
 /**
  * "ALL TYPES" cards must never print their data tribe (owner report 2026-08-20: Lab Experiment, Paragon and
@@ -52,6 +53,9 @@ const ART_PENDING = new Set<string>([
   // properly-named `UnbridledMight.png` that resolved the old UnbridledWrath near-miss). Grand Larceny is
   // the one Gift still awaiting a master.
   'gift_larceny',
+  // SET 3 NEUTRALS (tranche 1, 2026-09-09): Splitboon Adept is authored ahead of its master (the owner's
+  // "needs art" rows). The set-3 Yazzus fork wears the original Yazzus portrait (same card, same name).
+  'n3_splitboon',
   // SET 3 DWARVES: NONE LEFT — Tankerchief's master landed 2026-09-09.
   // SET 3 UNDEAD: NONE LEFT — the Hierophant's master landed 2026-09-09 (second art pass).
   // SET 3 KOBOLDS: NONE LEFT. The whole roster is arted as of 2026-08-31 — the last master (Gemsmith, both
@@ -69,7 +73,8 @@ describe('art coverage for live cards', () => {
       // excluded: Alchemist Frank has his portrait, so every Equip minion is held to the same bar as any other
       // card, and the next one authored without art fails here rather than shipping a tribe sprite.
       .filter((c) => !c.id.startsWith('c3_') && !c.id.startsWith('hm_test_') && !ART_PENDING.has(c.id))
-      .filter((c) => !minions.has(c.id) && !spells.has(c.id))
+      // An aliased id (the set-3 Yazzus fork) is arted by the file it points at.
+      .filter((c) => !minions.has(ART_ALIAS[c.id] ?? c.id) && !spells.has(c.id))
       .map((c) => `${c.id} (${c.name})`);
     expect(missing, `these live cards render the tribe-sprite fallback instead of their art`).toEqual([]);
   });

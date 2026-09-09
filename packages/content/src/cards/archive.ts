@@ -27,19 +27,6 @@ export const ARCHIVED_CARDS: CardDef[] = [
     text: '**Start of Combat:** give a **Dwarf +3/+3**. Repeat for every **Dwarven Ale** cast this turn.',
     goldenText: '**Start of Combat:** give a **Dwarf +6/+6**. Repeat for every **Dwarven Ale** cast this turn.',
   },
-  {
-    // ARCHIVED 2026-08-18 (owner). Moved verbatim from set1/neutral.ts — belonged to set 1 (+ carried into set 2).
-    id: 'blaster',
-    name: 'Blaster',
-    tribe: 'neutral',
-    tier: 4,
-    attack: 5,
-    health: 3,
-    keywords: ['T'],
-    effects: [{ on: 'onDeath', do: 'deathrattleDamageAll', params: { amount: 3 } }],
-    text: '**Deathrattle:** deal **3** damage to ALL minions.',
-    goldenText: '**Deathrattle:** deal **6** damage to ALL minions.',
-  },
   // ── 2026-08-12 owner archive batch ─────────────────────────────────────────────────────────────────────
   {
     // ARCHIVED 2026-08-12 (owner). Moved verbatim from set2/demons.ts — belongs to no set now.

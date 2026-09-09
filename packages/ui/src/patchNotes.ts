@@ -56,6 +56,26 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-09',
+    label: 'Set 3 Neutrals I',
+    changes: [
+      {
+        category: 'New Card',
+        text: 'The first of Set 3\'s Neutrals: Splitboon Adept, a Set 3 Yazzus, and Blaster returns from the archive, with fifteen returning Neutrals.',
+        details: [
+          'Splitboon Adept (Tier 3, 3/4): Choose One — give a friendly minion +6/+6, or give adjacent minions +3/+3.',
+          'Yazzus (Set 3 only — Tier 6, 4/8): your targeted spells cast an additional time. That now includes Rubies. Set 2\'s Yazzus is unchanged.',
+          'Blaster (Tier 4, 5/3) is back in Set 3: Taunt. Echo — deal 3 damage to all minions.',
+          'Returning in Set 3: Cheap Date, Coppercoat Spellsword, Venom, Arena Heckler, Tauntbreaker, Wayfinder, Bellringer Voss, Black Belt Brian, Jensen & Fi, Sylus, Drakko, Chronos, Steward of Spells, Paragon, Mysterious Joker and Salvatore McKlusky.',
+        ],
+      },
+      {
+        category: 'Card Change',
+        text: 'Sylus the Reaper and Drakko the Drummer are now simply Sylus and Drakko, in every set.',
+      },
+    ],
+  },
+  {
+    date: '2026-09-09',
     label: 'Set 3 Undead',
     changes: [
       {

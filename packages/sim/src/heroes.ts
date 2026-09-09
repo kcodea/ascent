@@ -258,7 +258,7 @@ export const HEROES: HeroDef[] = [
       kind: 'quest',
       passive: true, // a quest — the work happens in the buy case, nothing to arm
       oncePerGame: true,
-      text: 'After you buy 5 **Shout** minions, get Drakko the Drummer.',
+      text: 'After you buy 5 **Shout** minions, get **Drakko**.',
     },
   },
   {

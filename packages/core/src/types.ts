@@ -607,6 +607,7 @@ export type EffectFactoryId =
   | 'battlecryBuffUndeadAttack' // Deathswarmer: Battlecry — give your Undead +Attack wherever they are; stacks into future buys
   | 'battlecryBuffBeastAttack' // (legacy) give your Beasts +Attack wherever they are; stacks into future buys
   | 'battlecryScoutSpread' // Squirl Scout: Battlecry — give a random friendly +N/+N per Beast owned; N snowballs per Squirl Scout played
+  | 'battlecryBuffAdjacent' // Splitboon Adept: Shout — give adjacent minions +atk/+hp (golden doubles)
   | 'battlecryConductorAdjacent' // Conductor: Shout — give adjacent minions +2N/+3N; N snowballs per Conductor played (×2 gilded)
   | 'battlecryBuffMagnetics' // Scrap Herald: Battlecry — give your Magnetic minions +atk/+hp wherever they are; stacks into future buys
   | 'battlecryBuffImps' // Imp Overseer: Battlecry — give your Imps +atk/+hp run-wide (shared impBuff enchant)

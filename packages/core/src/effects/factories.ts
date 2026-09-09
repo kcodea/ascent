@@ -1322,6 +1322,9 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   battlecryConductorAdjacent: (ctx, self, params) => {
     ARENA_EFFECTS.battlecryConductorAdjacent(combatArena(ctx, self), params);
   },
+  battlecryBuffAdjacent: (ctx, self, params) => {
+    ARENA_EFFECTS.battlecryBuffAdjacent(combatArena(ctx, self), params);
+  },
   battlecryGrantBeastHunt: (ctx, self, params) => {
     ARENA_EFFECTS.battlecryGrantBeastHunt(combatArena(ctx, self), params);
   },

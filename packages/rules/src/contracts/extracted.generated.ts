@@ -8853,7 +8853,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "reviewStatus": "extracted",
     "extraction": {
       "extractor": "contracts-extract@1",
-      "confidence": "high"
+      "confidence": "medium",
+      "unparsed": [
+        "spellCastBuffUndeadAttack.includeRubies"
+      ]
     },
     "setIds": [
       "set1",

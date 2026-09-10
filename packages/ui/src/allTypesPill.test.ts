@@ -53,10 +53,8 @@ const ART_PENDING = new Set<string>([
   // properly-named `UnbridledMight.png` that resolved the old UnbridledWrath near-miss). Grand Larceny is
   // the one Gift still awaiting a master.
   'gift_larceny',
-  // SET 3 NEUTRALS (2026-09-09): Splitboon Adept, Defender, Inspector Pell and the Tower Shield all have their
-  // masters wired; the set-3 Yazzus fork wears the original Yazzus portrait (an alias). The CLUE spell is the
-  // one card of the batch still ahead of its art.
-  'clue',
+  // SET 3 NEUTRALS: NONE LEFT — the Clue master landed 2026-09-09 (the set-3 Yazzus fork wears the original
+  // Yazzus portrait via an alias, so it never needed one).
   // SET 3 DWARVES: NONE LEFT — Tankerchief's master landed 2026-09-09.
   // SET 3 UNDEAD: NONE LEFT — the Hierophant's master landed 2026-09-09 (second art pass).
   // SET 3 KOBOLDS: NONE LEFT. The whole roster is arted as of 2026-08-31 — the last master (Gemsmith, both

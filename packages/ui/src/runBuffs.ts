@@ -116,6 +116,12 @@ export function gatherRunBuffs(run: RunState, combat?: CombatBuffDelta | null): 
   const rbH = (run.rubyBonus?.health ?? 0) + (combat?.rubyHealth ?? 0);
   if (rbA > 0 || rbH > 0) rows.push({ key: 'ruby', label: 'Ruby power', value: `+${rbA}/+${rbH}` });
 
+  // Clue power (set 3, owner ask 2026-09-09) — the run's "your Clues are worth more" value, the same kind of
+  // run buff as Ruby power: every Clue cast from now on grants base 1/1 plus this. Shop-only state (Clues are
+  // never cast in combat), so there is no combat-side telegraph to add.
+  const clue = run.clueBonus ?? 0;
+  if (clue > 0) rows.push({ key: 'clue', label: 'Clue power', value: `+${clue}/+${clue}` });
+
   // Permanent Undead buff everywhere: the "+Attack wherever they are" creation bonus (Deathswarmer / Forsaken
   // Weaver / Karthus) plus the run-wide Undead aura (Lantern of Souls).
   const undA = (run.undeadBuyAtk ?? 0) + (run.undeadAttackBonus ?? 0) + (combat?.auras.undead?.attack ?? 0);

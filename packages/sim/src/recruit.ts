@@ -1602,6 +1602,28 @@ export function teachMagePup(state: RunState, spellId: string): void {
  * read as a Shop spell: the run and per-turn tallies, the board's `spellCast` watchers, and the spellCast rune
  * meter. The quest meter rides the reducer's `spellsCast` delta, so it follows for free.
  */
+/**
+ * A RUBY cast reaches the `spellCast` watchers that OPT IN with `includeRubies: true` on their effect (Forsaken
+ * Mage — owner 2026-09-09: "a spell", so Rubies and every other spell count). Watchers only; no counters, no
+ * thresholds — Rubies keep their own meter, and Rune of the Spellstone's `countRubyAsShopSpell` below is the
+ * separate, run-wide "a Ruby IS a Shop spell" rule. Fires once per resolved cast, like a real spell.
+ */
+export function fireSpellCastWatchersForRuby(state: RunState, rubyDef: CardDef, casts: number): void {
+  if (casts <= 0) return;
+  const ctx = makeContext(state);
+  for (let i = 0; i < casts; i++) {
+    for (const card of [...state.board]) {
+      const def = CARD_INDEX[card.cardId];
+      if (!def) continue;
+      for (const effect of def.effects) {
+        if (effect.on !== 'spellCast' || effect.params?.includeRubies !== true) continue;
+        const fn = RECRUIT_FACTORIES[effect.do];
+        if (fn) captureBuffFx(ctx.state, card, 'minion', () => fn(ctx, card, effect.params ?? {}, { minion: card, spellDef: rubyDef }));
+      }
+    }
+  }
+}
+
 export function countRubyAsShopSpell(state: RunState, rubyDef: CardDef, casts: number): void {
   if (casts <= 0) return;
   state.spellsCast += casts;

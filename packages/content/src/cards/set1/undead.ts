@@ -209,9 +209,12 @@ export const UNDEAD: CardDef[] = [
     attack: 5,
     health: 8,
     keywords: [],
-    effects: [{ on: 'spellCast', do: 'spellCastBuffUndeadAttack', params: { attack: 4 } }],
-    text: 'When you cast a Shop spell, give your **Undead Aura** **+4 Attack**.',
-    goldenText: 'When you cast a Shop spell, give your **Undead Aura** **+8 Attack**.',
+    // "a spell", not "a Shop spell" (owner 2026-09-09): Rubies and the hand spells count too. Gifts already
+    // reach every `spellCast` watcher through `noteSpellCast`; a RUBY reaches only the watchers that opt in
+    // with `includeRubies` (see `fireSpellCastWatchersForRuby`) — this one does.
+    effects: [{ on: 'spellCast', do: 'spellCastBuffUndeadAttack', params: { attack: 4, includeRubies: true } }],
+    text: 'When you cast a spell, give your **Undead Aura** **+4 Attack**.',
+    goldenText: 'When you cast a spell, give your **Undead Aura** **+8 Attack**.',
   },
   {
     // Avenge engine: every 3rd friendly death summons a Spear Warden that attacks IMMEDIATELY (out of

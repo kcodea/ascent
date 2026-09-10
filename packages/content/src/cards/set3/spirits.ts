@@ -140,7 +140,7 @@ export const SET3_SPIRITS: readonly CardDef[] = [
   {
     // Equip minion: Revelmaker (2 Gold) — a random Reveler to hand (gilded: two).
     id: 'sp3_paradeartificer',
-    name: 'Parade Artificer',
+    name: 'Spirit Artificer', // 'Parade Artificer' on the sheet; renamed by the owner 2026-09-09 (id unchanged)
     tribe: 'spirit',
     tier: 4,
     attack: 4,

@@ -650,8 +650,21 @@ export const Card = memo(function Card({
   // so only the referenced cards appear. Rendered at full size with `forceFull` so it's readable.
   const popupCards: CardView[] = [...(showText ? [] : [card]), ...(refCards ?? [])];
   const hasPopup = popupCards.length > 0;
-  const [refPos, setRefPos] = useState<{ left: number; top: number; origin: 'left' | 'right' } | null>(null);
+  const [refPos, setRefPos] = useState<{ left: number; top: number; origin: 'left' | 'right'; cardTop: number } | null>(null);
   const refTimer = useRef<number | null>(null);
+  const popRef = useRef<HTMLDivElement | null>(null);
+  // SECOND PASS — re-clamp against the popup's REAL height once it has rendered. The opening estimate
+  // (`estH` below, plate aspect × width × zoom) overshoots the rendered cluster, and for a HAND card — which
+  // sits near the bottom of the screen — that inflated height made the bottom clamp shove the popup ~200px
+  // above the card, floating over the board and the shop row (owner report 2026-09-09, Defender → Tower
+  // Shield). Measuring the mounted element and settling `top` once is what puts it back beside the card.
+  useLayoutEffect(() => {
+    if (!refPos || !popRef.current) return;
+    const h = popRef.current.getBoundingClientRect().height;
+    if (h <= 0) return;
+    const top = Math.max(6, Math.min(refPos.cardTop, window.innerHeight - h - 6));
+    if (Math.abs(top - refPos.top) > 0.5) setRefPos({ ...refPos, top });
+  }, [refPos]);
   // Open after a short hover (so it doesn't flash while skimming the board); position is measured when
   // it opens, so it tracks the card even if it popped up (hand) meanwhile. The full card is taller than
   // a compact tile, so the top is clamped to keep the popup on-screen.
@@ -686,7 +699,7 @@ export const Card = memo(function Card({
       const flip = left < r.left;
       const estH = cardW * 1.5550; // plate aspect (800×1244) — clamp so it stays on-screen
       const top = Math.max(6, Math.min(r.top, window.innerHeight - estH - 6));
-      setRefPos({ left, top, origin: flip ? 'right' : 'left' });
+      setRefPos({ left, top, origin: flip ? 'right' : 'left', cardTop: r.top });
     }, showText ? 250 : 100);
   };
   const hideRefTip = (): void => {
@@ -1193,7 +1206,7 @@ export const Card = memo(function Card({
           Safe for `.card.plated`'s `isolation: isolate` — the popup is portalled to <body>, so it's never
           the element a combat lunge is transforming. */}
       {refPos && hasPopup && createPortal(
-        <div className="cardref" style={{ left: refPos.left, top: refPos.top } as CSSProperties}>
+        <div className="cardref" ref={popRef} style={{ left: refPos.left, top: refPos.top } as CSSProperties}>
           <div className="cardref-inner" style={{ transformOrigin: `${refPos.origin} center` } as CSSProperties}>
             {/* When the reveal opens LEFT (flipped, origin 'right'), the cards sit nearest the hovered tile and
                 the defs go on the far (outward) side, so the column never laps back over the source. Opening

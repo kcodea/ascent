@@ -56,6 +56,24 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-09',
+    label: 'Forsaken Mage + fixes',
+    changes: [
+      {
+        category: 'Card Change',
+        text: 'Forsaken Mage now grows your Undead Aura when you cast ANY spell — Rubies, Tower Shields and Clues included, not only Shop spells.',
+      },
+      {
+        category: 'UI / Info',
+        text: 'Hovering a card in your hand no longer floats its referenced card high over the board — the preview sits level with the card.',
+      },
+      {
+        category: 'UI / Info',
+        text: 'Clue has its art, and the Set 3 Undead portraits picked up the latest masters.',
+      },
+    ],
+  },
+  {
+    date: '2026-09-09',
     label: 'Set 3 Neutrals III',
     changes: [
       {

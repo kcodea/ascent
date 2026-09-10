@@ -49,25 +49,10 @@ export interface KnownTextMismatch {
 
 export const KNOWN_TEXT_MISMATCH: Readonly<Record<string, KnownTextMismatch>> = {
   // Seeded from this lane's own first full run (2026-08-27) — every entry investigated before excusal.
-  // The Choose One family: the WP B extractor walks def.effects only, so choose-one payloads parse to
-  // ZERO effects while the draft still stamps confidence \'high\' — an extractor honesty gap this lane
-  // caught. The texts are right; the drafts are incomplete. Each pin deletes when the extractor learns
-  // choose-one payloads (queued for the WP B/H extraction follow-up).
-  shaper: { taxonomy: 'text-promises-absent-effect', kind: 'draft-contract-gap', why: 'Choose One card — extractor parses no choose-one payloads; text is right, draft incomplete (confidence over-claimed as high)' },
-  godfodder: { taxonomy: 'text-promises-absent-effect', kind: 'draft-contract-gap', why: 'Choose One card — same extractor choose-one blind spot as shaper' },
-  contractimp: { taxonomy: 'text-promises-absent-effect', kind: 'draft-contract-gap', why: 'Choose One token — same extractor choose-one blind spot as shaper' },
-  crestclimb: { taxonomy: 'text-promises-absent-effect', kind: 'draft-contract-gap', why: 'Choose One spell — same extractor choose-one blind spot as shaper' },
-  n3_splitboon: { taxonomy: 'text-promises-absent-effect', kind: 'draft-contract-gap', why: 'Choose One card (Set 3 Neutrals, 2026-09-09) — same extractor choose-one blind spot as shaper' },
-  k_veinbreaker: { taxonomy: 'text-promises-absent-effect', kind: 'draft-contract-gap', why: 'Choose One card — same extractor choose-one blind spot as shaper' },
-  // Gemsmith is k_veinbreaker's mechanic (both branches are rubyStatGain), so it reproduces the
-  // pin directly above it rather than being a new class of miss.
-  k3_forkvein: { taxonomy: 'text-promises-absent-effect', kind: 'draft-contract-gap', why: 'Choose One card — same extractor choose-one blind spot as shaper' },
-  n2_spellsword: { taxonomy: 'text-promises-absent-effect', kind: 'draft-contract-gap', why: 'Choose One card — same extractor choose-one blind spot as shaper' },
-  betterbot: {
-    taxonomy: 'text-promises-absent-effect',
-    kind: 'draft-contract-gap',
-    why: 'its Rally buff is implemented through the Magnetic weld path, not a def.effects entry, so the extractor parsed no effects (and stamped high confidence). The text is right; the draft is incomplete.',
-  },
+  // EMPTY as of 2026-09-10: hero:xerox's text was fixed ("an exact copy"), Kennelmaster's curated contract gained
+  // its Start of Combat leg, and the Choose One family + Better Bot's weld-carried Rally left when the extractor
+  // learned `chooseOne[].effects` and the `rallyMechAtk` claim. A new mismatch gets investigated and pinned here
+  // with its verdict before it may stand.
 };
 
 // ── comparison helpers ───────────────────────────────────────────────────────────────────────────────────

@@ -166,6 +166,10 @@ export function gatherRunBuffs(run: RunState, combat?: CombatBuffDelta | null): 
   // Permanent tavern buy bonus (Staff of Guel / Demonic Anomaly) — every minion you buy enters at +atk/+hp.
   const tav = run.tavernBuyBonus;
   if (tav && (tav.atk > 0 || tav.hp > 0)) rows.push({ key: 'tavern', label: 'Shop Stats', value: `+${tav.atk}/+${tav.hp}` });
+  // …itemized by SOURCE beneath the total (owner ask 2026-09-10): each rune / card that raised the channel.
+  for (const [source, v] of Object.entries(run.tavernBuyBonusSources ?? {})) {
+    if (v.atk > 0 || v.hp > 0) rows.push({ key: `tavern:${source}`, label: source, value: `+${v.atk}/+${v.hp}` });
+  }
 
   // Permanent SHOP-SLOT enchants (Market Tormentor / Feastmaster Vhal / Right Hand Hank -> right-most; Rune of
   // the Display Case -> left-most). These are run-long accumulators re-landed on every fresh roll, so they are

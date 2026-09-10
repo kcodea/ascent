@@ -202,6 +202,19 @@ describe('rune AVENGE / combat-local meters have a combat tally (audit 2026-08-0
   });
 });
 
+describe('Rune of Reinvestment shows its own contribution (owner ask 2026-09-10)', () => {
+  it('in combat: the buff earned so far this fight, per summon per copy held', () => {
+    expect(runeCombatTally('rune_reinvestment', 0, 0, 1)).toBeNull();
+    expect(runeCombatTally('rune_reinvestment', 0, 3, 1)).toBe('+3/+3');
+    expect(runeCombatTally('rune_reinvestment', 2, 3, 2), 'two copies pay two per summon').toBe('+6/+6');
+  });
+  it('in the shop: what the rune alone has given, off the provenance ledger', () => {
+    const run = { tavernBuyBonusSources: { 'Rune of Reinvestment': { atk: 4, hp: 4 }, 'Staff of Guel': { atk: 2, hp: 2 } } } as unknown as RunState;
+    expect(runeTally(run, 'rune_reinvestment')).toBe('+4/+4');
+    expect(runeTally({} as unknown as RunState, 'rune_reinvestment'), 'nothing paid yet → no counter').toBeNull();
+  });
+});
+
 describe('per-turn ACCUMULATOR runes show a live count (audit 2026-08-12)', () => {
   // The THRESHOLD regex above needs a NUMBER in the text, so "for every card you played this turn" — a meter
   // with no printed threshold — sailed past it, and Rune of the Lapidary shipped with no counter at all (the

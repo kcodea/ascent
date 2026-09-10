@@ -245,7 +245,7 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
       for (let i = 0; i < (self.golden ? 2 : 1); i++) castSpell(state, def); // the full shop cast pipeline
     },
     cardDef: (id) => CARD_INDEX[id],
-    gainShopBuff: (a, h) => { state.tavernBuyBonus.atk += a; state.tavernBuyBonus.hp += h; },
+    gainShopBuff: (a, h, source) => { state.tavernBuyBonus.atk += a; state.tavernBuyBonus.hp += h; creditShopBuffSource(state, source ?? nameOf(self), a, h); },
     grantUndeadAura: (a, h) => {
       // The Lantern channel. In the shop this run-wide aura is folded into every Undead's displayed stats
       // already, so raising it IS the whole grant — a board loop on top would double-apply it.
@@ -1381,10 +1381,19 @@ export function addTurnShopBuff(state: RunState, attack: number, health: number)
   state.tavernBuyBonusTurn = { atk: cur.atk + attack, hp: cur.hp + health };
 }
 
+/** Credit a shop-stat source in the provenance ledger (see `RunState.tavernBuyBonusSources`). Every writer of
+ *  `tavernBuyBonus` calls this beside the write, so the ledger's sum stays equal to the channel. */
+export function creditShopBuffSource(state: RunState, source: string, attack: number, health: number): void {
+  if (attack === 0 && health === 0) return;
+  const cur = state.tavernBuyBonusSources?.[source] ?? { atk: 0, hp: 0 };
+  state.tavernBuyBonusSources = { ...(state.tavernBuyBonusSources ?? {}), [source]: { atk: cur.atk + attack, hp: cur.hp + health } };
+}
+
 export function applyRunShopBuff(state: RunState, attack: number, health: number, source: string, sourceCardId?: string): void {
   if (attack <= 0 && health <= 0) return;
   state.tavernBuyBonus.atk += attack;
   state.tavernBuyBonus.hp += health;
+  creditShopBuffSource(state, source, attack, health);
   buffFodderRunWide(state, attack, health, source, false);
   // Name the card for the shop-wide FX stamp (presentation only — see `RunState.shopBuffAllSource`).
   if (sourceCardId) state.shopBuffAllSource = sourceCardId;
@@ -7004,13 +7013,11 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   spellBuffShop: (ctx, _self, params) => {
     const a = num(params.attack, 2) + spellAttackBonus(ctx.state);
     const h = num(params.health, 2) + spellHealthBonus(ctx.state);
-    ctx.state.tavernBuyBonus.atk += a;
-    ctx.state.tavernBuyBonus.hp += h;
-    // Tavern buffs feed Fodder too — enchant the Fodder type run-wide (like Ritualist), so Demons
-    // eating Fodder, and any Fodder you take, carry the Staff's buff. A directly-bought Fodder gets it
-    // through this enchant, not the buy-buff (the buy path + shop view skip FD to avoid double-applying).
-    // NO gust: the cue is Fodder-buff exclusive (owner 2026-07-16) — the Staff's enchant is a side effect.
-    buffFodderRunWide(ctx.state, a, h, 'Staff of Guel', false);
+    // The one channel helper: raises `tavernBuyBonus`, credits "Staff of Guel" in the provenance ledger, and
+    // enchants the Fodder type run-wide (like Ritualist) so Demons eating Fodder, and any Fodder you take, carry
+    // the Staff's buff — a directly-bought Fodder gets it through that enchant, not the buy-buff (the buy path
+    // + shop view skip FD to avoid double-applying). NO gust: the cue is Fodder-buff exclusive (owner 2026-07-16).
+    applyRunShopBuff(ctx.state, a, h, 'Staff of Guel');
   },
 
   /** Lantern of Souls — cast: your Undead get +`amount` Attack (plus spell power on Attack AND Health)

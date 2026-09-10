@@ -442,7 +442,7 @@ function combatArena(ctx: CombatContext, self: Minion): EffectArena {
     castRepeat: (_spellId, body) => castInCombat(ctx, self, body),
     castNamedSpell: (spellId) => castNamedSpellInCombat(ctx, self, spellId),
     cardDef: (id) => ctx.getCard(id),
-    gainShopBuff: (a, h) => ctx.gainTavernBuy(a, h, self.side, self.uid),
+    gainShopBuff: (a, h, source) => ctx.gainTavernBuy(a, h, self.side, self.uid, source),
     grantUndeadAura: (a, h) => {
       // The Lantern channel's whole combat ritual: the living Undead feel it NOW, and the run-wide aura is
       // carried back at settle (which is what makes it permanent + visible on the shop board).

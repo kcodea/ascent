@@ -1165,4 +1165,25 @@ export const APPROVED_RULES: GameRule[] = [
       + 'produce different shops; no golden pinned specific offers.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/shopDrawWeight.test.ts'], lastVerifiedAt: '2026-09-10' },
   },
+  {
+    id: 'R-PROV-01',
+    title: 'Every stat names its source — runes included; the shop channel is never anonymous',
+    statement:
+      'Every stat a minion carries beyond its printed base names the individual source that granted it — the card, '
+      + 'the spell, or the specific RUNE ("Rune of Reinvestment: +4/+4"), never a catch-all ("Tavern", "Shop Stats", '
+      + '"Staff of Guel" standing in for the whole channel). The run-wide shop channel keeps a per-source ledger that '
+      + 'sums to the channel exactly; a bought minion\'s buff breakdown prints one line per source; a rune that feeds '
+      + 'the channel can show what it alone has given. Doc Bot holds the ledger to the channel after every action.',
+    domain: 'persistence',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-10 (Rune of Reinvestment ask)', quote: 'this should also be part of docbot\'s oracle. we should be extremely specific from where stats and buffs came from, referencing individual runes if necessary. it\'ll help to parse out bugs.' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts creditShopBuffSource / applyRunShopBuff; packages/sim/src/reducer.ts (buy path: one addBuff per ledger source; combat carry-back credits playerTavernBuyGainSources); packages/core/src/combat/simulate.ts tavernBuyGainSources' },
+    ],
+    currentBehaviour:
+      'Conforms — 2026-09-10: the ledger (`tavernBuyBonusSources`) is written by every channel writer; the buy path '
+      + 'bakes one line per source; the Reinvestment badge reads its own line (shop) and the live summon count (combat). '
+      + 'Before this the channel was one anonymous pair relabelled "Staff of Guel" at buy time.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/docbot/conservationLaws.test.ts', 'packages/ui/src/tallyCoverage.test.ts'], lastVerifiedAt: '2026-09-10' },
+  },
 ];

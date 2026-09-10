@@ -234,7 +234,13 @@ export function simulate(
     enemy: { attack: 0, health: 0 },
   };
   const boardBuffGain = { attack: 0, health: 0 }; // Rune of Overflow — permanent, carried back to the warband
-  const tavernBuyGain = { attack: 0, health: 0 }; // Demon Horse — carried back to `tavernBuyBonus` // Set 2 — rubyBonus gained this combat (Veinbreaker), carried back
+  const tavernBuyGain = { attack: 0, health: 0 }; // Demon Horse — carried back to `tavernBuyBonus`
+  // …and WHO raised it, by name (a rune or the body): the run's per-source shop-stat ledger (owner ask 2026-09-10).
+  const tavernBuyGainSources: Record<string, { attack: number; health: number }> = {};
+  const creditTavern = (name: string, attack: number, health: number): void => {
+    const cur = tavernBuyGainSources[name] ?? { attack: 0, health: 0 };
+    tavernBuyGainSources[name] = { attack: cur.attack + attack, health: cur.health + health };
+  }; // Set 2 — rubyBonus gained this combat (Veinbreaker), carried back
   const nextTurnSpellCopies = { n: 0 }; // Set 2 — Scalefeather Echoes: next-turn first-spell copies, carried back
   let undeadBuyAtkGain = 0; // permanent Undead buy-time attack from this combat (Karthus)
   const beastExtraGain: Record<Side, { hunt: number; ritual: number }> = { // Elderhorn refired in combat —
@@ -1005,10 +1011,11 @@ export function simulate(
       if (side !== 'player' || count <= 0) return;
       nextTurnSpellCopies.n += count;
     },
-    gainTavernBuy: (attack, health, side, sourceUid) => {
+    gainTavernBuy: (attack, health, side, sourceUid, sourceName) => {
       if (side !== 'player') return; // enemies have no shop
       tavernBuyGain.attack += attack;
       tavernBuyGain.health += health;
+      creditTavern(sourceName ?? (sourceUid ? boards.player.find((m) => m.uid === sourceUid)?.name : undefined) ?? 'Combat', attack, health);
       // Same telegraph as the Imp buff above — it otherwise applies to the NEXT shop with nothing shown here.
       if (sourceUid && (attack !== 0 || health !== 0)) emit({ type: 'sc', source: sourceUid, text: `+${attack}/+${health} Shop` });
     },
@@ -1604,7 +1611,7 @@ export function simulate(
         const remains = modsFor('player').runeRemains ?? 0;
         if (remains > 0 && playerSummonCount % 5 === 0) {
           fireTrigger('runeRemains', 'player');
-          ctx.gainTavernBuy(remains, remains, 'player');
+          ctx.gainTavernBuy(remains, remains, 'player', undefined, 'Rune of Remains');
         }
       }
       if (cards[minion.cardId]?.imp) { playerImpsSummoned += 1; questEvents.push({ step: stepN, kind: 'summonImp', tribes: [] }); } // Imp Census / Implosion / Pit Without End
@@ -4196,6 +4203,7 @@ export function simulate(
     fireTrigger('runeReinvestment', 'player'); // pulse the badge on the settle payout (once, not per summon)
     tavernBuyGain.attack += reinvest * playerSummonCount;
     tavernBuyGain.health += reinvest * playerSummonCount;
+    creditTavern('Rune of Reinvestment', reinvest * playerSummonCount, reinvest * playerSummonCount);
   }
   // Flash's LAST claim: only knowable now the fight is over. Granted here rather than at settle so it still
   // rides `playerHandGrants` and flies to hand in the replay, exactly like the `first` branch does live.
@@ -4245,6 +4253,7 @@ export function simulate(
     playerHandSummoned: handSummoned.length > 0 ? handSummoned : undefined,
     playerBeastExtraGain: (beastExtraGain.player.hunt > 0 || beastExtraGain.player.ritual > 0) ? { ...beastExtraGain.player } : undefined,
     playerTavernBuyGain: (tavernBuyGain.attack > 0 || tavernBuyGain.health > 0) ? { ...tavernBuyGain } : undefined,
+    playerTavernBuyGainSources: Object.keys(tavernBuyGainSources).length > 0 ? { ...tavernBuyGainSources } : undefined,
     playerWildHuntGrown: wildHuntGrown.player > 0 ? wildHuntGrown.player : undefined,
     playerSpellPower: spellPowerGain.attack !== 0 || spellPowerGain.health !== 0 ? spellPowerGain : undefined,
     playerCardBuffs: cardBuffGains.length > 0 ? cardBuffGains : undefined,

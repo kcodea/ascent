@@ -18,7 +18,7 @@ import {
   equipmentCostOf, equipmentUsesLeft, expireEquipmentTurn, rebuildEquipment,
   selectEquipment, selectedEquipment,
 } from './equipment';
-import { applyChooseOnePlayed, spendChooseBothCharge, noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, roundedSpellbookCostOf, buyoutCostOf, commissionOffer, COMMISSION_DELAY, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, stampSharedSpoils, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, chooseBothActive, chooseOneNeedsChoice, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, fireDemonPlayRunes, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, rubyStatBonus, yazzusExtraCasts, consumeGrimoireCharge, countRubyAsShopSpell, fireSpellCastWatchersForRuby, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, landBorrowed, settlePendingDeath, stampEquipFx, fireEquipmentTriggers, buyHealthAura, undeadBuyBonus, weldMagnetic , defIsTribe, handCardLocked} from './recruit';
+import { applyChooseOnePlayed, spendChooseBothCharge, noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, roundedSpellbookCostOf, buyoutCostOf, commissionOffer, COMMISSION_DELAY, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, stampSharedSpoils, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, chooseBothActive, chooseOneNeedsChoice, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, fireDemonPlayRunes, creditShopBuffSource, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, rubyStatBonus, yazzusExtraCasts, consumeGrimoireCharge, countRubyAsShopSpell, fireSpellCastWatchersForRuby, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, landBorrowed, settlePendingDeath, stampEquipFx, fireEquipmentTriggers, buyHealthAura, undeadBuyBonus, weldMagnetic , defIsTribe, handCardLocked} from './recruit';
 import { handCap, mixSeed, reservedHandSlots, TAG, henchmanOffer, type Action, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type ShopCard, type CiaSuit, type Commission, type CommissionKind, type RunState, type RubyLandedFx, gateUses, procRune, procRuneId, runeBuffMagnitude } from './state';
 import { alignmentsOf } from './alignment';
 import { RUNE_DUP_SWEETENER, RUNE_DUP_UNIQUE, forgeFilteredDuplicate, runeStacksOf } from './runeDup';
@@ -1360,7 +1360,17 @@ function reduceCore(state: RunState, action: Action): RunState {
       // Fodder is excluded: it already carries the Staff buff via its run-wide enchant (cardBuff above),
       // so applying it again here would double it on the rare directly-bought Fodder.
       if ((s.tavernBuyBonus.atk || s.tavernBuyBonus.hp) && !card.keywords.includes('FD')) {
-        addBuff(bought, 'Staff of Guel', s.tavernBuyBonus.atk, s.tavernBuyBonus.hp);
+        // ONE LINE PER SOURCE (owner ask 2026-09-10): the ledger names every contributor — "Rune of
+        // Reinvestment", "Contract Butcher", "Staff of Guel"… — instead of a blanket "Staff of Guel" for the whole
+        // channel. Any unattributed remainder (a legacy save, or a writer that bypassed the ledger — Doc Bot LAW 4
+        // fails on the latter) lands as "Shop Stats" so the buff breakdown still sums to what the offer promised.
+        let restA = s.tavernBuyBonus.atk, restH = s.tavernBuyBonus.hp;
+        for (const [source, v] of Object.entries(s.tavernBuyBonusSources ?? {})) {
+          if (v.atk === 0 && v.hp === 0) continue;
+          addBuff(bought, source, v.atk, v.hp);
+          restA -= v.atk; restH -= v.hp;
+        }
+        if (restA !== 0 || restH !== 0) addBuff(bought, 'Shop Stats', restA, restH);
       }
       // …and the THIS-TURN shop enchant (`tavernBuyBonusTurn` — Rune of the Merchant's Chorus, Night Market
       // Horror) on exactly the same rails, with the same Fodder exclusion for the same reason.
@@ -4068,6 +4078,10 @@ function settleCombat(s: RunState, result: CombatResult): void {
   if (result.playerTavernBuyGain) {
     s.tavernBuyBonus.atk += result.playerTavernBuyGain.attack;
     s.tavernBuyBonus.hp += result.playerTavernBuyGain.health;
+    // Provenance: the fight says who raised it (Rune of Reinvestment, Rune of Remains, a Demon Horse…); a result
+    // without the per-source split (an older replay) is credited as one "Combat" line.
+    const sources = result.playerTavernBuyGainSources ?? { Combat: result.playerTavernBuyGain };
+    for (const [name, v] of Object.entries(sources)) creditShopBuffSource(s, name, v.attack, v.health);
   }
   if (result.playerRubyBonusGain && (result.playerRubyBonusGain.attack > 0 || result.playerRubyBonusGain.health > 0)) {
     const g = result.playerRubyBonusGain;

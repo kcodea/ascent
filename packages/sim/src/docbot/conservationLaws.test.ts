@@ -37,6 +37,11 @@
  *      are unrecorded by design: self-buffs (pulse channel, see `captureBuffFx`), direct reducer buffs
  *      (hero powers, rune procs, quest rewards), run-wide `cardBuffs` baking, and golden-triple merges.
  *      Inert actions (reposition / freeze) must change no stat and no gold at all.
+ *
+ *   4. SHOP-STAT PROVENANCE (R-PROV-01, owner 2026-09-10). The run-wide shop channel `tavernBuyBonus` is
+ *      never anonymous: `tavernBuyBonusSources` names every contributor (a rune, a card, a spell) and its sum
+ *      equals the channel EXACTLY after every action, and no key is a catch-all ("Tavern", "Shop Stats", "").
+ *      A writer that bypasses `creditShopBuffSource` shows up here as a gap between the ledger and the channel.
  */
 import { describe, expect, it } from 'vitest';
 import { CARD_INDEX } from '@game/content';
@@ -132,6 +137,25 @@ function provenanceViolation(prev: RunState, next: RunState): string | null {
 
 const statFingerprint = (s: RunState): string => s.board.map((c) => `${c.uid}:${c.attack}/${c.health}`).join(',');
 
+// ── LAW 4: shop-stat provenance (R-PROV-01) ──────────────────────────────────────────────────────────────
+
+const CATCH_ALL_SOURCES = new Set(['', 'Tavern', 'Shop Stats', 'Tavern buff', 'Shop Enchant']);
+
+/** Null = the per-source ledger names every point of the run-wide shop channel, with no catch-all label. */
+export function shopProvenanceViolation(s: RunState): string | null {
+  const ledger = s.tavernBuyBonusSources ?? {};
+  let atk = 0, hp = 0;
+  for (const [source, v] of Object.entries(ledger)) {
+    if (CATCH_ALL_SOURCES.has(source)) return `shop-stat ledger carries a catch-all source "${source}" — every point must name its rune / card / spell`;
+    atk += v.atk; hp += v.hp;
+  }
+  const chan = s.tavernBuyBonus ?? { atk: 0, hp: 0 };
+  if (atk !== chan.atk || hp !== chan.hp) {
+    return `shop-stat ledger sums to +${atk}/+${hp} but tavernBuyBonus is +${chan.atk}/+${chan.hp} — a writer bypassed creditShopBuffSource`;
+  }
+  return null;
+}
+
 describe('Doc Bot — conservation laws (shop)', () => {
   it('gold ledger + stat provenance hold across 8 seeds × 60 random legal actions', () => {
     for (let seed = 1; seed <= 8; seed++) {
@@ -145,6 +169,8 @@ describe('Doc Bot — conservation laws (shop)', () => {
         expect(ledger, `${at}: ${ledger}`).toBeNull();
         const prov = provenanceViolation(s, next);
         expect(prov, `${at}: ${prov}`).toBeNull();
+        const shopProv = shopProvenanceViolation(next);
+        expect(shopProv, `${at}: ${shopProv}`).toBeNull();
         // Inert actions: reposition and freeze have NO gold or stat channel at all.
         if ((a.type === 'reposition' || a.type === 'freeze') && next !== s) {
           expect(next.embers, `${at}: ${a.type} moved gold`).toBe(s.embers);
@@ -221,6 +247,15 @@ describe('Doc Bot — conservation laws (shop)', () => {
       recruitBuffFx: [{ targetUid: 'b1', attack: 5, health: 5, sourceCardId: 'pup', sourceTribe: 'beast', kind: 'minion' }],
     } as RunState;
     expect(provenanceViolation(withBoard, overstated)).toMatch(/overstated/);
+  });
+
+  it('LAW 4 sabotage: an unattributed shop buff, and a catch-all source, both alarm', () => {
+    const clean = { ...createRun(3), tavernBuyBonus: { atk: 3, hp: 2 }, tavernBuyBonusSources: { 'Rune of Reinvestment': { atk: 2, hp: 1 }, 'Contract Butcher': { atk: 1, hp: 1 } } } as RunState;
+    expect(shopProvenanceViolation(clean)).toBeNull();
+    const bypassed = { ...clean, tavernBuyBonus: { atk: 5, hp: 2 } } as RunState; // +2 Attack nobody credited
+    expect(shopProvenanceViolation(bypassed)).toMatch(/bypassed/);
+    const lumped = { ...clean, tavernBuyBonusSources: { 'Shop Stats': { atk: 3, hp: 2 } } } as RunState;
+    expect(shopProvenanceViolation(lumped)).toMatch(/catch-all/);
   });
 });
 

@@ -9832,6 +9832,10 @@ export function settlePendingDeath(state: RunState): void {
   state.pendingDeath = undefined;
   const card = state.board.find((c) => c.uid === pending.uid);
   if (!card) return; // already gone (a save round-trip, an odd path) — nothing owed
+  const willRise = card.keywords.includes('R');
+  // Where the body was and how big the board was, captured inside the death beat for the Rise beat that follows.
+  let gone = -1;
+  let summonedFrom = 0;
   withRecruitTrigger(
     makeContext(state),
     {
@@ -9842,7 +9846,6 @@ export function settlePendingDeath(state: RunState): void {
       policyKey: 'system:destroy:shopDeath',
     },
     () => {
-      const willRise = card.keywords.includes('R');
       RISING = willRise ? new Set([card.uid]) : null;
       // The body is dying: the authored dissolve plays for it (suppressed when it is rising — it re-forms).
       stampShopFx(state, { kind: 'death', uid: card.uid, cardId: card.cardId, ...(willRise ? { rise: true } : {}) });
@@ -9851,7 +9854,7 @@ export function settlePendingDeath(state: RunState): void {
       // A RISING body HOLDS its slot (owner ruling 2026-09-09): its Echo resolves first, and on a full board the
       // summon overflows — Squatimus / Flowing Monk pay off on it — while the body itself returns.
       if (!willRise) state.vacatingUid = card.uid;
-      const summonedFrom = state.board.length;
+      summonedFrom = state.board.length;
       try {
         if (pending.kind === 'loan') triggerBorrowedEcho(state, card);
         else fireRecruitDeathrattles(makeContext(state), card);
@@ -9860,16 +9863,32 @@ export function settlePendingDeath(state: RunState): void {
         if (pending.kind === 'destroy') fireOnFriendDeath(state, card);
       } finally {
         state.vacatingUid = wasVacating;
-        const gone = state.board.findIndex((c) => c.uid === card.uid);
+        gone = state.board.findIndex((c) => c.uid === card.uid);
         if (gone >= 0) state.board.splice(gone, 1);
-        // `summonedFrom - 1` discounts the body itself, still on the board when the baseline was taken.
-        if (willRise && gone >= 0) {
-          const risen = riseReturn(state, card, gone, Math.max(0, summonedFrom - 1));
-          if (risen) fireOnRise(state, risen);
-        }
       }
     },
   );
+  // THE RISE IS ITS OWN BEAT, after the death beat closes — combat's `killOrReborn` gives the return its own
+  // resolution step after the Echo, and the shop must read the same way. Inside one beat the risen body and the
+  // Echo landed in the same commit, so the player saw the minion "rise before its Echo" (owner report 2026-09-10,
+  // a Deathfibrillated minion). The state order was always Echo → watchers → Rise; only the presentation folded.
+  // `summonedFrom - 1` discounts the body itself, still on the board when the baseline was taken.
+  if (willRise && gone >= 0) {
+    withRecruitTrigger(
+      makeContext(state),
+      {
+        phase: 'recruit',
+        source: { kind: 'minion', id: card.cardId, uid: card.uid, side: 'player', label: CARD_INDEX[card.cardId]?.name },
+        trigger: 'onRise',
+        policy: 'ownBeat',
+        policyKey: 'system:destroy:shopRise',
+      },
+      () => {
+        const risen = riseReturn(state, card, gone, Math.max(0, summonedFrom - 1));
+        if (risen) fireOnRise(state, risen);
+      },
+    );
+  }
 }
 
 /** Fire a BOARD minion's Echo in the shop, as Ossuary Rite / Deathsayer / Rune of the Reliquary do.

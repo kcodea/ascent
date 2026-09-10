@@ -77,6 +77,10 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'Card Change',
         text: 'Bob Blart with Bottomless Banquet: the right-most Shop minion is eaten again. The bonus bite was shifting the row so Blart missed it.',
       },
+      {
+        category: 'UI / Info',
+        text: 'A minion destroyed in the shop with Rise (Deathfibrillator, Cage Breaker) now plays its Echo first and rises on its own beat afterwards. Both landed in the same moment before, which read as rising before the Echo.',
+      },
     ],
   },
   {

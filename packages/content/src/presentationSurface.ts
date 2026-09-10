@@ -142,6 +142,9 @@ export const SYSTEM_SURFACE: SurfaceEntry[] = [
   // factory: several cards reach the same shared destroy path (`destroyMinionInShop`), and the beat belongs to
   // the body that dies, not to the card that killed it.
   { key: 'system:destroy:shopDeath', users: ['graverobber', 'funeralonloan'] },
+  // …and a RISING body's return, as its own beat AFTER the death/Echo beat (owner 2026-09-10: it read as rising
+  // before its Echo when both shared one beat). Reached through the same destroy path.
+  { key: 'system:destroy:shopRise', users: ['graverobber', 'funeralonloan', 'deathfibrillator'] },
   // Funeral on Loan's borrowed body ARRIVING and taking its slot — a beat of its own, so the board is seen
   // to hold it before the death beat takes it away again.
   { key: 'system:destroy:shopArrival', users: ['funeralonloan'] },

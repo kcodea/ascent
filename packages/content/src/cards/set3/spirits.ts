@@ -64,7 +64,7 @@ export const SET3_SPIRITS: readonly CardDef[] = [
   {
     // Echo: summon a COPY of the highest-Health minion in your hand.
     id: 'sp3_dreamtide',
-    name: 'Dreamtide Caller',
+    name: 'Tide Caller', // 'Dreamtide Caller' on the sheet; renamed by the owner 2026-09-09 (id unchanged)
     tribe: 'spirit',
     tier: 5,
     attack: 5,

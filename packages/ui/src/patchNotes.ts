@@ -55,6 +55,15 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-09-10',
+    changes: [
+      {
+        category: 'New Card',
+        text: 'Wolves Den (Tier 3 Undead/Beast) joins Set 3 — Deathrattle: summon 3 Crypt Wolves.',
+      },
+    ],
+  },
+  {
     date: '2026-09-09',
     label: 'Set 3 Spirits II',
     changes: [

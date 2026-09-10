@@ -956,4 +956,215 @@ export const APPROVED_RULES: GameRule[] = [
       + 'path sees a full board, and `riseReturn` fires the same overflow dispatcher when it has no room.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3Undead.test.ts'], lastVerifiedAt: '2026-09-09' },
   },
+  /* ── 2026-09-09 / 2026-09-10 — the Set 3 Spirits rulings and the owner's bug-report rulings of 2026-09-10 ── */
+  {
+    id: 'R-HAND-03',
+    title: 'A locked hand card can be buffed, but never summoned from hand',
+    statement:
+      'A card locked in hand — Disco Dan\'s Setlist tier lock, Brackus\'s Gold-spent lock, the Hourglass Reserve\'s '
+      + 'next-turn lock — cannot reach the board by ANY route while the lock holds: not by playing it, not by a '
+      + 'summon-from-hand copy (the Set 3 Spirits, in the shop or in combat), not by Rope Wrangler. It can still be '
+      + 'buffed in hand and still counts for effects that only READ the hand (Handbound Titan, Flamebanner Marshal). '
+      + 'A summoner that would have taken it takes the next candidate instead.',
+    domain: 'summoning',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-10 (bug report)', quote: 'a locked minion (like disco dan for example) cannot be summoned from hand. they can be buffed but not summoned.' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts handCardLocked (the one predicate; play / summonCopyFromHandShop / the shop pickers); packages/core/src/combat/simulate.ts summonCopyFromHand + takeRandomHandMinion refuse a `locked` hand card; the combat hand carries `locked` from the run and the snapshot' },
+    ],
+    currentBehaviour:
+      'Conforms — 2026-09-10 (PR #1398). Before it, only the play action checked the lock; the Spirit summon-from-hand '
+      + 'paths picked straight from the hand.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3Spirits.test.ts'], lastVerifiedAt: '2026-09-10' },
+  },
+  {
+    id: 'R-ARMOR-01',
+    title: 'Armor gained in the shop lasts until damage removes it',
+    statement:
+      'Armor is a persistent pool that only damage reduces. Anything that raises it during the shop — Mend\'s "set '
+      + 'Armor to 5" (a floor, never a shave) or any other grant — stays until combat damage spends it. There is no '
+      + 'per-turn expiry, and in lobby-family runs the player\'s SEAT must fight with the run\'s current pools, not '
+      + 'a stale copy taken at creation.',
+    domain: 'economy',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-10 (bug report)', quote: 'mend\'s armor falls off after a turn - please fix this as the setting 5 armor effect should last until the armor is damaged/removed from damage.' },
+      { kind: 'code', ref: 'packages/sim/src/reducer.ts settleCombat (seat 0 re-seeded from the run before the hit) + settleLobbyRound (seat → run write-back); packages/sim/src/recruit.ts setArmor' },
+    ],
+    contentIds: ['mend'],
+    currentBehaviour:
+      'Conforms — 2026-09-10 (PR #1400). The seat was seeded from the run once at creation and only ever lost; '
+      + '`settleLobbyRound` then wrote the stale seat value back over the run, so Mend\'s Armor vanished one round later. '
+      + 'The seat is now re-seeded from the run at combat settle, before either side is charged.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/lobby/runLobby.test.ts', 'packages/sim/src/run.test.ts'], lastVerifiedAt: '2026-09-10' },
+  },
+  {
+    id: 'R-RAND-01',
+    title: '"Consumes a minion in the Shop" is a seeded random pick',
+    statement:
+      'When a card says it Consumes "a minion in the Shop" with no position named, the meal is a RANDOM edible '
+      + 'offer (a minion — never a spell or Ruby in the row), drawn from the run\'s seeded rng cursor so replays '
+      + 'agree, and re-drawn after each bite because the row shifts. It is never the right-most, the fattest, or '
+      + 'any other fixed slot. Appetite Agent\'s target eats this way; Cinder Clerk, Chipper, Cupcakes, Gemgorge and '
+      + 'Baal already did.',
+    domain: 'randomness',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-10 (Mike\'s report, relayed)', quote: 'make sure that appetite agent\'s consume target is always random' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts battlecryTargetConsumesShop (edible list + rng.int per bite); battlecryConsumeShopRandom' },
+    ],
+    contentIds: ['dm_agent'],
+    currentBehaviour:
+      'Conforms — 2026-09-10 (PR #1401). The Agent\'s meal was hard-coded to `rightmostShopMinion`, which in a Demon '
+      + 'run is also the slot every right-most buff re-lands on each roll — hence "always the fattest".',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set2Demons.test.ts'], lastVerifiedAt: '2026-09-10' },
+  },
+  {
+    id: 'R-ORD-03',
+    title: 'A right-most Consume always takes the right-most edible offer — a bonus bite never displaces it',
+    statement:
+      'A card that Consumes "the right-most minion in the Shop" (Bob Blart, Grevlin & Co., Rune of Hunger) eats the '
+      + 'right-most EDIBLE offer — the last minion in the row, skipping any spell or Ruby to its right — every time '
+      + 'it fires, and the check never fails while an edible offer exists. An extra Consume granted alongside it '
+      + '(Bottomless Banquet\'s "the first Consume each turn eats twice") takes ANOTHER offer and must not shift the '
+      + 'row under the primary pick: the named target is still eaten.',
+    domain: 'ordering',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-10 (Mike\'s report, relayed)', quote: 'blart always consumes right-most and never fails that check' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts consumeShopMinion (the primary offer re-resolved by uid after the Banquet bite); rightmostShopMinion; consumeShopRightmost' },
+    ],
+    contentIds: ['dm_gourmand', 'dm_grevlin'],
+    currentBehaviour:
+      'Conforms — 2026-09-10 (PR #1401). The Banquet bite spliced the row BEFORE the primary bite, so a right-most '
+      + 'index fell off the end: only the left-most was eaten and the right-most survived.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set2Demons.test.ts', 'packages/sim/src/set2FinalQuests.test.ts', 'packages/sim/src/contentBatchAug14.test.ts'], lastVerifiedAt: '2026-09-10' },
+  },
+  {
+    id: 'R-ORD-04',
+    title: 'A shop Rise resolves — and is SHOWN — after its Echo, on its own beat',
+    statement:
+      'When a minion with Rise dies in the shop (Deathfibrillator, Cage Breaker, Funeral on Loan), its Echo and the '
+      + 'death watchers resolve first and the body returns afterwards — and the presentation must read the same way: '
+      + 'the return is its own beat, opened after the death/Echo beat closes, exactly as combat gives the reborn '
+      + 'return its own resolution step. The risen body may never land in the same commit as the Echo.',
+    domain: 'ordering',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-10 (bug report)', quote: 'deathfibrillator - the minion is rising before triggering the echo, which is wrong. a minion\'s echo always goes off before it rises.' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts settlePendingDeath (death beat `system:destroy:shopDeath`, then a `system:destroy:shopRise` beat for riseReturn + fireOnRise); packages/core/src/combat/simulate.ts killOrReborn (the second nextStep before `reborn`)' },
+    ],
+    contentIds: ['u3_ems', 'u3_cagebreaker'],
+    currentBehaviour:
+      'Conforms — 2026-09-10 (PR #1402). The state order was already Echo → watchers → Rise (R-RISE-05); the shop '
+      + 'ran the return inside the death beat, so the new body was on screen the instant the Echo played.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3Undead.test.ts', 'packages/sim/src/shopDestroy.test.ts'], lastVerifiedAt: '2026-09-10' },
+  },
+  {
+    id: 'R-TEXT-02',
+    title: 'A live-scaling card prints its current value on EVERY surface — shop offers, Discover, fly-ins and combat included',
+    statement:
+      'The live-text rule (CLAUDE.md, 2026-07-02) has no surface exceptions: a card whose printed magnitude depends '
+      + 'on run state prints the current value wherever the card is shown — the shop row, a Discover option, a '
+      + 'held or displaced offer, a conjured hand fly-in, the hand, the board, the end screen and the combat arena. '
+      + 'A surface that shows the printed base while another shows the live value is a defect.',
+    domain: 'text',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-10 (bug report)', quote: 'revelers text needs to show their buff in shop or hand or anywhere you find them.' },
+      { kind: 'code', ref: 'packages/ui/src/Recruit.tsx offerLiveTextParams + the shopViews memo (the run-scoped Spirit values threaded); packages/ui/src/Unit.tsx' },
+    ],
+    contentIds: ['sp3_flamereveler', 'sp3_tidereveler', 'sp3_grovereveler', 'sp3_luminary', 'sp3_kindled', 'sp3_nurturer'],
+    currentBehaviour:
+      'Conforms — 2026-09-10 (PR #1403). Three surfaces had dropped the shared Reveler value on the way to '
+      + '`liveCardText`: the offer builder, the shop memo and the combat unit.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/renderedText.test.tsx', 'packages/ui/src/spiritText.test.ts'], lastVerifiedAt: '2026-09-10' },
+  },
+  {
+    id: 'R-TEXT-03',
+    title: 'A served opponent\'s card prints — and fights with — its OWNER\'s values',
+    statement:
+      'A board served as an opponent carries every run-level scaler its owner had at capture, and both halves of '
+      + 'the game honour them: the combat side fights with them (a served Kindled Sprite gains Attack for the Spirits '
+      + 'its owner played), and the card text in the arena prints them (an enemy Vaultkeeper reads its owner\'s spell '
+      + 'count, not the current player\'s and not the printed base). Per-instance display state rides the snapshot '
+      + 'too. Only values the snapshot genuinely does not carry (Gold meters, Soulsman, Squirl Scout, rune flags) may '
+      + 'fall back to base text on the foe side.',
+    domain: 'text',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-10 (bug report)', quote: 'i saw an opponent\'s vaultkeeper showed 2/2 as their buff instead of the actual value. can you do a pass to make sure we have full parity carry over for all cards in opponent snapshots?' },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts enemyScalersOf (every run-level side field → CombatResult.enemyScalers); packages/sim/src/boardSide.ts sideFromSnapshot (spiritsPlayed / rubyCasts / revelerX threaded); packages/ui/src/Unit.tsx (foe reads enemyScalers)' },
+    ],
+    contentIds: ['d2_herzog', 'sp3_kindled', 'chefraag'],
+    currentBehaviour:
+      'Conforms — 2026-09-10 (PR #1404). `enemyScalers` had been a hand-picked five of the side\'s ~35 fields; '
+      + '`spiritsPlayed` was never captured or threaded, so a served Spirit board\'s Kindled Sprite fought at 0.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/renderedText.test.tsx', 'packages/sim/src/snapshotFidelity.test.ts', 'packages/sim/src/docbot/snapshotFidelity.test.ts'], lastVerifiedAt: '2026-09-10' },
+  },
+  {
+    id: 'R-HAND-04',
+    title: 'Summon from hand: an exact copy, once per combat, the card stays in hand',
+    statement:
+      'A "summon a minion from your hand" effect (Set 3 Spirits: Tide Caller, Dreaming Deep, Seedling Spirit) puts '
+      + 'an EXACT copy of the hand card on the board — its stats, keywords and gilding at that moment — beside the '
+      + 'summoner. The card itself is NOT consumed: it stays in hand, greyed for the fight, keeps receiving buffs '
+      + '(which never reach the copy retroactively), and may be summoned only once per combat; a second summoner must '
+      + 'pick a different card, or nothing. The shop twin (an Echo re-fired in the shop) summons the copy once per '
+      + 'card per turn. Rope Wrangler\'s older "summon and consume" shape is unchanged and a card it took is no '
+      + 'longer a candidate.',
+    domain: 'summoning',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-09 (Spirit roster answers)', quote: 'the card is not consumed; an exact copy is summoned; once per combat; the card greys in hand so it cannot be summoned again; another summoner must pick a different card' },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts summonCopyFromHand (handCopiedUids; `fromHandUid` stamped on the summon event); packages/sim/src/recruit.ts summonCopyFromHandShop (handCopiedThisTurn)' },
+    ],
+    contentIds: ['sp3_dreamtide', 'sp3_dreamingdeep', 'sp3_seedling', 'sp3_handboundtitan', 'sp3_flamebanner', 'sp3_hearthwhisperer', 'sp3_slumbering'],
+    currentBehaviour:
+      'Conforms (built with the ruling, 2026-09-09, PR #1394): one combat primitive and one shop twin; the replay '
+      + 'greys the hand card off `fromHandUid`. Refined 2026-09-10 by R-HAND-03 (a locked card is never a candidate).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3Spirits.test.ts'], lastVerifiedAt: '2026-09-10' },
+  },
+  {
+    id: 'R-MULT-03',
+    title: 'The Revelers share ONE value, +1 per Reveler sold; a golden Reveler pays double',
+    statement:
+      'Flame, Tide and Grove Reveler pay from a single run-wide value X (starting at 1) when sold — Flame gives your '
+      + 'Spirits +X Attack, Tide +X Health, Grove gives every minion +X/+X (board only, never the hand) — and EVERY '
+      + 'Reveler sold, of any type, raises X by 1. A golden Reveler pays 2X and still raises X by 1. Cards that '
+      + 'reference "your Reveler bonus" (Festival Luminary) read X itself. Festival Treasurer\'s per-Reveler-sold '
+      + 'discount stacks to −3; Grand Procession returns the first of each Reveler TYPE sold each turn.',
+    domain: 'multipliers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-09 (Spirit roster answers 1–2, 7, 9)', quote: 'all three share one X; +1 per Reveler sold; golden 2X; the Reveler bonus IS X; Treasurer stacks to -3' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-09 (correction)', quote: 'the reveler sells are buffing hand minions which is not correct, please fix that' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts revelerValue / revelerSell (board only) / battlecryBuffRandomTribePlusReveler; packages/sim/src/state.ts revelerX; packages/ui/src/cardText.ts spiritText' },
+    ],
+    contentIds: ['sp3_flamereveler', 'sp3_tidereveler', 'sp3_grovereveler', 'sp3_luminary', 'sp3_treasurer', 'sp3_grandprocession'],
+    currentBehaviour:
+      'Conforms (built with the ruling, 2026-09-09, PR #1393; the hand-buffing slip fixed in the same PR before merge).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3Spirits.test.ts', 'packages/ui/src/spiritText.test.ts'], lastVerifiedAt: '2026-09-10' },
+  },
+  {
+    id: 'R-SHOP-02',
+    title: 'The shop draw is weighted by copies left in the shared pool',
+    statement:
+      'Each shop roll draws from the run\'s shared, finite pool with probability proportional to the copies each '
+      + 'card has left: every remaining copy is one ticket. A card down to its last copy is rarer in exact '
+      + 'proportion, and the odds shift gradually as the pool drains — never a cliff where a last copy is as likely '
+      + 'as a full stack until it hits zero. Eligibility (tavern tier, active tribes, at least one copy) is '
+      + 'unchanged; a Practice tribe surge doubles that tribe\'s tickets.',
+    domain: 'randomness',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-10 (on Codex\'s review)', quote: 'we need to fix the copies issue - the # of copies should directly impact how likely a card is to be found. the way it is working today is not correct.' },
+      { kind: 'code', ref: 'packages/sim/src/shop.ts drawOfferId (ticket weights = stock × surge), called from rollShop and topUpTavern with state.pool' },
+    ],
+    currentBehaviour:
+      'Conforms — 2026-09-10 (PR #1406). The draw was uniform by card identity while any copy remained (the only '
+      + 'weighted branch was the Practice surge). Every roll now consumes the rng differently, so pre-change seeds '
+      + 'produce different shops; no golden pinned specific offers.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/shopDrawWeight.test.ts'], lastVerifiedAt: '2026-09-10' },
+  },
 ];

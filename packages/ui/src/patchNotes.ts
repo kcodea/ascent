@@ -62,6 +62,10 @@ export const PATCH_NOTES: PatchNote[] = [
         text: 'Adopting a hero power (Mimic, Void, Power Shifter) now runs the Gild check immediately. A held pair gilds the moment Midas Touch lands, and a gift card from the new power combines on arrival.',
       },
       {
+        category: 'Rune Change',
+        text: 'Rune of the Chipper Sticker and Rune of Refreshments now fire when you PLAY a Demon from hand or weld a Demon onto a Mech. They were only firing on token summons.',
+      },
+      {
         category: 'New Card',
         text: 'Wolves Den (Tier 3 Undead/Beast) joins Set 3 — Deathrattle: summon 3 Crypt Wolves.',
       },

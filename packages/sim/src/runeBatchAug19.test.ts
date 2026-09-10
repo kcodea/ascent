@@ -527,16 +527,17 @@ describe('Rune of the Embers', () => {
 
 // ── WAVE 7 — Rune of Refreshments + the Baller's every-2-sales step ──────────────────────────────────────────
 describe('Rune of Refreshments', () => {
+  // Driven through the REDUCER's play action — the real hand → board path. The old shape called
+  // `fireSummonBuffs` by hand, which `playCard` never reaches, so the tests stayed green while the rune was
+  // dead in play (owner report 2026-09-10, found on the Chipper Sticker).
   const play = (cardId: string, extra: Partial<RunState> = {}): RunState => {
-    const s: RunState = { ...createRun(4), phase: 'recruit', freeRolls: 0, board: [], hand: [], ...extra } as RunState;
-    const card = { uid: 'p', cardId, tribe: CARD_INDEX[cardId]!.tribe, attack: 1, health: 1, keywords: [], golden: false } as BoardCard;
-    s.board.push(card);
-    fireSummonBuffs(s, card);
-    return s;
+    const s: RunState = { ...createRun(4), phase: 'recruit', freeRolls: 0, board: [], shop: [], ...extra,
+      hand: [{ uid: 'p', cardId, tribe: CARD_INDEX[cardId]!.tribe, attack: 1, health: 1, keywords: [], golden: false } as BoardCard] } as RunState;
+    return reduce(s, { type: 'play', uid: 'p', toIndex: 0 });
   };
 
   it('playing a Demon banks a refresh', () => {
-    expect(play('godfodder', { runeRefreshments: true }).freeRolls).toBe(1);
+    expect(play('impala', { runeRefreshments: true }).freeRolls).toBe(1);
   });
 
   it('a non-Demon banks nothing', () => {
@@ -544,19 +545,60 @@ describe('Rune of Refreshments', () => {
   });
 
   it('unarmed, the same Demon banks nothing', () => {
-    expect(play('godfodder').freeRolls).toBe(0);
+    expect(play('impala').freeRolls).toBe(0);
   });
 
   it('it does not gate — or get gated by — the other Demon-play rune', () => {
     // Both runes hang off the same play chokepoint. The Chipper Sticker returns early when it finds no eligible
     // eater, so Refreshments has to fire BEFORE that return or holding both would silently break one.
-    expect(play('godfodder', { runeRefreshments: true, runeChipperSticker: true }).freeRolls,
+    expect(play('impala', { runeRefreshments: true, runeChipperSticker: true }).freeRolls,
       'the Sticker finding no second Demon must not eat the refresh').toBe(1);
   });
 
   it('it is a live 1-Gold Epic', () => {
     expect(EPIC_RUNES.some((r) => r.id === 'rune_refreshments')).toBe(true);
     expect(RUNE_INDEX['rune_refreshments']!.cost).toBe(1);
+  });
+
+  it('a WELDED Demon is still a Demon played — the Magnetic path banks the refresh too', () => {
+    const s: RunState = { ...createRun(4), phase: 'recruit', freeRolls: 0, runeRefreshments: true, shop: [],
+      board: [{ uid: 'host', cardId: 'drone', tribe: 'mech', attack: 1, health: 1, keywords: [], golden: false } as BoardCard],
+      hand: [{ uid: 'p', cardId: 'heckbinder', tribe: 'demon', attack: 1, health: 1, keywords: ['M'], golden: false } as BoardCard] } as RunState;
+    const out = reduce(s, { type: 'play', uid: 'p', toIndex: 0 });
+    expect(out.freeRolls, 'the weld counts as a play').toBe(1);
+  });
+});
+
+describe('Rune of the Chipper Sticker — "whenever you PLAY a Demon, another friendly Demon Consumes a Shop minion"', () => {
+  const demon = (uid: string, attack = 2, health = 2): BoardCard => ({ uid, cardId: 'impala', tribe: 'demon', attack, health, keywords: [], golden: false } as BoardCard);
+  const staged = (extra: Partial<RunState> = {}): RunState => ({
+    ...createRun(7), phase: 'recruit', runeChipperSticker: true,
+    board: [demon('d1')], hand: [demon('h1', 1, 1)],
+    shop: [{ uid: 's0', cardId: 'sandbag' }, { uid: 's1', cardId: 'stray' }],
+    ...extra,
+  } as RunState);
+
+  it('playing a Demon from hand makes the OTHER Demon eat a Shop minion (reducer-driven — the bug: it never fired on a play)', () => {
+    const out = reduce(staged(), { type: 'play', uid: 'h1', toIndex: 1 });
+    expect(out.shop.length, 'one Shop minion eaten').toBe(1);
+    const eater = out.board.find((c) => c.uid === 'd1')!;
+    expect(eater.attack + eater.health, 'the other Demon grew by the meal').toBeGreaterThan(4);
+    const played = out.board.find((c) => c.uid === 'h1')!;
+    expect([played.attack, played.health], 'the played Demon never feeds itself').toEqual([1, 1]);
+  });
+
+  it('no other Demon on board → nothing eaten, no crash; a non-Demon play → nothing', () => {
+    const alone = reduce(staged({ board: [] }), { type: 'play', uid: 'h1', toIndex: 0 });
+    expect(alone.shop.length).toBe(2);
+    const s = staged({ hand: [{ uid: 'h1', cardId: 'stray', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false } as BoardCard] });
+    expect(reduce(s, { type: 'play', uid: 'h1', toIndex: 1 }).shop.length).toBe(2);
+  });
+
+  it('a summoned TOKEN is not a play — no Consume', () => {
+    // Direct summon-buff path (a token arriving beside a card): the runes do not hang off it any more.
+    const s = staged();
+    fireSummonBuffs(s, demon('tok'));
+    expect(s.shop.length).toBe(2);
   });
 });
 

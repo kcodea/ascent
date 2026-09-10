@@ -8749,23 +8749,36 @@ function applyDenMarker(state: RunState, minion: BoardCard): void {
  */
 export function fireSummonBuffs(state: RunState, minion: BoardCard): void {
   fire(makeContext(state), 'onSummon', { minion });
-  // RUNE OF THE CHIPPER STICKER: playing a Demon makes ANOTHER friendly Demon eat a Shop minion — Chipper's
-  // own shape as a run-wide rune. "Another" is load-bearing: the eater is picked from the OTHER Demons, so the
-  // minion you just played never feeds itself (that is Chipper's `self: true`, a different card).
-  // RUNE OF REFRESHMENTS: playing a Demon banks a free refresh. Fired at the same play chokepoint as the
-  // Chipper Sticker, and BEFORE its early return, so the two Demon-play runes are independent — holding one
-  // must not silently gate the other.
-  // One free refresh per copy held (recurring family, owner 2026-08-27).
-  if (state.runeRefreshments && isTribe(minion, 'demon')) { procRuneId(state, 'rune_refreshments'); state.freeRolls += runeStacksOf(state, 'rune_refreshments'); }
-  if (!state.runeChipperSticker || !isTribe(minion, 'demon')) return;
+}
+
+/**
+ * The two "whenever you PLAY a Demon" runes. Fired from the PLAY chokepoints only — `playCard` (hand → board)
+ * and the Magnetic weld in the reducer (a welded Demon is still a card played) — never from a token summon or a
+ * hand-copy summon, which are not plays.
+ *
+ * Owner report 2026-09-10 ("Rune of the Chipper Sticker is simply not working"): both runes had been written into
+ * `fireSummonBuffs`, which `playCard` never calls (it fires `onSummon` directly), so they only ever fired on a
+ * weld or a token summon. The tests drove `fireSummonBuffs` by hand and stayed green while the game was dead.
+ *
+ * RUNE OF THE CHIPPER STICKER: playing a Demon makes ANOTHER friendly Demon eat a Shop minion — Chipper's own
+ * shape as a run-wide rune. "Another" is load-bearing: the eater is picked from the OTHER Demons, so the minion
+ * you just played never feeds itself (that is Chipper's `self: true`, a different card).
+ * RUNE OF REFRESHMENTS: playing a Demon banks a free refresh. Fired BEFORE the Sticker's early return, so the two
+ * Demon-play runes are independent — holding one must not silently gate the other. One free refresh per copy
+ * held (recurring family, owner 2026-08-27).
+ */
+export function fireDemonPlayRunes(state: RunState, minion: BoardCard): void {
+  if (!isTribe(minion, 'demon')) return;
+  if (state.runeRefreshments) { procRuneId(state, 'rune_refreshments'); state.freeRolls += runeStacksOf(state, 'rune_refreshments'); }
+  if (!state.runeChipperSticker) return;
   // One Consume per copy held (recurring family, owner 2026-08-27) — each re-reads eaters and the shop.
   for (let k = 0; k < runeStacksOf(state, 'rune_chipper_sticker'); k++) {
     const eaters = state.board.filter((c) => c.uid !== minion.uid && isTribe(c, 'demon'));
-    if (eaters.length === 0) return;
+    if (eaters.length === 0) break;
     const edible = state.shop
       .map((_, i) => i)
       .filter((i) => { const d = CARD_INDEX[state.shop[i]!.cardId]; return !!d && !d.spell && !d.ruby; });
-    if (edible.length === 0) return;
+    if (edible.length === 0) break;
     const rng = makeRng(state.rngCursor);
     const eater = eaters[rng.int(eaters.length)]!;
     const pick = edible[rng.int(edible.length)]!;
@@ -11956,6 +11969,7 @@ export function playCard(state: RunState, played: BoardCard): void {
     }
   }
   fire(ctx, 'onSummon', { minion: played });
+  fireDemonPlayRunes(state, played); // Rune of the Chipper Sticker / Refreshments: "whenever you play a Demon"
   fireOnTribePlayed(state, played); // set 3 Spirits: "whenever you play a Spirit" — board + hand watchers, never the card itself
   // CELESTIAL ORBIT: the card just played FROM HAND wakes its immediate neighbours' Orbit effects (owner
   // ruling 2026-08-03 — from hand only, so a summoned token or a reorder that slides someone next to you

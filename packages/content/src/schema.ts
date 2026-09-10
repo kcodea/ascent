@@ -34,6 +34,7 @@ export const GameEventSchema = z.enum([
   'cardsPlayed',
   'chooseOnePlayed',
   'onSell',
+  'onTribePlayed', // set 3 Spirits: a minion of `params.tribe` was PLAYED from hand (board watchers + hand watchers)
   'startOfTurn',
   'equip', // grants this minion's Equipment (on play, and on every Start of Turn rebuild)
   'onGainCard',
@@ -396,6 +397,11 @@ export const EffectFactoryIdSchema = z.enum([
   'clueBuffTarget',
   'rallySummonAndGetRally',
   'startOfTurnEquipmentCharge',
+  // set 3 Spirits (tranche 1)
+  'rallyGainAttackPerSpiritsPlayed', 'battlecryBuffRandomTribeBoardAndHand', 'revelerSell', 'battlecryGrantRandomReveler',
+  'minionSoldRevelerDiscount', 'minionSoldRevelerReturn', 'battlecryBuffRandomTribePlusReveler', 'battlecryDiscoverTribeIfControl',
+  'endOfTurnBuffRandomTribeRepeatPerPlayed', 'scBuffTribePerTally', 'tribePlayedEveryNGrantRandomSpell',
+  'tribePlayedBuffRandomTribeImproving', 'tribePlayedTally', 'equipmentBuffTargetAndRandomHandTribe', 'spellCastBuffRandomHand',
   'battlecryBuffMagnetics',
   'battlecryBuffImps',
   'goldSpentBuffFodder',

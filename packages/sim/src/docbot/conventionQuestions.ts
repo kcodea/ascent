@@ -188,6 +188,7 @@ const TRIGGER_GROUPS: readonly TriggerGroup[] = [
   // added to each joins an existing convention instead of re-opening a settled question.
   { id: 'gainCard', label: 'a card is added to your hand', events: ['onGainCard'] },
   { id: 'startOfTurn', label: 'the turn starts', events: ['startOfTurn'] },
+  { id: 'tribePlayed', label: 'you play a minion of a named tribe', events: ['onTribePlayed'] }, // set 3 Spirits (2026-09-09)
   { id: 'spellTargeted', label: 'a spell targets this minion', events: ['spellCastOnThis'] },
   { id: 'shopRefresh', label: 'you refresh the Shop', events: ['shopRefreshed'] },
 ];

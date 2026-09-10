@@ -14,7 +14,7 @@ import { SET2_NEUTRAL } from './cards/set2/neutral';
 import { SET2_DRAGONS } from './cards/set2/dragons';
 import { SET2_BEASTS } from './cards/set2/beasts';
 import { SET2_SPELLS } from './cards/set2/spells';
-import { SET3_CARDS, SET3_DWARVES, SET3_UNDEAD, SET3_NEUTRAL } from './cards/set3';
+import { SET3_CARDS, SET3_DWARVES, SET3_UNDEAD, SET3_NEUTRAL, SET3_SPIRITS } from './cards/set3';
 
 /**
  * SET 3's SHARED SPELL POOL (owner list 2026-08-03: "they will be there no matter what") — the neutral spell
@@ -308,7 +308,8 @@ export const SETS: Record<SetId, SetDef> = {
     // last with the other spells.
     // Then the Undead (2026-09-09): set 3's own, then the carried set-1 ones — appended after the Dwarves, spells still last.
     // Then the NEUTRALS (2026-09-09): set 3's own (Blaster, Splitboon, the set-3 Yazzus…), then the carried set-1 and set-2 ones.
-    own: [...SET3_CARDS, ...SET2_KOBOLDS_IN_SET3, ...SET3_DWARVES, ...SET2_DWARVES_IN_SET3, ...SET3_UNDEAD, ...SET1_UNDEAD_IN_SET3, ...SET3_NEUTRAL, ...SET1_NEUTRALS_IN_SET3, ...SET2_NEUTRALS_IN_SET3, ...SET3_SHARED_SPELLS, ...SET2_ALES_IN_SET3], // → packages/content/src/cards/set3/*.ts
+    // Then the SPIRITS (2026-09-09): a brand-new tribe, all set 3's own — appended after the Neutrals.
+    own: [...SET3_CARDS, ...SET2_KOBOLDS_IN_SET3, ...SET3_DWARVES, ...SET2_DWARVES_IN_SET3, ...SET3_UNDEAD, ...SET1_UNDEAD_IN_SET3, ...SET3_NEUTRAL, ...SET1_NEUTRALS_IN_SET3, ...SET2_NEUTRALS_IN_SET3, ...SET3_SPIRITS, ...SET3_SHARED_SPELLS, ...SET2_ALES_IN_SET3], // → packages/content/src/cards/set3/*.ts
   },
 };
 

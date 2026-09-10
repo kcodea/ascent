@@ -15,7 +15,7 @@ const TENDRIL_TRAIL_TRAVEL_MS: number =
 
 /** Tribes with a per-tribe `tendril-trail-<tribe>` variant (a palette-swap of the generic). `neutral` and the
  *  archived `celestial` are absent — they keep the generic ribbon, as does any tribe not listed here. */
-const TENDRIL_TRIBES = new Set<Tribe>(['beast', 'demon', 'dragon', 'dwarf', 'kobold', 'mech', 'undead']);
+const TENDRIL_TRIBES = new Set<Tribe>(['beast', 'demon', 'dragon', 'dwarf', 'kobold', 'mech', 'undead', 'spirit']);
 
 /**
  * Fire ONE generic buff-other effect and return the strike/landing time (ms) so the caller can schedule the

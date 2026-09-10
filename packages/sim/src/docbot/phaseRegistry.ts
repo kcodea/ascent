@@ -34,6 +34,7 @@ export const TRIGGER_PHASES: Readonly<Record<string, 'recruit' | 'combat' | 'bot
   cast: 'recruit', // shop spell casts; combat's NARROW named-spell lane is checked separately (castLane below)
   onBuy: 'recruit',
   onSell: 'recruit',
+  onTribePlayed: 'recruit', // set 3 Spirits: a minion PLAYED from hand — a shop event by definition
   onConsume: 'recruit',
   // 2026-08-29: WAS 'recruit' ("combat has no dispatch site for it") — false, and the misclassification is
   // exactly what hid the Gangplank bug: `factoryPhase` skips the combat side of a trigger declared
@@ -119,6 +120,10 @@ export const PHASE_EXCUSED: Readonly<Record<string, PhaseExcuse>> = {
   battlecryDestroyForSpell: { phase: 'combat', kind: 'no-surface', why: 'destroys a SHOP offer to gain its spell; no shop exists mid-fight' },
   getEchoAndTrigger: { phase: 'combat', kind: 'no-surface', why: 'grants an Echo chosen in the shop and triggers it there; a re-fire has no chosen Echo to reproduce' },
   battlecryCopyEcho: { phase: 'combat', kind: 'state-missing', why: 'Gravetwin copies a CHOSEN target’s Echo; a combat re-fire has no way to reproduce the choice (documented in replayCombatBattlecry)' },
+  battlecryBuffRandomTribeBoardAndHand: { phase: 'combat', kind: 'no-surface', why: 'Tidebud buffs a HAND card permanently (R-HAND-02) alongside a board pick; a combat re-fire replays at settle like every other hand grant' },
+  battlecryGrantRandomReveler: { phase: 'combat', kind: 'no-surface', why: 'a Reveler to HAND; no hand grant mid-fight beyond the carry-back, replays at settle' },
+  battlecryBuffRandomTribePlusReveler: { phase: 'combat', kind: 'state-missing', why: 'reads the run-wide Reveler value, which combat does not carry; replays at settle' },
+  battlecryDiscoverTribeIfControl: { phase: 'combat', kind: 'no-surface', why: 'a Discover; no shop mid-fight, replays at settle' },
   battlecryGetHandSpell: { phase: 'combat', kind: 'no-surface', why: 'mints hand spells (Tower Shield / Clue) into the HAND; no hand mid-fight, replays at settle like every other hand grant' },
   battlecryAllDemonsConsume: { phase: 'combat', kind: 'no-surface', why: 'Demons Consume from the SHOP; no shop exists mid-fight, replays at settle' },
   battlecryBuffTargetPerGoldSpent: { phase: 'combat', kind: 'state-missing', why: 'Baby Gastrid scales off goldSpentThisTurn, which CombatContext does not carry (documented in replayCombatBattlecry)' },

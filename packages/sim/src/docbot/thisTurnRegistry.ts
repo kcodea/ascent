@@ -38,6 +38,9 @@ export const THIS_TURN_CLASSIFIED: Readonly<Record<string, ThisTurnClassificatio
 
   // ── Start-of-Combat readers of a shop-turn tally — the tally IS threaded into the combat side ──
   dw_oaf: { kind: 'conforms', why: 'ARCHIVED. SoC repeats per Dwarven Ale cast this turn — reads arena.alesLastTurn(), threaded as combatSide.alesLastTurn = s.alesCastThisTurn at the faceOmen build' },
+  sp3_kindled: { kind: 'conforms', why: 'Rally gains Attack per Spirit played this turn — threaded as combatSide.spiritsPlayed at the faceOmen build, read via ctx.spiritsPlayedFor' },
+  sp3_nurturer: { kind: 'no-combat-meaning', why: 'End of Turn repeats per Spirit played this turn — resolves in the shop at End of Turn (spiritsPlayedThisTurn), nothing to carry' },
+  sp3_treasurer: { kind: 'no-combat-meaning', why: 'a Gold discount on the next Spirit bought this turn (RunState.spiritDiscount) — pure shop economy, cleared at the turn flip' },
   abhorrenthorror: { kind: 'conforms', why: 'SoC gains the Fodder consumed this turn — threaded as combatSide.fodderConsumedAtk/Hp at the faceOmen build' },
   runescale: { kind: 'conforms', why: 'SoC buffs per Shop spell cast this turn — reads ctx.spellsThisTurnFor, threaded as combatSide.spellsThisTurn' },
 

@@ -356,7 +356,39 @@ export const WHIPLASSO: EquipmentDefinition = {
   gildedParams: { pick: 'highestTier', count: 2 },
 };
 
-export const EQUIPMENT: readonly EquipmentDefinition[] = [BLOODPOT, TITAN_HAMMER, BLAST_PUMP, PRISMATIC_PICK, DUELING_RUBETTAS, POURMANS_KEG, THYMEPIECE, COFFIN_FLOP, DEATHFIBRILLATOR, MAGNIFYING_GLASS, WHIPLASSO];
+/**
+ * SPIRITBRINGER — Bondweaver Shaman's Equipment (set-3 Spirit roster, 2026-09-09): a TARGETED Spirit on the
+ * board and a random Spirit in hand each get +6/+6 (owner: "one on board and one in hand"). Gilded: +12/+12.
+ */
+export const SPIRITBRINGER: EquipmentDefinition = {
+  id: 'spiritbringer',
+  name: 'Spiritbringer',
+  text: 'Give a Spirit on your board and in your hand **+6/+6**.',
+  goldenText: 'Give a Spirit on your board and in your hand **+12/+12**.',
+  baseCost: 2,
+  targetMode: 'friendly',
+  effectId: 'equipmentBuffTargetAndRandomHandTribe',
+  params: { tribe: 'spirit', attack: 6, health: 6 },
+  gildedParams: { tribe: 'spirit', attack: 12, health: 12 },
+};
+
+/**
+ * REVELMAKER — Parade Artificer's Equipment (set-3 Spirit roster, 2026-09-09): a random Reveler to hand;
+ * gilded hands out two. The factory multiplies by the SOURCE's gilding, so the params restate the count.
+ */
+export const REVELMAKER: EquipmentDefinition = {
+  id: 'revelmaker',
+  name: 'Revelmaker',
+  text: 'Get a random **Reveler**.',
+  goldenText: 'Get **2** random **Revelers**.',
+  baseCost: 2,
+  targetMode: 'none',
+  effectId: 'battlecryGrantRandomReveler',
+  params: { count: 1 },
+  gildedParams: { count: 1 },
+};
+
+export const EQUIPMENT: readonly EquipmentDefinition[] = [BLOODPOT, TITAN_HAMMER, BLAST_PUMP, PRISMATIC_PICK, DUELING_RUBETTAS, POURMANS_KEG, THYMEPIECE, COFFIN_FLOP, DEATHFIBRILLATOR, MAGNIFYING_GLASS, WHIPLASSO, SPIRITBRINGER, REVELMAKER];
 
 export const EQUIPMENT_INDEX: Readonly<Record<string, EquipmentDefinition>> =
   Object.fromEntries(EQUIPMENT.map((e) => [e.id, e]));

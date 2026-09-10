@@ -160,6 +160,8 @@ export interface CarryOverExcuse {
  *  ratcheted in carryOver.test.ts. Seeded 2026-08-26 from a full run of the scan. */
 export const CARRY_OVER_EXCUSED: Readonly<Record<string, CarryOverExcuse>> = {
   // ── pure shop-economy bookkeeping: no fight reads these ──
+  spiritDiscount: { kind: 'no-combat-meaning', why: 'Festival Treasurer: Gold off the next Spirit BOUGHT this turn — a shop price, no fight reads it' },
+  processionReturned: { kind: 'no-combat-meaning', why: 'Grand Procession: which Reveler types already returned a copy this turn — a per-turn sell latch, no fight reads it' },
   goldSpentThisTurn: { kind: 'no-combat-meaning', why: 'Patch Job\'s per-turn Gold tally; combat has no Gold. (Baby Gastrid\'s combat gap is separately excused as state-missing in phaseRegistry.)' },
   runeTreasureMaps: { kind: 'no-combat-meaning', why: 'Treasure Map\'s pending Gold payouts (the array slot since the 2026-08-27 duplicate rulings); ticked and paid at turn start — pure shop economy, no fight reads a countdown.' },
   cardsBoughtThisTurn: { kind: 'needs-staging', why: 'threaded into the combat side (combatSide.cardsBoughtThisTurn) for Frenzied Excavator; the fixture stages none' },

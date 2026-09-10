@@ -80,7 +80,7 @@ function UnitInner({ u, side, anim, triggered, rallyPulse, watcherPulse, framePu
         chooseBoth: foe ? false : chooseBothActive(run, u, def),
         rallySpreadAtk: u.rallySpreadAtk, // Sunmane: the rally's live escalating grant
         taughtSpellId: u.taughtSpellId, // a Mage-Pup names the spell it was taught
-        spellProgress: u.spellProgress, ascendProgress: u.ascendProgress, summonBonus: u.summonBonus,
+        spellProgress: u.spellProgress, spiritTally: u.spiritTally, ascendProgress: u.ascendProgress, summonBonus: u.summonBonus,
         overflowBonus: u.overflowBonus, hpGrantBonus: u.hpGrantBonus, eotBonus: u.eotBonus, eotTick: u.eotTick,
         sellBonus: u.sellBonus, attackSeen: u.attackSeen, permaGain: u.permaGain,
         playedThisTurn: beastsPlayed, squirlScoutBuff: foe ? 0 : run.squirlScoutBuff,
@@ -140,7 +140,7 @@ function UnitInner({ u, side, anim, triggered, rallyPulse, watcherPulse, framePu
     buffs: u.buffs, // per-source breakdown (recruit + combat) for the right-click inspect panel
     // Live step counter (Guel 1/4, Crypt Drake 1/2, …) — ticks mid-fight from the unit's per-instance accruals.
     stepProgress: stepProgress(u.cardId, {
-      spellProgress: u.spellProgress, summonBonus: u.summonBonus,
+      spellProgress: u.spellProgress, spiritTally: u.spiritTally, summonBonus: u.summonBonus,
       ascendProgress: u.ascendProgress, attackSeen: u.attackSeen,
       avengeSeen: u.avengeSeen, bleedAttacks: u.bleedAttacks,
       // orbitTick deliberately absent: Orbits are a shop mechanic, no combat counter (audit 2026-08-06).
@@ -192,6 +192,7 @@ export const Unit = memo(UnitInner, (a, b) =>
   a.u.ascendProgress === b.u.ascendProgress &&
   a.u.hpGrantBonus === b.u.hpGrantBonus &&
   a.u.spellProgress === b.u.spellProgress &&
+  a.u.spiritTally === b.u.spiritTally &&
   a.u.permaGain?.attack === b.u.permaGain?.attack &&
   a.u.permaGain?.health === b.u.permaGain?.health &&
   a.u.name === b.u.name &&

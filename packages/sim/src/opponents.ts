@@ -137,6 +137,7 @@ export function opponentBoard(snap: BoardSnapshot): BoardMinion[] {
     ...(m.hpGrantBonus ? { hpGrantBonus: m.hpGrantBonus } : {}), // Sergeant: improved Deathrattle HP grant
     ...(m.ascendProgress ? { ascendProgress: m.ascendProgress } : {}), // Tara: ascend progress toward Taragosa
     ...(m.spellProgress ? { spellProgress: m.spellProgress } : {}), // Archmagus Guel: on-board spell tally
+    ...(m.spiritTally ? { spiritTally: m.spiritTally } : {}), // Set 3 Spirits: Forest Colossus's tally
     ...(m.overflowBonus ? { overflowBonus: m.overflowBonus } : {}), // Flowing Monk: flat triple-combine grant bonus
     ...(m.rallyMechAtk ? { rallyMechAtk: m.rallyMechAtk } : {}), // Better Bot Rally welded onto a host Mech
     ...(m.rallySpellWeld ? { rallySpellWeld: m.rallySpellWeld } : {}), // Perfect Core Rally welded onto a host

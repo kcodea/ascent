@@ -237,6 +237,9 @@ export interface BoardCard {
   /** Spells cast while this card has been on the board — drives transform cards (Spirit Pup → Worgen
    *  at 10). Per-instance; ticks only while on the board (the spellCast trigger fires for the board). */
   spellProgress?: number;
+  /** Set 3 Spirits — per-instance `onTribePlayed` tally (Festival Keeper progress, Aspect Choreographer's trigger
+   *  count, Forest Colossus's Spirits-since-played). Carried into combat on the body. */
+  spiritTally?: number;
   /** The wave this card was bought on — drives Hoarder's climbing sell value (currentWave - boughtWave
    *  + 1, ×2 golden). Set in the reducer's `buy` case; absent on cards from other sources (a Hoarder that
    *  wasn't bought sells for the base 1, since it has no held-since wave). */
@@ -343,7 +346,7 @@ export type Phase = 'recruit' | 'combat' | 'gameover' | 'victory';
 export type RunMode = 'ascent' | 'rift' | 'practice' | 'lobby' | 'tutorial';
 
 /** The tribes a Practice "tribe surge" can favour (a 100% draw-weight boost for that tribe's shop cards). */
-export type SurgeTribe = 'beast' | 'dragon' | 'kobold' | 'demon' | 'dwarf';
+export type SurgeTribe = 'beast' | 'dragon' | 'kobold' | 'demon' | 'dwarf' | 'spirit';
 
 /** Practice-bot difficulty, 1 (gentlest) to 10. 1/3/5 are the retired Easy/Medium/Hard; 6+ add utility minions.
  *  The per-level dials live in `lobby/practiceBots.ts` (`BOT_LEVELS`). */
@@ -663,6 +666,15 @@ export interface RunState {
   /** Set 3 — the run's CLUE value above the base 1/1: every Clue cast grants `1 + clueBonus`, then raises it by
    *  one ("Improve your Clues by +1/+1"). Read at cast, so Clues in hand are live by construction. Absent = 0. */
   clueBonus?: number;
+  /** Set 3 Spirits — the SHARED Reveler value: what selling ANY Reveler pays right now (Flame → Attack, Tide →
+   *  Health, Grove → both), raised by one by every Reveler sold. Absent = 1 (the printed base). */
+  revelerX?: number;
+  /** Set 3 Spirits — Festival Treasurer: Gold off the NEXT Spirit bought this turn (stacks to its cap). Spent by
+   *  that buy; cleared at the turn flip. */
+  spiritDiscount?: number;
+  /** Set 3 Spirits — Grand Procession: the Reveler ids that already returned a copy THIS turn (one per Reveler
+   *  type per turn). Cleared at the turn flip. */
+  processionReturned?: string[];
   /** Rubies cast this run / this turn — the Ruby-only cast counter (NOT `spellsCast`, which is Shop Spells).
    *  Cards that trigger on the umbrella of BOTH read `spellsCast + rubyCasts`. Absent = 0. */
   rubyCasts?: number;

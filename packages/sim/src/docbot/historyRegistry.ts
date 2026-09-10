@@ -66,6 +66,9 @@ export const PLAY_EXCUSED: Readonly<Record<string, string>> = {
   d2_recaller: 'copies the last Shop Spell cast THIS TURN; the fixture casts none before it',
   c3_relay: 'wakes adjacent CELESTIAL Orbits; the clean-token board has no Celestial',
   b2_magepup: 'casts the spell it was TAUGHT; nothing teaches it in the fixture',
+  sp3_tidebud: 'buffs a random OTHER Spirit on board and one in hand; the clean-token board and hand hold no Spirit',
+  sp3_gatheringguide: 'Discovers only if you control ANOTHER Spirit; the clean-token board has none',
+  sp3_luminary: 'buffs 3 random OTHER Spirits; the clean-token board has none',
 };
 
 /** LANE `playDifferential.watchers` — silent onSummon watchers, with the reading that keeps them silent legitimately. */

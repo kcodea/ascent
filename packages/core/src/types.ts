@@ -205,6 +205,7 @@ export type GameEvent =
   | 'chooseOnePlayed' // recruit phase: the player played a CHOOSE ONE card specifically (Ruby Roach)
   | 'onSell' // recruit phase: this minion is sold (Hoard Whelp — get Gold, Beggy — get Rubies)
   | 'startOfTurn' // recruit phase: a shop turn begins — the symmetric twin of `endOfTurn` (Gemline Martyr)
+  | 'onTribePlayed' // recruit phase: a minion of `params.tribe` was PLAYED from hand — board AND hand watchers (set 3 Spirits)
   | 'equip' // recruit phase: this minion GRANTS its Equipment — on play, and again at every Start of Turn
          // rebuild. Shout-shaped (it fires as the body enters play) but it is not a Shout: it re-fires on
          // the rebuild, and its payload is a grant to the PLAYER rather than an effect on the board.
@@ -613,6 +614,22 @@ export type EffectFactoryId =
   | 'clueBuffTarget' // Clue (cast): give the target the run's current Clue value, then improve Clues by +1/+1
   | 'rallySummonAndGetRally' // Warband Recruiter: Rally — summon a random Rally minion AND get a copy in hand (both phases)
   | 'startOfTurnEquipmentCharge' // Equipment Charger: Start of Turn — +count Equipment activations this turn
+  // ── set 3 SPIRITS (tranche 1, 2026-09-09) ──
+  | 'rallyGainAttackPerSpiritsPlayed' // Kindled Sprite: Rally — +per Attack for each Spirit played this turn
+  | 'battlecryBuffRandomTribeBoardAndHand' // Tidebud: Shout — a random `tribe` on board AND one in hand, +atk/+hp
+  | 'revelerSell' // Flame / Tide / Grove Reveler: on sell, pay the shared Reveler value (stat: attack | health | both), then raise it
+  | 'battlecryGrantRandomReveler' // Revelator / Revelmaker: a random Reveler to hand
+  | 'minionSoldRevelerDiscount' // Festival Treasurer: a Reveler sold → the next Spirit this turn costs less (stacks to `max`)
+  | 'minionSoldRevelerReturn' // Grand Procession: the first of each Reveler sold each turn returns a plain copy
+  | 'battlecryBuffRandomTribePlusReveler' // Festival Luminary: Shout — N random `tribe` +atk/+hp plus the Reveler value
+  | 'battlecryDiscoverTribeIfControl' // Gathering Guide: Shout — if you control a `tribe`, Discover one
+  | 'endOfTurnBuffRandomTribeRepeatPerPlayed' // Nurturer: End of Turn — a random `tribe` +atk/+hp, repeated per Spirit played
+  | 'scBuffTribePerTally' // Forest Colossus: Start of Combat — your `tribe` +atk/+hp per point of this body's tally
+  | 'tribePlayedEveryNGrantRandomSpell' // Festival Keeper: every `every` `tribe` plays → a random Shop spell
+  | 'tribePlayedBuffRandomTribeImproving' // Aspect Choreographer: each `tribe` play → N random `tribe` +v/+v, v improving every `every`
+  | 'tribePlayedTally' // Forest Colossus: count `tribe` plays since this was played
+  | 'equipmentBuffTargetAndRandomHandTribe' // Spiritbringer: the target AND a random `tribe` in hand, +atk/+hp
+  | 'spellCastBuffRandomHand' // Dreamcurrent Mystic: a Shop spell cast → a random minion in hand +atk/+hp
   | 'battlecryConductorAdjacent' // Conductor: Shout — give adjacent minions +2N/+3N; N snowballs per Conductor played (×2 gilded)
   | 'battlecryBuffMagnetics' // Scrap Herald: Battlecry — give your Magnetic minions +atk/+hp wherever they are; stacks into future buys
   | 'battlecryBuffImps' // Imp Overseer: Battlecry — give your Imps +atk/+hp run-wide (shared impBuff enchant)
@@ -2033,6 +2050,10 @@ export interface BoardMinion {
   /** Guel: spells cast while this card has been on the run board — seeds the live combat card text
    *  (his per-instance improvement). Display-only in combat; no combat behavior reads it. */
   spellProgress?: number;
+  /** Set 3 Spirits — this body's PER-INSTANCE tally of `onTribePlayed` triggers it witnessed (Festival Keeper's
+   *  progress, Aspect Choreographer's trigger count, Forest Colossus's "Spirits played since"). Forest Colossus's
+   *  Start of Combat READS it; the others print it. Seeded from the run board. */
+  spiritTally?: number;
   /** The originating recruit board card's uid, so combat can report per-instance state
    *  (e.g. Avenge improvements) back for the run to persist. */
   sourceUid?: string;
@@ -2123,6 +2144,7 @@ export interface Minion {
   overflowBonus?: number;
   /** Guel: spells-cast-while-on-board (seeded from the run card) — feeds the live combat text only. */
   spellProgress?: number;
+  spiritTally?: number;
   /** The originating run board card's uid (if any), for per-instance carry-back. */
   sourceUid?: string;
   /** Better Bot: total Rally-Mech Attack granted to other Mechs when this attacks (own base + welds). */
@@ -2237,6 +2259,7 @@ export interface MinionSnapshot {
   ascendProgress?: number;
   /** Guel's spells-cast-while-on-board (seeded from the run board) — for the live combat card text. */
   spellProgress?: number;
+  spiritTally?: number;
   /** Per-source recruit-phase buff breakdown (see Minion.buffs) — lets the combat inspect panel itemize a
    *  minion's recruit buffs, the same breakdown the shop shows. Absent for combat-summoned tokens. */
   buffs?: MinionBuff[];
@@ -2351,6 +2374,8 @@ export interface CombatSideState {
   beastBuyAtk: number;
   /** Beasts played this recruit turn (legacy — retained for the ctx accessor + result echo). */
   beastsPlayed: number;
+  /** Set 3 Spirits played this turn (Kindled Sprite's Rally). */
+  spiritsPlayed: number;
   /** Set 2 — cards bought this recruit turn (Frenzied Excavator's Start-of-Combat scaler). Player-authoritative. */
   cardsBoughtThisTurn: number;
   /** Attachment/Magnetic aura (Scrap Herald / Banksly welds) — sizes this side's from-base Magnetics. */
@@ -2681,6 +2706,8 @@ export interface CombatContext {
   /** Beasts the PLAYER played this turn (recruit), frozen at combat start. Prefer `beastsPlayedFor(side)` so an
    *  ENEMY Pack Leader scales with the OPPONENT's Beasts-played. */
   readonly beastsPlayedThisTurn: number;
+  /** Spirits the PLAYER played this turn (recruit), frozen at combat start. Prefer `spiritsPlayedFor(side)`. */
+  readonly spiritsPlayedThisTurn: number;
   /** The PLAYER's live spell power ({attack, health}) — grows in place via `grantSpellPower`. Prefer
    *  `spellPowerFor(side)` for effects on either board; an ENEMY Taragosa/Watcher/Hoardbreaker must scale with
    *  the OPPONENT's captured spell power (`enemySpellPower`), not the current player's. */
@@ -2717,6 +2744,8 @@ export interface CombatContext {
   mammothHealthFor(side: Side): boolean;
   /** Per-side "Beasts played this turn" — player's, or the opponent's captured value. */
   beastsPlayedFor(side: Side): number;
+  /** Set 3 Spirits — Spirits played this turn, per side (Kindled Sprite). An enemy side carries 0 unless its state says otherwise. */
+  spiritsPlayedFor(side: Side): number;
   /** Per-side cards bought this recruit turn (Frenzied Excavator's Start-of-Combat Ruby scaler). */
   cardsBoughtThisTurnFor(side: Side): number;
   /** Deathrattles triggered this game so far, for `side`: for the PLAYER the run-wide base + this combat's

@@ -1,5 +1,5 @@
 import { ALE_IDS, alignAllows, makeRng, SILENT_ONPLAY, COMBAT_REPLAYABLE_BATTLECRIES, extraTriggerFires, foldEchoExtraFires, socTwilightExtraFires, ARENA_EFFECTS, beatIdentity, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
-import { CARD_INDEX, EQUIPMENT_INDEX, recurringEotOwner, type EquipmentDefinition } from '@game/content';
+import { REVELER_IDS, CARD_INDEX, EQUIPMENT_INDEX, recurringEotOwner, type EquipmentDefinition } from '@game/content';
 import { equipIsNews, equipmentParams as equipmentParamsFor, grantEquipment as grantEquipmentToPlayer } from './equipment';
 import { currentCollector } from './activeCollector';
 import { alignmentOf } from './alignment';
@@ -3220,6 +3220,158 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  the cadence minters use; a Shout-shaped wrapper so the option can sit in `chooseOne[].effects`. */
   battlecryGetRubies: (ctx, self, params) => {
     mintRubies(ctx.state, num(params.count, 1) * gold(self));
+  },
+
+  /* ── SET 3 SPIRITS (tranche 1) ─────────────────────────────────────────────────────────────────────── */
+
+  /** Kindled Sprite (Rally, shop twin): +per Attack per Spirit played this turn. A shop grant is permanent, as
+   *  every shop-triggered Rally is; in a fight the combat factory pays a combat-only gain. */
+  rallyGainAttackPerSpiritsPlayed: (ctx, self, params, payload) => {
+    if (payload.minion !== self) return;
+    const n = spiritsPlayedThisTurn(ctx.state) * num(params.per, 1) * gold(self);
+    if (n > 0) addBuff(self, nameOf(self), n, 0);
+  },
+
+  /** Tidebud (Shout): ONE random `tribe` minion on the board (not itself) AND ONE random `tribe` minion in hand,
+   *  +atk/+hp each (× golden). Hand buffs are permanent (R-HAND-02). */
+  battlecryBuffRandomTribeBoardAndHand: (ctx, self, params) => {
+    const tribe = str(params.tribe) as Tribe;
+    const a = num(params.attack, 0) * gold(self), h = num(params.health, 0) * gold(self);
+    const onBoard = ctx.state.board.filter((c) => c.uid !== self.uid && isTribe(c, tribe));
+    const inHand = ctx.state.hand.filter((c) => isTribe(c, tribe) && !CARD_INDEX[c.cardId]?.spell);
+    for (const t of pickRandom(ctx.state, onBoard, 1)) addBuff(t, nameOf(self), a, h);
+    for (const t of pickRandom(ctx.state, inHand, 1)) addBuff(t, nameOf(self), a, h);
+  },
+
+  /** Flame / Tide / Grove Reveler (on sell): pay the SHARED Reveler value — `stat` picks the lane (attack |
+   *  health | both) and the audience (Flame/Tide → your Spirits, Grove → every minion) — then raise it by one.
+   *  Golden pays 2X. Board and hand alike, so a Reveler bought late still lifts what you are holding. */
+  revelerSell: (ctx, self, params) => {
+    const x = revelerValue(ctx.state) * gold(self);
+    const stat = str(params.stat);
+    const a = stat === 'health' ? 0 : x, h = stat === 'attack' ? 0 : x;
+    const all = stat === 'both';
+    for (const c of [...ctx.state.board, ...ctx.state.hand]) {
+      if (CARD_INDEX[c.cardId]?.spell) continue;
+      if (!all && !isTribe(c, 'spirit')) continue;
+      addBuff(c, nameOf(self), a, h);
+    }
+    ctx.state.revelerX = revelerValue(ctx.state) + 1;
+  },
+
+  /** Revelator (Shout) / Revelmaker (Equip): `count` random Revelers to hand (× golden). */
+  battlecryGrantRandomReveler: (ctx, self, params) => {
+    const pool = REVELER_IDS.map((id) => CARD_INDEX[id]).filter((c): c is CardDef => !!c);
+    conjureToHand(ctx.state, pool, num(params.count, 1) * gold(self));
+  },
+
+  /** Festival Treasurer: a Reveler sold → the next Spirit this turn costs `amount` less (× golden), stacking to
+   *  `max`. Spent by the buy it applies to; cleared at the turn flip. */
+  minionSoldRevelerDiscount: (ctx, self, params, payload) => {
+    if (!payload.target || !REVELER_IDS.includes(payload.target.cardId)) return;
+    const cap = num(params.max, 3);
+    ctx.state.spiritDiscount = Math.min(cap, (ctx.state.spiritDiscount ?? 0) + num(params.amount, 1) * gold(self));
+  },
+
+  /** Grand Procession: the FIRST Flame, Tide and Grove Reveler sold each turn each return `count` plain copies
+   *  (base stats, never golden) to hand. One return per Reveler TYPE per turn — a second Flame sold this turn
+   *  returns nothing. The Reveler's own sell effect has already fired. */
+  minionSoldRevelerReturn: (ctx, self, params, payload) => {
+    const sold = payload.target;
+    if (!sold || !REVELER_IDS.includes(sold.cardId)) return;
+    const done = ctx.state.processionReturned ?? [];
+    if (done.includes(sold.cardId)) return;
+    ctx.state.processionReturned = [...done, sold.cardId];
+    const def = CARD_INDEX[sold.cardId];
+    if (!def) return;
+    for (let i = 0; i < num(params.count, 1) * gold(self); i++) grantMinionToHandOrBoard(ctx.state, def, false);
+  },
+
+  /** Festival Luminary (Shout): `count` random other `tribe` minions on the board get +atk/+hp PLUS the shared
+   *  Reveler value on both stats — all × golden ("twice your Reveler bonus"). */
+  battlecryBuffRandomTribePlusReveler: (ctx, self, params) => {
+    const tribe = str(params.tribe) as Tribe;
+    const g = gold(self);
+    const x = revelerValue(ctx.state);
+    const a = (num(params.attack, 0) + x) * g, h = (num(params.health, 0) + x) * g;
+    const pool = ctx.state.board.filter((c) => c.uid !== self.uid && isTribe(c, tribe));
+    for (const t of pickRandom(ctx.state, pool, num(params.count, 3))) addBuff(t, nameOf(self), a, h);
+  },
+
+  /** Gathering Guide (Shout): if you control ANOTHER `tribe` minion, Discover one (golden: twice). */
+  battlecryDiscoverTribeIfControl: (ctx, self, params) => {
+    const tribe = str(params.tribe) as Tribe;
+    if (!ctx.state.board.some((c) => c.uid !== self.uid && isTribe(c, tribe))) return;
+    for (let i = 0; i < gold(self); i++) queueDiscover(ctx.state, { kind: 'minion', tier: ctx.state.tier, tribe });
+  },
+
+  /** Nurturer (End of Turn): a random `tribe` minion +atk/+hp, then once more per Spirit played this turn — each
+   *  fire picks afresh. Golden doubles the grant. */
+  endOfTurnBuffRandomTribeRepeatPerPlayed: (ctx, self, params) => {
+    const tribe = str(params.tribe) as Tribe;
+    const a = num(params.attack, 0) * gold(self), h = num(params.health, 0) * gold(self);
+    const fires = 1 + spiritsPlayedThisTurn(ctx.state);
+    for (let i = 0; i < fires; i++) {
+      const pool = ctx.state.board.filter((c) => isTribe(c, tribe));
+      for (const t of pickRandom(ctx.state, pool, 1)) addBuff(t, nameOf(self), a, h);
+    }
+  },
+
+  /** Forest Colossus (Start of Combat, shop twin — a Twilight / End-of-Turn SoC replay): your `tribe` minions
+   *  +atk/+hp per point of THIS body's tally. Combat carries the tally on the body and does the same. */
+  scBuffTribePerTally: (ctx, self, params) => {
+    const tribe = str(params.tribe) as Tribe;
+    const n = (self.spiritTally ?? 0) * gold(self);
+    if (n <= 0) return;
+    const a = num(params.attack, 1) * n, h = num(params.health, 1) * n;
+    for (const c of ctx.state.board) if (isTribe(c, tribe)) addBuff(c, nameOf(self), a, h);
+  },
+
+  /** Festival Keeper: every `every` `tribe` plays this body witnesses → `count` random Shop spells (≤ tavern
+   *  tier) to hand (× golden). The tally is per instance and carries across turns. */
+  tribePlayedEveryNGrantRandomSpell: (ctx, self, params) => {
+    const every = Math.max(1, num(params.every, 3));
+    self.spiritTally = (self.spiritTally ?? 0) + 1;
+    if (self.spiritTally % every !== 0) return;
+    const pool = poolOf(ctx.state).spells.filter((c) => c.tier <= ctx.state.tier);
+    conjureToHand(ctx.state, pool, num(params.count, 1) * gold(self));
+  },
+
+  /** Aspect Choreographer: each `tribe` play → `count` random OTHER `tribe` minions +v/+v, where v = the printed
+   *  step × (1 + floor(prior triggers / every)) — "improve by +1/+1 every 3 times this triggers". Per instance;
+   *  golden doubles the step (and so the improvement). */
+  tribePlayedBuffRandomTribeImproving: (ctx, self, params) => {
+    const tribe = str(params.tribe) as Tribe;
+    const every = Math.max(1, num(params.every, 3));
+    const prior = self.spiritTally ?? 0;
+    self.spiritTally = prior + 1;
+    const level = 1 + Math.floor(prior / every);
+    const a = num(params.attack, 1) * level * gold(self), h = num(params.health, 1) * level * gold(self);
+    const pool = ctx.state.board.filter((c) => c.uid !== self.uid && isTribe(c, tribe));
+    for (const t of pickRandom(ctx.state, pool, num(params.count, 3))) addBuff(t, nameOf(self), a, h);
+  },
+
+  /** Forest Colossus: count the `tribe` plays this body witnesses (only those AFTER it was played). */
+  tribePlayedTally: (ctx, self) => {
+    void ctx;
+    self.spiritTally = (self.spiritTally ?? 0) + 1;
+  },
+
+  /** Spiritbringer (Equip, targeted): the chosen board minion AND a random `tribe` minion in hand, +atk/+hp.
+   *  Gilding rides `gildedParams`, so the source's gild is not consulted. */
+  equipmentBuffTargetAndRandomHandTribe: (ctx, self, params, payload) => {
+    const tribe = str(params.tribe) as Tribe;
+    const a = num(params.attack, 0), h = num(params.health, 0);
+    if (payload.target) addBuff(payload.target, nameOf(self), a, h);
+    const inHand = ctx.state.hand.filter((c) => isTribe(c, tribe) && !CARD_INDEX[c.cardId]?.spell);
+    for (const t of pickRandom(ctx.state, inHand, 1)) addBuff(t, nameOf(self), a, h);
+  },
+
+  /** Dreamcurrent Mystic: a Shop spell cast → a random MINION in hand +atk/+hp (× golden), permanent. */
+  spellCastBuffRandomHand: (ctx, self, params) => {
+    const a = num(params.attack, 0) * gold(self), h = num(params.health, 0) * gold(self);
+    const inHand = ctx.state.hand.filter((c) => !CARD_INDEX[c.cardId]?.spell);
+    for (const t of pickRandom(ctx.state, inHand, 1)) addBuff(t, nameOf(self), a, h);
   },
 
   /** Set 3 — Equipment Charger (Start of Turn): `count` extra Equipment activations THIS turn (× golden). The
@@ -10644,6 +10796,56 @@ export function runeLastingCadenceBeats(state: RunState): BoardCard[] {
  * deliberately simple (no Chronos/beat repeats) — the one card that uses it wants a single per-turn tick, and
  * the simpler Start-of-Turn rune handlers next to it dispatch the same way.
  */
+/* ── SET 3 SPIRITS (2026-09-09) — the shared Reveler value, the Spirits-played tally, the tribe-played trigger ── */
+
+/** The SHARED Reveler value: what selling any Reveler pays RIGHT NOW (base 1 + every Reveler sold so far). */
+export function revelerValue(state: Pick<RunState, 'revelerX'>): number {
+  return Math.max(1, state.revelerX ?? 1);
+}
+
+/** Spirits played from hand this turn — derived from the turn's play list, so it resets with it. */
+export function spiritsPlayedThisTurn(state: Pick<RunState, 'playedThisTurn'>): number {
+  return (state.playedThisTurn ?? []).filter((id) => defIsTribe(CARD_INDEX[id], 'spirit')).length;
+}
+
+/** `count` random picks from `pool` (no repeats), drawn off the run cursor so a replay lands the same picks. */
+function pickRandom<T>(state: RunState, pool: T[], count: number): T[] {
+  const rng = makeRng(state.rngCursor);
+  const avail = [...pool];
+  const out: T[] = [];
+  for (let i = 0; i < count && avail.length > 0; i++) out.push(avail.splice(rng.int(avail.length), 1)[0]!);
+  state.rngCursor = rng.state();
+  return out;
+}
+
+/**
+ * Fire every `onTribePlayed` watcher for a minion just PLAYED from hand — board watchers (Festival Keeper,
+ * Aspect Choreographer, Forest Colossus) AND hand watchers (Slumbering Colossus, tranche 2). The played card
+ * itself never witnesses its own arrival: Forest Colossus counts Spirits played AFTER it (owner 2026-09-09).
+ * Called from `playCard` once the body has landed, beside `onSummon` — so a targeted Shout / Choose One that
+ * defers its own battlecry still counts as a play.
+ */
+export function fireOnTribePlayed(state: RunState, played: BoardCard): void {
+  const def = CARD_INDEX[played.cardId];
+  if (!def || def.spell) return;
+  const ctx = makeContext(state);
+  const watchers = [...state.board, ...state.hand].filter((c) => c.uid !== played.uid);
+  for (const card of watchers) {
+    const wdef = CARD_INDEX[card.cardId];
+    if (!wdef) continue;
+    const inHand = state.hand.includes(card);
+    for (const eff of wdef.effects) {
+      if (eff.on !== 'onTribePlayed') continue;
+      const tribe = str(eff.params?.tribe) as Tribe;
+      if (tribe && !defIsTribe(def, tribe)) continue;
+      // Hand watchers must say so (`inHand: true`); a board watcher in hand stays asleep, and vice versa.
+      if (!!eff.params?.inHand !== inHand) continue;
+      const fn = RECRUIT_FACTORIES[eff.do];
+      if (fn) captureBuffFx(state, card, 'minion', () => fn(ctx, card, eff.params ?? {}, { minion: card, target: played }));
+    }
+  }
+}
+
 /** A drawable minion with a Rally — the pool Warband Recruiter summons from, in both phases. */
 export function isRallyDef(c: CardDef): boolean {
   return !c.spell && !c.token && c.keywords.includes('RL') && (c.effects ?? []).some((e) => e.on === 'onAttack');
@@ -11651,6 +11853,7 @@ export function playCard(state: RunState, played: BoardCard): void {
     }
   }
   fire(ctx, 'onSummon', { minion: played });
+  fireOnTribePlayed(state, played); // set 3 Spirits: "whenever you play a Spirit" — board + hand watchers, never the card itself
   // CELESTIAL ORBIT: the card just played FROM HAND wakes its immediate neighbours' Orbit effects (owner
   // ruling 2026-08-03 — from hand only, so a summoned token or a reorder that slides someone next to you
   // does NOT trigger it). Each orbiting watcher reads its OWN alignment, so the same card pays differently

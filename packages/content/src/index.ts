@@ -13,7 +13,8 @@ import { EQUIPMENT_INDEX } from './equipment';
 export * from './sets';
 export { HENCHMEN } from './cards/henchmen';
 export { GIFTS, GIFT_IDS } from './cards/gifts'; // a card class of its own — member of no set (see gifts.ts)
-export { SET3_HAND_SPELLS } from './cards/set3/handSpells'; // card-minted Gifts (Tower Shield, Clue) — member of no set, not in GIFT_IDS
+export { SET3_HAND_SPELLS } from './cards/set3/handSpells';
+export { REVELER_IDS } from './cards/set3/spirits'; // the Reveler class (Flame / Tide / Grove) other Spirits name // card-minted Gifts (Tower Shield, Clue) — member of no set, not in GIFT_IDS
 export { ARCHIVED_CARDS } from './cards/archive'; // resolvable by id, member of no set — see the archive contract
 
 /**

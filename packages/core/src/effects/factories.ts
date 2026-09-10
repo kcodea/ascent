@@ -1304,6 +1304,25 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
       ctx.grantToHand(pick.id, self.side, self.uid);
     }
   },
+  /** Set 3 Spirits — Kindled Sprite (Rally): +per Attack per Spirit played this turn (frozen at combat start).
+   *  Combat-only, like every Rally self-gain. Own attack only. */
+  rallyGainAttackPerSpiritsPlayed: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || minion !== self) return;
+    const n = ctx.spiritsPlayedFor(self.side) * num(params.per, 1) * mul(self);
+    if (n > 0) ctx.buff(self, n, 0, self.name);
+  },
+  /** Set 3 Spirits — Forest Colossus (Start of Combat): your `tribe` minions +atk/+hp per point of this body's
+   *  carried tally (Spirits played since it was played). Combat-only; the shop twin pays permanently. */
+  scBuffTribePerTally: (ctx, self, params) => {
+    if (self.dead) return;
+    const tribe = str(params.tribe);
+    const n = (self.spiritTally ?? 0) * mul(self);
+    if (n <= 0) return;
+    const a = num(params.attack, 1) * n, h = num(params.health, 1) * n;
+    const arena = combatArena(ctx, self);
+    for (const m of ctx.living(self.side)) if (arena.isTribe(m, tribe as Tribe)) ctx.buff(m, a, h, self.name);
+  },
   grantRandomAle: (ctx, self, params) => {
     // Same recipe as Rune of Last Call: only Ales actually in this run's pool (a set without them grants nothing).
     const ales = ctx.poolCards(self.side).filter((c) => ALE_IDS.includes(c.id));

@@ -70,6 +70,10 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'UI / Info',
         text: 'Clue has its art, and the Set 3 Undead portraits picked up the latest masters.',
       },
+      {
+        category: 'UI / Info',
+        text: 'Hovering Inspector Pell now previews a Clue at its current value, and Clue power shows in the buffs panel beside Ruby power.',
+      },
     ],
   },
   {

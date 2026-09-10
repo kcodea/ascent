@@ -28,3 +28,16 @@ The whole `Set 3 Minions/Undead` folder was re-run through `optimize-art` by nam
 and Warden Rodrick masters had actually changed (the rest re-encoded byte-identical). Four unattributed
 UUID-named files in that folder were left alone (no card to wire them to). The eager art glob means a NEW
 file (Clue) needs a dev-server restart to show; replaced files show on reload.
+
+## Follow-up (same day): Inspector Pell previews a Clue; Clue power in the buffs panel
+
+- `referencedCardIds` (content/index.ts) now follows a `grantEquipment` effect ONE hop to its Equipment and
+  runs the Equipment's effect (and each Choose One branch) through the same `CARD_REF_EFFECTS` map — so an Equip
+  minion previews whatever its Equipment mints or grants (Pell → Clue). A new mint/grant Equipment is
+  previewable the moment its effect id is in the map; the Equipment itself is never listed (not a card).
+- `tokenRefView` takes `clueBonus` and threads it into `spellDisplayText`, so the previewed Clue prints the value
+  it grants NOW (`{{+4/+4}}` at Clue power 3), exactly as the hand Clue does. Both Recruit call sites pass it.
+- `runBuffs.ts`: a **Clue power** row (`+n/+n`) beside Ruby power. Shop-only state, so no combat telegraph.
+- Tests: `refPreview.test.ts` (Pell → clue, never the Glass; Defender's direct ref not doubled),
+  `tokenRefView.test.ts` (base vs improved Clue text). DOM-verified in the dev server: the Pell popup holds Pell
+  and a Clue.

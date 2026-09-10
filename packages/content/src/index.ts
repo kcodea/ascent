@@ -8,6 +8,7 @@ import { SET3_HAND_SPELLS } from './cards/set3/handSpells';
 import { SET2_TOKENS } from './cards/set2/tokens';
 import { ENEMY } from './cards/set1/enemy';
 import { SETS, poolFor } from './sets';
+import { EQUIPMENT_INDEX } from './equipment';
 
 export * from './sets';
 export { HENCHMEN } from './cards/henchmen';
@@ -152,6 +153,19 @@ export function referencedCardIds(card: CardDef): string[] {
     const cardKey = CARD_REF_EFFECTS[effect.do];
     if (cardKey && typeof params[cardKey] === 'string') ids.add(params[cardKey] as string);
     for (const id of IMPLICIT_REF_EFFECTS[effect.do] ?? []) ids.add(id);
+    // An EQUIP minion names its Equipment, and the Equipment names the card (owner ask 2026-09-09: hovering
+    // Inspector Pell must show a Clue, at its live value). Follow the reference one hop — the Equipment's own
+    // effect, plus each Choose One branch — through the same param map, so a new mint/grant Equipment is
+    // previewable the moment its effect id is in `CARD_REF_EFFECTS`.
+    if (effect.do === 'grantEquipment' && typeof params.equipmentId === 'string') {
+      const eq = EQUIPMENT_INDEX[params.equipmentId];
+      const legs = eq ? [{ effectId: eq.effectId, params: eq.params }, ...(eq.chooseOne ?? [])] : [];
+      for (const leg of legs) {
+        const key = CARD_REF_EFFECTS[leg.effectId];
+        const ref = key ? (leg.params as Record<string, unknown> | undefined)?.[key] : undefined;
+        if (typeof ref === 'string') ids.add(ref);
+      }
+    }
   }
   ids.delete(card.id);
   return [...ids];

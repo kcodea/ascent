@@ -30,3 +30,10 @@ describe('tokenRefView — referenced Growth popup pays the Rune of Living Growt
     expect(v.text).not.toContain('{{');
   });
 });
+
+describe('tokenRefView — a previewed Clue (Inspector Pell\'s hover) prints the live Clue value', () => {
+  it('base +1/+1 with no Clue power; the improved value once Clues have been cast', () => {
+    expect(tokenRefView('clue', undefined, undefined, spellLive(0), undefined, undefined, 0).text).toContain('**+1/+1**');
+    expect(tokenRefView('clue', undefined, undefined, spellLive(0), undefined, undefined, 3).text).toContain('{{+4/+4}}');
+  });
+});

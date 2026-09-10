@@ -34,6 +34,14 @@ describe('every card a card names is previewable', () => {
     ).toEqual([]);
   });
 
+  it('Inspector Pell shows a Clue — through its Equipment (owner ask 2026-09-09)', () => {
+    expect(referencedCardIds(CARD_INDEX['n3_pell']!)).toContain('clue');
+    // …and the mint's Equipment is the only hop: the Glass itself is not a card, so it never appears.
+    expect(referencedCardIds(CARD_INDEX['n3_pell']!)).not.toContain('magnifying_glass');
+    // Defender names its spell directly; the hop must not double it up.
+    expect(referencedCardIds(CARD_INDEX['n3_defender']!)).toEqual(['tower_shield']);
+  });
+
   it('Commander Warpath specifically shows its Brood Whelp', () => {
     expect(referencedCardIds(CARD_INDEX['d2_blazingkeeper']!)).toContain('d2_broodwhelp');
   });

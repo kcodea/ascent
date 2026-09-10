@@ -440,6 +440,8 @@ export function tokenRefView( // exported for tokenRefView.test.ts (bug 86340900
   rubyBonus?: { attack: number; health: number },
   /** The Rubies on the minion whose popup this is (+ its gild) — sizes the Gemheart Golem preview. */
   ownerRuby?: { attack: number; health: number; golden?: boolean },
+  /** The run's Clue value above base — a previewed Clue (Inspector Pell's hover) prints what it grants NOW. */
+  clueBonus?: number,
 ): CardView {
   const c = CARD_INDEX[id];
   // GEMHEART GOLEM: its stats come from the Rubies on the minion that summons it, so previewing a flat 1/1
@@ -483,7 +485,7 @@ export function tokenRefView( // exported for tokenRefView.test.ts (bug 86340900
       // `growthBonus` rides along too, so Mushy's referenced-Growth popup (and the combat fly-in) prints the
       // Rune of Living Growth-improved value — this chain starved it while the shop/spell-slot chains threaded
       // it, so the popup promised the base +1/+1 (player report 2026-08-27, bug 86340900).
-      text: spellDisplayText(c.id, spellLive.a, spellLive.ftb, spellLive.h, spellLive.goldSpent, spellLive.ftbH, spellLive.goldPouchValue ?? 0, { tier: spellLive.tier, rubyBonus, growthBonus: spellLive.growthBonus }),
+      text: spellDisplayText(c.id, spellLive.a, spellLive.ftb, spellLive.h, spellLive.goldSpent, spellLive.ftbH, spellLive.goldPouchValue ?? 0, { tier: spellLive.tier, rubyBonus, clueBonus, growthBonus: spellLive.growthBonus }),
       tier: c.tier, spell: c.spell, target: c.target,
       baseAttack: c.attack, baseHealth: c.health,
     };
@@ -520,7 +522,7 @@ function conjuredView(cardId: string, run: RunState): CardView | null {
     goldSpent: run.goldSpentThisTurn ?? 0, goldPouchValue: run.goldPouchValue, tier: run.tier,
     growthBonus: run.growthBonus,
   };
-  const base = tokenRefView(cardId, run.cardBuffs, run.impBuff, spellLive, run.rubyBonus);
+  const base = tokenRefView(cardId, run.cardBuffs, run.impBuff, spellLive, run.rubyBonus, undefined, run.clueBonus);
   // Spells carry no stats to aura — with `spellLive` threaded, tokenRefView's view is now right for them.
   if (def.spell) return base;
   // A granted MINION reads like a shop offer of itself: the full live-text chain, not the printed base.
@@ -3186,7 +3188,7 @@ export function Recruit() {
       // `cardBuff()`; this popup was the last raw reader.
       const or = owner?.buffs?.find((b) => b.source === 'Ruby');
       const ownerRuby = { attack: or?.attack ?? 0, health: or?.health ?? 0, golden: owner?.golden };
-      if (refs.length) m.set(uid, refs.map((id) => tokenRefView(id, cardBuffsLive, run.impBuff, spellLive, run.rubyBonus, ownerRuby)));
+      if (refs.length) m.set(uid, refs.map((id) => tokenRefView(id, cardBuffsLive, run.impBuff, spellLive, run.rubyBonus, ownerRuby, run.clueBonus)));
     };
     for (const c of run.board) add(c.uid, c.cardId, c);
     for (const c of run.hand) add(c.uid, c.cardId, c);

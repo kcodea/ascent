@@ -32,6 +32,7 @@ const LIVE: Record<string, string> = {
   playerUndeadAuraGain: "the 'tribeAura' event (Lantern channel)",
   playerUndeadBuyAtkGain: "the 'tribeAura' event (Undead Attack aura)",
   playerTavernBuyGain: "the '+N/+N Shop' sc narration (gainTavernBuy telegraphs per proc)",
+  playerTavernBuyGainSources: 'the same narration — this is only the per-source SPLIT of playerTavernBuyGain (provenance ledger, R-PROV-01); the Reinvestment badge additionally ticks live off the summon delta',
   playerQuestTally: 'quest deltas replay live via setCombatQuestDelta',
   playerDamage: "the 'dmg'/'death' events — the health bar IS the tracker",
   playerDeathrattles: "the death/summon beats — each Echo resolving is its own display; Grim-style tallies tick via improve events",

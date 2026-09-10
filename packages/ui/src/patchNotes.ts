@@ -82,6 +82,10 @@ export const PATCH_NOTES: PatchNote[] = [
         text: 'Xerox reads "Summon an exact copy" (it always was one: gilding and progress ride along). Selfless Sentinel now says Ward, like every other card.',
       },
       {
+        category: 'UI / Info',
+        text: 'Shop stats now say where they came from. A bought minion lists each source separately (Rune of Reinvestment, Contract Butcher, Staff of Guel…), the Buffs panel itemizes them, and Rune of Reinvestment shows its running total on its badge, ticking live during combat.',
+      },
+      {
         category: 'Card Change',
         text: 'Enigma now triggers on ANY consume by your minions, including Bob Blart at End of Turn and a Demon fed by Appetite Agent. It only fired when Enigma itself ate. Its shop buff plays the same effect as Contract Butcher.',
       },

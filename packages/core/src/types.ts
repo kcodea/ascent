@@ -2645,6 +2645,10 @@ export interface CombatResult {
    *  (Ruby strength, spell power, the Undead aura). Applied to `tavernBuyBonus` at settle — the Staff of Guel
    *  channel, per the owner's rule that "give minions in the Shop" means permanent, not just this shop. */
   playerTavernBuyGain?: { attack: number; health: number };
+  /** PROVENANCE of `playerTavernBuyGain`, by source name (a rune — "Rune of Reinvestment", "Rune of Remains" —
+   *  or the body whose effect raised it). Sums to `playerTavernBuyGain`. The run keeps the per-source ledger
+   *  (`tavernBuyBonusSources`) so every shop stat names where it came from (owner ask 2026-09-10). */
+  playerTavernBuyGainSources?: Record<string, { attack: number; health: number }>;
   /** Rune of the Wild Hunt: the escalation the player's side ended the fight with — written back to the run
    *  so the next combat's first Beast attack continues from it instead of restarting at the base step. */
   playerWildHuntGrown?: number;
@@ -2902,7 +2906,7 @@ export interface CombatContext {
   /** Permanently buff every future Shop minion (Demon Horse's Rally) — carried back via `playerTavernBuyGain`. */
   /** `sourceUid` is what lets the gain be TELEGRAPHED mid-combat. Without it the buff applies silently at
    *  settle and the player sees nothing happen (owner report 2026-07-31). */
-  gainTavernBuy(attack: number, health: number, side: Side, sourceUid?: string): void;
+  gainTavernBuy(attack: number, health: number, side: Side, sourceUid?: string, sourceName?: string): void;
   /** Set 2 — Mushy: queue `count` next-turn first-spell copies (player-only; carried back). */
   queueNextTurnSpellCopy(count: number, side: Side): void;
   /** Set 2 — the card id of the LEFT-MOST spell in that side's hand at combat start, or undefined if none. */

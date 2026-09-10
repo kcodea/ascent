@@ -33,6 +33,12 @@ const METER_SUFFIX: Record<string, string> = {
  * one-shot). Pure — safe to call per render.
  */
 export function runeTally(run: RunState, runeId: string): string | null {
+  // RUNE OF REINVESTMENT: the badge shows what THIS rune alone has given the Shop so far, off the provenance
+  // ledger (owner ask 2026-09-10). Null until it has paid once.
+  if (runeId === 'rune_reinvestment') {
+    const v = run.tavernBuyBonusSources?.['Rune of Reinvestment'];
+    return v && (v.atk > 0 || v.hp > 0) ? `+${v.atk}/+${v.hp}` : null;
+  }
   // Threshold runes (Gemspam, Spending, Action, …) — `sourceId` is stamped when the meter is armed.
   const t = run.runeThresholds?.find((x) => x.sourceId === runeId);
   // RUNE OF COMPOUNDING WAGES (2026-08-20) escalates, so the countdown alone under-sells it: the badge names
@@ -194,7 +200,13 @@ const RUNE_SUMMONS_PER: Record<string, number> = { rune_remains: 5 };
 
 /** The live `x/N` combat tally for a rune, or null. `deaths` / `summons` come from the replay's per-beat
  *  quest delta, so the badge ticks in lockstep with the unit Avenge counters. Cyclic 1..N, like theirs. */
-export function runeCombatTally(runeId: string, deaths: number, summons: number): string | null {
+export function runeCombatTally(runeId: string, deaths: number, summons: number, reinvestPerSummon = 1): string | null {
+  // RUNE OF REINVESTMENT: not a countdown — the Shop buff this fight has EARNED so far (+N/+N, one per friendly
+  // summon per copy held), ticking with the replay's summon delta (owner ask 2026-09-10).
+  if (runeId === 'rune_reinvestment') {
+    const n = reinvestPerSummon * summons;
+    return summons > 0 ? `+${n}/+${n}` : null;
+  }
   const cyc = (v: number, per: number): string => `${v <= 0 ? 0 : ((v - 1) % per) + 1}/${per}`;
   const dp = RUNE_DEATHS_PER[runeId];
   if (dp) return cyc(deaths, dp);

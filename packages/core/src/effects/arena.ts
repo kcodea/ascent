@@ -251,7 +251,7 @@ export interface EffectArena {
   cardDef(id: string): CardDef | undefined;
   /** Permanently buff everything you BUY (the Staff of Guel channel). Combat carries it back through
    *  `gainTavernBuy`; the shop raises `tavernBuyBonus` directly. */
-  gainShopBuff(attack: number, health: number): void;
+  gainShopBuff(attack: number, health: number, source?: string): void;
   /** The permanent run-wide UNDEAD aura (the Lantern of Souls channel — Attack and Health). Combat rides
    *  `grantUndeadAura` (carried back); the shop raises `undeadAttackBonus`/`undeadHealthBonus`. */
   grantUndeadAura(attack: number, health: number): void;
@@ -1524,7 +1524,7 @@ export const ARENA_EFFECTS = {
     const sp = arena.spellPower();
     const a = num(params.attack, 2) + sp.attack;
     const h = num(params.health, 2) + sp.health;
-    arena.castRepeat(str(params.spellId) || 'staffofguel', () => arena.gainShopBuff(a, h));
+    arena.castRepeat(str(params.spellId) || 'staffofguel', () => arena.gainShopBuff(a, h, 'Staff of Guel')); // attributed to the SPELL it casts
   },
 
   /** Flamebeat Drake — Rally: cast a NAMED spell (Dragonflame) for real; golden = two casts. Untargeted spells

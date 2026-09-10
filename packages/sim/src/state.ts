@@ -866,6 +866,12 @@ export interface RunState {
   /** Staff of Guel — a run-wide buff baked onto every minion BOUGHT from the tavern (not Discovered or
    *  conjured). Persists for the rest of the run; stacks (and picks up spell power) if cast again. */
   tavernBuyBonus: { atk: number; hp: number };
+  /** PROVENANCE of `tavernBuyBonus`, by source name — "Staff of Guel", "Contract Butcher", "Enigma", "Rune of
+   *  Reinvestment", "Rune of Remains", a quest reward… Every writer of the channel credits its source here
+   *  (`creditShopBuffSource`), so the SUM of the ledger always equals `tavernBuyBonus` (Doc Bot LAW 4), a bought
+   *  minion's buff breakdown names each source instead of a blanket "Staff of Guel", and a rune badge can show
+   *  what that rune alone has given (owner ask 2026-09-10). Absent on a legacy save = one unattributed total. */
+  tavernBuyBonusSources?: Record<string, { atk: number; hp: number }>;
   /** Veinstorm (Set 2) — the run-wide shop grant that is made of RUBIES, not of generic tavern stats. Same
    *  shape and lifetime as `tavernBuyBonus` (permanent, folded into every present and future offer by
    *  `offerBuyStats`), but the buy path bakes it in under the `Ruby` source so everything that reads "the

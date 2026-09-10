@@ -66,6 +66,10 @@ export const PATCH_NOTES: PatchNote[] = [
         text: 'Rune of the Chipper Sticker and Rune of Refreshments now fire when you PLAY a Demon from hand or weld a Demon onto a Mech. They were only firing on token summons.',
       },
       {
+        category: 'Card Change',
+        text: 'Summon from hand: if the board was full and the copy could not land, the hand card is no longer spent. The next summoner can still bring it out once there is room.',
+      },
+      {
         category: 'New Card',
         text: 'Wolves Den (Tier 3 Undead/Beast) joins Set 3 — Deathrattle: summon 3 Crypt Wolves.',
       },

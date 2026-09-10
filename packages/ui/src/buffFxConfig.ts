@@ -121,15 +121,24 @@ export function waveGapFor(waveCount: number): number {
  * the sim, and the +X/+Y float shows the total), so one tendril per target is the correct read AND cuts the FX
  * K-fold. Keyed by `(fxWave, target)`: untagged buffs (Brightwing — `fxWave` undefined, all share the 'u'
  * bucket) collapse to one tendril per target; tagged itemized-reward events dedupe only within their own wave,
- * so the between-wave stagger survives. First event per key wins. Pure + presentation-only — the sim's
- * `recruitBuffFx` is never mutated.
+ * so the between-wave stagger survives. Pure + presentation-only — the sim's `recruitBuffFx` is never mutated.
+ *
+ * WHICH of a key's events survives (owner report 2026-09-09, Earthbreaker): a SOURCE-ATTRIBUTED event (a minion
+ * tendril, `sourceUid` set) BEATS a sourceless one (a spell/deathrattle descend). When a minion buffs a unit
+ * the SAME action a spell also buffs it — cast a Shop spell with Earthbreaker (Dragons +2/+3) on board and the
+ * spell's own buff and Earthbreaker's both land on the Dragon — collapsing to the spell's sourceless descend
+ * SWALLOWS Earthbreaker's tendril, which is the more informative read (it shows WHO buffed). So among a key's
+ * events we keep the first source-attributed one if any, else the first. Ordering is otherwise preserved.
  */
-export function coalesceBuffFxByTarget<T extends { targetUid: string; fxWave?: number }>(events: readonly T[]): T[] {
-  const seen = new Set<string>();
-  return events.filter((ev) => {
+export function coalesceBuffFxByTarget<T extends { targetUid: string; fxWave?: number; sourceUid?: string }>(events: readonly T[]): T[] {
+  const best = new Map<string, T>();
+  const order: string[] = [];
+  for (const ev of events) {
     const k = `${ev.fxWave ?? 'u'}:${ev.targetUid}`;
-    if (seen.has(k)) return false;
-    seen.add(k);
-    return true;
-  });
+    const cur = best.get(k);
+    if (cur === undefined) { best.set(k, ev); order.push(k); }
+    // Upgrade a sourceless winner to a source-attributed tendril for the same key; a tendril already held stays.
+    else if (cur.sourceUid === undefined && ev.sourceUid !== undefined) best.set(k, ev);
+  }
+  return order.map((k) => best.get(k)!);
 }

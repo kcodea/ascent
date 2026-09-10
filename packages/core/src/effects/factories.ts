@@ -1,4 +1,5 @@
 import type { CardDef, CombatContext, EffectFactoryId, Keyword, Minion, Side, Tribe } from '../types';
+import { defIsTribe } from '../combat/tribe';
 import { ARENA_EFFECTS, type ArenaBody, type EffectArena } from './arena';
 import { ALE_IDS, extraTriggerFires } from '../types';
 
@@ -1323,6 +1324,74 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const arena = combatArena(ctx, self);
     for (const m of ctx.living(self.side)) if (arena.isTribe(m, tribe as Tribe)) ctx.buff(m, a, h, self.name);
   },
+  /* ── SET 3 SPIRITS (tranche 2) — the hand-summon cards ──────────────────────────────────────────── */
+
+  /** Tide Caller / Dreaming Deep (Echo): summon a COPY of the highest-Health minion in your hand beside
+   *  this (the card stays in hand; `ward` gives the copy Ward — Dreaming Deep). Golden: twice, so two different
+   *  cards — a card can be summoned once per combat. */
+  deathrattleSummonHighestHealthFromHand: (ctx, self, params, payload) => {
+    if ((payload as MinionPayload).minion !== self) return;
+    for (let i = 0; i < mul(self); i++) {
+      const pool = ctx.handMinionsFor(self.side).filter((h) => !ctx.getCard(h.cardId)?.spell);
+      if (pool.length === 0) return;
+      const top = pool.reduce((a, b) => (b.health > a.health ? b : a));
+      ctx.summonCopyFromHand(self.side, top.uid, self.uid, params.ward === true);
+    }
+  },
+
+  /** Seedling Spirit (Rally): summon a COPY of a random `tribe` minion from your hand beside this. Own attack. */
+  rallySummonRandomTribeFromHand: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || minion !== self) return;
+    const tribe = str(params.tribe) as Tribe;
+    for (let i = 0; i < mul(self); i++) {
+      const pool = ctx.handMinionsFor(self.side).filter((h) => {
+        const d = ctx.getCard(h.cardId);
+        return !!d && !d.spell && defIsTribe(d, tribe);
+      });
+      if (pool.length === 0) return;
+      ctx.summonCopyFromHand(self.side, ctx.rng.pick(pool).uid, self.uid, false);
+    }
+  },
+
+  /** Handbound Titan (Start of Combat): gain the stats of the highest-Health minion in your hand — this combat
+   *  only; the hand card is untouched. Golden: twice. */
+  scGainStatsOfHighestHealthHand: (ctx, self) => {
+    if (self.dead) return;
+    const pool = ctx.handMinionsFor(self.side).filter((h) => !ctx.getCard(h.cardId)?.spell);
+    if (pool.length === 0) return;
+    const top = pool.reduce((a, b) => (b.health > a.health ? b : a));
+    ctx.buff(self, top.attack * mul(self), top.health * mul(self), self.name);
+  },
+
+  /** Flamebanner Marshal (Rally): give `count` random friendly `tribe` minions (not itself) the Attack of the
+   *  highest-Attack minion in your hand — combat-only (owner: "all attack only unless engraved"). Golden: twice
+   *  as many recipients. Own attack. */
+  rallyGiveTribeAttackOfHighestAttackHand: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || minion !== self) return;
+    const pool = ctx.handMinionsFor(self.side).filter((h) => !ctx.getCard(h.cardId)?.spell);
+    if (pool.length === 0) return;
+    const top = pool.reduce((a, b) => (b.attack > a.attack ? b : a));
+    if (top.attack <= 0) return;
+    const arena = combatArena(ctx, self);
+    let targets = ctx.living(self.side).filter((m) => m !== self && arena.isTribe(m, str(params.tribe) as Tribe));
+    for (let i = 0; i < num(params.count, 2) * mul(self) && targets.length > 0; i++) {
+      const t = ctx.rng.pick(targets);
+      targets = targets.filter((m) => m !== t);
+      ctx.buff(t, top.attack, 0, self.name);
+    }
+  },
+
+  /** Hearth Whisperer: whenever THIS takes damage, a random minion in your hand +atk/+hp — permanent (R-HAND-02). */
+  onDamagedBuffRandomHand: (ctx, self, params, payload) => {
+    if (self.dead || (payload as MinionPayload).minion !== self) return;
+    const pool = ctx.handMinionsFor(self.side).filter((h) => !ctx.getCard(h.cardId)?.spell);
+    if (pool.length === 0) return;
+    const pick = ctx.rng.pick(pool);
+    ctx.buffHand(pick.uid, num(params.attack, 1) * mul(self), num(params.health, 2) * mul(self), self.side, self.uid);
+  },
+
   grantRandomAle: (ctx, self, params) => {
     // Same recipe as Rune of Last Call: only Ales actually in this run's pool (a set without them grants nothing).
     const ales = ctx.poolCards(self.side).filter((c) => ALE_IDS.includes(c.id));

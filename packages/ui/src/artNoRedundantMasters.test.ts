@@ -102,6 +102,9 @@ describe('no redundant PNG masters ship alongside their WebP builds', () => {
     // +4 the same day: Set 3 Neutrals tranche 3 (Highway Hustler, Warband Recruiter, Equipment Charger, the Whiplass-o icon).
     // +1 the same day: the Clue spell art (the Undead re-wire replaced files in place — net 0).
     // +7 the same day: Set 3 Spirits tranche 1 (the seven masters that exist so far).
-    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1130);
+    // +2 the same day: Spirits tranche 2 (Hearth Whisperer, Seedling Spirit).
+    // +5 the same day: the second Spirits master batch (Aspect Choreographer, Dreamcurrent Mystic, Gathering Guide,
+    // Spirit Artificer, Tide Caller).
+    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1140);
   });
 });

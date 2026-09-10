@@ -4609,6 +4609,7 @@ function advanceCombat(s: RunState): void {
   s.minionCostOffTurn = 0;
   s.spiritDiscount = 0; // Festival Treasurer: "this turn"
   s.processionReturned = []; // Grand Procession: one return per Reveler type per turn
+  s.handCopiedThisTurn = []; // the hand-summon mechanic's shop twin: one copy per hand card per turn
   s.dupeUsedThisTurn = false; // Dupes: the first-buy copy is a per-turn freebie
   s.gorrBuys = undefined; // Gorr: the per-turn minion-buy tally resets
   s.freeBuyUsedThisTurn = false; // Freedom rift: the first minion each turn is free again

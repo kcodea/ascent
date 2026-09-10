@@ -102,6 +102,13 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:tribePlayedBuffRandomTribeImproving:onTribePlayed': { policy: 'ownBeat', family: 'economy' },
   'factory:tribePlayedTally:onTribePlayed': { policy: 'passive', family: 'economy' },
   'factory:spellCastBuffRandomHand:spellCast': { policy: 'foldedCue', family: 'castReact' },
+  // set 3 Spirits (tranche 2 — the hand-summon cards)
+  'factory:deathrattleSummonHighestHealthFromHand:onDeath': { policy: 'ownBeat', family: 'echo' },
+  'factory:rallySummonRandomTribeFromHand:onAttack': { policy: 'ownBeat', family: 'rally' },
+  'factory:scGainStatsOfHighestHealthHand:startOfCombat': { policy: 'ownBeat', family: 'startOfCombat' },
+  'factory:rallyGiveTribeAttackOfHighestAttackHand:onAttack': { policy: 'ownBeat', family: 'rally' },
+  'factory:onDamagedBuffRandomHand:onDamaged': { policy: 'foldedCue', family: 'react' },
+  'factory:tribePlayedBuffSelfInHand:onTribePlayed': { policy: 'ownBeat', family: 'economy' },
   'factory:battlecrySummon:onPlay': { policy: 'ownBeat', family: 'shout' },
   'factory:battlecryTargetConsumesShop:onPlay': { policy: 'ownBeat', family: 'shout' },
   'factory:battlecryTriggeredOwnDeathrattle:battlecryTriggered': { policy: 'foldedCue', family: 'shoutReact' },

@@ -56,6 +56,25 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-09',
+    label: 'Set 3 Spirits II',
+    changes: [
+      {
+        category: 'New Card',
+        text: 'The last seven Spirits, built around a new idea: summoning a minion FROM YOUR HAND. The card stays in your hand — a copy fights.',
+        details: [
+          'Summon from hand: the copy has the card\'s stats, keywords and gilding at that moment; the card stays in hand (greyed for the fight) and can be summoned only once per combat. Buffs it gains later never reach the copy.',
+          'Tide Caller (Tier 5): Echo — summon the highest-Health minion from your hand. Dreaming Deep (Tier 7): the same, and the copy gets Ward.',
+          'Seedling Spirit (Tier 2): Rally — summon a random Spirit from your hand.',
+          'Handbound Titan (Tier 6): Start of Combat — gain the stats of the highest-Health minion in your hand, this combat.',
+          'Flamebanner Marshal (Tier 6): Rally — 2 friendly Spirits gain the Attack of the highest-Attack minion in your hand, this combat.',
+          'Hearth Whisperer (Tier 2): Taunt. Whenever it takes damage, a random minion in your hand gets +1/+2, permanently.',
+          'Slumbering Colossus (Tier 4): while in your hand, every Spirit you play gives it +4/+4.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-09',
     label: 'Set 3 Spirits I',
     changes: [
       {

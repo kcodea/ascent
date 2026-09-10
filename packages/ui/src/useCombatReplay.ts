@@ -197,6 +197,7 @@ export interface UnitFrame {
 // Stable empty list for the hand-grant memo — a fresh [] each render would churn every downstream memo.
 const EMPTY_GRANTS: string[] = [];
 const EMPTY_HAND_BUFFS: Record<string, { attack: number; health: number }> = {};
+const EMPTY_HAND_SUMMONED: ReadonlySet<string> = new Set();
 
 const fromSnap = (s: MinionSnapshot): UnitFrame => ({
   uid: s.uid, cardId: s.cardId, name: s.name, tribe: s.tribe, attack: s.attack, health: s.health,
@@ -260,6 +261,15 @@ export function handBuffsShownThrough(events: CombatEvent[], beats: Beat[], beat
     const cur = out[e.uid] ?? { attack: 0, health: 0 };
     out[e.uid] = { attack: cur.attack + e.attack, health: cur.health + e.health };
   }
+  return out;
+}
+
+/** Hand uids a COPY has been summoned from so far (set 3 Spirits' hand-summon), through the beat cursor — the hand
+ *  card greys on that beat and stays grey for the fight; the card itself is untouched (owner design 2026-09-09). */
+export function handSummonedShownThrough(events: CombatEvent[], beats: Beat[], beatIdx: number): ReadonlySet<string> {
+  const through = beatIdx === 0 ? 0 : (beats[beatIdx - 1]?.end ?? events.length);
+  const out = new Set<string>();
+  for (const e of events.slice(0, through)) if (e.type === 'summon' && e.side === 'player' && e.fromHandUid) out.add(e.fromHandUid);
   return out;
 }
 
@@ -659,6 +669,8 @@ export interface CombatReplay {
   /** R-HAND-02: per hand uid, the stat deltas the replay has reached — the hand row adds them so a buffed
    *  hand card grows on its beat. Empty once the fight settles (the buff is then in the run hand itself). */
   handBuffsShown: Record<string, { attack: number; health: number }>;
+  /** Hand uids a copy was summoned from so far (greyed in the hand row for the fight). */
+  handSummonedShown: ReadonlySet<string>;
   /** uids whose effect fired in the current window — their trigger medallion pulses. */
   triggerUids: Set<string>;
   /** uid → a per-fire nonce for units mid-Rally (used as the medallion `key` so each pulse restarts). */
@@ -2977,13 +2989,17 @@ export function useCombatReplay(
     () => (active ? grantsShownThrough(events, beats, beatIdx) : EMPTY_GRANTS),
     [active, beatIdx, beats, events],
   );
+  const handSummonedShown = useMemo(
+    () => (active ? handSummonedShownThrough(events, beats, beatIdx) : EMPTY_HAND_SUMMONED),
+    [active, events, beats, beatIdx],
+  );
   const handBuffsShown = useMemo(
     () => (active ? handBuffsShownThrough(events, beats, beatIdx) : EMPTY_HAND_BUFFS),
     [active, beatIdx, beats, events],
   );
 
   return {
-    frame, visibleFrame, anims, lungeUid, projectiles, floats, deathFloats, log, fullLog, procs, handGrant, handGrantsShown, handBuffsShown,
+    frame, visibleFrame, anims, lungeUid, projectiles, floats, deathFloats, log, fullLog, procs, handGrant, handGrantsShown, handBuffsShown, handSummonedShown,
     triggerUids: triggers,
     rallyPulseUids: rallyPulse,
     watcherPulseUids: watcherPulse,

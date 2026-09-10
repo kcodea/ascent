@@ -35,7 +35,8 @@ const SWEEP = runTextSweep({ contracts: CONTRACTS });
 // 540 → 541 on 2026-09-09: Set 3 Neutrals tranche 3 (Highway Hustler / Warband Recruiter / Equipment Charger) —
 // three new texts, one of which the grammar does not yet parse.
 // 541 → 556 on 2026-09-09: Set 3 Spirits tranche 1 — seventeen new Spirit texts, fifteen of which the grammar does not yet parse.
-const UNRESOLVED_CAP = 556;
+// 556 → 563 on 2026-09-09: Set 3 Spirits tranche 2 — the seven hand-summon cards.
+const UNRESOLVED_CAP = 563;
 /** Collapse floor: the parser fully consuming fewer objects than this means a grammar regression. */
 const PARSED_FLOOR = 340;
 

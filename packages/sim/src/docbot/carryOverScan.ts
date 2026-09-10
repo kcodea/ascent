@@ -160,6 +160,7 @@ export interface CarryOverExcuse {
  *  ratcheted in carryOver.test.ts. Seeded 2026-08-26 from a full run of the scan. */
 export const CARRY_OVER_EXCUSED: Readonly<Record<string, CarryOverExcuse>> = {
   // ── pure shop-economy bookkeeping: no fight reads these ──
+  handCopiedThisTurn: { kind: 'no-combat-meaning', why: 'the hand-summon mechanic\'s SHOP-side once-per-turn latch; combat keeps its own per-fight set (handCopiedUids in simulate)' },
   spiritDiscount: { kind: 'no-combat-meaning', why: 'Festival Treasurer: Gold off the next Spirit BOUGHT this turn — a shop price, no fight reads it' },
   processionReturned: { kind: 'no-combat-meaning', why: 'Grand Procession: which Reveler types already returned a copy this turn — a per-turn sell latch, no fight reads it' },
   goldSpentThisTurn: { kind: 'no-combat-meaning', why: 'Patch Job\'s per-turn Gold tally; combat has no Gold. (Baby Gastrid\'s combat gap is separately excused as state-missing in phaseRegistry.)' },

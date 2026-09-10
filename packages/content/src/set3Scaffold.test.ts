@@ -45,10 +45,11 @@ describe('set 3 scaffold', () => {
       'dw_bladethrower', 'dw_thane', 'dw_pimm', 'dw_edward', 'dw_mountainbond', 'dw_billings', 'dw_gangplank',
       // …then the UNDEAD (owner roster 2026-09-09): set 3's eleven new ones, then the eleven set-1 Undead it keeps
       // (shared definitions; four re-specced in place because set 1 is disabled). Ossuary Colossus was pulled.
+      // Wolves Den joined 2026-09-10 (owner ask).
       'u3_poochy', 'u3_noggin', 'u3_robinson', 'u3_adeptus', 'u3_ems', 'u3_cagebreaker', 'u3_revenant',
       'u3_risingtide', 'u3_squatimus', 'u3_rodrick', 'u3_hierophant',
       'profgreg', 'knit', 'deathlesshand', 'deathsayer', 'deathswarmer', 'pillager', 'mumi', 'sergeant',
-      'forsakenweaver', 'soulsman', 'anubis',
+      'forsakenweaver', 'wolvesden', 'soulsman', 'anubis',
       // …then the NEUTRALS (owner roster 2026-09-09, tranche 1): set 3's own — Blaster back from the archive,
       // Splitboon Adept, the set-3 Yazzus fork — then the carried set-1 and set-2 neutrals (shared definitions).
       'blaster', 'n3_defender', 'n3_pell', 'n3_hustler', 'n3_recruiter', 'n3_charger', 'n3_splitboon', 'n3_yazzus',
@@ -63,7 +64,7 @@ describe('set 3 scaffold', () => {
       'sp3_treasurer', 'sp3_revelator', 'sp3_luminary', 'sp3_forestcolossus', 'sp3_grandprocession',
     ]);
     // The set-1 Undead NOT on the roster stay out (owner confirmation 2026-09-09), still resolvable.
-    for (const id of ['spore', 'karthus', 'ryme', 'gravebody', 'thunderingabomination', 'steadfast', 'wolvesden', 'gravewarden', 'cryptscribe', 'watcher', 'graverobber', 'bonetaxer', 'cryptbroker', 'gravetwin']) {
+    for (const id of ['spore', 'karthus', 'ryme', 'gravebody', 'thunderingabomination', 'steadfast', 'gravewarden', 'cryptscribe', 'watcher', 'graverobber', 'bonetaxer', 'cryptbroker', 'gravetwin']) {
       expect(p.all.some((c) => c.id === id), id + ' left out of set 3').toBe(false);
       expect(CARD_INDEX[id], id + ' still resolves').toBeTruthy();
     }

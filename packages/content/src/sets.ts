@@ -156,13 +156,14 @@ const SET2_ALES_IN_SET3: readonly CardDef[] = SET2_SPELLS.filter((c) => ALE_IDS.
  * definitions. Set 1 is DISABLED, so the four the roster re-specced (Deathswarmer 0/3, Mumi T3 5/2, Sergeant →
  * Sergey, Anubis → "Anubis, Last Gate") were changed in place rather than forked (owner call 2026-09-09).
  * The set-1 Undead NOT on the roster (Sporeling, Karthus, Ryme, Grave Body, Cratering Hulk, Steadfast Champion,
- * Wolves Den, Gravewarden, Crypt Scribe, Watcher, Graverobber, Bone Taxer, Crypt Broker, Gravetwin) stay out by
- * owner confirmation. Anubis lives in set 1's TIER7 list, hence the second filter.
+ * Gravewarden, Crypt Scribe, Watcher, Graverobber, Bone Taxer, Crypt Broker, Gravetwin) stay out by owner
+ * confirmation. Wolves Den joined on 2026-09-10 (owner ask) — its Crypt Wolves are tokens, so they resolve from the
+ * global index without a manifest entry. Anubis lives in set 1's TIER7 list, hence the second filter.
  */
 const SET1_UNDEAD_IN_SET3: readonly CardDef[] = [
   ...UNDEAD.filter((c) => [
     'deathswarmer', 'knit', 'deathlesshand', 'mumi', 'pillager', 'soulsman', 'deathsayer', 'profgreg',
-    'sergeant', 'forsakenweaver',
+    'sergeant', 'forsakenweaver', 'wolvesden',
   ].includes(c.id)),
   ...TIER7.filter((c) => c.id === 'anubis'),
 ];

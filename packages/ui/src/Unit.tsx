@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { CARD_INDEX } from '@game/content';
-import { chooseBothActive, hasTier7Access, spellAttackBonus, spellHealthBonus } from '@game/sim';
+import { chooseBothActive, hasTier7Access, spellAttackBonus, spellHealthBonus, spiritsPlayedThisTurn } from '@game/sim';
 import { Card, type CardView } from './Card';
 import { stepProgress } from './cardText';
 import { liveCardText } from './instView';
@@ -117,6 +117,9 @@ function UnitInner({ u, side, anim, triggered, rallyPulse, watcherPulse, framePu
         zooSummons: foe ? undefined : zooSummons, // Beardsley + Rune of the Zoo: the next summon's live grant
 
         runeFlags: foe ? undefined : { matriarch: !!run.runeMatriarch, brokerage: !!run.runeBrokerage, livingTreasure: !!run.questFlags?.runeLivingTreasure },
+        // Set 3 Spirits: the shared Reveler value + Spirits played this turn, frozen for the fight (Kindled Sprite's
+        // Rally, Nurturer, the Revelers, Luminary). Player-side only, like the other run-scoped scalers.
+        revelerX: foe ? undefined : run.revelerX, spiritsPlayed: foe ? undefined : spiritsPlayedThisTurn(run),
         // Rune of Rebirth: only the body the Start-of-Combat grant actually landed on prints the Echo.
         rebirthOwner: u.grantedEcho,
       })

@@ -245,6 +245,9 @@ const CROSS: CrossExemplar[] = [
   { id: 'd2_herzog', run: { spellsCast: 8 } }, //        run-scoped spell umbrella
   { id: 'chefraag', run: { impBuff: { attack: 2, health: 3 } } }, // run-scoped Imp Aura
   { id: 'n2_wanderer', run: { goldSpent: 13 } }, //      run-lifetime Gold meter
+  { id: 'sp3_flamereveler', run: { revelerX: 4 } }, //   run-scoped shared Reveler value (owner 2026-09-10)
+  { id: 'sp3_luminary', run: { revelerX: 3 } },
+  { id: 'sp3_kindled', run: { playedThisTurn: ['sp3_tidebud', 'sp3_nurturer'] } }, // Spirits played this turn
 ];
 
 const runFor = (x: CrossExemplar): RunState => ({ ...createRun(7), ...x.run }) as RunState;

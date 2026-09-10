@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { combatSide, makeRng, simulate, type BoardMinion } from '@game/core';
 import { CARD_INDEX, REVELER_IDS, poolFor } from '@game/content';
 import { createRun, reduce, type Action, type BoardCard, type RunState } from './index';
-import { revelerValue, spiritsPlayedThisTurn, summonCopyFromHandShop } from './recruit';
+import { handCardLocked, revelerValue, spiritsPlayedThisTurn, summonCopyFromHandShop } from './recruit';
 
 /**
  * SET 3 — SPIRITS, tranche 1 (owner roster + rulings 2026-09-09). The roster order is pinned by
@@ -220,7 +220,7 @@ describe('board-and-hand recipients', () => {
 });
 
 /* ── tranche 2: the HAND-SUMMON mechanic (owner design 2026-09-09) ───────────────────────────────────── */
-const handMinion = (uid: string, cardId: string, over: Partial<{ attack: number; health: number; golden: boolean }> = {}) => {
+const handMinion = (uid: string, cardId: string, over: Partial<{ attack: number; health: number; golden: boolean; locked: boolean }> = {}) => {
   const d = CARD_INDEX[cardId]!;
   return { uid, cardId, attack: d.attack, health: d.health, keywords: [...d.keywords], golden: false, ...over };
 };
@@ -286,6 +286,33 @@ describe('summon from hand — a copy, the card stays, once per combat', () => {
     const hb = r.events.find((e) => e.type === 'handBuff') as { uid: string; attack: number; health: number } | undefined;
     expect(hb).toBeTruthy();
     expect([hb!.uid, hb!.attack, hb!.health]).toEqual(['h1', 1, 2]);
+  });
+});
+
+describe('a LOCKED hand card (Disco Dan tier lock etc.) can be buffed and read, never summoned', () => {
+  it('combat: the summoners skip it — the next candidate goes instead — but Handbound Titan still reads its stats', () => {
+    const hand = [handMinion('h1', 'sp3_kindled', { attack: 9, health: 9, locked: true }), handMinion('h2', 'venom', { health: 5 })];
+    const r = fightH([bm('sp3_dreamtide', { attack: 1, health: 1 })], [foe(5, 40)], hand);
+    const s = summonsFromHand(r);
+    expect(s.map((x) => x.fromHandUid), 'the locked 9/9 is skipped; the 5-Health Venom is summoned').toEqual(['h2']);
+    const only = fightH([bm('sp3_dreamtide', { attack: 1, health: 1 })], [foe(5, 40)], [handMinion('h1', 'sp3_kindled', { health: 9, locked: true })]);
+    expect(summonsFromHand(only), 'a locked card alone: nothing is summoned').toHaveLength(0);
+    // Reading is still allowed: the Titan gains the locked card's stats.
+    const t = fightH([bm('sp3_handboundtitan')], [foe(1, 1)], [handMinion('h1', 'sp3_kindled', { attack: 9, health: 9, locked: true })]);
+    const titan = t.initial.player[0]!;
+    const gain = t.events.find((e) => e.type === 'buff' && (e as { target?: string }).target === titan.uid && (e as { attack?: number }).attack === 9 && (e as { health?: number }).health === 9);
+    expect(gain, 'the Titan still reads the locked card').toBeTruthy();
+  });
+
+  it('shop: the primitive refuses a locked card, and the run marks it locked for combat', () => {
+    const s = run({ tier: 1, board: [body('dc', 'sp3_dreamtide')], hand: [body('h', 'sp3_kindled', { attack: 7, health: 7, lockedUntilTier: 4 })] });
+    expect(handCardLocked(s, inHand(s, 'h'))).toBe(true);
+    expect(summonCopyFromHandShop(s, 'h', at(s, 'dc'), false), 'locked: no copy').toBeUndefined();
+    expect(s.board).toHaveLength(1);
+    expect(play(s, 'h').board, 'and it cannot be played either').toHaveLength(1);
+    const open = run({ tier: 4, board: [body('dc', 'sp3_dreamtide')], hand: [body('h', 'sp3_kindled', { lockedUntilTier: 4 })] });
+    expect(handCardLocked(open, inHand(open, 'h'))).toBe(false);
+    expect(summonCopyFromHandShop(open, 'h', at(open, 'dc'), false), 'the gate opened at tier 4').toBeTruthy();
   });
 });
 

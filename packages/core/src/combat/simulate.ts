@@ -909,7 +909,7 @@ export function simulate(
     summonCopyFromHand: (side, uid, nearUid, ward) => {
       const pool = (side === 'player' ? playerState.handMinions : enemyState.handMinions) ?? [];
       const h = pool.find((x) => x.uid === uid);
-      if (!h || handSummonedUids.has(uid) || handCopiedUids.has(uid)) return undefined;
+      if (!h || h.locked || handSummonedUids.has(uid) || handCopiedUids.has(uid)) return undefined; // a locked card never reaches the board
       const def = cards[h.cardId];
       if (!def || def.spell) return undefined;
       handCopiedUids.add(uid); // once per combat; the card itself stays in hand and keeps taking buffs
@@ -971,7 +971,7 @@ export function simulate(
     },
     takeRandomHandMinion: (side) => {
       const pool = (side === 'player' ? playerState.handMinions : enemyState.handMinions) ?? [];
-      const left = pool.filter((h) => !handSummonedUids.has(h.uid));
+      const left = pool.filter((h) => !h.locked && !handSummonedUids.has(h.uid)); // Rope Wrangler skips a locked card too
       if (left.length === 0) return undefined;
       const pick = left[Math.floor(rng.next() * left.length)]!;
       handSummonedUids.add(pick.uid);

@@ -675,6 +675,9 @@ export interface RunState {
   /** Set 3 Spirits — Grand Procession: the Reveler ids that already returned a copy THIS turn (one per Reveler
    *  type per turn). Cleared at the turn flip. */
   processionReturned?: string[];
+  /** Set 3 Spirits — the hand-summon mechanic's SHOP twin: hand uids already copied onto the board this turn
+   *  (one summon per card per turn; combat keeps its own per-fight set). Cleared at the turn flip. */
+  handCopiedThisTurn?: string[];
   /** Rubies cast this run / this turn — the Ruby-only cast counter (NOT `spellsCast`, which is Shop Spells).
    *  Cards that trigger on the umbrella of BOTH read `spellsCast + rubyCasts`. Absent = 0. */
   rubyCasts?: number;

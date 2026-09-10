@@ -3306,6 +3306,7 @@ export function Recruit() {
   // deltas ride the same stat-override slot the End-of-Turn animation uses, on top of the run hand's stats;
   // once the fight settles the buff is in the run hand itself and the replay's map is empty again.
   const combatHandBuffs = inCombat && !run.combatSettled ? replay.handBuffsShown : null;
+  const combatHandSummoned = inCombat && !run.combatSettled ? replay.handSummonedShown : null; // set 3 Spirits: greyed once a copy was summoned
   const handStatOverride = (m: BoardCard): { attack: number; health: number } | undefined => {
     const d = combatHandBuffs?.[m.uid];
     if (d) return { attack: m.attack + d.attack, health: m.health + d.health };
@@ -6644,6 +6645,7 @@ export function Recruit() {
                 refCards={refViewsByUid.get(m.uid)}
                 dragging={!!drag?.active}
                 dimmed={isDragging(m.uid)}
+                spent={combatHandSummoned?.has(m.uid) ?? false}
                 handSlidePx={handSlide(i) * handSlotWRef.current}
                 fanRot={fanRot}
                 onPointerDown={onCardPointerDown}

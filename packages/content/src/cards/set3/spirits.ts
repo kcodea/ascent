@@ -19,6 +19,100 @@ import type { CardDef } from '@game/core';
 export const REVELER_IDS: readonly string[] = ['sp3_flamereveler', 'sp3_tidereveler', 'sp3_grovereveler'];
 
 export const SET3_SPIRITS: readonly CardDef[] = [
+  /* ── the HAND-SUMMON cards (tranche 2). A minion can be SUMMONED from hand once per combat: an EXACT copy at
+     the moment of summon, the card stays in hand (greyed for the fight) and keeps taking buffs that never reach
+     the copy (owner design 2026-09-09). Shop-triggered Rallies / Echoes follow the same rule per turn. ── */
+  {
+    // Taunt. Whenever this takes damage (combat): a random minion in your hand +1/+2, permanent (R-HAND-02).
+    id: 'sp3_hearthwhisperer',
+    name: 'Hearth Whisperer',
+    tribe: 'spirit',
+    tier: 2,
+    attack: 2,
+    health: 6,
+    keywords: ['T'],
+    effects: [{ on: 'onDamaged', do: 'onDamagedBuffRandomHand', params: { attack: 1, health: 2 } }],
+    text: '**Taunt.** Whenever this takes damage, give a random minion in your hand **+1/+2**.',
+    goldenText: '**Taunt.** Whenever this takes damage, give a random minion in your hand **+2/+4**.',
+  },
+  {
+    // Rally: summon a COPY of a random Spirit from your hand (the card stays; once per card per combat).
+    id: 'sp3_seedling',
+    name: 'Seedling Spirit',
+    tribe: 'spirit',
+    tier: 2,
+    attack: 2,
+    health: 3,
+    keywords: ['RL'],
+    effects: [{ on: 'onAttack', do: 'rallySummonRandomTribeFromHand', params: { tribe: 'spirit' } }],
+    text: '**Rally:** summon a random Spirit from your hand.',
+    goldenText: '**Rally:** summon **2** random Spirits from your hand.',
+  },
+  {
+    // A HAND watcher (`inHand: true`): while this is in your hand, every Spirit you play grows it +4/+4.
+    id: 'sp3_slumbering',
+    name: 'Slumbering Colossus',
+    tribe: 'spirit',
+    tier: 4,
+    attack: 4,
+    health: 6,
+    keywords: [],
+    effects: [{ on: 'onTribePlayed', do: 'tribePlayedBuffSelfInHand', params: { tribe: 'spirit', attack: 4, health: 4, inHand: true } }],
+    text: 'While this is in your hand, whenever you play a Spirit, give this **+4/+4**.',
+    goldenText: 'While this is in your hand, whenever you play a Spirit, give this **+8/+8**.',
+  },
+  {
+    // Echo: summon a COPY of the highest-Health minion in your hand.
+    id: 'sp3_dreamtide',
+    name: 'Dreamtide Caller',
+    tribe: 'spirit',
+    tier: 5,
+    attack: 5,
+    health: 8,
+    keywords: [],
+    effects: [{ on: 'onDeath', do: 'deathrattleSummonHighestHealthFromHand', params: {} }],
+    text: '**Echo:** summon the highest-Health minion from your hand.',
+    goldenText: '**Echo:** summon the **2** highest-Health minions from your hand.',
+  },
+  {
+    // Rally: 2 friendly Spirits gain the Attack of the highest-Attack minion in your hand — combat-only.
+    id: 'sp3_flamebanner',
+    name: 'Flamebanner Marshal',
+    tribe: 'spirit',
+    tier: 6,
+    attack: 8,
+    health: 7,
+    keywords: ['RL'],
+    effects: [{ on: 'onAttack', do: 'rallyGiveTribeAttackOfHighestAttackHand', params: { tribe: 'spirit', count: 2 } }],
+    text: '**Rally:** give **2** friendly Spirits the Attack of the highest-Attack minion in your hand.',
+    goldenText: '**Rally:** give **4** friendly Spirits the Attack of the highest-Attack minion in your hand.',
+  },
+  {
+    // Start of Combat: gain the stats of the highest-Health minion in your hand — this combat.
+    id: 'sp3_handboundtitan',
+    name: 'Handbound Titan',
+    tribe: 'spirit',
+    tier: 6,
+    attack: 6,
+    health: 10,
+    keywords: [],
+    effects: [{ on: 'startOfCombat', do: 'scGainStatsOfHighestHealthHand', params: {} }],
+    text: '**Start of Combat:** gain the stats of the highest-Health minion in your hand this combat.',
+    goldenText: '**Start of Combat:** gain **twice** the stats of the highest-Health minion in your hand this combat.',
+  },
+  {
+    // Echo: summon a COPY of the highest-Health minion in your hand and give it Ward.
+    id: 'sp3_dreamingdeep',
+    name: 'Dreaming Deep',
+    tribe: 'spirit',
+    tier: 7,
+    attack: 8,
+    health: 14,
+    keywords: [],
+    effects: [{ on: 'onDeath', do: 'deathrattleSummonHighestHealthFromHand', params: { ward: true } }],
+    text: '**Echo:** summon the highest-Health minion from your hand and give it **Ward**.',
+    goldenText: '**Echo:** summon the **2** highest-Health minions from your hand and give them **Ward**.',
+  },
   {
     // Rally: +1 Attack per Spirit played this turn. Combat reads the tally frozen at combat start
     // (`spiritsPlayedFor`); a shop-triggered Rally reads the live count. Combat-only in a fight (owner: "all

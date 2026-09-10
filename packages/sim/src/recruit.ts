@@ -3374,6 +3374,38 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     for (const t of pickRandom(ctx.state, inHand, 1)) addBuff(t, nameOf(self), a, h);
   },
 
+  /* ── SET 3 SPIRITS (tranche 2) — the hand-summon cards, shop twins ─────────────────────────────── */
+
+  /** Dreamtide Caller / Dreaming Deep (Echo, shop twin — a Ryme / Funeral re-fire): a copy of the highest-Health
+   *  hand minion beside this; `ward` adds Ward. Golden: twice (two different cards). */
+  deathrattleSummonHighestHealthFromHand: (ctx, self, params) => {
+    for (let i = 0; i < gold(self); i++) {
+      const pool = ctx.state.hand.filter((c) => !CARD_INDEX[c.cardId]?.spell && !(ctx.state.handCopiedThisTurn ?? []).includes(c.uid));
+      if (pool.length === 0) return;
+      const top = pool.reduce((a, b) => (b.health > a.health ? b : a));
+      summonCopyFromHandShop(ctx.state, top.uid, self, params.ward === true);
+    }
+  },
+
+  /** Seedling Spirit (Rally, shop twin): a copy of a random `tribe` minion from hand beside this. */
+  rallySummonRandomTribeFromHand: (ctx, self, params, payload) => {
+    if (payload.minion !== self) return;
+    const tribe = str(params.tribe) as Tribe;
+    for (let i = 0; i < gold(self); i++) {
+      const pool = ctx.state.hand.filter((c) => !CARD_INDEX[c.cardId]?.spell && isTribe(c, tribe) && !(ctx.state.handCopiedThisTurn ?? []).includes(c.uid));
+      if (pool.length === 0) return;
+      const pick = pickRandom(ctx.state, pool, 1)[0];
+      if (pick) summonCopyFromHandShop(ctx.state, pick.uid, self, false);
+    }
+  },
+
+  /** Slumbering Colossus (a HAND watcher — `inHand: true`): whenever you play a `tribe` minion, THIS card, still
+   *  in hand, grows +atk/+hp. Permanent (R-HAND-02). Golden doubles. */
+  tribePlayedBuffSelfInHand: (ctx, self, params) => {
+    if (!ctx.state.hand.includes(self)) return;
+    addBuff(self, nameOf(self), num(params.attack, 4) * gold(self), num(params.health, 4) * gold(self));
+  },
+
   /** Set 3 — Equipment Charger (Start of Turn): `count` extra Equipment activations THIS turn (× golden). The
    *  turn's allowance was just rebuilt (`rebuildEquipment` runs before `applyStartOfTurn`), so the bonus sits on
    *  top of the base and is zeroed again at the next rebuild — a per-turn grant, never banked. */
@@ -10844,6 +10876,28 @@ export function fireOnTribePlayed(state: RunState, played: BoardCard): void {
       if (fn) captureBuffFx(state, card, 'minion', () => fn(ctx, card, eff.params ?? {}, { minion: card, target: played }));
     }
   }
+}
+
+/**
+ * SET 3 SPIRITS — the hand-summon mechanic, SHOP twin (a Rally or Echo triggered outside combat): summon an
+ * exact copy of a hand card onto the board beside `near`. The card stays in hand; one summon per card PER TURN
+ * here (the combat rule is per combat), tracked in `handCopiedThisTurn`. Board full → nothing. Returns the copy.
+ */
+export function summonCopyFromHandShop(state: RunState, uid: string, near: BoardCard | undefined, ward: boolean): BoardCard | undefined {
+  const h = state.hand.find((c) => c.uid === uid);
+  const def = h ? CARD_INDEX[h.cardId] : undefined;
+  if (!h || !def || def.spell) return undefined;
+  if ((state.handCopiedThisTurn ?? []).includes(uid)) return undefined;
+  if (state.board.length >= CONFIG.boardMax) return undefined;
+  state.handCopiedThisTurn = [...(state.handCopiedThisTurn ?? []), uid];
+  const copy: BoardCard = {
+    uid: `b${state.uidSeq++}`, cardId: h.cardId, tribe: h.tribe, attack: h.attack, health: h.health,
+    keywords: [...h.keywords, ...(ward && !h.keywords.includes('DS') ? (['DS'] as Keyword[]) : [])], golden: h.golden,
+  };
+  const at = near ? state.board.indexOf(near) : -1;
+  state.board.splice(at < 0 ? state.board.length : at + 1, 0, copy);
+  fireSummonBuffs(state, copy);
+  return copy;
 }
 
 /** A drawable minion with a Rally — the pool Warband Recruiter summons from, in both phases. */

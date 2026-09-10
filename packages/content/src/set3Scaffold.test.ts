@@ -55,7 +55,9 @@ describe('set 3 scaffold', () => {
       'drummer', 'sylus', 'chronos', 'joker', 'venom', 'tauntbreaker', 'blackbelt', 'jenkins', 'stewardofspells',
       'arenaheckler', 'wayfinder', 'salvatore',
       'n2_spellsword', 'n2_bellringer', 'k_pouchpincher', 'n2_paragon',
-      // …then the SPIRITS (owner roster 2026-09-09, tranche 1) — a brand-new tribe, all set 3's own.
+      // …then the SPIRITS (owner roster 2026-09-09) — a brand-new tribe, all set 3's own: the seven hand-summon cards
+      // (tranche 2, declared first in the file), then tranche 1.
+      'sp3_hearthwhisperer', 'sp3_seedling', 'sp3_slumbering', 'sp3_dreamtide', 'sp3_flamebanner', 'sp3_handboundtitan', 'sp3_dreamingdeep',
       'sp3_kindled', 'sp3_tidebud', 'sp3_flamereveler', 'sp3_tidereveler', 'sp3_grovereveler', 'sp3_bondweaver',
       'sp3_festivalkeeper', 'sp3_nurturer', 'sp3_dreamcurrent', 'sp3_paradeartificer', 'sp3_gatheringguide', 'sp3_aspect',
       'sp3_treasurer', 'sp3_revelator', 'sp3_luminary', 'sp3_forestcolossus', 'sp3_grandprocession',

@@ -192,6 +192,7 @@ export function simulate(
   let rubyMintCount = 0; // "get N Rubies" refired in combat — settle mints via the run's real mintRubies
   const handSummonedUids = new Set<string>(); // hand minions taken by Rope Wrangler's Echo (per-fight, both sides)
   const handSummoned: string[] = []; // the player half, carried back so settle removes them from the hand
+  const handCopiedUids = new Set<string>(); // set 3 Spirits: hand cards a COPY was summoned from this fight — NOT consumed, just spent as a summon source
   const rubyBonusGain: Record<Side, { attack: number; health: number }> = {
     player: { attack: 0, health: 0 },
     enemy: { attack: 0, health: 0 },
@@ -902,7 +903,23 @@ export function simulate(
     },
     handMinionsFor: (side) => {
       const pool = (side === 'player' ? playerState.handMinions : enemyState.handMinions) ?? [];
-      return pool.filter((h) => !handSummonedUids.has(h.uid));
+      // Neither a consumed card (Rope Wrangler) nor one already copied this fight (a Spirit summon) is a candidate.
+      return pool.filter((h) => !handSummonedUids.has(h.uid) && !handCopiedUids.has(h.uid));
+    },
+    summonCopyFromHand: (side, uid, nearUid, ward) => {
+      const pool = (side === 'player' ? playerState.handMinions : enemyState.handMinions) ?? [];
+      const h = pool.find((x) => x.uid === uid);
+      if (!h || handSummonedUids.has(uid) || handCopiedUids.has(uid)) return undefined;
+      const def = cards[h.cardId];
+      if (!def || def.spell) return undefined;
+      handCopiedUids.add(uid); // once per combat; the card itself stays in hand and keeps taking buffs
+      const kws = [...h.keywords, ...(ward && !h.keywords.includes('DS') ? (['DS'] as Keyword[]) : [])];
+      const copy = summonMinion(side, def, nearUid, kws, h.golden, false,
+        { attack: h.attack, health: h.health, maxHealth: h.health, divineShield: !!ward || h.keywords.includes('DS') });
+      // Stamp the hand origin onto the summon event just emitted — the replay greys that hand card for the fight.
+      const ev = events[events.length - 1];
+      if (ev && ev.type === 'summon' && ev.minion.uid === copy.uid) ev.fromHandUid = uid;
+      return copy;
     },
     buffHand: (uid, attack, health, side, sourceUid) => {
       // R-HAND-02 (owner 2026-09-09): "cards buffed in hand are always permanent". Player-only for the same

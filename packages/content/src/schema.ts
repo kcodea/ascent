@@ -402,6 +402,9 @@ export const EffectFactoryIdSchema = z.enum([
   'minionSoldRevelerDiscount', 'minionSoldRevelerReturn', 'battlecryBuffRandomTribePlusReveler', 'battlecryDiscoverTribeIfControl',
   'endOfTurnBuffRandomTribeRepeatPerPlayed', 'scBuffTribePerTally', 'tribePlayedEveryNGrantRandomSpell',
   'tribePlayedBuffRandomTribeImproving', 'tribePlayedTally', 'equipmentBuffTargetAndRandomHandTribe', 'spellCastBuffRandomHand',
+  // set 3 Spirits (tranche 2 — the hand-summon cards)
+  'deathrattleSummonHighestHealthFromHand', 'rallySummonRandomTribeFromHand', 'scGainStatsOfHighestHealthHand',
+  'rallyGiveTribeAttackOfHighestAttackHand', 'onDamagedBuffRandomHand', 'tribePlayedBuffSelfInHand',
   'battlecryBuffMagnetics',
   'battlecryBuffImps',
   'goldSpentBuffFodder',

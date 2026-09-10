@@ -630,6 +630,13 @@ export type EffectFactoryId =
   | 'tribePlayedTally' // Forest Colossus: count `tribe` plays since this was played
   | 'equipmentBuffTargetAndRandomHandTribe' // Spiritbringer: the target AND a random `tribe` in hand, +atk/+hp
   | 'spellCastBuffRandomHand' // Dreamcurrent Mystic: a Shop spell cast → a random minion in hand +atk/+hp
+  // ── set 3 SPIRITS (tranche 2, the hand-summon cards) ──
+  | 'deathrattleSummonHighestHealthFromHand' // Dreamtide Caller / Dreaming Deep: Echo — a COPY of the highest-Health hand minion (ward: Dreaming Deep)
+  | 'rallySummonRandomTribeFromHand' // Seedling Spirit: Rally — a COPY of a random `tribe` minion from hand
+  | 'scGainStatsOfHighestHealthHand' // Handbound Titan: Start of Combat — gain the highest-Health hand minion's stats this combat
+  | 'rallyGiveTribeAttackOfHighestAttackHand' // Flamebanner Marshal: Rally — `count` friendly `tribe` minions gain the highest-Attack hand minion's Attack
+  | 'onDamagedBuffRandomHand' // Hearth Whisperer: whenever this takes damage, a random hand minion +atk/+hp (permanent)
+  | 'tribePlayedBuffSelfInHand' // Slumbering Colossus (hand watcher): whenever you play a `tribe`, this grows in hand
   | 'battlecryConductorAdjacent' // Conductor: Shout — give adjacent minions +2N/+3N; N snowballs per Conductor played (×2 gilded)
   | 'battlecryBuffMagnetics' // Scrap Herald: Battlecry — give your Magnetic minions +atk/+hp wherever they are; stacks into future buys
   | 'battlecryBuffImps' // Imp Overseer: Battlecry — give your Imps +atk/+hp run-wide (shared impBuff enchant)
@@ -2290,7 +2297,7 @@ export type CombatEvent = (
   | { type: 'keyword'; target: string; keyword: Keyword; source?: string } // a combat effect grants a keyword (Mumi → Rise, Ryme-replayed keyword battlecries) — the UI folds it into the unit's pills
   | { type: 'keywordLost'; target: string; keyword: Keyword; source?: string } // a combat effect STRIPS a keyword (Tauntbreaker → Taunt/Rise off the enemy it hit) — the UI drops that pill
   | { type: 'venomLost'; target: string } // a Venomous minion procced and lost Venomous
-  | { type: 'summon'; minion: MinionSnapshot; side: Side; index: number; source?: string }
+  | { type: 'summon'; minion: MinionSnapshot; side: Side; index: number; source?: string; fromHandUid?: string } // `fromHandUid`: a COPY summoned from that hand card (set 3 Spirits) — the card stays in hand, greyed for the fight
   | { type: 'ascend'; target: string; into: string } // mid-combat transform (Tara → Taragosa, Spirit Pup → Spirit Worgen)
   // `ruby`: this stat gain came from a RUBY landing on `target` (set 2 Kobolds), not from an ordinary buff.
   // Pure presentation metadata in the same spirit as `avenge` below — never read by the sim, never affects
@@ -2817,6 +2824,15 @@ export interface CombatContext {
    *  `CombatResult.playerHandBuffs` and applied to the run hand at settle like any recruit buff — and logged
    *  as a `handBuff` event so the replay grows the hand card on its beat. Player-only. */
   buffHand(uid: string, attack: number, health: number, side: Side, sourceUid?: string): void;
+  /**
+   * SET 3 SPIRITS — the HAND-SUMMON mechanic (owner design 2026-09-09): summon an EXACT COPY of a hand card
+   * (its stats, keywords and gild at this moment) beside `nearUid`. The card is NOT consumed — it stays in
+   * hand, keeps receiving buffs (which never reach the copy), and simply cannot be summoned AGAIN this
+   * combat: a later summoner must pick a different card. Returns the copy, or undefined when the card is
+   * gone, already summoned, consumed by Rope Wrangler, or a spell. `ward` adds Ward to the copy (Dreaming
+   * Deep). The emitted `summon` event carries `fromHandUid`, which is what greys the hand card in the replay.
+   */
+  summonCopyFromHand(side: Side, uid: string, nearUid?: string, ward?: boolean): Minion | undefined;
   /** Permanently raise the run-wide spell power by +atk/+hp (Skullblade's Deathrattle). Player-only;
    *  accumulated and carried back via `CombatResult.playerSpellPower`, applied in the run loop. `sourceUid`
    *  (the granting minion) telegraphs it mid-combat as an `sc` narration. */

@@ -431,6 +431,12 @@ export interface SummonExcuse {
 /** Seeded from the scan's first full run (2026-08-27) — every entry INVESTIGATED before excusal
  *  (verify-before-alarm): the outcome named in `why` is what the lane actually measured. */
 export const SUMMON_EXCUSED: Readonly<Record<string, SummonExcuse>> = {
+  // SET 3 SPIRITS — the hand-summon cards (2026-09-09): each summons a COPY of a minion FROM THE HAND, and the
+  // oracle's fixture stages no hand minions, so the lane measures silence. Verified: `set3Spirits.test.ts`
+  // stages a hand and pins the copy (live stats, Ward for the Deep, never a non-Spirit for Seedling).
+  sp3_seedling: { kind: 'conditional', why: 'Rally summons a copy of a random SPIRIT from the hand; the fixture holds no hand minions (pinned with a staged hand in set3Spirits.test.ts)' },
+  sp3_dreamtide: { kind: 'conditional', why: 'Echo summons a copy of the highest-Health HAND minion; the fixture holds none (pinned in set3Spirits.test.ts)' },
+  sp3_dreamingdeep: { kind: 'conditional', why: 'Echo summons a copy of the highest-Health HAND minion with Ward; the fixture holds none (pinned in set3Spirits.test.ts)' },
   // dw_exgalloper's needs-triage entry (gilded copies carried a PLAIN badge) was RESOLVED and deleted
   // 2026-08-27: owner ruling q-copy-gilded-badge — "exact copies without the echo, so they would be gilded
   // too" — echoSummonCopyNoEcho now passes the source's golden flag, matching scSummonCopy.

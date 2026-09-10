@@ -28,7 +28,9 @@ describe('Doc Bot — combat presence differential', () => {
   it('the unstageable residue is pinned (1 as of 2026-08-26: Reflector — needs a targeted combat cast)', () => {
     // 1 → 2 on 2026-09-09: Kindled Sprite (sp3_kindled) — its Rally reads combatSide.spiritsPlayed, which the differential's
     // staged variants never set; a Spirits-played variant is Doc Bot staging backlog.
-    const PIN = 2;
+    // 2 → 3 on 2026-09-09: Seedling Spirit (sp3_seedling) — its Rally summons a copy FROM HAND, and the differential's
+    // staged variants carry no hand minions; a hand-minion variant is Doc Bot staging backlog.
+    const PIN = 3;
     expect(scan.inert.length, `${scan.inert.length} combat-effect card(s) changed NOTHING in any staged variant (pin ${PIN}): ${scan.inert.join(', ')} — a NEW card here means its effect never acted: stage its trigger (add a variant) or fix the effect. This is Doc Bot's staging backlog, not an owner queue.`).toBeLessThanOrEqual(PIN);
     expect(scan.inert.length, `only ${scan.inert.length} inert now (pin ${PIN}) — you staged or fixed some; lower the pin.`).toBeGreaterThanOrEqual(PIN);
   });

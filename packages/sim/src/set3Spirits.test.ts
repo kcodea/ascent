@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { combatSide, makeRng, simulate, type BoardMinion } from '@game/core';
 import { CARD_INDEX, REVELER_IDS, poolFor } from '@game/content';
 import { createRun, reduce, type Action, type BoardCard, type RunState } from './index';
-import { revelerValue, spiritsPlayedThisTurn } from './recruit';
+import { revelerValue, spiritsPlayedThisTurn, summonCopyFromHandShop } from './recruit';
 
 /**
  * SET 3 — SPIRITS, tranche 1 (owner roster + rulings 2026-09-09). The roster order is pinned by
@@ -216,5 +216,103 @@ describe('board-and-hand recipients', () => {
     with1 = play(with1, 'gg');
     expect(with1.discover?.length).toBeGreaterThan(0);
     for (const id of with1.discover ?? []) expect([CARD_INDEX[id]?.tribe, CARD_INDEX[id]?.tribe2], id).toContain('spirit');
+  });
+});
+
+/* ── tranche 2: the HAND-SUMMON mechanic (owner design 2026-09-09) ───────────────────────────────────── */
+const handMinion = (uid: string, cardId: string, over: Partial<{ attack: number; health: number; golden: boolean }> = {}) => {
+  const d = CARD_INDEX[cardId]!;
+  return { uid, cardId, attack: d.attack, health: d.health, keywords: [...d.keywords], golden: false, ...over };
+};
+const fightH = (mine: BoardMinion[], foes: BoardMinion[], hand: ReturnType<typeof handMinion>[], seed = 7) =>
+  simulate(mine, foes, makeRng(seed), CARD_INDEX,
+    combatSide({ tier: 6, handMinions: hand, poolIds: poolFor('set3').all.map((c) => c.id) }), combatSide({ tier: 6 }));
+const summonsFromHand = (r: ReturnType<typeof simulate>) =>
+  r.events.filter((e) => e.type === 'summon' && e.side === 'player' && (e as { fromHandUid?: string }).fromHandUid) as { minion: { cardId: string; keywords: readonly string[]; attack: number; health: number }; fromHandUid: string }[];
+
+describe('summon from hand — a copy, the card stays, once per combat', () => {
+  it('Dreamtide Caller\'s Echo summons a COPY of the highest-Health hand minion with its current stats; the card is not consumed', () => {
+    const hand = [handMinion('h1', 'sp3_kindled', { attack: 9, health: 9 }), handMinion('h2', 'venom')];
+    const r = fightH([bm('sp3_dreamtide', { attack: 1, health: 1 })], [foe(5, 40)], hand);
+    const s = summonsFromHand(r);
+    expect(s).toHaveLength(1);
+    expect(s[0]!.fromHandUid).toBe('h1');
+    expect(s[0]!.minion.cardId).toBe('sp3_kindled');
+    expect([s[0]!.minion.attack, s[0]!.minion.health], 'the hand card\'s LIVE stats, not the printed ones').toEqual([9, 9]);
+    expect(r.playerHandSummoned, 'nothing is removed from the hand at settle').toBeUndefined();
+  });
+
+  it('a card can be summoned only once per combat — a second summoner takes a different card, or nothing', () => {
+    const hand = [handMinion('h1', 'sp3_kindled', { health: 9 }), handMinion('h2', 'venom', { health: 5 })];
+    const r = fightH([bm('sp3_dreamtide', { attack: 1, health: 1 }), bm('sp3_dreamtide', { attack: 1, health: 1 })], [foe(5, 60)], hand);
+    const s = summonsFromHand(r);
+    expect(s.map((x) => x.fromHandUid)).toEqual(['h1', 'h2']);
+    const solo = fightH([bm('sp3_dreamtide', { attack: 1, health: 1 }), bm('sp3_dreamtide', { attack: 1, health: 1 })], [foe(5, 60)], [handMinion('h1', 'sp3_kindled')]);
+    expect(summonsFromHand(solo), 'one card, two Echoes: the second finds nothing').toHaveLength(1);
+  });
+
+  it('Dreaming Deep\'s copy arrives with Ward', () => {
+    const r = fightH([bm('sp3_dreamingdeep', { attack: 1, health: 1 })], [foe(5, 40)], [handMinion('h1', 'sp3_kindled')]);
+    const s = summonsFromHand(r);
+    expect(s).toHaveLength(1);
+    expect(s[0]!.minion.keywords).toContain('DS');
+  });
+
+  it('Seedling Spirit\'s Rally summons a random SPIRIT from hand (never a non-Spirit)', () => {
+    const hand = [handMinion('h1', 'venom'), handMinion('h2', 'sp3_kindled'), handMinion('h3', 'sp3_tidebud')];
+    const r = fightH([bm('sp3_seedling')], [foe(0, 40)], hand);
+    const s = summonsFromHand(r);
+    expect(s.length).toBeGreaterThan(0);
+    expect(['sp3_kindled', 'sp3_tidebud']).toContain(s[0]!.minion.cardId);
+  });
+
+  it('Handbound Titan gains the highest-Health hand minion\'s stats at Start of Combat', () => {
+    const r = fightH([bm('sp3_handboundtitan')], [foe(0, 40)], [handMinion('h1', 'venom', { attack: 4, health: 12 }), handMinion('h2', 'sp3_kindled')]);
+    const titan = r.initial.player[0]!;
+    const gain = r.events.find((e) => e.type === 'buff' && (e as { target?: string }).target === titan.uid && (e as { attack?: number }).attack === 4 && (e as { health?: number }).health === 12);
+    expect(gain).toBeTruthy();
+    expect(r.playerHandSummoned, 'the hand card is untouched').toBeUndefined();
+  });
+
+  it('Flamebanner Marshal\'s Rally gives 2 friendly Spirits the highest-Attack hand minion\'s Attack', () => {
+    const r = fightH([bm('sp3_flamebanner'), bm('sp3_kindled'), bm('sp3_tidebud')], [foe(0, 60)], [handMinion('h1', 'venom', { attack: 11 })]);
+    const gains = r.events.filter((e) => e.type === 'buff' && String((e as { key?: string }).key ?? '').includes('rallyGiveTribeAttackOfHighestAttackHand'));
+    expect(gains.length).toBe(2);
+    for (const g of gains) expect((g as { attack: number }).attack).toBe(11);
+  });
+
+  it('Hearth Whisperer: taking damage buffs a random hand minion +1/+2, permanently (a handBuff event)', () => {
+    const r = fightH([bm('sp3_hearthwhisperer')], [foe(1, 40)], [handMinion('h1', 'sp3_kindled')]);
+    const hb = r.events.find((e) => e.type === 'handBuff') as { uid: string; attack: number; health: number } | undefined;
+    expect(hb).toBeTruthy();
+    expect([hb!.uid, hb!.attack, hb!.health]).toEqual(['h1', 1, 2]);
+  });
+});
+
+describe('Slumbering Colossus — a hand watcher', () => {
+  it('grows +4/+4 in hand for every Spirit played, and nothing once it is on the board', () => {
+    let s = run({ hand: [body('sc', 'sp3_slumbering'), body('a', 'sp3_kindled'), body('b', 'sp3_tidebud')] });
+    s = play(s, 'a');
+    expect(stats(inHand(s, 'sc'))).toEqual([4 + 4, 6 + 4]);
+    s = play(s, 'b'); // Tidebud's own Shout also hands the one hand Spirit +2 Health
+    expect(stats(inHand(s, 'sc'))).toEqual([12, 16]);
+    s = play(s, 'sc');
+    const onBoard = at(s, 'sc');
+    s = { ...s, hand: [body('c', 'sp3_nurturer')] };
+    s = play(s, 'c');
+    expect(stats(at(s, 'sc')), 'on the board it is asleep').toEqual(stats(onBoard));
+  });
+});
+
+describe('the shop twin — a triggered Echo summons a copy from hand once per turn', () => {
+  it('the primitive summons the copy beside the source, keeps the card, and refuses a second summon this turn', () => {
+    const s = run({ board: [body('dc', 'sp3_dreamtide')], hand: [body('h', 'sp3_kindled', { attack: 7, health: 7 })] });
+    expect(summonCopyFromHandShop(s, 'h', at(s, 'dc'), false)).toBeTruthy();
+    expect(summonCopyFromHandShop(s, 'h', at(s, 'dc'), false), 'once per turn per card').toBeUndefined();
+    const copy = s.board.find((c) => c.uid !== 'dc' && c.cardId === 'sp3_kindled')!;
+    expect(copy).toBeTruthy();
+    expect(stats(copy)).toEqual([7, 7]);
+    expect(inHand(s, 'h'), 'the hand card stays').toBeTruthy();
+    expect(s.handCopiedThisTurn).toContain('h');
   });
 });

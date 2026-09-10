@@ -124,6 +124,8 @@ export const PHASE_EXCUSED: Readonly<Record<string, PhaseExcuse>> = {
   battlecryGrantRandomReveler: { phase: 'combat', kind: 'no-surface', why: 'a Reveler to HAND; no hand grant mid-fight beyond the carry-back, replays at settle' },
   battlecryBuffRandomTribePlusReveler: { phase: 'combat', kind: 'state-missing', why: 'reads the run-wide Reveler value, which combat does not carry; replays at settle' },
   battlecryDiscoverTribeIfControl: { phase: 'combat', kind: 'no-surface', why: 'a Discover; no shop mid-fight, replays at settle' },
+  scGainStatsOfHighestHealthHand: { phase: 'recruit', kind: 'no-surface', why: 'Handbound Titan gains the hand minion\'s stats "this combat" — a temporary combat gain; a shop-side SoC replay (Twilight) has nothing temporary to grant' },
+  rallyGiveTribeAttackOfHighestAttackHand: { phase: 'recruit', kind: 'no-surface', why: 'Flamebanner Marshal\'s Rally Attack is combat-only by owner ruling ("all attack only unless engraved"); a shop rally has no fight to grant it for' },
   battlecryGetHandSpell: { phase: 'combat', kind: 'no-surface', why: 'mints hand spells (Tower Shield / Clue) into the HAND; no hand mid-fight, replays at settle like every other hand grant' },
   battlecryAllDemonsConsume: { phase: 'combat', kind: 'no-surface', why: 'Demons Consume from the SHOP; no shop exists mid-fight, replays at settle' },
   battlecryBuffTargetPerGoldSpent: { phase: 'combat', kind: 'state-missing', why: 'Baby Gastrid scales off goldSpentThisTurn, which CombatContext does not carry (documented in replayCombatBattlecry)' },

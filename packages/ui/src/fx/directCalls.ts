@@ -127,7 +127,11 @@ export const DYNAMIC_CALL_SITES: Readonly<Record<string, number>> = {
   // FOUR since 2026-09-01: the fourth is `fireBuffCasts` playing the authored effect for a LABEL-sourced
   // grant (Gorun's Blade Mastery → `gorun-hp`), resolved through `labelBuffFxFor`. Data-resolved like the
   // three above, and for the same reason none of them is a literal.
-  'useCombatReplay.ts': 4,
+  // FIVE since 2026-09-10: the fifth is `fireBuffCasts` playing the authored effect for a SOURCE MINION whose
+  // own on-attack buff has no spell behind it (Paragon's rally-buff → `lightning-bolt-blue`), resolved through
+  // `sourceBuffDefFor`. The source-card mirror of the spell path above — same absorbed-into-the-wind-up reason
+  // it can't be a moment binding, same data-resolved shape.
+  'useCombatReplay.ts': 5,
   // PER-TRIBE BUFF RIBBON (2026-09-09). One `playDef(`tendril-trail-${tribe}`, …)` in `fireBuffFx`: the buffer's
   // TRIBE picks its ribbon variant, so the id is data-resolved (from the tribe) rather than a literal — the
   // same shape as a binding, keyed on the source's tribe instead of a `bindings.json` row. The generic

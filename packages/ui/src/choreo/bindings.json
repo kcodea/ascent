@@ -172,6 +172,12 @@
       "shopBuffAll": {
         "def": "shop-buff-shout"
       }
+    },
+    "n2_paragon": {
+      "buffWave": {
+        "def": "lightning-bolt-blue",
+        "fanOut": "buffed"
+      }
     }
   }
 }

@@ -39,7 +39,7 @@ export interface Float {
  *  number so the two never collide. Damage/gold numbers stay in the stat corner. (`poison`/Execute was dropped
  *  2026-07-22 — its red ☠ was a third signifier on a beat that already carries the crescent strike and the
  *  victim's red flash.) Lived in `Unit.tsx` until the floats moved to the board overlay. */
-export const SYM_KINDS = new Set(['shield', 'shieldup', 'reborn', 'rally']);
+export const SYM_KINDS = new Set(['shield', 'reborn', 'rally']);
 
 /** A damage float for a minion that DIES this moment. Its unit collapses (`.unit.dying`, width→0) and is
  *  removed next moment, which would clip an in-unit float — so the killing-blow number is rendered in a
@@ -67,7 +67,11 @@ function floatFor(e: CombatEvent | undefined): { uid: string; text: string; kind
     // NO float for `poison`. It used to bloom a big red ☠ in the card centre; removed 2026-07-22 (owner) now
     // that the Execution Strike reads the kill on its own — the skull was a third signifier on the same beat,
     // stacked on top of the crescent and the victim's red flash. (`rally` keeps its own ☠, in purple.)
-    case 'shieldUp': return { uid: e.target, text: '◇', kind: 'shieldup' };
+    // CUT (owner, 2026-09-09): ward GAIN no longer blooms its big gold ◇. The owner-authored `ward-gain-blast`
+    // pixi effect now fires on EVERY Ward gain (combat AND shop, PR #1369/#1370), so the diamond had become a
+    // second signifier on the same beat. The Ward-gain SOUND is unchanged (the `shieldgain` frame-class cue,
+    // not this float), and the combat LOG still narrates "gains a Ward" — this drops only the redundant glyph.
+    case 'shieldUp': return null;
     // CUT (owner, 2026-08-04): the stat badge now carries its own change — it withholds the new number and
     // rolls to it on the effect's clock (`fx/statHold.ts`). A `+2/+2` float rising off the card at the same
     // moment competes with that: two things asking for the eye, in the same place, saying the same thing.

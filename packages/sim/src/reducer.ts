@@ -4395,6 +4395,13 @@ function settleCombat(s: RunState, result: CombatResult): void {
   // PRACTICE INVULNERABILITY is excluded on purpose: there `settleLobbyRound` restores the seat FROM the run
   // (`me.resolve = s.resolve`), so damaging the run here would leak into the seat and undo the invulnerability.
   if (s.lobby && !(s.mode === 'practice' && s.practiceConfig?.health !== 'normal')) {
+    // The RUN's pools are authoritative going INTO the hit: the seat was seeded from them once at creation and
+    // otherwise only ever loses, so anything that RAISED them during the shop — Mend's "set Armor to 5", a
+    // Resolve grant — lived on the run alone, and `settleLobbyRound`'s seat→run write-back snapped it straight
+    // back to the stale seat value one round later (owner report 2026-09-10: "Mend's Armor falls off after a
+    // turn"). Re-seed seat 0 from the run HERE, before either side is charged, so the seat's `hit()` and the
+    // run's hit below start from the same number and the later write-back is a no-op.
+    s.lobby = { ...s.lobby, seats: s.lobby.seats.map((x, i) => (i === 0 ? { ...x, resolve: s.resolve, armor: s.armor } : x)) };
     const seatDmg = playerLossDamage(s.lobby, result);
     if (seatDmg > 0) {
       const fromArmor = Math.min(s.armor, seatDmg);

@@ -64,4 +64,38 @@ describe('coalesceBuffFxByTarget', () => {
     ];
     expect(coalesceBuffFxByTarget(evs)).toHaveLength(3);
   });
+
+  // Owner report 2026-09-09 (Earthbreaker): casting a Shop spell that buffs a Dragon the same action Earthbreaker
+  // ALSO buffs it lands two events on that Dragon — a sourceless spell descend AND Earthbreaker's source→target
+  // tendril. Collapsing to the spell's descend swallowed Earthbreaker's tendril (the more informative read).
+  type OptSrc = { sourceUid?: string; targetUid: string; fxWave?: number };
+  it('prefers the source-attributed tendril over a sourceless descend for the same target', () => {
+    const evs: OptSrc[] = [
+      { targetUid: 'dr' },                  // the spell's board buff — sourceless (descend), comes FIRST
+      { sourceUid: 'eb', targetUid: 'dr' }, // Earthbreaker's tendril — source-attributed
+    ];
+    const out = coalesceBuffFxByTarget(evs);
+    expect(out).toHaveLength(1);
+    expect(out[0]!.sourceUid).toBe('eb'); // the tendril wins, not the sourceless descend
+  });
+
+  it('keeps a source-attributed winner and does not downgrade it to a later sourceless event', () => {
+    const evs: OptSrc[] = [
+      { sourceUid: 'eb', targetUid: 'dr' }, // tendril FIRST
+      { targetUid: 'dr' },                  // sourceless later — must NOT replace the tendril
+    ];
+    const out = coalesceBuffFxByTarget(evs);
+    expect(out).toHaveLength(1);
+    expect(out[0]!.sourceUid).toBe('eb');
+  });
+
+  it('still collapses two sourced tendrils on one target to the FIRST (Brightwing unchanged)', () => {
+    const evs: OptSrc[] = [
+      { sourceUid: 'a', targetUid: 'dr' },
+      { sourceUid: 'b', targetUid: 'dr' },
+    ];
+    const out = coalesceBuffFxByTarget(evs);
+    expect(out).toHaveLength(1);
+    expect(out[0]!.sourceUid).toBe('a');
+  });
 });

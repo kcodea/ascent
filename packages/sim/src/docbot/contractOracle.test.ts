@@ -101,7 +101,7 @@ describe('contract oracle at scale — the deterministic gate sample', () => {
 
   it('EXIT GATE: known approved-rule violations surface as CRITICAL release blockers', () => {
     const blockers = releaseBlockerFindings(allRules());
-    expect(blockers.map((f) => f.ruleIds.join(',')).sort()).toEqual(['R-AVWIN-02', 'R-AVWIN-10']);
+    expect(blockers.map((f) => f.ruleIds.join(',')).sort(), 'no approved rule is violated as of 2026-09-10 (R-AVWIN-02/10 fixed)').toEqual([]);
     for (const f of blockers) {
       expect(f.severity).toBe('critical');
       expect(f.class).toBe('verified-mechanical-bug');

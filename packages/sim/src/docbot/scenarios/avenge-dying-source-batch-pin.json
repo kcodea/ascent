@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "avenge-dying-source-batch-pin",
-  "title": "PIN (R-AVWIN-10 violation): a source dying in a simultaneous batch observes its batch-mates and fires while dying",
+  "title": "R-AVWIN-10: a source dying in a simultaneous batch observes none of it — the dying drake never fires",
   "source": "regression",
   "seed": 41,
   "setId": "set1",
@@ -41,7 +41,7 @@
       "where": {
         "avenge": true
       },
-      "count": 1
+      "count": 0
     }
   ],
   "ruleIds": [
@@ -52,11 +52,10 @@
   ],
   "provenance": {
     "kind": "regression",
-    "findingFingerprint": "f62a69df",
     "minimizedFrom": "temporalWindow.test.ts \"R-AVWIN-10 pin\" fixture (stats reduced: friendly sandbag 500→10 hp, enemy cleaver 4000→200 hp; the 5-minion board is 1-minimal — dropping any member loses the repro)"
   },
   "metadata": {
     "createdAt": "2026-08-28",
-    "notes": "Doc Bot 2.0 vertical slice graduation (§14 in miniature): pins the CURRENT R-AVWIN-10 VIOLATION — the dying Obsidian Drake observes its simultaneous batch-mates and fires one avenge grant while dying (ruled behaviour: zero). Finding slice-contract-oracle-f62a69df. When the engine implements R-AVWIN-10: flip the event-count to 0, delete the temporalWindow KNOWN_VIOLATIONS entry, clear the rule note."
+    "notes": "Doc Bot 2.0 vertical slice graduation (§14 in miniature). Pinned the R-AVWIN-10 VIOLATION from 2026-08-28 (the dying Obsidian Drake observed its simultaneous batch-mates and fired one avenge grant while dying); the engine was fixed 2026-09-10 and the expectation flipped to the ruled behaviour: zero avenge-stamped buffs. A regression here means the batch leak is back."
   }
 }

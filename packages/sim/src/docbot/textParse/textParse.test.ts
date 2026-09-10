@@ -36,7 +36,10 @@ const SWEEP = runTextSweep({ contracts: CONTRACTS });
 // three new texts, one of which the grammar does not yet parse.
 // 541 → 556 on 2026-09-09: Set 3 Spirits tranche 1 — seventeen new Spirit texts, fifteen of which the grammar does not yet parse.
 // 556 → 563 on 2026-09-09: Set 3 Spirits tranche 2 — the seven hand-summon cards.
-const UNRESOLVED_CAP = 563;
+// 563 → 565 on 2026-09-10: two objects left verified-mismatch for the unresolved queue — hero:xerox (its text was
+// FIXED to "an exact copy"; like most hero powers the parser cannot fully resolve it yet) and kennel (its curated
+// contract gained the Start of Combat leg the text always printed; the Aura clause is still partial). A conscious move.
+const UNRESOLVED_CAP = 565;
 /** Collapse floor: the parser fully consuming fewer objects than this means a grammar regression. */
 const PARSED_FLOOR = 340;
 
@@ -257,9 +260,16 @@ describe('sabotage — every comparator is provably alive (§4.5)', () => {
 });
 
 describe('authority honesty — §6.1 drives the finding class', () => {
-  it('the xerox mismatch (approved contract) is a verified-text-defect finding', () => {
-    const f = SWEEP.findings.find((x) => x.contentIds.includes('hero:xerox'));
-    expect(f?.class).toBe('verified-text-defect');
+  it('the xerox text is FIXED (2026-09-10: "an exact copy") — and a doctored plain wording against the approved contract is a verified-text-defect', () => {
+    expect(SWEEP.findings.find((x) => x.contentIds.includes('hero:xerox')), 'no live finding: the printed text names the copy mode').toBeUndefined();
+    const xerox = CONTRACTS.find((c) => c.contentId === 'hero:xerox')!;
+    // A hero power's text object reads the LIVE power text, so the doctoring goes through `parseOf`.
+    const doctored = runTextSweep({
+      contracts: [xerox],
+      parseOf: (t) => parseObjectText(t.contentId === 'hero:xerox' ? 'Summon a copy of a friendly minion. Needs a free board slot. Once per game.' : t.text),
+    });
+    const f = doctored.findings.find((x) => x.contentIds.includes('hero:xerox'));
+    expect(f?.class, 'an approved contract + an unmarked "copy" is a conviction, not a question').toBe('verified-text-defect');
     expect(f?.severity).toBe('error');
   });
 
@@ -281,8 +291,14 @@ describe('the rewrite advisor — recommendations only (§11.4/§23)', () => {
   const recs = runRewriteAdvisor({ objects, guide: LANGUAGE_GUIDE });
 
   it('every recommendation is class wording-recommendation, severity info, with the current text quoted', () => {
-    expect(recs.length).toBeGreaterThan(0); // zyff/uron (LG-TWICE-01) + selfless (LG-KEYWORD-01) exist today
-    for (const f of recs) {
+    // No live recommendation is expected as of 2026-09-10 (Selfless Sentinel's "Divine Shield" was the last one;
+    // LG-TWICE-01 is contested and never advises). The detector is proven on a doctored object below.
+    const doctored = runRewriteAdvisor({
+      objects: [{ ...textObjectOf(CONTRACTS.find((c) => c.contentId === 'selfless')!), text: '**Deathrattle:** give a friend a **Divine Shield**.' }],
+      guide: LANGUAGE_GUIDE,
+    });
+    expect(doctored.some((f) => f.ruleIds.includes('LG-KEYWORD-01') && f.suggestedText?.includes('Ward')), 'the Ward rule still advises on a doctored "Divine Shield"').toBe(true);
+    for (const f of [...recs, ...doctored]) {
       expect(f.class).toBe('wording-recommendation');
       expect(f.severity).toBe('info');
       expect(f.observed, `${f.id} does not quote the current text`).toBeTruthy();

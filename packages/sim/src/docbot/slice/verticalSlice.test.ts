@@ -85,48 +85,59 @@ describe('vertical slice — contract oracle v0 (§9.1)', () => {
   });
 });
 
-describe('vertical slice — the four §1 output classes, one real finding each', () => {
-  it('emits exactly the four classes', () => {
-    expect(FINDINGS).toHaveLength(4);
-    expect(byClass('verified-mechanical-bug')).toHaveLength(1);
-    expect(byClass('verified-text-defect')).toHaveLength(1);
+/** The two defect classes the slice was built on were FIXED on 2026-09-10 (R-AVWIN-02/10 in the engine; Xerox's
+ *  text). They no longer fire live — so their detectors are proven the §4.5 way, on a doctored report. */
+const DOCTORED: SliceProbeReport = {
+  ...REPORT,
+  avwin10: { ...REPORT.avwin10, fires: 1, firesSecondRun: 1, firstDivergenceStep: 7, scenarioDeterministic: true },
+  xerox: { ...REPORT.xerox, text: 'Summon a copy of a friendly minion. Needs a free board slot. Once per game.' },
+};
+const DOCTORED_FINDINGS = buildSliceFindings(DOCTORED, 'test');
+const doctoredByClass = (c: string): DocbotFinding[] => DOCTORED_FINDINGS.filter((f) => f.class === c);
+
+describe('vertical slice — the four §1 output classes: two live, two proven on a doctored report since their defects were fixed (2026-09-10)', () => {
+  it('live: the engine conforms (R-AVWIN-10) and the Xerox text names its mode — only the two advisory classes fire', () => {
+    expect(FINDINGS).toHaveLength(2);
+    expect(byClass('verified-mechanical-bug')).toHaveLength(0);
+    expect(byClass('verified-text-defect')).toHaveLength(0);
     expect(byClass('wording-recommendation')).toHaveLength(1);
     expect(byClass('questionable-interaction')).toHaveLength(1);
+    expect(REPORT.avwin10.fires, 'the graduated fixture observes ZERO avenge fires by the dying drake').toBe(0);
   });
 
-  it('verified mechanical bug: approved rule, deterministic DOUBLE reproduction, first divergence, minimized scenario (§12.1/§4.4)', () => {
-    const f = byClass('verified-mechanical-bug')[0]!;
+  it('doctored: a report that observes the old violations produces exactly the four classes', () => {
+    expect(DOCTORED_FINDINGS).toHaveLength(4);
+    expect(doctoredByClass('verified-mechanical-bug')).toHaveLength(1);
+    expect(doctoredByClass('verified-text-defect')).toHaveLength(1);
+  });
+
+  it('verified mechanical bug (doctored): approved rule, deterministic DOUBLE reproduction, first divergence, minimized scenario (§12.1/§4.4)', () => {
+    const f = doctoredByClass('verified-mechanical-bug')[0]!;
     expect(f.ruleIds).toEqual(['R-AVWIN-10']);
     expect(f.contentIds).toEqual(['stuntdrake']);
     expect(f.confidence, 'proven requires the §4.4 double repro').toBe('proven');
-    expect(REPORT.avwin10.fires).toBe(1);
-    expect(REPORT.avwin10.firesSecondRun, 'same capsule, same divergence, twice').toBe(REPORT.avwin10.fires);
     expect(REPORT.avwin10.scenarioDeterministic, 'byte-identical state + combat log across runs').toBe(true);
-    expect(f.firstDivergence?.step, 'the first avenge-stamped grant is a real log index').toBe(REPORT.avwin10.firstDivergenceStep);
-    expect(REPORT.avwin10.firstDivergenceStep).toBeGreaterThanOrEqual(0);
+    expect(f.firstDivergence?.step, 'the first avenge-stamped grant is the report\'s log index').toBe(DOCTORED.avwin10.firstDivergenceStep);
     expect(f.minimizationStatus).toBe('complete');
     expect(f.scenarioId).toBe('avenge-dying-source-batch-pin');
     expect(f.reproduction).toContain('docbot:scenario');
   });
 
-  it('the minimized scenario is GRADUATED: a curated fixture with a concrete assertion, linked back to the finding (§14)', () => {
-    const f = byClass('verified-mechanical-bug')[0]!;
-    // The fixture ran through the real runner and its concrete event-count expectation held.
+  it('the minimized scenario is GRADUATED: a curated fixture asserting the RULED behaviour, provenance intact (§14)', () => {
+    // The fixture ran through the real runner and its concrete event-count expectation held — zero fires,
+    // the R-AVWIN-10 ruling, since the 2026-09-10 engine fix flipped it from the pinned violation (count 1).
     expect(REPORT.avwin10.scenarioResult.ok, REPORT.avwin10.scenarioResult.summary).toBe(true);
-    // The checked-in file links back to the finding by fingerprint (stable identity, not prose).
     const raw = JSON.parse(readFileSync(new URL('../scenarios/avenge-dying-source-batch-pin.json', import.meta.url), 'utf8')) as {
-      provenance?: { findingFingerprint?: string; minimizedFrom?: string }; ruleIds?: string[];
+      provenance?: { minimizedFrom?: string }; ruleIds?: string[];
       expectations?: Array<{ kind: string; count?: number }>;
     };
-    expect(raw.provenance?.findingFingerprint, 'fixture ↔ finding link').toBe(f.fingerprint);
     expect(raw.provenance?.minimizedFrom, 'minimization provenance recorded').toContain('temporalWindow');
     expect(raw.ruleIds).toEqual(['R-AVWIN-10']);
-    // A concrete assertion — event-count 1 (the pinned violation), not a needs-ruling placeholder.
-    expect(raw.expectations).toEqual([{ kind: 'event-count', event: 'buff', where: { avenge: true }, count: 1 }]);
+    expect(raw.expectations).toEqual([{ kind: 'event-count', event: 'buff', where: { avenge: true }, count: 0 }]);
   });
 
-  it('verified text defect: approved contract + verified runtime vs the printed text (§12.1)', () => {
-    const f = byClass('verified-text-defect')[0]!;
+  it('verified text defect (doctored): approved contract + verified runtime vs the printed text (§12.1)', () => {
+    const f = doctoredByClass('verified-text-defect')[0]!;
     expect(f.contentIds).toEqual(['hero:xerox']);
     expect(f.ruleIds).toEqual(['R-COPY-01', 'R-COPY-02']);
     expect(SLICE_CONTRACT_INDEX['hero:xerox']!.reviewStatus, 'the establishing contract is owner-ruled').toBe('approved');
@@ -156,8 +167,9 @@ describe('vertical slice — the four §1 output classes, one real finding each'
   });
 
   it('findings serialize byte-stably with the V2 fields riding along; fingerprints ignore them', () => {
-    const json = emitFindingsJson(FINDINGS);
-    expect(json).toBe(emitFindingsJson([...FINDINGS].reverse()));
+    // The doctored set carries all four classes (the two fixed defects included), so the V2 fields are all exercised.
+    const json = emitFindingsJson(DOCTORED_FINDINGS);
+    expect(json).toBe(emitFindingsJson([...DOCTORED_FINDINGS].reverse()));
     const parsed = JSON.parse(json) as DocbotFinding[];
     expect(parsed).toHaveLength(4);
     const mech = parsed.find((f) => f.class === 'verified-mechanical-bug')!;
@@ -179,7 +191,7 @@ describe('vertical slice — triangle auto-corroboration (owner-review-pipeline.
       sylus: 'corroborated',
       zyff: 'corroborated', // a wording recommendation does not block corroboration (§11.4 is clarity, not fidelity)
       deathsayer: 'corroborated',
-      stuntdrake: 'needs-review', // the verified mechanical bug demotes it
+      stuntdrake: 'corroborated', // the R-AVWIN-10 violation that demoted it was fixed 2026-09-10
       kennel: 'corroborated',
       anubis: 'needs-review', // the questionable interaction demotes it
       n2_bellringer: 'corroborated',

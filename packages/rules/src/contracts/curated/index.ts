@@ -92,7 +92,7 @@ export const CURATED_CONTRACTS: readonly ContentContract[] = [
     persistence: ['combat-only'],
     relatedRuleIds: ['R-AVWIN-01', 'R-AVWIN-06', 'R-AVWIN-07', 'R-AVWIN-10'],
     textContract: { source: 'index' },
-    notes: 'The simultaneous-death subject: R-AVWIN-10 (a source dying in a batch observes none of it) is APPROVED and currently VIOLATED by the engine — the slice\'s verified-mechanical-bug finding, pinned in docbot/scenarios/avenge-dying-source-batch-pin.json.',
+    notes: 'The simultaneous-death subject: R-AVWIN-10 (a source dying in a batch observes none of it) is APPROVED and, since 2026-09-10, CONFORMED TO by the engine — the slice\'s verified-mechanical-bug finding, pinned in docbot/scenarios/avenge-dying-source-batch-pin.json.',
   },
   {
     contentId: 'kennel',
@@ -102,9 +102,15 @@ export const CURATED_CONTRACTS: readonly ContentContract[] = [
     setIds: ['set1'],
     tribes: ['beast'],
     keywords: ['SC'],
-    tags: ['trigger:avenge', 'counter:improving', 'copy-subject'],
-    triggers: [{ event: 'avenge', phase: 'combat', phaseBasis: 'authored', threshold: 4 }],
-    effects: [{ kind: 'improve-own-aura', note: 'permanent per-instance accrual (summonBonus channel)' }],
+    tags: ['trigger:avenge', 'trigger:startOfCombat', 'counter:improving', 'copy-subject'],
+    // Both legs the text prints (2026-09-10: the Start of Combat leg was missing, so textParse flagged the card
+    // as wrong-trigger — the contract was incomplete, not the text). The Avenge leg stays first: the slice's
+    // observations are path-addressed.
+    triggers: [{ event: 'avenge', phase: 'combat', phaseBasis: 'authored', threshold: 4 }, { event: 'startOfCombat', phase: 'combat', phaseBasis: 'authored' }],
+    effects: [
+      { kind: 'improve-own-aura', note: 'permanent per-instance accrual (summonBonus channel)' },
+      { kind: 'stat-buff', note: 'Start of Combat: +1 Attack (gilded +2) to the Beast Aura (scBeastAura)' },
+    ],
     persistence: ['permanent'],
     copySubject: {
       // OWNER RULING 2026-08-28 (decisions.json q-interact2-2ad14500): "simply put a xerox copy should be an

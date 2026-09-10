@@ -544,7 +544,7 @@ export function runInteractionSweep(opts: InteractionSweepOptions): InteractionS
     blocked('echo+exact-copy+used-trigger-state', 'triple', 'covered-by-cited-lane',
       'temporalWindow.test.ts pins copy/Rise/gild progress semantics incl. spent-window copies (R-AVWIN-03/04 family); a generated combat copy driver is WP C/H work');
     blocked('avenge+simultaneous-deaths+source-death', 'triple', 'covered-by-cited-lane',
-      'temporalWindow.test.ts drives the ten Avenge temporal scenarios incl. simultaneous deaths and source death (R-AVWIN family; R-AVWIN-02/10 pinned release blockers)');
+      'temporalWindow.test.ts drives the ten Avenge temporal scenarios incl. simultaneous deaths and source death (R-AVWIN family; all eleven conform as of 2026-09-10)');
     blocked('consume+eot-multiplier+shop-replacement', 'triple', 'no-driver-for-shape',
       'no generic driver stages Consume + an End-of-Turn multiplier + a shop replacement in one scenario yet — WP F burn-down');
     blocked('shout+return-to-hand+shout-multiplier', 'triple', 'covered-by-cited-lane',

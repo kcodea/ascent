@@ -84,7 +84,9 @@ export interface SliceProbeReport {
     rebornAttack: number | null;
     rebornHp: number | null;
   };
-  xerox: { copyGolden: boolean; copySummonBonus: number | null };
+  xerox: {
+    /** The LIVE power text (the text-defect detector reads it; the test doctors it). */
+    text?: string; copyGolden: boolean; copySummonBonus: number | null };
   copyFixtures: { plain: QaScenarioResult; exact: QaScenarioResult };
 }
 

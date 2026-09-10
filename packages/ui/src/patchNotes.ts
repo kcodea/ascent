@@ -74,6 +74,14 @@ export const PATCH_NOTES: PatchNote[] = [
         text: 'Rune of Attacking Gems now PLAYS real Rubies: Deepdelve Paragon multiplies them, Rune of Battle Refraction repeats them, Rune of Engraving Gems makes them permanent, Rune of the Spellstone counts them as casts, and they show the Ruby-landed effect.',
       },
       {
+        category: 'Card Change',
+        text: 'Avenge timing, two fixes. A minion summoned by an Echo no longer counts the death that summoned it toward its own Avenge. A minion dying in the same clash as its allies no longer counts those deaths while it is dying.',
+      },
+      {
+        category: 'UI / Info',
+        text: 'Xerox reads "Summon an exact copy" (it always was one: gilding and progress ride along). Selfless Sentinel now says Ward, like every other card.',
+      },
+      {
         category: 'New Card',
         text: 'Wolves Den (Tier 3 Undead/Beast) joins Set 3 — Deathrattle: summon 3 Crypt Wolves.',
       },

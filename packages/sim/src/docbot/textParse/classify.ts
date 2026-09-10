@@ -49,16 +49,6 @@ export interface KnownTextMismatch {
 
 export const KNOWN_TEXT_MISMATCH: Readonly<Record<string, KnownTextMismatch>> = {
   // Seeded from this lane's own first full run (2026-08-27) — every entry investigated before excusal.
-  'hero:xerox': {
-    taxonomy: 'plain-vs-exact-copy',
-    kind: 'confirmed-defect-pending-fix',
-    why: 'the slice\'s verified-text-defect, rediscovered mechanically: the APPROVED contract rules the copy EXACT (gilding + counters ride — reducer-proven) while the printed "Summon a copy" reads plain under R-COPY-01. The wording fix (say "exact copy") is a content edit for its own PR; LG-COPY-01 carries the rule.',
-  },
-  kennel: {
-    taxonomy: 'wrong-trigger',
-    kind: 'draft-contract-gap',
-    why: 'the text\'s "Start of Combat:" leg is REAL (kennel buffs Beasts at SC); the curated slice contract states only the Avenge-improve leg it was written to pin. The contract is incomplete, not the text — completed at contract review, and this pin deletes.',
-  },
   // The Choose One family: the WP B extractor walks def.effects only, so choose-one payloads parse to
   // ZERO effects while the draft still stamps confidence \'high\' — an extractor honesty gap this lane
   // caught. The texts are right; the drafts are incomplete. Each pin deletes when the extractor learns

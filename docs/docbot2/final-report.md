@@ -25,8 +25,8 @@ reports where they disagree, in four separated classes. It never decides whether
 
 | Output class | This run | Where it comes from |
 |---|---|---|
-| **verified mechanical bug** | 2 | approved-rule violations the engine reproduces deterministically (both pinned as release blockers) |
-| **verified text defect** | 1 | printed text contradicting an APPROVED contract |
+| **verified mechanical bug** | 0 | approved-rule violations the engine reproduces deterministically (R-AVWIN-02/10 were the two, fixed 2026-09-10) |
+| **verified text defect** | 0 | printed text contradicting an APPROVED contract (Xerox was the one, fixed 2026-09-10) |
 | **wording recommendation** | 4 | language-guide violations with a safe suggested rewrite, never applied |
 | **questionable interaction** | 11 | unruled composition + unresolved-parse questions — questions, never verdicts |
 
@@ -104,7 +104,7 @@ Every applicable case that did not run says why. This is the §4.3 substrate; no
 | parsed-equivalent | 358 |
 | verified-mismatch | 9 |
 | approved-exception | 0 |
-| **unresolved-parse** | 563 |
+| **unresolved-parse** | 565 |
 
 Every one of the 9 mismatches is registry-pinned with a reason (0 unpinned, 0 stale pins — both gated).
 Eight of the nine are **draft-contract gaps**, not text defects: the extractor could not parse a Choose One
@@ -115,7 +115,7 @@ plain).
 The rewrite advisor produced 4 wording recommendations against the 27-entry language guide. They are
 suggestions with `suggestedText`; nothing is ever applied to production content (§23).
 
-**563 unresolved parses is the honest headline of this section.** They are classified, queued, ratcheted
+**565 unresolved parses is the honest headline of this section.** They are classified, queued, ratcheted
 grow-loudly, and never counted as clean passes — but they are also 59% of the corpus, and the parser's
 conservatism is why the "text checked against approved mechanics" DoD item is partial.
 
@@ -123,7 +123,7 @@ conservatism is why the "text checked against approved mechanics" DoD item is pa
 
 ## 4. Interaction intelligence (§18-F)
 
-- Graph: **1638** nodes / **5194** edges over the contract registry (content, effect-family, trigger-family,
+- Graph: **1639** nodes / **5197** edges over the contract registry (content, effect-family, trigger-family,
   channel, keyword, multiplier, copy-mode, counter, zone, phase-boundary nodes).
 - Applicability: **114728** candidate pairs against 407253 naive all-pairs (21.9%) — the producer → channel →
   consumer join is what makes pairwise tractable at all.
@@ -161,7 +161,7 @@ machine-refreshed one; the trade-off is that the number ages until someone re-ru
 - **114** rules total: **31** approved, 49 retired, **9** needs-ruling.
 - Approved-but-unenforced: `R-PLAY-01`, `R-AURA-01` — pinned, shrink-only.
 - Release blockers (approved rules the engine violates, visible every run, never silently green):
-  `R-AVWIN-02`, `R-AVWIN-10`.
+  none — `R-AVWIN-02` and `R-AVWIN-10` were the two, fixed in the engine on 2026-09-10.
 
 ### The three dormant decks
 

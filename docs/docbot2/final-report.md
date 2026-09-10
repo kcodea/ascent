@@ -68,9 +68,9 @@ the distance between those two is the single most important number in this repor
 
 | Contract verification depth | Count of 955 |
 |---|---|
-| derived status **corroborated** (two independent sources agree — trace + text, or trace + params) | 414 |
+| derived status **corroborated** (two independent sources agree — trace + text, or trace + params) | 431 |
 | derived status **approved** (owner-ruled intent, the strongest authority) | 1 |
-| derived status **extracted** (a draft nobody has corroborated yet) | 533 |
+| derived status **extracted** (a draft nobody has corroborated yet) | 522 |
 | **with at least one case a driver actually EXECUTED this sweep** | 36 |
 | covered only by a **cited lane** (real evidence a human can follow — deliberately excluded from the fold) | 865 |
 
@@ -85,7 +85,7 @@ Every applicable case that did not run says why. This is the §4.3 substrate; no
 
 | Skip reason | Cases | Reading |
 |---|---|---|
-| `no-driver-for-shape` | 455 | **the largest real hole** — an applicable case with no executable driver yet |
+| `no-driver-for-shape` | 454 | **the largest real hole** — an applicable case with no executable driver yet |
 | `covered-by-cited-lane` | 398 | an existing vitest lane owns the class; not re-executed per contract |
 | `contract-states-no-targets` | 99 | the case is inapplicable by the contract's own text |
 | `hero-power-behaviour-unextracted` | 58 | hero-power *magnitudes* are not extracted (activation is covered elsewhere) |
@@ -104,7 +104,7 @@ Every applicable case that did not run says why. This is the §4.3 substrate; no
 | parsed-equivalent | 358 |
 | verified-mismatch | 9 |
 | approved-exception | 0 |
-| **unresolved-parse** | 565 |
+| **unresolved-parse** | 570 |
 
 Every one of the 9 mismatches is registry-pinned with a reason (0 unpinned, 0 stale pins — both gated).
 Eight of the nine are **draft-contract gaps**, not text defects: the extractor could not parse a Choose One
@@ -115,7 +115,7 @@ plain).
 The rewrite advisor produced 4 wording recommendations against the 27-entry language guide. They are
 suggestions with `suggestedText`; nothing is ever applied to production content (§23).
 
-**565 unresolved parses is the honest headline of this section.** They are classified, queued, ratcheted
+**570 unresolved parses is the honest headline of this section.** They are classified, queued, ratcheted
 grow-loudly, and never counted as clean passes — but they are also 59% of the corpus, and the parser's
 conservatism is why the "text checked against approved mechanics" DoD item is partial.
 
@@ -123,9 +123,9 @@ conservatism is why the "text checked against approved mechanics" DoD item is pa
 
 ## 4. Interaction intelligence (§18-F)
 
-- Graph: **1639** nodes / **5197** edges over the contract registry (content, effect-family, trigger-family,
+- Graph: **1649** nodes / **5275** edges over the contract registry (content, effect-family, trigger-family,
   channel, keyword, multiplier, copy-mode, counter, zone, phase-boundary nodes).
-- Applicability: **114728** candidate pairs against 407253 naive all-pairs (21.9%) — the producer → channel →
+- Applicability: **122241** candidate pairs against 455535 naive all-pairs (26.8%) — the producer → channel →
   consumer join is what makes pairwise tractable at all.
 - Sweep (full pairwise + §10.4 triples): 144 rows — 103 covered, 0 failed, 11 inapplicable, 30 blocked.
 - Families with at least one covered row: 12 of 23.
@@ -198,7 +198,7 @@ Sixteen lines, each marked with a citable artifact. **5 done · 11 partial · 0 
 | 2 | Every approved global rule has an executable oracle | **partial** | `enforcement.test.ts` gates a backing lane per approved rule; two approved rules (`R-PLAY-01`, `R-AURA-01`) remain pinned unenforced |
 | 3 | All meaningful effects are visible in a causal semantic trace | **partial** | recruit envelope + `combatTrace.ts` adapter + `semanticTrace.test.ts`; combat causality is **step grouping, not proven parenthood** — `cause.stepRootEventId` is documented as such and true trigger-stack parenting needs simulate() instrumentation |
 | 4 | Shop and combat bug reports replay exact action sequences | **partial** | `QaScenarioV1.actions` (RecordedActionWindow trail) + `runQaScenario` divergence classification replay shop action trails exactly; combat replays from the pinned board and seed, not from a per-event action trail |
-| 5 | Every active content object passes applicable generated scenarios or has visible failures | **partial** | 0 mismatches, 0 metamorphic failures, 0 limit failures across the sweep — but only 37 contracts had a case directly executed; 402 applicable cases have no driver |
+| 5 | Every active content object passes applicable generated scenarios or has visible failures | **partial** | 0 mismatches, 0 metamorphic failures, 0 limit failures across the sweep — but only 38 contracts had a case directly executed; 402 applicable cases have no driver |
 | 6 | Applicable pairwise interactions are covered and reported semantically | **partial** | 93491 candidates enumerated and reported by channel; 106 covered rows, 30 blocked rows each with a typed reason. Coverage is by family, not per candidate pair |
 | 7 | High-risk triple interactions are covered | **partial** | §10.4 triples run in the same sweep; 6 of the 8 triple families are blocked with cited reasons |
 | 8 | Verified findings are deterministic, minimized, and reproducible from Scene Builder and CLI | **done** | `seedMinimize.ts` (1-minimal proof), `docbot:scenario -- <id>`, the Scene Builder QA bridge, `qaScenarioParity.test.ts`; findings carry a `reproduction` line |

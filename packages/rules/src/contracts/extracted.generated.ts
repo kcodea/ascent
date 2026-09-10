@@ -379,7 +379,40 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "neutral"
     ],
     "tags": [
-      "tier:1"
+      "tier:1",
+      "choose-one"
+    ],
+    "triggers": [
+      {
+        "event": "cast",
+        "phase": "shop",
+        "phaseBasis": "derived:phaseRegistry"
+      }
+    ],
+    "effects": [
+      {
+        "kind": "spellBuffTavern",
+        "amount": {
+          "kind": "const",
+          "plain": {
+            "attack": 2,
+            "health": 4
+          }
+        },
+        "note": "Choose One branch 1: \"Give this shop +2/+4.\""
+      },
+      {
+        "kind": "spellBuffRandomFriendlies",
+        "amount": {
+          "kind": "const",
+          "plain": {
+            "attack": 1,
+            "count": 2,
+            "health": 1
+          }
+        },
+        "note": "Choose One branch 2: \"Give 2 random friendly minions +1/+1.\""
+      }
     ],
     "gildedDelta": {
       "kind": "not-applicable",
@@ -876,7 +909,37 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "beast"
     ],
     "tags": [
-      "tier:7"
+      "tier:7",
+      "choose-one"
+    ],
+    "triggers": [
+      {
+        "event": "onPlay",
+        "phase": "both",
+        "phaseBasis": "derived:phaseRegistry"
+      }
+    ],
+    "effects": [
+      {
+        "kind": "battlecryGrantBeastHunt",
+        "amount": {
+          "kind": "const",
+          "plain": {
+            "extra": 1
+          }
+        },
+        "note": "Choose One branch 1: \"Your Beast Rallies trigger an additional time.\""
+      },
+      {
+        "kind": "battlecryGrantBeastRitual",
+        "amount": {
+          "kind": "const",
+          "plain": {
+            "extra": 1
+          }
+        },
+        "note": "Choose One branch 2: \"Your Beast Echoes trigger an additional time.\""
+      }
     ],
     "gildedDelta": {
       "kind": "reshape",
@@ -1840,7 +1903,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "reviewStatus": "extracted",
     "extraction": {
       "extractor": "contracts-extract@1",
-      "confidence": "high"
+      "confidence": "medium",
+      "unparsed": [
+        "battlecryGrantKeyword.keywords"
+      ]
     },
     "setIds": [
       "set1",
@@ -1851,7 +1917,47 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "beast"
     ],
     "tags": [
-      "tier:3"
+      "tier:3",
+      "choose-one"
+    ],
+    "triggers": [
+      {
+        "event": "onPlay",
+        "phase": "both",
+        "phaseBasis": "derived:phaseRegistry"
+      }
+    ],
+    "effects": [
+      {
+        "kind": "battlecryGrantKeyword",
+        "note": "Choose One branch 1: \"Give a friendly Beast Rise and +1/+1.\""
+      },
+      {
+        "kind": "battlecryBuffTarget",
+        "amount": {
+          "kind": "const",
+          "plain": {
+            "attack": 1,
+            "health": 1
+          }
+        },
+        "note": "Choose One branch 1: \"Give a friendly Beast Rise and +1/+1.\""
+      },
+      {
+        "kind": "battlecryGrantKeyword",
+        "note": "Choose One branch 2: \"Give a friendly Beast Flurry and +3 Attack.\""
+      },
+      {
+        "kind": "battlecryBuffTarget",
+        "amount": {
+          "kind": "const",
+          "plain": {
+            "attack": 3,
+            "health": 0
+          }
+        },
+        "note": "Choose One branch 2: \"Give a friendly Beast Flurry and +3 Attack.\""
+      }
     ],
     "gildedDelta": {
       "kind": "multiply",
@@ -1885,6 +1991,30 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "tags": [
       "tier:4"
+    ],
+    "triggers": [
+      {
+        "event": "onAttack",
+        "phase": "both",
+        "phaseBasis": "derived:phaseRegistry"
+      }
+    ],
+    "effects": [
+      {
+        "kind": "rallyMechAtk",
+        "amount": {
+          "kind": "const",
+          "plain": {
+            "attack": 5,
+            "health": 0
+          },
+          "gilded": {
+            "attack": 10,
+            "health": 0
+          }
+        },
+        "note": "Rally carried by the Magnetic weld path (`rallyMechAtk`): the host grants this Attack to its other Mechs when it attacks; stacks per weld"
+      }
     ],
     "gildedDelta": {
       "kind": "multiply",
@@ -3238,7 +3368,39 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "demon"
     ],
     "tags": [
-      "tier:3"
+      "tier:3",
+      "choose-one"
+    ],
+    "triggers": [
+      {
+        "event": "onPlay",
+        "phase": "both",
+        "phaseBasis": "derived:phaseRegistry"
+      }
+    ],
+    "effects": [
+      {
+        "kind": "battlecryBuffFodder",
+        "amount": {
+          "kind": "const",
+          "plain": {
+            "attack": 2,
+            "health": 2
+          }
+        },
+        "note": "Choose One branch 1: \"Give your Fodder +2/+2.\""
+      },
+      {
+        "kind": "battlecryBuffImps",
+        "amount": {
+          "kind": "const",
+          "plain": {
+            "attack": 4,
+            "health": 4
+          }
+        },
+        "note": "Choose One branch 2: \"Give your Imps +4/+4.\""
+      }
     ],
     "gildedDelta": {
       "kind": "multiply",
@@ -3328,7 +3490,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "reviewStatus": "extracted",
     "extraction": {
       "extractor": "contracts-extract@1",
-      "confidence": "high"
+      "confidence": "medium",
+      "unparsed": [
+        "spellBuffTarget.flat"
+      ]
     },
     "setIds": [
       "set1",
@@ -3340,7 +3505,39 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "neutral"
     ],
     "tags": [
-      "tier:1"
+      "tier:1",
+      "choose-one"
+    ],
+    "triggers": [
+      {
+        "event": "cast",
+        "phase": "shop",
+        "phaseBasis": "derived:phaseRegistry"
+      }
+    ],
+    "effects": [
+      {
+        "kind": "spellBuffTarget",
+        "amount": {
+          "kind": "const",
+          "plain": {
+            "attack": 4,
+            "health": 0
+          }
+        },
+        "note": "Choose One branch 1: \"Give +4 Attack.\""
+      },
+      {
+        "kind": "spellBuffTarget",
+        "amount": {
+          "kind": "const",
+          "plain": {
+            "attack": 0,
+            "health": 4
+          }
+        },
+        "note": "Choose One branch 2: \"Give +4 Health.\""
+      }
     ],
     "gildedDelta": {
       "kind": "not-applicable",
@@ -4325,7 +4522,38 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "dragon"
     ],
     "tags": [
-      "tier:7"
+      "tier:7",
+      "choose-one",
+      "choose-both-when-golden"
+    ],
+    "triggers": [
+      {
+        "event": "onPlay",
+        "phase": "both",
+        "phaseBasis": "derived:phaseRegistry"
+      }
+    ],
+    "effects": [
+      {
+        "kind": "battlecryGrantShoutExtra",
+        "amount": {
+          "kind": "const",
+          "plain": {
+            "extra": 1
+          }
+        },
+        "note": "Choose One branch 1: \"Your Shouts trigger an additional time.\""
+      },
+      {
+        "kind": "battlecryGrantFirstSpellMult",
+        "amount": {
+          "kind": "const",
+          "plain": {
+            "mult": 3
+          }
+        },
+        "note": "Choose One branch 2: \"Your first Shop spell each turn casts 3 times.\""
+      }
     ],
     "gildedDelta": {
       "kind": "reshape",
@@ -8460,7 +8688,39 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "neutral"
     ],
     "tags": [
-      "tier:3"
+      "tier:3",
+      "choose-one"
+    ],
+    "triggers": [
+      {
+        "event": "cast",
+        "phase": "shop",
+        "phaseBasis": "derived:phaseRegistry"
+      }
+    ],
+    "effects": [
+      {
+        "kind": "rubyStatGain",
+        "amount": {
+          "kind": "const",
+          "plain": {
+            "attack": 1,
+            "health": 0
+          }
+        },
+        "note": "Choose One branch 1: \"Your Rubies gain +1 Attack.\""
+      },
+      {
+        "kind": "rubyStatGain",
+        "amount": {
+          "kind": "const",
+          "plain": {
+            "attack": 0,
+            "health": 1
+          }
+        },
+        "note": "Choose One branch 2: \"Your Rubies gain +1 Health.\""
+      }
     ],
     "gildedDelta": {
       "kind": "not-applicable",
@@ -8658,7 +8918,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "reviewStatus": "extracted",
     "extraction": {
       "extractor": "contracts-extract@1",
-      "confidence": "high"
+      "confidence": "low",
+      "unparsed": [
+        "spellGrantKeywordNextCombat.keyword",
+        "spellGrantKeywordNextCombat.label"
+      ]
     },
     "setIds": [
       "set1",
@@ -8670,7 +8934,25 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "neutral"
     ],
     "tags": [
-      "tier:2"
+      "tier:2",
+      "choose-one"
+    ],
+    "triggers": [
+      {
+        "event": "cast",
+        "phase": "shop",
+        "phaseBasis": "derived:phaseRegistry"
+      }
+    ],
+    "effects": [
+      {
+        "kind": "spellGrantKeywordNextCombat",
+        "note": "Choose One branch 1: \"Give Ward.\""
+      },
+      {
+        "kind": "spellGrantKeywordNextCombat",
+        "note": "Choose One branch 2: \"Give Flurry.\""
+      }
     ],
     "gildedDelta": {
       "kind": "not-applicable",
@@ -9738,7 +10020,39 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "demon"
     ],
     "tags": [
-      "tier:2"
+      "tier:2",
+      "choose-one"
+    ],
+    "triggers": [
+      {
+        "event": "onPlay",
+        "phase": "both",
+        "phaseBasis": "derived:phaseRegistry"
+      }
+    ],
+    "effects": [
+      {
+        "kind": "battlecryBuffImps",
+        "amount": {
+          "kind": "const",
+          "plain": {
+            "attack": 2,
+            "health": 2
+          }
+        },
+        "note": "Choose One branch 1: \"Give your Imps +2/+2.\""
+      },
+      {
+        "kind": "battlecryBuffFodder",
+        "amount": {
+          "kind": "const",
+          "plain": {
+            "attack": 2,
+            "health": 2
+          }
+        },
+        "note": "Choose One branch 2: \"Give your Fodder +2/+2.\""
+      }
     ],
     "gildedDelta": {
       "kind": "multiply",
@@ -13822,7 +14136,43 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "kobold"
     ],
     "tags": [
-      "tier:5"
+      "tier:5",
+      "choose-one"
+    ],
+    "triggers": [
+      {
+        "event": "onPlay",
+        "phase": "both",
+        "phaseBasis": "derived:phaseRegistry"
+      }
+    ],
+    "effects": [
+      {
+        "kind": "getRubies",
+        "amount": {
+          "kind": "const",
+          "plain": {
+            "count": 1
+          }
+        },
+        "refs": [
+          "warding-ruby"
+        ],
+        "note": "Choose One branch 1: \"Get a Warding Ruby.\""
+      },
+      {
+        "kind": "battlecryCastNamedSpell",
+        "amount": {
+          "kind": "const",
+          "plain": {
+            "count": 2
+          }
+        },
+        "refs": [
+          "veinstorm"
+        ],
+        "note": "Choose One branch 2: \"Cast Veinstorm 2 times.\""
+      }
     ],
     "gildedDelta": {
       "kind": "reshape",
@@ -13963,7 +14313,39 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "kobold"
     ],
     "tags": [
-      "tier:2"
+      "tier:2",
+      "choose-one"
+    ],
+    "triggers": [
+      {
+        "event": "onPlay",
+        "phase": "both",
+        "phaseBasis": "derived:phaseRegistry"
+      }
+    ],
+    "effects": [
+      {
+        "kind": "rubyStatGain",
+        "amount": {
+          "kind": "const",
+          "plain": {
+            "attack": 1,
+            "health": 0
+          }
+        },
+        "note": "Choose One branch 1: \"Your Rubies gain +1 Attack.\""
+      },
+      {
+        "kind": "rubyStatGain",
+        "amount": {
+          "kind": "const",
+          "plain": {
+            "attack": 0,
+            "health": 1
+          }
+        },
+        "note": "Choose One branch 2: \"Your Rubies gain +1 Health.\""
+      }
     ],
     "gildedDelta": {
       "kind": "multiply",
@@ -13983,7 +14365,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "reviewStatus": "extracted",
     "extraction": {
       "extractor": "contracts-extract@1",
-      "confidence": "high"
+      "confidence": "low",
+      "unparsed": [
+        "battlecryDiscoverMinion.tribe"
+      ]
     },
     "setIds": [
       "set3"
@@ -13993,7 +14378,25 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "kobold"
     ],
     "tags": [
-      "tier:4"
+      "tier:4",
+      "choose-one"
+    ],
+    "triggers": [
+      {
+        "event": "onPlay",
+        "phase": "both",
+        "phaseBasis": "derived:phaseRegistry"
+      }
+    ],
+    "effects": [
+      {
+        "kind": "battlecryDiscoverMinion",
+        "note": "Choose One branch 1: \"Discover a Kobold.\""
+      },
+      {
+        "kind": "battlecryDiscoverSpell",
+        "note": "Choose One branch 2: \"Discover a Shop spell.\""
+      }
     ],
     "gildedDelta": {
       "kind": "reshape",
@@ -14283,7 +14686,37 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "kobold"
     ],
     "tags": [
-      "tier:3"
+      "tier:3",
+      "choose-one"
+    ],
+    "triggers": [
+      {
+        "event": "onPlay",
+        "phase": "both",
+        "phaseBasis": "derived:phaseRegistry"
+      }
+    ],
+    "effects": [
+      {
+        "kind": "battlecryGrantRandomSpell",
+        "amount": {
+          "kind": "const",
+          "plain": {
+            "count": 1
+          }
+        },
+        "note": "Choose One branch 1: \"Get a random Shop spell.\""
+      },
+      {
+        "kind": "battlecryGetRubies",
+        "amount": {
+          "kind": "const",
+          "plain": {
+            "count": 2
+          }
+        },
+        "note": "Choose One branch 2: \"Get 2 Rubies.\""
+      }
     ],
     "gildedDelta": {
       "kind": "reshape",
@@ -15547,7 +15980,38 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "kobold"
     ],
     "tags": [
-      "tier:4"
+      "tier:4",
+      "choose-one"
+    ],
+    "triggers": [
+      {
+        "event": "onPlay",
+        "phase": "both",
+        "phaseBasis": "derived:phaseRegistry"
+      }
+    ],
+    "effects": [
+      {
+        "kind": "rubyStatGain",
+        "amount": {
+          "kind": "const",
+          "plain": {
+            "attack": 1,
+            "health": 1
+          }
+        },
+        "note": "Choose One branch 1: \"Give your Rubies +1/+1.\""
+      },
+      {
+        "kind": "battlecryGetRubies",
+        "amount": {
+          "kind": "const",
+          "plain": {
+            "count": 4
+          }
+        },
+        "note": "Choose One branch 2: \"Get 4 Rubies.\""
+      }
     ],
     "gildedDelta": {
       "kind": "multiply",
@@ -17059,7 +17523,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "neutral"
     ],
     "tags": [
-      "tier:5"
+      "tier:5",
+      "choose-one"
     ],
     "triggers": [
       {
@@ -17483,7 +17948,39 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "neutral"
     ],
     "tags": [
-      "tier:2"
+      "tier:2",
+      "choose-one"
+    ],
+    "triggers": [
+      {
+        "event": "onPlay",
+        "phase": "both",
+        "phaseBasis": "derived:phaseRegistry"
+      }
+    ],
+    "effects": [
+      {
+        "kind": "battlecryGrantSpellPowerRun",
+        "amount": {
+          "kind": "const",
+          "plain": {
+            "attack": 1,
+            "health": 0
+          }
+        },
+        "note": "Choose One branch 1: \"Give your Shop spells +1 Attack.\""
+      },
+      {
+        "kind": "battlecryGrantSpellPowerRun",
+        "amount": {
+          "kind": "const",
+          "plain": {
+            "attack": 0,
+            "health": 1
+          }
+        },
+        "note": "Choose One branch 2: \"Give your Shop spells +1 Health.\""
+      }
     ],
     "gildedDelta": {
       "kind": "multiply",
@@ -17879,7 +18376,39 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "neutral"
     ],
     "tags": [
-      "tier:3"
+      "tier:3",
+      "choose-one"
+    ],
+    "triggers": [
+      {
+        "event": "onPlay",
+        "phase": "both",
+        "phaseBasis": "derived:phaseRegistry"
+      }
+    ],
+    "effects": [
+      {
+        "kind": "battlecryBuffTarget",
+        "amount": {
+          "kind": "const",
+          "plain": {
+            "attack": 6,
+            "health": 6
+          }
+        },
+        "note": "Choose One branch 1: \"Give a friendly minion +6/+6.\""
+      },
+      {
+        "kind": "battlecryBuffAdjacent",
+        "amount": {
+          "kind": "const",
+          "plain": {
+            "attack": 3,
+            "health": 3
+          }
+        },
+        "note": "Choose One branch 2: \"Give adjacent minions +3/+3.\""
+      }
     ],
     "gildedDelta": {
       "kind": "multiply",
@@ -32045,7 +32574,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "reviewStatus": "extracted",
     "extraction": {
       "extractor": "contracts-extract@1",
-      "confidence": "high"
+      "confidence": "medium",
+      "unparsed": [
+        "battlecryBuffTribe.tribe"
+      ]
     },
     "setIds": [
       "set1"
@@ -32055,7 +32587,47 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "beast"
     ],
     "tags": [
-      "tier:2"
+      "tier:2",
+      "choose-one"
+    ],
+    "triggers": [
+      {
+        "event": "onPlay",
+        "phase": "both",
+        "phaseBasis": "derived:phaseRegistry"
+      }
+    ],
+    "effects": [
+      {
+        "kind": "battlecryBuffTribe",
+        "amount": {
+          "kind": "const",
+          "plain": {
+            "attack": 1,
+            "health": 3
+          }
+        },
+        "note": "Choose One branch 1: \"Give your Beasts +1/+3.\""
+      },
+      {
+        "kind": "battlecrySummon",
+        "amount": {
+          "kind": "const",
+          "plain": {
+            "count": 1
+          }
+        },
+        "refs": [
+          "stray"
+        ],
+        "summons": {
+          "cardId": "stray",
+          "count": {
+            "plain": 1
+          }
+        },
+        "note": "Choose One branch 2: \"Summon a 1/1 Stray.\""
+      }
     ],
     "gildedDelta": {
       "kind": "reshape",

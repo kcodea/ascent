@@ -318,7 +318,8 @@ function extractCard(def: CardDef): ContentContract {
   const effects: EffectContract[] = [];
   const seenTriggers = new Set<string>();
 
-  for (const e of def.effects) {
+  /** One authored EffectDef → its trigger + effect claims. `branchNote` marks a Choose One branch's payload. */
+  const walkEffect = (e: CardDef['effects'][number], branchNote?: string): void => {
     const { phase, note } = derivePhase(e.on, e.do, e.combatOnly);
     const params = e.params as Record<string, unknown> | undefined;
     const threshold = e.on === 'avenge' && typeof params?.count === 'number' ? params.count : undefined;
@@ -351,6 +352,26 @@ function extractCard(def: CardDef): ContentContract {
             },
           }
         : {}),
+      ...(branchNote ? { note: branchNote } : {}),
+    });
+  };
+  for (const e of def.effects) walkEffect(e);
+  // CHOOSE ONE (2026-09-10): the branch payloads live in `def.chooseOne[i].effects`, not `def.effects`, so this
+  // walk parsed ZERO effects for every Choose One card while stamping confidence 'high' — the textParse lane
+  // pinned nine of them as draft-contract gaps. Each branch's effects are walked like any other, noted with the
+  // branch they belong to (the player picks ONE; a gilded body under `chooseBothWhenGolden` takes them all).
+  for (const [i, branch] of (def.chooseOne ?? []).entries()) {
+    for (const e of branch.effects) walkEffect(e, `Choose One branch ${i + 1}: "${plainText(branch.text)}"`);
+  }
+  // A weld-carried Rally (Better Bot): the buff is implemented through the Magnetic weld path (`rallyMechAtk`
+  // on the def, applied by the host's Rally), not a def.effects entry — so it too parsed as effect-less.
+  if (typeof def.rallyMechAtk === 'number' && def.rallyMechAtk > 0 && !def.effects.some((e) => e.on === 'onAttack')) {
+    const { phase, note } = derivePhase('onAttack', 'rallyMechAtk', undefined);
+    triggers.push({ event: 'onAttack', phase, phaseBasis: 'derived:phaseRegistry', ...(note ? { note } : {}) });
+    effects.push({
+      kind: 'rallyMechAtk',
+      amount: { kind: 'const', plain: { attack: def.rallyMechAtk, health: 0 }, gilded: { attack: def.rallyMechAtk * 2, health: 0 } },
+      note: 'Rally carried by the Magnetic weld path (`rallyMechAtk`): the host grants this Attack to its other Mechs when it attacks; stacks per weld',
     });
   }
 
@@ -365,6 +386,8 @@ function extractCard(def: CardDef): ContentContract {
     ...(def.imp ? ['imp'] : []),
     ...(def.celestial ? ['celestial'] : []),
     ...(def.rewardSpell ? ['reward-spell'] : []),
+    ...(def.chooseOne?.length ? ['choose-one'] : []),
+    ...(def.chooseBothWhenGolden ? ['choose-both-when-golden'] : []),
   ];
   if (def.triggerMultiplier) tags.push(...def.triggerMultiplier.families.map((f) => `multiplier:${f}`));
   const sortedUnparsed = [...new Set(unparsed)].sort();

@@ -39,7 +39,11 @@ const SWEEP = runTextSweep({ contracts: CONTRACTS });
 // 563 → 565 on 2026-09-10: two objects left verified-mismatch for the unresolved queue — hero:xerox (its text was
 // FIXED to "an exact copy"; like most hero powers the parser cannot fully resolve it yet) and kennel (its curated
 // contract gained the Start of Combat leg the text always printed; the Aura clause is still partial). A conscious move.
-const UNRESOLVED_CAP = 565;
+// 565 → 570 on 2026-09-10 (second move): the extractor learned Choose One branches + the weld-carried Rally, so the
+// nine draft-contract-gap objects (shaper, godfodder, contractimp, crestclimb, n3_splitboon, k_veinbreaker,
+// k3_forkvein, n2_spellsword, betterbot) left verified-mismatch; five of them the parser cannot fully resolve yet
+// (the Choose One "…, or …" shape), so they join the queue. A conscious move.
+const UNRESOLVED_CAP = 570;
 /** Collapse floor: the parser fully consuming fewer objects than this means a grammar regression. */
 const PARSED_FLOOR = 340;
 

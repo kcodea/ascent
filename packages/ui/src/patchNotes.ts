@@ -81,6 +81,10 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'UI / Info',
         text: 'A minion destroyed in the shop with Rise (Deathfibrillator, Cage Breaker) now plays its Echo first and rises on its own beat afterwards. Both landed in the same moment before, which read as rising before the Echo.',
       },
+      {
+        category: 'UI / Info',
+        text: 'The Revelers, Festival Luminary, Kindled Sprite and Nurturer now print their live value in the shop, on Discover and in combat, not only on your board and hand.',
+      },
     ],
   },
   {

@@ -93,6 +93,10 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'UI / Info',
         text: 'The Revelers, Festival Luminary, Kindled Sprite and Nurturer now print their live value in the shop, on Discover and in combat, not only on your board and hand.',
       },
+      {
+        category: 'UI / Info',
+        text: 'Shop rolls now weight each card by the copies left in the shared pool. A card down to its last copy is rarer in proportion; before, it was as likely as a full stack until it ran out.',
+      },
     ],
   },
   {

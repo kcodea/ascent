@@ -85,6 +85,12 @@ returns an event log; the UI only replays it and never computes outcomes. Recrui
 (Shouts/Battlecries, buff-on-summon, Consume) bake into stats *before* combat; the simulator runs
 combat-time effects (Start of Combat, Echoes/Deathrattles, on-kill, etc.) and emits log events.
 
+**The shop draws from a shared, finite pool, weighted by copies left** (owner ruling 2026-09-10). Every
+minion of the run's tribes starts with a fixed number of copies per tier; buying takes one, selling or
+discarding returns one. Each roll picks a card with probability proportional to the copies it has left, so
+a card down to its last copy is rarer in proportion, and the odds shift gradually as the pool drains rather
+than falling off a cliff at zero. (Practice tribe surge doubles that tribe's tickets.)
+
 The **combat event vocabulary** is a union of **22 distinct event types** in
 `packages/core/src/types.ts` (`CombatEvent`): `sc, attack, dmg, shield, shieldUp, poison, reborn,
 death, reveal, keyword, keywordLost, venomLost, summon, ascend, buff, improve, rally, maxGold,

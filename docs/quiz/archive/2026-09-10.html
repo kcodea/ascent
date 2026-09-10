@@ -1,0 +1,543 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ascent Quiz #29</title>
+<style>
+  :root {
+    --bg: #f6f4ef;
+    --panel: #ffffff;
+    --panel-border: #e2ddd0;
+    --ink: #2a2620;
+    --ink-dim: #6b6555;
+    --accent: #a8712f;
+    --accent-ink: #ffffff;
+    --good: #2f7a4f;
+    --good-bg: #e5f4ea;
+    --bad: #b13d3d;
+    --bad-bg: #fbe9e9;
+    --track: #ece7da;
+    --choice-bg: #fbfaf6;
+    --choice-border: #ddd6c4;
+    --choice-hover: #f1ead9;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #1b1913;
+      --panel: #242018;
+      --panel-border: #3a3527;
+      --ink: #eee8d8;
+      --ink-dim: #a89d84;
+      --accent: #d69a4e;
+      --accent-ink: #1b1913;
+      --good: #6fce93;
+      --good-bg: #1e3327;
+      --bad: #e28080;
+      --bad-bg: #3a2222;
+      --track: #2f2b1f;
+      --choice-bg: #2b271c;
+      --choice-border: #423c2b;
+      --choice-hover: #352f22;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #1b1913;
+    --panel: #242018;
+    --panel-border: #3a3527;
+    --ink: #eee8d8;
+    --ink-dim: #a89d84;
+    --accent: #d69a4e;
+    --accent-ink: #1b1913;
+    --good: #6fce93;
+    --good-bg: #1e3327;
+    --bad: #e28080;
+    --bad-bg: #3a2222;
+    --track: #2f2b1f;
+    --choice-bg: #2b271c;
+    --choice-border: #423c2b;
+    --choice-hover: #352f22;
+  }
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    padding-block: 28px;
+  }
+  .wrap {
+    max-width: 640px;
+    margin: 0 auto;
+    padding-inline: 16px;
+  }
+  header.top {
+    text-align: center;
+    margin-bottom: 20px;
+  }
+  header.top .kicker {
+    font-size: 12px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+  header.top h1 {
+    font-size: 22px;
+    margin: 0 0 4px;
+  }
+  header.top p {
+    color: var(--ink-dim);
+    font-size: 13px;
+    margin: 0;
+  }
+  .progressRow {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+  .track {
+    flex: 1;
+    height: 8px;
+    background: var(--track);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+  .fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 999px;
+    transition: width 0.35s ease;
+    width: 0%;
+  }
+  .progLabel {
+    font-size: 12px;
+    color: var(--ink-dim);
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 16px;
+    padding: 22px;
+  }
+  .topicTag {
+    display: inline-block;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 14%, transparent);
+    border-radius: 999px;
+    padding: 3px 10px;
+    margin-bottom: 12px;
+    font-weight: 700;
+  }
+  .qtext {
+    font-size: 16px;
+    line-height: 1.5;
+    margin: 0 0 16px;
+  }
+  .choices {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .choice {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    text-align: left;
+    background: var(--choice-bg);
+    border: 1px solid var(--choice-border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 14px;
+    line-height: 1.45;
+    color: var(--ink);
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .choice:hover:not(:disabled) {
+    background: var(--choice-hover);
+  }
+  .choice:disabled {
+    cursor: default;
+  }
+  .choice .letter {
+    flex: 0 0 auto;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--track);
+    color: var(--ink-dim);
+    font-size: 12px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .choice.correct {
+    background: var(--good-bg);
+    border-color: var(--good);
+  }
+  .choice.correct .letter {
+    background: var(--good);
+    color: #fff;
+  }
+  .choice.incorrect {
+    background: var(--bad-bg);
+    border-color: var(--bad);
+  }
+  .choice.incorrect .letter {
+    background: var(--bad);
+    color: #fff;
+  }
+  .explain {
+    margin-top: 14px;
+    padding: 14px;
+    border-radius: 10px;
+    background: var(--track);
+    font-size: 13.5px;
+    line-height: 1.55;
+    color: var(--ink);
+    display: none;
+  }
+  .explain.show { display: block; }
+  .explain b { color: var(--accent); }
+  .footerRow {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 18px;
+  }
+  .scoreLabel {
+    font-size: 13px;
+    color: var(--ink-dim);
+  }
+  button.next {
+    background: var(--accent);
+    color: var(--accent-ink);
+    border: none;
+    border-radius: 999px;
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    display: none;
+  }
+  button.next.show { display: inline-block; }
+  .final {
+    display: none;
+    text-align: center;
+  }
+  .final.show { display: block; }
+  .final .big {
+    font-size: 44px;
+    font-weight: 800;
+    margin: 6px 0;
+    color: var(--accent);
+  }
+  .final .line {
+    font-size: 15px;
+    color: var(--ink-dim);
+    margin-bottom: 18px;
+  }
+  .final .bits {
+    display: flex;
+    justify-content: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 18px;
+  }
+  .final .bit {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 700;
+    color: #fff;
+  }
+  .final .bit.ok { background: var(--good); }
+  .final .bit.no { background: var(--bad); }
+  .quizBody { display: block; }
+  .quizBody.hide { display: none; }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top">
+    <div class="kicker">Daily Ascent Code Quiz</div>
+    <h1>Quiz #29</h1>
+    <p>2026-09-10 · How Ascent is coded, ten questions</p>
+  </header>
+
+  <div class="progressRow">
+    <div class="track"><div class="fill" id="fill"></div></div>
+    <div class="progLabel" id="progLabel">1 / 10</div>
+  </div>
+
+  <div class="card">
+    <div class="quizBody" id="quizBody">
+      <div class="topicTag" id="topicTag"></div>
+      <p class="qtext" id="qtext"></p>
+      <div class="choices" id="choices"></div>
+      <div class="explain" id="explain"></div>
+      <div class="footerRow">
+        <div class="scoreLabel" id="scoreLabel">Score: 0 / 10</div>
+        <button class="next" id="nextBtn">Next →</button>
+      </div>
+    </div>
+
+    <div class="final" id="final">
+      <div class="big" id="finalScore"></div>
+      <div class="line" id="finalLine"></div>
+      <div class="bits" id="finalBits"></div>
+      <div class="line" style="font-size:13px;">Reply to Mike's chat with your score so tomorrow's quiz can adapt — e.g. "8/10, missed the RNG one."</div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var QUESTIONS = [
+    {
+      topicId: "types-basics",
+      question: "In packages/core/src/types.ts, a stat-tracking field like attackByTribe is typed Partial<Record<Tribe, number>> instead of plain Record<Tribe, number>. What does wrapping it in Partial<> change?",
+      choices: [
+        "It makes every Tribe key optional, so the object only needs entries for tribes that actually occurred — plain Record<Tribe, number> would require a number for every possible Tribe",
+        "It makes the whole attackByTribe field itself optional on its containing type",
+        "It turns Tribe from a union of string literals into an array type",
+        "It makes the tribe keys optional but still requires every value to be a number"
+      ],
+      answer: 0,
+      explanation: "<b>Record&lt;K, V&gt;</b> builds an object type that requires EVERY key of K to be present. Wrapping it in <b>Partial&lt;&gt;</b> makes every property of that resulting object type optional — so attackByTribe only needs an entry for tribes that actually gained stats, not all nine. Choice B confuses making the field optional with making the properties inside its type optional — different levels entirely. See packages/core/src/types.ts."
+    },
+    {
+      topicId: "immutability",
+      question: "CombatContext declares readonly spellPower: { attack: number; health: number }, yet simulate.ts's grantSpellPower does spellPower.attack += attack mid-combat to grow it. Why does that compile — isn't readonly supposed to stop that?",
+      choices: [
+        "readonly only blocks REASSIGNING the property itself (ctx.spellPower = someNewObject) — it doesn't freeze the object spellPower points to, so mutating that object's own fields is still allowed",
+        "readonly behaves like Object.freeze() at runtime, and this is actually a bug that slipped past review",
+        "grantSpellPower secretly builds a brand-new {attack, health} object each call, so nothing is really being mutated",
+        "readonly only has an effect on array types, not on plain object properties"
+      ],
+      answer: 0,
+      explanation: "TypeScript's <b>readonly</b> is shallow and compile-time only: it stops <code>ctx.spellPower = x</code>, but does nothing to protect the fields of the object already sitting in spellPower. simulate.ts genuinely mutates the SAME object in place, on purpose — so any later effect that reads spell power sees the live total immediately. Choice B imports Object.freeze's runtime behavior onto a keyword TypeScript erases entirely at compile time. See packages/core/src/types.ts and packages/core/src/combat/simulate.ts."
+    },
+    {
+      topicId: "reducer-run-state",
+      question: "The reducer's case 'settleCombat' starts with: if (s.phase !== 'combat' || !s.lastCombat || s.combatSettled) return state; — before doing anything else. Why guard on s.combatSettled specifically?",
+      choices: [
+        "So dispatching 'settleCombat' more than once for the same fight (a duplicate click, an effect re-firing) can't apply that combat's damage and carry-back bonuses a second time — it makes the action idempotent",
+        "To stop the run's seeded RNG from producing a different result if the action runs twice",
+        "JavaScript throws a runtime error if the same RunState object is passed into a function a second time",
+        "To prevent two completely different combats from ever being settled within the same play session"
+      ],
+      answer: 0,
+      explanation: "settleCombat() has real, once-only side effects — it applies the fight's damage and any stat carry-backs onto the run board. If the same dispatch landed twice, those would double-apply. Checking <b>combatSettled</b> first and bailing out on a repeat call is a general idempotency guard — unrelated to the RNG or to any JS runtime restriction (neither B nor C is a real mechanism). See packages/sim/src/reducer.ts."
+    },
+    {
+      topicId: "zustand-store",
+      question: "Most components read state reactively with useGame((s) => s.run.phase), which re-renders on change. Elsewhere in the UI code you'll instead see a plain useGame.getState() call. What's different about that form?",
+      choices: [
+        "It reads the CURRENT state once, right now, without subscribing to anything — code that calls it will NOT automatically re-render later when that state changes",
+        "It's equivalent to useGame((s) => s) — just a different way of writing the same subscription",
+        "It resets the entire store back to its initial values",
+        "It only works inside a React component's render body, never inside an event handler or a plain function"
+      ],
+      answer: 0,
+      explanation: "useGame.getState() is Zustand's imperative escape hatch: a one-off snapshot read for code that isn't part of a render — an event handler, a helper function — with no reason to subscribe to future changes. The selector form is the reactive path used DURING render. Choice D actually has it backwards: getState() is exactly FOR call sites outside render, like handlers. See packages/ui/src/Game.tsx and packages/ui/src/store.ts."
+    },
+    {
+      topicId: "event-bus",
+      question: "In simulate.ts, both sides register their effect handlers the same way, in one loop over ['player','enemy'] as const — all onto the SAME CombatBus instance (there's no separate bus per side). If an on-kill effect should only react to a kill ITS OWN minion landed, what actually stops it from also firing for the enemy's kills?",
+      choices: [
+        "Nothing in the bus — emit() broadcasts an event to every handler registered for it, regardless of which side registered it; the handler itself has to check the payload (e.g. \"is the attacker me?\") to filter",
+        "CombatBus tags each handler with the side that registered it and only invokes matching-side handlers",
+        "Enemy minions actually register onto a second, separate bus instance that the player's minions never touch",
+        "emit() takes an explicit side argument that filters which handlers get called"
+      ],
+      answer: 0,
+      explanation: "CombatBus.emit() (packages/core/src/events.ts) just loops every handler stored for that event name — it has no notion of \"sides\" at all. Filtering is entirely the handler's own job, checked inside the effect factory itself. Sharing ONE bus for both sides is deliberate — it's what lets an effect watch the OPPONENT'S events at all. B, C and D all invent bus features that don't exist in the real ~29-line class."
+    },
+    {
+      topicId: "cards-in-sets",
+      question: "A resolved CardPool carries three lists: all, buyable, and spells. In packages/content/src/sets.ts's poolFor(), how are buyable and spells actually produced?",
+      choices: [
+        "With two .filter() calls over the SAME all array, right when the pool resolves — they're derived views, not separately authored or separately stored lists",
+        "As hand-maintained arrays kept alongside all in each set's own own[] declaration",
+        "They're recomputed from the CardDef schema at combat time, not when the pool resolves",
+        "They're a random sample of all taken fresh every time the shop refreshes"
+      ],
+      answer: 0,
+      explanation: "poolFor() builds exactly one array — <b>all</b> — by resolving inherits + excludes + own, then derives <b>buyable</b> (not a token and not a spell) and <b>spells</b> (a spell and not a token) with two filters in the same object literal. One source of truth; the whole CardPool then gets cached so this only runs once per set. Choice B would mean keeping three lists in sync by hand — exactly what this design avoids."
+    },
+    {
+      topicId: "package-boundaries",
+      question: "Compare the dependencies each package declares: packages/core/package.json lists none at all; packages/content/package.json lists only @game/core and zod; packages/ui/package.json also lists react, zustand, gsap, pixi.js, and @supabase/supabase-js. What does that spread tell you about the sim/presentation split?",
+      choices: [
+        "The deterministic engine packages are kept to the bare minimum of dependencies — only what's needed to validate or compose data — while every framework/rendering/backend library piles up in ui, the one package allowed to touch the browser or a UI toolkit",
+        "It's essentially arbitrary — any package's author could add react as a dependency if they felt like it",
+        "zod and react serve the same purpose (validating data shapes), so content and ui are functionally interchangeable here",
+        "packages/core actually re-exports react indirectly through @game/content"
+      ],
+      answer: 0,
+      explanation: "A package's dependencies list is an honest record of what it's allowed to reach for. core has zero — the purest layer (rng, types, simulate). content adds only zod, to validate card data. ui is where React (component tree), Zustand (state), GSAP/Pixi (animation/rendering) and Supabase (backend) all show up, because ui is the one package CLAUDE.md's architecture lets touch the browser and a UI framework. Choice C conflates two unrelated libraries with unrelated jobs."
+    },
+    {
+      topicId: "effects-as-subscriptions",
+      question: "schema.ts's chooseOne field is z.array(z.object({ text, goldenText, effects: z.array(EffectDefSchema), target }).strict()).min(2) — notice each CHOICE has its own effects array. What does that structure let a Choose One card do that a plain CardDef.effects: EffectDef[] array couldn't?",
+      choices: [
+        "Hold multiple INDEPENDENT SETS of effects — one full set per choice — where only the chosen option's set ever fires, rather than one flat list where every effect always applies",
+        "Nothing extra — chooseOne's per-choice effects field is just a duplicate of the top-level effects field for validation redundancy",
+        "It lets the same EffectDef be validated twice so a schema typo is guaranteed to be caught",
+        "It allows effects to fire in a random order instead of the array's declared order"
+      ],
+      answer: 0,
+      explanation: "A plain CardDef.effects: EffectDef[] is one flat bag — every effect in it is live. Nesting a separate effects array inside EACH chooseOne option reuses the exact same EffectDefSchema shape recursively, but scopes it to just that option — so a card can offer \"gain +2/+2\" OR \"summon a 1/1\" as two fully independent effect sets, with only the picked one ever resolving. See packages/content/src/schema.ts."
+    },
+    {
+      topicId: "effect-timing-pipeline",
+      question: "packages/core/src/effects/factories.ts declares FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> — keyed by the precise EffectFactoryId union. packages/sim/src/recruit.ts declares RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> — keyed by plain string. Both are looked up using the same effect.do value from a card's EffectDef. What does that typing difference mean?",
+      choices: [
+        "TypeScript itself can only catch a mistyped factory id at the FACTORIES (combat-time) lookup, not at the RECRUIT_FACTORIES (recruit-time) one — a typo'd recruit factory id would still need zod's EffectFactoryIdSchema at content-load time to catch it, since the compiler treats RECRUIT_FACTORIES's key type as any string",
+        "It means recruit-time effects and combat-time effects use two completely different do values, unrelated to each other",
+        "RECRUIT_FACTORIES's looser type means recruit effects skip zod validation entirely",
+        "It's purely stylistic — both key types behave identically for lookup and typo-catching purposes"
+      ],
+      answer: 0,
+      explanation: "Because FACTORIES is keyed by the EffectFactoryId union, TypeScript flags an id that isn't a real union member right at that lookup. RECRUIT_FACTORIES, keyed by plain string, gives up that compile-time check — a mistyped or stale key there compiles fine, and only zod's EffectFactoryIdSchema (run once, at content load, validating the CardDef itself) stands between that and a silently-inert recruit effect. Same effect.do value, same shared validation schema, but a different level of static protection at each lookup site."
+    },
+    {
+      topicId: "testing-vitest",
+      question: "vitest.setup.ts polyfills a minimal navigator global before any test file runs, guarded by if (typeof globalThis.navigator === 'undefined'). Why does the test suite need to do that?",
+      choices: [
+        "pixi.js reads navigator at MODULE-LOAD time (for its isSafari() check), and Node 20 — the version CI pins — has no built-in navigator global, so importing anything that pulls in pixi.js would otherwise crash test collection with a ReferenceError",
+        "It fakes a browser environment so the tests can click on real DOM buttons and drag cards like a player would",
+        "It's needed so Math.random calls inside pixi.js don't violate the engine's Math.random lint ban",
+        "Vitest itself requires a navigator global to be present before it will run any test file at all"
+      ],
+      answer: 0,
+      explanation: "pixi.js's isSafari() check runs as an import-time side effect and reads the global navigator — present in real browsers and in Node 21+, but missing on Node 20 (what CI pins). The polyfill is just enough of an object to stop that ReferenceError, and the typeof guard makes it a no-op wherever navigator already exists (local dev on newer Node). It's not simulating real DOM interaction (B), and it's unrelated to the Math.random lint rule (C). See vitest.setup.ts."
+    }
+  ];
+
+  var idx = 0, score = 0, answered = false;
+  var results = [];
+
+  var topicLabels = {
+    "types-basics": "TypeScript types",
+    "immutability": "Immutability",
+    "reducer-run-state": "Reducer + run state",
+    "zustand-store": "Zustand store",
+    "event-bus": "Event bus",
+    "cards-in-sets": "Cards in sets",
+    "package-boundaries": "Package boundaries",
+    "effects-as-subscriptions": "Effects as subscriptions",
+    "effect-timing-pipeline": "Effect timing",
+    "testing-vitest": "Testing (vitest)"
+  };
+
+  var fill = document.getElementById("fill");
+  var progLabel = document.getElementById("progLabel");
+  var topicTag = document.getElementById("topicTag");
+  var qtext = document.getElementById("qtext");
+  var choicesEl = document.getElementById("choices");
+  var explainEl = document.getElementById("explain");
+  var scoreLabel = document.getElementById("scoreLabel");
+  var nextBtn = document.getElementById("nextBtn");
+  var quizBody = document.getElementById("quizBody");
+  var finalEl = document.getElementById("final");
+  var finalScore = document.getElementById("finalScore");
+  var finalLine = document.getElementById("finalLine");
+  var finalBits = document.getElementById("finalBits");
+
+  var letters = ["A", "B", "C", "D"];
+
+  function render() {
+    var q = QUESTIONS[idx];
+    answered = false;
+    fill.style.width = (idx / QUESTIONS.length * 100) + "%";
+    progLabel.textContent = (idx + 1) + " / " + QUESTIONS.length;
+    topicTag.textContent = topicLabels[q.topicId] || q.topicId;
+    qtext.textContent = q.question;
+    scoreLabel.textContent = "Score: " + score + " / " + QUESTIONS.length;
+    explainEl.className = "explain";
+    explainEl.innerHTML = "";
+    nextBtn.className = "next";
+    choicesEl.innerHTML = "";
+
+    q.choices.forEach(function (choiceText, i) {
+      var btn = document.createElement("button");
+      btn.className = "choice";
+      btn.innerHTML = '<span class="letter">' + letters[i] + '</span><span>' + choiceText + '</span>';
+      btn.addEventListener("click", function () { pick(i, btn); });
+      choicesEl.appendChild(btn);
+    });
+  }
+
+  function pick(i, btn) {
+    if (answered) return;
+    answered = true;
+    var q = QUESTIONS[idx];
+    var correct = i === q.answer;
+    if (correct) score++;
+    results.push(correct);
+
+    var btns = choicesEl.querySelectorAll(".choice");
+    btns.forEach(function (b, bi) {
+      b.disabled = true;
+      if (bi === q.answer) b.classList.add("correct");
+      else if (bi === i) b.classList.add("incorrect");
+    });
+
+    explainEl.innerHTML = (correct ? "✅ Correct. " : "❌ Not quite. ") + q.explanation;
+    explainEl.className = "explain show";
+    scoreLabel.textContent = "Score: " + score + " / " + QUESTIONS.length;
+    nextBtn.className = "next show";
+    nextBtn.textContent = idx === QUESTIONS.length - 1 ? "See results →" : "Next →";
+  }
+
+  nextBtn.addEventListener("click", function () {
+    idx++;
+    if (idx >= QUESTIONS.length) {
+      showFinal();
+    } else {
+      render();
+    }
+  });
+
+  function showFinal() {
+    fill.style.width = "100%";
+    progLabel.textContent = QUESTIONS.length + " / " + QUESTIONS.length;
+    quizBody.className = "quizBody hide";
+    finalEl.className = "final show";
+    finalScore.textContent = score + " / " + QUESTIONS.length;
+    var pct = score / QUESTIONS.length;
+    var line;
+    if (pct === 1) line = "Perfect score! You've got a real handle on how this thing is built.";
+    else if (pct >= 0.8) line = "Great run — you're reading the architecture like a regular.";
+    else if (pct >= 0.5) line = "Solid effort — a few of these will click once you skim the files they point to.";
+    else line = "Rough one today — no worries, these get revisited. Go peek at the files named above when you get a chance.";
+    finalLine.textContent = line;
+    finalBits.innerHTML = "";
+    results.forEach(function (ok, i) {
+      var d = document.createElement("div");
+      d.className = "bit " + (ok ? "ok" : "no");
+      d.textContent = (i + 1);
+      finalBits.appendChild(d);
+    });
+  }
+
+  render();
+})();
+</script>
+</body>
+</html>

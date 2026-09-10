@@ -69,6 +69,14 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'Card Change',
         text: 'Mend: Armor set in the shop now lasts until damage removes it. It was silently reverting after one round in lobby runs.',
       },
+      {
+        category: 'Card Change',
+        text: 'Appetite Agent: the Demon you target now Consumes a RANDOM Shop minion, as printed. It always took the right-most one.',
+      },
+      {
+        category: 'Card Change',
+        text: 'Bob Blart with Bottomless Banquet: the right-most Shop minion is eaten again. The bonus bite was shifting the row so Blart missed it.',
+      },
     ],
   },
   {

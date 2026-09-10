@@ -170,7 +170,7 @@ export const SLICE_CONTRACTS: readonly ContentContract[] = [
     tribes: ['demon'],
     tags: ['trigger:shout', 'effect:consume-shop', 'targeted'],
     triggers: [{ event: 'onPlay', phase: 'shop' }],
-    effects: [{ kind: 'target-consumes-shop', amount: { plain: 1, gilded: 2 }, targets: { count: 1, scope: 'friendly-demon' }, note: 'the TARGET eats the right-most Shop minion, gaining its bought stats' }],
+    effects: [{ kind: 'target-consumes-shop', amount: { plain: 1, gilded: 2 }, targets: { count: 1, scope: 'friendly-demon' }, note: 'the TARGET eats a RANDOM Shop minion (seeded), gaining its bought stats' }],
     gildedDelta: { kind: 'multiply', factor: 2, description: 'gilded: the target Consumes 2 Shop minions' },
     textContract: { text: '**Shout:** target a friendly **Demon**. It Consumes a minion in the Shop.', goldenText: '**Shout:** target a friendly **Demon**. It Consumes **2** minions in the Shop.' },
   },

@@ -5112,10 +5112,19 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     // would fire on hover and on every re-render rather than on the feed.
     const declared = CARD_INDEX[self.cardId]?.targetTribe;
     if (ctx.state.runeOpenAppetite && declared && !isTribe(target, declared)) procRuneId(ctx.state, 'rune_open_appetite');
+    // The MEAL is a RANDOM Shop minion — the text says "a minion in the Shop", the same wording as Cinder Clerk's
+    // random bite. It used to take the right-most, which in a Demon run is also the buff-accumulator slot, so
+    // the Agent read as "always the fattest" (Mike's report 2026-09-10). A fresh pick per bite off the shared
+    // cursor, re-read after each bite because the row shifts.
     for (let n = 0; n < num(params.count, 1) * gold(self); n++) {
-      const i = rightmostShopMinion(ctx.state);
-      if (i < 0) return;
-      consumeShopMinion(ctx.state, target, i, 1);
+      const edible = ctx.state.shop
+        .map((_, i) => i)
+        .filter((i) => { const d = CARD_INDEX[ctx.state.shop[i]!.cardId]; return !!d && !d.spell && !d.ruby; });
+      if (edible.length === 0) return;
+      const rng = makeRng(ctx.state.rngCursor);
+      const pick = edible[rng.int(edible.length)]!;
+      ctx.state.rngCursor = rng.state();
+      consumeShopMinion(ctx.state, target, pick, 1);
     }
   },
 
@@ -9626,7 +9635,15 @@ export function consumeShopMinion(state: RunState, eater: BoardCard, offerIndex:
       const d = CARD_INDEX[o.cardId];
       return n !== offerIndex && !!d && !d.spell && !d.ruby;
     });
-    if (other >= 0) consumeShopMinion(state, eater, other, times);
+    if (other >= 0) {
+      // The bonus bite splices the row BEFORE the primary one lands, so an index to the RIGHT of it goes stale
+      // by one. Re-resolve the primary offer by uid afterwards — Blart's right-most index used to fall off the
+      // end, so the bonus (left-most) bite was the only one taken and the right-most survived (Mike's report
+      // 2026-09-10: "Blart consumed not the right-most unit").
+      const primaryUid = state.shop[offerIndex]!.uid;
+      consumeShopMinion(state, eater, other, times);
+      offerIndex = state.shop.findIndex((o) => o.uid === primaryUid);
+    }
   }
   const offer = state.shop[offerIndex];
   if (!offer) return false;

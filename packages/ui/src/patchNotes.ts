@@ -59,7 +59,7 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Hero Change',
-        text: 'Adopting a hero power (Mimic, Void, Power Shifter) now runs the Gild check immediately. A held pair gilds the moment Midas' Touch lands, and a power's gift card combines on arrival.',
+        text: 'Adopting a hero power (Mimic, Void, Power Shifter) now runs the Gild check immediately. A held pair gilds the moment Midas Touch lands, and a gift card from the new power combines on arrival.',
       },
       {
         category: 'New Card',

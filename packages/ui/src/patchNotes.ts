@@ -70,6 +70,10 @@ export const PATCH_NOTES: PatchNote[] = [
         text: 'Summon from hand: if the board was full and the copy could not land, the hand card is no longer spent. The next summoner can still bring it out once there is room.',
       },
       {
+        category: 'Rune Change',
+        text: 'Rune of Attacking Gems now PLAYS real Rubies: Deepdelve Paragon multiplies them, Rune of Battle Refraction repeats them, Rune of Engraving Gems makes them permanent, Rune of the Spellstone counts them as casts, and they show the Ruby-landed effect.',
+      },
+      {
         category: 'New Card',
         text: 'Wolves Den (Tier 3 Undead/Beast) joins Set 3 — Deathrattle: summon 3 Crypt Wolves.',
       },

@@ -59,7 +59,9 @@ describe('Rune of Attacking Gems', () => {
   ];
   const gemBuffs = (mods: object, rb?: { attack: number; health: number }) =>
     sim(board, killer, mods, rb).events
-      .filter((e): e is Extract<CombatEvent, { type: 'buff' }> => e.type === 'buff' && e.source === 'Rune of Attacking Gems');
+      // The rune PLAYS Rubies through the primitive now (2026-09-10), so its buffs are `ruby`-tagged and sourced
+      // by the attacking body, not a rune-name string.
+      .filter((e): e is Extract<CombatEvent, { type: 'buff' }> => e.type === 'buff' && e.ruby === true);
 
   it('plays a Ruby on the whole board on every friendly attack', () => {
     expect(gemBuffs({}).length, 'baseline should never fire').toBe(0);
@@ -67,6 +69,25 @@ describe('Rune of Attacking Gems', () => {
     expect(buffs.length, 'the rune never fired').toBeGreaterThan(0);
     // Both bodies are buffed each time, so distinct targets > 1.
     expect(new Set(buffs.map((b) => b.target)).size).toBeGreaterThan(1);
+  });
+
+  it('Deepdelve Paragon multiplies the rune Rubies — 2× plain, 3× golden (owner audit 2026-09-10: it never did)', () => {
+    // Ruby strength +2/+2 → a Ruby is 3/3; the Paragon doubles / triples that AT THE LANDING (the primitive),
+    // which the rune used to bypass with a hand-rolled buff.
+    const paragon = (golden: boolean): BoardMinion[] => [
+      { cardId: 'k_deepdelve', attack: golden ? 8 : 4, health: 300, golden }, // tall enough to outlive the fixture's killer
+      { cardId: 'sandbag', attack: 3, health: 300 },
+    ];
+    const plainBuffs = sim(paragon(false), killer, { runeAttackingGems: 1 }, { attack: 2, health: 2 }).events
+      .filter((e): e is Extract<CombatEvent, { type: 'buff' }> => e.type === 'buff' && e.ruby === true);
+    expect(plainBuffs.length).toBeGreaterThan(0);
+    expect(new Set(plainBuffs.map((b) => `${b.attack}/${b.health}`)), 'every gem lands doubled').toEqual(new Set(['6/6']));
+    const goldBuffs = sim(paragon(true), killer, { runeAttackingGems: 1 }, { attack: 2, health: 2 }).events
+      .filter((e): e is Extract<CombatEvent, { type: 'buff' }> => e.type === 'buff' && e.ruby === true);
+    expect(new Set(goldBuffs.map((b) => `${b.attack}/${b.health}`)), 'a golden Paragon triples').toEqual(new Set(['9/9']));
+    const none = sim([{ cardId: 'sandbag', attack: 3, health: 300 }], killer, { runeAttackingGems: 1 }, { attack: 2, health: 2 }).events
+      .filter((e): e is Extract<CombatEvent, { type: 'buff' }> => e.type === 'buff' && e.ruby === true);
+    expect(new Set(none.map((b) => `${b.attack}/${b.health}`)), 'no Paragon: the plain 1 + strength').toEqual(new Set(['3/3']));
   });
 
   it("scales with the run's Ruby strength", () => {

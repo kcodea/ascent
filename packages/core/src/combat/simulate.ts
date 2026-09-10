@@ -2727,15 +2727,18 @@ export function simulate(
           emit({ type: 'shieldUp', target: attacker.uid });
         }
       }
-      // Rune of Attacking Gems: every friendly attack plays a Ruby on your whole board. A Ruby is 1/1 plus the
-      // side's Ruby strength — the same body the shop mints — so a late-run board scales with its Rubies.
+      // Rune of Attacking Gems: every friendly attack PLAYS a Ruby on your whole board — through `playRubyOn`, the
+      // one Ruby-play primitive, so it folds in the side's Ruby strength, Deepdelve Paragon's multiplier, Battle
+      // Refraction's repeats, Engraving permanence, the Spellstone cast-count, the target's on-Ruby watchers, the
+      // `rubyGain` ledger and the Ruby-landed cue. It used to hand-roll `ctx.buff(1 + strength)` — the exact bug
+      // the Gemstorm rune shipped with (2026-08-06) — so a Paragon never amplified it (owner audit 2026-09-10).
+      // The attacker is the play's source: its swing casts the Ruby.
       const gems = modsFor(attacker.side).runeAttackingGems ?? 0;
       if (gems > 0) {
-        const rb = ctx.rubyBonusFor(attacker.side) ?? { attack: 0, health: 0 };
         nextStep(); fireTrigger('runeAttackingGems', attacker.side);
         for (const m of boards[attacker.side]) {
           if (m.dead || m.health <= 0) continue;
-          for (let i = 0; i < gems; i++) ctx.buff(m, 1 + rb.attack, 1 + rb.health, 'Rune of Attacking Gems');
+          playRubyOn(ctx, attacker, m, gems);
         }
       }
       // Rune of the Warpath: after your LEFT-most minion attacks, your RIGHT-most attacks too — out of turn

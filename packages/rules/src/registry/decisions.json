@@ -588,5 +588,9 @@
   "q-gangplank-self-buff": {
     "decision": "approve",
     "decidedAt": "2026-09-09T03:36:09.301Z"
+  },
+  "q-conv-trigger-tribePlayed": {
+    "decision": "approve",
+    "decidedAt": "2026-09-10T14:46:01.493Z"
   }
 }

@@ -60,6 +60,24 @@ describe("practice IS a lobby now (owner rework 2026-07-31)", () => {
     expect(s.lobby!.seats[0]!.kind).toBe('player');
   });
 
+  it('Armor gained in the shop (Mend) survives the round: the seat fights with the run pools, not its stale copy', () => {
+    let s = createLobbyRun(4, 'drakko');
+    // Strip the starting Armor on BOTH the run and the seat, so Mend's 5 is the only Armor in play.
+    s = { ...s, armor: 0, lobby: { ...s.lobby!, seats: s.lobby!.seats.map((x, i) => (i === 0 ? { ...x, armor: 0 } : x)) } };
+    const mend = { uid: 'sp', cardId: 'mend', tribe: 'neutral' as const, attack: 0, health: 1, keywords: [], golden: false };
+    s = reduce({ ...s, hand: [mend] }, { type: 'play', uid: 'sp' });
+    expect(s.armor, 'Mend set the run Armor').toBe(5);
+    const r0 = s.resolve;
+    // Fight round 1 with an empty board (a guaranteed loss), then settle it.
+    s = reduce(s, { type: 'faceOmen' });
+    s = reduce(s, { type: 'resolveCombat' });
+    const taken = lastRoundDamage(s.lobby!)[s.lobby!.seats[0]!.id]!.taken;
+    expect(taken, 'an empty board loses — the check would be vacuous otherwise').toBeGreaterThan(0);
+    expect(s.armor, 'the Armor absorbed the hit first').toBe(Math.max(0, 5 - taken));
+    expect(s.resolve, 'Resolve only pays what the Armor could not').toBe(r0 - Math.max(0, taken - 5));
+    expect(playerLobbySeat(s.lobby!).armor, 'seat and run agree').toBe(s.armor);
+  });
+
   it('the player is INVULNERABLE: a lost round costs no health and never eliminates', () => {
     let s = createLobbyRun(4, 'drakko', {}, 'practice');
     const hp = { r: s.resolve, a: s.armor };

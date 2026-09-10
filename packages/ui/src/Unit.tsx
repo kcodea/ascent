@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { CARD_INDEX } from '@game/content';
-import { chooseBothActive, hasTier7Access, spellAttackBonus, spellHealthBonus, spiritsPlayedThisTurn } from '@game/sim';
+import { chooseBothActive, hasTier7Access, runeStacksOf, spellAttackBonus, spellHealthBonus, spiritsPlayedThisTurn } from '@game/sim';
 import { Card, type CardView } from './Card';
 import { stepProgress } from './cardText';
 import { liveCardText } from './instView';
@@ -66,13 +66,24 @@ function UnitInner({ u, side, anim, triggered, rallyPulse, watcherPulse, framePu
     ? liveCardText(u.cardId, {
         tier: run.tier, golden: u.golden,
         spellBonus: spA, spellBonusH: spH,
-        frontToBackBonus: foe ? 0 : run.frontToBackBonus, frontToBackBonusH: foe ? 0 : run.frontToBackBonusH,
-        spellsThisTurn, spellsCast: foe ? 0 : run.spellsCast, deathrattlesTriggered: drTally,
-        clingEnchant: foe ? undefined : run.cardBuffs?.cling,
-        fodderConsumed: foe ? undefined : run.fodderConsumedThisTurn,
-        undeadBuyAtk: foe ? 0 : run.undeadBuyAtk, soulsmanGold: foe ? 0 : (run.soulsmanGold ?? 0),
-        impAura: foe ? undefined : run.impBuff, // enemyScalers carries no Imp Aura → an enemy Raag reads its printed text
-        cardBuffs: foe ? undefined : run.cardBuffs,
+        // PARITY (owner report 2026-09-10): every run-scoped scaler the snapshot carries now reaches the FOE side
+        // through `enemyScalers` — an enemy Vaultkeeper / Chef Raag / Steward / Oaf / Archivist prints its OWNER's
+        // value. What stays player-only is what the snapshot genuinely does not carry (Gold meters, Soulsman,
+        // Squirl Scout, rune flags) — those fall back to base text on the foe side, stats still right.
+        frontToBackBonus: foe ? (enemyScalers?.spellEscalation.attack ?? 0) : run.frontToBackBonus,
+        frontToBackBonusH: foe ? (enemyScalers?.spellEscalation.health ?? 0) : run.frontToBackBonusH,
+        spellsThisTurn, spellsCast: foe ? (enemyScalers?.spellsCast ?? 0) : run.spellsCast, deathrattlesTriggered: drTally,
+        rubyCasts: foe ? (enemyScalers?.rubyCasts ?? 0) : run.rubyCasts, // the Vaultkeeper umbrella — was never passed in combat, either side
+        clingEnchant: foe ? enemyScalers?.cardBuffs.cling : run.cardBuffs?.cling,
+        fodderConsumed: foe ? enemyScalers?.fodderConsumed : run.fodderConsumedThisTurn,
+        undeadBuyAtk: foe ? (enemyScalers?.undeadBuyAtk ?? 0) : run.undeadBuyAtk, soulsmanGold: foe ? 0 : (run.soulsmanGold ?? 0),
+        impAura: foe ? enemyScalers?.impAura : run.impBuff,
+        cardBuffs: foe ? enemyScalers?.cardBuffs : run.cardBuffs,
+        growthBonus: foe ? (enemyScalers?.growthBonus ?? 0) : run.growthBonus,
+        rubyBonus: foe ? enemyScalers?.rubyBonus : run.rubyBonus,
+        improveReps: foe ? 1 : (run.runeMastery ? 1 + runeStacksOf(run, 'rune_mastery') : 1), // Rune of Mastery's rep count (Conductor / Spirit Worgen) — was never passed in combat
+        soldProgress: u.soldProgress, // Runic Archivist: per-instance, rides the body
+        keeperFirstSpellName: u.boardFirstSpellId ? CARD_INDEX[u.boardFirstSpellId]?.name : undefined, // Spell Warden: per-instance
         chosenOption: u.chosenOption, // a resolved Choose One prints only the branch it became
         // (Both) — a golden Orivax / a Veinbreaker under its rune records NO branch (it gained them all), so in
         // combat it must still read as doing both rather than falling back to a "Choose One:" it never asked.
@@ -90,19 +101,21 @@ function UnitInner({ u, side, anim, triggered, rallyPulse, watcherPulse, framePu
         conductorBuff: foe ? (enemyScalers?.conductorBuff ?? 0) : (run.conductorBuff ?? 0), onBoard: true,
         // Drunken Oaf's rep count. Player-only: `enemyScalers` carries no Ale tally, so a served Oaf reads its
         // printed text — the same fallback every other run-scoped scaler takes on the foe side.
-        alesThisTurn: foe ? undefined : run.alesCastThisTurn,
+        alesThisTurn: foe ? enemyScalers?.alesLastTurn : run.alesCastThisTurn,
         goldSpent: foe ? 0 : run.goldSpentThisTurn,
         // Ancient Wanderer's run-lifetime meter. Player-only: an enemy snapshot carries no run, so a served
         // Wanderer reads its printed rate — the same fallback every other run-scoped scaler takes on the foe
         // side (its STATS are still right; they were baked in the shop).
         goldSpentRun: foe ? 0 : run.goldSpent,
-        lastSpellName: foe ? undefined : (run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined),
+        lastSpellName: foe
+          ? (enemyScalers?.lastSpellCastId ? CARD_INDEX[enemyScalers.lastSpellCastId]?.name : undefined)
+          : (run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined),
         // Runesnout Archivist's journal + Ashen Heir's banked Imp stats, LIVE during the fight: both cards are
         // entirely about a number that moves mid-combat, so the printed text has to move with it (the hard
         // live-value rule). The journal is run-side (player only, like lastSpellName); the bank rides the
         // combat body itself, so a served Heir shows its own.
-        rememberedSpellNames: foe ? undefined
-          : (run.rememberedSpellIds ?? []).map((id) => CARD_INDEX[id]?.name).filter((n): n is string => !!n),
+        rememberedSpellNames: (foe ? (enemyScalers?.rememberedSpellIds ?? []) : (run.rememberedSpellIds ?? []))
+          .map((id) => CARD_INDEX[id]?.name).filter((n): n is string => !!n),
         impBank: u.impBank,
         // The Dragon copiers' targets are frozen with the rest of the run for the fight — player-side only,
         // same as lastSpellName (an enemy carries no run, so it falls back to its printed text).
@@ -119,7 +132,7 @@ function UnitInner({ u, side, anim, triggered, rallyPulse, watcherPulse, framePu
         runeFlags: foe ? undefined : { matriarch: !!run.runeMatriarch, brokerage: !!run.runeBrokerage, livingTreasure: !!run.questFlags?.runeLivingTreasure },
         // Set 3 Spirits: the shared Reveler value + Spirits played this turn, frozen for the fight (Kindled Sprite's
         // Rally, Nurturer, the Revelers, Luminary). Player-side only, like the other run-scoped scalers.
-        revelerX: foe ? undefined : run.revelerX, spiritsPlayed: foe ? undefined : spiritsPlayedThisTurn(run),
+        revelerX: foe ? enemyScalers?.revelerX : run.revelerX, spiritsPlayed: foe ? enemyScalers?.spiritsPlayed : spiritsPlayedThisTurn(run),
         // Rune of Rebirth: only the body the Start-of-Combat grant actually landed on prints the Echo.
         rebirthOwner: u.grantedEcho,
       })
@@ -196,6 +209,8 @@ export const Unit = memo(UnitInner, (a, b) =>
   a.u.hpGrantBonus === b.u.hpGrantBonus &&
   a.u.spellProgress === b.u.spellProgress &&
   a.u.spiritTally === b.u.spiritTally &&
+  a.u.soldProgress === b.u.soldProgress &&
+  a.u.boardFirstSpellId === b.u.boardFirstSpellId &&
   a.u.permaGain?.attack === b.u.permaGain?.attack &&
   a.u.permaGain?.health === b.u.permaGain?.health &&
   a.u.name === b.u.name &&

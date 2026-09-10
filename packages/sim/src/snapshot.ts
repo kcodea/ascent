@@ -16,7 +16,7 @@ import { CARD_INDEX } from '@game/content';
 import { HEROES } from './heroes';
 import { createRun, type Action, type RunState, type ShopCard, type RunMode } from './state';
 import { reduce, questCombatMods } from './reducer';
-import { defIsTribe, handCardLocked, spellAttackBonus, spellHealthBonus } from './recruit';
+import { defIsTribe, handCardLocked, spellAttackBonus, spellHealthBonus, spiritsPlayedThisTurn } from './recruit';
 import type { ThreatId } from './threats';
 
 /** Where a pool board came from. 'self' = your own captured run; 'friend' = a friend's imported board;
@@ -137,6 +137,12 @@ export interface BoardSnapshot {
   rememberedSpellIds?: string[];
   /** Rune of Living Growth: the run's Growth improvement, so a served board's Growth casts at its own value. */
   growthBonus?: number;
+  /** Set 2 — lifetime Ruby casts (the Vaultkeeper "spell umbrella" text; display-only in combat). */
+  rubyCasts?: number;
+  /** Set 3 Spirits — Spirits played on the capture turn (a served Kindled Sprite's Rally READS it) and the run's
+   *  shared Reveler value (display-only). Both were dropped before the 2026-09-10 parity pass. */
+  spiritsPlayed?: number;
+  revelerX?: number;
   /** Minions in the owner's hand at capture, with live stats (Rope Wrangler / Water Dragon reach into it). */
   handMinions?: { uid: string; cardId: string; attack: number; health: number; keywords: Keyword[]; golden: boolean; locked?: true }[];
   /** Set 2 — Elderhorn's chosen mode(s): extra fires for the owner's Beast triggers. */
@@ -225,6 +231,8 @@ function cleanBoard(s: RunState): BoardMinion[] {
     ...(c.ascendProgress ? { ascendProgress: c.ascendProgress } : {}),
     ...(c.spellProgress ? { spellProgress: c.spellProgress } : {}), // Archmagus Guel: on-board spell tally
     ...(c.spiritTally ? { spiritTally: c.spiritTally } : {}), // Set 3 Spirits: Forest Colossus's Spirits-since-played (SoC reads it)
+    ...(c.soldProgress ? { soldProgress: c.soldProgress } : {}), // Runic Archivist: display-only, so a served copy prints its count
+    ...(c.boardFirstSpellId ? { boardFirstSpellId: c.boardFirstSpellId } : {}), // Spell Warden: display-only
     ...(c.overflowBonus ? { overflowBonus: c.overflowBonus } : {}), // Flowing Monk: flat triple-combine grant bonus
     // Per-instance COMBAT state (mirrors the reducer's own player board→combat mapping): without these a served
     // board fought differently than the real one did — Gravetwin's copied Echo never procced, Bloodbinder's Rally
@@ -297,6 +305,7 @@ export function snapshotBoard(s: RunState): BoardSnapshot {
   // The owner's HAND, split the same way the reducer splits it for the player side: spell ids in hand order
   // (Vault Curator) and minions with live stats (Rope Wrangler / Water Dragon).
   const handSpellIds = s.hand.filter((c) => CARD_INDEX[c.cardId]?.spell).map((c) => c.cardId);
+  const spiritsPlayed = spiritsPlayedThisTurn(s);
   const handMinions = s.hand
     .filter((c) => { const d = CARD_INDEX[c.cardId]; return !!d && !d.spell && !d.ruby; })
     .map((c) => ({ uid: c.uid, cardId: c.cardId, attack: c.attack, health: c.health, keywords: [...c.keywords], golden: c.golden, ...(handCardLocked(s, c) ? { locked: true as const } : {}) }));
@@ -346,6 +355,9 @@ export function snapshotBoard(s: RunState): BoardSnapshot {
     ...(s.lastSpellCastId ? { lastSpellCastId: s.lastSpellCastId } : {}),
     ...(s.rememberedSpellIds?.length ? { rememberedSpellIds: [...s.rememberedSpellIds] } : {}),
     ...(s.growthBonus ? { growthBonus: s.growthBonus } : {}),
+    ...(s.rubyCasts ? { rubyCasts: s.rubyCasts } : {}),
+    ...(spiritsPlayed ? { spiritsPlayed } : {}),
+    ...(s.revelerX ? { revelerX: s.revelerX } : {}),
     ...(handMinions.length ? { handMinions } : {}),
     ...(s.beastHuntExtra ? { beastHuntExtra: s.beastHuntExtra } : {}),
     ...(s.beastRitualExtra ? { beastRitualExtra: s.beastRitualExtra } : {}),

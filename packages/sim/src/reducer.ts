@@ -3219,6 +3219,8 @@ function reduceCore(state: RunState, action: Action): RunState {
         ascendProgress: b.ascendProgress ?? 0, // Tara: seed the prior ascend tally so the live tracker shows the total
         spellProgress: b.spellProgress, // Guel: seed his on-board spell tally so the live combat text scales (not stuck at base)
         spiritTally: b.spiritTally, // Set 3 Spirits: Forest Colossus's Start of Combat reads it; Festival Keeper / Aspect print it
+        soldProgress: b.soldProgress, // Runic Archivist: display-only, so the combat card prints its live count
+        boardFirstSpellId: b.boardFirstSpellId, // Spell Warden: display-only
         eotBonus: b.eotBonus, // Ritualist: seed the End-of-Turn grant so the live combat text reads its current per-tick value
         sellBonus: b.sellBonus, // Trail Forager: seed the accrued sell value for the live combat text (no combat effect)
         eotTick: b.eotTick, // Frontdrake / Money Maker / Vineweaver: seed the cadence counter for the live combat text
@@ -3354,6 +3356,8 @@ function reduceCore(state: RunState, action: Action): RunState {
         poolIds: poolOf(s).all.map((c) => c.id),
         spellsThisTurn: s.spellsThisTurn,
         spellsCast: s.spellsCast,
+        rubyCasts: s.rubyCasts ?? 0, // Vaultkeeper's umbrella (text); rides to the enemy side via the snapshot
+        revelerX: s.revelerX ?? 0, // Set 3 Spirits: the shared Reveler value (text)
         deathrattles: s.deathrattlesTriggered,
         spellPowerAtk: spellAttackBonus(s),
         wildHuntGrown: s.runeWildHuntGrown ?? 0, // Wild Hunt's permanent escalation resumes where it left off

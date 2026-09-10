@@ -357,6 +357,7 @@ export function liveBoardView(m: BoardCard, run: RunState): CardView {
     {
       undeadBuyAtk: run.undeadBuyAtk, soulsmanGold: run.soulsmanGold ?? 0, cardBuffs: run.cardBuffs,
       improveReps: run.runeMastery ? 1 + runeStacksOf(run, 'rune_mastery') : 1, impAura: run.impBuff, // +1 per Mastery copy (owner 2026-08-27)
+      rubyCasts: run.rubyCasts, // Vaultkeeper's spell umbrella — dropped here until the 2026-09-10 parity pass
       goldSpent: run.goldSpentThisTurn ?? 0, goldSpentRun: run.goldSpent, goldPouchValue: run.goldPouchValue,
       playedThisTurn: run.playedThisTurn, squirlScoutBuff: run.squirlScoutBuff, conductorBuff: run.conductorBuff,
       lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined,

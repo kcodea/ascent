@@ -48,6 +48,9 @@ export function sideFromSnapshot(snap: BoardSnapshot, fallbackTier: number, pool
     lastSpellCastId: snap.lastSpellCastId, // enemy Sporebat's stored spell
     rememberedSpellIds: snap.rememberedSpellIds ?? [], // enemy Runesnout Archivist's journal
     growthBonus: snap.growthBonus ?? 0, // enemy Rune of Living Growth
+    rubyCasts: snap.rubyCasts ?? 0, // enemy Vaultkeeper's spell umbrella (text)
+    spiritsPlayed: snap.spiritsPlayed ?? 0, // enemy Kindled Sprite's Rally — was never threaded (a served Sprite fought at 0)
+    revelerX: snap.revelerX ?? 0, // enemy Revelers / Luminary (text)
     handMinions: snap.handMinions ?? [], // enemy Rope Wrangler / Water Dragon
     beastHuntExtra: snap.beastHuntExtra ?? 0, // enemy Elderhorn (Rally/Slaughter)
     beastRitualExtra: snap.beastRitualExtra ?? 0, // enemy Elderhorn (Echo)

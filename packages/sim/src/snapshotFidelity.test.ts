@@ -53,7 +53,9 @@ const staged = (): RunState => ({
   impBuff: { attack: 2, health: 1 },
   fodderConsumedThisTurn: { attack: 3, health: 3 },
   beastBuyAtk: 2,
-  playedThisTurn: ['gnash', 'stray'],
+  playedThisTurn: ['gnash', 'stray', 'sp3_tidebud'], // a Spirit too — `spiritsPlayed` was silently neutral before the 2026-09-10 parity pass
+  rubyCasts: 6, // Vaultkeeper's umbrella (text)
+  revelerX: 3, // the shared Reveler value (text)
   cardsBoughtThisTurn: 4,
   magneticBuyAtk: 1,
   magneticBuyHp: 2,

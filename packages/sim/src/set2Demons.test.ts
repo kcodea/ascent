@@ -118,6 +118,22 @@ describe('set 2 — Appetite Agent auto-pick is a RANDOM eligible Demon (owner r
     expect(picks, 'across rng cursors it feeds BOTH demons — not a fixed left-most pick').toEqual(new Set(['dA', 'dB']));
   });
 
+  it('the MEAL is a random Shop minion too — never a fixed right-most, never a spell (Mike 2026-09-10)', () => {
+    const meals = new Set<string>();
+    for (let cursor = 0; cursor < 24; cursor++) {
+      const s: RunState = {
+        ...base(), rngCursor: cursor,
+        shop: [{ uid: 'm0', cardId: 'sandbag' }, { uid: 'm1', cardId: 'stray' }, { uid: 'sp', cardId: 'mend' }, { uid: 'm2', cardId: 'alley' }],
+      };
+      replayBattlecry(s, s.board.find((c) => c.uid === 'ag')!);
+      const left = new Set(s.shop.map((o) => o.uid));
+      expect(left.has('sp'), 'a spell in the row is never eaten').toBe(true);
+      for (const uid of ['m0', 'm1', 'm2']) if (!left.has(uid)) meals.add(uid);
+      expect(s.shop.length).toBe(3);
+    }
+    expect(meals, 'across rng cursors every minion offer gets eaten at some point').toEqual(new Set(['m0', 'm1', 'm2']));
+  });
+
   it('is deterministic for a given rng cursor', () => {
     const eaterOf = (s: RunState): string =>
       [s.board.find((c) => c.uid === 'dA')!, s.board.find((c) => c.uid === 'dB')!].find((c) => c.health > 1)!.uid;
@@ -609,6 +625,18 @@ describe('Cupcakes (set 2 spell)', () => {
 });
 
 describe('set 2 — the reworked Demon consumers (owner batch 2026-07-27)', () => {
+  it('Bob Blart + Bottomless Banquet: the right-most offer is STILL eaten (the bonus bite used to shift it off the end)', () => {
+    const s: RunState = {
+      ...createRun(3), phase: 'recruit', consumeDoubleFirstEachTurn: true, consumeDoubleUsedThisTurn: false,
+      board: [minion('g', 'dm_gourmand', 5, 5)], hand: [],
+      shop: [{ uid: 's0', cardId: 'sandbag' }, { uid: 's1', cardId: 'stray' }, { uid: 's2', cardId: 'alley' }],
+    };
+    const eatenBefore = s.shopMinionsEaten ?? 0;
+    applyEndOfTurn(s);
+    expect(s.shop.map((o) => o.uid), 'right-most (s2) AND the bonus bite (left-most s0) are gone; the middle stays').toEqual(['s1']);
+    expect((s.shopMinionsEaten ?? 0) - eatenBefore).toBe(2);
+  });
+
   it("Bob Blart CONSUMES the right-most offer — it leaves the row (owner rework 2026-08-14)", () => {
     // Third shape. It ate the fattest offer, then copied the right-most without eating (2026-08-01), and now
     // EATS the right-most: the offer is gone, the stats land, and the consume payoffs fire (which the copy

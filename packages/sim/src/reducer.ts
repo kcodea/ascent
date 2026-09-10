@@ -3091,6 +3091,11 @@ function reduceCore(state: RunState, action: Action): RunState {
         s.heroReady2 = true;
         seedAdoptedPower(s, heroId);
       }
+      // An adopted power can GRANT cards (Yirin's Reflector, Chaos' token) and can change the Gild threshold
+      // itself (Midas' Touch: 3 → 2), so copies already held may combine the moment it lands — check like buy /
+      // play / discover do (owner report 2026-09-10: a held pair sat uncombined after adopting Midas). Before
+      // the modal chain, so a freed hand slot is there for a queued Discover / forge.
+      checkTriples(s);
       openNextStartOfTurnModal(s); // a quest turn / forge can be queued behind the ceremony
       return s;
     }

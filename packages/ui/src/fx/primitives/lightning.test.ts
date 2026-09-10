@@ -21,7 +21,7 @@ describe('lightning primitive', () => {
       travelMs: 300, dwellMs: 620, releaseMs: 180,
       chaos: 0.2, smooth: 0.47, detail: 5, taper: 0.22,
       branchChance: 0.1, branchSpread: 12, branchDepth: 2,
-      width: 28, coreWidth: 1.8, glowStrength: 0.8, gain: 1,
+      width: 28, coreWidth: 1.8, glowStrength: 0.8, sparkle: 0.4, gain: 1,
       coreColor: 0xeaf3ff, tipColor: 0xc58cff, glowColor: 0x5a63ff,
       flicker: 9, decay: 0.72,
       bolts: 6, radius: 200,

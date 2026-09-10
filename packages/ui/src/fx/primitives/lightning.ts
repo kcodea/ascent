@@ -58,6 +58,8 @@ uniform float uAlpha;      // lifecycle brightness (life * flicker envelope)
 uniform float uCoreFrac;   // bright-core fraction of the half-width
 uniform float uGlow;       // glow-halo strength
 uniform float uGain;       // overall intensity
+uniform float uTime;       // seconds — drives the sparkle twinkle
+uniform float uSparkle;    // 0 = off; density/brightness of the twinkling motes riding the core
 uniform vec3  uCore;       // core colour  (head of the gradient)
 uniform vec3  uTip;        // tip colour   (tail of the gradient)
 uniform vec3  uGlowCol;    // halo colour
@@ -69,13 +71,33 @@ void main() {
   float halo = pow(1.0 - across, 2.0) * uGlow;       // broad soft falloff across the width
   vec3 grad = mix(uCore, uTip, clamp(vUV.x, 0.0, 1.0));
 
+  // SPARKLE — small bright motes riding the core that twinkle over time. Purely procedural on vUV.x, so it
+  // costs no geometry: the length is cut into cells; each cell re-rolls a hash ~9×/sec and, when lit, places a
+  // small dot at a hashed spot within it. Kept to the core (coreMask) so motes ride the filament, not the outer
+  // glow. The bloom filter turns each into a real spark.
+  float spark = 0.0;
+  if (uSparkle > 0.0) {
+    float cf = vUV.x * 46.0;
+    float cell = floor(cf);
+    float within = cf - cell;
+    float tw = floor(uTime * 9.0);
+    float h = fract(sin(cell * 12.9898 + tw * 78.233) * 43758.5453);
+    float lit = step(1.0 - uSparkle * 0.4, h);          // more motes as uSparkle rises
+    float motePos = fract(h * 31.7);
+    float mote = lit * (1.0 - smoothstep(0.0, 0.14, abs(within - motePos)));
+    float coreMask = 1.0 - smoothstep(0.0, uCoreFrac * 1.6 + 0.06, across);
+    spark = mote * coreMask;
+  }
+
   float lum = uGain * uAlpha;
   float coreA = core * lum;
   float haloA = halo * lum;
-  float a = coreA + haloA;
+  float sparkA = spark * lum * 1.3;                     // motes a touch hotter than the core
+  float a = coreA + haloA + sparkA;
   if (a <= 0.002) discard;
   // Premultiplied output (house convention, see ribbon). mesh.blendMode = 'add' gives the additive glow.
-  vec3 rgb = grad * coreA + uGlowCol * haloA;
+  // Motes wear the core colour.
+  vec3 rgb = grad * coreA + uGlowCol * haloA + uCore * sparkA;
   finalColor = vec4(rgb, min(a, 1.0));
 }`;
 
@@ -152,6 +174,10 @@ const SPECS = {
     kind: 'slider', label: 'Glow strength', group: 'Glow & colour', min: 0, max: 1, step: 0.02, default: 0.8,
     help: 'Brightness of the soft glow halo around the core.',
   },
+  sparkle: {
+    kind: 'slider', label: 'Sparkle motes', group: 'Glow & colour', min: 0, max: 1, step: 0.02, default: 0.4,
+    help: 'Density of small bright motes that twinkle along the bolt’s core. 0 = off.',
+  },
   gain: {
     kind: 'slider', label: 'Gain', group: 'Glow & colour', min: 0.2, max: 3, step: 0.05, default: 1, axis: 'intensity',
     help: 'Overall intensity of the whole bolt.',
@@ -199,6 +225,8 @@ function makeLightningShader(): Shader {
         uCoreFrac: { value: 0.1, type: 'f32' },
         uGlow: { value: 0.8, type: 'f32' },
         uGain: { value: 1, type: 'f32' },
+        uTime: { value: 0, type: 'f32' },
+        uSparkle: { value: 0, type: 'f32' },
         uCore: { value: new Float32Array([1, 1, 1]), type: 'vec3<f32>' },
         uTip: { value: new Float32Array([1, 1, 1]), type: 'vec3<f32>' },
         uGlowCol: { value: new Float32Array([0.5, 0.5, 1]), type: 'vec3<f32>' },
@@ -227,6 +255,8 @@ function writeAllUniforms(shader: Shader, p: LightningParams): void {
   u.uCoreFrac = coreFracOf(p);
   u.uGlow = p.glowStrength;
   u.uGain = p.gain;
+  u.uTime = 0;
+  u.uSparkle = p.sparkle;
   u.uCore = rgb3(p.coreColor);
   u.uTip = rgb3(p.tipColor);
   u.uGlowCol = rgb3(p.glowColor);
@@ -351,6 +381,7 @@ class LightningInstance implements FxInstance<LightningParams> {
     const u = this.uniforms;
     u.uReach = reach;
     u.uAlpha = bright;
+    u.uTime = this.clockMs / 1000; // advances the sparkle twinkle
 
     const prog = total > 0 ? Math.min(1, e / total) : 1;
     this.filters.frame(p, prog, dtMs / 1000);
@@ -369,6 +400,7 @@ class LightningInstance implements FxInstance<LightningParams> {
     u.uCoreFrac = coreFracOf(next);
     u.uGlow = next.glowStrength;
     u.uGain = next.gain;
+    u.uSparkle = next.sparkle;
     u.uCore = rgb3(next.coreColor);
     u.uTip = rgb3(next.tipColor);
     u.uGlowCol = rgb3(next.glowColor);

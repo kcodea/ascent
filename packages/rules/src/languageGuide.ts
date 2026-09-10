@@ -96,7 +96,7 @@ export const LANGUAGE_GUIDE: LanguageGuideEntry[] = [
     id: 'LG-COPY-01',
     topic: 'copy-wording',
     rule: 'An unmarked "copy" means a PLAIN copy (base card: no buffs, counters, or gilding — R-COPY-01). Text for an effect that copies the full instance (stats, buffs, gilding, accrued counters — R-COPY-02) must say "exact copy". A copy effect whose printed text says only "a copy" while behaving exact is a text defect.',
-    example: 'Bellringer: "get a plain copy of the minion to the left" (compliant). Xerox\'s "Summon a copy of a friendly minion" while the ruled behaviour is exact — the slice\'s verified-text-defect exemplar.',
+    example: 'Bellringer: "get a plain copy of the minion to the left" (compliant). Xerox printed "Summon a copy of a friendly minion" while the ruled behaviour is exact — the slice\'s verified-text-defect exemplar, fixed 2026-09-10 ("an exact copy").',
     evidence: [
       { kind: 'owner-handoff', ref: 'R-COPY-01 / R-COPY-02 (registry/approved.ts)' },
       { kind: 'docbot-scan', ref: 'verticalSlice verified-text-defect finding (hero:xerox)' },

@@ -4,15 +4,20 @@
  * measurements the contract oracle actually took this run — never hard-coded observations.
  *
  *  1. verified-mechanical-bug   — the R-AVWIN-10 violation (approved rule, deterministic double repro,
- *                                 first divergence named, minimized scenario graduated).
- *  2. verified-text-defect      — Xerox's Copy Machine prints "a copy" where the approved contract
- *                                 (owner rulings 2026-08-14/15; R-COPY-02) establishes an EXACT copy.
+ *                                 first divergence named, minimized scenario graduated). FIXED 2026-09-10:
+ *                                 the engine conforms, so this class no longer fires live — the detector is
+ *                                 proven by a doctored report in verticalSlice.test.ts (§4.5).
+ *  2. verified-text-defect      — Xerox's Copy Machine printed "a copy" where the approved contract
+ *                                 (owner rulings 2026-08-14/15; R-COPY-02) establishes an EXACT copy. FIXED
+ *                                 2026-09-10 ("an exact copy"); the detector reads the LIVE hero text and is
+ *                                 proven by a doctored text in the test.
  *  3. wording-recommendation    — Zyff's non-stacker "an additional time" (owner-flagged terminology,
  *                                 decisions.json q-interact-nonstack-best-of; R-MULT-01).
  *  4. questionable-interaction  — a Rise minion's own Echo fires on BOTH its deaths (no governing rule).
  */
 import { makeFinding, type DocbotFinding } from '../findings';
 import type { SliceProbeReport } from './contractOracle';
+import { getHero } from '../../heroes';
 
 export const SLICE_LANE = 'slice-contract-oracle';
 
@@ -54,7 +59,9 @@ export function buildSliceFindings(report: SliceProbeReport, semanticRevision: s
 
   // ── 2. VERIFIED TEXT DEFECT (§12.1: approved contract + verified runtime establish behaviour; the
   //       displayed text omits the required plain/exact discriminator) ───────────────────────────────────
-  if (report.xerox.copyGolden) {
+  const xeroxText = report.xerox.text ?? getHero('xerox').power.text;
+  const xeroxNamesExact = /\bexact copy\b/i.test(xeroxText);
+  if (report.xerox.copyGolden && !xeroxNamesExact) {
     findings.push(makeFinding({
       lane: SLICE_LANE,
       contentIds: ['hero:xerox'],
@@ -68,7 +75,7 @@ export function buildSliceFindings(report: SliceProbeReport, semanticRevision: s
       summary: 'The approved contract (owner ruling 2026-08-15; R-COPY-02, cited by R-AVWIN-03\'s conforming '
         + 'behaviour note) makes Copy Machine an EXACT copy, and the runtime proves it: copying a gilded '
         + `Kennelmaster with summonBonus 2 yielded a copy with golden=true and summonBonus ${report.xerox.copySummonBonus}. `
-        + 'The printed text — "Summon a copy of a friendly minion." — omits the discriminator that the '
+        + `The printed text — "${xeroxText}" — omits the discriminator that the `
         + 'R-COPY-01/02 vocabulary makes load-bearing (Bellringer Voss prints "plain copy"; the Dwarf '
         + 'echo-twin prints "exact copy"): an unmarked copy reads as R-COPY-01\'s fresh base copy, which '
         + 'conflicts with what the power actually summons.',

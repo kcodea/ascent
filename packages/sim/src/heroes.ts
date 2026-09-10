@@ -572,8 +572,9 @@ export const HEROES: HeroDef[] = [
       name: 'Copy Machine',
       kind: 'copyMachine',
       oncePerGame: true,
-      // Targeted (no `untargeted`): pick a friendly board minion; a plain copy is summoned beside it.
-      text: 'Summon a copy of a friendly minion. Needs a free board slot. Once per game.',
+      // Targeted (no `untargeted`): pick a friendly board minion; an EXACT copy — stats, buffs, gilding, accrued
+      // counters (owner ruling 2026-08-15, R-COPY-02) — is summoned beside it. The text says so (LG-COPY-01).
+      text: 'Summon an exact copy of a friendly minion. Needs a free board slot. Once per game.',
     },
   },
   {

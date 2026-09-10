@@ -115,10 +115,9 @@ export const APPROVED_RULES: GameRule[] = [
     status: 'approved',
     evidence: [{ kind: 'owner-handoff', ref: AVWIN_HANDOFF, quote: 'The summoning death does not count.' }],
     currentBehaviour:
-      'VIOLATED: `killOrReborn` fires the Deathrattle (which places the summon and stamps its baseline) '
-      + 'BEFORE incrementing `deaths[side]`, so the summoning death lands INSIDE the new body\'s window — '
-      + 'an Echo-summoned Avenge (4) source reaches its threshold after only 3 further deaths. Pinned in '
-      + 'packages/sim/src/docbot/temporalWindow.test.ts (KNOWN_VIOLATIONS).',
+      'Conforms — 2026-09-10: both combat death paths count `deaths[side]` BEFORE the Echo fires, so a source the '
+      + 'Echo summons stamps a baseline that already includes the death that created it. Was VIOLATED (pinned in '
+      + 'temporalWindow KNOWN_VIOLATIONS 2026-08-27 → 2026-09-10): the Deathrattle fired before the increment.',
   },
   {
     id: 'R-AVWIN-03',
@@ -234,10 +233,9 @@ export const APPROVED_RULES: GameRule[] = [
     status: 'approved',
     evidence: [{ kind: 'owner-handoff', ref: AVWIN_HANDOFF, quote: 'A source dying in a simultaneous batch observes none of that batch.' }],
     currentBehaviour:
-      'VIOLATED: clash deaths resolve sequentially (cleave victims → target → attacker) and the avenge '
-      + 'guard checks only the `dead` flag — a mortally-wounded source whose own death has not yet been '
-      + 'processed observes the batch-mates resolved before it and can fire while dying. Pinned in '
-      + 'packages/sim/src/docbot/temporalWindow.test.ts (KNOWN_VIOLATIONS).',
+      'Conforms — 2026-09-10: the avenge broadcast skips a source at ≤0 Health, so the sequential clash resolution '
+      + '(cleave victims → target → attacker) leaks no batch-mate to a mortally wounded source. Was VIOLATED (pinned '
+      + 'in temporalWindow KNOWN_VIOLATIONS 2026-08-27 → 2026-09-10): the guard checked only the `dead` flag.',
   },
   {
     id: 'R-AVWIN-11',

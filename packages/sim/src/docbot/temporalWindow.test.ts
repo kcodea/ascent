@@ -51,22 +51,8 @@ interface WindowViolation {
  *  fixing the engine deletes the entry, flips the pinning assertion to the ruled behaviour, and clears the
  *  rule's `currentBehaviour` violation note in packages/rules/src/registry/approved.ts. */
 const KNOWN_VIOLATIONS: readonly WindowViolation[] = [
-  {
-    ruleId: 'R-AVWIN-02',
-    title: 'The summoning death leaks INTO the summoned source\'s window',
-    why: '`killOrReborn` fires the Deathrattle (placing the summon, which stamps `avengeBaseline = '
-      + 'deaths[side]`) BEFORE incrementing `deaths[side]` — so the death that summoned the body is inside '
-      + 'its window, and an Echo-summoned Avenge (4) source pays after only 3 further deaths.',
-    pinnedBy: 'R-AVWIN-02 pin: the summoning death currently counts',
-  },
-  {
-    ruleId: 'R-AVWIN-10',
-    title: 'A source dying in a simultaneous batch observes the batch-mates resolved before it',
-    why: 'Clash deaths resolve sequentially (cleave victims → target → attacker) and the avenge dispatch '
-      + 'guard checks only `minion.dead` — a mortally-wounded source whose own death has not yet been '
-      + 'processed observes earlier batch deaths and can fire while dying.',
-    pinnedBy: 'R-AVWIN-10 pin: a dying source currently observes its batch-mates',
-  },
+  // EMPTY as of 2026-09-10: R-AVWIN-02 (the summoning death counted) and R-AVWIN-10 (a dying source observed its
+  // batch-mates) were both fixed in the engine — the pins below flipped to the ruled expectations.
 ];
 
 // ── Harness ────────────────────────────────────────────────────────────────────────────────────────────────
@@ -180,17 +166,18 @@ describe('temporal windows — Avenge (rules R-AVWIN-01…11)', () => {
   // §5.4.2 — the #1176 class, and THE generic retro catch: the catalog's `1176-avenge-arrival` reinjection
   // (avengeBaseline = 0 at placeSummon) makes the summoned Solaris inherit the pre-entry deaths and Ward
   // ~2 deaths early, failing both assertions here.
-  it('R-AVWIN-01: an Avenge source summoned after two deaths opens its window at 2 — the prior deaths are not its progress', () => {
+  it('R-AVWIN-01/02: an Avenge source summoned by the third death opens its window at 3 — the prior deaths, the summoning one included, are not its progress', () => {
     const { r, obs } = run(
       [bm('b2_packstrider', 1, 1), bm('b2_packstrider', 1, 1), bm('b2_bullseye', 1, 1), bm('b2_packstrider', 1, 1), bm('b2_packstrider', 1, 1), bm('b2_packstrider', 1, 1), bm('sandbag', 0, 500)],
       [bm('sandbag', 2, 4000)], {}, 1, ['b2_solaris']);
     const solaris = summonsOf(r, 'b2_solaris');
     expect(solaris.length, 'the scenario must actually summon a Solaris (guard the fixture, not just the assertion)').toBe(1);
     expect(solaris[0]!.deaths, 'it must arrive AFTER deaths have accrued — that is the whole bug window').toBeGreaterThanOrEqual(3);
-    // Entry sequence: two deaths were fully tallied before the death whose Echo summoned it.
+    // Entry sequence: two deaths were fully tallied before the death whose Echo summoned it, and that third
+    // death is counted BEFORE the Echo fires (R-AVWIN-02, fixed 2026-09-10) — so the window opens at 3.
     const sObs = obs.filter((o) => o.sourceUid === solaris[0]!.uid);
     expect(sObs.length, 'the summoned Solaris observed deaths').toBeGreaterThan(0);
-    expect(sObs[0]!.baseline, 'window opens at the side tally on entry (2) — NOT 0 (#1176)').toBe(2);
+    expect(sObs[0]!.baseline, 'window opens at the side tally on entry (3, the summoning death included) — NOT 0 (#1176)').toBe(3);
     // Emission: with Avenge (4) it cannot possibly have Warded by side-death 5 (≤3 candidate deaths since
     // entry even counting the summoning one). Under the #1176 reinjection it Wards at death 4.
     const wards = shieldUpsOn(r, solaris[0]!.uid);
@@ -198,7 +185,7 @@ describe('temporal windows — Avenge (rules R-AVWIN-01…11)', () => {
   });
 
   // §5.4.3 — two same-card instances entering at different times show DIFFERENT correct progress.
-  it('R-AVWIN-01: two Solaris instances track independent windows (baselines 0 and 2; different `seen` at the same tally)', () => {
+  it('R-AVWIN-01: two Solaris instances track independent windows (baselines 0 and 3; different `seen` at the same tally)', () => {
     const { r, obs, uid } = run(
       [bm('b2_solaris', 6, 300), bm('b2_packstrider', 1, 1), bm('b2_packstrider', 1, 1), bm('b2_bullseye', 1, 1), bm('b2_packstrider', 1, 1), bm('b2_packstrider', 1, 1), bm('sandbag', 0, 400)],
       [bm('sandbag', 2, 4000)], {}, 1, ['b2_solaris']);
@@ -211,11 +198,11 @@ describe('temporal windows — Avenge (rules R-AVWIN-01…11)', () => {
     expect(aObs.length, 'instance A observed').toBeGreaterThan(0);
     expect(bObs.length, 'instance B observed').toBeGreaterThan(0);
     expect(aObs[0]!.baseline).toBe(0);
-    expect(bObs[0]!.baseline, 'the late instance opened its own window').toBe(2);
-    // At every raw tally both observed, the late entrant has seen exactly 2 fewer deaths.
+    expect(bObs[0]!.baseline, 'the late instance opened its own window (its summoning death counted first — R-AVWIN-02)').toBe(3);
+    // At every raw tally both observed, the late entrant has seen exactly 3 fewer deaths.
     for (const bo of bObs) {
       const ao = aObs.find((o) => o.count === bo.count);
-      if (ao) expect(ao.seen - bo.seen, `at tally ${bo.count} the two instances' windows differ by their entry gap`).toBe(2);
+      if (ao) expect(ao.seen - bo.seen, `at tally ${bo.count} the two instances' windows differ by their entry gap`).toBe(3);
     }
     // Emission: A (window from 0) Wards at side-death 4; B has not Warded by then.
     expect(shieldUpsOn(r, a)[0], 'the opening-board Solaris Wards at its 4th observed death').toBe(4);
@@ -326,34 +313,32 @@ describe('temporal windows — Avenge (rules R-AVWIN-01…11)', () => {
 // ── The pinned violations (§3.4 — visible, reproduced, shrink-only) ────────────────────────────────────────
 
 describe('temporal windows — KNOWN violations (pinned until the engine is fixed)', () => {
-  it('the violation table is complete, cited, and shrink-only (2 as of 2026-08-27)', () => {
-    expect(KNOWN_VIOLATIONS.map((v) => v.ruleId)).toEqual(['R-AVWIN-02', 'R-AVWIN-10']);
-    expect(KNOWN_VIOLATIONS.length, 'this table may only SHRINK — a new window violation gets a fix or an owner ruling, not an entry').toBeLessThanOrEqual(2);
+  it('the violation table is complete, cited, and shrink-only (0 as of 2026-09-10)', () => {
+    expect(KNOWN_VIOLATIONS.map((v) => v.ruleId)).toEqual([]);
+    expect(KNOWN_VIOLATIONS.length, 'this table may only SHRINK — a new window violation gets a fix or an owner ruling, not an entry').toBeLessThanOrEqual(0);
     for (const v of KNOWN_VIOLATIONS) expect(v.why.length, `${v.ruleId} pinned without a diagnosis`).toBeGreaterThan(40);
   });
 
   // RULED (R-AVWIN-02): the death that summons an Avenge source is OUTSIDE its window — the Solaris below
-  // should first Ward at side-death 7 (deaths 4,5,6,7 post-entry). ENGINE TODAY: the summoning death (3)
-  // counts, so it Wards at side-death 6. This test pins the violating behaviour so the fix is loud.
-  it('R-AVWIN-02 pin: the summoning death currently counts', () => {
+  // first Wards at side-death 7 (deaths 4,5,6,7 post-entry). Fixed 2026-09-10: the death is counted before
+  // its Echo summons the source, so the new body's baseline already includes it.
+  it('R-AVWIN-02: the summoning death does not count — first Ward at side-death 7', () => {
+    // The friendly sandbag is 8 Health (was 500 while the pin only needed deaths 1–6): it now dies as death 7,
+    // the fourth post-entry death, so the Ward the rule promises can actually be observed.
     const { r } = run(
-      [bm('b2_packstrider', 1, 1), bm('b2_packstrider', 1, 1), bm('b2_bullseye', 1, 1), bm('b2_packstrider', 1, 1), bm('b2_packstrider', 1, 1), bm('b2_packstrider', 1, 1), bm('sandbag', 0, 500)],
+      [bm('b2_packstrider', 1, 1), bm('b2_packstrider', 1, 1), bm('b2_bullseye', 1, 1), bm('b2_packstrider', 1, 1), bm('b2_packstrider', 1, 1), bm('b2_packstrider', 1, 1), bm('sandbag', 0, 8)],
       [bm('sandbag', 2, 4000)], {}, 1, ['b2_solaris']);
     const solaris = summonsOf(r, 'b2_solaris');
     expect(solaris.length).toBe(1);
     expect(solaris[0]!.deaths, 'summoned during the 3rd death\'s cascade').toBe(3);
     const wards = shieldUpsOn(r, solaris[0]!.uid);
-    // VIOLATION PINNED: first Ward at side-death 6 — one early, because death 3 (its summoner) counted.
-    // When R-AVWIN-02 is implemented this becomes 7 (or [] if the fight ends first): delete the
-    // KNOWN_VIOLATIONS entry, flip this to the ruled expectation, and clear the rule's note.
-    expect(wards[0], 'pinned: the summoning death leaks into the window (ruled: first Ward at death 7)').toBe(6);
+    expect(wards[0], 'the summoning death (3) is outside the window: first Ward at death 7, not 6').toBe(7);
   });
 
   // RULED (R-AVWIN-10): a source dying in a simultaneous batch observes NONE of that batch — the drake
-  // below dies in the same cleave clash as both its neighbours and must not fire. ENGINE TODAY: the batch
-  // resolves sequentially and the mortally-wounded drake observes the two neighbours resolved before it,
-  // reaching its threshold and firing WHILE DYING.
-  it('R-AVWIN-10 pin: a dying source currently observes its batch-mates', () => {
+  // below dies in the same cleave clash as both its neighbours and must not fire. Fixed 2026-09-10: the
+  // avenge broadcast skips a source at ≤0 Health, so the sequential batch resolution leaks nothing to it.
+  it('R-AVWIN-10: a source dying in a simultaneous batch observes none of it — no fire', () => {
     const { r, obs, uid } = run(
       [bm('b2_packstrider', 1, 1), bm('b2_packstrider', 1, 1), bm('stuntdrake', 3, 1, { keywords: ['T'] }), bm('b2_packstrider', 1, 1), bm('sandbag', 0, 500)],
       [bm('sandbag', 99, 4000, { keywords: ['C', 'T'] })]);
@@ -370,13 +355,11 @@ describe('temporal windows — KNOWN violations (pinned until the engine is fixe
       && i > r.events.findIndex((x) => x.type === 'death' && (x as { target?: string }).target === uid(1))
       && i < r.events.findIndex((x) => x.type === 'death' && (x as { target?: string }).target === drake));
     expect(attacksBetween, 'deaths 2–4 share one clash (no attack between them)').toEqual([]);
-    // VIOLATION PINNED: the drake fires at side-death 3 — a batch-mate's death — while itself at ≤0 Health.
     // Ruled behaviour: zero avenge-stamped fires from this instance (its window held only death 1).
-    // When R-AVWIN-10 is implemented: expect([]) here, delete the KNOWN_VIOLATIONS entry, clear the note.
     const fires = avengeFiresBy(r, drake);
-    expect(fires.map((f) => f.deaths), 'pinned: the dying drake observed batch-mates and fired (ruled: no fire at all)').toEqual([3]);
-    // Provenance shows the leak precisely: seen 2 and 3 while its own death (4) was still unprocessed.
-    expect(obs.filter((o) => o.sourceUid === drake).map((o) => o.seen)).toEqual([1, 2, 3]);
+    expect(fires.map((f) => f.deaths), 'the dying drake observes none of its batch — no fire at all').toEqual([]);
+    // Provenance: it saw death 1 only; deaths 2 and 3 (batch-mates) never reached it while its own death (4) was queued.
+    expect(obs.filter((o) => o.sourceUid === drake).map((o) => o.seen)).toEqual([1]);
   });
 });
 

@@ -91,9 +91,13 @@ export const SLICE_CONTRACTS: readonly ContentContract[] = [
     setIds: ['set1'],
     tribes: ['beast'],
     keywords: ['SC'],
-    tags: ['trigger:avenge', 'counter:improving', 'copy-subject'],
-    triggers: [{ event: 'avenge', phase: 'combat', threshold: 4 }],
-    effects: [{ kind: 'improve-own-aura', note: 'permanent per-instance accrual (summonBonus channel) — the copy-semantics subject of both copy fixtures' }],
+    tags: ['trigger:avenge', 'trigger:startOfCombat', 'counter:improving', 'copy-subject'],
+    // The Avenge leg stays FIRST: the slice's observations are path-addressed (triggers.0.threshold, effects.0).
+    triggers: [{ event: 'avenge', phase: 'combat', threshold: 4 }, { event: 'startOfCombat', phase: 'combat' }],
+    effects: [
+      { kind: 'improve-own-aura', note: 'permanent per-instance accrual (summonBonus channel) — the copy-semantics subject of both copy fixtures' },
+      { kind: 'stat-buff', note: 'Start of Combat: +1 Attack (gilded +2) to the Beast Aura — the leg this contract omitted until 2026-09-10 (textParse flagged it as wrong-trigger)' },
+    ],
     persistence: ['permanent'],
     relatedRuleIds: ['R-AVWIN-01', 'R-AVWIN-03', 'R-AVWIN-04', 'R-AVWIN-05'],
     textContract: { text: '**Start of Combat:** give your **Beast Aura** **+1 Attack**. **Avenge (4):** Improve this.', goldenText: '**Start of Combat:** give your **Beast Aura** **+2 Attack**. **Avenge (4):** Improve this (twice as much).' },
@@ -143,8 +147,8 @@ export const SLICE_CONTRACTS: readonly ContentContract[] = [
     effects: [{ kind: 'summon-copy', targets: { count: 1, scope: 'friendly-board-minion' }, note: 'board summon beside the target; needs a free slot; once per game' }],
     copyPolicy: { mode: 'exact', note: 'full instance spread — stats, buffs, granted keywords, GILDING, accrued counters (summonBonus etc.) all ride along (owner ruling 2026-08-15; R-COPY-02)' },
     relatedRuleIds: ['R-COPY-02', 'R-AVWIN-03'],
-    textContract: { text: 'Summon a copy of a friendly minion. Needs a free board slot. Once per game.' },
-    notes: 'The displayed text says only "a copy" — under R-COPY-01 an unmarked copy reads plain. The slice\'s verified-text-defect finding.',
+    textContract: { text: 'Summon an exact copy of a friendly minion. Needs a free board slot. Once per game.' },
+    notes: 'The displayed text said only "a copy" until 2026-09-10 — under R-COPY-01 an unmarked copy reads plain; the slice\'s original verified-text-defect finding, fixed by naming the mode.',
   },
   {
     contentId: 'dm_butcher',

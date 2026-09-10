@@ -180,7 +180,7 @@ export function laneCitations(c: ContentContract): ContractAspectVerdict[] {
       cite('resolution-order', 'cited: orderGoldens.test.ts pins resolution order for this trigger family');
     }
     if ((c.triggers ?? []).some((t) => t.event === 'avenge') || (c.tags ?? []).some((t) => t === 'multiplier:avenge' || t.startsWith('trigger:avenge'))) {
-      cite('temporal-window', 'cited: temporalWindow.test.ts gates the R-AVWIN family (KNOWN_VIOLATIONS R-AVWIN-02/10 pinned; release-blocked by this sweep)');
+      cite('temporal-window', 'cited: temporalWindow.test.ts gates the R-AVWIN family (all eleven rulings conform as of 2026-09-10; a new violation pins in KNOWN_VIOLATIONS and release-blocks this sweep)');
     }
     if ((c.effects ?? []).some((e) => MAGNITUDE_FACTORIES.has(e.kind))) {
       cite('magnitude', 'cited: magnitudeOracle.test.ts proves grants EQUAL params for this factory');

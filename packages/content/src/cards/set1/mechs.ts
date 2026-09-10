@@ -58,8 +58,8 @@ export const MECHS: CardDef[] = [
     health: 1,
     keywords: [],
     effects: [{ on: 'onDeath', do: 'deathrattleGrantShield' }],
-    text: '**Deathrattle:** give a friend a **Divine Shield**.',
-    goldenText: '**Deathrattle:** give two friends a **Divine Shield**.',
+    text: '**Deathrattle:** give a friend a **Ward**.',
+    goldenText: '**Deathrattle:** give two friends a **Ward**.',
   },
   {
     // Magnetic mech whose value is passive economy: while it (or a Mech it merged into) is on

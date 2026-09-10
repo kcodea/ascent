@@ -1853,6 +1853,11 @@ export function simulate(
       // only BE the attacker of a kill in this same-clash mutual case (it can't swing again once dead), so
       // this stays precisely scoped to "killed and died together".
       if (minion.dead && effect.on !== 'onDeath' && effect.on !== 'onKill') return;
+      // R-AVWIN-10 (fixed 2026-09-10): a source DYING in the same batch observes none of it. Clash deaths resolve
+      // sequentially (cleave victims → target → attacker), so a mortally wounded source whose own death is still
+      // queued would otherwise count the batch-mates resolved before it and fire while dying. At ≤0 Health its
+      // window is already closed — the avenge broadcast never reaches it.
+      if (effect.on === 'avenge' && minion.health <= 0) return;
       // A RISE broadcast (`ownAlreadyFired`) reaches every WATCHER but must not re-run the dying body's own
       // Deathrattle — `fireOwnDeathrattles` already ran it, with its own Echo-extras handling. Without this
       // guard the emit doubled it: a Spear Warden came back 9/5 instead of 6/3, its Eternal-Knight enchant
@@ -2079,6 +2084,10 @@ export function simulate(
       emit({ type: 'death', target: minion.uid, side: minion.side, rise: true });
       nextStep(); // the rattle's effects are a separate resolution from the death itself
       risingReserved[minion.side] += 1; // the slot stays held through the Echo (owner 2026-09-09)
+      // R-AVWIN-02 (fixed 2026-09-10): the death is COUNTED before its Echo fires, so an Avenge source the Echo
+      // summons stamps a baseline that already includes this death — "the summoning death does not count".
+      // The avenge broadcast itself still goes out after the Echo, unchanged.
+      deaths[minion.side] += 1;
       fireOwnDeathrattles(minion, killer); // a Rise death still has a killer — Jensen & Fi must reach it
       // A Rise death is a REAL death (owner ruling 2026-07-27, reversing 2026-07-02/07-06): it counts for
       // Avenge, the enemy-death tally, friendly-death quests and on-death watchers. The body genuinely leaves
@@ -2091,7 +2100,7 @@ export function simulate(
       // rattle, which `fireOwnDeathrattles` handled a line above — see the guard in `registerEffect`.
       bus.emit('onDeath', { minion, side: minion.side, killer, ownAlreadyFired: true });
       if (minion.side === 'enemy') { enemyDeaths++; noteKill(minion.cardId, minion.uid); }
-      deaths[minion.side] += 1;
+      // (`deaths[side]` was incremented above, before the Echo — R-AVWIN-02.)
       if (minion.side === 'player') questEvents.push({ step: stepN, kind: 'friendlyDeath', tribes: [] });
       emitAvenge(minion.side, deaths[minion.side], minion);
       risingReserved[minion.side] -= 1; // the reservation ends: the return itself takes the slot
@@ -2367,6 +2376,11 @@ export function simulate(
     // Defer any Fel-Spikes-style board deaths across the base Echo (fired via the bus) + every re-fire below,
     // so all volleys land before a deferred victim resolves (see the withEchoDefer note). A no-op — byte-
     // identical events — for every death whose rattle never calls `resolveEchoDeath`.
+    // R-AVWIN-02 (fixed 2026-09-10): the death is COUNTED before its Echo fires. An Avenge source summoned by
+    // this body's Echo stamps `avengeBaseline = deaths[side]` on arrival, so counting first is exactly what keeps
+    // the death that created it OUTSIDE its window. The avenge broadcast still fires after the Echo (below),
+    // so resolution order is unchanged — only the tally the new body reads on arrival moved.
+    deaths[minion.side] += 1;
     withEchoDefer(() => {
       bus.emit('onDeath', { minion, side: minion.side, killer });
       // Rune of the Crucible: the sacrificed bodies return when the side's LAST minion dies. Checked AFTER the
@@ -2401,8 +2415,7 @@ export function simulate(
       // re-fires so all firings read the same tally value (the value at death), only the count grows.
       if (minion.side === 'player' && hasDeathrattle) bumpDeathrattles(extra);
     });
-    // Avenge: count the death and notify that side's avengers.
-    deaths[minion.side] += 1;
+    // Avenge: notify that side's avengers (the death was counted above, before the Echo — R-AVWIN-02).
     if (minion.side === 'player') questEvents.push({ step: stepN, kind: 'friendlyDeath', tribes: [] });
     // RUNE OF BEASTIAL SWARM — Avenge (2): every 2 friendly deaths, raise the per-death amount by +2. Permanent:
     // the player side's grown level carries back into the run (`playerBeastialSwarmLevel`).

@@ -83,6 +83,14 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'UI / Info',
+        text: 'Opponent cards in combat now print the live values of their OWNER: Vaultkeeper, Chef Raag, Steward of Spells, Drunken Oaf, Runesnout Archivist, the Revelers, Runic Archivist, Spell Warden and more read as they did on the board of that player, instead of falling back to base text.',
+      },
+      {
+        category: 'Card Change',
+        text: 'The Kindled Sprite on a served Spirit board now gains Attack for the Spirits its owner played that turn. It was fighting at zero.',
+      },
+      {
+        category: 'UI / Info',
         text: 'The Revelers, Festival Luminary, Kindled Sprite and Nurturer now print their live value in the shop, on Discover and in combat, not only on your board and hand.',
       },
     ],

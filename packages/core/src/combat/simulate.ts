@@ -1,6 +1,7 @@
 import type {
   BoardMinion,
   CardDef,
+  EnemyScalers,
   CombatConfig,
   CombatContext,
   CombatEvent,
@@ -49,6 +50,41 @@ const IMMEDIATE_ATTACK_GUARD = 64; // bounds a chain of attack-on-summon Whelps 
  *  `universalTribe` (Lab Experiment counts as every tribe), matching the tribe checks in the effect factories. */
 function isTribeOf(m: Minion, tribe: string, cards: Record<string, CardDef>): boolean {
   return m.tribe === tribe || m.tribe2 === tribe || !!cards[m.cardId]?.universalTribe;
+}
+
+/** The enemy side's run-level scalers for the UI's live card text — EVERY run-scoped input the text chain reads,
+ *  not a hand-picked few (owner report 2026-09-10: an enemy Vaultkeeper printed its base +2/+2 because
+ *  `spellsCast` never left the side state). `undefined` when nothing scaled, so a procedural threat / a bare
+ *  board costs nothing and the UI's base-text fallback stays exact. */
+export function enemyScalersOf(e: CombatSideState): EnemyScalers | undefined {
+  const out: EnemyScalers = {
+    spellPower: { attack: e.spellPowerAtk, health: e.spellPowerHp },
+    spellsThisTurn: e.spellsThisTurn,
+    beastsPlayed: e.beastsPlayed,
+    deathrattles: e.deathrattles,
+    conductorBuff: e.conductorBuff ?? 0,
+    spellsCast: e.spellsCast ?? 0,
+    rubyCasts: e.rubyCasts ?? 0,
+    spiritsPlayed: e.spiritsPlayed ?? 0,
+    revelerX: e.revelerX ?? 0,
+    impAura: { attack: e.impAtk, health: e.impHp },
+    fodderConsumed: { attack: e.fodderConsumedAtk, health: e.fodderConsumedHp },
+    undeadBuyAtk: e.undeadBuyAtk,
+    cardBuffs: e.cardBuffs ?? {},
+    alesLastTurn: e.alesLastTurn ?? 0,
+    lastSpellCastId: e.lastSpellCastId,
+    rememberedSpellIds: e.rememberedSpellIds ?? [],
+    spellEscalation: e.spellEscalation ?? { attack: 0, health: 0 },
+    growthBonus: e.growthBonus ?? 0,
+    rubyBonus: e.rubyBonus ?? { attack: 0, health: 0 },
+  };
+  const pair = (p: { attack: number; health: number }): boolean => !!(p.attack || p.health);
+  const any = pair(out.spellPower) || out.spellsThisTurn > 0 || out.beastsPlayed > 0 || out.deathrattles > 0 || out.conductorBuff > 0
+    || out.spellsCast > 0 || out.rubyCasts > 0 || out.spiritsPlayed > 0 || out.revelerX > 0
+    || pair(out.impAura) || pair(out.fodderConsumed) || out.undeadBuyAtk > 0 || Object.keys(out.cardBuffs).length > 0
+    || out.alesLastTurn > 0 || !!out.lastSpellCastId || out.rememberedSpellIds.length > 0 || pair(out.spellEscalation)
+    || out.growthBonus > 0 || pair(out.rubyBonus);
+  return any ? out : undefined;
 }
 
 export function simulate(
@@ -600,6 +636,8 @@ export function simulate(
     ascendProgress: m.ascendProgress,
     spellProgress: m.spellProgress, // Guel: the live combat text reads his on-board spell tally
     spiritTally: m.spiritTally, // Set 3 Spirits: Forest Colossus's Start of Combat reads it; Keeper / Aspect print it
+    soldProgress: m.soldProgress, // Runic Archivist (display-only)
+    boardFirstSpellId: m.boardFirstSpellId, // Spell Warden (display-only)
 
     buffs: m.buffs, // recruit-phase buff breakdown → the combat inspect panel (absent on summoned tokens)
   });
@@ -3208,6 +3246,8 @@ export function simulate(
       hpGrantBonus: minion.hpGrantBonus,
       ascendProgress: minion.ascendProgress,
       spiritTally: minion.spiritTally,
+      soldProgress: minion.soldProgress,
+      boardFirstSpellId: minion.boardFirstSpellId,
       sourceUid: minion.sourceUid,
       rallyMechAtk: weldedRally > 0 ? weldedRally : undefined,
       rallySpellWeld: minion.rallySpellWeld, // welded-only already (no card component); carry the copy exactly
@@ -4216,8 +4256,6 @@ export function simulate(
     // Enemy run-level scalers so the UI can render an enemy Grim/Taragosa/Pack Leader/Runescale at the
     // OPPONENT's value. Present only when the enemy actually had a nonzero scaler (else the card's base text
     // is already accurate → the UI's player-side fallback is fine).
-    enemyScalers: (enemySpellPower.attack || enemySpellPower.health || enemySpellsThisTurn || enemyBeastsPlayed || enemyDeathrattles || enemyState.conductorBuff)
-      ? { spellPower: { ...enemySpellPower }, spellsThisTurn: enemySpellsThisTurn, beastsPlayed: enemyBeastsPlayed, deathrattles: enemyDeathrattles, conductorBuff: enemyState.conductorBuff ?? 0 }
-      : undefined,
+    enemyScalers: enemyScalersOf(enemyState),
   };
 }

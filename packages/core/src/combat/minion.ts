@@ -77,6 +77,8 @@ export function instantiate(
     hpGrantBonus: board.hpGrantBonus, // Sergeant: seed the Deathrattle HP-grant accrual from the run board
     ascendProgress: board.ascendProgress, // Tara: seed the ascend tally so the live tracker shows the total
     spiritTally: board.spiritTally, // Set 3 Spirits: Forest Colossus's Start of Combat reads it
+    soldProgress: board.soldProgress, // Runic Archivist: display-only, so the combat card reads its live count
+    boardFirstSpellId: board.boardFirstSpellId, // Spell Warden: display-only
     spellProgress: board.spellProgress, // Guel: seed the per-instance spell tally for the live combat text
     sourceUid: board.sourceUid,
     rallyMechAtk: rallyMechAtk > 0 ? rallyMechAtk : undefined,

@@ -2061,6 +2061,10 @@ export interface BoardMinion {
    *  progress, Aspect Choreographer's trigger count, Forest Colossus's "Spirits played since"). Forest Colossus's
    *  Start of Combat READS it; the others print it. Seeded from the run board. */
   spiritTally?: number;
+  /** Runic Archivist: sales still owed (per-instance). Display-only in combat. */
+  soldProgress?: number;
+  /** Spell Warden: the first spell cast since it was placed (per-instance). Display-only in combat. */
+  boardFirstSpellId?: string;
   /** The originating recruit board card's uid, so combat can report per-instance state
    *  (e.g. Avenge improvements) back for the run to persist. */
   sourceUid?: string;
@@ -2152,6 +2156,8 @@ export interface Minion {
   /** Guel: spells-cast-while-on-board (seeded from the run card) — feeds the live combat text only. */
   spellProgress?: number;
   spiritTally?: number;
+  soldProgress?: number; // Runic Archivist (display-only)
+  boardFirstSpellId?: string; // Spell Warden (display-only)
   /** The originating run board card's uid (if any), for per-instance carry-back. */
   sourceUid?: string;
   /** Better Bot: total Rally-Mech Attack granted to other Mechs when this attacks (own base + welds). */
@@ -2267,6 +2273,8 @@ export interface MinionSnapshot {
   /** Guel's spells-cast-while-on-board (seeded from the run board) — for the live combat card text. */
   spellProgress?: number;
   spiritTally?: number;
+  soldProgress?: number; // Runic Archivist (display-only)
+  boardFirstSpellId?: string; // Spell Warden (display-only)
   /** Per-source recruit-phase buff breakdown (see Minion.buffs) — lets the combat inspect panel itemize a
    *  minion's recruit buffs, the same breakdown the shop shows. Absent for combat-summoned tokens. */
   buffs?: MinionBuff[];
@@ -2383,6 +2391,11 @@ export interface CombatSideState {
   beastsPlayed: number;
   /** Set 3 Spirits played this turn (Kindled Sprite's Rally). */
   spiritsPlayed: number;
+  /** Set 2 — lifetime Ruby casts this run. Text-only in combat: the "spell umbrella" cards (Vaultkeeper) print
+   *  `spellsCast + rubyCasts`, so an ENEMY body needs its owner's value to read right (owner report 2026-09-10). */
+  rubyCasts: number;
+  /** Set 3 Spirits — the run's shared Reveler value at capture. Text-only in combat (the Revelers, Luminary). */
+  revelerX: number;
   /** Set 2 — cards bought this recruit turn (Frenzied Excavator's Start-of-Combat scaler). Player-authoritative. */
   cardsBoughtThisTurn: number;
   /** Attachment/Magnetic aura (Scrap Herald / Banksly welds) — sizes this side's from-base Magnetics. */
@@ -2470,14 +2483,42 @@ export interface CombatConfig {
   forceEnemyFirstTargetCard?: string;
 }
 
+/** See `CombatResult.enemyScalers`. */
+export interface EnemyScalers {
+  spellPower: { attack: number; health: number };
+  spellsThisTurn: number;
+  beastsPlayed: number;
+  deathrattles: number;
+  conductorBuff: number;
+  spellsCast: number;
+  rubyCasts: number;
+  spiritsPlayed: number;
+  revelerX: number;
+  impAura: { attack: number; health: number };
+  fodderConsumed: { attack: number; health: number };
+  undeadBuyAtk: number;
+  cardBuffs: Record<string, { attack: number; health: number }>;
+  alesLastTurn: number;
+  lastSpellCastId?: string;
+  rememberedSpellIds: readonly string[];
+  spellEscalation: { attack: number; health: number };
+  growthBonus: number;
+  rubyBonus: { attack: number; health: number };
+}
+
 export interface CombatResult {
   events: CombatEvent[];
   result: CombatOutcome;
   /** The enemy board's run-level scalers at combat start (from its snapshot) — so the UI can render an ENEMY
-   *  Grim / Taragosa / Pack Leader / Runescale card at the OPPONENT's value, not the current player's. Absent
-   *  for the procedural threat / when nothing scaled. Mirrors the values threaded into `simulate` as
-   *  `enemyScalers` and used per-side by the combat effects. */
-  enemyScalers?: { spellPower: { attack: number; health: number }; spellsThisTurn: number; beastsPlayed: number; deathrattles: number; conductorBuff: number };
+   *  Grim / Taragosa / Pack Leader / Runescale / Vaultkeeper / Chef Raag / … card at the OPPONENT's value, not
+   *  the current player's. Absent for the procedural threat / when nothing scaled. Mirrors the values threaded
+   *  into `simulate` on the enemy `CombatSideState` and used per-side by the combat effects.
+   *
+   *  PARITY PASS (owner report 2026-09-10, an enemy Vaultkeeper printing its base +2/+2): this used to be a
+   *  hand-picked FIVE of the side's ~35 fields, so every other run-scoped text input fell back to base on the
+   *  foe side. It now carries every run-level value the live-text chain reads. Add a field here, in
+   *  `enemyScalersOf` (simulate.ts) and in `Unit.tsx` together. */
+  enemyScalers?: EnemyScalers;
   /** Resolve the player loses on defeat (handoff A.3 step 9). 0 otherwise. */
   playerDamage: number;
   /** The itemized contributions behind `playerDamage` — the opponent's tavern tier plus one entry per

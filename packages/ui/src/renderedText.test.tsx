@@ -30,9 +30,9 @@ import { act } from 'react';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { Keyword } from '@game/core';
+import { enemyScalersOf, type CombatResult, type Keyword } from '@game/core';
 import { CARD_INDEX } from '@game/content';
-import { createRun, type BoardCard, type RunState } from '@game/sim';
+import { createRun, sideFromSnapshot, snapshotBoard, type BoardCard, type RunState } from '@game/sim';
 import { Card, type CardView } from './Card';
 import { Unit } from './Unit';
 import { liveBoardView, liveCardText, type LiveTextParams } from './instView';
@@ -232,7 +232,7 @@ describe('rendered-text reconciliation — shop chain (Card)', () => {
 
 /** Exemplars whose scaler state lives where BOTH chains read it (per-instance accrual or run scaler), so the
  *  shop chain (`liveBoardView`) and the combat chain (`Unit`) must print the SAME string for the same state. */
-interface CrossExemplar { id: string; run?: Partial<RunState>; inst?: Partial<BoardCard> & Partial<UnitFrame> }
+interface CrossExemplar { id: string; run?: Partial<RunState>; inst?: Partial<BoardCard> & Partial<UnitFrame>; /** false = the snapshot does not carry this scaler (by design), so the foe-side parity check skips it */ foe?: boolean }
 const CROSS: CrossExemplar[] = [
   { id: 'guel', inst: { spellProgress: 9 } }, //         per-instance spell tally
   // Crypt Drake: the accrued grant only — `attackSeen` is deliberately NOT set, because its "N to go"
@@ -244,13 +244,24 @@ const CROSS: CrossExemplar[] = [
   { id: 'b2_groveweaver', inst: { summonBonus: 4 } }, // per-instance summon-buff accrual
   { id: 'd2_herzog', run: { spellsCast: 8 } }, //        run-scoped spell umbrella
   { id: 'chefraag', run: { impBuff: { attack: 2, health: 3 } } }, // run-scoped Imp Aura
-  { id: 'n2_wanderer', run: { goldSpent: 13 } }, //      run-lifetime Gold meter
+  { id: 'n2_wanderer', run: { goldSpent: 13 }, foe: false }, // run-lifetime Gold meter — NOT in the snapshot (by design)
+  { id: 'd2_herzog', run: { spellsCast: 3, rubyCasts: 5 } }, // the umbrella's Ruby half (owner report 2026-09-10: enemy Vaultkeeper read +2/+2)
   { id: 'sp3_flamereveler', run: { revelerX: 4 } }, //   run-scoped shared Reveler value (owner 2026-09-10)
   { id: 'sp3_luminary', run: { revelerX: 3 } },
   { id: 'sp3_kindled', run: { playedThisTurn: ['sp3_tidebud', 'sp3_nurturer'] } }, // Spirits played this turn
 ];
 
 const runFor = (x: CrossExemplar): RunState => ({ ...createRun(7), ...x.run }) as RunState;
+/** Mount a FOE-side Unit whose owner is `ownerRun`, through the real capture chain — snapshot → served side →
+ *  `enemyScalersOf` → `lastCombat.enemyScalers` — against a BARE player run, so nothing of ours can leak in. */
+const renderFoeUnit = (u: UnitFrame, ownerRun: RunState): string => {
+  const scalers = enemyScalersOf(sideFromSnapshot(snapshotBoard(ownerRun), ownerRun.tier, []));
+  const me = createRun(7);
+  const lastCombat = { ...(me.lastCombat ?? {}), enemyScalers: scalers } as unknown as CombatResult;
+  act(() => { useGame.setState({ run: { ...me, lastCombat } as RunState, compactCards: false }); });
+  m.render(<Unit u={u} side="foe" />);
+  return descTextOf(m.container);
+};
 const boardCardFor = (x: CrossExemplar): BoardCard => {
   const def = CARD_INDEX[x.id]!;
   return {
@@ -293,6 +304,17 @@ describe('rendered-text reconciliation — combat chain + cross-chain drift', ()
       if (combatText !== shopText) drifts.push(`${x.id} (${CARD_INDEX[x.id]!.name}):\n    shop   "${shopText}"\n    combat "${combatText}"`);
     }
     expect(drifts, `CROSS-CHAIN DRIFT — the combat card and the shop card print different strings for the same state:\n  ${drifts.join('\n  ')}`).toEqual([]);
+  });
+  it('an ENEMY unit prints its OWNER value: every run-scoped scaler the snapshot carries reaches the foe side (parity 2026-09-10)', () => {
+    const drifts: string[] = [];
+    for (const x of CROSS) {
+      if (x.foe === false) continue;
+      const owner = runFor(x);
+      const ownerText = plainOf(liveBoardView(boardCardFor(x), owner).text);
+      const foeText = renderFoeUnit(frameFor(x), owner);
+      if (foeText !== ownerText) drifts.push(`${x.id} (${CARD_INDEX[x.id]!.name}):\n    owner "${ownerText}"\n    foe   "${foeText}"`);
+    }
+    expect(drifts, `FOE-SIDE DRIFT: the served card prints a different string than its owner saw:\n  ${drifts.join('\n  ')}`).toEqual([]);
   });
 });
 

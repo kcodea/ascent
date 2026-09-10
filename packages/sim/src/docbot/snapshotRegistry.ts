@@ -94,7 +94,6 @@ export const SNAPSHOT_EXCUSED: Readonly<Record<string, SnapshotExcuse>> = {
   'capture:rubiesOnThisTurn': { boundary: 'capture', kind: 'turn-scoped', why: 'per-turn Ruby tally, reset each turn (state.ts docblock beside spellsOnThisTurn)' },
   'capture:rubyRecvTick': { boundary: 'capture', kind: 'turn-scoped', why: 'Ruby Broker per-turn Gold cap, "reset each wave" (state.ts)' },
   'capture:boardSpellCount': { boundary: 'capture', kind: 'turn-scoped', why: 'Spellkeeper Drake per-turn count, reset each turn (recruit.ts "reset each turn ... placement is the natural floor")' },
-  'capture:boardFirstSpellId': { boundary: 'capture', kind: 'turn-scoped', why: 'Spellkeeper Drake: the first spell of the CURRENT turn — meaningless on a board served on a later wave' },
   'capture:soldSeen': { boundary: 'capture', kind: 'turn-scoped', why: 'Voicekeeper per-turn sales witness, "reset each faceOmen" (state.ts)' },
   'capture:teachTick': { boundary: 'capture', kind: 'turn-scoped', why: 'Moonhowl Mentor once-per-turn counter, "reset each faceOmen" (state.ts)' },
 
@@ -110,7 +109,6 @@ export const SNAPSHOT_EXCUSED: Readonly<Record<string, SnapshotExcuse>> = {
   'capture:lockedUntilWave': { boundary: 'capture', kind: 'shop-only', why: 'Hourglass Reserve hand-card play gate, same contract as lockedUntilTier' },
   'capture:borrowed': { boundary: 'capture', kind: 'shop-only', why: 'Funeral on Loan hand-card contract (play → Echo → destroyed); never reaches a fighting board' },
   'capture:boughtWave': { boundary: 'capture', kind: 'shop-only', why: 'Hoarder sell-value input (currentWave - boughtWave), read only by sellValueOf' },
-  'capture:soldProgress': { boundary: 'capture', kind: 'shop-only', why: 'Runic Archivist sold-minions meter, advanced and paid out by recruit dispatch only' },
   'capture:goldTick': { boundary: 'capture', kind: 'shop-only', why: 'gold-spend meter (Acid/Banksly) for recruit `goldSpent` effects — a served board spends no Gold' },
   'capture:buyTick': { boundary: 'capture', kind: 'shop-only', why: 'cards-bought meter (Korok/Banksly), the buy-count sibling of goldTick' },
   'capture:playTick': { boundary: 'capture', kind: 'shop-only', why: 'cards-played meter (Mountainbond), the played sibling of buyTick' },

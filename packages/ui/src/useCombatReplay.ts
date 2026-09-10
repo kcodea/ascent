@@ -163,6 +163,10 @@ export interface UnitFrame {
   spellProgress?: number;
   /** Set 3 Spirits: the body's per-instance tally (Forest Colossus / Festival Keeper / Aspect live text). */
   spiritTally?: number;
+  /** Runic Archivist's sales owed / Spell Warden's first-spell record — display-only, so the combat card prints
+   *  the same live text the shop does (parity pass 2026-09-10). */
+  soldProgress?: number;
+  boardFirstSpellId?: string;
   /** Sergeant: accumulated HP bonus on the Deathrattle (grows each time Sergeant gains Attack). */
   hpGrantBonus?: number;
   /** Ritualist's End-of-Turn grant accrual, Trail Forager's sell bonus, and the cadence End-of-Turn counter
@@ -207,6 +211,8 @@ const fromSnap = (s: MinionSnapshot): UnitFrame => ({
   ascendProgress: s.ascendProgress, // Tara: seed the ascend tracker from the run-board total, then count up
   spellProgress: s.spellProgress, // Guel: seed his on-board spell tally for the live combat text
   spiritTally: s.spiritTally, // Set 3 Spirits: the carried tally, so Forest Colossus / Keeper / Aspect print live in combat
+  soldProgress: s.soldProgress, // Runic Archivist (display-only)
+  boardFirstSpellId: s.boardFirstSpellId, // Spell Warden (display-only)
   eotBonus: s.eotBonus, // Ritualist: seed the per-tick grant so the combat text isn't stuck at base
   sellBonus: s.sellBonus, // Trail Forager: seed the accrued sell value for the combat text
   eotTick: s.eotTick, // Frontdrake / Money Maker / Vineweaver: seed the cadence counter for the combat text

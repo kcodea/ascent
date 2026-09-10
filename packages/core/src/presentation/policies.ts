@@ -1001,6 +1001,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   // Its own beat, never folded: the death animation, the Echo it fires and a Rise return all need a real
   // window. Folding it is exactly the bug being fixed (owner report 2026-08-28).
   'system:destroy:shopDeath': { policy: 'ownBeat', family: 'echo' },
+  'system:destroy:shopRise': { policy: 'ownBeat', family: 'react' }, // the risen body's RETURN — its own beat after the Echo (owner 2026-09-10)
   'system:destroy:shopArrival': { policy: 'ownBeat', family: 'grant' },
   // The card-effect key the `equip` trigger produces. Its own beat: the grant is a visible moment (the
   // icon flying into the slot), not a fold-in on the Shout's.

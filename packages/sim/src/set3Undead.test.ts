@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { combatSide, makeRng, simulate, type BoardMinion, type CombatEvent } from '@game/core';
+import { combatSide, makeRng, simulate, type BoardMinion, type CombatEvent, type SourceTriggerEvent } from '@game/core';
 import { CARD_INDEX, EQUIPMENT_INDEX, SETS, poolFor } from '@game/content';
-import { createRun, reduce, type Action, type BoardCard, type RunState } from './index';
+import { createRun, reduce, reduceWithPresentation, type Action, type BoardCard, type RunState } from './index';
 import { displayedStatsOf, fireRecruitDeathrattlesForTest, spellAttackBonus } from './recruit';
 
 /**
@@ -101,6 +101,21 @@ describe('onRise — SHOP: a Rise outside combat fires the watchers, and their p
     expect(risen.buffs?.find((b) => b.source === 'Rising Tide')).toMatchObject({ attack: 4, health: 5 });
     expect(s.hand.find((c) => c.uid === 'h1')!.buffs?.find((b) => b.source === 'Rising Tide')).toMatchObject({ attack: 4, health: 5 });
     expect(s.hand.find((c) => c.uid === 'h1')!.attack).toBe(CARD_INDEX['dw_brunni']!.attack + 4);
+  });
+  it('the Rise is its OWN beat, after the death/Echo beat — the return never lands in the Echo commit', () => {
+    let s = run({ board: [body('p', 'u3_poochy', { keywords: ['T'] }), body('rev', 'u3_revenant')], hand: [body('ems', 'u3_ems')] });
+    s = act(s, { type: 'play', uid: 'ems', toIndex: 0 });
+    s = act(s, { type: 'activateEquipment', targetUid: 'p' });
+    const { batch, state: after } = reduceWithPresentation(s, { type: 'resolveShopDeath' }, true);
+    const keys = batch!.events
+      .filter((e) => (e as { type: string }).type === 'sourceTrigger')
+      .map((e) => (e as SourceTriggerEvent).policyKey);
+    const death = keys.indexOf('system:destroy:shopDeath');
+    const rise = keys.indexOf('system:destroy:shopRise');
+    expect(death, 'the death beat').toBeGreaterThanOrEqual(0);
+    expect(rise, 'the rise beat').toBeGreaterThan(death);
+    // Gameplay is identical with capture on and off.
+    expect(JSON.stringify(after)).toBe(JSON.stringify(act(s, { type: 'resolveShopDeath' })));
   });
   it('stacks: two shop Rises pay Revenant twice', () => {
     let s = run({ board: [body('p', 'u3_poochy', { keywords: ['T'] }), body('rev', 'u3_revenant'), body('q', 'mumi', { keywords: ['R'] })], hand: [body('ems', 'u3_ems')] });

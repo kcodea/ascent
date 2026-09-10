@@ -61,6 +61,10 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'New Card',
         text: 'Wolves Den (Tier 3 Undead/Beast) joins Set 3 — Deathrattle: summon 3 Crypt Wolves.',
       },
+      {
+        category: 'Card Change',
+        text: 'A locked card in your hand (the Disco Dan Setlist, the Brackus Summit pick, an Hourglass Reserve) can no longer be summoned from hand by a Spirit or Rope Wrangler. It can still be buffed in hand, and Handbound Titan still reads its stats.',
+      },
     ],
   },
   {

@@ -1332,7 +1332,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   deathrattleSummonHighestHealthFromHand: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
     for (let i = 0; i < mul(self); i++) {
-      const pool = ctx.handMinionsFor(self.side).filter((h) => !ctx.getCard(h.cardId)?.spell);
+      const pool = ctx.handMinionsFor(self.side).filter((h) => !h.locked && !ctx.getCard(h.cardId)?.spell);
       if (pool.length === 0) return;
       const top = pool.reduce((a, b) => (b.health > a.health ? b : a));
       ctx.summonCopyFromHand(self.side, top.uid, self.uid, params.ward === true);
@@ -1347,7 +1347,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     for (let i = 0; i < mul(self); i++) {
       const pool = ctx.handMinionsFor(self.side).filter((h) => {
         const d = ctx.getCard(h.cardId);
-        return !!d && !d.spell && defIsTribe(d, tribe);
+        return !h.locked && !!d && !d.spell && defIsTribe(d, tribe);
       });
       if (pool.length === 0) return;
       ctx.summonCopyFromHand(self.side, ctx.rng.pick(pool).uid, self.uid, false);

@@ -16,7 +16,7 @@ import { CARD_INDEX } from '@game/content';
 import { HEROES } from './heroes';
 import { createRun, type Action, type RunState, type ShopCard, type RunMode } from './state';
 import { reduce, questCombatMods } from './reducer';
-import { defIsTribe, spellAttackBonus, spellHealthBonus } from './recruit';
+import { defIsTribe, handCardLocked, spellAttackBonus, spellHealthBonus } from './recruit';
 import type { ThreatId } from './threats';
 
 /** Where a pool board came from. 'self' = your own captured run; 'friend' = a friend's imported board;
@@ -138,7 +138,7 @@ export interface BoardSnapshot {
   /** Rune of Living Growth: the run's Growth improvement, so a served board's Growth casts at its own value. */
   growthBonus?: number;
   /** Minions in the owner's hand at capture, with live stats (Rope Wrangler / Water Dragon reach into it). */
-  handMinions?: { uid: string; cardId: string; attack: number; health: number; keywords: Keyword[]; golden: boolean }[];
+  handMinions?: { uid: string; cardId: string; attack: number; health: number; keywords: Keyword[]; golden: boolean; locked?: true }[];
   /** Set 2 — Elderhorn's chosen mode(s): extra fires for the owner's Beast triggers. */
   beastHuntExtra?: number;
   beastRitualExtra?: number;
@@ -299,7 +299,7 @@ export function snapshotBoard(s: RunState): BoardSnapshot {
   const handSpellIds = s.hand.filter((c) => CARD_INDEX[c.cardId]?.spell).map((c) => c.cardId);
   const handMinions = s.hand
     .filter((c) => { const d = CARD_INDEX[c.cardId]; return !!d && !d.spell && !d.ruby; })
-    .map((c) => ({ uid: c.uid, cardId: c.cardId, attack: c.attack, health: c.health, keywords: [...c.keywords], golden: c.golden }));
+    .map((c) => ({ uid: c.uid, cardId: c.cardId, attack: c.attack, health: c.health, keywords: [...c.keywords], golden: c.golden, ...(handCardLocked(s, c) ? { locked: true as const } : {}) }));
   // The assembled quest/rune combat modifiers — so a served board reproduces its runes/quests in combat.
   const qmods = questCombatMods(s);
   const hasQmods = Object.keys(qmods).length > 0;

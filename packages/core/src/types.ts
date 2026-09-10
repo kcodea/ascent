@@ -2414,7 +2414,10 @@ export interface CombatSideState {
   /** The MINIONS in this side's hand at combat start, in hand order, with their live (buffed) stats — Rope
    *  Wrangler's Echo summons one at random, CONSUMING it (`uid` is the run hand card's uid; settle removes
    *  the summoned ones via `CombatResult.playerHandSummoned`). Player-only in practice. */
-  handMinions?: readonly { uid: string; cardId: string; attack: number; health: number; keywords: readonly Keyword[]; golden: boolean }[];
+  handMinions?: readonly { uid: string; cardId: string; attack: number; health: number; keywords: readonly Keyword[]; golden: boolean;
+    /** Locked in hand (Disco Dan's tier lock, Brackus's Gold lock, the Hourglass next-turn lock): buffable and
+     *  readable, but no summon-from-hand may put it on the board (owner 2026-09-10). */
+    locked?: boolean }[];
   /** Set 2 — Elderhorn's chosen mode(s): extra fires for this side's BEAST triggers. `beastHuntExtra` applies
    *  to Rally + Slaughter, `beastRitualExtra` to Echo (Deathrattle). Tribe-scoped by design — unlike the
    *  card-level `triggerMultiplier` (Drakko/Uron), which is board-wide. */
@@ -2819,7 +2822,7 @@ export interface CombatContext {
   grantToHand(cardId: string, side: Side, sourceUid?: string): void;
   /** The side's hand MINIONS as snapshotted at combat start (player only — a served board has no hand),
    *  minus any already summoned out of it. Read-only; buff one through `buffHand`. */
-  handMinionsFor(side: Side): readonly { uid: string; cardId: string; attack: number; health: number }[];
+  handMinionsFor(side: Side): readonly { uid: string; cardId: string; attack: number; health: number; locked?: boolean }[];
   /** R-HAND-02 (owner 2026-09-09): buff a card IN THE HAND, mid-fight. PERMANENT — carried back via
    *  `CombatResult.playerHandBuffs` and applied to the run hand at settle like any recruit buff — and logged
    *  as a `handBuff` event so the replay grows the hand card on its beat. Player-only. */

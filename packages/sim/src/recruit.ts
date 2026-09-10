@@ -3380,7 +3380,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  hand minion beside this; `ward` adds Ward. Golden: twice (two different cards). */
   deathrattleSummonHighestHealthFromHand: (ctx, self, params) => {
     for (let i = 0; i < gold(self); i++) {
-      const pool = ctx.state.hand.filter((c) => !CARD_INDEX[c.cardId]?.spell && !(ctx.state.handCopiedThisTurn ?? []).includes(c.uid));
+      const pool = ctx.state.hand.filter((c) => !CARD_INDEX[c.cardId]?.spell && !(ctx.state.handCopiedThisTurn ?? []).includes(c.uid) && !handCardLocked(ctx.state, c));
       if (pool.length === 0) return;
       const top = pool.reduce((a, b) => (b.health > a.health ? b : a));
       summonCopyFromHandShop(ctx.state, top.uid, self, params.ward === true);
@@ -3392,7 +3392,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     if (payload.minion !== self) return;
     const tribe = str(params.tribe) as Tribe;
     for (let i = 0; i < gold(self); i++) {
-      const pool = ctx.state.hand.filter((c) => !CARD_INDEX[c.cardId]?.spell && isTribe(c, tribe) && !(ctx.state.handCopiedThisTurn ?? []).includes(c.uid));
+      const pool = ctx.state.hand.filter((c) => !CARD_INDEX[c.cardId]?.spell && isTribe(c, tribe) && !(ctx.state.handCopiedThisTurn ?? []).includes(c.uid) && !handCardLocked(ctx.state, c));
       if (pool.length === 0) return;
       const pick = pickRandom(ctx.state, pool, 1)[0];
       if (pick) summonCopyFromHandShop(ctx.state, pick.uid, self, false);
@@ -10883,10 +10883,23 @@ export function fireOnTribePlayed(state: RunState, played: BoardCard): void {
  * exact copy of a hand card onto the board beside `near`. The card stays in hand; one summon per card PER TURN
  * here (the combat rule is per combat), tracked in `handCopiedThisTurn`. Board full → nothing. Returns the copy.
  */
+/** Is this hand card LOCKED right now — unplayable until a gate opens? The three gates the `play` action honours:
+ *  Disco Dan's Setlist tier lock, Brackus's Gold-spent lock, and the Hourglass Reserve's next-turn lock. One
+ *  predicate so every "take it out of the hand" path (play, a Spirit's summon-from-hand copy, Rope Wrangler)
+ *  agrees with the play action — a locked card can still be BUFFED in hand, it just can't reach the board
+ *  (owner report 2026-09-10: "a locked minion cannot be summoned from hand"). */
+export function handCardLocked(state: RunState, card: BoardCard): boolean {
+  if (card.lockedUntilTier && state.tier < card.lockedUntilTier) return true;
+  if (card.lockedUntilGoldSpent && (state.goldSpent ?? 0) < card.lockedUntilGoldSpent) return true;
+  if (card.lockedUntilWave && state.wave < card.lockedUntilWave) return true;
+  return false;
+}
+
 export function summonCopyFromHandShop(state: RunState, uid: string, near: BoardCard | undefined, ward: boolean): BoardCard | undefined {
   const h = state.hand.find((c) => c.uid === uid);
   const def = h ? CARD_INDEX[h.cardId] : undefined;
   if (!h || !def || def.spell) return undefined;
+  if (handCardLocked(state, h)) return undefined; // a locked card can't reach the board by any route
   if ((state.handCopiedThisTurn ?? []).includes(uid)) return undefined;
   if (state.board.length >= CONFIG.boardMax) return undefined;
   state.handCopiedThisTurn = [...(state.handCopiedThisTurn ?? []), uid];

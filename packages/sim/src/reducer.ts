@@ -1085,10 +1085,14 @@ export function reduce(state: RunState, action: Action): RunState {
     const da = (next.tavernBuyBonus?.atk ?? 0) - (state.tavernBuyBonus?.atk ?? 0);
     const dh = (next.tavernBuyBonus?.hp ?? 0) - (state.tavernBuyBonus?.hp ?? 0);
     if (da > 0 || dh > 0) {
-      next.shopBuffAllFx = { uids: next.shop.map((o) => o.uid), attack: Math.max(0, da), health: Math.max(0, dh) };
+      next.shopBuffAllFx = {
+        uids: next.shop.map((o) => o.uid), attack: Math.max(0, da), health: Math.max(0, dh),
+        ...(next.shopBuffAllSource ? { sourceCardId: next.shopBuffAllSource } : {}),
+      };
       next.shopBuffAllFxSeq = (next.shopBuffAllFxSeq ?? 0) + 1;
     }
   }
+  if (next !== state && next.shopBuffAllSource !== undefined) delete next.shopBuffAllSource; // transient — never outlives the action
   // RUNE-BUFF-UNIT FX: any board/hand minion whose RUNE-sourced buff total ROSE this action gets the
   // `rune-buff-unit` sparkle (owner ask 2026-08-19). Diffed off `runeBuffMagnitude` — the buff's source label
   // is on `card.buffs`, so this one place covers every rune that buffs a unit in the shop, with no per-site

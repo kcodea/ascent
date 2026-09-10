@@ -155,14 +155,15 @@ function runShopRubiedSpan(moment: RecruitMoment, ctx: RecruitCueContext): () =>
  *  - **It must not depend on measuring a card.** The run-wide channel can rise with an empty or mid-reroll
  *    shop, and the buff still happened. `runShopRubiedSpan` bails when nothing measures; this deliberately
  *    does not — `source`/`target` are best-effort extras for a future re-author, and their absence is fine.
- *  - **Kind-level binding.** Like the gem span, this is about the shop rather than any one offer, so it
- *    resolves `(null, kind)` and a per-card override is deliberately not consulted.
+ *  - **Card-then-kind binding.** The moment names the card whose effect raised the channel when the sim knows
+ *    it (`sourceCardId` — Contract Butcher, Enigma), so a card-authored def can shadow the kind default
+ *    (owner ask 2026-09-10: Enigma plays Butcher's `shop-buff-shout`); with no source it resolves `(null, kind)`.
  *
  * Fires on the next frame for the same reason the cascade does: the offers re-rendered this commit, so the
  * measure (when there is one) has to wait for layout.
  */
 function runShopBuffAllFire(moment: RecruitMoment, ctx: RecruitCueContext): () => void {
-  const binding = bindingFor(null, 'shopBuffAll');
+  const binding = bindingFor(moment.sourceCardId ?? null, 'shopBuffAll');
   if (!binding) return () => {};
   let raf = 0;
   raf = requestAnimationFrame(() => {

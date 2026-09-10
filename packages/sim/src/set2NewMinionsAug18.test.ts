@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { CARD_INDEX } from '@game/content';
 import { combatSide, makeRng, simulate, type BoardMinion, type CombatEvent } from '@game/core';
 import { createRun, reduce, type BoardCard, type RunState } from './index';
-import { applyGoldSpent, applyStartOfTurn, conjureToHand, consumeShopMinion, applyEndOfTurn } from './recruit';
+import { applyGoldSpent, applyStartOfTurn, conjureToHand, consumeShopMinion, applyEndOfTurn, projectEndOfTurnSteps } from './recruit';
 
 /**
  * SET 2 — the 2026-08-18 minion batch (owner add): behavioural coverage for the NEW mechanics, not just their
@@ -181,6 +181,21 @@ describe('set 2 — the 2026-08-18 recruit mechanics (reducer)', () => {
     expect([s.tavernBuyBonus.atk, s.tavernBuyBonus.hp]).toEqual([0, 0]);
     consumeShopMinion(s, s.board.find((c) => c.uid === 'jb')!, 0); // Enigma itself eats
     expect([s.tavernBuyBonus.atk, s.tavernBuyBonus.hp], 'onConsume gave the Shop +2/+1 permanently').toEqual([2, 1]);
+  });
+
+  it('Enigma fires on ANY friendly consume — another Demon eating, and Blart at End of Turn (owner 2026-09-10)', () => {
+    // Another body eats: Enigma still pays (it was guarded to its own consume — "when THIS consumes" is Broodlord's text, not Enigma's).
+    const s = recruit({ board: [recruitBody('dm_jumbo', 'jb'), recruitBody('godfodder', 'gf')], hand: [], shop: [{ uid: 's0', cardId: 'sandbag' }] });
+    consumeShopMinion(s, s.board.find((c) => c.uid === 'gf')!, 0);
+    expect([s.tavernBuyBonus.atk, s.tavernBuyBonus.hp], 'a different eater still pays Enigma').toEqual([2, 1]);
+    // Blart's End-of-Turn bite fires it too, and the beat names Enigma as the source of the shop-wide buff.
+    const t = recruit({ board: [recruitBody('dm_jumbo', 'jb'), recruitBody('dm_gourmand', 'bb')], hand: [], shop: [{ uid: 's0', cardId: 'sandbag' }, { uid: 's1', cardId: 'stray' }] });
+    const { fx } = projectEndOfTurnSteps(t); // the presentation projection (a clone)
+    applyEndOfTurn(t); // the real settle
+    expect([t.tavernBuyBonus.atk, t.tavernBuyBonus.hp], 'Blart ate, Enigma paid').toEqual([2, 1]);
+    const beat = fx.map((f) => f.shopBuffAll).find((x) => !!x)!;
+    expect(beat, 'the beat carries the shop-wide buff').toBeTruthy();
+    expect(beat.sourceCardId, 'and names Enigma, so its shop-buff def can bind').toBe('dm_jumbo');
   });
 
   it('Billings: every 5 Gold spent buffs exactly 2 random Dwarves +5/+5', () => {

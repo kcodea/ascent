@@ -88,8 +88,21 @@ describe('shopBuffAllFx (the shop-wide buff signal)', () => {
       hand: [],
     };
     const { fx } = projectEndOfTurnSteps(s);
-    const all = fx.map((f) => f.shopBuffAll).filter((x): x is { attack: number; health: number } => !!x);
+    const all = fx.map((f) => f.shopBuffAll).filter((x): x is { attack: number; health: number; sourceCardId?: string } => !!x);
     expect(all.length).toBeGreaterThan(0);
     expect(all[0]!.attack + all[0]!.health).toBeGreaterThan(0);
+    expect(all[0]!.sourceCardId, 'the beat names the card that raised the channel (2026-09-10)').toBe('dm_curator');
+  });
+
+  it('the action-level stamp names the source card too, and the transient is cleared after the action', () => {
+    // Contract Butcher's Shout raises the channel — the stamp carries `dm_butcher`; nothing lingers on the run.
+    const s: RunState = {
+      ...createRun(1), phase: 'recruit', embers: 20,
+      board: [], hand: [card('h1', 'dm_butcher', 'demon', 3, 3)],
+      shop: [offer('s1', 'spore')],
+    };
+    const next = reduce(s, { type: 'play', uid: 'h1', toIndex: 0 });
+    expect(next.shopBuffAllFx?.sourceCardId).toBe('dm_butcher');
+    expect(next.shopBuffAllSource).toBeUndefined();
   });
 });

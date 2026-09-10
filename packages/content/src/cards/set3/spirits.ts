@@ -10,7 +10,7 @@ import type { CardDef } from '@game/core';
  *     `onTribePlayed` trigger with PER-INSTANCE tallies (`spiritTally`): Festival Keeper (every 3 → a spell),
  *     Aspect Choreographer (improves every 3), Forest Colossus (counts only Spirits played AFTER it — owner
  *     2026-09-09).
- * Tranche 2 adds the HAND-SUMMON cards (Dreamtide Caller, Dreaming Deep, Seedling Spirit, Handbound Titan,
+ * Tranche 2 adds the HAND-SUMMON cards (Tide Caller, Dreaming Deep, Seedling Spirit, Handbound Titan,
  * Flamebanner Marshal, Hearth Whisperer, Slumbering Colossus).
  * Golden doubles every number (owner 2026-09-09); a golden Reveler pays 2X.
  */

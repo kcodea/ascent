@@ -631,7 +631,7 @@ export type EffectFactoryId =
   | 'equipmentBuffTargetAndRandomHandTribe' // Spiritbringer: the target AND a random `tribe` in hand, +atk/+hp
   | 'spellCastBuffRandomHand' // Dreamcurrent Mystic: a Shop spell cast → a random minion in hand +atk/+hp
   // ── set 3 SPIRITS (tranche 2, the hand-summon cards) ──
-  | 'deathrattleSummonHighestHealthFromHand' // Dreamtide Caller / Dreaming Deep: Echo — a COPY of the highest-Health hand minion (ward: Dreaming Deep)
+  | 'deathrattleSummonHighestHealthFromHand' // Tide Caller / Dreaming Deep: Echo — a COPY of the highest-Health hand minion (ward: Dreaming Deep)
   | 'rallySummonRandomTribeFromHand' // Seedling Spirit: Rally — a COPY of a random `tribe` minion from hand
   | 'scGainStatsOfHighestHealthHand' // Handbound Titan: Start of Combat — gain the highest-Health hand minion's stats this combat
   | 'rallyGiveTribeAttackOfHighestAttackHand' // Flamebanner Marshal: Rally — `count` friendly `tribe` minions gain the highest-Attack hand minion's Attack

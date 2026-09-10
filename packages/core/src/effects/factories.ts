@@ -1326,7 +1326,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   },
   /* ── SET 3 SPIRITS (tranche 2) — the hand-summon cards ──────────────────────────────────────────── */
 
-  /** Dreamtide Caller / Dreaming Deep (Echo): summon a COPY of the highest-Health minion in your hand beside
+  /** Tide Caller / Dreaming Deep (Echo): summon a COPY of the highest-Health minion in your hand beside
    *  this (the card stays in hand; `ward` gives the copy Ward — Dreaming Deep). Golden: twice, so two different
    *  cards — a card can be summoned once per combat. */
   deathrattleSummonHighestHealthFromHand: (ctx, self, params, payload) => {

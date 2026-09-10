@@ -129,6 +129,10 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'UI / Info',
         text: 'Shop rolls now weight each card by the copies left in the shared pool. A card down to its last copy is rarer in proportion; before, it was as likely as a full stack until it ran out.',
       },
+      {
+        category: 'UI / Info',
+        text: 'Paragon now strikes each minion it empowers with a bolt of lightning when it triggers a Rally.',
+      },
     ],
   },
   {

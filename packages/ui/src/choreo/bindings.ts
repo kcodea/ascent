@@ -508,6 +508,23 @@ export function authoredBuffDefFor(spellId: string | undefined): string | null {
   return b?.fanOut === 'buffedOn' ? b.def : null;
 }
 
+/**
+ * The authored buff def for a SOURCE MINION whose own on-attack buff has no spell behind it — a minion that
+ * buffs OTHERS directly (Paragon's rally-buff-one-per-tribe). Such a buff is absorbed into the attack's
+ * wind-up (`absorbIntoWindup` includes `buff`), so it never becomes its own `buffWave` moment and the score's
+ * `buffWave`/`buffed` cue never sees it; it reaches the player only as the generic tendril in `fireBuffCasts`.
+ * This lets that path swap the tendril for the buffer's authored def, keyed at the SAME `buffWave`/`buffed`
+ * binding the un-absorbed cue reads — so a card bound once fires its def whether the buff lands as its own wave
+ * (played additively on top of the tendril in `score.ts`) or gets absorbed into a swing (in place of the
+ * tendril here — two source→target travel effects would read as one buff drawn twice). It is the source-card
+ * mirror of `authoredBuffDefFor`, which keys the same idea on the spell that cast the buff.
+ */
+export function sourceBuffDefFor(cardId: string | null): string | null {
+  if (cardId === null) return null;
+  const b = bindingFor(cardId, 'buffWave');
+  return b?.fanOut === 'buffed' ? b.def : null;
+}
+
 export function bindingFor(cardId: string | null, kind: BindingKind): FxBinding | null {
   if (cardId !== null) {
     // `undefined` means "no opinion, keep looking"; an explicit `null` is a tombstone that STOPS here —

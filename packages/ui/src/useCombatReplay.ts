@@ -35,7 +35,7 @@ import { isDeathrattleBufferCard } from './deathrattleBuffers';
 import { fireBuffFx } from './buffFxRender';
 import { cardFxScale } from './fx/cardScale';
 import { canPlayDefs, playDef } from './fx/playDef';
-import { authoredBuffDefFor, bindingFor, labelBuffFxFor } from './choreo/bindings';
+import { authoredBuffDefFor, bindingFor, labelBuffFxFor, sourceBuffDefFor } from './choreo/bindings';
 import { isRuneBuffSource, hasPower } from '@game/sim';
 import { anchorsForUnits } from './fx/combatAnchors';
 import { getDef } from './fx/fxDefs';
@@ -1577,6 +1577,20 @@ export function useCombatReplay(
         playDef(labelFx.def, { source: from, target: tc, cursor: tc, camera: { x: window.innerWidth / 2, y: window.innerHeight / 2 } },
           { uids: { source: c.target, target: c.target } });
         if (labelFx.heroId) sfx.heroPower(labelFx.heroId);
+        if (!perTarget.has(c.target)) perTarget.set(c.target, AUTHORED_BUFF_ROLL_MS);
+        continue;
+      }
+      // AUTHORED REPLACES STOCK, for a SOURCE MINION whose own on-attack buff has no spell behind it (Paragon's
+      // rally-buff, absorbed into the swing so it never reaches the `buffWave` cue). The spell path above covers
+      // buffs a SPELL cast; this covers a minion buffing others directly. Bound at `buffWave`/`buffed` keyed by
+      // the buffer's card — the same binding the un-absorbed wave reads — the def flies source→target IN PLACE
+      // of the generic tendril (both are source→target travel effects; drawing both reads as one buff twice).
+      const srcAuthored = sourceless ? null : sourceBuffDefFor(cardId);
+      if (srcAuthored && sEl) {
+        const asr = sEl.getBoundingClientRect();
+        const asc = { x: asr.left + asr.width / 2, y: asr.top + asr.height / 2 };
+        playDef(srcAuthored, { source: asc, target: tc, cursor: tc, camera: { x: window.innerWidth / 2, y: window.innerHeight / 2 } },
+          { uids: { source: c.source, target: c.target } });
         if (!perTarget.has(c.target)) perTarget.set(c.target, AUTHORED_BUFF_ROLL_MS);
         continue;
       }

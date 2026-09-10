@@ -199,6 +199,10 @@ const CARD_BINDINGS: Record<string, Record<string, { def: string; fanOut?: strin
   // Karwind rings every Dragon it pumps — the combat `buffed` fan-out plays `flame-ring` once per cross-buffed
   // unit, and the shop's source-keyed `minionBuffed` moment plays it on each Dragon Karwind buffed in the tavern.
   karwind: { buffWave: { def: 'flame-ring', fanOut: 'buffed' }, minionBuffed: { def: 'flame-ring', critDef: 'flame-ring-crit' } },
+  // Paragon's Rally buff (one minion of every tribe) throws the owner-authored `lightning-bolt-blue` bolt from
+  // Paragon to each buffed minion instead of the stock tendril (owner ask 2026-09-10). Combat only (Rally is an
+  // on-attack trigger), so `buffWave` alone — no `minionBuffed` shop twin.
+  n2_paragon: { buffWave: { def: 'lightning-bolt-blue', fanOut: 'buffed' } },
   // Paymaster Pimm's Shout pays you next turn — `coin-shout` on the card, with the max-Gold sound, which is
   // the first binding to carry an `sfx` at all (see `BINDING_SFX`).
   dm_butcher: { shout: { def: 'shop-buff-shout' }, scNarrate: { def: 'shop-buff-shout' }, shopBuffAll: { def: 'shop-buff-shout' } },

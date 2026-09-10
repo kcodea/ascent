@@ -24,6 +24,7 @@
         "width": 46,
         "coreWidth": 2.8,
         "glowStrength": 1,
+        "sparkle": 0.4,
         "gain": 1.55,
         "coreColor": 15397887,
         "tipColor": 9710335,
@@ -129,7 +130,7 @@
         "radialBlur_kernel": 5,
         "radialBlur_radius": -1,
         "motionBlurOn": true,
-        "motionBlurAmt": 18,
+        "motionBlurAmt": 10,
         "motionBlurCurve": [
           [
             0,
@@ -306,7 +307,7 @@
         "outline_alpha": 1,
         "outline_knockout": false,
         "outline_color": 0,
-        "rgbSplitOn": false,
+        "rgbSplitOn": true,
         "rgbSplitAmt": -10,
         "rgbSplitCurve": [
           [
@@ -319,7 +320,7 @@
           ]
         ],
         "rgbSplit_greenY": 10,
-        "rgbSplit_blueX": 0,
+        "rgbSplit_blueX": 3,
         "glitchOn": false,
         "glitchAmt": 0,
         "glitchCurve": [
@@ -485,7 +486,7 @@
         "spread": 1,
         "aimMode": "travel",
         "angle": -90,
-        "speed": 990,
+        "speed": 1280,
         "speedVar": 0.87,
         "reverse": false,
         "speedCurve": [
@@ -498,12 +499,12 @@
             1
           ]
         ],
-        "drag": 0.9,
+        "drag": 0.725,
         "gravity": 0,
         "pointGravity": 0,
-        "life": 720,
+        "life": 1030,
         "orientToVelocity": false,
-        "spinMul": 2.2,
+        "spinMul": 3.35,
         "spinCurve": [
           [
             0,
@@ -563,7 +564,7 @@
             1
           ]
         ],
-        "fade": 2,
+        "fade": 0.7,
         "bands": 3,
         "plateau": 0.3,
         "fieldMix": 0,
@@ -619,8 +620,8 @@
             1
           ]
         ],
-        "glowOn": false,
-        "glowAmt": 0,
+        "glowOn": true,
+        "glowAmt": 4,
         "glowCurve": [
           [
             0,
@@ -634,7 +635,7 @@
         "glow_inner": 0,
         "glow_alpha": 1,
         "glow_knockout": false,
-        "glow_color": 16777215,
+        "glow_color": 11508735,
         "godrayOn": false,
         "godrayAmt": 0.5,
         "godrayCurve": [
@@ -856,19 +857,19 @@
         "outline_alpha": 1,
         "outline_knockout": false,
         "outline_color": 0,
-        "rgbSplitOn": false,
-        "rgbSplitAmt": -10,
+        "rgbSplitOn": true,
+        "rgbSplitAmt": 3,
         "rgbSplitCurve": [
           [
             0,
-            1
+            0
           ],
           [
             1,
             1
           ]
         ],
-        "rgbSplit_greenY": 10,
+        "rgbSplit_greenY": 0,
         "rgbSplit_blueX": 0,
         "glitchOn": false,
         "glitchAmt": 100,
@@ -1048,7 +1049,7 @@
             1
           ]
         ],
-        "drag": 0.9,
+        "drag": 0.705,
         "gravity": 0,
         "pointGravity": 0,
         "life": 690,
@@ -1119,10 +1120,10 @@
         "fieldMix": 0,
         "tintMode": "palette",
         "palette": [
-          5456383,
-          1592804,
-          2334207,
-          14741503
+          7553535,
+          1631404,
+          7676927,
+          7340022
         ],
         "blendMode": "add",
         "glow": 0,
@@ -1169,11 +1170,15 @@
             1
           ]
         ],
-        "glowOn": false,
-        "glowAmt": 0,
+        "glowOn": true,
+        "glowAmt": 1,
         "glowCurve": [
           [
             0,
+            0
+          ],
+          [
+            0.3273948332323491,
             1
           ],
           [
@@ -1184,7 +1189,7 @@
         "glow_inner": 0,
         "glow_alpha": 1,
         "glow_knockout": false,
-        "glow_color": 16777215,
+        "glow_color": 130950,
         "godrayOn": false,
         "godrayAmt": 0.5,
         "godrayCurve": [
@@ -1407,10 +1412,14 @@
         "outline_knockout": false,
         "outline_color": 0,
         "rgbSplitOn": false,
-        "rgbSplitAmt": -10,
+        "rgbSplitAmt": 3,
         "rgbSplitCurve": [
           [
             0,
+            0.02366213389398175
+          ],
+          [
+            0.26079476561706133,
             1
           ],
           [
@@ -1418,8 +1427,8 @@
             1
           ]
         ],
-        "rgbSplit_greenY": 10,
-        "rgbSplit_blueX": 0,
+        "rgbSplit_greenY": 3,
+        "rgbSplit_blueX": 10,
         "glitchOn": false,
         "glitchAmt": 100,
         "glitchCurve": [

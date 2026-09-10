@@ -5926,9 +5926,10 @@ export function Recruit() {
               recipients: runRef.current.shop.map((o) => ({ uid: o.uid, count: 1 })),
               attack: bfx.shopBuffAll.attack,
               health: bfx.shopBuffAll.health,
+              ...(bfx.shopBuffAll.sourceCardId ? { sourceCardId: bfx.shopBuffAll.sourceCardId } : {}),
             },
             {
-              cardIdOf: () => null, // kind-level binding only — the moment is the shop, not a card
+              cardIdOf: () => bfx.shopBuffAll?.sourceCardId ?? null, // the card that raised the channel, when the beat names one
               measure: (uid) => {
                 const el = document.querySelector<HTMLElement>(`[data-uid="${uid}"]`);
                 return el ? restingCenterOf(el) : null;

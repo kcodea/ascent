@@ -474,7 +474,12 @@ export interface VeinstormFx { uids: string[]; onRefresh: boolean; attack: numbe
  *  units rather than one: Market Tormentor's single-offer Shout rides the per-offer channel and is invisible
  *  here, and Veinstorm's shop gemming was explicitly moved OFF this channel (see `spellBuffShopByRuby`) so
  *  Ruby readers could see its stats — which keeps the gem effects out of this signal for free. */
-export interface ShopBuffAllFx { uids: string[]; attack: number; health: number; }
+export interface ShopBuffAllFx {
+  uids: string[]; attack: number; health: number;
+  /** The card whose effect raised the channel this action, when exactly one did — so a card-authored def
+   *  (Contract Butcher's / Enigma's `shop-buff-shout`) can bind to the shop-wide moment (owner ask 2026-09-10). */
+  sourceCardId?: string;
+}
 
 /** Croupier Ayse's five rewards. Ordered as the classic suit ranking with the Ace last (owner addition
  *  2026-08-22); the order is not load-bearing (the pick is random) but keeps the reward table, the art slugs
@@ -1632,6 +1637,10 @@ export interface RunState {
    *  by diffing the channel, so any future card or quest that raises it animates with no extra wiring. */
   shopBuffAllFx?: ShopBuffAllFx;
   shopBuffAllFxSeq?: number;
+  /** TRANSIENT (cleared by the reducer / the End-of-Turn projection after it stamps the FX): the card id
+   *  `applyRunShopBuff` was last called on behalf of this action. Presentation-only — the FX stamp is still
+   *  DIFFED off `tavernBuyBonus`; this only names who did it. */
+  shopBuffAllSource?: string;
   /** Board/hand uids a RUNE buffed this action (shop phase) — the UI plays `rune-buff-unit` on each. Diffed
    *  from `runeBuffMagnitude` so any rune buff, from any of the ~30 sites, animates with no per-site wiring.
    *  Seq-gated like the other FX payloads. Combat + End-of-Turn rune buffs ride their own channels. */

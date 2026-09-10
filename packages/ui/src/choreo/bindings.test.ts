@@ -201,7 +201,10 @@ const CARD_BINDINGS: Record<string, Record<string, { def: string; fanOut?: strin
   karwind: { buffWave: { def: 'flame-ring', fanOut: 'buffed' }, minionBuffed: { def: 'flame-ring', critDef: 'flame-ring-crit' } },
   // Paymaster Pimm's Shout pays you next turn — `coin-shout` on the card, with the max-Gold sound, which is
   // the first binding to carry an `sfx` at all (see `BINDING_SFX`).
-  dm_butcher: { shout: { def: 'shop-buff-shout' }, scNarrate: { def: 'shop-buff-shout' } },
+  dm_butcher: { shout: { def: 'shop-buff-shout' }, scNarrate: { def: 'shop-buff-shout' }, shopBuffAll: { def: 'shop-buff-shout' } },
+  // Enigma's "when you consume, the Shop +2/+1" plays the SAME shop-buff def as the Butcher, on the shop-wide
+  // moment — which now names its source card (owner ask 2026-09-10).
+  dm_jumbo: { shopBuffAll: { def: 'shop-buff-shout' } },
   // Dragonflame is bound by the SPELL, on both phases — the shop's `spellCast` (played from hand) and combat's
   // `buffWave`. `buffWave`, not `scNarrate`: the cast's ANNOUNCEMENT and its BUFFS are separate moments, and
   // the buffs are both what the def plays on and where the stock tendril it replaces lives. Every combat

@@ -1381,11 +1381,13 @@ export function addTurnShopBuff(state: RunState, attack: number, health: number)
   state.tavernBuyBonusTurn = { atk: cur.atk + attack, hp: cur.hp + health };
 }
 
-export function applyRunShopBuff(state: RunState, attack: number, health: number, source: string): void {
+export function applyRunShopBuff(state: RunState, attack: number, health: number, source: string, sourceCardId?: string): void {
   if (attack <= 0 && health <= 0) return;
   state.tavernBuyBonus.atk += attack;
   state.tavernBuyBonus.hp += health;
   buffFodderRunWide(state, attack, health, source, false);
+  // Name the card for the shop-wide FX stamp (presentation only — see `RunState.shopBuffAllSource`).
+  if (sourceCardId) state.shopBuffAllSource = sourceCardId;
 }
 
 /** Endless Inventory: called after every shop refresh. The magnitude GROWS by `step` every `per` refreshes, so
@@ -3771,18 +3773,14 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     }
   },
 
-  /** Set 2 — Enigma (this consumed a minion): give minions in the Shop +attack/+health PERMANENTLY, via the same
-   *  `tavernBuyBonus` channel Contract Butcher / Staff of Guel use (a lasting buff on everything you buy from
-   *  here on, Fodder included). Guarded to THIS body's consume (`payload.minion === self`), matching Ashen
-   *  Broodlord's "when this consumes". Golden doubles. */
-  onConsumeBuffShop: (ctx, self, params, payload) => {
-    if ((payload as { minion?: BoardCard } | undefined)?.minion !== self) return;
-    const a = num(params.attack, 2) * gold(self);
-    const h = num(params.health, 1) * gold(self);
-    if (a === 0 && h === 0) return;
-    ctx.state.tavernBuyBonus.atk += a;
-    ctx.state.tavernBuyBonus.hp += h;
-    buffFodderRunWide(ctx.state, a, h, nameOf(self), false);
+  /** Set 2 — Enigma ("When you consume a minion"): give minions in the Shop +attack/+health PERMANENTLY, via the
+   *  same `tavernBuyBonus` channel Contract Butcher / Staff of Guel use (a lasting buff on everything you buy from
+   *  here on, Fodder included). ANY friendly consume — Blart's End-of-Turn bite, Appetite Agent feeding another
+   *  Demon, Enigma itself — not only this body's (owner 2026-09-10: "it should be any consume"; it had been
+   *  guarded to `payload.minion === self` like Ashen Broodlord's "when THIS consumes", which is a different
+   *  text). `fire` walks the board, so two Enigmas each pay once. Golden doubles. */
+  onConsumeBuffShop: (ctx, self, params) => {
+    applyRunShopBuff(ctx.state, num(params.attack, 2) * gold(self), num(params.health, 1) * gold(self), nameOf(self), self.cardId);
   },
 
   /** Baby Gastrid (Shout, targeted; ex-Quartermaster Dorrin): +Health per Gold spent THIS TURN — a tempo reward for shopping
@@ -5156,9 +5154,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       a = (num(params.attack, 1) + bonus) * gold(self);
       h = (num(params.health, 1) + bonus) * gold(self);
     }
-    ctx.state.tavernBuyBonus.atk += a;
-    ctx.state.tavernBuyBonus.hp += h;
-    buffFodderRunWide(ctx.state, a, h, nameOf(self), false);
+    applyRunShopBuff(ctx.state, a, h, nameOf(self), self.cardId); // the one channel helper — names the card for the FX
     const step = num(params.improve, 0);
     if (step > 0) self.summonBonus = bonus + step;
   },
@@ -11303,7 +11299,7 @@ export interface EotStepFx {
    *  Curator, a quest `shopBuff` reward). Present only when EVERY offer grew from the run-wide channel, which
    *  is what separates the shop-wide aura from a Moira-re-fired Market Tormentor growing one offer. Mirrors
    *  the reducer's action-level `shopBuffAllFx` so the recruit-phase and End-of-Turn paths agree. */
-  shopBuffAll?: { attack: number; health: number };
+  shopBuffAll?: { attack: number; health: number; sourceCardId?: string };
   /** Board/hand uids a RUNE buffed this beat — the UI plays `rune-buff-unit` on each. Same source-label diff
    *  (`runeBuffMagnitude`) the reducer's shop path uses, so any End-of-Turn rune buff animates unwired. */
   runeBuffUnits?: string[];
@@ -11411,7 +11407,9 @@ export function projectEndOfTurnSteps(state: RunState): {
     const shopAllDelta = {
       attack: (clone.tavernBuyBonus?.atk ?? 0) - tavernBefore.a,
       health: (clone.tavernBuyBonus?.hp ?? 0) - tavernBefore.h,
+      ...(clone.shopBuffAllSource ? { sourceCardId: clone.shopBuffAllSource } : {}),
     };
+    delete clone.shopBuffAllSource; // transient — consumed by this beat's stamp
     // Rubies this beat played onto board minions (the Lapidary) — the delta, not the total, like the reducer.
     const ruby: { uid: string; count: number }[] = [];
     for (const c of clone.board) {

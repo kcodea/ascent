@@ -82,6 +82,10 @@ export const PATCH_NOTES: PatchNote[] = [
         text: 'Xerox reads "Summon an exact copy" (it always was one: gilding and progress ride along). Selfless Sentinel now says Ward, like every other card.',
       },
       {
+        category: 'Card Change',
+        text: 'Enigma now triggers on ANY consume by your minions, including Bob Blart at End of Turn and a Demon fed by Appetite Agent. It only fired when Enigma itself ate. Its shop buff plays the same effect as Contract Butcher.',
+      },
+      {
         category: 'New Card',
         text: 'Wolves Den (Tier 3 Undead/Beast) joins Set 3 — Deathrattle: summon 3 Crypt Wolves.',
       },

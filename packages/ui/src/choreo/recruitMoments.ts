@@ -252,7 +252,7 @@ export function recruitMomentsSince(
   if (run.shopBuffAllFxSeq !== undefined && run.shopBuffAllFxSeq !== prev.shopBuffAll) {
     const f = run.shopBuffAllFx;
     if (f !== undefined && (f.attack > 0 || f.health > 0)) {
-      out.push({ kind: 'shopBuffAll', recipients: f.uids.map((uid) => ({ uid, count: 1 })), attack: f.attack, health: f.health });
+      out.push({ kind: 'shopBuffAll', recipients: f.uids.map((uid) => ({ uid, count: 1 })), attack: f.attack, health: f.health, ...(f.sourceCardId ? { sourceCardId: f.sourceCardId } : {}) });
     }
   }
 

@@ -102,6 +102,9 @@
       },
       "scNarrate": {
         "def": "shop-buff-shout"
+      },
+      "shopBuffAll": {
+        "def": "shop-buff-shout"
       }
     },
     "dm_felspikes": {
@@ -163,6 +166,11 @@
       "spellCast": {
         "def": "reinforcing-ale",
         "fanOut": "buffed"
+      }
+    },
+    "dm_jumbo": {
+      "shopBuffAll": {
+        "def": "shop-buff-shout"
       }
     }
   }

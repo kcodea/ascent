@@ -3245,14 +3245,14 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
 
   /** Flame / Tide / Grove Reveler (on sell): pay the SHARED Reveler value — `stat` picks the lane (attack |
    *  health | both) and the audience (Flame/Tide → your Spirits, Grove → every minion) — then raise it by one.
-   *  Golden pays 2X. Board and hand alike, so a Reveler bought late still lifts what you are holding. */
+   *  Golden pays 2X. BOARD ONLY (owner correction 2026-09-09: "the reveler sells are buffing hand minions which
+   *  is not correct") — the hand is never paid. */
   revelerSell: (ctx, self, params) => {
     const x = revelerValue(ctx.state) * gold(self);
     const stat = str(params.stat);
     const a = stat === 'health' ? 0 : x, h = stat === 'attack' ? 0 : x;
     const all = stat === 'both';
-    for (const c of [...ctx.state.board, ...ctx.state.hand]) {
-      if (CARD_INDEX[c.cardId]?.spell) continue;
+    for (const c of ctx.state.board) {
       if (!all && !isTribe(c, 'spirit')) continue;
       addBuff(c, nameOf(self), a, h);
     }

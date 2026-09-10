@@ -8,7 +8,7 @@ import { revelerValue, spiritsPlayedThisTurn } from './recruit';
  * SET 3 — SPIRITS, tranche 1 (owner roster + rulings 2026-09-09). The roster order is pinned by
  * `set3Scaffold.test.ts`; this file covers the engines:
  *  - The SHARED Reveler value: every Reveler pays it (Flame → Attack, Tide → Health, Grove → both, to every
- *    minion) and raises it by one; golden pays 2X; hand Spirits are paid too. Luminary adds it on both stats.
+ *    minion, BOARD ONLY) and raises it by one; golden pays 2X. Luminary adds it on both stats.
  *  - Revelers as a class: Revelator / Revelmaker hand them out; Treasurer's stacking, capped, spent discount;
  *    Grand Procession's one-return-per-type-per-turn.
  *  - The Spirits-played tally: Kindled Sprite (combat, frozen at combat start), Nurturer's repeats.
@@ -45,7 +45,7 @@ describe('the Revelers share one value', () => {
     s = sell(s, 'f');
     expect(stats(at(s, 'k'))).toEqual([3 + 1, 1]);
     expect(stats(at(s, 'v')), 'Flame pays Spirits only').toEqual([1, 1]);
-    expect(stats(inHand(s, 'h')), 'hand Spirits are paid too').toEqual([1 + 1, 3]);
+    expect(stats(inHand(s, 'h')), 'the hand is NEVER paid (owner correction 2026-09-09)').toEqual([1, 3]);
     expect(revelerValue(s)).toBe(2);
     s = sell(s, 't');
     expect(stats(at(s, 'k'))).toEqual([4, 1 + 2]);

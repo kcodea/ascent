@@ -53,12 +53,11 @@ const ART_PENDING = new Set<string>([
   // properly-named `UnbridledMight.png` that resolved the old UnbridledWrath near-miss). Grand Larceny is
   // the one Gift still awaiting a master.
   'gift_larceny',
-  // SET 3 SPIRITS (tranche 1, 2026-09-09): seven masters landed with the roster (Kindled Sprite, Tidebud, Flame +
-  // Tide Reveler, Bondweaver Shaman, Festival Keeper, Nurturer); the rest are authored ahead of their art.
-  'sp3_grovereveler', 'sp3_dreamcurrent', 'sp3_paradeartificer', 'sp3_gatheringguide', 'sp3_aspect', 'sp3_treasurer',
-  'sp3_revelator', 'sp3_luminary', 'sp3_forestcolossus', 'sp3_grandprocession',
-  // …tranche 2 (the hand-summon cards): Hearth Whisperer + Seedling Spirit have masters; the rest are pending.
-  'sp3_slumbering', 'sp3_dreamtide', 'sp3_flamebanner', 'sp3_handboundtitan', 'sp3_dreamingdeep',
+  // SET 3 SPIRITS (2026-09-09): eleven tranche-1 masters have landed (the second batch brought Dreamcurrent Mystic,
+  // Spirit Artificer, Gathering Guide, Aspect Choreographer); the rest are authored ahead of their art.
+  'sp3_grovereveler', 'sp3_treasurer', 'sp3_revelator', 'sp3_luminary', 'sp3_forestcolossus', 'sp3_grandprocession',
+  // …tranche 2 (the hand-summon cards): Hearth Whisperer, Seedling Spirit + Tide Caller have masters; the rest are pending.
+  'sp3_slumbering', 'sp3_flamebanner', 'sp3_handboundtitan', 'sp3_dreamingdeep',
   // SET 3 NEUTRALS: NONE LEFT — the Clue master landed 2026-09-09 (the set-3 Yazzus fork wears the original
   // Yazzus portrait via an alias, so it never needed one).
   // SET 3 DWARVES: NONE LEFT — Tankerchief's master landed 2026-09-09.

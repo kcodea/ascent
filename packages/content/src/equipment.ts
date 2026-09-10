@@ -373,7 +373,7 @@ export const SPIRITBRINGER: EquipmentDefinition = {
 };
 
 /**
- * REVELMAKER — Parade Artificer's Equipment (set-3 Spirit roster, 2026-09-09): a random Reveler to hand;
+ * REVELMAKER — Spirit Artificer's Equipment (set-3 Spirit roster, 2026-09-09): a random Reveler to hand;
  * gilded hands out two. The factory multiplies by the SOURCE's gilding, so the params restate the count.
  */
 export const REVELMAKER: EquipmentDefinition = {

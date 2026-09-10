@@ -77,6 +77,7 @@ export const CHANNEL_OF_TRIGGER: Readonly<Record<string, string>> = {
   orbitFired: 'play',
   battlecryTriggered: 'play',
   cardsPlayed: 'play',
+  onTribePlayed: 'play', // set 3 Spirits: a Spirit played from hand — the same channel as every other play watcher
   chooseOnePlayed: 'play',
   cast: 'spell-cast',
   spellCast: 'spell-cast',

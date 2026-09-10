@@ -20,6 +20,7 @@ export const EMPTY_SIDE: Readonly<CombatSideState> = Object.freeze({
   fodderConsumedHp: 0,
   beastBuyAtk: 0,
   beastsPlayed: 0,
+  spiritsPlayed: 0,
   cardsBoughtThisTurn: 0,
   magneticAtk: 0,
   magneticHp: 0,

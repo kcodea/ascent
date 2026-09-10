@@ -70,6 +70,7 @@ const SURGES: { value: SurgeTribe | null; label: string }[] = [
   { value: 'kobold', label: 'Kobold' },
   { value: 'demon', label: 'Demon' },
   { value: 'dwarf', label: 'Dwarf' },
+  { value: 'spirit', label: 'Spirit' },
 ];
 
 export function PracticeOptions() {

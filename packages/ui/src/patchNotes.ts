@@ -56,6 +56,25 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-09',
+    label: 'Set 3 Spirits I',
+    changes: [
+      {
+        category: 'New Card',
+        text: 'A new tribe for Set 3: Spirits. Seventeen arrive now — the Revelers you sell for a growing reward, and the Spirits that count how many you play.',
+        details: [
+          'Flame, Tide and Grove Reveler (Tiers 2, 2, 4): when you sell one, your Spirits get +X Attack (Flame), +X Health (Tide), or every minion gets +X/+X (Grove) — and X, shared by all three, goes up by one. A golden Reveler pays double.',
+          'Revelator (Tier 5) and Spirit Artificer\'s Revelmaker (Tier 4 Equip, 2 Gold) hand you a random Reveler. Festival Treasurer (Tier 5): each Reveler you sell makes your next Spirit this turn 1 cheaper, up to 3. Grand Procession (Tier 7): the first Flame, Tide and Grove Reveler you sell each turn return a plain copy to your hand.',
+          'Festival Luminary (Tier 6): Shout — 3 random Spirits get +1/+1 plus your Reveler bonus.',
+          'Kindled Sprite (Tier 1): Rally — +1 Attack per Spirit played this turn. Nurturer (Tier 3): End of Turn — a random Spirit gets +3/+4, repeated for every Spirit played this turn.',
+          'Festival Keeper (Tier 3): after every 3 Spirits you play, get a random spell (progress carries over). Aspect Choreographer (Tier 5): whenever you play a Spirit, 3 random Spirits get +1/+1, improving every 3 triggers. Forest Colossus (Tier 6): Start of Combat — your Spirits get +1/+1 for each Spirit played since it was played.',
+          'Tidebud (Tier 1): Shout — a random Spirit on your board and one in your hand get +2 Health. Bondweaver Shaman (Tier 3): Equip Spiritbringer (2) — a Spirit on your board and one in hand get +6/+6. Gathering Guide (Tier 4): Shout — if you control a Spirit, Discover a Spirit. Dreamcurrent Mystic (Tier 4): whenever you cast a Shop spell, a minion in your hand gets +4/+6.',
+          'Every scaling Spirit prints its current number on the card. Spirits can also be a Practice tribe surge.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-09',
     label: 'Forsaken Mage + fixes',
     changes: [
       {

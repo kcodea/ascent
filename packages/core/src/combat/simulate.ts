@@ -598,6 +598,7 @@ export function simulate(
     hpGrantBonus: m.hpGrantBonus,
     ascendProgress: m.ascendProgress,
     spellProgress: m.spellProgress, // Guel: the live combat text reads his on-board spell tally
+    spiritTally: m.spiritTally, // Set 3 Spirits: Forest Colossus's Start of Combat reads it; Keeper / Aspect print it
 
     buffs: m.buffs, // recruit-phase buff breakdown → the combat inspect panel (absent on summoned tokens)
   });
@@ -659,6 +660,7 @@ export function simulate(
     events,
     spellsThisTurn: playerState.spellsThisTurn,
     beastsPlayedThisTurn: playerState.beastsPlayed,
+    spiritsPlayedThisTurn: playerState.spiritsPlayed,
     spellPower,
     enemySpellPower,
     spellPowerFor: (side) => (side === 'player' ? spellPower : enemySpellPower),
@@ -706,6 +708,7 @@ export function simulate(
       return extra;
     },
     beastsPlayedFor: (side) => (side === 'player' ? playerState.beastsPlayed : enemyBeastsPlayed),
+    spiritsPlayedFor: (side) => (side === 'player' ? playerState.spiritsPlayed : (enemyState.spiritsPlayed ?? 0)),
     cardsBoughtThisTurnFor: (side) => (side === 'player' ? playerState.cardsBoughtThisTurn : enemyState.cardsBoughtThisTurn),
     fodderConsumedFor: (side) => (side === 'player'
       ? { attack: playerState.fodderConsumedAtk, health: playerState.fodderConsumedHp }
@@ -3187,6 +3190,7 @@ export function simulate(
       overflowBonus: minion.overflowBonus,
       hpGrantBonus: minion.hpGrantBonus,
       ascendProgress: minion.ascendProgress,
+      spiritTally: minion.spiritTally,
       sourceUid: minion.sourceUid,
       rallyMechAtk: weldedRally > 0 ? weldedRally : undefined,
       rallySpellWeld: minion.rallySpellWeld, // welded-only already (no card component); carry the copy exactly

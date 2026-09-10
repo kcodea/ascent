@@ -76,6 +76,7 @@ export function instantiate(
     overflowBonus: board.overflowBonus, // Flowing Monk: flat grant bonus from the triple combine
     hpGrantBonus: board.hpGrantBonus, // Sergeant: seed the Deathrattle HP-grant accrual from the run board
     ascendProgress: board.ascendProgress, // Tara: seed the ascend tally so the live tracker shows the total
+    spiritTally: board.spiritTally, // Set 3 Spirits: Forest Colossus's Start of Combat reads it
     spellProgress: board.spellProgress, // Guel: seed the per-instance spell tally for the live combat text
     sourceUid: board.sourceUid,
     rallyMechAtk: rallyMechAtk > 0 ? rallyMechAtk : undefined,

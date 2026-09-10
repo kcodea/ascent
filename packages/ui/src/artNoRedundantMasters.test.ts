@@ -101,6 +101,7 @@ describe('no redundant PNG masters ship alongside their WebP builds', () => {
     // Glass icon, the Tower Shield spell art). The set-3 Yazzus is an ALIAS of the Yazzus file, not a sixth.
     // +4 the same day: Set 3 Neutrals tranche 3 (Highway Hustler, Warband Recruiter, Equipment Charger, the Whiplass-o icon).
     // +1 the same day: the Clue spell art (the Undead re-wire replaced files in place — net 0).
-    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1120);
+    // +7 the same day: Set 3 Spirits tranche 1 (the seven masters that exist so far).
+    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1130);
   });
 });

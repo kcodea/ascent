@@ -1284,16 +1284,19 @@ function reduceCore(state: RunState, action: Action): RunState {
       const cadenceOff = !freeBuy ? gateUses(s.cadenceMinionOff) : 0; // −1 per Cadence copy held (owner 2026-08-27)
       // GIFT — Friends and Family: shop minions cost less for the rest of this turn.
       const giftMinionOff = freeBuy ? 0 : (s.minionCostOffTurn ?? 0);
+      // Set 3 Spirits — Festival Treasurer: the next SPIRIT this turn costs less (stacked per Reveler sold, capped).
+      const spiritOff = !freeBuy && defIsTribe(CARD_INDEX[offer.cardId], 'spirit') ? (s.spiritDiscount ?? 0) : 0;
       // Rune of Trade-In: an armed per-type discount (from this turn's first sale) knocks 1 off a matching minion.
       const tiDef = s.tradeInTribe ? CARD_INDEX[offer.cardId] : undefined;
       const tradeInOff = !freeBuy && s.runeTradeIn && s.tradeInTribe && defIsTribe(tiDef, s.tradeInTribe) ? runeStacksOf(s, 'rune_trade_in') : 0; // All-types matches any armed tribe; −1 per copy held (owner 2026-08-27)
       // `heroOfferPrice` = Frantic Frank's Clearance / Foreman Flint's Company Rate (flat 2). Shared with the
       // UI's cost coin so the shown price is the charged price.
-      const buyCost = freeBuy ? 0 : Math.max(0, (offer.cost ?? heroOfferPrice(s, offer) ?? s.minionCostOverride ?? minionCostOf(s)) - cadenceOff - tradeInOff - giftMinionOff); // Moe's set price > Frank/Flint 2g > Merchant's Mark override > Hank/default
+      const buyCost = freeBuy ? 0 : Math.max(0, (offer.cost ?? heroOfferPrice(s, offer) ?? s.minionCostOverride ?? minionCostOf(s)) - cadenceOff - tradeInOff - spiritOff - giftMinionOff); // Moe's set price > Frank/Flint 2g > Merchant's Mark override > Hank/default
       if (s.embers < buyCost || s.hand.length >= handCap(s)) return state;
       s.shop.splice(i, 1);
       ciaBuyEnchanted(s, offer); // Croupier Ayse: an Enchanted buy advances her prize counter
       spendGold(s, buyCost);
+      if (spiritOff > 0) s.spiritDiscount = 0; // the Treasurer's discount is spent by the Spirit it applied to
       if (cadenceOff) procRuneId(s, 'rune_cadence');
       if (cadenceOff) s.cadenceMinionOff = undefined; // spent
       if (tradeInOff) procRuneId(s, 'rune_trade_in');
@@ -3218,6 +3221,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         hpGrantBonus: b.hpGrantBonus ?? 0, // Sergeant: seed the Deathrattle HP-grant accrual into combat
         ascendProgress: b.ascendProgress ?? 0, // Tara: seed the prior ascend tally so the live tracker shows the total
         spellProgress: b.spellProgress, // Guel: seed his on-board spell tally so the live combat text scales (not stuck at base)
+        spiritTally: b.spiritTally, // Set 3 Spirits: Forest Colossus's Start of Combat reads it; Festival Keeper / Aspect print it
         eotBonus: b.eotBonus, // Ritualist: seed the End-of-Turn grant so the live combat text reads its current per-tick value
         sellBonus: b.sellBonus, // Trail Forager: seed the accrued sell value for the live combat text (no combat effect)
         eotTick: b.eotTick, // Frontdrake / Money Maker / Vineweaver: seed the cadence counter for the live combat text
@@ -3343,6 +3347,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       // reproducible and don't disturb the real combat RNG). ~1000 sims keeps the margin to ~±1.5%.
       // Pack Leader: Beasts you PLAYED this turn (frozen for combat), threaded into simulate like spellsThisTurn.
       const beastsPlayed = (s.playedThisTurn ?? []).filter((id) => defIsTribe(CARD_INDEX[id], 'beast')).length;
+      const spiritsPlayed = (s.playedThisTurn ?? []).filter((id) => defIsTribe(CARD_INDEX[id], 'spirit')).length; // Kindled Sprite
       // The PLAYER side's run-level combat context — one symmetric `CombatSideState`, built once from the live
       // RunState and shared by the real fight + the 1000-sim odds probe.
       const playerState: CombatSideState = combatSide({
@@ -3366,6 +3371,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         fodderConsumedHp: s.fodderConsumedThisTurn?.health ?? 0,
         beastBuyAtk: s.beastBuyAtk ?? 0,
         beastsPlayed,
+        spiritsPlayed,
         cardsBoughtThisTurn: s.cardsBoughtThisTurn ?? 0,
         magneticAtk: s.magneticBuyAtk ?? 0,
         magneticHp: s.magneticBuyHp ?? 0,
@@ -4601,6 +4607,8 @@ function advanceCombat(s: RunState): void {
   s.shoutExtraTurn = 0;
   s.spellCostOffTurn = 0;
   s.minionCostOffTurn = 0;
+  s.spiritDiscount = 0; // Festival Treasurer: "this turn"
+  s.processionReturned = []; // Grand Procession: one return per Reveler type per turn
   s.dupeUsedThisTurn = false; // Dupes: the first-buy copy is a per-turn freebie
   s.gorrBuys = undefined; // Gorr: the per-turn minion-buy tally resets
   s.freeBuyUsedThisTurn = false; // Freedom rift: the first minion each turn is free again

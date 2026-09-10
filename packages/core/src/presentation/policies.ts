@@ -85,6 +85,23 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:clueBuffTarget:cast': { policy: 'ownBeat', family: 'spellCast' },
   'factory:rallySummonAndGetRally:onAttack': { policy: 'ownBeat', family: 'rally' },
   'factory:startOfTurnEquipmentCharge:startOfTurn': { policy: 'passive', family: 'economy' },
+  // set 3 Spirits (tranche 1)
+  'factory:rallyGainAttackPerSpiritsPlayed:onAttack': { policy: 'ownBeat', family: 'rally' },
+  'factory:battlecryBuffRandomTribeBoardAndHand:onPlay': { policy: 'ownBeat', family: 'shout' },
+  'factory:revelerSell:onSell': { policy: 'ownBeat', family: 'economy' },
+  'factory:battlecryGrantRandomReveler:onPlay': { policy: 'ownBeat', family: 'shout' },
+  'factory:minionSoldRevelerDiscount:minionSold': { policy: 'passive', family: 'economy' },
+  'factory:minionSoldRevelerReturn:minionSold': { policy: 'ownBeat', family: 'economy' },
+  'factory:battlecryBuffRandomTribePlusReveler:onPlay': { policy: 'ownBeat', family: 'shout' },
+  'factory:battlecryDiscoverTribeIfControl:onPlay': { policy: 'ownBeat', family: 'shout' },
+  'factory:endOfTurnBuffRandomTribeRepeatPerPlayed:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
+  'factory:scBuffTribePerTally:startOfCombat': { policy: 'ownBeat', family: 'startOfCombat' },
+  // onTribePlayed watchers cluster by TRIGGER GROUP (conventionQuestions.ts 'tribePlayed'), so they wear the trigger-keyed
+  // 'economy' family — NOT 'shout' / 'spellCast', which would drag those decided family questions across two events.
+  'factory:tribePlayedEveryNGrantRandomSpell:onTribePlayed': { policy: 'ownBeat', family: 'economy' },
+  'factory:tribePlayedBuffRandomTribeImproving:onTribePlayed': { policy: 'ownBeat', family: 'economy' },
+  'factory:tribePlayedTally:onTribePlayed': { policy: 'passive', family: 'economy' },
+  'factory:spellCastBuffRandomHand:spellCast': { policy: 'foldedCue', family: 'castReact' },
   'factory:battlecrySummon:onPlay': { policy: 'ownBeat', family: 'shout' },
   'factory:battlecryTargetConsumesShop:onPlay': { policy: 'ownBeat', family: 'shout' },
   'factory:battlecryTriggeredOwnDeathrattle:battlecryTriggered': { policy: 'foldedCue', family: 'shoutReact' },

@@ -1081,7 +1081,7 @@ export interface StepProgress {
  */
 export function stepProgress(
   cardId: string,
-  p: { spellProgress?: number; summonBonus?: number; ascendProgress?: number; eotTick?: number; attackSeen?: number; avengeSeen?: number; bleedAttacks?: number; goldTick?: number; buyTick?: number; playTick?: number; shoutTick?: number; soldProgress?: number; grimoireCharged?: boolean; orbitTick?: number; rubyCastTick?: number },
+  p: { spellProgress?: number; spiritTally?: number; summonBonus?: number; ascendProgress?: number; eotTick?: number; attackSeen?: number; avengeSeen?: number; bleedAttacks?: number; goldTick?: number; buyTick?: number; playTick?: number; shoutTick?: number; soldProgress?: number; grimoireCharged?: boolean; orbitTick?: number; rubyCastTick?: number },
 ): StepProgress | null {
   const def = CARD_INDEX[cardId];
   if (!def) return null;
@@ -1226,4 +1226,52 @@ export function rallySpreadText(cardId: string, golden: boolean, rallySpreadAtk?
   const grant = base + rallySpreadAtk; // what the next rally attack actually hands out
   const src = golden ? (def!.goldenText ?? def!.text) : def!.text;
   return src.replace(`+${base} Attack`, `{{+${grant} Attack}}`);
+}
+
+/**
+ * SET 3 SPIRITS — the live line for every Spirit whose number moves (the hard rule: a card prints what it does
+ * NOW). One helper, keyed by id, so the shop / hand / Discover chain and the combat chain read one truth:
+ *  - the Revelers print the SHARED Reveler value (Flame → Attack, Tide → Health, Grove → both; golden 2X);
+ *  - Festival Luminary prints +(1 + X) on both stats;
+ *  - Festival Keeper prints its progress toward the next spell; Aspect Choreographer its current grant + the
+ *    countdown to the next improvement; Forest Colossus the Spirits it has counted; Nurturer and Kindled
+ *    Sprite the Spirits played this turn. Null when the printed base is already exact.
+ */
+export function spiritText(
+  cardId: string, golden: boolean,
+  p: { revelerX?: number; spiritTally?: number; spiritsPlayed?: number; onBoard?: boolean },
+): string | null {
+  const g = golden ? 2 : 1;
+  const x = Math.max(1, p.revelerX ?? 1);
+  const tally = p.spiritTally ?? 0;
+  const played = p.spiritsPlayed ?? 0;
+  const live = (n: number | string): string => `{{${n}}}`;
+  switch (cardId) {
+    case 'sp3_flamereveler': return x * g > g ? `When you **sell** this, give your Spirits **${live(`+${x * g} Attack`)}**, then increase that by 1.` : null;
+    case 'sp3_tidereveler': return x * g > g ? `When you **sell** this, give your Spirits **${live(`+${x * g} Health`)}**, then increase that by 1.` : null;
+    case 'sp3_grovereveler': return x * g > g ? `When you **sell** this, give your minions **${live(`+${x * g}/+${x * g}`)}**, then increase that by 1.` : null;
+    case 'sp3_luminary': {
+      const v = (1 + x) * g;
+      return `**Shout:** give **3** random Spirits **${live(`+${v}/+${v}`)}** (+${g}/+${g} plus ${golden ? 'twice ' : ''}your **Reveler** bonus).`;
+    }
+    case 'sp3_festivalkeeper': {
+      const every = 3;
+      const seen = tally % every;
+      return seen > 0 ? `After you play **3** Spirits, get ${golden ? '**2** random spells' : 'a random spell'}. ${live(`${seen}/${every}`)}` : null;
+    }
+    case 'sp3_aspect': {
+      const every = 3;
+      const level = 1 + Math.floor(tally / every);
+      const v = level * g;
+      const left = every - (tally % every);
+      return `Whenever you play a Spirit, give **3** random friendly Spirits **${live(`+${v}/+${v}`)}**. Improves by **+${g}/+${g}** in ${live(`${left}`)} more.`;
+    }
+    case 'sp3_forestcolossus':
+      return p.onBoard ? `**Start of Combat:** give your Spirits **${live(`+${tally * g}/+${tally * g}`)}** (+${g}/+${g} for each Spirit played since this was played).` : null;
+    case 'sp3_nurturer':
+      return played > 0 ? `**End of Turn:** give a random Spirit **+${3 * g}/+${4 * g}**. Repeat for every Spirit played this turn ${live(`(×${1 + played})`)}.` : null;
+    case 'sp3_kindled':
+      return played > 0 ? `**Rally:** gain **${live(`+${played * g} Attack`)}** (+${g} for each Spirit you played this turn).` : null;
+    default: return null;
+  }
 }

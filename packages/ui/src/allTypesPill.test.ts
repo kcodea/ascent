@@ -53,6 +53,10 @@ const ART_PENDING = new Set<string>([
   // properly-named `UnbridledMight.png` that resolved the old UnbridledWrath near-miss). Grand Larceny is
   // the one Gift still awaiting a master.
   'gift_larceny',
+  // SET 3 SPIRITS (tranche 1, 2026-09-09): seven masters landed with the roster (Kindled Sprite, Tidebud, Flame +
+  // Tide Reveler, Bondweaver Shaman, Festival Keeper, Nurturer); the rest are authored ahead of their art.
+  'sp3_grovereveler', 'sp3_dreamcurrent', 'sp3_paradeartificer', 'sp3_gatheringguide', 'sp3_aspect', 'sp3_treasurer',
+  'sp3_revelator', 'sp3_luminary', 'sp3_forestcolossus', 'sp3_grandprocession',
   // SET 3 NEUTRALS: NONE LEFT — the Clue master landed 2026-09-09 (the set-3 Yazzus fork wears the original
   // Yazzus portrait via an alias, so it never needed one).
   // SET 3 DWARVES: NONE LEFT — Tankerchief's master landed 2026-09-09.

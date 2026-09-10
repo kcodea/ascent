@@ -224,6 +224,7 @@ function cleanBoard(s: RunState): BoardMinion[] {
     ...(c.hpGrantBonus ? { hpGrantBonus: c.hpGrantBonus } : {}),
     ...(c.ascendProgress ? { ascendProgress: c.ascendProgress } : {}),
     ...(c.spellProgress ? { spellProgress: c.spellProgress } : {}), // Archmagus Guel: on-board spell tally
+    ...(c.spiritTally ? { spiritTally: c.spiritTally } : {}), // Set 3 Spirits: Forest Colossus's Spirits-since-played (SoC reads it)
     ...(c.overflowBonus ? { overflowBonus: c.overflowBonus } : {}), // Flowing Monk: flat triple-combine grant bonus
     // Per-instance COMBAT state (mirrors the reducer's own player board→combat mapping): without these a served
     // board fought differently than the real one did — Gravetwin's copied Echo never procced, Bloodbinder's Rally

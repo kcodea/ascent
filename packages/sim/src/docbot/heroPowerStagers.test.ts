@@ -513,6 +513,14 @@ describe('adopted-secondary stagers', () => {
     expect(gildCopiesNeeded(s), 'the wielded power is the rule, not the portrait').toBe(2);
     expect(gildCopiesNeeded(createRun(7, 'mimic')), 'undisguised Mimic Gilds at 3').toBe(3);
   });
+
+  it('adopting Midas with a held PAIR gilds it on the spot — the threshold moved, so the triple check runs at adoption (owner 2026-09-10)', () => {
+    const stray = (uid: string) => ({ uid, cardId: 'stray', tribe: 'beast' as const, attack: 1, health: 1, keywords: [], golden: false });
+    const s0: RunState = { ...createRun(7, 'mimic'), phase: 'recruit', powerOffer: { heroIds: ['midas'], slot: 'mimic' }, board: [stray('a')], hand: [stray('b')] } as RunState;
+    const s = reduce(s0, { type: 'pickPower', index: 0 } as Act);
+    const strays = [...s.board, ...s.hand].filter((c) => c.cardId === 'stray');
+    expect(strays.map((c) => c.golden), 'two copies became one golden at the new threshold').toEqual([true]);
+  });
 });
 
 // ── SABOTAGE (§3.5) ──────────────────────────────────────────────────────────────────────────────────────

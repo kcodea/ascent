@@ -74,6 +74,15 @@ describe('Power Shifter — casting', () => {
     expect(s.hand.some((c) => c.cardId === 'n2_reflector')).toBe(true);
   });
 
+  it('a gift that completes a held pair gilds at adoption (Yirin's Reflector as the third copy) — owner 2026-09-10', () => {
+    const refl = (uid: string) => ({ uid, cardId: 'n2_reflector', tribe: 'neutral' as const, attack: 2, health: 2, keywords: [], golden: false });
+    let s = cast(withShifter('warden', 5));
+    s = { ...s, powerOffer: { heroIds: ['rohan', 'nadja'], slot: 'shifter' }, board: [refl('r1')], hand: [refl('r2')] } as RunState;
+    s = reduce(s, { type: 'pickPower', index: 0 });
+    const copies = [...s.board, ...s.hand].filter((c) => c.cardId === 'n2_reflector');
+    expect(copies.map((c) => c.golden), 'three copies → one golden, at adoption').toEqual([true]);
+  });
+
   it('on VOID it replaces slot 0 IN PLACE, leaving the second power alone', () => {
     let s = withShifter('voidhero', 5, { voidPowerIds: ['warden', 'nadja'] });
     s = cast(s);

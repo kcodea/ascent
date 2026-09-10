@@ -58,6 +58,10 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-09-10',
     changes: [
       {
+        category: 'Hero Change',
+        text: 'Adopting a hero power (Mimic, Void, Power Shifter) now runs the Gild check immediately. A held pair gilds the moment Midas' Touch lands, and a power's gift card combines on arrival.',
+      },
+      {
         category: 'New Card',
         text: 'Wolves Den (Tier 3 Undead/Beast) joins Set 3 — Deathrattle: summon 3 Crypt Wolves.',
       },

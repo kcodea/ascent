@@ -273,7 +273,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "statement": "All 13 'grant' cards trigger the same way. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
     "currentBehaviour": "1 effect factories across 13 cards dispatch through the 'grant' presentation family, all on the single trigger 'equip' (recruit); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Pourman: \"Equip Pourman's Keg (1): cast a random Dwarven Ale.\" · Members: Pourman · Thymes · Alchemist Frank · Titan Sculptor · Blast Surveyor · Kaura L'roft · Prismpick Artificer · Highway Hustler · Inspector Pell · Bondweaver Shaman · Parade Artificer · EMS · … and 1 more",
+    "cardText": "Exemplar — Pourman: \"Equip Pourman's Keg (1): cast a random Dwarven Ale.\" · Members: Pourman · Thymes · Alchemist Frank · Titan Sculptor · Blast Surveyor · Kaura L'roft · Prismpick Artificer · Highway Hustler · Inspector Pell · Bondweaver Shaman · Spirit Artificer · EMS · … and 1 more",
     "example": "Pourman follows the 'grant' convention — its trigger fires on equip. its printed numbers double when the card is gilded.",
     "contentIds": [
       "dw3_pourman",

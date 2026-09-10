@@ -266,6 +266,24 @@ describe('summon from hand — a copy, the card stays, once per combat', () => {
     expect(['sp3_kindled', 'sp3_tidebud']).toContain(s[0]!.minion.cardId);
   });
 
+  it('a FULL board does not spend the hand card: the next summoner takes it once there is room (owner report 2026-09-10)', () => {
+    // Seven bodies: two Seedlings and five 1-Health sandbags. Seedling A attacks first — no room, the copy
+    // overflows and must NOT mark the card. The foe then kills a sandbag; Seedling B attacks with room and the
+    // Colossus copy lands. Before the fix the first attempt marked the card and the second found nothing.
+    const hand = [handMinion('h1', 'sp3_slumbering', { attack: 4, health: 4 })];
+    const mine = [bm('sp3_seedling', { attack: 1, health: 30 }), bm('sp3_seedling', { attack: 1, health: 30 }), ...Array.from({ length: 5 }, () => bm('sandbag', { attack: 0, health: 1 }))];
+    const r = fightH(mine, [foe(1, 200)], hand);
+    const s = summonsFromHand(r);
+    expect(s.length, 'the card was still summonable once room opened').toBe(1);
+    expect(s[0]!.fromHandUid).toBe('h1');
+    expect(s[0]!.minion.cardId).toBe('sp3_slumbering');
+    // …and it landed AFTER the first player death freed a slot, i.e. on the second Rally, not the first.
+    const firstDeath = r.events.findIndex((e) => e.type === 'death' && (e as { side?: string }).side === 'player');
+    const summonAt = r.events.findIndex((e) => e.type === 'summon' && (e as { fromHandUid?: string }).fromHandUid === 'h1');
+    expect(firstDeath, 'a sandbag died').toBeGreaterThanOrEqual(0);
+    expect(summonAt, 'the copy landed after room opened').toBeGreaterThan(firstDeath);
+  });
+
   it('Handbound Titan gains the highest-Health hand minion\'s stats at Start of Combat', () => {
     const r = fightH([bm('sp3_handboundtitan')], [foe(0, 40)], [handMinion('h1', 'venom', { attack: 4, health: 12 }), handMinion('h2', 'sp3_kindled')]);
     const titan = r.initial.player[0]!;

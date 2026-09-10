@@ -950,10 +950,15 @@ export function simulate(
       if (!h || h.locked || handSummonedUids.has(uid) || handCopiedUids.has(uid)) return undefined; // a locked card never reaches the board
       const def = cards[h.cardId];
       if (!def || def.spell) return undefined;
-      handCopiedUids.add(uid); // once per combat; the card itself stays in hand and keeps taking buffs
       const kws = [...h.keywords, ...(ward && !h.keywords.includes('DS') ? (['DS'] as Keyword[]) : [])];
       const copy = summonMinion(side, def, nearUid, kws, h.golden, false,
         { attack: h.attack, health: h.health, maxHealth: h.health, divineShield: !!ward || h.keywords.includes('DS') });
+      // A FULL board: `placeSummon` overflowed (the overflow payoffs fired) and the copy never landed — so the
+      // hand card is NOT spent. It is still summonable by the next summoner once there is room (owner report
+      // 2026-09-10: a second Seedling Spirit found room and summoned nothing, because the first attempt had
+      // marked the card). "Once per combat" means once SUMMONED, not once attempted.
+      if (!boards[side].includes(copy)) return undefined;
+      handCopiedUids.add(uid); // once per combat; the card itself stays in hand and keeps taking buffs
       // Stamp the hand origin onto the summon event just emitted — the replay greys that hand card for the fight.
       const ev = events[events.length - 1];
       if (ev && ev.type === 'summon' && ev.minion.uid === copy.uid) ev.fromHandUid = uid;

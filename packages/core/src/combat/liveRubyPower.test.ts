@@ -16,7 +16,7 @@ import { CARD_INDEX } from '@game/content';
  */
 const wall: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 900 }];
 const gemBuffs = (events: readonly CombatEvent[]) =>
-  events.filter((e): e is Extract<CombatEvent, { type: 'buff' }> => e.type === 'buff' && e.source === 'Rune of Attacking Gems');
+  events.filter((e): e is Extract<CombatEvent, { type: 'buff' }> => e.type === 'buff' && e.ruby === true); // the rune plays REAL Rubies now (2026-09-10)
 
 describe('mid-combat Ruby buffs reach later in-combat Ruby plays', () => {
   it("Crownvein's Rally raises the Ruby minted on the SAME swing — and every one after", () => {

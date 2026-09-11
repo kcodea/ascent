@@ -102,6 +102,7 @@ describe('the primitives ship (gates 2 and 3: ensureDefsReady + its caller)', ()
     // never ran and this stayed false forever — `canPlayDefs()` with it.
     expect(hasPrimitives()).toBe(true);
     expect(listPrimitives().map((p) => p.id).sort()).toEqual([
+      'beam',
       'burst',
       'emitter',
       'lightning',

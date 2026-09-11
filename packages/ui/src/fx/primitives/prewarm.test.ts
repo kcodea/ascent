@@ -8,6 +8,7 @@ vi.mock('../shapeTextures', () => ({ prewarmShapeTextures: vi.fn(), SHAPE_NAMES:
 vi.mock('../particleLayerPool', () => ({ prewarmParticleLayers: vi.fn(), linkParticleMaterialOn: vi.fn(() => ({ id: 'particle' })), particleLayerPoolSize: () => 0, resetParticleLayerPool: vi.fn() }));
 vi.mock('./ribbon', () => ({ prewarmRibbonShaders: vi.fn(), linkRibbonShaderOn: vi.fn(() => ({ id: 'ribbon' })) }));
 vi.mock('./lightning', () => ({ prewarmLightningShaders: vi.fn(), linkLightningShaderOn: vi.fn(() => ({ id: 'lightning' })) }));
+vi.mock('./beam', () => ({ prewarmBeamShaders: vi.fn(), linkBeamShaderOn: vi.fn(() => ({ id: 'beam' })) }));
 vi.mock('./shockwave', () => ({ prewarmShockwaveShaders: vi.fn(), linkShockwaveShaderOn: vi.fn(() => ({ id: 'shockwave' })) }));
 vi.mock('./burst', () => ({}));
 vi.mock('./emitter', () => ({}));
@@ -40,7 +41,7 @@ describe('FX pre-warm composition', () => {
     vi.mocked(ribbon.prewarmRibbonShaders).mockClear();
     const under = { id: 'under' } as unknown as import('pixi.js').Renderer;
     const steps = slotPrewarmSteps(under);
-    expect(steps.length).toBe(5);
+    expect(steps.length).toBe(6);
     steps[0]!();
     expect(shapes.prewarmShapeTextures).toHaveBeenCalledWith(under);
     expect(pool.linkParticleMaterialOn, 'the particle link is the SECOND step').not.toHaveBeenCalled();
@@ -60,7 +61,7 @@ describe('FX pre-warm composition', () => {
     vi.mocked(pool.prewarmParticleLayers).mockClear();
     const renderer = { id: 'main' } as unknown as import('pixi.js').Renderer;
     const steps = fxPrewarmSteps(renderer);
-    expect(steps.length).toBe(5);
+    expect(steps.length).toBe(6);
     expect(shapes.prewarmShapeTextures, 'building the steps must not run them').not.toHaveBeenCalled();
     steps[0]!();
     expect(shapes.prewarmShapeTextures).toHaveBeenCalledWith(renderer);

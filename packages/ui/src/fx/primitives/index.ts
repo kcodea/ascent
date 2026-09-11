@@ -23,9 +23,11 @@ import { resetShaderPools } from '../shaderPool';
 import { prewarmShapeTextures } from '../shapeTextures';
 import { linkRibbonShaderOn, prewarmRibbonShaders } from './ribbon';
 import { linkLightningShaderOn, prewarmLightningShaders } from './lightning';
+import { linkBeamShaderOn, prewarmBeamShaders } from './beam';
 import { linkShockwaveShaderOn, prewarmShockwaveShaders } from './shockwave';
 import './ribbon';
 import './lightning';
+import './beam';
 import './burst';
 import './shockwave';
 import './emitter';
@@ -62,6 +64,7 @@ export function fxPrewarmSteps(renderer: Renderer | null): Array<() => void> {
     () => prewarmParticleLayers(renderer),
     () => prewarmRibbonShaders(renderer),
     () => prewarmLightningShaders(renderer),
+    () => prewarmBeamShaders(renderer),
     () => prewarmShockwaveShaders(renderer),
   ];
 }
@@ -95,6 +98,7 @@ export function slotPrewarmSteps(renderer: Renderer | null): Array<() => void> {
     keep(linkParticleMaterialOn),
     keep(linkRibbonShaderOn),
     keep(linkLightningShaderOn),
+    keep(linkBeamShaderOn),
     keep(linkShockwaveShaderOn),
   ];
 }

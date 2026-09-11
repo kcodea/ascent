@@ -7345,6 +7345,58 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  (goldens store base stats, ×2 at combat, like Indy's gild). Untargeted — the game picks the minion. */
   /** Set 2 — Champion's Ale. Give your LEFT-MOST board minion +atk/+hp. Board order, so the pick is
    *  deterministic and consumes no RNG — the player chooses by arranging their line, which is the point. */
+  /* ── SET 3 SPELLS (owner sheet 2026-09-10) ──────────────────────────────────────────────────────── */
+
+  /** Aspect's Blessing (cast, Choose One): a RANDOM minion in hand +a/+h. Spell power folds in (the cast rule). */
+  spellBuffRandomHand: (ctx, _self, params) => {
+    const inHand = ctx.state.hand.filter((c) => !CARD_INDEX[c.cardId]?.spell);
+    const a = num(params.attack, 0) + spellAttackBonus(ctx.state), h = num(params.health, 0) + spellHealthBonus(ctx.state);
+    for (const t of pickRandom(ctx.state, inHand, 1)) addBuff(t, "Aspect's Blessing", a, h);
+  },
+  /** Shared Spirit (cast): one random BOARD minion and one random HAND minion, each +a/+h (owner: both random). */
+  spellBuffRandomBoardAndHand: (ctx, _self, params) => {
+    const a = num(params.attack, 0) + spellAttackBonus(ctx.state), h = num(params.health, 0) + spellHealthBonus(ctx.state);
+    for (const t of pickRandom(ctx.state, [...ctx.state.board], 1)) addBuff(t, 'Shared Spirit', a, h);
+    const inHand = ctx.state.hand.filter((c) => !CARD_INDEX[c.cardId]?.spell);
+    for (const t of pickRandom(ctx.state, inHand, 1)) addBuff(t, 'Shared Spirit', a, h);
+  },
+  /** Star Crash (cast, aimed at a friendly Celestial): the target +a/+h, then the same on a RANDOM friendly minion —
+   *  the whole side is eligible, target included (R-TARGET-01: no "other" is printed). */
+  spellBuffTargetAndRandomFriendly: (ctx, _self, params, payload) => {
+    const target = payload.target;
+    if (!target) return;
+    const a = num(params.attack, 0) + spellAttackBonus(ctx.state), h = num(params.health, 0) + spellHealthBonus(ctx.state);
+    addBuff(target, 'Star Crash', a, h);
+    for (const t of pickRandom(ctx.state, [...ctx.state.board], 1)) addBuff(t, 'Star Crash', a, h);
+  },
+  /** Grave Robbery (cast, aimed): DESTROY the friendly target — the two-step death Graverobber / Cage Breaker use, so
+   *  its Echo, its departure and any Rise get their beats — then get `count` random Shop spells (tier-eligible,
+   *  never an Ale: the "random spell" grant shape every other spell-grant uses). */
+  spellDestroyTargetGetSpell: (ctx, _self, params, payload) => {
+    const target = payload.target;
+    if (!target) return;
+    ctx.state.pendingDeath = { uid: target.uid, kind: 'destroy' };
+    const spells = runSpells(ctx.state).filter((c) => c.tier <= ctx.state.tier && !ALE_IDS.includes(c.id) && !c.token);
+    conjureToHand(ctx.state, spells, num(params.count, 1));
+  },
+  /** Hand Soap (cast): the LEFT-MOST MINION in hand +a/+h — spells in hand are skipped (owner 2026-09-10). */
+  spellBuffLeftmostHandMinion: (ctx, _self, params) => {
+    const target = ctx.state.hand.find((c) => !CARD_INDEX[c.cardId]?.spell);
+    if (!target) return; // no minion in hand → fizzles (see spellFizzle)
+    addBuff(target, 'Hand Soap', num(params.attack, 0) + spellAttackBonus(ctx.state), num(params.health, 0) + spellHealthBonus(ctx.state));
+  },
+  /** Crescendo (cast): the whole board +a/+h for EACH <tribe> minion played this turn — Hoardflame's per-tribe shape,
+   *  board-wide, with no base. Spell power folds in once on top of the total (like Growth), never per Spirit. */
+  spellBuffAllPerTribePlayed: (ctx, _self, params) => {
+    const tribe = str(params.tribe) as Tribe;
+    const played = (ctx.state.playedThisTurn ?? []).filter((id) => { const d = CARD_INDEX[id]; return !!d && defIsTribe(d, tribe); }).length;
+    if (played <= 0 || ctx.state.board.length === 0) return;
+    // Spell power scales the PER-SPIRIT rate (Hoardflame's rule, owner 2026-08-18): +(1+power) per Spirit played.
+    const a = (num(params.attack, 1) + spellAttackBonus(ctx.state)) * played;
+    const h = (num(params.health, 1) + spellHealthBonus(ctx.state)) * played;
+    for (const c of ctx.state.board) addBuff(c, 'Crescendo', a, h);
+  },
+
   spellBuffLeftmost: (ctx, _self, params) => {
     const target = ctx.state.board[0];
     if (!target) return; // empty board → fizzles (the spell is still spent, like every untargeted cast)
@@ -8499,6 +8551,19 @@ export function spellDisplayText(cardId: string, bonusA: number, escalation = 0,
   // Hoardflame: +4/+4 base + spell power + 1/+1 per Dragon PLAYED this turn. This branch used to return before
   // the generic spell-power handling below, so a Spellbinder's bonus never showed (owner report 2026-07-26) —
   // it printed the base rate while the cast granted something else.
+  // Crescendo (set 3): "+1/+1 for each Spirit you played this turn" — spell power scales the per-Spirit rate
+  // (Hoardflame's rule), so the printed rate greens with power, and once a Spirit has been played the card
+  // appends the CURRENT total it will grant (Patch Job's shape).
+  if (def.id === 'crescendo') {
+    const eff = def.effects.find((e) => e.do === 'spellBuffAllPerTribePlayed');
+    const p = eff?.params as { tribe?: string; attack?: number; health?: number } | undefined;
+    const tribe = (p?.tribe ?? 'spirit') as Tribe;
+    const perA = Number(p?.attack ?? 1) + bonusA, perH = Number(p?.health ?? 1) + bonusH;
+    const played = (extra?.playedThisTurn ?? []).filter((id) => { const d = CARD_INDEX[id]; return !!d && defIsTribe(d, tribe); }).length;
+    let t = bonusA > 0 || bonusH > 0 ? def.text.replace(`+${Number(p?.attack ?? 1)}/+${Number(p?.health ?? 1)}`, `{{+${perA}/+${perH}}}`) : def.text;
+    if (played > 0) t = `${t} {{Now +${perA * played}/+${perH * played}.}}`;
+    return t;
+  }
   if (def.id === 'hoardflame') {
     const eff = def.effects.find((e) => e.do === 'spellBuffPerDragonPlayed');
     const p = eff?.params as { attack?: number; health?: number; perAttack?: number; perHealth?: number; per?: number } | undefined;
@@ -8567,6 +8632,18 @@ export function spellDisplayText(cardId: string, bonusA: number, escalation = 0,
     return `${stepText} {{Now +${baseA + bonusA + (a + bonusA) * ticks}/+${baseH + bonusH + (h + bonusH) * ticks}.}}`;
   }
   if (bonusA <= 0 && bonusH <= 0) return def.text;
+  // Set 3 flat stat spells (2026-09-10) — Aspect's Blessing (both branches), Shared Spirit, Star Crash, Hand Soap:
+  // each printed "+A/+H" is a grant that folds spell power on both stats, so each greens.
+  const flat3 = allEffectsOf(def).filter((e) => e.on === 'cast'
+    && ['spellBuffRandomHand', 'spellBuffRandomBoardAndHand', 'spellBuffTargetAndRandomFriendly', 'spellBuffLeftmostHandMinion'].includes(e.do));
+  if (flat3.length > 0) {
+    let t = def.text;
+    for (const e of flat3) {
+      const a = Number((e.params as { attack?: number } | undefined)?.attack ?? 0), h = Number((e.params as { health?: number } | undefined)?.health ?? 0);
+      t = t.replace(`+${a}/+${h}`, `{{+${a + bonusA}/+${h + bonusH}}}`);
+    }
+    return t;
+  }
   // Great Pot: its one-per-type "+A/+H" folds spell power on both stats (bug a17a48ab, Bug Board round 1 —
   // the factory now folds, so the printed magnitude goes live with it, per the live-text rule).
   const potBuff = def.effects.find((e) => e.do === 'buffOnePerTribe');

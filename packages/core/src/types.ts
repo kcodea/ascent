@@ -650,6 +650,12 @@ export type EffectFactoryId =
   | 'spellExtraEndOfTurn' // Chrono Staff: cast — your End-of-Turn effects fire 1 extra time this turn (recruit)
   | 'spellGildRandomTavern' // Golden Touch: cast — make a random tavern minion Golden (recruit)
   | 'spellBuffLeftmost' // Set 2 — Champion's Ale: buff your left-most board minion
+  | 'spellBuffRandomHand' // Set 3 — Aspect's Blessing: a random HAND minion +a/+h (cast)
+  | 'spellBuffRandomBoardAndHand' // Set 3 — Shared Spirit: a random board minion AND a random hand minion +a/+h
+  | 'spellBuffTargetAndRandomFriendly' // Set 3 — Star Crash: the target +a/+h, and the same on a random friendly minion
+  | 'spellDestroyTargetGetSpell' // Set 3 — Grave Robbery: destroy the targeted friendly (two-step death), get N random Shop spells
+  | 'spellBuffLeftmostHandMinion' // Set 3 — Hand Soap: the left-most MINION in hand +a/+h
+  | 'spellBuffAllPerTribePlayed' // Set 3 — Crescendo: the board +a/+h per <tribe> played this turn
   | 'spellBuffRandomFriendlies' // Set 2 — Defensive / Bloody Ale: buff N distinct random friendly minions
   | 'spellGrantTopTypeMinion' // Set 2 — Reinforcing Ale: get a minion of your most common tribe
   | 'spellDisplace' // Displacement: cast — swap the target friendly minion with a random tavern minion (recruit)

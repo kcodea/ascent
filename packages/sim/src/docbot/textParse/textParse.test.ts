@@ -43,7 +43,10 @@ const SWEEP = runTextSweep({ contracts: CONTRACTS });
 // nine draft-contract-gap objects (shaper, godfodder, contractimp, crestclimb, n3_splitboon, k_veinbreaker,
 // k3_forkvein, n2_spellsword, betterbot) left verified-mismatch; five of them the parser cannot fully resolve yet
 // (the Choose One "…, or …" shape), so they join the queue. A conscious move.
-const UNRESOLVED_CAP = 570;
+// 570 → 576 on 2026-09-10 (third move): the seven Set 3 spells arrived; six print shapes the parser cannot fully
+// resolve yet (a random HAND minion, board-and-hand, "also casts on", destroy-then-get, left-most in hand,
+// per-tribe-played). A conscious move.
+const UNRESOLVED_CAP = 576;
 /** Collapse floor: the parser fully consuming fewer objects than this means a grammar regression. */
 const PARSED_FLOOR = 340;
 

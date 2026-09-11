@@ -71,6 +71,19 @@ export const PATCH_NOTES: PatchNote[] = [
         text: 'Wording: "other" now always means a same-named copy can still be targeted, and "different" means no copy of that card can. Lieutenant Thane and Menagerie Mammoth read "different" to match what they already do.',
       },
       {
+        category: 'New Card',
+        text: 'Seven new Set 3 spells.',
+        details: [
+          "Aspect's Blessing (Tier 1): Choose One — a random minion in your hand gets +3/+1, or +1/+3.",
+          'Rush Order (Tier 2, Dwarf): Choose One — get a random Dwarven Ale, or gain 3 Gold next turn.',
+          'Shared Spirit (Tier 2): a random minion on your board and a random minion in your hand get +3/+2.',
+          'Star Crash (Tier 3, Celestial): give a Celestial +5/+7; it also casts on a random friendly minion.',
+          'Grave Robbery (Tier 3): destroy a friendly minion, get a random Shop spell.',
+          'Hand Soap (Tier 4): the left-most minion in your hand gets +8/+8.',
+          'Crescendo (Tier 6, Spirit): your minions get +1/+1 for each Spirit you played this turn.',
+        ],
+      },
+      {
         category: 'Card Change',
         text: 'Set 3 spell pool: nineteen spells left (the next-combat keyword spells among them) and seven tribe spells joined: Ruby Shipment, the Facetwright Choice, Veinstorm, Ruby Transfer, Lantern of Souls, Undead Army, On the House.',
         details: ['Spells are now tribe-gated: a Kobold, Dwarf or Undead spell is offered only when that tribe is one of the run tribes. Neutral spells and the Ales are always available.'],

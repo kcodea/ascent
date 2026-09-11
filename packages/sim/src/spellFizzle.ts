@@ -41,6 +41,11 @@ const NO_OP: Record<string, (s: RunState, def: CardDef, params: Record<string, u
   spellBuffAll: (s) => s.board.length === 0,                 // Growth, Waking Rift
   spellPlayRubiesAll: (s) => s.board.length === 0,           // Ruby Excavation
   spellBuffLeftmost: (s) => s.board.length === 0,            // Champion's Ale
+  // Set 3 (2026-09-10)
+  spellBuffRandomHand: (s) => !s.hand.some((c) => !CARD_INDEX[c.cardId]?.spell),                 // Aspect's Blessing: no minion in hand
+  spellBuffLeftmostHandMinion: (s) => !s.hand.some((c) => !CARD_INDEX[c.cardId]?.spell),         // Hand Soap: no minion in hand
+  spellBuffRandomBoardAndHand: (s) => s.board.length === 0 && !s.hand.some((c) => !CARD_INDEX[c.cardId]?.spell), // Shared Spirit: nothing anywhere
+  spellBuffAllPerTribePlayed: (s, _d, p) => s.board.length === 0 || !(s.playedThisTurn ?? []).some((id) => { const d = CARD_INDEX[id]; return !!d && (d.tribe === p.tribe || d.tribe2 === p.tribe || !!d.universalTribe); }), // Crescendo: no Spirit played, or no board
 
   // ── Shop-facing: nothing in the tavern to act on ─────────────────────────────────────────────────────
   stealTavernMinion: (s) => shopMinions(s).length === 0,     // Lasso

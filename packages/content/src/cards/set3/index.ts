@@ -4,6 +4,7 @@ import { SET3_EQUIPMENT } from './equipment';
 import { SET3_KOBOLDS } from './kobolds';
 import { SET3_NEUTRAL } from './neutral';
 import { SET3_SPIRITS, REVELER_IDS } from './spirits';
+export { SET3_SPELLS } from './spells';
 export { SET3_DWARVES } from './dwarves';
 export { SET3_UNDEAD } from './undead';
 

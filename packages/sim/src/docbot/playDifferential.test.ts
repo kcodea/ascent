@@ -58,8 +58,11 @@ describe('Doc Bot — play differential', () => {
     expect(scan.inertSpells, `Inert spell(s): ${scan.inertSpells.join(', ')}`).toEqual([]);
   });
 
-  it('refused spells are a pinned queue, not a silent skip (14 as of 2026-08-26)', () => {
-    const PIN = 14;
+  it('refused spells are a pinned queue, not a silent skip (18 as of 2026-09-10)', () => {
+    // 14 → 18 on 2026-09-10: four Set 3 spells the fixture cannot cast — Aspect's Blessing and Rush Order (Choose
+    // One, like Apples / Crest of the Climb), Star Crash (needs a Celestial target) and Crescendo (needs a Spirit
+    // played this turn). Each is driven by its own scenario lane (set3Spells.test.ts).
+    const PIN = 18;
     expect(scan.refusedSpells.length, `${scan.refusedSpells.length} spell(s) the fixture cannot cast (pin ${PIN}): ${scan.refusedSpells.join(', ')} — above the pin: a NEW spell the differential can't reach; extend playFixture so it can, or the spell ships untested by this lane.`).toBeLessThanOrEqual(PIN);
     expect(scan.refusedSpells.length, `only ${scan.refusedSpells.length} refused now (pin ${PIN}) — the fixture improved; lower the pin.`).toBeGreaterThanOrEqual(PIN);
   });

@@ -51,6 +51,7 @@ export const THIS_TURN_CLASSIFIED: Readonly<Record<string, ThisTurnClassificatio
   // ── instant spells that read the tally at cast (the cast IS inside the window) ──
   patchjob: { kind: 'conforms', why: 'instant: reads goldSpentThisTurn at cast time' },
   hoardflame: { kind: 'conforms', why: 'instant: reads the Dragons-played tally at cast time' },
+  crescendo: { kind: 'conforms', why: 'instant: reads the Spirits-played tally (playedThisTurn) at cast time — set 3, 2026-09-10' },
 
   // ── End-of-Turn consumers — EoT resolves in the shop half, with the whole turn\'s tally live ──
   chronostaff: { kind: 'conforms', why: '"EoT effects trigger 1 more time this turn": folded into endOfTurnRepeats at faceOmen, so the extra applies to the EoT that ends this very turn' },

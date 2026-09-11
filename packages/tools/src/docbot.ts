@@ -18,6 +18,10 @@ import {
   RECRUIT_FACTORY_IDS, SPELL_POWER_EXCUSED, TRIBE_RATCHET, TRIGGER_PHASES, combatScan, playScan, runeSwallowScan,
   makeFinding, emitFindingsJson, LOCAL_NIGHTLY_STATUS_PATH, NIGHTLY_ACKS, formatNightlyStatus, type NightlyStatus,
 } from '@game/sim';
+// Node-only scanners (they read source with fs), so they ride a relative import rather than the sim
+// entrypoint — the same reason `ratchetScan` below is local (D-2 in docs/docbot2/final-report.md).
+import { auditEntrySites, entryScan } from '../../sim/src/docbot/entryPaths';
+import { auditFireSites, rallyDerivation, SYNTHETIC_FIRE_SITES } from '../../sim/src/docbot/firePaths';
 
 /** The ratchet scan, done locally: the registry is pure data (it rides the public sim entrypoint into the
  *  web bundle), so each node-only consumer builds its own fs-backed scanner from the shared pattern. */
@@ -165,6 +169,10 @@ const NEW_LANES: Array<[string, string, string]> = [
   //    existing lane in principle, and neither was caught — see docs/docbot.md for why. ──
   ['combat-emit agreement', 'packages/sim/src/docbot/combatEmitAgreement.test.ts', "every trigger combat EMITS is classified combat/both in TRIGGER_PHASES or waived — a misclassification silently switched off the factoryPhase lane's combat half for onGainCard (Gangplank)"],
   ['uid survives a triple', 'packages/sim/src/docbot/uidSurvivesTriple.test.ts', "no run state points at a body a triple destroyed (Sable's Soulbind held run-board uids) — a deep walk, because the bond's fields are named `a`/`b` and no naming convention would find them"],
+  // ── 2026-09-11: two lanes born from the September player bugs that slipped past everything above because
+  //    two enumerations were hand-listed instead of derived (the Gifts' arrival path; the Rally watcher set). ──
+  ['entry paths', 'packages/sim/src/docbot/entryPaths.test.ts', 'every hand/board entry site in the reducer + recruit engine is derived and classified; every set-less card is driven into play through its REAL path (rune → Discover, minting Shout, Equipment) and its cast must change something — the targeted-Gifts class (9852e16f)'],
+  ['fire paths', 'packages/sim/src/docbot/firePaths.test.ts', 'every direct FACTORIES dispatch in core is derived and classified as natural or synthetic; the Rally pair proves a free / multiplied Rally reaches exactly the watchers a natural Rally reaches — the Hawkus class (7e04222d); found Hawkus + Mineral Master missing from the multiplier re-fire on its first run'],
 ];
 console.log('\n── 16+. the Doc Bot 2.0 lane roll-call — each file existsSync-checked so this inventory cannot rot ──');
 console.log('   (most gate in `npm test`; the two tools lanes gate there too — the sweep CLIs beside them are nightly/weekly)');
@@ -172,6 +180,26 @@ for (const [name, file, what] of NEW_LANES) {
   const exists = existsSync(file);
   console.log(`  ${exists ? '·' : '✗ MISSING'} ${name} — ${file}${exists ? '' : '  ⚠ inventory rotted'}`);
   console.log(`      ${what}`);
+}
+
+// ── entry + fire paths (2026-09-11) — the two derived enumerations, narrated ──────────────────────────────
+{
+  const entrySites = auditEntrySites();
+  const entry = entryScan();
+  console.log('\n── entry paths — every way a card enters the hand/board, derived from the reducer + recruit engine ──');
+  console.log(`  entry sites: ${entrySites.sites.length} scanned · unclassified ${entrySites.unclassified.length} · stale ${entrySites.stale.length}`);
+  console.log(`  non-shop worklist: ${entry.worklist.length} set-less cards · verified through a real path: ${Object.keys(entry.verified).length} · inert: ${entry.inert.join(', ') || 'none'} · refused: ${entry.refused.join(', ') || 'none'}`);
+  console.log(`  orphans (named by nothing): ${entry.orphans.join(', ') || 'none'}`);
+  for (const [id, why] of Object.entries(entry.unstaged)) console.log(`  ⚠ unstaged ${id}: ${why}`);
+  const fireSites = auditFireSites();
+  const rally = rallyDerivation();
+  const kinds = new Map<string, number>();
+  for (const s of fireSites.sites) { const k = SYNTHETIC_FIRE_SITES[s.key]?.kind ?? 'UNCLASSIFIED'; kinds.set(k, (kinds.get(k) ?? 0) + 1); }
+  console.log('\n── fire paths — every direct factory dispatch in core, natural vs synthetic ──');
+  console.log(`  dispatch sites: ${fireSites.sites.length} · ${[...kinds.entries()].map(([k, n]) => `${k} ${n}`).join(' · ')} · unclassified ${fireSites.unclassified.length} · stale ${fireSites.stale.length}`);
+  const cls = (c: string): string[] => rally.observations.filter((o) => o.cls === c).map((o) => o.factory);
+  console.log(`  Rally pair: rally-watchers [${cls('rally-watcher').join(', ')}] · attack-watchers [${cls('attack-watcher').join(', ')}] · self-rally ${cls('self-rally').length} · unobserved ${cls('unobserved').length} (each excused)`);
+  console.log(`  divergences: ${rally.divergences.length ? rally.divergences.map((d) => `${d.factory}: ${d.problem}`).join(' · ') : 'none — free / multiplied Rallies reach exactly the natural watcher set'}`);
 }
 
 // ── rulebook enforcement picture ───────────────────────────────────────────────────────────────────────────

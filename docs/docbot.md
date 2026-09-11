@@ -291,6 +291,43 @@ by nothing, its docstring naming a consumer (Rune of Refrain) that actually uses
 Harmless today and only today — the moment someone implements "return the turn's *first* Shout" off that
 field, they inherit the Sable bug. Recorded as such rather than filed away as a cue.
 
+## The 2026-09-11 wave — two enumerations that were hand-listed instead of derived
+
+Both September player bugs (Bug Board round 2, PR #1374) slipped past every lane above, and for the same
+reason as Gangplank: a list that gated a check was written by hand where it should have been read from the
+thing it describes. Devlog: `docs/devlog/2026-09-11-docbot-entry-and-fire-paths.md`.
+
+### 11. Entry paths (`entryPaths.test.ts` + `entryPaths.ts`)
+
+*Four targeted Gifts no-oped for a month (9852e16f).* A Gift never sits in a shop; it only ever ARRIVES in
+hand, and no lane staged that arrival. The lane scans `reducer.ts` + `recruit.ts` for every write into
+`hand`/`board` and demands a classification per site (`ENTRY_SITES`, keyed `file#scope#zone`); then, for
+every card in no set, derives who names it (card params and def fields, runes, heroes, quests, Equipment,
+engine scopes with one caller hop), stages the arrival THROUGH THE REAL `reduce` (buy the rune → pick the
+Discover; play the minting Shout; activate the Equipment) and casts it under a differential that compares
+two post-`reduce` states. Orphans, refusals and unstaged paths are surfaced pins. Sabotage: the 9852e16f
+reversion names the four Gifts as inert. Instrument finding recorded in the devlog: the play lane's spell
+sub-lane had cast every Gift and could not see the no-op, because it diffs against a pre-`reduce` baseline
+and `reduce` lazily initialises fields on every action — its inert-spell gate is vacuous (follow-up).
+
+### 12. Fire paths (`firePaths.test.ts` + `firePaths.ts`)
+
+*A free Rally skipped Hawkus (7e04222d).* In combat the natural emitter is the `CombatBus`; every other
+direct `FACTORIES[…]` dispatch is a SYNTHETIC path that hand-picks who hears the trigger. The lane scans core
+for every such site and demands a classification (`SYNTHETIC_FIRE_SITES`, keyed `file#scope#trigger`, with
+the behavioural pair that covers it or the natural counterpart a future pair should compare against). The
+Rally pair then stages every `onAttack` factory as a watcher and as a rallier under a natural Rally, a plain
+swing, a free Rally and an Uron-multiplied Rally, and derives its class behaviourally — the free reach must
+equal the natural reach minus the ally-attack watchers (verified, not assumed), and a multiplier must invoke
+each Rally watcher exactly twice. A registry↔behaviour test reads `RALLY_WATCHER_EFFECTS` out of simulate.ts
+and demands it equal the derived class. **Found on its first run:** the multiplier re-fire named Paragon
+alone (Hawkus and Mineral Master stuck at ×1 under Uron), and the watcher loops walked the live board so a
+watcher whose Echo proc summoned a token was visited twice — both fixed in core
+(`rallyMultiplierWatchers.test.ts`).
+
+**The class rule, restated:** when two code paths claim to be "the same trigger", derive the listener set
+each reaches and assert them equal — a comment saying "mirrors the bus" is a testable claim nobody tests.
+
 ---
 
 ## Extending Doc Bot

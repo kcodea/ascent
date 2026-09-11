@@ -1,6 +1,6 @@
 import type { Keyword } from '@game/core';
 import { CARD_INDEX } from '@game/content';
-import { spiritsPlayedThisTurn, CONFIG, chooseBothActive, dominantBoardTribe, hasTier7Access, rubyStatBonus, runeStacksOf, spellAttackBonus, spellDisplayText, spellHealthBonus, type BoardCard, type RunState } from '@game/sim';
+import { spiritsPlayedThisTurn, anySpellsCastThisTurn, CONFIG, chooseBothActive, dominantBoardTribe, hasTier7Access, rubyStatBonus, runeStacksOf, spellAttackBonus, spellDisplayText, spellHealthBonus, type BoardCard, type RunState } from '@game/sim';
 import type { CardView } from './Card';
 import {
   abhorrentHorrorText, ascendProgressText, asymSummonBuffText, cadenceProgressText, cardTypeTallyText, chefRaagText, clingProgressText,
@@ -25,6 +25,8 @@ export interface LiveTextParams {
   spellsThisTurn: number; spellsCast: number; deathrattlesTriggered: number;
   /** Rubies cast this run — the other half of the spell umbrella Herzog/Vaultkeeper read. */
   rubyCasts?: number;
+  /** Set 3 — spells of ANY kind cast this turn (Shop spells + Gifts + Rubies): Stellar Chorus prints its live total. */
+  anySpellsThisTurn?: number;
   /** Rune of Mastery: how many times an Improve step applies (2 with the rune, else 1). Spirit Worgen's
    *  per-spell scaling folds it so the printed per-play grant matches what the sim actually adds. */
   improveReps?: number;
@@ -128,7 +130,7 @@ export function liveCardText(cardId: string, p: LiveTextParams): { text: string;
     const taught = taughtSpellText(c.id, p.taughtSpellId, spellDisplayText(
       p.taughtSpellId, p.spellBonus, p.frontToBackBonus, p.spellBonusH, p.goldSpent ?? 0,
       p.frontToBackBonusH ?? p.frontToBackBonus, p.goldPouchValue ?? 0,
-      { rubyBonus: p.rubyBonus, clueBonus: p.clueBonus, playedThisTurn: Array.isArray(p.playedThisTurn) ? p.playedThisTurn : undefined, tier: p.tier },
+      { rubyBonus: p.rubyBonus, clueBonus: p.clueBonus, playedThisTurn: Array.isArray(p.playedThisTurn) ? p.playedThisTurn : undefined, tier: p.tier, anySpellsThisTurn: p.anySpellsThisTurn },
     ));
     if (taught) return { text: taught, goldenText: taught };
   }
@@ -136,7 +138,7 @@ export function liveCardText(cardId: string, p: LiveTextParams): { text: string;
     c.id === 'discoverspell'
       ? `**Discover** a **Tier ${Math.min(p.maxTier ?? CONFIG.maxTier, (p.grantedTier ?? p.tier) + 1)}** minion.` // frozen at grant tier
       : c.spell
-        ? spellDisplayText(c.id, p.spellBonus, p.frontToBackBonus, p.spellBonusH, p.goldSpent ?? 0, p.frontToBackBonusH ?? p.frontToBackBonus, p.goldPouchValue ?? 0, { rubyBonus: p.rubyBonus, clueBonus: p.clueBonus, playedThisTurn: Array.isArray(p.playedThisTurn) ? p.playedThisTurn : undefined, tier: p.tier, topTribe: p.topTribe as never, growthBonus: p.growthBonus })
+        ? spellDisplayText(c.id, p.spellBonus, p.frontToBackBonus, p.spellBonusH, p.goldSpent ?? 0, p.frontToBackBonusH ?? p.frontToBackBonus, p.goldPouchValue ?? 0, { rubyBonus: p.rubyBonus, clueBonus: p.clueBonus, playedThisTurn: Array.isArray(p.playedThisTurn) ? p.playedThisTurn : undefined, tier: p.tier, topTribe: p.topTribe as never, growthBonus: p.growthBonus, anySpellsThisTurn: p.anySpellsThisTurn })
         : transformProgressText(c.id, p.spellProgress ?? 0) ??
             ascendProgressText(c.id, p.ascendProgress ?? 0) ??
             cryptDrakeText(c.id, p.golden, p.attackSeen ?? 0, p.summonBonus ?? 0) ?? // live grant + combat countdown
@@ -247,7 +249,7 @@ export function instView(
   spellsCast = 0,
   clingEnchant?: { attack: number; health: number },
   fodderConsumed?: { attack: number; health: number },
-  live?: { undeadBuyAtk?: number; soulsmanGold?: number; impAura?: { attack: number; health: number }; cardBuffs?: Record<string, { attack: number; health: number }>; castMult?: number; goldSpent?: number; goldSpentRun?: number; goldPouchValue?: number; playedThisTurn?: string[]; squirlScoutBuff?: number; conductorBuff?: number; lastSpellName?: string; rememberedSpellNames?: readonly string[]; impBank?: { attack: number; health: number }; firstSpellThisTurnName?: string; lastSpellThisTurnName?: string; topTribe?: string | null; frontToBackBonusH?: number; onBoard?: boolean; eotTickOverride?: number; improveReps?: number; rubyCasts?: number; rubyBonus?: { attack: number; health: number }; clueBonus?: number; revelerX?: number; spiritsPlayed?: number; grimoireCharged?: boolean; runeMammoth?: boolean; runeFlags?: RuneTextFlags; tier7Access?: boolean; alesThisTurn?: number; /** The run flags the (Both) predicate reads (`runeFacetwright` / `runeUnbrokenVein`) — passed rather than a precomputed boolean so the ONE predicate stays the only place the rule lives. */ chooseBothState?: { runeFacetwright?: boolean; runeUnbrokenVein?: boolean } },
+  live?: { undeadBuyAtk?: number; soulsmanGold?: number; impAura?: { attack: number; health: number }; cardBuffs?: Record<string, { attack: number; health: number }>; castMult?: number; goldSpent?: number; goldSpentRun?: number; goldPouchValue?: number; playedThisTurn?: string[]; squirlScoutBuff?: number; conductorBuff?: number; lastSpellName?: string; rememberedSpellNames?: readonly string[]; impBank?: { attack: number; health: number }; firstSpellThisTurnName?: string; lastSpellThisTurnName?: string; topTribe?: string | null; frontToBackBonusH?: number; onBoard?: boolean; eotTickOverride?: number; improveReps?: number; rubyCasts?: number; rubyBonus?: { attack: number; health: number }; clueBonus?: number; revelerX?: number; spiritsPlayed?: number; anySpellsThisTurn?: number; grimoireCharged?: boolean; runeMammoth?: boolean; runeFlags?: RuneTextFlags; tier7Access?: boolean; alesThisTurn?: number; /** The run flags the (Both) predicate reads (`runeFacetwright` / `runeUnbrokenVein`) — passed rather than a precomputed boolean so the ONE predicate stays the only place the rule lives. */ chooseBothState?: { runeFacetwright?: boolean; runeUnbrokenVein?: boolean } },
 ): CardView {
   const c = CARD_INDEX[inst.cardId];
   const spell = c.spell === true || c.id === 'discoverspell';
@@ -274,7 +276,7 @@ export function instView(
     topTribe: live?.topTribe,
     runeMammoth: live?.runeMammoth,
     runeFlags: live?.runeFlags,
-    rubyBonus: live?.rubyBonus, clueBonus: live?.clueBonus, revelerX: live?.revelerX, spiritsPlayed: live?.spiritsPlayed,
+    rubyBonus: live?.rubyBonus, clueBonus: live?.clueBonus, revelerX: live?.revelerX, spiritsPlayed: live?.spiritsPlayed, anySpellsThisTurn: live?.anySpellsThisTurn,
     tier7Access: live?.tier7Access,
     chosenOption: inst.chosenOption, // a resolved Choose One prints only the branch it became
     chooseBoth, // (Both) — no choice to print
@@ -364,7 +366,7 @@ export function liveBoardView(m: BoardCard, run: RunState): CardView {
       rememberedSpellNames: (run.rememberedSpellIds ?? []).map((id) => CARD_INDEX[id]?.name).filter((n): n is string => !!n),
       firstSpellThisTurnName: run.firstSpellThisTurnId ? CARD_INDEX[run.firstSpellThisTurnId]?.name : undefined,
       lastSpellThisTurnName: run.lastSpellThisTurnId ? CARD_INDEX[run.lastSpellThisTurnId]?.name : undefined,
-      topTribe: dominantBoardTribe(run), rubyBonus: rubyStatBonus(run), clueBonus: run.clueBonus, revelerX: run.revelerX, spiritsPlayed: spiritsPlayedThisTurn(run), tier7Access: hasTier7Access(run),
+      topTribe: dominantBoardTribe(run), rubyBonus: rubyStatBonus(run), clueBonus: run.clueBonus, revelerX: run.revelerX, spiritsPlayed: spiritsPlayedThisTurn(run), anySpellsThisTurn: anySpellsCastThisTurn(run), tier7Access: hasTier7Access(run),
       runeMammoth: !!run.questFlags?.runeMammoth,
       runeFlags: { matriarch: !!run.runeMatriarch, brokerage: !!run.runeBrokerage, livingTreasure: !!run.questFlags?.runeLivingTreasure },
       chooseBothState: { runeFacetwright: run.runeFacetwright, runeUnbrokenVein: run.runeUnbrokenVein },

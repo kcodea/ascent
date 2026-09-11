@@ -54,7 +54,7 @@ const ART_PENDING = new Set<string>([
   // the one Gift still awaiting a master.
   'gift_larceny',
   // SET 3 SPELLS (2026-09-10): no masters yet for the seven new rows of the spell sheet.
-  'aspectsblessing', 'rushorder', 'sharedspirit', 'starcrash', 'graverobbery', 'handsoap', 'crescendo',
+  'aspectsblessing', 'rushorder', 'sharedspirit', 'starcrash', 'graverobbery', 'handsoap', 'crescendo', 'stellarchorus', 'splitdecision',
   // SET 3 SPIRITS (2026-09-09): eleven tranche-1 masters have landed (the second batch brought Dreamcurrent Mystic,
   // Spirit Artificer, Gathering Guide, Aspect Choreographer); the rest are authored ahead of their art.
   'sp3_grovereveler', 'sp3_treasurer', 'sp3_revelator', 'sp3_luminary', 'sp3_forestcolossus', 'sp3_grandprocession',

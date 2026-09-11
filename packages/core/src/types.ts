@@ -656,6 +656,9 @@ export type EffectFactoryId =
   | 'spellDestroyTargetGetSpell' // Set 3 — Grave Robbery: destroy the targeted friendly (two-step death), get N random Shop spells
   | 'spellBuffLeftmostHandMinion' // Set 3 — Hand Soap: the left-most MINION in hand +a/+h
   | 'spellBuffAllPerTribePlayed' // Set 3 — Crescendo: the board +a/+h per <tribe> played this turn
+  | 'spellBuffTargetPerSpellsCast' // Set 3 — Stellar Chorus: target +a/+h, +per per spell (any kind) cast this turn
+  | 'spellDiscoverMinion' // Set 3 — Split Decision branch: Discover a minion (standard pool)
+  | 'spellDiscoverShopSpell' // Set 3 — Split Decision branch: Discover a Shop spell
   | 'spellBuffRandomFriendlies' // Set 2 — Defensive / Bloody Ale: buff N distinct random friendly minions
   | 'spellGrantTopTypeMinion' // Set 2 — Reinforcing Ale: get a minion of your most common tribe
   | 'spellDisplace' // Displacement: cast — swap the target friendly minion with a random tavern minion (recruit)

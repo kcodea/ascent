@@ -22,6 +22,7 @@ describe('the roster', () => {
     const rows: [string, number, number, string][] = [
       ['aspectsblessing', 1, 1, 'neutral'], ['rushorder', 2, 1, 'dwarf'], ['sharedspirit', 2, 2, 'neutral'], ['starcrash', 3, 2, 'celestial'],
       ['graverobbery', 3, 2, 'neutral'], ['handsoap', 4, 2, 'neutral'], ['crescendo', 6, 3, 'spirit'],
+      ['stellarchorus', 4, 2, 'neutral'], ['splitdecision', 5, 2, 'neutral'],
     ];
     for (const [id, tier, cost, tribe] of rows) {
       const d = CARD_INDEX[id]!;
@@ -120,5 +121,39 @@ describe('Crescendo — your minions +1/+1 per Spirit played this turn', () => {
     expect(stats(s.board.find((c) => c.uid === 'b')!)).toEqual([4, 4]);
     const t = play(run({ board: [body('a', 'stray')], hand: [spell('sp', 'crescendo')], playedThisTurn: ['stray'] }), 'sp');
     expect(t.hand.some((c) => c.uid === 'sp'), 'no Spirit played → fizzles').toBe(true);
+  });
+});
+
+describe('Stellar Chorus — +2/+2, improved by +3/+3 per spell of ANY kind cast this turn (owner: Rubies and Gifts count)', () => {
+  it('counts Shop spells, Rubies and Gifts cast before it — never itself — and prints the live total', () => {
+    // Two Shop spells + one Ruby play already this turn → +2/+2 + 3 × +3/+3 = +11/+11.
+    let s = run({ board: [body('t', 'stray')], hand: [spell('sp', 'stellarchorus')], spellsThisTurn: 2, rubyCastsThisTurn: 1 });
+    expect(spellDisplayText('stellarchorus', 0, 0, 0, 0, 0, 0, { anySpellsThisTurn: 3 })).toContain('{{Now +11/+11.}}');
+    s = play(s, 'sp', { targetUid: 't' } as Partial<Action>);
+    expect(stats(s.board.find((c) => c.uid === 't')!)).toEqual([13, 13]);
+    // First spell of the turn: just the base.
+    let u = run({ board: [body('t', 'stray')], hand: [spell('sp', 'stellarchorus')], spellsThisTurn: 0 });
+    u = play(u, 'sp', { targetUid: 't' } as Partial<Action>);
+    expect(stats(u.board.find((c) => c.uid === 't')!)).toEqual([4, 4]);
+    // Under Rune of the Spellstone a Ruby is already booked as a Shop spell — never counted twice.
+    let v = run({ board: [body('t', 'stray')], hand: [spell('sp', 'stellarchorus')], spellsThisTurn: 1, rubyCastsThisTurn: 1, runeSpellstone: true });
+    v = play(v, 'sp', { targetUid: 't' } as Partial<Action>);
+    expect(stats(v.board.find((c) => c.uid === 't')!)).toEqual([7, 7]);
+  });
+});
+
+describe('Split Decision — Choose One: Discover a minion, or Discover a Shop spell', () => {
+  it('branch 1 opens a minion Discover (any tier up to yours), branch 2 a Shop-spell Discover', () => {
+    let s = run({ hand: [spell('sp', 'splitdecision')], tier: 4 });
+    s = play(s, 'sp');
+    s = reduce(s, { type: 'chooseOne', index: 0 } as Action);
+    expect(s.discover?.length, 'a minion Discover opened').toBeGreaterThan(0);
+    expect(s.discover!.every((id) => !CARD_INDEX[id]?.spell && CARD_INDEX[id]!.tier <= 4), 'minions up to the tavern tier').toBe(true);
+    let t = run({ hand: [spell('sp', 'splitdecision')], tier: 4 });
+    t = play(t, 'sp');
+    t = reduce(t, { type: 'chooseOne', index: 1 } as Action);
+    expect(t.discover?.length, 'a spell Discover opened').toBeGreaterThan(0);
+    expect(t.discover!.every((id) => !!CARD_INDEX[id]?.spell), 'Shop spells only').toBe(true);
+    expect(t.hand.some((c) => c.uid === 'sp'), 'the card is spent').toBe(false);
   });
 });

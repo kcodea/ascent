@@ -72,7 +72,7 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'New Card',
-        text: 'Seven new Set 3 spells.',
+        text: 'Nine new Set 3 spells.',
         details: [
           "Aspect's Blessing (Tier 1): Choose One — a random minion in your hand gets +3/+1, or +1/+3.",
           'Rush Order (Tier 2, Dwarf): Choose One — get a random Dwarven Ale, or gain 3 Gold next turn.',
@@ -81,6 +81,8 @@ export const PATCH_NOTES: PatchNote[] = [
           'Grave Robbery (Tier 3): destroy a friendly minion, get a random Shop spell.',
           'Hand Soap (Tier 4): the left-most minion in your hand gets +8/+8.',
           'Crescendo (Tier 6, Spirit): your minions get +1/+1 for each Spirit you played this turn.',
+          'Stellar Chorus (Tier 4): give a minion +2/+2, improved by +3/+3 for each spell of any kind you cast this turn.',
+          'Split Decision (Tier 5): Choose One — Discover a minion, or Discover a Shop spell.',
         ],
       },
       {

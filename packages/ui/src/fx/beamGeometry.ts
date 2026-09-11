@@ -77,9 +77,9 @@ export function writeBeamMesh(
   const n = segs + 1;
   for (let i = 0; i < n; i++) {
     const u = i / segs;                     // along-fraction 0→1
-    // `window` (sin πu) is 0 at both ends and peaks mid-beam, so the endpoints always meet their anchors.
-    const window = Math.sin(Math.PI * u);
-    const bow = amp * window * Math.sin(u * waverFreq * TAU + phase);
+    // `endWindow` (sin πu) is 0 at both ends and peaks mid-beam, so the endpoints always meet their anchors.
+    const endWindow = Math.sin(Math.PI * u);
+    const bow = amp * endWindow * Math.sin(u * waverFreq * TAU + phase);
     const sxp = ax + dirx * (len * u) + nx * bow;
     const syp = ay + diry * (len * u) + ny * bow;
     buf.position[v * 2] = sxp - nx * hw; buf.position[v * 2 + 1] = syp - ny * hw;   // left edge (v=0)

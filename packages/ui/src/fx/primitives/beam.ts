@@ -298,8 +298,7 @@ class BeamInstance implements FxInstance<BeamParams> {
   }
 
   /** Rebuild the strip from the current anchors + params at `phase`, and re-upload the buffers. */
-  private regenerate(phase: number): void {
-    const { sx, sy, tx, ty } = this.endpoints();
+  private regenerate(sx: number, sy: number, tx: number, ty: number, phase: number): void {
     const shape: BeamShape = { width: this.params.width, segments: this.params.segments, waver: this.params.waver, waverFreq: this.params.waverFreq };
     const { indexCount } = writeBeamMesh(this.buffers, sx, sy, tx, ty, shape, phase);
     this.indexCount = indexCount;
@@ -328,7 +327,7 @@ class BeamInstance implements FxInstance<BeamParams> {
     const phase = this.clockMs / 1000 * p.waverSpeed;
     const { sx, sy, tx, ty } = this.endpoints();
     const moved = sx !== this.bSx || sy !== this.bSy || tx !== this.bTx || ty !== this.bTy;
-    if (live && (!this.builtOnce || moved || p.waver > 0)) this.regenerate(phase);
+    if (live && (!this.builtOnce || moved || p.waver > 0)) this.regenerate(sx, sy, tx, ty, phase);
 
     // Optional subtle brightness breathing.
     const flick = p.flicker > 0 ? 0.8 + 0.2 * (0.5 + 0.5 * Math.sin(this.clockMs / 1000 * p.flicker * TAU)) : 1;

@@ -55,6 +55,15 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-09-11',
+    changes: [
+      {
+        category: 'Card Change',
+        text: 'Aspect Choreographer is now simply Aspect. Same card, shorter name.',
+      },
+    ],
+  },
+  {
     date: '2026-09-10',
     changes: [
       {

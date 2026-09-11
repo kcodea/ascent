@@ -1233,7 +1233,7 @@ export function rallySpreadText(cardId: string, golden: boolean, rallySpreadAtk?
  * NOW). One helper, keyed by id, so the shop / hand / Discover chain and the combat chain read one truth:
  *  - the Revelers print the SHARED Reveler value (Flame → Attack, Tide → Health, Grove → both; golden 2X);
  *  - Festival Luminary prints +(1 + X) on both stats;
- *  - Festival Keeper prints its progress toward the next spell; Aspect Choreographer its current grant + the
+ *  - Festival Keeper prints its progress toward the next spell; Aspect its current grant + the
  *    countdown to the next improvement; Forest Colossus the Spirits it has counted; Nurturer and Kindled
  *    Sprite the Spirits played this turn. Null when the printed base is already exact.
  */

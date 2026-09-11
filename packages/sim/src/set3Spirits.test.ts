@@ -12,7 +12,7 @@ import { handCardLocked, revelerValue, spiritsPlayedThisTurn, summonCopyFromHand
  *  - Revelers as a class: Revelator / Revelmaker hand them out; Treasurer's stacking, capped, spent discount;
  *    Grand Procession's one-return-per-type-per-turn.
  *  - The Spirits-played tally: Kindled Sprite (combat, frozen at combat start), Nurturer's repeats.
- *  - `onTribePlayed` per-instance tallies: Festival Keeper (every 3, carries across turns), Aspect Choreographer
+ *  - `onTribePlayed` per-instance tallies: Festival Keeper (every 3, carries across turns), Aspect
  *    (improves every 3), Forest Colossus (counts only Spirits AFTER it; SoC pays per point, in combat).
  *  - Tidebud / Spiritbringer: one board recipient AND one hand recipient. Dreamcurrent: a hand minion per cast.
  */
@@ -156,7 +156,7 @@ describe('onTribePlayed — per-instance tallies', () => {
     expect(s.hand.filter((c) => CARD_INDEX[c.cardId]?.spell), 'a random Shop spell arrived').toHaveLength(1);
   });
 
-  it('Aspect Choreographer: +1/+1 to 3 random Spirits per play, improving to +2/+2 after 3 triggers', () => {
+  it('Aspect: +1/+1 to 3 random Spirits per play, improving to +2/+2 after 3 triggers', () => {
     const ids = { a: 'sp3_tidebud', b: 'sp3_nurturer', c: 'sp3_bondweaver', d: 'sp3_festivalkeeper' } as const;
     let s = run({ board: [body('ac', 'sp3_aspect'), body('x', 'sp3_kindled')], hand: Object.entries(ids).map(([u, id]) => body(u, id)) });
     // Total Attack the Choreographer has handed out = Σ (other Spirits' attack − printed). None of the played

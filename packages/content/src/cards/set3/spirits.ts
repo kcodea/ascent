@@ -8,7 +8,7 @@ import type { CardDef } from '@game/core';
  *     more Revelers; Festival Treasurer and Grand Procession pay off selling them.
  *   • SPIRITS PLAYED — a per-turn tally (`spiritsPlayedThisTurn`, derived from `playedThisTurn`) and a new
  *     `onTribePlayed` trigger with PER-INSTANCE tallies (`spiritTally`): Festival Keeper (every 3 → a spell),
- *     Aspect Choreographer (improves every 3), Forest Colossus (counts only Spirits played AFTER it — owner
+ *     Aspect (improves every 3), Forest Colossus (counts only Spirits played AFTER it — owner
  *     2026-09-09).
  * Tranche 2 adds the HAND-SUMMON cards (Tide Caller, Dreaming Deep, Seedling Spirit, Handbound Titan,
  * Flamebanner Marshal, Hearth Whisperer, Slumbering Colossus).
@@ -261,7 +261,7 @@ export const SET3_SPIRITS: readonly CardDef[] = [
     // Whenever you play a Spirit: 3 random friendly Spirits +N/+N, where N starts at 1 and improves by 1 every
     // 3 triggers (per copy — owner 2026-09-09). Golden doubles both the grant and the improvement.
     id: 'sp3_aspect',
-    name: 'Aspect Choreographer',
+    name: 'Aspect', // renamed from Aspect (owner 2026-09-11); id kept
     tribe: 'spirit',
     tier: 5,
     attack: 5,

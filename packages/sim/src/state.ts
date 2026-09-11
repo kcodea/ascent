@@ -237,7 +237,7 @@ export interface BoardCard {
   /** Spells cast while this card has been on the board — drives transform cards (Spirit Pup → Worgen
    *  at 10). Per-instance; ticks only while on the board (the spellCast trigger fires for the board). */
   spellProgress?: number;
-  /** Set 3 Spirits — per-instance `onTribePlayed` tally (Festival Keeper progress, Aspect Choreographer's trigger
+  /** Set 3 Spirits — per-instance `onTribePlayed` tally (Festival Keeper progress, Aspect's trigger
    *  count, Forest Colossus's Spirits-since-played). Carried into combat on the body. */
   spiritTally?: number;
   /** The wave this card was bought on — drives Hoarder's climbing sell value (currentWave - boughtWave

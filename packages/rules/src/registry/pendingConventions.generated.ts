@@ -2485,8 +2485,8 @@ export const CONVENTION_PENDING: GameRule[] = [
     "statement": "All 4 of these fire on one trigger: you play a minion of a named tribe. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
     "currentBehaviour": "4 effect factories across 4 cards dispatch on 'onTribePlayed' (recruit) — re-clustered by TRIGGER out of the 'economy' presentation family on the owner's 2026-08-28 ruling; the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Aspect Choreographer: \"Whenever you play a Spirit, give 3 random friendly Spirits +1/+1. Improve this by +1/+1 every 3 times this triggers.\" · Members: Aspect Choreographer · Festival Keeper · Forest Colossus · Slumbering Colossus",
-    "example": "Aspect Choreographer fires when you play a minion of a named tribe, like every other card here. its printed numbers double when the card is gilded.",
+    "cardText": "Exemplar — Aspect: \"Whenever you play a Spirit, give 3 random friendly Spirits +1/+1. Improve this by +1/+1 every 3 times this triggers.\" · Members: Aspect · Festival Keeper · Forest Colossus · Slumbering Colossus",
+    "example": "Aspect fires when you play a minion of a named tribe, like every other card here. its printed numbers double when the card is gilded.",
     "contentIds": [
       "sp3_aspect",
       "sp3_festivalkeeper",

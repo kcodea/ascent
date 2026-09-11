@@ -626,7 +626,7 @@ export type EffectFactoryId =
   | 'endOfTurnBuffRandomTribeRepeatPerPlayed' // Nurturer: End of Turn — a random `tribe` +atk/+hp, repeated per Spirit played
   | 'scBuffTribePerTally' // Forest Colossus: Start of Combat — your `tribe` +atk/+hp per point of this body's tally
   | 'tribePlayedEveryNGrantRandomSpell' // Festival Keeper: every `every` `tribe` plays → a random Shop spell
-  | 'tribePlayedBuffRandomTribeImproving' // Aspect Choreographer: each `tribe` play → N random `tribe` +v/+v, v improving every `every`
+  | 'tribePlayedBuffRandomTribeImproving' // Aspect: each `tribe` play → N random `tribe` +v/+v, v improving every `every`
   | 'tribePlayedTally' // Forest Colossus: count `tribe` plays since this was played
   | 'equipmentBuffTargetAndRandomHandTribe' // Spiritbringer: the target AND a random `tribe` in hand, +atk/+hp
   | 'spellCastBuffRandomHand' // Dreamcurrent Mystic: a Shop spell cast → a random minion in hand +atk/+hp
@@ -2076,7 +2076,7 @@ export interface BoardMinion {
    *  (his per-instance improvement). Display-only in combat; no combat behavior reads it. */
   spellProgress?: number;
   /** Set 3 Spirits — this body's PER-INSTANCE tally of `onTribePlayed` triggers it witnessed (Festival Keeper's
-   *  progress, Aspect Choreographer's trigger count, Forest Colossus's "Spirits played since"). Forest Colossus's
+   *  progress, Aspect's trigger count, Forest Colossus's "Spirits played since"). Forest Colossus's
    *  Start of Combat READS it; the others print it. Seeded from the run board. */
   spiritTally?: number;
   /** Runic Archivist: sales still owed (per-instance). Display-only in combat. */

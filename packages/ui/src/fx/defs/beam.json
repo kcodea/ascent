@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "id": "beam",
+  "duration": 920,
+  "layers": [
+    {
+      "primitive": "beam",
+      "anchor": "source",
+      "at": 0,
+      "life": 920,
+      "params": {}
+    }
+  ]
+}

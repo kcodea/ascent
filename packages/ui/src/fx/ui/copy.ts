@@ -21,6 +21,10 @@ export interface FxCopy {
 
 /** Keyed by `FxPrimitive.id`. `copy.test.ts` fails if a registered primitive is missing here. */
 export const PRIMITIVE_COPY: Record<string, FxCopy> = {
+  beam: {
+    label: 'Beam',
+    blurb: 'A clean sustained beam from source to target — grows in, holds, fades. Rays, heals, drains, links, channels.',
+  },
   burst: {
     label: 'Burst',
     blurb: 'A one-off spray of particles thrown outward, then gone. Impacts, hits, pops.',

@@ -205,19 +205,42 @@ describe('Crashborn Adept — the first Star Crash on it each turn also casts on
   });
 });
 
-describe('Astral Spellcore — exactly the third Shop spell each turn: your Celestials +6/+6', () => {
-  it('fires on the third cast only, itself included; golden +12/+12', () => {
-    let s = run({ hand: [spell('s1', 'starcrash'), spell('s2', 'starcrash'), spell('s3', 'starcrash'), spell('s4', 'starcrash')],
-      board: [body('c', 'ce3_spellcore'), body('g', 'ce3_spellcore', { golden: true }), body('n', 'sandbag')] });
+describe('Astral Spellcore — every 3 Shop spells cast while it is on the board: your Celestials +6/+6', () => {
+  it('fires on every third cast (repeatable), itself included; golden +12/+12; the meter shows N/3', () => {
+    const hand = ['s1', 's2', 's3', 's4', 's5', 's6'].map((u) => spell(u, 'starcrash'));
+    let s = run({ hand, board: [body('c', 'ce3_spellcore'), body('g', 'ce3_spellcore', { golden: true }), body('n', 'sandbag')] });
     s = play(s, 's1', { targetUid: 'c' });
     s = play(s, 's2', { targetUid: 'c' });
+    expect(at(s, 'c').spellProgress, 'the per-copy meter').toBe(2);
     expect(buffFrom(at(s, 'c'), 'Astral Spellcore')).toEqual([0, 0]);
     s = play(s, 's3', { targetUid: 'c' });
     expect(buffFrom(at(s, 'c'), 'Astral Spellcore'), 'plain + golden copies both fired on the third').toEqual([6 + 12, 6 + 12]);
     expect(buffFrom(at(s, 'g'), 'Astral Spellcore')).toEqual([6 + 12, 6 + 12]);
     expect(buffFrom(at(s, 'n'), 'Astral Spellcore'), 'not a Celestial').toEqual([0, 0]);
     s = play(s, 's4', { targetUid: 'c' });
-    expect(buffFrom(at(s, 'c'), 'Astral Spellcore'), 'the fourth does not fire it again').toEqual([18, 18]);
+    s = play(s, 's5', { targetUid: 'c' });
+    expect(buffFrom(at(s, 'c'), 'Astral Spellcore'), 'not again until the sixth').toEqual([18, 18]);
+    s = play(s, 's6', { targetUid: 'c' });
+    expect(buffFrom(at(s, 'c'), 'Astral Spellcore'), 'repeatable — the sixth fires it again').toEqual([36, 36]);
+    expect(at(s, 'c').spellProgress).toBe(6);
+  });
+  it('spells cast while it sat in hand do not count (owner 2026-09-11)', () => {
+    let s = run({ hand: [body('c', 'ce3_spellcore'), spell('s1', 'starcrash'), spell('s2', 'starcrash'), spell('s3', 'starcrash')], board: [body('t', 'ce3_courier')] });
+    s = play(s, 's1', { targetUid: 't' });
+    s = play(s, 's2', { targetUid: 't' });
+    s = play(s, 'c', { toIndex: 1 });
+    expect(at(s, 'c').spellProgress ?? 0, 'nothing counted from the hand').toBe(0);
+    s = play(s, 's3', { targetUid: 't' });
+    expect(buffFrom(at(s, 'c'), 'Astral Spellcore'), 'one board cast is 1/3, not a payout').toEqual([0, 0]);
+    expect(at(s, 'c').spellProgress).toBe(1);
+  });
+  it('the meter carries across turns', () => {
+    let s = run({ hand: [spell('s1', 'starcrash'), spell('s2', 'starcrash')], board: [body('c', 'ce3_spellcore')] });
+    s = play(s, 's1', { targetUid: 'c' });
+    s = play(s, 's2', { targetUid: 'c' });
+    s = reduce(reduce(reduce(s, { type: 'faceOmen' } as Action), { type: 'settleCombat' } as Action), { type: 'resolveCombat' } as Action);
+    expect(s.phase).toBe('recruit');
+    expect(at(s, 'c')?.spellProgress, 'still 2/3 next turn').toBe(2);
   });
 });
 

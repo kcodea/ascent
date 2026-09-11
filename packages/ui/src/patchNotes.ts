@@ -71,7 +71,7 @@ export const PATCH_NOTES: PatchNote[] = [
           'Comet Conductor (Tier 4, 4/5): Rally, get a copy of the first spell you cast this turn. Once per combat.',
           'Falling Star Herald (Tier 4, 4/6): Shout and Echo, get a Star Crash.',
           'Crashborn Adept (Tier 5, 5/8): the first time each turn you cast Star Crash on this, cast it on 2 other friendly Celestials.',
-          'Astral Spellcore (Tier 6, 7/9): after you cast your third Shop spell each turn, give your Celestials +6/+6. The card counts your spells as you go.',
+          'Astral Spellcore (Tier 6, 7/9): when you cast 3 Shop spells, give your Celestials +6/+6. Repeatable; only spells cast while it is on your board count, and its counter shows on the card like an Avenge counter.',
           'Orrery Artificer (Tier 6, 6/10): Equip Comet (4 Gold), your next spell casts 2 additional times.',
         ],
       },

@@ -107,9 +107,10 @@ export const SET3_CELESTIALS: readonly CardDef[] = [
     goldenText: 'The first time each turn you cast **Star Crash** on this, cast it on **4** other friendly Celestials.',
   },
   {
-    // T6: exactly the third Shop spell of the turn (`spellsThisTurn` is bumped before the watchers fire, so the
-    // check is ===). A Ruby under Rune of the Spellstone counts — it is booked as a Shop spell — a bare Ruby does
-    // not. Buffs every friendly Celestial on the board, itself included. Live text counts the turn's spells.
+    // T6: every 3 Shop spells cast while it is ON THE BOARD (owner 2026-09-11: hand-time casts do not count;
+    // repeatable, not once per turn) — this copy's own `spellProgress` meter, shown Avenge-style as N/3 by the
+    // shared step counter, never in the text. A Ruby under Rune of the Spellstone counts (booked as a Shop
+    // spell); a bare Ruby does not. Buffs every friendly Celestial on the board, itself included.
     id: 'ce3_spellcore',
     name: 'Astral Spellcore',
     tribe: 'celestial',
@@ -117,9 +118,9 @@ export const SET3_CELESTIALS: readonly CardDef[] = [
     attack: 7,
     health: 9,
     keywords: [],
-    effects: [{ on: 'spellCast', do: 'spellCastNthBuffTribe', params: { nth: 3, tribe: 'celestial', attack: 6, health: 6 } }],
-    text: 'After you cast your **third** Shop spell each turn, give your Celestials **+6/+6**.',
-    goldenText: 'After you cast your **third** Shop spell each turn, give your Celestials **+12/+12**.',
+    effects: [{ on: 'spellCast', do: 'spellCastEveryNBuffTribe', params: { every: 3, tribe: 'celestial', attack: 6, health: 6 } }],
+    text: 'When you cast **3** Shop spells, give your Celestials **+6/+6**.',
+    goldenText: 'When you cast **3** Shop spells, give your Celestials **+12/+12**.',
   },
   {
     // T6 Equip: Comet (4 Gold) banks 2 extra casts for the next spell — Nimbus' own charge, so it stacks with a

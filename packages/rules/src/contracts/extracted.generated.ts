@@ -3144,7 +3144,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "extractor": "contracts-extract@1",
       "confidence": "medium",
       "unparsed": [
-        "spellCastNthBuffTribe.tribe"
+        "spellCastEveryNBuffTribe.tribe"
       ]
     },
     "setIds": [
@@ -3166,13 +3166,13 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "effects": [
       {
-        "kind": "spellCastNthBuffTribe",
+        "kind": "spellCastEveryNBuffTribe",
         "amount": {
           "kind": "const",
           "plain": {
             "attack": 6,
-            "health": 6,
-            "nth": 3
+            "every": 3,
+            "health": 6
           }
         }
       }

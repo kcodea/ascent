@@ -429,7 +429,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:spellBuffTargetPerGold:cast': { policy: 'ownBeat', family: 'spellCast' },
   'factory:spellBuffTavern:cast': { policy: 'ownBeat', family: 'spellCast' },
   'factory:spellCastBuffAll:spellCast': { policy: 'foldedCue', family: 'castReact' },
-  'factory:spellCastNthBuffTribe:spellCast': { policy: 'foldedCue', family: 'castReact' }, // Astral Spellcore
+  'factory:spellCastEveryNBuffTribe:spellCast': { policy: 'foldedCue', family: 'castReact' }, // Astral Spellcore
   'factory:spellCastBuffSelf:spellCast': { policy: 'foldedCue', family: 'castReact' }, // Gravestar Seer (first live user)
   'factory:spellCastBuffOthers:spellCast': { policy: 'foldedCue', family: 'castReact' },
   'factory:spellCastBuffUndeadAttack:spellCast': { policy: 'foldedCue', family: 'castReact' },

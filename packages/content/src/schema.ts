@@ -109,7 +109,7 @@ export const EffectFactoryIdSchema = z.enum([
   'onSpellCastOnThisSpreadRandom',
   'onSpellCastOnThisSpreadTribeNamed',
   'battlecryBuffNextSpell',
-  'spellCastNthBuffTribe',
+  'spellCastEveryNBuffTribe',
   'rallyGrantFirstSpellCopy',
   'equipmentExtraNextSpellCasts',
   'onRubyPlayedSpreadAdjacent',

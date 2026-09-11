@@ -17,7 +17,7 @@ The Orbit / Alignment roster of 2026-08-05 stays archived (`c3_*`); the two name
 | Comet Conductor — Rally: copy of the turn's first spell, once per combat | `rallyGrantFirstSpellCopy` (combat) + `CombatSideState.firstSpellThisTurnId` | **new** |
 | Falling Star Herald — Shout and Echo: a Star Crash | `battlecryGrantSpell` + `deathrattleGrantSpell` | existing (two entries) |
 | Crashborn Adept — first Star Crash on it each turn also casts on 2 other Celestials | `onSpellCastOnThisSpreadTribeNamed` | **new** |
-| Astral Spellcore — third Shop spell each turn: Celestials +6/+6 | `spellCastNthBuffTribe` | **new** |
+| Astral Spellcore — every 3 Shop spells cast while on the board: Celestials +6/+6 | `spellCastEveryNBuffTribe` (per-copy `spellProgress` meter, Avenge-style step counter) | **new** |
 | Orrery Artificer — Equip Comet (4): next spell casts 2 additional times | Equipment `comet` → `equipmentExtraNextSpellCasts` | **new** (rides Nimbus' `nextSpellExtraCasts`) |
 
 ## Rulings applied (flag if wrong)
@@ -30,6 +30,11 @@ The Orbit / Alignment roster of 2026-08-05 stays archived (`c3_*`); the two name
   a FULL cast per target, scaled by the cast multiplier, so a Yazzus doubles the spreads too. The per-turn gate
   is its own latch (`namedSpreadUsedThisTurn`), keyed to the NAMED spell, not to the spells-on-this counter.
 - **Once per combat** on the Conductor is a per-instance latch: Rallying Offensive's double fire pays once.
+- **Astral Spellcore (owner correction, same day):** it first shipped as "the third Shop spell each turn" read off
+  the run's `spellsThisTurn`, which counted casts made while the card sat in hand. Now it is a per-copy meter that
+  only ticks on the board (the `spellCast` watchers fire for board cards only), fires on every third (repeatable,
+  carries across turns), prints "When you cast **3** Shop spells, give your Celestials **+6/+6**.", and shows its
+  progress through the shared step counter (`stepProgress`, keyed on the effect shape) — not in the text.
 - **Golden lines:** Courier 2 spells; Vendor +4/+4; Seer +8; Conductor 2 copies; Herald 2 Star Crashes; Adept 4
   others; Spellcore +12/+12; Comet 4 additional casts (gilded Artificer).
 - **Yazzus:** the set-3 fork `n3_yazzus` moves T6 → T7; stats (4/8) and text untouched (the game is the truth).
@@ -43,4 +48,4 @@ Conductor, policy entries for the two revived primitives, Forsaken-Mage opt-in l
 577 → 582, snapshot fidelity for the new per-turn latch, contracts regenerated. Art owed for all eight
 (`ART_PENDING`).
 
-Tests: `packages/sim/src/set3Celestials.test.ts` (21), `packages/ui/src/cardText.test.ts` (Spellcore live text).
+Tests: `packages/sim/src/set3Celestials.test.ts` (23), `packages/ui/src/cardText.test.ts` (Spellcore step counter).

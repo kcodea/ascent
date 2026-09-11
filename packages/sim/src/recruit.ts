@@ -5622,12 +5622,19 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     };
   },
 
-  /** Set 3 Celestials — Astral Spellcore: exactly the `nth` Shop spell each turn (`spellsThisTurn` is bumped
-   *  before the watchers fire, so `===` reads "the third") buffs every friendly `tribe` body on the board, self
-   *  included. Golden doubles. A Ruby under Rune of the Spellstone counts (it is booked as a Shop spell and fires
-   *  these watchers); a bare Ruby does not. */
-  spellCastNthBuffTribe: (ctx, self, params) => {
-    if (ctx.state.spellsThisTurn !== num(params.nth, 3)) return;
+  /** Set 3 Celestials — Astral Spellcore: every `every` Shop spells cast WHILE THIS IS ON THE BOARD (owner
+   *  2026-09-11: casts made while it sat in hand do not count — the `spellCast` watchers only fire for board
+   *  cards, and the meter is this copy's own `spellProgress`, the Guel shape), buff every friendly `tribe` body
+   *  on the board, self included. Repeatable — every third, not once per turn — and the meter carries across
+   *  turns. The shared step counter (`stepProgress`) shows it Avenge-style as N/3. Golden doubles the grant. A
+   *  Ruby under Rune of the Spellstone counts (it is booked as a Shop spell and fires these watchers); a bare
+   *  Ruby does not. */
+  spellCastEveryNBuffTribe: (ctx, self, params) => {
+    const every = Math.max(1, num(params.every, 3));
+    const me = ctx.state.board.find((c) => c.uid === self.uid);
+    if (!me) return;
+    me.spellProgress = (me.spellProgress ?? 0) + 1;
+    if (me.spellProgress % every !== 0) return;
     ARENA_EFFECTS.spellCastBuffAll(shopArena(ctx.state, self), { attack: num(params.attack, 6), health: num(params.health, 6), tribe: str(params.tribe) });
   },
 

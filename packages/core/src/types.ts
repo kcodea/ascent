@@ -687,7 +687,7 @@ export type EffectFactoryId =
   | 'rallyCastTribeAttack' // Watcher: Rally — cast Lantern of Souls (Undead +Attack run-wide) as a real spell cast
   | 'battlecryDoubleNextSpell' // Nimbus: Battlecry arms the next Tavern spell to cast twice (recruit)
   | 'battlecryBuffNextSpell' // Set 3 Celestials — Starpath Vendor: Shout banks +A/+H for your NEXT Shop spell (recruit)
-  | 'spellCastNthBuffTribe' // Set 3 Celestials — Astral Spellcore: the Nth Shop spell each turn buffs your `tribe` (recruit)
+  | 'spellCastEveryNBuffTribe' // Set 3 Celestials — Astral Spellcore: every N Shop spells cast while it is on the board, buff your `tribe` (recruit; per-copy `spellProgress` meter)
   | 'onSpellCastOnThisSpreadTribeNamed' // Set 3 Celestials — Crashborn Adept: first NAMED spell on this each turn also casts on N other friendly `tribe` (recruit)
   | 'rallyGrantFirstSpellCopy' // Set 3 Celestials — Comet Conductor: Rally — copy of the first spell cast this turn, once per combat (combat)
   | 'equipmentExtraNextSpellCasts' // Set 3 Celestials — Comet (Orrery Artificer's Equipment): bank N extra casts for the next spell (recruit)

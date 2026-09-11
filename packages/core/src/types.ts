@@ -1952,6 +1952,14 @@ export interface RuneDef {
    */
   /** Mirrors `SetId` in `@game/content`, spelled out because content depends on core and not the reverse. */
   sets?: readonly ('set1' | 'set2' | 'set3')[];
+  /**
+   * TRIBE GATE (owner 2026-09-10: "tribe-gated runes and heroes are important"): the forge offers this rune only
+   * when at least one of these is one of the RUN's rolled tribes. Absent = tribe-agnostic. Distinct from `sets`
+   * (which set's MECHANICS it needs): a Dragon rune in a set that HAS Dragons is still dead in a run that did not
+   * roll them. Tagged where the printed text names the tribe on the board ("your Dragons", "a friendly Kobold");
+   * a rune that merely GRANTS a tribe body (a Pillager, a Whelp) is left untagged — the body arrives regardless.
+   */
+  tribes?: readonly Tribe[];
 }
 
 /** One source's per-instance stat-buff contribution, surfaced in the inspect-panel breakdown

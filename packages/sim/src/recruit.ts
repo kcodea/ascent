@@ -2699,7 +2699,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  clarification 2026-08-26: it REPLACES an existing second power rather than being skipped. */
   giftSecondCalling: (ctx) => {
     const st = ctx.state;
-    const pool = powerDiscoverPool('void', [st.heroId, ...(st.voidPowerIds ?? [])]);
+    const pool = powerDiscoverPool('void', [st.heroId, ...(st.voidPowerIds ?? [])], st.tribes);
     if (pool.length === 0) return;
     const rng = makeRng(st.rngCursor);
     const pick = pool[rng.int(pool.length)]!;
@@ -7257,7 +7257,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const st = ctx.state;
     // The hero id whose power is being replaced — the adopted one if any, else the run's own hero.
     const wielding = st.voidPowerIds?.[0] ?? st.adoptedPowerId ?? st.mimicPowerId ?? st.heroId;
-    const pool = powerDiscoverPool('mimic', [wielding]);
+    const pool = powerDiscoverPool('mimic', [wielding], ctx.state.tribes);
     if (pool.length === 0) return;
     const rng = makeRng(st.rngCursor);
     const heroIds: string[] = [];

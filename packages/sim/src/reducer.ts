@@ -5155,7 +5155,7 @@ export const DOUBLEABLE_POWERS = new Set([
 
 /** The eligible rune-id pool for whichever forge is open (normal or Epic), filtered by the current hero's power:
  *  a `requiresDoublePower` rune (Empowerment) is dropped for a hero whose power can't double. */
-function runeforgePool(s: RunState): string[] {
+export function runeforgePool(s: RunState): string[] {
   const set = s.runeforgeEpic ? EPIC_RUNES : RUNES;
   const canDouble = activePowers(s).some((p) => DOUBLEABLE_POWERS.has(p.kind)); // a mimicked/Void-held power doubles too
   // SET SCOPING (owner report 2026-07-29): a rune whose reward names another set's mechanics — Fodder,
@@ -5166,6 +5166,9 @@ function runeforgePool(s: RunState): string[] {
   return set
     .filter((rn) => !rn.requiresDoublePower || canDouble)
     .filter((rn) => !rn.sets || rn.sets.includes(runSet))
+    // TRIBE GATE (owner 2026-09-10): a rune whose text names a tribe on the board is offered only when that tribe
+    // is one of the run's rolled tribes — a "your Dragons" rune in a Dragon-less run is dead weight in a forge slot.
+    .filter((rn) => !rn.tribes || rn.tribes.some((t) => s.tribes.includes(t)))
     // FORGE FILTER (owner approve 2026-08-27, q-runedup-forge-filter): never re-offer an owned rune whose
     // duplicate would only pay the sweetener (or, for the ruled-unique ones, nothing). Stacking runes stay
     // offerable; Rune of Duplication still reaches everything deliberately.
@@ -5342,7 +5345,7 @@ function closeRuneforge(s: RunState): void {
  */
 function mintPowerOffer(s: RunState, slot: 'mimic' | 'void1' | 'void2'): void {
   const rng = makeRng(s.rngCursor);
-  const pool = powerDiscoverPool(slot === 'mimic' ? 'mimic' : 'void', s.voidPowerIds ?? []);
+  const pool = powerDiscoverPool(slot === 'mimic' ? 'mimic' : 'void', s.voidPowerIds ?? [], s.tribes);
   const heroIds: string[] = [];
   while (heroIds.length < 2 && pool.length > 0) heroIds.push(pool.splice(rng.int(pool.length), 1)[0]!);
   s.rngCursor = rng.state();

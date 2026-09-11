@@ -247,6 +247,7 @@ export const RUNES: RuneDef[] = [
   },
   {
     id: 'rune_hunger',
+    tribes: ['demon'], // TRIBE GATE (2026-09-10): the text names demons on the board
     name: 'Rune of Hunger',
     cost: 5, // owner balance 2026-08-04
     text: '**End of Turn:** your **left-most Demon** Consumes the **right-most Shop** minion.',
@@ -355,6 +356,7 @@ export const RUNES: RuneDef[] = [
   },
   {
     id: 'rune_menagerie',
+    tribes: ['beast', 'demon', 'dragon', 'mech', 'undead'], // TRIBE GATE (2026-09-10): five tribe grants — worth a slot if any is in the run
     name: 'Rune of the Menagerie',
     cost: 5,
     // PER-SET line-up (owner ruling 2026-07-29). One rune per set, each `sets`-scoped, because the tribes a
@@ -373,6 +375,7 @@ export const RUNES: RuneDef[] = [
   {
     // The set-2 twin of the Menagerie — same shape, this set's tribes.
     id: 'rune_menagerie_set2',
+    tribes: ['beast', 'demon', 'dragon', 'kobold', 'dwarf'], // TRIBE GATE (2026-09-10): five tribe grants — worth a slot if any is in the run
     name: 'Rune of the Menagerie',
     cost: 5,
     text: 'Get a random **Beast, Demon, Dragon, Kobold, and Dwarf**.',
@@ -456,6 +459,7 @@ export const RUNES: RuneDef[] = [
   },
   {
     id: 'rune_salvage',
+    tribes: ['mech'], // TRIBE GATE (2026-09-10): the text names mechs on the board
     name: 'Rune of Salvage',
     cost: 1,
     text: 'Whenever a friendly **Mech loses Ward**, get a random **Attachment** next shop.',
@@ -568,6 +572,7 @@ export const RUNES: RuneDef[] = [
   },
   {
     id: 'rune_flagship',
+    tribes: ['dwarf'], // TRIBE GATE (2026-09-10): the text names dwarfs on the board
     name: 'Rune of the Flagship',
     cost: 3,
     text: 'Whenever you cast a **Shop spell**, give your **Dwarves +2/+2**.',
@@ -576,6 +581,7 @@ export const RUNES: RuneDef[] = [
   },
   {
     id: 'rune_brew',
+    tribes: ['dwarf'], // TRIBE GATE (2026-09-10): the text names dwarfs on the board
     name: 'Rune of the Brew',
     cost: 4,
     text: 'Whenever you **spend Gold**, give a friendly **Dwarf +4/+3**.',
@@ -671,6 +677,7 @@ export const RUNES: RuneDef[] = [
   },
   {
     id: 'rune_second_litter',
+    tribes: ['beast'], // TRIBE GATE (2026-09-10): the text names beasts on the board
     name: 'Rune of the Second Litter',
     cost: 2, // owner balance 2026-08-11
     text: 'The first **Beast** summoned each combat summons **another copy**.',
@@ -693,6 +700,7 @@ export const RUNES: RuneDef[] = [
   },
   {
     id: 'rune_hoardcalling',
+    tribes: ['dragon'], // TRIBE GATE (2026-09-10): the text names dragons on the board
     name: 'Rune of Hoardcalling',
     cost: 4, // owner balance 2026-08-11
     text: 'After your first **Dragon Shout** each turn, get a random **Shop spell**.',
@@ -741,6 +749,7 @@ export const RUNES: RuneDef[] = [
   },
   {
     id: 'rune_last_word',
+    tribes: ['dragon'], // TRIBE GATE (2026-09-10): the text names dragons on the board
     name: 'Rune of the Last Word',
     cost: 4,
     text: 'The first **Dragon** with a **Shout** you sell each turn triggers its Shout before being sold.',
@@ -748,6 +757,7 @@ export const RUNES: RuneDef[] = [
   },
   {
     id: 'rune_runic_hoard',
+    tribes: ['dragon'], // TRIBE GATE (2026-09-10): the text names dragons on the board
     name: 'Rune of the Runic Hoard',
     cost: 4,
     text: 'After you add a copy of a **Shop spell** to your hand, give your **Dragons +1/+1**.',
@@ -885,6 +895,7 @@ export const RUNES: RuneDef[] = [
     // Owner rework 2026-08-19: no longer a resummon — triggering a Beast's Echo banks a FREE REFRESH. Read in
     // `simulate` at the `asEcho` chokepoint, so a forced Echo (Hawkus / Spots / the Reliquary) pays too.
     id: 'rune_burrow',
+    tribes: ['beast'], // TRIBE GATE (2026-09-10): the text names beasts on the board
     name: 'Rune of the Burrow',
     cost: 1, // owner rework 2026-08-19
     text: "Whenever you trigger a **Beast's Echo**, get a **free refresh**.",
@@ -916,6 +927,7 @@ export const RUNES: RuneDef[] = [
   },
   {
     id: 'rune_basic_dwarf',
+    tribes: ['dwarf'], // TRIBE GATE (2026-09-10): the text names dwarfs on the board
     name: 'Rune of Basic Dwarves',
     cost: 3,
     text: 'Get a **Dwarve**. Repeat every **Start of Turn**.',
@@ -924,6 +936,7 @@ export const RUNES: RuneDef[] = [
   },
   {
     id: 'rune_basic_dragon',
+    tribes: ['dragon'], // TRIBE GATE (2026-09-10): the text names dragons on the board
     name: 'Rune of Basic Dragons',
     cost: 3,
     text: 'Get a **Dragon**. Repeat every **Start of Turn**.',
@@ -932,6 +945,7 @@ export const RUNES: RuneDef[] = [
   },
   {
     id: 'rune_basic_beast',
+    tribes: ['beast'], // TRIBE GATE (2026-09-10): the text names beasts on the board
     name: 'Rune of Basic Beasts',
     cost: 3,
     text: 'Get a **Beast**. Repeat every **Start of Turn**.',
@@ -940,6 +954,7 @@ export const RUNES: RuneDef[] = [
   },
   {
     id: 'rune_basic_demon',
+    tribes: ['demon'], // TRIBE GATE (2026-09-10): the text names demons on the board
     name: 'Rune of Basic Demons',
     cost: 3,
     text: 'Get a **Demon**. Repeat every **Start of Turn**.',
@@ -948,6 +963,7 @@ export const RUNES: RuneDef[] = [
   },
   {
     id: 'rune_basic_kobold',
+    tribes: ['kobold'], // TRIBE GATE (2026-09-10): the text names kobolds on the board
     name: 'Rune of Basic Kobolds',
     cost: 3,
     text: 'Get a **Kobold**. Repeat every **Start of Turn**.',
@@ -966,6 +982,7 @@ export const RUNES: RuneDef[] = [
   },
   {
     id: 'rune_glider',
+    tribes: ['dragon'], // TRIBE GATE (2026-09-10): the text names dragons on the board
     name: 'Rune of the Glider',
     cost: 1,
     text: 'Whenever you play a card, give a **Dragon +4/+4**.',
@@ -1115,6 +1132,7 @@ export const RUNES: RuneDef[] = [
   },
   {
     id: 'rune_draconic_curiosity',
+    tribes: ['dragon'], // TRIBE GATE (2026-09-10): the text names dragons on the board
     name: 'Rune of Draconic Curiosity',
     cost: 4,
     text: 'Whenever you **Discover** a **Dragon**, get a random **Shop spell**.',
@@ -1124,6 +1142,7 @@ export const RUNES: RuneDef[] = [
     // A `cardsPlayed`-shaped threshold on a new `playDragon` meter, so the remainder BANKS across turns
     // exactly like every other threshold - which is what "progress carries" means.
     id: 'rune_dragons_pantry',
+    tribes: ['dragon'], // TRIBE GATE (2026-09-10): the text names dragons on the board
     name: "Rune of the Dragon's Pantry",
     cost: 4,
     text: 'After you play **5 Dragons**, get **2 random Shop spells**. Progress carries between turns.',
@@ -1133,6 +1152,7 @@ export const RUNES: RuneDef[] = [
     // A COMBAT meter that pays into the next shop: the Beast rides `playerHandGrants` (the carry-back every
     // in-combat card grant already uses), so it flies to hand during the replay rather than snapping in.
     id: 'rune_returning_pack',
+    tribes: ['beast'], // TRIBE GATE (2026-09-10): the text names beasts on the board
     name: 'Rune of the Returning Pack',
     cost: 4,
     text: 'After you summon **6 Beasts** in combat, get a random **Beast**.',
@@ -1192,6 +1212,7 @@ export const RUNES: RuneDef[] = [
     // Rides the SAME stateless `addBuff` hook Sable's Soulbind uses - the one chokepoint every recruit-phase
     // stat gain passes through - rather than being wired into the dozen sites that grant stats.
     id: 'rune_shared_spoils',
+    tribes: ['dwarf'], // TRIBE GATE (2026-09-10): the text names dwarfs on the board
     name: 'Rune of Shared Spoils',
     cost: 4,
     text: 'Whenever your **left-most Dwarf** gains stats, give your **right-most Dwarf** the same stats.',
@@ -1200,6 +1221,7 @@ export const RUNES: RuneDef[] = [
   },
   {
     id: 'rune_heavy_payroll',
+    tribes: ['dwarf'], // TRIBE GATE (2026-09-10): the text names dwarfs on the board
     name: 'Rune of Heavy Payroll',
     cost: 4,
     text: 'Whenever you get a **Dwarf**, give your **left-most minion +12/+12**.',
@@ -1210,6 +1232,7 @@ export const RUNES: RuneDef[] = [
     // The threshold engine again, with the two new knobs: a TRIBE buff target and a `step` that escalates the
     // payout. "Improve this by +1/+1" is therefore data, not a bespoke rune.
     id: 'rune_compounding_wages',
+    tribes: ['dwarf'], // TRIBE GATE (2026-09-10): the text names dwarfs on the board
     name: 'Rune of Compounding Wages',
     cost: 4,
     text: 'Every **10 Gold** spent, give your **Dwarves +1/+1** and improve this by **+1/+1**.',
@@ -1266,6 +1289,7 @@ export const EPIC_RUNES: RuneDef[] = [
   // ── Batch 3: combat runes (Start of Combat + Avenge) ──
   {
     id: 'rune_rising_graves',
+    tribes: ['undead'], // TRIBE GATE (2026-09-10): the text names undeads on the board
     name: 'Rune of Rising Graves',
     cost: 1,
     epic: true,
@@ -1361,6 +1385,7 @@ export const EPIC_RUNES: RuneDef[] = [
   // ── Batch 5: recruit-phase runes ──
   {
     id: 'rune_scales',
+    tribes: ['dragon'], // TRIBE GATE (2026-09-10): the text names dragons on the board
     name: 'Rune of Scales',
     cost: 2,
     epic: true,
@@ -1377,6 +1402,7 @@ export const EPIC_RUNES: RuneDef[] = [
   },
   {
     id: 'rune_den_mother',
+    tribes: ['beast'], // TRIBE GATE (2026-09-10): the text names beasts on the board
     sets: ['set1'],
     name: 'Rune of the Den Mother',
     cost: 7,
@@ -1386,6 +1412,7 @@ export const EPIC_RUNES: RuneDef[] = [
   },
   {
     id: 'rune_banking',
+    tribes: ['mech'], // TRIBE GATE (2026-09-10): the text names mechs on the board
     name: 'Rune of Banking',
     cost: 7,
     epic: true,
@@ -1397,6 +1424,7 @@ export const EPIC_RUNES: RuneDef[] = [
   // ── Batch 6: combat runes + Second Path ──
   {
     id: 'rune_first_claws',
+    tribes: ['beast'], // TRIBE GATE (2026-09-10): the text names beasts on the board
     name: 'Rune of First Claws',
     cost: 7,
     epic: true,
@@ -1478,6 +1506,7 @@ export const EPIC_RUNES: RuneDef[] = [
   // ── Batch 7a additions (owner designs 2026-07-17; Rune of Mastery follows separately in 7b) ──
   {
     id: 'rune_transfusion',
+    tribes: ['demon'], // TRIBE GATE (2026-09-10): the text names demons on the board
     name: 'Rune of Transfusion',
     cost: 4,
     epic: true,
@@ -1504,6 +1533,7 @@ export const EPIC_RUNES: RuneDef[] = [
   },
   {
     id: 'rune_replication',
+    tribes: ['mech'], // TRIBE GATE (2026-09-10): the text names mechs on the board
     name: 'Rune of Replication',
     cost: 1,
     epic: true,
@@ -1538,6 +1568,7 @@ export const EPIC_RUNES: RuneDef[] = [
   },
   {
     id: 'rune_endless_appetite',
+    tribes: ['demon'], // TRIBE GATE (2026-09-10): the text names demons on the board
     name: 'Rune of Endless Appetite',
     cost: 8,
     epic: true,
@@ -1774,6 +1805,7 @@ export const EPIC_RUNES: RuneDef[] = [
   },
   {
     id: 'rune_gemstorm',
+    tribes: ['kobold'], // TRIBE GATE (2026-09-10): the text names kobolds on the board
     name: 'Rune of Gemstorm',
     cost: 2,
     epic: true,
@@ -1805,6 +1837,7 @@ export const EPIC_RUNES: RuneDef[] = [
     // The single-body Attack snowball next to The Old Hunt's board-wide aura — and its step GROWS, where the
     // quest's does not.
     id: 'rune_wild_hunt',
+    tribes: ['beast'], // TRIBE GATE (2026-09-10): the text names beasts on the board
     name: 'Rune of the Wild Hunt',
     cost: 3,
     epic: true,
@@ -1841,6 +1874,7 @@ export const EPIC_RUNES: RuneDef[] = [
     // The Demon's stats are CAPTURED at Start of Combat, not read when the summon lands — so a Demon that dies
     // first still pays out, and the rune reads as a promise made at the bell.
     id: 'rune_food_chain',
+    tribes: ['demon'], // TRIBE GATE (2026-09-10): the text names demons on the board
     name: 'Rune of the Food Chain',
     cost: 5,
     epic: true,
@@ -1861,6 +1895,7 @@ export const EPIC_RUNES: RuneDef[] = [
     // Rides the run's single gold-GAIN chokepoint (`gainGold`), added for this rune — Gold was credited in a
     // dozen places, and wiring eleven would have shipped a rune that silently misses the twelfth.
     id: 'rune_profit_sharing',
+    tribes: ['dwarf'], // TRIBE GATE (2026-09-10): the text names dwarfs on the board
     name: 'Rune of Profit Sharing',
     cost: 4,
     epic: true,
@@ -1952,6 +1987,7 @@ export const EPIC_RUNES: RuneDef[] = [
   },
   {
     id: 'rune_gem_golem',
+    tribes: ['kobold'], // TRIBE GATE (2026-09-10): the text names kobolds on the board
     name: 'Rune of the Gem Golem',
     cost: 4,
     epic: true,
@@ -1964,6 +2000,7 @@ export const EPIC_RUNES: RuneDef[] = [
     // Owner add 2026-08-19. The Demon board's Shop-economy payoff: a wide Demon curve turns every play into
     // another look at the row. Rides the same play chokepoint as the Chipper Sticker (`fireSummonBuffs`).
     id: 'rune_refreshments',
+    tribes: ['demon'], // TRIBE GATE (2026-09-10): the text names demons on the board
     name: 'Rune of Refreshments',
     cost: 1,
     epic: true,
@@ -2004,6 +2041,7 @@ export const EPIC_RUNES: RuneDef[] = [
   },
   {
     id: 'rune_dragonscale',
+    tribes: ['dragon'], // TRIBE GATE (2026-09-10): the text names dragons on the board
     name: 'Rune of Dragonscale',
     cost: 4,
     epic: true,
@@ -2020,6 +2058,7 @@ export const EPIC_RUNES: RuneDef[] = [
   },
   {
     id: 'rune_savagery',
+    tribes: ['beast'], // TRIBE GATE (2026-09-10): the text names beasts on the board
     name: 'Rune of Savagery',
     cost: 5,
     epic: true,
@@ -2068,6 +2107,7 @@ export const EPIC_RUNES: RuneDef[] = [
   },
   {
     id: 'rune_foundry',
+    tribes: ['dragon'], // TRIBE GATE (2026-09-10): the text names dragons on the board
     name: 'Rune of the Foundry',
     cost: 4,
     epic: true,
@@ -2097,6 +2137,7 @@ export const EPIC_RUNES: RuneDef[] = [
     // The Chef banks what it handed out each shop turn; this rune spends LAST turn's total as a combat Rally.
     // Per-instance, so two Chefs each pay their own tally.
     id: 'rune_chef',
+    tribes: ['dwarf'], // TRIBE GATE (2026-09-10): the text names dwarfs on the board
     name: 'Rune of the Chef',
     cost: 6,
     epic: true,
@@ -2138,6 +2179,7 @@ export const EPIC_RUNES: RuneDef[] = [
   // ── batch 4, tranche 4 (2026-08-07): the five hard Epics ──
   {
     id: 'rune_ancestral_roar',
+    tribes: ['dragon'], // TRIBE GATE (2026-09-10): the text names dragons on the board
     name: 'Rune of Ancestral Roar',
     cost: 5,
     text: 'Your **Dragons** with **Shout** gain "**Echo:** trigger this minion’s Shout."',
@@ -2191,6 +2233,7 @@ export const EPIC_RUNES: RuneDef[] = [
   },
   {
     id: 'rune_shared_reflection',
+    tribes: ['dragon'], // TRIBE GATE (2026-09-10): the text names dragons on the board
     name: 'Rune of Shared Reflection',
     cost: 5,
     // Owner 2026-08-11: now also HANDS OVER a Mirrorwing, on top of the cast-on-adjacent-Dragons effect.
@@ -2242,6 +2285,7 @@ export const EPIC_RUNES: RuneDef[] = [
   },
   {
     id: 'rune_herzog', // id kept (saved runs store ids); renamed Rune of Herzog → Rune of the Vaultkeeper 2026-08-12
+    tribes: ['dragon'], // TRIBE GATE (2026-09-10): the Vaultkeeper feeds an adjacent Dragon
     name: 'Rune of the Vaultkeeper',
     cost: 5,
     epic: true,
@@ -2269,6 +2313,7 @@ export const EPIC_RUNES: RuneDef[] = [
   },
   {
     id: 'rune_old_pack',
+    tribes: ['beast'], // TRIBE GATE (2026-09-10): the text names beasts on the board
     name: 'Rune of the Old Pack',
     cost: 6,
     epic: true,
@@ -2290,6 +2335,7 @@ export const EPIC_RUNES: RuneDef[] = [
     // Owner add 2026-08-12. Combat flag (`runeJungle`): a Beast summoned in combat doubles its Health — the
     // Health sibling of Rune of Savagery. Read in `simulate` at the summon chokepoint.
     id: 'rune_jungle',
+    tribes: ['beast'], // TRIBE GATE (2026-09-10): the text names beasts on the board
     name: 'Rune of the Jungle',
     cost: 6,
     epic: true,
@@ -2302,6 +2348,7 @@ export const EPIC_RUNES: RuneDef[] = [
     // and every 2 friendly deaths Avenge(2) raises N permanently (carried across combats via
     // `RunState.beastialSwarmLevel`). Read + carried back in `simulate`.
     id: 'rune_beastial_swarm',
+    tribes: ['beast'], // TRIBE GATE (2026-09-10): the text names beasts on the board
     name: 'Rune of Beastial Swarm',
     cost: 5,
     epic: true,
@@ -2327,6 +2374,7 @@ export const EPIC_RUNES: RuneDef[] = [
   // reading identically was a typo). Same cost, twice the bodies.
   {
     id: 'rune_epic_dwarf',
+    tribes: ['dwarf'], // TRIBE GATE (2026-09-10): the text names dwarfs on the board
     name: 'Rune of Epic Dwarves',
     cost: 3,
     epic: true,
@@ -2336,6 +2384,7 @@ export const EPIC_RUNES: RuneDef[] = [
   },
   {
     id: 'rune_epic_dragon',
+    tribes: ['dragon'], // TRIBE GATE (2026-09-10): the text names dragons on the board
     name: 'Rune of Epic Dragons',
     cost: 3,
     epic: true,
@@ -2345,6 +2394,7 @@ export const EPIC_RUNES: RuneDef[] = [
   },
   {
     id: 'rune_epic_beast',
+    tribes: ['beast'], // TRIBE GATE (2026-09-10): the text names beasts on the board
     name: 'Rune of Epic Beasts',
     cost: 3,
     epic: true,
@@ -2354,6 +2404,7 @@ export const EPIC_RUNES: RuneDef[] = [
   },
   {
     id: 'rune_epic_demon',
+    tribes: ['demon'], // TRIBE GATE (2026-09-10): the text names demons on the board
     name: 'Rune of Epic Demons',
     cost: 3,
     epic: true,
@@ -2363,6 +2414,7 @@ export const EPIC_RUNES: RuneDef[] = [
   },
   {
     id: 'rune_epic_kobold',
+    tribes: ['kobold'], // TRIBE GATE (2026-09-10): the text names kobolds on the board
     name: 'Rune of Epic Kobolds',
     cost: 3,
     epic: true,
@@ -2385,6 +2437,7 @@ export const EPIC_RUNES: RuneDef[] = [
     // LANDED hit (a Ward-absorbed one never reaches the emit). Combat-only — the gains carry back only for a
     // body that is Engraved, the standing rule for every combat stat gain.
     id: 'rune_ruins',
+    tribes: ['demon'], // TRIBE GATE (2026-09-10): the text names demons on the board
     name: 'Rune of Ruins',
     cost: 6,
     epic: true,
@@ -2451,6 +2504,7 @@ export const EPIC_RUNES: RuneDef[] = [
     // Chipper's own shape as a run-wide rune. "ANOTHER" is load-bearing — the Demon you just played never
     // feeds itself (that is Chipper's `self: true`, a different card).
     id: 'rune_chipper_sticker',
+    tribes: ['demon'], // TRIBE GATE (2026-09-10): the text names demons on the board
     name: 'Rune of the Chipper Sticker',
     cost: 5,
     epic: true,
@@ -2562,6 +2616,7 @@ export const EPIC_RUNES: RuneDef[] = [
     // RENAMED from the owner's "Rune of Living Geodes" (2026-08-20) - Rune of the Living Geode already exists
     // and is a different rune (the Geode Guardian grant). Engraving + Gemstorm in one Avenge.
     id: 'rune_deepening_vein',
+    tribes: ['kobold'], // TRIBE GATE (2026-09-10): the text names kobolds on the board
     name: 'Rune of the Deepening Vein',
     cost: 5,
     epic: true,

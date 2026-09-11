@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { loadFpsCap, saveFpsCap } from './fpsCap';
 import { CARD_INDEX, activeSet, type SetId } from '@game/content';
-import { HEROES, playableHeroes, practiceHeroes, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, resolveServerProfile, isPlayerAction, missingCardIds, nextOpponent, parseQaScenario, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, withLiveTelemetry, type TelemetryLog, beginDerive, observeAction, finishDerive, type DeriveState, reduce, reduceWithPresentation, resolveLobbyRating, serialize, snapshotBoard, socBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, combatFrameOf, deltaShopFrameOf, shopFrameOf, runRecord, type DragPath, type ReplayFrame, type ReplayV2, type ShopView, appendInspectEvent, type InspectEvent, type InspectSnapshot, createLobbyRun, createTutorialRun, type TutorialCourse, type PracticeConfig, type BotLevel, DEFAULT_PRACTICE_CONFIG, normalizeBotDifficulty, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction } from '@game/sim';
+import { HEROES, playableHeroes, practiceHeroes, runTribesForSeed, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, resolveServerProfile, isPlayerAction, missingCardIds, nextOpponent, parseQaScenario, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, withLiveTelemetry, type TelemetryLog, beginDerive, observeAction, finishDerive, type DeriveState, reduce, reduceWithPresentation, resolveLobbyRating, serialize, snapshotBoard, socBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, combatFrameOf, deltaShopFrameOf, shopFrameOf, runRecord, type DragPath, type ReplayFrame, type ReplayV2, type ShopView, appendInspectEvent, type InspectEvent, type InspectSnapshot, createLobbyRun, createTutorialRun, type TutorialCourse, type PracticeConfig, type BotLevel, DEFAULT_PRACTICE_CONFIG, normalizeBotDifficulty, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction } from '@game/sim';
 import type { PresentationBatch } from '@game/core';
 import { combatTimelineFrom } from './choreographer/combatTimeline';
 import type { RuneLockInCard } from './RuneLockIn';
@@ -105,10 +105,13 @@ const HERO_SELECT_COUNT = 3;
 
 /** A fresh shuffle of hero ids for the picker. UI-level randomness — the hero *choice* is a
  *  meta decision, not part of the seeded run, so Math.random is fine here (and not in the sim). */
-function rollHeroChoices(): string[] {
+function rollHeroChoices(tribes?: readonly Tribe[]): string[] {
   // PLAY mode only: `wip` heroes are unfinished, and `practiceOnly` heroes are finished but pulled for rework
   // (Fi + Coran, owner 2026-08-23). Practice below deliberately uses the wider roster.
-  const ids = playableHeroes().map((h) => h.id);
+  // TRIBE GATE (owner 2026-09-10): the run's tribes are rolled from its seed, and the seed is now rolled BEFORE the
+  // hero offer (`pendingSeed`), so a hero whose power needs a tribe the run did not roll (Tiff without Dragons)
+  // is never offered. The same seed then creates the run, so the tribes the picker saw are the tribes it gets.
+  const ids = playableHeroes(tribes).map((h) => h.id);
   for (let i = ids.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [ids[i], ids[j]] = [ids[j]!, ids[i]!];
@@ -530,6 +533,8 @@ interface GameStore {
   showTitle: boolean;
   /** The mode the next run will start in (set by startAscent/startPractice, read by pickHero). */
   pendingMode: RunMode;
+  /** The seed the CURRENT hero offer was rolled against (tribe gate); consumed by `pickHero`, cleared on run creation. */
+  pendingSeed?: number;
   /** Title → Ascent: open the 3-hero picker for a scored run. */
   startAscent: () => void;
   /** Title → Practice: open an ALL-hero picker for a practice run (Ascent's full course, unlimited health). */
@@ -678,6 +683,9 @@ export interface LoadedBugScenario {
 }
 
 const randomSeed = (): number => Math.floor(Math.random() * 0x7fffffff);
+/** The tribes a run created from `seed` WILL roll: `createRun`'s own derivation, computed ahead so the hero
+ *  offer can honour them (the seed is then handed to `createRun` unchanged, so picker and run agree). */
+const tribesForSeed = (seed: number): Tribe[] => runTribesForSeed(seed);
 
 /** Your persisted display name (empty if unset). Best-effort — localStorage may be unavailable. */
 function loadPlayerAvatar(): string | null {
@@ -1759,13 +1767,15 @@ export const useGame = create<GameStore>((set, get) => ({
     set({ inspect: null });
     if (!s.replaying && s.inspect) recordInspectEvent(null);
   },
-  startHeroSelect: () => set({ heroChoices: rollHeroChoices() }),
+  startHeroSelect: () => set(() => { const seed = randomSeed(); return { pendingSeed: seed, heroChoices: rollHeroChoices(tribesForSeed(seed)) }; }),
   pickHero: (heroId) => {
     dropBoardFx(); // outside the updater: `set`'s callback is a pure state derivation, not a place for effects
     set((s) => {
       // The run's par comes from the player's rating-derived Line (career skill pressure).
       // A lobby run needs its 8 seats built alongside it, so it goes through its own constructor.
-      const seed = randomSeed();
+      // The seed the hero offer was rolled against (`pendingSeed`) — so the tribes the picker filtered on are the
+      // tribes this run gets. A picker opened without one (older flows, tests) rolls fresh here.
+      const seed = s.pendingSeed ?? randomSeed();
       // Practice is a lobby too (2026-07-31): same seats + recorded opponents, its own rules on top. It
       // reads the shared board pool but never writes (every upload path is gated on mode !== 'practice').
       const run = s.pendingMode === 'lobby' || s.pendingMode === 'practice'
@@ -1776,7 +1786,7 @@ export const useGame = create<GameStore>((set, get) => ({
       // Get the opponent seats built while the player reads their opening shop, not while they wait for it.
       if (run.lobby) warmLobbyDrivers(run);
       writeSave(run, []); // the new run is now the resumable save
-      return { run, savedRun: run, lastRunBoards: 0, presentationTx: null, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, lastHeroOffer: s.heroChoices ?? [heroId], showTitle: false, avatarPickerOpen: false, replayActions: [], capturedBoards: [], replayFrames: beginReplayCapture(run), replayPartial: false };
+      return { run, savedRun: run, lastRunBoards: 0, presentationTx: null, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, pendingSeed: undefined, lastHeroOffer: s.heroChoices ?? [heroId], showTitle: false, avatarPickerOpen: false, replayActions: [], capturedBoards: [], replayFrames: beginReplayCapture(run), replayPartial: false };
     });
   },
   newRun: (seed, heroId) => {
@@ -1787,7 +1797,7 @@ export const useGame = create<GameStore>((set, get) => ({
       return { run, savedRun: run, lastRunBoards: 0, presentationTx: null, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, showTitle: false, avatarPickerOpen: false, replayActions: [], capturedBoards: [], replayFrames: beginReplayCapture(run), replayPartial: false };
     });
   },
-  startAscent: () => set({ showTitle: false, pendingMode: 'ascent', heroChoices: rollHeroChoices(), avatarPickerOpen: false }),
+  startAscent: () => set(() => { const seed = randomSeed(); return { showTitle: false, pendingMode: 'ascent', pendingSeed: seed, heroChoices: rollHeroChoices(tribesForSeed(seed)), avatarPickerOpen: false }; }),
   // Practice shows EVERY hero — but "every" still means every PICKABLE one. It was reading the raw registry, so
   // a disabled hero stayed selectable here after being pulled from the Ascent picker (owner 2026-07-28).
   // Practice now opens a SETUP screen first (owner ask 2026-08-24): opponents / health / time / tribe surge.
@@ -1803,14 +1813,15 @@ export const useGame = create<GameStore>((set, get) => ({
     // The chosen time multiplier IS the Practice shop-timer knob — apply it so the in-run clock and its dropdown
     // both start where the setup screen left them.
     try { localStorage.setItem('ascent.practicetimer', String(s.practiceDraft.timeMult)); } catch { /* ignore */ }
-    return { practiceSetupOpen: false, practiceTimer: s.practiceDraft.timeMult, pendingMode: 'practice', heroChoices: practiceHeroes().map((h) => h.id) };
+    const seed = randomSeed();
+    return { practiceSetupOpen: false, practiceTimer: s.practiceDraft.timeMult, pendingMode: 'practice', pendingSeed: seed, heroChoices: practiceHeroes(tribesForSeed(seed)).map((h) => h.id) };
   }),
   cancelPracticeSetup: () => set({ practiceSetupOpen: false, showTitle: true }),
-  startRift: () => set({ showTitle: false, pendingMode: 'rift', heroChoices: rollHeroChoices(), avatarPickerOpen: false }),
+  startRift: () => set(() => { const seed = randomSeed(); return { showTitle: false, pendingMode: 'rift', pendingSeed: seed, heroChoices: rollHeroChoices(tribesForSeed(seed)), avatarPickerOpen: false }; }),
   // LOBBY: eight seats, elimination, no fixed round count. Uses the ASCENT offer — three heroes, not the whole
   // roster (owner 2026-07-29). A lobby is a real run you can lose, so the pick should be a decision made under
   // the same constraint as Ascent's; Practice's all-heroes list is a sandbox affordance and reads as one.
-  startLobby: () => set({ showTitle: false, pendingMode: 'lobby', heroChoices: rollHeroChoices(), avatarPickerOpen: false }),
+  startLobby: () => set(() => { const seed = randomSeed(); return { showTitle: false, pendingMode: 'lobby', pendingSeed: seed, heroChoices: rollHeroChoices(tribesForSeed(seed)), avatarPickerOpen: false }; }),
   startTutorial: (course) => {
     dropBoardFx();
     // A brand-new tutorial run starts fresh at wave 1, so the coaching cursor must start at step 0 too — clear

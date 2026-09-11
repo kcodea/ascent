@@ -2200,10 +2200,16 @@ export const metLine = (status: LineStatus): boolean =>
  * it. Pinned exactly like the default: once set here, everything downstream reads `RunState.setId` through
  * `poolOf(state)`, so a sandbox set-2 run never touches set 1's pool or seeds.
  */
+/** The tribes a run created from `seed` on `setId` rolls: THE derivation `createRun` uses, exported so the hero
+ *  offer can be filtered by the upcoming run's tribes BEFORE the run exists (TRIBE GATE, owner 2026-09-10). */
+export function runTribesForSeed(seed: number, setId: SetId = activeSet().id): Tribe[] {
+  return selectRunTribes(makeRng(mixSeed(seed, 0, TAG.TRIBES)), SETS[setId]?.tribes ?? PLAYABLE_TRIBES);
+}
+
 export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID, mode: RunMode = 'ascent', line: number = CONFIG.defaultLine, setId: SetId = activeSet().id): RunState {
   // Draw the run's active tribes from the PINNED set's roster (set 1's five, set 2's Kobolds) — never the
   // global list, so a set-2 tribe can't leak into a set-1 run and vice-versa.
-  const tribes = selectRunTribes(makeRng(mixSeed(seed, 0, TAG.TRIBES)), SETS[setId]?.tribes ?? PLAYABLE_TRIBES);
+  const tribes = runTribesForSeed(seed, setId);
   // The hero's Resolve is the run's starting (and max) HP; Armor is extra effective HP layered on top.
   const hero = getHero(heroId);
   const startResolve = hero.resolve;
@@ -2334,7 +2340,7 @@ export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID, mode: 
   // the same lesson Fi/Coran's quest Discover learned — so the first power offer is minted here.
   if (hero.power.kind === 'mimic' && state.mode !== 'tutorial') {
     const rng = makeRng(state.rngCursor);
-    const pool = powerDiscoverPool('mimic');
+    const pool = powerDiscoverPool('mimic', [], tribes);
     const heroIds: string[] = [];
     while (heroIds.length < 2 && pool.length > 0) heroIds.push(pool.splice(rng.int(pool.length), 1)[0]!);
     state.rngCursor = rng.state();

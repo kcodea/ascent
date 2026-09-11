@@ -2566,6 +2566,19 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     ctx.grantRandomSpell(num(params.count, 1) * mul(self), self.side, self.uid);
   },
 
+  /** Set 3 Celestials — Comet Conductor (Rally): get a copy of the FIRST spell you cast this turn, ONCE per combat
+   *  (a per-instance latch, so Rallying Offensive's double fire and a Flurry's second hit cannot pay twice).
+   *  Nothing cast this turn → nothing to copy. Golden: 2 copies. The grant rides `ctx.grantToHand`, so the card
+   *  really flies into hand mid-fight (and a served enemy's copy no-ops, as every hand grant does). */
+  rallyGrantFirstSpellCopy: (ctx, self, _params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || minion !== self || self.firstSpellCopyFired) return;
+    const id = ctx.firstSpellThisTurnIdFor(self.side);
+    if (!id) return;
+    self.firstSpellCopyFired = true;
+    for (let i = 0; i < mul(self); i++) ctx.grantToHand(id, self.side, self.uid);
+  },
+
   /** Raptor — when ANOTHER friendly minion of `tribe` attacks, buff it (+atk/+hp) before its hit lands
    *  (onAttack is broadcast pre-damage). Excludes self — a support body, not a self-ramp. Golden doubles. */
   // ARENA-MIGRATED (Rally family): one body in arena.ts; the payload guard stays with dispatch.

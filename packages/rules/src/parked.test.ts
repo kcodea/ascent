@@ -78,9 +78,12 @@ describe('the parked registry', () => {
     expect(isParked({ families: ['orbitReact'] })).toBe(true);
     expect(isParked({ triggers: ['orbit'] })).toBe(true);
     expect(isParked({ triggers: ['orbitFired'] })).toBe(true);
-    expect(isParked({ tribes: ['celestial'] })).toBe(true);
-    expect(isParked({ flags: ['celestial'] })).toBe(true);
-    expect(parkedClassOf({ tribes: ['celestial'] })?.id).toBe('celestial');
+    // The Celestial TRIBE was un-parked on 2026-09-11 when the reworked roster shipped (real cards, real rules);
+    // only Orbit stays parked. A Celestial that USES Orbit is still parked through the trigger.
+    expect(isParked({ tribes: ['celestial'] })).toBe(false);
+    expect(isParked({ flags: ['celestial'] })).toBe(false);
+    expect(isParked({ tribes: ['celestial'], triggers: ['orbit'] })).toBe(true);
+    expect(parkedClassOf({ tribes: ['celestial'] })).toBeUndefined();
     expect(parkedClassOf({ families: ['orbit'] })?.id).toBe('orbit');
     // Live design space stays live.
     expect(isParked({ families: ['shout'], tribes: ['dragon'], triggers: ['onPlay'] })).toBe(false);

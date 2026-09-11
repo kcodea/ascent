@@ -731,6 +731,7 @@ export function simulate(
     rubiesPermanentFor: (side) => !!modsFor(side).runeEngravingGems, // Rune of Engraving Gems
 
     spellsThisTurnFor: (side) => (side === 'player' ? playerState.spellsThisTurn : enemySpellsThisTurn),
+    firstSpellThisTurnIdFor: (side) => (side === 'player' ? playerState : enemyState).firstSpellThisTurnId,
     // Rune of Mastery: +1 extra Improve step per copy held (owner 2026-08-27) — the mods field carries the
     // copy count; a legacy snapshot's bare `true` reads as 1 (the classic double).
     improveRepsFor: (side) => {

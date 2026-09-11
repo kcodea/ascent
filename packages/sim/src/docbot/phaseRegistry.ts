@@ -112,6 +112,8 @@ export const PHASE_EXCUSED: Readonly<Record<string, PhaseExcuse>> = {
     + "turn' latch. Choose One is resolved when a HAND card is played in the SHOP, and a fight never plays "
     + 'one — a combat re-fire would arm a latch nothing can spend before the turn boundary clears it' },
   battlecryDoubleNextSpell: { phase: 'combat', kind: 'no-surface', why: 'arms a run flag (next spell casts twice); nothing to double mid-fight, replays at settle' },
+  battlecryBuffNextSpell: { phase: 'combat', kind: 'no-surface', why: 'Starpath Vendor banks +A/+H for the next SHOP spell (a run field); no spell casts mid-fight, the deferred Shout replays at settle' },
+  rallyGrantFirstSpellCopy: { phase: 'recruit', kind: 'no-surface', why: 'Comet Conductor is "once per COMBAT" by its text; a shop Rally pass (Rune of the Chef) is not a fight, and the copy is the payout of the fight' },
   battlecryScoutSpread: { phase: 'combat', kind: 'other-channel', why: 'grows the run-wide squirlScoutBuff; combat reads the carried value, the increment is a play-time event' },
   // Trouble's self-Ruby. Combat DOES implement it — just not through the factory map: `rubyPlayedAnywhere`
   // is a passive marker that `playRubyOn` SCANS living friendlies for (the same shape Candle Conduit's

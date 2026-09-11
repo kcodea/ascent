@@ -388,7 +388,24 @@ export const REVELMAKER: EquipmentDefinition = {
   gildedParams: { count: 1 },
 };
 
-export const EQUIPMENT: readonly EquipmentDefinition[] = [BLOODPOT, TITAN_HAMMER, BLAST_PUMP, PRISMATIC_PICK, DUELING_RUBETTAS, POURMANS_KEG, THYMEPIECE, COFFIN_FLOP, DEATHFIBRILLATOR, MAGNIFYING_GLASS, WHIPLASSO, SPIRITBRINGER, REVELMAKER];
+/**
+ * COMET — Orrery Artificer's Equipment (set-3 Celestials, 2026-09-11): your next spell casts 2 additional times.
+ * The same charge Nimbus banks (`nextSpellExtraCasts`, additive), so it stacks with a Nimbus and is spent by the
+ * next real Shop-spell cast. A gilded Artificer's Comet banks 4.
+ */
+export const COMET: EquipmentDefinition = {
+  id: 'comet',
+  name: 'Comet',
+  text: 'Your next spell casts **2** additional times.',
+  goldenText: 'Your next spell casts **4** additional times.',
+  baseCost: 4,
+  targetMode: 'none',
+  effectId: 'equipmentExtraNextSpellCasts',
+  params: { extra: 2 },
+  gildedParams: { extra: 4 },
+};
+
+export const EQUIPMENT: readonly EquipmentDefinition[] = [BLOODPOT, TITAN_HAMMER, BLAST_PUMP, PRISMATIC_PICK, DUELING_RUBETTAS, POURMANS_KEG, THYMEPIECE, COFFIN_FLOP, DEATHFIBRILLATOR, MAGNIFYING_GLASS, WHIPLASSO, SPIRITBRINGER, REVELMAKER, COMET];
 
 export const EQUIPMENT_INDEX: Readonly<Record<string, EquipmentDefinition>> =
   Object.fromEntries(EQUIPMENT.map((e) => [e.id, e]));

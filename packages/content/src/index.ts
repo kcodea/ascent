@@ -88,6 +88,7 @@ const CARD_REF_EFFECTS: Record<string, string> = {
   rallyCastTribeAttack: 'spellId',
   avengeCastTribeAttack: 'spellId', // Soul-Lantern Hierophant (set 3)
   battlecryGrantSpell: 'spellId',
+  onSpellCastOnThisSpreadTribeNamed: 'spellId',  // Crashborn Adept -> Star Crash (the named spell it spreads)
   startOfTurnGetSpellImproveRubies: 'spellId',  // Gemline Martyr -> Veinstorm
   orbitCastSpell: 'spellId',                    // Worldseed Gardener -> Sprout / Growth
   // Added 2026-08-03 after an audit found six factories that NAME a card in their params but were absent

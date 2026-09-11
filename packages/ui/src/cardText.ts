@@ -1237,6 +1237,18 @@ export function rallySpreadText(cardId: string, golden: boolean, rallySpreadAtk?
  *    countdown to the next improvement; Forest Colossus the Spirits it has counted; Nurturer and Kindled
  *    Sprite the Spirits played this turn. Null when the printed base is already exact.
  */
+/** Set 3 Celestials — Astral Spellcore: how far this turn's Shop-spell count is toward the third (recruit-only;
+ *  combat freezes the tally, and the payout is a shop event). Null until a spell has been cast, so the printed
+ *  text stands when there is nothing live to say. */
+export function nthSpellTribeBuffText(cardId: string, golden: boolean, spellsThisTurn: number): string | null {
+  if (cardId !== 'ce3_spellcore') return null;
+  const nth = 3;
+  const seen = Math.min(spellsThisTurn, nth);
+  if (seen <= 0) return null;
+  const v = 6 * (golden ? 2 : 1);
+  return `After you cast your **third** Shop spell each turn, give your Celestials **+${v}/+${v}**. {{${seen}/${nth}}}`;
+}
+
 export function spiritText(
   cardId: string, golden: boolean,
   p: { revelerX?: number; spiritTally?: number; spiritsPlayed?: number; onBoard?: boolean },

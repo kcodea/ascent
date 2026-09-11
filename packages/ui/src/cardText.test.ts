@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { ALL_CARDS, CARD_INDEX } from '@game/content';
-import { abhorrentHorrorText, cadenceProgressText, drunkenOafText, cardSummonsImp, cardTypeTallyText, chefRaagText, escalatingCastText, guelProgressText, monkProgressText, packLeaderText, ritualistText, runescaleText, sergeantText, soulsmanText, stepProgress, summonBuffText, summonFlatZooText, summonImproveText, summonScalingText, spellThresholdText, tallyBuffText, undeadBuyAtkText, watcherText, shopBuffImproveText, perCardPlayedText, withImpStats } from './cardText';
+import { nthSpellTribeBuffText, abhorrentHorrorText, cadenceProgressText, drunkenOafText, cardSummonsImp, cardTypeTallyText, chefRaagText, escalatingCastText, guelProgressText, monkProgressText, packLeaderText, ritualistText, runescaleText, sergeantText, soulsmanText, stepProgress, summonBuffText, summonFlatZooText, summonImproveText, summonScalingText, spellThresholdText, tallyBuffText, undeadBuyAtkText, watcherText, shopBuffImproveText, perCardPlayedText, withImpStats } from './cardText';
 
 describe('stepProgress — Gemgorge Fiend’s cast meter (owner ask 2026-08-08)', () => {
   it('reads 0/3 on a fresh body and climbs with the casts IT witnessed', () => {
@@ -152,6 +152,15 @@ describe('cardText helpers', () => {
     expect(summonImproveText('mamabear', 2, true)).toContain('{{+8/+8}}'); // (2 + 2) × 2 golden (from goldenText)
     expect(summonImproveText('mamabear', 0, false)).toBeNull(); // no accrual yet → printed +2/+2
     expect(summonImproveText('sandbag', 4, false)).toBeNull(); // not a per-summon-improve card
+  });
+
+  it('nthSpellTribeBuffText (Astral Spellcore) counts this turn toward the third Shop spell; null before any cast', () => {
+    expect(nthSpellTribeBuffText('ce3_spellcore', false, 0)).toBeNull();
+    expect(nthSpellTribeBuffText('ce3_spellcore', false, 2)).toContain('{{2/3}}');
+    expect(nthSpellTribeBuffText('ce3_spellcore', false, 2)).toContain('+6/+6');
+    expect(nthSpellTribeBuffText('ce3_spellcore', true, 5)).toContain('+12/+12');
+    expect(nthSpellTribeBuffText('ce3_spellcore', true, 5)).toContain('{{3/3}}');
+    expect(nthSpellTribeBuffText('sp3_aspect', false, 2)).toBeNull();
   });
 
   it('summonScalingText (Spirit Worgen) greens the per-play gain = base × (1 + spells cast this turn)', () => {

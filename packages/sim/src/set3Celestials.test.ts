@@ -1,287 +1,248 @@
 import { describe, it, expect } from 'vitest';
-import { CARD_INDEX, poolFor } from '@game/content';
-import { createRun, type BoardCard, type RunState } from './state';
-import { reduce } from './reducer';
-import { alignmentOf } from './alignment';
+import { combatSide, makeRng, simulate, type BoardMinion, type CombatEvent } from '@game/core';
+import { CARD_INDEX, EQUIPMENT_INDEX, poolFor } from '@game/content';
+import { createRun, reduce, type Action, type BoardCard, type RunState } from './index';
+import { rubyStatBonus, spellAttackBonus, spellHealthBonus } from './recruit';
+import { equipmentState } from './equipment';
 
 /**
- * SET 3 — THE CELESTIALS. Every test drives the real reducer through a `play` action, because the whole
- * tribe hangs off two things the reducer owns: WHERE a card lands (alignment) and WHAT it lands next to
- * (Orbit). A test that called the factories directly would prove nothing about either.
- */
-const card = (uid: string, cardId: string, attack = 2, health = 2): BoardCard =>
-  ({ uid, cardId, tribe: CARD_INDEX[cardId]?.tribe ?? 'neutral', attack, health, keywords: [], golden: false });
-
-/**
- * Two facts these tests learned the hard way, both real behaviour rather than quirks:
+ * SET 3 — CELESTIALS, the reworked roster (owner sheet 2026-09-11): the SPELL tribe. Star Crash (`starcrash`,
+ * "give a Celestial +5/+7, it also casts on a random friendly minion") is the tribe's own spell, so most casts
+ * below land on a LONE Celestial, where the random friendly is that same body and every number is exact.
  *
- *  1. THREE copies of one card id TRIPLE into a golden. Filler must therefore use DISTINCT ids, or the board
- *     silently collapses mid-test and every stat total goes sideways.
- *  2. Alignment is read when the Orbit FIRES — i.e. AFTER the arriver has landed and re-centred the board. A
- *     lone watcher is Eclipsed only until something lands beside it, at which point a 2-board makes it Dawn.
- *     Every expectation below is written against the post-arrival board.
+ *  - Horizon Courier: Echo → a random Shop spell (combat death here).
+ *  - Starpath Vendor: +2/+2 banked for the NEXT Shop spell; a Gift and a Ruby neither read nor spend it.
+ *  - Gravestar Seer: +4 Attack per spell of ANY kind (Shop spell, Ruby), permanent.
+ *  - Comet Conductor: Rally → a copy of the turn's first spell, once per combat.
+ *  - Falling Star Herald: Shout AND Echo → a Star Crash.
+ *  - Crashborn Adept: the first Star Crash on it each turn also casts on 2 other friendly Celestials (full casts).
+ *  - Astral Spellcore: exactly the third Shop spell each turn → your Celestials +6/+6.
+ *  - Orrery Artificer: Equip Comet (4) → the next spell casts 2 additional times.
  */
-const FILLER = ['pack', 'alley', 'stray', 'sandbag', 'pup'] as const;
-
-/** A run with `board` seated and `hand` held, ready for a `play` that lands at `toIndex`. */
-const staged = (board: BoardCard[], hand: BoardCard[]): RunState =>
-  ({ ...createRun(1), phase: 'recruit', embers: 50, board, hand } as RunState);
-
-describe('the tribe is ARCHIVED, and its mechanics still hold', () => {
-  // Owner 2026-08-28: "celestials have been extremely and completely re-worked ... leaving set 3 empty of
-  // minions now." The sixteen moved to the MINION ARCHIVE — out of every pool, still resolvable by id.
-  it('set 3 offers no CELESTIALS', () => {
-    // Set 3 is not empty — it carries the Equipment reference card — but no Celestial is drawable until the
-    // rework lands.
-    expect(poolFor('set3').buyable.filter((c) => c.tribe === 'celestial')).toEqual([]);
-  });
-
-  it('...but the archived Celestials still resolve, which is what keeps the tests below meaningful', () => {
-    // EVERY test in this file drives real Alignment and Orbit behaviour through the reducer using these ids.
-    // They keep working because an archived card is removed from PLAY, not from CARD_INDEX — so this file
-    // remains the pinned specification of the two mechanics the reworked tribe will be built on.
-    for (const id of ['c3_familiar', 'c3_binary', 'c3_orrery']) {
-      expect(CARD_INDEX[id], `${id} must still resolve`).toBeTruthy();
-      expect(CARD_INDEX[id]!.tribe, `${id} keeps its tribe`).toBe('celestial');
-    }
-  });
-});
-
-describe('ORBIT — fires for the neighbours of the slot you drop into', () => {
-  it('pays the adjacent watcher and nobody else', () => {
-    // Familiar at 0, a bystander at 1. Playing INTO index 1 puts the arriver between them, so the Familiar
-    // (adjacent) fires and the bystander's non-Orbit body is merely a witness.
-    let s = staged([card('fam', 'c3_familiar', 3, 1)], [card('n', 'pack', 1, 1)]);
-    const before = s.board[0]!.attack + s.board[0]!.health;
-    s = reduce(s, { type: 'play', uid: 'n', toIndex: 1 });
-    const total = s.board.reduce((n, c) => n + c.attack + c.health, 0);
-    // The arrival makes it a 2-board, so the Familiar reads DAWN when its Orbit fires — the Attack half only.
-    expect(total).toBe(before + (1 + 1) + 2);
-  });
-
-  it('does NOT fire for a non-adjacent watcher', () => {
-    // Familiar at 0, wall at 1, wall at 2 — playing at index 3 lands two slots away from the Familiar.
-    let s = staged(
-      [card('fam', 'c3_familiar', 3, 1), card('w1', 'alley', 1, 1), card('w2', 'stray', 1, 1)],
-      [card('n', 'sandbag', 1, 1)],
-    );
-    const before = s.board.reduce((n, c) => n + c.attack + c.health, 0);
-    s = reduce(s, { type: 'play', uid: 'n', toIndex: 3 });
-    expect(s.board.reduce((n, c) => n + c.attack + c.health, 0), 'only the arriver\'s own stats').toBe(before + 2);
-  });
-});
-
-describe('ALIGNMENT — the same card behaves differently by seat', () => {
-  it('Dawn takes the Attack half, Dusk the Health half', () => {
-    // Two Channelers at the ends of a 4-board: index 0 is Dawn, index 3 is Dusk (an even board has no
-    // Eclipse), so playing between them fires one Attack half and one Health half.
-    let s = staged(
-      [card('dawn', 'c3_channeler', 3, 8), card('mid', 'alley', 9, 9), card('dusk', 'c3_channeler', 3, 8)],
-      [card('n', 'stray', 1, 1)],
-    );
-    s = reduce(s, { type: 'play', uid: 'n', toIndex: 1 }); // lands adjacent to the Dawn Channeler only
-    expect(alignmentOf(s.board, 'dawn')).toBe('dawn');
-    // The lowest-Attack body took +4 Attack; nothing took +4 Health from this arrival.
-    const gained = s.board.reduce((n, c) => n + c.attack, 0) - (3 + 9 + 3 + 1);
-    expect(gained, 'the Dawn half fired').toBe(4);
-  });
-
-  it('an ECLIPSED body runs BOTH halves — the rule falls out of alignAllows', () => {
-    // Seat 4 and insert at index 3: the board becomes 5 wide with the Channeler at index 2 — the exact
-    // middle, i.e. Eclipse — and the arriver landing beside it at index 3.
-    let s = staged(
-      [card('a', 'pack', 5, 5), card('b', 'alley', 5, 5), card('ch', 'c3_channeler', 3, 8), card('c', 'stray', 5, 5)],
-      [card('n', 'sandbag', 1, 1)],
-    );
-    const beforeA = s.board.reduce((n, c) => n + c.attack, 0);
-    const beforeH = s.board.reduce((n, c) => n + c.health, 0);
-    s = reduce(s, { type: 'play', uid: 'n', toIndex: 3 });
-    expect(alignmentOf(s.board, 'ch'), 'centred on the post-arrival board').toBe('eclipse');
-    expect(s.board.reduce((n, c) => n + c.attack, 0) - beforeA - 1, 'Dawn half').toBe(4);
-    expect(s.board.reduce((n, c) => n + c.health, 0) - beforeH - 1, 'Dusk half').toBe(4);
-  });
-});
-
-describe('ORBIT (N) — the cadence notation', () => {
-  it('pays out only on the Nth arrival, and the tick is per instance', () => {
-    // Star Cartographer is Orbit (4) → three arrivals do nothing, the fourth improves Shop spells.
-    let s = staged([card('sc', 'c3_cartographer', 4, 4)],
-      FILLER.slice(0, 4).map((id, i) => card(`n${i + 1}`, id)));
-    for (const uid of ['n1', 'n2', 'n3']) {
-      s = reduce(s, { type: 'play', uid, toIndex: 1 });
-      expect(s.spellBonus ?? { attack: 0, health: 0 }, `${uid} must not pay out`).toEqual({ attack: 0, health: 0 });
-    }
-    s = reduce(s, { type: 'play', uid: 'n4', toIndex: 1 });
-    expect((s.spellBonus?.attack ?? 0) + (s.spellBonus?.health ?? 0), 'the 4th arrival pays out').toBeGreaterThan(0);
-  });
-});
-
-describe('the board-wide ORBIT WATCHER is distinct from an Orbit', () => {
-  it('Worldline Weaver fires off SOMEONE ELSE\'s Orbit', () => {
-    // The Weaver has no Orbit of its own — it watches. Familiar at 0 orbits, Weaver sits at the far end and
-    // still pays, which is exactly the difference between `orbit` and `orbitFired`.
-    let s = staged(
-      [card('fam', 'c3_familiar', 3, 1), card('w', 'alley', 1, 1), card('weav', 'c3_weaver', 6, 10)],
-      [card('n', 'stray', 1, 1)],
-    );
-    const before = s.board.reduce((n, c) => n + c.attack + c.health, 0);
-    s = reduce(s, { type: 'play', uid: 'n', toIndex: 1 }); // adjacent to the Familiar, NOT the Weaver
-    const after = s.board.reduce((n, c) => n + c.attack + c.health, 0);
-    // Familiar's own Orbit (+2 somewhere) plus the Weaver's board-wide payout — strictly more than the
-    // Orbit alone would give.
-    expect(after - before - 2, 'the Weaver reacted to a distant Orbit').toBeGreaterThan(2);
-  });
-});
-
-describe('Binary Star multiplies its NEIGHBOURS\' Orbits', () => {
-  it('an adjacent Orbit pays twice', () => {
-    const play = (withBinary: boolean): number => {
-      // Order matters: [multiplier, watcher] then insert at 2. Post-arrival the Familiar sits at index 1 with
-      // the arriver beside it at 2 AND the multiplier still adjacent at 0. Inserting BETWEEN them would
-      // separate the pair — adjacency is read after the board re-centres, which is the card's real cost.
-      const board = withBinary
-        ? [card('bin', 'c3_binary', 5, 8), card('fam', 'c3_familiar', 3, 1)]
-        : [card('plain', 'alley', 5, 8), card('fam', 'c3_familiar', 3, 1)];
-      let s = staged(board, [card('n', 'stray', 1, 1)]);
-      const before = s.board.reduce((n, c) => n + c.attack + c.health, 0);
-      s = reduce(s, { type: 'play', uid: 'n', toIndex: 2 });
-      return s.board.reduce((n, c) => n + c.attack + c.health, 0) - before - 2; // minus the arriver itself
-    };
-    const plain = play(false);
-    const doubled = play(true);
-    expect(plain, 'the Familiar paid once').toBeGreaterThan(0);
-    expect(doubled, 'Binary Star made it pay twice').toBe(plain * 2);
-  });
-});
-
-describe('Starpath Vendor accrues sell value, capped', () => {
-  it('grows +1 per Orbit and stops at +3', () => {
-    let s = staged([card('v', 'c3_vendor', 2, 4)],
-      FILLER.map((id, i) => card(`n${i + 1}`, id)));
-    for (const uid of ['n1', 'n2', 'n3', 'n4', 'n5']) s = reduce(s, { type: 'play', uid, toIndex: 1 });
-    const vendor = s.board.find((c) => c.uid === 'v')!;
-    expect(vendor.sellBonus, 'capped at +3 however many Orbits fired').toBe(3);
-  });
-});
-
-describe('Horizon Collector copies the arriver\'s bonus stats without stealing them', () => {
-  it('takes what the minion carries above its printed base', () => {
-    const base = CARD_INDEX['pack']!;
-    let s = staged(
-      [card('col', 'c3_collector', 5, 12)],
-      [card('n', 'pack', base.attack + 4, base.health + 6)], // a bought-up minion: +4/+6 of bonus
-    );
-    s = reduce(s, { type: 'play', uid: 'n', toIndex: 1 });
-    const col = s.board.find((c) => c.uid === 'col')!;
-    const arriver = s.board.find((c) => c.uid === 'n')!;
-    // Eclipsed (lone Collector), so both halves run; the copy is at least the bonus on each axis.
-    expect(col.attack).toBeGreaterThanOrEqual(5 + 4);
-    expect(col.health).toBeGreaterThanOrEqual(12 + 6);
-    expect([arriver.attack, arriver.health], 'the arriver keeps its own stats').toEqual([base.attack + 4, base.health + 6]);
-  });
-});
-
-/** Bonus stats = everything a body carries above its PRINTED base. Computed from the card index rather than
- *  hardcoded, so a balance change to a filler card can never quietly invalidate these expectations. */
-const bonusOf = (c: BoardCard): { a: number; h: number } => {
-  const base = CARD_INDEX[c.cardId]!;
-  return { a: Math.max(0, c.attack - base.attack), h: Math.max(0, c.health - base.health) };
+const body = (uid: string, cardId: string, over: Partial<BoardCard> = {}): BoardCard => {
+  const d = CARD_INDEX[cardId]!;
+  return { uid, cardId, tribe: d.tribe, attack: d.attack, health: d.health, keywords: [...d.keywords], golden: false, ...over };
 };
+const spell = (uid: string, cardId: string): BoardCard => ({ uid, cardId, tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false } as BoardCard);
+const run = (over: Partial<RunState> = {}): RunState =>
+  ({ ...createRun(3), setId: 'set3', phase: 'recruit', embers: 30, tier: 6, tribes: ['celestial', 'undead', 'kobold'], shop: [],
+    pool: Object.fromEntries(poolFor('set3').buyable.map((c) => [c.id, 5])), ...over } as RunState);
+const at = (s: RunState, uid: string): BoardCard => s.board.find((c) => c.uid === uid)!;
+const play = (s: RunState, uid: string, extra: Partial<Action> = {}): RunState => reduce(s, { type: 'play', uid, ...extra } as Action);
+const stats = (c: BoardCard): [number, number] => [c.attack, c.health];
+const buffFrom = (c: BoardCard, source: string): [number, number] =>
+  (c.buffs ?? []).filter((b) => b.source === source).reduce<[number, number]>((acc, b) => [acc[0] + b.attack, acc[1] + b.health], [0, 0]); // the ledger holds TOTALS
+const boardTotal = (s: RunState): [number, number] => s.board.reduce<[number, number]>((acc, c) => [acc[0] + c.attack, acc[1] + c.health], [0, 0]);
+const bm = (cardId: string, over: Partial<BoardMinion> = {}): BoardMinion => {
+  const d = CARD_INDEX[cardId]!;
+  return { cardId, attack: d.attack, health: d.health, keywords: [...d.keywords], ...over } as unknown as BoardMinion;
+};
+const foe = (attack: number, health: number): BoardMinion => ({ cardId: 'sandbag', attack, health, keywords: [] } as unknown as BoardMinion);
+const toHand = (events: readonly CombatEvent[]): string[] =>
+  events.filter((e) => e.type === 'toHand' && (e as { side: string }).side === 'player').map((e) => (e as { cardId: string }).cardId);
 
-describe('ASTRAL RELAY — an Orbit you trigger yourself, with nothing arriving', () => {
-  it('the Dawn Shout fires the neighbours\' Orbits a SECOND time on the way in', () => {
-    // The Relay is played at index 0 so it lands DAWN (left of centre on the resulting 2-board) and its Shout
-    // half applies. The Familiar it lands beside is then index 1 = DUSK, so each fire is +2 Health. Two fires
-    // are due: the arrival itself (a normal Orbit) and the Relay's triggered one.
-    let s = staged([card('fam', 'c3_familiar', 3, 1)], [card('r', 'c3_relay', 5, 6)]);
-    s = reduce(s, { type: 'play', uid: 'r', toIndex: 0 });
-    expect(alignmentOf(s.board, 'r'), 'the Relay landed on the Dawn half').toBe('dawn');
-    // The Familiar's Dusk half pays a RANDOM friend, so the board TOTAL is what pins the number of fires:
-    // two of them at +2 Health each — the arrival's own Orbit, and the one the Relay's Shout triggered.
-    expect(s.board.reduce((n, c) => n + c.health, 0), 'two fires of +2 Health').toBe(1 + 6 + 4);
+describe('the roster', () => {
+  it('all eight are set-3 Celestials with the sheet tier / stats, appended after the Spirits', () => {
+    const rows: [string, number, number, number][] = [
+      ['ce3_courier', 1, 1, 1], ['ce3_vendor', 2, 2, 4], ['ce3_seer', 3, 3, 3], ['ce3_conductor', 4, 4, 5],
+      ['ce3_herald', 4, 4, 6], ['ce3_adept', 5, 5, 8], ['ce3_spellcore', 6, 7, 9], ['ce3_artificer', 6, 6, 10],
+    ];
+    const ids = poolFor('set3').buyable.map((c) => c.id);
+    for (const [id, tier, a, h] of rows) {
+      const d = CARD_INDEX[id]!;
+      expect([d.tribe, d.tier, d.attack, d.health], id).toEqual(['celestial', tier, a, h]);
+      expect(ids.indexOf(id), id + ' is in set 3 after the Spirits').toBeGreaterThan(ids.indexOf('sp3_grandprocession'));
+    }
+    expect(CARD_INDEX['ce3_seer']!.tribe2).toBe('undead');
+    expect(poolFor('set2').buyable.some((c) => c.tribe === 'celestial'), 'set 2 has none').toBe(false);
   });
-
-  it('a Relay seated on the DUSK half holds its Shout (the End of Turn half is the Dusk one)', () => {
-    let s = staged([card('fam', 'c3_familiar', 3, 1)], [card('r', 'c3_relay', 5, 6)]);
-    s = reduce(s, { type: 'play', uid: 'r', toIndex: 1 }); // lands right of centre → Dusk
-    expect(alignmentOf(s.board, 'r')).toBe('dusk');
-    // The Familiar is now left of centre — DAWN, so its half grants Attack — and only ONE fire is due: the
-    // Relay's Shout is Dawn-gated and the Relay is seated on the Dusk half, so it stays silent.
-    expect(s.board.reduce((n, c) => n + c.attack, 0), 'the arrival Orbit only').toBe(3 + 5 + 2);
+  it('the two archived name-twins carry an (Orbit) suffix, so no two cards share a display name', () => {
+    expect(CARD_INDEX['c3_courier']!.name).toBe('Horizon Courier (Orbit)');
+    expect(CARD_INDEX['c3_vendor']!.name).toBe('Starpath Vendor (Orbit)');
+    const names = Object.values(CARD_INDEX).map((c) => c.name);
+    expect(names.filter((n) => n === 'Horizon Courier')).toHaveLength(1);
+    expect(names.filter((n) => n === 'Starpath Vendor')).toHaveLength(1);
   });
-
-  it('a triggered Orbit stands down for anything that consumes the ARRIVER', () => {
-    // Horizon Collector takes the arriver's bonus stats. Triggered with nothing arriving it must collect
-    // nothing — in particular it must not read the stand-in body the payload carries.
-    let s = staged([card('col', 'c3_collector', 5, 12)], [card('r', 'c3_relay', 5, 6)]);
-    s = reduce(s, { type: 'play', uid: 'r', toIndex: 0 });
-    expect(s.board.find((c) => c.uid === 'col')!.attack, 'nothing to collect').toBe(5);
-  });
-});
-
-describe('CELESTIAL CRUCIBLE — paid per stack of Shop buffs on the arriver', () => {
-  it('an unbuffed arrival pays nothing', () => {
-    let s = staged([card('cru', 'c3_crucible', 4, 7)], [card('n', 'alley', 1, 1)]);
-    s = reduce(s, { type: 'play', uid: 'n', toIndex: 1 });
-    expect(s.board.find((c) => c.uid === 'cru')!.attack).toBe(4);
-  });
-
-  it('pays +1/+1 per STACK — two separate buffs on the arriver, not their size', () => {
-    // Deliberately lopsided amounts: what the Crucible reads is the COUNT of applications, so a +1/+1 and a
-    // +9/+9 are worth the same two stacks.
-    const buffed = { ...card('n', 'alley', 1, 1), buffs: [
-      { source: 'Ruby', attack: 1, health: 1, count: 1 },
-      { source: 'Growth', attack: 9, health: 9, count: 1 },
-    ] } as BoardCard;
-    let s = staged([card('cru', 'c3_crucible', 4, 7)], [buffed]);
-    s = reduce(s, { type: 'play', uid: 'n', toIndex: 1 });
-    expect(s.board.find((c) => c.uid === 'cru')!.attack, '+1 × 2 stacks').toBe(4 + 2);
+  it('the set-3 Yazzus fork is Tier 7 now (owner 2026-09-11, "as he is in set 2"); stats and text untouched', () => {
+    const d = CARD_INDEX['n3_yazzus']!;
+    expect([d.tier, d.attack, d.health]).toEqual([7, 4, 8]);
+    expect(CARD_INDEX['yazzus']!.tier, 'the set-1/2 original was already T7').toBe(7);
   });
 });
 
-describe('CONSTELLATION BROKER — devours the arrival and hands the investment on', () => {
-  it('destroys the played minion and passes its BONUS stats to another Celestial', () => {
-    // `stray` carries no Echo, so this isolates the transfer from the Echo behaviour tested below.
-    const fat = card('n', 'stray', 9, 9);
-    const bonus = bonusOf(fat);
-    expect(bonus.a, 'the fixture really is buffed above base').toBeGreaterThan(0);
-    let s = staged([card('bro', 'c3_broker', 5, 8), card('gard', 'c3_gardener', 4, 6)], [fat]);
-    s = reduce(s, { type: 'play', uid: 'n', toIndex: 1 });
-    expect(s.board.some((c) => c.uid === 'n'), 'the arrival was devoured').toBe(false);
-    // The Gardener is the only OTHER Celestial, so the whole parcel lands on it. Its own Orbit casts a spell
-    // rather than granting stats, so nothing else moves its Attack.
-    expect(s.board.find((c) => c.uid === 'gard')!.attack, 'inherited the bonus Attack').toBe(4 + bonus.a);
-  });
-
-  it('the devoured minion\'s ECHO fires — a death, not a sale (owner ruling 2026-08-06)', () => {
-    // `pack` carries an Echo. Devouring it must run that Echo, which is what makes the Broker a Deathrattle
-    // enabler rather than a delete button.
-    expect(CARD_INDEX['pack']!.effects.some((e) => e.on === 'onDeath'), 'fixture still has an Echo').toBe(true);
-    let s = staged([card('bro', 'c3_broker', 5, 8)], [card('n', 'pack', 3, 2)]);
-    const before = s.board.length;
-    s = reduce(s, { type: 'play', uid: 'n', toIndex: 1 });
-    expect(s.board.some((c) => c.uid === 'n'), 'devoured').toBe(false);
-    // Pack Leader's Echo summons bodies — their arrival is the proof the Echo ran at all.
-    expect(s.board.length, 'the Echo summoned into the freed space').toBeGreaterThan(before);
+describe('Horizon Courier — Echo: a random Shop spell', () => {
+  it('dying in combat hands the player a spell; golden hands two', () => {
+    for (const golden of [false, true]) {
+      const r = simulate([bm('ce3_courier', { golden })], [foe(10, 10)], makeRng(7), CARD_INDEX,
+        combatSide({ tier: 6, poolIds: poolFor('set3').all.map((c) => c.id) }), combatSide({ tier: 1 }));
+      const got = toHand(r.events);
+      expect(got, `golden=${golden}`).toHaveLength(golden ? 2 : 1);
+      for (const id of got) expect(CARD_INDEX[id]?.spell, id + ' is a spell').toBe(true);
+    }
   });
 });
 
-describe('ORRERY — the capstone devourer', () => {
-  it('devours only on its THIRD adjacent arrival, and splits the parcel across your Celestials', () => {
-    // Orbit (3). Every play below lands directly beside the Orrery so all three ticks land on it.
-    let s = staged(
-      [card('fam', 'c3_familiar', 3, 1), card('orr', 'c3_orrery', 8, 8)],
-      [card('n1', 'alley', 1, 1), card('n2', 'stray', 1, 1), card('n3', 'sandbag', 9, 1)],
-    );
-    s = reduce(s, { type: 'play', uid: 'n1', toIndex: 2 }); // tick 1
-    expect(s.board.some((c) => c.uid === 'n1'), 'survives the first tick').toBe(true);
-    s = reduce(s, { type: 'play', uid: 'n2', toIndex: 2 }); // tick 2 (lands between fam-side and Orrery)
-    expect(s.board.some((c) => c.uid === 'n2'), 'survives the second tick').toBe(true);
-    const parcel = bonusOf(card('n3', 'sandbag', 9, 1)).a;
-    const before = s.board.filter((c) => c.uid !== 'n3').reduce((n, c) => n + c.attack, 0);
-    s = reduce(s, { type: 'play', uid: 'n3', toIndex: 2 }); // tick 3 → devoured
-    expect(s.board.some((c) => c.uid === 'n3'), 'devoured on the third Orbit').toBe(false);
-    const after = s.board.reduce((n, c) => n + c.attack, 0);
-    expect(after - before, 'the whole parcel was shared out').toBeGreaterThanOrEqual(parcel);
+describe('Starpath Vendor — your next Shop spell +2/+2', () => {
+  it('banks the bonus, the next stat spell reads it, and the cast spends it', () => {
+    let s = run({ hand: [body('v', 'ce3_vendor'), spell('s1', 'starcrash'), spell('s2', 'starcrash')], board: [body('t', 'ce3_courier')] });
+    s = play(s, 'v', { toIndex: 1 });
+    expect(s.nextSpellBonus).toEqual({ attack: 2, health: 2 });
+    expect([spellAttackBonus(s), spellHealthBonus(s)], 'folded into the spell-power read (so previews show it)').toEqual([2, 2]);
+    const before = boardTotal(s);
+    s = play(s, 's1', { targetUid: 't' });
+    // Star Crash lands twice (target + a random friendly), each at +5/+7 PLUS the banked +2/+2.
+    expect([boardTotal(s)[0] - before[0], boardTotal(s)[1] - before[1]]).toEqual([2 * 7, 2 * 9]);
+    expect(s.nextSpellBonus, 'spent by that cast').toBeUndefined();
+    const mid = boardTotal(s);
+    s = play(s, 's2', { targetUid: 't' });
+    expect([boardTotal(s)[0] - mid[0], boardTotal(s)[1] - mid[1]], 'the second spell is plain').toEqual([10, 14]);
+  });
+  it('a second Shout stacks; golden banks +4/+4', () => {
+    let s = run({ hand: [body('v', 'ce3_vendor'), body('g', 'ce3_vendor', { golden: true })] });
+    s = play(s, 'v', { toIndex: 0 });
+    s = play(s, 'g', { toIndex: 1 });
+    expect(s.nextSpellBonus).toEqual({ attack: 6, health: 6 });
+  });
+  it('a Gift (Tower Shield) neither reads nor spends it', () => {
+    let s = run({ hand: [spell('g', 'tower_shield')], board: [body('t', 'ce3_courier')], nextSpellBonus: { attack: 2, health: 2 } });
+    const before = stats(at(s, 't'));
+    s = play(s, 'g', { targetUid: 't' });
+    const gained: [number, number] = [at(s, 't').attack - before[0], at(s, 't').health - before[1]];
+    expect(gained, 'the printed Tower Shield value (+2/+1), no +2/+2').toEqual([2, 1]);
+    expect(s.nextSpellBonus, 'still banked for the next SHOP spell').toEqual({ attack: 2, health: 2 });
+  });
+  it('a Ruby reads spell power without it (Rune of the Spellstone)', () => {
+    const s = run({ nextSpellBonus: { attack: 2, health: 2 }, runeSpellstone: true, spellBonus: { attack: 1, health: 1 } });
+    expect(rubyStatBonus(s)).toEqual({ attack: 1, health: 1 });
+  });
+});
+
+describe('Gravestar Seer — +4 Attack per spell of any kind, permanently', () => {
+  it('a Shop spell and a Ruby each pay it; golden pays +8', () => {
+    let s = run({ hand: [spell('s', 'starcrash'), body('r', 'ruby')], board: [body('z', 'ce3_seer'), body('g', 'ce3_seer', { golden: true })] });
+    s = play(s, 's', { targetUid: 'z' });
+    expect(buffFrom(at(s, 'z'), 'Gravestar Seer')).toEqual([4, 0]);
+    expect(buffFrom(at(s, 'g'), 'Gravestar Seer')).toEqual([8, 0]);
+    s = play(s, 'r', { targetUid: 'z' });
+    expect(buffFrom(at(s, 'z'), 'Gravestar Seer'), 'a Ruby is a spell too (owner 2026-09-10)').toEqual([8, 0]);
+    expect(buffFrom(at(s, 'g'), 'Gravestar Seer')).toEqual([16, 0]);
+  });
+});
+
+describe('Comet Conductor — Rally: a copy of the first spell you cast this turn, once per combat', () => {
+  const fight = (golden: boolean, firstSpellThisTurnId?: string) =>
+    simulate([bm('ce3_conductor', { golden, health: 40 })], [foe(1, 1), foe(1, 1), foe(1, 1)], makeRng(11), CARD_INDEX,
+      combatSide({ tier: 6, firstSpellThisTurnId, poolIds: poolFor('set3').all.map((c) => c.id) }), combatSide({ tier: 1 }));
+  it('pays exactly once across several attacks; golden pays two copies', () => {
+    expect(toHand(fight(false, 'starcrash').events)).toEqual(['starcrash']);
+    expect(toHand(fight(true, 'starcrash').events)).toEqual(['starcrash', 'starcrash']);
+  });
+  it('nothing cast this turn → nothing to copy', () => {
+    expect(toHand(fight(false).events)).toEqual([]);
+  });
+  it('the reducer records the first Shop spell of the turn and carries it into combat', () => {
+    let s = run({ hand: [spell('s', 'starcrash')], board: [body('t', 'ce3_seer')] });
+    s = play(s, 's', { targetUid: 't' });
+    expect(s.firstSpellThisTurnId).toBe('starcrash');
+  });
+});
+
+describe('Falling Star Herald — Shout and Echo: a Star Crash', () => {
+  it('the Shout mints one to hand (golden two)', () => {
+    let s = run({ hand: [body('h', 'ce3_herald'), body('g', 'ce3_herald', { golden: true })] });
+    s = play(s, 'h', { toIndex: 0 });
+    expect(s.hand.filter((c) => c.cardId === 'starcrash')).toHaveLength(1);
+    s = play(s, 'g', { toIndex: 1 });
+    expect(s.hand.filter((c) => c.cardId === 'starcrash')).toHaveLength(3);
+  });
+  it('the Echo grants one in combat', () => {
+    const r = simulate([bm('ce3_herald')], [foe(10, 10)], makeRng(5), CARD_INDEX, combatSide({ tier: 6 }), combatSide({ tier: 1 }));
+    expect(toHand(r.events)).toEqual(['starcrash']);
+  });
+});
+
+describe('Crashborn Adept — the first Star Crash on it each turn also casts on 2 other friendly Celestials', () => {
+  // Three Celestials and nothing else: a Star Crash is target +5/+7 plus one random friendly +5/+7, so every cast
+  // adds exactly (10, 14) to the board total whichever body the random half picks.
+  const board = () => [body('a', 'ce3_adept'), body('x', 'ce3_courier'), body('y', 'ce3_vendor')];
+  it('one cast becomes three (the original + one full cast on each of the two others)', () => {
+    let s = run({ hand: [spell('s1', 'starcrash'), spell('s2', 'starcrash')], board: board() });
+    const before = boardTotal(s);
+    s = play(s, 's1', { targetUid: 'a' });
+    expect([boardTotal(s)[0] - before[0], boardTotal(s)[1] - before[1]]).toEqual([3 * 10, 3 * 14]);
+    expect(at(s, 'x').attack, 'x was a spread target').toBeGreaterThanOrEqual(1 + 5);
+    expect(at(s, 'y').attack, 'y was a spread target').toBeGreaterThanOrEqual(2 + 5);
+    expect(at(s, 'a').namedSpreadUsedThisTurn).toBe(true);
+    const mid = boardTotal(s);
+    s = play(s, 's2', { targetUid: 'a' });
+    expect([boardTotal(s)[0] - mid[0], boardTotal(s)[1] - mid[1]], 'the second Star Crash this turn is a plain cast').toEqual([10, 14]);
+  });
+  it('a different spell on it does not count, and a non-Celestial is never a spread target', () => {
+    let s = run({ hand: [spell('g', 'tower_shield'), spell('s', 'starcrash')], board: [body('a', 'ce3_adept'), body('n', 'sandbag'), body('x', 'ce3_courier')] });
+    s = play(s, 'g', { targetUid: 'a' });
+    expect(at(s, 'a').namedSpreadUsedThisTurn, 'Tower Shield is not Star Crash').toBeFalsy();
+    const before = boardTotal(s);
+    s = play(s, 's', { targetUid: 'a' });
+    // original + ONE spread (the only other Celestial): 2 casts
+    expect([boardTotal(s)[0] - before[0], boardTotal(s)[1] - before[1]]).toEqual([2 * 10, 2 * 14]);
+    expect(buffFrom(at(s, 'x'), 'Star Crash')[0], 'the Courier got the spread').toBeGreaterThanOrEqual(5);
+  });
+  it('each spread is a FULL cast: with the set-3 Yazzus the spreads double too', () => {
+    let s = run({ hand: [spell('s', 'starcrash')], board: [...board(), body('z', 'n3_yazzus')] });
+    const before = boardTotal(s);
+    s = play(s, 's', { targetUid: 'a' });
+    // original ×2 (Yazzus) + 2 spread targets × 2 casts each = 6 casts
+    expect([boardTotal(s)[0] - before[0], boardTotal(s)[1] - before[1]]).toEqual([6 * 10, 6 * 14]);
+  });
+  it('the latch clears at the next Start of Turn', () => {
+    let s = run({ hand: [spell('s', 'starcrash')], board: board() });
+    s = play(s, 's', { targetUid: 'a' });
+    expect(at(s, 'a').namedSpreadUsedThisTurn).toBe(true);
+    // faceOmen → combat, settleCombat, resolveCombat opens the next shop (the equipment.test.ts turn helper)
+    s = reduce(reduce(reduce(s, { type: 'faceOmen' } as Action), { type: 'settleCombat' } as Action), { type: 'resolveCombat' } as Action);
+    expect(s.phase).toBe('recruit');
+    expect(at(s, 'a')?.namedSpreadUsedThisTurn).toBeFalsy();
+  });
+});
+
+describe('Astral Spellcore — exactly the third Shop spell each turn: your Celestials +6/+6', () => {
+  it('fires on the third cast only, itself included; golden +12/+12', () => {
+    let s = run({ hand: [spell('s1', 'starcrash'), spell('s2', 'starcrash'), spell('s3', 'starcrash'), spell('s4', 'starcrash')],
+      board: [body('c', 'ce3_spellcore'), body('g', 'ce3_spellcore', { golden: true }), body('n', 'sandbag')] });
+    s = play(s, 's1', { targetUid: 'c' });
+    s = play(s, 's2', { targetUid: 'c' });
+    expect(buffFrom(at(s, 'c'), 'Astral Spellcore')).toEqual([0, 0]);
+    s = play(s, 's3', { targetUid: 'c' });
+    expect(buffFrom(at(s, 'c'), 'Astral Spellcore'), 'plain + golden copies both fired on the third').toEqual([6 + 12, 6 + 12]);
+    expect(buffFrom(at(s, 'g'), 'Astral Spellcore')).toEqual([6 + 12, 6 + 12]);
+    expect(buffFrom(at(s, 'n'), 'Astral Spellcore'), 'not a Celestial').toEqual([0, 0]);
+    s = play(s, 's4', { targetUid: 'c' });
+    expect(buffFrom(at(s, 'c'), 'Astral Spellcore'), 'the fourth does not fire it again').toEqual([18, 18]);
+  });
+});
+
+describe('Orrery Artificer — Equip Comet (4): your next spell casts 2 additional times', () => {
+  it('the play grants Comet; activating costs 4 and banks 2 extra casts, which the next spell spends', () => {
+    let s = run({ hand: [body('o', 'ce3_artificer'), spell('s', 'starcrash')] });
+    s = play(s, 'o', { toIndex: 0 });
+    expect(equipmentState(s).available.map((g) => g.equipmentId)).toContain('comet');
+    expect(EQUIPMENT_INDEX['comet']!.baseCost).toBe(4);
+    s = reduce(s, { type: 'selectEquipment', equipmentId: 'comet' } as Action);
+    const gold = s.embers;
+    s = reduce(s, { type: 'activateEquipment' } as Action);
+    expect(s.embers).toBe(gold - 4);
+    expect(s.nextSpellExtraCasts).toBe(2);
+    const before = stats(at(s, 'o'));
+    s = play(s, 's', { targetUid: 'o' });
+    // a lone body: every cast is target + random friendly = +10/+14; 1 + 2 extra casts
+    expect([at(s, 'o').attack - before[0], at(s, 'o').health - before[1]]).toEqual([3 * 10, 3 * 14]);
+    expect(s.nextSpellExtraCasts, 'spent').toBeUndefined();
+  });
+  it('a gilded Artificer banks 4', () => {
+    let s = run({ hand: [body('o', 'ce3_artificer', { golden: true })] });
+    s = play(s, 'o', { toIndex: 0 });
+    s = reduce(s, { type: 'selectEquipment', equipmentId: 'comet' } as Action);
+    s = reduce(s, { type: 'activateEquipment' } as Action);
+    expect(s.nextSpellExtraCasts).toBe(4);
   });
 });

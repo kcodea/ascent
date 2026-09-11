@@ -67,6 +67,8 @@ const ART_PENDING = new Set<string>([
   // SET 3 KOBOLDS: NONE LEFT. The whole roster is arted as of 2026-08-31 — the last master (Gemsmith, both
   // Choose One branches) landed with the rename that gave the card its name. The seam above is what this
   // list is for; it stays empty until the next batch ships ahead of its art.
+  // SET 3 CELESTIALS (the reworked roster, 2026-09-11) — all eight authored ahead of their art.
+  'ce3_courier', 'ce3_vendor', 'ce3_seer', 'ce3_conductor', 'ce3_herald', 'ce3_adept', 'ce3_spellcore', 'ce3_artificer',
 ]);
 
 describe('art coverage for live cards', () => {

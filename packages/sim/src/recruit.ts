@@ -2029,7 +2029,11 @@ export const RUBY_ID = 'ruby';
 export function rubyStatBonus(state: RunState): { attack: number; health: number } {
   const rb = state.rubyBonus ?? { attack: 0, health: 0 };
   if (!state.runeSpellstone) return rb;
-  return { attack: rb.attack + spellAttackBonus(state), health: rb.health + spellHealthBonus(state) };
+  // Starpath Vendor's one-shot is for the next SHOP spell — a Ruby reads spell power without it.
+  return {
+    attack: rb.attack + spellAttackBonus(state) - (state.nextSpellBonus?.attack ?? 0),
+    health: rb.health + spellHealthBonus(state) - (state.nextSpellBonus?.health ?? 0),
+  };
 }
 
 /**
@@ -4312,6 +4316,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       // Spend the same one-shot charges a hand cast spends, so a taught spell can't double-dip them.
       if (!def.singleCast) {
         st.nextSpellExtraCasts = undefined; // Nimbus charge (already folded into `casts`)
+        if (!def.gift) st.nextSpellBonus = undefined; // Starpath Vendor's next-Shop-spell bonus spent
         if (st.spellFirstDoubleEachTurn) st.spellFirstUsedThisTurn = true; // Spell Thesis freebie
       }
     }
@@ -5603,6 +5608,56 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     // += , not = : Drakko (and Warm Embers / Hoardwake) fire this Battlecry more than once, and each fire has
     // to bank its own extra cast. Setting a value made every repeat a no-op.
     ctx.state.nextSpellExtraCasts = (ctx.state.nextSpellExtraCasts ?? 0) + gold(self);
+  },
+
+  /** Set 3 Celestials — Starpath Vendor (Shout): your NEXT Shop spell gets +A/+H (golden doubles). Banked on the
+   *  run (`nextSpellBonus`), folded into `spellAttackBonus` / `spellHealthBonus` so every stat spell and its hover
+   *  preview read it exactly like spell power, and spent by the reducer on the next real Shop-spell cast. Gifts
+   *  and Rubies are not Shop spells (see `castSpell` / `rubyStatBonus`). Additive across fires. */
+  battlecryBuffNextSpell: (ctx, self, params) => {
+    const prev = ctx.state.nextSpellBonus ?? { attack: 0, health: 0 };
+    ctx.state.nextSpellBonus = {
+      attack: prev.attack + num(params.attack, 2) * gold(self),
+      health: prev.health + num(params.health, 2) * gold(self),
+    };
+  },
+
+  /** Set 3 Celestials — Astral Spellcore: exactly the `nth` Shop spell each turn (`spellsThisTurn` is bumped
+   *  before the watchers fire, so `===` reads "the third") buffs every friendly `tribe` body on the board, self
+   *  included. Golden doubles. A Ruby under Rune of the Spellstone counts (it is booked as a Shop spell and fires
+   *  these watchers); a bare Ruby does not. */
+  spellCastNthBuffTribe: (ctx, self, params) => {
+    if (ctx.state.spellsThisTurn !== num(params.nth, 3)) return;
+    ARENA_EFFECTS.spellCastBuffAll(shopArena(ctx.state, self), { attack: num(params.attack, 6), health: num(params.health, 6), tribe: str(params.tribe) });
+  },
+
+  /** Set 3 Celestials — Crashborn Adept: the FIRST time each turn the NAMED spell (`spellId`) is cast on this,
+   *  cast it on `count` random OTHER friendly `tribe` minions too — a FULL cast each, scaled by `spellCasts`,
+   *  like the rest of the "also casts on" family (the Mirrorwing / Reflector / Runefire ruling). A per-instance,
+   *  per-turn latch (`namedSpreadUsedThisTurn`, cleared at Start of Turn) rather than the spells-on-this counter:
+   *  the gate is "first STAR CRASH", not "first spell", and a multiplied original (Yazzus) or a spread that lands
+   *  back on another Adept must not re-arm it. Fewer eligible bodies than `count` → spreads to those. Golden
+   *  doubles the count. */
+  onSpellCastOnThisSpreadTribeNamed: (ctx, self, params, payload) => {
+    const spellDef = (payload as { spellDef?: CardDef }).spellDef;
+    if (!spellDef || spellDef.id !== str(params.spellId)) return;
+    if (self.namedSpreadUsedThisTurn) return;
+    self.namedSpreadUsedThisTurn = true;
+    const tribe = str(params.tribe) as Tribe;
+    const others = ctx.state.board.filter((c) => c.uid !== self.uid && isTribe(c, tribe));
+    const rng = makeRng(ctx.state.rngCursor);
+    const picks: BoardCard[] = [];
+    for (let n = num(params.count, 2) * gold(self); n > 0 && others.length > 0; n--) picks.push(others.splice(rng.int(others.length), 1)[0]!);
+    ctx.state.rngCursor = rng.state();
+    const reps = spellCasts(ctx.state, spellDef);
+    for (const pick of picks) for (let r = 0; r < reps; r++) castSpell(ctx.state, spellDef, pick);
+  },
+
+  /** Set 3 Celestials — Comet (Orrery Artificer's Equipment): bank `extra` additional casts for the next Shop
+   *  spell — Nimbus' own charge (`nextSpellExtraCasts`), additive, so it stacks with a Nimbus and with Yazzus. A
+   *  gilded Artificer's Comet passes its `gildedParams` (4). */
+  equipmentExtraNextSpellCasts: (ctx, _self, params) => {
+    ctx.state.nextSpellExtraCasts = (ctx.state.nextSpellExtraCasts ?? 0) + num(params.extra, 2);
   },
 
   /** Field Mechanic — Battlecry: add `count` copies of a specific spell (Patch Job) to your hand. Golden
@@ -8496,7 +8551,7 @@ export function spellStatBonus(state: RunState): number {
  * mirrors it. Optional-chained for old saves.
  */
 export function spellAttackBonus(state: RunState): number {
-  return spellStatBonus(state) + (state.spellBonus?.attack ?? 0);
+  return spellStatBonus(state) + (state.spellBonus?.attack ?? 0) + (state.nextSpellBonus?.attack ?? 0);
 }
 
 /**
@@ -8505,7 +8560,7 @@ export function spellAttackBonus(state: RunState): number {
  * `spellAttackBonus` for the Health stat.
  */
 export function spellHealthBonus(state: RunState): number {
-  return spellStatBonus(state) + (state.spellBonus?.health ?? 0);
+  return spellStatBonus(state) + (state.spellBonus?.health ?? 0) + (state.nextSpellBonus?.health ?? 0);
 }
 
 /**
@@ -10031,7 +10086,12 @@ export function castSpell(state: RunState, spellDef: CardDef, target?: BoardCard
   // when the target actually ended up bigger. Snapshot each stat before, diff after.
   const preAtk = target?.attack ?? 0;
   const preHp = target?.health ?? 0;
+  // Starpath Vendor's next-SHOP-spell bonus: a Gift (Tower Shield, Clue) neither reads it nor spends it, so it
+  // is lifted out for the duration of a Gift's cast and put back after.
+  const heldNextBonus = spellDef.gift ? state.nextSpellBonus : undefined;
+  if (heldNextBonus) state.nextSpellBonus = undefined;
   applyCastEffects(ctx, spellDef, target); // board-wide spells (Growth) run without a target
+  if (heldNextBonus) state.nextSpellBonus = heldNextBonus;
   if (target && state.board.includes(target)) {
     const dAtk = target.attack - preAtk;
     const dHp = target.health - preHp;

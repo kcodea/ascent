@@ -229,7 +229,7 @@ export const ARCHIVED_CARDS: CardDef[] = [
     // T1 opener: a Shout that pays either way, so the tribe has a turn-1 body whose value doesn't depend on
     // having built anything yet. Which half you get is the first alignment decision a player ever makes.
     id: 'c3_courier',
-    name: 'Horizon Courier',
+    name: 'Horizon Courier (Orbit)', // suffixed 2026-09-11: the reworked roster reuses the name (ce3_courier)
     tribe: 'celestial',
     tier: 1,
     attack: 1,
@@ -265,7 +265,7 @@ export const ARCHIVED_CARDS: CardDef[] = [
     // Economy Orbit. The Dawn half compounds on the Vendor itself (capped, so it can't run away); the Dusk
     // half pays forward into the Shop — the two halves are "save" and "spend".
     id: 'c3_vendor',
-    name: 'Starpath Vendor',
+    name: 'Starpath Vendor (Orbit)', // suffixed 2026-09-11: the reworked roster reuses the name (ce3_vendor)
     tribe: 'celestial',
     tier: 2,
     attack: 2,

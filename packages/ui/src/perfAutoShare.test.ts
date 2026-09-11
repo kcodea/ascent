@@ -58,6 +58,9 @@ describe('perf auto-share', () => {
     expect(body.includes('useGame.subscribe'), 'the auto-share subscription is inside this effect').toBe(true);
     expect(body.includes("'gameover'") && body.includes("'victory'"),
       'it publishes on the terminal phases only — an abandoned run is not a data point').toBe(true);
+    // A LOBBY run — the Play button's mode — ends in `gameover` whether the seat won or was knocked out, so the
+    // row is labelled by the seat's placement; a phase-name label would call every lobby win "lost".
+    expect(body.includes('seats[0]?.placement'), 'the outcome note reads the lobby placement').toBe(true);
     expect(body.includes('isRealPlayRun'), 'and only for real play runs, never practice or the sandbox').toBe(true);
   });
 });

@@ -189,7 +189,11 @@ export function Game() {
     const unsub = useGame.subscribe((st, prevSt) => {
       const p = st.run?.phase;
       if (p === prevSt.run?.phase) return;
-      if (p === 'gameover' || p === 'victory') publish(`game ${p === 'victory' ? 'won' : 'lost'}`);
+      if (p !== 'gameover' && p !== 'victory') return;
+      // A LOBBY run (the Play button's mode) ends in `gameover` whether the seat took 1st or was knocked out —
+      // the lobby owns the outcome, so the row is labelled by the seat's placement, not by the phase name.
+      const placement = st.run?.lobby?.seats[0]?.placement;
+      publish(placement ? `game finished — placed ${placement}` : `game ${p === 'victory' ? 'won' : 'lost'}`);
     });
 
     return () => {

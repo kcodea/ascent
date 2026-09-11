@@ -156,28 +156,46 @@ an attribution or clears it.
 are still dropping, the cost is in render, paint, style recalc or GC — and the screen says so, pointing at the
 paint-property-in-a-loop trap from §4 rather than reporting "no hotspots" and looking clean.
 
-### It records itself in dev
+### It records itself — in every build
 
-Since 2026-08-29 the monitor **auto-starts in dev clients** (`import.meta.env.DEV`) — no flag, no menu trip.
-The production build still ships it dormant, which is the guarantee that matters: recording is cheap but not
-free, and a diagnostic that runs unasked is a cost every player pays for a tool only we use. A dev client is
-already paying StrictMode and an unminified bundle; the sampler is noise beside that, and always-on is what
-makes a regression turn up on its own rather than only when someone thought to look.
+The sampler runs **unconditionally, in dev and in the shipped production build alike** (since 2026-08-31;
+`Game.tsx`). It started life dev-only, which is why the Shared tab stayed empty: the desktop exe is a
+production build, so the client the two devs actually play never sampled anything. The cost is a one-second
+tick and a passive pointermove counter — that IS the telemetry, and a sampler that only runs when someone
+remembers to open a dev panel is not telemetry.
 
-Turning it **off** is remembered. The dev-menu toggle and the HUD's ✕ both write `ascent.perf`, and an
-explicit `0` beats the dev default — so a dev profiling something else can silence it and it stays silent
-across reloads. `?perf=1` / `?perf=0` still work everywhere, including prod.
+What the `ascent.perf` toggle (dev menu, the HUD's ✕, `?perf=1` / `?perf=0`) governs is exactly one thing:
+whether the **HUD overlay is drawn**. It defaults on in dev clients and off in prod, and an explicit choice is
+remembered across reloads. Recording and auto-share do not read it.
 
 ### Sharing a recording between machines
 
-A dev client **uploads one row per GAME**, automatically, when a real game ends (win or loss) and at least
-45 seconds were recorded — so a row holds one game's whole timeline and can be compared against another game.
+Any signed-in client **uploads one row per GAME**, automatically, when a real game ends and at least 45
+seconds were recorded — so a row holds one game's whole timeline and can be compared against another game.
+The row carries the mode, the hero, the build (`version+sha`), an outcome note and the full per-second
+timeline.
 
-Leaving the tab mid-game uploads too, as a **fallback** for the game you abandon halfway. A finished game
-publishes at its end and an abandoned one publishes when you go — never both, since they share one latch.
+**What counts as a real game** (`packages/ui/src/perfCaptureScope.ts`, `isRealPlayRun`):
 
-There is also a **Share** button on the analytics screen for doing it on demand. All of it lands in the
-**Shared** tab, which every signed-in dev can read.
+| Run | Captured? | Why |
+|---|---|---|
+| **Play** — the title-screen button, an eight-seat **lobby** run | **yes** | the primary player mode; what the analytics are for |
+| legacy **ascent** (the pre-lobby scored climb; also what an older save with no mode resolves to) | yes | a full scored game with the same phase mix, and still the `RunState.mode` default |
+| **practice** | no | 3× shop timer and unlimited health — not the phase mix players see |
+| **tutorial** | no | scripted and short |
+| **rift** | no | its own ruleset |
+| **Scene Builder sandbox** (a flag on top of any mode) | no | designed to hold pathological boards still; its spikes would dominate every ranking |
+| no run — idling on the title | no | menu frames are not a game |
+| **an abandoned game** | no | the publish fires only on the transition into `gameover` / `victory`; there is no tab-hide or unmount fallback (owner ask 2026-08-30: completed games only) |
+
+Until 2026-09-11 the predicate admitted only `ascent`, so every Play game was recorded and then dropped at
+the end — `perfCaptureScope.test.ts` now pins lobby and every exclusion.
+
+There is also a **Share** button on the analytics screen for doing it on demand; that button and the HUD are
+NOT gated by the rule above (deliberately profiling the Scene Builder is a real thing to want). All of it
+lands in the **Shared** tab, which every signed-in dev can read. An upload that cannot happen — signed out is
+the common case, since the insert-own policy needs a user id — is reported on the console as
+`[perf] this game was recorded but NOT shared: …` rather than failing silently.
 
 That cross-machine half is the thing a local tool structurally cannot do: Mike's refresh rate, GPU and
 hardware are not Kevin's, and a spike that only reproduces on one of them is exactly the kind that survives

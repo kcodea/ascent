@@ -70,7 +70,20 @@ function attackHealthOf(e: NonNullable<ContentContract['effects']>[number]): { a
 
 /** Parsed prefix-trigger events that are directly comparable to contract trigger events. Conditional
  *  clauses and unmapped events never enter the comparison (guard, not silence — they stay in the parse). */
-const COMPARABLE_TRIGGERS = new Set(['onPlay', 'onDeath', 'startOfCombat', 'endOfTurn', 'avenge', 'onSell', 'onKill', 'onAttack']);
+const COMPARABLE_TRIGGERS = new Set([
+  'onPlay', 'onDeath', 'startOfCombat', 'endOfTurn', 'avenge', 'onSell', 'onKill', 'onAttack',
+  // 2026-09-11 — the conditional-clause events the lexicon now maps onto the content `on` vocabulary.
+  'onSummon', 'goldSpent', 'spellCast', 'onBuy', 'cardsBought', 'onDamaged', 'onGainAttack', 'onRise', 'onConsume',
+  'friendlyDemonDealtDamage', 'battlecryTriggered', 'summonOverflow', 'startOfTurn', 'equip', 'chooseOnePlayed',
+  'onTribePlayed', 'onGetRuby', 'onGainCard', 'shopRefreshed', 'rubyCast', 'spellCastOnThis', 'rubyPlayedAnywhere', 'minionSold',
+]);
+
+/** The numeric fields a `const` amount may carry beside attack/health, read by the comparators below. */
+function numField(e: NonNullable<ContentContract['effects']>[number] | undefined, key: string): number | null {
+  if (!e || e.amount?.kind !== 'const' || typeof e.amount.plain !== 'object' || e.amount.plain === null || Array.isArray(e.amount.plain)) return null;
+  const v = (e.amount.plain as Record<string, unknown>)[key];
+  return typeof v === 'number' ? v : null;
+}
 
 function compareOne(c: ContentContract, t: TextObject, p: ParsedTextContract, pg: ParsedTextContract | null): TextMismatch[] {
   const out: TextMismatch[] = [];
@@ -81,14 +94,56 @@ function compareOne(c: ContentContract, t: TextObject, p: ParsedTextContract, pg
     || c.contentType === 'gift' || c.contentType === 'henchman';
   const effs = c.effects ?? [];
 
-  // 1. wrong-amount — single-effect exact-pair guard (the corroboration lane's attribution rule).
+  // 1. wrong-amount — single-effect guard (the corroboration lane's attribution rule): the exact {attack, health}
+  // pair, and (2026-09-11) the composite const whose attack/health keys sit beside a cadence (`every`, `count`,
+  // `improve`, `per`) — the first printed pair is still the base grant.
   const firstBuff = p.effects.find((e) => e.kind === 'stat-buff');
   if (firstBuff?.amount && effs.length === 1) {
     const pair = attackHealthOf(effs[0]!);
-    if (pair && (pair.attack !== (firstBuff.amount.attack ?? 0) || pair.health !== (firstBuff.amount.health ?? 0))) {
-      mism('wrong-amount', `+${pair.attack}/+${pair.health}`, `+${firstBuff.amount.attack ?? 0}/+${firstBuff.amount.health ?? 0}`,
+    const a = numField(effs[0], 'attack');
+    const h = numField(effs[0], 'health');
+    // A plain that ALSO carries a base pair (Patch Job: baseAttack/baseHealth beside the per-Gold attack/health) is
+    // two magnitudes — first-pair attribution is unsafe there, so no claim is made.
+    const plainKeys = effs[0]!.amount?.kind === 'const' && typeof effs[0]!.amount.plain === 'object' && effs[0]!.amount.plain !== null ? Object.keys(effs[0]!.amount.plain as object) : [];
+    const composite = !pair && a !== null && h !== null && !plainKeys.some((k) => /^base/i.test(k)) ? { attack: a, health: h } : null;
+    const claim = pair ?? composite;
+    if (claim && (claim.attack !== (firstBuff.amount.attack ?? 0) || claim.health !== (firstBuff.amount.health ?? 0))) {
+      mism('wrong-amount', `+${claim.attack}/+${claim.health}`, `+${firstBuff.amount.attack ?? 0}/+${firstBuff.amount.health ?? 0}`,
         'text prints one stat pair; the contract\'s single effect states another');
     }
+    // 1b. wrong-target-count — "give 2 random friendly Dwarves" vs the effect's `count`.
+    const count = numField(effs[0], 'count');
+    const printedCount = firstBuff.target?.cardinality === 'exactly' ? firstBuff.target.count : undefined;
+    if (count !== null && printedCount !== undefined && printedCount !== count && !/^(?:self|it|them)$/.test(firstBuff.target?.scope ?? '')) {
+      mism('wrong-target-count', String(count), String(printedCount), 'text prints a target count; the contract\'s single effect states another');
+    }
+    // 1c. improvement step — "Improves +3/+3 every 3 …" vs the effect's `improve` / `every`.
+    const imp = p.effects.find((e) => e.kind === 'improvement');
+    const improve = numField(effs[0], 'improve');
+    if (imp?.amount && improve !== null) {
+      const printed = imp.amount.attack ?? imp.amount.value ?? 0;
+      if (printed !== improve) mism('wrong-amount', `improve ${improve}`, `improve ${printed}`, 'text prints an improvement step; the contract\'s single effect states another');
+    }
+    // `every` is ambiguous when the text ALSO prints a cadence trigger (Cryptdrake: every 2 attacks vs improves every 4).
+    const every = p.triggers.some((t) => t.display === 'Every N') ? null : numField(effs[0], 'every');
+    if (imp?.cadence?.every !== undefined && every !== null && imp.cadence.every !== every) {
+      mism('wrong-threshold', String(every), String(imp.cadence.every), 'text prints an improvement countdown; the contract\'s single effect states another `every`');
+    }
+  }
+  // 1d. cast-ruby count — "cast 2 Rubies" vs a Ruby factory's `count`.
+  const ruby = p.effects.find((e) => e.kind === 'cast-ruby');
+  if (ruby?.amount?.value !== undefined && effs.length === 1 && /rub/i.test(effs[0]!.kind) && !p.effects.some((e) => e.kind === 'summon')) {
+    // `play` is the cast count where a factory also mints (Mountainbond: count 0 minted, play 1 cast); else `count`.
+    const count = numField(effs[0], 'play') ?? numField(effs[0], 'count');
+    if (count !== null && count !== ruby.amount.value) mism('wrong-amount', `${count} Rubies`, `${ruby.amount.value} Rubies`, 'text prints a Ruby count; the contract\'s single Ruby effect states another');
+  }
+  // 1e. cadence prefix — "Every 5 Gold spent," vs the effect's `every` / `per`, or the trigger threshold.
+  const cad = p.triggers.find((t) => t.display === 'Every N' && t.threshold !== undefined);
+  if (cad && effs.length === 1) {
+    // `every` is ambiguous when the text also prints an improvement countdown (Cryptdrake: every 2 attacks vs
+    // improves every 4) — only `per` and an explicit trigger threshold are honest comparands.
+    const claim = numField(effs[0], 'per') ?? (c.triggers ?? []).find((t) => t.threshold !== undefined)?.threshold ?? null;
+    if (claim !== null && claim !== cad.threshold) mism('wrong-threshold', String(claim), String(cad.threshold), 'text prints an "Every N" cadence; the contract states another N');
   }
 
   // 2. summons — named tokens only (the T2 guard).
@@ -110,12 +165,18 @@ function compareOne(c: ContentContract, t: TextObject, p: ParsedTextContract, pg
   // delayed payload, not the cast (fleetingvigor's "Start of combat:" is correct text). Display events
   // that map to more than one engine event compare against the alias set ("Sell:" is onSell OR
   // minionSold depending on the factory).
-  const EVENT_ALIASES: Record<string, string[]> = { onSell: ['onSell', 'minionSold'] };
+  // 'play a <Tribe>' is implemented as onSummon on some cards (Glutton, Herzog) and onTribePlayed on others (Aspect) —
+  // both are the shop-side 'you played a minion of tribe X' event, so the printed clause accepts either.
+  // 'rubyCast' is the SPELL + RUBY umbrella, not a Ruby-only counter: `fireOnRubyCast` is fed `spellsCast + rubyCasts`
+  // (reducer.ts, owner ruling 2026-07-24; reaffirmed 2026-09-11 — "Gem Gorger should be any 3 spells"), so a card that
+  // prints "you cast 3 spells" over a `rubyCast` factory is CORRECT text. The first parser pass called it a defect.
+  const EVENT_ALIASES: Record<string, string[]> = { onSell: ['onSell', 'minionSold'], onTribePlayed: ['onTribePlayed', 'onSummon'], spellCast: ['spellCast', 'rubyCast'] };
   const contractEvents = new Set((c.triggers ?? []).map((x) => x.event));
   const triggerComparable = cardLike && c.contentType !== 'spell' && c.contentType !== 'gift';
   if (contractEvents.size > 0 && triggerComparable) {
     for (const trig of p.triggers) {
       if (!COMPARABLE_TRIGGERS.has(trig.event)) continue;
+      if (trig.display === 'Every N') continue; // a cadence names its counter, not the dispatching trigger (Bleed counts attacks under startOfCombat)
       const accepted = EVENT_ALIASES[trig.event] ?? [trig.event];
       if (!accepted.some((ev) => contractEvents.has(ev))) {
         mism('wrong-trigger', [...contractEvents].join(','), trig.event,

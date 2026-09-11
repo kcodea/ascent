@@ -197,7 +197,13 @@ Three commands sit above the tripwires (`packages/sim/src/docbot/{coverageKeys,c
   approved-exception / unresolved-parse — an unresolved parse is NEVER a clean pass), prints the
   mismatch + rewrite-advisor report, and regenerates the Sitting-3 wording deck
   (`pendingWording.generated.ts`, seed-hygiene-preserving). The PR-gate lane is
-  `textParse/textParse.test.ts`; the style rules live in `packages/rules/src/languageGuide.ts`.
+  `textParse/textParse.test.ts`; the style rules live in `packages/rules/src/languageGuide.ts`. Since the
+  2026-09-11 coverage pass (`docs/devlog/2026-09-11-docbot-text-parser-coverage.md`) the grammar reads ~94%
+  of the corpus (55 unresolved of 972) and the lane carries a HARD ceiling beside the ratchet: the unresolved
+  share must stay below 35% of active objects, so a content PR cannot raise the pin past it — the parser must
+  grow instead. Parsed clauses map onto comparators (amounts, target counts, improvement steps/countdowns,
+  Ruby counts, cadence thresholds, conditional/Equip trigger events); every modifier the grammar consumes is
+  listed in `consumedModifiers` so nothing it reads is invisible.
   `--out <dir>` additionally writes `findings.json` + `text-review.json` for the QA Workbench's §15.6 queue.
 - `npm run bugs:graduate -- <report-id>` — Doc Bot 2.0 WP G, blueprint §14: turns a reproduced, RULED
   player report into a **curated regression** in `docbot/scenarios/regressions/` (separate from the

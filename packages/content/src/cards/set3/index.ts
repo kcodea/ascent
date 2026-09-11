@@ -33,7 +33,10 @@ export { SET3_UNDEAD } from './undead';
 // The Dwarves (`dwarves.ts`, 2026-09-09) are deliberately NOT folded in here: `SETS.set3.own` places them AFTER
 // the carried-over set-2 Kobolds, because appending to this list would insert them ahead of those Kobolds and
 // reseed every set-3 shop. The manifest spells the order out; this list stays the pre-Dwarf prefix.
-export const SET3_CARDS: readonly CardDef[] = [...SET3_CELESTIALS, ...SET3_EQUIPMENT, ...SET3_KOBOLDS];
+// The reworked Celestials (2026-09-11) are NOT spread here: `SET3_CARDS` opens `SETS.set3.own`, and prepending a
+// roster there reseeds every set-3 shop. They are appended in `sets.ts` like the Dwarves / Undead / Spirits.
+export const SET3_CARDS: readonly CardDef[] = [...SET3_EQUIPMENT, ...SET3_KOBOLDS];
+export { SET3_CELESTIALS };
 
 /** Set 3's own NEUTRALS (2026-09-09) — appended after the Undead in `SETS.set3.own`, never folded into
  *  `SET3_CARDS`, for the same positions-never-move reason as the Dwarves and Undead. */

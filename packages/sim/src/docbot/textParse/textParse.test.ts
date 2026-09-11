@@ -47,7 +47,11 @@ const SWEEP = runTextSweep({ contracts: CONTRACTS });
 // resolve yet (a random HAND minion, board-and-hand, "also casts on", destroy-then-get, left-most in hand,
 // per-tribe-played). A conscious move.
 // 576 → 577: Stellar Chorus (tranche II) — its per-spell improvement clause is unresolved; Split Decision parses.
-const UNRESOLVED_CAP = 577;
+// 577 → 582 on 2026-09-11: the eight reworked Set 3 Celestials arrived; five print shapes the parser cannot resolve
+// yet ("your next Shop spell +A/+H", "a copy of the first spell you cast this turn", "the first time each turn you
+// cast <named spell> on this", "after you cast your third Shop spell", "Equip <X> (N): casts N additional times").
+// A conscious move.
+const UNRESOLVED_CAP = 582;
 /** Collapse floor: the parser fully consuming fewer objects than this means a grammar regression. */
 const PARSED_FLOOR = 340;
 

@@ -1512,6 +1512,7 @@ function reduceCore(state: RunState, action: Action): RunState {
           const spellCastsN = def.singleCast ? 1 : spellCasts(s, def);
           for (let n = 0; n < spellCastsN; n++) { queueDiscover(s, { kind: 'spell' }); noteSpellCast(s, def); }
           if (!def.singleCast) s.nextSpellExtraCasts = undefined;
+          if (!def.gift) s.nextSpellBonus = undefined; // Starpath Vendor's next-Shop-spell bonus spent
           if (!def.singleCast && s.spellFirstDoubleEachTurn) s.spellFirstUsedThisTurn = true;
           if (!def.singleCast && s.runeSharedPour && ALE_IDS.includes(def.id)) s.sharedPourUsedThisTurn = true;
           return s;
@@ -1543,6 +1544,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         // cast, so a multiplied Discover counts each time, exactly like a multiplied ordinary spell.
         for (let n = 0; n < casts; n++) { queueDiscover(s, { ...spec }); noteSpellCast(s, def); }
         if (!def.singleCast) s.nextSpellExtraCasts = undefined; // Nimbus charge spent (already folded into `casts`)
+        if (!def.gift) s.nextSpellBonus = undefined; // Starpath Vendor's next-Shop-spell bonus spent
         if (!def.singleCast && s.spellFirstDoubleEachTurn) s.spellFirstUsedThisTurn = true; // Spell Thesis freebie spent
         if (!def.singleCast && s.runeSharedPour && ALE_IDS.includes(def.id) && !s.sharedPourUsedThisTurn) procRuneId(s, 'rune_shared_pour');
         if (!def.singleCast && s.runeSharedPour && ALE_IDS.includes(def.id)) s.sharedPourUsedThisTurn = true; // Shared Pour freebie spent
@@ -1767,6 +1769,7 @@ function reduceCore(state: RunState, action: Action): RunState {
           for (let n = 0; n < casts; n++) castSpell(s, def, undefined); // untargeted run spell (Growth, Ember Pouch)
         }
         if (!def.singleCast) s.nextSpellExtraCasts = undefined; // Nimbus charge spent on this cast (already folded into `casts`)
+        if (!def.gift) s.nextSpellBonus = undefined; // Starpath Vendor's next-Shop-spell bonus spent
         if (!def.singleCast && s.spellFirstDoubleEachTurn) s.spellFirstUsedThisTurn = true; // Spell Thesis freebie spent
         if (!def.singleCast && s.runeSharedPour && ALE_IDS.includes(def.id) && !s.sharedPourUsedThisTurn) procRuneId(s, 'rune_shared_pour');
         if (!def.singleCast && s.runeSharedPour && ALE_IDS.includes(def.id)) s.sharedPourUsedThisTurn = true; // Shared Pour freebie spent
@@ -3376,6 +3379,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         // rather than `buyable`, because a legitimate pick can be a non-buyable card of the set.
         poolIds: poolOf(s).all.map((c) => c.id),
         spellsThisTurn: s.spellsThisTurn,
+        firstSpellThisTurnId: s.firstSpellThisTurnId, // Comet Conductor's Rally copies it (player-only)
         spellsCast: s.spellsCast,
         rubyCasts: s.rubyCasts ?? 0, // Vaultkeeper's umbrella (text); rides to the enemy side via the snapshot
         revelerX: s.revelerX ?? 0, // Set 3 Spirits: the shared Reveler value (text)
@@ -3626,6 +3630,7 @@ function resolveChooseOneSpell(
     else castSpell(s, synthetic, target);
   }
   if (!def.singleCast) s.nextSpellExtraCasts = undefined; // Nimbus charge spent (already folded into `casts`)
+  if (!def.gift) s.nextSpellBonus = undefined; // Starpath Vendor's next-Shop-spell bonus spent
   if (!def.singleCast && s.spellFirstDoubleEachTurn) s.spellFirstUsedThisTurn = true; // Spell Thesis freebie spent
   if (!def.singleCast && s.runeSharedPour && ALE_IDS.includes(def.id) && !s.sharedPourUsedThisTurn) procRuneId(s, 'rune_shared_pour');
   if (!def.singleCast && s.runeSharedPour && ALE_IDS.includes(def.id)) s.sharedPourUsedThisTurn = true; // Shared Pour freebie spent
@@ -4564,6 +4569,7 @@ function advanceCombat(s: RunState): void {
   for (const c of [...s.board, ...s.hand]) {
     if (c.spellsOnThisTurn) c.spellsOnThisTurn = 0;
     if (c.rubiesOnThisTurn) c.rubiesOnThisTurn = 0; // Runefire counts Rubies landed on it per TURN too
+    if (c.namedSpreadUsedThisTurn) c.namedSpreadUsedThisTurn = false; // Crashborn Adept: "first time each turn"
     // The per-instance "spells since placed" counter (Spellkeeper Drake, Ashscribe Whelp) is per-turn too
     // — clear both halves.
     if (c.boardSpellCount) c.boardSpellCount = 0;

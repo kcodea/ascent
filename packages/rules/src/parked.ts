@@ -66,18 +66,9 @@ export const PARKED_CLASSES: readonly ParkedClass[] = [
     since: '2026-08-28',
     retiredRuleIds: ['q-conv-family-orbit', 'q-conv-family-orbitReact'],
   },
-  {
-    id: 'celestial',
-    label: 'the Celestial tribe',
-    families: [],
-    triggers: [],
-    tribes: ['celestial'],
-    flags: ['celestial'],
-    why: 'Owner ruling 2026-08-28: "neither should any celestial as they are temp minions" — the whole tribe '
-      + 'is temporary scaffolding, so no convention question may bind it and no contract may claim its intent.',
-    since: '2026-08-28',
-    retiredRuleIds: [],
-  },
+  // The `celestial` class (tribe + flag, parked 2026-08-28 as "temp minions") was RETIRED on 2026-09-11 when the
+  // reworked roster shipped (`cards/set3/celestials.ts`): those are real cards and take real rules. `orbit` above
+  // stays parked — the new roster does not use it, and its design is still open.
 ];
 
 export const PARKED_CLASS_IDS: ReadonlySet<string> = new Set(PARKED_CLASSES.map((p) => p.id));

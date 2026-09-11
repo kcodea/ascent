@@ -140,6 +140,7 @@ function boardCardExemplar(): Required<BoardCard> {
     eotTick: 2,
     spellsOnThisTurn: 1,
     rubiesOnThisTurn: 1,
+    namedSpreadUsedThisTurn: true,
     tempGrants: [{ label: 'Rise', keyword: 'R' }],
     boardSpellCount: 2,
     soldSeen: 1,

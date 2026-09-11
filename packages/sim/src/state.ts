@@ -273,6 +273,9 @@ export interface BoardCard {
    *  other per-turn counters. Incremented BEFORE a card's `spellCastOnThis` effects run, which is what stops a
    *  re-cast from re-triggering the same effect forever. Absent = 0. */
   spellsOnThisTurn?: number;
+  /** Crashborn Adept: its "first time each turn" named-spell spread has fired this turn. Cleared with the other
+   *  per-turn counters at Start of Turn. */
+  namedSpreadUsedThisTurn?: boolean;
   /** Set 2 — RUBIES played on this minion this turn. Kept separate from `spellsOnThisTurn` on purpose: Runefire
    *  works with Rubies as well as Shop spells and reads the SUM, while Mirrorwing Hatchling is Shop-spell-only
    *  (owner 2026-07-24) and must stay blind to Rubies. One shared counter would let a Ruby silently eat
@@ -629,6 +632,11 @@ export interface RunState {
    *  Read by `spellCasts` (added to the multiplied total), spent by the reducer on the next real
    *  (non-singleCast) spell cast; persists across turns until used (NOT cleared at settle). */
   nextSpellExtraCasts?: number;
+  /** Starpath Vendor: +A/+H banked for the NEXT Shop spell. Folded into `spellAttackBonus` / `spellHealthBonus`
+   *  (so every stat spell and its preview read it like spell power) and spent by the reducer on the next real
+   *  Shop-spell cast. Gifts and Rubies are not Shop spells: `castSpell` hides it from a Gift, `rubyStatBonus`
+   *  subtracts it. Additive across fires; persists across turns until used. */
+  nextSpellBonus?: { attack: number; health: number };
   /** Gold spent during the CURRENT recruit turn (buys, rerolls, tier-ups, hero powers) — Patch Job scales off
    *  it (+3/+3 per 7 Gold). Accrued in `spendGold`, reset to 0 each turn in the wave-advance. Distinct from
    *  the lifetime `goldSpent` career stat. */

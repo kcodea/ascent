@@ -686,6 +686,11 @@ export type EffectFactoryId =
   | 'spellRallyDoubleNext' // Rallying Offensive: cast — your Rally effects trigger twice next combat (recruit)
   | 'rallyCastTribeAttack' // Watcher: Rally — cast Lantern of Souls (Undead +Attack run-wide) as a real spell cast
   | 'battlecryDoubleNextSpell' // Nimbus: Battlecry arms the next Tavern spell to cast twice (recruit)
+  | 'battlecryBuffNextSpell' // Set 3 Celestials — Starpath Vendor: Shout banks +A/+H for your NEXT Shop spell (recruit)
+  | 'spellCastEveryNBuffTribe' // Set 3 Celestials — Astral Spellcore: every N Shop spells cast while it is on the board, buff your `tribe` (recruit; per-copy `spellProgress` meter)
+  | 'onSpellCastOnThisSpreadTribeNamed' // Set 3 Celestials — Crashborn Adept: first NAMED spell on this each turn also casts on N other friendly `tribe` (recruit)
+  | 'rallyGrantFirstSpellCopy' // Set 3 Celestials — Comet Conductor: Rally — copy of the first spell cast this turn, once per combat (combat)
+  | 'equipmentExtraNextSpellCasts' // Set 3 Celestials — Comet (Orrery Artificer's Equipment): bank N extra casts for the next spell (recruit)
   | 'endOfTurnCastSpellEscalating' // Vineweaver Drake: EoT casts a spell once per End of Turn seen (recruit)
   | 'endOfTurnCastSpellOnSelf' // Arnold: EoT casts a named spell aimed at this minion (recruit)
   | 'battlecryGrantSpell' // Field Mechanic: Battlecry adds a specific spell (Patch Job) to your hand (recruit)
@@ -2227,6 +2232,8 @@ export interface Minion {
   /** Crypt Drake: how many ally attacks this minion has seen this combat — drives its "improve every N
    *  attacks" buff. Per-combat (reset each fight); absent = 0. */
   attackSeen?: number;
+  /** Comet Conductor: its once-per-combat Rally has paid out this fight. Per-combat; absent = not yet. */
+  firstSpellCopyFired?: boolean;
   /** Gryphon: how many free refreshes it has banked this combat — it grants one per hit up to a cap
    *  (so a Taunt soaking many hits doesn't roll unlimited refreshes). Absent = 0. */
   grantedRefresh?: number;
@@ -2382,6 +2389,9 @@ export interface CombatSideState {
   wildHuntGrown?: number;
   /** Spells cast THIS recruit turn (Spirit Worgen / Runescale per-turn scalers). */
   spellsThisTurn: number;
+  /** The FIRST spell cast this recruit turn, by id — Comet Conductor's Rally hands the player a copy. Player-only
+   *  (a served enemy's hand grants no-op), so the snapshot does not carry it. */
+  firstSpellThisTurnId?: string;
   /** Lifetime spells cast this run (Umbral Energy scales Dragons +N per spell; seeds the combat spell tally). */
   spellsCast: number;
   /** Deathrattles triggered this run (Forsaken tally payoffs). */
@@ -2798,6 +2808,8 @@ export interface CombatContext {
   /** This side's live tavern tier — used to cap random-minion generation (e.g. Bullseye / Menagerie Mammoth). */
   tierFor(side: Side): number;
   spellsThisTurnFor(side: Side): number;
+  /** The first spell that side cast this recruit turn (Comet Conductor); undefined when none was. */
+  firstSpellThisTurnIdFor(side: Side): string | undefined;
   /** How many times an "Improve" step applies for `side` — 2 under Rune of Mastery, else 1. Every combat
    *  factory whose card text says **Improve** multiplies its improvement increment by this. */
   improveRepsFor(side: Side): number;

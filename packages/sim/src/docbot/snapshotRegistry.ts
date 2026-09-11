@@ -91,6 +91,7 @@ export const SNAPSHOT_EXCUSED: Readonly<Record<string, SnapshotExcuse>> = {
   'capture:attackSeen': { boundary: 'capture', kind: 'turn-scoped', why: 'per-EoT-pass witness counter; fireRallies clears it around each shop pass, and combat runs its own per-FIGHT counter from 0 by design (state.ts docblock)' },
   'capture:bredCount': { boundary: 'capture', kind: 'turn-scoped', why: 'Evolving Abomination per-pass doubling counter — same contract as attackSeen (same state.ts docblock)' },
   'capture:spellsOnThisTurn': { boundary: 'capture', kind: 'turn-scoped', why: 'Mirrorwing/Runefire per-turn window, "reset each turn with the other per-turn counters" (state.ts)' },
+  'capture:namedSpreadUsedThisTurn': { boundary: 'capture', kind: 'turn-scoped', why: 'Crashborn Adept "first time each turn" latch, cleared at Start of Turn with the other per-turn counters (state.ts)' },
   'capture:rubiesOnThisTurn': { boundary: 'capture', kind: 'turn-scoped', why: 'per-turn Ruby tally, reset each turn (state.ts docblock beside spellsOnThisTurn)' },
   'capture:rubyRecvTick': { boundary: 'capture', kind: 'turn-scoped', why: 'Ruby Broker per-turn Gold cap, "reset each wave" (state.ts)' },
   'capture:boardSpellCount': { boundary: 'capture', kind: 'turn-scoped', why: 'Spellkeeper Drake per-turn count, reset each turn (recruit.ts "reset each turn ... placement is the natural floor")' },

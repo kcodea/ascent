@@ -154,6 +154,13 @@ describe('cardText helpers', () => {
     expect(summonImproveText('sandbag', 4, false)).toBeNull(); // not a per-summon-improve card
   });
 
+  it('stepProgress (Astral Spellcore) reads the per-copy spell meter Avenge-style, N/3, wrapping after a payout', () => {
+    expect(stepProgress('ce3_spellcore', { spellProgress: 0 })).toEqual({ current: 0, total: 3 });
+    expect(stepProgress('ce3_spellcore', { spellProgress: 2 })).toEqual({ current: 2, total: 3 });
+    expect(stepProgress('ce3_spellcore', { spellProgress: 3 })).toEqual({ current: 3, total: 3 });
+    expect(stepProgress('ce3_spellcore', { spellProgress: 4 })).toEqual({ current: 1, total: 3 });
+  });
+
   it('summonScalingText (Spirit Worgen) greens the per-play gain = base × (1 + spells cast this turn)', () => {
     expect(summonScalingText('spiritworgen', 3, false)).toContain('{{+12/+12}}'); // base 3 × (1 + 3 spells)
     expect(summonScalingText('spiritworgen', 2, true)).toContain('{{+18/+18}}'); // golden base 6 × (1 + 2 spells)

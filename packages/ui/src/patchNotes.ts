@@ -61,6 +61,24 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'Card Change',
         text: 'Aspect Choreographer is now simply Aspect. Same card, shorter name.',
       },
+      {
+        category: 'New Card',
+        text: 'Set 3: the Celestials return as eight new minions built around spells: Horizon Courier, Starpath Vendor, Gravestar Seer, Comet Conductor, Falling Star Herald, Crashborn Adept, Astral Spellcore and Orrery Artificer.',
+        details: [
+          'Horizon Courier (Tier 1, 1/1): Echo, get a random Shop spell.',
+          'Starpath Vendor (Tier 2, 2/4): Shout, give your next Shop spell +2/+2.',
+          'Gravestar Seer (Tier 3, 3/3, Celestial and Undead): whenever you cast a spell (Rubies included), this gains +4 Attack permanently.',
+          'Comet Conductor (Tier 4, 4/5): Rally, get a copy of the first spell you cast this turn. Once per combat.',
+          'Falling Star Herald (Tier 4, 4/6): Shout and Echo, get a Star Crash.',
+          'Crashborn Adept (Tier 5, 5/8): the first time each turn you cast Star Crash on this, cast it on 2 other friendly Celestials.',
+          'Astral Spellcore (Tier 6, 7/9): when you cast 3 Shop spells, give your Celestials +6/+6. Repeatable; only spells cast while it is on your board count, and its counter shows on the card like an Avenge counter.',
+          'Orrery Artificer (Tier 6, 6/10): Equip Comet (4 Gold), your next spell casts 2 additional times.',
+        ],
+      },
+      {
+        category: 'Card Change',
+        text: 'Set 3: Yazzus moves to Tier 7, matching his Set 2 tier. His stats and text are unchanged.',
+      },
     ],
   },
   {

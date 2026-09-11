@@ -87,9 +87,9 @@ describe('Splitboon Adept (Choose One)', () => {
 });
 
 describe('the set-3 Yazzus fork', () => {
-  it('is T6 4/8 and doubles aimed Shop spells (golden ×3), like the original', () => {
+  it('is T7 4/8 (T7 since 2026-09-11, "as he is in set 2") and doubles aimed Shop spells (golden ×3), like the original', () => {
     const d = CARD_INDEX['n3_yazzus']!;
-    expect([d.tier, d.attack, d.health]).toEqual([6, 4, 8]);
+    expect([d.tier, d.attack, d.health]).toEqual([7, 4, 8]);
     const spirit = CARD_INDEX['spiritfire'] ?? Object.values(CARD_INDEX).find((c) => c.spell && c.target)!;
     expect(spellCasts(run({ board: [body('y', 'n3_yazzus')] }), spirit)).toBe(2);
     expect(spellCasts(run({ board: [body('y', 'n3_yazzus', { golden: true })] }), spirit)).toBe(3);

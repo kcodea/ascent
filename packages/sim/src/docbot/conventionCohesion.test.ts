@@ -99,12 +99,10 @@ describe('parked WIP classes generate no questions and bind no members (owner ru
     }
   });
 
-  it('Orbit and the Celestial tribe are the classes the owner parked', () => {
+  it('Orbit is the class the owner parked (the Celestial tribe was un-parked 2026-09-11 with its reworked roster)', () => {
     const ids = PARKED_CLASSES.map((p) => p.id).sort();
-    expect(ids).toContain('orbit');
-    expect(ids).toContain('celestial');
+    expect(ids).toEqual(['orbit']);
     expect(PARKED_CLASSES.find((p) => p.id === 'orbit')!.families).toEqual(['orbit', 'orbitReact']);
-    expect(PARKED_CLASSES.find((p) => p.id === 'celestial')!.tribes).toEqual(['celestial']);
   });
 
   it('the parking actually catches live content (it is not a no-op)', () => {

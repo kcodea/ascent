@@ -55,6 +55,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:battlecryDiscoverMinion:onPlay': { policy: 'ownBeat', family: 'shout' },
   'factory:battlecryDiscoverSpell:onPlay': { policy: 'ownBeat', family: 'shout' },
   'factory:battlecryDoubleNextSpell:onPlay': { policy: 'ownBeat', family: 'shout' },
+  'factory:battlecryBuffNextSpell:onPlay': { policy: 'ownBeat', family: 'shout' }, // Starpath Vendor
   'factory:battlecryGainGoldNextTurn:onPlay': { policy: 'ownBeat', family: 'shout' },
   'factory:battlecryGainKeyword:onPlay': { policy: 'ownBeat', family: 'shout' },
   'factory:battlecryGainRandomMinion:onPlay': { policy: 'ownBeat', family: 'shout' },
@@ -149,6 +150,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:deathrattleGrantRebornAll:onDeath': { policy: 'ownBeat', family: 'echo' },
   'factory:deathrattleGrantShield:onDeath': { policy: 'ownBeat', family: 'echo' },
   'factory:deathrattleGrantSpell:onDeath': { policy: 'ownBeat', family: 'echo' },
+  'factory:deathrattleGrantRandomSpell:onDeath': { policy: 'ownBeat', family: 'echo' }, // Horizon Courier (first live user)
   'factory:deathrattleGoldNextTurn:onDeath': { policy: 'ownBeat', family: 'echo' }, // Tromboneer (set 3)
   'factory:deathrattleGrantWardRandom:onDeath': { policy: 'ownBeat', family: 'echo' },
   'factory:deathrattleMaxGold:onDeath': { policy: 'ownBeat', family: 'echo' },
@@ -261,6 +263,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:onSpellCastOnThisRecast:spellCastOnThis': { policy: 'ownBeat', family: 'economy' },
   // Reflector (Yirin's token) — same shape as the recast above: a second cast the player should SEE land.
   'factory:onSpellCastOnThisSpreadRandom:spellCastOnThis': { policy: 'ownBeat', family: 'economy' },
+  'factory:onSpellCastOnThisSpreadTribeNamed:spellCastOnThis': { policy: 'ownBeat', family: 'economy' }, // Crashborn Adept
   // Reflector also bounces a played Ruby to a random friendly (owner balance 2026-08-18) — same beat as the spell spread.
   'factory:onRubyPlayedSpreadRandom:onRubyPlayed': { policy: 'ownBeat', family: 'economy' },
   'factory:onSpellCastSecondCopyFirst:spellCast': { policy: 'ownBeat', family: 'castPayoff', reason: 'discrete payoff fired immediately after the cast; near-zero windup' },
@@ -290,6 +293,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:onRiseBuffSelfWard:onRise': { policy: 'foldedCue', family: 'react' }, // Revenant (set 3)
   'factory:onRiseBuffBoardAndHand:onRise': { policy: 'foldedCue', family: 'react' }, // Rising Tide (set 3)
   'factory:rallyBuff:onAttack': { policy: 'ownBeat', family: 'rally' },
+  'factory:rallyGrantFirstSpellCopy:onAttack': { policy: 'ownBeat', family: 'rally' }, // Comet Conductor
   'factory:rallyBuffAttachments:onAttack': { policy: 'ownBeat', family: 'rally' },
   'factory:rallyBuffCelestials:onAttack': { policy: 'ownBeat', family: 'rally' },
   'factory:rallyBuffSelf:onAttack': { policy: 'ownBeat', family: 'rally' },
@@ -425,6 +429,8 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:spellBuffTargetPerGold:cast': { policy: 'ownBeat', family: 'spellCast' },
   'factory:spellBuffTavern:cast': { policy: 'ownBeat', family: 'spellCast' },
   'factory:spellCastBuffAll:spellCast': { policy: 'foldedCue', family: 'castReact' },
+  'factory:spellCastEveryNBuffTribe:spellCast': { policy: 'foldedCue', family: 'castReact' }, // Astral Spellcore
+  'factory:spellCastBuffSelf:spellCast': { policy: 'foldedCue', family: 'castReact' }, // Gravestar Seer (first live user)
   'factory:spellCastBuffOthers:spellCast': { policy: 'foldedCue', family: 'castReact' },
   'factory:spellCastBuffUndeadAttack:spellCast': { policy: 'foldedCue', family: 'castReact' },
   'factory:spellCastDemonConsumesShop:spellCast': { policy: 'ownBeat', family: 'castPayoff', reason: 'discrete payoff fired immediately after the cast; near-zero windup' },

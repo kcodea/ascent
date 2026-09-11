@@ -127,14 +127,15 @@ export const SET3_NEUTRAL: readonly CardDef[] = [
   },
   {
     // Set 3's Yazzus — a FORK of set 1's `yazzus` (T7 5/7, "targeted SHOP spells"), not an edit: set 2 keeps
-    // the original untouched (owner 2026-09-09). This one sits at T6 on a 4/8 and widens the doubling to EVERY
+    // the original untouched (owner 2026-09-09). This one sits at T7 (owner 2026-09-11, "as he is in set 2"; it
+    // opened at T6) on a 4/8 and widens the doubling to EVERY
     // targeted spell — Shop spells, Rubies, and the hand spells set 3 adds (Tower Shield, Clue). Resolved in
     // @game/sim: `spellCastMult` (aimed Shop spells) and `rubyCastCount` (Rubies) both read it. Best single
     // copy wins, like the original — golden = 2 additional casts. No combat factory; a sturdy body in a fight.
     id: 'n3_yazzus',
     name: 'Yazzus',
     tribe: 'neutral',
-    tier: 6,
+    tier: 7,
     attack: 4,
     health: 8,
     keywords: [],

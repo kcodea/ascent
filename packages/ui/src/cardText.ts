@@ -1103,6 +1103,13 @@ export function stepProgress(
   }
 
   if (def.effects.some((e) => e.do === 'spellCastBuffOthers')) return cyc(p.spellProgress ?? 0, 4); // Guel
+  // Astral Spellcore: every N Shop spells cast while on the board — the same per-copy `spellProgress` meter as
+  // Guel, counting up; Avenge-style N/3 (owner 2026-09-11: the counter, never the text). Keyed on the effect's
+  // SHAPE (a `spellCast` watcher with an `every` cadence and a `tribe` payout) rather than its factory id on
+  // purpose: the rendered-text lanes derive their live-TEXT subjects from the id literals in this file, and this
+  // card's live surface is the counter, not its text.
+  const everyN = def.effects.find((e) => e.on === 'spellCast' && typeof (e.params as { every?: unknown } | undefined)?.every === 'number' && typeof (e.params as { tribe?: unknown } | undefined)?.tribe === 'string');
+  if (everyN) return cyc(p.spellProgress ?? 0, Math.max(1, n((everyN.params as { every?: number })?.every, 3)));
   const monk = def.effects.find((e) => e.do === 'overflowBuffRandom');
   if (monk) return cyc(p.summonBonus ?? 0, Math.max(1, n((monk.params as { improveEvery?: number })?.improveEvery, 5)));
   const crypt = def.effects.find((e) => e.do === 'onAllyAttackBuffAll');

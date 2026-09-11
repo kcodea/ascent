@@ -459,7 +459,7 @@ function extractReward(reward: unknown, unparsed: string[]): EffectContract[] {
   });
 }
 
-interface RuneLike { id: string; name: string; cost: number; text?: string; reward?: unknown; sets?: string[] }
+interface RuneLike { id: string; name: string; cost: number; text?: string; reward?: unknown; sets?: string[]; tribes?: readonly string[] }
 
 function extractRune(rune: RuneLike, forge: 'basic' | 'epic'): ContentContract {
   const unparsed: string[] = [];
@@ -472,6 +472,7 @@ function extractRune(rune: RuneLike, forge: 'basic' | 'epic'): ContentContract {
     reviewStatus: 'extracted',
     extraction: { extractor: EXTRACTOR_ID, confidence: confidenceOf(effects, sortedUnparsed), ...(sortedUnparsed.length ? { unparsed: sortedUnparsed } : {}) },
     ...(rune.sets?.length ? { setIds: [...rune.sets].sort() } : {}),
+    ...(rune.tribes?.length ? { tribes: [...rune.tribes] } : {}),
     tags: [`runeforge:${forge}`, `cost:${rune.cost}`],
     ...(effects.length ? { effects } : {}),
     textContract: { source: 'index' },

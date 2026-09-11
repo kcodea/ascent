@@ -1,3 +1,5 @@
+import type { Tribe } from '@game/core';
+
 /**
  * Heroes — data-driven, like cards. A hero is an id, a name, and a hero power.
  * The reducer (`heroPower` action) resolves the power by `kind`; the UI reads the
@@ -129,6 +131,11 @@ export interface HeroDef {
    *  The card lives in the global henchman registry (`@game/content` cards/henchmen.ts), never in a shop
    *  pool. Optional while the roster is authored; every hero is meant to carry one eventually. */
   henchman?: { cardId: string; cost: number };
+  /** TRIBE GATE (owner 2026-09-10, "Tiff for Dragons"): offered — on the hero picker, and as an adoptable power
+   *  (Mimic / Void / Power Shifter) — only when at least one of these is one of the run's rolled tribes. Absent =
+   *  tribe-agnostic. Tagged where the power is inert or has no pool without the tribe (Tiff's Dragon Discover,
+   *  Flint's Dwarf price); a power that merely mints a tribe TOKEN (Cindara's Whelps) is left untagged. */
+  tribes?: readonly Tribe[];
 }
 
 export const HEROES: HeroDef[] = [
@@ -463,6 +470,7 @@ export const HEROES: HeroDef[] = [
   },
   {
     id: 'tiff',
+    tribes: ['dragon'], // Dragon Tamer Discovers a Dragon — no pool without them (owner 2026-09-10: "Tiff for Dragons")
     name: 'Tiff',
     blurb: 'Every wyrm answers her whistle — and the tavern picks up the tab.',
     resolve: 30,
@@ -606,6 +614,7 @@ export const HEROES: HeroDef[] = [
   },
   {
     id: 'flint',
+    tribes: ['dwarf'], // Company Rate prices Dwarves — inert without them
     name: 'Foreman Flint',
     blurb: 'Union rates. Dwarves come cheap by the dozen.',
     resolve: 30,
@@ -1085,19 +1094,24 @@ const VOID_EXCLUDED = new Set(['discodan', 'runesmith', 'coran', 'fi', 'vale']);
  */
 /** The heroes PLAY mode may use — the Ascent picker and generated rival seats. Practice deliberately does not
  *  call this: a `practiceOnly` hero is still fully playable there. `wip` heroes are out of both. */
-export function playableHeroes(): HeroDef[] {
-  return HEROES.filter((h) => !h.wip && !h.practiceOnly);
+/** The tribe gate (`HeroDef.tribes`): no gate, or at least one gated tribe is a run tribe. `tribes` absent (no run
+ *  yet, or a caller that has none) = no filter, so every existing call keeps its old answer. */
+const tribeAllowed = (h: HeroDef, tribes?: readonly Tribe[]): boolean =>
+  !h.tribes || !tribes || h.tribes.some((t) => tribes.includes(t));
+
+export function playableHeroes(tribes?: readonly Tribe[]): HeroDef[] {
+  return HEROES.filter((h) => !h.wip && !h.practiceOnly && tribeAllowed(h, tribes));
 }
 
 /** The heroes PRACTICE may use — everything except `wip`. */
-export function practiceHeroes(): HeroDef[] {
-  return HEROES.filter((h) => !h.wip);
+export function practiceHeroes(tribes?: readonly Tribe[]): HeroDef[] {
+  return HEROES.filter((h) => !h.wip && tribeAllowed(h, tribes));
 }
 
-export function powerDiscoverPool(who: 'mimic' | 'void', exclude: readonly string[] = []): string[] {
+export function powerDiscoverPool(who: 'mimic' | 'void', exclude: readonly string[] = [], tribes?: readonly Tribe[]): string[] {
   const banned = who === 'mimic' ? MIMIC_EXCLUDED : VOID_EXCLUDED;
   return HEROES
-    .filter((h) => !h.wip && !banned.has(h.id) && !UNDISCOVERABLE_KINDS.has(h.power.kind) && !exclude.includes(h.id))
+    .filter((h) => !h.wip && !banned.has(h.id) && !UNDISCOVERABLE_KINDS.has(h.power.kind) && !exclude.includes(h.id) && tribeAllowed(h, tribes))
     .map((h) => h.id);
 }
 

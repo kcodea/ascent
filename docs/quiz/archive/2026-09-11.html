@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ascent Quiz #30 — 2026-09-11</title>
+<style>
+  :root {
+    --bg: #0f1420;
+    --panel: #171d2e;
+    --panel-border: #2a3350;
+    --text: #e8ecf7;
+    --muted: #93a0c2;
+    --accent: #6ea8fe;
+    --good: #3fd68b;
+    --bad: #ff6b6b;
+    --choice-bg: #1e2740;
+    --choice-hover: #263252;
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --bg: #f4f6fb;
+      --panel: #ffffff;
+      --panel-border: #dde3f0;
+      --text: #1a2036;
+      --muted: #5a6482;
+      --accent: #2d6cdf;
+      --good: #1a9c5c;
+      --bad: #d9364b;
+      --choice-bg: #eef1f9;
+      --choice-hover: #e2e7f5;
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #f4f6fb;
+    --panel: #ffffff;
+    --panel-border: #dde3f0;
+    --text: #1a2036;
+    --muted: #5a6482;
+    --accent: #2d6cdf;
+    --good: #1a9c5c;
+    --bad: #d9364b;
+    --choice-bg: #eef1f9;
+    --choice-hover: #e2e7f5;
+  }
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    padding: 24px 16px 48px;
+    display: flex;
+    justify-content: center;
+  }
+  .wrap { width: 100%; max-width: 640px; }
+  header { text-align: center; margin-bottom: 20px; }
+  header h1 { font-size: 1.4rem; margin: 0 0 4px; }
+  header p { color: var(--muted); margin: 0; font-size: 0.9rem; }
+  .progress-bar {
+    height: 8px;
+    background: var(--choice-bg);
+    border-radius: 4px;
+    overflow: hidden;
+    margin: 16px 0 24px;
+  }
+  .progress-fill {
+    height: 100%;
+    background: var(--accent);
+    transition: width 0.3s ease;
+  }
+  .score-pill {
+    display: inline-block;
+    background: var(--choice-bg);
+    border: 1px solid var(--panel-border);
+    border-radius: 999px;
+    padding: 4px 14px;
+    font-size: 0.85rem;
+    color: var(--muted);
+    float: right;
+  }
+  .qcount { font-size: 0.85rem; color: var(--muted); }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 14px;
+    padding: 20px 20px 22px;
+    margin-bottom: 16px;
+  }
+  .topic-tag {
+    display: inline-block;
+    font-size: 0.72rem;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 14%, transparent);
+    border-radius: 6px;
+    padding: 2px 8px;
+    margin-bottom: 10px;
+  }
+  .question-text {
+    font-size: 1.05rem;
+    line-height: 1.5;
+    margin: 0 0 16px;
+  }
+  .question-text code {
+    background: var(--choice-bg);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 0.92em;
+  }
+  .choices { display: flex; flex-direction: column; gap: 10px; }
+  .choice {
+    text-align: left;
+    background: var(--choice-bg);
+    border: 1px solid var(--panel-border);
+    color: var(--text);
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 0.95rem;
+    line-height: 1.4;
+    cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
+    display: flex;
+    gap: 10px;
+  }
+  .choice:hover:not(.locked) { background: var(--choice-hover); }
+  .choice .letter {
+    font-weight: 700;
+    color: var(--muted);
+    flex-shrink: 0;
+  }
+  .choice.correct { border-color: var(--good); background: color-mix(in srgb, var(--good) 16%, var(--choice-bg)); }
+  .choice.incorrect { border-color: var(--bad); background: color-mix(in srgb, var(--bad) 16%, var(--choice-bg)); }
+  .choice.locked { cursor: default; }
+  .choice.dim { opacity: 0.55; }
+  .explanation {
+    margin-top: 14px;
+    padding: 14px 16px;
+    border-radius: 10px;
+    background: var(--choice-bg);
+    border-left: 3px solid var(--accent);
+    font-size: 0.9rem;
+    line-height: 1.55;
+    color: var(--text);
+    display: none;
+  }
+  .explanation.show { display: block; }
+  .explanation b.verdict-good { color: var(--good); }
+  .explanation b.verdict-bad { color: var(--bad); }
+  .nav-row {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 16px;
+  }
+  .next-btn {
+    background: var(--accent);
+    color: #0b1220;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
+    display: none;
+  }
+  .next-btn.show { display: inline-block; }
+  .final-card {
+    text-align: center;
+    display: none;
+  }
+  .final-card.show { display: block; }
+  .final-score {
+    font-size: 2.4rem;
+    font-weight: 800;
+    margin: 8px 0;
+    color: var(--accent);
+  }
+  .final-line {
+    color: var(--muted);
+    font-size: 1rem;
+    margin-bottom: 4px;
+  }
+  .restart-btn {
+    margin-top: 18px;
+    background: var(--choice-bg);
+    border: 1px solid var(--panel-border);
+    color: var(--text);
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-size: 0.9rem;
+    cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
+  }
+  footer {
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.78rem;
+    margin-top: 24px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>🎓 Ascent Quiz #30</h1>
+    <p>September 11, 2026 — how the game is coded, not how it plays</p>
+  </header>
+
+  <div id="quiz-area">
+    <div class="score-pill" id="scorePill">Score: 0 / 10</div>
+    <div class="qcount" id="qCount">Question 1 of 10</div>
+    <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+    <div id="questionHost"></div>
+  </div>
+
+  <div class="card final-card" id="finalCard">
+    <div class="final-line">You scored</div>
+    <div class="final-score" id="finalScore">0 / 10</div>
+    <div class="final-line" id="finalMessage"></div>
+    <button class="restart-btn" id="restartBtn">Take it again</button>
+  </div>
+
+  <footer>Reply to Mike's morning message with your score to adapt tomorrow's quiz.</footer>
+</div>
+
+<script>
+const QUESTIONS = [
+  {
+    "topicId": "what-is-a-function",
+    "question": "packages/sim/src/state.ts defines <code>export function mixSeed(...parts: number[]): number { ... }</code> — note the <code>...parts</code> in its parameter list. What does that <code>...</code> syntax let callers do?",
+    "choices": [
+      "It marks <code>parts</code> as optional, so <code>mixSeed()</code> can be called with zero arguments and still work.",
+      "It's a rest parameter: callers can pass any number of separate number arguments (e.g. mixSeed(seed, wave, tag) or mixSeed(seed, wave, tag, slot)) and they all get collected into one real array called <code>parts</code> inside the function body.",
+      "It spreads the function's own return value across multiple variables at the call site.",
+      "It's TypeScript-only syntax that gets stripped out entirely and does nothing at runtime."
+    ],
+    "answer": 1,
+    "explanation": "<code>...parts: number[]</code> is a rest parameter — it lets a function accept a variable number of arguments and bundles them into one real array (<code>parts</code>) it can loop over, which is why mixSeed can be called with 2, 3, or 4 numbers depending on the caller (see the different call sites in state.ts). Choice A confuses 'variable count' with 'optional'; C describes the spread operator used at a CALL site to expand an array into arguments — the mirror-image use of the same <code>...</code> syntax; D is wrong — rest parameters are ordinary JavaScript, not a TypeScript-only construct, and they very much affect runtime behavior."
+  },
+  {
+    "topicId": "deterministic-sim",
+    "question": "packages/ui/src/fx/poolDeterminism.test.ts tests that a pooled (reused) visual-effect object, given the same seed, produces byte-identical particles to a freshly-created one — nothing to do with combat outcomes. What does the existence of a test like this tell you about 'determinism' as a concept in Ascent?",
+    "choices": [
+      "It's a mistake — determinism only applies to simulate() and combat, so this test is checking something that doesn't matter.",
+      "It shows that 'same inputs → same output' is a general contract Ascent checks wherever state could leak between reuses of an object, not something limited to gameplay logic — here it's applied to a pixi.js particle-effect pool in packages/ui, entirely outside combat.",
+      "It proves packages/ui is also covered by the Math.random ESLint ban, contradicting CLAUDE.md.",
+      "It means simulate() is secretly called from inside packages/ui's rendering code to compute particle positions."
+    ],
+    "answer": 1,
+    "explanation": "The test file's own comment says pooling is 'only safe if a recycled instance is INDISTINGUISHABLE from a fresh one' — it diffs two real spawns from the same seed to prove no leftover state from the pool corrupts the result, the same 'same input → same output' idea CLAUDE.md states for simulate(), just applied to an unrelated system (FX object pooling in the UI layer). C is false — packages/ui is explicitly exempt from the Math.random ESLint ban; D is false — this test never calls simulate() at all."
+  },
+  {
+    "topicId": "seeded-rng",
+    "question": "packages/sim/src/state.ts's <code>mixSeed(...parts)</code> combines a run's seed with small integers (like a tag constant and the wave number) via bit mixing, and is used instead of <code>rng.fork()</code> to derive per-wave streams. Unlike <code>fork()</code> (which consumes a value from the parent Rng's own <code>next()</code> call), does calling <code>mixSeed(seed, wave, tag)</code> twice with the exact same three numbers ever produce two different results?",
+    "choices": [
+      "No — mixSeed is a plain, ordinary function: the same seed/wave/tag numbers always produce the same mixed output, regardless of how many other draws happened before or after, unlike fork() whose result depends on the parent Rng's current internal state at the moment it's called.",
+      "Yes — mixSeed also reads from a shared internal counter, so calling it twice in a row gives two different seeds, just like fork().",
+      "No, but only because mixSeed happens to be called just once per run.",
+      "Yes, because mixSeed internally calls Math.random() to add extra entropy on top of the given numbers."
+    ],
+    "answer": 0,
+    "explanation": "<code>mixSeed</code> (packages/sim/src/state.ts) takes only its arguments and returns a deterministic 32-bit mix of them — there's no closed-over mutable state at all, so the exact same (seed, wave, tag) always yields the exact same derived seed, any number of times. That's a real contrast with <code>fork()</code>, which reads and advances the PARENT rng's own state each time it's called, so calling it twice back-to-back gives different children. B and C invent state mixSeed doesn't have; D is false — Math.random is banned in packages/sim entirely."
+  },
+  {
+    "topicId": "sim-ui-decoupling",
+    "question": "packages/ui/src/store.ts handles a player action (buying a card, ending a turn) by calling <code>reduce(s.run, action)</code> — a function imported from <code>@game/sim</code>. When a player clicks something in the shop, does packages/ui itself figure out the new game state, or does it hand off to <code>@game/sim</code>?",
+    "choices": [
+      "packages/ui computes the new RunState itself using its own logic, then just calls <code>reduce()</code> afterward to log what happened for the replay.",
+      "packages/ui builds a plain <code>Action</code> value describing what the player did and passes it, along with the current <code>RunState</code>, to <code>@game/sim</code>'s <code>reduce()</code> function, which computes and returns the next state — the same sim-decides/UI-displays split combat uses, just for the shop phase.",
+      "Neither — RunState updates happen automatically inside React's rendering cycle without any explicit function call.",
+      "packages/ui and packages/sim each independently compute the new state and then compare results to catch bugs."
+    ],
+    "answer": 1,
+    "explanation": "<code>reduce(state: RunState, action: Action): RunState</code> lives in packages/sim/src/reducer.ts — store.ts's job is just to construct the right <code>Action</code> object and call it, mirroring how simulate() (not the UI) decides combat outcomes. This is the sim/UI split applied outside of combat: the shop's turn-by-turn logic is decided by @game/sim, and packages/ui only dispatches player intent and renders whatever comes back. A and D invent computation happening in the UI that doesn't exist; C misunderstands React — nothing updates without an explicit call."
+  },
+  {
+    "topicId": "monorepo-packages",
+    "question": "The root tsconfig.json's <code>exclude</code> field lists <code>packages/ui</code>, since it needs the DOM + JSX libraries the headless engine packages don't — it's typechecked separately via apps/web/tsconfig.json (<code>npm run typecheck:web</code>). What does that tell you about how core/content/sim/tools are typechecked?",
+    "choices": [
+      "They're typechecked one package at a time, each with its own separate tsconfig.json file.",
+      "They're all typechecked together as ONE shared TypeScript project (via the root tsconfig.json and <code>npm run typecheck:pkgs</code>), while packages/ui + apps/web form a second, separate project because they need browser-specific type libraries the engine packages don't.",
+      "They aren't typechecked at all — only packages/ui and apps/web go through <code>tsc</code>.",
+      "core, content, sim, and tools each get compiled into a separate JavaScript bundle before typechecking can run."
+    ],
+    "answer": 1,
+    "explanation": "The root tsconfig.json's <code>include</code> glob sweeps core/content/sim/tools' source together, and <code>npm run typecheck:pkgs</code> runs <code>tsc</code> once across all of them as a single program — separate npm packages don't require separate TypeScript projects. packages/ui is carved out into its own project (apps/web/tsconfig.json) specifically because it needs the DOM/JSX libraries the headless engine packages don't. A misreads the setup; C is directly contradicted by CLAUDE.md's Commands section; D confuses typechecking (which reads source, no build step) with bundling."
+  },
+  {
+    "topicId": "pure-functions",
+    "question": "packages/core/src/combat/minion.ts's <code>instantiate(board, side, cards, mkUid)</code> builds each combat Minion's <code>uid</code> field by calling the <code>mkUid</code> argument it's given, and <code>simulate()</code> passes it a closure <code>let uidCounter = 0; const mkUid = () => `m${uidCounter++}`;</code>. If you called <code>instantiate()</code> twice in a row with the same <code>board</code>, <code>side</code>, <code>cards</code>, and the same <code>mkUid</code> function reference, would the two returned Minions have identical <code>uid</code>s?",
+    "choices": [
+      "Yes — since board/side/cards are unchanged, instantiate() must return an identical Minion both times.",
+      "No — mkUid() itself increments a shared counter as a side effect every time it's called, so instantiate() isn't a pure function of its listed arguments alone; the whole system's reproducibility instead comes from simulate() always starting <code>uidCounter</code> fresh at 0 and calling instantiate() in the same fixed order every run, not from instantiate() being pure in isolation.",
+      "No, because instantiate() calls Math.random() internally to generate each uid.",
+      "Yes, because TypeScript's type system would reject two calls that could produce different outputs."
+    ],
+    "answer": 1,
+    "explanation": "instantiate() takes <code>mkUid</code> as a parameter, but a function-typed parameter can hide a side effect of its own — here, calling it mutates a counter closed over back in simulate(), so two calls that look identical from instantiate()'s point of view produce different uids. What actually makes combat replays reproducible isn't instantiate() being pure by itself, but simulate() re-declaring <code>let uidCounter = 0</code> fresh every call and invoking instantiate() in the same deterministic board order each time. C is false (Math.random is banned in core); D misunderstands TypeScript — the type system only checks shapes/types, not runtime side effects."
+  },
+  {
+    "topicId": "data-vs-code",
+    "question": "packages/content/src/schema.ts's <code>EffectDefSchema</code> types the <code>on</code> and <code>do</code> fields as tightly closed zod enums, but types <code>params</code> as <code>z.record(z.unknown())</code> — an open bag that accepts any keys with any values. Why leave <code>params</code> this loose when <code>on</code>/<code>do</code> are locked down so strictly?",
+    "choices": [
+      "It's an oversight the team hasn't gotten around to fixing yet.",
+      "Because the valid shape of <code>params</code> depends on WHICH effect factory <code>do</code> names — every factory function expects a different set of param fields, so there's no single fixed shape zod could check for the field in general; a typo inside <code>params</code> isn't caught by this schema the way a typo'd <code>on</code>/<code>do</code> value is.",
+      "Because zod can only validate string fields, and params sometimes holds numbers.",
+      "Because <code>params</code> is never actually read by any code — it exists only for documentation."
+    ],
+    "answer": 1,
+    "explanation": "<code>on</code> and <code>do</code> each draw from one small, fixed universe of legal strings, so a zod <code>.enum([...])</code> can reject anything outside it. <code>params</code>'s valid shape changes depending on which <code>do</code> factory the effect uses — one factory reads one set of fields, another reads something else entirely — so a single generic schema can't pin that down, and it's left as <code>z.record(z.unknown())</code> while the specific factory function reads whatever fields it expects at runtime. C is false (zod handles numbers fine); D is false — params is read by the factory functions that implement each effect."
+  },
+  {
+    "topicId": "event-log-replay",
+    "question": "packages/core/src/events.ts defines a <code>CombatBus</code> class with its own <code>on()</code>/<code>emit()</code> methods, used internally by simulate() to fire a minion's effect handlers WHILE combat resolves. Separately, <code>simulate()</code> also builds up the <code>events: CombatEvent[]</code> array that the UI replays afterward. Are these the same 'event' mechanism?",
+    "choices": [
+      "Yes — CombatBus.emit() calls literally push the entries the UI later reads onto the same <code>events</code> array.",
+      "No — CombatBus is an internal, synchronous pub/sub mechanism simulate() uses WHILE resolving combat to trigger card effects, and it's done its job by the time simulate() returns; the <code>events: CombatEvent[]</code> array is a separate, serializable record built alongside it (via simulate()'s own local <code>emit</code> helper) that's what the UI actually replays afterward.",
+      "Yes, because both are called 'events' in this codebase, so they must refer to the same underlying data.",
+      "No, because CombatBus only exists in packages/ui and never runs during simulate() at all."
+    ],
+    "answer": 1,
+    "explanation": "CombatBus (packages/core/src/events.ts) is a small pub/sub bus — a card's effect registers with <code>bus.on(effect.on, handler)</code>, and something like a death fires it via <code>bus.emit(...)</code> — purely an internal dispatch mechanism that exists and finishes entirely inside one simulate() call. The completely separate <code>events</code> array is built by simulate()'s own local <code>emit()</code> helper, and that's the persisted, replayable log the UI actually animates. They share the English word 'event' but are two different pieces of machinery serving two different jobs. D is wrong: CombatBus is defined and used entirely inside packages/core."
+  },
+  {
+    "topicId": "eslint-rules",
+    "question": "eslint.config.mjs's top-level <code>ignores</code> array excludes <code>.claude/**</code> (alongside node_modules/dist). Per the config's own comment, why carve out this specific folder?",
+    "choices": [
+      "Because <code>.claude/**</code> might contain untrusted third-party code with malicious ESLint plugins that could compromise the linter itself.",
+      "Because <code>.claude/**</code> is per-machine, gitignored agent tooling (locally-installed plugins/skills, worktrees) that CI never sees — linting it would only produce errors in an individual developer's own shell that no PR could actually fix, drowning out real findings.",
+      "Because ESLint can't process symlinked directories, and <code>.claude/**</code> is always symlinked.",
+      "Because <code>.claude/**</code> only contains compiled output that duplicates errors already caught elsewhere in the repo."
+    ],
+    "answer": 1,
+    "explanation": "The config's own comment spells this out: <code>.claude/**</code> holds per-machine, gitignored agent tooling that CI never sees, so linting it would surface failures no PR could fix and that would bury genuine findings under noise specific to one developer's local setup. This is a different reason from the nearby <code>supabase/**</code> exclusion (that one's about a different JS runtime, Deno, entirely) — here the issue is reproducibility across machines and CI, not a runtime mismatch. A, C, and D all invent explanations the comment doesn't give."
+  },
+  {
+    "topicId": "performance-memo",
+    "question": "docs/performance.md describes a real fix: the recruit-turn countdown (<code>seconds</code>) used to live in React <code>useState</code> inside the Recruit component, so every one-second tick re-rendered the whole recruit tree — board, hand, and shop (up to ~17 cards). It now lives in <code>packages/ui/src/turnClock.ts</code>, a tiny external store outside React state, and only the small ShopTimer/ChargeGlyph components subscribe to the live <code>seconds</code> value. What general performance lesson does this fix demonstrate?",
+    "choices": [
+      "Ticking clocks should always be removed from a game entirely, since any per-second update is inherently too expensive.",
+      "A frequently-changing value should be isolated into its own store/subscriber so that only the small pieces of UI that actually display it re-render on every change, instead of living in a big component's state and dragging its whole child tree along on every tick.",
+      "React.memo alone would have fully solved this problem without needing an external store.",
+      "The fix works only because turnClock.ts calls the seeded Rng instead of a real timer."
+    ],
+    "answer": 1,
+    "explanation": "The doc is explicit about the mechanism: moving <code>seconds</code> out of Recruit's own <code>useState</code> into a tiny external store (subscribed to directly via <code>useSyncExternalStore</code>, no React re-render of the parent involved) means only the tiny components that display the number — ShopTimer and ChargeGlyph — update every second, while Recruit itself subscribes only to a derived <code>timeUp</code> boolean that changes once per turn. A overstates it — the countdown is still there, just relocated; C is wrong because React.memo only skips re-renders when PROPS haven't changed, and it wouldn't stop Recruit itself (the state's owner) from re-rendering; D is unrelated — this has nothing to do with the RNG, it's a plain ticking counter."
+  }
+];
+
+const LETTERS = ['A', 'B', 'C', 'D'];
+let current = 0;
+let score = 0;
+let answered = false;
+
+const questionHost = document.getElementById('questionHost');
+const scorePill = document.getElementById('scorePill');
+const qCount = document.getElementById('qCount');
+const progressFill = document.getElementById('progressFill');
+const quizArea = document.getElementById('quiz-area');
+const finalCard = document.getElementById('finalCard');
+const finalScore = document.getElementById('finalScore');
+const finalMessage = document.getElementById('finalMessage');
+const restartBtn = document.getElementById('restartBtn');
+
+function renderQuestion() {
+  answered = false;
+  const q = QUESTIONS[current];
+  qCount.textContent = `Question ${current + 1} of ${QUESTIONS.length}`;
+  progressFill.style.width = `${(current / QUESTIONS.length) * 100}%`;
+  scorePill.textContent = `Score: ${score} / ${QUESTIONS.length}`;
+
+  const card = document.createElement('div');
+  card.className = 'card';
+
+  const tag = document.createElement('div');
+  tag.className = 'topic-tag';
+  tag.textContent = q.topicId.replace(/-/g, ' ');
+  card.appendChild(tag);
+
+  const qText = document.createElement('div');
+  qText.className = 'question-text';
+  qText.innerHTML = q.question;
+  card.appendChild(qText);
+
+  const choicesWrap = document.createElement('div');
+  choicesWrap.className = 'choices';
+
+  q.choices.forEach((choiceHtml, idx) => {
+    const btn = document.createElement('button');
+    btn.className = 'choice';
+    btn.innerHTML = `<span class="letter">${LETTERS[idx]}</span><span>${choiceHtml}</span>`;
+    btn.addEventListener('click', () => selectChoice(idx, btn, choicesWrap, q));
+    choicesWrap.appendChild(btn);
+  });
+
+  card.appendChild(choicesWrap);
+
+  const explanation = document.createElement('div');
+  explanation.className = 'explanation';
+  explanation.id = 'explanationBox';
+  card.appendChild(explanation);
+
+  const navRow = document.createElement('div');
+  navRow.className = 'nav-row';
+  const nextBtn = document.createElement('button');
+  nextBtn.className = 'next-btn';
+  nextBtn.id = 'nextBtn';
+  nextBtn.textContent = current === QUESTIONS.length - 1 ? 'See results' : 'Next question';
+  nextBtn.addEventListener('click', () => {
+    current++;
+    if (current >= QUESTIONS.length) {
+      showFinal();
+    } else {
+      renderQuestion();
+    }
+  });
+  navRow.appendChild(nextBtn);
+  card.appendChild(navRow);
+
+  questionHost.innerHTML = '';
+  questionHost.appendChild(card);
+}
+
+function selectChoice(idx, btnEl, wrapEl, q) {
+  if (answered) return;
+  answered = true;
+
+  const correct = idx === q.answer;
+  if (correct) score++;
+
+  [...wrapEl.children].forEach((el, i) => {
+    el.classList.add('locked');
+    if (i === q.answer) {
+      el.classList.add('correct');
+    } else if (i === idx) {
+      el.classList.add('incorrect');
+    } else {
+      el.classList.add('dim');
+    }
+  });
+
+  const explanation = document.getElementById('explanationBox');
+  const verdict = correct
+    ? `<b class="verdict-good">Correct!</b> `
+    : `<b class="verdict-bad">Not quite.</b> The right answer is ${LETTERS[q.answer]}. `;
+  explanation.innerHTML = verdict + q.explanation;
+  explanation.classList.add('show');
+
+  scorePill.textContent = `Score: ${score} / ${QUESTIONS.length}`;
+  document.getElementById('nextBtn').classList.add('show');
+}
+
+function showFinal() {
+  quizArea.style.display = 'none';
+  finalCard.classList.add('show');
+  finalScore.textContent = `${score} / ${QUESTIONS.length}`;
+
+  let msg;
+  if (score === QUESTIONS.length) {
+    msg = "Perfect score! You're reading this codebase like a pro. 🏆";
+  } else if (score >= 8) {
+    msg = "Excellent work — you've really got a handle on how this thing is built.";
+  } else if (score >= 6) {
+    msg = "Solid! A few of these ideas are worth another look, but you're getting it.";
+  } else if (score >= 4) {
+    msg = "Good effort — these get tricky. Re-read the referenced files and it'll click.";
+  } else {
+    msg = "Tough round! No worries — reply with your score and tomorrow will re-teach the rough spots.";
+  }
+  finalMessage.textContent = msg;
+}
+
+restartBtn.addEventListener('click', () => {
+  current = 0;
+  score = 0;
+  finalCard.classList.remove('show');
+  quizArea.style.display = 'block';
+  renderQuestion();
+});
+
+renderQuestion();
+</script>
+</body>
+</html>

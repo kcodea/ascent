@@ -1,377 +1,115 @@
-# Doc Bot — the standing correctness auditor
+# Doc Bot — the contract
 
-Doc Bot is not a play bot. It never decides what is *good*; it decides what is *wired*. It exists because a
-day of owner reports (2026-08-26) showed that our bug classes repeat: the same five shapes keep shipping, and
-each was **predictable from structure** — no gameplay judgment required. Doc Bot is the on-ramp to the full
-Interaction Verification Lab blueprint (owner's Codex doc, 2026-06-29): registry tripwires first, exhaustive
-scenario synthesis later if the tripwires prove insufficient.
+Doc Bot is the standing correctness auditor. It never decides what is *good*; it decides whether what the game
+says it does, what the engine does, and what the text prints **agree**. Balance is out of scope, permanently.
 
-Run the report:
+This page is the two-page contract: what gates a PR, what runs on a schedule, what is dormant, and how to read
+a failure. **It contains no counts.** Every number is derived by a command below, and the one document that
+carries numbers — [`docbot2/final-report.md`](docbot2/final-report.md) — is drift-gated against its generator.
+The narrative of how each lane came to exist is archived in [`docbot-history.md`](docbot-history.md).
+
+## 1. What gates every PR (`npm test`, the required `verify` check)
+
+Every lane file under `packages/sim/src/docbot/` (plus `packages/ui/src/docbotLiveText.test.ts`,
+`packages/ui/src/renderedText.test.tsx`, and the two tools lanes `docbot-report.test.ts` /
+`bug-graduate.test.ts`). **The authoritative roll-call is printed by `npm run docbot`** — each row is
+`existsSync`-checked, so the list cannot describe a lane that no longer exists. The lanes fall into four kinds:
+
+| Kind | What it proves | Representative lanes |
+|---|---|---|
+| **Wiring** | every (trigger, factory) pair is implemented in every phase that dispatches it; ids resolve; per-turn fields reset; rune rewards act; live text keeps both halves; tribe predicates go through the shared helpers | `factoryPhase`, `refIntegrity`, `turnScopedReset`, `runeRewardDifferential`, `tribePredicates`, `docbotLiveText` |
+| **Behaviour** | through the real `reduce` / real `simulate()`, every effect ACTS against a vanilla control; every card is driven in through its REAL entry path; every synthetic trigger fire reaches the watchers the natural fire reaches; hero powers act; invariants and conservation laws hold under fuzz; the beat stream's claims equal the state diff | `playDifferential`, `combatDifferential`, `entryPaths`, `firePaths`, `heroPowerLane`, `invariantFuzz`, `conservationLaws`, `beatConservation` |
+| **Correctness** | the MAGNITUDE and TARGET equal the contract: family drivers execute the §10.1 case templates per contract; the text oracles reconcile printed numbers with measured deltas; the text parser classifies every object and compares it to its contract; temporal windows obey the R-AVWIN rulings; interaction families compose as ruled | `contractOracle` + `drivers/*`, `textOracle*`, `textParse`, `magnitudeOracle`, `temporalWindow`, `interactionMatrix` |
+| **Meta** | the instrument audits itself: combat emits agree with the phase registry; the retro catalog still anchors; the final report matches its generator; every graduated regression replays | `combatEmitAgreement`, `retroCatalog`, `docbot-report`, `regressionScenarios` |
+
+Two rules make the gate trustworthy:
+
+- **Ratchets only shrink.** Every tolerated backlog (`needs-triage` phase gaps, scenario-conditional combat
+  cards, the unresolved-parse queue, `KNOWN_UNATTRIBUTED` beat sites, `KNOWN_VIOLATIONS`) is pinned at its
+  current size and may only go down. The unresolved-parse queue additionally has a HARD ceiling (a share of
+  active objects) that a content PR cannot raise past.
+- **Every lane is sabotage-proofed before it ships.** Reintroduce the bug shape it exists for and demand the
+  alarm. A lane that cannot fail its own sabotage check does not get to call anything verified. The proof is
+  recorded in the lane's header; `npm run docbot:report` counts the lanes that carry one.
+
+## 2. What a content PR must do
+
+New content **fails the gate** until its registries are regenerated. Run ONE command and commit what it writes:
 
 ```bash
-npm run docbot
+npm run docbot:sync
 ```
 
-The lanes gate in `npm test`; the report narrates what they enforce plus the backlogs they
-tolerate-but-track. **Every number in the report is derived live from content and source — nothing here or
-there is hand-maintained** (the CONTENT.md lesson).
+It chains `contracts:extract` (the contract registry), `docbot:text` (classification + the wording deck),
+`rules:seed` (the owner triage queue; decisions survive) and `docbot:report -- --check` (tells you which
+headline line of the final report drifted, if any — that prose is edited by hand, then re-checked).
+**Never hand-edit a `*.generated.ts` file.**
 
-> **Lanes are named by file, not numbered.** The "TRIPWIRE *N*" headers were retired in Doc Bot 2.0 WP H
-> (2026-08-27): the numbers had forked — three pairs of lanes claimed the same number — while file paths
-> never collide. A lane's id is its file basename (`factoryPhase`, `textOracle`, …), which is also the key
-> `ENFORCEMENT_LANES` uses when a rule cites its oracle. The word "tripwire" survives as a description of
-> what a lane *does*; it is no longer a numbering scheme.
->
-> **For the whole-platform picture** — coverage percentages, the four finding classes, the Definition-of-Done
-> checklist and the honest blind-spot list — see [`docbot2/final-report.md`](docbot2/final-report.md),
-> generated by `npm run docbot:report`. The lane roll-call printed by `npm run docbot` (§16+) is the
-> authoritative, existsSync-checked list of what actually gates.
+A content PR may also have to *classify* new things — a new trigger's phases (`phaseRegistry.ts`), a new
+entry site or synthetic fire site (`entryPaths.ts` / `firePaths.ts`), a new per-instance field's snapshot
+fate (`snapshotRegistry.ts`). Each is a completeness check that names exactly what it wants. **Adding an
+EXCUSE (a `*_EXCUSED` entry, a `needs-triage`, a `KNOWN_*` pin) is a named review item, not line noise**:
+say why in the PR body, with a verifiable reason.
 
-## The first four lanes — from one day's reports
+## 3. What runs on a schedule (never blocks a PR)
 
-| # | Test | Bug class it kills | Shipped examples |
+| Workflow | Cadence | What it does | Where a red run goes |
 |---|---|---|---|
-| 1 | `packages/sim/src/docbot/factoryPhase.test.ts` | A factory missing from a phase map where its trigger dispatches — `MAP[do]?.()` makes that a **silent no-op** | Conductor in combat; Funeral on Loan; Beefy/Lantern Light fizzles |
-| 2 | `packages/ui/src/docbotLiveText.test.ts` | A live-text helper that renders only **half** a dual-stat grant | Kringle's vanished Health |
-| 3 | `packages/sim/src/docbot/tribePredicates.test.ts` | Raw `.tribe ===` comparisons that miss all-types | Voicekeeper, Trade-In, Pack Leader, snapshot drift |
-| 4 | `packages/sim/src/docbot/derivations.test.ts` | Two code paths documented as "mirrors X" that silently diverge | Merchant's Chorus buy path; snapshot `beastsPlayed` |
-
-### 1. Factory × phase (`phaseRegistry.ts`)
-
-`TRIGGER_PHASES` declares where each trigger dispatches (recruit / combat / both) — derived by reading the
-dispatchers, never from card text. Every (trigger, factory) pair in content must be implemented in every
-phase its trigger dispatches, or carry a `PHASE_EXCUSED` entry with a **verifiable** reason
-(`no-surface` / `outside-map` / `other-channel` / `state-missing`) — or `needs-triage`, the tolerated-but-
-counted backlog awaiting an owner ruling. The triage count is ratcheted: it may only shrink.
-
-This registry is the machine-checked replacement for the hand audit that used to live in
-`replayCombatBattlecry`'s docblock — which was complete on 2026-08-04 and stale by the time Conductor
-shipped. Comments audit the world once; registries audit it every CI run.
-
-The **cast lane** rider: factories that route through `arena.castNamedSpell` → `combatCastable` must name
-spells that pass the gate, or the cast *fizzles without counting* (the Beefy class). Factories that inline
-their spell's body via `castRepeat` are exempt — an inlined cast works even when the spell's own factory
-would not (Watcher/Lantern of Souls; a recorded false positive from this test's first run).
-
-### 2. Dual-stat live text
-
-Re-derives its worklist per run: every factory the `cardText.ts` chain keys on whose content params grant
-both Attack and Health, driven through the real `liveCardText` under an all-scalers-hot bag. Two demands:
-every such helper **engages** (coverage must be real — a helper the bag can't reach fails the test, it does
-not silently pass), and every replacement text keeps **both halves**. Kringle's own unit test had asserted
-the buggy string for two rebalances; this test cannot pin strings, so it cannot preserve a bug that way.
-
-### 3. Tribe-predicate ratchet (`tribeRatchet.ts`)
-
-The owner's ruling: *all types trigger all types of interactions*. The shared predicates (`isTribe` /
-`defIsTribe` in sim, `isTribeOf` in simulate, `arena.isTribe` in the arena) know that; raw comparisons don't.
-145 raw comparisons predate the ruling — frozen behind per-file pins that may only go **down**. New code goes
-through the predicates or CI fails.
-
-Burn-down priority: **`packages/core/src/effects/arena.ts`** — 13 raw sites, zero all-types guards, and the
-arena serves *both* phases, so each is potentially two bugs. `arena.isTribe` already exists in the same file;
-the fix is one call away per site.
-
-Deliberately out of scope: `bots/`, `productionBots/`, analytics (heuristics, not rules), and the question of
-whether all-types cards join every tribe's **pool draws** (open balance question, owner-deferred in #1216).
-
-### 4. Derivation pairs
-
-Declared "these two code paths must compute the same thing" pairs, held equal by seeded fuzz instead of by
-docblock. Current pairs: `offerBuyStats` ↔ the reducer's buy path (100 fuzzed states); `snapshotBoard`'s
-`beastsPlayed` ↔ the shared Beast predicate. **When you write "mirrors X" in a comment, add the pair here
-instead** — a comment claiming two functions agree is a testable assertion nobody tests.
-
-## Wave two — mined from the fix history
-
-A sweep of the repo's ~480 `fix` commits found four more recurring, machine-checkable classes. Same doctrine;
-each cites its incidents in the test header. Registries: `packages/sim/src/docbot/historyRegistry.ts`.
-
-| # | Test | Bug class it kills | Historical incidents |
-|---|---|---|---|
-| 5 | `docbot/refIntegrity.test.ts` | An id-suffixed param that doesn't resolve — a crash or silent no-op at runtime | #719, #853, #848 |
-| 6 | `docbot/turnScopedReset.test.ts` | A `*ThisTurn` field never reset — "this turn" quietly means "forever" | #670, #517, #891 |
-| 7 | `docbot/runeRewardDifferential.test.ts` | A rune reward that changes nothing, or swallows a second copy | **#900** (41 of 72 Epics), the `combatFlag` 23-rune incident |
-| 8 | `docbot/spellPowerFolding.test.ts` | A stat-spell factory that skips the spell-power fold | #817, #731 |
-
-The `runeRewardDifferential` lane runs every one of the 281 runes through the **real `buyRune` action** twice and diffs
-bookkeeping-stripped state (`runeSwallowScan.ts`, shared with the CLI so gate and report can't disagree).
-First-copy no-op is a hard gate — zero today. Second-copy swallowing is a **ratcheted backlog of 80**: the
-forge never excludes owned runes and Duplication doubles any Epic, so each is a reachable purchase that pays
-nothing — but stack-vs-idempotent is a per-rune owner ruling (the blueprint's `duplicatePolicy`), so the list
-is a designer queue, not a failure. Two instrument bugs were caught by this test's own sabotage checks and are
-recorded in its header: plain `JSON.stringify` made the diff vacuously green (key reordering), and
-`flagCopies` ticking masked the exact pre-#900 overwrite for amount-carrying flags.
-
-## Wave three — the behavioural layer (the "wide" improvement scope)
-
-The wiring lanes above mostly check WIRING. These check BEHAVIOUR — the real reducer and the real `simulate()`, run
-differentially, so a factory that exists but does nothing is caught without any registry entry.
-
-| # | Test | What it proves | Instrument lessons it carries |
-|---|---|---|---|
-| 9 | `docbot/playDifferential.test.ts` (+`playScan.ts`) | every `onPlay` minion, spell cast, and `onSummon` watcher ACTS through the real reducer, vs a validated vanilla control; golden play ≠ plain play | the control-body saga: `effects: []` ≠ inert (Drakko's `triggerMultiplier`, then Sylus, then zero clean non-token minions existed at all); event bookkeeping + fixture watchers masking a neutered Shout |
-| 10 | `docbot/combatDifferential.test.ts` (+`combatScan.ts`) | every combat-effect card, present vs a stat-clone control in a staged fight, CHANGES the fight; golden combat ≠ plain | this is the generic Conductor catcher — zero registry entries needed |
-| 11 | `docbot/textNumbers.test.ts` | every effect magnitude >1 is printed on the card (word numerals parsed; named-spell casts exempt per the 2026-07-15 ruling); golden text prints the doubled halves | 292 params, 0 misses; the 8 initial misses each taught a sanctioned escape |
-| 12 | `docbot/invariantFuzz.test.ts` | random legal action sequences: Gold ≥ 0, board ≤ cap, unique uids, finite stats, no modal deadlock, trajectory determinism, identity-independence | the only unknown-unknown hunter; its first cut wrongly asserted input purity — the perf doctrine sanctions shallow-clone writes |
-
-Every lane was sabotage-proofed by reintroducing a real bug shape (a neutered Shout factory surfaced
-`n2_conductor`; a neutered `deathrattleSummon` surfaced 12 named echo-summoners; a Kringle-style param bump
-surfaced `dw_foreman` with both numbers in the message).
-
-New owner queues from the behavioural layer (all printed by `npm run docbot`):
-- **54 scenario-conditional combat effects** — cards whose combat effect did not influence the staged fight.
-  Most are condition-gated by reading (Ryme, Dawnclaw, Moe…); each deserves a per-card verification, and a
-  NEW card landing here trips the pin at authoring time.
-- **27 golden-flat combat cards** — the effect acts, but gilding changes nothing about it in combat.
-- **14 refused spells** + **5 excused-conditional plays** + **1 explained silent watcher** (gravebody).
-
-## What landing Doc Bot found (2026-08-26)
-
-- **16 needs-triage phase gaps** — see `npm run docbot` for the live list. Standouts: `deathrattleBuffShopPermanent`
-  (a *shop* buff whose Echo can't fire in the shop), `deathrattleTriggerAdjacentRally` (the shop has a Rally
-  dispatcher; Echo replays don't reach it), `onRubyPlayedSpreadRandom` (combat-played Rubies don't spread).
-- **A live gameplay divergence, fixed in the landing PR**: `snapshotBoard` still counted `beastsPlayed` with a
-  raw compare after #1216 fixed the reducer — a served board's Pack Leader fought weaker than its owner's.
-- **The arena burn-down target** above.
-- **An 80-rune duplicate-policy queue** (`runeRewardDifferential`): every rune whose second copy currently does nothing,
-  each a purchasable situation. `npm run docbot` prints it.
-- **Two spell-power rulings wanted** (`spellPowerFolding`): `rubyStatGain` and `spellBuffShopByRuby` don't fold spell
-  power — plausibly correct (the Ruby-strength channel), unruled.
-
-## The rulebook layer (tripwires cite rules from here on)
-
-`@game/rules` is the registry that breaks Doc Bot's last circularity — implementation-as-its-own-oracle.
-Approved rules enter only on explicit owner rulings (five seeded from the Complete Rulebook handoff;
-eleven more — `R-AVWIN-01…11`, the per-instance temporal-window rulings of 2026-08-26 — enforced by
-`packages/sim/src/docbot/temporalWindow.test.ts`, which also pins the two found violations);
-`npm run rules:seed` regenerates the pending backlog from Doc Bot's live queues (274 verified-reachable
-questions at first seed); and the owner decides them in **DEV MENU → Rulebook Triage** — each click writes a
-git-tracked ruling to `packages/rules/src/registry/decisions.json` through the dev server. `docs/rulebook/`
-carries the human-readable snapshot.
-
-## From tripwire layer to QA machine
-
-The explicit limitation list, each blind spot's circumvention, and the phased build order live in
-[docs/docbot-roadmap.md](docbot-roadmap.md) — the execution plan for the blueprint's remaining components.
-
-## The coverage corpus + nightly lane (PR 8)
-
-Three commands sit above the tripwires (`packages/sim/src/docbot/{coverageKeys,corpusBuilder,trajectory,seedMinimize,findings,nightlyLane}.ts`):
-
-- `npm run docbot:corpus` — regenerates the coverage-guided scenario corpus (`docbot/corpus/`): a
-  deterministic fuzz sweep retains the smallest one-action `QaScenarioV1` that first reaches each SEMANTIC
-  coverage key (factory executed, trigger emitted, combat-mod consumed, hero-power family, rune reward
-  kind, guard branch, snapshot boundary, target arity, chain depth). Keys are derived purely from the
-  event stamps the engine already emits (`factory:<do>:<on>` on combat events, `policyKey` on recruit
-  beats) — zero engine change. The corpus is generated output: never hand-edit; regenerate in the PR that
-  invalidates a fixture (the test names it). **Its entry count and digest are deliberately not written
-  down here** — `npm run docbot:corpus` prints both, and `coverageCorpus.test.ts` gates them (CONTENT.md
-  doctrine: a hand-copied count is a number that rots).
-- `npm run docbot:nightly` — the full-lifecycle lane (NOT in the PR gate; `.github/workflows/nightly.yml`
-  runs it on a schedule): complete runs to elimination with serialize/restore checkpoints, replay
-  reconstruction, invariant + explosion + combat-event budgets, plus an 8-seat bot-lobby law sweep. A
-  failure minimizes (greedy drop-one to a proven 1-minimal trace), folds into a `QaScenarioV1` with its
-  `npm run docbot:scenario --` repro line, and ships as a fingerprinted `DocbotFinding` (structural
-  fingerprints — message prose never changes identity) with the original seed/trace preserved.
-  **A red nightly is unignorable (2026-09-11 — it had been red 15 straight runs unnoticed):** every gating
-  finding (lifecycle, lobby law, verified contract bug, interaction failure) passes through the committed
-  acknowledgement registry `packages/sim/src/docbot/nightlyAck.ts` — unacknowledged → RED; acknowledged
-  (`fingerprint` + `date` + `reason`) → printed as `known (acknowledged YYYY-MM-DD: reason)`, not failing. The
-  workflow's last step (`scripts/nightly-issue.mjs`, `if: always()`) keeps ONE pinned issue titled **"Doc Bot
-  nightly status"** in sync: created/updated with the per-finding summary + repro commands + artifact link on
-  red, commented "green" and closed on green. The lane also writes `nightly-status.json` (artifact + the
-  gitignored `.local/docbot/` mirror), which `npm run docbot` prints when present — otherwise it points at
-  `gh run list --workflow=nightly.yml -L 1`. Fix or acknowledge; never tolerate.
-- `npm run docbot:scenario -- <id>` — replays any emitted scenario (corpus fixture or minimized failure).
-- `npm run docbot:contracts` — Doc Bot 2.0 WP D: the FULL contract-verification sweep (the PR gate,
-  `contractOracle.test.ts`, runs a deterministic 1/3 sample). `isolatedCases.ts` plans the §10.1 case
-  templates per contract; the drivers execute them through the real reducer / `simulate()`. Since 2026-09-11
-  the drivers are keyed by CLAIM FAMILY (`docbot/drivers/` — stat grant, card grant / summon, economy,
-  keyword grant, equipment, vanilla body, activation), with the object-shape drivers (death summon, avenge
-  threshold, battlecry summon, copy policy, gilded token) kept for the contracts they already owned. Every
-  unexecuted applicable case carries a typed skip; a driver record that observed nothing is a
-  `runtime-unobserved` skip, never an execution. `familyDrivers.test.ts` carries each family's sabotage proof.
-- `npm run docbot:text` — Doc Bot 2.0 WP E: parses every active object's printed text
-  (`docbot/textParse/`), classifies the §18-E buckets (parsed-equivalent / verified-mismatch /
-  approved-exception / unresolved-parse — an unresolved parse is NEVER a clean pass), prints the
-  mismatch + rewrite-advisor report, and regenerates the Sitting-3 wording deck
-  (`pendingWording.generated.ts`, seed-hygiene-preserving). The PR-gate lane is
-  `textParse/textParse.test.ts`; the style rules live in `packages/rules/src/languageGuide.ts`. Since the
-  2026-09-11 coverage pass (`docs/devlog/2026-09-11-docbot-text-parser-coverage.md`) the grammar reads ~94%
-  of the corpus (55 unresolved of 972) and the lane carries a HARD ceiling beside the ratchet: the unresolved
-  share must stay below 35% of active objects, so a content PR cannot raise the pin past it — the parser must
-  grow instead. Parsed clauses map onto comparators (amounts, target counts, improvement steps/countdowns,
-  Ruby counts, cadence thresholds, conditional/Equip trigger events); every modifier the grammar consumes is
-  listed in `consumedModifiers` so nothing it reads is invisible.
-  `--out <dir>` additionally writes `findings.json` + `text-review.json` for the QA Workbench's §15.6 queue.
-- `npm run bugs:graduate -- <report-id>` — Doc Bot 2.0 WP G, blueprint §14: turns a reproduced, RULED
-  player report into a **curated regression** in `docbot/scenarios/regressions/` (separate from the
-  generated corpus, §4.6) plus a `bugTaxonomy.graduated.json` record. It REFUSES a non-deterministic repro
-  (the reproduction runs twice and the semantic results must match), a drifted capsule, an unapproved
-  rule/contract citation, and an unresolved expectation ("needs ruling first"). `regressionScenarios.test.ts`
-  ENUMERATES that directory, so a graduated fixture is on the PR gate the moment it lands.
-- `npm run docbot:ledger` — folds every lane's `findings.json` across time into the gitignored
-  `.local/docbot/ledger.json`, keyed by fingerprint: first/last seen, occurrence count, status history,
-  linked decisions/reports/regressions. Deterministic, order-insensitive, and safe to re-run (a re-read of
-  the same artifact is one sighting). It is the substrate of the QA Workbench's findings inbox.
-- **DevMenu → 🔬 QA Workbench** — the blueprint §15 review surface: findings inbox, content detail, trace
-  comparison (the first surface to render `firstDivergence`), interaction matrix, and text review queue.
-  Dev-server only; its one write is an owner decision through the existing `/__rulebook/decide` endpoint,
-  never a content-file edit. Rule review stays on RulebookTriage's fly-through board.
-  Lane split, artifacts, and the retro-harness decision: [`docs/docbot2/ci-lanes.md`](docbot2/ci-lanes.md).
-
-## The 2026-08-27 wave — one QA system
-
-The blind-spot program (docs/docbot-blindspots.md) and the next-iteration handoff both landed 2026-08-27.
-`npm run docbot` is the live, self-verifying inventory — every lane row is `existsSync`-checked against its
-gate file, so the report cannot describe a lane that no longer exists. The full lane list, the rulebook
-enforcement picture (approved-but-unenforced is a ratcheted queue), and the command surface all print there;
-this doc deliberately does not duplicate the list (the CONTENT.md lesson). `npm run docbot -- --json` emits
-the open queues as fingerprinted `DocbotFinding`s for machine consumption.
-
-The keystone is `QaScenarioV1` (packages/sim/src/qaScenario.ts): Scene Builder exports/imports it, player
-bug reports reproduce through it (`bugs:repro` emits + runs it), the coverage corpus retains it, minimized
-nightly failures ship as it, and regression fixtures graduate into it. One format, one runner, one engine.
-
-Measured retro catch rate: **run `npm run docbot:report`** — it derives the forward catch rate (overall and
-trailing 30 days by report date) from the measured verdicts in `docbot/retroCatalog.ts`, which
-`npm run docbot:retro` re-measures weekly (`.github/workflows/docbot-retro.yml`) and
-`npm run bugs:catalog -- <report-id>` grows from closed Bug Board reports. The #1176 temporal-window class is
-caught by the per-instance oracle under the 11 R-AVWIN owner rulings, with the two current engine violations
-pinned shrink-only in `temporalWindow.test.ts` (`KNOWN_VIOLATIONS`) until fixed.
-
-## The 2026-08-29 wave — two lanes that encode a MISS, not a bug
-
-Both owner reports that day were already covered by an existing lane *in principle*. Neither was caught. The
-interesting half is why, so these two lanes audit the auditing.
-
-### 9. Combat-emit agreement (`combatEmitAgreement.test.ts`)
-
-*"gangplank doesnt trigger when cards are added to hand in combat."*
-
-Lane 1 exists precisely to find a trigger with no factory in a phase that dispatches it. It computes
-`needCombat` **from `TRIGGER_PHASES`** — and `onGainCard` was written down as `'recruit'`, with the note
-*"combat has no dispatch site for it"*. The note was false; `ctx.grantToHand` had existed all along. So
-`needCombat` was `false` and lane 1's combat half switched itself off for that trigger. **The lane whose job
-is finding missing combat factories could not see a missing combat factory.**
-
-One wrong word in a hand-maintained registry disabled a rail, silently, and nothing downstream could tell.
-So this lane stops trusting the registry on that point: it scans `packages/core/src` for `bus.emit('<name>')`
-and demands every trigger combat actually emits be `'combat'`/`'both'`, or waived in `COMBAT_EMIT_WAIVED`
-with a reason. Waivers are checked back — one naming a trigger combat no longer emits is a failure, so the
-list cannot rot into scenery.
-
-A **source** scan, not a runtime probe, on purpose: a probe only sees the emits a scenario reaches, so "not
-observed" would mean "the probe didn't get there" — the evidence gap `beats:audit` warns about. `bus.emit`
-takes a literal at every site, so the source answers *can this happen at all* exactly.
-
-**The class rule: a registry that gates another check must be derivable from the thing it describes.**
-
-### 10. Uid survives a triple (`uidSurvivesTriple.test.ts`)
-
-*"sable's hero power breaks if a minion who is soulbound gets tripled."*
-
-Sable's bond is two run-board uids; a triple consumes its copies and mints a golden with a fresh one, so the
-bond pointed at a uid nothing could resolve — and since mirroring needs both ends, the power went dead for
-the turn, silently, in both phases.
-
-`combineIntoGolden` carries a dozen per-instance values forward **by hand**. Each is a line someone
-remembered to write. A reference held *outside* the card, in run state, has no such line and nothing to
-remind the next author it needs one.
-
-The obvious implementation — scan `state.ts` for fields whose name contains "uid" — **would not have caught
-this**: the bond's fields are `a` and `b`. So the detector is behavioural instead: record the uids a triple
-destroys, deep-walk the whole post-triple `RunState`, flag any string equal to one of them. No naming
-convention, no field registry to keep in step, and it sees a new field the day it is added.
-
-Deliberate dangling refs (presentation cues naming the body that just vanished) are allowed by path, with
-reasons, and one test *forges* a dangling ref to prove the walk can still see one — a detector nobody has
-watched fail is not evidence.
-
-**It earned its place on the first run**, flagging `firstShoutUid`: written on the turn's first Shout, read
-by nothing, its docstring naming a consumer (Rune of Refrain) that actually uses the just-played `card.uid`.
-Harmless today and only today — the moment someone implements "return the turn's *first* Shout" off that
-field, they inherit the Sable bug. Recorded as such rather than filed away as a cue.
-
-## The 2026-09-11 wave — two enumerations that were hand-listed instead of derived
-
-Both September player bugs (Bug Board round 2, PR #1374) slipped past every lane above, and for the same
-reason as Gangplank: a list that gated a check was written by hand where it should have been read from the
-thing it describes. Devlog: `docs/devlog/2026-09-11-docbot-entry-and-fire-paths.md`.
-
-### 11. Entry paths (`entryPaths.test.ts` + `entryPaths.ts`)
-
-*Four targeted Gifts no-oped for a month (9852e16f).* A Gift never sits in a shop; it only ever ARRIVES in
-hand, and no lane staged that arrival. The lane scans `reducer.ts` + `recruit.ts` for every write into
-`hand`/`board` and demands a classification per site (`ENTRY_SITES`, keyed `file#scope#zone`); then, for
-every card in no set, derives who names it (card params and def fields, runes, heroes, quests, Equipment,
-engine scopes with one caller hop), stages the arrival THROUGH THE REAL `reduce` (buy the rune → pick the
-Discover; play the minting Shout; activate the Equipment) and casts it under a differential that compares
-two post-`reduce` states. Orphans, refusals and unstaged paths are surfaced pins. Sabotage: the 9852e16f
-reversion names the four Gifts as inert. Instrument finding recorded in the devlog: the play lane's spell
-sub-lane had cast every Gift and could not see the no-op, because it diffs against a pre-`reduce` baseline
-and `reduce` lazily initialises fields on every action — its inert-spell gate is vacuous (follow-up).
-
-### 12. Fire paths (`firePaths.test.ts` + `firePaths.ts`)
-
-*A free Rally skipped Hawkus (7e04222d).* In combat the natural emitter is the `CombatBus`; every other
-direct `FACTORIES[…]` dispatch is a SYNTHETIC path that hand-picks who hears the trigger. The lane scans core
-for every such site and demands a classification (`SYNTHETIC_FIRE_SITES`, keyed `file#scope#trigger`, with
-the behavioural pair that covers it or the natural counterpart a future pair should compare against). The
-Rally pair then stages every `onAttack` factory as a watcher and as a rallier under a natural Rally, a plain
-swing, a free Rally and an Uron-multiplied Rally, and derives its class behaviourally — the free reach must
-equal the natural reach minus the ally-attack watchers (verified, not assumed), and a multiplier must invoke
-each Rally watcher exactly twice. A registry↔behaviour test reads `RALLY_WATCHER_EFFECTS` out of simulate.ts
-and demands it equal the derived class. **Found on its first run:** the multiplier re-fire named Paragon
-alone (Hawkus and Mineral Master stuck at ×1 under Uron), and the watcher loops walked the live board so a
-watcher whose Echo proc summoned a token was visited twice — both fixed in core
-(`rallyMultiplierWatchers.test.ts`).
-
-**The class rule, restated:** when two code paths claim to be "the same trigger", derive the listener set
-each reaches and assert them equal — a comment saying "mirrors the bus" is a testable claim nobody tests.
-
-## The 2026-09-11 lane — beat conservation (`beatConservation.test.ts`)
-
-Roughly half of the repo's fix history is presentation: beats, FX, doubled emissions. Doc Bot cannot see
-pixels, but the machine-checkable half of a presentation bug is a **claim that disagrees with a state diff**,
-and that is checkable after every action. The canonical shape is Rope Wrangler (#1374): a recruit scope opened
-*inside* another (`castSpell` inside an End-of-Turn `withRecruitTrigger`) diffed the same window twice, so every
-stolen card was previewed twice and Arnold's Beefy read +16/+16 for +8/+8. A player found it.
-
-The lane (helper `docbot/beatConservation.ts`) folds a `reduceWithPresentation` batch per uid and reconciles it
-with the real before→after diff, LAW-4 style — exact equality, no catch-all:
-
-- **Over-claim / misattribution is hard, on every action type**: Σ claimed stats per uid must equal the actual
-  delta; a grant / summon / destroy is claimed at most once and only for a body that really arrived / left; no
-  claim on a phantom uid; no consequence outside a trigger scope; a hero power's Gold claim is exact.
-- **Under-claim (a missing beat) is hard** for action types whose resolution is scoped (End of Turn, hero
-  powers, shop deaths, …) and **pinned shrink-only** (`KNOWN_UNATTRIBUTED`) for the dispatch sites that open
-  no scope yet (`fire(onBuy/onSummon)`, `fireBattlecryTriggered`, `applyGoldSpent`, on-sell effects, rune
-  spell-cast procs, …). Every pin carries a **deterministic repro fixture** that must keep under-claiming, and
-  must never over-claim — a scoped site fails the pin test until its entry is deleted.
-- **Drivers**: the invariant-fuzz free-play policy, a dense *builder* policy (no sells, topped-up purse, one
-  planted cast-at-End-of-Turn card per seed, Djinn every fourth run — because free play sells its board down
-  and reached almost no nesting), every coverage-corpus fixture, and hand-built nested fixtures.
-- **Combat**: every `factory:<do>:<on>` stamp names a `srcCard` whose definition carries that effect (copy
-  factories excused by name), and `key` / `srcCard` travel together.
-
-**What landing it found**, fixed in the same PR: Djinn's `replayAllEndOfTurn` re-emitted every consequence its
-nested End-of-Turn scopes had already claimed (the Rope Wrangler class on the hero rail — the hero wrap now
-emits only the residual); `applyBattlecryTarget` / `applyChooseOne` / `applyChooseOneTarget` opened no scope
-at all (an aimed Shout or a Choose One branch resolved with an empty batch); the hero-power diff had no
-departure half (Devourer's meal left the board with no `cardDestroyed`).
-
-**Sabotage**: reverting the #1374 frame stack locally turned the builder sweep and the nested fixtures red with
-the exact +16/+16-for-+8/+8 and `cardGranted claimed 2×` messages (recorded verbatim in the test header); in-file,
-a doctored batch that re-emits a child's consequences at its parent, a dropped consequence, a claim moved to the
-wrong body, a phantom uid and an orphan consequence each alarm.
-
----
-
-## Extending Doc Bot
-
-New trigger → classify it in `TRIGGER_PHASES` (read the dispatchers first). New dual-phase factory → implement
-both sides or excuse it. New "mirrors X" comment → derivation pair. New scaling card → nothing to do; tripwires
-1 and 2 derive their worklists from content. When a tripwire fires and you believe the code is right, the
-answer is a *registry entry with a reason*, never a loosened assertion.
+| `nightly.yml` — `npm run docbot:nightly` | daily 09:17 UTC | full lifecycle runs to elimination with serialize/restore checkpoints, an 8-seat lobby law sweep, then the FULL contract sweep and FULL interaction sweep the PR gate only samples; folds everything into the findings ledger | **the pinned "Doc Bot nightly status" issue** (created/updated by `scripts/nightly-issue.mjs`) with a two-line summary per finding and its `npm run docbot:scenario -- <id>` repro. A finding stays red until it is FIXED or ACKNOWLEDGED with a reason and date in `packages/sim/src/docbot/nightlyAck.ts`. `npm run docbot` prints the last nightly status when it can. |
+| `docbot-retro.yml` — `npm run docbot:retro` | weekly | reinjects every catalogued historical bug in a throwaway worktree and re-measures which generic lane goes red; **this is the forward catch rate** | fails only on a REGRESSION (a ledger CAUGHT that now misses). A new MISSED never fails — it is the build order for the next generic oracle. |
+
+**A red nightly that nobody answers is not an alarm.** The morning routine is: open the status issue, fix or
+acknowledge, done. (It was red for its first fifteen nights before this rule existed — see the audit.)
+
+## 4. The number Doc Bot is scored on
+
+```bash
+npm run docbot:report        # → "forward catch rate": overall, and trailing 30 days by report date
+```
+
+It is derived from `packages/sim/src/docbot/retroCatalog.ts`: one entry per shipped bug, a minimal source
+patch anchored on today's code, and the verdict of the last dated reinjection run. **A MISS is the build
+signal**: the miss-driven loop is (1) a player or Mike reports a bug → (2) it is fixed with a pin →
+(3) `npm run bugs:catalog -- <report-id>` (or a hand entry) puts its reinjection in the catalog →
+(4) the weekly run measures it → (5) a MISSED entry gets a generic lane, which flips it to CAUGHT.
+Nothing is CAUGHT by argument; only by a run.
+
+## 5. How to read a failure
+
+- **A lane names a card id and two values** ("claims +16/+16, changed by +8/+8"). That is a bug or a stale
+  text — both are defects by owner ruling. Fix the engine or the text; never the assertion.
+- **A completeness check says "classify me"** (an entry site, a fire site, a trigger, a field). Classify it in
+  the named registry with a verifiable reason. The registry is derived from source so it cannot rot; only
+  your classification is hand-written.
+- **A ratchet says a queue grew.** Either the new content is genuinely conditional in a way no stager covers
+  (add the stager, or the excuse with its condition) or the lane found the bug it exists for.
+- **`docbot:report -- --check` says a headline number drifted.** Edit that one line of the final report to
+  the generator's value; the check names it.
+- **The nightly is red.** See §3 — fix or acknowledge, never ignore.
+- **An anomaly / interaction question.** Unruled composition is a QUESTION, never a verdict. It lands in the
+  owner decks (`npm run docbot` prints their sizes) and is decided in DEV MENU → Rulebook Triage; every
+  ruling becomes an approved rule with a backing lane.
+
+## 6. What Doc Bot cannot see (the honest ceiling)
+
+The full, counted blind-spot list is §10 of the final report. The structural ones: combat causality is
+inferred from ordering, not stamped; the RNG tap attributes no decision site; the visual half of presentation
+(pixels, FX timing) needs eyes — Doc Bot checks only that beats CLAIM what the state DID; and behaviour with
+no approved rule can only be reported as a question. Balance is not, and will not be, an oracle.
+
+## 7. Commands
+
+Printed live by `npm run docbot` (the command list at the bottom is authoritative). The ones you will use:
+
+```bash
+npm run docbot                  # the roll-call + every tolerated-but-tracked queue + nightly status
+npm run docbot:sync             # a content PR's one regen step
+npm run docbot:report           # coverage, blind spots, the forward catch rate (-- --check / -- --json)
+npm run docbot:retro            # re-measure the catalog (-- --only <id>) — the number, not an estimate
+npm run docbot:scenario -- <id> # replay a QaScenarioV1 (corpus fixture, nightly finding, regression)
+npm run bugs:pull|list|repro|close|graduate|catalog   # the player-report loop
+```
+
+Doctrine, in one line: **worklists are derived from content and source; excuses carry verifiable reasons;
+every lane proves it can fail; every failure is a minimal, deterministic, named reproduction; everything
+unverified is a visible queue entry, never silence.**

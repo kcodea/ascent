@@ -2411,6 +2411,17 @@ export function deserialize(json: string): RunState {
   state.discover = parsed.discover;
   state.discoverLockTier = parsed.discoverLockTier;
   state.discoverQueue = parsed.discoverQueue;
+  // The REST of the open-Discover's one-shot family rides the same lifecycle and leaks the same way (Doc Bot
+  // nightly, seed 62931 · Brackus, red every night 2026-08-28 → 2026-09-11): Brackus's run-start Discover seeds
+  // `discoverLockGold: 70` into the fresh skeleton, the resolved save omits the cleared key, and the merge put
+  // the lock back — so the NEXT Discover a resumed Brackus took handed its pick over locked until 70 Gold spent.
+  // Every sibling `openDiscover` sets from the spec is forced from the save here, not just the three above.
+  state.discoverGolden = parsed.discoverGolden;
+  state.discoverLockGold = parsed.discoverLockGold;
+  state.discoverLockWave = parsed.discoverLockWave;
+  state.discoverBorrowed = parsed.discoverBorrowed;
+  state.discoverSetStats = parsed.discoverSetStats;
+  state.discoverIntoShopUid = parsed.discoverIntoShopUid;
   // Heal saves from before the generalized Discover queue: fold the old single spell-Discover counter
   // (golden Black Belt Brian) into the new queue as that many spell specs.
   if (parsed.pendingSpellDiscovers && parsed.pendingSpellDiscovers > 0) {

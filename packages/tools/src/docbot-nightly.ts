@@ -6,18 +6,26 @@
  * a failing seed printed here reproduces exactly, and every failure ships as a minimized `QaScenarioV1`
  * with its `npm run docbot:scenario --` repro line, the original full trace preserved beside it (§9.3).
  *
+ * THE VERDICT (2026-09-11): every gating finding — lifecycle failures, lobby-law breaches, verified contract
+ * bugs, interaction failures — passes through the committed acknowledgement registry
+ * (`packages/sim/src/docbot/nightlyAck.ts`). Unacknowledged → RED (exit 1). Acknowledged → printed as
+ * `known (acknowledged YYYY-MM-DD: reason)`, never failing. The verdict is also written as
+ * `nightly-status.json` (the artifact the workflow's tracking issue renders) and mirrored to the gitignored
+ * `.local/docbot/nightly-status.json` so `npm run docbot` can print the last status it saw.
+ *
  *   npm run docbot:nightly                     # the default sweep (6 runs, 4 lobbies)
  *   npm run docbot:nightly -- --runs 2         # a quick local smoke
  *   npm run docbot:nightly -- --seed-base 999  # a different deterministic universe
  *   npm run docbot:nightly -- --out somewhere  # artifact directory (default artifacts/docbot-nightly)
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { allContracts } from '@game/rules/contracts';
 import { allRules } from '@game/rules';
 import {
-  DEFAULT_NIGHTLY, emitFindingsJson, nightlyReportJson, releaseBlockerFindings, runAnomalyOracle,
-  runContractSweep, runInteractionSweep, runNightly, verifyInteractionTable, type DocbotFinding,
+  DEFAULT_NIGHTLY, LOCAL_NIGHTLY_STATUS_PATH, buildNightlyStatus, describeAck, emitFindingsJson, makeFinding,
+  nightlyReportJson, nightlyVerdict, releaseBlockerFindings, runAnomalyOracle, runContractSweep,
+  runInteractionSweep, runNightly, verifyInteractionTable, type DocbotFinding,
 } from '@game/sim';
 
 const argv = process.argv.slice(2);
@@ -37,7 +45,9 @@ const OUT = flag('out', join('artifacts', 'docbot-nightly'))!;
 
 const started = Date.now();
 const report = runNightly(cfg);
-const elapsed = ((Date.now() - started) / 1000).toFixed(1);
+
+// Every finding that can turn the night red, in one list — the registry decides which of them actually do.
+const gating: DocbotFinding[] = [];
 
 console.log(`\n══ DOCBOT NIGHTLY ══════════════════════════════════════════════════════`);
 for (const r of report.runs) {
@@ -45,11 +55,14 @@ for (const r of report.runs) {
   console.log(`  seed ${r.seed} · ${r.heroId} · ${r.setId} — ${r.steps} steps, wave ${r.wave}, ${r.endedBy} · maxCombatEvents ${r.maxCombatEvents} · ${verdict}`);
   for (const w of r.warnings) console.log(`      warn: ${w}`);
   for (const f of r.failures) {
-    console.log(`      ✗ [${f.checkId}] ${f.detail}`);
+    const ack = nightlyVerdict([f.finding]).known[0]?.ack;
+    console.log(`      ${ack ? '~' : '✗'} [${f.checkId}] ${f.detail}${ack ? ` — ${describeAck(ack)}` : ''}`);
     if (f.repro) console.log(`        minimized to ${f.minimizedSteps} action(s) — repro: ${f.repro}`);
     else console.log(`        (not reproducible in replay mode — original trace preserved in the artifact)`);
+    gating.push(f.finding);
   }
 }
+gating.push(...report.lobbyFailures);
 console.log(`  lobbies: ${cfg.lobbies} swept — ${report.lobbyFailures.length === 0 ? 'all laws hold' : `${report.lobbyFailures.length} VIOLATION(S)`}`);
 console.log(`  coverage: ${report.coverageKeys.length} semantic keys reached`);
 
@@ -65,7 +78,7 @@ const newVerified = sweep.findings.filter((f) => f.class === 'verified-mechanica
 console.log(`  contracts: ${sweep.contractsTotal} swept (${sweep.sampled} driver-executed) — `
   + (sweepFails.length === 0 ? 'every executed case agreed' : `${sweepFails.length} DISAGREEMENT(S): ${sweepFails.join(', ')}`));
 for (const f of blockers) console.log(`  🔴 RELEASE BLOCKER (pinned): ${f.ruleIds.join(',')} — approved rule violated by the engine`);
-const contractsRed = newVerified.length > 0;
+gating.push(...newVerified);
 
 // ── WP F: the interactions lane — the FULL pairwise sweep + §10.4 triples + the anomaly oracle ───────────
 const interactions = runInteractionSweep({ contracts: allContracts(), triples: true });
@@ -80,11 +93,21 @@ console.log(`  interactions: ${interactions.runs.length} rows across ${interacti
     ? `${interactionTotals.reduce((n, t) => n + t.covered, 0)} covered, ${interactionTotals.reduce((n, t) => n + t.blocked, 0)} visibly blocked, ${interactions.comboKeys.length} §10.5 combination keys`
     : `${interactionErrors.length} FAILURE(S): ${interactionErrors.join(' · ')}`));
 console.log(`  anomalies (§9.7, questions only — never red): ${anomalies.findings.length} · suppressed below floor: ${anomalies.suppressedTotal}`);
-const interactionsRed = interactionErrors.length > 0;
+// Interaction failures were only ever a log line; now they are findings like everything else that gates.
+gating.push(...interactionErrors.map((e) => makeFinding({
+  lane: 'nightly-interactions', severity: 'error', confidence: 'proven', title: 'interaction sweep failure',
+  summary: e, contentIds: [], ruleIds: [], expectationKind: 'interaction-failure', expected: null, observed: { failure: e },
+})));
 
-console.log(`  ${report.ok && !contractsRed && !interactionsRed ? 'NIGHTLY GREEN' : 'NIGHTLY RED'} in ${elapsed}s`);
+// ── The verdict: the registry decides ────────────────────────────────────────────────────────────────────
+const verdict = nightlyVerdict(gating);
+const elapsed = Number(((Date.now() - started) / 1000).toFixed(1));
+for (const k of verdict.known) console.log(`  ~ ${k.finding.title} — ${describeAck(k.ack)}`);
+console.log(`  ${verdict.ok ? 'NIGHTLY GREEN' : 'NIGHTLY RED'} in ${elapsed}s`
+  + (verdict.known.length ? ` (${verdict.known.length} acknowledged finding(s) reported, not failing)` : '')
+  + (verdict.red.length ? ` — ${verdict.red.length} unacknowledged finding(s)` : ''));
 
-// ── Artifacts — always the report; on failure, the minimized scenarios + findings + original traces ───────
+// ── Artifacts — always the report + status; on failure, the minimized scenarios + findings + traces ──────
 mkdirSync(OUT, { recursive: true });
 writeFileSync(join(OUT, 'nightly-report.json'), nightlyReportJson(report));
 // The contracts lane's findings ride the same findings.json: sweep disagreements + the pinned blockers.
@@ -104,6 +127,23 @@ for (const r of report.runs) {
   }
 }
 writeFileSync(join(OUT, 'findings.json'), emitFindingsJson(findings));
+
+const status = buildNightlyStatus({
+  verdict,
+  at: new Date().toISOString(),
+  config: cfg,
+  elapsedSeconds: elapsed,
+  outDir: OUT,
+  notes: [
+    ...(sweepFails.length ? [`contracts: ${sweepFails.length} draft-contract disagreement(s) (corroboration-grade, not gating): ${sweepFails.join(', ')}`] : []),
+    ...blockers.map((f) => `release blocker (pinned): ${f.ruleIds.join(',')}`),
+    `coverage: ${report.coverageKeys.length} semantic keys · interactions: ${interactions.runs.length} rows · anomalies: ${anomalies.findings.length}`,
+  ],
+});
+const statusJson = `${JSON.stringify(status, null, 2)}\n`;
+writeFileSync(join(OUT, 'nightly-status.json'), statusJson);
+// The local mirror is best-effort: a read-only checkout must not turn a green night red.
+try { mkdirSync(dirname(LOCAL_NIGHTLY_STATUS_PATH), { recursive: true }); writeFileSync(LOCAL_NIGHTLY_STATUS_PATH, statusJson); } catch { /* ignore */ }
 console.log(`  artifacts → ${OUT}`);
 
-process.exit(report.ok && !contractsRed && !interactionsRed ? 0 : 1);
+process.exit(verdict.ok ? 0 : 1);

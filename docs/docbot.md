@@ -174,6 +174,15 @@ Three commands sit above the tripwires (`packages/sim/src/docbot/{coverageKeys,c
   failure minimizes (greedy drop-one to a proven 1-minimal trace), folds into a `QaScenarioV1` with its
   `npm run docbot:scenario --` repro line, and ships as a fingerprinted `DocbotFinding` (structural
   fingerprints — message prose never changes identity) with the original seed/trace preserved.
+  **A red nightly is unignorable (2026-09-11 — it had been red 15 straight runs unnoticed):** every gating
+  finding (lifecycle, lobby law, verified contract bug, interaction failure) passes through the committed
+  acknowledgement registry `packages/sim/src/docbot/nightlyAck.ts` — unacknowledged → RED; acknowledged
+  (`fingerprint` + `date` + `reason`) → printed as `known (acknowledged YYYY-MM-DD: reason)`, not failing. The
+  workflow's last step (`scripts/nightly-issue.mjs`, `if: always()`) keeps ONE pinned issue titled **"Doc Bot
+  nightly status"** in sync: created/updated with the per-finding summary + repro commands + artifact link on
+  red, commented "green" and closed on green. The lane also writes `nightly-status.json` (artifact + the
+  gitignored `.local/docbot/` mirror), which `npm run docbot` prints when present — otherwise it points at
+  `gh run list --workflow=nightly.yml -L 1`. Fix or acknowledge; never tolerate.
 - `npm run docbot:scenario -- <id>` — replays any emitted scenario (corpus fixture or minimized failure).
 - `npm run docbot:text` — Doc Bot 2.0 WP E: parses every active object's printed text
   (`docbot/textParse/`), classifies the §18-E buckets (parsed-equivalent / verified-mismatch /

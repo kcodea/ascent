@@ -16,7 +16,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import {
   COMBAT_CASTING_FACTORIES, HEROES, PHASE_EXCUSED, PREDICATE_FILES, RAW_TRIBE_COMPARE_SOURCE,
   RECRUIT_FACTORY_IDS, SPELL_POWER_EXCUSED, TRIBE_RATCHET, TRIGGER_PHASES, combatScan, playScan, runeSwallowScan,
-  makeFinding, emitFindingsJson,
+  makeFinding, emitFindingsJson, LOCAL_NIGHTLY_STATUS_PATH, NIGHTLY_ACKS, formatNightlyStatus, type NightlyStatus,
 } from '@game/sim';
 
 /** The ratchet scan, done locally: the registry is pure data (it rides the public sim entrypoint into the
@@ -180,6 +180,21 @@ const unenforced = unenforcedApproved(rules);
 const pendingCount = rules.filter((r) => r.effective === 'needs-ruling').length;
 console.log('\n── rulebook — @game/rules closed loop ──');
 console.log(`  rules: ${rules.length} total · pending owner questions: ${pendingCount} · approved-but-unenforced: ${unenforced.length}${unenforced.length ? ` (${unenforced.map((r) => r.id).join(', ')})` : ''}`);
+
+// ── the nightly's last verdict (2026-09-11) — offline-safe: a local status file if one exists, else a pointer ─
+console.log('\n── nightly (the lane the PR gate never pays for) ──');
+if (existsSync(LOCAL_NIGHTLY_STATUS_PATH)) {
+  try {
+    const status = JSON.parse(readFileSync(LOCAL_NIGHTLY_STATUS_PATH, 'utf8')) as NightlyStatus;
+    for (const line of formatNightlyStatus(status)) console.log(`  ${line}`);
+    console.log(`  (from ${LOCAL_NIGHTLY_STATUS_PATH} — written by the last local docbot:nightly; CI's verdict lives on the "Doc Bot nightly status" issue)`);
+  } catch (e) {
+    console.log(`  nightly status unreadable (${(e as Error).message}) — run \`gh run list --workflow=nightly.yml -L 1\``);
+  }
+} else {
+  console.log('  nightly status unknown — run `gh run list --workflow=nightly.yml -L 1` (or `npm run docbot:nightly` to write a local status)');
+}
+for (const a of NIGHTLY_ACKS) console.log(`  acknowledged ${a.fingerprint} (${a.date}): ${a.reason}`);
 
 // ── command surface ────────────────────────────────────────────────────────────────────────────────────────
 console.log('\n── commands ──');

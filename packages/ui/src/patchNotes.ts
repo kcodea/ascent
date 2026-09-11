@@ -58,6 +58,13 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-09-11',
     changes: [
       {
+        category: 'Hero Change',
+        text: 'Brackus: continuing a saved run no longer re-arms his opening "locked until 70 Gold spent" condition on a later Discover.',
+        details: [
+          'After Save & Quit → Continue, the next card Brackus picked from any Discover could arrive locked until 70 Gold had been spent — the run-start lock leaking back in on reload. Fixed; a resumed run keeps exactly the Discover state it was saved with.',
+        ],
+      },
+      {
         category: 'Card Change',
         text: 'Aspect Choreographer is now simply Aspect. Same card, shorter name.',
       },

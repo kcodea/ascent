@@ -53,6 +53,7 @@ export { driveTrajectory, nextFuzzAction, invariantViolations, pinCurrentWave, D
 export { minimizeFailure, specToScenario, scenarioRepro, violationPredicate, type TrajectorySpec, type FailurePredicate, type MinimizeResult } from './seedMinimize';
 export { makeFinding, fingerprintFinding, emitFindingsJson, type DocbotFinding, type FindingDraft, type FindingIdentity } from './findings';
 export { runNightly, runLifecycle, runLobbySweep, buildFailureArtifact, nightlyReportJson, DEFAULT_NIGHTLY, type NightlyConfig, type NightlyReport, type NightlyRunReport, type NightlyFailure } from './nightlyLane';
+export { NIGHTLY_ACKS, nightlyVerdict, describeAck, buildNightlyStatus, formatNightlyStatus, LOCAL_NIGHTLY_STATUS_PATH, type NightlyAck, type NightlyVerdict, type NightlyStatus, type NightlyStatusFinding } from './nightlyAck';
 // ── Doc Bot 2.0 WP B: the knowledge foundation ───────────────────────────────────────────────────────────
 export { extractAllContracts, activeContentIds, archivedInventory, ARCHIVED_CONTENT_TYPES, EXTRACTOR_ID, type ExtractionResult } from './contractExtract';
 export { corroborateContracts, CORROBORATION_ASPECTS, type CorroborationReport, type CorroborationSources, type ContractCorroborationRow, type CorroborationDisagreement, type CorroborationAspect } from './contractCorroboration';

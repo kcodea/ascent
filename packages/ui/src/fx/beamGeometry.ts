@@ -23,6 +23,9 @@ export interface BeamShape {
   waver?: number;
   /** Sine cycles along the beam for the waver bow. Default 2.5. */
   waverFreq?: number;
+  /** Static arc bend: perpendicular displacement of the beam's midpoint as a fraction of its LENGTH, signed
+   *  (the sign picks the bend direction). 0 = straight. Applied on top of the animated waver. Default 0. */
+  arc?: number;
 }
 
 const TAU = Math.PI * 2;
@@ -63,6 +66,7 @@ export function writeBeamMesh(
   const width = shape.width ?? 18;
   const waver = shape.waver ?? 0.12;
   const waverFreq = shape.waverFreq ?? 2.5;
+  const arc = shape.arc ?? 0;
   const segs = Math.max(1, Math.min(BEAM_MAX_SEGMENTS, Math.round(shape.segments ?? 24)));
 
   const dx = bx - ax, dy = by - ay;
@@ -79,7 +83,9 @@ export function writeBeamMesh(
     const u = i / segs;                     // along-fraction 0→1
     // `endWindow` (sin πu) is 0 at both ends and peaks mid-beam, so the endpoints always meet their anchors.
     const endWindow = Math.sin(Math.PI * u);
-    const bow = amp * endWindow * Math.sin(u * waverFreq * TAU + phase);
+    // A static arc bend (fraction of length) plus the animated waver, both windowed so the ends stay pinned.
+    const arcBow = arc * len * endWindow;
+    const bow = arcBow + amp * endWindow * Math.sin(u * waverFreq * TAU + phase);
     const sxp = ax + dirx * (len * u) + nx * bow;
     const syp = ay + diry * (len * u) + ny * bow;
     buf.position[v * 2] = sxp - nx * hw; buf.position[v * 2 + 1] = syp - ny * hw;   // left edge (v=0)

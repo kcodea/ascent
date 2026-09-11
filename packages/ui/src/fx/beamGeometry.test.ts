@@ -51,6 +51,24 @@ describe('writeBeamMesh', () => {
     expect(Math.abs(spineAt(buf, 6).y)).toBeGreaterThan(1);
   });
 
+  it('arc bends the midpoint off the A→B line while pinning both endpoints', () => {
+    const buf = makeBeamBuffers();
+    // Horizontal beam, no waver: a positive arc bows the spine off the y=0 line at the middle.
+    writeBeamMesh(buf, 0, 0, 100, 0, { segments: 12, waver: 0, arc: 0.25 }, 0);
+    expect(spineAt(buf, 0).y).toBeCloseTo(0);   // source pinned
+    expect(spineAt(buf, 12).y).toBeCloseTo(0);  // target pinned
+    // midpoint displaced by arc * length * sin(π/2) = 0.25 * 100 * 1 = 25 (perpendicular = y here)
+    expect(Math.abs(spineAt(buf, 6).y)).toBeCloseTo(25, 1);
+  });
+
+  it('the sign of arc flips the bend direction', () => {
+    const pos = makeBeamBuffers(); const neg = makeBeamBuffers();
+    writeBeamMesh(pos, 0, 0, 100, 0, { segments: 12, waver: 0, arc: 0.25 }, 0);
+    writeBeamMesh(neg, 0, 0, 100, 0, { segments: 12, waver: 0, arc: -0.25 }, 0);
+    expect(spineAt(pos, 6).y).toBeCloseTo(-spineAt(neg, 6).y, 5);
+    expect(spineAt(pos, 6).y).not.toBeCloseTo(0, 1);
+  });
+
   it('is safe for a zero-length beam (A==B): no verts, no NaNs', () => {
     const buf = makeBeamBuffers();
     const { vertexCount, indexCount } = writeBeamMesh(buf, 5, 5, 5, 5, { segments: 8 }, 0);

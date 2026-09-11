@@ -7,6 +7,7 @@ import type { FxParamSpecs, ParamsOf } from '../params';
 import type { FxContext, FxInstance, FxPrimitive } from '../primitive';
 import { FX_BLEND_MODES } from '../blendModes';
 import { registerPrimitive } from '../registry';
+import { makeRng } from '../rng';
 import { acquireShader, linkShader, prewarmShaders, releaseShader } from '../shaderPool';
 import { makeBeamBuffers, writeBeamMesh, type BeamMeshBuffers, type BeamShape } from '../beamGeometry';
 
@@ -44,6 +45,7 @@ uniform float uCoreFrac;   // bright-core fraction of the half-width
 uniform float uGlow;       // glow-halo strength
 uniform float uGain;       // overall intensity
 uniform float uEndSoft;    // soft fade length at each end, in along-fraction
+uniform float uMidSoft;    // 0 = even; >0 dims the middle of the length (bright at the ends), the mirror of uEndSoft
 uniform float uFlowAmt;    // scrolling flow band strength (0 = off)
 uniform float uFlowSpeed;  // flow scroll speed
 uniform float uFlowFreq;   // flow bands along the beam
@@ -64,6 +66,11 @@ void main() {
   // Soft end-caps: fade near u=0 and u=1 so the strip's ends aren't hard rectangles.
   float ends = smoothstep(0.0, uEndSoft, vUV.x) * (1.0 - smoothstep(1.0 - uEndSoft, 1.0, vUV.x));
 
+  // Middle softness (mirror of end softness): dip the opacity toward the centre of the length. The bump
+  // 4·u·(1-u) peaks at 1 at u=0.5 and is 0 at both ends, so uMidSoft=1 fully dims the centre while the
+  // source/target ends stay bright; uMidSoft=0 leaves the beam even.
+  float mid = 1.0 - uMidSoft * (4.0 * vUV.x * (1.0 - vUV.x));
+
   // Scrolling flow band along the beam — sells a channelled beam; direction is uFlowDir.
   float flow = 1.0;
   if (uFlowAmt > 0.0) {
@@ -72,7 +79,7 @@ void main() {
   }
 
   vec3 grad = mix(uCore, uTip, clamp(vUV.x, 0.0, 1.0));
-  float lum = uGain * uAlpha * ends;
+  float lum = uGain * uAlpha * ends * mid;
   float coreA = core * lum * flow;
   float haloA = halo * lum;
   float a = coreA + haloA;
@@ -125,6 +132,29 @@ const SPECS = {
   endSoftness: {
     kind: 'slider', label: 'End softness', group: 'Shape', min: 0, max: 0.5, step: 0.01, default: 0.12,
     help: 'Soft fade length at each end so the beam does not end in a hard rectangle.',
+  },
+  midSoftness: {
+    kind: 'slider', label: 'Middle softness', group: 'Shape', min: 0, max: 1, step: 0.02, default: 0,
+    help: 'The mirror of End softness: dims the opacity toward the middle of the beam, leaving the source and target ends bright. 0 = even.',
+  },
+  arc: {
+    kind: 'slider', label: 'Arc (bend)', group: 'Shape', min: -1, max: 1, step: 0.02, default: 0,
+    enabledWhen: { param: 'arcRandom', is: false },
+    help: 'Bend the beam into an arc — the midpoint bows out as a fraction of the length; the sign picks the direction. 0 = straight. (Ignored when Randomize arc is on.)',
+  },
+  arcRandom: {
+    kind: 'toggle', label: 'Randomize arc', group: 'Shape', default: false,
+    help: 'Re-roll the arc between Arc min and Arc max each time the beam fires, for a different bend every cast.',
+  },
+  arcMin: {
+    kind: 'slider', label: 'Arc min', group: 'Shape', min: -1, max: 1, step: 0.02, default: -0.4,
+    enabledWhen: { param: 'arcRandom', is: true },
+    help: 'The most negative arc a random roll can pick.',
+  },
+  arcMax: {
+    kind: 'slider', label: 'Arc max', group: 'Shape', min: -1, max: 1, step: 0.02, default: 0.4,
+    enabledWhen: { param: 'arcRandom', is: true },
+    help: 'The most positive arc a random roll can pick.',
   },
 
   flowAmt: {
@@ -196,6 +226,7 @@ function makeBeamShader(): Shader {
         uGlow: { value: 0.7, type: 'f32' },
         uGain: { value: 1, type: 'f32' },
         uEndSoft: { value: 0.12, type: 'f32' },
+        uMidSoft: { value: 0, type: 'f32' },
         uFlowAmt: { value: 0.35, type: 'f32' },
         uFlowSpeed: { value: 1.4, type: 'f32' },
         uFlowFreq: { value: 6, type: 'f32' },
@@ -230,6 +261,7 @@ function writeAllUniforms(shader: Shader, p: BeamParams): void {
   u.uGlow = p.glowStrength;
   u.uGain = p.gain;
   u.uEndSoft = p.endSoftness;
+  u.uMidSoft = p.midSoftness;
   u.uFlowAmt = p.flowAmt;
   u.uFlowSpeed = p.flowSpeed;
   u.uFlowFreq = p.flowFreq;
@@ -265,10 +297,16 @@ class BeamInstance implements FxInstance<BeamParams> {
   // Last built anchors + a build flag, so a straight beam rebuilds only when its endpoints move.
   private builtOnce = false;
   private bSx = NaN; private bSy = NaN; private bTx = NaN; private bTy = NaN;
+  // Arc: `effectiveArc` is the bend the geometry actually uses. When `arcRandom` is on it is re-rolled from
+  // `arcSeed` each cast cycle (seeded so a combat replay reproduces the same bends).
+  private arcSeed: number;
+  private effectiveArc = 0;
 
   constructor(ctx: FxContext, params: BeamParams) {
     this.params = params;
     this.oneShot = ctx.oneShot ?? false;
+    this.arcSeed = (ctx.seed === undefined ? Math.floor(Math.random() * 0xffffffff) : Math.floor(makeRng(ctx.seed)() * 0xffffffff)) >>> 0;
+    this.rollArc();
     this.buffers = makeBeamBuffers();
     this.geometry = new MeshGeometry({ positions: this.buffers.position, uvs: this.buffers.uv, indices: this.buffers.index });
     this.shader = acquireShader(BEAM_SHADER_KEY, makeBeamShader, (sh) => writeAllUniforms(sh, params));
@@ -289,6 +327,16 @@ class BeamInstance implements FxInstance<BeamParams> {
     this.sx = sx; this.sy = sy; this.tx = tx; this.ty = ty; this.aimSet = true;
   }
 
+  /** Set `effectiveArc` from the params: the fixed `arc` when not randomizing, else a value in [min,max]
+   *  drawn from the current `arcSeed`. Recomputed on setParams (live edits) and re-rolled per cast cycle. */
+  private rollArc(): void {
+    const p = this.params;
+    if (!p.arcRandom) { this.effectiveArc = p.arc; return; }
+    const r = (this.arcSeed >>> 0) / 4294967296;
+    const lo = Math.min(p.arcMin, p.arcMax), hi = Math.max(p.arcMin, p.arcMax);
+    this.effectiveArc = lo + r * (hi - lo);
+  }
+
   private endpoints(): { sx: number; sy: number; tx: number; ty: number } {
     const sx = this.aimSet ? this.sx : this.headX;
     const sy = this.aimSet ? this.sy : this.headY;
@@ -299,7 +347,7 @@ class BeamInstance implements FxInstance<BeamParams> {
 
   /** Rebuild the strip from the current anchors + params at `phase`, and re-upload the buffers. */
   private regenerate(sx: number, sy: number, tx: number, ty: number, phase: number): void {
-    const shape: BeamShape = { width: this.params.width, segments: this.params.segments, waver: this.params.waver, waverFreq: this.params.waverFreq };
+    const shape: BeamShape = { width: this.params.width, segments: this.params.segments, waver: this.params.waver, waverFreq: this.params.waverFreq, arc: this.effectiveArc };
     const { indexCount } = writeBeamMesh(this.buffers, sx, sy, tx, ty, shape, phase);
     this.indexCount = indexCount;
     this.geometry.getBuffer('aPosition').update();
@@ -315,7 +363,11 @@ class BeamInstance implements FxInstance<BeamParams> {
     const total = T + D + R + gap;
 
     let e = this.clockMs - this.castStartMs;
-    if (!this.oneShot && total > 0 && e >= total) { this.castStartMs = this.clockMs; e = 0; }
+    if (!this.oneShot && total > 0 && e >= total) {
+      this.castStartMs = this.clockMs; e = 0;
+      // New cast cycle: advance the seed and re-roll a randomized arc, then force a rebuild so it takes.
+      if (p.arcRandom) { this.arcSeed = (Math.imul(this.arcSeed, 1664525) + 1013904223) >>> 0; this.rollArc(); this.builtOnce = false; }
+    }
 
     let reach: number, life: number, live: boolean;
     if (e < T) { reach = easeOut(e / Math.max(1, T)); life = 1; live = true; }
@@ -349,11 +401,13 @@ class BeamInstance implements FxInstance<BeamParams> {
 
   setParams(next: BeamParams): void {
     this.params = next;
+    this.rollArc(); // recompute the bend from the edited arc/min/max/random (same seed — no re-roll on a drag)
     const u = this.uniforms;
     u.uCoreFrac = coreFracOf(next);
     u.uGlow = next.glowStrength;
     u.uGain = next.gain;
     u.uEndSoft = next.endSoftness;
+    u.uMidSoft = next.midSoftness;
     u.uFlowAmt = next.flowAmt;
     u.uFlowSpeed = next.flowSpeed;
     u.uFlowFreq = next.flowFreq;

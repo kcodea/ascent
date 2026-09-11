@@ -3356,7 +3356,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     conjureToHand(ctx.state, pool, num(params.count, 1) * gold(self));
   },
 
-  /** Aspect Choreographer: each `tribe` play → `count` random OTHER `tribe` minions +v/+v, where v = the printed
+  /** Aspect: each `tribe` play → `count` random OTHER `tribe` minions +v/+v, where v = the printed
    *  step × (1 + floor(prior triggers / every)) — "improve by +1/+1 every 3 times this triggers". Per instance;
    *  golden doubles the step (and so the improvement). */
   tribePlayedBuffRandomTribeImproving: (ctx, self, params) => {
@@ -11014,7 +11014,7 @@ function pickRandom<T>(state: RunState, pool: T[], count: number): T[] {
 
 /**
  * Fire every `onTribePlayed` watcher for a minion just PLAYED from hand — board watchers (Festival Keeper,
- * Aspect Choreographer, Forest Colossus) AND hand watchers (Slumbering Colossus, tranche 2). The played card
+ * Aspect, Forest Colossus) AND hand watchers (Slumbering Colossus, tranche 2). The played card
  * itself never witnesses its own arrival: Forest Colossus counts Spirits played AFTER it (owner 2026-09-09).
  * Called from `playCard` once the body has landed, beside `onSummon` — so a targeted Shout / Choose One that
  * defers its own battlecry still counts as a play.

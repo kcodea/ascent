@@ -66,6 +66,14 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Card Change',
+        text: 'Hawkus and Mineral Master now answer every extra Rally a multiplier adds — with Uron on your board, each fires twice per Rally, like Paragon already did.',
+        details: [
+          'Rally watchers ("whenever you trigger a Rally…") were split across two lists: the free-Rally list knew all three, the multiplier list knew only Paragon. One list now serves both, so a free Rally and an extra Rally reach the same cards.',
+          'A Rally watcher that summons (Hawkus triggering an Echo) no longer fires a third time when the summoned body shifts it along the board.',
+        ],
+      },
+      {
+        category: 'Card Change',
         text: 'Aspect Choreographer is now simply Aspect. Same card, shorter name.',
       },
       {

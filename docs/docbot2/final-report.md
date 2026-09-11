@@ -68,7 +68,7 @@ the distance between those two is the single most important number in this repor
 
 | Contract verification depth | Count of 972 |
 |---|---|
-| derived status **corroborated** (two independent sources agree — trace + text, or trace + params) | 481 |
+| derived status **corroborated** (two independent sources agree — trace + text, or trace + params) | 482 |
 | derived status **approved** (owner-ruled intent, the strongest authority) | 1 |
 | derived status **extracted** (a draft nobody has corroborated yet) | 490 |
 | **with at least one case a driver actually EXECUTED this sweep** | 470 |

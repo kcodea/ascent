@@ -184,6 +184,14 @@ Three commands sit above the tripwires (`packages/sim/src/docbot/{coverageKeys,c
   gitignored `.local/docbot/` mirror), which `npm run docbot` prints when present — otherwise it points at
   `gh run list --workflow=nightly.yml -L 1`. Fix or acknowledge; never tolerate.
 - `npm run docbot:scenario -- <id>` — replays any emitted scenario (corpus fixture or minimized failure).
+- `npm run docbot:contracts` — Doc Bot 2.0 WP D: the FULL contract-verification sweep (the PR gate,
+  `contractOracle.test.ts`, runs a deterministic 1/3 sample). `isolatedCases.ts` plans the §10.1 case
+  templates per contract; the drivers execute them through the real reducer / `simulate()`. Since 2026-09-11
+  the drivers are keyed by CLAIM FAMILY (`docbot/drivers/` — stat grant, card grant / summon, economy,
+  keyword grant, equipment, vanilla body, activation), with the object-shape drivers (death summon, avenge
+  threshold, battlecry summon, copy policy, gilded token) kept for the contracts they already owned. Every
+  unexecuted applicable case carries a typed skip; a driver record that observed nothing is a
+  `runtime-unobserved` skip, never an execution. `familyDrivers.test.ts` carries each family's sabotage proof.
 - `npm run docbot:text` — Doc Bot 2.0 WP E: parses every active object's printed text
   (`docbot/textParse/`), classifies the §18-E buckets (parsed-equivalent / verified-mismatch /
   approved-exception / unresolved-parse — an unresolved parse is NEVER a clean pass), prints the

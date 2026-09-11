@@ -68,16 +68,20 @@ the distance between those two is the single most important number in this repor
 
 | Contract verification depth | Count of 972 |
 |---|---|
-| derived status **corroborated** (two independent sources agree — trace + text, or trace + params) | 449 |
+| derived status **corroborated** (two independent sources agree — trace + text, or trace + params) | 480 |
 | derived status **approved** (owner-ruled intent, the strongest authority) | 1 |
-| derived status **extracted** (a draft nobody has corroborated yet) | 522 |
-| **with at least one case a driver actually EXECUTED this sweep** | 36 |
-| covered only by a **cited lane** (real evidence a human can follow — deliberately excluded from the fold) | 865 |
+| derived status **extracted** (a draft nobody has corroborated yet) | 490 |
+| **with at least one case a driver actually EXECUTED this sweep** | 470 |
+| covered only by a **cited lane** (real evidence a human can follow — deliberately excluded from the fold) | 502 |
 
 `runContractSweep` refuses to fold a lane citation into a contract's status: a citation says "the
 `temporalWindow` lane covers this family", which is true and useful, but it is not the same as this
-contract's own case having been driven. That refusal is why the direct-execution number is 36 and not a
-flattering four-figure one.
+contract's own case having been driven. That refusal is why the direct-execution number is 470 and not a
+flattering four-figure one — and why it was 36 until 2026-09-11, when the FAMILY DRIVERS landed
+(`packages/sim/src/docbot/drivers/`): one driver per CLAIM SHAPE (stat grant, card grant / summon,
+economy, keyword grant, equipment, vanilla body, activation) instead of one per object shape. "Executed"
+is the strict reading: a driver record whose staging fired nothing observable is a `runtime-unobserved`
+SKIP, never an execution, and 381 of the 470 driven contracts had at least one case actually observed.
 
 ### 2.2 Why so few cases execute — the typed skip ledger
 
@@ -85,15 +89,24 @@ Every applicable case that did not run says why. This is the §4.3 substrate; no
 
 | Skip reason | Cases | Reading |
 |---|---|---|
-| `no-driver-for-shape` | 471 | **the largest real hole** — an applicable case with no executable driver yet |
+| `contract-states-no-targets` | 1401 | the three target-cardinality templates, skipped for every driven contract that states no targets claim (extracted drafts rarely do) — three rows per contract, which is why this line grew with the driven set |
 | `covered-by-cited-lane` | 398 | an existing vitest lane owns the class; not re-executed per contract |
-| `contract-states-no-targets` | 99 | the case is inapplicable by the contract's own text |
+| `gild-stated-by-golden-text` | 163 | a 'reshape' gild — the authored golden text states the form; the textOracle golden lane owns it |
+| `runtime-unobserved` | 163 | the driver ran and the engine emitted nothing observable — recorded, not hidden (a scenario-conditional effect the fixture did not reach: Imps, Fodder, Attachments, a lost last combat) |
+| `no-driver-for-shape` | 149 | **the largest real hole, down from 471** — an applicable case with no executable driver yet; the skip detail now names WHY (a scaler amount key such as `every` / `step` / `improve` / `per` that the first activation does not print — 110; a def-level behaviour field the extractor never states, `discoverOnPlay` / `manaPerTurn` / `ruby` … — 29; a trigger no stager fires yet — 10) |
+| `gild-not-applicable` | 130 | R-GILD-02 — spells and Rubies are never gilded |
+| `contract-states-no-magnitude` | 86 | the activation family proved the effect ACTS, but the contract states no number a magnitude could be compared to |
+| `gild-shape-not-countable` | 65 | a keyword grant, a Choose One (a gilded body may resolve both branches), an extra-proc, or an activation-only family — no single ×factor to check |
 | `hero-power-behaviour-unextracted` | 58 | hero-power *magnitudes* are not extracted (activation is covered elsewhere) |
-| `gilded-not-declared` | 15 | no declared Gilded delta to compare against |
+| `gilded-not-declared` | 13 | no declared Gilded delta to compare against |
 | `covered-by-slice-oracle` | 7 | the vertical slice's hand-written probes own it |
-| `runtime-unobserved` | 5 | the driver ran and the engine emitted nothing observable — recorded, not hidden |
 | `board-cap-would-clip` | 2 | staging the case would hit the 7-slot cap and measure the cap, not the effect |
+| `gild-shape-unresolved` | 2 | the extractor could not derive a gilded shape and refused to guess one |
 | `no-limit-declared` | 1 | a once-per-X template with no declared limit |
+
+The one standing disagreement the full sweep prints is `shaper` (`effects.1.summons.count.plain` expected
+1, observed 0) — a draft-contract disagreement that predates the family drivers and is queued as a
+`questionable-interaction`, not a verified bug.
 
 ---
 
@@ -178,7 +191,10 @@ Reachable needs-ruling cards, waiting on a sitting the main session schedules �
 ## 7. Oracle families and sabotage evidence (§4.5)
 
 - **68** vitest lane files under `packages/sim/src/docbot/`.
-- **25** of them carry an in-file mutation/sabotage proof — a deliberate defect the lane must catch.
+- **31** of them carry an in-file mutation/sabotage proof — a deliberate defect the lane must catch
+  (`familyDrivers.test.ts` sabotages every family driver: a doctored amount, a doctored gilded factor, a
+  wrong named card, a doctored count, a hidden Shout on a "vanilla" contract, and a vanilla body under an
+  activation claim that must read as unobserved, never executed).
 - 19 named lanes are citable by a rule's `oracle` enforcement ref; `enforcement.test.ts` fs-checks each.
 
 Half the lanes proving they can fail is a real result and an incomplete one. The families with the heaviest
@@ -198,7 +214,7 @@ Sixteen lines, each marked with a citable artifact. **5 done · 11 partial · 0 
 | 2 | Every approved global rule has an executable oracle | **partial** | `enforcement.test.ts` gates a backing lane per approved rule; two approved rules (`R-PLAY-01`, `R-AURA-01`) remain pinned unenforced |
 | 3 | All meaningful effects are visible in a causal semantic trace | **partial** | recruit envelope + `combatTrace.ts` adapter + `semanticTrace.test.ts`; combat causality is **step grouping, not proven parenthood** — `cause.stepRootEventId` is documented as such and true trigger-stack parenting needs simulate() instrumentation |
 | 4 | Shop and combat bug reports replay exact action sequences | **partial** | `QaScenarioV1.actions` (RecordedActionWindow trail) + `runQaScenario` divergence classification replay shop action trails exactly; combat replays from the pinned board and seed, not from a per-event action trail |
-| 5 | Every active content object passes applicable generated scenarios or has visible failures | **partial** | 0 mismatches, 0 metamorphic failures, 0 limit failures across the sweep — but only 38 contracts had a case directly executed; 402 applicable cases have no driver |
+| 5 | Every active content object passes applicable generated scenarios or has visible failures | **partial** | 470 contracts had a case directly executed (36 before the 2026-09-11 family drivers), 0 metamorphic failures, 0 limit failures, one standing draft disagreement (`shaper`); 149 applicable cases still have no driver, each skip naming the scaler key / def field / trigger that keeps it out |
 | 6 | Applicable pairwise interactions are covered and reported semantically | **partial** | 93491 candidates enumerated and reported by channel; 106 covered rows, 30 blocked rows each with a typed reason. Coverage is by family, not per candidate pair |
 | 7 | High-risk triple interactions are covered | **partial** | §10.4 triples run in the same sweep; 6 of the 8 triple families are blocked with cited reasons |
 | 8 | Verified findings are deterministic, minimized, and reproducible from Scene Builder and CLI | **done** | `seedMinimize.ts` (1-minimal proof), `docbot:scenario -- <id>`, the Scene Builder QA bridge, `qaScenarioParity.test.ts`; findings carry a `reproduction` line |
@@ -207,13 +223,13 @@ Sixteen lines, each marked with a citable artifact. **5 done · 11 partial · 0 
 | 11 | Unruled behavior is reported as questionable rather than declared broken | **done** | the anomaly oracle caps at `questionable-interaction` by construction, with competing interpretations attached; sabotage-tested in `anomalyOracle.test.ts` |
 | 12 | Confirmed reports graduate into permanent regressions | **partial** | `bugs:graduate` + `bugTaxonomy.graduated.json` + `regressionScenarios.test.ts` are built and refusal-tested; **zero real player reports have graduated** — the loop is proven only by the synthetic walkthrough in `ci-lanes.md` |
 | 13 | CI prevents new active content from bypassing contracts and text verification | **done** | `contractExtract.test.ts` (contract inventory gate) + `textParse.test.ts` (classification + grow-loudly unresolved ratchet) both ride the required `verify` check |
-| 14 | Mutation/sabotage tests demonstrate detection in every oracle family | **partial** | 29 of 56 docbot lanes carry an in-file sabotage proof, plus the retro harness's 14 reinjections; the remaining lanes are structural ratchets without one |
+| 14 | Mutation/sabotage tests demonstrate detection in every oracle family | **partial** | 31 of 68 docbot lanes carry an in-file sabotage proof, plus the retro harness's 14 reinjections; the remaining lanes are structural ratchets without one |
 | 15 | Existing ad hoc probes that duplicate the platform are retired or converted | **partial** | the tripwire-numbering fork is retired in this PR (§9); the legacy `scenario.json` path and the two `combatEventLines` renderers are documented keeps with dated conditions, not yet executed |
 | 16 | A final coverage report lists what Doc Bot can prove and its blind spots | **done** | this document, generated by `npm run docbot:report` and drift-gated by `docbot-report.test.ts` |
 
 **The program is not done.** Eleven partials is the honest state, and item 12 (zero real graduations) plus
-item 5 (36 directly executed contracts) are the two that most limit what any claim about Doc Bot's power
-can honestly say.
+item 5 (149 contract shapes still without a driver, and 163 driven cases the fixtures could not observe)
+are the two that most limit what any claim about Doc Bot's power can honestly say.
 
 ---
 
@@ -243,8 +259,10 @@ Ordered by how much they limit a confident claim. The counted ones are re-derive
 
 1. **528 unresolved parses.** The majority of printed text cannot be semantically compared to its contract.
    They are visible and ratcheted, but "text is verified" is not a claim this platform can make yet.
-2. **402 contract shapes with no driver.** The single largest verification hole: applicable isolated cases
-   that no generic driver can stage.
+2. **149 contract shapes with no driver.** Still the single largest verification hole, though down from
+   471: the family drivers stage every stat / card / economy / keyword / equipment / vanilla / activation
+   claim, and what is left is named per skip — scaler magnitudes (110), def-level behaviour the extractor
+   does not state (29), and triggers no stager fires (10).
 3. **Zero graduated regressions.** The learning loop is built, refusal-tested and CI-wired, but no real
    player report has travelled it end to end. Every claim about it rests on a synthetic walkthrough.
 4. **Combat causality is inferred, not stamped.** `combatTrace.ts` groups events by resolution step and is
@@ -260,7 +278,7 @@ Ordered by how much they limit a confident claim. The counted ones are re-derive
 8. **58 hero-power magnitude claims unextracted.** Activation is proven by `heroPowerLane` /
    `heroPowerStagers`; how *much* a power does is not contract-checked.
 9. **30 blocked interaction rows.** Cited, not silent — but uncovered.
-10. **Half the lanes lack a sabotage proof.** 28 of 55. An oracle that has never been shown to fail is an
+10. **Half the lanes lack a sabotage proof.** 37 of 68. An oracle that has never been shown to fail is an
     oracle whose green is worth less.
 11. **Visual and FX correctness — categorically out of scope (§22).** Whether an animation looks right, a
     beat feels right, or an FX binding reads correctly is not machine-decidable here. `beats:audit` proves
@@ -283,7 +301,7 @@ Each is a real gap that was too large or too cross-seam to close inside WP H's P
 | **Execute the D-8 legacy `scenario.json` retirement** | After one release has actually shipped with `qa-scenario.json` primary: stop writing `scenario.json` from `writeInbox` + `bugs:repro`, delete the `BugScenarioFile` projection and the ui declaration (D-4 dies with it), and close the four remaining D-9 doc items that describe it |
 | **Unify `combatEventLines` (D-6)** | Move the renderer into `@game/sim`, have the CLI's `string[]` form derive from the structured form, import both from one place. Needs a coordination pass with Mike (a `packages/ui` edit) |
 | **Fold the scenario-id regex (D-3 residual)** | Three declarations, two different length bounds (80 vs 120). Export one const and have all three import it |
-| **Drive the 402 no-driver contract shapes down** | Each new driver converts `no-driver-for-shape` skips into executed cases; the skip ledger is the burn-down list, ordered by count |
+| **Drive the 149 no-driver contract shapes down** | A scaler-aware driver (stage N activations for `every` / `step` / `improve` shapes) and an extractor pass for def-level behaviour fields would take most of what is left; the skip detail names the key or field per contract |
 | **Shrink the 528-object unresolved-parse queue** | Grammar by grammar, ratcheted grow-loudly. The queue is ordered by content type in `npm run docbot:text` |
 | **Graduate one real player report** | The single most valuable proof left: it converts DoD item 12 from partial to done and produces the first curated regression |
 | **Sabotage-proof the remaining 26 lanes** | Or record, per lane, why its failure mode is structural and a mutation test would be theatre |

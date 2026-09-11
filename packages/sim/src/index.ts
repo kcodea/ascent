@@ -58,6 +58,11 @@ export {
   type InteractionGraph, type InteractionRun, type InteractionSweepReport, type InteractionVerdict,
   type CandidateReport, type AnomalyOracleReport, type RetroMapEntry,
 } from './docbot';
+// The retro catalog — the forward catch-rate ledger (tools consumers: docbot:retro + docbot:report + bugs:catalog)
+export {
+  RETRO_CATALOG, RETRO_CATALOG_IDS, RETRO_SUITE_EXTRA, applyPatchOp, retroCatalogErrors, retroCatchRate,
+  type RetroCatalogEntry, type RetroPatchOp, type RetroVerdict, type RetroVerifiedBy, type RetroCatchRate, type PatchApplyResult,
+} from './docbot';
 // Doc Bot 2.0 WP G — the learning loop (consumers: bugs:graduate, docbot:ledger, the QA Workbench)
 export {
   BUG_TAXONOMY, BUG_CLASS_IDS, bugClass, bugTaxonomyErrors, mergeGraduation, emitGraduationLedger,

@@ -2,22 +2,24 @@
  * DOC BOT 2.0 WP F — HISTORICAL GENERALIZATION: the retro catalog → generalized-scenario map (§18-F exit
  * gate: "historical multi-system bugs are detected by generalized interaction scenarios").
  *
- * The retro catalog (packages/tools/retro/reinject.py) holds one anchored source mutation per historical
- * bug. This module states, per catalog id, WHICH generalized scenario family would catch that bug CLASS —
+ * The retro catalog (`retroCatalog.ts`, run by `npm run docbot:retro`) holds one anchored source mutation per
+ * historical bug. This module states, per catalog id, WHICH generalized scenario family would catch that bug CLASS —
  * an interaction pair/triple family from interactionSweep.ts where the class is multi-system, or the
  * npm-test lane that owns it where it is single-system. The map is the citation ledger the weekly retro
  * reinject run reads: reinject a bug, run the named family/lane, expect red.
  *
- * HONESTY (§4.3): retroMapErrors() cross-checks this map against reinject.py's actual id list (a new
+ * HONESTY (§4.3): retroMapErrors() cross-checks this map against the catalog's actual id list (a new
  * catalog entry with no mapping fails the gate loudly) and against the family roster + the lane files on
  * disk (a renamed lane un-cites its bugs loudly). `verifiedBy` records how the catch was established:
- * 'reinject-run' = a recorded reinjection turned the cited lane red (date noted); 'class-analysis' = the
- * mapping is argued from the bug's mechanism — a claim, standing until a reinject run upgrades it.
+ * 'reinject-run' = a recorded reinjection turned the cited lane red (the catalog carries the measured date
+ * and verdict); 'class-analysis' = the mapping is argued from the bug's mechanism — a claim, standing until a
+ * reinject run upgrades it. A map row may not claim 'reinject-run' for an entry the catalog has not measured.
  */
 import { PAIR_FAMILIES, TRIPLE_FAMILIES, type PairFamilyId, type TripleFamilyId } from './interactionSweep';
+import { RETRO_CATALOG, type RetroCatalogEntry } from './retroCatalog';
 
 export interface RetroMapEntry {
-  /** The reinject.py catalog id, verbatim. */
+  /** The retroCatalog.ts catalog id, verbatim. */
   catalogId: string;
   /** Does the bug cross system boundaries (trigger×multiplier, recruit×combat, aura×predicate…)? Only
    *  multi-system entries owe the exit gate a generalized INTERACTION family. */
@@ -145,22 +147,61 @@ export const RETRO_INTERACTION_MAP: readonly RetroMapEntry[] = [
     why: 'a self-feed becoming a random friendly is a target-resolution class: the wave-2 probe (self:true consume feeds the card itself, across rng cursors) caught the reinjection',
     verifiedBy: 'reinject-run', // measured 2026-08-27 (docs/docbot-roadmap.md wave 2)
   },
+  // ── wave 3 (2026-09-11): Bug Board round 2, PR #1374. Verdicts live in retroCatalog.ts; these rows say
+  // which generic family/lane SHOULD own each class — 'class-analysis' until a run turns one red. ──
+  {
+    catalogId: '9852e16f-gifts-no-target',
+    multiSystem: true, // cast path × Battlecry-shaped payload contract
+    families: ['spell-x-improvement'],
+    lanes: ['packages/sim/src/docbot/playDifferential.test.ts'],
+    why: 'a targeted Gift that consumes the card and changes nothing is exactly the play-differential class (cast ≠ vanilla control) — but Gifts belong to no set, so the differential never enumerates them; the entry-path lane (feat/docbot-entry-and-fire-paths) is the intended catcher',
+    verifiedBy: 'class-analysis',
+  },
+  {
+    catalogId: '7e04222d-free-rally-watchers',
+    multiSystem: true, // free-Rally entry path × RL-gated watchers on OTHER bodies
+    families: ['trigger-x-multiplier'],
+    lanes: ['packages/sim/src/docbot/combatDifferential.test.ts', 'packages/sim/src/docbot/combatModLane.test.ts'],
+    why: 'a watcher that hears an attack-path Rally but not a free one is a fire-path split — the combat differential stages real swings only, so it cannot see the free path; the fire-path lane (feat/docbot-entry-and-fire-paths) is the intended catcher',
+    verifiedBy: 'class-analysis',
+  },
+  {
+    catalogId: 'bb5195d5-nested-scope-double-emit',
+    multiSystem: false, // presentation: the consequence collector, not gameplay
+    families: [],
+    lanes: ['packages/sim/src/eotNestedGrantEmission.test.ts'],
+    why: 'out of Doc Bot\'s remit (state was always right; only the beat emission doubled) — cited to its own pin so the class is at least named; a generic "each beat scope emits only what it changed" oracle would be the presentation-side sibling of the derivation lane',
+    verifiedBy: 'class-analysis',
+  },
+  {
+    catalogId: 'cb45dc41-skybound-tier-clamp',
+    multiSystem: false, // an owner ruling moved the intended ceiling
+    families: [],
+    lanes: ['packages/sim/src/docbot/textNumbers.test.ts'],
+    why: 'not a wiring bug: the old clamp matched its own live text. Cited to the text lane because the ONLY generic signal was the "Tier 6" rewrite disagreeing with the printed "Tier 7" of the base card — a ruling, not an oracle, decided which was right',
+    verifiedBy: 'class-analysis',
+  },
 ] as const;
 
 /** Cross-check the map: complete over the catalog, family ids on the roster, no duplicate catalog ids, and
- *  every multi-system entry names at least one interaction family. `catalogIds` is parsed from reinject.py
- *  by the caller (the test) so the map can never silently lag the catalog. */
-export function retroMapErrors(catalogIds: readonly string[]): string[] {
+ *  every multi-system entry names at least one interaction family. The catalog is the source of truth for
+ *  the id list (default: the live `RETRO_CATALOG`), so the map can never silently lag it. */
+export function retroMapErrors(catalog: readonly RetroCatalogEntry[] = RETRO_CATALOG): string[] {
   const errors: string[] = [];
+  const catalogIds = catalog.map((e) => e.id);
   const mapped = new Map(RETRO_INTERACTION_MAP.map((e) => [e.catalogId, e]));
   if (mapped.size !== RETRO_INTERACTION_MAP.length) errors.push('duplicate catalogId in RETRO_INTERACTION_MAP');
   for (const id of catalogIds) {
     if (!mapped.has(id)) errors.push(`catalog entry '${id}' has NO generalization mapping — add it to RETRO_INTERACTION_MAP`);
   }
-  const catalog = new Set(catalogIds);
+  const byId = new Map(catalog.map((e) => [e.id, e]));
   const roster = new Set<string>([...PAIR_FAMILIES, ...TRIPLE_FAMILIES]);
   for (const e of RETRO_INTERACTION_MAP) {
-    if (catalogIds.length > 0 && !catalog.has(e.catalogId)) errors.push(`mapping '${e.catalogId}' cites a catalog id reinject.py no longer lists`);
+    const cat = byId.get(e.catalogId);
+    if (catalogIds.length > 0 && !cat) errors.push(`mapping '${e.catalogId}' cites a catalog id retroCatalog.ts no longer lists`);
+    if (cat && e.verifiedBy === 'reinject-run' && !(cat.verifiedBy.kind === 'reinject-run' && cat.verifiedBy.verdict === 'CAUGHT')) {
+      errors.push(`mapping '${e.catalogId}' claims 'reinject-run' but the catalog's measured verdict is not CAUGHT — downgrade it to 'class-analysis'`);
+    }
     for (const f of e.families) if (!roster.has(f)) errors.push(`mapping '${e.catalogId}' names unknown family '${f}'`);
     if (e.multiSystem && e.families.length === 0) errors.push(`'${e.catalogId}' is multi-system but names no interaction family — the §18-F exit gate`);
     if (e.lanes.length === 0 && e.families.length === 0) errors.push(`'${e.catalogId}' cites nothing at all`);

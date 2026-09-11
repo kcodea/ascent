@@ -99,6 +99,10 @@ export {
   type AnomalyOracleOptions, type AnomalyOracleReport, type AnomalyDetectorId, type AnomalyFinding,
 } from './anomalyOracle';
 export { RETRO_INTERACTION_MAP, retroMapErrors, type RetroMapEntry } from './retroInteractionMap';
+export {
+  RETRO_CATALOG, RETRO_CATALOG_IDS, RETRO_SUITE_EXTRA, applyPatchOp, retroCatalogErrors, retroCatchRate,
+  type RetroCatalogEntry, type RetroPatchOp, type RetroVerdict, type RetroVerifiedBy, type RetroCatchRate, type PatchApplyResult,
+} from './retroCatalog';
 export { buildInteractionQuestions, INTERACTION_QUEUE } from './interactionQuestions';
 // ── Doc Bot 2.0 WP G: the learning loop (graduation taxonomy + findings ledger) ──
 export {

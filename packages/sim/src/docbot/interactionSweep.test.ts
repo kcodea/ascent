@@ -20,7 +20,7 @@
  * The two hand-pinned matrices (interactionMatrix / interactionFamilyMatrix) remain the coverage FLOOR —
  * this lane extends them and retires nothing (current-state-map §5).
  */
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { allContracts } from '@game/rules/contracts';
@@ -30,6 +30,7 @@ import {
   PAIR_FAMILIES, runInteractionSweep, verifyInteractionTable, type InteractionRun,
 } from './interactionSweep';
 import { RETRO_INTERACTION_MAP, retroMapErrors } from './retroInteractionMap';
+import { RETRO_CATALOG, RETRO_CATALOG_IDS } from './retroCatalog';
 
 /** The PR-gate sample: 3 candidates per family, deterministic (sorted contentId order), no triples. */
 const GATE_CAP = 3;
@@ -93,16 +94,22 @@ describe('interaction sweep (§10.3) — the deterministic gate sample', () => {
 });
 
 describe('historical generalization (§18-F: retro catalog → generalized scenarios)', () => {
-  const reinjectPy = readFileSync(join(REPO_ROOT, 'packages/tools/retro/reinject.py'), 'utf8');
-  const catalogIds = [...reinjectPy.matchAll(/^\s*\('([a-z0-9-]+)',/gim)].map((m) => m[1]!);
+  const catalogIds = RETRO_CATALOG_IDS;
 
-  it('parses the live catalog (the map can never lag reinject.py)', () => {
-    expect(catalogIds.length).toBeGreaterThanOrEqual(14);
+  it('reads the live catalog (retroCatalog.ts — the map can never lag it)', () => {
+    expect(catalogIds.length).toBeGreaterThanOrEqual(18);
     expect(new Set(catalogIds).size).toBe(catalogIds.length);
   });
 
   it('every catalog entry is mapped; every multi-system entry names an interaction family', () => {
-    expect(retroMapErrors(catalogIds)).toEqual([]);
+    expect(retroMapErrors(RETRO_CATALOG)).toEqual([]);
+  });
+
+  it('SABOTAGE — a map row claiming reinject-run for a MISSED catalog entry is refused', () => {
+    const doctored = RETRO_CATALOG.map((e) => (e.id === '1176-avenge-arrival'
+      ? { ...e, verifiedBy: { kind: 'reinject-run' as const, date: '2026-09-11', verdict: 'MISSED' as const } }
+      : e));
+    expect(retroMapErrors(doctored).some((m) => m.includes('downgrade'))).toBe(true);
   });
 
   it('every cited lane file exists on disk (a renamed lane un-cites its bugs LOUDLY)', () => {

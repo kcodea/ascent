@@ -52,7 +52,7 @@ import {
 import { magnetizesTo } from './reducer';
 import { replayBattlecry } from './recruit'; // not re-exported from the package index — internal on purpose
 import type { BoardMinion } from '@game/core';
-import { applyCardsBought, applyEndOfTurn, conjuredStats, implosionCasts, spellCasts, spellCostReduction, weldMagnetic } from './recruit';
+import { applyCardsBought, applyEndOfTurn, conjuredStats, implosionCasts, queueDiscover, spellCasts, spellCostReduction, weldMagnetic } from './recruit';
 import { rollShop } from './shop';
 import { pinSet1Era } from './testPin';
 
@@ -4159,6 +4159,39 @@ describe('hero powers (@game/sim)', () => {
     expect(reloaded.discoverQueue ?? []).toEqual([]);
     // The three picks are still in hand — not re-offered.
     expect(reloaded.hand.filter((c) => c.lockedUntilTier).length).toBe(3);
+  });
+
+  it('Brackus does NOT re-arm his run-start Gold lock after save/load (Doc Bot nightly seed 62931, red 2026-08-28 → 09-11)', () => {
+    // The fresh skeleton `deserialize` merges over carries Brackus's run-start Discover with `discoverLockGold: 70`.
+    // Once the pick is taken the live run clears the key to undefined — which JSON.stringify OMITS — so the
+    // `{...defaults, ...parsed}` merge silently restored `70`. Player-visible: the next Discover a resumed
+    // Brackus took handed its pick over "locked until 70 Gold spent". The whole one-shot Discover family must
+    // come from the SAVE, never the skeleton.
+    const fresh = createRun(62931, 'brackus', 'ascent', 9, 'set1');
+    expect(fresh.discover?.length, 'load-bearing: the skeleton really does seed the lock').toBeGreaterThan(0);
+    expect(fresh.discoverLockGold).toBe(70);
+    let s = fresh;
+    while (s.discover) s = reduce(s, { type: 'discover', index: 0 });
+    expect(s.discoverLockGold).toBeUndefined();
+    const reloaded = deserialize(serialize(s));
+    for (const k of ['discover', 'discoverLockGold', 'discoverLockTier', 'discoverGolden', 'discoverLockWave', 'discoverBorrowed', 'discoverSetStats', 'discoverIntoShopUid'] as const) {
+      expect(reloaded[k], `${k} must survive serialize→deserialize as the save had it (absent)`).toBeUndefined();
+    }
+    // The pinned field, byte-for-byte: the normalized states are identical (the nightly's roundtrip rail).
+    expect(JSON.stringify(reloaded.discoverLockGold)).toBe(JSON.stringify(s.discoverLockGold));
+
+    // THE PLAYER-OBSERVABLE PATH: the store saves on every dispatch, so a reload can land while an ordinary
+    // Discover is open. `deserialize` forces `discover` from the save but (before the fix) let the skeleton's
+    // `discoverLockGold: 70` through — and the pick from that ordinary Discover arrived locked until 70 Gold spent.
+    const open = { ...s };
+    queueDiscover(open, { kind: 'minion', tier: 1 });
+    expect(open.discover?.length).toBeGreaterThan(0);
+    expect(open.discoverLockGold).toBeUndefined();
+    const resumed = deserialize(serialize(open));
+    expect(resumed.discoverLockGold).toBeUndefined();
+    const picked = reduce(resumed, { type: 'discover', index: 0 });
+    const pick = picked.hand[picked.hand.length - 1]!;
+    expect(pick.lockedUntilGoldSpent, 'an ordinary Discover pick must never inherit the run-start Gold lock').toBeUndefined();
   });
 
   it('Disco Dan can take no shop action on turn 1 (buy/roll/upgrade blocked)', () => {

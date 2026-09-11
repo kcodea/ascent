@@ -370,6 +370,12 @@ function driveAvengeThreshold(c: ContentContract, plan: CasePlan, ctx: DriverCtx
   }
 }
 
+/** The `chooseOne` branch of `cardId` whose effects summon `tokenId` (-1 when the card has no such branch). */
+export function chooseOneSummonBranch(cardId: string, tokenId: string): number {
+  const branches = CARD_INDEX[cardId]?.chooseOne ?? [];
+  return branches.findIndex((br) => br.effects.some((e) => e.do === 'battlecrySummon' && (e.params as { tokenId?: string } | undefined)?.tokenId === tokenId));
+}
+
 function driveShopBattlecrySummon(c: ContentContract, plan: CasePlan, ctx: DriverCtx): void {
   const b = battlecrySummonEffect(c)!;
   const templates = new Set(plan.cases.filter((x) => x.driver === 'shop-battlecry-summon').map((x) => x.template));
@@ -377,7 +383,16 @@ function driveShopBattlecrySummon(c: ContentContract, plan: CasePlan, ctx: Drive
     const s = createRun(21, 'aster', 'ascent', 9, 'set1');
     s.embers = 10;
     s.hand = [{ uid: 'h1', cardId: c.contentId, tribe: CARD_INDEX[c.contentId]?.tribe ?? 'neutral', attack: golden ? 2 : 1, health: golden ? 2 : 1, keywords: [], golden }];
-    const after = reduce(s, { type: 'play', uid: 'h1' });
+    let after = reduce(s, { type: 'play', uid: 'h1' });
+    // CHOOSE ONE (2026-09-11): a Choose One body PAUSES the play on its prompt — nothing is summoned until the
+    // branch is picked. The nightly's one standing contract disagreement (shaper · effects.1.summons.count.plain,
+    // 15 nights) was this driver counting 0 Strays against an unanswered prompt: not the contract, not the
+    // engine — the DRIVER never chose. Answer with the branch that owns the summon (derived from the def, the
+    // same place the extractor read it), through the real `chooseOne` action so the replayed play stays honest.
+    if (after.chooseOne?.uid === 'h1') {
+      const index = chooseOneSummonBranch(c.contentId, b.cardId);
+      if (index >= 0) after = reduce(after, { type: 'chooseOne', index });
+    }
     return after.board.filter((x) => x.cardId === b.cardId).length;
   };
   if (templates.has('plain')) {

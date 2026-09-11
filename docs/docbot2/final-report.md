@@ -68,7 +68,7 @@ the distance between those two is the single most important number in this repor
 
 | Contract verification depth | Count of 972 |
 |---|---|
-| derived status **corroborated** (two independent sources agree — trace + text, or trace + params) | 448 |
+| derived status **corroborated** (two independent sources agree — trace + text, or trace + params) | 449 |
 | derived status **approved** (owner-ruled intent, the strongest authority) | 1 |
 | derived status **extracted** (a draft nobody has corroborated yet) | 522 |
 | **with at least one case a driver actually EXECUTED this sweep** | 36 |
@@ -177,7 +177,7 @@ Reachable needs-ruling cards, waiting on a sitting the main session schedules �
 
 ## 7. Oracle families and sabotage evidence (§4.5)
 
-- **67** vitest lane files under `packages/sim/src/docbot/`.
+- **68** vitest lane files under `packages/sim/src/docbot/`.
 - **25** of them carry an in-file mutation/sabotage proof — a deliberate defect the lane must catch.
 - 19 named lanes are citable by a rule's `oracle` enforcement ref; `enforcement.test.ts` fs-checks each.
 

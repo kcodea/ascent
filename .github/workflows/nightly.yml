@@ -23,6 +23,10 @@ jobs:
   nightly:
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    # `issues: write` for the tracking issue below; nothing else needs more than read.
+    permissions:
+      contents: read
+      issues: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -36,10 +40,14 @@ jobs:
       # WP G (§17.2): the nightly grows the FULL sweeps the PR gate only samples. Both `continue-on-error`
       # — a red sweep is a FINDING to triage, and its findings.json must still reach the upload step. The
       # per-sweep exit codes stay visible in the job log; the artifact is what a reviewer opens.
+      # `if: always()` (2026-09-11): a red lifecycle lane used to SKIP both sweeps, so the ledger lost their
+      # findings on exactly the nights that mattered.
       - name: Full contract sweep (the PR gate only samples)
+        if: always()
         continue-on-error: true
         run: npm run docbot:contracts -- --out artifacts/docbot-contracts
       - name: Full pairwise interaction sweep + anomaly oracle
+        if: always()
         continue-on-error: true
         run: npm run docbot:interactions -- --out artifacts/docbot-interactions
 
@@ -56,3 +64,16 @@ jobs:
           name: docbot-nightly-${{ github.run_id }}
           path: artifacts/
           retention-days: 30
+
+      # A red nightly is UNIGNORABLE (2026-09-11 — it had been red for 15 straight scheduled runs with nobody
+      # looking). One pinned tracking issue, "Doc Bot nightly status", found by exact title: created/updated
+      # with the two-line-per-finding summary + repro commands + the artifact link on red, commented "green"
+      # and closed on green. A lane that crashed before writing nightly-status.json is reported as red too.
+      # `scripts/nightly-issue.mjs` is plain node (no deps); its planning is pinned by
+      # packages/tools/src/nightlyIssue.test.ts. Acknowledged findings (packages/sim/src/docbot/nightlyAck.ts)
+      # are reported as known and do not red the run.
+      - name: Tracking issue — "Doc Bot nightly status"
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/nightly-issue.mjs --status artifacts/docbot-nightly/nightly-status.json

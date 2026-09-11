@@ -22,7 +22,7 @@ import { stableStringify } from '../qaScenario';
 import { playScan } from './playScan';
 import { CASE_TEMPLATES, planCases, type SkipReason } from './isolatedCases';
 import { checkMetamorphic, runVariantDiff } from './variantDiff';
-import { inSample, releaseBlockerFindings, runContractSweep, sampleRotation } from './contractOracle';
+import { chooseOneSummonBranch, inSample, releaseBlockerFindings, runContractSweep, sampleRotation } from './contractOracle';
 
 /** The PR-gate sample: ~1/3 of the driver-executable contracts per rotation (the full sweep is the
  *  docbot:contracts / nightly lane). Approved contracts always execute regardless of rotation. */
@@ -132,6 +132,30 @@ describe('contract oracle at scale — the deterministic gate sample', () => {
     }
     // Today the sampled laws all hold (reorder invariance, rune no-op, gilded delta, multiplier ×2).
     expect(fails).toEqual([]);
+  });
+});
+
+describe('contract oracle — Choose One summons (the nightly 15-night shaper disagreement, 2026-09-11)', () => {
+  const shaper = CONTRACTS.find((c) => c.contentId === 'shaper')!;
+
+  it('the shop-battlecry-summon driver ANSWERS the Choose One prompt with the summoning branch', () => {
+    expect(chooseOneSummonBranch('shaper', 'stray')).toBe(1); // branch 2 of the def, 0-indexed
+    expect(chooseOneSummonBranch('shaper', 'cryptwolf')).toBe(-1);
+    const r = runContractSweep({ contracts: [shaper], corroboration: { playScanResult: scan } });
+    const obs = r.observations.find((o) => o.contractId === 'shaper' && o.path === 'effects.1.summons.count.plain');
+    expect(obs, 'the plain summon count must be OBSERVED (driver executed), not skipped').toBeDefined();
+    expect(obs!.observed).toBe(1);
+    expect(r.mismatches.filter((m) => m.contractId === 'shaper')).toEqual([]);
+  });
+
+  it('SABOTAGE: a doctored Choose One summon count still disagrees — the branch pick did not silence the oracle', () => {
+    const doctored = structuredClone(shaper);
+    doctored.effects![1]!.summons!.count.plain = 2; // the engine summons ONE Stray on the plain body
+    const r = runContractSweep({ contracts: [doctored], corroboration: { playScanResult: scan } });
+    const m = r.mismatches.find((x) => x.contractId === 'shaper' && x.path === 'effects.1.summons.count.plain');
+    expect(m).toBeDefined();
+    expect(m!.expected).toBe(2);
+    expect(m!.observed).toBe(1);
   });
 });
 

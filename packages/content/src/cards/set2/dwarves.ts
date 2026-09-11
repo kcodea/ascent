@@ -202,9 +202,10 @@ export const SET2_DWARVES: CardDef[] = [
     keywords: ['RL'],
     // Owner 2026-08-11: 3 → 2 recipients, and it can no longer feed OTHER Lieutenant Thanes (the id is
     // excluded in `rallyGiveAttackToOthers`) — so two Thanes don't pump each other into a runaway loop.
+    // Owner 2026-09-10 (R-TARGET-02): that is "DIFFERENT" — no copy of the same-named card — so the text says so.
     effects: [{ on: 'onAttack', do: 'rallyGiveAttackToOthers', params: { count: 2, excludeId: 'dw_thane' } }],
-    text: "**Rally:** give this minion's **Attack** to **2 other** friendly minions.",
-    goldenText: "**Rally:** give this minion's **Attack** to **2 other** friendly minions **twice**.",
+    text: "**Rally:** give this minion's **Attack** to **2 different** friendly minions.",
+    goldenText: "**Rally:** give this minion's **Attack** to **2 different** friendly minions **twice**.",
   },
   {
     // `bonusEmbersNextTurn` already existed and is paid at turn start — no new run state was needed after all.

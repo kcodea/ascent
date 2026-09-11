@@ -1186,4 +1186,30 @@ export const APPROVED_RULES: GameRule[] = [
       + 'Before this the channel was one anonymous pair relabelled "Staff of Guel" at buy time.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/docbot/conservationLaws.test.ts', 'packages/ui/src/tallyCoverage.test.ts'], lastVerifiedAt: '2026-09-10' },
   },
+  {
+    id: 'R-TARGET-02',
+    title: '"other" / "another" excludes only this body; "different" excludes every copy of the same-named card',
+    statement:
+      'When an effect\'s printed text says "other" or "another", the source INSTANCE is ineligible and nothing else '
+      + 'is — a same-named copy is a legal target (exclude by uid). When it says "different", NO copy of the '
+      + 'same-named card is eligible, the source included (exclude by card identity). Lieutenant Thane\'s Rally and '
+      + 'Menagerie Mammoth\'s Echo are "different"; Hank Pepe, Hoard Cleric, Better Bot, the Chef and the Chipper '
+      + 'Sticker are "other". A Discover triggered by playing a card never offers that card itself, and needs no '
+      + 'qualifier for it — "Discover" carries the exclusion on its own.',
+    domain: 'targeting',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-10 (vocabulary ruling)', quote: 'other/another means that that same named card can be targeted, but the effect cannot target the card itself. different means that the effect cannot target any copy of the same named card.' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-10 (the calls)', quote: 'thane should say different. menagerie mammoth should say different. the sea urchin/joker etc is slightly different. discovers shouldnt offer themselves as options and dont need the different terminology as of now.' },
+      { kind: 'code', ref: 'packages/core/src/effects/arena.ts (friends() + uid filters; rallyGiveAttackToOthers excludeId); packages/core/src/effects/factories.ts deathrattleSummonRandomTribe (excludeSelf = card identity); packages/sim/src/recruit.ts battlecryDiscoverMinion (exclude: self.cardId)' },
+    ],
+    contentIds: ['dw_thane', 'b2_mammoth', 'dw3_hankpepe', 'seaurchin'],
+    currentBehaviour:
+      'Conforms — 2026-09-10: the audit found every "other"/"another" text excluding by uid (19 of 21) and two '
+      + 'excluding by card identity (Thane, Mammoth); those two texts now print "different". The Discover-on-play '
+      + 'family (Sea Urchin, Joker, Wayfinder, Clockwork, Jeweler, Cage Breaker) excludes its own card without a '
+      + 'printed qualifier, by ruling. Note `excludeSelf` means uid in onSpellCastBuffRandomTribe and card identity '
+      + 'in deathrattleSummonRandomTribe — the pinning test names both so the overload cannot drift silently.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/targetVocabulary.test.ts'], lastVerifiedAt: '2026-09-10' },
+  },
 ];

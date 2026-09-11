@@ -135,9 +135,10 @@ export const SET2_BEASTS: CardDef[] = [
     attack: 7,
     health: 4,
     keywords: [],
+    // Owner 2026-09-10 (R-TARGET-02): the pool drops EVERY Mammoth card, not just this body — that is "DIFFERENT".
     effects: [{ on: 'onDeath', do: 'deathrattleSummonRandomTribe', params: { tribe: 'beast', count: 3, excludeSelf: true } }],
-    text: '**Echo:** summon **3** random other **Beasts**.',
-    goldenText: '**Echo:** summon **6** random other **Beasts**.',
+    text: '**Echo:** summon **3** random different **Beasts**.',
+    goldenText: '**Echo:** summon **6** random different **Beasts**.',
   },
   {
     // Reuses Solaris Fang's `avengeShieldAttack` verbatim — Ward + an immediate out-of-turn strike every 4

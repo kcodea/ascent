@@ -27,7 +27,7 @@
  * Sabotage (§4.5): the comparator and the metamorphic laws are data-in/data-out, so contractOracle.test.ts
  * doctors a contract amount, a gilded delta, and a reorder measurement and proves each is detected.
  */
-import { combatSide, makeRng, simulate, type BoardMinion } from '@game/core';
+import type { BoardMinion } from '@game/core';
 // Static JSON import (never node:fs): this module rides @game/sim's public entrypoint into the web bundle,
 // so fixture loading must be bundler-safe (the D-2 trap contractExtract.ts documents).
 import plainCopyFixtureJson from './scenarios/avenge-window-plain-copy.json';
@@ -49,23 +49,19 @@ import {
 } from './isolatedCases';
 import { checkMetamorphic, type MetamorphicCheck, type VariantRelation } from './variantDiff';
 import { makeFinding, type DocbotFinding } from './findings';
+import { bm, fight, FILLER, type DriverCtx, type Sim } from './drivers/shared';
+import { FAMILY_DRIVERS, type FamilyDriverId } from './drivers/families';
+import { driveStatGrant } from './drivers/statGrant';
+import { driveCardGrant } from './drivers/cardGrant';
+import { driveEconomy } from './drivers/economy';
+import { driveKeywordGrant } from './drivers/keywordGrant';
+import { driveEquipment } from './drivers/equipment';
+import { driveVanillaBody } from './drivers/vanillaBody';
+import { driveActivation } from './drivers/activation';
 
 export const CONTRACT_LANE = 'contract-oracle';
 
-// ── fixture helpers (the slice's combat harness pattern) ──────────────────────────────────────────────────
-
-const ALL_TRIBES = ['beast', 'dragon', 'undead', 'mech', 'demon', 'kobold', 'dwarf'];
-
-const bm = (cardId: string, attack: number, health: number, extra: Partial<BoardMinion> = {}): BoardMinion =>
-  ({ cardId, attack, health, keywords: [], ...extra });
-
-type Sim = ReturnType<typeof simulate>;
-
-function fight(player: BoardMinion[], enemy: BoardMinion[], mods: Record<string, unknown> = {}, seed = 1): Sim {
-  return simulate(player, enemy, makeRng(seed), CARD_INDEX,
-    combatSide({ tier: 6, tribes: ALL_TRIBES, questMods: mods } as never),
-    combatSide({ tier: 1 }));
-}
+// ── fixture helpers: `bm` / `fight` / `FILLER` now live in drivers/shared.ts (shared with the family drivers) ──
 
 /** Player-side summon EVENTS of one token id, off the authoritative log. */
 const summonEventsOf = (r: Sim, cardId: string): Array<{ golden?: boolean }> =>
@@ -121,7 +117,9 @@ export interface ExecutedCase {
   driver: string;
   /** One human-verifiable line: the fixture and what was counted. */
   evidence: string;
-  /** Present when the case fired nothing observable (recorded, never a silent pass — §4.3). */
+  /** Present when the case fired nothing observable. Such a record is NOT an execution: the accounting
+   *  counts it as a 'runtime-unobserved' SKIP (the evidence is kept so the reader sees what was staged) —
+   *  a case the driver could not observably run is a typed skip, never a silent pass (§4.3). */
   unobserved?: string;
 }
 
@@ -194,14 +192,16 @@ export function laneCitations(c: ContentContract): ContractAspectVerdict[] {
 
 // ── drivers ───────────────────────────────────────────────────────────────────────────────────────────────
 
-interface DriverCtx {
-  obs: (contractId: string, path: string, observed: ContractObservation['observed'], evidence: string) => void;
-  executed: ExecutedCase[];
-  metamorphic: MetamorphicCheck[];
-  limitChecks: ContractSweepReport['limitChecks'];
-}
-
-const FILLER = (): BoardMinion => bm('sandbag', 0, 50);
+/** The family dispatch table (2026-09-11) — one driver per CLAIM FAMILY, keyed by the planner's driver id. */
+const FAMILY_DISPATCH: Record<FamilyDriverId, (c: ContentContract, plan: CasePlan, ctx: DriverCtx) => void> = {
+  'stat-grant': driveStatGrant,
+  'card-grant': driveCardGrant,
+  economy: driveEconomy,
+  'keyword-grant': driveKeywordGrant,
+  equipment: driveEquipment,
+  'vanilla-body': driveVanillaBody,
+  activation: driveActivation,
+};
 
 function driveDeathSummon(c: ContentContract, plan: CasePlan, ctx: DriverCtx): void {
   const d = deathSummonEffect(c)!;
@@ -489,6 +489,7 @@ export function runContractSweep(opts: ContractSweepOptions): ContractSweepRepor
     if (drivers.has('shop-battlecry-summon')) driveShopBattlecrySummon(c, plan, ctx);
     if (drivers.has('copy-policy')) driveCopyPolicy(c, plan, ctx, semanticRevision);
     if (drivers.has('gilded-shape')) driveGildedShape(c, ctx);
+    for (const fam of FAMILY_DRIVERS) if (drivers.has(fam)) FAMILY_DISPATCH[fam](c, plan, ctx);
   }
 
   // Compare every observation against its contract (the frozen comparator judges — §4.5).
@@ -548,16 +549,18 @@ export function runContractSweep(opts: ContractSweepOptions): ContractSweepRepor
   // Template totals + skip histogram (the honesty counters).
   const templateTotals = Object.fromEntries(CASE_TEMPLATES.map((t) => [t, { applicable: 0, executed: 0, skipped: 0 }])) as Record<CaseTemplateId, TemplateTotals>;
   const skippedByReason: Record<string, number> = {};
-  // "Executed" is counted from what the drivers actually RAN — never from the plan (a planned case a
-  // driver could not observably run at runtime is a skip, not an execution).
-  const ranCases = new Set(ctx.executed.map((e) => `${e.contractId}|${e.template}`));
+  // "Executed" is counted from what the drivers actually RAN AND OBSERVED — never from the plan: a planned
+  // case a driver could not observably run at runtime (an `unobserved` record) is a 'runtime-unobserved'
+  // skip, not an execution. A template is counted once per contract even when several family drivers plan it
+  // (a Shout that buffs AND grants a spell is one 'plain' case with two measurements, not two cases).
+  const ranCases = new Set(ctx.executed.filter((e) => !e.unobserved).map((e) => `${e.contractId}|${e.template}`));
   for (const p of plans) {
     const sampled = sampledIds.has(p.contractId);
-    for (const pc of p.cases) {
-      templateTotals[pc.template].applicable += 1;
-      if (ranCases.has(`${p.contractId}|${pc.template}`)) templateTotals[pc.template].executed += 1;
+    for (const template of new Set(p.cases.map((x) => x.template))) {
+      templateTotals[template].applicable += 1;
+      if (ranCases.has(`${p.contractId}|${template}`)) templateTotals[template].executed += 1;
       else {
-        templateTotals[pc.template].skipped += 1; // still counted, never hidden
+        templateTotals[template].skipped += 1; // still counted, never hidden
         skippedByReason[sampled ? 'runtime-unobserved' : 'sampled-out-this-rotation']
           = (skippedByReason[sampled ? 'runtime-unobserved' : 'sampled-out-this-rotation'] ?? 0) + 1;
       }

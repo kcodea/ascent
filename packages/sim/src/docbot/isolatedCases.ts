@@ -16,11 +16,19 @@
  *  · copy-policy           — stated copyPolicy.mode, via the checked-in QaScenarioV1 copy fixtures and the
  *                            reducer hero-power probe (the slice's xerox measurement, generalized).
  *
+ *  · FAMILY DRIVERS (2026-09-11, drivers/*.ts) — keyed by CLAIM SHAPE, not object: 'stat-grant' (+A/+H on
+ *    any stageable trigger), 'card-grant' (a named card / N cards / N summons arrive), 'economy' (a Gold /
+ *    max-Gold / Armor / refresh magnitude), 'keyword-grant' (activation), 'equipment' (the Set 3 `equip`
+ *    grant), 'vanilla-body' (the "no effects" claim vs a vanilla control). `drivers/families.ts` is the pure
+ *    classifier both this planner and the drivers read.
+ *
  * Everything else stays visible: curated slice subjects whose probes already gate in verticalSlice.test.ts
  * are 'covered-by-slice-oracle'; runes/quests/hero-powers point at their citing lanes; unmatched shapes are
- * 'no-driver-for-shape' — the WP D burn-down list, not a pass.
+ * 'no-driver-for-shape' — the WP D burn-down list, not a pass — and the skip detail now names the amount
+ * keys (`every`, `step`, `improve`, …) or the un-stageable trigger that kept the contract out of every family.
  */
 import type { ContentContract } from '@game/rules/contracts/schema';
+import { familiesOf, gildFactor, statesMagnitude, undrivenDetail, type FamilyDriverId } from './drivers/families';
 
 /** The §10.1 templates this planner reasons about (the WP D brief's minimum set). */
 export type CaseTemplateId =
@@ -39,7 +47,7 @@ export const CASE_TEMPLATES: readonly CaseTemplateId[] = [
   'plain', 'gilded', 'trigger-multiplier', 'once-per-x-unused', 'once-per-x-used',
 ];
 
-export type DriverId = 'combat-death-summon' | 'avenge-threshold' | 'shop-battlecry-summon' | 'copy-policy' | 'gilded-shape';
+export type DriverId = 'combat-death-summon' | 'avenge-threshold' | 'shop-battlecry-summon' | 'copy-policy' | 'gilded-shape' | FamilyDriverId;
 
 /** Typed skip reasons (§4.3 — a skip is DATA, never silence). */
 export type SkipReason =
@@ -50,6 +58,7 @@ export type SkipReason =
   | 'board-cap-would-clip' // the 7-slot cap would truncate the measurement (ambiguous count)
   | 'gilded-not-declared' // contract states no gilded magnitude (authored goldenText → reshape, or none)
   | 'contract-states-no-targets' // no targets claim to compare against (extracted contracts rarely state one)
+  | 'contract-states-no-magnitude' // activation was driven, but the contract states no number a magnitude could be compared to
   | 'no-limit-declared' // no once-per-X limit stated on the contract
   // ── the 2026-08-28 gilding-kind skips: each names WHY this contract's gild is not a countable ×N ────────
   | 'gild-not-applicable' // R-GILD-02: the object can never BE gilded (spell / Ruby). Skipped WITH the reason.
@@ -202,9 +211,43 @@ export function planCases(c: ContentContract): CasePlan {
     else cases.push({ template: 'gilded', driver: 'shop-battlecry-summon' });
   }
 
+  // ── the family drivers (2026-09-11): a contract no object-shape driver claimed is planned by CLAIM FAMILY ──
   if (cases.length === 0 && skipped.length === 0) {
-    skip('minimum-activation', 'no-driver-for-shape',
-      `triggers [${(c.triggers ?? []).map((t) => t.event).join(', ') || 'none'}] · effects [${(c.effects ?? []).map((e) => e.kind).join(', ') || 'none'}]`);
+    const fams = familiesOf(c);
+    const gild = gildFactor(c);
+    // A Choose One body resolves ONE branch — and a gilded `chooseBothWhenGolden` body resolves both — so a
+    // plain-vs-gilded ×factor law would sum two branches. Typed, not owned.
+    const chooseOne = (c.tags ?? []).includes('choose-one');
+    if (fams.length && chooseOne && gild) skip('gilded', 'gild-shape-not-countable', 'Choose One: a gilded body may resolve both branches, so no single ×factor describes its gild');
+    for (const fam of fams) {
+      if (fam === 'vanilla-body') {
+        cases.push({ template: 'plain', driver: fam });
+        if (gild) cases.push({ template: 'gilded', driver: fam });
+        continue;
+      }
+      cases.push({ template: 'minimum-activation', driver: fam });
+      if (fam === 'activation') {
+        // The control-body differential proves the effect ACTS; its magnitude stays a typed skip — the
+        // scaler keys are named so the burn-down list says what a magnitude driver would have to understand.
+        if (statesMagnitude(c)) skip('plain', 'no-driver-for-shape', `magnitude not comparable by a family driver · ${undrivenDetail(c)}`);
+        else skip('plain', 'contract-states-no-magnitude', `effects [${(c.effects ?? []).map((e) => e.kind).join(', ')}] state no numeric claim`);
+        if (gild && !skipped.some((x) => x.template === 'gilded')) skip('gilded', 'gild-shape-not-countable', 'the activation family measures no magnitude to multiply');
+        continue;
+      }
+      if (fam === 'keyword-grant') {
+        // A keyword has no ×2 — the gilded template is typed, not owned (only where a gild is even declared).
+        if (gild && !skipped.some((x) => x.template === 'gilded')) skip('gilded', 'gild-shape-not-countable', 'a keyword grant has no countable ×factor');
+        continue;
+      }
+      cases.push({ template: 'plain', driver: fam });
+      if (gild && !chooseOne) cases.push({ template: 'gilded', driver: fam });
+    }
+    if (fams.length === 0) {
+      const why = undrivenDetail(c);
+      skip('minimum-activation', 'no-driver-for-shape',
+        `triggers [${(c.triggers ?? []).map((t) => t.event).join(', ') || 'none'}] · effects [${(c.effects ?? []).map((e) => e.kind).join(', ') || 'none'}]`
+        + (why ? ` · ${why}` : ''));
+    }
   }
 
   // ── the gilding aspect (owner rulings 2026-08-28) ──────────────────────────────────────────────────────

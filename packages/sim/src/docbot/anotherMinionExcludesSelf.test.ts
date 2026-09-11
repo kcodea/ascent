@@ -39,7 +39,9 @@ import type { CardDef } from '@game/core';
  */
 
 /** The wording that creates the separation. Deliberately narrow — "the other side" is not this rule. */
-const SEPARATION = /\b(another|other)\b/i;
+// "different" (R-TARGET-02, owner 2026-09-10) is the STRICTER separation — no copy of the same-named card, the
+// source included — so it is a separation word here too; the uid-vs-identity axis is pinned in targetVocabulary.test.ts.
+const SEPARATION = /\b(another|other|different)\b/i;
 
 /** Text fields a promise can be printed in. Choose One branches carry their own. */
 function textsOf(def: CardDef): string[] {

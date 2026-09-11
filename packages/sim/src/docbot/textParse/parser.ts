@@ -59,7 +59,7 @@ function targetPhrase(s: string): { target: ParsedTarget; len: number } | null {
   if (m) {
     return { target: { cardinality: 'all', scope: `your-${m[2]!.toLowerCase().replace(/\s+/g, '-')}`, friendly: true }, len: m[0].length };
   }
-  m = new RegExp(`^(${COUNT_RE}) (random )?(other )?(friendly )?(${TRIBE_WORDS})\\b`).exec(s);
+  m = new RegExp(`^(${COUNT_RE}) (random )?(other |different )?(friendly )?(${TRIBE_WORDS})\\b`).exec(s);
   if (m) {
     return {
       target: {

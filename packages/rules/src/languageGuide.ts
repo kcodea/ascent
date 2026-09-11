@@ -26,7 +26,7 @@ import type { RuleEvidence } from './schema';
 export const LANGUAGE_GUIDE_VERSION = 1;
 
 export type LanguageGuideTopic =
-  | 'multiplier-wording' // how extra fires are printed
+  | 'targeting-wording' | 'multiplier-wording' // how extra fires are printed
   | 'copy-wording' // plain vs exact copies
   | 'counter-wording' // live values + countdowns (the CLAUDE.md live-text rule's wording half)
   | 'keyword-wording' // keyword display names + phrasing
@@ -230,6 +230,17 @@ export const LANGUAGE_GUIDE: LanguageGuideEntry[] = [
     rule: 'Verb roles: "buy"/"sell" are Shop transactions; "play" moves a card from hand; "cast" is for spells only; "summon" puts a minion into play without playing it; "get"/"add" acquire cards ("add … to your hand" when the destination matters).',
     example: '"When you buy a minion, …" · "Cast Lasso." · "Summon a Footman." · "get a random Tier 1 minion."',
     evidence: [survey('the five verb roles are consistent across the corpus (get ×143, cast/play/summon/buy/sell each in role)')],
+    status: 'seeded',
+  },
+  {
+    id: 'LG-TARGET-01',
+    topic: 'targeting-wording',
+    rule: '"other" / "another" excludes only THIS body — a same-named copy is still a legal target. "different" excludes every copy of the same-named card. Use "different" whenever the implementation filters by card identity; "other" whenever it filters by instance. A Discover triggered by playing a card never offers that card and prints no qualifier for it (R-TARGET-02).',
+    example: 'Hank Pepe: "give 3 other Dwarves +1/+1" (a second Hank Pepe may receive it) · Lieutenant Thane: "2 different friendly minions" (never another Thane) · Menagerie Mammoth: "3 random different Beasts".',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-10 (vocabulary ruling; R-TARGET-02)' },
+      survey('21 targeting uses of other/another in live text; 19 exclude by instance, 2 (Thane, Mammoth) by card identity — those two now print "different"'),
+    ],
     status: 'seeded',
   },
   {

@@ -122,7 +122,9 @@ export function parsePrintedSummon(text: string): PrintedSummon | null {
   if (/^random\s+/i.test(rest)) { random = true; rest = rest.replace(/^random\s+/i, ''); }
   if (/^(gilded|golden)\s+/i.test(rest)) { printed.goldenToken = true; rest = rest.replace(/^(gilded|golden)\s+/i, ''); }
   if (/^random\s+/i.test(rest)) { random = true; rest = rest.replace(/^random\s+/i, ''); }
-  if (/^other\s+/i.test(rest)) rest = rest.replace(/^other\s+/i, '');
+  // "other" (this body excluded) and "different" (every same-named copy excluded — R-TARGET-02) are both
+  // exclusion words, not part of the token name.
+  if (/^(other|different)\s+/i.test(rest)) rest = rest.replace(/^(other|different)\s+/i, '');
 
   const sm = /^(\d+)\/(\d+)\s+/.exec(rest);
   if (sm) { printed.stats = { attack: Number(sm[1]), health: Number(sm[2]) }; rest = rest.slice(sm[0].length); }

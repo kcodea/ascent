@@ -67,6 +67,10 @@ export const PATCH_NOTES: PatchNote[] = [
         ],
       },
       {
+        category: 'Card Change',
+        text: 'Wording: "other" now always means a same-named copy can still be targeted, and "different" means no copy of that card can. Lieutenant Thane and Menagerie Mammoth read "different" to match what they already do.',
+      },
+      {
         category: 'Hero Change',
         text: 'Adopting a hero power (Mimic, Void, Power Shifter) now runs the Gild check immediately. A held pair gilds the moment Midas Touch lands, and a gift card from the new power combines on arrival.',
       },

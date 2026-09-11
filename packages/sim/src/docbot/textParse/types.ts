@@ -68,9 +68,37 @@ export interface ParsedEffect {
     | 'keyword-line' // a bare keyword sentence ("Taunt. Ward.")
     | 'multiplier-print' // "Your X effects trigger twice / an additional time"
     | 'trigger-other' // "trigger your left-most Echo"
-    | 'attack-immediately'; // "attacks immediately"
+    | 'attack-immediately' // "attacks immediately"
+    // ── grammar growth 2026-09-11 (the histogram-driven families; see docs/devlog/2026-09-11-docbot-text-parser-coverage.md)
+    | 'stat-transfer' // "give this minion's Attack to 2 friendly minions" / "gains its stats" / "50% of this minion's stats"
+    | 'stat-multiply' // "double its stats" / "triple its Health" (amount.value = factor)
+    | 'set-stats' // "Set a minion's stats to 20/20" / "set its Health to 1"
+    | 'cast-ruby' // "cast 2 Rubies on your minions" (amount.value = printed Ruby count)
+    | 'consume' // "It Consumes a minion in the Shop" (subject = the eater, target = the eaten, summonCount = how many)
+    | 'gain-refresh' // "gain a free refresh" (amount.value = count)
+    | 'refresh' // "Refresh the Shop"
+    | 'cost-mod' // "Shop spells cost 1 less" / "Sells for 2 Gold" / "Costs 11 Gold, reduced by 1 each turn"
+    | 'improvement' // "Improves +3/+3 every 3 Beasts summoned" (amount = the step; cadence = the countdown)
+    | 'repeat' // "Repeat every Start of Turn" / "Repeat for every Dragon you control"
+    | 'token-body' // "A 1/1 Beast token." (amount = printed stats; keywords carried)
+    | 'action' // a recognized game verb over a target: steal / swap / destroy / sell / transform / return / gild / magnetize / mark / archive / scout / remove-keyword / visit-forge / invest / roll / remember / keep
+    | 'choose-target' // "Choose a friendly minion." / "Target a Demon."
+    | 'grant-ability' // "Your Gemheart Golems gain Echo: …" (refName = the granted trigger word; the body parses on)
+    | 'choose-both' // "gains both effects" / "give both Choose One effects"
+    | 'also-cast' // "It also casts on a random friendly minion" / "also casts on adjacent Dragons"
+    | 'note'; // a recognized rules note that carries no magnitude ("Needs a free board slot.", "Progress carries between turns.")
   amount?: ParsedAmount;
   target?: ParsedTarget;
+  /** The SUBJECT of a subject-first sentence ("your left-most minion attacks immediately", "Your Rubies gain
+   *  +1 Attack") — who performs the effect, as distinct from `target` (who receives it). */
+  subject?: ParsedTarget;
+  /** A printed per-N scaler attached to this effect ("for each Spirit you played this turn", "per Gold spent
+   *  this turn", "plus +1/+1 for each Dragon you played this turn"). */
+  scaler?: ParsedScaler;
+  /** An improvement / repeat cadence ("every 3 Beasts summoned" → { every: 3, of: 'Beasts summoned' }). */
+  cadence?: ParsedCadence;
+  /** 'action' / 'note' / 'cost-mod': the normalized verb or note id ('steal', 'gild', 'room-required', 'free', …). */
+  action?: string;
   /** Named card/spell/token id when the text names one and it resolves ('spiritfire', 'pup', …). */
   refId?: string;
   /** Raw referenced name when it did NOT resolve to a card id. */
@@ -85,8 +113,23 @@ export interface ParsedEffect {
   span: TextSpan;
 }
 
+/** "for each X" / "for every N X" / "per X" — a printed scaler. `amount` is the per-step magnitude when the
+ *  text prints one separately ("plus +1/+1 for each …"); `every` the N in "for every 3 Gold". */
+export interface ParsedScaler {
+  per: string;
+  every?: number;
+  amount?: ParsedAmount;
+  span: TextSpan;
+}
+
+/** "every 3 Beasts summoned" / "each time it triggers" / "every Start of Turn". */
+export interface ParsedCadence {
+  every?: number;
+  of: string;
+}
+
 export interface ParsedLimit {
-  kind: 'once-per' | 'times-per' | 'max-n' | 'first-n' | 'up-to-n';
+  kind: 'once-per' | 'times-per' | 'max-n' | 'first-n' | 'up-to-n' | 'next-n';
   n?: number;
   per?: 'turn' | 'combat' | 'game' | 'run' | 'shop';
   span: TextSpan;
@@ -121,6 +164,15 @@ export interface ParsedTextContract {
   unresolvedPhrases: TextSpan[];
   /** Keyword letters granted by bare keyword sentences ("Taunt. Ward."). */
   keywordLine: string[];
+  /** Printed conditions the parse recognized and consumed ("If it is a Dragon,", "if you control a Spirit,",
+   *  "While on your board,"). Recorded, never compared — a condition is a claim the object makes. */
+  conditions: TextSpan[];
+  /** Every scaler the text prints (also attached to its effect). */
+  scalers: ParsedScaler[];
+  /** Modifier tails the parse consumed AFTER an effect ("permanently", "this combat", "before this attacks",
+   *  "(max 3)") — listed so a consumed span is never silently dropped (§4.3): everything the grammar read is
+   *  visible either as a claim or here. */
+  consumedModifiers: TextSpan[];
   /** True ⇔ unresolvedPhrases is empty. The ONLY flag `parsed-equivalent` may build on. */
   fullyParsed: boolean;
   /** The stripped text the spans index into. */
@@ -159,6 +211,7 @@ export type MismatchTaxonomyId =
 /** The detectors WP E actually ships (§11.2 "implement what the parse can honestly support"). */
 export const IMPLEMENTED_TAXONOMY: readonly MismatchTaxonomyId[] = [
   'wrong-amount',
+  'wrong-target-count',
   'wrong-generated-card',
   'wrong-summon-count',
   'wrong-trigger',

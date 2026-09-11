@@ -20,6 +20,63 @@
 import type { ContentContract } from '../schema';
 
 export const CURATED_CONTRACTS: readonly ContentContract[] = [
+  // ── 2026-09-11 — three extractor draft gaps surfaced by the text parser's coverage pass ────────────────────
+  // Each was a `verified-mismatch` the moment its text parsed fully; investigation found the TEXT right and the
+  // EXTRACTED contract incomplete (an engine flag or a golden-text diff the extractor cannot read). Curated so the
+  // contract states what the card does; reviewStatus stays 'extracted' (no owner ruling — §4.2).
+  {
+    contentId: 'brood',
+    contentType: 'minion',
+    revision: 1,
+    reviewStatus: 'extracted',
+    setIds: ['set1'],
+    tier: 3,
+    tribes: ['demon'],
+    tags: ['tier:3'],
+    triggers: [
+      { event: 'onDeath', phase: 'both', phaseBasis: 'authored', note: 'Each time a friend dies (onFriendDeathSummon)' },
+      { event: 'avenge', phase: 'combat', phaseBasis: 'authored', threshold: 3 },
+    ],
+    effects: [
+      { kind: 'onFriendDeathSummon', amount: { kind: 'const', plain: { max: 3 } }, refs: ['impscrap'] },
+      { kind: 'avengeBuffImps', amount: { kind: 'const', plain: { attack: 1, health: 1 }, gilded: { attack: 2, health: 2 } } },
+    ],
+    gildedDelta: {
+      kind: 'reshape',
+      basis: 'authored',
+      description: 'the gild doubles ONLY the Avenge buff (+1/+1 → +2/+2); the per-death Imp summon stays 1 (max 3) in both bodies — the extractor read the golden-text diff as a whole-card ×2 (text-parse draft-contract gap, 2026-09-11)',
+    },
+    textContract: { source: 'index' },
+  },
+  {
+    contentId: 'cling',
+    contentType: 'minion',
+    revision: 1,
+    reviewStatus: 'extracted',
+    setIds: ['set1'],
+    tier: 2,
+    tribes: ['mech'],
+    keywords: ['M'],
+    tags: ['tier:2'],
+    triggers: [{ event: 'onMagnetize', phase: 'shop', phaseBasis: 'authored', note: 'engine special-case keyed on the card id, not an EffectDef (recruit.ts / reducer.ts)' }],
+    effects: [{ kind: 'cling-drone-swarm', amount: { kind: 'const', plain: { attack: 1, health: 1 } }, targets: { cardinality: 'all', scope: 'your-cling-drones' }, note: 'def.effects is [] — the behaviour is an id-keyed engine path the extractor cannot see (text-parse draft-contract gap, 2026-09-11)' }],
+    gildedDelta: { kind: 'multiply', factor: 2, basis: 'derived:default', description: 'default gilded doubling of printed numbers (the owner\'s safe baseline)' },
+    textContract: { source: 'index' },
+  },
+  {
+    contentId: 'k3_porkbelly',
+    contentType: 'minion',
+    revision: 1,
+    reviewStatus: 'extracted',
+    setIds: ['set3'],
+    tier: 7,
+    tribes: ['kobold'],
+    tags: ['tier:7'],
+    triggers: [{ event: 'onAttack', phase: 'combat', phaseBasis: 'authored', note: 'Before this attacks — the `vanguardGolem` def flag, read by simulate.ts, not an EffectDef' }],
+    effects: [{ kind: 'vanguard-golem', summons: { cardId: 'gemheart-shard', count: { plain: 1, gilded: 1 } }, note: 'summons a 1/1 (gilded 2/2) Gemheart Golem carrying this minion\'s Rubies (doubled when gilded) that attacks first; def.effects is [] — the flag path is invisible to the extractor (text-parse draft-contract gap, 2026-09-11)' }],
+    gildedDelta: { kind: 'reshape', basis: 'authored', description: 'the gild changes the Golem body (1/1 → 2/2) and doubles the carried Rubies; the count stays 1' },
+    textContract: { source: 'index' },
+  },
   {
     contentId: 'wolvesden',
     contentType: 'minion',

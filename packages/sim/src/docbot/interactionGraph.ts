@@ -78,6 +78,7 @@ export const CHANNEL_OF_TRIGGER: Readonly<Record<string, string>> = {
   battlecryTriggered: 'play',
   cardsPlayed: 'play',
   onTribePlayed: 'play', // set 3 Spirits: a Spirit played from hand — the same channel as every other play watcher
+  onMagnetize: 'play', // a Magnetic attaches when it is PLAYED onto a Mech — the curated Cling Drone contract's trigger (2026-09-11)
   chooseOnePlayed: 'play',
   cast: 'spell-cast',
   spellCast: 'spell-cast',

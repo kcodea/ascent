@@ -486,6 +486,16 @@ export const RETIRED_RULES: RetiredRule[] = [
     retiredAt: '2026-09-09',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/handGainInCombat.test.ts'], lastVerifiedAt: '2026-09-09' },
   },
+  {
+    id: 'q-word-lg-keyword-01',
+    why:
+      'OWNER APPROVED 2026-08-28 (Sitting-3 wording deck): the shield keyword prints "Ward" everywhere. The last '
+      + '"Divine Shield" text (Selfless Sentinel) was updated on 2026-09-10, so the corpus is consistent and the '
+      + 'question self-retired from pendingWording.generated.ts on the next `npm run docbot:text` (2026-09-11). The '
+      + 'canon stays enforced by the LG-KEYWORD-01 predicate the rewrite advisor runs (textParse lane).',
+    retiredAt: '2026-09-11',
+    enforcement: { kind: 'oracle', refs: ['textParse'], lastVerifiedAt: '2026-09-11' },
+  },
 ];
 
 export const RETIRED_IDS: ReadonlySet<string> = new Set(RETIRED_RULES.map((r) => r.id));

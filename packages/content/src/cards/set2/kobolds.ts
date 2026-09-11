@@ -187,8 +187,10 @@ export const SET2_KOBOLDS: CardDef[] = [
     health: 6,
     keywords: [],
     effects: [{ on: 'rubyCast', do: 'rubyCastConsumeShop', params: { every: 3 } }],
-    text: 'When you cast **3 spells**, Consume a minion in the Shop.',
-    goldenText: 'When you cast **3 spells**, Consume **2 minions** in the Shop.',
+    // Text fixed 2026-09-11 (text-parse lane): the factory counts RUBY casts (`on: 'rubyCast'`), not spells — the
+    // printed "3 spells" was a verified text defect against the engine (docs/devlog/2026-09-11-docbot-text-parser-coverage.md).
+    text: 'When you cast **3 Rubies**, Consume a minion in the Shop.',
+    goldenText: 'When you cast **3 Rubies**, Consume **2 minions** in the Shop.',
   },
   {
     // Taunt + Echo (combat Deathrattle): on death, play a Ruby on each adjacent minion (permanent carry-back).

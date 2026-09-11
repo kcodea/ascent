@@ -86,7 +86,11 @@ export interface TriggerLexeme {
 
 /** Leading trigger prefixes ("Shout:", "Avenge (3):", "Every 2 turns:"). Both display vocabularies are
  *  mapped — Shout/Battlecry and Echo/Deathrattle each resolve to the one engine event; WHICH display is
- *  canon is a Sitting-3 question, not a parser opinion. */
+ *  canon is a Sitting-3 question, not a parser opinion.
+ *
+ *  Event ids are the content `on` vocabulary where one exists (so classify.ts can compare them against the
+ *  contract's trigger claims); a `text:` id names a printed trigger the engine has no `on` word for — it is
+ *  CONSUMED (the sentence is read) but never compared. Group 1, when present, is a numeric threshold. */
 export const TRIGGER_LEXICON: readonly TriggerLexeme[] = [
   { re: /^Shout and Echo\s*[:：]/, event: 'onPlay+onDeath', display: 'Shout and Echo' },
   { re: /^Shout\s*[:：]/, event: 'onPlay', display: 'Shout' },
@@ -95,30 +99,94 @@ export const TRIGGER_LEXICON: readonly TriggerLexeme[] = [
   { re: /^Deathrattle\s*[:：]/, event: 'onDeath', display: 'Deathrattle' },
   { re: /^Start of [Cc]ombat(?:\s*—[^:]+)?\s*[:：]/, event: 'startOfCombat', display: 'Start of Combat' },
   { re: /^End of Turn\s*[:：]/, event: 'endOfTurn', display: 'End of Turn' },
+  { re: /^Start of (?:Turn|shop)\s*[:：]/, event: 'startOfTurn', display: 'Start of Turn' },
   { re: /^Rally\s*[:：]/, event: 'onAttack', display: 'Rally' },
   { re: /^Slaughter\s*[:：]/, event: 'onKill', display: 'Slaughter' },
   { re: /^Avenge \((\d+)\)\s*[:：]/, event: 'avenge', display: 'Avenge' },
   { re: /^Sell\s*[:：]/, event: 'onSell', display: 'Sell' },
+  // "Equip Comet (4):" — the Equipment trigger; the number is the charge count.
+  { re: /^Equip [A-Z][\w'’-]*(?: [A-Z][\w'’-]*)*(?: \((\d+)\))?\s*[:：]/, event: 'equip', display: 'Equip' },
   { re: /^Every (\d+) turns?[,:]?\s*/, event: 'everyNTurns', display: 'Every N turns' },
-  { re: /^Choose One\s*[:：]/, event: 'chooseOne', display: 'Choose One' },
+  { re: /^Choose One\s*(?:[:：]|—)\s*/, event: 'chooseOne', display: 'Choose One' },
+  // Calendar / phase prefixes (hero powers + runes).
+  { re: /^In (\d+) turns?[,:]\s*/, event: 'text:inNTurns', display: 'In N turns' },
+  { re: /^On turn (\d+),\s*/, event: 'text:onTurnN', display: 'On turn N' },
+  { re: /^At the start of the game,\s*/, event: 'text:startOfGame', display: 'At the start of the game' },
+  { re: /^At the start of every turn,\s*/, event: 'startOfTurn', display: 'At the start of every turn' },
+  { re: /^At the end of every (\d+)(?:st|nd|rd|th) turn,\s*/, event: 'everyNTurns', display: 'At the end of every Nth turn' },
+  { re: /^At the start of (?:next )?combat,\s*/, event: 'startOfCombat', display: 'At the start of combat' },
+  { re: /^Next combat,\s*/, event: 'startOfCombat', display: 'Next combat' },
+  { re: /^After combat,\s*/, event: 'text:afterCombat', display: 'After combat' },
+  { re: /^Before this attacks,\s*/, event: 'onAttack', display: 'Before this attacks' },
+  { re: /^Each turn,\s*/, event: 'startOfTurn', display: 'Each turn' },
+];
+
+/** "Every 3 Rubies you cast," / "Every 5 Gold spent," / "Every third refresh," — cadence prefixes whose subject
+ *  decides the event. Group 1 is the count (digits or an ordinal word); group 2 the subject clause. */
+export const CADENCE_PREFIX_RE = /^Every (\d+|third|5th|other)\s+([^,:]+?)[,:]\s*/;
+/** Cadence subject → event. Unmatched subjects stay `conditional:unknown` (an honest gap, not a guess). */
+export const CADENCE_LEXICON: ReadonlyArray<readonly [RegExp, string]> = [
+  [/^Gold (?:you )?spen[dt]$|^Gold spent$/i, 'goldSpent'],
+  [/^Rubies you cast$/i, 'rubyCast'],
+  [/^(?:Shop )?spells (?:you )?cast$/i, 'spellCast'],
+  [/^refresh(?:es)?$/i, 'shopRefreshed'],
+  [/^(?:ally )?attacks(?: in combat)?$/i, 'onAttack'],
+  [/^minions you buy$/i, 'onBuy'],
+  [/^(?:\w+ )?summoned$|^summons$/i, 'onSummon'],
+  [/^(?:\w+ )?Echo minion you play$/i, 'onTribePlayed'],
 ];
 
 /** Conditional ("When/Whenever/After …,") clause → event, matched against the clause between the
- *  conditional word and the first comma. Order matters — first match wins. */
+ *  conditional word and the first comma. Order matters — first match wins. Content `on` ids where the
+ *  engine has one (comparable in classify.ts when listed there); `text:` ids for printed events the engine
+ *  never names (consumed, never compared). */
 export const CONDITIONAL_LEXICON: ReadonlyArray<readonly [RegExp, string]> = [
+  [/you spend \d+ Gold|you spend Gold|Gold spent|investing \d+/i, 'goldSpent'],
+  [/you buy a Shop spell/i, 'spellBought'],
+  [/you buy \d+ /i, 'cardsBought'],
   [/you buy/i, 'onBuy'],
   [/you (?:sell|sold)/i, 'onSell'],
-  [/(?:you cast|shop spell is cast|spells? (?:you )?cast)/i, 'spellCast'],
-  [/you (?:summon|play)/i, 'onFriendPlayed'],
+  [/friendly Demon deals damage/i, 'friendlyDemonDealtDamage'],
+  [/(?:Ruby|Rubies) (?:is |are )?cast on/i, 'rubyPlayedAnywhere'],
+  [/you get a Ruby/i, 'onGetRuby'],
+  [/you cast \d+ Rubies|Rubies you cast/i, 'rubyCast'],
+  [/you cast [A-Z][\w ]* on this/, 'spellCastOnThis'],
+  [/(?:you cast|shop spell is cast|spells? (?:you )?cast|is cast|you add a copy of a Shop spell)/i, 'spellCast'],
+  [/you Discover/i, 'text:onDiscover'],
+  [/you (?:get|gain) a (?:Dwarven Ale|Dwarf|Triple Reward)|card is added to your hand/i, 'onGainCard'],
+  [/you (?:c|C)onsume|Demon Consumes|you consume/i, 'onConsume'],
+  [/you play a Choose One/i, 'chooseOnePlayed'],
+  [/you (?:summon|play) a minion that doesn't fit|summoned minion does not fit/i, 'summonOverflow'],
+  [/you play (?:a|an) (?:Beast or Dragon|Beast|Demon|Dragon|Dwarf|Kobold|Mech|Undead|Spirit|Celestial|Imp|Attachment|Magnetic)/i, 'onTribePlayed'],
+  [/you play/i, 'onTribePlayed'],
+  [/you summon/i, 'onSummon'],
   [/this (?:takes damage|is damaged)/i, 'onDamaged'],
-  [/(?:a )?friend(?:ly minion)? dies|friendly .* dies/i, 'onFriendDeath'],
+  [/(?:a )?friend(?:ly minion)? dies|friendly .* dies|your (?:last|left-most) minion dies|Ruby-buffed minion dies|(?:an|another friendly|a friendly) (?:Imp|minion) dies|Imp that dies/i, 'onFriendDeath'],
   [/dies in combat/i, 'onFriendDeath'],
-  [/attacks/i, 'onAttackWatch'],
-  [/you trigger a Shout|Shout triggers/i, 'shoutWatch'],
+  [/you trigger (?:a|an) (?:Beast's )?Echo/i, 'text:onEchoTriggered'],
+  [/you trigger a Rally|a Rally is triggered|Rally each combat/i, 'onAttack'],
+  [/you trigger (?:a|\d+) Shouts?|Shout triggers|Dragon Shout/i, 'battlecryTriggered'],
+  [/(?:minion|it) Rises|Rises/i, 'onRise'],
   [/gains? Attack/i, 'onGainAttack'],
-  [/magneti[sz]e/i, 'onMagnetize'],
-  [/is summoned/i, 'onSummonWatch'],
-  [/you get a Ruby/i, 'onRubyGet'],
+  [/gains stats/i, 'text:onGainStats'],
+  [/loses Ward/i, 'text:onShieldBreak'],
+  [/magneti[sz]e|Magnetic attaches|is magnetized/i, 'onMagnetize'],
+  [/is summoned|you have (?:space|room)|you first have room/i, 'onSummon'],
+  [/you (?:r|R)efresh/i, 'shopRefreshed'],
+  [/you kill \d+/i, 'onKill'],
+  [/you tier up|you reach Shop Tier/i, 'text:onTierUp'],
+  [/you have \d+ Gold/i, 'text:onGoldHeld'],
+  [/you gain Gold/i, 'text:onGoldGained'],
+  [/you forge your Epic Rune/i, 'text:onForge'],
+  [/one of your effects Improves/i, 'text:onImprove'],
+  [/^summoned(?: in combat)?$/i, 'onSummon'],
+  [/^(?:\d+ )?turns?$/i, 'everyNTurns'],
+  [/attacks?\b/i, 'onAttackWatch'],
+  [/creates a Growth/i, 'text:onGrowthCreated'],
+  [/it dies next combat/i, 'onDeath'],
+  [/^full$/i, 'text:onArchiveFull'],
+  [/you have 2 copies/i, 'text:onCopiesHeld'],
+  [/lost your last combat/i, 'text:lostLastCombat'],
 ];
 
 // ── measured wording variants (guide evidence + the Sitting-3 deck's source) ─────────────────────────────

@@ -46,10 +46,10 @@ axis, with any gap visible as a typed queue entry rather than as silence.
 | **Text classification bucket** | 972 | 972 (100%) | `textParse.test.ts` — every object lands in exactly one of four buckets; an unresolved parse is a queue entry, never a pass |
 | **Contract-oracle applicability** | 972 | 972 (100%) | `contractOracle.test.ts` — every contract is planned into §10.1 case templates; every unexecuted applicable case carries a typed skip reason |
 | **Interaction-graph membership** | 972 | 972 (100%) | `interactionGraph.test.ts` — every contract is a graph node; unmapped triggers are reported as a visible to-do (29 today) |
-| **Rulebook** | 147 rules (62 approved) | — | `enforcement.test.ts` — every approved rule names a backing lane file that must exist on disk |
+| **Rulebook** | 146 rules (62 approved) | — | `enforcement.test.ts` — every approved rule names a backing lane file that must exist on disk |
 
 **The inventory itself:** 570 cards (126 spells, 81 tokens), 59 hero powers, 142 + 139 runes, 117 quests —
-972 contracted objects in total (901 until 2026-08-28, when the owner archived the 16 Celestials — "leaving set 3 empty of minions now" — and every count in this report moved with them; +2 again the same day for the two Equipment reference cards; +8 on 2026-09-09 for the eight new set-3 Dwarves, −1 the same day when Gem Bus was archived; +11 the same day for the eleven new set-3 Undead; +3 the same day for Set 3 Neutrals tranche 1 — Splitboon Adept, the set-3 Yazzus, and Blaster back from the archive; +4 for tranche 2 — Defender, Inspector Pell and the two hand spells they mint, Tower Shield and Clue; +3 for tranche 3 — Highway Hustler, Warband Recruiter, Equipment Charger; +17 for the Set 3 Spirits tranche 1, a new tribe; +7 for tranche 2, the hand-summon cards; +9 on 2026-09-10 for the nine new Set 3 spells; +8 on 2026-09-11 for the eight reworked Set 3 Celestials).  Of those contracts, 13 are hand-authored curated ones and the rest are
+972 contracted objects in total (901 until 2026-08-28, when the owner archived the 16 Celestials — "leaving set 3 empty of minions now" — and every count in this report moved with them; +2 again the same day for the two Equipment reference cards; +8 on 2026-09-09 for the eight new set-3 Dwarves, −1 the same day when Gem Bus was archived; +11 the same day for the eleven new set-3 Undead; +3 the same day for Set 3 Neutrals tranche 1 — Splitboon Adept, the set-3 Yazzus, and Blaster back from the archive; +4 for tranche 2 — Defender, Inspector Pell and the two hand spells they mint, Tower Shield and Clue; +3 for tranche 3 — Highway Hustler, Warband Recruiter, Equipment Charger; +17 for the Set 3 Spirits tranche 1, a new tribe; +7 for tranche 2, the hand-summon cards; +9 on 2026-09-10 for the nine new Set 3 spells; +8 on 2026-09-11 for the eight reworked Set 3 Celestials).  Of those contracts, 16 are hand-authored curated ones and the rest are
 extractor drafts, visibly `reviewStatus: 'extracted'` (§4.2 — a machine guess is never silently intent).
 
 **Of those 972, 118 cover ARCHIVED content classes** — 117 quests and 1 henchman, both systems switched off by
@@ -114,31 +114,34 @@ The one standing disagreement the full sweep prints is `shaper` (`effects.1.summ
 
 | Bucket | Objects |
 |---|---|
-| parsed-equivalent | 358 |
-| verified-mismatch | 9 |
+| parsed-equivalent | 917 |
+| verified-mismatch | 0 |
 | approved-exception | 0 |
-| **unresolved-parse** | 582 |
+| **unresolved-parse** | 55 |
 
-Every one of the 9 mismatches is registry-pinned with a reason (0 unpinned, 0 stale pins — both gated).
-Eight of the nine are **draft-contract gaps**, not text defects: the extractor could not parse a Choose One
-payload or a Magnetic weld, so the contract is incomplete and the printed text is right. Exactly one is a
-genuine verified text defect (`hero:xerox`: the approved contract rules the copy exact, the text reads
-plain).
+0 mismatches stand today (0 unpinned, 0 stale pins — both gated). The 2026-09-11 parser coverage pass
+(`docs/devlog/2026-09-11-docbot-text-parser-coverage.md`) took the unresolved queue from 582 (59%) to 55
+(5.7%) and, in doing so, surfaced four disagreements: one genuine text defect (Gem Gorger printed "3 spells"
+for a factory that counts Ruby casts — fixed in content) and three extractor draft gaps (Brood's gild reshapes
+only its Avenge buff; Cling Drone and Porkbelly act through id-keyed / flag-driven engine paths with an empty
+`effects` array) — each now a curated contract with the reason.
 
-The rewrite advisor produced 4 wording recommendations against the 27-entry language guide. They are
+The rewrite advisor produced 0 wording recommendations against the 27-entry language guide. They are
 suggestions with `suggestedText`; nothing is ever applied to production content (§23).
 
-**582 unresolved parses is the honest headline of this section.** They are classified, queued, ratcheted
-grow-loudly, and never counted as clean passes — but they are also 59% of the corpus, and the parser's
-conservatism is why the "text checked against approved mechanics" DoD item is partial.
+**55 unresolved parses remain, a hard-ceilinged queue.** `textParse.test.ts` pins the count (the ratchet may
+only shrink) AND asserts the unresolved share stays below 35% of active objects, so a content PR can no
+longer raise the pin past that line without a grammar change. The remainder is bespoke prose (hero-power
+flavour, "alternates between Attack and Health", "Bind … stats gained by one are gained by the other") that a
+rule-per-sentence would not honestly cover.
 
 ---
 
 ## 4. Interaction intelligence (§18-F)
 
-- Graph: **1681** nodes / **5415** edges over the contract registry (content, effect-family, trigger-family,
+- Graph: **1684** nodes / **5422** edges over the contract registry (content, effect-family, trigger-family,
   channel, keyword, multiplier, copy-mode, counter, zone, phase-boundary nodes).
-- Applicability: **130200** candidate pairs against 471906 naive all-pairs (27.6%) — the producer → channel →
+- Applicability: **131139** candidate pairs against 471906 naive all-pairs (27.8%) — the producer → channel →
   consumer join is what makes pairwise tractable at all.
 - Sweep (full pairwise + §10.4 triples): 144 rows — 103 covered, 0 failed, 11 inapplicable, 30 blocked.
 - Families with at least one covered row: 12 of 23.
@@ -218,7 +221,7 @@ Sixteen lines, each marked with a citable artifact. **5 done · 11 partial · 0 
 | 6 | Applicable pairwise interactions are covered and reported semantically | **partial** | 93491 candidates enumerated and reported by channel; 106 covered rows, 30 blocked rows each with a typed reason. Coverage is by family, not per candidate pair |
 | 7 | High-risk triple interactions are covered | **partial** | §10.4 triples run in the same sweep; 6 of the 8 triple families are blocked with cited reasons |
 | 8 | Verified findings are deterministic, minimized, and reproducible from Scene Builder and CLI | **done** | `seedMinimize.ts` (1-minimal proof), `docbot:scenario -- <id>`, the Scene Builder QA bridge, `qaScenarioParity.test.ts`; findings carry a `reproduction` line |
-| 9 | Displayed text is checked against approved mechanics | **partial** | every object classified; 528 unresolved parses mean the parser cannot yet *check* the majority — it can only refuse to call them clean |
+| 9 | Displayed text is checked against approved mechanics | **partial** | every object classified; 917 of 972 parse fully and their amounts, counts, cadences, Ruby counts and trigger events are compared; 55 unresolved parses are refused, never called clean — and the contract side is still mostly unreviewed drafts |
 | 10 | Poor wording is reported separately with safe rewrite suggestions | **done** | `wording-recommendation` is its own class; `runRewriteAdvisor` emits `suggestedText`, never applies it (§23) |
 | 11 | Unruled behavior is reported as questionable rather than declared broken | **done** | the anomaly oracle caps at `questionable-interaction` by construction, with competing interpretations attached; sabotage-tested in `anomalyOracle.test.ts` |
 | 12 | Confirmed reports graduate into permanent regressions | **partial** | `bugs:graduate` + `bugTaxonomy.graduated.json` + `regressionScenarios.test.ts` are built and refusal-tested; **zero real player reports have graduated** — the loop is proven only by the synthetic walkthrough in `ci-lanes.md` |
@@ -257,8 +260,9 @@ Nothing is retired without proving the replacement catches the same class. Each 
 
 Ordered by how much they limit a confident claim. The counted ones are re-derived every run.
 
-1. **528 unresolved parses.** The majority of printed text cannot be semantically compared to its contract.
-   They are visible and ratcheted, but "text is verified" is not a claim this platform can make yet.
+1. **55 unresolved parses, and draft contracts on the other side.** The parser now reads 94% of printed text,
+   but a comparison is only as strong as the contract it compares against — and most contracts are
+   unreviewed extractor drafts, so a disagreement is a question, not a verdict (§6.1).
 2. **149 contract shapes with no driver.** Still the single largest verification hole, though down from
    471: the family drivers stage every stat / card / economy / keyword / equipment / vanilla / activation
    claim, and what is left is named per skip — scaler magnitudes (110), def-level behaviour the extractor
@@ -302,7 +306,7 @@ Each is a real gap that was too large or too cross-seam to close inside WP H's P
 | **Unify `combatEventLines` (D-6)** | Move the renderer into `@game/sim`, have the CLI's `string[]` form derive from the structured form, import both from one place. Needs a coordination pass with Mike (a `packages/ui` edit) |
 | **Fold the scenario-id regex (D-3 residual)** | Three declarations, two different length bounds (80 vs 120). Export one const and have all three import it |
 | **Drive the 149 no-driver contract shapes down** | A scaler-aware driver (stage N activations for `every` / `step` / `improve` shapes) and an extractor pass for def-level behaviour fields would take most of what is left; the skip detail names the key or field per contract |
-| **Shrink the 528-object unresolved-parse queue** | Grammar by grammar, ratcheted grow-loudly. The queue is ordered by content type in `npm run docbot:text` |
+| **Shrink the 55-object unresolved-parse queue** | Grammar by grammar, ratcheted grow-loudly under the 35% hard ceiling. The queue is ordered by content type in `npm run docbot:text` |
 | **Graduate one real player report** | The single most valuable proof left: it converts DoD item 12 from partial to done and produces the first curated regression |
 | **Sabotage-proof the remaining 26 lanes** | Or record, per lane, why its failure mode is structural and a mutation test would be theatre |
 | **Combat trigger-stack parenting** | The simulate() chokepoint instrumentation WP C deferred; it is what would make DoD item 3 done |

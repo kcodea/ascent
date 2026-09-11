@@ -113,6 +113,17 @@ const FIXTURES: Record<string, Fixture> = {
   growth: { arms: 'spellBuffAll: a minion on the board', make: () => ({ s: base({ board: [onBoard(anyMinion(), 'm1')] }) }) },
   sparkplug: { arms: 'spellBuffAll ×2 (Waking Rift): a minion on the board', make: () => ({ s: base({ board: [onBoard(anyMinion(), 'm1')] }) }) },
   wo_champion: { arms: 'spellBuffLeftmost: a minion on the board', make: () => ({ s: base({ board: [onBoard(anyMinion(), 'm1')] }) }) },
+  // ── Set 3 spells (2026-09-10) ──
+  starcrash: {
+    arms: 'inline targetTribe (celestial): a Celestial — or an all-types body — on the board to aim at',
+    make: () => ({ s: base({ setId: 'set3', board: [onBoard(findMinion('a Celestial or all-types minion', (d) => d.tribe === 'celestial' || d.tribe2 === 'celestial' || !!d.universalTribe), 'c1')] }), targetUid: 'c1' }),
+  },
+  handsoap: { arms: 'spellBuffLeftmostHandMinion: a minion in hand', make: () => ({ s: base({ setId: 'set3', hand: [onBoard(anyMinion(), 'h1')] }) }) },
+  sharedspirit: { arms: 'spellBuffRandomBoardAndHand: a minion on the board (the hand half is optional)', make: () => ({ s: base({ setId: 'set3', board: [onBoard(anyMinion(), 'm1')] }) }) },
+  crescendo: {
+    arms: 'spellBuffAllPerTribePlayed: a minion on the board and a Spirit played this turn',
+    make: () => ({ s: base({ setId: 'set3', board: [onBoard(anyMinion(), 'm1')], playedThisTurn: [findMinion('a Spirit', (d) => d.tribe === 'spirit').id] }) }),
+  },
   rubyexcavation: { arms: 'spellPlayRubiesAll: a minion on the board', make: () => ({ s: base({ setId: 'set2', board: [onBoard(anyMinion(), 'm1')] }) }) },
 
   // ── fizzle-table: shop-facing ───────────────────────────────────────────────────────────────────────

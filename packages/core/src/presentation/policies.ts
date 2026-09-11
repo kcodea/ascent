@@ -379,6 +379,13 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:spellBuffByTier:cast': { policy: 'ownBeat', family: 'spellCast' },
   'factory:spellBuffImpsPerDemon:cast': { policy: 'ownBeat', family: 'spellCast' },
   'factory:spellBuffLeftmost:cast': { policy: 'ownBeat', family: 'spellCast' },
+  // Set 3 spells (owner sheet 2026-09-10)
+  'factory:spellBuffRandomHand:cast': { policy: 'ownBeat', family: 'spellCast' },
+  'factory:spellBuffRandomBoardAndHand:cast': { policy: 'ownBeat', family: 'spellCast' },
+  'factory:spellBuffTargetAndRandomFriendly:cast': { policy: 'ownBeat', family: 'spellCast' },
+  'factory:spellDestroyTargetGetSpell:cast': { policy: 'ownBeat', family: 'spellCast' },
+  'factory:spellBuffLeftmostHandMinion:cast': { policy: 'ownBeat', family: 'spellCast' },
+  'factory:spellBuffAllPerTribePlayed:cast': { policy: 'ownBeat', family: 'spellCast' },
   'factory:spellBuffPerDragonPlayed:cast': { policy: 'ownBeat', family: 'spellCast' },
   'factory:spellBuffRandomFriendlies:cast': { policy: 'ownBeat', family: 'spellCast' },
   'factory:spellBuffRandomPerTribe:cast': { policy: 'ownBeat', family: 'spellCast' },

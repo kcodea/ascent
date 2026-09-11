@@ -61,8 +61,7 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'Rune Change',
         text: 'Runes and heroes are now tribe-gated. A rune that names a tribe on your board (your Dragons, a friendly Kobold) is only offered by the Forge in runs where that tribe is in play, and a hero whose power needs a tribe (Tiff needs Dragons, Flint needs Dwarves) is only offered, or adoptable through Mimic, Void and Power Shifter, in runs that rolled it.',
         details: [
-          'Fifty-five runes carry a tribe now: every Dragon, Beast, Demon, Mech, Undead, Dwarf and Kobold rune whose text reads the board.',
-          'A rune that only hands you a tribe body (Kegheart, High King) is not gated: the minion arrives whatever the run rolled.',
+          'Sixty-six runes carry a tribe now: every Dragon, Beast, Demon, Mech, Undead, Dwarf and Kobold rune, including the ones that hand you a tribe body (Kegheart, High King) and the Imp runes (Imps are Demons).',
           'The two Menagerie runes are offered whenever any of their five tribes is in the run.',
           'The hero picker now rolls the run first, so the heroes you are shown fit the tribes you are about to play.',
         ],

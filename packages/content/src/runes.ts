@@ -71,6 +71,7 @@ export const RUNES: RuneDef[] = [
   },
   {
     id: 'rune_consumption',
+    tribes: ['demon'], // TRIBE GATE (2026-09-10): Fodder is Demon content (owner 2026-09-10)
     name: 'Rune of Consumption',
     cost: 4,
     text: 'Whenever you **Consume** Fodder, improve future Fodder by **+1 Attack** or **+1 Health** (random).',
@@ -98,6 +99,7 @@ export const RUNES: RuneDef[] = [
   },
   {
     id: 'rune_summoning',
+    tribes: ['demon'], // TRIBE GATE (2026-09-10): Imps are Demons (owner 2026-09-10)
     name: 'Rune of Summoning',
     cost: 4, // owner balance 2026-08-11
     text: 'Whenever you cast a Shop spell, improve your **Imp Aura** by **+2/+2**.',
@@ -174,6 +176,7 @@ export const RUNES: RuneDef[] = [
   },
   {
     id: 'rune_cindergem',
+    tribes: ['demon'], // TRIBE GATE (2026-09-10): Imps are Demons (owner 2026-09-10)
     name: 'Rune of the Cindergem',
     cost: 4,
     text: 'Every **3 Rubies** you cast, improve your **Imps by +4/+4**.',
@@ -281,6 +284,7 @@ export const RUNES: RuneDef[] = [
   {
     // Bounded per combat: unbounded, a slot refills the instant it empties and the board can never shrink.
     id: 'rune_brood',
+    tribes: ['demon'], // TRIBE GATE (2026-09-10): Imps are Demons (owner 2026-09-10)
     name: 'Rune of the Brood',
     cost: 3,
     text: 'When you have **space** in combat, summon an **Imp** with **Ward** and **Taunt**. **2 times** per combat.',
@@ -710,6 +714,7 @@ export const RUNES: RuneDef[] = [
   // ── the 2026-08-07 owner batch 4 (tranche 3: the contained-machinery eight) ──
   {
     id: 'rune_emberline',
+    tribes: ['demon'], // TRIBE GATE (2026-09-10): Imps are Demons (owner 2026-09-10)
     name: 'Rune of Emberline',
     cost: 3,
     text: 'The first **Imp** that dies each combat gives its stats to the next Imp you summon.',
@@ -718,6 +723,7 @@ export const RUNES: RuneDef[] = [
   },
   {
     id: 'rune_ashen_payroll',
+    tribes: ['demon'], // TRIBE GATE (2026-09-10): Imps are Demons (owner 2026-09-10)
     name: 'Rune of Ashen Payroll',
     cost: 4,
     // Owner 2026-08-11: per-Imp payout, no threshold and no once-per-combat cap. `amount` stays only to arm the
@@ -1190,6 +1196,7 @@ export const RUNES: RuneDef[] = [
   },
   {
     id: 'rune_kegheart',
+    tribes: ['dwarf'], // TRIBE GATE (2026-09-10): grants a Dwarf body (owner 2026-09-10: body grants are gated too)
     name: 'Rune of Kegheart',
     cost: 4,
     text: 'Get a **Kegheart Dwarf**.',
@@ -1299,6 +1306,7 @@ export const EPIC_RUNES: RuneDef[] = [
   },
   {
     id: 'rune_broodpit',
+    tribes: ['demon'], // TRIBE GATE (2026-09-10): Imps are Demons (owner 2026-09-10)
     name: 'Rune of the Broodpit',
     cost: 3,
     epic: true,
@@ -1652,6 +1660,7 @@ export const EPIC_RUNES: RuneDef[] = [
     // Runeforge could stock it twice and the Compendium's duplicate React keys smeared it across the gallery.
     // `validateRunes` now rejects duplicate ids/names so a repeat cannot land silently.
     id: 'rune_high_king',
+    tribes: ['dwarf'], // TRIBE GATE (2026-09-10): grants a Dwarf body (owner 2026-09-10: body grants are gated too)
     name: 'Rune of the High King',
     cost: 4,
     epic: true,
@@ -1760,6 +1769,7 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     // The Warded sibling of Pit Without End — its own latch, so holding both pays both.
     id: 'rune_finality',
+    tribes: ['demon'], // TRIBE GATE (2026-09-10): Imps are Demons (owner 2026-09-10)
     name: 'Rune of Finality',
     cost: 6,
     epic: true,
@@ -1788,6 +1798,7 @@ export const EPIC_RUNES: RuneDef[] = [
   },
   {
     id: 'rune_cinder_ledger',
+    tribes: ['demon'], // TRIBE GATE (2026-09-10): Imps are Demons (owner 2026-09-10)
     name: 'Rune of the Cinder Ledger',
     cost: 3,
     epic: true,

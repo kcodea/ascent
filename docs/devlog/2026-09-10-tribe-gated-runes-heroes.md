@@ -12,10 +12,10 @@ all. Same for heroes: Tiff's Dragon Discover has no pool in set 3, and she was s
 ## Now
 
 - **`RuneDef.tribes?: Tribe[]`** (core types + content schema). `runeforgePool` keeps a rune only when no tag is
-  set or some tagged tribe is in `state.tribes`. Fifty-five runes are tagged. The rule for tagging: the printed
-  text READS the board for that tribe ("your Dwarves", "a friendly Kobold", "get a random Dragon"); a rune that
-  merely GRANTS a body of the tribe (Kegheart, High King) is left untagged because the body arrives regardless.
-  The Menageries are tagged with all five of their tribes (any-of).
+  set or some tagged tribe is in `state.tribes`. Sixty-six runes are tagged. The rule (owner 2026-09-10): a rune
+  is tagged when its text names the tribe on the board ("your Dwarves", "get a random Dragon"), when it GRANTS a
+  body of the tribe (Kegheart, High King), or when it works Imps / Fodder (Imps are Demons). The Menageries are
+  tagged with all five of their tribes (any-of). Cindara and Chaos (heroes) stay untagged by the same ruling.
 - **`HeroDef.tribes?`** on Tiff (`dragon`) and Flint (`dwarf`). `playableHeroes`, `practiceHeroes` and
   `powerDiscoverPool` take an optional tribes argument; the four adoption sites (Mimic, Void, Power Shifter,
   turn-1 Mimic seed) pass the run's tribes. No argument = no filter, so every older caller is unchanged.

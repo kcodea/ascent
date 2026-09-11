@@ -12,12 +12,13 @@ import { createRun, runTribesForSeed, type RunState } from './state';
  */
 
 const WORD: Record<Exclude<Tribe, 'neutral'>, RegExp> = {
-  dragon: /\bDragons?\b/i, beast: /\bBeasts?\b/i, demon: /\bDemons?\b/i, mech: /\bMechs?\b/i, undead: /\bUndead\b/i,
+  // Imps and Fodder ARE Demon content (owner 2026-09-10), so an Imp rune counts as naming Demons.
+  dragon: /\bDragons?\b/i, beast: /\bBeasts?\b/i, demon: /\bDemons?\b|\bImps?\b|\bFodder\b/i, mech: /\bMechs?\b/i, undead: /\bUndead\b/i,
   dwarf: /\bDwarv(?:es)?\b|\bDwarf\b/i, kobold: /\bKobolds?\b/i, spirit: /\bSpirits?\b/i, celestial: /\bCelestials?\b/i,
 };
-/** Runes that NAME a tribe but only GRANT a body of it — the body arrives whatever the run rolled, so no gate.
- *  Classify every new one consciously: a rune that reads the board ("your Dwarves") belongs in `tribes`. */
-const BODY_GRANT_ONLY = new Set(['rune_kegheart', 'rune_high_king']);
+/** Owner ruling 2026-09-10: a rune that only GRANTS a tribe body (Kegheart, High King) is gated like one that reads
+ *  the board — so this allowlist is empty on purpose. Adding an id here needs an owner call. */
+const BODY_GRANT_ONLY = new Set<string>([]);
 
 const namesTribe = (rune: { text: string; reward?: unknown }, tribe: Tribe): boolean =>
   WORD[tribe as Exclude<Tribe, 'neutral'>].test(rune.text) || JSON.stringify(rune).includes(`"tribe":"${tribe}"`) || JSON.stringify(rune).includes(`"randomTribe":"${tribe}"`);
@@ -26,7 +27,7 @@ describe('rune tribe tags agree with the printed text', () => {
   it('every tagged tribe is named by the text (or the reward params)', () => {
     for (const r of [...RUNES, ...EPIC_RUNES]) for (const t of r.tribes ?? []) expect(namesTribe(r, t), `${r.id} tagged ${t}`).toBe(true);
   });
-  it('every rune naming a tribe is either tagged or a documented body grant', () => {
+  it('every rune naming a tribe (or its Imps / Fodder) is tagged', () => {
     for (const r of [...RUNES, ...EPIC_RUNES]) {
       if (r.tribes?.length || BODY_GRANT_ONLY.has(r.id)) continue;
       const named = (Object.keys(WORD) as Tribe[]).filter((t) => namesTribe(r, t));

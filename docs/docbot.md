@@ -331,6 +331,42 @@ watcher whose Echo proc summoned a token was visited twice — both fixed in cor
 **The class rule, restated:** when two code paths claim to be "the same trigger", derive the listener set
 each reaches and assert them equal — a comment saying "mirrors the bus" is a testable claim nobody tests.
 
+## The 2026-09-11 lane — beat conservation (`beatConservation.test.ts`)
+
+Roughly half of the repo's fix history is presentation: beats, FX, doubled emissions. Doc Bot cannot see
+pixels, but the machine-checkable half of a presentation bug is a **claim that disagrees with a state diff**,
+and that is checkable after every action. The canonical shape is Rope Wrangler (#1374): a recruit scope opened
+*inside* another (`castSpell` inside an End-of-Turn `withRecruitTrigger`) diffed the same window twice, so every
+stolen card was previewed twice and Arnold's Beefy read +16/+16 for +8/+8. A player found it.
+
+The lane (helper `docbot/beatConservation.ts`) folds a `reduceWithPresentation` batch per uid and reconciles it
+with the real before→after diff, LAW-4 style — exact equality, no catch-all:
+
+- **Over-claim / misattribution is hard, on every action type**: Σ claimed stats per uid must equal the actual
+  delta; a grant / summon / destroy is claimed at most once and only for a body that really arrived / left; no
+  claim on a phantom uid; no consequence outside a trigger scope; a hero power's Gold claim is exact.
+- **Under-claim (a missing beat) is hard** for action types whose resolution is scoped (End of Turn, hero
+  powers, shop deaths, …) and **pinned shrink-only** (`KNOWN_UNATTRIBUTED`) for the dispatch sites that open
+  no scope yet (`fire(onBuy/onSummon)`, `fireBattlecryTriggered`, `applyGoldSpent`, on-sell effects, rune
+  spell-cast procs, …). Every pin carries a **deterministic repro fixture** that must keep under-claiming, and
+  must never over-claim — a scoped site fails the pin test until its entry is deleted.
+- **Drivers**: the invariant-fuzz free-play policy, a dense *builder* policy (no sells, topped-up purse, one
+  planted cast-at-End-of-Turn card per seed, Djinn every fourth run — because free play sells its board down
+  and reached almost no nesting), every coverage-corpus fixture, and hand-built nested fixtures.
+- **Combat**: every `factory:<do>:<on>` stamp names a `srcCard` whose definition carries that effect (copy
+  factories excused by name), and `key` / `srcCard` travel together.
+
+**What landing it found**, fixed in the same PR: Djinn's `replayAllEndOfTurn` re-emitted every consequence its
+nested End-of-Turn scopes had already claimed (the Rope Wrangler class on the hero rail — the hero wrap now
+emits only the residual); `applyBattlecryTarget` / `applyChooseOne` / `applyChooseOneTarget` opened no scope
+at all (an aimed Shout or a Choose One branch resolved with an empty batch); the hero-power diff had no
+departure half (Devourer's meal left the board with no `cardDestroyed`).
+
+**Sabotage**: reverting the #1374 frame stack locally turned the builder sweep and the nested fixtures red with
+the exact +16/+16-for-+8/+8 and `cardGranted claimed 2×` messages (recorded verbatim in the test header); in-file,
+a doctored batch that re-emits a child's consequences at its parent, a dropped consequence, a claim moved to the
+wrong body, a phantom uid and an orphan consequence each alarm.
+
 ---
 
 ## Extending Doc Bot

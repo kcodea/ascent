@@ -9363,7 +9363,11 @@ export function applyChooseOne(state: RunState, card: BoardCard, effects: CardDe
   const ctx = makeContext(state);
   for (const effect of effects) {
     const fn = RECRUIT_FACTORIES[effect.do];
-    if (fn) captureBuffFx(ctx.state, card, 'minion', () => fn(ctx, card, effect.params ?? {}, { minion: card }));
+    if (!fn) continue;
+    // BEAT CONSERVATION (2026-09-11): a Choose One branch resolved with NO trigger scope — its self-buff /
+    // summon landed with an empty batch (Doc Bot `beatConservation`). Same source-attributed scope a Shout
+    // gets; the identity is the branch effect's own factory key.
+    withPlayTrigger(ctx, card, effect, () => captureBuffFx(ctx.state, card, 'minion', () => fn(ctx, card, effect.params ?? {}, { minion: card })));
   }
 }
 
@@ -9375,7 +9379,11 @@ export function applyChooseOneTarget(state: RunState, card: BoardCard, effects: 
   const ctx = makeContext(state);
   for (const effect of effects) {
     const fn = RECRUIT_FACTORIES[effect.do];
-    if (fn) captureBuffFx(ctx.state, card, 'minion', () => fn(ctx, card, effect.params ?? {}, { minion: card, target }));
+    if (!fn) continue;
+    // BEAT CONSERVATION (2026-09-11): a targeted Choose One branch resolved with NO trigger scope, so its
+    // consequences had no beat (Doc Bot `beatConservation` found it: an aimed play produced an empty batch).
+    // The same scope `applyChooseOne` and `playCard` open (`withPlayTrigger`).
+    withPlayTrigger(ctx, card, effect, () => captureBuffFx(ctx.state, card, 'minion', () => fn(ctx, card, effect.params ?? {}, { minion: card, target })));
   }
 }
 
@@ -9393,7 +9401,10 @@ export function applyBattlecryTarget(state: RunState, card: BoardCard, target: B
     if (effect.on !== 'onPlay') continue;
     const fn = RECRUIT_FACTORIES[effect.do];
     if (!fn) continue;
-    captureBuffFx(ctx.state, card, 'minion', () => { for (let r = 0; r < repeats; r++) fn(ctx, card, effect.params ?? {}, { minion: card, target }); });
+    // BEAT CONSERVATION (2026-09-11): the aimed Shout was the one `onPlay` path with no trigger scope — Toxin
+    // Tender / Emissary resolved their buff with an EMPTY batch, so the beat system had nothing to schedule
+    // (Doc Bot `beatConservation`, the "missing beat" half). Same scope `playCard` opens for untargeted Shouts.
+    withPlayTrigger(ctx, card, effect, () => captureBuffFx(ctx.state, card, 'minion', () => { for (let r = 0; r < repeats; r++) fn(ctx, card, effect.params ?? {}, { minion: card, target }); }));
   }
   for (let r = 0; r < repeats; r++) fireBattlecryTriggered(state); // a Battlecry → procs Karwind
   if (state.karwindFlash && state.karwindFlash.length) state.karwindFlashSeq = (state.karwindFlashSeq ?? 0) + 1;

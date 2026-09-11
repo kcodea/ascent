@@ -176,6 +176,8 @@ const NEW_LANES: Array<[string, string, string]> = [
   //    two enumerations were hand-listed instead of derived (the Gifts' arrival path; the Rally watcher set). ──
   ['entry paths', 'packages/sim/src/docbot/entryPaths.test.ts', 'every hand/board entry site in the reducer + recruit engine is derived and classified; every set-less card is driven into play through its REAL path (rune → Discover, minting Shout, Equipment) and its cast must change something — the targeted-Gifts class (9852e16f)'],
   ['fire paths', 'packages/sim/src/docbot/firePaths.test.ts', 'every direct FACTORIES dispatch in core is derived and classified as natural or synthetic; the Rally pair proves a free / multiplied Rally reaches exactly the watchers a natural Rally reaches — the Hawkus class (7e04222d); found Hawkus + Mineral Master missing from the multiplier re-fire on its first run'],
+  // ── 2026-09-11: the presentation half of the conservation laws. ──
+  ['beat conservation', 'packages/sim/src/docbot/beatConservation.test.ts', "after EVERY recruit action the beat stream's claims (Σ stat deltas per uid, grants, summons, destroys, hero Gold) EQUAL the state diff — no consequence twice (the Rope Wrangler / #1374 class), none on the wrong body; un-scoped dispatch sites pinned shrink-only with per-pin repro fixtures; combat `factory:` stamps name a body that carries the effect"],
 ];
 console.log('\n── 16+. the Doc Bot 2.0 lane roll-call — each file existsSync-checked so this inventory cannot rot ──');
 console.log('   (most gate in `npm test`; the two tools lanes gate there too — the sweep CLIs beside them are nightly/weekly)');

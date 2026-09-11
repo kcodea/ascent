@@ -1,4 +1,4 @@
-import { type PresentationCollector, type CombatEvent, beatIdentity, ALE_IDS, combatSide, makeCollector, makeRng, simulate, type BoardMinion, type CardDef, type CombatConfig, type CombatResult, type CombatSideState, type Keyword, type PendingCombatQuest, type PresentationBatch, type QuestCombatMods, type QuestDef, type QuestObjective, type QuestObjectiveEvent, type Tribe } from '@game/core';
+import { type PresentationCollector, type ConsequenceDraft, type CombatEvent, beatIdentity, ALE_IDS, combatSide, makeCollector, makeRng, simulate, type BoardMinion, type CardDef, type CombatConfig, type CombatResult, type CombatSideState, type Keyword, type PendingCombatQuest, type PresentationBatch, type QuestCombatMods, type QuestDef, type QuestObjective, type QuestObjectiveEvent, type Tribe } from '@game/core';
 import { runSpells } from './spellPool';
 import { currentCollector, withActiveCollector } from './activeCollector';
 import { surfaceKeyForRune, surfaceKeyForQuest, CARD_INDEX, EPIC_RUNES, GIFT_IDS, QUEST_INDEX, RUNE_INDEX, RUNES, runeSynergies, type SynergyTag } from '@game/content';
@@ -588,7 +588,15 @@ export function reduceWithPresentation(
   if (action.type === 'heroPower') {
     const hero = getHero(state.heroId);
     let next: RunState = state;
-    withActiveCollector(collector, () => {
+    // BEAT CONSERVATION (Doc Bot `beatConservation`, 2026-09-11): anything the power triggers INTERNALLY opens
+    // its own nested scope and emits its own consequences (Djinn's replayAllEndOfTurn → every End-of-Turn
+    // effect → Arnold's Beefy cast). The whole-action diff below saw the same window and emitted them AGAIN —
+    // Arnold read +16/+16 for a real +8/+8, each Lasso steal previewed twice: the Rope Wrangler class
+    // (#1374) on the hero rail. The tap records what the nested scopes claimed so the diff emits only the
+    // RESIDUAL — what the power did that no child scope already announced.
+    const nested: ConsequenceDraft[] = [];
+    const tap: PresentationCollector = { ...collector, emit: (d) => { nested.push(d); collector.emit(d); } };
+    withActiveCollector(tap, () => {
       const handle = collector.beginTrigger({
         phase: 'recruit',
         source: { kind: 'hero', id: state.heroId, label: hero.name, side: 'player' },
@@ -599,7 +607,7 @@ export function reduceWithPresentation(
       // Consequences by DIFF of two immutable states — the same technique the End-of-Turn primitive and the
       // quest-reward wrap use, because a power moves stats, hand, board and Gold through many helpers and
       // instrumenting each would be that many chances to miss one. Pure: reads both states, mutates neither.
-      if (next !== state) emitHeroPowerDiff(collector, state, next);
+      if (next !== state) emitHeroPowerDiff(collector, state, next, nested);
       collector.endTrigger(handle);
     });
     // A rejected click resolved to the same state — discard the lone trigger rather than announcing a
@@ -611,17 +619,50 @@ export function reduceWithPresentation(
   return { state: next, batch: collector.finish() };
 }
 
-/** The visible results of a hero power, read off (before, after). Anything not diffed here still has its
- *  MOMENT (the trigger above) — it just carries no itemized consequence yet. */
-function emitHeroPowerDiff(collector: PresentationCollector, before: RunState, after: RunState): void {
+/** The visible results of a hero power, read off (before, after), MINUS what `nested` scopes already claimed
+ *  (see the tap above). Anything not diffed here still has its MOMENT (the trigger above) — it just carries
+ *  no itemized consequence yet. */
+function emitHeroPowerDiff(collector: PresentationCollector, before: RunState, after: RunState, nested: readonly ConsequenceDraft[] = []): void {
+  // What the children claimed, folded per uid / per key — the residual is (actual − claimed).
+  const claimedStat = new Map<string, { a: number; h: number }>();
+  const claimedUid = { granted: new Set<string>(), summoned: new Set<string>(), destroyed: new Set<string>(), keyword: new Set<string>(), shop: new Map<string, { a: number; h: number }>() };
+  let claimedGold = 0, claimedMaxGold = 0;
+  for (const d of nested) {
+    switch (d.type) {
+      case 'statsChanged': case 'rubyPlayed': {
+        if (!d.target.uid) break;
+        const cur = claimedStat.get(d.target.uid) ?? { a: 0, h: 0 };
+        cur.a += d.attack ?? 0; cur.h += d.health ?? 0;
+        claimedStat.set(d.target.uid, cur);
+        break;
+      }
+      case 'cardGranted': if (d.target.uid) claimedUid.granted.add(d.target.uid); break;
+      case 'cardSummoned': if (d.target.uid) claimedUid.summoned.add(d.target.uid); break;
+      case 'cardDestroyed': if (d.target.uid) claimedUid.destroyed.add(d.target.uid); break;
+      case 'keywordChanged': if (d.target.uid) claimedUid.keyword.add(`${d.target.uid}|${d.keyword}|${d.gained}`); break;
+      case 'shopChanged': {
+        if (d.change !== 'buffed' || !d.target.uid) break;
+        const cur = claimedUid.shop.get(d.target.uid) ?? { a: 0, h: 0 };
+        cur.a += d.attack ?? 0; cur.h += d.health ?? 0;
+        claimedUid.shop.set(d.target.uid, cur);
+        break;
+      }
+      case 'resourceChanged':
+        if (d.resource === 'gold') claimedGold += d.amount;
+        else if (d.resource === 'maxGold') claimedMaxGold += d.amount;
+        break;
+      default: break;
+    }
+  }
   const statOf = new Map([...before.board, ...before.hand].map((c) => [c.uid, { a: c.attack, h: c.health }] as const));
   const handBefore = new Set(before.hand.map((c) => c.uid));
   const boardBefore = new Set(before.board.map((c) => c.uid));
   for (const c of [...after.board, ...after.hand]) {
     const was = statOf.get(c.uid);
     if (!was) continue;
-    const da = c.attack - was.a;
-    const dh = c.health - was.h;
+    const claimed = claimedStat.get(c.uid) ?? { a: 0, h: 0 };
+    const da = c.attack - was.a - claimed.a;
+    const dh = c.health - was.h - claimed.h;
     if (da === 0 && dh === 0) continue;
     const zone = after.hand.some((h) => h.uid === c.uid) ? 'hand' as const : 'board' as const;
     collector.emit({ type: 'statsChanged', target: { zone, uid: c.uid, cardId: c.cardId, side: 'player' }, attack: da, health: dh, permanent: true, channel: 'ordinary' });
@@ -632,26 +673,35 @@ function emitHeroPowerDiff(collector: PresentationCollector, before: RunState, a
     const was = kwBefore.get(c.uid);
     if (!was) continue;
     for (const kw of c.keywords) {
-      if (!was.has(kw)) collector.emit({ type: 'keywordChanged', target: { zone: 'board', uid: c.uid, cardId: c.cardId, side: 'player' }, keyword: kw, gained: true });
+      if (!was.has(kw) && !claimedUid.keyword.has(`${c.uid}|${kw}|true`)) collector.emit({ type: 'keywordChanged', target: { zone: 'board', uid: c.uid, cardId: c.cardId, side: 'player' }, keyword: kw, gained: true });
     }
   }
-  for (const c of after.hand) if (!handBefore.has(c.uid)) collector.emit({ type: 'cardGranted', target: { zone: 'hand', uid: c.uid, cardId: c.cardId, side: 'player' }, cardId: c.cardId });
-  for (const c of after.board) if (!boardBefore.has(c.uid)) collector.emit({ type: 'cardSummoned', target: { zone: 'board', uid: c.uid, cardId: c.cardId, side: 'player' }, cardId: c.cardId });
+  for (const c of after.hand) if (!handBefore.has(c.uid) && !boardBefore.has(c.uid) && !claimedUid.granted.has(c.uid)) collector.emit({ type: 'cardGranted', target: { zone: 'hand', uid: c.uid, cardId: c.cardId, side: 'player' }, cardId: c.cardId });
+  for (const c of after.board) if (!boardBefore.has(c.uid) && !handBefore.has(c.uid) && !claimedUid.summoned.has(c.uid)) collector.emit({ type: 'cardSummoned', target: { zone: 'board', uid: c.uid, cardId: c.cardId, side: 'player' }, cardId: c.cardId });
+  // Bodies the power REMOVED from the board (Devourer's meal, a destroy) — the departure half the diff lacked
+  // until Doc Bot's `beatConservation` lane flagged a minion leaving with no `cardDestroyed` (2026-09-11).
+  // `index` = the slot it held, so the projection can play the departure where the body stood.
+  before.board.forEach((c, bi) => {
+    if (after.board.some((x) => x.uid === c.uid) || claimedUid.destroyed.has(c.uid)) return;
+    collector.emit({ type: 'cardDestroyed', target: { zone: 'board', uid: c.uid, cardId: c.cardId, side: 'player' }, index: bi });
+  });
   // Shop offers a targeted power buffed (Warden's Fortify on a tavern minion).
   const offerBefore = new Map(before.shop.map((o) => [o.uid, { a: o.atk ?? 0, h: o.hp ?? 0 }] as const));
   for (const o of after.shop) {
     const was = offerBefore.get(o.uid);
     if (!was) continue;
-    const da = (o.atk ?? 0) - was.a;
-    const dh = (o.hp ?? 0) - was.h;
+    const claimed = claimedUid.shop.get(o.uid) ?? { a: 0, h: 0 };
+    const da = (o.atk ?? 0) - was.a - claimed.a;
+    const dh = (o.hp ?? 0) - was.h - claimed.h;
     if (da > 0 || dh > 0) collector.emit({ type: 'shopChanged', change: 'buffed', target: { zone: 'shop', uid: o.uid, cardId: o.cardId, side: 'player' }, attack: da, health: dh });
   }
-  if (after.embers !== before.embers) collector.emit({ type: 'resourceChanged', resource: 'gold', amount: after.embers - before.embers, valueAfter: after.embers });
+  const dGold = after.embers - before.embers - claimedGold;
+  if (dGold !== 0) collector.emit({ type: 'resourceChanged', resource: 'gold', amount: dGold, valueAfter: after.embers });
   const maxBefore = before.maxEmbers + (before.maxGoldBonus ?? 0);
   const maxAfter = after.maxEmbers + (after.maxGoldBonus ?? 0);
-  if (maxAfter !== maxBefore) collector.emit({ type: 'resourceChanged', resource: 'maxGold', amount: maxAfter - maxBefore, valueAfter: maxAfter });
+  const dMax = maxAfter - maxBefore - claimedMaxGold;
+  if (dMax !== 0) collector.emit({ type: 'resourceChanged', resource: 'maxGold', amount: dMax, valueAfter: maxAfter });
 }
-
 
 /**
  * CHOREOGRAPHER PR 9 — run a hero power inside a source-attributed trigger scope.

@@ -9,12 +9,10 @@
 # every nightly failed to start. `docbot:interactions` already runs every pair AND the §10.4 triples in one
 # pass, so there is no separate triples invocation to add.
 #
-# NOT here, on purpose: the retro reinject harness (packages/tools/retro/reinject.py). It is a Python
-# mutation harness that rewrites engine source in place and relies on a clean revert; it needs a toolchain
-# this image does not install, a killed run leaves a sabotaged checkout, and its verdicts are dated
-# citations that are worth more when a human ran them. It stays a manual attended run — the full rationale
-# is in docs/docbot2/ci-lanes.md §17.3. The part that DOES need automating (a catalog entry losing its
-# mapping) is already on the PR gate via retroMapErrors().
+# NOT here, on purpose: the retro reinject harness (npm run docbot:retro). It has its own workflow —
+# docbot-retro.yml — so the forward catch-rate measurement can be dispatched, timed and read on its own,
+# and so its one failure rule (a ledger CAUGHT that now misses) is never blurred into this lane's
+# continue-on-error steps. Rationale + history: docs/docbot2/ci-lanes.md §17.3.
 name: Docbot Weekly
 
 on:

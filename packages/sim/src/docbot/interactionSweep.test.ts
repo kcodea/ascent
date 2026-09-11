@@ -12,7 +12,7 @@
  *  · verdict honesty — zero 'failed' rows (a failed pair diff is a real regression to triage, not a number
  *    to tolerate), and the coverage table is internally consistent (verifyInteractionTable);
  *  · §10.5 — covered runs record COMBINATION keys that parse back to >= 2 semantic parts;
- *  · historical generalization — the retro-catalog map is complete over reinject.py's ACTUAL id list
+ *  · historical generalization — the retro-catalog map is complete over the retro catalog's ACTUAL id list (retroCatalog.ts)
  *    (parsed here, so the map can never lag the catalog), every cited lane file exists on disk, and every
  *    multi-system entry names a live interaction family;
  *  · sabotage (§4.5) — a doctored pair verdict is DETECTED by the table-integrity check.

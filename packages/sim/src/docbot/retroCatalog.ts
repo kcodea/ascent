@@ -103,7 +103,7 @@ export const RETRO_CATALOG: readonly RetroCatalogEntry[] = [
       replace: 'const procs = mul(self); // REINJECT: Stag consults no Echo multiplier' }],
     lanes: ['packages/sim/src/docbot/interactionMatrix.test.ts', 'packages/sim/src/docbot/interactionFamilyMatrix.test.ts'],
     scope: generic,
-    verifiedBy: run('2026-09-11', 'CAUGHT', ['packages/sim/src/docbot/interactionFamilyMatrix.test.ts', 'packages/sim/src/docbot/interactionMatrix.test.ts']),
+    verifiedBy: run('2026-09-11', 'CAUGHT', ['packages/sim/src/docbot/interactionFamilyMatrix.test.ts', 'packages/sim/src/docbot/missDrivenOracles.test.ts']),
   },
   {
     id: '933-triple-temp-keywords',
@@ -151,7 +151,7 @@ export const RETRO_CATALOG: readonly RetroCatalogEntry[] = [
       replace: '// REINJECT: Beefy + Lantern Light fizzle in combat' }],
     lanes: ['packages/sim/src/docbot/factoryPhase.test.ts'],
     scope: generic,
-    verifiedBy: run('2026-09-11', 'CAUGHT', ['packages/sim/src/docbot/factoryPhase.test.ts']),
+    verifiedBy: run('2026-09-11', 'CAUGHT', ['packages/sim/src/docbot/missDrivenOracles.test.ts']),
   },
   {
     id: '932-undertow-uncapped',
@@ -175,7 +175,7 @@ export const RETRO_CATALOG: readonly RetroCatalogEntry[] = [
       replace: 'for (const w of [...boards[s]].reverse()) { // REINJECT: augmenters right→left' }],
     lanes: ['packages/sim/src/docbot/orderGoldens.test.ts'],
     scope: generic,
-    verifiedBy: run('2026-09-11', 'CAUGHT', ['packages/sim/src/docbot/orderGoldens.test.ts']),
+    verifiedBy: run('2026-09-11', 'CAUGHT', ['packages/sim/src/docbot/missDrivenOracles.test.ts']),
   },
   // ── wave 2 (2026-08-26): 2 predicted-CAUGHT confirmations, 4 probes that built missDrivenOracles2 ──
   {
@@ -190,7 +190,7 @@ export const RETRO_CATALOG: readonly RetroCatalogEntry[] = [
       replace: '      // REINJECT: stat spell stops folding spell power (#8f98da40 class)' }],
     lanes: ['packages/sim/src/docbot/spellPowerFolding.test.ts'],
     scope: generic,
-    verifiedBy: run('2026-09-11', 'CAUGHT', ['packages/sim/src/docbot/spellPowerFolding.test.ts']),
+    verifiedBy: run('2026-09-11', 'CAUGHT', ['packages/sim/src/docbot/interactionSweep.test.ts', 'packages/sim/src/docbot/spellPowerFolding.test.ts', 'packages/sim/src/docbot/textOracle.test.ts']),
   },
   {
     // replace-ALL: the historical bug lacked the universalTribe arm at every mech-aura site, and the first
@@ -240,7 +240,7 @@ export const RETRO_CATALOG: readonly RetroCatalogEntry[] = [
       replace: 's.maxEmbers += reps; // REINJECT: the lead evaporates at the cap (#642 class)' }],
     lanes: ['packages/sim/src/docbot/economyScan.test.ts', 'packages/sim/src/docbot/missDrivenOracles2.test.ts'],
     scope: generic,
-    verifiedBy: run('2026-09-11', 'CAUGHT', ['packages/sim/src/docbot/missDrivenOracles2.test.ts']),
+    verifiedBy: run('2026-09-11', 'CAUGHT', ['packages/sim/src/docbot/heroPowerStagers.test.ts', 'packages/sim/src/docbot/missDrivenOracles2.test.ts', 'packages/sim/src/docbot/textOracleEconomy.test.ts']),
   },
   {
     id: 'f45525c9-chipper-random',
@@ -312,6 +312,7 @@ export const RETRO_CATALOG: readonly RetroCatalogEntry[] = [
     scope: { kind: 'out-of-scope', reason: 'an owner RULING (2026-09-09) changed the intended ceiling — the old behaviour matched its own text; no generic oracle can know a design decision before it is made' },
     verifiedBy: run('2026-09-11', 'MISSED'),
   },
+  // ── bugs:catalog appends stubs ABOVE this line (npm run bugs:catalog -- <report-id>) ──
 ];
 
 /** The extra non-docbot lanes the harness has always run alongside the docbot directory (reinject.sh's SUITE). */

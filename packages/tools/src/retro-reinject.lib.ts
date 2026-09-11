@@ -14,6 +14,11 @@ import {
 export const RETRO_LANE = 'retro-reinject';
 /** The whole docbot directory — every generic lane — runs for every entry, cited or not. */
 export const DOCBOT_DIR = 'packages/sim/src/docbot';
+/** Lanes that test the HARNESS, not the game. retroCatalog.test.ts asserts every patch anchors on the
+ *  source — which is false the moment a patch is applied — so inside the throwaway it goes red for every
+ *  entry and would make the catch rate 100% by construction (the first full run measured exactly that,
+ *  2026-09-11). Excluded from the run AND filtered from classification, so neither path can credit it. */
+export const SELF_LANES: readonly string[] = ['packages/sim/src/docbot/retroCatalog.test.ts'];
 
 /** The vitest filters an entry runs: its cited generic lanes, the standing extras and the docbot directory.
  *  Regression pins are NEVER included — a pin written for the bug is not generic evidence. */
@@ -56,9 +61,9 @@ const toRepoRel = (abs: string, root: string): string => {
 /** Classify one run. `root` is the throwaway worktree the absolute file names are under. */
 export function classifyRun(entry: RetroCatalogEntry, report: VitestJsonReport | null, root: string): Omit<RetroResult, 'ledger' | 'scope'> {
   if (!report) return { id: entry.id, verdict: 'UNMEASURABLE', caughtBy: [], detail: 'vitest produced no JSON report (crashed before collection?)' };
-  const failed = report.testResults.filter((t) => t.status === 'failed').map((t) => toRepoRel(t.name, root));
-  const caughtBy = [...new Set(failed)].sort();
-  if (caughtBy.length > 0 || report.numFailedTests > 0) {
+  const redFiles = report.testResults.filter((t) => t.status === 'failed').map((t) => toRepoRel(t.name, root));
+  const caughtBy = [...new Set(redFiles.filter((f) => !SELF_LANES.includes(f)))].sort();
+  if (caughtBy.length > 0) {
     return { id: entry.id, verdict: 'CAUGHT', caughtBy, detail: `${report.numFailedTests} test(s) red across ${caughtBy.length} lane(s)` };
   }
   if (report.numTotalTests > 0) return { id: entry.id, verdict: 'MISSED', caughtBy: [], detail: `${report.numTotalTests} tests green` };
@@ -192,6 +197,11 @@ import { mergeConfig } from 'vitest/config';
 import base from './vitest.config';
 
 export default mergeConfig(base, {
+  test: {
+    // The harness's own PR-gate lane asserts the patches anchor on CLEAN source — false inside the throwaway
+    // by construction. It never votes.
+    exclude: ['**/node_modules/**', '**/dist/**', ${SELF_LANES.map((l) => JSON.stringify(l)).join(', ')}],
+  },
   resolve: {
     alias: [
 ${body}

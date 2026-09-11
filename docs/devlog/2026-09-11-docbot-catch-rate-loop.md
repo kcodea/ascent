@@ -66,3 +66,12 @@ it every verdict reads MISSED (the `docs/concurrency.md` trap, in a new coat).
   9852e16f-gifts-no-target,7e04222d-free-rally-watchers`, paste the verdicts, upgrade the two map rows.
 - Every future Bug Board fix: `npm run bugs:catalog -- <id>` in the fix PR, patch from the diff, measure,
   paste. A fix without a catalog entry is a bug the loop cannot learn from.
+
+## Re-measured the same afternoon (after #1428 merged)
+
+The rebase onto `main` with the entry-path and fire-path lanes moved the Hawkus patch's anchor (#1428 unified
+both Rally watcher sets into `RALLY_WATCHER_EFFECTS` and snapshotted the walk), so the entry was re-anchored
+across the `m === minion` guard. `npm run docbot:retro -- --only …` then measured **Gifts CAUGHT by
+`entryPaths.test.ts`, Hawkus CAUGHT by `firePaths.test.ts`**; Rope Wrangler stays MISSED (out of scope until
+the beat-conservation lane, #1426, lands — re-measure then). Forward catch rate: 16/16 in scope · trailing
+30 days 4/4. The ledger rows were flipped from the run output, never typed.

@@ -161,18 +161,19 @@ Every one of the 30 blocked rows names its reason (`no-observable-emission`, `co
 
 The catalog (`packages/sim/src/docbot/retroCatalog.ts`) holds **18** historical bugs as anchored source
 patches. `npm run docbot:retro` reinjects each in a throwaway worktree and runs every generic lane; the
-measured verdicts on 2026-09-11: **14 CAUGHT, 4 MISSED**. Two of the misses are out of Doc Bot's remit (a
+measured verdicts on 2026-09-11: **16 CAUGHT, 2 MISSED**. Both misses are out of Doc Bot's remit (a
 presentation-beat double emission; an owner ruling that moved a design ceiling), so the **forward catch rate
-over the 16 in-scope bugs is 14/16**, and over the trailing 30 days of report dates it is **2/4** — the two
-in-scope September misses (targeted Gifts sent no target; a free Rally never reached its watchers) are the
-build order for the entry-path and fire-path lanes. The ledger (`retroInteractionMap.ts`) carries 14 rows
-established by a reinject run and 4 by class analysis; 10 of the 18 are multi-system bugs.
+over the 16 in-scope bugs is 16/16**, and over the trailing 30 days of report dates it is **4/4**. The two
+in-scope September bugs (targeted Gifts sent no target; a free Rally never reached its watchers) were MISSED
+on the morning run and CAUGHT the same afternoon once the entry-path and fire-path lanes (#1428) merged —
+the miss-driven loop working as designed. The ledger (`retroInteractionMap.ts`) carries 16 rows established
+by a reinject run and 2 by class analysis; 10 of the 18 are multi-system bugs.
 
 **The evidence and its limit.** Two gates now hold this number honest. On every PR, `retroCatalog.test.ts`
 proves each patch still anchors on today's source and refuses a CAUGHT that names no red generic lane (the
 bug's own regression pin never votes, and neither does the harness's own lane — the first full run measured
 a fake 18/18 before that exclusion existed). Weekly, `.github/workflows/docbot-retro.yml` re-measures and
-fails only on a REGRESSION (a ledger CAUGHT that now misses); a new MISSED never fails. So "14/16" means *14
+fails only on a REGRESSION (a ledger CAUGHT that now misses); a new MISSED never fails. So "16/16" means *16
 reinjections that turned a generic lane red on the dated run*, and the number cannot be typed — `npm run
 docbot:report` derives it from the catalog every time.
 

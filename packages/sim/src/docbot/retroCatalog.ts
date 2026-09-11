@@ -264,10 +264,10 @@ export const RETRO_CATALOG: readonly RetroCatalogEntry[] = [
     patch: [{ file: REC,
       find: "() => captureBuffFx(ctx.state, undefined, 'spell', () => fn(ctx, target as BoardCard, params, { minion: target as BoardCard, target: target as BoardCard })),",
       replace: "() => captureBuffFx(ctx.state, undefined, 'spell', () => fn(ctx, target as BoardCard, params, { minion: target as BoardCard })), // REINJECT: cast path drops the target (Bug Board 9852e16f)" }],
-    lanes: ['packages/sim/src/docbot/playDifferential.test.ts'],
+    lanes: ['packages/sim/src/docbot/entryPaths.test.ts', 'packages/sim/src/docbot/playDifferential.test.ts'],
     regressionLanes: ['packages/sim/src/gifts.test.ts'],
     scope: generic,
-    verifiedBy: run('2026-09-11', 'MISSED'),
+    verifiedBy: run('2026-09-11', 'CAUGHT', ['packages/sim/src/docbot/entryPaths.test.ts']),
   },
   {
     id: '7e04222d-free-rally-watchers',
@@ -276,12 +276,15 @@ export const RETRO_CATALOG: readonly RetroCatalogEntry[] = [
     reportIds: ['7e04222d'],
     reportDate: '2026-09-01',
     patch: [{ file: SIM,
-      find: "if (effect.on === 'onAttack' && FREE_RALLY_WATCHER_EFFECTS.has(effect.do)) {",
-      replace: "if (false as boolean && effect.on === 'onAttack' && FREE_RALLY_WATCHER_EFFECTS.has(effect.do)) { // REINJECT: watchers skipped (Bug Board 7e04222d)" }],
-    lanes: ['packages/sim/src/docbot/combatDifferential.test.ts', 'packages/sim/src/docbot/combatModLane.test.ts'],
+      // Re-anchored 2026-09-11 after #1428 unified both watcher sets into RALLY_WATCHER_EFFECTS and snapshotted the
+      // walk. The predicate now appears twice (free Rally + multiplier re-fire); the free-Rally loop is the one that
+      // runs under the `m === minion` skip, so the anchor spans from that guard to the predicate.
+      find: "if (m === minion || m.dead || m.health <= 0) continue;\n        for (const effect of m.effects) {\n          if (effect.on === 'onAttack' && RALLY_WATCHER_EFFECTS.has(effect.do)) {",
+      replace: "if (m === minion || m.dead || m.health <= 0) continue;\n        for (const effect of m.effects) {\n          if (false as boolean && effect.on === 'onAttack' && RALLY_WATCHER_EFFECTS.has(effect.do)) { // REINJECT: watchers skipped (Bug Board 7e04222d)" }],
+    lanes: ['packages/sim/src/docbot/firePaths.test.ts', 'packages/sim/src/docbot/combatDifferential.test.ts', 'packages/sim/src/docbot/combatModLane.test.ts'],
     regressionLanes: ['packages/core/src/combat/freeRallyWatchers.test.ts'],
     scope: generic,
-    verifiedBy: run('2026-09-11', 'MISSED'),
+    verifiedBy: run('2026-09-11', 'CAUGHT', ['packages/sim/src/docbot/firePaths.test.ts']),
   },
   {
     id: 'bb5195d5-nested-scope-double-emit',

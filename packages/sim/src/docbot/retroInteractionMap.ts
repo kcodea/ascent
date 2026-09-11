@@ -153,17 +153,17 @@ export const RETRO_INTERACTION_MAP: readonly RetroMapEntry[] = [
     catalogId: '9852e16f-gifts-no-target',
     multiSystem: true, // cast path × Battlecry-shaped payload contract
     families: ['spell-x-improvement'],
-    lanes: ['packages/sim/src/docbot/playDifferential.test.ts'],
-    why: 'a targeted Gift that consumes the card and changes nothing is exactly the play-differential class (cast ≠ vanilla control) — but Gifts belong to no set, so the differential never enumerates them; the entry-path lane (feat/docbot-entry-and-fire-paths) is the intended catcher',
-    verifiedBy: 'class-analysis',
+    lanes: ['packages/sim/src/docbot/entryPaths.test.ts', 'packages/sim/src/docbot/playDifferential.test.ts'],
+    why: 'a targeted Gift that consumes the card and changes nothing is exactly the play-differential class (cast ≠ vanilla control) — but Gifts belong to no set, so the differential never enumerates them; the entry-path lane (#1428) stages every hand-only arrival through the real reducer and is the measured catcher',
+    verifiedBy: 'reinject-run', // measured 2026-09-11 against the merged #1428 lanes (docbot:retro --only …)
   },
   {
     catalogId: '7e04222d-free-rally-watchers',
     multiSystem: true, // free-Rally entry path × RL-gated watchers on OTHER bodies
     families: ['trigger-x-multiplier'],
-    lanes: ['packages/sim/src/docbot/combatDifferential.test.ts', 'packages/sim/src/docbot/combatModLane.test.ts'],
-    why: 'a watcher that hears an attack-path Rally but not a free one is a fire-path split — the combat differential stages real swings only, so it cannot see the free path; the fire-path lane (feat/docbot-entry-and-fire-paths) is the intended catcher',
-    verifiedBy: 'class-analysis',
+    lanes: ['packages/sim/src/docbot/firePaths.test.ts', 'packages/sim/src/docbot/combatDifferential.test.ts', 'packages/sim/src/docbot/combatModLane.test.ts'],
+    why: 'a watcher that hears an attack-path Rally but not a free one is a fire-path split — the combat differential stages real swings only, so it cannot see the free path; the fire-path lane (#1428) compares the free / multiplied watcher set against the natural one and is the measured catcher',
+    verifiedBy: 'reinject-run', // measured 2026-09-11 against the merged #1428 lanes (docbot:retro --only …)
   },
   {
     catalogId: 'bb5195d5-nested-scope-double-emit',

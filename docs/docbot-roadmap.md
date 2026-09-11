@@ -55,7 +55,7 @@ contracts; the stable-stringify lesson appeared a third time in serialize-resume
 > trailing 30 days by report date) derived from the catalog's measured verdicts. The prose below is the
 > history of each measurement wave; the number itself is never typed here.
 
-### Wave 3 (2026-09-11): the harness in TypeScript, the four Bug Board round-2 fixes — 14 of 16 in scope
+### Wave 3 (2026-09-11): the harness in TypeScript, the four Bug Board round-2 fixes — 14 of 16 in scope, then 16 of 16
 
 The Python harness was retired (devlog `2026-09-11-docbot-catch-rate-loop.md`): the catalog is data, the
 runner builds a throwaway worktree and removes it on every exit, verdicts are pasted from a run, and
@@ -64,8 +64,8 @@ four engine fixes of PR #1374 entered as new entries and were measured honestly:
 
 | Reinjection | Scope | Verdict | Why |
 |---|---|---|---|
-| `9852e16f-gifts-no-target` — the cast path sends `{ minion }` only | generic | **MISSED** | Gifts belong to no set, so no differential enumerates them — the entry-path lane (`feat/docbot-entry-and-fire-paths`) is the intended catcher |
-| `7e04222d-free-rally-watchers` — `fireFreeRally` skips the RL-gated watchers | generic | **MISSED** | the combat differential stages real swings only; a free Rally is a second fire path — the fire-path lane is the intended catcher |
+| `9852e16f-gifts-no-target` — the cast path sends `{ minion }` only | generic | **MISSED → CAUGHT** (same day, after #1428) | Gifts belong to no set, so no differential enumerated them; the entry-path lane (`entryPaths.test.ts`) stages every hand-only arrival and turned red on the re-measure |
+| `7e04222d-free-rally-watchers` — `fireFreeRally` skips the RL-gated watchers | generic | **MISSED → CAUGHT** (same day, after #1428) | the combat differential stages real swings only; the fire-path lane (`firePaths.test.ts`) compares the free / multiplied watcher set to the natural one and turned red on the re-measure |
 | `bb5195d5-nested-scope-double-emit` — Rope Wrangler's steals emitted twice | out of scope | MISSED | presentation-beat emission; state was always right |
 | `cb45dc41-skybound-tier-clamp` — the transform clamped to Tier-7 access | out of scope | MISSED | an owner RULING moved the ceiling; the old clamp matched its own text |
 

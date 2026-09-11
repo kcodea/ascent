@@ -157,19 +157,25 @@ Every one of the 30 blocked rows names its reason (`no-observable-emission`, `co
 
 ---
 
-## 5. Historical catch rate (the retro catalog)
+## 5. Forward catch rate (the retro catalog — MEASURED)
 
-**14 of 14** catalog entries in `packages/tools/retro/reinject.py` are mapped to a generalized interaction
-family and/or a named npm-test lane in `retroInteractionMap.ts`, and all 14 were established by a recorded
-**reinject run** rather than by argument (0 rest on class analysis alone). 8 of the 14 are multi-system bugs
-— the ones the §10.4 triple generator exists for.
+The catalog (`packages/sim/src/docbot/retroCatalog.ts`) holds **18** historical bugs as anchored source
+patches. `npm run docbot:retro` reinjects each in a throwaway worktree and runs every generic lane; the
+measured verdicts on 2026-09-11: **16 CAUGHT, 2 MISSED**. Both misses are out of Doc Bot's remit (a
+presentation-beat double emission; an owner ruling that moved a design ceiling), so the **forward catch rate
+over the 16 in-scope bugs is 16/16**, and over the trailing 30 days of report dates it is **4/4**. The two
+in-scope September bugs (targeted Gifts sent no target; a free Rally never reached its watchers) were MISSED
+on the morning run and CAUGHT the same afternoon once the entry-path and fire-path lanes (#1428) merged —
+the miss-driven loop working as designed. The ledger (`retroInteractionMap.ts`) carries 16 rows established
+by a reinject run and 2 by class analysis; 10 of the 18 are multi-system bugs.
 
-**The evidence and its limit.** `retroMapErrors()` gates on the PR: a new catalog entry with no mapping, or
-a cited lane that gets renamed, fails `npm test` immediately. What is NOT automated is the reinjection
-itself — the harness is Python, mutates tracked source in place, and stays a deliberately attended run
-(reasoning in `ci-lanes.md` §17.3). So "14/14" means *14 mappings, each verified by a dated human-run
-reinjection*, not *14 reinjections re-run last night*. A dated human citation was judged worth more than a
-machine-refreshed one; the trade-off is that the number ages until someone re-runs it.
+**The evidence and its limit.** Two gates now hold this number honest. On every PR, `retroCatalog.test.ts`
+proves each patch still anchors on today's source and refuses a CAUGHT that names no red generic lane (the
+bug's own regression pin never votes, and neither does the harness's own lane — the first full run measured
+a fake 18/18 before that exclusion existed). Weekly, `.github/workflows/docbot-retro.yml` re-measures and
+fails only on a REGRESSION (a ledger CAUGHT that now misses); a new MISSED never fails. So "16/16" means *16
+reinjections that turned a generic lane red on the dated run*, and the number cannot be typed — `npm run
+docbot:report` derives it from the catalog every time.
 
 ---
 
@@ -194,7 +200,7 @@ Reachable needs-ruling cards, waiting on a sitting the main session schedules �
 
 ## 7. Oracle families and sabotage evidence (§4.5)
 
-- **71** vitest lane files under `packages/sim/src/docbot/`.
+- **72** vitest lane files under `packages/sim/src/docbot/`.
 - **34** of them carry an in-file mutation/sabotage proof — a deliberate defect the lane must catch
   (`familyDrivers.test.ts` sabotages every family driver: a doctored amount, a doctored gilded factor, a
   wrong named card, a doctored count, a hidden Shout on a "vanilla" contract, and a vanilla body under an
@@ -227,7 +233,7 @@ Sixteen lines, each marked with a citable artifact. **5 done · 11 partial · 0 
 | 11 | Unruled behavior is reported as questionable rather than declared broken | **done** | the anomaly oracle caps at `questionable-interaction` by construction, with competing interpretations attached; sabotage-tested in `anomalyOracle.test.ts` |
 | 12 | Confirmed reports graduate into permanent regressions | **partial** | `bugs:graduate` + `bugTaxonomy.graduated.json` + `regressionScenarios.test.ts` are built and refusal-tested; **zero real player reports have graduated** — the loop is proven only by the synthetic walkthrough in `ci-lanes.md` |
 | 13 | CI prevents new active content from bypassing contracts and text verification | **done** | `contractExtract.test.ts` (contract inventory gate) + `textParse.test.ts` (classification + grow-loudly unresolved ratchet) both ride the required `verify` check |
-| 14 | Mutation/sabotage tests demonstrate detection in every oracle family | **partial** | 34 of 71 docbot lanes carry an in-file sabotage proof, plus the retro harness's 14 reinjections; the remaining lanes are structural ratchets without one |
+| 14 | Mutation/sabotage tests demonstrate detection in every oracle family | **partial** | 34 of 72 docbot lanes carry an in-file sabotage proof, plus the retro harness's 18 reinjections (14 caught, measured weekly); the remaining lanes are structural ratchets without one |
 | 15 | Existing ad hoc probes that duplicate the platform are retired or converted | **partial** | the tripwire-numbering fork is retired in this PR (§9); the legacy `scenario.json` path and the two `combatEventLines` renderers are documented keeps with dated conditions, not yet executed |
 | 16 | A final coverage report lists what Doc Bot can prove and its blind spots | **done** | this document, generated by `npm run docbot:report` and drift-gated by `docbot-report.test.ts` |
 

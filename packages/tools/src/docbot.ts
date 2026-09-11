@@ -165,6 +165,9 @@ const NEW_LANES: Array<[string, string, string]> = [
   ['findings ledger', 'packages/sim/src/docbot/ledger.test.ts', 'WP G: the fingerprint fold is deterministic, order-insensitive and idempotent (npm run docbot:ledger)'],
   ['graduation refusals', 'packages/tools/src/bug-graduate.test.ts', 'WP G: a flaky repro, an unruled expectation or an unapproved citation each REFUSE (npm run bugs:graduate)'],
   ['final report', 'packages/tools/src/docbot-report.test.ts', 'WP H: docs/docbot2/final-report.md re-derived from the live registries — a drifted headline number fails the gate (npm run docbot:report)'],
+  ['retro catalog', 'packages/sim/src/docbot/retroCatalog.test.ts', 'the forward catch-rate ledger: every historical-bug patch still anchors on today\'s source, no CAUGHT without a red generic lane, the catch rate is derived (npm run docbot:retro measures it weekly)'],
+  ['retro harness', 'packages/tools/src/retro-reinject.test.ts', 'docbot:retro pure half — regression pins never vote, the harness\'s own lane never votes, CAUGHT→MISSED is a regression, a new MISSED is the build order'],
+  ['bug catalog stub', 'packages/tools/src/bugs-catalog.test.ts', 'npm run bugs:catalog -- <report-id>: a CLOSED Bug Board report becomes a pending catalog stub; open or duplicate reports are refused'],
   // ── 2026-08-29: two lanes that audit the AUDITING. Both owner bugs that day were already covered by an
   //    existing lane in principle, and neither was caught — see docs/docbot.md for why. ──
   ['combat-emit agreement', 'packages/sim/src/docbot/combatEmitAgreement.test.ts', "every trigger combat EMITS is classified combat/both in TRIGGER_PHASES or waived — a misclassification silently switched off the factoryPhase lane's combat half for onGainCard (Gangplank)"],
@@ -235,6 +238,8 @@ console.log('  npm run docbot:text                 the full text-intelligence sw
 console.log('  npm run docbot:interactions         the full pairwise/triple interaction sweep + anomaly oracle (WP F)');
 console.log('  npm run docbot:ledger -- --in artifacts   fold every findings.json into one fingerprint ledger (WP G)');
 console.log('  npm run docbot:report               the §20/§21 coverage + blind-spot roll-up (-- --json / -- --check)');
+console.log('  npm run docbot:retro                reinject every catalog bug in a throwaway worktree — the MEASURED forward catch rate (-- --check / -- --only <id>)');
+console.log('  npm run bugs:catalog -- <report-id> append a retro-catalog stub from a closed Bug Board report (the on-ramp into the loop)');
 console.log('  npm run contracts:extract           regenerate the extracted contract registry (curated always wins)');
 console.log('  npm run rules:seed                  regenerate the owner triage queue (decisions survive)');
 console.log('  npm run rules:impact -- <paths>     which rulings a change touches');

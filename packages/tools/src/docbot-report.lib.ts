@@ -33,7 +33,7 @@ import {
 import { CURATED_CONTRACT_IDS, allContracts } from '@game/rules/contracts';
 import { ENFORCEMENT_LANES } from '@game/rules';
 import {
-  RETRO_INTERACTION_MAP, archivedInventory, buildInteractionGraph, candidatePairs, graphStats, releaseBlockerFindings,
+  RETRO_CATALOG, RETRO_INTERACTION_MAP, archivedInventory, retroCatchRate, type RetroCatchRate, buildInteractionGraph, candidatePairs, graphStats, releaseBlockerFindings,
   runAnomalyOracle, runContractSweep, runInteractionSweep, runRewriteAdvisor, runTextSweep, textObjectOf,
   type DocbotFinding, type FindingClass,
 } from '@game/sim';
@@ -118,11 +118,21 @@ export interface FinalReport {
   };
 
   retro: {
+    /** Catalog entries (retroCatalog.ts), every scope. */
     entries: number;
+    /** Entries whose LAST MEASURED verdict (npm run docbot:retro) is CAUGHT — no longer "mapped to a lane". */
     caught: number;
+    missed: number;
+    unmeasured: number;
+    outOfScope: number;
+    /** Map rows established by a recorded reinject run vs argued from the mechanism (retroInteractionMap.ts). */
     byReinjectRun: number;
     byClassAnalysis: number;
     multiSystem: number;
+    /** THE number the owner scores Doc Bot on — derived from the catalog, never typed. Generic entries only. */
+    catchRate: RetroCatchRate;
+    /** The date the trailing window was computed against (injected under test). */
+    asOf: string;
   };
 
   findings: Record<FindingClass | 'unclassified', number>;
@@ -172,6 +182,8 @@ function docbotLaneFiles(root = DOCBOT_DIR): string[] {
 
 export interface BuildReportOptions {
   commit?: string;
+  /** ISO date for the trailing-30-day catch-rate window (default: today). Injected so tests are deterministic. */
+  today?: string;
   /** Counted from disk by the CLI (fs access kept out of the pure-ish builder's required path). */
   graduatedRegressions?: number;
   curatedFixtures?: number;
@@ -305,14 +317,22 @@ export function buildFinalReport(opts: BuildReportOptions = {}): FinalReport {
       anomaliesSuppressed: anomalies.suppressedTotal,
     },
 
-    retro: {
-      entries: RETRO_INTERACTION_MAP.length,
-      // Every catalog entry carries a family/lane citation; retroMapErrors() fails the gate if one loses it.
-      caught: RETRO_INTERACTION_MAP.filter((e) => e.families.length > 0 || e.lanes.length > 0).length,
-      byReinjectRun: RETRO_INTERACTION_MAP.filter((e) => e.verifiedBy === 'reinject-run').length,
-      byClassAnalysis: RETRO_INTERACTION_MAP.filter((e) => e.verifiedBy === 'class-analysis').length,
-      multiSystem: RETRO_INTERACTION_MAP.filter((e) => e.multiSystem).length,
-    },
+    retro: (() => {
+      const today = opts.today ?? new Date().toISOString().slice(0, 10);
+      const measured = (v: string) => RETRO_CATALOG.filter((e) => e.verifiedBy.kind === 'reinject-run' && e.verifiedBy.verdict === v).length;
+      return {
+        entries: RETRO_CATALOG.length,
+        caught: measured('CAUGHT'),
+        missed: measured('MISSED'),
+        unmeasured: RETRO_CATALOG.filter((e) => e.verifiedBy.kind !== 'reinject-run').length,
+        outOfScope: RETRO_CATALOG.filter((e) => e.scope.kind === 'out-of-scope').length,
+        byReinjectRun: RETRO_INTERACTION_MAP.filter((e) => e.verifiedBy === 'reinject-run').length,
+        byClassAnalysis: RETRO_INTERACTION_MAP.filter((e) => e.verifiedBy === 'class-analysis').length,
+        multiSystem: RETRO_INTERACTION_MAP.filter((e) => e.multiSystem).length,
+        catchRate: retroCatchRate(RETRO_CATALOG, today),
+        asOf: today,
+      };
+    })(),
 
     findings: findings as FinalReport['findings'],
 

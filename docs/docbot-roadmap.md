@@ -49,7 +49,32 @@ quest events) masked dead factories; `initial`'s golden flag made the golden lan
 effect, Emissary's tribe gate and two-step aim, and Manasaber's `fixed` taught the magnitude oracle its own
 contracts; the stable-stringify lesson appeared a third time in serialize-resume.
 
-## MEASURED coverage — retro-validation (2026-08-26, the harness in packages/tools/retro/)
+## MEASURED coverage — retro-validation (`npm run docbot:retro`; the catalog in `packages/sim/src/docbot/retroCatalog.ts`)
+
+> **Current number: run `npm run docbot:report`** — it prints the forward catch rate (overall, and the
+> trailing 30 days by report date) derived from the catalog's measured verdicts. The prose below is the
+> history of each measurement wave; the number itself is never typed here.
+
+### Wave 3 (2026-09-11): the harness in TypeScript, the four Bug Board round-2 fixes — 14 of 16 in scope, then 16 of 16
+
+The Python harness was retired (devlog `2026-09-11-docbot-catch-rate-loop.md`): the catalog is data, the
+runner builds a throwaway worktree and removes it on every exit, verdicts are pasted from a run, and
+`.github/workflows/docbot-retro.yml` re-measures weekly, failing only on a CAUGHT→MISSED regression. The
+four engine fixes of PR #1374 entered as new entries and were measured honestly:
+
+| Reinjection | Scope | Verdict | Why |
+|---|---|---|---|
+| `9852e16f-gifts-no-target` — the cast path sends `{ minion }` only | generic | **MISSED → CAUGHT** (same day, after #1428) | Gifts belong to no set, so no differential enumerated them; the entry-path lane (`entryPaths.test.ts`) stages every hand-only arrival and turned red on the re-measure |
+| `7e04222d-free-rally-watchers` — `fireFreeRally` skips the RL-gated watchers | generic | **MISSED → CAUGHT** (same day, after #1428) | the combat differential stages real swings only; the fire-path lane (`firePaths.test.ts`) compares the free / multiplied watcher set to the natural one and turned red on the re-measure |
+| `bb5195d5-nested-scope-double-emit` — Rope Wrangler's steals emitted twice | out of scope | MISSED | presentation-beat emission; state was always right |
+| `cb45dc41-skybound-tier-clamp` — the transform clamped to Tier-7 access | out of scope | MISSED | an owner RULING moved the ceiling; the old clamp matched its own text |
+
+All 14 earlier entries still CAUGHT on the same run (the `caughtBy` lanes are recorded per entry). Instrument
+lesson: the first full run read 18/18 because the harness's own PR-gate lane (`retroCatalog.test.ts`,
+"every patch anchors on clean source") went red for every applied patch — it is now excluded from the
+throwaway run and filtered from classification, with a sabotage test pinning that.
+
+### Waves 1–2 (2026-08-26/27) — history
 
 Estimates were replaced by measurement: eight out-of-sample historical bugs were REINJECTED at the source
 line and run against the full Doc Bot suite. **Before the miss-driven build-out: 0 of 8 caught.** The misses
@@ -84,13 +109,13 @@ Instrument/fixture lessons, recorded in the tests: three same-id fixture bodies 
 there is NO genuinely plain demon in content (Heckbinder ate the fixture — the Drakko lesson, again); a
 narrow one-site reinjection was masked by a neighbouring fixed site (the catalog entry now strips all four).
 
-**Standing: 14 of 14 catalog bugs caught** (measured 2026-08-27). The last miss — #1176's per-instance
+**Standing at the time: 14 of 14 catalog bugs caught** (measured 2026-08-27; superseded by wave 3 above). The last miss — #1176's per-instance
 counter-window class — fell to the **temporal-window oracle** (PR 3, `packages/sim/src/docbot/`
 `temporalWindow.test.ts`): the eleven owner rulings of 2026-08-26 entered as approved rules
 (`R-AVWIN-01…11`), provenance telemetry on `avengeCountFor` (source instance, entry sequence, observed
 sequence, counter before/after), the §5.4 scenario family run through the real `simulate()` + two
 `QaScenarioV1` copy-semantics fixtures, and three further window families (once-per-combat latches,
-first-N windows, per-source improve counters). Proof: applying `reinject.py 1176-avenge-arrival` fails 3
+first-N windows, per-source improve counters). Proof: reinjecting `1176-avenge-arrival` (today: `npm run docbot:retro -- --only 1176-avenge-arrival`) fails 3
 temporal-window tests. Two RULE VIOLATIONS were found and pinned (not fixed, not excused): **R-AVWIN-02**
 (the summoning death leaks into the summoned source's window) and **R-AVWIN-10** (a source dying in a
 simultaneous batch observes the batch-mates resolved before it) — see `KNOWN_VIOLATIONS` in the test.

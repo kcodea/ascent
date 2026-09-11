@@ -32,6 +32,7 @@ const SCENARIOS = join('packages', 'sim', 'src', 'docbot', 'scenarios');
 const started = Date.now();
 const report = buildFinalReport({
   commit: currentCommit(),
+  today: flag('today'),
   graduatedRegressions: countJson(join(SCENARIOS, 'regressions')),
   curatedFixtures: countJson(SCENARIOS),
   generatedCorpusEntries: Math.max(0, countJson(join('packages', 'sim', 'src', 'docbot', 'corpus')) - 1), // minus manifest.json
@@ -77,9 +78,13 @@ if (has('json')) {
   console.log(`  families with coverage: ${pct(r.interactions.familiesWithCoverage.of, r.interactions.familiesWithCoverage.total)} · combination keys ${r.interactions.combinationKeys}`);
   console.log(`  anomalies ${r.interactions.anomalies} (suppressed below floor ${r.interactions.anomaliesSuppressed})`);
 
-  console.log('\n── retro catalog (historical catch rate) ──');
-  console.log(`  ${r.retro.caught}/${r.retro.entries} mapped to a generalized family or lane`
-    + ` · verified by reinject run ${r.retro.byReinjectRun} · by class analysis ${r.retro.byClassAnalysis}`);
+  console.log('\n── retro catalog (npm run docbot:retro — the measured ledger) ──');
+  const cr = r.retro.catchRate;
+  console.log(`  forward catch rate: ${cr.overall.caught}/${cr.overall.total} generic bugs caught by a generic lane`
+    + ` · trailing ${cr.trailing.days} days by report date (${cr.trailing.from} → ${cr.trailing.to}): ${cr.trailing.caught}/${cr.trailing.total}`);
+  console.log(`  catalog ${r.retro.entries}: CAUGHT ${r.retro.caught} · MISSED ${r.retro.missed} · unmeasured ${r.retro.unmeasured} · out of scope ${r.retro.outOfScope}`
+    + ` · map rows by reinject run ${r.retro.byReinjectRun} / by class analysis ${r.retro.byClassAnalysis}`);
+  if (cr.missed.length > 0) console.log(`  build order (MISSED, oldest report first): ${cr.missed.join(', ')}`);
 
   console.log('\n── §12.1 finding classes (this run, all sweeps) ──');
   for (const [k, v] of Object.entries(r.findings)) console.log(`  ${k.padEnd(26)} ${v}`);

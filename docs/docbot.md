@@ -234,9 +234,12 @@ The keystone is `QaScenarioV1` (packages/sim/src/qaScenario.ts): Scene Builder e
 bug reports reproduce through it (`bugs:repro` emits + runs it), the coverage corpus retains it, minimized
 nightly failures ship as it, and regression fixtures graduate into it. One format, one runner, one engine.
 
-Measured retro catch rate: **14/14** (docs/docbot-roadmap.md) — the #1176 temporal-window class is caught by
-the per-instance oracle under the 11 R-AVWIN owner rulings, with the two current engine violations pinned
-shrink-only in `temporalWindow.test.ts` (`KNOWN_VIOLATIONS`) until fixed.
+Measured retro catch rate: **run `npm run docbot:report`** — it derives the forward catch rate (overall and
+trailing 30 days by report date) from the measured verdicts in `docbot/retroCatalog.ts`, which
+`npm run docbot:retro` re-measures weekly (`.github/workflows/docbot-retro.yml`) and
+`npm run bugs:catalog -- <report-id>` grows from closed Bug Board reports. The #1176 temporal-window class is
+caught by the per-instance oracle under the 11 R-AVWIN owner rulings, with the two current engine violations
+pinned shrink-only in `temporalWindow.test.ts` (`KNOWN_VIOLATIONS`) until fixed.
 
 ## The 2026-08-29 wave — two lanes that encode a MISS, not a bug
 

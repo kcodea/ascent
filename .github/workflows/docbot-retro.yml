@@ -1,0 +1,53 @@
+# DOCBOT RETRO — the forward catch-rate loop, measured weekly (2026-09-11).
+#
+# `npm run docbot:retro` reinjects every historical bug in packages/sim/src/docbot/retroCatalog.ts into a
+# THROWAWAY git worktree (created and removed by the runner itself — the checkout is never mutated), runs
+# the cited generic lanes plus the whole docbot directory, and classifies CAUGHT / MISSED / UNPATCHABLE.
+#
+# THE FAILURE RULE (`--check`): the job fails only on a REGRESSION — a catalog entry the ledger records as
+# CAUGHT that now reads anything else (a generic oracle lost its teeth), or a patch that no longer applies.
+# Entries recorded MISSED stay green: they are the build order, not a failure. New catalog entries that
+# measure MISSED are expected — that is the honest number this loop exists to print.
+#
+# Separate from ci.yml on purpose: not a required check, never gates a PR (§17.4). The PR gate keeps the
+# catalog HONEST (retroCatalog.test.ts: anchors fresh, no unearned CAUGHT); this lane keeps it MEASURED.
+# It is deliberately its own file, not a step in nightly.yml / weekly.yml, so the retro lane can be
+# dispatched, timed and read on its own.
+name: Docbot Retro
+
+on:
+  schedule:
+    # 05:17 UTC Sunday — after Docbot Weekly's 04:23 start; odd minute to dodge on-the-hour congestion.
+    - cron: '17 5 * * 0'
+  workflow_dispatch:
+    inputs:
+      only:
+        description: 'Comma-separated catalog ids to run (default: every entry)'
+        required: false
+        default: ''
+
+jobs:
+  retro:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+
+      # The runner needs an identity only for `git worktree add`; no commit is ever made.
+      - name: Reinject every catalog bug and measure the forward catch rate
+        run: >-
+          npm run docbot:retro -- --check --out artifacts/docbot-retro
+          ${{ github.event.inputs.only != '' && format('--only {0}', github.event.inputs.only) || '' }}
+
+      - name: Upload findings.json + results.json
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: docbot-retro-${{ github.run_id }}
+          path: artifacts/docbot-retro/
+          retention-days: 90

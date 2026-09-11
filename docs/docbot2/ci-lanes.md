@@ -98,22 +98,24 @@ expensive for a nightly:
   full sweep even if every nightly failed to start.
 - the **ledger fold** over everything the run produced, uploaded so the trend is visible week to week.
 
-**The retro reinject harness is NOT wired into this workflow, deliberately.** `packages/tools/retro/`
-is a **Python** mutation harness (`reinject.py`) that rewrites engine source in place, runs the cited
-lane, expects red, and reverts. Three things make it unfit for an unattended runner today:
+**The retro reinject harness runs in its OWN workflow** — `Docbot Retro` (`docbot-retro.yml`, 05:17 UTC
+Sundays + `workflow_dispatch`), not as a step here. The three objections that kept the old Python harness
+out of CI were each answered on 2026-09-11 rather than argued away:
 
-1. it needs a Python toolchain the repo's CI image does not install, so wiring it means adding a second
-   language runtime to a lane nobody watches;
-2. it mutates tracked source files and relies on a clean revert — a run killed by a CI timeout leaves a
-   sabotaged checkout, which is harmless on a throwaway runner but produces a confusing red;
-3. its verdicts are *citations* (`verifiedBy: 'reinject-run'` with a measured date in
-   `retroInteractionMap.ts`), and a citation that a machine refreshes unattended is worth less than one a
-   human ran and dated.
+1. *a second language runtime* — the harness is TypeScript (`npm run docbot:retro`,
+   `packages/tools/src/retro-reinject.ts`) and the catalog is data (`retroCatalog.ts`);
+2. *it mutates tracked source* — it patches a throwaway `git worktree add --detach` under
+   `.local/retro-worktree` and removes it on every exit path, so a killed run leaves the checkout clean;
+3. *a machine-refreshed citation is worth less than a dated human one* — the weekly does not refresh the
+   ledger. It MEASURES and compares: the job fails only when an entry the ledger records as CAUGHT now
+   reads anything else (a generic oracle regressed) or a patch no longer applies; a new entry recorded
+   MISSED is the build order and never fails. Ledger changes are still a human paste, in a PR, from the
+   printed "drift" block.
 
-So it stays a **manual, attended run** — `python packages/tools/retro/reinject.py` — performed when the
-retro map changes or a lane it cites is renamed, with the date recorded in the map. `retroMapErrors()`
-already fails the PR gate when a catalog entry loses its mapping, which is the part that genuinely needs
-automating. Revisit this if the CI image grows Python for another reason.
+The PR gate keeps the catalog honest between runs (`retroCatalog.test.ts`: every patch anchors on today's
+source, no CAUGHT without a red generic lane, the harness's own lane and the bug's own regression pin never
+vote); `retroMapErrors()` still refuses an unmapped entry. The number the owner reads — the forward catch
+rate, overall and trailing 30 days by report date — is derived by `npm run docbot:report`.
 
 ## §17.4 — no flaky probability gates
 

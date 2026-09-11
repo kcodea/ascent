@@ -167,7 +167,10 @@ function compareOne(c: ContentContract, t: TextObject, p: ParsedTextContract, pg
   // minionSold depending on the factory).
   // 'play a <Tribe>' is implemented as onSummon on some cards (Glutton, Herzog) and onTribePlayed on others (Aspect) —
   // both are the shop-side 'you played a minion of tribe X' event, so the printed clause accepts either.
-  const EVENT_ALIASES: Record<string, string[]> = { onSell: ['onSell', 'minionSold'], onTribePlayed: ['onTribePlayed', 'onSummon'] };
+  // 'rubyCast' is the SPELL + RUBY umbrella, not a Ruby-only counter: `fireOnRubyCast` is fed `spellsCast + rubyCasts`
+  // (reducer.ts, owner ruling 2026-07-24; reaffirmed 2026-09-11 — "Gem Gorger should be any 3 spells"), so a card that
+  // prints "you cast 3 spells" over a `rubyCast` factory is CORRECT text. The first parser pass called it a defect.
+  const EVENT_ALIASES: Record<string, string[]> = { onSell: ['onSell', 'minionSold'], onTribePlayed: ['onTribePlayed', 'onSummon'], spellCast: ['spellCast', 'rubyCast'] };
   const contractEvents = new Set((c.triggers ?? []).map((x) => x.event));
   const triggerComparable = cardLike && c.contentType !== 'spell' && c.contentType !== 'gift';
   if (contractEvents.size > 0 && triggerComparable) {

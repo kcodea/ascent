@@ -69,7 +69,7 @@ Every unresolved span was dumped and clustered by sentence shape. The build orde
 
 | Object | Verdict | Action |
 |---|---|---|
-| `k_gemgorge` | **genuine text defect** — "When you cast 3 spells" for a factory on `rubyCast` | text + gilded text fixed to "3 Rubies"; patch note |
+| `k_gemgorge` | **parser false positive** (first flagged as a text defect) — "When you cast 3 spells" over a `rubyCast` factory. The engine feeds `fireOnRubyCast` the `spellsCast + rubyCasts` umbrella (owner 2026-07-24), and the owner reaffirmed on 2026-09-11: "Gem Gorger should be any 3 spells" | text unchanged; `spellCast` now accepts a `rubyCast` contract trigger (EVENT_ALIASES) with a pinned fixture |
 | `brood` | draft-contract gap — the extractor read the golden-text diff as a whole-card ×2, but only the Avenge buff doubles (the Imp summon stays 1, max 3) | curated contract, `gildedDelta: reshape` |
 | `cling` | draft-contract gap — `effects: []`, the swarm buff is an id-keyed engine path | curated contract stating the effect |
 | `k3_porkbelly` | draft-contract gap — `effects: []`, the Golem is the `vanguardGolem` def flag in `simulate.ts` | curated contract stating the summon |

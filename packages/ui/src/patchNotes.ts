@@ -66,11 +66,6 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Card Change',
-        text: 'Gem Gorger\'s text now says what it always did: it counts the Rubies you cast, not spells.',
-        details: ['"When you cast 3 spells" read wrong — the effect has only ever counted Ruby casts. The text (and its gilded text) now say "3 Rubies". No mechanical change.'],
-      },
-      {
-        category: 'Card Change',
         text: 'Aspect Choreographer is now simply Aspect. Same card, shorter name.',
       },
       {

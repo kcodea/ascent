@@ -121,8 +121,9 @@ The one standing disagreement the full sweep prints is `shaper` (`effects.1.summ
 
 0 mismatches stand today (0 unpinned, 0 stale pins — both gated). The 2026-09-11 parser coverage pass
 (`docs/devlog/2026-09-11-docbot-text-parser-coverage.md`) took the unresolved queue from 582 (59%) to 55
-(5.7%) and, in doing so, surfaced four disagreements: one genuine text defect (Gem Gorger printed "3 spells"
-for a factory that counts Ruby casts — fixed in content) and three extractor draft gaps (Brood's gild reshapes
+(5.7%) and, in doing so, surfaced four disagreements: one parser false positive (Gem Gorger's "3 spells" over a
+`rubyCast` factory — the trigger is the spell+Ruby umbrella, owner 2026-07-24/2026-09-11; the parser now knows)
+and three extractor draft gaps (Brood's gild reshapes
 only its Avenge buff; Cling Drone and Porkbelly act through id-keyed / flag-driven engine paths with an empty
 `effects` array) — each now a curated contract with the reason.
 

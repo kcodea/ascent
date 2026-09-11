@@ -25,15 +25,20 @@ import { SET3_CARDS, SET3_DWARVES, SET3_UNDEAD, SET3_NEUTRAL, SET3_SPIRITS } fro
  * meaningless for them (the drawable views filter tokens out anyway).
  */
 const SET3_SHARED_SPELL_IDS: readonly string[] = [
-  'apples', 'bulwark', 'crestclimb', 'emberpouch', 'lanternlight', 'quicksale', 'depositbox', 'sprout',
-  'summonstone', 'fieldmaneuvers', 'manafont', 'growth', 'hourglassreserve', 'laststand', 'mend',
-  'refreshtexts', 'spiritfire', 'tribeschoice', 'commonground', 'executionersedge', 'fleetingvigor',
-  'funeralonloan', 'lasso', 'layaway', 'patchjob', 'rallyoffensive', 'riftsunkcodex', 'shatter',
-  'staffofguel', 'tribeportal', 'turnabout', 'beyondsummit', 'decoysigil', 'fronttoback', 'goldentouch',
-  'helpwanted', 'hoardflame', 'insurancepolicy', 'preemptive', 'quickstudy', 'seconddraft', 'devour',
-  'chronostaff', 'corpseboard', 'displacement', 'farseersreport', 'invitationabove', 'markedtarget',
-  'resonance', 'rivalsreflection', 'sigilkinship', 'spellcart', 'strangerevision', 'weaken',
-  'elevationritual', 'aresmar', 'perfectvision', 'sparkplug', 'powershifter',
+  // Owner's Set 3 spell sheet (2026-09-10). Nineteen of the 2026-08-03 list left (Spirit Fire, Lantern Light,
+  // Crest of the Climb, Quick Sale, Field Maneuvers, Last Stand, Mend, Executioner's Edge, Fleeting Vigor, Layaway,
+  // Patch Job, Rallying Offensive, Hoardflame, Pre-emptive Assault, Second Draft, Farseer's Report, Invitation
+  // Above, Marked Target, Elevation Ritual) and seven TRIBE spells joined — the set-2 Ruby spells, the Undead
+  // pair, On the House. Those seven carry a tribe and only appear when that tribe is a run tribe (`runSpells`).
+  // Existing cards are NEVER re-specced from a sheet: the shipped card is the current truth (owner 2026-09-10).
+  'apples', 'bulwark', 'emberpouch', 'depositbox', 'sprout', 'summonstone',
+  'manafont', 'growth', 'hourglassreserve', 'refreshtexts', 'tribeschoice',
+  'commonground', 'funeralonloan', 'lasso', 'riftsunkcodex', 'shatter', 'staffofguel', 'tribeportal', 'turnabout',
+  'beyondsummit', 'decoysigil', 'fronttoback', 'goldentouch', 'helpwanted', 'insurancepolicy', 'quickstudy',
+  'devour', 'chronostaff', 'corpseboard', 'resonance', 'rivalsreflection', 'sigilkinship', 'spellcart', 'strangerevision', 'weaken', 'powershifter',
+  'displacement', 'aresmar', 'perfectvision', 'sparkplug',
+  // …the tribe spells (set 2's Ruby toolkit, set 1's Undead pair, the Dwarves' On the House):
+  'rubyshipment', 'facetwright', 'veinstorm', 'rubytransfer', 'lanternofsouls', 'undeadarmy', 'onthehouse',
 ];
 const SET3_SPELL_SOURCES: readonly CardDef[] = [...SPELLS, ...SET2_SPELLS];
 const SET3_SHARED_SPELLS: readonly CardDef[] = SET3_SHARED_SPELL_IDS.map((id) => {

@@ -27,7 +27,7 @@ export const SET2_SPELLS: CardDef[] = [
     // routes through the same `getRubies` factory the Kobold minions use (self is ignored → no golden multiplier).
     id: 'rubyshipment',
     name: 'Ruby Shipment',
-    tribe: 'neutral',
+    tribe: 'kobold', // TRIBE-GATED (owner 2026-09-10): offered only when this tribe is a run tribe (`runSpells`)
     tier: 2,
     attack: 0,
     health: 1,
@@ -43,7 +43,7 @@ export const SET2_SPELLS: CardDef[] = [
     // value is always exact. Only already-cast Rubies don't grow (owner ruling 2026-07-23).
     id: 'facetwright',
     name: "Facetwright's Choice",
-    tribe: 'neutral',
+    tribe: 'kobold', // TRIBE-GATED (owner 2026-09-10): offered only when this tribe is a run tribe (`runSpells`)
     tier: 3,
     attack: 0,
     health: 1,
@@ -77,7 +77,7 @@ export const SET2_SPELLS: CardDef[] = [
     // +1/+1 greens to the live Ruby value via spellDisplayText.
     id: 'veinstorm',
     name: 'Veinstorm',
-    tribe: 'neutral',
+    tribe: 'kobold', // TRIBE-GATED (owner 2026-09-10): offered only when this tribe is a run tribe (`runSpells`)
     tier: 4,
     attack: 0,
     health: 1,
@@ -93,7 +93,7 @@ export const SET2_SPELLS: CardDef[] = [
     // combo line: fatten a tavern minion off its neighbours, then buy it.
     id: 'rubytransfer',
     name: 'Ruby Transfer',
-    tribe: 'neutral',
+    tribe: 'kobold', // TRIBE-GATED (owner 2026-09-10): offered only when this tribe is a run tribe (`runSpells`)
     tier: 5,
     attack: 0,
     health: 1,
@@ -182,7 +182,7 @@ export const SET2_SPELLS: CardDef[] = [
     // the shared set-1 toolkit.
     id: 'onthehouse',
     name: 'On the House',
-    tribe: 'neutral',
+    tribe: 'dwarf', // TRIBE-GATED (owner 2026-09-10): offered only when this tribe is a run tribe (`runSpells`)
     tier: 5,
     attack: 0,
     health: 1,

@@ -1,4 +1,5 @@
 import { type PresentationCollector, type CombatEvent, beatIdentity, ALE_IDS, combatSide, makeCollector, makeRng, simulate, type BoardMinion, type CardDef, type CombatConfig, type CombatResult, type CombatSideState, type Keyword, type PendingCombatQuest, type PresentationBatch, type QuestCombatMods, type QuestDef, type QuestObjective, type QuestObjectiveEvent, type Tribe } from '@game/core';
+import { runSpells } from './spellPool';
 import { currentCollector, withActiveCollector } from './activeCollector';
 import { surfaceKeyForRune, surfaceKeyForQuest, CARD_INDEX, EPIC_RUNES, GIFT_IDS, QUEST_INDEX, RUNE_INDEX, RUNES, runeSynergies, type SynergyTag } from '@game/content';
 import { sideFromSnapshot } from './boardSide';
@@ -53,7 +54,7 @@ function spendGold(s: RunState, amount: number): void {
     while (s.spellDripTick >= s.spellDripPer) {
       s.spellDripTick -= s.spellDripPer;
       procRuneId(s, 'rune_spellslinging');
-      conjureToHand(s, poolOf(s).spells.filter((c) => c.tier <= s.tier), 1);
+      conjureToHand(s, runSpells(s).filter((c) => c.tier <= s.tier), 1);
     }
   }
   // The Golden Ledger: every `per` GOLD spent, your tribe gains stats. Threshold-based, unlike Rune of Bulk
@@ -519,7 +520,7 @@ function takeDiscoverPick(s: RunState, index: number): boolean {
   if (s.runeDraconicCuriosity && (def.tribe === 'dragon' || def.tribe2 === 'dragon' || def.universalTribe)) {
     procRuneId(s, 'rune_draconic_curiosity');
     // One Shop spell per copy held (recurring family, owner 2026-08-27).
-    conjureToHand(s, poolOf(s).spells.filter((c) => c.tier <= s.tier && !ALE_IDS.includes(c.id)), runeStacksOf(s, 'rune_draconic_curiosity'), true);
+    conjureToHand(s, runSpells(s).filter((c) => c.tier <= s.tier && !ALE_IDS.includes(c.id)), runeStacksOf(s, 'rune_draconic_curiosity'), true);
   }
   return true;
 }
@@ -992,7 +993,7 @@ export function reduce(state: RunState, action: Action): RunState {
         advanceQuests(next, (o) => o.event === 'playAttachment');
         // Rune of Structure: each Attachment you play from hand also conjures a random spell — one per copy
         // held (owner 2026-08-27: "rune of structure = you get 2 random shop spells").
-        if (next.runeStructure) { procRuneId(next, 'rune_structure'); conjureToHand(next, poolOf(next).spells.filter((c) => c.tier <= next.tier), runeStacksOf(next, 'rune_structure')); }
+        if (next.runeStructure) { procRuneId(next, 'rune_structure'); conjureToHand(next, runSpells(next).filter((c) => c.tier <= next.tier), runeStacksOf(next, 'rune_structure')); }
       }
       // Trail Forager: each Beast you play raises every OTHER Trail Forager's sell value (+1, ×2 golden).
       if (pdef && (pdef.tribe === 'beast' || pdef.tribe2 === 'beast' || pdef.universalTribe)) {
@@ -1610,7 +1611,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         if (s.runeContraband && !s.contrabandRubyUsed) {
           procRune(s, 'runeContraband');
           s.contrabandRubyUsed = true;
-          const ales = poolOf(s).spells.filter((c) => ALE_IDS.includes(c.id));
+          const ales = runSpells(s).filter((c) => ALE_IDS.includes(c.id));
           // One Ale per copy held (owner 2026-08-27: "rune of contraband doubles the output of the ale/ruby per trigger").
           if (ales.length > 0) conjureToHand(s, ales, runeStacksOf(s, 'rune_contraband'));
         }
@@ -1930,7 +1931,7 @@ function reduceCore(state: RunState, action: Action): RunState {
           if (s.runeHoardcalling && !s.hoardcallingUsedThisTurn && isTribe(card, 'dragon')) {
             procRune(s, 'runeHoardcalling');
             s.hoardcallingUsedThisTurn = true;
-            const spells = poolOf(s).spells.filter((c) => c.tier <= s.tier && !ALE_IDS.includes(c.id));
+            const spells = runSpells(s).filter((c) => c.tier <= s.tier && !ALE_IDS.includes(c.id));
             // One Shop spell per copy held (recurring family, owner 2026-08-27).
             if (spells.length > 0) conjureToHand(s, spells, runeStacksOf(s, 'rune_hoardcalling'), true);
           }
@@ -2728,7 +2729,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       } else if (power.kind === 'pocketMagic') {
         // Merrin: a random Shop spell (up to the current tier) to hand. No-op (no charge) if none exist or the
         // hand is full. Untargeted; the 1-Gold cost is spent by the shared block.
-        const pool = poolOf(s).spells.filter((c) => c.tier <= s.tier);
+        const pool = runSpells(s).filter((c) => c.tier <= s.tier);
         if (pool.length === 0 || s.hand.length >= handCap(s)) return state;
         conjureToHand(s, pool, reps); // Wishbone: two spells (conjureToHand is hand-cap safe)
       } else if (power.kind === 'dice') {
@@ -5512,10 +5513,10 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
       // Quest / rune reward cards are guaranteed delivery — they OVERFLOW the hand cap rather than being dropped
       // when hand + board are full (owner ruling: never lose an earned reward). `overflow = true` on every grant.
       if (r.randomTribe && (r.randomCount ?? 0) > 0) grantRandomTribeMinion(s, r.randomTribe, r.randomCount!, true);
-      if ((r.randomSpell ?? 0) > 0) conjureToHand(s, poolOf(s).spells.filter((c) => c.tier <= s.tier), r.randomSpell!, true); // Hoard Spark's random spell
+      if ((r.randomSpell ?? 0) > 0) conjureToHand(s, runSpells(s).filter((c) => c.tier <= s.tier), r.randomSpell!, true); // Hoard Spark's random spell
       // Set 2 — N random Dwarven ALES specifically (owner 2026-07-29). Drawn from the run's pool like every other
       // grant, so a set without the Ales grants nothing instead of injecting cards the run can't otherwise have.
-      if ((r.randomAle ?? 0) > 0) conjureToHand(s, poolOf(s).spells.filter((c) => ALE_IDS.includes(c.id)), r.randomAle!, true);
+      if ((r.randomAle ?? 0) > 0) conjureToHand(s, runSpells(s).filter((c) => ALE_IDS.includes(c.id)), r.randomAle!, true);
       // Rubies are MINTED, never conjured: a Ruby's stats are base 1/1 plus the run's live `rubyBonus`, so
       // handing over a raw pool copy would give a late-run Kobold deck 1/1 Rubies while every other source
       // pays full strength.
@@ -6636,7 +6637,7 @@ function payCommission(s: RunState, c: Commission): void {
     return;
   }
   if (c.kind === 'spell') {
-    const pool = poolOf(s).spells.filter((x) => x.tier <= s.tier);
+    const pool = runSpells(s).filter((x) => x.tier <= s.tier);
     if (pool.length > 0 && s.hand.length < handCap(s)) conjureToHand(s, pool, 1);
     return;
   }

@@ -296,10 +296,12 @@ export const RETRO_CATALOG: readonly RetroCatalogEntry[] = [
       { file: REC, find: '  parent?.flush();\n', replace: '  // REINJECT: no parent flush (Bug Board bb5195d5)\n' },
       { file: REC, find: '    parent?.rebase();\n', replace: '    // REINJECT: no parent rebase\n' },
     ],
-    lanes: [],
+    lanes: ['packages/sim/src/docbot/beatConservation.test.ts'],
     regressionLanes: ['packages/sim/src/eotNestedGrantEmission.test.ts'],
-    scope: { kind: 'out-of-scope', reason: 'presentation-beat emission (the consequence collector), not gameplay — Doc Bot audits what is WIRED, and the game state here was always right' },
-    verifiedBy: run('2026-09-11', 'MISSED'),
+    // Was out-of-scope on the morning run (presentation emission, state always right). The beat-conservation lane
+    // (#1426) made the CLAIM-vs-STATE half of a presentation bug machine-checkable, so the class is generic now.
+    scope: generic,
+    verifiedBy: run('2026-09-11', 'CAUGHT', ['packages/sim/src/docbot/beatConservation.test.ts']),
   },
   {
     id: 'cb45dc41-skybound-tier-clamp',

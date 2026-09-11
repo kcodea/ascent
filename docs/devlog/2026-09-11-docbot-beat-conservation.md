@@ -60,3 +60,10 @@ for one ledger — either the outer subtracts the inner's claims or one of them 
 happen (`withQuestRewardBeat` had none reachable in this sweep; it is on the watch list). (b) The `events.length
 === 0` early return hid every silent action from the under-claim half on the first cut — silence is a claim too.
 (c) The bought card is re-minted with a fresh uid, so "exclude `action.uid`" excluded nothing for `buy`.
+
+## Retro measurement (same day, on the rebase)
+
+`npm run docbot:retro -- --only bb5195d5-nested-scope-double-emit` against this branch: **CAUGHT by
+`beatConservation.test.ts`**. The catalog entry moved from out-of-scope to generic on that run (the class is
+machine-checkable now), the map row cites the lane, and the forward catch rate reads 17/17 in scope · trailing
+30 days 4/4 — pasted from the run output, never typed.

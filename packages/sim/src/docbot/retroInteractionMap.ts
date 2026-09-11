@@ -169,9 +169,9 @@ export const RETRO_INTERACTION_MAP: readonly RetroMapEntry[] = [
     catalogId: 'bb5195d5-nested-scope-double-emit',
     multiSystem: false, // presentation: the consequence collector, not gameplay
     families: [],
-    lanes: ['packages/sim/src/eotNestedGrantEmission.test.ts'],
-    why: 'out of Doc Bot\'s remit (state was always right; only the beat emission doubled) — cited to its own pin so the class is at least named; a generic "each beat scope emits only what it changed" oracle would be the presentation-side sibling of the derivation lane',
-    verifiedBy: 'class-analysis',
+    lanes: ['packages/sim/src/docbot/beatConservation.test.ts', 'packages/sim/src/eotNestedGrantEmission.test.ts'],
+    why: 'the beat stream claimed the parent window twice while the state moved once — the beat-conservation lane (#1426) reconciles every batch\'s claims against the real diff, so a nested scope re-emitting its parent is an over-claim it names by uid and number; measured CAUGHT 2026-09-11',
+    verifiedBy: 'reinject-run', // measured 2026-09-11 (docbot:retro --only bb5195d5-nested-scope-double-emit)
   },
   {
     catalogId: 'cb45dc41-skybound-tier-clamp',

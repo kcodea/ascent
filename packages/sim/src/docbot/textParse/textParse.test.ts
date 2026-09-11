@@ -46,7 +46,8 @@ const SWEEP = runTextSweep({ contracts: CONTRACTS });
 // 570 → 576 on 2026-09-10 (third move): the seven Set 3 spells arrived; six print shapes the parser cannot fully
 // resolve yet (a random HAND minion, board-and-hand, "also casts on", destroy-then-get, left-most in hand,
 // per-tribe-played). A conscious move.
-const UNRESOLVED_CAP = 576;
+// 576 → 577: Stellar Chorus (tranche II) — its per-spell improvement clause is unresolved; Split Decision parses.
+const UNRESOLVED_CAP = 577;
 /** Collapse floor: the parser fully consuming fewer objects than this means a grammar regression. */
 const PARSED_FLOOR = 340;
 

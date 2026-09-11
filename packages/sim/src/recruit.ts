@@ -1636,6 +1636,13 @@ export function fireSpellCastWatchersForRuby(state: RunState, rubyDef: CardDef, 
   }
 }
 
+/** Spells of EVERY kind cast this turn — Shop spells and Gifts (`spellsThisTurn`) plus Ruby plays
+ *  (`rubyCastsThisTurn`), without double-counting a Ruby that Rune of the Spellstone already booked as a Shop
+ *  spell. Stellar Chorus reads it (owner 2026-09-10: "count rubies and tower shields aka any spell"). */
+export function anySpellsCastThisTurn(state: RunState): number {
+  return state.spellsThisTurn + (state.runeSpellstone ? 0 : (state.rubyCastsThisTurn ?? 0));
+}
+
 export function countRubyAsShopSpell(state: RunState, rubyDef: CardDef, casts: number): void {
   if (casts <= 0) return;
   state.spellsCast += casts;
@@ -7397,6 +7404,20 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     for (const c of ctx.state.board) addBuff(c, 'Crescendo', a, h);
   },
 
+  /** Stellar Chorus (cast, aimed at a board or tavern minion): +a/+h, improved by +perA/+perH for each spell of any
+   *  kind cast this turn BEFORE it (the tally is read mid-resolution, before this cast is noted). Spell power folds
+   *  into the base; the per-spell step is flat. `self` is the target (the aimed-cast contract). */
+  spellBuffTargetPerSpellsCast: (ctx, self, params) => {
+    const n = anySpellsCastThisTurn(ctx.state);
+    const a = num(params.attack, 2) + spellAttackBonus(ctx.state) + num(params.perAttack, 3) * n;
+    const h = num(params.health, 2) + spellHealthBonus(ctx.state) + num(params.perHealth, 3) * n;
+    addBuff(self, str(params._source) || 'Stellar Chorus', a, h);
+  },
+  /** Split Decision, branch 1: Discover a minion from the standard pool (every tier up to yours). */
+  spellDiscoverMinion: (ctx) => { queueDiscover(ctx.state, { kind: 'minion', tier: ctx.state.tier }); },
+  /** Split Decision, branch 2: Discover a Shop spell. */
+  spellDiscoverShopSpell: (ctx) => { queueDiscover(ctx.state, { kind: 'spell' }); },
+
   spellBuffLeftmost: (ctx, _self, params) => {
     const target = ctx.state.board[0];
     if (!target) return; // empty board → fizzles (the spell is still spent, like every untargeted cast)
@@ -8494,7 +8515,7 @@ export function spellHealthBonus(state: RunState): number {
  * base text for non-stat spells or a zero bonus. Convention: a stat spell's text shows "+A/+B" matching
  * its `spellBuffTarget` params, so it can be substituted.
  */
-export function spellDisplayText(cardId: string, bonusA: number, escalation = 0, bonusH = bonusA, goldSpent = 0, escalationH = escalation, goldPouchValue = 0, extra?: { rubyBonus?: { attack: number; health: number }; clueBonus?: number; playedThisTurn?: string[]; tier?: number; topTribe?: Tribe | null; growthBonus?: number; juggler?: boolean }): string {
+export function spellDisplayText(cardId: string, bonusA: number, escalation = 0, bonusH = bonusA, goldSpent = 0, escalationH = escalation, goldPouchValue = 0, extra?: { rubyBonus?: { attack: number; health: number }; clueBonus?: number; playedThisTurn?: string[]; tier?: number; topTribe?: Tribe | null; growthBonus?: number; juggler?: boolean; anySpellsThisTurn?: number }): string {
   const def = CARD_INDEX[cardId];
   if (!def) return '';
   // Set 3 — a FLAT hand spell (Tower Shield: every cast effect opts out of spell power via `flat`) prints exactly
@@ -8551,6 +8572,17 @@ export function spellDisplayText(cardId: string, bonusA: number, escalation = 0,
   // Hoardflame: +4/+4 base + spell power + 1/+1 per Dragon PLAYED this turn. This branch used to return before
   // the generic spell-power handling below, so a Spellbinder's bonus never showed (owner report 2026-07-26) —
   // it printed the base rate while the cast granted something else.
+  // Stellar Chorus (set 3): base greens with spell power; once a spell has been cast this turn the card appends the
+  // CURRENT total it will grant (Patch Job's shape) — base + per-spell step × spells of any kind cast so far.
+  if (def.id === 'stellarchorus') {
+    const eff = def.effects.find((e) => e.do === 'spellBuffTargetPerSpellsCast');
+    const p = eff?.params as { attack?: number; health?: number; perAttack?: number; perHealth?: number } | undefined;
+    const baseA = Number(p?.attack ?? 2), baseH = Number(p?.health ?? 2), perA = Number(p?.perAttack ?? 3), perH = Number(p?.perHealth ?? 3);
+    let t = bonusA > 0 || bonusH > 0 ? def.text.replace(`+${baseA}/+${baseH}`, `{{+${baseA + bonusA}/+${baseH + bonusH}}}`) : def.text;
+    const n = extra?.anySpellsThisTurn ?? 0;
+    if (n > 0) t = `${t} {{Now +${baseA + bonusA + perA * n}/+${baseH + bonusH + perH * n}.}}`;
+    return t;
+  }
   // Crescendo (set 3): "+1/+1 for each Spirit you played this turn" — spell power scales the per-Spirit rate
   // (Hoardflame's rule), so the printed rate greens with power, and once a Spirit has been played the card
   // appends the CURRENT total it will grant (Patch Job's shape).

@@ -576,11 +576,11 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-family-spellCast",
-    "title": "'spellCast' family · 105 cards",
-    "statement": "All 105 'spellCast' cards trigger the same way. These are the spells themselves, and spells are never gilded. — ✓ yes · ✕ no (say why) · ✎ your wording",
+    "title": "'spellCast' family · 106 cards",
+    "statement": "All 106 'spellCast' cards trigger the same way. These are the spells themselves, and spells are never gilded. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
-    "currentBehaviour": "97 effect factories across 105 cards dispatch through the 'spellCast' presentation family, all on the single trigger 'cast' (recruit); the factoryPhase lane gates each (trigger, factory) pair. Gilding: INAPPLICABLE — checkTriples skips spells and Rubies, so no member of this family can ever BE gilded (R-GILD-02, owner ruling 2026-08-28).",
-    "cardText": "Exemplar — Anomaly Reactor: \"Give a friendly minion All types — it counts as every tribe and gets all of their buffs.\" · Members: Anomaly Reactor · Eyes of Aresmar · Bloodlust · Bulwark · Carnival Coin · Chrono Staff · Clue · Common Ground · Consume · Copycat · Crescendo · Cupcakes · … and 93 more",
+    "currentBehaviour": "100 effect factories across 106 cards dispatch through the 'spellCast' presentation family, all on the single trigger 'cast' (recruit); the factoryPhase lane gates each (trigger, factory) pair. Gilding: INAPPLICABLE — checkTriples skips spells and Rubies, so no member of this family can ever BE gilded (R-GILD-02, owner ruling 2026-08-28).",
+    "cardText": "Exemplar — Anomaly Reactor: \"Give a friendly minion All types — it counts as every tribe and gets all of their buffs.\" · Members: Anomaly Reactor · Eyes of Aresmar · Bloodlust · Bulwark · Carnival Coin · Chrono Staff · Clue · Common Ground · Consume · Copycat · Crescendo · Cupcakes · … and 94 more",
     "example": "Anomaly Reactor follows the 'spellCast' convention — its trigger fires on cast. three copies of it never combine into a golden one, so it has no gilded form at all.",
     "contentIds": [
       "anomalyreactor",
@@ -674,6 +674,7 @@ export const CONVENTION_PENDING: GameRule[] = [
       "spellcart",
       "spiritfire",
       "staffofguel",
+      "stellarchorus",
       "strangerevision",
       "summoningbulwark",
       "summonstone",

@@ -12,6 +12,42 @@ import type { CardDef } from '@game/core';
  */
 export const SET3_SPELLS: readonly CardDef[] = [
   {
+    // T4, aimed (board or tavern minion): +2/+2, improved by +3/+3 for EACH spell cast this turn before it — any spell:
+    // Shop spells, Rubies, Gifts (Tower Shield, Clue) all count (owner 2026-09-10). The cast itself is not counted
+    // (the tally is read while the effect resolves, before the cast is noted). Spell power folds into the base.
+    id: 'stellarchorus',
+    name: 'Stellar Chorus',
+    tribe: 'neutral',
+    tier: 4,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    cost: 2,
+    target: 'any',
+    effects: [{ on: 'cast', do: 'spellBuffTargetPerSpellsCast', params: { attack: 2, health: 2, perAttack: 3, perHealth: 3 } }],
+    text: 'Give a minion **+2/+2**. Improve this by **+3/+3** for each spell you cast this turn.',
+  },
+  {
+    // T5 Choose One — Discover a minion (the standard pool: every tier up to yours — owner: "any tier"), or Discover
+    // a Shop spell. Each branch queues its Discover from the cast effect (Rival's Reflection's shape).
+    id: 'splitdecision',
+    name: 'Split Decision',
+    tribe: 'neutral',
+    tier: 5,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    cost: 2,
+    effects: [],
+    chooseOne: [
+      { text: '**Discover** a minion.', effects: [{ on: 'cast', do: 'spellDiscoverMinion' }] },
+      { text: '**Discover** a **Shop spell**.', effects: [{ on: 'cast', do: 'spellDiscoverShopSpell' }] },
+    ],
+    text: '**Choose One:** **Discover** a minion, or **Discover** a **Shop spell**.',
+  },
+  {
     // T1 Choose One — a random HAND minion +3/+1 or +1/+3. Spell power folds in (the standard cast rule).
     id: 'aspectsblessing',
     name: "Aspect's Blessing",

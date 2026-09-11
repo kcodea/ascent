@@ -35,7 +35,7 @@
  *                       bond's fields are `a`/`b`, so no naming convention would ever have found it.
  *
  * `npm run docbot` prints the full report, including the needs-triage backlog the tests tolerate but track.
- * Doctrine and the ledger of what each lane has caught: docs/docbot.md.
+ * Doctrine: docs/docbot.md (the contract); the ledger of what each lane has caught: docs/docbot-history.md.
  */
 export { TRIGGER_PHASES, PHASE_EXCUSED, COMBAT_CASTING_FACTORIES, COMBAT_EMIT_WAIVED, type PhaseExcuse } from './phaseRegistry';
 export { TRIBE_RATCHET, PREDICATE_FILES, RAW_TRIBE_COMPARE_SOURCE } from './tribeRatchet';

@@ -131,6 +131,49 @@ function playCard(base: RunState, def: CardDef, asId: string, golden: boolean, t
   return reduce(s, { type: 'play', uid: 'docbotPlay', targetUid });
 }
 
+/** Cast bookkeeping the spell lane ignores: what EVERY cast changes regardless of its effect. Exported so the
+ *  lane's sabotage proof can show that dropping `cardsPlayedTotal` from this set makes the gate vacuous again. */
+export const SPELL_BOOKKEEPING: ReadonlySet<string> = new Set(['spellsCast', 'spellsThisTurn', 'lastSpellCastId', 'firstSpellThisTurnId', 'lastSpellThisTurnId', 'goldSpent', 'goldSpentThisTurn', 'playedThisTurn', 'cardsPlayedTotal', 'spellsCastIds', 'alesCastThisTurn']);
+
+/** Spells whose cast is CONDITIONAL on run state the rich fixture does not carry: the lane stages the condition
+ *  (a state patch) and demands the cast act under it — the L3 "trigger stager" doctrine, per spell. A spell listed
+ *  here must be inert WITHOUT its patch (else the entry is stale) and active WITH it. */
+export const SPELL_STAGERS: Readonly<Record<string, { why: string; patch: Partial<RunState> }>> = {
+  // (empty on 2026-09-11: Insurance Policy looked conditional-inert on the first honest run, but that was the
+  // Gold exclusion — the fixture's last combat is already a loss and the 5 Gold shows once the price is added back.)
+};
+
+/** INSTRUMENT FIX 2026-09-11 (found by the entry-path lane, #1428): the spell gate had been VACUOUSLY green since
+ *  it shipped. `reduce` initialises ~11 run-state fields to their zero value on every play (`lastShoutFires` → 0,
+ *  `fodderEaten` → [], …) and bumps `cardsPlayedTotal`, so post-cast never equalled the PRE-reduce baseline and
+ *  no spell could ever read as inert — the four targeted Gifts no-oped for a month under a green lane. The
+ *  projection is now a pure, exported function so the lane can sabotage-prove it:
+ *   (a) a key ABSENT before that holds its zero value after is initialisation, not an effect (an effect that
+ *       only sets a counter to 0 is a no-op anyway);
+ *   (b) `cardsPlayedTotal` is play bookkeeping like `playedThisTurn`;
+ *   (c) Gold and the hand are NOT excluded wholesale (that hid Gold Pouch / Golden Ale and Hand Soap on the
+ *       first honest run): the cast's own price is added back so a Gold GAIN shows, and only the cast card's own
+ *       departure from the hand is normalised away so a hand BUFF shows.
+ *  The probe that established the zero-init list is in docs/devlog/2026-09-11-docbot-reconcile.md. */
+export function spellCastReadsInert(before: RunState, after: RunState, paid: number, castUid = 'docbotPlay'): boolean {
+  const isZero = (v: unknown): boolean => v === 0 || v === false || v === null
+    || (Array.isArray(v) && v.length === 0)
+    || (typeof v === 'object' && v !== null && !Array.isArray(v) && Object.keys(v as object).length === 0);
+  const strip = (st: RunState, paidHere: number): string => {
+    const o: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(st)) {
+      if (NOISE.has(k) || v === undefined) continue;
+      if (SPELL_BOOKKEEPING.has(k)) continue;
+      if ((before as unknown as Record<string, unknown>)[k] === undefined && isZero(v)) continue; // zero-init, not an effect
+      if (k === 'embers') { o[k] = (v as number) + paidHere; continue; }
+      if (k === 'hand') { o[k] = (v as BoardCard[]).filter((c) => c.uid !== castUid); continue; }
+      o[k] = v;
+    }
+    return stable(o);
+  };
+  return strip(after, paid) === strip(before, 0);
+}
+
 export interface PlayScanResult {
   /** Minions with a SELF-play effect (`onPlay`) whose play is indistinguishable from a vanilla body. */
   inertMinions: string[];
@@ -140,6 +183,8 @@ export interface PlayScanResult {
   inertSpells: string[];
   /** Spells the fixture could not even cast (refused) — the scan must not silently skip them. */
   refusedSpells: string[];
+  /** SPELL_STAGERS entries whose spell acts even WITHOUT the staged condition — a stale stager. */
+  staleStagers: string[];
   /** `onSummon` WATCHERS that stayed silent while a subject of EVERY tribe was played past them in the
    *  shop. Combat-only watchers land here by design (their lane is the combat differential); a shop-worded
    *  watcher here is a runtime CONFIRMATION of its phase-registry triage entry. */
@@ -151,6 +196,7 @@ export function playScan(): PlayScanResult {
   const goldenFlat: string[] = [];
   const inertSpells: string[] = [];
   const refusedSpells: string[] = [];
+  const staleStagers: string[] = [];
   const silentWatchers: string[] = [];
   const vanilla = CARD_INDEX[VANILLA_CONTROL_ID]!;
   const { state: base, targetUid } = playFixture();
@@ -195,24 +241,27 @@ export function playScan(): PlayScanResult {
   for (const def of Object.values(CARD_INDEX)) {
     if (!def?.spell || def.ruby) continue;
     const cost = def.cost ?? 0;
-    const s0 = { ...base, embers: 60 };
-    const inHand: BoardCard = { uid: 'docbotPlay', cardId: def.id, tribe: 'neutral', attack: 0, health: 0, keywords: [], golden: false } as BoardCard;
-    const s1 = reduce({ ...s0, hand: [...s0.hand, inHand] }, { type: 'play', uid: 'docbotPlay', targetUid });
-    if (s1.hand.some((c) => c.uid === 'docbotPlay')) { refusedSpells.push(def.id); continue; } // refused — SURFACED, never silently skipped (the instrument must not lie)
-    const strip = (st: RunState): string => {
-      const o: Record<string, unknown> = {};
-      for (const [k, v] of Object.entries(st)) {
-        if (NOISE.has(k) || v === undefined) continue;
-        if (['spellsCast', 'spellsThisTurn', 'lastSpellCastId', 'firstSpellThisTurnId', 'lastSpellThisTurnId', 'embers', 'goldSpent', 'goldSpentThisTurn', 'playedThisTurn', 'hand', 'spellsCastIds', 'alesCastThisTurn'].includes(k)) continue;
-        o[k] = v;
-      }
-      return stable(o);
+    const stager = SPELL_STAGERS[def.id];
+    const castOnce = (from: RunState): RunState | null => {
+      const inHand: BoardCard = { uid: 'docbotPlay', cardId: def.id, tribe: 'neutral', attack: 0, health: 0, keywords: [], golden: false } as BoardCard;
+      const after = reduce({ ...from, hand: [...from.hand, inHand] }, { type: 'play', uid: 'docbotPlay', targetUid });
+      return after.hand.some((c) => c.uid === 'docbotPlay') ? null : after; // null = refused
     };
-    if (strip(s1) === strip(s0)) inertSpells.push(def.id);
+    const s0 = { ...base, embers: 60, ...(stager?.patch ?? {}) } as RunState;
+    const s1 = castOnce(s0);
+    if (!s1) { refusedSpells.push(def.id); continue; } // refused — SURFACED, never silently skipped (the instrument must not lie)
+    const inert = spellCastReadsInert(s0, s1, cost);
+    if (stager) {
+      // A staged spell must be inert WITHOUT its condition (else the stager is stale) and act WITH it.
+      const plain = { ...base, embers: 60 } as RunState;
+      const bare = castOnce(plain);
+      if (bare && !spellCastReadsInert(plain, bare, cost)) staleStagers.push(def.id);
+    }
+    if (inert) inertSpells.push(def.id);
     void cost;
   }
 
-  return { inertMinions, goldenFlat, inertSpells, refusedSpells, silentWatchers };
+  return { inertMinions, goldenFlat, inertSpells, refusedSpells, staleStagers, silentWatchers };
 }
 
 /** Watcher-lane normalization: placeholder the WATCHER body (identity + def-relative stats, so a watcher

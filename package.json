@@ -43,6 +43,7 @@
     "docbot:interactions": "tsx packages/tools/src/docbot-interactions.ts",
     "docbot:ledger": "tsx packages/tools/src/docbot-ledger.ts",
     "docbot:report": "tsx packages/tools/src/docbot-report.ts",
+    "docbot:sync": "npm run contracts:extract && npm run docbot:text && npm run rules:seed && npm run docbot:report -- --check",
     "docbot:retro": "tsx packages/tools/src/retro-reinject.ts",
     "bugs:pull": "tsx packages/tools/src/bugs-pull.ts",
     "bugs:list": "tsx packages/tools/src/bugs-list.ts",

@@ -13,6 +13,7 @@ import { CARD_INDEX, RUNES, EPIC_RUNES } from '@game/content';
 import { FACTORIES, combatCastable } from '@game/core';
 import { allRules, unenforcedApproved } from '@game/rules';
 import { existsSync, readFileSync } from 'node:fs';
+import { buildFinalReport } from './docbot-report.lib';
 import {
   COMBAT_CASTING_FACTORIES, HEROES, PHASE_EXCUSED, PREDICATE_FILES, RAW_TRIBE_COMPARE_SOURCE,
   RECRUIT_FACTORY_IDS, SPELL_POWER_EXCUSED, TRIBE_RATCHET, TRIGGER_PHASES, combatScan, playScan, runeSwallowScan,
@@ -169,7 +170,7 @@ const NEW_LANES: Array<[string, string, string]> = [
   ['retro harness', 'packages/tools/src/retro-reinject.test.ts', 'docbot:retro pure half — regression pins never vote, the harness\'s own lane never votes, CAUGHT→MISSED is a regression, a new MISSED is the build order'],
   ['bug catalog stub', 'packages/tools/src/bugs-catalog.test.ts', 'npm run bugs:catalog -- <report-id>: a CLOSED Bug Board report becomes a pending catalog stub; open or duplicate reports are refused'],
   // ── 2026-08-29: two lanes that audit the AUDITING. Both owner bugs that day were already covered by an
-  //    existing lane in principle, and neither was caught — see docs/docbot.md for why. ──
+  //    existing lane in principle, and neither was caught — see docs/docbot-history.md for why. ──
   ['combat-emit agreement', 'packages/sim/src/docbot/combatEmitAgreement.test.ts', "every trigger combat EMITS is classified combat/both in TRIGGER_PHASES or waived — a misclassification silently switched off the factoryPhase lane's combat half for onGainCard (Gangplank)"],
   ['uid survives a triple', 'packages/sim/src/docbot/uidSurvivesTriple.test.ts', "no run state points at a body a triple destroyed (Sable's Soulbind held run-board uids) — a deep walk, because the bond's fields are named `a`/`b` and no naming convention would find them"],
   // ── 2026-09-11: two lanes born from the September player bugs that slipped past everything above because
@@ -210,9 +211,13 @@ for (const [name, file, what] of NEW_LANES) {
 // ── rulebook enforcement picture ───────────────────────────────────────────────────────────────────────────
 const rules = allRules();
 const unenforced = unenforcedApproved(rules);
-const pendingCount = rules.filter((r) => r.effective === 'needs-ruling').length;
-console.log('\n── rulebook — @game/rules closed loop ──');
-console.log(`  rules: ${rules.length} total · pending owner questions: ${pendingCount} · approved-but-unenforced: ${unenforced.length}${unenforced.length ? ` (${unenforced.map((r) => r.id).join(', ')})` : ''}`);
+// RECONCILED 2026-09-11: this line and `npm run docbot:report` §6 used to count the backlog independently (the
+// audit found the CLI printing "pending owner questions: 0" beside a report listing 63 dormant convention
+// cards). Both now read the ONE `FinalReport.rules` object, so they cannot disagree.
+const reportRules = buildFinalReport().rules;
+console.log('\n── rulebook — @game/rules closed loop (the same numbers `npm run docbot:report` prints) ──');
+console.log(`  rules: ${reportRules.total} total · approved: ${reportRules.approved} · retired: ${reportRules.retired} · needs-ruling: ${reportRules.needsRuling} · approved-but-unenforced: ${unenforced.length}${unenforced.length ? ` (${unenforced.map((r) => r.id).join(', ')})` : ''}`);
+console.log(`  dormant owner decks — conventions: ${reportRules.decks.conventions} · interactions: ${reportRules.decks.interactions} · wording: ${reportRules.decks.wording}${reportRules.releaseBlockers.length ? ` · ⚠ release blockers: ${reportRules.releaseBlockers.join(', ')}` : ''}`);
 
 // ── the nightly's last verdict (2026-09-11) — offline-safe: a local status file if one exists, else a pointer ─
 console.log('\n── nightly (the lane the PR gate never pays for) ──');
@@ -240,6 +245,7 @@ console.log('  npm run docbot:text                 the full text-intelligence sw
 console.log('  npm run docbot:interactions         the full pairwise/triple interaction sweep + anomaly oracle (WP F)');
 console.log('  npm run docbot:ledger -- --in artifacts   fold every findings.json into one fingerprint ledger (WP G)');
 console.log('  npm run docbot:report               the §20/§21 coverage + blind-spot roll-up (-- --json / -- --check)');
+console.log('  npm run docbot:sync                 ONE regen for a content PR: contracts:extract → docbot:text → rules:seed → report --check (never hand-edit the generated registries)');
 console.log('  npm run docbot:retro                reinject every catalog bug in a throwaway worktree — the MEASURED forward catch rate (-- --check / -- --only <id>)');
 console.log('  npm run bugs:catalog -- <report-id> append a retro-catalog stub from a closed Bug Board report (the on-ramp into the loop)');
 console.log('  npm run contracts:extract           regenerate the extracted contract registry (curated always wins)');

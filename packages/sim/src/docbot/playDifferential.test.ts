@@ -22,7 +22,8 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CARD_INDEX } from '@game/content';
-import { CONTROL_KEY_WHITELIST, VANILLA_CONTROL_ID, playScan } from './playScan';
+import { CONTROL_KEY_WHITELIST, VANILLA_CONTROL_ID, playFixture, playScan, spellCastReadsInert } from './playScan';
+import type { RunState } from '../state';
 import { PLAY_EXCUSED, WATCHER_EXCUSED } from './historyRegistry';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..');
@@ -54,8 +55,29 @@ describe('Doc Bot — play differential', () => {
     expect(scan.goldenFlat, `Golden-flat minion(s): ${scan.goldenFlat.join(', ')} — gilding changed nothing about the play effect.`).toEqual([]);
   });
 
-  it('every castable spell changes something beyond cast bookkeeping', () => {
-    expect(scan.inertSpells, `Inert spell(s): ${scan.inertSpells.join(', ')}`).toEqual([]);
+  it('every castable spell changes something beyond cast bookkeeping (staged conditions included)', () => {
+    expect(scan.inertSpells, `Inert spell(s): ${scan.inertSpells.join(', ')} — a real no-op, or a condition the fixture does not carry: fix it or stage it in SPELL_STAGERS with the condition.`).toEqual([]);
+    expect(scan.staleStagers, `Stale spell stager(s): ${scan.staleStagers.join(', ')} — the spell acts without its staged condition; delete the entry.`).toEqual([]);
+  });
+
+  // INSTRUMENT SABOTAGE (2026-09-11): this gate was VACUOUSLY green from the day it shipped — `reduce` zero-
+  // initialises ~11 fields and bumps `cardsPlayedTotal` on every play, so post-cast never equalled the pre-reduce
+  // baseline and the four targeted Gifts no-oped for a month under a green lane (found by #1428's entry-path
+  // lane). The projection is pure now; these three pairs prove it reads a no-op as inert and one point of change
+  // as effectful — the old projection read ALL of them as effectful.
+  it('SABOTAGE — the spell projection calls a bookkeeping-only cast inert, and Gold / hand changes effectful', () => {
+    const { state: base } = playFixture();
+    const before = { ...base, embers: 60 } as RunState;
+    // The exact shape of a NO-OP cast after `reduce`: card gone from hand, price paid, counters bumped, zero-inits.
+    const noop = {
+      ...before, embers: 58, hand: before.hand, spellsCast: 1, spellsThisTurn: 1, cardsPlayedTotal: 1,
+      lastSpellCastId: 'x', playedThisTurn: ['x'], lastShoutFires: 0, fodderEaten: [], gainCardFiredUids: [],
+    } as unknown as RunState;
+    expect(spellCastReadsInert(before, noop, 2)).toBe(true);
+    expect(spellCastReadsInert(before, { ...noop, embers: 59 } as RunState, 2)).toBe(false); // a Gold gain shows
+    const buffed = { ...noop, hand: before.hand.map((c, i) => (i === 0 ? { ...c, attack: c.attack + 8, health: c.health + 8 } : c)) } as RunState;
+    expect(spellCastReadsInert(before, buffed, 2)).toBe(false); // a hand buff shows
+    expect(spellCastReadsInert(before, { ...noop, freeRolls: 2 } as RunState, 2)).toBe(false); // a non-zero init shows
   });
 
   it('refused spells are a pinned queue, not a silent skip (19 as of 2026-09-10)', () => {

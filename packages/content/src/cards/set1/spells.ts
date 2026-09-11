@@ -282,7 +282,7 @@ export const SPELLS: CardDef[] = [
     // combat — with spell power folding +X/+X onto both stats on top (so +1/+1 spells make it +4/+1).
     id: 'lanternofsouls',
     name: 'Lantern of Souls',
-    tribe: 'neutral',
+    tribe: 'undead', // TRIBE-GATED (owner 2026-09-10): offered only when this tribe is a run tribe (`runSpells`)
     tier: 4,
     attack: 0,
     health: 1,
@@ -312,7 +312,7 @@ export const SPELLS: CardDef[] = [
     // Conjure two copies of a random buyable Undead (active tribes), into the hand.
     id: 'undeadarmy',
     name: 'Undead Army',
-    tribe: 'neutral',
+    tribe: 'undead', // TRIBE-GATED (owner 2026-09-10): offered only when this tribe is a run tribe (`runSpells`)
     tier: 4,
     attack: 0,
     health: 1,

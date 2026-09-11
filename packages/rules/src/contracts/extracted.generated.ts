@@ -3497,8 +3497,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     },
     "setIds": [
       "set1",
-      "set2",
-      "set3"
+      "set2"
     ],
     "tier": 1,
     "tribes": [
@@ -8485,8 +8484,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     },
     "setIds": [
       "set1",
-      "set2",
-      "set3"
+      "set2"
     ],
     "tier": 6,
     "tribes": [
@@ -8633,8 +8631,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     },
     "setIds": [
       "set1",
-      "set2",
-      "set3"
+      "set2"
     ],
     "tier": 3,
     "tribes": [
@@ -8681,11 +8678,12 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "confidence": "high"
     },
     "setIds": [
-      "set2"
+      "set2",
+      "set3"
     ],
     "tier": 3,
     "tribes": [
-      "neutral"
+      "kobold"
     ],
     "tags": [
       "tier:3",
@@ -8743,8 +8741,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     },
     "setIds": [
       "set1",
-      "set2",
-      "set3"
+      "set2"
     ],
     "tier": 5,
     "tribes": [
@@ -8926,8 +8923,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     },
     "setIds": [
       "set1",
-      "set2",
-      "set3"
+      "set2"
     ],
     "tier": 2,
     "tribes": [
@@ -9019,8 +9015,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     },
     "setIds": [
       "set1",
-      "set2",
-      "set3"
+      "set2"
     ],
     "tier": 3,
     "tribes": [
@@ -12804,8 +12799,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     },
     "setIds": [
       "set1",
-      "set2",
-      "set3"
+      "set2"
     ],
     "tier": 4,
     "tribes": [
@@ -13778,8 +13772,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     },
     "setIds": [
       "set1",
-      "set2",
-      "set3"
+      "set2"
     ],
     "tier": 5,
     "tribes": [
@@ -16288,8 +16281,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     },
     "setIds": [
       "set1",
-      "set2",
-      "set3"
+      "set2"
     ],
     "tier": 1,
     "tribes": [
@@ -16333,11 +16325,12 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       ]
     },
     "setIds": [
-      "set1"
+      "set1",
+      "set3"
     ],
     "tier": 4,
     "tribes": [
-      "neutral"
+      "undead"
     ],
     "tags": [
       "tier:4"
@@ -16428,8 +16421,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     },
     "setIds": [
       "set1",
-      "set2",
-      "set3"
+      "set2"
     ],
     "tier": 2,
     "tribes": [
@@ -16471,8 +16463,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     },
     "setIds": [
       "set1",
-      "set2",
-      "set3"
+      "set2"
     ],
     "tier": 3,
     "tribes": [
@@ -16718,8 +16709,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     },
     "setIds": [
       "set1",
-      "set2",
-      "set3"
+      "set2"
     ],
     "tier": 5,
     "tribes": [
@@ -16844,8 +16834,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     },
     "setIds": [
       "set1",
-      "set2",
-      "set3"
+      "set2"
     ],
     "tier": 2,
     "tribes": [
@@ -18616,11 +18605,12 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "confidence": "high"
     },
     "setIds": [
-      "set2"
+      "set2",
+      "set3"
     ],
     "tier": 5,
     "tribes": [
-      "neutral"
+      "dwarf"
     ],
     "tags": [
       "tier:5"
@@ -18876,8 +18866,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     },
     "setIds": [
       "set1",
-      "set2",
-      "set3"
+      "set2"
     ],
     "tier": 3,
     "tribes": [
@@ -19218,8 +19207,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     },
     "setIds": [
       "set1",
-      "set2",
-      "set3"
+      "set2"
     ],
     "tier": 4,
     "tribes": [
@@ -23432,8 +23420,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     },
     "setIds": [
       "set1",
-      "set2",
-      "set3"
+      "set2"
     ],
     "tier": 1,
     "tribes": [
@@ -23531,8 +23518,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     },
     "setIds": [
       "set1",
-      "set2",
-      "set3"
+      "set2"
     ],
     "tier": 3,
     "tribes": [
@@ -24012,11 +23998,12 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "confidence": "high"
     },
     "setIds": [
-      "set2"
+      "set2",
+      "set3"
     ],
     "tier": 2,
     "tribes": [
-      "neutral"
+      "kobold"
     ],
     "tags": [
       "tier:2"
@@ -24059,11 +24046,12 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "confidence": "low"
     },
     "setIds": [
-      "set2"
+      "set2",
+      "set3"
     ],
     "tier": 5,
     "tribes": [
-      "neutral"
+      "kobold"
     ],
     "tags": [
       "tier:5"
@@ -32637,8 +32625,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     },
     "setIds": [
       "set1",
-      "set2",
-      "set3"
+      "set2"
     ],
     "tier": 4,
     "tribes": [
@@ -34947,8 +34934,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     },
     "setIds": [
       "set1",
-      "set2",
-      "set3"
+      "set2"
     ],
     "tier": 2,
     "tribes": [
@@ -36975,11 +36961,12 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       ]
     },
     "setIds": [
-      "set1"
+      "set1",
+      "set3"
     ],
     "tier": 4,
     "tribes": [
-      "neutral"
+      "undead"
     ],
     "tags": [
       "tier:4"
@@ -37064,11 +37051,12 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "confidence": "low"
     },
     "setIds": [
-      "set2"
+      "set2",
+      "set3"
     ],
     "tier": 4,
     "tribes": [
-      "neutral"
+      "kobold"
     ],
     "tags": [
       "tier:4"

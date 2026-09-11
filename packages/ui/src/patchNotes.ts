@@ -71,6 +71,11 @@ export const PATCH_NOTES: PatchNote[] = [
         text: 'Wording: "other" now always means a same-named copy can still be targeted, and "different" means no copy of that card can. Lieutenant Thane and Menagerie Mammoth read "different" to match what they already do.',
       },
       {
+        category: 'Card Change',
+        text: 'Set 3 spell pool: nineteen spells left (the next-combat keyword spells among them) and seven tribe spells joined: Ruby Shipment, the Facetwright Choice, Veinstorm, Ruby Transfer, Lantern of Souls, Undead Army, On the House.',
+        details: ['Spells are now tribe-gated: a Kobold, Dwarf or Undead spell is offered only when that tribe is one of the run tribes. Neutral spells and the Ales are always available.'],
+      },
+      {
         category: 'Hero Change',
         text: 'Adopting a hero power (Mimic, Void, Power Shifter) now runs the Gild check immediately. A held pair gilds the moment Midas Touch lands, and a gift card from the new power combines on arrival.',
       },

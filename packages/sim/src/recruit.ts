@@ -1,4 +1,5 @@
 import { ALE_IDS, alignAllows, makeRng, SILENT_ONPLAY, COMBAT_REPLAYABLE_BATTLECRIES, extraTriggerFires, foldEchoExtraFires, socTwilightExtraFires, ARENA_EFFECTS, beatIdentity, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
+import { runSpells } from './spellPool';
 import { REVELER_IDS, CARD_INDEX, EQUIPMENT_INDEX, recurringEotOwner, type EquipmentDefinition } from '@game/content';
 import { equipIsNews, equipmentParams as equipmentParamsFor, grantEquipment as grantEquipmentToPlayer } from './equipment';
 import { currentCollector } from './activeCollector';
@@ -165,11 +166,11 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
       const ok = exactTier != null
         ? (c: CardDef) => c.tier === exactTier
         : (c: CardDef) => c.tier <= state.tier;
-      conjureToHand(state, poolOf(state).spells.filter(ok), count);
+      conjureToHand(state, runSpells(state).filter(ok), count);
     },
     grantRandomFromPool: (pred, count) => {
       // The FULL pool (buyable + spells): Ales are spells, Attachments are minions — the predicate decides.
-      const pool = [...poolOf(state).buyable, ...poolOf(state).spells].filter(pred);
+      const pool = [...poolOf(state).buyable, ...runSpells(state)].filter(pred);
       if (pool.length === 0) return;
       conjureToHand(state, pool, count);
     },
@@ -1483,8 +1484,8 @@ function payRuneThreshold(state: RunState, t: NonNullable<RunState['runeThreshol
   // `t.tick >= t.per` branch, so banking below the line is correctly not a fire.
   procRuneId(state, t.sourceId);
   const pool = poolOf(state);
-  if (t.grantSpell) conjureToHand(state, pool.spells.filter((c) => c.tier <= state.tier && !ALE_IDS.includes(c.id)), t.grantSpell, true);
-  if (t.grantAle) conjureToHand(state, pool.spells.filter((c) => ALE_IDS.includes(c.id)), t.grantAle, true);
+  if (t.grantSpell) conjureToHand(state, runSpells(state).filter((c) => c.tier <= state.tier && !ALE_IDS.includes(c.id)), t.grantSpell, true);
+  if (t.grantAle) conjureToHand(state, runSpells(state).filter((c) => ALE_IDS.includes(c.id)), t.grantAle, true);
   if (t.grantRuby) mintRubies(state, t.grantRuby);
   // Rune of the Deep Feast: a NAMED body on a meter. `overflow` because an earned reward is never dropped to
   // a full hand — the same rule every quest/rune grant follows.
@@ -1496,7 +1497,7 @@ function payRuneThreshold(state: RunState, t: NonNullable<RunState['runeThreshol
   // counters and every on-cast watcher see it. Untargeted spells only: the meter trips with no player around
   // to aim, and `castSpell` with no target is exactly what an untargeted cast is.
   if (t.castStatSpell) {
-    const pool = poolOf(state).spells.filter((c) => c.tier <= state.tier && !ALE_IDS.includes(c.id) && !c.token && isBoardStatSpell(c) && c.target !== 'friendly' && c.target !== 'any');
+    const pool = runSpells(state).filter((c) => c.tier <= state.tier && !ALE_IDS.includes(c.id) && !c.token && isBoardStatSpell(c) && c.target !== 'friendly' && c.target !== 'any');
     for (let i = 0; i < t.castStatSpell && pool.length > 0; i++) {
       const rng = makeRng(state.rngCursor);
       const pick = pool[rng.int(pool.length)]!;
@@ -3344,7 +3345,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const every = Math.max(1, num(params.every, 3));
     self.spiritTally = (self.spiritTally ?? 0) + 1;
     if (self.spiritTally % every !== 0) return;
-    const pool = poolOf(ctx.state).spells.filter((c) => c.tier <= ctx.state.tier);
+    const pool = runSpells(ctx.state).filter((c) => c.tier <= ctx.state.tier);
     conjureToHand(ctx.state, pool, num(params.count, 1) * gold(self));
   },
 
@@ -3534,7 +3535,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    */
   grantRandomChooseOne: (ctx, self, params) => {
     const pool = poolOf(ctx.state);
-    const candidates = [...pool.buyable, ...pool.spells].filter((c) => (c.chooseOne?.length ?? 0) > 0);
+    const candidates = [...pool.buyable, ...runSpells(ctx.state)].filter((c) => (c.chooseOne?.length ?? 0) > 0);
     if (candidates.length === 0) return;
     conjureToHand(ctx.state, candidates, num(params.count, 1) * gold(self));
   },
@@ -3546,7 +3547,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   discoverChooseOne: (ctx, self, params) => {
     void self;
     const pool = poolOf(ctx.state);
-    const ids = [...pool.buyable, ...pool.spells].filter((c) => (c.chooseOne?.length ?? 0) > 0).map((c) => c.id);
+    const ids = [...pool.buyable, ...runSpells(ctx.state)].filter((c) => (c.chooseOne?.length ?? 0) > 0).map((c) => c.id);
     if (ids.length === 0) return;
     for (let i = 0; i < num(params.count, 1); i++) queueDiscover(ctx.state, { kind: 'pool', ids });
   },
@@ -3578,7 +3579,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   },
 
   grantRandomAle: (ctx, self, params) => {
-    const ales = poolOf(ctx.state).spells.filter((c) => ALE_IDS.includes(c.id));
+    const ales = runSpells(ctx.state).filter((c) => ALE_IDS.includes(c.id));
     if (ales.length === 0) return;
     const count = num(params.count, 1) * gold(self);
     conjureToHand(ctx.state, ales, count);
@@ -3856,7 +3857,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   /** Chirurgeon: every `every` cards bought, get a random Shop spell. The buy tally lives on the CARD
    *  (`buyTick`, like every other cards-bought effect), so it carries across combat as printed. */
   cardsBoughtGrantRandomSpell: (ctx, self, params) => {
-    conjureToHand(ctx.state, poolOf(ctx.state).spells.filter((c) => c.tier <= ctx.state.tier), num(params.count, 1) * gold(self));
+    conjureToHand(ctx.state, runSpells(ctx.state).filter((c) => c.tier <= ctx.state.tier), num(params.count, 1) * gold(self));
   },
 
   /** Auric Runemaster (Shout, targeted): Gild a friendly minion. Reuses the spell path's gild so a Shout-gild
@@ -4016,7 +4017,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  cast-watcher) exactly as a hand-cast one does, while never entering the hand or counting as a card PLAYED.
    *  Every Ale is untargeted, so no target is threaded. Seeded off the run cursor: replay-faithful. */
   equipmentCastRandomAle: (ctx, _self, params) => {
-    const ales = poolOf(ctx.state).spells.filter((c) => ALE_IDS.includes(c.id));
+    const ales = runSpells(ctx.state).filter((c) => ALE_IDS.includes(c.id));
     if (ales.length === 0) return;
     const rng = makeRng(ctx.state.rngCursor);
     const picks: CardDef[] = [];
@@ -5340,7 +5341,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  by construction rather than by an explicit Ruby check. */
   onConsumeSelfGrantSpell: (ctx, self, params, payload) => {
     if ((payload as { minion?: BoardCard } | undefined)?.minion !== self) return;
-    const spells = poolOf(ctx.state).spells.filter((c) => c.tier <= ctx.state.tier);
+    const spells = runSpells(ctx.state).filter((c) => c.tier <= ctx.state.tier);
     conjureToHand(ctx.state, spells, num(params.count, 1) * gold(self));
   },
 
@@ -5882,7 +5883,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     // its SHOUT's payoff and belongs to the play; the death is what moved. The one visible consequence is a
     // full hand — a spell taking the last slot can crowd out a card the Echo would have granted.
     ctx.state.pendingDeath = { uid: target.uid, kind: 'destroy' };
-    const pool = poolOf(ctx.state).spells.filter((c) => c.tier === tier);
+    const pool = runSpells(ctx.state).filter((c) => c.tier === tier);
     if (pool.length === 0) return;
     const rng = makeRng(ctx.state.rngCursor);
     for (let i = 0; i < gold(self) && ctx.state.hand.length < handCap(ctx.state); i++) {
@@ -6019,7 +6020,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  so the pick is uniform across both. */
   endOfTurnGrantRandomTierCard: (ctx, self, params) => {
     const tier = num(params.tier, 1);
-    const spells = poolOf(ctx.state).spells.filter((c) => c.tier === tier);
+    const spells = runSpells(ctx.state).filter((c) => c.tier === tier);
     const minions = poolOf(ctx.state).buyable.filter(
       (c) => c.tier === tier && !c.spell && (c.tribe === 'neutral' || ctx.state.tribes.includes(c.tribe)),
     );
@@ -6037,7 +6038,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   battlecryGrantRandomSpell: (ctx, self, params) => {
     // `tier` pins an EXACT tier (Scalefeather → a Tier-1 spell); without it, any spell up to the tavern tier.
     const exact = params.tier != null ? num(params.tier, 1) : null;
-    const pool = poolOf(ctx.state).spells.filter((c) => (exact != null ? c.tier === exact : c.tier <= ctx.state.tier));
+    const pool = runSpells(ctx.state).filter((c) => (exact != null ? c.tier === exact : c.tier <= ctx.state.tier));
     conjureToHand(ctx.state, pool, num(params.count, 1) * gold(self));
   },
 
@@ -6155,7 +6156,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const progress = (self.soldProgress ?? 0) + 1;
     self.soldProgress = progress % every;
     if (progress < every) return;
-    const spells = poolOf(ctx.state).spells.filter((c) => c.tier <= ctx.state.tier);
+    const spells = runSpells(ctx.state).filter((c) => c.tier <= ctx.state.tier);
     conjureToHand(ctx.state, spells, Math.floor(progress / every) * gold(self));
   },
 
@@ -6453,7 +6454,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const tier = num(params.tier, 1);
     const pool = poolOf(ctx.state);
     conjureToHand(ctx.state, pool.buyable.filter((c) => c.tier === tier && (c.tribe === tribe || c.tribe2 === tribe)), n);
-    conjureToHand(ctx.state, pool.spells.filter((c) => c.tier <= ctx.state.tier), n);
+    conjureToHand(ctx.state, runSpells(ctx.state).filter((c) => c.tier <= ctx.state.tier), n);
   },
 
   /** Set 2 — the Dragon "spell recursion" line: add COPIES of a spell you already cast this turn to hand.
@@ -6572,7 +6573,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const tier = 1 + rng.int(6);
     ctx.state.rngCursor = rng.state();
     const pool = poolOf(ctx.state);
-    const picks = [...pool.buyable, ...pool.spells].filter((c) => !c.token && c.tier === tier);
+    const picks = [...pool.buyable, ...runSpells(ctx.state)].filter((c) => !c.token && c.tier === tier);
     if (picks.length === 0) return;
     const before = new Set(ctx.state.hand.map((c) => c.uid));
     conjureToHand(ctx.state, picks, 1);
@@ -7518,7 +7519,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const count = num(params.count, 2) * gold(self);
     const rng = makeRng(ctx.state.rngCursor);
     for (let i = 0; i < count && ctx.state.hand.length < handCap(ctx.state); i++) {
-      const def = poolOf(ctx.state).spells[rng.int(poolOf(ctx.state).spells.length)]!;
+      const def = runSpells(ctx.state)[rng.int(runSpells(ctx.state).length)]!;
       ctx.state.hand.push({
         uid: `b${ctx.state.uidSeq++}`,
         cardId: def.id,
@@ -7741,7 +7742,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const tier = CARD_INDEX[payload.minion.cardId]?.tier;
     if (typeof tier !== 'number') return;
     self.buyTick = used + 1; // the charge is spent on the TRIGGER, even if the tier has no spell to give
-    const pool = poolOf(ctx.state).spells.filter((c) => c.tier === tier);
+    const pool = runSpells(ctx.state).filter((c) => c.tier === tier);
     if (pool.length === 0) return;
     conjureToHand(ctx.state, pool, num(params.count, 1));
   },
@@ -8023,7 +8024,7 @@ const DISCOVER_EXCLUDED_SPELLS: ReadonlySet<string> = new Set([
 
 export function offerSpellDiscover(state: RunState): void {
   const rng = makeRng(state.rngCursor);
-  const avail = poolOf(state).spells.filter((c) => c.tier <= state.tier && !DISCOVER_EXCLUDED_SPELLS.has(c.id));
+  const avail = runSpells(state).filter((c) => c.tier <= state.tier && !DISCOVER_EXCLUDED_SPELLS.has(c.id));
   const picks: string[] = [];
   for (let i = 0; i < 3 && avail.length > 0; i++) picks.push(avail.splice(rng.int(avail.length), 1)[0]!.id);
   state.rngCursor = rng.state();
@@ -10258,7 +10259,7 @@ export function fireShopRally(state: RunState, card: BoardCard): void {
         if (mechAtk > 0) {
           for (const m of state.board) if (m !== card && isTribe(m, 'mech')) addBuff(m, 'Better Bot', mechAtk, 0);
         }
-        if (spellWeld > 0) conjureToHand(state, poolOf(state).spells.filter((c) => !c.token), spellWeld);
+        if (spellWeld > 0) conjureToHand(state, runSpells(state).filter((c) => !c.token), spellWeld);
       },
       { discardIfEmpty: true }, // Better Bot with no other Mech on the board changes nothing — no beat
     );
@@ -11115,7 +11116,7 @@ function runRecurringEndOfTurn(
     procRuneId(state, 'rune_quick_study');
     const font = CARD_INDEX['manafont'];
     if (font) step(() => conjureToHand(state, [font], 1, true));
-    const spells = poolOf(state).spells.filter((c) => c.tier <= state.tier && !ALE_IDS.includes(c.id));
+    const spells = runSpells(state).filter((c) => c.tier <= state.tier && !ALE_IDS.includes(c.id));
     if (spells.length > 0) step(() => conjureToHand(state, spells, 2));
   } else if (effect === 'grantAles' || effect === 'grantAles3') {
     // Double Fisting pours 3 (grantAles3); First Round pours 2 (grantAles). Each bursts only if owned — the
@@ -11125,7 +11126,7 @@ function runRecurringEndOfTurn(
     else procRuneId(state, 'rune_first_round');
     // Open Tab (Dwarf quest): pour Ales at End of Turn, for the rest of the run. Draws from the RUN'S pool like
     // every other Ale grant, so a set without them pours nothing rather than injecting unreachable cards.
-    const ales = poolOf(state).spells.filter((c) => ALE_IDS.includes(c.id));
+    const ales = runSpells(state).filter((c) => ALE_IDS.includes(c.id));
     if (ales.length > 0) step(() => conjureToHand(state, ales, effect === 'grantAles3' ? 3 : 2)); // Double Fisting pours 3
   } else if (effect === 'triggerLeftmostEcho') {
     // Rune of the Reliquary: fire your TWO left-most Echoes (Deathrattles) out of combat (owner 2026-08-19;
@@ -11171,7 +11172,7 @@ function runRecurringEndOfTurn(
   } else if (effect === 'grantFacetwright') {
     // Rune of Facetwright: a Facetwright's Choice every turn. Drawn from the run's pool like every other grant,
     // so a set without the card grants nothing rather than injecting something the run cannot otherwise see.
-    const fw = poolOf(state).spells.find((c) => c.id === 'facetwright');
+    const fw = runSpells(state).find((c) => c.id === 'facetwright');
     if (fw) { procRuneId(state, 'rune_facetwright'); step(() => conjureToHand(state, [fw], 1, true)); }
   } else if (effect === 'grantRuby') {
     // MINTED, not conjured — a Ruby is base 1/1 plus the run's live `rubyBonus`, like every other Ruby source.

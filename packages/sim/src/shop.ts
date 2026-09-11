@@ -1,4 +1,5 @@
 import { makeRng, type CardDef, type Rng, type Tribe } from '@game/core';
+import { runSpells } from './spellPool';
 import { CARD_INDEX } from '@game/content';
 import { poolOf } from './cardPool';
 import { CIA_ENCHANT_CHANCE, POOL_QUANTITIES, maxTierFor } from './config';
@@ -94,7 +95,7 @@ export function drawOfferId(rng: Rng, pool: CardDef[], surge: SurgeTribe | null,
 /** A spell offer respects the tavern tier — like minions, a spell can only appear once you're at least
  *  its tier. Uniform among the eligible spells. */
 const drawSpellId = (rng: Rng, tier: number, state: RunState): string | null => {
-  const eligible = poolOf(state).spells.filter((c) => c.tier <= tier);
+  const eligible = runSpells(state).filter((c) => c.tier <= tier);
   return eligible.length > 0 ? eligible[rng.int(eligible.length)]!.id : null;
 };
 
@@ -231,7 +232,7 @@ export function rollSpellShop(state: RunState): void {
   for (const offer of state.shop) returnToPool(state, offer.cardId);
   const rng = makeRng(state.rngCursor);
   const slots = tierSlots(state.tier);
-  const eligible = poolOf(state).spells.filter((c) => c.tier <= state.tier).map((c) => c.id);
+  const eligible = runSpells(state).filter((c) => c.tier <= state.tier).map((c) => c.id);
   for (let i = eligible.length - 1; i > 0; i--) { // Fisher–Yates shuffle (seeded) → distinct picks
     const j = rng.int(i + 1);
     [eligible[i], eligible[j]] = [eligible[j]!, eligible[i]!];

@@ -217,6 +217,18 @@ describe('board-and-hand recipients', () => {
     expect(with1.discover?.length).toBeGreaterThan(0);
     for (const id of with1.discover ?? []) expect([CARD_INDEX[id]?.tribe, CARD_INDEX[id]?.tribe2], id).toContain('spirit');
   });
+
+  it('Gathering Guide never Discovers ITSELF (owner report 2026-09-12) — across seeds, plain and gilded', () => {
+    for (let seed = 1; seed <= 40; seed++) {
+      let s = run({ board: [body('x', 'sp3_kindled')], hand: [body('gg', 'sp3_gatheringguide')], rngCursor: seed * 7919, tier: 6 });
+      s = play(s, 'gg');
+      expect(s.discover, `seed ${seed}`).not.toContain('sp3_gatheringguide');
+    }
+    let g = run({ board: [body('x', 'sp3_kindled')], hand: [{ ...body('gg', 'sp3_gatheringguide'), golden: true }], tier: 6 });
+    g = play(g, 'gg');
+    expect(g.discover).not.toContain('sp3_gatheringguide');
+    for (const spec of g.discoverQueue ?? []) expect((spec as { exclude?: string }).exclude).toBe('sp3_gatheringguide');
+  });
 });
 
 /* ── tranche 2: the HAND-SUMMON mechanic (owner design 2026-09-09) ───────────────────────────────────── */

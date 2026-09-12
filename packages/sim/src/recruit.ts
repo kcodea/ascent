@@ -3345,11 +3345,12 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     for (const t of pickRandom(ctx.state, pool, num(params.count, 3))) addBuff(t, nameOf(self), a, h);
   },
 
-  /** Gathering Guide (Shout): if you control ANOTHER `tribe` minion, Discover one (golden: twice). */
+  /** Gathering Guide (Shout): if you control ANOTHER `tribe` minion, Discover one (golden: twice). Never
+   *  itself — `exclude` drops the source card from its own offer (owner report 2026-09-12; the Sea Urchin rule). */
   battlecryDiscoverTribeIfControl: (ctx, self, params) => {
     const tribe = str(params.tribe) as Tribe;
     if (!ctx.state.board.some((c) => c.uid !== self.uid && isTribe(c, tribe))) return;
-    for (let i = 0; i < gold(self); i++) queueDiscover(ctx.state, { kind: 'minion', tier: ctx.state.tier, tribe });
+    for (let i = 0; i < gold(self); i++) queueDiscover(ctx.state, { kind: 'minion', tier: ctx.state.tier, tribe, exclude: self.cardId });
   },
 
   /** Nurturer (End of Turn): a random `tribe` minion +atk/+hp, then once more per Spirit played this turn — each

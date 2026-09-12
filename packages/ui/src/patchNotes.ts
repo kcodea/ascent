@@ -59,6 +59,15 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Card Change',
+        text: 'Comet Conductor now names the spell its Rally will copy once you have cast one this turn, the way Steward of Spells does.',
+      },
+      {
+        category: 'Card Change',
+        text: 'Festival Keeper and Aspect track their progress in the corner counter (the same one Avenge uses) instead of in the card text.',
+        details: ['Festival Keeper shows N/3 Spirits toward the next spell; Aspect shows N/3 triggers toward its next improvement. Aspect still prints its current buff live.'],
+      },
+      {
+        category: 'Card Change',
         text: "Kaura L'roft's Equipment is now called Dual Rubetta's (was Dueling Rubetta's). Same effect, new name on the card and the Equipment.",
       },
       {

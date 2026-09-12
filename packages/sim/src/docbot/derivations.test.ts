@@ -18,7 +18,7 @@
 import { describe, expect, it } from 'vitest';
 import { makeRng } from '@game/core';
 import { CARD_INDEX } from '@game/content';
-import { createRun, reduce, snapshotBoard, type RunState, type ShopCard } from '../index';
+import { createRun, offerBuyPrice, reduce, snapshotBoard, type RunState, type ShopCard } from '../index';
 import { defIsTribe, offerBuyStats } from '../recruit';
 
 const NON_FODDER = Object.values(CARD_INDEX).filter(
@@ -26,6 +26,36 @@ const NON_FODDER = Object.values(CARD_INDEX).filter(
 );
 
 describe('Doc Bot — derivation pairs', () => {
+  it('PAIR: offerBuyPrice ↔ the reducer buy path — the coin shows what buying charges, under every discount (100 fuzzed states)', () => {
+    // Owner report 2026-09-12: the coin read `minionCostOf − Cadence` while the buy also subtracted Trade-In,
+    // the Friends-and-Family Gift and Festival Treasurer's Spirit discount. One function now serves both; this
+    // pair keeps it that way for every discount source, alone and stacked, free-first-buy included.
+    const rng = makeRng(0x5e11e4);
+    const TRIBES = ['beast', 'demon', 'dragon', 'dwarf', 'kobold', 'undead', 'spirit', 'celestial', 'mech'] as const;
+    let charged = 0;
+    for (let i = 0; i < 100; i++) {
+      const def = NON_FODDER[rng.int(NON_FODDER.length)]!;
+      const offer: ShopCard = { uid: 'offer', cardId: def.id, ...(rng.int(4) === 0 ? { cost: 1 + rng.int(3) } : {}) };
+      const tribe = TRIBES[rng.int(TRIBES.length)]!;
+      const s: RunState = {
+        ...createRun(5000 + i),
+        embers: 50, board: [], hand: [], shop: [offer],
+        ...(rng.int(3) === 0 ? { spiritDiscount: 1 + rng.int(3) } : {}),
+        ...(rng.int(3) === 0 ? { runeTradeIn: true, tradeInTribe: tribe, questFlags: { runeTradeIn: 1 } } : {}),
+        ...(rng.int(3) === 0 ? { cadenceMinionOff: 1 } : {}),
+        ...(rng.int(3) === 0 ? { minionCostOffTurn: 1 + rng.int(2) } : {}),
+        ...(rng.int(4) === 0 ? { minionCostOverride: 2 + rng.int(4) } : {}),
+        ...(rng.int(5) === 0 ? { questFreeFirstBuy: true, freeBuyUsedThisTurn: rng.int(2) === 0 } : {}),
+      } as RunState;
+      const price = offerBuyPrice(s, offer);
+      const after = reduce(s, { type: 'buy', uid: 'offer' });
+      if (after === s) continue; // refused (hand cap etc.) — nothing to compare
+      charged++;
+      expect(s.embers - after.embers, `${def.id} under ${JSON.stringify({ spirit: s.spiritDiscount, ti: s.tradeInTribe, cad: s.cadenceMinionOff, gift: s.minionCostOffTurn, ovr: s.minionCostOverride, free: price.freeBuy })}`).toBe(price.cost);
+    }
+    expect(charged, 'the fuzz must actually buy').toBeGreaterThan(80);
+  });
+
   it('PAIR: offerBuyStats ↔ the reducer buy path — an offer is worth what buying it pays (100 fuzzed states)', () => {
     const rng = makeRng(0xd0cb07);
     for (let i = 0; i < 100; i++) {

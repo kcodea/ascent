@@ -39,6 +39,12 @@ describe('spiritText — the Spirits print what they do now', () => {
     expect(spiritText('sp3_forestcolossus', false, { spiritTally: 2, onBoard: false }), 'in the shop it has counted nothing yet').toBeNull();
   });
 
+  it('Festival Treasurer names its banked discount (shop only), plain and gilded', () => {
+    expect(spiritText('sp3_treasurer', false, { spiritDiscount: 0 })).toBeNull();
+    expect(spiritText('sp3_treasurer', false, { spiritDiscount: 2 })).toContain('{{Next Spirit: −2 Gold}}');
+    expect(spiritText('sp3_treasurer', true, { spiritDiscount: 3 })).toContain('costs **2** less');
+  });
+
   it('Nurturer and Kindled Sprite read the Spirits played this turn', () => {
     expect(spiritText('sp3_nurturer', false, { spiritsPlayed: 0 })).toBeNull();
     expect(spiritText('sp3_nurturer', false, { spiritsPlayed: 2 })).toContain('{{(×3)}}');

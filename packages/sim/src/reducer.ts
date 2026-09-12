@@ -224,6 +224,44 @@ function keshiCrownBuy(s: RunState, card: CardDef): void {
 
 /** Shop minion cost for the current hero: Hermit Hank's minions cost 2 Gold; everyone else pays the config
  *  default. A Moe set-price (`offer.cost`) or a Merchant's Mark override still take priority over this. */
+/**
+ * THE PRICE OF ONE SHOP MINION, exactly as the buy path charges it — every price source and every discount in
+ * one place (owner report 2026-09-12: "festival treasurer being active should show the discounted price on
+ * spirits" — the coin read `minionCostOf − Cadence` while the buy subtracted Trade-In, the Gift and the
+ * Treasurer's Spirit discount too, so three discounts charged less than they showed). `derivations.test.ts`
+ * holds this equal to what `buy` actually spends, under fuzzed discounts. Held (displaced) offers are restored
+ * at the flat `minionCostOf` and never discounted — callers branch on `offer.held` themselves.
+ *
+ * Price precedence: Moe's set price (`offer.cost`) > Frantic Frank / Foreman Flint (`heroOfferPrice`, flat 2)
+ * > Merchant's Mark override > Hank / the default. Discounts stack additively and floor at 0; a free first buy
+ * (Freedom rift / Fi's First Pick) overrides everything and spends no discount.
+ */
+export interface OfferBuyPrice {
+  cost: number;
+  freeBuy: boolean;
+  cadenceOff: number;
+  tradeInOff: number;
+  spiritOff: number;
+  giftMinionOff: number;
+}
+export function offerBuyPrice(s: RunState, offer: { cardId: string; cost?: number }): OfferBuyPrice {
+  // "Freedom" rift OR Fi's First Pick quest: the FIRST minion bought each turn is free (overriding every
+  // price source below). ONE shared spend-marker, so holding both is still one freebie per turn.
+  const freeBuy = (s.rift === 'freedom' || !!s.questFreeFirstBuy) && !s.freeBuyUsedThisTurn;
+  // Rune of Cadence: an armed minion discount knocks 1 off whatever the price source says (−1 per copy held).
+  const cadenceOff = !freeBuy ? gateUses(s.cadenceMinionOff) : 0;
+  // GIFT — Friends and Family: shop minions cost less for the rest of this turn.
+  const giftMinionOff = freeBuy ? 0 : (s.minionCostOffTurn ?? 0);
+  // Set 3 Spirits — Festival Treasurer: the next SPIRIT this turn costs less (stacked per Reveler sold, capped).
+  const spiritOff = !freeBuy && defIsTribe(CARD_INDEX[offer.cardId], 'spirit') ? (s.spiritDiscount ?? 0) : 0;
+  // Rune of Trade-In: an armed per-type discount (from this turn's first sale) knocks 1 off a matching minion
+  // (All-types matches any armed tribe; −1 per copy held — owner 2026-08-27).
+  const tiDef = s.tradeInTribe ? CARD_INDEX[offer.cardId] : undefined;
+  const tradeInOff = !freeBuy && s.runeTradeIn && s.tradeInTribe && defIsTribe(tiDef, s.tradeInTribe) ? runeStacksOf(s, 'rune_trade_in') : 0;
+  const cost = freeBuy ? 0 : Math.max(0, (offer.cost ?? heroOfferPrice(s, offer) ?? s.minionCostOverride ?? minionCostOf(s)) - cadenceOff - tradeInOff - spiritOff - giftMinionOff);
+  return { cost, freeBuy, cadenceOff, tradeInOff, spiritOff, giftMinionOff };
+}
+
 export function minionCostOf(s: RunState): number {
   return hasPower(s, 'cheapMinions') ? 2 : CONFIG.minionCost;
 }
@@ -1332,21 +1370,9 @@ function reduceCore(state: RunState, action: Action): RunState {
         // triple-completing buy at bank 24 was held against a hand that was about to empty)
         return s;
       }
-      // "Freedom" rift OR Fi's First Pick quest: the FIRST minion bought each turn is free (overriding every
-      // price source below). ONE shared spend-marker, so holding both is still one freebie per turn.
-      const freeBuy = (s.rift === 'freedom' || !!s.questFreeFirstBuy) && !s.freeBuyUsedThisTurn;
-      // Rune of Cadence: an armed minion discount knocks 1 off whatever the price source says.
-      const cadenceOff = !freeBuy ? gateUses(s.cadenceMinionOff) : 0; // −1 per Cadence copy held (owner 2026-08-27)
-      // GIFT — Friends and Family: shop minions cost less for the rest of this turn.
-      const giftMinionOff = freeBuy ? 0 : (s.minionCostOffTurn ?? 0);
-      // Set 3 Spirits — Festival Treasurer: the next SPIRIT this turn costs less (stacked per Reveler sold, capped).
-      const spiritOff = !freeBuy && defIsTribe(CARD_INDEX[offer.cardId], 'spirit') ? (s.spiritDiscount ?? 0) : 0;
-      // Rune of Trade-In: an armed per-type discount (from this turn's first sale) knocks 1 off a matching minion.
-      const tiDef = s.tradeInTribe ? CARD_INDEX[offer.cardId] : undefined;
-      const tradeInOff = !freeBuy && s.runeTradeIn && s.tradeInTribe && defIsTribe(tiDef, s.tradeInTribe) ? runeStacksOf(s, 'rune_trade_in') : 0; // All-types matches any armed tribe; −1 per copy held (owner 2026-08-27)
-      // `heroOfferPrice` = Frantic Frank's Clearance / Foreman Flint's Company Rate (flat 2). Shared with the
-      // UI's cost coin so the shown price is the charged price.
-      const buyCost = freeBuy ? 0 : Math.max(0, (offer.cost ?? heroOfferPrice(s, offer) ?? s.minionCostOverride ?? minionCostOf(s)) - cadenceOff - tradeInOff - spiritOff - giftMinionOff); // Moe's set price > Frank/Flint 2g > Merchant's Mark override > Hank/default
+      // THE price — `offerBuyPrice` is the single source for every price source and discount, shared with the
+      // UI's cost coin so the shown price IS the charged price (Doc Bot holds the pair equal).
+      const { cost: buyCost, freeBuy, cadenceOff, tradeInOff, spiritOff } = offerBuyPrice(s, offer);
       if (s.embers < buyCost || s.hand.length >= handCap(s)) return state;
       s.shop.splice(i, 1);
       ciaBuyEnchanted(s, offer); // Croupier Ayse: an Enchanted buy advances her prize counter

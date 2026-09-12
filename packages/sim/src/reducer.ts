@@ -1862,7 +1862,13 @@ function reduceCore(state: RunState, action: Action): RunState {
           if (boardTarget && def.effects.some((e) => e.do === 'spellDisplace') &&
               !s.shop.some((o) => !CARD_INDEX[o.cardId]?.spell)) return state;
           // `any` spells (Shatter, Front to Back) can also land on a tavern offer — buff it pre-buy.
-          const offer = def.target === 'any' ? s.shop.find((o) => o.uid === action.targetUid) : undefined;
+          // THE STARFORM (owner 2026-09-12): a `friendly` spell may also be aimed at the Starform offer — it is a
+          // friendly Celestial by design (Star Crash on the token grows it through `buffStarform`, so Twin Star
+          // hears it; the secondary half still lands on a random BOARD minion). Only the token: every other
+          // offer is not "friendly" and the cast stays in hand. The same tribe gate as a board target applies.
+          const starformTarget = def.target === 'friendly' ? s.shop.find((o) => o.uid === action.targetUid && o.starform) : undefined;
+          if (starformTarget && aimTribe && !isTribe(starformStandIn(s, starformTarget), aimTribe)) return state;
+          const offer = def.target === 'any' ? s.shop.find((o) => o.uid === action.targetUid) : starformTarget;
           if (boardTarget) for (let n = 0; n < casts; n++) castSpell(s, def, boardTarget);
           else if (offer) {
             for (let n = 0; n < casts; n++) castSpellOnOffer(s, def, offer);

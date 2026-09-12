@@ -87,6 +87,9 @@ const ALIASES: Record<string, string> = {
   // Both had been hand-dropped into `art/minions` before that; the aliases bring them under the pipeline so
   // the next refresh of either lands like every other file instead of needing a manual copy.
   blastsurveryor: 'k3_blastsurveyor',  // the file has an extra 'r' — card is Blast Surveyor
+  blastsurveyer: 'k3_blastsurveyor',   // the 2026-09-11 file misspells it the other way ('-er')
+  luminary: 'sp3_luminary',            // card is Festival Luminary; the file carries the short name (the Sylus pattern)
+  drakkothedrummer: 'drummer',         // the set-3 Neutrals folder carries Drakko's PRE-rename name (2026-09-09: 'Drakko')
   kornonthekob: 'k3_korn',             // card is 'Korn and the Kob'
   groveweaveralt: 'b2_groveweaver',  // "GroveweaverAlt2" -> the b2_groveweaver2 variant slot
   cinderchancellor: 'dm_chancellor', // pre-rename name; RougeRogue.png wins the base slot, this fills `2`
@@ -119,6 +122,9 @@ const RUNE_ALIASES: Record<string, string> = {
   spellofpillaging: 'rune_pillaging',     // authored as "Spell of..."; there is no such spell, and the rune matches
   runeofthecaravan: 'rune_strange_caravan', // art authored as "the Caravan"; the rune is "the Strange Caravan"
 };
+
+/** A generator export: timestamp, `__`, the card name with hyphens for spaces, then the prompt tail. */
+const GENERATOR_EXPORT_RE = /^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}__(.+?),-one-square/;
 
 /** Normalize for comparison: letters+digits only, lowercased. "Broad-Axe Brakka" -> "broadaxebrakka" */
 const norm = (s: string): string => s.replace(/[^a-z0-9]/gi, '').toLowerCase();
@@ -226,21 +232,22 @@ const JOBS: Job[] = [
     // ever exists in two sets, the later job wins the slot, and set 3 is the least established. Today it is
     // the Equipment reference card; the Celestial folders are here for the rework.
     label: 'set-3 minions', src: 'C:/Game Assets/Ascent Art/Set 3 Minions',
-    // NEUTRALS + KOBOLDS. The Celestial folder still holds art for the sixteen archived on 2026-08-28, and
-    // wiring it would ship art — and itch file-count — for cards that are out of play. Widen this list when
-    // the reworked tribe lands, which is exactly when those files start meaning something again.
-    //
-    // Kobolds joined the job on 2026-09-01 (owner: "wire new art for the kobold in set 3. i changed a handful
-    // of them"). Until then the set-3 Kobold portraits were hand-dropped, which meant every refresh was a
-    // manual copy outside the resize/webp/precedence pipeline — the exact drift this script exists to end.
-    dirs: ['Neutrals', 'Kobolds'],
+    // EVERY set-3 tribe folder since 2026-09-11 (owner: "rewire set 3 minion art as i have changed many of
+    // them"). Kobolds joined on 2026-09-01, the other four on 2026-09-11 once their rosters had all merged
+    // (Dwarves/Undead #1380/#1384, Spirits #1393/#1394, the reworked Celestials #1423) — the Celestial folder
+    // was held back while it only held art for the sixteen archived cards. Anything in these folders that does
+    // not name a CURRENT card (the archived Celestials' files, `none*.png` scraps, UUID exports) is reported
+    // unmatched and never wired, so widening the list ships nothing for out-of-play cards.
+    dirs: ['Celestials', 'Dwarves', 'Kobolds', 'Neutrals', 'Spirits', 'Undead'],
     dest: 'packages/ui/src/art/minions', index: cardsByName, aliases: ALIASES,
   },
   {
     // EQUIPMENT icons — their own class, their own folder, their own destination. Matched against the
     // EQUIPMENT registry by name, so a file can only land on an Equipment that actually exists.
     label: 'equipment', src: 'C:/Game Assets/Ascent Art/Equipment',
-    dirs: ['.'], dest: 'packages/ui/src/art/equipment', index: equipmentByName, aliases: {},
+    // `dualrubettas`: the Equipment is renamed Dual Rubetta's in #1433; the file already carries the new
+    // name. Once the rename lands the exact match wins and this alias is a no-op (alias loses to exact).
+    dirs: ['.'], dest: 'packages/ui/src/art/equipment', index: equipmentByName, aliases: { dualrubettas: 'dueling_rubettas' },
   },
   {
     // SET-1 minions (owner ask 2026-08-03: "I refreshed some set 1 demons"). This folder had never been a
@@ -307,15 +314,37 @@ for (const job of JOBS) {
   if (ONLY && !ONLY.has(job.label.toLowerCase())) continue;
   const wired: string[] = [];
   const unmatched: string[] = [];
+  const superseded: string[] = [];
   const matches: { src: string; label: string; id: string; exact: boolean }[] = [];
   for (const dir of job.dirs) {
     const full = dir === '.' ? job.src : join(job.src, dir);
     if (!existsSync(full)) { console.log(`missing source dir: ${job.label}/${dir}`); continue; }
-    for (const file of readdirSync(full).filter((f) => /\.(png|webp|jpe?g)$/i.test(f))) {
+    const files = readdirSync(full).filter((f) => /\.(png|webp|jpe?g)$/i.test(f));
+    // Every CURATED stem in this folder, so a generator export can tell whether its twin exists (below).
+    // Keyed by the id the curated file RESOLVES to (exact name, `noThe`, or alias) — so a misspelled curated file
+    // (`BlastSurveyer.png`, aliased) still counts as the twin of the `Blast-Surveyor` export. Base slot only.
+    const resolveId = (stemKey: string, base: string): string | undefined => job.index.get(stemKey) ?? job.index.get(noThe(base)) ?? job.aliases[stemKey];
+    const curatedIds = new Set(files.filter((f) => !GENERATOR_EXPORT_RE.test(f)).map((f) => {
+      const st = f.replace(/\.(png|webp|jpe?g)$/i, '').replace(/_\d+_$/, '');
+      if (/(2|Alt)$/i.test(st)) return undefined; // a variant file is never the BASE twin
+      return job.aliases[norm(st)] ?? resolveId(norm(st), st);
+    }).filter((x): x is string => !!x));
+    for (const file of files) {
+      // GENERATOR EXPORTS (owner folders since 2026-09-11): `2026-09-11_18-58-51__Dealer,-one-square-11-image.-….png`.
+      // The card's name is embedded after the `__` and before the prompt tail, so the file IS attributed — this is
+      // normalisation, not guessing. Owner ruling 2026-09-11: when a curated PascalCase twin exists in the same
+      // folder it WINS (the export is the raw generation; the renamed file is the choice), so the export is
+      // skipped and reported; an export with no twin wires by its embedded name like any other file.
+      const gen = GENERATOR_EXPORT_RE.exec(file);
+      if (gen) {
+        const embedded = gen[1]!.replace(/-/g, ' ');
+        const target = resolveId(norm(embedded), embedded);
+        if (target && curatedIds.has(target)) { superseded.push(`${dir === '.' ? file : `${dir}/${file}`}  (curated twin wins: ${embedded})`); continue; }
+      }
       // Strip a trailing GENERATOR INDEX (`Motherlode_00001_.png`): it is an export artifact of the art tool,
       // not part of the name, so removing it is normalisation rather than the guessing the matcher forbids —
       // the remaining stem still has to match a name EXACTLY (owner ask 2026-08-02: wire the quest folder).
-      const stem = file.replace(/\.(png|webp|jpe?g)$/i, '').replace(/_\d+_$/, '');
+      const stem = gen ? gen[1]!.replace(/-/g, ' ') : file.replace(/\.(png|webp|jpe?g)$/i, '').replace(/_\d+_$/, '');
       if (RETIRED.has(norm(stem))) continue; // attributed to a removed card — never re-owned by name-accident
       if (job.skip?.has(norm(stem))) continue; // per-job skip: a stale duplicate in THIS folder loses to the current source
       if (job.only && !job.only.has(norm(stem))) continue; // per-job allow list: this folder is mined for a few named files only
@@ -357,6 +386,10 @@ for (const job of JOBS) {
   if (contested.length > 0) {
     console.log(`  CONTESTED ${contested.length} (several sources target one id; the LAST listed wins):`);
     for (const [id, srcs] of contested) console.log(`    ${id}.png  <-  ${srcs.join('  ,  ')}`);
+  }
+  if (superseded.length > 0) {
+    console.log(`  GENERATOR EXPORTS SUPERSEDED ${superseded.length} (a curated PascalCase twin wins — owner 2026-09-11):`);
+    for (const u of superseded) console.log(`    ${u}`);
   }
   if (unmatched.length > 0) {
     console.log('  UNMATCHED (reported, never guessed):');

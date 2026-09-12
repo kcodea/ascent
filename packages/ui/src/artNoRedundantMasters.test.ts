@@ -105,6 +105,9 @@ describe('no redundant PNG masters ship alongside their WebP builds', () => {
     // +2 the same day: Spirits tranche 2 (Hearth Whisperer, Seedling Spirit).
     // +5 the same day: the second Spirits master batch (Aspect, Dreamcurrent Mystic, Gathering Guide,
     // Spirit Artificer, Tide Caller).
-    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1140);
+    // → 1160 (2026-09-11, the Set 3 re-wire — every tribe folder now in the `set-3 minions` job: +18 files
+    // measured against origin/main's 1123 — the 8 reworked Celestials, Festival Luminary and 9 Spirits whose
+    // masters had not been wired, plus the Revelator variant; 35 more were replaced in place at net 0).
+    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1160);
   });
 });

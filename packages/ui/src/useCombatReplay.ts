@@ -1511,6 +1511,10 @@ export function useCombatReplay(
     // — later casts on the same target no longer aggregate atk/hp here (the store already holds the beat's
     // full delta, installed by the layout effect below).
     const perTarget = new Map<string, number>();
+    // Cascade order for source-authored buff defs (a minion buffing several others — Standard Bearer's rally):
+    // each successive beam gets the next `index`, so a def that staggers its layers fans out one-by-one instead
+    // of all at once. Only the source-authored branch advances it; the generic tendril has no per-target stagger.
+    let srcAuthoredIndex = 0;
     for (const c of casts) {
       const tEl = findEl(c.target);
       if (!tEl) continue; // target not on screen → nothing to land on
@@ -1590,7 +1594,8 @@ export function useCombatReplay(
         const asr = sEl.getBoundingClientRect();
         const asc = { x: asr.left + asr.width / 2, y: asr.top + asr.height / 2 };
         playDef(srcAuthored, { source: asc, target: tc, cursor: tc, camera: { x: window.innerWidth / 2, y: window.innerHeight / 2 } },
-          { uids: { source: c.source, target: c.target } });
+          { uids: { source: c.source, target: c.target }, index: srcAuthoredIndex });
+        srcAuthoredIndex++;
         if (!perTarget.has(c.target)) perTarget.set(c.target, AUTHORED_BUFF_ROLL_MS);
         continue;
       }

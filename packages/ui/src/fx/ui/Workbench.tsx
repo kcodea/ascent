@@ -2370,26 +2370,6 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
               <span className="fxwb-val">{selLayer.travelMs} ms</span>
             </>
           )}
-          {/* PER-RECIPIENT stagger. The cue schedules whole PLAYS; this schedules one LAYER inside them,
-              which is what makes "the gems land together but the badges pop in sequence" expressible —
-              it was not, at any setting, before this field (owner, 2026-08-04). Shown for every layer
-              because any of them might want its own rhythm; inert on a single-target moment, where
-              there is only ever recipient 0. */}
-          <label htmlFor="fxwb-layer-stagger" title="Milliseconds this layer slides for each further unit the moment hits. 0 = fires with its copy. Use it to cascade one layer while the rest volley.">
-            Stagger
-          </label>
-          <input
-            id="fxwb-layer-stagger"
-            type="range"
-            min={0}
-            max={400}
-            step={5}
-            value={selLayer.stagger ?? 0}
-            onChange={(e) => changeLayerStagger(Number(e.target.value))}
-          />
-          <span className="fxwb-val">
-            {(selLayer.stagger ?? 0) === 0 ? 'With copy' : `+${selLayer.stagger ?? 0}ms/unit`}
-          </span>
           {/* The arc's bow. Pinned at 0 this is a laser — a bolt, a beam, a thrown spear — which was
               simply not authorable before: the bow was a module-private constant. The slider reads 0 as
               "Straight" rather than a bare number, because that is the value people come here for. */}
@@ -2418,6 +2398,26 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
           )}
         </>
       )}
+      {/* PER-RECIPIENT stagger — shown for EVERY layer (not only travel-anchored ones): any layer can want
+          its own cascade rhythm, which is what makes "the gems land together but the badges pop in sequence"
+          expressible (owner, 2026-08-04), and what lets a whole multi-layer beam fan out one unit at a time
+          (set the same stagger on each layer). The cue schedules whole PLAYS; this schedules one LAYER inside
+          them. Inert on a single-target moment, where there is only ever recipient 0. */}
+      <label htmlFor="fxwb-layer-stagger" title="Milliseconds this layer slides for each further unit the moment hits. 0 = fires with its copy. Use it to cascade one layer while the rest volley.">
+        Stagger
+      </label>
+      <input
+        id="fxwb-layer-stagger"
+        type="range"
+        min={0}
+        max={400}
+        step={5}
+        value={selLayer.stagger ?? 0}
+        onChange={(e) => changeLayerStagger(Number(e.target.value))}
+      />
+      <span className="fxwb-val">
+        {(selLayer.stagger ?? 0) === 0 ? 'With copy' : `+${selLayer.stagger ?? 0}ms/unit`}
+      </span>
       {/* "Starts at" / "Lasts for", not "At" / "Life". These are the LAYER's placement in the composition
           and they sat ~6cm above a primitive's own `Life` param (a particle's lifetime in ms) — two
           different numbers, same word, adjacent on screen. The verb phrasing also can't be mistaken for a

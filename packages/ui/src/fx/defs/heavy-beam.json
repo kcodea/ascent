@@ -7,17 +7,23 @@
       "primitive": "beam",
       "anchor": "travel",
       "at": 0,
+      "stagger": 120,
       "params": {
-        "travelMs": 300,
-        "dwellMs": 520,
-        "releaseMs": 300,
+        "travelMs": 200,
+        "dwellMs": 180,
+        "releaseMs": 160,
         "width": 80,
         "coreWidth": 5.9,
         "segments": 24,
-        "waver": 0.22,
-        "waverFreq": 0.9,
+        "waver": 0.59,
+        "waverFreq": 1.9,
         "waverSpeed": 4.4,
         "endSoftness": 0.09,
+        "midSoftness": 0,
+        "arc": 0,
+        "arcRandom": true,
+        "arcMin": -0.34,
+        "arcMax": 0.36,
         "flowAmt": 0.35,
         "flowSpeed": 1.4,
         "flowFreq": 6,
@@ -477,6 +483,7 @@
       "primitive": "emitter",
       "anchor": "source",
       "at": 0,
+      "stagger": 120,
       "params": {
         "rate": 335,
         "rateCurve": [
@@ -1020,7 +1027,8 @@
     {
       "primitive": "emitter",
       "anchor": "target",
-      "at": 170,
+      "at": 120,
+      "stagger": 120,
       "params": {
         "rate": 335,
         "rateCurve": [

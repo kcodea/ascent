@@ -71,6 +71,10 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'Card Change',
         text: 'Gathering Guide can no longer Discover a copy of itself.',
       },
+      {
+        category: 'UI / Info',
+        text: "Standard Bearer's Rally now fires a beam of light to each minion it empowers, cascading one after another.",
+      },
     ],
   },
   {

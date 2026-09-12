@@ -203,6 +203,7 @@ const CARD_BINDINGS: Record<string, Record<string, { def: string; fanOut?: strin
   // Paragon to each buffed minion instead of the stock tendril (owner ask 2026-09-10). Combat only (Rally is an
   // on-attack trigger), so `buffWave` alone — no `minionBuffed` shop twin.
   n2_paragon: { buffWave: { def: 'lightning-bolt-blue', fanOut: 'buffed' } },
+  n2_standardbearer: { buffWave: { def: 'heavy-beam', fanOut: 'buffed' } },
   // Paymaster Pimm's Shout pays you next turn — `coin-shout` on the card, with the max-Gold sound, which is
   // the first binding to carry an `sfx` at all (see `BINDING_SFX`).
   dm_butcher: { shout: { def: 'shop-buff-shout' }, scNarrate: { def: 'shop-buff-shout' }, shopBuffAll: { def: 'shop-buff-shout' } },

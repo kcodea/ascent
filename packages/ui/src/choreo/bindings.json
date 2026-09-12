@@ -178,6 +178,12 @@
         "def": "lightning-bolt-blue",
         "fanOut": "buffed"
       }
+    },
+    "n2_standardbearer": {
+      "buffWave": {
+        "def": "heavy-beam",
+        "fanOut": "buffed"
+      }
     }
   }
 }

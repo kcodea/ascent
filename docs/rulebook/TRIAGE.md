@@ -9,18 +9,20 @@ Decide them in the DEV MENU → Rulebook board (clicks write to decisions.json),
 
 ## playDifferential.refused (1)
 
-- **q-policy-refused-spells** — 14 spells refuse to cast on a plain board — confirm the refusal guards
+- **q-policy-refused-spells** — 19 spells refuse to cast on a plain board — confirm the refusal guards
 
 ## playDifferential.watchers (1)
 
 - **q-watch-gravebody** — Grave Body: never reacts to things played past it — confirm the reading
 
-## Doc Bot verification backlog (61) — NOT owner questions
+## Doc Bot verification backlog (62) — NOT owner questions
 
 Items Doc Bot could not yet verify with a staged scenario. Claude works these; they reach the board only if a
 staged scenario CONFIRMS a mismatch or exposes a genuine design fork.
 
-- Reflector ("Spells cast on this also cast on a random friendly minion. (Once per turn)") — needs a staged scenario Doc Bot cannot build yet
+- Reflector ("Spells and Rubies cast on this also cast on a random friendly minion. (Once per turn)") — needs a staged scenario Doc Bot cannot build yet
+- Seedling Spirit ("Rally: summon a random Spirit from your hand.") — needs a staged scenario Doc Bot cannot build yet
+- Kindled Sprite ("Rally: gain +1 Attack for each Spirit you played this turn.") — needs a staged scenario Doc Bot cannot build yet
 - combat mod flashCopies — Rune of the Wishbone on Flash: how many copies the claim grants (2 while armed, else 1).
 - combat mod bloodTrail (Blood Trail: "") — Blood Trail: at Start of Combat your leftmost minion gains "Slaughter: get a random Beast" for this fight.
 - combat mod lawOfTeeth (Law of Teeth: "") — Law of Teeth: your Beasts' Slaughters (on-kill) AND Rallies (on-attack) each trigger one extra time.
@@ -68,7 +70,6 @@ staged scenario CONFIRMS a mismatch or exposes a genuine design fork.
 - combat mod runeFloodedVault — Rune of the Flooded Vault: Water Dragon's Avenge also casts the left-most hand spell, unconsumed.
 - combat mod runeBattleRefraction — Rune of Battle Refraction: Prismcasters repeat Rubies played during combat too.
 - combat mod runeWrangler — Rune of the Wrangler: Imps summoned by your Imp Wranglers have Ward + Taunt.
-- combat mod runeSylus (Rune of Sylus: "Get a Sylus. Your Sylus gain Start of Combat: double this minion's Health.") — Rune of Sylus: your Sylus double their own Health at Start of Combat.
 - combat mod runeGroveweaver — Rune of the Groveweaver: a Groveweaver's summon grant also lands on itself, in combat as well as shop.
 - combat mod runeEnchantment (Rune of Enchantment: "Whenever you cast a Shop spell, give your minions +2/+3 permanently (+4/+6 during combat).") — Rune of Enchantment (combat half): a combat cast gives your minions +4/+6. Carries the COPY COUNT since the 2026-08-27 duplicate rulings (a duplicate doubles the grant); `true` in older snapshots reads as 1.
 - combat mod runeDragonscale (Rune of Dragonscale: "Whenever a friendly Dragon attacks, give it Ward. 3 times per combat.") — Rune of Dragonscale: how many Dragon attacks still earn Ward this combat (the printed 3).

@@ -302,7 +302,7 @@ export const SET3_KOBOLDS: CardDef[] = [
     health: 4,
     keywords: [],
     effects: [{ on: 'equip', do: 'grantEquipment', params: { equipmentId: 'dueling_rubettas' } }],
-    text: "**Equip Dueling Rubetta's (2):** Improve your **Rubies** by **+1/+2** and cast a **Ruby** on your left and right-most **Kobold**.",
-    goldenText: "**Equip Dueling Rubetta's (2):** Improve your **Rubies** by **+2/+4** and cast **2 Rubies** on your left and right-most **Kobold**.",
+    text: "**Equip Dual Rubetta's (2):** Improve your **Rubies** by **+1/+2** and cast a **Ruby** on your left and right-most **Kobold**.",
+    goldenText: "**Equip Dual Rubetta's (2):** Improve your **Rubies** by **+2/+4** and cast **2 Rubies** on your left and right-most **Kobold**.",
   },
 ];

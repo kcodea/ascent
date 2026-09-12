@@ -58,6 +58,10 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-09-11',
     changes: [
       {
+        category: 'Card Change',
+        text: "Kaura L'roft's Equipment is now called Dual Rubetta's (was Dueling Rubetta's). Same effect, new name on the card and the Equipment.",
+      },
+      {
         category: 'Hero Change',
         text: 'Brackus: continuing a saved run no longer re-arms his opening "locked until 70 Gold spent" condition on a later Discover.',
         details: [

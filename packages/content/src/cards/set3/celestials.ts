@@ -308,8 +308,8 @@ export const SET3_CELESTIALS: readonly CardDef[] = [
     goldenText: '**Shout:** **Discover** a Celestial twice.',
   },
   {
-    // T5 Equip: Stellar Lens (2 Gold) — "this shop" +10/+10 (the Wishing Star factory, params carrying the
-    // gilding: a gilded Grinder's Lens gives +20/+20 via `gildedParams`). Registry: `equipment.ts`.
+    // T5 Equip: Stellar Lens (2 Gold) — "this shop" +10/+10 (`equipmentBuffThisShop`, Wishing Star's shape read from
+    // params only; a gilded Grinder's Lens gives +20/+20 via `gildedParams`). Registry: `equipment.ts`.
     id: 'ce3_lensgrinder',
     name: 'Lens Grinder',
     tribe: 'celestial',

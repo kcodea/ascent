@@ -88,6 +88,7 @@ const CARD_REF_EFFECTS: Record<string, string> = {
   rallyCastTribeAttack: 'spellId',
   avengeCastTribeAttack: 'spellId', // Soul-Lantern Hierophant (set 3)
   battlecryGrantSpell: 'spellId',
+  spellGrantSpell: 'spellId',                   // Accretion -> Star Crash (the cast-safe grant, set 3 Celestials)
   onSpellCastOnThisSpreadTribeNamed: 'spellId',  // Crashborn Adept -> Star Crash (the named spell it spreads)
   startOfTurnGetSpellImproveRubies: 'spellId',  // Gemline Martyr -> Veinstorm
   orbitCastSpell: 'spellId',                    // Worldseed Gardener -> Sprout / Growth

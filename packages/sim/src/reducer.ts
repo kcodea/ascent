@@ -24,7 +24,7 @@ import { handCap, mixSeed, reservedHandSlots, TAG, henchmanOffer, type Action, t
 import { alignmentsOf } from './alignment';
 import { RUNE_DUP_SWEETENER, RUNE_DUP_UNIQUE, forgeFilteredDuplicate, runeStacksOf } from './runeDup';
 import { spellFizzles } from './spellFizzle';
-import { dismissStarform, fireStarformGainRemainder, starformFollowShopBuff, starformSnapshot, starformStandIn, withStarformPinned } from './starform';
+import { dismissStarform, fireStarformGainRemainder, starformFollowShopBuff, starformSnapshot, starformSpellAimsToken, starformStandIn, withStarformPinned } from './starform';
 import { fireOnBuyWatchers } from './recruit';
 import { MATCHMAKING } from './matchmaking';
 
@@ -1862,12 +1862,14 @@ function reduceCore(state: RunState, action: Action): RunState {
           if (boardTarget && def.effects.some((e) => e.do === 'spellDisplace') &&
               !s.shop.some((o) => !CARD_INDEX[o.cardId]?.spell)) return state;
           // `any` spells (Shatter, Front to Back) can also land on a tavern offer — buff it pre-buy.
-          // THE STARFORM (owner 2026-09-12): a `friendly` spell may also be aimed at the Starform offer — it is a
-          // friendly Celestial by design (Star Crash on the token grows it through `buffStarform`, so Twin Star
-          // hears it; the secondary half still lands on a random BOARD minion). Only the token: every other
-          // offer is not "friendly" and the cast stays in hand. The same tribe gate as a board target applies.
-          const starformTarget = def.target === 'friendly' ? s.shop.find((o) => o.uid === action.targetUid && o.starform) : undefined;
-          if (starformTarget && aimTribe && !isTribe(starformStandIn(s, starformTarget), aimTribe)) return state;
+          // THE STARFORM (owner 2026-09-12): a friendly CELESTIAL-aimed spell (Star Crash — `targetTribe: 'celestial'`)
+          // may also be aimed at the Starform offer: the token is a friendly Celestial by design. The cast grows it
+          // through `buffStarform` (Twin Star hears it, the ledger names the spell); Star Crash's secondary half
+          // still lands on a random BOARD minion. Only the token, and only the tribe's own spells: every other
+          // offer is not "friendly", and a plain `friendly` spell (a gild, a destroy, a transform) keeps its board-
+          // only aim — rule 5 (never gilded / transformed) stays whole. `starformSpellAimsToken` is the one gate the
+          // UI's aim reads too, so the reticle and the reducer cannot disagree.
+          const starformTarget = starformSpellAimsToken(def) ? s.shop.find((o) => o.uid === action.targetUid && o.starform) : undefined;
           const offer = def.target === 'any' ? s.shop.find((o) => o.uid === action.targetUid) : starformTarget;
           if (boardTarget) for (let n = 0; n < casts; n++) castSpell(s, def, boardTarget);
           else if (offer) {

@@ -32,7 +32,7 @@ if (import.meta.env.DEV) {
   (window as unknown as { __choreoEot?: boolean }).__choreoEot = CHOREO_EOT;
 }
 import { chooseBothText } from './cardText';
-import { spiritsPlayedThisTurn, anySpellsCastThisTurn, playerOpponent, alignmentsOf, boardHasCelestial, chooseBothActive, chooseBothStateOf, type ChooseBothState, chooseOneNeedsChoice, computeCombatOdds, type CombatOdds, rubyCastCount, rubyStatBonus, CONFIG, RIFTS, hasTier7Access, maxTierFor, conjuredStats, cardBuff, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, chooseOneBranchText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, dragonflameCasts, nextOpponent, lossDamageCap, playerLossDamage, minionCostOf, heroOfferPrice, offerBuyPrice, dominantBoardTribe, effectiveTargetTribe, boardManaBonus, upgradeCostOf, nextRefreshCostOf, poolOf, type RunState, type ShopCard, type CardBuff, type BoardCard, type BoardSnapshot, gildCopiesNeeded, activePowers, gateUses, runeStacksOf } from '@game/sim';
+import { spiritsPlayedThisTurn, anySpellsCastThisTurn, playerOpponent, alignmentsOf, boardHasCelestial, chooseBothActive, chooseBothStateOf, type ChooseBothState, chooseOneNeedsChoice, computeCombatOdds, type CombatOdds, rubyCastCount, rubyStatBonus, CONFIG, RIFTS, hasTier7Access, maxTierFor, conjuredStats, cardBuff, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, chooseOneBranchText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, dragonflameCasts, nextOpponent, lossDamageCap, playerLossDamage, minionCostOf, heroOfferPrice, offerBuyPrice, dominantBoardTribe, effectiveTargetTribe, boardManaBonus, upgradeCostOf, nextRefreshCostOf, poolOf, type RunState, type ShopCard, type CardBuff, type BoardCard, type BoardSnapshot, gildCopiesNeeded, activePowers, gateUses, runeStacksOf, starformSpellAimsToken } from '@game/sim';
 import { createPortal } from 'react-dom';
 import { setCardId, setCardStats, toggleCardKeyword, setEnemyStats, setEnemyCardId, toggleEnemyKeyword, removeEnemy, foeSnapshotOf } from './sandboxEdit';
 import { UnitEditor } from './UnitEditor';
@@ -3030,6 +3030,12 @@ export function Recruit() {
     const el = document.elementFromPoint(x, y)?.closest(`[data-zone="tavern"] .card[data-uid]:not(.spellcard)${SB_FOE_EXCLUDE}`);
     return el?.getAttribute('data-uid') ?? null;
   };
+  /** The STARFORM offer under a point, or null — the one offer a friendly Celestial-aimed spell (Star Crash) may
+   *  land on. The per-drag cache already holds only the token for such a drag; the fallback re-checks the run. */
+  const starformUidAt = (x: number, y: number): string | null => {
+    const uid = shopUidAt(x, y);
+    return uid && run.shop.find((o) => o.uid === uid)?.starform ? uid : null;
+  };
   // Insertion index in the warband, from the pointer's x against the cards' centres.
   // `excludeUid` drops the dragged card from the count when *reordering* a board minion
   // (it's still in the DOM, so without this a rightward drag overshoots by one).
@@ -3570,7 +3576,10 @@ export function Recruit() {
       (drag.view.spell || drag.view.ruby) && (drag.view.target === 'friendly' || drag.view.target === 'any')
         ? {
             board: measureCards('[data-zone="warband"] .row .card[data-uid]'),
-            shop: drag.view.target === 'any' ? measureCards(`[data-zone="tavern"] .card[data-uid]:not(.spellcard)${SB_FOE_EXCLUDE}`) : [],
+            // A friendly CELESTIAL-aimed spell (Star Crash) may land on the Starform offer and nothing else in the row
+            // (`starformSpellAimsToken`, the same gate the reducer's cast path reads — set 3 Celestials 2026-09-12).
+            shop: drag.view.target === 'any' ? measureCards(`[data-zone="tavern"] .card[data-uid]:not(.spellcard)${SB_FOE_EXCLUDE}`)
+              : starformSpellAimsToken(CARD_INDEX[drag.view.cardId] ?? {}) ? measureCards('[data-zone="tavern"] .card.starform[data-uid]') : [],
           }
         : null;
     // Cache the resting insertion slots (left + width) for the reorder/magnetize gap, so warbandIndexAt/
@@ -3626,7 +3635,7 @@ export function Recruit() {
     let lastZone: Zone | null = null;
     // The geometry hit-tests the decision needs — same in-component closures the render passes, so `flushMove`'s
     // gate and the render can't diverge. They read the per-drag rect cache populated just above.
-    const gateGeo: DragGeo = { warbandIndexAt, shopIndexAt, handIndexAt, boardUidAt, shopUidAt };
+    const gateGeo: DragGeo = { warbandIndexAt, shopIndexAt, handIndexAt, boardUidAt, shopUidAt, starformUidAt };
     const flushMove = (): void => { perfMonitor.measure('drag:flushMove', () => {
       moveRaf = 0;
       const e = lastMove;
@@ -3651,7 +3660,7 @@ export function Recruit() {
         deriveDragDecision({
           drag: d0, x, y, overZone: z, magSlide: magSlideRef.current, playFloor: playFloorRef.current, spellFloor: spellFloorRef.current,
           collapseY: getDragFeel().collapseY, boardMax: CONFIG.boardMax, board: run.board, spellUid: run.spell?.uid, geo: gateGeo,
-          asksChoiceFirst: asksFirstRef.current,
+          asksChoiceFirst: asksFirstRef.current, aimsStarform: !!d0 && starformSpellAimsToken(CARD_INDEX[d0.view.cardId] ?? {}),
         });
       const shownDec = committed ? decOf(committed.x, committed.y, lastZone) : null;
       const decisionChanged =
@@ -4889,7 +4898,7 @@ export function Recruit() {
   // each rule: centre-tracking, the play floor, magnetize suppression, the collapse lift). The SAME function
   // backs `flushMove`'s re-render gate, so the state we render here and the decision that decides whether to
   // re-render can never disagree. The dragged card's own transform/aim/trail bypass this (ref-driven, frame-exact).
-  const dragGeo: DragGeo = { warbandIndexAt, shopIndexAt, handIndexAt, boardUidAt, shopUidAt };
+  const dragGeo: DragGeo = { warbandIndexAt, shopIndexAt, handIndexAt, boardUidAt, shopUidAt, starformUidAt };
   const dragDecision = deriveDragDecision({
     drag,
     x: drag ? drag.x : 0,
@@ -4901,6 +4910,7 @@ export function Recruit() {
     collapseY: getDragFeel().collapseY,
     boardMax: CONFIG.boardMax,
     asksChoiceFirst: dragAsksChoiceFirst,
+    aimsStarform: !!drag && starformSpellAimsToken(CARD_INDEX[drag.view.cardId] ?? {}),
     board: run.board,
     spellUid: run.spell?.uid,
     geo: dragGeo,
@@ -6215,7 +6225,8 @@ export function Recruit() {
       if ((d.view.target === 'friendly' || d.view.target === 'any') && !asksFirst) {
         // Explicit drop only: release squarely over a friendly minion (or, for `any` spells like Shatter,
         // a tavern offer). No auto-target in empty space (that silently buffed a random minion — felt broken).
-        const targetUid = boardUidAt(x, y) ?? (d.view.target === 'any' ? shopUidAt(x, y) : null);
+        // …or, for a friendly Celestial-aimed spell (Star Crash), the STARFORM offer (`starformSpellAimsToken`).
+        const targetUid = boardUidAt(x, y) ?? (d.view.target === 'any' ? shopUidAt(x, y) : starformSpellAimsToken(CARD_INDEX[d.view.cardId] ?? {}) ? starformUidAt(x, y) : null);
         if (!targetUid) return false; // not on a valid target → snap back to hand, no cast
         // Tier-gated spells (Eyes of Aresmar: ≤T4) only land on a valid-tier friendly BOARD minion —
         // otherwise snap back WITHOUT consuming the spell (a >T4 minion, or a tavern offer, isn't legal).
@@ -6566,7 +6577,7 @@ export function Recruit() {
                 card={shopViews.get(o.uid)!}
                 refCards={refViewsByUid.get(o.uid)}
                 dragging={!!drag?.active}
-                highlight={(heroArmed && heroTargetsTavern) || (castingSpell && drag?.view.target === 'any')}
+                highlight={(heroArmed && heroTargetsTavern) || (castingSpell && (drag?.view.target === 'any' || (!!o.starform && starformSpellAimsToken(CARD_INDEX[drag?.view.cardId ?? ''] ?? {}))))}
                 targeted={(heroArmed && heroTargetsTavern && aimTargetUid === o.uid) || castTargetUid === o.uid}
                 tripleReady={tripleReadyUids.has(o.uid)}
                 contraband={o.contraband}

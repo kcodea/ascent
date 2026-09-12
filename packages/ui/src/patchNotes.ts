@@ -56,7 +56,25 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-12',
+    label: 'Celestials: the Starform',
     changes: [
+      {
+        category: 'New Card',
+        text: 'Set 3 Celestials: sixteen new minions, a new spell and a new Equipment built around the Starform — a 1/1 Celestial token that lives in your Shop, grows from every shop buff and consume, and is cashed in by your Celestials.',
+        details: [
+          'The Starform sits in the Shop like any offer (its printed stats are the counter — no rules text). It survives every refresh in its own slot, keeps "this shop" buffs the others lose, and eats the right-most Shop minion when it is created into a full row. Buying it costs 0 Gold and simply dismisses it (that still counts as a minion bought).',
+          'Star Seed (T1): Shout — create a Starform, or give the one you have +2/+2. Dawn Sentinel (T1): Taunt; Echo — a random friendly Celestial +2/+1.',
+          'Stardust Peddler (T2): whenever you buy a minion, your Starform +1/+1. Wishing Star (T2): Shout AND Echo — this shop +2/+2.',
+          'Accretion Warden (T3): Shout — your Starform consumes the highest-Tier Shop minion (ties go right). Shooting Star (T3): Flurry; Shout — this shop +3/+3 for each Shop spell you cast this turn (the card prints the live total). Eclipse Warden (T3): Avenge (3) — get a Star Crash.',
+          'Orbit Keeper (T4): End of Turn — Starform +2/+2; Start of Turn — create one if you have none. Corona Devotee (T4): Shout — consume your Starform and gain all its stats. Star Charter (T4): Shout — Discover a Celestial.',
+          "Lens Grinder (T5): Equip Stellar Lens (2 Gold) — this shop +10/+10. Lodestar (T5): Echo — a friendly Celestial gains this minion's stats (its full, undamaged stats).",
+          'Twin Star (T6): whenever your Starform gains stats, this gains the same. Nova Herald (T6): Shout — collapse your Starform; 3 random friendly Celestials each gain half its stats (rounded up).',
+          'Zenith (T7): whenever you cast a spell (Rubies too), your Starform +3/+3; when it collapses or is consumed, a new one appears with half its stats. Constellation Prime (T7): your Star Crashes land their +5/+7 on the chosen Celestial an extra time; Shout — get 2 Star Crashes.',
+          'Accretion (new T3 Celestial spell): your Starform consumes the highest-Health Shop minion, and you get a Star Crash either way.',
+          'Star Crash can now be aimed at the Starform itself: it grows the token, and the second +5/+7 still lands on a random friendly minion on your board.',
+          'Gilded readings double the numbers: +4/+4 (Star Seed, Wishing Star), +2/+2 per buy (Peddler), double the meal (Accretion Warden, Corona Devotee), +6/+6 per spell (Shooting Star, Zenith), +20/+20 (Stellar Lens), the full stats (Nova Herald, Zenith\'s rebirth), and two extra landings + 4 Star Crashes (Constellation Prime).',
+        ],
+      },
       {
         category: 'UI / Info',
         text: 'The Choose One window now shows the buffed numbers on a Choose One spell — with spell power up, each option prints (in green) exactly what it will grant.',

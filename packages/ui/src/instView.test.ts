@@ -20,6 +20,12 @@ describe('liveCardText — the single source of truth shared by shop + combat', 
     expect(liveCardText('trailforager', base).text).toBe(CARD_INDEX['trailforager']!.text);
   });
 
+  it('resolves Shooting Star’s this-shop total from the turn’s spell tally (set 3 Celestials) — one chain for shop AND combat', () => {
+    expect(liveCardText('ce3_shootingstar', { ...base, spellsThisTurn: 2 }).text).toContain('{{+6/+6}}');
+    expect(liveCardText('ce3_shootingstar', { ...base, spellsThisTurn: 3, golden: true }).goldenText).toContain('{{+18/+18}}');
+    expect(liveCardText('ce3_shootingstar', base).text).toBe(CARD_INDEX['ce3_shootingstar']!.text); // nothing cast → base
+  });
+
   it('resolves the combat-only helpers (Crypt Drake attackSeen, cadence eotTick) through the unified path', () => {
     // Crypt Drake counts attacks toward its next proc — attackSeen 1, every 2 → "1 to go". Only ever non-zero in
     // combat, so it's null in the shop; folding it into liveCardText lets combat reuse the same composer.

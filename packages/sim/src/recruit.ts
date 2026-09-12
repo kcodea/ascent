@@ -51,7 +51,7 @@ type RecruitFn = (
 ) => void;
 
 import { SPELL_POWER_EXCUSED } from './docbot/historyRegistry';
-import { buffStarform, collapseStarform, consumeStarform, createStarform, hasStarform, starformConsumeShopMinion, starformFollowShopBuff, starformOf, starformRefreshLand } from './starform';
+import { buffStarform, collapseStarform, consumeStarform, createStarform, hasStarform, starformConsumeShopMinion, starformFollowShopBuff, starformRefreshLand } from './starform';
 
 const num = (v: unknown, fallback = 0): number => (typeof v === 'number' ? v : fallback);
 
@@ -5728,16 +5728,21 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     buffStarform(ctx.state, num(params.attack, 1) * gold(self), num(params.health, 1) * gold(self), nameOf(self));
   },
 
-  /** "Give THIS SHOP +a/+h" — Wishing Star (Shout AND Echo, one factory on two triggers) and the Stellar Lens
-   *  Equipment. THIS shop is the offers standing in the row right now (Apples' branch — owner vocabulary
+  /** "Give THIS SHOP +a/+h" — Wishing Star (Shout AND Echo, one factory on two triggers; the Stellar Lens has its
+   *  params-only twin below). THIS shop is the offers standing in the row right now (Apples' branch — owner vocabulary
    *  2026-07-25: a bare "the shop" is the permanent Staff-of-Guel channel; "this shop" only touches the current
    *  offers). Baked per offer under the card's name: the Starform is the one offer that survives the next refresh,
    *  so it KEEPS the buff (rule 6) and every rolled-away offer loses it. Spell / Ruby offers are skipped — they
-   *  carry no stats to bake. Golden doubles (an Equipment activation hands a non-gilded self; `gildedParams`
-   *  carry the Lens's doubling). */
+   *  carry no stats to bake. Golden doubles. */
   buffThisShop: (ctx, self, params) => {
     const a = num(params.attack, 2) * gold(self), h = num(params.health, 2) * gold(self);
     buffThisShopOffers(ctx.state, nameOf(self), a, h);
+  },
+
+  /** Stellar Lens (Lens Grinder's Equipment): "this shop" +a/+h, PARAMS ONLY — an Equipment activation passes the
+   *  real (possibly gilded) source, and its doubling already rides `gildedParams` (Whiplass-o's shape). */
+  equipmentBuffThisShop: (ctx, _self, params) => {
+    buffThisShopOffers(ctx.state, 'Stellar Lens', num(params.attack, 10), num(params.health, 10));
   },
 
   /** Shooting Star (Shout): this shop +a/+h for EACH Shop spell cast this turn (`spellsThisTurn` — the Spirit

@@ -701,7 +701,8 @@ export type EffectFactoryId =
   // ── Set 3 Celestials — THE STARFORM ROSTER (owner spec 2026-09-12); the token engine is `packages/sim/src/starform.ts` ──
   | 'battlecryCreateStarformOrBuff' // Star Seed: Shout — create the Starform, or give the existing one +A/+H (recruit)
   | 'onBuyBuffStarform' // Stardust Peddler: whenever you buy a minion, the Starform gains +A/+H (recruit)
-  | 'buffThisShop' // Wishing Star (Shout + Echo) / Stellar Lens: every offer in the row right now +A/+H — the Starform keeps it (recruit)
+  | 'buffThisShop' // Wishing Star (Shout + Echo): every offer in the row right now +A/+H — the Starform keeps it (recruit)
+  | 'equipmentBuffThisShop' // Stellar Lens (Lens Grinder's Equipment): the same, params-only (a gilded source's doubling rides gildedParams) (recruit)
   | 'battlecryStarformConsumeShop' // Accretion Warden: Shout — the Starform eats the highest-Tier Shop minion, ties right-most (recruit)
   | 'battlecryBuffThisShopPerSpellsThisTurn' // Shooting Star: Shout — this shop +A/+H per Shop spell cast this turn (recruit; live text)
   | 'endOfTurnBuffStarform' // Orbit Keeper: End of Turn — the Starform gains +A/+H (recruit)

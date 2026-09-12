@@ -117,6 +117,7 @@ export const EffectFactoryIdSchema = z.enum([
   'battlecryCreateStarformOrBuff',
   'onBuyBuffStarform',
   'buffThisShop',
+  'equipmentBuffThisShop',
   'battlecryStarformConsumeShop',
   'battlecryBuffThisShopPerSpellsThisTurn',
   'endOfTurnBuffStarform',

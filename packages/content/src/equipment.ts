@@ -408,7 +408,8 @@ export const COMET: EquipmentDefinition = {
  * STELLAR LENS — Lens Grinder's Equipment (set-3 Celestials, 2026-09-12): "this shop" +10/+10 — the offers standing
  * in the row right now (Apples' vocabulary, owner 2026-07-25), baked per offer, so the Starform keeps it through
  * the next refresh and everything else loses it. Untargeted. A gilded Grinder's Lens gives +20/+20 (`gildedParams`
- * — the factory reads params only; an Equipment activation hands it a non-gilded self).
+ * — the factory reads params only: an Equipment activation passes the real source, so a golden-aware factory would
+ * double it twice).
  */
 export const STELLAR_LENS: EquipmentDefinition = {
   id: 'stellar_lens',
@@ -417,7 +418,7 @@ export const STELLAR_LENS: EquipmentDefinition = {
   goldenText: 'Give **this shop +20/+20**.',
   baseCost: 2,
   targetMode: 'none',
-  effectId: 'buffThisShop',
+  effectId: 'equipmentBuffThisShop',
   params: { attack: 10, health: 10 },
   gildedParams: { attack: 20, health: 20 },
 };

@@ -18,6 +18,7 @@ import { runContractSweep } from './contractOracle';
 import { planCases } from './isolatedCases';
 import { familiesOf, statGrantEffects, cardGrantEffects, economyEffects, keywordGrantEffects, equipmentEffects, isVanillaContract } from './drivers/families';
 import { stageShop, stageCombat, unitDeltas, gainedCards } from './drivers/shared';
+import { PLAY_EXCUSED } from './historyRegistry';
 
 const CONTRACTS = allContracts();
 const byId = new Map(CONTRACTS.map((c) => [c.contentId, c]));
@@ -156,9 +157,12 @@ describe('family drivers — sabotage (§4.5)', () => {
   });
 
   it('vanilla-body: a contract that HIDES a real effect (states none) is caught as unstated behaviour', () => {
-    // Take an effectful Shout minion the fixture can play, and strip its contract to a vanilla claim.
+    // Take an effectful Shout minion the fixture can play, and strip its contract to a vanilla claim. A PLAY_EXCUSED
+    // card is one the clean fixture CANNOT exercise (its Shout needs a condition the fixture never stages — Shooting
+    // Star's spells-this-turn, 2026-09-12), so it can never surface a hidden effect here: skip those.
     const effectful = CONTRACTS.find((c) => c.contentType === 'minion' && (c.effects ?? []).some((e) => /^battlecryBuff/.test(e.kind))
-      && (c.triggers ?? []).some((t) => t.event === 'onPlay') && !(c.tags ?? []).includes('choose-one') && !!CARD_INDEX[c.contentId])!;
+      && (c.triggers ?? []).some((t) => t.event === 'onPlay') && !(c.tags ?? []).includes('choose-one') && !!CARD_INDEX[c.contentId]
+      && !PLAY_EXCUSED[c.contentId])!;
     expect(effectful).toBeDefined();
     const doctored: ContentContract = { ...structuredClone(effectful), triggers: [], effects: [] };
     delete (doctored as { multiplier?: unknown }).multiplier;

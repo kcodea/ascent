@@ -152,6 +152,39 @@ in; the shop never rolls it. Engine: `packages/sim/src/starform.ts`; every rule 
 8. Two board-wide watcher moments: **"whenever your Starform gains stats"** (the gain's amount rides along)
    and **"when your Starform leaves the Shop"** (consumed / collapsed / dismissed, with its full stats).
 
+**The Starform roster's card-level readings** (owner spec 2026-09-12; `packages/content/src/cards/set3/celestials.ts`,
+pinned in `packages/sim/src/set3CelestialRoster.test.ts`):
+
+- **"This shop" +X/+X** (Wishing Star's Shout and Echo, Shooting Star, the Stellar Lens) buffs the **offers standing
+  in the row right now** — the owner's "this shop" vocabulary (2026-07-25), not the per-turn channel. The Starform
+  keeps it through the next refresh; every other offer loses it. Wishing Star's Echo fires in the shop only (a
+  combat death has no shop to buff).
+- **Accretion Warden** eats the **highest-Tier** Shop minion; the **Accretion** spell eats the **highest current buy
+  Health**. Ties go to the **right-most**. With no Starform the Warden does nothing; the spell skips the consume but
+  **still grants its Star Crash**.
+- **Shooting Star** counts Shop spells cast this turn (`spellsThisTurn` — a multiplied cast counts each time); the
+  card prints the live total. **Zenith** counts a spell of **any** kind, Rubies included (the Gravestar Seer ruling).
+- **Corona Devotee** gains 100% of the token's stats (base 1/1 included); **Nova Herald** hands the rounded-up half to
+  3 random friendly Celestials — the Herald itself is eligible; fewer Celestials → each present one gets it; a token
+  with no Celestial at all still collapses and the stats go nowhere; no token → nothing happens.
+- **Lodestar** gives a friendly Celestial its **MAX stats**: current Attack + undamaged max Health (a 10/10 damaged
+  to 10/5 then buffed +5/+5 hands over 15/15). Both phases.
+- **Twin Star** mirrors every gain path (a buff, a shop buff, the token's consumes, a Star Crash aimed at the token,
+  a slot enchant landing on a roll). **Zenith** rebuilds the token after a **consume or collapse** (a Demon eating
+  it is a consume) — never after the 0-Gold dismiss — with half its stats rounded up; a full row eats its right-most
+  minion as any create does.
+- **Constellation Prime** — "your Star Crashes cast an additional time" means the **PRIMARY** +5/+7 lands one extra
+  time on the chosen Celestial per Prime (two per gilded Prime); the secondary random-friendly half fires **once per
+  cast**. A Comet / Nimbus-multiplied cast re-lands the primary on every repeat. Applies to a Star Crash aimed at the
+  Starform too.
+- **Star Crash may be aimed at the Starform** (a friendly Celestial): the token gains +5/+7 (Twin Star hears it) and
+  the secondary half still lands on a random friendly minion on the **board**. Only the tribe's own Celestial-aimed
+  spell reaches the token — a plain `friendly` spell keeps its board-only aim (rule 5 stays whole).
+- **Orbit Keeper**'s Start of Turn creates the token as the new turn's shop opens (into a full row → it eats the
+  right-most minion); its End of Turn feeds a held token and does nothing without one.
+- **Star Charter** Discovers a Celestial from the run's pool — never itself, and never the Starform (a token, outside
+  every draw pool).
+
 The **combat event vocabulary** is a union of **22 distinct event types** in
 `packages/core/src/types.ts` (`CombatEvent`): `sc, attack, dmg, shield, shieldUp, poison, reborn,
 death, reveal, keyword, keywordLost, venomLost, summon, ascend, buff, improve, rally, maxGold,

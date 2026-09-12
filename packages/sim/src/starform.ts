@@ -38,6 +38,7 @@
  *
  * `run.shop` already persists, so the token saves / restores with the row; nothing else to carry.
  */
+import type { CardDef } from '@game/core';
 import type { BoardCard, RunState, ShopCard } from './state';
 import { addOfferBuff, consumeShopOffer, fireStarformGained, fireStarformRemoved, offerBuyStats, rightmostShopMinion } from './recruit';
 import { tierSlots } from './shop';
@@ -226,6 +227,15 @@ export function collapseStarform(state: RunState): { attack: number; health: num
   const full = removeStarform(state, 'collapse');
   if (!full) return null;
   return { attack: Math.ceil(full.attack / 2), health: Math.ceil(full.health / 2) };
+}
+
+/** May this spell be AIMED at the Starform offer? A `friendly` spell whose printed aim is a CELESTIAL (Star Crash:
+ *  `targetTribe: 'celestial'`) — the token is a friendly Celestial by design (owner 2026-09-12: "Star Crash must be
+ *  castable on the Starform"). A plain `friendly` spell keeps its board-only aim (rule 5: never gilded, never
+ *  transformed — those are `friendly` spells too); an `any` spell already reaches every offer. Read by the
+ *  reducer's cast path AND the UI's aim, so the reticle and the rule cannot disagree. */
+export function starformSpellAimsToken(def: Pick<CardDef, 'spell' | 'target' | 'targetTribe'>): boolean {
+  return !!def.spell && def.target === 'friendly' && def.targetTribe === 'celestial';
 }
 
 /** Rule 5 — the 0-Gold buy: the token is DISMISSED (nothing enters the hand). The reducer's `buy` case owns the

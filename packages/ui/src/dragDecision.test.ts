@@ -20,7 +20,7 @@ import type { CardView } from './Card';
 
 // A geometry stub: the warband/shop/hand are 100px-wide slots starting at x=0, so index = floor(x/100),
 // clamped to [0, len]. boardUidAt/shopUidAt return the uid of the slot under x (same 100px grid) or null.
-function gridGeo(opts: { warband?: string[]; shop?: string[]; hand?: string[] } = {}): DragGeo {
+function gridGeo(opts: { warband?: string[]; shop?: string[]; hand?: string[]; starform?: string } = {}): DragGeo {
   const idx = (slots: string[], x: number, excludeUid?: string): number => {
     const n = slots.filter((u) => u !== excludeUid).length;
     return Math.max(0, Math.min(n, Math.floor(x / 100)));
@@ -36,6 +36,7 @@ function gridGeo(opts: { warband?: string[]; shop?: string[]; hand?: string[] } 
     handIndexAt: (x, ex) => idx(opts.hand ?? [], x, ex),
     boardUidAt: (x) => uidAt(opts.warband ?? [], x),
     shopUidAt: (x) => uidAt(opts.shop ?? [], x),
+    starformUidAt: (x) => { const u = uidAt(opts.shop ?? [], x); return u && u === opts.starform ? u : null; },
   };
 }
 
@@ -170,6 +171,14 @@ describe('spell cast', () => {
   it('below the play floor a spell is not aiming — no target', () => {
     const d = deriveDragDecision(input({ drag: drag({ source: 'hand', view: friendlySpell }), y: 450, playFloor: 400 }));
     expect(d.castTargetUid).toBeNull();
+  });
+  it('a friendly Celestial-aimed spell (Star Crash, `aimsStarform`) reaches the STARFORM offer and no other offer', () => {
+    const geo = gridGeo({ warband: [], shop: ['o0', 'sf'], starform: 'sf' });
+    const aim = (x: number, aimsStarform: boolean) =>
+      deriveDragDecision(input({ drag: drag({ source: 'hand', view: friendlySpell }), x, y: 200, playFloor: 400, geo, aimsStarform })).castTargetUid;
+    expect(aim(150, true), 'the token').toBe('sf');
+    expect(aim(50, true), 'an ordinary offer is never a friendly target').toBeNull();
+    expect(aim(150, false), 'a plain friendly spell keeps its board-only aim').toBeNull();
   });
   it('computeCastingSpell matches the aim boundary', () => {
     const d = drag({ source: 'hand', view: friendlySpell });

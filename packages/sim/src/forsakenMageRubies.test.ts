@@ -34,6 +34,6 @@ describe('Forsaken Mage counts every spell', () => {
 
   it('other spellCast watchers do NOT hear a Ruby unless they opt in', () => {
     const optedIn = Object.values(CARD_INDEX).filter((c) => c.effects.some((e) => e.on === 'spellCast' && e.params?.includeRubies === true)).map((c) => c.id);
-    expect(optedIn).toEqual(['forsakenweaver', 'ce3_seer']); // Gravestar Seer: "a spell" is any spell (owner 2026-09-10)
+    expect(optedIn).toEqual(['forsakenweaver', 'ce3_seer', 'ce3_zenith']); // Gravestar Seer + Zenith: "a spell" is any spell (owner 2026-09-10; the Zenith reads the same ruling, 2026-09-12)
   });
 });

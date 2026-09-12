@@ -116,6 +116,13 @@ export const PHASE_EXCUSED: Readonly<Record<string, PhaseExcuse>> = {
   battlecryDoubleNextSpell: { phase: 'combat', kind: 'no-surface', why: 'arms a run flag (next spell casts twice); nothing to double mid-fight, replays at settle' },
   battlecryBuffNextSpell: { phase: 'combat', kind: 'no-surface', why: 'Starpath Vendor banks +A/+H for the next SHOP spell (a run field); no spell casts mid-fight, the deferred Shout replays at settle' },
   rallyGrantFirstSpellCopy: { phase: 'recruit', kind: 'no-surface', why: 'Comet Conductor is "once per COMBAT" by its text; a shop Rally pass (Rune of the Chef) is not a fight, and the copy is the payout of the fight' },
+  // ── Set 3 Celestials, THE STARFORM ROSTER (2026-09-12): the token lives IN THE SHOP; no shop exists mid-fight ──
+  battlecryCreateStarformOrBuff: { phase: 'combat', kind: 'no-surface', why: 'Star Seed creates / feeds the Starform, a SHOP offer (starform.ts); no shop mid-fight, a combat re-fired Shout replays at settle' },
+  buffThisShop: { phase: 'combat', kind: 'no-surface', why: 'Wishing Star: "this shop" buffs the offers standing in the row (addOfferBuff per offer); no shop mid-fight — the Shout replays at settle, the Echo half has no combat surface (owner spec 2026-09-12)' },
+  battlecryStarformConsumeShop: { phase: 'combat', kind: 'no-surface', why: 'Accretion Warden: the Starform eats a Shop minion; no shop mid-fight, replays at settle' },
+  battlecryBuffThisShopPerSpellsThisTurn: { phase: 'combat', kind: 'no-surface', why: 'Shooting Star: "this shop" per Shop spell this turn; no shop mid-fight, replays at settle' },
+  battlecryConsumeStarform: { phase: 'combat', kind: 'no-surface', why: 'Corona Devotee consumes the Starform, a SHOP offer; no shop mid-fight, replays at settle' },
+  battlecryCollapseStarform: { phase: 'combat', kind: 'no-surface', why: 'Nova Herald collapses the Starform, a SHOP offer; no shop mid-fight, replays at settle' },
   battlecryScoutSpread: { phase: 'combat', kind: 'other-channel', why: 'grows the run-wide squirlScoutBuff; combat reads the carried value, the increment is a play-time event' },
   // Trouble's self-Ruby. Combat DOES implement it — just not through the factory map: `rubyPlayedAnywhere`
   // is a passive marker that `playRubyOn` SCANS living friendlies for (the same shape Candle Conduit's

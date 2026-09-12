@@ -69,6 +69,9 @@ const ART_PENDING = new Set<string>([
   // list is for; it stays empty until the next batch ships ahead of its art.
   // SET 3 CELESTIALS (the reworked roster, 2026-09-11) — all eight authored ahead of their art.
   'ce3_courier', 'ce3_vendor', 'ce3_seer', 'ce3_conductor', 'ce3_herald', 'ce3_adept', 'ce3_spellcore', 'ce3_artificer',
+  // SET 3 CELESTIALS — the Starform roster (2026-09-12) — sixteen authored ahead of their art, plus the Accretion spell.
+  'ce3_starseed', 'ce3_dawnsentinel', 'ce3_peddler', 'ce3_wishingstar', 'ce3_accretionwarden', 'ce3_shootingstar', 'ce3_eclipsewarden', 'ce3_orbitkeeper', 'ce3_coronadevotee', 'ce3_starcharter', 'ce3_lensgrinder', 'ce3_lodestar', 'ce3_twinstar', 'ce3_novaherald', 'ce3_zenith', 'ce3_constellationprime',
+  'accretion',
   // …and the Starform shop token (2026-09-12): token art pending.
   'ce3_starform',
 ]);

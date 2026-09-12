@@ -860,6 +860,14 @@ export function copyCastSpellText(cardId: string, golden: boolean, names: {
       ? `**End of Turn:** get **2** copies of ${n} — the first **Shop spell** you cast this turn.`
       : `**End of Turn:** get a copy of ${n} — the first **Shop spell** you cast this turn.`;
   }
+  // Comet Conductor (owner 2026-09-11: "needs to reference the spell it is going to grant, like Steward of
+  // Spells"): the Rally copies the turn's FIRST spell, which the run remembers and combat carries per side.
+  if (cardId === 'ce3_conductor' && names.firstThisTurn) {
+    const n = `{{${names.firstThisTurn}}}`;
+    return golden
+      ? `**Rally:** get **2** copies of ${n} — the first spell you cast this turn. Once per combat.`
+      : `**Rally:** get a copy of ${n} — the first spell you cast this turn. Once per combat.`;
+  }
   if (cardId === 'd2_spellkeeper' && names.keeperFirst) {
     const n = `{{${names.keeperFirst}}}`;
     return golden
@@ -1110,6 +1118,13 @@ export function stepProgress(
   // card's live surface is the counter, not its text.
   const everyN = def.effects.find((e) => e.on === 'spellCast' && typeof (e.params as { every?: unknown } | undefined)?.every === 'number' && typeof (e.params as { tribe?: unknown } | undefined)?.tribe === 'string');
   if (everyN) return cyc(p.spellProgress ?? 0, Math.max(1, n((everyN.params as { every?: number })?.every, 3)));
+  // SPIRIT-PLAYED tallies — Festival Keeper (every 3 Spirits → a spell) and Aspect (improves every 3 triggers).
+  // Owner ruling 2026-09-11: "festival keeper's tracker (and all trackers like this) should use the avenge
+  // tally that we use, and not track on the card." So the per-instance `spiritTally` drives THIS counter,
+  // N/every cyclic like Avenge, and the printed text carries no fraction. Keyed on the effect SHAPE (an
+  // `onTribePlayed` watcher with an `every` cadence), the same reason as Astral Spellcore above.
+  const tribeEvery = def.effects.find((e) => e.on === 'onTribePlayed' && typeof (e.params as { every?: unknown } | undefined)?.every === 'number');
+  if (tribeEvery) return cyc(p.spiritTally ?? 0, Math.max(1, n((tribeEvery.params as { every?: number })?.every, 3)));
   const monk = def.effects.find((e) => e.do === 'overflowBuffRandom');
   if (monk) return cyc(p.summonBonus ?? 0, Math.max(1, n((monk.params as { improveEvery?: number })?.improveEvery, 5)));
   const crypt = def.effects.find((e) => e.do === 'onAllyAttackBuffAll');
@@ -1240,8 +1255,8 @@ export function rallySpreadText(cardId: string, golden: boolean, rallySpreadAtk?
  * NOW). One helper, keyed by id, so the shop / hand / Discover chain and the combat chain read one truth:
  *  - the Revelers print the SHARED Reveler value (Flame → Attack, Tide → Health, Grove → both; golden 2X);
  *  - Festival Luminary prints +(1 + X) on both stats;
- *  - Festival Keeper prints its progress toward the next spell; Aspect its current grant + the
- *    countdown to the next improvement; Forest Colossus the Spirits it has counted; Nurturer and Kindled
+ *  - Aspect prints its current grant (its countdown, and Festival Keeper's whole tracker, live on the step
+ *    counter instead — owner 2026-09-11); Forest Colossus the Spirits it has counted; Nurturer and Kindled
  *    Sprite the Spirits played this turn. Null when the printed base is already exact.
  */
 export function spiritText(
@@ -1261,17 +1276,15 @@ export function spiritText(
       const v = (1 + x) * g;
       return `**Shout:** give **3** random Spirits **${live(`+${v}/+${v}`)}** (+${g}/+${g} plus ${golden ? 'twice ' : ''}your **Reveler** bonus).`;
     }
-    case 'sp3_festivalkeeper': {
-      const every = 3;
-      const seen = tally % every;
-      return seen > 0 ? `After you play **3** Spirits, get ${golden ? '**2** random spells' : 'a random spell'}. ${live(`${seen}/${every}`)}` : null;
-    }
+    // Festival Keeper: its progress toward the next spell is the STEP COUNTER (`stepProgress`, Avenge-style),
+    // never a fraction in the text — owner ruling 2026-09-11. The printed base line is already exact.
     case 'sp3_aspect': {
+      // The live GRANT stays in the text (the hard live-value rule); the "N more" countdown moved to the step
+      // counter with Festival Keeper's (owner ruling 2026-09-11), so the sentence states the cadence, not the count.
       const every = 3;
       const level = 1 + Math.floor(tally / every);
       const v = level * g;
-      const left = every - (tally % every);
-      return `Whenever you play a Spirit, give **3** random friendly Spirits **${live(`+${v}/+${v}`)}**. Improves by **+${g}/+${g}** in ${live(`${left}`)} more.`;
+      return level > 1 ? `Whenever you play a Spirit, give **3** random friendly Spirits **${live(`+${v}/+${v}`)}**. Improve this by **+${g}/+${g}** every ${every} times this triggers.` : null;
     }
     case 'sp3_forestcolossus':
       return p.onBoard ? `**Start of Combat:** give your Spirits **${live(`+${tally * g}/+${tally * g}`)}** (+${g}/+${g} for each Spirit played since this was played).` : null;

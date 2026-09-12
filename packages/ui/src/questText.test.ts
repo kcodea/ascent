@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import type { QuestObjective, QuestReward } from '@game/core';
 import { QUEST_DEFS } from '@game/content';
 import { questObjectiveLines, questObjectiveText, questRewardText, questRewardLiveText } from './questText';
-import { stewardText } from './cardText';
+import { copyCastSpellText, stewardText } from './cardText';
 
 describe('questText — objectives', () => {
   const cases: [QuestObjective, string][] = [
@@ -168,5 +168,13 @@ describe('Rune of Recollection names the spell you are getting (owner ask 2026-0
 
   it('leaves OTHER recurring End-of-Turn rewards alone', () => {
     expect(questRewardLiveText({ kind: 'recurringEndOfTurn', effect: 'grantAles' } as never, {})).toBeNull();
+  });
+});
+
+describe('copyCastSpellText — Comet Conductor names the spell its Rally copies (owner 2026-09-11)', () => {
+  it('prints the first spell cast this turn, plain and gilded, and the base text when nothing was cast', () => {
+    expect(copyCastSpellText('ce3_conductor', false, { firstThisTurn: 'Growth' })).toBe('**Rally:** get a copy of {{Growth}} — the first spell you cast this turn. Once per combat.');
+    expect(copyCastSpellText('ce3_conductor', true, { firstThisTurn: 'Growth' })).toBe('**Rally:** get **2** copies of {{Growth}} — the first spell you cast this turn. Once per combat.');
+    expect(copyCastSpellText('ce3_conductor', false, {})).toBeNull();
   });
 });

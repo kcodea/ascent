@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { spiritText } from './cardText';
+import { spiritText, stepProgress } from './cardText';
 
 /**
  * SET 3 SPIRITS — the live line (the hard rule: a scaling card prints its CURRENT number on every surface).
@@ -21,13 +21,20 @@ describe('spiritText — the Spirits print what they do now', () => {
     expect(spiritText('sp3_luminary', true, { revelerX: 3 })).toContain('{{+8/+8}}');
   });
 
-  it('Festival Keeper shows progress toward the next spell; Aspect its grant and countdown; Forest Colossus its count', () => {
+  it('Festival Keeper never prints a fraction (its tracker is the step counter); Aspect prints its live grant only; Forest Colossus its count', () => {
+    // Owner ruling 2026-09-11: trackers like Festival Keeper's use the Avenge-style step counter, never the text.
     expect(spiritText('sp3_festivalkeeper', false, { spiritTally: 0 })).toBeNull();
-    expect(spiritText('sp3_festivalkeeper', false, { spiritTally: 2 })).toContain('{{2/3}}');
-    expect(spiritText('sp3_festivalkeeper', false, { spiritTally: 3 }), 'just paid — back to the base').toBeNull();
-    expect(spiritText('sp3_aspect', false, { spiritTally: 0 })).toContain('{{+1/+1}}');
-    expect(spiritText('sp3_aspect', false, { spiritTally: 2 })).toContain('{{1}} more');
+    expect(spiritText('sp3_festivalkeeper', false, { spiritTally: 2 })).toBeNull();
+    expect(spiritText('sp3_festivalkeeper', false, { spiritTally: 3 })).toBeNull();
+    expect(stepProgress('sp3_festivalkeeper', { spiritTally: 0 })).toEqual({ current: 0, total: 3 });
+    expect(stepProgress('sp3_festivalkeeper', { spiritTally: 2 })).toEqual({ current: 2, total: 3 });
+    expect(stepProgress('sp3_festivalkeeper', { spiritTally: 3 })).toEqual({ current: 3, total: 3 });
+    expect(stepProgress('sp3_festivalkeeper', { spiritTally: 4 }), 'wraps after a payout, Avenge-style').toEqual({ current: 1, total: 3 });
+    expect(spiritText('sp3_aspect', false, { spiritTally: 0 }), 'base grant, base text').toBeNull();
+    expect(spiritText('sp3_aspect', false, { spiritTally: 2 }), 'no countdown in the text any more').toBeNull();
     expect(spiritText('sp3_aspect', false, { spiritTally: 3 })).toContain('{{+2/+2}}');
+    expect(spiritText('sp3_aspect', false, { spiritTally: 3 })).not.toContain('more');
+    expect(stepProgress('sp3_aspect', { spiritTally: 2 })).toEqual({ current: 2, total: 3 });
     expect(spiritText('sp3_forestcolossus', false, { spiritTally: 2, onBoard: true })).toContain('{{+2/+2}}');
     expect(spiritText('sp3_forestcolossus', false, { spiritTally: 2, onBoard: false }), 'in the shop it has counted nothing yet').toBeNull();
   });

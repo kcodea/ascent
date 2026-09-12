@@ -55,6 +55,21 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-09-12',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: 'The Choose One window now shows the buffed numbers on a Choose One spell — with spell power up, each option prints (in green) exactly what it will grant.',
+        details: [
+          "Aspect's Blessing under +1/+1 spell power offers +4/+2 or +2/+4 in the window, not the printed +3/+1 / +1/+3.",
+          "Apples' \"2 random friendly minions\" option shows its live value; its \"this shop +2/+4\" option stays as printed, because that buff never takes spell power.",
+          'Crest of the Climb keeps its flat +4 Attack / +4 Health — it is designed not to scale.',
+          'Minion Choose Ones (Battlecries) are unchanged: they never took spell power, so their options still print as authored.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-09-11',
     changes: [
       {

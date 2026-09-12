@@ -115,6 +115,43 @@ minion alive. Duplicates collapse into one entry; a single Gilded source upgrade
   spend, resolve in one action — a cancel costs nothing by construction). Gold cost, temporary cost
   reductions, extra-trigger repeats and Choose One on an Equipment are unaffected by charges.
 
+### The Starform — the Celestials' shop token (owner design 2026-09-12)
+
+The **Starform** is a **1/1 Celestial token that lives IN THE SHOP** as an ordinary shop offer (normal unit
+frame, no rules text — **its printed stats are the counter**). Celestial cards create it, grow it and cash it
+in; the shop never rolls it. Engine: `packages/sim/src/starform.ts`; every rule below is pinned in
+`starform.test.ts`.
+
+1. **Created into the right-most Shop slot.** With no slot open it **Consumes the right-most Shop minion**
+   (that offer leaves; the Starform gains its current buy stats) and takes its slot — a real Shop consume,
+   with every latch and watcher a Demon's consume touches (Bottomless Banquet, Open Market, `onConsume`,
+   the consume meter). A spell / Ruby in the right-most slot is skipped leftward; a full row with no minion
+   at all still gets the token (appended — the one case the row overflows by one, until the next roll).
+2. **Only one at a time.** A second create is a no-op (cards that say "give it +2/+2 instead" handle that
+   themselves).
+3. **It persists through refreshes in its OWN slot** — the token never moves when the row rebuilds (kept
+   Layaway offers still pull left around it) — and across turns and combat, and under Freeze, until it is
+   consumed, collapsed or dismissed. It takes a slot: a tier's row is one draw shorter while it is out.
+4. **Refresh-time slot buffs land on it ONCE.** Market Tormentor's right-most enchant, Rune of the Embers'
+   doubling, the Display Case's left-most enchant and Veinstorm's per-refresh Ruby stamp each land on a
+   Starform the first refresh it sits in the slot and **never again** on later refreshes (they are gated,
+   not redirected to the next minion). Right-most buffs from a *play* (a Shout, a hero power) apply as
+   normal.
+5. **It cannot be bought like a minion — buying it costs 0 Gold and DISMISSES it.** That buy counts as a
+   minion bought (on-buy watchers, buy tallies, quest / rune / hero-power counters) but puts nothing in
+   hand and returns nothing to the pool. It is never gilded, never tripled, never held / laid away, never
+   displaced, never stolen to hand, never replaced by a Discover. For **everything else it is a regular
+   Shop minion**: random-shop picks, Demon consumes (a Demon *can* eat it), "this shop" buffs, hero powers
+   and spells aimed at a shop minion.
+6. **Every shop buff bakes onto the token.** Direct buffs, permanent shop buffs ("minions in the Shop get
+   +X/+X"), *this-turn* shop buffs and consumes all fold into its printed stats as they happen — so a
+   refresh that clears a this-turn buff for every other offer leaves the Starform's total intact. It is the
+   one offer that keeps them.
+7. **Consume = 100% of its stats to one Celestial; Collapse = 50% to three random friendly Celestials**,
+   halves rounded **up**, the base 1/1 **included** in what transfers. With no Starform both do nothing.
+8. Two board-wide watcher moments: **"whenever your Starform gains stats"** (the gain's amount rides along)
+   and **"when your Starform leaves the Shop"** (consumed / collapsed / dismissed, with its full stats).
+
 The **combat event vocabulary** is a union of **22 distinct event types** in
 `packages/core/src/types.ts` (`CombatEvent`): `sc, attack, dmg, shield, shieldUp, poison, reborn,
 death, reveal, keyword, keywordLost, venomLost, summon, ascend, buff, improve, rally, maxGold,

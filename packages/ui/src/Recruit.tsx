@@ -694,6 +694,20 @@ function shopView(card: ShopCard, opts: ShopViewOpts = {}): CardView {
       target: c.target, tier: c.tier, castMult: opts.castMult,
     };
   }
+  // THE STARFORM (set 3 Celestials): a shop token whose printed stats ARE its counter — base + everything baked
+  // onto the offer (`offerBuyStats`' Starform branch), NEVER the live shop channels (the sim folds those onto
+  // the offer as they happen, so reading them here too would show them twice). Costs 0 (buying dismisses it),
+  // shown on the changed-price coin; `starform` marks the card for styling.
+  if (card.starform) {
+    const offerBuffs = (card.buffs ?? []).filter((b) => b.attack || b.health).map((b) => ({ source: b.source, attack: b.attack, health: b.health, count: b.count }));
+    return {
+      name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2, universalTribe: !!c.universalTribe,
+      attack: c.attack + (card.atk ?? 0), health: c.health + (card.hp ?? 0), keywords: [...c.keywords],
+      text: c.text, buffs: offerBuffs.length > 0 ? offerBuffs : undefined,
+      cost: 0, costChanged: true, tier: c.tier, starform: true,
+      baseAttack: c.attack, baseHealth: c.health,
+    };
+  }
   // Displacement: a stashed minion (held) shows its FULL preserved stats / keywords / golden frame. Its stored
   // stats are already final (golden ones already doubled), so no further folding — it restores intact on buy.
   if (card.held) {

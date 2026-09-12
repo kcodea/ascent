@@ -44,10 +44,14 @@ type RecruitFn = (
    *  marks a Djinn-driven extra End-of-Turn (it must not advance a cadence counter — see Frontdrake). */
   payload: { minion: BoardCard; proc?: number; target?: BoardCard; replay?: boolean; rubyAttack?: number; rubyHealth?: number; spellDef?: CardDef; spellId?: string; /** `onGainCard`: WHICH card just arrived in hand — Kegheart Dwarf filters on it being a Dwarven Ale. The
   *  event used to carry only "a card arrived", which no watcher could filter. */ cardId?: string; /** CELESTIAL orbitFired: the minion whose Orbit resolved (Orrery excludes its own). */ source?: BoardCard; /** CELESTIAL: this Orbit was TRIGGERED (Astral Relay), not caused by a card arriving — so `minion` is
-  *  a stand-in and any effect that consumes the arriver must stand down. */ noArriver?: boolean },
+  *  a stand-in and any effect that consumes the arriver must stand down. */ noArriver?: boolean;
+  /** STARFORM (set 3 Celestials): `starformGained` carries the DELTA the token just gained; `starformRemoved`
+   *  carries WHY it left the Shop and its FULL stats at removal (base 1/1 included). `minion` is the watcher. */
+  starformAttack?: number; starformHealth?: number; starformReason?: 'consume' | 'collapse' | 'dismiss' },
 ) => void;
 
 import { SPELL_POWER_EXCUSED } from './docbot/historyRegistry';
+import { buffStarform, starformFollowShopBuff, starformRefreshLand } from './starform';
 
 const num = (v: unknown, fallback = 0): number => (typeof v === 'number' ? v : fallback);
 
@@ -248,7 +252,7 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
       for (let i = 0; i < (self.golden ? 2 : 1); i++) castSpell(state, def); // the full shop cast pipeline
     },
     cardDef: (id) => CARD_INDEX[id],
-    gainShopBuff: (a, h, source) => { state.tavernBuyBonus.atk += a; state.tavernBuyBonus.hp += h; creditShopBuffSource(state, source ?? nameOf(self), a, h); },
+    gainShopBuff: (a, h, source) => { state.tavernBuyBonus.atk += a; state.tavernBuyBonus.hp += h; creditShopBuffSource(state, source ?? nameOf(self), a, h); starformFollowShopBuff(state, a, h, source ?? nameOf(self)); },
     grantUndeadAura: (a, h) => {
       // The Lantern channel. In the shop this run-wide aura is folded into every Undead's displayed stats
       // already, so raising it IS the whole grant — a board loop on top would double-apply it.
@@ -1382,6 +1386,9 @@ export function addTurnShopBuff(state: RunState, attack: number, health: number)
   if (attack === 0 && health === 0) return;
   const cur = state.tavernBuyBonusTurn ?? { atk: 0, hp: 0 };
   state.tavernBuyBonusTurn = { atk: cur.atk + attack, hp: cur.hp + health };
+  // THE STARFORM is the one offer that survives the refresh a "this shop" buff is scoped to, so it KEEPS the
+  // buff: baked onto the offer here (owner rule 6), never read live from this channel (`offerBuyStats`).
+  starformFollowShopBuff(state, attack, health, 'Shop Enchant');
 }
 
 /** Credit a shop-stat source in the provenance ledger (see `RunState.tavernBuyBonusSources`). Every writer of
@@ -1398,6 +1405,7 @@ export function applyRunShopBuff(state: RunState, attack: number, health: number
   state.tavernBuyBonus.hp += health;
   creditShopBuffSource(state, source, attack, health);
   buffFodderRunWide(state, attack, health, source, false);
+  starformFollowShopBuff(state, attack, health, source); // the Starform banks the permanent shop buff too (rule 6)
   // Name the card for the shop-wide FX stamp (presentation only — see `RunState.shopBuffAllSource`).
   if (sourceCardId) state.shopBuffAllSource = sourceCardId;
 }
@@ -2691,14 +2699,14 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     for (const offer of [...st.shop]) {
       if (st.hand.length >= handCap(st)) break;
       const def = CARD_INDEX[offer.cardId];
-      if (!def) continue;
+      if (!def || offer.starform) continue; // the Starform is never taken into hand (rule 5) — it stays for the roll
       if (def.spell) {
         st.hand.push({ uid: `b${st.uidSeq++}`, cardId: def.id, tribe: def.tribe, attack: def.attack, health: def.health, keywords: [...def.keywords], golden: false });
       } else {
         grantMinionToHandOrBoard(st, def, !!offer.golden);
       }
     }
-    st.shop = [];
+    st.shop = st.shop.filter((o) => o.starform);
     rollShop(st);
   },
 
@@ -6879,8 +6887,8 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       if (st.hand.length >= handCap(st)) break;
       const pool = st.shop
         .map((o, idx) => ({ o, idx, def: CARD_INDEX[o.cardId] }))
-        .filter(({ def }) => {
-          if (!def) return false;
+        .filter(({ o, def }) => {
+          if (!def || o.starform) return false; // the Starform can't be stolen to hand (rule 5)
           if (!tribe) return true; // the Requisition takes anything the row holds, spells included
           return !def.spell && !def.ruby && (def.tribe === tribe || def.tribe2 === tribe || !!def.universalTribe);
         });
@@ -7074,16 +7082,18 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     // RNG spent. The default (Deep Delve Writ) stays a random offer. `count` repeats the theft (a gilded Hustler).
     const highest = str(params.pick) === 'highestTier';
     for (let n = 0; n < Math.max(1, num(params.count, 1)); n++) {
-      if (state.shop.length === 0 || state.hand.length >= handCap(state)) return;
+      // Stealable offers: everything but the Starform (it never enters a hand — rule 5).
+      const stealable = state.shop.flatMap((o, i) => (o.starform ? [] : [i]));
+      if (stealable.length === 0 || state.hand.length >= handCap(state)) return;
       let idx: number;
       if (highest) {
-        idx = 0;
-        for (let i = 1; i < state.shop.length; i++) {
+        idx = stealable[0]!;
+        for (const i of stealable) {
           if ((CARD_INDEX[state.shop[i]!.cardId]?.tier ?? 0) > (CARD_INDEX[state.shop[idx]!.cardId]?.tier ?? 0)) idx = i;
         }
       } else {
         const rng = makeRng(state.rngCursor);
-        idx = rng.int(state.shop.length);
+        idx = stealable[rng.int(stealable.length)]!;
         state.rngCursor = rng.state();
       }
       const offer = state.shop[idx]!;
@@ -7587,7 +7597,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   },
 
   spellGildRandomTavern: (ctx) => {
-    const offers = ctx.state.shop.filter((o) => !o.golden);
+    const offers = ctx.state.shop.filter((o) => !o.golden && !o.starform); // the Starform is never gilded (rule 5)
     if (offers.length === 0) return;
     const rng = makeRng(ctx.state.rngCursor);
     offers[rng.int(offers.length)]!.golden = true;
@@ -9081,6 +9091,42 @@ export function fireOnSell(state: RunState, card: BoardCard): void {
  * `hand.push` (a bought minion, a Discover pick): those are direct player actions, not the grant path the card
  * reacts to. Watcher effects add no card, so this can't recurse.
  */
+/**
+ * STARFORM (set 3 Celestials, owner design 2026-09-12) — the two board-wide watcher dispatches. Recruit-only:
+ * the token lives in the Shop and only grows / leaves there. Both fire through `captureBuffFx` so a watcher's
+ * payout (Twin Star buffing itself, a Zenith-style payoff) animates like every other reaction.
+ */
+export function fireStarformGained(state: RunState, attack: number, health: number): void {
+  if (attack <= 0 && health <= 0) return;
+  const ctx = makeContext(state);
+  for (const card of [...state.board]) {
+    for (const effect of instanceEffects(card)) {
+      if (effect.on !== 'starformGained') continue;
+      const fn = RECRUIT_FACTORIES[effect.do];
+      if (fn) captureBuffFx(state, card, 'minion', () => fn(ctx, card, effect.params ?? {}, { minion: card, starformAttack: attack, starformHealth: health }));
+    }
+  }
+}
+
+export function fireStarformRemoved(state: RunState, reason: 'consume' | 'collapse' | 'dismiss', stats: { attack: number; health: number }): void {
+  const ctx = makeContext(state);
+  for (const card of [...state.board]) {
+    for (const effect of instanceEffects(card)) {
+      if (effect.on !== 'starformRemoved') continue;
+      const fn = RECRUIT_FACTORIES[effect.do];
+      if (fn) captureBuffFx(state, card, 'minion', () => fn(ctx, card, effect.params ?? {}, { minion: card, starformReason: reason, starformAttack: stats.attack, starformHealth: stats.health }));
+    }
+  }
+}
+
+/** Fire the board's `onBuy` WATCHERS for a purchase that put NO body anywhere — the Starform's 0-Gold dismiss
+ *  (owner rule 5: it counts as a minion bought). The bought "body" is a stand-in built from the token, so a
+ *  watcher reading the payload sees a Celestial. Deliberately NOT `applyOnBuy`: Banquet Hall / Second Life act
+ *  on a body that arrives in hand, and nothing arrives here. */
+export function fireOnBuyWatchers(state: RunState, bought: BoardCard): void {
+  fire(makeContext(state), 'onBuy', { minion: bought });
+}
+
 export function fireOnGainCard(state: RunState, cardId?: string): void {
   // RUNE OF HEAVY PAYROLL: a DWARF arriving in hand pays your left-most minion. Rides this chokepoint — the
   // shared "a card was granted to hand" hook — rather than the buy path, because "get" is the grant verb in
@@ -9516,7 +9562,7 @@ export function swapWithTavern(state: RunState, boardMinion: BoardCard): boolean
   if (boardMinion.golden) return false; // can't trade away a golden (triple) — no RNG consumed on the no-op
   // Only swap with a tavern MINION — spells can never be displaced onto the board. With no minion in the
   // tavern the swap can't happen (no RNG consumed on the no-op); callers keep the spell / hero charge.
-  const minionIdx = state.shop.flatMap((o, i) => (CARD_INDEX[o.cardId]?.spell ? [] : [i]));
+  const minionIdx = state.shop.flatMap((o, i) => (CARD_INDEX[o.cardId]?.spell || o.starform ? [] : [i])); // never the Starform (rule 5)
   if (minionIdx.length === 0) return false;
   const rng = makeRng(state.rngCursor);
   const si = minionIdx[rng.int(minionIdx.length)]!;
@@ -9685,10 +9731,14 @@ export function applyShopRefreshed(state: RunState): void {
   // ordering is load-bearing (owner ruling 2026-07-25): a Hellrider that eats the right-most must eat the
   // BUFFED body. It used to be enforced with a two-pass BUFF_FIRST loop over board watchers; now that the buff
   // is run-level state rather than a board effect, applying it up here IS the ordering.
+  // STARFORM (owner rule 4): a Starform pinned in the buffed slot takes each refresh-time slot buff ONE time —
+  // the first refresh it sits there — and never again on later refreshes (`refreshLanded` latches per source).
+  // Nothing is redirected to the next minion: the buff is gated, not moved. Play-time right-most buffs (a
+  // Shout, a hero power) are untouched — this is only about refresh re-landing.
   const slot = state.rightmostSlotBuff;
   if (slot) {
     const i = rightmostShopMinion(state);
-    if (i >= 0) addOfferBuff(state.shop[i]!, 'Market Tormentor', slot.attack, slot.health);
+    if (i >= 0 && starformRefreshLand(state.shop[i]!, 'tormentor')) addOfferBuff(state.shop[i]!, 'Market Tormentor', slot.attack, slot.health);
   }
   // RUNE OF THE EMBERS: every refresh DOUBLES the right-most Shop minion's Health. Applied as an offer buff
   // (`+hp` equal to the body's current Health) rather than a stat rewrite, so the shop card shows where the
@@ -9700,6 +9750,7 @@ export function applyShopRefreshed(state: RunState): void {
     for (let k = 0; k < runeStacksOf(state, 'rune_embers'); k++) {
       const i = rightmostShopMinion(state);
       if (i < 0) break;
+      if (!starformRefreshLand(state.shop[i]!, 'embers')) break; // a Starform doubles once, on its first refresh there
       const cur = offerBuyStats(state, state.shop[i]!).health;
       if (cur > 0) { procRuneId(state, 'rune_embers'); addOfferBuff(state.shop[i]!, 'Rune of the Embers', 0, cur); }
     }
@@ -9708,7 +9759,7 @@ export function applyShopRefreshed(state: RunState): void {
   const lslot = state.leftmostSlotBuff;
   if (lslot) {
     const l = state.shop.findIndex((o) => { const d = CARD_INDEX[o.cardId]; return !!d && !d.spell && !d.ruby; });
-    if (l >= 0) addOfferBuff(state.shop[l]!, 'Market Tormentor', lslot.attack, lslot.health);
+    if (l >= 0 && starformRefreshLand(state.shop[l]!, 'displayCase')) addOfferBuff(state.shop[l]!, 'Market Tormentor', lslot.attack, lslot.health);
   }
   for (const card of [...state.board]) {
     const def = CARD_INDEX[card.cardId];
@@ -9809,6 +9860,10 @@ export function offerBuyStats(state: RunState, offer: ShopCard): { attack: numbe
   if (offer.held) return { attack: offer.held.attack, health: offer.held.health };
   const def = CARD_INDEX[offer.cardId];
   if (!def) return { attack: 0, health: 0 };
+  // THE STARFORM: its whole total is BAKED onto the offer (`starform.ts` folds the run-wide / this-turn shop
+  // channels in as they happen, since it is the one offer that survives the refresh those channels are scoped
+  // to). Reading the live channels here too would pay them twice. Never golden, never held.
+  if (offer.starform) return { attack: def.attack + (offer.atk ?? 0), health: def.health + (offer.hp ?? 0) };
   const cb = cardBuff(state, def.id);
   const fodder = def.keywords.includes('FD'); // Fodder carries Staff of Guel via its run-wide enchant, not the buy-buff
   // The PERMANENT run-wide shop bonus, plus the Merchant's Chorus THIS-TURN layer. Same Fodder exclusion for
@@ -9902,6 +9957,26 @@ export function feastConsume(state: RunState, center: BoardCard, count: number):
  * Returns true if something was eaten, so a caller can tell "no legal target" from "done".
  */
 export function consumeShopMinion(state: RunState, eater: BoardCard, offerIndex: number, times = 1): boolean {
+  return consumeShopOffer(state, eater, offerIndex, times, (a, h) => addBuff(eater, 'Consume', a, h));
+}
+
+/**
+ * The shared BODY of a Shop consume, with the eater's growth abstracted: `eater` is the body every watcher and
+ * record sees (`onConsume` payload, `shopEaten.eaterUid`), `gain` is where the eaten stats actually land.
+ * `consumeShopMinion` binds it to a board body's `addBuff`; the STARFORM binds it to its own offer (the token
+ * eats a Shop minion — Accretion — with a stand-in board card so Broodlord / Avarice / the Banquet see exactly
+ * what a Demon's consume shows them). `skipUid` keeps the Starform from being picked as its OWN Bottomless
+ * Banquet second bite. Every piece of bookkeeping (Open Market, Banquet, `shopMinionsEaten`, pool return,
+ * `onConsume`) lives here ONCE.
+ */
+export function consumeShopOffer(
+  state: RunState,
+  eater: BoardCard,
+  offerIndex: number,
+  times: number,
+  gain: (attack: number, health: number) => void,
+  skipUid?: string,
+): boolean {
   // Bottomless Banquet: the FIRST Shop minion your Demons Consume each turn, they Consume another. Guarded by a
   // per-turn latch set before the recursive call, so the extra Consume can't itself re-trigger the reward.
   // Rune of the Open Market: the FIRST Shop minion Consumed each turn buffs the Shop permanently. Shares the
@@ -9916,7 +9991,7 @@ export function consumeShopMinion(state: RunState, eater: BoardCard, offerIndex:
     state.consumeDoubleUsedThisTurn = true;
     const other = state.shop.findIndex((o, n) => {
       const d = CARD_INDEX[o.cardId];
-      return n !== offerIndex && !!d && !d.spell && !d.ruby;
+      return n !== offerIndex && o.uid !== skipUid && !!d && !d.spell && !d.ruby;
     });
     if (other >= 0) {
       // The bonus bite splices the row BEFORE the primary one lands, so an index to the RIGHT of it goes stale
@@ -9924,7 +9999,7 @@ export function consumeShopMinion(state: RunState, eater: BoardCard, offerIndex:
       // end, so the bonus (left-most) bite was the only one taken and the right-most survived (Mike's report
       // 2026-09-10: "Blart consumed not the right-most unit").
       const primaryUid = state.shop[offerIndex]!.uid;
-      consumeShopMinion(state, eater, other, times);
+      consumeShopOffer(state, eater, other, times, gain, skipUid);
       offerIndex = state.shop.findIndex((o) => o.uid === primaryUid);
     }
   }
@@ -9938,7 +10013,10 @@ export function consumeShopMinion(state: RunState, eater: BoardCard, offerIndex:
   const ctx = makeContext(state);
   const gainA = fa * times;
   const gainH = fh * times;
-  addBuff(eater, 'Consume', gainA, gainH);
+  gain(gainA, gainH);
+  // A Demon that eats the STARFORM removes it (owner rule 5: it counts as a regular Shop minion for Demon
+  // consumes) — the Zenith-style watchers hear it leave with reason 'consume' and its full stats.
+  if (offer.starform) fireStarformRemoved(state, 'consume', { attack: fa, health: fh });
   // Record the consume BEFORE notifying: an `onConsume` watcher has to be able to see WHAT was eaten, and
   // `fodderEaten` is the only carrier of that (Avarice Incarnate pays Gold equal to the eaten minion's tier and
   // read an empty list when this was appended afterwards). APPENDED rather than replacing, so several consumes
@@ -10449,6 +10527,12 @@ export function castSpellOnOffer(state: RunState, spellDef: CardDef, offer: Shop
   // rewrites `temp.cardId`, so the offer becomes the new minion and the deltas re-base on ITS printed stats
   // (the factory already re-based the bonus stats onto the new form). For every ordinary spell
   // `after === card` and this is byte-identical to the old fold.
+  // THE STARFORM keeps its identity: a transform spell (Strange Revision) cannot rewrite the token — only the
+  // stat delta folds back, through `buffStarform` so Twin Star hears the gain and the ledger names the spell.
+  if (offer.starform) {
+    buffStarform(state, temp.attack - (card.attack + (offer.atk ?? 0)), temp.health - (card.health + (offer.hp ?? 0)), spellDef.name);
+    return;
+  }
   const after = CARD_INDEX[temp.cardId] ?? card;
   offer.cardId = temp.cardId;
   offer.atk = temp.attack - after.attack;

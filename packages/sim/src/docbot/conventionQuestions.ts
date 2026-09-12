@@ -191,6 +191,7 @@ const TRIGGER_GROUPS: readonly TriggerGroup[] = [
   { id: 'tribePlayed', label: 'you play a minion of a named tribe', events: ['onTribePlayed'] }, // set 3 Spirits (2026-09-09)
   { id: 'spellTargeted', label: 'a spell targets this minion', events: ['spellCastOnThis'] },
   { id: 'shopRefresh', label: 'you refresh the Shop', events: ['shopRefreshed'] },
+  { id: 'starform', label: 'your Starform gains stats or leaves the Shop', events: ['starformGained', 'starformRemoved'] }, // set 3 Celestials (2026-09-12)
 ];
 
 const GROUP_OF_EVENT: Readonly<Record<string, TriggerGroup>> = Object.fromEntries(

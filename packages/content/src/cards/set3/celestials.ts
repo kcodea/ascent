@@ -136,4 +136,23 @@ export const SET3_CELESTIALS: readonly CardDef[] = [
     text: '**Equip Comet (4):** your next spell casts **2** additional times.',
     goldenText: '**Equip Comet (4):** your next spell casts **4** additional times.',
   },
+  {
+    // THE STARFORM (owner design 2026-09-12) — a 1/1 Celestial TOKEN that lives IN THE SHOP as a shop offer, not
+    // on the board: created into the right-most Shop slot, only one at a time, it survives every refresh in its
+    // own slot and grows from every shop buff + consume until a Celestial consumes it (100% of its stats to one
+    // body) or collapses it (50% to three). Its printed stats ARE the counter, so it carries no rules text
+    // (owner: "printed stats are the live counter"); the engine that moves it is `packages/sim/src/starform.ts`.
+    // `token: true` keeps it out of every draw pool — a card CREATES it (Star Seed & co., the content PR), the
+    // shop never rolls it. Buying it costs 0 and DISMISSES it (nothing enters the hand).
+    id: 'ce3_starform',
+    name: 'Starform',
+    tribe: 'celestial',
+    tier: 1,
+    attack: 1,
+    health: 1,
+    keywords: [],
+    effects: [],
+    token: true,
+    text: '',
+  },
 ];

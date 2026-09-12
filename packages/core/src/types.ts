@@ -218,9 +218,16 @@ export type GameEvent =
   | 'passive' // declared but NEVER dispatched: marks a card whose effect is read by another system rather
   //  than fired by an event (Deepdelve Paragon — `playRubyOn` scans the board for it). Keeping it in the
   //  effects list means the card is still data-driven and greppable, instead of a card id hardcoded in core.
-  | 'spellBought'; // set 2 recruit phase: a Shop Spell was PURCHASED (Moonhowl Mentor teaches it to a Mage-Pup).
+  | 'spellBought' // set 2 recruit phase: a Shop Spell was PURCHASED (Moonhowl Mentor teaches it to a Mage-Pup).
   //  Distinct from `onBuy`, which is minions only ("a spell isn't a minion") — widening onBuy would have
   //  changed what every existing buy-trigger sees.
+  /** SET 3 CELESTIALS — the STARFORM shop token (owner design 2026-09-12). Recruit-only board watchers:
+   *  `starformGained` fires whenever your Starform gains stats (Twin Star) — payload `starformAttack` /
+   *  `starformHealth` carry the DELTA; `starformRemoved` fires when it leaves the Shop — consumed (Corona
+   *  Devotee, or a Demon eating it), collapsed (Nova Herald) or dismissed (bought for 0) — payload
+   *  `starformReason` + the token's FULL stats at removal (Zenith-style payoffs). See `sim/starform.ts`. */
+  | 'starformGained'
+  | 'starformRemoved';
 
 /**
  * Identifiers of registered effect primitives. Cards reference these by name

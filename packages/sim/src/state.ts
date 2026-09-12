@@ -82,6 +82,18 @@ export interface ShopCard {
    *  for the CURRENT shop phase — cleared at `faceOmen`, so the first refresh after combat sweeps it (recast
    *  Layaway to keep it again). Any `cost` reduction rides the offer while it lasts. */
   kept?: boolean;
+  /** THE STARFORM (set 3 Celestials, owner design 2026-09-12): this offer is the run's Starform token — a 1/1
+   *  Celestial that lives in the Shop, survives every refresh IN ITS OWN SLOT, costs 0 (buying it DISMISSES it),
+   *  and grows from shop buffs + consumes. Its whole accumulated total is BAKED onto `atk`/`hp` + `buffs` (the
+   *  run-wide shop channels are folded in as they happen, never read live), so `offerBuyStats` = base + atk/hp.
+   *  One per run at a time. Everything that moves it lives in `starform.ts`. */
+  starform?: true;
+  /** Starform latch (owner rule 4): the refresh-time buffs that have ALREADY landed on this token once — Market
+   *  Tormentor's right-most slot enchant (`tormentor`), Rune of the Embers' doubling (`embers`), the Display
+   *  Case's left-most enchant (`displayCase`), Veinstorm's per-refresh Ruby stamp (`veinstorm`). Each lands ONE
+   *  time on a Starform (the first refresh it sits in the slot) and never again on later refreshes. Play-time
+   *  right-most buffs (a Shout, a hero power aimed at the row) are unaffected. See `starformRefreshLand`. */
+  refreshLanded?: string[];
 }
 
 /** One source's contribution to a minion's recruit-phase buffs, accumulated for the inspect panel
@@ -1710,6 +1722,11 @@ export interface RunState {
    *  Attack" pays once per card played (owner 2026-09-09). The action-boundary diff and the End-of-Turn
    *  projection skip these, or the same gain would dispatch twice. Cleared at the top of every action. */
   gainAttackFiredUids?: string[];
+  /** Per-action: the Starform stat gain ALREADY dispatched as `starformGained` inside the action (`buffStarform`
+   *  and the Starform's own consume fire as they land). `reduce` diffs the Starform offer at the action boundary
+   *  and fires only the REMAINDER (a hero-power Fortify, Apples, a Veinstorm stamp, …), so every growth path
+   *  reaches Twin Star exactly once. Cleared at the top of every action. */
+  starformGainFired?: { attack: number; health: number };
   /** Per-action: the Shop spells an Equipment activation CAST this action (Pourman's Keg's Ale picks), in cast
    *  order. Stamped onto the `use` EquipFx cue so the UI plays each spell's own cast animation + clip from the
    *  slot. Cleared at the top of every action. */

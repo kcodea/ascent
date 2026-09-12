@@ -42,17 +42,17 @@ axis, with any gap visible as a typed queue entry rather than as silence.
 
 | Axis | Covered | Denominator | Gate that keeps it true |
 |---|---|---|---|
-| **Contract in the committed registry** | 972 | 972 (100%) | `contractExtract.test.ts` — new content FAILS the PR gate until `npm run contracts:extract` is committed |
-| **Text classification bucket** | 972 | 972 (100%) | `textParse.test.ts` — every object lands in exactly one of four buckets; an unresolved parse is a queue entry, never a pass |
-| **Contract-oracle applicability** | 972 | 972 (100%) | `contractOracle.test.ts` — every contract is planned into §10.1 case templates; every unexecuted applicable case carries a typed skip reason |
-| **Interaction-graph membership** | 972 | 972 (100%) | `interactionGraph.test.ts` — every contract is a graph node; unmapped triggers are reported as a visible to-do (29 today) |
+| **Contract in the committed registry** | 973 | 973 (100%) | `contractExtract.test.ts` — new content FAILS the PR gate until `npm run contracts:extract` is committed |
+| **Text classification bucket** | 973 | 973 (100%) | `textParse.test.ts` — every object lands in exactly one of four buckets; an unresolved parse is a queue entry, never a pass |
+| **Contract-oracle applicability** | 973 | 973 (100%) | `contractOracle.test.ts` — every contract is planned into §10.1 case templates; every unexecuted applicable case carries a typed skip reason |
+| **Interaction-graph membership** | 973 | 973 (100%) | `interactionGraph.test.ts` — every contract is a graph node; unmapped triggers are reported as a visible to-do (29 today) |
 | **Rulebook** | 146 rules (62 approved) | — | `enforcement.test.ts` — every approved rule names a backing lane file that must exist on disk |
 
-**The inventory itself:** 570 cards (126 spells, 81 tokens), 59 hero powers, 142 + 139 runes, 117 quests —
-972 contracted objects in total (901 until 2026-08-28, when the owner archived the 16 Celestials — "leaving set 3 empty of minions now" — and every count in this report moved with them; +2 again the same day for the two Equipment reference cards; +8 on 2026-09-09 for the eight new set-3 Dwarves, −1 the same day when Gem Bus was archived; +11 the same day for the eleven new set-3 Undead; +3 the same day for Set 3 Neutrals tranche 1 — Splitboon Adept, the set-3 Yazzus, and Blaster back from the archive; +4 for tranche 2 — Defender, Inspector Pell and the two hand spells they mint, Tower Shield and Clue; +3 for tranche 3 — Highway Hustler, Warband Recruiter, Equipment Charger; +17 for the Set 3 Spirits tranche 1, a new tribe; +7 for tranche 2, the hand-summon cards; +9 on 2026-09-10 for the nine new Set 3 spells; +8 on 2026-09-11 for the eight reworked Set 3 Celestials).  Of those contracts, 16 are hand-authored curated ones and the rest are
+**The inventory itself:** 571 cards (126 spells, 82 tokens), 59 hero powers, 142 + 139 runes, 117 quests —
+973 contracted objects in total (901 until 2026-08-28, when the owner archived the 16 Celestials — "leaving set 3 empty of minions now" — and every count in this report moved with them; +2 again the same day for the two Equipment reference cards; +8 on 2026-09-09 for the eight new set-3 Dwarves, −1 the same day when Gem Bus was archived; +11 the same day for the eleven new set-3 Undead; +3 the same day for Set 3 Neutrals tranche 1 — Splitboon Adept, the set-3 Yazzus, and Blaster back from the archive; +4 for tranche 2 — Defender, Inspector Pell and the two hand spells they mint, Tower Shield and Clue; +3 for tranche 3 — Highway Hustler, Warband Recruiter, Equipment Charger; +17 for the Set 3 Spirits tranche 1, a new tribe; +7 for tranche 2, the hand-summon cards; +9 on 2026-09-10 for the nine new Set 3 spells; +8 on 2026-09-11 for the eight reworked Set 3 Celestials; +1 on 2026-09-12 for the Starform shop token).  Of those contracts, 16 are hand-authored curated ones and the rest are
 extractor drafts, visibly `reviewStatus: 'extracted'` (§4.2 — a machine guess is never silently intent).
 
-**Of those 972, 118 cover ARCHIVED content classes** — 117 quests and 1 henchman, both systems switched off by
+**Of those 973, 118 cover ARCHIVED content classes** — 117 quests and 1 henchman, both systems switched off by
 the owner's 2026-08-28 ruling. They are counted here deliberately rather than quietly dropped. Archiving a
 whole content class is precisely the move that can make coverage evaporate unnoticed, so the archived total is
 a headline number on the doc-drift rail: it must appear in this document, and the gate fails the moment it
@@ -66,11 +66,11 @@ full, because `devGrant` is deliberately left ungated and every RUNE in the game
 100% coverage means every object **has** a contract. It does not mean every contract is **verified**, and
 the distance between those two is the single most important number in this report:
 
-| Contract verification depth | Count of 972 |
+| Contract verification depth | Count of 973 |
 |---|---|
-| derived status **corroborated** (two independent sources agree — trace + text, or trace + params) | 482 |
+| derived status **corroborated** (two independent sources agree — trace + text, or trace + params) | 483 |
 | derived status **approved** (owner-ruled intent, the strongest authority) | 1 |
-| derived status **extracted** (a draft nobody has corroborated yet) | 490 |
+| derived status **extracted** (a draft nobody has corroborated yet) | 489 |
 | **with at least one case a driver actually EXECUTED this sweep** | 470 |
 | covered only by a **cited lane** (real evidence a human can follow — deliberately excluded from the fold) | 502 |
 
@@ -140,9 +140,9 @@ rule-per-sentence would not honestly cover.
 
 ## 4. Interaction intelligence (§18-F)
 
-- Graph: **1684** nodes / **5422** edges over the contract registry (content, effect-family, trigger-family,
+- Graph: **1685** nodes / **5427** edges over the contract registry (content, effect-family, trigger-family,
   channel, keyword, multiplier, copy-mode, counter, zone, phase-boundary nodes).
-- Applicability: **131139** candidate pairs against 471906 naive all-pairs (27.8%) — the producer → channel →
+- Applicability: **131384** candidate pairs against 472878 naive all-pairs (27.8%) — the producer → channel →
   consumer join is what makes pairwise tractable at all.
 - Sweep (full pairwise + §10.4 triples): 144 rows — 103 covered, 0 failed, 11 inapplicable, 30 blocked.
 - Families with at least one covered row: 12 of 23.
@@ -221,7 +221,7 @@ Sixteen lines, each marked with a citable artifact. **5 done · 11 partial · 0 
 
 | # | §21 item | Status | Evidence / what remains |
 |---|---|---|---|
-| 1 | Every active card, rune, hero power, keyword, token and supported system has a semantic contract | **done** | 972/972 in the committed registry; `contractExtract.test.ts` fails on new content without one |
+| 1 | Every active card, rune, hero power, keyword, token and supported system has a semantic contract | **done** | 973/973 in the committed registry; `contractExtract.test.ts` fails on new content without one |
 | 2 | Every approved global rule has an executable oracle | **partial** | `enforcement.test.ts` gates a backing lane per approved rule; two approved rules (`R-PLAY-01`, `R-AURA-01`) remain pinned unenforced |
 | 3 | All meaningful effects are visible in a causal semantic trace | **partial** | recruit envelope + `combatTrace.ts` adapter + `semanticTrace.test.ts`; combat causality is **step grouping, not proven parenthood** — `cause.stepRootEventId` is documented as such and true trigger-stack parenting needs simulate() instrumentation |
 | 4 | Shop and combat bug reports replay exact action sequences | **partial** | `QaScenarioV1.actions` (RecordedActionWindow trail) + `runQaScenario` divergence classification replay shop action trails exactly; combat replays from the pinned board and seed, not from a per-event action trail |
@@ -229,7 +229,7 @@ Sixteen lines, each marked with a citable artifact. **5 done · 11 partial · 0 
 | 6 | Applicable pairwise interactions are covered and reported semantically | **partial** | 93491 candidates enumerated and reported by channel; 106 covered rows, 30 blocked rows each with a typed reason. Coverage is by family, not per candidate pair |
 | 7 | High-risk triple interactions are covered | **partial** | §10.4 triples run in the same sweep; 6 of the 8 triple families are blocked with cited reasons |
 | 8 | Verified findings are deterministic, minimized, and reproducible from Scene Builder and CLI | **done** | `seedMinimize.ts` (1-minimal proof), `docbot:scenario -- <id>`, the Scene Builder QA bridge, `qaScenarioParity.test.ts`; findings carry a `reproduction` line |
-| 9 | Displayed text is checked against approved mechanics | **partial** | every object classified; 917 of 972 parse fully and their amounts, counts, cadences, Ruby counts and trigger events are compared; 55 unresolved parses are refused, never called clean — and the contract side is still mostly unreviewed drafts |
+| 9 | Displayed text is checked against approved mechanics | **partial** | every object classified; 918 of 973 parse fully and their amounts, counts, cadences, Ruby counts and trigger events are compared; 55 unresolved parses are refused, never called clean — and the contract side is still mostly unreviewed drafts |
 | 10 | Poor wording is reported separately with safe rewrite suggestions | **done** | `wording-recommendation` is its own class; `runRewriteAdvisor` emits `suggestedText`, never applies it (§23) |
 | 11 | Unruled behavior is reported as questionable rather than declared broken | **done** | the anomaly oracle caps at `questionable-interaction` by construction, with competing interpretations attached; sabotage-tested in `anomalyOracle.test.ts` |
 | 12 | Confirmed reports graduate into permanent regressions | **partial** | `bugs:graduate` + `bugTaxonomy.graduated.json` + `regressionScenarios.test.ts` are built and refusal-tested; **zero real player reports have graduated** — the loop is proven only by the synthetic walkthrough in `ci-lanes.md` |

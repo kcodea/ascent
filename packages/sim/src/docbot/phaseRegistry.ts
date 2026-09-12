@@ -54,6 +54,8 @@ export const TRIGGER_PHASES: Readonly<Record<string, 'recruit' | 'combat' | 'bot
   endOfTurn: 'recruit', // combat carries a few arena-backed EoT bodies for replay effects; dispatch itself is shop-side
   orbit: 'recruit', // Celestial alignment is a shop mechanic
   orbitFired: 'recruit',
+  starformGained: 'recruit', // the Starform is a SHOP token — it only grows in the shop (fireStarformGained)
+  starformRemoved: 'recruit', // …and only leaves the shop there (consume / collapse / dismiss — fireStarformRemoved)
   spellCast: 'recruit', // the shop-side watcher; combat spell-cast watchers dispatch through their own factory ids, all present
   spellCastOnThis: 'recruit',
   battlecryTriggered: 'recruit', // Karwind-family watchers; combat re-fires notify via the caller, through combat factories already present

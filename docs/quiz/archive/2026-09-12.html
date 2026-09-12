@@ -1,0 +1,543 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ascent Quiz #31</title>
+<style>
+  :root {
+    --bg: #f6f4ef;
+    --panel: #ffffff;
+    --panel-border: #e2ddd0;
+    --ink: #2a2620;
+    --ink-dim: #6b6555;
+    --accent: #a8712f;
+    --accent-ink: #ffffff;
+    --good: #2f7a4f;
+    --good-bg: #e5f4ea;
+    --bad: #b13d3d;
+    --bad-bg: #fbe9e9;
+    --track: #ece7da;
+    --choice-bg: #fbfaf6;
+    --choice-border: #ddd6c4;
+    --choice-hover: #f1ead9;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #1b1913;
+      --panel: #242018;
+      --panel-border: #3a3527;
+      --ink: #eee8d8;
+      --ink-dim: #a89d84;
+      --accent: #d69a4e;
+      --accent-ink: #1b1913;
+      --good: #6fce93;
+      --good-bg: #1e3327;
+      --bad: #e28080;
+      --bad-bg: #3a2222;
+      --track: #2f2b1f;
+      --choice-bg: #2b271c;
+      --choice-border: #423c2b;
+      --choice-hover: #352f22;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #1b1913;
+    --panel: #242018;
+    --panel-border: #3a3527;
+    --ink: #eee8d8;
+    --ink-dim: #a89d84;
+    --accent: #d69a4e;
+    --accent-ink: #1b1913;
+    --good: #6fce93;
+    --good-bg: #1e3327;
+    --bad: #e28080;
+    --bad-bg: #3a2222;
+    --track: #2f2b1f;
+    --choice-bg: #2b271c;
+    --choice-border: #423c2b;
+    --choice-hover: #352f22;
+  }
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    padding-block: 28px;
+  }
+  .wrap {
+    max-width: 640px;
+    margin: 0 auto;
+    padding-inline: 16px;
+  }
+  header.top {
+    text-align: center;
+    margin-bottom: 20px;
+  }
+  header.top .kicker {
+    font-size: 12px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+  header.top h1 {
+    font-size: 22px;
+    margin: 0 0 4px;
+  }
+  header.top p {
+    color: var(--ink-dim);
+    font-size: 13px;
+    margin: 0;
+  }
+  .progressRow {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+  .track {
+    flex: 1;
+    height: 8px;
+    background: var(--track);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+  .fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 999px;
+    transition: width 0.35s ease;
+    width: 0%;
+  }
+  .progLabel {
+    font-size: 12px;
+    color: var(--ink-dim);
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 16px;
+    padding: 22px;
+  }
+  .topicTag {
+    display: inline-block;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 14%, transparent);
+    border-radius: 999px;
+    padding: 3px 10px;
+    margin-bottom: 12px;
+    font-weight: 700;
+  }
+  .qtext {
+    font-size: 16px;
+    line-height: 1.5;
+    margin: 0 0 16px;
+  }
+  .choices {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .choice {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    text-align: left;
+    background: var(--choice-bg);
+    border: 1px solid var(--choice-border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 14px;
+    line-height: 1.45;
+    color: var(--ink);
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .choice:hover:not(:disabled) {
+    background: var(--choice-hover);
+  }
+  .choice:disabled {
+    cursor: default;
+  }
+  .choice .letter {
+    flex: 0 0 auto;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--track);
+    color: var(--ink-dim);
+    font-size: 12px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .choice.correct {
+    background: var(--good-bg);
+    border-color: var(--good);
+  }
+  .choice.correct .letter {
+    background: var(--good);
+    color: #fff;
+  }
+  .choice.incorrect {
+    background: var(--bad-bg);
+    border-color: var(--bad);
+  }
+  .choice.incorrect .letter {
+    background: var(--bad);
+    color: #fff;
+  }
+  .explain {
+    margin-top: 14px;
+    padding: 14px;
+    border-radius: 10px;
+    background: var(--track);
+    font-size: 13.5px;
+    line-height: 1.55;
+    color: var(--ink);
+    display: none;
+  }
+  .explain.show { display: block; }
+  .explain b { color: var(--accent); }
+  .footerRow {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 18px;
+  }
+  .scoreLabel {
+    font-size: 13px;
+    color: var(--ink-dim);
+  }
+  button.next {
+    background: var(--accent);
+    color: var(--accent-ink);
+    border: none;
+    border-radius: 999px;
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    display: none;
+  }
+  button.next.show { display: inline-block; }
+  .final {
+    display: none;
+    text-align: center;
+  }
+  .final.show { display: block; }
+  .final .big {
+    font-size: 44px;
+    font-weight: 800;
+    margin: 6px 0;
+    color: var(--accent);
+  }
+  .final .line {
+    font-size: 15px;
+    color: var(--ink-dim);
+    margin-bottom: 18px;
+  }
+  .final .bits {
+    display: flex;
+    justify-content: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 18px;
+  }
+  .final .bit {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 700;
+    color: #fff;
+  }
+  .final .bit.ok { background: var(--good); }
+  .final .bit.no { background: var(--bad); }
+  .quizBody { display: block; }
+  .quizBody.hide { display: none; }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top">
+    <div class="kicker">Daily Ascent Code Quiz</div>
+    <h1>Quiz #31</h1>
+    <p>2026-09-12 · How Ascent is coded, ten questions</p>
+  </header>
+
+  <div class="progressRow">
+    <div class="track"><div class="fill" id="fill"></div></div>
+    <div class="progLabel" id="progLabel">1 / 10</div>
+  </div>
+
+  <div class="card">
+    <div class="quizBody" id="quizBody">
+      <div class="topicTag" id="topicTag"></div>
+      <p class="qtext" id="qtext"></p>
+      <div class="choices" id="choices"></div>
+      <div class="explain" id="explain"></div>
+      <div class="footerRow">
+        <div class="scoreLabel" id="scoreLabel">Score: 0 / 10</div>
+        <button class="next" id="nextBtn">Next →</button>
+      </div>
+    </div>
+
+    <div class="final" id="final">
+      <div class="big" id="finalScore"></div>
+      <div class="line" id="finalLine"></div>
+      <div class="bits" id="finalBits"></div>
+      <div class="line" style="font-size:13px;">Reply to Mike's chat with your score so tomorrow's quiz can adapt — e.g. "8/10, missed the RNG one."</div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var QUESTIONS = [
+    {
+      topicId: "types-basics",
+      question: "In packages/core/src/types.ts, CombatContext declares readonly boards: Record<Side, Minion[]>. Since Side is 'player' | 'enemy', what does this Record type require?",
+      choices: [
+        "The object must have BOTH a player key and an enemy key — neither can be left out",
+        "The object may have either key, both, or neither, since Record keys are always optional",
+        "The object must have a player key only; enemy is inferred automatically",
+        "It behaves exactly like Partial<Record<Tribe, number>> elsewhere in the file, so every key is optional"
+      ],
+      answer: 0,
+      explanation: "<b>Record&lt;K, V&gt;</b> requires every key in K to be present — unlike <b>Partial&lt;Record&lt;K, V&gt;&gt;</b> (used elsewhere in types.ts for sparse per-tribe tallies like attackByTribe), which makes every key optional. Since Side has exactly two literal values, Record&lt;Side, Minion[]&gt; forces both player and enemy to exist. The tempting wrong answer treats every Record as automatically optional, but that's what Partial&lt;&gt; adds on top — plain Record does not have that behavior. See packages/core/src/types.ts."
+    },
+    {
+      topicId: "immutability",
+      question: "In packages/sim/src/reducer.ts, pinning a wave's opponent writes state.servedBoards = { ...(state.servedBoards ?? {}), [state.wave]: preview } instead of state.servedBoards[state.wave] = preview. Why does it bother copying the whole object first?",
+      choices: [
+        "servedBoards is one of the fields carved out of structuredClone and reattached BY REFERENCE, so mutating it in place would corrupt the previous RunState's copy too",
+        "JavaScript objects can't have new keys added to them after creation, so a fresh object is the only way to add one",
+        "It's purely stylistic — state.servedBoards[state.wave] = preview would throw a TypeScript compile error",
+        "servedBoards is defined with Object.freeze, so any direct property assignment fails silently at runtime"
+      ],
+      answer: 0,
+      explanation: "reducer.ts's clone step deliberately skips deep-cloning servedBoards (a perf carve-out, since it can hold one full board snapshot per wave) and reattaches the SAME object reference onto the new state. That means the old and new RunState briefly share one servedBoards object — so an in-place state.servedBoards[wave] = preview would silently mutate the prior state's data too. Spreading into a brand-new object breaks that shared reference safely. Objects can absolutely gain new keys via assignment, and nothing here uses Object.freeze or fails to compile — those are the wrong-answer traps. See packages/sim/src/reducer.ts."
+    },
+    {
+      topicId: "reducer-run-state",
+      question: "packages/sim/src/reducer.ts resets state.recruitBuffFx, state.auraFx, and state.veinstormStamped to empty at the top of every reduce() call, but state.weldFxBaseSeq = state.weldFxSeq ?? 0 instead just records a starting index. Why the different treatment for weld FX?",
+      choices: [
+        "React can batch several dispatched actions into a single render, so resetting weld FX per-action could wipe a weld that hasn't been rendered yet — recording a base index lets it accumulate across a batch instead",
+        "weldFxSeq is read-only and can never be reassigned once set, so recording an index is the only legal option",
+        "Weld effects are the only ones that fire during combat rather than during the recruit phase, so they use a different reset rule",
+        "It's a leftover bug — a code comment admits it should reset like the others but nobody has fixed it yet"
+      ],
+      answer: 0,
+      explanation: "A comment in reducer.ts explains that weld FX must survive across batched dispatches: React can coalesce multiple clicks into one render, and resetting on every dispatch would erase a weld ring the UI never got a chance to draw. Recording a base sequence number lets the weld-stamping code accumulate instead of overwrite. Nothing here is a bug, and it's unrelated to readonly — those distractors misread the comment's actual (deliberate) reasoning. See packages/sim/src/reducer.ts."
+    },
+    {
+      topicId: "zustand-store",
+      question: "packages/ui/src/store.ts calls create<GameStore>((set, get) => ({...})) with no other zustand middleware wrapped around it. How does the game persist things like an in-progress run or saved settings to disk?",
+      choices: [
+        "By hand: the store calls localStorage / save functions itself at the right moments, rather than using zustand's persist middleware",
+        "Zustand always persists every store to localStorage automatically, so no extra code is needed",
+        "Through a devtools-wrapped store that mirrors state changes into browser storage behind the scenes",
+        "It doesn't persist anything client-side; all state lives only in memory and is lost on refresh"
+      ],
+      answer: 0,
+      explanation: "store.ts never imports zustand's persist (or devtools) middleware — create&lt;GameStore&gt; is called plain. Saving/loading is done explicitly in application code (autosave calls, try/catch-wrapped localStorage reads for things like avatar/playername/saved-run) rather than delegated to a middleware wrapper. Zustand does not persist automatically by default, and the game clearly does persist state across reloads, ruling out the other two choices. See packages/ui/src/store.ts."
+    },
+    {
+      topicId: "event-bus",
+      question: "packages/core/src/effects/factories.ts contains calls like ctx.bus.emit('battlecryTriggered', { side: self.side, minion: n }) from inside an effect factory function. What does this show about CombatBus's on/emit API?",
+      choices: [
+        "It's used bidirectionally by content-level code: an effect factory can EMIT a new synthetic event (not just register a handler for one), letting one card's ability re-trigger another card's listener",
+        "It's a mistake — only packages/core/src/combat/simulate.ts is allowed to call emit, so this line indicates a bug",
+        "ctx.bus is a completely different bus instance from the one minions register their handlers on, so this emit reaches no listeners",
+        "emit here is only used for debugging/logging and has no effect on combat resolution"
+      ],
+      answer: 0,
+      explanation: "CombatBus's public surface is just on() and emit(), and both are available to any code holding a reference to it — including effect factories, via ctx.bus. Here a Battlecry-triggering factory emits 'battlecryTriggered' so that OTHER cards' handlers for that same event fire in response, entirely through the same public API used for the built-in combat events. ctx.bus is the very same bus instance created in simulate.ts, not a separate one, and this is core game logic, not incidental logging. See packages/core/src/effects/factories.ts."
+    },
+    {
+      topicId: "cards-in-sets",
+      question: "packages/content/src/sets.ts's poolFor(setId) resolves an inherited set with a call like poolFor(def.inherits) — calling poolFor again inside itself. What stops this from looping forever if a set were misconfigured to inherit itself?",
+      choices: [
+        "The explicit guard def.inherits && def.inherits !== def.id skips the recursive resolution entirely when a set's inherits points at its own id",
+        "The resolved memoization Map catches the cycle automatically and just returns whatever partial result exists so far",
+        "TypeScript's type checker rejects a SetDef whose inherits field equals its own id at compile time",
+        "Nothing stops it — a set inheriting itself would be an infinite loop and a real production risk today"
+      ],
+      answer: 0,
+      explanation: "poolFor only recurses when def.inherits && def.inherits !== def.id is true, so a set naming itself as its own inherits value is explicitly excluded from ever recursing. This is a plain runtime guard, not something the type system enforces (inherits?: SetId doesn't know about id at all) and not something the memoization Map would rescue you from, since the first call wouldn't have cached anything yet. See packages/content/src/sets.ts."
+    },
+    {
+      topicId: "package-boundaries",
+      question: "CLAUDE.md says ui may only depend on the other packages through their public entrypoints, never internals. Checking eslint.config.mjs (which only defines the Math.random ban plus the recommended TypeScript rules), how is that boundary rule actually enforced?",
+      choices: [
+        "It isn't enforced by ESLint at all — it relies on each package's exports field blocking deep-path module resolution, so a violation shows up as a TypeScript/bundler resolution error, not a lint error",
+        "By a dedicated import/no-internal-modules ESLint rule scoped to packages/ui/**",
+        "By a no-restricted-imports rule listed right next to the Math.random ban in eslint.config.mjs",
+        "By a boundaries-checking plugin invoked as a separate npm run boundaries script before every commit"
+      ],
+      answer: 0,
+      explanation: "eslint.config.mjs's only custom rule is the no-restricted-properties ban on Math.random (plus TypeScript's recommended preset) — there is no import-boundary lint rule anywhere in the file. The entrypoint-only rule is instead a consequence of each package's package.json exports field, which makes deep imports simply fail to resolve for TypeScript/bundlers. No such ESLint rule or separate boundaries script exists in this repo. See eslint.config.mjs and any package's package.json exports field."
+    },
+    {
+      topicId: "effects-as-subscriptions",
+      question: "packages/core/src/effects/factories.ts defines: export const COMBAT_REPLAYABLE_BATTLECRIES: ReadonlySet<string> = new Set(Object.keys(FACTORIES));. What does deriving it this way, instead of a separately hand-typed list, buy the codebase?",
+      choices: [
+        "The set of \"replayable in combat\" effect ids can never drift out of sync with FACTORIES itself — adding a combat factory for a new id automatically makes it replayable, with no second list to remember to update",
+        "It makes the set immutable at compile time, whereas a hand-typed array of strings would be mutable",
+        "It lets FACTORIES itself be smaller, since COMBAT_REPLAYABLE_BATTLECRIES now supplies the missing entries",
+        "It's purely a performance optimization — Set lookups are faster than the array lookups a hand-typed list would need"
+      ],
+      answer: 0,
+      explanation: "A comment above this line explains it was made DERIVED specifically so it \"can never drift from the dispatcher again\" — previously it risked being a hand-kept list that could fall out of sync with which ids actually had combat factories. ReadonlySet here is just a type annotation for how the value is used, not the motivating reason; FACTORIES isn't made smaller by this, and the real driver is correctness/no-duplication, not raw lookup speed. See packages/core/src/effects/factories.ts."
+    },
+    {
+      topicId: "effect-timing-pipeline",
+      question: "A comment in packages/sim/src/recruit.ts quotes an owner ask that \"all echoes should be wired to work in shop if triggered in any way,\" describing Deathrattle/Echo effects that fire in the SHOP (e.g. a card sold or destroyed by a shop effect) resolving through their own recruit-time dispatch. What does this reveal about the recruit-vs-combat split?",
+      choices: [
+        "The split isn't simply \"Battlecry = recruit-time, Deathrattle = combat-time\" — some Deathrattle/Echo effects need their OWN recruit-time implementation too, because they can legitimately trigger outside of combat",
+        "Deathrattle effects only ever run in combat; the comment describes a bug that was later reverted",
+        "RECRUIT_FACTORIES was renamed to include Deathrattles, replacing the combat-only FACTORIES table entirely",
+        "Echo effects bypass both dispatch tables and are hardcoded directly into the shop UI"
+      ],
+      answer: 0,
+      explanation: "Before this was addressed, an onDeath effect that only had a combat FACTORIES entry was silently inert if triggered in the shop (say, a card destroyed by a shop-side effect) — there was no recruit-time equivalent to call. The fix added recruit-time twins for these effects mirroring their combat SEMANTICS (not their implementation, since a shop has no live enemy board), which is why some effects now exist in both dispatch tables. FACTORIES and RECRUIT_FACTORIES remain two separate tables in two different packages — neither replaces the other. See packages/sim/src/recruit.ts, function fireRecruitDeathrattles."
+    },
+    {
+      topicId: "testing-vitest",
+      question: "Root vitest.config.ts includes define: { __APP_VERSION__: JSON.stringify('0.0.0-test'), __BUILD_SHA__: JSON.stringify('test') }. Why does the test config need this at all?",
+      choices: [
+        "Some tests transitively import UI modules like store.ts that reference __APP_VERSION__/__BUILD_SHA__ as bare compile-time constants (normally injected by apps/web's Vite config for the real build); without a matching define here, collecting those tests fails with a ReferenceError",
+        "It lets tests assert that the build produced the correct real version number and git SHA",
+        "It's required so npm run build:web and npm test share exactly one Vite config file",
+        "It disables version-check logic so tests don't accidentally hit a real update-check network call"
+      ],
+      answer: 0,
+      explanation: "__APP_VERSION__ and __BUILD_SHA__ are bare global identifiers that only exist because Vite's define performs a compile-time text substitution — outside of a build with matching defines, referencing them throws a ReferenceError. Since some tests reach store.ts (e.g. via useCombatReplay), vitest.config.ts mirrors the same defines with placeholder values so those tests can even be collected; a comment there is explicit that nothing under test asserts on the real values. It's a separate config file from apps/web's, and no network call or version-check logic is involved. See vitest.config.ts."
+    }
+  ];
+
+  var idx = 0, score = 0, answered = false;
+  var results = [];
+
+  var topicLabels = {
+    "types-basics": "TypeScript types",
+    "immutability": "Immutability",
+    "reducer-run-state": "Reducer + run state",
+    "zustand-store": "Zustand store",
+    "event-bus": "Event bus",
+    "cards-in-sets": "Cards in sets",
+    "package-boundaries": "Package boundaries",
+    "effects-as-subscriptions": "Effects as subscriptions",
+    "effect-timing-pipeline": "Effect timing",
+    "testing-vitest": "Testing (vitest)"
+  };
+
+  var fill = document.getElementById("fill");
+  var progLabel = document.getElementById("progLabel");
+  var topicTag = document.getElementById("topicTag");
+  var qtext = document.getElementById("qtext");
+  var choicesEl = document.getElementById("choices");
+  var explainEl = document.getElementById("explain");
+  var scoreLabel = document.getElementById("scoreLabel");
+  var nextBtn = document.getElementById("nextBtn");
+  var quizBody = document.getElementById("quizBody");
+  var finalEl = document.getElementById("final");
+  var finalScore = document.getElementById("finalScore");
+  var finalLine = document.getElementById("finalLine");
+  var finalBits = document.getElementById("finalBits");
+
+  var letters = ["A", "B", "C", "D"];
+
+  function render() {
+    var q = QUESTIONS[idx];
+    answered = false;
+    fill.style.width = (idx / QUESTIONS.length * 100) + "%";
+    progLabel.textContent = (idx + 1) + " / " + QUESTIONS.length;
+    topicTag.textContent = topicLabels[q.topicId] || q.topicId;
+    qtext.textContent = q.question;
+    scoreLabel.textContent = "Score: " + score + " / " + QUESTIONS.length;
+    explainEl.className = "explain";
+    explainEl.innerHTML = "";
+    nextBtn.className = "next";
+    choicesEl.innerHTML = "";
+
+    q.choices.forEach(function (choiceText, i) {
+      var btn = document.createElement("button");
+      btn.className = "choice";
+      btn.innerHTML = '<span class="letter">' + letters[i] + '</span><span>' + choiceText + '</span>';
+      btn.addEventListener("click", function () { pick(i, btn); });
+      choicesEl.appendChild(btn);
+    });
+  }
+
+  function pick(i, btn) {
+    if (answered) return;
+    answered = true;
+    var q = QUESTIONS[idx];
+    var correct = i === q.answer;
+    if (correct) score++;
+    results.push(correct);
+
+    var btns = choicesEl.querySelectorAll(".choice");
+    btns.forEach(function (b, bi) {
+      b.disabled = true;
+      if (bi === q.answer) b.classList.add("correct");
+      else if (bi === i) b.classList.add("incorrect");
+    });
+
+    explainEl.innerHTML = (correct ? "✅ Correct. " : "❌ Not quite. ") + q.explanation;
+    explainEl.className = "explain show";
+    scoreLabel.textContent = "Score: " + score + " / " + QUESTIONS.length;
+    nextBtn.className = "next show";
+    nextBtn.textContent = idx === QUESTIONS.length - 1 ? "See results →" : "Next →";
+  }
+
+  nextBtn.addEventListener("click", function () {
+    idx++;
+    if (idx >= QUESTIONS.length) {
+      showFinal();
+    } else {
+      render();
+    }
+  });
+
+  function showFinal() {
+    fill.style.width = "100%";
+    progLabel.textContent = QUESTIONS.length + " / " + QUESTIONS.length;
+    quizBody.className = "quizBody hide";
+    finalEl.className = "final show";
+    finalScore.textContent = score + " / " + QUESTIONS.length;
+    var pct = score / QUESTIONS.length;
+    var line;
+    if (pct === 1) line = "Perfect score! You've got a real handle on how this thing is built.";
+    else if (pct >= 0.8) line = "Great run — you're reading the architecture like a regular.";
+    else if (pct >= 0.5) line = "Solid effort — a few of these will click once you skim the files they point to.";
+    else line = "Rough one today — no worries, these get revisited. Go peek at the files named above when you get a chance.";
+    finalLine.textContent = line;
+    finalBits.innerHTML = "";
+    results.forEach(function (ok, i) {
+      var d = document.createElement("div");
+      d.className = "bit " + (ok ? "ok" : "no");
+      d.textContent = (i + 1);
+      finalBits.appendChild(d);
+    });
+  }
+
+  render();
+})();
+</script>
+</body>
+</html>

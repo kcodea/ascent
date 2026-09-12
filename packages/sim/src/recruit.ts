@@ -47,6 +47,8 @@ type RecruitFn = (
   *  a stand-in and any effect that consumes the arriver must stand down. */ noArriver?: boolean },
 ) => void;
 
+import { SPELL_POWER_EXCUSED } from './docbot/historyRegistry';
+
 const num = (v: unknown, fallback = 0): number => (typeof v === 'number' ? v : fallback);
 
 /** Celestial by TRIBE (set 3 onward) or by the legacy `celestial` flag (the 2026-08-03 test units). */
@@ -1717,6 +1719,28 @@ export function spellCostReduction(state: RunState, def?: CardDef): number {
 }
 
 /** Cast factories that GIVE STATS but are not named `spellBuff*` — the handful the prefix rule can't see. */
+/**
+ * The STAT-GRANTING spell-factory family — the set Doc Bot's `spellPowerFolding` lane audits for a spell-power
+ * fold, and the set `chooseOneBranchText` greens in the Choose One window. ONE predicate, exported, so the lane
+ * and the display can never disagree about which factories are "stat spells": `spellBuff*` by naming
+ * convention, plus the few stat granters that slip the prefix (Equalize, Facetwright's Ruby gain, Great Pot's
+ * one-per-type buff, which shipped flat and became bug a17a48ab).
+ */
+export const isStatSpellFactory = (name: string): boolean =>
+  name.startsWith('spellBuff') || name === 'rubyStatGain' || name === 'spellAverageStats' || name === 'buffOnePerTribe';
+
+/**
+ * Does this cast effect FOLD the run's spell power into what it grants? The rule the factories follow, stated
+ * once: a stat-family factory (`isStatSpellFactory`) that is not documented flat (`SPELL_POWER_EXCUSED`:
+ * Apples' shop buffs, Rubies' own channel, Equalize's derived magnitude) and whose params do not opt out with
+ * `flat: true` (Crest of the Climb, Tower Shield). Only `on: 'cast'` effects — a Battlecry branch
+ * (Wildwood Shaper, Dealer) never reads spell power.
+ */
+export function effectFoldsSpellPower(e: EffectDef): boolean {
+  return e.on === 'cast' && isStatSpellFactory(e.do) && !SPELL_POWER_EXCUSED[e.do]
+    && (e.params as { flat?: boolean } | undefined)?.flat !== true;
+}
+
 const STAT_SPELL_EXTRAS: ReadonlySet<string> = new Set([
   'spellAverageStats', // Equalize: every friendly ends at the average — it changes stats
   'rubyStatGain',      // Facetwright's Choice: your Rubies gain +1 Attack / +1 Health
@@ -6660,7 +6684,8 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     // Stat-granting spells pick up the run's spell power (Spellbinder hero + cards: Cinderwing on
     // Health, Skullblade on Attack). The UI shows the same effective value via spellDisplayText — one
     // source of truth (spellAttackBonus / spellHealthBonus). `flat: true` opts OUT (Crest of the Climb's
-    // Choose-One single-stat grants stay exactly as printed, since Choose-One option text isn't greened).
+    // Choose-One single-stat grants stay exactly as printed; `chooseOneBranchText` reads the same flag, so the
+    // Choose One window never greens a flat branch).
     if (!params.flat && (attack > 0 || health > 0)) {
       attack += spellAttackBonus(ctx.state);
       health += spellHealthBonus(ctx.state);
@@ -8832,6 +8857,51 @@ export function spellDisplayText(cardId: string, bonusA: number, escalation = 0,
   const bh = Number((eff.params as { health?: number } | undefined)?.health ?? 0);
   if (ba <= 0 && bh <= 0) return def.text;
   return def.text.replace(`+${ba}/+${bh}`, `{{+${ba + bonusA}/+${bh + bonusH}}}`);
+}
+
+/**
+ * A Choose One BRANCH's display text with spell power folded into every stat magnitude the branch will
+ * actually grant (green `{{…}}`, the same marker shapes `spellDisplayText` paints). The Choose One window
+ * shows each option as a card wearing only that branch's text, and the branch is cast through the very same
+ * factories as any spell — so a "+3/+1" branch under +1/+1 spell power grants +4/+2 and must SAY so (owner
+ * ask 2026-09-12: "if a Choose One spell is buffed, it should show the buffed spell numbers in the Choose One
+ * windows as well"; the hard live-text rule in CLAUDE.md).
+ *
+ * Which magnitudes move is decided by `effectFoldsSpellPower` — the fold rule the factories follow, not a
+ * per-card list — so a flat branch (Crest of the Climb's `flat: true`, Apples' documented-flat shop buff) keeps
+ * its authored number, and a MINION Choose One (a Battlecry, never a cast) is returned untouched. Shapes:
+ * "+A/+H" → "{{+A'/+H'}}"; a single-stat "+A Attack" becomes the full live pair once the other stat's power is
+ * up (the factories add both bonuses to any grant), else "{{+A' Attack}}". Golden reads the branch's
+ * `goldenText` (its doubled magnitudes) — no spell is golden today, kept for symmetry with every other helper.
+ */
+export function chooseOneBranchTextFor(def: CardDef | undefined, index: number, golden: boolean, bonusA: number, bonusH: number): string {
+  const opt = def?.chooseOne?.[index];
+  if (!def || !opt) return '';
+  const base = golden ? (opt.goldenText ?? opt.text) : opt.text;
+  if (!def.spell || (bonusA <= 0 && bonusH <= 0)) return base;
+  let t = base;
+  for (const e of opt.effects ?? []) {
+    if (!effectFoldsSpellPower(e)) continue;
+    const p = e.params as { attack?: number; health?: number } | undefined;
+    const a0 = num(p?.attack, 0), h0 = num(p?.health, 0);
+    if (a0 <= 0 && h0 <= 0) continue;
+    // The printed magnitude: the authored params, or their double on a golden branch (where `goldenText` prints
+    // the doubled number). Try the authored value first so an un-doubled golden text still greens.
+    for (const k of golden ? [1, 2] : [1]) {
+      const a = a0 * k, h = h0 * k;
+      const before = t;
+      if (a > 0 && h > 0) t = t.replace(`+${a}/+${h}`, `{{+${a + bonusA}/+${h + bonusH}}}`);
+      else if (a > 0) t = t.replace(`+${a} Attack`, bonusH > 0 ? `{{+${a + bonusA}/+${bonusH}}}` : `{{+${a + bonusA} Attack}}`);
+      else t = t.replace(`+${h} Health`, bonusA > 0 ? `{{+${bonusA}/+${h + bonusH}}}` : `{{+${h + bonusH} Health}}`);
+      if (t !== before) break;
+    }
+  }
+  return t;
+}
+
+/** `chooseOneBranchTextFor` by card id — the shape the UI reads (Recruit's Choose One window). */
+export function chooseOneBranchText(cardId: string, index: number, golden: boolean, bonusA: number, bonusH: number): string {
+  return chooseOneBranchTextFor(CARD_INDEX[cardId], index, golden, bonusA, bonusH);
 }
 
 /** Apply a spell's `cast` effects to its chosen target. The spell's name is injected as `_source`

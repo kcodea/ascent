@@ -32,7 +32,7 @@ if (import.meta.env.DEV) {
   (window as unknown as { __choreoEot?: boolean }).__choreoEot = CHOREO_EOT;
 }
 import { chooseBothText } from './cardText';
-import { spiritsPlayedThisTurn, anySpellsCastThisTurn, playerOpponent, alignmentsOf, boardHasCelestial, chooseBothActive, chooseBothStateOf, type ChooseBothState, chooseOneNeedsChoice, computeCombatOdds, type CombatOdds, rubyCastCount, rubyStatBonus, CONFIG, RIFTS, hasTier7Access, maxTierFor, conjuredStats, cardBuff, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, dragonflameCasts, nextOpponent, lossDamageCap, playerLossDamage, minionCostOf, heroOfferPrice, offerBuyPrice, dominantBoardTribe, effectiveTargetTribe, boardManaBonus, upgradeCostOf, nextRefreshCostOf, poolOf, type RunState, type ShopCard, type CardBuff, type BoardCard, type BoardSnapshot, gildCopiesNeeded, activePowers, gateUses, runeStacksOf } from '@game/sim';
+import { spiritsPlayedThisTurn, anySpellsCastThisTurn, playerOpponent, alignmentsOf, boardHasCelestial, chooseBothActive, chooseBothStateOf, type ChooseBothState, chooseOneNeedsChoice, computeCombatOdds, type CombatOdds, rubyCastCount, rubyStatBonus, CONFIG, RIFTS, hasTier7Access, maxTierFor, conjuredStats, cardBuff, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, chooseOneBranchText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, dragonflameCasts, nextOpponent, lossDamageCap, playerLossDamage, minionCostOf, heroOfferPrice, offerBuyPrice, dominantBoardTribe, effectiveTargetTribe, boardManaBonus, upgradeCostOf, nextRefreshCostOf, poolOf, type RunState, type ShopCard, type CardBuff, type BoardCard, type BoardSnapshot, gildCopiesNeeded, activePowers, gateUses, runeStacksOf } from '@game/sim';
 import { createPortal } from 'react-dom';
 import { setCardId, setCardStats, toggleCardKeyword, setEnemyStats, setEnemyCardId, toggleEnemyKeyword, removeEnemy, foeSnapshotOf } from './sandboxEdit';
 import { UnitEditor } from './UnitEditor';
@@ -7051,6 +7051,13 @@ export function Recruit() {
                 if (!c) return null;
                 const inst = run.board.find((x) => x.uid === co.uid) ?? run.hand.find((x) => x.uid === co.uid);
                 const golden = !!inst?.golden;
+                // A SPELL Choose One casts its branch through the same factories as any spell, so a branch that
+                // folds spell power grants MORE than its authored number — the option must print the live value
+                // (owner ask 2026-09-12; the hard live-text rule). `chooseOneBranchText` greens exactly the
+                // magnitudes the factories scale (flat branches and minion Battlecry branches stay authored).
+                // A gift spell subtracts the next-Shop-spell bonus it cannot use, as `liveCardText` does.
+                const coBonusA = c.spell ? spellBonus - (c.gift ? (run.nextSpellBonus?.attack ?? 0) : 0) : 0;
+                const coBonusH = c.spell ? spellBonusH - (c.gift ? (run.nextSpellBonus?.health ?? 0) : 0) : 0;
                 return (c.chooseOne ?? []).map((opt, i) => (
                   <div className="disc-slot" key={i} style={{ '--c': `var(--t-${c.tribe})` } as CSSProperties}>
                     <Card
@@ -7061,8 +7068,8 @@ export function Recruit() {
                         name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2, universalTribe: !!c.universalTribe,
                         golden, attack: inst?.attack ?? c.attack, health: inst?.health ?? c.health,
                         keywords: inst?.keywords ?? c.keywords, tier: c.tier, spell: !!c.spell, ruby: !!c.ruby,
-                        text: golden ? (opt.goldenText ?? opt.text) : opt.text,
-                        goldenText: opt.goldenText ?? opt.text,
+                        text: chooseOneBranchText(c.id, i, golden, coBonusA, coBonusH),
+                        goldenText: chooseOneBranchText(c.id, i, true, coBonusA, coBonusH),
                         // Each option previews the ART it would become, not just its text — the picture is half
                         // of what's being chosen (owner 2026-07-25).
                         chosenOption: i,

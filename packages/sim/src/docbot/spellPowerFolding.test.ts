@@ -16,14 +16,14 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { SPELL_POWER_EXCUSED } from './historyRegistry';
+import { isStatSpellFactory } from '../recruit';
 
 const SIM = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 /** The stat-spell family: the shared `isStatSpell` prefix rule + its extras (see recruit.ts). */
-const isStatFamily = (name: string): boolean => name.startsWith('spellBuff') || name === 'rubyStatGain' || name === 'spellAverageStats'
-  // Great Pot's factory: a stat-granting cast whose name slips the `spellBuff*` prefix — it shipped flat and
-  // became bug a17a48ab (Bug Board round 1). Listed as an extra so the lane holds its fold from now on.
-  || name === 'buffOnePerTribe';
+// ONE predicate, shared with the display side (`chooseOneBranchText` greens exactly the family this lane audits) —
+// exported from recruit.ts so the lane and the Choose One window can never disagree about what a stat spell is.
+const isStatFamily = isStatSpellFactory;
 
 describe('Doc Bot — stat spells fold spell power', () => {
   const src = readFileSync(join(SIM, 'recruit.ts'), 'utf8');

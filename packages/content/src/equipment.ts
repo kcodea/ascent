@@ -62,10 +62,9 @@ export interface EquipmentDefinition {
    */
   useFxId?: string;
   useSfxId?: string;
-  /** Where the def's `source` anchor sits when it plays: the Equipment SLOT (default — a def that travels from
-   *  the button to the target, like Bloodpot) or the aimed TARGET (a def authored in the workbench ON the unit,
-   *  like the Deathfibrillator's shock). */
-  useFxAt?: 'slot' | 'target';
+  // `useFxAt` (2026-09-09 → 2026-09-12) is gone: the Equipment is ALWAYS the `source` of its use def and the
+  // aimed body its `target`, so a def authored to travel (the owner's Deathfibrillator bolt) needs no per-item
+  // flag to start from the button. A def that wants to play ON the target anchors its layers `target`.
   /**
    * CHOOSE ONE on an Equipment (owner ask 2026-08-31: *"we need to build prismpick the way it's stated. when
    * it's used it should open the choose one window"*). Present = using this Equipment opens the same Choose
@@ -316,10 +315,10 @@ export const DEATHFIBRILLATOR: EquipmentDefinition = {
   targetMode: 'friendly',
   effectId: 'equipmentRiseThenDestroy',
   params: { tribe: 'undead' },
-  // The owner's authored def + clip (2026-09-09). Played from the slot to the aimed body on activation.
+  // The owner's authored def + clip (re-authored 2026-09-12 as a TRAVEL bolt: it leaves the Equipment button and
+  // strikes the aimed body, then detonates there). `source` is the slot, `target` the body — the one shape.
   useFxId: 'deathfibrillator',
   useSfxId: 'deathfibrillator',
-  useFxAt: 'target', // the def is authored on the unit (both layers anchor `source`)
 };
 
 /**

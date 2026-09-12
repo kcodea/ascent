@@ -2029,9 +2029,10 @@ export function Recruit() {
       const to = tR ? { x: tR.left + tR.width / 2, y: tR.top + tR.height / 2 } : slot;
       if (eq.useFxId && slot && to && canPlayDefs()) {
         const fire = (): void => {
-          // `useFxAt: 'target'` — the def was authored ON the unit (every layer anchors `source`), so its source
-          // IS the aimed body; the default keeps the slot→target travel shape (Bloodpot, Titan Hammer).
-          const from = eq.useFxAt === 'target' ? to : slot;
+          // The Equipment is ALWAYS the `source` (owner 2026-09-12: "equipment can always be a starting point of an
+          // effect") — a travelling def (Bloodpot, Titan Hammer, the Deathfibrillator bolt) leaves the button; a def
+          // that wants to play on the body anchors its layers `target`. The per-item `useFxAt` override is gone.
+          const from = slot;
           // Fixed points, no unit binding: the def must outlive the aimed body (it may die on the next beat).
           const stop = playDef(eq.useFxId!, { source: from, target: to, cursor: to });
           if (stop) useDefStopsRef.current.push(stop);

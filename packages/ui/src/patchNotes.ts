@@ -67,6 +67,10 @@ export const PATCH_NOTES: PatchNote[] = [
           'Minion Choose Ones (Battlecries) are unchanged: they never took spell power, so their options still print as authored.',
         ],
       },
+      {
+        category: 'Card Change',
+        text: 'Gathering Guide can no longer Discover a copy of itself.',
+      },
     ],
   },
   {

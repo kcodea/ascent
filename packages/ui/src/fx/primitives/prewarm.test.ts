@@ -15,6 +15,7 @@ vi.mock('./emitter', () => ({}));
 vi.mock('./smoke', () => ({}));
 vi.mock('./react', () => ({}));
 vi.mock('./screen', () => ({}));
+vi.mock('./custom', () => ({}));
 
 const prewarmRibbonShadersCalls = (m: typeof import('./ribbon')) => vi.mocked(m.prewarmRibbonShaders).mock.calls.length;
 

@@ -149,6 +149,21 @@ export type FxParamSpec = FxParamMeta &
     }
   | {
       /**
+       * A full-colour, display-resolution image picked from the RUNTIME image library (`imageLibrary.ts`):
+       * the `custom` primitive's picture. Like `shape` it is NOT an `enum` — the set of valid `image:<slug>`
+       * ids grows when the owner imports a PNG/SVG — and the value is just the id string. Unlike `shape`,
+       * the empty string is a legal value AND default meaning "no image picked": a fresh layer has nothing
+       * chosen yet, and the primitive simply draws nothing until it does.
+       */
+      kind: 'image';
+      label: string;
+      group?: string;
+      help?: string;
+      /** An `image:<slug>` id, or `''` for none. */
+      default: string;
+    }
+  | {
+      /**
        * A baked point cloud sampled off an imported SVG silhouette — the persisted payload behind
        * `emitShape: 'svg'`. Each entry is a normalized `[x, y]` in `[-1, 1]`, and a spawn picks one at
        * random (see `motion.ts`'s `'svg'` case). Authored not by dragging a slider but by the SVG baker
@@ -196,9 +211,11 @@ export type ParamsOf<S extends FxParamSpecs> = {
           ? [number, number][]
           : S[K] extends { kind: 'shape' }
             ? string
-            : S[K] extends { kind: 'gradient' }
-              ? import('./gradient').GradientStop[]
-              : S[K]['default'];
+            : S[K] extends { kind: 'image' }
+              ? string
+              : S[K] extends { kind: 'gradient' }
+                ? import('./gradient').GradientStop[]
+                : S[K]['default'];
 };
 
 export function defaultsOf<S extends FxParamSpecs>(specs: S): ParamsOf<S> {
@@ -253,6 +270,11 @@ export function coerceParams<S extends FxParamSpecs>(specs: S, raw: unknown): Pa
         // would silently and PERMANENTLY rewrite the def to the default the first time it round-trips.
         // Keeping the id is safe: `getShapeTextureById` already falls back to a built-in for an unknown id.
         if (typeof v === 'string' && v !== '') out[key] = v;
+        break;
+      case 'image':
+        // Same runtime-registry reasoning as `shape` (an id this machine can't resolve must survive a
+        // round-trip), but '' IS accepted: it is the "no image picked" value a fresh layer legitimately holds.
+        if (typeof v === 'string') out[key] = v;
         break;
       case 'palette':
         if (

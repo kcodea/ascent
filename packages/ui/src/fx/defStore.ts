@@ -437,6 +437,19 @@ export async function saveArt(slug: string, dataUrl: string): Promise<SaveResult
   return post('/__fx/art', { slug, dataUrl });
 }
 
+/** Write `defs/images/<slug>.png` from a PNG data URL — the `custom` primitive's full-colour image (see
+ *  `imageLibrary.ts`). Same guards as `saveArt`; a different folder so the particle-silhouette glob never
+ *  picks a picture up as a shape. */
+export async function saveImage(slug: string, dataUrl: string): Promise<SaveResult> {
+  if (!isValidSlug(slug)) {
+    return { ok: false, error: `'${slug}' is not a usable image name (lowercase letters, digits and dashes).` };
+  }
+  if (!dataUrl.startsWith(ART_DATA_URL_PREFIX)) {
+    return { ok: false, error: 'An image must be a PNG data URL.' };
+  }
+  return post('/__fx/image', { slug, dataUrl });
+}
+
 // ─── session autosave ─────────────────────────────────────────────────────────────────────────────────
 
 function storage(): Storage | null {

@@ -17,6 +17,7 @@ import {
 } from '../params';
 import { filterEntries, filterOnCount, isFilterGroup, type FilterEntry } from './filterGroups';
 import { importShapeFromFile, listShapeOptions, removeImportedShape } from '../shapeLibrary';
+import { imageUrlFor, importImageFromFile, listImageOptions, IMAGE_NONE } from '../imageLibrary';
 import { ColorPickerHSB } from './ColorPickerHSB';
 import { PalettePicker } from './PalettePicker';
 import { GradientEditor } from './GradientEditor';
@@ -592,6 +593,14 @@ function ParamRow({
           onChange={(next) => onChange(key, next)}
         />
       )}
+      {spec.kind === 'image' && (
+        <ImageField
+          id={`fxwb-${key}`}
+          value={(value as string | undefined) ?? spec.default}
+          disabled={off}
+          onChange={(next) => onChange(key, next)}
+        />
+      )}
       {spec.kind === 'emitpoints' && (
         <EmitPointsField
           value={(value as number[][] | undefined) ?? []}
@@ -719,6 +728,89 @@ function ShapeField({
         />
       </label>
       <div className="fxwb-shape-hint">Transparency is the silhouette — opaque art is auto-traced from brightness.</div>
+      {error !== null && <div className="fxwb-shape-err">{error}</div>}
+    </div>
+  );
+}
+
+/**
+ * The `image` param's control (the `custom` primitive's picture): a picker of every `image:<slug>` the build
+ * can see plus this session's imports, a thumbnail of the selection, and an Import button. Importing writes
+ * the PNG straight to `defs/images/` through the dev plugin (see `imageLibrary.ts` — there is no local-only
+ * tier and nothing to promote on Save), so a fresh import is selectable immediately and ships with the def.
+ * Reuses the `fxwb-shape*` classes so this needs no stylesheet change.
+ */
+function ImageField({
+  id,
+  value,
+  disabled = false,
+  onChange,
+}: {
+  id: string;
+  value: string;
+  disabled?: boolean;
+  onChange: (next: string) => void;
+}): React.ReactElement {
+  const [, bumpRegistry] = useState(0);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const options = listImageOptions();
+  const selected = options.find((o) => o.id === value);
+  const thumb = value === IMAGE_NONE ? null : imageUrlFor(value);
+
+  const runImport = async (file: File): Promise<void> => {
+    setBusy(true);
+    setError(null);
+    try {
+      const image = await importImageFromFile(file);
+      bumpRegistry((n) => n + 1);
+      onChange(image.id);
+    } catch (err) {
+      // Never throw into render — surface it as a line under the picker.
+      setError(err instanceof Error ? err.message : 'Import failed.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="fxwb-shape">
+      <div className="fxwb-shape-row">
+        <select id={id} value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)}>
+          <option value={IMAGE_NONE}>(none)</option>
+          {options.length > 0 && (
+            <optgroup label="Images">
+              {options.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+            </optgroup>
+          )}
+          {/* A def can name an image this build can't see (not yet pulled / not committed). Keep the id
+              visible + selected rather than snapping the dropdown elsewhere — the layer draws nothing for it. */}
+          {value !== IMAGE_NONE && selected === undefined && <option value={value}>{value} (missing)</option>}
+        </select>
+        {thumb !== null && (
+          <img
+            src={thumb}
+            alt={selected?.label ?? value}
+            decoding="sync"
+            style={{ width: 40, height: 40, objectFit: 'contain', marginLeft: 6, flex: 'none' }}
+          />
+        )}
+      </div>
+      <label className="fxwb-shape-import">
+        {busy ? 'Importing…' : 'Import PNG / SVG…'}
+        <input
+          type="file"
+          accept="image/png,image/svg+xml,.png,.svg"
+          disabled={busy || disabled}
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            e.target.value = ''; // clear so re-picking the same file fires change again
+            if (file) void runImport(file);
+          }}
+        />
+      </label>
+      <div className="fxwb-shape-hint">Drawn with its true colours, fitted within 1024 px. Written to defs/images/ — only commit art meant to ship.</div>
       {error !== null && <div className="fxwb-shape-err">{error}</div>}
     </div>
   );

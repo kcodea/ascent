@@ -273,9 +273,18 @@ describe('middleware round trip', () => {
     });
   }
 
-  it('registers exactly the four endpoints', async () => {
+  it('registers exactly the five endpoints', async () => {
     expect([...(await routes()).keys()].sort())
-      .toEqual(['/__fx/art', '/__fx/bindings', '/__fx/cardart', '/__fx/def']);
+      .toEqual(['/__fx/art', '/__fx/bindings', '/__fx/cardart', '/__fx/def', '/__fx/image']);
+  });
+
+  it('writes a custom-primitive image to its own images/ folder, never into art/', async () => {
+    const handler = (await routes()).get('/__fx/image')!;
+    const res = await call(handler, JSON.stringify({ slug: 'banner', dataUrl: pngDataUrl(4) }));
+    expect(res.status).toBe(200);
+    const written = await readFile(path.join(await tmp, 'images', 'banner.png'));
+    expect(written.subarray(0, 8)).toEqual(PNG_HEADER);
+    await expect(readFile(path.join(await tmp, 'art', 'banner.png'))).rejects.toThrow();
   });
 
   it('writes a def file and reports its path', async () => {

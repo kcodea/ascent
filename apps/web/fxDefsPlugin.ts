@@ -36,7 +36,9 @@ export const ART_DATA_URL_PREFIX = 'data:image/png;base64,';
  *  is the file actually being a PNG. */
 const PNG_MAGIC = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 
-export type WriteKind = 'def' | 'art';
+/** `art` = a 128 px particle silhouette (`defs/art/`); `image` = a full-colour display image for the `custom`
+ *  primitive (`defs/images/`). Same PNG guards, different folder, so neither glob picks up the other's files. */
+export type WriteKind = 'def' | 'art' | 'image';
 
 /** What `planWrite` decided. `status` 200 ⇒ `file` + `data` are present and the caller may write; anything
  *  else ⇒ `error` is present and nothing is written. */
@@ -100,19 +102,21 @@ export function planWrite(kind: WriteKind, body: unknown, defsRoot: string): Wri
     return { status: 200, file, data: `${JSON.stringify(parsed, null, 2)}\n` };
   }
 
+  // `art` and `image` share every guard; they differ only in the folder (and the noun in the message).
+  const noun = kind === 'image' ? 'Image' : 'Art';
   const { slug, dataUrl } = body;
   if (typeof slug !== 'string' || slug === '') return bad(400, 'Missing `slug`.');
-  if (!SLUG_RE.test(slug)) return bad(400, `'${slug}' is not a valid art slug (^[a-z0-9][a-z0-9-]{0,63}$).`);
+  if (!SLUG_RE.test(slug)) return bad(400, `'${slug}' is not a valid ${noun.toLowerCase()} slug (^[a-z0-9][a-z0-9-]{0,63}$).`);
   if (typeof dataUrl !== 'string') return bad(400, 'Missing `dataUrl`.');
-  if (!dataUrl.startsWith(ART_DATA_URL_PREFIX)) return bad(400, 'Art must be a `data:image/png;base64,` URL.');
+  if (!dataUrl.startsWith(ART_DATA_URL_PREFIX)) return bad(400, `${noun} must be a \`data:image/png;base64,\` URL.`);
   // Cheap length gate BEFORE decoding, so an absurd payload never gets allocated twice. base64 is 4/3 of the
   // decoded size, so this can only reject things the byte check would reject anyway.
-  if (dataUrl.length > MAX_ART_BYTES * 2) return bad(413, `Art is larger than ${MAX_ART_BYTES} bytes.`);
+  if (dataUrl.length > MAX_ART_BYTES * 2) return bad(413, `${noun} is larger than ${MAX_ART_BYTES} bytes.`);
   const buf = Buffer.from(dataUrl.slice(ART_DATA_URL_PREFIX.length), 'base64');
-  if (buf.byteLength === 0) return bad(400, 'Art data URL is empty.');
-  if (buf.byteLength > MAX_ART_BYTES) return bad(413, `Art is larger than ${MAX_ART_BYTES} bytes.`);
-  if (!buf.subarray(0, PNG_MAGIC.length).equals(PNG_MAGIC)) return bad(400, 'Art is not a PNG.');
-  const file = path.resolve(root, 'art', `${slug}.png`);
+  if (buf.byteLength === 0) return bad(400, `${noun} data URL is empty.`);
+  if (buf.byteLength > MAX_ART_BYTES) return bad(413, `${noun} is larger than ${MAX_ART_BYTES} bytes.`);
+  if (!buf.subarray(0, PNG_MAGIC.length).equals(PNG_MAGIC)) return bad(400, `${noun} is not a PNG.`);
+  const file = path.resolve(root, kind === 'image' ? 'images' : 'art', `${slug}.png`);
   if (!isInside(root, file)) return bad(400, 'Refusing to write outside the defs directory.');
   return { status: 200, file, data: buf };
 }
@@ -357,9 +361,24 @@ export function fxDefsPlugin(options: FxDefsPluginOptions = {}): Plugin {
     name: 'ascent:fx-defs',
     // The one line that makes this dev-only. A production build never runs it.
     apply: 'serve',
+    /**
+     * Hide the `custom` primitive's images (`defs/images/`, globbed by `imageLibrary.ts`) from Vite's file
+     * watcher. Measured 2026-09-12: a NEW file matching an `import.meta.glob` makes Vite itself send
+     * `page reload` — no plugin watcher needed, and no way to opt out per glob. That is fine for art (written
+     * by Save, which reloads anyway) and hostile for an image, which is written by the IMPORT itself,
+     * mid-edit: the reload can even race the Inspector's own state update and lose the import from the layer.
+     * With the directory ignored nothing reloads; the running page resolves a fresh import from
+     * `registerSavedImage`'s in-session overlay, a later reload resolves it through the DEV fallback URL
+     * (the file is still SERVED — `watch.ignored` only silences the watcher), and a dev-server restart lets
+     * the glob catch up. Production is untouched: the glob is expanded at build time.
+     */
+    config: () => ({
+      server: { watch: { ignored: [path.resolve(defsRoot, 'images', '**').split(path.sep).join('/')] } },
+    }),
     configureServer(server) {
       server.middlewares.use('/__fx/def', (req, res) => void handle('def')(req, res));
       server.middlewares.use('/__fx/art', (req, res) => void handle('art')(req, res));
+      server.middlewares.use('/__fx/image', (req, res) => void handle('image')(req, res));
       server.middlewares.use('/__fx/bindings', (req, res) => void handleBindings(req, res));
       server.middlewares.use('/__fx/cardart', (req, res) => void handleCardArt(req, res));
 

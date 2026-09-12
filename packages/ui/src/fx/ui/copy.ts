@@ -29,6 +29,10 @@ export const PRIMITIVE_COPY: Record<string, FxCopy> = {
     label: 'Burst',
     blurb: 'A one-off spray of particles thrown outward, then gone. Impacts, hits, pops.',
   },
+  custom: {
+    label: 'Custom',
+    blurb: 'Your own PNG or SVG, drawn as-is: place it, size it, fade it, aim it, and run the whole filter lab over it. Emblems, sigils, banners, slashes.',
+  },
   emitter: {
     label: 'Stream',
     blurb: 'Keeps emitting particles for as long as the layer runs. Fire, smoke trails, channelled effects.',

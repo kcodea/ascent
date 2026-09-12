@@ -1261,7 +1261,7 @@ export function rallySpreadText(cardId: string, golden: boolean, rallySpreadAtk?
  */
 export function spiritText(
   cardId: string, golden: boolean,
-  p: { revelerX?: number; spiritTally?: number; spiritsPlayed?: number; onBoard?: boolean },
+  p: { revelerX?: number; spiritTally?: number; spiritsPlayed?: number; spiritDiscount?: number; onBoard?: boolean },
 ): string | null {
   const g = golden ? 2 : 1;
   const x = Math.max(1, p.revelerX ?? 1);
@@ -1285,6 +1285,12 @@ export function spiritText(
       const level = 1 + Math.floor(tally / every);
       const v = level * g;
       return level > 1 ? `Whenever you play a Spirit, give **3** random friendly Spirits **${live(`+${v}/+${v}`)}**. Improve this by **+${g}/+${g}** every ${every} times this triggers.` : null;
+    }
+    case 'sp3_treasurer': {
+      // The banked discount is the card's whole live value (owner 2026-09-12: "festival treasurer being active
+      // should show the discounted price on spirits" — the coin shows it; the card says how much is banked).
+      const off = p.spiritDiscount ?? 0;
+      return off > 0 ? `Whenever you **sell** a **Reveler**, your next Spirit costs **${g}** less this turn. ${live(`Next Spirit: −${off} Gold`)}` : null;
     }
     case 'sp3_forestcolossus':
       return p.onBoard ? `**Start of Combat:** give your Spirits **${live(`+${tally * g}/+${tally * g}`)}** (+${g}/+${g} for each Spirit played since this was played).` : null;

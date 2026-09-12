@@ -58,6 +58,11 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-09-11',
     changes: [
       {
+        category: 'UI / Info',
+        text: 'Shop prices now show every discount that the buy actually takes: Festival Treasurer\'s Spirit discount, Rune of Trade-In, Rune of Cadence and the Friends and Family Gift.',
+        details: ['Festival Treasurer was working (the Spirit was charged less) but the coin never showed it, so it looked broken. The card now also says how much is banked: "Next Spirit: −N Gold".'],
+      },
+      {
         category: 'Card Change',
         text: 'Comet Conductor now names the spell its Rally will copy once you have cast one this turn, the way Steward of Spells does.',
       },

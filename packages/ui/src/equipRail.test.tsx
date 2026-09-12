@@ -47,10 +47,10 @@ function twoEquipment(over: Partial<RunState> = {}): RunState {
     board: [minion('t', 'sandbag', 4, 4), minion('f', 'e3_frank', 3, 3), minion('s', 'e3_sculptor', 10, 8)],
     equipment: {
       available: [
-        { equipmentId: 'bloodpot', version: 'plain', sourceUids: ['f'], grantedTurn: 1 },
-        { equipmentId: 'titan_hammer', version: 'plain', sourceUids: ['s'], grantedTurn: 1 },
+        { equipmentId: 'bloodpot', version: 'plain', sourceUids: ['f'], grantedTurn: 1, ownChargeSpent: false },
+        { equipmentId: 'titan_hammer', version: 'plain', sourceUids: ['s'], grantedTurn: 1, ownChargeSpent: false },
       ],
-      baseActivations: 1, bonusActivations: 0, activationsSpent: 0,
+      bonusActivations: 0, bonusSpent: 0,
       temporaryCostReduction: 0,
       selectedEquipmentId: 'bloodpot', lastUsedEquipmentId: 'bloodpot',
     },
@@ -102,7 +102,8 @@ describe('the Equipment rail', () => {
     pointerDown(rows()[1]!);
     const after = useGame.getState().run;
     expect(after.embers, 'no Gold').toBe(20);
-    expect(after.equipment?.activationsSpent, 'no use').toBe(0);
+    expect(after.equipment?.bonusSpent, 'no pool use').toBe(0);
+    expect(after.equipment?.available.some((g) => g.ownChargeSpent), 'no own charge spent').toBe(false);
   });
 
   it('there is no rail with only one Equipment — a control that could only do nothing', () => {
@@ -298,9 +299,15 @@ describe('the empty cue fires on the transition to zero', () => {
   const fired = (): number => (playDef as unknown as { mock: { calls: unknown[][] } }).mock.calls
     .filter((c) => c[0] === 'equipment-used-up').length;
 
+  /** `spent` charges gone out of `1 + bonus` — the pool drains FIRST, then the selected Equipment's own
+   *  charge (the engine's order), so `withUses(2, 1)` is "pool spent, own spent" = 0 left. */
   const withUses = (spent: number, bonus = 0): RunState => {
     const s = twoEquipment();
-    s.equipment = { ...s.equipment!, activationsSpent: spent, bonusActivations: bonus };
+    const bonusSpent = Math.min(spent, bonus);
+    s.equipment = {
+      ...s.equipment!, bonusActivations: bonus, bonusSpent,
+      available: s.equipment!.available.map((g) => g.equipmentId === 'bloodpot' ? { ...g, ownChargeSpent: spent - bonusSpent >= 1 } : g),
+    };
     return s;
   };
 

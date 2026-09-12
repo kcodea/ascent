@@ -343,7 +343,7 @@ export function stageArrival(item: EntryWorkItem): StageOutcome {
   // (c) an Equipment that names it: wield it and activate it.
   for (const p of item.paths) {
     if (p.via !== 'equipment') continue;
-    const equipment = { available: [{ equipmentId: p.equipmentId, version: 'plain', sourceUids: [CAST_TARGET], grantedTurn: rich.wave }], selectedEquipmentId: p.equipmentId, baseActivations: 1, bonusActivations: 0, activationsSpent: 0, temporaryCostReduction: 0 };
+    const equipment = { available: [{ equipmentId: p.equipmentId, version: 'plain', sourceUids: [CAST_TARGET], grantedTurn: rich.wave, ownChargeSpent: false }], selectedEquipmentId: p.equipmentId, bonusActivations: 0, bonusSpent: 0, temporaryCostReduction: 0 };
     let s = reduce({ ...rich, equipment } as unknown as RunState, { type: 'activateEquipment', targetUid: CAST_TARGET });
     if (s.chooseOne) s = reduce(s, { type: 'chooseOne', index: 0 });
     if (handHas(s, item.id)) return done(s, `equipment:${p.equipmentId}`);

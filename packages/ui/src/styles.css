@@ -3510,6 +3510,10 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
 .equipslot .hpwrap .hpb-tally {
   transform: translateX(-50%)
              translate(calc(var(--equ-x, 0) * 1px), calc(var(--equ-y, 0) * 1px)) scale(var(--equ-scale, 1)); }
+/* A charge count MODIFIED above the Equipment's own baseline — the shared bonus pool is in it (owner ruling
+   2026-09-11) — reads GREEN, the same cue a discounted price uses. Colour only; the layered shadow and the
+   one-shot `stepbump` are inherited, so nothing here repaints per frame. */
+.hpwrap .hpb-tally.boosted { color: #8ff0a4; }
 .equipslot .hplabel {
   transform: translate(calc(var(--eqn-x, 0) * 1px), calc(var(--eqn-y, 0) * 1px)) scale(var(--eqn-scale, 1)); }
 /* No `cursor` declaration here on purpose — the global gauntlet rule paints `.btn, button`, and a plain

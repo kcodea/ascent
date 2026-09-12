@@ -2025,11 +2025,17 @@ export interface GrantedEquipment {
   sourceUids: string[];
   /** The wave it was granted on — diagnostic, and the tell for "granted this turn" vs "re-equipped". */
   grantedTurn: number;
+  /** Has THIS Equipment's own once-per-turn charge been spent? Every Equipment carries its own (owner ruling
+   *  2026-09-11); the Start-of-Turn rebuild starts every entry fresh. Spent only once the shared bonus pool is
+   *  empty — see `equipment.ts`. */
+  ownChargeSpent: boolean;
 }
 
 /**
- * The player's Equipment for THIS turn. Uses are a shared player-level allowance, not a per-Equipment lock:
- * activating any Equipment spends one, and swapping spends nothing.
+ * The player's Equipment for THIS turn. Charges (owner ruling 2026-09-11): every held Equipment has its OWN
+ * once-per-turn charge (on its `GrantedEquipment` entry), and on top of that sits ONE shared bonus pool
+ * (`bonusActivations − bonusSpent`) that any Equipment may draw from and that is spent FIRST. Swapping spends
+ * nothing.
  */
 export interface PlayerEquipmentState {
   available: GrantedEquipment[];
@@ -2038,11 +2044,10 @@ export interface PlayerEquipmentState {
   /** The last SUCCESSFULLY ACTIVATED Equipment (not merely viewed) — the rebuild restores it when its source
    *  survives. Deliberately survives the rebuild that clears `available`. */
   lastUsedEquipmentId?: string;
-  /** Normally 1. Reset every Start of Turn. */
-  baseActivations: number;
-  /** Granted on top of the baseline, this turn only. */
+  /** The SHARED bonus pool granted this turn (Equipment Charger, …). Additive across sources; per-turn only. */
   bonusActivations: number;
-  activationsSpent: number;
+  /** How much of that pool has been drawn. The pool remaining is derived (`equipmentPool`), never stored. */
+  bonusSpent: number;
   /** Gold off the next activation. Additive, floored at 0 by `equipmentCostOf`, expires at End of Turn. */
   temporaryCostReduction: number;
 }
@@ -2431,6 +2436,22 @@ export function deserialize(json: string): RunState {
     ];
   }
   delete state.pendingSpellDiscovers;
+  // Equipment charges moved from ONE shared allowance (`baseActivations` / `activationsSpent`) to a per-Equipment
+  // own charge + a shared bonus pool (owner ruling 2026-09-11). A save from the old model carries the old keys
+  // and no `bonusSpent` / `ownChargeSpent`; heal it to "nothing spent this turn" — the rebuild would have reset
+  // it at the next Start of Turn anyway — and drop the legacy keys so nothing reads them by accident.
+  if (parsed.equipment) {
+    const saved = parsed.equipment as Partial<PlayerEquipmentState> & { baseActivations?: number; activationsSpent?: number };
+    const healed: PlayerEquipmentState = {
+      available: (saved.available ?? []).map((g) => ({ ...g, ownChargeSpent: g.ownChargeSpent ?? false })),
+      bonusActivations: saved.bonusActivations ?? 0,
+      bonusSpent: saved.bonusSpent ?? 0,
+      temporaryCostReduction: saved.temporaryCostReduction ?? 0,
+    };
+    if (saved.selectedEquipmentId) healed.selectedEquipmentId = saved.selectedEquipmentId;
+    if (saved.lastUsedEquipmentId) healed.lastUsedEquipmentId = saved.lastUsedEquipmentId;
+    state.equipment = healed;
+  }
   return state;
 }
 

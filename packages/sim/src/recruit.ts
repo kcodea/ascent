@@ -3429,9 +3429,10 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     addBuff(self, nameOf(self), num(params.attack, 4) * gold(self), num(params.health, 4) * gold(self));
   },
 
-  /** Set 3 — Equipment Charger (Start of Turn): `count` extra Equipment activations THIS turn (× golden). The
-   *  turn's allowance was just rebuilt (`rebuildEquipment` runs before `applyStartOfTurn`), so the bonus sits on
-   *  top of the base and is zeroed again at the next rebuild — a per-turn grant, never banked. */
+  /** Set 3 — Equipment Charger (Start of Turn): `count` bonus Equipment charges THIS turn (× golden) into the
+   *  SHARED pool every held Equipment draws from — and spends first (owner ruling 2026-09-11). The turn's charges
+   *  were just rebuilt (`rebuildEquipment` runs before `applyStartOfTurn`), so the pool sits on top of each
+   *  Equipment's own charge and is zeroed again at the next rebuild — a per-turn grant, never banked. */
   startOfTurnEquipmentCharge: (ctx, self, params) => {
     const eq = ctx.state.equipment;
     if (!eq) return;

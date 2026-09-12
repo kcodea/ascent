@@ -10,8 +10,14 @@ import type { BoardCard, GrantedEquipment, PlayerEquipmentState, RunState } from
  *  1. **Within a turn, a grant outlives its source.** Selling the Equip minion does not revoke the Equipment.
  *  2. **Across turns, nothing is kept.** Every Start of Turn clears the collection and rebuilds it from the
  *     surviving board, so continued access means keeping an Equip minion alive.
- *  3. **Uses are a shared player allowance**, not a per-Equipment lock. Activating anything spends one;
- *     swapping spends nothing.
+ *  3. **Every Equipment has its OWN charge per turn, plus ONE shared bonus pool** (owner ruling 2026-09-11,
+ *     replacing the original single shared allowance). Holding Bloodpot and Titan Hammer means each can be
+ *     activated once per turn on its own charge. Bonus charges (Equipment Charger's Start-of-Turn grant,
+ *     gilded = 2, any future source) are ADDITIVE into one shared pool that any Equipment may draw from — and
+ *     the pool is spent FIRST, so an activation touches an Equipment's own charge only once the pool is empty.
+ *     What an Equipment DISPLAYS is its own remaining charge + the pool (`equipmentChargesOf`), rendered
+ *     green while the pool is above zero. Swapping spends nothing. Nothing carries across turns: the rebuild
+ *     starts every own charge fresh and zeroes the pool.
  *
  * ── Two decisions the owner confirmed, recorded here because they are load-bearing ────────────────────────
  *
@@ -27,14 +33,13 @@ import type { BoardCard, GrantedEquipment, PlayerEquipmentState, RunState } from
  * revision would need to carry it properly.
  */
 
-/** The baseline shared allowance: one activation per turn. */
+/** The baseline: every Equipment gets ONE own activation per turn. */
 export const BASE_EQUIPMENT_ACTIVATIONS = 1;
 
 const EMPTY: PlayerEquipmentState = {
   available: [],
-  baseActivations: BASE_EQUIPMENT_ACTIVATIONS,
   bonusActivations: 0,
-  activationsSpent: 0,
+  bonusSpent: 0,
   temporaryCostReduction: 0,
 };
 
@@ -50,11 +55,46 @@ function ensure(run: RunState): PlayerEquipmentState {
   return run.equipment;
 }
 
-/** Activations still available this turn. DERIVED, never stored: the handoff's "available uses should be
- *  derived rather than duplicated across several flags". */
-export function equipmentUsesLeft(run: Pick<RunState, 'equipment'>): number {
+/** The SHARED bonus pool still unspent this turn. DERIVED, never stored: the handoff's "available uses should
+ *  be derived rather than duplicated across several flags". */
+export function equipmentPool(run: Pick<RunState, 'equipment'>): number {
   const e = equipmentState(run);
-  return Math.max(0, e.baseActivations + e.bonusActivations - e.activationsSpent);
+  return Math.max(0, e.bonusActivations - e.bonusSpent);
+}
+
+/** One Equipment's OWN remaining charge this turn (1 or 0). An Equipment the player does not hold has none. */
+export function equipmentOwnChargeOf(run: Pick<RunState, 'equipment'>, equipmentId: string): number {
+  const g = equipmentState(run).available.find((x) => x.equipmentId === equipmentId);
+  return g && !g.ownChargeSpent ? BASE_EQUIPMENT_ACTIVATIONS : 0;
+}
+
+/** What one Equipment can fire RIGHT NOW — and the number its slot prints: its own remaining charge + the
+ *  shared pool (owner ruling 2026-09-11, point 3). With one bonus charge every held Equipment reads 2. */
+export function equipmentChargesOf(run: Pick<RunState, 'equipment'>, equipmentId: string): number {
+  return equipmentOwnChargeOf(run, equipmentId) + equipmentPool(run);
+}
+
+/** The SELECTED Equipment's charges — what the slot's button and tally are about. Kept under its original
+ *  name so every reader of "can the slot fire?" (StatusBar readiness, the empty cue, tests) keeps its
+ *  meaning across the per-item-charge change. Zero with nothing selected. */
+export function equipmentUsesLeft(run: Pick<RunState, 'equipment'>): number {
+  const id = equipmentState(run).selectedEquipmentId;
+  return id ? equipmentChargesOf(run, id) : 0;
+}
+
+/**
+ * SPEND one charge for an activation of `equipmentId` — the pool FIRST, the Equipment's own charge only once
+ * the pool is empty (owner ruling 2026-09-11, point 4). So with a pool of 1, using Bloodpot drops EVERY
+ * Equipment from a green 2 to a plain 1, and Bloodpot can still fire once more on its own charge. Returns
+ * false, changing nothing, when there is nothing left to spend — the reducer refuses on that.
+ */
+export function spendEquipmentCharge(run: RunState, equipmentId: string): boolean {
+  const e = ensure(run);
+  if (e.bonusActivations - e.bonusSpent > 0) { e.bonusSpent += 1; return true; }
+  const g = e.available.find((x) => x.equipmentId === equipmentId);
+  if (!g || g.ownChargeSpent) return false;
+  g.ownChargeSpent = true;
+  return true;
 }
 
 /** What this Equipment costs RIGHT NOW: base minus every stacked reduction, floored at 0. */
@@ -106,6 +146,7 @@ export function grantEquipment(run: RunState, source: BoardCard, def: EquipmentD
     version,
     sourceUids: [source.uid],
     grantedTurn: run.wave,
+    ownChargeSpent: false, // a freshly granted Equipment arrives with its own charge ready
   };
   e.available.push(granted);
   // "Select it automatically if the player had no active Equipment" — never steal a live selection.
@@ -179,13 +220,13 @@ export interface ReequipCue { uid: string; cardId: string; equipmentId: string }
  */
 export function rebuildEquipment(run: RunState): ReequipCue[] {
   const lastUsed = equipmentState(run).lastUsedEquipmentId;
-  // A fresh collection every turn, and the allowance back to baseline. Bonus activations and cost reductions
-  // are per-turn by definition, so they reset here as well as at End of Turn — whichever runs first.
+  // A fresh collection every turn — every re-granted entry arrives with its own charge unspent — and the
+  // shared pool back to zero. Bonus charges and cost reductions are per-turn by definition, so they reset
+  // here as well as at End of Turn — whichever runs first.
   run.equipment = {
     available: [],
-    baseActivations: BASE_EQUIPMENT_ACTIVATIONS,
     bonusActivations: 0,
-    activationsSpent: 0,
+    bonusSpent: 0,
     temporaryCostReduction: 0,
     ...(lastUsed ? { lastUsedEquipmentId: lastUsed } : {}),
   };
@@ -211,13 +252,14 @@ export function rebuildEquipment(run: RunState): ReequipCue[] {
   return cues;
 }
 
-/** END OF TURN — unused allowances and temporary reductions expire. The collection itself is left alone: it
- *  is cleared by the next rebuild, which is also what keeps it readable through combat. */
+/** END OF TURN — the unused pool, spent own charges and temporary reductions expire. The collection itself is
+ *  left alone: it is cleared by the next rebuild, which is also what keeps it readable through combat. */
 export function expireEquipmentTurn(run: RunState): void {
   if (!run.equipment) return;
   run.equipment.bonusActivations = 0;
-  run.equipment.activationsSpent = 0;
+  run.equipment.bonusSpent = 0;
   run.equipment.temporaryCostReduction = 0;
+  for (const g of run.equipment.available) g.ownChargeSpent = false;
 }
 
 /** Swap what the slot shows. Free by contract: no Gold, no activation, no cooldown change. */

@@ -16,7 +16,7 @@ import { pickOpponent, opponentBoard, oppKey } from './opponents';
 import type { BoardSnapshot } from './snapshot';
 import { EQUIPMENT_INDEX } from '@game/content';
 import {
-  equipmentCostOf, equipmentUsesLeft, expireEquipmentTurn, rebuildEquipment,
+  equipmentChargesOf, equipmentCostOf, expireEquipmentTurn, rebuildEquipment, spendEquipmentCharge,
   selectEquipment, selectedEquipment,
 } from './equipment';
 import { applyChooseOnePlayed, spendChooseBothCharge, noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, roundedSpellbookCostOf, buyoutCostOf, commissionOffer, COMMISSION_DELAY, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, stampSharedSpoils, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, chooseBothActive, chooseOneNeedsChoice, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, fireDemonPlayRunes, creditShopBuffSource, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, rubyStatBonus, yazzusExtraCasts, consumeGrimoireCharge, countRubyAsShopSpell, fireSpellCastWatchersForRuby, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, landBorrowed, settlePendingDeath, stampEquipFx, fireEquipmentTriggers, buyHealthAura, undeadBuyBonus, weldMagnetic , defIsTribe, handCardLocked} from './recruit';
@@ -2413,7 +2413,8 @@ function reduceCore(state: RunState, action: Action): RunState {
 
     /**
      * ACTIVATE the selected Equipment — ATOMIC, matching every hero power in this engine (owner ruling
-     * 2026-08-28). Validate, pay, spend one shared allowance, resolve every trigger, in ONE action.
+     * 2026-08-28). Validate, pay, spend one charge (the shared bonus pool first, else this Equipment's own —
+     * owner ruling 2026-09-11), resolve every trigger, in ONE action.
      *
      * There is no pending-activation state, which is exactly why "cancelling costs nothing" needs no
      * bookkeeping: a cancel never reaches the reducer at all. The UI arms the Equipment, the player picks a
@@ -2424,7 +2425,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       const granted = selectedEquipment(s);
       const def = granted ? EQUIPMENT_INDEX[granted.equipmentId] : undefined;
       if (!granted || !def) return state;
-      if (equipmentUsesLeft(s) <= 0) return state; // the shared allowance is spent
+      if (equipmentChargesOf(s, def.id) <= 0) return state; // no charge left for THIS Equipment (own + pool)
       // ── CHOOSE ONE on an Equipment (Prismatic Pick; owner ask 2026-08-31) ──────────────────────────────
       // "When it's used it should open the Choose One window." Same contract as a Choose One CARD: opening
       // the prompt COMMITS NOTHING — no Gold, no allowance, no trigger, no RNG — and the activation is
@@ -2451,7 +2452,7 @@ function reduceCore(state: RunState, action: Action): RunState {
 
       s.embers -= cost;
       const eq = s.equipment!;
-      eq.activationsSpent += 1;
+      spendEquipmentCharge(s, def.id); // the pool first, then this Equipment's own charge — checked above
       eq.lastUsedEquipmentId = def.id; // "last used" means last successfully ACTIVATED, not last viewed
       // Additional triggers stack ADDITIVELY, and the count is SNAPSHOT here rather than re-read per trigger —
       // a repeat must never reproduce the modifier that created it (handoff).

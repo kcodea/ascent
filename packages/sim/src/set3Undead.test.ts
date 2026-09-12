@@ -167,7 +167,7 @@ describe('a shop Rise returns the PRINTED body with the Auras on top (owner repo
     expect([sergey.attack, sergey.health]).toEqual([CARD_INDEX['sergeant']!.attack, 1]);
     expect(displayedStatsOf(s, sergey).attack, 'the Undead Aura folds in on display').toBe(CARD_INDEX['sergeant']!.attack + 5);
     // The Warden: printed 3 + its own Aura (+6, then +9 after its Echo grew it on the way out) + the Undead Aura.
-    s = { ...s, embers: 20, equipment: s.equipment ? { ...s.equipment, activationsSpent: 0 } : s.equipment };
+    s = { ...s, embers: 20, equipment: s.equipment ? { ...s.equipment, available: s.equipment.available.map((g) => ({ ...g, ownChargeSpent: false })) } : s.equipment };
     s = act(s, { type: 'activateEquipment', targetUid: 'sw' });
     s = act(s, { type: 'resolveShopDeath' });
     const warden = s.board.find((c) => c.cardId === 'knit')!;

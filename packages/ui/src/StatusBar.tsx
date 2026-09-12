@@ -5,7 +5,7 @@ import { Card, mdBold } from './Card';
 import { instView } from './instView';
 import { dragonTamerCostOf, INDY_GILD_RECHARGE_GOLD, KESHI_CROWN_THRESHOLD, roundedSpellbookCostOf, buyoutCostOf, allInPayoutOf, exhibitionGrantOf, tempestGrantOf, bladeMasteryGrantOf, hoardWhelpStatsOf, TEMPEST_KILLS_PER_STEP, BLADE_ATTACKS_PER_STEP, heroPowerText, commissionOffer, COMMISSION_NAME, COMMISSION_REWARD, COMMISSION_DELAY, getHero, spellAmplifyBonus, spellAttackBonus, spellHealthBonus, rubyStatBonus, heroPowerLockTurns, activePowers, type RunState, type HeroPower } from '@game/sim';
 import { henchmanOffer } from '@game/sim';
-import { equipmentCostOf, equipmentState, equipmentText, equipmentUsesLeft, selectedEquipment, selectedEquipmentDef } from '@game/sim';
+import { equipmentCostOf, equipmentPool, equipmentState, equipmentText, equipmentUsesLeft, selectedEquipment, selectedEquipmentDef } from '@game/sim';
 import { CARD_INDEX, EQUIPMENT_INDEX } from '@game/content';
 import { equipmentArtFor } from './art';
 import { heroArt, heroPowerArt, questArt, runeArt } from './art';
@@ -171,7 +171,10 @@ export function StatusBar() {
   const equipOptions = equipmentState(run).available;
   const selectedEquip = selectedEquipment(run);
   const selectedEquipDef = selectedEquipmentDef(run);
+  // The SELECTED Equipment's charges: its own once-per-turn charge + the shared bonus pool (owner ruling
+  // 2026-09-11). The pool is what makes the number read GREEN — it is above the Equipment's own baseline.
   const equipUses = equipmentUsesLeft(run);
+  const equipPool = equipmentPool(run);
   const equipCost = selectedEquipDef ? equipmentCostOf(run, selectedEquipDef) : 0;
   // Visible but DISABLED when unaffordable or spent — the handoff is explicit that the slot keeps showing the
   // Equipment and explains why it cannot be used, rather than vanishing.
@@ -1025,16 +1028,19 @@ export function StatusBar() {
                   : <span className="hpb-glyph" aria-hidden="true">⚒</span>}
               </button>
               {equipCost ? <span className="hpcost"><span className="costn">{equipCost}</span></span> : null}
-              {/* The SHARED allowance, not a per-Equipment charge — labelled as uses left so a player with a
-                  bonus activation can see there is a second one to spend. */}
-              <span className="hpb-tally">{equipUses}</span>
+              {/* THIS Equipment's charges — its own + the shared bonus pool. GREEN (`boosted`) while the pool is
+                  above zero: the number is modified above the Equipment's own baseline of 1, and spending the
+                  pool through ANY Equipment drops every one of them back to plain. */}
+              <span className={`hpb-tally${equipPool > 0 ? ' boosted' : ''}`}>{equipUses}</span>
             </div>
             <div className="hplabel">{selectedEquipDef.name}</div>
             <div className="herotip" role="tooltip">
               <b>{selectedEquipDef.name}</b>{selectedEquip.version === 'gilded' ? ' · gilded' : ''}
               <span className="herotip-rule" dangerouslySetInnerHTML={{ __html: mdBold(equipRule) }} />
               <span className="herotip-rule">
-                {equipUses > 0 ? `${equipUses} Equipment use${equipUses === 1 ? '' : 's'} left this turn` : 'No Equipment uses left this turn'}
+                {equipUses > 0
+                  ? `${equipUses} charge${equipUses === 1 ? '' : 's'} left for ${selectedEquipDef.name}${equipPool > 0 ? ` (${equipPool} shared bonus)` : ''}`
+                  : `No charges left for ${selectedEquipDef.name} this turn`}
                 {equipCost > 0 && run.embers < equipCost ? ' · not enough Gold' : ''}
               </span>
             </div>

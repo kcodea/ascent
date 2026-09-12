@@ -89,9 +89,10 @@ export const SET3_NEUTRAL: readonly CardDef[] = [
     goldenText: '**Rally:** summon and get **2** random **Rally** minions.',
   },
   {
-    // Start of Turn (fires as the shop reopens, right after the Equipment allowance is rebuilt): one extra
-    // Equipment activation this turn. The bonus lives in `equipment.bonusActivations`, which the turn rebuild
-    // zeroes — so it is a per-turn grant, never banked. Golden: two. Renamed from "Equipment Inspector" on the
+    // Start of Turn (fires as the shop reopens, right after the Equipment charges are rebuilt): one bonus
+    // Equipment charge this turn, into the SHARED pool any held Equipment may spend (and spends first). The
+    // pool lives in `equipment.bonusActivations`, which the turn rebuild zeroes — a per-turn grant, never
+    // banked. Golden: two. Renamed from "Equipment Inspector" on the
     // owner's sheet (2026-09-09: "rename Equipment Inspector -> Equipment Charger").
     id: 'n3_charger',
     name: 'Equipment Charger',

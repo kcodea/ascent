@@ -62,6 +62,15 @@ export const PATCH_NOTES: PatchNote[] = [
         text: "Kaura L'roft's Equipment is now called Dual Rubetta's (was Dueling Rubetta's). Same effect, new name on the card and the Equipment.",
       },
       {
+        category: 'Card Change',
+        text: 'Each Equipment can now be used once per turn on its own. Bonus charges are shared between all your Equipment and are spent first — shown in green.',
+        details: [
+          'Previously all your Equipment shared a single use per turn. Now every Equipment you hold has its own charge, so with two Equip minions on the board you can activate both each turn.',
+          'Bonus charges (Equipment Charger’s Start of Turn grant, 2 when gilded) go into one shared pool that any Equipment can draw from. The pool is spent before an Equipment’s own charge.',
+          'The number on an Equipment is its own remaining charge plus the shared pool. It turns green while the pool has charges in it, and drops back to plain for every Equipment the moment the pool is spent.',
+        ],
+      },
+      {
         category: 'Hero Change',
         text: 'Brackus: continuing a saved run no longer re-arms his opening "locked until 70 Gold spent" condition on a later Discover.',
         details: [

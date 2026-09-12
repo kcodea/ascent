@@ -91,6 +91,30 @@ discarding returns one. Each roll picks a card with probability proportional to 
 a card down to its last copy is rarer in proportion, and the odds shift gradually as the pool drains rather
 than falling off a cliff at zero. (Practice tribe surge doubles that tribe's tickets.)
 
+### Equipment (owner rulings 2026-08-28 + 2026-09-11)
+
+**Equipment** is a Shop-phase ability granted by an *Equip* minion (Alchemist Frank → Bloodpot, Titan
+Sculptor → Titan Hammer, …) and owned by the **player**, shown in a second slot beside the hero power.
+Playing the minion grants it at once; selling the minion does **not** revoke it for the rest of the turn; at
+every Start of Turn the collection is rebuilt from the surviving board, so keeping it means keeping an Equip
+minion alive. Duplicates collapse into one entry; a single Gilded source upgrades the entry for everyone.
+
+**Charges (2026-09-11):**
+- **Every Equipment has its OWN charge, once per turn.** Holding Bloodpot and Titan Hammer, you may activate
+  each once per turn. Own charges reset at Start of Turn; nothing carries across turns.
+- **Bonus charges are ONE shared pool.** Equipment Charger's Start of Turn grant (gilded = 2) and any future
+  source add to it; two grants = a pool of 2. Per-turn only — it expires at End of Turn / the next rebuild.
+- **The number shown on an Equipment = its own remaining charge + the shared pool.** With one bonus every
+  Equipment reads **2**, in **green** (modified above baseline); plain when the pool is 0 (1, or 0 once its
+  own charge is spent).
+- **The pool is spent FIRST.** With a pool of 1, activating Equipment A spends the pool: every Equipment drops
+  from green 2 to plain 1, and A can still be activated once more on its own charge. Only when the pool is 0
+  does an activation spend that Equipment's own charge (it then reads 0 and its button disables; the others
+  still read 1).
+- Swapping the selected Equipment is **free** (no Gold, no charge). Activation is **atomic** (validate, pay,
+  spend, resolve in one action — a cancel costs nothing by construction). Gold cost, temporary cost
+  reductions, extra-trigger repeats and Choose One on an Equipment are unaffected by charges.
+
 The **combat event vocabulary** is a union of **22 distinct event types** in
 `packages/core/src/types.ts` (`CombatEvent`): `sc, attack, dmg, shield, shieldUp, poison, reborn,
 death, reveal, keyword, keywordLost, venomLost, summon, ascend, buff, improve, rally, maxGold,

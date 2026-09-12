@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { BLOODPOT, CARD_INDEX, TITAN_HAMMER } from '@game/content';
-import { createRun, reduce, type Action, type BoardCard, type RunState } from './index';
-import { equipmentState, equipmentUsesLeft, selectedEquipment } from './equipment';
+import { createRun, deserialize, reduce, type Action, type BoardCard, type RunState } from './index';
+import { equipmentChargesOf, equipmentPool, equipmentState, equipmentUsesLeft, selectedEquipment } from './equipment';
 import { fireEquipmentTriggers } from './recruit';
 
 /**
@@ -61,7 +61,8 @@ describe('acquisition — Equip on play', () => {
     expect(e.available[0]!.sourceUids, 'the source body is tracked').toEqual(['f']);
     expect(e.available[0]!.version).toBe('plain');
     expect(e.selectedEquipmentId, 'auto-selected — the player had none').toBe('bloodpot');
-    expect(equipmentUsesLeft(s), 'the shared allowance starts at 1').toBe(1);
+    expect(equipmentUsesLeft(s), 'its own charge starts at 1').toBe(1);
+    expect(equipmentPool(s), 'and there is no bonus pool').toBe(0);
   });
 
   it('a Gilded source grants the Gilded version', () => {
@@ -77,7 +78,7 @@ describe('acquisition — Equip on play', () => {
   });
 });
 
-describe('activation — atomic, shared allowance, Gold', () => {
+describe('activation — atomic, own charge + shared pool, Gold', () => {
   /** Frank on board with Bloodpot granted, plus a victim to buff. */
   const armed = (over: Partial<RunState> = {}): RunState => {
     let s = run({ hand: [body('f', 'e3_frank')], board: [body('t', 'sandbag')], ...over });
@@ -85,13 +86,14 @@ describe('activation — atomic, shared allowance, Gold', () => {
     return s;
   };
 
-  it('pays the Gold, spends one shared activation, and buffs the chosen target', () => {
+  it('pays the Gold, spends its own charge, and buffs the chosen target', () => {
     let s = armed();
     const goldBefore = s.embers;
     const [a, h] = statsOf(s, 't');
     s = activate(s, 't');
     expect(s.embers, 'Bloodpot costs 1').toBe(goldBefore - 1);
-    expect(equipmentUsesLeft(s), 'the shared allowance is spent').toBe(0);
+    expect(equipmentUsesLeft(s), 'its own charge is spent').toBe(0);
+    expect(equipmentState(s).available[0]!.ownChargeSpent).toBe(true);
     expect(statsOf(s, 't'), '+3/+3').toEqual([a + 3, h + 3]);
     expect(equipmentState(s).lastUsedEquipmentId, 'last USED, not merely viewed').toBe('bloodpot');
   });
@@ -115,7 +117,7 @@ describe('activation — atomic, shared allowance, Gold', () => {
     expect(equipmentUsesLeft(cancelled)).toBe(1);
   });
 
-  it('refuses when the allowance is spent, and takes no Gold for the refusal', () => {
+  it('refuses when its charge is spent, and takes no Gold for the refusal', () => {
     let s = armed();
     s = activate(s, 't');
     const goldAfterFirst = s.embers;
@@ -125,14 +127,34 @@ describe('activation — atomic, shared allowance, Gold', () => {
     expect(statsOf(s, 't'), 'and no second buff').toEqual([a, h]);
   });
 
-  it('a BONUS activation lets the SAME Equipment fire again — the allowance is player-level', () => {
+  it('a BONUS charge lets the SAME Equipment fire again — the pool is spent FIRST, then its own charge', () => {
     let s = armed();
     s.equipment!.bonusActivations = 1;
+    expect(equipmentUsesLeft(s), 'own 1 + pool 1').toBe(2);
     const [a, h] = statsOf(s, 't');
     s = activate(s, 't');
+    expect(equipmentPool(s), 'the first activation drew from the POOL').toBe(0);
+    expect(equipmentState(s).available[0]!.ownChargeSpent, 'and left the own charge alone').toBe(false);
+    expect(equipmentUsesLeft(s)).toBe(1);
     s = activate(s, 't');
     expect(statsOf(s, 't'), 'two activations, two buffs').toEqual([a + 6, h + 6]);
     expect(equipmentUsesLeft(s)).toBe(0);
+    expect(equipmentState(s).available[0]!.ownChargeSpent, 'the second spent its own').toBe(true);
+  });
+
+  it('bonus charges STACK additively — two grants are a pool of 2', () => {
+    let s = armed();
+    s.equipment!.bonusActivations += 1; // one Charger
+    s.equipment!.bonusActivations += 1; // and another
+    expect(equipmentPool(s)).toBe(2);
+    expect(equipmentUsesLeft(s), 'own 1 + pool 2').toBe(3);
+    s = activate(s, 't');
+    s = activate(s, 't');
+    s = activate(s, 't');
+    expect(equipmentUsesLeft(s)).toBe(0);
+    const [a, h] = statsOf(s, 't');
+    s = activate(s, 't');
+    expect(statsOf(s, 't'), 'a fourth is refused').toEqual([a, h]);
   });
 
   it('refuses when the player cannot afford it, without half-resolving', () => {
@@ -140,10 +162,10 @@ describe('activation — atomic, shared allowance, Gold', () => {
     const [a, h] = statsOf(s, 't');
     s = activate(s, 't');
     expect(statsOf(s, 't')).toEqual([a, h]);
-    expect(equipmentUsesLeft(s), 'an unaffordable activation spends no allowance').toBe(1);
+    expect(equipmentUsesLeft(s), 'an unaffordable activation spends no charge').toBe(1);
   });
 
-  it('cost reductions stack and floor at 0 — and a free activation still spends an allowance', () => {
+  it('cost reductions stack and floor at 0 — and a free activation still spends a charge', () => {
     let s = armed();
     s.equipment!.temporaryCostReduction = 5; // more than the cost
     s = activate(s, 't');
@@ -153,7 +175,7 @@ describe('activation — atomic, shared allowance, Gold', () => {
 });
 
 describe('additional triggers', () => {
-  it('repeat on the ORIGINAL target, cost no extra Gold and no extra allowance', () => {
+  it('repeat on the ORIGINAL target, cost no extra Gold and no extra charge', () => {
     let s = run({ hand: [body('f', 'e3_frank')], board: [body('t', 'sandbag')] });
     s = play(s, 'f', 1);
     s.equipmentExtraTriggers = 2; // three triggers in total — additive, per the handoff
@@ -162,7 +184,7 @@ describe('additional triggers', () => {
     s = activate(s, 't');
     expect(statsOf(s, 't'), '3 × +3/+3 on the one chosen target').toEqual([a + 9, h + 9]);
     expect(s.embers, 'repeats are free').toBe(gold - 1);
-    expect(equipmentUsesLeft(s), 'and spend one allowance between them').toBe(0);
+    expect(equipmentUsesLeft(s), 'and spend one charge between them').toBe(0);
   });
 
   it('the trigger count is snapshot — a repeat cannot breed more repeats', () => {
@@ -196,23 +218,36 @@ describe('lifecycle — within a turn, and across the turn boundary', () => {
     expect(equipmentState(s).selectedEquipmentId, 'and nothing selected — the slot hides').toBeUndefined();
   });
 
-  it('with the source alive, the next turn re-equips and restores the allowance', () => {
+  it('with the source alive, the next turn re-equips and restores its charge', () => {
     let s = run({ hand: [body('f', 'e3_frank')], board: [body('t', 'sandbag')] });
     s = play(s, 'f', 1);
     s = activate(s, 't');
     expect(equipmentUsesLeft(s)).toBe(0);
     s = nextTurn(s);
     expect(equipmentState(s).available.map((g) => g.equipmentId)).toEqual(['bloodpot']);
-    expect(equipmentUsesLeft(s), 'the allowance is back to baseline').toBe(1);
+    expect(equipmentUsesLeft(s), 'its own charge is back').toBe(1);
     expect(s.equipFx?.some((f) => f.kind === 'reequip' && f.uid === 'f'), 'and a re-equip cue fired').toBe(true);
   });
 
-  it('unused allowances do NOT carry between turns', () => {
+  it('an unused pool does NOT carry between turns', () => {
     let s = run({ hand: [body('f', 'e3_frank')] });
     s = play(s, 'f');
     s.equipment!.bonusActivations = 3; // never spent
     s = nextTurn(s);
+    expect(equipmentPool(s), 'the pool is gone').toBe(0);
     expect(equipmentUsesLeft(s), 'back to the baseline 1, not 4').toBe(1);
+  });
+
+  it('a spent pool does NOT leave a debt either — the next turn starts clean', () => {
+    let s = run({ hand: [body('f', 'e3_frank')], board: [body('t', 'sandbag')] });
+    s = play(s, 'f', 1);
+    s.equipment!.bonusActivations = 1;
+    s = activate(s, 't'); // spends the pool
+    s = activate(s, 't'); // spends the own charge
+    expect(equipmentUsesLeft(s)).toBe(0);
+    s = nextTurn(s);
+    expect(equipmentState(s).bonusSpent).toBe(0);
+    expect(equipmentUsesLeft(s)).toBe(1);
   });
 });
 
@@ -259,7 +294,7 @@ describe('duplicate and Gilded sources', () => {
 });
 
 describe('selection', () => {
-  it('swapping is free — no Gold, no allowance', () => {
+  it('swapping is free — no Gold, no charge', () => {
     let s = run({ hand: [body('f', 'e3_frank')] });
     s = play(s, 'f');
     const gold = s.embers;
@@ -292,11 +327,11 @@ describe('the rebuild is the FIRST Start-of-Turn operation', () => {
   it('a Start-of-Turn effect later in the advance sees this turn\'s Equipment, not last turn\'s', () => {
     let s = run({ hand: [body('f', 'e3_frank')] });
     s = play(s, 'f');
-    s = activate(s); // untargeted refusal — leaves the allowance intact
-    s.equipment!.activationsSpent = 1; // pretend it was spent last turn
+    s = activate(s); // untargeted refusal — leaves the charge intact
+    s.equipment!.available[0]!.ownChargeSpent = true; // pretend it was spent last turn
     s = nextTurn(s);
-    // If the rebuild ran late, the allowance would still read 0 here.
-    expect(equipmentUsesLeft(s), 'the rebuild had already reset the allowance').toBe(1);
+    // If the rebuild ran late, the charge would still read 0 here.
+    expect(equipmentUsesLeft(s), 'the rebuild had already reset the charge').toBe(1);
     expect(equipmentState(s).available, 'and re-granted from the board').toHaveLength(1);
   });
 });
@@ -309,7 +344,27 @@ describe('persistence', () => {
     const revived = JSON.parse(JSON.stringify(s)) as RunState;
     expect(equipmentState(revived).available).toEqual(equipmentState(s).available);
     expect(equipmentState(revived).lastUsedEquipmentId).toBe('bloodpot');
-    expect(equipmentUsesLeft(revived), 'the spent allowance survives').toBe(0);
+    expect(equipmentUsesLeft(revived), 'the spent charge survives').toBe(0);
+  });
+
+  it('a save from the OLD shared-allowance model loads, with nothing spent and the legacy keys dropped', () => {
+    let s = run({ hand: [body('f', 'e3_frank')], board: [body('t', 'sandbag')] });
+    s = play(s, 'f', 1);
+    // What a pre-2026-09-11 save carried: one shared allowance, no per-entry charge, no pool spend counter.
+    type LegacyEquipment = { baseActivations?: number; activationsSpent?: number; bonusSpent?: number; available: { ownChargeSpent?: boolean }[] };
+    const legacy = JSON.parse(JSON.stringify(s)) as Omit<RunState, 'equipment'> & { equipment: LegacyEquipment };
+    legacy.equipment.baseActivations = 1;
+    legacy.equipment.activationsSpent = 1;
+    delete legacy.equipment.bonusSpent;
+    for (const g of legacy.equipment.available) delete g.ownChargeSpent;
+    const healed = deserialize(JSON.stringify(legacy));
+    const e = healed.equipment as unknown as Record<string, unknown>;
+    expect(e.baseActivations, 'legacy key dropped').toBeUndefined();
+    expect(e.activationsSpent, 'legacy key dropped').toBeUndefined();
+    expect(equipmentState(healed).bonusSpent).toBe(0);
+    expect(equipmentState(healed).available[0]!.ownChargeSpent).toBe(false);
+    expect(equipmentUsesLeft(healed), 'usable again — the old spend is not carried into the new model').toBe(1);
+    expect(equipmentState(healed).selectedEquipmentId).toBe('bloodpot');
   });
 });
 
@@ -361,7 +416,7 @@ describe('native hero power and Equipment are independent', () => {
     let s2 = run({ hand: [body('f', 'e3_frank')], board: [body('t', 'sandbag')] });
     s2 = play(s2, 'f', 1);
     s2 = { ...s2, heroReady: false }; // as a used hero power leaves it
-    expect(equipmentUsesLeft(s2), 'the Equipment allowance is its own budget').toBe(1);
+    expect(equipmentUsesLeft(s2), 'the Equipment charge is its own budget').toBe(1);
   });
 });
 
@@ -597,20 +652,54 @@ describe('holding TWO Equipment', () => {
     const gold = s.embers;
     s = act(s, { type: 'selectEquipment', equipmentId: 'titan_hammer' });
     expect(s.embers, 'swapping costs nothing').toBe(gold);
-    expect(equipmentUsesLeft(s), 'and spends no allowance').toBe(1);
+    expect(equipmentUsesLeft(s), 'and spends no charge').toBe(1);
     s = activate(s, 't');
     expect(statsOf(s, 't'), 'the HAMMER fired, not Bloodpot').toEqual([50, 50]);
     expect(s.embers, 'at the Hammer\u2019s cost, not Bloodpot\u2019s').toBe(gold - 3);
   });
 
-  it('the shared allowance is spent by EITHER — one activation between them', () => {
+  it('EACH has its own charge — both can be activated once per turn (owner ruling 2026-09-11)', () => {
     let s = both();
     s = activate(s, 't'); // Bloodpot
-    expect(equipmentUsesLeft(s)).toBe(0);
+    expect(equipmentUsesLeft(s), 'Bloodpot is spent').toBe(0);
+    expect(equipmentChargesOf(s, 'titan_hammer'), 'the Hammer is NOT').toBe(1);
     s = act(s, { type: 'selectEquipment', equipmentId: 'titan_hammer' });
-    const stats = statsOf(s, 't');
+    expect(equipmentUsesLeft(s), 'the slot now reads the Hammer\u2019s charge').toBe(1);
     s = activate(s, 't');
-    expect(statsOf(s, 't'), 'the Hammer cannot fire on a spent allowance').toEqual(stats);
+    expect(statsOf(s, 't'), 'the Hammer fired on its own charge').toEqual([50, 50]);
+    expect(equipmentUsesLeft(s)).toBe(0);
+    expect(equipmentChargesOf(s, 'bloodpot'), 'and Bloodpot is still spent').toBe(0);
+  });
+
+  it('a spent Equipment does not block the other, and neither can fire twice on its own', () => {
+    let s = both();
+    s = activate(s, 't');
+    const gold = s.embers;
+    s = activate(s, 't');
+    expect(s.embers, 'Bloodpot refused a second use').toBe(gold);
+    s = act(s, { type: 'selectEquipment', equipmentId: 'titan_hammer' });
+    s = activate(s, 't');
+    expect(s.embers, 'the Hammer fired').toBe(gold - 3);
+    s = activate(s, 't');
+    expect(s.embers, 'and cannot fire again').toBe(gold - 3);
+  });
+
+  it('the shared pool shows on EVERY Equipment, and spending it through one un-boosts them all', () => {
+    let s = both();
+    s.equipment!.bonusActivations = 1; // one Charger
+    expect(equipmentChargesOf(s, 'bloodpot'), 'Bloodpot reads 2').toBe(2);
+    expect(equipmentChargesOf(s, 'titan_hammer'), 'the Hammer reads 2').toBe(2);
+    s = activate(s, 't'); // Bloodpot draws from the POOL first
+    expect(equipmentPool(s), 'the pool is gone').toBe(0);
+    expect(equipmentChargesOf(s, 'bloodpot'), 'Bloodpot drops to its own 1').toBe(1);
+    expect(equipmentChargesOf(s, 'titan_hammer'), 'and so does the Hammer — the pool was shared').toBe(1);
+    s = activate(s, 't'); // Bloodpot again, on its own charge
+    expect(equipmentChargesOf(s, 'bloodpot')).toBe(0);
+    expect(equipmentChargesOf(s, 'titan_hammer'), 'the Hammer still has its own').toBe(1);
+    s = act(s, { type: 'selectEquipment', equipmentId: 'titan_hammer' });
+    s = activate(s, 't');
+    expect(statsOf(s, 't')).toEqual([50, 50]);
+    expect(equipmentChargesOf(s, 'titan_hammer')).toBe(0);
   });
 
   it('the rebuild restores the LAST USED one, not the left-most', () => {

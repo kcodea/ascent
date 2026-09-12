@@ -140,6 +140,23 @@ describe('Stellar Chorus — +2/+2, improved by +3/+3 per spell of ANY kind cast
     v = play(v, 'sp', { targetUid: 't' } as Partial<Action>);
     expect(stats(v.board.find((c) => c.uid === 't')!)).toEqual([7, 7]);
   });
+
+  it('spell power folds into the BASE and into EVERY per-spell step (owner 2026-09-11), and the text prints both greened plus the live total', () => {
+    // +1/+1 spell power, two spells already cast: (2+1) + 2 × (3+1) = +11/+11 — not (2+1) + 2 × 3 = +9.
+    let s = run({ board: [body('t', 'stray')], hand: [spell('sp', 'stellarchorus')], spellsThisTurn: 2, spellBonus: { attack: 1, health: 1 } });
+    const before = stats(s.board.find((c) => c.uid === 't')!);
+    s = play(s, 'sp', { targetUid: 't' } as Partial<Action>);
+    const after = stats(s.board.find((c) => c.uid === 't')!);
+    expect([after[0] - before[0], after[1] - before[1]]).toEqual([11, 11]);
+    const t = spellDisplayText('stellarchorus', 1, 0, 1, 0, 0, 0, { anySpellsThisTurn: 2 });
+    expect(t).toContain('{{+3/+3}}');   // the base, greened
+    expect(t).toContain('{{+4/+4}}');   // the per-spell step, greened
+    expect(t).toContain('{{Now +11/+11.}}');
+    // No power: the printed base and step stand un-greened; the total still reads live.
+    const plain = spellDisplayText('stellarchorus', 0, 0, 0, 0, 0, 0, { anySpellsThisTurn: 2 });
+    expect(plain).not.toContain('{{+2/+2}}');
+    expect(plain).toContain('{{Now +8/+8.}}');
+  });
 });
 
 describe('Split Decision — Choose One: Discover a minion, or Discover a Shop spell', () => {

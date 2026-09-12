@@ -73,6 +73,11 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Card Change',
+        text: 'Stellar Chorus: spell power now improves the per-spell bonus as well as the base, and the card in your hand shows the exact total it will grant.',
+        details: ['With +1 spell power and two spells cast this turn it now grants (2+1) + 2 × (3+1) = +11/+11. Both printed numbers turn green when spell power applies, and the "Now +X/+Y" total appears on the hand card, not only in the shop.'],
+      },
+      {
+        category: 'Card Change',
         text: "Kaura L'roft's Equipment is now called Dual Rubetta's (was Dueling Rubetta's). Same effect, new name on the card and the Equipment.",
       },
       {

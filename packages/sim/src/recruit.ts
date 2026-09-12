@@ -7471,9 +7471,14 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  kind cast this turn BEFORE it (the tally is read mid-resolution, before this cast is noted). Spell power folds
    *  into the base; the per-spell step is flat. `self` is the target (the aimed-cast contract). */
   spellBuffTargetPerSpellsCast: (ctx, self, params) => {
+    // Owner ruling 2026-09-11: "the improve should ALSO increase from spell power" — spell power folds into the
+    // base AND into every per-spell step (Hoardflame's / Crescendo's rule for a rate), so under +1 power with two
+    // spells already cast the grant is (2+1) + 2 × (3+1) = +11, not (2+1) + 2 × 3 = +9.
     const n = anySpellsCastThisTurn(ctx.state);
-    const a = num(params.attack, 2) + spellAttackBonus(ctx.state) + num(params.perAttack, 3) * n;
-    const h = num(params.health, 2) + spellHealthBonus(ctx.state) + num(params.perHealth, 3) * n;
+    const bonusA = spellAttackBonus(ctx.state);
+    const bonusH = spellHealthBonus(ctx.state);
+    const a = num(params.attack, 2) + bonusA + (num(params.perAttack, 3) + bonusA) * n;
+    const h = num(params.health, 2) + bonusH + (num(params.perHealth, 3) + bonusH) * n;
     addBuff(self, str(params._source) || 'Stellar Chorus', a, h);
   },
   /** Split Decision, branch 1: Discover a minion from the standard pool (every tier up to yours). */
@@ -8635,15 +8640,22 @@ export function spellDisplayText(cardId: string, bonusA: number, escalation = 0,
   // Hoardflame: +4/+4 base + spell power + 1/+1 per Dragon PLAYED this turn. This branch used to return before
   // the generic spell-power handling below, so a Spellbinder's bonus never showed (owner report 2026-07-26) —
   // it printed the base rate while the cast granted something else.
-  // Stellar Chorus (set 3): base greens with spell power; once a spell has been cast this turn the card appends the
-  // CURRENT total it will grant (Patch Job's shape) — base + per-spell step × spells of any kind cast so far.
+  // Stellar Chorus (set 3): BOTH printed numbers green with spell power — the base and the per-spell step (owner
+  // 2026-09-11: the improve scales with power too, exactly as the cast computes it) — and once a spell has been
+  // cast this turn the card appends the CURRENT total it will grant (Patch Job's shape): (base+P) + (step+P) × n.
+  // The hand chain used to starve `anySpellsThisTurn` (Recruit's hand `live` object), so the card you were about
+  // to cast never showed its total — fixed alongside (owner report 2026-09-11: "not showing the true value").
   if (def.id === 'stellarchorus') {
     const eff = def.effects.find((e) => e.do === 'spellBuffTargetPerSpellsCast');
     const p = eff?.params as { attack?: number; health?: number; perAttack?: number; perHealth?: number } | undefined;
     const baseA = Number(p?.attack ?? 2), baseH = Number(p?.health ?? 2), perA = Number(p?.perAttack ?? 3), perH = Number(p?.perHealth ?? 3);
-    let t = bonusA > 0 || bonusH > 0 ? def.text.replace(`+${baseA}/+${baseH}`, `{{+${baseA + bonusA}/+${baseH + bonusH}}}`) : def.text;
+    let t = def.text;
+    if (bonusA > 0 || bonusH > 0) {
+      t = t.replace(`**+${baseA}/+${baseH}**`, `**{{+${baseA + bonusA}/+${baseH + bonusH}}}**`)
+        .replace(`**+${perA}/+${perH}**`, `**{{+${perA + bonusA}/+${perH + bonusH}}}**`);
+    }
     const n = extra?.anySpellsThisTurn ?? 0;
-    if (n > 0) t = `${t} {{Now +${baseA + bonusA + perA * n}/+${baseH + bonusH + perH * n}.}}`;
+    if (n > 0) t = `${t} {{Now +${baseA + bonusA + (perA + bonusA) * n}/+${baseH + bonusH + (perH + bonusH) * n}.}}`;
     return t;
   }
   // Crescendo (set 3): "+1/+1 for each Spirit you played this turn" — spell power scales the per-Spirit rate

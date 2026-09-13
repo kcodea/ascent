@@ -10,6 +10,9 @@
  *   · WORD NUMERALS — "summon two 1/1 Pups" is a printed 2. The parser reads one–twelve.
  *   · NAMED-SPELL CASTS — a minion that casts a named spell may name the spell and let its hover-preview
  *     carry the value (owner ruling 2026-07-15). Factory ids containing 'Cast'/'cast' are that family.
+ *   · KEYWORD PILLS — a card that names a glossary KEYWORD may let the keyword's pill carry the number
+ *     (owner ask 2026-09-12: Nova Herald reads "Collapse your Starform." and the Collapse pill says "3 random
+ *     friendly Celestials each gain half its stats"). Pinned per (card, param) in `PILL_CARRIED`, never by family.
  *
  * Zero misses as of 2026-08-26. A new card whose param says 4 while its text says 3 fails here at authoring
  * time, with both numbers in the message.
@@ -34,6 +37,10 @@ function printedNumbers(text: string): Set<number> {
 
 /** The named-spell-cast family: the spell's hover-preview carries the value (owner ruling 2026-07-15). */
 const isNamedCast = (factory: string): boolean => /Cast|^cast/.test(factory);
+/** The keyword-pill family (see the header): `cardId: [param keys]` whose number the pill prints. */
+const PILL_CARRIED: Record<string, readonly string[]> = {
+  ce3_novaherald: ['count'], // Collapse — "3 random friendly Celestials", printed by the Collapse pill
+};
 
 describe('Doc Bot — printed numbers match effect params', () => {
   it('every effect magnitude >1 appears in the card text (word numerals count; named casts exempt)', () => {
@@ -47,6 +54,7 @@ describe('Doc Bot — printed numbers match effect params', () => {
         for (const k of PARAM_KEYS) {
           const v = e.params?.[k];
           if (typeof v !== 'number' || v <= 1) continue; // 1 is written "a"/"an" more often than "1"
+          if (PILL_CARRIED[c.id]?.includes(k)) continue;
           checked++;
           if (!nums.has(v)) misses.push(`${c.id}: ${e.do}.${k}=${v} but the text never prints ${v} — "${c.text}"`);
         }

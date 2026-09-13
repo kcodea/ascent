@@ -5,7 +5,7 @@ import type { CardView } from './Card';
 import {
   abhorrentHorrorText, ascendProgressText, asymSummonBuffText, cadenceProgressText, cardTypeTallyText, chefRaagText, clingProgressText,
   cryptDrakeText, drunkenOafText, karthusText, engraveTallyText, escalatingCastText, guelProgressText, herzogText, hunterText, monkProgressText, packLeaderText, runescaleText, scTribeBuffPerPlayedText,
-  archivistText, ashenHeirText, chooseBothText, attackGrantImproveText, castSpellPerGoldText, copyCastSpellText, runeModifiedNote, type RuneTextFlags, improvingSummonText, perCardPlayedText, rougeRogueText, perGoldSpentText, rallySpreadText, shopBuffImproveText, spellThresholdText, ritualistText, sergeantText, soulsmanText, squirlScoutText, conductorText, stepProgress, sporebatText, stewardText, thundeerText, summonBuffText, summonEscalatingText, summonFlatZooText, summonImproveText, soldProgressText, summitTierText, summonScalingText, tallyBuffText,
+  archivistText, ashenHeirText, chooseBothText, attackGrantImproveText, castSpellPerGoldText, copyCastSpellText, runeModifiedNote, type RuneTextFlags, improvingSummonText, perCardPlayedText, rougeRogueText, perGoldSpentText, rallySpreadText, shopBuffImproveText, spellThresholdText, ritualistText, sergeantText, soulsmanText, squirlScoutText, conductorText, stepProgress, sporebatText, stewardText, thundeerText, summonBuffText, summonEscalatingText, summonFlatZooText, summonImproveText, soldProgressText, summitTierText, summonScalingText, tallyBuffText, shootingStarText,
   ancientWandererText, musterTrooperText,
   taughtSpellText, trailForagerText, transformProgressText, undeadBuyAtkText, watcherText, withImpStats, spiritText } from './cardText';
 
@@ -152,6 +152,7 @@ export function liveCardText(cardId: string, p: LiveTextParams): { text: string;
             abhorrentHorrorText(c.id, p.fodderConsumed, p.golden) ??
             spiritText(c.id, p.golden, { revelerX: p.revelerX, spiritDiscount: p.spiritDiscount, spiritTally: p.spiritTally, spiritsPlayed: p.spiritsPlayed, onBoard: p.onBoard }) ?? // set 3 Spirits: the Reveler value, tallies, Spirits played
             summonScalingText(c.id, p.spellsThisTurn * (p.improveReps ?? 1), p.golden) ?? // Spirit Worgen: recruit-only per-play scaling (per-spell part ×2 under Rune of Mastery)
+            shootingStarText(c.id, p.spellsThisTurn, p.golden) ?? // Shooting Star (set 3 Celestials): this shop +3/+3 × spells cast this turn
             chefRaagText(c.id, p.golden, p.impAura) ?? // Chef Raag: live Imp-Aura grant (floored at +1/+1)
             runescaleText(c.id, p.golden, p.spellProgress ?? 0) ??
             scTribeBuffPerPlayedText(c.id, p.golden, p.playedThisTurn) ??

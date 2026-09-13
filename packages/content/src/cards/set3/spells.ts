@@ -159,4 +159,25 @@ export const SET3_SPELLS: readonly CardDef[] = [
     effects: [{ on: 'cast', do: 'spellBuffAllPerTribePlayed', params: { tribe: 'spirit', attack: 1, health: 1 } }],
     text: 'Give your minions **+1/+1** for each **Spirit** you played this turn.',
   },
+  {
+    // T3 (Celestial, offered only while Celestial is a run tribe): the Starform eats the highest-HEALTH Shop minion
+    // (ties -> the right-most, like Accretion Warden's tier pick; no Starform -> the consume is skipped) and you
+    // get a Star Crash EITHER WAY (owner spec 2026-09-12 left the no-Starform case open; assumed: the grant is
+    // unconditional, only the consume needs the token). Untargeted, so no cast multiplier reaches it (Yazzus);
+    // a Comet / Nimbus charge repeats the whole cast (another consume + another Star Crash), as for any spell.
+    id: 'accretion',
+    name: 'Accretion',
+    tribe: 'celestial',
+    tier: 3,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    cost: 2,
+    effects: [
+      { on: 'cast', do: 'spellStarformConsumeShop', params: { pick: 'highestHealth' } },
+      { on: 'cast', do: 'spellGrantSpell', params: { spellId: 'starcrash', count: 1 } },
+    ],
+    text: 'Your **Starform** consumes the highest-Health minion in the Shop. Get a **Star Crash**.',
+  },
 ];

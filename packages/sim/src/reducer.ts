@@ -24,6 +24,8 @@ import { handCap, mixSeed, reservedHandSlots, TAG, henchmanOffer, type Action, t
 import { alignmentsOf } from './alignment';
 import { RUNE_DUP_SWEETENER, RUNE_DUP_UNIQUE, forgeFilteredDuplicate, runeStacksOf } from './runeDup';
 import { spellFizzles } from './spellFizzle';
+import { dismissStarform, fireStarformGainRemainder, starformFollowShopBuff, starformSnapshot, starformSpellAimsToken, starformStandIn, withStarformPinned } from './starform';
+import { fireOnBuyWatchers } from './recruit';
 import { MATCHMAKING } from './matchmaking';
 
 /** Spend `amount` Gold and fire any `goldSpent` payoffs (Acid, Banksly) — the single Gold-spend chokepoint
@@ -243,8 +245,12 @@ export interface OfferBuyPrice {
   tradeInOff: number;
   spiritOff: number;
   giftMinionOff: number;
+  /** Thymepiece's clock-window discount ("all cards cost −N for 8 seconds"), while the window is open. */
+  windowOff: number;
 }
-export function offerBuyPrice(s: RunState, offer: { cardId: string; cost?: number }): OfferBuyPrice {
+export function offerBuyPrice(s: RunState, offer: { cardId: string; cost?: number; starform?: true }): OfferBuyPrice {
+  // THE STARFORM costs 0 — buying it dismisses it (owner rule 5). No discount is consulted or spent on it.
+  if (offer.starform) return { cost: 0, freeBuy: false, cadenceOff: 0, tradeInOff: 0, spiritOff: 0, giftMinionOff: 0, windowOff: 0 };
   // "Freedom" rift OR Fi's First Pick quest: the FIRST minion bought each turn is free (overriding every
   // price source below). ONE shared spend-marker, so holding both is still one freebie per turn.
   const freeBuy = (s.rift === 'freedom' || !!s.questFreeFirstBuy) && !s.freeBuyUsedThisTurn;
@@ -258,8 +264,11 @@ export function offerBuyPrice(s: RunState, offer: { cardId: string; cost?: numbe
   // (All-types matches any armed tribe; −1 per copy held — owner 2026-08-27).
   const tiDef = s.tradeInTribe ? CARD_INDEX[offer.cardId] : undefined;
   const tradeInOff = !freeBuy && s.runeTradeIn && s.tradeInTribe && defIsTribe(tiDef, s.tradeInTribe) ? runeStacksOf(s, 'rune_trade_in') : 0;
-  const cost = freeBuy ? 0 : Math.max(0, (offer.cost ?? heroOfferPrice(s, offer) ?? s.minionCostOverride ?? minionCostOf(s)) - cadenceOff - tradeInOff - spiritOff - giftMinionOff);
-  return { cost, freeBuy, cadenceOff, tradeInOff, spiritOff, giftMinionOff };
+  // Set 3 Dwarves — Thymepiece: "all cards cost −N Gold for the next 8 seconds" (a clock window the UI's tick
+  // closes via `discountWindowExpired`). Every non-held CARD, spells included (`spellCostReduction`).
+  const windowOff = !freeBuy ? (s.cardDiscountWindow?.amount ?? 0) : 0;
+  const cost = freeBuy ? 0 : Math.max(0, (offer.cost ?? heroOfferPrice(s, offer) ?? s.minionCostOverride ?? minionCostOf(s)) - cadenceOff - tradeInOff - spiritOff - giftMinionOff - windowOff);
+  return { cost, freeBuy, cadenceOff, tradeInOff, spiritOff, giftMinionOff, windowOff };
 }
 
 export function minionCostOf(s: RunState): number {
@@ -328,11 +337,11 @@ function appendDominantTypeOffer(s: RunState): void {
     s.shop.push({ uid: `s${s.uidSeq++}`, cardId: pick.id });
     return;
   }
-  // Full row — replace the right-most MINION offer.
+  // Full row — replace the right-most MINION offer (never the Starform: it holds its slot, rule 3).
   let idx = -1;
   for (let i = s.shop.length - 1; i >= 0; i--) {
     const d = CARD_INDEX[s.shop[i]!.cardId];
-    if (d && !d.spell && !d.ruby) { idx = i; break; }
+    if (d && !d.spell && !d.ruby && !s.shop[i]!.starform) { idx = i; break; }
   }
   if (idx < 0) return; // a row of nothing but spells — nothing to replace, and still no overflow
   returnToPool(s, s.shop[idx]!.cardId);
@@ -349,11 +358,11 @@ function upgradeRightmostOffer(s: RunState): void {
   const tgt = Math.min(s.tier + 1, cap);
   const pool = poolOf(s).buyable.filter((c) => !c.spell && !c.ruby && c.tier === tgt);
   if (pool.length === 0) return;
-  // The right-most MINION offer (spells/Rubies in the row are not minions).
+  // The right-most MINION offer (spells/Rubies in the row are not minions; the Starform is never replaced).
   let idx = -1;
   for (let i = s.shop.length - 1; i >= 0; i--) {
     const d = CARD_INDEX[s.shop[i]!.cardId];
-    if (d && !d.spell && !d.ruby) { idx = i; break; }
+    if (d && !d.spell && !d.ruby && !s.shop[i]!.starform) { idx = i; break; }
   }
   if (idx < 0) return;
   const rng = makeRng(s.rngCursor);
@@ -398,7 +407,7 @@ function fillBargainBin(s: RunState): void {
   const rng = makeRng(s.rngCursor);
   s.shop = s.shop.map((o) => {
     const d = CARD_INDEX[o.cardId];
-    if (!d || d.spell || d.ruby) return o;
+    if (!d || d.spell || d.ruby || o.starform) return o; // the Starform is never binned (rule 3)
     const pick = pool[rng.int(pool.length)]!;
     return { uid: `s${s.uidSeq++}`, cardId: pick.id, cost: 1, sellZero: true };
   });
@@ -830,6 +839,10 @@ export function reduce(state: RunState, action: Action): RunState {
       if (handBeforeUids.has(c.uid) || alreadyFired.has(c.uid)) continue;
       fireOnGainCard(next, c.cardId);
     }
+    // STARFORM (rule 8): any growth this action gave the token that was not already dispatched by `buffStarform`
+    // / its own consume (a Fortify aimed at it, Apples, a slot enchant on a roll) fires `starformGained` here —
+    // the same boundary-diff shape as the hand diff above, for the same reason: growth has many writers.
+    fireStarformGainRemainder(next, starformSnapshot(state));
   }
   // onGainAttack reactors (Hunter — "when this gains Attack, give your minions +Health") fire whenever a
   // recruit action raises a BOARD minion's Attack, from ANY source (Fortify, spells, tribe Battlecries,
@@ -1207,6 +1220,8 @@ function reduceCore(state: RunState, action: Action): RunState {
   if (state.phase === 'gameover' || state.phase === 'victory') return state;
   // Nothing owed — a late or duplicate resolve (the UI timer racing a click) is a free no-op, not a clone.
   if (action.type === 'resolveShopDeath' && !state.pendingDeath) return state;
+  // No window open — a late or duplicate expiry tick (Thymepiece) is a free no-op, not a clone.
+  if (action.type === 'discountWindowExpired' && !state.cardDiscountWindow) return state;
 
   // Recruit actions apply only in the recruit phase; `settleCombat` / `resolveCombat` only in combat.
   if (state.phase !== 'recruit' && action.type !== 'resolveCombat' && action.type !== 'settleCombat') return state;
@@ -1290,8 +1305,10 @@ function reduceCore(state: RunState, action: Action): RunState {
   // is what the FX wants, and leaves multi-consume actions (Feastmaster Vhal's two neighbours) animating fully.
   s.fodderEaten = [];
   s.shopEaten = []; // Set 2's shop-minion consume swirl — same per-action contract, separate channel
+  s.starformFx = []; // Set 3's Starform pulls (consume-shop / consumed / collapse) — same per-action contract
   s.gainCardFiredUids = []; // per-action: which hand arrivals already fired onGainCard (see the hand diff in `reduce`)
   s.gainAttackFiredUids = []; // per-action: Attack gains already dispatched inside the action (per-card EoT waves)
+  s.starformGainFired = undefined; // per-action: Starform growth already dispatched as `starformGained` (see the diff in `reduce`)
   s.equipmentSpellCasts = []; // per-action: spells an Equipment activation cast (the Keg's Ale) — for the use cue
 
   switch (action.type) {
@@ -1341,6 +1358,33 @@ function reduceCore(state: RunState, action: Action): RunState {
         // nothing for any spell bought from the row (owner report 2026-07-24: buying Spirit Fire didn't proc).
         applySpellBought(s, card.id);
         keshiCrownBuy(s, card); // Keshi: same for a spell bought out of the minion row
+        return s;
+      }
+      // THE STARFORM (owner rule 5): buying it for 0 Gold DISMISSES it — nothing enters the hand, nothing
+      // returns to the pool, no triple, no gild, no dupe / Transcription copy (there is no body to copy), no
+      // Restocking refill (nothing left the pool). It still COUNTS as a minion bought: the board's `onBuy`
+      // watchers hear it (with a Celestial stand-in as the bought body), and the buy tallies — `cardsBought` /
+      // quest buy objectives / `cardsBoughtThisTurn` (the post-action block in `reduce`, keyed off the action),
+      // Juggler, Gorr, Keshi, Ayse's Enchanted count, Cadence's spell-discount arming, Fried Circuits — all tick
+      // exactly as for a paid buy. The free first buy is NOT spent (the price was already 0).
+      if (offer.starform) {
+        const standIn = starformStandIn(s, offer);
+        dismissStarform(s); // removes the offer + fires `starformRemoved('dismiss')` with its full stats
+        ciaBuyEnchanted(s, offer);
+        if (s.runeCadence) s.cadenceSpellOff = runeStacksOf(s, 'rune_cadence');
+        if (s.friedCircuitsStepAtk || s.friedCircuitsStepHp) {
+          s.friedCircuitsBuys = (s.friedCircuitsBuys ?? 0) + 1;
+          const aAtk = (s.friedCircuitsStepAtk ?? 0) * s.friedCircuitsBuys;
+          const aHp = (s.friedCircuitsStepHp ?? 0) * s.friedCircuitsBuys;
+          for (const o of s.shop) if (defIsTribe(CARD_INDEX[o.cardId], 'mech')) addOfferBuff(o, 'Fried Circuits', aAtk, aHp);
+        }
+        fireOnBuyWatchers(s, standIn);
+        drakkoQuestBuy(s, card);
+        chronosQuestBuy(s, card);
+        tiffBuyDiscount(s, card);
+        gorrQuestBuy(s, card);
+        jugglerBuy(s);
+        keshiCrownBuy(s, card);
         return s;
       }
       // Displacement: a minion stashed in the tavern (held) is restored INTACT on buy — all buffs/progression
@@ -1826,7 +1870,15 @@ function reduceCore(state: RunState, action: Action): RunState {
           if (boardTarget && def.effects.some((e) => e.do === 'spellDisplace') &&
               !s.shop.some((o) => !CARD_INDEX[o.cardId]?.spell)) return state;
           // `any` spells (Shatter, Front to Back) can also land on a tavern offer — buff it pre-buy.
-          const offer = def.target === 'any' ? s.shop.find((o) => o.uid === action.targetUid) : undefined;
+          // THE STARFORM (owner 2026-09-12): a friendly CELESTIAL-aimed spell (Star Crash — `targetTribe: 'celestial'`)
+          // may also be aimed at the Starform offer: the token is a friendly Celestial by design. The cast grows it
+          // through `buffStarform` (Twin Star hears it, the ledger names the spell); Star Crash's secondary half
+          // still lands on a random BOARD minion. Only the token, and only the tribe's own spells: every other
+          // offer is not "friendly", and a plain `friendly` spell (a gild, a destroy, a transform) keeps its board-
+          // only aim — rule 5 (never gilded / transformed) stays whole. `starformSpellAimsToken` is the one gate the
+          // UI's aim reads too, so the reticle and the reducer cannot disagree.
+          const starformTarget = starformSpellAimsToken(def) ? s.shop.find((o) => o.uid === action.targetUid && o.starform) : undefined;
+          const offer = def.target === 'any' ? s.shop.find((o) => o.uid === action.targetUid) : starformTarget;
           if (boardTarget) for (let n = 0; n < casts; n++) castSpell(s, def, boardTarget);
           else if (offer) {
             for (let n = 0; n < casts; n++) castSpellOnOffer(s, def, offer);
@@ -2497,7 +2549,9 @@ function reduceCore(state: RunState, action: Action): RunState {
         ? { ...def, effectId: eqBranch.effectId, params: eqBranch.params, gildedParams: eqBranch.gildedParams }
         : def;
       const fireSelf = eqBranch ? { ...self, golden: false } : self;
-      if (!fireEquipmentTriggers(s, fireDef, granted.version, fireSelf, target, triggers)) return state;
+      // The turn clock's reading rides the action (the store fills it from `turnClock.get()`), so a
+      // clock-window Equipment (Thymepiece) can anchor to it without the engine ever reading a clock.
+      if (!fireEquipmentTriggers(s, fireDef, granted.version, fireSelf, target, triggers, action.clockSeconds)) return state;
       // ONE use cue per ACTIVATION, not per trigger — the handoff's rule for repeats is that they "communicate
       // repetition without replaying the full animation", so a three-trigger Bloodpot is one travel, not three.
       stampEquipFx(s, {
@@ -2508,6 +2562,12 @@ function reduceCore(state: RunState, action: Action): RunState {
       checkTriples(s); // an Equipment that summons or grants can still complete a triple
       return s;
     }
+
+    case 'discountWindowExpired':
+      // Thymepiece's clock window ran out (the UI's clock tick crossed `untilClock`). The reducer never reads a
+      // clock — the tick DISPATCHES, so a paused clock is a paused window and a recording replays the expiry.
+      s.cardDiscountWindow = undefined;
+      return s;
 
     case 'resolveShopDeath':
       settlePendingDeath(s);
@@ -2890,6 +2950,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         if (!src) return state; // must target a friendly board minion or a Shop offer
         const def = CARD_INDEX[src.cardId];
         if (!def || def.spell || def.ruby) return state; // minions only
+        if (!card && s.shop[shopIdx]!.starform) return state; // the Starform leaves only by consume / collapse / dismiss (rule 5)
         returnToPool(s, def.id); // the archived body goes back to the shared pool, like an un-bought reroll
         if (card) s.board = s.board.filter((c) => c.uid !== card.uid);
         else s.shop.splice(shopIdx, 1);
@@ -2946,7 +3007,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         // Dropped offers go back to the shared pool, exactly as an un-bought reroll would return them.
         for (const offer of s.shop) {
           const def = CARD_INDEX[offer.cardId];
-          if (!def) continue;
+          if (!def || offer.starform) continue; // the Starform is never bought into hand (rule 5) — it stays
           if (s.hand.length >= handCap(s)) { returnToPool(s, offer.cardId); continue; }
           s.hand.push({
             uid: `b${s.uidSeq++}`, cardId: def.id, tribe: def.tribe,
@@ -2954,7 +3015,7 @@ function reduceCore(state: RunState, action: Action): RunState {
             keywords: [...def.keywords], golden: offer.golden ?? false,
           });
         }
-        s.shop = [];
+        s.shop = s.shop.filter((o) => o.starform);
         refreshTavern(s);
         applyShopRefreshed(s);
         // Wishbone: take the FRESHLY ROLLED shop too (owner ruling — "2 consecutive shops"), then roll again
@@ -2962,7 +3023,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         for (let r = 1; r < reps; r++) {
           for (const offer of s.shop) {
             const d = CARD_INDEX[offer.cardId];
-            if (!d) continue;
+            if (!d || offer.starform) continue; // (rule 5) the Starform stays
             if (s.hand.length >= handCap(s)) { returnToPool(s, offer.cardId); continue; }
             s.hand.push({
               uid: `b${s.uidSeq++}`, cardId: d.id, tribe: d.tribe,
@@ -2970,7 +3031,7 @@ function reduceCore(state: RunState, action: Action): RunState {
               keywords: [...d.keywords], golden: offer.golden ?? false,
             });
           }
-          s.shop = [];
+          s.shop = s.shop.filter((o) => o.starform);
           refreshTavern(s);
           applyShopRefreshed(s);
         }
@@ -3021,8 +3082,10 @@ function reduceCore(state: RunState, action: Action): RunState {
         const foe = s.lastCombat?.initial.enemy ?? [];
         const ids = foe.map((m) => m.cardId).filter((id) => { const d = CARD_INDEX[id]; return d && !d.spell && !d.ruby; });
         if (ids.length === 0) return state; // no fight yet (turn 1) → no charge spent
-        for (const offer of s.shop) returnToPool(s, offer.cardId);
-        s.shop = ids.map((cardId) => ({ uid: `s${s.uidSeq++}`, cardId }));
+        withStarformPinned(s, () => { // the Starform keeps its slot through a Membrance restock (rule 3)
+          for (const offer of s.shop) returnToPool(s, offer.cardId);
+          s.shop = ids.map((cardId) => ({ uid: `s${s.uidSeq++}`, cardId }));
+        });
         applyShopRefreshed(s);
       } else if (power.kind === 'soulkeeper') {
         // Underdweller: Discover among the minions that died last combat — BOTH sides (owner ruling
@@ -3047,6 +3110,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         if (shopIdx < 0) return state;
         const def = CARD_INDEX[s.shop[shopIdx]!.cardId];
         if (!def || def.spell || def.ruby) return state; // minions only
+        if (s.shop[shopIdx]!.starform) return state; // a Discover never replaces the Starform — it stays put (rule 5)
         // Wishbone: the power happening TWICE steps the tier twice (tier + 2) rather than opening a second
         // Discover — the pick REPLACES the targeted offer, so a second one would have no offer to land on.
         const tgt = Math.min(def.tier + reps, hasTier7Access(s) ? 7 : 6);
@@ -3225,6 +3289,9 @@ function reduceCore(state: RunState, action: Action): RunState {
       // `kept` marks now, going into combat, so the first refresh AFTER combat sweeps the offer (the discount
       // rides the offer while it lasts). Recast Layaway next turn to keep it again (owner ruling 2026-07-23).
       for (const o of s.shop) if (o.kept) o.kept = false;
+      // Thymepiece's clock window ends with the shop: the clock stops in combat, so an unexpired window would
+      // otherwise sit open until the next turn's first tick. (The turn flip clears it again, belt and braces.)
+      s.cardDiscountWindow = undefined;
       // An unresolved targeted Battlecry (the player ended the turn mid-pick) auto-resolves on the
       // carry — never strand a played Toxin Tender without its grant.
       if (s.pendingTarget?.deferredPlay) {
@@ -4164,7 +4231,7 @@ function settleCombat(s: RunState, result: CombatResult): void {
     // Provenance: the fight says who raised it (Rune of Reinvestment, Rune of Remains, a Demon Horse…); a result
     // without the per-source split (an older replay) is credited as one "Combat" line.
     const sources = result.playerTavernBuyGainSources ?? { Combat: result.playerTavernBuyGain };
-    for (const [name, v] of Object.entries(sources)) creditShopBuffSource(s, name, v.attack, v.health);
+    for (const [name, v] of Object.entries(sources)) { creditShopBuffSource(s, name, v.attack, v.health); starformFollowShopBuff(s, v.attack, v.health, name); } // the Starform banks it too (rule 6)
   }
   if (result.playerRubyBonusGain && (result.playerRubyBonusGain.attack > 0 || result.playerRubyBonusGain.health > 0)) {
     const g = result.playerRubyBonusGain;
@@ -4619,9 +4686,6 @@ function advanceCombat(s: RunState): void {
   // Hoarder's Battlecry banks bonus Gold for this turn (consumed now).
   s.embers = s.maxEmbers + (s.maxGoldBonus ?? 0) + boardManaBonus(s) + (s.bonusEmbersNextTurn ?? 0);
   s.bonusEmbersNextTurn = 0;
-  // Thymepiece: the seconds banked last turn become this turn's clock bonus (same one-turn shape as the Gold).
-  s.bonusTurnSeconds = s.bonusTurnSecondsNextTurn ?? 0;
-  s.bonusTurnSecondsNextTurn = 0;
   s.heroReady = true;
   s.heroReady2 = true; // Void's second power recharges on the same clock
   s.heroUsesThisTurn = 0; // Fibbsy's twice-per-turn budget refills
@@ -4726,6 +4790,7 @@ function advanceCombat(s: RunState): void {
   s.spellCostOffTurn = 0;
   s.minionCostOffTurn = 0;
   s.spiritDiscount = 0; // Festival Treasurer: "this turn"
+  s.cardDiscountWindow = undefined; // Thymepiece: an 8-second window never outlives the turn it opened in
   s.processionReturned = []; // Grand Procession: one return per Reveler type per turn
   s.handCopiedThisTurn = []; // the hand-summon mechanic's shop twin: one copy per hand card per turn
   s.dupeUsedThisTurn = false; // Dupes: the first-buy copy is a per-turn freebie
@@ -6681,8 +6746,10 @@ function refreshTavern(s: RunState, hold = false): void {
     // Spend ONE armed muster per refresh (a duplicate armed a second — owner one-shot ruling 2026-08-27).
     const armed = gateUses(s.runeMuster);
     s.runeMuster = armed > 1 ? armed - 1 : undefined;
-    for (const offer of s.shop) returnToPool(s, offer.cardId);
-    s.shop = s.board.map((c) => ({ uid: `s${s.uidSeq++}`, cardId: c.cardId })); // plain: no buffs, never golden
+    withStarformPinned(s, () => { // the Starform keeps its slot through a Muster (rule 3)
+      for (const offer of s.shop) returnToPool(s, offer.cardId);
+      s.shop = s.board.map((c) => ({ uid: `s${s.uidSeq++}`, cardId: c.cardId })); // plain: no buffs, never golden
+    });
     injectPendingTavern(s, hold);
     return;
   }

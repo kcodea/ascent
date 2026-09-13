@@ -82,6 +82,18 @@ export interface ShopCard {
    *  for the CURRENT shop phase — cleared at `faceOmen`, so the first refresh after combat sweeps it (recast
    *  Layaway to keep it again). Any `cost` reduction rides the offer while it lasts. */
   kept?: boolean;
+  /** THE STARFORM (set 3 Celestials, owner design 2026-09-12): this offer is the run's Starform token — a 1/1
+   *  Celestial that lives in the Shop, survives every refresh IN ITS OWN SLOT, costs 0 (buying it DISMISSES it),
+   *  and grows from shop buffs + consumes. Its whole accumulated total is BAKED onto `atk`/`hp` + `buffs` (the
+   *  run-wide shop channels are folded in as they happen, never read live), so `offerBuyStats` = base + atk/hp.
+   *  One per run at a time. Everything that moves it lives in `starform.ts`. */
+  starform?: true;
+  /** Starform latch (owner rule 4): the refresh-time buffs that have ALREADY landed on this token once — Market
+   *  Tormentor's right-most slot enchant (`tormentor`), Rune of the Embers' doubling (`embers`), the Display
+   *  Case's left-most enchant (`displayCase`), Veinstorm's per-refresh Ruby stamp (`veinstorm`). Each lands ONE
+   *  time on a Starform (the first refresh it sits in the slot) and never again on later refreshes. Play-time
+   *  right-most buffs (a Shout, a hero power aimed at the row) are unaffected. See `starformRefreshLand`. */
+  refreshLanded?: string[];
 }
 
 /** One source's contribution to a minion's recruit-phase buffs, accumulated for the inspect panel
@@ -595,12 +607,21 @@ export interface RunState {
   /** Extra Gold granted at the start of next turn (Hoarder's Battlecry / Safety Deposit Box / Robin's
    *  Spoils). Consumed when the next recruit turn's Gold is set, then cleared. Absent = 0. */
   bonusEmbersNextTurn?: number;
-  /** Set 3 — Thymepiece: extra SECONDS banked for the NEXT recruit turn's clock. Moved into `bonusTurnSeconds`
-   *  at the turn flip (beside the Gold bank above), then cleared. Absent = 0. */
-  bonusTurnSecondsNextTurn?: number;
-  /** Set 3 — Thymepiece: extra seconds on THIS turn's clock. The UI adds it to the wave's base time; the sim
-   *  never reads a clock, so this is pure hand-off state. Absent = 0. */
-  bonusTurnSeconds?: number;
+  /**
+   * Set 3 — Thymepiece (owner design 2026-09-12): "all cards cost −`amount` Gold for the next 8 seconds". A
+   * CLOCK-WINDOW discount on every shop CARD (minion offers, the spell slot, spell offers in the row — never
+   * the Shop upgrade or a refresh), floored at 0.
+   *
+   * The engine never reads wall time. The activation ACTION carries the turn clock's reading (`clockSeconds`,
+   * the UI's `turnClock.get()`), the factory stores `untilClock = clockSeconds − seconds`, and because the
+   * clock counts DOWN the window is live while `turnClock > untilClock`. Expiry is the `discountWindowExpired`
+   * ACTION, dispatched by the same UI tick loop that drives the clock — so whatever pauses the clock (a
+   * Discover, a Choose One, an aim, hero select, a frozen modal) pauses the window, and a replay carries both
+   * the activation's reading and the expiry as recorded actions. `untilClock: null` means the activation
+   * carried NO reading (a headless test, a legacy recording) → live until the turn ends. Cleared at the turn
+   * flip, on combat entry, and on a Continue whose saved clock is already past it (`deserialize`).
+   */
+  cardDiscountWindow?: { amount: number; untilClock: number | null };
   /** Set 2 — Mushy: a charge to copy the FIRST spell you cast on/after `activateWave` (= the wave
    *  AFTER the Echo fired, so "next turn" is exact whether it died in combat or was re-fired in recruit).
    *  `count` copies (golden 2, multiple Scalefeathers sum). Spent + cleared by that first cast. */
@@ -1151,6 +1172,16 @@ export interface RunState {
   shopEaten?: { uid: string; eaterUid: string; cardId: string; attack: number; health: number; gainA: number; gainH: number }[];
   /** Bumps each time a Shop minion is consumed — the UI keys its own animation off this. */
   shopEatenSeq: number;
+  /** Set 3 (Celestials) — the Starform's three pulls this action, for the authored `starform-pull` def (owner
+   *  2026-09-12). ONE per-action channel modelled on `shopEaten`: `consumeShop` = the token ate a Shop minion
+   *  (from the EATEN offer to the token — `consumeShopOffer` also records that meal on `shopEaten`, so the UI
+   *  lets THAT ghost fly and only swaps the def); `consumed` = a warband minion ate the token (Corona Devotee:
+   *  from the token to the body); `collapse` = Nova Herald (from the token to EACH receiving Celestial —
+   *  `toUids` lists every one, the UI fires one play per target). A dismiss buy and a Demon eating the token
+   *  emit NOTHING here (they keep their own cues). Appended, cleared per action by the reducer. */
+  starformFx?: { kind: 'consumeShop' | 'consumed' | 'collapse'; fromUid: string; toUids: string[] }[];
+  /** Bumps each time a Starform pull is recorded — the UI keys the `starform-pull` play off this. */
+  starformFxSeq: number;
   /** Wolvie's borrowed Echo (`deathrattleBuffNextSummon`): buff the NEXT minion summoned in the shop of this
    *  tribe, then clear. One-shot; also cleared at End of Turn so it never leaks into the next shop. */
   pendingSummonBuff?: { tribe: Tribe; attack: number; health: number; source: string };
@@ -1710,6 +1741,11 @@ export interface RunState {
    *  Attack" pays once per card played (owner 2026-09-09). The action-boundary diff and the End-of-Turn
    *  projection skip these, or the same gain would dispatch twice. Cleared at the top of every action. */
   gainAttackFiredUids?: string[];
+  /** Per-action: the Starform stat gain ALREADY dispatched as `starformGained` inside the action (`buffStarform`
+   *  and the Starform's own consume fire as they land). `reduce` diffs the Starform offer at the action boundary
+   *  and fires only the REMAINDER (a hero-power Fortify, Apples, a Veinstorm stamp, …), so every growth path
+   *  reaches Twin Star exactly once. Cleared at the top of every action. */
+  starformGainFired?: { attack: number; health: number };
   /** Per-action: the Shop spells an Equipment activation CAST this action (Pourman's Keg's Ale picks), in cast
    *  order. Stamped onto the `use` EquipFx cue so the UI plays each spell's own cast animation + clip from the
    *  slot. Cleared at the top of every action. */
@@ -2095,7 +2131,13 @@ export type Action =
   /** Activate the SELECTED Equipment. ATOMIC (owner ruling 2026-08-28) — validate, pay, spend one shared
    *  allowance and resolve every trigger in one action, exactly as every hero power does. `targetUid` is
    *  required for a targeting Equipment; cancelling never dispatches this at all. */
-  | { type: 'activateEquipment'; targetUid?: string }
+  | { type: 'activateEquipment'; targetUid?: string; /** The turn clock's reading (seconds LEFT) at activation — a
+   *  clock-window Equipment (Thymepiece) anchors its window to it. The store fills it from `turnClock.get()`;
+   *  absent (a test, an old recording) = the window runs to the end of the turn. */ clockSeconds?: number }
+  /** A clock-window discount (Thymepiece) ran out: the UI's clock tick dispatches this ONCE when `turnClock`
+   *  crosses `cardDiscountWindow.untilClock`. A real ACTION so a recording replays the expiry where the player
+   *  lived it, and so the reducer never reads a clock. A no-op when no window is open. */
+  | { type: 'discountWindowExpired' }
   | { type: 'closeScout' } // Farseer's Report: dismiss the scout reveal
   | { type: 'faceOmen' }
   | { type: 'settleCombat' }
@@ -2292,6 +2334,7 @@ export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID, mode: 
     cardBuffs: {},
     fodderEatenSeq: 0,
     shopEatenSeq: 0,
+    starformFxSeq: 0,
     recruitBuffFx: [],
     recruitFxSeq: 0,
     aleGranted: [],
@@ -2386,8 +2429,15 @@ export function serialize(state: RunState): string {
   return JSON.stringify(state);
 }
 
-export function deserialize(json: string): RunState {
-  const parsed = JSON.parse(json) as RunState & { pendingSpellDiscovers?: number };
+/**
+ * `opts.turnRemaining` is the recruit clock's reading the save was written with (the store's `turnRemaining`,
+ * seconds left). A Continue mid-Thymepiece-window compares it to the window's `untilClock`: still ahead of it
+ * → the window resumes for the seconds it had left; at or past it → the window is gone (the expiry action
+ * could not have been dispatched while the game was closed). Omitted (a scenario, a bug capsule, a save from
+ * combat) → the window is left as saved: the turn flip / combat entry clear it anyway.
+ */
+export function deserialize(json: string, opts: { turnRemaining?: number } = {}): RunState {
+  const parsed = JSON.parse(json) as RunState & { pendingSpellDiscovers?: number; bonusTurnSeconds?: number; bonusTurnSecondsNextTurn?: number };
   // Heal-by-construction (review 2026-07-03): merge the save over a freshly-created run for the SAME
   // seed/hero/mode, so every field added since the save was written gets its fresh-run zero value
   // automatically. The old hand-maintained ??=-list drifted — it healed `pool`/`line`/`armor` but missed
@@ -2451,6 +2501,15 @@ export function deserialize(json: string): RunState {
     if (saved.selectedEquipmentId) healed.selectedEquipmentId = saved.selectedEquipmentId;
     if (saved.lastUsedEquipmentId) healed.lastUsedEquipmentId = saved.lastUsedEquipmentId;
     state.equipment = healed;
+  }
+  // Thymepiece (2026-09-12 rework): the retired "+30 seconds next turn" fields are dropped from any save that
+  // still carries them, and an open clock-window discount is healed against the saved clock (see above).
+  delete (state as { bonusTurnSeconds?: number }).bonusTurnSeconds;
+  delete (state as { bonusTurnSecondsNextTurn?: number }).bonusTurnSecondsNextTurn;
+  const win = state.cardDiscountWindow;
+  if (win && (typeof win.amount !== 'number' || win.amount <= 0)) state.cardDiscountWindow = undefined;
+  else if (win && win.untilClock !== null && typeof opts.turnRemaining === 'number' && opts.turnRemaining <= win.untilClock) {
+    state.cardDiscountWindow = undefined;
   }
   return state;
 }

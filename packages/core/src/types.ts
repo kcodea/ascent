@@ -218,9 +218,16 @@ export type GameEvent =
   | 'passive' // declared but NEVER dispatched: marks a card whose effect is read by another system rather
   //  than fired by an event (Deepdelve Paragon — `playRubyOn` scans the board for it). Keeping it in the
   //  effects list means the card is still data-driven and greppable, instead of a card id hardcoded in core.
-  | 'spellBought'; // set 2 recruit phase: a Shop Spell was PURCHASED (Moonhowl Mentor teaches it to a Mage-Pup).
+  | 'spellBought' // set 2 recruit phase: a Shop Spell was PURCHASED (Moonhowl Mentor teaches it to a Mage-Pup).
   //  Distinct from `onBuy`, which is minions only ("a spell isn't a minion") — widening onBuy would have
   //  changed what every existing buy-trigger sees.
+  /** SET 3 CELESTIALS — the STARFORM shop token (owner design 2026-09-12). Recruit-only board watchers:
+   *  `starformGained` fires whenever your Starform gains stats (Twin Star) — payload `starformAttack` /
+   *  `starformHealth` carry the DELTA; `starformRemoved` fires when it leaves the Shop — consumed (Corona
+   *  Devotee, or a Demon eating it), collapsed (Nova Herald) or dismissed (bought for 0) — payload
+   *  `starformReason` + the token's FULL stats at removal (Zenith-style payoffs). See `sim/starform.ts`. */
+  | 'starformGained'
+  | 'starformRemoved';
 
 /**
  * Identifiers of registered effect primitives. Cards reference these by name
@@ -691,6 +698,23 @@ export type EffectFactoryId =
   | 'onSpellCastOnThisSpreadTribeNamed' // Set 3 Celestials — Crashborn Adept: first NAMED spell on this each turn also casts on N other friendly `tribe` (recruit)
   | 'rallyGrantFirstSpellCopy' // Set 3 Celestials — Comet Conductor: Rally — copy of the first spell cast this turn, once per combat (combat)
   | 'equipmentExtraNextSpellCasts' // Set 3 Celestials — Comet (Orrery Artificer's Equipment): bank N extra casts for the next spell (recruit)
+  // ── Set 3 Celestials — THE STARFORM ROSTER (owner spec 2026-09-12); the token engine is `packages/sim/src/starform.ts` ──
+  | 'battlecryCreateStarformOrBuff' // Star Seed: Shout — create the Starform, or give the existing one +A/+H (recruit)
+  | 'onBuyBuffStarform' // Stardust Peddler: whenever you buy a minion, the Starform gains +A/+H (recruit)
+  | 'buffThisShop' // Wishing Star (Shout + Echo): every offer in the row right now +A/+H — the Starform keeps it (recruit)
+  | 'equipmentBuffThisShop' // Stellar Lens (Lens Grinder's Equipment): the same, params-only (a gilded source's doubling rides gildedParams) (recruit)
+  | 'battlecryStarformConsumeShop' // Accretion Warden: Shout — the Starform eats the highest-Tier Shop minion, ties right-most (recruit)
+  | 'battlecryBuffThisShopPerSpellsThisTurn' // Shooting Star: Shout — this shop +A/+H per Shop spell cast this turn (recruit; live text)
+  | 'endOfTurnBuffStarform' // Orbit Keeper: End of Turn — the Starform gains +A/+H (recruit)
+  | 'startOfTurnCreateStarform' // Orbit Keeper: Start of Turn — create a Starform if none is out (recruit)
+  | 'battlecryConsumeStarform' // Corona Devotee: Shout — consume the Starform, this gains all its stats (recruit)
+  | 'deathrattleGiveMaxStatsRandomTribe' // Lodestar: Echo — a random other friendly `tribe` gains this body's MAX stats (both phases, arena body)
+  | 'onStarformGainedBuffSelf' // Twin Star: whenever the Starform gains stats, this gains the same (recruit)
+  | 'battlecryCollapseStarform' // Nova Herald: Shout — collapse the Starform, N random friendly Celestials each gain half (recruit)
+  | 'spellCastBuffStarform' // Zenith: whenever you cast a spell (Rubies too), the Starform gains +A/+H (recruit)
+  | 'onStarformRemovedRecreateHalf' // Zenith: when the Starform is consumed / collapses, create a new one with half its stats (recruit)
+  | 'spellStarformConsumeShop' // Accretion (spell): the Starform eats the highest-Health Shop minion (recruit)
+  | 'spellGrantSpell' // Accretion (spell): get N copies of a named spell — the cast-safe twin of battlecryGrantSpell (recruit)
   | 'endOfTurnCastSpellEscalating' // Vineweaver Drake: EoT casts a spell once per End of Turn seen (recruit)
   | 'endOfTurnCastSpellOnSelf' // Arnold: EoT casts a named spell aimed at this minion (recruit)
   | 'battlecryGrantSpell' // Field Mechanic: Battlecry adds a specific spell (Patch Job) to your hand (recruit)
@@ -747,7 +771,7 @@ export type EffectFactoryId =
   | 'onTribeSummonedBuffRandomOthers' // Set 3 Dwarves — Hank Pepe: when you play a Dwarf, N random OTHER Dwarves +a/+h
   | 'deathrattleGoldNextTurn' // Set 3 Dwarves — Tromboneer: Echo — Gold next turn (both phases; uncapped bank)
   | 'onTribeGainAttackBuffSelf' // Set 3 Dwarves — Kneel / Tankerchief: when a friendly Dwarf gains Attack, this gains +a/+h
-  | 'equipmentBonusTurnTime' // Set 3 Dwarves — Thymepiece: bank seconds onto next turn's clock
+  | 'equipmentCardDiscountWindow' // Set 3 Dwarves — Thymepiece: all cards cost −N Gold for the next N clock-seconds
   | 'battlecryGainGoldNextTurn' // Set 2 Dwarves — Paymaster Pimm
   | 'cardsPlayedPlayRubies' // Set 2 Dwarves — Mountainbond
   | 'onTribeSummonedBuffTribe' // Set 2 Dwarves — Chef Gary Toast (watches OTHER plays, not its own Shout)

@@ -13,7 +13,8 @@ import { createRun, reduce, equipmentUsesLeft, type Action, type BoardCard, type
  *  - Hank Pepe: three random OTHER Dwarves on the board; never on his own arrival, never himself.
  *  - Tromboneer: Gold next turn, NOT capped, both phases.
  *  - Kneel / Tankerchief: shop AND combat, board only, per Dwarf, own gain excluded, no watcher ping-pong.
- *  - Pourman's Keg: a real Ale cast (Edward doubles it). Thymepiece: seconds banked for next turn, stacking.
+ *  - Pourman's Keg: a real Ale cast (Edward doubles it). Thymepiece (reworked 2026-09-12): all cards cost 1
+ *    less Gold for the next 8 clock-seconds — the full contract lives in `thymepiece.test.ts`.
  */
 
 const body = (uid: string, cardId: string, over: Partial<BoardCard> = {}): BoardCard => {
@@ -271,29 +272,28 @@ describe('Tromboneer — Echo: gain 3 Gold next turn', () => {
   });
 });
 
-describe('Thymepiece — 30 seconds on next turn’s clock', () => {
+describe('Thymepiece — all cards cost 1 less Gold for the next 8 seconds (owner rework 2026-09-12)', () => {
   const armed = (golden = false): RunState =>
     act(run({ hand: [body('th', 'dw3_thymes', { golden })] }), { type: 'play', uid: 'th', toIndex: 0 });
 
-  it('banks 30 seconds (60 golden) for NEXT turn, costing 3 Gold', () => {
+  it('opens a −1 window (−2 gilded) anchored 8 seconds below the clock reading it was activated at, for 3 Gold', () => {
     const s = armed();
-    const t = act(s, { type: 'activateEquipment' });
+    const t = act(s, { type: 'activateEquipment', clockSeconds: 40 });
     expect(t.embers).toBe(s.embers - 3);
-    expect(t.bonusTurnSecondsNextTurn).toBe(30);
-    expect(t.bonusTurnSeconds ?? 0, 'not this turn').toBe(0);
-    expect(act(armed(true), { type: 'activateEquipment' }).bonusTurnSecondsNextTurn).toBe(60);
+    expect(t.cardDiscountWindow).toEqual({ amount: 1, untilClock: 32 });
+    expect(act(armed(true), { type: 'activateEquipment', clockSeconds: 40 }).cardDiscountWindow).toEqual({ amount: 2, untilClock: 32 });
   });
-  it('the bank becomes THIS turn’s bonus at the turn flip, then clears', () => {
-    let s = run({ board: [], hand: [], bonusTurnSecondsNextTurn: 30 });
+  it('an extra trigger never stacks the amount — the window is a rate, not a bank', () => {
+    let s = { ...armed(), equipmentExtraTriggers: 1 } as RunState; // "triggers an additional time"
+    s = act(s, { type: 'activateEquipment', clockSeconds: 40 });
+    expect(s.cardDiscountWindow).toEqual({ amount: 1, untilClock: 32 });
+  });
+  it('the window never survives the turn flip', () => {
+    let s = run({ board: [], hand: [], cardDiscountWindow: { amount: 1, untilClock: 10 } });
     s = act(s, { type: 'faceOmen' });
+    expect(s.cardDiscountWindow, 'closed on combat entry').toBeUndefined();
     s = act(s, { type: 'settleCombat' });
     s = act(s, { type: 'resolveCombat' });
-    expect(s.bonusTurnSeconds).toBe(30);
-    expect(s.bonusTurnSecondsNextTurn).toBe(0);
-  });
-  it('stacks across activations', () => {
-    let s = { ...armed(), equipmentExtraTriggers: 1 } as RunState; // "triggers an additional time"
-    s = act(s, { type: 'activateEquipment' });
-    expect(s.bonusTurnSecondsNextTurn).toBe(60);
+    expect(s.cardDiscountWindow).toBeUndefined();
   });
 });

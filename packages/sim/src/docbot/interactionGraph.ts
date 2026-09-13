@@ -101,6 +101,8 @@ export const CHANNEL_OF_TRIGGER: Readonly<Record<string, string>> = {
   onGetRuby: 'ruby',
   rubyCast: 'ruby',
   shopRefreshed: 'shop-refresh',
+  starformGained: 'stat-change', // the Starform (shop token) grew — a stat-change moment on a shop body (2026-09-12)
+  starformRemoved: 'consume', // the Starform left the shop: consumed / collapsed / dismissed — a consume-shaped departure
   heroPower: 'hero-power',
 };
 

@@ -1667,6 +1667,12 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     ARENA_EFFECTS.deathrattleBuffRandomTribe(combatArena(ctx, self), params);
   },
 
+  /** Lodestar (set 3 Celestials) — Echo: a random other friendly `tribe` gains this body's MAX stats (arena body). */
+  deathrattleGiveMaxStatsRandomTribe: (ctx, self, params, payload) => {
+    if ((payload as MinionPayload).minion !== self) return;
+    ARENA_EFFECTS.deathrattleGiveMaxStatsRandomTribe(combatArena(ctx, self), params);
+  },
+
   /** Revenant — `onRise` (a friendly body returned). Side-guarded; the riser may be Revenant itself. */
   onRiseBuffSelfWard: (ctx, self, params, payload) => {
     const { side } = payload as MinionPayload;

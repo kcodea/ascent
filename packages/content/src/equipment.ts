@@ -265,22 +265,24 @@ export const POURMANS_KEG: EquipmentDefinition = {
 };
 
 /**
- * THYMEPIECE — Thymes's Equipment (set-3 Dwarf roster, 2026-09-09): +30 seconds on NEXT turn's clock.
+ * THYMEPIECE — Thymes's Equipment (set-3 Dwarf roster; reworked by the owner 2026-09-12): all cards cost
+ * 1 less Gold for the next 8 SECONDS (gilded: 2 less, same 8 seconds).
  *
- * The only Equipment that touches the timer rather than the board. The seconds bank in
- * `RunState.bonusTurnSecondsNextTurn` and become `bonusTurnSeconds` at the turn flip, which the recruit clock
- * adds on top of the wave's base time (owner 2026-09-09: applies to whatever timer the mode runs, and stacks).
+ * The only Equipment that reads the clock. The window runs on the recruit TURN CLOCK — it pauses whenever the
+ * clock pauses (a Discover, a Choose One, an aim, hero select) and replays from the recorded actions — and it
+ * discounts CARDS only: shop minions, the spell slot and spell offers in the row, floored at 0. The Shop
+ * upgrade and a refresh are untouched. See `RunState.cardDiscountWindow` for the mechanism.
  */
 export const THYMEPIECE: EquipmentDefinition = {
   id: 'thymepiece',
   name: 'Thymepiece',
-  text: 'Gain **30 seconds** on your turn timer next turn.',
-  goldenText: 'Gain **60 seconds** on your turn timer next turn.',
+  text: 'All cards cost **1** less Gold for the next **8 seconds**.',
+  goldenText: 'All cards cost **2** less Gold for the next **8 seconds**.',
   baseCost: 3,
   targetMode: 'none',
-  effectId: 'equipmentBonusTurnTime',
-  params: { seconds: 30 },
-  gildedParams: { seconds: 60 },
+  effectId: 'equipmentCardDiscountWindow',
+  params: { amount: 1, seconds: 8 },
+  gildedParams: { amount: 2, seconds: 8 },
   // The owner's clip (2026-09-09). No authored def yet — the slot plays the clip alone until one is published.
   useSfxId: 'thymepiece',
 };
@@ -404,7 +406,26 @@ export const COMET: EquipmentDefinition = {
   gildedParams: { extra: 4 },
 };
 
-export const EQUIPMENT: readonly EquipmentDefinition[] = [BLOODPOT, TITAN_HAMMER, BLAST_PUMP, PRISMATIC_PICK, DUELING_RUBETTAS, POURMANS_KEG, THYMEPIECE, COFFIN_FLOP, DEATHFIBRILLATOR, MAGNIFYING_GLASS, WHIPLASSO, SPIRITBRINGER, REVELMAKER, COMET];
+/**
+ * STELLAR LENS — Lens Grinder's Equipment (set-3 Celestials, 2026-09-12): "this shop" +10/+10 — the offers standing
+ * in the row right now (Apples' vocabulary, owner 2026-07-25), baked per offer, so the Starform keeps it through
+ * the next refresh and everything else loses it. Untargeted. A gilded Grinder's Lens gives +20/+20 (`gildedParams`
+ * — the factory reads params only: an Equipment activation passes the real source, so a golden-aware factory would
+ * double it twice).
+ */
+export const STELLAR_LENS: EquipmentDefinition = {
+  id: 'stellar_lens',
+  name: 'Stellar Lens',
+  text: 'Give **this shop +10/+10**.',
+  goldenText: 'Give **this shop +20/+20**.',
+  baseCost: 2,
+  targetMode: 'none',
+  effectId: 'equipmentBuffThisShop',
+  params: { attack: 10, health: 10 },
+  gildedParams: { attack: 20, health: 20 },
+};
+
+export const EQUIPMENT: readonly EquipmentDefinition[] = [BLOODPOT, TITAN_HAMMER, BLAST_PUMP, PRISMATIC_PICK, DUELING_RUBETTAS, POURMANS_KEG, THYMEPIECE, COFFIN_FLOP, DEATHFIBRILLATOR, MAGNIFYING_GLASS, WHIPLASSO, SPIRITBRINGER, REVELMAKER, COMET, STELLAR_LENS];
 
 export const EQUIPMENT_INDEX: Readonly<Record<string, EquipmentDefinition>> =
   Object.fromEntries(EQUIPMENT.map((e) => [e.id, e]));

@@ -54,6 +54,7 @@ export const THIS_TURN_CLASSIFIED: Readonly<Record<string, ThisTurnClassificatio
   crescendo: { kind: 'conforms', why: 'instant: reads the Spirits-played tally (playedThisTurn) at cast time — set 3, 2026-09-10' },
   stellarchorus: { kind: 'conforms', why: 'instant: reads the any-spell tally (spellsThisTurn + rubyCastsThisTurn) at cast time — set 3 tranche II, 2026-09-10' },
   ce3_conductor: { kind: 'conforms', why: 'combat Rally reads the first spell id of the recruit turn, frozen on the combat side state at combat start (firstSpellThisTurnId) — set 3 Celestials, 2026-09-11' },
+  ce3_shootingstar: { kind: 'conforms', why: 'Shout reads spellsThisTurn at play time (the Spirit Worgen read), instant; a combat-triggered fire defers to settle (replayEconomyBattlecry), before the rollover clears the tally — set 3 Celestials Starform roster, 2026-09-12' },
 
   // ── End-of-Turn consumers — EoT resolves in the shop half, with the whole turn\'s tally live ──
   chronostaff: { kind: 'conforms', why: '"EoT effects trigger 1 more time this turn": folded into endOfTurnRepeats at faceOmen, so the extra applies to the EoT that ends this very turn' },

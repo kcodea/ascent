@@ -106,9 +106,9 @@ export const SET3_DWARVES: CardDef[] = [
     goldenText: 'When a **Dwarf** gains Attack, this gains **+4 Health**.',
   },
   {
-    // An EQUIP Dwarf whose Equipment touches the CLOCK rather than the board: +30s on next turn's timer. The
-    // seconds bank in `bonusTurnSecondsNextTurn` and move to `bonusTurnSeconds` at the turn flip, where the
-    // UI's clock adds them on top of the wave's base time. Two uses stack.
+    // An EQUIP Dwarf whose Equipment reads the CLOCK rather than the board (owner rework 2026-09-12): every
+    // card in the Shop costs 1 less Gold (gilded 2) for the next 8 seconds of the turn clock. See
+    // `RunState.cardDiscountWindow` — the window is anchored to the clock reading the activation carries.
     id: 'dw3_thymes',
     name: 'Thymes',
     tribe: 'dwarf',
@@ -117,8 +117,8 @@ export const SET3_DWARVES: CardDef[] = [
     health: 10,
     keywords: [],
     effects: [{ on: 'equip', do: 'grantEquipment', params: { equipmentId: 'thymepiece' } }],
-    text: '**Equip Thymepiece (3):** gain **30 seconds** on your turn timer next turn.',
-    goldenText: '**Equip Thymepiece (3):** gain **60 seconds** on your turn timer next turn.',
+    text: '**Equip Thymepiece (3):** all cards cost **1** less Gold for the next **8 seconds**.',
+    goldenText: '**Equip Thymepiece (3):** all cards cost **2** less Gold for the next **8 seconds**.',
   },
   {
     // Kneel's Tier-7 sibling, and the reason the watcher has a re-entrancy guard: its grant carries +1 Attack,

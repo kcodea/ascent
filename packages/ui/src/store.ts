@@ -783,7 +783,7 @@ function loadSave(): SavedGame | null {
     const raw = localStorage.getItem(SAVE_KEY);
     if (!raw) return null;
     const o = JSON.parse(raw) as { run: string; actions?: Action[]; boards?: BoardSnapshot[]; telemetry?: TelemetryLog; derive?: DeriveState; turnRemaining?: number };
-    const run = deserialize(o.run); // heals older-schema saves
+    const run = deserialize(o.run, { turnRemaining: o.turnRemaining }); // heals older-schema saves (+ closes a Thymepiece window the saved clock is past)
     if (run.phase === 'gameover' || run.phase === 'victory') return null; // finished → not resumable
     // A save can reference a card this build no longer has — a card deleted or renamed during content work, a
     // save carried between branches, or a patch that retired a card mid-run. `deserialize` deliberately doesn't
@@ -1655,6 +1655,13 @@ export const useGame = create<GameStore>((set, get) => ({
     // so a new player can't get ahead. Inert on every non-tutorial run. Dropped actions fire a coach nudge.
     const gate = gateBlocks(action, prev);
     if (gate.blocked) { if (gate.reason) notifyGateNudge(gate.reason); return; }
+    // A clock-window Equipment (Thymepiece) anchors to the turn clock's reading at activation. The engine never
+    // reads a clock, so the reading rides the ACTION — stamped here, once, so it is what gets recorded and
+    // replayed. RAW `turnClock` seconds: Practice's multiplier and the sandbox's frozen clock only change how
+    // many real seconds a clock-second lasts; the window is 8 clock-seconds in every mode.
+    if (action.type === 'activateEquipment' && action.clockSeconds === undefined && prev.phase === 'recruit') {
+      action = { ...action, clockSeconds: turnClock.get() };
+    }
     set((s) => {
       // MEASURED for the perf HUD, keyed by action type: `reduce` is the single chokepoint for all run
       // logic (shop rolls, combat resolution, end-of-turn), so if a hitch is game logic it shows up here

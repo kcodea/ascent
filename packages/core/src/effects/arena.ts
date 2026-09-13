@@ -775,6 +775,20 @@ export const ARENA_EFFECTS = {
     arena.buff(pool[arena.rng().int(pool.length)]!, a, h);
   },
 
+  /** Lodestar (set 3 Celestials, 2026-09-12) — Echo: a RANDOM friendly minion of `tribe` gains this body's MAX
+   *  stats — its current Attack and its undamaged max Health (`maxHealth ?? health`: combat carries the separate
+   *  max, the shop's printed Health IS its max). Owner: a 10/10 damaged to 10/5 then buffed +5/+5 hands over 15/15.
+   *  No golden multiplier: a gilded body's doubled stats ARE its stats. Seeded off the phase's own rng. */
+  deathrattleGiveMaxStatsRandomTribe(arena: EffectArena, params: Record<string, unknown>): void {
+    const tribe = String(params.tribe ?? '');
+    const a = Math.max(0, arena.self.attack);
+    const h = Math.max(0, arena.self.maxHealth ?? arena.self.health);
+    if (a === 0 && h === 0) return;
+    const pool = arena.friends().filter((f) => f.uid !== arena.self.uid && (!tribe || arena.isTribe(f, tribe)));
+    if (pool.length === 0) return;
+    arena.buff(pool[arena.rng().int(pool.length)]!, a, h);
+  },
+
   /** Revenant — after a friendly minion Rises: this gains Ward (if it has none) and +a/+h, stacking per Rise.
    *  In the shop the gain is permanent by construction (owner 2026-09-09: "both the stats and the ward"). */
   onRiseBuffSelfWard(arena: EffectArena, params: Record<string, unknown>): void {

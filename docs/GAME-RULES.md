@@ -114,6 +114,84 @@ minion alive. Duplicates collapse into one entry; a single Gilded source upgrade
 - Swapping the selected Equipment is **free** (no Gold, no charge). Activation is **atomic** (validate, pay,
   spend, resolve in one action — a cancel costs nothing by construction). Gold cost, temporary cost
   reductions, extra-trigger repeats and Choose One on an Equipment are unaffected by charges.
+- **Clock-window Equipment** (Thymepiece, owner design 2026-09-12: *"All cards cost 1 less Gold for the next
+  8 seconds"*; gilded −2) runs on the **turn clock**, not wall time: the activation records the clock's reading,
+  the window is 8 clock-seconds in every mode (Practice's multiplier only stretches the real seconds), it
+  pauses with the clock (Discover / Choose One / aim / hero select), it discounts **cards only** (Shop minions,
+  the spell slot, spell offers in the row — never the Shop upgrade or a refresh), prices floor at 0 (the
+  Starform stays 0), every discounted coin shows green, the slot counts it down, and it ends on its own expiry
+  action, at combat entry, or at the turn flip. A Continue whose saved clock is already past the window
+  resumes without it; the engine never reads a clock (`RunState.cardDiscountWindow`).
+
+### The Starform — the Celestials' shop token (owner design 2026-09-12)
+
+The **Starform** is a **1/1 Celestial token that lives IN THE SHOP** as an ordinary shop offer (normal unit
+frame, no rules text — **its printed stats are the counter**). Celestial cards create it, grow it and cash it
+in; the shop never rolls it. Engine: `packages/sim/src/starform.ts`; every rule below is pinned in
+`starform.test.ts`.
+
+1. **Created into the right-most Shop slot.** With no slot open it **Consumes the right-most Shop minion**
+   (that offer leaves; the Starform gains its current buy stats) and takes its slot — a real Shop consume,
+   with every latch and watcher a Demon's consume touches (Bottomless Banquet, Open Market, `onConsume`,
+   the consume meter). A spell / Ruby in the right-most slot is skipped leftward; a full row with no minion
+   at all still gets the token (appended — the one case the row overflows by one, until the next roll).
+2. **Only one at a time.** A second create is a no-op (cards that say "give it +2/+2 instead" handle that
+   themselves).
+3. **It persists through refreshes in its OWN slot** — the token never moves when the row rebuilds (kept
+   Layaway offers still pull left around it) — and across turns and combat, and under Freeze, until it is
+   consumed, collapsed or dismissed. It takes a slot: a tier's row is one draw shorter while it is out.
+4. **Refresh-time slot buffs land on it ONCE.** Market Tormentor's right-most enchant, Rune of the Embers'
+   doubling, the Display Case's left-most enchant and Veinstorm's per-refresh Ruby stamp each land on a
+   Starform the first refresh it sits in the slot and **never again** on later refreshes (they are gated,
+   not redirected to the next minion). Right-most buffs from a *play* (a Shout, a hero power) apply as
+   normal.
+5. **It cannot be bought like a minion — buying it costs 0 Gold and DISMISSES it.** That buy counts as a
+   minion bought (on-buy watchers, buy tallies, quest / rune / hero-power counters) but puts nothing in
+   hand and returns nothing to the pool. It is never gilded, never tripled, never held / laid away, never
+   displaced, never stolen to hand, never replaced by a Discover. For **everything else it is a regular
+   Shop minion**: random-shop picks, Demon consumes (a Demon *can* eat it), "this shop" buffs, hero powers
+   and spells aimed at a shop minion.
+6. **Every shop buff bakes onto the token.** Direct buffs, permanent shop buffs ("minions in the Shop get
+   +X/+X"), *this-turn* shop buffs and consumes all fold into its printed stats as they happen — so a
+   refresh that clears a this-turn buff for every other offer leaves the Starform's total intact. It is the
+   one offer that keeps them.
+7. **Consume = 100% of its stats to one Celestial; Collapse = 50% to three random friendly Celestials**,
+   halves rounded **up**, the base 1/1 **included** in what transfers. With no Starform both do nothing.
+8. Two board-wide watcher moments: **"whenever your Starform gains stats"** (the gain's amount rides along)
+   and **"when your Starform leaves the Shop"** (consumed / collapsed / dismissed, with its full stats).
+
+**The Starform roster's card-level readings** (owner spec 2026-09-12; `packages/content/src/cards/set3/celestials.ts`,
+pinned in `packages/sim/src/set3CelestialRoster.test.ts`):
+
+- **"This shop" +X/+X** (Wishing Star's Shout and Echo, Shooting Star, the Stellar Lens) buffs the **offers standing
+  in the row right now** — the owner's "this shop" vocabulary (2026-07-25), not the per-turn channel. The Starform
+  keeps it through the next refresh; every other offer loses it. Wishing Star's Echo fires in the shop only (a
+  combat death has no shop to buff).
+- **Accretion Warden** eats the **highest-Tier** Shop minion; the **Accretion** spell eats the **highest current buy
+  Health**. Ties go to the **right-most**. With no Starform the Warden does nothing; the spell skips the consume but
+  **still grants its Star Crash**.
+- **Shooting Star** counts Shop spells cast this turn (`spellsThisTurn` — a multiplied cast counts each time); the
+  card prints the live total. **Zenith** counts a spell of **any** kind, Rubies included (the Gravestar Seer ruling).
+- **Corona Devotee** gains 100% of the token's stats (base 1/1 included); **Nova Herald** hands the rounded-up half to
+  3 random friendly Celestials — the Herald itself is eligible; fewer Celestials → each present one gets it; a token
+  with no Celestial at all still collapses and the stats go nowhere; no token → nothing happens.
+- **Lodestar** gives a friendly Celestial its **MAX stats**: current Attack + undamaged max Health (a 10/10 damaged
+  to 10/5 then buffed +5/+5 hands over 15/15). Both phases.
+- **Twin Star** mirrors every gain path (a buff, a shop buff, the token's consumes, a Star Crash aimed at the token,
+  a slot enchant landing on a roll). **Zenith** rebuilds the token after a **consume or collapse** (a Demon eating
+  it is a consume) — never after the 0-Gold dismiss — with half its stats rounded up; a full row eats its right-most
+  minion as any create does.
+- **Constellation Prime** — "your Star Crashes cast an additional time" means the **PRIMARY** +5/+7 lands one extra
+  time on the chosen Celestial per Prime (two per gilded Prime); the secondary random-friendly half fires **once per
+  cast**. A Comet / Nimbus-multiplied cast re-lands the primary on every repeat. Applies to a Star Crash aimed at the
+  Starform too.
+- **Star Crash may be aimed at the Starform** (a friendly Celestial): the token gains +5/+7 (Twin Star hears it) and
+  the secondary half still lands on a random friendly minion on the **board**. Only the tribe's own Celestial-aimed
+  spell reaches the token — a plain `friendly` spell keeps its board-only aim (rule 5 stays whole).
+- **Orbit Keeper**'s Start of Turn creates the token as the new turn's shop opens (into a full row → it eats the
+  right-most minion); its End of Turn feeds a held token and does nothing without one.
+- **Star Charter** Discovers a Celestial from the run's pool — never itself, and never the Starform (a token, outside
+  every draw pool).
 
 The **combat event vocabulary** is a union of **22 distinct event types** in
 `packages/core/src/types.ts` (`CombatEvent`): `sc, attack, dmg, shield, shieldUp, poison, reborn,

@@ -44,10 +44,17 @@ type RecruitFn = (
    *  marks a Djinn-driven extra End-of-Turn (it must not advance a cadence counter — see Frontdrake). */
   payload: { minion: BoardCard; proc?: number; target?: BoardCard; replay?: boolean; rubyAttack?: number; rubyHealth?: number; spellDef?: CardDef; spellId?: string; /** `onGainCard`: WHICH card just arrived in hand — Kegheart Dwarf filters on it being a Dwarven Ale. The
   *  event used to carry only "a card arrived", which no watcher could filter. */ cardId?: string; /** CELESTIAL orbitFired: the minion whose Orbit resolved (Orrery excludes its own). */ source?: BoardCard; /** CELESTIAL: this Orbit was TRIGGERED (Astral Relay), not caused by a card arriving — so `minion` is
-  *  a stand-in and any effect that consumes the arriver must stand down. */ noArriver?: boolean },
+  *  a stand-in and any effect that consumes the arriver must stand down. */ noArriver?: boolean;
+  /** STARFORM (set 3 Celestials): `starformGained` carries the DELTA the token just gained; `starformRemoved`
+   *  carries WHY it left the Shop and its FULL stats at removal (base 1/1 included). `minion` is the watcher. */
+  starformAttack?: number; starformHealth?: number; starformReason?: 'consume' | 'collapse' | 'dismiss';
+  /** EQUIPMENT activation: the turn clock's reading the action carried (seconds left) — a clock-window
+   *  Equipment (Thymepiece) anchors to it. Absent = no reading. */
+  clockSeconds?: number },
 ) => void;
 
 import { SPELL_POWER_EXCUSED } from './docbot/historyRegistry';
+import { buffStarform, collapseStarform, consumeStarform, createStarform, hasStarform, starformConsumeShopMinion, starformFollowShopBuff, starformRefreshLand } from './starform';
 
 const num = (v: unknown, fallback = 0): number => (typeof v === 'number' ? v : fallback);
 
@@ -248,7 +255,7 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
       for (let i = 0; i < (self.golden ? 2 : 1); i++) castSpell(state, def); // the full shop cast pipeline
     },
     cardDef: (id) => CARD_INDEX[id],
-    gainShopBuff: (a, h, source) => { state.tavernBuyBonus.atk += a; state.tavernBuyBonus.hp += h; creditShopBuffSource(state, source ?? nameOf(self), a, h); },
+    gainShopBuff: (a, h, source) => { state.tavernBuyBonus.atk += a; state.tavernBuyBonus.hp += h; creditShopBuffSource(state, source ?? nameOf(self), a, h); starformFollowShopBuff(state, a, h, source ?? nameOf(self)); },
     grantUndeadAura: (a, h) => {
       // The Lantern channel. In the shop this run-wide aura is folded into every Undead's displayed stats
       // already, so raising it IS the whole grant — a board loop on top would double-apply it.
@@ -1382,6 +1389,9 @@ export function addTurnShopBuff(state: RunState, attack: number, health: number)
   if (attack === 0 && health === 0) return;
   const cur = state.tavernBuyBonusTurn ?? { atk: 0, hp: 0 };
   state.tavernBuyBonusTurn = { atk: cur.atk + attack, hp: cur.hp + health };
+  // THE STARFORM is the one offer that survives the refresh a "this shop" buff is scoped to, so it KEEPS the
+  // buff: baked onto the offer here (owner rule 6), never read live from this channel (`offerBuyStats`).
+  starformFollowShopBuff(state, attack, health, 'Shop Enchant');
 }
 
 /** Credit a shop-stat source in the provenance ledger (see `RunState.tavernBuyBonusSources`). Every writer of
@@ -1398,6 +1408,7 @@ export function applyRunShopBuff(state: RunState, attack: number, health: number
   state.tavernBuyBonus.hp += health;
   creditShopBuffSource(state, source, attack, health);
   buffFodderRunWide(state, attack, health, source, false);
+  starformFollowShopBuff(state, attack, health, source); // the Starform banks the permanent shop buff too (rule 6)
   // Name the card for the shop-wide FX stamp (presentation only — see `RunState.shopBuffAllSource`).
   if (sourceCardId) state.shopBuffAllSource = sourceCardId;
 }
@@ -1707,12 +1718,14 @@ export function gainGold(state: RunState, amount: number): void {
   }
 }
 
-/** Total shop-spell cost reduction: the stored `spellCostMod` plus 1 per Lazarus on the board (golden → 2). */
+/** Total shop-spell cost reduction: the stored `spellCostMod` plus 1 per Lazarus on the board (golden → 2).
+ *  Serves BOTH ways a spell is bought — the right-hand slot and a spell offer in the minion row (Spell Cart). */
 export function spellCostReduction(state: RunState, def?: CardDef): number {
   let n = state.spellCostMod;
   for (const c of state.board) if (c.cardId === 'lazarus') n += c.golden ? 2 : 1;
   n += gateUses(state.cadenceSpellOff); // Rune of Cadence: the armed one-shot spell discount, −1 per copy held (spent at buy)
   n += state.spellCostOffTurn ?? 0;  // GIFT — Arcane Clearance: this turn only
+  n += state.cardDiscountWindow?.amount ?? 0; // Thymepiece: "all cards" for the next 8 clock-seconds — spells included
   // Rune of Thrift: STAT-GRANTING spells cost 2 less. Gated on the def (callers without one see no change).
   if (state.runeThrift && isStatSpell(def)) n += 2 * runeStacksOf(state, 'rune_thrift'); // −2 per copy held (owner 2026-08-27: "Thrift −4")
   return n;
@@ -2269,6 +2282,8 @@ export function fireEquipmentTriggers(
   self: BoardCard,
   target: BoardCard | undefined,
   triggers: number,
+  /** The turn clock's reading the activation carried (seconds left), for a clock-window Equipment. */
+  clockSeconds?: number,
 ): boolean {
   const fn = RECRUIT_FACTORIES[def.effectId];
   if (!fn) return false; // an unknown effect id is a content error — never a paid-for no-op
@@ -2276,7 +2291,7 @@ export function fireEquipmentTriggers(
   const params = equipmentParamsFor(def, version);
   for (let t = 0; t < triggers; t += 1) {
     withEquipmentTriggerBeat(state, def.id, t, () => {
-      fn(ctx, self, params, { minion: self, ...(target ? { target } : {}) });
+      fn(ctx, self, params, { minion: self, ...(target ? { target } : {}), ...(clockSeconds !== undefined ? { clockSeconds } : {}) });
     });
   }
   return true;
@@ -2691,14 +2706,14 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     for (const offer of [...st.shop]) {
       if (st.hand.length >= handCap(st)) break;
       const def = CARD_INDEX[offer.cardId];
-      if (!def) continue;
+      if (!def || offer.starform) continue; // the Starform is never taken into hand (rule 5) — it stays for the roll
       if (def.spell) {
         st.hand.push({ uid: `b${st.uidSeq++}`, cardId: def.id, tribe: def.tribe, attack: def.attack, health: def.health, keywords: [...def.keywords], golden: false });
       } else {
         grantMinionToHandOrBoard(st, def, !!offer.golden);
       }
     }
-    st.shop = [];
+    st.shop = st.shop.filter((o) => o.starform);
     rollShop(st);
   },
 
@@ -4100,6 +4115,13 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     ARENA_EFFECTS.deathrattleBuffRandomTribe(shopArena(ctx.state, self), params);
   },
 
+  /** Lodestar (Echo, shop half — set 3 Celestials): a random other friendly <tribe> gains this body's MAX stats (the
+   *  shop's printed Health is its max) — the arena body, own-death guarded. */
+  deathrattleGiveMaxStatsRandomTribe: (ctx, self, params, payload) => {
+    if ((payload as { minion?: BoardCard })?.minion !== self) return;
+    ARENA_EFFECTS.deathrattleGiveMaxStatsRandomTribe(shopArena(ctx.state, self), params);
+  },
+
   /** Adeptus (Echo, shop half): +a Attack to your Shop spells, run-wide — Coppercoat's arena body, guarded to
    *  this body's own death (combat's `deathrattleBuffSpellPower` is the same channel, `grantSpellPower`). */
   deathrattleBuffSpellPower: (ctx, self, params, payload) => {
@@ -4180,10 +4202,26 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     addBuff(self, nameOf(self), a, h);
   },
 
-  /** Thymepiece (one Equipment TRIGGER): bank `seconds` onto NEXT turn's clock. The reducer moves the bank into
-   *  `bonusTurnSeconds` at the turn flip and the recruit clock adds it; two activations stack. */
-  equipmentBonusTurnTime: (ctx, _self, params) => {
-    ctx.state.bonusTurnSecondsNextTurn = (ctx.state.bonusTurnSecondsNextTurn ?? 0) + Math.max(0, num(params.seconds, 30));
+  /**
+   * Thymepiece (one Equipment TRIGGER; owner design 2026-09-12): every shop CARD costs `amount` less Gold for
+   * the next `seconds` of the turn clock. The activation carries the clock's reading (`payload.clockSeconds`,
+   * seconds LEFT — the clock counts down), so the window closes at `clockSeconds − seconds`; with no reading
+   * (a test, an old recording) the window runs to the end of the turn (`untilClock: null`). A second trigger
+   * or activation while a window is open REPLACES it with the fresher, larger one — the amounts do not stack
+   * (the design is "−1 for 8 seconds", not a bank), but a re-use never shortens a window already running.
+   */
+  equipmentCardDiscountWindow: (ctx, _self, params, payload) => {
+    const amount = Math.max(0, num(params.amount, 1));
+    const seconds = Math.max(0, num(params.seconds, 8));
+    const reading = payload.clockSeconds;
+    const untilClock = typeof reading === 'number' && Number.isFinite(reading) ? reading - seconds : null;
+    const cur = ctx.state.cardDiscountWindow;
+    // `null` = "to the end of the turn", the longest window there is; otherwise the LOWER `untilClock` closes later.
+    const later = cur === undefined || untilClock === null || (cur.untilClock !== null && untilClock <= cur.untilClock);
+    ctx.state.cardDiscountWindow = {
+      amount: Math.max(amount, cur?.amount ?? 0),
+      untilClock: later ? untilClock : cur.untilClock,
+    };
   },
 
   /** Anvilshade Smith (Echo): summon a token that inherits this body's Attack. The combat half also makes it
@@ -5693,6 +5731,151 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     ctx.state.nextSpellExtraCasts = (ctx.state.nextSpellExtraCasts ?? 0) + num(params.extra, 2);
   },
 
+  // ═══ Set 3 Celestials — THE STARFORM ROSTER (owner spec 2026-09-12). The token engine is `starform.ts`; every
+  // factory below only decides WHAT to feed it / take from it. All shop-side: the Starform lives in the Shop. ═══
+
+  /** Star Seed (Shout): create the Starform (rule 1: right-most slot, eating the right-most minion when the row is
+   *  full); with one already out, give it +a/+h instead (rule 2 — the create is a no-op, the card owns "instead").
+   *  Golden doubles the instead-buff; the create has no number to double. */
+  battlecryCreateStarformOrBuff: (ctx, self, params) => {
+    if (hasStarform(ctx.state)) {
+      buffStarform(ctx.state, num(params.attack, 2) * gold(self), num(params.health, 2) * gold(self), nameOf(self));
+      return;
+    }
+    createStarform(ctx.state, { cardId: self.cardId, name: nameOf(self) });
+  },
+
+  /** Stardust Peddler (`onBuy`): your Starform +a/+h per minion bought. The token's own 0-Gold dismiss buy counts
+   *  as a buy (rule 5) but the token is already gone when the watchers fire — `buffStarform` finds nothing. */
+  onBuyBuffStarform: (ctx, self, params) => {
+    buffStarform(ctx.state, num(params.attack, 1) * gold(self), num(params.health, 1) * gold(self), nameOf(self));
+  },
+
+  /** "Give THIS SHOP +a/+h" — Wishing Star (Shout AND Echo, one factory on two triggers; the Stellar Lens has its
+   *  params-only twin below). THIS shop is the offers standing in the row right now (Apples' branch — owner vocabulary
+   *  2026-07-25: a bare "the shop" is the permanent Staff-of-Guel channel; "this shop" only touches the current
+   *  offers). Baked per offer under the card's name: the Starform is the one offer that survives the next refresh,
+   *  so it KEEPS the buff (rule 6) and every rolled-away offer loses it. Spell / Ruby offers are skipped — they
+   *  carry no stats to bake. Golden doubles. */
+  buffThisShop: (ctx, self, params) => {
+    const a = num(params.attack, 2) * gold(self), h = num(params.health, 2) * gold(self);
+    buffThisShopOffers(ctx.state, nameOf(self), a, h);
+  },
+
+  /** Stellar Lens (Lens Grinder's Equipment): "this shop" +a/+h, PARAMS ONLY — an Equipment activation passes the
+   *  real (possibly gilded) source, and its doubling already rides `gildedParams` (Whiplass-o's shape). */
+  equipmentBuffThisShop: (ctx, _self, params) => {
+    buffThisShopOffers(ctx.state, 'Stellar Lens', num(params.attack, 10), num(params.health, 10));
+  },
+
+  /** Shooting Star (Shout): this shop +a/+h for EACH Shop spell cast this turn (`spellsThisTurn` — the Spirit
+   *  Worgen read; a multiplied cast counts each time, as for every spells-this-turn scaler). Zero spells → nothing.
+   *  The live text (`shootingStarText`) prints the same product. Golden doubles the per-spell rate. */
+  battlecryBuffThisShopPerSpellsThisTurn: (ctx, self, params) => {
+    const n = ctx.state.spellsThisTurn;
+    if (n <= 0) return;
+    const a = num(params.attack, 3) * gold(self) * n, h = num(params.health, 3) * gold(self) * n;
+    buffThisShopOffers(ctx.state, nameOf(self), a, h);
+  },
+
+  /** Accretion Warden (Shout): the Starform eats the HIGHEST-TIER Shop minion — ties go to the RIGHT-most (owner
+   *  2026-09-12); no Starform → nothing; the token never eats itself. A real Shop consume through the token's own
+   *  consume body (`starformConsumeShopMinion`: `onConsume`, the consume meter, Open Market, `starformGained`).
+   *  Golden: the token gains DOUBLE the meal's stats (`times` 2 — Cinder Clerk's rider), not a second meal. */
+  battlecryStarformConsumeShop: (ctx, self, params) => {
+    const idx = pickShopMinionFor(ctx.state, str(params.pick) === 'highestHealth' ? 'highestHealth' : 'highestTier');
+    if (idx < 0) return;
+    starformConsumeShopMinion(ctx.state, idx, num(params.times, 1) * gold(self));
+  },
+
+  /** Accretion (spell): the Starform eats the HIGHEST-HEALTH Shop minion (its current buy Health — a Fortified
+   *  offer counts as what it is now); ties → the right-most. No Starform → the consume is skipped (the spell's
+   *  other half, the Star Crash grant, still lands). Untargeted: `self` is undefined here (see applyCastEffects). */
+  spellStarformConsumeShop: (ctx, _self, params) => {
+    const idx = pickShopMinionFor(ctx.state, str(params.pick) === 'highestTier' ? 'highestTier' : 'highestHealth');
+    if (idx < 0) return;
+    starformConsumeShopMinion(ctx.state, idx, num(params.times, 1));
+  },
+
+  /** Accretion (spell) / any cast effect: get `count` copies of the NAMED spell — the cast-safe twin of
+   *  `battlecryGrantSpell` (that one reads `self.cardId` for a rune check, and a cast factory's `self` is the
+   *  spell's target, undefined for an untargeted spell). Rides `conjureToHand` (the grant chokepoint: hand cap,
+   *  `onGainCard`, the Runic Hoard hook). */
+  spellGrantSpell: (ctx, _self, params) => {
+    const def = CARD_INDEX[str(params.spellId)];
+    if (!def) return;
+    conjureToHand(ctx.state, [def], num(params.count, 1));
+  },
+
+  /** Orbit Keeper (End of Turn): your Starform +a/+h — nothing without one. Golden doubles. */
+  endOfTurnBuffStarform: (ctx, self, params) => {
+    buffStarform(ctx.state, num(params.attack, 2) * gold(self), num(params.health, 2) * gold(self), nameOf(self));
+  },
+
+  /** Orbit Keeper (Start of Turn): create a Starform if none is out (a no-op with one — rule 2; a full row eats its
+   *  right-most minion — rule 1). Runs in the Start-of-Turn pass, i.e. against the NEW turn's row. */
+  startOfTurnCreateStarform: (ctx, self) => {
+    if (hasStarform(ctx.state)) return;
+    createStarform(ctx.state, { cardId: self.cardId, name: nameOf(self) });
+  },
+
+  /** Corona Devotee (Shout): CONSUME the Starform — the token leaves (rule 7, `starformRemoved('consume')`) and
+   *  this gains 100% of its stats, base 1/1 included. No Starform → nothing. Golden: gains double (`times` 2). */
+  battlecryConsumeStarform: (ctx, self, params) => {
+    const st = consumeStarform(ctx.state, self);
+    if (!st) return;
+    const times = num(params.times, 1) * gold(self);
+    addBuff(self, nameOf(self), st.attack * times, st.health * times);
+  },
+
+  /** Nova Herald (Shout): COLLAPSE the Starform — the token leaves and `count` RANDOM friendly Celestials each gain
+   *  HALF its stats, rounded up, base included (rule 7 — `collapseStarform` returns the halves). Fewer Celestials
+   *  than `count` → each present one gets it; none → the token still collapses and the stats go nowhere; no
+   *  Starform → nothing at all (owner 2026-09-12). The Herald itself is a friendly Celestial and eligible. Golden:
+   *  each recipient gains double the half (its full stats). */
+  battlecryCollapseStarform: (ctx, self, params) => {
+    // The receivers are drawn INSIDE the collapse (after the token leaves, same rng order as before) so the
+    // `starformFx` record names every one of them — the UI fires one `starform-pull` per target.
+    let picked: BoardCard[] = [];
+    const half = collapseStarform(ctx.state, () => {
+      const pool = ctx.state.board.filter((c) => isTribe(c, 'celestial'));
+      picked = pickRandom(ctx.state, pool, num(params.count, 3));
+      return picked;
+    });
+    if (!half) return;
+    const g = gold(self);
+    for (const t of picked) addBuff(t, nameOf(self), half.attack * g, half.health * g);
+  },
+
+  /** Twin Star (`starformGained`): this gains the SAME the token just gained — the payload carries the delta
+   *  (`buffStarform`, the token's consumes, and the action-boundary diff in `reduce` for every other growth path).
+   *  Golden doubles the mirrored amount. */
+  onStarformGainedBuffSelf: (_ctx, self, _params, payload) => {
+    const a = (payload.starformAttack ?? 0) * gold(self), h = (payload.starformHealth ?? 0) * gold(self);
+    if (a <= 0 && h <= 0) return;
+    addBuff(self, nameOf(self), a, h);
+  },
+
+  /** Zenith (`spellCast`, `includeRubies` — a spell of ANY kind, Gravestar Seer's ruling): your Starform +a/+h.
+   *  Golden doubles. Nothing without a token. */
+  spellCastBuffStarform: (ctx, self, params) => {
+    buffStarform(ctx.state, num(params.attack, 3) * gold(self), num(params.health, 3) * gold(self), nameOf(self));
+  },
+
+  /** Zenith (`starformRemoved`): when the token is CONSUMED or COLLAPSES — never DISMISSED (the 0-Gold buy) — create
+   *  a new one carrying HALF its stats, rounded up. The payload's stats are the FULL total (base 1/1 included), and
+   *  a fresh token is already 1/1, so the buff above base is `ceil(full/2) − 1` per stat (floored at 0): a 7/10
+   *  token comes back as a 4/5. A full row eats its right-most minion as any create does (rule 1); the new token's
+   *  own gain fires `starformGained` (Twin Star hears the rebirth). Golden: the new token carries the FULL stats. */
+  onStarformRemovedRecreateHalf: (ctx, self, _params, payload) => {
+    if (payload.starformReason !== 'consume' && payload.starformReason !== 'collapse') return;
+    if (hasStarform(ctx.state)) return; // a second Zenith already rebuilt it this removal
+    const full = { attack: payload.starformAttack ?? 1, health: payload.starformHealth ?? 1 };
+    const keep = self.golden ? full : { attack: Math.ceil(full.attack / 2), health: Math.ceil(full.health / 2) };
+    createStarform(ctx.state, { cardId: self.cardId, name: nameOf(self) });
+    buffStarform(ctx.state, Math.max(0, keep.attack - 1), Math.max(0, keep.health - 1), nameOf(self));
+  },
+
   /** Field Mechanic — Battlecry: add `count` copies of a specific spell (Patch Job) to your hand. Golden
    *  doubles the count. Respects the hand cap. */
   battlecryGrantSpell: (ctx, self, params) => {
@@ -6879,8 +7062,8 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       if (st.hand.length >= handCap(st)) break;
       const pool = st.shop
         .map((o, idx) => ({ o, idx, def: CARD_INDEX[o.cardId] }))
-        .filter(({ def }) => {
-          if (!def) return false;
+        .filter(({ o, def }) => {
+          if (!def || o.starform) return false; // the Starform can't be stolen to hand (rule 5)
           if (!tribe) return true; // the Requisition takes anything the row holds, spells included
           return !def.spell && !def.ruby && (def.tribe === tribe || def.tribe2 === tribe || !!def.universalTribe);
         });
@@ -7074,16 +7257,18 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     // RNG spent. The default (Deep Delve Writ) stays a random offer. `count` repeats the theft (a gilded Hustler).
     const highest = str(params.pick) === 'highestTier';
     for (let n = 0; n < Math.max(1, num(params.count, 1)); n++) {
-      if (state.shop.length === 0 || state.hand.length >= handCap(state)) return;
+      // Stealable offers: everything but the Starform (it never enters a hand — rule 5).
+      const stealable = state.shop.flatMap((o, i) => (o.starform ? [] : [i]));
+      if (stealable.length === 0 || state.hand.length >= handCap(state)) return;
       let idx: number;
       if (highest) {
-        idx = 0;
-        for (let i = 1; i < state.shop.length; i++) {
+        idx = stealable[0]!;
+        for (const i of stealable) {
           if ((CARD_INDEX[state.shop[i]!.cardId]?.tier ?? 0) > (CARD_INDEX[state.shop[idx]!.cardId]?.tier ?? 0)) idx = i;
         }
       } else {
         const rng = makeRng(state.rngCursor);
-        idx = rng.int(state.shop.length);
+        idx = stealable[rng.int(stealable.length)]!;
         state.rngCursor = rng.state();
       }
       const offer = state.shop[idx]!;
@@ -7462,7 +7647,10 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const target = payload.target;
     if (!target) return;
     const a = num(params.attack, 0) + spellAttackBonus(ctx.state), h = num(params.health, 0) + spellHealthBonus(ctx.state);
-    addBuff(target, 'Star Crash', a, h);
+    // Constellation Prime: "your Star Crashes cast an additional time" = the PRIMARY lands once more per Prime on
+    // the chosen target; the secondary random-friendly half fires ONCE per cast (owner 2026-09-12).
+    const lands = 1 + (params._spellId === 'starcrash' ? primeExtraPrimaryLands(ctx.state) : 0);
+    for (let i = 0; i < lands; i++) addBuff(target, 'Star Crash', a, h);
     for (const t of pickRandom(ctx.state, [...ctx.state.board], 1)) addBuff(t, 'Star Crash', a, h);
   },
   /** Grave Robbery (cast, aimed): DESTROY the friendly target — the two-step death Graverobber / Cage Breaker use, so
@@ -7587,7 +7775,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   },
 
   spellGildRandomTavern: (ctx) => {
-    const offers = ctx.state.shop.filter((o) => !o.golden);
+    const offers = ctx.state.shop.filter((o) => !o.golden && !o.starform); // the Starform is never gilded (rule 5)
     if (offers.length === 0) return;
     const rng = makeRng(ctx.state.rngCursor);
     offers[rng.int(offers.length)]!.golden = true;
@@ -8675,13 +8863,13 @@ export function spellDisplayText(cardId: string, bonusA: number, escalation = 0,
     const eff = def.effects.find((e) => e.do === 'spellBuffTargetPerSpellsCast');
     const p = eff?.params as { attack?: number; health?: number; perAttack?: number; perHealth?: number } | undefined;
     const baseA = Number(p?.attack ?? 2), baseH = Number(p?.health ?? 2), perA = Number(p?.perAttack ?? 3), perH = Number(p?.perHealth ?? 3);
-    let t = def.text;
-    if (bonusA > 0 || bonusH > 0) {
-      t = t.replace(`**+${baseA}/+${baseH}**`, `**{{+${baseA + bonusA}/+${baseH + bonusH}}}**`)
-        .replace(`**+${perA}/+${perH}**`, `**{{+${perA + bonusA}/+${perH + bonusH}}}**`);
-    }
+    // THE STANDARD (owner 2026-09-12): the printed grant IS the current value — "Give a minion +5/+5" in green once
+    // spells have been cast, never a "Now +5/+5" appendix. The per-spell step greens only for spell power.
     const n = extra?.anySpellsThisTurn ?? 0;
-    if (n > 0) t = `${t} {{Now +${baseA + bonusA + (perA + bonusA) * n}/+${baseH + bonusH + (perH + bonusH) * n}.}}`;
+    const curA = baseA + bonusA + (perA + bonusA) * n, curH = baseH + bonusH + (perH + bonusH) * n;
+    let t = def.text;
+    if (curA !== baseA || curH !== baseH) t = t.replace(`**+${baseA}/+${baseH}**`, `**{{+${curA}/+${curH}}}**`);
+    if (bonusA > 0 || bonusH > 0) t = t.replace(`**+${perA}/+${perH}**`, `**{{+${perA + bonusA}/+${perH + bonusH}}}**`);
     return t;
   }
   // Crescendo (set 3): "+1/+1 for each Spirit you played this turn" — spell power scales the per-Spirit rate
@@ -8693,9 +8881,11 @@ export function spellDisplayText(cardId: string, bonusA: number, escalation = 0,
     const tribe = (p?.tribe ?? 'spirit') as Tribe;
     const perA = Number(p?.attack ?? 1) + bonusA, perH = Number(p?.health ?? 1) + bonusH;
     const played = (extra?.playedThisTurn ?? []).filter((id) => { const d = CARD_INDEX[id]; return !!d && defIsTribe(d, tribe); }).length;
-    let t = bonusA > 0 || bonusH > 0 ? def.text.replace(`+${Number(p?.attack ?? 1)}/+${Number(p?.health ?? 1)}`, `{{+${perA}/+${perH}}}`) : def.text;
-    if (played > 0) t = `${t} {{Now +${perA * played}/+${perH * played}.}}`;
-    return t;
+    // THE STANDARD (owner 2026-09-12): once Spirits have been played the printed number is the TOTAL it grants now
+    // (green, in place); before that it is the per-Spirit rate, greened only for spell power. No "Now" appendix.
+    const baseTok = `+${Number(p?.attack ?? 1)}/+${Number(p?.health ?? 1)}`;
+    if (played > 0) return def.text.replace(baseTok, `{{+${perA * played}/+${perH * played}}}`);
+    return bonusA > 0 || bonusH > 0 ? def.text.replace(baseTok, `{{+${perA}/+${perH}}}`) : def.text;
   }
   if (def.id === 'hoardflame') {
     const eff = def.effects.find((e) => e.do === 'spellBuffPerDragonPlayed');
@@ -8762,7 +8952,18 @@ export function spellDisplayText(cardId: string, bonusA: number, escalation = 0,
     }
     const ticks = Math.floor(Math.max(0, goldSpent) / per);
     if (ticks <= 0) return stepText; // no ticks yet → the printed base (greened) is the live value
-    return `${stepText} {{Now +${baseA + bonusA + (a + bonusA) * ticks}/+${baseH + bonusH + (h + bonusH) * ticks}.}}`;
+    // THE STANDARD (owner 2026-09-12): the BASE token becomes the current total, in place and green — never a
+    // "Now +X/+Y" appendix. Re-derived from def.text so the step token (already greened above) is untouched.
+    const curA = baseA + bonusA + (a + bonusA) * ticks, curH = baseH + bonusH + (h + bonusH) * ticks;
+    const baseTok = `+${baseA}/+${baseH}`;
+    const at0 = def.text.indexOf(baseTok);
+    let t = at0 >= 0 ? def.text.slice(0, at0) + `{{+${curA}/+${curH}}}` + def.text.slice(at0 + baseTok.length) : def.text;
+    if (bonusA > 0 || bonusH > 0) {
+      const stepTok = `+${a}/+${h}`;
+      const at = t.lastIndexOf(stepTok);
+      if (at >= 0) t = t.slice(0, at) + `{{+${a + bonusA}/+${h + bonusH}}}` + t.slice(at + stepTok.length);
+    }
+    return t;
   }
   if (bonusA <= 0 && bonusH <= 0) return def.text;
   // Set 3 flat stat spells (2026-09-10) — Aspect's Blessing (both branches), Shared Spirit, Star Crash, Hand Soap:
@@ -8828,7 +9029,10 @@ export function spellDisplayText(cardId: string, bonusA: number, escalation = 0,
   const tribeBuff = def.effects.find((e) => e.do === 'spellGrantTribeAttack');
   if (tribeBuff) {
     const amt = Number((tribeBuff.params as { amount?: number } | undefined)?.amount ?? 0);
-    return def.text.replace(`+${amt} Attack`, `{{+${amt + bonusA}/+${bonusH}}}`);
+    // "Give your Undead Aura +3 Attack." → under +0/+1 spell power "…+3/+1." (owner 2026-09-12): the bolded
+    // magnitude is replaced in place; the base-only fold keeps the Attack-only wording when Health power is 0.
+    const live = bonusH > 0 ? `+${amt + bonusA}/+${bonusH}` : `+${amt + bonusA} Attack`;
+    return def.text.replace(`**+${amt} Attack**`, `**{{${live}}}**`);
   }
   // Staff of Guel: its "+A/+B" tavern-buy buff scales with spell power on both stats too.
   const shopBuff = def.effects.find((e) => e.do === 'spellBuffShop');
@@ -9081,6 +9285,42 @@ export function fireOnSell(state: RunState, card: BoardCard): void {
  * `hand.push` (a bought minion, a Discover pick): those are direct player actions, not the grant path the card
  * reacts to. Watcher effects add no card, so this can't recurse.
  */
+/**
+ * STARFORM (set 3 Celestials, owner design 2026-09-12) — the two board-wide watcher dispatches. Recruit-only:
+ * the token lives in the Shop and only grows / leaves there. Both fire through `captureBuffFx` so a watcher's
+ * payout (Twin Star buffing itself, a Zenith-style payoff) animates like every other reaction.
+ */
+export function fireStarformGained(state: RunState, attack: number, health: number): void {
+  if (attack <= 0 && health <= 0) return;
+  const ctx = makeContext(state);
+  for (const card of [...state.board]) {
+    for (const effect of instanceEffects(card)) {
+      if (effect.on !== 'starformGained') continue;
+      const fn = RECRUIT_FACTORIES[effect.do];
+      if (fn) captureBuffFx(state, card, 'minion', () => fn(ctx, card, effect.params ?? {}, { minion: card, starformAttack: attack, starformHealth: health }));
+    }
+  }
+}
+
+export function fireStarformRemoved(state: RunState, reason: 'consume' | 'collapse' | 'dismiss', stats: { attack: number; health: number }): void {
+  const ctx = makeContext(state);
+  for (const card of [...state.board]) {
+    for (const effect of instanceEffects(card)) {
+      if (effect.on !== 'starformRemoved') continue;
+      const fn = RECRUIT_FACTORIES[effect.do];
+      if (fn) captureBuffFx(state, card, 'minion', () => fn(ctx, card, effect.params ?? {}, { minion: card, starformReason: reason, starformAttack: stats.attack, starformHealth: stats.health }));
+    }
+  }
+}
+
+/** Fire the board's `onBuy` WATCHERS for a purchase that put NO body anywhere — the Starform's 0-Gold dismiss
+ *  (owner rule 5: it counts as a minion bought). The bought "body" is a stand-in built from the token, so a
+ *  watcher reading the payload sees a Celestial. Deliberately NOT `applyOnBuy`: Banquet Hall / Second Life act
+ *  on a body that arrives in hand, and nothing arrives here. */
+export function fireOnBuyWatchers(state: RunState, bought: BoardCard): void {
+  fire(makeContext(state), 'onBuy', { minion: bought });
+}
+
 export function fireOnGainCard(state: RunState, cardId?: string): void {
   // RUNE OF HEAVY PAYROLL: a DWARF arriving in hand pays your left-most minion. Rides this chokepoint — the
   // shared "a card was granted to hand" hook — rather than the buy path, because "get" is the grant verb in
@@ -9516,7 +9756,7 @@ export function swapWithTavern(state: RunState, boardMinion: BoardCard): boolean
   if (boardMinion.golden) return false; // can't trade away a golden (triple) — no RNG consumed on the no-op
   // Only swap with a tavern MINION — spells can never be displaced onto the board. With no minion in the
   // tavern the swap can't happen (no RNG consumed on the no-op); callers keep the spell / hero charge.
-  const minionIdx = state.shop.flatMap((o, i) => (CARD_INDEX[o.cardId]?.spell ? [] : [i]));
+  const minionIdx = state.shop.flatMap((o, i) => (CARD_INDEX[o.cardId]?.spell || o.starform ? [] : [i])); // never the Starform (rule 5)
   if (minionIdx.length === 0) return false;
   const rng = makeRng(state.rngCursor);
   const si = minionIdx[rng.int(minionIdx.length)]!;
@@ -9685,10 +9925,14 @@ export function applyShopRefreshed(state: RunState): void {
   // ordering is load-bearing (owner ruling 2026-07-25): a Hellrider that eats the right-most must eat the
   // BUFFED body. It used to be enforced with a two-pass BUFF_FIRST loop over board watchers; now that the buff
   // is run-level state rather than a board effect, applying it up here IS the ordering.
+  // STARFORM (owner rule 4): a Starform pinned in the buffed slot takes each refresh-time slot buff ONE time —
+  // the first refresh it sits there — and never again on later refreshes (`refreshLanded` latches per source).
+  // Nothing is redirected to the next minion: the buff is gated, not moved. Play-time right-most buffs (a
+  // Shout, a hero power) are untouched — this is only about refresh re-landing.
   const slot = state.rightmostSlotBuff;
   if (slot) {
     const i = rightmostShopMinion(state);
-    if (i >= 0) addOfferBuff(state.shop[i]!, 'Market Tormentor', slot.attack, slot.health);
+    if (i >= 0 && starformRefreshLand(state.shop[i]!, 'tormentor')) addOfferBuff(state.shop[i]!, 'Market Tormentor', slot.attack, slot.health);
   }
   // RUNE OF THE EMBERS: every refresh DOUBLES the right-most Shop minion's Health. Applied as an offer buff
   // (`+hp` equal to the body's current Health) rather than a stat rewrite, so the shop card shows where the
@@ -9700,6 +9944,7 @@ export function applyShopRefreshed(state: RunState): void {
     for (let k = 0; k < runeStacksOf(state, 'rune_embers'); k++) {
       const i = rightmostShopMinion(state);
       if (i < 0) break;
+      if (!starformRefreshLand(state.shop[i]!, 'embers')) break; // a Starform doubles once, on its first refresh there
       const cur = offerBuyStats(state, state.shop[i]!).health;
       if (cur > 0) { procRuneId(state, 'rune_embers'); addOfferBuff(state.shop[i]!, 'Rune of the Embers', 0, cur); }
     }
@@ -9708,7 +9953,7 @@ export function applyShopRefreshed(state: RunState): void {
   const lslot = state.leftmostSlotBuff;
   if (lslot) {
     const l = state.shop.findIndex((o) => { const d = CARD_INDEX[o.cardId]; return !!d && !d.spell && !d.ruby; });
-    if (l >= 0) addOfferBuff(state.shop[l]!, 'Market Tormentor', lslot.attack, lslot.health);
+    if (l >= 0 && starformRefreshLand(state.shop[l]!, 'displayCase')) addOfferBuff(state.shop[l]!, 'Market Tormentor', lslot.attack, lslot.health);
   }
   for (const card of [...state.board]) {
     const def = CARD_INDEX[card.cardId];
@@ -9809,6 +10054,10 @@ export function offerBuyStats(state: RunState, offer: ShopCard): { attack: numbe
   if (offer.held) return { attack: offer.held.attack, health: offer.held.health };
   const def = CARD_INDEX[offer.cardId];
   if (!def) return { attack: 0, health: 0 };
+  // THE STARFORM: its whole total is BAKED onto the offer (`starform.ts` folds the run-wide / this-turn shop
+  // channels in as they happen, since it is the one offer that survives the refresh those channels are scoped
+  // to). Reading the live channels here too would pay them twice. Never golden, never held.
+  if (offer.starform) return { attack: def.attack + (offer.atk ?? 0), health: def.health + (offer.hp ?? 0) };
   const cb = cardBuff(state, def.id);
   const fodder = def.keywords.includes('FD'); // Fodder carries Staff of Guel via its run-wide enchant, not the buy-buff
   // The PERMANENT run-wide shop bonus, plus the Merchant's Chorus THIS-TURN layer. Same Fodder exclusion for
@@ -9902,6 +10151,26 @@ export function feastConsume(state: RunState, center: BoardCard, count: number):
  * Returns true if something was eaten, so a caller can tell "no legal target" from "done".
  */
 export function consumeShopMinion(state: RunState, eater: BoardCard, offerIndex: number, times = 1): boolean {
+  return consumeShopOffer(state, eater, offerIndex, times, (a, h) => addBuff(eater, 'Consume', a, h));
+}
+
+/**
+ * The shared BODY of a Shop consume, with the eater's growth abstracted: `eater` is the body every watcher and
+ * record sees (`onConsume` payload, `shopEaten.eaterUid`), `gain` is where the eaten stats actually land.
+ * `consumeShopMinion` binds it to a board body's `addBuff`; the STARFORM binds it to its own offer (the token
+ * eats a Shop minion — Accretion — with a stand-in board card so Broodlord / Avarice / the Banquet see exactly
+ * what a Demon's consume shows them). `skipUid` keeps the Starform from being picked as its OWN Bottomless
+ * Banquet second bite. Every piece of bookkeeping (Open Market, Banquet, `shopMinionsEaten`, pool return,
+ * `onConsume`) lives here ONCE.
+ */
+export function consumeShopOffer(
+  state: RunState,
+  eater: BoardCard,
+  offerIndex: number,
+  times: number,
+  gain: (attack: number, health: number) => void,
+  skipUid?: string,
+): boolean {
   // Bottomless Banquet: the FIRST Shop minion your Demons Consume each turn, they Consume another. Guarded by a
   // per-turn latch set before the recursive call, so the extra Consume can't itself re-trigger the reward.
   // Rune of the Open Market: the FIRST Shop minion Consumed each turn buffs the Shop permanently. Shares the
@@ -9916,7 +10185,7 @@ export function consumeShopMinion(state: RunState, eater: BoardCard, offerIndex:
     state.consumeDoubleUsedThisTurn = true;
     const other = state.shop.findIndex((o, n) => {
       const d = CARD_INDEX[o.cardId];
-      return n !== offerIndex && !!d && !d.spell && !d.ruby;
+      return n !== offerIndex && o.uid !== skipUid && !!d && !d.spell && !d.ruby;
     });
     if (other >= 0) {
       // The bonus bite splices the row BEFORE the primary one lands, so an index to the RIGHT of it goes stale
@@ -9924,7 +10193,7 @@ export function consumeShopMinion(state: RunState, eater: BoardCard, offerIndex:
       // end, so the bonus (left-most) bite was the only one taken and the right-most survived (Mike's report
       // 2026-09-10: "Blart consumed not the right-most unit").
       const primaryUid = state.shop[offerIndex]!.uid;
-      consumeShopMinion(state, eater, other, times);
+      consumeShopOffer(state, eater, other, times, gain, skipUid);
       offerIndex = state.shop.findIndex((o) => o.uid === primaryUid);
     }
   }
@@ -9938,7 +10207,10 @@ export function consumeShopMinion(state: RunState, eater: BoardCard, offerIndex:
   const ctx = makeContext(state);
   const gainA = fa * times;
   const gainH = fh * times;
-  addBuff(eater, 'Consume', gainA, gainH);
+  gain(gainA, gainH);
+  // A Demon that eats the STARFORM removes it (owner rule 5: it counts as a regular Shop minion for Demon
+  // consumes) — the Zenith-style watchers hear it leave with reason 'consume' and its full stats.
+  if (offer.starform) fireStarformRemoved(state, 'consume', { attack: fa, health: fh });
   // Record the consume BEFORE notifying: an `onConsume` watcher has to be able to see WHAT was eaten, and
   // `fodderEaten` is the only carrier of that (Avarice Incarnate pays Gold equal to the eaten minion's tier and
   // read an empty list when this was appended afterwards). APPENDED rather than replacing, so several consumes
@@ -9975,6 +10247,41 @@ export function rightmostShopMinion(state: RunState): number {
     if (d && !d.spell && !d.ruby) return i;
   }
   return -1;
+}
+
+/** STARFORM ROSTER — the Shop minion a Starform consume picks: the highest TIER (Accretion Warden) or the highest
+ *  current buy HEALTH (the Accretion spell), ties to the RIGHT-most (owner 2026-09-12). The token itself, spells
+ *  and Rubies are never candidates. -1 with nothing edible. */
+export function pickShopMinionFor(state: RunState, by: 'highestTier' | 'highestHealth'): number {
+  let best = -1, bestKey = -Infinity;
+  for (let i = 0; i < state.shop.length; i++) {
+    const o = state.shop[i]!;
+    const d = CARD_INDEX[o.cardId];
+    if (!d || d.spell || d.ruby || o.starform) continue;
+    const key = by === 'highestTier' ? d.tier : offerBuyStats(state, o).health;
+    if (key >= bestKey) { bestKey = key; best = i; } // >=: a tie moves the pick rightward
+  }
+  return best;
+}
+
+/** "Give THIS shop +a/+h" — bake +a/+h onto every MINION offer standing in the row right now, under `source`
+ *  (Apples' branch, the owner's "this shop" vocabulary). The Starform is one of those offers: `addOfferBuff` on it
+ *  is a real gain, so Twin Star hears it through the action-boundary diff and the ledger names the card. */
+export function buffThisShopOffers(state: RunState, source: string, attack: number, health: number): void {
+  if (attack <= 0 && health <= 0) return;
+  for (const o of state.shop) {
+    const d = CARD_INDEX[o.cardId];
+    if (!d || d.spell || d.ruby) continue;
+    addOfferBuff(o, source, attack, health);
+  }
+}
+
+/** Constellation Prime: how many EXTRA times a Star Crash's PRIMARY +5/+7 lands on its chosen Celestial — one per
+ *  Prime on the board, two per gilded Prime (owner 2026-09-12: "an additional time" re-lands the primary only; the
+ *  secondary random-friendly half fires once per cast). Read by the Star Crash factory per cast, so a Comet /
+ *  Nimbus-multiplied cast re-lands the primary on every repeat. */
+export function primeExtraPrimaryLands(state: RunState): number {
+  return state.board.reduce((n, c) => n + (c.cardId === 'ce3_constellationprime' ? (c.golden ? 2 : 1) : 0), 0);
 }
 
 /**
@@ -10449,6 +10756,12 @@ export function castSpellOnOffer(state: RunState, spellDef: CardDef, offer: Shop
   // rewrites `temp.cardId`, so the offer becomes the new minion and the deltas re-base on ITS printed stats
   // (the factory already re-based the bonus stats onto the new form). For every ordinary spell
   // `after === card` and this is byte-identical to the old fold.
+  // THE STARFORM keeps its identity: a transform spell (Strange Revision) cannot rewrite the token — only the
+  // stat delta folds back, through `buffStarform` so Twin Star hears the gain and the ledger names the spell.
+  if (offer.starform) {
+    buffStarform(state, temp.attack - (card.attack + (offer.atk ?? 0)), temp.health - (card.health + (offer.hp ?? 0)), spellDef.name);
+    return;
+  }
   const after = CARD_INDEX[temp.cardId] ?? card;
   offer.cardId = temp.cardId;
   offer.atk = temp.attack - after.attack;

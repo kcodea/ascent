@@ -49,6 +49,8 @@ export const GameEventSchema = z.enum([
   'shopRefreshed',
   'orbit', // Celestial ORBIT — a card was played from hand adjacent to this minion
   'orbitFired', // Celestial — a board-wide watcher: ANY Orbit on your board resolved
+  'starformGained', // Celestial — your Starform (the Shop token) gained stats (Twin Star); payload carries the delta
+  'starformRemoved', // Celestial — your Starform left the Shop (consumed / collapsed / dismissed); payload carries its stats
 ]);
 
 export const EffectFactoryIdSchema = z.enum([
@@ -112,6 +114,22 @@ export const EffectFactoryIdSchema = z.enum([
   'spellCastEveryNBuffTribe',
   'rallyGrantFirstSpellCopy',
   'equipmentExtraNextSpellCasts',
+  'battlecryCreateStarformOrBuff',
+  'onBuyBuffStarform',
+  'buffThisShop',
+  'equipmentBuffThisShop',
+  'battlecryStarformConsumeShop',
+  'battlecryBuffThisShopPerSpellsThisTurn',
+  'endOfTurnBuffStarform',
+  'startOfTurnCreateStarform',
+  'battlecryConsumeStarform',
+  'deathrattleGiveMaxStatsRandomTribe',
+  'onStarformGainedBuffSelf',
+  'battlecryCollapseStarform',
+  'spellCastBuffStarform',
+  'onStarformRemovedRecreateHalf',
+  'spellStarformConsumeShop',
+  'spellGrantSpell',
   'onRubyPlayedSpreadAdjacent',
   'onRubyPlayedSpreadRandom',
   'scTriggerTribeShouts',
@@ -514,7 +532,7 @@ export const EffectFactoryIdSchema = z.enum([
   'combatGrantAle', 'rallyGiveAttackToOthers', 'echoSummonCopyNoEcho', 'echoSummonInheritAttackAndCharge',
   // Set 3 Dwarves (2026-09-09)
   'minionSoldBuffSelf', 'endOfTurnBuffAdjacentPerCard', 'equipmentCastRandomAle', 'onTribeSummonedBuffRandomOthers',
-  'deathrattleGoldNextTurn', 'onTribeGainAttackBuffSelf', 'equipmentBonusTurnTime',
+  'deathrattleGoldNextTurn', 'onTribeGainAttackBuffSelf', 'equipmentCardDiscountWindow',
   'deathrattleBuffHandTribe', // R-HAND-02 (2026-09-09): buff hand minions of a tribe — permanent in both phases
   // Set 3 Undead (2026-09-09)
   'onRiseBuffSelfWard', 'onRiseBuffBoardAndHand', 'overflowBuffAllPermanent', 'deathrattleBuffRandomTribe',

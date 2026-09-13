@@ -6,6 +6,7 @@ import { CIA_ENCHANT_CHANCE, POOL_QUANTITIES, maxTierFor } from './config';
 import { getHero, hasPower } from './heroes';
 import type { RunState, SurgeTribe } from './state';
 import { stampVeinstormRubies } from './recruit';
+import { buffStarform, starformOf, starformRefreshLand, withStarformPinned } from './starform';
 
 /**
  * Croupier Ayse (Lucky Seat): roll every freshly-served offer for the Enchanted mark.
@@ -119,6 +120,20 @@ export function takeFromPool(state: RunState, cardId: string): void {
  * cursor so rerolls are reproducible.
  */
 export function rollShop(state: RunState): void {
+  // THE STARFORM (owner rule 3): the token is lifted out, the row is rebuilt one slot short, and it is put back
+  // at its own index — so it survives every roll IN PLACE and the kept-offers-to-the-left rule never moves it.
+  withStarformPinned(state, (slots) => rollShopRow(state, slots));
+  // Rule 4: Veinstorm's per-refresh Ruby stamp lands on a Starform ONCE — the first roll it sits through — and
+  // never again. It rides the Starform's own buff path (Twin Star hears it) under the same `Ruby` source name.
+  const sf = starformOf(state);
+  const vs = state.veinstormRubies;
+  if (sf && vs && (vs.atk > 0 || vs.hp > 0) && starformRefreshLand(sf, 'veinstorm') && buffStarform(state, vs.atk, vs.hp, 'Ruby')) {
+    const prev = state.veinstormStamped;
+    state.veinstormStamped = { uids: [...(prev?.uids ?? []), sf.uid], onRefresh: true, attack: vs.atk, health: vs.hp };
+  }
+}
+
+function rollShopRow(state: RunState, slots: number): void {
   // TUTORIAL: a scripted shop serves authored offers instead of drawing from the pool, so a lesson always has
   // the cards it needs. Kept (frozen) offers still survive a refresh, exactly like the normal path. Nothing
   // here touches the shared pool. Returns early — the pool-draw below never runs for a scripted roll.
@@ -131,7 +146,6 @@ export function rollShop(state: RunState): void {
   const kept = state.shop.filter((o) => o.kept);
   for (const offer of state.shop) if (!offer.kept) returnToPool(state, offer.cardId);
   const rng = makeRng(state.rngCursor);
-  const slots = tierSlots(state.tier);
   const offers: RunState['shop'] = [...kept];
   // Rune of the Guiding Candle: while the turn's allowance holds, the draw pool is narrowed to that tier.
   // Read here (the single draw site) rather than by post-filtering offers, so the pool bookkeeping stays honest.
@@ -229,9 +243,12 @@ function rollTutorialShop(state: RunState): void {
  * left as-is. The NEXT normal roll (reroll / turn advance) restocks minions, so this is a one-shot.
  */
 export function rollSpellShop(state: RunState): void {
+  withStarformPinned(state, (slots) => rollSpellShopRow(state, slots)); // the Starform keeps its slot (rule 3)
+}
+
+function rollSpellShopRow(state: RunState, slots: number): void {
   for (const offer of state.shop) returnToPool(state, offer.cardId);
   const rng = makeRng(state.rngCursor);
-  const slots = tierSlots(state.tier);
   const eligible = runSpells(state).filter((c) => c.tier <= state.tier).map((c) => c.id);
   for (let i = eligible.length - 1; i > 0; i--) { // Fisher–Yates shuffle (seeded) → distinct picks
     const j = rng.int(i + 1);
@@ -248,9 +265,12 @@ export function rollSpellShop(state: RunState): void {
  * pool leaves the shop empty (the next normal roll restocks). Seeded + reproducible via the shop RNG cursor.
  */
 export function refillShopFiltered(state: RunState, filter: (c: CardDef) => boolean): void {
+  withStarformPinned(state, (slots) => refillShopFilteredRow(state, filter, slots)); // the Starform keeps its slot (rule 3)
+}
+
+function refillShopFilteredRow(state: RunState, filter: (c: CardDef) => boolean, slots: number): void {
   for (const offer of state.shop) returnToPool(state, offer.cardId);
   const rng = makeRng(state.rngCursor);
-  const slots = tierSlots(state.tier);
   const pool = poolOf(state).buyable.filter((c) => filter(c) && (state.pool[c.id] ?? 0) > 0);
   const offers: RunState['shop'] = [];
   for (let i = 0; i < slots && pool.length > 0; i++) {
@@ -287,7 +307,7 @@ export function elevateShop(state: RunState): void {
   const next: RunState['shop'] = [];
   for (const offer of state.shop) {
     const def = CARD_INDEX[offer.cardId];
-    if (!def) { next.push(offer); continue; }
+    if (!def || offer.starform) { next.push(offer); continue; } // the Starform is never elevated away (rule 3)
     const target = Math.min(def.tier + 1, cap);
     // The outgoing copy counts as available: it's still held by this offer, so `state.pool` doesn't list it,
     // but a same-tier re-roll is allowed to pick it again.

@@ -49,9 +49,14 @@ export interface DragGeo {
   handIndexAt: (x: number, excludeUid?: string) => number;
   boardUidAt: (x: number, y: number) => string | null;
   shopUidAt: (x: number, y: number) => string | null;
+  /** The STARFORM offer under a point, or null — the one shop offer a friendly Celestial-aimed spell (Star Crash)
+   *  may land on (`starformSpellAimsToken`, set 3 Celestials 2026-09-12). Optional: absent = no such aim. */
+  starformUidAt?: (x: number, y: number) => string | null;
 }
 
 export interface DragDecisionInput {
+  /** The dragged spell may be aimed at the Starform offer (`starformSpellAimsToken` — Star Crash). */
+  aimsStarform?: boolean;
   /** See `computeCastingSpell` — a Choose One that will ask before it aims never enters aim mode. */
   asksChoiceFirst?: boolean;
   drag: DragLike | null;
@@ -146,8 +151,10 @@ export function deriveDragDecision(inp: DragDecisionInput): DragDecision {
     magnetizesTo(drag.view.cardId, magHoverTarget.cardId, magHoverTarget.addedTribes, magHoverTarget.allTribes);
 
   // Casting a targeted spell: the friendly minion (or, for `any`, tavern offer) under the cursor IS the target.
+  // A friendly Celestial-aimed spell (Star Crash) may also land on the STARFORM offer — `aimsStarform` is set by
+  // the drag start from the same sim gate the reducer reads (`starformSpellAimsToken`).
   const castTargetUid = castingSpell
-    ? geo.boardUidAt(x, y) ?? (drag.view.target === 'any' ? geo.shopUidAt(x, y) : null)
+    ? geo.boardUidAt(x, y) ?? (drag.view.target === 'any' ? geo.shopUidAt(x, y) : inp.aimsStarform ? (geo.starformUidAt?.(x, y) ?? null) : null)
     : null;
 
   const overWarband =

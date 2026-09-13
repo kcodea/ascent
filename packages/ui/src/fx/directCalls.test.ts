@@ -156,7 +156,8 @@ describe('DIRECT_CALL_SITES is a derivation, not a list', () => {
       // 'tendril-trail' joined on 2026-09-02: the owner-authored buff-other ribbon, fired from `buffFxRender.ts`.
       // 'shop-buff-purple' joined the same day: the mid-combat Shop-buff bloom, fired from `useCombatReplay.ts`.
       // 'ward-lost-blast' joined on 2026-09-09: the owner-authored Ward-loss burst, fired from `choreo/channels/aura.ts`.
-      'rune-buff-unit', 'rune-select-implosion', 'rune-slot-break', 'shop-buff-purple', 'shop-tier-up', 'strike-impact', 'tallyanimation1', 'tendril-trail', 'ward-lost-blast', 'watcher-pulse',
+      // 'starform-pull' joined on 2026-09-12: the owner-authored Starform consume / collapse pull, fired from `Recruit.tsx`.
+      'rune-buff-unit', 'rune-select-implosion', 'rune-slot-break', 'shop-buff-purple', 'shop-tier-up', 'starform-pull', 'strike-impact', 'tallyanimation1', 'tendril-trail', 'ward-lost-blast', 'watcher-pulse',
     ]);
   });
 

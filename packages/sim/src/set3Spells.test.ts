@@ -114,8 +114,10 @@ describe('Hand Soap — the left-most MINION in hand +8/+8', () => {
 describe('Crescendo — your minions +1/+1 per Spirit played this turn', () => {
   it('pays per Spirit played, prints the live value, and fizzles with none played', () => {
     let s = run({ board: [body('a', 'stray'), body('b', 'stray')], hand: [spell('sp', 'crescendo')], playedThisTurn: ['sp3_tidebud', 'sp3_nurturer', 'stray'] });
-    expect(spellDisplayText('crescendo', 0, 0, 0, 0, 0, 0, { playedThisTurn: s.playedThisTurn })).toContain('{{Now +2/+2.}}');
-    expect(spellDisplayText('crescendo', 1, 0, 0, 0, 0, 0, { playedThisTurn: s.playedThisTurn }), 'spell power scales the per-Spirit rate').toContain('{{Now +4/+2.}}');
+    // THE STANDARD (owner 2026-09-12): the total replaces the printed rate in place, green — no "Now" appendix.
+    expect(spellDisplayText('crescendo', 0, 0, 0, 0, 0, 0, { playedThisTurn: s.playedThisTurn })).toContain('**{{+2/+2}}** for each');
+    expect(spellDisplayText('crescendo', 1, 0, 0, 0, 0, 0, { playedThisTurn: s.playedThisTurn }), 'spell power scales the per-Spirit rate').toContain('{{+4/+2}}');
+    expect(spellDisplayText('crescendo', 0, 0, 0, 0, 0, 0, { playedThisTurn: s.playedThisTurn })).not.toContain('Now ');
     s = play(s, 'sp');
     expect(stats(s.board.find((c) => c.uid === 'a')!)).toEqual([4, 4]);
     expect(stats(s.board.find((c) => c.uid === 'b')!)).toEqual([4, 4]);
@@ -128,7 +130,7 @@ describe('Stellar Chorus — +2/+2, improved by +3/+3 per spell of ANY kind cast
   it('counts Shop spells, Rubies and Gifts cast before it — never itself — and prints the live total', () => {
     // Two Shop spells + one Ruby play already this turn → +2/+2 + 3 × +3/+3 = +11/+11.
     let s = run({ board: [body('t', 'stray')], hand: [spell('sp', 'stellarchorus')], spellsThisTurn: 2, rubyCastsThisTurn: 1 });
-    expect(spellDisplayText('stellarchorus', 0, 0, 0, 0, 0, 0, { anySpellsThisTurn: 3 })).toContain('{{Now +11/+11.}}');
+    expect(spellDisplayText('stellarchorus', 0, 0, 0, 0, 0, 0, { anySpellsThisTurn: 3 })).toContain('Give a minion **{{+11/+11}}**'); // in place (owner standard 2026-09-12)
     s = play(s, 'sp', { targetUid: 't' } as Partial<Action>);
     expect(stats(s.board.find((c) => c.uid === 't')!)).toEqual([13, 13]);
     // First spell of the turn: just the base.
@@ -149,13 +151,16 @@ describe('Stellar Chorus — +2/+2, improved by +3/+3 per spell of ANY kind cast
     const after = stats(s.board.find((c) => c.uid === 't')!);
     expect([after[0] - before[0], after[1] - before[1]]).toEqual([11, 11]);
     const t = spellDisplayText('stellarchorus', 1, 0, 1, 0, 0, 0, { anySpellsThisTurn: 2 });
-    expect(t).toContain('{{+3/+3}}');   // the base, greened
-    expect(t).toContain('{{+4/+4}}');   // the per-spell step, greened
-    expect(t).toContain('{{Now +11/+11.}}');
-    // No power: the printed base and step stand un-greened; the total still reads live.
+    expect(t).toContain('Give a minion **{{+11/+11}}**'); // the grant IS the current total, in place (owner standard 2026-09-12)
+    expect(t).toContain('{{+4/+4}}');   // the per-spell step, greened for power
+    expect(t).not.toContain('Now ');
+    // No power: the step stands un-greened; the grant still reads the live total in place.
     const plain = spellDisplayText('stellarchorus', 0, 0, 0, 0, 0, 0, { anySpellsThisTurn: 2 });
-    expect(plain).not.toContain('{{+2/+2}}');
-    expect(plain).toContain('{{Now +8/+8.}}');
+    expect(plain).toContain('Give a minion **{{+8/+8}}**');
+    expect(plain).toContain('**+3/+3**');
+    expect(plain).not.toContain('{{+3/+3}}');
+    // Base only: the printed text stands exactly.
+    expect(spellDisplayText('stellarchorus', 0, 0, 0, 0, 0, 0, { anySpellsThisTurn: 0 })).toBe(CARD_INDEX['stellarchorus']!.text);
   });
 });
 

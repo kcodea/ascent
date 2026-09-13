@@ -32,7 +32,7 @@ if (import.meta.env.DEV) {
   (window as unknown as { __choreoEot?: boolean }).__choreoEot = CHOREO_EOT;
 }
 import { chooseBothText } from './cardText';
-import { spiritsPlayedThisTurn, anySpellsCastThisTurn, playerOpponent, alignmentsOf, boardHasCelestial, chooseBothActive, chooseBothStateOf, type ChooseBothState, chooseOneNeedsChoice, computeCombatOdds, type CombatOdds, rubyCastCount, rubyStatBonus, CONFIG, RIFTS, hasTier7Access, maxTierFor, conjuredStats, cardBuff, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, chooseOneBranchText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, dragonflameCasts, nextOpponent, lossDamageCap, playerLossDamage, minionCostOf, heroOfferPrice, offerBuyPrice, dominantBoardTribe, effectiveTargetTribe, boardManaBonus, upgradeCostOf, nextRefreshCostOf, poolOf, type RunState, type ShopCard, type CardBuff, type BoardCard, type BoardSnapshot, gildCopiesNeeded, activePowers, gateUses, runeStacksOf } from '@game/sim';
+import { spiritsPlayedThisTurn, anySpellsCastThisTurn, playerOpponent, alignmentsOf, boardHasCelestial, chooseBothActive, chooseBothStateOf, type ChooseBothState, chooseOneNeedsChoice, computeCombatOdds, type CombatOdds, rubyCastCount, rubyStatBonus, CONFIG, RIFTS, hasTier7Access, maxTierFor, conjuredStats, cardBuff, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, chooseOneBranchText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, dragonflameCasts, nextOpponent, lossDamageCap, playerLossDamage, minionCostOf, heroOfferPrice, offerBuyPrice, dominantBoardTribe, effectiveTargetTribe, boardManaBonus, upgradeCostOf, nextRefreshCostOf, poolOf, type RunState, type ShopCard, type CardBuff, type BoardCard, type BoardSnapshot, gildCopiesNeeded, activePowers, gateUses, runeStacksOf, starformSpellAimsToken } from '@game/sim';
 import { createPortal } from 'react-dom';
 import { setCardId, setCardStats, toggleCardKeyword, setEnemyStats, setEnemyCardId, toggleEnemyKeyword, removeEnemy, foeSnapshotOf } from './sandboxEdit';
 import { UnitEditor } from './UnitEditor';
@@ -694,6 +694,20 @@ function shopView(card: ShopCard, opts: ShopViewOpts = {}): CardView {
       target: c.target, tier: c.tier, castMult: opts.castMult,
     };
   }
+  // THE STARFORM (set 3 Celestials): a shop token whose printed stats ARE its counter — base + everything baked
+  // onto the offer (`offerBuyStats`' Starform branch), NEVER the live shop channels (the sim folds those onto
+  // the offer as they happen, so reading them here too would show them twice). Costs 0 (buying dismisses it),
+  // shown on the changed-price coin; `starform` marks the card for styling.
+  if (card.starform) {
+    const offerBuffs = (card.buffs ?? []).filter((b) => b.attack || b.health).map((b) => ({ source: b.source, attack: b.attack, health: b.health, count: b.count }));
+    return {
+      name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2, universalTribe: !!c.universalTribe,
+      attack: c.attack + (card.atk ?? 0), health: c.health + (card.hp ?? 0), keywords: [...c.keywords],
+      text: c.text, buffs: offerBuffs.length > 0 ? offerBuffs : undefined,
+      cost: 0, costChanged: true, tier: c.tier, starform: true,
+      baseAttack: c.attack, baseHealth: c.health,
+    };
+  }
   // Displacement: a stashed minion (held) shows its FULL preserved stats / keywords / golden frame. Its stored
   // stats are already final (golden ones already doubled), so no further folding — it restores intact on buy.
   if (card.held) {
@@ -905,11 +919,8 @@ export function Recruit() {
   // be rushed while reading a lesson (blueprint §6.4: "Timer — Disabled"), and the rig is for building. Under
   // NORMAL rules (2026-09-09) the sandbox runs the REAL clock — 1×, not the practice multiplier, since the point
   // of the switch is to feel the shipped pace.
-  // Thymepiece (set 3) banks flat seconds onto the NEXT turn's clock (`run.bonusTurnSeconds`, set at the turn
-  // flip). Added AFTER the practice multiplier and the cap — a bought 30s is 30s in every mode — but not to the
-  // tutorial/sandbox clock, which is already effectively infinite.
   const infiniteClock = (run.sandbox === true && sbRules === 'god') || run.mode === 'tutorial';
-  const turnSeconds = infiniteClock ? 99999 : Math.max(CHARGE_SECONDS + 1, (Math.min(80, TURN_SECONDS + (run.wave - 1) * 4 + (run.wave >= 6 ? 6 : 0)) + (run.wave >= 12 ? 12 : 0)) * (run.mode === 'practice' && !run.sandbox ? practiceTimer : 1)) + (run.bonusTurnSeconds ?? 0);
+  const turnSeconds = infiniteClock ? 99999 : Math.max(CHARGE_SECONDS + 1, (Math.min(80, TURN_SECONDS + (run.wave - 1) * 4 + (run.wave >= 6 ? 6 : 0)) + (run.wave >= 12 ? 12 : 0)) * (run.mode === 'practice' && !run.sandbox ? practiceTimer : 1));
 
   // Projected STARTING Gold for the next two waves (the Gold-cell hover) — cap-aware, folding in board mana
   // income (Money Bot) and the one-turn Hoarder/Robin bank (into Wave+1 only, since it's consumed then).
@@ -3016,6 +3027,12 @@ export function Recruit() {
     const el = document.elementFromPoint(x, y)?.closest(`[data-zone="tavern"] .card[data-uid]:not(.spellcard)${SB_FOE_EXCLUDE}`);
     return el?.getAttribute('data-uid') ?? null;
   };
+  /** The STARFORM offer under a point, or null — the one offer a friendly Celestial-aimed spell (Star Crash) may
+   *  land on. The per-drag cache already holds only the token for such a drag; the fallback re-checks the run. */
+  const starformUidAt = (x: number, y: number): string | null => {
+    const uid = shopUidAt(x, y);
+    return uid && run.shop.find((o) => o.uid === uid)?.starform ? uid : null;
+  };
   // Insertion index in the warband, from the pointer's x against the cards' centres.
   // `excludeUid` drops the dragged card from the count when *reordering* a board minion
   // (it's still in the DOM, so without this a rightward drag overshoots by one).
@@ -3168,7 +3185,7 @@ export function Recruit() {
     // the shop row stayed on the old ones). Listing them makes the memo honest rather than relying on that
     // incidental rebuild; `stabilizeViewMap` keeps the `Card` bailout, so the added deps cost nothing when the
     // rendered content is unchanged.
-    [run.shop, run.rift, run.questFreeFirstBuy, run.freeBuyUsedThisTurn, run.spiritDiscount, run.minionCostOffTurn, run.tradeInTribe, run.runeTradeIn, run.minionCostOverride /* every input of offerBuyPrice (2026-09-12) */, run.cardBuffs, run.tavernBuyBonus, run.tavernBuyBonusSources, run.tavernBuyBonusTurn, run.undeadAttackBonus, run.undeadHealthBonus, run.undeadBuyAtk, run.beastBuyAtk, run.beastBuyHp, run.magneticBuyAtk, run.magneticBuyHp, run.deathrattlesTriggered, run.spellsCast, run.spellsThisTurn, run.soulsmanGold, run.fodderConsumedThisTurn, run.spellCostMod, spellBonus, spellBonusH, run.frontToBackBonus, run.board, run.nextSpellExtraCasts, run.goldSpentThisTurn, run.goldPouchValue, run.playedThisTurn, run.squirlScoutBuff, run.conductorBuff, run.alesCastThisTurn, run.frankClearanceTurn, eotShopStats, run.impBuff, run.rubyCasts, run.growthBonus, run.frontToBackBonusH, run.lastSpellCastId, run.firstSpellThisTurnId, run.lastSpellThisTurnId, run.cadenceMinionOff, run.tier, bothState, run.revelerX, run.rubyBonus, run.clueBonus, run.tier, run.playedThisTurn],
+    [run.shop, run.rift, run.questFreeFirstBuy, run.freeBuyUsedThisTurn, run.spiritDiscount, run.minionCostOffTurn, run.tradeInTribe, run.runeTradeIn, run.minionCostOverride, run.cardDiscountWindow /* every input of offerBuyPrice (2026-09-12) — the Thymepiece window changes the price on expiry with no shop rebuild */, run.cardBuffs, run.tavernBuyBonus, run.tavernBuyBonusSources, run.tavernBuyBonusTurn, run.undeadAttackBonus, run.undeadHealthBonus, run.undeadBuyAtk, run.beastBuyAtk, run.beastBuyHp, run.magneticBuyAtk, run.magneticBuyHp, run.deathrattlesTriggered, run.spellsCast, run.spellsThisTurn, run.soulsmanGold, run.fodderConsumedThisTurn, run.spellCostMod, spellBonus, spellBonusH, run.frontToBackBonus, run.board, run.nextSpellExtraCasts, run.goldSpentThisTurn, run.goldPouchValue, run.playedThisTurn, run.squirlScoutBuff, run.conductorBuff, run.alesCastThisTurn, run.frankClearanceTurn, eotShopStats, run.impBuff, run.rubyCasts, run.growthBonus, run.frontToBackBonusH, run.lastSpellCastId, run.firstSpellThisTurnId, run.lastSpellThisTurnId, run.cadenceMinionOff, run.tier, bothState, run.revelerX, run.rubyBonus, run.clueBonus, run.tier, run.playedThisTurn],
   );
   const spellView = useMemo(
     () => {
@@ -3176,7 +3193,7 @@ export function Recruit() {
       spellViewCache.current = stabilizeView(fresh, spellViewCache.current);
       return spellViewCache.current;
     },
-    [run.spell, run.spellCostMod, spellBonus, spellBonusH, run.frontToBackBonus, run.board, run.nextSpellExtraCasts, run.goldSpentThisTurn, run.goldPouchValue],
+    [run.spell, run.spellCostMod, run.cardDiscountWindow /* Thymepiece: the slot's coin greens and reverts with the window, no shop rebuild */, spellBonus, spellBonusH, run.frontToBackBonus, run.board, run.nextSpellExtraCasts, run.goldSpentThisTurn, run.goldPouchValue],
   );
   // Per-card referenced-card popups (uid → the cards it references). Stable across a drag (only
   // recomputes when the board / shop / hand or the Fodder buff changes), so it preserves the memo.
@@ -3556,7 +3573,10 @@ export function Recruit() {
       (drag.view.spell || drag.view.ruby) && (drag.view.target === 'friendly' || drag.view.target === 'any')
         ? {
             board: measureCards('[data-zone="warband"] .row .card[data-uid]'),
-            shop: drag.view.target === 'any' ? measureCards(`[data-zone="tavern"] .card[data-uid]:not(.spellcard)${SB_FOE_EXCLUDE}`) : [],
+            // A friendly CELESTIAL-aimed spell (Star Crash) may land on the Starform offer and nothing else in the row
+            // (`starformSpellAimsToken`, the same gate the reducer's cast path reads — set 3 Celestials 2026-09-12).
+            shop: drag.view.target === 'any' ? measureCards(`[data-zone="tavern"] .card[data-uid]:not(.spellcard)${SB_FOE_EXCLUDE}`)
+              : starformSpellAimsToken(CARD_INDEX[drag.view.cardId] ?? {}) ? measureCards('[data-zone="tavern"] .card.starform[data-uid]') : [],
           }
         : null;
     // Cache the resting insertion slots (left + width) for the reorder/magnetize gap, so warbandIndexAt/
@@ -3612,7 +3632,7 @@ export function Recruit() {
     let lastZone: Zone | null = null;
     // The geometry hit-tests the decision needs — same in-component closures the render passes, so `flushMove`'s
     // gate and the render can't diverge. They read the per-drag rect cache populated just above.
-    const gateGeo: DragGeo = { warbandIndexAt, shopIndexAt, handIndexAt, boardUidAt, shopUidAt };
+    const gateGeo: DragGeo = { warbandIndexAt, shopIndexAt, handIndexAt, boardUidAt, shopUidAt, starformUidAt };
     const flushMove = (): void => { perfMonitor.measure('drag:flushMove', () => {
       moveRaf = 0;
       const e = lastMove;
@@ -3637,7 +3657,7 @@ export function Recruit() {
         deriveDragDecision({
           drag: d0, x, y, overZone: z, magSlide: magSlideRef.current, playFloor: playFloorRef.current, spellFloor: spellFloorRef.current,
           collapseY: getDragFeel().collapseY, boardMax: CONFIG.boardMax, board: run.board, spellUid: run.spell?.uid, geo: gateGeo,
-          asksChoiceFirst: asksFirstRef.current,
+          asksChoiceFirst: asksFirstRef.current, aimsStarform: !!d0 && starformSpellAimsToken(CARD_INDEX[d0.view.cardId] ?? {}),
         });
       const shownDec = committed ? decOf(committed.x, committed.y, lastZone) : null;
       const decisionChanged =
@@ -4127,6 +4147,12 @@ export function Recruit() {
    */
   const replaySpeed = useGame((st) => st.replaySession?.speed ?? 1);
   const tickMs = (): number => 1000 / Math.max(0.1, replaySpeed);
+  // THE CLOCK-WINDOW DISCOUNT (Thymepiece, owner design 2026-09-12): the reducer never reads a clock, so the
+  // tick below is what ENDS the window — it dispatches `discountWindowExpired` the moment the clock crosses
+  // `untilClock`. Read through a ref rather than a dep: adding the window to the effect's deps would restart
+  // the self-scheduling loop on every activation and hand the player a free partial second each time.
+  const discountWindowRef = useRef(run.cardDiscountWindow);
+  discountWindowRef.current = run.cardDiscountWindow;
 
   // Round timer: count down each recruit turn; at 0 the player is forced into combat (paused while a
   // Discover pick is open, and frozen while the hero picker is open). UI-only — the engine is untimed.
@@ -4146,6 +4172,12 @@ export function Recruit() {
       const next = cur - 1;
       if (next === 0) sfx.turnExplode(); // timer hits 0 — shop locks; syncs with the charge glyph's completion flash
       turnClock.set(next); // (the last-5s tick beeps were retired — the charge-glyph turnCharge cue replaces them)
+      // Thymepiece's window closes on the SAME tick that moves the clock, so whatever pauses this loop (a
+      // Discover, a Choose One, an aim, hero select — the effect's gate above) pauses the window with it. Once:
+      // the reducer clears the window, so the next tick reads none. Replay pacing divides this tick too, so a
+      // recorded window plays back over the same clock-seconds it was lived in.
+      const win = discountWindowRef.current;
+      if (win && win.untilClock !== null && next <= win.untilClock) dispatch({ type: 'discountWindowExpired' });
       id = window.setTimeout(tick, tickMs());
     };
     id = window.setTimeout(tick, tickMs());
@@ -4662,7 +4694,7 @@ export function Recruit() {
         const gh = snap?.h ?? h;
         const x0 = snap ? snap.cx - gw / 2 : rr.left + rr.width / 2 + (i - (events.length - 1) / 2) * (w * 0.72) - w / 2;
         const y0 = snap ? snap.cy - gh / 2 : rr.top - h * 0.62;
-        return { fid: ev.fodderId, attack: ev.attack, health: ev.health, x0, y0, w: gw, h: gh, eaterUid: ev.eaterUid };
+        return { fid: ev.fodderId, attack: ev.attack, health: ev.health, x0, y0, w: gw, h: gh, eaterUid: ev.eaterUid, uid };
       });
       setFodderAnim({ key: seq, ghosts });
       // The consume "gulp" — fired ONCE per consume action (not per ghost), and `sfx.consume` itself de-dupes
@@ -4691,16 +4723,33 @@ export function Recruit() {
         }
         ghosts.forEach((g, i) => {
           const from = { x: g.x0 + g.w / 2, y: g.y0 + g.h / 2 };  // ghost centre — the bands' source point
-          const eaterEl = document.querySelector(`[data-zone="warband"] .row .card[data-uid="${g.eaterUid}"]`);
+          // The eater is a WARBAND body — or, since Set 3, the STARFORM token sitting in the tavern row (its
+          // `shopEaten` record carries the token's own uid as the eater; see `starformStandIn`). Same ghost,
+          // same taffy pull; only the def differs (below).
+          const warbandEater = document.querySelector(`[data-zone="warband"] .row .card[data-uid="${g.eaterUid}"]`);
+          const starformEater = warbandEater ? null : document.querySelector(`[data-zone="tavern"] .card.starform[data-uid="${g.eaterUid}"]`);
+          const eaterEl = warbandEater ?? starformEater;
           const er = eaterEl?.getBoundingClientRect();
           const to = er ? { x: er.left + er.width / 2, y: er.top + er.height / 2 } : { x: from.x, y: from.y + 220 };
-          // The authored `consume-pull` particles fire from the ghost into ITS eater — smoke gathers at the
-          // eater while three burst rings are sucked in by point-gravity — at t=0 of the ghost's pull.
-          playDef(
-            'consume-pull',
-            { source: from, target: to, camera: { x: window.innerWidth / 2, y: window.innerHeight / 2 } },
-            { uids: { source: g.eaterUid, target: g.eaterUid } },
-          );
+          if (starformEater) {
+            // The Starform ate a Shop minion (Accretion / Accretion Warden / a full-row creation): the owner-
+            // authored `starform-pull` (2026-09-12) plays FROM the meal's ghost TO the token — the beam travels
+            // source→target — INSTEAD of `consume-pull`, never both. The sim also records this meal on
+            // `starformFx` (`consumeShop`); the `starformFxSeq` watcher below skips that kind for this reason.
+            playDef(
+              'starform-pull',
+              { source: from, target: to, camera: { x: window.innerWidth / 2, y: window.innerHeight / 2 } },
+              { uids: { source: g.uid ?? g.eaterUid, target: g.eaterUid } },
+            );
+          } else {
+            // The authored `consume-pull` particles fire from the ghost into ITS eater — smoke gathers at the
+            // eater while three burst rings are sucked in by point-gravity — at t=0 of the ghost's pull.
+            playDef(
+              'consume-pull',
+              { source: from, target: to, camera: { x: window.innerWidth / 2, y: window.innerHeight / 2 } },
+              { uids: { source: g.eaterUid, target: g.eaterUid } },
+            );
+          }
           const el = document.querySelector<HTMLElement>(`.fodderghost[data-gidx="${i}"]`);
           if (!el) return;
           // Anchor the TOP so `scaleY` elongates the ghost DOWNWARD (bottom leads) and the collapse shrinks it
@@ -4744,7 +4793,8 @@ export function Recruit() {
           const u1 = g0 + (1 - g0) * 0.45;            // undershoot below true size (the recoil)
           const u2 = g0 + (1 - g0) * 0.75;            // small overshoot back up
           for (const k of keyed) {
-            const el = document.querySelector(`[data-zone="warband"] .row .card[data-uid="${k.uid}"]`);
+            // A warband eater, or the Starform token in the tavern row (it gulps its meal the same way).
+            const el = document.querySelector(`[data-zone="warband"] .row .card[data-uid="${k.uid}"], [data-zone="tavern"] .card.starform[data-uid="${k.uid}"]`);
             if (!el) continue;
             try {
               eaterAnims.push(el.animate([
@@ -4855,6 +4905,55 @@ export function Recruit() {
     return playFodderEat(events, run.shopEatenSeq);
   }, [run.shopEatenSeq]);
 
+  // THE STARFORM PULL (owner-authored `starform-pull`, 2026-09-12): a warband minion CONSUMES the token (Corona
+  // Devotee) or COLLAPSES it (Nova Herald) — the def plays FROM the token TO each body gaining, one play per
+  // receiver, all fired together (the Collapse's three targets each get their own beam). Keyed on
+  // `run.starformFxSeq`, the sim's per-action channel (see `RunState.starformFx`). The `consumeShop` kind (the
+  // token EATING a Shop minion) is deliberately NOT played here: that meal is also on `shopEaten`, whose ghost
+  // path above fires `starform-pull` from the ghost — playing it here too would be two pulls for one bite.
+  //
+  // SOURCE RECT: the token is spliced from `run.shop` in the same commit that bumps the seq, so its card is
+  // already gone when this passive effect runs. `shopRectsRef` (the drag layer's double-buffered measure
+  // cache) still holds its pre-removal centre — `prev` after the layout snapshot swapped, `cur` while a slot is
+  // held — so the pull launches from where the token sat. No ghost is drawn for the token itself.
+  const prevStarformFxSeq = useRef(run.starformFxSeq ?? 0);
+  useEffect(() => {
+    const seq = run.starformFxSeq ?? 0;
+    if (seq === prevStarformFxSeq.current) return;
+    prevStarformFxSeq.current = seq;
+    const events = (run.starformFx ?? []).filter((e) => e.kind !== 'consumeShop');
+    if (events.length === 0) return;
+    let raf = 0;
+    let tries = 0;
+    const centre = (r: DOMRect): { x: number; y: number } => ({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
+    // The receiving body is a board card; a Shout played from hand lands it in this same commit, but the
+    // warband row can lay out a frame or two later — retry briefly (the `playFodderEat` pattern) rather than
+    // dropping the play.
+    const fire = (): void => {
+      const camera = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+      let fired = 0, missing = 0;
+      for (const ev of events) {
+        const live = findEl(ev.fromUid)?.getBoundingClientRect();
+        const snap = shopRectsRef.current.prev.get(ev.fromUid) ?? shopRectsRef.current.cur.get(ev.fromUid);
+        const source = live && live.width > 0 ? centre(live) : snap ? { x: snap.cx, y: snap.cy } : null;
+        if (!source) continue; // never measured (a consume before the tavern laid out) — nothing to launch from
+        for (const toUid of ev.toUids) {
+          const tEl = document.querySelector(`[data-zone="warband"] .row .card[data-uid="${toUid}"]`);
+          const tr = tEl?.getBoundingClientRect();
+          if (!tr || tr.width === 0) { missing += 1; continue; }
+          playDef('starform-pull', { source, target: centre(tr), camera }, { uids: { source: ev.fromUid, target: toUid } });
+          fired += 1;
+        }
+      }
+      if (fired === 0 && missing > 0 && tries++ < 40) { raf = requestAnimationFrame(fire); return; }
+      // ONE gulp per action, not per target — `sfx.consume` de-dupes on a short cooldown besides.
+      if (fired > 0) sfx.consume();
+    };
+    fire();
+    return () => { if (raf) cancelAnimationFrame(raf); };
+    // Keyed on the seq ONLY (see the fodder watcher above): the array ref changes every action.
+  }, [run.starformFxSeq]);
+
   // RELEASE the held consumed slots (see `heldConsume` above) once the ghost has been pulled into the eater —
   // matched to the taffy pull's own clock (`getConsumeFxConfig().durationMs`). Dropping them here changes
   // `flipKey`, which fires the committed-move FLIP branch and glides the survivors closed from where they were
@@ -4875,7 +4974,7 @@ export function Recruit() {
   // each rule: centre-tracking, the play floor, magnetize suppression, the collapse lift). The SAME function
   // backs `flushMove`'s re-render gate, so the state we render here and the decision that decides whether to
   // re-render can never disagree. The dragged card's own transform/aim/trail bypass this (ref-driven, frame-exact).
-  const dragGeo: DragGeo = { warbandIndexAt, shopIndexAt, handIndexAt, boardUidAt, shopUidAt };
+  const dragGeo: DragGeo = { warbandIndexAt, shopIndexAt, handIndexAt, boardUidAt, shopUidAt, starformUidAt };
   const dragDecision = deriveDragDecision({
     drag,
     x: drag ? drag.x : 0,
@@ -4887,6 +4986,7 @@ export function Recruit() {
     collapseY: getDragFeel().collapseY,
     boardMax: CONFIG.boardMax,
     asksChoiceFirst: dragAsksChoiceFirst,
+    aimsStarform: !!drag && starformSpellAimsToken(CARD_INDEX[drag.view.cardId] ?? {}),
     board: run.board,
     spellUid: run.spell?.uid,
     geo: dragGeo,
@@ -6201,7 +6301,8 @@ export function Recruit() {
       if ((d.view.target === 'friendly' || d.view.target === 'any') && !asksFirst) {
         // Explicit drop only: release squarely over a friendly minion (or, for `any` spells like Shatter,
         // a tavern offer). No auto-target in empty space (that silently buffed a random minion — felt broken).
-        const targetUid = boardUidAt(x, y) ?? (d.view.target === 'any' ? shopUidAt(x, y) : null);
+        // …or, for a friendly Celestial-aimed spell (Star Crash), the STARFORM offer (`starformSpellAimsToken`).
+        const targetUid = boardUidAt(x, y) ?? (d.view.target === 'any' ? shopUidAt(x, y) : starformSpellAimsToken(CARD_INDEX[d.view.cardId] ?? {}) ? starformUidAt(x, y) : null);
         if (!targetUid) return false; // not on a valid target → snap back to hand, no cast
         // Tier-gated spells (Eyes of Aresmar: ≤T4) only land on a valid-tier friendly BOARD minion —
         // otherwise snap back WITHOUT consuming the spell (a >T4 minion, or a tavern offer, isn't legal).
@@ -6552,7 +6653,7 @@ export function Recruit() {
                 card={shopViews.get(o.uid)!}
                 refCards={refViewsByUid.get(o.uid)}
                 dragging={!!drag?.active}
-                highlight={(heroArmed && heroTargetsTavern) || (castingSpell && drag?.view.target === 'any')}
+                highlight={(heroArmed && heroTargetsTavern) || (castingSpell && (drag?.view.target === 'any' || (!!o.starform && starformSpellAimsToken(CARD_INDEX[drag?.view.cardId ?? ''] ?? {}))))}
                 targeted={(heroArmed && heroTargetsTavern && aimTargetUid === o.uid) || castTargetUid === o.uid}
                 tripleReady={tripleReadyUids.has(o.uid)}
                 contraband={o.contraband}

@@ -64,6 +64,8 @@ describe('set 3 scaffold', () => {
       'sp3_treasurer', 'sp3_revelator', 'sp3_luminary', 'sp3_forestcolossus', 'sp3_grandprocession',
       // …then the reworked Celestials (owner roster 2026-09-11), appended in declaration order.
       'ce3_courier', 'ce3_vendor', 'ce3_seer', 'ce3_conductor', 'ce3_herald', 'ce3_adept', 'ce3_spellcore', 'ce3_artificer',
+      // …then the Starform roster (owner spec 2026-09-12), appended after the token def in declaration order.
+      'ce3_starseed', 'ce3_dawnsentinel', 'ce3_peddler', 'ce3_wishingstar', 'ce3_accretionwarden', 'ce3_shootingstar', 'ce3_eclipsewarden', 'ce3_orbitkeeper', 'ce3_coronadevotee', 'ce3_starcharter', 'ce3_lensgrinder', 'ce3_lodestar', 'ce3_twinstar', 'ce3_novaherald', 'ce3_zenith', 'ce3_constellationprime',
     ]);
     // The set-1 Undead NOT on the roster stay out (owner confirmation 2026-09-09), still resolvable.
     for (const id of ['spore', 'karthus', 'ryme', 'gravebody', 'thunderingabomination', 'steadfast', 'gravewarden', 'cryptscribe', 'watcher', 'graverobber', 'bonetaxer', 'cryptbroker', 'gravetwin']) {
@@ -105,7 +107,7 @@ describe('set 3 scaffold', () => {
     }
     // 58 + Power Shifter (2026-08-22) + the five Dwarven Ales (2026-09-09). The Ales are drawable set-2 spells,
     // not tokens, so — unlike the Ruby — the Dwarves' Ale engine DOES need them opted in.
-    expect(p.spells.length).toBe(61); // 40 neutral toolkit + 7 tribe spells + 5 Ales + 9 set-3 spells (owner sheet 2026-09-10)
+    expect(p.spells.length).toBe(62); // 40 neutral toolkit + 7 tribe spells + 5 Ales + 9 set-3 spells (owner sheet 2026-09-10) + Accretion (2026-09-12)
     expect(p.spells.filter((c) => c.name.includes('Ale')).map((c) => c.id).sort()).toEqual(['wo_attack', 'wo_champion', 'wo_health', 'wo_mine', 'wo_reinforcement']);
     expect(p.spells.some((c) => c.id === 'apples')).toBe(true);
     expect(p.spells.some((c) => c.id === 'sparkplug')).toBe(true); // Waking Rift

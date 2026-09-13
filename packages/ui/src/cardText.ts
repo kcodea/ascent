@@ -370,6 +370,24 @@ export function summonScalingText(cardId: string, spellsThisTurn: number, golden
 }
 
 /**
+ * Shooting Star (`battlecryBuffThisShopPerSpellsThisTurn`, set 3 Celestials) — "this shop +3/+3 for each Shop spell you
+ * cast this turn": fold the CURRENT total (base × spells × golden) in green in place of the printed per-spell rate
+ * once a spell has been cast this turn; null before (the printed rate is already the whole truth). Reads
+ * `spellsThisTurn`, the same tally the factory multiplies by.
+ */
+export function shootingStarText(cardId: string, spellsThisTurn: number, golden: boolean): string | null {
+  const def = CARD_INDEX[cardId];
+  const eff = def?.effects.find((e) => e.do === 'battlecryBuffThisShopPerSpellsThisTurn');
+  if (!def || !eff) return null;
+  if (spellsThisTurn <= 0) return null;
+  const g = golden ? 2 : 1;
+  const a = Number((eff.params as { attack?: number })?.attack ?? 3) * g;
+  const h = Number((eff.params as { health?: number })?.health ?? 3) * g;
+  const src = golden ? (def.goldenText ?? def.text) : def.text;
+  return src.replace(`+${a}/+${h}`, `{{+${a * spellsThisTurn}/+${h * spellsThisTurn}}}`);
+}
+
+/**
  * Pack Leader (`scTribeBuffPerPlayed`) — Start of Combat buff that scales +perPlayed for each Beast you PLAYED
  * this turn. Surface the current grant (green) — (base + perPlayed × played) × golden — in place of the first
  * printed "+A/+B" (the grant), leaving the "+step/+step" improve rate. Null before any qualifying play.

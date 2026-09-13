@@ -164,6 +164,19 @@ export type FxParamSpec = FxParamMeta &
     }
   | {
       /**
+       * An ORDERING of ids — the Filter Lab's `filterOrder`: which enabled filters compose first. Not a row
+       * in the inspector (the Filters master's ▲/▼ write it; `visibleParamKeys` hides it) but a real param so
+       * it saves with the def and round-trips through `coerceParams` like any other value. `[]` = the
+       * registry's default order, i.e. exactly the behaviour before ordering existed.
+       */
+      kind: 'order';
+      label: string;
+      group?: string;
+      help?: string;
+      default: readonly string[];
+    }
+  | {
+      /**
        * A baked point cloud sampled off an imported SVG silhouette — the persisted payload behind
        * `emitShape: 'svg'`. Each entry is a normalized `[x, y]` in `[-1, 1]`, and a spawn picks one at
        * random (see `motion.ts`'s `'svg'` case). Authored not by dragging a slider but by the SVG baker
@@ -213,9 +226,11 @@ export type ParamsOf<S extends FxParamSpecs> = {
             ? string
             : S[K] extends { kind: 'image' }
               ? string
-              : S[K] extends { kind: 'gradient' }
-                ? import('./gradient').GradientStop[]
-                : S[K]['default'];
+              : S[K] extends { kind: 'order' }
+                ? string[]
+                : S[K] extends { kind: 'gradient' }
+                  ? import('./gradient').GradientStop[]
+                  : S[K]['default'];
 };
 
 export function defaultsOf<S extends FxParamSpecs>(specs: S): ParamsOf<S> {
@@ -234,6 +249,8 @@ export function defaultsOf<S extends FxParamSpecs>(specs: S): ParamsOf<S> {
     // gradient defaults are an array of stop objects — deep-copy each stop so no two instances alias the
     // same object (mirrors the palette/curve/emitpoints discipline above).
     else if (spec.kind === 'gradient') out[key] = spec.default.map((s) => ({ at: s.at, color: s.color }));
+    // order defaults are arrays — copy for the same no-aliasing reason.
+    else if (spec.kind === 'order') out[key] = [...spec.default];
     else out[key] = spec.default;
   }
   return out as ParamsOf<S>;
@@ -275,6 +292,19 @@ export function coerceParams<S extends FxParamSpecs>(specs: S, raw: unknown): Pa
         // Same runtime-registry reasoning as `shape` (an id this machine can't resolve must survive a
         // round-trip), but '' IS accepted: it is the "no image picked" value a fresh layer legitimately holds.
         if (typeof v === 'string') out[key] = v;
+        break;
+      case 'order':
+        // A list of ids: keep non-empty strings, de-duplicated, first occurrence wins, capped so a bad def
+        // can't grow it without bound. Unknown ids are fine — the consumer ignores what it doesn't know.
+        if (Array.isArray(v)) {
+          const seen = new Set<string>();
+          const ids: string[] = [];
+          for (const e of v) {
+            if (typeof e === 'string' && e !== '' && !seen.has(e)) { seen.add(e); ids.push(e); }
+            if (ids.length >= 64) break;
+          }
+          out[key] = ids;
+        }
         break;
       case 'palette':
         if (
@@ -469,7 +499,7 @@ function deepEqual(a: unknown, b: unknown): boolean {
  */
 export function paramIsChanged(spec: FxParamSpec, value: unknown, dflt: unknown): boolean {
   if (value === undefined) return false;
-  if (spec.kind === 'palette' || spec.kind === 'curve' || spec.kind === 'emitpoints' || spec.kind === 'gradient') {
+  if (spec.kind === 'palette' || spec.kind === 'curve' || spec.kind === 'emitpoints' || spec.kind === 'gradient' || spec.kind === 'order') {
     return !deepEqual(value, dflt);
   }
   return value !== dflt;
@@ -511,6 +541,8 @@ export function visibleParamKeys(
   const searching = query.trim() !== '';
   return Object.keys(specs).filter((key) => {
     const spec = specs[key];
+    // An ordering is never a row of its own — the Filters master's ▲/▼ controls write it.
+    if (spec.kind === 'order') return false;
     if (opts.essentialsOnly && !searching && spec.essential !== true) return false;
     if (opts.changedOnly === true && !(opts.changed?.has(key) ?? false)) return false;
     return matchesParamQuery(spec, key, query);

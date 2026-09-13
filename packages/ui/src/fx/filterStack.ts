@@ -52,10 +52,36 @@ const amtKey = (id: string): string => `${id}Amt`;
 const curveKey = (id: string): string => `${id}Curve`;
 const knobKey = (id: string, name: string): string => `${id}_${name}`;
 
+/** The param that holds the composition order of the lab's filters (an `order` kind — see `params.ts`). */
+export const FILTER_ORDER_KEY = 'filterOrder';
+
+/**
+ * The COMPLETE application order for a registry given a stored `filterOrder`: the stored ids first (in that
+ * order, ignoring any the registry doesn't know), then every remaining registry id in registry order. So an
+ * empty / missing / stale order is exactly the registry order, and a saved order stays valid when filters are
+ * added to the registry later (new ones append). Pixi applies `container.filters[0]` FIRST, so index 0 here
+ * processes the raw layer and the next filter processes that result — "top → bottom" in the inspector.
+ */
+export function resolveFilterOrder(order: readonly string[] | undefined, registry: readonly FxFilterSpec[]): string[] {
+  const known = new Set(registry.map((f) => f.id));
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const id of order ?? []) {
+    if (known.has(id) && !seen.has(id)) { seen.add(id); out.push(id); }
+  }
+  for (const f of registry) if (!seen.has(f.id)) out.push(f.id);
+  return out;
+}
+
 /** Generate the flat param specs for a registry — a toggle, an amount slider, an over-time curve, and each
- *  knob, all grouped under the filter's label and (except the toggle) gated on that toggle being on. */
+ *  knob, all grouped under the filter's label and (except the toggle) gated on that toggle being on — plus
+ *  the one `filterOrder` param the whole stack shares. */
 export function filterLabSpecs(registry: readonly FxFilterSpec[]): FxParamSpecs {
   const out: Record<string, FxParamSpec> = {};
+  out[FILTER_ORDER_KEY] = {
+    kind: 'order', label: 'Filter order', default: [],
+    help: 'Which enabled filters apply first. Top → bottom in the Filters panel: the first processes the raw layer, the next processes that result (an Outline then a Glow glows the outline; the reverse outlines the glow). Empty = the default order.',
+  };
   for (const f of registry) {
     const group = f.label;
     const gate = { param: onKey(f.id), is: true } as const;
@@ -94,8 +120,27 @@ export class FilterStack {
   private readonly instances = new Map<string, Filter>();
   private coreBlur: BlurFilter | null = null;
   private activeKey = ''; // identity of the current container.filters set, to skip no-op rewrites
+  // The resolved application order, recomputed only when the stored `filterOrder` changes (compared by its
+  // joined string — an array param is a fresh copy on every coerce, so identity would never hit).
+  private orderSig = '';
+  private ordered: readonly FxFilterSpec[];
 
-  constructor(private readonly container: Container, private readonly registry: readonly FxFilterSpec[]) {}
+  constructor(private readonly container: Container, private readonly registry: readonly FxFilterSpec[]) {
+    this.ordered = registry;
+  }
+
+  /** The registry in the params' `filterOrder` — see `resolveFilterOrder`. */
+  private orderedRegistry(params: P): readonly FxFilterSpec[] {
+    const raw = params[FILTER_ORDER_KEY];
+    const order = Array.isArray(raw) ? (raw as string[]) : [];
+    const sig = order.join('|');
+    if (sig !== this.orderSig) {
+      this.orderSig = sig;
+      const byId = new Map(this.registry.map((f) => [f.id, f] as const));
+      this.ordered = resolveFilterOrder(order, this.registry).map((id) => byId.get(id) as FxFilterSpec);
+    }
+    return this.ordered;
+  }
 
   frame(params: P, progress: number, dtSec: number): void {
     const active: Filter[] = [];
@@ -110,7 +155,7 @@ export class FilterStack {
       keyParts.push('blur');
     }
 
-    for (const f of this.registry) {
+    for (const f of this.orderedRegistry(params)) {
       if (!bool(params, onKey(f.id))) continue;
       let inst = this.instances.get(f.id);
       if (!inst) { inst = f.make(); this.instances.set(f.id, inst); }

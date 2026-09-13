@@ -15,7 +15,8 @@ import {
   type FxParamSpec,
   type FxParamSpecs,
 } from '../params';
-import { filterEntries, filterOnCount, isFilterGroup, type FilterEntry } from './filterGroups';
+import { filterEntries, filterOnCount, isFilterGroup, moveFilter, type FilterEntry } from './filterGroups';
+import { FILTER_ORDER_KEY } from '../filterStack';
 import { importShapeFromFile, listShapeOptions, removeImportedShape } from '../shapeLibrary';
 import { imageUrlFor, importFramesFromFiles, importImageFromFile, listImageOptions, IMAGE_NONE } from '../imageLibrary';
 import { ColorPickerHSB } from './ColorPickerHSB';
@@ -111,7 +112,7 @@ export function Inspector({
 }: {
   specs: FxParamSpecs;
   values: Record<string, unknown>;
-  onChange: (key: string, value: number | boolean | string | number[] | number[][] | GradientStop[]) => void;
+  onChange: (key: string, value: number | boolean | string | number[] | number[][] | string[] | GradientStop[]) => void;
   /** Which primitive these specs belong to — the key the open/closed group state is persisted under. */
   primitiveId: string;
   /** Stable per-layer identity — the `emitpoints` control stores the uploaded SVG in localStorage under it,
@@ -430,12 +431,20 @@ export function Inspector({
                   </button>
                   {isOpen && (
                     <div className="fxwb-grpbody fxwb-filtersbody">
-                      {filterEntriesList.map((entry) => {
+                      {filtersOn > 1 && (
+                        <div className="fxwb-shape-hint" title="Pixi applies the first filter to the raw layer and each next one to that result. Use ▲ ▼ to reorder.">
+                          Applied top → bottom
+                        </div>
+                      )}
+                      {filterEntriesList.map((entry, index) => {
                         // On floats it to the top (see `filterEntries`'s ordering) and always shows its
                         // params; off but matching the live search also expands, so search still finds a
                         // knob buried inside a filter that isn't switched on. Otherwise stays collapsed to
                         // just its toggle — the entire point of folding 30+ groups into one.
                         const expanded = entry.on || (searching && filterEntryMatchesQuery(entry));
+                        // ▲/▼ only among ENABLED neighbours: the order of off filters is invisible.
+                        const canUp = entry.on && index > 0 && filterEntriesList[index - 1].on;
+                        const canDown = entry.on && index + 1 < filterEntriesList.length && filterEntriesList[index + 1].on;
                         return (
                           <div className="fxwb-filterrow" key={entry.id}>
                             <label className="fxwb-filterhead" htmlFor={`fxwb-${entry.onKey}`}>
@@ -445,7 +454,31 @@ export function Inspector({
                                 checked={entry.on}
                                 onChange={(e) => onChange(entry.onKey, e.target.checked)}
                               />
-                              <span className="fxwb-filtername">{entry.label}</span>
+                              <span className="fxwb-filtername">{entry.on && filtersOn > 1 ? `${index + 1}. ` : ''}{entry.label}</span>
+                              {entry.on && filtersOn > 1 && (
+                                <span style={{ marginLeft: 'auto', display: 'inline-flex', gap: 2 }}>
+                                  <button
+                                    type="button"
+                                    className="fxwb-shape-remove"
+                                    title="Apply earlier (move up)"
+                                    aria-label={`Move ${entry.label} up`}
+                                    disabled={!canUp}
+                                    onClick={(e) => { e.preventDefault(); onChange(FILTER_ORDER_KEY, moveFilter(filterEntriesList, entry.id, -1)); }}
+                                  >
+                                    ▲
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="fxwb-shape-remove"
+                                    title="Apply later (move down)"
+                                    aria-label={`Move ${entry.label} down`}
+                                    disabled={!canDown}
+                                    onClick={(e) => { e.preventDefault(); onChange(FILTER_ORDER_KEY, moveFilter(filterEntriesList, entry.id, 1)); }}
+                                  >
+                                    ▼
+                                  </button>
+                                </span>
+                              )}
                             </label>
                             {expanded && entry.paramKeys.length > 0 && (
                               <div className="fxwb-filterbody">{entry.paramKeys.map(renderRow)}</div>
@@ -499,7 +532,7 @@ function ParamRow({
   /** This param's spec default (from `defaultsOf`, computed once by the Inspector) — what a double-click
    *  reset restores. */
   defaultValue: unknown;
-  onChange: (key: string, value: number | boolean | string | number[] | number[][] | GradientStop[]) => void;
+  onChange: (key: string, value: number | boolean | string | number[] | number[][] | string[] | GradientStop[]) => void;
 }): React.ReactElement {
   const [helpOpen, setHelpOpen] = useState(false);
   // Plays the one-shot reset-confirmation pop; cleared on the animation's own `onAnimationEnd` so it can
@@ -512,7 +545,7 @@ function ParamRow({
   // the affordance and the gesture it enables never disagree with each other.
   const resetToDefault = (): void => {
     if (!changed) return;
-    onChange(key, defaultValue as number | boolean | string | number[] | number[][] | GradientStop[]);
+    onChange(key, defaultValue as number | boolean | string | number[] | number[][] | string[] | GradientStop[]);
     setResetFlash(true);
   };
 

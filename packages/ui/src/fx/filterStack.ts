@@ -55,20 +55,26 @@ const knobKey = (id: string, name: string): string => `${id}_${name}`;
 /** The param that holds the composition order of the lab's filters (an `order` kind — see `params.ts`). */
 export const FILTER_ORDER_KEY = 'filterOrder';
 
+/** The always-on core Blur's id in a `filterOrder` — it is orderable like a registry filter, and FIRST by
+ *  default (the pre-ordering behaviour). */
+export const CORE_BLUR_ID = 'blur';
+
 /**
- * The COMPLETE application order for a registry given a stored `filterOrder`: the stored ids first (in that
- * order, ignoring any the registry doesn't know), then every remaining registry id in registry order. So an
- * empty / missing / stale order is exactly the registry order, and a saved order stays valid when filters are
- * added to the registry later (new ones append). Pixi applies `container.filters[0]` FIRST, so index 0 here
- * processes the raw layer and the next filter processes that result — "top → bottom" in the inspector.
+ * The COMPLETE application order given a stored `filterOrder`: the stored ids first (in that order, ignoring
+ * any that are neither the core blur nor in the registry), then the core blur if not yet placed, then every
+ * remaining registry id in registry order. So an empty / missing / stale order is exactly `blur, registry…`
+ * — the behaviour before ordering existed — and a saved order stays valid when filters are added to the
+ * registry later (new ones append). Pixi applies `container.filters[0]` FIRST, so index 0 here processes the
+ * raw layer and the next filter processes that result — "top → bottom" in the inspector.
  */
 export function resolveFilterOrder(order: readonly string[] | undefined, registry: readonly FxFilterSpec[]): string[] {
-  const known = new Set(registry.map((f) => f.id));
+  const known = new Set<string>([CORE_BLUR_ID, ...registry.map((f) => f.id)]);
   const out: string[] = [];
   const seen = new Set<string>();
   for (const id of order ?? []) {
     if (known.has(id) && !seen.has(id)) { seen.add(id); out.push(id); }
   }
+  if (!seen.has(CORE_BLUR_ID)) out.push(CORE_BLUR_ID);
   for (const f of registry) if (!seen.has(f.id)) out.push(f.id);
   return out;
 }
@@ -120,24 +126,26 @@ export class FilterStack {
   private readonly instances = new Map<string, Filter>();
   private coreBlur: BlurFilter | null = null;
   private activeKey = ''; // identity of the current container.filters set, to skip no-op rewrites
-  // The resolved application order, recomputed only when the stored `filterOrder` changes (compared by its
-  // joined string — an array param is a fresh copy on every coerce, so identity would never hit).
+  // The resolved application order (core blur + registry, as ids), recomputed only when the stored
+  // `filterOrder` changes (compared by its joined string — an array param is a fresh copy on every coerce,
+  // so identity would never hit).
   private orderSig = '';
-  private ordered: readonly FxFilterSpec[];
+  private ordered: readonly string[];
+  private readonly byId: ReadonlyMap<string, FxFilterSpec>;
 
   constructor(private readonly container: Container, private readonly registry: readonly FxFilterSpec[]) {
-    this.ordered = registry;
+    this.byId = new Map(registry.map((f) => [f.id, f] as const));
+    this.ordered = resolveFilterOrder([], registry);
   }
 
-  /** The registry in the params' `filterOrder` — see `resolveFilterOrder`. */
-  private orderedRegistry(params: P): readonly FxFilterSpec[] {
+  /** The application order in the params' `filterOrder` — see `resolveFilterOrder`. */
+  private orderedIds(params: P): readonly string[] {
     const raw = params[FILTER_ORDER_KEY];
     const order = Array.isArray(raw) ? (raw as string[]) : [];
     const sig = order.join('|');
     if (sig !== this.orderSig) {
       this.orderSig = sig;
-      const byId = new Map(this.registry.map((f) => [f.id, f] as const));
-      this.ordered = resolveFilterOrder(order, this.registry).map((id) => byId.get(id) as FxFilterSpec);
+      this.ordered = resolveFilterOrder(order, this.registry);
     }
     return this.ordered;
   }
@@ -146,16 +154,19 @@ export class FilterStack {
     const active: Filter[] = [];
     const keyParts: string[] = [];
 
-    // Core blur first (shared always-on knob), same semantics as blurFilter.ts.
-    const blurBase = num(params, 'blur');
-    if (blurBase > 0) {
-      if (!this.coreBlur) this.coreBlur = new BlurFilter({ strength: 0, quality: 5 });
-      this.coreBlur.strength = Math.max(0, blurBase * sampleCurve(curveOf(params, 'blurCurve'), progress));
-      active.push(this.coreBlur);
-      keyParts.push('blur');
-    }
-
-    for (const f of this.orderedRegistry(params)) {
+    for (const id of this.orderedIds(params)) {
+      if (id === CORE_BLUR_ID) {
+        // The shared always-on blur knob, same semantics as blurFilter.ts — orderable like the rest.
+        const blurBase = num(params, 'blur');
+        if (blurBase <= 0) continue;
+        if (!this.coreBlur) this.coreBlur = new BlurFilter({ strength: 0, quality: 5 });
+        this.coreBlur.strength = Math.max(0, blurBase * sampleCurve(curveOf(params, 'blurCurve'), progress));
+        active.push(this.coreBlur);
+        keyParts.push(CORE_BLUR_ID);
+        continue;
+      }
+      const f = this.byId.get(id);
+      if (f === undefined) continue;
       if (!bool(params, onKey(f.id))) continue;
       let inst = this.instances.get(f.id);
       if (!inst) { inst = f.make(); this.instances.set(f.id, inst); }

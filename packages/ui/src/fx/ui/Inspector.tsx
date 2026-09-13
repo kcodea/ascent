@@ -16,7 +16,7 @@ import {
   type FxParamSpecs,
 } from '../params';
 import { filterEntries, filterOnCount, isFilterGroup, moveFilter, type FilterEntry } from './filterGroups';
-import { FILTER_ORDER_KEY } from '../filterStack';
+import { CORE_BLUR_ID, FILTER_ORDER_KEY } from '../filterStack';
 import { importShapeFromFile, listShapeOptions, removeImportedShape } from '../shapeLibrary';
 import { imageUrlFor, importFramesFromFiles, importImageFromFile, listImageOptions, IMAGE_NONE } from '../imageLibrary';
 import { ColorPickerHSB } from './ColorPickerHSB';
@@ -447,14 +447,24 @@ export function Inspector({
                         const canDown = entry.on && index + 1 < filterEntriesList.length && filterEntriesList[index + 1].on;
                         return (
                           <div className="fxwb-filterrow" key={entry.id}>
-                            <label className="fxwb-filterhead" htmlFor={`fxwb-${entry.onKey}`}>
-                              <input
-                                id={`fxwb-${entry.onKey}`}
-                                type="checkbox"
-                                checked={entry.on}
-                                onChange={(e) => onChange(entry.onKey, e.target.checked)}
-                              />
-                              <span className="fxwb-filtername">{entry.on && filtersOn > 1 ? `${index + 1}. ` : ''}{entry.label}</span>
+                            <label className="fxwb-filterhead" htmlFor={entry.id === CORE_BLUR_ID ? undefined : `fxwb-${entry.onKey}`}>
+                              {entry.id === CORE_BLUR_ID ? (
+                                // The core Blur has no toggle — it is on whenever Blur > 0 (set in Style). This
+                                // row exists so it can be ORDERED against the lab's filters.
+                                <span className="fxwb-filtername" style={{ opacity: entry.on ? 1 : 0.6 }} title="On whenever Blur > 0 — set the amount in the Style group. Here only to order it.">
+                                  {entry.on && filtersOn > 1 ? `${index + 1}. ` : ''}{entry.label}{entry.on ? '' : ' — off (Blur is 0)'}
+                                </span>
+                              ) : (
+                                <>
+                                  <input
+                                    id={`fxwb-${entry.onKey}`}
+                                    type="checkbox"
+                                    checked={entry.on}
+                                    onChange={(e) => onChange(entry.onKey, e.target.checked)}
+                                  />
+                                  <span className="fxwb-filtername">{entry.on && filtersOn > 1 ? `${index + 1}. ` : ''}{entry.label}</span>
+                                </>
+                              )}
                               {entry.on && filtersOn > 1 && (
                                 <span style={{ marginLeft: 'auto', display: 'inline-flex', gap: 2 }}>
                                   <button
@@ -887,7 +897,7 @@ function ImageField({
       </label>
       {onSheet !== undefined && source === 'frames' && (
         <label className="fxwb-shape-hint" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          Frames per row
+          Frames per take
           <input
             type="number"
             min={0}
@@ -897,9 +907,9 @@ function ImageField({
             disabled={busy || disabled}
             style={{ width: 56 }}
             onChange={(e) => setPerRow(Math.max(0, Math.min(16, Math.floor(Number(e.target.value) || 0))))}
-            title="0 = near-square grid. Set to the frames per take (e.g. 4) so takes pack as rows — then turn on Variant rows."
+            title="Leave at 0 for one animation (auto near-square grid). If your files are SEVERAL takes of the same animation (slashA_1..4, slashB_1..4 …), set the frames per take so each take packs as its own row — then turn on Variant rows to pick a take per fire."
           />
-          <span>(0 = auto)</span>
+          <span>(0 = one animation)</span>
         </label>
       )}
       {onSheet !== undefined && sheet !== undefined && source === 'sheet' && (

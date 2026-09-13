@@ -16,6 +16,18 @@ describe('filterEntries honours filterOrder', () => {
   });
 });
 
+describe('the core blur row', () => {
+  it('appears only when the specs carry `blur`, is on when Blur > 0, and orders like any filter', () => {
+    expect(filterEntries(specs, {}).some((e) => e.id === 'blur')).toBe(false); // lab specs alone: no blur param
+    const withBlur = { ...specs, blur: { kind: 'slider', label: 'Blur', min: 0, max: 30, step: 0.5, default: 0 } } as typeof specs;
+    const off = filterEntries(withBlur, { blur: 0, [`${a}On`]: true });
+    expect(off.find((e) => e.id === 'blur')?.on).toBe(false);
+    const on = filterEntries(withBlur, { blur: 3, [`${a}On`]: true, [FILTER_ORDER_KEY]: [a, 'blur'] });
+    expect(on.slice(0, 2).map((e) => e.id)).toEqual([a, 'blur']);
+    expect(on.find((e) => e.id === 'blur')?.paramKeys).toEqual([]);
+  });
+});
+
 describe('moveFilter', () => {
   const values: Record<string, unknown> = { [`${a}On`]: true, [`${b}On`]: true, [`${c}On`]: true };
   const entries = filterEntries(specs, values);

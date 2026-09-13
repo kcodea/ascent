@@ -1,5 +1,13 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { Container, type Filter } from 'pixi.js';
+
+// The real BlurFilter compiles a GL program on construction (needs a canvas — not available headless). Only
+// its ORDER among the others is under test here, so stand in an inert one; everything else is real pixi.
+vi.mock('pixi.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('pixi.js')>();
+  class FakeBlur { id = 'blur'; strength = 0; destroy(): void {} }
+  return { ...actual, BlurFilter: FakeBlur };
+});
 import { FilterStack, FILTER_ORDER_KEY, filterLabSpecs, resolveFilterOrder, type FxFilterSpec } from './filterStack';
 import { coerceParams, defaultsOf } from './params';
 
@@ -11,14 +19,29 @@ const REG: readonly FxFilterSpec[] = [fake('outline'), fake('glow'), fake('bloom
 const idsOf = (c: Container): string[] => ((c.filters ?? []) as unknown as { id: string }[]).map((f) => f.id);
 
 describe('resolveFilterOrder', () => {
-  it('empty / missing / unknown-only orders are exactly the registry order', () => {
-    expect(resolveFilterOrder([], REG)).toEqual(['outline', 'glow', 'bloom']);
-    expect(resolveFilterOrder(undefined, REG)).toEqual(['outline', 'glow', 'bloom']);
-    expect(resolveFilterOrder(['nope'], REG)).toEqual(['outline', 'glow', 'bloom']);
+  it('empty / missing / unknown-only orders are exactly blur-then-registry (the pre-ordering behaviour)', () => {
+    expect(resolveFilterOrder([], REG)).toEqual(['blur', 'outline', 'glow', 'bloom']);
+    expect(resolveFilterOrder(undefined, REG)).toEqual(['blur', 'outline', 'glow', 'bloom']);
+    expect(resolveFilterOrder(['nope'], REG)).toEqual(['blur', 'outline', 'glow', 'bloom']);
   });
-  it('stored ids lead in their order; the rest append in registry order; duplicates collapse', () => {
-    expect(resolveFilterOrder(['glow'], REG)).toEqual(['glow', 'outline', 'bloom']);
-    expect(resolveFilterOrder(['bloom', 'glow', 'bloom'], REG)).toEqual(['bloom', 'glow', 'outline']);
+  it('stored ids lead in their order; blur then the rest append; duplicates collapse', () => {
+    expect(resolveFilterOrder(['glow'], REG)).toEqual(['glow', 'blur', 'outline', 'bloom']);
+    expect(resolveFilterOrder(['bloom', 'glow', 'bloom'], REG)).toEqual(['bloom', 'glow', 'blur', 'outline']);
+    expect(resolveFilterOrder(['glow', 'blur'], REG)).toEqual(['glow', 'blur', 'outline', 'bloom']);
+  });
+});
+
+describe('the core blur is orderable', () => {
+  const on = (over: Record<string, unknown>): Record<string, unknown> => ({ ...defaultsOf(filterLabSpecs(REG)), blur: 4, blurCurve: [[0, 1], [1, 1]], glowOn: true, ...over });
+  it('is first by default and moves with the order', () => {
+    const c = new Container();
+    const s = new FilterStack(c, REG);
+    s.frame(on({}), 0, 0.016);
+    const ids = (c.filters as unknown as { id?: string }[]).map((f) => f.id ?? 'blur');
+    expect(ids).toEqual(['blur', 'glow']);
+    s.frame(on({ [FILTER_ORDER_KEY]: ['glow', 'blur'] }), 0, 0.016);
+    expect((c.filters as unknown as { id?: string }[]).map((f) => f.id ?? 'blur')).toEqual(['glow', 'blur']);
+    s.destroy();
   });
 });
 

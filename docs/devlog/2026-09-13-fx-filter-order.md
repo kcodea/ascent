@@ -19,5 +19,8 @@ filters in fixed registry order, and the Filters panel gave no hint. This applie
   rendered list, so what you see is what composes). Pixi applies `container.filters[0]` first, so the top row
   processes the raw layer and each next row processes that result.
 
-**Deliberately not done.** The always-on core Blur stays first and is not orderable; making it a movable row in
-the Filters master is a small follow-up if "blur the glow" turns out to be wanted.
+**Blur too (owner ask, same day).** The always-on core Blur is orderable as well: `CORE_BLUR_ID = 'blur'` is a
+virtual entry in the resolved order (first by default — the old behaviour), `FilterStack.frame` walks one
+ordered id list and handles blur inline, and the Filters master shows a knob-less **"Blur (core)"** row (on
+whenever Blur > 0; its amount stays in the Style group) purely so it can be moved against the lab filters.
+Headless note: the real `BlurFilter` compiles a GL program on construction, so the ordering test stubs it.

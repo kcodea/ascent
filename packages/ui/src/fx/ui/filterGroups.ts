@@ -1,5 +1,5 @@
 import { FILTERS } from '../filterRegistry';
-import { FILTER_ORDER_KEY, resolveFilterOrder } from '../filterStack';
+import { CORE_BLUR_ID, FILTER_ORDER_KEY, resolveFilterOrder } from '../filterStack';
 import type { FxParamSpecs } from '../params';
 
 /**
@@ -44,8 +44,18 @@ export function filterEntries(specs: FxParamSpecs, values: Record<string, unknow
   const disabled: FilterEntry[] = [];
   const raw = values[FILTER_ORDER_KEY];
   const byId = new Map(FILTERS.map((f) => [f.id, f] as const));
-  const ordered = resolveFilterOrder(Array.isArray(raw) ? (raw as string[]) : [], FILTERS).map((id) => byId.get(id)!);
-  for (const f of ordered) {
+  for (const id of resolveFilterOrder(Array.isArray(raw) ? (raw as string[]) : [], FILTERS)) {
+    if (id === CORE_BLUR_ID) {
+      // The core Blur is orderable like any filter but its knobs stay in the primitive's own Style group
+      // (they are shared params, not lab params), so this row is a placeholder for ORDER only: no toggle
+      // (it is "on" whenever Blur > 0) and no params of its own.
+      if (!(CORE_BLUR_ID in specs)) continue;
+      const on = (typeof values[CORE_BLUR_ID] === 'number' ? (values[CORE_BLUR_ID] as number) : 0) > 0;
+      (on ? enabled : disabled).push({ id: CORE_BLUR_ID, label: 'Blur (core)', onKey: CORE_BLUR_ID, on, paramKeys: [] });
+      continue;
+    }
+    const f = byId.get(id);
+    if (f === undefined) continue;
     const key = onKey(f.id);
     if (!(key in specs)) continue;
     const paramKeys: string[] = [];

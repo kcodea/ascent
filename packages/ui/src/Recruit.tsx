@@ -4685,7 +4685,7 @@ export function Recruit() {
         const gh = snap?.h ?? h;
         const x0 = snap ? snap.cx - gw / 2 : rr.left + rr.width / 2 + (i - (events.length - 1) / 2) * (w * 0.72) - w / 2;
         const y0 = snap ? snap.cy - gh / 2 : rr.top - h * 0.62;
-        return { fid: ev.fodderId, attack: ev.attack, health: ev.health, x0, y0, w: gw, h: gh, eaterUid: ev.eaterUid };
+        return { fid: ev.fodderId, attack: ev.attack, health: ev.health, x0, y0, w: gw, h: gh, eaterUid: ev.eaterUid, uid };
       });
       setFodderAnim({ key: seq, ghosts });
       // The consume "gulp" — fired ONCE per consume action (not per ghost), and `sfx.consume` itself de-dupes
@@ -4714,16 +4714,33 @@ export function Recruit() {
         }
         ghosts.forEach((g, i) => {
           const from = { x: g.x0 + g.w / 2, y: g.y0 + g.h / 2 };  // ghost centre — the bands' source point
-          const eaterEl = document.querySelector(`[data-zone="warband"] .row .card[data-uid="${g.eaterUid}"]`);
+          // The eater is a WARBAND body — or, since Set 3, the STARFORM token sitting in the tavern row (its
+          // `shopEaten` record carries the token's own uid as the eater; see `starformStandIn`). Same ghost,
+          // same taffy pull; only the def differs (below).
+          const warbandEater = document.querySelector(`[data-zone="warband"] .row .card[data-uid="${g.eaterUid}"]`);
+          const starformEater = warbandEater ? null : document.querySelector(`[data-zone="tavern"] .card.starform[data-uid="${g.eaterUid}"]`);
+          const eaterEl = warbandEater ?? starformEater;
           const er = eaterEl?.getBoundingClientRect();
           const to = er ? { x: er.left + er.width / 2, y: er.top + er.height / 2 } : { x: from.x, y: from.y + 220 };
-          // The authored `consume-pull` particles fire from the ghost into ITS eater — smoke gathers at the
-          // eater while three burst rings are sucked in by point-gravity — at t=0 of the ghost's pull.
-          playDef(
-            'consume-pull',
-            { source: from, target: to, camera: { x: window.innerWidth / 2, y: window.innerHeight / 2 } },
-            { uids: { source: g.eaterUid, target: g.eaterUid } },
-          );
+          if (starformEater) {
+            // The Starform ate a Shop minion (Accretion / Accretion Warden / a full-row creation): the owner-
+            // authored `starform-pull` (2026-09-12) plays FROM the meal's ghost TO the token — the beam travels
+            // source→target — INSTEAD of `consume-pull`, never both. The sim also records this meal on
+            // `starformFx` (`consumeShop`); the `starformFxSeq` watcher below skips that kind for this reason.
+            playDef(
+              'starform-pull',
+              { source: from, target: to, camera: { x: window.innerWidth / 2, y: window.innerHeight / 2 } },
+              { uids: { source: g.uid ?? g.eaterUid, target: g.eaterUid } },
+            );
+          } else {
+            // The authored `consume-pull` particles fire from the ghost into ITS eater — smoke gathers at the
+            // eater while three burst rings are sucked in by point-gravity — at t=0 of the ghost's pull.
+            playDef(
+              'consume-pull',
+              { source: from, target: to, camera: { x: window.innerWidth / 2, y: window.innerHeight / 2 } },
+              { uids: { source: g.eaterUid, target: g.eaterUid } },
+            );
+          }
           const el = document.querySelector<HTMLElement>(`.fodderghost[data-gidx="${i}"]`);
           if (!el) return;
           // Anchor the TOP so `scaleY` elongates the ghost DOWNWARD (bottom leads) and the collapse shrinks it
@@ -4767,7 +4784,8 @@ export function Recruit() {
           const u1 = g0 + (1 - g0) * 0.45;            // undershoot below true size (the recoil)
           const u2 = g0 + (1 - g0) * 0.75;            // small overshoot back up
           for (const k of keyed) {
-            const el = document.querySelector(`[data-zone="warband"] .row .card[data-uid="${k.uid}"]`);
+            // A warband eater, or the Starform token in the tavern row (it gulps its meal the same way).
+            const el = document.querySelector(`[data-zone="warband"] .row .card[data-uid="${k.uid}"], [data-zone="tavern"] .card.starform[data-uid="${k.uid}"]`);
             if (!el) continue;
             try {
               eaterAnims.push(el.animate([
@@ -4877,6 +4895,55 @@ export function Recruit() {
     if (events.length === 0) return;
     return playFodderEat(events, run.shopEatenSeq);
   }, [run.shopEatenSeq]);
+
+  // THE STARFORM PULL (owner-authored `starform-pull`, 2026-09-12): a warband minion CONSUMES the token (Corona
+  // Devotee) or COLLAPSES it (Nova Herald) — the def plays FROM the token TO each body gaining, one play per
+  // receiver, all fired together (the Collapse's three targets each get their own beam). Keyed on
+  // `run.starformFxSeq`, the sim's per-action channel (see `RunState.starformFx`). The `consumeShop` kind (the
+  // token EATING a Shop minion) is deliberately NOT played here: that meal is also on `shopEaten`, whose ghost
+  // path above fires `starform-pull` from the ghost — playing it here too would be two pulls for one bite.
+  //
+  // SOURCE RECT: the token is spliced from `run.shop` in the same commit that bumps the seq, so its card is
+  // already gone when this passive effect runs. `shopRectsRef` (the drag layer's double-buffered measure
+  // cache) still holds its pre-removal centre — `prev` after the layout snapshot swapped, `cur` while a slot is
+  // held — so the pull launches from where the token sat. No ghost is drawn for the token itself.
+  const prevStarformFxSeq = useRef(run.starformFxSeq ?? 0);
+  useEffect(() => {
+    const seq = run.starformFxSeq ?? 0;
+    if (seq === prevStarformFxSeq.current) return;
+    prevStarformFxSeq.current = seq;
+    const events = (run.starformFx ?? []).filter((e) => e.kind !== 'consumeShop');
+    if (events.length === 0) return;
+    let raf = 0;
+    let tries = 0;
+    const centre = (r: DOMRect): { x: number; y: number } => ({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
+    // The receiving body is a board card; a Shout played from hand lands it in this same commit, but the
+    // warband row can lay out a frame or two later — retry briefly (the `playFodderEat` pattern) rather than
+    // dropping the play.
+    const fire = (): void => {
+      const camera = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+      let fired = 0, missing = 0;
+      for (const ev of events) {
+        const live = findEl(ev.fromUid)?.getBoundingClientRect();
+        const snap = shopRectsRef.current.prev.get(ev.fromUid) ?? shopRectsRef.current.cur.get(ev.fromUid);
+        const source = live && live.width > 0 ? centre(live) : snap ? { x: snap.cx, y: snap.cy } : null;
+        if (!source) continue; // never measured (a consume before the tavern laid out) — nothing to launch from
+        for (const toUid of ev.toUids) {
+          const tEl = document.querySelector(`[data-zone="warband"] .row .card[data-uid="${toUid}"]`);
+          const tr = tEl?.getBoundingClientRect();
+          if (!tr || tr.width === 0) { missing += 1; continue; }
+          playDef('starform-pull', { source, target: centre(tr), camera }, { uids: { source: ev.fromUid, target: toUid } });
+          fired += 1;
+        }
+      }
+      if (fired === 0 && missing > 0 && tries++ < 40) { raf = requestAnimationFrame(fire); return; }
+      // ONE gulp per action, not per target — `sfx.consume` de-dupes on a short cooldown besides.
+      if (fired > 0) sfx.consume();
+    };
+    fire();
+    return () => { if (raf) cancelAnimationFrame(raf); };
+    // Keyed on the seq ONLY (see the fodder watcher above): the array ref changes every action.
+  }, [run.starformFxSeq]);
 
   // RELEASE the held consumed slots (see `heldConsume` above) once the ghost has been pulled into the eater —
   // matched to the taffy pull's own clock (`getConsumeFxConfig().durationMs`). Dropping them here changes

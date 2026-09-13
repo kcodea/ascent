@@ -548,8 +548,10 @@ function playDefInner(
   // sample it. This gives the committed harness a way to observe that a def fired, and when. Positive
   // `import.meta.env.DEV` branch so Rollup drops it from production builds.
   if (import.meta.env.DEV && typeof window !== 'undefined') {
-    const w = window as unknown as { __fxFires?: { id: string; t: number }[] };
-    (w.__fxFires ??= []).push({ id, t: performance.now() });
+    // `uids` (the caller's source/target uids, when given) rides along so a multi-target play — the Starform
+    // Collapse's three `starform-pull`s — can be told apart from one play fired three times.
+    const w = window as unknown as { __fxFires?: { id: string; t: number; uids?: PlayDefOptions['uids'] }[] };
+    (w.__fxFires ??= []).push({ id, t: performance.now(), uids: opts.uids });
   }
 
   return retire;

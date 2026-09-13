@@ -65,8 +65,23 @@ describe('custom primitive specs', () => {
 
   it('exposes its enums as as-const tuples (so ParamsOf narrows them)', () => {
     expect([...CUSTOM_AIM_MODES]).toEqual(['fixed', 'sourceToTarget']);
-    expect([...CUSTOM_RENDER_MODES]).toEqual(['sprite', 'plane', 'rope', 'perspective']);
+    expect([...CUSTOM_RENDER_MODES]).toEqual(['sprite', 'slice', 'plane', 'rope', 'perspective']);
     expect([...CUSTOM_ROLES]).toEqual(['draw', 'displace', 'mask']);
+  });
+
+  it('Phase 3 defaults are all inert too — no variation, no stretch, no upright flip', () => {
+    const d = defaultsOf(customPrimitive.params);
+    expect(d.sheetVariantRows).toBe(false);
+    expect([d.randomStart, d.randomFlipX, d.randomFlipY, d.randomReverse]).toEqual([false, false, false, false]);
+    expect([d.fpsJitter, d.hueJitter]).toEqual([0, 0]);
+    expect([d.aimStretch, d.aimUpright]).toEqual([false, false]);
+  });
+
+  it('gates the aimed-art knobs on sourceToTarget and the cap on slice mode', () => {
+    const specs = customPrimitive.params as unknown as Record<string, { enabledWhen?: { param: string; is: unknown } }>;
+    expect(specs.aimStretch.enabledWhen).toEqual({ param: 'aimMode', is: 'sourceToTarget' });
+    expect(specs.aimUpright.enabledWhen).toEqual({ param: 'aimMode', is: 'sourceToTarget' });
+    expect(specs.sliceCap.enabledWhen).toEqual({ param: 'renderMode', is: 'slice' });
   });
 
   it('gates every mode-specific knob on its mode, so the Inspector only lights the relevant ones', () => {
@@ -136,17 +151,34 @@ describe('custom instance lifecycle (headless — no image picked)', () => {
     inst.destroy();
   });
 
-  it('setAim keeps a real direction and drops a degenerate one', () => {
+  it('setAim keeps a real direction + the distance (for stretch) and drops a degenerate one', () => {
     const c = ctx(false);
     const inst = customPrimitive.spawn(c, defaultsOf(customPrimitive.params)) as unknown as {
-      setAim: (sx: number, sy: number, tx: number, ty: number) => void; aimAngle: number | null; destroy: () => void;
+      setAim: (sx: number, sy: number, tx: number, ty: number) => void; aimAngle: number | null; aimDist: number; destroy: () => void;
     };
     inst.setAim(0, 0, 10, 0);
     expect(inst.aimAngle).toBeCloseTo(0);
+    expect(inst.aimDist).toBeCloseTo(10);
     inst.setAim(0, 0, 0, 10);
     expect(inst.aimAngle).toBeCloseTo(Math.PI / 2);
     inst.setAim(5, 5, 5, 5);
     expect(inst.aimAngle).toBeNull();
+    expect(inst.aimDist).toBe(0);
+    inst.destroy();
+  });
+
+  it('Phase 3 structural churn (variant rows, random set, slice) with no image never throws or leaks', () => {
+    const c = ctx(false);
+    const base = defaultsOf(customPrimitive.params);
+    const inst = customPrimitive.spawn(c, base);
+    // `satisfies` keeps each toggle's default as the literal `false`, so flipping one on needs the cast.
+    const on = (over: Record<string, unknown>): typeof base => ({ ...base, ...over }) as unknown as typeof base;
+    inst.setParams(on({ sheetCols: 4, sheetRows: 3, sheetVariantRows: true, count: 5, randomStart: true, randomFlipX: true, randomFlipY: true, fpsJitter: 0.5, hueJitter: 60, randomReverse: true }));
+    inst.update(16);
+    inst.setParams(on({ renderMode: 'slice', aimMode: 'sourceToTarget', aimStretch: true, aimUpright: true }));
+    inst.setAim?.(0, 0, -100, 0);
+    inst.update(16);
+    expect(c.container.children.length).toBe(0);
     inst.destroy();
   });
 

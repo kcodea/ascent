@@ -104,6 +104,24 @@ list of `Copy { wrap, node }` and rebuilds it only on a STRUCTURAL param change.
   multi-frame sheet used as a displacement map samples the full sheet, not the current frame (the mask role
   renders the sprite normally and does honour the frame). Fix later by baking each frame into its own source.
 
+## Phase 3 (built 2026-09-13, same branch) — anti-stale variation + aimed art
+
+Owner's two questions answered as features. All per-copy variation is rolled from the layer's seed
+(`rollVariation`, always seven draws per copy in a fixed order so toggling one feature never reshuffles the
+others), which means in-game every fire varies and a workbench-locked seed repeats.
+
+- **Anti-stale, from ONE sheet:** `sheetVariantRows` (each row a separate take, one picked per copy — Frame
+  count then limits per row), `randomStart`, `randomFlipX/Y`, `fpsJitter`, `hueJitter` (a per-copy
+  `ColorMatrixFilter.hue` — a real hue rotation, opt-in: one filter pass per copy), `randomReverse`.
+  Rotation/Size jitter already varied a lone image per fire (a Count-1 copy still gets its roll).
+- **Aimed art:** `aimStretch` scales the LENGTH to the source→target distance (`setAim` now keeps the
+  distance; Size becomes thickness); `aimUpright` mirrors across the image's own axis when the aim points
+  left (`aimsLeft` = cos < 0) so a side-view image never renders upside-down; render mode **`slice`** (a
+  `NineSliceSprite` with zero top/bottom borders = a horizontal 3-slice, `sliceCap` px per end) so only the
+  body stretches and the caps stay crisp. Stretch also applies to `rope` (the arc spans the distance) and
+  `sprite`/`plane` (whole-frame x-scale). Verified in-browser: upright flips the left-facing beam's top back
+  up, a stretched slice spans exactly source→target.
+
 ## Still out of scope
 
 A delete-image route (unused files are pruned by hand / git); per-frame displacement maps (above); vector

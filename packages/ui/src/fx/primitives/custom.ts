@@ -1,8 +1,10 @@
 import {
+  ColorMatrixFilter,
   Container,
   DisplacementFilter,
   MeshPlane,
   MeshRope,
+  NineSliceSprite,
   PerspectiveMesh,
   Rectangle,
   Sprite,
@@ -20,8 +22,11 @@ import { FX_BLEND_MODES, type FxBlendMode } from '../blendModes';
 import { getImageTexture, IMAGE_NONE } from '../imageLibrary';
 import { makeRng, randomSeed } from '../rng';
 import {
-  ropePoints,
+  aimsLeft,
+  reverseFrame,
   rollScatter,
+  rollVariation,
+  ropePoints,
   SCATTER_SHAPES,
   SHEET_MODES,
   sheetFrameIndex,
@@ -32,6 +37,7 @@ import {
   type ScatterRoll,
   type ScatterShape,
   type SheetMode,
+  type VariationRoll,
   type WobbleAxis,
 } from '../customGeometry';
 import { registerPrimitive } from '../registry';
@@ -49,27 +55,35 @@ import { registerPrimitive } from '../registry';
  *     a sub-`Texture` sharing the sheet's source; `Size` refers to ONE frame, not the sheet.
  *   • COUNT + SCATTER — N copies rolled off the layer's seed (deterministic per fire: same seed, same field)
  *     inside a radius, with rotation / scale / alpha jitter and an in-order stagger.
- *   • RENDER MODE — `sprite` (a Sprite), `plane` (a MeshPlane whose vertices ripple — flags, water,
- *     shimmer), `rope` (a MeshRope bent along an arc + wave — curved slashes, banners), `perspective` (a
- *     PerspectiveMesh tilted in 2.5D — decals lying on the board, card flips).
+ *   • RENDER MODE — `sprite` (a Sprite), `slice` (a 3-slice: the end caps stay crisp while the body
+ *     stretches — for beams), `plane` (a MeshPlane whose vertices ripple), `rope` (a MeshRope bent along an
+ *     arc + wave), `perspective` (a PerspectiveMesh tilted in 2.5D).
  *   • ROLE — `draw` shows the image; `displace` and `mask` instead act on the effect's OTHER layers through
- *     `ctx.effectRoot`: a hidden map sprite drives a DisplacementFilter on the root (an animated noise
- *     sheet = flowing heat-haze over a burst), or the image becomes the root's alpha mask (reveal a burst
- *     THROUGH a sigil). Everything attached to the root is removed in `destroy()`.
+ *     `ctx.effectRoot`: a hidden map sprite drives a DisplacementFilter on the root, or the image becomes the
+ *     root's alpha mask. Everything attached to the root is removed in `destroy()`.
+ *
+ * Phase 3:
+ *   • ANTI-STALE — per-copy, seeded VARIATION from ONE sheet: variant rows (each row a different take, one
+ *     picked per copy), random start frame, random flip X/Y, fps jitter, hue jitter (a per-copy
+ *     ColorMatrixFilter — a real hue rotation, opt-in because it is a filter pass per copy), random reverse.
+ *     In-game every fire rolls a fresh seed, so all of it varies per fire; a workbench-locked seed repeats.
+ *   • AIMED ART — `aimStretch` scales the image's LENGTH to the source→target distance (Size becomes its
+ *     thickness), `aimUpright` mirrors it across its own axis when the aim points left so a side-view image
+ *     never renders upside-down, and `slice` mode stretches only the body between two caps.
  *
  * No particle shader on purpose: `particleMaterial.ts` recolours / cel-quantises a texture's RGB, which is
- * right for a silhouette and wrong for a picture. Every copy is a `wrap` Container (placement, alpha) around
- * a `node` (the Sprite/Mesh: texture, tint, blend); the node is offset inside the wrap by the pivot, so a
- * pivot change is a retune, not a rebuild. Copies are built LAZILY the first frame the texture is decoded
- * (`getImageTexture` is synchronous and `null` until then) and rebuilt only when a STRUCTURAL param changes
- * (image, count, mode, grid, segments, role, scatter knobs — the last re-roll the same seed). `isComplete`
- * is clocked, never texture-gated, so a missing image can't hang a fire.
+ * right for a silhouette and wrong for a picture. Every copy is a `wrap` Container (placement, alpha, hue)
+ * around a `node` (the Sprite/Mesh: texture, tint, blend); the node is offset inside the wrap by the pivot,
+ * so a pivot change is a retune, not a rebuild. Copies are built LAZILY the first frame the texture is
+ * decoded and rebuilt only when a STRUCTURAL param changes (see `structureKey`). `isComplete` is clocked,
+ * never texture-gated, so a missing image can't hang a fire.
  *
- * The pure maths (frame cutting, scatter rolls, wobble, rope arc, tilt corners) lives in `customGeometry.ts`.
+ * The pure maths (frame cutting, scatter + variation rolls, wobble, rope arc, tilt corners) lives in
+ * `customGeometry.ts`.
  */
 
 export const CUSTOM_AIM_MODES = ['fixed', 'sourceToTarget'] as const;
-export const CUSTOM_RENDER_MODES = ['sprite', 'plane', 'rope', 'perspective'] as const;
+export const CUSTOM_RENDER_MODES = ['sprite', 'slice', 'plane', 'rope', 'perspective'] as const;
 export const CUSTOM_ROLES = ['draw', 'displace', 'mask'] as const;
 
 const DEG_TO_RAD = Math.PI / 180;
@@ -85,7 +99,7 @@ const SPECS = {
   },
   size: {
     kind: 'slider', label: 'Size', group: 'Image', min: 8, max: 1200, step: 1, default: 200, essential: true,
-    help: 'Longest side in px of ONE frame (the whole image unless it is a sprite sheet), at the reference board size. The other side follows the frame\'s own aspect. The Transform envelope\'s Scale / time multiplies this over life.',
+    help: 'Longest side in px of ONE frame (the whole image unless it is a sprite sheet), at the reference board size. The other side follows the frame\'s own aspect. With Stretch to target on, this is the THICKNESS instead. The Transform envelope\'s Scale / time multiplies this over life.',
   },
   durationMs: {
     kind: 'slider', label: 'Duration', group: 'Image', min: 100, max: 5000, step: 10, default: 800,
@@ -102,7 +116,11 @@ const SPECS = {
   },
   sheetFrames: {
     kind: 'slider', label: 'Frame count', group: 'Sheet', min: 0, max: 256, step: 1, default: 0,
-    help: 'How many cells of the grid are real frames, in reading order (left→right, top→bottom). 0 = all of them. Sheets exported from most tools pad the last row with blanks — set this to skip them.',
+    help: 'How many cells of the grid are real frames, in reading order (left→right, top→bottom). 0 = all of them. Sheets exported from most tools pad the last row with blanks — set this to skip them. With Variant rows on, this is the frame count PER ROW.',
+  },
+  sheetVariantRows: {
+    kind: 'toggle', label: 'Variant rows', group: 'Sheet', default: false,
+    help: 'Treat each ROW of the sheet as a separate take of the same animation, and pick one per copy (and per fire, since each fire rolls a fresh seed). An 8 × 4 sheet becomes four different 8-frame animations — the biggest single cure for an effect looking the same every time.',
   },
   sheetFps: {
     kind: 'slider', label: 'FPS', group: 'Sheet', min: 0, max: 60, step: 1, default: 12,
@@ -116,10 +134,35 @@ const SPECS = {
     kind: 'slider', label: 'Start frame', group: 'Sheet', min: 0, max: 255, step: 1, default: 0,
     help: 'Which frame the strip starts on (wraps). With FPS 0 this is the single frame shown.',
   },
+  // ── Random (anti-stale; every roll comes off the layer's seed) ──
+  randomStart: {
+    kind: 'toggle', label: 'Random start frame', group: 'Random', default: false,
+    help: 'Each copy starts the strip on a random frame (added to Start frame). With loop, a field of copies stops pulsing in lockstep.',
+  },
+  randomFlipX: {
+    kind: 'toggle', label: 'Random flip X', group: 'Random', default: false,
+    help: 'Each copy has a 50% chance of being mirrored left↔right — a mirrored slash reads as a different slash, for free.',
+  },
+  randomFlipY: {
+    kind: 'toggle', label: 'Random flip Y', group: 'Random', default: false,
+    help: 'Each copy has a 50% chance of being mirrored top↔bottom.',
+  },
+  fpsJitter: {
+    kind: 'slider', label: 'FPS jitter', group: 'Random', min: 0, max: 1, step: 0.01, default: 0,
+    help: 'Each copy plays at FPS × a random 1 ± this, so copies drift out of sync over time instead of marching together. 0 = all in step.',
+  },
+  hueJitter: {
+    kind: 'slider', label: 'Hue jitter', group: 'Random', min: 0, max: 180, step: 1, default: 0,
+    help: 'Each copy\'s colours are hue-rotated by a random ± this many degrees — variation with no new art. A REAL hue rotation (not a tint), which costs one filter pass per copy, so keep Count modest when this is on.',
+  },
+  randomReverse: {
+    kind: 'toggle', label: 'Random reverse', group: 'Random', default: false,
+    help: 'Each copy has a 50% chance of playing the strip backwards.',
+  },
   // ── Scatter ──
   count: {
     kind: 'slider', label: 'Count', group: 'Scatter', min: 1, max: 64, step: 1, default: 1,
-    help: 'How many copies of the image to draw. 1 = just the one. Every copy shares the look and each gets its own scatter roll below. (Ignored by the displace / mask roles — they use one map.)',
+    help: 'How many copies of the image to draw. 1 = just the one. Every copy shares the look and each gets its own scatter + random roll. (Ignored by the displace / mask roles — they use one map.)',
   },
   scatterRadius: {
     kind: 'slider', label: 'Radius', group: 'Scatter', min: 0, max: 600, step: 1, default: 0,
@@ -131,7 +174,7 @@ const SPECS = {
   },
   jitterRotation: {
     kind: 'slider', label: 'Rotation jitter', group: 'Scatter', min: 0, max: 180, step: 1, default: 0,
-    help: 'Each copy gets a random extra rotation of up to ± this many degrees, on top of Rotation / Aim.',
+    help: 'Each copy gets a random extra rotation of up to ± this many degrees, on top of Rotation / Aim. Works with Count 1 too — a lone image lands at a different angle every fire.',
   },
   jitterScale: {
     kind: 'slider', label: 'Size jitter', group: 'Scatter', min: 0, max: 1, step: 0.01, default: 0,
@@ -148,7 +191,11 @@ const SPECS = {
   // ── Render ──
   renderMode: {
     kind: 'enum', label: 'Render as', group: 'Render', options: CUSTOM_RENDER_MODES, default: 'sprite', essential: true,
-    help: 'sprite draws the flat picture. plane is a mesh whose surface ripples (Wobble knobs) — flags, water, heat shimmer. rope bends the picture along an arc (Bend knobs) — curved slashes, flowing banners. perspective tilts it in 2.5D (Tilt knobs) — a decal lying on the board, a card flip. All of them still take sheets, scatter, tint, blend and the filter lab.',
+    help: 'sprite draws the flat picture. slice is a 3-slice: the two end caps stay crisp while only the body stretches — the right mode for a beam or bar that must reach any length. plane is a mesh whose surface ripples (Wobble knobs). rope bends the picture along an arc (Bend knobs). perspective tilts it in 2.5D (Tilt knobs). All of them still take sheets, scatter, tint, blend and the filter lab.',
+  },
+  sliceCap: {
+    kind: 'slider', label: 'Cap width', group: 'Render', min: 0, max: 512, step: 1, default: 32, enabledWhen: { param: 'renderMode', is: 'slice' },
+    help: 'How many px of the frame (un-scaled) at EACH end are a cap that never stretches. The middle is the body. Clamped to under half the frame.',
   },
   meshSegments: {
     kind: 'slider', label: 'Wobble detail', group: 'Render', min: 2, max: 32, step: 1, default: 12, enabledWhen: { param: 'renderMode', is: 'plane' },
@@ -209,7 +256,7 @@ const SPECS = {
   // ── Placement ──
   pivotX: {
     kind: 'slider', label: 'Pivot X', group: 'Placement', min: 0, max: 1, step: 0.01, default: 0.5,
-    help: 'Where the frame\'s own origin sits, left→right (0 = left edge, 0.5 = centre, 1 = right edge). Rotation, flip and Size act about this point, and it is what lands on the anchor.',
+    help: 'Where the frame\'s own origin sits, left→right (0 = left edge, 0.5 = centre, 1 = right edge). Rotation, flip and Size act about this point, and it is what lands on the anchor. For an aimed beam use 0 so its base sits on the caster.',
   },
   pivotY: {
     kind: 'slider', label: 'Pivot Y', group: 'Placement', min: 0, max: 1, step: 0.01, default: 0.5,
@@ -229,7 +276,15 @@ const SPECS = {
   },
   aimMode: {
     kind: 'enum', label: 'Aim', group: 'Placement', options: CUSTOM_AIM_MODES, default: 'fixed',
-    help: 'fixed keeps the Rotation you set. sourceToTarget rotates the image to point along the moment itself — from the source anchor toward the target anchor — so an arrow or slash drawn pointing right (+x) points at the victim. Falls back to fixed when the effect was fired without both anchors, or with the two on the same spot.',
+    help: 'fixed keeps the Rotation you set. sourceToTarget rotates the image to point along the moment itself — from the source anchor toward the target anchor, at ANY angle — so art drawn pointing right (+x) points at the victim. Falls back to fixed when the effect was fired without both anchors, or with the two on the same spot.',
+  },
+  aimStretch: {
+    kind: 'toggle', label: 'Stretch to target', group: 'Placement', default: false, enabledWhen: { param: 'aimMode', is: 'sourceToTarget' },
+    help: 'Scale the image\'s LENGTH so it spans exactly from the source anchor to the target anchor; Size then sets its THICKNESS. Anchor the layer at source with Pivot X 0 so the base sits on the caster. Use Render as = slice so the end caps stay crisp. Does nothing without both anchors.',
+  },
+  aimUpright: {
+    kind: 'toggle', label: 'Keep upright', group: 'Placement', default: false, enabledWhen: { param: 'aimMode', is: 'sourceToTarget' },
+    help: 'When the aim points LEFT, mirror the image across its own axis so its top stays on top — a side-view beam or slash with shading never renders upside-down. Off = a pure rotation.',
   },
   flipX: {
     kind: 'toggle', label: 'Flip X', group: 'Placement', default: false,
@@ -250,7 +305,7 @@ const SPECS = {
   },
   tint: {
     kind: 'toggle', label: 'Tint', group: 'Look', default: false,
-    help: 'Multiply the image by a colour. Off draws the art exactly as imported. (For hue shifts, saturation or contrast use the HSL / Adjustment filters below.)',
+    help: 'Multiply the image by a colour. Off draws the art exactly as imported. (For hue shifts, saturation or contrast use the HSL / Adjustment filters below, or Hue jitter for per-copy variation.)',
   },
   tintColor: {
     kind: 'color', label: 'Tint colour', group: 'Look', default: 0xffffff, enabledWhen: { param: 'tint', is: true },
@@ -283,15 +338,18 @@ const SPECS = {
 } satisfies FxParamSpecs;
 
 type CustomParams = ParamsOf<typeof SPECS>;
-type CustomNode = Sprite | MeshPlane | MeshRope | PerspectiveMesh;
+type CustomNode = Sprite | NineSliceSprite | MeshPlane | MeshRope | PerspectiveMesh;
 
-/** One drawn copy: `wrap` carries placement + alpha; `node` carries the texture, tint and blend. */
+/** One drawn copy: `wrap` carries placement, alpha and the optional hue filter; `node` carries the texture,
+ *  tint and blend. */
 interface Copy {
   wrap: Container;
   node: CustomNode;
   roll: ScatterRoll;
-  /** Last applied frame index, so a texture swap only happens on change. */
+  vroll: VariationRoll;
+  /** Last applied frame index within the copy's strip, so a texture swap only happens on change. */
   frame: number;
+  hueFilter: ColorMatrixFilter | null;
   /** `plane`: the un-wobbled vertex positions to displace from each frame. */
   basePositions?: Float32Array;
   /** `rope`: the point objects the rope follows — mutated in place (MeshRope auto-updates its geometry). */
@@ -318,13 +376,14 @@ function framesFor(image: string, tex: Texture, cols: number, rows: number, coun
   return frames;
 }
 
-/** The params whose change means "tear down and rebuild the copies" (vs a per-frame retune). Scatter knobs
+/** The params whose change means "tear down and rebuild the copies" (vs a per-frame retune). Roll knobs
  *  are here because a roll happens at build; changing one re-rolls the SAME seed into the new shape. */
 function structureKey(p: CustomParams): string {
   return [
-    p.image, p.count, p.renderMode, p.sheetCols, p.sheetRows, p.sheetFrames, p.meshSegments, p.ropeSegments,
-    p.tiltSegments, p.role, p.scatterRadius, p.scatterShape, p.jitterRotation, p.jitterScale, p.jitterAlpha,
-    p.staggerMs,
+    p.image, p.count, p.renderMode, p.sheetCols, p.sheetRows, p.sheetFrames, p.sheetVariantRows, p.meshSegments,
+    p.ropeSegments, p.tiltSegments, p.sliceCap, p.role, p.scatterRadius, p.scatterShape, p.jitterRotation,
+    p.jitterScale, p.jitterAlpha, p.staggerMs, p.randomStart, p.randomFlipX, p.randomFlipY, p.fpsJitter,
+    p.hueJitter, p.randomReverse,
   ].join('|');
 }
 
@@ -340,7 +399,10 @@ class CustomInstance implements FxInstance<CustomParams> {
   private copies: Copy[] = [];
   private builtKey = '';
   private builtTex: Texture | null = null;
+  /** Every frame of the sheet, reading order. */
   private frames: Texture[] = [];
+  /** The strips copies play: one per variant row, or a single strip of every frame. */
+  private strips: Texture[][] = [[]];
 
   // cross-layer roles — everything here hangs off `effectRoot` and is removed in destroy()
   private roleSprite: Sprite | null = null;
@@ -351,6 +413,7 @@ class CustomInstance implements FxInstance<CustomParams> {
   private headX = 0;
   private headY = 0;
   private aimAngle: number | null = null;
+  private aimDist = 0;
   private clockMs = 0;
 
   constructor(ctx: FxContext, params: CustomParams) {
@@ -366,7 +429,10 @@ class CustomInstance implements FxInstance<CustomParams> {
   // ── build / teardown ──────────────────────────────────────────────────────────────────────────────
 
   private teardownCopies(): void {
-    for (const c of this.copies) c.wrap.destroy({ children: true }); // meshes drop their own geometry; textures are shared
+    for (const c of this.copies) {
+      c.hueFilter?.destroy();
+      c.wrap.destroy({ children: true }); // meshes drop their own geometry; textures are shared
+    }
     this.copies = [];
   }
 
@@ -402,30 +468,54 @@ class CustomInstance implements FxInstance<CustomParams> {
     this.builtTex = tex;
     if (tex === null) return; // nothing picked, or not decoded yet — retried every frame (two map lookups)
 
-    this.frames = framesFor(p.image, tex, p.sheetCols, p.sheetRows, p.sheetFrames);
+    // Variant rows need every cell cut (Frame count then limits PER ROW); otherwise Frame count limits the
+    // whole grid and the one strip is all of it.
+    const cols = Math.max(1, Math.floor(p.sheetCols));
+    const rows = Math.max(1, Math.floor(p.sheetRows));
+    const variants = p.sheetVariantRows && rows > 1;
+    this.frames = framesFor(p.image, tex, cols, rows, variants ? 0 : p.sheetFrames);
+    if (variants) {
+      const perRow = p.sheetFrames > 0 ? Math.min(cols, Math.floor(p.sheetFrames)) : cols;
+      this.strips = [];
+      for (let r = 0; r < rows; r++) this.strips.push(this.frames.slice(r * cols, r * cols + perRow));
+    } else {
+      this.strips = [this.frames];
+    }
+
     if (p.role !== 'draw') {
       this.buildRole();
       return;
     }
+    const rng = makeRng(this.seed);
     const rolls = rollScatter(
-      makeRng(this.seed), p.count, p.scatterRadius, p.scatterShape as ScatterShape,
+      rng, p.count, p.scatterRadius, p.scatterShape as ScatterShape,
       p.jitterRotation, p.jitterScale, p.jitterAlpha, p.staggerMs,
     );
-    for (const roll of rolls) {
-      const copy = this.makeCopy(roll);
+    const vrolls = rollVariation(rng, p.count, {
+      variantRows: variants ? rows : 1, frames: this.strips[0].length, randomStart: p.randomStart,
+      randomFlipX: p.randomFlipX, randomFlipY: p.randomFlipY, fpsJitter: p.fpsJitter, hueJitter: p.hueJitter,
+      randomReverse: p.randomReverse,
+    });
+    rolls.forEach((roll, i) => {
+      const copy = this.makeCopy(roll, vrolls[i]);
       this.container.addChild(copy.wrap);
       this.copies.push(copy);
-    }
+    });
   }
 
-  private makeCopy(roll: ScatterRoll): Copy {
+  private makeCopy(roll: ScatterRoll, vroll: VariationRoll): Copy {
     const p = this.params;
-    const frame0 = this.frames[0];
+    const frame0 = this.strips[vroll.row]?.[0] ?? this.frames[0];
     const fw = frame0.width;
     const fh = frame0.height;
     const wrap = new Container();
-    const copy: Copy = { wrap, node: null as unknown as CustomNode, roll, frame: 0 };
+    const copy: Copy = { wrap, node: null as unknown as CustomNode, roll, vroll, frame: -1, hueFilter: null };
     switch (p.renderMode) {
+      case 'slice': {
+        const cap = Math.max(0, Math.min(Math.floor(p.sliceCap), Math.floor(fw / 2) - 1));
+        copy.node = new NineSliceSprite({ texture: frame0, leftWidth: cap, rightWidth: cap, topHeight: 0, bottomHeight: 0, width: fw, height: fh });
+        break;
+      }
       case 'plane': {
         const segs = Math.max(2, Math.floor(p.meshSegments));
         const mesh = new MeshPlane({ texture: frame0, verticesX: segs, verticesY: segs });
@@ -451,6 +541,12 @@ class CustomInstance implements FxInstance<CustomParams> {
       }
       default:
         copy.node = new Sprite(frame0);
+    }
+    if (p.hueJitter > 0 && vroll.hueDeg !== 0) {
+      const f = new ColorMatrixFilter();
+      f.hue(vroll.hueDeg, false);
+      copy.hueFilter = f;
+      wrap.filters = [f];
     }
     wrap.addChild(copy.node);
     return copy;
@@ -492,9 +588,12 @@ class CustomInstance implements FxInstance<CustomParams> {
 
     this.ensureBuilt();
 
-    const aim = p.aimMode === 'sourceToTarget' && this.aimAngle !== null ? this.aimAngle : 0;
+    const aimed = p.aimMode === 'sourceToTarget' && this.aimAngle !== null;
+    const aim = aimed ? (this.aimAngle as number) : 0;
     const baseRot = p.rotation * DEG_TO_RAD + aim;
-    const frameCount = this.frames.length;
+    // Keep upright: a side-view image rotated to point left is upside-down — mirror it across its own axis.
+    const uprightFlip = aimed && p.aimUpright && aimsLeft(aim);
+    const stretch = aimed && p.aimStretch && this.aimDist > 0;
 
     if (p.role !== 'draw') {
       this.updateRole(layerClock, layerProg, baseRot);
@@ -505,22 +604,49 @@ class CustomInstance implements FxInstance<CustomParams> {
         copy.wrap.visible = true;
         const cprog = Math.min(1, local / dur);
         const node = copy.node;
-        const fi = sheetFrameIndex(p.sheetMode as SheetMode, frameCount, p.sheetFps, local, cprog, p.sheetStart);
-        if (fi !== copy.frame) { node.texture = this.frames[fi]; copy.frame = fi; }
-        const tex = this.frames[copy.frame];
+        const v = copy.vroll;
+
+        // frame — this copy's strip, its own fps, start offset and direction
+        const strip = this.strips[v.row] ?? this.frames;
+        const n = strip.length;
+        let fi = sheetFrameIndex(p.sheetMode as SheetMode, n, p.sheetFps * v.fpsMul, local, cprog, p.sheetStart + v.startOffset);
+        if (v.reverse) fi = reverseFrame(fi, n);
+        if (fi !== copy.frame) { node.texture = strip[fi]; copy.frame = fi; }
+        const tex = strip[copy.frame] ?? strip[0];
         const fw = tex.width;
         const fh = tex.height;
-        const k = (p.size / Math.max(1, fw, fh)) * copy.roll.scale;
-        copy.wrap.scale.set(k * (p.flipX ? -1 : 1), k * (p.flipY ? -1 : 1));
+
+        // scale — uniform from Size, or (stretched) length from the aim distance with Size as thickness
+        const kUniform = (p.size / Math.max(1, fw, fh)) * copy.roll.scale;
+        const ky = stretch ? (p.size / Math.max(1, fh)) * copy.roll.scale : kUniform;
+        const sx = (p.flipX !== v.flipX ? -1 : 1);
+        const sy = ((p.flipY !== v.flipY) !== uprightFlip ? -1 : 1);
+        if (stretch && p.renderMode === 'slice') {
+          // the 3-slice keeps its caps and stretches only the body: width in local px at the thickness scale
+          (node as NineSliceSprite).width = this.aimDist / ky;
+          (node as NineSliceSprite).height = fh;
+          copy.wrap.scale.set(ky * sx, ky * sy);
+        } else if (stretch && p.renderMode === 'rope') {
+          copy.wrap.scale.set(ky * sx, ky * sy);
+        } else if (stretch) {
+          copy.wrap.scale.set((this.aimDist / Math.max(1, fw)) * copy.roll.scale * sx, ky * sy);
+        } else {
+          if (p.renderMode === 'slice') { (node as NineSliceSprite).width = fw; (node as NineSliceSprite).height = fh; }
+          copy.wrap.scale.set(kUniform * sx, kUniform * sy);
+        }
+
         // Children draw at ABSOLUTE screen coords (the envelope pivots the layer container about the head).
         copy.wrap.position.set(this.headX + p.offsetX + copy.roll.dx, this.headY + p.offsetY + copy.roll.dy);
         copy.wrap.rotation = baseRot + copy.roll.rot;
         copy.wrap.alpha = Math.max(0, Math.min(1, p.alpha * sampleCurve(p.alphaCurve, cprog) * copy.roll.alpha));
         // The node sits inside the wrap offset by the pivot; a rope's geometry is centred on its path, so it
-        // gets the half-frame origin shift that puts its box at 0..fw / 0..fh like the others.
-        const ox = p.renderMode === 'rope' ? fw / 2 : 0;
+        // gets the half-frame origin shift that puts its box at 0..w / 0..fh like the others. The pivot's x
+        // is measured over the node's CURRENT width (a stretched slice or rope is wider than a frame).
+        const localW = p.renderMode === 'slice' ? (node as NineSliceSprite).width
+          : p.renderMode === 'rope' && stretch ? this.aimDist / ky : fw;
+        const ox = p.renderMode === 'rope' ? localW / 2 : 0;
         const oy = p.renderMode === 'rope' ? fh / 2 : 0;
-        node.position.set(ox - p.pivotX * fw, oy - p.pivotY * fh);
+        node.position.set(ox - p.pivotX * localW, oy - p.pivotY * fh);
         node.tint = p.tint ? p.tintColor : 0xffffff;
         node.blendMode = p.blendMode as FxBlendMode;
 
@@ -532,7 +658,7 @@ class CustomInstance implements FxInstance<CustomParams> {
           );
           mesh.geometry.getBuffer('aPosition').update();
         } else if (p.renderMode === 'rope' && copy.points) {
-          ropePoints(p.ropeSegments, fw, p.bendAmount, p.bendWave, p.bendCycles, clockSec * p.bendSpeed * TAU, copy.points);
+          ropePoints(p.ropeSegments, localW, p.bendAmount, p.bendWave, p.bendCycles, clockSec * p.bendSpeed * TAU, copy.points);
         } else if (p.renderMode === 'perspective') {
           const corners = tiltCorners(fw, fh, p.tiltX, p.tiltY, p.tiltDepth);
           const sig = corners.join(',');
@@ -554,8 +680,9 @@ class CustomInstance implements FxInstance<CustomParams> {
     const s = this.roleSprite;
     if (s === null) return;
     const p = this.params;
-    const fi = sheetFrameIndex(p.sheetMode as SheetMode, this.frames.length, p.sheetFps, layerClock, layerProg, p.sheetStart);
-    if (s.texture !== this.frames[fi]) s.texture = this.frames[fi];
+    const strip = this.strips[0] ?? this.frames;
+    const fi = sheetFrameIndex(p.sheetMode as SheetMode, strip.length, p.sheetFps, layerClock, layerProg, p.sheetStart);
+    if (s.texture !== strip[fi]) s.texture = strip[fi];
     const fw = s.texture.width;
     const fh = s.texture.height;
     const k = p.size / Math.max(1, fw, fh);
@@ -587,7 +714,9 @@ class CustomInstance implements FxInstance<CustomParams> {
   setAim(sx: number, sy: number, tx: number, ty: number): void {
     const dx = tx - sx;
     const dy = ty - sy;
-    this.aimAngle = dx * dx + dy * dy > AIM_EPSILON_SQ ? Math.atan2(dy, dx) : null;
+    const d2 = dx * dx + dy * dy;
+    this.aimAngle = d2 > AIM_EPSILON_SQ ? Math.atan2(dy, dx) : null;
+    this.aimDist = Math.sqrt(d2);
   }
 
   isComplete(): boolean {

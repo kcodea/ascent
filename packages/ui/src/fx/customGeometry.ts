@@ -217,3 +217,81 @@ export function tiltCorners(w: number, h: number, tiltXDeg: number, tiltYDeg: nu
   }
   return out;
 }
+
+// ─── per-copy variation (the anti-stale set) ──────────────────────────────────────────────────────────
+
+/** One copy's variation roll — everything that makes one sheet play differently per copy / per fire. */
+export interface VariationRoll {
+  /** Which variant row of the sheet this copy plays (0 when variant rows are off). */
+  row: number;
+  /** Extra start-frame offset (0 when random start is off). */
+  startOffset: number;
+  flipX: boolean;
+  flipY: boolean;
+  /** Multiplier on the sheet fps (1 when fps jitter is 0). */
+  fpsMul: number;
+  /** Hue rotation in degrees (0 when hue jitter is 0). */
+  hueDeg: number;
+  /** Play the strip backwards. */
+  reverse: boolean;
+}
+
+export interface VariationOptions {
+  /** Number of variant rows to pick from (≤ 1 = no variants). */
+  variantRows: number;
+  /** Frames per strip, for the random start offset. */
+  frames: number;
+  randomStart: boolean;
+  randomFlipX: boolean;
+  randomFlipY: boolean;
+  /** 0..1 — fps × (1 ± this). */
+  fpsJitter: number;
+  /** Degrees — hue rotated by ± this. */
+  hueJitter: number;
+  randomReverse: boolean;
+}
+
+/**
+ * Roll `count` variation rolls. ALWAYS consumes exactly seven draws per copy, in a fixed order, whether or
+ * not each feature is on — so turning a toggle on or off never reshuffles the OTHER rolls (a copy keeps its
+ * flip when you enable random start). Call it after `rollScatter` on the same generator so the whole field
+ * stays a pure function of the seed. With every option off the roll is the identity.
+ */
+export function rollVariation(rng: () => number, count: number, o: VariationOptions): VariationRoll[] {
+  const n = Math.max(1, Math.floor(count));
+  const rows = Math.max(1, Math.floor(o.variantRows));
+  const frames = Math.max(1, Math.floor(o.frames));
+  const out: VariationRoll[] = [];
+  for (let i = 0; i < n; i++) {
+    const uRow = rng();
+    const uStart = rng();
+    const uFx = rng();
+    const uFy = rng();
+    const uFps = rng();
+    const uHue = rng();
+    const uRev = rng();
+    out.push({
+      row: rows > 1 ? Math.min(rows - 1, Math.floor(uRow * rows)) : 0,
+      startOffset: o.randomStart ? Math.min(frames - 1, Math.floor(uStart * frames)) : 0,
+      flipX: o.randomFlipX && uFx < 0.5,
+      flipY: o.randomFlipY && uFy < 0.5,
+      // Guarded rather than multiplied by 0: `(2u-1) * 0` is `-0` half the time, and -0 is not the identity
+      // (`Object.is`, and therefore `toEqual`, tells them apart).
+      fpsMul: o.fpsJitter > 0 ? Math.max(0.05, 1 + (2 * uFps - 1) * o.fpsJitter) : 1,
+      hueDeg: o.hueJitter > 0 ? (2 * uHue - 1) * o.hueJitter : 0,
+      reverse: o.randomReverse && uRev < 0.5,
+    });
+  }
+  return out;
+}
+
+/** Mirror a reversed strip: frame `i` of `n` plays as `n-1-i`. */
+export function reverseFrame(i: number, n: number): number {
+  return Math.max(0, n - 1 - i);
+}
+
+/** True when an aim angle points into the left half-plane — where a side-view image rotated to follow it
+ *  would render upside-down, and "keep upright" should mirror it across its own axis. */
+export function aimsLeft(angleRad: number): boolean {
+  return Math.cos(angleRad) < 0;
+}

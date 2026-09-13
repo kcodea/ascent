@@ -1,13 +1,64 @@
 import { describe, expect, it } from 'vitest';
 import { makeRng } from './rng';
 import {
+  aimsLeft,
+  reverseFrame,
   ropePoints,
   rollScatter,
+  rollVariation,
   sheetFrameIndex,
   sheetFrameRects,
   tiltCorners,
   wobblePositions,
+  type VariationOptions,
 } from './customGeometry';
+
+const OFF: VariationOptions = {
+  variantRows: 1, frames: 8, randomStart: false, randomFlipX: false, randomFlipY: false, fpsJitter: 0, hueJitter: 0, randomReverse: false,
+};
+
+describe('rollVariation', () => {
+  it('is the exact identity with everything off', () => {
+    for (const r of rollVariation(makeRng(9), 4, OFF)) {
+      expect(r).toEqual({ row: 0, startOffset: 0, flipX: false, flipY: false, fpsMul: 1, hueDeg: 0, reverse: false });
+    }
+  });
+  it('is deterministic per seed', () => {
+    const on: VariationOptions = { ...OFF, variantRows: 4, randomStart: true, randomFlipX: true, randomFlipY: true, fpsJitter: 0.5, hueJitter: 90, randomReverse: true };
+    expect(rollVariation(makeRng(3), 6, on)).toEqual(rollVariation(makeRng(3), 6, on));
+    expect(rollVariation(makeRng(3), 6, on)).not.toEqual(rollVariation(makeRng(4), 6, on));
+  });
+  it('turning ONE feature on never reshuffles the others (fixed seven-draw order per copy)', () => {
+    const a = rollVariation(makeRng(5), 8, { ...OFF, randomFlipX: true, fpsJitter: 0.3 });
+    const b = rollVariation(makeRng(5), 8, { ...OFF, randomFlipX: true, fpsJitter: 0.3, randomStart: true, variantRows: 3 });
+    a.forEach((r, i) => {
+      expect(b[i].flipX).toBe(r.flipX);
+      expect(b[i].fpsMul).toBe(r.fpsMul);
+    });
+  });
+  it('keeps every roll inside its range', () => {
+    const on: VariationOptions = { ...OFF, variantRows: 3, frames: 5, randomStart: true, fpsJitter: 1, hueJitter: 180 };
+    for (const r of rollVariation(makeRng(11), 50, on)) {
+      expect(r.row).toBeGreaterThanOrEqual(0); expect(r.row).toBeLessThanOrEqual(2);
+      expect(r.startOffset).toBeGreaterThanOrEqual(0); expect(r.startOffset).toBeLessThanOrEqual(4);
+      expect(r.fpsMul).toBeGreaterThanOrEqual(0.05); expect(r.fpsMul).toBeLessThanOrEqual(2);
+      expect(Math.abs(r.hueDeg)).toBeLessThanOrEqual(180);
+    }
+  });
+});
+
+describe('reverseFrame / aimsLeft', () => {
+  it('mirrors a strip and clamps', () => {
+    expect([0, 1, 2, 3].map((i) => reverseFrame(i, 4))).toEqual([3, 2, 1, 0]);
+    expect(reverseFrame(0, 1)).toBe(0);
+  });
+  it('flags only the left half-plane', () => {
+    expect(aimsLeft(0)).toBe(false);
+    expect(aimsLeft(Math.PI / 2)).toBe(false);   // straight down: not left
+    expect(aimsLeft(Math.PI)).toBe(true);
+    expect(aimsLeft(-3 * Math.PI / 4)).toBe(true);
+  });
+});
 
 describe('sheetFrameRects', () => {
   it('cuts a grid in reading order and honours a frame count smaller than the grid', () => {

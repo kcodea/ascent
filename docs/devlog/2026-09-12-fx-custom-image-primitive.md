@@ -64,4 +64,23 @@ sprite-sheet-animated image with bloom on it is one layer.
 - **Probe lesson that cost time:** importing a browser probe with `?v=<timestamp>` splits its direct imports
   into fresh module instances (an empty registry). Import the plain URL on a fresh page.
 
+## Phase 3 (2026-09-13) — the owner's two questions, as features
+
+*"How do I keep one sprite sheet from looking stale?"* and *"How does an art beam aim any direction without
+looking wrong?"* Both answered without new art.
+
+- **Variation is seeded per copy and per fire.** `rollVariation` always consumes seven draws per copy in a
+  fixed order, so enabling random flip never reshuffles the random start a copy already had — and in-game
+  each fire rolls a fresh seed, so everything varies automatically. Variant rows (each sheet row a different
+  take) are the big lever; random start / flip / fps jitter / reverse compound it; hue jitter is a real
+  per-copy `ColorMatrixFilter` (opt-in, one pass per copy). A subtlety worth recording: `(2u−1) × 0` is `-0`
+  half the time, and `-0` is not the identity under `Object.is` — guard the multiply rather than rely on it.
+- **Aimed art:** `setAim` now keeps the distance so `aimStretch` can span source→target with Size as
+  thickness; `aimUpright` mirrors across the image's own axis when `cos(aim) < 0`, the classic side-view fix;
+  and a new `slice` render mode (a `NineSliceSprite` with zero top/bottom borders is exactly a horizontal
+  3-slice) stretches only the body so the caps stay crisp at any length.
+- **TS quirk hit in tests:** `satisfies` keeps a toggle's `default: false` as the literal `false` (boolean is
+  a union of literals, so contextual typing preserves it), so `ParamsOf` types every toggle as its default
+  literal. Harmless at runtime (`coerceParams` casts) but a typed test can't flip a toggle without a cast.
+
 **Deferred:** per-frame displacement maps; a delete-image route; vector (non-rasterised) SVG.

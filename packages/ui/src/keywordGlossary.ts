@@ -58,8 +58,8 @@ export const KEYWORD_GLOSSARY: KeywordDef[] = [
   // itself is a noun the cards reference, so it is explained on the side too). Neither is a schema badge — the
   // pills render from the text hit alone, like Shout — so `badge` is deliberately absent (the badge test pins the
   // 16 schema codes exactly). The Starform pill shows on every Celestial that names it; the owner wants that.
-  { id: 'collapse', name: 'Collapse', aliases: ['Collapses'], def: 'Your Starform breaks apart — 3 random friendly Celestials each gain half its stats (rounded up).' },
-  { id: 'starform', name: 'Starform', aliases: ['Starforms'], def: 'A Celestial token that lives in your Shop. It grows from every shop buff and consume, survives refreshes, and is cashed in by your Celestials. Buy it for 0 Gold to dismiss it.' },
+  { id: 'collapse', name: 'Collapse', aliases: ['Collapses'], def: 'Your Starform breaks apart — 2 random friendly Celestials each gain half its stats (rounded up). Extra hits can land on the same Celestial twice.' },
+  { id: 'starform', name: 'Starform', aliases: ['Starforms'], def: 'A Celestial token that lives in your Shop. It grows from every shop buff and consume, survives refreshes, and costs 1 less after each one. Buy it and your left-most Celestial consumes it. Its Star Destroyer Equipment removes it for free.' },
   { id: 'discover', name: 'Discover', aliases: [], def: 'Choose one of three offered cards to keep.' },
   { id: 'ruby', name: 'Ruby', aliases: ['Rubies'], def: 'A Kobold spell that can be applied to minions to permanently increase their stats. Not a shop spell.' },
   { id: 'ale', name: 'Dwarven Ale', aliases: ['Ale', 'Ales'], def: 'A set of Dwarf spells that provide various benefits. Count as shop spells.' },

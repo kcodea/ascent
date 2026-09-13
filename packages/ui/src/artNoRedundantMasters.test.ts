@@ -108,6 +108,10 @@ describe('no redundant PNG masters ship alongside their WebP builds', () => {
     // → 1160 (2026-09-11, the Set 3 re-wire — every tribe folder now in the `set-3 minions` job: +18 files
     // measured against origin/main's 1123 — the 8 reworked Celestials, Festival Luminary and 9 Spirits whose
     // masters had not been wired, plus the Revelator variant; 35 more were replaced in place at net 0).
-    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1160);
+    // → 1171 (2026-09-13, the Celestials master batch with the Starform rules v2: +11 files measured against
+    // origin/main's 1143 — nine Starform-roster portraits (Star Seed, Dawn Sentinel, Accretion Warden, Eclipse
+    // Warden, Orbit Keeper, Corona Devotee, Lens Grinder, Nova Herald, the Starform token) + the Accretion and
+    // Grave Robbery spell arts. Neptus / Cometius were REPLACED in place through aliases at net 0.)
+    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1171);
   });
 });

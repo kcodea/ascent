@@ -39,7 +39,8 @@ function printedNumbers(text: string): Set<number> {
 const isNamedCast = (factory: string): boolean => /Cast|^cast/.test(factory);
 /** The keyword-pill family (see the header): `cardId: [param keys]` whose number the pill prints. */
 const PILL_CARRIED: Record<string, readonly string[]> = {
-  ce3_novaherald: ['count'], // Collapse — "3 random friendly Celestials", printed by the Collapse pill
+  // (Nova Herald's `count: 3` left with rules v2 (2026-09-13): the Collapse pill prints the 2 originals and the
+  // Herald's own text prints its `extra: 2`.)
 };
 
 describe('Doc Bot — printed numbers match effect params', () => {

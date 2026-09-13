@@ -696,15 +696,20 @@ function shopView(card: ShopCard, opts: ShopViewOpts = {}): CardView {
   }
   // THE STARFORM (set 3 Celestials): a shop token whose printed stats ARE its counter — base + everything baked
   // onto the offer (`offerBuyStats`' Starform branch), NEVER the live shop channels (the sim folds those onto
-  // the offer as they happen, so reading them here too would show them twice). Costs 0 (buying dismisses it),
-  // shown on the changed-price coin; `starform` marks the card for styling.
+  // the offer as they happen, so reading them here too would show them twice). Its coin is its LIVE price
+  // (owner rule A, 2026-09-13): `opts.minionCost` is the CHARGED price (`offerBuyPrice` — the offer's `cost`,
+  // 6 at creation and −1 per refresh, every discount folded), so the coin can never show a price the buy would
+  // not take; it reads green only when a discount (or the free first buy) took it below the token's own price.
+  // `starform` marks the card for styling.
   if (card.starform) {
     const offerBuffs = (card.buffs ?? []).filter((b) => b.attack || b.health).map((b) => ({ source: b.source, attack: b.attack, health: b.health, count: b.count }));
+    const own = card.cost ?? 6;
+    const sfCost = opts.freeFirstBuy ? 0 : (opts.minionCost ?? own);
     return {
       name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2, universalTribe: !!c.universalTribe,
       attack: c.attack + (card.atk ?? 0), health: c.health + (card.hp ?? 0), keywords: [...c.keywords],
       text: c.text, buffs: offerBuffs.length > 0 ? offerBuffs : undefined,
-      cost: 0, costChanged: true, tier: c.tier, starform: true,
+      cost: sfCost, costChanged: sfCost < own, tier: c.tier, starform: true,
       baseAttack: c.attack, baseHealth: c.health,
     };
   }

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { BLOODPOT, CARD_INDEX, TITAN_HAMMER } from '@game/content';
-import { createRun, deserialize, reduce, type Action, type BoardCard, type RunState } from './index';
-import { equipmentChargesOf, equipmentPool, equipmentState, equipmentUsesLeft, selectedEquipment } from './equipment';
+import { BLOODPOT, CARD_INDEX, STAR_DESTROYER, TITAN_HAMMER } from '@game/content';
+import { createRun, createStarform, deserialize, hasStarform, reduce, serialize, type Action, type BoardCard, type RunState } from './index';
+import { equipmentChargesOf, equipmentCostOf, equipmentPool, equipmentSourceAlive, equipmentState, equipmentUsesLeft, holdsEquipment, rebuildEquipment, selectEquipment, selectedEquipment, syncStarDestroyer } from './equipment';
 import { fireEquipmentTriggers } from './recruit';
 
 /**
@@ -771,5 +771,76 @@ describe('Blast Pump — an Equipment that casts a Shop spell', () => {
     const before = s.embers;
     s = activate(s);
     expect(s.embers).toBe(before - 1);
+  });
+});
+
+describe("STAR DESTROYER — the Starform's own Equipment (owner rule C, 2026-09-13): a standard Equipment whose source is a SHOP OFFER", () => {
+  const withToken = (over: Partial<RunState> = {}): RunState => {
+    const s = run({ setId: 'set3', ...over });
+    createStarform(s, { cardId: 'test', name: 'test' });
+    return s;
+  };
+
+  it('is registered as a 0-Gold untargeted Equipment with no use cue, and costs 0 through equipmentCostOf', () => {
+    expect(STAR_DESTROYER).toMatchObject({ id: 'star_destroyer', baseCost: 0, targetMode: 'none', effectId: 'equipmentRemoveStarform' });
+    expect(STAR_DESTROYER.useFxId).toBeUndefined();
+    expect(STAR_DESTROYER.useSfxId).toBeUndefined();
+    expect(STAR_DESTROYER.text).toBe('Remove your **Starform** from the Shop.');
+    expect(equipmentCostOf(withToken(), STAR_DESTROYER)).toBe(0);
+  });
+
+  it('sits in the rail beside a minion-granted Equipment: the selector swaps freely, each keeps its own charge, the pool is shared', () => {
+    let s = withToken({ hand: [body('f', 'e3_frank')], board: [body('t', 'e3_frank')] });
+    s = play(s, 'f');
+    expect(equipmentState(s).available.map((g) => g.equipmentId).sort()).toEqual(['bloodpot', 'star_destroyer']);
+    const g = equipmentState(s).available.find((x) => x.equipmentId === 'star_destroyer')!;
+    expect(g.sourceKind).toBe('starform');
+    expect(equipmentSourceAlive(s, g), 'alive while the token stands').toBe(true);
+    expect(selectEquipment(s, 'star_destroyer')).toBe(true);
+    expect(selectedEquipment(s)?.equipmentId).toBe('star_destroyer');
+    expect(equipmentUsesLeft(s)).toBe(1);
+    s = activate(s); // the silent exit
+    expect(hasStarform(s)).toBe(false);
+    expect(holdsEquipment(s, 'star_destroyer'), 'gone with the token').toBe(false);
+    expect(selectedEquipment(s)?.equipmentId, 'the selection falls to what remains').toBe('bloodpot');
+    expect(equipmentChargesOf(s, 'bloodpot'), "Bloodpot's own charge is untouched").toBe(1);
+    // The shared pool is drawn FIRST, like any Equipment: with one bonus charge the Destroyer reads 2 and spends the pool.
+    let p = withToken();
+    p.equipment!.bonusActivations = 1;
+    expect(equipmentChargesOf(p, 'star_destroyer')).toBe(2);
+    selectEquipment(p, 'star_destroyer');
+    p = activate(p);
+    expect(equipmentPool(p), 'the pool was spent').toBe(0);
+  });
+
+  it('the Start-of-Turn rebuild keeps it while the token survives and drops it when the token is gone; a save round-trips it', () => {
+    let s = withToken();
+    expect(holdsEquipment(s, 'star_destroyer')).toBe(true);
+    s = nextTurn(s);
+    expect(hasStarform(s)).toBe(true);
+    expect(holdsEquipment(s, 'star_destroyer')).toBe(true);
+    expect(equipmentChargesOf(s, 'star_destroyer'), 'a fresh charge each turn').toBe(1);
+    const back = deserialize(serialize(s));
+    expect(holdsEquipment(back, 'star_destroyer')).toBe(true);
+    // A token that vanished without the sync (a scripted row) — the rebuild drops the stale entry.
+    const stale = withToken();
+    stale.shop = stale.shop.filter((o) => !o.starform);
+    rebuildEquipment(stale);
+    expect(holdsEquipment(stale, 'star_destroyer')).toBe(false);
+    // …and the sync grants it to a run whose row carries a token with no entry (a pre-rule save).
+    const legacy = withToken();
+    legacy.equipment = undefined;
+    syncStarDestroyer(legacy);
+    expect(holdsEquipment(legacy, 'star_destroyer')).toBe(true);
+  });
+
+  it('activation is refused with no charge and never touches Gold; with a token it is free', () => {
+    let s = withToken({ embers: 0 });
+    selectEquipment(s, 'star_destroyer');
+    const before = s;
+    s = activate(s);
+    expect(s).not.toBe(before);
+    expect(s.embers).toBe(0);
+    expect(hasStarform(s)).toBe(false);
   });
 });

@@ -71,17 +71,17 @@ the distance between those two is the single most important number in this repor
 | derived status **corroborated** (two independent sources agree — trace + text, or trace + params) | 500 |
 | derived status **approved** (owner-ruled intent, the strongest authority) | 1 |
 | derived status **extracted** (a draft nobody has corroborated yet) | 489 |
-| **with at least one case a driver actually EXECUTED this sweep** | 487 |
+| **with at least one case a driver actually EXECUTED this sweep** | 486 |
 | covered only by a **cited lane** (real evidence a human can follow — deliberately excluded from the fold) | 503 |
 
 `runContractSweep` refuses to fold a lane citation into a contract's status: a citation says "the
 `temporalWindow` lane covers this family", which is true and useful, but it is not the same as this
-contract's own case having been driven. That refusal is why the direct-execution number is 487 and not a
+contract's own case having been driven. That refusal is why the direct-execution number is 486 and not a
 flattering four-figure one — and why it was 36 until 2026-09-11, when the FAMILY DRIVERS landed
 (`packages/sim/src/docbot/drivers/`): one driver per CLAIM SHAPE (stat grant, card grant / summon,
 economy, keyword grant, equipment, vanilla body, activation) instead of one per object shape. "Executed"
 is the strict reading: a driver record whose staging fired nothing observable is a `runtime-unobserved`
-SKIP, never an execution, and 381 of the 487 driven contracts had at least one case actually observed.
+SKIP, never an execution, and 381 of the 486 driven contracts had at least one case actually observed.
 
 ### 2.2 Why so few cases execute — the typed skip ledger
 
@@ -140,9 +140,9 @@ rule-per-sentence would not honestly cover.
 
 ## 4. Interaction intelligence (§18-F)
 
-- Graph: **1719** nodes / **5601** edges over the contract registry (content, effect-family, trigger-family,
+- Graph: **1719** nodes / **5599** edges over the contract registry (content, effect-family, trigger-family,
   channel, keyword, multiplier, copy-mode, counter, zone, phase-boundary nodes).
-- Applicability: **142455** candidate pairs against 489555 naive all-pairs (29.1%) — the producer → channel →
+- Applicability: **141921** candidate pairs against 489555 naive all-pairs (29.1%) — the producer → channel →
   consumer join is what makes pairwise tractable at all.
 - Sweep (full pairwise + §10.4 triples): 151 rows — 109 covered, 0 failed, 12 inapplicable, 30 blocked.
 - Families with at least one covered row: 12 of 23.
@@ -225,7 +225,7 @@ Sixteen lines, each marked with a citable artifact. **5 done · 11 partial · 0 
 | 2 | Every approved global rule has an executable oracle | **partial** | `enforcement.test.ts` gates a backing lane per approved rule; two approved rules (`R-PLAY-01`, `R-AURA-01`) remain pinned unenforced |
 | 3 | All meaningful effects are visible in a causal semantic trace | **partial** | recruit envelope + `combatTrace.ts` adapter + `semanticTrace.test.ts`; combat causality is **step grouping, not proven parenthood** — `cause.stepRootEventId` is documented as such and true trigger-stack parenting needs simulate() instrumentation |
 | 4 | Shop and combat bug reports replay exact action sequences | **partial** | `QaScenarioV1.actions` (RecordedActionWindow trail) + `runQaScenario` divergence classification replay shop action trails exactly; combat replays from the pinned board and seed, not from a per-event action trail |
-| 5 | Every active content object passes applicable generated scenarios or has visible failures | **partial** | 487 contracts had a case directly executed (36 before the 2026-09-11 family drivers), 0 metamorphic failures, 0 limit failures, one standing draft disagreement (`shaper`); 152 applicable cases still have no driver, each skip naming the scaler key / def field / trigger that keeps it out |
+| 5 | Every active content object passes applicable generated scenarios or has visible failures | **partial** | 486 contracts had a case directly executed (36 before the 2026-09-11 family drivers), 0 metamorphic failures, 0 limit failures, one standing draft disagreement (`shaper`); 152 applicable cases still have no driver, each skip naming the scaler key / def field / trigger that keeps it out |
 | 6 | Applicable pairwise interactions are covered and reported semantically | **partial** | 93491 candidates enumerated and reported by channel; 106 covered rows, 30 blocked rows each with a typed reason. Coverage is by family, not per candidate pair |
 | 7 | High-risk triple interactions are covered | **partial** | §10.4 triples run in the same sweep; 6 of the 8 triple families are blocked with cited reasons |
 | 8 | Verified findings are deterministic, minimized, and reproducible from Scene Builder and CLI | **done** | `seedMinimize.ts` (1-minimal proof), `docbot:scenario -- <id>`, the Scene Builder QA bridge, `qaScenarioParity.test.ts`; findings carry a `reproduction` line |

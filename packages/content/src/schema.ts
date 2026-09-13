@@ -50,7 +50,7 @@ export const GameEventSchema = z.enum([
   'orbit', // Celestial ORBIT — a card was played from hand adjacent to this minion
   'orbitFired', // Celestial — a board-wide watcher: ANY Orbit on your board resolved
   'starformGained', // Celestial — your Starform (the Shop token) gained stats (Twin Star); payload carries the delta
-  'starformRemoved', // Celestial — your Starform left the Shop (consumed / collapsed / dismissed); payload carries its stats
+  'starformRemoved', // Celestial — your Starform left the Shop (consumed / collapsed); payload carries its stats. A Star Destroyer exit never fires it
 ]);
 
 export const EffectFactoryIdSchema = z.enum([
@@ -122,10 +122,11 @@ export const EffectFactoryIdSchema = z.enum([
   'battlecryBuffThisShopPerSpellsThisTurn',
   'endOfTurnBuffStarform',
   'startOfTurnCreateStarform',
-  'battlecryConsumeStarform',
   'deathrattleGiveMaxStatsRandomTribe',
   'onStarformGainedBuffSelf',
   'battlecryCollapseStarform',
+  'collapseExtraTargets', // Nova Herald (passive marker, never dispatched): +N extra Collapse hits while on board — read by `collapseExtraTargetsOf`
+  'equipmentRemoveStarform', // Star Destroyer (the Starform's own Equipment): the silent exit — the token leaves the Shop, nothing else fires
   'spellCastBuffStarform',
   'onStarformRemovedRecreateHalf',
   'spellStarformConsumeShop',

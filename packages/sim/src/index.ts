@@ -83,6 +83,6 @@ export * from './heroSurface';
 export {
   BASE_EQUIPMENT_ACTIVATIONS, equipmentCostOf, equipmentParams, equipmentSourceAlive, equipmentState,
   equipIsNews, equipmentText, equipmentChargesOf, equipmentOwnChargeOf, equipmentPool, equipmentUsesLeft, holdsEquipment,
-  rebuildEquipment, selectedEquipment, selectedEquipmentDef, spendEquipmentCharge,
+  rebuildEquipment, selectEquipment, selectedEquipment, selectedEquipmentDef, spendEquipmentCharge, syncStarDestroyer,
   type ReequipCue,
 } from './equipment';

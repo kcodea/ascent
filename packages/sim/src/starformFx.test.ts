@@ -6,13 +6,16 @@ import {
   type Action, type BoardCard, type RunState, type ShopCard,
 } from './index';
 import { consumeShopMinion, rightmostShopMinion } from './recruit';
+import { selectEquipment } from './equipment';
+import { STAR_DESTROYER } from '@game/content';
 
 /**
  * THE STARFORM PULL CHANNEL (`RunState.starformFx` / `starformFxSeq`, owner ask 2026-09-12): the UI's authored
  * `starform-pull` def plays FROM the thing being consumed TO the thing gaining at exactly three moments —
- * the token eating a Shop minion, a warband minion eating the token, and the Collapse (one play per receiver).
- * A dismiss buy and a Demon eating the token keep their own cues and emit NOTHING here. Per-action, like
- * `shopEaten`: the reducer clears it at the top of every action.
+ * the token eating a Shop minion, a warband minion eating the token (the BUY into your left-most Celestial —
+ * rules v2 2026-09-13), and the Collapse (one play per HIT, duplicates included). The Star Destroyer's silent
+ * exit and a Demon eating the token keep their own cues and emit NOTHING here. Per-action, like `shopEaten`:
+ * the reducer clears it at the top of every action.
  */
 const body = (uid: string, cardId: string, over: Partial<BoardCard> = {}): BoardCard => {
   const d = CARD_INDEX[cardId]!;
@@ -65,50 +68,61 @@ describe('starformFx — the per-action pull channel', () => {
     expect(n.starformFx ?? []).toEqual([]);
   });
 
-  it('(2) a warband minion CONSUMES the token (Corona Devotee): consumed from the token to the body', () => {
-    let s = withStarform({ hand: [body('d', 'ce3_coronadevotee')] });
+  it('(2) a warband minion CONSUMES the token (the BUY — your left-most Celestial): consumed from the token to the body; no receiver → no record', () => {
+    let s = withStarform({ board: [body('n', 'sandbag'), body('d', 'ce3_courier')] });
     const token = starformOf(s)!.uid;
-    s = play(s, 'd');
+    s = act(s, { type: 'buy', uid: token });
     expect(hasStarform(s)).toBe(false);
     expect(s.starformFx).toEqual([{ kind: 'consumed', fromUid: token, toUids: ['d'] }]);
     expect(s.starformFxSeq).toBe(1);
+    let none = withStarform({ board: [body('n', 'sandbag')] });
+    none = act(none, { type: 'buy', uid: starformOf(none)!.uid });
+    expect(hasStarform(none)).toBe(false);
+    expect(none.starformFx, 'nothing gained → nothing to pull to').toEqual([]);
+    expect(none.starformFxSeq).toBe(0);
   });
 
-  it('(3) COLLAPSE (Nova Herald): one record from the token naming EVERY receiver — three, two, or the Herald alone', () => {
-    let s = withStarform({ board: [body('a', 'ce3_seer'), body('b', 'ce3_courier'), body('c', 'ce3_vendor'), body('n', 'sandbag')], hand: [body('h', 'ce3_novaherald')] });
+  it('(3) COLLAPSE (Corona Devotee): one record from the token naming EVERY hit — two unique, one, or the Devotee alone; Herald extras repeat uids', () => {
+    let s = withStarform({ board: [body('a', 'ce3_seer'), body('b', 'ce3_courier'), body('c', 'ce3_vendor'), body('n', 'sandbag')], hand: [body('d', 'ce3_coronadevotee')] });
     const token = starformOf(s)!.uid;
-    s = play(s, 'h');
+    s = play(s, 'd');
     expect(s.starformFx).toHaveLength(1);
     const fx = s.starformFx![0]!;
     expect([fx.kind, fx.fromUid]).toEqual(['collapse', token]);
-    expect(fx.toUids).toHaveLength(3);
-    expect(new Set(fx.toUids).size, 'three distinct targets').toBe(3);
+    expect(fx.toUids).toHaveLength(2);
+    expect(new Set(fx.toUids).size, 'two distinct targets').toBe(2);
     expect(fx.toUids).not.toContain('n');
     // The receivers on the record are exactly the bodies that gained.
-    const gained = s.board.filter((c) => (c.buffs ?? []).some((b) => b.source === 'Nova Herald')).map((c) => c.uid);
+    const gained = s.board.filter((c) => (c.buffs ?? []).some((b) => b.source === 'Corona Devotee')).map((c) => c.uid);
     expect([...fx.toUids].sort()).toEqual(gained.sort());
 
-    let two = withStarform({ board: [body('a', 'ce3_seer')], hand: [body('h', 'ce3_novaherald')] });
-    two = play(two, 'h');
-    expect([...two.starformFx![0]!.toUids].sort()).toEqual(['a', 'h']);
+    let two = withStarform({ board: [body('a', 'ce3_seer')], hand: [body('d', 'ce3_coronadevotee')] });
+    two = play(two, 'd');
+    expect([...two.starformFx![0]!.toUids].sort()).toEqual(['a', 'd']);
 
-    let one = withStarform({ board: [body('n', 'sandbag')], hand: [body('h', 'ce3_novaherald')] });
-    one = play(one, 'h');
-    expect(one.starformFx![0]!.toUids).toEqual(['h']);
+    let one = withStarform({ board: [body('n', 'sandbag')], hand: [body('d', 'ce3_coronadevotee')] });
+    one = play(one, 'd');
+    expect(one.starformFx![0]!.toUids).toEqual(['d']);
+
+    // A Nova Herald's 2 extras land with replacement: 4 entries over 2 bodies — the FX plays once per hit.
+    let h = withStarform({ board: [body('h', 'ce3_novaherald')], hand: [body('d', 'ce3_coronadevotee')] });
+    h = play(h, 'd');
+    const hits = h.starformFx![0]!.toUids;
+    expect(hits).toHaveLength(4);
+    expect(new Set(hits).size).toBe(2);
   });
 
-  it('no Starform → Corona Devotee / Nova Herald record nothing', () => {
-    let s = run({ hand: [body('d', 'ce3_coronadevotee'), body('h', 'ce3_novaherald')] });
+  it('no Starform → Corona Devotee records nothing', () => {
+    let s = run({ hand: [body('d', 'ce3_coronadevotee')] });
     s = play(s, 'd');
-    expect(s.starformFx).toEqual([]);
-    s = play(s, 'h');
     expect(s.starformFx).toEqual([]);
     expect(s.starformFxSeq).toBe(0);
   });
 
-  it('the DISMISS buy and a DEMON eating the token emit nothing (they keep their own cues)', () => {
+  it('the STAR DESTROYER exit and a DEMON eating the token emit nothing (they keep their own cues)', () => {
     let s = withStarform();
-    s = act(s, { type: 'buy', uid: starformOf(s)!.uid });
+    selectEquipment(s, STAR_DESTROYER.id);
+    s = act(s, { type: 'activateEquipment' });
     expect(hasStarform(s)).toBe(false);
     expect(s.starformFx).toEqual([]);
     expect(s.starformFxSeq).toBe(0);
@@ -122,8 +136,8 @@ describe('starformFx — the per-action pull channel', () => {
   });
 
   it('is per-action: the next action clears the list; the seq only ever climbs', () => {
-    let s = withStarform({ hand: [body('d', 'ce3_coronadevotee')] });
-    s = play(s, 'd');
+    let s = withStarform({ board: [body('c', 'ce3_courier')] });
+    s = act(s, { type: 'buy', uid: starformOf(s)!.uid });
     expect(s.starformFx).toHaveLength(1);
     s = act(s, { type: 'roll' });
     expect(s.starformFx).toEqual([]);

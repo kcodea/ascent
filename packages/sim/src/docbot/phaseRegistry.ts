@@ -121,8 +121,8 @@ export const PHASE_EXCUSED: Readonly<Record<string, PhaseExcuse>> = {
   buffThisShop: { phase: 'combat', kind: 'no-surface', why: 'Wishing Star: "this shop" buffs the offers standing in the row (addOfferBuff per offer); no shop mid-fight — the Shout replays at settle, the Echo half has no combat surface (owner spec 2026-09-12)' },
   battlecryStarformConsumeShop: { phase: 'combat', kind: 'no-surface', why: 'Accretion Warden: the Starform eats a Shop minion; no shop mid-fight, replays at settle' },
   battlecryBuffThisShopPerSpellsThisTurn: { phase: 'combat', kind: 'no-surface', why: 'Shooting Star: "this shop" per Shop spell this turn; no shop mid-fight, replays at settle' },
-  battlecryConsumeStarform: { phase: 'combat', kind: 'no-surface', why: 'Corona Devotee consumes the Starform, a SHOP offer; no shop mid-fight, replays at settle' },
-  battlecryCollapseStarform: { phase: 'combat', kind: 'no-surface', why: 'Nova Herald collapses the Starform, a SHOP offer; no shop mid-fight, replays at settle' },
+  battlecryCollapseStarform: { phase: 'combat', kind: 'no-surface', why: 'Corona Devotee collapses the Starform, a SHOP offer; no shop mid-fight, replays at settle' },
+  collapseExtraTargets: { phase: 'combat', kind: 'no-surface', why: "Nova Herald's passive MARKER — read by `collapseExtraTargetsOf` at Collapse time, a SHOP-only moment (the Starform is a shop offer); the recruit map holds a never-dispatched stub" },
   battlecryScoutSpread: { phase: 'combat', kind: 'other-channel', why: 'grows the run-wide squirlScoutBuff; combat reads the carried value, the increment is a play-time event' },
   // Trouble's self-Ruby. Combat DOES implement it — just not through the factory map: `rubyPlayedAnywhere`
   // is a passive marker that `playRubyOn` SCANS living friendlies for (the same shape Candle Conduit's

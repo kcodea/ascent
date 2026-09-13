@@ -224,8 +224,9 @@ export type GameEvent =
   /** SET 3 CELESTIALS — the STARFORM shop token (owner design 2026-09-12). Recruit-only board watchers:
    *  `starformGained` fires whenever your Starform gains stats (Twin Star) — payload `starformAttack` /
    *  `starformHealth` carry the DELTA; `starformRemoved` fires when it leaves the Shop — consumed (Corona
-   *  Devotee, or a Demon eating it), collapsed (Nova Herald) or dismissed (bought for 0) — payload
-   *  `starformReason` + the token's FULL stats at removal (Zenith-style payoffs). See `sim/starform.ts`. */
+   *  Devotee, the BUY into your left-most Celestial, or a Demon eating it) or collapsed (Nova Herald) — payload
+   *  `starformReason` + the token's FULL stats at removal (Zenith-style payoffs). The Star Destroyer's silent
+   *  exit never fires it (owner rules v2, 2026-09-13). See `sim/starform.ts`. */
   | 'starformGained'
   | 'starformRemoved';
 
@@ -707,10 +708,11 @@ export type EffectFactoryId =
   | 'battlecryBuffThisShopPerSpellsThisTurn' // Shooting Star: Shout — this shop +A/+H per Shop spell cast this turn (recruit; live text)
   | 'endOfTurnBuffStarform' // Orbit Keeper: End of Turn — the Starform gains +A/+H (recruit)
   | 'startOfTurnCreateStarform' // Orbit Keeper: Start of Turn — create a Starform if none is out (recruit)
-  | 'battlecryConsumeStarform' // Corona Devotee: Shout — consume the Starform, this gains all its stats (recruit)
+  | 'collapseExtraTargets' // Nova Herald: a PASSIVE marker (never dispatched) — while on board every Collapse hits N extra random friendly Celestials, with replacement (recruit reads it: `collapseExtraTargetsOf`)
+  | 'equipmentRemoveStarform' // Star Destroyer (the Starform's own Equipment, granted by the offer): the token leaves the Shop silently — no consume / collapse / watcher / buy (recruit)
   | 'deathrattleGiveMaxStatsRandomTribe' // Lodestar: Echo — a random other friendly `tribe` gains this body's MAX stats (both phases, arena body)
   | 'onStarformGainedBuffSelf' // Twin Star: whenever the Starform gains stats, this gains the same (recruit)
-  | 'battlecryCollapseStarform' // Nova Herald: Shout — collapse the Starform, N random friendly Celestials each gain half (recruit)
+  | 'battlecryCollapseStarform' // Corona Devotee: Shout — collapse the Starform: 2 unique random friendly Celestials + the extras (Nova Herald) each gain half (recruit)
   | 'spellCastBuffStarform' // Zenith: whenever you cast a spell (Rubies too), the Starform gains +A/+H (recruit)
   | 'onStarformRemovedRecreateHalf' // Zenith: when the Starform is consumed / collapses, create a new one with half its stats (recruit)
   | 'spellStarformConsumeShop' // Accretion (spell): the Starform eats the highest-Health Shop minion (recruit)

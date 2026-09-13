@@ -8,7 +8,9 @@ import {
 } from './index';
 import { fireRecruitDeathrattlesForTest } from './recruit';
 import { runSpells } from './spellPool';
-import { equipmentState, equipmentChargesOf } from './equipment';
+import { equipmentState, equipmentChargesOf, holdsEquipment, selectEquipment } from './equipment';
+import { collapseExtraTargetsOf, starformPrice } from './starform';
+import { STAR_DESTROYER } from '@game/content';
 
 /**
  * SET 3 CELESTIALS — THE STARFORM ROSTER (owner spec 2026-09-12): the sixteen bodies + Accretion + the Stellar
@@ -147,17 +149,18 @@ describe('Dawn Sentinel — Taunt; Echo: a random friendly Celestial +2/+1 (both
 });
 
 describe('Stardust Peddler — whenever you buy a minion, your Starform +1/+1', () => {
-  it('a normal buy feeds the token; the token\'s own dismiss buy counts as a buy but has no token left to feed', () => {
+  it('a normal buy feeds the token; the token\'s own buy counts as a buy but has no token left to feed — the Peddler (the left-most Celestial) consumes it instead', () => {
     let s = withStarform(0, 0, { board: [body('p', 'ce3_peddler')] });
     s.shop.unshift(offer(s, 'ce3_courier'));
     s = act(s, { type: 'buy', uid: s.shop[0]!.uid });
     expect(sf(s)).toEqual([2, 2]);
     expect(starformOf(s)!.buffs?.find((b) => b.source === 'Stardust Peddler')).toMatchObject({ attack: 1, health: 1 });
     const bought = s.cardsBoughtThisTurn ?? 0;
-    s = act(s, { type: 'buy', uid: starformOf(s)!.uid }); // the 0-Gold dismiss
+    s = act(s, { type: 'buy', uid: starformOf(s)!.uid }); // 6 Gold: the Peddler consumes the 2/2 token
     expect(hasStarform(s)).toBe(false);
     expect(s.cardsBoughtThisTurn, 'counted as a buy').toBe(bought + 1);
-    expect(stats(at(s, 'p')), 'the Peddler itself is untouched').toEqual([2, 3]);
+    expect(stats(at(s, 'p')), 'the Peddler received the token (+2/+2) — its own +1/+1 found no token').toEqual([2 + 2, 3 + 2]);
+    expect(buffFrom(at(s, 'p'), 'Starform')).toEqual([2, 2]);
   });
   it('gilded: +2/+2 per buy; no Starform → nothing', () => {
     let s = withStarform(0, 0, { board: [body('p', 'ce3_peddler', { golden: true })] });
@@ -298,19 +301,40 @@ describe('Orbit Keeper — End of Turn: Starform +2/+2. Start of Turn: create on
   });
 });
 
-describe('Corona Devotee — Consume your Starform; this gains all its stats', () => {
-  it('gains 100% (base 1/1 included), the token leaves; gilded gains double; no token → nothing', () => {
-    let s = withStarform(4, 6, { hand: [body('d', 'ce3_coronadevotee')] }); // 5/7
+describe('Corona Devotee — Collapse your Starform: 2 unique random friendly Celestials each gain half its stats (rules v2)', () => {
+  it('two Celestials (the Devotee included) each gain the rounded-up half; a non-Celestial never; the token leaves', () => {
+    let s = withStarform(6, 9, { board: [body('a', 'dbg_cel'), body('n', 'dbg_neutral')], hand: [body('d', 'ce3_coronadevotee')] }); // 7/10 → 4/5
     s = play(s, 'd', { toIndex: 0 });
-    expect(stats(at(s, 'd'))).toEqual([4 + 5, 5 + 7]);
-    expect(buffFrom(at(s, 'd'), 'Corona Devotee')).toEqual([5, 7]);
     expect(hasStarform(s)).toBe(false);
-    let g = withStarform(4, 6, { hand: [body('d', 'ce3_coronadevotee', { golden: true })] });
+    for (const uid of ['a', 'd']) expect(buffFrom(at(s, uid), 'Corona Devotee'), uid).toEqual([4, 5]);
+    expect(stats(at(s, 'n'))).toEqual([1, 20]);
+  });
+  it('three Celestials: exactly two gain, seeded; the Devotee alone → just the Devotee; gilded → each gains the FULL stats; no Starform → nothing', () => {
+    let s = withStarform(6, 9, { board: [body('a', 'dbg_cel'), body('b', 'dbg_cel2')], hand: [body('d', 'ce3_coronadevotee')] });
+    s = play(s, 'd', { toIndex: 0 });
+    const gained = ['a', 'b', 'd'].filter((uid) => buffFrom(at(s, uid), 'Corona Devotee')[0] === 4);
+    expect(gained, 'two unique hits').toHaveLength(2);
+    let t = withStarform(6, 9, { board: [body('n', 'dbg_neutral'), body('m', 'dbg_neutral')], hand: [body('d', 'ce3_coronadevotee')] });
+    t = play(t, 'd', { toIndex: 0 });
+    expect(hasStarform(t), 'collapsed').toBe(false);
+    expect(buffFrom(at(t, 'd'), 'Corona Devotee')).toEqual([4, 5]);
+    expect(stats(at(t, 'n'))).toEqual([1, 20]);
+    let g = withStarform(6, 9, { board: [body('a', 'dbg_cel')], hand: [body('d', 'ce3_coronadevotee', { golden: true })] });
     g = play(g, 'd', { toIndex: 0 });
-    expect(stats(at(g, 'd'))).toEqual([8 + 10, 10 + 14]);
-    let n = run({ hand: [body('d', 'ce3_coronadevotee')] });
+    expect(buffFrom(at(g, 'a'), 'Corona Devotee')).toEqual([8, 10]);
+    expect(buffFrom(at(g, 'd'), 'Corona Devotee')).toEqual([8, 10]);
+    let n = run({ board: [body('a', 'dbg_cel')], hand: [body('d', 'ce3_coronadevotee')] });
     n = play(n, 'd', { toIndex: 0 });
+    expect(stats(at(n, 'a'))).toEqual([1, 20]);
     expect(stats(at(n, 'd'))).toEqual([4, 5]);
+  });
+  it('the collapse fires starformRemoved(collapse): a Zenith re-creates at the fresh 6-Gold price', () => {
+    let s = withStarform(6, 9, { board: [body('z', 'ce3_zenith')], hand: [body('d', 'ce3_coronadevotee')] });
+    for (let i = 0; i < 2; i++) s = act(s, { type: 'roll' });
+    expect(starformPrice(s)).toBe(4);
+    s = play(s, 'd', { toIndex: 0 });
+    expect(hasStarform(s)).toBe(true);
+    expect(starformPrice(s), 'a new token, 6 Gold').toBe(6);
   });
 });
 
@@ -408,49 +432,74 @@ describe('Twin Star — whenever your Starform gains stats, this gains the same'
     buffStarform(g, 2, 3, 'test');
     expect(buffFrom(at(g, 't'), 'Twin Star')).toEqual([4, 6]);
   });
-  it('a refresh that grows nothing fires nothing; the token\'s dismissal fires nothing', () => {
+  it('a refresh that grows nothing fires nothing; the Star Destroyer\'s exit fires nothing; the token\'s BUY is heard as a consume (the receiver is the left-most Celestial — here the Twin Star itself)', () => {
     let s = withStarform(1, 1, { board: [body('t', 'ce3_twinstar')] });
     const before = stats(at(s, 't'));
     s = act(s, { type: 'roll' });
-    s = act(s, { type: 'buy', uid: starformOf(s)!.uid });
     expect(stats(at(s, 't'))).toEqual(before);
+    selectEquipment(s, STAR_DESTROYER.id);
+    s = act(s, { type: 'activateEquipment' });
+    expect(hasStarform(s)).toBe(false);
+    expect(stats(at(s, 't')), 'the silent exit').toEqual(before);
+    let b = withStarform(1, 1, { board: [body('t', 'ce3_twinstar')] });
+    b = act(b, { type: 'buy', uid: starformOf(b)!.uid });
+    expect(buffFrom(at(b, 't'), 'Starform'), 'the buy: the Twin Star IS the left-most Celestial and consumes the 2/2').toEqual([2, 2]);
+    expect(buffFrom(at(b, 't'), 'Twin Star'), "only the fixture's +1/+1 was mirrored — the token gained nothing on the way out").toEqual([1, 1]);
   });
 });
 
-describe('Nova Herald — Collapse your Starform; 3 random friendly Celestials each gain half its stats', () => {
-  it('three Celestials (the Herald included) each gain the rounded-up half; a non-Celestial never', () => {
-    let s = withStarform(6, 9, { board: [body('a', 'dbg_cel'), body('b', 'dbg_cel2'), body('n', 'dbg_neutral')], hand: [body('h', 'ce3_novaherald')] }); // 7/10 → 4/5
-    s = play(s, 'h', { toIndex: 0 });
-    expect(hasStarform(s)).toBe(false);
-    for (const uid of ['a', 'b', 'h']) expect(buffFrom(at(s, uid), 'Nova Herald'), uid).toEqual([4, 5]);
-    expect(stats(at(s, 'n'))).toEqual([1, 20]);
+describe('Nova Herald — when you Collapse a Starform, it buffs 2 additional random Celestials (a passive, with replacement)', () => {
+  it('is a passive read at collapse time: 0 Heralds → 0 extras; 1 → 2; 2 → 4; gilded → 4 each; the run-wide counter adds on top', () => {
+    expect(collapseExtraTargetsOf(run({ board: [body('a', 'dbg_cel')] }))).toBe(0);
+    expect(collapseExtraTargetsOf(run({ board: [body('h', 'ce3_novaherald')] }))).toBe(2);
+    expect(collapseExtraTargetsOf(run({ board: [body('h', 'ce3_novaherald'), body('i', 'ce3_novaherald')] }))).toBe(4);
+    expect(collapseExtraTargetsOf(run({ board: [body('h', 'ce3_novaherald', { golden: true })] }))).toBe(4);
+    expect(collapseExtraTargetsOf(run({ board: [body('h', 'ce3_novaherald')], collapseExtraTargets: 3 } as Partial<RunState>))).toBe(5);
+    expect(CARD_INDEX['ce3_novaherald']!.text).toContain('**2** additional');
+    expect(CARD_INDEX['ce3_novaherald']!.goldenText).toContain('**4** additional');
   });
-  it('two Celestials → both; the Herald alone → just the Herald; a token but no Celestial cannot happen (the Herald is one) — a token and non-Celestials: only the Herald', () => {
-    let s = withStarform(6, 9, { board: [body('a', 'dbg_cel')], hand: [body('h', 'ce3_novaherald')] });
-    s = play(s, 'h', { toIndex: 0 });
-    expect(buffFrom(at(s, 'a'), 'Nova Herald')).toEqual([4, 5]);
-    expect(buffFrom(at(s, 'h'), 'Nova Herald')).toEqual([4, 5]);
-    let t = withStarform(6, 9, { board: [body('n', 'dbg_neutral'), body('m', 'dbg_neutral')], hand: [body('h', 'ce3_novaherald')] });
-    t = play(t, 'h', { toIndex: 0 });
-    expect(hasStarform(t), 'collapsed').toBe(false);
-    expect(buffFrom(at(t, 'h'), 'Nova Herald')).toEqual([4, 5]);
-    expect(stats(at(t, 'n'))).toEqual([1, 20]);
-    expect(stats(at(t, 'm'))).toEqual([1, 20]);
+  it('one Herald on board: a Devotee\'s Collapse lands 2 unique + 2 extras = 4 hits over 3 Celestials — every hit is the rounded-up half', () => {
+    let s = withStarform(6, 9, { board: [body('h', 'ce3_novaherald'), body('a', 'dbg_cel')], hand: [body('d', 'ce3_coronadevotee')] }); // 7/10 → 4/5 per hit
+    s = play(s, 'd', { toIndex: 0 });
+    const total = ['h', 'a', 'd'].map((uid) => buffFrom(at(s, uid), 'Corona Devotee')).reduce<[number, number]>((acc, b) => [acc[0] + b[0], acc[1] + b[1]], [0, 0]);
+    expect(total, '4 hits × 4/5').toEqual([16, 20]);
+    expect(s.starformFx![0]!.toUids, 'the pull record lists every hit, duplicates allowed').toHaveLength(4);
+    for (const uid of ['h', 'a', 'd']) expect(buffFrom(at(s, uid), 'Corona Devotee')[0] % 4, uid).toBe(0);
   });
-  it('no Starform → nothing happens; gilded → each gains the FULL stats', () => {
-    let s = run({ board: [body('a', 'dbg_cel')], hand: [body('h', 'ce3_novaherald')] });
+  it('two Celestials, one Herald: a seeded case where one takes 3 hits and the other 1 (extras land with replacement)', () => {
+    let found: RunState | null = null;
+    for (let seed = 1; seed < 200 && !found; seed++) {
+      let s = withStarform(6, 9, { board: [body('h', 'ce3_novaherald')], hand: [body('d', 'ce3_coronadevotee')] });
+      s.rngCursor = seed;
+      s = play(s, 'd', { toIndex: 0 });
+      const h = buffFrom(at(s, 'h'), 'Corona Devotee')[0] / 4, d = buffFrom(at(s, 'd'), 'Corona Devotee')[0] / 4;
+      expect(h + d, 'always 4 hits').toBe(4);
+      expect(Math.min(h, d), 'each original is unique: both bodies take at least one').toBeGreaterThanOrEqual(1);
+      if (h === 3 || d === 3) found = s;
+    }
+    expect(found, 'a 3 + 1 split exists').not.toBeNull();
+    expect(found!.starformFx![0]!.toUids).toHaveLength(4);
+  });
+  it('two Heralds → 4 extras (6 hits); a gilded Herald → 4 extras; a Herald alone with a Starform takes all 3 hits itself', () => {
+    let s = withStarform(6, 9, { board: [body('h', 'ce3_novaherald'), body('i', 'ce3_novaherald')], hand: [body('d', 'ce3_coronadevotee')] });
+    s = play(s, 'd', { toIndex: 0 });
+    const hits = ['h', 'i', 'd'].reduce((n, uid) => n + buffFrom(at(s, uid), 'Corona Devotee')[0] / 4, 0);
+    expect(hits).toBe(6);
+    let g = withStarform(6, 9, { board: [body('h', 'ce3_novaherald', { golden: true })], hand: [body('d', 'ce3_coronadevotee')] });
+    g = play(g, 'd', { toIndex: 0 });
+    expect(['h', 'd'].reduce((n, uid) => n + buffFrom(at(g, uid), 'Corona Devotee')[0] / 4, 0)).toBe(6);
+    // The Herald as the ONLY Celestial: a plain collapse helper call (no Devotee) → 1 original + 2 extras, all on it.
+    const alone = withStarform(6, 9, { board: [body('h', 'ce3_novaherald'), body('n', 'dbg_neutral')], hand: [body('d', 'ce3_coronadevotee')] });
+    const a2 = play(alone, 'd', { toIndex: 0 });
+    expect(buffFrom(at(a2, 'h'), 'Corona Devotee')[0] + buffFrom(at(a2, 'd'), 'Corona Devotee')[0], '2 unique (h, d) + 2 extras = 4 hits').toBe(16);
+    expect(stats(at(a2, 'n'))).toEqual([1, 20]);
+  });
+  it('its own play does nothing to the token (no Shout any more); the Herald is eligible as a hit like any Celestial', () => {
+    let s = withStarform(6, 9, { hand: [body('h', 'ce3_novaherald')] });
     s = play(s, 'h', { toIndex: 0 });
-    expect(stats(at(s, 'a'))).toEqual([1, 20]);
+    expect(hasStarform(s), 'the Herald no longer collapses').toBe(true);
+    expect(sf(s)).toEqual([7, 10]);
     expect(stats(at(s, 'h'))).toEqual([6, 9]);
-    let g = withStarform(6, 9, { board: [body('a', 'dbg_cel')], hand: [body('h', 'ce3_novaherald', { golden: true })] });
-    g = play(g, 'h', { toIndex: 0 });
-    expect(buffFrom(at(g, 'a'), 'Nova Herald')).toEqual([8, 10]);
-  });
-  it('four Celestials: exactly three gain, seeded', () => {
-    let s = withStarform(6, 9, { board: [body('a', 'dbg_cel'), body('b', 'dbg_cel2'), body('c', 'dbg_cel')], hand: [body('h', 'ce3_novaherald')] });
-    s = play(s, 'h', { toIndex: 0 });
-    const gained = ['a', 'b', 'c', 'h'].filter((uid) => buffFrom(at(s, uid), 'Nova Herald')[0] === 4);
-    expect(gained).toHaveLength(3);
   });
 });
 
@@ -465,25 +514,38 @@ describe('Zenith — spells feed the Starform +3/+3; a consumed / collapsed toke
     g = play(g, 'sc', { targetUid: 'c' });
     expect(sf(g)).toEqual([7, 7]);
   });
-  it('after a CONSUME (Corona Devotee) a new token appears with half the old one\'s stats, rounded up', () => {
-    let s = withStarform(6, 9, { board: [body('z', 'ce3_zenith')], hand: [body('d', 'ce3_coronadevotee')] }); // 7/10
+  it('after a CONSUME (the BUY into the left-most Celestial — the Zenith itself here) a new token appears with half the old one\'s stats, rounded up, at 6 Gold', () => {
+    let s = withStarform(6, 9, { board: [body('z', 'ce3_zenith')] }); // 7/10
     const old = starformOf(s)!.uid;
-    s = play(s, 'd', { toIndex: 0 });
-    expect(stats(at(s, 'd')), 'the Devotee still ate the whole 7/10').toEqual([4 + 7, 5 + 10]);
+    s = act(s, { type: 'buy', uid: old });
+    expect(stats(at(s, 'z')), 'the Zenith ate the whole 7/10').toEqual([8 + 7, 12 + 10]);
     expect(hasStarform(s)).toBe(true);
     expect(starformOf(s)!.uid).not.toBe(old);
     expect(sf(s)).toEqual([4, 5]);
+    expect(starformPrice(s)).toBe(6);
     expect(starformOf(s)!.buffs?.find((b) => b.source === 'Zenith')).toMatchObject({ attack: 3, health: 4 });
+    expect(holdsEquipment(s, STAR_DESTROYER.id), 'the reborn token brings its Star Destroyer').toBe(true);
   });
-  it('after a COLLAPSE (Nova Herald) too; NOT after the dismiss buy', () => {
-    let s = withStarform(6, 9, { board: [body('z', 'ce3_zenith')], hand: [body('h', 'ce3_novaherald')] });
-    s = play(s, 'h', { toIndex: 0 });
+  it('after a COLLAPSE (Corona Devotee, Herald-assisted or not) too; a buy with NO Celestial still counts; NOT after the Star Destroyer', () => {
+    let s = withStarform(6, 9, { board: [body('z', 'ce3_zenith')], hand: [body('d', 'ce3_coronadevotee')] });
+    s = play(s, 'd', { toIndex: 0 });
     expect(sf(s)).toEqual([4, 5]);
-    s = act(s, { type: 'buy', uid: starformOf(s)!.uid });
-    expect(hasStarform(s), 'dismissed stays dismissed').toBe(false);
+    let h = withStarform(6, 9, { board: [body('z', 'ce3_zenith'), body('n', 'ce3_novaherald')], hand: [body('d', 'ce3_coronadevotee')] });
+    h = play(h, 'd', { toIndex: 0 });
+    expect(sf(h), 'Herald-assisted collapse re-creates too').toEqual([4, 5]);
+    // A neutral Zenith-shaped watcher would be the "no Celestial" case; the real Zenith IS a Celestial, so the
+    // buy consumes into it — either way the exit is a consume and the rebirth happens.
+    let b = withStarform(6, 9, { board: [body('z', 'ce3_zenith')] });
+    b = act(b, { type: 'buy', uid: starformOf(b)!.uid });
+    expect(hasStarform(b)).toBe(true);
+    let d = withStarform(6, 9, { board: [body('z', 'ce3_zenith')] });
+    selectEquipment(d, STAR_DESTROYER.id);
+    d = act(d, { type: 'activateEquipment' });
+    expect(hasStarform(d), 'destroyed stays destroyed — no starformRemoved fired').toBe(false);
+    expect(stats(at(d, 'z'))).toEqual([8, 12]);
   });
   it('the rebirth into a FULL row eats the right-most minion (rule 1), and the mirror hears it', () => {
-    let s = run({ board: [body('z', 'ce3_zenith'), body('t', 'ce3_twinstar')], hand: [body('d', 'ce3_coronadevotee')] });
+    let s = run({ board: [body('z', 'ce3_zenith'), body('t', 'ce3_twinstar')], hand: [body('d', 'ce3_coronadevotee')], embers: 30 });
     rollShop(s); // a full row…
     createStarform(s, SRC); // …so the creation eats one; the token then carries that meal
     buffStarform(s, 0, 0, 'noop');
@@ -504,6 +566,13 @@ describe('Zenith — spells feed the Starform +3/+3; a consumed / collapsed toke
     let s = withStarform(6, 9, { board: [body('z', 'ce3_zenith', { golden: true })], hand: [body('d', 'ce3_coronadevotee')] });
     s = play(s, 'd', { toIndex: 0 });
     expect(sf(s)).toEqual([7, 10]);
+  });
+  it('the buy-consume with a Twin Star to the LEFT of the Zenith: the Twin Star receives, and hears the rebirth\'s gains', () => {
+    let s = withStarform(6, 9, { board: [body('t', 'ce3_twinstar'), body('z', 'ce3_zenith')] });
+    s = act(s, { type: 'buy', uid: starformOf(s)!.uid });
+    expect(buffFrom(at(s, 't'), 'Starform'), 'the left-most Celestial consumed the 7/10').toEqual([7, 10]);
+    expect(buffFrom(at(s, 't'), 'Twin Star'), "the fixture's +6/+9 and then the reborn token's +3/+4 above base were mirrored").toEqual([6 + 3, 9 + 4]);
+    expect(sf(s)).toEqual([4, 5]);
   });
 });
 

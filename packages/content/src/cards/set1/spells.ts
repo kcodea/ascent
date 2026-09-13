@@ -290,7 +290,7 @@ export const SPELLS: CardDef[] = [
     spell: true,
     cost: 2,
     effects: [{ on: 'cast', do: 'spellGrantTribeAttack', params: { tribe: 'undead', amount: 3 } }],
-    text: 'Your **Undead Aura** gets **+3 Attack** — even in the shop — for the rest of the game.',
+    text: 'Give your **Undead Aura** **+3 Attack**.', // reworded 2026-09-12 (owner); under spell power the live text reads +3/+1 etc.
   },
   {
     // Heal your hero (capped at the hero's max Resolve — no overheal). Untargeted.

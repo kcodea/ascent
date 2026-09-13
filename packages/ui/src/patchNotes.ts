@@ -59,6 +59,19 @@ export const PATCH_NOTES: PatchNote[] = [
     label: 'Celestials: the Starform',
     changes: [
       {
+        category: 'Card Change',
+        text: 'Comet Conductor is now Neptus, and Orrery Artificer is now Cometius. Same cards, new names.',
+      },
+      {
+        category: 'Card Change',
+        text: 'Lantern of Souls now reads "Give your Undead Aura +3 Attack." Same effect; the live text shows spell power on both stats (for example +3/+1).',
+      },
+      {
+        category: 'UI / Info',
+        text: 'Scaling spells now print their current value in place, in green, instead of adding a "Now +X/+Y" note at the end.',
+        details: ['Stellar Chorus with two spells already cast reads "Give a minion +8/+8" in green rather than "+2/+2 … Now +8/+8". Patch Job and Crescendo follow the same rule.'],
+      },
+      {
         category: 'New Card',
         text: 'Set 3 Celestials: sixteen new minions, a new spell and a new Equipment built around the Starform — a 1/1 Celestial token that lives in your Shop, grows from every shop buff and consume, and is cashed in by your Celestials.',
         details: [

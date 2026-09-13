@@ -63,7 +63,7 @@ export const SET3_CELESTIALS: readonly CardDef[] = [
     // T4 Rally: the run remembers the turn's first spell (`firstSpellThisTurnId`), combat carries it on the side
     // state, and the Rally hands a copy to hand mid-fight (`grantToHand`) — once per combat, per-instance latch.
     id: 'ce3_conductor',
-    name: 'Comet Conductor',
+    name: 'Neptus', // 'Comet Conductor' until 2026-09-12 (owner rename; id + art unchanged)
     tribe: 'celestial',
     tier: 4,
     attack: 4,
@@ -126,7 +126,7 @@ export const SET3_CELESTIALS: readonly CardDef[] = [
     // T6 Equip: Comet (4 Gold) banks 2 extra casts for the next spell — Nimbus' own charge, so it stacks with a
     // Nimbus and with Yazzus. `equipmentId` is the only place the card names it (registry: `equipment.ts`).
     id: 'ce3_artificer',
-    name: 'Orrery Artificer',
+    name: 'Cometius', // 'Orrery Artificer' until 2026-09-12 (owner rename; id + art unchanged)
     tribe: 'celestial',
     tier: 6,
     attack: 6,

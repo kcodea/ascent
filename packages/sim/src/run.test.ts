@@ -348,8 +348,11 @@ describe('run loop (@game/sim)', () => {
 
   it('Patch Job display shows the CURRENT total based on Gold spent this turn', () => {
     expect(spellDisplayText('patchjob', 0, 0, 0, 0)).toBe(CARD_INDEX['patchjob']!.text); // no Gold → just the baseline text
-    expect(spellDisplayText('patchjob', 0, 0, 0, 14)).toContain('{{Now +5/+5.}}'); // 14 Gold → base +1/+1 + 2 ticks of +2/+2
-    expect(spellDisplayText('patchjob', 2, 0, 2, 14)).toContain('{{Now +11/+11.}}'); // + spell power on base (3) and each tick (4×2)
+    // THE STANDARD (owner 2026-09-12): the current total replaces the printed grant IN PLACE, green — no "Now" appendix.
+    expect(spellDisplayText('patchjob', 0, 0, 0, 14)).toMatch(/^Give a minion \*\*\{\{\+5\/\+5\}\}\*\*/); // 14 Gold → base +1/+1 + 2 ticks of +2/+2
+    expect(spellDisplayText('patchjob', 0, 0, 0, 14)).not.toContain('Now ');
+    expect(spellDisplayText('patchjob', 2, 0, 2, 14)).toContain('{{+11/+11}}'); // + spell power on base (3) and each tick (4×2)
+    expect(spellDisplayText('patchjob', 2, 0, 2, 14)).toContain('{{+4/+4}}'); // the per-tick step, greened for power
   });
 
   it('Field Mechanic: Battlecry adds a Patch Job to hand', () => {
@@ -3078,8 +3081,10 @@ describe('run loop (@game/sim)', () => {
     expect(s.undeadAttackBonus).toBe(4);
     expect(s.undeadHealthBonus).toBe(1);
     // The card text reflects the live value (green {{…}}); the base shows just +3 Attack.
-    expect(spellDisplayText('lanternofsouls', 0)).toContain('+3 Attack');
+    expect(spellDisplayText('lanternofsouls', 0)).toBe('Give your **Undead Aura** **+3 Attack**.');
     expect(spellDisplayText('lanternofsouls', 1)).toContain('{{+4/+1}}');
+    expect(spellDisplayText('lanternofsouls', 0, 0, 1), 'owner example: +0/+1 spell power reads +3/+1').toBe('Give your **Undead Aura** **{{+3/+1}}**.');
+    expect(spellDisplayText('lanternofsouls', 1, 0, 0), 'Attack-only power keeps the Attack wording').toBe('Give your **Undead Aura** **{{+4 Attack}}**.');
   });
 
   it('Mend SETS Armor to 5 — a floor, never a shave (owner rework 2026-08-07)', () => {

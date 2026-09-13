@@ -532,7 +532,7 @@ export const EffectFactoryIdSchema = z.enum([
   'combatGrantAle', 'rallyGiveAttackToOthers', 'echoSummonCopyNoEcho', 'echoSummonInheritAttackAndCharge',
   // Set 3 Dwarves (2026-09-09)
   'minionSoldBuffSelf', 'endOfTurnBuffAdjacentPerCard', 'equipmentCastRandomAle', 'onTribeSummonedBuffRandomOthers',
-  'deathrattleGoldNextTurn', 'onTribeGainAttackBuffSelf', 'equipmentBonusTurnTime',
+  'deathrattleGoldNextTurn', 'onTribeGainAttackBuffSelf', 'equipmentCardDiscountWindow',
   'deathrattleBuffHandTribe', // R-HAND-02 (2026-09-09): buff hand minions of a tribe — permanent in both phases
   // Set 3 Undead (2026-09-09)
   'onRiseBuffSelfWard', 'onRiseBuffBoardAndHand', 'overflowBuffAllPermanent', 'deathrattleBuffRandomTribe',

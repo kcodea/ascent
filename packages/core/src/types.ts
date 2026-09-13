@@ -771,7 +771,7 @@ export type EffectFactoryId =
   | 'onTribeSummonedBuffRandomOthers' // Set 3 Dwarves — Hank Pepe: when you play a Dwarf, N random OTHER Dwarves +a/+h
   | 'deathrattleGoldNextTurn' // Set 3 Dwarves — Tromboneer: Echo — Gold next turn (both phases; uncapped bank)
   | 'onTribeGainAttackBuffSelf' // Set 3 Dwarves — Kneel / Tankerchief: when a friendly Dwarf gains Attack, this gains +a/+h
-  | 'equipmentBonusTurnTime' // Set 3 Dwarves — Thymepiece: bank seconds onto next turn's clock
+  | 'equipmentCardDiscountWindow' // Set 3 Dwarves — Thymepiece: all cards cost −N Gold for the next N clock-seconds
   | 'battlecryGainGoldNextTurn' // Set 2 Dwarves — Paymaster Pimm
   | 'cardsPlayedPlayRubies' // Set 2 Dwarves — Mountainbond
   | 'onTribeSummonedBuffTribe' // Set 2 Dwarves — Chef Gary Toast (watches OTHER plays, not its own Shout)

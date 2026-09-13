@@ -44,6 +44,7 @@ describe('Doc Bot — derivation pairs', () => {
         ...(rng.int(3) === 0 ? { runeTradeIn: true, tradeInTribe: tribe, questFlags: { runeTradeIn: 1 } } : {}),
         ...(rng.int(3) === 0 ? { cadenceMinionOff: 1 } : {}),
         ...(rng.int(3) === 0 ? { minionCostOffTurn: 1 + rng.int(2) } : {}),
+        ...(rng.int(3) === 0 ? { cardDiscountWindow: { amount: 1 + rng.int(2), untilClock: rng.int(2) === 0 ? null : 10 } } : {}), // Thymepiece's clock window (2026-09-12)
         ...(rng.int(4) === 0 ? { minionCostOverride: 2 + rng.int(4) } : {}),
         ...(rng.int(5) === 0 ? { questFreeFirstBuy: true, freeBuyUsedThisTurn: rng.int(2) === 0 } : {}),
       } as RunState;
@@ -51,7 +52,7 @@ describe('Doc Bot — derivation pairs', () => {
       const after = reduce(s, { type: 'buy', uid: 'offer' });
       if (after === s) continue; // refused (hand cap etc.) — nothing to compare
       charged++;
-      expect(s.embers - after.embers, `${def.id} under ${JSON.stringify({ spirit: s.spiritDiscount, ti: s.tradeInTribe, cad: s.cadenceMinionOff, gift: s.minionCostOffTurn, ovr: s.minionCostOverride, free: price.freeBuy })}`).toBe(price.cost);
+      expect(s.embers - after.embers, `${def.id} under ${JSON.stringify({ spirit: s.spiritDiscount, ti: s.tradeInTribe, cad: s.cadenceMinionOff, gift: s.minionCostOffTurn, win: s.cardDiscountWindow?.amount, ovr: s.minionCostOverride, free: price.freeBuy })}`).toBe(price.cost);
     }
     expect(charged, 'the fuzz must actually buy').toBeGreaterThan(80);
   });

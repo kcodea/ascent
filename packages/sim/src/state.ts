@@ -607,12 +607,21 @@ export interface RunState {
   /** Extra Gold granted at the start of next turn (Hoarder's Battlecry / Safety Deposit Box / Robin's
    *  Spoils). Consumed when the next recruit turn's Gold is set, then cleared. Absent = 0. */
   bonusEmbersNextTurn?: number;
-  /** Set 3 — Thymepiece: extra SECONDS banked for the NEXT recruit turn's clock. Moved into `bonusTurnSeconds`
-   *  at the turn flip (beside the Gold bank above), then cleared. Absent = 0. */
-  bonusTurnSecondsNextTurn?: number;
-  /** Set 3 — Thymepiece: extra seconds on THIS turn's clock. The UI adds it to the wave's base time; the sim
-   *  never reads a clock, so this is pure hand-off state. Absent = 0. */
-  bonusTurnSeconds?: number;
+  /**
+   * Set 3 — Thymepiece (owner design 2026-09-12): "all cards cost −`amount` Gold for the next 8 seconds". A
+   * CLOCK-WINDOW discount on every shop CARD (minion offers, the spell slot, spell offers in the row — never
+   * the Shop upgrade or a refresh), floored at 0.
+   *
+   * The engine never reads wall time. The activation ACTION carries the turn clock's reading (`clockSeconds`,
+   * the UI's `turnClock.get()`), the factory stores `untilClock = clockSeconds − seconds`, and because the
+   * clock counts DOWN the window is live while `turnClock > untilClock`. Expiry is the `discountWindowExpired`
+   * ACTION, dispatched by the same UI tick loop that drives the clock — so whatever pauses the clock (a
+   * Discover, a Choose One, an aim, hero select, a frozen modal) pauses the window, and a replay carries both
+   * the activation's reading and the expiry as recorded actions. `untilClock: null` means the activation
+   * carried NO reading (a headless test, a legacy recording) → live until the turn ends. Cleared at the turn
+   * flip, on combat entry, and on a Continue whose saved clock is already past it (`deserialize`).
+   */
+  cardDiscountWindow?: { amount: number; untilClock: number | null };
   /** Set 2 — Mushy: a charge to copy the FIRST spell you cast on/after `activateWave` (= the wave
    *  AFTER the Echo fired, so "next turn" is exact whether it died in combat or was re-fired in recruit).
    *  `count` copies (golden 2, multiple Scalefeathers sum). Spent + cleared by that first cast. */
@@ -2122,7 +2131,13 @@ export type Action =
   /** Activate the SELECTED Equipment. ATOMIC (owner ruling 2026-08-28) — validate, pay, spend one shared
    *  allowance and resolve every trigger in one action, exactly as every hero power does. `targetUid` is
    *  required for a targeting Equipment; cancelling never dispatches this at all. */
-  | { type: 'activateEquipment'; targetUid?: string }
+  | { type: 'activateEquipment'; targetUid?: string; /** The turn clock's reading (seconds LEFT) at activation — a
+   *  clock-window Equipment (Thymepiece) anchors its window to it. The store fills it from `turnClock.get()`;
+   *  absent (a test, an old recording) = the window runs to the end of the turn. */ clockSeconds?: number }
+  /** A clock-window discount (Thymepiece) ran out: the UI's clock tick dispatches this ONCE when `turnClock`
+   *  crosses `cardDiscountWindow.untilClock`. A real ACTION so a recording replays the expiry where the player
+   *  lived it, and so the reducer never reads a clock. A no-op when no window is open. */
+  | { type: 'discountWindowExpired' }
   | { type: 'closeScout' } // Farseer's Report: dismiss the scout reveal
   | { type: 'faceOmen' }
   | { type: 'settleCombat' }
@@ -2414,8 +2429,15 @@ export function serialize(state: RunState): string {
   return JSON.stringify(state);
 }
 
-export function deserialize(json: string): RunState {
-  const parsed = JSON.parse(json) as RunState & { pendingSpellDiscovers?: number };
+/**
+ * `opts.turnRemaining` is the recruit clock's reading the save was written with (the store's `turnRemaining`,
+ * seconds left). A Continue mid-Thymepiece-window compares it to the window's `untilClock`: still ahead of it
+ * → the window resumes for the seconds it had left; at or past it → the window is gone (the expiry action
+ * could not have been dispatched while the game was closed). Omitted (a scenario, a bug capsule, a save from
+ * combat) → the window is left as saved: the turn flip / combat entry clear it anyway.
+ */
+export function deserialize(json: string, opts: { turnRemaining?: number } = {}): RunState {
+  const parsed = JSON.parse(json) as RunState & { pendingSpellDiscovers?: number; bonusTurnSeconds?: number; bonusTurnSecondsNextTurn?: number };
   // Heal-by-construction (review 2026-07-03): merge the save over a freshly-created run for the SAME
   // seed/hero/mode, so every field added since the save was written gets its fresh-run zero value
   // automatically. The old hand-maintained ??=-list drifted — it healed `pool`/`line`/`armor` but missed
@@ -2479,6 +2501,15 @@ export function deserialize(json: string): RunState {
     if (saved.selectedEquipmentId) healed.selectedEquipmentId = saved.selectedEquipmentId;
     if (saved.lastUsedEquipmentId) healed.lastUsedEquipmentId = saved.lastUsedEquipmentId;
     state.equipment = healed;
+  }
+  // Thymepiece (2026-09-12 rework): the retired "+30 seconds next turn" fields are dropped from any save that
+  // still carries them, and an open clock-window discount is healed against the saved clock (see above).
+  delete (state as { bonusTurnSeconds?: number }).bonusTurnSeconds;
+  delete (state as { bonusTurnSecondsNextTurn?: number }).bonusTurnSecondsNextTurn;
+  const win = state.cardDiscountWindow;
+  if (win && (typeof win.amount !== 'number' || win.amount <= 0)) state.cardDiscountWindow = undefined;
+  else if (win && win.untilClock !== null && typeof opts.turnRemaining === 'number' && opts.turnRemaining <= win.untilClock) {
+    state.cardDiscountWindow = undefined;
   }
   return state;
 }

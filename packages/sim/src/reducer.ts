@@ -245,10 +245,12 @@ export interface OfferBuyPrice {
   tradeInOff: number;
   spiritOff: number;
   giftMinionOff: number;
+  /** Thymepiece's clock-window discount ("all cards cost −N for 8 seconds"), while the window is open. */
+  windowOff: number;
 }
 export function offerBuyPrice(s: RunState, offer: { cardId: string; cost?: number; starform?: true }): OfferBuyPrice {
   // THE STARFORM costs 0 — buying it dismisses it (owner rule 5). No discount is consulted or spent on it.
-  if (offer.starform) return { cost: 0, freeBuy: false, cadenceOff: 0, tradeInOff: 0, spiritOff: 0, giftMinionOff: 0 };
+  if (offer.starform) return { cost: 0, freeBuy: false, cadenceOff: 0, tradeInOff: 0, spiritOff: 0, giftMinionOff: 0, windowOff: 0 };
   // "Freedom" rift OR Fi's First Pick quest: the FIRST minion bought each turn is free (overriding every
   // price source below). ONE shared spend-marker, so holding both is still one freebie per turn.
   const freeBuy = (s.rift === 'freedom' || !!s.questFreeFirstBuy) && !s.freeBuyUsedThisTurn;
@@ -262,8 +264,11 @@ export function offerBuyPrice(s: RunState, offer: { cardId: string; cost?: numbe
   // (All-types matches any armed tribe; −1 per copy held — owner 2026-08-27).
   const tiDef = s.tradeInTribe ? CARD_INDEX[offer.cardId] : undefined;
   const tradeInOff = !freeBuy && s.runeTradeIn && s.tradeInTribe && defIsTribe(tiDef, s.tradeInTribe) ? runeStacksOf(s, 'rune_trade_in') : 0;
-  const cost = freeBuy ? 0 : Math.max(0, (offer.cost ?? heroOfferPrice(s, offer) ?? s.minionCostOverride ?? minionCostOf(s)) - cadenceOff - tradeInOff - spiritOff - giftMinionOff);
-  return { cost, freeBuy, cadenceOff, tradeInOff, spiritOff, giftMinionOff };
+  // Set 3 Dwarves — Thymepiece: "all cards cost −N Gold for the next 8 seconds" (a clock window the UI's tick
+  // closes via `discountWindowExpired`). Every non-held CARD, spells included (`spellCostReduction`).
+  const windowOff = !freeBuy ? (s.cardDiscountWindow?.amount ?? 0) : 0;
+  const cost = freeBuy ? 0 : Math.max(0, (offer.cost ?? heroOfferPrice(s, offer) ?? s.minionCostOverride ?? minionCostOf(s)) - cadenceOff - tradeInOff - spiritOff - giftMinionOff - windowOff);
+  return { cost, freeBuy, cadenceOff, tradeInOff, spiritOff, giftMinionOff, windowOff };
 }
 
 export function minionCostOf(s: RunState): number {
@@ -1215,6 +1220,8 @@ function reduceCore(state: RunState, action: Action): RunState {
   if (state.phase === 'gameover' || state.phase === 'victory') return state;
   // Nothing owed — a late or duplicate resolve (the UI timer racing a click) is a free no-op, not a clone.
   if (action.type === 'resolveShopDeath' && !state.pendingDeath) return state;
+  // No window open — a late or duplicate expiry tick (Thymepiece) is a free no-op, not a clone.
+  if (action.type === 'discountWindowExpired' && !state.cardDiscountWindow) return state;
 
   // Recruit actions apply only in the recruit phase; `settleCombat` / `resolveCombat` only in combat.
   if (state.phase !== 'recruit' && action.type !== 'resolveCombat' && action.type !== 'settleCombat') return state;
@@ -2542,7 +2549,9 @@ function reduceCore(state: RunState, action: Action): RunState {
         ? { ...def, effectId: eqBranch.effectId, params: eqBranch.params, gildedParams: eqBranch.gildedParams }
         : def;
       const fireSelf = eqBranch ? { ...self, golden: false } : self;
-      if (!fireEquipmentTriggers(s, fireDef, granted.version, fireSelf, target, triggers)) return state;
+      // The turn clock's reading rides the action (the store fills it from `turnClock.get()`), so a
+      // clock-window Equipment (Thymepiece) can anchor to it without the engine ever reading a clock.
+      if (!fireEquipmentTriggers(s, fireDef, granted.version, fireSelf, target, triggers, action.clockSeconds)) return state;
       // ONE use cue per ACTIVATION, not per trigger — the handoff's rule for repeats is that they "communicate
       // repetition without replaying the full animation", so a three-trigger Bloodpot is one travel, not three.
       stampEquipFx(s, {
@@ -2553,6 +2562,12 @@ function reduceCore(state: RunState, action: Action): RunState {
       checkTriples(s); // an Equipment that summons or grants can still complete a triple
       return s;
     }
+
+    case 'discountWindowExpired':
+      // Thymepiece's clock window ran out (the UI's clock tick crossed `untilClock`). The reducer never reads a
+      // clock — the tick DISPATCHES, so a paused clock is a paused window and a recording replays the expiry.
+      s.cardDiscountWindow = undefined;
+      return s;
 
     case 'resolveShopDeath':
       settlePendingDeath(s);
@@ -3274,6 +3289,9 @@ function reduceCore(state: RunState, action: Action): RunState {
       // `kept` marks now, going into combat, so the first refresh AFTER combat sweeps the offer (the discount
       // rides the offer while it lasts). Recast Layaway next turn to keep it again (owner ruling 2026-07-23).
       for (const o of s.shop) if (o.kept) o.kept = false;
+      // Thymepiece's clock window ends with the shop: the clock stops in combat, so an unexpired window would
+      // otherwise sit open until the next turn's first tick. (The turn flip clears it again, belt and braces.)
+      s.cardDiscountWindow = undefined;
       // An unresolved targeted Battlecry (the player ended the turn mid-pick) auto-resolves on the
       // carry — never strand a played Toxin Tender without its grant.
       if (s.pendingTarget?.deferredPlay) {
@@ -4668,9 +4686,6 @@ function advanceCombat(s: RunState): void {
   // Hoarder's Battlecry banks bonus Gold for this turn (consumed now).
   s.embers = s.maxEmbers + (s.maxGoldBonus ?? 0) + boardManaBonus(s) + (s.bonusEmbersNextTurn ?? 0);
   s.bonusEmbersNextTurn = 0;
-  // Thymepiece: the seconds banked last turn become this turn's clock bonus (same one-turn shape as the Gold).
-  s.bonusTurnSeconds = s.bonusTurnSecondsNextTurn ?? 0;
-  s.bonusTurnSecondsNextTurn = 0;
   s.heroReady = true;
   s.heroReady2 = true; // Void's second power recharges on the same clock
   s.heroUsesThisTurn = 0; // Fibbsy's twice-per-turn budget refills
@@ -4775,6 +4790,7 @@ function advanceCombat(s: RunState): void {
   s.spellCostOffTurn = 0;
   s.minionCostOffTurn = 0;
   s.spiritDiscount = 0; // Festival Treasurer: "this turn"
+  s.cardDiscountWindow = undefined; // Thymepiece: an 8-second window never outlives the turn it opened in
   s.processionReturned = []; // Grand Procession: one return per Reveler type per turn
   s.handCopiedThisTurn = []; // the hand-summon mechanic's shop twin: one copy per hand card per turn
   s.dupeUsedThisTurn = false; // Dupes: the first-buy copy is a per-turn freebie

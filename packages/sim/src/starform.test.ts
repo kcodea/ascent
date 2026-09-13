@@ -423,7 +423,7 @@ describe('rule 5 — BUYING it = your LEFT-MOST Celestial consumes it (full stat
 
 describe('rule 9 — STAR DESTROYER: a standard Equipment sourced by the token, held exactly while a Starform exists; its use is the silent exit', () => {
   it('exists iff a Starform exists: granted on create, dropped on every exit, re-granted on the next create and on the turn rebuild', () => {
-    let s = runOpen({ board: [body('c', 'ce3_courier')] });
+    const s = runOpen({ board: [body('c', 'ce3_courier')] });
     expect(holdsEquipment(s, STAR_DESTROYER.id)).toBe(false);
     const sf = createStarform(s, SRC);
     expect(holdsEquipment(s, STAR_DESTROYER.id)).toBe(true);

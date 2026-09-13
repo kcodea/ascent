@@ -1,14 +1,35 @@
-import type { FxAnchorId } from './def';
+import type { FxAnchorId, FxAnchorPart } from './def';
 
 export interface FxPoint {
   x: number;
   y: number;
 }
 
-/** Screen-space points a scenario (or a real game moment) stages for a def to attach to. */
-export type FxAnchors = Partial<Record<Exclude<FxAnchorId, 'travel'>, FxPoint>>;
+/** Per-part resolved points for one unit — only the parts a fire actually asked for. */
+export type FxPartPoints = Partial<Record<FxAnchorPart, FxPoint>>;
+
+/** The parts a fire has resolved, per end. Absent / empty = every layer lands on the card centre. */
+export interface FxAnchorPartPoints {
+  source?: FxPartPoints;
+  target?: FxPartPoints;
+}
+
+/** Screen-space points a scenario (or a real game moment) stages for a def to attach to. `parts` is the
+ *  optional "target within a source" layer on top (see `anchorParts.ts`): resolved once per fire for the
+ *  parts the def uses, and read per layer through `resolveAnchor`'s `part`. */
+export type FxAnchors = Partial<Record<Exclude<FxAnchorId, 'travel'>, FxPoint>> & { parts?: FxAnchorPartPoints };
 
 const ORIGIN: FxPoint = { x: 0, y: 0 };
+
+/** The point for `end` adjusted to `part`: the resolved part if the fire has it, else the end's own point.
+ *  `card` (and a part that was never resolved — a spell has no badges) is the centre exactly as before. */
+function endPoint(anchors: FxAnchors, end: 'source' | 'target', part: FxAnchorPart | null | undefined): FxPoint | undefined {
+  if (part && part !== 'card') {
+    const p = anchors.parts?.[end]?.[part];
+    if (p !== undefined) return p;
+  }
+  return anchors[end];
+}
 
 /** Default perpendicular bow for a `travel` anchor. A straight line reads as a laser; the arc is what
  *  makes a trail whip between two units — so this stays the default, and a layer that wants the laser sets
@@ -31,11 +52,15 @@ export function pointOnTravel(a: FxPoint, b: FxPoint, t: number, bow: number): F
   };
 }
 
-/** `progress` is the layer's own 0..1 through its life; only `travel` uses it. */
-export function resolveAnchor(anchors: FxAnchors, id: FxAnchorId, progress: number, bow = TRAVEL_BOW): FxPoint {
+/** `progress` is the layer's own 0..1 through its life; only `travel` uses it. `part` narrows a unit anchor
+ *  (`source` / `target`, and both ends of `travel`) to a part of that unit's card — see `FxAnchorPart`. */
+export function resolveAnchor(
+  anchors: FxAnchors, id: FxAnchorId, progress: number, bow = TRAVEL_BOW, part: FxAnchorPart | null = null,
+): FxPoint {
   if (id === 'travel') {
-    return pointOnTravel(anchors.source ?? ORIGIN, anchors.target ?? ORIGIN, progress, bow);
+    return pointOnTravel(endPoint(anchors, 'source', part) ?? ORIGIN, endPoint(anchors, 'target', part) ?? ORIGIN, progress, bow);
   }
+  if (id === 'source' || id === 'target') return endPoint(anchors, id, part) ?? ORIGIN;
   return anchors[id] ?? ORIGIN;
 }
 
@@ -56,6 +81,8 @@ export interface FxHeadSink {
  *  `EditorLayer` satisfy it without either module having to know about the other. */
 export interface FxAnchoredLayer {
   anchor: FxAnchorId;
+  /** Which part of the anchored unit's card to land on — see `FxAnchorPart`. Absent / null = the centre. */
+  anchorPart?: FxAnchorPart | null;
   /** Layer timing, for resolving `travel` against this layer's OWN window (see `layerTravelProgress`).
    *  Optional so a caller that only cares about anchoring — and every existing test fake — still satisfies
    *  the type; absent reads as a layer spanning the whole composition. */
@@ -154,15 +181,20 @@ export function driveLayerHeads(
     const travelAt = clock !== null ? layerTravelProgress(layer, clock.timeMs, clock.durationMs) : progress;
     // `layer.bow ?? TRAVEL_BOW` and not `|| ` — a bow of literally 0 is the whole point of the field (a
     // dead-straight laser), and `||` would swallow it back into the default arc.
+    const part = layer.anchorPart ?? null;
     const pt =
       head !== null && anchor === 'travel'
         ? head
-        : resolveAnchor(anchors, anchor, travelAt, layer.bow ?? TRAVEL_BOW);
+        : resolveAnchor(anchors, anchor, travelAt, layer.bow ?? TRAVEL_BOW, part);
     sink.setHead(i, pt.x, pt.y);
     // Three identity checks per layer, all on loop-invariant consts — narrowed here rather than hoisted into
-    // a boolean because a boolean would not narrow `src`/`tgt`/`setAim` for TypeScript inside the loop.
+    // a boolean because a boolean would not narrow `src`/`tgt`/`setAim` for TypeScript inside the loop. A
+    // layer aimed at a PART aims part-to-part (a beam from the caster's medallion to the victim's badge);
+    // the common no-part case keeps the hoisted pair.
     if (setAim !== undefined && src !== undefined && tgt !== undefined) {
-      setAim.call(sink, i, src.x, src.y, tgt.x, tgt.y);
+      const s = part !== null && part !== 'card' ? (endPoint(anchors, 'source', part) ?? src) : src;
+      const t = part !== null && part !== 'card' ? (endPoint(anchors, 'target', part) ?? tgt) : tgt;
+      setAim.call(sink, i, s.x, s.y, t.x, t.y);
     }
   }
 }

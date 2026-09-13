@@ -1,5 +1,6 @@
 import { FX_ANCHOR_IDS } from '../anchors';
-import type { FxAnchorId } from '../def';
+import { FX_ANCHOR_PARTS } from '../anchorParts';
+import type { FxAnchorId, FxAnchorPart } from '../def';
 
 /**
  * Human-readable names for the things the workbench makes you pick between.
@@ -75,6 +76,32 @@ export const ANCHOR_COPY: Record<FxAnchorId, FxCopy> = {
   cursor: { label: 'Cursor', blurb: 'Pinned to the live mouse pointer.' },
   camera: { label: 'Screen centre', blurb: 'Pinned to the middle of the screen — for full-screen effects.' },
 };
+
+/** Keyed by `FxAnchorPart` — the "target within a source" picker. `copy.test.ts` fails if this and
+ *  `FX_ANCHOR_PARTS` disagree in either direction. */
+export const ANCHOR_PART_COPY: Record<FxAnchorPart, FxCopy> = {
+  card: { label: 'Card centre', blurb: 'The middle of the card — the default, and what every anchor meant before parts existed.' },
+  'badge.attack': { label: 'Attack badge', blurb: 'The attack stat badge in the card\'s corner.' },
+  'badge.health': { label: 'Health badge', blurb: 'The health stat badge in the card\'s corner.' },
+  medallion: { label: 'Medallion', blurb: 'The round tribe plate (falls back to the card centre on cards without one).' },
+  tier: { label: 'Tier badge', blurb: 'The tier stars plaque at the top of the card.' },
+  top: { label: 'Top edge', blurb: 'The middle of the card\'s top edge — for things that rise out of it.' },
+  bottom: { label: 'Bottom edge', blurb: 'The middle of the card\'s bottom edge — for things that pool beneath it.' },
+  left: { label: 'Left edge', blurb: 'The middle of the card\'s left edge.' },
+  right: { label: 'Right edge', blurb: 'The middle of the card\'s right edge.' },
+};
+
+export function anchorPartLabel(id: FxAnchorPart): string {
+  return ANCHOR_PART_COPY[id]?.label ?? id;
+}
+
+export function anchorPartBlurb(id: FxAnchorPart): string {
+  return ANCHOR_PART_COPY[id]?.blurb ?? '';
+}
+
+/** Picker rows for the anchor part, in `FX_ANCHOR_PARTS` order. */
+export const ANCHOR_PART_OPTIONS: readonly { id: FxAnchorPart; label: string; blurb: string }[] =
+  FX_ANCHOR_PARTS.map((id) => ({ id, label: anchorPartLabel(id), blurb: anchorPartBlurb(id) }));
 
 /** The primitive's display name, falling back to the raw id so an unregistered/new primitive still shows
  *  SOMETHING rather than a blank button. */

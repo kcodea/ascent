@@ -19,6 +19,9 @@ export interface EditorLayer {
    *  pre-naming behaviour, so an unnamed layer is an exact no-op (and serialises as an omission). */
   name?: string;
   anchor: FxLayer['anchor']; // reuse def.ts's anchor type
+  /** Which part of the anchored unit's card the head lands on (see `FxAnchorPart`). Absent = `card`, the
+   *  centre — serialises as an omission so a layer that never touched it is byte-identical. */
+  anchorPart?: FxLayer['anchorPart'];
   at: number; // ms from effect start at which this layer spawns
   life: number | null; // ms this layer lives, or null = "runs to the def's full duration"
   /** `travel`-anchored layers only: ms the head takes to cross its arc, or null = "the whole life" (the
@@ -158,6 +161,23 @@ export function setLayerAnchor(
   anchor: EditorLayer['anchor'],
 ): EditorLayer[] {
   return layers.map((l, i) => (i === index ? { ...l, anchor } : l));
+}
+
+/** Set the anchor PART of the layer at `index`. `card` (the centre) OMITS the field rather than storing it,
+ *  so a layer put back to the default serialises exactly as one that never had a part. Moves `structureKey`
+ *  for the same reason `setLayerAnchor` does: where the head is fed from changes for the layer's whole life. */
+export function setLayerAnchorPart(
+  layers: EditorLayer[],
+  index: number,
+  part: NonNullable<EditorLayer['anchorPart']> | 'card',
+): EditorLayer[] {
+  return layers.map((l, i) => {
+    if (i !== index) return l;
+    const next = { ...l };
+    if (part === 'card') delete next.anchorPart;
+    else next.anchorPart = part;
+    return next;
+  });
 }
 
 /** Merge a single param key into the layer at `index`. Returns a NEW array with a NEW params object for
@@ -349,6 +369,7 @@ export function toDef(
     layers: layers.map((l) => ({
       primitive: l.primitive,
       anchor: l.anchor,
+      ...(l.anchorPart !== undefined && l.anchorPart !== 'card' ? { anchorPart: l.anchorPart } : {}),
       at: l.at,
       life: l.life ?? undefined,
       travelMs: l.travelMs ?? undefined,

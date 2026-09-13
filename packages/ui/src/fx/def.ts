@@ -5,6 +5,16 @@
 export type FxAnchorId = 'source' | 'target' | 'travel' | 'cursor' | 'slot' | 'camera';
 
 /**
+ * A PART of the anchored unit's card to land on instead of its centre — "a target within a source". Only
+ * meaningful for `source` / `target` / `travel` (a travel layer runs part-to-part). `card` is the centre and
+ * the default; every def written before parts existed reads as `card`. Selector parts (`badge.*`,
+ * `medallion` — the round tribe plate, the owner's word for it, `tier`) name card markup (see
+ * `anchorParts.ts`); the edges are geometry off the card rect.
+ */
+export type FxAnchorPart =
+  | 'card' | 'badge.attack' | 'badge.health' | 'medallion' | 'tier' | 'top' | 'bottom' | 'left' | 'right';
+
+/**
  * Which CANVAS an effect draws on — the one over the cards, or the one beneath them.
  *
  * `'over'` is the historical (and default) behaviour: the full-viewport `.pixifx` canvas at z110, which sits
@@ -27,6 +37,8 @@ export type FxSlot = 'over' | 'under' | 'above';
 export interface FxLayer {
   primitive: string;
   anchor: FxAnchorId;
+  /** Which part of the anchored unit's card the head lands on. Omitted = `card` (the centre). */
+  anchorPart?: FxAnchorPart;
   /** Milliseconds from effect start at which this layer spawns. */
   at: number;
   /** Milliseconds the layer lives. Omitted = until the def's duration. */

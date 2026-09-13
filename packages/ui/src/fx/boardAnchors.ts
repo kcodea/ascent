@@ -1,4 +1,6 @@
 import type { FxAnchors, FxPoint } from './anchors';
+import { partsFromElements, type UnitElementLike } from './anchorParts';
+import type { FxAnchorPart } from './def';
 
 /**
  * REAL on-screen anchors, read off the live game DOM — the fidelity half of the workbench.
@@ -111,19 +113,27 @@ const rectOf = (sel: string): RectLike | null => document.querySelector(sel)?.ge
  *
  * Throttled to `BOARD_SAMPLE_INTERVAL_MS`; see that constant for why.
  */
-export function readBoardAnchors(src: BoardAnchorSource = {}): FxAnchors | null {
+export function readBoardAnchors(src: BoardAnchorSource = {}, parts: readonly FxAnchorPart[] = []): FxAnchors | null {
   if (typeof document === 'undefined' || typeof window === 'undefined') return null;
   const sourceSel = src.sourceSel ?? PLAYER_UNIT_SELECTOR;
   const targetSel = src.targetSel ?? ENEMY_UNIT_SELECTOR;
-  const key = `${sourceSel}|${targetSel}`;
+  const key = `${sourceSel}|${targetSel}|${parts.join(',')}`;
   const now = performance.now();
   if (cache !== null && cache.key === key && now - cache.at < BOARD_SAMPLE_INTERVAL_MS) return cache.anchors;
-  const anchors = anchorsFromRects({
-    source: rectOf(sourceSel),
-    target: rectOf(targetSel),
+  const sourceEl = document.querySelector(sourceSel);
+  const targetEl = document.querySelector(targetSel);
+  let anchors = anchorsFromRects({
+    source: sourceEl?.getBoundingClientRect() ?? null,
+    target: targetEl?.getBoundingClientRect() ?? null,
     row: rectOf(PLAYER_ROW_SELECTOR),
     viewport: { w: window.innerWidth, h: window.innerHeight },
   });
+  // Anchor parts (see `anchorParts.ts`) read off the same two unit elements — only when the composition
+  // asks for any, so the common read stays exactly the three rects it always was.
+  if (anchors !== null && parts.length > 0) {
+    const resolved = partsFromElements(sourceEl as UnitElementLike | null, targetEl as UnitElementLike | null, parts);
+    if (resolved !== undefined) anchors = { ...anchors, parts: resolved };
+  }
   cache = { key, at: now, anchors };
   return anchors;
 }

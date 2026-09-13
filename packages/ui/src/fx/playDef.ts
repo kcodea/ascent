@@ -3,9 +3,10 @@ import { Container, type Renderer } from 'pixi.js';
 import { perfMonitor } from '../perfMonitor';
 import { pixiFx } from '../pixiFx';
 import { driveLayerHeads, type FxAnchors } from './anchors';
+import { partsUsedByLayers, withUnitParts, type UnitElementLike } from './anchorParts';
 import type { FxDef } from './def';
 import type { StoredFxDef, StoredFxLayer } from './defStore';
-import { anchorsForUnits } from './combatAnchors';
+import { anchorsForUnits, unitSelector } from './combatAnchors';
 import { getDef, listDefs } from './fxDefs';
 import { fxPoolSize } from './fxRuntime';
 import { createPlayer } from './player';
@@ -408,7 +409,7 @@ export function withCamera(anchors: FxAnchors): FxAnchors {
 function playDefInner(
   id: string, rawAnchors: FxAnchors, opts: PlayDefOptions = {}, retried = false,
 ): (() => void) | null {
-  const anchors = withCamera(rawAnchors);
+  let anchors = withCamera(rawAnchors);
   const stored = getDef(id);
   if (!stored) {
     // DEV-only because it is an AUTHORING mistake — a binding naming a def that isn't committed. The registry
@@ -417,6 +418,14 @@ function playDefInner(
     if (import.meta.env.DEV) console.warn(`[fx] playDef: no committed def '${id}' — nothing fired.`);
     return null;
   }
+  // Anchor PARTS ("a target within a source", see `anchorParts.ts`): resolved here, once, for exactly the
+  // parts this def's layers ask for, off the units the moment is about (`opts.uids`, through the same
+  // `unitSelector` both surfaces' cards answer to). A def with no parts costs nothing extra; a fire without
+  // uids (a workbench preview, a bespoke direct call) simply lands every layer on the centre as before.
+  anchors = withUnitParts(
+    anchors, opts.uids, partsUsedByLayers(stored.layers),
+    (uid) => (typeof document === 'undefined' ? null : (document.querySelector(unitSelector(uid)) as UnitElementLike | null)),
+  );
   // `createPlayer` and every primitive's `spawn` require a real renderer; the overlay's `attach()`/`init()`
   // is async, so "not yet" is a normal state, not an error. Unlike the workbench (which polls until one
   // exists) a combat moment is gone by the time a poll would resolve, so this simply declines.

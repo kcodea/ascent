@@ -64,7 +64,9 @@ import { useGame } from '../../store';
 import { createBackdrop, type FxBackdrop } from './backdrop';
 import { Timeline } from './Timeline';
 import { previewClock } from './timelineModel';
-import { ANCHOR_OPTIONS, anchorBlurb, primitiveBlurb, primitiveLabel } from './copy';
+import { ANCHOR_OPTIONS, ANCHOR_PART_OPTIONS, anchorBlurb, anchorPartBlurb, primitiveBlurb, primitiveLabel } from './copy';
+import { partsUsedByLayers } from '../anchorParts';
+import type { FxAnchorPart } from '../def';
 import { applyReorder } from './dragEdit';
 import { LayersPanel } from './LayersPanel';
 import {
@@ -75,6 +77,7 @@ import {
   fitDurationToLayers,
   removeLayer,
   setLayerAnchor,
+  setLayerAnchorPart,
   setLayerBow,
   setLayerStagger,
   setLayerMuted,
@@ -801,7 +804,8 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
           // ONE anchor resolve per frame, shared by every layer — then each layer picks its OWN point out of
           // it by its own `anchor` (see `driveLayerHeads`). This is what makes a composition previewable as
           // the thing it is: a burst pinned to `target` while a ribbon rides the `travel` arc.
-          const anchors = scenario.anchorsAt(vp, cursorRef.current);
+          // …plus the anchor PARTS this composition's layers use, so the DOM-backed scenarios can resolve them.
+          const anchors = scenario.anchorsAt(vp, cursorRef.current, partsUsedByLayers(layersRef.current));
           lastAnchorsRef.current = anchors;
           // A scenario may drive the head along a custom path (`bounce` arcing between two spots,
           // `pinnedCursor` tracking the live pointer). That path
@@ -1320,6 +1324,14 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
     if (layers[selected]?.anchor === anchor) return;
     record('structural');
     commitLayers(setLayerAnchor(layers, selected, anchor));
+  };
+
+  // The anchor PART ("a target within a source") — same structural treatment as the anchor itself, since it
+  // changes where the head is fed from for the layer's whole life. `card` puts the layer back to the centre.
+  const changeLayerAnchorPart = (part: FxAnchorPart): void => {
+    if ((layers[selected]?.anchorPart ?? 'card') === part) return;
+    record('structural');
+    commitLayers(setLayerAnchorPart(layers, selected, part));
   };
 
   // Timing edit: state (so it persists / survives the next rebuild via `layersRef`) PLUS a live push to the
@@ -2336,6 +2348,26 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
           option-level tooltip can't teach you what you're picking BETWEEN — and `travel` vs `slot` is
           exactly the pair nobody guesses right. */}
       <p className="fxwb-anchorblurb">{anchorBlurb(selLayer.anchor)}</p>
+      {/* The anchor PART — which piece of the anchored unit's card the head lands on. Only a UNIT anchor has
+          parts (source / target, and both ends of travel); slot / cursor / camera are points, not cards. */}
+      {(selLayer.anchor === 'source' || selLayer.anchor === 'target' || selLayer.anchor === 'travel') && (
+        <>
+          <label className="fxwb-anchorrow" htmlFor="fxwb-layer-anchorpart">
+            <span>Part</span>
+            <select
+              id="fxwb-layer-anchorpart"
+              value={selLayer.anchorPart ?? 'card'}
+              title={anchorPartBlurb(selLayer.anchorPart ?? 'card')}
+              onChange={(e) => changeLayerAnchorPart(e.target.value as FxAnchorPart)}
+            >
+              {ANCHOR_PART_OPTIONS.map((p) => <option key={p.id} value={p.id} title={p.blurb}>{p.label}</option>)}
+            </select>
+          </label>
+          {(selLayer.anchorPart ?? 'card') !== 'card' && (
+            <p className="fxwb-anchorblurb">{anchorPartBlurb(selLayer.anchorPart ?? 'card')}</p>
+          )}
+        </>
+      )}
       {/* Travel window. Only a `travel`-anchored layer has an arc to cross, so this is the one timing
           control that is conditional — showing it on a target-pinned burst would be a dial that does
           nothing. "Arrives with the layer" (the checkbox) is the default and serialises as an omission. */}

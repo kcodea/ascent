@@ -15,8 +15,10 @@ import {
   type FxParamSpec,
   type FxParamSpecs,
 } from '../params';
-import { filterEntries, filterOnCount, isFilterGroup, type FilterEntry } from './filterGroups';
+import { filterEntries, filterOnCount, isFilterGroup, moveFilter, type FilterEntry } from './filterGroups';
+import { CORE_BLUR_ID, FILTER_ORDER_KEY } from '../filterStack';
 import { importShapeFromFile, listShapeOptions, removeImportedShape } from '../shapeLibrary';
+import { imageUrlFor, importFramesFromFiles, importImageFromFile, listImageOptions, IMAGE_NONE } from '../imageLibrary';
 import { ColorPickerHSB } from './ColorPickerHSB';
 import { PalettePicker } from './PalettePicker';
 import { GradientEditor } from './GradientEditor';
@@ -110,7 +112,7 @@ export function Inspector({
 }: {
   specs: FxParamSpecs;
   values: Record<string, unknown>;
-  onChange: (key: string, value: number | boolean | string | number[] | number[][] | GradientStop[]) => void;
+  onChange: (key: string, value: number | boolean | string | number[] | number[][] | string[] | GradientStop[]) => void;
   /** Which primitive these specs belong to — the key the open/closed group state is persisted under. */
   primitiveId: string;
   /** Stable per-layer identity — the `emitpoints` control stores the uploaded SVG in localStorage under it,
@@ -429,22 +431,64 @@ export function Inspector({
                   </button>
                   {isOpen && (
                     <div className="fxwb-grpbody fxwb-filtersbody">
-                      {filterEntriesList.map((entry) => {
+                      {filtersOn > 1 && (
+                        <div className="fxwb-shape-hint" title="Pixi applies the first filter to the raw layer and each next one to that result. Use ▲ ▼ to reorder.">
+                          Applied top → bottom
+                        </div>
+                      )}
+                      {filterEntriesList.map((entry, index) => {
                         // On floats it to the top (see `filterEntries`'s ordering) and always shows its
                         // params; off but matching the live search also expands, so search still finds a
                         // knob buried inside a filter that isn't switched on. Otherwise stays collapsed to
                         // just its toggle — the entire point of folding 30+ groups into one.
                         const expanded = entry.on || (searching && filterEntryMatchesQuery(entry));
+                        // ▲/▼ only among ENABLED neighbours: the order of off filters is invisible.
+                        const canUp = entry.on && index > 0 && filterEntriesList[index - 1].on;
+                        const canDown = entry.on && index + 1 < filterEntriesList.length && filterEntriesList[index + 1].on;
                         return (
                           <div className="fxwb-filterrow" key={entry.id}>
-                            <label className="fxwb-filterhead" htmlFor={`fxwb-${entry.onKey}`}>
-                              <input
-                                id={`fxwb-${entry.onKey}`}
-                                type="checkbox"
-                                checked={entry.on}
-                                onChange={(e) => onChange(entry.onKey, e.target.checked)}
-                              />
-                              <span className="fxwb-filtername">{entry.label}</span>
+                            <label className="fxwb-filterhead" htmlFor={entry.id === CORE_BLUR_ID ? undefined : `fxwb-${entry.onKey}`}>
+                              {entry.id === CORE_BLUR_ID ? (
+                                // The core Blur has no toggle — it is on whenever Blur > 0 (set in Style). This
+                                // row exists so it can be ORDERED against the lab's filters.
+                                <span className="fxwb-filtername" style={{ opacity: entry.on ? 1 : 0.6 }} title="On whenever Blur > 0 — set the amount in the Style group. Here only to order it.">
+                                  {entry.on && filtersOn > 1 ? `${index + 1}. ` : ''}{entry.label}{entry.on ? '' : ' — off (Blur is 0)'}
+                                </span>
+                              ) : (
+                                <>
+                                  <input
+                                    id={`fxwb-${entry.onKey}`}
+                                    type="checkbox"
+                                    checked={entry.on}
+                                    onChange={(e) => onChange(entry.onKey, e.target.checked)}
+                                  />
+                                  <span className="fxwb-filtername">{entry.on && filtersOn > 1 ? `${index + 1}. ` : ''}{entry.label}</span>
+                                </>
+                              )}
+                              {entry.on && filtersOn > 1 && (
+                                <span style={{ marginLeft: 'auto', display: 'inline-flex', gap: 2 }}>
+                                  <button
+                                    type="button"
+                                    className="fxwb-shape-remove"
+                                    title="Apply earlier (move up)"
+                                    aria-label={`Move ${entry.label} up`}
+                                    disabled={!canUp}
+                                    onClick={(e) => { e.preventDefault(); onChange(FILTER_ORDER_KEY, moveFilter(filterEntriesList, entry.id, -1)); }}
+                                  >
+                                    ▲
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="fxwb-shape-remove"
+                                    title="Apply later (move down)"
+                                    aria-label={`Move ${entry.label} down`}
+                                    disabled={!canDown}
+                                    onClick={(e) => { e.preventDefault(); onChange(FILTER_ORDER_KEY, moveFilter(filterEntriesList, entry.id, 1)); }}
+                                  >
+                                    ▼
+                                  </button>
+                                </span>
+                              )}
                             </label>
                             {expanded && entry.paramKeys.length > 0 && (
                               <div className="fxwb-filterbody">{entry.paramKeys.map(renderRow)}</div>
@@ -498,7 +542,7 @@ function ParamRow({
   /** This param's spec default (from `defaultsOf`, computed once by the Inspector) — what a double-click
    *  reset restores. */
   defaultValue: unknown;
-  onChange: (key: string, value: number | boolean | string | number[] | number[][] | GradientStop[]) => void;
+  onChange: (key: string, value: number | boolean | string | number[] | number[][] | string[] | GradientStop[]) => void;
 }): React.ReactElement {
   const [helpOpen, setHelpOpen] = useState(false);
   // Plays the one-shot reset-confirmation pop; cleared on the animation's own `onAnimationEnd` so it can
@@ -511,7 +555,7 @@ function ParamRow({
   // the affordance and the gesture it enables never disagree with each other.
   const resetToDefault = (): void => {
     if (!changed) return;
-    onChange(key, defaultValue as number | boolean | string | number[] | number[][] | GradientStop[]);
+    onChange(key, defaultValue as number | boolean | string | number[] | number[][] | string[] | GradientStop[]);
     setResetFlash(true);
   };
 
@@ -590,6 +634,18 @@ function ParamRow({
           fallback={spec.default}
           disabled={off}
           onChange={(next) => onChange(key, next)}
+        />
+      )}
+      {spec.kind === 'image' && (
+        <ImageField
+          id={`fxwb-${key}`}
+          value={(value as string | undefined) ?? spec.default}
+          disabled={off}
+          onChange={(next) => onChange(key, next)}
+          // The field owns the import INTENT (single image / packed frames / an existing sheet) and writes the
+          // grid to the sibling Sheet params when the primitive has them, so a sheet plays the moment it lands.
+          sheet={'sheetCols' in values ? { cols: Number(values.sheetCols) || 1, rows: Number(values.sheetRows) || 1, frames: Number(values.sheetFrames) || 0 } : undefined}
+          onSheet={'sheetCols' in values ? (cols, rows, frames) => { onChange('sheetCols', cols); onChange('sheetRows', rows); onChange('sheetFrames', frames); } : undefined}
         />
       )}
       {spec.kind === 'emitpoints' && (
@@ -719,6 +775,169 @@ function ShapeField({
         />
       </label>
       <div className="fxwb-shape-hint">Transparency is the silhouette — opaque art is auto-traced from brightness.</div>
+      {error !== null && <div className="fxwb-shape-err">{error}</div>}
+    </div>
+  );
+}
+
+/**
+ * The `image` param's control (the `custom` primitive's picture): a picker of every `image:<slug>` the build
+ * can see plus this session's imports, a thumbnail of the selection, and an Import button. Importing writes
+ * the PNG straight to `defs/images/` through the dev plugin (see `imageLibrary.ts` — there is no local-only
+ * tier and nothing to promote on Save), so a fresh import is selectable immediately and ships with the def.
+ * Reuses the `fxwb-shape*` classes so this needs no stylesheet change.
+ */
+function ImageField({
+  id,
+  value,
+  disabled = false,
+  onChange,
+  sheet,
+  onSheet,
+}: {
+  id: string;
+  value: string;
+  disabled?: boolean;
+  onChange: (next: string) => void;
+  /** The sibling Sheet params' current values, when the primitive has them (drives the Sprite sheet inputs). */
+  sheet?: { cols: number; rows: number; frames: number };
+  /** Writes the grid to the sibling Sheet params: after a packed import, on a single import (reset to 1 × 1),
+   *  and live from the Sprite sheet inputs. */
+  onSheet?: (cols: number, rows: number, frames: number) => void;
+}): React.ReactElement {
+  const [, bumpRegistry] = useState(0);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  // What the next import IS. Starts as 'sheet' when the layer already has a grid, so re-importing a sheet
+  // doesn't silently flatten it; otherwise a plain picture.
+  const [source, setSource] = useState<'single' | 'frames' | 'sheet'>(sheet && sheet.cols * sheet.rows > 1 ? 'sheet' : 'single');
+  // 0 = near-square auto grid. Set it to the frames-per-take to pack takes as rows (→ Variant rows).
+  const [perRow, setPerRow] = useState(0);
+
+  const options = listImageOptions();
+  const selected = options.find((o) => o.id === value);
+  const thumb = value === IMAGE_NONE ? null : imageUrlFor(value);
+
+  const runImport = async (files: File[]): Promise<void> => {
+    setBusy(true);
+    setError(null);
+    try {
+      if (source === 'frames') {
+        // N individual frames → one packed sheet, and the grid handed up so it plays immediately.
+        const packed = await importFramesFromFiles(files, perRow);
+        bumpRegistry((n) => n + 1);
+        onChange(packed.id);
+        onSheet?.(packed.cols, packed.rows, packed.frames);
+      } else {
+        const image = await importImageFromFile(files[0]);
+        bumpRegistry((n) => n + 1);
+        onChange(image.id);
+        // A single picture is 1 × 1; a sheet keeps whatever grid the inputs below say.
+        if (source === 'single') onSheet?.(1, 1, 0);
+      }
+    } catch (err) {
+      // Never throw into render — surface it as a line under the picker.
+      setError(err instanceof Error ? err.message : 'Import failed.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="fxwb-shape">
+      <div className="fxwb-shape-row">
+        <select id={id} value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)}>
+          <option value={IMAGE_NONE}>(none)</option>
+          {options.length > 0 && (
+            <optgroup label="Images">
+              {options.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+            </optgroup>
+          )}
+          {/* A def can name an image this build can't see (not yet pulled / not committed). Keep the id
+              visible + selected rather than snapping the dropdown elsewhere — the layer draws nothing for it. */}
+          {value !== IMAGE_NONE && selected === undefined && <option value={value}>{value} (missing)</option>}
+        </select>
+        {thumb !== null && (
+          <img
+            src={thumb}
+            alt={selected?.label ?? value}
+            decoding="sync"
+            style={{ width: 40, height: 40, objectFit: 'contain', marginLeft: 6, flex: 'none' }}
+          />
+        )}
+      </div>
+      {onSheet !== undefined && (
+        <label className="fxwb-shape-hint" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          Source
+          <select
+            value={source}
+            disabled={busy || disabled}
+            onChange={(e) => setSource(e.target.value as 'single' | 'frames' | 'sheet')}
+            title="What the next import is: one picture, a set of individual frame files to pack into a sheet, or a file that already is a sprite-sheet grid."
+          >
+            <option value="single">Single image</option>
+            <option value="frames">Image frames (pack)</option>
+            <option value="sheet">Sprite sheet</option>
+          </select>
+        </label>
+      )}
+      <label className="fxwb-shape-import">
+        {busy ? 'Importing…' : source === 'frames' ? 'Import frames (select all)…' : 'Import PNG / SVG…'}
+        <input
+          type="file"
+          accept="image/png,image/svg+xml,.png,.svg"
+          multiple={source === 'frames'}
+          disabled={busy || disabled}
+          onChange={(e) => {
+            const files = Array.from(e.target.files ?? []);
+            e.target.value = ''; // clear so re-picking the same files fires change again
+            if (files.length > 0) void runImport(files);
+          }}
+        />
+      </label>
+      {onSheet !== undefined && source === 'frames' && (
+        <label className="fxwb-shape-hint" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          Frames per take
+          <input
+            type="number"
+            min={0}
+            max={16}
+            step={1}
+            value={perRow}
+            disabled={busy || disabled}
+            style={{ width: 56 }}
+            onChange={(e) => setPerRow(Math.max(0, Math.min(16, Math.floor(Number(e.target.value) || 0))))}
+            title="Leave at 0 for one animation (auto near-square grid). If your files are SEVERAL takes of the same animation (slashA_1..4, slashB_1..4 …), set the frames per take so each take packs as its own row — then turn on Variant rows to pick a take per fire."
+          />
+          <span>(0 = one animation)</span>
+        </label>
+      )}
+      {onSheet !== undefined && sheet !== undefined && source === 'sheet' && (
+        <div className="fxwb-shape-hint" style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+          {/* The grid IS the frame count. The Sheet group's "Frame count" stays for the padded-last-row case. */}
+          {([['Columns', 'cols'], ['Rows', 'rows']] as const).map(([label, k]) => (
+            <label key={k} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              {label}
+              <input
+                type="number"
+                min={1}
+                max={16}
+                step={1}
+                value={sheet[k]}
+                disabled={busy || disabled}
+                style={{ width: 56 }}
+                onChange={(e) => {
+                  const v = Math.max(1, Math.min(16, Math.floor(Number(e.target.value) || 1)));
+                  const next = { ...sheet, [k]: v };
+                  onSheet(next.cols, next.rows, next.frames);
+                }}
+                title={`Grid ${label.toLowerCase()} of the sheet.`}
+              />
+            </label>
+          ))}
+        </div>
+      )}
+      <div className="fxwb-shape-hint">Drawn with its true colours, fitted within 1024 px. Written to defs/images/ — only commit art meant to ship.</div>
       {error !== null && <div className="fxwb-shape-err">{error}</div>}
     </div>
   );

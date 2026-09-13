@@ -224,7 +224,12 @@ export function createPlayer(def: FxDef, ctx: FxContext, opts: FxPlayerOptions =
     const container = new Container();
     ctx.container.addChild(container);
     const merged = { ...layer.params, ...overrides.get(index) };
-    const primCtx: FxContext = { container, renderer: ctx.renderer, oneShot, seed: seedFor(index), uids: ctx.uids };
+    // `effectRoot` is this player's own container — the parent of every layer — so a layer can act on its
+    // siblings (see `FxContext.effectRoot`). It is per-effect: `playDef`/the workbench hand each player a
+    // fresh container, never the shared overlay layer.
+    const primCtx: FxContext = {
+      container, renderer: ctx.renderer, oneShot, seed: seedFor(index), uids: ctx.uids, effectRoot: ctx.container,
+    };
     const inst = prim.spawn(primCtx, coerceParams(prim.params, merged));
     live.set(index, { inst, container });
   };

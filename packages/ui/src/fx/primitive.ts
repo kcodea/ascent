@@ -26,6 +26,14 @@ export interface FxContext {
    * back to the first player unit so a def is still previewable.
    */
   uids?: { source?: string | null; target?: string | null };
+  /**
+   * The container holding EVERY layer of this effect — the player's own root, of which `container` is one
+   * child. Present so a layer can act on its SIBLINGS: `custom`'s `displace`/`mask` roles hang a
+   * displacement filter / alpha mask off this root so an imported image distorts or reveals the effect's
+   * other layers. Anything attached here must be removed in `destroy()`. Absent from callers that spawn a
+   * primitive outside a player (tests, bespoke direct calls), in which case cross-layer roles simply no-op.
+   */
+  effectRoot?: Container;
 }
 
 /**

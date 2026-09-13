@@ -1093,7 +1093,7 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   // param (a list of [t, v] control points); `GradientStop[]` covers the gradient param (a list of
   // `{ at, color }` stops). Every value flows unchanged through setLayerParams' `Record<string, unknown>`,
   // then coerceParams validates it per the primitive's spec.
-  const change = (key: string, value: number | boolean | string | number[] | number[][] | GradientStop[]): void => {
+  const change = (key: string, value: number | boolean | string | number[] | number[][] | string[] | GradientStop[]): void => {
     // Keyed by LAYER + param so dragging `size` on one layer and then on another is two undo steps, not one.
     record('param', `${selected}:${key}`);
     autosaveArmedRef.current = true;

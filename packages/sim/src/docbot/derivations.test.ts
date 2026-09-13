@@ -32,14 +32,19 @@ describe('Doc Bot — derivation pairs', () => {
     // pair keeps it that way for every discount source, alone and stacked, free-first-buy included.
     const rng = makeRng(0x5e11e4);
     const TRIBES = ['beast', 'demon', 'dragon', 'dwarf', 'kobold', 'undead', 'spirit', 'celestial', 'mech'] as const;
-    let charged = 0;
+    let charged = 0, starforms = 0;
     for (let i = 0; i < 100; i++) {
       const def = NON_FODDER[rng.int(NON_FODDER.length)]!;
-      const offer: ShopCard = { uid: 'offer', cardId: def.id, ...(rng.int(4) === 0 ? { cost: 1 + rng.int(3) } : {}) };
+      // THE STARFORM (owner rule A, 2026-09-13): one offer in five is the token — its live price rides `cost`
+      // (6 → 0 over refreshes) and every discount applies to it exactly like a minion, so it belongs in this pair.
+      const starform = rng.int(5) === 0;
+      const offer: ShopCard = starform
+        ? { uid: 'offer', cardId: 'ce3_starform', starform: true, cost: rng.int(7) }
+        : { uid: 'offer', cardId: def.id, ...(rng.int(4) === 0 ? { cost: 1 + rng.int(3) } : {}) };
       const tribe = TRIBES[rng.int(TRIBES.length)]!;
       const s: RunState = {
         ...createRun(5000 + i),
-        embers: 50, board: [], hand: [], shop: [offer],
+        embers: 50, board: starform && rng.int(2) === 0 ? [{ uid: 'cel', cardId: 'ce3_courier', tribe: 'celestial', attack: 1, health: 1, keywords: [], golden: false }] : [], hand: [], shop: [offer],
         ...(rng.int(3) === 0 ? { spiritDiscount: 1 + rng.int(3) } : {}),
         ...(rng.int(3) === 0 ? { runeTradeIn: true, tradeInTribe: tribe, questFlags: { runeTradeIn: 1 } } : {}),
         ...(rng.int(3) === 0 ? { cadenceMinionOff: 1 } : {}),
@@ -52,9 +57,11 @@ describe('Doc Bot — derivation pairs', () => {
       const after = reduce(s, { type: 'buy', uid: 'offer' });
       if (after === s) continue; // refused (hand cap etc.) — nothing to compare
       charged++;
+      if (starform) starforms++;
       expect(s.embers - after.embers, `${def.id} under ${JSON.stringify({ spirit: s.spiritDiscount, ti: s.tradeInTribe, cad: s.cadenceMinionOff, gift: s.minionCostOffTurn, win: s.cardDiscountWindow?.amount, ovr: s.minionCostOverride, free: price.freeBuy })}`).toBe(price.cost);
     }
     expect(charged, 'the fuzz must actually buy').toBeGreaterThan(80);
+    expect(starforms, 'the fuzz must actually buy Starforms').toBeGreaterThan(8);
   });
 
   it('PAIR: offerBuyStats ↔ the reducer buy path — an offer is worth what buying it pays (100 fuzzed states)', () => {

@@ -3,18 +3,20 @@ import { CARD_INDEX } from '@game/content';
 import type { CardDef } from '@game/core';
 import {
   createRun, reduce, tierSlots, offerBuyPrice, offerBuyStats, topUpTavern, rollShop, elevateShop, rollSpellShop,
-  STARFORM_ID, createStarform, hasStarform, starformOf, starformStats, buffStarform, starformConsumeShopMinion,
-  consumeStarform, collapseStarform, serialize, deserialize,
+  STARFORM_ID, STARFORM_START_PRICE, createStarform, hasStarform, starformOf, starformStats, starformPrice, buffStarform, starformConsumeShopMinion,
+  consumeStarform, collapseStarform, collapseHits, destroyStarform, serialize, deserialize,
+  equipmentState, equipmentChargesOf, equipmentCostOf, holdsEquipment, selectEquipment,
   type Action, type BoardCard, type RunState, type ShopCard,
 } from './index';
+import { STAR_DESTROYER } from '@game/content';
 import { applyShopRefreshed, addTurnShopBuff, applyRunShopBuff, consumeShopMinion, addOfferBuff, castSpellOnOffer, rightmostShopMinion } from './recruit';
 
 /**
- * THE STARFORM — set 3 Celestials' shop token (owner design 2026-09-12). Every numbered rule in the design is a
- * ruling; every ruling is a test here. Driven through the REAL `reduce` wherever an action exists (the 0-Gold
- * dismiss buy, `roll`, `freeze`, the turn rollover) and through the exported helpers otherwise — the card
- * factories that will call them (Star Seed, Corona Devotee, Nova Herald, Twin Star, Accretion) are the content
- * PR's; this file pins the engine they will stand on.
+ * THE STARFORM — set 3 Celestials' shop token (owner design 2026-09-12; rules v2 2026-09-13). Every numbered
+ * rule in the design is a ruling; every ruling is a test here. Driven through the REAL `reduce` wherever an
+ * action exists (the buy, `roll`, `freeze`, `activateEquipment`, the turn rollover) and through the exported
+ * helpers otherwise — the card factories that call them (Star Seed, Corona Devotee, Nova Herald, Twin Star,
+ * Accretion) are pinned in `set3CelestialRoster.test.ts`; this file pins the engine they stand on.
  */
 const body = (uid: string, cardId: string, over: Partial<BoardCard> = {}): BoardCard => {
   const d = CARD_INDEX[cardId]!;
@@ -41,7 +43,9 @@ const buyWatcher: CardDef = { id: 'dbg_peddler', name: 'Stardust Peddler (probe)
   effects: [{ on: 'onBuy', do: 'onBattlecryBuffSelf', params: { attack: 3, health: 0 } }], text: '' };
 const consumeWatcher: CardDef = { id: 'dbg_gorger', name: 'Consume watcher (probe)', tribe: 'demon', tier: 2, attack: 2, health: 2, keywords: [],
   effects: [{ on: 'onConsume', do: 'onBattlecryBuffSelf', params: { attack: 0, health: 7 } }], text: '' };
-for (const c of [gainedWatcher, removedWatcher, buyWatcher, consumeWatcher]) CARD_INDEX[c.id] = c;
+/** A NON-Celestial removed-watcher, for the "no Celestial on board" buy: it hears the exit but can never receive. */
+const removedWatcherN: CardDef = { ...removedWatcher, id: 'dbg_zenith_n', tribe: 'neutral' };
+for (const c of [gainedWatcher, removedWatcher, buyWatcher, consumeWatcher, removedWatcherN]) CARD_INDEX[c.id] = c;
 
 describe('Starform — the token def', () => {
   it('is a 1/1 Celestial token with no rules text, out of every draw pool', () => {
@@ -54,7 +58,7 @@ describe('Starform — the token def', () => {
 });
 
 describe('rule 1 — created into the right-most Shop slot', () => {
-  it('an open slot: appended right-most as a 1/1, flagged, priced 0', () => {
+  it('an open slot: appended right-most as a 1/1, flagged, priced 6', () => {
     let s = run();
     s = act(s, { type: 'buy', uid: s.shop[0]!.uid }); // open a slot
     const before = s.shop.length;
@@ -63,7 +67,8 @@ describe('rule 1 — created into the right-most Shop slot', () => {
     expect(s.shop[s.shop.length - 1]).toBe(sf);
     expect(sf).toMatchObject({ cardId: STARFORM_ID, starform: true });
     expect(sfStats(s)).toEqual([1, 1]);
-    expect(offerBuyPrice(s, sf).cost, 'the coin reads 0').toBe(0);
+    expect(sf.cost, 'spawns at 6 Gold (rule 5)').toBe(STARFORM_START_PRICE);
+    expect(offerBuyPrice(s, sf).cost, 'the coin reads 6').toBe(6);
     expect(hasStarform(s)).toBe(true);
     expect(starformOf(s)).toBe(sf);
   });
@@ -251,32 +256,146 @@ describe('rule 4 — refresh-time right-most buffs land ONCE', () => {
   });
 });
 
-describe('rule 5 — cannot be bought like a minion; a 0-Gold buy dismisses it', () => {
-  it('buying it costs 0, removes it, puts nothing in hand, returns nothing to the pool — and COUNTS as a buy', () => {
-    let s = run({ board: [body('p', buyWatcher.id)] });
+describe('rule 5 — it has a PRICE: 6 Gold, −1 per refresh (floor 0), across turns; a new token starts at 6 again', () => {
+  it('the price ladder: 6 → 5 → 4 … → 0 and no lower, over PAID and FREE refreshes alike', () => {
+    let s = runOpen({ embers: 40, freeRolls: 2 });
+    createStarform(s, SRC);
+    expect(starformPrice(s)).toBe(6);
+    const expected = [5, 4, 3, 2, 1, 0, 0, 0];
+    for (const want of expected) {
+      const gold = s.embers;
+      s = act(s, { type: 'roll' });
+      expect(starformPrice(s)).toBe(want);
+      if (s.freeRolls === 1 || s.freeRolls === 0 && gold === s.embers) expect(s.embers, 'a banked free refresh still ticks the price').toBe(gold);
+    }
+    expect(offerBuyPrice(s, starformOf(s)!).cost, 'the coin reads the live price').toBe(0);
+  });
+
+  it('Rune of Window Shopping\'s free refreshes tick it too — ANY roll counts', () => {
+    let s = runOpen({ runeWindowShopping: true, questFlags: { runeWindowShopping: 1 } } as Partial<RunState>);
+    createStarform(s, SRC);
+    const gold = s.embers;
+    s = act(s, { type: 'roll' });
+    expect(s.embers, 'free').toBe(gold);
+    expect(starformPrice(s)).toBe(5);
+  });
+
+  it('the reduction SURVIVES the turn boundary and a save / restore: a 3-Gold Starform is 3 Gold next turn', () => {
+    let s = runOpen();
+    createStarform(s, SRC);
+    for (let i = 0; i < 3; i++) s = act(s, { type: 'roll' });
+    expect(starformPrice(s)).toBe(3);
+    const settled = act(act(s, { type: 'faceOmen' }), { type: 'settleCombat' });
+    s = act(settled, { type: 'resolveCombat' });
+    expect(s.phase).toBe('recruit');
+    expect(starformPrice(s), 'the new turn\'s opening roll is not a refresh').toBe(3);
+    expect(starformPrice(deserialize(serialize(s)))).toBe(3);
+  });
+
+  it('a NEW token starts at 6 again — after the old one left, and after a Zenith-style re-creation', () => {
+    let s = runOpen();
+    createStarform(s, SRC);
+    s = act(s, { type: 'roll' });
+    s = act(s, { type: 'roll' });
+    expect(starformPrice(s)).toBe(4);
+    collapseStarform(s);
+    expect(hasStarform(s)).toBe(false);
+    createStarform(s, SRC);
+    expect(starformPrice(s), 'fresh token, fresh price').toBe(6);
+    // A legacy save whose token predates the price field heals to 6, never to the flat minion cost.
+    const legacy = serialize(s).replace(/"cost":6/g, '"cost":99');
+    const back = deserialize(legacy);
+    back.shop.forEach((o) => { if (o.starform) delete o.cost; });
+    expect(starformPrice(deserialize(serialize(back)))).toBe(6);
+  });
+
+  it('the price helper takes EVERY regular discount like any minion — Cadence, Trade-In, the Gift, the Thymepiece window, the free first buy — and the buy charges exactly the coin', () => {
+    const cases: Partial<RunState>[] = [
+      { runeCadence: true, cadenceMinionOff: 1, questFlags: { runeCadence: 1 } } as Partial<RunState>,
+      { runeTradeIn: true, tradeInTribe: 'celestial', questFlags: { runeTradeIn: 1 } } as Partial<RunState>,
+      { minionCostOffTurn: 2 },
+      { cardDiscountWindow: { amount: 1, untilClock: null } } as Partial<RunState>,
+      { questFreeFirstBuy: true },
+      { runeCadence: true, cadenceMinionOff: 1, questFlags: { runeCadence: 1 }, minionCostOffTurn: 2, cardDiscountWindow: { amount: 1, untilClock: null } } as Partial<RunState>,
+    ];
+    const wants = [5, 5, 4, 5, 0, 2];
+    cases.forEach((over, i) => {
+      let s = run({ ...over, board: [body('c', 'ce3_courier')] }); // a full row: the create eats the right-most (no buy spends a discount first)
+      const sf = createStarform(s, SRC);
+      const price = offerBuyPrice(s, sf);
+      expect(price.cost, JSON.stringify(over)).toBe(wants[i]);
+      const gold = s.embers;
+      s = act(s, { type: 'buy', uid: sf.uid });
+      expect(gold - s.embers, 'charged exactly the coin').toBe(wants[i]);
+      expect(hasStarform(s)).toBe(false);
+    });
+    // The Spirit discount never applies (the token is no Spirit); a set minion-cost override is NOT the token's price.
+    const s = runOpen({ spiritDiscount: 3, minionCostOverride: 1 } as Partial<RunState>);
+    expect(offerBuyPrice(s, createStarform(s, SRC))).toMatchObject({ cost: 6, spiritOff: 0 });
+  });
+
+  it('too poor for the live price → the buy is refused, the token stays', () => {
+    let s = runOpen({ embers: 2, board: [body('c', 'ce3_courier')] });
     const sf = createStarform(s, SRC);
+    const before = s;
+    s = act(s, { type: 'buy', uid: sf.uid });
+    expect(s).toBe(before);
+    expect(hasStarform(s)).toBe(true);
+  });
+});
+
+describe('rule 5 — BUYING it = your LEFT-MOST Celestial consumes it (full stats); no Celestial → the token is lost; still a buy', () => {
+  it('the left-most board Celestial (index 0 first) gains the token\'s FULL stats under the Starform ledger line; nothing enters the hand; the Gold is spent', () => {
+    let s = runOpen({ board: [body('n', 'sandbag'), body('c1', 'ce3_courier'), body('c2', 'ce3_vendor'), body('p', buyWatcher.id)] });
+    const sf = createStarform(s, SRC);
+    buffStarform(s, 4, 6, 'test'); // 5/7
     const gold = s.embers, hand = s.hand.length, pool = { ...s.pool };
     s = act(s, { type: 'buy', uid: sf.uid });
     expect(hasStarform(s)).toBe(false);
-    expect(s.embers, 'free').toBe(gold);
+    expect(gold - s.embers, '6 Gold').toBe(6);
     expect(s.hand.length, 'nothing entered the hand').toBe(hand);
     expect(s.pool, 'nothing returned').toEqual(pool);
-    expect(s.cardsBoughtThisTurn, 'counted as a minion bought').toBe(1);
-    expect(s.board[0]!.attack, 'the onBuy watcher heard it').toBe(2 + 3);
+    const c1 = s.board.find((c) => c.uid === 'c1')!, c2 = s.board.find((c) => c.uid === 'c2')!;
+    expect([c1.attack, c1.health], 'the LEFT-most Celestial — the sandbag at index 0 is skipped').toEqual([1 + 5, 1 + 7]);
+    expect(c1.buffs?.find((b) => b.source === 'Starform')).toMatchObject({ attack: 5, health: 7 });
+    expect([c2.attack, c2.health], 'the second Celestial gets nothing').toEqual([2, 4]);
+    expect(s.board[0]!.attack, 'the non-Celestial is untouched').toBe(0);
+    expect(s.cardsBoughtThisTurn, 'counted as a minion bought (the opening buy + this one)').toBe(2);
+    expect(s.board[3]!.attack, 'the onBuy watcher heard it (twice: the opening buy + this one)').toBe(2 + 3 + 3);
   });
 
-  it('the dismiss buy tells the Zenith-style watcher why, and cannot triple', () => {
-    let s = run({ board: [body('z', removedWatcher.id)] });
+  it('with ONE Celestial it is that one; with THREE it is still only the left-most', () => {
+    let one = runOpen({ board: [body('c', 'ce3_courier')] });
+    buffStarform(one, 2, 2, 'test'); createStarform(one, SRC); buffStarform(one, 2, 2, 'test');
+    one = act(one, { type: 'buy', uid: starformOf(one)!.uid });
+    expect([one.board[0]!.attack, one.board[0]!.health]).toEqual([1 + 3, 1 + 3]);
+    let three = runOpen({ board: [body('a', 'ce3_courier'), body('b', 'ce3_vendor'), body('c', 'ce3_seer')] }); // three DIFFERENT Celestials (three of a kind would triple)
+    createStarform(three, SRC); buffStarform(three, 9, 9, 'test');
+    three = act(three, { type: 'buy', uid: starformOf(three)!.uid });
+    expect(three.board.map((c) => c.attack)).toEqual([11, 2, 3]);
+  });
+
+  it('NO Celestial on board: the Gold is still taken, the token is lost (stats go nowhere), and the watcher hears reason consume — so a Zenith still re-creates', () => {
+    let s = runOpen({ board: [body('n', 'sandbag'), body('z', removedWatcherN.id)] });
+    const sf = createStarform(s, SRC);
+    buffStarform(s, 4, 4, 'test');
+    const gold = s.embers;
+    s = act(s, { type: 'buy', uid: sf.uid });
+    expect(hasStarform(s)).toBe(false);
+    expect(gold - s.embers, 'no refund').toBe(6);
+    expect(s.board.map((c) => c.attack), 'nobody gained the stats; the (neutral) removed-watcher fired').toEqual([0, 2 + 5]);
+    expect(s.starformFx ?? [], 'no pull — there was no receiver').toEqual([]);
+    expect(s.hand.length, "only the opening buy's card").toBe(1);
+    expect(s.cardsBoughtThisTurn).toBe(2);
+  });
+
+  it('the buy fires starformRemoved(consume) and a `consumed` pull from the token to the receiver; it cannot triple', () => {
+    let s = runOpen({ board: [body('z', removedWatcher.id), body('c', 'ce3_courier')] });
     const sf = createStarform(s, SRC);
     s = act(s, { type: 'buy', uid: sf.uid });
-    expect(s.board[0]!.attack, 'starformRemoved fired').toBe(2 + 5);
-    expect(s.hand.length).toBe(0);
-  });
-
-  it('the price helper reports 0 with no discount consulted, so the coin and the charge agree', () => {
-    const s = run({ runeCadence: true, cadenceMinionOff: 1, minionCostOffTurn: 2, cardDiscountWindow: { amount: 1, untilClock: null } } as Partial<RunState>);
-    const sf = createStarform(s, SRC);
-    expect(offerBuyPrice(s, sf)).toEqual({ cost: 0, freeBuy: false, cadenceOff: 0, tradeInOff: 0, spiritOff: 0, giftMinionOff: 0, windowOff: 0 });
+    expect(s.board[0]!.attack, 'starformRemoved fired (+5) AND it received the 1/1 token as the left-most Celestial').toBe(2 + 5 + 1);
+    expect(s.starformFx).toEqual([{ kind: 'consumed', fromUid: sf.uid, toUids: ['z'] }]); // the watcher IS the left-most Celestial
+    expect(s.hand.length, "only the opening buy's card — the token never enters the hand").toBe(1);
   });
 
   it('is never gilded (Golden Touch skips it every time) and never held', () => {
@@ -298,6 +417,87 @@ describe('rule 5 — cannot be bought like a minion; a 0-Gold buy dismisses it',
     expect(hasStarform(s)).toBe(false);
     expect([eater.attack, eater.health]).toEqual([1 + 5, 1 + 5]);
     expect(s.board[1]!.attack, 'starformRemoved(consume)').toBe(2 + 5);
+    expect(holdsEquipment(s, STAR_DESTROYER.id), 'the Star Destroyer left with it').toBe(false);
+  });
+});
+
+describe('rule 9 — STAR DESTROYER: a standard Equipment sourced by the token, held exactly while a Starform exists; its use is the silent exit', () => {
+  it('exists iff a Starform exists: granted on create, dropped on every exit, re-granted on the next create and on the turn rebuild', () => {
+    const s = runOpen({ board: [body('c', 'ce3_courier')] });
+    expect(holdsEquipment(s, STAR_DESTROYER.id)).toBe(false);
+    const sf = createStarform(s, SRC);
+    expect(holdsEquipment(s, STAR_DESTROYER.id)).toBe(true);
+    const g = equipmentState(s).available.find((x) => x.equipmentId === STAR_DESTROYER.id)!;
+    expect(g).toMatchObject({ version: 'plain', sourceKind: 'starform', sourceUids: [sf.uid], ownChargeSpent: false });
+    expect(equipmentState(s).selectedEquipmentId, 'auto-selected with nothing else held').toBe(STAR_DESTROYER.id);
+    expect(equipmentCostOf(s, STAR_DESTROYER), 'costs 0').toBe(0);
+    expect(equipmentChargesOf(s, STAR_DESTROYER.id), 'its own once-per-turn charge').toBe(1);
+    // Every exit drops it.
+    let a = act(s, { type: 'buy', uid: sf.uid });
+    expect(holdsEquipment(a, STAR_DESTROYER.id), 'gone after the buy-consume').toBe(false);
+    const b = runOpen(); createStarform(b, SRC); collapseStarform(b);
+    expect(holdsEquipment(b, STAR_DESTROYER.id), 'gone after a collapse').toBe(false);
+    const c = runOpen(); createStarform(c, SRC); consumeStarform(c, body('x', 'ce3_courier'));
+    expect(holdsEquipment(c, STAR_DESTROYER.id), 'gone after a consume').toBe(false);
+    // Re-granted by the next create, with a fresh charge; and by the Start-of-Turn rebuild while the token survives.
+    const sf2 = createStarform(a, SRC);
+    expect(equipmentState(a).available.find((x) => x.equipmentId === STAR_DESTROYER.id)?.sourceUids).toEqual([sf2.uid]);
+    const settled = act(act(a, { type: 'faceOmen' }), { type: 'settleCombat' });
+    a = act(settled, { type: 'resolveCombat' });
+    expect(hasStarform(a)).toBe(true);
+    expect(holdsEquipment(a, STAR_DESTROYER.id), 'rebuilt with the turn').toBe(true);
+    expect(equipmentChargesOf(a, STAR_DESTROYER.id)).toBe(1);
+  });
+
+  it('activation is THE SILENT EXIT: the token leaves the Shop and nothing else happens — no watcher, no gain, no pull, not a buy, no Gold, no Zenith rebirth', () => {
+    let s = runOpen({ board: [body('z', removedWatcher.id), body('t', gainedWatcher.id), body('p', buyWatcher.id)] });
+    const sf = createStarform(s, SRC);
+    buffStarform(s, 5, 5, 'test');
+    const board = s.board.map((c) => [c.attack, c.health]);
+    const gold = s.embers, seq = s.starformFxSeq, bought = s.cardsBoughtThisTurn ?? 0, len = s.shop.length;
+    selectEquipment(s, STAR_DESTROYER.id);
+    s = act(s, { type: 'activateEquipment' });
+    expect(hasStarform(s)).toBe(false);
+    expect(s.shop.some((o) => o.uid === sf.uid)).toBe(false);
+    expect(s.shop.length, 'only the token left the row').toBe(len - 1);
+    expect(s.board.map((c) => [c.attack, c.health]), 'starformRemoved / starformGained / onBuy all stayed quiet').toEqual(board);
+    expect(s.embers, 'free').toBe(gold);
+    expect(s.starformFx ?? []).toEqual([]);
+    expect(s.starformFxSeq).toBe(seq);
+    expect(s.cardsBoughtThisTurn ?? 0).toBe(bought);
+    expect(holdsEquipment(s, STAR_DESTROYER.id), 'the Equipment left with the token').toBe(false);
+    expect(s.equipFx?.some((f) => f.kind === 'use' && f.equipmentId === STAR_DESTROYER.id), 'only the Equipment\'s own use cue').toBe(true);
+  });
+
+  it('spends its OWN charge: a second activation the same turn is refused; the shared bonus pool is drawn first like any Equipment', () => {
+    let s = runOpen();
+    createStarform(s, SRC);
+    selectEquipment(s, STAR_DESTROYER.id);
+    s = act(s, { type: 'activateEquipment' });
+    expect(hasStarform(s)).toBe(false);
+    createStarform(s, SRC); // a brand-new token → a brand-new entry with a fresh charge (the old entry was dropped)
+    expect(equipmentChargesOf(s, STAR_DESTROYER.id)).toBe(1);
+    // Within one token's life the charge is one per turn: drain it through the helper, then the action refuses.
+    const t = runOpen();
+    createStarform(t, SRC);
+    selectEquipment(t, STAR_DESTROYER.id);
+    t.equipment!.available.find((g) => g.equipmentId === STAR_DESTROYER.id)!.ownChargeSpent = true;
+    expect(equipmentChargesOf(t, STAR_DESTROYER.id)).toBe(0);
+    expect(act(t, { type: 'activateEquipment' }), 'refused — no charge').toBe(t);
+    expect(hasStarform(t)).toBe(true);
+    t.equipment!.bonusActivations = 1; // Equipment Charger's pool
+    expect(equipmentChargesOf(t, STAR_DESTROYER.id)).toBe(1);
+    const u = act(t, { type: 'activateEquipment' });
+    expect(hasStarform(u)).toBe(false);
+  });
+
+  it('destroyStarform directly: false with no token; true removes it and drops the Equipment', () => {
+    const s = runOpen();
+    expect(destroyStarform(s)).toBe(false);
+    createStarform(s, SRC);
+    expect(destroyStarform(s)).toBe(true);
+    expect(hasStarform(s)).toBe(false);
+    expect(holdsEquipment(s, STAR_DESTROYER.id)).toBe(false);
   });
 });
 
@@ -347,7 +547,7 @@ describe('rule 6 — printed stats are the counter; every shop buff bakes onto t
   });
 });
 
-describe('rule 7 — consume = 100% to one; collapse = 50% to three, rounded up; base included', () => {
+describe('rule 7 — consume = 100% to one; collapse = 50% to 2 unique + extras (with replacement), rounded up; base included', () => {
   it('consumeStarform removes the token and returns its FULL stats (base 1/1 included)', () => {
     const s = runOpen({ board: [body('c', 'ce3_courier'), body('z', removedWatcher.id)] });
     createStarform(s, SRC);
@@ -370,6 +570,36 @@ describe('rule 7 — consume = 100% to one; collapse = 50% to three, rounded up;
     expect(consumeStarform(s, body('c', 'ce3_courier'))).toBeNull();
     expect(collapseStarform(s)).toBeNull();
     expect(starformStats(s)).toBeNull();
+  });
+
+  it('collapseHits: 2 UNIQUE originals, then the extras WITH replacement; fewer Celestials → fewer originals; none → empty', () => {
+    const cel = (uid: string) => body(uid, 'ce3_courier');
+    const s = run({ board: [cel('a'), cel('b'), cel('c'), body('n', 'sandbag')] });
+    for (let seed = 0; seed < 20; seed++) {
+      s.rngCursor = seed;
+      const two = collapseHits(s, 2, 0);
+      expect(two).toHaveLength(2);
+      expect(new Set(two.map((c) => c.uid)).size, 'unique').toBe(2);
+      expect(two.some((c) => c.uid === 'n'), 'never a non-Celestial').toBe(false);
+    }
+    // Extras may repeat: over many seeds, at least one draw of 2 + 3 extras lands 3 on a single body.
+    let tripled = false;
+    for (let seed = 0; seed < 60 && !tripled; seed++) {
+      s.rngCursor = seed;
+      const hits = collapseHits(s, 2, 3);
+      expect(hits).toHaveLength(5);
+      const counts = new Map<string, number>();
+      for (const h of hits) counts.set(h.uid, (counts.get(h.uid) ?? 0) + 1);
+      if ([...counts.values()].some((n) => n >= 3)) tripled = true;
+    }
+    expect(tripled, 'replacement lets one Celestial take three').toBe(true);
+    const one = run({ board: [cel('a'), body('n', 'sandbag')] });
+    expect(collapseHits(one, 2, 2).map((c) => c.uid), '1 original + every extra on it').toEqual(['a', 'a', 'a']);
+    const none = run({ board: [body('n', 'sandbag')] });
+    expect(collapseHits(none, 2, 4)).toEqual([]);
+    // The run-wide counter feeds the default extras.
+    const wide = run({ board: [cel('a')], collapseExtraTargets: 3 } as Partial<RunState>);
+    expect(collapseHits(wide)).toHaveLength(4);
   });
 });
 
@@ -406,14 +636,17 @@ describe('rule 8 — the watcher triggers', () => {
     expect(s.board[0]!.attack, 'nothing grew → nothing fired').toBe(4);
   });
 
-  it('starformRemoved carries the reason for every exit', () => {
-    for (const exit of ['consume', 'collapse', 'dismiss'] as const) {
+  it('starformRemoved carries the reason for every exit that IS an exit — consume, collapse, the buy — and never for the Star Destroyer', () => {
+    for (const exit of ['consume', 'collapse', 'buy', 'destroy'] as const) {
       let s = run({ board: [body('z', removedWatcher.id)] });
       const sf = createStarform(s, SRC);
       if (exit === 'consume') consumeStarform(s, s.board[0]!);
       else if (exit === 'collapse') collapseStarform(s);
-      else s = act(s, { type: 'buy', uid: sf.uid });
-      expect(s.board[0]!.attack, `${exit} → the watcher fired`).toBe(2 + 5);
+      else if (exit === 'buy') s = act(s, { type: 'buy', uid: sf.uid });
+      else destroyStarform(s);
+      // The buy also hands the token's stats to the watcher (it is the left-most Celestial) — at least +1.
+      if (exit === 'buy') expect(s.board[0]!.attack, 'buy').toBeGreaterThanOrEqual(2 + 5 + 1);
+      else expect(s.board[0]!.attack, `${exit}`).toBe(exit === 'destroy' ? 2 : 2 + 5);
       expect(hasStarform(s)).toBe(false);
     }
   });

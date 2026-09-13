@@ -1,4 +1,4 @@
-import { CARD_INDEX, EQUIPMENT_INDEX, equipmentOf, type EquipmentDefinition } from '@game/content';
+import { CARD_INDEX, EQUIPMENT_INDEX, STAR_DESTROYER, equipmentOf, type EquipmentDefinition } from '@game/content';
 import type { BoardCard, GrantedEquipment, PlayerEquipmentState, RunState } from './state';
 
 /**
@@ -118,8 +118,33 @@ export function equipmentText(def: EquipmentDefinition, version: 'plain' | 'gild
 /** Is this Equipment still backed by a body on the board? Sources are tracked per-uid, so a duplicate keeps
  *  the entry alive when one copy dies. Read by the REBUILD, never within a turn — inside a turn a grant
  *  deliberately outlives its source. */
-export function equipmentSourceAlive(run: Pick<RunState, 'board'>, g: GrantedEquipment): boolean {
+export function equipmentSourceAlive(run: Pick<RunState, 'board' | 'shop'>, g: GrantedEquipment): boolean {
+  if (g.sourceKind === 'starform') return run.shop.some((o) => o.starform && g.sourceUids.includes(o.uid));
   return g.sourceUids.some((uid) => run.board.some((c) => c.uid === uid));
+}
+
+/**
+ * STAR DESTROYER (owner rule C, 2026-09-13) — the one Equipment whose source is the STARFORM OFFER, not a board
+ * minion. Held exactly while a Starform exists: called from every path that creates or removes the token
+ * (`createStarform`, `removeStarform`, a Demon's Shop consume, the Destroyer's own exit), from the Start-of-Turn
+ * rebuild, and as a tripwire at the action boundary in `reduce`. Idempotent: grants when a token is out and the
+ * entry is missing, revokes when the token is gone and the entry lingers, re-points `sourceUids` at a NEW token.
+ * A revoke that was showing in the slot hands the selection to the left-most surviving entry. Never gilded.
+ */
+export function syncStarDestroyer(run: RunState): void {
+  const sf = run.shop.find((o) => o.starform);
+  const e = equipmentState(run);
+  const held = e.available.find((g) => g.equipmentId === STAR_DESTROYER.id);
+  if (sf) {
+    if (held) { if (!held.sourceUids.includes(sf.uid)) held.sourceUids = [sf.uid]; return; }
+    const m = ensure(run);
+    m.available.push({ equipmentId: STAR_DESTROYER.id, version: 'plain', sourceKind: 'starform', sourceUids: [sf.uid], grantedTurn: run.wave, ownChargeSpent: false });
+    if (!m.selectedEquipmentId) m.selectedEquipmentId = STAR_DESTROYER.id;
+    return;
+  }
+  if (!held || !run.equipment) return;
+  run.equipment.available = run.equipment.available.filter((g) => g !== held);
+  if (run.equipment.selectedEquipmentId === STAR_DESTROYER.id) run.equipment.selectedEquipmentId = run.equipment.available[0]?.equipmentId;
 }
 
 /**
@@ -243,6 +268,8 @@ export function rebuildEquipment(run: RunState): ReequipCue[] {
     cued.add(def.id);
     cues.push({ uid: card.uid, cardId: card.cardId, equipmentId: def.id });
   }
+  // The Starform's own Equipment rides the token, not a body: re-granted here when the token survived the turn.
+  syncStarDestroyer(run);
   const e = run.equipment;
   // DEFAULT SELECTION: the last-used Equipment when a valid source survived, else the left-most — which is
   // already `available[0]`, because the scan above ran in board order.

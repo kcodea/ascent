@@ -24,7 +24,8 @@ import { handCap, mixSeed, reservedHandSlots, TAG, henchmanOffer, type Action, t
 import { alignmentsOf } from './alignment';
 import { RUNE_DUP_SWEETENER, RUNE_DUP_UNIQUE, forgeFilteredDuplicate, runeStacksOf } from './runeDup';
 import { spellFizzles } from './spellFizzle';
-import { dismissStarform, fireStarformGainRemainder, starformFollowShopBuff, starformSnapshot, starformSpellAimsToken, starformStandIn, withStarformPinned } from './starform';
+import { buyStarform, fireStarformGainRemainder, starformFollowShopBuff, starformRefreshTick, starformSnapshot, starformSpellAimsToken, starformStandIn, withStarformPinned } from './starform';
+import { syncStarDestroyer } from './equipment';
 import { fireOnBuyWatchers } from './recruit';
 import { MATCHMAKING } from './matchmaking';
 
@@ -249,8 +250,8 @@ export interface OfferBuyPrice {
   windowOff: number;
 }
 export function offerBuyPrice(s: RunState, offer: { cardId: string; cost?: number; starform?: true }): OfferBuyPrice {
-  // THE STARFORM costs 0 — buying it dismisses it (owner rule 5). No discount is consulted or spent on it.
-  if (offer.starform) return { cost: 0, freeBuy: false, cadenceOff: 0, tradeInOff: 0, spiritOff: 0, giftMinionOff: 0, windowOff: 0 };
+  // THE STARFORM (owner rule A, 2026-09-13) carries its LIVE price on `cost` (6 at creation, −1 per refresh) and
+  // takes every regular discount below exactly like any minion — there is deliberately no special case here.
   // "Freedom" rift OR Fi's First Pick quest: the FIRST minion bought each turn is free (overriding every
   // price source below). ONE shared spend-marker, so holding both is still one freebie per turn.
   const freeBuy = (s.rift === 'freedom' || !!s.questFreeFirstBuy) && !s.freeBuyUsedThisTurn;
@@ -843,6 +844,9 @@ export function reduce(state: RunState, action: Action): RunState {
     // / its own consume (a Fortify aimed at it, Apples, a slot enchant on a roll) fires `starformGained` here —
     // the same boundary-diff shape as the hand diff above, for the same reason: growth has many writers.
     fireStarformGainRemainder(next, starformSnapshot(state));
+    // STARFORM (rule 9) tripwire: the Star Destroyer is held exactly while a token exists. Every create / remove
+    // path syncs it inline; this catches any path that forgets (a scripted row, a legacy save without the entry).
+    syncStarDestroyer(next);
   }
   // onGainAttack reactors (Hunter — "when this gains Attack, give your minions +Health") fire whenever a
   // recruit action raises a BOARD minion's Attack, from ANY source (Fortify, spells, tribe Battlecries,
@@ -1360,16 +1364,27 @@ function reduceCore(state: RunState, action: Action): RunState {
         keshiCrownBuy(s, card); // Keshi: same for a spell bought out of the minion row
         return s;
       }
-      // THE STARFORM (owner rule 5): buying it for 0 Gold DISMISSES it — nothing enters the hand, nothing
-      // returns to the pool, no triple, no gild, no dupe / Transcription copy (there is no body to copy), no
-      // Restocking refill (nothing left the pool). It still COUNTS as a minion bought: the board's `onBuy`
-      // watchers hear it (with a Celestial stand-in as the bought body), and the buy tallies — `cardsBought` /
-      // quest buy objectives / `cardsBoughtThisTurn` (the post-action block in `reduce`, keyed off the action),
-      // Juggler, Gorr, Keshi, Ayse's Enchanted count, Cadence's spell-discount arming, Fried Circuits — all tick
-      // exactly as for a paid buy. The free first buy is NOT spent (the price was already 0).
+      // THE STARFORM (owner rules A + B, 2026-09-13): buying it charges its LIVE price (`offerBuyPrice`: the
+      // offer's `cost`, every regular discount applied — Cadence / Trade-In / Gift / Thymepiece / the free first
+      // buy, each SPENT exactly as a minion buy spends it) and your LEFT-MOST Celestial CONSUMES it (`buyStarform`
+      // → the consume path: `starformRemoved('consume')`, so Zenith re-creates and Twin Star hears the gain). With
+      // no Celestial on board the Gold is still taken and the token is simply lost (consumed into nothing, reason
+      // `consume`). Nothing enters the hand, nothing returns to the pool, no triple, no gild, no dupe /
+      // Transcription copy (there is no body to copy), no Restocking refill (nothing left the pool). It still
+      // COUNTS as a minion bought: the board's `onBuy` watchers hear it (with a Celestial stand-in as the bought
+      // body), and the buy tallies — `cardsBought` / quest buy objectives / `cardsBoughtThisTurn` (the post-action
+      // block in `reduce`, keyed off the action), Juggler, Gorr, Keshi, Ayse's Enchanted count, Cadence's
+      // spell-discount arming, Fried Circuits — all tick exactly as for a paid buy.
       if (offer.starform) {
+        const { cost: sfCost, freeBuy: sfFree, cadenceOff: sfCad, tradeInOff: sfTi, spiritOff: sfSpirit } = offerBuyPrice(s, offer);
+        if (s.embers < sfCost) return state;
         const standIn = starformStandIn(s, offer);
-        dismissStarform(s); // removes the offer + fires `starformRemoved('dismiss')` with its full stats
+        spendGold(s, sfCost);
+        if (sfSpirit > 0) s.spiritDiscount = 0; // (a Starform is no Spirit — never non-zero; kept for symmetry with the minion path)
+        if (sfCad) { procRuneId(s, 'rune_cadence'); s.cadenceMinionOff = undefined; }
+        if (sfTi) { procRuneId(s, 'rune_trade_in'); s.tradeInTribe = undefined; }
+        if (sfFree) s.freeBuyUsedThisTurn = true;
+        buyStarform(s); // removes the offer, buffs the left-most Celestial, fires `starformRemoved('consume')`
         ciaBuyEnchanted(s, offer);
         if (s.runeCadence) s.cadenceSpellOff = runeStacksOf(s, 'rune_cadence');
         if (s.friedCircuitsStepAtk || s.friedCircuitsStepHp) {
@@ -2399,6 +2414,9 @@ function reduceCore(state: RunState, action: Action): RunState {
       }
       s.frozen = false;
       refreshTavern(s);
+      // THE STARFORM (owner rule A, 2026-09-13): every refresh — paid, banked or Window-Shopping-free — knocks
+      // 1 Gold off the token's price (floor 0). The token itself survived the rebuild (rule 3).
+      starformRefreshTick(s);
       // Rune of the Bargain Bin: the FIRST refresh each turn fills the row with 1-Gold minions that sell for 0
       // — one binned refresh per copy held (owner 2026-08-27, unique-engine doubling).
       if (s.runeBargainBin && gateUses(s.bargainBinUsedThisTurn) < runeStacksOf(s, 'rune_bargain_bin')) { s.bargainBinUsedThisTurn = gateUses(s.bargainBinUsedThisTurn) + 1; procRuneId(s, 'rune_bargain_bin'); fillBargainBin(s); }

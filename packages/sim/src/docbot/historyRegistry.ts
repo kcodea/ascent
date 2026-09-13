@@ -71,8 +71,7 @@ export const PLAY_EXCUSED: Readonly<Record<string, string>> = {
   sp3_luminary: 'buffs 3 random OTHER Spirits; the clean-token board has none',
   // Set 3 Celestials — THE STARFORM ROSTER (2026-09-12): the token is a shop offer nothing in the clean fixture creates.
   ce3_accretionwarden: 'the STARFORM eats the highest-Tier Shop minion; the clean fixture holds no Starform (starform.ts rule 7: nothing without one)',
-  ce3_coronadevotee: 'consumes the STARFORM; the clean fixture holds no Starform',
-  ce3_novaherald: 'collapses the STARFORM; the clean fixture holds no Starform',
+  ce3_coronadevotee: 'collapses the STARFORM; the clean fixture holds no Starform',
   ce3_shootingstar: 'this shop +3/+3 per Shop spell cast THIS TURN; the fixture casts none before it',
   ce3_starcharter: 'Discovers a CELESTIAL; the fixture run\'s tribes hold no Celestial, so the tribe Discover has no pool to draw from',
 };

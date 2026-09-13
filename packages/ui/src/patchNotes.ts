@@ -55,6 +55,43 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-09-13',
+    label: 'Celestials: Starform rules v2',
+    changes: [
+      {
+        category: 'Card Change',
+        text: 'The Starform now costs Gold, and buying it feeds it to your left-most Celestial. It appears at 6 Gold and gets 1 cheaper with every Shop refresh.',
+        details: [
+          'The token spawns at 6 Gold. Every refresh — paid or free — takes 1 off, down to 0. The lower price carries into your next turn; a brand-new Starform (including one Zenith re-creates) starts at 6 again.',
+          'Buying it: your LEFT-most Celestial on the board consumes it and gains all of its stats. With no Celestial on board the Gold is still spent and the token is simply gone.',
+          'Every normal discount applies to it — Rune of Cadence, Trade-In, the Friends-and-Family Gift, the Thymepiece window, a free first buy. The coin on the card always shows what you will pay.',
+          'It still counts as a minion bought (Stardust Peddler and every "whenever you buy" effect hear it). The old free "buy to dismiss" is gone.',
+        ],
+      },
+      {
+        category: 'New Card',
+        text: 'Star Destroyer — an Equipment you hold whenever you have a Starform: use it (0 Gold, once per turn) to remove the Starform from the Shop with no other effect.',
+        details: [
+          'It sits in the Equipment rail beside anything your minions grant, with its own once-per-turn charge, and leaves the rail the moment the Starform is gone.',
+          'Using it is a clean removal: nothing gains stats, nothing counts as bought, and Zenith does not re-create the token.',
+        ],
+      },
+      {
+        category: 'Card Change',
+        text: 'Collapse is now 2 random friendly Celestials (was 3), each gaining half the Starform’s stats rounded up. Corona Devotee now Collapses instead of Consuming; Nova Herald becomes a passive that adds 2 extra Collapse hits.',
+        details: [
+          'Corona Devotee: "Shout: Collapse your Starform." (gilded: each hit gains the full stats). Its old Consume is now what buying the token does.',
+          'Nova Herald: "When you Collapse a Starform, it buffs 2 additional random Celestials." (gilded: 4). The extra hits can land on the same Celestial more than once — with two Celestials one can take three hits and the other one. Two Heralds add 4.',
+          'A Collapse with a single Celestial gives it the one hit plus every extra; with none, the token still breaks and the stats go nowhere.',
+        ],
+      },
+      {
+        category: 'UI / Info',
+        text: 'The Starform pull animation now plays once per Collapse hit, so a Celestial hit twice pulls twice; a Star Destroyer removal plays nothing.',
+      },
+    ],
+  },
+  {
     date: '2026-09-12',
     label: 'Celestials: the Starform',
     changes: [

@@ -91,6 +91,10 @@ const ALIASES: Record<string, string> = {
   luminary: 'sp3_luminary',            // card is Festival Luminary; the file carries the short name (the Sylus pattern)
   drakkothedrummer: 'drummer',         // the set-3 Neutrals folder carries Drakko's PRE-rename name (2026-09-09: 'Drakko')
   kornonthekob: 'k3_korn',             // card is 'Korn and the Kob'
+  // Set-3 Celestials (2026-09-13): the masters carry the two cards' PRE-rename names (owner rename 2026-09-12:
+  // Comet Conductor -> Neptus, Orrery Artificer -> Cometius; ids + art unchanged), and one is misspelled.
+  cometconductor: 'ce3_conductor',     // the card is Neptus
+  orreyartificer: 'ce3_artificer',     // the card is Cometius; the file also drops the second 'r' of Orrery
   groveweaveralt: 'b2_groveweaver',  // "GroveweaverAlt2" -> the b2_groveweaver2 variant slot
   cinderchancellor: 'dm_chancellor', // pre-rename name; RougeRogue.png wins the base slot, this fills `2`
   // 2026-07-31 renames. Hellrider and Lastlight now match their cards by name exactly, so they need no entry

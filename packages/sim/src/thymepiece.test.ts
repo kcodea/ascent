@@ -125,12 +125,12 @@ describe('what it discounts', () => {
     expect(offerBuyPrice(t, minionOffer(t)).cost).toBe(1);
     expect(Math.max(0, 1 - spellCostReduction(t, CARD_INDEX['emberpouch']))).toBe(0);
   });
-  it('the Starform stays 0 — no discount is consulted on it', () => {
+  it('the Starform is a card like any other: its live 6-Gold price takes the window (rules v2 2026-09-13)', () => {
     let s = armed();
     s = act(s, { type: 'buy', uid: minionOffer(s).uid }); // open a slot
     const sf = createStarform(s, { cardId: 'dbg_starseed', name: 'Star Seed' });
     const t = activate(s, 40);
-    expect(offerBuyPrice(t, sf)).toMatchObject({ cost: 0, windowOff: 0 });
+    expect(offerBuyPrice(t, sf)).toMatchObject({ cost: 5, windowOff: 1 });
   });
   it('a held (displaced) offer is never discounted — callers price it at the flat minion cost', () => {
     // Documented contract of `offerBuyPrice` (held offers branch before it); the UI reads `minionCostOf`.

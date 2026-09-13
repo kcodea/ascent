@@ -139,11 +139,13 @@ export const SET3_CELESTIALS: readonly CardDef[] = [
   {
     // THE STARFORM (owner design 2026-09-12) — a 1/1 Celestial TOKEN that lives IN THE SHOP as a shop offer, not
     // on the board: created into the right-most Shop slot, only one at a time, it survives every refresh in its
-    // own slot and grows from every shop buff + consume until a Celestial consumes it (100% of its stats to one
-    // body) or collapses it (50% to three). Its printed stats ARE the counter, so it carries no rules text
-    // (owner: "printed stats are the live counter"); the engine that moves it is `packages/sim/src/starform.ts`.
-    // `token: true` keeps it out of every draw pool — a card CREATES it (Star Seed & co., the content PR), the
-    // shop never rolls it. Buying it costs 0 and DISMISSES it (nothing enters the hand).
+    // own slot and grows from every shop buff + consume until it is bought (your LEFT-MOST Celestial consumes it
+    // for 100% of its stats — rules v2 2026-09-13) or collapsed (50% to 2 unique Celestials + extras). It spawns
+    // at 6 Gold and every refresh knocks 1 off (`ShopCard.cost`); its printed stats ARE the counter, so it carries
+    // no rules text (owner: "printed stats are the live counter"); the engine that moves it is
+    // `packages/sim/src/starform.ts`. `token: true` keeps it out of every draw pool — a card CREATES it (Star Seed
+    // & co.), the shop never rolls it. While it exists the player holds the Star Destroyer Equipment (a 0-Gold
+    // silent removal, `equipment.ts`).
     id: 'ce3_starform',
     name: 'Starform',
     tribe: 'celestial',
@@ -187,8 +189,9 @@ export const SET3_CELESTIALS: readonly CardDef[] = [
     goldenText: '**Taunt.** **Echo:** give a random friendly Celestial **+4/+2**.',
   },
   {
-    // T2: an `onBuy` watcher. The Starform's own 0-Gold dismiss buy COUNTS as a buy (rule 5) but the token is
-    // gone by the time the watchers hear it — a no-op by construction. Gilded: +2/+2 per buy.
+    // T2: an `onBuy` watcher. The Starform's own buy (consumed into your left-most Celestial) COUNTS as a buy
+    // (rule 5) but the token is gone by the time the watchers hear it — a no-op by construction unless a Zenith
+    // just re-created it. Gilded: +2/+2 per buy.
     id: 'ce3_peddler',
     name: 'Stardust Peddler',
     tribe: 'celestial',
@@ -280,8 +283,11 @@ export const SET3_CELESTIALS: readonly CardDef[] = [
     goldenText: '**End of Turn:** give your **Starform +4/+4**. **Start of Turn:** if you have no Starform, create one.',
   },
   {
-    // T4: CONSUME — the token leaves and this gains 100% of its stats (base 1/1 included, rule 7). No Starform →
-    // nothing. Gilded: gains DOUBLE its stats (`times` 2).
+    // T4 (rules v2 2026-09-13): COLLAPSE — the token leaves; 2 UNIQUE random friendly Celestials each gain HALF its
+    // stats (rounded up, base included, rule 7), plus the extras Nova Herald adds (with replacement). One Celestial
+    // → it takes the one original + every extra; a Starform but NO Celestial → the token still collapses and the
+    // stats go nowhere; no Starform → nothing happens. The Devotee itself is eligible. Gilded: each hit gains its
+    // FULL stats (double the half). (Its old Shout — Consume for 100% — is now the token's BUY.)
     id: 'ce3_coronadevotee',
     name: 'Corona Devotee',
     tribe: 'celestial',
@@ -289,9 +295,9 @@ export const SET3_CELESTIALS: readonly CardDef[] = [
     attack: 4,
     health: 5,
     keywords: [],
-    effects: [{ on: 'onPlay', do: 'battlecryConsumeStarform' }],
-    text: '**Shout:** Consume your **Starform**.',
-    goldenText: '**Shout:** Consume your **Starform** for **double** its stats.',
+    effects: [{ on: 'onPlay', do: 'battlecryCollapseStarform' }],
+    text: '**Shout:** Collapse your **Starform**.',
+    goldenText: '**Shout:** Collapse your **Starform** — each gains its **full** stats.',
   },
   {
     // T4: Discover a Celestial (Sea Urchin's factory: never itself via `exclude`; the Starform is a token and sits
@@ -352,10 +358,11 @@ export const SET3_CELESTIALS: readonly CardDef[] = [
     goldenText: 'Whenever your **Starform** gains stats, this gains **double**.',
   },
   {
-    // T6: COLLAPSE — the token leaves; 3 random friendly Celestials each gain HALF its stats (rounded up, base
-    // included, rule 7). Fewer than 3 Celestials → each present one gets it; a Starform but NO Celestial → the
-    // token still collapses and the stats go nowhere; no Starform → nothing happens (owner 2026-09-12).
-    // Gilded: each of the 3 gains its FULL stats (double the half).
+    // T6 (rules v2 2026-09-13): a PASSIVE — while on board, every Collapse (Corona Devotee's Shout) hits 2 EXTRA
+    // random friendly Celestials, drawn WITH replacement (an extra may land on a Celestial that already took a
+    // hit — with two Celestials one can take 3 and the other 1). Two Heralds → 4 extras; gilded → 4 each. Read off
+    // the card at collapse time (`collapseExtraTargetsOf`, the Constellation Prime id-read shape) — never
+    // dispatched. The text prints the static "2" (owner: "table for now" — no live total).
     id: 'ce3_novaherald',
     name: 'Nova Herald',
     tribe: 'celestial',
@@ -363,15 +370,16 @@ export const SET3_CELESTIALS: readonly CardDef[] = [
     attack: 6,
     health: 9,
     keywords: [],
-    effects: [{ on: 'onPlay', do: 'battlecryCollapseStarform', params: { count: 3 } }],
-    text: '**Shout:** Collapse your **Starform**.',
-    goldenText: '**Shout:** Collapse your **Starform** — each gains its **full** stats.',
+    effects: [{ on: 'passive', do: 'collapseExtraTargets', params: { extra: 2 } }],
+    text: 'When you Collapse a **Starform**, it buffs **2** additional random Celestials.',
+    goldenText: 'When you Collapse a **Starform**, it buffs **4** additional random Celestials.',
   },
   {
     // T7: a spell of ANY kind (Gravestar Seer's ruling — `includeRubies`) feeds the token +3/+3; when the token is
-    // Consumed or Collapses (NOT dismissed — the `starformRemoved` reason), a new one is created carrying HALF its
-    // stats above the base 1/1, rounded up (a full row eats its right-most minion as usual). Gilded: +6/+6 per
-    // spell, and the new token carries the FULL stats.
+    // Consumed (the buy into your left-most Celestial, a Demon eating it) or Collapses (Corona Devotee, Herald-
+    // assisted or not), a new one is created carrying HALF its stats above the base 1/1, rounded up, at the fresh
+    // 6-Gold price (a full row eats its right-most minion as usual). NOT after the Star Destroyer's silent exit.
+    // Gilded: +6/+6 per spell, and the new token carries the FULL stats.
     id: 'ce3_zenith',
     name: 'Zenith',
     tribe: 'celestial',

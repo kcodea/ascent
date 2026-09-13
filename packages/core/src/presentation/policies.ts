@@ -62,8 +62,8 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:buffThisShop:onDeath': { policy: 'ownBeat', family: 'echo' }, // Wishing Star (Echo half, shop only)
   'factory:battlecryStarformConsumeShop:onPlay': { policy: 'ownBeat', family: 'shout' }, // Accretion Warden
   'factory:battlecryBuffThisShopPerSpellsThisTurn:onPlay': { policy: 'ownBeat', family: 'shout' }, // Shooting Star
-  'factory:battlecryConsumeStarform:onPlay': { policy: 'ownBeat', family: 'shout' }, // Corona Devotee
-  'factory:battlecryCollapseStarform:onPlay': { policy: 'ownBeat', family: 'shout' }, // Nova Herald
+  'factory:battlecryCollapseStarform:onPlay': { policy: 'ownBeat', family: 'shout' }, // Corona Devotee (rules v2 2026-09-13: it Collapses)
+  'factory:collapseExtraTargets:passive': { policy: 'passive', family: 'passive' }, // Nova Herald — a marker read at Collapse time, never a beat
   'factory:onBuyBuffStarform:onBuy': { policy: 'foldedCue', family: 'economyReact' }, // Stardust Peddler
   'factory:endOfTurnBuffStarform:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' }, // Orbit Keeper (EoT half)
   'factory:startOfTurnCreateStarform:startOfTurn': { policy: 'ownBeat', family: 'economy' }, // Orbit Keeper (SoT half)

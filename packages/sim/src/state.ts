@@ -73,7 +73,9 @@ export interface ShopCard {
    *  mechanical role is that buying it advances `ciaEnchantedBought` toward her prize. */
   enchanted?: boolean;
   /** Moe: a set discount price for this offer (a guaranteed Attachment costs 2 Gold). When present, the buy
-   *  path charges this instead of the flat minion cost, and the UI shows a green price coin (a changed price). */
+   *  path charges this instead of the flat minion cost, and the UI shows a green price coin (a changed price).
+   *  THE STARFORM reuses this field as its LIVE PRICE (owner rules 2026-09-13): 6 at creation, −1 per refresh
+   *  (floor 0), carried across turns, reset to 6 on a fresh token — see `starform.ts`. */
   cost?: number;
   /** Displacement: a board minion stashed here when swapped to the tavern — restored INTACT (all buffs /
    *  stats / progression) when re-bought or swapped back, rather than re-instantiated from base. */
@@ -82,9 +84,9 @@ export interface ShopCard {
    *  for the CURRENT shop phase — cleared at `faceOmen`, so the first refresh after combat sweeps it (recast
    *  Layaway to keep it again). Any `cost` reduction rides the offer while it lasts. */
   kept?: boolean;
-  /** THE STARFORM (set 3 Celestials, owner design 2026-09-12): this offer is the run's Starform token — a 1/1
-   *  Celestial that lives in the Shop, survives every refresh IN ITS OWN SLOT, costs 0 (buying it DISMISSES it),
-   *  and grows from shop buffs + consumes. Its whole accumulated total is BAKED onto `atk`/`hp` + `buffs` (the
+  /** THE STARFORM (set 3 Celestials, owner design 2026-09-12; rules v2 2026-09-13): this offer is the run's
+   *  Starform token — a 1/1 Celestial that lives in the Shop, survives every refresh IN ITS OWN SLOT, carries a
+   *  live price on `cost` (buying it = your LEFT-MOST Celestial consumes it), and grows from shop buffs + consumes. Its whole accumulated total is BAKED onto `atk`/`hp` + `buffs` (the
    *  run-wide shop channels are folded in as they happen, never read live), so `offerBuyStats` = base + atk/hp.
    *  One per run at a time. Everything that moves it lives in `starform.ts`. */
   starform?: true;
@@ -1180,6 +1182,11 @@ export interface RunState {
    *  `toUids` lists every one, the UI fires one play per target). A dismiss buy and a Demon eating the token
    *  emit NOTHING here (they keep their own cues). Appended, cleared per action by the reducer. */
   starformFx?: { kind: 'consumeShop' | 'consumed' | 'collapse'; fromUid: string; toUids: string[] }[];
+  /** Set 3 (Celestials, owner rule D 2026-09-13) — a RUN-WIDE, permanent count of EXTRA Collapse hits: every Collapse
+   *  draws this many additional random friendly Celestials WITH replacement on top of its 2 unique originals. No
+   *  card writes it yet (Nova Herald's +2 is read off the board at collapse time — `collapseExtraTargetsOf`); it
+   *  exists for future cards. Default 0. */
+  collapseExtraTargets?: number;
   /** Bumps each time a Starform pull is recorded — the UI keys the `starform-pull` play off this. */
   starformFxSeq: number;
   /** Wolvie's borrowed Echo (`deathrattleBuffNextSummon`): buff the NEXT minion summoned in the shop of this
@@ -2054,6 +2061,11 @@ export interface RunState {
 /** One Equipment the player currently holds, and which board bodies are granting it. */
 export interface GrantedEquipment {
   equipmentId: string;
+  /** Where the grant comes from. Absent = a BOARD minion (`sourceUids` are board uids). `'starform'` = the
+   *  Starform SHOP OFFER (Star Destroyer, owner rule C 2026-09-13): `sourceUids` holds the token's offer uid, the
+   *  entry is valid exactly while a Starform exists, and the rebuild / removal paths drop it when the token is
+   *  gone (`syncStarDestroyer`). */
+  sourceKind?: 'starform';
   /** Which wording/params apply. A single Gilded source anywhere upgrades the whole entry (handoff rule). */
   version: 'plain' | 'gilded';
   /** EVERY source, tracked independently — duplicates collapse to one selector entry but each still gets its
@@ -2486,6 +2498,9 @@ export function deserialize(json: string, opts: { turnRemaining?: number } = {})
     ];
   }
   delete state.pendingSpellDiscovers;
+  // THE STARFORM's price (owner rule A, 2026-09-13) rides `ShopCard.cost`; a token saved before the price existed
+  // (2026-09-12 saves) comes back at the fresh 6 — never at the flat minion cost the buy path would otherwise read.
+  for (const o of state.shop ?? []) if (o.starform && o.cost === undefined) o.cost = 6;
   // Equipment charges moved from ONE shared allowance (`baseActivations` / `activationsSpent`) to a per-Equipment
   // own charge + a shared bonus pool (owner ruling 2026-09-11). A save from the old model carries the old keys
   // and no `bonusSpent` / `ownChargeSpent`; heal it to "nothing spent this turn" — the rebuild would have reset

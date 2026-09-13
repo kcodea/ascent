@@ -1,4 +1,5 @@
 import type { FxAnchorId, FxLayer, FxSlot } from '../def';
+import { isAnchorPart } from '../anchorParts';
 // TYPE-ONLY (erased at build time): this module stays free of `defStore`'s storage/fetch machinery, it just
 // borrows the stored-layer shape so "what a save writes" has exactly one definition.
 import type { StoredFxLayer } from '../defStore';
@@ -119,6 +120,9 @@ export function toEditorLayer(raw: unknown): EditorLayer | null {
     ...(l.muted === true ? { muted: true as const } : {}),
     // Solo rides along with mute, on the same terms and for the same reason (see `effectiveMuted`).
     ...(l.solo === true ? { solo: true as const } : {}),
+    // The anchor PART rides on the same omit-unless-set terms: `card` (the centre) is the default and is
+    // never written, so a pre-parts session round-trips byte-for-byte.
+    ...(isAnchorPart(l.anchorPart) && l.anchorPart !== 'card' ? { anchorPart: l.anchorPart } : {}),
     params: coerceParams(l.params),
   };
 }
@@ -267,6 +271,8 @@ export function toStoredLayers(
       // set, exactly like `muted`, so an unnamed composition serialises byte-for-byte as it always has.
       ...(l.name === undefined ? {} : { name: l.name }),
       anchor: l.anchor,
+      // The anchor part rides along only when set — `card` is the centre and an omission (see `FxAnchorPart`).
+      ...(l.anchorPart === undefined || l.anchorPart === 'card' ? {} : { anchorPart: l.anchorPart }),
       at: l.at,
       ...(l.life === null ? {} : { life: l.life }),
       ...(l.travelMs === null || l.travelMs === undefined ? {} : { travelMs: l.travelMs }),

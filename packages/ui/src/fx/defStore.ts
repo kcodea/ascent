@@ -1,4 +1,5 @@
 import { BOW_LIMIT } from './anchors';
+import { isAnchorPart } from './anchorParts';
 import type { FxAnchorId, FxLayer, FxSlot } from './def';
 import { coerceParams } from './params';
 import { isIdentityCurve, MIN_CURVE_POINTS } from './curve';
@@ -167,6 +168,9 @@ function coerceLayer(raw: unknown): StoredFxLayer | null {
     at,
     params: coerceParams(prim.params, raw.params) as Record<string, unknown>,
   };
+  // The anchor PART is optional by design too: `card` is the centre and the default, so it (and any junk)
+  // serialises as an omission — a def written before parts existed is byte-identical.
+  if (isAnchorPart(raw.anchorPart) && raw.anchorPart !== 'card') layer.anchorPart = raw.anchorPart;
   // `life` is optional by design (omitted = live until the def's duration), so it is kept ONLY when it is a
   // usable number — a null/NaN/string `life` becomes an omission, not a zero-length layer.
   if (life !== null && life >= 0) layer.life = life;

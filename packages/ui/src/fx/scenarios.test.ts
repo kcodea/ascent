@@ -44,8 +44,11 @@ describe('SCENARIOS', () => {
       });
 
       it('returns finite anchor coordinates', () => {
-        const anchors = scenario.anchorsAt(SAMPLE_VIEWPORT, SAMPLE_CURSOR);
-        Object.entries(anchors).forEach(([name, point]) => {
+        // `parts` (the per-end anchor PART points, `anchorParts.ts`) is the one non-point key; it's absent
+        // when no parts were asked for, and is not a coordinate pair either way.
+        const { parts: _parts, ...points } = scenario.anchorsAt(SAMPLE_VIEWPORT, SAMPLE_CURSOR);
+        void _parts;
+        Object.entries(points).forEach(([name, point]) => {
           // The label carried into the message via the matcher's context, so a failure names the offender.
           expect(point.x, `${scenario.id}.${name}.x`).toBeTypeOf('number');
           expect(Number.isFinite(point.x), `${scenario.id}.${name}.x is not finite`).toBe(true);

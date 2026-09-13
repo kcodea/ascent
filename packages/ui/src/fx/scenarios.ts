@@ -1,6 +1,8 @@
 import type { FxAnchors, FxPoint } from './anchors';
 import { pointOnTravel } from './anchors';
+import { partsFromElements, type UnitElementLike } from './anchorParts';
 import { anchorsFromRects, readBoardAnchors, type RectLike } from './boardAnchors';
+import type { FxAnchorPart } from './def';
 
 /** Everything a scenario's `headAt` needs to place the effect head for the current frame. */
 export interface FxHeadContext {
@@ -15,8 +17,11 @@ export interface FxScenario {
   id: string;
   label: string;
   hint: string;
-  /** Stage the anchors for this frame. `cursor` is the live pointer position in page coordinates. */
-  anchorsAt(viewport: { w: number; h: number }, cursor: { x: number; y: number }): FxAnchors;
+  /** Stage the anchors for this frame. `cursor` is the live pointer position in page coordinates. `parts`
+   *  are the anchor parts the composition's layers use (see `FxAnchorPart`); only the DOM-backed scenarios
+   *  (`realBoard`, `stageSetter`) can resolve them — the synthetic ones have no cards, so a part falls back to
+   *  the centre there. */
+  anchorsAt(viewport: { w: number; h: number }, cursor: { x: number; y: number }, parts?: readonly FxAnchorPart[]): FxAnchors;
   /** Optional: scenarios that move the effect head along a custom path (bouncing between spots, pinning to
    *  the cursor, ...) implement this. When present, the workbench drives the effect head from this instead
    *  of the default source→target travel arc. */
@@ -163,8 +168,8 @@ export const realBoard: FxScenario = {
       ? 'Anchors read from the LIVE board — source = your first unit, target = the first opposing unit.'
       : 'No board on screen — falling back to synthetic anchors. Open this over Recruit or a combat.';
   },
-  anchorsAt: (v, c) => {
-    const live = readBoardAnchors();
+  anchorsAt: (v, c, parts) => {
+    const live = readBoardAnchors(undefined, parts);
     if (live === null) return syntheticBoard(v, c);
     // The live read supplies source/target/slot/camera; `cursor` is folded in at this level because only the
     // scenario is handed the pointer. Anything the board read left out falls back to the synthetic stage
@@ -208,7 +213,7 @@ function stageRectFor(which: 'source' | 'target'): RectLike | null {
  *  because the two scenarios can never be active at once, but each caches a materially different read. */
 const STAGE_SAMPLE_INTERVAL_MS = 200;
 
-let stageCache: { at: number; anchors: FxAnchors | null } | null = null;
+let stageCache: { key: string; at: number; anchors: FxAnchors | null } | null = null;
 
 /** Drop the cached stage sample so the first frame after a scenario/def switch never reads stale DOM — the
  *  sibling of `invalidateBoardAnchors`. */
@@ -222,10 +227,11 @@ export function invalidateStageAnchors(): void {
  * `camera` come from `anchorsFromRects` (reused, not re-derived); `cursor` is folded in from the cursor point
  * handle when it has real extent, left absent otherwise so the caller's fallback (the live pointer) applies.
  */
-function readStageAnchors(): FxAnchors | null {
+function readStageAnchors(parts: readonly FxAnchorPart[] = []): FxAnchors | null {
   if (typeof document === 'undefined') return null;
   const now = performance.now();
-  if (stageCache !== null && now - stageCache.at < STAGE_SAMPLE_INTERVAL_MS) return stageCache.anchors;
+  const key = parts.join('|');
+  if (stageCache !== null && stageCache.key === key && now - stageCache.at < STAGE_SAMPLE_INTERVAL_MS) return stageCache.anchors;
   let anchors: FxAnchors | null = null;
   if (document.querySelector(STAGE_CONTAINER_SELECTOR) !== null) {
     const base = anchorsFromRects({
@@ -236,9 +242,17 @@ function readStageAnchors(): FxAnchors | null {
     if (base !== null) {
       const cursorRect = document.querySelector(stageHandleSelector('cursor'))?.getBoundingClientRect() ?? null;
       anchors = hasExtent(cursorRect) ? { ...base, cursor: rectCenter(cursorRect) } : base;
+      // Anchor parts read off the ROLE-tagged actors (a `StageCard` carries the same `.badge.atk/.hp` markup a
+      // real card does); a bare point handle has no parts, so a part falls back to the centre there.
+      const resolved = partsFromElements(
+        document.querySelector(stageRoleSelector('source')) as UnitElementLike | null,
+        document.querySelector(stageRoleSelector('target')) as UnitElementLike | null,
+        parts,
+      );
+      if (resolved !== undefined) anchors = { ...anchors, parts: resolved };
     }
   }
-  stageCache = { at: now, anchors };
+  stageCache = { key, at: now, anchors };
   return anchors;
 }
 
@@ -262,8 +276,8 @@ export const stageSetter: FxScenario = {
     const n = container.querySelectorAll('[data-uid]').length;
     return `Anchors read from the STAGE SETTER — ${n} actor${n === 1 ? '' : 's'} placed; source/target prefer the SRC/TGT-tagged card, falling back to the point handles.`;
   },
-  anchorsAt: (v, c) => {
-    const live = readStageAnchors();
+  anchorsAt: (v, c, parts) => {
+    const live = readStageAnchors(parts);
     if (live === null) return syntheticBoard(v, c);
     // Same "nothing is ever left unstaged" rule as `realBoard`: everything the live read left out (or the
     // whole read, if the stage isn't up) falls back to the synthetic layout, never to (0,0). `cursor` prefers

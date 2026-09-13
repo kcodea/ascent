@@ -5811,11 +5811,17 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  Starform → nothing at all (owner 2026-09-12). The Herald itself is a friendly Celestial and eligible. Golden:
    *  each recipient gains double the half (its full stats). */
   battlecryCollapseStarform: (ctx, self, params) => {
-    const half = collapseStarform(ctx.state);
+    // The receivers are drawn INSIDE the collapse (after the token leaves, same rng order as before) so the
+    // `starformFx` record names every one of them — the UI fires one `starform-pull` per target.
+    let picked: BoardCard[] = [];
+    const half = collapseStarform(ctx.state, () => {
+      const pool = ctx.state.board.filter((c) => isTribe(c, 'celestial'));
+      picked = pickRandom(ctx.state, pool, num(params.count, 3));
+      return picked;
+    });
     if (!half) return;
     const g = gold(self);
-    const pool = ctx.state.board.filter((c) => isTribe(c, 'celestial'));
-    for (const t of pickRandom(ctx.state, pool, num(params.count, 3))) addBuff(t, nameOf(self), half.attack * g, half.health * g);
+    for (const t of picked) addBuff(t, nameOf(self), half.attack * g, half.health * g);
   },
 
   /** Twin Star (`starformGained`): this gains the SAME the token just gained — the payload carries the delta

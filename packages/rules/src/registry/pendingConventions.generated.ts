@@ -2488,7 +2488,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "statement": "All 2 of these fire on one trigger: your Starform gains stats or leaves the Shop. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
     "currentBehaviour": "2 effect factories across 2 cards dispatch on 'starformGained', 'starformRemoved' (recruit) — re-clustered by TRIGGER out of the 'react' presentation family on the owner's 2026-08-28 ruling; the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Twin Star: \"Whenever your Starform gains stats, this gains the same.\" · Members: Twin Star · Zenith",
+    "cardText": "Exemplar — Twin Star: \"Whenever your Starform gains stats, this does, too.\" · Members: Twin Star · Zenith",
     "example": "Twin Star fires when your Starform gains stats or leaves the Shop, like every other card here. its printed numbers double when the card is gilded.",
     "contentIds": [
       "ce3_twinstar",

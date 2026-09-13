@@ -1163,6 +1163,16 @@ export interface RunState {
   shopEaten?: { uid: string; eaterUid: string; cardId: string; attack: number; health: number; gainA: number; gainH: number }[];
   /** Bumps each time a Shop minion is consumed — the UI keys its own animation off this. */
   shopEatenSeq: number;
+  /** Set 3 (Celestials) — the Starform's three pulls this action, for the authored `starform-pull` def (owner
+   *  2026-09-12). ONE per-action channel modelled on `shopEaten`: `consumeShop` = the token ate a Shop minion
+   *  (from the EATEN offer to the token — `consumeShopOffer` also records that meal on `shopEaten`, so the UI
+   *  lets THAT ghost fly and only swaps the def); `consumed` = a warband minion ate the token (Corona Devotee:
+   *  from the token to the body); `collapse` = Nova Herald (from the token to EACH receiving Celestial —
+   *  `toUids` lists every one, the UI fires one play per target). A dismiss buy and a Demon eating the token
+   *  emit NOTHING here (they keep their own cues). Appended, cleared per action by the reducer. */
+  starformFx?: { kind: 'consumeShop' | 'consumed' | 'collapse'; fromUid: string; toUids: string[] }[];
+  /** Bumps each time a Starform pull is recorded — the UI keys the `starform-pull` play off this. */
+  starformFxSeq: number;
   /** Wolvie's borrowed Echo (`deathrattleBuffNextSummon`): buff the NEXT minion summoned in the shop of this
    *  tribe, then clear. One-shot; also cleared at End of Turn so it never leaks into the next shop. */
   pendingSummonBuff?: { tribe: Tribe; attack: number; health: number; source: string };
@@ -2309,6 +2319,7 @@ export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID, mode: 
     cardBuffs: {},
     fodderEatenSeq: 0,
     shopEatenSeq: 0,
+    starformFxSeq: 0,
     recruitBuffFx: [],
     recruitFxSeq: 0,
     aleGranted: [],

@@ -60,6 +60,23 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Card Change',
+        text: 'Corona Devotee, Nova Herald and Twin Star read shorter: "Consume your Starform", "Collapse your Starform" and "this does, too". Same effects.',
+        details: [
+          'Corona Devotee: "Shout: Consume your Starform." (gilded: "…for double its stats"). It still gains every stat the token had.',
+          'Nova Herald: "Shout: Collapse your Starform." (gilded: "…each gains its full stats"). The Collapse keyword box beside the card explains the split.',
+          'Twin Star: "Whenever your Starform gains stats, this does, too." (gilded: "this gains double").',
+        ],
+      },
+      {
+        category: 'UI / Info',
+        text: 'Collapse now has its own keyword box beside the card, and so does the Starform — hover a Celestial that names either and the side panel explains it.',
+      },
+      {
+        category: 'UI / Info',
+        text: 'The Starform has its own consume animation: a beam of starlight and a rush of particles fly from whatever is being consumed to whatever gains — the meal into the token, the token into Corona Devotee, and one pull to each of the three Celestials when Nova Herald collapses it.',
+      },
+      {
+        category: 'Card Change',
         text: 'Comet Conductor is now Neptus, and Orrery Artificer is now Cometius. Same cards, new names.',
       },
       {

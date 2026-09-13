@@ -138,6 +138,17 @@ export function starformStandIn(state: RunState, sf: ShopCard): BoardCard {
 }
 
 /**
+ * Record one Starform pull on the per-action `starformFx` channel for the UI's authored `starform-pull` def
+ * (owner 2026-09-12). `fromUid` is the thing being consumed, `toUids` the thing(s) gaining. Presentation only —
+ * nothing reads it back in the sim; `reduce` clears it per action. `?? 0` on the seq: a save from before the
+ * field existed restores without it, and `undefined + 1` would poison the UI's seq compare with NaN.
+ */
+function recordStarformFx(state: RunState, kind: 'consumeShop' | 'consumed' | 'collapse', fromUid: string, toUids: string[]): void {
+  state.starformFx = [...(state.starformFx ?? []), { kind, fromUid, toUids }];
+  state.starformFxSeq = (state.starformFxSeq ?? 0) + 1;
+}
+
+/**
  * Rule 1. Create the Starform into the right-most Shop slot. Returns the offer, or the EXISTING one when a
  * Starform is already out (rule 2 — a no-op; the caller decides what "instead" means). `source` names the card
  * that made it, for the ledger of any stats the creation itself banks.
@@ -161,7 +172,9 @@ export function createStarform(state: RunState, source: { cardId: string; name: 
     const eaterStandIn: BoardCard = { uid: sf.uid, cardId: STARFORM_ID, tribe: 'celestial', attack: 1, health: 1, keywords: [], golden: false };
     // Insert first, then eat: the consume splices by index, and the token must take the VICTIM'S slot.
     state.shop.splice(victim + 1, 0, sf);
+    const victimUid = state.shop[victim]!.uid; // read before the splice — the pull plays from where it sat
     consumeShopOffer(state, eaterStandIn, victim, 1, (a, h) => { banked.attack += a; banked.health += h; }, sf.uid);
+    recordStarformFx(state, 'consumeShop', victimUid, [sf.uid]);
     buffStarform(state, banked.attack, banked.health, 'Consume');
   } else {
     state.shop.push(sf); // an open slot — or a full row of nothing but spells (rule 1: it still appears)
@@ -196,7 +209,9 @@ export function starformConsumeShopMinion(state: RunState, offerIndex: number, t
   const target = state.shop[offerIndex];
   if (!target || target.starform) return false;
   const standIn = starformStandIn(state, sf);
-  return consumeShopOffer(state, standIn, offerIndex, times, (a, h) => { buffStarform(state, a, h, 'Consume'); }, sf.uid);
+  const ate = consumeShopOffer(state, standIn, offerIndex, times, (a, h) => { buffStarform(state, a, h, 'Consume'); }, sf.uid);
+  if (ate) recordStarformFx(state, 'consumeShop', target.uid, [sf.uid]);
+  return ate;
 }
 
 /** Remove the token and tell the board why. Returns its full stats (base included) for the caller to spend. */
@@ -215,17 +230,24 @@ function removeStarform(state: RunState, reason: StarformRemovedReason): { attac
  * Starform (nothing happens). `target` is accepted for the contract's shape and for the removal record.
  */
 export function consumeStarform(state: RunState, target: BoardCard): { attack: number; health: number } | null {
-  void target;
-  return removeStarform(state, 'consume');
+  const fromUid = starformOf(state)?.uid;
+  const st = removeStarform(state, 'consume');
+  if (st && fromUid) recordStarformFx(state, 'consumed', fromUid, [target.uid]);
+  return st;
 }
 
 /**
  * Rule 7 — COLLAPSE (Nova Herald): the Starform leaves and HALF its stats, ROUNDED UP (base included), are
  * returned — the caller hands that half to each of three random friendly Celestials. Null with no Starform.
+ * `receivers` picks those Celestials AFTER the token has left (the factory's random draw) so the pull can be
+ * recorded against every one of them — one `starform-pull` per target, all fired together (owner 2026-09-12).
  */
-export function collapseStarform(state: RunState): { attack: number; health: number } | null {
+export function collapseStarform(state: RunState, receivers: () => BoardCard[] = () => []): { attack: number; health: number } | null {
+  const fromUid = starformOf(state)?.uid;
   const full = removeStarform(state, 'collapse');
   if (!full) return null;
+  const to = receivers();
+  if (fromUid) recordStarformFx(state, 'collapse', fromUid, to.map((c) => c.uid));
   return { attack: Math.ceil(full.attack / 2), health: Math.ceil(full.health / 2) };
 }
 

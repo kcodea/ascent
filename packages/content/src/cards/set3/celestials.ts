@@ -290,8 +290,8 @@ export const SET3_CELESTIALS: readonly CardDef[] = [
     health: 5,
     keywords: [],
     effects: [{ on: 'onPlay', do: 'battlecryConsumeStarform' }],
-    text: '**Shout:** Consume your **Starform** — this gains all of its stats.',
-    goldenText: '**Shout:** Consume your **Starform** — this gains **double** its stats.',
+    text: '**Shout:** Consume your **Starform**.',
+    goldenText: '**Shout:** Consume your **Starform** for **double** its stats.',
   },
   {
     // T4: Discover a Celestial (Sea Urchin's factory: never itself via `exclude`; the Starform is a token and sits
@@ -348,7 +348,7 @@ export const SET3_CELESTIALS: readonly CardDef[] = [
     health: 8,
     keywords: [],
     effects: [{ on: 'starformGained', do: 'onStarformGainedBuffSelf' }],
-    text: 'Whenever your **Starform** gains stats, this gains the same.',
+    text: 'Whenever your **Starform** gains stats, this does, too.',
     goldenText: 'Whenever your **Starform** gains stats, this gains **double**.',
   },
   {
@@ -364,8 +364,8 @@ export const SET3_CELESTIALS: readonly CardDef[] = [
     health: 9,
     keywords: [],
     effects: [{ on: 'onPlay', do: 'battlecryCollapseStarform', params: { count: 3 } }],
-    text: '**Shout:** Collapse your **Starform** — **3** random friendly Celestials each gain half its stats.',
-    goldenText: '**Shout:** Collapse your **Starform** — **3** random friendly Celestials each gain **all** its stats.',
+    text: '**Shout:** Collapse your **Starform**.',
+    goldenText: '**Shout:** Collapse your **Starform** — each gains its **full** stats.',
   },
   {
     // T7: a spell of ANY kind (Gravestar Seer's ruling — `includeRubies`) feeds the token +3/+3; when the token is

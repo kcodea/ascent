@@ -7,11 +7,12 @@
       "primitive": "custom",
       "name": "fire trail",
       "anchor": "source",
+      "anchorPart": "medallion",
       "at": 0,
       "params": {
         "image": "image:fire-slash-frame",
         "size": 80,
-        "durationMs": 640,
+        "durationMs": 420,
         "sheetCols": 4,
         "sheetRows": 3,
         "sheetFrames": 17,
@@ -22,14 +23,14 @@
         "randomStart": false,
         "randomFlipX": false,
         "randomFlipY": false,
-        "fpsJitter": 1,
-        "hueJitter": 7,
+        "fpsJitter": 0,
+        "hueJitter": 0,
         "randomReverse": false,
         "count": 1,
         "scatterRadius": 0,
         "scatterShape": "circle",
         "jitterRotation": 0,
-        "jitterScale": 0.07,
+        "jitterScale": 0,
         "jitterAlpha": 0,
         "staggerMs": 0,
         "renderMode": "sprite",
@@ -52,14 +53,14 @@
         "tiltDepth": 600,
         "pivotX": 0.5,
         "pivotY": 0.5,
-        "offsetX": 15,
-        "offsetY": 113,
-        "rotation": 151,
+        "offsetX": 20,
+        "offsetY": 118,
+        "rotation": 144,
         "aimMode": "fixed",
         "aimSmoothing": 0.3,
         "aimStretch": false,
         "aimUpright": false,
-        "squashX": 2.22,
+        "squashX": 2.11,
         "squashXCurve": [
           [
             0,
@@ -295,7 +296,7 @@
         ],
         "kawaseBlur_quality": 3,
         "reflectionOn": false,
-        "reflectionAmt": 20,
+        "reflectionAmt": 0,
         "reflectionCurve": [
           [
             0,
@@ -549,7 +550,8 @@
     {
       "primitive": "burst",
       "anchor": "source",
-      "at": 150,
+      "anchorPart": "medallion",
+      "at": 90,
       "params": {
         "count": 119,
         "interval": 600,
@@ -572,7 +574,7 @@
         "drag": 0.79,
         "gravity": -1050,
         "pointGravity": 0,
-        "life": 640,
+        "life": 1160,
         "orientToVelocity": false,
         "spinMul": 1,
         "spinCurve": [
@@ -1100,10 +1102,11 @@
     {
       "primitive": "shockwave",
       "anchor": "source",
-      "at": 150,
+      "anchorPart": "medallion",
+      "at": 90,
       "params": {
         "rings": 1,
-        "speed": 1.25,
+        "speed": 1.4,
         "thickness": 0.1,
         "fade": 8,
         "radius": 160,
@@ -1572,7 +1575,7 @@
         ],
         "fxSpin": 0,
         "fxDriftX": 0,
-        "fxDriftY": 0,
+        "fxDriftY": -83,
         "fxDriftCurve": [
           [
             0,

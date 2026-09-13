@@ -274,9 +274,9 @@ describe('rule 5 — cannot be bought like a minion; a 0-Gold buy dismisses it',
   });
 
   it('the price helper reports 0 with no discount consulted, so the coin and the charge agree', () => {
-    const s = run({ runeCadence: true, cadenceMinionOff: 1, minionCostOffTurn: 2 } as Partial<RunState>);
+    const s = run({ runeCadence: true, cadenceMinionOff: 1, minionCostOffTurn: 2, cardDiscountWindow: { amount: 1, untilClock: null } } as Partial<RunState>);
     const sf = createStarform(s, SRC);
-    expect(offerBuyPrice(s, sf)).toEqual({ cost: 0, freeBuy: false, cadenceOff: 0, tradeInOff: 0, spiritOff: 0, giftMinionOff: 0 });
+    expect(offerBuyPrice(s, sf)).toEqual({ cost: 0, freeBuy: false, cadenceOff: 0, tradeInOff: 0, spiritOff: 0, giftMinionOff: 0, windowOff: 0 });
   });
 
   it('is never gilded (Golden Touch skips it every time) and never held', () => {

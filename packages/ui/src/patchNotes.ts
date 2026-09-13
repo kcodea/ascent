@@ -77,6 +77,15 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Card Change',
+        text: 'Thymes and its Thymepiece are reworked: instead of banking time for next turn, using the Thymepiece makes every card in the Shop cost 1 less Gold for the next 8 seconds.',
+        details: [
+          'Thymepiece still costs 3 Gold to use and needs no target. Gilded Thymes: 2 less Gold, same 8 seconds.',
+          'It applies to cards only — Shop minions, the spell slot and any spell offers in the row. Upgrading the Shop and refreshing cost what they always did. Prices never go below 0.',
+          'The 8 seconds run on the turn clock, so anything that pauses the clock (a Discover, a Choose One, aiming) pauses the discount too. While it is active every Shop price shows the green discounted coin, and the Equipment slot counts it down ("−1 Gold · 6s").',
+        ],
+      },
+      {
+        category: 'Card Change',
         text: 'Comet Conductor is now Neptus, and Orrery Artificer is now Cometius. Same cards, new names.',
       },
       {

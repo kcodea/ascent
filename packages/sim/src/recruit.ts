@@ -47,7 +47,10 @@ type RecruitFn = (
   *  a stand-in and any effect that consumes the arriver must stand down. */ noArriver?: boolean;
   /** STARFORM (set 3 Celestials): `starformGained` carries the DELTA the token just gained; `starformRemoved`
    *  carries WHY it left the Shop and its FULL stats at removal (base 1/1 included). `minion` is the watcher. */
-  starformAttack?: number; starformHealth?: number; starformReason?: 'consume' | 'collapse' | 'dismiss' },
+  starformAttack?: number; starformHealth?: number; starformReason?: 'consume' | 'collapse' | 'dismiss';
+  /** EQUIPMENT activation: the turn clock's reading the action carried (seconds left) — a clock-window
+   *  Equipment (Thymepiece) anchors to it. Absent = no reading. */
+  clockSeconds?: number },
 ) => void;
 
 import { SPELL_POWER_EXCUSED } from './docbot/historyRegistry';
@@ -1715,12 +1718,14 @@ export function gainGold(state: RunState, amount: number): void {
   }
 }
 
-/** Total shop-spell cost reduction: the stored `spellCostMod` plus 1 per Lazarus on the board (golden → 2). */
+/** Total shop-spell cost reduction: the stored `spellCostMod` plus 1 per Lazarus on the board (golden → 2).
+ *  Serves BOTH ways a spell is bought — the right-hand slot and a spell offer in the minion row (Spell Cart). */
 export function spellCostReduction(state: RunState, def?: CardDef): number {
   let n = state.spellCostMod;
   for (const c of state.board) if (c.cardId === 'lazarus') n += c.golden ? 2 : 1;
   n += gateUses(state.cadenceSpellOff); // Rune of Cadence: the armed one-shot spell discount, −1 per copy held (spent at buy)
   n += state.spellCostOffTurn ?? 0;  // GIFT — Arcane Clearance: this turn only
+  n += state.cardDiscountWindow?.amount ?? 0; // Thymepiece: "all cards" for the next 8 clock-seconds — spells included
   // Rune of Thrift: STAT-GRANTING spells cost 2 less. Gated on the def (callers without one see no change).
   if (state.runeThrift && isStatSpell(def)) n += 2 * runeStacksOf(state, 'rune_thrift'); // −2 per copy held (owner 2026-08-27: "Thrift −4")
   return n;
@@ -2277,6 +2282,8 @@ export function fireEquipmentTriggers(
   self: BoardCard,
   target: BoardCard | undefined,
   triggers: number,
+  /** The turn clock's reading the activation carried (seconds left), for a clock-window Equipment. */
+  clockSeconds?: number,
 ): boolean {
   const fn = RECRUIT_FACTORIES[def.effectId];
   if (!fn) return false; // an unknown effect id is a content error — never a paid-for no-op
@@ -2284,7 +2291,7 @@ export function fireEquipmentTriggers(
   const params = equipmentParamsFor(def, version);
   for (let t = 0; t < triggers; t += 1) {
     withEquipmentTriggerBeat(state, def.id, t, () => {
-      fn(ctx, self, params, { minion: self, ...(target ? { target } : {}) });
+      fn(ctx, self, params, { minion: self, ...(target ? { target } : {}), ...(clockSeconds !== undefined ? { clockSeconds } : {}) });
     });
   }
   return true;
@@ -4195,10 +4202,26 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     addBuff(self, nameOf(self), a, h);
   },
 
-  /** Thymepiece (one Equipment TRIGGER): bank `seconds` onto NEXT turn's clock. The reducer moves the bank into
-   *  `bonusTurnSeconds` at the turn flip and the recruit clock adds it; two activations stack. */
-  equipmentBonusTurnTime: (ctx, _self, params) => {
-    ctx.state.bonusTurnSecondsNextTurn = (ctx.state.bonusTurnSecondsNextTurn ?? 0) + Math.max(0, num(params.seconds, 30));
+  /**
+   * Thymepiece (one Equipment TRIGGER; owner design 2026-09-12): every shop CARD costs `amount` less Gold for
+   * the next `seconds` of the turn clock. The activation carries the clock's reading (`payload.clockSeconds`,
+   * seconds LEFT — the clock counts down), so the window closes at `clockSeconds − seconds`; with no reading
+   * (a test, an old recording) the window runs to the end of the turn (`untilClock: null`). A second trigger
+   * or activation while a window is open REPLACES it with the fresher, larger one — the amounts do not stack
+   * (the design is "−1 for 8 seconds", not a bank), but a re-use never shortens a window already running.
+   */
+  equipmentCardDiscountWindow: (ctx, _self, params, payload) => {
+    const amount = Math.max(0, num(params.amount, 1));
+    const seconds = Math.max(0, num(params.seconds, 8));
+    const reading = payload.clockSeconds;
+    const untilClock = typeof reading === 'number' && Number.isFinite(reading) ? reading - seconds : null;
+    const cur = ctx.state.cardDiscountWindow;
+    // `null` = "to the end of the turn", the longest window there is; otherwise the LOWER `untilClock` closes later.
+    const later = cur === undefined || untilClock === null || (cur.untilClock !== null && untilClock <= cur.untilClock);
+    ctx.state.cardDiscountWindow = {
+      amount: Math.max(amount, cur?.amount ?? 0),
+      untilClock: later ? untilClock : cur.untilClock,
+    };
   },
 
   /** Anvilshade Smith (Echo): summon a token that inherits this body's Attack. The combat half also makes it

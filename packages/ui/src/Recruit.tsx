@@ -919,11 +919,8 @@ export function Recruit() {
   // be rushed while reading a lesson (blueprint §6.4: "Timer — Disabled"), and the rig is for building. Under
   // NORMAL rules (2026-09-09) the sandbox runs the REAL clock — 1×, not the practice multiplier, since the point
   // of the switch is to feel the shipped pace.
-  // Thymepiece (set 3) banks flat seconds onto the NEXT turn's clock (`run.bonusTurnSeconds`, set at the turn
-  // flip). Added AFTER the practice multiplier and the cap — a bought 30s is 30s in every mode — but not to the
-  // tutorial/sandbox clock, which is already effectively infinite.
   const infiniteClock = (run.sandbox === true && sbRules === 'god') || run.mode === 'tutorial';
-  const turnSeconds = infiniteClock ? 99999 : Math.max(CHARGE_SECONDS + 1, (Math.min(80, TURN_SECONDS + (run.wave - 1) * 4 + (run.wave >= 6 ? 6 : 0)) + (run.wave >= 12 ? 12 : 0)) * (run.mode === 'practice' && !run.sandbox ? practiceTimer : 1)) + (run.bonusTurnSeconds ?? 0);
+  const turnSeconds = infiniteClock ? 99999 : Math.max(CHARGE_SECONDS + 1, (Math.min(80, TURN_SECONDS + (run.wave - 1) * 4 + (run.wave >= 6 ? 6 : 0)) + (run.wave >= 12 ? 12 : 0)) * (run.mode === 'practice' && !run.sandbox ? practiceTimer : 1));
 
   // Projected STARTING Gold for the next two waves (the Gold-cell hover) — cap-aware, folding in board mana
   // income (Money Bot) and the one-turn Hoarder/Robin bank (into Wave+1 only, since it's consumed then).
@@ -3188,7 +3185,7 @@ export function Recruit() {
     // the shop row stayed on the old ones). Listing them makes the memo honest rather than relying on that
     // incidental rebuild; `stabilizeViewMap` keeps the `Card` bailout, so the added deps cost nothing when the
     // rendered content is unchanged.
-    [run.shop, run.rift, run.questFreeFirstBuy, run.freeBuyUsedThisTurn, run.spiritDiscount, run.minionCostOffTurn, run.tradeInTribe, run.runeTradeIn, run.minionCostOverride /* every input of offerBuyPrice (2026-09-12) */, run.cardBuffs, run.tavernBuyBonus, run.tavernBuyBonusSources, run.tavernBuyBonusTurn, run.undeadAttackBonus, run.undeadHealthBonus, run.undeadBuyAtk, run.beastBuyAtk, run.beastBuyHp, run.magneticBuyAtk, run.magneticBuyHp, run.deathrattlesTriggered, run.spellsCast, run.spellsThisTurn, run.soulsmanGold, run.fodderConsumedThisTurn, run.spellCostMod, spellBonus, spellBonusH, run.frontToBackBonus, run.board, run.nextSpellExtraCasts, run.goldSpentThisTurn, run.goldPouchValue, run.playedThisTurn, run.squirlScoutBuff, run.conductorBuff, run.alesCastThisTurn, run.frankClearanceTurn, eotShopStats, run.impBuff, run.rubyCasts, run.growthBonus, run.frontToBackBonusH, run.lastSpellCastId, run.firstSpellThisTurnId, run.lastSpellThisTurnId, run.cadenceMinionOff, run.tier, bothState, run.revelerX, run.rubyBonus, run.clueBonus, run.tier, run.playedThisTurn],
+    [run.shop, run.rift, run.questFreeFirstBuy, run.freeBuyUsedThisTurn, run.spiritDiscount, run.minionCostOffTurn, run.tradeInTribe, run.runeTradeIn, run.minionCostOverride, run.cardDiscountWindow /* every input of offerBuyPrice (2026-09-12) — the Thymepiece window changes the price on expiry with no shop rebuild */, run.cardBuffs, run.tavernBuyBonus, run.tavernBuyBonusSources, run.tavernBuyBonusTurn, run.undeadAttackBonus, run.undeadHealthBonus, run.undeadBuyAtk, run.beastBuyAtk, run.beastBuyHp, run.magneticBuyAtk, run.magneticBuyHp, run.deathrattlesTriggered, run.spellsCast, run.spellsThisTurn, run.soulsmanGold, run.fodderConsumedThisTurn, run.spellCostMod, spellBonus, spellBonusH, run.frontToBackBonus, run.board, run.nextSpellExtraCasts, run.goldSpentThisTurn, run.goldPouchValue, run.playedThisTurn, run.squirlScoutBuff, run.conductorBuff, run.alesCastThisTurn, run.frankClearanceTurn, eotShopStats, run.impBuff, run.rubyCasts, run.growthBonus, run.frontToBackBonusH, run.lastSpellCastId, run.firstSpellThisTurnId, run.lastSpellThisTurnId, run.cadenceMinionOff, run.tier, bothState, run.revelerX, run.rubyBonus, run.clueBonus, run.tier, run.playedThisTurn],
   );
   const spellView = useMemo(
     () => {
@@ -3196,7 +3193,7 @@ export function Recruit() {
       spellViewCache.current = stabilizeView(fresh, spellViewCache.current);
       return spellViewCache.current;
     },
-    [run.spell, run.spellCostMod, spellBonus, spellBonusH, run.frontToBackBonus, run.board, run.nextSpellExtraCasts, run.goldSpentThisTurn, run.goldPouchValue],
+    [run.spell, run.spellCostMod, run.cardDiscountWindow /* Thymepiece: the slot's coin greens and reverts with the window, no shop rebuild */, spellBonus, spellBonusH, run.frontToBackBonus, run.board, run.nextSpellExtraCasts, run.goldSpentThisTurn, run.goldPouchValue],
   );
   // Per-card referenced-card popups (uid → the cards it references). Stable across a drag (only
   // recomputes when the board / shop / hand or the Fodder buff changes), so it preserves the memo.
@@ -4150,6 +4147,12 @@ export function Recruit() {
    */
   const replaySpeed = useGame((st) => st.replaySession?.speed ?? 1);
   const tickMs = (): number => 1000 / Math.max(0.1, replaySpeed);
+  // THE CLOCK-WINDOW DISCOUNT (Thymepiece, owner design 2026-09-12): the reducer never reads a clock, so the
+  // tick below is what ENDS the window — it dispatches `discountWindowExpired` the moment the clock crosses
+  // `untilClock`. Read through a ref rather than a dep: adding the window to the effect's deps would restart
+  // the self-scheduling loop on every activation and hand the player a free partial second each time.
+  const discountWindowRef = useRef(run.cardDiscountWindow);
+  discountWindowRef.current = run.cardDiscountWindow;
 
   // Round timer: count down each recruit turn; at 0 the player is forced into combat (paused while a
   // Discover pick is open, and frozen while the hero picker is open). UI-only — the engine is untimed.
@@ -4169,6 +4172,12 @@ export function Recruit() {
       const next = cur - 1;
       if (next === 0) sfx.turnExplode(); // timer hits 0 — shop locks; syncs with the charge glyph's completion flash
       turnClock.set(next); // (the last-5s tick beeps were retired — the charge-glyph turnCharge cue replaces them)
+      // Thymepiece's window closes on the SAME tick that moves the clock, so whatever pauses this loop (a
+      // Discover, a Choose One, an aim, hero select — the effect's gate above) pauses the window with it. Once:
+      // the reducer clears the window, so the next tick reads none. Replay pacing divides this tick too, so a
+      // recorded window plays back over the same clock-seconds it was lived in.
+      const win = discountWindowRef.current;
+      if (win && win.untilClock !== null && next <= win.untilClock) dispatch({ type: 'discountWindowExpired' });
       id = window.setTimeout(tick, tickMs());
     };
     id = window.setTimeout(tick, tickMs());

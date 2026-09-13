@@ -114,6 +114,14 @@ minion alive. Duplicates collapse into one entry; a single Gilded source upgrade
 - Swapping the selected Equipment is **free** (no Gold, no charge). Activation is **atomic** (validate, pay,
   spend, resolve in one action — a cancel costs nothing by construction). Gold cost, temporary cost
   reductions, extra-trigger repeats and Choose One on an Equipment are unaffected by charges.
+- **Clock-window Equipment** (Thymepiece, owner design 2026-09-12: *"All cards cost 1 less Gold for the next
+  8 seconds"*; gilded −2) runs on the **turn clock**, not wall time: the activation records the clock's reading,
+  the window is 8 clock-seconds in every mode (Practice's multiplier only stretches the real seconds), it
+  pauses with the clock (Discover / Choose One / aim / hero select), it discounts **cards only** (Shop minions,
+  the spell slot, spell offers in the row — never the Shop upgrade or a refresh), prices floor at 0 (the
+  Starform stays 0), every discounted coin shows green, the slot counts it down, and it ends on its own expiry
+  action, at combat entry, or at the turn flip. A Continue whose saved clock is already past the window
+  resumes without it; the engine never reads a clock (`RunState.cardDiscountWindow`).
 
 ### The Starform — the Celestials' shop token (owner design 2026-09-12)
 

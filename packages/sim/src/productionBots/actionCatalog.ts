@@ -65,6 +65,9 @@ export const ACTION_CATALOG = {
   // `automatic` because a bot COULD meaningfully choose these once it knows how to value them.
   selectEquipment: { generation: 'never', reveal: false, note: 'free swap of the shown Equipment; no bot policy yet' },
   activateEquipment: { generation: 'never', reveal: false, note: 'spends Gold + the shared allowance; no bot policy yet' },
+  // Thymepiece's clock-window expiry: the UI's clock tick dispatches it when the window runs out. A bot has no
+  // clock (it never activates Equipment either), and every turn flip / combat entry closes the window anyway.
+  discountWindowExpired: { generation: 'automatic', reveal: false, note: 'closes Thymepiece\'s clock-window discount; driven by the UI clock, never a choice' },
   devGrant: { generation: 'never', reveal: false, note: 'development tooling — not available to a bot' },
 } satisfies Record<Action['type'], ActionDescriptor>;
 

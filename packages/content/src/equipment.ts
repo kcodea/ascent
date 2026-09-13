@@ -265,22 +265,24 @@ export const POURMANS_KEG: EquipmentDefinition = {
 };
 
 /**
- * THYMEPIECE — Thymes's Equipment (set-3 Dwarf roster, 2026-09-09): +30 seconds on NEXT turn's clock.
+ * THYMEPIECE — Thymes's Equipment (set-3 Dwarf roster; reworked by the owner 2026-09-12): all cards cost
+ * 1 less Gold for the next 8 SECONDS (gilded: 2 less, same 8 seconds).
  *
- * The only Equipment that touches the timer rather than the board. The seconds bank in
- * `RunState.bonusTurnSecondsNextTurn` and become `bonusTurnSeconds` at the turn flip, which the recruit clock
- * adds on top of the wave's base time (owner 2026-09-09: applies to whatever timer the mode runs, and stacks).
+ * The only Equipment that reads the clock. The window runs on the recruit TURN CLOCK — it pauses whenever the
+ * clock pauses (a Discover, a Choose One, an aim, hero select) and replays from the recorded actions — and it
+ * discounts CARDS only: shop minions, the spell slot and spell offers in the row, floored at 0. The Shop
+ * upgrade and a refresh are untouched. See `RunState.cardDiscountWindow` for the mechanism.
  */
 export const THYMEPIECE: EquipmentDefinition = {
   id: 'thymepiece',
   name: 'Thymepiece',
-  text: 'Gain **30 seconds** on your turn timer next turn.',
-  goldenText: 'Gain **60 seconds** on your turn timer next turn.',
+  text: 'All cards cost **1** less Gold for the next **8 seconds**.',
+  goldenText: 'All cards cost **2** less Gold for the next **8 seconds**.',
   baseCost: 3,
   targetMode: 'none',
-  effectId: 'equipmentBonusTurnTime',
-  params: { seconds: 30 },
-  gildedParams: { seconds: 60 },
+  effectId: 'equipmentCardDiscountWindow',
+  params: { amount: 1, seconds: 8 },
+  gildedParams: { amount: 2, seconds: 8 },
   // The owner's clip (2026-09-09). No authored def yet — the slot plays the clip alone until one is published.
   useSfxId: 'thymepiece',
 };

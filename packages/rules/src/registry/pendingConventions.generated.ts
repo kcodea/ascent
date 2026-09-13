@@ -285,8 +285,8 @@ export const CONVENTION_PENDING: GameRule[] = [
     "statement": "All 15 'grant' cards trigger the same way. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
     "currentBehaviour": "1 effect factories across 15 cards dispatch through the 'grant' presentation family, all on the single trigger 'equip' (recruit); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Orrery Artificer: \"Equip Comet (4): your next spell casts 2 additional times.\" · Members: Orrery Artificer · Lens Grinder · Pourman · Thymes · Alchemist Frank · Titan Sculptor · Blast Surveyor · Kaura L'roft · Prismpick Artificer · Highway Hustler · Inspector Pell · Bondweaver Shaman · … and 3 more",
-    "example": "Orrery Artificer follows the 'grant' convention — its trigger fires on equip. its printed numbers double when the card is gilded.",
+    "cardText": "Exemplar — Cometius: \"Equip Comet (4): your next spell casts 2 additional times.\" · Members: Cometius · Lens Grinder · Pourman · Thymes · Alchemist Frank · Titan Sculptor · Blast Surveyor · Kaura L'roft · Prismpick Artificer · Highway Hustler · Inspector Pell · Bondweaver Shaman · … and 3 more",
+    "example": "Cometius follows the 'grant' convention — its trigger fires on equip. its printed numbers double when the card is gilded.",
     "contentIds": [
       "ce3_artificer",
       "ce3_lensgrinder",
@@ -352,7 +352,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "statement": "All 46 'rally' cards trigger the same way. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
     "currentBehaviour": "47 effect factories across 46 cards dispatch through the 'rally' presentation family, all on the single trigger 'onAttack' (both); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Echohorn: \"Rally: trigger your left-most Echo.\" · Members: Echohorn · Hawkus · Packstrider · Sunmane Herald · Comet Conductor · Chimerus · Chorus Engine · Crypt Drake · Chorus Drake · Cinderchef · Embercrest · Flamebeat Drake · … and 34 more",
+    "cardText": "Exemplar — Echohorn: \"Rally: trigger your left-most Echo.\" · Members: Echohorn · Hawkus · Packstrider · Sunmane Herald · Neptus · Chimerus · Chorus Engine · Crypt Drake · Chorus Drake · Cinderchef · Embercrest · Flamebeat Drake · … and 34 more",
     "example": "Echohorn follows the 'rally' convention — its trigger fires on onAttack. its printed numbers double when the card is gilded.",
     "contentIds": [
       "b2_echohorn",

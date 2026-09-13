@@ -8834,13 +8834,13 @@ export function spellDisplayText(cardId: string, bonusA: number, escalation = 0,
     const eff = def.effects.find((e) => e.do === 'spellBuffTargetPerSpellsCast');
     const p = eff?.params as { attack?: number; health?: number; perAttack?: number; perHealth?: number } | undefined;
     const baseA = Number(p?.attack ?? 2), baseH = Number(p?.health ?? 2), perA = Number(p?.perAttack ?? 3), perH = Number(p?.perHealth ?? 3);
-    let t = def.text;
-    if (bonusA > 0 || bonusH > 0) {
-      t = t.replace(`**+${baseA}/+${baseH}**`, `**{{+${baseA + bonusA}/+${baseH + bonusH}}}**`)
-        .replace(`**+${perA}/+${perH}**`, `**{{+${perA + bonusA}/+${perH + bonusH}}}**`);
-    }
+    // THE STANDARD (owner 2026-09-12): the printed grant IS the current value — "Give a minion +5/+5" in green once
+    // spells have been cast, never a "Now +5/+5" appendix. The per-spell step greens only for spell power.
     const n = extra?.anySpellsThisTurn ?? 0;
-    if (n > 0) t = `${t} {{Now +${baseA + bonusA + (perA + bonusA) * n}/+${baseH + bonusH + (perH + bonusH) * n}.}}`;
+    const curA = baseA + bonusA + (perA + bonusA) * n, curH = baseH + bonusH + (perH + bonusH) * n;
+    let t = def.text;
+    if (curA !== baseA || curH !== baseH) t = t.replace(`**+${baseA}/+${baseH}**`, `**{{+${curA}/+${curH}}}**`);
+    if (bonusA > 0 || bonusH > 0) t = t.replace(`**+${perA}/+${perH}**`, `**{{+${perA + bonusA}/+${perH + bonusH}}}**`);
     return t;
   }
   // Crescendo (set 3): "+1/+1 for each Spirit you played this turn" — spell power scales the per-Spirit rate
@@ -8852,9 +8852,11 @@ export function spellDisplayText(cardId: string, bonusA: number, escalation = 0,
     const tribe = (p?.tribe ?? 'spirit') as Tribe;
     const perA = Number(p?.attack ?? 1) + bonusA, perH = Number(p?.health ?? 1) + bonusH;
     const played = (extra?.playedThisTurn ?? []).filter((id) => { const d = CARD_INDEX[id]; return !!d && defIsTribe(d, tribe); }).length;
-    let t = bonusA > 0 || bonusH > 0 ? def.text.replace(`+${Number(p?.attack ?? 1)}/+${Number(p?.health ?? 1)}`, `{{+${perA}/+${perH}}}`) : def.text;
-    if (played > 0) t = `${t} {{Now +${perA * played}/+${perH * played}.}}`;
-    return t;
+    // THE STANDARD (owner 2026-09-12): once Spirits have been played the printed number is the TOTAL it grants now
+    // (green, in place); before that it is the per-Spirit rate, greened only for spell power. No "Now" appendix.
+    const baseTok = `+${Number(p?.attack ?? 1)}/+${Number(p?.health ?? 1)}`;
+    if (played > 0) return def.text.replace(baseTok, `{{+${perA * played}/+${perH * played}}}`);
+    return bonusA > 0 || bonusH > 0 ? def.text.replace(baseTok, `{{+${perA}/+${perH}}}`) : def.text;
   }
   if (def.id === 'hoardflame') {
     const eff = def.effects.find((e) => e.do === 'spellBuffPerDragonPlayed');
@@ -8921,7 +8923,18 @@ export function spellDisplayText(cardId: string, bonusA: number, escalation = 0,
     }
     const ticks = Math.floor(Math.max(0, goldSpent) / per);
     if (ticks <= 0) return stepText; // no ticks yet → the printed base (greened) is the live value
-    return `${stepText} {{Now +${baseA + bonusA + (a + bonusA) * ticks}/+${baseH + bonusH + (h + bonusH) * ticks}.}}`;
+    // THE STANDARD (owner 2026-09-12): the BASE token becomes the current total, in place and green — never a
+    // "Now +X/+Y" appendix. Re-derived from def.text so the step token (already greened above) is untouched.
+    const curA = baseA + bonusA + (a + bonusA) * ticks, curH = baseH + bonusH + (h + bonusH) * ticks;
+    const baseTok = `+${baseA}/+${baseH}`;
+    const at0 = def.text.indexOf(baseTok);
+    let t = at0 >= 0 ? def.text.slice(0, at0) + `{{+${curA}/+${curH}}}` + def.text.slice(at0 + baseTok.length) : def.text;
+    if (bonusA > 0 || bonusH > 0) {
+      const stepTok = `+${a}/+${h}`;
+      const at = t.lastIndexOf(stepTok);
+      if (at >= 0) t = t.slice(0, at) + `{{+${a + bonusA}/+${h + bonusH}}}` + t.slice(at + stepTok.length);
+    }
+    return t;
   }
   if (bonusA <= 0 && bonusH <= 0) return def.text;
   // Set 3 flat stat spells (2026-09-10) — Aspect's Blessing (both branches), Shared Spirit, Star Crash, Hand Soap:
@@ -8987,7 +9000,10 @@ export function spellDisplayText(cardId: string, bonusA: number, escalation = 0,
   const tribeBuff = def.effects.find((e) => e.do === 'spellGrantTribeAttack');
   if (tribeBuff) {
     const amt = Number((tribeBuff.params as { amount?: number } | undefined)?.amount ?? 0);
-    return def.text.replace(`+${amt} Attack`, `{{+${amt + bonusA}/+${bonusH}}}`);
+    // "Give your Undead Aura +3 Attack." → under +0/+1 spell power "…+3/+1." (owner 2026-09-12): the bolded
+    // magnitude is replaced in place; the base-only fold keeps the Attack-only wording when Health power is 0.
+    const live = bonusH > 0 ? `+${amt + bonusA}/+${bonusH}` : `+${amt + bonusA} Attack`;
+    return def.text.replace(`**+${amt} Attack**`, `**{{${live}}}**`);
   }
   // Staff of Guel: its "+A/+B" tavern-buy buff scales with spell power on both stats too.
   const shopBuff = def.effects.find((e) => e.do === 'spellBuffShop');

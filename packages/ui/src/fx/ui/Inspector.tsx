@@ -17,7 +17,7 @@ import {
 } from '../params';
 import { filterEntries, filterOnCount, isFilterGroup, type FilterEntry } from './filterGroups';
 import { importShapeFromFile, listShapeOptions, removeImportedShape } from '../shapeLibrary';
-import { imageUrlFor, importImageFromFile, listImageOptions, IMAGE_NONE } from '../imageLibrary';
+import { imageUrlFor, importFramesFromFiles, importImageFromFile, listImageOptions, IMAGE_NONE } from '../imageLibrary';
 import { ColorPickerHSB } from './ColorPickerHSB';
 import { PalettePicker } from './PalettePicker';
 import { GradientEditor } from './GradientEditor';
@@ -599,6 +599,10 @@ function ParamRow({
           value={(value as string | undefined) ?? spec.default}
           disabled={off}
           onChange={(next) => onChange(key, next)}
+          // The field owns the import INTENT (single image / packed frames / an existing sheet) and writes the
+          // grid to the sibling Sheet params when the primitive has them, so a sheet plays the moment it lands.
+          sheet={'sheetCols' in values ? { cols: Number(values.sheetCols) || 1, rows: Number(values.sheetRows) || 1, frames: Number(values.sheetFrames) || 0 } : undefined}
+          onSheet={'sheetCols' in values ? (cols, rows, frames) => { onChange('sheetCols', cols); onChange('sheetRows', rows); onChange('sheetFrames', frames); } : undefined}
         />
       )}
       {spec.kind === 'emitpoints' && (
@@ -745,27 +749,49 @@ function ImageField({
   value,
   disabled = false,
   onChange,
+  sheet,
+  onSheet,
 }: {
   id: string;
   value: string;
   disabled?: boolean;
   onChange: (next: string) => void;
+  /** The sibling Sheet params' current values, when the primitive has them (drives the Sprite sheet inputs). */
+  sheet?: { cols: number; rows: number; frames: number };
+  /** Writes the grid to the sibling Sheet params: after a packed import, on a single import (reset to 1 × 1),
+   *  and live from the Sprite sheet inputs. */
+  onSheet?: (cols: number, rows: number, frames: number) => void;
 }): React.ReactElement {
   const [, bumpRegistry] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // What the next import IS. Starts as 'sheet' when the layer already has a grid, so re-importing a sheet
+  // doesn't silently flatten it; otherwise a plain picture.
+  const [source, setSource] = useState<'single' | 'frames' | 'sheet'>(sheet && sheet.cols * sheet.rows > 1 ? 'sheet' : 'single');
+  // 0 = near-square auto grid. Set it to the frames-per-take to pack takes as rows (→ Variant rows).
+  const [perRow, setPerRow] = useState(0);
 
   const options = listImageOptions();
   const selected = options.find((o) => o.id === value);
   const thumb = value === IMAGE_NONE ? null : imageUrlFor(value);
 
-  const runImport = async (file: File): Promise<void> => {
+  const runImport = async (files: File[]): Promise<void> => {
     setBusy(true);
     setError(null);
     try {
-      const image = await importImageFromFile(file);
-      bumpRegistry((n) => n + 1);
-      onChange(image.id);
+      if (source === 'frames') {
+        // N individual frames → one packed sheet, and the grid handed up so it plays immediately.
+        const packed = await importFramesFromFiles(files, perRow);
+        bumpRegistry((n) => n + 1);
+        onChange(packed.id);
+        onSheet?.(packed.cols, packed.rows, packed.frames);
+      } else {
+        const image = await importImageFromFile(files[0]);
+        bumpRegistry((n) => n + 1);
+        onChange(image.id);
+        // A single picture is 1 × 1; a sheet keeps whatever grid the inputs below say.
+        if (source === 'single') onSheet?.(1, 1, 0);
+      }
     } catch (err) {
       // Never throw into render — surface it as a line under the picker.
       setError(err instanceof Error ? err.message : 'Import failed.');
@@ -797,19 +823,76 @@ function ImageField({
           />
         )}
       </div>
+      {onSheet !== undefined && (
+        <label className="fxwb-shape-hint" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          Source
+          <select
+            value={source}
+            disabled={busy || disabled}
+            onChange={(e) => setSource(e.target.value as 'single' | 'frames' | 'sheet')}
+            title="What the next import is: one picture, a set of individual frame files to pack into a sheet, or a file that already is a sprite-sheet grid."
+          >
+            <option value="single">Single image</option>
+            <option value="frames">Image frames (pack)</option>
+            <option value="sheet">Sprite sheet</option>
+          </select>
+        </label>
+      )}
       <label className="fxwb-shape-import">
-        {busy ? 'Importing…' : 'Import PNG / SVG…'}
+        {busy ? 'Importing…' : source === 'frames' ? 'Import frames (select all)…' : 'Import PNG / SVG…'}
         <input
           type="file"
           accept="image/png,image/svg+xml,.png,.svg"
+          multiple={source === 'frames'}
           disabled={busy || disabled}
           onChange={(e) => {
-            const file = e.target.files?.[0];
-            e.target.value = ''; // clear so re-picking the same file fires change again
-            if (file) void runImport(file);
+            const files = Array.from(e.target.files ?? []);
+            e.target.value = ''; // clear so re-picking the same files fires change again
+            if (files.length > 0) void runImport(files);
           }}
         />
       </label>
+      {onSheet !== undefined && source === 'frames' && (
+        <label className="fxwb-shape-hint" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          Frames per row
+          <input
+            type="number"
+            min={0}
+            max={16}
+            step={1}
+            value={perRow}
+            disabled={busy || disabled}
+            style={{ width: 56 }}
+            onChange={(e) => setPerRow(Math.max(0, Math.min(16, Math.floor(Number(e.target.value) || 0))))}
+            title="0 = near-square grid. Set to the frames per take (e.g. 4) so takes pack as rows — then turn on Variant rows."
+          />
+          <span>(0 = auto)</span>
+        </label>
+      )}
+      {onSheet !== undefined && sheet !== undefined && source === 'sheet' && (
+        <div className="fxwb-shape-hint" style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+          {([['Columns', 'cols', 1, 16], ['Rows', 'rows', 1, 16], ['Frames', 'frames', 0, 256]] as const).map(([label, k, min, max]) => (
+            <label key={k} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              {label}
+              <input
+                type="number"
+                min={min}
+                max={max}
+                step={1}
+                value={sheet[k]}
+                disabled={busy || disabled}
+                style={{ width: 56 }}
+                onChange={(e) => {
+                  const v = Math.max(min, Math.min(max, Math.floor(Number(e.target.value) || min)));
+                  const next = { ...sheet, [k]: v };
+                  onSheet(next.cols, next.rows, next.frames);
+                }}
+                title={k === 'frames' ? 'Real frames in reading order; 0 = every cell.' : `Grid ${label.toLowerCase()} of the sheet.`}
+              />
+            </label>
+          ))}
+        </div>
+      )}
       <div className="fxwb-shape-hint">Drawn with its true colours, fitted within 1024 px. Written to defs/images/ — only commit art meant to ship.</div>
       {error !== null && <div className="fxwb-shape-err">{error}</div>}
     </div>

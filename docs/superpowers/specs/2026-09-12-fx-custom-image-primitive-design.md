@@ -122,6 +122,17 @@ others), which means in-game every fire varies and a workbench-locked seed repea
   `sprite`/`plane` (whole-frame x-scale). Verified in-browser: upright flips the left-facing beam's top back
   up, a stretched slice spans exactly source→target.
 
+## Frames → sheet packer (built 2026-09-13)
+
+*"What if I have 12 individual frames?"* The Import button accepts multiple files: `importFramesFromFiles`
+sorts them in natural filename order (`frame_9` before `frame_10`), takes the largest frame as the cell,
+shrinks the cell only as far as the whole sheet needs to fit the 1024 cap (`planCell`), fits each frame into
+its cell aspect-preserved and centred, and writes ONE PNG named by the frames' common stem
+(`explosion_01..12` → `explosion`). The grid is near-square by default (12 → 4 × 3) or fixed by a
+"frames per row" field (name takes so they sort together, pack N per row, turn on Variant rows). The
+Inspector hands the grid to the sibling `sheetCols / sheetRows / sheetFrames` so the sheet plays at once.
+Pure planning in `fx/sheetPack.ts` (tested); verified in-browser with 12 shuffled frames.
+
 ## Still out of scope
 
 A delete-image route (unused files are pruned by hand / git); per-frame displacement maps (above); vector

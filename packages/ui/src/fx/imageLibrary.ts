@@ -1,6 +1,7 @@
 /// <reference types="vite/client" />
 import { Texture } from 'pixi.js';
 import { isValidSlug, saveImage, slugify } from './defStore';
+import { commonStem, naturalCompare, planCell, planGrid } from './sheetPack';
 
 /**
  * The registry behind the `image` param: full-colour, display-resolution images for the `custom` primitive.
@@ -293,4 +294,63 @@ export async function importImageFromFile(file: File): Promise<ImageOption> {
   if (!saved.ok) throw new Error(saved.error);
   registerSavedImage(slug, dataUrl);
   return { id: imageId(slug), label: slug };
+}
+
+/** What `importFramesFromFiles` produced: the sheet's id plus the grid the layer should be set to. */
+export interface ImportedSheet extends ImageOption {
+  cols: number;
+  rows: number;
+  frames: number;
+}
+
+/**
+ * Import N INDIVIDUAL frame files as ONE sprite sheet. Frames are sorted by natural filename order, the
+ * largest frame sets the cell size (shrunk only as far as the whole sheet needs to fit `IMAGE_MAX_PX` — see
+ * `planCell`), each frame is fitted into its cell aspect-preserved and centred, and the packed PNG is
+ * written like any other import under the frames' common stem. `framesPerRow` (> 0) fixes the column
+ * count — name your files so takes sort together and pack "4 per row" to get variant rows. The caller
+ * sets the layer's Columns / Rows / Frame count from the result so the sheet plays immediately.
+ */
+export async function importFramesFromFiles(files: File[], framesPerRow = 0): Promise<ImportedSheet> {
+  if (typeof document === 'undefined') throw new Error('Importing frames needs a browser environment.');
+  if (files.length === 0) throw new Error('No frames selected.');
+  const bad = files.find((f) => !(f.type === 'image/png' || f.type === 'image/svg+xml' || /\.(png|svg)$/i.test(f.name)));
+  if (bad) throw new Error(`'${bad.name}' is not a PNG or SVG.`);
+  const sorted = [...files].sort((a, b) => naturalCompare(a.name, b.name));
+  const slug = slugify(commonStem(sorted.map((f) => f.name)));
+  if (!isValidSlug(slug)) throw new Error('These filenames don\'t make a usable sheet name (letters, digits and dashes).');
+
+  const imgs = await Promise.all(sorted.map(async (f) => loadImage(await readAsDataUrl(f))));
+  let maxW = 1;
+  let maxH = 1;
+  for (const img of imgs) {
+    const w = img.naturalWidth > 0 ? img.naturalWidth : IMAGE_MAX_PX;
+    const h = img.naturalHeight > 0 ? img.naturalHeight : IMAGE_MAX_PX;
+    if (w > maxW) maxW = w;
+    if (h > maxH) maxH = h;
+  }
+  const { cols, rows } = planGrid(imgs.length, framesPerRow);
+  const cell = planCell(maxW, maxH, cols, rows, IMAGE_MAX_PX);
+
+  const canvas = document.createElement('canvas');
+  canvas.width = cell.w * cols;
+  canvas.height = cell.h * rows;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('No 2D canvas available to pack the sheet.');
+  imgs.forEach((img, i) => {
+    const iw = img.naturalWidth > 0 ? img.naturalWidth : cell.w;
+    const ih = img.naturalHeight > 0 ? img.naturalHeight : cell.h;
+    // fit into the cell aspect-preserved, centred
+    const k = Math.min(cell.w / iw, cell.h / ih);
+    const w = Math.max(1, Math.round(iw * k));
+    const h = Math.max(1, Math.round(ih * k));
+    const x = (i % cols) * cell.w + Math.floor((cell.w - w) / 2);
+    const y = Math.floor(i / cols) * cell.h + Math.floor((cell.h - h) / 2);
+    ctx.drawImage(img, x, y, w, h);
+  });
+  const dataUrl = canvas.toDataURL('image/png');
+  const saved = await saveImage(slug, dataUrl);
+  if (!saved.ok) throw new Error(saved.error);
+  registerSavedImage(slug, dataUrl);
+  return { id: imageId(slug), label: slug, cols, rows, frames: imgs.length };
 }

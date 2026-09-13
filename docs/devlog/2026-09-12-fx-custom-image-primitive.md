@@ -83,4 +83,12 @@ looking wrong?"* Both answered without new art.
   a union of literals, so contextual typing preserves it), so `ParamsOf` types every toggle as its default
   literal. Harmless at runtime (`coerceParams` casts) but a typed test can't flip a toggle without a cast.
 
+## Frames → sheet packer (2026-09-13)
+
+Individual frame files are the other common export. Rather than a second playback path, the import packs
+them INTO a sheet client-side (`importFramesFromFiles`): natural filename sort, largest frame = cell, cell
+shrunk only as far as the 1024 cap requires, one PNG named by the common stem, and the grid handed to the
+layer's sheet params so it plays immediately. A "frames per row" field packs takes as rows for Variant rows.
+Everything downstream is unchanged because the result simply IS a sheet.
+
 **Deferred:** per-frame displacement maps; a delete-image route; vector (non-rasterised) SVG.

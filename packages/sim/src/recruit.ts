@@ -5842,6 +5842,11 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     for (const t of hits) addBuff(t, nameOf(self), half.attack * g, half.health * g);
   },
 
+  /** Nova Herald's `passive` MARKER (rules v2 2026-09-13): never dispatched — `collapseExtraTargetsOf` reads the
+   *  effect off the card at Collapse time (+`extra` hits per Herald, doubled gilded). The body is a stub so the
+   *  factory × phase lane sees the recruit side implemented; a re-trigger path that does fire it is harmless. */
+  collapseExtraTargets: () => {},
+
   /** STAR DESTROYER (the Starform's own Equipment, rule 9): the silent exit — the token leaves the Shop and nothing
    *  else fires. No consume, no collapse, no `starformRemoved` (Zenith stays quiet), no `starformGained`, not a
    *  buy, no pull record. Idempotent with no Starform (the Equipment cannot be held without one). */

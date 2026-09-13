@@ -126,17 +126,17 @@ export const WORDING_PENDING: GameRule[] = [
   },
   {
     "id": "q-word-lg-trigger-01",
-    "title": "Wording: Shout vs Battlecry · 144 vs 40",
+    "title": "Wording: Shout vs Battlecry · 142 vs 40",
     "statement": "On-play triggers print \"Shout\" everywhere; every \"Battlecry\" in card text is updated to match. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "text",
     "status": "needs-ruling",
-    "currentBehaviour": "Both spellings are live: \"Shout\" in 144 printed texts, \"Battlecry\" in 40. Approving picks \"Shout\"; the LG-TRIGGER-01 guide predicate then watches new text.",
+    "currentBehaviour": "Both spellings are live: \"Shout\" in 142 printed texts, \"Battlecry\" in 40. Approving picks \"Shout\"; the LG-TRIGGER-01 guide predicate then watches new text.",
     "cardText": "\"Shout\" — Dawnclaw: \"Taunt. Echo: trigger an adjacent minion's Shout.\" · \"Battlecry\" — Pennycat: \"Battlecry: summon a 1/1 Stray next to it.\"",
     "example": "Pennycat would be re-worded to the \"Shout\" form; mechanics untouched.",
     "evidence": [
       {
         "kind": "docbot-scan",
-        "ref": "textParse.wording · LG-TRIGGER-01 (corpus survey: 144 vs 40)"
+        "ref": "textParse.wording · LG-TRIGGER-01 (corpus survey: 142 vs 40)"
       }
     ],
     "sourceQueue": "textParse.wording",
@@ -246,17 +246,17 @@ export const WORDING_PENDING: GameRule[] = [
   },
   {
     "id": "q-word-lg-verb-02",
-    "title": "Wording: Consume vs devour · 25 vs 2",
+    "title": "Wording: Consume vs devour · 23 vs 2",
     "statement": "The eat mechanic is the keyword \"Consume\" — flavor \"devour\" is reserved for non-mechanical prose. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "text",
     "status": "needs-ruling",
-    "currentBehaviour": "Both spellings are live: \"Consume\" in 25 printed texts, \"devour\" in 2. Approving picks \"Consume\"; the LG-VERB-02 guide predicate then watches new text.",
+    "currentBehaviour": "Both spellings are live: \"Consume\" in 23 printed texts, \"devour\" in 2. Approving picks \"Consume\"; the LG-VERB-02 guide predicate then watches new text.",
     "cardText": "\"Consume\" — Abyssal Feeder: \"End of Turn: adjacent minions each Consume a Fodder.\" · \"devour\" — Channeling the Devourer: \"Devour a friendly minion and spit its stats onto a random other friend.\"",
     "example": "Channeling the Devourer would be re-worded to the \"Consume\" form; mechanics untouched.",
     "evidence": [
       {
         "kind": "docbot-scan",
-        "ref": "textParse.wording · LG-VERB-02 (corpus survey: 25 vs 2)"
+        "ref": "textParse.wording · LG-VERB-02 (corpus survey: 23 vs 2)"
       }
     ],
     "sourceQueue": "textParse.wording",

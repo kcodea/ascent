@@ -419,11 +419,11 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-family-shout",
-    "title": "'shout' family · 69 cards",
-    "statement": "All 69 'shout' cards trigger the same way. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
+    "title": "'shout' family · 68 cards",
+    "statement": "All 68 'shout' cards trigger the same way. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
-    "currentBehaviour": "63 effect factories across 69 cards dispatch through the 'shout' presentation family, all on the single trigger 'onPlay' (both); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Pennycat: \"Battlecry: summon a 1/1 Stray next to it.\" · Members: Pennycat · Mage-Pup · Black Belt Brian · Buddy Buddy · Accretion Warden · Constellation Prime · Corona Devotee · Falling Star Herald · Nova Herald · Shooting Star · Star Charter · Star Seed · … and 57 more",
+    "currentBehaviour": "63 effect factories across 68 cards dispatch through the 'shout' presentation family, all on the single trigger 'onPlay' (both); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
+    "cardText": "Exemplar — Pennycat: \"Battlecry: summon a 1/1 Stray next to it.\" · Members: Pennycat · Mage-Pup · Black Belt Brian · Buddy Buddy · Accretion Warden · Constellation Prime · Corona Devotee · Falling Star Herald · Shooting Star · Star Charter · Star Seed · Starpath Vendor · … and 56 more",
     "example": "Pennycat follows the 'shout' convention — its trigger fires on onPlay. its printed numbers double when the card is gilded.",
     "contentIds": [
       "alley",
@@ -434,7 +434,6 @@ export const CONVENTION_PENDING: GameRule[] = [
       "ce3_constellationprime",
       "ce3_coronadevotee",
       "ce3_herald",
-      "ce3_novaherald",
       "ce3_shootingstar",
       "ce3_starcharter",
       "ce3_starseed",

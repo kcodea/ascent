@@ -3093,7 +3093,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "effects": [
       {
-        "kind": "battlecryConsumeStarform"
+        "kind": "battlecryCollapseStarform"
       }
     ],
     "gildedDelta": {
@@ -3419,7 +3419,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "triggers": [
       {
-        "event": "onPlay",
+        "event": "passive",
         "phase": "shop",
         "phaseBasis": "derived:phaseRegistry",
         "note": "combat side excused: no-surface"
@@ -3427,20 +3427,21 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "effects": [
       {
-        "kind": "battlecryCollapseStarform",
+        "kind": "collapseExtraTargets",
         "amount": {
           "kind": "const",
           "plain": {
-            "count": 3
+            "extra": 2
           }
         }
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
+      "kind": "multiply",
+      "factor": 2,
       "basis": "derived:golden-text",
       "goldenTextSource": "index:goldenText",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"

@@ -425,7 +425,26 @@ export const STELLAR_LENS: EquipmentDefinition = {
   gildedParams: { attack: 20, health: 20 },
 };
 
-export const EQUIPMENT: readonly EquipmentDefinition[] = [BLOODPOT, TITAN_HAMMER, BLAST_PUMP, PRISMATIC_PICK, DUELING_RUBETTAS, POURMANS_KEG, THYMEPIECE, COFFIN_FLOP, DEATHFIBRILLATOR, MAGNIFYING_GLASS, WHIPLASSO, SPIRITBRINGER, REVELMAKER, COMET, STELLAR_LENS];
+/**
+ * STAR DESTROYER — the Starform's own Equipment (owner rule C, 2026-09-13). Granted by the STARFORM OFFER, not by
+ * a board minion: it appears the moment a Starform is created and leaves the rail the moment the token is gone
+ * (`syncStarDestroyer` in `sim/equipment.ts`; a new token re-grants it). Standard in every other respect — the
+ * rail, the selector, its own once-per-turn charge, the shared bonus pool. Gilding does not apply (no source body).
+ *
+ * Activation is THE SILENT EXIT: the offer leaves the Shop and nothing else happens — no consume, no collapse, no
+ * `starformRemoved` (Zenith does NOT re-create), no `starformGained`, not a minion bought, no pull FX. `useFxId` /
+ * `useSfxId` deliberately unset (none authored). Icon: ART_PENDING (the button falls back to its glyph).
+ */
+export const STAR_DESTROYER: EquipmentDefinition = {
+  id: 'star_destroyer',
+  name: 'Star Destroyer',
+  text: 'Remove your **Starform** from the Shop.',
+  baseCost: 0,
+  targetMode: 'none',
+  effectId: 'equipmentRemoveStarform',
+};
+
+export const EQUIPMENT: readonly EquipmentDefinition[] = [BLOODPOT, TITAN_HAMMER, BLAST_PUMP, PRISMATIC_PICK, DUELING_RUBETTAS, POURMANS_KEG, THYMEPIECE, COFFIN_FLOP, DEATHFIBRILLATOR, MAGNIFYING_GLASS, WHIPLASSO, SPIRITBRINGER, REVELMAKER, COMET, STELLAR_LENS, STAR_DESTROYER];
 
 export const EQUIPMENT_INDEX: Readonly<Record<string, EquipmentDefinition>> =
   Object.fromEntries(EQUIPMENT.map((e) => [e.id, e]));

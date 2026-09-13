@@ -1,9 +1,9 @@
 /**
- * THE STARFORM — set 3 Celestials' shop token (owner design 2026-09-12; every rule below is a ruling and each
- * is pinned in `starform.test.ts`).
+ * THE STARFORM — set 3 Celestials' shop token (owner design 2026-09-12; rules v2 2026-09-13; every rule below is
+ * a ruling and each is pinned in `starform.test.ts`).
  *
  * A 1/1 Celestial TOKEN (`ce3_starform`) that lives IN THE SHOP as an ordinary shop offer — not on the board,
- * not in hand. Cards create it (Star Seed & co., the content PR), grow it, and finally cash it in:
+ * not in hand. Cards create it (Star Seed & co.), grow it, and finally cash it in:
  *
  *   1. CREATED into the right-most Shop slot. A full row: it CONSUMES the right-most Shop minion (the offer is
  *      removed, the Starform gains that offer's buy stats — a real Shop consume, with every watcher and tally
@@ -14,38 +14,72 @@
  *      card do "give it +2/+2 instead").
  *   3. PERSISTS through refreshes IN ITS OWN SLOT (`withStarformPinned` re-inserts it at its previous index,
  *      clamped, after every row rebuild — the kept-offers-to-the-left rule never moves it), across turns and
- *      combat, and under Freeze, until consumed / collapsed / dismissed.
+ *      combat, and under Freeze, until consumed / collapsed / destroyed.
  *   4. Refresh-time slot buffs (Market Tormentor's right-most enchant, Rune of the Embers, the Display Case,
  *      Veinstorm's stamp) land on it ONCE — the first refresh it sits in the slot — never again
  *      (`starformRefreshLand`, latched per source on the offer). Play-time right-most buffs are unaffected.
- *   5. Cannot be bought like a minion: the buy path charges 0 and DISMISSES it. That buy COUNTS as a minion
- *      bought (onBuy watchers, cardsBought, quest / rune / hero tallies) but puts nothing in hand and returns
- *      nothing to the pool. Never gilded, never tripled, never held / laid away, never Discovered-into,
- *      never displaced, never stolen to hand. For everything ELSE it is a regular Shop minion: random-shop
- *      picks, Demon consumes, "this shop" buffs, hero powers aimed at a shop minion, spells cast on offers.
+ *   5. IT HAS A PRICE (rule A, 2026-09-13). It spawns at 6 Gold (`STARFORM_START_PRICE`, on `ShopCard.cost`);
+ *      every refresh — paid or free, any `roll` — knocks 1 off (floor 0, `starformRefreshTick`); the reduction
+ *      SURVIVES the turn boundary (a 3-Gold Starform is 3 Gold next turn); a NEW token (Zenith's rebirth
+ *      included) starts at 6 again. `offerBuyPrice` reads it like any set price, so every regular discount
+ *      (Thymepiece, Trade-In, Cadence, the Friends-and-Family Gift, the free first buy) applies.
+ *      BUYING IT = YOUR LEFT-MOST CELESTIAL CONSUMES IT (rule B): the Gold is spent, the token leaves through
+ *      the consume path (`buyStarform` → `starformRemoved('consume')`, so Zenith re-creates and Twin Star hears
+ *      the receiver's gain exactly as for Corona Devotee) and the left-most board Celestial (index 0 first)
+ *      gains its FULL stats. With NO Celestial on board the buy still takes the Gold and the token is simply
+ *      lost — treated as consumed with the stats going nowhere (reason `consume`, so Zenith still re-creates).
+ *      The buy COUNTS as a minion bought (onBuy watchers, cardsBought, quest / rune / hero tallies) but puts
+ *      nothing in hand and returns nothing to the pool. Never gilded, never tripled, never held / laid away,
+ *      never Discovered-into, never displaced, never stolen to hand. For everything ELSE it is a regular Shop
+ *      minion: random-shop picks, Demon consumes, "this shop" buffs, hero powers aimed at a shop minion, spells
+ *      cast on offers.
  *   6. PRINTED STATS ARE THE COUNTER — no rules text. Its whole total is BAKED onto the offer (`atk` / `hp` +
  *      the `buffs` ledger): direct buffs, the permanent shop channel (`applyRunShopBuff`), the this-turn shop
  *      channel (`addTurnShopBuff`) and consumes all fold in as they happen, so the refresh that clears the
  *      per-turn layer for every other offer leaves the Starform's total intact. `offerBuyStats` reads
  *      base + atk/hp for it and NEVER the live channels (they would pay twice).
- *   7. CONSUME (Corona Devotee) = 100% of its stats to one Celestial; COLLAPSE (Nova Herald) = 50% to three
- *      random friendly Celestials, halves ROUNDED UP; the base 1/1 is INCLUDED in what transfers. With no
- *      Starform both do nothing. `consumeStarform` / `collapseStarform` remove the token and RETURN its full
- *      stats — the card factories distribute them.
+ *   7. CONSUME (the buy) = 100% of its stats to one Celestial; COLLAPSE (Corona Devotee — rule D) = HALF its
+ *      stats, rounded up, base included, to 2 UNIQUE random friendly Celestials PLUS
+ *      `collapseExtraTargetsOf(state)` extra hits drawn WITH replacement (an extra may land on a Celestial that
+ *      already took a hit). 1 Celestial: 1 original + every extra on it. 0: the token still collapses, the stats
+ *      go nowhere. With no Starform both do nothing. `consumeStarform` / `collapseStarform` remove the token and
+ *      RETURN its stats — the card factories distribute them.
  *   8. Two board-wide watcher triggers: `starformGained` (Twin Star — payload carries the delta; fired from
  *      `buffStarform`, from the Starform's own consume, and from the action-boundary diff in `reduce` for every
- *      other growth path) and `starformRemoved` (reason `consume` | `collapse` | `dismiss` + full stats).
+ *      other growth path) and `starformRemoved` (reason `consume` | `collapse` + full stats).
+ *   9. STAR DESTROYER (rule C): while a Starform exists the player holds the `star_destroyer` Equipment — a
+ *      standard Equipment whose SOURCE is the token's offer (`syncStarDestroyer`). Activating it is THE SILENT
+ *      EXIT (`destroyStarform`): the offer leaves the Shop and nothing else fires — no consume, no collapse, no
+ *      `starformRemoved` (Zenith does not re-create), no `starformGained`, not a buy, no pull FX.
  *
- * `run.shop` already persists, so the token saves / restores with the row; nothing else to carry.
+ * `run.shop` already persists, so the token saves / restores with the row (price included); nothing else to carry.
  */
-import type { CardDef } from '@game/core';
+import { makeRng, type CardDef } from '@game/core';
+import { CARD_INDEX } from '@game/content';
 import type { BoardCard, RunState, ShopCard } from './state';
-import { addOfferBuff, consumeShopOffer, fireStarformGained, fireStarformRemoved, offerBuyStats, rightmostShopMinion } from './recruit';
+import { addBuff, addOfferBuff, consumeShopOffer, fireStarformGained, fireStarformRemoved, isTribe, offerBuyStats, rightmostShopMinion } from './recruit';
+import { syncStarDestroyer } from './equipment';
 import { tierSlots } from './shop';
 
 export const STARFORM_ID = 'ce3_starform';
+/** Rule 5: the price a fresh token spawns at. */
+export const STARFORM_START_PRICE = 6;
 
-export type StarformRemovedReason = 'consume' | 'collapse' | 'dismiss';
+export type StarformRemovedReason = 'consume' | 'collapse';
+
+/** The Starform's LIVE PRICE (rule 5): `cost` on the offer, 6 for a token from before the field existed. */
+export function starformPrice(state: RunState): number | null {
+  const sf = starformOf(state);
+  return sf ? (sf.cost ?? STARFORM_START_PRICE) : null;
+}
+
+/** Rule 5: a refresh (any `roll`, paid or free) knocks 1 Gold off the token's price, floor 0. Called by the
+ *  reducer's `roll` case AFTER the row rebuilt (the token survived it, rule 3). No-op without a Starform. */
+export function starformRefreshTick(state: RunState): void {
+  const sf = starformOf(state);
+  if (!sf) return;
+  sf.cost = Math.max(0, (sf.cost ?? STARFORM_START_PRICE) - 1);
+}
 
 /** Is this offer the run's Starform? (The flag is the identity — the cardId alone is not: a plain `ce3_starform`
  *  offer could in principle be scripted into a tutorial row, and it would then be an ordinary minion.) */
@@ -162,7 +196,7 @@ function recordStarformFx(state: RunState, kind: 'consumeShop' | 'consumed' | 'c
 export function createStarform(state: RunState, source: { cardId: string; name: string }): ShopCard {
   const existing = starformOf(state);
   if (existing) return existing;
-  const sf: ShopCard = { uid: `s${state.uidSeq++}`, cardId: STARFORM_ID, starform: true };
+  const sf: ShopCard = { uid: `s${state.uidSeq++}`, cardId: STARFORM_ID, starform: true, cost: STARFORM_START_PRICE };
   const full = state.shop.length >= tierSlots(state.tier);
   const victim = full ? rightmostShopMinion(state) : -1;
   if (victim >= 0) {
@@ -193,6 +227,7 @@ export function createStarform(state: RunState, source: { cardId: string; name: 
   }
   const turn = state.tavernBuyBonusTurn;
   if (turn && (turn.atk > 0 || turn.hp > 0)) buffStarform(state, turn.atk, turn.hp, 'Shop Enchant');
+  syncStarDestroyer(state); // rule 9: the token brings its Equipment
   void source; // the creator is presentation metadata today (the content PR names it on the create cue)
   return sf;
 }
@@ -220,12 +255,66 @@ function removeStarform(state: RunState, reason: StarformRemovedReason): { attac
   if (idx < 0) return null;
   const stats = offerBuyStats(state, state.shop[idx]!);
   state.shop.splice(idx, 1);
+  syncStarDestroyer(state); // rule 9: the Equipment leaves with the token (a Zenith rebirth re-grants it)
   fireStarformRemoved(state, reason, stats);
   return stats;
 }
 
+/** Rule 9 — STAR DESTROYER's silent exit: the offer leaves the Shop and NOTHING else fires. Not a consume, not
+ *  a collapse, no `starformRemoved` (Zenith stays quiet), no `starformGained`, no pull record. The Equipment
+ *  itself is dropped by `syncStarDestroyer`. False with no Starform. */
+export function destroyStarform(state: RunState): boolean {
+  const idx = starformIndex(state);
+  if (idx < 0) return false;
+  state.shop.splice(idx, 1);
+  syncStarDestroyer(state);
+  return true;
+}
+
+/** Rule 5 — the BUY: your LEFT-MOST board Celestial consumes the token (its FULL stats, base included, under the
+ *  `Starform` ledger line); with none the token is consumed into nothing. Either way the token leaves via the
+ *  consume path (`starformRemoved('consume')` — Zenith re-creates, Twin Star hears the buy like a Devotee's). The
+ *  reducer's `buy` case owns the Gold + the "counts as a minion bought" half. Returns the receiver (null = none)
+ *  and the stats that moved; null with no Starform. */
+export function buyStarform(state: RunState): { receiver: BoardCard | null; stats: { attack: number; health: number } } | null {
+  if (!hasStarform(state)) return null;
+  const receiver = state.board.find((c) => isTribe(c, 'celestial')) ?? null;
+  const stats = receiver ? consumeStarform(state, receiver) : removeStarform(state, 'consume');
+  if (!stats) return null;
+  if (receiver) addBuff(receiver, 'Starform', stats.attack, stats.health);
+  return { receiver, stats };
+}
+
+/** Rule 7 — the EXTRA Collapse hits beyond the 2 unique originals: the run-wide counter (`collapseExtraTargets`,
+ *  no writer yet) plus every Nova Herald standing on the board (its `passive` `collapseExtraTargets` marker:
+ *  +2 each, +4 gilded — read off the card, never dispatched). */
+export function collapseExtraTargetsOf(state: RunState): number {
+  let n = state.collapseExtraTargets ?? 0;
+  for (const c of state.board) {
+    const def = CARD_INDEX[c.cardId];
+    const eff = def?.effects.find((e) => e.on === 'passive' && e.do === 'collapseExtraTargets');
+    if (eff) n += Number(eff.params?.extra ?? 2) * (c.golden ? 2 : 1);
+  }
+  return n;
+}
+
+/** Rule 7 — draw the Collapse's HITS from the friendly Celestials: `originals` UNIQUE picks first (fewer when the
+ *  pool is smaller), then `extras` picks WITH replacement — an extra may repeat an original or another extra.
+ *  Empty with no Celestial. One rng cursor advance, in this order, so a seeded replay reproduces it. */
+export function collapseHits(state: RunState, originals = 2, extras = collapseExtraTargetsOf(state)): BoardCard[] {
+  const pool = state.board.filter((c) => isTribe(c, 'celestial'));
+  if (pool.length === 0) return [];
+  const rng = makeRng(state.rngCursor);
+  const avail = [...pool];
+  const hits: BoardCard[] = [];
+  for (let i = 0; i < originals && avail.length > 0; i++) hits.push(avail.splice(rng.int(avail.length), 1)[0]!);
+  for (let i = 0; i < extras; i++) hits.push(pool[rng.int(pool.length)]!);
+  state.rngCursor = rng.state();
+  return hits;
+}
+
 /**
- * Rule 7 — CONSUME (Corona Devotee): the Starform leaves and its FULL stats (base 1/1 included) are returned
+ * Rule 7 — CONSUME (the buy into your left-most Celestial): the Starform leaves and its FULL stats (base 1/1 included) are returned
  * for `target` — the caller (the card factory) grants them, so the buff wears the card's name. Null with no
  * Starform (nothing happens). `target` is accepted for the contract's shape and for the removal record.
  */
@@ -237,10 +326,11 @@ export function consumeStarform(state: RunState, target: BoardCard): { attack: n
 }
 
 /**
- * Rule 7 — COLLAPSE (Nova Herald): the Starform leaves and HALF its stats, ROUNDED UP (base included), are
- * returned — the caller hands that half to each of three random friendly Celestials. Null with no Starform.
- * `receivers` picks those Celestials AFTER the token has left (the factory's random draw) so the pull can be
- * recorded against every one of them — one `starform-pull` per target, all fired together (owner 2026-09-12).
+ * Rule 7 — COLLAPSE (Corona Devotee): the Starform leaves and HALF its stats, ROUNDED UP (base included), are
+ * returned — the caller hands that half to EACH hit. Null with no Starform. `receivers` draws the hits AFTER
+ * the token has left (`collapseHits`: 2 unique + the extras, with replacement) so the pull can be recorded
+ * against every one of them — one `starform-pull` per HIT, duplicates included (a Celestial hit three times
+ * gets three pulls), all fired together (owner 2026-09-12 / 2026-09-13).
  */
 export function collapseStarform(state: RunState, receivers: () => BoardCard[] = () => []): { attack: number; health: number } | null {
   const fromUid = starformOf(state)?.uid;
@@ -260,12 +350,6 @@ export function starformSpellAimsToken(def: Pick<CardDef, 'spell' | 'target' | '
   return !!def.spell && def.target === 'friendly' && def.targetTribe === 'celestial';
 }
 
-/** Rule 5 — the 0-Gold buy: the token is DISMISSED (nothing enters the hand). The reducer's `buy` case owns the
- *  "counts as a minion bought" half; this is the removal + the `starformRemoved('dismiss')` notice. */
-export function dismissStarform(state: RunState): { attack: number; health: number } | null {
-  return removeStarform(state, 'dismiss');
-}
-
 /**
  * The action-boundary half of rule 8: `reduce` calls this with the Starform's stats BEFORE the action; any
  * growth the action produced that was NOT already dispatched (`starformGainFired`) fires `starformGained`
@@ -274,7 +358,7 @@ export function dismissStarform(state: RunState): { attack: number; health: numb
 export function fireStarformGainRemainder(state: RunState, before: { uid: string; attack: number; health: number } | null): void {
   if (!before) return;
   const sf = starformOf(state);
-  if (!sf || sf.uid !== before.uid) return; // gone (consumed / collapsed / dismissed) — no gain to report
+  if (!sf || sf.uid !== before.uid) return; // gone (consumed / collapsed / destroyed) — no gain to report
   const now = offerBuyStats(state, sf);
   const fired = state.starformGainFired ?? { attack: 0, health: 0 };
   const a = Math.max(0, now.attack - before.attack - fired.attack);

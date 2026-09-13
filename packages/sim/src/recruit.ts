@@ -47,14 +47,15 @@ type RecruitFn = (
   *  a stand-in and any effect that consumes the arriver must stand down. */ noArriver?: boolean;
   /** STARFORM (set 3 Celestials): `starformGained` carries the DELTA the token just gained; `starformRemoved`
    *  carries WHY it left the Shop and its FULL stats at removal (base 1/1 included). `minion` is the watcher. */
-  starformAttack?: number; starformHealth?: number; starformReason?: 'consume' | 'collapse' | 'dismiss';
+  starformAttack?: number; starformHealth?: number; starformReason?: 'consume' | 'collapse';
   /** EQUIPMENT activation: the turn clock's reading the action carried (seconds left) — a clock-window
    *  Equipment (Thymepiece) anchors to it. Absent = no reading. */
   clockSeconds?: number },
 ) => void;
 
 import { SPELL_POWER_EXCUSED } from './docbot/historyRegistry';
-import { buffStarform, collapseStarform, consumeStarform, createStarform, hasStarform, starformConsumeShopMinion, starformFollowShopBuff, starformRefreshLand } from './starform';
+import { buffStarform, collapseHits, collapseStarform, createStarform, destroyStarform, hasStarform, starformConsumeShopMinion, starformFollowShopBuff, starformRefreshLand } from './starform';
+import { syncStarDestroyer } from './equipment';
 
 const num = (v: unknown, fallback = 0): number => (typeof v === 'number' ? v : fallback);
 
@@ -5745,8 +5746,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     createStarform(ctx.state, { cardId: self.cardId, name: nameOf(self) });
   },
 
-  /** Stardust Peddler (`onBuy`): your Starform +a/+h per minion bought. The token's own 0-Gold dismiss buy counts
-   *  as a buy (rule 5) but the token is already gone when the watchers fire — `buffStarform` finds nothing. */
+  /** Stardust Peddler (`onBuy`): your Starform +a/+h per minion bought. The token's own buy (rule 5: consumed
+   *  into your left-most Celestial) counts as a buy but the token is already gone when the watchers fire —
+   *  `buffStarform` finds nothing (unless a Zenith just re-created it, which then takes the +1/+1). */
   onBuyBuffStarform: (ctx, self, params) => {
     buffStarform(ctx.state, num(params.attack, 1) * gold(self), num(params.health, 1) * gold(self), nameOf(self));
   },
@@ -5819,32 +5821,32 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     createStarform(ctx.state, { cardId: self.cardId, name: nameOf(self) });
   },
 
-  /** Corona Devotee (Shout): CONSUME the Starform — the token leaves (rule 7, `starformRemoved('consume')`) and
-   *  this gains 100% of its stats, base 1/1 included. No Starform → nothing. Golden: gains double (`times` 2). */
-  battlecryConsumeStarform: (ctx, self, params) => {
-    const st = consumeStarform(ctx.state, self);
-    if (!st) return;
-    const times = num(params.times, 1) * gold(self);
-    addBuff(self, nameOf(self), st.attack * times, st.health * times);
-  },
-
-  /** Nova Herald (Shout): COLLAPSE the Starform — the token leaves and `count` RANDOM friendly Celestials each gain
-   *  HALF its stats, rounded up, base included (rule 7 — `collapseStarform` returns the halves). Fewer Celestials
-   *  than `count` → each present one gets it; none → the token still collapses and the stats go nowhere; no
-   *  Starform → nothing at all (owner 2026-09-12). The Herald itself is a friendly Celestial and eligible. Golden:
-   *  each recipient gains double the half (its full stats). */
+  /** Corona Devotee (Shout; rules v2 2026-09-13): COLLAPSE the Starform — the token leaves and 2 UNIQUE random
+   *  friendly Celestials each gain HALF its stats, rounded up, base included (rule 7 — `collapseStarform` returns
+   *  the halves), PLUS `collapseExtraTargetsOf` extra hits drawn WITH replacement (Nova Herald's passive +2 per
+   *  Herald on board, +4 gilded; the run-wide `collapseExtraTargets` counter) — an extra may land on a Celestial
+   *  that already took a hit, so with two Celestials one can take 3 and the other 1. One Celestial → 1 original +
+   *  every extra on it; none → the token still collapses and the stats go nowhere; no Starform → nothing at all.
+   *  The Devotee itself is a friendly Celestial and eligible. Golden: each hit gains double the half (the full
+   *  stats). `params.count` overrides the number of unique originals (default 2). */
   battlecryCollapseStarform: (ctx, self, params) => {
-    // The receivers are drawn INSIDE the collapse (after the token leaves, same rng order as before) so the
-    // `starformFx` record names every one of them — the UI fires one `starform-pull` per target.
-    let picked: BoardCard[] = [];
+    // The hits are drawn INSIDE the collapse (after the token leaves) so the `starformFx` record names every one
+    // of them, duplicates included — the UI fires one `starform-pull` per hit.
+    let hits: BoardCard[] = [];
     const half = collapseStarform(ctx.state, () => {
-      const pool = ctx.state.board.filter((c) => isTribe(c, 'celestial'));
-      picked = pickRandom(ctx.state, pool, num(params.count, 3));
-      return picked;
+      hits = collapseHits(ctx.state, num(params.count, 2));
+      return hits;
     });
     if (!half) return;
     const g = gold(self);
-    for (const t of picked) addBuff(t, nameOf(self), half.attack * g, half.health * g);
+    for (const t of hits) addBuff(t, nameOf(self), half.attack * g, half.health * g);
+  },
+
+  /** STAR DESTROYER (the Starform's own Equipment, rule 9): the silent exit — the token leaves the Shop and nothing
+   *  else fires. No consume, no collapse, no `starformRemoved` (Zenith stays quiet), no `starformGained`, not a
+   *  buy, no pull record. Idempotent with no Starform (the Equipment cannot be held without one). */
+  equipmentRemoveStarform: (ctx) => {
+    destroyStarform(ctx.state);
   },
 
   /** Twin Star (`starformGained`): this gains the SAME the token just gained — the payload carries the delta
@@ -5862,8 +5864,10 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     buffStarform(ctx.state, num(params.attack, 3) * gold(self), num(params.health, 3) * gold(self), nameOf(self));
   },
 
-  /** Zenith (`starformRemoved`): when the token is CONSUMED or COLLAPSES — never DISMISSED (the 0-Gold buy) — create
-   *  a new one carrying HALF its stats, rounded up. The payload's stats are the FULL total (base 1/1 included), and
+  /** Zenith (`starformRemoved`): when the token is CONSUMED (Corona Devotee's old Shout, the BUY into your left-most
+   *  Celestial, a Demon eating it) or COLLAPSES (Corona Devotee, Herald-assisted or not) — never on the Star
+   *  Destroyer's silent exit, which fires no `starformRemoved` at all — create a new one carrying HALF its stats,
+   *  rounded up, at the fresh 6-Gold price (rule 5). The payload's stats are the FULL total (base 1/1 included), and
    *  a fresh token is already 1/1, so the buff above base is `ceil(full/2) − 1` per stat (floored at 0): a 7/10
    *  token comes back as a 4/5. A full row eats its right-most minion as any create does (rule 1); the new token's
    *  own gain fires `starformGained` (Twin Star hears the rebirth). Golden: the new token carries the FULL stats. */
@@ -9302,7 +9306,7 @@ export function fireStarformGained(state: RunState, attack: number, health: numb
   }
 }
 
-export function fireStarformRemoved(state: RunState, reason: 'consume' | 'collapse' | 'dismiss', stats: { attack: number; health: number }): void {
+export function fireStarformRemoved(state: RunState, reason: 'consume' | 'collapse', stats: { attack: number; health: number }): void {
   const ctx = makeContext(state);
   for (const card of [...state.board]) {
     for (const effect of instanceEffects(card)) {
@@ -9313,8 +9317,8 @@ export function fireStarformRemoved(state: RunState, reason: 'consume' | 'collap
   }
 }
 
-/** Fire the board's `onBuy` WATCHERS for a purchase that put NO body anywhere — the Starform's 0-Gold dismiss
- *  (owner rule 5: it counts as a minion bought). The bought "body" is a stand-in built from the token, so a
+/** Fire the board's `onBuy` WATCHERS for a purchase that put NO body anywhere — the Starform's buy, which is
+ *  consumed into your left-most Celestial (owner rule 5: it counts as a minion bought). The bought "body" is a stand-in built from the token, so a
  *  watcher reading the payload sees a Celestial. Deliberately NOT `applyOnBuy`: Banquet Hall / Second Life act
  *  on a body that arrives in hand, and nothing arrives here. */
 export function fireOnBuyWatchers(state: RunState, bought: BoardCard): void {
@@ -10209,8 +10213,9 @@ export function consumeShopOffer(
   const gainH = fh * times;
   gain(gainA, gainH);
   // A Demon that eats the STARFORM removes it (owner rule 5: it counts as a regular Shop minion for Demon
-  // consumes) — the Zenith-style watchers hear it leave with reason 'consume' and its full stats.
-  if (offer.starform) fireStarformRemoved(state, 'consume', { attack: fa, health: fh });
+  // consumes) — its Star Destroyer leaves with it (rule 9), and the Zenith-style watchers hear it leave with
+  // reason 'consume' and its full stats.
+  if (offer.starform) { syncStarDestroyer(state); fireStarformRemoved(state, 'consume', { attack: fa, health: fh }); }
   // Record the consume BEFORE notifying: an `onConsume` watcher has to be able to see WHAT was eaten, and
   // `fodderEaten` is the only carrier of that (Avarice Incarnate pays Gold equal to the eaten minion's tier and
   // read an empty list when this was appended afterwards). APPENDED rather than replacing, so several consumes

@@ -85,6 +85,15 @@
         "def": "broodfire-buff"
       }
     },
+    "d2_embermouth": {
+      "minionSelfBuffed": {
+        "def": "embermouth"
+      },
+      "buffWave": {
+        "def": "embermouth",
+        "fanOut": "selfBuffed"
+      }
+    },
     "sp_dragonflame": {
       "spellCast": {
         "def": "dragonflame",

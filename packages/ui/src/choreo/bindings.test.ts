@@ -196,6 +196,10 @@ const CARD_BINDINGS: Record<string, Record<string, { def: string; fanOut?: strin
   // Broodfire's Shout buffs every Dragon; the authored def cascades over each one it pumped (owner 2026-09-01).
   // Shop-only by construction — a Shout has no combat moment — so there is no `buffWave` row to pair with it.
   d2_broodfire: { minionBuffed: { def: 'broodfire-buff' } },
+  // Embermouth Whelp gains +1/+1 after a Shout — a SELF-buff, so the owner's authored `embermouth` def plays on
+  // it: the shop's `minionSelfBuffed` moment (keyed by its own card) and, when Embercrest's Rally re-fires the
+  // Shouts in combat, the `buffWave` moment's `selfBuffed` fan-out (owner ask 2026-09-13).
+  d2_embermouth: { minionSelfBuffed: { def: 'embermouth' }, buffWave: { def: 'embermouth', fanOut: 'selfBuffed' } },
   // Karwind rings every Dragon it pumps — the combat `buffed` fan-out plays `flame-ring` once per cross-buffed
   // unit, and the shop's source-keyed `minionBuffed` moment plays it on each Dragon Karwind buffed in the tavern.
   karwind: { buffWave: { def: 'flame-ring', fanOut: 'buffed' }, minionBuffed: { def: 'flame-ring', critDef: 'flame-ring-crit' } },

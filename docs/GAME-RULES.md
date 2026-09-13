@@ -27,7 +27,11 @@ outlasting seven other seats, and your **final placement** is the result that mo
   live player**; the other seven are independently developed runs.
 - A non-player seat is a **snapshot** (a recorded player run), a **hybrid**, a **bot**, or — in the tutorial
   only — an **authored** seat. Player snapshots fill every seat the pool can cover; bots take what is left,
-  so an empty pool degrades to a fully generated table rather than a smaller one.
+  so an empty pool degrades to a fully generated table rather than a smaller one. **Which** snapshot runs sit
+  at the table is a seeded uniform shuffle of every eligible run in the lobby's set (owner 2026-09-13): every
+  run is equally likely, the same lobby seed always seats the same table (restore / replay), and nothing
+  weights the draw — no strength band, no author cap (an author may hold several seats through different
+  runs; a per-author cap is a future knob), no win-rate weighting (that exists only on the pre-lobby pool pick).
 - The lobby is **asynchronous**: opponents are recordings and generated runs, never live opponents. It never
   requires two players online at once.
 - Each round, surviving seats are **paired**. **One authoritative `simulate()` resolves each encounter and

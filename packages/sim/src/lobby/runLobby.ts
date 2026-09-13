@@ -179,6 +179,16 @@ export function driverFor(seat: LobbySeatState, setId?: SetId): SeatDriver | nul
 }
 
 /** Build the 7 opponent seats for a player's lobby. Deterministic from the lobby seed. */
+/** Fisher–Yates on a copy, driven by the caller's RNG — the seat-fill draw (see `createRunLobby`). */
+function shuffleRuns<T>(runs: readonly T[], rng: { int: (n: number) => number }): T[] {
+  const out = [...runs];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = rng.int(i + 1);
+    [out[i], out[j]] = [out[j]!, out[i]!];
+  }
+  return out;
+}
+
 export function createRunLobby(seed: number, playerHeroId: string, rules: Partial<LobbyRules> = {}, setId?: SetId): RunLobby {
   const r: LobbyRules = { ...DEFAULT_LOBBY_RULES, ...rules };
   // `playableHeroes` (not the raw roster): a `practiceOnly` hero is off PLAY mode, and a rival seat in a rated
@@ -218,20 +228,17 @@ export function createRunLobby(seed: number, playerHeroId: string, rules: Partia
   // hold several seats through DIFFERENT runs; only the exact same run never sits twice. When the pool can't
   // cover the table, bots take what's left. An explicit `rules.snapshotSeats` still pins a smaller mix (tests).
   //
-  // Seeded rotation over a deterministically-ordered list: the same lobby seed always seats the same runs, so
-  // a restored or replayed lobby is identical.
-  const available = playerRunsFrom(undefined, undefined, setId);
+  // A SEEDED SHUFFLE of the deterministically-ordered run list (owner 2026-09-13: "completely random"). Every
+  // eligible run is equally likely to sit at any seat, and the draw is still a pure function of the lobby seed,
+  // so a restored or replayed lobby is identical. This replaces the stride-7 walk of 2026-08-03, which was
+  // never a distribution — it was a cheap "don't seat adjacent entries" that collapsed onto one run whenever
+  // the pool size hit a multiple of 7 (#838) and let nearby seeds see near-identical tables. Fisher–Yates on
+  // its own RNG stream (a tag distinct from the pairing / seat-combat mixes below) so this draw never moves
+  // those.
+  const available = shuffleRuns(playerRunsFrom(undefined, undefined, setId), makeRng(seed ^ 0x2545f491));
   const maxSnapshotSeats = Math.min(r.snapshotSeats ?? r.seatCount - 1, available.length);
-  // The walk below strides through the ordered run list so consecutive seats aren't adjacent entries. A stride
-  // only enumerates the WHOLE list when it is COPRIME with the list length — and 7 shares a factor with every
-  // multiple of 7, so `(seed + i * 7) % 7n` folded onto just n distinct runs: a pool of exactly 7 reached ONE
-  // run, 14 reached two, and so on. Since the pool grows by a run per finished upload, a table that had been
-  // seating plenty of real players would suddenly seat one or none the moment the pool size crossed a multiple
-  // of 7 — which reads as "this lobby randomly has no player snapshots" (owner report 2026-08-03). Falling back
-  // to a stride of 1 there keeps the walk a true permutation; every other size keeps the decorrelated stride.
-  const stride = available.length % 7 === 0 ? 1 : 7;
   for (let i = 0; i < available.length && picked < r.seatCount - 1 && seats.filter((x) => x.kind === 'snapshot').length < maxSnapshotSeats; i++) {
-    const run = available[(seed + i * stride) % available.length]!;
+    const run = available[i]!;
     if (seats.some((x) => x.runKey === run.key)) continue; // never seat the same run twice
     // A real author's name when the run has one; otherwise a generated handle. 142 of the pool's 664 boards
     // carry no author, and labelling those "run 1534" leaked the seed and read as debug output. An author

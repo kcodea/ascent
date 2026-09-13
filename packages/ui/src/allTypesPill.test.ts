@@ -53,8 +53,9 @@ const ART_PENDING = new Set<string>([
   // properly-named `UnbridledMight.png` that resolved the old UnbridledWrath near-miss). Grand Larceny is
   // the one Gift still awaiting a master.
   'gift_larceny',
-  // SET 3 SPELLS (2026-09-10): no masters yet for the seven new rows of the spell sheet.
-  'aspectsblessing', 'rushorder', 'sharedspirit', 'starcrash', 'graverobbery', 'handsoap', 'crescendo', 'stellarchorus', 'splitdecision',
+  // SET 3 SPELLS (2026-09-10): no masters yet for the new rows of the spell sheet (Accretion + Grave Robbery
+  // landed 2026-09-13; `SharedSpirit - Copy.png` is a duplicate export and stays unmatched on purpose).
+  'aspectsblessing', 'rushorder', 'sharedspirit', 'starcrash', 'handsoap', 'crescendo', 'stellarchorus', 'splitdecision',
   // SET 3 SPIRITS (2026-09-09): eleven tranche-1 masters have landed (the second batch brought Dreamcurrent Mystic,
   // Spirit Artificer, Gathering Guide, Aspect); the rest are authored ahead of their art.
   'sp3_grovereveler', 'sp3_treasurer', 'sp3_revelator', 'sp3_luminary', 'sp3_forestcolossus', 'sp3_grandprocession',
@@ -67,13 +68,12 @@ const ART_PENDING = new Set<string>([
   // SET 3 KOBOLDS: NONE LEFT. The whole roster is arted as of 2026-08-31 — the last master (Gemsmith, both
   // Choose One branches) landed with the rename that gave the card its name. The seam above is what this
   // list is for; it stays empty until the next batch ships ahead of its art.
-  // SET 3 CELESTIALS (the reworked roster, 2026-09-11) — all eight authored ahead of their art.
-  'ce3_courier', 'ce3_vendor', 'ce3_seer', 'ce3_conductor', 'ce3_herald', 'ce3_adept', 'ce3_spellcore', 'ce3_artificer',
-  // SET 3 CELESTIALS — the Starform roster (2026-09-12) — sixteen authored ahead of their art, plus the Accretion spell.
-  'ce3_starseed', 'ce3_dawnsentinel', 'ce3_peddler', 'ce3_wishingstar', 'ce3_accretionwarden', 'ce3_shootingstar', 'ce3_eclipsewarden', 'ce3_orbitkeeper', 'ce3_coronadevotee', 'ce3_starcharter', 'ce3_lensgrinder', 'ce3_lodestar', 'ce3_twinstar', 'ce3_novaherald', 'ce3_zenith', 'ce3_constellationprime',
-  'accretion',
-  // …and the Starform shop token (2026-09-12): token art pending.
-  'ce3_starform',
+  // SET 3 CELESTIALS (the reworked roster, 2026-09-11): all eight are arted as of 2026-09-13 (Neptus and Cometius
+  // through aliases — their masters carry the pre-rename names).
+  // SET 3 CELESTIALS — the Starform roster (2026-09-12): the 2026-09-13 Celestials batch landed Star Seed, Dawn
+  // Sentinel, Accretion Warden, Eclipse Warden, Orbit Keeper, Corona Devotee, Lens Grinder, Nova Herald, the
+  // Starform token and the Accretion spell; the rest are still authored ahead of their art.
+  'ce3_peddler', 'ce3_wishingstar', 'ce3_shootingstar', 'ce3_starcharter', 'ce3_lodestar', 'ce3_twinstar', 'ce3_zenith', 'ce3_constellationprime',
 ]);
 
 describe('art coverage for live cards', () => {

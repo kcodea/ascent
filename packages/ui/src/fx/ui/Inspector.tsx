@@ -871,23 +871,24 @@ function ImageField({
       )}
       {onSheet !== undefined && sheet !== undefined && source === 'sheet' && (
         <div className="fxwb-shape-hint" style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-          {([['Columns', 'cols', 1, 16], ['Rows', 'rows', 1, 16], ['Frames', 'frames', 0, 256]] as const).map(([label, k, min, max]) => (
+          {/* The grid IS the frame count. The Sheet group's "Frame count" stays for the padded-last-row case. */}
+          {([['Columns', 'cols'], ['Rows', 'rows']] as const).map(([label, k]) => (
             <label key={k} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
               {label}
               <input
                 type="number"
-                min={min}
-                max={max}
+                min={1}
+                max={16}
                 step={1}
                 value={sheet[k]}
                 disabled={busy || disabled}
                 style={{ width: 56 }}
                 onChange={(e) => {
-                  const v = Math.max(min, Math.min(max, Math.floor(Number(e.target.value) || min)));
+                  const v = Math.max(1, Math.min(16, Math.floor(Number(e.target.value) || 1)));
                   const next = { ...sheet, [k]: v };
                   onSheet(next.cols, next.rows, next.frames);
                 }}
-                title={k === 'frames' ? 'Real frames in reading order; 0 = every cell.' : `Grid ${label.toLowerCase()} of the sheet.`}
+                title={`Grid ${label.toLowerCase()} of the sheet.`}
               />
             </label>
           ))}

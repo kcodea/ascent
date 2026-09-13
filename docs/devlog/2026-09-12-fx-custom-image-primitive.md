@@ -91,4 +91,13 @@ shrunk only as far as the 1024 cap requires, one PNG named by the common stem, a
 layer's sheet params so it plays immediately. A "frames per row" field packs takes as rows for Variant rows.
 Everything downstream is unchanged because the result simply IS a sheet.
 
+## Motion (2026-09-13) — "rotate to follow the lead point" and "bend along the arc"
+
+The player already hands every layer its head each frame; `fx/trail.ts` records that path. `Aim = travel`
+faces the direction of motion (smoothed along the shortest arc, held when still); rope `Bend = trail`
+resamples the last N px of the path as the rope's points, tail → head, so the image deforms along the arc it
+actually flew — with the tail extended straight back until there is enough history, so it never starts
+squashed. One bug the trim test caught: after dropping old points the cumulative lengths are still measured
+from the original origin, so everything reads them relative to `cum[0]`.
+
 **Deferred:** per-frame displacement maps; a delete-image route; vector (non-rasterised) SVG.

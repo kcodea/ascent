@@ -41,6 +41,7 @@ import {
   type WobbleAxis,
 } from '../customGeometry';
 import { registerPrimitive } from '../registry';
+import { HeadTrail, smoothAngle } from '../trail';
 
 /**
  * `custom` — an IMPORTED IMAGE (PNG / SVG) as a first-class effect layer.
@@ -82,9 +83,10 @@ import { registerPrimitive } from '../registry';
  * `customGeometry.ts`.
  */
 
-export const CUSTOM_AIM_MODES = ['fixed', 'sourceToTarget'] as const;
+export const CUSTOM_AIM_MODES = ['fixed', 'sourceToTarget', 'travel'] as const;
 export const CUSTOM_RENDER_MODES = ['sprite', 'slice', 'plane', 'rope', 'perspective'] as const;
 export const CUSTOM_ROLES = ['draw', 'displace', 'mask'] as const;
+export const CUSTOM_BEND_MODES = ['arc', 'trail'] as const;
 
 const DEG_TO_RAD = Math.PI / 180;
 const TAU = Math.PI * 2;
@@ -221,6 +223,14 @@ const SPECS = {
     kind: 'slider', label: 'Bend detail', group: 'Render', min: 2, max: 48, step: 1, default: 16, enabledWhen: { param: 'renderMode', is: 'rope' },
     help: 'Points along the rope. More = a smoother curve.',
   },
+  bendMode: {
+    kind: 'enum', label: 'Bend', group: 'Render', options: CUSTOM_BEND_MODES, default: 'arc', enabledWhen: { param: 'renderMode', is: 'rope' },
+    help: 'arc bows the image along a fixed curve (the Bend knobs). trail makes the image follow the PATH the layer just travelled: on a travel-anchored layer it bends through the actual arc of flight, like a comet or a slash following its swing. In trail mode Size is the thickness, Trail length is the length, and Rotation / Aim are ignored (the path IS the direction).',
+  },
+  trailLength: {
+    kind: 'slider', label: 'Trail length', group: 'Render', min: 20, max: 800, step: 5, default: 160, enabledWhen: { param: 'renderMode', is: 'rope' },
+    help: 'How much of the travelled path the image spans, in px, measured back from the head. Only in Bend = trail. Before the layer has moved that far the tail extends straight back, so it never starts squashed.',
+  },
   bendAmount: {
     kind: 'slider', label: 'Bend', group: 'Render', min: -400, max: 400, step: 1, default: 60, enabledWhen: { param: 'renderMode', is: 'rope' },
     help: 'How far the middle of the image bows away from a straight line, in px of the un-scaled frame. Positive bows down, negative up, 0 = straight.',
@@ -276,15 +286,19 @@ const SPECS = {
   },
   aimMode: {
     kind: 'enum', label: 'Aim', group: 'Placement', options: CUSTOM_AIM_MODES, default: 'fixed',
-    help: 'fixed keeps the Rotation you set. sourceToTarget rotates the image to point along the moment itself — from the source anchor toward the target anchor, at ANY angle — so art drawn pointing right (+x) points at the victim. Falls back to fixed when the effect was fired without both anchors, or with the two on the same spot.',
+    help: 'fixed keeps the Rotation you set. sourceToTarget rotates the image to point along the moment itself — from the source anchor toward the target anchor, at ANY angle — so art drawn pointing right (+x) points at the victim; falls back to fixed without both anchors. travel rotates it to face the direction the layer is MOVING, frame by frame — a projectile art drawn pointing right noses along its path and turns through an arc; it holds its last heading when still.',
+  },
+  aimSmoothing: {
+    kind: 'slider', label: 'Aim smoothing', group: 'Placement', min: 0, max: 0.95, step: 0.05, default: 0.3, enabledWhen: { param: 'aimMode', is: 'travel' },
+    help: 'How much the travel heading lags behind the raw direction of motion. 0 snaps to it every frame (twitchy on a jittery path); higher smooths the turn. Only in Aim = travel.',
   },
   aimStretch: {
     kind: 'toggle', label: 'Stretch to target', group: 'Placement', default: false, enabledWhen: { param: 'aimMode', is: 'sourceToTarget' },
     help: 'Scale the image\'s LENGTH so it spans exactly from the source anchor to the target anchor; Size then sets its THICKNESS. Anchor the layer at source with Pivot X 0 so the base sits on the caster. Use Render as = slice so the end caps stay crisp. Does nothing without both anchors.',
   },
   aimUpright: {
-    kind: 'toggle', label: 'Keep upright', group: 'Placement', default: false, enabledWhen: { param: 'aimMode', is: 'sourceToTarget' },
-    help: 'When the aim points LEFT, mirror the image across its own axis so its top stays on top — a side-view beam or slash with shading never renders upside-down. Off = a pure rotation.',
+    kind: 'toggle', label: 'Keep upright', group: 'Placement', default: false,
+    help: 'When the aim (sourceToTarget or travel) points LEFT, mirror the image across its own axis so its top stays on top — a side-view beam, slash or projectile with shading never renders upside-down. Off = a pure rotation. Does nothing in Aim = fixed.',
   },
   flipX: {
     kind: 'toggle', label: 'Flip X', group: 'Placement', default: false,
@@ -414,6 +428,10 @@ class CustomInstance implements FxInstance<CustomParams> {
   private headY = 0;
   private aimAngle: number | null = null;
   private aimDist = 0;
+  /** The layer's own path (every head the player handed us) — for `aimMode: 'travel'` and `bendMode: 'trail'`. */
+  private readonly trail = new HeadTrail();
+  /** The smoothed travel heading; `null` until the head has moved, then held through stillness. */
+  private travelAngle: number | null = null;
   private clockMs = 0;
 
   constructor(ctx: FxContext, params: CustomParams) {
@@ -588,12 +606,27 @@ class CustomInstance implements FxInstance<CustomParams> {
 
     this.ensureBuilt();
 
-    const aimed = p.aimMode === 'sourceToTarget' && this.aimAngle !== null;
-    const aim = aimed ? (this.aimAngle as number) : 0;
+    // The aim angle in force this frame: the moment's source→target, or the layer's own direction of travel
+    // (smoothed along the shortest arc, held through stillness), or none.
+    let aimNow: number | null = null;
+    if (p.aimMode === 'sourceToTarget') {
+      aimNow = this.aimAngle;
+    } else if (p.aimMode === 'travel') {
+      const heading = this.trail.headingRad();
+      if (heading !== null) {
+        this.travelAngle = this.travelAngle === null ? heading : smoothAngle(this.travelAngle, heading, 1 - Math.max(0, Math.min(0.95, p.aimSmoothing)));
+      }
+      aimNow = this.travelAngle;
+    }
+    const aimed = aimNow !== null;
+    const aim = aimed ? (aimNow as number) : 0;
     const baseRot = p.rotation * DEG_TO_RAD + aim;
     // Keep upright: a side-view image rotated to point left is upside-down — mirror it across its own axis.
     const uprightFlip = aimed && p.aimUpright && aimsLeft(aim);
-    const stretch = aimed && p.aimStretch && this.aimDist > 0;
+    // Stretch needs a TARGET to span to, so it is a source→target feature only.
+    const stretch = p.aimMode === 'sourceToTarget' && aimed && p.aimStretch && this.aimDist > 0;
+    // A trail-bent rope takes its shape (and direction) from the path itself.
+    const trailMode = p.renderMode === 'rope' && p.bendMode === 'trail';
 
     if (p.role !== 'draw') {
       this.updateRole(layerClock, layerProg, baseRot);
@@ -621,7 +654,11 @@ class CustomInstance implements FxInstance<CustomParams> {
         const ky = stretch ? (p.size / Math.max(1, fh)) * copy.roll.scale : kUniform;
         const sx = (p.flipX !== v.flipX ? -1 : 1);
         const sy = ((p.flipY !== v.flipY) !== uprightFlip ? -1 : 1);
-        if (stretch && p.renderMode === 'slice') {
+        if (trailMode) {
+          // thickness from Size; the rope's length and shape come from the path (below)
+          const kt = (p.size / Math.max(1, fh)) * copy.roll.scale;
+          copy.wrap.scale.set(kt * sx, kt * sy);
+        } else if (stretch && p.renderMode === 'slice') {
           // the 3-slice keeps its caps and stretches only the body: width in local px at the thickness scale
           (node as NineSliceSprite).width = this.aimDist / ky;
           (node as NineSliceSprite).height = fh;
@@ -637,16 +674,20 @@ class CustomInstance implements FxInstance<CustomParams> {
 
         // Children draw at ABSOLUTE screen coords (the envelope pivots the layer container about the head).
         copy.wrap.position.set(this.headX + p.offsetX + copy.roll.dx, this.headY + p.offsetY + copy.roll.dy);
-        copy.wrap.rotation = baseRot + copy.roll.rot;
+        // A trail rope is already in world orientation (its points ARE the path), so only the scatter jitter
+        // rotates it; everything else takes the static rotation + aim.
+        copy.wrap.rotation = (trailMode ? 0 : baseRot) + copy.roll.rot;
         copy.wrap.alpha = Math.max(0, Math.min(1, p.alpha * sampleCurve(p.alphaCurve, cprog) * copy.roll.alpha));
         // The node sits inside the wrap offset by the pivot; a rope's geometry is centred on its path, so it
         // gets the half-frame origin shift that puts its box at 0..w / 0..fh like the others. The pivot's x
-        // is measured over the node's CURRENT width (a stretched slice or rope is wider than a frame).
+        // is measured over the node's CURRENT width (a stretched slice or rope is wider than a frame). A trail
+        // rope's head sits AT the wrap origin (the sampled points are head-relative), so it gets no offset.
         const localW = p.renderMode === 'slice' ? (node as NineSliceSprite).width
           : p.renderMode === 'rope' && stretch ? this.aimDist / ky : fw;
         const ox = p.renderMode === 'rope' ? localW / 2 : 0;
         const oy = p.renderMode === 'rope' ? fh / 2 : 0;
-        node.position.set(ox - p.pivotX * localW, oy - p.pivotY * fh);
+        if (trailMode) node.position.set(0, 0);
+        else node.position.set(ox - p.pivotX * localW, oy - p.pivotY * fh);
         node.tint = p.tint ? p.tintColor : 0xffffff;
         node.blendMode = p.blendMode as FxBlendMode;
 
@@ -658,7 +699,15 @@ class CustomInstance implements FxInstance<CustomParams> {
           );
           mesh.geometry.getBuffer('aPosition').update();
         } else if (p.renderMode === 'rope' && copy.points) {
-          ropePoints(p.ropeSegments, localW, p.bendAmount, p.bendWave, p.bendCycles, clockSec * p.bendSpeed * TAU, copy.points);
+          if (trailMode) {
+            // The last `trailLength` px of the layer's own path, tail → head, head at (0,0) — in world px,
+            // brought into the wrap's local (thickness-scaled) units.
+            const kt = Math.abs(copy.wrap.scale.x) || 1;
+            this.trail.sample(p.ropeSegments, p.trailLength, copy.points);
+            for (const pt of copy.points) { pt.x /= kt; pt.y /= kt; }
+          } else {
+            ropePoints(p.ropeSegments, localW, p.bendAmount, p.bendWave, p.bendCycles, clockSec * p.bendSpeed * TAU, copy.points);
+          }
         } else if (p.renderMode === 'perspective') {
           const corners = tiltCorners(fw, fh, p.tiltX, p.tiltY, p.tiltDepth);
           const sig = corners.join(',');
@@ -709,6 +758,7 @@ class CustomInstance implements FxInstance<CustomParams> {
   setHead(x: number, y: number): void {
     this.headX = x;
     this.headY = y;
+    this.trail.push(x, y);
   }
 
   setAim(sx: number, sy: number, tx: number, ty: number): void {

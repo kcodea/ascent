@@ -133,6 +133,21 @@ its cell aspect-preserved and centred, and writes ONE PNG named by the frames' c
 Inspector hands the grid to the sibling `sheetCols / sheetRows / sheetFrames` so the sheet plays at once.
 Pure planning in `fx/sheetPack.ts` (tested); verified in-browser with 12 shuffled frames.
 
+## Motion (built 2026-09-13) — face the direction of travel, bend along the arc
+
+Both hang off the head the player hands the layer each frame (`setHead`), recorded in `fx/trail.ts`
+(`HeadTrail`: sub-pixel-noise gate, heading from the last real move, resample the last N px of the path evenly
+tail → head relative to the head, extending straight back before there is enough history so a rope never
+starts squashed; `smoothAngle` moves along the shortest arc across ±π).
+
+- **`aimMode: 'travel'`** — the image faces its direction of motion; `aimSmoothing` lags the heading; the
+  last heading is held through stillness. **Keep upright** now applies to either aim. Stretch stays a
+  source→target feature (it needs a target to span to).
+- **`bendMode: 'trail'`** (rope) — the rope's points are the last `trailLength` px of the layer's own path,
+  so on a travel-anchored layer the image bends through the actual arc of flight. Size is thickness, the
+  head sits at the wrap origin (no pivot offset), Rotation / Aim are ignored (the path is the direction).
+  Verified in-browser on an L-shaped path: pixels only along the leg just travelled, none on the chord.
+
 ## Still out of scope
 
 A delete-image route (unused files are pruned by hand / git); per-frame displacement maps (above); vector

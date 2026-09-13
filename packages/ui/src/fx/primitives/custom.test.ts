@@ -64,7 +64,7 @@ describe('custom primitive specs', () => {
   });
 
   it('exposes its enums as as-const tuples (so ParamsOf narrows them)', () => {
-    expect([...CUSTOM_AIM_MODES]).toEqual(['fixed', 'sourceToTarget']);
+    expect([...CUSTOM_AIM_MODES]).toEqual(['fixed', 'sourceToTarget', 'travel']);
     expect([...CUSTOM_RENDER_MODES]).toEqual(['sprite', 'slice', 'plane', 'rope', 'perspective']);
     expect([...CUSTOM_ROLES]).toEqual(['draw', 'displace', 'mask']);
   });
@@ -77,11 +77,45 @@ describe('custom primitive specs', () => {
     expect([d.aimStretch, d.aimUpright]).toEqual([false, false]);
   });
 
-  it('gates the aimed-art knobs on sourceToTarget and the cap on slice mode', () => {
+  it('gates stretch on sourceToTarget, smoothing on travel, the cap on slice, bend/trail on rope', () => {
     const specs = customPrimitive.params as unknown as Record<string, { enabledWhen?: { param: string; is: unknown } }>;
     expect(specs.aimStretch.enabledWhen).toEqual({ param: 'aimMode', is: 'sourceToTarget' });
-    expect(specs.aimUpright.enabledWhen).toEqual({ param: 'aimMode', is: 'sourceToTarget' });
+    expect(specs.aimSmoothing.enabledWhen).toEqual({ param: 'aimMode', is: 'travel' });
+    expect(specs.aimUpright.enabledWhen).toBeUndefined(); // applies to either aim
     expect(specs.sliceCap.enabledWhen).toEqual({ param: 'renderMode', is: 'slice' });
+    expect(specs.bendMode.enabledWhen).toEqual({ param: 'renderMode', is: 'rope' });
+    expect(specs.trailLength.enabledWhen).toEqual({ param: 'renderMode', is: 'rope' });
+  });
+
+  it('Aim = travel faces the direction of motion and holds it when still', () => {
+    const c = ctx(false);
+    const base = defaultsOf(customPrimitive.params);
+    const inst = customPrimitive.spawn(c, { ...base, aimMode: 'travel', aimSmoothing: 0 }) as unknown as {
+      setHead: (x: number, y: number) => void; update: (dt: number) => void; travelAngle: number | null; destroy: () => void;
+    };
+    inst.update(16);
+    expect(inst.travelAngle).toBeNull(); // hasn't moved yet
+    inst.setHead(0, 0); inst.update(16);
+    inst.setHead(10, 0); inst.update(16);
+    expect(inst.travelAngle).toBeCloseTo(0);
+    inst.setHead(10, 10); inst.update(16);
+    expect(inst.travelAngle).toBeCloseTo(Math.PI / 2);
+    inst.setHead(10, 10); inst.update(16); // still: hold the last heading
+    expect(inst.travelAngle).toBeCloseTo(Math.PI / 2);
+    inst.destroy();
+  });
+
+  it('Aim smoothing lags the heading along the shortest arc', () => {
+    const c = ctx(false);
+    const base = defaultsOf(customPrimitive.params);
+    const inst = customPrimitive.spawn(c, { ...base, aimMode: 'travel', aimSmoothing: 0.5 }) as unknown as {
+      setHead: (x: number, y: number) => void; update: (dt: number) => void; travelAngle: number | null; destroy: () => void;
+    };
+    inst.setHead(0, 0); inst.update(16);
+    inst.setHead(10, 0); inst.update(16);      // heading 0, first sample snaps
+    inst.setHead(10, 10); inst.update(16);     // heading π/2, smoothed halfway
+    expect(inst.travelAngle).toBeCloseTo(Math.PI / 4);
+    inst.destroy();
   });
 
   it('gates every mode-specific knob on its mode, so the Inspector only lights the relevant ones', () => {

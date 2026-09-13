@@ -300,6 +300,22 @@ const SPECS = {
     kind: 'toggle', label: 'Keep upright', group: 'Placement', default: false,
     help: 'When the aim (sourceToTarget or travel) points LEFT, mirror the image across its own axis so its top stays on top — a side-view beam, slash or projectile with shading never renders upside-down. Off = a pure rotation. Does nothing in Aim = fixed.',
   },
+  squashX: {
+    kind: 'slider', label: 'Squash X', group: 'Placement', min: 0.1, max: 3, step: 0.01, default: 1,
+    help: 'Scale along the image\'s OWN horizontal axis (follows Rotation / Aim): below 1 flattens it lengthwise, above 1 stretches it. 1 = untouched. Rides the Squash X / time graph over each copy\'s life. Inert in Bend = trail (the path length is the length).',
+  },
+  squashXCurve: {
+    kind: 'curve', label: 'Squash X / time', group: 'Placement', default: [[0, 1], [1, 1]], vMax: 3, presets: CURVE_PRESETS,
+    help: 'Animates Squash X over a copy\'s life (0 = starts, 1 = finishes). Flat 1 = static. A dip then recover = squash-and-stretch on impact.',
+  },
+  squashY: {
+    kind: 'slider', label: 'Squash Y', group: 'Placement', min: 0.1, max: 3, step: 0.01, default: 1,
+    help: 'Scale along the image\'s OWN vertical axis (follows Rotation / Aim): below 1 thins it, above 1 fattens it. 1 = untouched. Rides the Squash Y / time graph over each copy\'s life.',
+  },
+  squashYCurve: {
+    kind: 'curve', label: 'Squash Y / time', group: 'Placement', default: [[0, 1], [1, 1]], vMax: 3, presets: CURVE_PRESETS,
+    help: 'Animates Squash Y over a copy\'s life. Flat 1 = static. Pair a Y bump with an X dip for a bouncy landing.',
+  },
   flipX: {
     kind: 'toggle', label: 'Flip X', group: 'Placement', default: false,
     help: 'Mirror the image left↔right about its pivot.',
@@ -672,6 +688,13 @@ class CustomInstance implements FxInstance<CustomParams> {
           copy.wrap.scale.set(kUniform * sx, kUniform * sy);
         }
 
+        // Squash: non-uniform scale along the image's OWN axes (the wrap's local scale, so it follows the
+        // rotation / aim below), each riding its own over-life curve. A trail rope's x is left alone — its
+        // length is the path's, and the sampled points already compensate for the wrap's x scale.
+        const sqx = trailMode ? 1 : Math.max(0.01, p.squashX * sampleCurve(p.squashXCurve, cprog));
+        const sqy = Math.max(0.01, p.squashY * sampleCurve(p.squashYCurve, cprog));
+        copy.wrap.scale.set(copy.wrap.scale.x * sqx, copy.wrap.scale.y * sqy);
+
         // Children draw at ABSOLUTE screen coords (the envelope pivots the layer container about the head).
         copy.wrap.position.set(this.headX + p.offsetX + copy.roll.dx, this.headY + p.offsetY + copy.roll.dy);
         // A trail rope is already in world orientation (its points ARE the path), so only the scatter jitter
@@ -736,7 +759,9 @@ class CustomInstance implements FxInstance<CustomParams> {
     const fh = s.texture.height;
     const k = p.size / Math.max(1, fw, fh);
     s.anchor.set(p.pivotX, p.pivotY);
-    s.scale.set(k * (p.flipX ? -1 : 1), k * (p.flipY ? -1 : 1));
+    const sqx = Math.max(0.01, p.squashX * sampleCurve(p.squashXCurve, layerProg));
+    const sqy = Math.max(0.01, p.squashY * sampleCurve(p.squashYCurve, layerProg));
+    s.scale.set(k * sqx * (p.flipX ? -1 : 1), k * sqy * (p.flipY ? -1 : 1));
     s.position.set(this.headX + p.offsetX, this.headY + p.offsetY);
     s.rotation = baseRot;
     if (this.displaceFilter !== null) {

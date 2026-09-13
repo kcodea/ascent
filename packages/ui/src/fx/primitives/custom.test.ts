@@ -69,6 +69,13 @@ describe('custom primitive specs', () => {
     expect([...CUSTOM_ROLES]).toEqual(['draw', 'displace', 'mask']);
   });
 
+  it('Squash defaults to exactly 1 on both axes with flat curves (no change to any existing def)', () => {
+    const d = defaultsOf(customPrimitive.params);
+    expect([d.squashX, d.squashY]).toEqual([1, 1]);
+    expect(d.squashXCurve).toEqual([[0, 1], [1, 1]]);
+    expect(d.squashYCurve).toEqual([[0, 1], [1, 1]]);
+  });
+
   it('Phase 3 defaults are all inert too — no variation, no stretch, no upright flip', () => {
     const d = defaultsOf(customPrimitive.params);
     expect(d.sheetVariantRows).toBe(false);

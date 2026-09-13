@@ -100,4 +100,11 @@ actually flew — with the tail extended straight back until there is enough his
 squashed. One bug the trim test caught: after dropping old points the cumulative lengths are still measured
 from the original origin, so everything reads them relative to `cum[0]`.
 
+## Squash X / Y (2026-09-13)
+
+Non-uniform scale along the image's OWN axes (the wrap's local scale, so it follows Rotation / Aim), each
+with an over-life curve — squash-and-stretch on impact without touching the sheet. Defaults of 1 with flat
+curves change nothing. Inert on X in Bend = trail (the path length is authoritative); applied to the
+displace / mask map sprite too.
+
 **Deferred:** per-frame displacement maps; a delete-image route; vector (non-rasterised) SVG.

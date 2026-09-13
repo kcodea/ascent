@@ -75,10 +75,39 @@ is a legal value/default meaning "no image", because a fresh layer has nothing p
 `ImageField`: a picker of `image:` ids (committed + this session's imports), a thumbnail of the selection,
 and an **Import PNG / SVG…** button. Reuses the `fxwb-shape*` classes — no `styles.css` change.
 
-## Out of scope (later phases)
+## Phase 2 (built 2026-09-13, same branch) — all composable with each other and with Phase 1
 
-Sprite-sheet / frame animation; count + scatter; mesh deformation (`MeshRope`/`MeshPlane`/`PerspectiveMesh`);
-using the image as a displacement map or mask; a delete-image route (unused files are pruned by hand / git).
+Owner decisions taken beforehand: grid sheet (one PNG), all three mesh modes, and displacement/mask acting on
+the effect's **other layers**. Pure maths in `fx/customGeometry.ts` (tested headless); the primitive keeps a
+list of `Copy { wrap, node }` and rebuilds it only on a STRUCTURAL param change.
+
+- **Sprite sheet** — `sheetCols × sheetRows`, `sheetFrames` (0 = all), `sheetFps`, `sheetMode`
+  (loop · once · pingpong · **overLife** = the whole strip exactly once per play), `sheetStart`. A frame is a
+  sub-`Texture` sharing the sheet's source (`Texture({ source, frame })`); Pixi's mesh batcher applies the
+  texture matrix for sub-frames, so the same swap works on Sprites and every mesh (verified incl.
+  `PerspectiveMesh`). `Size` refers to ONE frame.
+- **Count + scatter** — `count` copies rolled from the layer's seed (`makeRng(ctx.seed)` in a fixed draw order,
+  so the same seed always yields the same field); `scatterRadius` + `scatterShape` (disc / square), rotation /
+  size / alpha jitter, `staggerMs` in order. Each copy runs its own clock (own Duration, own sheet playback);
+  a one-shot completes at `duration + (count-1)·stagger`. Defaults are the exact identity roll.
+- **Render mode** — `sprite` · `plane` (`MeshPlane`; vertices displaced each frame by a travelling sine —
+  amount / waves / speed / axis) · `rope` (`MeshRope` along an arc of sagitta `bendAmount` + a sine wave;
+  points mutated in place, the rope auto-rebuilds) · `perspective` (`PerspectiveMesh`; corners from a pinhole
+  projection of the tilted quad — `setCorners` only when they change, since it rebuilds geometry). Every
+  mode's knobs are `enabledWhen` its mode so the Inspector lights only the relevant ones.
+- **Role** — `draw` · `displace` · `mask`, via a new **`FxContext.effectRoot`** (the player's own container,
+  parent of every layer — per-effect, since `playDef`/the workbench hand each player a fresh container).
+  `displace`: a hidden (`renderable = false`) map sprite on the root + a `DisplacementFilter` appended to
+  `root.filters` (padding = max scale). `mask`: the sprite on the root + `root.setMask({ mask, inverse })`.
+  Both are removed in `destroy()`; without a root (spawned outside a player) they no-op. **Known
+  limitation:** Pixi's `DisplacementFilter` samples the sprite's WHOLE texture, ignoring a sub-frame — so a
+  multi-frame sheet used as a displacement map samples the full sheet, not the current frame (the mask role
+  renders the sprite normally and does honour the frame). Fix later by baking each frame into its own source.
+
+## Still out of scope
+
+A delete-image route (unused files are pruned by hand / git); per-frame displacement maps (above); vector
+(non-rasterised) SVG.
 
 ## Tests
 

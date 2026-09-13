@@ -31,7 +31,7 @@ export const PRIMITIVE_COPY: Record<string, FxCopy> = {
   },
   custom: {
     label: 'Custom',
-    blurb: 'Your own PNG or SVG, drawn as-is: place it, size it, fade it, aim it, and run the whole filter lab over it. Emblems, sigils, banners, slashes.',
+    blurb: 'Your own PNG or SVG, drawn as-is — or as a sprite sheet, scattered N times, rippled, bent or tilted as a mesh, or used to distort / mask the other layers. Emblems, sigils, banners, slashes, haze.',
   },
   emitter: {
     label: 'Stream',

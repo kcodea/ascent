@@ -37,5 +37,31 @@ separate, simpler registry with its own id namespace (`image:<slug>`) and folder
 - **`blendMode` defaults to `normal`** (every other primitive defaults to `add`) — a full-colour picture
   usually shouldn't be additive.
 
-**Deferred (later phases):** sprite-sheet / frame animation; count + scatter; mesh deformation
-(`MeshRope` / `MeshPlane` / `PerspectiveMesh`); using the image as a displacement map or mask; a delete route.
+## Phase 2 (2026-09-13) — sheet, scatter, mesh, cross-layer roles
+
+Same branch, same day+1, again autonomous to a testable product. Everything composes: a scattered, tilted,
+sprite-sheet-animated image with bloom on it is one layer.
+
+- **Sprite sheet** (grid PNG): a frame is `new Texture({ source, frame })` sharing the sheet's source. The
+  question that decided the design — "do Pixi meshes honour a sub-frame?" — was answered by reading
+  `BatchableMesh`: it applies `texture.textureMatrix` when not simple. So one texture swap serves Sprites and
+  all three meshes; verified in-browser incl. `PerspectiveMesh`. `overLife` mode plays the strip exactly once
+  per play whatever the fps — the right default for a one-shot impact sheet.
+- **Scatter** rolls off the layer's seed in a fixed draw order (`rollScatter`), so a seeded def scatters
+  identically every fire and a knob change re-rolls the SAME numbers into a new shape. Copies stagger in order
+  and each runs its own clock; a one-shot waits for the last one.
+- **Mesh modes**: `plane` wobbles by writing `geometry.positions` from a kept base copy then
+  `getBuffer('aPosition').update()`; `rope` mutates its point objects in place (MeshRope auto-rebuilds every
+  render); `perspective` calls `setCorners` only when the projected corners change (it rebuilds geometry).
+  All knobs are `enabledWhen` their mode.
+- **Roles need a cross-layer seam that did not exist**: `FxContext.effectRoot` — the player now passes its own
+  container (the parent of every layer). `displace` hangs a `DisplacementFilter` driven by a hidden map sprite
+  off the root; `mask` sets the root's alpha mask. Both verified against a real sibling layer (green square:
+  masked inside/outside/inverted correctly; displaced edge moved) and both fully removed on destroy.
+- **Known limitation, measured not assumed:** `DisplacementFilter` samples the map sprite's whole texture and
+  ignores a sub-frame, so a sheet used as a displacement map is the full sheet, not the current frame. Fix is
+  to bake frames into standalone sources; deferred.
+- **Probe lesson that cost time:** importing a browser probe with `?v=<timestamp>` splits its direct imports
+  into fresh module instances (an empty registry). Import the plain URL on a fresh page.
+
+**Deferred:** per-frame displacement maps; a delete-image route; vector (non-rasterised) SVG.

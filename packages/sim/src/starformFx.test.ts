@@ -1,0 +1,132 @@
+import { describe, it, expect } from 'vitest';
+import { CARD_INDEX } from '@game/content';
+import {
+  createRun, reduce, tierSlots,
+  createStarform, hasStarform, starformOf, buffStarform, starformConsumeShopMinion,
+  type Action, type BoardCard, type RunState, type ShopCard,
+} from './index';
+import { consumeShopMinion, rightmostShopMinion } from './recruit';
+
+/**
+ * THE STARFORM PULL CHANNEL (`RunState.starformFx` / `starformFxSeq`, owner ask 2026-09-12): the UI's authored
+ * `starform-pull` def plays FROM the thing being consumed TO the thing gaining at exactly three moments —
+ * the token eating a Shop minion, a warband minion eating the token, and the Collapse (one play per receiver).
+ * A dismiss buy and a Demon eating the token keep their own cues and emit NOTHING here. Per-action, like
+ * `shopEaten`: the reducer clears it at the top of every action.
+ */
+const body = (uid: string, cardId: string, over: Partial<BoardCard> = {}): BoardCard => {
+  const d = CARD_INDEX[cardId]!;
+  return { uid, cardId, tribe: d.tribe, attack: d.attack, health: d.health, keywords: [...d.keywords], golden: false, ...over };
+};
+const run = (over: Partial<RunState> = {}): RunState =>
+  ({ ...createRun(7), setId: 'set3', phase: 'recruit', embers: 20, tier: 6, ...over } as RunState);
+const act = (s: RunState, a: Action): RunState => reduce(s, a);
+const play = (s: RunState, uid: string): RunState => act(s, { type: 'play', uid, toIndex: 0 } as Action);
+const offer = (s: RunState, cardId: string, over: Partial<ShopCard> = {}): ShopCard => ({ uid: `s${s.uidSeq++}`, cardId, ...over });
+const SRC = { cardId: 'dbg_starseed', name: 'Star Seed' };
+/** A run with an OPEN slot and a Starform in it (nothing eaten at creation). */
+const withStarform = (over: Partial<RunState> = {}): RunState => {
+  const s = run(over);
+  s.shop = [offer(s, 'ce3_seer')];
+  createStarform(s, SRC);
+  buffStarform(s, 4, 6, 'test'); // 5/7
+  return s;
+};
+
+describe('starformFx — the per-action pull channel', () => {
+  it('starts at seq 0 with no entries', () => {
+    const s = createRun(7);
+    expect(s.starformFxSeq).toBe(0);
+    expect(s.starformFx).toBeUndefined();
+  });
+
+  it('(1) the token EATS a Shop minion: consumeShop from the eaten offer to the token — Accretion Warden, and the creation-time meal', () => {
+    let s = withStarform({ hand: [body('w', 'ce3_accretionwarden')] });
+    const meal = s.shop[0]!.uid, token = starformOf(s)!.uid;
+    s = play(s, 'w');
+    expect(s.shop.some((o) => o.uid === meal), 'the offer left').toBe(false);
+    expect(s.starformFx).toEqual([{ kind: 'consumeShop', fromUid: meal, toUids: [token] }]);
+    expect(s.starformFxSeq).toBe(1);
+    // …and the meal is ALSO on `shopEaten` with the token as its eater — the UI lets that ghost fly and swaps
+    // the def, rather than playing two pulls.
+    expect(s.shopEaten).toMatchObject([{ uid: meal, eaterUid: token }]);
+
+    // The creation-time consume (a full row): the same record, from the victim to the new token.
+    const c = run();
+    c.shop = Array.from({ length: tierSlots(c.tier) }, () => offer(c, 'ce3_seer'));
+    const victim = c.shop[c.shop.length - 1]!.uid;
+    const sf = createStarform(c, SRC);
+    expect(c.starformFx).toEqual([{ kind: 'consumeShop', fromUid: victim, toUids: [sf.uid] }]);
+
+    // The helper directly, with a target that is not a minion → nothing recorded.
+    const n = withStarform();
+    n.shop.unshift(offer(n, 'starcrash'));
+    expect(starformConsumeShopMinion(n, 0)).toBe(false);
+    expect(n.starformFx ?? []).toEqual([]);
+  });
+
+  it('(2) a warband minion CONSUMES the token (Corona Devotee): consumed from the token to the body', () => {
+    let s = withStarform({ hand: [body('d', 'ce3_coronadevotee')] });
+    const token = starformOf(s)!.uid;
+    s = play(s, 'd');
+    expect(hasStarform(s)).toBe(false);
+    expect(s.starformFx).toEqual([{ kind: 'consumed', fromUid: token, toUids: ['d'] }]);
+    expect(s.starformFxSeq).toBe(1);
+  });
+
+  it('(3) COLLAPSE (Nova Herald): one record from the token naming EVERY receiver — three, two, or the Herald alone', () => {
+    let s = withStarform({ board: [body('a', 'ce3_seer'), body('b', 'ce3_courier'), body('c', 'ce3_vendor'), body('n', 'sandbag')], hand: [body('h', 'ce3_novaherald')] });
+    const token = starformOf(s)!.uid;
+    s = play(s, 'h');
+    expect(s.starformFx).toHaveLength(1);
+    const fx = s.starformFx![0]!;
+    expect([fx.kind, fx.fromUid]).toEqual(['collapse', token]);
+    expect(fx.toUids).toHaveLength(3);
+    expect(new Set(fx.toUids).size, 'three distinct targets').toBe(3);
+    expect(fx.toUids).not.toContain('n');
+    // The receivers on the record are exactly the bodies that gained.
+    const gained = s.board.filter((c) => (c.buffs ?? []).some((b) => b.source === 'Nova Herald')).map((c) => c.uid);
+    expect([...fx.toUids].sort()).toEqual(gained.sort());
+
+    let two = withStarform({ board: [body('a', 'ce3_seer')], hand: [body('h', 'ce3_novaherald')] });
+    two = play(two, 'h');
+    expect([...two.starformFx![0]!.toUids].sort()).toEqual(['a', 'h']);
+
+    let one = withStarform({ board: [body('n', 'sandbag')], hand: [body('h', 'ce3_novaherald')] });
+    one = play(one, 'h');
+    expect(one.starformFx![0]!.toUids).toEqual(['h']);
+  });
+
+  it('no Starform → Corona Devotee / Nova Herald record nothing', () => {
+    let s = run({ hand: [body('d', 'ce3_coronadevotee'), body('h', 'ce3_novaherald')] });
+    s = play(s, 'd');
+    expect(s.starformFx).toEqual([]);
+    s = play(s, 'h');
+    expect(s.starformFx).toEqual([]);
+    expect(s.starformFxSeq).toBe(0);
+  });
+
+  it('the DISMISS buy and a DEMON eating the token emit nothing (they keep their own cues)', () => {
+    let s = withStarform();
+    s = act(s, { type: 'buy', uid: starformOf(s)!.uid });
+    expect(hasStarform(s)).toBe(false);
+    expect(s.starformFx).toEqual([]);
+    expect(s.starformFxSeq).toBe(0);
+
+    const d = withStarform({ board: [body('e', 'ce3_courier')] });
+    d.starformFx = [];
+    expect(consumeShopMinion(d, d.board[0]!, rightmostShopMinion(d))).toBe(true);
+    expect(hasStarform(d)).toBe(false);
+    expect(d.starformFx).toEqual([]);
+    expect(d.starformFxSeq).toBe(0);
+  });
+
+  it('is per-action: the next action clears the list; the seq only ever climbs', () => {
+    let s = withStarform({ hand: [body('d', 'ce3_coronadevotee')] });
+    s = play(s, 'd');
+    expect(s.starformFx).toHaveLength(1);
+    s = act(s, { type: 'roll' });
+    expect(s.starformFx).toEqual([]);
+    expect(s.starformFxSeq).toBe(1);
+  });
+});

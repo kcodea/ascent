@@ -54,6 +54,12 @@ export const KEYWORD_GLOSSARY: KeywordDef[] = [
   // --- Mechanic nouns ---
   { id: 'consume', name: 'Consume', aliases: ['Consumes'], badge: 'CN', def: 'Devours a minion from shop to gain their stats.' },
   { id: 'fodder', name: 'Fodder', aliases: [], badge: 'FD', def: 'A minion that is automatically consumed by a random friendly demon when it appears in shop.' },
+  // Set 3's Celestial token + its cash-out verb (owner ask 2026-09-12: "Collapse" gets its own pill and the Starform
+  // itself is a noun the cards reference, so it is explained on the side too). Neither is a schema badge — the
+  // pills render from the text hit alone, like Shout — so `badge` is deliberately absent (the badge test pins the
+  // 16 schema codes exactly). The Starform pill shows on every Celestial that names it; the owner wants that.
+  { id: 'collapse', name: 'Collapse', aliases: ['Collapses'], def: 'Your Starform breaks apart — 3 random friendly Celestials each gain half its stats (rounded up).' },
+  { id: 'starform', name: 'Starform', aliases: ['Starforms'], def: 'A Celestial token that lives in your Shop. It grows from every shop buff and consume, survives refreshes, and is cashed in by your Celestials. Buy it for 0 Gold to dismiss it.' },
   { id: 'discover', name: 'Discover', aliases: [], def: 'Choose one of three offered cards to keep.' },
   { id: 'ruby', name: 'Ruby', aliases: ['Rubies'], def: 'A Kobold spell that can be applied to minions to permanently increase their stats. Not a shop spell.' },
   { id: 'ale', name: 'Dwarven Ale', aliases: ['Ale', 'Ales'], def: 'A set of Dwarf spells that provide various benefits. Count as shop spells.' },

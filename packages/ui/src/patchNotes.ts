@@ -55,6 +55,21 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-09-14',
+    label: 'Targeting look',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: 'New targeting effect when you aim a targeted spell, hero power or equipment — a custom glowing lasso that follows your cursor.',
+        details: [
+          'The aim line now plays a fully authored effect (built in the FX workshop) instead of the old default line — the same look across spell casts, targeted hero powers, and the two-target picker.',
+          'It can layer more than the lasso now (a custom image / stream that rides your cursor), so the targeting look is tunable rather than fixed.',
+          'The impact effects that fire on the target when you release are unchanged.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-09-13',
     label: 'Spiritbinder + art',
     changes: [

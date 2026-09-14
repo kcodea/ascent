@@ -11,15 +11,26 @@ import { getCleaveFxConfig, type CleaveFxConfig } from './cleaveFxConfig';
 import { getTrailConfig } from './trailConfig';
 import { sfx } from './sfx';
 import { resetFxPools } from './fx/fxRuntime';
-import type { FxSlot } from './fx/def';
-// Phase 2 aim driver: the live targeting line is now the `targeting` PRIMITIVE, spawned from the registry at
-// runtime (never statically imported — that would pull the primitive + filter registry into the critical
-// bundle and break the chunk-split; see `primitives/index.ts`). `getPrimitive` returns null until the
-// primitives have self-registered, so the driver spawns lazily and simply waits.
+import type { FxSlot, FxLayer } from './fx/def';
+// Phase 2 aim driver: the live targeting line is now an FX DEF (the `spell-target` composition), whose
+// primitives are spawned from the registry at runtime (never statically imported — that would pull the
+// primitive + filter registry into the critical bundle and break the chunk-split; see `primitives/index.ts`).
+// `getPrimitive` returns null until the primitives have self-registered, so the driver spawns lazily and waits.
 import { getPrimitive } from './fx/registry';
 import { coerceParams } from './fx/params';
 import { getDef } from './fx/fxDefs';
 import type { FxInstance } from './fx/primitive';
+import { driveLayerHeads } from './fx/anchors';
+import type { FxAnchors, FxHeadSink } from './fx/anchors';
+
+/**
+ * The FX def the live targeting line plays — the WHOLE authored composition (the lasso plus any custom /
+ * emitter layers the owner added in the workshop), not just the lasso primitive. `updateAim` plays every
+ * layer and routes each layer's anchor to the live aim (see there). A missing def falls back to a single
+ * `targeting` layer on the cursor, i.e. the primitive's own defaults, so the line always draws.
+ */
+const AIM_DEF_ID = 'spell-target';
+const DEFAULT_AIM_LAYERS: readonly FxLayer[] = [{ primitive: 'targeting', anchor: 'cursor', at: 0, params: {} }];
 
 /**
  * The WebGL effects layer — a single transparent PixiJS overlay stretched over the whole
@@ -398,10 +409,17 @@ class FxController {
   private readonly spellArrows: { g: Graphics; x: number; y: number; drift: number; delay: number; tint: number; cfg: SpellPowerCfg; age: number }[] = [];
   private readonly waves: { g: Graphics; region: WaveRegion; cfg: AuraWaveCfg; age: number; lastWake: number; motes: { off: number; spawned: boolean }[] }[] = []; // aura waves — one per rise, a centre→edge board wave redrawn per frame
   private readonly slashes: CleaveSlashFx[] = []; // Cleave slashes — one per Cleave connection
-  /** The live hero-power targeting line (null = not aiming). Now the `targeting` PRIMITIVE (the glowing lasso
-   *  authored in the workshop): `from` = the caster, `to` = the live cursor, `onTarget` grows the pointer.
-   *  `instance`/`container` are null until the primitive has registered and the first frame spawns it. */
-  private aim: { instance: FxInstance | null; container: Container | null; from: { x: number; y: number }; to: { x: number; y: number }; onTarget: boolean } | null = null;
+  /** The live targeting line (null = not aiming). Now the whole `spell-target` DEF (the glowing lasso the
+   *  owner authored, plus any custom / emitter layers on it): `from` = the caster, `to` = the live cursor,
+   *  `onTarget` grows the pointer. `root`/`insts`/`specs`/`sink` are null until every layer's primitive has
+   *  registered and the first frame spawns them (all-or-nothing — see `updateAim`). */
+  private aim: {
+    root: Container | null;                 // effectRoot holding every layer's container
+    insts: FxInstance[] | null;             // one live instance per layer, index-aligned with `specs`
+    specs: readonly FxLayer[] | null;       // the def's layer specs, for `driveLayerHeads`
+    sink: FxHeadSink | null;                // stable head sink over `insts`, built once (no per-frame alloc)
+    from: { x: number; y: number }; to: { x: number; y: number }; onTarget: boolean;
+  } | null = null;
   private readonly critFxs: CritFx[] = []; // live Critical-Strike flourishes (ring + "CRIT!" + card flash)
   private readonly critTextCache = new Map<string, Texture>(); // "CRIT!" textures keyed by size|color|edge
   private readonly pulses: PulseFx[] = [];
@@ -2408,10 +2426,10 @@ class FxController {
    */
   setAimLine(from: { x: number; y: number }, to: { x: number; y: number }, onTarget: boolean, _cfg?: AimLineCfg): void {
     if (!this.ready || !this.layer) return;
-    // The LOOK now comes from the `targeting` primitive (authored in the workshop), not `_cfg` — the param is
+    // The LOOK now comes from the `spell-target` def (authored in the workshop), not `_cfg` — the param is
     // kept only so existing call sites don't change. This records the live aim state; `updateAim` spawns and
-    // drives the instance each frame.
-    if (!this.aim) this.aim = { instance: null, container: null, from: { ...from }, to: { ...to }, onTarget };
+    // drives every layer each frame.
+    if (!this.aim) this.aim = { root: null, insts: null, specs: null, sink: null, from: { ...from }, to: { ...to }, onTarget };
     else { this.aim.from = { ...from }; this.aim.to = { ...to }; this.aim.onTarget = onTarget; }
     this.wake();
   }
@@ -2419,32 +2437,49 @@ class FxController {
   /** Drop the aim line (the aim ended — fired, cancelled, or released). */
   clearAimLine(): void {
     if (!this.aim) return;
-    this.aim.instance?.destroy();
-    if (this.aim.container) { this.layer?.removeChild(this.aim.container); this.aim.container.destroy({ children: true }); }
+    if (this.aim.insts) for (const inst of this.aim.insts) inst.destroy();
+    if (this.aim.root) { this.layer?.removeChild(this.aim.root); this.aim.root.destroy({ children: true }); }
     this.aim = null;
   }
 
-  /** Drive the live aim line this frame: lazily spawn the `targeting` primitive (once it has registered), feed
-   *  it the current caster→cursor + on-target state, and advance it by the frame delta. */
+  /** Drive the live aim line this frame: lazily spawn EVERY layer of the `spell-target` def (once its
+   *  primitives have registered), route each layer's anchor to the current aim, and advance them by the frame
+   *  delta. `cursor` → the live pointer, `source` → the caster, `target`/`travel` → the cursor end — resolved
+   *  through the SAME `driveLayerHeads` the workshop preview uses, so in-game matches what was authored. */
   private updateAim(dtMs: number): void {
     const a = this.aim;
     if (!a) return;
-    if (!a.instance) {
-      const prim = getPrimitive('targeting');
+    if (!a.insts) {
       const renderer = this.app?.renderer;
-      if (!prim || !renderer || !this.layer) return; // primitives not registered yet — retry next frame
-      const container = new Container();
-      this.layer.addChild(container);
-      // Use the owner's saved look if there is one (a def named `aim-targeting`), else the primitive defaults.
-      const authored = getDef('aim-targeting')?.layers.find((l) => l.primitive === 'targeting')?.params;
-      const params = coerceParams(prim.params, authored ?? {});
-      a.instance = prim.spawn({ container, renderer, oneShot: false }, params);
-      a.container = container;
+      if (!renderer || !this.layer) return; // stage not ready — retry next frame
+      const def = getDef(AIM_DEF_ID);
+      const specs = def && def.layers.length > 0 ? def.layers : DEFAULT_AIM_LAYERS;
+      // All-or-nothing: primitives self-register asynchronously, and spawning only the ready ones would
+      // strand the rest (a def's custom/emitter layer would silently never appear). Wait for the full set.
+      if (!specs.every((l) => getPrimitive(l.primitive))) return;
+      const root = new Container();
+      this.layer.addChild(root);
+      const insts = specs.map((layer) => {
+        const prim = getPrimitive(layer.primitive)!;
+        const container = new Container();
+        root.addChild(container);
+        return prim.spawn({ container, renderer, oneShot: false, effectRoot: root }, coerceParams(prim.params, layer.params));
+      });
+      a.root = root;
+      a.specs = specs;
+      a.insts = insts;
+      // Built once, capturing the stable `insts` array, so the per-frame drive below allocates nothing.
+      a.sink = {
+        setHead: (i, x, y) => { insts[i]?.setHead?.(x, y); },
+        setAim: (i, sx, sy, tx, ty) => { insts[i]?.setAim?.(sx, sy, tx, ty); },
+      };
     }
-    a.instance.setAim?.(a.from.x, a.from.y, a.to.x, a.to.y);
-    a.instance.setHead?.(a.to.x, a.to.y);
-    (a.instance as { setOnTarget?: (on: boolean) => void }).setOnTarget?.(a.onTarget);
-    a.instance.update(dtMs);
+    const anchors: FxAnchors = { source: a.from, target: a.to, cursor: a.to };
+    driveLayerHeads(a.sink!, a.specs!, anchors, 1, a.to, null);
+    for (const inst of a.insts) {
+      (inst as { setOnTarget?: (on: boolean) => void }).setOnTarget?.(a.onTarget);
+      inst.update(dtMs);
+    }
   }
 
   /** HERO POWER ACTIVATION: a simple radial spray of sparks in all directions from the diamond

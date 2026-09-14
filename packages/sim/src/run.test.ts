@@ -3147,10 +3147,14 @@ describe('run loop (@game/sim)', () => {
     expect(s.board[0]!.keywords).toContain('DS');
     expect(s.embers).toBe(2); // 5 − 3 Gold (owner rework 2026-09-14; was 4)
     expect(s.heroReady).toBe(false);
-    // A no-op on an already-warded minion spends nothing (and no charge — already used this turn anyway).
-    const before = { embers: s.embers };
-    s = reduce({ ...s, heroReady: true }, { type: 'heroPower', uid: 'x' });
-    expect(s.embers).toBe(before.embers); // still warded → no re-spend
+    // An already-Warded target is a LEGAL use (owner 2026-09-14): the Ward half adds nothing, the +5 Attack
+    // still lands on every Warded minion, and the Gold + charge are spent.
+    s = { ...s, embers: 6, heroReady: true }; // refill: 2 Gold left after the first use would refuse on price, not on the rule
+    const before = { embers: s.embers, attack: s.board[0]!.attack };
+    s = reduce(s, { type: 'heroPower', uid: 'x' });
+    expect(s.embers).toBe(before.embers - 3);
+    expect(s.board[0]!.attack).toBe(before.attack + 5);
+    expect(s.heroReady).toBe(false);
   });
 
   it('spells never triple (three copies stay separate)', () => {

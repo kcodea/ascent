@@ -61,7 +61,7 @@ export const PATCH_NOTES: PatchNote[] = [
       {
         category: 'Hero Change',
         text: 'Warden — Aegis now costs 3 Gold (was 4): give a friendly minion Ward, then give your minions with Ward +5 Attack.',
-        details: ['The buff is a flat +5 Attack to every Warded minion (the fresh one included) — it no longer scales +Tier/+Tier+1 and no longer adds Health. Using it on a minion that already has Ward still does nothing and costs nothing.'],
+        details: ['The buff is a flat +5 Attack to every Warded minion (the fresh one included) — it no longer scales +Tier/+Tier+1 and no longer adds Health. It can be used on a minion that already has Ward — the Ward half adds nothing, but every Warded minion still gets the +5 Attack.'],
       },
     ],
   },

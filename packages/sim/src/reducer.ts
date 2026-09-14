@@ -2837,9 +2837,10 @@ function reduceCore(state: RunState, action: Action): RunState {
         if ((s.lastEotFires ?? 0) > 0) advanceQuestsBy(s, (o) => o.event === 'endOfTurn', s.lastEotFires);
       } else if (power.kind === 'grantWard') {
         // Warden's Aegis: give a friendly board minion a PERMANENT Ward (Divine Shield) for 3 Gold (4 until the
-        // 2026-09-14 rework). No-op (no charge/gold spent) on a missing target or one that already has a Ward.
-        if (!card || card.keywords.includes('DS')) return state;
-        card.keywords.push('DS');
+        // 2026-09-14 rework). No-op (no charge/gold spent) only on a missing target. An ALREADY-Warded target is a
+        // legal use (owner 2026-09-14: "it still buffs all Wards +5 Attack") — the Ward half is simply nothing to add.
+        if (!card) return state;
+        if (!card.keywords.includes('DS')) card.keywords.push('DS');
         // …THEN every minion that now HAS Ward (the fresh one included) gains the flat +5 Attack (owner 2026-09-14;
         // it was +Tier/+Tier+1 from 2026-08-16).
         const g = aegisGrantOf(s);

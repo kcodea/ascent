@@ -240,6 +240,10 @@ export function createRunLobby(seed: number, playerHeroId: string, rules: Partia
   for (let i = 0; i < available.length && picked < r.seatCount - 1 && seats.filter((x) => x.kind === 'snapshot').length < maxSnapshotSeats; i++) {
     const run = available[i]!;
     if (seats.some((x) => x.runKey === run.key)) continue; // never seat the same run twice
+    // UNIQUE HEROES PER LOBBY (owner 2026-09-13): all eight seats — the player included — wear different
+    // heroes. The hybrid loop below already skipped a held hero; snapshot seats now do too, so a second
+    // player run on the same hero is passed over for the next eligible run in the shuffle.
+    if (seats.some((x) => x.heroId === run.heroId)) continue;
     // A real author's name when the run has one; otherwise a generated handle. 142 of the pool's 664 boards
     // carry no author, and labelling those "run 1534" leaked the seed and read as debug output. An author
     // holding SEVERAL seats gets an ADJECTIVE prefix ("Sneaky Orangez", "Groovy Orangez") rather than the old

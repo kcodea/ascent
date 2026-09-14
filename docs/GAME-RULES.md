@@ -32,6 +32,9 @@ outlasting seven other seats, and your **final placement** is the result that mo
   run is equally likely, the same lobby seed always seats the same table (restore / replay), and nothing
   weights the draw — no strength band, no author cap (an author may hold several seats through different
   runs; a per-author cap is a future knob), no win-rate weighting (that exists only on the pre-lobby pool pick).
+  **All eight heroes are unique per lobby, the player's included** (owner 2026-09-13): a run on a hero already
+  seated — or on the player's hero — is passed over for the next run in the shuffle, and generated seats never
+  repeat a hero either.
 - The lobby is **asynchronous**: opponents are recordings and generated runs, never live opponents. It never
   requires two players online at once.
 - Each round, surviving seats are **paired**. **One authoritative `simulate()` resolves each encounter and

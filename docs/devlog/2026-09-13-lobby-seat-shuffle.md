@@ -14,3 +14,9 @@ size, still a pure function of the lobby seed (restore and replay identical), an
 
 `seatRotation.test.ts` keeps the multiple-of-7 cases as the historical regression and pins the three new
 properties: same seed → same table, consecutive seeds differ, every run reachable across seeds.
+
+**Same PR, second ruling — unique heroes per lobby, the player included.** The hybrid loop already skipped a
+held hero; the snapshot loop now does too, so two pool runs on one hero can never both sit, and a run on the
+player's hero is skipped. Two older fixtures in `snapshotSeats.test.ts` had put the player and a pool run on
+the same hero (and one author's two runs on heroes another run also used); their intent survives with the heroes
+spread, and `seatRotation.test.ts` pins the lobby-wide uniqueness across seeds.

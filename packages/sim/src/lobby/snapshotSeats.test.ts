@@ -91,7 +91,9 @@ describe('seating real runs into a lobby', () => {
   it('player runs fill EVERY seat they can cover — bots only take the remainder (owner 2026-07-31)', () => {
     // The 2026-07-29 "minority on purpose" cap of 3 is retired: the table is now MEANT to be other players'
     // runs. With 2 eligible runs in the pool, both are seated and bots fill the other 5 non-player seats.
-    const lobby = createRunLobby(7, 'drakko');
+    // The player sits on a hero NO pool run uses: every seat wears a unique hero (owner 2026-09-13), so a
+    // player on Drakko would rightly push Ada's Drakko run out — which is not what this case measures.
+    const lobby = createRunLobby(7, 'myra');
     const snaps = lobby.seats.filter((s) => s.kind === 'snapshot').length;
     expect(snaps, 'an eligible player run was left unseated').toBe(playerRunsFrom().length);
     expect(lobby.seats).toHaveLength(8); // bots still complete the table
@@ -162,12 +164,16 @@ describe('a player may hold several seats through DIFFERENT runs (owner call 202
     // twice, and a duplicate author gets an ADJECTIVE prefix ("Sneaky Dup") so two seats never render
     // identically (owner ask 2026-08-24, replacing the old "Dup (2)" numbering).
     registerOpponents([
-      ...Array.from({ length: 8 }, (_, i) => board('Dup', 'drakko', 4444, i + 1, 3 + i)),
-      ...Array.from({ length: 8 }, (_, i) => board('Dup', 'soren', 5555, i + 1, 4 + i)),
+      // Two DIFFERENT heroes, and neither shared with Ada's Drakko / Baz's Soren runs above: unique heroes per
+      // lobby (owner 2026-09-13) means two runs on one hero can never both sit, so an author's several seats
+      // must come through several heroes.
+      ...Array.from({ length: 8 }, (_, i) => board('Dup', 'coran', 4444, i + 1, 3 + i)),
+      ...Array.from({ length: 8 }, (_, i) => board('Dup', 'nadja', 5555, i + 1, 4 + i)),
     ]);
     expect(playerRunsFrom().filter((r) => r.author === 'Dup').length, 'both runs should exist in the pool').toBe(2);
     for (const seed of [1, 3, 7]) {
-      const snaps = createRunLobby(seed, 'drakko').seats.filter((s) => s.kind === 'snapshot');
+      // Player on a hero neither Dup run uses (unique heroes per lobby, owner 2026-09-13).
+      const snaps = createRunLobby(seed, 'myra').seats.filter((s) => s.kind === 'snapshot');
       const dupSeats = snaps.filter((s) => s.runKey?.startsWith('dup|') || s.label.toLowerCase().includes('dup'));
       expect(dupSeats.length, `seed ${seed}: both of Dup's runs should hold seats`).toBe(2);
       expect(new Set(snaps.map((s) => s.runKey)).size, `seed ${seed}: a RUN held two seats`).toBe(snaps.length);

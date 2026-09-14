@@ -81,3 +81,23 @@ describe('the seeded shuffle', () => {
     expect([...all].filter((k) => !seen.has(k))).toEqual([]);
   });
 });
+
+describe('unique heroes per lobby (owner 2026-09-13)', () => {
+  it('all eight seats wear different heroes, the player included, across seeds', () => {
+    for (const seed of [1, 2, 3, 7, 14, 4242, 99991]) {
+      const lobby = createRunLobby(seed, 'drakko', {}, 'set1'); // 'drakko' is also a seated run's hero above
+      const heroes = lobby.seats.map((s) => s.heroId);
+      expect(new Set(heroes).size, `seed ${seed}: ${heroes.join(',')}`).toBe(heroes.length);
+      expect(heroes[0]).toBe('drakko');
+    }
+  });
+
+  it('a second player run on an already-seated hero is passed over, not seated', () => {
+    // The pool holds one run per hero (HEROES7); seat the player on one of them and every OTHER hero's run
+    // still fills a seat, while the duplicated hero's run is skipped in favour of a hybrid on a fresh hero.
+    const lobby = createRunLobby(4242, 'soren', {}, 'set1');
+    const snapHeroes = lobby.seats.filter((s) => s.kind === 'snapshot').map((s) => s.heroId);
+    expect(snapHeroes).not.toContain('soren');
+    expect(new Set(lobby.seats.map((s) => s.heroId)).size).toBe(lobby.seats.length);
+  });
+});

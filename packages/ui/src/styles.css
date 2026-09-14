@@ -214,10 +214,6 @@ body { background: #160f08; }
 
 /* closed fist while a card is being dragged */
 body.dragging, body.dragging * { cursor: url('/cursors/hand_closed.svg') 13 12, grabbing !important; }
-/* While AIMING a targeted power, the OS cursor is hidden so the Pixi `targeting` lasso pointer IS the pointer
-   — there's then no hardware cursor racing ahead of the canvas-rendered tip (Phase 2). `Recruit.tsx` toggles
-   `body.aiming`; `!important` overrides the gauntlet-cursor rules above. */
-body.aiming, body.aiming * { cursor: none !important; }
 .disp { font-family: var(--font-title), sans-serif; }
 canvas.spr { image-rendering: pixelated; display: block; }
 

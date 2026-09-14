@@ -26,10 +26,16 @@ import type { FxAnchors, FxHeadSink } from './fx/anchors';
 /**
  * The FX def the live targeting line plays — the WHOLE authored composition (the lasso plus any custom /
  * emitter layers the owner added in the workshop), not just the lasso primitive. `updateAim` plays every
- * layer and routes each layer's anchor to the live aim (see there). A missing def falls back to a single
- * `targeting` layer on the cursor, i.e. the primitive's own defaults, so the line always draws.
+ * layer and routes each layer's anchor to the live aim (see there).
+ *
+ * `AIM_DEF_ID` is the DEFAULT (a normal targeted spell / hero power / equipment). A caller may name a
+ * different def per gesture via `setAimLine`'s `defId` — e.g. `RUBY_AIM_DEF_ID` while a Ruby is being cast
+ * from hand — and `updateAim` falls back to `AIM_DEF_ID`, then to a single cursor `targeting` layer (the
+ * primitive's own defaults), if the requested def isn't authored yet, so the line always draws.
  */
 const AIM_DEF_ID = 'spell-target';
+/** The aim effect for a Ruby cast from hand (owner ask 2026-09-14). Falls back to `AIM_DEF_ID` until authored. */
+export const RUBY_AIM_DEF_ID = 'ruby-target';
 const DEFAULT_AIM_LAYERS: readonly FxLayer[] = [{ primitive: 'targeting', anchor: 'cursor', at: 0, params: {} }];
 
 /**
@@ -418,6 +424,8 @@ class FxController {
     insts: FxInstance[] | null;             // one live instance per layer, index-aligned with `specs`
     specs: readonly FxLayer[] | null;       // the def's layer specs, for `driveLayerHeads`
     sink: FxHeadSink | null;                // stable head sink over `insts`, built once (no per-frame alloc)
+    defId: string;                          // which def this gesture plays (spell-target, ruby-target, …)
+    spawnedDefId: string | null;            // the def the live insts were spawned from — respawn if it differs
     from: { x: number; y: number }; to: { x: number; y: number }; onTarget: boolean;
   } | null = null;
   private readonly critFxs: CritFx[] = []; // live Critical-Strike flourishes (ring + "CRIT!" + card flash)
@@ -2424,13 +2432,20 @@ class FxController {
    * core, subtle time-based wobble, and a per-aim RANDOM arch (side + amplitude rolled when the aim
    * starts, stable while it lasts). Call every pointer-move; `clearAimLine` when the aim ends.
    */
-  setAimLine(from: { x: number; y: number }, to: { x: number; y: number }, onTarget: boolean, _cfg?: AimLineCfg): void {
+  setAimLine(
+    from: { x: number; y: number }, to: { x: number; y: number }, onTarget: boolean,
+    _cfg?: AimLineCfg, defId: string = AIM_DEF_ID,
+  ): void {
     if (!this.ready || !this.layer) return;
-    // The LOOK now comes from the `spell-target` def (authored in the workshop), not `_cfg` — the param is
-    // kept only so existing call sites don't change. This records the live aim state; `updateAim` spawns and
-    // drives every layer each frame.
-    if (!this.aim) this.aim = { root: null, insts: null, specs: null, sink: null, from: { ...from }, to: { ...to }, onTarget };
-    else { this.aim.from = { ...from }; this.aim.to = { ...to }; this.aim.onTarget = onTarget; }
+    // The LOOK comes from the def named by `defId` (authored in the workshop), not `_cfg` — the param is kept
+    // only so existing call sites don't change. `defId` lets a gesture pick a different effect (e.g. a Ruby
+    // cast from hand → `ruby-target`), defaulting to `spell-target`. This records the live aim state;
+    // `updateAim` spawns and drives every layer each frame, respawning if `defId` changed.
+    if (!this.aim) {
+      this.aim = { root: null, insts: null, specs: null, sink: null, defId, spawnedDefId: null, from: { ...from }, to: { ...to }, onTarget };
+    } else {
+      this.aim.from = { ...from }; this.aim.to = { ...to }; this.aim.onTarget = onTarget; this.aim.defId = defId;
+    }
     this.wake();
   }
 
@@ -2442,17 +2457,25 @@ class FxController {
     this.aim = null;
   }
 
-  /** Drive the live aim line this frame: lazily spawn EVERY layer of the `spell-target` def (once its
-   *  primitives have registered), route each layer's anchor to the current aim, and advance them by the frame
-   *  delta. `cursor` → the live pointer, `source` → the caster, `target`/`travel` → the cursor end — resolved
-   *  through the SAME `driveLayerHeads` the workshop preview uses, so in-game matches what was authored. */
+  /** Drive the live aim line this frame: lazily spawn EVERY layer of the aim def (`a.defId` — spell-target or
+   *  ruby-target, once its primitives have registered), route each layer's anchor to the current aim, and
+   *  advance them by the frame delta. `cursor` → the live pointer, `source` → the caster, `target`/`travel` →
+   *  the cursor end — resolved through the SAME `driveLayerHeads` the workshop preview uses, so in-game matches
+   *  what was authored. Respawns if the gesture's `defId` changed since the live insts were built. */
   private updateAim(dtMs: number): void {
     const a = this.aim;
     if (!a) return;
+    // The gesture asked for a different def than what's live (e.g. it switched to a Ruby): tear down + respawn.
+    if (a.insts && a.spawnedDefId !== a.defId) {
+      for (const inst of a.insts) inst.destroy();
+      if (a.root) { this.layer?.removeChild(a.root); a.root.destroy({ children: true }); }
+      a.root = null; a.insts = null; a.specs = null; a.sink = null;
+    }
     if (!a.insts) {
       const renderer = this.app?.renderer;
       if (!renderer || !this.layer) return; // stage not ready — retry next frame
-      const def = getDef(AIM_DEF_ID);
+      // Requested def, falling back to the default (spell-target) if the requested one isn't authored yet.
+      const def = getDef(a.defId) ?? (a.defId !== AIM_DEF_ID ? getDef(AIM_DEF_ID) : undefined);
       const specs = def && def.layers.length > 0 ? def.layers : DEFAULT_AIM_LAYERS;
       // All-or-nothing: primitives self-register asynchronously, and spawning only the ready ones would
       // strand the rest (a def's custom/emitter layer would silently never appear). Wait for the full set.
@@ -2468,6 +2491,7 @@ class FxController {
       a.root = root;
       a.specs = specs;
       a.insts = insts;
+      a.spawnedDefId = a.defId;
       // Built once, capturing the stable `insts` array, so the per-frame drive below allocates nothing.
       a.sink = {
         setHead: (i, x, y) => { insts[i]?.setHead?.(x, y); },

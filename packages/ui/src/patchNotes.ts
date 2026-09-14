@@ -70,7 +70,7 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'UI / Info',
-        text: "A Set 3 art pass: new portraits for Lodestar, Stardust Peddler, Maestro Lux, Twin Star, Wishing Star and Zenith; new spell art for Crescendo, Shared Spirit, Star Crash and both branches of Aspect's Blessing, Rush Order and Split Decision; refreshed art for twenty-odd more minions, the Magnifying Glass, Accretion, Lantern of Souls, Dragonflame and Flutter.",
+        text: "A Set 3 art pass: new portraits for Lodestar, Stardust Peddler, Maestro Lux, Twin Star, Wishing Star, Zenith, Constellation Prime and Shooting Star; new spell art for Crescendo, Shared Spirit, Star Crash, Hand Soap and both branches of Aspect's Blessing, Rush Order and Split Decision; refreshed art for Plummet, Sugarnova, Aspect and twenty-odd more minions, the Magnifying Glass, Accretion, Lantern of Souls, Dragonflame and Flutter.",
       },
     ],
   },

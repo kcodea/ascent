@@ -56,6 +56,16 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-14',
+    label: 'Drag feel',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: 'Your warband now opens a slot to make room a little sooner as you drag a minion up from hand — you no longer have to lift it as far before the board reacts.',
+      },
+    ],
+  },
+  {
+    date: '2026-09-14',
     label: 'Celestial + Spirit colours',
     changes: [
       {

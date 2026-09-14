@@ -30,7 +30,7 @@ export interface HeroTip {
 }
 
 export const HERO_TIPS: Readonly<Record<string, HeroTip>> = {
-  warden: { difficulty: 'Easy', tip: 'Put Ward on a minion you expect to keep; every additional Ward makes Aegis’s board-wide scaling more valuable.' },
+  warden: { difficulty: 'Easy', tip: 'Put Ward on a minion you expect to keep; every additional Ward is another +5 Attack each time Aegis fires.' },
   indy: { difficulty: 'Easy', tip: 'Save Masterwork for a defining engine or generation effect.' },
   myra: { difficulty: 'Medium', tip: 'Pulse a Shout that generates resources or permanent scaling.' },
   soren: { difficulty: 'Hard', tip: 'Reclaim a valuable Echo or summon payoff.' },

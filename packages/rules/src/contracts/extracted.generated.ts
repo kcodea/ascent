@@ -14036,7 +14036,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "tags": [
       "activation:active",
       "power-kind:grantWard",
-      "cost:4"
+      "cost:3"
     ],
     "triggers": [
       {

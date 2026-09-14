@@ -2836,11 +2836,12 @@ function reduceCore(state: RunState, action: Action): RunState {
         // double-count them. Without this a heroPower action reaches neither read (audit 2026-07-21).
         if ((s.lastEotFires ?? 0) > 0) advanceQuestsBy(s, (o) => o.event === 'endOfTurn', s.lastEotFires);
       } else if (power.kind === 'grantWard') {
-        // Warden's Aegis: give a friendly board minion a PERMANENT Ward (Divine Shield) for 4 Gold. No-op (no
-        // charge/gold spent) on a missing target or one that already has a Ward.
+        // Warden's Aegis: give a friendly board minion a PERMANENT Ward (Divine Shield) for 3 Gold (4 until the
+        // 2026-09-14 rework). No-op (no charge/gold spent) on a missing target or one that already has a Ward.
         if (!card || card.keywords.includes('DS')) return state;
         card.keywords.push('DS');
-        // …and every minion that now HAS Ward (the fresh one included) gains +Tier/+Tier+1 (owner 2026-08-16).
+        // …THEN every minion that now HAS Ward (the fresh one included) gains the flat +5 Attack (owner 2026-09-14;
+        // it was +Tier/+Tier+1 from 2026-08-16).
         const g = aegisGrantOf(s);
         for (const c of s.board) if (c.keywords.includes('DS')) addBuff(c, 'Aegis', g.attack, g.health);
       } else if (power.kind === 'scalingGold') {

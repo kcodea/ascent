@@ -145,6 +145,11 @@ const SPELL_ALIASES: Record<string, string> = {
   preemptiveattack: 'preemptive',     // card is Pre-emptive ASSAULT; the art file says Attack
   rivalsreflections: 'rivalsreflection', // extra plural s
   triplereward: 'discoverspell',      // the Triple Reward token's id (a Discover token, not flagged `spell`)
+  // Set-3 Choose One spells (2026-09-14): the owner filed the two branches as `<Name>1` / `<Name>2` with NO
+  // base file. Option 0 wears the BASE art (`<id>`), option 1 wears `<id>2` — so the `1` file IS the base.
+  aspectsblessing1: 'aspectsblessing',
+  rushorder1: 'rushorder',
+  splitdecision1: 'splitdecision',
   // (Cupcakes.png stays UNMATCHED on purpose: no card by that name exists — reported to the owner 2026-07-31.)
 };
 

@@ -56,6 +56,16 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-14',
+    label: 'Set 3 art pass',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: "A Set 3 art pass: new portraits for Lodestar, Stardust Peddler, Maestro Lux, Twin Star, Wishing Star and Zenith; new spell art for Crescendo, Shared Spirit, Star Crash and both branches of Aspect's Blessing, Rush Order and Split Decision; refreshed art for twenty-odd more minions, the Magnifying Glass, Accretion, Lantern of Souls, Dragonflame and Flutter.",
+      },
+    ],
+  },
+  {
+    date: '2026-09-14',
     label: 'Warden rework',
     changes: [
       {

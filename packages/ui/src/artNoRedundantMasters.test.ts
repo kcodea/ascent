@@ -112,6 +112,10 @@ describe('no redundant PNG masters ship alongside their WebP builds', () => {
     // origin/main's 1143 — nine Starform-roster portraits (Star Seed, Dawn Sentinel, Accretion Warden, Eclipse
     // Warden, Orbit Keeper, Corona Devotee, Lens Grinder, Nova Herald, the Starform token) + the Accretion and
     // Grave Robbery spell arts. Neptus / Cometius were REPLACED in place through aliases at net 0.)
-    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1171);
+    // → 1186 (2026-09-14, the owner's set-3 art pass: +15 files measured against origin/main — six Celestial
+    // portraits (Lodestar, Peddler, Star Charter/Maestro Lux, Twin Star, Wishing Star, Zenith) + nine spell
+    // arts (Crescendo, Shared Spirit, Star Crash, and the base + branch pairs for Aspect's Blessing, Rush Order,
+    // Split Decision). 27 more were REPLACED in place at net 0 — incl. the Magnifying Glass icon.)
+    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1186);
   });
 });

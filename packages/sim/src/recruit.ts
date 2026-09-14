@@ -3421,13 +3421,16 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     self.spiritTally = (self.spiritTally ?? 0) + 1;
   },
 
-  /** Spiritbinder (Equip, targeted): the chosen board minion AND a random `tribe` minion in hand, +atk/+hp.
-   *  Gilding rides `gildedParams`, so the source's gild is not consulted. */
-  equipmentBuffTargetAndRandomHandTribe: (ctx, self, params, payload) => {
+  /** Spiritbinder (Equip, untargeted since 2026-09-14): a random `tribe` minion on the board AND a random `tribe`
+   *  minion in hand, +atk/+hp. Gilding rides `gildedParams`, so the source's gild is not consulted. */
+  equipmentBuffRandomTribeBoardAndHand: (ctx, self, params) => {
     const tribe = str(params.tribe) as Tribe;
     const a = num(params.attack, 0), h = num(params.health, 0);
-    if (payload.target) addBuff(payload.target, nameOf(self), a, h);
+    // Unlike Tidebud's Shout, the SOURCE is eligible: the Shaman is a Spirit on the board like any other (the
+    // targeted version let the player aim it at the Shaman too).
+    const onBoard = ctx.state.board.filter((c) => isTribe(c, tribe));
     const inHand = ctx.state.hand.filter((c) => isTribe(c, tribe) && !CARD_INDEX[c.cardId]?.spell);
+    for (const t of pickRandom(ctx.state, onBoard, 1)) addBuff(t, nameOf(self), a, h);
     for (const t of pickRandom(ctx.state, inHand, 1)) addBuff(t, nameOf(self), a, h);
   },
 

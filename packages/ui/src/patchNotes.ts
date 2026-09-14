@@ -56,6 +56,17 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-14',
+    label: 'Spiritbinder fix',
+    changes: [
+      {
+        category: 'Card Change',
+        text: "Spiritbinder (Bondweaver Shaman's Equipment) now gives a RANDOM Spirit on your board and a random Spirit in your hand +6/+6 — it no longer asks for a target.",
+        details: ['It could be aimed at a non-Spirit, which the card never promised. Picking its own Spirit on the board (the Shaman itself included) closes that; the hand half was already random.'],
+      },
+    ],
+  },
+  {
+    date: '2026-09-14',
     label: 'Targeting look',
     changes: [
       {

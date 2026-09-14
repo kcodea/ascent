@@ -160,7 +160,7 @@ export const SET3_UNDEAD: CardDef[] = [
   {
     // Watcher's Lantern body behind the shared Avenge window: every 3 friendly deaths, +3 Undead Aura for the run.
     id: 'u3_hierophant',
-    name: 'Soul-Lantern Hierophant',
+    name: 'Wick Mortis', // 'Soul-Lantern Hierophant' until 2026-09-14 (owner rename handoff; id + art unchanged)
     tribe: 'undead',
     tier: 6,
     attack: 6,

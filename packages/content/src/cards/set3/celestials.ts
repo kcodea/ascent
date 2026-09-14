@@ -18,7 +18,7 @@ export const SET3_CELESTIALS: readonly CardDef[] = [
     // T1: an Echo that pays a spell. Dies in the shop (Consume, a sell with a Sacrifice) or in combat — the Echo
     // grants through the same channel either way (`deathrattleGrantRandomSpell`, Sporebat's factory).
     id: 'ce3_courier',
-    name: 'Horizon Courier',
+    name: 'Cosmo Express', // 'Horizon Courier' until 2026-09-14 (owner rename handoff; id + art unchanged)
     tribe: 'celestial',
     tier: 1,
     attack: 1,
@@ -33,7 +33,7 @@ export const SET3_CELESTIALS: readonly CardDef[] = [
     // spell and its hover preview show the boosted number; spent by that cast. Gifts and Rubies are not Shop
     // spells: they neither read nor spend it. Fires again → banks again (additive).
     id: 'ce3_vendor',
-    name: 'Starpath Vendor',
+    name: 'Sugarnova', // 'Starpath Vendor' until 2026-09-14 (owner rename handoff; id + art unchanged)
     tribe: 'celestial',
     tier: 2,
     attack: 2,
@@ -78,7 +78,7 @@ export const SET3_CELESTIALS: readonly CardDef[] = [
     // Echo" factory): the Shout mints the real Shop spell to hand, the Echo grants it through the arena channel
     // in either phase. Golden doubles both.
     id: 'ce3_herald',
-    name: 'Falling Star Herald',
+    name: 'Plummet', // 'Falling Star Herald' until 2026-09-14 (owner rename handoff; id + art unchanged)
     tribe: 'celestial',
     tier: 4,
     attack: 4,
@@ -96,7 +96,7 @@ export const SET3_CELESTIALS: readonly CardDef[] = [
     // the cast multiplier), gated on the NAMED spell and on 2 random OTHER friendly Celestials. Once per turn
     // per copy (`namedSpreadUsedThisTurn`). Golden: 4 others.
     id: 'ce3_adept',
-    name: 'Crashborn Adept',
+    name: 'Crash Course', // 'Crashborn Adept' until 2026-09-14 (owner rename handoff; id + art unchanged)
     tribe: 'celestial',
     tier: 5,
     attack: 5,
@@ -226,7 +226,7 @@ export const SET3_CELESTIALS: readonly CardDef[] = [
     // T3: the Starform eats the highest-Tier Shop minion (ties → the right-most; no Starform → nothing; the token
     // never eats itself). Gilded: the Starform gains DOUBLE the meal's stats (`times` 2 — Cinder Clerk's rider).
     id: 'ce3_accretionwarden',
-    name: 'Accretion Warden',
+    name: 'The Great Attractor', // 'Accretion Warden' until 2026-09-14 (owner rename handoff; id + art unchanged)
     tribe: 'celestial',
     tier: 3,
     attack: 3,
@@ -255,7 +255,7 @@ export const SET3_CELESTIALS: readonly CardDef[] = [
     // T3 Avenge (3): a Star Crash to hand mid-fight (`avengeGrantSpell`, Arcane Weaver's shape — rides
     // `ctx.grantToHand`, per-instance window under the R-AVWIN rulings). Gilded: 2 per proc.
     id: 'ce3_eclipsewarden',
-    name: 'Eclipse Warden',
+    name: 'Totality', // 'Eclipse Warden' until 2026-09-14 (owner rename handoff; id + art unchanged)
     tribe: 'celestial',
     tier: 3,
     attack: 3,
@@ -269,7 +269,7 @@ export const SET3_CELESTIALS: readonly CardDef[] = [
     // T4: End of Turn feeds the token (+2/+2; nothing without one); Start of Turn re-creates it when none is out
     // (a full row eats its right-most minion, rule 1). Gilded: End of Turn +4/+4 (the create has no number).
     id: 'ce3_orbitkeeper',
-    name: 'Orbit Keeper',
+    name: 'Roundabout', // 'Orbit Keeper' until 2026-09-14 (owner rename handoff; id + art unchanged)
     tribe: 'celestial',
     tier: 4,
     attack: 3,
@@ -289,7 +289,7 @@ export const SET3_CELESTIALS: readonly CardDef[] = [
     // stats go nowhere; no Starform → nothing happens. The Devotee itself is eligible. Gilded: each hit gains its
     // FULL stats (double the half). (Its old Shout — Consume for 100% — is now the token's BUY.)
     id: 'ce3_coronadevotee',
-    name: 'Corona Devotee',
+    name: 'Solburn', // 'Corona Devotee' until 2026-09-14 (owner rename handoff; id + art unchanged)
     tribe: 'celestial',
     tier: 4,
     attack: 4,
@@ -303,7 +303,7 @@ export const SET3_CELESTIALS: readonly CardDef[] = [
     // T4: Discover a Celestial (Sea Urchin's factory: never itself via `exclude`; the Starform is a token and sits
     // outside every draw pool, so it is never offered). Gilded: Discover twice.
     id: 'ce3_starcharter',
-    name: 'Star Charter',
+    name: 'Maestro Lux', // 'Star Charter' until 2026-09-14 (owner rename handoff; id + art unchanged)
     tribe: 'celestial',
     tier: 4,
     attack: 3,
@@ -364,7 +364,7 @@ export const SET3_CELESTIALS: readonly CardDef[] = [
     // the card at collapse time (`collapseExtraTargetsOf`, the Constellation Prime id-read shape) — never
     // dispatched. The text prints the static "2" (owner: "table for now" — no live total).
     id: 'ce3_novaherald',
-    name: 'Nova Herald',
+    name: 'Fuse Aldrin', // 'Nova Herald' until 2026-09-14 (owner rename handoff; id + art unchanged)
     tribe: 'celestial',
     tier: 6,
     attack: 6,

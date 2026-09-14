@@ -51,7 +51,7 @@ export const SET3_SPIRITS: readonly CardDef[] = [
   {
     // A HAND watcher (`inHand: true`): while this is in your hand, every Spirit you play grows it +4/+4.
     id: 'sp3_slumbering',
-    name: 'Slumbering Colossus',
+    name: 'Dozer', // 'Slumbering Colossus' until 2026-09-14 (owner rename handoff; id + art unchanged)
     tribe: 'spirit',
     tier: 4,
     attack: 4,
@@ -181,7 +181,7 @@ export const SET3_SPIRITS: readonly CardDef[] = [
   {
     // Equip minion: Spiritbinder (2 Gold; 'Spiritbringer' until 2026-09-13, id unchanged) — a RANDOM Spirit on the board and a random Spirit in hand, +6/+6 each (untargeted since 2026-09-14).
     id: 'sp3_bondweaver',
-    name: 'Bondweaver Shaman',
+    name: 'Knot', // 'Bondweaver Shaman' until 2026-09-14 (owner rename handoff; id + art unchanged)
     tribe: 'spirit',
     tier: 3,
     attack: 3,
@@ -195,7 +195,7 @@ export const SET3_SPIRITS: readonly CardDef[] = [
     // Every 3 Spirits played → a random Shop spell (≤ tavern tier). Per-instance progress that CARRIES ACROSS
     // TURNS (owner: "if you're at 2/3 you keep that progress"). The live text prints the count.
     id: 'sp3_festivalkeeper',
-    name: 'Festival Keeper',
+    name: 'Tally', // 'Festival Keeper' until 2026-09-14 (owner rename handoff; id + art unchanged)
     tribe: 'spirit',
     tier: 3,
     attack: 3,
@@ -208,7 +208,7 @@ export const SET3_SPIRITS: readonly CardDef[] = [
   {
     // End of Turn: a random Spirit +3/+4, then once more per Spirit played this turn (1 + N fires, each random).
     id: 'sp3_nurturer',
-    name: 'Nurturer',
+    name: 'Mother Moss', // 'Nurturer' until 2026-09-14 (owner rename handoff; id + art unchanged)
     tribe: 'spirit',
     tier: 3,
     attack: 2,
@@ -221,7 +221,7 @@ export const SET3_SPIRITS: readonly CardDef[] = [
   {
     // Whenever you cast a Shop spell → a random minion in your HAND +4/+6 (permanent — R-HAND-02).
     id: 'sp3_dreamcurrent',
-    name: 'Dreamcurrent Mystic',
+    name: 'Lullaby Lou', // 'Dreamcurrent Mystic' until 2026-09-14 (owner rename handoff; id + art unchanged)
     tribe: 'spirit',
     tier: 4,
     attack: 4,
@@ -234,7 +234,7 @@ export const SET3_SPIRITS: readonly CardDef[] = [
   {
     // Equip minion: Revelmaker (2 Gold) — a random Reveler to hand (gilded: two).
     id: 'sp3_paradeartificer',
-    name: 'Spirit Artificer', // 'Parade Artificer' on the sheet; renamed by the owner 2026-09-09 (id unchanged)
+    name: 'Revelsmith', // 'Spirit Artificer' until 2026-09-14 (owner rename handoff; id + art unchanged) // 'Parade Artificer' on the sheet; renamed by the owner 2026-09-09 (id unchanged)
     tribe: 'spirit',
     tier: 4,
     attack: 4,
@@ -247,7 +247,7 @@ export const SET3_SPIRITS: readonly CardDef[] = [
   {
     // Shout: if you control a Spirit (this one does not count — it is the one being played), Discover a Spirit.
     id: 'sp3_gatheringguide',
-    name: 'Gathering Guide',
+    name: 'Branch Manager', // 'Gathering Guide' until 2026-09-14 (owner rename handoff; id + art unchanged)
     tribe: 'spirit',
     tier: 4,
     attack: 4,
@@ -274,7 +274,7 @@ export const SET3_SPIRITS: readonly CardDef[] = [
   {
     // Whenever you sell a Reveler: your next Spirit this turn costs 1 less — stacks to −3 (owner 2026-09-09).
     id: 'sp3_treasurer',
-    name: 'Festival Treasurer',
+    name: 'Smokey Joe', // 'Festival Treasurer' until 2026-09-14 (owner rename handoff; id + art unchanged)
     tribe: 'spirit',
     tier: 5,
     attack: 5,
@@ -299,7 +299,7 @@ export const SET3_SPIRITS: readonly CardDef[] = [
   {
     // Shout: 3 random Spirits +1/+1 PLUS the shared Reveler value on both stats (owner: "the same X amount").
     id: 'sp3_luminary',
-    name: 'Festival Luminary',
+    name: 'Limelight', // 'Festival Luminary' until 2026-09-14 (owner rename handoff; id + art unchanged)
     tribe: 'spirit',
     tier: 6,
     attack: 6,
@@ -313,7 +313,7 @@ export const SET3_SPIRITS: readonly CardDef[] = [
     // Renamed from Parade Colossus (owner 2026-09-09). Counts only Spirits played AFTER it was played — a
     // per-instance tally (`spiritTally`) that the combat body carries in. Start of Combat: Spirits +1/+1 each.
     id: 'sp3_forestcolossus',
-    name: 'Forest Colossus',
+    name: 'Old Timber', // 'Forest Colossus' until 2026-09-14 (owner rename handoff; id + art unchanged)
     tribe: 'spirit',
     tier: 6,
     attack: 7,

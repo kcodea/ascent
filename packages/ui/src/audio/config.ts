@@ -76,7 +76,7 @@ export const CATEGORY_LABEL: Record<string, string> = {
   eqUseBloodpot: 'Bloodpot — use (Alchemist Frank)',
   eqUseTitanHammer: 'Titan Hammer — use',
   eqUseBlastPump: 'Blast Pump — use (Blast Surveyor)',
-  eqUsePrismaticPick: 'Prismatic Pick — Choose One opens (Prismpick Artificer)',
+  eqUsePrismaticPick: 'Prismatic Pick — Choose One opens (Picksy)',
   eqUseDuelingRubettas: "Dual Rubetta's — use (Kaura L'roft)",
   eqUseThymepiece: 'Thymepiece — use (Thymes)',
   eqUseDeathfibrillator: 'Deathfibrillator — use (EMS)',

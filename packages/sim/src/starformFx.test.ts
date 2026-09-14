@@ -93,7 +93,7 @@ describe('starformFx — the per-action pull channel', () => {
     expect(new Set(fx.toUids).size, 'two distinct targets').toBe(2);
     expect(fx.toUids).not.toContain('n');
     // The receivers on the record are exactly the bodies that gained.
-    const gained = s.board.filter((c) => (c.buffs ?? []).some((b) => b.source === 'Corona Devotee')).map((c) => c.uid);
+    const gained = s.board.filter((c) => (c.buffs ?? []).some((b) => b.source === 'Solburn')).map((c) => c.uid);
     expect([...fx.toUids].sort()).toEqual(gained.sort());
 
     let two = withStarform({ board: [body('a', 'ce3_seer')], hand: [body('d', 'ce3_coronadevotee')] });

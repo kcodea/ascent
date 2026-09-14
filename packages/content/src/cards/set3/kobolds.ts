@@ -43,7 +43,7 @@ export const SET3_KOBOLDS: CardDef[] = [
     // Choose One — the roster's introduction to the fork: a Shop spell (tempo, unknown) against Rubies
     // (stats, certain). Both branches are one existing primitive each.
     id: 'k3_splitpick',
-    name: 'Splitpick Apprentice',
+    name: 'Pickles', // 'Splitpick Apprentice' until 2026-09-14 (owner rename handoff; id + art unchanged)
     tribe: 'kobold',
     tier: 3, // owner balance 2026-09-09: T2 2/3 → T3 5/3
     attack: 5,
@@ -88,7 +88,7 @@ export const SET3_KOBOLDS: CardDef[] = [
     // the wrong key granted the empty string and crashed the hand-grant preview (owner report 2026-07-25);
     // the content schema catches it now, which is how this one was caught.
     id: 'k3_veinchant',
-    name: 'Veinchant Delver',
+    name: 'Delver', // 'Veinchant Delver' until 2026-09-14 (owner rename handoff; id + art unchanged)
     tribe: 'kobold',
     tier: 3,
     attack: 3,
@@ -140,7 +140,7 @@ export const SET3_KOBOLDS: CardDef[] = [
     // on its End-of-Turn half. The right branch casts Veinstorm twice through the REAL Shop-spell pipeline,
     // so each cast counts as a Shop spell cast and wakes every cast-watcher.
     id: 'k3_facetbound',
-    name: 'Facetbound Martyr',
+    name: 'Shardluck', // 'Facetbound Martyr' until 2026-09-14 (owner rename handoff; id + art unchanged)
     tribe: 'kobold',
     tier: 5,
     attack: 5,
@@ -199,7 +199,7 @@ export const SET3_KOBOLDS: CardDef[] = [
     // `set` (not add) — "the FIRST Choose One card you play each turn", so the charge refreshes to exactly one
     // per turn and is never banked. The turn boundary clears charges first, then this re-grants.
     id: 'k3_forkedcrown',
-    name: 'Dealer',
+    name: 'Double Dealer', // 'Dealer' until 2026-09-14 (owner rename handoff; id + art unchanged)
     tribe: 'kobold',
     tier: 4,
     attack: 4,
@@ -262,7 +262,7 @@ export const SET3_KOBOLDS: CardDef[] = [
     // Both branches point back at the set's Choose One theme — one hands you another fork, the other makes
     // the next fork pay both ways — so the Artificer is the payoff for a board already built around forks.
     id: 'k3_prismpick',
-    name: 'Prismpick Artificer',
+    name: 'Picksy', // 'Prismpick Artificer' until 2026-09-14 (owner rename handoff; id + art unchanged)
     tribe: 'kobold',
     tier: 6,
     attack: 8,
@@ -281,7 +281,7 @@ export const SET3_KOBOLDS: CardDef[] = [
     // use one verb for one mechanic. Play/cast are genuinely different hooks in this engine, and a card whose
     // two texts disagree about which one it is would be a real ambiguity rather than a wording nicety.
     id: 'k3_runespark',
-    name: 'Runespark Channeler',
+    name: 'Livewire', // 'Runespark Channeler' until 2026-09-14 (owner rename handoff; id + art unchanged)
     tribe: 'kobold',
     tier: 5,
     attack: 5,

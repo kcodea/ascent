@@ -30,7 +30,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "statement": "All 20 'avenge' cards trigger the same way. Gilding doubles their output, except a few that summon a gilded token or add a proc. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
     "currentBehaviour": "20 effect factories across 20 cards dispatch through the 'avenge' presentation family, all on the single trigger 'avenge' (combat); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline, with Dunkey/Muster General/Steadfast Sentinel summoning a GILDED token at the same count, and Gemstorm Instigator buying one extra proc (owner ruling 2026-08-28).",
-    "cardText": "Exemplar — Dunkey: \"Avenge (4): summon an Armadiyo.\" · Members: Dunkey · Solaris · Bone Taxer · Brood Matron · Eclipse Warden · Grobbus · Gemstorm Instigator · Gem Portsmith · Kennelmaster · Muster General · Pit Supplier · Professor Greg · … and 8 more",
+    "cardText": "Exemplar — Dunkey: \"Avenge (4): summon an Armadiyo.\" · Members: Dunkey · Solaris · Bone Taxer · Brood Matron · Totality · Grobbus · Gemstorm Instigator · Gem Portsmith · Kennelmaster · Muster General · Pit Supplier · Professor Greg · … and 8 more",
     "example": "Dunkey follows the 'avenge' convention — its trigger fires on avenge. Gilded Dunkey summons ONE gilded Armadiyo, not two plain ones.",
     "contentIds": [
       "b2_dunkey",
@@ -104,7 +104,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "statement": "All 9 'castReact' cards trigger the same way. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
     "currentBehaviour": "12 effect factories across 9 cards dispatch through the 'castReact' presentation family, all on the single trigger 'spellCast' (recruit); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Gravestar Seer: \"Whenever you cast a spell, this gains +4 Attack permanently.\" · Members: Gravestar Seer · Astral Spellcore · Zenith · Earthbreaker · Forsaken Mage · Archmagus Guel · Fatecarver · Runescale Drake · Dreamcurrent Mystic",
+    "cardText": "Exemplar — Gravestar Seer: \"Whenever you cast a spell, this gains +4 Attack permanently.\" · Members: Gravestar Seer · Astral Spellcore · Zenith · Earthbreaker · Forsaken Mage · Archmagus Guel · Fatecarver · Runescale Drake · Lullaby Lou",
     "example": "Gravestar Seer follows the 'castReact' convention — its trigger fires on spellCast. its printed numbers double when the card is gilded.",
     "contentIds": [
       "ce3_seer",
@@ -232,7 +232,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "statement": "All 28 'endOfTurn' cards trigger the same way. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
     "currentBehaviour": "34 effect factories across 28 cards dispatch through the 'endOfTurn' presentation family, all on the single trigger 'endOfTurn' (recruit); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Abyssal Feeder: \"End of Turn: adjacent minions each Consume a Fodder.\" · Members: Abyssal Feeder · Aeon Guard · Moira · Stonehorn Archivist · Orbit Keeper · Combinator · Crypt Scribe · Skybound Ascendant · Soul Defiler · Bob Blart · Striker · Arnold · … and 16 more",
+    "cardText": "Exemplar — Abyssal Feeder: \"End of Turn: adjacent minions each Consume a Fodder.\" · Members: Abyssal Feeder · Aeon Guard · Moira · Stonehorn Archivist · Roundabout · Combinator · Crypt Scribe · Skybound Ascendant · Soul Defiler · Bob Blart · Striker · Arnold · … and 16 more",
     "example": "Abyssal Feeder follows the 'endOfTurn' convention — its trigger fires on endOfTurn. its printed numbers double when the card is gilded.",
     "contentIds": [
       "abyssalfeeder",
@@ -285,7 +285,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "statement": "All 15 'grant' cards trigger the same way. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
     "currentBehaviour": "1 effect factories across 15 cards dispatch through the 'grant' presentation family, all on the single trigger 'equip' (recruit); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Cometius: \"Equip Comet (4): your next spell casts 2 additional times.\" · Members: Cometius · Lens Grinder · Pourman · Thymes · Alchemist Frank · Titan Sculptor · Blast Surveyor · Kaura L'roft · Prismpick Artificer · Highway Hustler · Inspector Pell · Bondweaver Shaman · … and 3 more",
+    "cardText": "Exemplar — Cometius: \"Equip Comet (4): your next spell casts 2 additional times.\" · Members: Cometius · Lens Grinder · Pourman · Thymes · Alchemist Frank · Titan Sculptor · Blast Surveyor · Kaura L'roft · Picksy · Highway Hustler · Inspector Pell · Knot · … and 3 more",
     "example": "Cometius follows the 'grant' convention — its trigger fires on equip. its printed numbers double when the card is gilded.",
     "contentIds": [
       "ce3_artificer",
@@ -321,13 +321,14 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-family-passive",
-    "title": "'passive' family · 2 cards",
-    "statement": "All 2 'passive' cards trigger the same way. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
+    "title": "'passive' family · 3 cards",
+    "statement": "All 3 'passive' cards trigger the same way. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
-    "currentBehaviour": "2 effect factories across 2 cards dispatch through the 'passive' presentation family, all on the single trigger 'passive' (both); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Deepdelve Paragon: \"Rubies applied in combat give 2× stats.\" · Members: Deepdelve Paragon · Ancient Wanderer",
-    "example": "Deepdelve Paragon follows the 'passive' convention — its trigger fires on passive. its printed numbers double when the card is gilded.",
+    "currentBehaviour": "3 effect factories across 3 cards dispatch through the 'passive' presentation family, all on the single trigger 'passive' (both); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
+    "cardText": "Exemplar — Fuse Aldrin: \"When you Collapse a Starform, it buffs 2 additional random Celestials.\" · Members: Fuse Aldrin · Deepdelve Paragon · Ancient Wanderer",
+    "example": "Fuse Aldrin follows the 'passive' convention — its trigger fires on passive. its printed numbers double when the card is gilded.",
     "contentIds": [
+      "ce3_novaherald",
       "k_deepdelve",
       "n2_wanderer"
     ]
@@ -422,8 +423,8 @@ export const CONVENTION_PENDING: GameRule[] = [
     "title": "'shout' family · 68 cards",
     "statement": "All 68 'shout' cards trigger the same way. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
-    "currentBehaviour": "63 effect factories across 68 cards dispatch through the 'shout' presentation family, all on the single trigger 'onPlay' (both); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Pennycat: \"Battlecry: summon a 1/1 Stray next to it.\" · Members: Pennycat · Mage-Pup · Black Belt Brian · Buddy Buddy · Accretion Warden · Constellation Prime · Corona Devotee · Falling Star Herald · Shooting Star · Star Charter · Star Seed · Starpath Vendor · … and 56 more",
+    "currentBehaviour": "62 effect factories across 68 cards dispatch through the 'shout' presentation family, all on the single trigger 'onPlay' (both); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
+    "cardText": "Exemplar — Pennycat: \"Battlecry: summon a 1/1 Stray next to it.\" · Members: Pennycat · Mage-Pup · Black Belt Brian · Buddy Buddy · The Great Attractor · Constellation Prime · Solburn · Plummet · Shooting Star · Maestro Lux · Star Seed · Sugarnova · … and 56 more",
     "example": "Pennycat follows the 'shout' convention — its trigger fires on onPlay. its printed numbers double when the card is gilded.",
     "contentIds": [
       "alley",
@@ -988,7 +989,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "statement": "Combat counters (Avenge) reset when the fight ends. Shop counters last the whole run. Progress never crosses between them. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "persistence",
     "currentBehaviour": "Avenge progress lives in per-combat instance state; quest/cadence counters live in run state and persist.",
-    "cardText": "Exemplar — Dunkey: \"Avenge (4): summon an Armadiyo.\" · Avenge carriers: Dunkey · Solaris · Bone Taxer · Brood Matron · Eclipse Warden · Grobbus · Gemstorm Instigator · Gem Portsmith · Kennelmaster · Muster General · Pit Supplier · Professor Greg · … and 8 more",
+    "cardText": "Exemplar — Dunkey: \"Avenge (4): summon an Armadiyo.\" · Avenge carriers: Dunkey · Solaris · Bone Taxer · Brood Matron · Totality · Grobbus · Gemstorm Instigator · Gem Portsmith · Kennelmaster · Muster General · Pit Supplier · Professor Greg · … and 8 more",
     "example": "Dunkey at 2 of 3 deaths when combat ends starts the next combat at 0 — but a quest at 4 of 5 buys stays at 4 next turn.",
     "contentIds": [
       "b2_dunkey",
@@ -2459,8 +2460,8 @@ export const CONVENTION_PENDING: GameRule[] = [
     "statement": "All 3 of these fire on one trigger: a spell targets this minion. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
     "currentBehaviour": "3 effect factories across 3 cards dispatch on 'spellCastOnThis' (recruit) — re-clustered by TRIGGER out of the 'economy' presentation family on the owner's 2026-08-28 ruling; the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Crashborn Adept: \"The first time each turn you cast Star Crash on this, cast it on 2 other friendly Celestials.\" · Members: Crashborn Adept · Mirrorwing · Reflector",
-    "example": "Crashborn Adept fires when a spell targets this minion, like every other card here. its printed numbers double when the card is gilded.",
+    "cardText": "Exemplar — Crash Course: \"The first time each turn you cast Star Crash on this, cast it on 2 other friendly Celestials.\" · Members: Crash Course · Mirrorwing · Reflector",
+    "example": "Crash Course fires when a spell targets this minion, like every other card here. its printed numbers double when the card is gilded.",
     "contentIds": [
       "ce3_adept",
       "d2_mirrorwing",
@@ -2514,8 +2515,8 @@ export const CONVENTION_PENDING: GameRule[] = [
     "statement": "All 4 of these fire on one trigger: the turn starts. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
     "currentBehaviour": "4 effect factories across 4 cards dispatch on 'startOfTurn' (recruit) — re-clustered by TRIGGER out of the 'economy' presentation family on the owner's 2026-08-28 ruling; the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Orbit Keeper: \"End of Turn: give your Starform +2/+2. Start of Turn: if you have no Starform, create one.\" · Members: Orbit Keeper · Fel Conjurer · Dealer · Equipment Charger",
-    "example": "Orbit Keeper fires when the turn starts, like every other card here. its printed numbers double when the card is gilded.",
+    "cardText": "Exemplar — Roundabout: \"End of Turn: give your Starform +2/+2. Start of Turn: if you have no Starform, create one.\" · Members: Roundabout · Fel Conjurer · Double Dealer · Jumpstart Jules",
+    "example": "Roundabout fires when the turn starts, like every other card here. its printed numbers double when the card is gilded.",
     "contentIds": [
       "ce3_orbitkeeper",
       "d2_felconjurer",
@@ -2543,7 +2544,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "statement": "All 4 of these fire on one trigger: you play a minion of a named tribe. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
     "currentBehaviour": "4 effect factories across 4 cards dispatch on 'onTribePlayed' (recruit) — re-clustered by TRIGGER out of the 'economy' presentation family on the owner's 2026-08-28 ruling; the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Aspect: \"Whenever you play a Spirit, give 3 random friendly Spirits +1/+1. Improve this by +1/+1 every 3 times this triggers.\" · Members: Aspect · Festival Keeper · Forest Colossus · Slumbering Colossus",
+    "cardText": "Exemplar — Aspect: \"Whenever you play a Spirit, give 3 random friendly Spirits +1/+1. Improve this by +1/+1 every 3 times this triggers.\" · Members: Aspect · Tally · Old Timber · Dozer",
     "example": "Aspect fires when you play a minion of a named tribe, like every other card here. its printed numbers double when the card is gilded.",
     "contentIds": [
       "sp3_aspect",

@@ -59,11 +59,13 @@ export const SET3_SPELLS: readonly CardDef[] = [
     spell: true,
     cost: 1,
     effects: [],
+    // 2026-09-14 (owner): hand +3/+2, or a random friendly BOARD minion +2/+1 (was +3/+1 / +1/+3, both in hand).
+    // The hand half stays a random pick — no spell aims into the hand (the shop's aim modes are `any` / `friendly`).
     chooseOne: [
-      { text: 'Give a random minion in your hand **+3/+1**.', effects: [{ on: 'cast', do: 'spellBuffRandomHand', params: { attack: 3, health: 1 } }] },
-      { text: 'Give a random minion in your hand **+1/+3**.', effects: [{ on: 'cast', do: 'spellBuffRandomHand', params: { attack: 1, health: 3 } }] },
+      { text: 'Give a random minion in your hand **+3/+2**.', effects: [{ on: 'cast', do: 'spellBuffRandomHand', params: { attack: 3, health: 2 } }] },
+      { text: 'Give a random friendly minion **+2/+1**.', effects: [{ on: 'cast', do: 'spellBuffRandomFriendlies', params: { count: 1, attack: 2, health: 1 } }] },
     ],
-    text: '**Choose One:** give a random minion in your hand **+3/+1**, or **+1/+3**.',
+    text: '**Choose One:** give a random minion in your hand **+3/+2**, or a random friendly minion **+2/+1**.',
   },
   {
     // T2 (Dwarf) Choose One — a random Dwarven Ale to hand, or 3 Gold next turn (the Safety Deposit Box shape).
@@ -156,8 +158,8 @@ export const SET3_SPELLS: readonly CardDef[] = [
     keywords: [],
     spell: true,
     cost: 3,
-    effects: [{ on: 'cast', do: 'spellBuffAllPerTribePlayed', params: { tribe: 'spirit', attack: 1, health: 1 } }],
-    text: 'Give your minions **+1/+1** for each **Spirit** you played this turn.',
+    effects: [{ on: 'cast', do: 'spellBuffAllPerTribePlayed', params: { tribe: 'spirit', attack: 2, health: 2 } }], // +1/+1 until 2026-09-14
+    text: 'Give your minions **+2/+2** for every **Spirit** you played this turn.',
   },
   {
     // T3 (Celestial, offered only while Celestial is a run tribe): the Starform eats the highest-HEALTH Shop minion
@@ -166,7 +168,7 @@ export const SET3_SPELLS: readonly CardDef[] = [
     // unconditional, only the consume needs the token). Untargeted, so no cast multiplier reaches it (Yazzus);
     // a Comet / Nimbus charge repeats the whole cast (another consume + another Star Crash), as for any spell.
     id: 'accretion',
-    name: 'Accretion',
+    name: 'Black Hole', // 'Accretion' until 2026-09-14 (owner rename; id + art unchanged)
     tribe: 'celestial',
     tier: 3,
     attack: 0,
@@ -174,10 +176,8 @@ export const SET3_SPELLS: readonly CardDef[] = [
     keywords: [],
     spell: true,
     cost: 2,
-    effects: [
-      { on: 'cast', do: 'spellStarformConsumeShop', params: { pick: 'highestHealth' } },
-      { on: 'cast', do: 'spellGrantSpell', params: { spellId: 'starcrash', count: 1 } },
-    ],
-    text: 'Your **Starform** consumes the highest-Health minion in the Shop. Get a **Star Crash**.',
+    // 2026-09-14 (owner): three RANDOM Shop minions; the Star Crash grant is gone with the rename.
+    effects: [{ on: 'cast', do: 'spellStarformConsumeShop', params: { pick: 'random', count: 3 } }],
+    text: 'Your **Starform** consumes **3** random Shop minions.',
   },
 ];

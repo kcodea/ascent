@@ -170,9 +170,9 @@ export const SET3_CELESTIALS: readonly CardDef[] = [
     attack: 2,
     health: 1,
     keywords: [],
-    effects: [{ on: 'onPlay', do: 'battlecryCreateStarformOrBuff', params: { attack: 2, health: 2 } }],
-    text: '**Shout:** create a **Starform** in the Shop. If you already have one, give it **+2/+2** instead.',
-    goldenText: '**Shout:** create a **Starform** in the Shop. If you already have one, give it **+4/+4** instead.',
+    effects: [{ on: 'onPlay', do: 'battlecryCreateStarformOrBuff', params: { attack: 4, health: 4 } }], // +2/+2 until 2026-09-14
+    text: '**Shout:** create a **Starform**. If you already have one, give it **+4/+4**.',
+    goldenText: '**Shout:** create a **Starform**. If you already have one, give it **+8/+8**.',
   },
   {
     // T1 Taunt: Noggin's Echo shape (`deathrattleBuffRandomTribe`, one arena body for both phases) aimed at a
@@ -199,9 +199,10 @@ export const SET3_CELESTIALS: readonly CardDef[] = [
     attack: 2,
     health: 3,
     keywords: [],
-    effects: [{ on: 'onBuy', do: 'onBuyBuffStarform', params: { attack: 1, health: 1 } }],
-    text: 'Whenever you buy a minion, give your **Starform +1/+1**.',
-    goldenText: 'Whenever you buy a minion, give your **Starform +2/+2**.',
+    // 2026-09-14 (owner): creates the token when there is none; otherwise +1/+2 (was a bare +1/+1).
+    effects: [{ on: 'onBuy', do: 'onBuyCreateStarformOrBuff', params: { attack: 1, health: 2 } }],
+    text: 'Whenever you buy a minion, create a **Starform** or give one **+1/+2**.',
+    goldenText: 'Whenever you buy a minion, create a **Starform** or give one **+2/+4**.',
   },
   {
     // T2 Shout AND Echo, one factory on two triggers: "this shop" = the offers standing in the row right now
@@ -215,12 +216,10 @@ export const SET3_CELESTIALS: readonly CardDef[] = [
     attack: 2,
     health: 3,
     keywords: [],
-    effects: [
-      { on: 'onPlay', do: 'buffThisShop', params: { attack: 2, health: 2 } },
-      { on: 'onDeath', do: 'buffThisShop', params: { attack: 2, health: 2 } },
-    ],
-    text: '**Shout:** give **this shop +2/+2**. **Echo:** give **this shop +2/+2**.',
-    goldenText: '**Shout:** give **this shop +4/+4**. **Echo:** give **this shop +4/+4**.',
+    // 2026-09-14 (owner): a plain adjacent buff (was Shout + Echo "this shop +2/+2").
+    effects: [{ on: 'onPlay', do: 'battlecryBuffAdjacent', params: { attack: 3, health: 4 } }],
+    text: '**Shout:** give adjacent minions **+3/+4**.',
+    goldenText: '**Shout:** give adjacent minions **+6/+8**.',
   },
   {
     // T3: the Starform eats the highest-Tier Shop minion (ties → the right-most; no Starform → nothing; the token
@@ -232,24 +231,29 @@ export const SET3_CELESTIALS: readonly CardDef[] = [
     attack: 3,
     health: 4,
     keywords: [],
-    effects: [{ on: 'onPlay', do: 'battlecryStarformConsumeShop', params: { pick: 'highestTier' } }],
-    text: '**Shout:** your **Starform** consumes the highest-Tier minion in the Shop.',
-    goldenText: '**Shout:** your **Starform** consumes the highest-Tier minion in the Shop and gains **double** its stats.',
+    // 2026-09-14 (owner): buff THIS shop first, then the token eats the highest-HEALTH offer (so the meal carries the
+    // buff). "Buff the shop" in the handoff read as the current offers, not the permanent Staff-of-Guel channel.
+    effects: [
+      { on: 'onPlay', do: 'buffThisShop', params: { attack: 4, health: 3 } },
+      { on: 'onPlay', do: 'battlecryStarformConsumeShop', params: { pick: 'highestHealth' } },
+    ],
+    text: '**Shout:** give **this shop +4/+3**. Your **Starform** consumes the highest-Health minion.',
+    goldenText: '**Shout:** give **this shop +8/+6**. Your **Starform** consumes the highest-Health minion and gains **double** its stats.',
   },
   {
     // T3 Flurry: "this shop" +3/+3 per Shop spell cast this turn (`spellsThisTurn`, the Spirit Worgen read — a
     // multiplied cast counts each time, as it does for every spells-this-turn scaler). LIVE TEXT prints the
     // current total (`shootingStarText`) on both chains. Gilded: +6/+6 per spell.
     id: 'ce3_shootingstar',
-    name: 'Shooting Star',
+    name: 'Rocket Power', // 'Shooting Star' until 2026-09-14 (owner rename; id + art unchanged); Flurry dropped the same day
     tribe: 'celestial',
     tier: 3,
     attack: 3,
     health: 2,
-    keywords: ['W'],
+    keywords: [],
     effects: [{ on: 'onPlay', do: 'battlecryBuffThisShopPerSpellsThisTurn', params: { attack: 3, health: 3 } }],
-    text: '**Flurry.** **Shout:** give **this shop +3/+3** for each Shop spell you cast this turn.',
-    goldenText: '**Flurry.** **Shout:** give **this shop +6/+6** for each Shop spell you cast this turn.',
+    text: '**Shout:** give **this shop +3/+3** for every Shop spell you cast this turn.',
+    goldenText: '**Shout:** give **this shop +6/+6** for every Shop spell you cast this turn.',
   },
   {
     // T3 Avenge (3): a Star Crash to hand mid-fight (`avengeGrantSpell`, Arcane Weaver's shape — rides
@@ -271,16 +275,16 @@ export const SET3_CELESTIALS: readonly CardDef[] = [
     id: 'ce3_orbitkeeper',
     name: 'Roundabout', // 'Orbit Keeper' until 2026-09-14 (owner rename handoff; id + art unchanged)
     tribe: 'celestial',
-    tier: 4,
-    attack: 3,
-    health: 6,
+    tier: 5, // T4 3/6 with an End-of-Turn +2/+2 until 2026-09-14 (owner): now the token EATS the whole row at End of Turn
+    attack: 7,
+    health: 5,
     keywords: [],
     effects: [
-      { on: 'endOfTurn', do: 'endOfTurnBuffStarform', params: { attack: 2, health: 2 } },
+      { on: 'endOfTurn', do: 'endOfTurnStarformConsumeAllShop' },
       { on: 'startOfTurn', do: 'startOfTurnCreateStarform' },
     ],
-    text: '**End of Turn:** give your **Starform +2/+2**. **Start of Turn:** if you have no Starform, create one.',
-    goldenText: '**End of Turn:** give your **Starform +4/+4**. **Start of Turn:** if you have no Starform, create one.',
+    text: '**End of Turn:** your **Starform** consumes the Shop. **Start of Turn:** if you have no Starform, create one.',
+    goldenText: '**End of Turn:** your **Starform** consumes the Shop and gains **double** the stats. **Start of Turn:** if you have no Starform, create one.',
   },
   {
     // T4 (rules v2 2026-09-13): COLLAPSE — the token leaves; 2 UNIQUE random friendly Celestials each gain HALF its
@@ -319,13 +323,13 @@ export const SET3_CELESTIALS: readonly CardDef[] = [
     id: 'ce3_lensgrinder',
     name: 'Lens Grinder',
     tribe: 'celestial',
-    tier: 5,
-    attack: 5,
+    tier: 4, // T5 5/6 until 2026-09-14 (owner)
+    attack: 4,
     health: 6,
     keywords: [],
     effects: [{ on: 'equip', do: 'grantEquipment', params: { equipmentId: 'stellar_lens' } }],
-    text: '**Equip Stellar Lens (2):** give **this shop +10/+10**.',
-    goldenText: '**Equip Stellar Lens (2):** give **this shop +20/+20**.',
+    text: '**Equip Stellar Lens (2):** create a **Starform**, then give **this shop +7/+7**.',
+    goldenText: '**Equip Stellar Lens (2):** create a **Starform**, then give **this shop +14/+14**.',
   },
   {
     // T5 Echo, both phases (one arena body): a random OTHER friendly Celestial gains this minion's MAX stats —
@@ -347,9 +351,9 @@ export const SET3_CELESTIALS: readonly CardDef[] = [
     // T6: the `starformGained` watcher — mirrors every gain the token takes (a buff, a shop buff, its consumes, a
     // Star Crash aimed at it, a slot enchant on a roll). Gilded: gains double the mirrored amount.
     id: 'ce3_twinstar',
-    name: 'Twin Star',
+    name: 'Twinning', // 'Twin Star' until 2026-09-14 (owner rename; id + art unchanged)
     tribe: 'celestial',
-    tier: 6,
+    tier: 5, // T6 until 2026-09-14 (owner)
     attack: 6,
     health: 8,
     keywords: [],

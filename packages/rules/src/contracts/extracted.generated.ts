@@ -125,19 +125,13 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "effects": [
       {
-        "kind": "spellStarformConsumeShop"
-      },
-      {
-        "kind": "spellGrantSpell",
+        "kind": "spellStarformConsumeShop",
         "amount": {
           "kind": "const",
           "plain": {
-            "count": 1
+            "count": 3
           }
-        },
-        "refs": [
-          "starcrash"
-        ]
+        }
       }
     ],
     "gildedDelta": {
@@ -649,21 +643,22 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
           "kind": "const",
           "plain": {
             "attack": 3,
-            "health": 1
+            "health": 2
           }
         },
-        "note": "Choose One branch 1: \"Give a random minion in your hand +3/+1.\""
+        "note": "Choose One branch 1: \"Give a random minion in your hand +3/+2.\""
       },
       {
-        "kind": "spellBuffRandomHand",
+        "kind": "spellBuffRandomFriendlies",
         "amount": {
           "kind": "const",
           "plain": {
-            "attack": 1,
-            "health": 3
+            "attack": 2,
+            "count": 1,
+            "health": 1
           }
         },
-        "note": "Choose One branch 2: \"Give a random minion in your hand +1/+3.\""
+        "note": "Choose One branch 2: \"Give a random friendly minion +2/+1.\""
       }
     ],
     "gildedDelta": {
@@ -2835,7 +2830,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "reviewStatus": "extracted",
     "extraction": {
       "extractor": "contracts-extract@1",
-      "confidence": "low",
+      "confidence": "medium",
       "unparsed": [
         "battlecryStarformConsumeShop.pick"
       ]
@@ -2859,6 +2854,16 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "effects": [
+      {
+        "kind": "buffThisShop",
+        "amount": {
+          "kind": "const",
+          "plain": {
+            "attack": 4,
+            "health": 3
+          }
+        }
+      },
       {
         "kind": "battlecryStarformConsumeShop"
       }
@@ -3323,12 +3328,12 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "setIds": [
       "set3"
     ],
-    "tier": 5,
+    "tier": 4,
     "tribes": [
       "celestial"
     ],
     "tags": [
-      "tier:5"
+      "tier:4"
     ],
     "triggers": [
       {
@@ -3454,17 +3459,17 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "reviewStatus": "extracted",
     "extraction": {
       "extractor": "contracts-extract@1",
-      "confidence": "medium"
+      "confidence": "low"
     },
     "setIds": [
       "set3"
     ],
-    "tier": 4,
+    "tier": 5,
     "tribes": [
       "celestial"
     ],
     "tags": [
-      "tier:4"
+      "tier:5"
     ],
     "triggers": [
       {
@@ -3480,25 +3485,17 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "effects": [
       {
-        "kind": "endOfTurnBuffStarform",
-        "amount": {
-          "kind": "const",
-          "plain": {
-            "attack": 2,
-            "health": 2
-          }
-        }
+        "kind": "endOfTurnStarformConsumeAllShop"
       },
       {
         "kind": "startOfTurnCreateStarform"
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
+      "kind": "reshape",
       "basis": "derived:golden-text",
       "goldenTextSource": "index:goldenText",
-      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
+      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
       "source": "index"
@@ -3532,12 +3529,12 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "effects": [
       {
-        "kind": "onBuyBuffStarform",
+        "kind": "onBuyCreateStarformOrBuff",
         "amount": {
           "kind": "const",
           "plain": {
             "attack": 1,
-            "health": 1
+            "health": 2
           }
         }
       }
@@ -3621,9 +3618,6 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "tier": 3,
     "tribes": [
       "celestial"
-    ],
-    "keywords": [
-      "W"
     ],
     "tags": [
       "tier:3"
@@ -3818,8 +3812,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "amount": {
           "kind": "const",
           "plain": {
-            "attack": 2,
-            "health": 2
+            "attack": 4,
+            "health": 4
           }
         }
       }
@@ -3847,12 +3841,12 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "setIds": [
       "set3"
     ],
-    "tier": 6,
+    "tier": 5,
     "tribes": [
       "celestial"
     ],
     "tags": [
-      "tier:6"
+      "tier:5"
     ],
     "triggers": [
       {
@@ -3948,35 +3942,18 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "triggers": [
       {
         "event": "onPlay",
-        "phase": "shop",
-        "phaseBasis": "derived:phaseRegistry",
-        "note": "combat side excused: no-surface"
-      },
-      {
-        "event": "onDeath",
-        "phase": "shop",
-        "phaseBasis": "derived:phaseRegistry",
-        "note": "combat side excused: no-surface"
+        "phase": "both",
+        "phaseBasis": "derived:phaseRegistry"
       }
     ],
     "effects": [
       {
-        "kind": "buffThisShop",
+        "kind": "battlecryBuffAdjacent",
         "amount": {
           "kind": "const",
           "plain": {
-            "attack": 2,
-            "health": 2
-          }
-        }
-      },
-      {
-        "kind": "buffThisShop",
-        "amount": {
-          "kind": "const",
-          "plain": {
-            "attack": 2,
-            "health": 2
+            "attack": 3,
+            "health": 4
           }
         }
       }
@@ -4513,8 +4490,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     },
     "setIds": [
       "set1",
-      "set2",
-      "set3"
+      "set2"
     ],
     "tier": 3,
     "tribes": [
@@ -4759,8 +4735,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "amount": {
           "kind": "const",
           "plain": {
-            "attack": 1,
-            "health": 1
+            "attack": 2,
+            "health": 2
           }
         }
       }
@@ -17706,7 +17682,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "amount": {
           "kind": "const",
           "plain": {
-            "amount": 3
+            "amount": 5
           }
         }
       }
@@ -36759,8 +36735,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "amount": {
           "kind": "const",
           "plain": {
-            "attack": 2,
-            "health": 2
+            "attack": 3,
+            "health": 3
           }
         }
       }

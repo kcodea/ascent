@@ -2994,18 +2994,18 @@ describe('run loop (@game/sim)', () => {
     expect(golden.hpGrantBonus).toBe(4);
   });
 
-  it('Staff of Guel permanently buffs every minion bought from the tavern (+2/+2), not Discovered ones', () => {
+  it('Staff of Guel permanently buffs every minion bought from the tavern (+3/+3 since 2026-09-14; was +2/+2), not Discovered ones', () => {
     let s: RunState = {
       ...createRun(1), embers: 4, board: [],
       shop: [{ uid: 'x', cardId: 'alley' }],
       hand: [{ uid: 'sp', cardId: 'staffofguel', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
     };
     s = reduce(s, { type: 'play', uid: 'sp' });
-    expect(s.tavernBuyBonus).toEqual({ atk: 2, hp: 2 }); // run-wide buy buff, set on cast
-    expect(spellDisplayText('staffofguel', 1)).toContain('{{+3/+3}}'); // +2/+2 + 1 spell power, live
+    expect(s.tavernBuyBonus).toEqual({ atk: 3, hp: 3 }); // run-wide buy buff, set on cast
+    expect(spellDisplayText('staffofguel', 1)).toContain('{{+4/+4}}'); // +3/+3 + 1 spell power, live
     s = reduce(s, { type: 'buy', uid: 'x' }); // Alleycat 1/1 + the run-wide buy buff
     const bought = s.hand.find((c) => c.cardId === 'alley')!;
-    expect([bought.attack, bought.health]).toEqual([3, 3]); // 1/1 + 2/2
+    expect([bought.attack, bought.health]).toEqual([4, 4]); // 1/1 + 3/3
     // A Discovered minion does NOT get it (tavern purchases only).
     s = reduce({ ...s, discover: ['sandbag'] }, { type: 'discover', index: 0 });
     const disc = s.hand.find((c) => c.cardId === 'sandbag')!;
@@ -3020,15 +3020,15 @@ describe('run loop (@game/sim)', () => {
       hand: [{ uid: 'sp', cardId: 'staffofguel', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
     };
     s = reduce(s, { type: 'play', uid: 'sp' });
-    // The Fodder type is enchanted run-wide (+2/+2), like Ritualist's End-of-Turn buff…
-    expect(s.cardBuffs?.fred).toEqual({ attack: 2, health: 2 });
+    // The Fodder type is enchanted run-wide (+3/+3), like Ritualist's End-of-Turn buff…
+    expect(s.cardBuffs?.fred).toEqual({ attack: 3, health: 3 });
     // …and Fodder already on the board gets it immediately.
     const onBoard = s.board.find((c) => c.cardId === 'fred')!;
-    expect([onBoard.attack, onBoard.health]).toEqual([3, 3]);
+    expect([onBoard.attack, onBoard.health]).toEqual([4, 4]);
     // Buying a Fodder applies the Staff buff ONCE (via the enchant), not twice.
     s = reduce(s, { type: 'buy', uid: 'f' });
     const bought = s.hand.find((c) => c.cardId === 'fred')!;
-    expect([bought.attack, bought.health]).toEqual([3, 3]); // 1/1 + 2/2, not +4/+4
+    expect([bought.attack, bought.health]).toEqual([4, 4]); // 1/1 + 3/3, not +6/+6
   });
 
   it('Undead Army completes a triple (its conjured copies are checked, not just minion plays)', () => {
@@ -3066,25 +3066,25 @@ describe('run loop (@game/sim)', () => {
 
   it('Lantern of Souls raises the run-wide Undead attack bonus', () => {
     const s = castOnBoard('lanternofsouls', []);
-    expect(s.undeadAttackBonus).toBe(3);
+    expect(s.undeadAttackBonus).toBe(5); // +5 since 2026-09-14 (was +3)
     expect(s.undeadHealthBonus).toBe(0); // no spell power → a pure Attack buff
     // A second cast stacks.
     const s2 = castOnBoard('lanternofsouls', []);
     let t: RunState = { ...s2, hand: [{ uid: 'sp2', cardId: 'lanternofsouls', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }] };
     t = reduce(t, { type: 'play', uid: 'sp2' });
-    expect(t.undeadAttackBonus).toBe(6);
+    expect(t.undeadAttackBonus).toBe(10);
   });
 
-  it('Lantern of Souls scales with spell power (+4/+1 at +1) and the card shows it', () => {
-    // Rohan amplifies +1 at wave 1 → base +3 Attack becomes +4 Attack / +1 Health.
+  it('Lantern of Souls scales with spell power (+6/+1 at +1) and the card shows it', () => {
+    // Rohan amplifies +1 at wave 1 → base +5 Attack becomes +6 Attack / +1 Health.
     const s = castOnBoard('lanternofsouls', [], undefined, undefined, 1);
-    expect(s.undeadAttackBonus).toBe(4);
+    expect(s.undeadAttackBonus).toBe(6);
     expect(s.undeadHealthBonus).toBe(1);
-    // The card text reflects the live value (green {{…}}); the base shows just +3 Attack.
-    expect(spellDisplayText('lanternofsouls', 0)).toBe('Give your **Undead Aura** **+3 Attack**.');
-    expect(spellDisplayText('lanternofsouls', 1)).toContain('{{+4/+1}}');
-    expect(spellDisplayText('lanternofsouls', 0, 0, 1), 'owner example: +0/+1 spell power reads +3/+1').toBe('Give your **Undead Aura** **{{+3/+1}}**.');
-    expect(spellDisplayText('lanternofsouls', 1, 0, 0), 'Attack-only power keeps the Attack wording').toBe('Give your **Undead Aura** **{{+4 Attack}}**.');
+    // The card text reflects the live value (green {{…}}); the base shows just +5 Attack.
+    expect(spellDisplayText('lanternofsouls', 0)).toBe('Give your **Undead Aura** **+5 Attack**.');
+    expect(spellDisplayText('lanternofsouls', 1)).toContain('{{+6/+1}}');
+    expect(spellDisplayText('lanternofsouls', 0, 0, 1), 'owner example: +0/+1 spell power reads +5/+1').toBe('Give your **Undead Aura** **{{+5/+1}}**.');
+    expect(spellDisplayText('lanternofsouls', 1, 0, 0), 'Attack-only power keeps the Attack wording').toBe('Give your **Undead Aura** **{{+6 Attack}}**.');
   });
 
   it('Mend SETS Armor to 5 — a floor, never a shave (owner rework 2026-08-07)', () => {

@@ -128,6 +128,8 @@ const ALIASES: Record<string, string> = {
   warbandrecruiter: 'n3_recruiter',    // now Uncle Orc
   soullanternhierophant: 'u3_hierophant', // now Wick Mortis
   festivalluminary: 'sp3_luminary',    // now Limelight
+  shootingstar: 'ce3_shootingstar',    // now Rocket Power (2026-09-14)
+  twinstar: 'ce3_twinstar',            // now Twinning (2026-09-14)
   cinderchancellor: 'dm_chancellor', // pre-rename name; RougeRogue.png wins the base slot, this fills `2`
   // 2026-07-31 renames. Hellrider and Lastlight now match their cards by name exactly, so they need no entry
   // (and RevolvingMaw.png correctly stops matching anything — Hellrider.png is the current art). Only Void
@@ -145,6 +147,7 @@ const SPELL_ALIASES: Record<string, string> = {
   preemptiveattack: 'preemptive',     // card is Pre-emptive ASSAULT; the art file says Attack
   rivalsreflections: 'rivalsreflection', // extra plural s
   triplereward: 'discoverspell',      // the Triple Reward token's id (a Discover token, not flagged `spell`)
+  accretion: 'accretion',             // the spell is Black Hole since 2026-09-14 (owner rename; id + art unchanged)
   // Set-3 Choose One spells (2026-09-14): the owner filed the two branches as `<Name>1` / `<Name>2` with NO
   // base file. Option 0 wears the BASE art (`<id>`), option 1 wears `<id>2` — so the `1` file IS the base.
   aspectsblessing1: 'aspectsblessing',

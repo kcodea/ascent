@@ -5758,6 +5758,15 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     buffStarform(ctx.state, num(params.attack, 1) * gold(self), num(params.health, 1) * gold(self), nameOf(self));
   },
 
+  /** Stardust Peddler (`onBuy`, owner 2026-09-14): with no Starform out, CREATE one (rule 1); otherwise +a/+h. Buying
+   *  the token itself counts as a buy and the token is gone by the time the watchers fire — so a Peddler re-seeds
+   *  the row right after the buy, which is what "create a Starform or give one +1/+2" literally promises. Golden
+   *  doubles the buff; the create has no number to double. */
+  onBuyCreateStarformOrBuff: (ctx, self, params) => {
+    if (!hasStarform(ctx.state)) { createStarform(ctx.state, { cardId: self.cardId, name: nameOf(self) }); return; }
+    buffStarform(ctx.state, num(params.attack, 1) * gold(self), num(params.health, 2) * gold(self), nameOf(self));
+  },
+
   /** "Give THIS SHOP +a/+h" — Wishing Star (Shout AND Echo, one factory on two triggers; the Stellar Lens has its
    *  params-only twin below). THIS shop is the offers standing in the row right now (Apples' branch — owner vocabulary
    *  2026-07-25: a bare "the shop" is the permanent Staff-of-Guel channel; "this shop" only touches the current
@@ -5773,6 +5782,16 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  real (possibly gilded) source, and its doubling already rides `gildedParams` (Whiplass-o's shape). */
   equipmentBuffThisShop: (ctx, _self, params) => {
     buffThisShopOffers(ctx.state, 'Stellar Lens', num(params.attack, 10), num(params.health, 10));
+  },
+
+  /** Stellar Lens (Lens Grinder's Equipment, owner 2026-09-14): create the Starform if none is out (rule 1 — a full
+   *  row eats its right-most minion; a no-op with one out), THEN this shop +a/+h — so the fresh token is one of the
+   *  offers that takes the buff. PARAMS ONLY, like every Equipment factory (gilding rides `gildedParams`). The
+   *  token is attributed to the Lens Grinder that granted the Equipment when it still stands (`self` is the
+   *  source body or the Equipment stand-in). */
+  equipmentCreateStarformThenBuffThisShop: (ctx, self, params) => {
+    if (!hasStarform(ctx.state)) createStarform(ctx.state, { cardId: self.cardId, name: nameOf(self) });
+    buffThisShopOffers(ctx.state, 'Stellar Lens', num(params.attack, 7), num(params.health, 7));
   },
 
   /** Shooting Star (Shout): this shop +a/+h for EACH Shop spell cast this turn (`spellsThisTurn` — the Spirit
@@ -5799,7 +5818,19 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  offer counts as what it is now); ties → the right-most. No Starform → the consume is skipped (the spell's
    *  other half, the Star Crash grant, still lands). Untargeted: `self` is undefined here (see applyCastEffects). */
   spellStarformConsumeShop: (ctx, _self, params) => {
-    const idx = pickShopMinionFor(ctx.state, str(params.pick) === 'highestTier' ? 'highestTier' : 'highestHealth');
+    const pick = str(params.pick);
+    // Black Hole (owner 2026-09-14): `count` RANDOM minion offers, each a real consume through the token's body.
+    // Re-drawn per meal because every consume removes an offer (indexes shift); fewer offers than `count` → eat
+    // what is there. No Starform → nothing.
+    if (pick === 'random') {
+      for (let i = 0; i < num(params.count, 3); i++) {
+        const idx = pickRandomShopMinion(ctx.state);
+        if (idx < 0) return;
+        if (!starformConsumeShopMinion(ctx.state, idx, num(params.times, 1))) return;
+      }
+      return;
+    }
+    const idx = pickShopMinionFor(ctx.state, pick === 'highestTier' ? 'highestTier' : 'highestHealth');
     if (idx < 0) return;
     starformConsumeShopMinion(ctx.state, idx, num(params.times, 1));
   },
@@ -5817,6 +5848,19 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   /** Orbit Keeper (End of Turn): your Starform +a/+h — nothing without one. Golden doubles. */
   endOfTurnBuffStarform: (ctx, self, params) => {
     buffStarform(ctx.state, num(params.attack, 2) * gold(self), num(params.health, 2) * gold(self), nameOf(self));
+  },
+
+  /** Roundabout (End of Turn, owner 2026-09-14): the Starform eats EVERY minion offer in the row, left to right —
+   *  each a real Shop consume through the token's body (the consume meter, Open Market, `starformGained` all hear
+   *  each meal). Spell / Ruby offers and the token itself are never meals. Nothing without a Starform. Golden: the
+   *  token gains DOUBLE each meal's stats (`times` 2 — the Great Attractor's rider), not a second pass. */
+  endOfTurnStarformConsumeAllShop: (ctx, self) => {
+    if (!hasStarform(ctx.state)) return;
+    for (let guard = 0; guard < 16; guard++) {
+      const idx = ctx.state.shop.findIndex((o) => { const d = CARD_INDEX[o.cardId]; return !!d && !d.spell && !d.ruby && !o.starform; });
+      if (idx < 0) return;
+      if (!starformConsumeShopMinion(ctx.state, idx, gold(self))) return;
+    }
   },
 
   /** Orbit Keeper (Start of Turn): create a Starform if none is out (a no-op with one — rule 2; a full row eats its
@@ -7747,7 +7791,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       attack += spellAttackBonus(ctx.state);
       health += spellHealthBonus(ctx.state);
     }
-    for (const t of picks) addBuff(t, 'Ale', attack, health);
+    // Named for the CASTER (2026-09-14: Aspect's Blessing's board branch shares this factory with the Ales); an Ale
+    // still itemises as "Ale" through `_source`, which the cast path injects as the spell's name.
+    for (const t of picks) addBuff(t, str(params._source) || 'Ale', attack, health);
   },
 
   /** Set 2 — Dragonflame (shop cast): buff `base` + (# friendly `tribe`, Dragons) random friendlies by +atk/+hp,
@@ -10267,6 +10313,23 @@ export function rightmostShopMinion(state: RunState): number {
 /** STARFORM ROSTER — the Shop minion a Starform consume picks: the highest TIER (Accretion Warden) or the highest
  *  current buy HEALTH (the Accretion spell), ties to the RIGHT-most (owner 2026-09-12). The token itself, spells
  *  and Rubies are never candidates. -1 with nothing edible. */
+/** A uniformly random MINION offer's index (never a spell / Ruby / the Starform), or -1 — Black Hole's draw. Seeded
+ *  off `rngCursor` like every other recruit-phase random pick, so replays agree. */
+export function pickRandomShopMinion(state: RunState): number {
+  const idxs: number[] = [];
+  for (let i = 0; i < state.shop.length; i++) {
+    const o = state.shop[i]!;
+    const d = CARD_INDEX[o.cardId];
+    if (!d || d.spell || d.ruby || o.starform) continue;
+    idxs.push(i);
+  }
+  if (idxs.length === 0) return -1;
+  const rng = makeRng(state.rngCursor);
+  const pick = idxs[rng.int(idxs.length)]!;
+  state.rngCursor = rng.state();
+  return pick;
+}
+
 export function pickShopMinionFor(state: RunState, by: 'highestTier' | 'highestHealth'): number {
   let best = -1, bestKey = -Infinity;
   for (let i = 0; i < state.shop.length; i++) {

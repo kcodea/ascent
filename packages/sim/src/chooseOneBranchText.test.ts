@@ -28,11 +28,11 @@ const marker = (t: string): [number, number] => {
 };
 
 describe('chooseOneBranchText — a spell branch prints the number its factory will grant', () => {
-  it("Aspect's Blessing under +1/+1 greens BOTH branches (+3/+1 → +4/+2, +1/+3 → +2/+4)", () => {
-    expect(chooseOneBranchText('aspectsblessing', 0, false, 1, 1)).toContain('{{+4/+2}}');
-    expect(chooseOneBranchText('aspectsblessing', 1, false, 1, 1)).toContain('{{+2/+4}}');
+  it("Aspect's Blessing under +1/+1 greens BOTH branches (+3/+2 → +4/+3, +2/+1 → +3/+2)", () => {
+    expect(chooseOneBranchText('aspectsblessing', 0, false, 1, 1)).toContain('{{+4/+3}}');
+    expect(chooseOneBranchText('aspectsblessing', 1, false, 1, 1)).toContain('{{+3/+2}}');
     // Attack-only power folds only Attack (the factory adds each stat's own bonus).
-    expect(chooseOneBranchText('aspectsblessing', 0, false, 2, 0)).toContain('{{+5/+1}}');
+    expect(chooseOneBranchText('aspectsblessing', 0, false, 2, 0)).toContain('{{+5/+2}}');
   });
 
   it('with no spell power the authored text stands, un-greened', () => {
@@ -128,16 +128,26 @@ describe('SABOTAGE — the greened number equals what the reducer actually grant
     board, hand, spellBonus: { attack: 1, health: 1 },
   } as RunState);
 
-  it.each([0, 1])("Aspect's Blessing branch %i: the hand minion gains exactly the printed live pair", (index) => {
-    const printed = marker(chooseOneBranchText('aspectsblessing', index, false, 1, 1));
+  it("Aspect's Blessing branch 0: the hand minion gains exactly the printed live pair", () => {
+    const printed = marker(chooseOneBranchText('aspectsblessing', 0, false, 1, 1));
     let s = run([card('m', 'drummer'), card('sp', 'aspectsblessing')]);
     const before = s.hand.find((c) => c.uid === 'm')!;
     const [a0, h0] = [before.attack, before.health];
     s = reduce(s, { type: 'play', uid: 'sp' });
     expect(s.chooseOne?.cardId).toBe('aspectsblessing');
-    s = reduce(s, { type: 'chooseOne', index });
+    s = reduce(s, { type: 'chooseOne', index: 0 });
     expect(s.hand.map((c) => c.uid), 'the spell resolved out of hand').toEqual(['m']);
     const after = s.hand.find((c) => c.uid === 'm')!;
+    expect([after.attack - a0, after.health - h0]).toEqual(printed);
+  });
+  it("Aspect's Blessing branch 1 (2026-09-14): the random friendly BOARD minion gains exactly the printed live pair", () => {
+    const printed = marker(chooseOneBranchText('aspectsblessing', 1, false, 1, 1));
+    let s = run([card('sp', 'aspectsblessing')], [card('b', 'drummer')]);
+    const before = s.board.find((c) => c.uid === 'b')!;
+    const [a0, h0] = [before.attack, before.health];
+    s = reduce(s, { type: 'play', uid: 'sp' });
+    s = reduce(s, { type: 'chooseOne', index: 1 });
+    const after = s.board.find((c) => c.uid === 'b')!;
     expect([after.attack - a0, after.health - h0]).toEqual(printed);
   });
 

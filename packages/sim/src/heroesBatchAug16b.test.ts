@@ -589,12 +589,12 @@ describe('Cassen — Commission (owner rework 2026-08-16)', () => {
   });
 });
 
-describe('Warden — Aegis scales with Tavern Tier', () => {
+describe('Warden — Aegis: Ward, then a flat +5 Attack to every Warded minion (owner rework 2026-09-14)', () => {
   it('is enabled', () => {
     expect(getHero('warden').wip ?? false).toBe(false);
   });
 
-  it('grants Ward AND buffs every Warded minion by +Tier/+Tier+1', () => {
+  it('grants Ward AND buffs every Warded minion by +5 Attack (no Health, no tier scaling)', () => {
     const s = at({
       heroId: 'warden', heroReady: true, embers: 10, tier: 3,
       board: [m('a', 'stray'), { ...m('b', 'alley'), keywords: ['DS'] } as never, m('c', 'pack')],
@@ -604,13 +604,15 @@ describe('Warden — Aegis scales with Tavern Tier', () => {
     const b = after.board.find((c) => c.uid === 'b')!;
     const c = after.board.find((x) => x.uid === 'c')!;
     expect(a.keywords, 'the target gained Ward').toContain('DS');
-    expect([a.attack - 2, a.health - 2], 'and the fresh Ward is buffed too').toEqual([3, 4]);
-    expect([b.attack - 2, b.health - 2], 'an already-Warded minion is buffed').toEqual([3, 4]);
+    expect([a.attack - 2, a.health - 2], 'and the fresh Ward is buffed too').toEqual([5, 0]);
+    expect([b.attack - 2, b.health - 2], 'an already-Warded minion is buffed').toEqual([5, 0]);
     expect([c.attack, c.health], 'an unwarded minion is untouched').toEqual([2, 2]);
   });
 
-  it('the printed rule shows the LIVE tier value', () => {
-    expect(heroPowerText({ ...createRun(3, 'warden'), tier: 5 } as RunState)).toContain('+5/+6');
+  it('the printed rule is the flat grant at every tier, and the power costs 3', () => {
+    expect(heroPowerText({ ...createRun(3, 'warden'), tier: 5 } as RunState)).toContain('+5 Attack');
+    expect(heroPowerText({ ...createRun(3, 'warden'), tier: 1 } as RunState)).toContain('+5 Attack');
+    expect(getHero('warden').power.cost).toBe(3);
   });
 });
 

@@ -12,6 +12,14 @@ import { getTrailConfig } from './trailConfig';
 import { sfx } from './sfx';
 import { resetFxPools } from './fx/fxRuntime';
 import type { FxSlot } from './fx/def';
+// Phase 2 aim driver: the live targeting line is now the `targeting` PRIMITIVE, spawned from the registry at
+// runtime (never statically imported — that would pull the primitive + filter registry into the critical
+// bundle and break the chunk-split; see `primitives/index.ts`). `getPrimitive` returns null until the
+// primitives have self-registered, so the driver spawns lazily and simply waits.
+import { getPrimitive } from './fx/registry';
+import { coerceParams } from './fx/params';
+import { getDef } from './fx/fxDefs';
+import type { FxInstance } from './fx/primitive';
 
 /**
  * The WebGL effects layer — a single transparent PixiJS overlay stretched over the whole
@@ -390,9 +398,10 @@ class FxController {
   private readonly spellArrows: { g: Graphics; x: number; y: number; drift: number; delay: number; tint: number; cfg: SpellPowerCfg; age: number }[] = [];
   private readonly waves: { g: Graphics; region: WaveRegion; cfg: AuraWaveCfg; age: number; lastWake: number; motes: { off: number; spawned: boolean }[] }[] = []; // aura waves — one per rise, a centre→edge board wave redrawn per frame
   private readonly slashes: CleaveSlashFx[] = []; // Cleave slashes — one per Cleave connection
-  /** The live hero-power targeting line (null = not aiming). `side`/`amp` are rolled once per AIM — each
-   *  new arm gets a fresh random arch (owner ask: never the same static curve) — then held stable. */
-  private aim: { g: Graphics; from: { x: number; y: number }; to: { x: number; y: number }; onTarget: boolean; cfg: AimLineCfg; side: number; amp: number; seed: number } | null = null;
+  /** The live hero-power targeting line (null = not aiming). Now the `targeting` PRIMITIVE (the glowing lasso
+   *  authored in the workshop): `from` = the caster, `to` = the live cursor, `onTarget` grows the pointer.
+   *  `instance`/`container` are null until the primitive has registered and the first frame spawns it. */
+  private aim: { instance: FxInstance | null; container: Container | null; from: { x: number; y: number }; to: { x: number; y: number }; onTarget: boolean } | null = null;
   private readonly critFxs: CritFx[] = []; // live Critical-Strike flourishes (ring + "CRIT!" + card flash)
   private readonly critTextCache = new Map<string, Texture>(); // "CRIT!" textures keyed by size|color|edge
   private readonly pulses: PulseFx[] = [];
@@ -2397,70 +2406,45 @@ class FxController {
    * core, subtle time-based wobble, and a per-aim RANDOM arch (side + amplitude rolled when the aim
    * starts, stable while it lasts). Call every pointer-move; `clearAimLine` when the aim ends.
    */
-  setAimLine(from: { x: number; y: number }, to: { x: number; y: number }, onTarget: boolean, cfg: AimLineCfg): void {
+  setAimLine(from: { x: number; y: number }, to: { x: number; y: number }, onTarget: boolean, _cfg?: AimLineCfg): void {
     if (!this.ready || !this.layer) return;
-    if (!this.aim) {
-      const g = new Graphics();
-      g.blendMode = 'add';
-      this.layer.addChild(g);
-      // Roll THIS aim's arch: a random side and a 0.5–1.5× amplitude factor, blended toward 1 by curveVar.
-      const side = Math.random() < 0.5 ? -1 : 1;
-      const amp = 1 + (Math.random() - 0.5) * 2 * cfg.curveVar;
-      this.aim = { g, from: { ...from }, to: { ...to }, onTarget, cfg, side, amp, seed: Math.random() * 1000 };
-      this.wake();
-    } else {
-      this.aim.from = { ...from };
-      this.aim.to = { ...to };
-      this.aim.onTarget = onTarget;
-      this.aim.cfg = cfg; // live-tunable while aiming
-    }
+    // The LOOK now comes from the `targeting` primitive (authored in the workshop), not `_cfg` — the param is
+    // kept only so existing call sites don't change. This records the live aim state; `updateAim` spawns and
+    // drives the instance each frame.
+    if (!this.aim) this.aim = { instance: null, container: null, from: { ...from }, to: { ...to }, onTarget };
+    else { this.aim.from = { ...from }; this.aim.to = { ...to }; this.aim.onTarget = onTarget; }
+    this.wake();
   }
 
   /** Drop the aim line (the aim ended — fired, cancelled, or released). */
   clearAimLine(): void {
     if (!this.aim) return;
-    this.layer?.removeChild(this.aim.g);
-    this.aim.g.destroy();
+    this.aim.instance?.destroy();
+    if (this.aim.container) { this.layer?.removeChild(this.aim.container); this.aim.container.destroy({ children: true }); }
     this.aim = null;
   }
 
-  /** Redraw the live aim line for this frame (cleared + rebuilt — the tendril pattern). */
-  private drawAimLine(nowS: number): void {
+  /** Drive the live aim line this frame: lazily spawn the `targeting` primitive (once it has registered), feed
+   *  it the current caster→cursor + on-target state, and advance it by the frame delta. */
+  private updateAim(dtMs: number): void {
     const a = this.aim;
     if (!a) return;
-    const { g, from, to, cfg } = a;
-    g.clear();
-    const dx = to.x - from.x, dy = to.y - from.y;
-    const len = Math.hypot(dx, dy);
-    if (len < 4) return;
-    const perp = { x: -dy / len, y: dx / len };
-    const bow = len * cfg.curve * 0.5 * a.side * a.amp;
-    const ctl = { x: (from.x + to.x) / 2 + perp.x * bow, y: (from.y + to.y) / 2 + perp.y * bow };
-    const N = 26;
-    const pts: { x: number; y: number }[] = [];
-    for (let i = 0; i <= N; i++) {
-      const t = i / N;
-      const mt = 1 - t;
-      const bx = mt * mt * from.x + 2 * mt * t * ctl.x + t * t * to.x;
-      const by = mt * mt * from.y + 2 * mt * t * ctl.y + t * t * to.y;
-      // The living wobble: enveloped by sin(π·t) so both ends pin to the diamond and the cursor.
-      const w = Math.sin(t * Math.PI * 2 * 1.6 + nowS * cfg.wobbleSpeed * Math.PI * 2 + a.seed) * cfg.wobbleAmp * Math.sin(Math.PI * t);
-      pts.push({ x: bx + perp.x * w, y: by + perp.y * w });
+    if (!a.instance) {
+      const prim = getPrimitive('targeting');
+      const renderer = this.app?.renderer;
+      if (!prim || !renderer || !this.layer) return; // primitives not registered yet — retry next frame
+      const container = new Container();
+      this.layer.addChild(container);
+      // Use the owner's saved look if there is one (a def named `aim-targeting`), else the primitive defaults.
+      const authored = getDef('aim-targeting')?.layers.find((l) => l.primitive === 'targeting')?.params;
+      const params = coerceParams(prim.params, authored ?? {});
+      a.instance = prim.spawn({ container, renderer, oneShot: false }, params);
+      a.container = container;
     }
-    // Aura (breathing) under the bright core.
-    const breatheK = 1 - cfg.breathe * (0.5 + 0.5 * Math.sin(nowS * 2.4 + a.seed));
-    g.moveTo(pts[0]!.x, pts[0]!.y);
-    for (const p of pts) g.lineTo(p.x, p.y);
-    g.stroke({ width: cfg.coreWidth + cfg.glowWidth, color: hexNum(cfg.colorGlow), alpha: cfg.glowAlpha * breatheK, cap: 'round', join: 'round' });
-    g.moveTo(pts[0]!.x, pts[0]!.y);
-    for (const p of pts) g.lineTo(p.x, p.y);
-    g.stroke({ width: cfg.coreWidth, color: hexNum(cfg.colorCore), alpha: cfg.coreAlpha, cap: 'round', join: 'round' });
-    // The cursor-end dot — grows + brightens over a valid target.
-    if (cfg.dotSize > 0) {
-      const r = cfg.dotSize * (a.onTarget ? 1.6 : 1);
-      g.circle(to.x, to.y, r + cfg.glowWidth * 0.4).fill({ color: hexNum(cfg.colorGlow), alpha: cfg.glowAlpha * breatheK });
-      g.circle(to.x, to.y, r).fill({ color: hexNum(cfg.colorCore), alpha: cfg.coreAlpha });
-    }
+    a.instance.setAim?.(a.from.x, a.from.y, a.to.x, a.to.y);
+    a.instance.setHead?.(a.to.x, a.to.y);
+    (a.instance as { setOnTarget?: (on: boolean) => void }).setOnTarget?.(a.onTarget);
+    a.instance.update(dtMs);
   }
 
   /** HERO POWER ACTIVATION: a simple radial spray of sparks in all directions from the diamond
@@ -2812,8 +2796,8 @@ class FxController {
       if (td.arrowSize) this.drawArrowhead(td.g, pts, td.arrowSize, td.cfg.colorCore, td.cfg.coreAlpha * fade);
     }
 
-    // The live aim line: redrawn every frame while aiming (wobble + breathe are time-based).
-    this.drawAimLine(performance.now() / 1000);
+    // The live aim line: the `targeting` primitive, advanced by this frame's delta while aiming.
+    this.updateAim(dtMs);
 
 
     // Weld rings: advance + redraw each converging ring; retire once it lands.

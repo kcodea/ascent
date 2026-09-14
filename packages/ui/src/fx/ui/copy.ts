@@ -62,6 +62,10 @@ export const PRIMITIVE_COPY: Record<string, FxCopy> = {
     label: 'Smoke',
     blurb: 'Slow, swelling, drifting puffs that rise and fade. Plumes, dust, lingering aftermath.',
   },
+  targeting: {
+    label: 'Targeting',
+    blurb: 'A glowing magic lasso from the source to the cursor that bobs and sways as you move — the aim line for a targeted power. Anchor it to the cursor.',
+  },
 };
 
 /** Keyed by `FxAnchorId`. `copy.test.ts` fails if this and `FX_ANCHOR_IDS` disagree in either direction. */

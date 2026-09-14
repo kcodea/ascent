@@ -1,5 +1,5 @@
 import { Buffer } from 'node:buffer';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -119,6 +119,31 @@ export function planWrite(kind: WriteKind, body: unknown, defsRoot: string): Wri
   const file = path.resolve(root, kind === 'image' ? 'images' : 'art', `${slug}.png`);
   if (!isInside(root, file)) return bad(400, 'Refusing to write outside the defs directory.');
   return { status: 200, file, data: buf };
+}
+
+/** What `planImageRead` decided: `status` 200 ⇒ `file` is an absolute path inside `images/` to stream. */
+export interface ReadPlan {
+  status: number;
+  file?: string;
+}
+
+/**
+ * Resolve a GET `/__fx/image/<slug>.png` request to the file to stream, or a 404. Pure + fs-free so the slug
+ * grammar and traversal containment are unit-tested exactly like `planWrite`.
+ *
+ * `name` is the request path AFTER the `/__fx/image` mount (connect strips the prefix), e.g. `/test-orb.png`.
+ * The SLUG_RE-anchored pattern is the security boundary: it rejects `..`, separators and absolute paths before
+ * any path work, and the `isInside` gate is the belt to that braces — an unresolvable/escaping name is a 404,
+ * never a read outside `images/`.
+ */
+export function planImageRead(name: string, defsRoot: string): ReadPlan {
+  const bare = (name.split('?')[0] ?? '').replace(/^\/+/, '');
+  const m = /^([a-z0-9][a-z0-9-]{0,63})\.png$/.exec(bare);
+  if (!m) return { status: 404 };
+  const root = path.resolve(defsRoot);
+  const file = path.resolve(root, 'images', `${m[1]}.png`);
+  if (!isInside(root, file)) return { status: 404 };
+  return { status: 200, file };
 }
 
 /** The framing fields a card-art override may carry. Anything else in the object is rejected rather than
@@ -343,6 +368,38 @@ export function fxDefsPlugin(options: FxDefsPluginOptions = {}): Plugin {
   const handle = (kind: WriteKind) => respondToWrite((body) => planWrite(kind, body, defsRoot));
 
   /**
+   * SERVE a committed/imported `custom`-image at a stable dev URL (`GET /__fx/image/<slug>.png`).
+   *
+   * Why this exists: the app is rooted at `apps/web`, so `packages/ui/src/fx/defs/images/*.png` is OUTSIDE the
+   * Vite root and is only addressable via Vite's internal `/@fs/` path — which `imageLibrary`'s glob produces
+   * for files present when the server started, but which the DEV fallback URL for a JUST-imported file (not yet
+   * in the frozen glob) could not reconstruct, so it resolved to nothing and the picker showed a blank until a
+   * re-import (owner report 2026-09-14). This route reads the file straight off disk under the same slug
+   * grammar + containment guard as the writer, so a freshly imported image resolves across a reload with no
+   * re-import and no server restart. NEVER part of a production build (`apply: 'serve'`); there the glob is
+   * expanded at build time and bundles the bytes.
+   */
+  const serveImage = async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
+    const plan = planImageRead(req.url ?? '', defsRoot);
+    if (plan.status !== 200 || plan.file === undefined) {
+      res.statusCode = 404;
+      res.end();
+      return;
+    }
+    try {
+      const data = await readFile(plan.file);
+      res.statusCode = 200;
+      res.setHeader('Content-Type', 'image/png');
+      // The bytes at a slug can change (re-import overwrites in place), so don't let the browser pin an old one.
+      res.setHeader('Cache-Control', 'no-cache');
+      res.end(data);
+    } catch {
+      res.statusCode = 404;
+      res.end();
+    }
+  };
+
+  /**
    * Commit the FX binding table. Its own route rather than a third `WriteKind`, because the destination is
    * fixed by the plugin instead of derived from the request — sharing `planWrite`'s signature would imply a
    * client-supplied path that does not exist here.
@@ -368,9 +425,11 @@ export function fxDefsPlugin(options: FxDefsPluginOptions = {}): Plugin {
      * by Save, which reloads anyway) and hostile for an image, which is written by the IMPORT itself,
      * mid-edit: the reload can even race the Inspector's own state update and lose the import from the layer.
      * With the directory ignored nothing reloads; the running page resolves a fresh import from
-     * `registerSavedImage`'s in-session overlay, a later reload resolves it through the DEV fallback URL
-     * (the file is still SERVED — `watch.ignored` only silences the watcher), and a dev-server restart lets
-     * the glob catch up. Production is untouched: the glob is expanded at build time.
+     * `registerSavedImage`'s in-session overlay, a later reload resolves it through the DEV fallback URL —
+     * `GET /__fx/image/<slug>.png`, served by `serveImage` above straight off disk (the app is rooted at
+     * `apps/web`, so these out-of-root PNGs are otherwise only reachable via Vite's `/@fs/` path, which the
+     * fallback could not reconstruct for a not-yet-globbed file) — and a dev-server restart lets the glob catch
+     * up. Production is untouched: the glob is expanded at build time.
      */
     config: () => ({
       server: { watch: { ignored: [path.resolve(defsRoot, 'images', '**').split(path.sep).join('/')] } },
@@ -378,7 +437,12 @@ export function fxDefsPlugin(options: FxDefsPluginOptions = {}): Plugin {
     configureServer(server) {
       server.middlewares.use('/__fx/def', (req, res) => void handle('def')(req, res));
       server.middlewares.use('/__fx/art', (req, res) => void handle('art')(req, res));
-      server.middlewares.use('/__fx/image', (req, res) => void handle('image')(req, res));
+      // GET/HEAD reads the image (see `serveImage`); POST writes it (see `handle('image')`). One route, split
+      // by method, so a freshly imported image is both written AND servable at the same `/__fx/image/<slug>.png`.
+      server.middlewares.use('/__fx/image', (req, res) => {
+        if (req.method === 'GET' || req.method === 'HEAD') { void serveImage(req, res); return; }
+        void handle('image')(req, res);
+      });
       server.middlewares.use('/__fx/bindings', (req, res) => void handleBindings(req, res));
       server.middlewares.use('/__fx/cardart', (req, res) => void handleCardArt(req, res));
 

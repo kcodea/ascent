@@ -5,14 +5,14 @@ import { createRunLobby } from './runLobby';
 import { playerRunsFrom } from './snapshotSeats';
 
 /**
- * SEAT ROTATION MUST REACH EVERY RUN IN THE POOL.
+ * SEAT FILL IS A SEEDED SHUFFLE — every eligible run reachable, uniformly, at every pool size.
  *
- * The seat filler walks the available runs as `available[(seed + i * 7) % available.length]`. That is only a
- * PERMUTATION when the stride is coprime with the pool size — and 7 is not coprime with any multiple of 7. So
- * a pool of exactly 7 runs collapsed to ONE reachable run (and 14 → 2, 21 → 3, …), which is why a table could
- * suddenly seat no player snapshots at all after several lobbies that seated plenty: the pool grows by a run
- * per finished upload, and the moment its size hit a multiple of 7 the rotation folded (owner report
- * 2026-08-03 — "I just played 3 or 4 games with multiple player snapshots, this lobby randomly has none").
+ * History: the filler used to walk `available[(seed + i * 7) % n]`, a stride that is only a permutation when 7
+ * is coprime with n, so a pool of exactly 7 runs collapsed to ONE reachable run (14 → 2, …) and a lobby would
+ * "randomly have no player snapshots" (owner report 2026-08-03, #838). The 2026-09-13 rewrite draws the table
+ * with a seeded Fisher–Yates instead (owner: "completely random"), which has no collapse at any size. The
+ * multiple-of-7 cases below are kept as the historical regression; the last block pins the new properties:
+ * same seed → same table (restore/replay), different seeds → different tables, and every run reachable.
  *
  * This file registers boards into the module-global pool, so like `snapshotSeats.test.ts` it lives apart from
  * the other lobby tests rather than mutating the pool under them.
@@ -57,5 +57,47 @@ describe('a pool whose size is a multiple of 7 still fills the table', () => {
     // slots") means a full table of snapshots.
     const lobby = createRunLobby(4242, 'warden', {}, 'set1');
     expect(lobby.seats.filter((s) => s.kind === 'snapshot').length).toBe(7);
+  });
+});
+
+describe('the seeded shuffle', () => {
+  it('is deterministic per seed (a restored / replayed lobby seats the identical table)', () => {
+    const a = createRunLobby(777, 'warden', {}, 'set1').seats.map((s) => s.runKey ?? s.heroId);
+    const b = createRunLobby(777, 'warden', {}, 'set1').seats.map((s) => s.runKey ?? s.heroId);
+    expect(a).toEqual(b);
+  });
+
+  it('varies with the seed — nearby seeds no longer see near-identical tables', () => {
+    const tables = [1, 2, 3, 4, 5, 6].map((seed) => createRunLobby(seed, 'warden', {}, 'set1').seats.filter((s) => s.kind === 'snapshot').map((s) => s.runKey).join('|'));
+    expect(new Set(tables).size, 'six consecutive seeds should not all produce the same seat order').toBeGreaterThan(1);
+  });
+
+  it('reaches every run in the pool across seeds (no run is structurally unreachable)', () => {
+    const all = new Set(playerRunsFrom(undefined, undefined, 'set1').map((r) => r.key));
+    const seen = new Set<string>();
+    for (let seed = 1; seed <= 60 && seen.size < all.size; seed++) {
+      for (const s of createRunLobby(seed, 'warden', {}, 'set1').seats) if (s.runKey) seen.add(s.runKey);
+    }
+    expect([...all].filter((k) => !seen.has(k))).toEqual([]);
+  });
+});
+
+describe('unique heroes per lobby (owner 2026-09-13)', () => {
+  it('all eight seats wear different heroes, the player included, across seeds', () => {
+    for (const seed of [1, 2, 3, 7, 14, 4242, 99991]) {
+      const lobby = createRunLobby(seed, 'drakko', {}, 'set1'); // 'drakko' is also a seated run's hero above
+      const heroes = lobby.seats.map((s) => s.heroId);
+      expect(new Set(heroes).size, `seed ${seed}: ${heroes.join(',')}`).toBe(heroes.length);
+      expect(heroes[0]).toBe('drakko');
+    }
+  });
+
+  it('a second player run on an already-seated hero is passed over, not seated', () => {
+    // The pool holds one run per hero (HEROES7); seat the player on one of them and every OTHER hero's run
+    // still fills a seat, while the duplicated hero's run is skipped in favour of a hybrid on a fresh hero.
+    const lobby = createRunLobby(4242, 'soren', {}, 'set1');
+    const snapHeroes = lobby.seats.filter((s) => s.kind === 'snapshot').map((s) => s.heroId);
+    expect(snapHeroes).not.toContain('soren');
+    expect(new Set(lobby.seats.map((s) => s.heroId)).size).toBe(lobby.seats.length);
   });
 });

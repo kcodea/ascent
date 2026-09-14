@@ -56,6 +56,20 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-13',
+    label: 'Spiritbinder + art',
+    changes: [
+      {
+        category: 'Card Change',
+        text: "Bondweaver Shaman's Equipment is now called Spiritbinder (was Spiritbringer). Same effect.",
+      },
+      {
+        category: 'UI / Info',
+        text: 'New art for Spiritbinder and the Comet Equipment, plus refreshed portraits for Neptus, Cometius and Spirit Artificer.',
+      },
+    ],
+  },
+  {
+    date: '2026-09-13',
     label: 'Celestials: Starform rules v2',
     changes: [
       {

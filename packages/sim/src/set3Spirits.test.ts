@@ -14,7 +14,7 @@ import { handCardLocked, revelerValue, spiritsPlayedThisTurn, summonCopyFromHand
  *  - The Spirits-played tally: Kindled Sprite (combat, frozen at combat start), Nurturer's repeats.
  *  - `onTribePlayed` per-instance tallies: Festival Keeper (every 3, carries across turns), Aspect
  *    (improves every 3), Forest Colossus (counts only Spirits AFTER it; SoC pays per point, in combat).
- *  - Tidebud / Spiritbringer: one board recipient AND one hand recipient. Dreamcurrent: a hand minion per cast.
+ *  - Tidebud / Spiritbinder: one board recipient AND one hand recipient. Dreamcurrent: a hand minion per cast.
  */
 
 const body = (uid: string, cardId: string, over: Partial<BoardCard> = {}): BoardCard => {
@@ -194,7 +194,7 @@ describe('board-and-hand recipients', () => {
     expect(at(s, 'tb').health, 'never itself').toBe(3);
   });
 
-  it('Spiritbringer: the targeted board Spirit and a random hand Spirit get +6/+6', () => {
+  it('Spiritbinder: the targeted board Spirit and a random hand Spirit get +6/+6', () => {
     let s = run({ board: [body('x', 'sp3_kindled')], hand: [body('bw', 'sp3_bondweaver'), body('h', 'sp3_nurturer')], embers: 10 });
     s = play(s, 'bw');
     s = reduce(s, { type: 'activateEquipment', targetUid: 'x' } as Action);

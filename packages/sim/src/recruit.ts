@@ -3421,7 +3421,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     self.spiritTally = (self.spiritTally ?? 0) + 1;
   },
 
-  /** Spiritbringer (Equip, targeted): the chosen board minion AND a random `tribe` minion in hand, +atk/+hp.
+  /** Spiritbinder (Equip, targeted): the chosen board minion AND a random `tribe` minion in hand, +atk/+hp.
    *  Gilding rides `gildedParams`, so the source's gild is not consulted. */
   equipmentBuffTargetAndRandomHandTribe: (ctx, self, params, payload) => {
     const tribe = str(params.tribe) as Tribe;

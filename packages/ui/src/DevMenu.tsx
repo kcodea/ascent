@@ -49,6 +49,7 @@ import { FloatTuner } from './FloatTuner';
 import { StepCounterTuner } from './StepCounterTuner';
 import { TitleTextTuner } from './TitleTextTuner';
 import { UiThemeTuner } from './UiThemeTuner';
+import { TribeColorTuner } from './TribeColorTuner';
 import { LayoutTuner } from './LayoutTuner';
 import { ModePickTuner } from './ModePickTuner';
 import { FrameTuner } from './FrameTuner';
@@ -214,6 +215,7 @@ const GROUPS: Group[] = [
       { key: 'stepcounter', icon: '📈', label: 'Step Counter', C: StepCounterTuner, hint: 'The X/N numbers under a step-scaler card' },
       { key: 'titletext', icon: '🔤', label: 'Title Text', C: TitleTextTuner, hint: 'Reword the front page — wordmark and every menu plaque' },
       { key: 'uitheme', icon: '🎨', label: 'UI Theme', C: UiThemeTuner, hint: 'Colour scheme for the glass surfaces — 10 stock presets' },
+      { key: 'tribecolors', icon: '🎭', label: 'Tribe Colours', C: TribeColorTuner, hint: 'The hue behind every tribe — Celestial + Spirit first (they had none), then the eight established tribes', alt: 'celestial spirit tribe colour color hue accent plate gem name label' },
       { key: 'questtendril', icon: '🏆', label: 'Quest Tendril', C: QuestTendrilTuner, hint: 'The gold ribbon a quest or rune reward throws' },
       { key: 'chargeglyph', icon: '🔋', label: 'Charge Glyph', C: ChargeGlyphTuner, hint: 'The end-of-turn charge glyph' },
     ],

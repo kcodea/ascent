@@ -197,6 +197,12 @@ const TRIBE_PLATES: Partial<Record<Tribe, string>> = {
   neutral: `${import.meta.env.BASE_URL}frames/cardplate-neutral.webp`,
   kobold: `${import.meta.env.BASE_URL}frames/cardplate-kobold.webp`,
   dwarf: `${import.meta.env.BASE_URL}frames/cardplate-dwarf.webp`,
+  // Set 3's tribes have NO authored plate yet, so they wear the generic plate — but they are registered here so
+  // their tribe NAME sits on the plate's bottom gem like every other tribe's, instead of falling back to the
+  // icon+label drawer line (owner report 2026-09-14: "place their tribe names correctly like the other tribes").
+  // Swap the path for `cardplate-celestial.webp` / `cardplate-spirit.webp` once the owner draws them.
+  celestial: CARD_PLATE_SRC,
+  spirit: CARD_PLATE_SRC,
 };
 const plateSrcFor = (tribe: Tribe | undefined): string =>
   (tribe && TRIBE_PLATES[tribe]) || CARD_PLATE_SRC;

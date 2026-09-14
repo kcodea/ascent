@@ -56,6 +56,16 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-14',
+    label: 'Celestial + Spirit colours',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: 'Celestial and Spirit cards now show their tribe name on the plate gem like every other tribe, and carry a tribe colour (their names, bold rules text and medallion glyph had been unpainted).',
+      },
+    ],
+  },
+  {
+    date: '2026-09-14',
     label: 'Ruby targeting',
     changes: [
       {

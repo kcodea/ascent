@@ -12,6 +12,10 @@
      resolved to nothing and its medallion glyph rendered unfilled (owner report 2026-07-31). Dwarf is
      the forge yellow the owner asked for; kobold takes a warm ember so the two stay distinct. */
   --t-dwarf: #f0c33c; --t-kobold: #e8763a;
+  /* Set 3's two tribes had no token either (owner report 2026-09-14: their tribe name + colour never painted).
+     PLACEHOLDER hues until the owner picks them in the DEV "Tribe Colours" tuner; ship a pick by editing BOTH
+     this line and `DEFAULTS` in tribeColorConfig.ts. */
+  --t-celestial: #e9c46a; --t-spirit: #7fd8b8;
   --poison: #e8283f; /* EXECUTE red (was poison green, retheme 2026-07-22). Drives the ☠ float, the combat-log
                         rule and the enemy-preview pip; the var name still tracks the engine's `poison` event. */
   --atk: #f0a32a; --hpc: #ff5a4f;

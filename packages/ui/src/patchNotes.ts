@@ -67,6 +67,22 @@ export const PATCH_NOTES: PatchNote[] = [
   },
   {
     date: '2026-09-14',
+    label: 'Set 3 renames',
+    changes: [
+      {
+        category: 'Card Change',
+        text: 'Thirty Set 3 minions have new names (names only — stats, effects and art are unchanged).',
+        details: [
+          'Celestials: Horizon Courier → Cosmo Express · Starpath Vendor → Sugarnova · Falling Star Herald → Plummet · Crashborn Adept → Crash Course · Accretion Warden → The Great Attractor · Eclipse Warden → Totality · Orbit Keeper → Roundabout · Corona Devotee → Solburn · Star Charter → Maestro Lux · Nova Herald → Fuse Aldrin.',
+          'Spirits: Dreamcurrent Mystic → Lullaby Lou · Gathering Guide → Branch Manager · Festival Keeper → Tally · Bondweaver Shaman → Knot · Spirit Artificer → Revelsmith · Festival Treasurer → Smokey Joe · Festival Luminary → Limelight · Slumbering Colossus → Dozer · Forest Colossus → Old Timber · Nurturer → Mother Moss.',
+          'Kobolds: Facetbound Martyr → Shardluck · Dealer → Double Dealer · Veinchant Delver → Delver · Prismpick Artificer → Picksy · Runespark Channeler → Livewire · Splitpick Apprentice → Pickles.',
+          'Neutrals: Equipment Charger → Jumpstart Jules · Splitboon Adept → Halfsies · Warband Recruiter → Uncle Orc. Undead: Soul-Lantern Hierophant → Wick Mortis.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-14',
     label: 'Spiritbinder fix',
     changes: [
       {

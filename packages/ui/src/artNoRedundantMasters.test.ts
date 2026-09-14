@@ -117,6 +117,7 @@ describe('no redundant PNG masters ship alongside their WebP builds', () => {
     // arts (Crescendo, Shared Spirit, Star Crash, and the base + branch pairs for Aspect's Blessing, Rush Order,
     // Split Decision). 27 more were REPLACED in place at net 0 — incl. the Magnifying Glass icon.)
     // → 1189 (2026-09-14, second pass: +3 — Constellation Prime, Shooting Star, the Hand Soap spell; 5 replaced in place.)
-    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1189);
+    // → 1192 (2026-09-14, the Celestial batch: +3 — the Star Destroyer and Stellar Lens icons, the Stellar Chorus spell art; Picksy + Flame Reveler replaced in place.)
+    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1192);
   });
 });

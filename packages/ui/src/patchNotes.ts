@@ -56,6 +56,39 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-14',
+    label: 'Celestial + Spirit batch',
+    changes: [
+      {
+        category: 'Card Change',
+        text: 'A Celestial pass: Star Seed, Stardust Peddler, The Great Attractor, Roundabout, Lens Grinder, Wishing Star, Rocket Power (was Shooting Star), Twinning (was Twin Star) and Black Hole (was Accretion) all changed.',
+        details: [
+          'Star Seed: an existing Starform now gets +4/+4 (was +2/+2).',
+          'Stardust Peddler: whenever you buy a minion, create a Starform if you have none — otherwise give it +1/+2.',
+          'The Great Attractor: Shout — give this shop +4/+3, then your Starform consumes the highest-Health minion (it used to eat the highest Tier, with no buff).',
+          'Roundabout: now Tier 5, 7/5. End of Turn: your Starform consumes the whole Shop. Start of Turn: create one if you have none.',
+          'Lens Grinder: now Tier 4, 4/6. Stellar Lens (2): create a Starform, then give this shop +7/+7 (was +10/+10, no create).',
+          'Wishing Star: Shout — give adjacent minions +3/+4 (was Shout + Echo: this shop +2/+2).',
+          'Rocket Power (was Shooting Star): no Flurry; Shout — this shop +3/+3 for every Shop spell cast this turn.',
+          'Twinning (was Twin Star): now Tier 5.',
+          'Black Hole (was Accretion): your Starform consumes 3 random Shop minions. No Star Crash any more.',
+        ],
+      },
+      {
+        category: 'Card Change',
+        text: "Spell tuning: Crescendo gives +2/+2 per Spirit played (was +1/+1); Lantern of Souls gives your Undead Aura +5 Attack (was +3); Staff of Guel gives +3/+3 (was +2/+2) and reads \"Give minions in the shop +3/+3\"; Aspect's Blessing is now \"a random minion in your hand +3/+2, or a random friendly minion +2/+1\".",
+      },
+      {
+        category: 'Card Change',
+        text: 'Common Ground is no longer offered in Set 3.',
+      },
+      {
+        category: 'UI / Info',
+        text: 'New icons for the Star Destroyer and Stellar Lens, new Stellar Chorus spell art, and refreshed portraits for Picksy and Flame Reveler.',
+      },
+    ],
+  },
+  {
+    date: '2026-09-14',
     label: 'Drag feel',
     changes: [
       {

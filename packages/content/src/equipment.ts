@@ -418,13 +418,14 @@ export const COMET: EquipmentDefinition = {
 export const STELLAR_LENS: EquipmentDefinition = {
   id: 'stellar_lens',
   name: 'Stellar Lens',
-  text: 'Give **this shop +10/+10**.',
-  goldenText: 'Give **this shop +20/+20**.',
+  // 2026-09-14 (owner): creates the token first (a no-op with one out), then this shop +7/+7 (was a bare +10/+10).
+  text: 'Create a **Starform**, then give **this shop +7/+7**.',
+  goldenText: 'Create a **Starform**, then give **this shop +14/+14**.',
   baseCost: 2,
   targetMode: 'none',
-  effectId: 'equipmentBuffThisShop',
-  params: { attack: 10, health: 10 },
-  gildedParams: { attack: 20, health: 20 },
+  effectId: 'equipmentCreateStarformThenBuffThisShop',
+  params: { attack: 7, health: 7 },
+  gildedParams: { attack: 14, health: 14 },
 };
 
 /**

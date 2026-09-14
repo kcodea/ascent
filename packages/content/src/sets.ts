@@ -33,7 +33,7 @@ const SET3_SHARED_SPELL_IDS: readonly string[] = [
   // Existing cards are NEVER re-specced from a sheet: the shipped card is the current truth (owner 2026-09-10).
   'apples', 'bulwark', 'emberpouch', 'depositbox', 'sprout', 'summonstone',
   'manafont', 'growth', 'hourglassreserve', 'refreshtexts', 'tribeschoice',
-  'commonground', 'funeralonloan', 'lasso', 'riftsunkcodex', 'shatter', 'staffofguel', 'tribeportal', 'turnabout',
+  /* commonground — removed from set 3 by the owner 2026-09-14 */ 'funeralonloan', 'lasso', 'riftsunkcodex', 'shatter', 'staffofguel', 'tribeportal', 'turnabout',
   'beyondsummit', 'decoysigil', 'fronttoback', 'goldentouch', 'helpwanted', 'insurancepolicy', 'quickstudy',
   'devour', 'chronostaff', 'corpseboard', 'resonance', 'rivalsreflection', 'sigilkinship', 'spellcart', 'strangerevision', 'weaken', 'powershifter',
   'displacement', 'aresmar', 'perfectvision', 'sparkplug',

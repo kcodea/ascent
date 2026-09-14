@@ -230,8 +230,10 @@ export const SPELLS: CardDef[] = [
     keywords: [],
     spell: true,
     cost: 2,
-    effects: [{ on: 'cast', do: 'spellBuffShop', params: { attack: 2, health: 2 } }],
-    text: 'Every minion you **buy** gets **+2/+2** for the rest of the game.',
+    // 2026-09-14 (owner): +3/+3 and the shorter wording — a TEXT change, not a mechanic change: it is still the
+    // permanent buy-buff channel (every minion bought from now on), every set.
+    effects: [{ on: 'cast', do: 'spellBuffShop', params: { attack: 3, health: 3 } }],
+    text: 'Give minions in the shop **+3/+3**.',
   },
   {
     // Conjure a random buyable Tier 1 minion (active tribes + neutral) into the hand.
@@ -289,8 +291,8 @@ export const SPELLS: CardDef[] = [
     keywords: [],
     spell: true,
     cost: 2,
-    effects: [{ on: 'cast', do: 'spellGrantTribeAttack', params: { tribe: 'undead', amount: 3 } }],
-    text: 'Give your **Undead Aura** **+3 Attack**.', // reworded 2026-09-12 (owner); under spell power the live text reads +3/+1 etc.
+    effects: [{ on: 'cast', do: 'spellGrantTribeAttack', params: { tribe: 'undead', amount: 5 } }], // +3 until 2026-09-14 (owner)
+    text: 'Give your **Undead Aura** **+5 Attack**.', // reworded 2026-09-12 (owner); under spell power the live text reads +5/+1 etc.
   },
   {
     // Heal your hero (capped at the hero's max Resolve — no overheal). Untargeted.

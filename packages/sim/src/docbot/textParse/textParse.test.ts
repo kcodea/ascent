@@ -59,7 +59,9 @@ const SWEEP = runTextSweep({ contracts: CONTRACTS });
 // cannot resolve yet, all Starform vocabulary ("create a Starform in the Shop", "create one", "this gains all of its
 // stats", "each gain half its stats", "this gains the same", "when your Starform Collapses or is Consumed, create a new
 // one with half its stats" — Star Seed, Orbit Keeper, Corona Devotee, Nova Herald, Twin Star, Zenith). A conscious move.
-const UNRESOLVED_CAP = 61;
+// 61 → 63 on 2026-09-14: the owner's Celestial batch — Roundabout's "your Starform consumes the Shop" and Stardust
+// Peddler's "create a Starform or give one +1/+2" are two more Starform shapes the grammar has no rule for. A conscious move.
+const UNRESOLVED_CAP = 63;
 /** Collapse floor: the parser fully consuming fewer objects than this means a grammar regression. */
 const PARSED_FLOOR = 900;
 /** The HARD ceiling (2026-09-11): the unresolved share of active objects may never reach this fraction again. A
@@ -438,7 +440,7 @@ describe('the Aura vocabulary — LG-SCOPE-01', () => {
     // The 2026-08-28 rebrand carriers, with the numbers they printed before it.
     const magnitudes: Record<string, number[]> = {
       kennel: [1, 4], grim: [8, 8], trophystalker: [5, 5, 5, 5],
-      deathswarmer: [1], forsakenweaver: [4], lanternofsouls: [3],
+      deathswarmer: [1], forsakenweaver: [4], lanternofsouls: [5], // Lantern +3 → +5 on 2026-09-14 (owner buff, not the rebrand)
       scrapherald: [2, 2], chorusengine: [4, 4, 2], b2_armadiyo: [2, 4],
       rune_summoning: [2, 2], rune_cinder_ledger: [3, 6, 6],
     };

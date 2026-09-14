@@ -32,18 +32,21 @@ describe('the roster', () => {
   });
 });
 
-describe('Aspect\'s Blessing — Choose One, a random hand minion', () => {
-  it('branch 1 gives +3/+1, branch 2 +1/+3; only minions in hand are candidates', () => {
-    let s = run({ hand: [spell('sp', 'aspectsblessing'), body('h', 'stray'), spell('x', 'growth')] });
+describe('Aspect\'s Blessing — Choose One: a random hand minion +3/+2, or a random friendly minion +2/+1 (owner 2026-09-14)', () => {
+  it('branch 1 gives a hand minion +3/+2 (spells in hand are never candidates); branch 2 gives a board minion +2/+1', () => {
+    let s = run({ board: [body('b', 'stray')], hand: [spell('sp', 'aspectsblessing'), body('h', 'stray'), spell('x', 'growth')] });
     s = play(s, 'sp');
     s = reduce(s, { type: 'chooseOne', index: 0 } as Action);
-    expect(stats(s.hand.find((c) => c.uid === 'h')!)).toEqual([5, 3]);
-    let t = run({ hand: [spell('sp', 'aspectsblessing'), body('h', 'stray')] });
+    expect(stats(s.hand.find((c) => c.uid === 'h')!)).toEqual([2 + 3, 2 + 2]);
+    expect(stats(s.board.find((c) => c.uid === 'b')!), 'the board is untouched by the hand branch').toEqual([2, 2]);
+    let t = run({ board: [body('b', 'stray')], hand: [spell('sp', 'aspectsblessing'), body('h', 'stray')] });
     t = play(t, 'sp');
     t = reduce(t, { type: 'chooseOne', index: 1 } as Action);
-    expect(stats(t.hand.find((c) => c.uid === 'h')!)).toEqual([3, 5]);
+    expect(stats(t.board.find((c) => c.uid === 'b')!)).toEqual([2 + 2, 2 + 1]);
+    expect(t.board.find((c) => c.uid === 'b')!.buffs?.[0]?.source, 'itemised under the spell, not "Ale"').toBe("Aspect's Blessing");
+    expect(stats(t.hand.find((c) => c.uid === 'h')!), 'the hand is untouched by the board branch').toEqual([2, 2]);
   });
-  it('fizzles (kept in hand) with no minion in hand', () => {
+  it('the hand branch fizzles (kept in hand) with no minion in hand', () => {
     const s = play(run({ hand: [spell('sp', 'aspectsblessing'), spell('x', 'growth')] }), 'sp');
     expect(s.hand.some((c) => c.uid === 'sp')).toBe(true);
   });
@@ -111,16 +114,16 @@ describe('Hand Soap — the left-most MINION in hand +8/+8', () => {
   });
 });
 
-describe('Crescendo — your minions +1/+1 per Spirit played this turn', () => {
+describe('Crescendo — your minions +2/+2 per Spirit played this turn (owner 2026-09-14; was +1/+1)', () => {
   it('pays per Spirit played, prints the live value, and fizzles with none played', () => {
     let s = run({ board: [body('a', 'stray'), body('b', 'stray')], hand: [spell('sp', 'crescendo')], playedThisTurn: ['sp3_tidebud', 'sp3_nurturer', 'stray'] });
     // THE STANDARD (owner 2026-09-12): the total replaces the printed rate in place, green — no "Now" appendix.
-    expect(spellDisplayText('crescendo', 0, 0, 0, 0, 0, 0, { playedThisTurn: s.playedThisTurn })).toContain('**{{+2/+2}}** for each');
-    expect(spellDisplayText('crescendo', 1, 0, 0, 0, 0, 0, { playedThisTurn: s.playedThisTurn }), 'spell power scales the per-Spirit rate').toContain('{{+4/+2}}');
+    expect(spellDisplayText('crescendo', 0, 0, 0, 0, 0, 0, { playedThisTurn: s.playedThisTurn })).toContain('**{{+4/+4}}** for every');
+    expect(spellDisplayText('crescendo', 1, 0, 0, 0, 0, 0, { playedThisTurn: s.playedThisTurn }), 'spell power scales the per-Spirit rate').toContain('{{+6/+4}}');
     expect(spellDisplayText('crescendo', 0, 0, 0, 0, 0, 0, { playedThisTurn: s.playedThisTurn })).not.toContain('Now ');
     s = play(s, 'sp');
-    expect(stats(s.board.find((c) => c.uid === 'a')!)).toEqual([4, 4]);
-    expect(stats(s.board.find((c) => c.uid === 'b')!)).toEqual([4, 4]);
+    expect(stats(s.board.find((c) => c.uid === 'a')!)).toEqual([2 + 4, 2 + 4]);
+    expect(stats(s.board.find((c) => c.uid === 'b')!)).toEqual([2 + 4, 2 + 4]);
     const t = play(run({ board: [body('a', 'stray')], hand: [spell('sp', 'crescendo')], playedThisTurn: ['stray'] }), 'sp');
     expect(t.hand.some((c) => c.uid === 'sp'), 'no Spirit played → fizzles').toBe(true);
   });

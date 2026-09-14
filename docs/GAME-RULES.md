@@ -191,15 +191,22 @@ in; the shop never rolls it. Engine: `packages/sim/src/starform.ts`; every rule 
 **The Starform roster's card-level readings** (owner spec 2026-09-12; `packages/content/src/cards/set3/celestials.ts`,
 pinned in `packages/sim/src/set3CelestialRoster.test.ts`):
 
-- **"This shop" +X/+X** (Wishing Star's Shout and Echo, Shooting Star, the Stellar Lens) buffs the **offers standing
+- **"This shop" +X/+X** (Rocket Power, The Great Attractor's Shout, the Stellar Lens) buffs the **offers standing
   in the row right now** — the owner's "this shop" vocabulary (2026-07-25), not the per-turn channel. The Starform
-  keeps it through the next refresh; every other offer loses it. Wishing Star's Echo fires in the shop only (a
-  combat death has no shop to buff).
-- **The Great Attractor** eats the **highest-Tier** Shop minion; the **Accretion** spell eats the **highest current buy
-  Health**. Ties go to the **right-most**. With no Starform the Warden does nothing; the spell skips the consume but
-  **still grants its Star Crash**.
-- **Shooting Star** counts Shop spells cast this turn (`spellsThisTurn` — a multiplied cast counts each time); the
-  card prints the live total. **Zenith** counts a spell of **any** kind, Rubies included (the Gravestar Seer ruling).
+  keeps it through the next refresh; every other offer loses it. (Wishing Star is a plain adjacent +3/+4 Shout
+  since 2026-09-14.)
+- **The Great Attractor** (2026-09-14) gives **this shop +4/+3** and THEN its Starform eats the **highest current
+  buy Health** offer — so the meal carries the buff. **Black Hole** (was Accretion; no Star Crash any more) eats
+  **3 random** Shop minions, one real consume each, fewer if the row is short. Ties for "highest" go to the
+  **right-most**. With no Starform neither consumes.
+- **Rocket Power** (was Shooting Star; no Flurry) counts Shop spells cast this turn (`spellsThisTurn` — a multiplied
+  cast counts each time); the card prints the live total. **Zenith** counts a spell of **any** kind, Rubies included
+  (the Gravestar Seer ruling).
+- **Stardust Peddler** (2026-09-14): whenever you buy a minion, it **creates** a Starform if you have none, else the
+  token gains **+1/+2**. Buying the token counts as a buy and the token is already gone — so a Peddler re-seeds one.
+- **The Stellar Lens** (2026-09-14) **creates** a Starform if you have none, then gives **this shop +7/+7** (gilded
+  +14/+14) — the fresh token is one of the offers that takes it.
+- **Star Seed** gives an existing token **+4/+4** (gilded +8/+8).
 - **Solburn** (rules v2) **Collapses** the token: 2 unique random friendly Celestials each gain the rounded-up
   half (the Devotee itself is eligible; gilded → each hit gains the full stats); a token with no Celestial at all
   still collapses and the stats go nowhere; no token → nothing happens. Its old Consume is now the token's **buy**.
@@ -207,7 +214,7 @@ pinned in `packages/sim/src/set3CelestialRoster.test.ts`):
   (4 gilded; two Heralds → 4), drawn with replacement. Its text prints the static "2" (owner: "table for now").
 - **Lodestar** gives a friendly Celestial its **MAX stats**: current Attack + undamaged max Health (a 10/10 damaged
   to 10/5 then buffed +5/+5 hands over 15/15). Both phases.
-- **Twin Star** mirrors every gain path (a buff, a shop buff, the token's consumes, a Star Crash aimed at the token,
+- **Twinning** (was Twin Star; Tier 5) mirrors every gain path (a buff, a shop buff, the token's consumes, a Star Crash aimed at the token,
   a slot enchant landing on a roll) — and, when it is the left-most Celestial, receives the token's buy itself.
   **Zenith** rebuilds the token after a **consume or collapse** (the buy, a Demon eating it, a Devotee's Collapse,
   Herald-assisted or not) — never after the Star Destroyer's silent exit — with half its stats rounded up, at the
@@ -219,8 +226,9 @@ pinned in `packages/sim/src/set3CelestialRoster.test.ts`):
 - **Star Crash may be aimed at the Starform** (a friendly Celestial): the token gains +5/+7 (Twin Star hears it) and
   the secondary half still lands on a random friendly minion on the **board**. Only the tribe's own Celestial-aimed
   spell reaches the token — a plain `friendly` spell keeps its board-only aim (rule 5 stays whole).
-- **Roundabout**'s Start of Turn creates the token as the new turn's shop opens (into a full row → it eats the
-  right-most minion); its End of Turn feeds a held token and does nothing without one.
+- **Roundabout** (Tier 5, 7/5 since 2026-09-14): its Start of Turn creates the token as the new turn's shop opens
+  (into a full row → it eats the right-most minion); its End of Turn has the token **eat every minion offer** in the
+  row, left to right — one real consume each (gilded: double stats per meal) — and does nothing without one.
 - **Maestro Lux** Discovers a Celestial from the run's pool — never itself, and never the Starform (a token, outside
   every draw pool).
 

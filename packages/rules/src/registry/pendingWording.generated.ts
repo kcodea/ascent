@@ -11,17 +11,17 @@ import type { GameRule } from '../schema';
 export const WORDING_PENDING: GameRule[] = [
   {
     "id": "q-word-lg-duration-01",
-    "title": "Wording: run vs game · 8 vs 13",
+    "title": "Wording: run vs game · 8 vs 12",
     "statement": "Run-long effects say \"this run\" / \"for the rest of the run\" — never \"game\". — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "text",
     "status": "needs-ruling",
-    "currentBehaviour": "Both spellings are live: \"this run\" in 8 printed texts, \"this game\" in 13. Approving picks \"this run\"; the LG-DURATION-01 guide predicate then watches new text.",
+    "currentBehaviour": "Both spellings are live: \"this run\" in 8 printed texts, \"this game\" in 12. Approving picks \"this run\"; the LG-DURATION-01 guide predicate then watches new text.",
     "cardText": "\"this run\" — Bane: \"After you trigger a Shout, give your Imps +3/+3 this run.\" · \"this game\" — Vaultkeeper: \"Gain +2/+2 whenever you play a Dragon. Improves +2/+2 for every 4 spells cast this game.\"",
     "example": "Vaultkeeper would be re-worded to the \"this run\" form; mechanics untouched.",
     "evidence": [
       {
         "kind": "docbot-scan",
-        "ref": "textParse.wording · LG-DURATION-01 (corpus survey: 8 vs 13)"
+        "ref": "textParse.wording · LG-DURATION-01 (corpus survey: 8 vs 12)"
       }
     ],
     "sourceQueue": "textParse.wording",
@@ -36,8 +36,7 @@ export const WORDING_PENDING: GameRule[] = [
       "dm_shepherd",
       "dm_todd",
       "gift_premium_stock",
-      "impoverseer",
-      "staffofguel"
+      "impoverseer"
     ]
   },
   {
@@ -173,17 +172,17 @@ export const WORDING_PENDING: GameRule[] = [
   },
   {
     "id": "q-word-lg-trigger-02",
-    "title": "Wording: Echo vs Deathrattle · 134 vs 41",
+    "title": "Wording: Echo vs Deathrattle · 132 vs 41",
     "statement": "On-death triggers print \"Echo\" everywhere; every \"Deathrattle\" in card text is updated to match. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "text",
     "status": "needs-ruling",
-    "currentBehaviour": "Both spellings are live: \"Echo\" in 134 printed texts, \"Deathrattle\" in 41. Approving picks \"Echo\"; the LG-TRIGGER-02 guide predicate then watches new text.",
+    "currentBehaviour": "Both spellings are live: \"Echo\" in 132 printed texts, \"Deathrattle\" in 41. Approving picks \"Echo\"; the LG-TRIGGER-02 guide predicate then watches new text.",
     "cardText": "\"Echo\" — Anubis, Last Gate: \"Echo: give your minions Rise and cast Lantern of Souls.\" · \"Deathrattle\" — Amun Rab: \"Deathrattle: Summon 7 Imps and give your Imps +5/+5.\"",
     "example": "Amun Rab would be re-worded to the \"Echo\" form; mechanics untouched.",
     "evidence": [
       {
         "kind": "docbot-scan",
-        "ref": "textParse.wording · LG-TRIGGER-02 (corpus survey: 134 vs 41)"
+        "ref": "textParse.wording · LG-TRIGGER-02 (corpus survey: 132 vs 41)"
       }
     ],
     "sourceQueue": "textParse.wording",
@@ -273,17 +272,17 @@ export const WORDING_PENDING: GameRule[] = [
   },
   {
     "id": "q-word-lg-zone-01",
-    "title": "Wording: Shop vs tavern · 220 vs 9",
+    "title": "Wording: Shop vs tavern · 219 vs 9",
     "statement": "The buy row is always \"the Shop\" in text; every remaining \"tavern\" is updated to match. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "text",
     "status": "needs-ruling",
-    "currentBehaviour": "Both spellings are live: \"Shop\" in 220 printed texts, \"tavern\" in 9. Approving picks \"Shop\"; the LG-ZONE-01 guide predicate then watches new text.",
-    "cardText": "\"Shop\" — Accretion: \"Your Starform consumes the highest-Health minion in the Shop. Get a Star Crash.\" · \"tavern\" — Korok, the Hungerer: \"When you buy 4 cards, give your Fodder +1/+1 and add 1 Fodder to your next tavern.\"",
+    "currentBehaviour": "Both spellings are live: \"Shop\" in 219 printed texts, \"tavern\" in 9. Approving picks \"Shop\"; the LG-ZONE-01 guide predicate then watches new text.",
+    "cardText": "\"Shop\" — Black Hole: \"Your Starform consumes 3 random Shop minions.\" · \"tavern\" — Korok, the Hungerer: \"When you buy 4 cards, give your Fodder +1/+1 and add 1 Fodder to your next tavern.\"",
     "example": "Korok, the Hungerer would be re-worded to the \"Shop\" form; mechanics untouched.",
     "evidence": [
       {
         "kind": "docbot-scan",
-        "ref": "textParse.wording · LG-ZONE-01 (corpus survey: 220 vs 9)"
+        "ref": "textParse.wording · LG-ZONE-01 (corpus survey: 219 vs 9)"
       }
     ],
     "sourceQueue": "textParse.wording",

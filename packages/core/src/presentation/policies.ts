@@ -59,20 +59,18 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   // ── Set 3 Celestials — THE STARFORM ROSTER (owner spec 2026-09-12) ──
   'factory:battlecryCreateStarformOrBuff:onPlay': { policy: 'ownBeat', family: 'shout' }, // Star Seed
   'factory:buffThisShop:onPlay': { policy: 'ownBeat', family: 'shout' }, // Wishing Star (Shout half)
-  'factory:buffThisShop:onDeath': { policy: 'ownBeat', family: 'echo' }, // Wishing Star (Echo half, shop only)
   'factory:battlecryStarformConsumeShop:onPlay': { policy: 'ownBeat', family: 'shout' }, // Accretion Warden
-  'factory:battlecryBuffThisShopPerSpellsThisTurn:onPlay': { policy: 'ownBeat', family: 'shout' }, // Shooting Star
+  'factory:battlecryBuffThisShopPerSpellsThisTurn:onPlay': { policy: 'ownBeat', family: 'shout' }, // Rocket Power (was Shooting Star)
   'factory:battlecryCollapseStarform:onPlay': { policy: 'ownBeat', family: 'shout' }, // Corona Devotee (rules v2 2026-09-13: it Collapses)
   'factory:collapseExtraTargets:passive': { policy: 'passive', family: 'passive' }, // Nova Herald — a marker read at Collapse time, never a beat
-  'factory:onBuyBuffStarform:onBuy': { policy: 'foldedCue', family: 'economyReact' }, // Stardust Peddler
-  'factory:endOfTurnBuffStarform:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' }, // Orbit Keeper (EoT half)
   'factory:startOfTurnCreateStarform:startOfTurn': { policy: 'ownBeat', family: 'economy' }, // Orbit Keeper (SoT half)
   'factory:deathrattleGiveMaxStatsRandomTribe:onDeath': { policy: 'ownBeat', family: 'echo' }, // Lodestar
   'factory:onStarformGainedBuffSelf:starformGained': { policy: 'foldedCue', family: 'react' }, // Twin Star
   'factory:spellCastBuffStarform:spellCast': { policy: 'foldedCue', family: 'castReact' }, // Zenith (cast half)
   'factory:onStarformRemovedRecreateHalf:starformRemoved': { policy: 'ownBeat', family: 'react' }, // Zenith (rebirth half)
-  'factory:spellStarformConsumeShop:cast': { policy: 'ownBeat', family: 'spellCast' }, // Accretion (spell)
-  'factory:spellGrantSpell:cast': { policy: 'ownBeat', family: 'spellCast' }, // Accretion (spell)
+  'factory:spellStarformConsumeShop:cast': { policy: 'ownBeat', family: 'spellCast' }, // Black Hole (spell; was Accretion)
+  'factory:onBuyCreateStarformOrBuff:onBuy': { policy: 'foldedCue', family: 'economyReact' }, // Stardust Peddler (2026-09-14)
+  'factory:endOfTurnStarformConsumeAllShop:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' }, // Roundabout (EoT half, 2026-09-14)
   'factory:battlecryGainGoldNextTurn:onPlay': { policy: 'ownBeat', family: 'shout' },
   'factory:battlecryGainKeyword:onPlay': { policy: 'ownBeat', family: 'shout' },
   'factory:battlecryGainRandomMinion:onPlay': { policy: 'ownBeat', family: 'shout' },

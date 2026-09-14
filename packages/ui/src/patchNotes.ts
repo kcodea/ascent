@@ -79,7 +79,7 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'UI / Info',
-        text: 'New art for Spiritbinder and the Comet Equipment, plus refreshed portraits for Neptus, Cometius and Spirit Artificer.',
+        text: 'New art for Spiritbinder, Revelmaker and the Comet Equipment, plus refreshed portraits for Neptus, Cometius and Spirit Artificer.',
       },
     ],
   },

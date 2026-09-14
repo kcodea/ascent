@@ -179,7 +179,7 @@ export const SET3_SPIRITS: readonly CardDef[] = [
     goldenText: 'When you **sell** this, give your minions **+2/+2**, then increase that by 1.',
   },
   {
-    // Equip minion: Spiritbringer (2 Gold) — a TARGETED Spirit on the board and a random Spirit in hand, +6/+6 each.
+    // Equip minion: Spiritbinder (2 Gold; 'Spiritbringer' until 2026-09-13, id unchanged) — a TARGETED Spirit on the board and a random Spirit in hand, +6/+6 each.
     id: 'sp3_bondweaver',
     name: 'Bondweaver Shaman',
     tribe: 'spirit',
@@ -188,8 +188,8 @@ export const SET3_SPIRITS: readonly CardDef[] = [
     health: 5,
     keywords: [],
     effects: [{ on: 'equip', do: 'grantEquipment', params: { equipmentId: 'spiritbringer' } }],
-    text: '**Equip Spiritbringer (2):** give a Spirit on your board and in your hand **+6/+6**.',
-    goldenText: '**Equip Spiritbringer (2):** give a Spirit on your board and in your hand **+12/+12**.',
+    text: '**Equip Spiritbinder (2):** give a Spirit on your board and in your hand **+6/+6**.',
+    goldenText: '**Equip Spiritbinder (2):** give a Spirit on your board and in your hand **+12/+12**.',
   },
   {
     // Every 3 Spirits played → a random Shop spell (≤ tavern tier). Per-instance progress that CARRIES ACROSS

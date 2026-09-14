@@ -358,17 +358,19 @@ export const WHIPLASSO: EquipmentDefinition = {
 };
 
 /**
- * SPIRITBINDER (named 'Spiritbringer' until 2026-09-13; id unchanged) — Bondweaver Shaman's Equipment (set-3 Spirit roster, 2026-09-09): a TARGETED Spirit on the
- * board and a random Spirit in hand each get +6/+6 (owner: "one on board and one in hand"). Gilded: +12/+12.
+ * SPIRITBINDER (named 'Spiritbringer' until 2026-09-13; id unchanged) — Bondweaver Shaman's Equipment (set-3
+ * Spirit roster, 2026-09-09): a RANDOM Spirit on the board and a random Spirit in hand each get +6/+6. Gilded:
+ * +12/+12. Untargeted since 2026-09-14 — the targeted version let the player aim it at a NON-Spirit (the target
+ * mode was `friendly`, never tribe-checked; owner bug report), so it now picks its own recipients like Tidebud.
  */
 export const SPIRITBRINGER: EquipmentDefinition = {
   id: 'spiritbringer',
   name: 'Spiritbinder',
-  text: 'Give a Spirit on your board and in your hand **+6/+6**.',
-  goldenText: 'Give a Spirit on your board and in your hand **+12/+12**.',
+  text: 'Give a random Spirit on your board and in your hand **+6/+6**.',
+  goldenText: 'Give a random Spirit on your board and in your hand **+12/+12**.',
   baseCost: 2,
-  targetMode: 'friendly',
-  effectId: 'equipmentBuffTargetAndRandomHandTribe',
+  targetMode: 'none',
+  effectId: 'equipmentBuffRandomTribeBoardAndHand',
   params: { tribe: 'spirit', attack: 6, health: 6 },
   gildedParams: { tribe: 'spirit', attack: 12, health: 12 },
 };

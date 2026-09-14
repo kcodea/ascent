@@ -6,10 +6,9 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": [
         "run",
-        "dev"
+        "dev:active"
       ],
-      "port": 5173,
-      "autoPort": true
+      "port": 5173
     },
     {
       "name": "web-verify",

@@ -46,3 +46,5 @@ balance-export/
 # Only the .webp is shipped/tracked (804 of them) — the intermediates are regenerable, and committing
 # them would multiply the art payload ~10x.
 packages/ui/src/art/**/*.png
+# the 5173 "working branch" pointer (scripts/dev-active.mjs) — per machine, never shared
+.claude/active-worktree

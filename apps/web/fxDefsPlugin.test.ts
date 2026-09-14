@@ -14,6 +14,7 @@ import {
   isInside,
   planBindingsWrite,
   planCardArtWrite,
+  planImageRead,
   planWrite,
 } from './fxDefsPlugin';
 
@@ -31,6 +32,30 @@ function pngDataUrl(extraBytes = 0): string {
   const buf = Buffer.concat([PNG_HEADER, Buffer.alloc(extraBytes, 1)]);
   return ART_DATA_URL_PREFIX + buf.toString('base64');
 }
+
+describe('planImageRead', () => {
+  it('resolves a valid slug to images/<slug>.png inside the defs root', () => {
+    const plan = planImageRead('/test-orb.png', ROOT);
+    expect(plan.status).toBe(200);
+    expect(plan.file).toBe(path.join(ROOT, 'images', 'test-orb.png'));
+  });
+
+  it('tolerates a query string and missing leading slash', () => {
+    expect(planImageRead('banner.png?v=2', ROOT).file).toBe(path.join(ROOT, 'images', 'banner.png'));
+  });
+
+  it('404s anything that is not a bare <slug>.png', () => {
+    for (const bad of ['/nope.jpg', '/test-orb', '/UPPER.png', '/a/b.png', '/.png', '']) {
+      expect(planImageRead(bad, ROOT).status).toBe(404);
+    }
+  });
+
+  it('404s a traversal attempt rather than reading outside images/', () => {
+    // SLUG_RE already rejects separators, so this can never produce a path — the 404 proves the grammar gate.
+    expect(planImageRead('/../../secret.png', ROOT).status).toBe(404);
+    expect(planImageRead('/..%2Fsecret.png', ROOT).status).toBe(404);
+  });
+});
 
 describe('planWrite — defs', () => {
   it('accepts a valid def and targets defs/<id>.json', () => {
@@ -273,6 +298,27 @@ describe('middleware round trip', () => {
     });
   }
 
+  /** Like `call`, but for a binary/no-body response (the GET image route): captures status, the `Content-Type`
+   *  header, and the raw bytes rather than JSON-parsing. `url` is the path AFTER the `/__fx/image` mount. */
+  function callRaw(handler: Handler, method: string, url: string): Promise<{ status: number; type?: string; bytes: Buffer }> {
+    return new Promise((resolve) => {
+      const req = Readable.from([]) as unknown as IncomingMessage;
+      (req as { method?: string; url?: string }).method = method;
+      (req as { url?: string }).url = url;
+      const headers: Record<string, string> = {};
+      const chunks: Buffer[] = [];
+      const res = {
+        statusCode: 0,
+        setHeader: (k: string, v: string) => { headers[k.toLowerCase()] = v; },
+        end: (chunk?: Buffer) => {
+          if (chunk) chunks.push(Buffer.from(chunk));
+          resolve({ status: res.statusCode, type: headers['content-type'], bytes: Buffer.concat(chunks) });
+        },
+      };
+      handler(req, res as unknown as ServerResponse);
+    });
+  }
+
   it('registers exactly the five endpoints', async () => {
     expect([...(await routes()).keys()].sort())
       .toEqual(['/__fx/art', '/__fx/bindings', '/__fx/cardart', '/__fx/def', '/__fx/image']);
@@ -285,6 +331,21 @@ describe('middleware round trip', () => {
     const written = await readFile(path.join(await tmp, 'images', 'banner.png'));
     expect(written.subarray(0, 8)).toEqual(PNG_HEADER);
     await expect(readFile(path.join(await tmp, 'art', 'banner.png'))).rejects.toThrow();
+  });
+
+  it('serves a written image back over GET /__fx/image/<slug>.png as PNG bytes', async () => {
+    const handler = (await routes()).get('/__fx/image')!;
+    await call(handler, JSON.stringify({ slug: 'orb', dataUrl: pngDataUrl(4) })); // write first
+    const got = await callRaw(handler, 'GET', '/orb.png'); // then read it back through the same route
+    expect(got.status).toBe(200);
+    expect(got.type).toBe('image/png');
+    expect(got.bytes.subarray(0, 8)).toEqual(PNG_HEADER);
+  });
+
+  it('404s a GET for an image that was never written', async () => {
+    const handler = (await routes()).get('/__fx/image')!;
+    const got = await callRaw(handler, 'GET', '/ghost.png');
+    expect(got.status).toBe(404);
   });
 
   it('writes a def file and reports its path', async () => {

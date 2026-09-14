@@ -136,15 +136,15 @@ function rememberSlug(slug: string): void {
   }
 }
 
-/** DEV only: a URL the dev server can serve for a file the frozen glob can't see. Production bundles resolve
- *  through the glob alone — an unknown id there is genuinely absent and must stay `null`. */
+/** DEV only: a URL the dev server can serve for a file the frozen glob can't see (a just-imported image whose
+ *  bytes are on disk but not yet in the transform-time glob). Served by `fxDefsPlugin`'s `GET /__fx/image/
+ *  <slug>.png` route, which reads straight off `defs/images/` — a plain module-relative URL does NOT work here,
+ *  because the app is rooted at `apps/web` so these PNGs live OUTSIDE the Vite root and are only otherwise
+ *  reachable via Vite's internal `/@fs/` path (owner report 2026-09-14). Production bundles resolve through the
+ *  glob alone — there is no dev route, an unknown id is genuinely absent, and this must stay `null`. */
 function devUrl(slug: string): string | null {
-  try {
-    if (!import.meta.env?.DEV) return null;
-    return new URL(`./defs/images/${slug}.png`, import.meta.url).href;
-  } catch {
-    return null;
-  }
+  if (!import.meta.env?.DEV) return null;
+  return `/__fx/image/${slug}.png`;
 }
 
 /** The URL (or data URL) an `image:` id decodes from, or `null` for anything unresolvable. Also what the

@@ -35,6 +35,7 @@ import './smoke';
 import './react';
 import './screen';
 import './custom';
+import './targeting';
 
 /**
  * GL-link every FX shader source NOW, off the combat path.

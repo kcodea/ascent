@@ -77,7 +77,16 @@ git log --oneline origin/main -10   # what just landed
 
 ## 6. Shared-resource hygiene
 
-- **Dev-server ports:** give each session its own port. For a throwaway preview to eyeball, serve a
+- **Port 5173 is the WORKING-BRANCH host** (owner rule 2026-09-14). It always serves the tree named by
+  `.claude/active-worktree` in the primary checkout — `npm run task -- <branch>` writes that pointer as it
+  creates the tree and bounces the port, `npm run task:serve -- <branch>` re-points it at an existing tree,
+  `npm run task:done` clears it (5173 then falls back to the primary checkout / `main`). The desktop app's
+  `web` launch config and `npm run dev:active` both go through `scripts/dev-active.mjs`, which reads the
+  pointer at start-up — so the port can never silently serve a stale tree. **Don't start vite on 5173 by
+  hand from a specific directory**; if the owner says 5173 is on the wrong branch, `task:serve` the right
+  one. (A second session that needs its own preview takes another port — `web-verify` on 5193, `fx-stage`
+  on 5401 — never fights over 5173.)
+- **Other dev-server ports:** give each session its own. For a throwaway preview to eyeball, serve a
   self-contained page from scratch with a standalone server (`python -m http.server <port> --directory <dir>`)
   — it survives the git churn a worktree dev server won't.
 - **Verify the branch** right before any commit/merge: `git branch --show-current` (assume a neighbor may have

@@ -74,6 +74,10 @@ export const PATCH_NOTES: PatchNote[] = [
     label: 'Spiritbinder + art',
     changes: [
       {
+        category: 'UI / Info',
+        text: 'Stellar Chorus (and Clues) in the Shop now show the exact value they will grant right now — the tavern kept printing the base +2/+2 after spells had been cast, while the same card in hand read the true total.',
+      },
+      {
         category: 'Card Change',
         text: "Bondweaver Shaman's Equipment is now called Spiritbinder (was Spiritbringer). Same effect.",
       },

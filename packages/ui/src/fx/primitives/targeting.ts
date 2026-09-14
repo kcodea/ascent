@@ -7,6 +7,8 @@ import type { FxParamSpecs, ParamsOf } from '../params';
 import type { FxContext, FxInstance, FxPrimitive } from '../primitive';
 import { FX_BLEND_MODES } from '../blendModes';
 import { registerPrimitive } from '../registry';
+import { turbulenceX, turbulenceY } from '../motion';
+import { SHAPE_NAMES } from '../shapeTextures';
 import { createLassoState, stepLasso, type AimLassoCfg, type AimLassoState, type Vec2 } from '../../aimLasso';
 
 /**
@@ -76,6 +78,10 @@ const SPECS = {
   sparkleTwinkle: { kind: 'slider', label: 'Twinkle', group: 'Sparkles', min: 0, max: 20, step: 0.5, default: 7, help: 'Alpha flicker, in Hz. 0 = steady sparks.' },
   sparkleColor: { kind: 'color', label: 'Spark colour A', group: 'Sparkles', default: 0xffe6b0, help: 'One end of the spark colour range.' },
   sparkleColor2: { kind: 'color', label: 'Spark colour B', group: 'Sparkles', default: 0xffa82e, help: 'The other end — each spark picks a random blend of A and B.' },
+  sparkleShape: { kind: 'enum', label: 'Spark shape', group: 'Sparkles', options: SHAPE_NAMES, default: 'circle', help: 'The shape each spark is drawn as. Non-round shapes point along their direction of travel.' },
+  sparkleSizeVar: { kind: 'slider', label: 'Size variance', group: 'Sparkles', min: 0, max: 1, step: 0.05, default: 0.4, help: 'Random spread on each spark\'s size. 0 = all identical, 1 = anywhere from tiny to double.' },
+  sparkleTurbulence: { kind: 'slider', label: 'Turbulence', group: 'Sparkles', min: 0, max: 2000, step: 10, default: 0, help: 'A swirling noise field that curls the sparks as they fly — like embers off a fire. 0 = straight paths.' },
+  sparkleTurbScale: { kind: 'slider', label: 'Turbulence scale', group: 'Sparkles', min: 0.005, max: 0.1, step: 0.001, default: 0.02, enabledWhen: { param: 'sparkleTurbulence', above: 0 }, help: 'Size of the swirl eddies — smaller = tight curls, larger = broad sweeps. Does nothing while Turbulence is 0.' },
 
   ...BLUR_PARAM_SPECS,
   ...filterLabSpecs(FILTERS),
@@ -122,6 +128,28 @@ function ribbonPolygon(pts: Vec2[], half: (t: number) => number): number[] {
   const poly = left.slice();
   for (let i = n - 1; i >= 0; i--) poly.push(right[i * 2]!, right[i * 2 + 1]!);
   return poly;
+}
+
+/**
+ * Vertices for a spark's SHAPE, centred at (x,y), scaled to radius `r`, rotated by `rot` (its travel angle).
+ * Returns a flat [x0,y0,x1,y1,…] for `g.poly()`. `circle` is drawn directly by the caller (returns []).
+ * Built-ins only (SHAPE_NAMES) — no texture, so it stays a cheap Graphics fill.
+ */
+function sparkPoly(shape: string, x: number, y: number, r: number, rot: number): number[] {
+  const c = Math.cos(rot), sn = Math.sin(rot);
+  const out: number[] = [];
+  const push = (ux: number, uy: number): void => { out.push(x + ux * c - uy * sn, y + ux * sn + uy * c); };
+  switch (shape) {
+    case 'triangle': push(r, 0); push(-r * 0.6, r * 0.85); push(-r * 0.6, -r * 0.85); break;
+    case 'square': push(-r, -r); push(r, -r); push(r, r); push(-r, r); break;
+    case 'diamond': push(r, 0); push(0, r); push(-r, 0); push(0, -r); break;
+    case 'shard': push(r * 1.7, 0); push(0, r * 0.45); push(-r * 0.8, 0); push(0, -r * 0.45); break;
+    case 'star':
+      for (let i = 0; i < 10; i++) { const a = (i / 10) * Math.PI * 2; const rr = i % 2 === 0 ? r : r * 0.45; push(Math.cos(a) * rr, Math.sin(a) * rr); }
+      break;
+    default: return [];
+  }
+  return out;
 }
 
 /** Blend two 0xRRGGBB colours by t∈[0,1]. */
@@ -259,7 +287,7 @@ class TargetingInstance implements FxInstance<TargetingParams> {
       vy: (ry / rl) * sp + flingY,
       age: 0,
       life: (p.sparkleLife / 1000) * (0.7 + Math.random() * 0.6),
-      size: p.sparkleSize * (0.7 + Math.random() * 0.6),
+      size: Math.max(0.1, p.sparkleSize * (1 + (Math.random() * 2 - 1) * p.sparkleSizeVar)),
       t: Math.random(),
       phase: Math.random() * TAU,
     });
@@ -269,10 +297,16 @@ class TargetingInstance implements FxInstance<TargetingParams> {
     const p = this.params;
     const dragK = Math.max(0, 1 - p.sparkleDrag * dt * 3);
     const out: Spark[] = [];
+    const turb = p.sparkleTurbulence;
     for (const s of this.sparks) {
       s.age += dt;
       if (s.age >= s.life) continue;
       s.vy += p.sparkleGravity * dt;
+      // Turbulence: a swirling noise field curls the spark's path — embers off a fire (shared `motion.ts`).
+      if (turb > 0) {
+        s.vx += turbulenceX(s.x, s.y, this.elapsed, p.sparkleTurbScale) * turb * dt;
+        s.vy += turbulenceY(s.x, s.y, this.elapsed, p.sparkleTurbScale) * turb * dt;
+      }
       s.vx *= dragK; s.vy *= dragK;
       s.x += s.vx * dt; s.y += s.vy * dt;
       out.push(s);
@@ -299,7 +333,8 @@ class TargetingInstance implements FxInstance<TargetingParams> {
     const poly = ribbonPolygon(pts, (t) => Math.max(0.15, (p.coreWidth * (1 - p.taper * t)) / 2));
     if (poly.length >= 6) g.poly(poly).fill({ color: p.colorCore, alpha: p.coreAlpha });
 
-    // Sparks (additive: bright core dot + faint halo), twinkling and fading over life.
+    // Sparks: a soft round glow behind the chosen SHAPE (oriented along its travel), twinkling + fading.
+    const shape = p.sparkleShape;
     for (const s of this.sparks) {
       const lt = s.age / s.life;
       let alpha = p.sparkleAlpha * (1 - lt);
@@ -307,8 +342,13 @@ class TargetingInstance implements FxInstance<TargetingParams> {
       if (alpha <= 0.01) continue;
       const size = Math.max(0.3, s.size * (1 - p.sparkleSizeDecay * lt));
       const col = lerpColor(p.sparkleColor, p.sparkleColor2, s.t);
-      g.circle(s.x, s.y, size * 2).fill({ color: col, alpha: alpha * 0.35 });
-      g.circle(s.x, s.y, size).fill({ color: col, alpha });
+      g.circle(s.x, s.y, size * 1.8).fill({ color: col, alpha: alpha * 0.3 });
+      if (shape === 'circle') {
+        g.circle(s.x, s.y, size).fill({ color: col, alpha });
+      } else {
+        const verts = sparkPoly(shape, s.x, s.y, size, Math.atan2(s.vy, s.vx));
+        if (verts.length >= 6) g.poly(verts).fill({ color: col, alpha });
+      }
     }
 
     // The pointer at the cursor end.

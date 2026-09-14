@@ -29,6 +29,7 @@ describe('targeting primitive', () => {
       sparkleOn: true, sparkleAlong: 28, sparklePointer: 40, sparkleAlpha: 0.95, sparkleSize: 3, sparkleSizeDecay: 0.7,
       sparkleLife: 650, sparkleSpeed: 55, sparkleGravity: -40, sparkleDrag: 0.25, sparkleFling: 0.5,
       sparkleSpread: 0.7, sparkleTwinkle: 7, sparkleColor: 0xffe6b0, sparkleColor2: 0xffa82e,
+      sparkleShape: 'circle', sparkleSizeVar: 0.4, sparkleTurbulence: 0, sparkleTurbScale: 0.02,
     });
   });
 

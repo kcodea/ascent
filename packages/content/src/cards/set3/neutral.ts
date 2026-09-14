@@ -78,7 +78,7 @@ export const SET3_NEUTRAL: readonly CardDef[] = [
     // the run's set's Rally minions, never the Recruiter itself — a chain of Recruiters summoning Recruiters
     // is bounded by the board, but it reads as a loop and adds nothing.
     id: 'n3_recruiter',
-    name: 'Warband Recruiter',
+    name: 'Uncle Orc', // 'Warband Recruiter' until 2026-09-14 (owner rename handoff; id + art unchanged)
     tribe: 'neutral',
     tier: 4,
     attack: 4,
@@ -95,7 +95,7 @@ export const SET3_NEUTRAL: readonly CardDef[] = [
     // banked. Golden: two. Renamed from "Equipment Inspector" on the
     // owner's sheet (2026-09-09: "rename Equipment Inspector -> Equipment Charger").
     id: 'n3_charger',
-    name: 'Equipment Charger',
+    name: 'Jumpstart Jules', // 'Equipment Charger' until 2026-09-14 (owner rename handoff; id + art unchanged)
     tribe: 'neutral',
     tier: 4,
     attack: 6,
@@ -110,7 +110,7 @@ export const SET3_NEUTRAL: readonly CardDef[] = [
     // Godfodder shape) and rides the shared targeted-Shout body; option 2 is a new Shout-family arena effect
     // (`battlecryBuffAdjacent`) so a combat re-fire (Ryme, Myra) buffs its neighbours there too. Golden doubles.
     id: 'n3_splitboon',
-    name: 'Splitboon Adept',
+    name: 'Halfsies', // 'Splitboon Adept' until 2026-09-14 (owner rename handoff; id + art unchanged)
     tribe: 'neutral',
     tier: 3,
     attack: 3,

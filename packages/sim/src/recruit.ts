@@ -762,11 +762,12 @@ export const CIA_SUIT_TEXT: Record<CiaSuit, string> = {
   ace: '**Ace:** *(50/50)* **−4 Gold** off your next Shop upgrade *(Tier 5 and below)*, or Discover a minion from the tier **above** you.',
 };
 
-/** Warden's Aegis: the +X/+Y it grants every Warded minion, scaling with Tavern Tier (owner spec 2026-08-16).
- *  Attack is the tier, Health the tier + 1 — so it stays a defensive buff as it grows. Shared by the reducer's
- *  grant and the panel's printed rule, so the number shown is the number given. */
+/** Warden's Aegis: the grant every Warded minion receives after the Ward lands — a FLAT +5 Attack (owner rework
+ *  2026-09-14; it scaled +Tier/+Tier+1 from 2026-08-16 until then). Shared by the reducer's grant and the
+ *  panel's printed rule, so the number shown is the number given. */
 export function aegisGrantOf(state: RunState): { attack: number; health: number } {
-  return { attack: state.tier, health: state.tier + 1 };
+  void state; // flat now; the signature stays so a future scaling reads the run again
+  return { attack: 5, health: 0 };
 }
 
 /** Which commissions may be offered right now: all three on the first use, then everything except the one
@@ -862,7 +863,8 @@ export function heroPowerText(state: RunState, which = 0, live: HeroPowerLive = 
   }
   if (power.kind === 'grantWard') {
     const g = aegisGrantOf(state);
-    return `Give a friendly minion permanent **Ward**, and give your minions with **Ward** **+${g.attack}/+${g.health}**.`;
+    const grant = g.health > 0 ? `+${g.attack}/+${g.health}` : `+${g.attack} Attack`;
+    return `Give a friendly minion **Ward**, then give your minions with **Ward** **${grant}**.`;
   }
   if (power.kind === 'exhibition') {
     // Odelle: the grant IMPROVES every 4 cards played, so the printed rule has to move with it — the
@@ -3421,13 +3423,16 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     self.spiritTally = (self.spiritTally ?? 0) + 1;
   },
 
-  /** Spiritbinder (Equip, targeted): the chosen board minion AND a random `tribe` minion in hand, +atk/+hp.
-   *  Gilding rides `gildedParams`, so the source's gild is not consulted. */
-  equipmentBuffTargetAndRandomHandTribe: (ctx, self, params, payload) => {
+  /** Spiritbinder (Equip, untargeted since 2026-09-14): a random `tribe` minion on the board AND a random `tribe`
+   *  minion in hand, +atk/+hp. Gilding rides `gildedParams`, so the source's gild is not consulted. */
+  equipmentBuffRandomTribeBoardAndHand: (ctx, self, params) => {
     const tribe = str(params.tribe) as Tribe;
     const a = num(params.attack, 0), h = num(params.health, 0);
-    if (payload.target) addBuff(payload.target, nameOf(self), a, h);
+    // Unlike Tidebud's Shout, the SOURCE is eligible: the Shaman is a Spirit on the board like any other (the
+    // targeted version let the player aim it at the Shaman too).
+    const onBoard = ctx.state.board.filter((c) => isTribe(c, tribe));
     const inHand = ctx.state.hand.filter((c) => isTribe(c, tribe) && !CARD_INDEX[c.cardId]?.spell);
+    for (const t of pickRandom(ctx.state, onBoard, 1)) addBuff(t, nameOf(self), a, h);
     for (const t of pickRandom(ctx.state, inHand, 1)) addBuff(t, nameOf(self), a, h);
   },
 

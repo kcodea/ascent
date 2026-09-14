@@ -56,6 +56,44 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-14',
+    label: 'Warden rework',
+    changes: [
+      {
+        category: 'Hero Change',
+        text: 'Warden — Aegis now costs 3 Gold (was 4): give a friendly minion Ward, then give your minions with Ward +5 Attack.',
+        details: ['The buff is a flat +5 Attack to every Warded minion (the fresh one included) — it no longer scales +Tier/+Tier+1 and no longer adds Health. It can be used on a minion that already has Ward — the Ward half adds nothing, but every Warded minion still gets the +5 Attack.'],
+      },
+    ],
+  },
+  {
+    date: '2026-09-14',
+    label: 'Set 3 renames',
+    changes: [
+      {
+        category: 'Card Change',
+        text: 'Thirty Set 3 minions have new names (names only — stats, effects and art are unchanged).',
+        details: [
+          'Celestials: Horizon Courier → Cosmo Express · Starpath Vendor → Sugarnova · Falling Star Herald → Plummet · Crashborn Adept → Crash Course · Accretion Warden → The Great Attractor · Eclipse Warden → Totality · Orbit Keeper → Roundabout · Corona Devotee → Solburn · Star Charter → Maestro Lux · Nova Herald → Fuse Aldrin.',
+          'Spirits: Dreamcurrent Mystic → Lullaby Lou · Gathering Guide → Branch Manager · Festival Keeper → Tally · Bondweaver Shaman → Knot · Spirit Artificer → Revelsmith · Festival Treasurer → Smokey Joe · Festival Luminary → Limelight · Slumbering Colossus → Dozer · Forest Colossus → Old Timber · Nurturer → Mother Moss.',
+          'Kobolds: Facetbound Martyr → Shardluck · Dealer → Double Dealer · Veinchant Delver → Delver · Prismpick Artificer → Picksy · Runespark Channeler → Livewire · Splitpick Apprentice → Pickles.',
+          'Neutrals: Equipment Charger → Jumpstart Jules · Splitboon Adept → Halfsies · Warband Recruiter → Uncle Orc. Undead: Soul-Lantern Hierophant → Wick Mortis.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-14',
+    label: 'Spiritbinder fix',
+    changes: [
+      {
+        category: 'Card Change',
+        text: "Spiritbinder (Bondweaver Shaman's Equipment) now gives a RANDOM Spirit on your board and a random Spirit in your hand +6/+6 — it no longer asks for a target.",
+        details: ['It could be aimed at a non-Spirit, which the card never promised. Picking its own Spirit on the board (the Shaman itself included) closes that; the hand half was already random.'],
+      },
+    ],
+  },
+  {
+    date: '2026-09-14',
     label: 'Targeting look',
     changes: [
       {
@@ -74,12 +112,16 @@ export const PATCH_NOTES: PatchNote[] = [
     label: 'Spiritbinder + art',
     changes: [
       {
+        category: 'UI / Info',
+        text: 'Stellar Chorus (and Clues) in the Shop now show the exact value they will grant right now — the tavern kept printing the base +2/+2 after spells had been cast, while the same card in hand read the true total.',
+      },
+      {
         category: 'Card Change',
         text: "Bondweaver Shaman's Equipment is now called Spiritbinder (was Spiritbringer). Same effect.",
       },
       {
         category: 'UI / Info',
-        text: 'New art for Spiritbinder and the Comet Equipment, plus refreshed portraits for Neptus, Cometius and Spirit Artificer.',
+        text: 'New art for Spiritbinder, Revelmaker and the Comet Equipment, plus refreshed portraits for Neptus, Cometius and Spirit Artificer.',
       },
     ],
   },

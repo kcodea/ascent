@@ -636,7 +636,7 @@ export type EffectFactoryId =
   | 'tribePlayedEveryNGrantRandomSpell' // Festival Keeper: every `every` `tribe` plays → a random Shop spell
   | 'tribePlayedBuffRandomTribeImproving' // Aspect: each `tribe` play → N random `tribe` +v/+v, v improving every `every`
   | 'tribePlayedTally' // Forest Colossus: count `tribe` plays since this was played
-  | 'equipmentBuffTargetAndRandomHandTribe' // Spiritbinder: the target AND a random `tribe` in hand, +atk/+hp
+  | 'equipmentBuffRandomTribeBoardAndHand' // Spiritbinder: a random `tribe` on board AND a random `tribe` in hand, +atk/+hp (gilding rides gildedParams)
   | 'spellCastBuffRandomHand' // Dreamcurrent Mystic: a Shop spell cast → a random minion in hand +atk/+hp
   // ── set 3 SPIRITS (tranche 2, the hand-summon cards) ──
   | 'deathrattleSummonHighestHealthFromHand' // Tide Caller / Dreaming Deep: Echo — a COPY of the highest-Health hand minion (ward: Dreaming Deep)

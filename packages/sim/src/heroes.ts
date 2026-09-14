@@ -18,7 +18,7 @@ export type HeroPowerKind =
   | 'resummon' // Soren: at start of combat, destroy a marked minion (procs its Deathrattle) + resummon a copy
   | 'spellAmplify' // Rohan (passive): stat-granting spells give +X/+X more, X scaling every 10 spells cast
   | 'gainMaxMana' // Nadja: gain +1 max Gold permanently (id stays `gainMaxMana`)
-  | 'grantWard' // Warden: spend Gold — give a friendly minion a permanent Ward (Divine Shield) (active, targeted)
+  | 'grantWard' // Warden: spend Gold — give a friendly minion a permanent Ward (Divine Shield), then +5 Attack to every Warded minion (active, targeted)
   | 'scalingGold' // Bagger Ben: gain Gold now, the payout climbing +1 each turn (active, untargeted, once/game)
   | 'cheapMinions' // Hermit Hank (passive): shop minions cost 2 Gold, but tavern-ups cost 2 more
   | 'summitLock' // Brackus (passive): turn-1 Tier 7 Discover, locked until 70 Gold is spent this run
@@ -151,10 +151,10 @@ export const HEROES: HeroDef[] = [
     power: {
       name: 'Aegis',
       kind: 'grantWard',
-      cost: 4,
-      // The +X/+Y scales with Tavern Tier, so the printed value is filled in live by `heroPowerText`
-      // (the card-text rule). This static string is the fallback shape only.
-      text: 'Give a friendly minion permanent **Ward**, and give your minions with **Ward** **+1/+1**.',
+      cost: 3, // 4 until the owner's 2026-09-14 rework (flat +5 Attack, no tier scaling)
+      // `heroPowerText` prints the grant from `aegisGrantOf` so the panel and the reducer can never disagree;
+      // this static string is the fallback shape only.
+      text: 'Give a friendly minion **Ward**, then give your minions with **Ward** **+5 Attack**.',
     },
   },
   {

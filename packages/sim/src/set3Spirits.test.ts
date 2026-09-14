@@ -194,12 +194,26 @@ describe('board-and-hand recipients', () => {
     expect(at(s, 'tb').health, 'never itself').toBe(3);
   });
 
-  it('Spiritbinder: the targeted board Spirit and a random hand Spirit get +6/+6', () => {
-    let s = run({ board: [body('x', 'sp3_kindled')], hand: [body('bw', 'sp3_bondweaver'), body('h', 'sp3_nurturer')], embers: 10 });
+  it('Spiritbinder: a random board Spirit and a random hand Spirit get +6/+6 — never a non-Spirit (owner bug 2026-09-14)', () => {
+    // Board: one non-Spirit + the Shaman itself (a Spirit). Hand: one Spirit + one non-Spirit. With a single
+    // eligible body per zone the draw is forced, so the assertion is exact — and the stray must be untouched.
+    let s = run({ board: [body('v', 'stray')], hand: [body('bw', 'sp3_bondweaver'), body('h', 'sp3_nurturer'), body('w', 'stray')], embers: 10 });
     s = play(s, 'bw');
-    s = reduce(s, { type: 'activateEquipment', targetUid: 'x' } as Action);
-    expect(stats(at(s, 'x'))).toEqual([3 + 6, 1 + 6]);
+    const before = stats(at(s, 'bw'));
+    s = reduce(s, { type: 'activateEquipment' } as Action);
+    expect(stats(at(s, 'bw')), 'the Shaman is an eligible board Spirit').toEqual([before[0] + 6, before[1] + 6]);
     expect(stats(inHand(s, 'h'))).toEqual([2 + 6, 6 + 6]);
+    expect(stats(at(s, 'v')), 'non-Spirit on board').toEqual([1, 1]);
+    expect(stats(inHand(s, 'w')), 'non-Spirit in hand').toEqual([1, 1]);
+  });
+
+  it('Spiritbinder ignores a targetUid — it can no longer be aimed at a non-Spirit', () => {
+    let s = run({ board: [body('v', 'stray'), body('x', 'sp3_kindled')], hand: [body('bw', 'sp3_bondweaver')], embers: 10 });
+    s = play(s, 'bw');
+    s = reduce(s, { type: 'activateEquipment', targetUid: 'v' } as Action);
+    expect(stats(at(s, 'v')), 'aimed at the stray, which must not receive it').toEqual([1, 1]);
+    const spiritGains = [at(s, 'x'), at(s, 'bw')].filter((c) => c.attack + c.health > 0 && (c.buffs ?? []).some((b) => b.attack === 6)).length;
+    expect(spiritGains, 'exactly one board Spirit got the +6/+6').toBe(1);
   });
 
   it('Dreamcurrent Mystic: a Shop spell cast → a random hand minion +4/+6', () => {

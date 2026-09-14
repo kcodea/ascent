@@ -3135,7 +3135,7 @@ describe('run loop (@game/sim)', () => {
     expect(empty.hand.some((c) => c.cardId === 'lasso')).toBe(true); // kept — nothing to steal
   });
 
-  it("Warden's Aegis gives a board minion a permanent Ward for 4 Gold, spending the wave charge", () => {
+  it("Warden's Aegis gives a board minion a permanent Ward for 3 Gold, spending the wave charge", () => {
     let s: RunState = {
       ...createRun(1, 'warden'),
       embers: 5,
@@ -3145,12 +3145,16 @@ describe('run loop (@game/sim)', () => {
     };
     s = reduce(s, { type: 'heroPower', uid: 'x' }); // Aegis → Ward (DS)
     expect(s.board[0]!.keywords).toContain('DS');
-    expect(s.embers).toBe(1); // 5 − 4 Gold
+    expect(s.embers).toBe(2); // 5 − 3 Gold (owner rework 2026-09-14; was 4)
     expect(s.heroReady).toBe(false);
-    // A no-op on an already-warded minion spends nothing (and no charge — already used this turn anyway).
-    const before = { embers: s.embers };
-    s = reduce({ ...s, heroReady: true }, { type: 'heroPower', uid: 'x' });
-    expect(s.embers).toBe(before.embers); // still warded → no re-spend
+    // An already-Warded target is a LEGAL use (owner 2026-09-14): the Ward half adds nothing, the +5 Attack
+    // still lands on every Warded minion, and the Gold + charge are spent.
+    s = { ...s, embers: 6, heroReady: true }; // refill: 2 Gold left after the first use would refuse on price, not on the rule
+    const before = { embers: s.embers, attack: s.board[0]!.attack };
+    s = reduce(s, { type: 'heroPower', uid: 'x' });
+    expect(s.embers).toBe(before.embers - 3);
+    expect(s.board[0]!.attack).toBe(before.attack + 5);
+    expect(s.heroReady).toBe(false);
   });
 
   it('spells never triple (three copies stay separate)', () => {
@@ -3805,9 +3809,9 @@ describe('hero powers (@game/sim)', () => {
     expect(createRun(1).heroPowerSpent).toBe(false);
   });
 
-  it("Warden's Aegis needs 4 Gold and a target — no-op (no charge spent) otherwise", () => {
+  it("Warden's Aegis needs 3 Gold and a target — no-op (no charge spent) otherwise", () => {
     // Too little Gold → rejected, charge preserved.
-    const poor: RunState = { ...createRun(1, 'warden'), embers: 3, heroReady: true, board: [mk('a', 2, 2)] };
+    const poor: RunState = { ...createRun(1, 'warden'), embers: 2, heroReady: true, board: [mk('a', 2, 2)] };
     expect(reduce(poor, { type: 'heroPower', uid: 'a' })).toBe(poor);
     // A missing target → rejected, charge preserved (no Gold spent).
     const noTarget: RunState = { ...createRun(1, 'warden'), embers: 9, heroReady: true, board: [mk('a', 2, 2)] };

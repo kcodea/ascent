@@ -672,7 +672,7 @@ function offerLiveTextParams(golden: boolean, o: ShopViewOpts, cardId?: string):
     chooseBoth: cardId ? offerChoosesBoth(cardId, golden, o) : false,
   };
 }
-function shopView(card: ShopCard, opts: ShopViewOpts = {}): CardView {
+export function shopView(card: ShopCard, opts: ShopViewOpts = {}): CardView { // exported for shopSpellLiveText.test.ts
   const c = CARD_INDEX[card.cardId];
   if (c.spell) {
     // A tavern spell: its own (modifiable) cost + a tier pill, no stat footer. Its value text
@@ -688,7 +688,7 @@ function shopView(card: ShopCard, opts: ShopViewOpts = {}): CardView {
       // A shop SPELL renders from `spellDisplayText`, not `liveCardText` — so the (Both) rendering has to be
       // applied here too, or a Facetwright's Choice under its rune would read "Choose One:" in the tavern and
       // (Both) everywhere else. Same predicate, same helper.
-      keywords: c.keywords, text: (offerChoosesBoth(c.id, false, opts) ? chooseBothText(c.id, false) : null) ?? spellDisplayText(c.id, opts.spellBonus ?? 0, opts.frontToBackBonus ?? 0, opts.spellBonusH ?? opts.spellBonus ?? 0, opts.goldSpent ?? 0, opts.frontToBackBonusH ?? opts.frontToBackBonus ?? 0, opts.goldPouchValue ?? 0, { rubyBonus: opts.rubyBonus, playedThisTurn: opts.playedThisTurn, topTribe: opts.topTribe as never, tier: opts.tier, growthBonus: opts.growthBonus, juggler: opts.juggler }),
+      keywords: c.keywords, text: (offerChoosesBoth(c.id, false, opts) ? chooseBothText(c.id, false) : null) ?? spellDisplayText(c.id, opts.spellBonus ?? 0, opts.frontToBackBonus ?? 0, opts.spellBonusH ?? opts.spellBonus ?? 0, opts.goldSpent ?? 0, opts.frontToBackBonusH ?? opts.frontToBackBonus ?? 0, opts.goldPouchValue ?? 0, { rubyBonus: opts.rubyBonus, playedThisTurn: opts.playedThisTurn, topTribe: opts.topTribe as never, tier: opts.tier, growthBonus: opts.growthBonus, juggler: opts.juggler, clueBonus: opts.clueBonus, anySpellsThisTurn: opts.anySpellsThisTurn /* the SHOP chain dropped these two while carrying them in `opts`, so a Stellar Chorus in the tavern read its base +2/+2 after spells were cast (owner report 2026-09-13) — pinned by shopSpellLiveText.test.ts */ }),
       cost, costChanged: cost < base, spell: true,
       chooseBothKey: offerChoosesBoth(c.id, false, opts) ? card.uid : undefined, // (Both) marker hook
       target: c.target, tier: c.tier, castMult: opts.castMult,
@@ -3198,7 +3198,7 @@ export function Recruit() {
       spellViewCache.current = stabilizeView(fresh, spellViewCache.current);
       return spellViewCache.current;
     },
-    [run.spell, run.spellCostMod, run.cardDiscountWindow /* Thymepiece: the slot's coin greens and reverts with the window, no shop rebuild */, spellBonus, spellBonusH, run.frontToBackBonus, run.board, run.nextSpellExtraCasts, run.goldSpentThisTurn, run.goldPouchValue],
+    [run.spell, run.spellCostMod, run.cardDiscountWindow /* Thymepiece: the slot's coin greens and reverts with the window, no shop rebuild */, spellBonus, spellBonusH, run.frontToBackBonus, run.frontToBackBonusH, run.board, run.nextSpellExtraCasts, run.goldSpentThisTurn, run.goldPouchValue, run.growthBonus, run.rubyBonus, run.clueBonus, run.revelerX, run.spiritDiscount, run.playedThisTurn, run.spellsThisTurn, run.rubyCastsThisTurn, run.runeSpellstone, run.tier, bothState /* every value the builder above READS (dep completeness, as the shop-row memo): the slot's live text must move with the any-spell tally / Clue value / Ruby bonus even when the reducer happens to keep `run.spell`'s identity */],
   );
   // Per-card referenced-card popups (uid → the cards it references). Stable across a drag (only
   // recomputes when the board / shop / hand or the Fodder buff changes), so it preserves the memo.

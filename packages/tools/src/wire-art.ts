@@ -96,6 +96,38 @@ const ALIASES: Record<string, string> = {
   cometconductor: 'ce3_conductor',     // the card is Neptus
   orreyartificer: 'ce3_artificer',     // the card is Cometius; the file also drops the second 'r' of Orrery
   groveweaveralt: 'b2_groveweaver',  // "GroveweaverAlt2" -> the b2_groveweaver2 variant slot
+  // 2026-09-14 owner rename handoff (30 set-3 minions; ids + art unchanged): the masters on disk carry the
+  // PRE-rename names, so each old name keeps landing on its card until the owner re-files the art.
+  horizoncourier: 'ce3_courier',       // now Cosmo Express
+  starpathvendor: 'ce3_vendor',        // now Sugarnova
+  fallingstarherald: 'ce3_herald',     // now Plummet
+  crashbornadept: 'ce3_adept',         // now Crash Course
+  accretionwarden: 'ce3_accretionwarden', // now The Great Attractor
+  eclipsewarden: 'ce3_eclipsewarden',  // now Totality
+  orbitkeeper: 'ce3_orbitkeeper',      // now Roundabout
+  coronadevotee: 'ce3_coronadevotee',  // now Solburn
+  starcharter: 'ce3_starcharter',      // now Maestro Lux
+  novaherald: 'ce3_novaherald',        // now Fuse Aldrin
+  dreamcurrentmystic: 'sp3_dreamcurrent', // now Lullaby Lou
+  gatheringguide: 'sp3_gatheringguide', // now Branch Manager
+  festivalkeeper: 'sp3_festivalkeeper', // now Tally
+  bondweavershaman: 'sp3_bondweaver',  // now Knot
+  spiritartificer: 'sp3_paradeartificer', // now Revelsmith
+  festivaltreasurer: 'sp3_treasurer',  // now Smokey Joe
+  slumberingcolossus: 'sp3_slumbering', // now Dozer
+  forestcolossus: 'sp3_forestcolossus', // now Old Timber
+  nurturer: 'sp3_nurturer',            // now Mother Moss
+  facetboundmartyr: 'k3_facetbound',   // now Shardluck
+  dealer: 'k3_forkedcrown',            // now Double Dealer
+  veinchantdelver: 'k3_veinchant',     // now Delver
+  prismpickartificer: 'k3_prismpick',  // now Picksy
+  runesparkchanneler: 'k3_runespark',  // now Livewire
+  splitpickapprentice: 'k3_splitpick', // now Pickles
+  equipmentcharger: 'n3_charger',      // now Jumpstart Jules
+  splitboonadept: 'n3_splitboon',      // now Halfsies
+  warbandrecruiter: 'n3_recruiter',    // now Uncle Orc
+  soullanternhierophant: 'u3_hierophant', // now Wick Mortis
+  festivalluminary: 'sp3_luminary',    // now Limelight
   cinderchancellor: 'dm_chancellor', // pre-rename name; RougeRogue.png wins the base slot, this fills `2`
   // 2026-07-31 renames. Hellrider and Lastlight now match their cards by name exactly, so they need no entry
   // (and RevolvingMaw.png correctly stops matching anything — Hellrider.png is the current art). Only Void

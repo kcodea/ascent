@@ -109,7 +109,7 @@ minion alive. Duplicates collapse into one entry; a single Gilded source upgrade
 **Charges (2026-09-11):**
 - **Every Equipment has its OWN charge, once per turn.** Holding Bloodpot and Titan Hammer, you may activate
   each once per turn. Own charges reset at Start of Turn; nothing carries across turns.
-- **Bonus charges are ONE shared pool.** Equipment Charger's Start of Turn grant (gilded = 2) and any future
+- **Bonus charges are ONE shared pool.** Jumpstart Jules's Start of Turn grant (gilded = 2) and any future
   source add to it; two grants = a pool of 2. Per-turn only — it expires at End of Turn / the next rebuild.
 - **The number shown on an Equipment = its own remaining charge + the shared pool.** With one bonus every
   Equipment reads **2**, in **green** (modified above baseline); plain when the pool is 0 (1, or 0 once its
@@ -172,7 +172,7 @@ in; the shop never rolls it. Engine: `packages/sim/src/starform.ts`; every rule 
    one offer that keeps them.
 7. **Consume = 100% of its stats to one Celestial; Collapse = 50% to 2 UNIQUE random friendly Celestials
    plus the extras** (owner rule D, 2026-09-13), halves rounded **up**, the base 1/1 **included** in what
-   transfers. The extras (Nova Herald's passive: +2 per Herald, +4 gilded; plus the run-wide
+   transfers. The extras (Fuse Aldrin's passive: +2 per Herald, +4 gilded; plus the run-wide
    `collapseExtraTargets` counter, 0 today and reserved for future cards) are drawn **with replacement** —
    an extra may land on a Celestial that already took a hit, so with two Celestials one can take 3 and the
    other 1. One Celestial: 1 original + every extra on it. None: the token still collapses and the stats go
@@ -195,15 +195,15 @@ pinned in `packages/sim/src/set3CelestialRoster.test.ts`):
   in the row right now** — the owner's "this shop" vocabulary (2026-07-25), not the per-turn channel. The Starform
   keeps it through the next refresh; every other offer loses it. Wishing Star's Echo fires in the shop only (a
   combat death has no shop to buff).
-- **Accretion Warden** eats the **highest-Tier** Shop minion; the **Accretion** spell eats the **highest current buy
+- **The Great Attractor** eats the **highest-Tier** Shop minion; the **Accretion** spell eats the **highest current buy
   Health**. Ties go to the **right-most**. With no Starform the Warden does nothing; the spell skips the consume but
   **still grants its Star Crash**.
 - **Shooting Star** counts Shop spells cast this turn (`spellsThisTurn` — a multiplied cast counts each time); the
   card prints the live total. **Zenith** counts a spell of **any** kind, Rubies included (the Gravestar Seer ruling).
-- **Corona Devotee** (rules v2) **Collapses** the token: 2 unique random friendly Celestials each gain the rounded-up
+- **Solburn** (rules v2) **Collapses** the token: 2 unique random friendly Celestials each gain the rounded-up
   half (the Devotee itself is eligible; gilded → each hit gains the full stats); a token with no Celestial at all
   still collapses and the stats go nowhere; no token → nothing happens. Its old Consume is now the token's **buy**.
-  **Nova Herald** is a **passive**: while it stands, every Collapse hits **2 additional** random friendly Celestials
+  **Fuse Aldrin** is a **passive**: while it stands, every Collapse hits **2 additional** random friendly Celestials
   (4 gilded; two Heralds → 4), drawn with replacement. Its text prints the static "2" (owner: "table for now").
 - **Lodestar** gives a friendly Celestial its **MAX stats**: current Attack + undamaged max Health (a 10/10 damaged
   to 10/5 then buffed +5/+5 hands over 15/15). Both phases.
@@ -219,9 +219,9 @@ pinned in `packages/sim/src/set3CelestialRoster.test.ts`):
 - **Star Crash may be aimed at the Starform** (a friendly Celestial): the token gains +5/+7 (Twin Star hears it) and
   the secondary half still lands on a random friendly minion on the **board**. Only the tribe's own Celestial-aimed
   spell reaches the token — a plain `friendly` spell keeps its board-only aim (rule 5 stays whole).
-- **Orbit Keeper**'s Start of Turn creates the token as the new turn's shop opens (into a full row → it eats the
+- **Roundabout**'s Start of Turn creates the token as the new turn's shop opens (into a full row → it eats the
   right-most minion); its End of Turn feeds a held token and does nothing without one.
-- **Star Charter** Discovers a Celestial from the run's pool — never itself, and never the Starform (a token, outside
+- **Maestro Lux** Discovers a Celestial from the run's pool — never itself, and never the Starform (a token, outside
   every draw pool).
 
 The **combat event vocabulary** is a union of **22 distinct event types** in
@@ -435,7 +435,7 @@ hear **wherever it happens**:
 
 ### A named-spell caster prints the spell, not its value (owner rule 2026-09-09, R-TEXT-01)
 
-A minion whose effect **casts a named spell** — Watcher, Soul-Lantern Hierophant, Anubis — reads "cast
+A minion whose effect **casts a named spell** — Watcher, Wick Mortis, Anubis — reads "cast
 **Lantern of Souls**." and stops. The spell is the minion's associated card, previewed on hover with its live,
 spell-power-aware value, the way a Ruby is previewed from the Kobolds that cast it. The caster never restates
 the number.

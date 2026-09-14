@@ -23,9 +23,12 @@ describe('targeting primitive', () => {
       colorCore: 0xffd9a0, colorGlow: 0xffa82e,
       segments: 22, curve: 0.26, curveVar: 0.4,
       springStiffness: 150, springDamping: 16,
-      swayAmp: 7, swayFreq: 1.6, swaySpeed: 2, motionInfluence: 0.012,
+      swayAmp: 7, swayFreq: 1.6, swaySpeed: 2, motionInfluence: 0.012, cursorLead: 0,
       pointerSize: 12, pointerGlow: 10, pointerTicks: 4, pointerSpin: 1.5, onTargetGrow: 1.6,
       colorPointer: 0xffe6b0, onTargetPreview: false,
+      sparkleOn: true, sparkleAlong: 28, sparklePointer: 40, sparkleAlpha: 0.95, sparkleSize: 3, sparkleSizeDecay: 0.7,
+      sparkleLife: 650, sparkleSpeed: 55, sparkleGravity: -40, sparkleDrag: 0.25, sparkleFling: 0.5,
+      sparkleSpread: 0.7, sparkleTwinkle: 7, sparkleColor: 0xffe6b0, sparkleColor2: 0xffa82e,
     });
   });
 

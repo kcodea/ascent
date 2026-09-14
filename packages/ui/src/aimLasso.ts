@@ -66,6 +66,15 @@ export interface AimLassoState {
 /** dt is clamped to this many seconds so a stalled tab (a huge frame gap) can't explode the springs. */
 const MAX_DT = 1 / 30;
 
+/**
+ * How much stiffer the CURSOR end is than the source end. A targeting line's business end must track the
+ * pointer ~exactly (no visible drag right at the cursor), while the body is free to lag and whip. So the
+ * spring stiffness ramps from `1×` at the source (t=0) to `1 + CURSOR_GRIP×` at the cursor (t=1); damping
+ * scales by its square root so the tightened end stays critically-ish damped rather than buzzing. Endpoints
+ * themselves are always pinned exactly — this governs the interior points NEAR each end.
+ */
+const CURSOR_GRIP = 14;
+
 const bezier = (a: number, c: number, b: number, t: number): number => {
   const mt = 1 - t;
   return mt * mt * a + 2 * mt * t * c + t * t * b;
@@ -130,13 +139,18 @@ export function stepLasso(
   const h = Math.min(Math.max(dt, 0), MAX_DT);
   const { perp, ctl } = geometry(from, to, state.side, state.amp, cfg);
   const swayScale = 1 + Math.max(0, speed) * cfg.motionInfluence;
-  const k = cfg.springStiffness;
-  const c = cfg.springDamping;
+  const baseK = cfg.springStiffness;
+  const baseC = cfg.springDamping;
   for (let idx = 0; idx < state.pos.length; idx++) {
     const t = (idx + 1) / n;
     const rest = restAt(t, from, to, perp, ctl, timeS, swayScale, cfg, state.seed);
     const p = state.pos[idx]!;
     const v = state.vel[idx]!;
+    // Grip: stiffen toward the cursor end (t→1) so the near-cursor ribbon tracks the pointer ~exactly, while
+    // the source end / middle keep the base spring and still whip. Damping scales by √grip to stay damped.
+    const grip = 1 + CURSOR_GRIP * t * t;
+    const k = baseK * grip;
+    const c = baseC * Math.sqrt(grip);
     // Semi-implicit Euler: a = k·(rest − p) − c·v ; v += a·h ; p += v·h. Stable for the default k/c at 60fps,
     // and dt is clamped so a long frame can't overshoot into a blow-up.
     const ax = k * (rest.x - p.x) - c * v.x;

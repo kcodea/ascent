@@ -358,12 +358,12 @@ export const WHIPLASSO: EquipmentDefinition = {
 };
 
 /**
- * SPIRITBRINGER — Bondweaver Shaman's Equipment (set-3 Spirit roster, 2026-09-09): a TARGETED Spirit on the
+ * SPIRITBINDER (named 'Spiritbringer' until 2026-09-13; id unchanged) — Bondweaver Shaman's Equipment (set-3 Spirit roster, 2026-09-09): a TARGETED Spirit on the
  * board and a random Spirit in hand each get +6/+6 (owner: "one on board and one in hand"). Gilded: +12/+12.
  */
 export const SPIRITBRINGER: EquipmentDefinition = {
   id: 'spiritbringer',
-  name: 'Spiritbringer',
+  name: 'Spiritbinder',
   text: 'Give a Spirit on your board and in your hand **+6/+6**.',
   goldenText: 'Give a Spirit on your board and in your hand **+12/+12**.',
   baseCost: 2,

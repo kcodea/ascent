@@ -1,0 +1,73 @@
+{
+  "version": 1,
+  "id": "energy-beam",
+  "duration": 1000,
+  "layers": [
+    {
+      "primitive": "targeting",
+      "anchor": "cursor",
+      "at": 0,
+      "params": {
+        "curve": 0.02,
+        "curveVar": 0,
+        "coreWidth": 8,
+        "coreAlpha": 1,
+        "colorCore": 16771583,
+        "glowWidth": 26,
+        "glowAlpha": 0.5,
+        "colorGlow": 13648127,
+        "taper": 0.3,
+        "breathe": 0.2,
+        "blendMode": "add",
+        "pointerSize": 0,
+        "pointerGlow": 0,
+        "pointerTicks": 0,
+        "sparkleOn": true,
+        "sparkleAlong": 40,
+        "sparklePointer": 0,
+        "sparkleShape": "shard",
+        "sparkleTurbulence": 300,
+        "sparkleTurbScale": 0.06,
+        "sparkleLife": 1200,
+        "sparkleSpeed": 30,
+        "sparkleGravity": 0,
+        "sparkleDrag": 0.9,
+        "sparkleAlpha": 0.85,
+        "sparkleSize": 2.5,
+        "sparkleColor": 13648127,
+        "sparkleColor2": 16711935,
+        "glowOn": true,
+        "glowAmt": 6,
+        "glow_color": 13648127,
+        "glow_alpha": 0.4
+      }
+    },
+    {
+      "primitive": "emitter",
+      "anchor": "source",
+      "at": 0,
+      "params": {
+        "rate": 120,
+        "life": 1400,
+        "speed": 25,
+        "speedVar": 0.6,
+        "spread": 0.8,
+        "gravity": 0,
+        "turbulence": 400,
+        "turbScale": 0.02,
+        "orientToVelocity": true,
+        "stretchX": 4,
+        "stretchY": 0.8,
+        "size": 26,
+        "sizeVar": 0.5,
+        "erode": 0.6,
+        "warp": 0.35,
+        "noiseScale": 6,
+        "gain": 1.4,
+        "glow": 0.4,
+        "blendMode": "add",
+        "emitShape": "point"
+      }
+    }
+  ]
+}

@@ -15,8 +15,8 @@ import {
  * at the top of styles.css — the tuner writes localStorage, which the other dev and the packaged exe never see.
  */
 const ROWS: [Tribe, string, string, string][] = [
-  ['celestial', 'Celestial', 'Set 3 — the Starform tribe. No colour shipped yet: pick one here.', 'Set 3'],
-  ['spirit', 'Spirit', 'Set 3 — the hand-summon tribe. No colour shipped yet: pick one here.', 'Set 3'],
+  ['celestial', 'Celestial', 'Set 3 — the Starform tribe. Shipped moonlit periwinkle (owner 2026-09-14).', 'Set 3'],
+  ['spirit', 'Spirit', 'Set 3 — the hand-summon tribe. Shipped lantern peach (owner 2026-09-14).', 'Set 3'],
   ['beast', 'Beast', 'Shipped green.', 'Established'],
   ['dragon', 'Dragon', 'Shipped white.', 'Established'],
   ['mech', 'Mech', 'Shipped blue.', 'Established'],

@@ -16,10 +16,10 @@ export type TribeColorConfig = Record<Tribe, string>;
 
 /** The shipped hues — MUST equal the `--t-*` tokens at the top of styles.css. */
 const DEFAULTS: TribeColorConfig = {
-  // The two set-3 tribes: placeholder picks (Celestial a starlit gold, Spirit a wisp teal-green) until the
-  // owner dials them in the tuner and ships the values here.
-  celestial: '#e9c46a',
-  spirit: '#7fd8b8',
+  // The two set-3 tribes — the owner's picks (2026-09-14): Celestial a moonlit periwinkle, Spirit a warm
+  // lantern peach.
+  celestial: '#96a0c5',
+  spirit: '#f8cd90',
   // The eight that already had a hue, unchanged.
   beast: '#4ea83b', dragon: '#ffffff', mech: '#27a9dd', undead: '#22b8a8', demon: '#b15cf0', neutral: '#9a8d79',
   dwarf: '#f0c33c', kobold: '#e8763a',

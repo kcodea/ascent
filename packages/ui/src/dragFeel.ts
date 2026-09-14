@@ -48,6 +48,12 @@ export interface DragFeel {
    *  bottom (a long drag up), 1 = at the hand's top edge (arms as soon as it clears the hand). Higher = LESS
    *  drag to cast. Spells ONLY — the minion-play line is separate and unchanged. */
   spellLine: number;
+  /** Minion play line — how far DOWN toward the hand a MINION must be lifted before it plays AND the warband
+   *  opens a slot to make room, as a fraction of the gap from the warband's bottom to the hand's top: 0 = at
+   *  the warband bottom, 1 = at the hand's top edge (plays as soon as it clears the hand); a small negative
+   *  sits it up in the play field. Higher = the warband reacts SOONER (less drag up). Minions ONLY — the spell
+   *  cast line is separate. Falls back to a fixed "10% up into the play area" line when the hand is unmeasured. */
+  playLine: number;
   /** Hand hover-pop FLOOR, as a fraction of the card height (--ch). Together with `handPop` it sets the pop:
    *  `translateY(--ch · (handFloor − handPop))`. This value is the resting line; higher = the card sits lower
    *  (bottom nearer the play-field floor). Reflected to the `--hand-floor` CSS var. */
@@ -95,6 +101,8 @@ const DEFAULTS: DragFeel = {
   magWeldLeadMs: 130,
   collapseY: 50,    // owner-tuned 2026-08-10: lift a bit more before the row fills the gap (was 20)
   spellLine: 0.55,  // owner-tuned 2026-08-12: spells arm ~55% of the way from the warband down to the hand
+  playLine: 0,      // minions play / the warband makes room once the card centre reaches the warband's bottom
+                    // edge (was a fixed 10% up into the field — this reacts sooner). Dial higher for sooner-still.
   handFloor: 0,     // owner-tuned 2026-07-20: no floor offset — the pop lift alone places the card
   handPop: 0.22,    // owner-tuned 2026-08-12: a gentler upward pop (× --ch) (was 0.53)
   shGrow: 1.08,     // owner-tuned: shadow a touch bigger than the card face while lifted
@@ -123,6 +131,7 @@ export const DRAG_RANGES: Record<keyof DragFeel, [number, number, number]> = {
   magWeldLeadMs: [0, 300, 10],
   collapseY: [0, 200, 5],
   spellLine: [0, 1, 0.02],
+  playLine: [-0.3, 1, 0.02],
   handFloor: [0, 1.5, 0.01],
   handPop: [0, 3, 0.01],
   shGrow: [0.8, 1.6, 0.01],
@@ -151,6 +160,7 @@ export const DRAG_DESC: Record<keyof DragFeel, string> = {
   magWeldLeadMs: 'How early (ms before the slide ends) the weld commits, so the ring OVERLAPS the tail of the slide instead of starting after it. 0 = the old back-to-back timing.',
   collapseY: 'Vertical distance (px) you must lift a card out of its row before the others slide in to fill the gap.',
   spellLine: 'How far a SPELL must be lifted from the hand before it arms (0 = up at the warband; 1 = right at the hand’s top edge). Higher = less drag to cast. Spells only — minions unchanged.',
+  playLine: 'How far a MINION must be lifted from the hand before it plays and the warband opens a slot to make room (0 = at the warband’s bottom edge; 1 = right at the hand’s top edge; negative sits it up in the field). Higher = the warband reacts sooner. Minions only.',
   handFloor: 'Where a hovered hand card’s BOTTOM lands (× card height). Works against the pop lift. Higher = the card sits lower.',
   handPop: 'How far a hovered hand card POPS UP (× card height). Height-independent lift (replaces the old -100% self-height term). Higher = pops further up.',
   shGrow: 'Drag shadow SIZE while a card is lifted (scale). Bigger = the card reads as higher off the table.',
@@ -180,7 +190,7 @@ const KEY = 'ascent.dragfeel';
  * Forget the bump and step 3 silently doesn't happen for anyone who has ever touched the tuner — which is the
  * exact bug this comment exists to prevent, so `dragFeel.test.ts` fails if `DEFAULTS` changes without it.
  */
-export const DRAG_DEFAULTS_VERSION = 9;
+export const DRAG_DEFAULTS_VERSION = 10;
 
 /** Shape actually written to localStorage: the values plus the defaults-version they were tuned against. */
 type SavedDragFeel = Partial<DragFeel> & { __v?: number };

@@ -72,10 +72,10 @@ for (const c of PROBES) CARD_INDEX[c.id] = c;
 const ROSTER: [string, string, number, number, number][] = [
   ['ce3_starseed', 'Star Seed', 1, 2, 1], ['ce3_dawnsentinel', 'Dawn Sentinel', 1, 1, 3],
   ['ce3_peddler', 'Stardust Peddler', 2, 2, 3], ['ce3_wishingstar', 'Wishing Star', 2, 2, 3],
-  ['ce3_accretionwarden', 'Accretion Warden', 3, 3, 4], ['ce3_shootingstar', 'Shooting Star', 3, 3, 2], ['ce3_eclipsewarden', 'Eclipse Warden', 3, 3, 6],
-  ['ce3_orbitkeeper', 'Orbit Keeper', 4, 3, 6], ['ce3_coronadevotee', 'Corona Devotee', 4, 4, 5], ['ce3_starcharter', 'Star Charter', 4, 3, 4],
+  ['ce3_accretionwarden', 'The Great Attractor', 3, 3, 4], ['ce3_shootingstar', 'Shooting Star', 3, 3, 2], ['ce3_eclipsewarden', 'Totality', 3, 3, 6],
+  ['ce3_orbitkeeper', 'Roundabout', 4, 3, 6], ['ce3_coronadevotee', 'Solburn', 4, 4, 5], ['ce3_starcharter', 'Maestro Lux', 4, 3, 4],
   ['ce3_lensgrinder', 'Lens Grinder', 5, 5, 6], ['ce3_lodestar', 'Lodestar', 5, 5, 9],
-  ['ce3_twinstar', 'Twin Star', 6, 6, 8], ['ce3_novaherald', 'Nova Herald', 6, 6, 9],
+  ['ce3_twinstar', 'Twin Star', 6, 6, 8], ['ce3_novaherald', 'Fuse Aldrin', 6, 6, 9],
   ['ce3_zenith', 'Zenith', 7, 8, 12], ['ce3_constellationprime', 'Constellation Prime', 7, 9, 9],
 ];
 
@@ -306,23 +306,23 @@ describe('Corona Devotee — Collapse your Starform: 2 unique random friendly Ce
     let s = withStarform(6, 9, { board: [body('a', 'dbg_cel'), body('n', 'dbg_neutral')], hand: [body('d', 'ce3_coronadevotee')] }); // 7/10 → 4/5
     s = play(s, 'd', { toIndex: 0 });
     expect(hasStarform(s)).toBe(false);
-    for (const uid of ['a', 'd']) expect(buffFrom(at(s, uid), 'Corona Devotee'), uid).toEqual([4, 5]);
+    for (const uid of ['a', 'd']) expect(buffFrom(at(s, uid), 'Solburn'), uid).toEqual([4, 5]);
     expect(stats(at(s, 'n'))).toEqual([1, 20]);
   });
   it('three Celestials: exactly two gain, seeded; the Devotee alone → just the Devotee; gilded → each gains the FULL stats; no Starform → nothing', () => {
     let s = withStarform(6, 9, { board: [body('a', 'dbg_cel'), body('b', 'dbg_cel2')], hand: [body('d', 'ce3_coronadevotee')] });
     s = play(s, 'd', { toIndex: 0 });
-    const gained = ['a', 'b', 'd'].filter((uid) => buffFrom(at(s, uid), 'Corona Devotee')[0] === 4);
+    const gained = ['a', 'b', 'd'].filter((uid) => buffFrom(at(s, uid), 'Solburn')[0] === 4);
     expect(gained, 'two unique hits').toHaveLength(2);
     let t = withStarform(6, 9, { board: [body('n', 'dbg_neutral'), body('m', 'dbg_neutral')], hand: [body('d', 'ce3_coronadevotee')] });
     t = play(t, 'd', { toIndex: 0 });
     expect(hasStarform(t), 'collapsed').toBe(false);
-    expect(buffFrom(at(t, 'd'), 'Corona Devotee')).toEqual([4, 5]);
+    expect(buffFrom(at(t, 'd'), 'Solburn')).toEqual([4, 5]);
     expect(stats(at(t, 'n'))).toEqual([1, 20]);
     let g = withStarform(6, 9, { board: [body('a', 'dbg_cel')], hand: [body('d', 'ce3_coronadevotee', { golden: true })] });
     g = play(g, 'd', { toIndex: 0 });
-    expect(buffFrom(at(g, 'a'), 'Corona Devotee')).toEqual([8, 10]);
-    expect(buffFrom(at(g, 'd'), 'Corona Devotee')).toEqual([8, 10]);
+    expect(buffFrom(at(g, 'a'), 'Solburn')).toEqual([8, 10]);
+    expect(buffFrom(at(g, 'd'), 'Solburn')).toEqual([8, 10]);
     let n = run({ board: [body('a', 'dbg_cel')], hand: [body('d', 'ce3_coronadevotee')] });
     n = play(n, 'd', { toIndex: 0 });
     expect(stats(at(n, 'a'))).toEqual([1, 20]);
@@ -461,10 +461,10 @@ describe('Nova Herald — when you Collapse a Starform, it buffs 2 additional ra
   it('one Herald on board: a Devotee\'s Collapse lands 2 unique + 2 extras = 4 hits over 3 Celestials — every hit is the rounded-up half', () => {
     let s = withStarform(6, 9, { board: [body('h', 'ce3_novaherald'), body('a', 'dbg_cel')], hand: [body('d', 'ce3_coronadevotee')] }); // 7/10 → 4/5 per hit
     s = play(s, 'd', { toIndex: 0 });
-    const total = ['h', 'a', 'd'].map((uid) => buffFrom(at(s, uid), 'Corona Devotee')).reduce<[number, number]>((acc, b) => [acc[0] + b[0], acc[1] + b[1]], [0, 0]);
+    const total = ['h', 'a', 'd'].map((uid) => buffFrom(at(s, uid), 'Solburn')).reduce<[number, number]>((acc, b) => [acc[0] + b[0], acc[1] + b[1]], [0, 0]);
     expect(total, '4 hits × 4/5').toEqual([16, 20]);
     expect(s.starformFx![0]!.toUids, 'the pull record lists every hit, duplicates allowed').toHaveLength(4);
-    for (const uid of ['h', 'a', 'd']) expect(buffFrom(at(s, uid), 'Corona Devotee')[0] % 4, uid).toBe(0);
+    for (const uid of ['h', 'a', 'd']) expect(buffFrom(at(s, uid), 'Solburn')[0] % 4, uid).toBe(0);
   });
   it('two Celestials, one Herald: a seeded case where one takes 3 hits and the other 1 (extras land with replacement)', () => {
     let found: RunState | null = null;
@@ -472,7 +472,7 @@ describe('Nova Herald — when you Collapse a Starform, it buffs 2 additional ra
       let s = withStarform(6, 9, { board: [body('h', 'ce3_novaherald')], hand: [body('d', 'ce3_coronadevotee')] });
       s.rngCursor = seed;
       s = play(s, 'd', { toIndex: 0 });
-      const h = buffFrom(at(s, 'h'), 'Corona Devotee')[0] / 4, d = buffFrom(at(s, 'd'), 'Corona Devotee')[0] / 4;
+      const h = buffFrom(at(s, 'h'), 'Solburn')[0] / 4, d = buffFrom(at(s, 'd'), 'Solburn')[0] / 4;
       expect(h + d, 'always 4 hits').toBe(4);
       expect(Math.min(h, d), 'each original is unique: both bodies take at least one').toBeGreaterThanOrEqual(1);
       if (h === 3 || d === 3) found = s;
@@ -483,15 +483,15 @@ describe('Nova Herald — when you Collapse a Starform, it buffs 2 additional ra
   it('two Heralds → 4 extras (6 hits); a gilded Herald → 4 extras; a Herald alone with a Starform takes all 3 hits itself', () => {
     let s = withStarform(6, 9, { board: [body('h', 'ce3_novaherald'), body('i', 'ce3_novaherald')], hand: [body('d', 'ce3_coronadevotee')] });
     s = play(s, 'd', { toIndex: 0 });
-    const hits = ['h', 'i', 'd'].reduce((n, uid) => n + buffFrom(at(s, uid), 'Corona Devotee')[0] / 4, 0);
+    const hits = ['h', 'i', 'd'].reduce((n, uid) => n + buffFrom(at(s, uid), 'Solburn')[0] / 4, 0);
     expect(hits).toBe(6);
     let g = withStarform(6, 9, { board: [body('h', 'ce3_novaherald', { golden: true })], hand: [body('d', 'ce3_coronadevotee')] });
     g = play(g, 'd', { toIndex: 0 });
-    expect(['h', 'd'].reduce((n, uid) => n + buffFrom(at(g, uid), 'Corona Devotee')[0] / 4, 0)).toBe(6);
+    expect(['h', 'd'].reduce((n, uid) => n + buffFrom(at(g, uid), 'Solburn')[0] / 4, 0)).toBe(6);
     // The Herald as the ONLY Celestial: a plain collapse helper call (no Devotee) → 1 original + 2 extras, all on it.
     const alone = withStarform(6, 9, { board: [body('h', 'ce3_novaherald'), body('n', 'dbg_neutral')], hand: [body('d', 'ce3_coronadevotee')] });
     const a2 = play(alone, 'd', { toIndex: 0 });
-    expect(buffFrom(at(a2, 'h'), 'Corona Devotee')[0] + buffFrom(at(a2, 'd'), 'Corona Devotee')[0], '2 unique (h, d) + 2 extras = 4 hits').toBe(16);
+    expect(buffFrom(at(a2, 'h'), 'Solburn')[0] + buffFrom(at(a2, 'd'), 'Solburn')[0], '2 unique (h, d) + 2 extras = 4 hits').toBe(16);
     expect(stats(at(a2, 'n'))).toEqual([1, 20]);
   });
   it('its own play does nothing to the token (no Shout any more); the Herald is eligible as a hit like any Celestial', () => {

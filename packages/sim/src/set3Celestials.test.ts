@@ -59,9 +59,12 @@ describe('the roster', () => {
   it('the two archived name-twins carry an (Orbit) suffix, so no two cards share a display name', () => {
     expect(CARD_INDEX['c3_courier']!.name).toBe('Horizon Courier (Orbit)');
     expect(CARD_INDEX['c3_vendor']!.name).toBe('Starpath Vendor (Orbit)');
+    // 2026-09-14 rename handoff: the live twins are Cosmo Express / Sugarnova now, so the (Orbit) suffix is
+    // belt-and-braces — but every display name must still be unique.
     const names = Object.values(CARD_INDEX).map((c) => c.name);
-    expect(names.filter((n) => n === 'Horizon Courier')).toHaveLength(1);
-    expect(names.filter((n) => n === 'Starpath Vendor')).toHaveLength(1);
+    expect(names.filter((n) => n === 'Cosmo Express')).toHaveLength(1);
+    expect(names.filter((n) => n === 'Sugarnova')).toHaveLength(1);
+    expect(names.filter((n) => n === 'Horizon Courier')).toHaveLength(0);
   });
   it('the set-3 Yazzus fork is Tier 7 now (owner 2026-09-11, "as he is in set 2"); stats and text untouched', () => {
     const d = CARD_INDEX['n3_yazzus']!;

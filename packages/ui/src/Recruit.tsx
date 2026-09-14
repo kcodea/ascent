@@ -64,7 +64,7 @@ import { TavernUpButton } from './TavernUpButton';
 import { GoldPill } from './GoldPill';
 import { Icon } from './Icon';
 import { sfx, stopAllAudio, resumeAudio, stopTurnCharge } from './sfx';
-import { pixiFx, discoverFx } from './pixiFx';
+import { pixiFx, discoverFx, RUBY_AIM_DEF_ID } from './pixiFx';
 import { FxUnderSlot } from './PixiFxLayer';
 import { perfMonitor } from './perfMonitor';
 import { getSwapFxConfig } from './swapFxConfig';
@@ -132,6 +132,18 @@ const RISE_REFORM_MS = 460;
 
 const EMPTY_KW: ReadonlyMap<string, ReadonlySet<string>> = new Map();
 const EMPTY_TRANSFORMS: ReadonlyMap<string, string> = new Map();
+
+/** A cast that should play the `ruby-target` aim effect instead of `spell-target`: a Ruby token (`ruby:true`)
+ *  or an explicitly ruby-themed TARGETABLE spell. Kept as an explicit id set rather than an effect scan on
+ *  purpose (owner 2026-09-14: include `rubytransfer`, exclude `veinstorm`, which is also ruby-themed) — the
+ *  membership is a deliberate design call, so a new ruby spell is opted in here by hand. Targetability is
+ *  implicit: only a targetable cast draws an aim line, so untargeted ruby spells and ruby minions never reach
+ *  this. */
+const RUBY_AIM_SPELL_IDS: ReadonlySet<string> = new Set(['rubytransfer']);
+function playsRubyAim(def: (typeof CARD_INDEX)[string] | undefined): boolean {
+  if (!def) return false;
+  return def.ruby === true || RUBY_AIM_SPELL_IDS.has(def.id);
+}
 
 // Shop offers + warband minions are the cards that slide during a drag/reorder (GSAP Flip targets).
 const FLIP_SEL_TAVERN = '[data-zone="tavern"] .row .card[data-uid]';
@@ -2839,7 +2851,9 @@ export function Recruit() {
   const dragPosRef = useRef<{ x: number; y: number } | null>(null);
   /** Mirrors the render's `castingSpell` / `castTargetUid` so `flushMove` can keep the spell aim line exact
    *  (it runs every frame; the render now only runs on the quantum). Written during render, read per frame. */
-  const castAimRef = useRef<{ casting: boolean; onTarget: boolean }>({ casting: false, onTarget: false });
+  // `defId` picks the aim EFFECT for this cast: a Ruby dragged from hand plays `ruby-target`; everything else
+  // leaves it undefined so `setAimLine` uses its default (`spell-target`).
+  const castAimRef = useRef<{ casting: boolean; onTarget: boolean; defId?: string }>({ casting: false, onTarget: false });
   // Weighted-drag motion: the floating .dragcard lags slightly behind the cursor and tilts toward its
   // motion. Driven by a per-frame rAF that writes the card's transform directly (no React re-render), so it
   // stays compositor-only. `dragCardRef` is the floating node; `dragMotionRef` holds its smoothed position.
@@ -3648,7 +3662,7 @@ export function Recruit() {
       // The spell aim line follows the cursor EXACTLY (every frame), even though the state behind it only
       // advances on the decision gate — otherwise the line would visibly step.
       if (castAimRef.current.casting && d0) {
-        pixiFx.setAimLine({ x: d0.startX, y: d0.startY }, { x: e.clientX, y: e.clientY }, castAimRef.current.onTarget, getAimFxConfig());
+        pixiFx.setAimLine({ x: d0.startX, y: d0.startY }, { x: e.clientX, y: e.clientY }, castAimRef.current.onTarget, getAimFxConfig(), castAimRef.current.defId);
       }
       const zone = inSellRegion(e.clientY) ? 'tavern' : inBuyRegion(e.clientY) ? 'hand' : zoneAtCached(e.clientX, e.clientY);
       // Re-render only when a VISIBLE decision changes — not on every quantum of travel. The dragged card, aim
@@ -4644,7 +4658,8 @@ export function Recruit() {
       // Use the exact live position, not the quantised state, so this render-time placement agrees with the
       // per-frame update in `flushMove` (otherwise the line would flick back 8px on every commit).
       const lp = dragPosRef.current ?? { x: drag.x, y: drag.y };
-      pixiFx.setAimLine({ x: drag.startX, y: drag.startY }, lp, !!castTargetUid, getAimFxConfig());
+      const defId = playsRubyAim(CARD_INDEX[drag.view.cardId]) ? RUBY_AIM_DEF_ID : undefined; // a Ruby / ruby spell → ruby-target
+      pixiFx.setAimLine({ x: drag.startX, y: drag.startY }, lp, !!castTargetUid, getAimFxConfig(), defId);
     } else if (!heroArmed && !equipArmed && !pendingTarget) {
       pixiFx.clearAimLine(); // no targeting gesture of any kind is live
     }
@@ -4997,7 +5012,9 @@ export function Recruit() {
     geo: dragGeo,
   });
   const { wouldMagnetize, castTargetUid, overWarband, collapsedLift, shopGapIndex, gapIndex, handGapIndex } = dragDecision;
-  castAimRef.current = { casting: castingSpell, onTarget: !!castTargetUid };
+  // A Ruby (or ruby-themed spell) cast from hand gets its own aim effect (`ruby-target`); anything else uses the default.
+  const castIsRuby = castingSpell && !!drag && playsRubyAim(CARD_INDEX[drag.view.cardId]);
+  castAimRef.current = { casting: castingSpell, onTarget: !!castTargetUid, defId: castIsRuby ? RUBY_AIM_DEF_ID : undefined };
   const draggingBoard = !!drag?.active && drag.source === 'board';
   // The dragged card STAYS in the row (rendered invisible via `dimmed`) so its slot holds the row width —
   // that's what stops the neighbours re-centring inward the instant you lift it (the "snap in then back out").

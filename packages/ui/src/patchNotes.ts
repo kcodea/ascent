@@ -56,6 +56,16 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-14',
+    label: 'Ruby targeting',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: 'Rubies (and Ruby Transfer) now get their own targeting effect when you aim them from hand, distinct from the normal spell targeting look.',
+      },
+    ],
+  },
+  {
+    date: '2026-09-14',
     label: 'Set 3 art pass',
     changes: [
       {

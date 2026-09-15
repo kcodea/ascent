@@ -90,6 +90,7 @@ const REGISTRY: Record<string, (budget: PilotBudget) => SeatPilot> = {
   strategist: (budget) => createStrategistPilot(budget, 0x9e3779b9, { exploration: 0 }),
   'strategist:rotate': (budget) => createStrategistPilot(budget, 0x9e3779b9, { exploration: 'rotate' }),
   operator: (budget) => createOperatorPilot(budget, 0x9e3779b9),
+  'operator:adaptive': (budget) => createOperatorPilot(budget, 0x9e3779b9, { adaptive: true }),
 };
 const EXPLORE = /^strategist:explore(\d+)$/;
 const OPERATOR_LINE = /^operator:(demon|dwarf|dragon|beast)$/;

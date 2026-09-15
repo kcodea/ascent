@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "name": "set2-pinned-adaptive-jenkins",
+  "mode": "pinnedLobby",
+  "setId": "set2",
+  "policy": {
+    "id": "operator:adaptive",
+    "budget": {
+      "depth": 1,
+      "beam": 1,
+      "maxNodes": 40,
+      "positionCandidates": 2
+    }
+  },
+  "seeds": {
+    "start": 1,
+    "count": 100
+  },
+  "corpus": {
+    "name": "set2-players-v1",
+    "digest": "87909308f9c0a30b"
+  },
+  "fightRules": "shipped",
+  "notes": "B9: the ADAPTIVE operator (uncommitted union procedure until a core engine of one of the four lines is fielded, then that line's operator), seat 0 pinned to jenkins, 100 lobbies vs the recorded set-2 players.",
+  "heroes": [
+    "jenkins"
+  ]
+}

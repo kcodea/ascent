@@ -43,7 +43,7 @@ const ROLES: Record<string, CardRole> = {
   b2_spots: R(3, 'Start of Combat: the two left-most Echoes', { fromWave: 10 }),
   sylus: R(3, 'every Echo once more', { fromWave: 8 }),
   b2_elderhorn: R(3, 'Beast Rallies or Echoes an additional time', { fromWave: 12 }),
-  kennel: R(3, 'Kennelmaster: the Beast Aura at Start of Combat, improving per Avenge', { core: true }),
+  kennel: R(3, 'Kennelmaster: the Beast Aura at Start of Combat, improving per Avenge'),
   b2_beardsley: R(3, 'Beardsley: +3/+3 per summon, improving', { fromWave: 6 }),
   b2_oona: R(2, 'King Oona: summoned Beasts double', { fromWave: 8 }),
   b2_mammoth: R(3, 'Echo: three random Beasts — the left-most Echo', { fromWave: 8 }),

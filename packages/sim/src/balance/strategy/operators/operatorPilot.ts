@@ -58,6 +58,9 @@ export const OPERATORS: Readonly<Record<OperatorLine, LineOperator>> = {
   beast: BEAST_OPERATOR,
 };
 
+/** The adaptive pilot's commit order when several cores are on the board at once. */
+const COMMIT_ORDER: readonly OperatorLine[] = ['dragon', 'demon', 'dwarf', 'beast'];
+
 /** The operator a strategist package routes to, or null (no operator for that line yet). */
 export function operatorForPackage(packageId: string): LineOperator | null {
   for (const op of Object.values(OPERATORS)) if (op.packages.includes(packageId)) return op;
@@ -67,6 +70,11 @@ export function operatorForPackage(packageId: string): LineOperator | null {
 export interface OperatorOptions {
   /** Pin a line regardless of the run's fit ranking (`operator:<line>`). Absent = route by the strategist's line. */
   line?: OperatorLine;
+  /** ADAPTIVE (`operator:adaptive`): commit to no line until a CORE engine piece of one of the four lines is
+   *  fielded — until then play the UNION procedure (every line's core on sight, the shared tier curve, the best
+   *  bodies) and commit to whichever engine the Shop delivers first. The measured reason: a fixed line assembles its
+   *  engine by wave 5 in 15–43% of runs, and the runs that do are the ones that place. */
+  adaptive?: boolean;
   /** Record label; defaults to `operator` / `operator:<line>`. */
   id?: string;
   /** Options for the wrapped strategist (its exploration is always 0 — the natural line). */
@@ -84,7 +92,7 @@ export interface OperatorTrace {
 export interface OperatorLineRecord extends LineRecord {
   /** The operator that played the run: a line id, `none` (no operator for the line), or `pivoted` (handed to the
    *  strategist at `PIVOT_WAVE`). Additive on `LineRecord`. */
-  operator: OperatorLine | 'none' | 'pivoted';
+  operator: OperatorLine | 'none' | 'pivoted' | 'uncommitted';
 }
 
 export interface OperatorPilot extends SeatPilot {
@@ -100,6 +108,8 @@ interface SeatRoute {
   op: LineOperator | null;
   engineSeen: boolean;
   pivoted: boolean;
+  /** Adaptive: still uncommitted (playing the union procedure). */
+  uncommitted: boolean;
 }
 
 /** The action budget the skeleton allows itself per turn before it ends the turn (the runner's own guard is
@@ -123,12 +133,46 @@ export function accepted(run: RunState, action: Action): boolean {
   }
 }
 
-export function operatorId(line?: OperatorLine): string {
-  return line ? `operator:${line}` : 'operator';
+export function operatorId(line?: OperatorLine, adaptive = false): string {
+  return adaptive ? 'operator:adaptive' : line ? `operator:${line}` : 'operator';
+}
+
+/**
+ * THE UNION operator the adaptive pilot plays before it commits: every line's role table merged at the MAX want
+ * (so every core engine of every line is bought on sight), the shared tier curve, the union of engine ids, a
+ * generic arrangement (Taunts and the smallest bodies forward, the biggest body last) and the biggest body as the
+ * spell target. It fields no line-specific feed — there is no line yet.
+ */
+export function unionOperator(): LineOperator {
+  const ops = Object.values(OPERATORS);
+  const roles: Record<string, import('./types').CardRole> = {};
+  for (const op of ops) for (const [id, r] of Object.entries(op.roles)) {
+    const cur = roles[id];
+    if (!cur || r.want > cur.want || (r.want === cur.want && r.core && !cur.core)) roles[id] = { ...r, ...(r.filler && cur && !cur.filler ? { filler: false } : {}) };
+  }
+  return {
+    id: 'demon', // a placeholder id: the union never records itself (the route reports `uncommitted`)
+    packages: [],
+    tribe: 'demon',
+    tierByWave: [undefined, undefined, 2, 4, 6, 8, 10],
+    roles,
+    engineIds: ops.flatMap((o) => o.engineIds),
+    defaultWant: (cardId, v) => {
+      const d = CARD_INDEX[cardId];
+      if (!d || d.spell) return 0;
+      return v.wave <= 4 ? 1 : 0;
+    },
+    feed: () => [],
+    spellTarget: (v) => [...v.board].sort((a, b) => stats(b) - stats(a))[0] ?? null,
+    aim: (v, _src, legal) => v.board.filter((c) => legal.includes(c.uid)).sort((a, b) => stats(b) - stats(a))[0]?.uid ?? legal[0] ?? null,
+    slot: (c) => (c.keywords.includes('T') ? 1 : 5) - Math.min(4, stats(c) / 20),
+    pinned: () => false,
+  };
 }
 
 export function createOperatorPilot(budget: PilotBudget, seed: number, opts: OperatorOptions = {}): OperatorPilot {
-  const id = opts.id ?? operatorId(opts.line);
+  const id = opts.id ?? operatorId(opts.line, opts.adaptive);
+  const union = opts.adaptive ? unionOperator() : null;
   const strategist = createStrategistPilot(budget, seed, { ...(opts.strategist ?? {}), exploration: 0, id });
   const routes = new Map<string, SeatRoute>();
   const mems = new Map<string, TurnMemory>();
@@ -140,9 +184,9 @@ export function createOperatorPilot(budget: PilotBudget, seed: number, opts: Ope
     if (hit) return hit;
     const setId = run.setId ?? 'set2';
     const line = pickLineForRun(run.heroId, run.tribes, run.seed ^ seed, 0, setId);
-    let op: LineOperator | null = opts.line ? OPERATORS[opts.line] : operatorForPackage(line.primary);
-    if (op && !run.tribes.includes(op.tribe)) op = null; // a line the run cannot field is not operated
-    const route: SeatRoute = { line, op, engineSeen: false, pivoted: false };
+    let op: LineOperator | null = union ?? (opts.line ? OPERATORS[opts.line] : operatorForPackage(line.primary));
+    if (op && !union && !run.tribes.includes(op.tribe)) op = null; // a line the run cannot field is not operated
+    const route: SeatRoute = { line, op, engineSeen: false, pivoted: false, uncommitted: !!union };
     routes.set(seatId, route);
     return route;
   };
@@ -194,6 +238,15 @@ export function createOperatorPilot(budget: PilotBudget, seed: number, opts: Ope
         return delegate('aim');
       }
       return delegate(m.kind);
+    }
+
+    // ── 1a. adaptive: commit to the first line whose CORE engine is on the board ───────────────────────
+    if (route.uncommitted) {
+      // Commit priority when two cores are fielded at once: the lines whose engines compound hardest first
+      // (measured 2026-09-15: Dragon 6.1 / Demon 6.8 / Dwarf 7.2 / Beast 5.9 placement, but Beast's growth curve is
+      // the flattest — its survivors grew through Rally payoffs the line does not own).
+      const committed = COMMIT_ORDER.map((id) => OPERATORS[id]).find((o) => run.tribes.includes(o.tribe) && v.board.some((c) => o.roles[c.cardId]?.core));
+      if (committed) { route.op = committed; route.uncommitted = false; route.line = { ...route.line, primary: committed.packages[0]! }; return decide(run, ctx); }
     }
 
     // ── 1. the pivot rule ────────────────────────────────────────────────────────────────────────────────
@@ -301,7 +354,7 @@ export function createOperatorPilot(budget: PilotBudget, seed: number, opts: Ope
     lineOf: (seatId = 'seat') => {
       const r = routes.get(seatId);
       if (!r) return undefined;
-      return { primary: r.line.primary, ...(r.line.secondary ? { secondary: r.line.secondary } : {}), fitRank: r.line.fitRank, operator: r.pivoted ? 'pivoted' : (r.op?.id ?? 'none') };
+      return { primary: r.line.primary, ...(r.line.secondary ? { secondary: r.line.secondary } : {}), fitRank: r.line.fitRank, operator: r.pivoted ? 'pivoted' : r.uncommitted ? 'uncommitted' : (r.op?.id ?? 'none') };
     },
     lastTrace: (seatId = 'seat') => traces.get(seatId),
   };

@@ -36,6 +36,8 @@ export const ExperimentManifestSchema = z.object({
   maxRounds: z.number().int().min(1).optional(),
   maxActionsPerTurn: z.number().int().min(1).optional(),
   opponentPool: z.object({ name: z.string().min(1), digest: z.string().min(1) }).strict().optional(),
+  corpus: z.object({ name: z.string().min(1), digest: z.string().min(1) }).strict().optional(),
+  fightRules: z.enum(['corrected', 'shipped']).optional(),
   overlay: z.record(z.string(), z.object({ attack: z.number().optional(), health: z.number().optional(), tier: z.number().optional(), cost: z.number().optional(), params: z.record(z.string(), z.record(z.string(), z.union([z.number(), z.string(), z.boolean()]))).optional() }).strict()).optional(),
   notes: z.string().optional(),
 }).strict();
@@ -67,6 +69,8 @@ export function describeManifest(m: ResolvedManifest): string {
     ['maxRounds', String(m.maxRounds)],
     ['maxActionsPerTurn', String(m.maxActionsPerTurn)],
     ['opponentPool', m.opponentPool ? `${m.opponentPool.name} @ ${m.opponentPool.digest}` : '(none — procedural panel)'],
+    ['corpus', m.corpus ? `${m.corpus.name} @ ${m.corpus.digest}` : m.mode === 'pinnedLobby' ? '(MISSING — a pinned lobby must name its corpus)' : '(n/a)'],
+    ['fightRules', m.fightRules ?? (m.mode === 'pinnedLobby' ? 'shipped (by definition)' : 'corrected (default)')],
     ['notes', m.notes ?? ''],
   ]);
 }

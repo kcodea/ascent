@@ -60,8 +60,28 @@ export function renderReport(agg: Aggregate, opts: ReportOptions): string {
     out.push('No failed runs.');
   }
   out.push('');
-  out.push(`Population mean placement: ${ciText(agg.populationPlacement)} (symmetric self-play is mechanically 4.5; hero-specific rows carry the signal).`);
+  if (agg.recorded) out.push(`Pilot mean placement: ${ciText(agg.populationPlacement)} — against a FROZEN recorded population (below); 4.5 would be "as good as the field", lower is better.`);
+  else out.push(`Population mean placement: ${ciText(agg.populationPlacement)} (symmetric self-play is mechanically 4.5; hero-specific rows carry the signal).`);
   out.push('');
+
+  // ── the recorded population (pinned lobbies) ─────────────────────────────────────────────────────────────────
+  if (agg.recorded) {
+    const r = agg.recorded;
+    out.push('## Recorded population (the field the pilot sat in — not decisions, not ranked)');
+    out.push('');
+    out.push(`${r.seats} recorded seats from ${r.runs} distinct player runs by ${r.authors} authors; ${fmt(r.wavesPerRun, 1)} recorded waves per run. Recordings do not adapt: a pinned job measures the pilot against this population as it was recorded.`);
+    out.push('');
+    out.push(`Recordings' mean placement: ${ciText(r.recordingsPlacement)} · pilot: ${ciText(r.pilotPlacement)}. Pilot rounds: ${Object.entries(r.pilotResults).map(([k, v]) => `${k} ${v}`).join(', ')}.`);
+    out.push('');
+    out.push('| patch | seats |');
+    out.push('|---|---|');
+    for (const [p, n] of Object.entries(r.patches)) out.push(`| ${p} | ${n} |`);
+    out.push('');
+    out.push('| recorded hero | seats |');
+    out.push('|---|---|');
+    for (const [h, n] of Object.entries(r.heroes).sort(([, a], [, b]) => b - a)) out.push(`| ${h} | ${n} |`);
+    out.push('');
+  }
 
   // ── likely problems ─────────────────────────────────────────────────────────────────────────────────────────
   out.push('## Likely problems (evidence level 1 — descriptive; co-occurrence, not causation)');

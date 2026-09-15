@@ -38,6 +38,11 @@ export interface RecruitTurnOptions {
   /** Consecutive REJECTED proposals tolerated before the seat is failed. Default 3: a pilot that re-proposes
    *  the same illegal move is stuck, and a stuck pilot is a measurement defect, not a quiet end turn. */
   maxConsecutiveRejections?: number;
+  /** How the turn ENDS. `true` (default) parks the prepared side on `pendingCombatSide` for the lobby to fight
+   *  (self-play: both seats are live). `false` ends the turn through the SHIPPED `faceOmen`, which resolves the
+   *  fight right there against the run's own opponent — the lobby seat it is paired with (`lobbyOpponentBoard`)
+   *  or the served pool board — exactly as the live player's End Turn does (the pinned lobby, `pinnedLobby.ts`). */
+  deferFight?: boolean;
 }
 
 export interface RecruitTurnOutcome {
@@ -130,7 +135,7 @@ export function playRecruitTurn(
     // clock and an unanswered aim is a decision it failed to make.)
     if (proposal === null || proposal.type === 'faceOmen') {
       if (modalOpen(s)) return { run: s, accepted, failure: `${where}: pilot ${pilot.id} ended the turn with a modal open (${openModalName(s)})` };
-      const endTurn: Action = { type: 'faceOmen', deferFight: true };
+      const endTurn: Action = opts.deferFight === false ? { type: 'faceOmen' } : { type: 'faceOmen', deferFight: true };
       const pre = stateHash(s);
       const next = reduce(s, endTurn);
       if (next === s) return { run: s, accepted, failure: `${where}: the engine refused End Turn` };

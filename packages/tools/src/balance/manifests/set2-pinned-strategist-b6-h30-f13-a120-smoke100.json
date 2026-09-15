@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "name": "set2-pinned-strategist-b6-h30-f13-a120-smoke100",
+  "mode": "pinnedLobby",
+  "setId": "set2",
+  "policy": {
+    "id": "strategist",
+    "budget": {
+      "depth": 1,
+      "beam": 1,
+      "maxNodes": 40,
+      "positionCandidates": 2,
+      "growthWeight": 20,
+      "horizonWeight": 30,
+      "horizonFightWeight": 13,
+      "horizonTop": 3
+    }
+  },
+  "seeds": {
+    "start": 1,
+    "count": 100
+  },
+  "corpus": {
+    "name": "set2-players-v1",
+    "digest": "87909308f9c0a30b"
+  },
+  "fightRules": "shipped",
+  "notes": "B6 round 2 HORIZON: growth 20 + the two-turn probe re-ranking at horizonWeight 30 / horizonFightWeight 13, top 3; maxActionsPerTurn 120 (a Shout-cycling Embermouth turn legitimately exceeds 60 actions). Same seeds, corpus and budget as set2-pinned-strategist-smoke100.",
+  "maxActionsPerTurn": 120
+}

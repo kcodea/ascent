@@ -33,6 +33,9 @@ export const PilotBudgetSchema = z.object({
   imitationLineWeight: z.number().min(0).optional(),
   imitationVariant: z.string().optional(),
   growthWeight: z.number().min(0).optional(),
+  horizonWeight: z.number().min(0).optional(),
+  horizonFightWeight: z.number().min(0).optional(),
+  horizonTop: z.number().int().min(1).max(10).optional(),
 }).strict();
 
 export const ExperimentManifestSchema = z.object({
@@ -77,7 +80,7 @@ export function describeManifest(m: ResolvedManifest): string {
     ['mode', m.mode],
     ['setId', m.setId],
     ['heroes', m.heroes.length ? m.heroes.join(', ') : '(every enabled hero eligible in the set)'],
-    ['policy', `${m.policy.id}  depth=${m.policy.budget.depth} beam=${m.policy.budget.beam} maxNodes=${m.policy.budget.maxNodes} positionCandidates=${m.policy.budget.positionCandidates}${m.policy.budget.scouting ? ` scouting survivalWeight=${m.policy.budget.survivalWeight ?? 0}` : ''}${m.policy.budget.priorWeight !== undefined ? ` priorWeight=${m.policy.budget.priorWeight}` : ''}${m.policy.budget.valueWeight !== undefined ? ` valueWeight=${m.policy.budget.valueWeight}` : ''}${m.policy.budget.imitationWeight !== undefined ? ` imitationWeight=${m.policy.budget.imitationWeight}` : ''}${m.policy.budget.imitationLineWeight !== undefined ? ` imitationLineWeight=${m.policy.budget.imitationLineWeight}` : ''}${m.policy.budget.imitationVariant ? ` imitationVariant=${m.policy.budget.imitationVariant}` : ''}${m.policy.budget.growthWeight !== undefined ? ` growthWeight=${m.policy.budget.growthWeight}` : ''}`],
+    ['policy', `${m.policy.id}  depth=${m.policy.budget.depth} beam=${m.policy.budget.beam} maxNodes=${m.policy.budget.maxNodes} positionCandidates=${m.policy.budget.positionCandidates}${m.policy.budget.scouting ? ` scouting survivalWeight=${m.policy.budget.survivalWeight ?? 0}` : ''}${m.policy.budget.priorWeight !== undefined ? ` priorWeight=${m.policy.budget.priorWeight}` : ''}${m.policy.budget.valueWeight !== undefined ? ` valueWeight=${m.policy.budget.valueWeight}` : ''}${m.policy.budget.imitationWeight !== undefined ? ` imitationWeight=${m.policy.budget.imitationWeight}` : ''}${m.policy.budget.imitationLineWeight !== undefined ? ` imitationLineWeight=${m.policy.budget.imitationLineWeight}` : ''}${m.policy.budget.imitationVariant ? ` imitationVariant=${m.policy.budget.imitationVariant}` : ''}${m.policy.budget.growthWeight !== undefined ? ` growthWeight=${m.policy.budget.growthWeight}` : ''}${m.policy.budget.horizonWeight !== undefined ? ` horizonWeight=${m.policy.budget.horizonWeight}` : ''}${m.policy.budget.horizonFightWeight !== undefined ? ` horizonFightWeight=${m.policy.budget.horizonFightWeight}` : ''}${m.policy.budget.horizonTop !== undefined ? ` horizonTop=${m.policy.budget.horizonTop}` : ''}`],
     ['seeds', `${m.seeds.start} … ${m.seeds.start + m.seeds.count - 1}  (${m.seeds.count})`],
     ['maxRounds', String(m.maxRounds)],
     ['maxActionsPerTurn', String(m.maxActionsPerTurn)],

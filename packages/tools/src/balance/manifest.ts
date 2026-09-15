@@ -36,6 +36,7 @@ export const ExperimentManifestSchema = z.object({
   maxRounds: z.number().int().min(1).optional(),
   maxActionsPerTurn: z.number().int().min(1).optional(),
   opponentPool: z.object({ name: z.string().min(1), digest: z.string().min(1) }).strict().optional(),
+  overlay: z.record(z.string(), z.object({ attack: z.number().optional(), health: z.number().optional(), tier: z.number().optional(), cost: z.number().optional(), params: z.record(z.string(), z.record(z.string(), z.union([z.number(), z.string(), z.boolean()]))).optional() }).strict()).optional(),
   notes: z.string().optional(),
 }).strict();
 

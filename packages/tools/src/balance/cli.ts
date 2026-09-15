@@ -17,6 +17,7 @@ import { completedSeeds, createJob, listJobs, loadJob, writeLobby, writeSummary 
 import { loadManifest } from './manifest';
 import { computeNodeIdentity } from './identity';
 import { buildPool, registerPool } from './pool';
+import { applyContentOverlay } from '@game/sim/balance/overlay';
 import { createRecorder, pilotFor, runSelfPlayLobby, synthesizeLobby, syntheticIdentity, syntheticManifest, type ExperimentIdentity, type SyntheticOptions } from './deps';
 import type { SetId } from '@game/content';
 
@@ -97,6 +98,8 @@ export function main(argv: readonly string[] = process.argv.slice(2)): void {
       // as a censored record, never dropped, so the coverage ledger sees it.
       const manifest = loadManifest(need(args, 'manifest'));
       if (manifest.mode !== 'selfPlayLobby') throw new Error(`balance:run — mode "${manifest.mode}" is not runnable yet (only selfPlayLobby is wired)`);
+      // The CANDIDATE OVERLAY (overlay.ts) goes on BEFORE the identity, so contentDigest tells the truth about the build.
+      for (const d of applyContentOverlay(manifest.overlay)) console.log(`overlay ${d.cardId}: ${d.before}  →  ${d.after}`);
       const identity = computeNodeIdentity(manifest);
       // The opponent PANEL (balance:pool): registered once, before any lobby, and only the digest the manifest names.
       if (manifest.opponentPool) console.log(`opponent pool "${manifest.opponentPool.name}": ${registerPool(manifest.opponentPool)} boards registered`);

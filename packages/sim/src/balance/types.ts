@@ -53,6 +53,10 @@ export interface ExperimentManifest {
    *  (its name + digest are part of the manifest digest, so two jobs on different panels never compare). Absent =
    *  no pool registered = the procedural threat curve, which the pilot flags. */
   opponentPool?: { name: string; digest: string };
+  /** A candidate DATA patch applied in-process before the identity is computed (see `overlay.ts`): card id →
+   *  stat / tier / cost / per-effect param changes. The baseline job omits it; `compare --allow-diff
+   *  contentDigest,manifestDigest` is then exactly the declared difference. */
+  overlay?: Record<string, { attack?: number; health?: number; tier?: number; cost?: number; params?: Record<string, Record<string, number | string | boolean>> }>;
   /** Which combat rules the self-play fights resolve under (B1, `seatRunner.ts` `FightRules`): `corrected` (default)
    *  prepares EVERY seat through the player's full combat builder; `shipped` reproduces the served-board path a seat
    *  takes against the live player today. Labelled on the record, never inferred. */

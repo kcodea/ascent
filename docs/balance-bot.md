@@ -35,7 +35,9 @@ carries its count; sparse rows are suppressed and labelled. Symmetric self-play'
 mechanically ~4.5, so hero rows and controlled comparisons carry the signal, not the overall average.
 
 **Patch workflow** (evidence level 3, the only basis for an actual change): run a baseline job; make a bounded
-content change on a separate build (or overlay); run the candidate with the SAME manifest and seeds; `compare`
+content change — a DATA change as a manifest `overlay` (card id → stats / tier / cost / per-effect params, applied
+in-process before the identity is computed and validated by the content schema; see `sim/balance/overlay.ts`),
+an effect-CODE change as a separate build; run the candidate with the SAME manifest and seeds; `compare`
 with `--allow-diff contentDigest,manifestDigest`; read the seven questions the comparison answers in order (did
 the target move; rules or policy; acquisition consistency; dominant combos; pacing / diversity; early cards;
 unsupported). The A/A self-check (`compare x x`) reports zero effect; the synthetic positive control (`synth

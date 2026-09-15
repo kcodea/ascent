@@ -21,6 +21,7 @@ import { DEFAULT_LOBBY_RULES } from '../lobby/lobby';
 import { closeRunLobbyRound, hitSeat, knockOutIfDead, pairRunLobby, type LobbySeatState, type RunLobby } from '../lobby/runLobby';
 import type { LobbyEncounter } from '../lobby/types';
 import { createRun, runTribesForSeed, type RunState } from '../state';
+import { snapshotBoard } from '../snapshot';
 import { prepareAndFight, prepareAndFightGhost, type FightRules, type GhostSide } from './seatRunner';
 import { playRecruitTurn } from './seatRunner';
 import type { BalanceRecorder, ExperimentIdentity, ExperimentManifest, LobbyRecord, RoundRecord, SeatPilot } from './types';
@@ -131,6 +132,7 @@ export function runSelfPlayLobby(
       opponentSeatId: opponent ? opponent.state.id : null,
       result: fought.result, damageDealt: fought.dealt, damageTaken: fought.taken,
       eliminated: !seat.state.alive,
+      snapshot: seat.run.board.length > 0 ? snapshotBoard(seat.run) : undefined,
     });
   };
   const outcomeOf = (r: 'win' | 'lose' | 'draw'): RoundRecord['result'] => (r === 'lose' ? 'loss' : r === 'draw' ? 'tie' : 'win');

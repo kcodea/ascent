@@ -13,6 +13,7 @@
  */
 import type { SetId } from '@game/content';
 import type { Action, RunState } from '../state';
+import type { BoardSnapshot } from '../snapshot';
 
 // ───────────────────────────────────────────── manifest + identity ─────────────────────────────────────────────
 
@@ -48,6 +49,10 @@ export interface ExperimentManifest {
   maxRounds?: number;
   /** Per-seat guard against a stuck pilot: recruit actions per turn before the seat is FAILED (never silently ended). */
   maxActionsPerTurn?: number;
+  /** The opponent PANEL the pilot's `fightScore` samples — a pool file built by `balance:pool` from an earlier job
+   *  (its name + digest are part of the manifest digest, so two jobs on different panels never compare). Absent =
+   *  no pool registered = the procedural threat curve, which the pilot flags. */
+  opponentPool?: { name: string; digest: string };
   /** Which combat rules the self-play fights resolve under (B1, `seatRunner.ts` `FightRules`): `corrected` (default)
    *  prepares EVERY seat through the player's full combat builder; `shipped` reproduces the served-board path a seat
    *  takes against the live player today. Labelled on the record, never inferred. */
@@ -149,6 +154,10 @@ export interface RoundRecord {
   damageDealt: number;
   damageTaken: number;
   eliminated: boolean;
+  /** The seat's served-board snapshot at the END of its recruit turn (the same converter the game serves
+   *  opponents with) — so a job's rounds can be turned into a VERSIONED opponent panel (`balance:pool`). Optional:
+   *  synthetic fixtures omit it. */
+  snapshot?: BoardSnapshot;
 }
 
 export interface RunRecord {

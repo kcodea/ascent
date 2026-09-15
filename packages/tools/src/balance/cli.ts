@@ -16,6 +16,7 @@ import { compareJobs, renderComparison, type CompareOptions } from './compare';
 import { completedSeeds, createJob, listJobs, loadJob, writeLobby, writeSummary } from './store';
 import { loadManifest } from './manifest';
 import { computeNodeIdentity } from './identity';
+import { buildPool, registerPool } from './pool';
 import { createRecorder, pilotFor, runSelfPlayLobby, synthesizeLobby, syntheticIdentity, syntheticManifest, type ExperimentIdentity, type SyntheticOptions } from './deps';
 import type { SetId } from '@game/content';
 
@@ -79,6 +80,16 @@ export function main(argv: readonly string[] = process.argv.slice(2)): void {
       console.log(`synthetic job "${jobId}": ${n} lobbies (${setId}, seeds ${seeds.start}…${seeds.start + seeds.count - 1}${nerf ? `, nerf ${nerf}` : ''}) → ${loadJob(jobId).dir}`);
       return;
     }
+    case 'pool': {
+      // A versioned opponent panel from a finished job's round snapshots (see pool.ts).
+      const jobId = need(args, 'job'); const name = str(args, 'out') ?? `${jobId}-pool`;
+      const file = buildPool(jobId, name, { perWaveCap: num(args, 'per-wave', 400) });
+      const waves = new Map<number, number>(); for (const b of file.boards) waves.set(b.wave, (waves.get(b.wave) ?? 0) + 1);
+      console.log(`pool "${name}" (${file.setId}): ${file.boards.length} boards from job "${jobId}", digest ${file.digest}`);
+      console.log('  per wave: ' + [...waves.entries()].sort((a, b) => a[0] - b[0]).map(([w, n]) => `${w}:${n}`).join(' '));
+      console.log(`  name it in a manifest as  "opponentPool": { "name": "${name}", "digest": "${file.digest}" }`);
+      return;
+    }
     case 'list': { for (const j of listJobs()) console.log(j); return; }
     case 'run': {
       // THE LEVER (roadmap "The day-to-day balance lever"): manifest → identity → job → one authoritative self-play
@@ -87,6 +98,9 @@ export function main(argv: readonly string[] = process.argv.slice(2)): void {
       const manifest = loadManifest(need(args, 'manifest'));
       if (manifest.mode !== 'selfPlayLobby') throw new Error(`balance:run — mode "${manifest.mode}" is not runnable yet (only selfPlayLobby is wired)`);
       const identity = computeNodeIdentity(manifest);
+      // The opponent PANEL (balance:pool): registered once, before any lobby, and only the digest the manifest names.
+      if (manifest.opponentPool) console.log(`opponent pool "${manifest.opponentPool.name}": ${registerPool(manifest.opponentPool)} boards registered`);
+      else console.log('no opponent pool named — the pilot scores against the procedural threat curve (flagged on every fightScore)');
       const jobId = str(args, 'out') ?? `${manifest.name}-${identity.manifestDigest.slice(0, 8)}`;
       createJob(jobId, manifest, identity);
       const done = completedSeeds(jobId, manifest, identity);

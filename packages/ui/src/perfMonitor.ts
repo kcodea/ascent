@@ -55,6 +55,51 @@ const COUNTER_SAMPLE_MS = 50;
  * disabled path pays nothing for it.
  */
 const MAX_FRAMES_PER_BUCKET = 1024;
+/** Frames a single warm-up can hold. A warm-up ends after `frames` presented frames once its `ms` has also
+ *  elapsed; 4096 covers a 10 s warm-up at 360 Hz, which is far past anything worth configuring. */
+const MAX_WARMUP_FRAMES = 4096;
+
+/**
+ * WARM-UP (owner report 2026-09-15: *"Performance always spikes when a game starts, which destroys the graph
+ * — delay the capture slightly so the initial spike doesn't wreck it."*)
+ *
+ * After any PHASE START (monitor start, run start, shop open, combat start, Runeforge open — see
+ * `perfWarmup.ts`) frames are diverted into a separate STARTUP record until BOTH limits have passed: at
+ * least `ms` of wall clock AND at least `frames` presented frames. Two limits because either alone misreads a
+ * common case: a frame count alone ends early on a fast panel (120 frames is half a second at 240 Hz) and a
+ * time limit alone can expire while the tab is throttled and no frames have been presented at all. The
+ * default is "the later of 2 s or 120 frames" (owner spec).
+ *
+ * The spike is RECORDED, not dropped — `startups()` keeps every warm-up's own worst / p95 / long / jank and
+ * measured timings, and the export carries them — it is just excluded from the buckets that drive the graph
+ * and the verdict, so a capture answers "how does the game PLAY" rather than "how does the shop open".
+ */
+export interface WarmupConfig { ms: number; frames: number }
+export const DEFAULT_WARMUP: WarmupConfig = { ms: 2000, frames: 120 };
+const WARMUP_KEY = 'ascent.perf.warmup';
+
+/** One phase start's diverted spike — the "startup" bucket, kept apart from the main timeline. */
+export interface PerfStartup {
+  /** ms since monitoring started, when the warm-up began. */
+  t: number;
+  /** What started it — `run`, `shop`, `combat`, `runeforge`, `start` (the monitor itself). */
+  reason: string;
+  phase?: string;
+  wave?: number;
+  /** Frames diverted and the wall clock they spanned. */
+  frames: number;
+  ms: number;
+  worst: number;
+  p95: number;
+  long: number;
+  jank: number;
+  hz: number;
+  /** Measured spans that landed inside the warm-up — the shader link, the first `layout:flip`, … */
+  timings: Record<string, { n: number; total: number; max: number }>;
+}
+
+/** The live warm-up state, for the HUD. `remainingMs` / `framesLeft` are what still has to elapse. */
+export interface WarmupState { active: boolean; reason: string; remainingMs: number; framesLeft: number }
 
 /** The thresholds in force. Re-derived when the refresh estimate moves; read once per bucket close, never
  *  per frame. Exposed through `perfThresholds()` so consumers (the HUD) can't cache a stale copy. */
@@ -97,6 +142,9 @@ export interface PerfBucket {
   timings: Record<string, { n: number; total: number; max: number }>;
   /** True if the tab was backgrounded (rAF throttled) — excluded from summaries. */
   hidden?: boolean;
+  /** Frames this second that were DIVERTED to a startup record by the warm-up (see `WarmupConfig`). The
+   *  bucket's own stats cover only the frames that counted; this says how much of the second was warming up. */
+  warmup?: number;
 }
 
 type CounterFn = () => number;
@@ -220,6 +268,20 @@ class PerfMonitor {
   /** Running display-refresh estimate. Fed one window per bucket close — never per frame. */
   private refresh: RefreshState = initialRefreshState();
 
+  // ── Warm-up (see `WarmupConfig`) ───────────────────────────────────────────────────────────────────────
+  private warmupCfg: WarmupConfig = DEFAULT_WARMUP;
+  /** The warm-up in progress, or null. Its frames live in `warmFrames` (pre-sized like `frames`). */
+  private warm: {
+    reason: string; startedAt: number; until: number; framesLeft: number;
+    phase?: string; wave?: number;
+    timings: Map<string, { n: number; total: number; max: number }>;
+  } | null = null;
+  private warmFrames = new Float32Array(0);
+  private nWarmFrames = 0;
+  /** Frames diverted during the CURRENT bucket — stamped on the bucket as `warmup`. */
+  private warmThisBucket = 0;
+  private readonly startupList: PerfStartup[] = [];
+
   /**
    * Should the monitor be running?
    *
@@ -308,14 +370,105 @@ class PerfMonitor {
    */
   record(label: string, ms: number): void {
     if (!this.running) return;
-    const prev = this.pendingTimings.get(label);
+    // Inside a warm-up the span belongs to the startup record, so the main timeline's hotspots describe play
+    // and the shader link / first layout pass are still attributed — just to the phase start that paid them.
+    const into = this.warm ? this.warm.timings : this.pendingTimings;
+    const prev = into.get(label);
     if (prev) {
       prev.n++;
       prev.total += ms;
       if (ms > prev.max) prev.max = ms;
     } else {
-      this.pendingTimings.set(label, { n: 1, total: ms, max: ms });
+      into.set(label, { n: 1, total: ms, max: ms });
     }
+  }
+
+  // ── Warm-up ────────────────────────────────────────────────────────────────────────────────────────────
+
+  /** The warm-up rule in force. Persisted (`ascent.perf.warmup`) so a tuned value survives a reload. */
+  warmupConfig(): WarmupConfig { return this.warmupCfg; }
+  setWarmup(cfg: Partial<WarmupConfig>): void {
+    this.warmupCfg = {
+      ms: Math.max(0, cfg.ms ?? this.warmupCfg.ms),
+      frames: Math.max(0, Math.floor(cfg.frames ?? this.warmupCfg.frames)),
+    };
+    try { localStorage.setItem(WARMUP_KEY, JSON.stringify(this.warmupCfg)); } catch { /* storage unavailable */ }
+  }
+  private loadWarmupConfig(): void {
+    try {
+      const raw = localStorage.getItem(WARMUP_KEY);
+      if (!raw) return;
+      const v = JSON.parse(raw) as Partial<WarmupConfig>;
+      if (typeof v.ms === 'number' && typeof v.frames === 'number') this.warmupCfg = { ms: Math.max(0, v.ms), frames: Math.max(0, v.frames) };
+    } catch { /* keep the default */ }
+  }
+
+  /**
+   * A phase just started: divert the coming frames to a startup record until the warm-up rule is satisfied.
+   * A phase start DURING a warm-up closes the one in progress and starts afresh — combat opening two seconds
+   * into a shop that itself just opened is two spikes, and both are kept. No-op when the monitor is off.
+   */
+  beginWarmup(reason: string): void {
+    if (!this.running) return;
+    const now = performance.now();
+    if (this.warm) this.closeWarmup(now);
+    const ctx = this.context();
+    this.warm = {
+      reason, startedAt: now,
+      until: now + this.warmupCfg.ms,
+      framesLeft: this.warmupCfg.frames,
+      ...(ctx.phase !== undefined ? { phase: ctx.phase } : {}),
+      ...(ctx.wave !== undefined ? { wave: ctx.wave } : {}),
+      timings: new Map(),
+    };
+    this.nWarmFrames = 0;
+  }
+
+  /** Close the warm-up into a `PerfStartup`. Frames it diverted are aggregated against the SAME thresholds
+   *  as the main timeline, so its `long` / `jank` read the same way. */
+  private closeWarmup(now: number): void {
+    const w = this.warm;
+    if (!w) return;
+    this.warm = null;
+    const n = this.nWarmFrames;
+    this.nWarmFrames = 0;
+    const intervals = Array.from(this.warmFrames.subarray(0, n));
+    // Warm-up frames are safe evidence for the refresh estimate — load can only LENGTHEN an interval, and the
+    // estimator reads the low decile — and they are the first frames of the session, so without them the
+    // opening startup record would be judged against the assumed 60 Hz calibration.
+    if (n > 0 && !document.hidden) {
+      this.refresh = nextRefreshState(this.refresh, estimateRefreshHz(intervals));
+      thresholds = thresholdsFor(this.refresh.hz);
+    }
+    const stats = aggregateFrames(intervals, Math.max(1, now - w.startedAt), thresholds);
+    const timings: PerfStartup['timings'] = {};
+    for (const [k, v] of w.timings) timings[k] = { n: v.n, total: +v.total.toFixed(2), max: +v.max.toFixed(2) };
+    this.startupList.push({
+      t: Math.round(w.startedAt - this.t0),
+      reason: w.reason,
+      ...(w.phase !== undefined ? { phase: w.phase } : {}),
+      ...(w.wave !== undefined ? { wave: w.wave } : {}),
+      frames: n,
+      ms: Math.round(now - w.startedAt),
+      worst: stats.worst, p95: stats.p95, long: stats.long, jank: stats.jank,
+      hz: thresholds.refreshHz,
+      timings,
+    });
+    if (this.startupList.length > 200) this.startupList.shift();
+  }
+
+  /** Every phase start's diverted spike so far, oldest first. */
+  startups(): readonly PerfStartup[] { return this.startupList; }
+
+  /** Is a warm-up running right now, and how much of it is left? Read by the HUD once per redraw. */
+  warmupState(): WarmupState {
+    const w = this.warm;
+    if (!w) return { active: false, reason: '', remainingMs: 0, framesLeft: 0 };
+    return {
+      active: true, reason: w.reason,
+      remainingMs: Math.max(0, Math.round(w.until - performance.now())),
+      framesLeft: Math.max(0, w.framesLeft),
+    };
   }
 
   subscribe(fn: (b: PerfBucket) => void): () => void {
@@ -326,10 +479,18 @@ class PerfMonitor {
   start(): void {
     if (this.running || typeof window === 'undefined') return;
     if (this.frames.length !== MAX_FRAMES_PER_BUCKET) this.frames = new Float32Array(MAX_FRAMES_PER_BUCKET);
+    if (this.warmFrames.length !== MAX_WARMUP_FRAMES) this.warmFrames = new Float32Array(MAX_WARMUP_FRAMES);
+    this.loadWarmupConfig();
     this.running = true;
+    this.nFrames = 0;
+    this.warmThisBucket = 0;
+    this.longestTask = 0;
     this.t0 = performance.now();
     this.lastFrame = this.t0;
     this.bucketStart = this.t0;
+    // The monitor's own start is a phase start: page load / module eval / first paint is the biggest spike
+    // of all, and the one every capture used to open with.
+    this.beginWarmup('start');
     // Long tasks are the strongest single signal for "the main thread blocked" — and they're attributed by
     // the browser, not inferred from frame gaps. Optional: not every engine implements the entry type.
     try {
@@ -344,6 +505,7 @@ class PerfMonitor {
 
   stop(): void {
     if (!this.running) return;
+    if (this.warm) this.closeWarmup(performance.now());
     this.running = false;
     cancelAnimationFrame(this.raf);
     this.observer?.disconnect();
@@ -356,8 +518,18 @@ class PerfMonitor {
   /** Per-frame work: one clock read and one store, plus a counter sample at most every COUNTER_SAMPLE_MS. */
   private readonly tick = (now: number): void => {
     if (!this.running) return;
-    if (this.nFrames < this.frames.length) this.frames[this.nFrames++] = now - this.lastFrame;
+    const dt = now - this.lastFrame;
     this.lastFrame = now;
+    const w = this.warm;
+    if (w) {
+      // Warming up: the frame goes to the startup record, not the bucket. One extra branch per frame.
+      if (this.nWarmFrames < this.warmFrames.length) this.warmFrames[this.nWarmFrames++] = dt;
+      this.warmThisBucket++;
+      w.framesLeft--;
+      if (w.framesLeft <= 0 && now >= w.until) this.closeWarmup(now);
+    } else if (this.nFrames < this.frames.length) {
+      this.frames[this.nFrames++] = dt;
+    }
     if (now - this.lastCounterSample >= COUNTER_SAMPLE_MS) {
       this.lastCounterSample = now;
       this.sampleCounters();
@@ -394,6 +566,8 @@ class PerfMonitor {
     const elapsed = now - this.bucketStart;
     this.bucketStart = now;
     this.nFrames = 0;
+    const warmup = this.warmThisBucket;
+    this.warmThisBucket = 0;
     const longestTask = this.longestTask;
     this.longestTask = 0;
     const hidden = this.hiddenDuringBucket || document.hidden;
@@ -444,6 +618,7 @@ class PerfMonitor {
       marks,
       timings,
       ...(hidden ? { hidden: true } : {}),
+      ...(warmup > 0 ? { warmup } : {}),
     };
 
     this.buckets.push(bucket);
@@ -458,7 +633,7 @@ class PerfMonitor {
 
   latest(): PerfBucket | null { return this.buckets[this.buckets.length - 1] ?? null; }
   history(): readonly PerfBucket[] { return this.buckets; }
-  clear(): void { this.buckets.length = 0; }
+  clear(): void { this.buckets.length = 0; this.startupList.length = 0; }
 
   /** The rolled-up view of the whole timeline — see `summarize`. */
   summary(): PerfSummary { return summarize(this.buckets); }
@@ -479,6 +654,9 @@ class PerfMonitor {
         // The project's stated target, so a log can be judged without going back to the docs.
         budget: { targetHz: 240, targetMs: 4.17, stretchHz: 360, stretchMs: 2.78 },
         summary: this.summary(),
+        // Every phase start's diverted spike, kept apart so the buckets describe play (see `WarmupConfig`).
+        warmup: this.warmupCfg,
+        startups: this.startupList,
         buckets: this.buckets,
       }, null, 2)],
       { type: 'application/json' },

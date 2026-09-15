@@ -57,6 +57,7 @@ function PerfHudPanel() {
   const [min, setMin] = useState(false);
   const [copied, setCopied] = useState(false);
   const fpsRef = useRef<HTMLSpanElement>(null);
+  const warmRef = useRef<HTMLSpanElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const histRef = useRef<PerfBucket[]>([]);
   const { panelRef, panelElRef, headerPointerDown, panelStyle } = useDraggablePanel('perfhud');
@@ -79,6 +80,14 @@ function PerfHudPanel() {
       frames++;
       if (now - last >= 250) {
         if (fpsRef.current) fpsRef.current.textContent = ((frames / (now - last)) * 1000).toFixed(0);
+        // The warm-up state rides the same 4 Hz write: "warm-up · combat 1.2s" while frames are being diverted,
+        // cleared the moment they count again. A textContent write, never a render.
+        if (warmRef.current) {
+          const w = perfMonitor.warmupState();
+          warmRef.current.textContent = w.active
+            ? `warm-up · ${w.reason} ${w.remainingMs > 0 ? `${(w.remainingMs / 1000).toFixed(1)}s` : `${w.framesLeft}f`}`
+            : '';
+        }
         frames = 0;
         last = now;
       }
@@ -250,6 +259,7 @@ function PerfHudPanel() {
         <span className="perfhud-worst" style={{ color: color(b?.worst ?? 0, th) }}>
           {b ? `${b.worst.toFixed(0)}ms` : '–'}
         </span>
+        <span className="perfhud-warm" ref={warmRef} title="Frames after a phase start are diverted to a startup record until the warm-up passes (docs/performance.md)" />
         {/* THE CONTROLS SIT INSIDE THE DRAG HANDLE, so each one has to stop `pointerdown` reaching it (owner
             report 2026-08-29: "make it so the X actually closes the window"). The header captures the pointer
             to drag the panel, and a captured pointer never delivers the click that follows — so the buttons

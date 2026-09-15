@@ -1,0 +1,10 @@
+/**
+ * BALANCE BOT B5 — the one place the tools-side balance code names its engine imports, so the sim's public
+ * surface (and the `@game/sim/balance/*` subpath the contract lives under) is crossed in exactly one file.
+ */
+export { CARD_INDEX, RUNE_INDEX } from '@game/content';
+export { HEROES } from '@game/sim';
+export type {
+  AcceptedActionEvent, EffectEvent, ExperimentIdentity, ExperimentManifest, LobbyRecord, RoundRecord, RunRecord,
+} from '@game/sim/balance/types';
+export { synthesizeJob, synthesizeLobby, syntheticIdentity, syntheticManifest, type SyntheticOptions } from '@game/sim/balance/fixtures/syntheticLobby';

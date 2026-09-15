@@ -14,6 +14,8 @@ npm run balance:compare -- --baseline base-job --candidate cand-job [--allow-dif
 npm run balance:census  # per-set content census + mechanic coverage
 npm run balance:manifest -- <manifest.json>   # print the resolved manifest + identity
 npm run balance:synth   -- --set set3 --seeds 20 --out synth   # a synthetic job to exercise the report
+npm run balance:matrix  -- --manifest packages/tools/src/balance/manifests/set2-generalist-200.json --runs-per-hero 30 --out set2-matrix [--heroes a,b] [--exploration-rotate] [--workers 8]
+npm run balance:findings -- --job set2-matrix --out findings.md [--format json] [--q 0.1] [--margin 0.25] [--min-support 20]
 ```
 
 A **manifest** names the game being measured: mode (`selfPlayLobby` is the one wired), set, policy + search
@@ -43,6 +45,47 @@ the target move; rules or policy; acquisition consistency; dominant combos; paci
 unsupported). The A/A self-check (`compare x x`) reports zero effect; the synthetic positive control (`synth
 --nerf <hero>=1.5`) registers with a CI excluding zero.
 
+### The hero matrix + the findings report (owner ask 2026-09-15)
+
+"Sim it 30 times for every hero where it picks different lines and runes and cards … catch the outliers on both
+overpowered and underpowered cards / runes / heroes." Two commands:
+
+**`balance:matrix`** plans a SCHEDULE from a base manifest: every playable hero of the set (production eligibility
+— `playableHeroes()`, minus a tribe-gated hero no tribe of the set can seat) × N runs. Each run is one lobby with
+seat 0 PINNED to the hero (`manifest.pinnedHero`, honoured by `rotateHeroes`; the other seven rotate from the roster
+minus it) on a PAIRED seed schedule — the same N seeds for every hero, so heroes are compared on identical seat-0
+run seeds, shop draws and fight RNG. `--exploration-rotate` sets `manifest.exploration = (seed − start) mod K`
+(K default 4) so a strategist pilot plays different lines across a hero's runs; today's pilots ignore it and the
+record still carries it. One job holds every lobby (`lobbies/<hero>-<seed>.json`; the job's `manifest.json` is the
+base plus a `matrix` plan, each record carries its derived per-lobby manifest), it resumes like `balance:run`,
+prints progress + ETA, and `--workers N` shards it across N child processes. The runner follows the base
+manifest's `mode` — `selfPlayLobby` today; `pinnedLobby` is loaded dynamically and reports "not on this branch"
+until `feat/balance-pinned` merges. A lobby whose seat 0 did not get its hero is FAILED, never accepted.
+
+**`balance:findings`** is the owner-facing report, in this order: **coverage** (heroes × planned / complete /
+failed, lines played per hero when the pilot has lines, paired-seed check, and the UNEXERCISED list — content never
+offered / never bought / never played is *unmeasured, not weak*); **outlier scans** for heroes (mean placement
+over every seat the hero sat in, lobby-level bootstrap CI, top-half rate, elimination-round median, plus the
+pinned-seat mean), runes (owner lift paired within lobbies that hold both sides, pick rate WHEN OFFERED,
+acquisition round, `forced` picks reported separately or "forced exposure unknown"), minions and spells
+(offer → buy → play/cast funnel, held-vs-not lift shrunk with k = 10, triple rate, held-never-played rate, and the
+**always-bought (≥ 90%) / never-bought (≤ 5%)** lists); **interactions** (hero × rune, rune × line, minion × minion
+on winning boards — sparse cells suppressed); **pacing + strategy concentration** (tier / unspent / turnover
+curve, winner Herfindahl, line prevalence); and **what to test next** — the top 5 OP and top 5 UP entities each
+turned into a bounded candidate patch (an `overlay` snippet for a card; a named `HeroDef.armor` / `RuneDef.cost`
+parameter for a hero / rune) with the `balance:compare` line to run.
+
+How to read a flag: an entity is **OVERPOWERED / UNDERPOWERED** only when (1) it has at least `--min-support`
+placed runs (default 20 — a matrix at 5 runs/hero flags nothing on the pinned seat alone; the all-seat sample
+is what carries the support), (2) its two-sided bootstrap p-value survives **Benjamini–Hochberg at q = 0.1**
+within its family (all heroes; all runes; all minions; all spells — each family is one scan), and (3) its 95% CI
+clears the population mean (heroes) or zero (lifts) by `--margin` (default 0.25 placements). "sig., inside margin"
+means BH passed but the effect is too small to act on. Rune and card lifts are **matched**: the control for an
+owner is the seats of the same lobby that had the same exposure (reached a Runeforge / saw the card offered), were
+still alive at the round it acquired the entity, and never held it — "owners vs everyone" would be mostly
+survivorship. Everything is evidence level 1; the suggestion list is the bridge to a level-3 `compare`.
+`--format json` carries the full lists the markdown truncates.
+
 ## What the first real jobs showed (2026-09-15)
 
 - **Set 3, greedy baseline, 40 lobbies:** every lobby completed, 0 failures, ~220 ms per eight-seat lobby. The
@@ -51,9 +94,15 @@ unsupported). The A/A self-check (`compare x x`) reports zero effect; the synthe
 - **Set 3, generalist (smoke budget), 20 lobbies:** 0 failures, ~12 s per lobby (~11 ms per decision, 5.2
   actions per recruit turn). Real games: tier 1 → 6 by round 16, Gold spent through round 8, first
   eliminations around round 9, lobbies end in 14–22 rounds, 76% early-card retention on final boards.
-- Two instrument defects surfaced and were fixed on the integration branch: the runner recorded the shop row as
+- **Set 2 hero matrix smoke (53 heroes × 5 paired seeds, generalist, 8 workers):** see the matrix PR's devlog
+  entry (`docs/devlog/2026-09-15-balance-matrix-findings.md`) for the coverage, timings and the leads that
+  survived support + FDR.
+- Three instrument defects surfaced and were fixed on the integration branch: the runner recorded the shop row as
   the "offers" of a Runeforge action (the Runes table listed Starforms as runes offered); and the legacy
-  `fightScore` fallback was retired (a missing opponent pool now yields `panel: 'procedural'` on the result).
+  `fightScore` fallback was retired (a missing opponent pool now yields `panel: 'procedural'` on the result); and
+  the self-play runner emitted its own lean effect diff (`cardGained` keyed by `targetId`) while the aggregate read
+  the recorder's attributer (`sourceId`, lineage routes), so every REAL job's minion / spell funnel read "bought 0" —
+  `playRecruitTurn` now takes a per-seat `lineage` and derives effects through `effectsFromTransition.ts`.
 
 ## Trust ledger
 

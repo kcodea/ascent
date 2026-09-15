@@ -173,7 +173,9 @@ export function aggregate(records: readonly LobbyRecord[], opts: AggregateOption
   const identities = new Set<string>();
   const refused = new Set<string>();
   for (const L of records) {
-    manifests.set(L.identity.manifestDigest, L.manifest);
+    // Keyed by the manifest's own text: a matrix job's lobbies share one identity but carry derived manifests
+    // (one per hero × seed), and `planned` must count each of them.
+    manifests.set(fnv1a(JSON.stringify(L.manifest)), L.manifest);
     identities.add(identityDigest(L.identity));
     if (!POOLABLE_MODES.has(L.manifest.mode)) refused.add(L.manifest.mode);
   }
@@ -202,7 +204,7 @@ export function aggregate(records: readonly LobbyRecord[], opts: AggregateOption
       capped: allRuns.filter((r) => r.termination === 'capped').length, failed: allRuns.filter((r) => r.termination === 'failed').length,
     },
     failureByHero: sortedRecord(byHero), failureByPolicy: sortedRecord(byPolicy),
-    manifestDigests: [...manifests.keys()].sort(), identityDigests: [...identities].sort(),
+    manifestDigests: [...new Set(records.map((L) => L.identity.manifestDigest))].sort(), identityDigests: [...identities].sort(),
     modes: [...new Set(records.map((L) => L.manifest.mode))].sort(),
     setIds: [...new Set(records.map((L) => L.manifest.setId))].sort(),
     policies: [...new Set(allRuns.map((r) => r.policyId))].sort(),

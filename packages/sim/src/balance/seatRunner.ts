@@ -27,6 +27,7 @@ import { modalOpen } from '../recruit';
 import { snapshotBoard } from '../snapshot';
 import { mixSeed, TAG, type Action, type RunState } from '../state';
 import { stateHash } from './hash';
+import { effectEventsOf, type CardLineage } from './effectsFromTransition';
 import type { BalanceRecorder, EffectEvent, SeatContext, SeatPilot } from './types';
 
 // ───────────────────────────────────────────── the recruit turn ─────────────────────────────────────────────
@@ -38,6 +39,12 @@ export interface RecruitTurnOptions {
   /** Consecutive REJECTED proposals tolerated before the seat is failed. Default 3: a pilot that re-proposes
    *  the same illegal move is stuck, and a stuck pilot is a measurement defect, not a quiet end turn. */
   maxConsecutiveRejections?: number;
+  /** The seat's card LINEAGE (uid → acquisition route), kept by the caller ACROSS turns so a play / sell / cast
+   *  can say how the card came to be. When given, effects are derived by the recorder's attributer
+   *  (`effectsFromTransition.ts` — `sourceId` on every card event, routes by lineage, casts by route, triples);
+   *  absent, the runner's own lean diff (`effectsOf`, `targetId`-keyed) is used — kept for callers that predate
+   *  the recorder. `selfPlayLobby` passes one map per seat. */
+  lineage?: CardLineage;
 }
 
 export interface RecruitTurnOutcome {
@@ -109,7 +116,8 @@ export function playRecruitTurn(
       preHash,
       postHash: stateHash(after),
     });
-    for (const ev of effectsOf(before, after, action, opts.lobbyId, ctx)) recorder.onEffect(ev);
+    const evs = opts.lineage ? effectEventsOf(before, after, action, { lobbyId: opts.lobbyId, seatId: ctx.seatId, round: ctx.round }, opts.lineage) : effectsOf(before, after, action, opts.lobbyId, ctx);
+    for (const ev of evs) recorder.onEffect(ev);
     accepted += 1;
   };
 

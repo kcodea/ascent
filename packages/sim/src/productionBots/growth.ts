@@ -282,12 +282,13 @@ export function probeGrowth(v: BotVisibleState, panelSeed: number): GrowthProbe 
  * COMBAT CARRY-BACK — the stats a fight leaves on the run PERMANENTLY, read off the engine's own result (the
  * fields `settleCombat` applies): Engraved / Flowing Monk gains kept on the board, hand buffs, run-wide card-type
  * buffs, plus the run-wide CHANNELS a fight raises (the Shop buff, Spell Power, the Ruby bonus, the tribe buy
- * auras, the next-shop buff), each valued at `CHANNEL_USES` future uses, and generated cards (Rubies, hand grants)
- * at a flat body's worth. This is the other half of the recorded players' curve — Rally + Engraved Dragons,
+ * auras, the next-shop buff), each valued at `CHANNEL_USES` future uses (a Shop buff is paid on every buy AND
+ * every Consume for the rest of the run — roughly three uses a turn over the credit window), and generated cards
+ * (Rubies, hand grants) at a flat body's worth. This is the other half of the recorded players' curve — Rally + Engraved Dragons,
  * Chorus Drake's spell power, Demon Horse's Shop buff — which the probe's neutral draw cannot see but every
  * `fightScore` fight already computes. Zero for a fight that leaves nothing behind.
  */
-export const CHANNEL_USES = 4;
+export const CHANNEL_USES = 8;
 const GENERATED_CARD_STATS = 6;
 export function carryBackOf(r: CombatResult, v: BotVisibleState): number {
   let n = 0;

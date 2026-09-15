@@ -16,7 +16,12 @@ live here; Node workers, storage and the CLI live in `packages/tools/src/balance
 | `recorder.ts` | the `BalanceRecorder` that builds a `LobbyRecord` (`createRecorder` → `observeTransition` / `finalize`) | B5 |
 | `effectsFromTransition.ts` | `effectEventsOf(before, after, action, ctx, lineage)` — attributed `EffectEvent`s read off the sim's per-action channels (the channel table is in the file header) | B5 |
 | `fixtures/syntheticLobby.ts` | deterministic SYNTHETIC `LobbyRecord[]` from a seed (real ids, plausible streams) so the report/compare are testable before the runner lands; `heroBias` is the positive control | B5 |
-| `generalistPilot.ts` | `createGeneralistPilot(budget, seed)` + `GENERALIST_BUDGETS` — the competent generalist through `productionBots/` (search in `productionBots/pilotSearch.ts`, repaired `fightScore`, `combatContext.ts` friendly prep) | B3 |
+| `generalistPilot.ts` | `createGeneralistPilot(budget, seed, opts?)` + `GENERALIST_BUDGETS` — the competent generalist through `productionBots/` (search in `productionBots/pilotSearch.ts`, repaired `fightScore`, `combatContext.ts` friendly prep); `opts.wrap` / `opts.id` / `opts.replaceMacro` are the additive seam a specialist reuses it through (the macro is OFF for the generalist) | B3 |
+| `strategy/packages.ts` | **B4** — the strategy-package roster derived from the content (member / rune-affinity predicates, economy profiles, the hand-maintained hero intent manifest) + `packageCensus` / `renderPackageCensus` (`npm run balance:packages`) | B4 |
+| `strategy/lines.ts` | **B4** — `pickLineForRun(heroId, tribes, seed, exploration)`: fit = tribe availability × hero affinity × pool depth, ranked; k-th best viable line | B4 |
+| `strategy/prior.ts` | **B4** — `linePrior(line)`: the capped evaluator term (card / rune / tier timing / pairs / hero) installed per decision through `productionBots/evaluate.ts::withEvaluationPrior` | B4 |
+| `strategy/strategistPilot.ts` | **B4** — `createStrategistPilot(budget, seed, { exploration })`: the generalist wrapped with the prior; registered as `strategist`, `strategist:rotate`, `strategist:explore<k>` | B4 |
+| `strategy/benchmark.ts` | **B4** — mixed strategist / generalist lobbies with a lobby-level paired CI, and the exploration population's line diversity (`npm run balance:strategist-bench`) | B4 |
 
 ## Where the Node-only parts live (B0 decision)
 

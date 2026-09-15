@@ -12,6 +12,8 @@ npm run balance:run     -- --manifest packages/tools/src/balance/manifests/set3-
 npm run balance:report  -- --job my-job [--out report.md] [--format json]
 npm run balance:compare -- --baseline base-job --candidate cand-job [--allow-diff contentDigest,manifestDigest] [--target hero:warden]
 npm run balance:census  # per-set content census + mechanic coverage
+npm run balance:packages -- set2          # B4: the strategy-package census (members, key cards, affine runes / heroes, status)
+npm run balance:strategist-bench -- --seeds 20 --explore 0|rotate   # B4: strategist vs generalist mixed lobbies + line diversity
 npm run balance:manifest -- <manifest.json>   # print the resolved manifest + identity
 npm run balance:synth   -- --set set3 --seeds 20 --out synth   # a synthetic job to exercise the report
 npm run balance:corpus  -- --set set2 --out set2-players-v1 [--patch 0.1.0+]   # the recorded PLAYER corpus a pinnedLobby job names
@@ -63,6 +65,85 @@ the target move; rules or policy; acquisition consistency; dominant combos; paci
 unsupported). The A/A self-check (`compare x x`) reports zero effect; the synthetic positive control (`synth
 --nerf <hero>=1.5`) registers with a CI excluding zero.
 
+## The strategist pilot (B4, 2026-09-15)
+
+`policy.id: strategist` is the generalist's search with a **line prior** in candidate scoring
+(`packages/sim/src/balance/strategy/`). Three parts:
+
+- **Packages** (`strategy/packages.ts`) — the set's strategy roster, DERIVED from the content: a card belongs
+  by predicate over its real definition (tribe, keywords, effect ids, trigger events, printed text) at strength
+  1 (supporting) / 2 (engine) / 3 (payoff); a rune is affine through the `runeSynergies` tag vocabulary (+ a
+  per-package text predicate); each package carries an economy profile (`tempo` tiers late; `engine` climbs
+  measured; `economy` tiers on the 6 / 8 / 10 Gold thresholds) and a risk label. The ONE hand-maintained part is
+  the **hero intent manifest** (`heroes`: hero id → affinity multiplier, one comment per entry). Eleven packages:
+  ruby, ale, demonConsume, beastSummon, dragon, spellEngine, echo, mechAttach, rally, tempo, economy.
+  `npm run balance:packages` prints the census; `strategy/packages.test.ts` pins the set-2 counts so a content
+  change that empties or thins a package fails a test. A package the set cannot field is reported
+  **unsupported** (Mech in set 2), never quietly empty.
+- **Lines** (`strategy/lines.ts`) — for a run's hero + rolled tribes, every package's FIT = tribe availability ×
+  hero affinity × pool depth; `pickLineForRun(heroId, tribes, seed, exploration)` returns the k-th best viable
+  line (primary + a tribe-compatible secondary), deterministic in its inputs. Recorded on `RunRecord.line`
+  (`{ primary, secondary?, fitRank }`) and echoed on `SeatContext.line`.
+- **The prior** (`strategy/prior.ts`) — installed for exactly one decision through
+  `withEvaluationPrior` (an additive hook in `productionBots/evaluate.ts`; weight 0 in the shipped config, so
+  the generalist's numbers are untouched): card affinity on the board (and minions in hand — never spells, which
+  are valued by casting), owned-rune affinity × expected payoff over the REMAINING rounds (a per-turn rune is
+  worth more early), tier timing against the profile (behind < on-curve > ahead), held pairs of line cards, and
+  a tiny bias to have used an affine hero power. Capped at ~1.5 normalized points × weight 10 beside
+  `fightStrength`'s 26 — it steers construction; the fight decides.
+
+The strategist also turns on the generalist's opt-in **replace macro** (`GeneralistOptions.replaceMacro`:
+`sell <weakest board minion> → buy <offer> → field it`, or `sell → field <hand minion>`, scored as one candidate
+beside the search's best plan and queued with fingerprints) — depth-1 search never turns a full board over
+on its own. It is off for `generalist`, so the generalist's play is unchanged.
+
+Variants: `strategist` (best-fit line every run — the natural population), `strategist:rotate` (line index
+from the run seed — the **exploration** population; a forced line is never a natural pick rate),
+`strategist:explore<k>` (the k-th best line pinned). `generalist` is untouched.
+
+**Curricula** (`strategy/curriculum.test.ts`), per set-2 package with the line forced on a neutral hero: (a) a
+ready payoff state takes the payoff from hand; (b) at wave 2 it buys the engine piece over a vanilla body of
+the same stats — strictly, by search utility, not a tie; (c) a shop with nothing on-package still develops;
+(d) the Runeforge takes the affine rune over an off-package one of equal cost, in either order; (e) the
+economy profile tiers at its target (economy: 2 → 3 at wave 4; tempo: at wave 5) and not before. The
+generalist's competence scenarios (spend, triple, forge, determinism, no leaked handles, no leaked prior) pass
+for the strategist too.
+
+**Benchmark** (`strategy/benchmark.test.ts`, `npm run balance:strategist-bench`): mixed set-2 lobbies, four
+strategist + four generalist seats alternating by seat and seed, smoke budget, placement compared per LOBBY
+(paired advantage = generalist − strategist mean placement, 95% interval). The gate is "not worse beyond
+noise" (the interval reaches 0). Measured 2026-09-15, seeds 100–119: strategist mean placement **4.05 [3.62,
+4.48]** vs generalist **5.33 [4.89, 5.76]**; paired advantage **+1.27 [0.42, 2.13]** (n=20 lobbies); firsts 17
+vs 3; top-half 47 vs 30 of 80 seats. Line diversity for the exploration population is printed alongside
+(9–10 distinct primaries per hero over 30 seeds for Fibbsy / Flint / Tiff, 10 viable).
+
+**Against the real set-2 players (the owner's scale: < 4.0 solid, < 3.0 great, < 2.0 phenomenal; 4.4 is a
+below-average player).** In the pinned lobby (`set2-pinned-strategist-smoke100.json`: seat 0 vs seven recorded
+player runs from `set2-players-v1`, 100 lobbies, smoke budget, `fightRules: 'shipped'`) the strategist places
+**6.72 [6.44, 6.99]** (first-place 0/100) against the generalist's **6.80 [6.56, 7.05]** on the same seeds —
+a PLATEAU, not a pass. The self-play advantage does not transfer: both pilots lose to the recorded field from
+wave 5 (pilot total board stats 33 / 46 / 62 / 76 at waves 5 / 6 / 7 / 8 against the players' 36 / 60 / 97 /
+162; win rate 46% → 35% → 27% → 18%; eliminated at a median round 9). What the strategist's iterations moved and
+what they did not (each a 100-lobby pinned job):
+
+| change | pinned placement | note |
+|---|---|---|
+| line prior only (cards / runes / tier timing / pairs / hero) | 6.89 | tiered a full level earlier than the generalist (2.00 @ w3, 3.01 @ w6) — no placement gain |
+| + the REPLACE macro (`sell weakest → buy → field`, opt-in on the generalist) | 6.67 | the pilot finally turns its board over from wave 7 (~1 sell per turn); bought-card tier still 2.5 at a shop tier of 3.9 |
+| + board-MASS term (linear stats vs the wave reference) + INVESTMENT term (permanent Shop buff / Spell Power / auras × rounds left) | 6.63 | the evaluator's `fightStrength` reads 0 for every candidate once the field outgrows the pilot and `boardPower` is log-saturated — the prior restores a gradient, but +7 stats a turn does not catch an exponential curve |
+| + PAIRS valued for every card (a golden = double stats + a tier-up Discover; players hold 0.5–1.1 goldens per board from wave 8) | 6.72 | within noise of the previous two |
+
+Diagnosis (for B3, not hidden here): the recorded players' boards grow 21 → 60 → 162 → 456 → 1,442 total stats
+over waves 4 → 12 through goldens and per-turn engines — the Demon Shop-buff line (Demon Horse / Hank / Blart /
+Butcher), Ales, Rubies, Chorus Drake / Standard Bearer Rallies, Broodfire-style Shouts under Drakko — while the
+one-turn evaluator values a body by the fight it wins THIS turn against a panel it can no longer beat. A prior
+capped at a few utility points steers which of two equal moves is taken; it cannot make the search see a
+compounding payoff three turns out. The next lever is the evaluator / search horizon (short multi-turn
+rollouts for setup decisions, as the roadmap's B3 already lists), then re-tune the prior against measured
+placement. Also surfaced: the pinned report's minion funnel prints `bought 0` for every card (`offered → bought
+→ played`) — the buy attribution does not reach the pinned runner's records; the numbers above were
+reconstructed from `cardGained` effect events.
+
 ## What the first real jobs showed (2026-09-15)
 
 - **Set 3, greedy baseline, 40 lobbies:** every lobby completed, 0 failures, ~220 ms per eight-seat lobby. The
@@ -93,6 +174,7 @@ What each layer proves today, and what it does not. Check the boxes as the gates
 | Runner (B1) | recruit turns are real reducer transitions; one `simulate()` per pair; armor-first settlement; eliminations, byes, ghosts, placement per the shipped lobby rules; determinism; **both seats keep their combat carry-backs** (#1491: `CombatResult.enemyCarry`, ≈70 of 96 side-gates made symmetric, shipped result byte-identical over 1,278 captured fights) | six documented `KNOWN ASYMMETRY` groups | the enemy's Grim-style tally stays the snapshot's frozen value mid-fight; enemy spell power / Imp aura / hand-buff snapshots are static for the fight (gains still carry back); Pack Mentality live growth, mid-combat quest completion, Blood Trail / Soulbind / Echo Warden / Rallying Offensive extras and telegraph events are player-only. Listed in `simulate.ts` by name. |
 | Fight context | `corrected` rules give every seat the player's full context (spell power, Ruby casts, Reveler values, banked Start-of-Combat effects, alignments) | claims about the game **as shipped** | the shipped non-player fight is tier-only (`lobby/runLobby.ts:590`, `:629`) and served boards carry no alignment; run with `fightRules: 'shipped'` to measure that, and read the discrepancy list in `seatRunner.ts`. |
 | Pilot (B3) | buying, playing, tiering, selling, refreshing, freezing, targeted Shouts, Choose One, Discover, triples, hero powers, Equipment, Starform; no illegal actions; decisions are player-legal (reveal-by-effect, hidden future never read) | **strategy competence** at the level of a good player; late-game spending (unspent Gold climbs past round 12); no strategy specialists yet (B4) | single-turn benchmark vs the legacy greedy: set2 +0.85 [0.69, 1.01], set3 +0.70 [0.38, 1.02]; deeper budgets show no measurable single-turn gain (dev vs smoke 0.00 [−0.38, 0.38]) — multi-turn value unproven. Unsupported content must be labelled, not ranked as weak. |
+| Strategist (B4) | plays a declared line (primary + secondary package) with the generalist's legality and information boundary; takes affine runes, engine pieces and profile-timed tiers in the curricula; BEATS the generalist in mixed self-play (4.05 vs 5.33, paired +1.27 [0.42, 2.13], 20 lobbies); line diversity 9–10 primaries per hero over 30 seeds under `strategist:rotate` | **competence against real players** — 6.72 [6.44, 6.99] in 100 pinned set-2 lobbies (owner scale: < 4.0 passes); a claim that a line is STRONG or WEAK (fit is a construction prior, not a strength estimate); packages a set cannot field (labelled unsupported) | the prior is capped and one-turn: it cannot see compounding engines; the evaluator's fight terms lose all gradient once the field outgrows the pilot (B3 work); the hero intent manifest is hand-maintained design intent, not measured. |
 | Recorder / report (B5) | accepted-action reconciliation (pre/post state hash), offer → buy → play funnels per surface, spell casts by route, sold cards visible, failed/censored runs separated, lobby-level bootstrap CIs, deterministic regeneration | causal claims | everything in the report is evidence level 1 until a `compare` job exists for the change. |
 | Compare (B6) | A/A = zero effect; synthetic positive control registers | a real candidate | no real patch experiment has been run yet — the first one is the next step. |
 | Pinned lobby (`pinnedLobby` + `balance:corpus`) | the pilot's placement in the game **as shipped** against a **frozen, digest-pinned population of real player recordings** (the seat fill, the served boards, the settlement and the placements are the client's own code paths; determinism; a thin corpus censors rather than pads) | any claim that a patch changes how *players* fare, or hero/card strength beyond the pilot's own play | recordings do not adapt: a pinned job measures the PILOT against the population as it was recorded, under the CURRENT rules — a card change moves the pilot's boards and the fights, never the recorded boards' build orders, so a placement shift is "the pilot vs yesterday's players", not a new meta. The recordings' own placements are the complement of the pilot's over eight seats and are printed only for reading. Recording-vs-recording fights are the shipped tier-only path (`runLobby.ts` `settleRunLobbyRound`), the same as the live game. A corpus mixes patches (35 stamps in `set2-players-v1`); `--patch <prefix>` narrows it, at the cost of runs. |
@@ -103,5 +185,9 @@ What each layer proves today, and what it does not. Check the boxes as the gates
 2. ~~Register a set-3 opponent pool~~ — `balance:pool` builds a versioned panel from any job's round snapshots; `set3-gen-v1` (4,109 boards, waves 2–22) is the first. ~~Do the same for set 2~~ — set 2 now has the REAL corpus (`balance:corpus`, `set2-players-v1`).
 2b. The pilot places ~7th against real set-2 recordings: raise pilot competence (B3/B4) and re-run the pinned smoke — a pinned job is the held-out benchmark the roadmap asks for ("human-run groups").
 3. Run the first REAL patch experiment (a bounded content change, paired seeds) and read the comparison.
-4. B4 strategy specialists (package manifests + curricula) so the exploration population exercises the engines the generalist ignores.
+4. ~~B4 strategy specialists (package manifests + curricula)~~ — shipped as the strategist pilot, which beats the
+   generalist in self-play but plateaus at 6.7 against the recorded players. Next, in order: (a) give the search a
+   horizon the prior cannot fake — short multi-turn rollouts for setup / replace decisions and an evaluator gradient
+   that survives losing (B3); (b) fix the pinned report's buy attribution; (c) THEN tune the prior's weights against
+   pinned placement (`bot:tune`-style search, never hand-feel) and run a `strategist:rotate` job per hero.
 5. B7 workers + nightly entry point once throughput matters.

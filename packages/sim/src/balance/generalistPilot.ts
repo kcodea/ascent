@@ -1,4 +1,5 @@
 import { makeRng, type Rng } from '@game/core';
+import { CARD_INDEX } from '@game/content';
 import { mixSeed, type Action, type RunState } from '../state';
 import { applyCandidate, createPlanningRoot, release, visibleOf } from '../productionBots/transition';
 import { fingerprint, toBotVisibleState } from '../productionBots/visibleState';
@@ -38,7 +39,7 @@ export const GENERALIST_BUDGETS: Record<'smoke' | 'dev' | 'deep', PilotBudget> =
 export interface GeneralistTrace {
   round: number;
   decision: number;
-  route: 'queued' | 'mandatory' | 'search' | 'forcedSpend' | 'position' | 'endTurn';
+  route: 'queued' | 'mandatory' | 'search' | 'replace' | 'forcedSpend' | 'position' | 'endTurn';
   search?: PilotSearchResult;
   chosen: Action | null;
 }
@@ -117,13 +118,97 @@ function orderedPositionCandidates(v: BotVisibleState, limit: number): Candidate
   return [...first, ...rest].slice(0, Math.max(0, limit));
 }
 
-export function createGeneralistPilot(budget: PilotBudget, seed: number): GeneralistPilot {
+/**
+ * B4 (additive): how a SPECIALIST reuses this pilot. `id` labels the records; `wrap` runs around every decision
+ * so a specialist can install its prior (`withEvaluationPrior`) for exactly the duration of the search — the
+ * generalist itself passes nothing and behaves as before.
+ */
+export interface GeneralistOptions {
+  id?: string;
+  wrap?: (run: RunState, ctx: SeatContext, decide: () => Action | null) => Action | null;
+  /**
+   * B4 (opt-in; the generalist leaves it off): the REPLACE macro — `sell <board minion> → buy <offer> → field it`
+   * (or `sell → play <hand minion>`) scored as ONE candidate beside the search's best plan. Depth-1 search can
+   * never find it: the sell alone reads as a lost body and the buy alone as Gold turned into a hand card, so a
+   * full board of Tier-1 bodies is never replaced (measured 2026-09-15, 100 pinned set-2 lobbies: the pilot's
+   * final boards were Orin / Packstrider / Cinderchef / Void Panther at wave 10+, 69 total stats at wave 8
+   * against the players' 162). When the macro's end state beats the best plan, the sell is committed and the
+   * rest is queued with fingerprints like any plan step.
+   */
+  replaceMacro?: boolean;
+}
+
+/** Board minions a replace macro may sell: the weakest few by printed body, never a golden. */
+const REPLACE_SELL_CANDIDATES = 3;
+
+/**
+ * Enumerate replace macros from `root`: for each of the weakest board minions, sell it, then either buy an
+ * affordable offer and field it, or field a hand minion. A chain that crosses a reveal (a Shout that discovers, a
+ * random grant) is dropped rather than scored on the real future. Returns the best chain's steps + utility.
+ */
+function bestReplaceChain(root: PlanningStateHandle, v: BotVisibleState, rootFp: string): { steps: PlannedStep[]; utility: number } | null {
+  if (v.board.length < 7 || v.mandatoryDecision) return null;
+  const sellable = [...v.board]
+    .filter((c) => !c.golden)
+    .sort((a, b) => a.attack + a.health - (b.attack + b.health))
+    .slice(0, REPLACE_SELL_CANDIDATES);
+  let best: { steps: PlannedStep[]; utility: number } | null = null;
+  const consider = (steps: PlannedStep[], utility: number): void => {
+    if (!best || utility > best.utility) best = { steps, utility };
+  };
+  for (const m of sellable) {
+    const sellAction: Action = { type: 'sell', uid: m.uid };
+    const sold = applyCandidate(root, sellAction);
+    try {
+      if (!sold.changed || sold.reveal) continue;
+      const sellStep: PlannedStep = { action: sellAction, tag: `replace: sell ${m.cardId}`, fromFingerprint: rootFp };
+      const after = sold.visible;
+      const seat = after.board.length;
+      // Field a hand minion into the freed seat.
+      for (const h of after.hand) {
+        const def = CARD_INDEX[h.cardId];
+        if (!def || def.spell || def.ruby) continue;
+        const playAction: Action = { type: 'play', uid: h.uid, toIndex: seat };
+        const played = applyCandidate(sold.child, playAction);
+        try {
+          if (!played.changed || played.reveal || played.visible.mandatoryDecision) continue;
+          consider([sellStep, { action: playAction, tag: `field ${h.cardId}`, fromFingerprint: sold.fingerprint }], evaluate(played.visible).total);
+        } finally { release(played.child); }
+      }
+      // Buy an offer and field it.
+      for (const o of after.shop) {
+        if (o.spell || o.cost > after.economy.gold || after.hand.length >= 10) continue;
+        const buyAction: Action = { type: 'buy', uid: o.uid };
+        const bought = applyCandidate(sold.child, buyAction);
+        try {
+          if (!bought.changed || bought.reveal) continue;
+          const before = new Set(after.hand.map((c) => c.uid));
+          const inHand = bought.visible.hand.find((c) => !before.has(c.uid));
+          if (!inHand) continue;
+          const playAction: Action = { type: 'play', uid: inHand.uid, toIndex: seat };
+          const played = applyCandidate(bought.child, playAction);
+          try {
+            if (!played.changed || played.reveal || played.visible.mandatoryDecision) continue;
+            consider([
+              sellStep,
+              { action: buyAction, tag: `buy ${o.cardId}`, fromFingerprint: sold.fingerprint },
+              { action: playAction, tag: `field ${o.cardId}`, fromFingerprint: bought.fingerprint },
+            ], evaluate(played.visible).total);
+          } finally { release(played.child); }
+        } finally { release(bought.child); }
+      }
+    } finally { release(sold.child); }
+  }
+  return best;
+}
+
+export function createGeneralistPilot(budget: PilotBudget, seed: number, opts: GeneralistOptions = {}): GeneralistPilot {
   const queues = new Map<string, PlannedStep[]>();
   const counters = new Map<string, number>();
   const traces = new Map<string, GeneralistTrace>();
   const samples = budget.depth >= 3 ? 4 : 3;
 
-  const decide = (run: RunState, ctx: SeatContext): Action | null => {
+  const decideCore = (run: RunState, ctx: SeatContext): Action | null => {
     if (run.phase !== 'recruit') return null;
     const seatKey = ctx.seatId;
     const round = run.wave;
@@ -162,8 +247,15 @@ export function createGeneralistPilot(budget: PilotBudget, seed: number): Genera
         return trace('mandatory', first ?? null, result);
       }
 
-      // 3) Search.
+      // 3) Search — and, when enabled, the replace macro scored beside its best plan.
       const result = pilotSearch(root, budget, panelSeed, rng, samples);
+      if (opts.replaceMacro) {
+        const chain = bestReplaceChain(root, visible, liveFp);
+        if (chain && chain.utility > Math.max(result.utility, result.rootUtility) + 1e-9 && accepted(run, chain.steps[0]!.action)) {
+          queues.set(seatKey, chain.steps.slice(1));
+          return trace('replace', chain.steps[0]!.action, result);
+        }
+      }
       const head = result.plan[0];
       if (head && result.utility > result.rootUtility + 1e-9 && accepted(run, head.action)) {
         queues.set(seatKey, result.plan.slice(1));
@@ -186,8 +278,12 @@ export function createGeneralistPilot(budget: PilotBudget, seed: number): Genera
     }
   };
 
+  const decide = opts.wrap
+    ? (run: RunState, ctx: SeatContext): Action | null => opts.wrap!(run, ctx, () => decideCore(run, ctx))
+    : decideCore;
+
   return {
-    id: 'generalist',
+    id: opts.id ?? 'generalist',
     budget,
     decide,
     lastTrace: (seatId = 'seat') => traces.get(seatId),

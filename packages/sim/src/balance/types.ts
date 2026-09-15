@@ -93,6 +93,17 @@ export interface SeatContext {
   round: number;
   /** The paired opponent's LAST-KNOWN board as a player would scout it, or null when unrevealed. */
   scoutedOpponent: RunState['lastCombat'] | null;
+  /** B4 (additive): the LINE the seat's pilot declared for this run (`SeatPilot.lineOf`), echoed back by the
+   *  runner once known — a pilot's own choice, never something the runner imposes. Absent for line-less pilots. */
+  line?: LineRecord;
+}
+
+/** B4: the strategy line a pilot committed a run to — the primary package, an optional secondary, and where the
+ *  primary ranked among the run's viable lines (0 = best fit). Recorded on `RunRecord.line`. */
+export interface LineRecord {
+  primary: string;
+  secondary?: string;
+  fitRank: number;
 }
 
 /**
@@ -104,6 +115,9 @@ export interface SeatContext {
 export interface SeatPilot {
   id: string;
   decide(run: RunState, ctx: SeatContext): Action | null;
+  /** B4 (additive): the line this pilot has committed `seatId`'s run to, once it has decided one. Line-less
+   *  pilots (greedy, generalist) omit it. */
+  lineOf?(seatId: string): LineRecord | undefined;
 }
 
 // ───────────────────────────────────────────── records ─────────────────────────────────────────────
@@ -189,6 +203,8 @@ export interface RunRecord {
    *  recording's provenance, so the report can describe the opponent POPULATION (runs, authors, patches) without
    *  ever treating its placements as decisions a pilot made. */
   recording?: { key: string; author: string; patch?: string; waves: number };
+  /** B4 (additive): the strategy line the pilot declared for this run (strategist seats only). */
+  line?: LineRecord;
 }
 
 export interface LobbyRecord {

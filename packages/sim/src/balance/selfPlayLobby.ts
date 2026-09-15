@@ -152,13 +152,20 @@ export function runSelfPlayLobby(
     for (const seat of living) {
       const foe = opponentOf.get(seat.state.id) ?? null;
       const before = seat.run;
-      const turn = playRecruitTurn(seat.run, seat.pilot, { seatId: seat.state.id, round, scoutedOpponent: foe?.run.lastCombat ?? null }, rec, { maxActionsPerTurn, lobbyId });
+      const line = seat.pilot.lineOf?.(seat.state.id);
+      const turn = playRecruitTurn(seat.run, seat.pilot, { seatId: seat.state.id, round, scoutedOpponent: foe?.run.lastCombat ?? null, ...(line ? { line } : {}) }, rec, { maxActionsPerTurn, lobbyId });
       seat.run = turn.run;
       if (turn.failure) { fail(turn.failure); break; }
       // Gold spent this turn is the run's own counter (reset by the turn rollover, so read it now); unspent is
       // what the shop closed on.
       seat.turnGoldSpent = seat.run.goldSpentThisTurn ?? Math.max(0, before.embers - seat.run.embers);
       seat.turnGoldUnspent = seat.run.embers;
+      // The recruit phase can change the seat's OWN health (Mend sets Armor to 5): the run is authoritative for
+      // that, and the table must mirror it BEFORE the fight charges the seat — otherwise `hitSeat` charges the
+      // stale table value and the seat/run assertion below fails the lobby (hit 2026-09-15, B4 benchmark seed 101:
+      // a strategist seat cast Mend and the table still held Armor 0).
+      seat.state.resolve = seat.run.resolve;
+      seat.state.armor = seat.run.armor;
       const prep = seat.run.pendingCombatSide;
       if (!prep) { fail(`seat ${seat.state.id} round ${round}: ended the turn without a deferred fight pending`); break; }
       seat.lastFought = { prep: { board: prep.board, state: prep.state }, run: seat.run };
@@ -235,6 +242,7 @@ export function runSelfPlayLobby(
       ...(failure ? { failure } : {}),
       runesOwned: seat.run.ownedRunes ?? [],
       finalBoard: seat.run.board.map((c) => c.cardId),
+      ...(() => { const line = seat.pilot.lineOf?.(st.id); return line ? { line: { primary: line.primary, ...(line.secondary ? { secondary: line.secondary } : {}), fitRank: line.fitRank } } : {}; })(),
     });
   }
   if (failure) record.failure = failure;

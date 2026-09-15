@@ -42,6 +42,8 @@
     "text:audit": "tsx packages/tools/src/text-audit.ts",
     "balance:manifest": "tsx packages/tools/src/balance/manifest.ts",
     "balance:census": "tsx packages/tools/src/balance/census.ts",
+    "balance:packages": "tsx packages/tools/src/balance/packages-census.ts",
+    "balance:strategist-bench": "tsx packages/tools/src/balance/strategist-bench.ts",
     "docbot": "tsx packages/tools/src/docbot.ts",
     "docbot:scenario": "tsx packages/tools/src/qa-scenario-run.ts",
     "docbot:corpus": "tsx packages/tools/src/qa-corpus-build.ts",

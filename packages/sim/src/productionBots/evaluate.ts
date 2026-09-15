@@ -49,7 +49,36 @@ export interface EvaluationBreakdown {
   handValue: number;
   survivalUrgency: number;
   wastedGoldPenalty: number;
+  /**
+   * B4 (balance roadmap): a STRATEGY PRIOR — the strategist pilot's line affinity (card / rune / tier timing),
+   * supplied through `withEvaluationPrior` for the duration of one decision. Zero unless a prior is installed,
+   * and weighted ZERO in the shipped config, so the generalist's numbers never move. Engine outcomes (the fight
+   * terms) stay the dominant term by construction: a prior is capped at a few utility points.
+   */
+  prior: number;
   total: number;
+}
+
+/** A prior over the visible state, in the evaluator's normalized scale (roughly [-1.5, 1.5]). */
+export type EvaluationPrior = (v: BotVisibleState) => number;
+let ACTIVE_PRIOR: EvaluationPrior | null = null;
+let ACTIVE_PRIOR_WEIGHT = 0;
+/**
+ * Run `fn` with `prior` installed at `weight`. Scoped (restored on exit, exceptions included) so a pilot's search
+ * sees its prior everywhere `evaluate()` is called — `pilotSearch`, sampled futures, positioning — and nothing
+ * outside the call does. Synchronous by design: the planning boundary never yields mid-decision.
+ */
+export function withEvaluationPrior<T>(prior: EvaluationPrior, weight: number, fn: () => T): T {
+  const prevPrior = ACTIVE_PRIOR;
+  const prevWeight = ACTIVE_PRIOR_WEIGHT;
+  ACTIVE_PRIOR = prior;
+  ACTIVE_PRIOR_WEIGHT = weight;
+  try {
+    return fn();
+  } finally {
+    ACTIVE_PRIOR = prevPrior;
+    ACTIVE_PRIOR_WEIGHT = prevWeight;
+  }
 }
 
 export interface EvaluationConfig {
@@ -99,6 +128,9 @@ export const EVALUATION_CONFIG_V1: EvaluationConfig = {
     handValue: 5,
     survivalUrgency: 16,
     wastedGoldPenalty: -10,
+    // ZERO: the shipped evaluator carries no strategy prior. The strategist installs one per decision through
+    // `withEvaluationPrior`, whose own weight applies while it is installed.
+    prior: 0,
   },
   dangerHealthFraction: 0.35,
   // Two archetypes mid-search. Five is more accurate but triples the cost of every node, and the node budget
@@ -244,7 +276,11 @@ export function evaluate(v: BotVisibleState, cfg: EvaluationConfig = ACTIVE_CONF
   });
   const futureWins = predicted === null ? 0 : Math.max(0, Math.min(1.5, predicted / 8));
 
-  const parts = { fightStrength, learnedStrength, tierDensity, tribeFocus, pairsHeld, tripleReady, futureWins, boardPower, economy, tierProgress, handValue, survivalUrgency, wastedGoldPenalty };
+  // THE STRATEGY PRIOR (B4). Only non-zero inside `withEvaluationPrior`; its weight is the installer's.
+  const prior = ACTIVE_PRIOR ? ACTIVE_PRIOR(v) : 0;
+  const priorWeight = ACTIVE_PRIOR ? ACTIVE_PRIOR_WEIGHT : w.prior;
+
+  const parts = { fightStrength, learnedStrength, tierDensity, tribeFocus, pairsHeld, tripleReady, futureWins, boardPower, economy, tierProgress, handValue, survivalUrgency, wastedGoldPenalty, prior };
   const total =
     parts.fightStrength * w.fightStrength +
     parts.learnedStrength * w.learnedStrength +
@@ -258,7 +294,8 @@ export function evaluate(v: BotVisibleState, cfg: EvaluationConfig = ACTIVE_CONF
     parts.tierProgress * w.tierProgress +
     parts.handValue * w.handValue +
     parts.survivalUrgency * w.survivalUrgency +
-    parts.wastedGoldPenalty * w.wastedGoldPenalty;
+    parts.wastedGoldPenalty * w.wastedGoldPenalty +
+    parts.prior * priorWeight;
 
   return { ...parts, total };
 }

@@ -148,25 +148,25 @@ describe('rule 2 — only one at a time', () => {
   });
 });
 
-describe('rule 3 — persists through refreshes in the SAME slot, across turns and combat, under Freeze', () => {
-  it('a paid roll rebuilds every other offer and leaves the token at its index', () => {
+describe('rule 3 — persists through refreshes at the RIGHT-MOST slot (owner 2026-09-14; was: the same slot), across turns and combat, under Freeze', () => {
+  it('a paid roll rebuilds every other offer and puts the token back at the right-most slot', () => {
     let s = runOpen();
     const sf = createStarform(s, SRC); // an open slot → appended right-most
     buffStarform(s, 3, 3, 'test');
-    const idx = s.shop.indexOf(sf);
+    // (created into an open slot → already right-most; a roll must keep it there)
     const others = s.shop.filter((o) => !o.starform).map((o) => o.uid);
     for (let n = 0; n < 3; n++) {
       s = act(s, { type: 'roll' });
       const now = starformOf(s)!;
       expect(now.uid, 'the same token').toBe(sf.uid);
-      expect(s.shop.indexOf(now), 'the same slot').toBe(idx);
+      expect(s.shop.indexOf(now), 'right-most').toBe(s.shop.length - 1);
       expect(s.shop.length, 'the row is exactly the tier\'s width — the token takes a slot').toBe(tierSlots(s.tier));
       expect(s.shop.filter((o) => others.includes(o.uid)), 'the others rolled away').toEqual([]);
       expect(sfStats(s), 'its stats ride along').toEqual([4, 4]);
     }
   });
 
-  it('a Starform in a MIDDLE slot stays there while kept (Layaway) offers pull left', () => {
+  it('a Starform dragged to a MIDDLE slot snaps back to the RIGHT-MOST on the refresh; kept (Layaway) offers still pull left', () => {
     const s = run();
     const minion = minionIdOf(s);
     s.tier = 3; // 4 slots
@@ -178,7 +178,7 @@ describe('rule 3 — persists through refreshes in the SAME slot, across turns a
     s.shop[3]!.kept = true;
     const keptUid = s.shop[3]!.uid;
     rollShop(s);
-    expect(s.shop.indexOf(starformOf(s)!), 'still index 1').toBe(1);
+    expect(s.shop.indexOf(starformOf(s)!), 'right-most after the refresh (owner 2026-09-14)').toBe(3);
     expect(s.shop[0]!.uid, 'the kept offer took the LEFT slot, as Layaway does').toBe(keptUid);
     expect(s.shop.length).toBe(4);
   });

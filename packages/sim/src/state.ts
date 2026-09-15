@@ -1171,7 +1171,9 @@ export interface RunState {
    *  `fodderEaten` (owner 2026-07-25): eating a tavern minion and eating Fodder are different mechanics and
    *  will get different animations, and sharing one payload meant one couldn't be restyled without the other.
    *  Same shape, so the UI can share choreography until they diverge. Transient, cleared each action. */
-  shopEaten?: { uid: string; eaterUid: string; cardId: string; attack: number; health: number; gainA: number; gainH: number }[];
+  /** `silent` (2026-09-14): a STARFORM CREATION's meal — the token took the victim's slot in place and the
+   *  owner's `starform-create` cue covers the moment, so the UI draws NO ghost, NO pull and holds NO slot. */
+  shopEaten?: { uid: string; eaterUid: string; cardId: string; attack: number; health: number; gainA: number; gainH: number; silent?: boolean }[];
   /** Bumps each time a Shop minion is consumed — the UI keys its own animation off this. */
   shopEatenSeq: number;
   /** Set 3 (Celestials) — the Starform's three pulls this action, for the authored `starform-pull` def (owner
@@ -1181,7 +1183,7 @@ export interface RunState {
    *  from the token to the body); `collapse` = Nova Herald (from the token to EACH receiving Celestial —
    *  `toUids` lists every one, the UI fires one play per target). A dismiss buy and a Demon eating the token
    *  emit NOTHING here (they keep their own cues). Appended, cleared per action by the reducer. */
-  starformFx?: { kind: 'consumeShop' | 'consumed' | 'collapse'; fromUid: string; toUids: string[] }[];
+  starformFx?: { kind: 'consumeShop' | 'consumed' | 'collapse' | 'created'; fromUid: string; toUids: string[] }[];
   /** Set 3 (Celestials, owner rule D 2026-09-13) — a RUN-WIDE, permanent count of EXTRA Collapse hits: every Collapse
    *  draws this many additional random friendly Celestials WITH replacement on top of its 2 unique originals. No
    *  card writes it yet (Nova Herald's +2 is read off the board at collapse time — `collapseExtraTargetsOf`); it

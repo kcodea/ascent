@@ -4931,7 +4931,8 @@ export function Recruit() {
   useEffect(() => {
     if (run.shopEatenSeq === prevShopEatSeq.current) return;
     prevShopEatSeq.current = run.shopEatenSeq;
-    const events = (run.shopEaten ?? []).map((e) => ({ ...e, fodderId: e.cardId }));
+    // A creation's `silent` meal draws nothing here — the `starform-create` cue (the starformFx watcher) is it.
+    const events = (run.shopEaten ?? []).filter((e) => !e.silent).map((e) => ({ ...e, fodderId: e.cardId }));
     if (events.length === 0) return;
     return playFodderEat(events, run.shopEatenSeq);
   }, [run.shopEatenSeq]);
@@ -4952,7 +4953,23 @@ export function Recruit() {
     const seq = run.starformFxSeq ?? 0;
     if (seq === prevStarformFxSeq.current) return;
     prevStarformFxSeq.current = seq;
-    const events = (run.starformFx ?? []).filter((e) => e.kind !== 'consumeShop');
+    const events = (run.starformFx ?? []).filter((e) => e.kind !== 'consumeShop' && e.kind !== 'created');
+    // THE CREATE CUE (owner-authored `starform-create`, 2026-09-14): a Starform was FORMED — into an open slot or
+    // over a meal alike — and the def plays ON the token's card (both layers anchor `target`). The token mounts in
+    // this same commit, so its element can lag a frame — retry like the pull below rather than dropping it.
+    const created = (run.starformFx ?? []).filter((e) => e.kind === 'created');
+    if (created.length > 0) {
+      let cRaf = 0, cTries = 0;
+      const fireCreate = (): void => {
+        const tEl = document.querySelector(`[data-zone="tavern"] .card.starform[data-uid="${created[0]!.toUids[0]}"]`);
+        const tr = tEl?.getBoundingClientRect();
+        if (!tr || tr.width === 0) { if (cTries++ < 40) cRaf = requestAnimationFrame(fireCreate); return; }
+        const at = { x: tr.left + tr.width / 2, y: tr.top + tr.height / 2 };
+        playDef('starform-create', { source: at, target: at, camera: { x: window.innerWidth / 2, y: window.innerHeight / 2 } }, { uids: { source: created[0]!.fromUid, target: created[0]!.toUids[0] } });
+      };
+      fireCreate();
+      if (events.length === 0) return () => { if (cRaf) cancelAnimationFrame(cRaf); };
+    }
     if (events.length === 0) return;
     let raf = 0;
     let tries = 0;
@@ -5052,7 +5069,11 @@ export function Recruit() {
   if (run.shopEatenSeq !== heldConsumeSeq) {
     setHeldConsumeSeq(run.shopEatenSeq);
     const order = [...shopRectsRef.current.cur.keys()];
+    // A Starform creation's meal is `silent` (2026-09-14): the token already sits in the victim's slot, so holding
+    // the slot open would put SIX cards in a five-slot row and shove the survivors around — exactly the shift the
+    // owner saw. No hold: the row is byte-identical before and after.
     const fresh = (run.shopEaten ?? [])
+      .filter((e) => !e.silent)
       .map((e) => ({ uid: e.uid, index: order.indexOf(e.uid) }))
       .filter((h) => h.index >= 0);
     if (fresh.length) setHeldConsume((prev) => {

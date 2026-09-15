@@ -4132,6 +4132,14 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.95), 0 0 3px rgba(0, 0, 0, 0.75);
 }
 .card.plated .plate-tribe .ctype-sep { opacity: 0.6; margin: 0 0.1em; }
+/* STEP COUNTER on a PLATED card (the hover / full preview): the plate reaches far below the card box, so the
+   compact rule's `bottom: -44px` lands right on the NAME line (owner report 2026-09-14 — Aspect's "2/3" over
+   "Aspect"; every tribe did it, Guel included). Ride the plate instead: pinned just under its bottom gem, on the
+   same `--plate-*` geometry the tribe label uses, so it moves with any plate retune. */
+.card.plated .stepcounter {
+  bottom: auto;
+  top: calc(var(--plate-top, -37px) + var(--ccw) * var(--plate-scale, 1.5) * 1.5550 * 1.085);
+}
 /* GOLDEN PLATE — a gilded card's stone body reads GOLD, mirroring the frame's silver→gold. The frame does it
    by un-graying a gold PNG (`--frame-tone`); the plate art is stone, so we push it gold with a colour filter
    instead (keeps the relief/engraving, just recolours it). Tunable via `--plate-gold-tone` (🂠 Card Plate

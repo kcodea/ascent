@@ -252,8 +252,9 @@ export const SET3_CELESTIALS: readonly CardDef[] = [
     health: 2,
     keywords: [],
     effects: [{ on: 'onPlay', do: 'battlecryBuffThisShopPerSpellsThisTurn', params: { attack: 3, health: 3 } }],
-    text: '**Shout:** give **this shop +3/+3** for every Shop spell you cast this turn.',
-    goldenText: '**Shout:** give **this shop +6/+6** for every Shop spell you cast this turn.',
+    // 2026-09-14 (owner): a BASE +3/+3 that repeats per spell — (1 + spells) × 3, so it always does something.
+    text: '**Shout:** give **this shop +3/+3**. Repeat for every Shop spell you cast this turn.',
+    goldenText: '**Shout:** give **this shop +6/+6**. Repeat for every Shop spell you cast this turn.',
   },
   {
     // T3 Avenge (3): a Star Crash to hand mid-fight (`avengeGrantSpell`, Arcane Weaver's shape — rides

@@ -100,6 +100,21 @@ export const PATCH_NOTES: PatchNote[] = [
     ],
   },
   {
+    date: '2026-09-15',
+    label: 'Start of Combat / End of Turn buffs show their source',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: 'Start of Combat and End of Turn buffs now show where they come from: every minion that gets stats from another minion, a rune or a hero power gets its own ribbon (or rune sparkle) from that source.',
+        details: [
+          "Old Timber's Start of Combat gift to your Spirits now streams a Spirit ribbon to each one (it used to land with no effect at all).",
+          "Emissary's United Front and Aevor's Tempest now draw a ribbon from the hero-power button to each minion they pay (both used to land silently).",
+          'End of Turn ribbons (Kringle, Striker, Mother Moss…) aim at the slot each card is settling into, not wherever it is drawn mid-bounce.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-09-14',
     label: 'Starform creation',
     changes: [

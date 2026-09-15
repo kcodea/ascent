@@ -35,7 +35,7 @@ import { isDeathrattleBufferCard } from './deathrattleBuffers';
 import { fireBuffFx } from './buffFxRender';
 import { cardFxScale } from './fx/cardScale';
 import { canPlayDefs, playDef } from './fx/playDef';
-import { authoredBuffDefFor, bindingFor, labelBuffFxFor, sourceBuffDefFor } from './choreo/bindings';
+import { authoredBuffDefFor, bindingFor, heroPowerBuffLabelFor, labelBuffFxFor, sourceBuffDefFor } from './choreo/bindings';
 import { isRuneBuffSource, hasPower } from '@game/sim';
 import { anchorsForUnits } from './fx/combatAnchors';
 import { getDef } from './fx/fxDefs';
@@ -1575,27 +1575,43 @@ export function useCombatReplay(
       // pair is a point above the card → the card itself, which is what `fireBuffFx` draws generically and what
       // a `travel`-anchored ribbon reads as coming down onto the minion that earned it.
       const labelFx = sourceless ? labelBuffFxFor(c.source) : null;
-      if (labelFx) {
-        // FROM THE HERO POWER BUTTON (owner report 2026-09-01: *"gorun's hero power trail isn't originating
-        // from the hero power button"*). A hero power has no body on the board, but it DOES have a control on
-        // screen, and that is where the player watches it charge — so a `travel`-anchored ribbon should leave
-        // from there rather than from a point in space above the card, which is what a generic descend uses.
-        //
-        // The ENEMY's power lives in its own corner (`.opp-power`), so the side is picked from where the
-        // buffed body actually is. If neither button is on screen the descend is the fallback: an effect
-        // slightly out of place beats no effect at all, and that was the pre-existing behaviour.
+      // FROM THE HERO POWER BUTTON (owner report 2026-09-01: *"gorun's hero power trail isn't originating
+      // from the hero power button"*). A hero power has no body on the board, but it DOES have a control on
+      // screen, and that is where the player watches it charge — so a `travel`-anchored ribbon should leave
+      // from there rather than from a point in space above the card, which is what a generic descend uses.
+      //
+      // The ENEMY's power lives in its own corner (`.opp-power`), so the side is picked from where the
+      // buffed body actually is. If neither button is on screen the descend is the fallback: an effect
+      // slightly out of place beats no effect at all, and that was the pre-existing behaviour.
+      const heroPowerFrom = (): { x: number; y: number } => {
         const onEnemy = !frameRef.current?.player.some((u) => u.uid === c.target);
         const powerEl = document.querySelector<HTMLElement>(
           onEnemy ? '.heropowerbtn.opp-power' : '.statusbar .heropanel:not(.heropanel2):not(.equipslot) .heropowerbtn',
         ) ?? document.querySelector<HTMLElement>(onEnemy ? '.opp-power' : '.statusbar .heropowerbtn');
         const pr = powerEl?.getBoundingClientRect();
-        const from = pr && (pr.width > 0 || pr.height > 0)
+        return pr && (pr.width > 0 || pr.height > 0)
           ? { x: pr.left + pr.width / 2, y: pr.top + pr.height / 2 }
           : { x: tc.x, y: tc.y - tr.height };
-        playDef(labelFx.def, { source: from, target: tc, cursor: tc, camera: { x: window.innerWidth / 2, y: window.innerHeight / 2 } },
+      };
+      if (labelFx) {
+        playDef(labelFx.def, { source: heroPowerFrom(), target: tc, cursor: tc, camera: { x: window.innerWidth / 2, y: window.innerHeight / 2 } },
           { uids: { source: c.target, target: c.target } });
         if (labelFx.heroId) sfx.heroPower(labelFx.heroId);
         if (!perTarget.has(c.target)) perTarget.set(c.target, AUTHORED_BUFF_ROLL_MS);
+        continue;
+      }
+      // A HERO POWER with no authored def (Emissary's United Front — owner ask 2026-09-15): the GENERIC buff
+      // tendril, from the hero-power button to each recipient, through the one shared `fireBuffFx` path so the
+      // roll lands on the ribbon's arrival like every minion-sourced buff. Base ribbon (a hero is tribeless).
+      // Before this the grant was sourceless with nothing authored — it landed with no cue at all.
+      const heroFx = sourceless ? heroPowerBuffLabelFor(c.source) : null;
+      if (heroFx) {
+        const strikeMs = fireBuffFx({
+          source: heroPowerFrom(), target: tc, cardId: '', tribe: 'neutral', sourceless: false,
+          uids: { source: null, target: c.target },
+        });
+        sfx.heroPower(heroFx.heroId);
+        if (!perTarget.has(c.target)) perTarget.set(c.target, strikeMs);
         continue;
       }
       // AUTHORED REPLACES STOCK, for a SOURCE MINION whose own on-attack buff has no spell behind it (Paragon's

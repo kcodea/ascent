@@ -5575,6 +5575,12 @@ export function Recruit() {
       const r = el.getBoundingClientRect();
       return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
     };
+    /** The card's RESTING centre (transform-immune) — for the buff ribbons, which must aim at the slot a card
+     *  settles into rather than wherever a pulse or a FLIP has it drawn this frame (see `restingCenterOf`). */
+    const restingOf = (uid: string): { x: number; y: number } | null => {
+      const el = document.querySelector<HTMLElement>(`[data-uid="${uid}"]`);
+      return el ? restingCenterOf(el) : null;
+    };
     const presenterCtx: PresenterContext = {
       // The generic green burst is retired (`.cardbuff`), so a stat gain with no SOURCE minion plays nothing
       // here (a rune/quest ribbon, an aura wash and a Ruby are their own cues). A buff FROM another minion —
@@ -5585,7 +5591,10 @@ export function Recruit() {
       // commit replay was the ONLY place these tendrils were drawn under the authoritative path.
       statGain: (uid, _zone, _attack, _health, from) => {
         if (!from || from.uid === uid) return;
-        const target = centreOf(uid);
+        // RESTING centres at both ends (owner ask 2026-09-15, the rule #1483 set for the per-action replay): the
+        // beat's source is mid-pulse (`eotAnimTick` scales it) and a card can still be settling into a slot a
+        // summon shifted, so the raw rect can put either end of the ribbon off the card.
+        const target = restingOf(uid);
         if (!target) return;
         if (bindingFor(from.cardId, 'minionBuffed')) {
           if (!canPlayDefs()) return;
@@ -5598,11 +5607,25 @@ export function Recruit() {
           );
           return;
         }
-        const source = centreOf(from.uid);
+        const source = restingOf(from.uid);
         fireBuffFx({
           source: source ?? undefined, target, cardId: from.cardId, tribe: CARD_INDEX[from.cardId]?.tribe ?? 'neutral', sourceless: !source,
           uids: { source: from.uid, target: uid },
         });
+      },
+      heroPowerGain: (uid, heroId) => {
+        // A HERO POWER paying a minion at End of Turn (Aevor's Tempest — owner ask 2026-09-15): the generic
+        // tendril from the hero-power button to the recipient, the shop twin of the combat replay's
+        // `heroPowerBuffLabelFor` branch. The button is the only thing on screen the grant can leave from; with
+        // no button measurable the sourceless path keeps the roll's clock and draws nothing, as before.
+        const target = restingOf(uid);
+        if (!target) return;
+        const btn = document.querySelector<HTMLElement>('.statusbar .heropanel:not(.heropanel2):not(.equipslot) .heropowerbtn')
+          ?? document.querySelector<HTMLElement>('.statusbar .heropowerbtn');
+        const br = btn?.getBoundingClientRect();
+        const source = br && (br.width > 0 || br.height > 0) ? { x: br.left + br.width / 2, y: br.top + br.height / 2 } : undefined;
+        fireBuffFx({ source, target, cardId: '', tribe: 'neutral', sourceless: !source, uids: { source: null, target: uid } });
+        if (source) sfx.heroPower(heroId);
       },
       selfBuff: (uid) => {
         // A self-buff on this beat plays the minion's own authored self-buff def, mirroring the per-action

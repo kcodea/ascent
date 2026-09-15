@@ -1465,7 +1465,16 @@ function commitResolvedAction(
     };
 }
 
-export const useGame = create<GameStore>((set, get) => ({
+export const useGame = create<GameStore>((rawSet, get) => {
+  // `store:set` (perf): every Zustand update — the state swap plus every SYNCHRONOUS subscriber (the perf
+  // context, the tutorial bus, the auto-share watcher, the turn clock…). React's own re-render is NOT in
+  // here (it is scheduled, and lands in `render:recruit` / `render:combat`); this is the part of a dispatch
+  // that the reducer's own `reduce:<action>` span does not cover. Nested inside it, that span keeps its
+  // own time — the monitor charges each label its SELF time — so nothing is counted twice.
+  const set: typeof rawSet = ((partial: Parameters<typeof rawSet>[0], replace?: boolean) => {
+    perfMonitor.measure('store:set', () => { (rawSet as (p: unknown, r?: boolean) => void)(partial, replace); });
+  }) as typeof rawSet;
+  return ({
   // Boot into the saved in-progress run if there is one (behind the title, which shows a Continue entry);
   // otherwise a throwaway fresh run that Play/Practice will replace.
   run: BOOT_SAVE?.run ?? createRun(randomSeed()),
@@ -2113,7 +2122,8 @@ export const useGame = create<GameStore>((set, get) => ({
     });
     return { ok: true, errors: [] };
   },
-}));
+  });
+});
 
 // The autosave writes at turn boundaries (see `dispatch`), so leaving mid-turn needs an explicit flush or the
 // shop turn in progress would roll back on Continue. Two events, deliberately both:

@@ -3422,7 +3422,9 @@ export function Recruit() {
   // `render:recruit` (perf export): render body + React reconciliation + DOM commit for THIS render — the delta
   // from `renderStart` (top of the component) to this earliest post-commit layout effect. No deps → every commit.
   // Defined ahead of the Flip effect so it excludes Flip's cost. This is the number that goes up late-game.
-  useLayoutEffect(() => { perfMonitor.record('render:recruit', performance.now() - renderStart); });
+  // `render:combat` while a combat is on screen (this one component hosts both phases): a beat's React
+  // commit — the Unit list reconciling — is a different cost from a shop commit and must rank separately.
+  useLayoutEffect(() => { perfMonitor.record(run.phase === 'combat' ? 'render:combat' : 'render:recruit', performance.now() - renderStart); });
   // Tavern offers that would complete a Gild if bought — flagged with a gold glow + floating arrows. Mirrors
   // `checkTriples`' counting AND its threshold: the copies needed is 3 normally but 2 under Rune of Twin
   // Gilding or Midas' Touch, so the number you must already hold is `need - 1`. This was hardcoded to 2, so a
@@ -5284,14 +5286,20 @@ export function Recruit() {
       : gapIndex >= 0 && shopGapIndex < 0 ? FLIP_SEL_WARBAND
         : shopGapIndex >= 0 && gapIndex < 0 ? FLIP_SEL_TAVERN
           : FLIP_SELECTOR;
-    if (flipStateRef.current) {
+    // SPLIT INTO ITS TWO HALVES (perf, 2026-09-15): `layout:flip:write` is the animation branch — Flip.from
+    // or the manual tweens, each with a forced reflow — and `layout:flip:read` is the state capture that
+    // follows (Flip.getState + the offsetLeft sweep). The 2026-09-11 capture put this effect at ~7.3 ms mean,
+    // 98% of it during drags, and could not say which half; nested spans make `layout:flip` itself ~0 self
+    // time so the offenders list charges the halves, not the wrapper.
+    const prevFlipState = flipStateRef.current;
+    if (prevFlipState) perfMonitor.measure('layout:flip:write', () => {
       const flipCfg = getFlipConfig();
       const dragging = draggingNow;
       if (dragging) {
         // The PRE-EMPTIVE slide: as the drag crosses a slot boundary, the drop slot moves and the cards glide
         // to make room (dragMs = the slide duration). The cards' CSS `transition: transform` is off for the
         // whole drag (body.dragging rule in styles.css) so GSAP's transform animation isn't masked.
-        Flip.from(flipStateRef.current, { duration: flipCfg.dragMs / 1000, ease: 'power2.out' });
+        Flip.from(prevFlipState, { duration: flipCfg.dragMs / 1000, ease: 'power2.out' });
       } else if (handPlaySnapRef.current) {
         // A drag-drop just committed (a hand card landed, or a board / shop card was reordered). We do a MANUAL
         // FLIP on the settled row's cards only (never a full Flip.from — for a hand-play the freshly played card
@@ -5367,7 +5375,8 @@ export function Recruit() {
         }
       }
       // else: committed with commitMs 0 → snap (no animation); the drag preview already positioned everything.
-    }
+    });
+    perfMonitor.measure('layout:flip:read', () => {
     // `simple: true` is GSAP's documented fast path: it skips the rotation/scale/skew accounting, which is
     // the expensive half of a state capture (a `getComputedStyle` read per element on top of the rect). These
     // rows only ever TRANSLATE horizontally, and `body.dragging` neutralises the hover `scale(1.06)` for the
@@ -5380,6 +5389,7 @@ export function Recruit() {
     commitRectsRef.current = new Map(
       gsap.utils.toArray<HTMLElement>(flipSel).map((el) => [el.dataset.uid ?? '', el.offsetLeft]),
     );
+    });
    });
   }, [flipKey]);
 

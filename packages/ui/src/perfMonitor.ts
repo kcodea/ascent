@@ -107,6 +107,9 @@ let thresholds: FrameThresholds = thresholdsFor(DEFAULT_REFRESH_HZ);
 /** The derived frame thresholds currently in force, and the refresh they came from. */
 export const perfThresholds = (): FrameThresholds => thresholds;
 
+/** One label's measured work in a bucket. `self` excludes nested spans (see `measure`); older logs lack it. */
+export interface PerfSpan { n: number; total: number; max: number; self?: number }
+
 export interface PerfBucket {
   /** ms since monitoring started, at the bucket's end. */
   t: number;
@@ -139,7 +142,14 @@ export interface PerfBucket {
    * MEASURED work in this bucket, `label` → how long it actually took. Unlike `marks` (correlation), this
    * is direct attribution — the milliseconds are on the clock for that specific block of code.
    */
-  timings: Record<string, { n: number; total: number; max: number }>;
+  timings: Record<string, PerfSpan>;
+  /**
+   * WHO OWNED THE LONG FRAMES. For every frame over the long threshold, each label's SELF time inside that
+   * frame and the number of long frames it appeared in — the attribution behind the live monitor's
+   * top-offenders list. Self time (a span minus the spans it nested) is what makes a `store:set` that wraps
+   * a `reduce:…` not double-count. Absent on logs from before it existed.
+   */
+  longAttrib?: Record<string, { ms: number; frames: number }>;
   /** True if the tab was backgrounded (rAF throttled) — excluded from summaries. */
   hidden?: boolean;
   /** Frames this second that were DIVERTED to a startup record by the warm-up (see `WarmupConfig`). The
@@ -254,7 +264,15 @@ class PerfMonitor {
   private longestTask = 0;
 
   private readonly pendingMarks = new Map<string, number>();
-  private readonly pendingTimings = new Map<string, { n: number; total: number; max: number }>();
+  private readonly pendingTimings = new Map<string, { n: number; total: number; max: number; self: number }>();
+  /** The open-span stack behind `begin` / `end` / `measure`: label, start time, and the CHILD time each open
+   *  span has accumulated so far (what makes self time possible). Three parallel arrays, no per-span object. */
+  private readonly spanLabel: string[] = [];
+  private readonly spanT0: number[] = [];
+  private readonly childMs: number[] = [];
+  /** Self time per label since the LAST rAF tick — folded into `longAttrib` when that frame turns out long. */
+  private readonly frameSelf = new Map<string, number>();
+  private readonly pendingLongAttrib = new Map<string, { ms: number; frames: number }>();
   private readonly counters = new Map<string, CounterFn>();
   /** PEAK of each counter since the bucket opened — see `sampleCounters`. */
   private readonly counterPeak = new Map<string, number>();
@@ -353,12 +371,37 @@ class PerfMonitor {
    */
   measure<T>(label: string, fn: () => T): T {
     if (!this.running) return fn();
-    const t0 = performance.now();
+    this.begin(label);
     try {
       return fn();
     } finally {
-      this.record(label, performance.now() - t0);
+      this.end();
     }
+  }
+
+  /**
+   * Open a span without a callback — for brackets that start in one listener and end in another (the Pixi
+   * ticker pass: `fx:tick` opens at HIGH priority and closes at UTILITY, with `fx:sim` and `fx:render`
+   * nested inside it). Every `begin` needs its `end`; an unbalanced `end` is ignored, and `start()` clears
+   * the stack so a monitor switched on mid-frame cannot inherit a half-open span. One branch when off.
+   */
+  begin(label: string): void {
+    if (!this.running) return;
+    this.spanLabel.push(label);
+    this.spanT0.push(performance.now());
+    this.childMs.push(0);
+  }
+
+  end(): void {
+    if (!this.running || this.spanLabel.length === 0) return;
+    const dt = performance.now() - this.spanT0.pop()!;
+    const label = this.spanLabel.pop()!;
+    const child = this.childMs.pop()!;
+    const depth = this.childMs.length;
+    if (depth > 0) this.childMs[depth - 1]! += dt;
+    // SELF time = the span minus what it nested. `store:set` wraps `reduce:<action>`; without this the
+    // reducer's milliseconds would be charged twice and the offenders list would name the wrapper.
+    this.recordSpan(label, dt, dt - child);
   }
 
   /**
@@ -370,17 +413,29 @@ class PerfMonitor {
    */
   record(label: string, ms: number): void {
     if (!this.running) return;
+    this.recordSpan(label, ms, ms);
+  }
+
+  private recordSpan(label: string, ms: number, self: number): void {
     // Inside a warm-up the span belongs to the startup record, so the main timeline's hotspots describe play
     // and the shader link / first layout pass are still attributed — just to the phase start that paid them.
-    const into = this.warm ? this.warm.timings : this.pendingTimings;
-    const prev = into.get(label);
+    if (this.warm) {
+      const prev = this.warm.timings.get(label);
+      if (prev) { prev.n++; prev.total += ms; if (ms > prev.max) prev.max = ms; }
+      else this.warm.timings.set(label, { n: 1, total: ms, max: ms });
+      return;
+    }
+    const prev = this.pendingTimings.get(label);
     if (prev) {
       prev.n++;
       prev.total += ms;
+      prev.self += self;
       if (ms > prev.max) prev.max = ms;
     } else {
-      into.set(label, { n: 1, total: ms, max: ms });
+      this.pendingTimings.set(label, { n: 1, total: ms, max: ms, self });
     }
+    // Per-FRAME self time, so a long frame can be charged to what ran inside it (see `tick`).
+    this.frameSelf.set(label, (this.frameSelf.get(label) ?? 0) + self);
   }
 
   // ── Warm-up ────────────────────────────────────────────────────────────────────────────────────────────
@@ -485,6 +540,11 @@ class PerfMonitor {
     this.nFrames = 0;
     this.warmThisBucket = 0;
     this.longestTask = 0;
+    this.childMs.length = 0;
+    this.spanLabel.length = 0;
+    this.spanT0.length = 0;
+    this.frameSelf.clear();
+    this.pendingLongAttrib.clear();
     this.t0 = performance.now();
     this.lastFrame = this.t0;
     this.bucketStart = this.t0;
@@ -529,6 +589,19 @@ class PerfMonitor {
       if (w.framesLeft <= 0 && now >= w.until) this.closeWarmup(now);
     } else if (this.nFrames < this.frames.length) {
       this.frames[this.nFrames++] = dt;
+    }
+    // ATTRIBUTE THE FRAME. Everything measured since the last tick ran inside the interval that just ended;
+    // if that interval was a dropped frame, charge each label its self time. `frameSelf` is empty on the
+    // overwhelming majority of frames, so this is one `.size` read per frame and a clear only when needed.
+    if (this.frameSelf.size > 0) {
+      if (!w && dt > thresholds.longFrameMs) {
+        for (const [label, self] of this.frameSelf) {
+          const cur = this.pendingLongAttrib.get(label);
+          if (cur) { cur.ms += self; cur.frames++; }
+          else this.pendingLongAttrib.set(label, { ms: self, frames: 1 });
+        }
+      }
+      this.frameSelf.clear();
     }
     if (now - this.lastCounterSample >= COUNTER_SAMPLE_MS) {
       this.lastCounterSample = now;
@@ -576,11 +649,17 @@ class PerfMonitor {
     const marks: Record<string, number> = {};
     for (const [k, v] of this.pendingMarks) marks[k] = v;
     this.pendingMarks.clear();
-    const timings: Record<string, { n: number; total: number; max: number }> = {};
+    const timings: Record<string, PerfSpan> = {};
     for (const [k, v] of this.pendingTimings) {
-      timings[k] = { n: v.n, total: +v.total.toFixed(2), max: +v.max.toFixed(2) };
+      timings[k] = { n: v.n, total: +v.total.toFixed(2), max: +v.max.toFixed(2), self: +v.self.toFixed(2) };
     }
     this.pendingTimings.clear();
+    let longAttrib: PerfBucket['longAttrib'];
+    if (this.pendingLongAttrib.size > 0) {
+      longAttrib = {};
+      for (const [k, v] of this.pendingLongAttrib) longAttrib[k] = { ms: +v.ms.toFixed(2), frames: v.frames };
+      this.pendingLongAttrib.clear();
+    }
 
     if (n === 0) return; // no frames at all (fully throttled) — nothing meaningful to record
 
@@ -617,6 +696,7 @@ class PerfMonitor {
       nodes: document.getElementsByTagName('*').length,
       marks,
       timings,
+      ...(longAttrib ? { longAttrib } : {}),
       ...(hidden ? { hidden: true } : {}),
       ...(warmup > 0 ? { warmup } : {}),
     };

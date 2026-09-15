@@ -15,10 +15,13 @@ import type { Renderer, Shader } from 'pixi.js';
 import { registerFxRuntimeHooks } from '../fxRuntime';
 import {
   linkParticleMaterialOn,
+  liveLayerCount,
+  liveParticleCount,
   particleLayerPoolSize,
   prewarmParticleLayers,
   resetParticleLayerPool,
 } from '../particleLayerPool';
+import { activeFilterCount } from '../filterStack';
 import { resetShaderPools } from '../shaderPool';
 import { prewarmShapeTextures } from '../shapeTextures';
 import { linkRibbonShaderOn, prewarmRibbonShaders } from './ribbon';
@@ -118,4 +121,7 @@ registerFxRuntimeHooks({
     resetShaderPools();
   },
   poolSize: particleLayerPoolSize,
+  liveParticles: liveParticleCount,
+  liveLayers: liveLayerCount,
+  activeFilters: activeFilterCount,
 });

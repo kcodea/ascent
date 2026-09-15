@@ -137,3 +137,82 @@ describe('perfMonitor warm-up — the spike is diverted, not dropped', () => {
     expect(JSON.parse(localStorage.getItem('ascent.perf.warmup')!)).toEqual({ ms: 750, frames: DEFAULT_WARMUP.frames });
   });
 });
+
+describe('perfMonitor attribution — self time and long-frame ownership', () => {
+  let now = 0;
+  let pending: FrameRequestCallback | null = null;
+  const frame = (dt: number): void => { now += dt; const cb = pending; pending = null; cb?.(now); };
+  /** Advance the clock INSIDE a span, as if the wrapped work took `ms`. */
+  const work = (ms: number): void => { now += ms; };
+
+  beforeEach(() => {
+    now = 0;
+    pending = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => { pending = cb; return 1; });
+    vi.stubGlobal('cancelAnimationFrame', () => {});
+    vi.spyOn(performance, 'now').mockImplementation(() => now);
+    perfMonitor.clear();
+    perfMonitor.setWarmup({ ms: 0, frames: 0 }); // no warm-up: this suite is about the main timeline
+    perfMonitor.registerContext(() => ({ phase: 'combat', wave: 4 }));
+    perfMonitor.start();
+    frame(1); // the warm-up closes on the first frame with a zero rule
+  });
+  afterEach(() => {
+    perfMonitor.stop();
+    perfMonitor.clear();
+    perfMonitor.setWarmup(DEFAULT_WARMUP);
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  it('a nested span is charged to the inner label; the outer keeps only its SELF time', () => {
+    perfMonitor.measure('store:set', () => {
+      work(1);
+      perfMonitor.measure('reduce:endTurn', () => { work(10); });
+      work(2);
+    });
+    frame(1000); // close the bucket
+    const t = perfMonitor.latest()!.timings;
+    expect(t['reduce:endTurn']).toMatchObject({ n: 1, total: 10, self: 10 });
+    expect(t['store:set']).toMatchObject({ n: 1, total: 13, self: 3 });
+  });
+
+  it('begin/end brackets nest exactly like measure, so fx:tick self = tick − sim − render', () => {
+    perfMonitor.begin('fx:tick');
+    work(0.5);
+    perfMonitor.begin('fx:sim'); work(2); perfMonitor.end();
+    perfMonitor.begin('fx:render'); work(3); perfMonitor.end();
+    work(0.5);
+    perfMonitor.end();
+    perfMonitor.end(); // unbalanced extra end — ignored
+    frame(1000);
+    const t = perfMonitor.latest()!.timings;
+    expect(t['fx:tick']).toMatchObject({ total: 6, self: 1 });
+    expect(t['fx:sim']).toMatchObject({ total: 2, self: 2 });
+    expect(t['fx:render']).toMatchObject({ total: 3, self: 3 });
+  });
+
+  it('charges a LONG frame to the labels that ran inside it, by self time, and not a clean frame', () => {
+    // Frame 1: clean (4 ms) with some cheap measured work in it.
+    perfMonitor.measure('choreo:step', () => { work(1); });
+    frame(4);
+    // Frame 2: a dropped frame (60 ms at the assumed 60 Hz calibration, long = 33.3 ms) owned by fx:sim.
+    perfMonitor.begin('fx:tick');
+    perfMonitor.begin('fx:sim'); work(50); perfMonitor.end();
+    work(1);
+    perfMonitor.end();
+    frame(60);
+    frame(1000);
+    const la = perfMonitor.latest()!.longAttrib!;
+    expect(la['fx:sim']).toEqual({ ms: 50, frames: 1 });
+    expect(la['fx:tick']).toEqual({ ms: 1, frames: 1 }); // self only — the 50 ms is fx:sim's
+    expect(la['choreo:step'], 'the clean frame charged nobody').toBeUndefined();
+  });
+
+  it('a bucket with no long frames carries no longAttrib at all', () => {
+    perfMonitor.measure('choreo:step', () => { work(1); });
+    frame(4);
+    frame(1000);
+    expect(perfMonitor.latest()!.longAttrib).toBeUndefined();
+  });
+});

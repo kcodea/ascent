@@ -62,6 +62,16 @@ export interface PilotBudget {
   horizonWeight?: number;
   horizonFightWeight?: number;
   horizonTop?: number;
+  /** B11 (additive): the ENGINE-COMBO MACROS — `macroWeight` (utility per normalised point of the completion-
+   *  weighted two-turn yield; absent / 0 = macros OFF, the pre-B11 strategist), `macroFightWeight`, `macroReserve`
+   *  (Gold a turn into refreshes while committed and a piece is missing), `macroCommitFrom` / `macroCommitTo`
+   *  (the commit-and-roll window, default 3–6), `macroPivotWave` (default 7). Ignored by the generalist. */
+  macroWeight?: number;
+  macroFightWeight?: number;
+  macroReserve?: number;
+  macroCommitFrom?: number;
+  macroCommitTo?: number;
+  macroPivotWave?: number;
 }
 
 export interface ExperimentManifest {

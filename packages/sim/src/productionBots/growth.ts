@@ -121,8 +121,12 @@ export function dominantTribe(v: BotVisibleState): string | null {
   return best;
 }
 
+/** B11: what a scripted turn may IMAGINE — `plant` puts these cards on offer in the imagined shop (bought first,
+ *  fielded even into a full board, their printed stats netted out of the yield). See `probeCompletion`. */
+interface ScriptOptions { plant?: readonly string[] }
+
 /** Drive one scripted turn on the session. Returns null when the turn could not even be ended. */
-function script(p: ProbeSession, root: BotVisibleState, carried: ReadonlySet<string> = new Set()): GrowthProbe | null {
+function script(p: ProbeSession, root: BotVisibleState, carried: ReadonlySet<string> = new Set(), opts: ScriptOptions = {}): GrowthProbe | null {
   let steps = 0;
   const step = (a: Action): boolean => {
     if (steps >= MAX_STEPS) return false;
@@ -154,6 +158,11 @@ function script(p: ProbeSession, root: BotVisibleState, carried: ReadonlySet<str
    *  (measured 2026-09-15: "sell Venom" scored +24 second-turn stats over keeping it). What still counts: the
    *  buffs the board's engines put on its existing bodies when those buys and plays happen. */
   const boughtUids = new Set<string>(carried);
+  /** B11: the PLANTED pieces the script bought (the imagined missing engine pieces). They stay IN the after-mass
+   *  (the engine they complete is exactly what is being measured — a Blart's own growth is the payoff) with their
+   *  printed stats netted out, so an imagined body is worth what it DOES, never what it is. */
+  const plantedUids = new Set<string>();
+  let plantedPrinted = 0;
   if (root.phase !== 'recruit') return null;
   if (!unblock()) return null;
   // A FROZEN shop never carries into the imagined turn: the probe would otherwise read the REAL current offers as
@@ -167,6 +176,9 @@ function script(p: ProbeSession, root: BotVisibleState, carried: ReadonlySet<str
   refresh();
   if (!unblock()) return finish();
   if (v.phase !== 'recruit') return finish();
+  // B11: the imagined offers — the pieces the macro is still looking for — land in the imagined shop.
+  const plantedOffers = new Set(opts.plant?.length ? p.plantOffers(opts.plant) : []);
+  if (plantedOffers.size) refresh();
 
   // FIELD THE HAND — every body the pilot holds (on-play / on-summon / tribe engines fire here). With a FULL board
   // the weakest printed body is sold to make room (at most `MAX_REPLACEMENTS`), the way a competent player fields
@@ -190,32 +202,49 @@ function script(p: ProbeSession, root: BotVisibleState, carried: ReadonlySet<str
     if (!unblock()) return finish();
   }
 
-  // BUY AND FIELD — up to MAX_BUYS bodies, the dominant tribe first, cheapest first (on-buy engines + the shop buff).
+  // BUY AND FIELD — up to MAX_BUYS bodies (plus the planted pieces), the planted pieces first, then the dominant
+  // tribe, cheapest first (on-buy engines + the shop buff).
   const tribe = dominantTribe(v);
-  for (let i = 0; i < MAX_BUYS; i++) {
+  for (let i = 0; i < MAX_BUYS + plantedOffers.size; i++) {
     refresh();
     if (v.hand.length >= 10) break;
     const offers = v.shop
       .filter((o) => !o.spell && !o.ruby && o.cost <= v.economy.gold && o.uid !== v.starform?.uid)
       .sort((a, b) => {
+        const pa = plantedOffers.has(a.uid) ? 1 : 0;
+        const pb = plantedOffers.has(b.uid) ? 1 : 0;
+        if (pa !== pb) return pb - pa;
         const ta = tribe && (a.tribe === tribe || a.tribe2 === tribe) ? 1 : 0;
         const tb = tribe && (b.tribe === tribe || b.tribe2 === tribe) ? 1 : 0;
         return tb - ta || a.cost - b.cost || b.tier - a.tier;
       });
     const o = offers[0];
     if (!o) break;
+    const planted = plantedOffers.has(o.uid);
+    if (!planted && buys >= MAX_BUYS) break;
     const beforeHand = new Set(v.hand.map((c) => c.uid));
     if (!step({ type: 'buy', uid: o.uid })) break;
     buys++;
     const def = CARD_INDEX[o.cardId];
-    bought += def ? (def.attack + def.health) * (o.golden ? 2 : 1) : o.attack + o.health;
+    const printed = def ? (def.attack + def.health) * (o.golden ? 2 : 1) : o.attack + o.health;
+    bought += printed;
     refresh();
     if (!unblock()) return finish();
     const inHand = v.hand.find((c) => !beforeHand.has(c.uid) && isBody(c));
     if (!inHand) continue; // a triple combined it away, or it was not a body
-    boughtUids.add(inHand.uid);
+    if (planted) {
+      plantedUids.add(inHand.uid);
+      plantedPrinted += printed;
+      // An imagined engine piece is fielded even into a full board: the weakest printed body makes the seat.
+      if (v.board.length >= 7 && replacements < MAX_REPLACEMENTS) {
+        const weakest = [...v.board].filter((b) => !b.golden && !fielded.has(b.uid) && !plantedUids.has(b.uid)).sort((a, b) => a.attack + a.health - (b.attack + b.health))[0];
+        if (weakest && step({ type: 'sell', uid: weakest.uid })) { replacements++; refresh(); if (!unblock()) return finish(); }
+      }
+    } else {
+      boughtUids.add(inHand.uid);
+    }
     if (v.board.length >= 7) continue;
-    if (step({ type: 'play', uid: inHand.uid, toIndex: v.board.length })) { refresh(); if (!unblock()) return finish(); }
+    if (step({ type: 'play', uid: inHand.uid, toIndex: v.board.length })) { fielded.add(inHand.uid); refresh(); if (!unblock()) return finish(); }
   }
 
   // THE SPELL OFFER — bought and cast once, if affordable (spell engines with nothing in hand still get one cast).
@@ -249,7 +278,7 @@ function script(p: ProbeSession, root: BotVisibleState, carried: ReadonlySet<str
   }
   function finish(): GrowthProbe {
     const end = p.visible();
-    const after = massOf(end, boughtUids);
+    const after = massOf(end, boughtUids) - plantedPrinted;
     return { delta: after - before, before, after, bought, buys, casts, steps, trial: rallyTrial(root), end, boughtUids };
   }
 }
@@ -427,17 +456,56 @@ export function probeHorizon(v: BotVisibleState, panelSeed: number): HorizonProb
     });
     if (one) runs.push(one);
   }
-  let probe: HorizonProbe | null = null;
-  if (runs.length > 0) {
-    const avg = (f: (h: HorizonProbe) => number): number => runs.reduce((n, h) => n + f(h), 0) / runs.length;
-    const fight2: FightResult = {
-      winRate: avg((h) => h.fight2.winRate), margin: avg((h) => h.fight2.margin), averageDamage: avg((h) => h.fight2.averageDamage),
-      fights: runs[0]!.fight2.fights, panel: runs[0]!.fight2.panel, carryBack: avg((h) => h.fight2.carryBack),
-    };
-    probe = { d1: avg((h) => h.d1), d2: avg((h) => h.d2), trial2: avg((h) => h.trial2), fight2, mass2: avg((h) => h.mass2), wave2: runs[0]!.wave2 };
-  }
+  const probe = runs.length > 0 ? averageHorizon(runs) : null;
   HCACHE.set(key, probe);
   return probe;
+}
+
+/**
+ * B11 — THE COMPLETION PROBE: what the board BECOMES once the engine's missing pieces arrive.
+ *
+ * The horizon probe measures the engines the pilot HOLDS; a half-built engine (a Blart with no Hank, a Chorus
+ * Drake with no spell body) reads as a small body two turns out, so no re-ranking could prefer assembling it.
+ * This probe scripts the same two turns with the MISSING pieces planted into the imagined shop (bought first,
+ * fielded even into a full board, their printed stats netted out — `ProbeSession.plantOffers`) and credits the
+ * second turn's yield + the horizon fight exactly as `probeHorizon` does. It is a hypothetical the pilot could
+ * state out loud ("if I find a Hank"), not a look at the future: the clone is private, the real pool and RNG are
+ * untouched, and the macro weights the answer by the CHANCE of finding the piece (`combos.ts::findChance`).
+ * Pieces still missing after turn one are planted again for turn two. Memoised beside the horizon probe.
+ */
+export function probeCompletion(v: BotVisibleState, panelSeed: number, plant: readonly string[]): HorizonProbe | null {
+  if (plant.length === 0) return probeHorizon(v, panelSeed);
+  const key = `c|${panelSeed}|${[...plant].sort().join(',')}|${growthKey(v)}`;
+  const hit = HCACHE.get(key);
+  if (hit !== undefined) return hit;
+  if (HCACHE.size >= CACHE_LIMIT) HCACHE.clear();
+  HPROBES++;
+  const runs: HorizonProbe[] = [];
+  for (let i = 0; i < HORIZON_SEEDS; i++) {
+    const one = probeFuture(v, (panelSeed + i * 0x9e37) >>> 0, (p) => {
+      const t1 = script(p, v, new Set(), { plant });
+      if (!t1 || t1.end.phase !== 'recruit') return null;
+      const held = new Set([...t1.end.board, ...t1.end.hand].map((c) => c.cardId));
+      const still = plant.filter((id) => !held.has(id));
+      const t2 = script(p, t1.end, t1.boughtUids, { plant: still });
+      if (!t2) return null;
+      const fight2 = fightScore(t2.end);
+      return { d1: t1.delta, d2: t2.delta, trial2: rallyTrial(t1.end, t1.boughtUids), fight2, mass2: massOf(t2.end, t2.boughtUids), wave2: t2.end.wave };
+    });
+    if (one) runs.push(one);
+  }
+  const probe = runs.length > 0 ? averageHorizon(runs) : null;
+  HCACHE.set(key, probe);
+  return probe;
+}
+
+function averageHorizon(runs: readonly HorizonProbe[]): HorizonProbe {
+  const avg = (f: (h: HorizonProbe) => number): number => runs.reduce((n, h) => n + f(h), 0) / runs.length;
+  const fight2: FightResult = {
+    winRate: avg((h) => h.fight2.winRate), margin: avg((h) => h.fight2.margin), averageDamage: avg((h) => h.fight2.averageDamage),
+    fights: runs[0]!.fight2.fights, panel: runs[0]!.fight2.panel, carryBack: avg((h) => h.fight2.carryBack),
+  };
+  return { d1: avg((h) => h.d1), d2: avg((h) => h.d2), trial2: avg((h) => h.trial2), fight2, mass2: avg((h) => h.mass2), wave2: runs[0]!.wave2 };
 }
 
 export interface HorizonTerm {
@@ -449,7 +517,15 @@ export interface HorizonTerm {
 
 /** The horizon probe's two terms for the pilot's re-ranking; null when the state cannot be probed two turns out. */
 export function horizonTermOf(v: BotVisibleState, panelSeed: number): HorizonTerm | null {
-  const h = probeHorizon(v, panelSeed);
+  return termOf(v, probeHorizon(v, panelSeed));
+}
+
+/** B11: the completion probe's terms — the same two numbers for the board WITH `plant` found and fielded. */
+export function completionTermOf(v: BotVisibleState, panelSeed: number, plant: readonly string[]): HorizonTerm | null {
+  return termOf(v, probeCompletion(v, panelSeed, plant));
+}
+
+function termOf(v: BotVisibleState, h: HorizonProbe | null): HorizonTerm | null {
   if (!h) return null;
   const combat = Math.max(h.fight2.carryBack, h.trial2);
   const remaining = Math.max(1, Math.min(CREDIT_TURNS, GROWTH_HORIZON - v.wave));

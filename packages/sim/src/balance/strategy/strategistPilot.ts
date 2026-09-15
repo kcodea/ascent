@@ -21,13 +21,18 @@
  * seed so a seeded matrix rotates through every viable line for the hero (the exploration population of the
  * roadmap — label it as such; forced lines are not natural pick rates).
  */
+import type { SetId } from '@game/content';
 import { mixSeed, type Action, type RunState } from '../../state';
+import type { BotVisibleState } from '../../productionBots/types';
 import { withEvaluationPrior } from '../../productionBots/evaluate';
-import { horizonTermOf, withGrowth } from '../../productionBots/growth';
-import { createGeneralistPilot, type GeneralistPilot } from '../generalistPilot';
+import { completionTermOf, horizonTermOf, withGrowth, type HorizonTerm } from '../../productionBots/growth';
+import { createGeneralistPilot, type GeneralistPilot, type MacroCommitment, type MacroOptions } from '../generalistPilot';
+import { comboProgress, combosFor, completionChance, type EngineCombo } from './combos';
+import { OPERATORS } from './operators/operatorPilot';
+import { operatorFeedActions } from './operators/feedSteps';
 import type { PilotBudget, SeatContext, SeatPilot } from '../types';
 import { pickLineForRun, viableLineCount, type LineChoice, type LineImitation } from './lines';
-import { GROWTH_WEIGHT, HORIZON_FIGHT_WEIGHT, HORIZON_WEIGHT, IMITATION_WEIGHT, linePrior, PRIOR_WEIGHT, VALUE_WEIGHT } from './prior';
+import { GROWTH_WEIGHT, HORIZON_FIGHT_WEIGHT, HORIZON_WEIGHT, IMITATION_WEIGHT, linePrior, MACRO_COMMIT_FROM, MACRO_COMMIT_TO, MACRO_FIGHT_WEIGHT, MACRO_PIVOT_WAVE, MACRO_RESERVE, MACRO_WEIGHT, PRIOR_WEIGHT, VALUE_WEIGHT } from './prior';
 import { loadDefaultValueModel, type ValueModel } from '../value';
 import { loadDefaultImitationModel, parseScoreOptions, type ImitationModel } from '../imitation';
 
@@ -57,6 +62,17 @@ export interface StrategistOptions {
   horizonWeight?: number;
   horizonFightWeight?: number;
   horizonTop?: number;
+  /** B11: the ENGINE-COMBO MACROS (`generalistPilot.ts::MacroOptions`, `combos.ts`). `macroWeight` (utility per
+   *  normalised point of the completion-weighted two-turn yield; 0 = macros off), `macroFightWeight` (utility per
+   *  point of the completed board's fight at wave + 2), `macroReserve` (Gold a turn into refreshes while committed
+   *  and a piece is missing), `macroCommitFrom` / `macroCommitTo` (the commit-and-roll window), `macroPivotWave`.
+   *  Defaults `MACRO_*` in `prior.ts`. */
+  macroWeight?: number;
+  macroFightWeight?: number;
+  macroReserve?: number;
+  macroCommitFrom?: number;
+  macroCommitTo?: number;
+  macroPivotWave?: number;
 }
 
 export interface StrategistPilot extends SeatPilot {
@@ -66,6 +82,8 @@ export interface StrategistPilot extends SeatPilot {
   lineOf(seatId?: string): LineChoice | undefined;
   /** The wrapped generalist's last decision trace. */
   lastTrace: GeneralistPilot['lastTrace'];
+  /** B11: the combo a seat is committed to assembling (undefined = none / macros off). */
+  commitmentOf(seatId?: string): MacroCommitment | undefined;
 }
 
 export function strategistId(exploration: number | 'rotate'): string {
@@ -84,9 +102,55 @@ export function createStrategistPilot(budget: PilotBudget, seed: number, opts: S
   const horizonWeight = opts.horizonWeight ?? budget.horizonWeight ?? HORIZON_WEIGHT;
   const horizonFightWeight = opts.horizonFightWeight ?? budget.horizonFightWeight ?? HORIZON_FIGHT_WEIGHT;
   const horizonTop = opts.horizonTop ?? budget.horizonTop ?? 3;
+  const macroWeight = opts.macroWeight ?? budget.macroWeight ?? MACRO_WEIGHT;
+  const macroFightWeight = opts.macroFightWeight ?? budget.macroFightWeight ?? MACRO_FIGHT_WEIGHT;
+  const macroReserve = opts.macroReserve ?? budget.macroReserve ?? MACRO_RESERVE;
+  const macroCommitFrom = opts.macroCommitFrom ?? budget.macroCommitFrom ?? MACRO_COMMIT_FROM;
+  const macroCommitTo = opts.macroCommitTo ?? budget.macroCommitTo ?? MACRO_COMMIT_TO;
+  const macroPivotWave = opts.macroPivotWave ?? budget.macroPivotWave ?? MACRO_PIVOT_WAVE;
+  const macrosOn = macroWeight > 0;
   const horizonOn = horizonWeight > 0 || horizonFightWeight > 0;
   // The horizon probe's panel seed for the decision in flight (set by `wrap`, read by `horizon`).
   let horizonSeed = 0;
+  // B11: the run in flight (player-visible facts the macro term needs: tribes, set) — set by `wrap`.
+  let current: { tribes: readonly string[]; setId: string; combos: readonly EngineCombo[] } | null = null;
+  const comboCache = new Map<string, readonly EngineCombo[]>();
+  const combosOf = (run: RunState, line: LineChoice): readonly EngineCombo[] => {
+    const key = `${run.setId ?? 'set2'}|${[...run.tribes].sort().join(',')}|${line.primary}|${line.secondary ?? ''}`;
+    const hit = comboCache.get(key);
+    if (hit) return hit;
+    // The run's line first (its packages), then the rest — a combo of another tribe the run rolled is still a plan.
+    const rank = (c: EngineCombo): number => (c.packages.includes(line.primary) ? 0 : line.secondary && c.packages.includes(line.secondary) ? 1 : 2);
+    const list = [...combosFor((run.setId ?? 'set2') as SetId, run.tribes)].sort((a, b) => rank(a) - rank(b));
+    comboCache.set(key, list);
+    return list;
+  };
+  /**
+   * B11 — THE MACRO TERM: the horizon re-ranking with the COMPLETION probe folded in. For a state holding part of
+   * a combo, the credited number is `p × completed + (1 − p) × held` — the two-turn probe of the board WITH the
+   * missing pieces found, weighted by the chance of drawing them over the commit window, else the plain horizon.
+   * The best combo wins; a state with no stake in any combo reads the plain horizon.
+   */
+  const macroTerm = (v: BotVisibleState): number | null => {
+    const value = (h: HorizonTerm | null): number | null => (h ? h.growth2 * macroWeight + h.fight2 * macroFightWeight : null);
+    const plain = value(horizonTermOf(v, horizonSeed));
+    if (!current) return plain;
+    let best = plain;
+    const inWindow = v.wave >= macroCommitFrom && v.wave <= macroCommitTo;
+    const rollsPerTurn = 1 + (inWindow ? Math.floor(macroReserve / Math.max(1, v.economy.refreshCost)) : 0);
+    const turns = Math.max(1, macroPivotWave - v.wave);
+    for (const combo of current.combos) {
+      if (v.wave < combo.fromWave) continue;
+      const prog = comboProgress(combo, v);
+      if (prog.heldPieces === 0 || prog.missing.length === 0) continue;
+      const completed = value(completionTermOf(v, horizonSeed, prog.missing));
+      if (completed === null) continue;
+      const p = completionChance(current.setId as SetId, current.tribes, prog.missing, v.economy.tier, { rollsPerTurn, turns });
+      const term = p * completed + (1 - p) * (plain ?? 0);
+      if (best === null || term > best) best = term;
+    }
+    return best;
+  };
   const models = new Map<string, ValueModel | null>();
   const modelFor = (setId: string): ValueModel | null => {
     if (valueWeight === 0) return null;
@@ -115,11 +179,19 @@ export function createStrategistPilot(budget: PilotBudget, seed: number, opts: S
     return line;
   };
 
+  const macroOptions: MacroOptions | undefined = macrosOn ? {
+    combos: (run) => current?.combos ?? combosOf(run, lineFor(run, 'seat')),
+    feed: (combo, v, run, refused) => (combo.line === 'none' ? [] : operatorFeedActions(OPERATORS[combo.line], v, run, refused)),
+    reserve: macroReserve,
+    commitFrom: macroCommitFrom,
+    commitTo: macroCommitTo,
+    pivotWave: macroPivotWave,
+  } : undefined;
   const inner = createGeneralistPilot(budget, seed, {
     id,
     replaceMacro: true,
     handDiscipline: true,
-    ...(horizonOn ? {
+    ...(macrosOn ? { horizonTop, horizon: macroTerm, macros: macroOptions } : horizonOn ? {
       horizonTop,
       horizon: (v) => {
         const h = horizonTermOf(v, horizonSeed);
@@ -129,6 +201,7 @@ export function createStrategistPilot(budget: PilotBudget, seed: number, opts: S
     wrap: (run: RunState, ctx: SeatContext, decide: () => Action | null): Action | null => {
       const line = lineFor(run, ctx.seatId);
       const setId = run.setId ?? 'set2';
+      if (macrosOn) current = { tribes: run.tribes, setId, combos: combosOf(run, line) };
       // B6: one growth panel seed per (pilot, round) — every candidate of every decision this turn is probed
       // against the same imagined future, and the probe cache carries across the turn's decisions.
       horizonSeed = mixSeed(seed, run.wave, 0x6f07) >>> 0;
@@ -144,5 +217,6 @@ export function createStrategistPilot(budget: PilotBudget, seed: number, opts: S
     decide: inner.decide,
     lineOf: (seatId = 'seat') => lines.get(seatId),
     lastTrace: inner.lastTrace,
+    commitmentOf: inner.commitmentOf,
   };
 }

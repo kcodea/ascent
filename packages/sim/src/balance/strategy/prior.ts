@@ -102,6 +102,20 @@ export const HORIZON_WEIGHT = 0;
 export const HORIZON_FIGHT_WEIGHT = 0;
 
 /**
+ * B11 — the ENGINE-COMBO MACROS' defaults (`generalistPilot.ts::MacroOptions`, `strategy/combos.ts`). `MACRO_WEIGHT`
+ * 0 = macros OFF on a manifest that names nothing, so every older job reproduces; a macro job sets `macroWeight`
+ * (the completion-weighted two-turn yield, in utility per normalised point — the horizon's scale) and
+ * `macroFightWeight`. The commit-and-roll window is waves 3–6 with `MACRO_RESERVE` Gold a turn into refreshes;
+ * an incomplete commitment is dropped at `MACRO_PIVOT_WAVE` (the operators' pivot, B9).
+ */
+export const MACRO_WEIGHT = 0;
+export const MACRO_FIGHT_WEIGHT = 13;
+export const MACRO_RESERVE = 4;
+export const MACRO_COMMIT_FROM = 3;
+export const MACRO_COMMIT_TO = 6;
+export const MACRO_PIVOT_WAVE = 7;
+
+/**
  * A wave's board-mass reference — the procedural enemy curve's "healthy board" (`8 + 7·wave`, as `evaluate.ts`
  * uses for `boardPower`), kept LINEAR here so a stat is worth the same at wave 9 as at wave 4. The evaluator's
  * own terms go flat exactly where it matters: `boardPower` is log-saturated past the reference and `fightStrength`

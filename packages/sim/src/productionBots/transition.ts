@@ -1,6 +1,7 @@
 import { CARD_INDEX, EQUIPMENT_INDEX } from '@game/content';
 import type { CardDef } from '@game/core';
 import { reduce } from '../reducer';
+import { poolOf } from '../cardPool';
 import { mixSeed, type Action, type RunState } from '../state';
 import { fingerprint, toBotVisibleState } from './visibleState';
 import type { BotVisibleState, PlanningStateHandle, PlanningTransition, RevealBoundary } from './types';
@@ -284,6 +285,15 @@ export interface ProbeSession {
   apply(action: Action): boolean;
   /** The probe state's redacted projection, rebuilt on every call (the state moves under it). */
   visible(): BotVisibleState;
+  /**
+   * B11 — IMAGINE an offer: put a fresh, unbuffed copy of each `cardId` into the probe clone's Shop row (at its
+   * printed stats, the normal price) and return the offer uids. A HYPOTHETICAL, not a reveal: the clone is
+   * private, the run's pool and RNG are untouched, and nothing hidden is read — it is how the engine-combo macro
+   * asks "what would this board become if the missing piece were on offer next turn", and the answer is read
+   * back through the same scripted turn every other probe uses. Cards the run cannot draw (not in the set's pool)
+   * are skipped.
+   */
+  plantOffers(cardIds: readonly string[]): string[];
 }
 
 /**
@@ -322,6 +332,18 @@ export function probeFuture<T>(v: BotVisibleState, panelSeed: number, fn: (p: Pr
       return true;
     },
     visible: () => toBotVisibleState(own),
+    plantOffers(cardIds: readonly string[]): string[] {
+      const uids: string[] = [];
+      if (own.phase !== 'recruit') return uids;
+      const drawable = new Set(poolOf(own).buyable.map((c) => c.id));
+      for (const cardId of cardIds) {
+        if (!drawable.has(cardId) || !CARD_INDEX[cardId]) continue;
+        const uid = `s${own.uidSeq++}`;
+        own.shop.push({ uid, cardId });
+        uids.push(uid);
+      }
+      return uids;
+    },
   };
   return fn(session);
 }

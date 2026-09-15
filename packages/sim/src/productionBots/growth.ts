@@ -1,5 +1,5 @@
-import { CARD_INDEX } from '@game/content';
-import type { CombatResult } from '@game/core';
+import { CARD_INDEX, poolFor } from '@game/content';
+import { combatSide, makeRng, simulate, type BoardMinion, type CombatResult, type CombatSideState } from '@game/core';
 import type { Action } from '../state';
 import { probeFuture, type ProbeSession } from './transition';
 import type { BotCardView, BotMandatoryDecision, BotVisibleState } from './types';
@@ -64,6 +64,8 @@ export interface GrowthProbe {
   casts: number;
   /** Reducer dispatches the probe spent. */
   steps: number;
+  /** The Rally trial's permanent gain (`rallyTrial`), measured on the probed state. */
+  trial: number;
 }
 
 /** The neutral fight the probe lands: a 0-damage draw with no events — the probe never learns how the real fight goes. */
@@ -135,6 +137,8 @@ function script(p: ProbeSession, root: BotVisibleState): GrowthProbe | null {
   const before = massOf(root);
   const rootHand = new Set(root.hand.map((c) => c.uid));
   let casts = 0;
+  let buys = 0;
+  let bought = 0;
   if (root.phase !== 'recruit') return null;
   if (!unblock()) return null;
   // END OF TURN — fires the board's End-of-Turn engines and prepares the side; no fight is resolved.
@@ -155,8 +159,6 @@ function script(p: ProbeSession, root: BotVisibleState): GrowthProbe | null {
   }
 
   // BUY AND FIELD — up to MAX_BUYS bodies, the dominant tribe first, cheapest first (on-buy engines + the shop buff).
-  let buys = 0;
-  let bought = 0;
   const tribe = dominantTribe(v);
   for (let i = 0; i < MAX_BUYS; i++) {
     refresh();
@@ -214,7 +216,7 @@ function script(p: ProbeSession, root: BotVisibleState): GrowthProbe | null {
   }
   function finish(): GrowthProbe {
     const after = massOf(p.visible());
-    return { delta: after - before - bought, before, after, bought, buys, casts, steps };
+    return { delta: after - before - bought, before, after, bought, buys, casts, steps, trial: rallyTrial(root) };
   }
 }
 
@@ -286,6 +288,33 @@ export function carryBackOf(r: CombatResult, v: BotVisibleState): number {
 }
 
 /**
+ * THE RALLY TRIAL — what the board's COMBAT engines leave behind when its minions actually get to attack.
+ *
+ * The panel fights (`fightScore`) report the carry-back a fight against the wave's real population leaves, and
+ * for a board the field outgrows that is 0: its minions die before they swing, so a Rally engine (Standard
+ * Bearer, Paragon, Chorus Drake, Hungerling — the cards on every recorded late board) reads as a small body.
+ * That is the chicken-and-egg the diagnosis names: the engine only pays once the board survives, and the board
+ * only grows through the engine. The trial breaks it by fighting a WALL — seven 0-Attack bodies whose total
+ * Health is `WALL_ROUNDS` × the board's total Attack, so every friendly minion swings about `WALL_ROUNDS` times and
+ * nothing dies — and reading the permanent gains that fight leaves (`carryBackOf`). Deterministic (fixed seed),
+ * one `simulate()` per composition, memoised with the probe. An empty board yields 0.
+ */
+const WALL_ROUNDS = 2;
+const WALL_SEED = 0x7a11;
+export function rallyTrial(v: BotVisibleState): number {
+  if (v.friendly.bodies.length === 0) return 0;
+  const bodies: BoardMinion[] = v.friendly.bodies.map((m) => ({ ...m, keywords: [...(m.keywords ?? [])] }));
+  const totalAttack = bodies.reduce((n, m) => n + Math.max(0, m.attack), 0);
+  if (totalAttack === 0) return 0;
+  const hp = Math.max(1, Math.ceil((WALL_ROUNDS * totalAttack) / 7));
+  const wall: BoardMinion[] = Array.from({ length: 7 }, () => ({ cardId: 'stray', attack: 0, health: hp, keywords: [] }));
+  const poolIds = poolFor(v.setId).all.map((c) => c.id);
+  const mySide: CombatSideState = { ...v.friendly.side, poolIds };
+  const r = simulate(bodies, wall, makeRng(WALL_SEED), CARD_INDEX, mySide, combatSide({ tier: v.economy.tier, poolIds }));
+  return carryBackOf(r, v);
+}
+
+/**
  * The NORMALISED growth term for the evaluator: one turn's engine yield — the probed recruit-phase yield plus
  * `carryBack` (the mean permanent gain the panel fights left, from `fightScore`) — relative to a healthy board at
  * this wave, credited by the turns left to cash it in (full credit with ≥ `CREDIT_TURNS` turns before
@@ -293,7 +322,10 @@ export function carryBackOf(r: CombatResult, v: BotVisibleState): number {
  */
 export function growthTermOf(v: BotVisibleState, panelSeed: number, carryBack = 0): number {
   const probe = probeGrowth(v, panelSeed);
-  const delta = (probe?.delta ?? 0) + carryBack;
+  // Combat engines: the REALISED carry-back of the panel fights, or the trial's potential when the panel leaves
+  // nothing (the field outgrew the board) — never both.
+  const combat = Math.max(carryBack, probe?.trial ?? 0);
+  const delta = (probe?.delta ?? 0) + combat;
   if (delta === 0) return 0;
   const remaining = Math.max(1, Math.min(CREDIT_TURNS, GROWTH_HORIZON - v.wave));
   const perTurn = Math.max(-0.5, Math.min(2.5, delta / growthReference(v.wave)));

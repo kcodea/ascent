@@ -19,6 +19,10 @@ function withRune(id: string, extra: Partial<RunState> = {}): RunState {
   return reduce(s, { type: 'buyRune', index: 0 }) as RunState;
 }
 
+/** Carried into set 3 by the 2026-09-14 rune roster handoff (Veinbreaker becomes rune-exclusive there); the rest
+ *  name Beast / Dragon / Growth packages set 3 does not have. */
+const SET3_CARRY = new Set(['rune_unbroken_vein']);
+
 describe('the six defs ship as specced', () => {
   it('costs, rarity, all Set-2 scoped', () => {
     const spec: Record<string, [number, boolean]> = {
@@ -30,7 +34,7 @@ describe('the six defs ship as specced', () => {
     for (const [id, [cost, epic]] of Object.entries(spec)) {
       expect(rune(id).cost, `${id} cost`).toBe(cost);
       expect(!!rune(id).epic, `${id} rarity`).toBe(epic);
-      expect(rune(id).sets, `${id} names a Set-2 card`).toEqual(['set2']);
+      expect(rune(id).sets, `${id} names a Set-2 card`).toEqual(SET3_CARRY.has(id) ? ['set2', 'set3'] : ['set2']);
     }
   });
 });

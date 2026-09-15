@@ -121,7 +121,7 @@ describe('the five runes ship as specced', () => {
 
   it('all five are set-2 scoped — each names a set-2 mechanic', () => {
     for (const n of ['Rune of Resonance', 'Rune of Investment', 'Rune of the Open Market', 'Rune of Runic Exchange']) {
-      expect(byName(n)!.sets, `${n} leaks into set 1`).toEqual(['set2']);
+      expect(byName(n)!.sets, `${n} leaks into set 1`).toEqual(['set2', 'set3']); // + set3 2026-09-14 (rune roster carryover)
     }
   });
 });

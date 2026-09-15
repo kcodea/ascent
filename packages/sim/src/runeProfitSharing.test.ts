@@ -65,6 +65,6 @@ describe('the rune data', () => {
     const r = byName('Rune of Profit Sharing')!;
     expect(r.cost).toBe(4);
     expect(!!r.epic).toBe(true);
-    expect(r.sets).toEqual(['set2']); // Dwarves
+    expect(r.sets).toEqual(['set2', 'set3']); // Dwarves // + set3 2026-09-14 (rune roster carryover)
   });
 });

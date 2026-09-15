@@ -60,7 +60,7 @@ export const RUNES: RuneDef[] = [
     text: 'The first **Ruby** you cast each turn gives you a random **Dwarven Ale**. The first **Dwarven Ale** you cast gives you a **Ruby**.',
     previewCards: ['ruby'], // text names it — the forge hover shows the card
     reward: { kind: 'runeContraband' },
-    sets: ['set2'], // Rubies + Ales are set-2 currencies
+    sets: ['set2', 'set3'], // Rubies + Ales are set-2 currencies // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
   },
   {
     id: 'rune_spending',
@@ -138,7 +138,7 @@ export const RUNES: RuneDef[] = [
     cost: 3,
     text: '**End of Turn:** get a **copy** of the first spell you cast this turn.',
     reward: { kind: 'recurringEndOfTurn', effect: 'copyFirstSpell' },
-    sets: ['set2'],
+    sets: ['set2', 'set3'], // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
   },
   {
     // Shares Open Tab's primitive (2 random Ales at End of Turn).
@@ -147,7 +147,7 @@ export const RUNES: RuneDef[] = [
     cost: 5, // owner balance 2026-08-11
     text: '**End of Turn:** get **2 random Dwarven Ales**.',
     reward: { kind: 'recurringEndOfTurn', effect: 'grantAles' },
-    sets: ['set2'], // Ales
+    sets: ['set2', 'set3'], // Ales // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
   },
   {
     id: 'rune_chorus',
@@ -162,7 +162,7 @@ export const RUNES: RuneDef[] = [
     cost: 1,
     text: 'Every **15 Gold** you spend, get a random **Dwarven Ale**.',
     reward: { kind: 'runeThreshold', meter: 'gold', per: 15, grantAle: 1 },
-    sets: ['set2'], // Ales
+    sets: ['set2', 'set3'], // Ales // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
   },
   {
     id: 'rune_infernal_ink',
@@ -229,7 +229,7 @@ export const RUNES: RuneDef[] = [
     text: 'Your **first 2 Rubies** played from hand each turn cast an **extra time**. Get **2 Rubies** every turn.',
     previewCards: ['ruby'], // text names it — the forge hover shows the card
     reward: { kind: 'multi', rewards: [{ kind: 'rubyExtraCasts', amount: 1, scope: 'firstEachTurn', firstN: 2 }, { kind: 'recurringEndOfTurn', effect: 'grantRuby2' }] },
-    sets: ['set2'], // Rubies
+    sets: ['set2', 'set3'], // Rubies // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
   },
   {
     id: 'rune_investment',
@@ -238,7 +238,7 @@ export const RUNES: RuneDef[] = [
     text: 'Get **2 Rubies** when you **sell 2 minions**.',
     previewCards: ['ruby'], // names Rubies — forge hover shows the live Ruby (audit 2026-08-06)
     reward: { kind: 'runeSellRubies', count: 2 },
-    sets: ['set2'], // Rubies
+    sets: ['set2', 'set3'], // Rubies // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
   },
   {
     id: 'rune_last_call',
@@ -246,7 +246,7 @@ export const RUNES: RuneDef[] = [
     cost: 2, // owner balance 2026-08-11 (1 → 2)
     text: '**Avenge (4):** get **2 random Dwarven Ales**.', // owner 2026-08-11 (was Avenge 3 / 1 Ale)
     reward: { kind: 'combatFlag', flag: 'runeLastCall' },
-    sets: ['set2'], // Ales
+    sets: ['set2', 'set3'], // Ales // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
   },
   {
     id: 'rune_hunger',
@@ -304,7 +304,7 @@ export const RUNES: RuneDef[] = [
     name: 'Rune of Distillation',
     cost: 2,
     text: 'Spells cast on **Shop minions** also cast on your **left-most** minion.',
-    sets: ['set2'], // casting on shop offers is a set-2 pattern (Rubies / offer-targeted spells)
+    sets: ['set2', 'set3'], // casting on shop offers is a set-2 pattern (Rubies / offer-targeted spells) // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
     reward: { kind: 'runeDistillation' },
   },
   {
@@ -317,7 +317,7 @@ export const RUNES: RuneDef[] = [
     text: "Get a **Facetwright's Choice**. Repeats at **end of turn**. They give **both** effects.",
     previewCards: ['facetwright'], // text names it — the forge hover shows the card
     reward: { kind: 'multi', rewards: [{ kind: 'grant', cards: ['facetwright'] }, { kind: 'runeFacetwright' }, { kind: 'recurringEndOfTurn', effect: 'grantFacetwright' }] },
-    sets: ['set2'], // Facetwright's Choice is a set-2 spell
+    sets: ['set2', 'set3'], // Facetwright's Choice is a set-2 spell // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
   },
   {
     // Owner ruling 2026-07-30: only offered when the rune system is on, and an Epic forge is then guaranteed —
@@ -402,7 +402,7 @@ export const RUNES: RuneDef[] = [
     text: 'Get **5 Rubies** that give **+3/+3**.',
     previewCards: ['ruby'], // names Rubies — forge hover shows the live Ruby (audit 2026-08-06)
     reward: { kind: 'mintRubies', count: 5, attack: 3, health: 3 },
-    sets: ['set2'], // Rubies / Ales / set-2 cards
+    sets: ['set2', 'set3'], // Rubies / Ales / set-2 cards // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
   },
   // ── Batch 1 additions (grants / discovers / economy — no new combat mechanics) ──
   {
@@ -472,7 +472,7 @@ export const RUNES: RuneDef[] = [
   },
   {
     id: 'rune_warden',
-    sets: ['set1'],
+    sets: ['set1', 'set3'], // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
     name: 'Rune of the Warden',
     cost: 5,
     text: 'Get a **Spear Warden**. When you have room in combat, summon a **Spear Warden**.',
@@ -562,7 +562,7 @@ export const RUNES: RuneDef[] = [
     text: '**Avenge (3):** your **Rubies** permanently give **+1 more Health**.',
     previewCards: ['ruby'],
     reward: { kind: 'combatFlag', flag: 'runeEngraving' },
-    sets: ['set2'], // Rubies
+    sets: ['set2', 'set3'], // Rubies // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
   },
   {
     // A STANDING shop aura that improves every 4th refresh. It first shipped on `shopBuffOnRefresh` — whose
@@ -581,7 +581,7 @@ export const RUNES: RuneDef[] = [
     cost: 3,
     text: 'Whenever you cast a **Shop spell**, give your **Dwarves +2/+2**.',
     reward: { kind: 'runeFlagship' },
-    sets: ['set2'], // Dwarves
+    sets: ['set2', 'set3'], // Dwarves // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
   },
   {
     id: 'rune_brew',
@@ -590,7 +590,7 @@ export const RUNES: RuneDef[] = [
     cost: 4,
     text: 'Whenever you **spend Gold**, give a friendly **Dwarf +4/+3**.',
     reward: { kind: 'runeBrew' },
-    sets: ['set2'], // Dwarves
+    sets: ['set2', 'set3'], // Dwarves // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
   },
   {
     id: 'rune_underdog',
@@ -656,7 +656,7 @@ export const RUNES: RuneDef[] = [
     text: 'After you cast **5 Rubies** in a turn, gain **3 Gold** next turn.',
     previewCards: ['ruby'],
     reward: { kind: 'runeThreshold', meter: 'castRuby', per: 5, grantGoldNextTurn: 3, resetEachTurn: true },
-    sets: ['set2'], // Rubies
+    sets: ['set2', 'set3'], // Rubies // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
   },
   {
     id: 'rune_carrion_coin',
@@ -693,7 +693,7 @@ export const RUNES: RuneDef[] = [
     cost: 3, // owner balance 2026-08-11
     text: 'Your first **Dwarven Ale** each turn casts an **additional time**.',
     reward: { kind: 'runeSharedPour' },
-    sets: ['set2'], // Ales
+    sets: ['set2', 'set3'], // Ales // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
   },
   {
     id: 'rune_aftermarket',
@@ -779,7 +779,7 @@ export const RUNES: RuneDef[] = [
     text: 'Get a **Baby Gastrid**. Your **Baby Gastrids** also grant **Attack** equal to the Health they grant.',
     previewCards: ['dw_dorrin'],
     reward: { kind: 'multi', rewards: [{ kind: 'grant', cards: ['dw_dorrin'] }, { kind: 'runeFullMeasure' }] },
-    sets: ['set2'],
+    sets: ['set2', 'set3'], // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
   },
   {
     id: 'rune_mountain_trade',
@@ -790,7 +790,7 @@ export const RUNES: RuneDef[] = [
     text: 'After you play **6 cards**, cast a **Ruby** on your minions.',
     previewCards: ['ruby'],
     reward: { kind: 'runeThreshold', meter: 'cardsPlayed', per: 6, rubyAll: true },
-    sets: ['set2'],
+    sets: ['set2', 'set3'], // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
   },
   {
     id: 'rune_open_appetite',
@@ -811,7 +811,7 @@ export const RUNES: RuneDef[] = [
     text: 'Get a **Veinbreaker**. Your **Veinbreakers** give **both** Choose One effects.',
     previewCards: ['k_veinbreaker'],
     reward: { kind: 'multi', rewards: [{ kind: 'grant', cards: ['k_veinbreaker'] }, { kind: 'runeUnbrokenVein' }] },
-    sets: ['set2'],
+    sets: ['set2', 'set3'], // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
   },
   // ── Aug-11 minion-grant runes (Basic) ──
   {
@@ -830,7 +830,7 @@ export const RUNES: RuneDef[] = [
     text: 'Get a **Geode Guardian**. **Gemheart Golems** summoned by your **Geode Guardians** have **Ward**.',
     previewCards: ['k_geode', 'gemheart-shard'],
     reward: { kind: 'multi', rewards: [{ kind: 'grant', cards: ['k_geode'] }, { kind: 'combatFlag', flag: 'runeLivingGeode' }] },
-    sets: ['set2'],
+    sets: ['set2', 'set3'], // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
   },
   // ── Aug-11 economy runes (Basic) ──
   {
@@ -916,7 +916,7 @@ export const RUNES: RuneDef[] = [
     text: 'Get a **Reflector**.',
     previewCards: ['n2_reflector'],
     reward: { kind: 'grant', cards: ['n2_reflector'] },
-    sets: ['set2'],
+    sets: ['set2', 'set3'], // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
   },
   {
     // NB: Resonance Idol is ARCHIVED (owner call 2026-08-19) — it is out of the draw pool, so this rune is the
@@ -929,7 +929,7 @@ export const RUNES: RuneDef[] = [
     text: 'Get a **Resonance Idol**.',
     previewCards: ['k_resonance'],
     reward: { kind: 'grant', cards: ['k_resonance'] },
-    sets: ['set2'],
+    sets: ['set2', 'set3'], // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
   },
   {
     id: 'rune_basic_dwarf',
@@ -938,7 +938,7 @@ export const RUNES: RuneDef[] = [
     cost: 3,
     text: 'Get a **Dwarve**. Repeat every **Start of Turn**.',
     reward: { kind: 'runeTribeDrip', tribe: 'dwarf', count: 1 },
-    sets: ['set2'],
+    sets: ['set2', 'set3'], // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
   },
   {
     id: 'rune_basic_dragon',
@@ -974,7 +974,7 @@ export const RUNES: RuneDef[] = [
     cost: 3,
     text: 'Get a **Kobold**. Repeat every **Start of Turn**.',
     reward: { kind: 'runeTribeDrip', tribe: 'kobold', count: 1 },
-    sets: ['set2'],
+    sets: ['set2', 'set3'], // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
   },
   {
     // The multicast rides `runeSpellDouble`, which `spellCasts` reads — so the card's x N badge shows the
@@ -1095,7 +1095,7 @@ export const RUNES: RuneDef[] = [
     cost: 5,
     text: 'Get a **Gem Sage**.',
     reward: { kind: 'grant', cards: ['k_gemsage'] },
-    sets: ['set2'], // the Sage doubles RUBIES - dead weight in a set without them
+    sets: ['set2', 'set3'], // the Sage doubles RUBIES - dead weight in a set without them // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
   },
   {
     id: 'rune_ancient_expenditure',
@@ -1201,7 +1201,7 @@ export const RUNES: RuneDef[] = [
     cost: 4,
     text: 'Get a **Kegheart Dwarf**.',
     reward: { kind: 'grant', cards: ['dw_kegheart'] },
-    sets: ['set2'], // the Kegheart eats ALES - a set without them makes it a vanilla body
+    sets: ['set2', 'set3'], // the Kegheart eats ALES - a set without them makes it a vanilla body // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
   },
   {
     // The Engraving's shape with a MOVING axis: the same `gainRubyBonus` carry-back, but which half it feeds
@@ -1213,7 +1213,7 @@ export const RUNES: RuneDef[] = [
     text: '**Avenge (3):** improve your **Rubies** by **+1 Health**. Each turn this **alternates** between Health and Attack.',
     previewCards: ['ruby'],
     reward: { kind: 'combatFlag', flag: 'runeShiftingFacets' },
-    sets: ['set2'], // Rubies
+    sets: ['set2', 'set3'], // Rubies // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
   },
   {
     // Rides the SAME stateless `addBuff` hook Sable's Soulbind uses - the one chokepoint every recruit-phase
@@ -1224,7 +1224,7 @@ export const RUNES: RuneDef[] = [
     cost: 4,
     text: 'Whenever your **left-most Dwarf** gains stats, give your **right-most Dwarf** the same stats.',
     reward: { kind: 'runeSharedSpoils' },
-    sets: ['set2'], // Dwarves
+    sets: ['set2', 'set3'], // Dwarves // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
   },
   {
     id: 'rune_heavy_payroll',
@@ -1233,7 +1233,7 @@ export const RUNES: RuneDef[] = [
     cost: 4,
     text: 'Whenever you get a **Dwarf**, give your **left-most minion +12/+12**.',
     reward: { kind: 'runeHeavyPayroll', attack: 12, health: 12 },
-    sets: ['set2'], // Dwarves
+    sets: ['set2', 'set3'], // Dwarves // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
   },
   {
     // The threshold engine again, with the two new knobs: a TRIBE buff target and a `step` that escalates the
@@ -1244,7 +1244,7 @@ export const RUNES: RuneDef[] = [
     cost: 4,
     text: 'Every **10 Gold** spent, give your **Dwarves +1/+1** and improve this by **+1/+1**.',
     reward: { kind: 'runeThreshold', meter: 'gold', per: 10, buff: { target: 'tribe', tribe: 'dwarf', attack: 1, health: 1, step: { attack: 1, health: 1 } } },
-    sets: ['set2'], // Dwarves
+    sets: ['set2', 'set3'], // Dwarves // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
   },
   {
     // `castStatSpell` CASTS the spell rather than handing it over - so spell power, the cast counters and every
@@ -1302,7 +1302,7 @@ export const EPIC_RUNES: RuneDef[] = [
     epic: true,
     text: '**Start of Combat:** give two friendly **Undead Rise**.',
     reward: { kind: 'combatFlag', flag: 'runeRisingGraves' },
-    sets: ['set1'], // Fodder/Attachment/Mech/Undead mechanics — absent from set 2
+    sets: ['set1', 'set3'], // Fodder/Attachment/Mech/Undead mechanics — absent from set 2 // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
   },
   {
     id: 'rune_broodpit',
@@ -1316,7 +1316,7 @@ export const EPIC_RUNES: RuneDef[] = [
   },
   {
     id: 'rune_spearline',
-    sets: ['set1'],
+    sets: ['set1', 'set3'], // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
     name: 'Rune of the Spearline',
     cost: 7,
     epic: true,
@@ -1360,7 +1360,7 @@ export const EPIC_RUNES: RuneDef[] = [
     text: 'The first **Shop spell** you cast each turn gives your **Rubies +1/+1**. The first **Ruby** you cast gives your **Shop spells +1/+1**.',
     previewCards: ['ruby'], // text names it — the forge hover shows the card
     reward: { kind: 'runeGemscript' },
-    sets: ['set2'], // Rubies
+    sets: ['set2', 'set3'], // Rubies // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
   },
   {
     id: 'rune_stormcalling',
@@ -1373,7 +1373,7 @@ export const EPIC_RUNES: RuneDef[] = [
   },
   {
     id: 'rune_frontline_glory',
-    sets: ['set1'],
+    sets: ['set1', 'set3'], // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
     name: 'Rune of Frontline Glory',
     cost: 8,
     epic: true,
@@ -1567,7 +1567,7 @@ export const EPIC_RUNES: RuneDef[] = [
   },
   {
     id: 'rune_mastery',
-    sets: ['set1'],
+    sets: ['set1', 'set3'], // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
     name: 'Rune of Mastery',
     cost: 7,
     epic: true,
@@ -1614,7 +1614,7 @@ export const EPIC_RUNES: RuneDef[] = [
     text: 'When you spend **10 Gold**, cast a **Ruby** on all of your minions.',
     previewCards: ['ruby'], // text names it — the forge hover shows the card
     reward: { kind: 'runeThreshold', meter: 'gold', per: 10, rubyAll: true },
-    sets: ['set2'], // Rubies are a set-2 mechanic
+    sets: ['set2', 'set3'], // Rubies are a set-2 mechanic // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
   },
   {
     // Owner add 2026-08-02: a GIFT spell (not a Shop spell — see the token-gift branch in the reducer) that
@@ -1643,7 +1643,7 @@ export const EPIC_RUNES: RuneDef[] = [
     epic: true,
     text: 'Get a **Yazzus**.',
     reward: { kind: 'grant', cards: ['yazzus'] },
-    sets: ['set2'], // Rubies / Ales / set-2 cards
+    sets: ['set2', 'set3'], // Rubies / Ales / set-2 cards // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
   },
   {
     id: 'rune_lazarus',
@@ -1652,7 +1652,7 @@ export const EPIC_RUNES: RuneDef[] = [
     epic: true,
     text: 'Get a **Lazarus**.',
     reward: { kind: 'grant', cards: ['lazarus'] },
-    sets: ['set2'], // Rubies / Ales / set-2 cards
+    sets: ['set2', 'set3'], // Rubies / Ales / set-2 cards // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
   },
   {
     // Distinct from Rune of Mykel (which grants High King Mykel) — this one is the Brill grant. This rune was
@@ -1666,7 +1666,7 @@ export const EPIC_RUNES: RuneDef[] = [
     epic: true,
     text: 'Get a **Dwarf King, Brill**.',
     reward: { kind: 'grant', cards: ['dw_brill'] },
-    sets: ['set2'], // Rubies / Ales / set-2 cards
+    sets: ['set2', 'set3'], // Rubies / Ales / set-2 cards // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
   },
   {
     id: 'rune_exgalloper',
@@ -1687,7 +1687,7 @@ export const EPIC_RUNES: RuneDef[] = [
     text: 'Get a **Baal**.',
     previewCards: ['dw_baal'], // text names it — the forge hover shows the card
     reward: { kind: 'grant', cards: ['dw_baal'] },
-    sets: ['set2'], // Dwarf/Demon + Ales — set-2 mechanics
+    sets: ['set2', 'set3'], // Dwarf/Demon + Ales — set-2 mechanics // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
   },
   {
     id: 'rune_brisbane',
@@ -1696,7 +1696,7 @@ export const EPIC_RUNES: RuneDef[] = [
     epic: true,
     text: 'Get a **High King Mykel**.',
     reward: { kind: 'grant', cards: ['dw_brisbane'] },
-    sets: ['set2'], // Rubies / Ales / set-2 cards
+    sets: ['set2', 'set3'], // Rubies / Ales / set-2 cards // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
   },
   {
     // 3 RANDOM Ales (owner 2026-07-29), not a fixed trio — the variety is the point.
@@ -1707,7 +1707,7 @@ export const EPIC_RUNES: RuneDef[] = [
     // Owner sheet 2026-07-31: the Ales RECUR — 2 random Ales every turn (owner balance 2026-08-11, was 3).
     text: 'Get an **Edward Keg-hands**, and **2 random Dwarven Ales** every turn.',
     reward: { kind: 'multi', rewards: [{ kind: 'grant', cards: ['dw_edward'] }, { kind: 'recurringEndOfTurn', effect: 'grantAles' }] },
-    sets: ['set2'], // Rubies / Ales / set-2 cards
+    sets: ['set2', 'set3'], // Rubies / Ales / set-2 cards // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
   },
   {
     // Shares Bottomless Cellar's primitive — the run-wide Ale multiplier, additive with Edward Keg-hands.
@@ -1716,7 +1716,7 @@ export const EPIC_RUNES: RuneDef[] = [
     cost: 5,
     epic: true,
     text: 'Your **Dwarven Ales** trigger an **additional time**.',
-    sets: ['set2'],
+    sets: ['set2', 'set3'], // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
     reward: { kind: 'aleExtraCasts', amount: 1 },
   },
   {
@@ -1728,7 +1728,7 @@ export const EPIC_RUNES: RuneDef[] = [
     text: 'Whenever you get a **Ruby**, play a copy on **2 random friendly minions**.',
     previewCards: ['ruby'], // text names it — the forge hover shows the card
     reward: { kind: 'motherlode', count: 2 },
-    sets: ['set2'], // Rubies
+    sets: ['set2', 'set3'], // Rubies // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
   },
   {
     id: 'rune_adventuring',
@@ -1784,7 +1784,7 @@ export const EPIC_RUNES: RuneDef[] = [
     epic: true,
     text: 'The first time you **Consume a Shop minion** each turn, give your **Shop +3/+3** permanently.',
     reward: { kind: 'runeOpenMarket', attack: 3, health: 3 },
-    sets: ['set2'], // Shop-minion Consume is a set-2 Demon mechanic
+    sets: ['set2', 'set3'], // Shop-minion Consume is a set-2 Demon mechanic // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
   },
   {
     // The meter excludes Ales — the payout IS an Ale, so counting them would let the rune feed itself.
@@ -1794,7 +1794,7 @@ export const EPIC_RUNES: RuneDef[] = [
     epic: true,
     text: 'Every **3 Shop spells** you cast, get a random **Dwarven Ale**. Dwarven Ales do not count.',
     reward: { kind: 'runeThreshold', meter: 'spellCastNonAle', per: 3, grantAle: 1 },
-    sets: ['set2'], // Ales
+    sets: ['set2', 'set3'], // Ales // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
   },
   {
     id: 'rune_cinder_ledger',
@@ -1823,7 +1823,7 @@ export const EPIC_RUNES: RuneDef[] = [
     text: '**Avenge (2):** cast **2 Rubies** on each friendly **Kobold**.',
     previewCards: ['ruby'], // names Rubies — forge hover shows the live Ruby (audit 2026-08-06)
     reward: { kind: 'combatFlag', flag: 'runeGemstorm', amount: 2 },
-    sets: ['set2'], // Rubies
+    sets: ['set2', 'set3'], // Rubies // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
   },
   {
     id: 'rune_shared_table',
@@ -1832,7 +1832,7 @@ export const EPIC_RUNES: RuneDef[] = [
     epic: true,
     text: 'Your **Dwarven Ale** casts each give **one friendly minion of each type +2/+2**.',
     reward: { kind: 'runeSharedTable', attack: 2, health: 2 },
-    sets: ['set2'], // Ales
+    sets: ['set2', 'set3'], // Ales // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
   },
   {
     id: 'rune_redirection',
@@ -1842,7 +1842,7 @@ export const EPIC_RUNES: RuneDef[] = [
     text: 'Rubies played on your **left-most** minion also cast on your **right-most** minion.',
     previewCards: ['ruby'], // names Rubies — forge hover shows the live Ruby (audit 2026-08-06)
     reward: { kind: 'runeRedirection' },
-    sets: ['set2'], // Rubies
+    sets: ['set2', 'set3'], // Rubies // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
   },
   {
     // The single-body Attack snowball next to The Old Hunt's board-wide aura — and its step GROWS, where the
@@ -1868,7 +1868,7 @@ export const EPIC_RUNES: RuneDef[] = [
     text: 'Your **Gemheart Golems** gain **Echo:** summon an exact copy of this without Echo.',
     previewCards: ['gemheart-shard'], // text names it — the forge hover shows the card
     reward: { kind: 'combatFlag', flag: 'runeLivingTreasure' },
-    sets: ['set2'], // Gemheart Golems are a set-2 Kobold token
+    sets: ['set2', 'set3'], // Gemheart Golems are a set-2 Kobold token // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
   },
   {
     // Same "while you have room" shape as the Brood, with a body that strikes on arrival.
@@ -1900,7 +1900,7 @@ export const EPIC_RUNES: RuneDef[] = [
     text: 'Cast a **Ruby** on all of your minions every friendly **attack** in combat.',
     previewCards: ['ruby'], // text names it — the forge hover shows the card
     reward: { kind: 'combatFlag', flag: 'runeAttackingGems', amount: 1 },
-    sets: ['set2'], // Rubies
+    sets: ['set2', 'set3'], // Rubies // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
   },
   {
     // Rides the run's single gold-GAIN chokepoint (`gainGold`), added for this rune — Gold was credited in a
@@ -1912,7 +1912,7 @@ export const EPIC_RUNES: RuneDef[] = [
     epic: true,
     text: 'Whenever you **gain Gold**, give your **Dwarves +3/+3**.',
     reward: { kind: 'runeProfitSharing', tribe: 'dwarf', attack: 3, health: 3 },
-    sets: ['set2'], // Dwarves
+    sets: ['set2', 'set3'], // Dwarves // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
   },
   {
     // Shares the Moonhowl Mentor's per-turn teach ceiling rather than owning its own, so holding both raises the
@@ -1950,7 +1950,7 @@ export const EPIC_RUNES: RuneDef[] = [
     text: '**Rubies** you cast count as **Shop spells**, and gain your **Shop spell** bonuses.',
     previewCards: ['ruby'], // names Rubies — forge hover shows the live Ruby (audit 2026-08-06)
     reward: { kind: 'runeSpellstone' },
-    sets: ['set2'], // Rubies
+    sets: ['set2', 'set3'], // Rubies // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
   },
   {
     id: 'rune_counterpoint',
@@ -1994,7 +1994,7 @@ export const EPIC_RUNES: RuneDef[] = [
     text: '**End of Turn:** cast a **Ruby** on a random minion for every card you played this turn.', // owner 2026-08-11
     previewCards: ['ruby'],
     reward: { kind: 'runeLapidary' },
-    sets: ['set2'], // Rubies
+    sets: ['set2', 'set3'], // Rubies // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
   },
   {
     id: 'rune_gem_golem',
@@ -2005,7 +2005,7 @@ export const EPIC_RUNES: RuneDef[] = [
     text: 'When a friendly **Kobold** dies in combat, summon a token with stats equal to its **Ruby** bonuses.',
     previewCards: ['ruby'], // text names it — the forge hover shows the card
     reward: { kind: 'combatFlag', flag: 'runeGemGolem' },
-    sets: ['set2'], // Rubies
+    sets: ['set2', 'set3'], // Rubies // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
   },
   {
     // Owner add 2026-08-19. The Demon board's Shop-economy payoff: a wide Demon curve turns every play into
@@ -2142,7 +2142,7 @@ export const EPIC_RUNES: RuneDef[] = [
     text: 'Your **Rubies** all bounce an additional time.',
     previewCards: ['ruby'], // text names it — the forge hover shows the card
     reward: { kind: 'runeConduit' },
-    sets: ['set2'], // Rubies
+    sets: ['set2', 'set3'], // Rubies // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
   },
   {
     // The Chef banks what it handed out each shop turn; this rune spends LAST turn's total as a combat Rally.
@@ -2155,7 +2155,7 @@ export const EPIC_RUNES: RuneDef[] = [
     text: 'Your **Chef Gary Toasts** gain **Rally:** buff **another** random Dwarf for the combined stats this granted last turn.',
     previewCards: ['dw_chef'], // text names it — the forge hover shows the card
     reward: { kind: 'combatFlag', flag: 'runeChef' },
-    sets: ['set2'], // Dwarves
+    sets: ['set2', 'set3'], // Dwarves // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
   },
   {
     id: 'rune_bucky',
@@ -2165,7 +2165,7 @@ export const EPIC_RUNES: RuneDef[] = [
     text: 'Get a **Bucky**.',
     previewCards: ['dw_bucky'], // text names it — the forge hover shows the card
     reward: { kind: 'grant', cards: ['dw_bucky'] },
-    sets: ['set2'], // Dwarven Ales
+    sets: ['set2', 'set3'], // Dwarven Ales // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
   },
   // ── batch 4, tranche 2 (2026-08-07): the three grant runes for the new T6 bodies ──
   {
@@ -2205,7 +2205,7 @@ export const EPIC_RUNES: RuneDef[] = [
     previewCards: ['ruby'],
     epic: true,
     reward: { kind: 'combatFlag', flag: 'runeRubyShrapnel' },
-    sets: ['set2'], // Rubies
+    sets: ['set2', 'set3'], // Rubies // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
   },
   {
     id: 'rune_shared_scripture',
@@ -2292,7 +2292,7 @@ export const EPIC_RUNES: RuneDef[] = [
     text: 'Get a **Kobebes** with **Taunt** and **Rise**.',
     previewCards: ['k_kobabyboldies'],
     reward: { kind: 'grant', cards: ['k_kobabyboldies'], grantKeywords: ['T', 'R'] },
-    sets: ['set2'],
+    sets: ['set2', 'set3'], // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
   },
   {
     id: 'rune_herzog', // id kept (saved runs store ids); renamed Rune of Herzog → Rune of the Vaultkeeper 2026-08-12
@@ -2391,7 +2391,7 @@ export const EPIC_RUNES: RuneDef[] = [
     epic: true,
     text: 'Get **2 Dwarves**. Repeat every **Start of Turn**.',
     reward: { kind: 'runeTribeDrip', tribe: 'dwarf', count: 2 },
-    sets: ['set2'],
+    sets: ['set2', 'set3'], // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
   },
   {
     id: 'rune_epic_dragon',
@@ -2431,7 +2431,7 @@ export const EPIC_RUNES: RuneDef[] = [
     epic: true,
     text: 'Get **2 Kobolds**. Repeat every **Start of Turn**.',
     reward: { kind: 'runeTribeDrip', tribe: 'kobold', count: 2 },
-    sets: ['set2'],
+    sets: ['set2', 'set3'], // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
   },
   {
     id: 'rune_dragon_breath',
@@ -2464,7 +2464,7 @@ export const EPIC_RUNES: RuneDef[] = [
     text: 'Your **Rubies** applied in combat are **permanent**.',
     previewCards: ['ruby'],
     reward: { kind: 'combatFlag', flag: 'runeEngravingGems' },
-    sets: ['set2'], // Rubies
+    sets: ['set2', 'set3'], // Rubies // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
   },
   {
     // Two stacked `shoutRepeat: always` grants — the reward stacks by design (see the reducer branch), so this
@@ -2634,7 +2634,7 @@ export const EPIC_RUNES: RuneDef[] = [
     text: '**Avenge (3):** improve your **Rubies** by **+1/+1** and cast a **Ruby** on every friendly **Kobold**.',
     previewCards: ['ruby'],
     reward: { kind: 'combatFlag', flag: 'runeDeepeningVein' },
-    sets: ['set2'], // Rubies + Kobolds
+    sets: ['set2', 'set3'], // Rubies + Kobolds // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
   },
   {
     // RENAMED from the owner's "Rune of Evolution" (2026-08-20) - Rune of Evolution already exists and is the

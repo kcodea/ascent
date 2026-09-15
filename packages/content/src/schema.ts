@@ -921,14 +921,14 @@ export const RuneDefSchema = z.object({
   text: z.string().min(1),
   reward: QuestRewardSchema,
   epic: z.boolean().optional(),
-  sets: z.array(z.enum(['set1', 'set2'])).readonly().optional(),
+  sets: z.array(z.enum(['set1', 'set2', 'set3'])).readonly().optional(), // set3 joined 2026-09-14 (the Set 3 rune roster handoff)
   requiresDoublePower: z.boolean().optional(),
   previewCards: z.array(z.string().min(1)).optional(),
   tribes: z.array(TribeSchema).readonly().optional(),
 }).strict();
 
 export const QuestDefSchema = z.object({
-  sets: z.array(z.enum(['set1', 'set2'])).readonly().optional(),
+  sets: z.array(z.enum(['set1', 'set2', 'set3'])).readonly().optional(),
   id: z.string().min(1),
   name: z.string().min(1),
   tribe: TribeSchema,

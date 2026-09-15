@@ -38,8 +38,8 @@ describe('the nine defs ship as specced', () => {
     expect(rune('rune_aftermarket').cost).toBe(4);
     expect(rune('rune_hoardcalling').cost).toBe(4); // owner balance 2026-08-11 (5 → 4)
     // Gem Dividend needs Rubies and Shared Pour needs Ales, so both are Set-2 only. The rest work in either.
-    expect(rune('rune_gem_dividend').sets).toEqual(['set2']);
-    expect(rune('rune_shared_pour').sets).toEqual(['set2']);
+    expect(rune('rune_gem_dividend').sets).toEqual(['set2', 'set3']); // + set3 2026-09-14 (rune roster carryover)
+    expect(rune('rune_shared_pour').sets).toEqual(['set2', 'set3']); // + set3 2026-09-14 (rune roster carryover)
     for (const id of ['rune_empty_plate', 'rune_carrion_coin', 'rune_five_banners', 'rune_centerline',
       'rune_second_litter', 'rune_aftermarket', 'rune_hoardcalling']) {
       expect(rune(id).sets, `${id} should not be set-scoped`).toBeUndefined();

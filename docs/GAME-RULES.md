@@ -319,6 +319,20 @@ Runes are run-long permanent buffs bought from a **Runeforge**, available only t
 Each rune's effect reuses the quest `QuestReward` application engine — it just takes effect with no
 objective.
 
+**Set scoping (`sets`) is MECHANICAL COMPATIBILITY, not set of origin.** A rune with no `sets` is offered in
+every set; a scoped rune is offered only where its mechanics exist. Since the **Set 3 rune roster handoff
+(2026-09-14)** set 3 draws **115 Basic / 98 Epic**: the 85 + 64 unscoped baseline plus 64 carryovers (30
+Basic + 34 Epic) from sets 1/2 — the Ruby, Ale, Dwarf, Kobold, Undead and Shop-consume packages — each of
+which KEPT its original scope (set 1 = 105/90 and set 2 = 135/126 are unchanged). Attachment, Mech, Fodder and
+absent-tribe packages stay off set 3. Rune of the Night Market and Rune of Baal are deliberate off-tribe
+bridges (a rune-exclusive body that supplies its own function). The rolled-tribe gate still applies on top:
+a "your Dwarves" rune reaches a set-3 run only when Dwarf rolled.
+
+**Set forks.** A card a rune grants BY ID resolves to the pinned set's fork when one exists
+(`SET_FORKS` in `packages/content/src/sets.ts`): Rune of Yazzus / Rune of Frontline Glory hand a set-3 run
+`n3_yazzus` (the Tier-7 fork), never the legacy `yazzus` beside it. The Open Market's "first Shop consume
+each turn" hears the Starform's consumes (they ride the one Shop-consume chokepoint).
+
 **Duplicates always do something** (owner rulings 2026-08-27, decisions `q-runedup-*`). Rune ownership is
 COUNTED (`RunState.runeStacks`; combat boolean flags use `flagCopies`), and a second copy stacks per family:
 recurring effects fire once per copy; meter runes keep ONE meter but pay double at each trip; repeat runes

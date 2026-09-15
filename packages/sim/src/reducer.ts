@@ -14,7 +14,7 @@ import { activePowers, getHero, gildCopiesNeeded, hasPower, powerDiscoverPool } 
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard, oppKey } from './opponents';
 import type { BoardSnapshot } from './snapshot';
-import { EQUIPMENT_INDEX } from '@game/content';
+import { EQUIPMENT_INDEX, forkedCardId } from '@game/content';
 import {
   equipmentChargesOf, equipmentCostOf, expireEquipmentTurn, rebuildEquipment, spendEquipmentCharge,
   selectEquipment, selectedEquipment,
@@ -5691,10 +5691,14 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
       if ((r.randomRuby ?? 0) > 0) mintRubies(s, r.randomRuby!);
       if (r.randomFilter) grantRandomFilterMinion(s, r.randomFilter, r.randomFilterCount ?? 1, r.randomFilterExactTier, true); // "N random Shout/Echo/Rally/Attachment minions"
       if (r.randomTier) grantRandomTierMinion(s, r.randomTier, r.randomCount ?? 1, true); // Rune of the Pair — N random Tier-K minions
-      for (const id of r.grantGolden ?? []) { // Leader of the Pack / Stormcalling — a GILDED copy (board-overflow safe)
+      // SET FORKS (2026-09-14): a granted id resolves to the pinned set's fork (`yazzus` → `n3_yazzus` in set 3),
+      // so Rune of Yazzus / Frontline Glory hand a set-3 run its own Yazzus — never the legacy twin beside it.
+      for (const raw of r.grantGolden ?? []) { // Leader of the Pack / Stormcalling — a GILDED copy (board-overflow safe)
+        const id = forkedCardId(setIdOf(s), raw);
         if (CARD_INDEX[id]) grantMinionToHandOrBoard(s, CARD_INDEX[id]!, true, true);
       }
-      for (const id of r.cards ?? []) {
+      for (const raw of r.cards ?? []) {
+        const id = forkedCardId(setIdOf(s), raw);
         if (!CARD_INDEX[id]) continue;
         const card = grantMinionToHandOrBoard(s, CARD_INDEX[id]!, false, true);
         // Apex Hunt: stamp the granted card (a Badgington) with extra keywords (Flurry + Ward) on the way in.

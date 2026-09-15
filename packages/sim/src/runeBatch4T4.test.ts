@@ -29,7 +29,7 @@ describe('the five defs ship as specced', () => {
       expect(rune(id).cost, `${id} cost`).toBe(cost);
       expect(rune(id).epic, `${id} should be Epic`).toBe(true);
     }
-    expect(rune('rune_ruby_shrapnel').sets).toEqual(['set2']);
+    expect(rune('rune_ruby_shrapnel').sets).toEqual(['set2', 'set3']); // + set3 2026-09-14 (rune roster carryover)
     for (const id of ['rune_ancestral_roar', 'rune_shared_scripture', 'rune_banquet_hall', 'rune_crucible_choir']) {
       expect(rune(id).sets, `${id} should work in either set`).toBeUndefined();
     }

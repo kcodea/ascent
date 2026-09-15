@@ -36,9 +36,35 @@ B11 puts assembly into the candidate set and the plan.
 - Manifest keys `macroWeight` (0 = off; every older job reproduces), `macroFightWeight`, `macroReserve`,
   `macroCommitFrom/To`, `macroPivotWave`, `macroSeeds`, `macroCommitGain`; six curricula in `combos.test.ts`.
 
-## What it measured
+## What it measured (100 pinned set-2 lobbies each, seeds 1–100, smoke budget + growth 20, corpus `set2-players-v1`)
 
-See `docs/balance-bot.md` — "Engine-combo macros (B11)".
+The baseline (`set2-pinned-strategist-b11-base`, the growth-20 strategist at this build) reproduces B6's **6.37 [6.09,
+6.65]**. Paired by seed:
+
+| arm | placement | paired Δ | full engine by w6 / w8 | rolls / lobby, waves 3–6 |
+|---|---|---|---|---|
+| v1 — commit on any assemble step, rolls unconditioned | 6.60 | **+0.23 [+0.06, +0.41]** (worse) | 3% / 7% | 5.20 |
+| v2 `m20` — payoff held to commit; roll only for a drawable piece, never below 3 Gold | 6.33 | −0.04 [−0.19, +0.11] | 4% / 9% | 2.16 |
+| v2 `m40-r6-p8` — weight 40, reserve 6, pivot 8, commit gain 0 | 6.50 | +0.13 [−0.05, +0.31] | 2% / 8% | 2.11 |
+| v2 `m20-piece-r5` — commit on a feeder while the payoff is drawable, reserve 5 | 6.36 | −0.01 [−0.17, +0.16] | 5% / 8% | 2.56 |
+| v2 `m20-r0` — no rolling | 6.43 | +0.06 [−0.08, +0.21] | 1% / 7% | 1.97 |
+| baseline / corpus | 6.37 / 4.38 | — | 1% / 4% · corpus 9% / 19% | 1.98 |
+
+Stat medians at waves 8 / 10 / 12: baseline 98 / 171 / 266; the arms 97–99 / 152–174 / 267–286; the players 139 /
+432 / 1,109. Every v2 arm sits inside the baseline's interval, with 70–75 of 100 lobbies byte-identical: the macro
+engages only when a payoff is held, and a Tier-3 payoff is held by wave 6 in a minority of runs. The first build is the
+finding worth keeping: it committed on a lone Hank and rolled 4 Gold a turn at Tier 2 for a Tier-3 Blart through
+waves 4–6 — never tiering up — and was worse with the interval clear of zero. Rolling for a piece the tier cannot draw
+is the one thing this instrument proved a pilot must not do. The assembly metric moves the way it should (1% → 4–5% by
+wave 6; the corpus' own strict full-combo rate is 9%), and the lobbies where the engine does assemble are the ones that
+place (seed 12: Brunni + Coinfire + Blart at wave 6 → 303 stats at wave 9, 5th → 3rd). Runtime 1.5–1.8× the baseline.
+
+## Next lever
+
+Not another way to score a plan the pilot rarely gets to make — the ENGINE RATE: (1) a Tier-3 opening (T3 by wave 4,
+the recorded curve) so the reserve has shops to draw a payoff from; (2) a roster that matches what the corpus holds
+(one payoff + any buff source — the survivors' Blart ate a Butcher-buffed shop, not a Hank + Horse one). Both read on
+the assembly metric before placement.
 
 ## Verification
 

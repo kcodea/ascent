@@ -25,6 +25,7 @@ npm run balance:gap     -- --job set2-pinned-gen-dev100 [--corpus set2-players-v
 npm run balance:imitation:study -- --corpus set2-players-v1 --out docs/balance-bot-player-study.md   # B7: the recorded-player study
 npm run balance:imitation:fit   -- --corpus set2-players-v1 --out set2-v1                          # B7: the per-card survivor table the strategist can blend (imitationWeight)
 npm run balance:run     -- --manifest packages/tools/src/balance/manifests/set2-pinned-op-demon-darah.json --out op-demon   # B9: a line OPERATOR pinned to a hero (operator:<demon|dwarf|dragon|beast>, operator, operator:adaptive)
+npm run balance:run     -- --manifest packages/tools/src/balance/manifests/set2-pinned-strategist-b11-m20.json --out b11-m20   # B11: the strategist with ENGINE-COMBO MACROS (macroWeight > 0); balance:gap prints the engine-assembly rate
 ```
 
 **`balance:gap`** is the shared measuring stick for "how far is the pilot from real players" (2026-09-15). For a
@@ -575,6 +576,91 @@ package roster's engine pairs (`strategy/packages.ts` already names them), score
 — so the horizon has a compounding plan to prefer instead of three flavours of one body. Until a plan that
 assembles a combo exists in the candidate list, no term can select it.
 
+## Engine-combo macros (B11, 2026-09-15)
+
+The B6 round-2 and B9 readings ended on the same sentence: the search's CANDIDATE SET never proposes multi-turn
+engine assembly — a depth-1 candidate list is three ways of buying one card — so no evaluator term can select "buy
+Hank now so Blart eats a buffed shop every turn", and when the engine DOES assemble by wave 5–6 the pilot tracks the
+recorded curve (the B9 seed-43 Blart). B11 puts assembly into the candidate set and the plan
+(`packages/sim/src/balance/strategy/combos.ts`, `generalistPilot.ts::assembleChain`, `growth.ts::probeCompletion`,
+`operators/feedSteps.ts`; devlog `docs/devlog/2026-09-15-balance-macros.md`):
+
+- **Combos as data** (`combos.ts`): 15 two- / three-card engines with roles — PAYOFF (the body that grows), FEEDER
+  (what makes its trigger bigger), ENABLER (a multiplier once it runs) — alternatives per piece (any Echo body for
+  Echohorn) and a `copies: 2` on payoffs whose pair is the golden. Sourced from the operators' `core` tables and the
+  player study's pairs (Blart + Hank + Horse; Blart + Tormentor; Brunni + Gangplank; Coinfire ×2 + Brunni; Brunni +
+  Edward; Chorus ×2 + Mirrorwing / Earthbreaker / Transcendant / Vaultkeeper; Standard Bearer + Transcendant + a
+  Dragon; Echohorn ×2 + an Echo body / + Hawkus / + Sylus; Kobe + Deepvein + Faultline; Paragon + a Rally body).
+  `comboProgress` reads held / fielded / on-offer / missing from the visible state; `findChance` is the chance of
+  drawing a piece from the printed pool quantities (`POOL_QUANTITIES`, `tierSlots`) over a roll window, 0 two tiers
+  up. `combos.test.ts` pins every piece to the set-2 pool and to its package's membership (or the operator's role table
+  — Gangplank is a Dwarf core the `ale` predicate scores 1, the B7 finding).
+- **`assemble(combo)`** is one candidate per combo the run has a stake in, beside the search's best plan and the
+  replace chain: buy the pieces on offer (payoff first, the pair copy counts), field the held pieces (the weakest
+  non-piece, non-pair body sold on a full board), answer the prompts a play opens by the evaluator, then FEED the
+  engine with the line operator's own procedure — `feedSteps.ts` reads B9's `feed` / `spellTarget` hooks as candidate
+  actions one validated step at a time (the Ales in order, the spell on Mirrorwing, the Chipper's Demons; the line's
+  arrangement is deliberately left to the fight-scored positioning pass, which otherwise fought it move for move).
+  Every step is reducer-validated on a clone; a step across a reveal is dropped; the chain is queued with fingerprints.
+- **Credit for what it becomes**: the completion probe plants the combo's MISSING pieces into the imagined shop of
+  the two-turn horizon probe (`ProbeSession.plantOffers` — a private clone's shop row, nothing hidden read; bought
+  first, fielded even into a full board, printed stats netted out) and credits the second turn's yield + the fight at
+  wave + 2 exactly as `probeHorizon` does. The strategist's macro term is `held + p × (completed − held)` with `p` the
+  find chance over the commit window — the best combo per state, capped at two probes (`MACRO_PROBED`) of two futures
+  (`macroSeeds`). It re-ranks the ROOT and the assemble chains only (`horizonTop` 0: the search plan and the replace
+  chain compete at utility + the root's term) — probing the search's top states too cost 4× (B6 round 2 had measured
+  that re-ranking within noise) and this keeps a pinned lobby at ~1.5× the growth-only pilot (10–12 s vs 7 s).
+- **Commit-and-roll** (waves `macroCommitFrom..To`, default 3–6): a seat commits when an assemble step is chosen
+  with the payoff held, or when a fielded payoff's expected gain `p × (completed − held)` clears `macroCommitGain`
+  (default 3 utility); `macroCommitOn: 'piece'` also commits on a feeder while the payoff is drawable at the current
+  tier. Committed, a wanted piece on offer is bought on sight (frozen when unaffordable) and up to `macroReserve` Gold
+  a turn goes into refreshes BEFORE the search spends the rest — only for a piece the current Shop tier can draw, and
+  never below a body's price. At `macroPivotWave` (7) an incomplete commitment is dropped for good (never re-committed)
+  and the search plays the board it has. The payoff's second copy is a piece; a held pair and the committed combo's
+  pieces are never sold by the replace macro.
+- **The metric**: `balance:gap` now prints ENGINE ASSEMBLY — the share of runs with a FULL combo on the board by wave
+  6 / by wave 8 / ever, pilot vs corpus, per combo, and the pilot's placement split by it.
+
+**Measured** (100 pinned set-2 lobbies each, seeds 1–100, smoke budget, growth 20, `maxActionsPerTurn` 120, corpus
+`set2-players-v1`; the baseline is the growth-20 strategist at THIS build, `set2-pinned-strategist-b11-base`, which
+reproduces B6's 6.37 exactly; paired Δ = same-seed placement difference, lobby-level bootstrap 95% CI):
+
+| arm | mean placement [95% CI] | paired Δ vs baseline | better / worse / same seeds | 1st · top-3 | full engine by w6 / w8 / ever | stats w8 / w10 / w12 | rolls per lobby, waves 3–6 |
+|---|---|---|---|---|---|---|---|
+| baseline `b11-base` | 6.37 [6.09, 6.65] | — | — | 0 · 2 | 1% / 4% / 16% | 98 / 171 / 266 | 1.98 |
+| v1: `m20` — commit on ANY assemble step (a lone Hank), rolls unconditioned | 6.60 [6.35, 6.84] | **+0.23 [+0.06, +0.41]** (worse) | 9 / 23 / 68 | 0 · 1 | 3% / 7% / 15% | 91 / 161 / 265 | 5.20 |
+| v2: `m20` — payoff held to commit; roll only for a piece the tier can draw, never below 3 Gold (`set2-pinned-strategist-b11-m20`) | 6.33 [6.05, 6.60] | −0.04 [−0.19, +0.11] | 14 / 11 / 75 | 0 · 2 | 4% / 9% / 17% | 99 / 162 / 267 | 2.16 |
+| v2: `m40-r6-p8` — weight 40, reserve 6, pivot 8, commit gain 0 | 6.50 [6.23, 6.76] | +0.13 [−0.05, +0.31] | 10 / 16 / 74 | 0 · 1 | 2% / 8% / 19% | 99 / 174 / 272 | 2.11 |
+| v2: `m20-piece-r5` — commit on a feeder while the payoff is drawable at the tier, reserve 5 (`…-b11-m20-piece-r5`) | 6.36 [6.07, 6.64] | −0.01 [−0.17, +0.16] | 16 / 14 / 70 | 0 · 3 | **5%** / 8% / 20% | 98 / 152 / 267 | 2.56 |
+| v2: `m20-r0` — the candidate set + completion re-ranking, NO rolling (reserve 0) (`…-b11-m20-r0`) | 6.43 [6.17, 6.68] | +0.06 [−0.08, +0.21] | 12 / 13 / 75 | 0 · 1 | 1% / 7% / 17% | 97 / 152 / 286 | 1.97 |
+| recorded players (corpus) | 4.38 | | | | 9% / 19% / 40% | 139 / 432 / 1,109 | |
+
+**What worked.** The mechanism does what it claims, through the real reducer (`combos.test.ts`): Blart fielded and Hank
+on offer beside a stat-identical vanilla → the macro buys and fields the Hank; one piece held at wave 4 with 6 Gold and
+nothing on offer → it refreshes instead of buying a body, inside the reserve; the payoff's second copy is taken and never
+sold; an incomplete commitment is dropped at the pivot wave and never re-committed; a fielded Dwarf combo casts its Ales
+through the operator's procedure; no handle leaks, deterministic. The engine-assembly rate moves the way it should — full
+engine by wave 6 from 1% to 4%, by wave 8 from 4% to 9% — and the runs where it does assemble are the runs that place
+(seed 12: Brunni + Coinfire + Blart at wave 6 → Kringle → 303 stats at wave 9, 5th → 3rd). Runtime 1.5× the baseline,
+under the 3× budget, with 0 failed lobbies and 0 refused actions in 500 candidate lobbies.
+
+**What did not.** Placement — every v2 arm is inside the interval of the baseline (the best, −0.04 [−0.19, +0.11]);
+75 of 100 lobbies are byte-identical to the baseline because the macro engages only when a payoff is HELD, and a Tier-3
+payoff is held by wave 6 in a minority of runs. The first build, which committed on any piece and rolled unconditionally,
+is the cautionary tale: it rolled 4 Gold a turn at Tier 2 for a Tier-3 Blart through waves 4–6, never tiered up (T2 at
+wave 6 in a quarter of the lobbies that engaged) and placed 0.23 worse with the interval clear of zero. Rolling for a
+piece the tier cannot draw is the one thing this instrument proved a pilot must not do. The corpus itself holds a full
+combo (as defined here — every piece on one board) by wave 6 in only 9% of runs and by wave 8 in 19%: the players'
+curve is not "the whole engine by wave 5" in the roster's strict sense; it is one payoff fed by whatever is at hand.
+
+**The single next lever.** Not another way to score a plan the pilot rarely gets to make: the ENGINE RATE. The macro
+is a plan for a payoff the shop has shown; the gap is that the payoff shows late. Two levers, in order: (1) make the
+early game LOOK for the payoff — a Tier-3 opening (T3 by wave 4, the recorded curve) with the reserve spent at T3, so
+`findChance` has shops to draw from (the v1 disaster was rolling at T2; v2 never rolls at T3 because it never commits
+there); (2) widen "what an engine is" to what the corpus actually holds — one payoff plus ANY buff source (the survivors'
+Blart ate a Butcher-buffed shop, not a Hank + Horse one) — so the completion probe credits the common case, not the
+textbook one. Both are measurable on the assembly metric before placement.
+
 ## Pinned-lobby fairness audit (B10, 2026-09-15)
 
 **Question.** Is `pinnedLobby` FAIR to the pilot — does seat 0's experience in
@@ -727,6 +813,7 @@ What each layer proves today, and what it does not. Check the boxes as the gates
 | Strategist (B4) | plays a declared line (primary + secondary package) with the generalist's legality and information boundary; takes affine runes, engine pieces and profile-timed tiers in the curricula; turns its board over from wave 4 (13–36% per round) with a hand under 3 from B6; casts its Rubies (B6); BEATS the generalist in mixed self-play (the 20-seed numbers are in the B4 section); line diversity 9–10 primaries per hero over 30 seeds under `strategist:rotate` | **competence against real players** — 6.39 [6.12, 6.66] in 100 pinned set-2 lobbies with the B6 growth term (6.44 before it; owner scale: < 4.0 passes); a claim that a line is STRONG or WEAK (fit is a construction prior, not a strength estimate); packages a set cannot field (labelled unsupported) | the prior is capped and one-turn; the evaluator's fight terms lose all gradient once the field outgrows the pilot (B3 work); the learned value term is inert within noise at any weight tried; the hero intent manifest is hand-maintained design intent, not measured. |
 | Engine growth (B6, `productionBots/growth.ts`) | that a candidate board's ENGINES yield more than a vanilla one, measured by running the engine (a probed turn on an isolated clone + the fight's own carry-back + a Rally trial; round 2: a two-turn horizon probe fought at wave + 2, as a re-ranking of the search's top end states) — the pilot's board curve is 20–35% higher at waves 8–10 and its hand empties; the probe reads nothing the pilot cannot see (tests pin isolation, replaced futures, a null on foreign projections) | **placement** — growth on vs off is −0.15 to −0.3 placements paired; the horizon re-ranking is −0.10 [−0.31, +0.11] paired at its best weights and moves no stat median; against the pre-B6 baseline every weight tried is inside the interval; 0 first places in 1,600 candidate lobbies; the wall trial is a POTENTIAL (it over-credits a Leech-style "when a Demon deals damage" engine that a real fight never lets swing) | one turn's yield credited linearly cannot price compounding, and two turns on an imagined shop measure only the engines the pilot already holds — the players' curve comes from two-card combos the depth-1 candidate set never proposes; the shipped fight asymmetry (the pilot takes ~2× the per-round damage the recordings take from each other) is the game as played, not a pilot defect. |
 | Line operators (B9, `strategy/operators/`) | that a hand-authored per-turn procedure for a line is LEGAL and OPERATES its engine (28 curricula: the meal left in the row, the Ales cast in order, the spell on Mirrorwing, the Echo seated left; 900 pinned lobbies with 0 refused actions), and that when the engine assembles it compounds like the recorded runs (a 2nd-place Blart doubling every wave; two Dragon firsts) | **placement** — 5.73–7.24 per line on its best hero, 6.70 rotated, none beyond noise of the strategist (6.39) and none near the bar; the Beast line's growth model; adaptive commitment (6.96) | a fixed line finds its whole engine by wave 6 in a minority of runs; the operator leads the corpus through wave 5 and falls behind from wave 7 (feeders late, a third of the goldens); the shipped fight asymmetry doubles the bleed of a losing pilot. The gap is in play, not in the instrument's legality. |
+| Engine-combo macros (B11, `strategy/combos.ts`, `generalistPilot.ts::assembleChain`, `growth.ts::probeCompletion`) | that a two-/three-card engine can be PROPOSED, bought, fielded and fed as ONE plan through the real reducer (six curricula: the feeder bought beside a stat-identical vanilla, the reserve rolled instead of a body, the pair kept, the pivot, the Ales cast, no leaks, deterministic); that the completion probe credits a half-built engine for the board it becomes (an imagined offer on a private clone, weighted by the printed-pool find chance); the ENGINE-ASSEMBLY metric in `balance:gap` (full combo by wave 6 / 8 / ever, pilot vs corpus) | **placement** — every arm inside the baseline's interval (−0.04 to +0.13 paired; 6.33–6.50 vs 6.37) except the first build, which was WORSE (+0.23 [+0.06, +0.41]) for rolling at Tier 2 for Tier-3 pieces; the assembly rate itself (1% → 4–5% by wave 6 against the corpus' 9%); the roster's definition of "an engine" (the corpus holds a strict full combo by wave 8 in only 19% of runs) | the macro is a plan for a payoff the shop has already shown, and a Tier-3 payoff is held by wave 6 in a minority of runs — 70–75 of 100 lobbies never engage it; rolling is only safe for a piece the current tier can draw, and the pilot reaches that tier a wave after the players. |
 | Recorder / report (B5) | accepted-action reconciliation (pre/post state hash), offer → buy → play funnels per surface, spell casts by route, sold cards visible, failed/censored runs separated, lobby-level bootstrap CIs, deterministic regeneration | causal claims | everything in the report is evidence level 1 until a `compare` job exists for the change. |
 | Compare (B6) | A/A = zero effect; synthetic positive control registers | a real candidate | no real patch experiment has been run yet — the first one is the next step. |
 | Learned value (`sim/balance/value`) | what SURVIVING recorded boards look like at waves 1–10 (run-split held-out R² 0.31 early / 0.51 mid vs a wave-mean null of 0.09 / 0.07; the weight table is readable) | placement (recordings have none), the late game (11+ not predictive), and using it as a SEARCH TARGET on its own (measured: W 300 → 7.64, worse than the 6.80 baseline) | survival is the label; the pilot's rows dominate the dataset 2.4:1; a linear model of visible board shape cannot see the tempo needed to survive a tier-up. |
@@ -753,4 +840,10 @@ What each layer proves today, and what it does not. Check the boxes as the gates
    line choice or the evaluator. Next: an OPENING that rolls for the whole engine at waves 4–6 (metric: full engine
    by wave 6), Beast / Dwarf role tables re-authored from the growth mechanism, then a fairer ruler if the wave-8
    median still trails the corpus.
+4c. ~~B11 engine-combo macros~~ — built and measured (above): `assemble(combo)` in the candidate set, the completion
+   probe, commit-and-roll + pivot, the assembly metric; every arm within noise of 6.37 (best −0.04), the assembly
+   rate 1% → 4–5% by wave 6. Next, in order: (a) a TIER-3 OPENING that gets the pilot to the payoff's tier by wave 4 so
+   the reserve has shops to draw from (measure on the assembly metric first); (b) widen the roster to what the corpus
+   holds — one payoff + ANY buff source — so the completion probe credits the common engine; (c) then the prior /
+   growth / horizon / macro weights tuned against pinned placement, never hand-feel.
 5. B7 workers + nightly entry point once throughput matters.

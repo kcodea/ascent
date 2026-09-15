@@ -107,31 +107,17 @@ describe('legacy defect (b): fightScore falls back to the procedural threat curv
     return h;
   };
 
-  it('scores against `buildEnemyBoard` threats and the result carries NO record of the panel source (DEFECT — retire in B3: versioned opponent panels, missing pool = visible failure)', () => {
+  it("RETIRED in B3 (2026-09-15): with no pool registered the fallback panel is still procedural, but the result now SAYS SO — panel: 'procedural'", () => {
     // Precondition: nothing has registered a pool in this process (the CLI never does either — roadmap).
     expect(OPPONENT_POOL.length).toBe(0);
-
-    // A real turn-1 board: buy + play the first offer.
     let s = createRun(11, 'warden');
     s = reduce(s, { type: 'buy', uid: s.shop[0]!.uid });
     s = reduce(s, { type: 'play', uid: s.hand[0]!.uid, toIndex: 0 });
     expect(s.board.length).toBe(1);
-    const v = toBotVisibleState(s);
-
-    const r = fightScore(v);
-    expect(r.fights).toBe(THREAT_IDS.length);
-    expect(Object.keys(r).sort()).toEqual(['averageDamage', 'fights', 'margin', 'winRate']); // no `source` / `panel` field
-
-    // Recompute the FALLBACK panel by hand — if the two agree exactly, the procedural path is what scored it.
-    const mine: BoardMinion[] = s.board.map((c) => ({ cardId: c.cardId, attack: c.attack, health: c.health, keywords: [...c.keywords], golden: c.golden })) as BoardMinion[];
-    const seed = panelSeed(v.wave);
-    let wins = 0; let draws = 0;
-    for (let i = 0; i < THREAT_IDS.length; i++) {
-      const enemy = buildEnemyBoard(THREAT_IDS[i]!, v.wave, makeRng(seed + i * 7919));
-      const f = simulate(mine, enemy, makeRng(seed + i * 104_729), CARD_INDEX, combatSide({ tier: s.tier }), combatSide({ tier: s.tier }));
-      if (f.result === 'win') wins++; else if (f.result === 'draw') draws++;
-    }
-    expect(r.winRate).toBeCloseTo((wins + draws * 0.5) / THREAT_IDS.length, 10); // DEFECT — silent fallback
+    const r = fightScore(toBotVisibleState(s)) as unknown as { panel?: string; fights: number };
+    expect(r.panel, 'the panel source is visible on the result — a report can refuse to rank on it').toBe('procedural');
+    expect(r.fights).toBeGreaterThan(0);
+    void THREAT_IDS; void buildEnemyBoard; void panelSeed; void simulate; void combatSide; void makeRng; void CARD_INDEX;
   });
 });
 

@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "name": "set3-generalist-smoke",
+  "mode": "selfPlayLobby",
+  "setId": "set3",
+  "policy": {
+    "id": "generalist",
+    "budget": {
+      "depth": 1,
+      "beam": 1,
+      "maxNodes": 40,
+      "positionCandidates": 2
+    }
+  },
+  "seeds": {
+    "start": 1,
+    "count": 20
+  },
+  "notes": "Generalist pilot (smoke budget), 20 eight-seat self-play lobbies on set 3."
+}

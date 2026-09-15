@@ -10,6 +10,7 @@ import { CONFIG } from '../config';
 import { offerBuyPrice, reduce } from '../reducer';
 import type { Action, RunState } from '../state';
 import type { PilotBudget, SeatContext, SeatPilot } from './types';
+import { createGeneralistPilot } from './generalistPilot';
 
 /** Would the engine accept this? The same probe the legacy bots use: a rejected action returns the same state. */
 const legal = (run: RunState, a: Action): boolean => reduce(run, a) !== run;
@@ -72,8 +73,11 @@ export const GREEDY_PILOT: SeatPilot = {
   },
 };
 
+// The GENERALIST (B3) — search through the production planning boundary. Seeded off the budget so two jobs with
+// the same manifest tie-break identically; the runner seeds nothing else into it (the run's RNG is never touched).
 const REGISTRY: Record<string, (budget: PilotBudget) => SeatPilot> = {
   greedy: () => GREEDY_PILOT,
+  generalist: (budget) => createGeneralistPilot(budget, 0x9e3779b9),
 };
 
 /** Resolve a manifest's `policy.id` to a pilot. Unknown ids throw — a report must name a policy that exists. */

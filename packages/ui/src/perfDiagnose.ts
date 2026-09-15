@@ -1,4 +1,5 @@
 import type { PerfBucket } from './perfMonitor';
+import { counterPeak, topOffenders } from './perfLive';
 import { thresholdsFor, type FrameThresholds } from './refreshRate';
 
 /**
@@ -132,7 +133,7 @@ export interface Diagnosis {
  * An unrecognised label falls back to `code`, so instrumenting something new never has to touch this file to
  * keep working — it simply gets the generic phrasing until someone teaches it the new prefix.
  */
-export type SubjectKind = 'effect' | 'card' | 'mechanic' | 'code';
+export type SubjectKind = 'effect' | 'effect-frame' | 'card' | 'mechanic' | 'code';
 export interface Subject { kind: SubjectKind; id: string; label: string }
 
 /**
@@ -146,6 +147,12 @@ export type SubjectNamer = (sub: Subject, rawLabel: string) => string;
 export const rawNamer: SubjectNamer = (sub) => sub.label;
 
 export function subjectOf(label: string): Subject {
+  // The FX layer's own per-frame blocks (`fx:tick` / `fx:sim` / `fx:render`) are engine code, not an effect.
+  if (label === 'fx:tick' || label === 'fx:sim' || label === 'fx:render') return { kind: 'code', id: label, label: `\`${label}\`` };
+  if (label.startsWith('fx:def:')) {
+    const id = label.slice(7);
+    return { kind: 'effect-frame', id, label: `the effect \`${id}\` (per frame)` };
+  }
   if (label.startsWith('fx:')) {
     const id = label.slice(3);
     return { kind: 'effect', id, label: `the effect \`${id}\`` };
@@ -168,7 +175,7 @@ const pct = (n: number): string => `${Math.round(n * 100)}%`;
 
 /** How a finding opens, per subject. "Playing X took" reads as a sentence; "X took" reads as a log line. */
 const SUBJECT_VERB: Record<SubjectKind, string> = {
-  effect: 'Firing', card: 'Playing', mechanic: 'Resolving', code: '',
+  effect: 'Firing', 'effect-frame': 'Ticking', card: 'Playing', mechanic: 'Resolving', code: '',
 };
 /**
  * The next step, per subject — because the useful advice genuinely differs. Telling someone to "pool the
@@ -176,6 +183,7 @@ const SUBJECT_VERB: Record<SubjectKind, string> = {
  */
 const SUBJECT_FIX: Record<SubjectKind, string> = {
   effect: "Measured at the SPAWN — a shader compile, a texture upload or a big allocation as the effect starts (this is where §3b's 160 ms collision freeze lived). Pool the shader and its container, pre-warm the link at load, and never free a compiled GL program.",
+  'effect-frame': "Measured PER FRAME while the effect is alive — its layers' particle sims and filter retunes. Read the def: particle counts per layer, how many layers overlap, and whether a filter (blur, bloom, glow) is on a full-viewport container. Fewer particles, shorter lives, or dropping the filter is the fix; the spawn cost is a separate label.",
   card: 'Measured attribution to ONE card. Read its effects: a fan-out over the board, a deep clone, or a cascade that re-enters the reducer. Compare against a plain vanilla minion in the same slot to separate the card from the action.',
   mechanic: 'Measured attribution to the whole action, with no single card owning it — so it is the resolution path itself. Look at what runs for EVERY dispatch of it: board-wide sweeps, snapshots, autosave.',
   code: 'This is measured attribution, not a guess — the milliseconds are on the clock for that block. Make it cheaper, defer it off the frame that shows it, or split it across frames.',
@@ -488,6 +496,75 @@ export function diagnose(buckets: readonly PerfBucket[], namer: SubjectNamer = r
   const rank: Record<Severity, number> = { critical: 0, warn: 1, info: 2 };
   base.verdicts = v.sort((a, b) => rank[a.severity] - rank[b.severity]);
   return base;
+}
+
+// ── WHAT IS SLOW — the one line (owner 2026-09-15: "we're currently BLIND to what's causing it") ──────────
+
+export interface SlowVerdict {
+  severity: Severity;
+  /** One sentence. Who owns the dropped frames, and how much of them. */
+  title: string;
+  /** The supporting numbers: the runners-up and the peak counter, when there is one. */
+  detail: string;
+}
+
+/** Counters worth naming in the verdict, in the order they are tried. Levels (peaks), not rates. */
+const VERDICT_COUNTERS = ['fx:particles', 'fx:filters', 'fx:layers', 'particles', 'weld rings'];
+
+/**
+ * A plain-English answer to "what is slow" for a window of buckets — the live HUD's headline and the
+ * report's opener. Built from the top offenders (self time inside dropped frames — `perfLive.ts`), so it
+ * names the code that RAN in the frames that dropped, not the code with the single worst call and not a
+ * mark that happened to co-occur. When frames dropped and nothing instrumented ran in them, it says so —
+ * that is the render / paint / GC case, and "no offenders" would read as "fine".
+ *
+ * Returns `null` for an empty window. The counters are named where they peaked, because "fx:particles
+ * peaked at 2,340 during combat" is the number that turns a label into a fix.
+ */
+export function whatIsSlow(buckets: readonly PerfBucket[], namer: SubjectNamer = rawNamer): SlowVerdict | null {
+  const live = buckets.filter((b) => !b.hidden);
+  if (live.length === 0) return null;
+  const hz = runHz(live);
+  const th = thresholdsFor(hz);
+  const budgetMs = round(1000 / hz / BUDGET_FRAMES, 2);
+  const long = live.reduce((a, b) => a + b.long, 0);
+  const worst = live.reduce((a, b) => Math.max(a, b.worst), 0);
+  const frames = live.reduce((a, b) => a + Math.round(b.fps), 0);
+  const name = (label: string): string => namer(subjectOf(label), label);
+  const peaks = VERDICT_COUNTERS
+    .map((k) => ({ k, ...counterPeak(live, k) }))
+    .filter((p) => p.peak > 0)
+    .map((p) => `${p.k} peaked at ${p.peak.toLocaleString()}${p.phase ? ` during ${p.phase}` : ''}`);
+
+  if (long === 0) {
+    return {
+      severity: 'info',
+      title: `No dropped frames across ${live.length}s — worst ${round(worst)} ms against a ${round(th.longFrameMs)} ms line`,
+      detail: worst > budgetMs
+        ? `${frames} frames; the worst went ${round(worst / budgetMs)}× over the ${budgetMs} ms budget without dropping. ${peaks[0] ?? ''}`.trim()
+        : `Every frame fit the ${budgetMs} ms budget.`,
+    };
+  }
+
+  const off = topOffenders(live, 3);
+  if (off.length === 0) {
+    return {
+      severity: 'warn',
+      title: `${long} frame(s) dropped and nothing instrumented ran in them`,
+      detail: `The cost is in render, paint, style recalc or GC — not in any timed block. ${peaks.length ? `${peaks.join('; ')}.` : ''} Profile in DevTools (docs/performance.md §3) and check for a paint property animating in a loop.`.trim(),
+    };
+  }
+  const top = off[0]!;
+  const share = Math.round(top.share * 100);
+  const rest = off.slice(1).map((o) => `${name(o.label)} ${Math.round(o.share * 100)}% · ${round(o.avgMs)} ms`).join(', ');
+  return {
+    severity: top.share >= 0.5 && top.avgMs > budgetMs ? 'critical' : 'warn',
+    title: `${name(top.label)} owned ${share}% of the ${long} dropped frames — ${round(top.avgMs)} ms per frame, worst call ${round(top.maxMs)} ms`,
+    detail: [
+      peaks.length ? peaks.join('; ') : null,
+      rest ? `then ${rest}` : null,
+    ].filter(Boolean).join('. '),
+  };
 }
 
 // ── Run-over-run comparison ────────────────────────────────────────────────────────────────────────────────

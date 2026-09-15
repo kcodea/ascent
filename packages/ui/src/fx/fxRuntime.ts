@@ -21,6 +21,12 @@ export interface FxRuntimeHooks {
   resetPools(): void;
   /** Current particle-layer pool depth, for the DEV `window.__fx.poolSize()` diagnostic. */
   poolSize(): number;
+  /** Live particles across every ACQUIRED def layer (burst / emitter / smoke) — the perf `fx:particles` counter. */
+  liveParticles(): number;
+  /** Acquired def layers right now — the perf `fx:layers` counter. */
+  liveLayers(): number;
+  /** Filters currently applied across every live `FilterStack` — the perf `fx:filters` counter. */
+  activeFilters(): number;
 }
 
 let hooks: FxRuntimeHooks | null = null;
@@ -39,3 +45,8 @@ export function resetFxPools(): void {
 export function fxPoolSize(): number {
   return hooks?.poolSize() ?? 0;
 }
+
+/** Perf counters (read by the monitor at 20 Hz, never per frame). 0 when the primitives never loaded. */
+export function fxLiveParticles(): number { return hooks?.liveParticles() ?? 0; }
+export function fxLiveLayers(): number { return hooks?.liveLayers() ?? 0; }
+export function fxActiveFilters(): number { return hooks?.activeFilters() ?? 0; }

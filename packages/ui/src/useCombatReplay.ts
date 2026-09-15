@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { perfMonitor } from './perfMonitor';
 import gsap from 'gsap';
 import type { CombatEvent, CombatResult, Keyword, MinionBuff, MinionSnapshot, Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
@@ -1834,7 +1835,7 @@ export function useCombatReplay(
   // buff/aura, Rally, Avenge, Sergeant's HP-grant, Reborn), its trigger icon releases a ring of energy.
   // We tag the acting unit's uid, then clear it after the pulse animation so it always completes (and a
   // re-trigger restarts it). Held a fixed ~1.15s (glow flash + delayed ring) regardless of combat speed.
-  useEffect(() => {
+  useEffect(() => perfMonitor.measure('choreo:step', () => {
     if (!active || beatIdx === 0) return;
     const beat = beats[beatIdx - 1];
     if (!beat) return;
@@ -2090,13 +2091,13 @@ export function useCombatReplay(
     }
     // `seekNonce`: re-seeking the beat you are already on leaves `beatIdx` identical, so without it this
     // per-beat cue would not re-run and the pulse would never replay. Constant during normal playback.
-  }, [active, beatIdx, seekNonce, beats, events, cardIds]);
+  }), [active, beatIdx, seekNonce, beats, events, cardIds]);
 
   // Combat cues — sfx (choreo/channels/sfx.ts) + floats (choreo/channels/float.ts) for the moment just
   // resolved, dispatched via the Score's channel registry (choreo/score.ts). The melee smack/impact-FX/
   // recoil for an attack's OWN contact fire separately, from the lunge's GSAP timeline (see the layout
   // effect below) — anchored at the real `contact` position instead of this beat-boundary effect.
-  useEffect(() => {
+  useEffect(() => perfMonitor.measure('choreo:step', () => {
     if (!active || beatIdx === 0) return; // only during the live replay (avoids a phantom cue at shop swap-in)
     const beat = beats[beatIdx - 1];
     if (!beat) return;
@@ -2387,7 +2388,7 @@ export function useCombatReplay(
       stop();
     };
     // `seekNonce`: see the trigger-pulse effect above — a re-seek to the same beat must re-fire these cues.
-  }, [active, beatIdx, seekNonce, beats, events, findEl, cardIds, fireBuffCasts, fireSelfBuffs]);
+  }), [active, beatIdx, seekNonce, beats, events, findEl, cardIds, fireBuffCasts, fireSelfBuffs]);
 
   // Verdict sting when the replay finishes.
   useEffect(() => {
@@ -2398,7 +2399,7 @@ export function useCombatReplay(
 
   // Measure lunge + SC projectiles AFTER the beat commits, so positions reflect the
   // frame on screen (not the previous one). Runs synchronously before paint.
-  useLayoutEffect(() => {
+  useLayoutEffect(() => perfMonitor.measure('choreo:step', () => {
     const cur = beatIdx > 0 ? beats[beatIdx - 1] : undefined;
     const center = (uid: string): { x: number; y: number } | null => {
       const el = findEl(uid);
@@ -2670,7 +2671,7 @@ export function useCombatReplay(
     // that per-beat clearing was the Task 6 bug. They now live in the combat-lifetime roll registry (see
     // `scheduleRoll`/`cancelPendingRolls` near `resetTo`), which this effect never reaches into.
     // `seekNonce`: see the trigger-pulse effect above — a re-seek to the same beat must re-measure + re-lunge.
-  }, [beatIdx, seekNonce, beats, events, findEl, cardIds, fireBuffCasts, fireSelfBuffs]);
+  }), [beatIdx, seekNonce, beats, events, findEl, cardIds, fireBuffCasts, fireSelfBuffs]);
 
   const names = useMemo(() => {
     const m = new Map<string, string>();
@@ -2701,8 +2702,10 @@ export function useCombatReplay(
   // Mid-replay, keep the current beat's dying minions one beat; once done, drop
   // every dead minion so the result shows only survivors.
   const beatStart = done ? processedEnd : beatIdx === 0 ? 0 : (beats[beatIdx - 1]?.start ?? 0);
+  // `choreo:frame` — the fold of the event log into this beat's board (perf). `choreo:step` is the cue
+  // effects that fire on the beat (the five per-beat effects below); together they are a combat beat's JS.
   const frame = useMemo(
-    () => (combat ? computeFrame(combat.initial, events, processedEnd, beatStart, names) : { player: [], enemy: [] }),
+    () => perfMonitor.measure('choreo:frame', () => (combat ? computeFrame(combat.initial, events, processedEnd, beatStart, names) : { player: [], enemy: [] })),
     [combat, events, processedEnd, beatStart, names],
   );
   frameRef.current = frame;
@@ -2739,7 +2742,7 @@ export function useCombatReplay(
   // fresh 24 held again totals 36 held against a 49-attack unit, printing 13 for a frame: BELOW the 25
   // pre-buff floor, a number the minion never had. Releasing this beat's own uids unconditionally (not just
   // `combatHeldRef`'s) closes that gap: `holdStat` always sees a clean slate for a uid it's about to place.
-  useLayoutEffect(() => {
+  useLayoutEffect(() => perfMonitor.measure('choreo:step', () => {
     // Release last beat's leftover holds — see THE INVARIANT above. On every pass through this effect,
     // including the inactive/beat-0 early-out just below: skipping it would leave a stale hold live into the
     // next real beat, and `holdStat` ACCUMULATES same-origin deltas onto a live hold rather than replacing
@@ -2843,7 +2846,7 @@ export function useCombatReplay(
     // re-seek. Without `seekNonce` the badge shows the POST-buff number for the whole replayed beat instead
     // of holding pre-buff and rolling up at the tendril — the up-then-down-then-up artifact this effect
     // exists to kill.
-  }, [active, beatIdx, seekNonce, beats, events, frame, cancelRollForUid]);
+  }), [active, beatIdx, seekNonce, beats, events, frame, cancelRollForUid]);
 
   // ── Summon HOLDS, installed in the same pre-paint window and for the same reason ───────────────────────
   //
@@ -2858,7 +2861,7 @@ export function useCombatReplay(
   // Cleared wholesale first, so a hold whose release timer was lost (a skip, a seek, a mid-flight speed
   // change) can never outlive its beat and strand a live minion off the board. The module's TTL is the
   // backstop for a replay that stops re-rendering entirely; this is the ordinary path.
-  useLayoutEffect(() => {
+  useLayoutEffect(() => perfMonitor.measure('choreo:step', () => {
     releaseAllSummons();
     if (!active || beatIdx === 0) return;
     const beat = beats[beatIdx - 1];
@@ -2880,7 +2883,7 @@ export function useCombatReplay(
       }
     }
     return () => { if (impReveal !== undefined) clearTimeout(impReveal); };
-  }, [active, beatIdx, seekNonce, beats, events, cardIds]);
+  }), [active, beatIdx, seekNonce, beats, events, cardIds]);
 
   // The board as it should be DRAWN: `frame` minus anything an effect is still holding back. Kept separate
   // from `frame` rather than filtered in place because `frame` is the TRUTH — the loss-damage tally counts

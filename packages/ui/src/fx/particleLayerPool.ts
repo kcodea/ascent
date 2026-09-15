@@ -148,6 +148,20 @@ const pool: ParticleLayer[] = [];
  * A `WeakSet` rather than a `Set` so a pair that gets dropped over cap (and destroyed) is not retained here.
  */
 const pooled = new WeakSet<ParticleContainer>();
+/**
+ * Layers currently OUT of the pool, i.e. mounted and being ticked — for the perf monitor's `fx:particles` /
+ * `fx:layers` counters. Bookkeeping only: nothing reads it on the FX path, and `acquire`/`release` each do
+ * one Set op more. A destroyed-over-cap layer is removed like any other release.
+ */
+const acquired = new Set<ParticleContainer>();
+
+/** Live particles across every acquired layer. Read by the perf monitor, ~20×/s. */
+export function liveParticleCount(): number {
+  let n = 0;
+  for (const pc of acquired) n += pc.particleChildren.length;
+  return n;
+}
+export function liveLayerCount(): number { return acquired.size; }
 
 function buildLayer(renderer: Renderer, style: ParticleStyle, shaping: ParticleShaping): ParticleLayer {
   const shader = createParticleMaterial(renderer, style, shaping);
@@ -198,6 +212,7 @@ function resetLayer(layer: ParticleLayer, req: ParticleLayerRequest): void {
 export function acquireParticleLayer(req: ParticleLayerRequest): ParticleLayer {
   const layer = pool.pop() ?? buildLayer(req.renderer, req.style, req.shaping);
   pooled.delete(layer.pc); // it is out of the pool now — a later release must be allowed to put it back
+  acquired.add(layer.pc);
   resetLayer(layer, req);
   req.parent.addChild(layer.pc);
   return layer;
@@ -214,7 +229,8 @@ export function acquireParticleLayer(req: ParticleLayerRequest): ParticleLayer {
  */
 export function releaseParticleLayer(layer: ParticleLayer): void {
   const { pc } = layer;
-  if (pooled.has(pc) || pc.destroyed) return;
+  if (pooled.has(pc) || pc.destroyed) { acquired.delete(pc); return; }
+  acquired.delete(pc);
   pc.removeFromParent();
   pc.particleChildren.length = 0;
   if (pool.length >= PARTICLE_LAYER_POOL_MAX) {

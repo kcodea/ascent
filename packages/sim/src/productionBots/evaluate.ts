@@ -32,6 +32,15 @@ export interface EvaluationBreakdown {
   tribeFocus: number;
   /** Non-golden duplicates held across board+hand — each pair is two-thirds of a triple. */
   pairsHeld: number;
+  /**
+   * AN UNOPENED DISCOVER: a golden minion still in hand (its Triple Reward spell arrives when it is played), a
+   * Discover spell in hand (the Triple Reward itself, or any spell that discovers), or a Discover offer the run
+   * is blocked on. Each is a card from the tier above that the fight-grounded terms cannot see at all — a triple
+   * pulls two bodies OFF the board to make one golden, so `fightStrength` reads the combine as a plain loss.
+   * Measured 2026-09-15: without this term the depth-1 pilot bought a filler body over the third copy of a
+   * triple at wave 1.
+   */
+  tripleReady: number;
   /** Learned prediction of wins still to come, from mass self-play vs the real pool (`bot:learn`). */
   futureWins: number;
   boardPower: number;
@@ -74,6 +83,9 @@ export const EVALUATION_CONFIG_V1: EvaluationConfig = {
     tierDensity: 0,
     tribeFocus: 0,
     pairsHeld: 0,
+    // A golden in hand is a fielded double body plus a tier-up Discover — see the breakdown's note. Weighted
+    // beside `tierProgress`: taking the triple must beat holding two 1/1s on the board through one fight.
+    tripleReady: 10,
     // ZERO, MEASURED. The learned run-state value was fit on 61,020 end-of-turn states from 6,000 self-play
     // runs and reaches only held-out r=0.288 — and at weight 18 it cost the bot 4.63 -> 3.40 wins against real
     // player boards. A weak predictor used as a search target is worse than no predictor, because search
@@ -210,6 +222,16 @@ export function evaluate(v: BotVisibleState, cfg: EvaluationConfig = ACTIVE_CONF
   let pairCount = 0;
   for (const n of copies.values()) pairCount += Math.floor(n / 2);
   const pairsHeld = norm(pairCount, 2);
+  // A golden in hand, or a Discover the run is blocked on (the golden's reward, mid-resolution in a sampled
+  // future): both are an unopened tier-up card the fight terms cannot see.
+  const unopened = v.hand.filter((c) => {
+    const def = CARD_INDEX[c.cardId];
+    if (!def) return false;
+    if (c.golden && !def.spell) return true; // a golden minion: its Triple Reward arrives when it is played
+    if (def.discoverOnPlay) return true; // the Triple Reward token itself (a Discover on play)
+    return !!def.spell && def.effects.some((e) => /discover/i.test(e.do)); // any Discover spell
+  }).length;
+  const tripleReady = norm(unopened + (v.mandatoryDecision?.kind === 'discover' ? 1 : 0), 1);
 
   // LEARNED FUTURE VALUE — predicted wins still to come, squashed to [0, 1.5] (winsAfter tops out ~12). Null
   // (no model band / stub data / schema drift) reads 0, so the term is inert until `bot:learn` has run.
@@ -222,13 +244,14 @@ export function evaluate(v: BotVisibleState, cfg: EvaluationConfig = ACTIVE_CONF
   });
   const futureWins = predicted === null ? 0 : Math.max(0, Math.min(1.5, predicted / 8));
 
-  const parts = { fightStrength, learnedStrength, tierDensity, tribeFocus, pairsHeld, futureWins, boardPower, economy, tierProgress, handValue, survivalUrgency, wastedGoldPenalty };
+  const parts = { fightStrength, learnedStrength, tierDensity, tribeFocus, pairsHeld, tripleReady, futureWins, boardPower, economy, tierProgress, handValue, survivalUrgency, wastedGoldPenalty };
   const total =
     parts.fightStrength * w.fightStrength +
     parts.learnedStrength * w.learnedStrength +
     parts.tierDensity * w.tierDensity +
     parts.tribeFocus * w.tribeFocus +
     parts.pairsHeld * w.pairsHeld +
+    parts.tripleReady * w.tripleReady +
     parts.futureWins * w.futureWins +
     parts.boardPower * w.boardPower +
     parts.economy * w.economy +

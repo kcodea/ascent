@@ -219,7 +219,10 @@ describe('module boundary — scoring code cannot reach RunState', () => {
     // receives the live run and hands it straight to a planning root. Everything else — the evaluator, search,
     // candidate generation, difficulty, future strategy and tracing — must go through them.
     const dir = __dirname;
-    const SANCTIONED = new Set(['transition.ts', 'visibleState.ts', 'controller.ts', 'rulesIdentity.ts', 'index.ts', 'types.ts']);
+    // `combatContext.ts` is conversion-layer too: it turns the run into the friendly combat side the projection
+    // carries (`BotVisibleState.friendly`), mirroring the reducer's own preparation. It reads a RunState in and
+    // hands a projection out — the same contract as `visibleState.ts`, which is the only thing that calls it.
+    const SANCTIONED = new Set(['transition.ts', 'visibleState.ts', 'combatContext.ts', 'controller.ts', 'rulesIdentity.ts', 'index.ts', 'types.ts']);
     const offenders: string[] = [];
     for (const file of readdirSync(dir)) {
       if (!file.endsWith('.ts') || file.endsWith('.test.ts') || SANCTIONED.has(file)) continue;
@@ -233,7 +236,7 @@ describe('module boundary — scoring code cannot reach RunState', () => {
   it('the sanctioned list is not a blanket exemption — it names the conversion layer only', () => {
     // Guards the obvious way to "fix" a failure of the test above: adding the offending file to SANCTIONED.
     const dir = __dirname;
-    const scoring = ['evaluate.ts', 'search.ts', 'legalActions.ts', 'difficulties.ts', 'actionCatalog.ts'];
+    const scoring = ['evaluate.ts', 'search.ts', 'legalActions.ts', 'difficulties.ts', 'actionCatalog.ts', 'fightScore.ts', 'pilotSearch.ts'];
     for (const file of scoring) {
       const src = readFileSync(join(dir, file), 'utf8');
       expect(/RunState/.test(src), `${file} must not know about RunState`).toBe(false);

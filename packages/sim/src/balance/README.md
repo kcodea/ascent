@@ -10,5 +10,6 @@ live here; Node workers, storage and the CLI live in `packages/tools/src/balance
 | `identity.ts` | `ExperimentIdentity` (engine rev, dirty digest, content/pool/effect digests) | B0 |
 | `seatRunner.ts` | drive ONE seat's recruit turn through the real reducer with a `SeatPilot`; combat prep + settlement helpers | B1 |
 | `selfPlayLobby.ts` | eight living seats, real pairing, one authoritative fight per pair, real settlement, carried into the next recruit | B1 |
-| `pilots.ts` | the `SeatPilot` registry (`greedy` baseline, `generalist`) | B3 |
+| `pilots.ts` | the `SeatPilot` registry (`greedy` baseline) | B1 |
+| `generalistPilot.ts` | `createGeneralistPilot(budget, seed)` + `GENERALIST_BUDGETS` — the competent generalist through `productionBots/` (search in `productionBots/pilotSearch.ts`, repaired `fightScore`, `combatContext.ts` friendly prep) | B3 |
 | `recorder.ts` | the `BalanceRecorder` that builds a `LobbyRecord` | B5 |

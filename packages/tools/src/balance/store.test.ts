@@ -31,7 +31,7 @@ describe('store', () => {
     writeFileSync(path, JSON.stringify(env));
     expect([...completedSeeds('job-a', manifest, identity, root)].sort()).toEqual([1, 3]);
     const job = loadJob('job-a', root);
-    expect(job.rejected).toEqual([{ seed: 2, reason: 'checksum mismatch (incomplete or corrupted write)' }]);
+    expect(job.rejected).toEqual([{ seed: 2, key: '2', reason: 'checksum mismatch (incomplete or corrupted write)' }]);
     // A different identity never counts existing files as done.
     const other = syntheticIdentity(manifest, 'other');
     expect(completedSeeds('job-a', manifest, other, root).size).toBe(0);

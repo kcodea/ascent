@@ -20,8 +20,10 @@ import { HERO_INDEX, playableHeroes } from '../heroes';
 import { DEFAULT_LOBBY_RULES } from '../lobby/lobby';
 import { closeRunLobbyRound, hitSeat, knockOutIfDead, pairRunLobby, type LobbySeatState, type RunLobby } from '../lobby/runLobby';
 import type { LobbyEncounter } from '../lobby/types';
-import { createRun, runTribesForSeed, type RunState } from '../state';
+import { makeRng } from '@game/core';
+import { createRun, mixSeed, runTribesForSeed, type RunState } from '../state';
 import { snapshotBoard } from '../snapshot';
+import type { CardLineage } from './effectsFromTransition';
 import { prepareAndFight, prepareAndFightGhost, type FightRules, type GhostSide } from './seatRunner';
 import { playRecruitTurn } from './seatRunner';
 import type { BalanceRecorder, ExperimentIdentity, ExperimentManifest, LobbyRecord, RoundRecord, SeatPilot } from './types';
@@ -39,6 +41,8 @@ interface Seat {
   /** Per-round bookkeeping for the RoundRecord. */
   turnGoldSpent: number;
   turnGoldUnspent: number;
+  /** uid → acquisition route, across turns (the recorder's attributer reads it — see `RecruitTurnOptions.lineage`). */
+  lineage: CardLineage;
 }
 
 /** Seat i's run seed — the shipped derivation for generated seats (`createRunLobby`: `seed * 1000 + i`). */
@@ -56,11 +60,25 @@ export function rotateHeroes(manifest: ExperimentManifest, seed: number, seatCou
     ? manifest.heroes.map((id) => { const h = HERO_INDEX[id]; if (!h) throw new Error(`balance: manifest names unknown hero '${id}'`); return h; })
     : playableHeroes();
   const heroIds: string[] = [];
+  // MATRIX: the seven rotated seats draw from a per-(seed, pinned hero) SHUFFLE of the roster rather than the plain
+  // `seed + i` walk — with a handful of paired seeds the walk would seat the same dozen heroes in every lobby (the
+  // first smoke: one hero in all 265 lobbies, most in only their own 5), so the all-seat sample would be useless
+  // for everyone else. The shuffle is a pure function of (seed, pinned hero): still deterministic, still paired.
+  const order = manifest.pinnedHero ? shuffledRoster(roster, seed, manifest.pinnedHero) : roster;
   for (let i = 0; i < seatCount; i++) {
     const tribes = runTribesForSeed(seatSeed(seed, i), manifest.setId);
     let picked: string | undefined;
-    for (let offset = 0; offset < roster.length; offset++) {
-      const h = roster[(seed + i + offset) % roster.length]!;
+    // MATRIX: seat 0 is PINNED to `manifest.pinnedHero` (balance:matrix). Its tribe gate is checked like anyone
+    // else's — an unmet gate fails the lobby (reported), it never quietly seats a different hero.
+    if (i === 0 && manifest.pinnedHero) {
+      const h = HERO_INDEX[manifest.pinnedHero];
+      if (!h) throw new Error(`balance: manifest pins unknown hero '${manifest.pinnedHero}'`);
+      if (h.tribes && !h.tribes.some((t) => tribes.includes(t))) return { heroIds, failure: `pinned hero ${h.id} is tribe-gated (${h.tribes.join('/')}) and seat 0 rolled ${tribes.join('/')}` };
+      heroIds.push(h.id);
+      continue;
+    }
+    for (let offset = 0; offset < order.length; offset++) {
+      const h = order[(seed + i + offset) % order.length]!;
       if (heroIds.includes(h.id)) continue;
       if (h.tribes && !h.tribes.some((t) => tribes.includes(t))) continue;
       picked = h.id;
@@ -70,6 +88,16 @@ export function rotateHeroes(manifest: ExperimentManifest, seed: number, seatCou
     heroIds.push(picked);
   }
   return { heroIds };
+}
+
+/** Fisher–Yates over the roster from an RNG keyed by (seed, pinned hero id) — see `rotateHeroes`. */
+function shuffledRoster<T>(roster: readonly T[], seed: number, pinnedHero: string): T[] {
+  let h = 0;
+  for (let i = 0; i < pinnedHero.length; i++) h = Math.imul(h ^ pinnedHero.charCodeAt(i), 0x01000193) >>> 0;
+  const rng = makeRng(mixSeed(seed, h, 0x5eed));
+  const out = [...roster];
+  for (let i = out.length - 1; i > 0; i--) { const j = rng.int(i + 1); [out[i], out[j]] = [out[j], out[i]]; }
+  return out;
 }
 
 function makeRun(seed: number, heroId: string, setId: SetId): RunState {
@@ -94,7 +122,8 @@ export function runSelfPlayLobby(
   const rules = { ...DEFAULT_LOBBY_RULES, ...(manifest.maxRounds !== undefined ? { maxRounds: manifest.maxRounds } : {}) };
   const fightRules: FightRules = manifest.fightRules ?? 'corrected';
   const maxActionsPerTurn = manifest.maxActionsPerTurn ?? DEFAULT_MAX_ACTIONS_PER_TURN;
-  const lobbyId = `${manifest.mode}:${manifest.setId}:${manifest.policy.id}:${seed}`;
+  // A pinned (matrix) lobby carries its hero in the id so a job's lobbies stay distinct per (hero, seed).
+  const lobbyId = `${manifest.mode}:${manifest.setId}:${manifest.policy.id}:${manifest.pinnedHero ? `${manifest.pinnedHero}:` : ''}${seed}`;
   const record: LobbyRecord = { lobbyId, seed, manifest, identity, seats: [], rounds: [], actions: [], effects: [], roundsPlayed: 0 };
   // The runner's own view of accepted actions rides on the record too (the recorder may be a no-op).
   const rec: BalanceRecorder = {
@@ -114,6 +143,7 @@ export function runSelfPlayLobby(
       pilot: pilotFor(idx),
       turnGoldSpent: 0,
       turnGoldUnspent: 0,
+      lineage: new Map(),
     };
   });
   const table: RunLobby = { version: 1, seed, setId: manifest.setId, round: 1, seats: seats.map((s) => s.state), encounters: [], finished: false, rules };
@@ -152,7 +182,7 @@ export function runSelfPlayLobby(
     for (const seat of living) {
       const foe = opponentOf.get(seat.state.id) ?? null;
       const before = seat.run;
-      const turn = playRecruitTurn(seat.run, seat.pilot, { seatId: seat.state.id, round, scoutedOpponent: foe?.run.lastCombat ?? null }, rec, { maxActionsPerTurn, lobbyId });
+      const turn = playRecruitTurn(seat.run, seat.pilot, { seatId: seat.state.id, round, scoutedOpponent: foe?.run.lastCombat ?? null }, rec, { maxActionsPerTurn, lobbyId, lineage: seat.lineage });
       seat.run = turn.run;
       if (turn.failure) { fail(turn.failure); break; }
       // Gold spent this turn is the run's own counter (reset by the turn rollover, so read it now); unspent is

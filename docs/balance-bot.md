@@ -14,6 +14,7 @@ npm run balance:compare -- --baseline base-job --candidate cand-job [--allow-dif
 npm run balance:census  # per-set content census + mechanic coverage
 npm run balance:packages -- set2          # B4: the strategy-package census (members, key cards, affine runes / heroes, status)
 npm run balance:strategist-bench -- --seeds 20 --explore 0|rotate   # B4: strategist vs generalist mixed lobbies + line diversity
+npm run balance:pilot-curve -- --job <job> [--job <job> ...] [--corpus set2-players-v1]   # B6: placement + per-wave board-stat curve vs the corpus
 npm run balance:manifest -- <manifest.json>   # print the resolved manifest + identity
 npm run balance:synth   -- --set set3 --seeds 20 --out synth   # a synthetic job to exercise the report
 npm run balance:corpus  -- --set set2 --out set2-players-v1 [--patch 0.1.0+]   # the recorded PLAYER corpus a pinnedLobby job names
@@ -339,6 +340,96 @@ recovers from. The term knows what survivors look like; it does not know how to 
 the strategist (B4), not a drop-in weight: blend it small (≤ 30), or use it to choose BETWEEN plans of equal fight
 strength, and pair it with a tempo plan that fields a fight-winning board the round after a tier-up.
 
+## Engine growth (B6, 2026-09-15)
+
+The B4 diagnosis said the one-turn evaluator cannot see that an engine card is worth more than a vanilla body of
+the same stats. B6 gives it that sight EMPIRICALLY — by running the engine, never by a per-card table
+(`packages/sim/src/productionBots/growth.ts`, the probe session in `transition.ts::probeFuture`):
+
+- **The probe.** For a candidate state, a private clone of the state behind its projection is driven through ONE
+  scripted turn: End of Turn fires (`faceOmen { deferFight }` — the side is prepared, no fight is resolved), a
+  neutral 0-damage draw lands (`resolveCombat`: start-of-turn grants, Gold refill, an IMAGINED shop drawn from a
+  per-decision panel seed exactly as `sampleCandidate` replaces the hidden future), the turn's prompts are
+  answered (first option / skip a forge), the held bodies are fielded (selling the weakest printed body to make
+  room when the board is full, at most two), up to three bodies of the dominant tribe are bought and fielded, the
+  spell offer is bought and cast, and the spells the turn GENERATED (a Dwarf's Ale, a Kobold's Ruby, a triple's
+  reward — never a spell the pilot already held, which would reward hoarding it) are cast. The yield is total
+  board + hand-minion stats after minus before minus the printed stats of what the script bought. A vanilla
+  body yields 0; a shop-buff line, a per-spell scaler, a Gourmand's End-of-Turn Consume yield their real number
+  in the real context. The clone has no lobby (no other seat's board is ever touched), the served board for the
+  wave is pinned to none, and a frozen shop never carries into the imagined turn. Memoised on (composition,
+  panel seed): board with order, hand, runes, auras, counters, quests, equipment, tier, hero — not Gold, not the
+  current shop.
+- **Combat carry-back.** Every `fightScore` fight already computes the permanent gains a fight leaves on the run
+  (`CombatResult`'s `playerPermaBuffs`, hand buffs, card-type buffs, the Shop-buff / Spell-Power / Ruby-bonus /
+  tribe-aura channels, generated Rubies and hand grants); `carryBackOf` sums them (channels at `CHANNEL_USES` = 8
+  future uses, a generated card at a flat 6) and `FightResult.carryBack` carries the panel mean.
+- **The Rally trial.** A board the field outgrows dies before it swings, so its Rally engines (Standard Bearer,
+  Paragon, Chorus Drake, Hungerling — on every recorded late board) carry back 0 from the panel: the
+  chicken-and-egg of the diagnosis. `rallyTrial` fights the board once against a WALL (seven 0-Attack bodies
+  whose total Health is two rounds of the board's Attack) and reads the permanent gain — the engine's potential
+  once it gets to attack. The term takes the larger of the realised panel carry-back and the trial, never both.
+- **The term.** `growth = clamp((probe.delta + combat) / (8 + 7·wave), −0.5, 2.5) × min(1, turnsLeft / 6)` with
+  `turnsLeft = 16 − wave` — one turn's engine yield relative to a healthy board at the wave, credited by the turns
+  left to cash it. `EvaluationBreakdown.growth`, weight 0 in the shipped config; the strategist installs a scope
+  per decision (`withGrowth`, one panel seed per pilot × round, so every candidate is probed against the same
+  imagined future) at `budget.growthWeight` (manifest field; default `GROWTH_WEIGHT` = 20; 0 = no probe at all,
+  which is how the pre-B6 strategist is reproduced — `set2-pinned-strategist-b6-g0-smoke100.json`).
+- **Cost.** ~1.8 ms per probe (≈ 10 reducer dispatches on a lobby-less clone) plus one wall fight; memoised across
+  a turn's decisions. A pinned lobby went from 4.2 s to 6.1 s (1.5×) with the term on.
+
+Defects the probe's traces surfaced and this PR fixes (each measured in a "g0" arm below, growth off):
+**Rubies were never cast** — `recruitCandidates` treated `ruby: true` as a minion (a seat index, gated on a full
+board), which the reducer refuses, so the pilot held hands of six Rubies to elimination; **two held Rubies read
+as a pair** in the prior (3 utility to hold rather than cast — spells and Rubies never triple, in `evaluate` too);
+**a frozen shop** made the probe read the real offers as next turn's shop and score "freeze" over "buy"
+(freeze → forced roll → freeze burned 8 Gold in a turn); the forced spend with a full board **rolled before every
+buy** (the comment said "ahead of a marginal buy"); and a forced hand play the search had just rejected started a
+play → sell loop that hit the 60-action guard (seed 52, round 11) — forced plays are now tolerance-gated.
+
+**Measured** (100 pinned set-2 lobbies each, seeds 1–100, smoke budget, corpus `set2-players-v1`, hero rotated by
+seed; `balance:pilot-curve` prints these tables from any job; paired Δ = same-seed placement difference):
+
+| job | mean placement [95% CI] | paired Δ vs the 6.44 baseline | 1st | top-4 | board stats w8 / w10 / w12 (median) | win% r7 / r8 |
+|---|---|---|---|---|---|---|
+| baseline `set2-pinned-strategist-smoke100` (pre-B6 build) | 6.44 [6.12, 6.76] | — | 0 | 16% | 83 / 133 / 253 | 29 / 19 |
+| Ruby cast fix only (growth 0) | 6.51 [6.20, 6.82] | +0.07 [−0.08, +0.22] | 0 | 15% | 81 / 160 / 253 | 32 / 21 |
+| probe + carry-back + trial, weight 8 / 12 / 20 | 6.40 / 6.37 / 6.49 | −0.04 / −0.07 / +0.05 (each ± 0.28) | 0 | 15–18% | 97 / 181 / 321 at w12 | 34 / 20 |
+| + replace-to-field, forced spend buys first — growth 0 | 6.60 [6.31, 6.88] | +0.14 [−0.08, +0.36] | 0 | 12% | 81 / 153 / 220 | 30 / 19 |
+| … growth weight 12 / 20 | 6.30 / **6.27 [5.97, 6.57]** | −0.14 / −0.17 [−0.44, +0.10] | 0 | 13% / 19% | 96 / 162 / 259 · 104 / 180 / 305 | 37 / 26 · 37 / 25 |
+| + Ruby pairs fix, forced-play guard, channels ×8 — growth 0 | 6.55 [6.28, 6.82] | +0.11 [−0.12, +0.34] | 0 | 13% | 86 / 121 / 192 | 25 / 20 |
+| … growth weight 12 / 20 (**the shipped build, default 20**) | 6.41 / 6.39 [6.12, 6.66] | −0.03 / −0.05 [−0.30, +0.20] | 0 | 9% / 11% | 93 / 163 / 307 · 98 / 176 / 319 | 35 / 24 · 32 / 25 |
+| recorded players (corpus medians) | 4.38 (their own placements) | | | | 139 / 432 / 1,109 | |
+
+Growth ON vs OFF within one build, paired by seed: −0.28 [−0.56, −0.01] (weight 12) and −0.31 [−0.56, −0.07]
+(weight 20) on the third build; −0.14 [−0.38, +0.10] and −0.16 [−0.38, +0.06] on the shipped one. Against the
+pre-B6 baseline every candidate sits inside its interval.
+
+**What worked.** The evaluator now has an engine gradient and uses it: the pilot's board-stat curve rises 20–35%
+at waves 8–10 (83 → 98–104 at w8, 133 → 176–181 at w10), its unplayed hand at round 8 falls from 3.7 to 1.9
+cards, its round-7/8 win rate rises from 29/19% to 35–37/25%, and the traces show it doing the right things — it
+moved a Chorus Drake next to a Transcendence to Engrave it and cashed +28 Health the next fight; it turned a
+Tier-1 body board into Tapkeeper / Mountainbond / Arnold Dwarves probing +86 → +107 a turn. The probe measures
+what it claims (`growth.test.ts`: an Arnold outyields a stat-identical vanilla in the same imagined future; a
+Paragon board leaves stats against the wall, a vanilla none; the root, the live run and the handle store are
+byte-identical after a probe; two panel seeds imagine two futures; a foreign projection probes null).
+
+**What did not.** Placement. The recorded curve is not 30% steeper, it is exponential — 139 → 432 → 1,109 at
+waves 8 / 10 / 12 against the pilot's 98 → 176 → 319 — and the pilot still takes twice the damage per round that
+the recordings take from each other (9.9 vs 5.4 at round 8; the shipped recording-vs-recording fight is the
+tier-only path) and is eliminated at round 9–10 in 60 of 100 lobbies. A one-turn yield credited linearly cannot
+price a Gourmand that eats a Hungerling-buffed shop every turn (recorded: 7/8 → 55/59 → 219/271 → 567/731 over
+waves 5–12) or a Standard Bearer under Engraved Dwarves; the engines that do pay arrive at waves 8–9 in the
+pilot's runs, two to three waves after the players', because until fielded they read 0 and the fight term (26)
+and the line prior (10) outweigh them. The wall trial over-credits "when a Demon deals damage" Leeches (41 of 100
+wave-10 boards under weight 20). Zero first places in 900 candidate lobbies.
+
+**The single next lever.** Compounding, not weight: a two-turn probe (K = 2 scripted turns, the second on the
+first's outcome) whose SECOND-turn yield is the credited number — an engine whose yield grows turn over turn is
+the recorded curve's whole shape, and one turn cannot see it — scored against corpus boards at wave + 2 rather
+than the same-wave panel (`poolPanel` takes a wave; the probe's clone knows its own). Budget it by probing only
+the root and the search's top-3 end states.
+
 ## Trust ledger
 
 What each layer proves today, and what it does not. Check the boxes as the gates in the roadmap's
@@ -349,7 +440,8 @@ What each layer proves today, and what it does not. Check the boxes as the gates
 | Runner (B1) | recruit turns are real reducer transitions; one `simulate()` per pair; armor-first settlement; eliminations, byes, ghosts, placement per the shipped lobby rules; determinism; **both seats keep their combat carry-backs** (#1491: `CombatResult.enemyCarry`, ≈70 of 96 side-gates made symmetric, shipped result byte-identical over 1,278 captured fights) | six documented `KNOWN ASYMMETRY` groups | the enemy's Grim-style tally stays the snapshot's frozen value mid-fight; enemy spell power / Imp aura / hand-buff snapshots are static for the fight (gains still carry back); Pack Mentality live growth, mid-combat quest completion, Blood Trail / Soulbind / Echo Warden / Rallying Offensive extras and telegraph events are player-only. Listed in `simulate.ts` by name. |
 | Fight context | `corrected` rules give every seat the player's full context (spell power, Ruby casts, Reveler values, banked Start-of-Combat effects, alignments) | claims about the game **as shipped** | the shipped non-player fight is tier-only (`lobby/runLobby.ts:590`, `:629`) and served boards carry no alignment; run with `fightRules: 'shipped'` to measure that, and read the discrepancy list in `seatRunner.ts`. |
 | Pilot (B3) | buying, playing, tiering, selling, refreshing, freezing, targeted Shouts, Choose One, Discover, triples, hero powers, Equipment, Starform; no illegal actions; decisions are player-legal (reveal-by-effect, hidden future never read) | **strategy competence** at the level of a good player; late-game spending (unspent Gold climbs past round 12); no strategy specialists yet (B4) | single-turn benchmark vs the legacy greedy: set2 +0.85 [0.69, 1.01], set3 +0.70 [0.38, 1.02]; deeper budgets show no measurable single-turn gain (dev vs smoke 0.00 [−0.38, 0.38]) — multi-turn value unproven. Unsupported content must be labelled, not ranked as weak. |
-| Strategist (B4) | plays a declared line (primary + secondary package) with the generalist's legality and information boundary; takes affine runes, engine pieces and profile-timed tiers in the curricula; turns its board over from wave 4 (13–36% per round) with a hand that stays under 5; BEATS the generalist in mixed self-play (the 20-seed numbers are in the B4 section); line diversity 9–10 primaries per hero over 30 seeds under `strategist:rotate` | **competence against real players** — 6.44 [6.12, 6.76] in 100 pinned set-2 lobbies (owner scale: < 4.0 passes); a claim that a line is STRONG or WEAK (fit is a construction prior, not a strength estimate); packages a set cannot field (labelled unsupported) | the prior is capped and one-turn: it cannot see compounding engines; the evaluator's fight terms lose all gradient once the field outgrows the pilot (B3 work); the learned value term is inert within noise at any weight tried; the hero intent manifest is hand-maintained design intent, not measured. |
+| Strategist (B4) | plays a declared line (primary + secondary package) with the generalist's legality and information boundary; takes affine runes, engine pieces and profile-timed tiers in the curricula; turns its board over from wave 4 (13–36% per round) with a hand under 3 from B6; casts its Rubies (B6); BEATS the generalist in mixed self-play (the 20-seed numbers are in the B4 section); line diversity 9–10 primaries per hero over 30 seeds under `strategist:rotate` | **competence against real players** — 6.39 [6.12, 6.66] in 100 pinned set-2 lobbies with the B6 growth term (6.44 before it; owner scale: < 4.0 passes); a claim that a line is STRONG or WEAK (fit is a construction prior, not a strength estimate); packages a set cannot field (labelled unsupported) | the prior is capped and one-turn; the evaluator's fight terms lose all gradient once the field outgrows the pilot (B3 work); the learned value term is inert within noise at any weight tried; the hero intent manifest is hand-maintained design intent, not measured. |
+| Engine growth (B6, `productionBots/growth.ts`) | that a candidate board's ENGINES yield more than a vanilla one, measured by running the engine (a probed turn on an isolated clone + the fight's own carry-back + a Rally trial) — the pilot's board curve is 20–35% higher at waves 8–10 and its hand empties; the probe reads nothing the pilot cannot see (tests pin isolation, replaced futures, a null on foreign projections) | **placement** — growth on vs off is −0.15 to −0.3 placements paired; against the pre-B6 baseline every weight tried (8 / 12 / 20) is inside the interval; 0 first places; the wall trial is a POTENTIAL (it over-credits a Leech-style "when a Demon deals damage" engine that a real fight never lets swing) | one turn's yield credited linearly cannot price compounding (the recorded curve triples every two waves); the engines are bought two to three waves late because until fielded they read 0; the shipped fight asymmetry (the pilot takes ~2× the per-round damage the recordings take from each other) is the game as played, not a pilot defect. |
 | Recorder / report (B5) | accepted-action reconciliation (pre/post state hash), offer → buy → play funnels per surface, spell casts by route, sold cards visible, failed/censored runs separated, lobby-level bootstrap CIs, deterministic regeneration | causal claims | everything in the report is evidence level 1 until a `compare` job exists for the change. |
 | Compare (B6) | A/A = zero effect; synthetic positive control registers | a real candidate | no real patch experiment has been run yet — the first one is the next step. |
 | Learned value (`sim/balance/value`) | what SURVIVING recorded boards look like at waves 1–10 (run-split held-out R² 0.31 early / 0.51 mid vs a wave-mean null of 0.09 / 0.07; the weight table is readable) | placement (recordings have none), the late game (11+ not predictive), and using it as a SEARCH TARGET on its own (measured: W 300 → 7.64, worse than the 6.80 baseline) | survival is the label; the pilot's rows dominate the dataset 2.4:1; a linear model of visible board shape cannot see the tempo needed to survive a tier-up. |
@@ -362,8 +454,10 @@ What each layer proves today, and what it does not. Check the boxes as the gates
 2b. The pilot places ~7th against real set-2 recordings: raise pilot competence (B3/B4) and re-run the pinned smoke — a pinned job is the held-out benchmark the roadmap asks for ("human-run groups").
 3. Run the first REAL patch experiment (a bounded content change, paired seeds) and read the comparison.
 4. ~~B4 strategy specialists (package manifests + curricula)~~ — shipped as the strategist pilot, which beats the
-   generalist in self-play but plateaus at 6.4 against the recorded players. Next, in order: (a) give the search a
-   horizon the prior cannot fake — short multi-turn rollouts for setup / replace decisions and an evaluator gradient
-   that survives losing (B3); (b) fix the pinned report's buy attribution; (c) THEN tune the prior's weights against
-   pinned placement (`bot:tune`-style search, never hand-feel) and run a `strategist:rotate` job per hero.
+   generalist in self-play but plateaus at 6.4 against the recorded players. ~~(a) an engine gradient the prior
+   cannot fake~~ — B6's growth term (a probed turn + carry-back + the Rally trial) raised the board curve 20–35% and
+   moved placement only within noise (6.39). Next, in order: (a′) a TWO-turn probe whose second-turn yield is the
+   credited number, scored against corpus boards at wave + 2 (compounding is the recorded curve's whole shape);
+   (b) fix the pinned report's buy attribution; (c) THEN tune the prior's and growth's weights against pinned
+   placement (`bot:tune`-style search, never hand-feel) and run a `strategist:rotate` job per hero.
 5. B7 workers + nightly entry point once throughput matters.

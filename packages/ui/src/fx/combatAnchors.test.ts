@@ -12,10 +12,11 @@ const MOMENT: CombatRects = {
 };
 
 describe('unitSelector', () => {
-  it('matches Recruit\'s combat `findEl` exactly (both facing rows, scoped by uid)', () => {
-    // Character-for-character: a def-driven effect must measure the SAME element the hand-written FX do,
-    // or it lands somewhere subtly different. See `Recruit.tsx`'s findEl.
-    expect(unitSelector('u17')).toBe('[data-zone="warband"] [data-uid="u17"], [data-zone="tavern"] [data-uid="u17"]');
+  it('matches Recruit\'s combat `findEl` exactly (both facing rows, scoped by uid), then the hand row', () => {
+    // Character-for-character for the two combat rows: a def-driven effect must measure the SAME element the
+    // hand-written FX do, or it lands somewhere subtly different. See `Recruit.tsx`'s findEl. The hand row
+    // trails them (2026-09-15, `hand-buff`'s react layer) so a board body always wins over a hand copy.
+    expect(unitSelector('u17')).toBe('[data-zone="warband"] [data-uid="u17"], [data-zone="tavern"] [data-uid="u17"], [data-zone="hand"] [data-uid="u17"]');
   });
 });
 

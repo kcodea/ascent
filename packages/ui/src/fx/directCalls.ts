@@ -52,6 +52,10 @@ export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   // slot is where the allowance is shown — there is no board unit to hang it on.
   'equipment-used-up': ['StatusBar.tsx'],
   'freeze-blast': ['FreezeButton.tsx'],
+  // A HAND card getting stronger — minion, spell, Ruby or token (owner-authored 2026-09-15, replacing the CSS
+  // spell-buff grow/shrink + mote blast). Fired from the one `playHandBuffOn` every surface's fan-out lands on:
+  // the shop's hand diff, the End-of-Turn presenters and the combat replay's `handBuff` beat scan.
+  'hand-buff': ['handBuffFx.ts'],
   'hero-power-spark': ['StatusBar.tsx'],
   'hero-power-target': ['Recruit.tsx'],
   'impact-dust': ['EndTurnButton.tsx', 'RefreshButton.tsx', 'choreo/channels/impact.ts'],

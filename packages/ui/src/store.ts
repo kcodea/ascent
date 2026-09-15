@@ -49,7 +49,7 @@ export interface CombatQuestDelta {
 }
 import { sfx } from './sfx';
 import { releaseAllStats } from './fx/statHold';
-import { clearAllSpellBuffs } from './spellBuffFx';
+import { clearAllHandBuffs } from './handBuffFx';
 import { liveBoardView } from './instView';
 import { saveCapturedBoards, saveRunBoards } from './boardLibrary';
 import { perfMonitor } from './perfMonitor';
@@ -139,7 +139,7 @@ const countGolden = (s: RunState): number =>
  */
 function dropBoardFx(): void {
   releaseAllStats();
-  clearAllSpellBuffs();
+  clearAllHandBuffs();
 }
 
 /** Fire the sound for a dispatched action (+ a sparkle when a triple just formed). */

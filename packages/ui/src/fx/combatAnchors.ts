@@ -8,10 +8,13 @@ import { anchorsFromRects, type RectLike } from './boardAnchors';
  * player unit, first opposing unit, sampled on a throttle. This answers the question the game actually
  * asks — "where are THESE two units, right now" — for a specific source/target pair out of a combat event.
  *
- * Selectors are NOT invented here. `unitSelector` is character-for-character the one Recruit builds and
- * hands to `useCombatReplay` as its `findEl` (`Recruit.tsx`), i.e. the same element every other combat FX
- * already measures; `.row` is the row class `boardAnchors.ts` already anchors `slot` to. Sharing them is
- * the point: a def-driven effect must land exactly where the hand-written one did.
+ * Selectors are NOT invented here. `unitSelector`'s two combat rows are character-for-character the ones
+ * Recruit builds and hands to `useCombatReplay` as its `findEl` (`Recruit.tsx`), i.e. the same element every
+ * other combat FX already measures; `.row` is the row class `boardAnchors.ts` already anchors `slot` to.
+ * Sharing them is the point: a def-driven effect must land exactly where the hand-written one did. The HAND
+ * row is the third alternative (2026-09-15): a `react` layer finds its subject through this selector, and the
+ * `hand-buff` cue pops a card IN HAND (`part: "card"`). Document order puts the combat rows before the hand,
+ * so a uid briefly rendered in both (a play mid-commit) still resolves to its board body first.
  *
  * The rect → anchors MATH is not duplicated either — `combatAnchorsFromRects` folds a one-ended moment and
  * then delegates to `boardAnchors.ts`'s `anchorsFromRects`, so "unit centre", "slot = x from the unit, y
@@ -26,9 +29,10 @@ import { anchorsFromRects, type RectLike } from './boardAnchors';
  * life, so a fire costs exactly these few `getBoundingClientRect()` calls and no more. Nothing here polls.
  */
 
-/** The two facing rows a combat unit can live in. Mirrors Recruit's `findEl` exactly (see the header). */
+/** The two facing rows a combat unit can live in (mirroring Recruit's `findEl` exactly — see the header),
+ *  then the hand row, where a `react` layer's subject may sit (`hand-buff`). */
 export const unitSelector = (uid: string): string =>
-  `[data-zone="warband"] [data-uid="${uid}"], [data-zone="tavern"] [data-uid="${uid}"]`;
+  `[data-zone="warband"] [data-uid="${uid}"], [data-zone="tavern"] [data-uid="${uid}"], [data-zone="hand"] [data-uid="${uid}"]`;
 
 /** Everything `combatAnchorsFromRects` needs — the DOM read's output, and the only thing separating the
  *  pure math from the browser. */

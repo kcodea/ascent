@@ -6,6 +6,7 @@ import { sideFromSnapshot } from '../boardSide';
 import type { BoardSnapshot } from '../snapshot';
 import type { BotVisibleState } from './types';
 import { scoutedPanel, type PanelEntry, type SeatScout } from './scout';
+import { carryBackOf } from './growth';
 
 /**
  * SCORE A BOARD BY FIGHTING WITH IT.
@@ -125,6 +126,9 @@ export interface FightResult {
   /** `scouted` only: the round-capped damage expected from the NEXT opponent's stand-ins (weighted mean of the
    *  engine's `playerDamage`), in Health. Absent otherwise. */
   expectedDamageTaken?: number;
+  /** B6: the mean PERMANENT stat gain a panel fight leaves on the run (`growth.ts::carryBackOf` — Engraved gains,
+   *  raised channels, generated cards), in stats. 0 for an empty board or a board that leaves nothing behind. */
+  carryBack: number;
 }
 
 /** The friendly bodies, shallow-copied per fight so nothing downstream can alias the projection. */
@@ -149,7 +153,7 @@ export function fightScore(v: BotVisibleState, panelSize = PANEL.length, scout: 
     // An automatic loss: the whole enemy board survives, so the hit is its tier plus every body's tier — read
     // off the stand-ins rather than guessed, so an empty board at low health still reads as lethal.
     const hit = panel === 'scouted' ? scoutedEmptyHit(scouted, scout!) : undefined;
-    return remember({ winRate: 0, margin: -1, averageDamage: 1, fights: 0, panel, ...(hit !== undefined ? { expectedDamageTaken: hit } : {}) });
+    return remember({ winRate: 0, margin: -1, averageDamage: 1, fights: 0, panel, carryBack: 0, ...(hit !== undefined ? { expectedDamageTaken: hit } : {}) });
   }
 
   const poolIds = poolFor(v.setId).all.map((c) => c.id);
@@ -166,6 +170,7 @@ export function fightScore(v: BotVisibleState, panelSize = PANEL.length, scout: 
   let weightSum = 0;
   let nextDamage = 0;
   let nextWeight = 0;
+  let carry = 0;
   for (let i = 0; i < fights; i++) {
     let enemy: BoardMinion[];
     let enemySide: CombatSideState;
@@ -189,6 +194,7 @@ export function fightScore(v: BotVisibleState, panelSize = PANEL.length, scout: 
     if (r.result === 'win') wins += weight;
     else if (r.result === 'draw') draws += weight;
     damage += r.playerDamage * weight;
+    carry += carryBackOf(r, v) * weight;
     if (next) { nextDamage += Math.min(cap, r.playerDamage) * weight; nextWeight += weight; }
     // AUTHORITATIVE margin: the engine's settlement numbers, not initial-bodies-minus-deaths.
     const dealt = r.enemyDamage ?? 0;
@@ -209,6 +215,7 @@ export function fightScore(v: BotVisibleState, panelSize = PANEL.length, scout: 
     averageDamage: Math.min(1, damage / W / capish),
     fights,
     panel,
+    carryBack: carry / W,
     ...(panel === 'scouted' && nextWeight > 0 ? { expectedDamageTaken: nextDamage / nextWeight } : {}),
   });
 }

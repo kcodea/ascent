@@ -87,10 +87,32 @@ function bestOf(root: PlanningStateHandle, cands: Candidate[], rng: Rng, current
  * The best use of Gold that would otherwise be destroyed at end of turn: field a hand minion, tier up, buy the
  * most appealing affordable offer, refresh. Each is validated; `null` only when Gold genuinely buys nothing.
  */
-function forcedSpend(run: RunState, v: BotVisibleState, handDiscipline = false): Action | null {
+function forcedSpend(run: RunState, v: BotVisibleState, handDiscipline = false, score?: (v: BotVisibleState) => number): Action | null {
   const boardFull = v.board.length >= 7;
   const options: Action[] = [];
-  if (!boardFull) for (const c of v.hand) options.push({ type: 'play', uid: c.uid, toIndex: v.board.length });
+  if (!boardFull) {
+    // A hand body is fielded here only when it is not CLEARLY worse than leaving it (within `FORCED_PLAY_TOLERANCE`
+    // of the current utility): the search already rejected every play it reached, and fielding one it rejected
+    // starts a play → sell → play loop with the next search (B6, 2026-09-15: seed 52 hit the 60-action guard at
+    // round 11 fielding and selling hand bodies one after another). Plays the search never reached (budget) still
+    // get their chance.
+    const current = score ? score(v) : undefined;
+    const root = score ? createPlanningRoot(run) : null;
+    try {
+      for (const c of v.hand) {
+        const action: Action = { type: 'play', uid: c.uid, toIndex: v.board.length };
+        if (root && current !== undefined) {
+          const t = applyCandidate(root, action);
+          const ok = t.changed && (t.reveal !== null || score!(t.visible) >= current - FORCED_PLAY_TOLERANCE);
+          release(t.child);
+          if (!ok) continue;
+        }
+        options.push(action);
+      }
+    } finally {
+      if (root) release(root);
+    }
+  }
   if (v.economy.upgradeCost <= v.economy.gold && v.economy.tier < 6) options.push({ type: 'upgrade' });
   // HAND DISCIPLINE (B4, opt-in): with a full board, a bought minion sits in hand — measured 2026-09-15 (100 pinned
   // set-2 lobbies): the hand grew from 3.6 to 9.1 UNPLAYED cards from round 6 while the board never changed. So
@@ -114,8 +136,12 @@ function forcedSpend(run: RunState, v: BotVisibleState, handDiscipline = false):
     }
   }
   const roll: Action[] = v.economy.refreshCost <= v.economy.gold && v.economy.gold >= 2 && (v.board.length < 7 || handDiscipline) ? [{ type: 'roll' }] : [];
-  // Disciplined and full: a refresh (new offers for the replace macro) ahead of a marginal buy.
-  options.push(...(handDiscipline && boardFull ? [...roll, ...buys] : [...buys, ...roll]));
+  // Disciplined and full: `buys` already holds only the non-marginal offers (a triple piece, a spell, a body that
+  // beats the worst one), so they come first and the refresh is the fallback when nothing qualifies. The first
+  // version put the roll FIRST here, which read as "refresh ahead of a marginal buy" but meant "refresh ahead of
+  // EVERY buy": with a full board the pilot rolled its whole turn away (B6, 2026-09-15: 8 rolls and one buy on
+  // 10 Gold at wave 8, past a Standard Bearer, a Chorus Drake and a Gangplank it never took).
+  options.push(...buys, ...roll);
   for (const action of options) if (accepted(run, action)) return action;
   return null;
 }
@@ -160,6 +186,9 @@ export interface GeneralistOptions {
    *  minion that beats the worst body (see `forcedSpend`); refresh ahead of a marginal buy. Off for the generalist. */
   handDiscipline?: boolean;
 }
+
+/** How far below the current utility a forced hand play may fall before it is left in hand (see `forcedSpend`). */
+const FORCED_PLAY_TOLERANCE = 3;
 
 /** Board minions a replace macro may sell: the weakest few by printed body, never a golden. */
 const REPLACE_SELL_CANDIDATES = 3;
@@ -304,7 +333,7 @@ export function createGeneralistPilot(budget: PilotBudget, seed: number, opts: G
       }
 
       // 4) Spend what would be destroyed.
-      const spend = forcedSpend(run, visible, opts.handDiscipline === true);
+      const spend = forcedSpend(run, visible, opts.handDiscipline === true, score);
       if (spend) return trace('forcedSpend', spend, result);
 
       // 5) Final arrangement — one improving move at a time; the runner calls again. Arrangements seen this turn

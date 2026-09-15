@@ -53,6 +53,7 @@
     "balance:census": "tsx packages/tools/src/balance/census.ts",
     "balance:packages": "tsx packages/tools/src/balance/packages-census.ts",
     "balance:strategist-bench": "tsx packages/tools/src/balance/strategist-bench.ts",
+    "balance:pilot-curve": "tsx packages/tools/src/balance/pilot-curve.ts",
     "docbot": "tsx packages/tools/src/docbot.ts",
     "docbot:scenario": "tsx packages/tools/src/qa-scenario-run.ts",
     "docbot:corpus": "tsx packages/tools/src/qa-corpus-build.ts",

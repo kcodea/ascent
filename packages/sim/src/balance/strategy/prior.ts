@@ -89,6 +89,10 @@ export const IMITATION_WEIGHT = 0;
 /** The models the prior may blend (both optional). */
 export interface PriorModels { value?: ValueModel | null; imitation?: ImitationModel | null }
 export interface PriorWeights { value?: number; imitation?: number; imitationOptions?: ScoreOptions }
+/** B6: the ENGINE-GROWTH term's weight in UTILITY units per normalised point (`productionBots/growth.ts`: one probed
+ *  turn's engine yield ÷ the wave's healthy-board reference, × the turns left to cash it). Sized so an engine that
+ *  pays half a healthy board per turn (+32 stats at wave 8) outweighs a vanilla +4 body (≈ 0.6 utility of mass). */
+export const GROWTH_WEIGHT = 20;
 
 /**
  * A wave's board-mass reference — the procedural enemy curve's "healthy board" (`8 + 7·wave`, as `evaluate.ts`
@@ -141,8 +145,15 @@ export function linePriorBreakdown(v: BotVisibleState, line: LineChoice, pk: Lin
   // PAIRS held across board + hand (non-golden): any pair is two-thirds of a golden — double stats AND a
   // Discover from the tier above — and goldens are where the recorded players' boards get their mass (0.48 per
   // board at wave 8, 1.14 at wave 12, measured 2026-09-15). A line card's pair is worth a little more.
+  // MINIONS only: a spell or a Ruby never triples, and counting two held Rubies as "two-thirds of a golden" paid the
+  // pilot 3 utility to HOLD them rather than cast them (B6 diagnosis, 2026-09-15: hands of Rubies at elimination,
+  // every "cast ruby" candidate scoring 2.7 below doing nothing).
   const copies = new Map<string, number>();
-  for (const c of [...v.board, ...v.hand]) if (!c.golden) copies.set(c.cardId, (copies.get(c.cardId) ?? 0) + 1);
+  for (const c of [...v.board, ...v.hand]) {
+    const def = CARD_INDEX[c.cardId];
+    if (c.golden || !def || def.spell || def.ruby) continue;
+    copies.set(c.cardId, (copies.get(c.cardId) ?? 0) + 1);
+  }
   let pairSum = 0;
   for (const [id, n] of copies) if (n >= 2) pairSum += 0.3 + 0.1 * cardAffinity(CARD_INDEX[id], pk);
   const pairs = Math.min(0.8, pairSum);

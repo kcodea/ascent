@@ -51,6 +51,10 @@ export interface PilotBudget {
   imitationLineWeight?: number;
   /** B7: inference variant flags for the imitation term, comma-separated ("positive", "cardsOnly"). */
   imitationVariant?: string;
+  /** B6 (additive): weight of the ENGINE-GROWTH term (`productionBots/growth.ts` — one probed turn's engine yield,
+   *  normalised) in utility units; 0 disables the probe entirely (no cost). The strategist's default is
+   *  `GROWTH_WEIGHT`; the generalist ignores it. */
+  growthWeight?: number;
 }
 
 export interface ExperimentManifest {

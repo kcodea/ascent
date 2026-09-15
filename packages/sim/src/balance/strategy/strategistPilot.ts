@@ -21,12 +21,13 @@
  * seed so a seeded matrix rotates through every viable line for the hero (the exploration population of the
  * roadmap — label it as such; forced lines are not natural pick rates).
  */
-import type { Action, RunState } from '../../state';
+import { mixSeed, type Action, type RunState } from '../../state';
 import { withEvaluationPrior } from '../../productionBots/evaluate';
+import { withGrowth } from '../../productionBots/growth';
 import { createGeneralistPilot, type GeneralistPilot } from '../generalistPilot';
 import type { PilotBudget, SeatContext, SeatPilot } from '../types';
 import { pickLineForRun, viableLineCount, type LineChoice, type LineImitation } from './lines';
-import { IMITATION_WEIGHT, linePrior, PRIOR_WEIGHT, VALUE_WEIGHT } from './prior';
+import { GROWTH_WEIGHT, IMITATION_WEIGHT, linePrior, PRIOR_WEIGHT, VALUE_WEIGHT } from './prior';
 import { loadDefaultValueModel, type ValueModel } from '../value';
 import { loadDefaultImitationModel, parseScoreOptions, type ImitationModel } from '../imitation';
 
@@ -48,6 +49,9 @@ export interface StrategistOptions {
   imitationLineWeight?: number;
   /** B7: inference variant flags for the imitation term ("positive", "cardsOnly"; see `parseScoreOptions`). */
   imitationVariant?: string;
+  /** B6: weight of the ENGINE-GROWTH term (`productionBots/growth.ts`) in utility units; 0 turns the probe off.
+   *  Default `GROWTH_WEIGHT`. */
+  growthWeight?: number;
 }
 
 export interface StrategistPilot extends SeatPilot {
@@ -71,6 +75,7 @@ export function createStrategistPilot(budget: PilotBudget, seed: number, opts: S
   const imitationWeight = opts.imitationWeight ?? budget.imitationWeight ?? IMITATION_WEIGHT;
   const imitationLineWeight = opts.imitationLineWeight ?? budget.imitationLineWeight ?? 0;
   const imitationOptions = parseScoreOptions(opts.imitationVariant ?? budget.imitationVariant);
+  const growthWeight = opts.growthWeight ?? budget.growthWeight ?? GROWTH_WEIGHT;
   const models = new Map<string, ValueModel | null>();
   const modelFor = (setId: string): ValueModel | null => {
     if (valueWeight === 0) return null;
@@ -106,7 +111,10 @@ export function createStrategistPilot(budget: PilotBudget, seed: number, opts: S
     wrap: (run: RunState, ctx: SeatContext, decide: () => Action | null): Action | null => {
       const line = lineFor(run, ctx.seatId);
       const setId = run.setId ?? 'set2';
-      return withEvaluationPrior(linePrior(line, { value: modelFor(setId), imitation: imitationFor(setId) }, { value: valueWeight, imitation: imitationWeight, imitationOptions }), weight, decide);
+      // B6: one growth panel seed per (pilot, round) — every candidate of every decision this turn is probed
+      // against the same imagined future, and the probe cache carries across the turn's decisions.
+      const growth = growthWeight > 0 ? { weight: growthWeight, panelSeed: mixSeed(seed, run.wave, 0x6f07) >>> 0 } : null;
+      return withGrowth(growth, () => withEvaluationPrior(linePrior(line, { value: modelFor(setId), imitation: imitationFor(setId) }, { value: valueWeight, imitation: imitationWeight, imitationOptions }), weight, decide));
     },
   });
 

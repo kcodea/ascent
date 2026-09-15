@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "name": "set2-generalist-200",
+  "mode": "selfPlayLobby",
+  "setId": "set2",
+  "policy": {
+    "id": "generalist",
+    "budget": {
+      "depth": 1,
+      "beam": 1,
+      "maxNodes": 40,
+      "positionCandidates": 2
+    }
+  },
+  "seeds": {
+    "start": 1,
+    "count": 200
+  },
+  "notes": "Live Set 2 lobby experiment: 200 eight-seat self-play lobbies, generalist pilot at the smoke budget (1600 runs)."
+}

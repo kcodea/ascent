@@ -56,6 +56,15 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-14',
+    label: 'Rocket Power + counters + Spirit tendril',
+    changes: [
+      { category: 'Card Change', text: 'Rocket Power: Shout — give this shop +3/+3, then repeat it for every Shop spell you cast this turn (it used to do nothing with no spell cast).' },
+      { category: 'UI / Info', text: "The step counter on a hovered card no longer sits on top of the card name — it now rides just under the plate's bottom gem." },
+      { category: 'UI / Info', text: 'Spirits have their own buff ribbon: when a Spirit buffs another minion, a warm gold-and-green tendril streams between them.' },
+    ],
+  },
+  {
+    date: '2026-09-14',
     label: 'Set 3 rune roster',
     changes: [
       {

@@ -5798,9 +5798,10 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  Worgen read; a multiplied cast counts each time, as for every spells-this-turn scaler). Zero spells → nothing.
    *  The live text (`shootingStarText`) prints the same product. Golden doubles the per-spell rate. */
   battlecryBuffThisShopPerSpellsThisTurn: (ctx, self, params) => {
+    // Rocket Power (owner 2026-09-14): the base +a/+h lands ONCE regardless, then REPEATS per Shop spell cast this
+    // turn — (1 + n) × the rate. Zero spells → the base alone (it used to do nothing).
     const n = ctx.state.spellsThisTurn;
-    if (n <= 0) return;
-    const a = num(params.attack, 3) * gold(self) * n, h = num(params.health, 3) * gold(self) * n;
+    const a = num(params.attack, 3) * gold(self) * (1 + n), h = num(params.health, 3) * gold(self) * (1 + n);
     buffThisShopOffers(ctx.state, nameOf(self), a, h);
   },
 

@@ -237,8 +237,8 @@ describe('Rocket Power (was Shooting Star; no Flurry) — Shout: this shop +3/+3
     }
     return s;
   };
-  it('0 spells → nothing; 1 → +3/+3; 3 → +9/+9; gilded with 2 → +12/+12', () => {
-    for (const [n, golden, want] of [[0, false, 0], [1, false, 3], [3, false, 9], [2, true, 12]] as const) {
+  it('0 spells → the base +3/+3; 1 → +6/+6; 3 → +12/+12; gilded with 2 → +18/+18 (base once, repeated per spell — owner 2026-09-14)', () => {
+    for (const [n, golden, want] of [[0, false, 3], [1, false, 6], [3, false, 12], [2, true, 18]] as const) {
       let s = withStarform(0, 0, { board: [body('c', 'dbg_cel')], hand: [body('w', 'ce3_shootingstar', { golden })] });
       s.shop.unshift(offer(s, 'ce3_courier'));
       s = cast(s, n);

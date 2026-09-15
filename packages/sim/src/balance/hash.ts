@@ -13,7 +13,7 @@ export function stateHash(run: RunState): StateHash {
   const card = (c: { uid: string; cardId: string; attack: number; health: number; golden?: boolean; keywords?: readonly string[] }) =>
     `${c.uid}:${c.cardId}:${c.attack}/${c.health}${c.golden ? 'g' : ''}[${(c.keywords ?? []).join('')}]`;
   const parts = [
-    `w${run.wave}`, `t${run.tier}`, `e${run.embers}`, `h${run.health}`, `a${run.armor ?? 0}`,
+    `w${run.wave}`, `t${run.tier}`, `e${run.embers}`, `h${run.resolve}`, `a${run.armor}`,
     'B' + run.board.map(card).join(','),
     'H' + run.hand.map(card).join(','),
     'S' + run.shop.map((o) => `${o.uid}:${o.cardId}:${o.atk ?? 0}/${o.hp ?? 0}${o.starform ? '*' : ''}`).join(','),

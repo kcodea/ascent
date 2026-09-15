@@ -24,6 +24,7 @@ npm run balance:findings -- --job set2-matrix --out findings.md [--format json] 
 npm run balance:gap     -- --job set2-pinned-gen-dev100 [--corpus set2-players-v1] [--out gap.md] [--format json]   # the pilot ↔ real players measuring stick
 npm run balance:imitation:study -- --corpus set2-players-v1 --out docs/balance-bot-player-study.md   # B7: the recorded-player study
 npm run balance:imitation:fit   -- --corpus set2-players-v1 --out set2-v1                          # B7: the per-card survivor table the strategist can blend (imitationWeight)
+npm run balance:run     -- --manifest packages/tools/src/balance/manifests/set2-pinned-op-demon-darah.json --out op-demon   # B9: a line OPERATOR pinned to a hero (operator:<demon|dwarf|dragon|beast>, operator, operator:adaptive)
 ```
 
 **`balance:gap`** is the shared measuring stick for "how far is the pilot from real players" (2026-09-15). For a
@@ -589,6 +590,80 @@ expected, so something leaks" is not — the shared-placement rule lifts every m
 per-loss damage is identical. Re-running the same manifest on this branch (`audit-after`) reproduces the baseline
 by determinism — nothing in the instrument changed.
 
+## Line operators (B9, 2026-09-15)
+
+The other STRUCTURE beside the search: instead of a fifth evaluator term, a hand-authored, per-turn PROCEDURE for each
+of four lines, written the way a strong player plays it, run by a skeleton that validates every action on a clone and
+hands everything unscripted to the strategist (`packages/sim/src/balance/strategy/operators/`; the procedure is written
+out at the top of each line file; `docs/devlog/2026-09-15-balance-operators.md` has the traces):
+
+- **Demon consume** (`demon.ts`): Bob Blart eats the right-most Shop minion at End of Turn; the meal grows through
+  Right Hand Hank's Echo (+3/+2 to the right-most SLOT every fight it dies in — Hank goes to the FRONT), Demon Horse's
+  Rally (+1/+2 to every Shop minion per attack), Market Tormentor / Butcher / Enigma. Leave the meal in the row (never
+  buy the right-most), never end on an empty Shop, aim Agent / Cupcakes at the biggest Blart, Blarts at the back.
+- **Dwarf ale** (`dwarf.ts`): Brunni brews an Ale every End of Turn, Edward doubles them, Coinfire / Billings /
+  Tapkeeper / Mountainbond convert Gold SPENT; cast every Ale in order (Golden Ale first, Champion's Ale last with the
+  champion seated LEFT), spend every coin — leftover Gold into refreshes.
+- **Dragon spell** (`dragon.ts`): Chorus Drake's Rally grows the spell power every fight; buy the spell slot once an
+  engine is out, every targeted spell on Mirrorwing first (the recast) then the Vaultkeeper, Earthbreaker per cast,
+  Transcendant seated between the Chorus Drakes, Flamebeat / Warflame as the late Rallies.
+- **Beast echo** (`beast.ts`): the best Echo LEFT-MOST for Echohorn / Hawkus / Spots, the payoffs (Kennelmaster /
+  Beardsley / Oona / Sylus / Paragon) at the back, Jensen's Dynamite Dig while it is cheap.
+
+The shared skeleton (`operatorPilot.ts`): the line's tier curve (T2@2, T3@4, T4@6, T5@8–9, T6@10–11 — the recorded
+runs' curve; only a CORE piece may delay a due tier-up), engines fielded first, filler sold from wave 6 by ONE
+keep-value bar read by the field step and the buy step alike, a spell policy naming every drawable set-2 spell
+(`spells.ts`; the engine-eaters are `never`), roll caps that climb while the engine is missing, a freeze on a wanted
+piece, the line's arrangement then the existing positioning pass within the line's pinned seats, and a PIVOT to the
+strategist at wave 7 with no engine fielded. Policies: `operator` (routed by the strategist's natural line — Ruby /
+Rally / Tempo / Economy have no operator and stay the strategist's), `operator:<demon|dwarf|dragon|beast>` (pinned),
+`operator:adaptive` (uncommitted until a core engine of any line is fielded). The pinned `RunRecord.line` now carries
+`operator` (`demon` … / `none` / `pivoted` / `uncommitted`), so a job splits by what actually played.
+
+**Measured** (100 pinned set-2 lobbies each, seeds 1–100, smoke budget, `fightRules: shipped`, corpus
+`set2-players-v1`; the per-hero jobs pin seat 0 to the player study's best hero for the line; "operated" = the runs the
+operator played through, "pivoted" = handed to the strategist at wave 7):
+
+| line / hero | operator: mean [95% CI] · 1st · top-3 · elim. median | operated / pivoted split | strategist, same seeds | stats w8 / w10 / w12 (operator · strategist · players 139 / 432 / 1,109) |
+|---|---|---|---|---|
+| Demon / darah (`set2-pinned-op-demon-darah`) | **6.75 [6.46, 6.99]** · 0 · 3 · r10 | 6.78 (n=63) / 6.70 (n=37) | 6.35 [6.11, 6.60] · 0 · 0 · r10; paired Δ +0.40 [0.15, 0.65] | 102 / 206 / 661 · 101 / 163 / 234 |
+| Dwarf / robin (`set2-pinned-op-dwarf-robin`) | **7.24 [6.99, 7.47]** · 0 · 1 · r8 | 7.15 (n=65) / 7.40 (n=35) | 7.05 [6.81, 7.27] · 0 · 1 · r9; paired Δ +0.19 [−0.09, 0.47] | 110 / 253 / 493 · 120 / 252 / 305 |
+| Dragon / emeraldwarden (`set2-pinned-op-dragon-emeraldwarden`) | **6.21 [5.86, 6.54]** · 2 · 8 · r10 | 6.05 (n=58) / 6.43 (n=42) | 5.78 [5.46, 6.09] · 1 · 9 · r11 (1 lobby failed: the strategist hit the 60-action guard at round 9, seed 33); paired Δ +0.41 [0.08, 0.75] | 96 / 173 / 431 · 135 / 229 / 410 |
+| Beast / jenkins (`set2-pinned-op-beast-jenkins`) | **5.73 [5.39, 6.04]** · 0 · 10 · r11 | 5.55 (n=62) / 6.03 (n=38) | 5.72 [5.45, 5.99] · 0 · 5 · r11; paired Δ +0.01 [−0.29, 0.31] | 70 / 120 / 146 · 105 / 177 / 332 |
+| rotated heroes, `operator` (`set2-pinned-operator-rot100`) | 6.70 [6.37, 7.00] · 0 · 3 · r10 | none 6.25 (n=48) / operated 6.8 (n=28) / pivoted 7.54 (n=24) | 6.39 [6.12, 6.66] (the B6 strategist) | 93 / 180 / 487 · 98 / 176 / 319 |
+| rotated heroes, `operator:adaptive` (`set2-pinned-adaptive-rot100`) | 6.96 [6.69, 7.21] · 0 · 2 · r9 | commits: dwarf 45 / dragon 19 / demon 11 / beast 4; uncommitted 11, pivoted 10 | — | 90 / 243 / 517 |
+
+**No line passes; no line beats the search** — paired by seed (operator − strategist placement, + = worse) the
+Demon and Dragon operators are WORSE by 0.4 with intervals excluding zero, Dwarf and Beast are noise. Two first places in 900 candidate lobbies, both the Dragon operator. What the traces
+say (the devlog has the boards):
+
+1. **When the engine assembles, the procedure works.** The Demon operator's 2nd-place run fielded Hank at wave 4,
+   Horse + Blart at 5, a second Hank at 7, and its Blart doubled every wave (9/7 → 54/48 → 138/122 → 290/272 at waves
+   5 / 8 / 10 / 12) — the recorded darah run's shape, one wave behind. The Dragon firsts ran a Mirrorwing to 128/115 and
+   178/436 under Flamebeat / Warflame / Transcendant.
+2. **A fixed line finds its engine by wave 5 in 15–43% of runs and never in 25–58%** (Blart never in 58 darah runs;
+   a Dwarf converter never in 25; Chorus / Earthbreaker never in 33) — and finding the ENGINE alone does not place
+   (Demon by wave 5: 6.73). Blart without Hank / Horse grows +1..+5 a turn; with them it doubles. The corpus' survivors
+   held the whole engine by wave 5–6.
+3. **Ahead through wave 5, behind from wave 7.** Dragon / emeraldwarden stat medians 44 / 54 / 77 / 96 / 146 / 173 at
+   waves 5–10 vs the corpus' 31 / 53 / 88 / 139 / 248 / 432; goldens 0.17 vs 0.48 at wave 8; growth ×1.2–1.5 a wave
+   vs ×1.6–1.9. Win rates 40–99% through wave 5 and 13–27% from wave 8; damage taken 9–12 a round from wave 8 against
+   the 5.5–6 the recordings take from each other (the shipped tier-only path), dead by round 10.
+4. **The Beast line as authored does not grow** (58 / 86 / 108 at waves 8 / 10 / 12): the Echo-trigger engine is
+   combat-time; the corpus' Beast survivors grew through Paragon / Todd / Axeman payoffs the line does not own. It
+   placed best through the Dig's early tempo, not the engine.
+5. **Adaptive commitment is worse** (6.96): the first core to appear is usually a T3 Dwarf converter, which commits
+   the run to the weakest line.
+
+The finding: **a hand line does not beat the search at this stage, and the gap is in PLAY**, at two named places —
+the mid-game feeders (the engine's second and third pieces arrive 2–3 waves after the players', and the non-engine
+bodies stay at printed stats while the players' come from an already-buffed Shop) and triples (a third of the
+players' goldens). The instrument adds the shipped fight asymmetry on top: a pilot at a 25% win rate bleeds ~2× per
+round what the recordings bleed against each other. Next lever, in order: an opening that ROLLS for the whole engine
+at waves 4–6 (measure "full engine by wave 6" before placement) and Beast / Dwarf role tables re-authored from the
+growth mechanism; then, if the wave-8 median still sits under the corpus' 139, a fairer ruler for the bar
+(recording-vs-recording through the same full builder).
+
 ## Trust ledger
 
 What each layer proves today, and what it does not. Check the boxes as the gates in the roadmap's
@@ -601,6 +676,9 @@ What each layer proves today, and what it does not. Check the boxes as the gates
 | Pilot (B3) | buying, playing, tiering, selling, refreshing, freezing, targeted Shouts, Choose One, Discover, triples, hero powers, Equipment, Starform; no illegal actions; decisions are player-legal (reveal-by-effect, hidden future never read) | **strategy competence** at the level of a good player; late-game spending (unspent Gold climbs past round 12); no strategy specialists yet (B4) | single-turn benchmark vs the legacy greedy: set2 +0.85 [0.69, 1.01], set3 +0.70 [0.38, 1.02]; deeper budgets show no measurable single-turn gain (dev vs smoke 0.00 [−0.38, 0.38]) — multi-turn value unproven. Unsupported content must be labelled, not ranked as weak. |
 | Strategist (B4) | plays a declared line (primary + secondary package) with the generalist's legality and information boundary; takes affine runes, engine pieces and profile-timed tiers in the curricula; turns its board over from wave 4 (13–36% per round) with a hand under 3 from B6; casts its Rubies (B6); BEATS the generalist in mixed self-play (the 20-seed numbers are in the B4 section); line diversity 9–10 primaries per hero over 30 seeds under `strategist:rotate` | **competence against real players** — 6.39 [6.12, 6.66] in 100 pinned set-2 lobbies with the B6 growth term (6.44 before it; owner scale: < 4.0 passes); a claim that a line is STRONG or WEAK (fit is a construction prior, not a strength estimate); packages a set cannot field (labelled unsupported) | the prior is capped and one-turn; the evaluator's fight terms lose all gradient once the field outgrows the pilot (B3 work); the learned value term is inert within noise at any weight tried; the hero intent manifest is hand-maintained design intent, not measured. |
 | Engine growth (B6, `productionBots/growth.ts`) | that a candidate board's ENGINES yield more than a vanilla one, measured by running the engine (a probed turn on an isolated clone + the fight's own carry-back + a Rally trial) — the pilot's board curve is 20–35% higher at waves 8–10 and its hand empties; the probe reads nothing the pilot cannot see (tests pin isolation, replaced futures, a null on foreign projections) | **placement** — growth on vs off is −0.15 to −0.3 placements paired; against the pre-B6 baseline every weight tried (8 / 12 / 20) is inside the interval; 0 first places; the wall trial is a POTENTIAL (it over-credits a Leech-style "when a Demon deals damage" engine that a real fight never lets swing) | one turn's yield credited linearly cannot price compounding (the recorded curve triples every two waves); the engines are bought two to three waves late because until fielded they read 0; the pilot's per-round damage (~2× the recordings') is a LOSS-RATE difference, not a fight asymmetry — per-loss damage is identical (B10 audit above). |
+
+| Engine growth (B6, `productionBots/growth.ts`) | that a candidate board's ENGINES yield more than a vanilla one, measured by running the engine (a probed turn on an isolated clone + the fight's own carry-back + a Rally trial) — the pilot's board curve is 20–35% higher at waves 8–10 and its hand empties; the probe reads nothing the pilot cannot see (tests pin isolation, replaced futures, a null on foreign projections) | **placement** — growth on vs off is −0.15 to −0.3 placements paired; against the pre-B6 baseline every weight tried (8 / 12 / 20) is inside the interval; 0 first places; the wall trial is a POTENTIAL (it over-credits a Leech-style "when a Demon deals damage" engine that a real fight never lets swing) | one turn's yield credited linearly cannot price compounding (the recorded curve triples every two waves); the engines are bought two to three waves late because until fielded they read 0; the shipped fight asymmetry (the pilot takes ~2× the per-round damage the recordings take from each other) is the game as played, not a pilot defect. |
+| Line operators (B9, `strategy/operators/`) | that a hand-authored per-turn procedure for a line is LEGAL and OPERATES its engine (28 curricula: the meal left in the row, the Ales cast in order, the spell on Mirrorwing, the Echo seated left; 900 pinned lobbies with 0 refused actions), and that when the engine assembles it compounds like the recorded runs (a 2nd-place Blart doubling every wave; two Dragon firsts) | **placement** — 5.73–7.24 per line on its best hero, 6.70 rotated, none beyond noise of the strategist (6.39) and none near the bar; the Beast line's growth model; adaptive commitment (6.96) | a fixed line finds its whole engine by wave 6 in a minority of runs; the operator leads the corpus through wave 5 and falls behind from wave 7 (feeders late, a third of the goldens); the shipped fight asymmetry doubles the bleed of a losing pilot. The gap is in play, not in the instrument's legality. |
 | Recorder / report (B5) | accepted-action reconciliation (pre/post state hash), offer → buy → play funnels per surface, spell casts by route, sold cards visible, failed/censored runs separated, lobby-level bootstrap CIs, deterministic regeneration | causal claims | everything in the report is evidence level 1 until a `compare` job exists for the change. |
 | Compare (B6) | A/A = zero effect; synthetic positive control registers | a real candidate | no real patch experiment has been run yet — the first one is the next step. |
 | Learned value (`sim/balance/value`) | what SURVIVING recorded boards look like at waves 1–10 (run-split held-out R² 0.31 early / 0.51 mid vs a wave-mean null of 0.09 / 0.07; the weight table is readable) | placement (recordings have none), the late game (11+ not predictive), and using it as a SEARCH TARGET on its own (measured: W 300 → 7.64, worse than the 6.80 baseline) | survival is the label; the pilot's rows dominate the dataset 2.4:1; a linear model of visible board shape cannot see the tempo needed to survive a tier-up. |
@@ -629,4 +707,9 @@ What each layer proves today, and what it does not. Check the boxes as the gates
    credited number, scored against corpus boards at wave + 2 (compounding is the recorded curve's whole shape);
    (b) fix the pinned report's buy attribution; (c) THEN tune the prior's and growth's weights against pinned
    placement (`bot:tune`-style search, never hand-feel) and run a `strategist:rotate` job per hero.
+4b. ~~B9 line operators~~ — built and measured (above): four hand-authored procedures place 5.7–7.2 on their best
+   heroes, none beyond noise of the strategist; the traces put the gap at the mid-game feeders and triples, not at
+   line choice or the evaluator. Next: an OPENING that rolls for the whole engine at waves 4–6 (metric: full engine
+   by wave 6), Beast / Dwarf role tables re-authored from the growth mechanism, then a fairer ruler if the wave-8
+   median still trails the corpus.
 5. B7 workers + nightly entry point once throughput matters.

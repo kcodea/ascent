@@ -155,6 +155,10 @@ export interface LineRecord {
   primary: string;
   secondary?: string;
   fitRank: number;
+  /** B9 (additive): the OPERATOR that played the run — a line id (`demon` / `dwarf` / `dragon` / `beast`), `none`
+   *  (the line has no operator; the strategist played it) or `pivoted` (handed to the strategist at the pivot
+   *  wave). Absent for pilots without operators. */
+  operator?: string;
 }
 
 /**
@@ -260,7 +264,7 @@ export interface RunRecord {
   recording?: { key: string; author: string; patch?: string; waves: number };
   /** B4 (additive): the LINE a strategist pilot played — its primary package, an optional secondary, and how well
    *  the line fit the run (`fitRank`: 0 = its best fit). Absent for pilots without lines (greedy, generalist). */
-  line?: { primary: string; secondary?: string; fitRank: number };
+  line?: LineRecord;
 }
 
 export interface LobbyRecord {

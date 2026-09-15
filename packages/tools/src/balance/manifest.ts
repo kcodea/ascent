@@ -35,6 +35,7 @@ export const ExperimentManifestSchema = z.object({
   seeds: z.object({ start: z.number().int().min(0), count: z.number().int().min(1) }).strict(),
   maxRounds: z.number().int().min(1).optional(),
   maxActionsPerTurn: z.number().int().min(1).optional(),
+  opponentPool: z.object({ name: z.string().min(1), digest: z.string().min(1) }).strict().optional(),
   notes: z.string().optional(),
 }).strict();
 
@@ -64,6 +65,7 @@ export function describeManifest(m: ResolvedManifest): string {
     ['seeds', `${m.seeds.start} … ${m.seeds.start + m.seeds.count - 1}  (${m.seeds.count})`],
     ['maxRounds', String(m.maxRounds)],
     ['maxActionsPerTurn', String(m.maxActionsPerTurn)],
+    ['opponentPool', m.opponentPool ? `${m.opponentPool.name} @ ${m.opponentPool.digest}` : '(none — procedural panel)'],
     ['notes', m.notes ?? ''],
   ]);
 }

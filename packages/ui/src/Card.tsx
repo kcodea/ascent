@@ -13,7 +13,8 @@ import { getSpellBuffFxConfig, makeSpellBuffSparks, sparkEaseCss, growEaseCss, s
 import { subscribeSpellBuff, getSpellBuffSeq } from './spellBuffFx';
 import { heldFor, holdStat, statHoldKey, subscribeStatHolds } from './fx/statHold';
 import { resolveMechIcon } from './mechIcon';
-import { tierOf } from './choreo/statMilestones';
+import { crossedUp, tierOf } from './choreo/statMilestones';
+import { fireStatMilestone } from './fx/statMilestone';
 
 /** The badge's scale-pop: how far it swells and over how long. See `useBadgePop`. */
 const BADGE_POP_SCALE = 1.35;
@@ -540,7 +541,21 @@ export const Card = memo(function Card({
     // NO local loop and no failsafe timer. `fx/statHold.ts` owns the clock for every hold no effect claimed
     // — one rAF for the whole board instead of one per card, and it survives this card unmounting mid-roll.
     // Its schedule-aware TTL is what force-delivers a hold nobody finished.
-  }, [uid, card.attack, card.health, autoRoll]);
+
+    // Milestone celebration: fire the per-tier def when a badge crosses a fixed value tier UPWARD. Guarded by
+    // the same conditions as the roll above — a real stat change on a uid-bearing (recruit) surface, never on
+    // spawn (prev.uid !== uid returned already) — so it is shop/hand-only for free and combat-ready via Unit.
+    const atkTier = crossedUp('attack', prev.attack, card.attack);
+    const hpTier = crossedUp('health', prev.health, card.health);
+    if (atkTier !== null) {
+      const r = atkPopRef.current?.getBoundingClientRect();
+      if (r) fireStatMilestone(card.cardId, 'attack', atkTier, { x: r.left + r.width / 2, y: r.top + r.height / 2 });
+    }
+    if (hpTier !== null) {
+      const r = hpPopRef.current?.getBoundingClientRect();
+      if (r) fireStatMilestone(card.cardId, 'health', hpTier, { x: r.left + r.width / 2, y: r.top + r.height / 2 });
+    }
+  }, [uid, card.attack, card.health, autoRoll, card.cardId]);
 
   // What the badges actually print. Live value MINUS whatever hasn't been shown yet, so the number stays
   // correct under anything else that touches the unit mid-hold (see statHold.ts on why it is a delta).

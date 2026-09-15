@@ -1,0 +1,382 @@
+/**
+ * BALANCE BOT — B1: the AUTHORITATIVE seat runner (docs/balance-bot-roadmap.md, "Faithful turns and fights").
+ *
+ * Two jobs, both through the real engine and nothing else:
+ *
+ *  1. `playRecruitTurn` drives ONE seat's recruit turn: the pilot proposes, `reduce` validates + executes, the
+ *     recorder sees ACCEPTED transitions only. `null` from the pilot ends the turn through the real end-turn
+ *     action (`faceOmen`, deferred — the fight belongs to the lobby). A pilot that stalls (rejected actions, an
+ *     unanswered modal, the action budget) FAILS the seat. It is never quietly ended for it (roadmap defect #2).
+ *
+ *  2. `prepareAndFight` resolves ONE pair: both runs have already ended their turns and parked a fully
+ *     prepared side (`pendingCombatSide`, built by the reducer's `preparePlayerCombatSide` — the same builder
+ *     the shipped player fight uses), ONE `simulate()` runs, and BOTH runs settle that single result through
+ *     the real `resolveCombat` path (armor before Resolve, carry-backs, quest ticks, turn resets).
+ *
+ * PRODUCTION DISCREPANCIES this runner is explicit about — see `FightRules` and `mirrorForEnemySeat`. None is
+ * "fixed" silently: `rules: 'corrected'` (default) prepares BOTH seats through the player's full builder;
+ * `rules: 'shipped'` reproduces the served-board path a seat takes against the live player today.
+ */
+import { CARD_INDEX } from '@game/content';
+import { makeRng, simulate, type BoardMinion, type CombatResult, type CombatSideState } from '@game/core';
+import { sideFromSnapshot } from '../boardSide';
+import { poolOf } from '../cardPool';
+import { opponentBoard } from '../opponents';
+import { lossDamageCap, reduce } from '../reducer';
+import { modalOpen } from '../recruit';
+import { snapshotBoard } from '../snapshot';
+import { mixSeed, TAG, type Action, type RunState } from '../state';
+import { stateHash } from './hash';
+import type { BalanceRecorder, EffectEvent, SeatContext, SeatPilot } from './types';
+
+// ───────────────────────────────────────────── the recruit turn ─────────────────────────────────────────────
+
+export interface RecruitTurnOptions {
+  /** Accepted recruit actions allowed before the seat is FAILED (the end-turn action counts). */
+  maxActionsPerTurn: number;
+  lobbyId: string;
+  /** Consecutive REJECTED proposals tolerated before the seat is failed. Default 3: a pilot that re-proposes
+   *  the same illegal move is stuck, and a stuck pilot is a measurement defect, not a quiet end turn. */
+  maxConsecutiveRejections?: number;
+}
+
+export interface RecruitTurnOutcome {
+  run: RunState;
+  /** Set when the seat could not complete its turn legally. The run is left where it stalled. */
+  failure?: string;
+  /** Accepted actions this turn, the end-turn included. */
+  accepted: number;
+}
+
+/** The modal a pilot left open, named for the failure message. */
+function openModalName(s: RunState): string {
+  if (s.discover) return 'discover';
+  if (s.chooseOne) return 'chooseOne';
+  if (s.pendingTarget) return 'pendingTarget';
+  if (s.questOffer) return 'questOffer';
+  if (s.powerOffer) return 'powerOffer';
+  if (s.runeforgeOffer) return 'runeforgeOffer';
+  if (s.scoutedNextOpponent?.length) return 'scout';
+  return 'unknown';
+}
+
+/** Visible shop offers (card ids) at decision time — the minion row plus the right-hand spell slot. */
+function visibleOffers(s: RunState): string[] {
+  const out = s.shop.map((o) => o.cardId);
+  if (s.spell) out.push(s.spell.cardId);
+  return out;
+}
+
+const COMBAT_FLOW = new Set<Action['type']>(['faceOmen', 'settleCombat', 'resolveCombat']);
+
+/**
+ * Drive one seat's recruit turn. The pilot never touches the run — every proposal goes through `reduce`, and
+ * acceptance is what the engine says it is (a rejected action returns the SAME state reference; the hash is
+ * recorded alongside so a reconciliation can prove it).
+ */
+export function playRecruitTurn(
+  run: RunState,
+  pilot: SeatPilot,
+  ctx: SeatContext,
+  recorder: BalanceRecorder,
+  opts: RecruitTurnOptions,
+): RecruitTurnOutcome {
+  const maxRejections = opts.maxConsecutiveRejections ?? 3;
+  const where = `seat ${ctx.seatId} round ${ctx.round}`;
+  let s = run;
+  let accepted = 0;
+  let consecutiveRejections = 0;
+  const record = (before: RunState, after: RunState, action: Action, preHash: string): void => {
+    recorder.onAction({
+      lobbyId: opts.lobbyId,
+      seatId: ctx.seatId,
+      round: ctx.round,
+      index: accepted,
+      action,
+      goldBefore: before.embers,
+      goldAfter: after.embers,
+      offers: visibleOffers(before),
+      preHash,
+      postHash: stateHash(after),
+    });
+    for (const ev of effectsOf(before, after, action, opts.lobbyId, ctx)) recorder.onEffect(ev);
+    accepted += 1;
+  };
+
+  if (s.phase !== 'recruit') return { run: s, accepted, failure: `${where}: not in the recruit phase (${s.phase})` };
+
+  for (;;) {
+    if (accepted >= opts.maxActionsPerTurn) {
+      return { run: s, accepted, failure: `${where}: ${opts.maxActionsPerTurn} accepted actions without ending the turn (pilot ${pilot.id})` };
+    }
+    let proposal: Action | null;
+    try {
+      proposal = pilot.decide(s, ctx);
+    } catch (e) {
+      return { run: s, accepted, failure: `${where}: pilot ${pilot.id} threw: ${(e as Error).message}` };
+    }
+    // `null` — or an explicit `faceOmen` — ends the turn. Strictly: an open modal is the pilot's to answer.
+    // (The reducer lets End Turn escape a stranded `pendingTarget` for a human under the clock; a pilot has no
+    // clock and an unanswered aim is a decision it failed to make.)
+    if (proposal === null || proposal.type === 'faceOmen') {
+      if (modalOpen(s)) return { run: s, accepted, failure: `${where}: pilot ${pilot.id} ended the turn with a modal open (${openModalName(s)})` };
+      const endTurn: Action = { type: 'faceOmen', deferFight: true };
+      const pre = stateHash(s);
+      const next = reduce(s, endTurn);
+      if (next === s) return { run: s, accepted, failure: `${where}: the engine refused End Turn` };
+      record(s, next, endTurn, pre);
+      return { run: next, accepted };
+    }
+    if (COMBAT_FLOW.has(proposal.type)) {
+      return { run: s, accepted, failure: `${where}: pilot ${pilot.id} proposed a combat-flow action (${proposal.type}) during recruit` };
+    }
+    const pre = stateHash(s);
+    const next = reduce(s, proposal);
+    if (next === s) {
+      consecutiveRejections += 1;
+      if (consecutiveRejections >= maxRejections) {
+        return { run: s, accepted, failure: `${where}: ${consecutiveRejections} consecutive rejected actions (last: ${describe(proposal)}) from pilot ${pilot.id}` };
+      }
+      continue;
+    }
+    consecutiveRejections = 0;
+    record(s, next, proposal, pre);
+    s = next;
+  }
+}
+
+function describe(a: Action): string {
+  const parts = Object.entries(a).filter(([k]) => k !== 'type').map(([k, v]) => `${k}=${typeof v === 'object' ? JSON.stringify(v) : String(v)}`);
+  return parts.length ? `${a.type} ${parts.join(' ')}` : a.type;
+}
+
+/**
+ * Attributed gameplay events from ONE accepted transition, by diffing the two immutable states. Direct effects
+ * only — what the engine did — never an estimate. Enough for a failure trace to be inspectable (B5 extends).
+ */
+function effectsOf(before: RunState, after: RunState, action: Action, lobbyId: string, ctx: SeatContext): EffectEvent[] {
+  const out: EffectEvent[] = [];
+  const base = { lobbyId, seatId: ctx.seatId, round: ctx.round } as const;
+  const handBefore = new Set(before.hand.map((c) => c.uid));
+  const boardBefore = new Set(before.board.map((c) => c.uid));
+  const route: EffectEvent['route'] =
+    action.type === 'buy' ? 'shop'
+      : action.type === 'discover' ? 'discover'
+        : action.type === 'buyRune' ? 'rune'
+          : action.type === 'buyQuest' ? 'quest'
+            : action.type === 'activateEquipment' ? 'equipment'
+              : action.type === 'heroPower' ? 'hero'
+                : 'generated';
+  for (const c of after.hand) {
+    if (handBefore.has(c.uid)) continue;
+    out.push({ ...base, kind: 'cardGained', targetId: c.cardId, targetUid: c.uid, attack: c.attack, health: c.health, route: after.triplesMade > before.triplesMade && c.golden ? 'triple' : route });
+  }
+  for (const c of after.board) {
+    if (boardBefore.has(c.uid)) continue;
+    out.push({ ...base, kind: handBefore.has(c.uid) ? 'cardPlayed' : 'summon', targetId: c.cardId, targetUid: c.uid, attack: c.attack, health: c.health, route: handBefore.has(c.uid) ? 'other' : route });
+  }
+  if (action.type === 'sell') {
+    const sold = before.board.find((c) => c.uid === action.uid) ?? before.hand.find((c) => c.uid === action.uid);
+    if (sold) out.push({ ...base, kind: 'cardSold', targetId: sold.cardId, targetUid: sold.uid, gold: after.embers - before.embers });
+  }
+  if (action.type === 'play') {
+    const card = before.hand.find((c) => c.uid === action.uid);
+    if (card && CARD_INDEX[card.cardId]?.spell) {
+      out.push({ ...base, kind: 'spellCast', sourceId: card.cardId, sourceUid: card.uid, targetUid: action.targetUid, route: 'other' });
+    }
+  }
+  if (action.type === 'heroPower') out.push({ ...base, kind: 'heroPower', targetUid: action.uid, gold: after.embers - before.embers });
+  if (action.type === 'activateEquipment') out.push({ ...base, kind: 'equipmentUsed', targetUid: action.targetUid, gold: after.embers - before.embers });
+  const runesBefore = new Set(before.ownedRunes ?? []);
+  for (const id of after.ownedRunes ?? []) if (!runesBefore.has(id)) out.push({ ...base, kind: 'runePicked', sourceId: id, route: 'rune' });
+  // Permanent stat changes on bodies that were already on the board — the direct buff channel.
+  const statBefore = new Map(before.board.map((c) => [c.uid, { a: c.attack, h: c.health }]));
+  for (const c of after.board) {
+    const prev = statBefore.get(c.uid);
+    if (!prev || (prev.a === c.attack && prev.h === c.health)) continue;
+    out.push({ ...base, kind: 'buff', targetId: c.cardId, targetUid: c.uid, attack: c.attack - prev.a, health: c.health - prev.h, route });
+  }
+  return out;
+}
+
+// ───────────────────────────────────────────── the fight ─────────────────────────────────────────────
+
+/**
+ * Which rules a fight is resolved under. NEVER a silent correction (roadmap: "Never silently correct a
+ * production discrepancy inside only the simulator") — the label rides on the manifest and every record.
+ *
+ *  - `corrected` (default): BOTH seats enter combat through the reducer's `preparePlayerCombatSide` — the full
+ *    ~45-scaler `CombatSideState`, alignment locked, the pending Start-of-Combat banks (Fleeting Vigor, banked
+ *    keywords, Open the Gates' Imps) spent into the board, Marked Target applied by whichever seat armed it.
+ *    This is what the rules INTEND for every seat and what the live player already gets.
+ *
+ *  - `shipped`: the `enemy` seat enters the way a seat enters against the live player today — its board
+ *    re-read through `snapshotBoard` → `opponentBoard` and its side through `sideFromSnapshot`. That drops
+ *    (measured against the player builder, reducer.ts `preparePlayerCombatSide`): `firstSpellThisTurnId`,
+ *    `spellhide` (Rune of Spellhide's Start-of-Combat recasts), `pendingQuests` (mid-combat quest completion),
+ *    every pending Start-of-Combat bank, `align` on every Celestial (an unstamped side fails `alignAllows`, so
+ *    alignment-gated halves are INERT), and the one-fight `CombatConfig` flags. Seat-vs-seat fights in the
+ *    shipped table are weaker still (a bare `combatSide({ tier })`, runLobby.ts `settleRunLobbyRound`) — that
+ *    tier-only path is deliberately NOT offered here: it is a bot-table artefact, not a rule.
+ */
+export type FightRules = 'corrected' | 'shipped';
+
+export interface FightOptions {
+  /** The lobby round — the loss cap (`lossDamageCap`) keys on it exactly as the shipped table's does. */
+  round: number;
+  rules?: FightRules;
+  /** Multiplier on the damage each side takes (the shipped table's practice-bot dial). Default 1. */
+  damageMult?: number;
+}
+
+export interface FightOutcome {
+  /** The authoritative result, from `a`'s perspective (`a` fought as `player`, `b` as `enemy`). */
+  result: CombatResult;
+  aAfter: RunState;
+  bAfter: RunState;
+  /** Round-capped damage the lobby charged each side (armor absorbs first inside the run). */
+  damageToA: number;
+  damageToB: number;
+}
+
+/**
+ * Both seats' turns have ended (`faceOmen { deferFight }`), each has parked its prepared side. Fight ONCE, land
+ * the result on both. Throws when either run is not waiting on a deferred fight — that is a sequencing bug in
+ * the caller, never something to paper over with a second preparation (which would re-fire End of Turn).
+ */
+export function prepareAndFight(a: RunState, b: RunState, seed: number, opts: FightOptions): FightOutcome {
+  const rules = opts.rules ?? 'corrected';
+  const prepA = a.pendingCombatSide;
+  const prepB = b.pendingCombatSide;
+  if (a.phase !== 'combat' || !prepA) throw new Error('prepareAndFight: side A has no deferred fight pending (end its turn with faceOmen { deferFight } first)');
+  if (b.phase !== 'combat' || !prepB) throw new Error('prepareAndFight: side B has no deferred fight pending (end its turn with faceOmen { deferFight } first)');
+
+  // Private copies: `simulate` and Marked Target touch the boards, and the parked sides belong to the runs.
+  const boardA: BoardMinion[] = structuredClone(prepA.board);
+  const poolIds = poolOf(a).all.map((c) => c.id);
+  let boardB: BoardMinion[];
+  let sideB: CombatSideState;
+  if (rules === 'corrected') {
+    boardB = structuredClone(prepB.board);
+    sideB = prepB.state;
+  } else {
+    const snap = snapshotBoard(b);
+    boardB = opponentBoard(snap);
+    sideB = sideFromSnapshot(snap, b.tier, poolIds);
+  }
+  // Marked Target: the ARMING seat's foe enters with Taunt on its right-most body. Under `shipped` only the
+  // `player` seat's mark is honoured (the shipped enemy side has no such channel); `corrected` honours both.
+  markRightmost(a, boardB);
+  if (rules === 'corrected') markRightmost(b, boardA);
+  // NOTE (production limitation carried faithfully): `CombatConfig` is player-only — `b`'s one-fight
+  // overrides (attack-first-next, Rallying Offensive) have no enemy-side expression and are spent unused.
+  const rng = makeRng(mixSeed(seed, opts.round, TAG.COMBAT));
+  const result = simulate(boardA, boardB, rng, CARD_INDEX, prepA.state, sideB, prepA.config);
+
+  const mult = opts.damageMult ?? 1;
+  const cap = lossDamageCap(opts.round);
+  const damageToA = Math.min(cap, Math.round(result.playerDamage * mult));
+  const damageToB = Math.min(cap, Math.round((result.enemyDamage ?? 0) * mult));
+
+  const aAfter = reduce(a, { type: 'resolveCombat', fight: { result, damageTaken: damageToA } });
+  if (aAfter === a) throw new Error('prepareAndFight: side A refused the deferred result');
+  const bAfter = reduce(b, { type: 'resolveCombat', fight: { result: mirrorForEnemySeat(result), damageTaken: damageToB } });
+  if (bAfter === b) throw new Error('prepareAndFight: side B refused the deferred result');
+  return { result, aAfter, bAfter, damageToA, damageToB };
+}
+
+/**
+ * The board an ELIMINATED seat left behind — what the odd seat fights when the living count is odd (owner rule
+ * 2026-07-29: a ghost, never a free round). `prep` is the side it fought its dying fight with, `run` the run
+ * that fought it (for the `shipped` snapshot path). A ghost is already out and settles nothing.
+ */
+export interface GhostSide {
+  prep: { board: BoardMinion[]; state: CombatSideState };
+  run: RunState;
+}
+
+/**
+ * The bye seat's ghost fight: `a` (deferred, exactly as in `prepareAndFight`) as `player` against a fallen
+ * seat's last board as `enemy`. One `simulate()`, only `a` settles; the ghost takes nothing (it is dead), so
+ * `damageToB` is reported as 0 exactly as the shipped table records it.
+ */
+export function prepareAndFightGhost(a: RunState, ghost: GhostSide, seed: number, opts: FightOptions): Omit<FightOutcome, 'bAfter'> {
+  const rules = opts.rules ?? 'corrected';
+  const prepA = a.pendingCombatSide;
+  if (a.phase !== 'combat' || !prepA) throw new Error('prepareAndFightGhost: the bye seat has no deferred fight pending');
+  const boardA: BoardMinion[] = structuredClone(prepA.board);
+  let boardB: BoardMinion[];
+  let sideB: CombatSideState;
+  if (rules === 'corrected') {
+    boardB = structuredClone(ghost.prep.board);
+    sideB = ghost.prep.state;
+  } else {
+    const snap = snapshotBoard(ghost.run);
+    boardB = opponentBoard(snap);
+    sideB = sideFromSnapshot(snap, ghost.run.tier, poolOf(a).all.map((c) => c.id));
+  }
+  markRightmost(a, boardB);
+  const rng = makeRng(mixSeed(seed, opts.round, TAG.COMBAT));
+  const result = simulate(boardA, boardB, rng, CARD_INDEX, prepA.state, sideB, prepA.config);
+  const mult = opts.damageMult ?? 1;
+  const damageToA = Math.min(lossDamageCap(opts.round), Math.round(result.playerDamage * mult));
+  const aAfter = reduce(a, { type: 'resolveCombat', fight: { result, damageTaken: damageToA } });
+  if (aAfter === a) throw new Error('prepareAndFightGhost: the bye seat refused the deferred result');
+  return { result, aAfter, damageToA, damageToB: 0 };
+}
+
+function markRightmost(armer: RunState, foe: BoardMinion[]): void {
+  if (!armer.markEnemyRightmostTaunt || foe.length === 0) return;
+  const last = foe[foe.length - 1]!;
+  if (!(last.keywords ?? []).includes('T')) last.keywords = [...(last.keywords ?? []), 'T'];
+}
+
+/**
+ * The `enemy` seat's view of the one authoritative result.
+ *
+ * PRODUCTION DISCREPANCY (the largest one B1 found — core/src/combat/simulate.ts, the return block): the
+ * simulator emits ~45 `player*` carry-backs and exactly ONE enemy-side number, `enemyDamage`. Its trackers are
+ * gated `side === 'player'` throughout (74 sites) — enemy Deathrattles are not even counted (`enemyDeathrattles`
+ * is the snapshot's frozen value). So the seat that fought as `enemy` can be told its outcome, its damage, its
+ * deaths and who survived (folded from the event log), and NOTHING it earned: no Engraved gains, no
+ * Kennelmaster/Sergeant/Guel/Tara progress, no hand grants, no Reinvestment payout, no quest tallies. In the
+ * shipped table this is invisible because no non-player seat progresses at all; here it is a documented loss
+ * on the `enemy` side of every pair. The fix is a symmetric carry-back surface in `simulate` (core, shared
+ * boundary — its own PR); this function is the seam it plugs into, and every field below is named so the gap
+ * is auditable rather than implied.
+ */
+export function mirrorForEnemySeat(result: CombatResult): CombatResult {
+  const clone = structuredClone(result);
+  // Strip EVERY player-perspective carry-back: they belong to the other seat. (Explicit, key by key, so a new
+  // `player*` field added to `CombatResult` can never leak across the table by default.)
+  for (const key of Object.keys(clone) as (keyof CombatResult)[]) {
+    if (key.startsWith('player')) delete clone[key];
+  }
+  delete clone.damageBreakdown;
+  delete clone.enemyScalers;
+  delete clone.oddsInput;
+  const outcome = result.result === 'win' ? 'lose' : result.result === 'lose' ? 'win' : 'draw';
+  const survivors = enemySurvivorCardIds(result);
+  return {
+    ...clone,
+    result: outcome,
+    playerDamage: result.enemyDamage ?? 0,
+    enemyDamage: result.playerDamage,
+    // UNKNOWN in the shipped simulator (player-side tracker only) — recorded as 0, never estimated.
+    playerDeathrattles: 0,
+    playerDeaths: result.enemyDeaths,
+    enemyDeaths: result.playerDeaths ?? 0,
+    ...(survivors.length ? { playerSurvivorCardIds: survivors } : {}),
+    initial: { player: clone.initial.enemy, enemy: clone.initial.player },
+  };
+}
+
+/** The enemy-side bodies alive at the end, folded from the log: the opening roster + summons − real deaths. */
+function enemySurvivorCardIds(result: CombatResult): string[] {
+  const alive = new Map<string, string>(result.initial.enemy.map((m) => [m.uid, m.cardId]));
+  for (const e of result.events) {
+    if (e.type === 'summon' && e.side === 'enemy') alive.set(e.minion.uid, e.minion.cardId);
+    else if (e.type === 'death' && e.side === 'enemy' && !e.rise) alive.delete(e.target);
+  }
+  return [...alive.values()];
+}

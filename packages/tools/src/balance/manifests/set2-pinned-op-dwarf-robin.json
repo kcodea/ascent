@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "name": "set2-pinned-op-dwarf-robin",
+  "mode": "pinnedLobby",
+  "setId": "set2",
+  "policy": {
+    "id": "operator:dwarf",
+    "budget": {
+      "depth": 1,
+      "beam": 1,
+      "maxNodes": 40,
+      "positionCandidates": 2
+    }
+  },
+  "seeds": {
+    "start": 1,
+    "count": 100
+  },
+  "corpus": {
+    "name": "set2-players-v1",
+    "digest": "87909308f9c0a30b"
+  },
+  "fightRules": "shipped",
+  "notes": "B9: seat 0 pinned to robin (the player study's best dwarf-line hero), policy operator:dwarf, vs seven recorded set-2 player runs; 100 lobbies, seeds 1-100, smoke budget.",
+  "heroes": [
+    "robin"
+  ]
+}

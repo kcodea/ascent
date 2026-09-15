@@ -12,6 +12,8 @@ import type { Action, RunState } from '../state';
 import type { PilotBudget, SeatContext, SeatPilot } from './types';
 import { createGeneralistPilot } from './generalistPilot';
 import { createStrategistPilot } from './strategy/strategistPilot';
+import { createOperatorPilot } from './strategy/operators/operatorPilot';
+import type { OperatorLine } from './strategy/operators/types';
 
 /** Would the engine accept this? The same probe the legacy bots use: a rejected action returns the same state. */
 const legal = (run: RunState, a: Action): boolean => reduce(run, a) !== run;
@@ -79,13 +81,18 @@ export const GREEDY_PILOT: SeatPilot = {
 // The STRATEGIST (B4) — the generalist's search with a line prior (`strategy/strategistPilot.ts`). `strategist`
 // plays each run's best-fit line; `strategist:rotate` rotates the line by run seed (the EXPLORATION population —
 // forced lines, never a natural pick rate); `strategist:explore<k>` pins the k-th best line.
+// The OPERATOR (B9) — hand-authored expert line procedures (`strategy/operators/`) routed by the strategist's
+// natural line, the strategist itself for everything unscripted; `operator:<line>` pins one of the four lines
+// (demon / dwarf / dragon / beast) regardless of fit — the per-hero measurement, never a natural pick rate.
 const REGISTRY: Record<string, (budget: PilotBudget) => SeatPilot> = {
   greedy: () => GREEDY_PILOT,
   generalist: (budget) => createGeneralistPilot(budget, 0x9e3779b9),
   strategist: (budget) => createStrategistPilot(budget, 0x9e3779b9, { exploration: 0 }),
   'strategist:rotate': (budget) => createStrategistPilot(budget, 0x9e3779b9, { exploration: 'rotate' }),
+  operator: (budget) => createOperatorPilot(budget, 0x9e3779b9),
 };
 const EXPLORE = /^strategist:explore(\d+)$/;
+const OPERATOR_LINE = /^operator:(demon|dwarf|dragon|beast)$/;
 
 /** Resolve a manifest's `policy.id` to a pilot. Unknown ids throw — a report must name a policy that exists. */
 export function pilotFor(id: string, budget: PilotBudget = { depth: 1, beam: 1, maxNodes: 1, positionCandidates: 1 }): SeatPilot {
@@ -93,7 +100,9 @@ export function pilotFor(id: string, budget: PilotBudget = { depth: 1, beam: 1, 
   if (make) return make(budget);
   const explore = EXPLORE.exec(id);
   if (explore) return createStrategistPilot(budget, 0x9e3779b9, { exploration: Number(explore[1]) });
+  const line = OPERATOR_LINE.exec(id);
+  if (line) return createOperatorPilot(budget, 0x9e3779b9, { line: line[1] as OperatorLine });
   throw new Error(`balance: unknown pilot '${id}' (registered: ${PILOT_IDS().join(', ')})`);
 }
 
-export const PILOT_IDS = (): string[] => [...Object.keys(REGISTRY), 'strategist:explore<k>'];
+export const PILOT_IDS = (): string[] => [...Object.keys(REGISTRY), 'strategist:explore<k>', 'operator:<demon|dwarf|dragon|beast>'];

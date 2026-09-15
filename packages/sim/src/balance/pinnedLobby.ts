@@ -263,6 +263,8 @@ export function runPinnedLobby(
       runesOwned: isPilot ? (run!.ownedRunes ?? []) : (recording?.snaps[recording.snaps.length - 1]?.runes ?? []),
       finalBoard: isPilot ? run!.board.map((c) => c.cardId) : recordedBoard(seat, seat.eliminatedRound ?? lobby!.round, setId).ids,
       ...(recording ? { recording: { key: recording.key, author: recording.author, waves: recording.snaps.length, ...(recording.snaps[0]?.patch ? { patch: recording.snaps[0].patch } : {}) } } : {}),
+      // B4/B9: the line a strategist / operator pilot committed the run to (owed since the B4 integration).
+      ...(isPilot ? (() => { const line = pilot.lineOf?.('s0'); return line ? { line } : {}; })() : {}),
     };
     rec.onRun(rr);
   }

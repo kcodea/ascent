@@ -1,7 +1,8 @@
-import { compareRuns, diagnose, type Diagnosis } from './perfDiagnose';
-import { displaySubject, phaseName } from './perfNames';
+import { compareRuns, diagnose, whatIsSlow, type Diagnosis } from './perfDiagnose';
+import { topOffenders } from './perfLive';
+import { displaySubject, phaseName, shortName } from './perfNames';
 import type { PerfRunMeta } from './perfStore';
-import type { PerfBucket } from './perfMonitor';
+import type { PerfBucket, PerfStartup } from './perfMonitor';
 
 /**
  * THE REPORT — one block of text, written to be pasted straight into a conversation with Claude.
@@ -49,6 +50,8 @@ export interface ReportInput {
   meta?: Partial<PerfRunMeta> & { note?: string };
   /** An earlier run to compare against, if the reader picked one. */
   previous?: { meta: PerfRunMeta; buckets: readonly PerfBucket[] };
+  /** The phase-start spikes the warm-up diverted, when the caller has them (the live monitor does). */
+  startups?: readonly PerfStartup[];
 }
 
 /** The full report. Markdown, self-contained, safe to paste anywhere. */
@@ -80,6 +83,36 @@ export function buildReport(input: ReportInput): string {
   L.push('');
   L.push('> fps is a **ceiling**, not a score — rAF is capped at the refresh, so a steady number means nothing dropped, not that there is headroom. Judge on worst frame first.');
   L.push('');
+
+  // ── What is slow. The one line, then the offenders behind it. ──────────────────────────────────────────
+  const slow = whatIsSlow(input.buckets, displaySubject);
+  if (slow) {
+    L.push('## What is slow');
+    L.push('');
+    L.push(`**${slow.title}**${slow.detail ? ` — ${slow.detail}` : ''}`);
+    L.push('');
+    const off = topOffenders(input.buckets, 8);
+    if (off.length) {
+      L.push('Self time inside the frames that dropped (a wrapper is not charged for what it wraps):');
+      L.push('');
+      L.push('| label | share of dropped frames | ms per dropped frame | worst call | calls |');
+      L.push('|---|---|---|---|---|');
+      for (const o of off) L.push(`| \`${o.label}\` (${shortName(o.label)}) | ${Math.round(o.share * 100)}% | ${ms(o.avgMs)} | ${ms(o.maxMs)} | ${o.n} |`);
+      L.push('');
+    }
+  }
+  // ── Startup spikes, kept apart so the numbers above describe PLAY. ─────────────────────────────────────
+  if (input.startups && input.startups.length) {
+    L.push('## Phase-start spikes (excluded from everything above)');
+    L.push('');
+    L.push('| at | start | frames | worst | long | jank | top measured |');
+    L.push('|---|---|---|---|---|---|---|');
+    for (const s of input.startups) {
+      const top = Object.entries(s.timings).sort((a, b) => b[1].max - a[1].max)[0];
+      L.push(`| ${(s.t / 1000).toFixed(0)}s | ${s.reason}${s.phase ? ` (${phaseName(s.phase)}${s.wave !== undefined ? ` w${s.wave}` : ''})` : ''} | ${s.frames} | ${ms(s.worst)} | ${s.long} | ${s.jank} | ${top ? `\`${top[0]}\` ${ms(top[1].max)}` : '—'} |`);
+    }
+    L.push('');
+  }
 
   // ── Findings. ──────────────────────────────────────────────────────────────────────────────────────────
   L.push('## Findings');

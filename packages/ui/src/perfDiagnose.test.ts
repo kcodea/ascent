@@ -11,7 +11,7 @@
  *   · a correlation is never dressed up as an attribution.
  */
 import { describe, expect, it } from 'vitest';
-import { compareRuns, diagnose, phaseBreakdown, subjectOf, worstSpikes } from './perfDiagnose';
+import { compareRuns, diagnose, phaseBreakdown, subjectOf, whatIsSlow, worstSpikes } from './perfDiagnose';
 import type { PerfBucket } from './perfMonitor';
 
 /** One second of timeline. Defaults are a clean 60 Hz frame; override what a case is about. */
@@ -294,5 +294,58 @@ describe('perf diagnosis — naming the culprit', () => {
     const hit = d.verdicts.find((v) => v.id.includes('brandNewThing'))!;
     expect(hit.title).toContain('brandNewThing');
     expect(hit.confidence).toBe('measured');
+  });
+});
+
+/**
+ * WHAT IS SLOW — the one line (owner 2026-09-15: "we're currently BLIND to what's causing it"). Built from
+ * the top offenders (self time inside dropped frames), it must name the code that RAN in the frames that
+ * dropped, name the counter that peaked and where, and say plainly when nothing instrumented was there.
+ */
+describe('whatIsSlow — the plain-English line', () => {
+  const combat240 = (over: Partial<PerfBucket>): Partial<PerfBucket> => ({ hz: 240, fps: 240, med: 4, p95: 6, phase: 'combat', ...over });
+
+  it('names the top offender, its share of the dropped frames, its per-frame cost, and the counter peak', () => {
+    const v = whatIsSlow(secs(12, (i) => combat240({
+      worst: 14, long: 10, jank: 2,
+      longAttrib: { 'fx:sim': { ms: 32, frames: 7 }, 'choreo:step': { ms: 6, frames: 3 } },
+      timings: { 'fx:sim': { n: 240, total: 500, max: 9.8, self: 500 }, 'choreo:step': { n: 4, total: 10, max: 4, self: 10 } },
+      counts: { 'fx:particles': i === 5 ? 2340 : 400 },
+    })))!;
+    expect(v.severity).toBe('critical'); // owns ≥ 50% of the dropped frames at more than a budget each
+    expect(v.title).toContain('fx:sim');
+    expect(v.title).toContain('70%');      // 7 of 10 long frames per second, every second
+    expect(v.title).toContain('4.6 ms per frame');
+    expect(v.title).toContain('worst call 9.8 ms');
+    expect(v.detail).toContain('fx:particles peaked at 2,340 during combat');
+    expect(v.detail).toContain('`choreo:step` 30%'); // the raw namer keeps the address; the HUD's namer names it
+  });
+
+  it('uses the namer, so the HUD reads "the FX particle sim" rather than an address', () => {
+    const v = whatIsSlow(secs(5, combat240({ long: 4, worst: 12, longAttrib: { 'fx:sim': { ms: 20, frames: 4 } } })),
+      (sub) => (sub.id === 'fx:sim' ? 'the FX particle sim' : sub.label))!;
+    expect(v.title).toMatch(/^the FX particle sim owned 100% of the 20 dropped frames/);
+  });
+
+  it('says so when frames dropped and nothing instrumented ran in them — the render / paint / GC case', () => {
+    const v = whatIsSlow(secs(5, combat240({ long: 6, worst: 20, counts: { 'fx:particles': 1800 } })))!;
+    expect(v.severity).toBe('warn');
+    expect(v.title).toContain('30 frame(s) dropped and nothing instrumented ran in them');
+    expect(v.detail).toContain('render, paint');
+    expect(v.detail).toContain('fx:particles peaked at 1,800');
+  });
+
+  it('is a clean verdict when nothing dropped, and still reports a frame that went over budget', () => {
+    const clean = whatIsSlow(secs(5, combat240({ worst: 4 })))!;
+    expect(clean.severity).toBe('info');
+    expect(clean.title).toContain('No dropped frames');
+    expect(clean.detail).toContain('fit the 4.17 ms budget');
+    const over = whatIsSlow(secs(5, combat240({ worst: 7 })))!;
+    expect(over.detail).toMatch(/1\.7× over the 4\.17 ms budget/);
+  });
+
+  it('ignores hidden buckets and returns null for an empty window', () => {
+    expect(whatIsSlow([])).toBeNull();
+    expect(whatIsSlow(secs(3, { hidden: true, long: 50 }))).toBeNull();
   });
 });

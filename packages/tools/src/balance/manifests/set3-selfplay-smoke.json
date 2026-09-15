@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "name": "set3-selfplay-smoke",
+  "mode": "selfPlayLobby",
+  "setId": "set3",
+  "policy": { "id": "greedy", "budget": { "depth": 1, "beam": 1, "maxNodes": 40, "positionCandidates": 2 } },
+  "seeds": { "start": 1, "count": 2 },
+  "notes": "B0 smoke: two eight-seat self-play lobbies on the Set 3 development pool under the greedy baseline pilot."
+}

@@ -1,0 +1,2059 @@
+{
+ "schemaVersion": 1,
+ "name": "set2-v1",
+ "setId": "set2",
+ "horizon": 3,
+ "prior": 8,
+ "bands": [
+  {
+   "id": "open",
+   "from": 1,
+   "to": 4
+  },
+  {
+   "id": "build",
+   "from": 5,
+   "to": 7
+  },
+  {
+   "id": "scale",
+   "from": 8,
+   "to": 10
+  },
+  {
+   "id": "late",
+   "from": 11,
+   "to": 99
+  }
+ ],
+ "base": {
+  "open": {
+   "boards": 252,
+   "survivors": 134,
+   "rate": 0.5317460317460317
+  },
+  "build": {
+   "boards": 210,
+   "survivors": 111,
+   "rate": 0.5285714285714286
+  },
+  "scale": {
+   "boards": 175,
+   "survivors": 104,
+   "rate": 0.5942857142857143
+  },
+  "late": {
+   "boards": 159,
+   "survivors": 110,
+   "rate": 0.6918238993710691
+  }
+ },
+ "cards": {
+  "d2_embermouth": {
+   "open": {
+    "boards": 16,
+    "survivors": 0,
+    "rate": 0,
+    "weight": -0.8830559638869465,
+    "holdersAfter": 5.3125,
+    "othersAfter": 9.411016949152541
+   },
+   "build": {
+    "boards": 25,
+    "survivors": 1,
+    "rate": 0.04,
+    "weight": -0.886460123180044,
+    "holdersAfter": 2.72,
+    "othersAfter": 6.183783783783784
+   }
+  },
+  "k_chipwick": {
+   "open": {
+    "boards": 32,
+    "survivors": 12,
+    "rate": 0.375,
+    "weight": -0.41485350448738273,
+    "holdersAfter": 7.75,
+    "othersAfter": 9.354545454545455
+   },
+   "build": {
+    "boards": 19,
+    "survivors": 3,
+    "rate": 0.15789473684210525,
+    "weight": -0.6005647442934295,
+    "holdersAfter": 3.473684210526316,
+    "othersAfter": 6
+   }
+  },
+  "d2_cinderchef": {
+   "open": {
+    "boards": 39,
+    "survivors": 27,
+    "rate": 0.6923076923076923,
+    "weight": 0.342652869824212,
+    "holdersAfter": 10.23076923076923,
+    "othersAfter": 8.953051643192488
+   },
+   "build": {
+    "boards": 31,
+    "survivors": 19,
+    "rate": 0.6129032258064516,
+    "weight": 0.27524808757582414,
+    "holdersAfter": 6.645161290322581,
+    "othersAfter": 5.620111731843576
+   },
+   "scale": {
+    "boards": 14,
+    "survivors": 10,
+    "rate": 0.7142857142857143,
+    "weight": 0.24157209024986617,
+    "holdersAfter": 4.5,
+    "othersAfter": 3.546583850931677
+   }
+  },
+  "dw_orin": {
+   "open": {
+    "boards": 26,
+    "survivors": 13,
+    "rate": 0.5,
+    "weight": -0.04155490942115148,
+    "holdersAfter": 9,
+    "othersAfter": 9.168141592920353
+   },
+   "build": {
+    "boards": 22,
+    "survivors": 10,
+    "rate": 0.45454545454545453,
+    "weight": -0.11284547655407108,
+    "holdersAfter": 5.363636363636363,
+    "othersAfter": 5.819148936170213
+   }
+  },
+  "dw_pimm": {
+   "open": {
+    "boards": 59,
+    "survivors": 33,
+    "rate": 0.559322033898305,
+    "weight": 0.12661519417325656,
+    "holdersAfter": 9.491525423728813,
+    "othersAfter": 9.046632124352332
+   },
+   "build": {
+    "boards": 42,
+    "survivors": 17,
+    "rate": 0.40476190476190477,
+    "weight": -0.2905231950519466,
+    "holdersAfter": 4.9523809523809526,
+    "othersAfter": 5.976190476190476
+   },
+   "scale": {
+    "boards": 8,
+    "survivors": 4,
+    "rate": 0.5,
+    "weight": -0.20817033965457424,
+    "holdersAfter": 2.625,
+    "othersAfter": 3.6706586826347305
+   }
+  },
+  "dm_hank": {
+   "open": {
+    "boards": 19,
+    "survivors": 8,
+    "rate": 0.42105263157894735,
+    "weight": -0.23128025477765712,
+    "holdersAfter": 8.210526315789474,
+    "othersAfter": 9.227467811158798
+   },
+   "build": {
+    "boards": 33,
+    "survivors": 15,
+    "rate": 0.45454545454545453,
+    "weight": 0.08351176761542041,
+    "holdersAfter": 6.03030303030303,
+    "othersAfter": 5.72316384180791
+   },
+   "scale": {
+    "boards": 15,
+    "survivors": 8,
+    "rate": 0.5333333333333333,
+    "weight": -0.08222893625769048,
+    "holdersAfter": 3.3333333333333335,
+    "othersAfter": 3.65
+   }
+  },
+  "dm_leech": {
+   "open": {
+    "boards": 38,
+    "survivors": 26,
+    "rate": 0.6842105263157895,
+    "weight": -0.0639543514387879,
+    "holdersAfter": 8.947368421052632,
+    "othersAfter": 9.186915887850468
+   },
+   "build": {
+    "boards": 38,
+    "survivors": 17,
+    "rate": 0.4473684210526316,
+    "weight": -0.31664001906218925,
+    "holdersAfter": 4.842105263157895,
+    "othersAfter": 5.976744186046512
+   },
+   "scale": {
+    "boards": 20,
+    "survivors": 13,
+    "rate": 0.65,
+    "weight": -0.0073393763140504765,
+    "holdersAfter": 3.6,
+    "othersAfter": 3.6258064516129034
+   }
+  },
+  "manasaber": {
+   "open": {
+    "boards": 10,
+    "survivors": 4,
+    "rate": 0.4,
+    "weight": -0.4956114634259941,
+    "holdersAfter": 6.5,
+    "othersAfter": 9.260330578512397
+   },
+   "build": {
+    "boards": 28,
+    "survivors": 12,
+    "rate": 0.42857142857142855,
+    "weight": -0.2230462812339782,
+    "holdersAfter": 5.035714285714286,
+    "othersAfter": 5.884615384615385
+   },
+   "scale": {
+    "boards": 13,
+    "survivors": 5,
+    "rate": 0.38461538461538464,
+    "weight": -0.1863235081538166,
+    "holdersAfter": 2.923076923076923,
+    "othersAfter": 3.6790123456790123
+   },
+   "late": {
+    "boards": 14,
+    "survivors": 12,
+    "rate": 0.8571428571428571,
+    "weight": 0.15777513258616896,
+    "holdersAfter": 2.2857142857142856,
+    "othersAfter": 1.8689655172413793
+   }
+  },
+  "dm_knocked": {
+   "open": {
+    "boards": 39,
+    "survivors": 16,
+    "rate": 0.41025641025641024,
+    "weight": -0.37325725277063726,
+    "holdersAfter": 7.9743589743589745,
+    "othersAfter": 9.366197183098592
+   },
+   "build": {
+    "boards": 42,
+    "survivors": 16,
+    "rate": 0.38095238095238093,
+    "weight": -0.298968636768573,
+    "holdersAfter": 4.928571428571429,
+    "othersAfter": 5.982142857142857
+   },
+   "scale": {
+    "boards": 13,
+    "survivors": 6,
+    "rate": 0.46153846153846156,
+    "weight": -0.1658419667424359,
+    "holdersAfter": 3,
+    "othersAfter": 3.6728395061728394
+   }
+  },
+  "b2_packstrider": {
+   "open": {
+    "boards": 9,
+    "survivors": 2,
+    "rate": 0.2222222222222222,
+    "weight": -0.4604874667929151,
+    "holdersAfter": 6.555555555555555,
+    "othersAfter": 9.246913580246913
+   },
+   "build": {
+    "boards": 10,
+    "survivors": 4,
+    "rate": 0.4,
+    "weight": -0.2899601656041714,
+    "holdersAfter": 4.3,
+    "othersAfter": 5.845
+   }
+  },
+  "k_deepvein": {
+   "open": {
+    "boards": 10,
+    "survivors": 4,
+    "rate": 0.4,
+    "weight": -0.27125082489302865,
+    "holdersAfter": 7.7,
+    "othersAfter": 9.210743801652892
+   },
+   "build": {
+    "boards": 27,
+    "survivors": 15,
+    "rate": 0.5555555555555556,
+    "weight": 0.0018987409948386452,
+    "holdersAfter": 5.777777777777778,
+    "othersAfter": 5.770491803278689
+   },
+   "scale": {
+    "boards": 17,
+    "survivors": 11,
+    "rate": 0.6470588235294118,
+    "weight": 0.1307379825451388,
+    "holdersAfter": 4.0588235294117645,
+    "othersAfter": 3.5759493670886076
+   }
+  },
+  "k_pouchpincher": {
+   "open": {
+    "boards": 17,
+    "survivors": 6,
+    "rate": 0.35294117647058826,
+    "weight": -0.20188820416075762,
+    "holdersAfter": 8.294117647058824,
+    "othersAfter": 9.212765957446809
+   }
+  },
+  "k_beggy": {
+   "open": {
+    "boards": 13,
+    "survivors": 9,
+    "rate": 0.6923076923076923,
+    "weight": 0.19536696613438215,
+    "holdersAfter": 10.076923076923077,
+    "othersAfter": 9.100418410041842
+   },
+   "build": {
+    "boards": 9,
+    "survivors": 4,
+    "rate": 0.4444444444444444,
+    "weight": -0.16490484967319577,
+    "holdersAfter": 4.888888888888889,
+    "othersAfter": 5.810945273631841
+   }
+  },
+  "n2_spellsword": {
+   "open": {
+    "boards": 14,
+    "survivors": 9,
+    "rate": 0.6428571428571429,
+    "weight": -0.12616358035152014,
+    "holdersAfter": 8.571428571428571,
+    "othersAfter": 9.184873949579831
+   },
+   "build": {
+    "boards": 17,
+    "survivors": 11,
+    "rate": 0.6470588235294118,
+    "weight": 0.27767562153898556,
+    "holdersAfter": 6.882352941176471,
+    "othersAfter": 5.6735751295336785
+   }
+  },
+  "impoverseer": {
+   "open": {
+    "boards": 13,
+    "survivors": 8,
+    "rate": 0.6153846153846154,
+    "weight": -0.04803683478452501,
+    "holdersAfter": 8.923076923076923,
+    "othersAfter": 9.163179916317992
+   },
+   "build": {
+    "boards": 18,
+    "survivors": 11,
+    "rate": 0.6111111111111112,
+    "weight": 0.342690038886185,
+    "holdersAfter": 7.111111111111111,
+    "othersAfter": 5.645833333333333
+   },
+   "scale": {
+    "boards": 8,
+    "survivors": 5,
+    "rate": 0.625,
+    "weight": 0.36552744679503973,
+    "holdersAfter": 5.375,
+    "othersAfter": 3.538922155688623
+   }
+  },
+  "n2_wanderer": {
+   "build": {
+    "boards": 8,
+    "survivors": 2,
+    "rate": 0.25,
+    "weight": -0.35495940680276106,
+    "holdersAfter": 3.75,
+    "othersAfter": 5.851485148514851
+   },
+   "scale": {
+    "boards": 8,
+    "survivors": 3,
+    "rate": 0.375,
+    "weight": -0.3385562002113047,
+    "holdersAfter": 2,
+    "othersAfter": 3.7005988023952097
+   }
+  },
+  "d2_chorus": {
+   "build": {
+    "boards": 23,
+    "survivors": 16,
+    "rate": 0.6956521739130435,
+    "weight": 0.24790001078163554,
+    "holdersAfter": 6.6521739130434785,
+    "othersAfter": 5.663101604278075
+   },
+   "scale": {
+    "boards": 43,
+    "survivors": 25,
+    "rate": 0.5813953488372093,
+    "weight": 0.0954001721932658,
+    "holdersAfter": 3.8372093023255816,
+    "othersAfter": 3.553030303030303
+   },
+   "late": {
+    "boards": 34,
+    "survivors": 28,
+    "rate": 0.8235294117647058,
+    "weight": 0.3821088851034539,
+    "holdersAfter": 2.5294117647058822,
+    "othersAfter": 1.736
+   }
+  },
+  "dm_agent": {
+   "build": {
+    "boards": 10,
+    "survivors": 3,
+    "rate": 0.3,
+    "weight": -0.014075736194377355,
+    "holdersAfter": 5.7,
+    "othersAfter": 5.775
+   },
+   "scale": {
+    "boards": 8,
+    "survivors": 4,
+    "rate": 0.5,
+    "weight": 0.10475572568157891,
+    "holdersAfter": 4.125,
+    "othersAfter": 3.5988023952095807
+   }
+  },
+  "dw_chickenbrawl": {
+   "build": {
+    "boards": 18,
+    "survivors": 9,
+    "rate": 0.5,
+    "weight": -0.06943127565111072,
+    "holdersAfter": 5.5,
+    "othersAfter": 5.796875
+   },
+   "scale": {
+    "boards": 11,
+    "survivors": 4,
+    "rate": 0.36363636363636365,
+    "weight": -0.22029199246604617,
+    "holdersAfter": 2.727272727272727,
+    "othersAfter": 3.682926829268293
+   }
+  },
+  "n2_standardbearer": {
+   "build": {
+    "boards": 28,
+    "survivors": 16,
+    "rate": 0.5714285714285714,
+    "weight": 0.06929593203385732,
+    "holdersAfter": 6,
+    "othersAfter": 5.736263736263736
+   },
+   "scale": {
+    "boards": 39,
+    "survivors": 25,
+    "rate": 0.6410256410256411,
+    "weight": 0.12763332715289458,
+    "holdersAfter": 3.923076923076923,
+    "othersAfter": 3.536764705882353
+   },
+   "late": {
+    "boards": 32,
+    "survivors": 14,
+    "rate": 0.4375,
+    "weight": 0.0934540340402271,
+    "holdersAfter": 2.0625,
+    "othersAfter": 1.8661417322834646
+   }
+  },
+  "kennel": {
+   "build": {
+    "boards": 9,
+    "survivors": 9,
+    "rate": 1,
+    "weight": 0.4164144045704443,
+    "holdersAfter": 8,
+    "othersAfter": 5.6716417910447765
+   }
+  },
+  "dw_wardkeeper": {
+   "build": {
+    "boards": 26,
+    "survivors": 15,
+    "rate": 0.5769230769230769,
+    "weight": -0.0006479878554955381,
+    "holdersAfter": 5.769230769230769,
+    "othersAfter": 5.771739130434782
+   }
+  },
+  "n2_bellringer": {
+   "build": {
+    "boards": 13,
+    "survivors": 7,
+    "rate": 0.5384615384615384,
+    "weight": 0.10239868419288814,
+    "holdersAfter": 6.230769230769231,
+    "othersAfter": 5.741116751269035
+   },
+   "scale": {
+    "boards": 29,
+    "survivors": 20,
+    "rate": 0.6896551724137931,
+    "weight": 0.3345526708819005,
+    "holdersAfter": 4.517241379310345,
+    "othersAfter": 3.4452054794520546
+   },
+   "late": {
+    "boards": 23,
+    "survivors": 21,
+    "rate": 0.9130434782608695,
+    "weight": 0.5647228438396938,
+    "holdersAfter": 3,
+    "othersAfter": 1.7205882352941178
+   }
+  },
+  "buddy": {
+   "build": {
+    "boards": 12,
+    "survivors": 2,
+    "rate": 0.16666666666666666,
+    "weight": -0.3808126446769701,
+    "holdersAfter": 4,
+    "othersAfter": 5.878787878787879
+   }
+  },
+  "dw_brunni": {
+   "build": {
+    "boards": 28,
+    "survivors": 18,
+    "rate": 0.6428571428571429,
+    "weight": 0.06929593203385732,
+    "holdersAfter": 6,
+    "othersAfter": 5.736263736263736
+   },
+   "scale": {
+    "boards": 28,
+    "survivors": 18,
+    "rate": 0.6428571428571429,
+    "weight": -0.032126760670994056,
+    "holdersAfter": 3.5357142857142856,
+    "othersAfter": 3.639455782312925
+   },
+   "late": {
+    "boards": 9,
+    "survivors": 7,
+    "rate": 0.7777777777777778,
+    "weight": 0.14278090012762507,
+    "holdersAfter": 2.3333333333333335,
+    "othersAfter": 1.88
+   }
+  },
+  "b2_bullseye": {
+   "build": {
+    "boards": 14,
+    "survivors": 9,
+    "rate": 0.6428571428571429,
+    "weight": 0.019742591025879788,
+    "holdersAfter": 5.857142857142857,
+    "othersAfter": 5.76530612244898
+   },
+   "scale": {
+    "boards": 12,
+    "survivors": 7,
+    "rate": 0.5833333333333334,
+    "weight": -0.11700564297720085,
+    "holdersAfter": 3.1666666666666665,
+    "othersAfter": 3.6564417177914113
+   }
+  },
+  "dw_gangplank": {
+   "build": {
+    "boards": 22,
+    "survivors": 16,
+    "rate": 0.7272727272727273,
+    "weight": 0.2519257295044712,
+    "holdersAfter": 6.681818181818182,
+    "othersAfter": 5.664893617021277
+   },
+   "scale": {
+    "boards": 23,
+    "survivors": 18,
+    "rate": 0.782608695652174,
+    "weight": 0.18741966554596684,
+    "holdersAfter": 4.173913043478261,
+    "othersAfter": 3.539473684210526
+   },
+   "late": {
+    "boards": 8,
+    "survivors": 3,
+    "rate": 0.375,
+    "weight": 0.06870148857548189,
+    "holdersAfter": 2.125,
+    "othersAfter": 1.8940397350993377
+   }
+  },
+  "k_geode": {
+   "build": {
+    "boards": 28,
+    "survivors": 17,
+    "rate": 0.6071428571428571,
+    "weight": 0.0043309957521160646,
+    "holdersAfter": 5.785714285714286,
+    "othersAfter": 5.769230769230769
+   },
+   "scale": {
+    "boards": 15,
+    "survivors": 9,
+    "rate": 0.6,
+    "weight": 0.06924542000647622,
+    "holdersAfter": 3.8666666666666667,
+    "othersAfter": 3.6
+   }
+  },
+  "b2_trex": {
+   "build": {
+    "boards": 13,
+    "survivors": 8,
+    "rate": 0.6153846153846154,
+    "weight": 0.08525057918450976,
+    "holdersAfter": 6.153846153846154,
+    "othersAfter": 5.746192893401015
+   },
+   "scale": {
+    "boards": 9,
+    "survivors": 4,
+    "rate": 0.4444444444444444,
+    "weight": 0.03442640831647269,
+    "holdersAfter": 3.7777777777777777,
+    "othersAfter": 3.6144578313253013
+   }
+  },
+  "d2_mirrorwing": {
+   "build": {
+    "boards": 11,
+    "survivors": 6,
+    "rate": 0.5454545454545454,
+    "weight": -0.12168941145776332,
+    "holdersAfter": 5.181818181818182,
+    "othersAfter": 5.8040201005025125
+   }
+  },
+  "dm_gourmand": {
+   "build": {
+    "boards": 15,
+    "survivors": 15,
+    "rate": 1,
+    "weight": 0.9558319320757052,
+    "holdersAfter": 9.8,
+    "othersAfter": 5.461538461538462
+   },
+   "scale": {
+    "boards": 25,
+    "survivors": 18,
+    "rate": 0.72,
+    "weight": 0.7239293909767974,
+    "holdersAfter": 5.68,
+    "othersAfter": 3.28
+   },
+   "late": {
+    "boards": 22,
+    "survivors": 17,
+    "rate": 0.7727272727272727,
+    "weight": 0.5310858906815252,
+    "holdersAfter": 2.9545454545454546,
+    "othersAfter": 1.7372262773722629
+   }
+  },
+  "dw_coinfire": {
+   "build": {
+    "boards": 11,
+    "survivors": 6,
+    "rate": 0.5454545454545454,
+    "weight": 0.1409881727462194,
+    "holdersAfter": 6.454545454545454,
+    "othersAfter": 5.733668341708543
+   },
+   "scale": {
+    "boards": 8,
+    "survivors": 4,
+    "rate": 0.5,
+    "weight": -0.07778447909784372,
+    "holdersAfter": 3.25,
+    "othersAfter": 3.6407185628742513
+   }
+  },
+  "k_stormchaser": {
+   "build": {
+    "boards": 14,
+    "survivors": 10,
+    "rate": 0.7142857142857143,
+    "weight": 0.41459441154347554,
+    "holdersAfter": 7.571428571428571,
+    "othersAfter": 5.642857142857143
+   },
+   "scale": {
+    "boards": 13,
+    "survivors": 12,
+    "rate": 0.9230769230769231,
+    "weight": 0.6534196897127874,
+    "holdersAfter": 6.076923076923077,
+    "othersAfter": 3.425925925925926
+   }
+  },
+  "dw_ironlung": {
+   "build": {
+    "boards": 16,
+    "survivors": 11,
+    "rate": 0.6875,
+    "weight": 0.040485880394136656,
+    "holdersAfter": 5.9375,
+    "othersAfter": 5.757731958762887
+   }
+  },
+  "d2_broodfire": {
+   "build": {
+    "boards": 13,
+    "survivors": 9,
+    "rate": 0.6923076923076923,
+    "weight": 0.1366948942096449,
+    "holdersAfter": 6.384615384615385,
+    "othersAfter": 5.730964467005077
+   },
+   "scale": {
+    "boards": 8,
+    "survivors": 4,
+    "rate": 0.5,
+    "weight": -0.18209316754322816,
+    "holdersAfter": 2.75,
+    "othersAfter": 3.6646706586826348
+   }
+  },
+  "d2_skald": {
+   "build": {
+    "boards": 12,
+    "survivors": 6,
+    "rate": 0.5,
+    "weight": 0.12079540879538314,
+    "holdersAfter": 6.333333333333333,
+    "othersAfter": 5.737373737373737
+   },
+   "scale": {
+    "boards": 10,
+    "survivors": 6,
+    "rate": 0.6,
+    "weight": 0.08848025889716413,
+    "holdersAfter": 4,
+    "othersAfter": 3.6
+   }
+  },
+  "dm_hungerling": {
+   "build": {
+    "boards": 24,
+    "survivors": 12,
+    "rate": 0.5,
+    "weight": 0.10114097539669481,
+    "holdersAfter": 6.125,
+    "othersAfter": 5.725806451612903
+   },
+   "scale": {
+    "boards": 23,
+    "survivors": 13,
+    "rate": 0.5652173913043478,
+    "weight": 0.009970929005601545,
+    "holdersAfter": 3.652173913043478,
+    "othersAfter": 3.6184210526315788
+   },
+   "late": {
+    "boards": 10,
+    "survivors": 4,
+    "rate": 0.4,
+    "weight": -0.037265708459857494,
+    "holdersAfter": 1.8,
+    "othersAfter": 1.912751677852349
+   }
+  },
+  "k_faultline": {
+   "build": {
+    "boards": 16,
+    "survivors": 10,
+    "rate": 0.625,
+    "weight": 0.2690352051997467,
+    "holdersAfter": 6.875,
+    "othersAfter": 5.680412371134021
+   },
+   "scale": {
+    "boards": 14,
+    "survivors": 8,
+    "rate": 0.5714285714285714,
+    "weight": 0.18255610728980115,
+    "holdersAfter": 4.285714285714286,
+    "othersAfter": 3.5652173913043477
+   }
+  },
+  "ropewrangler": {
+   "build": {
+    "boards": 11,
+    "survivors": 8,
+    "rate": 0.7272727272727273,
+    "weight": 0.15975085733221805,
+    "holdersAfter": 6.545454545454546,
+    "othersAfter": 5.728643216080402
+   },
+   "scale": {
+    "boards": 14,
+    "survivors": 8,
+    "rate": 0.5714285714285714,
+    "weight": 0.04485214704964932,
+    "holdersAfter": 3.7857142857142856,
+    "othersAfter": 3.608695652173913
+   }
+  },
+  "d2_riverdrake": {
+   "build": {
+    "boards": 12,
+    "survivors": 4,
+    "rate": 0.3333333333333333,
+    "weight": -0.11209404460249503,
+    "holdersAfter": 5.25,
+    "othersAfter": 5.803030303030303
+   }
+  },
+  "b2_wolvie": {
+   "build": {
+    "boards": 8,
+    "survivors": 5,
+    "rate": 0.625,
+    "weight": 0.2596346191101471,
+    "holdersAfter": 7.25,
+    "othersAfter": 5.712871287128713
+   },
+   "scale": {
+    "boards": 10,
+    "survivors": 4,
+    "rate": 0.4,
+    "weight": -0.09920513876348709,
+    "holdersAfter": 3.2,
+    "othersAfter": 3.6484848484848484
+   }
+  },
+  "d2_recaller": {
+   "build": {
+    "boards": 8,
+    "survivors": 5,
+    "rate": 0.625,
+    "weight": -0.1793611136847873,
+    "holdersAfter": 4.75,
+    "othersAfter": 5.811881188118812
+   }
+  },
+  "b2_armadiyo": {
+   "build": {
+    "boards": 16,
+    "survivors": 12,
+    "rate": 0.75,
+    "weight": 0.28427182685345415,
+    "holdersAfter": 6.9375,
+    "othersAfter": 5.675257731958763
+   },
+   "scale": {
+    "boards": 13,
+    "survivors": 6,
+    "rate": 0.46153846153846156,
+    "weight": -0.06343425968553305,
+    "holdersAfter": 3.3846153846153846,
+    "othersAfter": 3.6419753086419755
+   }
+  },
+  "k_tunnelcharger": {
+   "build": {
+    "boards": 8,
+    "survivors": 4,
+    "rate": 0.5,
+    "weight": -0.0037628205668135254,
+    "holdersAfter": 5.75,
+    "othersAfter": 5.772277227722772
+   }
+  },
+  "d2_chronicler": {
+   "build": {
+    "boards": 12,
+    "survivors": 10,
+    "rate": 0.8333333333333334,
+    "weight": 0.21036827548687476,
+    "holdersAfter": 6.75,
+    "othersAfter": 5.712121212121212
+   },
+   "scale": {
+    "boards": 13,
+    "survivors": 7,
+    "rate": 0.5384615384615384,
+    "weight": -0.14536042533105537,
+    "holdersAfter": 3.076923076923077,
+    "othersAfter": 3.6666666666666665
+   }
+  },
+  "k_blazer": {
+   "scale": {
+    "boards": 17,
+    "survivors": 11,
+    "rate": 0.6470588235294118,
+    "weight": 0.007257621236121746,
+    "holdersAfter": 3.6470588235294117,
+    "othersAfter": 3.6202531645569622
+   },
+   "late": {
+    "boards": 10,
+    "survivors": 3,
+    "rate": 0.3,
+    "weight": 0.20961961008669805,
+    "holdersAfter": 2.5,
+    "othersAfter": 1.8657718120805369
+   }
+  },
+  "d2_voicekeeper": {
+   "scale": {
+    "boards": 8,
+    "survivors": 6,
+    "rate": 0.75,
+    "weight": 0.3394502746836937,
+    "holdersAfter": 5.25,
+    "othersAfter": 3.5449101796407185
+   }
+  },
+  "dw_brakka": {
+   "scale": {
+    "boards": 23,
+    "survivors": 20,
+    "rate": 0.8695652173913043,
+    "weight": 0.5127423492033031,
+    "holdersAfter": 5.130434782608695,
+    "othersAfter": 3.3947368421052633
+   },
+   "late": {
+    "boards": 31,
+    "survivors": 22,
+    "rate": 0.7096774193548387,
+    "weight": 0.13121141412970358,
+    "holdersAfter": 2.129032258064516,
+    "othersAfter": 1.8515625
+   }
+  },
+  "n2_lastlight": {
+   "scale": {
+    "boards": 12,
+    "survivors": 9,
+    "rate": 0.75,
+    "weight": 0.31046800046768713,
+    "holdersAfter": 4.833333333333333,
+    "othersAfter": 3.5337423312883436
+   },
+   "late": {
+    "boards": 24,
+    "survivors": 23,
+    "rate": 0.9583333333333334,
+    "weight": 0.005783948500540358,
+    "holdersAfter": 1.9166666666666667,
+    "othersAfter": 1.9037037037037037
+   }
+  },
+  "n2_paragon": {
+   "scale": {
+    "boards": 11,
+    "survivors": 10,
+    "rate": 0.9090909090909091,
+    "weight": 0.36110508741824,
+    "holdersAfter": 5.090909090909091,
+    "othersAfter": 3.524390243902439
+   },
+   "late": {
+    "boards": 10,
+    "survivors": 0,
+    "rate": 0,
+    "weight": -0.38995902066922233,
+    "holdersAfter": 0.8,
+    "othersAfter": 1.9798657718120805
+   }
+  },
+  "d2_scalechanter": {
+   "scale": {
+    "boards": 8,
+    "survivors": 6,
+    "rate": 0.75,
+    "weight": 0.31337310257234763,
+    "holdersAfter": 5.125,
+    "othersAfter": 3.5508982035928143
+   }
+  },
+  "d2_scalefeather": {
+   "scale": {
+    "boards": 9,
+    "survivors": 8,
+    "rate": 0.8888888888888888,
+    "weight": -0.039646806298888705,
+    "holdersAfter": 3.4444444444444446,
+    "othersAfter": 3.6325301204819276
+   }
+  },
+  "b2_hawkus": {
+   "scale": {
+    "boards": 11,
+    "survivors": 5,
+    "rate": 0.45454545454545453,
+    "weight": -0.17556914016725478,
+    "holdersAfter": 2.909090909090909,
+    "othersAfter": 3.6707317073170733
+   },
+   "late": {
+    "boards": 21,
+    "survivors": 15,
+    "rate": 0.7142857142857143,
+    "weight": -0.00044596732923420546,
+    "holdersAfter": 1.9047619047619047,
+    "othersAfter": 1.9057971014492754
+   }
+  },
+  "drummer": {
+   "scale": {
+    "boards": 28,
+    "survivors": 17,
+    "rate": 0.6071428571428571,
+    "weight": -0.2822941593385713,
+    "holdersAfter": 2.857142857142857,
+    "othersAfter": 3.7687074829931975
+   },
+   "late": {
+    "boards": 42,
+    "survivors": 25,
+    "rate": 0.5952380952380952,
+    "weight": -0.17847612515953146,
+    "holdersAfter": 1.6428571428571428,
+    "othersAfter": 2
+   }
+  },
+  "n2_fatecarver": {
+   "scale": {
+    "boards": 8,
+    "survivors": 5,
+    "rate": 0.625,
+    "weight": -0.12993882332053602,
+    "holdersAfter": 3,
+    "othersAfter": 3.6526946107784433
+   }
+  },
+  "k_gemheart": {
+   "scale": {
+    "boards": 8,
+    "survivors": 7,
+    "rate": 0.875,
+    "weight": 0.07867855357023268,
+    "holdersAfter": 4,
+    "othersAfter": 3.604790419161677
+   },
+   "late": {
+    "boards": 9,
+    "survivors": 4,
+    "rate": 0.4444444444444444,
+    "weight": -0.2652645154331861,
+    "holdersAfter": 1.1111111111111112,
+    "othersAfter": 1.9533333333333334
+   }
+  },
+  "dw_mountainbond": {
+   "scale": {
+    "boards": 8,
+    "survivors": 4,
+    "rate": 0.5,
+    "weight": -0.18209316754322816,
+    "holdersAfter": 2.75,
+    "othersAfter": 3.6646706586826348
+   },
+   "late": {
+    "boards": 10,
+    "survivors": 4,
+    "rate": 0.4,
+    "weight": -0.24888169578547634,
+    "holdersAfter": 1.2,
+    "othersAfter": 1.9530201342281879
+   }
+  },
+  "dw_thane": {
+   "scale": {
+    "boards": 8,
+    "survivors": 3,
+    "rate": 0.375,
+    "weight": -0.2342475117659203,
+    "holdersAfter": 2.5,
+    "othersAfter": 3.6766467065868262
+   },
+   "late": {
+    "boards": 26,
+    "survivors": 14,
+    "rate": 0.5384615384615384,
+    "weight": -0.4298109250303621,
+    "holdersAfter": 1.1153846153846154,
+    "othersAfter": 2.0601503759398496
+   }
+  },
+  "dw_edward": {
+   "scale": {
+    "boards": 12,
+    "survivors": 7,
+    "rate": 0.5833333333333334,
+    "weight": -0.2238740538384228,
+    "holdersAfter": 2.75,
+    "othersAfter": 3.687116564417178
+   },
+   "late": {
+    "boards": 28,
+    "survivors": 18,
+    "rate": 0.6428571428571429,
+    "weight": -0.2679412566008233,
+    "holdersAfter": 1.4285714285714286,
+    "othersAfter": 2.0076335877862594
+   }
+  },
+  "d2_transcendence": {
+   "scale": {
+    "boards": 14,
+    "survivors": 6,
+    "rate": 0.42857142857142855,
+    "weight": -0.32891574503076226,
+    "holdersAfter": 2.4285714285714284,
+    "othersAfter": 3.7267080745341614
+   },
+   "late": {
+    "boards": 23,
+    "survivors": 17,
+    "rate": 0.7391304347826086,
+    "weight": -0.1756821440730681,
+    "holdersAfter": 1.565217391304348,
+    "othersAfter": 1.963235294117647
+   }
+  },
+  "k_kobe": {
+   "scale": {
+    "boards": 9,
+    "survivors": 5,
+    "rate": 0.5555555555555556,
+    "weight": 0.08380855139338045,
+    "holdersAfter": 4,
+    "othersAfter": 3.602409638554217
+   }
+  },
+  "b2_dawnclaw": {
+   "scale": {
+    "boards": 28,
+    "survivors": 14,
+    "rate": 0.5,
+    "weight": -0.25596074895251064,
+    "holdersAfter": 2.9285714285714284,
+    "othersAfter": 3.7551020408163267
+   },
+   "late": {
+    "boards": 16,
+    "survivors": 10,
+    "rate": 0.625,
+    "weight": -0.0962065359979992,
+    "holdersAfter": 1.6875,
+    "othersAfter": 1.93006993006993
+   }
+  },
+  "d2_felconjurer": {
+   "scale": {
+    "boards": 15,
+    "survivors": 7,
+    "rate": 0.4666666666666667,
+    "weight": -0.1390318198567532,
+    "holdersAfter": 3.1333333333333333,
+    "othersAfter": 3.66875
+   },
+   "late": {
+    "boards": 14,
+    "survivors": 9,
+    "rate": 0.6428571428571429,
+    "weight": 0.1874279057317964,
+    "holdersAfter": 2.357142857142857,
+    "othersAfter": 1.8620689655172413
+   }
+  },
+  "dm_chosenfiend": {
+   "scale": {
+    "boards": 9,
+    "survivors": 7,
+    "rate": 0.7777777777777778,
+    "weight": 0.05911747985492665,
+    "holdersAfter": 3.888888888888889,
+    "othersAfter": 3.608433734939759
+   },
+   "late": {
+    "boards": 8,
+    "survivors": 6,
+    "rate": 0.75,
+    "weight": 0.18615887226904762,
+    "holdersAfter": 2.5,
+    "othersAfter": 1.8741721854304636
+   }
+  },
+  "k_crownvein": {
+   "scale": {
+    "boards": 9,
+    "survivors": 6,
+    "rate": 0.6666666666666666,
+    "weight": 0.18257283754719597,
+    "holdersAfter": 4.444444444444445,
+    "othersAfter": 3.5783132530120483
+   }
+  },
+  "b2_echohorn": {
+   "scale": {
+    "boards": 19,
+    "survivors": 16,
+    "rate": 0.8421052631578947,
+    "weight": 0.5486532293153212,
+    "holdersAfter": 5.368421052631579,
+    "othersAfter": 3.41025641025641
+   },
+   "late": {
+    "boards": 37,
+    "survivors": 28,
+    "rate": 0.7567567567567568,
+    "weight": 0.042912292388084014,
+    "holdersAfter": 1.972972972972973,
+    "othersAfter": 1.8852459016393444
+   }
+  },
+  "dm_velvet": {
+   "scale": {
+    "boards": 10,
+    "survivors": 4,
+    "rate": 0.4,
+    "weight": 0.04155890948200128,
+    "holdersAfter": 3.8,
+    "othersAfter": 3.6121212121212123
+   },
+   "late": {
+    "boards": 10,
+    "survivors": 8,
+    "rate": 0.8,
+    "weight": 0.38596626619138047,
+    "holdersAfter": 3,
+    "othersAfter": 1.832214765100671
+   }
+  },
+  "dm_curator": {
+   "scale": {
+    "boards": 8,
+    "survivors": 8,
+    "rate": 1,
+    "weight": 0.2612187583496553,
+    "holdersAfter": 4.875,
+    "othersAfter": 3.562874251497006
+   }
+  },
+  "d2_herzog": {
+   "scale": {
+    "boards": 8,
+    "survivors": 6,
+    "rate": 0.75,
+    "weight": 0.02652420934754055,
+    "holdersAfter": 3.75,
+    "othersAfter": 3.6167664670658684
+   },
+   "late": {
+    "boards": 31,
+    "survivors": 28,
+    "rate": 0.9032258064516129,
+    "weight": -0.17196918309642362,
+    "holdersAfter": 1.6129032258064515,
+    "othersAfter": 1.9765625
+   }
+  },
+  "chronos": {
+   "scale": {
+    "boards": 8,
+    "survivors": 7,
+    "rate": 0.875,
+    "weight": 0.28729593046100155,
+    "holdersAfter": 5,
+    "othersAfter": 3.55688622754491
+   },
+   "late": {
+    "boards": 16,
+    "survivors": 14,
+    "rate": 0.875,
+    "weight": -0.15133028094820408,
+    "holdersAfter": 1.5625,
+    "othersAfter": 1.944055944055944
+   }
+  },
+  "dw_billings": {
+   "scale": {
+    "boards": 8,
+    "survivors": 5,
+    "rate": 0.625,
+    "weight": -0.2342475117659203,
+    "holdersAfter": 2.5,
+    "othersAfter": 3.6766467065868262
+   }
+  },
+  "sylus": {
+   "late": {
+    "boards": 33,
+    "survivors": 28,
+    "rate": 0.8484848484848485,
+    "weight": -0.12610101758271186,
+    "holdersAfter": 1.696969696969697,
+    "othersAfter": 1.9603174603174602
+   }
+  },
+  "k_deepdelve": {
+   "late": {
+    "boards": 11,
+    "survivors": 9,
+    "rate": 0.8181818181818182,
+    "weight": -0.06600823974605714,
+    "holdersAfter": 1.7272727272727273,
+    "othersAfter": 1.9189189189189189
+   }
+  },
+  "k_mineralmaster": {
+   "late": {
+    "boards": 8,
+    "survivors": 6,
+    "rate": 0.75,
+    "weight": -0.04875589511808398,
+    "holdersAfter": 1.75,
+    "othersAfter": 1.913907284768212
+   }
+  },
+  "b2_spots": {
+   "late": {
+    "boards": 11,
+    "survivors": 10,
+    "rate": 0.9090909090909091,
+    "weight": -0.16692468320397152,
+    "holdersAfter": 1.4545454545454546,
+    "othersAfter": 1.9391891891891893
+   }
+  },
+  "dw_tapkeeper": {
+   "late": {
+    "boards": 27,
+    "survivors": 20,
+    "rate": 0.7407407407407407,
+    "weight": -0.09116962237586464,
+    "holdersAfter": 1.7407407407407407,
+    "othersAfter": 1.9393939393939394
+   }
+  },
+  "d2_warflame": {
+   "late": {
+    "boards": 13,
+    "survivors": 11,
+    "rate": 0.8461538461538461,
+    "weight": -0.05471870764838864,
+    "holdersAfter": 1.7692307692307692,
+    "othersAfter": 1.917808219178082
+   }
+  },
+  "d2_flamebeat": {
+   "late": {
+    "boards": 11,
+    "survivors": 5,
+    "rate": 0.45454545454545453,
+    "weight": -0.33511875563382865,
+    "holdersAfter": 1,
+    "othersAfter": 1.972972972972973
+   }
+  },
+  "d2_grimoire": {
+   "late": {
+    "boards": 8,
+    "survivors": 6,
+    "rate": 0.75,
+    "weight": 0.18615887226904762,
+    "holdersAfter": 2.5,
+    "othersAfter": 1.8741721854304636
+   }
+  },
+  "b2_oona": {
+   "late": {
+    "boards": 8,
+    "survivors": 7,
+    "rate": 0.875,
+    "weight": 0.26446379473142484,
+    "holdersAfter": 2.75,
+    "othersAfter": 1.8609271523178808
+   }
+  },
+  "dm_glutton": {
+   "late": {
+    "boards": 12,
+    "survivors": 6,
+    "rate": 0.5,
+    "weight": -0.06009910337004632,
+    "holdersAfter": 1.75,
+    "othersAfter": 1.9183673469387754
+   }
+  },
+  "dm_grevlin": {
+   "late": {
+    "boards": 13,
+    "survivors": 3,
+    "rate": 0.23076923076923078,
+    "weight": -0.4557951924328542,
+    "holdersAfter": 0.7692307692307693,
+    "othersAfter": 2.006849315068493
+   }
+  },
+  "dm_maw": {
+   "late": {
+    "boards": 12,
+    "survivors": 8,
+    "rate": 0.6666666666666666,
+    "weight": 0.19729503631580853,
+    "holdersAfter": 2.4166666666666665,
+    "othersAfter": 1.8639455782312926
+   }
+  },
+  "dm_felspikes": {
+   "late": {
+    "boards": 16,
+    "survivors": 16,
+    "rate": 1,
+    "weight": 0.1518503162779231,
+    "holdersAfter": 2.25,
+    "othersAfter": 1.867132867132867
+   }
+  },
+  "dm_todd": {
+   "late": {
+    "boards": 12,
+    "survivors": 12,
+    "rate": 1,
+    "weight": -0.12444763829150997,
+    "holdersAfter": 1.5833333333333333,
+    "othersAfter": 1.9319727891156462
+   }
+  },
+  "b2_mammoth": {
+   "late": {
+    "boards": 8,
+    "survivors": 8,
+    "rate": 1,
+    "weight": 0.3036162559626135,
+    "holdersAfter": 2.875,
+    "othersAfter": 1.8543046357615893
+   }
+  },
+  "n2_abomination": {
+   "late": {
+    "boards": 10,
+    "survivors": 10,
+    "rate": 1,
+    "weight": 0.06854228520295205,
+    "holdersAfter": 2.1,
+    "othersAfter": 1.8926174496644295
+   }
+  },
+  "k_kobabyboldies": {
+   "late": {
+    "boards": 8,
+    "survivors": 6,
+    "rate": 0.75,
+    "weight": 0.10785394980667037,
+    "holdersAfter": 2.25,
+    "othersAfter": 1.8874172185430464
+   }
+  }
+ },
+ "pairs": {
+  "dm_hank|dw_pimm": {
+   "open": {
+    "boards": 8,
+    "survivors": 5,
+    "weight": 0.08737140869225798
+   },
+   "build": {
+    "boards": 11,
+    "survivors": 4,
+    "weight": 0.06348403986453346
+   }
+  },
+  "dw_pimm|manasaber": {
+   "build": {
+    "boards": 11,
+    "survivors": 3,
+    "weight": 0.2605389047352995
+   }
+  },
+  "d2_embermouth|dm_knocked": {
+   "build": {
+    "boards": 8,
+    "survivors": 0,
+    "weight": 0.8339138107085454
+   }
+  },
+  "buddy|dm_knocked": {
+   "build": {
+    "boards": 8,
+    "survivors": 2,
+    "weight": 0.49513841045137486
+   }
+  },
+  "dm_knocked|dw_brunni": {
+   "build": {
+    "boards": 8,
+    "survivors": 5,
+    "weight": 0.25741247878078816
+   }
+  },
+  "dm_knocked|dm_leech": {
+   "build": {
+    "boards": 13,
+    "survivors": 3,
+    "weight": 0.46076143035206846
+   }
+  },
+  "dm_knocked|k_geode": {
+   "build": {
+    "boards": 9,
+    "survivors": 3,
+    "weight": 0.14911561442371885
+   }
+  },
+  "d2_embermouth|k_deepvein": {
+   "build": {
+    "boards": 8,
+    "survivors": 0,
+    "weight": 0.5178762440136881
+   }
+  },
+  "dw_pimm|k_chipwick": {
+   "build": {
+    "boards": 9,
+    "survivors": 1,
+    "weight": 0.6723867327131864
+   }
+  },
+  "d2_chorus|dw_gangplank": {
+   "build": {
+    "boards": 8,
+    "survivors": 6,
+    "weight": -0.2900436990626853
+   },
+   "scale": {
+    "boards": 10,
+    "survivors": 8,
+    "weight": -0.11717420344826174
+   }
+  },
+  "dm_hank|k_geode": {
+   "build": {
+    "boards": 8,
+    "survivors": 5,
+    "weight": -0.12078374504724709
+   }
+  },
+  "dw_wardkeeper|k_geode": {
+   "build": {
+    "boards": 8,
+    "survivors": 5,
+    "weight": 0.06956733294378903
+   }
+  },
+  "dm_knocked|k_deepvein": {
+   "build": {
+    "boards": 8,
+    "survivors": 2,
+    "weight": 0.17310778050534925
+   }
+  },
+  "dm_gourmand|n2_standardbearer": {
+   "scale": {
+    "boards": 8,
+    "survivors": 4,
+    "weight": -0.6516591745302336
+   }
+  },
+  "dm_gourmand|dm_hungerling": {
+   "scale": {
+    "boards": 8,
+    "survivors": 5,
+    "weight": -0.570286320086162
+   }
+  },
+  "dw_brakka|dw_gangplank": {
+   "scale": {
+    "boards": 8,
+    "survivors": 6,
+    "weight": -0.6272718741110858
+   }
+  },
+  "dw_brunni|dw_gangplank": {
+   "scale": {
+    "boards": 9,
+    "survivors": 6,
+    "weight": -0.14838347569066085
+   }
+  },
+  "d2_chorus|n2_bellringer": {
+   "scale": {
+    "boards": 10,
+    "survivors": 7,
+    "weight": -0.3490674017693412
+   }
+  },
+  "d2_chorus|n2_standardbearer": {
+   "scale": {
+    "boards": 18,
+    "survivors": 8,
+    "weight": -0.34852885220917307
+   },
+   "late": {
+    "boards": 8,
+    "survivors": 2,
+    "weight": -0.48227190489300914
+   }
+  },
+  "drummer|dw_edward": {
+   "scale": {
+    "boards": 8,
+    "survivors": 6,
+    "weight": 0.4701897227055149
+   },
+   "late": {
+    "boards": 22,
+    "survivors": 15,
+    "weight": 0.29553211580484084
+   }
+  },
+  "d2_chorus|d2_transcendence": {
+   "scale": {
+    "boards": 9,
+    "survivors": 6,
+    "weight": 0.18785325822812998
+   },
+   "late": {
+    "boards": 11,
+    "survivors": 8,
+    "weight": -0.15587920598763144
+   }
+  },
+  "d2_chorus|dm_gourmand": {
+   "scale": {
+    "boards": 8,
+    "survivors": 8,
+    "weight": -0.20209626698356176
+   },
+   "late": {
+    "boards": 9,
+    "survivors": 9,
+    "weight": -0.2563598864254102
+   }
+  },
+  "b2_dawnclaw|k_deepvein": {
+   "scale": {
+    "boards": 11,
+    "survivors": 7,
+    "weight": 0.22620520058653115
+   }
+  },
+  "dm_hungerling|dm_velvet": {
+   "scale": {
+    "boards": 8,
+    "survivors": 4,
+    "weight": 0.0757946177054131
+   }
+  },
+  "d2_cinderchef|n2_standardbearer": {
+   "scale": {
+    "boards": 9,
+    "survivors": 7,
+    "weight": -0.18705684223952057
+   }
+  },
+  "k_deepvein|k_faultline": {
+   "scale": {
+    "boards": 8,
+    "survivors": 5,
+    "weight": -0.13153531808709237
+   }
+  },
+  "dw_brakka|n2_lastlight": {
+   "late": {
+    "boards": 10,
+    "survivors": 10,
+    "weight": -0.06168292786855621
+   }
+  },
+  "drummer|dw_brakka": {
+   "late": {
+    "boards": 12,
+    "survivors": 9,
+    "weight": 0.12269302984241222
+   }
+  },
+  "n2_lastlight|sylus": {
+   "late": {
+    "boards": 8,
+    "survivors": 8,
+    "weight": -0.050504029612258486
+   }
+  },
+  "drummer|dw_thane": {
+   "late": {
+    "boards": 11,
+    "survivors": 7,
+    "weight": 0.4603887069166488
+   }
+  },
+  "dw_edward|dw_thane": {
+   "late": {
+    "boards": 14,
+    "survivors": 9,
+    "weight": 0.47719062699980075
+   }
+  },
+  "d2_herzog|drummer": {
+   "late": {
+    "boards": 14,
+    "survivors": 14,
+    "weight": 0.31218024322244
+   }
+  },
+  "d2_chorus|d2_herzog": {
+   "late": {
+    "boards": 18,
+    "survivors": 18,
+    "weight": -0.11299860055753151
+   }
+  },
+  "d2_chorus|drummer": {
+   "late": {
+    "boards": 14,
+    "survivors": 13,
+    "weight": -0.10517545777903531
+   }
+  },
+  "drummer|dw_tapkeeper": {
+   "late": {
+    "boards": 14,
+    "survivors": 11,
+    "weight": 0.1630194989026798
+   }
+  },
+  "dw_edward|dw_tapkeeper": {
+   "late": {
+    "boards": 15,
+    "survivors": 11,
+    "weight": 0.12407163505140667
+   }
+  },
+  "dw_tapkeeper|dw_thane": {
+   "late": {
+    "boards": 10,
+    "survivors": 5,
+    "weight": 0.18690231115566253
+   }
+  },
+  "d2_chorus|d2_warflame": {
+   "late": {
+    "boards": 8,
+    "survivors": 6,
+    "weight": -0.3067471443802098
+   }
+  },
+  "d2_herzog|d2_warflame": {
+   "late": {
+    "boards": 10,
+    "survivors": 10,
+    "weight": 0.2764134085682344
+   }
+  },
+  "d2_chorus|n2_lastlight": {
+   "late": {
+    "boards": 9,
+    "survivors": 9,
+    "weight": -0.3390167370533203
+   }
+  },
+  "d2_herzog|n2_lastlight": {
+   "late": {
+    "boards": 11,
+    "survivors": 10,
+    "weight": 0.1175098304806381
+   }
+  },
+  "n2_paragon|n2_standardbearer": {
+   "late": {
+    "boards": 8,
+    "survivors": 0,
+    "weight": 0.0709798502861978
+   }
+  },
+  "b2_oona|manasaber": {
+   "late": {
+    "boards": 8,
+    "survivors": 7,
+    "weight": -0.23748378129763628
+   }
+  },
+  "b2_echohorn|dm_gourmand": {
+   "late": {
+    "boards": 8,
+    "survivors": 8,
+    "weight": -0.22513092410454982
+   }
+  },
+  "b2_echohorn|dm_velvet": {
+   "late": {
+    "boards": 8,
+    "survivors": 8,
+    "weight": -0.08001129961440506
+   }
+  },
+  "dm_gourmand|dm_velvet": {
+   "late": {
+    "boards": 10,
+    "survivors": 8,
+    "weight": -0.6370443866050917
+   }
+  },
+  "dm_maw|drummer": {
+   "late": {
+    "boards": 8,
+    "survivors": 5,
+    "weight": -0.08023193455397258
+   }
+  },
+  "d2_herzog|d2_transcendence": {
+   "late": {
+    "boards": 8,
+    "survivors": 7,
+    "weight": 0.17683022847506172
+   }
+  },
+  "d2_transcendence|n2_bellringer": {
+   "late": {
+    "boards": 9,
+    "survivors": 9,
+    "weight": -0.28729862123256966
+   }
+  },
+  "b2_hawkus|dm_felspikes": {
+   "late": {
+    "boards": 10,
+    "survivors": 10,
+    "weight": -0.10167883112526674
+   }
+  },
+  "b2_hawkus|sylus": {
+   "late": {
+    "boards": 17,
+    "survivors": 14,
+    "weight": 0.1604718670522497
+   }
+  },
+  "dm_felspikes|dm_todd": {
+   "late": {
+    "boards": 11,
+    "survivors": 11,
+    "weight": -0.1753010212596579
+   }
+  },
+  "dm_todd|sylus": {
+   "late": {
+    "boards": 11,
+    "survivors": 11,
+    "weight": 0.10265031260097701
+   }
+  },
+  "b2_echohorn|dm_felspikes": {
+   "late": {
+    "boards": 10,
+    "survivors": 10,
+    "weight": -0.2217978416573823
+   }
+  },
+  "b2_mammoth|manasaber": {
+   "late": {
+    "boards": 8,
+    "survivors": 8,
+    "weight": -0.24928422370464134
+   }
+  },
+  "dm_glutton|dm_gourmand": {
+   "late": {
+    "boards": 9,
+    "survivors": 6,
+    "weight": -0.448543681752496
+   }
+  },
+  "d2_transcendence|n2_abomination": {
+   "late": {
+    "boards": 8,
+    "survivors": 8,
+    "weight": 0.12778289194497156
+   }
+  },
+  "b2_dawnclaw|b2_echohorn": {
+   "late": {
+    "boards": 11,
+    "survivors": 10,
+    "weight": 0.054230309073669804
+   }
+  },
+  "b2_spots|sylus": {
+   "late": {
+    "boards": 9,
+    "survivors": 9,
+    "weight": 0.1568708603955198
+   }
+  },
+  "b2_spots|dm_felspikes": {
+   "late": {
+    "boards": 8,
+    "survivors": 8,
+    "weight": -0.07369067529583066
+   }
+  },
+  "b2_spots|dm_todd": {
+   "late": {
+    "boards": 8,
+    "survivors": 8,
+    "weight": 0.22995929809778598
+   }
+  }
+ },
+ "golden": {
+  "open": {
+   "survivorsMean": 0.022388059701492536,
+   "othersMean": 0.00847457627118644,
+   "perGolden": 0.1206809884193346
+  },
+  "build": {
+   "survivorsMean": 0.3153153153153153,
+   "othersMean": 0.1717171717171717,
+   "perGolden": 0.4242763122170653
+  },
+  "scale": {
+   "survivorsMean": 0.6826923076923077,
+   "othersMean": 0.43661971830985913,
+   "perGolden": 0.3774499687757822
+  },
+  "late": {
+   "survivorsMean": 1.509090909090909,
+   "othersMean": 1.2040816326530612,
+   "perGolden": 0.21017030350855037
+  }
+ },
+ "focus": {
+  "open": {
+   "mean": 0.7315476190476191,
+   "slope": 0
+  },
+  "build": {
+   "mean": 0.537471655328798,
+   "slope": 0
+  },
+  "scale": {
+   "mean": 0.5236326530612244,
+   "slope": 0
+  },
+  "late": {
+   "mean": 0.564690026954178,
+   "slope": 0
+  }
+ },
+ "size": {
+  "open": {
+   "survivorsMean": 1.992537313432836,
+   "othersMean": 1.8389830508474576,
+   "perBody": 0.06358495177430384
+  },
+  "build": {
+   "survivorsMean": 5.351351351351352,
+   "othersMean": 4.94949494949495,
+   "perBody": 0.07114970023472075
+  },
+  "scale": {
+   "survivorsMean": 6.740384615384615,
+   "othersMean": 6.23943661971831,
+   "perBody": 0.07169799480682731
+  },
+  "late": {
+   "survivorsMean": 6.909090909090909,
+   "othersMean": 6.816326530612245,
+   "perBody": 0.012599385519398055
+  }
+ },
+ "meta": {
+  "corpus": {
+   "name": "set2-players-v1",
+   "digest": "87909308f9c0a30b"
+  },
+  "runs": 70,
+  "boards": 796,
+  "minBoards": 8,
+  "pairMinBoards": 8,
+  "validation": {
+   "folds": 5,
+   "overall": {
+    "boards": 796,
+    "auc": 0.6002469566791439,
+    "nullAuc": 0.5,
+    "spearman": -0.16048466933449998
+   },
+   "byBand": {
+    "open": {
+     "boards": 252,
+     "auc": 0.611181381229446,
+     "nullAuc": 0.5,
+     "spearman": 0.22269158970551142
+    },
+    "build": {
+     "boards": 210,
+     "auc": 0.6277641277641277,
+     "nullAuc": 0.5,
+     "spearman": 0.2838778391382668
+    },
+    "scale": {
+     "boards": 175,
+     "auc": 0.5990655471289275,
+     "nullAuc": 0.5,
+     "spearman": 0.2677834929167291
+    },
+    "late": {
+     "boards": 159,
+     "auc": 0.46808905380333954,
+     "nullAuc": 0.5,
+     "spearman": -0.1270299205050273
+    }
+   }
+  }
+ }
+}

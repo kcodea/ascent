@@ -86,3 +86,13 @@ export {
   rebuildEquipment, selectEquipment, selectedEquipment, selectedEquipmentDef, spendEquipmentCharge, syncStarDestroyer,
   type ReequipCue,
 } from './equipment';
+
+// BALANCE BOT (docs/balance-bot-roadmap.md) — the shared contract + the PURE identity half. Node-only inputs (git,
+// the effect source text) live in `packages/tools/src/balance/identity.ts`; this stays browser-safe.
+export * from './balance/types';
+export { stateHash } from './balance/hash';
+export {
+  digest, canonicalJson, MANIFEST_DEFAULTS, resolveManifest, contentSurface, contentDigestFor, poolDigestFor,
+  effectFactoryIds, effectDigestFor, manifestDigestOf, computeExperimentIdentity, UNKNOWN_ENVIRONMENT,
+  type ResolvedManifest, type EnvironmentIdentity,
+} from './balance/identity';

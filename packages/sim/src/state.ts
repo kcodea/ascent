@@ -1,5 +1,5 @@
 import { makeRng } from '@game/core';
-import type { BounceKind, CombatOutcome, CombatResult, EffectDef, Keyword, QuestObjectiveEvent, Rng, Tribe } from '@game/core';
+import type { BoardMinion, BounceKind, CombatConfig, CombatOutcome, CombatResult, CombatSideState, EffectDef, Keyword, QuestObjectiveEvent, Rng, Tribe } from '@game/core';
 import { CARD_INDEX, SETS, activeSet, poolFor, type SetId } from '@game/content';
 import { CONFIG, HENCHMEN_ARCHIVED, RIFT_BONUS_ARMOR, activeRift, type RiftId } from './config';
 import { DEFAULT_HERO_ID, getHero, powerDiscoverPool } from './heroes';
@@ -2075,6 +2075,10 @@ export interface RunState {
     toIndex?: number };
   /** The most recent combat's result, for the UI to replay. Transient. */
   lastCombat?: CombatResult;
+  /** BALANCE BOT (B1): the fully prepared combat side of a DEFERRED fight — set by `faceOmen { deferFight }`,
+   *  consumed by `resolveCombat { fight }`. While set, the run is in `combat` with NO result yet: `settleCombat`
+   *  and a bare `resolveCombat` refuse. Never set by ordinary play. */
+  pendingCombatSide?: PreparedCombatSide;
   /** OPPONENT PINNING: the exact board fought each wave, keyed by wave number — the full served
    *  `BoardSnapshot`, or `null` when the procedural threat was used (no pool match). The opponent pick is
    *  already deterministic from `(seed, wave)` GIVEN the pool, so within a session/frozen pool a replay
@@ -2125,6 +2129,30 @@ export interface PlayerEquipmentState {
   bonusSpent: number;
   /** Gold off the next activation. Additive, floored at 0 by `equipmentCostOf`, expires at End of Turn. */
   temporaryCostReduction: number;
+}
+
+/**
+ * A prepared combat side, parked on the run between `faceOmen { deferFight }` and `resolveCombat { fight }`
+ * (balance bot B1, 2026-09-15). Built by the reducer's `preparePlayerCombatSide` — the ONE builder the shipped
+ * player fight uses — so a self-play seat fights with everything its owner's run would carry. Plain data
+ * (survives the reducer's structuredClone); `fleeting*` / `twilightMult` are what the combat-entry tail needs
+ * to rewind Fleeting Vigor's pre-baked surge into opening events.
+ */
+export interface PreparedCombatSide {
+  board: BoardMinion[];
+  state: CombatSideState;
+  config: CombatConfig;
+  fleeting: { attack: number; health: number } | null;
+  fleetingCovered: number;
+  twilightMult: number;
+}
+
+/** The landing payload of a deferred fight — see `Action` `resolveCombat`. */
+export interface DeferredFight {
+  /** The authoritative result from THIS seat's perspective (`player` = this run). */
+  result: CombatResult;
+  /** Resolve+Armor the lobby charged this seat for the fight (already round-capped). Armor absorbs first. */
+  damageTaken: number;
 }
 
 export type Action =
@@ -2178,9 +2206,13 @@ export type Action =
    *  lived it, and so the reducer never reads a clock. A no-op when no window is open. */
   | { type: 'discountWindowExpired' }
   | { type: 'closeScout' } // Farseer's Report: dismiss the scout reveal
-  | { type: 'faceOmen' }
+  /** End the turn. `deferFight` (balance bot B1): end the turn and prepare the full combat side, but resolve NO
+   *  fight — the self-play lobby simulates the pair once and lands the result via `resolveCombat { fight }`. */
+  | { type: 'faceOmen'; deferFight?: true }
   | { type: 'settleCombat' }
-  | { type: 'resolveCombat' }
+  /** Leave combat. `fight` lands a DEFERRED fight's result (this seat's perspective) + the damage the lobby
+   *  charged it, then settles and advances exactly as a bare `resolveCombat` does. */
+  | { type: 'resolveCombat'; fight?: DeferredFight }
   /** DEV Scene Builder only — drop a quest (optionally already completed) or a rune straight into the run so
    *  its interactions can be tested without playing to the turn that offers it. Routed through the SAME
    *  reward engine a real buy/completion uses; see the reducer case. */

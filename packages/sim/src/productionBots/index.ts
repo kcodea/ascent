@@ -9,3 +9,5 @@ export * from './fightScore';
 export * from './difficulties';
 export * from './search';
 export * from './controller';
+export { pilotSearch, type PilotSearchResult, type PlannedStep as PilotPlannedStep } from './pilotSearch';
+export * from './combatContext';

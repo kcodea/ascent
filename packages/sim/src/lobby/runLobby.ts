@@ -444,8 +444,9 @@ export function playerOpponent(lobby: RunLobby): { seat: LobbySeatState; board: 
   return board ? { seat: foe, board } : null;
 }
 
-/** Apply damage through Armor then Resolve. */
-function hit(seat: LobbySeatState, amount: number): void {
+/** Apply damage through Armor then Resolve. Exported as `hitSeat` so the balance bot's self-play lobby charges
+ *  its seats through the one function the shipped table uses (B1, 2026-09-15). */
+export function hitSeat(seat: Pick<LobbySeatState, 'armor' | 'resolve'>, amount: number): void {
   const left = Math.max(0, amount);
   const fromArmor = Math.min(seat.armor, left);
   seat.armor -= fromArmor;
@@ -601,8 +602,8 @@ export function settleRunLobbyRound(lobby: RunLobby, playerResult: CombatResult)
       dmgToB = Math.min(seatCap, Math.round((r.enemyDamage ?? 0) * seatDamageMult));
     }
 
-    hit(a, dmgToA);
-    hit(b, dmgToB);
+    hitSeat(a, dmgToA);
+    hitSeat(b, dmgToB);
     for (const [seat, taken, dealt] of [[a, dmgToA, dmgToB], [b, dmgToB, dmgToA]] as const) {
       driverFor(seat, lobby.setId)?.settle({
         round: lobby.round,
@@ -610,11 +611,7 @@ export function settleRunLobbyRound(lobby: RunLobby, playerResult: CombatResult)
         damageTaken: taken, damageDealt: dealt,
         seatResolve: seat.resolve, seatArmor: seat.armor,
       });
-      if (seat.alive && seat.armor + seat.resolve <= 0) {
-        seat.alive = false;
-        seat.eliminatedRound = lobby.round;
-        eliminated.push(seat);
-      }
+      knockOutIfDead(seat, lobby.round, eliminated);
     }
     lobby.encounters.push({ round: lobby.round, a: a.id, b: b.id, outcome, damageToA: dmgToA, damageToB: dmgToB, fought: true });
   }
@@ -629,28 +626,20 @@ export function settleRunLobbyRound(lobby: RunLobby, playerResult: CombatResult)
       const r = simulate(mine.minions, board.minions, rng, CARD_INDEX,
         combatSide({ tier: mine.tier }), combatSide({ tier: board.tier }));
       const dmg = Math.min(cap, r.playerDamage);
-      hit(bye, dmg);
+      hitSeat(bye, dmg);
       driverFor(bye, lobby.setId)?.settle({
         round: lobby.round, outcome: r.result, damageTaken: dmg, damageDealt: 0,
         seatResolve: bye.resolve, seatArmor: bye.armor,
       });
-      if (bye.alive && bye.armor + bye.resolve <= 0) {
-        bye.alive = false;
-        bye.eliminatedRound = lobby.round;
-        eliminated.push(bye);
-      }
+      knockOutIfDead(bye, lobby.round, eliminated);
       lobby.encounters.push({ round: lobby.round, a: bye.id, b: ghost!.seat.id, outcome: r.result, damageToA: dmg, damageToB: 0, bye: bye.id, fought: true });
     } else if (bye.id === 's0' && board) {
       // The PLAYER holds the bye: their ghost fight was already resolved by the reducer and is in
       // `playerResult`, so it settles from that rather than being re-simulated — the same one-fight-one-truth
       // rule as any other round. Without this the player took a free round whenever the count went odd.
       const dmg = Math.min(cap, playerResult.playerDamage);
-      hit(bye, dmg);
-      if (bye.alive && bye.armor + bye.resolve <= 0) {
-        bye.alive = false;
-        bye.eliminatedRound = lobby.round;
-        eliminated.push(bye);
-      }
+      hitSeat(bye, dmg);
+      knockOutIfDead(bye, lobby.round, eliminated);
       lobby.encounters.push({ round: lobby.round, a: bye.id, b: ghost!.seat.id, outcome: playerResult.result, damageToA: dmg, damageToB: 0, bye: bye.id, fought: true });
     } else {
       // No ghost yet (nobody has been eliminated) — a genuine sit-out.
@@ -669,7 +658,7 @@ export function settleRunLobbyRound(lobby: RunLobby, playerResult: CombatResult)
     let living = opponents();
     while (living.length > target) {
       const weakest = [...living].sort((x, y) => (x.armor + x.resolve) - (y.armor + y.resolve) || x.id.localeCompare(y.id))[0]!;
-      hit(weakest, weakest.armor + weakest.resolve); // knock out through the normal damage path
+      hitSeat(weakest, weakest.armor + weakest.resolve); // knock out through the normal damage path
       weakest.alive = false;
       weakest.eliminatedRound = lobby.round;
       eliminated.push(weakest);
@@ -677,6 +666,26 @@ export function settleRunLobbyRound(lobby: RunLobby, playerResult: CombatResult)
     }
   }
 
+  return closeRunLobbyRound(lobby, eliminated, hpBefore);
+}
+
+/** A seat at zero total is out: mark it and queue it for this round's placement. The ONE knockout test the
+ *  table applies (exported for the balance bot's self-play lobby, B1 2026-09-15). */
+export function knockOutIfDead(seat: LobbySeatState, round: number, eliminated: LobbySeatState[]): void {
+  if (seat.alive && seat.armor + seat.resolve <= 0) {
+    seat.alive = false;
+    seat.eliminatedRound = round;
+    eliminated.push(seat);
+  }
+}
+
+/**
+ * Close a round once every fight has been charged: the wipeout guard, shared placements for simultaneous
+ * knockouts, the round advance and the finish test. Extracted from `settleRunLobbyRound` (balance bot B1,
+ * 2026-09-15) so the self-play lobby — which resolves its fights elsewhere — ends its rounds by the same rules.
+ * `hpBefore` is every seat's Resolve+Armor ENTERING the round (the wipeout tiebreak).
+ */
+export function closeRunLobbyRound(lobby: RunLobby, eliminated: LobbySeatState[], hpBefore: Map<string, number>): RunLobby {
   // Never leave a round with nobody standing (see `resolveRound`'s wipeout guard).
   if (eliminated.length > 0 && lobby.seats.every((s) => !s.alive)) {
     const winner = [...eliminated].sort((x, y) => (hpBefore.get(y.id) ?? 0) - (hpBefore.get(x.id) ?? 0) || x.id.localeCompare(y.id))[0]!;

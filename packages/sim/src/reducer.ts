@@ -19,8 +19,8 @@ import {
   equipmentChargesOf, equipmentCostOf, expireEquipmentTurn, rebuildEquipment, spendEquipmentCharge,
   selectEquipment, selectedEquipment,
 } from './equipment';
-import { applyChooseOnePlayed, spendChooseBothCharge, noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, roundedSpellbookCostOf, buyoutCostOf, commissionOffer, COMMISSION_DELAY, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, stampSharedSpoils, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, chooseBothActive, chooseOneNeedsChoice, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, fireDemonPlayRunes, creditShopBuffSource, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, rubyStatBonus, yazzusExtraCasts, consumeGrimoireCharge, countRubyAsShopSpell, fireSpellCastWatchersForRuby, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, landBorrowed, settlePendingDeath, stampEquipFx, fireEquipmentTriggers, buyHealthAura, undeadBuyBonus, weldMagnetic , defIsTribe, handCardLocked} from './recruit';
-import { handCap, mixSeed, reservedHandSlots, TAG, henchmanOffer, type Action, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type ShopCard, type CiaSuit, type Commission, type CommissionKind, type RunState, type RubyLandedFx, gateUses, procRune, procRuneId, runeBuffMagnitude } from './state';
+import { applyChooseOnePlayed, spendChooseBothCharge, noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, heroPowerCostOf, commissionOffer, COMMISSION_DELAY, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, stampSharedSpoils, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, chooseBothActive, chooseOneNeedsChoice, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, fireDemonPlayRunes, creditShopBuffSource, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, rubyStatBonus, yazzusExtraCasts, consumeGrimoireCharge, countRubyAsShopSpell, fireSpellCastWatchersForRuby, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, landBorrowed, settlePendingDeath, stampEquipFx, fireEquipmentTriggers, buyHealthAura, undeadBuyBonus, weldMagnetic , defIsTribe, handCardLocked} from './recruit';
+import { handCap, recordBounceFx, mixSeed, reservedHandSlots, TAG, henchmanOffer, type Action, type DeferredFight, type PreparedCombatSide, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type ShopCard, type CiaSuit, type Commission, type CommissionKind, type RunState, type RubyLandedFx, gateUses, procRune, procRuneId, runeBuffMagnitude } from './state';
 import { alignmentsOf } from './alignment';
 import { RUNE_DUP_SWEETENER, RUNE_DUP_UNIQUE, forgeFilteredDuplicate, runeStacksOf } from './runeDup';
 import { spellFizzles } from './spellFizzle';
@@ -35,10 +35,17 @@ function spendGold(s: RunState, amount: number): void {
   s.embers -= amount;
   s.goldSpent = (s.goldSpent ?? 0) + amount; // career/post-run stat
   s.goldSpentThisTurn = (s.goldSpentThisTurn ?? 0) + amount; // per-turn (Patch Job); reset each wave
-  // Indy: the (spent) Gild charge recharges after every 40 Gold spent — un-spend it the moment the threshold lands.
-  if (s.heroId === 'indy' && s.heroPowerSpent && s.indyGildRearmAt != null && s.goldSpent >= s.indyGildRearmAt) {
-    s.heroPowerSpent = false;
-    s.indyGildRearmAt = undefined;
+  // Indy: the (spent) Gild charge recharges after INDY_GILD_RECHARGE_GOLD more Gold spent — un-spend it the
+  // moment the threshold lands. Keyed off the WIELDED power, not `heroId === 'indy'`, and off the slot that
+  // holds it: a Void / Mimic / Power Shifter adopter used to arm the recharge (`indyGildRearmAt`) and print
+  // the recharge pill, then never rearm — the gate only ever looked at Indy himself (owner report 2026-09-15).
+  if (s.indyGildRearmAt != null && s.goldSpent >= s.indyGildRearmAt) {
+    const slot = activePowers(s).findIndex((p) => p.kind === 'gild');
+    const spent = slot === 1 ? s.heroPowerSpent2 : s.heroPowerSpent;
+    if (slot >= 0 && spent) {
+      if (slot === 1) s.heroPowerSpent2 = false; else s.heroPowerSpent = false;
+      s.indyGildRearmAt = undefined;
+    }
   }
   applyGoldSpent(s, amount);
   advanceQuestsBy(s, (o) => o.event === 'spendGold', amount); // Coin Hoard: "Spend N Gold"
@@ -1310,6 +1317,7 @@ function reduceCore(state: RunState, action: Action): RunState {
   s.fodderEaten = [];
   s.shopEaten = []; // Set 2's shop-minion consume swirl — same per-action contract, separate channel
   s.starformFx = []; // Set 3's Starform pulls (consume-shop / consumed / collapse) — same per-action contract
+  s.bounceFx = []; // the cross-target re-cast hops (spell-bounce / ruby-bounce) — same per-action contract
   s.gainCardFiredUids = []; // per-action: which hand arrivals already fired onGainCard (see the hand diff in `reduce`)
   s.gainAttackFiredUids = []; // per-action: Attack gains already dispatched inside the action (per-card EoT waves)
   s.starformGainFired = undefined; // per-action: Starform growth already dispatched as `starformGained` (see the diff in `reduce`)
@@ -1718,6 +1726,7 @@ function reduceCore(state: RunState, action: Action): RunState {
             // One extra landing per copy held (owner 2026-08-27, unique-engine doubling).
             for (let n = 0; n < casts * runeStacksOf(s, 'rune_redirection'); n++) {
               addBuff(tail, 'Ruby', card.attack, card.health);
+              recordBounceFx(s, 'ruby', boardTarget.uid, tail.uid); // the hop: left-most → right-most
               fireOnRubyPlayed(s, tail, card.attack, card.health);
             }
           }
@@ -1735,6 +1744,7 @@ function reduceCore(state: RunState, action: Action): RunState {
           // One extra landing per copy held (owner 2026-08-27, unique-engine doubling).
           if (lead) for (let n = 0; n < casts * runeStacksOf(s, 'rune_distillation'); n++) {
             addBuff(lead, 'Ruby', card.attack, card.health);
+            recordBounceFx(s, 'ruby', offer.uid, lead.uid); // the hop: the Shop offer → your left-most
             fireOnRubyPlayed(s, lead, card.attack, card.health);
           }
         }
@@ -1902,7 +1912,10 @@ function reduceCore(state: RunState, action: Action): RunState {
             const lead = s.runeDistillation ? s.board[0] : undefined;
             if (lead) procRune(s, 'runeDistillation');
             // One extra cast per copy held (owner 2026-08-27, unique-engine doubling).
-            if (lead) for (let n = 0; n < casts * runeStacksOf(s, 'rune_distillation'); n++) castSpell(s, def, lead);
+            if (lead) for (let n = 0; n < casts * runeStacksOf(s, 'rune_distillation'); n++) {
+              recordBounceFx(s, 'spell', offer.uid, lead.uid); // the hop: the Shop offer → your left-most
+              castSpell(s, def, lead);
+            }
           }
           else return state; // a valid target is required (a friendly minion, or a tavern offer for `any`)
         } else {
@@ -2861,7 +2874,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       } else if (power.kind === 'dynamiteDig') {
         // Jensen: Discover a minion of your CURRENT tier — the FIRST dig is free, then the cost climbs 1
         // each use (0, 1, 2, …). Untargeted; cost + use count handled here (not the shared block).
-        const digCost = heroUses;
+        const digCost = heroPowerCostOf(power, s, heroUses);
         if (s.embers < digCost) return state; // can't afford this use → no charge spent
         spendGold(s, digCost);
         if (slot === 1) s.heroPowerUses2 = heroUses + 1; else s.heroPowerUses = heroUses + 1; // escalate the FIRING slot's next cost (a Void slot-1 Dig must not tax slot 0)
@@ -2871,7 +2884,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         // Tiff: Discover a Dragon for 5 Gold, reduced 1 per Dragon/spell bought since the last use
         // (`tiffDiscount` via dragonTamerCostOf, floor 0). Untargeted; the shrinking cost is charged here
         // (not the shared block) and the discount bank resets on use.
-        const tamerCost = dragonTamerCostOf(s);
+        const tamerCost = heroPowerCostOf(power, s, heroUses);
         if (s.embers < tamerCost) return state; // can't afford → no charge spent
         spendGold(s, tamerCost);
         s.tiffDiscount = 0;
@@ -2952,7 +2965,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         const spellId = s.lastSpellCastId;
         const def = spellId ? CARD_INDEX[spellId] : undefined;
         if (!def?.spell || s.hand.length >= handCap(s)) return state;
-        const bookCost = roundedSpellbookCostOf(s);
+        const bookCost = heroPowerCostOf(power, s, heroUses);
         if (s.embers < bookCost) return state; // can't afford → no charge spent
         spendGold(s, bookCost);
         s.hunchResetWave = s.wave;
@@ -3028,7 +3041,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       } else if (power.kind === 'buyout') {
         // Harlan: take the WHOLE Shop, then reroll it. The price falls 1 a turn and re-bases on use, so it is
         // charged here rather than by the shared block (the dragonTamer/roundedSpellbook pattern).
-        const price = buyoutCostOf(s);
+        const price = heroPowerCostOf(power, s, heroUses);
         if (s.embers < price) return state; // can't afford → no charge spent
         spendGold(s, price);
         s.harlanResetWave = s.wave;
@@ -3261,24 +3274,24 @@ function reduceCore(state: RunState, action: Action): RunState {
         if (s.voidPowerIds?.length) s.voidPowerIds = [heroId, ...s.voidPowerIds.slice(1)];
         else s.adoptedPowerId = heroId;
         s.heroReady = true; // a new power arrives charged, whatever the old one had spent
-        seedAdoptedPower(s, heroId);
+        seedAdoptedPower(s, heroId, 0);
       } else if (offer.slot === 'mimic') {
         s.adoptedPowerId = heroId;
         // A fresh disguise is a fresh charge: the adopted power arms now even when the previous one was
         // spent this same turn (each turn's power is its own).
         s.heroReady = true;
-        seedAdoptedPower(s, heroId);
+        seedAdoptedPower(s, heroId, 0);
       } else if (offer.slot === 'void1') {
         s.voidPowerIds = [heroId];
         s.heroReady = true;
-        seedAdoptedPower(s, heroId);
+        seedAdoptedPower(s, heroId, 0);
         // Chain straight into the second pick — the two are one turn-4 ceremony. The pool re-derives with the
         // first pick excluded, so the same power can never be held twice.
         mintPowerOffer(s, 'void2');
       } else {
         (s.voidPowerIds ??= []).push(heroId);
         s.heroReady2 = true;
-        seedAdoptedPower(s, heroId);
+        seedAdoptedPower(s, heroId, 1);
       }
       // An adopted power can GRANT cards (Yirin's Reflector, Chaos' token) and can change the Gild threshold
       // itself (Midas' Touch: 3 → 2), so copies already held may combine the moment it lands — check like buy /
@@ -3314,68 +3327,7 @@ function reduceCore(state: RunState, action: Action): RunState {
     }
 
     case 'faceOmen': {
-      // Layaway: its "keep through refreshes" is a THIS-SHOP-PHASE effect, not a permanent one — clear the
-      // `kept` marks now, going into combat, so the first refresh AFTER combat sweeps the offer (the discount
-      // rides the offer while it lasts). Recast Layaway next turn to keep it again (owner ruling 2026-07-23).
-      for (const o of s.shop) if (o.kept) o.kept = false;
-      // Thymepiece's clock window ends with the shop: the clock stops in combat, so an unexpired window would
-      // otherwise sit open until the next turn's first tick. (The turn flip clears it again, belt and braces.)
-      s.cardDiscountWindow = undefined;
-      // An unresolved targeted Battlecry (the player ended the turn mid-pick) auto-resolves on the
-      // carry — never strand a played Toxin Tender without its grant.
-      if (s.pendingTarget?.deferredPlay) {
-        // A DEFERRED Choose One aim (the card is still in hand and nothing has resolved): ending the turn
-        // abandons it exactly like a click-away cancel — the card stays in hand untouched. Auto-resolving it
-        // would summon a minion the player never confirmed, into a board they can no longer arrange.
-        s.pendingTarget = undefined;
-      } else if (s.pendingTarget) {
-        const pt = s.pendingTarget;
-        const src = s.board.find((c) => c.uid === pt.uid);
-        const def = src ? CARD_INDEX[src.cardId] : undefined;
-        // A tribe-restricted pick (Toxin Tender → another friendly Undead, never self) must respect it;
-        // otherwise any friend works. No eligible target → the play resolves with no effect.
-        const autoTribe = effectiveTargetTribe(s, def);
-        const pool = autoTribe ? s.board.filter((c) => c !== src && isTribe(c, autoTribe)) : s.board;
-        const carry = pool.length ? pool.reduce((a, b) => (b.attack > a.attack ? b : a)) : undefined;
-        if (src && carry) {
-          // A deferred targeted Choose One (Runic Beetle) auto-resolves the chosen option on the carry.
-          const opt = pt.optionIndex !== undefined ? def?.chooseOne?.[pt.optionIndex] : undefined;
-          if (opt) applyChooseOneTarget(s, src, opt.effects, carry);
-          else applyBattlecryTarget(s, src, carry);
-        }
-        s.pendingTarget = undefined;
-      }
-      // End-of-turn triggers fire first and bake into the board's stats (handoff C.5).
-      applyEndOfTurn(s);
-      // Unused Equipment activations and any temporary cost reduction expire with the turn (handoff).
-      // The COLLECTION is deliberately left intact — it is cleared by the next Start-of-Turn rebuild,
-      // which is also what keeps an activated combat effect's provenance readable through the fight.
-      expireEquipmentTurn(s);
-      // Any Discover an EoT trigger raised (Moira re-firing a Discover Shout) auto-resolves to a random pick —
-      // no interactive window at the combat hand-off (owner 2026-08-11).
-      autoResolveEotDiscovers(s);
-      // Re-Pete's Second Hand: at the END of every 3rd turn (3, 6, 9, …), conjure a PLAIN copy of the
-      // left-most card in hand — base stats only (no buffs/golden/welds carried) and NO pool take (a
-      // conjured card). Hand-cap-safe; an empty hand grants nothing. (Owner correction 2026-07-16:
-      // end-of-turn, not start-of-shop.)
-      if (hasPower(s, 'secondHand') && s.wave % 3 === 0 && s.hand.length > 0) {
-        // CHOREOGRAPHER PR 9 — hero powers emit. Re-Pete's Second Hand conjured a card into hand with no
-        // event at all, so it had no beat to schedule and nothing in the Beat Lab to reclassify: the owner
-        // flipping it from folded to its own beat correctly changed nothing, because there was no beat.
-        // The hero is the SOURCE, so the cue can anchor on the portrait rather than on the card that appears.
-        const heroDef = getHero(s.heroId);
-        const cardId = s.hand[0]!.cardId;
-        heroBeat(s, 'secondHand', heroDef.name, () => {
-          for (let r = 1; r < wishboneReps(s); r++) conjurePlainCopy(s, cardId); // Wishbone: a second copy
-          conjurePlainCopy(s, cardId);
-          const made = s.hand[s.hand.length - 1];
-          const c = currentCollector();
-          if (c.enabled && made) {
-            c.emit({ type: 'cardGranted', target: { zone: 'hand', uid: made.uid, cardId: made.cardId, side: 'player' }, cardId: made.cardId });
-          }
-        });
-      }
-      advanceQuestsBy(s, (o) => o.event === 'endOfTurn', s.lastEotFires ?? 0); // Parliament of Flame: "Trigger N End-of-Turn effects"
+      endRecruitTurn(s);
       // Resolve combat now (deterministic) but don't apply the outcome yet —
       // the UI replays the event log, then dispatches `resolveCombat`.
       // Serve a strength-matched real board from the opponent pool when one exists (getting off the
@@ -3390,146 +3342,19 @@ function reduceCore(state: RunState, action: Action): RunState {
       const pinned = s.servedBoards ? Object.prototype.hasOwnProperty.call(s.servedBoards, s.wave) : false;
       const served = pinned ? (s.servedBoards![s.wave] ?? null) : nextOpponent(s);
       if (!pinned) s.servedBoards = { ...(s.servedBoards ?? {}), [s.wave]: served };
-      // CELESTIAL: alignment LOCKS here. The recruit board's live centring is stamped onto each body as it
-      // enters combat, and combat never recomputes it — deaths don't re-centre the line, so a Celestial
-      // fights the half of the sky you built it into (owner ruling 2026-08-03). Computed once for the whole
-      // board rather than per-minion, so it costs one pass regardless of board size.
-      const playerAligns = alignmentsOf(s.board);
-      const player: BoardMinion[] = s.board.map((b, bi) => ({
-        cardId: b.cardId,
-        attack: b.attack,
-        health: b.health,
-        align: playerAligns[bi],
-        keywords: [...b.keywords],
-        golden: b.golden,
-        ...(b.addedTribes && b.addedTribes.length ? { addedTribes: [...b.addedTribes] } : {}), // Anomaly Reactor: a spell-added tribe (→ combat tribe2) — was dropped, so the tribe stopped counting in the player's own fights
-        ...(b.bloodlust ? { bloodlust: true } : {}), // Bloodlust: a Start-of-Combat immune out-of-turn strike — was dropped, so it never fired
-        ...(b.bloodlustRally ? { bloodlustRally: true } : {}), // Bloodlust's welded Rally (give a friendly minion this minion's Attack)
-        ...(b.chosenOption !== undefined ? { chosenOption: b.chosenOption } : {}), // Choose One: display-only, so the combat card prints the same single branch
-        ...(b.taughtSpellId ? { taughtSpellId: b.taughtSpellId } : {}), // Mage-Pup: display-only, so the combat card names the spell it cast
-        summonBonus: b.summonBonus ?? 0,
-        // Rune of the Chef: what this Chef granted during the shop phase that just ended, spent as a combat
-        // Rally. Same fix as Bucky's Ales — read the LIVE tally, since the reset runs after this combat.
-        ...(b.chefGranted ? { chefGrantedLast: b.chefGranted } : {}),
-        overflowBonus: b.overflowBonus, // Flowing Monk: flat grant bonus from the triple combine
-        hpGrantBonus: b.hpGrantBonus ?? 0, // Sergeant: seed the Deathrattle HP-grant accrual into combat
-        ascendProgress: b.ascendProgress ?? 0, // Tara: seed the prior ascend tally so the live tracker shows the total
-        spellProgress: b.spellProgress, // Guel: seed his on-board spell tally so the live combat text scales (not stuck at base)
-        spiritTally: b.spiritTally, // Set 3 Spirits: Forest Colossus's Start of Combat reads it; Festival Keeper / Aspect print it
-        soldProgress: b.soldProgress, // Runic Archivist: display-only, so the combat card prints its live count
-        boardFirstSpellId: b.boardFirstSpellId, // Spell Warden: display-only
-        eotBonus: b.eotBonus, // Ritualist: seed the End-of-Turn grant so the live combat text reads its current per-tick value
-        sellBonus: b.sellBonus, // Trail Forager: seed the accrued sell value for the live combat text (no combat effect)
-        eotTick: b.eotTick, // Frontdrake / Money Maker / Vineweaver: seed the cadence counter for the live combat text
-        sourceUid: b.uid, // so combat can carry Avenge improvements back to this card
-        rallyMechAtk: b.rallyMechAtk, // Better Bot's accrued Rally (own base added at instantiate)
-        rallySpellWeld: b.rallySpellWeld, // Perfect Core's welded Rally (grant a spell on attack) — was dropped
-        resummon: b.resummon, // The Reclaimer's start-of-combat destroy + resummon mark
-        partingCry: b.partingCry,   // Parting Cry: its Shout fires when it dies this fight
-        closedCasket: b.closedCasket, // Closed Casket: Echo at SoC, suppressed on the first death
-        ...(b.copiedEcho?.length ? { copiedEcho: b.copiedEcho } : {}), // Gravetwin: its copied Echo procs on combat death
-        ...(b.grantedEffects?.length ? { grantedEffects: b.grantedEffects } : {}), // runtime shop grafts (Echo Mimic / Grave Body / Contract Rewrite / Rune of Rebirth) fire in combat too (owner ruling 2026-08-27)
-        ...(b.echoStripped ? { echoStripped: true } : {}), // "summon a copy WITHOUT the Echo": the shop mark now silences the Echo in combat too (owner ruling 2026-08-27)
-        ...(b.impBank ? { impBank: { ...b.impBank } } : {}), // Ashen Heir: the SHOP bank rides in (cloned — combat spends its own copy; the run's bank persists)
-        ...(b.bloodbinderMode ? { bloodbinderMode: b.bloodbinderMode } : {}), // Bloodbinder: seed this fight's Rally stat (atk/hp)
-        ...(b.allTribes ? { universalTribe: true } : {}), // Anomaly Reactor: "All" types → universal in combat
-        buffs: b.buffs, // recruit-phase buff breakdown → carried into combat so the inspect panel itemizes it
-      }));
-      // Fleeting Vigor — a one-shot Start-of-Combat buff banked last shop: pump the player's COMBAT board
-      // (not the run board, so it's gone after this fight), then spend it. Applied before the odds sims so
-      // every simulation sees the same buffed board. Captured so we can telegraph it once combat resolves —
-      // a pre-baked buff with no event reads as "nothing happened", so we narrate the surge below.
-      // Rune of Twilight doubles Start-of-Combat effects. These pending SoC effects (Fleeting Vigor's buff,
-      // Open the Gates' Imps) are pre-baked HERE, before the simulator's Start-of-Combat pass, so the sim's
-      // Twilight loop (which re-fires minion `startOfCombat` effects) never sees them — they were silently
-      // exempt (owner report 2026-08-12). Apply the extra trigger here instead: ×2 when Twilight is armed.
-      const twilightMult = s.questFlags?.runeTwilight ? 2 : 1;
-      // CHOREOGRAPHER PR 7 — these pending Start-of-Combat payouts now EMIT. They were the archetype of the
-      // problem this project exists to fix: applied silently into the combat board here, before the
-      // simulator's Start-of-Combat pass, with no source-attributed event anywhere. The result was a buff
-      // that appeared already-baked into `lastCombat.initial` — indistinguishable, on screen, from "the
-      // minions just have those stats", which is exactly the owner's report that Fleeting Vigor's stats
-      // land before Start of Combat. Emitting them gives each a real moment to be scheduled against; the
-      // playback half (withholding the value until its beat) is the follow-up.
-      const socCollector = currentCollector();
-      const socBeat = (policyKey: string, id: string, label: string, run: () => void): void => {
-        if (!socCollector.enabled) { run(); return; }
-        socCollector.withTrigger(
-          { phase: 'startOfCombat', source: { kind: 'system', id, label, side: 'player' }, trigger: 'startOfCombat', ...beatIdentity(policyKey) },
-          run,
-        );
-      };
-      const fleeting = s.fleetingVigor && (s.fleetingVigor.attack !== 0 || s.fleetingVigor.health !== 0)
-        ? { ...s.fleetingVigor } : null;
-      // How many combat minions the Vigor actually covered. Imps are pushed AFTER it, so they are not buffed —
-      // the presentation rewind below must not subtract from them.
-      const fleetingCovered = fleeting ? player.length : 0;
-      if (fleeting) {
-        socBeat('system:startOfCombat:fleetingVigor', 'fleetingVigor', 'Fleeting Vigor', () => {
-          const a = fleeting.attack * twilightMult;
-          const h = fleeting.health * twilightMult;
-          for (const m of player) {
-            m.attack += a;
-            m.health += h;
-            // One consequence PER MINION, carrying the delta gameplay actually applied — so presentation can
-            // stagger the surge across the board and never has to subtract its way to the number.
-            if (socCollector.enabled) socCollector.emit({
-              type: 'statsChanged',
-              target: { zone: 'board', uid: m.sourceUid, cardId: m.cardId, side: 'player' },
-              attack: a, health: h, permanent: false, channel: 'ordinary',
-            });
-          }
-        });
-        s.fleetingVigor = { attack: 0, health: 0 };
+      const prep = preparePlayerCombatSide(s);
+      // BALANCE BOT (B1, 2026-09-15): a DEFERRED fight. The turn has ended and the side is fully prepared (banks
+      // spent, End of Turn fired once), but the opponent is another live seat whose side is being prepared the
+      // same way — so no fight is resolved here. The self-play lobby runs ONE `simulate()` per pair and lands its
+      // result on both runs through `resolveCombat { fight }`. Until then the run sits in `combat` with the
+      // prepared side parked on `pendingCombatSide`; `settleCombat` / a bare `resolveCombat` refuse it.
+      if (action.deferFight) {
+        s.pendingCombatSide = prep;
+        s.combatSettled = false;
+        s.phase = 'combat';
+        return s;
       }
-      // Next-combat keyword grants (Field Maneuvers / Last Stand / Executioner's Edge): stamp each banked
-      // keyword onto its minion's COMBAT instance only (matched by sourceUid), then spend the bank — gone
-      // after this fight, exactly like Fleeting Vigor. A grant whose minion was sold/died simply finds no match.
-      if (s.pendingCombatKeywords?.length) {
-        const grants = s.pendingCombatKeywords;
-        socBeat('system:startOfCombat:pendingKeywords', 'pendingKeywords', 'Banked keywords', () => {
-          for (const grant of grants) {
-            const m = player.find((p) => p.sourceUid === grant.uid);
-            if (!m) continue; // its minion was sold or died — nothing to grant, and nothing to narrate
-            m.keywords ??= [];
-            if (!m.keywords.includes(grant.keyword)) m.keywords.push(grant.keyword);
-            if (grant.keyword === 'CR' && grant.critChance !== undefined) m.critChance = grant.critChance;
-            if (socCollector.enabled) socCollector.emit({
-              type: 'keywordChanged',
-              target: { zone: 'board', uid: grant.uid, cardId: m.cardId, side: 'player' },
-              keyword: grant.keyword, gained: true,
-            });
-          }
-        });
-        s.pendingCombatKeywords = [];
-      }
-      // The display-only temp grants (Last Stand's gold tag, …) are consumed alongside the real keyword bank
-      // above — combat is what they promised. Their 0/0 buff-list entries go with them.
-      for (const c of s.board) {
-        if (!c.tempGrants) continue;
-        c.buffs = c.buffs?.filter((b) => !c.tempGrants!.some((g) => `(${g.label})` === b.source));
-        c.tempGrants = undefined;
-      }
-      // Open the Gates (Set 2): banked Imps enter this fight on the player board, as many as fit the 7-slot cap
-      // (the "whenever you have room" clause). Added before the odds sims so every sim sees them, then spent.
-      if (s.pendingSCImps) {
-        const impDef = CARD_INDEX['impscrap'];
-        const room = Math.max(0, CONFIG.boardMax - player.length);
-        const n = Math.min(s.pendingSCImps * twilightMult, room); // Rune of Twilight doubles this SoC summon too
-        socBeat('system:startOfCombat:pendingImps', 'pendingImps', 'Open the Gates', () => {
-          for (let k = 0; k < n && impDef; k++) {
-            player.push({ cardId: 'impscrap', attack: impDef.attack, health: impDef.health, keywords: [...impDef.keywords], golden: false });
-            // `summon.appear` is the staged marker the compiler anchors an arrival to, rather than the
-            // source's primary delivery — an Imp should be seen arriving, not simply be present.
-            if (socCollector.enabled) socCollector.emit({
-              type: 'cardSummoned',
-              target: { zone: 'board', cardId: 'impscrap', index: player.length - 1, side: 'player' },
-              cardId: 'impscrap', deliveryKey: 'summon.appear',
-            });
-          }
-        });
-        s.pendingSCImps = 0;
-      }
+      const { board: player, state: playerState, config } = prep;
       // The procedural threat board for this wave — the always-fightable fallback (built from current
       // cards, so it can never throw). `enemyTier` (loss-damage scaling) is the served board's tavern tier,
       // or the player's own tier as the foe's stand-in for the procedural board.
@@ -3537,82 +3362,6 @@ function reduceCore(state: RunState, action: Action): RunState {
         enemy: buildEnemyBoard(s.threat, s.wave, makeRng(mixSeed(s.seed, s.wave, TAG.ENEMY))),
         tier: s.tier,
       });
-      // Resolve the real combat + its win/draw/loss odds against one enemy board. Throws only if that board
-      // is unfightable (a served board referencing a card this build removed → `instantiate` throws) — caught
-      // below. Odds: re-simulate the same two boards on independent seeds (a separate ODDS stream, so they're
-      // reproducible and don't disturb the real combat RNG). ~1000 sims keeps the margin to ~±1.5%.
-      // Pack Leader: Beasts you PLAYED this turn (frozen for combat), threaded into simulate like spellsThisTurn.
-      const beastsPlayed = (s.playedThisTurn ?? []).filter((id) => defIsTribe(CARD_INDEX[id], 'beast')).length;
-      const spiritsPlayed = (s.playedThisTurn ?? []).filter((id) => defIsTribe(CARD_INDEX[id], 'spirit')).length; // Kindled Sprite
-      // The PLAYER side's run-level combat context — one symmetric `CombatSideState`, built once from the live
-      // RunState and shared by the real fight + the 1000-sim odds probe.
-      const playerState: CombatSideState = combatSide({
-        // The run's PINNED set — every random pick in combat narrows to this. Without it a Set-1 run could be
-        // handed a Set-2 card (owner report 2026-07-27: Badgington's Slaughter, Sea Urchin's Discover). `all`
-        // rather than `buyable`, because a legitimate pick can be a non-buyable card of the set.
-        poolIds: poolOf(s).all.map((c) => c.id),
-        spellsThisTurn: s.spellsThisTurn,
-        firstSpellThisTurnId: s.firstSpellThisTurnId, // Comet Conductor's Rally copies it (player-only)
-        spellsCast: s.spellsCast,
-        rubyCasts: s.rubyCasts ?? 0, // Vaultkeeper's umbrella (text); rides to the enemy side via the snapshot
-        revelerX: s.revelerX ?? 0, // Set 3 Spirits: the shared Reveler value (text)
-        deathrattles: s.deathrattlesTriggered,
-        spellPowerAtk: spellAttackBonus(s),
-        wildHuntGrown: s.runeWildHuntGrown ?? 0, // Wild Hunt's permanent escalation resumes where it left off
-        spellPowerHp: spellHealthBonus(s),
-        undeadAtk: s.undeadAttackBonus,
-        undeadHp: s.undeadHealthBonus,
-        undeadBuyAtk: s.undeadBuyAtk ?? 0,
-        impAtk: s.impBuff?.attack ?? 0,
-        conductorBuff: s.conductorBuff ?? 0, // CONDUCTOR: carry the run's snowball so a mid-fight Shout re-fire pays it
-        impHp: s.impBuff?.health ?? 0,
-        fodderConsumedAtk: s.fodderConsumedThisTurn?.attack ?? 0,
-        fodderConsumedHp: s.fodderConsumedThisTurn?.health ?? 0,
-        beastBuyAtk: s.beastBuyAtk ?? 0,
-        beastsPlayed,
-        spiritsPlayed,
-        cardsBoughtThisTurn: s.cardsBoughtThisTurn ?? 0,
-        magneticAtk: s.magneticBuyAtk ?? 0,
-        magneticHp: s.magneticBuyHp ?? 0,
-        // `rubyStatBonus`, not the raw accumulator: Rune of the Spellstone folds the run's SPELL power into
-        // every Ruby (2026-08-14). Folding it once HERE is what makes combat-played Rubies inherit it without
-        // the combat side needing to know the rune exists — `rubyBonusFor` reads this value verbatim.
-        rubyBonus: rubyStatBonus(s),
-        tier: s.tier,
-        tribes: s.tribes,
-        cardBuffs: s.cardBuffs ?? {},
-        // Set 2 — the spell ids in hand at combat start, in hand order (Vault Curator copies the left-most).
-        handSpellIds: s.hand.filter((c) => CARD_INDEX[c.cardId]?.spell).map((c) => c.cardId),
-        // Bucky: the Ales cast during the shop phase that JUST ENDED. Read live rather than from a banked
-        // field — `faceOmen` builds this side BEFORE `resolveCombat` does the per-turn reset, so
-        // `alesCastThisTurn` is exactly "the brewing you just did". Banking it first put the payout a whole
-        // turn late (owner report 2026-08-07: 3 Ales paid 0 that combat and only landed the combat after).
-        alesLastTurn: s.alesCastThisTurn ?? 0,
-        spellEscalation: { attack: s.frontToBackBonus, health: s.frontToBackBonusH },
-        lastSpellCastId: s.lastSpellCastId,
-        rememberedSpellIds: s.rememberedSpellIds ?? [], // Runesnout Archivist's journal
-        spellhide: s.spellhidePending ?? [], // Rune of Spellhide's Start-of-Combat re-casts
-        growthBonus: s.growthBonus ?? 0, // Rune of Living Growth: combat Growth casts pay the improved value
-        // Rope Wrangler's Echo summons a random hand MINION with its live stats (buffs + gilding intact).
-        // `locked`: a tier/Gold/next-turn-locked card rides along (it can still be buffed and read) but no
-        // combat summon may take it to the board.
-        handMinions: s.hand
-          .filter((c) => { const d = CARD_INDEX[c.cardId]; return !!d && !d.spell && !d.ruby; })
-          .map((c) => ({ uid: c.uid, cardId: c.cardId, attack: c.attack, health: c.health, keywords: c.keywords, golden: c.golden, ...(handCardLocked(s, c) ? { locked: true } : {}) })),
-        // Set 2 — Elderhorn's chosen mode(s), so its tribe-scoped trigger multipliers apply in the fight.
-        beastHuntExtra: s.beastHuntExtra ?? 0,
-        beastRitualExtra: s.beastRitualExtra ?? 0,
-        questMods: questCombatMods(s),
-        pendingQuests: buildPendingCombatQuests(s),
-      });
-      // Player-only one-fight rune overrides.
-      const config: CombatConfig = {
-        playerAttacksFirst:
-          (s.attackFirstNext ?? false) || (s.mode === 'tutorial' && !!s.tutorialAttackFirst?.[s.wave - 1]), // Forthcoming strike, or a tutorial round that forces the player to swing first
-        forceEnemyFirstTargetCard:
-          s.mode === 'tutorial' ? (s.tutorialForceEnemyTarget?.[s.wave - 1] || undefined) : undefined,
-        playerRallyDouble: s.rallyDoubleNext ?? false,
-      };
       const resolveCombatVs = (enemy: BoardMinion[], enemyState: CombatSideState): CombatResult => {
         // Marked Target: the enemy's right-most minion enters with Taunt (applied to the enemy board that's
         // actually fought — served or procedural — before the real fight and the odds sims all read it).
@@ -3672,44 +3421,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         const e = proceduralEnemy();
         s.lastCombat = resolveCombatVs(e.enemy, combatSide({ tier: e.tier }));
       }
-      s.markEnemyRightmostTaunt = false; // Marked Target is a one-fight debuff — spent by the combat just resolved
-      // Telegraph the Fleeting Vigor surge as a Start-of-Combat narration so the pre-baked buff reads as a
-      // real effect (a banner + glow on your line as combat opens) instead of silently bigger minions.
-      if (fleeting) {
-        // CHOREOGRAPHER PR 8 — make the surge actually HAPPEN on screen instead of being pre-applied.
-        //
-        // The buff was baked into the combat board before `simulate`, so `initial` already held the buffed
-        // stats: combat opened with bigger minions and a banner explaining, after the fact, that they had
-        // been bigger all along. That is the owner's report — "Fleeting Vigor triggers the stats before the
-        // start of combat triggers" — and no timing tool could fix it, because the numbers were never
-        // animated at all.
-        //
-        // `initial` is PRESENTATION ONLY: the combat was already simulated from the buffed board, and the
-        // replay is a pure fold of `(initial, events, upto)`. So rewinding `initial` to the pre-buff stats and
-        // adding real `buff` events reconstructs the exact same board — it just shows the gain LANDING at its
-        // Start-of-Combat moment rather than being true from frame one. Gameplay, RNG and the outcome are
-        // untouched; `socBoard` still reads the buffed board because these events sit in the Start-of-Combat
-        // slice it folds through.
-        const a = fleeting.attack * twilightMult;
-        const h = fleeting.health * twilightMult;
-        const buffed = s.lastCombat.initial.player.slice(0, fleetingCovered);
-        const opening: CombatEvent[] = [];
-        const firstUid = buffed[0]?.uid;
-        if (firstUid) {
-          opening.push({
-            type: 'sc', source: firstUid,
-            text: `Fleeting Vigor — your minions surge +${a}/+${h}`,
-          });
-        }
-        for (const m of buffed) {
-          m.attack -= a;   // rewind to the pre-Start-of-Combat board…
-          m.health -= h;
-          opening.push({ type: 'buff', target: m.uid, attack: a, health: h, source: m.uid }); // …and land it here
-        }
-        if (opening.length) s.lastCombat.events.unshift(...opening);
-      }
-      s.combatSettled = false; // a fresh combat — its outcome hasn't been applied yet
-      s.phase = 'combat';
+      enterCombat(s, prep);
       return s;
     }
 
@@ -3736,7 +3448,7 @@ function reduceCore(state: RunState, action: Action): RunState {
     case 'settleCombat': {
       // Combat replay finished — apply the outcome (damage + carry-backs) now, in the combat view, so the
       // Resolve hit lands before you return to the shop. Idempotent: only the first call settles.
-      if (s.phase !== 'combat' || !s.lastCombat || s.combatSettled) return state;
+      if (s.phase !== 'combat' || !s.lastCombat || s.combatSettled || s.pendingCombatSide) return state; // a deferred fight has no result to settle yet
       settleCombat(s, s.lastCombat);
       // `s.lastCombat` is already the SAME object reference as the input's (shared, not cloned, at the top
       // of reduceCore) — which is what the UI needs: its replay hook + combat-stage effect reset when the
@@ -3747,7 +3459,18 @@ function reduceCore(state: RunState, action: Action): RunState {
     case 'resolveCombat': {
       // Leave combat for the next wave. Settle first if the player skipped the replay (so the damage still
       // applies), then advance past it (terminal check / next wave).
-      if (s.phase !== 'combat' || !s.lastCombat) return state;
+      if (s.phase !== 'combat') return state;
+      // BALANCE BOT (B1): land a DEFERRED fight (see `faceOmen { deferFight }`). The self-play lobby resolved ONE
+      // `simulate()` for the pair and hands each seat its side of that result here, with the damage the LOBBY
+      // charged it (round-capped, armor first — the same `hit()` the shipped table applies to every seat). A
+      // deferred run without a result, or a result with nothing deferred, is refused rather than guessed at.
+      if (s.pendingCombatSide) {
+        if (!action.fight) return state;
+        landDeferredFight(s, action.fight);
+      } else if (action.fight) {
+        return state;
+      }
+      if (!s.lastCombat) return state;
       if (!s.combatSettled) settleCombat(s, s.lastCombat);
       // The lobby round settles HERE rather than when the replay ended, so the table's new health, the
       // eliminations and your next opponent all appear together when you choose to leave the fight.
@@ -4099,6 +3822,373 @@ function carrySableBond(s: RunState, consumed: readonly BoardCard[], goldenUid: 
   // Battlecry, or any effect after it, can still buff — so without this the rest of THIS action would keep
   // mirroring against the uid that just stopped existing.
   stampSableBond(s);
+}
+
+
+/**
+ * THE END OF THE RECRUIT TURN — everything `faceOmen` does BEFORE the combat side is built: the Layaway /
+ * Thymepiece clean-up, the stranded-aim auto-resolve, End of Turn (fired ONCE), Equipment expiry, the EoT
+ * Discover auto-pick, Re-Pete's Second Hand and the End-of-Turn quest tick. Extracted (balance bot B1,
+ * 2026-09-15) so a deferred self-play fight ends its turn through exactly this path; `faceOmen` calls it first.
+ */
+function endRecruitTurn(s: RunState): void {
+  // Layaway: its "keep through refreshes" is a THIS-SHOP-PHASE effect, not a permanent one — clear the
+  // `kept` marks now, going into combat, so the first refresh AFTER combat sweeps the offer (the discount
+  // rides the offer while it lasts). Recast Layaway next turn to keep it again (owner ruling 2026-07-23).
+  for (const o of s.shop) if (o.kept) o.kept = false;
+  // Thymepiece's clock window ends with the shop: the clock stops in combat, so an unexpired window would
+  // otherwise sit open until the next turn's first tick. (The turn flip clears it again, belt and braces.)
+  s.cardDiscountWindow = undefined;
+  // An unresolved targeted Battlecry (the player ended the turn mid-pick) auto-resolves on the
+  // carry — never strand a played Toxin Tender without its grant.
+  if (s.pendingTarget?.deferredPlay) {
+    // A DEFERRED Choose One aim (the card is still in hand and nothing has resolved): ending the turn
+    // abandons it exactly like a click-away cancel — the card stays in hand untouched. Auto-resolving it
+    // would summon a minion the player never confirmed, into a board they can no longer arrange.
+    s.pendingTarget = undefined;
+  } else if (s.pendingTarget) {
+    const pt = s.pendingTarget;
+    const src = s.board.find((c) => c.uid === pt.uid);
+    const def = src ? CARD_INDEX[src.cardId] : undefined;
+    // A tribe-restricted pick (Toxin Tender → another friendly Undead, never self) must respect it;
+    // otherwise any friend works. No eligible target → the play resolves with no effect.
+    const autoTribe = effectiveTargetTribe(s, def);
+    const pool = autoTribe ? s.board.filter((c) => c !== src && isTribe(c, autoTribe)) : s.board;
+    const carry = pool.length ? pool.reduce((a, b) => (b.attack > a.attack ? b : a)) : undefined;
+    if (src && carry) {
+      // A deferred targeted Choose One (Runic Beetle) auto-resolves the chosen option on the carry.
+      const opt = pt.optionIndex !== undefined ? def?.chooseOne?.[pt.optionIndex] : undefined;
+      if (opt) applyChooseOneTarget(s, src, opt.effects, carry);
+      else applyBattlecryTarget(s, src, carry);
+    }
+    s.pendingTarget = undefined;
+  }
+  // End-of-turn triggers fire first and bake into the board's stats (handoff C.5).
+  applyEndOfTurn(s);
+  // Unused Equipment activations and any temporary cost reduction expire with the turn (handoff).
+  // The COLLECTION is deliberately left intact — it is cleared by the next Start-of-Turn rebuild,
+  // which is also what keeps an activated combat effect's provenance readable through the fight.
+  expireEquipmentTurn(s);
+  // Any Discover an EoT trigger raised (Moira re-firing a Discover Shout) auto-resolves to a random pick —
+  // no interactive window at the combat hand-off (owner 2026-08-11).
+  autoResolveEotDiscovers(s);
+  // Re-Pete's Second Hand: at the END of every 3rd turn (3, 6, 9, …), conjure a PLAIN copy of the
+  // left-most card in hand — base stats only (no buffs/golden/welds carried) and NO pool take (a
+  // conjured card). Hand-cap-safe; an empty hand grants nothing. (Owner correction 2026-07-16:
+  // end-of-turn, not start-of-shop.)
+  if (hasPower(s, 'secondHand') && s.wave % 3 === 0 && s.hand.length > 0) {
+    // CHOREOGRAPHER PR 9 — hero powers emit. Re-Pete's Second Hand conjured a card into hand with no
+    // event at all, so it had no beat to schedule and nothing in the Beat Lab to reclassify: the owner
+    // flipping it from folded to its own beat correctly changed nothing, because there was no beat.
+    // The hero is the SOURCE, so the cue can anchor on the portrait rather than on the card that appears.
+    const heroDef = getHero(s.heroId);
+    const cardId = s.hand[0]!.cardId;
+    heroBeat(s, 'secondHand', heroDef.name, () => {
+      for (let r = 1; r < wishboneReps(s); r++) conjurePlainCopy(s, cardId); // Wishbone: a second copy
+      conjurePlainCopy(s, cardId);
+      const made = s.hand[s.hand.length - 1];
+      const c = currentCollector();
+      if (c.enabled && made) {
+        c.emit({ type: 'cardGranted', target: { zone: 'hand', uid: made.uid, cardId: made.cardId, side: 'player' }, cardId: made.cardId });
+      }
+    });
+  }
+  advanceQuestsBy(s, (o) => o.event === 'endOfTurn', s.lastEotFires ?? 0); // Parliament of Flame: "Trigger N End-of-Turn effects"
+}
+
+/**
+ * THE PLAYER'S FULL COMBAT SIDE — the board mapped into `BoardMinion`s with alignment locked and every
+ * per-instance carry, the pending Start-of-Combat banks spent into it (Fleeting Vigor, banked keywords, Open
+ * the Gates' Imps), the run-level `CombatSideState` (~45 scalers) and the player-only one-fight `CombatConfig`.
+ * MUTATES `s` (the banks are spent), so it must run inside a reducer dispatch and exactly once per fight.
+ *
+ * Extracted from `faceOmen` (balance bot B1, 2026-09-15) so BOTH seats of a self-play fight are prepared by
+ * the one builder the shipped player fight uses — the lobby's non-player seats otherwise enter combat through
+ * `sideFromSnapshot` (fewer scalers, no alignment, no pending Start-of-Combat banks) or a bare tier-only side.
+ */
+function preparePlayerCombatSide(s: RunState): PreparedCombatSide {
+  // CELESTIAL: alignment LOCKS here. The recruit board's live centring is stamped onto each body as it
+  // enters combat, and combat never recomputes it — deaths don't re-centre the line, so a Celestial
+  // fights the half of the sky you built it into (owner ruling 2026-08-03). Computed once for the whole
+  // board rather than per-minion, so it costs one pass regardless of board size.
+  const playerAligns = alignmentsOf(s.board);
+  const player: BoardMinion[] = s.board.map((b, bi) => ({
+    cardId: b.cardId,
+    attack: b.attack,
+    health: b.health,
+    align: playerAligns[bi],
+    keywords: [...b.keywords],
+    golden: b.golden,
+    ...(b.addedTribes && b.addedTribes.length ? { addedTribes: [...b.addedTribes] } : {}), // Anomaly Reactor: a spell-added tribe (→ combat tribe2) — was dropped, so the tribe stopped counting in the player's own fights
+    ...(b.bloodlust ? { bloodlust: true } : {}), // Bloodlust: a Start-of-Combat immune out-of-turn strike — was dropped, so it never fired
+    ...(b.bloodlustRally ? { bloodlustRally: true } : {}), // Bloodlust's welded Rally (give a friendly minion this minion's Attack)
+    ...(b.chosenOption !== undefined ? { chosenOption: b.chosenOption } : {}), // Choose One: display-only, so the combat card prints the same single branch
+    ...(b.taughtSpellId ? { taughtSpellId: b.taughtSpellId } : {}), // Mage-Pup: display-only, so the combat card names the spell it cast
+    summonBonus: b.summonBonus ?? 0,
+    // Rune of the Chef: what this Chef granted during the shop phase that just ended, spent as a combat
+    // Rally. Same fix as Bucky's Ales — read the LIVE tally, since the reset runs after this combat.
+    ...(b.chefGranted ? { chefGrantedLast: b.chefGranted } : {}),
+    overflowBonus: b.overflowBonus, // Flowing Monk: flat grant bonus from the triple combine
+    hpGrantBonus: b.hpGrantBonus ?? 0, // Sergeant: seed the Deathrattle HP-grant accrual into combat
+    ascendProgress: b.ascendProgress ?? 0, // Tara: seed the prior ascend tally so the live tracker shows the total
+    spellProgress: b.spellProgress, // Guel: seed his on-board spell tally so the live combat text scales (not stuck at base)
+    spiritTally: b.spiritTally, // Set 3 Spirits: Forest Colossus's Start of Combat reads it; Festival Keeper / Aspect print it
+    soldProgress: b.soldProgress, // Runic Archivist: display-only, so the combat card prints its live count
+    boardFirstSpellId: b.boardFirstSpellId, // Spell Warden: display-only
+    eotBonus: b.eotBonus, // Ritualist: seed the End-of-Turn grant so the live combat text reads its current per-tick value
+    sellBonus: b.sellBonus, // Trail Forager: seed the accrued sell value for the live combat text (no combat effect)
+    eotTick: b.eotTick, // Frontdrake / Money Maker / Vineweaver: seed the cadence counter for the live combat text
+    sourceUid: b.uid, // so combat can carry Avenge improvements back to this card
+    rallyMechAtk: b.rallyMechAtk, // Better Bot's accrued Rally (own base added at instantiate)
+    rallySpellWeld: b.rallySpellWeld, // Perfect Core's welded Rally (grant a spell on attack) — was dropped
+    resummon: b.resummon, // The Reclaimer's start-of-combat destroy + resummon mark
+    partingCry: b.partingCry,   // Parting Cry: its Shout fires when it dies this fight
+    closedCasket: b.closedCasket, // Closed Casket: Echo at SoC, suppressed on the first death
+    ...(b.copiedEcho?.length ? { copiedEcho: b.copiedEcho } : {}), // Gravetwin: its copied Echo procs on combat death
+    ...(b.grantedEffects?.length ? { grantedEffects: b.grantedEffects } : {}), // runtime shop grafts (Echo Mimic / Grave Body / Contract Rewrite / Rune of Rebirth) fire in combat too (owner ruling 2026-08-27)
+    ...(b.echoStripped ? { echoStripped: true } : {}), // "summon a copy WITHOUT the Echo": the shop mark now silences the Echo in combat too (owner ruling 2026-08-27)
+    ...(b.impBank ? { impBank: { ...b.impBank } } : {}), // Ashen Heir: the SHOP bank rides in (cloned — combat spends its own copy; the run's bank persists)
+    ...(b.bloodbinderMode ? { bloodbinderMode: b.bloodbinderMode } : {}), // Bloodbinder: seed this fight's Rally stat (atk/hp)
+    ...(b.allTribes ? { universalTribe: true } : {}), // Anomaly Reactor: "All" types → universal in combat
+    buffs: b.buffs, // recruit-phase buff breakdown → carried into combat so the inspect panel itemizes it
+  }));
+  // Fleeting Vigor — a one-shot Start-of-Combat buff banked last shop: pump the player's COMBAT board
+  // (not the run board, so it's gone after this fight), then spend it. Applied before the odds sims so
+  // every simulation sees the same buffed board. Captured so we can telegraph it once combat resolves —
+  // a pre-baked buff with no event reads as "nothing happened", so we narrate the surge below.
+  // Rune of Twilight doubles Start-of-Combat effects. These pending SoC effects (Fleeting Vigor's buff,
+  // Open the Gates' Imps) are pre-baked HERE, before the simulator's Start-of-Combat pass, so the sim's
+  // Twilight loop (which re-fires minion `startOfCombat` effects) never sees them — they were silently
+  // exempt (owner report 2026-08-12). Apply the extra trigger here instead: ×2 when Twilight is armed.
+  const twilightMult = s.questFlags?.runeTwilight ? 2 : 1;
+  // CHOREOGRAPHER PR 7 — these pending Start-of-Combat payouts now EMIT. They were the archetype of the
+  // problem this project exists to fix: applied silently into the combat board here, before the
+  // simulator's Start-of-Combat pass, with no source-attributed event anywhere. The result was a buff
+  // that appeared already-baked into `lastCombat.initial` — indistinguishable, on screen, from "the
+  // minions just have those stats", which is exactly the owner's report that Fleeting Vigor's stats
+  // land before Start of Combat. Emitting them gives each a real moment to be scheduled against; the
+  // playback half (withholding the value until its beat) is the follow-up.
+  const socCollector = currentCollector();
+  const socBeat = (policyKey: string, id: string, label: string, run: () => void): void => {
+    if (!socCollector.enabled) { run(); return; }
+    socCollector.withTrigger(
+      { phase: 'startOfCombat', source: { kind: 'system', id, label, side: 'player' }, trigger: 'startOfCombat', ...beatIdentity(policyKey) },
+      run,
+    );
+  };
+  const fleeting = s.fleetingVigor && (s.fleetingVigor.attack !== 0 || s.fleetingVigor.health !== 0)
+    ? { ...s.fleetingVigor } : null;
+  // How many combat minions the Vigor actually covered. Imps are pushed AFTER it, so they are not buffed —
+  // the presentation rewind below must not subtract from them.
+  const fleetingCovered = fleeting ? player.length : 0;
+  if (fleeting) {
+    socBeat('system:startOfCombat:fleetingVigor', 'fleetingVigor', 'Fleeting Vigor', () => {
+      const a = fleeting.attack * twilightMult;
+      const h = fleeting.health * twilightMult;
+      for (const m of player) {
+        m.attack += a;
+        m.health += h;
+        // One consequence PER MINION, carrying the delta gameplay actually applied — so presentation can
+        // stagger the surge across the board and never has to subtract its way to the number.
+        if (socCollector.enabled) socCollector.emit({
+          type: 'statsChanged',
+          target: { zone: 'board', uid: m.sourceUid, cardId: m.cardId, side: 'player' },
+          attack: a, health: h, permanent: false, channel: 'ordinary',
+        });
+      }
+    });
+    s.fleetingVigor = { attack: 0, health: 0 };
+  }
+  // Next-combat keyword grants (Field Maneuvers / Last Stand / Executioner's Edge): stamp each banked
+  // keyword onto its minion's COMBAT instance only (matched by sourceUid), then spend the bank — gone
+  // after this fight, exactly like Fleeting Vigor. A grant whose minion was sold/died simply finds no match.
+  if (s.pendingCombatKeywords?.length) {
+    const grants = s.pendingCombatKeywords;
+    socBeat('system:startOfCombat:pendingKeywords', 'pendingKeywords', 'Banked keywords', () => {
+      for (const grant of grants) {
+        const m = player.find((p) => p.sourceUid === grant.uid);
+        if (!m) continue; // its minion was sold or died — nothing to grant, and nothing to narrate
+        m.keywords ??= [];
+        if (!m.keywords.includes(grant.keyword)) m.keywords.push(grant.keyword);
+        if (grant.keyword === 'CR' && grant.critChance !== undefined) m.critChance = grant.critChance;
+        if (socCollector.enabled) socCollector.emit({
+          type: 'keywordChanged',
+          target: { zone: 'board', uid: grant.uid, cardId: m.cardId, side: 'player' },
+          keyword: grant.keyword, gained: true,
+        });
+      }
+    });
+    s.pendingCombatKeywords = [];
+  }
+  // The display-only temp grants (Last Stand's gold tag, …) are consumed alongside the real keyword bank
+  // above — combat is what they promised. Their 0/0 buff-list entries go with them.
+  for (const c of s.board) {
+    if (!c.tempGrants) continue;
+    c.buffs = c.buffs?.filter((b) => !c.tempGrants!.some((g) => `(${g.label})` === b.source));
+    c.tempGrants = undefined;
+  }
+  // Open the Gates (Set 2): banked Imps enter this fight on the player board, as many as fit the 7-slot cap
+  // (the "whenever you have room" clause). Added before the odds sims so every sim sees them, then spent.
+  if (s.pendingSCImps) {
+    const impDef = CARD_INDEX['impscrap'];
+    const room = Math.max(0, CONFIG.boardMax - player.length);
+    const n = Math.min(s.pendingSCImps * twilightMult, room); // Rune of Twilight doubles this SoC summon too
+    socBeat('system:startOfCombat:pendingImps', 'pendingImps', 'Open the Gates', () => {
+      for (let k = 0; k < n && impDef; k++) {
+        player.push({ cardId: 'impscrap', attack: impDef.attack, health: impDef.health, keywords: [...impDef.keywords], golden: false });
+        // `summon.appear` is the staged marker the compiler anchors an arrival to, rather than the
+        // source's primary delivery — an Imp should be seen arriving, not simply be present.
+        if (socCollector.enabled) socCollector.emit({
+          type: 'cardSummoned',
+          target: { zone: 'board', cardId: 'impscrap', index: player.length - 1, side: 'player' },
+          cardId: 'impscrap', deliveryKey: 'summon.appear',
+        });
+      }
+    });
+    s.pendingSCImps = 0;
+  }
+  // Resolve the real combat + its win/draw/loss odds against one enemy board. Throws only if that board
+  // is unfightable (a served board referencing a card this build removed → `instantiate` throws) — caught
+  // below. Odds: re-simulate the same two boards on independent seeds (a separate ODDS stream, so they're
+  // reproducible and don't disturb the real combat RNG). ~1000 sims keeps the margin to ~±1.5%.
+  // Pack Leader: Beasts you PLAYED this turn (frozen for combat), threaded into simulate like spellsThisTurn.
+  const beastsPlayed = (s.playedThisTurn ?? []).filter((id) => defIsTribe(CARD_INDEX[id], 'beast')).length;
+  const spiritsPlayed = (s.playedThisTurn ?? []).filter((id) => defIsTribe(CARD_INDEX[id], 'spirit')).length; // Kindled Sprite
+  // The PLAYER side's run-level combat context — one symmetric `CombatSideState`, built once from the live
+  // RunState and shared by the real fight + the 1000-sim odds probe.
+  const playerState: CombatSideState = combatSide({
+    // The run's PINNED set — every random pick in combat narrows to this. Without it a Set-1 run could be
+    // handed a Set-2 card (owner report 2026-07-27: Badgington's Slaughter, Sea Urchin's Discover). `all`
+    // rather than `buyable`, because a legitimate pick can be a non-buyable card of the set.
+    poolIds: poolOf(s).all.map((c) => c.id),
+    spellsThisTurn: s.spellsThisTurn,
+    firstSpellThisTurnId: s.firstSpellThisTurnId, // Comet Conductor's Rally copies it (player-only)
+    spellsCast: s.spellsCast,
+    rubyCasts: s.rubyCasts ?? 0, // Vaultkeeper's umbrella (text); rides to the enemy side via the snapshot
+    revelerX: s.revelerX ?? 0, // Set 3 Spirits: the shared Reveler value (text)
+    deathrattles: s.deathrattlesTriggered,
+    spellPowerAtk: spellAttackBonus(s),
+    wildHuntGrown: s.runeWildHuntGrown ?? 0, // Wild Hunt's permanent escalation resumes where it left off
+    spellPowerHp: spellHealthBonus(s),
+    undeadAtk: s.undeadAttackBonus,
+    undeadHp: s.undeadHealthBonus,
+    undeadBuyAtk: s.undeadBuyAtk ?? 0,
+    impAtk: s.impBuff?.attack ?? 0,
+    conductorBuff: s.conductorBuff ?? 0, // CONDUCTOR: carry the run's snowball so a mid-fight Shout re-fire pays it
+    impHp: s.impBuff?.health ?? 0,
+    fodderConsumedAtk: s.fodderConsumedThisTurn?.attack ?? 0,
+    fodderConsumedHp: s.fodderConsumedThisTurn?.health ?? 0,
+    beastBuyAtk: s.beastBuyAtk ?? 0,
+    beastsPlayed,
+    spiritsPlayed,
+    cardsBoughtThisTurn: s.cardsBoughtThisTurn ?? 0,
+    magneticAtk: s.magneticBuyAtk ?? 0,
+    magneticHp: s.magneticBuyHp ?? 0,
+    // `rubyStatBonus`, not the raw accumulator: Rune of the Spellstone folds the run's SPELL power into
+    // every Ruby (2026-08-14). Folding it once HERE is what makes combat-played Rubies inherit it without
+    // the combat side needing to know the rune exists — `rubyBonusFor` reads this value verbatim.
+    rubyBonus: rubyStatBonus(s),
+    tier: s.tier,
+    tribes: s.tribes,
+    cardBuffs: s.cardBuffs ?? {},
+    // Set 2 — the spell ids in hand at combat start, in hand order (Vault Curator copies the left-most).
+    handSpellIds: s.hand.filter((c) => CARD_INDEX[c.cardId]?.spell).map((c) => c.cardId),
+    // Bucky: the Ales cast during the shop phase that JUST ENDED. Read live rather than from a banked
+    // field — `faceOmen` builds this side BEFORE `resolveCombat` does the per-turn reset, so
+    // `alesCastThisTurn` is exactly "the brewing you just did". Banking it first put the payout a whole
+    // turn late (owner report 2026-08-07: 3 Ales paid 0 that combat and only landed the combat after).
+    alesLastTurn: s.alesCastThisTurn ?? 0,
+    spellEscalation: { attack: s.frontToBackBonus, health: s.frontToBackBonusH },
+    lastSpellCastId: s.lastSpellCastId,
+    rememberedSpellIds: s.rememberedSpellIds ?? [], // Runesnout Archivist's journal
+    spellhide: s.spellhidePending ?? [], // Rune of Spellhide's Start-of-Combat re-casts
+    growthBonus: s.growthBonus ?? 0, // Rune of Living Growth: combat Growth casts pay the improved value
+    // Rope Wrangler's Echo summons a random hand MINION with its live stats (buffs + gilding intact).
+    // `locked`: a tier/Gold/next-turn-locked card rides along (it can still be buffed and read) but no
+    // combat summon may take it to the board.
+    handMinions: s.hand
+      .filter((c) => { const d = CARD_INDEX[c.cardId]; return !!d && !d.spell && !d.ruby; })
+      .map((c) => ({ uid: c.uid, cardId: c.cardId, attack: c.attack, health: c.health, keywords: c.keywords, golden: c.golden, ...(handCardLocked(s, c) ? { locked: true } : {}) })),
+    // Set 2 — Elderhorn's chosen mode(s), so its tribe-scoped trigger multipliers apply in the fight.
+    beastHuntExtra: s.beastHuntExtra ?? 0,
+    beastRitualExtra: s.beastRitualExtra ?? 0,
+    questMods: questCombatMods(s),
+    pendingQuests: buildPendingCombatQuests(s),
+  });
+  // Player-only one-fight rune overrides.
+  const config: CombatConfig = {
+    playerAttacksFirst:
+      (s.attackFirstNext ?? false) || (s.mode === 'tutorial' && !!s.tutorialAttackFirst?.[s.wave - 1]), // Forthcoming strike, or a tutorial round that forces the player to swing first
+    forceEnemyFirstTargetCard:
+      s.mode === 'tutorial' ? (s.tutorialForceEnemyTarget?.[s.wave - 1] || undefined) : undefined,
+    playerRallyDouble: s.rallyDoubleNext ?? false,
+  };
+  return { board: player, state: playerState, config, fleeting, fleetingCovered, twilightMult };
+}
+
+/**
+ * Enter the combat phase around a resolved `s.lastCombat`: spend Marked Target, rewind Fleeting Vigor's pre-baked
+ * surge into real opening events (presentation of `initial` only — the fight is already resolved), and flip the
+ * phase. The tail of `faceOmen`, shared with the deferred-fight landing in `resolveCombat`.
+ */
+function enterCombat(s: RunState, prep: PreparedCombatSide): void {
+  const { fleeting, fleetingCovered, twilightMult } = prep;
+  const combat = s.lastCombat!; // resolved by the caller (faceOmen's fight, or the deferred landing)
+  s.markEnemyRightmostTaunt = false; // Marked Target is a one-fight debuff — spent by the combat just resolved
+  // Telegraph the Fleeting Vigor surge as a Start-of-Combat narration so the pre-baked buff reads as a
+  // real effect (a banner + glow on your line as combat opens) instead of silently bigger minions.
+  if (fleeting) {
+    // CHOREOGRAPHER PR 8 — make the surge actually HAPPEN on screen instead of being pre-applied.
+    //
+    // The buff was baked into the combat board before `simulate`, so `initial` already held the buffed
+    // stats: combat opened with bigger minions and a banner explaining, after the fact, that they had
+    // been bigger all along. That is the owner's report — "Fleeting Vigor triggers the stats before the
+    // start of combat triggers" — and no timing tool could fix it, because the numbers were never
+    // animated at all.
+    //
+    // `initial` is PRESENTATION ONLY: the combat was already simulated from the buffed board, and the
+    // replay is a pure fold of `(initial, events, upto)`. So rewinding `initial` to the pre-buff stats and
+    // adding real `buff` events reconstructs the exact same board — it just shows the gain LANDING at its
+    // Start-of-Combat moment rather than being true from frame one. Gameplay, RNG and the outcome are
+    // untouched; `socBoard` still reads the buffed board because these events sit in the Start-of-Combat
+    // slice it folds through.
+    const a = fleeting.attack * twilightMult;
+    const h = fleeting.health * twilightMult;
+    const buffed = combat.initial.player.slice(0, fleetingCovered);
+    const opening: CombatEvent[] = [];
+    const firstUid = buffed[0]?.uid;
+    if (firstUid) {
+      opening.push({
+        type: 'sc', source: firstUid,
+        text: `Fleeting Vigor — your minions surge +${a}/+${h}`,
+      });
+    }
+    for (const m of buffed) {
+      m.attack -= a;   // rewind to the pre-Start-of-Combat board…
+      m.health -= h;
+      opening.push({ type: 'buff', target: m.uid, attack: a, health: h, source: m.uid }); // …and land it here
+    }
+    if (opening.length) combat.events.unshift(...opening);
+  }
+  s.combatSettled = false; // a fresh combat — its outcome hasn't been applied yet
+  s.phase = 'combat';
+}
+
+/**
+ * Land a deferred self-play fight on the run that parked its prepared side (balance bot B1, 2026-09-15). The
+ * result is THIS seat's perspective of the one authoritative `simulate()` (the runner mirrors it for the seat
+ * that fought as `enemy`). The damage is charged here — armor absorbs first, exactly as the lobby's `hit()` —
+ * because a lobby-mode run's own `settleCombat` deliberately leaves Resolve to the table.
+ */
+function landDeferredFight(s: RunState, fight: DeferredFight): void {
+  const prep = s.pendingCombatSide!;
+  s.lastCombat = fight.result;
+  enterCombat(s, prep);
+  s.pendingCombatSide = undefined;
+  const left = Math.max(0, fight.damageTaken);
+  const fromArmor = Math.min(s.armor, left);
+  s.armor -= fromArmor;
+  s.resolve = Math.max(0, s.resolve - (left - fromArmor));
 }
 
 /**
@@ -5535,12 +5625,38 @@ function mintPowerOffer(s: RunState, slot: 'mimic' | 'void1' | 'void2'): void {
  * a few passives normally get set up at `createRun` — without this a mimicked Lucky Seat would pay its prize
  * off an unset suit and show a blank suit card.
  */
-function seedAdoptedPower(s: RunState, heroId: string): void {
+function seedAdoptedPower(s: RunState, heroId: string, slot: 0 | 1): void {
+  const power = getHero(heroId).power;
+  const kind = power.kind;
+  // PRICE CLOCKS — re-based on EVERY adoption, before the once-per-run guard below. The shrinking-cost powers
+  // (Hunch's Rounded Spellbook, Harlan's Buyout) and Rascal's climbing All In key their countdown off a
+  // `*ResetWave` that a NATIVE hero implicitly starts at wave 1 (`?? 1`); an adopter never set it, so a Void
+  // picking Rounded Spellbook on turn 4 was already at 3 − (4 − 1) = 0 Gold — the coin vanished and the power
+  // was free from the moment it landed (owner report 2026-09-15). Adoption IS this wielder's run start, so the
+  // clock starts here: 3 on the pick turn, 2 the next, as Hunch himself sees on turns 1 and 2. Not guarded:
+  // re-basing only ever moves a price UP (or a payout DOWN), so a Mimic re-adopting can't farm it.
+  if (kind === 'roundedSpellbook') s.hunchResetWave = s.wave;
+  if (kind === 'buyout') s.harlanResetWave = s.wave;
+  if (kind === 'allIn') s.rascalResetWave = s.wave;
+  // Tiff's discount bank counts Dragons/spells bought SINCE THE LAST USE — a fresh wielder starts at the full
+  // 5, exactly as Tiff does at wave 1 (the bank only ever fills while the power is held, so this only matters
+  // to a Mimic who held it before; a fresh clock there keeps every adoption reading the same way).
+  if (kind === 'dragonTamer') s.tiffDiscount = 0;
   // ONCE per hero per run. Mimic re-picks every turn, so an unguarded seed turns every creation-time grant
   // into a faucet — re-adopting Brackus was a Tier-7 Discover per turn.
   if (s.seededPowers?.includes(heroId)) return;
   (s.seededPowers ??= []).push(heroId);
-  const kind = getHero(heroId).power.kind;
+  // The firing slot's whole-game counters belong to the power that arrives: Jenkins's Dynamite Dig prices its
+  // next dig off the slot's use count (a Power Shifter after two Gildmaster uses started at 2 Gold instead of
+  // free), and a once-per-game power (Indy's Gild) must not inherit a `spent` flag from the power it replaced
+  // (it would be dead on arrival, with no recharge ever armed). Inside the guard so a Mimic re-adopting
+  // Jenkins or Indy does not get a fresh free dig / fresh Gild every turn — the second visit is the native
+  // hero's own recharge rule.
+  if (kind === 'dynamiteDig' || power.maxUses) { if (slot === 1) s.heroPowerUses2 = 0; else s.heroPowerUses = 0; }
+  if (power.oncePerGame) {
+    if (slot === 1) s.heroPowerSpent2 = false; else s.heroPowerSpent = false;
+    if (kind === 'gild') s.indyGildRearmAt = undefined;
+  }
   if (kind === 'luckySeat') {
     if (!s.ciaSuit) {
       const rng = makeRng(s.rngCursor);

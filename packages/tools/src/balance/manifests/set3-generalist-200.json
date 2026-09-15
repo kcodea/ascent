@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "name": "set3-generalist-200",
+  "mode": "selfPlayLobby",
+  "setId": "set3",
+  "policy": {
+    "id": "generalist",
+    "budget": {
+      "depth": 1,
+      "beam": 1,
+      "maxNodes": 40,
+      "positionCandidates": 2
+    }
+  },
+  "seeds": {
+    "start": 1,
+    "count": 200
+  },
+  "notes": "Set 3 development experiment: 200 eight-seat self-play lobbies, generalist pilot at the smoke budget (1600 runs).",
+  "opponentPool": {
+    "name": "set3-gen-v1",
+    "digest": "5e95b0376930c13a"
+  }
+}

@@ -60,11 +60,12 @@ export const ACTION_CATALOG = {
   // The shop's two-step death: the landing is on screen, this ends it. A bot never needs to dispatch it —
   // every other action settles the same pending death first, so the outcome is identical either way.
   resolveShopDeath: { generation: 'automatic', reveal: false, note: 'settles a landed body that is dying; implicit in every other action' },
-  // EQUIPMENT (owner handoff 2026-08-28). Not generated yet: the bot has no Equipment policy, and inventing
-  // one before the mechanic is proven would bury real Equipment bugs under bot noise. `never` rather than
-  // `automatic` because a bot COULD meaningfully choose these once it knows how to value them.
-  selectEquipment: { generation: 'never', reveal: false, note: 'free swap of the shown Equipment; no bot policy yet' },
-  activateEquipment: { generation: 'never', reveal: false, note: 'spends Gold + the shared allowance; no bot policy yet' },
+  // EQUIPMENT — inside the planning boundary since balance-bot B2 (2026-09-15). A swap is free and deterministic;
+  // an activation spends Gold + a charge and resolves the Equipment's factory, which CAN generate random cards
+  // (an Equipment Spell, a Discover branch) — so its reveal is audited BY EFFECT in `transition.ts::revealOf`,
+  // not by this flag: `reveal: false` here means "not inherently", the same way `play` is not inherently.
+  selectEquipment: { generation: 'recruit', reveal: false, note: 'free swap of the shown Equipment; generated only when another held Equipment is worth activating' },
+  activateEquipment: { generation: 'recruit', reveal: false, note: 'the SELECTED Equipment, with a friendly target when it aims; reveal audited by its effect id' },
   // Thymepiece's clock-window expiry: the UI's clock tick dispatches it when the window runs out. A bot has no
   // clock (it never activates Equipment either), and every turn flip / combat entry closes the window anyway.
   discountWindowExpired: { generation: 'automatic', reveal: false, note: 'closes Thymepiece\'s clock-window discount; driven by the UI clock, never a choice' },

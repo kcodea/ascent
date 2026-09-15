@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "name": "set2-pinned-strategist-b11-m20",
+  "mode": "pinnedLobby",
+  "setId": "set2",
+  "policy": {
+    "id": "strategist",
+    "budget": {
+      "depth": 1,
+      "beam": 1,
+      "maxNodes": 40,
+      "positionCandidates": 2,
+      "growthWeight": 20,
+      "macroWeight": 20,
+      "macroFightWeight": 13,
+      "macroReserve": 4,
+      "macroCommitFrom": 3,
+      "macroCommitTo": 6,
+      "macroPivotWave": 7,
+      "horizonTop": 0
+    }
+  },
+  "seeds": {
+    "start": 1,
+    "count": 100
+  },
+  "maxActionsPerTurn": 120,
+  "corpus": {
+    "name": "set2-players-v1",
+    "digest": "87909308f9c0a30b"
+  },
+  "fightRules": "shipped",
+  "notes": "B11 ENGINE-COMBO MACROS: the strategist (growth 20) with assemble(combo) in the candidate set, scored by the completion-weighted two-turn probe at macroWeight 20 / macroFightWeight 13, commit-and-roll reserve 4 Gold at waves 3-6, pivot at 7. Same seeds, corpus and budget as set2-pinned-strategist-b11-base."
+}

@@ -1,5 +1,5 @@
 import { makeRng } from '@game/core';
-import type { CombatOutcome, CombatResult, EffectDef, Keyword, QuestObjectiveEvent, Rng, Tribe } from '@game/core';
+import type { BoardMinion, BounceKind, CombatConfig, CombatOutcome, CombatResult, CombatSideState, EffectDef, Keyword, QuestObjectiveEvent, Rng, Tribe } from '@game/core';
 import { CARD_INDEX, SETS, activeSet, poolFor, type SetId } from '@game/content';
 import { CONFIG, HENCHMEN_ARCHIVED, RIFT_BONUS_ARMOR, activeRift, type RiftId } from './config';
 import { DEFAULT_HERO_ID, getHero, powerDiscoverPool } from './heroes';
@@ -470,6 +470,26 @@ export interface ShopDeathFx {
 }
 
 export interface RubyLandedFx { uid: string; count: number; }
+
+/**
+ * One BOUNCE hop for the UI's `spell-bounce` / `ruby-bounce` defs (owner ask 2026-09-15): a spell or Ruby was
+ * RE-CAST onto a DIFFERENT body as a consequence of the cast that landed on `fromUid` — Star Crash's random
+ * friend, Crash Course's two Celestials, Reflector's spread, Rune of Distillation (a Shop offer → your left-most),
+ * Rune of Redirection (left-most → right-most), Rune of the Conduit / Candle Conduit / Resonance Idol's extra Ruby.
+ * ONE entry per (from → to) cast, never batched, so a doubled hop is countable at the signal. `fromUid` may be
+ * a SHOP offer's uid (Distillation, Star Crash on the Starform token); `toUid` is always a board minion.
+ * Presentation only — nothing in the sim reads it back; cleared per action, seq-bumped per record. A same-target
+ * recast (Mirrorwing, Resonance, Prismcaster) is NOT a bounce and records nothing here (owner ruling).
+ */
+export interface BounceFx { kind: BounceKind; fromUid: string; toUid: string; }
+
+/** Record one bounce hop on the per-action `bounceFx` channel. A no-op when both ends are the same body — the
+ *  bounce cue is CROSS-TARGET ONLY (owner ruling 2026-09-15); same-target recasts get their own cue later. */
+export function recordBounceFx(s: RunState, kind: BounceKind, fromUid: string, toUid: string): void {
+  if (fromUid === toUid) return;
+  s.bounceFx = [...(s.bounceFx ?? []), { kind, fromUid, toUid }];
+  s.bounceFxSeq = (s.bounceFxSeq ?? 0) + 1;
+}
 
 /** Which tavern offers VEINSTORM gemmed this action, and whether it was the cast or a refresh re-stamp.
  *  Distinct from `rubyLandedFx` on purpose: Veinstorm gems the whole shop as ONE event (a spanning volley, a
@@ -1191,6 +1211,11 @@ export interface RunState {
   collapseExtraTargets?: number;
   /** Bumps each time a Starform pull is recorded — the UI keys the `starform-pull` play off this. */
   starformFxSeq: number;
+  /** The bounce hops recorded this action (see `BounceFx`). Cleared at the top of `reduce`, like `starformFx`. */
+  bounceFx?: BounceFx[];
+  /** Bumps per recorded bounce hop — the UI keys the `spell-bounce` / `ruby-bounce` plays off this. Optional:
+   *  a save from before the field existed restores without it (`?? 0` at every read). */
+  bounceFxSeq?: number;
   /** Wolvie's borrowed Echo (`deathrattleBuffNextSummon`): buff the NEXT minion summoned in the shop of this
    *  tribe, then clear. One-shot; also cleared at End of Turn so it never leaks into the next shop. */
   pendingSummonBuff?: { tribe: Tribe; attack: number; health: number; source: string };
@@ -2050,6 +2075,10 @@ export interface RunState {
     toIndex?: number };
   /** The most recent combat's result, for the UI to replay. Transient. */
   lastCombat?: CombatResult;
+  /** BALANCE BOT (B1): the fully prepared combat side of a DEFERRED fight — set by `faceOmen { deferFight }`,
+   *  consumed by `resolveCombat { fight }`. While set, the run is in `combat` with NO result yet: `settleCombat`
+   *  and a bare `resolveCombat` refuse. Never set by ordinary play. */
+  pendingCombatSide?: PreparedCombatSide;
   /** OPPONENT PINNING: the exact board fought each wave, keyed by wave number — the full served
    *  `BoardSnapshot`, or `null` when the procedural threat was used (no pool match). The opponent pick is
    *  already deterministic from `(seed, wave)` GIVEN the pool, so within a session/frozen pool a replay
@@ -2100,6 +2129,30 @@ export interface PlayerEquipmentState {
   bonusSpent: number;
   /** Gold off the next activation. Additive, floored at 0 by `equipmentCostOf`, expires at End of Turn. */
   temporaryCostReduction: number;
+}
+
+/**
+ * A prepared combat side, parked on the run between `faceOmen { deferFight }` and `resolveCombat { fight }`
+ * (balance bot B1, 2026-09-15). Built by the reducer's `preparePlayerCombatSide` — the ONE builder the shipped
+ * player fight uses — so a self-play seat fights with everything its owner's run would carry. Plain data
+ * (survives the reducer's structuredClone); `fleeting*` / `twilightMult` are what the combat-entry tail needs
+ * to rewind Fleeting Vigor's pre-baked surge into opening events.
+ */
+export interface PreparedCombatSide {
+  board: BoardMinion[];
+  state: CombatSideState;
+  config: CombatConfig;
+  fleeting: { attack: number; health: number } | null;
+  fleetingCovered: number;
+  twilightMult: number;
+}
+
+/** The landing payload of a deferred fight — see `Action` `resolveCombat`. */
+export interface DeferredFight {
+  /** The authoritative result from THIS seat's perspective (`player` = this run). */
+  result: CombatResult;
+  /** Resolve+Armor the lobby charged this seat for the fight (already round-capped). Armor absorbs first. */
+  damageTaken: number;
 }
 
 export type Action =
@@ -2153,9 +2206,13 @@ export type Action =
    *  lived it, and so the reducer never reads a clock. A no-op when no window is open. */
   | { type: 'discountWindowExpired' }
   | { type: 'closeScout' } // Farseer's Report: dismiss the scout reveal
-  | { type: 'faceOmen' }
+  /** End the turn. `deferFight` (balance bot B1): end the turn and prepare the full combat side, but resolve NO
+   *  fight — the self-play lobby simulates the pair once and lands the result via `resolveCombat { fight }`. */
+  | { type: 'faceOmen'; deferFight?: true }
   | { type: 'settleCombat' }
-  | { type: 'resolveCombat' }
+  /** Leave combat. `fight` lands a DEFERRED fight's result (this seat's perspective) + the damage the lobby
+   *  charged it, then settles and advances exactly as a bare `resolveCombat` does. */
+  | { type: 'resolveCombat'; fight?: DeferredFight }
   /** DEV Scene Builder only — drop a quest (optionally already completed) or a rune straight into the run so
    *  its interactions can be tested without playing to the turn that offers it. Routed through the SAME
    *  reward engine a real buy/completion uses; see the reducer case. */

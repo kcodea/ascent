@@ -502,6 +502,28 @@ export function labelBuffFxFor(source: string): { def: string; heroId?: string }
   return LABEL_BUFF_FX[source] ?? null;
 }
 
+/**
+ * HERO-POWER grants with NO authored effect of their own (owner ask 2026-09-15: every Start of Combat / End of
+ * Turn stat grant to other units shows where it comes from). A hero power has no body on the board, so its
+ * buffs arrive label-sourced like a rune's — but unlike a rune it has no badge burst and no `rune-buff-unit`
+ * sparkle, so before this a United Front payout landed on each recipient with NOTHING on screen. These play
+ * the GENERIC buff tendril (the base `tendril-trail`, since a hero is tribeless) from the hero-power button
+ * to each recipient, through the same `fireBuffFx` every minion buff uses.
+ *
+ * `LABEL_BUFF_FX` above wins when both name a label: an authored def replaces the stock tendril, never joins it.
+ * Keys are the simulator's literals, swept by `docbot/onAttackStatTiming.test.ts` like the map above.
+ */
+const HERO_POWER_BUFF_LABELS: Record<string, { heroId: string }> = {
+  // EMISSARY — United Front, Start of Combat: one friendly of each type +N/+N. Passive, so the button never
+  // "fires"; the tendrils leaving it are the whole tell.
+  'United Front': { heroId: 'vale' },
+};
+
+/** The hero whose power a label-sourced grant belongs to (for the button anchor + power clip), or null. */
+export function heroPowerBuffLabelFor(source: string): { heroId: string } | null {
+  return HERO_POWER_BUFF_LABELS[source] ?? null;
+}
+
 export function authoredBuffDefFor(spellId: string | undefined): string | null {
   if (spellId === undefined) return null;
   const b = bindingFor(spellId, 'buffWave');

@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CombatEvent } from '@game/core';
 import { compileMoments, type Moment } from './compile';
 import { rallyLeadMs, RALLY_GAP_MS, RALLY_PROC_STRIDE_MS, RALLY_PULSE_READ_MS } from './channels/rallyFired';
+import { RUBY_BEAT_MS, RUBY_GAP_MS } from './channels/rubyLanded';
 import { getLungeConfig } from '../lungeConfig';
 import { sfx } from '../sfx';
 import { SCORE_DEFAULTS, getScore, getCues, setCue, resetScore, scoreJson, runMomentCues, rallyDeliveredUids, type Channel } from './score';
@@ -914,6 +915,79 @@ describe('rallyFx channel', () => {
     runMomentCues(compileMoments(events)[0]!, baseCtx(events, withCard('ech', 'b2_echohorn')));
     expect(mockPlayDef).not.toHaveBeenCalled();
     expect(mockAnchors).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * THE BOUNCE CHANNEL (owner ask 2026-09-15) — a cross-target re-cast plays the owner's `ruby-bounce` (or the
+ * placeholder `spell-bounce`) FROM the body the original cast landed on TO the bounce recipient, one play per
+ * hop, walked as the Ruby sweep's cascade-of-stacks. Trouble in combat is the canonical case.
+ */
+describe('bounceFx channel — the cross-target re-cast ribbon', () => {
+  const buff = (target: string, over: Partial<Extract<CombatEvent, { type: 'buff' }>> = {}): CombatEvent =>
+    ({ type: 'buff', target, attack: 2, health: 2, source: 'x', ...over } as CombatEvent);
+
+  beforeEach(() => {
+    mockPlayDef.mockClear(); mockAnchors.mockClear();
+    mockCanPlayDefs.mockReturnValue(true);
+    mockAnchors.mockReturnValue({ source: { x: 1, y: 1 }, target: { x: 5, y: 7 } } as ReturnType<typeof anchorsForUnits>);
+  });
+
+  it('is scored on exactly the kinds the Ruby cue is — a combat bounce is always a Ruby buff', () => {
+    for (const kind of ['attackExchange', 'shout', 'buffWave'] as const) {
+      expect(SCORE_DEFAULTS[kind].some((c) => c.ch === 'bounceFx'), kind).toBe(true);
+    }
+    expect(SCORE_DEFAULTS.summon.some((c) => c.ch === 'bounceFx')).toBe(false);
+  });
+
+  it('Trouble: plays ruby-bounce anchored victim → Trouble, and nothing for the original landing', () => {
+    const events = [buff('vic', { ruby: true }), buff('dt', { ruby: true, bounce: { from: 'vic', kind: 'ruby' } })];
+    runMomentCues(moment('buffWave', events), baseCtx(events));
+    const bounceCalls = mockPlayDef.mock.calls.filter(([id]) => id === 'ruby-bounce' || id === 'spell-bounce');
+    expect(bounceCalls).toHaveLength(1);
+    expect(bounceCalls[0]![0]).toBe('ruby-bounce');
+    expect(bounceCalls[0]![2]).toEqual({ uids: { source: 'vic', target: 'dt' }, index: 0 });
+    expect(mockAnchors).toHaveBeenCalledWith('vic', 'dt');
+  });
+
+  it('a spell-kind hop plays spell-bounce', () => {
+    const events = [buff('c', { bounce: { from: 'r', kind: 'spell' } })];
+    runMomentCues(moment('buffWave', events), baseCtx(events));
+    expect(mockPlayDef.mock.calls.some(([id, , o]) => id === 'spell-bounce' && (o as { uids: { source: string; target: string } }).uids.source === 'r')).toBe(true);
+  });
+
+  it('a doubled hop is a STACK — two ribbons on the pair, a beat apart, then the next pair a gap later', () => {
+    vi.useFakeTimers();
+    try {
+      const events = [
+        buff('dt', { ruby: true, bounce: { from: 'vic', kind: 'ruby' } }),
+        buff('dt', { ruby: true, bounce: { from: 'vic', kind: 'ruby' } }),
+        buff('dt2', { ruby: true, bounce: { from: 'vic', kind: 'ruby' } }),
+      ];
+      runMomentCues(moment('buffWave', events), baseCtx(events));
+      const bounces = () => mockPlayDef.mock.calls.filter(([id]) => id === 'ruby-bounce').map(([, , o]) => (o as { uids: { target: string } }).uids.target);
+      expect(bounces()).toEqual(['dt']);
+      vi.advanceTimersByTime(RUBY_BEAT_MS);
+      expect(bounces()).toEqual(['dt', 'dt']);
+      vi.advanceTimersByTime(RUBY_GAP_MS);
+      expect(bounces()).toEqual(['dt', 'dt', 'dt2']);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('skips a hop whose ends are no longer on screen rather than firing at the corner', () => {
+    mockAnchors.mockReturnValue(null);
+    const events = [buff('dt', { ruby: true, bounce: { from: 'vic', kind: 'ruby' } })];
+    runMomentCues(moment('buffWave', events), baseCtx(events));
+    expect(mockPlayDef.mock.calls.filter(([id]) => id === 'ruby-bounce')).toHaveLength(0);
+  });
+
+  it('schedules nothing when defs cannot play', () => {
+    mockCanPlayDefs.mockReturnValue(false);
+    const events = [buff('dt', { ruby: true, bounce: { from: 'vic', kind: 'ruby' } })];
+    runMomentCues(moment('buffWave', events), baseCtx(events));
+    expect(mockPlayDef).not.toHaveBeenCalled();
   });
 });
 

@@ -2,6 +2,7 @@ import type {
   BoardMinion,
   CardDef,
   EnemyScalers,
+  CombatCarryBacks,
   CombatConfig,
   CombatContext,
   CombatEvent,
@@ -18,7 +19,7 @@ import type {
   Tribe,
 } from '../types';
 import { ALE_IDS, alignAllows, extraTriggerFires, foldEchoExtraFires, socTwilightExtraFires } from '../types';
-import type { Rng } from '../rng';
+import { makeRng, type Rng } from '../rng';
 import { CombatBus } from '../events';
 import { FACTORIES, playRubyOn, castInCombat, combatCastable, resolveCombatSpellCast, replayCombatBattlecry, drakkoRepeats, SILENT_ONPLAY } from '../effects/factories';
 import { instantiate, type CardIndex } from './minion';
@@ -121,7 +122,19 @@ export function simulate(
   // (Pack Mentality) is fixed for the fight. Enemy values come from the served snapshot.
   const beastAtkAuraFor: Record<Side, number> = { player: playerState.beastBuyAtk, enemy: enemyState.beastBuyAtk };
   const beastHpAuraFor: Record<Side, number> = { player: playerState.questMods.beastAuraHp ?? 0, enemy: enemyState.questMods.beastAuraHp ?? 0 };
-  let beastBuyAtkGain = 0; // The Old Hunt: run-wide Beast Attack aura gained this combat → carried back
+  // ── SYMMETRIC CARRY-BACKS (balance bot, 2026-09-15) ──────────────────────────────────────────────────────
+  // Every settle-time carry-back below is tracked PER SIDE. The `player` half feeds the `player*` result fields
+  // exactly as it always has; the `enemy` half is reported on the additive `CombatResult.enemyCarry` so a live
+  // run fighting as the `enemy` side (eight-seat self-play) settles with what it earned. THE ENEMY HALF ONLY
+  // ACCUMULATES: it never emits an event, never draws from the fight's RNG stream and never changes a live read
+  // the resolution consults (an enemy Grim still reads its frozen snapshot tally, enemy spell power stays
+  // static, …) — so every shipped fight is byte-identical (events + every `player*` field). Where an enemy
+  // grant needs a random pick (Badgington, Carrion Coin, Last Call, Salvage, Returning Pack) it draws from a
+  // SIDE stream seeded off the fight RNG's opening state — `state()` is a read, not a draw — so the main
+  // stream is untouched and the pick is still a pure function of the seed.
+  const zero = (): { attack: number; health: number } => ({ attack: 0, health: 0 });
+  const perSide = <T,>(mk: () => T): Record<Side, T> => ({ player: mk(), enemy: mk() });
+  const beastBuyAtkGain: Record<Side, number> = { player: 0, enemy: 0 }; // The Old Hunt: run-wide Beast Attack aura gained this combat → carried back
   // GORUN (Blade Mastery): attacks made THIS fight, per side. The run-lifetime total rides in on
   // `mods.bladeMastery.attacks`; adding this to it is what lets the grant step up mid-combat as the running
   // total crosses each multiple of 8. Its own counter rather than `questTally.attack`, which is player-only —
@@ -133,12 +146,17 @@ export function simulate(
     player: { ...(playerState.questMods.hoard ?? { attack: 0, health: 0 }) },
     enemy: { ...(enemyState.questMods.hoard ?? { attack: 0, health: 0 }) },
   };
-  const hoardStart = { attack: hoardLevel.player.attack, health: hoardLevel.player.health };
+  const hoardStart: Record<Side, { attack: number; health: number }> = {
+    player: { attack: hoardLevel.player.attack, health: hoardLevel.player.health },
+    enemy: { attack: hoardLevel.enemy.attack, health: hoardLevel.enemy.health },
+  };
   // Pack Mentality: player-side LIVE growth of the Beast aura (every `per` Beasts summoned this fight grow it by
   // step, applied at once to living Beasts). `beastScaleProgress` counts toward the next step; the Health gain is
   // its own carry-back (The Old Hunt is Attack-only, so `beastBuyHpGain` is new).
+  // KNOWN ASYMMETRY (kept): the live growth is player-only — an enemy Pack Mentality neither grows nor ticks,
+  // so its carry-back is absent rather than estimated.
   const beastScale = playerState.questMods.beastSummonScale;
-  let beastBuyHpGain = 0;
+  const beastBuyHpGain: Record<Side, number> = { player: 0, enemy: 0 };
   let beastScaleProgress = beastScale?.progress ?? 0;
   const events: CombatEvent[] = [];
   // Resolution-step tag (choreographer spec 2026-07-06): `stepN` identifies the atomic resolution moment
@@ -213,69 +231,69 @@ export function simulate(
   };
   let uidCounter = 0;
   const mkUid = (): string => `m${uidCounter++}`;
-  const handGrants: string[] = []; // cards the player's deathrattles add to hand after combat
-  const handBuffs: { uid: string; attack: number; health: number; source?: string }[] = []; // R-HAND-02: hand cards buffed mid-fight, carried back permanently
+  const handGrants = perSide<string[]>(() => []); // cards a side's deathrattles add to its hand after combat
+  const handBuffs = perSide<{ uid: string; attack: number; health: number; source?: string }[]>(() => []); // R-HAND-02: hand cards buffed mid-fight, carried back permanently
   /** Rune of Grave Refreshment's per-side Echo counter. Combat-local: the rune reads "in combat", so the
    *  remainder is deliberately NOT banked across fights. */
   const echoRefreshTick: Record<Side, number> = { player: 0, enemy: 0 };
   /** Rune of the Returning Pack's per-side Beast-summon counter. Combat-local for the same reason. */
   const packSummonTick: Record<Side, number> = { player: 0, enemy: 0 };
-  let slaughterCopyId: string | undefined; // Rune of the Trophy: the first friendly slaughterer's card id
-  const spellPowerGain = { attack: 0, health: 0 }; // run-wide spell-power gained this combat (Skullblade)
-  const rubyGrants = { n: 0 }; // Set 2 — Rubies to mint into hand after combat (Rikk / Gemline), carried back
+  const slaughterCopyId: Record<Side, string | undefined> = { player: undefined, enemy: undefined }; // Rune of the Trophy: the first friendly slaughterer's card id
+  const spellPowerGain = perSide(zero); // run-wide spell-power gained this combat (Skullblade)
+  const rubyGrants = perSide(() => ({ n: 0 })); // Set 2 — Rubies to mint into hand after combat (Rikk / Gemline), carried back
   // Per SIDE, and read LIVE (owner rule 2026-08-02): a mid-combat Ruby buff (Crownvein Vanguard's Rally)
   // must reach the Rubies played LATER in the same fight (Gemstorm Instigator's Avenge, Mineral Master's
   // Rally, Rune of Attacking Gems) — it used to be a settle-time carry-back only, so every in-combat Ruby
   // minted at the pre-combat snapshot. `rubyBonusFor` folds this in on every read; the player half still
   // carries back via `playerRubyBonusGain` (enemies have no run to persist to).
-  let rubyMintCount = 0; // "get N Rubies" refired in combat — settle mints via the run's real mintRubies
+  const rubyMintCount: Record<Side, number> = { player: 0, enemy: 0 }; // "get N Rubies" refired in combat — settle mints via the run's real mintRubies
   const handSummonedUids = new Set<string>(); // hand minions taken by Rope Wrangler's Echo (per-fight, both sides)
-  const handSummoned: string[] = []; // the player half, carried back so settle removes them from the hand
+  const handSummoned = perSide<string[]>(() => []); // per side, carried back so settle removes them from the hand
   const handCopiedUids = new Set<string>(); // set 3 Spirits: hand cards a COPY was summoned from this fight — NOT consumed, just spent as a summon source
   const rubyBonusGain: Record<Side, { attack: number; health: number }> = {
     player: { attack: 0, health: 0 },
     enemy: { attack: 0, health: 0 },
   };
-  const boardBuffGain = { attack: 0, health: 0 }; // Rune of Overflow — permanent, carried back to the warband
-  const tavernBuyGain = { attack: 0, health: 0 }; // Demon Horse — carried back to `tavernBuyBonus`
+  const boardBuffGain = perSide(zero); // Rune of Overflow — permanent, carried back to the warband
+  const tavernBuyGain = perSide(zero); // Demon Horse — carried back to `tavernBuyBonus`
   // …and WHO raised it, by name (a rune or the body): the run's per-source shop-stat ledger (owner ask 2026-09-10).
-  const tavernBuyGainSources: Record<string, { attack: number; health: number }> = {};
-  const creditTavern = (name: string, attack: number, health: number): void => {
-    const cur = tavernBuyGainSources[name] ?? { attack: 0, health: 0 };
-    tavernBuyGainSources[name] = { attack: cur.attack + attack, health: cur.health + health };
+  const tavernBuyGainSources = perSide<Record<string, { attack: number; health: number }>>(() => ({}));
+  const creditTavern = (side: Side, name: string, attack: number, health: number): void => {
+    const cur = tavernBuyGainSources[side][name] ?? { attack: 0, health: 0 };
+    tavernBuyGainSources[side][name] = { attack: cur.attack + attack, health: cur.health + health };
   }; // Set 2 — rubyBonus gained this combat (Veinbreaker), carried back
-  const nextTurnSpellCopies = { n: 0 }; // Set 2 — Scalefeather Echoes: next-turn first-spell copies, carried back
-  let undeadBuyAtkGain = 0; // permanent Undead buy-time attack from this combat (Karthus)
+  const nextTurnSpellCopies = perSide(() => ({ n: 0 })); // Set 2 — Scalefeather Echoes: next-turn first-spell copies, carried back
+  const undeadBuyAtkGain: Record<Side, number> = { player: 0, enemy: 0 }; // permanent Undead buy-time attack from this combat (Karthus)
   const beastExtraGain: Record<Side, { hunt: number; ritual: number }> = { // Elderhorn refired in combat —
     player: { hunt: 0, ritual: 0 }, // both sides read live for the rest of the fight; player half carries back
     enemy: { hunt: 0, ritual: 0 },
   };
-  const undeadAuraGain = { attack: 0, health: 0 }; // permanent Undead aura (attack+health) from this combat (Watcher's Lantern)
-  const impBuffGain = { attack: 0, health: 0 }; // permanent Imp buff from this combat (Imp King / Brood Avenge)
-  const rightmostSlotGain = { attack: 0, health: 0 }; // permanent right-most Shop-slot buff (Right Hand Hank's Echo)
-  const magneticBuffGain = { attack: 0, health: 0 }; // permanent Attachment enchant from this combat (Chorus Engine)
-  const fodderBuffGain = { attack: 0, health: 0 }; // permanent run-wide Fodder enchant from this combat (Bane via Ryme)
-  const cardBuffGains: { cardId: string; attack: number; health: number }[] = []; // run-wide card-type buffs (Grave Knit)
-  let fodderGrants = 0; // Fodder queued into the next tavern (Burial Imp's Deathrattle)
-  const fodderSchedule: number[] = []; // Fodder queued across the next several shops (Pit Supplier's Avenge)
-  let maxGoldGain = 0; // permanent max-Gold gain (Soulsman's Avenge)
-  let bonusGoldGain = 0; // one-time Gold granted into the next shop (Bounty Bot's Slaughter)
+  const undeadAuraGain = perSide(zero); // permanent Undead aura (attack+health) from this combat (Watcher's Lantern)
+  const impBuffGain = perSide(zero); // permanent Imp buff from this combat (Imp King / Brood Avenge)
+  const rightmostSlotGain = perSide(zero); // permanent right-most Shop-slot buff (Right Hand Hank's Echo)
+  const magneticBuffGain = perSide(zero); // permanent Attachment enchant from this combat (Chorus Engine)
+  const fodderBuffGain = perSide(zero); // permanent run-wide Fodder enchant from this combat (Bane via Ryme)
+  const cardBuffGains = perSide<{ cardId: string; attack: number; health: number }[]>(() => []); // run-wide card-type buffs (Grave Knit)
+  const fodderGrants: Record<Side, number> = { player: 0, enemy: 0 }; // Fodder queued into the next tavern (Burial Imp's Deathrattle)
+  const fodderSchedule = perSide<number[]>(() => []); // Fodder queued across the next several shops (Pit Supplier's Avenge)
+  const maxGoldGain: Record<Side, number> = { player: 0, enemy: 0 }; // permanent max-Gold gain (Soulsman's Avenge)
+  const bonusGoldGain: Record<Side, number> = { player: 0, enemy: 0 }; // one-time Gold granted into the next shop (Bounty Bot's Slaughter)
   const buffCounts = new Map<string, number>(); // # of stat-grants per minion this combat (Tara → Taragosa ascend)
-  let freeRollGrants = 0; // free shop rerolls banked from combat (Gryphon's on-damaged)
-  let attachmentShopGrants = 0; // Moe: shops that must contain a guaranteed Magnetic offer, banked from combat
+  const freeRollGrants: Record<Side, number> = { player: 0, enemy: 0 }; // free shop rerolls banked from combat (Gryphon's on-damaged)
+  const attachmentShopGrants: Record<Side, number> = { player: 0, enemy: 0 }; // Moe: shops that must contain a guaranteed Magnetic offer, banked from combat
   // Running spell tally per side for in-combat casts (Taragosa's Growth). The player side is seeded from
   // the run's spellsCast so Guel's grant scales correctly; `playerCombatSpells` is the delta carried back.
   const spellTotals: Record<Side, number> = { player: playerState.spellsCast, enemy: 0 };
-  let playerCombatSpells = 0; // spells the player cast THIS combat → added to the run's spellsCast at settle
+  const combatSpells: Record<Side, number> = { player: 0, enemy: 0 }; // spells a side cast THIS combat → added to the run's spellsCast at settle
   /** Escalating-spell improvement earned this fight (Quil casting Front to Back). Live for the REST of the
    *  fight — a second cast grants the improved value — and the player's half carries back at settle. */
   const spellEscalationGain: Record<Side, { attack: number; health: number }> =
     { player: { attack: 0, health: 0 }, enemy: { attack: 0, health: 0 } };
   /** Discover spells cast mid-fight (Quil / Sporebat / a taught Pup) — the modal can't open here, so the
    *  cast carries back and settle queues the real pick. Player-only, like every hand channel. */
-  const discoverCasts: string[] = [];
+  const discoverCasts = perSide<string[]>(() => []);
   /** Shop-buff spells cast mid-fight → a one-time NEXT-shop buff (the run's `nextShopBuff` channel). */
-  const nextShopBuffGain = { attack: 0, health: 0 };
+  const nextShopBuffGain = perSide(zero);
   /** Extra combat casts each side has been granted (Runebloom Matriarch). 0 = a Shop Spell resolves once.
    *  Locked in at Start of Combat, so losing the granter mid-fight does not retract it — the same contract
    *  every other Start-of-Combat mode installs. Read by `castInCombat` via `spellCastRepsFor`. */
@@ -317,7 +335,7 @@ export function simulate(
   };
   // Economy battlecries Ryme re-fired in combat (Fodder / Gold / shop / gain-minion) — can't run in pure combat,
   // so they're recorded here and replayed through their real recruit factory at settle (full RunState access).
-  const deferredBattlecries: { cardId: string; golden: boolean }[] = [];
+  const deferredBattlecries = perSide<{ cardId: string; golden: boolean }[]>(() => []);
 
   /**
    * AURAS — run-wide buffs that follow a player minion EVERYWHERE: the warband + shop (folded into the
@@ -421,12 +439,12 @@ export function simulate(
     // Per-card run enchant (Fodder Aura + Eternal Knight). The player's prior-run total is authoritative in
     // `cardBuffs`; for BOTH sides the minion's own buff breakdown (keyed under the card's name) carries it
     // inline — so a captured ENEMY Eternal Knight re-gains its enchant when it Rises (built from base). The
-    // stacks banked THIS fight (`cardBuffGains`) are the player's own tracking, so they only fold onto players.
+    // stacks banked THIS fight (`cardBuffGains`) fold onto players only (KNOWN ASYMMETRY kept: the enemy's bank is a carry-back).
     const def = cards[m.cardId];
     const prior = fromBase
       ? (isPlayer ? playerState.cardBuffs[m.cardId] : undefined) ?? (def ? m.buffs?.find((b) => b.source === def.name) : undefined)
       : undefined;
-    const gain = isPlayer ? cardBuffGains.find((c) => c.cardId === m.cardId) : undefined;
+    const gain = isPlayer ? cardBuffGains.player.find((c) => c.cardId === m.cardId) : undefined;
     const a = (prior?.attack ?? 0) + (gain?.attack ?? 0);
     const h = (prior?.health ?? 0) + (gain?.health ?? 0);
     if (a > 0) m.attack = Math.max(0, m.attack + a);
@@ -437,8 +455,8 @@ export function simulate(
   // auras + its prior per-card enchant (they were folded in before the copy was taken). So it only needs the
   // per-card stacks banked LATER this fight (e.g. its own destroy + other Eternal Knight deaths) re-applied.
   const applyCombatGains = (m: Minion): void => {
-    if (m.side !== 'player') return;
-    const gain = cardBuffGains.find((c) => c.cardId === m.cardId);
+    if (m.side !== 'player') return; // KNOWN ASYMMETRY (kept): the enemy's banked per-card stacks are a carry-back only
+    const gain = cardBuffGains.player.find((c) => c.cardId === m.cardId);
     if (!gain) return;
     if (gain.attack > 0) m.attack = Math.max(0, m.attack + gain.attack);
     if (gain.health > 0) { m.health += gain.health; m.maxHealth += gain.health; }
@@ -457,7 +475,7 @@ export function simulate(
 
   // Player-side Deathrattle firings this combat — feeds Grim's "+1/+1 per Deathrattle this game" tally
   // (added to the run-wide base passed in), and is carried back to accumulate the run-wide count.
-  let playerDeathrattles = 0;
+  const deathrattlesFired: Record<Side, number> = { player: 0, enemy: 0 };
   // Grave Contract / Last Rites: their "first Echo each combat fires extra" bonus is a one-shot per fight —
   // this flips true the first time a player Echo actually triggers so the bonus is spent exactly once.
   // These "first each combat" one-shots are now PER SIDE (a served enemy runs its own quest/rune doublers):
@@ -465,10 +483,10 @@ export function simulate(
   // extra" bonuses; `pitDone` gates Pit Without End's once-per-fight summon.
   const firstEchoDone: Record<Side, boolean> = { player: false, enemy: false };
   // Player Rally (on-attack) triggers this combat — the `rally` quest objective.
-  let playerRallies = 0;
+  const ralliesFired: Record<Side, number> = { player: 0, enemy: 0 };
   const firstRallyDone: Record<Side, boolean> = { player: false, enemy: false };
   // Imps the player summoned this combat — the `summonImp` objective.
-  let playerImpsSummoned = 0;
+  const impsSummoned: Record<Side, number> = { player: 0, enemy: 0 };
   const pitDone: Record<Side, boolean> = { player: false, enemy: false };
   /** Rune of Finality's own once-per-fight latch — separate from `pitDone` so holding both runes pays both. */
   const finalityDone: Record<Side, boolean> = { player: false, enemy: false };
@@ -477,7 +495,7 @@ export function simulate(
   // 2026-08-01), so the fight opens where the last one left off.
   const wildHuntGrown: Record<Side, number> = { player: playerState.wildHuntGrown ?? 0, enemy: enemyState.wildHuntGrown ?? 0 };
   /** Friendly minions summoned this combat — the Remains' threshold and Reinvestment's settle-time multiplier. */
-  let playerSummonCount = 0;
+  const summonCount: Record<Side, number> = { player: 0, enemy: 0 };
   /** Per-side count of combat summons so far (this one included), read by Rune of the Zoo to scale Beardsley. */
   const summonOrdinal: Record<Side, number> = { player: 0, enemy: 0 };
   const firstSlaughterDone: Record<Side, boolean> = { player: false, enemy: false };
@@ -486,8 +504,8 @@ export function simulate(
   let enemyDeaths = 0;
   // Flash: the IDENTITY of the first and last enemy body you put down, not just how many. Recorded at both
   // enemy-death sites so a Rise's real death counts exactly like an ordinary one.
-  let firstKill: string | undefined;
-  let lastKill: string | undefined;
+  // Per KILLER side: `kills.player` = enemy bodies the player put down; `kills.enemy` the mirror.
+  const kills: Record<Side, { first?: string; last?: string }> = { player: {}, enemy: {} };
   // Rune of the Deathtouched Apple: 2 re-arms per COMBAT per side. A budget rather than a flag because
   // re-granting Rise on a Rise is otherwise unbounded — each return would arm the next forever.
   // 2 uses per copy held (boolean-flag family, owner 2026-08-27).
@@ -496,21 +514,28 @@ export function simulate(
     enemy: modsFor('enemy').runeDeathtouchedApple ? { left: 2 * flagCopiesOf('enemy', 'runeDeathtouchedApple') } : null,
   };
   const appleUsesFor = (side: Side): { left: number } | null => appleBudget[side];
-  const flashPick = playerState.questMods?.flashPick;
+  const flashPickFor: Record<Side, QuestCombatMods['flashPick']> = { player: playerState.questMods?.flashPick, enemy: enemyState.questMods?.flashPick };
   // Rune of the Wishbone on Flash: the claim grants TWO copies (owner ruling 2026-08-19 — "2 copies of the
   // minion for either choice"). The mark itself is unchanged; what doubles is the payout, which is the only
   // thing about this power that CAN double — arming a mark twice is the same mark.
-  const flashCopies = Math.max(1, playerState.questMods?.flashCopies ?? 1);
-  let flashDone = false;
-  const noteKill = (cardId: string, uid: string): void => {
-    firstKill ??= cardId;
-    lastKill = cardId;
+  const flashCopiesFor: Record<Side, number> = {
+    player: Math.max(1, playerState.questMods?.flashCopies ?? 1),
+    enemy: Math.max(1, enemyState.questMods?.flashCopies ?? 1),
+  };
+  const flashDone: Record<Side, boolean> = { player: false, enemy: false };
+  /** A body of `victimSide` died: the OTHER side put it down. */
+  const noteKill = (cardId: string, uid: string, victimSide: Side): void => {
+    const killer: Side = victimSide === 'player' ? 'enemy' : 'player';
+    const k = kills[killer];
+    k.first ??= cardId;
+    k.last = cardId;
     // FIRST is knowable the instant it happens, so it flies to hand right then. LAST cannot be known until the
     // fight ends — it is granted at the final step below, still inside the replay so it animates the same way.
-    if (flashPick === 'first' && !flashDone) {
-      flashDone = true;
+    // (The enemy side's claim is a silent carry-back — see the symmetric carry-back note at the top.)
+    if (flashPickFor[killer] === 'first' && !flashDone[killer]) {
+      flashDone[killer] = true;
       const def = cards[cardId];
-      if (def && !def.spell && !def.ruby) for (let i = 0; i < flashCopies; i++) ctx.grantToHand(cardId, 'player', uid);
+      if (def && !def.spell && !def.ruby) for (let i = 0; i < flashCopiesFor[killer]; i++) ctx.grantToHand(cardId, killer, uid);
     }
   };
 
@@ -518,24 +543,26 @@ export function simulate(
   // Player attacks / mid-combat summons / enemy slaughters, each with a by-tribe breakdown (the acting or
   // summoned minion's tribe(s); universal-tribe minions count for every tribe). Beast quest objectives read
   // these post-combat. The Echo (Deathrattle) objective reuses `playerDeathrattles`.
-  const questTally = {
+  const mkQuestTally = () => ({
     attack: 0, summonCombat: 0, slaughter: 0, slaughterKeyword: 0,
     attackByTribe: {} as Partial<Record<Tribe, number>>,
     summonCombatByTribe: {} as Partial<Record<Tribe, number>>,
     slaughterByTribe: {} as Partial<Record<Tribe, number>>,
     statGainByTribe: {} as Partial<Record<Tribe, number>>,
-  };
+  });
+  const questTallies = perSide(mkQuestTally);
+  const questTally = questTallies.player; // the player's, read by the mid-combat quest completion below
   const ALL_TRIBES: Tribe[] = ['beast', 'dragon', 'undead', 'mech', 'demon'];
   const tribesFor = (m: Minion): Tribe[] => {
     if (m.universalTribe) return ALL_TRIBES; // counts as every tribe (like the run-wide auras)
     return [m.tribe, m.tribe2].filter((t): t is Tribe => !!t && t !== 'neutral');
   };
-  const byTribeMap = { attack: questTally.attackByTribe, summonCombat: questTally.summonCombatByTribe, slaughter: questTally.slaughterByTribe };
   // Per-tick timeline (step-tagged) so the UI can LIVE-TICK quest progress during the replay — one entry per
   // objective increment. `tribes` lets the panel narrow ("…with Beasts"); an entry with step ≤ the replay's
   // current step is "already counted". Deathrattle (Echo) entries carry no tribe (the Echo objective is
   // tribe-agnostic). Carried back via `CombatResult.playerQuestEvents`.
-  const questEvents: { step: number; kind: 'attack' | 'summonCombat' | 'slaughter' | 'slaughterKeyword' | 'deathrattle' | 'friendlyDeath' | 'rally' | 'summonImp'; tribes: Tribe[] }[] = [];
+  type QuestEventKind = 'attack' | 'summonCombat' | 'slaughter' | 'slaughterKeyword' | 'deathrattle' | 'friendlyDeath' | 'rally' | 'summonImp';
+  const questEventsFor = perSide<{ step: number; kind: QuestEventKind; tribes: Tribe[] }[]>(() => []);
   // ── Mid-combat quest completion (player) ───────────────────────────────────────────────────────────────
   // Active combat-objective quests threaded in via `pendingQuests`. As their tally climbs, the moment one crosses
   // its threshold we (a) fold its reward's ONGOING combat mods into `playerState.questMods` — so effects like
@@ -550,9 +577,9 @@ export function simulate(
       case 'summonCombat': case 'summon': return p.tribe ? (questTally.summonCombatByTribe[p.tribe] ?? 0) : questTally.summonCombat;
       case 'slaughter': return p.tribe ? (questTally.slaughterByTribe[p.tribe] ?? 0) : questTally.slaughter;
       case 'slaughterKeyword': return questTally.slaughterKeyword;
-      case 'deathrattle': return playerDeathrattles;
-      case 'rally': return playerRallies;
-      case 'summonImp': return playerImpsSummoned;
+      case 'deathrattle': return deathrattlesFired.player;
+      case 'rally': return ralliesFired.player;
+      case 'summonImp': return impsSummoned.player;
       default: return 0; // friendlyDeath / tribeStats / compound / recruit objectives: settle-time only (no mid-combat proc)
     }
   };
@@ -568,12 +595,16 @@ export function simulate(
       if (p.def.rewardCardId) emit({ type: 'toHand', cardId: p.def.rewardCardId, side: 'player' });
     }
   };
-  const bumpQuestTally = (kind: 'attack' | 'summonCombat' | 'slaughter', m: Minion): void => {
+  const bumpQuestTally = (kind: 'attack' | 'summonCombat' | 'slaughter', m: Minion, side: Side): void => {
     const tribes = tribesFor(m);
-    questTally[kind] += 1;
-    const by = byTribeMap[kind];
+    const tally = questTallies[side];
+    tally[kind] += 1;
+    const by = kind === 'attack' ? tally.attackByTribe : kind === 'summonCombat' ? tally.summonCombatByTribe : tally.slaughterByTribe;
     for (const t of tribes) by[t] = (by[t] ?? 0) + 1;
-    questEvents.push({ step: stepN, kind, tribes });
+    questEventsFor[side].push({ step: stepN, kind, tribes });
+    // Everything below is the PLAYER's live machinery (Pack Mentality growth, mid-combat quest completion);
+    // the enemy half only tallies.
+    if (side !== 'player') return;
     // Pack Mentality (player): a Beast summoned in combat ticks the aura toward its next step; on each step,
     // grow the live Beast aura + buff EVERY living Beast immediately (matching "wherever they are"), then carry
     // the gain + leftover progress back to the run at settle. The just-summoned Beast is already on the board,
@@ -584,38 +615,38 @@ export function simulate(
         beastScaleProgress -= beastScale.per;
         beastAtkAuraFor.player += beastScale.stepAttack;
         beastHpAuraFor.player += beastScale.stepHealth;
-        beastBuyAtkGain += beastScale.stepAttack;
-        beastBuyHpGain += beastScale.stepHealth;
+        beastBuyAtkGain.player += beastScale.stepAttack;
+        beastBuyHpGain.player += beastScale.stepHealth;
         for (const b of boards.player) if (!b.dead && b.health > 0 && isBeast(b)) ctx.buff(b, beastScale.stepAttack, beastScale.stepHealth, 'Pack Mentality');
       }
     }
     checkPendingQuests();
   };
   // Player Deathrattle triggers (Echo objective + Grim tally) — increment + record for the live-tick timeline.
-  const bumpDeathrattles = (n: number): void => {
+  const bumpDeathrattles = (n: number, side: Side): void => {
     if (n <= 0) return;
-    playerDeathrattles += n;
-    for (let i = 0; i < n; i++) questEvents.push({ step: stepN, kind: 'deathrattle', tribes: [] });
-    checkPendingQuests();
+    deathrattlesFired[side] += n;
+    for (let i = 0; i < n; i++) questEventsFor[side].push({ step: stepN, kind: 'deathrattle', tribes: [] });
+    if (side === 'player') checkPendingQuests();
   };
   // Player Rally (on-attack) triggers — the `rally` objective + live-tick timeline. Each fire (base + doubler
   // re-fires) counts one Rally trigger, matching the Shout/Echo convention.
-  const bumpRally = (n: number): void => {
+  const bumpRally = (n: number, side: Side): void => {
     if (n <= 0) return;
-    playerRallies += n;
-    for (let i = 0; i < n; i++) questEvents.push({ step: stepN, kind: 'rally', tribes: [] });
+    ralliesFired[side] += n;
+    for (let i = 0; i < n; i++) questEventsFor[side].push({ step: stepN, kind: 'rally', tribes: [] });
     // RUNE OF THE HERDING HORN: every Rally banks a free Shop refresh, carried back at settle. Hooked HERE
     // rather than at each Rally site so it counts exactly what the `rally` quest objective counts — every
     // fire, doubler re-fires included — instead of drifting from the game's own definition of "a Rally".
-    if (modsFor('player').runeHerdingHorn) { fireTrigger('runeHerdingHorn', 'player'); ctx.grantFreeRolls(n, 'player'); }
-    checkPendingQuests();
+    if (modsFor(side).runeHerdingHorn) { if (side === 'player') fireTrigger('runeHerdingHorn', 'player'); ctx.grantFreeRolls(n, side); }
+    if (side === 'player') checkPendingQuests();
   };
   // The Red Trail: a Slaughter-KEYWORD trigger — a player minion with an on-kill effect felling an enemy. One per
   // kill (the primary trigger; doubler re-fires aren't counted). Tribe-agnostic.
-  const bumpSlaughterKeyword = (): void => {
-    questTally.slaughterKeyword += 1;
-    questEvents.push({ step: stepN, kind: 'slaughterKeyword', tribes: [] });
-    checkPendingQuests();
+  const bumpSlaughterKeyword = (side: Side): void => {
+    questTallies[side].slaughterKeyword += 1;
+    questEventsFor[side].push({ step: stepN, kind: 'slaughterKeyword', tribes: [] });
+    if (side === 'player') checkPendingQuests();
   };
   const isBeast = (m: Minion): boolean => m.tribe === 'beast' || m.tribe2 === 'beast' || !!m.universalTribe;
   const isDemon = (m: Minion): boolean => m.tribe === 'demon' || m.tribe2 === 'demon' || !!m.universalTribe;
@@ -681,6 +712,13 @@ export function simulate(
   const enemySpellsThisTurn = enemyState.spellsThisTurn;
   const enemyBeastsPlayed = enemyState.beastsPlayed;
   const enemyDeathrattles = enemyState.deathrattles;
+
+  // The ENEMY side's grant stream (see the symmetric carry-back note): seeded off the fight RNG's opening state,
+  // created lazily so a fight that never grants the enemy a random card allocates nothing. `rng.state()` is a
+  // read — the main stream is not advanced by taking it.
+  const openingRngState = rng.state();
+  let enemyGrantRng: Rng | undefined;
+  const grantRngFor = (side: Side): Rng => side === 'player' ? rng : (enemyGrantRng ??= makeRng((openingRngState ^ 0x5a17c0de) | 0));
 
   // Sable's Soulbind re-entrancy guard — declared beside `ctx` because `ctx.buff` mirrors onto its partner by
   // calling itself. See the mirror block inside `buff`.
@@ -762,7 +800,9 @@ export function simulate(
     fodderConsumedFor: (side) => (side === 'player'
       ? { attack: playerState.fodderConsumedAtk, health: playerState.fodderConsumedHp }
       : { attack: enemyState.fodderConsumedAtk, health: enemyState.fodderConsumedHp }),
-    deathrattleTally: (side) => (side === 'player' ? playerState.deathrattles + playerDeathrattles : enemyDeathrattles),
+    // KNOWN ASYMMETRY (kept, resolution-bearing): the enemy's live tally is its FROZEN snapshot value — an enemy Grim
+    // does not grow mid-fight. Its fired count is still carried back on `enemyCarry.deathrattles`.
+    deathrattleTally: (side) => (side === 'player' ? playerState.deathrattles + deathrattlesFired.player : enemyDeathrattles),
     log: (event) => {
       emit(event);
     },
@@ -783,7 +823,7 @@ export function simulate(
       const allow = new Set(ids);
       return Object.values(cards).filter((c) => allow.has(c.id));
     },
-    buff: (target, attack, health, source, ruby) => {
+    buff: (target, attack, health, source, ruby, bounce) => {
       // TRANSCENDANT: Engraved as a LIVE ADJACENCY AURA rather than a one-shot grant (owner respec
       // 2026-08-17). Resolved HERE, at the moment stats are gained, which is what makes "while alive and
       // adjacent" literally true: gains made beside a living Transcendant carry back, and gains made after it
@@ -815,13 +855,16 @@ export function simulate(
       // `castingSpellId` is set for the duration of a named-spell cast (see `castNamedSpellInCombat`), so a
       // buff produced BY that spell says so. Presentation reads it to attribute the whole wave to the spell
       // rather than to the caster's body — which is what lets a spell's authored def replace the stock tendril.
-      emit({ type: 'buff', target: target.uid, attack, health, source, ...(ruby ? { ruby } : {}), ...(ctx.castingSpellId !== undefined ? { spellId: ctx.castingSpellId } : {}) });
+      // `bounce` is spread the same way: only a cross-target re-cast carries it, so every other buff event is
+      // byte-identical to before (see the `buff` event's note in types.ts).
+      emit({ type: 'buff', target: target.uid, attack, health, source, ...(ruby ? { ruby } : {}), ...(ctx.castingSpellId !== undefined ? { spellId: ctx.castingSpellId } : {}), ...(bounce ? { bounce } : {}) });
       // "Give <tribe> N total stats" (Skybound Pact / Taragosa's Inheritance): every positive combat stat gain on
       // a PLAYER minion counts toward its tribe(s), so combat buffs advance the `tribeStats` quest like recruit
       // ones (owner: Skybound Pact stats in combat should count). Uses the post-gainMult value actually applied.
-      if (target.side === 'player') {
+      {
         const g = Math.max(0, attack) + Math.max(0, health);
-        if (g > 0) for (const t of tribesFor(target)) questTally.statGainByTribe[t] = (questTally.statGainByTribe[t] ?? 0) + g;
+        const sg = questTallies[target.side].statGainByTribe;
+        if (g > 0) for (const t of tribesFor(target)) sg[t] = (sg[t] ?? 0) + g;
       }
       if (transcendant) target.auraEngraved = true; // so the carry-back entry attributes it correctly
       // Engraved: a minion that keeps its combat gains accrues every buff into permaGain, which carries
@@ -927,7 +970,7 @@ export function simulate(
     countDeathrattle: (side) => {
       // A Deathrattle triggered WITHOUT a death (Sporeling's Battlecry proc) still counts toward the tally
       // that feeds Grim + the run's deathrattlesTriggered (carried back via playerDeathrattles).
-      if (side === 'player') bumpDeathrattles(1);
+      bumpDeathrattles(1, side);
     },
     // The one Echo-multiplier read, shared with the Rally-proc factories (see the CombatContext doc).
     echoExtras: (minion) => playerEchoExtras(minion),
@@ -935,8 +978,8 @@ export function simulate(
       // Combat can't touch the recruit hand directly; record player-side grants so the
       // run loop can add them after the replay (Arcane Weaver → a Spirit Fire copy), and log a
       // `toHand` event so the replay shows the card flying to your hand as it happens.
+      handGrants[side].push(cardId); // both sides record; only the player's grant is telegraphed + reacts
       if (side === 'player') {
-        handGrants.push(cardId);
         emit({ type: 'toHand', cardId, side, source: sourceUid });
         // "A card was added to your hand" — the reactors (Gangplank, Kegheart Dwarf) fire NOW, during the
         // fight, not only at settle (owner report 2026-08-29). This is the one combat chokepoint every
@@ -979,19 +1022,20 @@ export function simulate(
       // structural reason as `grantToHand` — a served enemy board carries no hand. The snapshot entry is grown
       // too, so a later hand-summon (Rope Wrangler's Echo) fields the buffed body; the run hand is grown at
       // settle from the carry-back; and the event lets the replay grow the hand card on its beat.
-      if (side !== 'player' || (attack === 0 && health === 0)) return;
-      const card = (playerState.handMinions ?? []).find((h) => h.uid === uid);
+      if (attack === 0 && health === 0) return;
+      const card = ((side === 'player' ? playerState : enemyState).handMinions ?? []).find((h) => h.uid === uid);
       if (!card || handSummonedUids.has(uid)) return;
+      handBuffs[side].push({ uid, attack, health, ...(sourceUid ? { source: sourceUid } : {}) });
+      if (side !== 'player') return; // enemy: carry-back only — its snapshot entry stays as served (no live read changes)
       card.attack += attack;
       card.health += health;
-      handBuffs.push({ uid, attack, health, ...(sourceUid ? { source: sourceUid } : {}) });
       emit({ type: 'handBuff', uid, cardId: card.cardId, side, attack, health, ...(sourceUid ? { source: sourceUid } : {}) });
     },
     grantSpellPower: (attack, health, side, sourceUid) => {
       // Player-only (enemies have no run state) — accumulate and carry back via playerSpellPower.
-      if (side !== 'player') return;
-      spellPowerGain.attack += attack;
-      spellPowerGain.health += health;
+      spellPowerGain[side].attack += attack;
+      spellPowerGain[side].health += health;
+      if (side !== 'player') return; // enemy: carry-back only — `enemySpellPower` stays static for this fight
       spellPower.attack += attack; // keep ctx.spellPower LIVE so Taragosa's Growth scales with the gain at once
       spellPower.health += health;
       // Telegraph it mid-combat (it otherwise applies silently at settle) so the player sees the gain.
@@ -1000,8 +1044,9 @@ export function simulate(
     grantRubies: (count, side, sourceUid) => {
       // Set 2 (Rikk / Gemline) — player-only: mint `count` Rubies into hand after combat (carried back via
       // `playerRubyGrants`, minted with the run's live rubyBonus). Emit a `toHand` per Ruby for the replay.
-      if (side !== 'player' || count <= 0) return;
-      rubyGrants.n += count;
+      if (count <= 0) return;
+      rubyGrants[side].n += count;
+      if (side !== 'player') return; // enemy: carry-back only
       // A Ruby IS a card reaching hand — the shop half has fired `onGainCard` per mint since 2026-08-26, so
       // combat matches it: one reactor firing per Ruby, alongside each `toHand`.
       for (let i = 0; i < count; i++) {
@@ -1012,16 +1057,15 @@ export function simulate(
     queueNextTurnSpellCopy: (count, side) => {
       // Player-only (enemies have no run state to arm) — accumulated and carried back via
       // `playerNextTurnSpellCopies`, applied to the run at settle.
-      if (side !== 'player' || count <= 0) return;
-      nextTurnSpellCopies.n += count;
+      if (count <= 0) return;
+      nextTurnSpellCopies[side].n += count;
     },
     gainTavernBuy: (attack, health, side, sourceUid, sourceName) => {
-      if (side !== 'player') return; // enemies have no shop
-      tavernBuyGain.attack += attack;
-      tavernBuyGain.health += health;
-      creditTavern(sourceName ?? (sourceUid ? boards.player.find((m) => m.uid === sourceUid)?.name : undefined) ?? 'Combat', attack, health);
+      tavernBuyGain[side].attack += attack;
+      tavernBuyGain[side].health += health;
+      creditTavern(side, sourceName ?? (sourceUid ? boards[side].find((m) => m.uid === sourceUid)?.name : undefined) ?? 'Combat', attack, health);
       // Same telegraph as the Imp buff above — it otherwise applies to the NEXT shop with nothing shown here.
-      if (sourceUid && (attack !== 0 || health !== 0)) emit({ type: 'sc', source: sourceUid, text: `+${attack}/+${health} Shop` });
+      if (side === 'player' && sourceUid && (attack !== 0 || health !== 0)) emit({ type: 'sc', source: sourceUid, text: `+${attack}/+${health} Shop` });
     },
     takeRandomHandMinion: (side) => {
       const pool = (side === 'player' ? playerState.handMinions : enemyState.handMinions) ?? [];
@@ -1029,12 +1073,13 @@ export function simulate(
       if (left.length === 0) return undefined;
       const pick = left[Math.floor(rng.next() * left.length)]!;
       handSummonedUids.add(pick.uid);
-      if (side === 'player') handSummoned.push(pick.uid); // settle removes it from the run hand
+      handSummoned[side].push(pick.uid); // settle removes it from the run hand
       return pick;
     },
     mintRubies: (count, side, sourceUid) => {
-      if (side !== 'player' || count <= 0) return; // enemies have no hand
-      rubyMintCount += count;
+      if (count <= 0) return;
+      rubyMintCount[side] += count;
+      if (side !== 'player') return; // enemy: carry-back only
       // The replay sees each Ruby fly to hand on the trigger beat; the actual mint happens at settle through
       // the run's real `mintRubies` (rubyBonus baked in, Candle Conduit fired, hand cap respected).
       for (let i = 0; i < count; i++) emit({ type: 'toHand', cardId: 'ruby', side, source: sourceUid });
@@ -1054,58 +1099,52 @@ export function simulate(
     },
     grantCardBuff: (cardId, attack, health, side) => {
       // Player-only — accumulate per cardId and carry back via playerCardBuffs.
-      if (side !== 'player') return;
-      const e = cardBuffGains.find((g) => g.cardId === cardId);
+      const e = cardBuffGains[side].find((g) => g.cardId === cardId);
       if (e) { e.attack += attack; e.health += health; }
-      else cardBuffGains.push({ cardId, attack, health });
+      else cardBuffGains[side].push({ cardId, attack, health });
     },
     grantTavernFodder: (count, side) => {
-      if (side !== 'player') return; // enemies have no tavern
-      fodderGrants += count;
+      fodderGrants[side] += count;
     },
     scheduleFodder: (counts, side) => {
-      if (side !== 'player') return; // enemies have no tavern
-      counts.forEach((c, i) => { fodderSchedule[i] = (fodderSchedule[i] ?? 0) + c; }); // Pit Supplier: Fodder over the next N shops
+      const sched = fodderSchedule[side];
+      counts.forEach((c, i) => { sched[i] = (sched[i] ?? 0) + c; }); // Pit Supplier: Fodder over the next N shops
     },
     deferBattlecry: (cardId, golden, side) => {
-      if (side !== 'player') return; // enemies have no run state to carry economy battlecries back to
-      deferredBattlecries.push({ cardId, golden });
+      deferredBattlecries[side].push({ cardId, golden });
     },
     grantMaxGold: (amount, side) => {
-      if (side !== 'player') return; // enemies have no economy
-      maxGoldGain += amount;
+      maxGoldGain[side] += amount;
     },
     grantBonusGold: (amount, side) => {
-      if (side !== 'player') return; // enemies have no economy
-      bonusGoldGain += amount;
+      bonusGoldGain[side] += amount;
     },
     // The echo-trigger chokepoint, exposed so the FORCED-trigger factories (Echohorn / Hawkus / Spots)
     // pay the same "an Echo fired" runes a real death does. Lazily referenced — `asEcho` is declared below
     // this literal and is only ever invoked long after.
     asEcho: (side, fn, source) => { asEcho(side, fn, source); },
     grantFreeRolls: (count, side) => {
-      if (side !== 'player') return; // enemies have no shop
-      freeRollGrants += count;
+      freeRollGrants[side] += count;
     },
     grantGuaranteedAttachments: (count, side) => {
-      if (side !== 'player') return; // enemies have no shop
-      attachmentShopGrants += count;
+      attachmentShopGrants[side] += count;
     },
     grantRandomSpell: (count, side, sourceUid) => {
-      if (side !== 'player') return; // enemies have no hand
       // Pick the ACTUAL spell now (tavern tier passed in) and route it through grantToHand — so the replay
       // shows the real card flying to your hand (a `toHand` event), and settle just adds the carried cardId.
       // Set-scoped (owner report 2026-07-27: a Set-1 Badgington handed out a Set-2 spell). Reward-exclusive
       // spells (Feed the Alpha) stay excluded via `!token`.
-      const pool = ctx.poolCards('player').filter((c) => c.spell && !c.token && c.tier <= playerState.tier);
+      const sideState = side === 'player' ? playerState : enemyState;
+      const pool = ctx.poolCards(side).filter((c) => c.spell && !c.token && c.tier <= sideState.tier);
+      const draw = grantRngFor(side);
       for (let i = 0; i < count && pool.length > 0; i++) {
-        const pick = pool[Math.floor(rng.next() * pool.length)]!;
-        handGrants.push(pick.id);
-        emit({ type: 'toHand', cardId: pick.id, side, source: sourceUid });
+        const pick = pool[Math.floor(draw.next() * pool.length)]!;
+        handGrants[side].push(pick.id);
+        if (side === 'player') emit({ type: 'toHand', cardId: pick.id, side, source: sourceUid });
       }
     },
     grantRandomMinion: (count, tribe, side, exclude, sourceUid, fixedTier, shoutOnly) => {
-      if (side !== 'player') return; // enemies have no hand
+      const sideState = side === 'player' ? playerState : enemyState;
       // Wayfinder's `tribe: 'uncontrolled'` is a SENTINEL, not a real tribe — "a minion from a tribe you don't
       // control". Resolve it here to the active tribes absent from your board, mirroring `uncontrolledTribes`
       // in the recruit factory. Without this, a combat re-fire (Ryme / Drakko) filtered for a literal tribe
@@ -1117,12 +1156,12 @@ export function simulate(
         // its Deathrattle fires this, so skipping the dead would wrongly re-open Ryme's own Undead as
         // "uncontrolled". The recruit `uncontrolledTribes` reads the whole persistent board; match that.
         const onBoard = new Set<string>();
-        for (const m of boards.player) {
+        for (const m of boards[side]) {
           const def = cards[m.cardId];
           if (!def) continue;
           for (const t of [def.tribe, def.tribe2]) if (t && t !== 'neutral') onBoard.add(t);
         }
-        const missing = playerState.tribes.filter((t) => t !== 'neutral' && !onBoard.has(t));
+        const missing = sideState.tribes.filter((t) => t !== 'neutral' && !onBoard.has(t));
         uncontrolled = missing.length > 0 ? new Set(missing) : null;
       }
       const inTribe = (c: (typeof cards)[string]): boolean =>
@@ -1130,18 +1169,19 @@ export function simulate(
           ? uncontrolled.has(c.tribe) || (!!c.tribe2 && uncontrolled.has(c.tribe2)) || !!c.universalTribe
           : !tribe || tribe === 'uncontrolled' || c.tribe === tribe || c.tribe2 === tribe || !!c.universalTribe;
       // Same as spells but for the buyable-minion pool (tribe-filtered, ≤ tavern tier, active tribes only).
-      const pool = ctx.poolCards('player').filter(
+      const pool = ctx.poolCards(side).filter(
         (c) =>
-          !c.token && !c.spell && (fixedTier ? c.tier === fixedTier : c.tier <= playerState.tier) && c.id !== exclude &&
-          (c.tribe === 'neutral' || playerState.tribes.includes(c.tribe)) &&
+          !c.token && !c.spell && (fixedTier ? c.tier === fixedTier : c.tier <= sideState.tier) && c.id !== exclude &&
+          (c.tribe === 'neutral' || sideState.tribes.includes(c.tribe)) &&
           inTribe(c) &&
           // Roarcollector: restrict to SHOUT minions — a real (non-silent) `onPlay`.
           (!shoutOnly || c.effects.some((e) => e.on === 'onPlay' && !SILENT_ONPLAY.has(e.do))),
       );
+      const draw = grantRngFor(side);
       for (let i = 0; i < count && pool.length > 0; i++) {
-        const pick = pool[Math.floor(rng.next() * pool.length)]!;
-        handGrants.push(pick.id);
-        emit({ type: 'toHand', cardId: pick.id, side, source: sourceUid });
+        const pick = pool[Math.floor(draw.next() * pool.length)]!;
+        handGrants[side].push(pick.id);
+        if (side === 'player') emit({ type: 'toHand', cardId: pick.id, side, source: sourceUid });
       }
     },
     grantImpBuff: (attack, health, side) => {
@@ -1149,8 +1189,8 @@ export function simulate(
       impAura[side].attack += attack;
       impAura[side].health += health;
       // Only the player carries the buff back into run state (the enemy is regenerated each wave).
+      impBuffGain[side].attack += attack; impBuffGain[side].health += health;
       if (side === 'player') {
-        impBuffGain.attack += attack; impBuffGain.health += health;
         // Imps are Demons — a demon board-wash + a live 'imp' row tick (owner report 2026-07-21: neither played
         // in combat because this granted the buff silently).
         if (attack !== 0 || health !== 0) emit({ type: 'tribeAura', side, tribe: 'demon', attack, health, aura: 'imp' });
@@ -1160,16 +1200,16 @@ export function simulate(
     },
     grantRightmostSlotBuff: (attack, health, side) => {
       // Player-side only — the enemy shop is regenerated each wave, so its slot buff would never be read.
-      if (side === 'player') { rightmostSlotGain.attack += attack; rightmostSlotGain.health += health; }
+      rightmostSlotGain[side].attack += attack; rightmostSlotGain[side].health += health;
     },
     queueNextSummonBuff: (side, tribe, attack, health) => {
       if (attack > 0 || health > 0) nextSummonBuffs[side].push({ tribe, attack, health });
     },
     zooReps: (side) => (modsFor(side).runeZoo ? Math.max(1, summonOrdinal[side]) : 1),
     grantMagneticBuff: (attack, health, side) => {
-      if (side !== 'player') return; // enemies have no run state to carry an Attachment aura back into
-      magneticBuffGain.attack += attack;
-      magneticBuffGain.health += health;
+      magneticBuffGain[side].attack += attack;
+      magneticBuffGain[side].health += health;
+      if (side !== 'player') return; // enemy: carry-back only
       // Attachments are Mechs — the same board-wash the Mech aura channel plays in the shop, so the grant is
       // visible in combat instead of landing silently (the Imp-aura lesson, owner report 2026-07-21).
       if (attack !== 0 || health !== 0) emit({ type: 'tribeAura', side, tribe: 'mech', attack, health, aura: 'magnetic' });
@@ -1178,9 +1218,9 @@ export function simulate(
     // CONDUCTOR: the run's snowball, per side — read-only in combat (a re-fire is a trigger, not a play).
     conductorTally: (side) => (side === 'player' ? playerState.conductorBuff : enemyState.conductorBuff) ?? 0,
     grantFodderBuff: (attack, health, side) => {
-      if (side !== 'player') return; // enemies have no run state
-      fodderBuffGain.attack += attack;
-      fodderBuffGain.health += health;
+      fodderBuffGain[side].attack += attack;
+      fodderBuffGain[side].health += health;
+      if (side !== 'player') return; // enemy: carry-back only
       if (attack !== 0 || health !== 0) emit({ type: 'tribeAura', side, tribe: 'demon', attack, health, aura: 'fodder' });
     },
     gainBeastExtra: (hunt, ritual, side, sourceUid) => {
@@ -1196,7 +1236,7 @@ export function simulate(
       // (applyAuras re-adds it to every from-base body). Karthus / Forsaken Weaver route through here — on the
       // enemy side too, so a captured board's Undead-granter now buffs enemy Undead it summons afterward.
       undeadAura[side].buyAtk += amount;
-      if (side === 'player') undeadBuyAtkGain += amount; // carry-back delta (enemy is regenerated each wave)
+      undeadBuyAtkGain[side] += amount; // carry-back delta
     },
     grantUndeadAura: (attack, health, side) => {
       // Watcher casting Lantern of Souls: bump the granting side's run-wide Undead aura (+Attack/+Health to its
@@ -1204,11 +1244,11 @@ export function simulate(
       // fight inherit it via applyAuras); the player's carries back via CombatResult.playerUndeadAuraGain.
       undeadAura[side].attack += attack;
       undeadAura[side].health += health;
-      if (side === 'player') { undeadAuraGain.attack += attack; undeadAuraGain.health += health; }
+      undeadAuraGain[side].attack += attack; undeadAuraGain[side].health += health;
     },
     castSpell: (side) => {
       spellTotals[side] += 1; // count the cast first (the triggering spell is included, like recruit-phase Guel)
-      if (side === 'player') playerCombatSpells += 1; // carried back → permanently bumps the run's spellsCast
+      combatSpells[side] += 1; // carried back → permanently bumps the run's spellsCast
       emit({ type: 'spellcast', side, count: spellTotals[side] }); // the replay's live-counter beat
       // Rune of Enchantment: a COMBAT cast gives your minions +4/+6 (the shop half gives the printed +2/+3 —
       // see the recruit tail). Temporary like any combat buff; the shop grant is the permanent half.
@@ -1290,11 +1330,10 @@ export function simulate(
       return brought;
     },
     triggerRally: (m) => fireFreeRally(m, m.side),
-    queueDiscoverCast: (spellId, side) => { if (side === 'player') discoverCasts.push(spellId); },
+    queueDiscoverCast: (spellId, side) => { discoverCasts[side].push(spellId); },
     gainNextShopBuff: (attack, health, side) => {
-      if (side !== 'player') return;
-      nextShopBuffGain.attack += attack;
-      nextShopBuffGain.health += health;
+      nextShopBuffGain[side].attack += attack;
+      nextShopBuffGain[side].health += health;
     },
     matriarchRepsFor: (side) => (modsFor(side).runeMatriarch ? 2 : 1),
     baneDemonWidenFor: (side) => modsFor(side).baneDemonWiden,
@@ -1518,7 +1557,7 @@ export function simulate(
       if (ov > 0) {
         nextStep(); fireTrigger('runeOverflow', side);
         for (const m of boards[side]) if (!m.dead && m.health > 0) ctx.buff(m, ov, ov, 'Rune of Overflow');
-        if (side === 'player') { boardBuffGain.attack += ov; boardBuffGain.health += ov; }
+        boardBuffGain[side].attack += ov; boardBuffGain[side].health += ov;
       }
       return minion;
     }
@@ -1606,33 +1645,33 @@ export function simulate(
       emit({ type: 'keyword', target: minion.uid, keyword: 'T' });
     }
     summonOrdinal[side] += 1; // before onSummon fires, so Rune of the Zoo reads THIS summon's ordinal
-    if (side === 'player') {
-      bumpQuestTally('summonCombat', minion); // "Summon N minions in combat" quests
+    {
+      bumpQuestTally('summonCombat', minion, side); // "Summon N minions in combat" quests
       // Rune of the Remains / Rune of Reinvestment both key off friendly summons. Counted here, at the single
       // entry chokepoint, so a token, a Rise and a resummon all count exactly once each.
-      if (minion.side === 'player') {
-        playerSummonCount += 1;
-        const remains = modsFor('player').runeRemains ?? 0;
-        if (remains > 0 && playerSummonCount % 5 === 0) {
-          fireTrigger('runeRemains', 'player');
-          ctx.gainTavernBuy(remains, remains, 'player', undefined, 'Rune of Remains');
+      if (minion.side === side) {
+        summonCount[side] += 1;
+        const remains = modsFor(side).runeRemains ?? 0;
+        if (remains > 0 && summonCount[side] % 5 === 0) {
+          if (side === 'player') fireTrigger('runeRemains', 'player');
+          ctx.gainTavernBuy(remains, remains, side, undefined, 'Rune of Remains');
         }
       }
-      if (cards[minion.cardId]?.imp) { playerImpsSummoned += 1; questEvents.push({ step: stepN, kind: 'summonImp', tribes: [] }); } // Imp Census / Implosion / Pit Without End
+      if (cards[minion.cardId]?.imp) { impsSummoned[side] += 1; questEventsFor[side].push({ step: stepN, kind: 'summonImp', tribes: [] }); } // Imp Census / Implosion / Pit Without End
     }
     // RUNE OF THE RETURNING PACK: every Nth BEAST you summon this combat hands over a random Beast next shop.
     // Counted at this single summon chokepoint, so a token, a Rise and a resummon each count exactly once —
     // the same contract the Remains / Reinvestment counters above rely on. Player-only: `grantRandomMinion`
     // rides `playerHandGrants`, and a served enemy has no hand.
-    const packN = side === 'player' ? (modsFor('player').runeReturningPack ?? 0) : 0;
-    if (packN > 0 && minion.side === 'player'
+    const packN = modsFor(side).runeReturningPack ?? 0;
+    if (packN > 0 && minion.side === side
         && (minion.tribe === 'beast' || minion.tribe2 === 'beast' || !!cards[minion.cardId]?.universalTribe)) {
-      packSummonTick.player += 1;
-      if (packSummonTick.player % packN === 0) {
-        fireTrigger('runeReturningPack', 'player');
+      packSummonTick[side] += 1;
+      if (packSummonTick[side] % packN === 0) {
+        if (side === 'player') fireTrigger('runeReturningPack', 'player');
         // Same 6-summon meter, one Beast per copy held (owner revise 2026-08-27: "2 rune of the returning
         // pack, every 6 beast summons you'd get 2 random beasts").
-        ctx.grantRandomMinion(flagCopiesOf('player', 'runeReturningPack'), 'beast', 'player', undefined, minion.uid);
+        ctx.grantRandomMinion(flagCopiesOf(side, 'runeReturningPack'), 'beast', side, undefined, minion.uid);
       }
     }
     // RUNE OF EMBERLINE, the paying half: the next Imp to arrive inherits the banked stats, once per combat.
@@ -1762,7 +1801,7 @@ export function simulate(
     emit({ type: 'sc', source: minion.uid, text: 'Rally' });
     // A free rally is still a Rally TRIGGER — it counts toward the Rally quests and the Author's Hand rally
     // half exactly like an attack-path rally. Player-only, like every tally.
-    if (side === 'player') bumpRally(1);
+    bumpRally(1, side);
     if (minion.keywords.includes('RL') && minion.effects.some((e) => e.on === 'onAttack')) {
       for (const effect of minion.effects) {
         if (effect.on !== 'onAttack') continue;
@@ -2068,7 +2107,7 @@ export function simulate(
       for (let r = 0; r < extra; r++) fireOnce();
       // Doubler re-triggers count as extra Echo triggers (Reborn / Echoing Coop / Bone Throne). The caller
       // already counted the base trigger; add the extras (player only — enemy Echoes don't feed quests).
-      if (minion.side === 'player') bumpDeathrattles(extra);
+      bumpDeathrattles(extra, minion.side);
     });
   }
 
@@ -2085,7 +2124,7 @@ export function simulate(
       minion.rebornAvailable = false;
       // It really died: proc the unit's own Deathrattle / on-death effects (each death procs them) BEFORE the
       // body returns — so the Whelp's spawn + the Eternal Knight's +3/+2 land per death, not just on the last.
-      if (minion.side === 'player' && minion.effects.some((e) => e.on === 'onDeath')) bumpDeathrattles(1);
+      if (minion.effects.some((e) => e.on === 'onDeath')) bumpDeathrattles(1, minion.side);
       // Rise = die → Deathrattle → return to the RIGHT of what it summoned (owner ruling 2026-07-06). The body
       // genuinely LEAVES its slot FIRST — flag it dead + emit a `death` (marked `rise`) so the replay shows the
       // removal before the rattle, then the rattle's summons fill the vacated slot, then the Rise re-inserts to
@@ -2115,9 +2154,10 @@ export function simulate(
       // trigger all on death effects"). `ownAlreadyFired` stops the broadcast re-running the dying body's own
       // rattle, which `fireOwnDeathrattles` handled a line above — see the guard in `registerEffect`.
       bus.emit('onDeath', { minion, side: minion.side, killer, ownAlreadyFired: true });
-      if (minion.side === 'enemy') { enemyDeaths++; noteKill(minion.cardId, minion.uid); }
+      if (minion.side === 'enemy') enemyDeaths++;
+      noteKill(minion.cardId, minion.uid, minion.side);
       // (`deaths[side]` was incremented above, before the Echo — R-AVWIN-02.)
-      if (minion.side === 'player') questEvents.push({ step: stepN, kind: 'friendlyDeath', tribes: [] });
+      questEventsFor[minion.side].push({ step: stepN, kind: 'friendlyDeath', tribes: [] });
       emitAvenge(minion.side, deaths[minion.side], minion);
       risingReserved[minion.side] -= 1; // the reservation ends: the return itself takes the slot
       // A RISING BODY HOLDS ITS SLOT (owner ruling 2026-09-09, superseding the 2026-07-02 "holds none"): the Echo
@@ -2360,10 +2400,11 @@ export function simulate(
     }
     // Count enemy deaths (Cassen's Collision banks them toward its 5-kill payoff) and remember WHICH bodies
     // they were, first and last, for Flash.
-    if (minion.side === 'enemy') { enemyDeaths++; noteKill(minion.cardId, minion.uid); }
+    if (minion.side === 'enemy') enemyDeaths++;
+    noteKill(minion.cardId, minion.uid, minion.side);
     // Count your Deathrattles as they trigger (before firing, so Grim's own death counts toward its buff).
     const hasDeathrattle = minion.effects.some((e) => e.on === 'onDeath');
-    if (minion.side === 'player' && hasDeathrattle) bumpDeathrattles(1);
+    if (hasDeathrattle) bumpDeathrattles(1, minion.side);
     nextStep(); // Deathrattles + on-death watchers resolve as their own step
     // PARTING CRY (spell): this body's SHOUT fires as it dies, before its Echo. One-shot — spent here, so a
     // Rise/resummon of the same body never pays twice.
@@ -2429,10 +2470,10 @@ export function simulate(
       // Each RE-TRIGGER is another Echo "triggered" (owner ruling 2026-07-08: TRIGGER-based counts — the Echo
       // objective + Grim's tally — scale with doublers; a MINION dying is still one death). Added after the
       // re-fires so all firings read the same tally value (the value at death), only the count grows.
-      if (minion.side === 'player' && hasDeathrattle) bumpDeathrattles(extra);
+      if (hasDeathrattle) bumpDeathrattles(extra, minion.side);
     });
     // Avenge: notify that side's avengers (the death was counted above, before the Echo — R-AVWIN-02).
-    if (minion.side === 'player') questEvents.push({ step: stepN, kind: 'friendlyDeath', tribes: [] });
+    questEventsFor[minion.side].push({ step: stepN, kind: 'friendlyDeath', tribes: [] });
     // RUNE OF BEASTIAL SWARM — Avenge (2): every 2 friendly deaths, raise the per-death amount by +2. Permanent:
     // the player side's grown level carries back into the run (`playerBeastialSwarmLevel`).
     if (modsFor(minion.side).runeBeastialSwarm && deaths[minion.side] % 2 === 0) {
@@ -2446,7 +2487,7 @@ export function simulate(
     const throneStep = modsFor(side).boneThroneStep ?? 0;
     if (throneStep > 0 && deaths[side] % throneStep === 0) {
       const lead = boards[side].find((m) => !m.dead && m.health > 0 && m.effects.some((e) => e.on === 'onDeath'));
-      if (lead) { nextStep(); fireTrigger('boneThroneStep', side); if (side === 'player') bumpDeathrattles(1); fireOwnDeathrattles(lead); }
+      if (lead) { nextStep(); fireTrigger('boneThroneStep', side); bumpDeathrattles(1, side); fireOwnDeathrattles(lead); }
     }
     // Assembly Line: every N friendly deaths (Avenge N), add a Money Bot to your hand. Player-only —
     // `grantToHand` no-ops for a served enemy (no hand). Avenge-paced like The Bone Throne.
@@ -2462,9 +2503,9 @@ export function simulate(
     // Rune of Blood and Coin: every N friendly deaths banks Gold for next turn. Player-only — a served enemy
     // has no run to carry Gold back into.
     const bacStep = modsFor(side).runeBloodAndCoin ?? 0;
-    if (bacStep > 0 && side === 'player' && deaths[side] % 5 === 0) { // owner 2026-08-11: Avenge(5) (was every 4 deaths)
-      fireTrigger('runeBloodAndCoin', side);
-      bonusGoldGain += bacStep;
+    if (bacStep > 0 && deaths[side] % 5 === 0) { // owner 2026-08-11: Avenge(5) (was every 4 deaths)
+      if (side === 'player') fireTrigger('runeBloodAndCoin', side);
+      bonusGoldGain[side] += bacStep;
     }
     // Rune of Finality: the Warded sibling of Pit Without End — same "your last minion died" trigger, but the
     // Imps arrive with Ward. Its own latch, so holding both runes pays both once rather than one eating the other.
@@ -2847,7 +2888,7 @@ export function simulate(
       // (Law of Teeth / Rallying Offensive / Infinite Assembly / Spark Permit) already do. Missing this was
       // a real bug: with Uron out, two rallying minions read as 2 toward "Trigger 7 Rallies" instead of 4
       // (owner report). Player-only, matching every other quest tally.
-      if (attacker.side === 'player') bumpRally(rallyExtra);
+      bumpRally(rallyExtra, attacker.side);
       // The Old Hunt: each Beast attack pumps that SIDE's run-wide Beast Attack aura by `oldHuntStep` — live
       // (every current Beast gains it; later summons inherit via the grown aura). A served enemy pumps its own
       // captured aura; the player also carries the gain back (the enemy has no run to persist to).
@@ -2882,7 +2923,7 @@ export function simulate(
         // channels and carries both halves back for the player.
         beastAtkAuraFor[attacker.side] += oldHuntStep;
         beastHpAuraFor[attacker.side] += oldHuntStep;
-        if (attacker.side === 'player') { beastBuyAtkGain += oldHuntStep; beastBuyHpGain += oldHuntStep; }
+        beastBuyAtkGain[attacker.side] += oldHuntStep; beastBuyHpGain[attacker.side] += oldHuntStep;
         for (const m of boards[attacker.side]) if (!m.dead && m.health > 0 && isBeast(m)) ctx.buff(m, oldHuntStep, oldHuntStep, 'The Old Hunt');
       }
       // Empty Graves: the Start-of-Combat-marked body triggers your LEFT-MOST living Echo each time it attacks.
@@ -2915,7 +2956,7 @@ export function simulate(
       // Direct calls, not via the bus, so other minions' on-attack watchers don't double-fire. The rally quest
       // TALLY (base + extras) is player-only.
       if (attacker.keywords.includes('RL') && !attacker.dead && attacker.health > 0) {
-        if (attacker.side === 'player') bumpRally(1);
+        bumpRally(1, attacker.side);
         const extras = playerRallyExtras(attacker);
         for (let r = 0; r < extras && !attacker.dead && attacker.health > 0; r++) {
           for (const effect of attacker.effects) {
@@ -2924,9 +2965,9 @@ export function simulate(
           }
           refireRallyWatchers(attacker); // Paragon scales with the additive rally doublers too
         }
-        if (attacker.side === 'player') bumpRally(extras);
+        bumpRally(extras, attacker.side);
       }
-      if (attacker.side === 'player') bumpQuestTally('attack', attacker); // "Attack N times with Beasts" quest — player-only
+      bumpQuestTally('attack', attacker, attacker.side); // "Attack N times with Beasts" quest
       // Better Bot (Rally): each time this attacks — once per swing, so a Windfury body rallies TWICE if it
       // survives the first swing — give your OTHER Mechs +N Attack (N = accrued rallyMechAtk, stacks via
       // magnetize). Fires per hit alongside the onAttack rallies (rallyBuff / rallyProcDeathrattle) above.
@@ -3092,33 +3133,36 @@ export function simulate(
           // Each Uron re-fire that actually re-triggers a Slaughter EFFECT counts toward "Trigger N Slaughters"
           // (`slaughterKeyword`) — the kill count (`slaughter`) stays one, owner ruling 2026-07-21: a Slaughter
           // is a kill, but a Slaughter EFFECT can trigger multiple times. Matches the Rally treatment (#594).
-          if (killExtra > 0 && killerHasSlaughter && killer.side === 'player' && m.side !== killer.side) {
-            for (let i = 0; i < killExtra; i++) bumpSlaughterKeyword();
+          if (killExtra > 0 && killerHasSlaughter && m.side !== killer.side) {
+            for (let i = 0; i < killExtra; i++) bumpSlaughterKeyword(killer.side);
           }
           // A player minion felling an enemy by attacking is a "Slaughter" — tally it for the Slaughter quests
           // (credited to the KILLER's tribe for "with Beasts").
           if (m.side !== killer.side) { // this attacker felled an OPPONENT minion — a Slaughter, for whichever side
             const kmods = modsFor(killer.side); // per-side quest/rune Slaughter effects
             const killerAlive = !killer.dead && killer.health > 0;
-            if (killer.side === 'player') {
-              bumpQuestTally('slaughter', killer);
-              if (killer.effects.some((e) => e.on === 'onKill')) bumpSlaughterKeyword(); // The Red Trail: a Slaughter-keyword trigger
+            {
+              bumpQuestTally('slaughter', killer, killer.side);
+              if (killer.effects.some((e) => e.on === 'onKill')) bumpSlaughterKeyword(killer.side); // The Red Trail: a Slaughter-keyword trigger
               // Rune of the Trophy (reworked 2026-07-21): record the FIRST enemy minion you KILL this combat —
               // a plain copy of the VICTIM (was: of the killer) is conjured to hand at settle ("get a plain copy
               // of the first minion you kill each combat"). Player-only (a served enemy has no run to receive it).
               // Conjured fresh from the card def at settle, so the copy is plain — none of the victim's buffs.
-              if (kmods.runeTrophy && slaughterCopyId === undefined) {
-                fireTrigger('runeTrophy', 'player'); // the first kill claims the copy — pulse the badge on it
-                slaughterCopyId = m.cardId;
-                // Fly the copy to hand as a live VISUAL only, on the kill beat — the real plain copy is still
-                // conjured at settle from `slaughterCopyId` (a bare `toHand` is presentation, NOT a
-                // `playerHandGrants` record, exactly like the quest-reward toHand above). Owner directive
-                // 2026-08-14: combat card grants should arrive in real time, not snap in at settle.
-                emit({ type: 'toHand', cardId: m.cardId, side: 'player', source: killer.uid });
+              if (kmods.runeTrophy && slaughterCopyId[killer.side] === undefined) {
+                slaughterCopyId[killer.side] = m.cardId;
+                if (killer.side === 'player') {
+                  fireTrigger('runeTrophy', 'player'); // the first kill claims the copy — pulse the badge on it
+                  // Fly the copy to hand as a live VISUAL only, on the kill beat — the real plain copy is still
+                  // conjured at settle from `slaughterCopyId` (a bare `toHand` is presentation, NOT a
+                  // `playerHandGrants` record, exactly like the quest-reward toHand above). Owner directive
+                  // 2026-08-14: combat card grants should arrive in real time, not snap in at settle.
+                  emit({ type: 'toHand', cardId: m.cardId, side: 'player', source: killer.uid });
+                }
               }
               // Blood Trail (Beast → hand) + Deep Hunger (Fodder → next shop) are ECONOMY/HAND — player-only (a
               // served enemy has no hand or shop). Their SoC marks are also only set on the player board.
-              if (playerState.questMods.bloodTrail && killer === bloodTrailMinion && killerAlive) ctx.grantRandomMinion(1, 'beast', 'player', undefined, killer.uid);
+              // KNOWN ASYMMETRY (kept): Blood Trail's Start-of-Combat mark is only ever set on the player board.
+              if (killer.side === 'player' && playerState.questMods.bloodTrail && killer === bloodTrailMinion && killerAlive) ctx.grantRandomMinion(1, 'beast', 'player', undefined, killer.uid);
             }
             // Law of Teeth: a Beast's Slaughter triggers one extra time — re-run only this killer's own on-kill
             // effects once more (direct call, not via the bus, so other minions' on-kills don't double-fire). Per side.
@@ -3130,7 +3174,7 @@ export function simulate(
                 refired = true;
               }
               // The extra Slaughter EFFECT trigger counts toward "Trigger N Slaughters" (player only).
-              if (refired && killer.side === 'player') bumpSlaughterKeyword();
+              if (refired) bumpSlaughterKeyword(killer.side);
             }
             // Author's Hand: the FIRST Slaughter each combat fires an extra time (any tribe; additive with Law of
             // Teeth). Re-runs only this killer's own on-kill effects, once per combat. Per side.
@@ -3145,7 +3189,7 @@ export function simulate(
                 }
               }
               // Each extra Slaughter EFFECT trigger counts toward "Trigger N Slaughters" (player only).
-              if (authorsHasSlaughter && killer.side === 'player') for (let r = 0; r < slfe; r++) bumpSlaughterKeyword();
+              if (authorsHasSlaughter) for (let r = 0; r < slfe; r++) bumpSlaughterKeyword(killer.side);
             }
             // Feeding Line (Beast capstone): a Beast's Slaughter gives your NEXT living Beast (in board order,
             // after the killer) an immediate out-of-turn attack — queued like a Twilight Whelp strike and drained
@@ -3762,7 +3806,7 @@ export function simulate(
         nextStep();
         if (!coopFired) { fireTrigger('echoingCoop', rside); coopFired = true; }
         emit({ type: 'sc', source: minion.uid, text: 'Echo' });
-        if (rside === 'player') bumpDeathrattles(1);
+        bumpDeathrattles(1, rside);
         fireOwnDeathrattles(minion);
       }
     }
@@ -3829,13 +3873,15 @@ export function simulate(
   // Rune-granted run-wide AVENGE effects (no minion source): a bus handler fires every N friendly deaths. Rune of
   // Fury doubles them, matching how a minion's Avenge doubles (see registerEffect). Registered before the attack
   // loop so they catch every death.
-  const runeAvenge = (everyN: number, flag: string, mask: (m: QuestCombatMods, side: Side) => boolean, fire: (side: Side) => void): void => {
+  // `economy: true` marks a rune whose payoff is RUN state (spell power, Gold, a hand card, Fodder): the enemy side
+  // fires it SILENTLY — the payoff accumulates on `enemyCarry`, no badge pulse, no event (symmetric carry-backs).
+  const runeAvenge = (everyN: number, flag: string, mask: (m: QuestCombatMods, side: Side) => boolean, fire: (side: Side) => void, economy = false): void => {
     bus.on('avenge', (payload) => {
       const { side, count } = payload as { side: Side; count: number };
       if (count % everyN !== 0) return;
       const m = modsFor(side);
       if (!mask(m, side)) return;
-      fireTrigger(flag, side); // pulse the rune's badge when its Avenge fires
+      if (!economy || side === 'player') fireTrigger(flag, side); // pulse the rune's badge when its Avenge fires
       // COPIES (Rune of Duplication, owner report 2026-08-06): a boolean flag can't say "twice", so the
       // copy count says it here. Two Rune of the Procession = two fires. `?? 1` keeps every single-copy run
       // byte-identical, and Rune of Fury multiplies the whole thing exactly as it always did.
@@ -3881,20 +3927,24 @@ export function simulate(
     const knit = cards['knit'];
     if (knit) { nextStep(); summonMinion(side, knit, undefined, undefined, false, true); }
   });
-  // Economy avenge runes — PLAYER-ONLY (grant to the run's spell power / max Gold; no enemy meaning).
-  runeAvenge(3, 'runeAppraisal', (m, side) => side === 'player' && !!m.runeAppraisal, () => { const r = ctx.improveRepsFor('player'); ctx.grantSpellPower(r, r, 'player', undefined); }); // "improve your spells +1/+1" — ×2 under Rune of Mastery
+  // Economy avenge runes — the payoff is RUN state (spell power / max Gold / a hand card / Fodder). The player's
+  // fires as always; the enemy's fires silently into `enemyCarry` (see `runeAvenge`'s `economy` flag).
+  runeAvenge(3, 'runeAppraisal', (m) => !!m.runeAppraisal, (side) => { const r = ctx.improveRepsFor(side); ctx.grantSpellPower(r, r, side, undefined); }, true); // "improve your spells +1/+1" — ×2 under Rune of Mastery
   // Batch 5 (owner sheet 2026-07-30). All three go through `runeAvenge`, which already owns the modulo, the
   // per-side mask and the Rune of Fury re-fire — so these are registrations, not new machinery.
-  runeAvenge(4, 'runeLastCall', (m, side) => side === 'player' && !!m.runeLastCall, (side) => {
-    // Player-only: `grantToHand` has no meaning for a served enemy. A set without the Ales grants nothing
-    // rather than injecting cards the run could never otherwise see. Owner 2026-08-11: Avenge(4), TWO Ales.
+  runeAvenge(4, 'runeLastCall', (m) => !!m.runeLastCall, (side) => {
+    // A set without the Ales grants nothing rather than injecting cards the run could never otherwise see.
+    // Owner 2026-08-11: Avenge(4), TWO Ales. The enemy's picks come off its side stream (`grantRngFor`).
     const ales = ctx.poolCards(side).filter((c) => ALE_IDS.includes(c.id));
-    if (ales.length > 0) for (let i = 0; i < 2; i++) ctx.grantToHand(ctx.rng.pick(ales).id, side, undefined);
-  });
-  runeAvenge(3, 'runeCinderLedger', (m, side) => side === 'player' && !!m.runeCinderLedger, (side) => {
+    if (ales.length > 0) for (let i = 0; i < 2; i++) ctx.grantToHand(grantRngFor(side).pick(ales).id, side, undefined);
+  }, true);
+  runeAvenge(3, 'runeCinderLedger', (m) => !!m.runeCinderLedger, (side) => {
     const n = modsFor(side).runeCinderLedger ?? 6;
-    ctx.grantImpBuff(n, n, side); // run-wide + carried back, the same channel Imp King uses
-  });
+    // Player: run-wide + carried back, the same channel Imp King uses. Enemy: the carry-back only — its live Imp
+    // Aura is NOT advanced (KNOWN ASYMMETRY kept: the shipped enemy never fired this).
+    if (side === 'player') ctx.grantImpBuff(n, n, side);
+    else { impBuffGain.enemy.attack += n; impBuffGain.enemy.health += n; }
+  }, true);
   // Rune of Counterpoint — Avenge (1), i.e. EVERY friendly death, sends your left-most in for a free swing.
   //
   // Routed through `runeAvenge` + `ctx.attackNow` deliberately. An earlier cut queued the strike straight from
@@ -3966,10 +4016,10 @@ export function simulate(
     nextStep();
     ctx.buff(tail, tail.attack, tail.health, 'Rune of the Procession');
   });
-  runeAvenge(4, 'runeSoulTaxes', (m, side) => side === 'player' && !!m.runeSoulTaxes, () => ctx.grantMaxGold(1, 'player')); // +1 max Gold
+  runeAvenge(4, 'runeSoulTaxes', (m) => !!m.runeSoulTaxes, (side) => ctx.grantMaxGold(1, side), true); // +1 max Gold
   // Deep Hunger (Demon capstone, reworked 2026-07-21): Avenge (3) → add 2 Fodder to your next shop. Was "the
-  // leftmost Demon gains Slaughter: add 3 Fodder". Player-only — a served enemy has no shop to stock.
-  runeAvenge(3, 'deepHunger', (m, side) => side === 'player' && !!m.deepHunger, () => { fodderGrants += 2; });
+  // leftmost Demon gains Slaughter: add 3 Fodder".
+  runeAvenge(3, 'deepHunger', (m) => !!m.deepHunger, (side) => { fodderGrants[side] += 2; }, true);
 
   // Rune of Packcraft (owner rework 2026-08-04): the BODY YOU SUMMON comes in +6/+6. It used to be an
   // `onSummon` listener that buffed your whole Beast line whenever a Beast was summoned; it is now applied at
@@ -4004,15 +4054,17 @@ export function simulate(
   }
   // Rune of Salvage: a friendly Mech losing its Ward drops a random Attachment into your hand next shop —
   // ECONOMY/HAND, so player-only (a served enemy has no hand; grantToHand no-ops for it anyway).
-  if (playerState.questMods.runeSalvage) {
-    fireTrigger('runeSalvage', 'player'); // pulse the badge when the Attachment is actually banked
-    const magnetics = ctx.poolCards('player').filter((c) => (c.tribe === 'mech' || c.tribe2 === 'mech') && c.keywords.includes('M') && !c.token && !c.spell);
+  for (const sside of ['player', 'enemy'] as const) {
+    if (!modsFor(sside).runeSalvage) continue;
+    if (sside === 'player') fireTrigger('runeSalvage', 'player'); // pulse the badge when the Attachment is actually banked
+    const magnetics = ctx.poolCards(sside).filter((c) => (c.tribe === 'mech' || c.tribe2 === 'mech') && c.keywords.includes('M') && !c.token && !c.spell);
     if (magnetics.length > 0) {
       bus.on('onLoseDivineShield', (payload) => {
         const { minion, side } = payload as { minion: Minion; side: Side };
-        if (side !== 'player' || !(minion.tribe === 'mech' || minion.tribe2 === 'mech' || !!minion.universalTribe)) return;
-        // One Attachment per copy held (boolean-flag family, owner 2026-08-27).
-        for (let k = 0; k < flagCopiesOf('player', 'runeSalvage'); k++) ctx.grantToHand(magnetics[rng.int(magnetics.length)]!.id, 'player', minion.uid);
+        if (side !== sside || !(minion.tribe === 'mech' || minion.tribe2 === 'mech' || !!minion.universalTribe)) return;
+        // One Attachment per copy held (boolean-flag family, owner 2026-08-27). The enemy draws off its side stream.
+        const draw = grantRngFor(sside);
+        for (let k = 0; k < flagCopiesOf(sside, 'runeSalvage'); k++) ctx.grantToHand(magnetics[draw.int(magnetics.length)]!.id, sside, minion.uid);
       });
     }
   }
@@ -4156,74 +4208,158 @@ export function simulate(
       ? playerState.tier + survivorsP.reduce((sum, m) => sum + (cards[m.cardId]?.tier ?? 1), 0)
       : 0;
 
-  // Per-instance state to carry back to the run board: a Kennelmaster whose Avenge
-  // improved its summon buff this combat keeps the higher bonus for the run.
   // Rouge Rogue's escalation is "this combat" BY RULE — it rides `summonBonus` like the permanent improvers
   // (Kennelmaster, Oona, Broodwright) but must NOT persist, or three fights of Imp attacks would compound into
   // a permanent aura the card never printed. Excluded here, at the single point deciding what persists.
   const COMBAT_ONLY_SUMMON_BONUS = new Set(['dm_chancellor']);
-  const playerSummonBonus = boards.player
-    .filter((m) => m.sourceUid !== undefined && m.summonBonus > 0 && !COMBAT_ONLY_SUMMON_BONUS.has(m.cardId))
-    .map((m) => ({ sourceUid: m.sourceUid!, bonus: m.summonBonus }));
-  // Sergeant: the Deathrattle HP-grant accrual (seeded from the run board + any improvements from Attack
-  // gained this combat) carries back so the improvement is permanent — keyed to the originating board card.
-  const playerHpGrantBonus = boards.player
-    .filter((m) => m.sourceUid !== undefined && (m.hpGrantBonus ?? 0) > 0)
-    .map((m) => ({ sourceUid: m.sourceUid!, bonus: m.hpGrantBonus! }));
-  // Archmagus Guel: his on-board spell tally (seeded + this combat's casts) carries back so combat casts count
-  // permanently toward his per-instance improvement — keyed to the originating board card.
-  const playerSpellProgress = boards.player
-    .filter((m) => m.sourceUid !== undefined && (m.spellProgress ?? 0) > 0)
-    .map((m) => ({ sourceUid: m.sourceUid!, progress: m.spellProgress! }));
-  // Tara's stat-grant tally this combat, per board card (for the ascend-at-settle accumulation).
-  const playerAscendCount = boards.player
-    .filter((m) => m.sourceUid !== undefined && (buffCounts.get(m.uid) ?? 0) > 0)
-    .map((m) => ({ sourceUid: m.sourceUid!, count: buffCounts.get(m.uid)! }));
-
-  // Permanent gains carry back to the run board (only real minions — summoned tokens have no sourceUid
-  // and are gone after combat). Two flavors, both recorded as `permaGain`: an Engraved minion keeps the
-  // stats it gained this fight (native EG, or EG granted at Start of Combat by Taurus), and Flowing Monk's
-  // overflow gift sticks to a non-EG recipient. The `engraved` flag is read off the *combat Minion's* live
-  // keywords (so a Taurus-granted EG counts), and only steers the run-board inspect label — never gates the
-  // carry-back, which the reducer applies regardless.
-  const playerPermaBuffs = boards.player
-    .filter((m) => m.sourceUid !== undefined && m.permaGain && (m.permaGain.attack > 0 || m.permaGain.health > 0))
-    .flatMap((m) => {
-      // Split the permanent gain into its RUBY share and the rest, so each carries its own label. Before this
-      // every non-Engraved permaGain was attributed to Flowing Monk, which made a combat Ruby show up on the
-      // run board as a Flowing Monk gift (owner report 2026-07-25).
-      const ruby = m.permaRuby ?? { attack: 0, health: 0 };
-      const restA = m.permaGain!.attack - ruby.attack;
-      const restH = m.permaGain!.health - ruby.health;
-      const out: { sourceUid: string; attack: number; health: number; engraved: boolean; ruby?: boolean }[] = [];
-      if (ruby.attack > 0 || ruby.health > 0) {
-        out.push({ sourceUid: m.sourceUid!, attack: ruby.attack, health: ruby.health, engraved: false, ruby: true });
-      }
-      if (restA > 0 || restH > 0) {
-        out.push({ sourceUid: m.sourceUid!, attack: restA, health: restH, engraved: m.keywords.includes('EG') || !!m.auraEngraved });
-      }
-      return out;
-    });
 
   // Rune of Reinvestment: pays ONCE when the fight settles, scaled by how many bodies you put on the board.
-  // Paid here rather than per summon so the Shop sees a single combined buff instead of a drip.
-  const reinvest = modsFor('player').runeReinvestment ?? 0;
-  if (reinvest > 0 && playerSummonCount > 0) {
-    fireTrigger('runeReinvestment', 'player'); // pulse the badge on the settle payout (once, not per summon)
-    tavernBuyGain.attack += reinvest * playerSummonCount;
-    tavernBuyGain.health += reinvest * playerSummonCount;
-    creditTavern('Rune of Reinvestment', reinvest * playerSummonCount, reinvest * playerSummonCount);
+  // Paid here rather than per summon so the Shop sees a single combined buff instead of a drip. Both sides
+  // bank it; only the player's payout pulses the badge (the enemy half is a silent carry-back).
+  for (const side of ['player', 'enemy'] as const) {
+    const reinvest = modsFor(side).runeReinvestment ?? 0;
+    if (reinvest > 0 && summonCount[side] > 0) {
+      if (side === 'player') fireTrigger('runeReinvestment', 'player'); // pulse the badge on the settle payout (once, not per summon)
+      tavernBuyGain[side].attack += reinvest * summonCount[side];
+      tavernBuyGain[side].health += reinvest * summonCount[side];
+      creditTavern(side, 'Rune of Reinvestment', reinvest * summonCount[side], reinvest * summonCount[side]);
+    }
   }
   // Flash's LAST claim: only knowable now the fight is over. Granted here rather than at settle so it still
   // rides `playerHandGrants` and flies to hand in the replay, exactly like the `first` branch does live.
-  if (flashPick === 'last' && !flashDone && lastKill) {
-    const lastDef = cards[lastKill];
-    if (lastDef && !lastDef.spell && !lastDef.ruby) {
-      flashDone = true;
-      const holder = boards.player.find((m) => !m.dead)?.uid;
-      for (let i = 0; i < flashCopies; i++) ctx.grantToHand(lastKill, 'player', holder);
+  // The enemy's claim is a silent carry-back (its `grantToHand` records without emitting).
+  for (const side of ['player', 'enemy'] as const) {
+    const last = kills[side].last;
+    if (flashPickFor[side] === 'last' && !flashDone[side] && last) {
+      const lastDef = cards[last];
+      if (lastDef && !lastDef.spell && !lastDef.ruby) {
+        flashDone[side] = true;
+        const holder = boards[side].find((m) => !m.dead)?.uid;
+        for (let i = 0; i < flashCopiesFor[side]; i++) ctx.grantToHand(last, side, holder);
+      }
     }
   }
+
+  /**
+   * THE carry-back surface, computed by ONE code path for either side. The player's half is spread onto the
+   * legacy `player*` fields below (byte-identical to what they always were); the enemy's half is reported whole
+   * on `enemyCarry`. Anything a side did not earn is `undefined` (or 0 for the always-present counters), never
+   * estimated — a KNOWN ASYMMETRY (see the notes in the trackers) simply reads as absent on the enemy side.
+   */
+  const carryBacksFor = (side: Side): CombatCarryBacks => {
+    const board = boards[side];
+    const foe: Side = side === 'player' ? 'enemy' : 'player';
+    // Per-instance state to carry back to the run board: a Kennelmaster whose Avenge improved its summon buff
+    // this combat keeps the higher bonus for the run.
+    const summonBonus = board
+      .filter((m) => m.sourceUid !== undefined && m.summonBonus > 0 && !COMBAT_ONLY_SUMMON_BONUS.has(m.cardId))
+      .map((m) => ({ sourceUid: m.sourceUid!, bonus: m.summonBonus }));
+    // Sergeant: the Deathrattle HP-grant accrual (seeded from the run board + any improvements from Attack
+    // gained this combat) carries back so the improvement is permanent — keyed to the originating board card.
+    const hpGrantBonus = board
+      .filter((m) => m.sourceUid !== undefined && (m.hpGrantBonus ?? 0) > 0)
+      .map((m) => ({ sourceUid: m.sourceUid!, bonus: m.hpGrantBonus! }));
+    // Archmagus Guel: his on-board spell tally (seeded + this combat's casts) carries back so combat casts count
+    // permanently toward his per-instance improvement — keyed to the originating board card.
+    const spellProgress = board
+      .filter((m) => m.sourceUid !== undefined && (m.spellProgress ?? 0) > 0)
+      .map((m) => ({ sourceUid: m.sourceUid!, progress: m.spellProgress! }));
+    // Tara's stat-grant tally this combat, per board card (for the ascend-at-settle accumulation).
+    const ascendCount = board
+      .filter((m) => m.sourceUid !== undefined && (buffCounts.get(m.uid) ?? 0) > 0)
+      .map((m) => ({ sourceUid: m.sourceUid!, count: buffCounts.get(m.uid)! }));
+    // Permanent gains carry back to the run board (only real minions — summoned tokens have no sourceUid
+    // and are gone after combat). Two flavors, both recorded as `permaGain`: an Engraved minion keeps the
+    // stats it gained this fight (native EG, or EG granted at Start of Combat by Taurus), and Flowing Monk's
+    // overflow gift sticks to a non-EG recipient. The `engraved` flag is read off the *combat Minion's* live
+    // keywords (so a Taurus-granted EG counts), and only steers the run-board inspect label — never gates the
+    // carry-back, which the reducer applies regardless.
+    const permaBuffs = board
+      .filter((m) => m.sourceUid !== undefined && m.permaGain && (m.permaGain.attack > 0 || m.permaGain.health > 0))
+      .flatMap((m) => {
+        // Split the permanent gain into its RUBY share and the rest, so each carries its own label. Before this
+        // every non-Engraved permaGain was attributed to Flowing Monk, which made a combat Ruby show up on the
+        // run board as a Flowing Monk gift (owner report 2026-07-25).
+        const ruby = m.permaRuby ?? { attack: 0, health: 0 };
+        const restA = m.permaGain!.attack - ruby.attack;
+        const restH = m.permaGain!.health - ruby.health;
+        const out: { sourceUid: string; attack: number; health: number; engraved: boolean; ruby?: boolean }[] = [];
+        if (ruby.attack > 0 || ruby.health > 0) {
+          out.push({ sourceUid: m.sourceUid!, attack: ruby.attack, health: ruby.health, engraved: false, ruby: true });
+        }
+        if (restA > 0 || restH > 0) {
+          out.push({ sourceUid: m.sourceUid!, attack: restA, health: restH, engraved: m.keywords.includes('EG') || !!m.auraEngraved });
+        }
+        return out;
+      });
+    const qt = questTallies[side];
+    const qe = questEventsFor[side];
+    const tbg = tavernBuyGain[side];
+    const nsb = nextShopBuffGain[side];
+    const seg = spellEscalationGain[side];
+    const rsg = rightmostSlotGain[side];
+    const bbg = boardBuffGain[side];
+    const alive = board.filter((m) => !m.dead && m.health > 0).map((m) => m.cardId);
+    return {
+      deathrattles: deathrattlesFired[side],
+      rallies: ralliesFired[side] > 0 ? ralliesFired[side] : undefined,
+      impsSummoned: impsSummoned[side] > 0 ? impsSummoned[side] : undefined,
+      deaths: deaths[side],
+      survivorCardIds: alive.length > 0 ? alive : undefined,
+      foeDeaths: deaths[foe],
+      firstKill: kills[side].first,
+      lastKill: kills[side].last,
+      questTally: (qt.attack > 0 || qt.summonCombat > 0 || qt.slaughter > 0 || qt.slaughterKeyword > 0 || Object.keys(qt.statGainByTribe).length > 0) ? qt : undefined,
+      questEvents: qe.length > 0 ? qe : undefined,
+      beastBuyAtkGain: beastBuyAtkGain[side] > 0 ? beastBuyAtkGain[side] : undefined,
+      beastBuyHpGain: beastBuyHpGain[side] > 0 ? beastBuyHpGain[side] : undefined,
+      beastScaleProgress: side === 'player' && beastScale ? beastScaleProgress : undefined,
+      summonBonus,
+      hpGrantBonus: hpGrantBonus.length > 0 ? hpGrantBonus : undefined,
+      spellProgress: spellProgress.length > 0 ? spellProgress : undefined,
+      ascendCount: ascendCount.length > 0 ? ascendCount : undefined,
+      permaBuffs: permaBuffs.length > 0 ? permaBuffs : undefined,
+      handGrants: handGrants[side].length > 0 ? handGrants[side] : undefined,
+      handBuffs: handBuffs[side].length > 0 ? handBuffs[side] : undefined,
+      rubyGrants: rubyGrants[side].n > 0 ? rubyGrants[side].n : undefined,
+      nextTurnSpellCopies: nextTurnSpellCopies[side].n > 0 ? nextTurnSpellCopies[side].n : undefined,
+      rubyBonusGain: (rubyBonusGain[side].attack > 0 || rubyBonusGain[side].health > 0) ? { ...rubyBonusGain[side] } : undefined,
+      rubyMints: rubyMintCount[side] > 0 ? rubyMintCount[side] : undefined,
+      handSummoned: handSummoned[side].length > 0 ? handSummoned[side] : undefined,
+      beastExtraGain: (beastExtraGain[side].hunt > 0 || beastExtraGain[side].ritual > 0) ? { ...beastExtraGain[side] } : undefined,
+      tavernBuyGain: (tbg.attack > 0 || tbg.health > 0) ? { ...tbg } : undefined,
+      tavernBuyGainSources: Object.keys(tavernBuyGainSources[side]).length > 0 ? { ...tavernBuyGainSources[side] } : undefined,
+      wildHuntGrown: wildHuntGrown[side] > 0 ? wildHuntGrown[side] : undefined,
+      spellPower: spellPowerGain[side].attack !== 0 || spellPowerGain[side].health !== 0 ? spellPowerGain[side] : undefined,
+      cardBuffs: cardBuffGains[side].length > 0 ? cardBuffGains[side] : undefined,
+      fodderGrants: fodderGrants[side] > 0 ? fodderGrants[side] : undefined,
+      fodderSchedule: fodderSchedule[side].some((n) => n > 0) ? fodderSchedule[side] : undefined,
+      deferredBattlecries: deferredBattlecries[side].length > 0 ? deferredBattlecries[side] : undefined,
+      maxGoldGain: maxGoldGain[side] > 0 ? maxGoldGain[side] : undefined,
+      bonusGold: bonusGoldGain[side] > 0 ? bonusGoldGain[side] : undefined,
+      freeRolls: freeRollGrants[side] > 0 ? freeRollGrants[side] : undefined,
+      guaranteedAttachments: attachmentShopGrants[side] > 0 ? attachmentShopGrants[side] : undefined,
+      spellsCast: combatSpells[side] > 0 ? combatSpells[side] : undefined,
+      spellEscalationGain: (seg.attack > 0 || seg.health > 0) ? { ...seg } : undefined,
+      discoverCasts: discoverCasts[side].length > 0 ? discoverCasts[side] : undefined,
+      nextShopBuff: (nsb.attack > 0 || nsb.health > 0) ? { ...nsb } : undefined,
+      undeadBuyAtkGain: undeadBuyAtkGain[side] > 0 ? undeadBuyAtkGain[side] : undefined,
+      slaughterCopy: slaughterCopyId[side],
+      undeadAuraGain: undeadAuraGain[side].attack > 0 || undeadAuraGain[side].health > 0 ? undeadAuraGain[side] : undefined,
+      impBuffGain: impBuffGain[side].attack > 0 || impBuffGain[side].health > 0 ? impBuffGain[side] : undefined,
+      // Cindara: only the GROWTH, not the level — settle adds it to the run's banked total, so a re-simulated
+      // combat cannot double-count the improvement it started with.
+      hoardGain: hoardLevel[side].attack > hoardStart[side].attack
+        ? { attack: hoardLevel[side].attack - hoardStart[side].attack, health: hoardLevel[side].health - hoardStart[side].health }
+        : undefined,
+      rightmostSlotBuff: rsg.attack > 0 || rsg.health > 0 ? { ...rsg } : undefined,
+      beastialSwarmLevel: beastialLevel[side] > beastialStart[side] ? beastialLevel[side] : undefined,
+      boardBuffGain: bbg.attack > 0 || bbg.health > 0 ? { ...bbg } : undefined,
+      magneticBuffGain: magneticBuffGain[side].attack > 0 || magneticBuffGain[side].health > 0 ? magneticBuffGain[side] : undefined,
+      fodderBuffGain: fodderBuffGain[side].attack > 0 || fodderBuffGain[side].health > 0 ? fodderBuffGain[side] : undefined,
+    };
+  };
+  const pc = carryBacksFor('player');
 
   return {
     events,
@@ -4231,70 +4367,65 @@ export function simulate(
     playerDamage,
     ...(damageBreakdown ? { damageBreakdown } : {}),
     enemyDamage,
-    playerDeathrattles,
-    playerRallies: playerRallies > 0 ? playerRallies : undefined,
-    playerImpsSummoned: playerImpsSummoned > 0 ? playerImpsSummoned : undefined,
-    playerDeaths: deaths.player,
-    playerSurvivorCardIds: (() => {
-      const alive = boards.player.filter((m) => !m.dead && m.health > 0).map((m) => m.cardId);
-      return alive.length > 0 ? alive : undefined;
-    })(),
+    playerDeathrattles: pc.deathrattles,
+    playerRallies: pc.rallies,
+    playerImpsSummoned: pc.impsSummoned,
+    playerDeaths: pc.deaths,
+    playerSurvivorCardIds: pc.survivorCardIds,
     enemyDeaths,
-    playerFirstKill: firstKill,
-    playerLastKill: lastKill,
-    playerQuestTally: (questTally.attack > 0 || questTally.summonCombat > 0 || questTally.slaughter > 0 || questTally.slaughterKeyword > 0 || Object.keys(questTally.statGainByTribe).length > 0) ? questTally : undefined,
-    playerQuestEvents: questEvents.length > 0 ? questEvents : undefined,
-    playerBeastBuyAtkGain: beastBuyAtkGain > 0 ? beastBuyAtkGain : undefined,
-    playerBeastBuyHpGain: beastBuyHpGain > 0 ? beastBuyHpGain : undefined,
-    playerBeastScaleProgress: beastScale ? beastScaleProgress : undefined,
+    playerFirstKill: pc.firstKill,
+    playerLastKill: pc.lastKill,
+    playerQuestTally: pc.questTally,
+    playerQuestEvents: pc.questEvents,
+    playerBeastBuyAtkGain: pc.beastBuyAtkGain,
+    playerBeastBuyHpGain: pc.beastBuyHpGain,
+    playerBeastScaleProgress: pc.beastScaleProgress,
     initial,
-    playerSummonBonus,
-    playerHpGrantBonus: playerHpGrantBonus.length > 0 ? playerHpGrantBonus : undefined,
-    playerSpellProgress: playerSpellProgress.length > 0 ? playerSpellProgress : undefined,
-    playerAscendCount: playerAscendCount.length > 0 ? playerAscendCount : undefined,
-    playerPermaBuffs: playerPermaBuffs.length > 0 ? playerPermaBuffs : undefined,
-    playerHandGrants: handGrants.length > 0 ? handGrants : undefined,
-    playerHandBuffs: handBuffs.length > 0 ? handBuffs : undefined,
-    playerRubyGrants: rubyGrants.n > 0 ? rubyGrants.n : undefined,
-    playerNextTurnSpellCopies: nextTurnSpellCopies.n > 0 ? nextTurnSpellCopies.n : undefined,
-    playerRubyBonusGain: (rubyBonusGain.player.attack > 0 || rubyBonusGain.player.health > 0) ? { ...rubyBonusGain.player } : undefined,
-    playerRubyMints: rubyMintCount > 0 ? rubyMintCount : undefined,
-    playerHandSummoned: handSummoned.length > 0 ? handSummoned : undefined,
-    playerBeastExtraGain: (beastExtraGain.player.hunt > 0 || beastExtraGain.player.ritual > 0) ? { ...beastExtraGain.player } : undefined,
-    playerTavernBuyGain: (tavernBuyGain.attack > 0 || tavernBuyGain.health > 0) ? { ...tavernBuyGain } : undefined,
-    playerTavernBuyGainSources: Object.keys(tavernBuyGainSources).length > 0 ? { ...tavernBuyGainSources } : undefined,
-    playerWildHuntGrown: wildHuntGrown.player > 0 ? wildHuntGrown.player : undefined,
-    playerSpellPower: spellPowerGain.attack !== 0 || spellPowerGain.health !== 0 ? spellPowerGain : undefined,
-    playerCardBuffs: cardBuffGains.length > 0 ? cardBuffGains : undefined,
-    playerFodderGrants: fodderGrants > 0 ? fodderGrants : undefined,
-    playerFodderSchedule: fodderSchedule.some((n) => n > 0) ? fodderSchedule : undefined,
-    playerDeferredBattlecries: deferredBattlecries.length > 0 ? deferredBattlecries : undefined,
-    playerMaxGoldGain: maxGoldGain > 0 ? maxGoldGain : undefined,
-    playerBonusGold: bonusGoldGain > 0 ? bonusGoldGain : undefined,
-    playerFreeRolls: freeRollGrants > 0 ? freeRollGrants : undefined,
-    playerGuaranteedAttachments: attachmentShopGrants > 0 ? attachmentShopGrants : undefined,
-    playerSpellsCast: playerCombatSpells > 0 ? playerCombatSpells : undefined,
-    playerSpellEscalationGain: (spellEscalationGain.player.attack > 0 || spellEscalationGain.player.health > 0)
-      ? { ...spellEscalationGain.player } : undefined,
-    playerDiscoverCasts: discoverCasts.length > 0 ? discoverCasts : undefined,
-    playerNextShopBuff: (nextShopBuffGain.attack > 0 || nextShopBuffGain.health > 0) ? { ...nextShopBuffGain } : undefined,
-    playerUndeadBuyAtkGain: undeadBuyAtkGain > 0 ? undeadBuyAtkGain : undefined,
-    playerSlaughterCopy: slaughterCopyId,
-    playerUndeadAuraGain: undeadAuraGain.attack > 0 || undeadAuraGain.health > 0 ? undeadAuraGain : undefined,
-    playerImpBuffGain: impBuffGain.attack > 0 || impBuffGain.health > 0 ? impBuffGain : undefined,
-    // Cindara: only the GROWTH, not the level — settle adds it to the run's banked total, so a re-simulated
-    // combat cannot double-count the improvement it started with.
-    playerHoardGain: hoardLevel.player.attack > hoardStart.attack
-      ? { attack: hoardLevel.player.attack - hoardStart.attack, health: hoardLevel.player.health - hoardStart.health }
-      : undefined,
-    playerRightmostSlotBuff: rightmostSlotGain.attack > 0 || rightmostSlotGain.health > 0 ? { ...rightmostSlotGain } : undefined,
-    playerBeastialSwarmLevel: beastialLevel.player > beastialStart.player ? beastialLevel.player : undefined,
-    playerBoardBuffGain: boardBuffGain.attack > 0 || boardBuffGain.health > 0 ? { ...boardBuffGain } : undefined,
-    playerMagneticBuffGain: magneticBuffGain.attack > 0 || magneticBuffGain.health > 0 ? magneticBuffGain : undefined,
-    playerFodderBuffGain: fodderBuffGain.attack > 0 || fodderBuffGain.health > 0 ? fodderBuffGain : undefined,
+    playerSummonBonus: pc.summonBonus,
+    playerHpGrantBonus: pc.hpGrantBonus,
+    playerSpellProgress: pc.spellProgress,
+    playerAscendCount: pc.ascendCount,
+    playerPermaBuffs: pc.permaBuffs,
+    playerHandGrants: pc.handGrants,
+    playerHandBuffs: pc.handBuffs,
+    playerRubyGrants: pc.rubyGrants,
+    playerNextTurnSpellCopies: pc.nextTurnSpellCopies,
+    playerRubyBonusGain: pc.rubyBonusGain,
+    playerRubyMints: pc.rubyMints,
+    playerHandSummoned: pc.handSummoned,
+    playerBeastExtraGain: pc.beastExtraGain,
+    playerTavernBuyGain: pc.tavernBuyGain,
+    playerTavernBuyGainSources: pc.tavernBuyGainSources,
+    playerWildHuntGrown: pc.wildHuntGrown,
+    playerSpellPower: pc.spellPower,
+    playerCardBuffs: pc.cardBuffs,
+    playerFodderGrants: pc.fodderGrants,
+    playerFodderSchedule: pc.fodderSchedule,
+    playerDeferredBattlecries: pc.deferredBattlecries,
+    playerMaxGoldGain: pc.maxGoldGain,
+    playerBonusGold: pc.bonusGold,
+    playerFreeRolls: pc.freeRolls,
+    playerGuaranteedAttachments: pc.guaranteedAttachments,
+    playerSpellsCast: pc.spellsCast,
+    playerSpellEscalationGain: pc.spellEscalationGain,
+    playerDiscoverCasts: pc.discoverCasts,
+    playerNextShopBuff: pc.nextShopBuff,
+    playerUndeadBuyAtkGain: pc.undeadBuyAtkGain,
+    playerSlaughterCopy: pc.slaughterCopy,
+    playerUndeadAuraGain: pc.undeadAuraGain,
+    playerImpBuffGain: pc.impBuffGain,
+    playerHoardGain: pc.hoardGain,
+    playerRightmostSlotBuff: pc.rightmostSlotBuff,
+    playerBeastialSwarmLevel: pc.beastialSwarmLevel,
+    playerBoardBuffGain: pc.boardBuffGain,
+    playerMagneticBuffGain: pc.magneticBuffGain,
+    playerFodderBuffGain: pc.fodderBuffGain,
     // Enemy run-level scalers so the UI can render an enemy Grim/Taragosa/Pack Leader/Runescale at the
     // OPPONENT's value. Present only when the enemy actually had a nonzero scaler (else the card's base text
     // is already accurate → the UI's player-side fallback is fine).
     enemyScalers: enemyScalersOf(enemyState),
+    // The ENEMY side's carry-backs — the same computation, mirrored (balance bot self-play, 2026-09-15). The
+    // shipped run loop never reads it; a lobby seat that fought as `enemy` settles from it.
+    enemyCarry: carryBacksFor('enemy'),
   };
 }

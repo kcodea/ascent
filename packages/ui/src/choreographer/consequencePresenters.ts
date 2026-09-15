@@ -27,6 +27,10 @@ export interface PresenterContext {
    *  End-of-Turn buff, and nothing else draws now that the commit replays nothing. Undefined for a rune /
    *  quest / spell / aura source (their ribbons and washes are their own cues). */
   statGain: (uid: string, zone: string, attack: number, health: number, from?: { uid: string; cardId: string }) => void;
+  /** A stat gain a HERO POWER paid at End of Turn (Aevor's Tempest paying the end minions) — the generic buff
+   *  tendril from the hero-power button to the recipient, one per recipient (owner ask 2026-09-15). A hero
+   *  beat has no body to pulse and no rune rail to ribbon from, so without this the gain landed unannounced. */
+  heroPowerGain: (uid: string, heroId: string) => void;
   /** A minion buffed ITSELF this beat — the authored self-buff def (`self-buff-gold`), the richer twin of the
    *  green `statGain` burst. Matches the per-action path so a self-buff looks the same on any beat. */
   selfBuff: (uid: string) => void;
@@ -114,6 +118,11 @@ export const CONSEQUENCE_PRESENTERS: Record<ConsequenceEvent['type'], Consequenc
     // an aura, a rune/quest reward whose ribbon already drew above) keeps the generic green burst.
     if (beat.source.kind === 'minion' && beat.source.uid && beat.source.uid === c.target.uid) {
       ctx.selfBuff(c.target.uid);
+      return;
+    }
+    // A HERO POWER paying a board minion (Tempest): the tendril from the power button, one per recipient.
+    if (beat.source.kind === 'hero' && c.target.zone === 'board') {
+      ctx.heroPowerGain(c.target.uid, beat.source.id);
       return;
     }
     ctx.statGain(c.target.uid, c.target.zone, c.attack, c.health,

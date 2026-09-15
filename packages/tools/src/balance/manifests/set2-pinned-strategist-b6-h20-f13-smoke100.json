@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "name": "set2-pinned-strategist-b6-h20-f13-smoke100",
+  "mode": "pinnedLobby",
+  "setId": "set2",
+  "policy": {
+    "id": "strategist",
+    "budget": {
+      "depth": 1,
+      "beam": 1,
+      "maxNodes": 40,
+      "positionCandidates": 2,
+      "growthWeight": 20,
+      "horizonWeight": 20,
+      "horizonFightWeight": 13,
+      "horizonTop": 3
+    }
+  },
+  "seeds": {
+    "start": 1,
+    "count": 100
+  },
+  "corpus": {
+    "name": "set2-players-v1",
+    "digest": "87909308f9c0a30b"
+  },
+  "fightRules": "shipped",
+  "notes": "B6 round 2 HORIZON: growth 20 + the two-turn probe re-ranking at horizonWeight 20 (second-turn yield) / horizonFightWeight 13 (horizon board vs the wave+2 panel), top 3. Same seeds, corpus and budget as set2-pinned-strategist-smoke100."
+}

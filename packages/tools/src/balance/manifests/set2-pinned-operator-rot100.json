@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "name": "set2-pinned-operator-rot100",
+  "mode": "pinnedLobby",
+  "setId": "set2",
+  "policy": {
+    "id": "operator",
+    "budget": {
+      "depth": 1,
+      "beam": 1,
+      "maxNodes": 40,
+      "positionCandidates": 2
+    }
+  },
+  "seeds": {
+    "start": 1,
+    "count": 100
+  },
+  "corpus": {
+    "name": "set2-players-v1",
+    "digest": "87909308f9c0a30b"
+  },
+  "fightRules": "shipped",
+  "notes": "B9: the natural operator (routed by the strategist's line; the strategist plays lines without an operator), hero rotated by seed, 100 lobbies vs the recorded set-2 players."
+}

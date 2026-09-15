@@ -29,6 +29,7 @@ import { PatchNotes } from './PatchNotesOverlay';
 import { BugReportModal } from './bug-report/BugReportModal';
 import { installBugReportHotkey } from './bug-report/bugReportHotkey';
 import { PerfHud } from './PerfHud';
+import { phaseStartBetween } from './perfWarmup';
 import { uploadRun } from './perfCloud';
 import { toRun } from './perfStore';
 import { isRealPlayRun } from './perfCaptureScope';
@@ -124,13 +125,20 @@ export function Game() {
   useEffect(() => {
     perfMonitor.registerContext(() => {
       const s = useGame.getState().run;
-      return { phase: s.phase, wave: s.wave };
+      return { phase: s.phase, wave: s.wave, ...(s.runeforgeOffer ? { overlay: 'runeforge' } : {}) };
     });
     // Input RATE. A high-polling-rate mouse delivers pointermove far above the frame rate; when a handler
     // turns each one into a state update, the render cost is invisible without this number next to it.
     const onMove = (): void => perfMonitor.count('pointermoves');
     window.addEventListener('pointermove', onMove, { passive: true });
     perfMonitor.start();
+    // WARM-UP at every phase start (owner report 2026-09-15: the opening spike "destroys the graph"). The
+    // rule for what counts as a phase start is pure and tested in `perfWarmup.ts`; this is only the wiring.
+    const unsubWarm = useGame.subscribe((st, prevSt) => {
+      if (st.run === prevSt.run) return;
+      const start = phaseStartBetween(prevSt.run, st.run);
+      if (start) perfMonitor.beginWarmup(start);
+    });
 
     /**
      * AUTO-SHARE (owner ask 2026-08-29: "uploads to supabase and drops it into a performance viewer in game
@@ -199,6 +207,7 @@ export function Game() {
     return () => {
       window.removeEventListener('pointermove', onMove);
       unsub();
+      unsubWarm();
       perfMonitor.stop();
     };
   }, []);

@@ -40,6 +40,7 @@ import type { LobbyEncounter } from '../lobby/types';
 import { reduce } from '../reducer';
 import { runTribesForSeed, type RunState } from '../state';
 import { snapshotBoard } from '../snapshot';
+import type { CardLineage } from './effectsFromTransition';
 import { playRecruitTurn } from './seatRunner';
 import { DEFAULT_MAX_ACTIONS_PER_TURN } from './selfPlayLobby';
 import type { BalanceRecorder, ExperimentIdentity, ExperimentManifest, LobbyRecord, RoundRecord, RunRecord, SeatContext, SeatPilot } from './types';
@@ -194,6 +195,10 @@ export function runPinnedLobby(
   // ── the rounds ─────────────────────────────────────────────────────────────────────────────────────────────
   /** The pilot's combat memory: seat id → the board it fielded the last time the pilot fought it. */
   const memory = new Map<string, ScoutedBoard>();
+  /** The pilot's card LINEAGE (uid → acquisition route), kept ACROSS turns so the recorder's attributer can say how
+   *  every played / sold / cast card came to be (`sourceId` + `route: 'shop'` on a buy — the report's offer → buy →
+   *  played funnel reads exactly that; without it the pinned report printed `bought 0` for every card). */
+  const lineage: CardLineage = new Map();
   while (!failure && run && run.phase === 'recruit') {
     const lobby = run.lobby!;
     const round = lobby.round;
@@ -203,7 +208,7 @@ export function runPinnedLobby(
     // The board the paired seat brings — the very one `faceOmen` will serve (`lobbyOpponentBoard` makes the same
     // call). Remembered only AFTER the fight resolves, below.
     const foe = playerOpponent(lobby);
-    const turn = playRecruitTurn(run, pilot, { seatId: 's0', round, scoutedOpponent: null, ...scout }, rec, { maxActionsPerTurn, lobbyId, deferFight: false });
+    const turn = playRecruitTurn(run, pilot, { seatId: 's0', round, scoutedOpponent: null, ...scout }, rec, { maxActionsPerTurn, lobbyId, deferFight: false, lineage });
     run = turn.run;
     if (turn.failure) { fail(turn.failure); break; }
     if (run.phase !== 'combat' || !run.lastCombat) { fail(`round ${round}: End Turn did not resolve a fight (phase ${run.phase})`); break; }

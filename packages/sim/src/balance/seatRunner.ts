@@ -28,7 +28,7 @@ import { snapshotBoard } from '../snapshot';
 import { mixSeed, TAG, type Action, type RunState } from '../state';
 import { stateHash } from './hash';
 import { effectEventsOf, type CardLineage } from './effectsFromTransition';
-import type { BalanceRecorder, EffectEvent, SeatContext, SeatPilot } from './types';
+import type { BalanceRecorder, SeatContext, SeatPilot } from './types';
 
 // ───────────────────────────────────────────── the recruit turn ─────────────────────────────────────────────
 
@@ -45,10 +45,11 @@ export interface RecruitTurnOptions {
    *  or the served pool board — exactly as the live player's End Turn does (the pinned lobby, `pinnedLobby.ts`). */
   deferFight?: boolean;
   /** The seat's card LINEAGE (uid → acquisition route), kept by the caller ACROSS turns so a play / sell / cast
-   *  can say how the card came to be. When given, effects are derived by the recorder's attributer
+   *  can say how the card came to be. Effects are ALWAYS derived by the recorder's attributer
    *  (`effectsFromTransition.ts` — `sourceId` on every card event, routes by lineage, casts by route, triples);
-   *  absent, the runner's own lean diff (`effectsOf`, `targetId`-keyed) is used — kept for callers that predate
-   *  the recorder. `selfPlayLobby` passes one map per seat. */
+   *  a caller that omits the map gets a per-turn throwaway one (cross-turn routes then read `other`). Both lobby
+   *  runners pass one map per seat. The runner's former lean diff (`targetId`-keyed) was retired 2026-09-15: the
+   *  pinned lobby omitted `lineage`, fell through to it, and every real pinned report read "bought 0". */
   lineage?: CardLineage;
 }
 
@@ -105,6 +106,7 @@ export function playRecruitTurn(
 ): RecruitTurnOutcome {
   const maxRejections = opts.maxConsecutiveRejections ?? 3;
   const where = `seat ${ctx.seatId} round ${ctx.round}`;
+  const lineage: CardLineage = opts.lineage ?? new Map();
   let s = run;
   let accepted = 0;
   let consecutiveRejections = 0;
@@ -121,7 +123,7 @@ export function playRecruitTurn(
       preHash,
       postHash: stateHash(after),
     });
-    const evs = opts.lineage ? effectEventsOf(before, after, action, { lobbyId: opts.lobbyId, seatId: ctx.seatId, round: ctx.round }, opts.lineage) : effectsOf(before, after, action, opts.lobbyId, ctx);
+    const evs = effectEventsOf(before, after, action, { lobbyId: opts.lobbyId, seatId: ctx.seatId, round: ctx.round }, lineage);
     for (const ev of evs) recorder.onEffect(ev);
     accepted += 1;
   };
@@ -171,55 +173,6 @@ export function playRecruitTurn(
 function describe(a: Action): string {
   const parts = Object.entries(a).filter(([k]) => k !== 'type').map(([k, v]) => `${k}=${typeof v === 'object' ? JSON.stringify(v) : String(v)}`);
   return parts.length ? `${a.type} ${parts.join(' ')}` : a.type;
-}
-
-/**
- * Attributed gameplay events from ONE accepted transition, by diffing the two immutable states. Direct effects
- * only — what the engine did — never an estimate. Enough for a failure trace to be inspectable (B5 extends).
- */
-function effectsOf(before: RunState, after: RunState, action: Action, lobbyId: string, ctx: SeatContext): EffectEvent[] {
-  const out: EffectEvent[] = [];
-  const base = { lobbyId, seatId: ctx.seatId, round: ctx.round } as const;
-  const handBefore = new Set(before.hand.map((c) => c.uid));
-  const boardBefore = new Set(before.board.map((c) => c.uid));
-  const route: EffectEvent['route'] =
-    action.type === 'buy' ? 'shop'
-      : action.type === 'discover' ? 'discover'
-        : action.type === 'buyRune' ? 'rune'
-          : action.type === 'buyQuest' ? 'quest'
-            : action.type === 'activateEquipment' ? 'equipment'
-              : action.type === 'heroPower' ? 'hero'
-                : 'generated';
-  for (const c of after.hand) {
-    if (handBefore.has(c.uid)) continue;
-    out.push({ ...base, kind: 'cardGained', targetId: c.cardId, targetUid: c.uid, attack: c.attack, health: c.health, route: after.triplesMade > before.triplesMade && c.golden ? 'triple' : route });
-  }
-  for (const c of after.board) {
-    if (boardBefore.has(c.uid)) continue;
-    out.push({ ...base, kind: handBefore.has(c.uid) ? 'cardPlayed' : 'summon', targetId: c.cardId, targetUid: c.uid, attack: c.attack, health: c.health, route: handBefore.has(c.uid) ? 'other' : route });
-  }
-  if (action.type === 'sell') {
-    const sold = before.board.find((c) => c.uid === action.uid) ?? before.hand.find((c) => c.uid === action.uid);
-    if (sold) out.push({ ...base, kind: 'cardSold', targetId: sold.cardId, targetUid: sold.uid, gold: after.embers - before.embers });
-  }
-  if (action.type === 'play') {
-    const card = before.hand.find((c) => c.uid === action.uid);
-    if (card && CARD_INDEX[card.cardId]?.spell) {
-      out.push({ ...base, kind: 'spellCast', sourceId: card.cardId, sourceUid: card.uid, targetUid: action.targetUid, route: 'other' });
-    }
-  }
-  if (action.type === 'heroPower') out.push({ ...base, kind: 'heroPower', targetUid: action.uid, gold: after.embers - before.embers });
-  if (action.type === 'activateEquipment') out.push({ ...base, kind: 'equipmentUsed', targetUid: action.targetUid, gold: after.embers - before.embers });
-  const runesBefore = new Set(before.ownedRunes ?? []);
-  for (const id of after.ownedRunes ?? []) if (!runesBefore.has(id)) out.push({ ...base, kind: 'runePicked', sourceId: id, route: 'rune' });
-  // Permanent stat changes on bodies that were already on the board — the direct buff channel.
-  const statBefore = new Map(before.board.map((c) => [c.uid, { a: c.attack, h: c.health }]));
-  for (const c of after.board) {
-    const prev = statBefore.get(c.uid);
-    if (!prev || (prev.a === c.attack && prev.h === c.health)) continue;
-    out.push({ ...base, kind: 'buff', targetId: c.cardId, targetUid: c.uid, attack: c.attack - prev.a, health: c.health - prev.h, route });
-  }
-  return out;
 }
 
 // ───────────────────────────────────────────── the fight ─────────────────────────────────────────────

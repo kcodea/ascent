@@ -6,11 +6,11 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { registerOpponents } from '../opponents';
 import { playerRunsFrom } from '../lobby/snapshotSeats';
-import type { BoardSnapshot } from '../snapshot';
 import { HERO_INDEX } from '../heroes';
 import { pilotFor } from './pilots';
 import { pilotHeroFor, RECORDING_POLICY_ID, runPinnedLobby } from './pinnedLobby';
 import { NOOP_RECORDER, type ExperimentIdentity, type ExperimentManifest, type LobbyRecord, type SeatPilot } from './types';
+import { PINNED_FIXTURE as FIXTURE, PINNED_FIXTURE_HEROES as FIXTURE_HEROES, PINNED_FIXTURE_SHUFFLED as SHUFFLED, PINNED_FIXTURE_WAVES as WAVES } from './fixtures/pinnedCorpus';
 
 const identity: ExperimentIdentity = { schemaVersion: 1, engineRevision: 'test', dirtyDigest: '', contentDigest: '', poolDigest: '', effectDigest: '', manifestDigest: '' };
 const manifest = (extra: Partial<ExperimentManifest> = {}): ExperimentManifest => ({
@@ -22,22 +22,7 @@ const manifest = (extra: Partial<ExperimentManifest> = {}): ExperimentManifest =
   ...extra,
 });
 
-// ── the fixture corpus: nine recorded set-2 runs, distinct authors + heroes, 14 waves each ──────────────────
-const FIXTURE_HEROES = ['warden', 'indy', 'myra', 'soren', 'rohan', 'nadja', 'cassen', 'drakko', 'robin'];
-const WAVES = 14;
-/** A vanilla set-2 body, scaled with the wave so the greedy pilot LOSES and the elimination path is exercised, and
- *  by `strength` (the run's index) so the recordings' own fights resolve rather than draw forever. */
-const fixtureBoard = (author: string, heroId: string, seed: number, wave: number, patch: string, strength: number): BoardSnapshot => ({
-  v: 1, wave, heroId, resolve: 30, armor: 0, tier: Math.min(6, 1 + Math.floor(wave / 3)), triples: 0,
-  tribes: ['dragon', 'demon', 'beast', 'dwarf', 'kobold'], threat: 'glass', power: 0,
-  minions: Array.from({ length: Math.min(7, wave) }, () => ({ cardId: 'n2_spellsword', attack: 3 + 2 * wave + 4 * strength, health: 4 + 2 * wave + 3 * strength, keywords: [], golden: false })),
-  marksCarried: true, seed, origin: 'self', author, setId: 'set2', patch,
-} as BoardSnapshot);
-const FIXTURE: BoardSnapshot[] = FIXTURE_HEROES.flatMap((heroId, i) =>
-  Array.from({ length: WAVES }, (_, w) => fixtureBoard(`author${i}`, heroId, 5000 + i, w + 1, i % 2 ? '0.1.0+aaaa' : '0.1.0+bbbb', i)));
-// Registration order is shuffled to prove the fill does not depend on it (playerRunsFrom sorts by key).
-const SHUFFLED = [...FIXTURE].sort((a, b) => ((a.seed * 31 + a.wave * 7) % 97) - ((b.seed * 31 + b.wave * 7) % 97));
-
+// ── the fixture corpus (`fixtures/pinnedCorpus.ts`, shared with the tools-side funnel test) ─────────────────
 /** The board a recording fields for `round` — the shipped `boardAt` + exhaustion (repeat final) rule. */
 function expectedBoard(heroId: string, round: number): string[] {
   const snaps = FIXTURE.filter((s) => s.heroId === heroId).sort((a, b) => a.wave - b.wave);
@@ -159,6 +144,23 @@ describe('the pinned lobby', () => {
     const winners = rec.seats.filter((s) => s.placement === 1);
     expect(winners.length).toBeGreaterThanOrEqual(1);
     for (const w of winners) expect(w.termination).toBe(winners.length > 1 ? 'capped' : 'placed');
+  });
+
+  it('every accepted buy is an attributed `cardGained` (sourceId + route shop) — the report’s offer → buy funnel', () => {
+    // Regression (2026-09-15): the pinned runner omitted `lineage`, fell through to the runner's lean `targetId`
+    // diff, and every real pinned report printed `bought 0` for every minion / spell.
+    const buys = rec.actions.filter((a) => a.seatId === 's0' && a.action.type === 'buy');
+    expect(buys.length).toBeGreaterThan(0);
+    const gained = rec.effects.filter((e) => e.seatId === 's0' && e.kind === 'cardGained' && e.route === 'shop');
+    expect(gained.length).toBe(buys.length);
+    for (const e of gained) { expect(e.sourceId).toBeDefined(); expect(e.sourceUid).toBeDefined(); }
+    // …and a bought card that is later PLAYED keeps its lineage: the play event says it came from the shop.
+    const boughtUids = new Set(gained.map((e) => e.sourceUid));
+    const played = rec.effects.filter((e) => e.seatId === 's0' && e.kind === 'cardPlayed' && boughtUids.has(e.sourceUid));
+    expect(played.length).toBeGreaterThan(0);
+    expect(played.every((e) => e.route === 'shop')).toBe(true);
+    // No event of the retired lean diff shape (a card event keyed by `targetId` alone).
+    expect(rec.effects.some((e) => (e.kind === 'cardGained' || e.kind === 'cardPlayed') && !e.sourceId)).toBe(false);
   });
 
   it('is deterministic: the same seed produces a byte-identical record', () => {

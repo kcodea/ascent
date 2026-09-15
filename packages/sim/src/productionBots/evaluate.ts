@@ -260,8 +260,13 @@ export function evaluate(v: BotVisibleState, cfg: EvaluationConfig = ACTIVE_CONF
 
   // Pairs: duplicate non-golden cardIds across board AND hand. Held pairs are how triples happen, and triples
   // are how high-tier cards arrive early — humans averaged 0.9 goldens at wave 10 against our 0.4.
+  // Minions only — a spell or a Ruby never triples (B6, 2026-09-15).
   const copies = new Map<string, number>();
-  for (const c of [...v.board, ...v.hand]) if (!c.golden) copies.set(c.cardId, (copies.get(c.cardId) ?? 0) + 1);
+  for (const c of [...v.board, ...v.hand]) {
+    const def = CARD_INDEX[c.cardId];
+    if (c.golden || !def || def.spell || def.ruby) continue;
+    copies.set(c.cardId, (copies.get(c.cardId) ?? 0) + 1);
+  }
   let pairCount = 0;
   for (const n of copies.values()) pairCount += Math.floor(n / 2);
   const pairsHeld = norm(pairCount, 2);

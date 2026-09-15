@@ -10,6 +10,8 @@ import { recruitCandidates } from './legalActions';
 import { activeGrowth, carryBackOf, CHANNEL_USES, rallyTrial, CREDIT_TURNS, GROWTH_HORIZON, growthKey, growthReference, growthStats, growthTermOf, massOf, probeGrowth, resetGrowthCache, withGrowth } from './growth';
 import { GENERALIST_BUDGETS } from '../balance/generalistPilot';
 import { createStrategistPilot } from '../balance/strategy/strategistPilot';
+import { linePriorBreakdown } from '../balance/strategy/prior';
+import { pickLineForRun } from '../balance/strategy/lines';
 
 /**
  * B6 — ENGINE GROWTH: the term is measured by running the engine forward on a private clone, so the tests pin
@@ -267,5 +269,18 @@ describe('the Ruby cast fix (B6 diagnosis: hands of six Rubies held to eliminati
     expect(next.hand.find((c) => c.uid === 'h0')).toBeUndefined();
     const target = next.board.find((c) => c.uid === 'b0')!;
     expect(target.attack + target.health).toBe(s.board[0]!.attack + s.board[0]!.health + 2);
+  });
+
+  it('two held Rubies (or spells) are not a pair — the prior no longer pays the pilot to hold them', () => {
+    const s = run({ wave: 5, tier: 2, board: [body('b0', 'stray')], hand: [body('h0', 'ruby'), body('h1', 'ruby')] });
+    const line = pickLineForRun(s.heroId, s.tribes, s.seed, 0, 'set2');
+    const withRubies = linePriorBreakdown(toBotVisibleState(s), line);
+    const cast = linePriorBreakdown(toBotVisibleState({ ...s, hand: [] }), line);
+    expect(withRubies.pairs).toBe(0);
+    expect(withRubies.pairs).toBe(cast.pairs);
+    expect(evaluate(toBotVisibleState(s)).pairsHeld).toBe(0);
+    // A real minion pair still counts.
+    const pair = run({ wave: 5, tier: 2, board: [body('b0', 'dw_orin')], hand: [body('h0', 'dw_orin')] });
+    expect(linePriorBreakdown(toBotVisibleState(pair), line).pairs).toBeGreaterThan(0);
   });
 });

@@ -55,6 +55,13 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-09-15',
+    label: 'Runeforge commits',
+    changes: [
+      { category: 'UI / Info', text: 'The Runeforge no longer offers a way to leave without a rune — pick one of the offered Runes (the free re-roll is still there).' },
+    ],
+  },
+  {
     date: '2026-09-14',
     label: 'Starform creation',
     changes: [

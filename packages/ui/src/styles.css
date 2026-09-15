@@ -2532,15 +2532,13 @@ body.modalup .app { z-index: auto; }
   --cw: calc(var(--ch) * 0.752);
   --ccw: calc(var(--cw) * 0.85);
 }
-/* Re-roll + leave — a chiseled button row under the rune tablets. */
+/* Re-roll — a chiseled button row under the rune tablets (the player must pick a rune; there is no leave button, owner 2026-09-15). */
 .forge-actions {
   display: flex; align-items: center; justify-content: center; gap: calc(14 * var(--u));
   margin-top: calc(18 * var(--u) + var(--rfl-footer-y, -3) * var(--u));
   transform: scale(var(--rfl-footer-scale, 1.18)); transform-origin: top center;
 }
-.forge-skip { display: inline-flex; align-items: center; font-family: var(--font-ui); font-weight: 700; font-size: calc(13 * var(--u)); letter-spacing: 0.03em; color: #b9b5ab; background: rgba(255, 255, 255, 0.05); border: 2px solid rgba(255, 255, 255, 0.16); padding: calc(8 * var(--u)) calc(20 * var(--u)); border-radius: calc(11 * var(--u)); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
-.forge-skip:hover { color: #e6e2d7; border-color: rgba(255, 255, 255, 0.3); background: rgba(255, 255, 255, 0.09); }
-/* Re-roll — the once-per-visit gold-spend, warmer than the leave button so it reads as the active option. */
+/* Re-roll — the once-per-visit gold-spend. */
 .forge-reroll { display: inline-flex; align-items: center; gap: calc(6 * var(--u)); font-family: var(--font-ui); font-weight: 800; font-size: calc(13 * var(--u)); letter-spacing: 0.03em; color: #4a3208; background: linear-gradient(#ffe293, #eab63f 62%, #d79b2c); border: 2px solid #8a6414; padding: calc(8 * var(--u)) calc(18 * var(--u)); border-radius: calc(11 * var(--u)); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 2px 4px rgba(0, 0, 0, 0.35); }
 .forge-reroll:hover:not(:disabled) { filter: brightness(1.06); }
 .forge-reroll:disabled { opacity: 0.45; filter: saturate(0.7); cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }

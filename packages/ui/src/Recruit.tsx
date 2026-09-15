@@ -7482,7 +7482,6 @@ export function Recruit() {
                   <Icon name="refresh" /> Re-roll · <b className="forge-reroll-cost">Free</b>
                 </button>
               )}
-              <button className="forge-skip" onClick={() => dispatch({ type: 'skipRuneforge' })}>Leave without a Rune</button>
             </div>
           </div>
         </div>
